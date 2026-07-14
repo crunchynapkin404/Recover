@@ -3,6 +3,8 @@ import { db, schema } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { AppShell } from "@/components/app-shell";
 import { IntervalsCard } from "@/components/settings/intervals-card";
+import { NotificationsCard } from "@/components/settings/notifications-card";
+import { getVapidKeys } from "@/lib/push";
 import { LlmSettingsCard } from "@/components/settings/llm-settings-card";
 import { ApiTokensCard } from "@/components/settings/api-tokens-card";
 import { StravaCard } from "@/components/settings/strava-card";
@@ -42,6 +44,17 @@ export default async function SettingsPage({
       isNull(schema.apiTokens.revokedAt)
     ),
   });
+
+  const [vapid, notificationPrefs, pushSubs] = await Promise.all([
+    getVapidKeys(),
+    db.query.notificationPrefs.findFirst({
+      where: eq(schema.notificationPrefs.userId, user.id),
+    }),
+    db.query.pushSubscriptions.findMany({
+      where: eq(schema.pushSubscriptions.userId, user.id),
+      columns: { id: true },
+    }),
+  ]);
 
   return (
     <AppShell>
@@ -145,6 +158,13 @@ export default async function SettingsPage({
             lastUsedAt: t.lastUsedAt?.toISOString() ?? null,
             createdAt: t.createdAt.toISOString(),
           }))}
+        />
+
+        {/* Notifications */}
+        <NotificationsCard
+          vapidPublicKey={vapid.publicKey}
+          morningPushEnabled={notificationPrefs?.morningPushEnabled ?? true}
+          subscriptionCount={pushSubs.length}
         />
 
         {/* App Preferences */}
