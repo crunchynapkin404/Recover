@@ -10,5 +10,9 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["src/**/*.test.ts", "tests/**/*.test.ts"],
+    // Integration tests share one Postgres and several (scheduler.test.ts,
+    // morning-hook.test.ts) tick the same sync_jobs queue — parallel files
+    // would steal each other's jobs.
+    fileParallelism: false,
   },
 });

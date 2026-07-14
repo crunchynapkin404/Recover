@@ -119,6 +119,16 @@ export async function runSchedulerTick(
         kind: "incremental",
         runAfter: nextMorning(),
       });
+      // Morning readiness push — guards inside make this at-most-once/day.
+      try {
+        const { maybeSendMorningReadinessPush } = await import("@/lib/push");
+        await maybeSendMorningReadinessPush(job.userId);
+      } catch (err) {
+        logger.error("morning push hook failed", {
+          userId: job.userId,
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
     } catch (err) {
       failed++;
       const message = err instanceof Error ? err.message : String(err);
