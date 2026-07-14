@@ -31,7 +31,8 @@ async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
       date: r.date,
       hrv_ms: r.hrvMs,
       resting_hr: r.restingHr,
-      sleep_hours: r.sleepSecs != null ? +(r.sleepSecs / 3600).toFixed(1) : null,
+      sleep_hours:
+        r.sleepSecs != null ? +(r.sleepSecs / 3600).toFixed(1) : null,
       sleep_score: r.sleepScore,
       ctl: r.ctl,
       atl: r.atl,

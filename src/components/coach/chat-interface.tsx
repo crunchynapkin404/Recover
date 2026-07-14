@@ -4,8 +4,7 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { useCallback, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { ArrowLeft, Plus, Send } from "lucide-react";
 
 interface ThreadSummary {
   id: string;
@@ -33,7 +32,13 @@ export function ChatInterface({ configured, threads }: Props) {
     [activeThreadId]
   );
 
-  const { messages, sendMessage, status, setMessages } = useChat({
+  const {
+    messages,
+    sendMessage,
+    status,
+    setMessages,
+    error: chatError,
+  } = useChat({
     transport,
     onFinish() {
       scrollRef.current?.scrollTo({
@@ -86,108 +91,189 @@ export function ChatInterface({ configured, threads }: Props) {
 
   if (!configured) {
     return (
-      <Card className="mx-auto max-w-md">
-        <CardContent className="pt-6">
-          <p className="text-muted-foreground mb-4">
+      <div className="flex min-h-[60svh] items-center justify-center px-6">
+        <div className="glass mx-auto max-w-sm rounded-[2.5rem] p-8 text-center">
+          <p className="mb-4 text-sm text-white/60">
             The AI coach needs an LLM key to work. Add your Anthropic API key or
             configure a local Ollama endpoint in Settings.
           </p>
-          <Button render={<Link href="/settings" />} nativeButton={false}>
+          <Link
+            href="/settings"
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-6 py-3 font-bold text-black transition-all hover:bg-emerald-400"
+          >
             Configure AI Coach
-          </Button>
-        </CardContent>
-      </Card>
+          </Link>
+        </div>
+      </div>
     );
   }
 
+  const suggestions = [
+    "How should I train today?",
+    "Why is my HRV low?",
+    "Analyze my week",
+  ];
+
   return (
-    <div className="flex gap-4" style={{ height: "calc(100svh - 180px)" }}>
-      {/* Thread sidebar */}
-      <aside className="hidden w-56 shrink-0 overflow-y-auto md:block">
-        <Button
-          variant="outline"
-          size="sm"
-          className="mb-3 w-full"
-          onClick={startNewChat}
-        >
-          + New chat
-        </Button>
-        <div className="grid gap-1">
+    <div className="flex min-h-svh flex-col">
+      {/* ── Header ──────────────────────────────────────────────────── */}
+      <header className="relative z-20 px-6 pb-4 pt-8">
+        <div className="flex items-center justify-between">
+          <Link
+            href="/"
+            className="glass flex h-10 w-10 items-center justify-center rounded-full transition-transform active:scale-95"
+          >
+            <ArrowLeft className="size-[18px]" />
+          </Link>
+          <div className="flex flex-col items-center">
+            <h1 className="text-lg font-bold tracking-tight">AI Coach</h1>
+            <div className="flex items-center gap-1.5 opacity-60">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              <span className="text-[9px] font-bold uppercase tracking-widest">
+                Personalized Logic
+              </span>
+            </div>
+          </div>
+          <button
+            onClick={startNewChat}
+            className="glass flex h-10 w-10 items-center justify-center rounded-full transition-transform active:scale-95"
+          >
+            <Plus className="size-[18px]" />
+          </button>
+        </div>
+
+        {/* Thread pills */}
+        <div className="hide-scrollbar -mx-6 mt-4 flex gap-2 overflow-x-auto px-6">
+          <button
+            onClick={startNewChat}
+            className={`glass whitespace-nowrap rounded-full px-4 py-2 text-[10px] font-bold uppercase tracking-wider ${
+              !activeThreadId ? "bg-white/10 text-white" : "text-white/50"
+            }`}
+          >
+            Today
+          </button>
           {threadList.map((t) => (
             <button
               key={t.id}
               onClick={() => loadThread(t.id)}
-              className={`truncate rounded-md px-2 py-1.5 text-left text-sm transition-colors ${
+              className={`glass whitespace-nowrap rounded-full px-4 py-2 text-[10px] font-bold uppercase tracking-wider ${
                 t.id === activeThreadId
-                  ? "bg-accent text-accent-foreground"
-                  : "text-muted-foreground hover:bg-accent/50"
+                  ? "bg-white/10 text-white"
+                  : "text-white/50"
               }`}
             >
               {t.title}
             </button>
           ))}
         </div>
-      </aside>
+      </header>
 
-      {/* Chat area */}
-      <div className="flex min-w-0 flex-1 flex-col">
-        {/* Messages */}
-        <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto pb-4">
-          {messages.length === 0 && (
-            <div className="text-muted-foreground flex h-full items-center justify-center text-center text-sm">
-              <p>
-                Ask about your readiness, training load, recovery trends, or
-                anything related to your training.
-              </p>
-            </div>
-          )}
-          {messages.map((m) => {
-            const text = m.parts
-              ?.filter((p): p is { type: "text"; text: string } => p.type === "text")
+      {/* ── Messages ────────────────────────────────────────────────── */}
+      <main
+        ref={scrollRef}
+        className="hide-scrollbar flex-1 overflow-y-auto px-6 pb-56 pt-2"
+      >
+        {messages.length === 0 && (
+          <div className="flex h-full items-center justify-center text-center text-sm text-white/50">
+            <p>
+              Ask about your readiness, training load, recovery trends, or
+              anything related to your training.
+            </p>
+          </div>
+        )}
+        {messages.map((m) => {
+          const text =
+            m.parts
+              ?.filter(
+                (p): p is { type: "text"; text: string } => p.type === "text"
+              )
               .map((p) => p.text)
               .join("") ?? "";
-            if (!text) return null;
-            return (
+          if (!text) return null;
+          const isUser = m.role === "user";
+          return (
+            <div
+              key={m.id}
+              className={`mb-6 flex w-full flex-col ${
+                isUser
+                  ? "ml-auto max-w-[85%] items-end"
+                  : "max-w-[90%] items-start"
+              }`}
+            >
               <div
-                key={m.id}
-                className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
+                className={`rounded-2xl p-4 text-sm leading-relaxed text-white/90 ${
+                  isUser ? "chat-bubble-user" : "chat-bubble-ai"
+                }`}
               >
-                <div
-                  className={`max-w-[80%] rounded-lg px-3 py-2 text-sm whitespace-pre-wrap ${
-                    m.role === "user"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted"
-                  }`}
-                >
-                  {text}
-                </div>
+                <span className="whitespace-pre-wrap">{text}</span>
               </div>
-            );
-          })}
-          {isLoading &&
-            messages.at(-1)?.role !== "assistant" && (
-              <div className="flex justify-start">
-                <div className="bg-muted rounded-lg px-3 py-2 text-sm">
-                  <span className="animate-pulse">Thinking…</span>
-                </div>
-              </div>
-            )}
-        </div>
-
-        {/* Input */}
-        <form onSubmit={handleSubmit} className="border-t pt-3">
-          <div className="flex gap-2">
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask about your recovery…"
-              className="border-input bg-background flex-1 rounded-md border px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring"
-              disabled={isLoading}
-            />
-            <Button type="submit" disabled={isLoading || !input.trim()}>
-              Send
-            </Button>
+              <span className="mt-2 text-[9px] font-bold uppercase text-white/50">
+                {new Date().toLocaleTimeString([], {
+                  hour: "numeric",
+                  minute: "2-digit",
+                })}
+              </span>
+            </div>
+          );
+        })}
+        {isLoading && (
+          <div className="mb-6 flex max-w-[85%] flex-col items-start">
+            <div className="chat-bubble-ai rounded-2xl p-4 text-sm">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400 [animation-delay:0.2s]" />
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400 [animation-delay:0.4s]" />
+              </span>
+            </div>
           </div>
+        )}
+        {chatError && (
+          <div className="mb-6 flex max-w-[85%] flex-col items-start">
+            <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-400">
+              Coach error:{" "}
+              {chatError.message || "Connection failed. Check LLM settings."}
+            </div>
+          </div>
+        )}
+
+        {/* Suggestion pills */}
+        {messages.length === 0 && (
+          <div className="hide-scrollbar -mx-6 mt-4 flex gap-2 overflow-x-auto px-6">
+            {suggestions.map((s) => (
+              <button
+                key={s}
+                onClick={() => {
+                  setInput(s);
+                }}
+                className="glass whitespace-nowrap rounded-xl border-white/5 px-4 py-2 text-[11px] font-medium text-white/60"
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        )}
+      </main>
+
+      {/* ── Input area ──────────────────────────────────────────────── */}
+      <div className="fixed bottom-24 left-0 z-40 w-full px-6">
+        <form
+          onSubmit={handleSubmit}
+          className="flex items-center gap-2 rounded-[2rem] border border-white/8 bg-white/3 p-2 shadow-2xl backdrop-blur-xl"
+        >
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Ask your coach..."
+            className="flex-1 bg-transparent px-2 py-2 text-sm text-white outline-none placeholder:text-white/50"
+            disabled={isLoading}
+          />
+          <button
+            type="submit"
+            disabled={isLoading || !input.trim()}
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500 text-black shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-transform active:scale-90 disabled:opacity-40"
+          >
+            <Send className="size-[18px]" />
+          </button>
         </form>
       </div>
     </div>

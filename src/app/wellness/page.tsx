@@ -1,15 +1,7 @@
-import { requireUser } from "@/lib/session";
-import { AppShell } from "@/components/app-shell";
-import { WellnessForm } from "@/components/wellness-form";
+import { redirect } from "next/navigation";
 
-export default async function WellnessPage() {
-  await requireUser();
-
-  return (
-    <AppShell title="Log wellness">
-      <div className="mx-auto w-full max-w-2xl">
-        <WellnessForm />
-      </div>
-    </AppShell>
-  );
+// Wellness logging is now handled by /journal
+// Keep this route alive so old bookmarks redirect
+export default function WellnessPage() {
+  redirect("/journal");
 }

@@ -27,9 +27,7 @@ export async function createApiToken(
 
   const scopesRaw = String(formData.get("scopes") ?? "read").trim();
   const validScopes = ["read", "write:wellness"];
-  const scopes = scopesRaw
-    .split("|")
-    .filter((s) => validScopes.includes(s));
+  const scopes = scopesRaw.split("|").filter((s) => validScopes.includes(s));
   if (scopes.length === 0) {
     return { ok: false, message: "At least one scope is required." };
   }
@@ -55,7 +53,9 @@ export async function createApiToken(
   };
 }
 
-export async function revokeApiToken(tokenId: string): Promise<TokenActionResult> {
+export async function revokeApiToken(
+  tokenId: string
+): Promise<TokenActionResult> {
   const user = await requireUser();
 
   // Verify ownership

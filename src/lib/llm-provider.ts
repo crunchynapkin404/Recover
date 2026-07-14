@@ -11,7 +11,8 @@ import { db, schema } from "@/lib/db";
 import { decrypt } from "@/lib/crypto";
 
 export interface ResolvedProvider {
-  provider: ReturnType<typeof createAnthropic> | ReturnType<typeof createOpenAI>;
+  provider:
+    ReturnType<typeof createAnthropic> | ReturnType<typeof createOpenAI>;
   model: string;
   providerType: "anthropic" | "openai_compatible";
 }
@@ -41,9 +42,14 @@ export async function resolveProvider(
   }
 
   // openai_compatible — works with Ollama, Together, local LLMs, etc.
+  let baseURL = settings.baseUrl ?? "http://localhost:11434/v1";
+  // Ensure /v1 suffix for OpenAI-compatible endpoints (Ollama, etc.)
+  if (!baseURL.endsWith("/v1") && !baseURL.endsWith("/v1/")) {
+    baseURL = baseURL.replace(/\/$/, "") + "/v1";
+  }
   const provider = createOpenAI({
     apiKey: apiKey ?? "ollama", // Ollama doesn't need a real key
-    baseURL: settings.baseUrl ?? "http://localhost:11434/v1",
+    baseURL,
   });
   return { provider, model: settings.model, providerType: "openai_compatible" };
 }

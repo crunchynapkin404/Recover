@@ -184,6 +184,9 @@ export const wellnessDaily = pgTable(
     energy1_10: integer("energy_1_10"),
     soreness1_10: integer("soreness_1_10"),
     stress1_10: integer("stress_1_10"),
+    mood: text("mood"),
+    tags: jsonb("tags").$type<string[]>(),
+    notes: text("notes"),
     source: text("source", { enum: ["intervals_icu", "manual", "strava"] })
       .notNull()
       .default("intervals_icu"),

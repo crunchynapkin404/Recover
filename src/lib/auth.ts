@@ -9,6 +9,12 @@ export const auth = betterAuth({
     usePlural: true,
     schema,
   }),
+  // Extra origins (LAN IP, tunnel hostname) via env — never hardcoded.
+  // BETTER_AUTH_URL's origin is trusted implicitly.
+  trustedOrigins: (process.env.TRUSTED_ORIGINS ?? "")
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean),
   emailAndPassword: {
     enabled: true,
     // Invite-only: the owner is seeded (scripts/seed-owner.ts); friends join

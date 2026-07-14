@@ -12,5 +12,10 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!login|api/auth|api/health|_next|favicon.ico).*)"],
+  // /api/mcp and /api/cron authenticate with bearer tokens/secrets, not
+  // session cookies — they must bypass the session redirect or external
+  // clients get 307'd to /login before the handler runs.
+  matcher: [
+    "/((?!login|api/auth|api/health|api/mcp|api/cron|_next|favicon.ico).*)",
+  ],
 };

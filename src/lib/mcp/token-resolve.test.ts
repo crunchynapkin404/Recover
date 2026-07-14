@@ -26,7 +26,12 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 
-import { resolveToken, hashToken, hasScope, type TokenInfo } from "@/lib/mcp/token-auth";
+import {
+  resolveToken,
+  hashToken,
+  hasScope,
+  type TokenInfo,
+} from "@/lib/mcp/token-auth";
 import { db } from "@/lib/db";
 
 describe("resolveToken", () => {

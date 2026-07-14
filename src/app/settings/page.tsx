@@ -5,6 +5,8 @@ import { AppShell } from "@/components/app-shell";
 import { IntervalsCard } from "@/components/settings/intervals-card";
 import { LlmSettingsCard } from "@/components/settings/llm-settings-card";
 import { ApiTokensCard } from "@/components/settings/api-tokens-card";
+import { SignOutButton } from "@/components/sign-out-button";
+import { User } from "lucide-react";
 
 export default async function SettingsPage() {
   const user = await requireUser();
@@ -28,22 +30,75 @@ export default async function SettingsPage() {
   });
 
   return (
-    <AppShell title="Settings">
-      <div className="mx-auto grid w-full max-w-2xl gap-6">
-        <IntervalsCard
-          connection={
-            connection
-              ? {
-                  athleteName:
-                    connection.externalAthleteName ??
-                    connection.externalAthleteId,
-                  status: connection.status,
-                  lastSyncAt: connection.lastSyncAt?.toISOString() ?? null,
-                  lastError: connection.lastError,
-                }
-              : null
-          }
-        />
+    <AppShell>
+      {/* Header */}
+      <header className="mb-8 pt-8">
+        <h1 className="text-2xl font-bold tracking-tighter">Settings</h1>
+        <p className="mt-1 text-xs font-medium uppercase tracking-widest text-white/50">
+          App configuration & accounts
+        </p>
+      </header>
+
+      <div className="space-y-6">
+        {/* Profile */}
+        <section className="glass rounded-[2rem] p-6">
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="label-micro">Profile</h3>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="glass flex h-14 w-14 items-center justify-center rounded-full border-white/10">
+              <User className="size-6 text-white/60" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-lg font-bold">
+                {user.name ?? "Athlete"}
+              </span>
+              <span className="text-sm text-white/50">{user.email}</span>
+            </div>
+          </div>
+          <div className="mt-4 border-t border-white/5 pt-4">
+            <SignOutButton />
+          </div>
+        </section>
+
+        {/* Connections */}
+        <section className="space-y-4">
+          <h3 className="label-micro px-2">Connections</h3>
+          <IntervalsCard
+            connection={
+              connection
+                ? {
+                    athleteName:
+                      connection.externalAthleteName ??
+                      connection.externalAthleteId,
+                    status: connection.status,
+                    lastSyncAt: connection.lastSyncAt?.toISOString() ?? null,
+                    lastError: connection.lastError,
+                  }
+                : null
+            }
+          />
+
+          {/* Strava Coming Soon */}
+          <div className="glass flex items-center justify-between rounded-[2rem] p-5 opacity-60">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-orange-500/20 bg-orange-500/10">
+                <span className="text-xl text-orange-400">↗</span>
+              </div>
+              <div>
+                <p className="text-sm font-bold">Strava Integration</p>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-white/50">
+                  Not Connected
+                </span>
+              </div>
+            </div>
+            <span className="rounded bg-orange-500/20 px-2 py-1 text-[8px] font-bold uppercase tracking-widest text-orange-400">
+              Soon
+            </span>
+          </div>
+        </section>
+
+        {/* AI Coach */}
         <LlmSettingsCard
           settings={
             llmSettings
@@ -56,6 +111,8 @@ export default async function SettingsPage() {
               : null
           }
         />
+
+        {/* MCP Tokens */}
         <ApiTokensCard
           tokens={apiTokens.map((t) => ({
             id: t.id,
@@ -65,6 +122,49 @@ export default async function SettingsPage() {
             createdAt: t.createdAt.toISOString(),
           }))}
         />
+
+        {/* App Preferences */}
+        <section className="glass rounded-[2.5rem] p-6 space-y-4">
+          <h3 className="label-micro">App Preferences</h3>
+          <div className="space-y-1">
+            <div className="flex items-center justify-between py-3">
+              <div className="flex flex-col">
+                <span className="text-sm font-medium">Appearance</span>
+                <span className="text-[10px] font-bold uppercase text-white/50">
+                  Dark (only theme for now)
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center justify-between border-t border-white/5 py-3">
+              <div className="flex flex-col">
+                <span className="text-sm font-medium">Data Export</span>
+                <span className="text-[10px] font-bold uppercase text-white/50">
+                  Download all your data as JSON
+                </span>
+              </div>
+              <a
+                href="/api/export"
+                download
+                aria-label="Download all your data as JSON"
+                className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-white/80 transition-colors hover:bg-white/10"
+              >
+                Export
+              </a>
+            </div>
+          </div>
+        </section>
+
+        {/* About */}
+        <section className="pb-12 text-center">
+          <div className="flex flex-col items-center gap-2">
+            <h2 className="text-xl font-bold tracking-tighter opacity-40">
+              Recover
+            </h2>
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/50">
+              Self-hosted · AGPL-3.0
+            </p>
+          </div>
+        </section>
       </div>
     </AppShell>
   );

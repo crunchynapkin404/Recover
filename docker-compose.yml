@@ -8,6 +8,8 @@ services:
       POSTGRES_DB: recover
     volumes:
       - recover-db:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5434:5432" # host-side tooling (drizzle-kit, psql); not exposed on LAN
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U recover -d recover"]
       interval: 5s
@@ -27,6 +29,7 @@ services:
       BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
       OWNER_EMAIL: ${OWNER_EMAIL:-}
       OWNER_PASSWORD: ${OWNER_PASSWORD:-}
+      TRUSTED_ORIGINS: ${TRUSTED_ORIGINS:-}
     depends_on:
       db:
         condition: service_healthy

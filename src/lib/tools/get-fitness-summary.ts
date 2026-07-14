@@ -31,9 +31,10 @@ async function execute(_args: z.infer<typeof parameters>, ctx: ToolContext) {
   return {
     ctl: latest?.ctl ?? null,
     atl: latest?.atl ?? null,
-    tsb: latest?.ctl != null && latest?.atl != null
-      ? +(latest.ctl - latest.atl).toFixed(1)
-      : null,
+    tsb:
+      latest?.ctl != null && latest?.atl != null
+        ? +(latest.ctl - latest.atl).toFixed(1)
+        : null,
     eftp: latest?.eftp ?? null,
     period_days: 42,
     activity_count: activities.length,

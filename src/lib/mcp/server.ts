@@ -5,8 +5,11 @@
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { RequestHandlerExtra } from "@modelcontextprotocol/sdk/shared/protocol.js";
-import type { ServerRequest, ServerNotification } from "@modelcontextprotocol/sdk/types.js";
-import { allTools } from "@/lib/tools/registry";
+import type {
+  ServerRequest,
+  ServerNotification,
+} from "@modelcontextprotocol/sdk/types.js";
+import { allTools, requiredScope } from "@/lib/tools/registry";
 import { db } from "@/lib/db";
 import type { Scope } from "@/lib/mcp/token-auth";
 
@@ -33,9 +36,10 @@ export function createMcpServer(): McpServer {
   // Register each tool from the shared registry
   for (const toolDef of allTools) {
     // Extract the raw Zod shape from z.object() for the MCP SDK
-    const zodShape = "shape" in toolDef.parameters
-      ? (toolDef.parameters as { shape: Record<string, unknown> }).shape
-      : {};
+    const zodShape =
+      "shape" in toolDef.parameters
+        ? (toolDef.parameters as { shape: Record<string, unknown> }).shape
+        : {};
 
     if (Object.keys(zodShape).length > 0) {
       server.tool(
@@ -48,20 +52,17 @@ export function createMcpServer(): McpServer {
       );
     } else {
       // No-param tools
-      server.tool(
-        toolDef.name,
-        toolDef.description,
-        async (extra: Extra) => {
-          return executeToolHandler(toolDef, {}, extra);
-        }
-      );
+      server.tool(toolDef.name, toolDef.description, async (extra: Extra) => {
+        return executeToolHandler(toolDef, {}, extra);
+      });
     }
   }
 
   return server;
 }
 
-async function executeToolHandler(
+/** Exported for security tests (scope + auth enforcement). */
+export async function executeToolHandler(
   toolDef: (typeof allTools)[number],
   args: Record<string, unknown>,
   extra: Extra
@@ -74,11 +75,18 @@ async function executeToolHandler(
     };
   }
 
-  // Scope check for write tools
+  // Generic scope enforcement: every tool declares its required scope
+  // (default "read") — nothing dispatches without it.
   const scopes = (extra.authInfo?.scopes ?? []) as Scope[];
-  if (toolDef.name === "log_wellness" && !scopes.includes("write:wellness")) {
+  const needed = requiredScope(toolDef);
+  if (!scopes.includes(needed)) {
     return {
-      content: [{ type: "text" as const, text: "Insufficient scope: write:wellness required." }],
+      content: [
+        {
+          type: "text" as const,
+          text: `Insufficient scope: ${needed} required.`,
+        },
+      ],
       isError: true,
     };
   }
@@ -86,7 +94,9 @@ async function executeToolHandler(
   try {
     const result = await toolDef.execute(args, { userId, db });
     return {
-      content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
+      content: [
+        { type: "text" as const, text: JSON.stringify(result, null, 2) },
+      ],
     };
   } catch (err) {
     return {

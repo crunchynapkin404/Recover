@@ -23,7 +23,7 @@ P0–P2 shipped with CI green. P3 (AI coach) and P4 (MCP endpoint) were then bui
 
 Fix in this order: (a) proxy matcher excludes `/api/mcp` + `/api/cron` **with regression tests**; (b) implement `log_wellness`, `get_activity`, `get_training_load_summary`; enforce scopes in dispatch (+ the four missing security tests); (c) one registry→AI-SDK path shared by chat and MCP, tools wired for OpenAI-compatible providers (prefer `@ai-sdk/openai-compatible`), verify on real Ollama; (d) journal: persist mood/tags/notes (schema migration: add `mood`, `tags jsonb`, `notes` to wellness_daily) or remove the controls; add sleep/stress inputs; (e) infra: unpublish db port (or bind 127.0.0.1), env-driven trusted origins; (f) remove or wire every dead control, replace fake log-page SVGs with real `daily_metrics`/`activities` data; (g) restore aria labels + fix contrast; (h) purge orphaned components (old wellness-form, unused charts) — or delete the redesign pieces not worth keeping; (i) run `/security-review`; only then commit the redesign and proceed to tunnel exposure + P5.
 
-**P4R DoD:** claude.ai connector *and* Claude Code list tools and fetch readiness through the tunnel; Ollama coach cites real numbers; scope/isolation/regression tests green; zero non-functional controls; security review passed.
+**P4R DoD:** claude.ai connector _and_ Claude Code list tools and fetch readiness through the tunnel; Ollama coach cites real numbers; scope/isolation/regression tests green; zero non-functional controls; security review passed.
 
 ---
 

@@ -1,4 +1,4 @@
-import { streamText } from "ai";
+import { stepCountIs, streamText } from "ai";
 import { headers } from "next/headers";
 import { eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
@@ -21,20 +21,39 @@ export async function POST(req: Request) {
 
   // Parse request body
   const body = await req.json();
-  const { messages, threadId } = body as {
-    messages: Array<{ role: string; content: string }>;
+  const { messages: rawMessages, threadId } = body as {
+    messages: Array<{
+      role: string;
+      content?: string;
+      parts?: Array<{ type: string; text?: string }>;
+    }>;
     threadId?: string;
   };
 
-  if (!messages || !Array.isArray(messages) || messages.length === 0) {
+  if (!rawMessages || !Array.isArray(rawMessages) || rawMessages.length === 0) {
     return new Response("messages required", { status: 400 });
   }
+
+  // Normalize: AI SDK v7 sends parts[], older format sends content
+  const messages = rawMessages.map((m) => ({
+    role: m.role,
+    content:
+      m.content ??
+      m.parts
+        ?.filter((p) => p.type === "text")
+        .map((p) => p.text)
+        .join("") ??
+      "",
+  }));
 
   // Resolve LLM provider
   const resolved = await resolveProvider(userId);
   if (!resolved) {
     return Response.json(
-      { error: "No LLM configured. Go to Settings → AI Coach to add your API key." },
+      {
+        error:
+          "No LLM configured. Go to Settings → AI Coach to add your API key.",
+      },
       { status: 422 }
     );
   }
@@ -61,7 +80,7 @@ export async function POST(req: Request) {
 
   // Persist the user message
   const lastUserMsg = messages[messages.length - 1];
-  if (lastUserMsg?.role === "user") {
+  if (lastUserMsg?.role === "user" && lastUserMsg.content) {
     await db.insert(schema.chatMessages).values({
       threadId: activeThreadId,
       role: "user",
@@ -75,7 +94,9 @@ export async function POST(req: Request) {
     todayDate: new Date().toISOString().slice(0, 10),
   });
 
-  // Build tool registry bound to this user
+  // One registry, every provider: OpenAI-compatible endpoints (Ollama, LM
+  // Studio, OpenRouter) support tool calling too — without tools the coach
+  // can only hallucinate numbers, which the persona forbids.
   const tools = buildAiSdkTools({ userId, db });
 
   // Stream the response
@@ -87,9 +108,10 @@ export async function POST(req: Request) {
       content: m.content,
     })),
     tools,
+    stopWhen: stepCountIs(6),
     onFinish: async ({ text }) => {
-      // Persist assistant response
-      if (text && activeThreadId) {
+      // Persist assistant response (skip if empty — e.g. tool-only responses)
+      if (text?.trim() && activeThreadId) {
         await db.insert(schema.chatMessages).values({
           threadId: activeThreadId,
           role: "assistant",

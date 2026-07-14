@@ -53,7 +53,8 @@ async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
       sport: a.sport,
       name: a.name,
       duration_min: a.durationS != null ? +(a.durationS / 60).toFixed(0) : null,
-      distance_km: a.distanceM != null ? +(a.distanceM / 1000).toFixed(1) : null,
+      distance_km:
+        a.distanceM != null ? +(a.distanceM / 1000).toFixed(1) : null,
       load: a.load != null ? +a.load.toFixed(0) : null,
       avg_hr: a.avgHr != null ? +a.avgHr.toFixed(0) : null,
       avg_power: a.avgPower != null ? +a.avgPower.toFixed(0) : null,

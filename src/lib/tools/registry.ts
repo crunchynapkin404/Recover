@@ -1,19 +1,22 @@
 /**
  * Tool registry — Principle 2: one registry, two consumers (AI coach + MCP).
  *
- * Each tool is `{name, description, parameters (zod), execute({userId, db})}`.
- * The registry exports both the raw tool definitions (for MCP) and an
- * AI SDK-compatible `tools` object (for /api/chat).
+ * Each tool is `{name, description, parameters (zod), scope?, execute({userId, db})}`.
+ * Both consumers derive their tool wiring from `allTools` — never hand-list
+ * tools elsewhere (that divergence shipped a broken Ollama path once already).
  */
 
 import { tool as aiTool } from "ai";
 import type { z } from "zod";
 import type { Database } from "@/lib/db";
+import type { Scope } from "@/lib/mcp/token-auth";
 
 export interface ToolDefinition<T extends z.ZodType = z.ZodType> {
   name: string;
   description: string;
   parameters: T;
+  /** Required token scope. Defaults to "read". */
+  scope?: Scope;
   execute: (args: z.infer<T>, ctx: ToolContext) => Promise<unknown>;
 }
 
@@ -22,59 +25,48 @@ export interface ToolContext {
   db: Database;
 }
 
-// Import all tools
 import { getReadiness } from "./get-readiness";
 import { getReadinessHistory } from "./get-readiness-history";
 import { getWellness } from "./get-wellness";
 import { getFitnessSummary } from "./get-fitness-summary";
 import { listActivities } from "./list-activities";
+import { getActivity } from "./get-activity";
 import { getAthleteProfile } from "./get-athlete-profile";
+import { getTrainingLoadSummary } from "./get-training-load-summary";
+import { logWellnessTool } from "./log-wellness";
 
-/** All registered tools. */
+/** All registered tools (9 — docs/PLAN.md MCP design). */
 export const allTools: ToolDefinition[] = [
   getReadiness,
   getReadinessHistory,
   getWellness,
   getFitnessSummary,
   listActivities,
+  getActivity,
   getAthleteProfile,
+  getTrainingLoadSummary,
+  logWellnessTool,
 ];
 
+/** Required scope for a tool (default "read"). */
+export function requiredScope(tool: ToolDefinition): Scope {
+  return tool.scope ?? "read";
+}
+
 /**
- * Build AI SDK tools object for use with `streamText()`.
- * Each tool is bound to the given context (userId + db).
+ * Build the AI SDK tools object for `streamText()` from the registry,
+ * bound to the given context. The in-app coach runs under the user's own
+ * session, so every registered tool is available regardless of scope.
  */
 export function buildAiSdkTools(ctx: ToolContext) {
-  return {
-    get_readiness: aiTool({
-      description: getReadiness.description,
-      inputSchema: getReadiness.parameters,
-      execute: async (args) => getReadiness.execute(args, ctx),
-    }),
-    get_readiness_history: aiTool({
-      description: getReadinessHistory.description,
-      inputSchema: getReadinessHistory.parameters,
-      execute: async (args) => getReadinessHistory.execute(args, ctx),
-    }),
-    get_wellness: aiTool({
-      description: getWellness.description,
-      inputSchema: getWellness.parameters,
-      execute: async (args) => getWellness.execute(args, ctx),
-    }),
-    get_fitness_summary: aiTool({
-      description: getFitnessSummary.description,
-      inputSchema: getFitnessSummary.parameters,
-      execute: async (args) => getFitnessSummary.execute(args, ctx),
-    }),
-    list_activities: aiTool({
-      description: listActivities.description,
-      inputSchema: listActivities.parameters,
-      execute: async (args) => listActivities.execute(args, ctx),
-    }),
-    get_athlete_profile: aiTool({
-      description: getAthleteProfile.description,
-      inputSchema: getAthleteProfile.parameters,
-      execute: async (args) => getAthleteProfile.execute(args, ctx),
-    }),
-  };
+  return Object.fromEntries(
+    allTools.map((t) => [
+      t.name,
+      aiTool({
+        description: t.description,
+        inputSchema: t.parameters,
+        execute: async (args: unknown) => t.execute(args, ctx),
+      }),
+    ])
+  );
 }

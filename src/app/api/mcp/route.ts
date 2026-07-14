@@ -22,34 +22,31 @@ export async function POST(req: Request) {
   // 1. Auth — resolve BEFORE handleRequest (security requirement)
   const authHeader = req.headers.get("authorization");
   if (!authHeader?.startsWith("Bearer ")) {
-    return new Response(
-      JSON.stringify({ error: "Bearer token required" }),
-      { status: 401, headers: { "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ error: "Bearer token required" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
   const plaintext = authHeader.slice(7);
   const tokenInfo = await resolveToken(plaintext);
   if (!tokenInfo) {
-    return new Response(
-      JSON.stringify({ error: "Invalid or revoked token" }),
-      { status: 401, headers: { "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ error: "Invalid or revoked token" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
   // 2. Rate limit (per-token)
   const rateResult = checkRateLimit(tokenInfo.tokenId);
   if (!rateResult.allowed) {
-    return new Response(
-      JSON.stringify({ error: "Rate limit exceeded" }),
-      {
-        status: 429,
-        headers: {
-          "Content-Type": "application/json",
-          "Retry-After": String(Math.ceil(rateResult.resetMs / 1000)),
-        },
-      }
-    );
+    return new Response(JSON.stringify({ error: "Rate limit exceeded" }), {
+      status: 429,
+      headers: {
+        "Content-Type": "application/json",
+        "Retry-After": String(Math.ceil(rateResult.resetMs / 1000)),
+      },
+    });
   }
 
   // 3. Create stateless transport + server
@@ -83,33 +80,30 @@ export async function GET(req: Request) {
   // Same auth flow for GET (SSE stream)
   const authHeader = req.headers.get("authorization");
   if (!authHeader?.startsWith("Bearer ")) {
-    return new Response(
-      JSON.stringify({ error: "Bearer token required" }),
-      { status: 401, headers: { "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ error: "Bearer token required" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
   const plaintext = authHeader.slice(7);
   const tokenInfo = await resolveToken(plaintext);
   if (!tokenInfo) {
-    return new Response(
-      JSON.stringify({ error: "Invalid or revoked token" }),
-      { status: 401, headers: { "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ error: "Invalid or revoked token" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
   const rateResult = checkRateLimit(tokenInfo.tokenId);
   if (!rateResult.allowed) {
-    return new Response(
-      JSON.stringify({ error: "Rate limit exceeded" }),
-      {
-        status: 429,
-        headers: {
-          "Content-Type": "application/json",
-          "Retry-After": String(Math.ceil(rateResult.resetMs / 1000)),
-        },
-      }
-    );
+    return new Response(JSON.stringify({ error: "Rate limit exceeded" }), {
+      status: 429,
+      headers: {
+        "Content-Type": "application/json",
+        "Retry-After": String(Math.ceil(rateResult.resetMs / 1000)),
+      },
+    });
   }
 
   const transport = new WebStandardStreamableHTTPServerTransport({

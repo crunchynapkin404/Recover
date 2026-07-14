@@ -7,8 +7,7 @@ import pg from "pg";
 import * as schema from "./schema";
 
 export type Database =
-  | NeonHttpDatabase<typeof schema>
-  | NodePgDatabase<typeof schema>;
+  NeonHttpDatabase<typeof schema> | NodePgDatabase<typeof schema>;
 
 let _db: Database | null = null;
 

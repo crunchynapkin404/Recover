@@ -34,16 +34,18 @@ export function lookupPrefixFromHash(hash: string): string {
 
 /** Parse scopes string (pipe-separated) into typed array. */
 function parseScopes(scopesStr: string): Scope[] {
-  return scopesStr.split("|").filter((s): s is Scope =>
-    s === "read" || s === "write:wellness"
-  );
+  return scopesStr
+    .split("|")
+    .filter((s): s is Scope => s === "read" || s === "write:wellness");
 }
 
 /**
  * Resolve a Bearer token to a TokenInfo. Returns null if invalid/revoked.
  * Uses timing-safe comparison for the full hash after prefix lookup.
  */
-export async function resolveToken(plaintext: string): Promise<TokenInfo | null> {
+export async function resolveToken(
+  plaintext: string
+): Promise<TokenInfo | null> {
   const hash = hashToken(plaintext);
   const prefix = lookupPrefixFromHash(hash);
 

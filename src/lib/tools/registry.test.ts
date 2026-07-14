@@ -30,7 +30,11 @@ describe("tool registry", () => {
   });
 
   it("tools with no required params accept empty input", () => {
-    const noParamTools = ["get_readiness", "get_fitness_summary", "get_athlete_profile"];
+    const noParamTools = [
+      "get_readiness",
+      "get_fitness_summary",
+      "get_athlete_profile",
+    ];
     for (const name of noParamTools) {
       const tool = allTools.find((t) => t.name === name);
       expect(tool).toBeDefined();
@@ -41,25 +45,27 @@ describe("tool registry", () => {
 
   it("get_readiness_history validates days param", () => {
     const tool = allTools.find((t) => t.name === "get_readiness_history")!;
-    
+
     // Default works
     expect(tool.parameters.safeParse({}).success).toBe(true);
-    
+
     // Valid days
     expect(tool.parameters.safeParse({ days: 14 }).success).toBe(true);
-    
+
     // Invalid: over max
     expect(tool.parameters.safeParse({ days: 100 }).success).toBe(false);
-    
+
     // Invalid: zero
     expect(tool.parameters.safeParse({ days: 0 }).success).toBe(false);
   });
 
   it("list_activities validates sport filter and limit", () => {
     const tool = allTools.find((t) => t.name === "list_activities")!;
-    
+
     expect(tool.parameters.safeParse({}).success).toBe(true);
-    expect(tool.parameters.safeParse({ sport: "Ride", limit: 5 }).success).toBe(true);
+    expect(tool.parameters.safeParse({ sport: "Ride", limit: 5 }).success).toBe(
+      true
+    );
     expect(tool.parameters.safeParse({ limit: 50 }).success).toBe(false); // over max
   });
 });

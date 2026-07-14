@@ -121,7 +121,9 @@ export function LlmSettingsCard({ settings }: Props) {
               id="apiKey"
               name="apiKey"
               type="password"
-              placeholder={settings?.hasKey ? "••••••• (unchanged if blank)" : "sk-ant-…"}
+              placeholder={
+                settings?.hasKey ? "••••••• (unchanged if blank)" : "sk-ant-…"
+              }
               autoComplete="off"
               required={providerType === "anthropic" && !settings?.hasKey}
             />
