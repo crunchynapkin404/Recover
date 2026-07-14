@@ -1,123 +1,101 @@
-# Self-Hosted Health & Training App — "Recover" (working title)
+# Recover — Definitive Plan (v2, consolidated)
 
-## Context
 
-A free, self-hostable Whoop/Bevel-style app for the owner + up to ~10 friends: one calm dashboard unifying training data (Strava, intervals.icu) with recovery data (HRV, resting HR, sleep), a Whoop-style readiness score, an AI coach chat (BYO LLM — Anthropic API or any OpenAI-compatible endpoint incl. Ollama), and an MCP server endpoint so any user can connect their own Claude (claude.ai connector / Claude Code) to their data. New standalone repo with its own UI identity; proven integration code is ported from the owner's existing KOM-Wars project (`/home/vscode/KOM-Wars`). Docker-first on home hardware; Vercel+Neon stays possible via env-driven config.
+## Vision
 
-**Locked decisions:** greenfield repo · docker-compose (app + Postgres, optional cloudflared) · zero mandatory paid services (no Redis/Inngest/Upstash/Stripe/Sentry) · v1 sources = intervals.icu (primary) + Strava + manual entry; Whoop API & Apple Health are later phases · AI = Vercel AI SDK with `@ai-sdk/anthropic` + `@ai-sdk/openai-compatible`, per-user encrypted keys · Stack = Next.js App Router + TS + Drizzle + Postgres + Tailwind + shadcn + Recharts (matches KOM-Wars conventions for maximal porting).
+Recover is a free, self-hostable alternative to Whoop/Bevel-style recovery apps: one calm dashboard unifying training load with recovery signals (HRV, resting HR, sleep), built for an owner plus roughly ten invited friends. It runs on your own hardware with `docker-compose up` (app + Postgres, optional Cloudflare tunnel); a Vercel + Neon deployment stays possible via env-driven config. Zero mandatory paid services. AGPL-3.0.
+
+Data arrives from intervals.icu (primary source: wellness + activities + precomputed CTL/ATL), later directly from Strava, and from manual entry. A daily readiness score is computed against *your own* rolling baselines — not population norms — with an honest "calibrating" state until enough history exists.
+
+Two AI surfaces sit on the same foundation: an in-app coach chat using your own LLM key (Anthropic, or any OpenAI-compatible endpoint including local Ollama — encrypted per user), and a built-in MCP server: a **bridge between your Claude and your training data**, so claude.ai or Claude Code can query your readiness directly.
+
+## Principles
+
+1. **No broken imports.** Code is never copied from other projects on trust. The three files already ported from KOM-Wars (`src/lib/crypto.ts`, `src/lib/db/index.ts`, `src/lib/connectors/intervals.ts`) stay only if P0 lands unit tests proving them. Everything else suspect is rewritten from scratch: the readiness engine (KOM-Wars' has an inverted TSB sign), the Strava layer (Redis-coupled token refresh), the logger (trivial, ~30 lines). The P6 PWA port arrives with tests or not at all.
+2. **One tool registry, two consumers.** Every data capability is a `{name, description, zod inputSchema, execute({userId, db})}` object serving both the AI coach and the MCP endpoint. New capability = one file.
+3. **Provenance everywhere.** Every activity/wellness row records its source; Strava rows are excluded from AI contexts by default.
+4. **Boring operations.** One container + Postgres. No Redis, no external queue. Idempotent jobs; health endpoint exposes staleness.
+5. **Secrets encrypted at rest** (AES-256-GCM), decrypted per request, never logged.
 
 ## Architecture
 
-Two containers: `app` (Next.js standalone) + `db` (Postgres 16 + volume); optional `cloudflared` for ingress. No Redis, no separate worker: background sync runs in-process, started from `instrumentation.ts`, guarded by Postgres advisory locks.
+Next.js 16 (App Router) + Drizzle + Postgres 16. Background sync runs in-process: `instrumentation.ts` starts a tick loop that takes a pg advisory lock (single runner) and claims due rows from `sync_jobs`; a `CRON_SECRET`-guarded `/api/cron` route offers the same tick for serverless deployments. The db layer is dual-driver (`DATABASE_DRIVER=pg` for node-postgres, otherwise Neon HTTP); advisory-lock paths are pg-only.
 
-```
-intervals.icu ──┐ (pull, cron)              claude.ai / Claude Code
-Strava API ─────┤                                  │ (per-user bearer token)
-manual entry ───┤                                  ▼
+```text
+intervals.icu ──┐ (pull, scheduler)          claude.ai / Claude Code
+Strava (P5) ────┤                                   │ (per-user bearer token)
+manual entry ───┤                                   ▼
                 ▼                            /api/mcp (streamable HTTP)
           sync runner ──► Postgres ◄──── shared tool registry ◄── /api/chat (AI SDK)
-          (sync_jobs +    wellness_daily,         ▲                     │
-           pg advisory    activities,             │                     ▼
-           lock)          daily_metrics     readiness engine    Anthropic / OpenAI-compat
-                              │                                 (per-user encrypted creds)
-                              ▼
-                        Next.js dashboard (Recharts)
+          (sync_jobs +    wellness_daily,          ▲                     │
+           pg advisory    activities,              │                     ▼
+           lock)          daily_metrics      readiness engine   Anthropic / OpenAI-compat
+                               │                                (per-user encrypted keys)
+                               ▼
+                     Next.js dashboard (Recharts)
 ```
 
-### Key design decisions
-1. **Auth: Better Auth** (email/password + invite-only signup, Drizzle adapter). Strava/intervals.icu are data *connections* (rows in `connections`), never login identity. KOM-Wars' `auth.config.ts` is NOT ported.
-2. **Sync: jobs table + in-process poller.** `instrumentation.ts` starts a 60s tick → `pg_try_advisory_xact_lock` (single-runner) → claim due `sync_jobs` with `FOR UPDATE SKIP LOCKED`. Same tick logic also exposed at `POST /api/jobs/tick` guarded by `CRON_SECRET` (the Vercel-cron path). One code path, two triggers; idempotent via `runAfter`.
-3. **Strava strategy: intervals.icu as the primary relay.** Friends connect Strava→intervals.icu once and paste an intervals API key (non-expiring, no OAuth quota, includes wellness + precomputed CTL/ATL). Direct Strava OAuth ships in Phase 5, reusing the KOM-Wars Strava app client_id/secret — the callback *domain* on that Strava app gets repointed to the new home domain (existing KOM-Wars tokens keep refreshing; only *new* KOM-Wars OAuth grants would break — acceptable, document it).
-4. **Strava AI clause (Nov 2024 API Agreement):** Strava bars feeding its API data to AI models and requires attribution. Mitigation: tag provenance per row (`source` column); rows with `source='strava'` are excluded from AI-coach/MCP context by default; "Powered by Strava" attribution where Strava data renders.
-5. **Ingress: cloudflared tunnel** to owner's domain — covers friends' browsers, Strava OAuth callback/webhooks, and claude.ai MCP connector, with free TLS and no port forwarding. MCP uses per-user bearer tokens, so no IP allowlisting needed (unlike the old nginx intervals-mcp deploy). Fallback: Tailscale Funnel.
+## Data model (15 tables, already migrated)
 
-## Repo layout
+- **Auth (Better Auth):** `users` (role owner|member), `sessions`, `accounts`, `verifications`; `invites` for closed signup.
+- **Integrations:** `connections` — one row per user+provider, encrypted tokens, athlete identity, sync status.
+- **Training:** `activities` (provider ∈ intervals_icu|strava|manual doubles as provenance; unique per user+provider+externalId), `activity_streams` (jsonb per stream type).
+- **Wellness:** `wellness_daily` — HRV (rMSSD), resting HR, sleep secs/score, CTL/ATL, eFTP, weight, subjective energy/soreness/stress (1–10), source.
+- **Derived:** `daily_metrics` — readiness, band, `component_scores` jsonb, baselines, TSB.
+- **Coach:** `chat_threads`, `chat_messages`; `llm_settings` (anthropic | openai_compatible, encrypted key, model).
+- **MCP:** `api_tokens` (SHA-256 hash, label, revoked_at; **P4 adds `scopes` + lookup-prefix columns by migration** — they don't exist yet).
+- **Jobs:** `sync_jobs` (backfill|incremental|compute_metrics, run_after, status, attempts).
 
-```
-src/
-  app/                     # (dashboard)/, activities/, coach/, settings/, admin/
-    api/chat/route.ts      # AI SDK streamText + shared tools
-    api/mcp/route.ts       # @modelcontextprotocol/sdk streamable HTTP, bearer auth
-    api/jobs/tick/route.ts # CRON_SECRET-guarded tick (Vercel path)
-    api/connections/strava/callback/route.ts
-  lib/
-    db/          # index.ts (dual-driver, ported verbatim), schema.ts, migrations
-    auth.ts      # Better Auth config
-    connectors/  # intervals.ts (port), strava.ts (port), strava-token.ts (adapt)
-    sync/        # tick.ts, jobs.ts, intervals-sync.ts, strava-sync.ts
-    readiness/   # baselines.ts, score.ts
-    tools/       # registry.ts + one file per tool — SINGLE source for MCP + AI coach
-    ai/          # provider.ts (per-user Anthropic | OpenAI-compatible resolution)
-    crypto.ts    # ported verbatim
-  components/
-instrumentation.ts · docker-compose.yml · Dockerfile
-```
+## Readiness formula (v1, from scratch)
 
-**Keystone: the tool registry.** Each tool = `{ name, description, inputSchema (zod), execute(ctx: {userId, db}) }`. The MCP route serves them via JSON-schema conversion; the chat route passes the same objects to AI SDK `tools:`. ~8–10 v1 tools: `get_wellness`, `get_readiness`, `get_readiness_history`, `list_activities`, `get_activity`, `get_fitness_summary`, `get_athlete_profile`, `log_wellness`. (Naming/response-size discipline modeled on `/home/vscode/intervals-icu-mcp/src/intervals_icu_mcp/tools/`.)
+60-day rolling personal baselines; <14 days of data → band `calibrating`, no number shown.
 
-## Core schema (~13 tables)
+| Component | Basis | Weight |
+|---|---|---|
+| HRV | z-score of ln(HRV) vs baseline | 0.40 |
+| Resting HR | inverted z-score | 0.25 |
+| Sleep | provider sleepScore, else duration curve | 0.20 |
+| Form | TSB = CTL − ATL | 0.15 |
 
-- `users`, `sessions`, `accounts`, `verifications` — Better Auth (+ `role: owner|member`)
-- `invites` — code, email, invitedBy, expiresAt, usedByUserId
-- `connections` — userId, provider (`intervals_icu|strava`), encrypted credentials, externalAthleteId, expiresAt, status, lastSyncAt; unique (userId, provider)
-- `activities` — userId, provider, externalId, startDate, sport, name, durationS, distanceM, load/tss, avgHr, avgPower, `raw jsonb`; `source` provenance
-- `activity_streams` — activityId, type (hr/watts/velocity/altitude/time), `data jsonb` (lazy fetch)
-- `wellness_daily` — userId + date (unique), hrvMs, restingHr, sleepSecs, sleepScore, ctl, atl, weightKg, energy1_10, soreness1_10, stress1_10, source (`intervals|manual|strava`), `raw jsonb`
-- `daily_metrics` — userId, date, readiness 0–100, band, componentScores jsonb, hrv/rhr baseline mean+sd, tsb, computedAt
-- `chat_threads`, `chat_messages` (role, content, toolCalls jsonb)
-- `api_tokens` — userId, tokenHash (sha256, plaintext shown once), label, lastUsedAt
-- `llm_settings` — userId, providerType, baseUrl, encryptedApiKey, model
-- `sync_jobs` — userId, provider, kind, runAfter, status, attempts, lastError
+z-components → `clamp(50 + 20z, 0, 100)`; TSB → `clamp(50 + 2.5·TSB, 10, 90)`. Missing components renormalize remaining weights. Bands: green ≥ 67, amber 34–66, red < 34. Component breakdown persists to `daily_metrics.component_scores` so UI and coach can explain every score.
 
-## Readiness score v1
+## Coach persona (fixed)
 
-Baseline = trailing 60 days (minimum 14 to score; below that show "calibrating"). rMSSD is log-normal → use `ln` for HRV z-scores.
+Evidence-based endurance coach that cites the actual numbers returned by its tools. Tone adapts to the readiness band; in the red band it never prescribes intensity. No medical diagnoses; refuses to program through injury/illness; on sustained HRV suppression (>7 days) or resting-HR spikes says "consider seeing a professional." Admits when data is missing rather than guessing. Per-thread memory only; user profile from settings interpolated into the system prompt.
 
-- **HRV (weight 0.40):** `z = (ln(hrv) − mean₆₀(ln hrv)) / sd₆₀(ln hrv)` → `score = clamp(50 + 20z, 0, 100)`
-- **RHR (0.25, inverted):** `z = (mean₆₀ − rhr_today) / sd₆₀` → same mapping
-- **Sleep (0.20):** provider sleepScore if present, else port `normalizeSleep(hours)` curve from KOM-Wars
-- **Load/TSB (0.15):** `TSB = CTL − ATL` (conventional sign!) → `score = clamp(50 + 2.5·TSB, 10, 90)` — capped so tapering can't mask poor HRV
+## MCP design
 
-`readiness = Σ(wᵢ·scoreᵢ) / Σ(wᵢ over available components)`; bands: green ≥ 67, amber 34–66, red < 34. Store the component breakdown in `daily_metrics.componentScores` — feeds both the UI ring and the coach's `get_readiness` tool.
-
-⚠️ Do NOT port `calculateReadiness`'s training-load handling from KOM-Wars `readiness-scoring.ts:32-34` — its CTL/ATL labels are swapped and its comment defines `TSB = ATL − CTL` (inverted sign). (Separate fix task spawned for KOM-Wars itself.)
-
-## Port / adapt / skip (from /home/vscode/KOM-Wars)
-
-| Action | Files |
-|---|---|
-| Port verbatim | `src/lib/crypto.ts`; `src/lib/db/index.ts` (dual-driver proxy); `src/lib/strava.ts` API wrappers; `src/lib/connectors/intervals-icu.ts` (`validateKey` + wellness fetch; drop the EnhancedWearableConnector half); `normalizeSleep`/`normalizeSubjective` from `readiness-scoring.ts` |
-| Adapt | `src/lib/strava-auth.ts` (Redis lock → `pg_try_advisory_xact_lock`; user columns → `connections` table); `src/lib/inngest/intervals-sync.ts` (extract `runIntervalsSyncForUser` logic into jobs runner, drop Inngest); Strava webhook route pattern (later phase); chart theming |
-| Skip | `auth.config.ts`, redis/Upstash, Inngest client, Sentry/Stripe/entitlements, the 70-table schema, all competitive/social features |
+`@modelcontextprotocol/sdk` — **must be added as a direct dependency** (currently only transitive via shadcn) — `WebStandardStreamableHTTPServerTransport`, stateless per-request, in `POST /api/mcp`. Bearer auth resolved *before* `handleRequest`; SDK `AuthInfo` carries userId/scopes into every tool. Tokens: plaintext shown once, SHA-256 + short lookup prefix, scoped `read` | `write:wellness`, revocable. Rate limiting: in-memory token bucket on `/api/mcp`; Better Auth built-in `rateLimit` on auth routes. Nine v1 tools: `get_athlete_profile`, `get_wellness`, `log_wellness`, `get_readiness`, `get_readiness_history`, `get_fitness_summary`, `list_activities`, `get_activity`, `get_training_load_summary`.
 
 ## Phases
 
-**P1 — Solo intervals.icu dashboard** (immediate owner value): scaffold, docker-compose, Better Auth with seeded owner account, intervals API-key connection, manual "sync now", ingest wellness_daily + activities, dashboard charts.
-*DoD:* owner's real HRV/RHR/sleep/CTL render from live intervals.icu, running in Docker at home. *Verify:* cross-check 5 dates against intervals.icu web UI.
+**P0 — Bootstrap & hygiene.** Fix `src/app/page.tsx:66` (`asChild` → base-ui `<Button render={<Link href="/settings" />} nativeButton={false}>`); package.json scripts (`db:generate`, `db:migrate`, `db:studio`, `typecheck`, `test`, `format`); Vitest + Prettier; ~30-line structured JSON logger from scratch; `/api/health` (db ping + last-sync age); GitHub Actions CI (lint/typecheck/test/build; run `gh auth refresh -s workflow` first — current token lacks the scope); branch protection. **Tests (Principle-1 gate):** crypto round-trip + tamper/wrong-key rejection; intervals connector fixtures **pinning the two found defects** (UTC `ymd()` off-by-one for non-UTC users; empty `date:""` when a wellness row lacks `id`) — fix both; db/index via integration test. **DoD:** CI green on main.
 
-**P2 — Readiness engine + scheduled sync:** baselines, daily_metrics, readiness ring + 30-day trend, manual wellness form, sync_jobs + instrumentation tick + `/api/jobs/tick`.
-*DoD:* score appears each morning unattended for 3 straight days. *Verify:* unit-test formula on fixtures; hand-verify one day's z-scores against stored componentScores; kill/restart container mid-sync to prove lock safety.
+**P1 — Docker, from scratch.** Rewrite the broken Dockerfile (references nonexistent files, ships drizzle-kit): multi-stage build (standalone output already configured); `scripts/migrate.mjs` via `drizzle-orm/node-postgres/migrator` `migrate()` + `pg` (no drizzle-kit at runtime); `docker-entrypoint.sh`; `docker-compose.yml` (postgres:16 healthcheck, `service_healthy`, named volume, cloudflared under `--profile tunnel`); SELF-HOSTING.md. **DoD:** clean-volume `compose up` → login → connect real intervals.icu key → real data on dashboard. CI builds the image.
 
-**P3 — AI coach:** llm_settings (encrypted BYO key/baseURL), tool registry, streaming chat with threads.
-*DoD:* "Should I train hard today?" answered with tool-cited readiness on BOTH Anthropic API and local Ollama. *Verify:* inspect persisted toolCalls; swap provider mid-thread.
+**P2 — Readiness engine + scheduler.** Engine from scratch per formula; manual wellness form; `instrumentation.ts` tick + advisory lock + `sync_jobs`; `/api/cron`; backfill metrics for all synced days. **DoD:** today's score + breakdown on dashboard; unattended nightly update. **Tests:** hand-computed fixtures (calibrating, renormalization, band edges); lock-safety (two concurrent tickers, each job processed once).
 
-**P4 — MCP endpoint + ingress:** `/api/mcp` (streamable HTTP, same registry), api_tokens settings page, cloudflared tunnel + domain.
-*DoD:* claude.ai custom connector AND Claude Code both list tools and answer from owner data over the public URL. *Verify:* MCP inspector; revoked token → 401.
+**P3 — AI coach.** `/api/chat` AI SDK streaming; persisted threads; tool registry as AI SDK tools; persona prompt; LLM settings UI (encrypted BYO key). **DoD:** cites real numbers on both Anthropic key and local Ollama. **Tests:** registry (schema validation, userId scoping); provider resolution; prompt snapshot.
 
-**P5 — Multi-user + direct Strava:** invites, admin page, per-user isolation, staggered sync, Strava OAuth (callback-domain repoint executed; Strava rows AI-excluded by default + attribution).
-*DoD:* one real friend onboards via invite, connects intervals, sees only their data. *Verify:* two-account isolation test across web + MCP tokens.
+**P4 — MCP endpoint** *(security-review gate before exposure)*. Migration adding `scopes` + lookup prefix to `api_tokens`; token UI; `/api/mcp`; token bucket; add SDK as direct dep. **DoD:** claude.ai connector and Claude Code list tools and fetch readiness end-to-end. **Tests:** revoked → 401; missing scope rejected; cross-user isolation; auth-before-handleRequest ordering.
 
-**P6 — Depth + ops:** activity detail with lazy stream charts, own TSS/EMA fallback for users without intervals, nightly `pg_dump` sidecar + restore drill, `/api/health` (reports last tick), documented Vercel+Neon deploy proof (`DATABASE_DRIVER` swap).
-*DoD:* real ride renders power/HR streams; backup restores into a fresh container. *(P7+: Whoop API, Apple Health import — new `connections` providers.)*
+**P5 — Multi-user + Strava** *(second security review)*. Invite flow, admin page; Strava OAuth **from scratch** (KOM-Wars as API reference only): refresh serialized with pg advisory lock, hourly jittered polling, lazy streams; `provider='strava'` excluded from AI/MCP by default (Nov 2024 Strava AI clause), own-data opt-in, "Powered by Strava" attribution. **DoD:** friend onboards via invite; complete data isolation. **Tests:** isolation across web + MCP; refresh race; AI-exclusion proof.
 
-## Risks
+**P6 — PWA + push.** Serwist service worker, manifest, install prompt; daily readiness push (web-push VAPID), per-user subscriptions (KOM-Wars as reference; tests required). **DoD:** installed on phone; morning notification arrives. **Tests:** subscription lifecycle, payload, unsubscribe.
 
-- **Strava AI/display ToS** — mitigated via intervals-relay-first + provenance tagging + default AI exclusion of Strava rows.
-- **Strava rate limits** (~200/15min, 2k/day shared across the app): hourly summary polling with jitter ≈ 264 req/day for 11 users — fine; streams strictly lazy.
-- **Neon-http driver has no transactions/session state** → advisory-lock + SKIP LOCKED paths are pg-driver-only (guard on `DATABASE_DRIVER`); Vercel tick processes one job per invocation. Integration tests run against real Postgres.
-- **In-process cron dies with the container** → jobs are idempotent by `runAfter`; `/api/health` exposes last-tick age.
-- **Callback repoint breaks *new* KOM-Wars Strava sign-ins** — accepted, documented.
+**P7 — Depth & ops.** Activity streams detail; fitness page; sync-jobs UI; TSS/EMA fallback; nightly `pg_dump` + restore drill; Vercel+Neon doc; extended MCP tools (curves/best efforts); then Whoop API / Apple Health. **DoD:** a month of unattended operation with restorable backups.
 
-## Verification (overall)
+## Risks & mitigations
 
-Each phase gates on its DoD with the owner's live intervals.icu/Strava accounts. Unit tests: readiness math, token encryption round-trip, job claiming. Integration: docker-compose up from clean volume → migrate → seed owner → sync → dashboard renders. P4 verified with real claude.ai connector + Claude Code session against the tunnel URL.
+- **Strava AI clause** → provenance + default AI/MCP exclusion + own-data opt-in + attribution.
+- **Rate limits** → Strava ~200/15min shared: hourly jittered polling, lazy streams, 429 backoff.
+- **Neon HTTP driver** → no advisory locks/transactions: scheduler requires `DATABASE_DRIVER=pg`; serverless uses `/api/cron`.
+- **In-process cron** → idempotent re-claimable jobs; `/api/health` exposes last-tick age.
+- **Secrets** → `.env*` gitignored (verified untracked); never rotate `ENCRYPTION_KEY` without re-entering stored keys (GCM fails closed); BYO keys decrypted per request, never logged.
+- **MCP exposure** → hashed scoped tokens, rate limit, stateless transport, security-review gate before the tunnel goes public.
+
+## Execution on approval
+
+1. Replace `docs/PLAN.md` with this document; commit + push (plan visible on GitHub).
+2. P0 in order, starting with the TS fix and the Principle-1 test gate for the three ported files (fixing the two connector defects).
+3. Each phase ends with its DoD verified before the next begins; commits in small logical units.
