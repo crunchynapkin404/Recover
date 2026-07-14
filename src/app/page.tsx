@@ -283,7 +283,10 @@ export default async function DashboardPage() {
 
         {/* ── Strain Budget ───────────────────────────────────────── */}
         <section className="mb-10">
-          <StrainBudget used={todayAtl} total={strainMax} />
+          <StrainBudget
+            used={Math.min((todayAtl / strainMax) * 21, 21)}
+            total={21}
+          />
         </section>
 
         {/* ── AI Morning Brief ────────────────────────────────────── */}

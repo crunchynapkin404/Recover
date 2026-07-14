@@ -8,12 +8,24 @@ function localYmd(d: Date): string {
   return d.toLocaleDateString("en-CA");
 }
 
+interface DayEntry {
+  energy: number | null;
+  soreness: number | null;
+  stress: number | null;
+  mood: string | null;
+  tags: string[] | null;
+  notes: string | null;
+}
+
 interface Props {
   syncedHrv: number | null;
   syncedRhr: number | null;
   syncedWeight: number | null;
+  syncedSleepHours: number | null;
   /** Days in the last 7 with a journal entry (computed server-side). */
   streakDays: number;
+  /** Existing entries keyed by YYYY-MM-DD for the calendar strip days. */
+  entriesByDate: Record<string, DayEntry>;
 }
 
 const MOODS = [
@@ -39,18 +51,53 @@ export function JournalForm({
   syncedHrv,
   syncedRhr,
   syncedWeight,
+  syncedSleepHours,
   streakDays,
+  entriesByDate,
 }: Props) {
   const [state, action, pending] = useActionState<
     ActionResult | null,
     FormData
   >(logWellness, null);
-  const [selectedMood, setSelectedMood] = useState<number | null>(null);
-  const [energy, setEnergy] = useState(7);
-  const [soreness, setSoreness] = useState(4);
-  const [stress, setStress] = useState(4);
-  const [activeTags, setActiveTags] = useState<Set<string>>(new Set());
-  const [selectedDate, setSelectedDate] = useState(localYmd(new Date()));
+
+  const todayYmd = localYmd(new Date());
+  const todayEntry = entriesByDate[todayYmd];
+
+  const [selectedMood, setSelectedMood] = useState<number | null>(() => {
+    if (!todayEntry?.mood) return null;
+    return MOODS.findIndex((m) => m.label === todayEntry.mood);
+  });
+  const [energy, setEnergy] = useState(todayEntry?.energy ?? 7);
+  const [soreness, setSoreness] = useState(todayEntry?.soreness ?? 4);
+  const [stress, setStress] = useState(todayEntry?.stress ?? 4);
+  const [activeTags, setActiveTags] = useState<Set<string>>(
+    () => new Set(todayEntry?.tags ?? [])
+  );
+  const [notes, setNotes] = useState(todayEntry?.notes ?? "");
+  const [selectedDate, setSelectedDate] = useState(todayYmd);
+
+  function switchDay(ymd: string) {
+    setSelectedDate(ymd);
+    const entry = entriesByDate[ymd];
+    if (entry) {
+      setEnergy(entry.energy ?? 7);
+      setSoreness(entry.soreness ?? 4);
+      setStress(entry.stress ?? 4);
+      setSelectedMood(
+        entry.mood ? MOODS.findIndex((m) => m.label === entry.mood) : null
+      );
+      setActiveTags(new Set(entry.tags ?? []));
+      setNotes(entry.notes ?? "");
+    } else {
+      // No entry for this day — reset to defaults
+      setEnergy(7);
+      setSoreness(4);
+      setStress(4);
+      setSelectedMood(null);
+      setActiveTags(new Set());
+      setNotes("");
+    }
+  }
 
   const toggleTag = (tag: string) => {
     setActiveTags((prev) => {
@@ -132,13 +179,14 @@ export function JournalForm({
       >
         {days.map((d) => {
           const active = selectedDate === d.ymd;
+          const hasEntry = !!entriesByDate[d.ymd];
           return (
             <button
               key={d.ymd}
               type="button"
-              onClick={() => setSelectedDate(d.ymd)}
+              onClick={() => switchDay(d.ymd)}
               aria-pressed={active}
-              aria-label={`Log for ${d.label}`}
+              aria-label={`Log for ${d.label}${hasEntry ? " (logged)" : ""}`}
               className="flex min-w-[48px] flex-col items-center gap-2"
             >
               <span
@@ -147,13 +195,16 @@ export function JournalForm({
                 {d.label}
               </span>
               <div
-                className={`glass flex h-10 w-10 items-center justify-center rounded-full text-xs font-bold ${
+                className={`glass relative flex h-10 w-10 items-center justify-center rounded-full text-xs font-bold ${
                   active
                     ? "text-white ring-2 ring-emerald-500 ring-offset-2 ring-offset-[#0a0a0a]"
                     : "text-white/50"
                 }`}
               >
                 {d.day}
+                {hasEntry && (
+                  <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-emerald-500" />
+                )}
               </div>
             </button>
           );
@@ -215,11 +266,11 @@ export function JournalForm({
           <div className="space-y-6">
             {(
               [
-                ["Energy", energy, setEnergy, "text-emerald-400"],
-                ["Muscle Soreness", soreness, setSoreness, "text-amber-400"],
-                ["Stress", stress, setStress, "text-sky-400"],
+                ["Energy", energy, setEnergy, "text-emerald-400", "Drained", "Energized", true],
+                ["Muscle Soreness", soreness, setSoreness, "text-amber-400", "None", "Very sore", false],
+                ["Stress", stress, setStress, "text-sky-400", "Calm", "Overwhelmed", false],
               ] as const
-            ).map(([label, value, setter, color]) => (
+            ).map(([label, value, setter, color, lowLabel, highLabel, highIsGood]) => (
               <div key={label} className="flex flex-col gap-2">
                 <div className="flex justify-between">
                   <span className="text-xs font-bold text-white/80">
@@ -238,51 +289,32 @@ export function JournalForm({
                   onChange={(e) => setter(Number(e.target.value))}
                   className="w-full accent-emerald-500"
                 />
+                <div className="flex justify-between">
+                  <span className={`text-[9px] font-medium ${!highIsGood ? "text-emerald-400/60" : "text-red-400/60"}`}>
+                    {lowLabel}
+                  </span>
+                  <span className={`text-[9px] font-medium ${highIsGood ? "text-emerald-400/60" : "text-red-400/60"}`}>
+                    {highLabel}
+                  </span>
+                </div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* 3. Vitals */}
-        <div className="glass rounded-3xl p-5">
-          <div className="mb-4 flex items-center justify-between">
-            <h3 className="label-micro">3. Vitals</h3>
-            {(syncedHrv || syncedRhr) && (
-              <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[8px] font-bold uppercase tracking-tighter text-emerald-500">
-                intervals.icu synced
-              </span>
-            )}
-          </div>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {(
-              [
-                ["hrvMs", "HRV (ms)", syncedHrv?.toFixed(0)],
-                ["restingHr", "RHR (bpm)", syncedRhr?.toFixed(0)],
-                ["weightKg", "Weight (kg)", syncedWeight?.toFixed(1)],
-                ["sleepHours", "Sleep (h)", undefined],
-              ] as const
-            ).map(([name, label, defaultValue]) => (
-              <div key={name} className="flex flex-col gap-1">
-                <label
-                  htmlFor={`vital-${name}`}
-                  className="text-[9px] font-bold uppercase text-white/50"
-                >
-                  {label}
-                </label>
-                <input
-                  id={`vital-${name}`}
-                  type="number"
-                  inputMode="decimal"
-                  step="0.1"
-                  name={name}
-                  defaultValue={defaultValue ?? ""}
-                  placeholder="—"
-                  className="rounded-xl border border-white/10 bg-white/5 px-2 py-2 text-sm font-bold text-white outline-none focus:border-emerald-500/40"
-                />
-              </div>
-            ))}
-          </div>
-        </div>
+        {/* Vitals auto-submitted from sync — no manual entry needed */}
+        {syncedHrv != null && (
+          <input type="hidden" name="hrvMs" value={syncedHrv.toFixed(0)} />
+        )}
+        {syncedRhr != null && (
+          <input type="hidden" name="restingHr" value={syncedRhr.toFixed(0)} />
+        )}
+        {syncedWeight != null && (
+          <input type="hidden" name="weightKg" value={syncedWeight.toFixed(1)} />
+        )}
+        {syncedSleepHours != null && (
+          <input type="hidden" name="sleepHours" value={syncedSleepHours.toFixed(1)} />
+        )}
 
         {/* 4. Behavior tags */}
         <div className="glass rounded-[2rem] p-6">
@@ -327,6 +359,8 @@ export function JournalForm({
             id="journal-notes"
             name="notes"
             maxLength={2000}
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
             className="h-32 w-full resize-none bg-transparent text-sm leading-relaxed text-white/80 outline-none placeholder:text-white/40"
             placeholder="Anything on your mind — training, recovery, life..."
           />

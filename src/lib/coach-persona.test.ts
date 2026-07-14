@@ -20,13 +20,13 @@ describe("coach persona", () => {
     expect(prompt).toContain("cite");
     // Red band safety
     expect(prompt).toContain("Red");
-    expect(prompt).toContain("NEVER prescribe intensity");
+    expect(prompt).toContain("prescribe ONLY recovery activities");
     // Medical refusal
-    expect(prompt).toContain("not a doctor");
+    expect(prompt).toContain("healthcare professional");
     // Strava exclusion
     expect(prompt).toContain("Strava");
-    // Tool usage mandate
-    expect(prompt).toContain("Always use tools");
+    // Data-driven mandate
+    expect(prompt).toContain("NEVER invent numbers");
   });
 
   it("prompt snapshot stability", () => {
@@ -35,10 +35,10 @@ describe("coach persona", () => {
       todayDate: "2026-06-01",
     });
     // Key sections exist
-    expect(prompt).toMatch(/## Your role/);
+    expect(prompt).toMatch(/## Identity/);
     expect(prompt).toMatch(/## Behavior rules/);
-    expect(prompt).toMatch(/## Available tools/);
-    expect(prompt).toMatch(/## Scope/);
-    expect(prompt).toMatch(/## Out of scope/);
+    expect(prompt).toMatch(/## Decision Framework/);
+    expect(prompt).toMatch(/## Communication Style/);
+    expect(prompt).toMatch(/## Recovery Protocols/);
   });
 });

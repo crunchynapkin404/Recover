@@ -20,6 +20,34 @@ export default async function JournalPage() {
     orderBy: desc(schema.wellnessDaily.date),
   });
 
+  // Fetch entries for the last 5 days so the form can restore state per day.
+  const recentEntries = await db.query.wellnessDaily.findMany({
+    where: and(
+      eq(schema.wellnessDaily.userId, user.id),
+      gte(schema.wellnessDaily.date, daysAgo(4))
+    ),
+    orderBy: desc(schema.wellnessDaily.date),
+  });
+
+  const entriesByDate: Record<string, {
+    energy: number | null;
+    soreness: number | null;
+    stress: number | null;
+    mood: string | null;
+    tags: string[] | null;
+    notes: string | null;
+  }> = {};
+  for (const entry of recentEntries) {
+    entriesByDate[entry.date] = {
+      energy: entry.energy1_10,
+      soreness: entry.soreness1_10,
+      stress: entry.stress1_10,
+      mood: entry.mood,
+      tags: entry.tags,
+      notes: entry.notes,
+    };
+  }
+
   // Real streak: days in the last 7 with any journal signal.
   const journaled = await db
     .select({ count: sql<number>`count(*)::int` })
@@ -46,7 +74,9 @@ export default async function JournalPage() {
         syncedHrv={latest?.hrvMs ?? null}
         syncedRhr={latest?.restingHr ?? null}
         syncedWeight={latest?.weightKg ?? null}
+        syncedSleepHours={latest?.sleepSecs != null ? latest.sleepSecs / 3600 : null}
         streakDays={streakDays}
+        entriesByDate={entriesByDate}
       />
       <section className="mt-8">
         <CorrelationInsights correlations={correlations} />
