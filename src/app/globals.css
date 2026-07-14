@@ -315,3 +315,10 @@
     transition: none !important;
   }
 }
+
+/* ── Installed-app mode: our pull-to-refresh owns the gesture ────────────── */
+@media (display-mode: standalone) {
+  body {
+    overscroll-behavior-y: contain;
+  }
+}

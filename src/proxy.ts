@@ -14,8 +14,10 @@ export function proxy(request: NextRequest) {
 export const config = {
   // /api/mcp and /api/cron authenticate with bearer tokens/secrets, not
   // session cookies — they must bypass the session redirect or external
-  // clients get 307'd to /login before the handler runs.
+  // clients get 307'd to /login before the handler runs. PWA assets
+  // (manifest, service worker, icons) are fetched by the browser outside
+  // normal navigation and must also stay reachable without a session.
   matcher: [
-    "/((?!login|join|api/auth|api/health|api/mcp|api/cron|_next|favicon.ico).*)",
+    "/((?!login|join|api/auth|api/health|api/mcp|api/cron|_next|favicon.ico|manifest.webmanifest|sw.js|icons).*)",
   ],
 };

@@ -28,14 +28,23 @@ describe("route guard matcher", () => {
     "/api/auth/sign-in/email",
     "/login",
     "/join/abc123XYZ",
+    "/manifest.webmanifest",
+    "/sw.js",
+    "/icons/icon-192.png",
+    "/icons/apple-touch-icon.png",
   ])("excludes bearer/public route %s from the session guard", (path) => {
     expect(guarded(path)).toBe(false);
   });
 
-  it.each(["/", "/settings", "/journal", "/coach", "/api/chat"])(
-    "keeps session-authenticated route %s guarded",
-    (path) => {
-      expect(guarded(path)).toBe(true);
-    }
-  );
+  it.each([
+    "/",
+    "/settings",
+    "/journal",
+    "/coach",
+    "/api/chat",
+    "/api/push/subscribe",
+    "/api/sync/now",
+  ])("keeps session-authenticated route %s guarded", (path) => {
+    expect(guarded(path)).toBe(true);
+  });
 });
