@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   ConnectorError,
   fetchActivities,
+  fetchActivityIntervals,
+  fetchActivityStreams,
   fetchDailyWellness,
   validateKey,
 } from "./intervals";
@@ -132,5 +134,64 @@ describe("intervals.icu connector (ported — Principle-1 validation)", () => {
       load: 85,
       elevationM: 300,
     });
+  });
+});
+
+describe("activity streams + intervals", () => {
+  it("fetches and normalizes streams, dropping malformed entries", async () => {
+    const fn = mockFetch(200, [
+      { type: "heartrate", data: [120, 130, null, 140] },
+      { type: "watts", data: [200, "x", 210] },
+      { notAType: true },
+    ]);
+    const out = await fetchActivityStreams({ apiKey: "k", externalId: "a1" });
+    expect(out).toEqual([
+      { type: "heartrate", data: [120, 130, null, 140] },
+      { type: "watts", data: [200, null, 210] },
+    ]);
+    const url = fn.mock.calls[0][0] as string;
+    expect(url).toContain("/activity/a1/streams");
+    expect(url).toContain("heartrate");
+  });
+
+  it("normalizes intervals to laps", async () => {
+    mockFetch(200, {
+      icu_intervals: [
+        {
+          label: "Rep 1",
+          elapsed_time: 480,
+          distance: 4000,
+          average_heartrate: 165,
+          average_watts: 250,
+        },
+        { elapsed_time: 120 },
+      ],
+    });
+    const out = await fetchActivityIntervals({ apiKey: "k", externalId: "a1" });
+    expect(out).toEqual([
+      {
+        index: 1,
+        label: "Rep 1",
+        durationS: 480,
+        distanceM: 4000,
+        avgHr: 165,
+        avgPower: 250,
+      },
+      {
+        index: 2,
+        label: null,
+        durationS: 120,
+        distanceM: null,
+        avgHr: null,
+        avgPower: null,
+      },
+    ]);
+  });
+
+  it("maps stream fetch auth errors like the other calls", async () => {
+    mockFetch(403, {});
+    await expect(
+      fetchActivityStreams({ apiKey: "bad", externalId: "a1" })
+    ).rejects.toMatchObject({ code: "auth_expired" });
   });
 });

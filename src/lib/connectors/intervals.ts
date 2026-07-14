@@ -186,3 +186,57 @@ export async function fetchActivities(params: {
   }
   return out;
 }
+
+export interface IntervalsStream {
+  type: string;
+  data: (number | null)[];
+}
+
+const STREAM_TYPES = "time,heartrate,watts,velocity_smooth,altitude";
+
+/** Fetch raw per-second streams for one activity (lazy, on first view). */
+export async function fetchActivityStreams(params: {
+  apiKey: string;
+  externalId: string;
+}): Promise<IntervalsStream[]> {
+  const path =
+    `/activity/${encodeURIComponent(params.externalId)}/streams` +
+    `?types=${STREAM_TYPES}`;
+  const response = await icuFetch(path, params.apiKey);
+  const rows = (await response.json()) as Array<Record<string, unknown>>;
+  return rows
+    .filter((r) => typeof r.type === "string" && Array.isArray(r.data))
+    .map((r) => ({
+      type: r.type as string,
+      data: (r.data as unknown[]).map((v) => num(v)),
+    }));
+}
+
+export interface IntervalsLap {
+  index: number;
+  label: string | null;
+  durationS: number | null;
+  distanceM: number | null;
+  avgHr: number | null;
+  avgPower: number | null;
+}
+
+/** Fetch the activity's intervals/laps as analyzed by intervals.icu. */
+export async function fetchActivityIntervals(params: {
+  apiKey: string;
+  externalId: string;
+}): Promise<IntervalsLap[]> {
+  const path = `/activity/${encodeURIComponent(params.externalId)}/intervals`;
+  const response = await icuFetch(path, params.apiKey);
+  const body = (await response.json()) as {
+    icu_intervals?: Array<Record<string, unknown>>;
+  };
+  return (body.icu_intervals ?? []).map((row, i) => ({
+    index: i + 1,
+    label: str(row.label),
+    durationS: num(row.elapsed_time) ?? num(row.moving_time),
+    distanceM: num(row.distance),
+    avgHr: num(row.average_heartrate),
+    avgPower: num(row.average_watts),
+  }));
+}
