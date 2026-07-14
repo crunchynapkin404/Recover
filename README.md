@@ -52,6 +52,9 @@ OpenAI-compatible endpoint including a fully local Ollama. Keys are encrypted
   by an in-process scheduler. **Strava OAuth** as a second source, with
   provenance tracking (Strava data is excluded from AI context by default, per
   Strava's API terms).
+- **Analytics depth** — open any activity for stream charts (HR, power, pace,
+  elevation) and laps; track fitness with CTL/ATL/TSB over 30–365 day ranges;
+  watch HRV, resting HR, and sleep trend against your personal baselines.
 - **AI coach** — evidence-based endurance-coach persona that cites the actual
   numbers from your data, adapts its tone to your readiness band, and refuses
   to program through injury or illness. BYO key: Anthropic or any

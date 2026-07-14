@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.3.0 — 2026-07-14
+
+Analytics depth.
+
+### Added
+
+- **Activity detail page** (`/activity/[id]`): stream charts (heart rate,
+  power, pace, elevation) and a laps/intervals table. Streams are fetched
+  lazily from intervals.icu on first view and cached; Strava/manual
+  activities show the summary with a "no detailed data" note.
+- **Performance page tabs** (Training | Wellness) with a 30/90/180/365-day
+  range selector, both linkable via URL params.
+- **Training tab**: PMC chart now spans the selected range and draws TSB as
+  a filled area around zero; 12-week load bars; history list grouped by day
+  with "load more", each row linking to the activity detail.
+- **Wellness tab**: HRV and resting-HR trends (daily line, 7-day rolling
+  average, personal 60-day baseline band) and a sleep chart (duration bars,
+  score line, 8 h guide).
+- Dashboard recent activities now link to their detail pages.
+
 ## v0.2.0 — 2026-07-14
 
 Phone & daily loop.

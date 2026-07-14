@@ -27,14 +27,14 @@ The morning glance: install it like an app, get told when your score is ready.
 
 **Done when:** installed on a phone, the morning notification arrives unattended.
 
-## v0.3 — Analytics depth
+## ✅ v0.3 — Analytics depth
 
 More reasons to open the app than a single number.
 
-- [ ] Activity detail page: stream charts (HR, power, pace), laps/intervals
-- [ ] Fitness page: performance management chart (CTL/ATL/TSB over time)
-- [ ] Wellness trends: HRV, resting HR, and sleep against personal baselines
-- [ ] History/calendar polish
+- [x] Activity detail page: stream charts (HR, power, pace), laps/intervals
+- [x] Fitness page: performance management chart (CTL/ATL/TSB over time)
+- [x] Wellness trends: HRV, resting HR, and sleep against personal baselines
+- [x] History/calendar polish
 
 **Done when:** a month of training is explorable end-to-end.
 
