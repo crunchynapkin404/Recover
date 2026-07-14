@@ -65,6 +65,55 @@ export async function ensureJobsForConnections(): Promise<void> {
 }
 
 /**
+ * Make the user's next sync happen now: pull pending jobs forward, or create
+ * incremental jobs for active connections that have none. The caller then
+ * runs a tick.
+ */
+export async function requestImmediateSync(userId: string): Promise<void> {
+  const conns = await db.query.connections.findMany({
+    where: and(
+      eq(schema.connections.userId, userId),
+      eq(schema.connections.status, "active")
+    ),
+    columns: { provider: true },
+  });
+
+  for (const c of conns) {
+    const bumped = await db
+      .update(schema.syncJobs)
+      .set({ runAfter: new Date(), updatedAt: new Date() })
+      .where(
+        and(
+          eq(schema.syncJobs.userId, userId),
+          eq(schema.syncJobs.provider, c.provider),
+          eq(schema.syncJobs.status, "pending")
+        )
+      )
+      // Parameterless: the dual-driver union type only shares this overload.
+      .returning();
+
+    if (bumped.length === 0) {
+      const running = await db.query.syncJobs.findFirst({
+        where: and(
+          eq(schema.syncJobs.userId, userId),
+          eq(schema.syncJobs.provider, c.provider),
+          eq(schema.syncJobs.status, "running")
+        ),
+        columns: { id: true },
+      });
+      if (!running) {
+        await db.insert(schema.syncJobs).values({
+          userId,
+          provider: c.provider,
+          kind: "incremental",
+          runAfter: new Date(),
+        });
+      }
+    }
+  }
+}
+
+/**
  * One scheduler tick: claim due jobs (single runner via pg advisory lock,
  * SKIP LOCKED against concurrent claimers, stale-"running" reclaim) and
  * process them. Safe to call from both the in-process interval and /api/cron.
