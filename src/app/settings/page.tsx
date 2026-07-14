@@ -1,9 +1,10 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { AppShell } from "@/components/app-shell";
 import { IntervalsCard } from "@/components/settings/intervals-card";
 import { LlmSettingsCard } from "@/components/settings/llm-settings-card";
+import { ApiTokensCard } from "@/components/settings/api-tokens-card";
 
 export default async function SettingsPage() {
   const user = await requireUser();
@@ -17,6 +18,13 @@ export default async function SettingsPage() {
 
   const llmSettings = await db.query.llmSettings.findFirst({
     where: eq(schema.llmSettings.userId, user.id),
+  });
+
+  const apiTokens = await db.query.apiTokens.findMany({
+    where: and(
+      eq(schema.apiTokens.userId, user.id),
+      isNull(schema.apiTokens.revokedAt)
+    ),
   });
 
   return (
@@ -47,6 +55,15 @@ export default async function SettingsPage() {
                 }
               : null
           }
+        />
+        <ApiTokensCard
+          tokens={apiTokens.map((t) => ({
+            id: t.id,
+            label: t.label,
+            scopes: t.scopes,
+            lastUsedAt: t.lastUsedAt?.toISOString() ?? null,
+            createdAt: t.createdAt.toISOString(),
+          }))}
         />
       </div>
     </AppShell>

@@ -260,7 +260,9 @@ export const apiTokens = pgTable("api_tokens", {
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
   tokenHash: text("token_hash").notNull().unique(), // sha256; plaintext shown once
+  lookupPrefix: text("lookup_prefix").notNull(), // first 8 chars of hex hash for fast lookup
   label: text("label").notNull(),
+  scopes: text("scopes").notNull().default("read"), // pipe-separated: "read" | "read|write:wellness"
   lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
   revokedAt: timestamp("revoked_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true })
