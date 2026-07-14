@@ -68,7 +68,24 @@ async function readVapidRows(): Promise<VapidKeys | null> {
   const pub = rows.find((r) => r.key === VAPID_PUBLIC_KEY)?.value;
   const priv = rows.find((r) => r.key === VAPID_PRIVATE_KEY)?.value;
   if (!pub || !priv) return null;
-  return { publicKey: pub, privateKey: decrypt(priv) };
+  try {
+    return { publicKey: pub, privateKey: decrypt(priv) };
+  } catch {
+    // ENCRYPTION_KEY was rotated (or the row is corrupt): the stored private
+    // key is unrecoverable. Drop the pair so a fresh one is generated —
+    // existing subscriptions will fail against the new key and get pruned;
+    // users re-enable notifications once. Better than a permanent 500.
+    logger.error(
+      "VAPID private key undecryptable — regenerating pair; push subscribers must re-enable notifications",
+      {}
+    );
+    await db
+      .delete(schema.appConfig)
+      .where(
+        inArray(schema.appConfig.key, [VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY])
+      );
+    return null;
+  }
 }
 
 /**

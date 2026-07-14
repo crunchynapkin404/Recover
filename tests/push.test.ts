@@ -56,6 +56,24 @@ describe.skipIf(!hasDb)("push pipeline", () => {
     expect(a.publicKey.length).toBeGreaterThan(20);
   });
 
+  it("regenerates keys when the private key can't be decrypted (rotated ENCRYPTION_KEY)", async () => {
+    const { db, schema } = await import("@/lib/db");
+    const { getVapidKeys } = await import("@/lib/push");
+    const before = await getVapidKeys();
+    // Simulate a key encrypted under a different ENCRYPTION_KEY.
+    await db
+      .update(schema.appConfig)
+      .set({ value: "deadbeef00:deadbeef00:deadbeef00" })
+      .where(eq(schema.appConfig.key, "vapid_private_key"));
+
+    const after = await getVapidKeys();
+    expect(after.publicKey).not.toBe(before.publicKey);
+    expect(after.privateKey.length).toBeGreaterThan(20);
+    // And it settles: a further call returns the regenerated pair.
+    const again = await getVapidKeys();
+    expect(again.publicKey).toBe(after.publicKey);
+  });
+
   it("sendToUser sends to own subs only and prunes 410s", async () => {
     const { db, schema } = await import("@/lib/db");
     const { sendToUser } = await import("@/lib/push");
