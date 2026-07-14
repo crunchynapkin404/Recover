@@ -27,6 +27,7 @@ describe("route guard matcher", () => {
     "/api/health",
     "/api/auth/sign-in/email",
     "/login",
+    "/join/abc123XYZ",
   ])("excludes bearer/public route %s from the session guard", (path) => {
     expect(guarded(path)).toBe(false);
   });

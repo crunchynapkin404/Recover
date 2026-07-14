@@ -30,6 +30,9 @@ services:
       OWNER_EMAIL: ${OWNER_EMAIL:-}
       OWNER_PASSWORD: ${OWNER_PASSWORD:-}
       TRUSTED_ORIGINS: ${TRUSTED_ORIGINS:-}
+      CRON_SECRET: ${CRON_SECRET:-}
+      STRAVA_CLIENT_ID: ${STRAVA_CLIENT_ID:-}
+      STRAVA_CLIENT_SECRET: ${STRAVA_CLIENT_SECRET:-}
     depends_on:
       db:
         condition: service_healthy

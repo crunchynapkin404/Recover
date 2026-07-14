@@ -67,6 +67,30 @@ export default async function LogPage({
   const atl = latest?.atl ?? 0;
   const tsb = ctl - atl;
 
+  // Use readiness from daily_metrics for consistent status with dashboard
+  const latestMetric = await db.query.dailyMetrics.findFirst({
+    where: eq(schema.dailyMetrics.userId, user.id),
+    orderBy: desc(schema.dailyMetrics.date),
+  });
+  const readinessMetric =
+    latestMetric?.readiness != null
+      ? latestMetric
+      : (await db.query.dailyMetrics.findMany({
+          where: eq(schema.dailyMetrics.userId, user.id),
+          orderBy: desc(schema.dailyMetrics.date),
+          limit: 7,
+        })).find((m) => m.readiness != null);
+  const readiness = readinessMetric?.readiness ?? null;
+  const band = readinessMetric?.band ?? "calibrating";
+  const trainingStatus =
+    band === "green"
+      ? "Productive"
+      : band === "amber"
+        ? "Maintaining"
+        : band === "red"
+          ? "Recovery"
+          : "Calibrating";
+
   const weekStart = new Date(daysAgo(7));
   const weekActivities = allActivities.filter((a) => a.startDate >= weekStart);
   const weekVolume = weekActivities.reduce((s, a) => s + (a.durationS ?? 0), 0);
@@ -111,23 +135,41 @@ export default async function LogPage({
         {/* Training Status */}
         <div className="glass mb-8 flex items-center justify-between rounded-3xl p-5">
           <div className="flex items-center gap-4">
-            <div className="relative flex h-14 w-14 items-center justify-center rounded-full border-4 border-emerald-500/30">
-              <TrendingUp aria-hidden className="size-6 text-emerald-400" />
+            <div
+              className={`relative flex h-14 w-14 items-center justify-center rounded-full border-4 ${
+                band === "green"
+                  ? "border-emerald-500/30"
+                  : band === "amber"
+                    ? "border-amber-500/30"
+                    : band === "red"
+                      ? "border-red-500/30"
+                      : "border-white/10"
+              }`}
+            >
+              <TrendingUp
+                aria-hidden
+                className={`size-6 ${
+                  band === "green"
+                    ? "text-emerald-400"
+                    : band === "amber"
+                      ? "text-amber-400"
+                      : band === "red"
+                        ? "text-red-400"
+                        : "text-white/40"
+                }`}
+              />
+              {band === "green" && (
+                <div className="absolute -right-1 -top-1 h-4 w-4 rounded-full border-2 border-[#0a0a0a] bg-emerald-500" />
+              )}
             </div>
             <div>
-              <h2 className="text-lg font-bold">
-                {latest == null
-                  ? "No data yet"
-                  : tsb > 5
-                    ? "Fresh"
-                    : tsb > -10
-                      ? "Maintaining"
-                      : "Recovery needed"}
-              </h2>
-              <p className="text-xs font-medium text-white/50">
-                {latest
-                  ? `TSB ${tsb.toFixed(0)} as of ${latest.date}`
-                  : "Connect intervals.icu in Settings"}
+              <h2 className="text-lg font-bold">{trainingStatus}</h2>
+              <p className="text-xs font-medium text-white/40">
+                {readiness != null
+                  ? `Readiness ${readiness} · TSB ${tsb.toFixed(0)}`
+                  : latest
+                    ? `TSB ${tsb.toFixed(0)}`
+                    : "Connect intervals.icu in Settings"}
               </p>
             </div>
           </div>

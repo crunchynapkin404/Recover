@@ -7,6 +7,7 @@ import { logger } from "@/lib/logger";
 import { resolveProvider } from "@/lib/llm-provider";
 import { buildSystemPrompt } from "@/lib/coach-persona";
 import { buildAiSdkTools } from "@/lib/tools/registry";
+import { fetchAthleteContext } from "@/lib/coach-context";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -88,11 +89,17 @@ export async function POST(req: Request) {
     });
   }
 
-  // Build system prompt with user context
-  const systemPrompt = buildSystemPrompt({
-    userName: session.user.name,
-    todayDate: new Date().toISOString().slice(0, 10),
-  });
+  // Build system prompt with user context + real athlete data
+  const [basePrompt, athleteSnapshot] = await Promise.all([
+    Promise.resolve(
+      buildSystemPrompt({
+        userName: session.user.name,
+        todayDate: new Date().toISOString().slice(0, 10),
+      }),
+    ),
+    fetchAthleteContext(userId, db),
+  ]);
+  const systemPrompt = `${basePrompt}\n\n${athleteSnapshot}`;
 
   // One registry, every provider: OpenAI-compatible endpoints (Ollama, LM
   // Studio, OpenRouter) support tool calling too — without tools the coach

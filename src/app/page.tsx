@@ -167,13 +167,16 @@ export default async function DashboardPage() {
     window7.reduce((s, w) => s + (w.restingHr ?? 0), 0) /
     (window7.filter((w) => w.restingHr != null).length || 1);
 
-  // Strain = today's ATL approximation
+  // Strain & Recovery calculations (all capped 0-100 for ring display)
   const todayAtl = latest?.atl ?? 0;
   const todayCtl = latest?.ctl ?? 0;
+  const tsb = todayCtl - todayAtl;
   const strainMax = Math.max(todayCtl * 1.5, 14);
-  const strainUsed = todayAtl;
-  const strainFraction = strainMax > 0 ? (strainUsed / 21) * 100 : 0;
-  const recoveryScore = components.hrv ?? components.sleep ?? readiness;
+  // Strain: ATL relative to personal capacity (CTL*1.5), capped at 100
+  const strainFraction = Math.min((todayAtl / strainMax) * 100, 100);
+  // Recovery: inverse of fatigue — high TSB = high recovery, deep negative TSB = low recovery
+  // Maps TSB range [-30, +20] → [0, 100]
+  const recoveryScore = Math.max(0, Math.min(100, Math.round((tsb + 30) * 2)));
 
   const sleepHours = latest?.sleepSecs != null ? latest.sleepSecs / 3600 : null;
 
@@ -197,7 +200,7 @@ export default async function DashboardPage() {
     latest?.restingHr ?? null,
     sleepHours,
     band,
-    strainMax - strainUsed
+    strainMax - todayAtl
   );
 
   // ── Render ──────────────────────────────────────────────────────────────
@@ -256,7 +259,7 @@ export default async function DashboardPage() {
                 label="Strain"
                 color="#3b82f6"
                 size="sm"
-                displayValue={(strainUsed || 0).toFixed(1)}
+                displayValue={Math.min((todayAtl / strainMax) * 21, 21).toFixed(1)}
               />
             </div>
           </div>
@@ -280,7 +283,7 @@ export default async function DashboardPage() {
 
         {/* ── Strain Budget ───────────────────────────────────────── */}
         <section className="mb-10">
-          <StrainBudget used={strainUsed} total={strainMax} />
+          <StrainBudget used={todayAtl} total={strainMax} />
         </section>
 
         {/* ── AI Morning Brief ────────────────────────────────────── */}

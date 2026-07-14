@@ -5,16 +5,30 @@ import { AppShell } from "@/components/app-shell";
 import { IntervalsCard } from "@/components/settings/intervals-card";
 import { LlmSettingsCard } from "@/components/settings/llm-settings-card";
 import { ApiTokensCard } from "@/components/settings/api-tokens-card";
+import { StravaCard } from "@/components/settings/strava-card";
 import { SignOutButton } from "@/components/sign-out-button";
+import Link from "next/link";
 import { User } from "lucide-react";
 
-export default async function SettingsPage() {
+export default async function SettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ strava_error?: string }>;
+}) {
   const user = await requireUser();
+  const { strava_error } = await searchParams;
 
   const connection = await db.query.connections.findFirst({
     where: and(
       eq(schema.connections.userId, user.id),
       eq(schema.connections.provider, "intervals_icu")
+    ),
+  });
+
+  const stravaConnection = await db.query.connections.findFirst({
+    where: and(
+      eq(schema.connections.userId, user.id),
+      eq(schema.connections.provider, "strava")
     ),
   });
 
@@ -56,6 +70,16 @@ export default async function SettingsPage() {
               <span className="text-sm text-white/50">{user.email}</span>
             </div>
           </div>
+          {user.role === "owner" && (
+            <div className="mt-4 border-t border-white/5 pt-4">
+              <Link
+                href="/admin"
+                className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 hover:underline"
+              >
+                Admin — members & invites
+              </Link>
+            </div>
+          )}
           <div className="mt-4 border-t border-white/5 pt-4">
             <SignOutButton />
           </div>
@@ -79,23 +103,23 @@ export default async function SettingsPage() {
             }
           />
 
-          {/* Strava Coming Soon */}
-          <div className="glass flex items-center justify-between rounded-[2rem] p-5 opacity-60">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-orange-500/20 bg-orange-500/10">
-                <span className="text-xl text-orange-400">↗</span>
-              </div>
-              <div>
-                <p className="text-sm font-bold">Strava Integration</p>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-white/50">
-                  Not Connected
-                </span>
-              </div>
-            </div>
-            <span className="rounded bg-orange-500/20 px-2 py-1 text-[8px] font-bold uppercase tracking-widest text-orange-400">
-              Soon
-            </span>
-          </div>
+          <StravaCard
+            configured={!!process.env.STRAVA_CLIENT_ID}
+            errorParam={strava_error}
+            connection={
+              stravaConnection
+                ? {
+                    athleteName:
+                      stravaConnection.externalAthleteName ??
+                      stravaConnection.externalAthleteId,
+                    status: stravaConnection.status,
+                    lastSyncAt:
+                      stravaConnection.lastSyncAt?.toISOString() ?? null,
+                    lastError: stravaConnection.lastError,
+                  }
+                : null
+            }
+          />
         </section>
 
         {/* AI Coach */}

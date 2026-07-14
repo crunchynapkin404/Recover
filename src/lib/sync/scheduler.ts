@@ -20,6 +20,11 @@ async function defaultProcessor(job: SyncJob): Promise<void> {
     await runIntervalsSync(job.userId);
     return;
   }
+  if (job.provider === "strava") {
+    const { runStravaSync } = await import("@/lib/sync/strava-sync");
+    await runStravaSync(job.userId);
+    return;
+  }
   throw new Error(`No processor for provider ${job.provider}`);
 }
 

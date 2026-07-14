@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { and, eq, gte, desc } from "drizzle-orm";
+import { and, eq, gte, desc, ne, sql } from "drizzle-orm";
 import * as schema from "@/lib/db/schema";
 import type { ToolDefinition, ToolContext } from "./registry";
 
@@ -28,24 +28,25 @@ async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
   const since = new Date();
   since.setDate(since.getDate() - args.days);
 
-  // Provenance: exclude Strava rows from AI context by default (Strava AI clause)
+  // All filters in SQL so `limit` keeps its meaning: provenance exclusion
+  // (Strava AI clause) and sport filtering must happen BEFORE the limit,
+  // otherwise a page of Strava rows would mask older eligible activities.
   const conditions = [
     eq(schema.activities.userId, ctx.userId),
     gte(schema.activities.startDate, since),
+    ne(schema.activities.provider, "strava"),
   ];
+  if (args.sport) {
+    conditions.push(
+      sql`lower(${schema.activities.sport}) = ${args.sport.toLowerCase()}`
+    );
+  }
 
-  const rows = await ctx.db.query.activities.findMany({
+  const safe = await ctx.db.query.activities.findMany({
     where: and(...conditions),
     orderBy: desc(schema.activities.startDate),
     limit: args.limit,
   });
-
-  const filtered = args.sport
-    ? rows.filter((r) => r.sport.toLowerCase() === args.sport!.toLowerCase())
-    : rows;
-
-  // Exclude Strava-sourced activities from AI context
-  const safe = filtered.filter((r) => r.provider !== "strava");
 
   return {
     activities: safe.map((a) => ({
