@@ -106,6 +106,12 @@ export async function POST(req: Request) {
   // can only hallucinate numbers, which the persona forbids.
   const tools = buildAiSdkTools({ userId, db });
 
+  // LLM generation parameters — lower temperature for factual coaching
+  const generationParams =
+    resolved.providerType === "openai_compatible"
+      ? { temperature: 0.3, topP: 0.9, frequencyPenalty: 0.3 }
+      : { temperature: 0.4 };
+
   // Stream the response
   const result = streamText({
     model: resolved.provider(resolved.model),
@@ -115,6 +121,7 @@ export async function POST(req: Request) {
       content: m.content,
     })),
     tools,
+    ...generationParams,
     stopWhen: stepCountIs(6),
     onFinish: async ({ text }) => {
       // Persist assistant response (skip if empty — e.g. tool-only responses)

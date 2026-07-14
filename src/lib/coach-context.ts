@@ -72,9 +72,21 @@ export async function fetchAthleteContext(
       `**Latest wellness (${latestWellness.date}):** ` +
       `HRV ${latestWellness.hrvMs != null ? Math.round(latestWellness.hrvMs) + "ms" : "—"}, ` +
       `RHR ${latestWellness.restingHr != null ? Math.round(latestWellness.restingHr) + "bpm" : "—"}, ` +
-      `Sleep ${latestWellness.sleepSecs != null ? (latestWellness.sleepSecs / 3600).toFixed(1) + "h" : "—"}, ` +
-      `CTL ${latestWellness.ctl?.toFixed(0) ?? "—"}, ATL ${latestWellness.atl?.toFixed(0) ?? "—"}`,
+      `Sleep ${latestWellness.sleepSecs != null ? (latestWellness.sleepSecs / 3600).toFixed(1) + "h" : "—"}`,
     );
+    const ctl = latestWellness.ctl;
+    const atl = latestWellness.atl;
+    if (ctl != null && atl != null) {
+      const tsb = ctl - atl;
+      lines.push(
+        `**Training Load:** CTL=${ctl.toFixed(0)} (fitness), ATL=${atl.toFixed(0)} (fatigue), ` +
+        `TSB=${tsb.toFixed(0)} (form: ${tsb > 5 ? "fresh" : tsb > -10 ? "neutral" : tsb > -25 ? "fatigued — reduce load" : "overtrained — rest now"})`,
+      );
+      lines.push(
+        `**NOTE: TSB is ${tsb.toFixed(0)}, NOT a percentage. Negative = accumulated fatigue. ` +
+        `Do NOT confuse TSB with component scores (which are 0-100).**`,
+      );
+    }
   }
 
   if (wellness7.length > 1) {
