@@ -18,15 +18,15 @@ describe("coach persona", () => {
     });
     // Evidence-based, cites numbers
     expect(prompt).toContain("cite");
-    // Red band safety
-    expect(prompt).toContain("Red");
-    expect(prompt).toContain("prescribe ONLY recovery activities");
-    // Medical refusal
+    expect(prompt).toContain("NEVER invent numbers");
+    // Red band safety: recovery only, no intensity
+    expect(prompt).toContain("Red band");
+    expect(prompt).toMatch(/Red band.*ONLY recovery/);
+    // Medical refusal + escalation
+    expect(prompt).toContain("Refuse medical diagnoses");
     expect(prompt).toContain("healthcare professional");
     // Strava exclusion
-    expect(prompt).toContain("Strava");
-    // Data-driven mandate
-    expect(prompt).toContain("NEVER invent numbers");
+    expect(prompt).toContain("No Strava data");
   });
 
   it("prompt snapshot stability", () => {
@@ -36,9 +36,10 @@ describe("coach persona", () => {
     });
     // Key sections exist
     expect(prompt).toMatch(/## Identity/);
-    expect(prompt).toMatch(/## Behavior rules/);
     expect(prompt).toMatch(/## Decision Framework/);
     expect(prompt).toMatch(/## Communication Style/);
     expect(prompt).toMatch(/## Recovery Protocols/);
+    expect(prompt).toMatch(/## Pattern Recognition/);
+    expect(prompt).toMatch(/## Behavior rules/);
   });
 });

@@ -35,7 +35,9 @@ export async function createInvite(
   };
 }
 
-export async function revokeInvite(inviteId: string): Promise<AdminActionResult> {
+export async function revokeInvite(
+  inviteId: string
+): Promise<AdminActionResult> {
   await requireOwner();
   await db.delete(schema.invites).where(eq(schema.invites.id, inviteId));
   revalidatePath("/admin");

@@ -17,7 +17,12 @@ describe.skipIf(!hasDb)("invite lifecycle", () => {
     const { db, schema } = await import("@/lib/db");
     await db
       .insert(schema.users)
-      .values({ id: OWNER, name: "Owner", email: "invite-owner@example.invalid", role: "owner" })
+      .values({
+        id: OWNER,
+        name: "Owner",
+        email: "invite-owner@example.invalid",
+        role: "owner",
+      })
       .onConflictDoNothing();
   });
 

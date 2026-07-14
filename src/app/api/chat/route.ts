@@ -95,7 +95,7 @@ export async function POST(req: Request) {
       buildSystemPrompt({
         userName: session.user.name,
         todayDate: new Date().toISOString().slice(0, 10),
-      }),
+      })
     ),
     fetchAthleteContext(userId, db),
   ]);

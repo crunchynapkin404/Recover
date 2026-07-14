@@ -1,4 +1,12 @@
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import { and, eq } from "drizzle-orm";
 import { randomBytes } from "node:crypto";
 
@@ -29,14 +37,22 @@ describe.skipIf(!hasDb)("strava layer", () => {
     const { db, schema } = await import("@/lib/db");
     await db
       .insert(schema.users)
-      .values({ id: USER, name: "Strava Test", email: "strava-test@example.invalid" })
+      .values({
+        id: USER,
+        name: "Strava Test",
+        email: "strava-test@example.invalid",
+      })
       .onConflictDoNothing();
   });
 
   afterAll(async () => {
     const { db, schema } = await import("@/lib/db");
-    await db.delete(schema.activities).where(eq(schema.activities.userId, USER));
-    await db.delete(schema.connections).where(eq(schema.connections.userId, USER));
+    await db
+      .delete(schema.activities)
+      .where(eq(schema.activities.userId, USER));
+    await db
+      .delete(schema.connections)
+      .where(eq(schema.connections.userId, USER));
     await db.delete(schema.users).where(eq(schema.users.id, USER));
   });
 
@@ -45,9 +61,12 @@ describe.skipIf(!hasDb)("strava layer", () => {
   it("refreshes an expired token exactly once under concurrency", async () => {
     const { db, schema } = await import("@/lib/db");
     const { encrypt, decrypt } = await import("@/lib/crypto");
-    const { getValidStravaAccessToken } = await import("@/lib/sync/strava-sync");
+    const { getValidStravaAccessToken } =
+      await import("@/lib/sync/strava-sync");
 
-    await db.delete(schema.connections).where(eq(schema.connections.userId, USER));
+    await db
+      .delete(schema.connections)
+      .where(eq(schema.connections.userId, USER));
     const [connection] = await db
       .insert(schema.connections)
       .values({
@@ -92,9 +111,12 @@ describe.skipIf(!hasDb)("strava layer", () => {
   it("returns the current token untouched when not near expiry", async () => {
     const { db, schema } = await import("@/lib/db");
     const { encrypt } = await import("@/lib/crypto");
-    const { getValidStravaAccessToken } = await import("@/lib/sync/strava-sync");
+    const { getValidStravaAccessToken } =
+      await import("@/lib/sync/strava-sync");
 
-    await db.delete(schema.connections).where(eq(schema.connections.userId, USER));
+    await db
+      .delete(schema.connections)
+      .where(eq(schema.connections.userId, USER));
     const [connection] = await db
       .insert(schema.connections)
       .values({

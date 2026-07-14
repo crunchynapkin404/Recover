@@ -259,7 +259,9 @@ export default async function DashboardPage() {
                 label="Strain"
                 color="#3b82f6"
                 size="sm"
-                displayValue={Math.min((todayAtl / strainMax) * 21, 21).toFixed(1)}
+                displayValue={Math.min((todayAtl / strainMax) * 21, 21).toFixed(
+                  1
+                )}
               />
             </div>
           </div>

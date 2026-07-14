@@ -93,10 +93,16 @@ async function tokenRequest(
     }),
   });
   if (response.status === 401 || response.status === 400) {
-    throw new StravaError("auth", `Strava token request rejected (${response.status})`);
+    throw new StravaError(
+      "auth",
+      `Strava token request rejected (${response.status})`
+    );
   }
   if (!response.ok) {
-    throw new StravaError("network", `Strava token request failed (${response.status})`);
+    throw new StravaError(
+      "network",
+      `Strava token request failed (${response.status})`
+    );
   }
   return (await response.json()) as TokenResponse;
 }
@@ -158,7 +164,10 @@ export async function fetchActivities(params: {
     throw new StravaError("rate_limited", "Strava: rate limited");
   }
   if (!response.ok) {
-    throw new StravaError("network", `Strava: activities fetch failed (${response.status})`);
+    throw new StravaError(
+      "network",
+      `Strava: activities fetch failed (${response.status})`
+    );
   }
 
   const rows = (await response.json()) as Array<Record<string, unknown>>;

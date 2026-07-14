@@ -37,12 +37,10 @@ export function JoinForm({ code, inviteEmail }: Props) {
 
   return (
     <div className="glass w-full max-w-sm rounded-[2rem] p-8">
-      <h1 className="mb-1 text-xl font-bold tracking-tighter">
-        Join Recover
-      </h1>
+      <h1 className="mb-1 text-xl font-bold tracking-tighter">Join Recover</h1>
       <p className="mb-6 text-sm text-white/60">
-        You&apos;ve been invited. Create your account — your training data
-        stays on this server, nowhere else.
+        You&apos;ve been invited. Create your account — your training data stays
+        on this server, nowhere else.
       </p>
       <form
         action={(fd) => {

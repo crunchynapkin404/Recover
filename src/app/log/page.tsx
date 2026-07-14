@@ -75,11 +75,13 @@ export default async function LogPage({
   const readinessMetric =
     latestMetric?.readiness != null
       ? latestMetric
-      : (await db.query.dailyMetrics.findMany({
-          where: eq(schema.dailyMetrics.userId, user.id),
-          orderBy: desc(schema.dailyMetrics.date),
-          limit: 7,
-        })).find((m) => m.readiness != null);
+      : (
+          await db.query.dailyMetrics.findMany({
+            where: eq(schema.dailyMetrics.userId, user.id),
+            orderBy: desc(schema.dailyMetrics.date),
+            limit: 7,
+          })
+        ).find((m) => m.readiness != null);
   const readiness = readinessMetric?.readiness ?? null;
   const band = readinessMetric?.band ?? "calibrating";
   const trainingStatus =

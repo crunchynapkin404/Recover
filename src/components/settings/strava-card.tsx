@@ -21,7 +21,8 @@ interface Props {
 const ERROR_MESSAGES: Record<string, string> = {
   denied: "You declined the Strava authorization.",
   state_mismatch: "Sign-in state didn't match — try connecting again.",
-  rejected: "Strava rejected the app credentials. Check STRAVA_CLIENT_ID/SECRET.",
+  rejected:
+    "Strava rejected the app credentials. Check STRAVA_CLIENT_ID/SECRET.",
   failed: "Connecting to Strava failed. Try again.",
 };
 

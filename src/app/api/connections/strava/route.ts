@@ -14,7 +14,10 @@ export async function GET(req: Request) {
   }
 
   const state = randomBytes(16).toString("hex");
-  const redirectUri = new URL("/api/connections/strava/callback", req.url).toString();
+  const redirectUri = new URL(
+    "/api/connections/strava/callback",
+    req.url
+  ).toString();
 
   const jar = await cookies();
   jar.set("strava_oauth_state", state, {
