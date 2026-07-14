@@ -17,7 +17,9 @@ services:
       retries: 10
 
   app:
-    build: .
+    # Prebuilt image (amd64/arm64). To build from source instead:
+    #   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+    image: ghcr.io/crunchynapkin404/recover:latest
     restart: unless-stopped
     ports:
       - "${APP_PORT:-3000}:3000"
