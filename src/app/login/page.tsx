@@ -4,7 +4,13 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -21,7 +27,9 @@ export default function LoginPage() {
     setError(null);
     const { error } = await authClient.signIn.email({ email, password });
     if (error) {
-      setError(error.message ?? "Sign in failed. Check your email and password.");
+      setError(
+        error.message ?? "Sign in failed. Check your email and password."
+      );
       setLoading(false);
       return;
     }

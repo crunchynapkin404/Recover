@@ -1,11 +1,10 @@
 # Recover — Definitive Plan (v2, consolidated)
 
-
 ## Vision
 
 Recover is a free, self-hostable alternative to Whoop/Bevel-style recovery apps: one calm dashboard unifying training load with recovery signals (HRV, resting HR, sleep), built for an owner plus roughly ten invited friends. It runs on your own hardware with `docker-compose up` (app + Postgres, optional Cloudflare tunnel); a Vercel + Neon deployment stays possible via env-driven config. Zero mandatory paid services. AGPL-3.0.
 
-Data arrives from intervals.icu (primary source: wellness + activities + precomputed CTL/ATL), later directly from Strava, and from manual entry. A daily readiness score is computed against *your own* rolling baselines — not population norms — with an honest "calibrating" state until enough history exists.
+Data arrives from intervals.icu (primary source: wellness + activities + precomputed CTL/ATL), later directly from Strava, and from manual entry. A daily readiness score is computed against _your own_ rolling baselines — not population norms — with an honest "calibrating" state until enough history exists.
 
 Two AI surfaces sit on the same foundation: an in-app coach chat using your own LLM key (Anthropic, or any OpenAI-compatible endpoint including local Ollama — encrypted per user), and a built-in MCP server: a **bridge between your Claude and your training data**, so claude.ai or Claude Code can query your readiness directly.
 
@@ -50,12 +49,12 @@ manual entry ───┤                                   ▼
 
 60-day rolling personal baselines; <14 days of data → band `calibrating`, no number shown.
 
-| Component | Basis | Weight |
-|---|---|---|
-| HRV | z-score of ln(HRV) vs baseline | 0.40 |
-| Resting HR | inverted z-score | 0.25 |
-| Sleep | provider sleepScore, else duration curve | 0.20 |
-| Form | TSB = CTL − ATL | 0.15 |
+| Component  | Basis                                    | Weight |
+| ---------- | ---------------------------------------- | ------ |
+| HRV        | z-score of ln(HRV) vs baseline           | 0.40   |
+| Resting HR | inverted z-score                         | 0.25   |
+| Sleep      | provider sleepScore, else duration curve | 0.20   |
+| Form       | TSB = CTL − ATL                          | 0.15   |
 
 z-components → `clamp(50 + 20z, 0, 100)`; TSB → `clamp(50 + 2.5·TSB, 10, 90)`. Missing components renormalize remaining weights. Bands: green ≥ 67, amber 34–66, red < 34. Component breakdown persists to `daily_metrics.component_scores` so UI and coach can explain every score.
 
@@ -65,7 +64,7 @@ Evidence-based endurance coach that cites the actual numbers returned by its too
 
 ## MCP design
 
-`@modelcontextprotocol/sdk` — **must be added as a direct dependency** (currently only transitive via shadcn) — `WebStandardStreamableHTTPServerTransport`, stateless per-request, in `POST /api/mcp`. Bearer auth resolved *before* `handleRequest`; SDK `AuthInfo` carries userId/scopes into every tool. Tokens: plaintext shown once, SHA-256 + short lookup prefix, scoped `read` | `write:wellness`, revocable. Rate limiting: in-memory token bucket on `/api/mcp`; Better Auth built-in `rateLimit` on auth routes. Nine v1 tools: `get_athlete_profile`, `get_wellness`, `log_wellness`, `get_readiness`, `get_readiness_history`, `get_fitness_summary`, `list_activities`, `get_activity`, `get_training_load_summary`.
+`@modelcontextprotocol/sdk` — **must be added as a direct dependency** (currently only transitive via shadcn) — `WebStandardStreamableHTTPServerTransport`, stateless per-request, in `POST /api/mcp`. Bearer auth resolved _before_ `handleRequest`; SDK `AuthInfo` carries userId/scopes into every tool. Tokens: plaintext shown once, SHA-256 + short lookup prefix, scoped `read` | `write:wellness`, revocable. Rate limiting: in-memory token bucket on `/api/mcp`; Better Auth built-in `rateLimit` on auth routes. Nine v1 tools: `get_athlete_profile`, `get_wellness`, `log_wellness`, `get_readiness`, `get_readiness_history`, `get_fitness_summary`, `list_activities`, `get_activity`, `get_training_load_summary`.
 
 ## Phases
 
@@ -77,9 +76,9 @@ Evidence-based endurance coach that cites the actual numbers returned by its too
 
 **P3 — AI coach.** `/api/chat` AI SDK streaming; persisted threads; tool registry as AI SDK tools; persona prompt; LLM settings UI (encrypted BYO key). **DoD:** cites real numbers on both Anthropic key and local Ollama. **Tests:** registry (schema validation, userId scoping); provider resolution; prompt snapshot.
 
-**P4 — MCP endpoint** *(security-review gate before exposure)*. Migration adding `scopes` + lookup prefix to `api_tokens`; token UI; `/api/mcp`; token bucket; add SDK as direct dep. **DoD:** claude.ai connector and Claude Code list tools and fetch readiness end-to-end. **Tests:** revoked → 401; missing scope rejected; cross-user isolation; auth-before-handleRequest ordering.
+**P4 — MCP endpoint** _(security-review gate before exposure)_. Migration adding `scopes` + lookup prefix to `api_tokens`; token UI; `/api/mcp`; token bucket; add SDK as direct dep. **DoD:** claude.ai connector and Claude Code list tools and fetch readiness end-to-end. **Tests:** revoked → 401; missing scope rejected; cross-user isolation; auth-before-handleRequest ordering.
 
-**P5 — Multi-user + Strava** *(second security review)*. Invite flow, admin page; Strava OAuth **from scratch** (KOM-Wars as API reference only): refresh serialized with pg advisory lock, hourly jittered polling, lazy streams; `provider='strava'` excluded from AI/MCP by default (Nov 2024 Strava AI clause), own-data opt-in, "Powered by Strava" attribution. **DoD:** friend onboards via invite; complete data isolation. **Tests:** isolation across web + MCP; refresh race; AI-exclusion proof.
+**P5 — Multi-user + Strava** _(second security review)_. Invite flow, admin page; Strava OAuth **from scratch** (KOM-Wars as API reference only): refresh serialized with pg advisory lock, hourly jittered polling, lazy streams; `provider='strava'` excluded from AI/MCP by default (Nov 2024 Strava AI clause), own-data opt-in, "Powered by Strava" attribution. **DoD:** friend onboards via invite; complete data isolation. **Tests:** isolation across web + MCP; refresh race; AI-exclusion proof.
 
 **P6 — PWA + push.** Serwist service worker, manifest, install prompt; daily readiness push (web-push VAPID), per-user subscriptions (KOM-Wars as reference; tests required). **DoD:** installed on phone; morning notification arrives. **Tests:** subscription lifecycle, payload, unsubscribe.
 

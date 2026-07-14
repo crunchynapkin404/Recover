@@ -46,7 +46,11 @@ export function IntervalsCard({ connection }: Props) {
         <div className="flex items-center justify-between gap-2">
           <CardTitle>intervals.icu</CardTitle>
           {connection && (
-            <Badge variant={connection.status === "active" ? "secondary" : "destructive"}>
+            <Badge
+              variant={
+                connection.status === "active" ? "secondary" : "destructive"
+              }
+            >
               {connection.status === "active" ? "Connected" : connection.status}
             </Badge>
           )}
@@ -91,7 +95,9 @@ export function IntervalsCard({ connection }: Props) {
               variant="outline"
               disabled={pending}
               onClick={() =>
-                startTransition(async () => setResult(await disconnectIntervals()))
+                startTransition(async () =>
+                  setResult(await disconnectIntervals())
+                )
               }
             >
               Disconnect
@@ -105,7 +111,9 @@ export function IntervalsCard({ connection }: Props) {
         )}
 
         {connection?.lastError && (
-          <p className="text-sm text-destructive">Last error: {connection.lastError}</p>
+          <p className="text-sm text-destructive">
+            Last error: {connection.lastError}
+          </p>
         )}
         {message && (
           <p

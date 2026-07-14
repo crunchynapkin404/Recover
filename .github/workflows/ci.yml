@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run format:check
+      - run: npm run build
+        env:
+          # Build needs syntactically valid env values only; nothing real.
+          DATABASE_URL: postgres://ci:ci@localhost:5432/ci
+          DATABASE_DRIVER: pg
+          ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
+          BETTER_AUTH_SECRET: ci-only-secret
+          BETTER_AUTH_URL: http://localhost:3000

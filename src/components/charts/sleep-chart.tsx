@@ -29,7 +29,9 @@ function SleepTooltip({
   return (
     <div className="rounded-md border bg-popover px-2.5 py-1.5 text-xs text-popover-foreground shadow-sm">
       <span className="text-muted-foreground">{formatDay(point.date)}</span>{" "}
-      <span className="font-medium tabular-nums">{point.hours.toFixed(1)}h sleep</span>
+      <span className="font-medium tabular-nums">
+        {point.hours.toFixed(1)}h sleep
+      </span>
     </div>
   );
 }
@@ -37,9 +39,17 @@ function SleepTooltip({
 /** Single-series bar chart — rounded data-ends, baseline-anchored. */
 export function SleepChart({ data }: { data: SleepPoint[] }) {
   return (
-    <div className="h-44 w-full" role="img" aria-label="Sleep duration per night">
+    <div
+      className="h-44 w-full"
+      role="img"
+      aria-label="Sleep duration per night"
+    >
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -12 }} barCategoryGap="20%">
+        <BarChart
+          data={data}
+          margin={{ top: 8, right: 8, bottom: 0, left: -12 }}
+          barCategoryGap="20%"
+        >
           <CartesianGrid stroke="var(--viz-grid)" vertical={false} />
           <XAxis
             dataKey="date"
@@ -56,8 +66,16 @@ export function SleepChart({ data }: { data: SleepPoint[] }) {
             width={40}
             unit="h"
           />
-          <Tooltip content={<SleepTooltip />} cursor={{ fill: "var(--viz-grid)", opacity: 0.4 }} />
-          <Bar dataKey="hours" fill="var(--viz-series-5)" radius={[4, 4, 0, 0]} maxBarSize={18} />
+          <Tooltip
+            content={<SleepTooltip />}
+            cursor={{ fill: "var(--viz-grid)", opacity: 0.4 }}
+          />
+          <Bar
+            dataKey="hours"
+            fill="var(--viz-series-5)"
+            radius={[4, 4, 0, 0]}
+            maxBarSize={18}
+          />
         </BarChart>
       </ResponsiveContainer>
     </div>

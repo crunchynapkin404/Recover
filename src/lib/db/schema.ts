@@ -160,7 +160,9 @@ export const activityStreams = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (t) => [uniqueIndex("activity_streams_activity_type_uq").on(t.activityId, t.type)]
+  (t) => [
+    uniqueIndex("activity_streams_activity_type_uq").on(t.activityId, t.type),
+  ]
 );
 
 export const wellnessDaily = pgTable(
@@ -240,7 +242,9 @@ export const chatMessages = pgTable(
     threadId: uuid("thread_id")
       .notNull()
       .references(() => chatThreads.id, { onDelete: "cascade" }),
-    role: text("role", { enum: ["user", "assistant", "system", "tool"] }).notNull(),
+    role: text("role", {
+      enum: ["user", "assistant", "system", "tool"],
+    }).notNull(),
     content: text("content").notNull(),
     toolCalls: jsonb("tool_calls"),
     createdAt: timestamp("created_at", { withTimezone: true })

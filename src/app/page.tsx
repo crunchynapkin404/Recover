@@ -63,8 +63,8 @@ export default async function DashboardPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button asChild>
-              <Link href="/settings">Connect intervals.icu</Link>
+            <Button render={<Link href="/settings" />} nativeButton={false}>
+              Connect intervals.icu
             </Button>
           </CardContent>
         </Card>
@@ -133,7 +133,11 @@ export default async function DashboardPage() {
               <CardTitle className="text-base">HRV — last 30 days</CardTitle>
             </CardHeader>
             <CardContent>
-              <TrendChart data={hrvData} color="var(--viz-series-1)" unit="ms" />
+              <TrendChart
+                data={hrvData}
+                color="var(--viz-series-1)"
+                unit="ms"
+              />
             </CardContent>
           </Card>
           <Card>
@@ -143,7 +147,11 @@ export default async function DashboardPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <TrendChart data={rhrData} color="var(--viz-series-3)" unit="bpm" />
+              <TrendChart
+                data={rhrData}
+                color="var(--viz-series-3)"
+                unit="bpm"
+              />
             </CardContent>
           </Card>
           <Card>

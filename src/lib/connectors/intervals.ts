@@ -10,10 +10,7 @@
 const INTERVALS_API_BASE = "https://intervals.icu/api/v1";
 
 export type ConnectorErrorCode =
-  | "auth_expired"
-  | "rate_limited"
-  | "network_error"
-  | "unknown";
+  "auth_expired" | "rate_limited" | "network_error" | "unknown";
 
 export class ConnectorError extends Error {
   constructor(
@@ -73,8 +70,13 @@ function str(value: unknown): string | null {
   return typeof value === "string" && value.length > 0 ? value : null;
 }
 
+// Local date, not toISOString(): a self-hosted server's "today" must not
+// shift to yesterday/tomorrow for timezones away from UTC.
 function ymd(date: Date): string {
-  return date.toISOString().slice(0, 10);
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 async function icuFetch(path: string, apiKey: string): Promise<Response> {
@@ -99,9 +101,15 @@ async function icuFetch(path: string, apiKey: string): Promise<Response> {
 /** Validate an API key and return the athlete it belongs to. */
 export async function validateKey(apiKey: string): Promise<IntervalsAthlete> {
   const response = await icuFetch("/athlete/0", apiKey);
-  const data = (await response.json()) as { id?: string | number; name?: string };
+  const data = (await response.json()) as {
+    id?: string | number;
+    name?: string;
+  };
   if (data.id == null) {
-    throw new ConnectorError("unknown", "intervals.icu: athlete response missing id");
+    throw new ConnectorError(
+      "unknown",
+      "intervals.icu: athlete response missing id"
+    );
   }
   return { id: String(data.id), name: data.name ?? null };
 }
@@ -120,23 +128,25 @@ export async function fetchDailyWellness(params: {
   const response = await icuFetch(path, params.apiKey);
   const rows = (await response.json()) as Array<Record<string, unknown>>;
 
-  return rows.map((row) => {
-    const sportInfo = Array.isArray(row.sportInfo)
-      ? (row.sportInfo[0] as Record<string, unknown> | undefined)
-      : undefined;
-    return {
-      date: String(row.id ?? ""),
-      hrv: num(row.hrv),
-      restingHr: num(row.restingHR),
-      sleepSecs: num(row.sleepSecs),
-      sleepScore: num(row.sleepScore),
-      ctl: num(row.ctl),
-      atl: num(row.atl),
-      eftp: num(sportInfo?.eftp),
-      weight: num(row.weight),
-      raw: row,
-    };
-  });
+  return rows
+    .filter((row) => typeof row.id === "string" && row.id.length > 0)
+    .map((row) => {
+      const sportInfo = Array.isArray(row.sportInfo)
+        ? (row.sportInfo[0] as Record<string, unknown> | undefined)
+        : undefined;
+      return {
+        date: String(row.id),
+        hrv: num(row.hrv),
+        restingHr: num(row.restingHR),
+        sleepSecs: num(row.sleepSecs),
+        sleepScore: num(row.sleepScore),
+        ctl: num(row.ctl),
+        atl: num(row.atl),
+        eftp: num(sportInfo?.eftp),
+        weight: num(row.weight),
+        raw: row,
+      };
+    });
 }
 
 /** Fetch activity summaries for a date range. */

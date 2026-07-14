@@ -53,8 +53,15 @@ export function TrendChart({ data, color, unit, decimals = 0 }: Props) {
   return (
     <div className="h-44 w-full" role="img" aria-label={`Trend chart, ${unit}`}>
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -12 }}>
-          <CartesianGrid stroke="var(--viz-grid)" strokeDasharray="0" vertical={false} />
+        <LineChart
+          data={data}
+          margin={{ top: 8, right: 8, bottom: 0, left: -12 }}
+        >
+          <CartesianGrid
+            stroke="var(--viz-grid)"
+            strokeDasharray="0"
+            vertical={false}
+          />
           <XAxis
             dataKey="date"
             tickFormatter={formatDay}

@@ -98,5 +98,8 @@ export async function disconnectIntervals(): Promise<ActionResult> {
       )
     );
   revalidatePath("/settings");
-  return { ok: true, message: "intervals.icu disconnected. Synced data is kept." };
+  return {
+    ok: true,
+    message: "intervals.icu disconnected. Synced data is kept.",
+  };
 }

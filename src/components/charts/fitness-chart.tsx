@@ -36,7 +36,8 @@ function FitnessTooltip({
             className="inline-block size-2 rounded-full"
             style={{ background: "var(--viz-series-1)" }}
           />
-          Fitness (CTL) <span className="font-medium">{point.ctl?.toFixed(0) ?? "—"}</span>
+          Fitness (CTL){" "}
+          <span className="font-medium">{point.ctl?.toFixed(0) ?? "—"}</span>
         </div>
         <div className="flex items-center gap-1.5">
           <span
@@ -44,7 +45,8 @@ function FitnessTooltip({
             className="inline-block size-2 rounded-full"
             style={{ background: "var(--viz-series-2)" }}
           />
-          Fatigue (ATL) <span className="font-medium">{point.atl?.toFixed(0) ?? "—"}</span>
+          Fatigue (ATL){" "}
+          <span className="font-medium">{point.atl?.toFixed(0) ?? "—"}</span>
         </div>
       </div>
     </div>
@@ -73,9 +75,16 @@ export function FitnessChart({ data }: { data: FitnessPoint[] }) {
           Fatigue (ATL)
         </span>
       </div>
-      <div className="h-52 w-full" role="img" aria-label="Fitness and fatigue trend">
+      <div
+        className="h-52 w-full"
+        role="img"
+        aria-label="Fitness and fatigue trend"
+      >
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -12 }}>
+          <LineChart
+            data={data}
+            margin={{ top: 8, right: 8, bottom: 0, left: -12 }}
+          >
             <CartesianGrid stroke="var(--viz-grid)" vertical={false} />
             <XAxis
               dataKey="date"

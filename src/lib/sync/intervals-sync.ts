@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { decrypt } from "@/lib/crypto";
+import { logger } from "@/lib/logger";
 import {
   ConnectorError,
   fetchActivities,
@@ -131,6 +132,13 @@ export async function runIntervalsSync(userId: string): Promise<SyncResult> {
       .set({ lastSyncAt: endDate, status: "active", lastError: null })
       .where(eq(schema.connections.id, connection.id));
 
+    logger.info("intervals sync complete", {
+      userId,
+      wellnessDays: wellness.length,
+      activities: activities.length,
+      windowStart: startDate.toISOString().slice(0, 10),
+    });
+
     return {
       wellnessDays: wellness.length,
       activities: activities.length,
@@ -139,10 +147,14 @@ export async function runIntervalsSync(userId: string): Promise<SyncResult> {
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    logger.error("intervals sync failed", { userId, error: message });
     await db
       .update(schema.connections)
       .set({
-        status: err instanceof ConnectorError && err.code === "auth_expired" ? "error" : "active",
+        status:
+          err instanceof ConnectorError && err.code === "auth_expired"
+            ? "error"
+            : "active",
         lastError: message,
       })
       .where(eq(schema.connections.id, connection.id));

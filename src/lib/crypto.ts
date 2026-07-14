@@ -60,7 +60,9 @@ export function decrypt(encrypted: string): string {
   const ciphertext = Buffer.from(ciphertextHex, "hex");
 
   if (iv.length !== IV_LENGTH) {
-    throw new Error(`Invalid IV length: expected ${IV_LENGTH}, got ${iv.length}`);
+    throw new Error(
+      `Invalid IV length: expected ${IV_LENGTH}, got ${iv.length}`
+    );
   }
   if (authTag.length !== AUTH_TAG_LENGTH) {
     throw new Error(
