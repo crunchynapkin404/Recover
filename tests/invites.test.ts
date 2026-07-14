@@ -12,8 +12,27 @@ const EMAILS = [
   "invitee-3@example.invalid",
 ];
 
+/**
+ * Invites reference users via used_by_user_id (no cascade), so invites must
+ * go first. Runs before AND after the suite: a previously failed teardown
+ * must never poison the next run.
+ */
+async function cleanup() {
+  const { db, schema } = await import("@/lib/db");
+  await db.delete(schema.invites).where(eq(schema.invites.invitedBy, OWNER));
+  const created = await db.query.users.findMany({
+    where: inArray(schema.users.email, EMAILS),
+    columns: { id: true },
+  });
+  for (const u of created) {
+    await db.delete(schema.users).where(eq(schema.users.id, u.id));
+  }
+  await db.delete(schema.users).where(eq(schema.users.id, OWNER));
+}
+
 describe.skipIf(!hasDb)("invite lifecycle", () => {
   beforeAll(async () => {
+    await cleanup();
     const { db, schema } = await import("@/lib/db");
     await db
       .insert(schema.users)
@@ -26,18 +45,7 @@ describe.skipIf(!hasDb)("invite lifecycle", () => {
       .onConflictDoNothing();
   });
 
-  afterAll(async () => {
-    const { db, schema } = await import("@/lib/db");
-    const created = await db.query.users.findMany({
-      where: inArray(schema.users.email, EMAILS),
-      columns: { id: true },
-    });
-    for (const u of created) {
-      await db.delete(schema.users).where(eq(schema.users.id, u.id));
-    }
-    await db.delete(schema.invites).where(eq(schema.invites.invitedBy, OWNER));
-    await db.delete(schema.users).where(eq(schema.users.id, OWNER));
-  });
+  afterAll(cleanup);
 
   it("mints and redeems an invite, creating a member account", async () => {
     const { mintInvite, redeemInvite } = await import("@/lib/invites");
