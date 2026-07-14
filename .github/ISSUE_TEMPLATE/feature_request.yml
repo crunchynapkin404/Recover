@@ -1,0 +1,25 @@
+name: Feature request
+description: Suggest an improvement or new capability
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Check [docs/ROADMAP.md](../../blob/main/docs/ROADMAP.md) first — it may already be planned, and a 👍 on scope beats a duplicate.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      description: Describe the situation where you miss this, not just the feature itself.
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: What would you like to happen?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you've considered

@@ -1,5 +1,9 @@
 # Recover — Definitive Plan (v3: post-audit roadmap)
 
+> **Historical document.** P0–P5 and the P4R remediation shipped; v0.1.0 is
+> tagged. The living roadmap is [ROADMAP.md](ROADMAP.md) — this file is kept
+> for the architecture notes, principles, and phase history.
+
 ## Status & audit — 2026-07-14
 
 P0–P2 shipped with CI green. P3 (AI coach) and P4 (MCP endpoint) were then built in a separate session and pushed. A full audit of those commits against this plan found solid mechanics (55/55 tests, clean typecheck/build, migration present, persona faithful, keys encrypted) **but the phase gates were not honored** — the defects below block P5. A large uncommitted UI redesign (dark glassmorphic theme, journal/log pages, bottom nav) is also in the working tree with its own fix list.

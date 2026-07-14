@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="Recover logo">
+  <defs>
+    <linearGradient id="ring" x1="85%" y1="0%" x2="15%" y2="100%">
+      <stop offset="0%" stop-color="#22d3ee"/>
+      <stop offset="100%" stop-color="#34d399"/>
+    </linearGradient>
+  </defs>
+  <!-- Readiness ring: 280° arc, open at the upper left -->
+  <path d="M 128 36 A 92 92 0 1 1 37.4 112"
+        fill="none" stroke="url(#ring)" stroke-width="22" stroke-linecap="round"/>
+  <!-- Pulse dot in the gap -->
+  <circle cx="68.9" cy="57.5" r="11" fill="#34d399"/>
+</svg>

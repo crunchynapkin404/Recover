@@ -30,8 +30,9 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files (the template is tracked; real values never are)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -45,3 +46,6 @@ next-env.d.ts
 docs/flow-export-*/
 cookies.txt
 docs/superpowers/
+
+# Claude Code worktrees/config (never commit local tooling state)
+.claude/

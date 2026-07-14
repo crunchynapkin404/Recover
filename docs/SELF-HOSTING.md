@@ -7,7 +7,14 @@ git clone https://github.com/crunchynapkin404/Recover.git
 cd Recover
 cp .env.example .env
 # Edit .env: set ENCRYPTION_KEY, BETTER_AUTH_SECRET, OWNER_EMAIL, OWNER_PASSWORD
-docker compose up -d --build
+docker compose up -d
+```
+
+This pulls the prebuilt multi-arch image (amd64/arm64) from GHCR. To build
+from source instead:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
 ```
 
 Open http://localhost:3000, sign in with `OWNER_EMAIL` / `OWNER_PASSWORD`
@@ -42,6 +49,21 @@ docker compose --profile tunnel up -d
 ```
 
 Set `BETTER_AUTH_URL` to your public URL afterwards.
+
+## Upgrading
+
+```bash
+cd Recover
+git pull                      # keeps compose file and docs in sync
+docker compose pull app
+docker compose up -d
+```
+
+Database migrations run automatically when the container starts
+(`docker-entrypoint.sh` applies them before the server boots), so an upgrade
+is just pulling the new image. Take a backup first for peace of mind (below).
+Version pins are available if you prefer them: images are tagged `latest`,
+`0.1`, and `0.1.0`.
 
 ## Operations
 

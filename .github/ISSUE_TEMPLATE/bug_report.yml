@@ -1,0 +1,48 @@
+name: Bug report
+description: Something broke or behaves unexpectedly
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report! Security issues: please use **Security → Report a vulnerability** instead of a public issue.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. …
+        2. …
+    validations:
+      required: true
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: How are you running Recover?
+      options:
+        - docker compose (prebuilt image)
+        - docker compose (built from source)
+        - npm run dev / from source
+        - Vercel + Neon
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Release tag or commit hash (visible in the GitHub release you pulled).
+      placeholder: v0.1.0
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: "`docker compose logs app` around the failure. Redact tokens and keys."
+      render: shell
