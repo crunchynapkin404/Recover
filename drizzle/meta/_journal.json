@@ -15,6 +15,13 @@
       "when": 1784028648542,
       "tag": "0001_journal_fields",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1784054499381,
+      "tag": "0002_silky_molten_man",
+      "breakpoints": true
     }
   ]
 }

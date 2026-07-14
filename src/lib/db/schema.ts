@@ -320,3 +320,37 @@ export const syncJobs = pgTable(
   },
   (t) => [index("sync_jobs_due_idx").on(t.status, t.runAfter)]
 );
+
+export const pushSubscriptions = pgTable("push_subscriptions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  endpoint: text("endpoint").notNull().unique(),
+  p256dh: text("p256dh").notNull(),
+  auth: text("auth").notNull(),
+  userAgent: text("user_agent"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const notificationPrefs = pgTable("notification_prefs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: text("user_id")
+    .notNull()
+    .unique()
+    .references(() => users.id, { onDelete: "cascade" }),
+  morningPushEnabled: boolean("morning_push_enabled").notNull().default(true),
+  lastMorningPushDate: date("last_morning_push_date"),
+});
+
+// Instance-level key/value config (e.g. auto-generated VAPID keys; secret
+// values stored encrypted via lib/crypto).
+export const appConfig = pgTable("app_config", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
