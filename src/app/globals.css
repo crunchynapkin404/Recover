@@ -137,6 +137,10 @@
   --viz-grid: #e1e0d9;
   --viz-axis: #c3c2b7;
   --viz-muted-ink: #898781;
+  /* Status colors (reserved — never reused as series colors) */
+  --viz-status-good: #0ca30c;
+  --viz-status-warning: #fab219;
+  --viz-status-critical: #d03b3b;
 }
 .dark {
   --viz-series-1: #3987e5;

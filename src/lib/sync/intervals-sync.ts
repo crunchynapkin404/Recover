@@ -132,6 +132,11 @@ export async function runIntervalsSync(userId: string): Promise<SyncResult> {
       .set({ lastSyncAt: endDate, status: "active", lastError: null })
       .where(eq(schema.connections.id, connection.id));
 
+    // Readiness depends on trailing baselines, so recompute from the start
+    // of the freshly synced window onward.
+    const { computeDailyMetrics } = await import("@/lib/metrics");
+    await computeDailyMetrics(userId, startDate.toISOString().slice(0, 10));
+
     logger.info("intervals sync complete", {
       userId,
       wellnessDays: wellness.length,

@@ -22,6 +22,12 @@ export function AppShell({ title, children }: Props) {
               Dashboard
             </Link>
             <Link
+              href="/wellness"
+              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Log
+            </Link>
+            <Link
               href="/settings"
               className="text-sm text-muted-foreground transition-colors hover:text-foreground"
             >

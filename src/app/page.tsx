@@ -14,6 +14,9 @@ import {
 import { TrendChart } from "@/components/charts/trend-chart";
 import { FitnessChart } from "@/components/charts/fitness-chart";
 import { SleepChart } from "@/components/charts/sleep-chart";
+import { ReadinessRing } from "@/components/charts/readiness-ring";
+import { ReadinessBreakdown } from "@/components/charts/readiness-breakdown";
+import type { Band, ComponentScores } from "@/lib/readiness";
 import {
   formatDay,
   formatDuration,
@@ -50,6 +53,15 @@ export default async function DashboardPage() {
     orderBy: desc(schema.activities.startDate),
     limit: 8,
   });
+
+  const metrics = await db.query.dailyMetrics.findMany({
+    where: and(
+      eq(schema.dailyMetrics.userId, user.id),
+      gte(schema.dailyMetrics.date, daysAgo(30))
+    ),
+    orderBy: schema.dailyMetrics.date,
+  });
+  const todayMetric = metrics.at(-1);
 
   if (!connection && wellness.length === 0) {
     return (
@@ -109,6 +121,28 @@ export default async function DashboardPage() {
   return (
     <AppShell title="Dashboard">
       <div className="grid gap-6">
+        {todayMetric && (
+          <Card>
+            <CardContent className="flex flex-wrap items-center justify-between gap-6 py-2">
+              <ReadinessRing
+                readiness={todayMetric.readiness}
+                band={(todayMetric.band ?? "calibrating") as Band}
+              />
+              <div className="min-w-64 flex-1">
+                <ReadinessBreakdown
+                  components={
+                    (todayMetric.componentScores ?? {
+                      hrv: null,
+                      rhr: null,
+                      sleep: null,
+                      form: null,
+                    }) as ComponentScores
+                  }
+                />
+              </div>
+            </CardContent>
+          </Card>
+        )}
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           {tiles.map((tile) => (
             <Card key={tile.label} className="py-4">
@@ -128,6 +162,25 @@ export default async function DashboardPage() {
         </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
+          {metrics.length > 1 && (
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <CardTitle className="text-base">
+                  Readiness — last 30 days
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <TrendChart
+                  data={metrics.map((m) => ({
+                    date: m.date,
+                    value: m.readiness,
+                  }))}
+                  color="var(--viz-series-1)"
+                  unit=""
+                />
+              </CardContent>
+            </Card>
+          )}
           <Card>
             <CardHeader>
               <CardTitle className="text-base">HRV — last 30 days</CardTitle>
