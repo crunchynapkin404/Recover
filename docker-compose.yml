@@ -1,0 +1,44 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: recover
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-recover}
+      POSTGRES_DB: recover
+    volumes:
+      - recover-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U recover -d recover"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    environment:
+      DATABASE_URL: postgres://recover:${POSTGRES_PASSWORD:-recover}@db:5432/recover
+      DATABASE_DRIVER: pg
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?set in .env — 64 hex chars}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?set in .env}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
+      OWNER_EMAIL: ${OWNER_EMAIL:-}
+      OWNER_PASSWORD: ${OWNER_PASSWORD:-}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Optional public ingress: docker compose --profile tunnel up -d
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    profiles: ["tunnel"]
+    command: tunnel run --token ${CLOUDFLARED_TOKEN:-}
+    depends_on:
+      - app
+
+volumes:
+  recover-db:

@@ -27,3 +27,9 @@ jobs:
           ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
           BETTER_AUTH_SECRET: ci-only-secret
           BETTER_AUTH_URL: http://localhost:3000
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t recover .
