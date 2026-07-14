@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# design artifacts & local debris
+.superdesign/
+docs/flow-export-*/
+cookies.txt
+docs/superpowers/

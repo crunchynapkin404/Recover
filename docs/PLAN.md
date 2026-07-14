@@ -1,4 +1,31 @@
-# Recover — Definitive Plan (v2, consolidated)
+# Recover — Definitive Plan (v3: post-audit roadmap)
+
+## Status & audit — 2026-07-14
+
+P0–P2 shipped with CI green. P3 (AI coach) and P4 (MCP endpoint) were then built in a separate session and pushed. A full audit of those commits against this plan found solid mechanics (55/55 tests, clean typecheck/build, migration present, persona faithful, keys encrypted) **but the phase gates were not honored** — the defects below block P5. A large uncommitted UI redesign (dark glassmorphic theme, journal/log pages, bottom nav) is also in the working tree with its own fix list.
+
+**Nothing new starts until P4R (remediation, below) is done.**
+
+### Blocking defects found
+
+1. **MCP endpoint unreachable** — `src/proxy.ts` doesn't exclude `/api/mcp` (or `/api/cron`), so bearer requests without a session cookie 307-redirect to `/login` before the handler runs. Verified live. The P4 DoD (claude.ai + Claude Code connect end-to-end) can't have been run.
+2. **Scope enforcement is dead code** — the only scope check guards a `log_wellness` tool that doesn't exist in the registry; `read` is never checked. Any valid token can call every tool.
+3. **Ollama coach path has no tools** — chat route passes tools only for `providerType === "anthropic"`; the OpenAI-compatible path answers from nothing (P3 DoD "cites real numbers on local Ollama" unmet). Chat also duplicates tool wiring by hand instead of consuming the registry through one path.
+4. **Registry incomplete** — 6 of 9 planned tools (`log_wellness`, `get_activity`, `get_training_load_summary` missing).
+5. **Journal silent data loss** — the new journal form collects mood, behavior tags, and notes but never persists them (mood/tags never enter FormData; notes stripped by the zod schema); sleep/stress inputs the action supports aren't in the form.
+6. **Hygiene** — `cookies.txt` with a live session token was in the repo root (deleted, now gitignored); Postgres published on host port 5434; `trustedOrigins`/`allowedDevOrigins` hardcode a LAN IP instead of env config.
+7. **Dead/fake UI** — settings appearance/push/export/edit-profile controls, coach mic, journal media buttons, log-page month/filter controls are non-functional; log page renders hardcoded fake PMC/load SVGs as if they were data.
+8. **Accessibility regressions** — new ScoreRing lost `role="img"`/aria-label; emoji-as-button controls without accessible names; push "toggle" is a plain div; `text-white/20–/40` labels fail contrast on `#0a0a0a`.
+9. **Missing P4 tests** — revoked token→401, missing-scope rejection, cross-user isolation, auth-before-handleRequest ordering.
+10. **Security-review gate skipped** — required before exposure; still not run.
+
+### P4R — Remediation (the only active phase)
+
+Fix in this order: (a) proxy matcher excludes `/api/mcp` + `/api/cron` **with regression tests**; (b) implement `log_wellness`, `get_activity`, `get_training_load_summary`; enforce scopes in dispatch (+ the four missing security tests); (c) one registry→AI-SDK path shared by chat and MCP, tools wired for OpenAI-compatible providers (prefer `@ai-sdk/openai-compatible`), verify on real Ollama; (d) journal: persist mood/tags/notes (schema migration: add `mood`, `tags jsonb`, `notes` to wellness_daily) or remove the controls; add sleep/stress inputs; (e) infra: unpublish db port (or bind 127.0.0.1), env-driven trusted origins; (f) remove or wire every dead control, replace fake log-page SVGs with real `daily_metrics`/`activities` data; (g) restore aria labels + fix contrast; (h) purge orphaned components (old wellness-form, unused charts) — or delete the redesign pieces not worth keeping; (i) run `/security-review`; only then commit the redesign and proceed to tunnel exposure + P5.
+
+**P4R DoD:** claude.ai connector *and* Claude Code list tools and fetch readiness through the tunnel; Ollama coach cites real numbers; scope/isolation/regression tests green; zero non-functional controls; security review passed.
+
+---
 
 ## Vision
 
