@@ -16,13 +16,14 @@ says otherwise — file an issue if something here matters to you.
 - [x] Docker self-hosting with prebuilt multi-arch images
 - [x] Demo seed data, screenshots, docs, community files
 
-## v0.2 — Phone & daily loop
+## ✅ v0.2 — Phone & daily loop
 
 The morning glance: install it like an app, get told when your score is ready.
 
-- [ ] PWA: manifest, icons, service worker, install prompt
-- [ ] Web-push morning readiness notification after the overnight sync
-- [ ] Per-user notification subscriptions and settings
+- [x] PWA: manifest, icons, service worker
+- [x] Web-push morning readiness notification after the overnight sync
+- [x] Per-user notification subscriptions and settings
+- [x] Manual resync: dashboard sync chip + pull-to-refresh in the installed app
 
 **Done when:** installed on a phone, the morning notification arrives unattended.
 

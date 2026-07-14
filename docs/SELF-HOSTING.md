@@ -50,6 +50,24 @@ docker compose --profile tunnel up -d
 
 Set `BETTER_AUTH_URL` to your public URL afterwards.
 
+## Install on your phone
+
+Recover is a PWA. Open your instance in the phone's browser (via the tunnel —
+push requires HTTPS), then:
+
+- **iPhone (iOS 16.4+):** Share → Add to Home Screen, open the installed app,
+  Settings → Notifications → Enable. Web push on iOS only works from the
+  installed app.
+- **Android:** accept the install prompt (or menu → Install app), then enable
+  notifications in Settings.
+
+The morning readiness notification is sent right after the overnight sync
+computes your score (at most once per day). VAPID keys are generated and
+stored in your database automatically — nothing to configure. Use **Send test
+notification** in Settings to verify the pipeline, and the dashboard's sync
+chip (or pull-to-refresh in the installed app) whenever intervals.icu is
+lagging behind your watch.
+
 ## Upgrading
 
 ```bash

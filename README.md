@@ -59,6 +59,9 @@ OpenAI-compatible endpoint including a fully local Ollama. Keys are encrypted
 - **MCP server** — stateless streamable-HTTP endpoint at `/api/mcp` with
   hashed, scoped (`read` / `write:wellness`), revocable bearer tokens and rate
   limiting.
+- **Installable PWA** — add it to your phone's home screen; a push
+  notification delivers your readiness score every morning, and
+  pull-to-refresh or the sync chip pulls fresh data on demand.
 - **Behavior journal** — mood, energy, soreness, stress, tags, and notes
   alongside synced vitals.
 - **Multi-user, invite-only** — built for one owner and a handful of friends,

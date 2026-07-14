@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.2.0 — 2026-07-14
+
+Phone & daily loop.
+
+### Added
+
+- **Installable PWA**: web manifest, app icons, minimal service worker with
+  offline fallback.
+- **Morning readiness push** (web-push/VAPID): sent right after the overnight
+  sync computes the day's score — at most once per day, only when a score
+  exists, skipped while calibrating. VAPID keys are auto-generated and stored
+  in the database (private key encrypted); no new configuration.
+- **Notifications settings card**: per-device subscribe/unsubscribe, morning
+  push preference, send-test-notification, iOS install hint.
+- **Manual resync**: dashboard sync chip ("Synced 12m ago ⟳") and
+  pull-to-refresh in the installed app, backed by a rate-limited
+  `/api/sync/now` (one per 2 minutes per user).
+
 ## v0.1.0 — 2026-07-14
 
 First tagged release: the core loop works end-to-end, self-hosted.
