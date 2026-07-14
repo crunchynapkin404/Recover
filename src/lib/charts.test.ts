@@ -3,6 +3,7 @@ import {
   baselineBandLinear,
   baselineBandLn,
   downsample,
+  localYmd,
   rollingAvg,
   weeklyLoads,
 } from "./charts";
@@ -73,5 +74,11 @@ describe("weeklyLoads", () => {
       { weekStart: ymd(lastMonday), load: 80 },
       { weekStart: ymd(thisMonday), load: 20 },
     ]);
+  });
+});
+
+describe("localYmd", () => {
+  it("formats a local date as YYYY-MM-DD with zero padding", () => {
+    expect(localYmd(new Date(2026, 0, 5))).toBe("2026-01-05");
   });
 });
