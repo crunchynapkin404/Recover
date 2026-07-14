@@ -430,9 +430,10 @@ export default async function DashboardPage() {
                 </span>
                 <div className="divide-y divide-white/5">
                   {recentActivities.slice(0, 5).map((a) => (
-                    <div
+                    <Link
+                      href={`/activity/${a.id}`}
                       key={a.id}
-                      className="flex items-baseline justify-between gap-4 py-3"
+                      className="flex items-baseline justify-between gap-4 py-3 transition-colors hover:bg-white/5"
                     >
                       <div className="min-w-0">
                         <p className="truncate text-sm font-bold">
@@ -447,7 +448,7 @@ export default async function DashboardPage() {
                         {a.distanceM != null && <> · {formatKm(a.distanceM)}</>}
                         {a.load != null && <> · {Math.round(a.load)}</>}
                       </p>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               </div>
