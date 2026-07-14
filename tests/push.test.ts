@@ -22,26 +22,29 @@ vi.mock("web-push", async (importOriginal) => {
 const USER_A = "test-push-user-a";
 const USER_B = "test-push-user-b";
 
+// File-level lifecycle: the users must outlive BOTH describe blocks.
+beforeAll(async () => {
+  if (!hasDb) return;
+  const { db, schema } = await import("@/lib/db");
+  for (const id of [USER_A, USER_B]) {
+    await db
+      .insert(schema.users)
+      .values({ id, name: id, email: `${id}@example.invalid` })
+      .onConflictDoNothing();
+    await db
+      .delete(schema.pushSubscriptions)
+      .where(eq(schema.pushSubscriptions.userId, id));
+  }
+});
+
+afterAll(async () => {
+  if (!hasDb) return;
+  const { db, schema } = await import("@/lib/db");
+  for (const id of [USER_A, USER_B])
+    await db.delete(schema.users).where(eq(schema.users.id, id));
+});
+
 describe.skipIf(!hasDb)("push pipeline", () => {
-  beforeAll(async () => {
-    const { db, schema } = await import("@/lib/db");
-    for (const id of [USER_A, USER_B]) {
-      await db
-        .insert(schema.users)
-        .values({ id, name: id, email: `${id}@example.invalid` })
-        .onConflictDoNothing();
-      await db
-        .delete(schema.pushSubscriptions)
-        .where(eq(schema.pushSubscriptions.userId, id));
-    }
-  });
-
-  afterAll(async () => {
-    const { db, schema } = await import("@/lib/db");
-    for (const id of [USER_A, USER_B])
-      await db.delete(schema.users).where(eq(schema.users.id, id));
-  });
-
   it("getVapidKeys is idempotent across calls", async () => {
     const { getVapidKeys } = await import("@/lib/push");
     const a = await getVapidKeys();
@@ -101,5 +104,81 @@ describe.skipIf(!hasDb)("push pipeline", () => {
       (c[0] as { endpoint: string }).endpoint.includes("/b1")
     );
     expect(bCalls.length).toBe(0);
+  });
+});
+
+describe.skipIf(!hasDb)("maybeSendMorningReadinessPush", () => {
+  const morning = () => {
+    const d = new Date();
+    d.setHours(7, 0, 0, 0);
+    return d;
+  };
+  const localYmd = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+  async function seedReadyUser(
+    userId: string,
+    readiness: number | null,
+    band: string
+  ) {
+    const { db, schema } = await import("@/lib/db");
+    const today = localYmd(new Date());
+    await db
+      .delete(schema.notificationPrefs)
+      .where(eq(schema.notificationPrefs.userId, userId));
+    await db
+      .delete(schema.dailyMetrics)
+      .where(eq(schema.dailyMetrics.userId, userId));
+    await db
+      .delete(schema.pushSubscriptions)
+      .where(eq(schema.pushSubscriptions.userId, userId));
+    await db.insert(schema.dailyMetrics).values({
+      userId,
+      date: today,
+      readiness,
+      band: band as "green" | "amber" | "red" | "calibrating",
+    });
+    await db.insert(schema.pushSubscriptions).values({
+      userId,
+      endpoint: `https://push.example/${userId}-${Math.random()}`,
+      p256dh: "k",
+      auth: "a",
+    });
+  }
+
+  it("sends once, then dedups for the day", async () => {
+    sendNotification.mockReset().mockResolvedValue({});
+    await seedReadyUser(USER_A, 66, "amber");
+    const { maybeSendMorningReadinessPush } = await import("@/lib/push");
+    expect(await maybeSendMorningReadinessPush(USER_A, morning())).toBe(true);
+    expect(sendNotification).toHaveBeenCalledTimes(1);
+    expect(await maybeSendMorningReadinessPush(USER_A, morning())).toBe(false);
+    expect(sendNotification).toHaveBeenCalledTimes(1);
+  });
+
+  it("skips outside the morning window", async () => {
+    sendNotification.mockReset().mockResolvedValue({});
+    await seedReadyUser(USER_A, 66, "amber");
+    const afternoon = new Date();
+    afternoon.setHours(14, 0, 0, 0);
+    const { maybeSendMorningReadinessPush } = await import("@/lib/push");
+    expect(await maybeSendMorningReadinessPush(USER_A, afternoon)).toBe(false);
+    expect(sendNotification).not.toHaveBeenCalled();
+  });
+
+  it("skips while calibrating and when disabled", async () => {
+    sendNotification.mockReset().mockResolvedValue({});
+    await seedReadyUser(USER_A, null, "calibrating");
+    const { maybeSendMorningReadinessPush } = await import("@/lib/push");
+    expect(await maybeSendMorningReadinessPush(USER_A, morning())).toBe(false);
+
+    await seedReadyUser(USER_A, 80, "green");
+    const { db, schema } = await import("@/lib/db");
+    await db.insert(schema.notificationPrefs).values({
+      userId: USER_A,
+      morningPushEnabled: false,
+    });
+    expect(await maybeSendMorningReadinessPush(USER_A, morning())).toBe(false);
+    expect(sendNotification).not.toHaveBeenCalled();
   });
 });

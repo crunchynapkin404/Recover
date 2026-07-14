@@ -3,7 +3,7 @@
  * Morning readiness push guards live here too (see maybeSendMorningReadinessPush).
  */
 import webpush from "web-push";
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { decrypt, encrypt } from "@/lib/crypto";
 import { logger } from "@/lib/logger";
@@ -145,4 +145,73 @@ export async function sendToUser(
     }
   }
   return { sent, pruned };
+}
+
+function localYmd(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+async function getOrCreatePrefs(userId: string) {
+  await db
+    .insert(schema.notificationPrefs)
+    .values({ userId })
+    .onConflictDoNothing();
+  const prefs = await db.query.notificationPrefs.findFirst({
+    where: eq(schema.notificationPrefs.userId, userId),
+  });
+  if (!prefs) throw new Error("notification prefs initialization failed");
+  return prefs;
+}
+
+/**
+ * Morning readiness push, at most once per day, only when today's score
+ * exists. Server-local time (matches the scheduler's SYNC_HOUR reference).
+ * The dedup stamp is written BEFORE sending, so partial delivery failures
+ * never cause a second blast.
+ */
+export async function maybeSendMorningReadinessPush(
+  userId: string,
+  now: Date = new Date()
+): Promise<boolean> {
+  const hour = now.getHours();
+  if (hour < 4 || hour >= 12) return false;
+
+  const prefs = await getOrCreatePrefs(userId);
+  if (!prefs.morningPushEnabled) return false;
+
+  const today = localYmd(now);
+  if (prefs.lastMorningPushDate === today) return false;
+
+  const metrics = await db.query.dailyMetrics.findFirst({
+    where: and(
+      eq(schema.dailyMetrics.userId, userId),
+      eq(schema.dailyMetrics.date, today)
+    ),
+  });
+  if (!metrics || metrics.readiness == null || metrics.band === "calibrating")
+    return false;
+
+  const wellness = await db.query.wellnessDaily.findFirst({
+    where: and(
+      eq(schema.wellnessDaily.userId, userId),
+      eq(schema.wellnessDaily.date, today)
+    ),
+  });
+
+  await db
+    .update(schema.notificationPrefs)
+    .set({ lastMorningPushDate: today })
+    .where(eq(schema.notificationPrefs.userId, userId));
+
+  const payload = buildMorningPayload({
+    readiness: metrics.readiness,
+    band: metrics.band as "green" | "amber" | "red",
+    hrvMs: wellness?.hrvMs ?? null,
+    restingHr: wellness?.restingHr ?? null,
+    sleepSecs: wellness?.sleepSecs ?? null,
+  });
+  const { sent, pruned } = await sendToUser(userId, payload);
+  logger.info("morning push", { userId, sent, pruned });
+  // The day is consumed once the stamp is written, regardless of delivery.
+  return true;
 }
