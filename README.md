@@ -19,7 +19,7 @@
   <img src="docs/screenshots/journal.png" width="24%" alt="Behavior journal with wellness sliders">
 </p>
 
-Recover is a Whoop-style health and training companion you run on your own
+Recover is a health and training companion you run on your own
 hardware: readiness scoring, training load, a behavior journal, and an AI coach
 — without the subscription, the wearable lock-in, or anyone else holding your
 data. It pulls wellness (HRV, resting HR, sleep) and activities from
