@@ -4,6 +4,10 @@ import { eq } from "drizzle-orm";
 const hasDb =
   !!process.env.DATABASE_URL && process.env.DATABASE_DRIVER === "pg";
 
+// VAPID private keys are encrypted at rest; tests need a key like CI's build step.
+process.env.ENCRYPTION_KEY ??=
+  "0000000000000000000000000000000000000000000000000000000000000000";
+
 const sendNotification = vi.fn();
 vi.mock("web-push", async (importOriginal) => {
   const real = await importOriginal<typeof import("web-push")>();
