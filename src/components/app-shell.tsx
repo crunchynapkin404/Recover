@@ -28,6 +28,12 @@ export function AppShell({ title, children }: Props) {
               Log
             </Link>
             <Link
+              href="/coach"
+              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Coach
+            </Link>
+            <Link
               href="/settings"
               className="text-sm text-muted-foreground transition-colors hover:text-foreground"
             >

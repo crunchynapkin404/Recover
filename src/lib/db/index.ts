@@ -6,7 +6,9 @@ import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import pg from "pg";
 import * as schema from "./schema";
 
-type Database = NeonHttpDatabase<typeof schema> | NodePgDatabase<typeof schema>;
+export type Database =
+  | NeonHttpDatabase<typeof schema>
+  | NodePgDatabase<typeof schema>;
 
 let _db: Database | null = null;
 
