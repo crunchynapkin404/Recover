@@ -14,6 +14,7 @@
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "db:seed": "tsx scripts/seed-owner.ts",
+    "db:seed-demo": "tsx scripts/seed-demo.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
