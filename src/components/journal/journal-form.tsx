@@ -266,39 +266,77 @@ export function JournalForm({
           <div className="space-y-6">
             {(
               [
-                ["Energy", energy, setEnergy, "text-emerald-400", "Drained", "Energized", true],
-                ["Muscle Soreness", soreness, setSoreness, "text-amber-400", "None", "Very sore", false],
-                ["Stress", stress, setStress, "text-sky-400", "Calm", "Overwhelmed", false],
+                [
+                  "Energy",
+                  energy,
+                  setEnergy,
+                  "text-emerald-400",
+                  "Drained",
+                  "Energized",
+                  true,
+                ],
+                [
+                  "Muscle Soreness",
+                  soreness,
+                  setSoreness,
+                  "text-amber-400",
+                  "None",
+                  "Very sore",
+                  false,
+                ],
+                [
+                  "Stress",
+                  stress,
+                  setStress,
+                  "text-sky-400",
+                  "Calm",
+                  "Overwhelmed",
+                  false,
+                ],
               ] as const
-            ).map(([label, value, setter, color, lowLabel, highLabel, highIsGood]) => (
-              <div key={label} className="flex flex-col gap-2">
-                <div className="flex justify-between">
-                  <span className="text-xs font-bold text-white/80">
-                    {label}
-                  </span>
-                  <span className={`text-xs font-bold ${color}`}>
-                    {value}/10
-                  </span>
+            ).map(
+              ([
+                label,
+                value,
+                setter,
+                color,
+                lowLabel,
+                highLabel,
+                highIsGood,
+              ]) => (
+                <div key={label} className="flex flex-col gap-2">
+                  <div className="flex justify-between">
+                    <span className="text-xs font-bold text-white/80">
+                      {label}
+                    </span>
+                    <span className={`text-xs font-bold ${color}`}>
+                      {value}/10
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="1"
+                    max="10"
+                    value={value}
+                    aria-label={`${label}, 1 to 10`}
+                    onChange={(e) => setter(Number(e.target.value))}
+                    className="w-full accent-emerald-500"
+                  />
+                  <div className="flex justify-between">
+                    <span
+                      className={`text-[9px] font-medium ${!highIsGood ? "text-emerald-400/60" : "text-red-400/60"}`}
+                    >
+                      {lowLabel}
+                    </span>
+                    <span
+                      className={`text-[9px] font-medium ${highIsGood ? "text-emerald-400/60" : "text-red-400/60"}`}
+                    >
+                      {highLabel}
+                    </span>
+                  </div>
                 </div>
-                <input
-                  type="range"
-                  min="1"
-                  max="10"
-                  value={value}
-                  aria-label={`${label}, 1 to 10`}
-                  onChange={(e) => setter(Number(e.target.value))}
-                  className="w-full accent-emerald-500"
-                />
-                <div className="flex justify-between">
-                  <span className={`text-[9px] font-medium ${!highIsGood ? "text-emerald-400/60" : "text-red-400/60"}`}>
-                    {lowLabel}
-                  </span>
-                  <span className={`text-[9px] font-medium ${highIsGood ? "text-emerald-400/60" : "text-red-400/60"}`}>
-                    {highLabel}
-                  </span>
-                </div>
-              </div>
-            ))}
+              )
+            )}
           </div>
         </div>
 
@@ -310,10 +348,18 @@ export function JournalForm({
           <input type="hidden" name="restingHr" value={syncedRhr.toFixed(0)} />
         )}
         {syncedWeight != null && (
-          <input type="hidden" name="weightKg" value={syncedWeight.toFixed(1)} />
+          <input
+            type="hidden"
+            name="weightKg"
+            value={syncedWeight.toFixed(1)}
+          />
         )}
         {syncedSleepHours != null && (
-          <input type="hidden" name="sleepHours" value={syncedSleepHours.toFixed(1)} />
+          <input
+            type="hidden"
+            name="sleepHours"
+            value={syncedSleepHours.toFixed(1)}
+          />
         )}
 
         {/* 4. Behavior tags */}

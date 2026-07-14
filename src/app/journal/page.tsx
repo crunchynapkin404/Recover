@@ -29,14 +29,17 @@ export default async function JournalPage() {
     orderBy: desc(schema.wellnessDaily.date),
   });
 
-  const entriesByDate: Record<string, {
-    energy: number | null;
-    soreness: number | null;
-    stress: number | null;
-    mood: string | null;
-    tags: string[] | null;
-    notes: string | null;
-  }> = {};
+  const entriesByDate: Record<
+    string,
+    {
+      energy: number | null;
+      soreness: number | null;
+      stress: number | null;
+      mood: string | null;
+      tags: string[] | null;
+      notes: string | null;
+    }
+  > = {};
   for (const entry of recentEntries) {
     entriesByDate[entry.date] = {
       energy: entry.energy1_10,
@@ -74,7 +77,9 @@ export default async function JournalPage() {
         syncedHrv={latest?.hrvMs ?? null}
         syncedRhr={latest?.restingHr ?? null}
         syncedWeight={latest?.weightKg ?? null}
-        syncedSleepHours={latest?.sleepSecs != null ? latest.sleepSecs / 3600 : null}
+        syncedSleepHours={
+          latest?.sleepSecs != null ? latest.sleepSecs / 3600 : null
+        }
         streakDays={streakDays}
         entriesByDate={entriesByDate}
       />
