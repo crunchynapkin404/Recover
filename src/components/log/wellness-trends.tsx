@@ -1,4 +1,9 @@
-import { baselineBandLinear, baselineBandLn, rollingAvg } from "@/lib/charts";
+import {
+  baselineBandLinear,
+  baselineBandLn,
+  downsample,
+  rollingAvg,
+} from "@/lib/charts";
 
 interface WellnessDay {
   date: string;
@@ -106,6 +111,96 @@ function TrendChart({
   );
 }
 
+/** Sleep per spec: duration bars, sleep-score line, dashed 8 h guide. */
+function SleepChart({ wellness }: { wellness: WellnessDay[] }) {
+  const rawDur = wellness.map((w) =>
+    w.sleepSecs != null ? w.sleepSecs / 3600 : null
+  );
+  const rawScore = wellness.map((w) => w.sleepScore);
+  // Long ranges: bucket-mean down to ~120 bars so they stay visible.
+  const dur = rawDur.length > 120 ? downsample(rawDur, 120) : rawDur;
+  const score = rawScore.length > 120 ? downsample(rawScore, 120) : rawScore;
+  const nums = dur.filter((v): v is number => v != null);
+  if (nums.length < 2)
+    return (
+      <div className="glass rounded-[2rem] p-6">
+        <h3 className="text-sm font-bold">Sleep</h3>
+        <p className="py-6 text-center text-sm text-white/40">
+          Not enough data in this range.
+        </p>
+      </div>
+    );
+
+  const maxH = Math.max(9, ...nums);
+  const n = dur.length;
+  const barW = 100 / n;
+  const yDur = (h: number) => 38 - (h / maxH) * 34;
+  const yScore = (s: number) => 38 - (s / 100) * 34;
+  const scoreLine = score
+    .map((s, i) =>
+      s == null
+        ? null
+        : `${(i * barW + barW / 2).toFixed(2)},${yScore(s).toFixed(2)}`
+    )
+    .filter(Boolean)
+    .join(" ");
+  const latest = [...nums].pop()!;
+
+  return (
+    <div className="glass rounded-[2rem] p-6">
+      <div className="mb-3 flex items-baseline justify-between">
+        <h3 className="text-sm font-bold">Sleep</h3>
+        <span className="text-sm font-bold" style={{ color: "#818cf8" }}>
+          {Math.round(latest * 10) / 10} h
+        </span>
+      </div>
+      <svg
+        viewBox="0 0 100 40"
+        preserveAspectRatio="none"
+        className="h-28 w-full"
+        role="img"
+        aria-label={`Sleep trend, latest ${Math.round(latest * 10) / 10} hours`}
+      >
+        {dur.map((h, i) =>
+          h == null ? null : (
+            <rect
+              key={i}
+              x={(i * barW + barW * 0.15).toFixed(2)}
+              y={yDur(h).toFixed(2)}
+              width={(barW * 0.7).toFixed(2)}
+              height={(38 - yDur(h)).toFixed(2)}
+              fill="#818cf8"
+              opacity="0.55"
+            />
+          )
+        )}
+        <line
+          x1="0"
+          y1={yDur(8).toFixed(2)}
+          x2="100"
+          y2={yDur(8).toFixed(2)}
+          stroke="rgba(255,255,255,0.35)"
+          strokeWidth="0.3"
+          strokeDasharray="1.5 1"
+        />
+        {scoreLine && (
+          <polyline
+            points={scoreLine}
+            fill="none"
+            stroke="#e5e7eb"
+            strokeWidth="0.6"
+            opacity="0.8"
+            vectorEffect="non-scaling-stroke"
+          />
+        )}
+      </svg>
+      <p className="mt-2 text-[10px] font-bold uppercase tracking-widest text-white/40">
+        Bars: duration · Line: sleep score · Dashed: 8 h
+      </p>
+    </div>
+  );
+}
+
 export function WellnessTrends({
   wellness,
   baselines,
@@ -121,10 +216,6 @@ export function WellnessTrends({
     baselines?.rhrMean != null && baselines?.rhrSd != null
       ? baselineBandLinear(baselines.rhrMean, baselines.rhrSd)
       : null;
-  const sleepH = wellness.map((w) =>
-    w.sleepSecs != null ? w.sleepSecs / 3600 : null
-  );
-
   return (
     <div className="space-y-4">
       <TrendChart
@@ -141,14 +232,7 @@ export function WellnessTrends({
         values={wellness.map((w) => w.restingHr)}
         band={rhrBand}
       />
-      <TrendChart
-        title="Sleep"
-        color="#818cf8"
-        unit="h"
-        values={sleepH}
-        band={{ low: 7, high: 9 }}
-        bandLabel="Band: 7–9 h target"
-      />
+      <SleepChart wellness={wellness} />
     </div>
   );
 }
