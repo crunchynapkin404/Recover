@@ -11,9 +11,11 @@ process.env.ENCRYPTION_KEY ??=
 const sendNotification = vi.fn();
 vi.mock("web-push", async (importOriginal) => {
   const real = await importOriginal<typeof import("web-push")>();
+  // CJS interop: runtime exposes the module under .default, the types don't.
+  const mod = (real as unknown as { default?: typeof real }).default ?? real;
   return {
     default: {
-      generateVAPIDKeys: real.default.generateVAPIDKeys,
+      generateVAPIDKeys: mod.generateVAPIDKeys,
       sendNotification: (...args: unknown[]) => sendNotification(...args),
     },
   };
