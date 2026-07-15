@@ -8,6 +8,7 @@ import { resolveProvider } from "@/lib/llm-provider";
 import { buildSystemPrompt } from "@/lib/coach-persona";
 import { buildAiSdkTools } from "@/lib/tools/registry";
 import { fetchAthleteContext } from "@/lib/coach-context";
+import { memoryPromptBlock } from "@/lib/coach-memory";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -22,13 +23,20 @@ export async function POST(req: Request) {
 
   // Parse request body
   const body = await req.json();
-  const { messages: rawMessages, threadId } = body as {
+  const {
+    messages: rawMessages,
+    threadId,
+    mode,
+    ephemeral,
+  } = body as {
     messages: Array<{
       role: string;
       content?: string;
       parts?: Array<{ type: string; text?: string }>;
     }>;
     threadId?: string;
+    mode?: "quick" | "deep";
+    ephemeral?: boolean;
   };
 
   if (!rawMessages || !Array.isArray(rawMessages) || rawMessages.length === 0) {
@@ -47,8 +55,11 @@ export async function POST(req: Request) {
       "",
   }));
 
-  // Resolve LLM provider
-  const resolved = await resolveProvider(userId);
+  // Resolve LLM provider (thinking mode picks the quick/deep model slot)
+  const resolved = await resolveProvider(
+    userId,
+    mode === "quick" || mode === "deep" ? mode : undefined
+  );
   if (!resolved) {
     return Response.json(
       {
@@ -59,8 +70,10 @@ export async function POST(req: Request) {
     );
   }
 
-  // Thread management — create or verify ownership
+  // Thread management — create or verify ownership. Ghost (ephemeral)
+  // threads suppress memory writes and are purged by the scheduler.
   let activeThreadId = threadId;
+  let isGhost = ephemeral === true;
   if (activeThreadId) {
     const thread = await db.query.chatThreads.findFirst({
       where: eq(schema.chatThreads.id, activeThreadId),
@@ -68,13 +81,14 @@ export async function POST(req: Request) {
     if (!thread || thread.userId !== userId) {
       return new Response("Thread not found", { status: 404 });
     }
+    isGhost = thread.ephemeral;
   } else {
     // Create new thread
     const firstMsg = messages[messages.length - 1]?.content ?? "New chat";
     const title = firstMsg.slice(0, 80);
     const [thread] = await db
       .insert(schema.chatThreads)
-      .values({ userId, title })
+      .values({ userId, title, ephemeral: isGhost })
       .returning();
     activeThreadId = thread.id;
   }
@@ -89,22 +103,23 @@ export async function POST(req: Request) {
     });
   }
 
-  // Build system prompt with user context + real athlete data
-  const [basePrompt, athleteSnapshot] = await Promise.all([
-    Promise.resolve(
-      buildSystemPrompt({
-        userName: session.user.name,
-        todayDate: new Date().toISOString().slice(0, 10),
-      })
-    ),
+  // Build system prompt with user context, coach memory + real athlete data
+  const [memoryBlock, athleteSnapshot] = await Promise.all([
+    memoryPromptBlock(userId),
     fetchAthleteContext(userId, db),
   ]);
+  const basePrompt = buildSystemPrompt({
+    userName: session.user.name,
+    todayDate: new Date().toISOString().slice(0, 10),
+    personality: resolved.personality,
+    memoryBlock,
+  });
   const systemPrompt = `${basePrompt}\n\n${athleteSnapshot}`;
 
   // One registry, every provider: OpenAI-compatible endpoints (Ollama, LM
   // Studio, OpenRouter) support tool calling too — without tools the coach
   // can only hallucinate numbers, which the persona forbids.
-  const tools = buildAiSdkTools({ userId, db });
+  const tools = buildAiSdkTools({ userId, db, ephemeral: isGhost });
 
   // LLM generation parameters — lower temperature for factual coaching
   const generationParams =
