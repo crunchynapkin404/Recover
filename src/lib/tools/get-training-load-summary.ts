@@ -13,8 +13,7 @@ const parameters = z.object({
     ),
 });
 
-async function execute(rawArgs: unknown, ctx: ToolContext) {
-  const args = parameters.parse(rawArgs ?? {});
+async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
   const since = new Date();
   since.setDate(since.getDate() - args.weeks * 7 - 6); // cover the first Monday
 

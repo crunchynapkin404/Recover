@@ -182,7 +182,7 @@ describe.skipIf(!hasDb)("strava layer", () => {
     const loadSummary = allTools.find(
       (t) => t.name === "get_training_load_summary"
     )!;
-    const summary = (await loadSummary.execute({}, ctx)) as {
+    const summary = (await loadSummary.execute({ weeks: 12 }, ctx)) as {
       weeks: Array<{ load: number }>;
     };
     expect(summary.weeks.at(-1)!.load).toBe(80); // strava's 100 not counted
