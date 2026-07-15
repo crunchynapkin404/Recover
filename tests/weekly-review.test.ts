@@ -87,6 +87,40 @@ async function seedWellness() {
     .onConflictDoNothing();
 }
 
+// DB-free: locks in the C2 scheduling fix (exact-hour matching never fired
+// against the 05:00 sync; due-since-slot does). Runs in CI unconditionally.
+describe("mostRecentSlot", () => {
+  it("returns the most recent past occurrence of the weekly slot", async () => {
+    const { mostRecentSlot } = await import("@/lib/weekly-review");
+    // Wed 2026-07-15 10:30, review = Monday 04:00 → Mon 2026-07-13 04:00.
+    const now = new Date(2026, 6, 15, 10, 30);
+    const slot = mostRecentSlot(now, 1, 4);
+    expect(slot.getDay()).toBe(1);
+    expect(slot.getHours()).toBe(4);
+    expect(slot.getTime()).toBeLessThanOrEqual(now.getTime());
+    expect(now.getTime() - slot.getTime()).toBeLessThan(7 * 86_400_000);
+  });
+
+  it("uses today's slot once it has passed", async () => {
+    const { mostRecentSlot } = await import("@/lib/weekly-review");
+    const now = new Date(2026, 6, 15, 10, 0); // Wednesday 10:00
+    const slot = mostRecentSlot(now, 3, 4); // Wed 04:00, already passed today
+    expect(slot.getFullYear()).toBe(2026);
+    expect(slot.getMonth()).toBe(6);
+    expect(slot.getDate()).toBe(15);
+    expect(slot.getHours()).toBe(4);
+  });
+
+  it("rolls back a week when today's slot is still in the future", async () => {
+    const { mostRecentSlot } = await import("@/lib/weekly-review");
+    const now = new Date(2026, 6, 15, 2, 0); // Wednesday 02:00
+    const slot = mostRecentSlot(now, 3, 4); // Wed 04:00 hasn't happened yet
+    expect(slot.getDate()).toBe(8); // previous Wednesday
+    expect(slot.getHours()).toBe(4);
+    expect(slot.getTime()).toBeLessThan(now.getTime());
+  });
+});
+
 describe.skipIf(!hasDb)("weekly review", () => {
   beforeAll(async () => {
     await cleanup();
@@ -100,7 +134,8 @@ describe.skipIf(!hasDb)("weekly review", () => {
         role: "member",
       })
       .onConflictDoNothing();
-    // Set review prefs to current day/hour so the day/hour guard passes
+    // Prefs set so "now" is past the review slot (day = today, hour = current)
+    // — the due-since-slot guard then treats the review as due.
     const now = new Date();
     await db
       .insert(schema.notificationPrefs)
@@ -185,7 +220,9 @@ describe.skipIf(!hasDb)("weekly review", () => {
       where: eq(schema.chatMessages.threadId, thread!.id),
     });
     expect(msgs).toHaveLength(1);
-    expect(msgs[0].role).toBe("system");
+    // Stored as assistant so the thread UI renders it (system messages are
+    // filtered out of the thread view).
+    expect(msgs[0].role).toBe("assistant");
     expect(msgs[0].content).toContain("Week in review");
     expect(msgs[0].content).toContain("load across");
 
