@@ -7,6 +7,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { decrypt, encrypt } from "@/lib/crypto";
 import { logger } from "@/lib/logger";
+import { getLatestMorningInsight } from "@/lib/morning-insight";
 
 export interface PushPayload {
   title: string;
@@ -21,6 +22,8 @@ export interface MorningMetricsInput {
   hrvMs: number | null;
   restingHr: number | null;
   sleepSecs: number | null;
+  /** First sentence of today's coach insight (v0.4b), clamped to 120 chars. */
+  insightTeaser?: string | null;
 }
 
 const BAND_LINES: Record<MorningMetricsInput["band"], string> = {
@@ -37,9 +40,14 @@ export function buildMorningPayload(m: MorningMetricsInput): PushPayload {
     parts.push(`Sleep ${(m.sleepSecs / 3600).toFixed(1)} h`);
   const metrics = parts.join(" · ");
   const band = m.band.charAt(0).toUpperCase() + m.band.slice(1);
+  let body = metrics ? `${metrics} — ${BAND_LINES[m.band]}` : BAND_LINES[m.band];
+  const teaser = m.insightTeaser?.trim();
+  if (teaser) {
+    body += `\n${teaser.length > 120 ? teaser.slice(0, 119) + "…" : teaser}`;
+  }
   return {
     title: `Readiness ${Math.round(m.readiness)} · ${band}`,
-    body: metrics ? `${metrics} — ${BAND_LINES[m.band]}` : BAND_LINES[m.band],
+    body,
     tag: "morning-readiness",
     url: "/",
   };
@@ -220,12 +228,18 @@ export async function maybeSendMorningReadinessPush(
     .set({ lastMorningPushDate: today })
     .where(eq(schema.notificationPrefs.userId, userId));
 
+  const insight = await getLatestMorningInsight(userId, now).catch(() => null);
+  const insightTeaser = insight
+    ? insight.text.split(/(?<=[.!?])\s/)[0]
+    : null;
+
   const payload = buildMorningPayload({
     readiness: metrics.readiness,
     band: metrics.band as "green" | "amber" | "red",
     hrvMs: wellness?.hrvMs ?? null,
     restingHr: wellness?.restingHr ?? null,
     sleepSecs: wellness?.sleepSecs ?? null,
+    insightTeaser,
   });
   const { sent, pruned } = await sendToUser(userId, payload);
   logger.info("morning push", { userId, sent, pruned });

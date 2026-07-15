@@ -45,4 +45,30 @@ describe("buildMorningPayload", () => {
     expect(p.body).not.toContain("HRV");
     expect(p.body).not.toContain("Sleep");
   });
+
+  it("appends the insight teaser on its own line, clamped to 120 chars", () => {
+    const base = {
+      readiness: 72,
+      band: "green" as const,
+      hrvMs: 70,
+      restingHr: 45,
+      sleepSecs: 8 * 3600,
+    };
+    const short = buildMorningPayload({
+      ...base,
+      insightTeaser: "Go long today.",
+    });
+    expect(short.body.endsWith("\nGo long today.")).toBe(true);
+
+    const long = buildMorningPayload({
+      ...base,
+      insightTeaser: "x".repeat(200),
+    });
+    const teaserLine = long.body.split("\n").pop()!;
+    expect(teaserLine.length).toBe(120);
+    expect(teaserLine.endsWith("…")).toBe(true);
+
+    const none = buildMorningPayload({ ...base, insightTeaser: null });
+    expect(none.body).not.toContain("\n");
+  });
 });
