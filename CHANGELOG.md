@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.5.0 — Training Intelligence
+
+- **Artifacts engine**: coach can output inline SVG charts (line, bar, area, table) in chat — collapsed preview with expand-on-click
+- **Weekly review**: proactive weekly training summary with load comparison chart, configurable day/time
+- **Calendar integration**: intervals.icu planned workouts visible to coach; Google Calendar OAuth for busy/free awareness
+- **Training plan generation**: periodized multi-week plans from race goals (4–52 weeks, multi-sport, periodization guardrails)
+- **20 MCP tools** (was 14): `render_chart`, `get_planned_workouts`, `get_calendar_availability`, `generate_training_plan`, `get_training_plan`, `update_training_plan`
+
 ## v0.4.0 — Unreleased
 
 Coach intelligence.

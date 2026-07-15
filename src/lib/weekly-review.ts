@@ -31,7 +31,7 @@ async function findOrCreateWeeklyThread(userId: string) {
   const existing = await db.query.chatThreads.findFirst({
     where: and(
       eq(schema.chatThreads.userId, userId),
-      eq(schema.chatThreads.kind, "weekly"),
+      eq(schema.chatThreads.kind, "weekly")
     ),
   });
   if (existing) return existing;
@@ -89,7 +89,10 @@ export async function generateWeeklyReview(userId: string): Promise<void> {
   if (latest) {
     const meta = (latest.toolCalls ?? {}) as { week?: string };
     if (meta.week === weekLabel) {
-      logger.info("weekly review already exists for this week", { userId, weekLabel });
+      logger.info("weekly review already exists for this week", {
+        userId,
+        weekLabel,
+      });
       return;
     }
   }
@@ -110,8 +113,8 @@ export async function generateWeeklyReview(userId: string): Promise<void> {
     .where(
       and(
         eq(schema.activities.userId, userId),
-        gte(schema.activities.startDate, sevenDaysAgo),
-      ),
+        gte(schema.activities.startDate, sevenDaysAgo)
+      )
     );
 
   if ((activityCount?.n ?? 0) < 3) {
@@ -133,8 +136,8 @@ export async function generateWeeklyReview(userId: string): Promise<void> {
       and(
         eq(schema.dailyMetrics.userId, userId),
         gte(schema.dailyMetrics.date, sevenAgoYmd),
-        lte(schema.dailyMetrics.date, todayYmd),
-      ),
+        lte(schema.dailyMetrics.date, todayYmd)
+      )
     );
 
   const [thisWeekLoad] = await db
@@ -146,8 +149,8 @@ export async function generateWeeklyReview(userId: string): Promise<void> {
     .where(
       and(
         eq(schema.activities.userId, userId),
-        gte(schema.activities.startDate, sevenDaysAgo),
-      ),
+        gte(schema.activities.startDate, sevenDaysAgo)
+      )
     );
 
   // ── Gather prior week's data ───────────────────────────────────────────
@@ -161,8 +164,8 @@ export async function generateWeeklyReview(userId: string): Promise<void> {
       and(
         eq(schema.activities.userId, userId),
         gte(schema.activities.startDate, fourteenDaysAgo),
-        lte(schema.activities.startDate, sevenDaysAgo),
-      ),
+        lte(schema.activities.startDate, sevenDaysAgo)
+      )
     );
 
   const [prevWeekMetrics] = await db
@@ -174,8 +177,8 @@ export async function generateWeeklyReview(userId: string): Promise<void> {
       and(
         eq(schema.dailyMetrics.userId, userId),
         gte(schema.dailyMetrics.date, fourteenAgoYmd),
-        lte(schema.dailyMetrics.date, sevenAgoYmd),
-      ),
+        lte(schema.dailyMetrics.date, sevenAgoYmd)
+      )
     );
 
   // ── Current CTL/ATL/TSB from latest wellness ───────────────────────────
@@ -192,23 +195,80 @@ export async function generateWeeklyReview(userId: string): Promise<void> {
   const ctl = Math.round(latestWellness?.ctl ?? 0);
   const atl = Math.round(latestWellness?.atl ?? 0);
   const tsb = ctl - atl;
-  const delta = prevLoad > 0 ? Math.round(((weekLoad - prevLoad) / prevLoad) * 100) : 0;
+  const delta =
+    prevLoad > 0 ? Math.round(((weekLoad - prevLoad) / prevLoad) * 100) : 0;
 
   // CTL delta: compare to what it was 7 days ago
   const prevWellness = await db.query.wellnessDaily.findFirst({
     where: and(
       eq(schema.wellnessDaily.userId, userId),
-      lte(schema.wellnessDaily.date, sevenAgoYmd),
+      lte(schema.wellnessDaily.date, sevenAgoYmd)
     ),
     orderBy: desc(schema.wellnessDaily.date),
   });
-  const ctlDelta = Math.round((latestWellness?.ctl ?? 0) - (prevWellness?.ctl ?? 0));
+  const ctlDelta = Math.round(
+    (latestWellness?.ctl ?? 0) - (prevWellness?.ctl ?? 0)
+  );
+
+  // ── Check for active training plan ─────────────────────────────────────
+  const activePlan = await db.query.trainingPlans.findFirst({
+    where: and(
+      eq(schema.trainingPlans.userId, userId),
+      eq(schema.trainingPlans.status, "active")
+    ),
+  });
+
+  let planAdherence: {
+    weekNumber: number;
+    targetLoad: number;
+    actualLoad: number;
+    adherencePct: number;
+  } | null = null;
+
+  if (activePlan) {
+    const currentBlock = await db.query.trainingBlocks.findFirst({
+      where: and(
+        eq(schema.trainingBlocks.planId, activePlan.id),
+        eq(schema.trainingBlocks.weekNumber, activePlan.currentWeek)
+      ),
+    });
+    if (currentBlock) {
+      const adherencePct = currentBlock.targetLoadTotal
+        ? Math.round((weekLoad / currentBlock.targetLoadTotal) * 100)
+        : null;
+      // Update the block with actual data
+      await db
+        .update(schema.trainingBlocks)
+        .set({
+          actualLoad: weekLoad,
+          actualSessions: sessions,
+          adherencePct: adherencePct,
+        })
+        .where(eq(schema.trainingBlocks.id, currentBlock.id));
+
+      // Advance current_week on the plan
+      await db
+        .update(schema.trainingPlans)
+        .set({ currentWeek: activePlan.currentWeek + 1 })
+        .where(eq(schema.trainingPlans.id, activePlan.id));
+
+      planAdherence = {
+        weekNumber: currentBlock.weekNumber,
+        targetLoad: currentBlock.targetLoadTotal ?? 0,
+        actualLoad: weekLoad,
+        adherencePct: adherencePct ?? 0,
+      };
+    }
+  }
 
   // ── Generate review ────────────────────────────────────────────────────
   const templateText =
     `📊 Week in review: ${Math.round(weekLoad)} load across ${sessions} sessions ` +
     `(${delta >= 0 ? "↑" : "↓"} ${Math.abs(delta)}% vs last week). ` +
-    `Readiness averaged ${avgReadiness}. CTL ${ctl} (${ctlDelta >= 0 ? "+" : ""}${ctlDelta}).`;
+    `Readiness averaged ${avgReadiness}. CTL ${ctl} (${ctlDelta >= 0 ? "+" : ""}${ctlDelta}).` +
+    (planAdherence
+      ? ` Plan week ${planAdherence.weekNumber}: ${planAdherence.adherencePct}% adherence.`
+      : "");
 
   let text = templateText;
   try {
@@ -220,8 +280,11 @@ export async function generateWeeklyReview(userId: string): Promise<void> {
         `Total load: ${Math.round(weekLoad)} (last week: ${Math.round(prevLoad)}, delta: ${delta}%)\n` +
         `Sessions: ${sessions} (last week: ${prevSessions})\n` +
         `Avg readiness: ${avgReadiness}/100\n` +
-        `CTL: ${ctl} (Δ ${ctlDelta}), ATL: ${atl}, TSB: ${tsb}\n\n` +
-        `## Instructions\n` +
+        `CTL: ${ctl} (Δ ${ctlDelta}), ATL: ${atl}, TSB: ${tsb}\n` +
+        (planAdherence
+          ? `Plan adherence: ${planAdherence.adherencePct}% (target ${planAdherence.targetLoad}, actual ${planAdherence.actualLoad})\n`
+          : "") +
+        `\n## Instructions\n` +
         `- Lead with the headline: bigger/smaller/recovery week\n` +
         `- Use render_chart with type "bar", title "Daily Load", one series with each day's load\n` +
         `- Comment on readiness trend and recovery quality\n` +
@@ -257,12 +320,20 @@ export async function generateWeeklyReview(userId: string): Promise<void> {
     threadId: thread.id,
     role: "system",
     content: text,
-    toolCalls: { week: weekLabel, generated: text === templateText ? "template" : "llm" },
+    toolCalls: {
+      week: weekLabel,
+      generated: text === templateText ? "template" : "llm",
+    },
   });
   await db
     .update(schema.chatThreads)
     .set({ updatedAt: now })
     .where(eq(schema.chatThreads.id, thread.id));
 
-  logger.info("weekly review generated", { userId, weekLabel, sessions, weekLoad });
+  logger.info("weekly review generated", {
+    userId,
+    weekLabel,
+    sessions,
+    weekLoad,
+  });
 }

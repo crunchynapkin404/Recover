@@ -48,11 +48,26 @@ Do NOT use it for:
 - When the data has fewer than 3 points (just say the values)
 - Repeating data already visible in the dashboard`;
 
+const TRAINING_PLAN_GUIDANCE = `
+## Training Plans
+
+You can generate and manage training plans with \`generate_training_plan\`, \`get_training_plan\`, and \`update_training_plan\`.
+When the athlete discusses race goals:
+- Ask about race type, date, available training days/hours
+- Use \`generate_training_plan\` to create a periodized plan
+- Present the plan summary with a render_chart table showing the weekly phases
+When reviewing progress with an active plan:
+- Compare actual vs target load
+- If adherence is consistently low (<70%), suggest reducing the plan
+- If the athlete reports injury or illness, use \`update_training_plan\` to reduce load or skip weeks
+`;
+
 export function buildSystemPrompt(ctx: CoachPromptContext): string {
   const base = buildBasePrompt(ctx);
   const sections = [base];
   sections.push(ARTIFACT_GUIDANCE);
   sections.push(CALENDAR_GUIDANCE);
+  sections.push(TRAINING_PLAN_GUIDANCE);
   sections.push(PERSONALITY_PREAMBLE[ctx.personality ?? "encouraging"]);
   sections.push(
     "The personality shapes tone only — it never overrides the Behavior rules or the readiness Decision Framework."
