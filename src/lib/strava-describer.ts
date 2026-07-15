@@ -10,6 +10,11 @@ import { and, desc, eq, gte } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { getBestEffortsCached } from "@/lib/athlete-curves";
+import {
+  isFieldEnabled,
+  type DescriptionField,
+  type DescriptionFields,
+} from "@/lib/strava-description-fields";
 import type { IntervalsBestEffort } from "@/lib/connectors/intervals";
 import {
   getStravaDescription,
@@ -87,26 +92,40 @@ function joinSegments(segments: Array<string | null>): string | null {
   return present.length > 0 ? present.join(" | ") : null;
 }
 
-/** Render the emoji template. Null fields/lines are omitted (no "N/A"). */
-export function formatActivityDescription(input: DescriptionInput): string {
+/**
+ * Render the emoji template. Null fields/lines are omitted (no "N/A").
+ * `fields` (v0.6.2) gates each metric; null/undefined = every field on.
+ */
+export function formatActivityDescription(
+  input: DescriptionInput,
+  fields?: DescriptionFields
+): string {
+  const on = (key: DescriptionField) => isFieldEnabled(fields, key);
   const lines: string[] = [];
-  lines.push(`${sportEmoji(input.sport)} ${input.title ?? input.sport}`);
+
+  if (on("header")) {
+    lines.push(`${sportEmoji(input.sport)} ${input.title ?? input.sport}`);
+  }
 
   const load = joinSegments([
-    input.load != null ? `TL ${Math.round(input.load)}` : null,
-    input.intensityPct != null ? `IF ${input.intensityPct}%` : null,
-    input.trimp != null ? `TRIMP ${Math.round(input.trimp)}` : null,
+    on("load") && input.load != null ? `TL ${Math.round(input.load)}` : null,
+    on("intensity") && input.intensityPct != null
+      ? `IF ${input.intensityPct}%`
+      : null,
+    on("trimp") && input.trimp != null
+      ? `TRIMP ${Math.round(input.trimp)}`
+      : null,
   ]);
   if (load) lines.push(`🔋 Load: ${load}`);
 
   const decoupling =
-    input.decouplingPct != null
+    on("decoupling") && input.decouplingPct != null
       ? `decoupling ${input.decouplingPct.toFixed(1)}%`
       : null;
   if (isRunSport(input.sport)) {
     // Runs show pace metrics instead of power (spec).
     const pace = joinSegments([
-      input.paceSecPerKm != null
+      on("pace") && input.paceSecPerKm != null
         ? `${formatPace(input.paceSecPerKm)}/km`
         : null,
       decoupling,
@@ -114,7 +133,7 @@ export function formatActivityDescription(input: DescriptionInput): string {
     if (pace) lines.push(`⚡ Pace: ${pace}`);
   } else {
     const efficiency = joinSegments([
-      input.powerHrRatio != null
+      on("powerHrRatio") && input.powerHrRatio != null
         ? `Pw:Hr ${input.powerHrRatio.toFixed(2)}`
         : null,
       decoupling,
@@ -122,19 +141,25 @@ export function formatActivityDescription(input: DescriptionInput): string {
     if (efficiency) lines.push(`⚡ Efficiency: ${efficiency}`);
   }
 
-  if (input.carbsPerHour != null) {
+  if (on("carbs") && input.carbsPerHour != null) {
     lines.push(`🍔 Carbs: ~${Math.round(input.carbsPerHour)} g/u`);
   }
 
   const form = joinSegments([
-    input.ctl != null ? `CTL ${Math.round(input.ctl)}` : null,
-    input.tsb != null ? `TSB ${Math.round(input.tsb)}` : null,
-    input.ftpW != null ? `eFTP ${Math.round(input.ftpW)} W` : null,
-    input.vo2max != null ? `VO2 ${input.vo2max.toFixed(1)}` : null,
+    on("ctl") && input.ctl != null ? `CTL ${Math.round(input.ctl)}` : null,
+    on("tsb") && input.tsb != null ? `TSB ${Math.round(input.tsb)}` : null,
+    on("eftp") && input.ftpW != null
+      ? `eFTP ${Math.round(input.ftpW)} W`
+      : null,
+    on("vo2max") && input.vo2max != null
+      ? `VO2 ${input.vo2max.toFixed(1)}`
+      : null,
   ]);
   if (form) lines.push(`📈 Form: ${form}`);
 
-  for (const pr of input.prLines.slice(0, 3)) lines.push(`🚀 ${pr}`);
+  if (on("prs")) {
+    for (const pr of input.prLines.slice(0, 3)) lines.push(`🚀 ${pr}`);
+  }
 
   return lines.join("\n");
 }
@@ -203,7 +228,8 @@ const MAX_PER_RUN = 10;
 /** Assemble the generated block for one intervals.icu activity. */
 async function buildGeneratedDescription(
   userId: string,
-  activity: ActivityRow
+  activity: ActivityRow,
+  fields: DescriptionFields
 ): Promise<string> {
   const raw = (activity.raw ?? {}) as Record<string, unknown>;
   const metrics = metricsFromRaw(raw);
@@ -234,23 +260,26 @@ async function buildGeneratedDescription(
       ? activity.durationS / (activity.distanceM / 1000)
       : null;
 
-  return formatActivityDescription({
-    title: activity.name,
-    sport: activity.sport,
-    ...metrics,
-    ftpW: metrics.ftpW ?? wellness?.eftp ?? null,
-    paceSecPerKm,
-    ctl,
-    tsb,
-    prLines,
-  });
+  return formatActivityDescription(
+    {
+      title: activity.name,
+      sport: activity.sport,
+      ...metrics,
+      ftpW: metrics.ftpW ?? wellness?.eftp ?? null,
+      paceSecPerKm,
+      ctl,
+      tsb,
+      prLines,
+    },
+    fields
+  );
 }
 
 export interface DescribeOutcome {
   wrote: boolean;
   /** The generated block only — safe for LLM context (never Strava text). */
   generated: string;
-  reason?: "no_data" | "no_strava_id" | "already_described";
+  reason?: "no_data" | "no_strava_id" | "already_described" | "no_fields";
 }
 
 /**
@@ -267,10 +296,20 @@ export async function describeActivityOnStrava(params: {
   const stravaId = stravaIdFromRaw(raw);
   if (!stravaId) return { wrote: false, generated: "", reason: "no_strava_id" };
 
+  const prefs = await db.query.notificationPrefs.findFirst({
+    where: eq(schema.notificationPrefs.userId, params.userId),
+  });
   const generated = await buildGeneratedDescription(
     params.userId,
-    params.activity
+    params.activity,
+    prefs?.stravaDescriptionFields ?? null
   );
+  // Every field disabled → publishing would leave a bare marker that the
+  // skip check then makes permanent. Write nothing, don't even read.
+  if (generated === "") {
+    return { wrote: false, generated: "", reason: "no_fields" };
+  }
+
   const existing = await getStravaDescription(params.accessToken, stravaId);
   const merged = buildDescription(existing, generated);
   if (merged === existing) {
@@ -283,6 +322,56 @@ export async function describeActivityOnStrava(params: {
     description: merged,
   });
   return { wrote: true, generated };
+}
+
+// ── Preview (settings UI) ────────────────────────────────────────────────────
+
+/** Canned data for users with no synced activity yet. Plausible, not real. */
+export const SAMPLE_PREVIEW_INPUT: DescriptionInput = {
+  title: "Zone 2 endurance",
+  sport: "Ride",
+  load: 82,
+  intensityPct: 87,
+  trimp: 141,
+  powerHrRatio: 1.83,
+  decouplingPct: 4.2,
+  carbsPerHour: 62,
+  paceSecPerKm: null,
+  ctl: 71,
+  tsb: -8,
+  ftpW: 288,
+  vo2max: 54.1,
+  prLines: ["594W/1m — all-time PR"],
+};
+
+/**
+ * Render what a candidate field set would publish, against the athlete's most
+ * recent real activity when one exists. The returned text is the generated
+ * block only — the marker is appended at write time.
+ */
+export async function previewDescription(
+  userId: string,
+  fields: DescriptionFields
+): Promise<{ text: string; sample: boolean }> {
+  const recent = await db.query.activities.findMany({
+    where: and(
+      eq(schema.activities.userId, userId),
+      eq(schema.activities.provider, "intervals_icu")
+    ),
+    orderBy: [desc(schema.activities.startDate)],
+    limit: 20,
+  });
+  const target = recent.find((a) => a.raw != null);
+  if (!target) {
+    return {
+      text: formatActivityDescription(SAMPLE_PREVIEW_INPUT, fields),
+      sample: true,
+    };
+  }
+  return {
+    text: await buildGeneratedDescription(userId, target, fields),
+    sample: false,
+  };
 }
 
 export interface AutoDescribeResult {

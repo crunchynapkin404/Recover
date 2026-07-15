@@ -76,6 +76,14 @@ Auto-generate data-dense activity descriptions from intervals.icu metrics and pu
 
 **Done when:** new activities get a data-rich description on Strava within minutes of sync; existing descriptions are preserved; coach can describe on demand.
 
+## ✅ v0.6.2 — Strava description fields
+
+- [x] **Field selection**: per-user checklist of which metrics appear; live preview against a real activity
+- [x] **Safe defaults**: no saved config = full v0.6 template; new fields never auto-appear for configured users
+- [x] **Empty guard**: all fields off skips the write — no bare marker is ever published
+
+**Done when:** a user unticks TRIMP and their next activity's description omits it.
+
 ## v0.7 — Body Intelligence
 
 Longer-term health metrics that keep users engaged beyond the daily score.

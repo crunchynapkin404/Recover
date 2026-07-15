@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.6.2 — Strava description fields
+
+- **Field selection**: choose which metrics appear in your Strava descriptions, with a live preview rendered against your most recent activity
+- Users who never customize keep the full v0.6 template unchanged
+- Disabling every field skips the Strava write instead of publishing a bare marker
+
 ## v0.6.1 — 2026-07-15
 
 Post-review fixes for v0.2–v0.5.

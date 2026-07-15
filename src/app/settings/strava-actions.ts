@@ -5,6 +5,8 @@ import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { runStravaSync } from "@/lib/sync/strava-sync";
+import { previewDescription } from "@/lib/strava-describer";
+import { sanitizeDescriptionFields } from "@/lib/strava-description-fields";
 
 export interface ActionResult {
   ok: boolean;
@@ -53,4 +55,27 @@ export async function setAutoDescribeStrava(enabled: boolean): Promise<void> {
       set: { autoDescribeStrava: enabled },
     });
   revalidatePath("/settings");
+}
+
+export async function setStravaDescriptionFields(
+  fields: Record<string, boolean>
+): Promise<void> {
+  const user = await requireUser();
+  // Client input lands in JSONB — keep only known keys set to true.
+  const clean = sanitizeDescriptionFields(fields);
+  await db
+    .insert(schema.notificationPrefs)
+    .values({ userId: user.id, stravaDescriptionFields: clean })
+    .onConflictDoUpdate({
+      target: schema.notificationPrefs.userId,
+      set: { stravaDescriptionFields: clean },
+    });
+  revalidatePath("/settings");
+}
+
+export async function previewStravaDescription(
+  fields: Record<string, boolean>
+): Promise<{ text: string; sample: boolean }> {
+  const user = await requireUser();
+  return previewDescription(user.id, sanitizeDescriptionFields(fields));
 }

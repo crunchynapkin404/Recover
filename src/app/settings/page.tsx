@@ -124,6 +124,9 @@ export default async function SettingsPage({
             configured={!!process.env.STRAVA_CLIENT_ID}
             errorParam={strava_error}
             autoDescribe={notificationPrefs?.autoDescribeStrava ?? false}
+            descriptionFields={
+              notificationPrefs?.stravaDescriptionFields ?? null
+            }
             connection={
               stravaConnection
                 ? {
