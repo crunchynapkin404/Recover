@@ -14,8 +14,9 @@ const parameters = z.object({
 });
 
 async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
+  const weeks = args.weeks ?? 12;
   const since = new Date();
-  since.setDate(since.getDate() - args.weeks * 7 - 6); // cover the first Monday
+  since.setDate(since.getDate() - weeks * 7 - 6); // cover the first Monday
 
   const recent = await ctx.db.query.activities.findMany({
     where: and(
@@ -39,7 +40,7 @@ async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
   const atl = latest?.atl ?? null;
 
   return {
-    weeks: weeklyActivitySummaries(recent, args.weeks).map((w) => ({
+    weeks: weeklyActivitySummaries(recent, weeks).map((w) => ({
       week_start: w.weekStart,
       load: Math.round(w.load),
       hours: +(w.durationS / 3600).toFixed(1),

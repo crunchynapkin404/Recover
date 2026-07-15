@@ -166,4 +166,33 @@ describe.skipIf(!hasDb)("MCP security gates", () => {
     expect(payload.count).toBe(0);
     expect(payload.days).toEqual([]);
   });
+
+  it("read scope grants all four v0.4c depth tools", async () => {
+    const { executeToolHandler } = await import("@/lib/mcp/server");
+    for (const name of [
+      "get_power_curve",
+      "get_pace_curve",
+      "get_best_efforts",
+      "get_training_load_summary",
+    ]) {
+      const tool = await toolByName(name);
+      const result = await executeToolHandler(
+        tool,
+        {},
+        authExtra(USER_A, ["read"])
+      );
+      expect(result.isError, `${name} should accept read scope`).toBeUndefined();
+    }
+  });
+
+  it("denies the depth tools without read scope", async () => {
+    const { executeToolHandler } = await import("@/lib/mcp/server");
+    const tool = await toolByName("get_power_curve");
+    const result = await executeToolHandler(
+      tool,
+      {},
+      authExtra(USER_A, ["write:wellness"])
+    );
+    expect(result.isError).toBe(true);
+  });
 });
