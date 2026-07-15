@@ -12,6 +12,8 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+// Relative, not "@/": drizzle-kit loads this file outside the Next resolver.
+import type { DescriptionFields } from "../strava-description-fields";
 
 // ── Better Auth tables (field names per Better Auth drizzle adapter) ─────────
 
@@ -394,6 +396,10 @@ export const notificationPrefs = pgTable("notification_prefs", {
   weeklyReviewHour: smallint("weekly_review_hour").notNull().default(7), // 0-23, default 7am
   // v0.6: opt-in Strava auto-describe (write-back of intervals.icu metrics).
   autoDescribeStrava: boolean("auto_describe_strava").notNull().default(false),
+  // v0.6.1: null = every field (v0.6 output); object = explicit allowlist.
+  stravaDescriptionFields: jsonb(
+    "strava_description_fields"
+  ).$type<DescriptionFields>(),
 });
 
 // Instance-level key/value config (e.g. auto-generated VAPID keys; secret

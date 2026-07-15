@@ -1,0 +1,1 @@
+ALTER TABLE "notification_prefs" ADD COLUMN "strava_description_fields" jsonb;
