@@ -24,6 +24,14 @@ vi.mock("@ai-sdk/openai", () => ({
 import { resolveProvider } from "@/lib/llm-provider";
 import { db } from "@/lib/db";
 
+// v0.4a columns with pre-migration-like defaults for existing fixtures.
+const baseSlots = {
+  modelQuick: null,
+  modelDeep: null,
+  defaultMode: "deep" as const,
+  coachPersonality: "encouraging" as const,
+};
+
 describe("resolveProvider", () => {
   it("returns null when no settings exist", async () => {
     vi.mocked(db.query.llmSettings.findFirst).mockResolvedValue(undefined);
@@ -40,6 +48,7 @@ describe("resolveProvider", () => {
       encryptedApiKey: "enc_key_abc",
       baseUrl: null,
       updatedAt: new Date(),
+      ...baseSlots,
     });
 
     const result = await resolveProvider("user_123");
@@ -57,6 +66,7 @@ describe("resolveProvider", () => {
       encryptedApiKey: null,
       baseUrl: "http://localhost:11434/v1",
       updatedAt: new Date(),
+      ...baseSlots,
     });
 
     const result = await resolveProvider("user_123");
@@ -74,6 +84,7 @@ describe("resolveProvider", () => {
       encryptedApiKey: null,
       baseUrl: null,
       updatedAt: new Date(),
+      ...baseSlots,
     });
 
     const result = await resolveProvider("user_123");

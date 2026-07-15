@@ -230,6 +230,8 @@ export const chatThreads = pgTable("chat_threads", {
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
   title: text("title"),
+  // Ghost threads: auto-purged by the scheduler 24h after last activity.
+  ephemeral: boolean("ephemeral").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
@@ -237,6 +239,27 @@ export const chatThreads = pgTable("chat_threads", {
     .notNull()
     .defaultNow(),
 });
+
+export const coachMemories = pgTable(
+  "coach_memories",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    category: text("category", {
+      enum: ["goal", "injury", "race", "preference", "fact"],
+    }).notNull(),
+    content: text("content").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("coach_memories_user_idx").on(t.userId)]
+);
 
 export const chatMessages = pgTable(
   "chat_messages",
@@ -285,6 +308,18 @@ export const llmSettings = pgTable("llm_settings", {
   baseUrl: text("base_url"), // required for openai_compatible
   encryptedApiKey: text("encrypted_api_key"),
   model: text("model").notNull(),
+  // Thinking modes: per-message quick/deep model slots; `model` stays as
+  // the legacy fallback (mirrors modelDeep on save).
+  modelQuick: text("model_quick"),
+  modelDeep: text("model_deep"),
+  defaultMode: text("default_mode", { enum: ["quick", "deep"] })
+    .notNull()
+    .default("deep"),
+  coachPersonality: text("coach_personality", {
+    enum: ["analytical", "encouraging", "direct"],
+  })
+    .notNull()
+    .default("encouraging"),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
