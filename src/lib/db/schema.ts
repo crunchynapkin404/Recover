@@ -230,6 +230,10 @@ export const chatThreads = pgTable("chat_threads", {
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
   title: text("title"),
+  // System threads: 'morning' holds the daily proactive coach insight.
+  kind: text("kind", { enum: ["chat", "morning"] })
+    .notNull()
+    .default("chat"),
   // Ghost threads: auto-purged by the scheduler 24h after last activity.
   ephemeral: boolean("ephemeral").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true })
