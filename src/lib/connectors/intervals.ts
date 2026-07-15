@@ -240,3 +240,128 @@ export async function fetchActivityIntervals(params: {
     avgPower: num(row.average_watts),
   }));
 }
+
+export interface IntervalsPowerCurve {
+  secs: number[];
+  watts: number[];
+  wattsPerKg: number[] | null;
+}
+
+export interface IntervalsPaceCurve {
+  distanceM: number[];
+  secsPerKm: number[];
+}
+
+export interface IntervalsBestEffort {
+  label: string;
+  sport: string;
+  value: number;
+  unit: string;
+  activityExternalId: string | null;
+  date: string | null;
+}
+
+/** intervals.icu wraps some athlete endpoints in `{ list: [...] }`. */
+function unwrapList(body: unknown): Record<string, unknown> {
+  if (
+    body &&
+    typeof body === "object" &&
+    Array.isArray((body as { list?: unknown[] }).list)
+  ) {
+    return ((body as { list: unknown[] }).list[0] ?? {}) as Record<
+      string,
+      unknown
+    >;
+  }
+  return (body ?? {}) as Record<string, unknown>;
+}
+
+function numArray(value: unknown): number[] | null {
+  if (!Array.isArray(value)) return null;
+  const out = value.map((v) => num(v));
+  return out.every((v): v is number => v != null) ? (out as number[]) : null;
+}
+
+/** Athlete-level mean-max power curve, precomputed by intervals.icu. */
+export async function fetchAthletePowerCurves(params: {
+  apiKey: string;
+  athleteId: string;
+  days: number;
+}): Promise<IntervalsPowerCurve> {
+  const path =
+    `/athlete/${encodeURIComponent(params.athleteId)}/power-curves` +
+    `?days=${params.days}`;
+  const response = await icuFetch(path, params.apiKey);
+  const row = unwrapList(await response.json());
+  const secs = numArray(row.secs);
+  const watts = numArray(row.watts);
+  if (!secs || !watts || secs.length !== watts.length) {
+    throw new ConnectorError(
+      "unknown",
+      "intervals.icu: unexpected power-curves shape"
+    );
+  }
+  const wattsPerKg = numArray(row.watts_per_kg);
+  return {
+    secs,
+    watts,
+    wattsPerKg:
+      wattsPerKg && wattsPerKg.length === secs.length ? wattsPerKg : null,
+  };
+}
+
+/** Athlete-level running pace curve, normalized to secs-per-km per distance. */
+export async function fetchAthletePaceCurves(params: {
+  apiKey: string;
+  athleteId: string;
+  days: number;
+}): Promise<IntervalsPaceCurve> {
+  const path =
+    `/athlete/${encodeURIComponent(params.athleteId)}/pace-curves` +
+    `?days=${params.days}&type=Run`;
+  const response = await icuFetch(path, params.apiKey);
+  const row = unwrapList(await response.json());
+  const distances = numArray(row.distances);
+  const secs = numArray(row.secs);
+  if (!distances || !secs || distances.length !== secs.length) {
+    throw new ConnectorError(
+      "unknown",
+      "intervals.icu: unexpected pace-curves shape"
+    );
+  }
+  return {
+    distanceM: distances,
+    secsPerKm: distances.map((d, i) => (d > 0 ? secs[i] / (d / 1000) : 0)),
+  };
+}
+
+/** Best-efforts listing (PRs) for the trailing window. */
+export async function fetchBestEfforts(params: {
+  apiKey: string;
+  athleteId: string;
+  days: number;
+}): Promise<IntervalsBestEffort[]> {
+  const path =
+    `/athlete/${encodeURIComponent(params.athleteId)}/best-efforts` +
+    `?days=${params.days}`;
+  const response = await icuFetch(path, params.apiKey);
+  const rows = (await response.json()) as Array<Record<string, unknown>>;
+  if (!Array.isArray(rows)) return [];
+  const out: IntervalsBestEffort[] = [];
+  for (const row of rows) {
+    const value = num(row.value);
+    if (value == null) continue;
+    const start = str(row.start_date_local) ?? str(row.start_date);
+    out.push({
+      label: str(row.name) ?? str(row.label) ?? "effort",
+      sport: str(row.type) ?? "Workout",
+      value,
+      unit: str(row.unit) ?? "",
+      activityExternalId:
+        str(row.activity_id) ??
+        (row.activity_id != null ? String(row.activity_id) : null),
+      date: start ? start.slice(0, 10) : null,
+    });
+  }
+  return out;
+}

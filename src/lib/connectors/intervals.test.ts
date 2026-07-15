@@ -4,6 +4,9 @@ import {
   fetchActivities,
   fetchActivityIntervals,
   fetchActivityStreams,
+  fetchAthletePaceCurves,
+  fetchAthletePowerCurves,
+  fetchBestEfforts,
   fetchDailyWellness,
   validateKey,
 } from "./intervals";
@@ -193,5 +196,105 @@ describe("activity streams + intervals", () => {
     await expect(
       fetchActivityStreams({ apiKey: "bad", externalId: "a1" })
     ).rejects.toMatchObject({ code: "auth_expired" });
+  });
+});
+
+describe("v0.4c curve fetchers", () => {
+  it("normalizes power curves (flat and list-wrapped payloads)", async () => {
+    const body = {
+      list: [
+        {
+          secs: [1, 5, 60, 300, 1200, 3600],
+          watts: [905, 748, 421, 342, 311, 288],
+          watts_per_kg: [12.9, 10.7, 6.0, 4.9, 4.4, 4.1],
+        },
+      ],
+    };
+    const fn = mockFetch(200, body);
+    const curve = await fetchAthletePowerCurves({
+      apiKey: "k",
+      athleteId: "i1",
+      days: 90,
+    });
+    expect(curve).toEqual({
+      secs: [1, 5, 60, 300, 1200, 3600],
+      watts: [905, 748, 421, 342, 311, 288],
+      wattsPerKg: [12.9, 10.7, 6.0, 4.9, 4.4, 4.1],
+    });
+    expect(String(fn.mock.calls[0][0])).toContain(
+      "/athlete/i1/power-curves?days=90"
+    );
+
+    // Flat payload (no list wrapper), no per-kg series.
+    mockFetch(200, { secs: [60], watts: [400] });
+    await expect(
+      fetchAthletePowerCurves({ apiKey: "k", athleteId: "i1", days: 30 })
+    ).resolves.toEqual({ secs: [60], watts: [400], wattsPerKg: null });
+  });
+
+  it("drops malformed power points and rejects shape mismatch", async () => {
+    // secs/watts length mismatch → ConnectorError("unknown")
+    mockFetch(200, { secs: [1, 5], watts: [900] });
+    await expect(
+      fetchAthletePowerCurves({ apiKey: "k", athleteId: "i1", days: 90 })
+    ).rejects.toMatchObject({ code: "unknown" });
+  });
+
+  it("normalizes pace curves to secs-per-km", async () => {
+    const fn = mockFetch(200, {
+      list: [{ distances: [400, 1000, 5000], secs: [72, 210, 1260] }],
+    });
+    const curve = await fetchAthletePaceCurves({
+      apiKey: "k",
+      athleteId: "i1",
+      days: 90,
+    });
+    expect(curve.distanceM).toEqual([400, 1000, 5000]);
+    expect(curve.secsPerKm.map((s) => +s.toFixed(1))).toEqual([
+      180.0, 210.0, 252.0,
+    ]);
+    expect(String(fn.mock.calls[0][0])).toContain(
+      "/athlete/i1/pace-curves?days=90&type=Run"
+    );
+  });
+
+  it("normalizes best efforts and skips rows without a numeric value", async () => {
+    mockFetch(200, [
+      {
+        name: "20m power",
+        type: "Ride",
+        value: 342,
+        unit: "w",
+        activity_id: "i778",
+        start_date_local: "2026-07-01T09:00:00",
+      },
+      { name: "broken row", type: "Run" }, // no value → skipped
+    ]);
+    const efforts = await fetchBestEfforts({
+      apiKey: "k",
+      athleteId: "i1",
+      days: 90,
+    });
+    expect(efforts).toEqual([
+      {
+        label: "20m power",
+        sport: "Ride",
+        value: 342,
+        unit: "w",
+        activityExternalId: "i778",
+        date: "2026-07-01",
+      },
+    ]);
+  });
+
+  it("maps auth/rate-limit errors like every other endpoint", async () => {
+    mockFetch(401, {});
+    await expect(
+      fetchAthletePowerCurves({ apiKey: "bad", athleteId: "i1", days: 90 })
+    ).rejects.toMatchObject({ code: "auth_expired" });
+    mockFetch(429, {});
+    await expect(
+      fetchBestEfforts({ apiKey: "k", athleteId: "i1", days: 90 })
+    ).rejects.toMatchObject({ code: "rate_limited" });
   });
 });
