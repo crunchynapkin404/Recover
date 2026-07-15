@@ -228,7 +228,8 @@ const MAX_PER_RUN = 10;
 /** Assemble the generated block for one intervals.icu activity. */
 async function buildGeneratedDescription(
   userId: string,
-  activity: ActivityRow
+  activity: ActivityRow,
+  fields: DescriptionFields
 ): Promise<string> {
   const raw = (activity.raw ?? {}) as Record<string, unknown>;
   const metrics = metricsFromRaw(raw);
@@ -259,23 +260,26 @@ async function buildGeneratedDescription(
       ? activity.durationS / (activity.distanceM / 1000)
       : null;
 
-  return formatActivityDescription({
-    title: activity.name,
-    sport: activity.sport,
-    ...metrics,
-    ftpW: metrics.ftpW ?? wellness?.eftp ?? null,
-    paceSecPerKm,
-    ctl,
-    tsb,
-    prLines,
-  });
+  return formatActivityDescription(
+    {
+      title: activity.name,
+      sport: activity.sport,
+      ...metrics,
+      ftpW: metrics.ftpW ?? wellness?.eftp ?? null,
+      paceSecPerKm,
+      ctl,
+      tsb,
+      prLines,
+    },
+    fields
+  );
 }
 
 export interface DescribeOutcome {
   wrote: boolean;
   /** The generated block only — safe for LLM context (never Strava text). */
   generated: string;
-  reason?: "no_data" | "no_strava_id" | "already_described";
+  reason?: "no_data" | "no_strava_id" | "already_described" | "no_fields";
 }
 
 /**
@@ -292,10 +296,20 @@ export async function describeActivityOnStrava(params: {
   const stravaId = stravaIdFromRaw(raw);
   if (!stravaId) return { wrote: false, generated: "", reason: "no_strava_id" };
 
+  const prefs = await db.query.notificationPrefs.findFirst({
+    where: eq(schema.notificationPrefs.userId, params.userId),
+  });
   const generated = await buildGeneratedDescription(
     params.userId,
-    params.activity
+    params.activity,
+    prefs?.stravaDescriptionFields ?? null
   );
+  // Every field disabled → publishing would leave a bare marker that the
+  // skip check then makes permanent. Write nothing, don't even read.
+  if (generated === "") {
+    return { wrote: false, generated: "", reason: "no_fields" };
+  }
+
   const existing = await getStravaDescription(params.accessToken, stravaId);
   const merged = buildDescription(existing, generated);
   if (merged === existing) {
