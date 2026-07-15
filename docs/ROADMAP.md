@@ -63,7 +63,20 @@ AI-generated structured training — the feature no WHOOP/Bevel competitor has w
 
 **Done when:** a training plan is generated from a race goal; calendar blocks are visible to the coach; inline charts render in chat; weekly review arrives automatically.
 
-## v0.6 — Body Intelligence
+## v0.6 — Strava AI Descriptions
+
+Auto-generate data-dense activity descriptions from intervals.icu metrics and push them to Strava.
+
+- [ ] **Strava write scope**: upgrade OAuth to include `activity:write`; prompt existing users to reconnect
+- [ ] **Description generator**: format activity metrics (load, IF, TRIMP, efficiency, form, PRs) into a compact emoji-rich block using intervals.icu data only
+- [ ] **Auto-describe post-sync**: opt-in setting; generates and pushes description after each new activity syncs
+- [ ] **Append mode**: preserves existing descriptions, adds AI block below a `---` separator
+- [ ] **Coach tool**: `describe_strava_activity` for manual trigger or custom descriptions
+- [ ] **Skip marker**: prevents double-writes on re-sync
+
+**Done when:** new activities get a data-rich description on Strava within minutes of sync; existing descriptions are preserved; coach can describe on demand.
+
+## v0.7 — Body Intelligence
 
 Longer-term health metrics that keep users engaged beyond the daily score.
 
@@ -74,7 +87,7 @@ Longer-term health metrics that keep users engaged beyond the daily score.
 
 **Done when:** energy bank shows a real intraday curve; biological age updates weekly; a blood test PDF is parsed and biomarkers appear in the app.
 
-## v0.7 — Journal Evolution
+## v0.8 — Journal Evolution
 
 Make the daily check-in smarter with less manual input.
 
@@ -85,7 +98,7 @@ Make the daily check-in smarter with less manual input.
 
 **Done when:** auto-tags appear without user input; bedtime recommendation shows on the journal page; defaults reduce daily tap count.
 
-## v0.8 — Data-source freedom
+## v0.9 — Data-source freedom
 
 intervals.icu stops being a hard requirement.
 
@@ -96,7 +109,7 @@ intervals.icu stops being a hard requirement.
 
 **Done when:** a user with no intervals.icu account gets a readiness score.
 
-## v0.9 — Wearable connectors
+## v0.10 — Wearable connectors
 
 - [ ] Whoop OAuth (recovery, HRV, sleep)
 - [ ] Oura OAuth
