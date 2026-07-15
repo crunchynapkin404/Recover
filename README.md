@@ -58,7 +58,13 @@ OpenAI-compatible endpoint including a fully local Ollama. Keys are encrypted
 - **AI coach** — evidence-based endurance-coach persona that cites the actual
   numbers from your data, adapts its tone to your readiness band, and refuses
   to program through injury or illness. BYO key: Anthropic or any
-  OpenAI-compatible endpoint (Ollama included).
+  OpenAI-compatible endpoint (Ollama included). Features:
+  - **Coach Memory** — persistent knowledge store (goals, injuries, race calendar) injected into every conversation
+  - **Thinking Modes** — Quick (haiku/flash) or Deep (opus/sonnet) per message
+  - **Proactive Insights** — morning message generated from overnight sync data, visible on dashboard
+  - **Ghost Mode** — ephemeral threads that auto-purge after 24h
+  - **Personalities** — Analytical, Encouraging, or Direct tone presets
+  - **Overtraining Warnings** — automatic alerts on sustained HRV suppression or RHR spikes
 - **MCP server** — stateless streamable-HTTP endpoint at `/api/mcp` with
   hashed, scoped (`read` / `write:wellness`), revocable bearer tokens and rate
   limiting. 14 tools: readiness, wellness, fitness summary, training load
@@ -99,14 +105,20 @@ fills a demo account with 90 days of plausible training history (see
 2. Expose your instance (Cloudflare tunnel profile is built in) or use it on
    your LAN.
 3. Add a custom connector in claude.ai (or `claude mcp add --transport http`)
-   pointing at `https://your-domain/api/mcp` with the token as a bearer token.
+   pointing at your instance's `/api/mcp` endpoint with the token as a bearer
+   token.
+
+**Live demo instance:** [recover.bartabraas.nl](https://recover.bartabraas.nl/)
 4. Ask Claude about your training.
 
 ## Status & roadmap
 
-**v0.1.0** — the core loop works: sync, readiness, dashboard, journal, coach,
-MCP, invites, Docker. Next up: PWA + morning push notification, deeper
-analytics, a proactive coach, and more data sources — the full plan lives in
+**Current release: v0.4.0** — Coach Intelligence. The full stack: sync,
+readiness, dashboard, journal, analytics depth, installable PWA with morning
+push notifications, AI coach with memory/personalities/proactive insights, 14
+MCP tools including power/pace curves and best efforts. Next up: Training
+Intelligence (v0.5) — AI-generated periodized plans, calendar integration, and
+inline chart artifacts. The full plan lives in
 [docs/ROADMAP.md](docs/ROADMAP.md).
 
 An honest hobby project built for one owner and about ten friends. If it's
