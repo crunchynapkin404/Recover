@@ -2,10 +2,11 @@
  * Strava connector — written from scratch (Principle 1; KOM-Wars used only
  * as an API reference, its Redis-coupled refresh was not ported).
  *
- * Read-only scope. Strava-sourced rows carry provider="strava" and are
- * excluded from all AI/MCP surfaces by default (Nov 2024 Strava API
- * agreement bars use of Strava data with AI models). Display surfaces must
- * show "Powered by Strava" attribution.
+ * Scope: activity:read_all + activity:write (v0.6). Write access is used
+ * exclusively to push generated descriptions; Strava-sourced rows carry
+ * provider="strava" and are excluded from all AI/MCP surfaces by default
+ * (Nov 2024 Strava API agreement bars use of Strava data with AI models).
+ * Display surfaces must show "Powered by Strava" attribution.
  */
 
 const STRAVA_API = "https://www.strava.com/api/v3";
@@ -66,7 +67,7 @@ export function buildAuthorizeUrl(redirectUri: string, state: string): string {
     client_id: env("STRAVA_CLIENT_ID"),
     redirect_uri: redirectUri,
     response_type: "code",
-    scope: "activity:read_all",
+    scope: "activity:read_all,activity:write",
     approval_prompt: "auto",
     state,
   });
@@ -193,4 +194,55 @@ export async function fetchActivities(params: {
     });
   }
   return out;
+}
+
+/** True when Strava's OAuth callback `scope` param includes activity:write. */
+export function writeScopeGranted(scopeParam: string | null): boolean {
+  return (scopeParam ?? "").split(",").includes("activity:write");
+}
+
+function mapWriteError(status: number, what: string): StravaError {
+  if (status === 401 || status === 403) {
+    return new StravaError("auth", `Strava: ${what} unauthorized (${status})`);
+  }
+  if (status === 429) {
+    return new StravaError("rate_limited", "Strava: rate limited");
+  }
+  return new StravaError("network", `Strava: ${what} failed (${status})`);
+}
+
+/**
+ * Read one activity's current description. Used ONLY for append/skip
+ * mechanics — never as AI input (Strava API AI clause).
+ */
+export async function getStravaDescription(
+  accessToken: string,
+  activityId: string
+): Promise<string | null> {
+  const response = await fetch(`${STRAVA_API}/activities/${activityId}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) throw mapWriteError(response.status, "activity fetch");
+  const row = (await response.json()) as Record<string, unknown>;
+  return str(row.description);
+}
+
+/** Overwrite one activity's description (requires activity:write). */
+export async function updateStravaActivity(params: {
+  accessToken: string;
+  activityId: string;
+  description: string;
+}): Promise<void> {
+  const response = await fetch(
+    `${STRAVA_API}/activities/${params.activityId}`,
+    {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${params.accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ description: params.description }),
+    }
+  );
+  if (!response.ok) throw mapWriteError(response.status, "activity update");
 }
