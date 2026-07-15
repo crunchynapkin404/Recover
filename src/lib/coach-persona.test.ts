@@ -1,5 +1,38 @@
 import { describe, it, expect } from "vitest";
-import { buildSystemPrompt } from "@/lib/coach-persona";
+import { buildSystemPrompt, type CoachPersonality } from "@/lib/coach-persona";
+
+describe("coach personality presets (v0.4a)", () => {
+  const base = { userName: "Test", todayDate: "2026-01-01" };
+  const markers: Record<CoachPersonality, string> = {
+    analytical: "Personality: Analytical",
+    encouraging: "Personality: Encouraging",
+    direct: "Personality: Direct",
+  };
+
+  it("applies each preset and keeps safety rules in all of them", () => {
+    for (const personality of Object.keys(markers) as CoachPersonality[]) {
+      const prompt = buildSystemPrompt({ ...base, personality });
+      expect(prompt).toContain(markers[personality]);
+      expect(prompt).toContain("NEVER invent numbers");
+      expect(prompt).toContain("never overrides the Behavior rules");
+    }
+  });
+
+  it("defaults to encouraging", () => {
+    expect(buildSystemPrompt(base)).toContain("Personality: Encouraging");
+  });
+
+  it("includes the memory block when provided, omits when empty", () => {
+    const withMemory = buildSystemPrompt({
+      ...base,
+      memoryBlock: "## What you know about this athlete\n- (goal) sub-3",
+    });
+    expect(withMemory).toContain("What you know about this athlete");
+    expect(buildSystemPrompt({ ...base, memoryBlock: "" })).not.toContain(
+      "What you know about this athlete"
+    );
+  });
+});
 
 describe("coach persona", () => {
   it("includes the user name and date in the prompt", () => {

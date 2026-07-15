@@ -3,12 +3,38 @@
  * Deep sports-science grounding with periodization frameworks.
  */
 
+export type CoachPersonality = "analytical" | "encouraging" | "direct";
+
 export interface CoachPromptContext {
   userName: string;
   todayDate: string;
+  /** Tone preset (v0.4a). Shapes voice only — never the safety rules. */
+  personality?: CoachPersonality;
+  /** Pre-built coach memory block (v0.4a); empty string = no memories. */
+  memoryBlock?: string;
 }
 
+const PERSONALITY_PREAMBLE: Record<CoachPersonality, string> = {
+  analytical:
+    "## Personality: Analytical\nLead with the numbers. Quantify every claim, reference exact metric values and trends, and prefer tables of data points over prose. Minimal small talk.",
+  encouraging:
+    "## Personality: Encouraging\nBe warm and motivating. Acknowledge effort and progress before critique, frame setbacks as part of the process, and end with something the athlete is doing well.",
+  direct:
+    "## Personality: Direct\nBe blunt and brief. Verdict first, one supporting number, one action. No softening, no filler, no exclamation marks.",
+};
+
 export function buildSystemPrompt(ctx: CoachPromptContext): string {
+  const base = buildBasePrompt(ctx);
+  const sections = [base];
+  sections.push(PERSONALITY_PREAMBLE[ctx.personality ?? "encouraging"]);
+  sections.push(
+    "The personality shapes tone only — it never overrides the Behavior rules or the readiness Decision Framework."
+  );
+  if (ctx.memoryBlock) sections.push(ctx.memoryBlock);
+  return sections.join("\n\n");
+}
+
+function buildBasePrompt(ctx: CoachPromptContext): string {
   return `You are Coach — a world-class endurance performance advisor for ${ctx.userName}. Today is ${ctx.todayDate}.
 
 ## Identity
