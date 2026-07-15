@@ -42,8 +42,42 @@ async function findOrCreateWeeklyThread(userId: string) {
   return created;
 }
 
+export async function getLatestWeeklyReview(userId: string): Promise<{
+  text: string;
+  threadId: string;
+  createdAt: Date;
+} | null> {
+  const thread = await db.query.chatThreads.findFirst({
+    where: and(
+      eq(schema.chatThreads.userId, userId),
+      eq(schema.chatThreads.kind, "weekly")
+    ),
+  });
+  if (!thread) return null;
+  const msg = await db.query.chatMessages.findFirst({
+    where: and(
+      eq(schema.chatMessages.threadId, thread.id),
+      eq(schema.chatMessages.role, "system")
+    ),
+    orderBy: [desc(schema.chatMessages.createdAt)],
+  });
+  if (!msg) return null;
+  return { text: msg.content, threadId: thread.id, createdAt: msg.createdAt };
+}
+
 export async function generateWeeklyReview(userId: string): Promise<void> {
   const now = new Date();
+
+  // ── Day/hour guard — only run at user's configured review time ─────────
+  const prefs = await db.query.notificationPrefs.findFirst({
+    where: eq(schema.notificationPrefs.userId, userId),
+  });
+  const dayOfWeek = now.getDay(); // 0=Sun
+  const hour = now.getHours();
+  const reviewDay = prefs?.weeklyReviewDay ?? 1; // default Monday
+  const reviewHour = prefs?.weeklyReviewHour ?? 7; // default 7am
+  if (dayOfWeek !== reviewDay || hour !== reviewHour) return;
+
   const weekLabel = isoWeekLabel(now);
 
   // ── At-most-once guard ─────────────────────────────────────────────────

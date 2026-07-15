@@ -191,6 +191,16 @@ export async function runSchedulerTick(
           message: err instanceof Error ? err.message : String(err),
         });
       }
+      // Weekly review — guards inside ensure at-most-once/week.
+      try {
+        const { generateWeeklyReview } = await import("@/lib/weekly-review");
+        await generateWeeklyReview(job.userId);
+      } catch (err) {
+        logger.error("weekly review failed", {
+          userId: job.userId,
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
     } catch (err) {
       failed++;
       const message = err instanceof Error ? err.message : String(err);

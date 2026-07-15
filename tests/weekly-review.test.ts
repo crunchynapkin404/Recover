@@ -32,6 +32,9 @@ async function cleanup() {
   await db
     .delete(schema.wellnessDaily)
     .where(eq(schema.wellnessDaily.userId, USER));
+  await db
+    .delete(schema.notificationPrefs)
+    .where(eq(schema.notificationPrefs.userId, USER));
   await db.delete(schema.users).where(eq(schema.users.id, USER));
 }
 
@@ -97,6 +100,16 @@ describe.skipIf(!hasDb)("weekly review", () => {
         name: "WeeklyTest",
         email: "weekly-review@example.invalid",
         role: "member",
+      })
+      .onConflictDoNothing();
+    // Set review prefs to current day/hour so the day/hour guard passes
+    const now = new Date();
+    await db
+      .insert(schema.notificationPrefs)
+      .values({
+        userId: USER,
+        weeklyReviewDay: now.getDay(),
+        weeklyReviewHour: now.getHours(),
       })
       .onConflictDoNothing();
   });

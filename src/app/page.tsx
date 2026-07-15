@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { and, desc, eq, gte } from "drizzle-orm";
-import { User } from "lucide-react";
+import { Sparkles, User } from "lucide-react";
 import { db, schema } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { AppShell } from "@/components/app-shell";
@@ -11,6 +11,7 @@ import { StrainBudget } from "@/components/dashboard/strain-budget";
 import { MorningBrief } from "@/components/dashboard/morning-brief";
 import { CoachInsight } from "@/components/dashboard/coach-insight";
 import { getLatestMorningInsight } from "@/lib/morning-insight";
+import { getLatestWeeklyReview } from "@/lib/weekly-review";
 import { VitalsGrid } from "@/components/dashboard/vitals-grid";
 import { SleepCard } from "@/components/dashboard/sleep-card";
 import { WeeklySummary } from "@/components/dashboard/weekly-summary";
@@ -124,6 +125,7 @@ export default async function DashboardPage() {
   });
 
   const insight = await getLatestMorningInsight(user.id);
+  const weeklyReview = await getLatestWeeklyReview(user.id);
 
   const metrics = await db.query.dailyMetrics.findMany({
     where: and(
@@ -327,6 +329,31 @@ export default async function DashboardPage() {
                 warning={insight.warning}
                 threadId={insight.threadId}
               />
+            </section>
+          )}
+
+          {/* ── Weekly Review (v0.5b) ───────────────────────────────── */}
+          {weeklyReview && (
+            <section className="mb-10">
+              <Link
+                href={`/coach?thread=${weeklyReview.threadId}`}
+                className="glass block rounded-[2rem] p-5 transition-colors hover:bg-white/5"
+              >
+                <div className="mb-2 flex items-center gap-2">
+                  <Sparkles
+                    aria-hidden
+                    className="size-4 text-violet-400"
+                  />
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-white/50">
+                    Weekly Review
+                  </span>
+                </div>
+                <p className="text-sm leading-relaxed text-white/80">
+                  {weeklyReview.text.length > 200
+                    ? weeklyReview.text.slice(0, 200) + "…"
+                    : weeklyReview.text}
+                </p>
+              </Link>
             </section>
           )}
 
