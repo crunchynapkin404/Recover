@@ -37,6 +37,23 @@ export function ChatInterface({
   const [ghost, setGhost] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // Wrap fetch to capture X-Thread-Id from the streaming response. Without
+  // this, every message creates a new thread because activeThreadId stays null.
+  const threadIdRef = useRef(activeThreadId);
+  threadIdRef.current = activeThreadId;
+
+  const wrappedFetch = useCallback(
+    async (input: RequestInfo | URL, init?: RequestInit) => {
+      const res = await fetch(input, init);
+      const newThreadId = res.headers.get("X-Thread-Id");
+      if (newThreadId && !threadIdRef.current) {
+        setActiveThreadId(newThreadId);
+      }
+      return res;
+    },
+    []
+  );
+
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
@@ -46,8 +63,9 @@ export function ChatInterface({
           mode,
           ephemeral: ghost && !activeThreadId,
         },
+        fetch: wrappedFetch,
       }),
-    [activeThreadId, mode, ghost]
+    [activeThreadId, mode, ghost, wrappedFetch]
   );
 
   const {
