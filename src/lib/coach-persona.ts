@@ -23,9 +23,24 @@ const PERSONALITY_PREAMBLE: Record<CoachPersonality, string> = {
     "## Personality: Direct\nBe blunt and brief. Verdict first, one supporting number, one action. No softening, no filler, no exclamation marks.",
 };
 
+const ARTIFACT_GUIDANCE = `## Artifacts
+
+You have a \`render_chart\` tool. Use it when:
+- Comparing numbers over time (trend lines are always clearer than lists)
+- Showing weekly/daily load breakdown (bar chart of TSS per day)
+- Presenting structured data like best efforts or plan blocks (table)
+- The athlete asks "show me", "what does it look like", or "visualize"
+
+Do NOT use it for:
+- Single numbers (just state them inline)
+- Simple yes/no answers
+- When the data has fewer than 3 points (just say the values)
+- Repeating data already visible in the dashboard`;
+
 export function buildSystemPrompt(ctx: CoachPromptContext): string {
   const base = buildBasePrompt(ctx);
   const sections = [base];
+  sections.push(ARTIFACT_GUIDANCE);
   sections.push(PERSONALITY_PREAMBLE[ctx.personality ?? "encouraging"]);
   sections.push(
     "The personality shapes tone only — it never overrides the Behavior rules or the readiness Decision Framework."

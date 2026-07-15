@@ -5,6 +5,8 @@ import { DefaultChatTransport } from "ai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Ghost, Plus, Send } from "lucide-react";
+import { ArtifactCard } from "./artifact-card";
+import type { ChartSpec } from "@/lib/tools/render-chart";
 
 interface ThreadSummary {
   id: string;
@@ -258,7 +260,15 @@ export function ChatInterface({
               )
               .map((p) => p.text)
               .join("") ?? "";
-          if (!text) return null;
+          const artifacts = (m.parts ?? []).filter(
+            (p) =>
+              p.type === "tool-invocation" &&
+              "result" in p &&
+              typeof p.result === "object" &&
+              p.result !== null &&
+              (p.result as Record<string, unknown>).artifact === true
+          );
+          if (!text && artifacts.length === 0) return null;
           const isUser = m.role === "user";
           return (
             <div
@@ -269,13 +279,24 @@ export function ChatInterface({
                   : "max-w-[90%] items-start"
               }`}
             >
-              <div
-                className={`rounded-2xl p-4 text-sm leading-relaxed text-white/90 ${
-                  isUser ? "chat-bubble-user" : "chat-bubble-ai"
-                }`}
-              >
-                <span className="whitespace-pre-wrap">{text}</span>
-              </div>
+              {text && (
+                <div
+                  className={`rounded-2xl p-4 text-sm leading-relaxed text-white/90 ${
+                    isUser ? "chat-bubble-user" : "chat-bubble-ai"
+                  }`}
+                >
+                  <span className="whitespace-pre-wrap">{text}</span>
+                </div>
+              )}
+              {artifacts.map((p) => {
+                const part = p as unknown as {
+                  toolCallId: string;
+                  result: { spec: ChartSpec };
+                };
+                return (
+                  <ArtifactCard key={part.toolCallId} spec={part.result.spec} />
+                );
+              })}
               <span className="mt-2 text-[9px] font-bold uppercase text-white/50">
                 {new Date().toLocaleTimeString([], {
                   hour: "numeric",
