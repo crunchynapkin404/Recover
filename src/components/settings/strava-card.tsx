@@ -1,12 +1,19 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import {
+  previewStravaDescription,
   setAutoDescribeStrava,
+  setStravaDescriptionFields,
   stravaDisconnect,
   stravaSyncNow,
   type ActionResult,
 } from "@/app/settings/strava-actions";
+import {
+  ALL_DESCRIPTION_FIELDS,
+  type DescriptionField,
+  type DescriptionFields,
+} from "@/lib/strava-description-fields";
 
 interface Props {
   configured: boolean; // STRAVA_CLIENT_ID present server-side
@@ -18,6 +25,7 @@ interface Props {
     writeEnabled: boolean;
   } | null;
   autoDescribe: boolean;
+  descriptionFields: DescriptionFields;
   errorParam?: string;
 }
 
@@ -33,11 +41,39 @@ export function StravaCard({
   configured,
   connection,
   autoDescribe,
+  descriptionFields,
   errorParam,
 }: Props) {
   const [result, setResult] = useState<ActionResult | null>(null);
   const [pending, startTransition] = useTransition();
   const [auto, setAuto] = useState(autoDescribe);
+  // null config = every field on (v0.6 default) — expand it for the checkboxes.
+  const [fields, setFields] = useState<Record<DescriptionField, boolean>>(
+    () =>
+      Object.fromEntries(
+        ALL_DESCRIPTION_FIELDS.map((f) => [
+          f.key,
+          descriptionFields == null ? true : descriptionFields[f.key] === true,
+        ])
+      ) as Record<DescriptionField, boolean>
+  );
+  const [preview, setPreview] = useState<{
+    text: string;
+    sample: boolean;
+  } | null>(null);
+
+  const noneSelected = Object.values(fields).every((v) => !v);
+
+  useEffect(() => {
+    if (!auto) return;
+    let cancelled = false;
+    previewStravaDescription(fields).then((p) => {
+      if (!cancelled) setPreview(p);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [fields, auto]);
 
   return (
     <div className="glass rounded-[2rem] p-5">
@@ -142,6 +178,55 @@ export function StravaCard({
             aria-label="Auto-describe new activities on Strava"
           />
         </label>
+      )}
+
+      {connection?.writeEnabled && auto && (
+        <div className="mt-3 border-t border-white/5 pt-3">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-white/50">
+            Fields to include
+          </p>
+
+          <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1">
+            {ALL_DESCRIPTION_FIELDS.map(({ key, label }) => (
+              <label
+                key={key}
+                className="flex items-center gap-2 text-xs text-white/80"
+              >
+                <input
+                  type="checkbox"
+                  checked={fields[key]}
+                  onChange={(e) => {
+                    const next = { ...fields, [key]: e.target.checked };
+                    setFields(next);
+                    startTransition(() => setStravaDescriptionFields(next));
+                  }}
+                  className="h-4 w-4 shrink-0 accent-emerald-500"
+                />
+                {label}
+              </label>
+            ))}
+          </div>
+
+          {noneSelected ? (
+            <p role="status" className="mt-3 text-xs text-orange-400">
+              No fields selected — nothing will be published to Strava.
+            </p>
+          ) : (
+            preview && (
+              <div className="mt-3">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-white/50">
+                  Preview{" "}
+                  {preview.sample && (
+                    <span className="text-white/40">(example data)</span>
+                  )}
+                </p>
+                <pre className="mt-1 overflow-x-auto whitespace-pre-wrap rounded-2xl border border-white/5 bg-black/30 p-3 text-xs text-white/80">
+                  {preview.text + "\n📊 Recover"}
+                </pre>
+              </div>
+            )
+          )}
+        </div>
       )}
 
       <div className="mt-3 border-t border-white/5 pt-3">
