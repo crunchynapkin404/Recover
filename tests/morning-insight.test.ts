@@ -21,7 +21,9 @@ async function cleanup() {
       .delete(schema.chatMessages)
       .where(eq(schema.chatMessages.threadId, t.id));
   }
-  await db.delete(schema.chatThreads).where(eq(schema.chatThreads.userId, USER));
+  await db
+    .delete(schema.chatThreads)
+    .where(eq(schema.chatThreads.userId, USER));
   await db
     .delete(schema.dailyMetrics)
     .where(eq(schema.dailyMetrics.userId, USER));
@@ -94,9 +96,8 @@ describe.skipIf(!hasDb)("morning insight", () => {
 
   it("writes one template insight per day into the morning thread", async () => {
     const { db, schema } = await import("@/lib/db");
-    const { generateMorningInsight, MORNING_THREAD_TITLE } = await import(
-      "@/lib/morning-insight"
-    );
+    const { generateMorningInsight, MORNING_THREAD_TITLE } =
+      await import("@/lib/morning-insight");
     await seedMetric();
 
     const first = await generateMorningInsight(USER);
@@ -171,9 +172,8 @@ describe.skipIf(!hasDb)("morning insight", () => {
 
   it("getLatestMorningInsight returns today's insight only", async () => {
     const { db, schema } = await import("@/lib/db");
-    const { generateMorningInsight, getLatestMorningInsight } = await import(
-      "@/lib/morning-insight"
-    );
+    const { generateMorningInsight, getLatestMorningInsight } =
+      await import("@/lib/morning-insight");
     await seedMetric();
     expect(await getLatestMorningInsight(USER)).toBeNull();
 

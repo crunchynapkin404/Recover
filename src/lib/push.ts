@@ -40,7 +40,9 @@ export function buildMorningPayload(m: MorningMetricsInput): PushPayload {
     parts.push(`Sleep ${(m.sleepSecs / 3600).toFixed(1)} h`);
   const metrics = parts.join(" · ");
   const band = m.band.charAt(0).toUpperCase() + m.band.slice(1);
-  let body = metrics ? `${metrics} — ${BAND_LINES[m.band]}` : BAND_LINES[m.band];
+  let body = metrics
+    ? `${metrics} — ${BAND_LINES[m.band]}`
+    : BAND_LINES[m.band];
   const teaser = m.insightTeaser?.trim();
   if (teaser) {
     body += `\n${teaser.length > 120 ? teaser.slice(0, 119) + "…" : teaser}`;
@@ -229,9 +231,7 @@ export async function maybeSendMorningReadinessPush(
     .where(eq(schema.notificationPrefs.userId, userId));
 
   const insight = await getLatestMorningInsight(userId, now).catch(() => null);
-  const insightTeaser = insight
-    ? insight.text.split(/(?<=[.!?])\s/)[0]
-    : null;
+  const insightTeaser = insight ? insight.text.split(/(?<=[.!?])\s/)[0] : null;
 
   const payload = buildMorningPayload({
     readiness: metrics.readiness,

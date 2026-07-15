@@ -172,9 +172,8 @@ export async function runSchedulerTick(
       // exists; guards inside make it at-most-once/day, errors never
       // touch the sync job.
       try {
-        const { generateMorningInsight } = await import(
-          "@/lib/morning-insight"
-        );
+        const { generateMorningInsight } =
+          await import("@/lib/morning-insight");
         await generateMorningInsight(job.userId);
       } catch (err) {
         logger.error("morning insight failed", {
