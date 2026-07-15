@@ -4,7 +4,11 @@ import { auth } from "@/lib/auth";
 import { db, schema } from "@/lib/db";
 import { encrypt } from "@/lib/crypto";
 import { logger } from "@/lib/logger";
-import { exchangeCode, StravaError } from "@/lib/connectors/strava";
+import {
+  exchangeCode,
+  StravaError,
+  writeScopeGranted,
+} from "@/lib/connectors/strava";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +35,8 @@ export async function GET(req: Request) {
   if (!code || !state || !expectedState || state !== expectedState) {
     return settingsRedirect(req, "state_mismatch");
   }
+  // Strava reports what the user actually granted (may be less than asked).
+  const stravaWriteEnabled = writeScopeGranted(params.get("scope"));
 
   try {
     const { tokens, athlete } = await exchangeCode(code);
@@ -45,6 +51,7 @@ export async function GET(req: Request) {
         externalAthleteName: athlete.name,
         expiresAt: new Date(tokens.expiresAt * 1000),
         status: "active",
+        stravaWriteEnabled,
       })
       .onConflictDoUpdate({
         target: [schema.connections.userId, schema.connections.provider],
@@ -55,6 +62,7 @@ export async function GET(req: Request) {
           externalAthleteName: athlete.name,
           expiresAt: new Date(tokens.expiresAt * 1000),
           status: "active",
+          stravaWriteEnabled,
           lastError: null,
           lastSyncAt: null, // fresh backfill window
         },
