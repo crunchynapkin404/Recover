@@ -15,11 +15,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 
 export type Scope =
-  | "read"
-  | "write:wellness"
-  | "write:memory"
-  | "write:plan"
-  | "write:strava";
+  "read" | "write:wellness" | "write:memory" | "write:plan" | "write:strava";
 
 export interface TokenInfo {
   userId: string;

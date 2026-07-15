@@ -76,13 +76,11 @@ describe("getStravaDescription", () => {
   it("returns the description field", async () => {
     vi.stubGlobal(
       "fetch",
-      vi
-        .fn()
-        .mockResolvedValue(
-          new Response(JSON.stringify({ description: "existing text" }), {
-            status: 200,
-          })
-        )
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ description: "existing text" }), {
+          status: 200,
+        })
+      )
     );
     expect(await getStravaDescription("tok", "999")).toBe("existing text");
   });

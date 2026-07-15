@@ -12,9 +12,7 @@ const parameters = z.object({
   activityId: z
     .string()
     .optional()
-    .describe(
-      "Strava activity ID. Omit to describe the most recent activity."
-    ),
+    .describe("Strava activity ID. Omit to describe the most recent activity."),
   style: z
     .string()
     .optional()

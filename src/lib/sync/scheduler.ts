@@ -211,9 +211,8 @@ export async function runSchedulerTick(
       // opted-in users. Guards inside; errors never touch the sync job.
       if (job.provider === "intervals_icu") {
         try {
-          const { runAutoDescribeStrava } = await import(
-            "@/lib/strava-describer"
-          );
+          const { runAutoDescribeStrava } =
+            await import("@/lib/strava-describer");
           await runAutoDescribeStrava(job.userId);
         } catch (err) {
           logger.error("auto-describe failed", {

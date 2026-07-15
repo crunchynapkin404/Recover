@@ -120,8 +120,6 @@ describe("hasScope", () => {
       scopes: ["read", "write:strava"],
     };
     expect(hasScope(info, "write:strava")).toBe(true);
-    expect(hasScope({ ...info, scopes: ["read"] }, "write:strava")).toBe(
-      false
-    );
+    expect(hasScope({ ...info, scopes: ["read"] }, "write:strava")).toBe(false);
   });
 });

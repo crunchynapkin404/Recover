@@ -63,16 +63,16 @@ AI-generated structured training — the feature no WHOOP/Bevel competitor has w
 
 **Done when:** a training plan is generated from a race goal; calendar blocks are visible to the coach; inline charts render in chat; weekly review arrives automatically.
 
-## v0.6 — Strava AI Descriptions
+## ✅ v0.6 — Strava AI Descriptions
 
 Auto-generate data-dense activity descriptions from intervals.icu metrics and push them to Strava.
 
-- [ ] **Strava write scope**: upgrade OAuth to include `activity:write`; prompt existing users to reconnect
-- [ ] **Description generator**: format activity metrics (load, IF, TRIMP, efficiency, form, PRs) into a compact emoji-rich block using intervals.icu data only
-- [ ] **Auto-describe post-sync**: opt-in setting; generates and pushes description after each new activity syncs
-- [ ] **Append mode**: preserves existing descriptions, adds AI block below a `---` separator
-- [ ] **Coach tool**: `describe_strava_activity` for manual trigger or custom descriptions
-- [ ] **Skip marker**: prevents double-writes on re-sync
+- [x] **Strava write scope**: upgrade OAuth to include `activity:write`; prompt existing users to reconnect
+- [x] **Description generator**: format activity metrics (load, IF, TRIMP, efficiency, form, PRs) into a compact emoji-rich block using intervals.icu data only
+- [x] **Auto-describe post-sync**: opt-in setting; generates and pushes description after each new activity syncs
+- [x] **Append mode**: preserves existing descriptions, adds AI block below a `---` separator
+- [x] **Coach tool**: `describe_strava_activity` for manual trigger or custom descriptions
+- [x] **Skip marker**: prevents double-writes on re-sync
 
 **Done when:** new activities get a data-rich description on Strava within minutes of sync; existing descriptions are preserved; coach can describe on demand.
 
