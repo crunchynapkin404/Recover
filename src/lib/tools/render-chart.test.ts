@@ -30,18 +30,18 @@ describe("render_chart tool", () => {
   });
 
   it("execute returns artifact envelope with spec", async () => {
-    const args = {
-      type: "line" as const,
+    const parsed = renderChart.parameters.parse({
+      type: "line",
       title: "Test",
       series: [{ label: "A", data: [{ x: 1, y: 10 }] }],
-    };
-    const result = await renderChart.execute(args, {
+    });
+    const result = await renderChart.execute(parsed, {
       userId: "u1",
       db: {} as never,
     });
     expect(result).toMatchObject({
       artifact: true,
-      spec: args,
+      spec: parsed,
     });
     expect((result as { chartId: string }).chartId).toMatch(
       /^[0-9a-f-]{36}$/
