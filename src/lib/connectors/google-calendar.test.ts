@@ -12,7 +12,12 @@ describe("google-calendar connector", () => {
           JSON.stringify({
             calendars: {
               primary: {
-                busy: [{ start: "2026-07-15T09:00:00Z", end: "2026-07-15T10:00:00Z" }],
+                busy: [
+                  {
+                    start: "2026-07-15T09:00:00Z",
+                    end: "2026-07-15T10:00:00Z",
+                  },
+                ],
               },
             },
           }),
@@ -33,9 +38,11 @@ describe("google-calendar connector", () => {
   it("returns [] when the primary calendar has no busy array", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(
-        new Response(JSON.stringify({ calendars: {} }), { status: 200 })
-      )
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response(JSON.stringify({ calendars: {} }), { status: 200 })
+        )
     );
     expect(
       await fetchBusyTimes({ accessToken: "t", startDate: "a", endDate: "b" })
