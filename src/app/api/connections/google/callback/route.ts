@@ -9,7 +9,7 @@ import { logger } from "@/lib/logger";
 export const dynamic = "force-dynamic";
 
 function settingsRedirect(req: Request, error?: string) {
-  const url = new URL("/settings", req.url);
+  const url = new URL("/settings", publicBaseUrl(req));
   if (error) url.searchParams.set("google_error", error);
   return NextResponse.redirect(url);
 }
@@ -23,7 +23,8 @@ interface GoogleTokenResponse {
 
 export async function GET(req: Request) {
   const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) return NextResponse.redirect(new URL("/login", req.url));
+  if (!session)
+    return NextResponse.redirect(new URL("/login", publicBaseUrl(req)));
 
   const params = new URL(req.url).searchParams;
   const jar = await cookies();

@@ -16,7 +16,7 @@ function env(name: "GOOGLE_CLIENT_ID"): string {
 export async function GET(req: Request) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) {
-    return NextResponse.redirect(new URL("/login", req.url));
+    return NextResponse.redirect(new URL("/login", publicBaseUrl(req)));
   }
 
   const state = randomBytes(16).toString("hex");

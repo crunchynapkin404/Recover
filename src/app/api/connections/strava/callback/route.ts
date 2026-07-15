@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { db, schema } from "@/lib/db";
 import { encrypt } from "@/lib/crypto";
 import { logger } from "@/lib/logger";
+import { publicBaseUrl } from "@/lib/base-url";
 import {
   exchangeCode,
   StravaError,
@@ -13,14 +14,15 @@ import {
 export const dynamic = "force-dynamic";
 
 function settingsRedirect(req: Request, error?: string) {
-  const url = new URL("/settings", req.url);
+  const url = new URL("/settings", publicBaseUrl(req));
   if (error) url.searchParams.set("strava_error", error);
   return NextResponse.redirect(url);
 }
 
 export async function GET(req: Request) {
   const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) return NextResponse.redirect(new URL("/login", req.url));
+  if (!session)
+    return NextResponse.redirect(new URL("/login", publicBaseUrl(req)));
 
   const params = new URL(req.url).searchParams;
   const jar = await cookies();
