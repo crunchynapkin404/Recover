@@ -6,7 +6,17 @@
  * returned into AI context (Strava API AI clause).
  */
 
+import { and, desc, eq, gte } from "drizzle-orm";
+import { db, schema } from "@/lib/db";
+import { logger } from "@/lib/logger";
+import { getBestEffortsCached } from "@/lib/athlete-curves";
 import type { IntervalsBestEffort } from "@/lib/connectors/intervals";
+import {
+  getStravaDescription,
+  StravaError,
+  updateStravaActivity,
+} from "@/lib/connectors/strava";
+import { getValidStravaAccessToken } from "@/lib/sync/strava-sync";
 
 export const MARKER = "\n📊 Recover";
 
@@ -180,4 +190,180 @@ export function formatPrLines(
     .filter((e) => e.activityExternalId === activityExternalId)
     .slice(0, 3)
     .map((e) => `${Math.round(e.value)}${e.unit}/${e.label} — all-time PR`);
+}
+
+// ── Orchestration ────────────────────────────────────────────────────────────
+
+type ActivityRow = typeof schema.activities.$inferSelect;
+
+/** Only recent activities are candidates; bounds Strava API usage per sync. */
+const DESCRIBE_WINDOW_DAYS = 7;
+const MAX_PER_RUN = 10;
+
+/** Assemble the generated block for one intervals.icu activity. */
+async function buildGeneratedDescription(
+  userId: string,
+  activity: ActivityRow
+): Promise<string> {
+  const raw = (activity.raw ?? {}) as Record<string, unknown>;
+  const metrics = metricsFromRaw(raw);
+
+  const day = activity.startDate.toISOString().slice(0, 10);
+  const wellness = await db.query.wellnessDaily.findFirst({
+    where: and(
+      eq(schema.wellnessDaily.userId, userId),
+      eq(schema.wellnessDaily.date, day)
+    ),
+  });
+  const ctl = wellness?.ctl ?? null;
+  const tsb =
+    wellness?.ctl != null && wellness?.atl != null
+      ? wellness.ctl - wellness.atl
+      : null;
+
+  const best = await getBestEffortsCached(userId, { days: 365 });
+  const prLines = best.available
+    ? formatPrLines(best.data, activity.externalId)
+    : [];
+
+  const paceSecPerKm =
+    isRunSport(activity.sport) &&
+    activity.durationS != null &&
+    activity.distanceM != null &&
+    activity.distanceM > 0
+      ? activity.durationS / (activity.distanceM / 1000)
+      : null;
+
+  return formatActivityDescription({
+    title: activity.name,
+    sport: activity.sport,
+    ...metrics,
+    ftpW: metrics.ftpW ?? wellness?.eftp ?? null,
+    paceSecPerKm,
+    ctl,
+    tsb,
+    prLines,
+  });
+}
+
+export interface DescribeOutcome {
+  wrote: boolean;
+  /** The generated block only — safe for LLM context (never Strava text). */
+  generated: string;
+  reason?: "no_data" | "no_strava_id" | "already_described";
+}
+
+/**
+ * Describe one activity on Strava. Reads the existing description only to
+ * append/skip; throws StravaError on API failures.
+ */
+export async function describeActivityOnStrava(params: {
+  userId: string;
+  activity: ActivityRow;
+  accessToken: string;
+}): Promise<DescribeOutcome> {
+  const raw = params.activity.raw as Record<string, unknown> | null;
+  if (!raw) return { wrote: false, generated: "", reason: "no_data" };
+  const stravaId = stravaIdFromRaw(raw);
+  if (!stravaId) return { wrote: false, generated: "", reason: "no_strava_id" };
+
+  const generated = await buildGeneratedDescription(
+    params.userId,
+    params.activity
+  );
+  const existing = await getStravaDescription(params.accessToken, stravaId);
+  const merged = buildDescription(existing, generated);
+  if (merged === existing) {
+    return { wrote: false, generated, reason: "already_described" };
+  }
+
+  await updateStravaActivity({
+    accessToken: params.accessToken,
+    activityId: stravaId,
+    description: merged,
+  });
+  return { wrote: true, generated };
+}
+
+export interface AutoDescribeResult {
+  written: number;
+  skipped: number;
+  reason?: "disabled" | "no_connection" | "no_write_scope";
+}
+
+/**
+ * Post-sync hook: describe recent intervals.icu activities on Strava for
+ * an opted-in user with a write-enabled Strava connection.
+ */
+export async function runAutoDescribeStrava(
+  userId: string
+): Promise<AutoDescribeResult> {
+  const prefs = await db.query.notificationPrefs.findFirst({
+    where: eq(schema.notificationPrefs.userId, userId),
+  });
+  if (!prefs?.autoDescribeStrava) {
+    return { written: 0, skipped: 0, reason: "disabled" };
+  }
+
+  const connection = await db.query.connections.findFirst({
+    where: and(
+      eq(schema.connections.userId, userId),
+      eq(schema.connections.provider, "strava"),
+      eq(schema.connections.status, "active")
+    ),
+  });
+  if (!connection) return { written: 0, skipped: 0, reason: "no_connection" };
+  if (!connection.stravaWriteEnabled) {
+    return { written: 0, skipped: 0, reason: "no_write_scope" };
+  }
+
+  const since = new Date(
+    Date.now() - DESCRIBE_WINDOW_DAYS * 24 * 60 * 60 * 1000
+  );
+  const recent = await db.query.activities.findMany({
+    where: and(
+      eq(schema.activities.userId, userId),
+      eq(schema.activities.provider, "intervals_icu"),
+      gte(schema.activities.startDate, since)
+    ),
+    orderBy: [desc(schema.activities.startDate)],
+    limit: MAX_PER_RUN,
+  });
+
+  const accessToken = await getValidStravaAccessToken(connection);
+  let written = 0;
+  let skipped = 0;
+  for (const activity of recent) {
+    try {
+      const outcome = await describeActivityOnStrava({
+        userId,
+        activity,
+        accessToken,
+      });
+      if (outcome.wrote) written++;
+      else skipped++;
+    } catch (err) {
+      if (err instanceof StravaError && err.code === "auth") {
+        // Token lacks activity:write (or was revoked): disable and stop so
+        // we don't hammer Strava every sync; settings re-shows the banner.
+        await db
+          .update(schema.connections)
+          .set({ stravaWriteEnabled: false, lastError: err.message })
+          .where(eq(schema.connections.id, connection.id));
+        logger.warn("strava write disabled after auth failure", { userId });
+        break;
+      }
+      skipped++;
+      logger.error("auto-describe activity failed", {
+        userId,
+        activityId: activity.id,
+        message: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  if (written > 0) {
+    logger.info("auto-describe complete", { userId, written, skipped });
+  }
+  return { written, skipped };
 }
