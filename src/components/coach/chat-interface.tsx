@@ -2,7 +2,7 @@
 
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Ghost, Plus, Send } from "lucide-react";
 
@@ -16,11 +16,19 @@ interface ThreadSummary {
 interface Props {
   configured: boolean;
   defaultMode: "quick" | "deep";
+  initialThreadId?: string | null;
   threads: ThreadSummary[];
 }
 
-export function ChatInterface({ configured, defaultMode, threads }: Props) {
-  const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
+export function ChatInterface({
+  configured,
+  defaultMode,
+  initialThreadId,
+  threads,
+}: Props) {
+  const [activeThreadId, setActiveThreadId] = useState<string | null>(
+    initialThreadId ?? null
+  );
   const [threadList] = useState(threads);
   const [input, setInput] = useState("");
   const [mode, setMode] = useState<"quick" | "deep">(defaultMode);
@@ -68,9 +76,8 @@ export function ChatInterface({ configured, defaultMode, threads }: Props) {
     [input, isLoading, sendMessage]
   );
 
-  const loadThread = useCallback(
+  const fetchThreadMessages = useCallback(
     async (threadId: string) => {
-      setActiveThreadId(threadId);
       try {
         const res = await fetch(`/api/chat/threads?id=${threadId}`);
         if (res.ok) {
@@ -91,6 +98,21 @@ export function ChatInterface({ configured, defaultMode, threads }: Props) {
     },
     [setMessages]
   );
+
+  const loadThread = useCallback(
+    async (threadId: string) => {
+      setActiveThreadId(threadId);
+      await fetchThreadMessages(threadId);
+    },
+    [fetchThreadMessages]
+  );
+
+  // Deep link (?thread=…): activeThreadId is seeded from the prop above;
+  // fetch its messages once on mount.
+  useEffect(() => {
+    if (initialThreadId) void fetchThreadMessages(initialThreadId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const startNewChat = useCallback(() => {
     setActiveThreadId(null);

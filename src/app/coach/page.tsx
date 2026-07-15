@@ -4,8 +4,13 @@ import { requireUser } from "@/lib/session";
 import { AppShell } from "@/components/app-shell";
 import { ChatInterface } from "@/components/coach/chat-interface";
 
-export default async function CoachPage() {
+export default async function CoachPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ thread?: string }>;
+}) {
   const user = await requireUser();
+  const { thread: initialThreadId } = await searchParams;
 
   const llmSettings = await db.query.llmSettings.findFirst({
     where: eq(schema.llmSettings.userId, user.id),
@@ -22,6 +27,7 @@ export default async function CoachPage() {
       <ChatInterface
         configured={!!llmSettings}
         defaultMode={llmSettings?.defaultMode ?? "deep"}
+        initialThreadId={initialThreadId ?? null}
         threads={threads.map((t) => ({
           id: t.id,
           title: t.title ?? "New chat",

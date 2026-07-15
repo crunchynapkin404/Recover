@@ -9,6 +9,8 @@ import { SyncChip } from "@/components/dashboard/sync-chip";
 import { ScoreRing } from "@/components/dashboard/score-ring";
 import { StrainBudget } from "@/components/dashboard/strain-budget";
 import { MorningBrief } from "@/components/dashboard/morning-brief";
+import { CoachInsight } from "@/components/dashboard/coach-insight";
+import { getLatestMorningInsight } from "@/lib/morning-insight";
 import { VitalsGrid } from "@/components/dashboard/vitals-grid";
 import { SleepCard } from "@/components/dashboard/sleep-card";
 import { WeeklySummary } from "@/components/dashboard/weekly-summary";
@@ -120,6 +122,8 @@ export default async function DashboardPage() {
     orderBy: desc(schema.activities.startDate),
     limit: 8,
   });
+
+  const insight = await getLatestMorningInsight(user.id);
 
   const metrics = await db.query.dailyMetrics.findMany({
     where: and(
@@ -314,6 +318,17 @@ export default async function DashboardPage() {
           <section className="mb-10">
             <MorningBrief narrative={narrative} />
           </section>
+
+          {/* ── Proactive coach insight (v0.4b) ─────────────────────── */}
+          {insight && (
+            <section className="mb-10">
+              <CoachInsight
+                text={insight.text}
+                warning={insight.warning}
+                threadId={insight.threadId}
+              />
+            </section>
+          )}
 
           {/* ── Vitals Grid ─────────────────────────────────────────── */}
           <section className="mb-10">
