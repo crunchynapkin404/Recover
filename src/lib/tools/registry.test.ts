@@ -29,8 +29,8 @@ describe("tool registry", () => {
     }
   });
 
-  it("registers the v0.5a artifact tools (16 total)", () => {
-    expect(allTools.length).toBe(16);
+  it("registers the v0.5c calendar tools (17 total)", () => {
+    expect(allTools.length).toBe(17);
     const names = allTools.map((t) => t.name);
     for (const name of [
       "remember_fact",
@@ -41,15 +41,36 @@ describe("tool registry", () => {
       "get_training_load_summary",
       "render_chart",
       "get_planned_workouts",
+      "get_calendar_availability",
     ]) {
       expect(names).toContain(name);
     }
   });
 
+  it("get_calendar_availability validates days range", () => {
+    const tool = allTools.find((t) => t.name === "get_calendar_availability")!;
+    expect(tool.parameters.safeParse({}).success).toBe(true); // default 3
+    expect(tool.parameters.safeParse({ days: 7 }).success).toBe(true);
+    expect(tool.parameters.safeParse({ days: 0 }).success).toBe(false);
+    expect(tool.parameters.safeParse({ days: 8 }).success).toBe(false);
+  });
+
   it("render_chart validates chart type enum", () => {
     const tool = allTools.find((t) => t.name === "render_chart")!;
-    expect(tool.parameters.safeParse({ type: "line", title: "T", series: [{ label: "A", data: [{ x: 1, y: 1 }] }] }).success).toBe(true);
-    expect(tool.parameters.safeParse({ type: "pie", title: "T", series: [{ label: "A", data: [{ x: 1, y: 1 }] }] }).success).toBe(false);
+    expect(
+      tool.parameters.safeParse({
+        type: "line",
+        title: "T",
+        series: [{ label: "A", data: [{ x: 1, y: 1 }] }],
+      }).success
+    ).toBe(true);
+    expect(
+      tool.parameters.safeParse({
+        type: "pie",
+        title: "T",
+        series: [{ label: "A", data: [{ x: 1, y: 1 }] }],
+      }).success
+    ).toBe(false);
   });
 
   it("curve tools validate the days literal union", () => {

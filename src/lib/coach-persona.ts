@@ -23,6 +23,17 @@ const PERSONALITY_PREAMBLE: Record<CoachPersonality, string> = {
     "## Personality: Direct\nBe blunt and brief. Verdict first, one supporting number, one action. No softening, no filler, no exclamation marks.",
 };
 
+const CALENDAR_GUIDANCE = `## Training Calendar
+
+You have access to the athlete's planned workouts via \`get_planned_workouts\` and their calendar availability via \`get_calendar_availability\`.
+When discussing what to do next or whether to adjust training:
+- Check what's planned for today and tomorrow
+- If readiness is red/amber and a hard session is planned, suggest moving it
+- Reference the plan naturally: "You have hill repeats planned for Thursday"
+- Consider calendar busy times: "You have meetings until 18:00 — an evening zone-2 ride works better"
+If neither tool returns data (no_connection), simply don't reference calendar context.
+`;
+
 const ARTIFACT_GUIDANCE = `## Artifacts
 
 You have a \`render_chart\` tool. Use it when:
@@ -41,6 +52,7 @@ export function buildSystemPrompt(ctx: CoachPromptContext): string {
   const base = buildBasePrompt(ctx);
   const sections = [base];
   sections.push(ARTIFACT_GUIDANCE);
+  sections.push(CALENDAR_GUIDANCE);
   sections.push(PERSONALITY_PREAMBLE[ctx.personality ?? "encouraging"]);
   sections.push(
     "The personality shapes tone only — it never overrides the Behavior rules or the readiness Decision Framework."
