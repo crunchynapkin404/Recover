@@ -21,8 +21,38 @@ vi.mock("@ai-sdk/openai", () => ({
   }),
 }));
 
-import { resolveProvider } from "@/lib/llm-provider";
+import { pickModel, resolveProvider } from "@/lib/llm-provider";
 import { db } from "@/lib/db";
+
+describe("pickModel", () => {
+  const settings = {
+    model: "legacy-model",
+    modelQuick: "small-model",
+    modelDeep: "big-model",
+    defaultMode: "deep" as const,
+  };
+
+  it("uses the matching slot for an explicit mode", () => {
+    expect(pickModel(settings, "quick")).toBe("small-model");
+    expect(pickModel(settings, "deep")).toBe("big-model");
+  });
+
+  it("follows defaultMode when no mode is given", () => {
+    expect(pickModel(settings)).toBe("big-model");
+    expect(pickModel({ ...settings, defaultMode: "quick" })).toBe(
+      "small-model"
+    );
+  });
+
+  it("falls back to the legacy model when the slot is empty", () => {
+    expect(pickModel({ ...settings, modelQuick: null }, "quick")).toBe(
+      "legacy-model"
+    );
+    expect(pickModel({ ...settings, modelDeep: null }, "deep")).toBe(
+      "legacy-model"
+    );
+  });
+});
 
 // v0.4a columns with pre-migration-like defaults for existing fixtures.
 const baseSlots = {

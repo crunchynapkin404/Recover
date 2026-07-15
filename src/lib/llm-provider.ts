@@ -15,6 +15,25 @@ export interface ResolvedProvider {
     ReturnType<typeof createAnthropic> | ReturnType<typeof createOpenAI>;
   model: string;
   providerType: "anthropic" | "openai_compatible";
+  personality: "analytical" | "encouraging" | "direct";
+  defaultMode: ChatMode;
+}
+
+export type ChatMode = "quick" | "deep";
+
+/** Pick the model for a message: explicit mode → user default → legacy slot. */
+export function pickModel(
+  settings: {
+    model: string;
+    modelQuick: string | null;
+    modelDeep: string | null;
+    defaultMode: ChatMode;
+  },
+  mode?: ChatMode
+): string {
+  const effective = mode ?? settings.defaultMode;
+  const slot = effective === "quick" ? settings.modelQuick : settings.modelDeep;
+  return slot ?? settings.model;
 }
 
 /**
@@ -23,7 +42,8 @@ export interface ResolvedProvider {
  * Decrypts the API key per request (never cached, never logged).
  */
 export async function resolveProvider(
-  userId: string
+  userId: string,
+  mode?: ChatMode
 ): Promise<ResolvedProvider | null> {
   const settings = await db.query.llmSettings.findFirst({
     where: eq(schema.llmSettings.userId, userId),
@@ -38,7 +58,13 @@ export async function resolveProvider(
   if (settings.providerType === "anthropic") {
     if (!apiKey) return null;
     const provider = createAnthropic({ apiKey });
-    return { provider, model: settings.model, providerType: "anthropic" };
+    return {
+      provider,
+      model: pickModel(settings, mode),
+      providerType: "anthropic",
+      personality: settings.coachPersonality,
+      defaultMode: settings.defaultMode,
+    };
   }
 
   // openai_compatible — works with Ollama, Together, local LLMs, etc.
@@ -51,5 +77,11 @@ export async function resolveProvider(
     apiKey: apiKey ?? "ollama", // Ollama doesn't need a real key
     baseURL,
   });
-  return { provider, model: settings.model, providerType: "openai_compatible" };
+  return {
+    provider,
+    model: pickModel(settings, mode),
+    providerType: "openai_compatible",
+    personality: settings.coachPersonality,
+    defaultMode: settings.defaultMode,
+  };
 }
