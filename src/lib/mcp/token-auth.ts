@@ -38,7 +38,10 @@ function parseScopes(scopesStr: string): Scope[] {
     .split("|")
     .filter(
       (s): s is Scope =>
-        s === "read" || s === "write:wellness" || s === "write:memory" || s === "write:plan"
+        s === "read" ||
+        s === "write:wellness" ||
+        s === "write:memory" ||
+        s === "write:plan"
     );
 }
 

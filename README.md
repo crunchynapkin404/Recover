@@ -108,8 +108,7 @@ fills a demo account with 90 days of plausible training history (see
    pointing at your instance's `/api/mcp` endpoint with the token as a bearer
    token.
 
-**Live demo instance:** [recover.bartabraas.nl](https://recover.bartabraas.nl/)
-4. Ask Claude about your training.
+**Live demo instance:** [recover.bartabraas.nl](https://recover.bartabraas.nl/) 4. Ask Claude about your training.
 
 ## Status & roadmap
 

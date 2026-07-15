@@ -24,11 +24,10 @@ const parameters = z.object({
     .describe(
       "Chart type: line (time series), bar (categorical), area (filled), table (rows)."
     ),
-  title: z.string().describe("Short chart title shown above the visualization."),
-  series: z
-    .array(seriesSchema)
-    .min(1)
-    .describe("Data series to plot."),
+  title: z
+    .string()
+    .describe("Short chart title shown above the visualization."),
+  series: z.array(seriesSchema).min(1).describe("Data series to plot."),
   xLabel: z.string().optional().describe("X-axis label."),
   yLabel: z.string().optional().describe("Y-axis label."),
   annotations: z

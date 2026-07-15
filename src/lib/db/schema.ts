@@ -91,7 +91,9 @@ export const connections = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    provider: text("provider", { enum: ["intervals_icu", "strava", "google_calendar"] }).notNull(),
+    provider: text("provider", {
+      enum: ["intervals_icu", "strava", "google_calendar"],
+    }).notNull(),
     // AES-256-GCM encrypted (see lib/crypto.ts). For intervals.icu this is the
     // API key; for Strava, access + refresh tokens.
     encryptedAccessToken: text("encrypted_access_token").notNull(),
@@ -446,12 +448,14 @@ export const trainingPlans = pgTable(
       .notNull()
       .default("active"),
     constraints: jsonb("constraints"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
-  (t) => [
-    index("training_plans_user_status_idx").on(t.userId, t.status),
-  ]
+  (t) => [index("training_plans_user_status_idx").on(t.userId, t.status)]
 );
 
 export const trainingBlocks = pgTable(
@@ -462,7 +466,9 @@ export const trainingBlocks = pgTable(
       .notNull()
       .references(() => trainingPlans.id, { onDelete: "cascade" }),
     weekNumber: smallint("week_number").notNull(),
-    phase: text("phase", { enum: ["base", "build", "peak", "taper", "recovery"] }).notNull(),
+    phase: text("phase", {
+      enum: ["base", "build", "peak", "taper", "recovery"],
+    }).notNull(),
     targetLoadTotal: real("target_load_total"),
     targetSessions: smallint("target_sessions"),
     workouts: jsonb("workouts").notNull(),

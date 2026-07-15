@@ -340,10 +340,7 @@ export default async function DashboardPage() {
                 className="glass block rounded-[2rem] p-5 transition-colors hover:bg-white/5"
               >
                 <div className="mb-2 flex items-center gap-2">
-                  <Sparkles
-                    aria-hidden
-                    className="size-4 text-violet-400"
-                  />
+                  <Sparkles aria-hidden className="size-4 text-violet-400" />
                   <span className="text-[10px] font-bold uppercase tracking-widest text-white/50">
                     Weekly Review
                   </span>

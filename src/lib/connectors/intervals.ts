@@ -394,8 +394,7 @@ export async function fetchPlannedWorkouts(params: {
 
   const out: IntervalsPlannedWorkout[] = [];
   for (const row of rows as Array<Record<string, unknown>>) {
-    const dateStr =
-      str(row.start_date_local) ?? str(row.start_date);
+    const dateStr = str(row.start_date_local) ?? str(row.start_date);
     if (!dateStr) continue;
     const movingTime = num(row.moving_time);
     const duration = num(row.duration);
@@ -405,9 +404,11 @@ export async function fetchPlannedWorkouts(params: {
       sport: str(row.type) ?? "Workout",
       date: dateStr.slice(0, 10),
       durationMins:
-        movingTime != null ? movingTime / 60 :
-        duration != null ? duration / 60 :
-        null,
+        movingTime != null
+          ? movingTime / 60
+          : duration != null
+            ? duration / 60
+            : null,
       targetLoad: num(row.icu_training_load) ?? num(row.load_target) ?? null,
       description: str(row.description) ?? null,
     });

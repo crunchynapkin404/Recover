@@ -6,7 +6,15 @@ describe("render_chart tool", () => {
     const result = renderChart.parameters.safeParse({
       type: "line",
       title: "CTL trend",
-      series: [{ label: "CTL", data: [{ x: 1, y: 80 }, { x: 2, y: 82 }] }],
+      series: [
+        {
+          label: "CTL",
+          data: [
+            { x: 1, y: 80 },
+            { x: 2, y: 82 },
+          ],
+        },
+      ],
     });
     expect(result.success).toBe(true);
   });
@@ -43,23 +51,23 @@ describe("render_chart tool", () => {
       artifact: true,
       spec: parsed,
     });
-    expect((result as { chartId: string }).chartId).toMatch(
-      /^[0-9a-f-]{36}$/
-    );
+    expect((result as { chartId: string }).chartId).toMatch(/^[0-9a-f-]{36}$/);
   });
 
   it("accepts string x-values (dates)", () => {
     const result = renderChart.parameters.safeParse({
       type: "bar",
       title: "Weekly load",
-      series: [{
-        label: "Load",
-        data: [
-          { x: "Mon", y: 120 },
-          { x: "Tue", y: 0 },
-          { x: "Wed", y: 85 },
-        ],
-      }],
+      series: [
+        {
+          label: "Load",
+          data: [
+            { x: "Mon", y: 120 },
+            { x: "Tue", y: 0 },
+            { x: "Wed", y: 85 },
+          ],
+        },
+      ],
     });
     expect(result.success).toBe(true);
   });

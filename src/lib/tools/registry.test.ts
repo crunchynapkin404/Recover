@@ -150,54 +150,88 @@ describe("tool registry", () => {
   it("generate_training_plan validates raceType enum and daysPerWeek range", () => {
     const tool = allTools.find((t) => t.name === "generate_training_plan")!;
     expect(
-      tool.parameters.safeParse({ raceType: "marathon", raceDate: "2027-04-01" }).success
+      tool.parameters.safeParse({
+        raceType: "marathon",
+        raceDate: "2027-04-01",
+      }).success
     ).toBe(true);
     expect(
-      tool.parameters.safeParse({ raceType: "ironman", raceDate: "2027-06-01", daysPerWeek: 6 }).success
+      tool.parameters.safeParse({
+        raceType: "ironman",
+        raceDate: "2027-06-01",
+        daysPerWeek: 6,
+      }).success
     ).toBe(true);
     // Invalid race type
     expect(
-      tool.parameters.safeParse({ raceType: "swimming", raceDate: "2027-04-01" }).success
+      tool.parameters.safeParse({
+        raceType: "swimming",
+        raceDate: "2027-04-01",
+      }).success
     ).toBe(false);
     // daysPerWeek out of range
     expect(
-      tool.parameters.safeParse({ raceType: "10k", raceDate: "2027-04-01", daysPerWeek: 2 }).success
+      tool.parameters.safeParse({
+        raceType: "10k",
+        raceDate: "2027-04-01",
+        daysPerWeek: 2,
+      }).success
     ).toBe(false);
     expect(
-      tool.parameters.safeParse({ raceType: "10k", raceDate: "2027-04-01", daysPerWeek: 8 }).success
+      tool.parameters.safeParse({
+        raceType: "10k",
+        raceDate: "2027-04-01",
+        daysPerWeek: 8,
+      }).success
     ).toBe(false);
     // Missing required raceDate
-    expect(
-      tool.parameters.safeParse({ raceType: "marathon" }).success
-    ).toBe(false);
+    expect(tool.parameters.safeParse({ raceType: "marathon" }).success).toBe(
+      false
+    );
   });
 
   it("get_training_plan accepts optional weekNumber", () => {
     const tool = allTools.find((t) => t.name === "get_training_plan")!;
     expect(tool.parameters.safeParse({}).success).toBe(true);
     expect(tool.parameters.safeParse({ weekNumber: 3 }).success).toBe(true);
-    expect(tool.parameters.safeParse({ weekNumber: "three" }).success).toBe(false);
+    expect(tool.parameters.safeParse({ weekNumber: "three" }).success).toBe(
+      false
+    );
   });
 
   it("update_training_plan validates action enum and requires all fields", () => {
     const tool = allTools.find((t) => t.name === "update_training_plan")!;
     expect(
-      tool.parameters.safeParse({ weekNumber: 2, action: "reduce_load", reason: "feeling tired" }).success
+      tool.parameters.safeParse({
+        weekNumber: 2,
+        action: "reduce_load",
+        reason: "feeling tired",
+      }).success
     ).toBe(true);
     expect(
-      tool.parameters.safeParse({ weekNumber: 4, action: "skip_week", reason: "vacation" }).success
+      tool.parameters.safeParse({
+        weekNumber: 4,
+        action: "skip_week",
+        reason: "vacation",
+      }).success
     ).toBe(true);
     // Invalid action
     expect(
-      tool.parameters.safeParse({ weekNumber: 2, action: "delete", reason: "test" }).success
+      tool.parameters.safeParse({
+        weekNumber: 2,
+        action: "delete",
+        reason: "test",
+      }).success
     ).toBe(false);
     // Missing reason
     expect(
-      tool.parameters.safeParse({ weekNumber: 2, action: "reduce_load" }).success
+      tool.parameters.safeParse({ weekNumber: 2, action: "reduce_load" })
+        .success
     ).toBe(false);
     // Missing weekNumber
     expect(
-      tool.parameters.safeParse({ action: "reduce_load", reason: "test" }).success
+      tool.parameters.safeParse({ action: "reduce_load", reason: "test" })
+        .success
     ).toBe(false);
   });
 });

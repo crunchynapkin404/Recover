@@ -110,7 +110,7 @@ describe.skipIf(!hasDb)("training plan generation", () => {
         userId: USER,
         raceType: "Marathon",
         raceDate: futureDate(2),
-      }),
+      })
     ).rejects.toThrow("Race too soon for a plan");
   });
 
@@ -121,7 +121,7 @@ describe.skipIf(!hasDb)("training plan generation", () => {
         userId: USER,
         raceType: "Marathon",
         raceDate: futureDate(60),
-      }),
+      })
     ).rejects.toThrow("Race date too far out");
   });
 
@@ -178,7 +178,7 @@ describe.skipIf(!hasDb)("training plan generation", () => {
     });
 
     const allWorkouts = blocks.flatMap(
-      (b) => b.workouts as { sport: string; type: string }[],
+      (b) => b.workouts as { sport: string; type: string }[]
     );
 
     // Marathon should have running workouts
@@ -205,7 +205,7 @@ describe.skipIf(!hasDb)("training plan generation", () => {
     });
 
     const allWorkouts = blocks.flatMap(
-      (b) => b.workouts as { sport: string; type: string }[],
+      (b) => b.workouts as { sport: string; type: string }[]
     );
     const sports = new Set(allWorkouts.map((w) => w.sport));
 

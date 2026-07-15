@@ -35,7 +35,9 @@ function LineChart({ spec }: { spec: ChartSpec }) {
           .join(" ");
 
         const fill =
-          spec.type === "area" || s.style === "area" ? getColor(si, s.color) : "none";
+          spec.type === "area" || s.style === "area"
+            ? getColor(si, s.color)
+            : "none";
         const fillOpacity = fill !== "none" ? 0.12 : undefined;
         const areaPath =
           spec.type === "area" || s.style === "area"
@@ -51,7 +53,11 @@ function LineChart({ spec }: { spec: ChartSpec }) {
         return (
           <g key={si}>
             {areaPath && (
-              <path d={areaPath} fill={getColor(si, s.color)} opacity={fillOpacity} />
+              <path
+                d={areaPath}
+                fill={getColor(si, s.color)}
+                opacity={fillOpacity}
+              />
             )}
             <polyline
               points={pts}

@@ -23,9 +23,7 @@ async function cleanup() {
   await db
     .delete(schema.chatThreads)
     .where(eq(schema.chatThreads.userId, USER));
-  await db
-    .delete(schema.activities)
-    .where(eq(schema.activities.userId, USER));
+  await db.delete(schema.activities).where(eq(schema.activities.userId, USER));
   await db
     .delete(schema.dailyMetrics)
     .where(eq(schema.dailyMetrics.userId, USER));
@@ -151,7 +149,7 @@ describe.skipIf(!hasDb)("weekly review", () => {
     const threads = await db.query.chatThreads.findMany({
       where: and(
         eq(schema.chatThreads.userId, USER),
-        eq(schema.chatThreads.kind, "weekly"),
+        eq(schema.chatThreads.kind, "weekly")
       ),
     });
     // Thread might exist (created during guard check) but no messages
@@ -177,7 +175,7 @@ describe.skipIf(!hasDb)("weekly review", () => {
     const thread = await db.query.chatThreads.findFirst({
       where: and(
         eq(schema.chatThreads.userId, USER),
-        eq(schema.chatThreads.kind, "weekly"),
+        eq(schema.chatThreads.kind, "weekly")
       ),
     });
     expect(thread).toBeDefined();
@@ -209,7 +207,7 @@ describe.skipIf(!hasDb)("weekly review", () => {
     const thread = await db.query.chatThreads.findFirst({
       where: and(
         eq(schema.chatThreads.userId, USER),
-        eq(schema.chatThreads.kind, "weekly"),
+        eq(schema.chatThreads.kind, "weekly")
       ),
     });
     expect(thread).toBeDefined();

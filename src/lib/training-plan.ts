@@ -56,16 +56,28 @@ function inferSports(raceType: string, explicit?: string[]): string[] {
   const rt = raceType.toLowerCase();
   if (rt.includes("triathlon") || rt.includes("ironman") || rt.includes("70.3"))
     return ["Swim", "Bike", "Run"];
-  if (rt.includes("marathon") || rt.includes("half") || rt.includes("10k") || rt.includes("5k"))
+  if (
+    rt.includes("marathon") ||
+    rt.includes("half") ||
+    rt.includes("10k") ||
+    rt.includes("5k")
+  )
     return ["Run"];
-  if (rt.includes("fondo") || rt.includes("century") || rt.includes("crit") || rt.includes("cycling"))
+  if (
+    rt.includes("fondo") ||
+    rt.includes("century") ||
+    rt.includes("crit") ||
+    rt.includes("cycling")
+  )
     return ["Bike"];
   return ["Run"]; // default
 }
 
 function isTriathlon(raceType: string): boolean {
   const rt = raceType.toLowerCase();
-  return rt.includes("triathlon") || rt.includes("ironman") || rt.includes("70.3");
+  return (
+    rt.includes("triathlon") || rt.includes("ironman") || rt.includes("70.3")
+  );
 }
 
 // ── Periodization engine ────────────────────────────────────────────────────
@@ -76,13 +88,16 @@ function periodize(
   daysPerWeek: number,
   hoursPerWeek: number,
   raceType: string,
-  sports: string[],
+  sports: string[]
 ): Block[] {
   // Phase distribution
   const baseWeeks = Math.max(2, Math.round(weeksTotal * 0.4));
   const buildWeeks = Math.max(1, Math.round(weeksTotal * 0.3));
   const taperWeeks = Math.max(2, Math.round(weeksTotal * 0.15));
-  const peakWeeks = Math.max(1, weeksTotal - baseWeeks - buildWeeks - taperWeeks);
+  const peakWeeks = Math.max(
+    1,
+    weeksTotal - baseWeeks - buildWeeks - taperWeeks
+  );
 
   // Starting weekly load from CTL (rough TSS = CTL * 7)
   const baseLoad = Math.max(100, startingCtl * 7);
@@ -99,11 +114,18 @@ function periodize(
 
     // Recovery week every 3rd or 4th week (use 4th in base, 3rd in build/peak)
     const recoveryInterval = phase === "base" ? 4 : 3;
-    const weekInPhase = phase === "base" ? w
-      : phase === "build" ? w - baseWeeks
-      : phase === "peak" ? w - baseWeeks - buildWeeks
-      : w - baseWeeks - buildWeeks - peakWeeks;
-    const isRecovery = weekInPhase > 1 && weekInPhase % recoveryInterval === 0 && phase !== "taper";
+    const weekInPhase =
+      phase === "base"
+        ? w
+        : phase === "build"
+          ? w - baseWeeks
+          : phase === "peak"
+            ? w - baseWeeks - buildWeeks
+            : w - baseWeeks - buildWeeks - peakWeeks;
+    const isRecovery =
+      weekInPhase > 1 &&
+      weekInPhase % recoveryInterval === 0 &&
+      phase !== "taper";
 
     if (isRecovery) {
       blocks.push({
@@ -116,7 +138,7 @@ function periodize(
           hoursPerWeek * 0.6,
           "recovery",
           raceType,
-          sports,
+          sports
         ),
       });
       // Don't increase load after recovery
@@ -131,15 +153,21 @@ function periodize(
           hoursPerWeek * loadMultiplier(phase, weekInPhase),
           phase,
           raceType,
-          sports,
+          sports
         ),
       });
 
       // Load progression: +5-8% in base, +5-7% in build, flat/slight in peak, decrease in taper
       if (phase === "base") {
-        currentLoad = Math.min(currentLoad * 1.08, currentLoad + baseLoad * 0.10);
+        currentLoad = Math.min(
+          currentLoad * 1.08,
+          currentLoad + baseLoad * 0.1
+        );
       } else if (phase === "build") {
-        currentLoad = Math.min(currentLoad * 1.07, currentLoad + baseLoad * 0.10);
+        currentLoad = Math.min(
+          currentLoad * 1.07,
+          currentLoad + baseLoad * 0.1
+        );
       } else if (phase === "peak") {
         // Maintain or slight increase
         currentLoad *= 1.02;
@@ -155,11 +183,16 @@ function periodize(
 
 function loadMultiplier(phase: Block["phase"], weekInPhase: number): number {
   switch (phase) {
-    case "base": return 0.85 + weekInPhase * 0.05;
-    case "build": return 1.0 + weekInPhase * 0.03;
-    case "peak": return 1.1;
-    case "taper": return 0.7 - (weekInPhase - 1) * 0.1;
-    case "recovery": return 0.6;
+    case "base":
+      return 0.85 + weekInPhase * 0.05;
+    case "build":
+      return 1.0 + weekInPhase * 0.03;
+    case "peak":
+      return 1.1;
+    case "taper":
+      return 0.7 - (weekInPhase - 1) * 0.1;
+    case "recovery":
+      return 0.6;
   }
 }
 
@@ -170,7 +203,7 @@ function generateWorkouts(
   weekHours: number,
   phase: Block["phase"],
   raceType: string,
-  sports: string[],
+  sports: string[]
 ): PlannedWorkout[] {
   if (isTriathlon(raceType)) {
     return generateTriathlonWorkouts(sessions, weekHours, phase);
@@ -185,7 +218,7 @@ function generateRunningWorkouts(
   sessions: number,
   weekHours: number,
   phase: Block["phase"],
-  raceType: string,
+  raceType: string
 ): PlannedWorkout[] {
   const totalMins = weekHours * 60;
   const workouts: PlannedWorkout[] = [];
@@ -198,9 +231,10 @@ function generateRunningWorkouts(
     type: "Long",
     durationMins: Math.min(longRunMins, phase === "taper" ? 60 : 180),
     intensity: "Z1-Z2",
-    description: phase === "taper"
-      ? "Easy long run — reduced duration for taper"
-      : "Long run at conversational pace",
+    description:
+      phase === "taper"
+        ? "Easy long run — reduced duration for taper"
+        : "Long run at conversational pace",
   });
 
   // Tuesday: tempo or intervals depending on phase
@@ -236,9 +270,10 @@ function generateRunningWorkouts(
       type: phase === "build" || phase === "peak" ? "Tempo" : "Endurance",
       durationMins: Math.round(totalMins * 0.15),
       intensity: phase === "build" || phase === "peak" ? "Z3" : "Z1-Z2",
-      description: phase === "build" || phase === "peak"
-        ? "Tempo run — sustained effort"
-        : "Easy endurance run",
+      description:
+        phase === "build" || phase === "peak"
+          ? "Tempo run — sustained effort"
+          : "Easy endurance run",
     });
   }
 
@@ -247,7 +282,9 @@ function generateRunningWorkouts(
   const easyDays = [0, 2, 4, 5].filter((d) => !usedDays.has(d)); // Mon, Wed, Fri, Sat
   const remaining = sessions - workouts.length;
   const allocatedMins = workouts.reduce((s, w) => s + w.durationMins, 0);
-  const easyMins = Math.round((totalMins - allocatedMins) / Math.max(1, remaining));
+  const easyMins = Math.round(
+    (totalMins - allocatedMins) / Math.max(1, remaining)
+  );
 
   for (let i = 0; i < remaining && i < easyDays.length; i++) {
     workouts.push({
@@ -256,9 +293,8 @@ function generateRunningWorkouts(
       type: phase === "recovery" ? "Recovery" : "Endurance",
       durationMins: Math.max(20, Math.min(easyMins, 60)),
       intensity: phase === "recovery" ? "Recovery" : "Z1-Z2",
-      description: phase === "recovery"
-        ? "Easy recovery run"
-        : "Easy aerobic run",
+      description:
+        phase === "recovery" ? "Easy recovery run" : "Easy aerobic run",
     });
   }
 
@@ -268,7 +304,7 @@ function generateRunningWorkouts(
 function generateCyclingWorkouts(
   sessions: number,
   weekHours: number,
-  phase: Block["phase"],
+  phase: Block["phase"]
 ): PlannedWorkout[] {
   const totalMins = weekHours * 60;
   const workouts: PlannedWorkout[] = [];
@@ -278,11 +314,15 @@ function generateCyclingWorkouts(
     day: 5, // Saturday
     sport: "Bike",
     type: "Long",
-    durationMins: Math.min(Math.round(totalMins * 0.38), phase === "taper" ? 90 : 240),
+    durationMins: Math.min(
+      Math.round(totalMins * 0.38),
+      phase === "taper" ? 90 : 240
+    ),
     intensity: "Z1-Z2",
-    description: phase === "taper"
-      ? "Reduced endurance ride"
-      : "Long endurance ride — steady aerobic effort",
+    description:
+      phase === "taper"
+        ? "Reduced endurance ride"
+        : "Long endurance ride — steady aerobic effort",
   });
 
   // Midweek intervals in build/peak
@@ -311,7 +351,9 @@ function generateCyclingWorkouts(
   const availDays = [0, 1, 3, 4, 6].filter((d) => !usedDays.has(d));
   const remaining = sessions - workouts.length;
   const allocatedMins = workouts.reduce((s, w) => s + w.durationMins, 0);
-  const easyMins = Math.round((totalMins - allocatedMins) / Math.max(1, remaining));
+  const easyMins = Math.round(
+    (totalMins - allocatedMins) / Math.max(1, remaining)
+  );
 
   for (let i = 0; i < remaining && i < availDays.length; i++) {
     workouts.push({
@@ -320,9 +362,8 @@ function generateCyclingWorkouts(
       type: phase === "recovery" ? "Recovery" : "Endurance",
       durationMins: Math.max(30, Math.min(easyMins, 90)),
       intensity: phase === "recovery" ? "Recovery" : "Z1-Z2",
-      description: phase === "recovery"
-        ? "Easy recovery spin"
-        : "Aerobic endurance ride",
+      description:
+        phase === "recovery" ? "Easy recovery spin" : "Aerobic endurance ride",
     });
   }
 
@@ -332,7 +373,7 @@ function generateCyclingWorkouts(
 function generateTriathlonWorkouts(
   sessions: number,
   weekHours: number,
-  phase: Block["phase"],
+  phase: Block["phase"]
 ): PlannedWorkout[] {
   const totalMins = weekHours * 60;
   const workouts: PlannedWorkout[] = [];
@@ -351,7 +392,8 @@ function generateTriathlonWorkouts(
       type: "Brick",
       durationMins: Math.round(bikeMins * 0.5),
       intensity: "Z1-Z2",
-      description: "Bike-to-run brick: ride at race effort then 15-20min transition run",
+      description:
+        "Bike-to-run brick: ride at race effort then 15-20min transition run",
     });
   } else {
     workouts.push({
@@ -360,7 +402,8 @@ function generateTriathlonWorkouts(
       type: "Long",
       durationMins: Math.round(bikeMins * 0.5),
       intensity: "Z1-Z2",
-      description: phase === "taper" ? "Easy endurance ride" : "Long endurance ride",
+      description:
+        phase === "taper" ? "Easy endurance ride" : "Long endurance ride",
     });
   }
 
@@ -369,7 +412,10 @@ function generateTriathlonWorkouts(
     day: 5,
     sport: "Run",
     type: "Long",
-    durationMins: Math.min(Math.round(runMins * 0.45), phase === "taper" ? 45 : 120),
+    durationMins: Math.min(
+      Math.round(runMins * 0.45),
+      phase === "taper" ? 45 : 120
+    ),
     intensity: "Z1-Z2",
     description: "Long run at easy aerobic effort",
   });
@@ -381,9 +427,10 @@ function generateTriathlonWorkouts(
     type: phase === "build" || phase === "peak" ? "Intervals" : "Endurance",
     durationMins: Math.round(swimMins * 0.55),
     intensity: phase === "build" || phase === "peak" ? "Z3" : "Z1-Z2",
-    description: phase === "build" || phase === "peak"
-      ? "Swim intervals: 10×100m at threshold, 15s rest"
-      : "Steady swim with technique drills",
+    description:
+      phase === "build" || phase === "peak"
+        ? "Swim intervals: 10×100m at threshold, 15s rest"
+        : "Steady swim with technique drills",
   });
 
   // Thursday: bike intervals or endurance
@@ -394,9 +441,10 @@ function generateTriathlonWorkouts(
       type: phase === "build" || phase === "peak" ? "Intervals" : "Endurance",
       durationMins: Math.round(bikeMins * 0.3),
       intensity: phase === "build" || phase === "peak" ? "Z4-Z5" : "Z1-Z2",
-      description: phase === "build" || phase === "peak"
-        ? "Bike intervals: 4×5min above threshold, 3min recovery"
-        : "Easy aerobic ride",
+      description:
+        phase === "build" || phase === "peak"
+          ? "Bike intervals: 4×5min above threshold, 3min recovery"
+          : "Easy aerobic ride",
     });
   }
 
@@ -412,13 +460,15 @@ function generateTriathlonWorkouts(
       day: availDays[i],
       sport,
       type: phase === "recovery" ? "Recovery" : "Endurance",
-      durationMins: Math.max(20, Math.round(
-        (sport === "Swim" ? swimMins : runMins) * 0.3
-      )),
+      durationMins: Math.max(
+        20,
+        Math.round((sport === "Swim" ? swimMins : runMins) * 0.3)
+      ),
       intensity: phase === "recovery" ? "Recovery" : "Z1-Z2",
-      description: phase === "recovery"
-        ? `Easy recovery ${sport.toLowerCase()}`
-        : `Easy aerobic ${sport.toLowerCase()}`,
+      description:
+        phase === "recovery"
+          ? `Easy recovery ${sport.toLowerCase()}`
+          : `Easy aerobic ${sport.toLowerCase()}`,
     });
   }
 
@@ -428,7 +478,7 @@ function generateTriathlonWorkouts(
 // ── Main entry point ────────────────────────────────────────────────────────
 
 export async function generateTrainingPlan(
-  params: GeneratePlanParams,
+  params: GeneratePlanParams
 ): Promise<GeneratePlanResult> {
   const {
     userId,
@@ -468,7 +518,14 @@ export async function generateTrainingPlan(
   const startDate = localYmd(today);
 
   // 3. Periodize
-  const blocks = periodize(weeksTotal, startingCtl, daysPerWeek, hoursPerWeek, raceType, sports);
+  const blocks = periodize(
+    weeksTotal,
+    startingCtl,
+    daysPerWeek,
+    hoursPerWeek,
+    raceType,
+    sports
+  );
 
   // 4. Store in DB
   const [plan] = await db

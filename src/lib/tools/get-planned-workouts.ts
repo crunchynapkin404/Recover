@@ -6,7 +6,12 @@ import { decrypt } from "@/lib/crypto";
 import { fetchPlannedWorkouts } from "@/lib/connectors/intervals";
 
 const parameters = z.object({
-  days: z.number().int().min(1).max(14).default(7)
+  days: z
+    .number()
+    .int()
+    .min(1)
+    .max(14)
+    .default(7)
     .describe("Look-ahead window in days (1-14)."),
 });
 
@@ -16,7 +21,7 @@ async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
     where: and(
       eq(schema.connections.userId, ctx.userId),
       eq(schema.connections.provider, "intervals_icu"),
-      eq(schema.connections.status, "active"),
+      eq(schema.connections.status, "active")
     ),
   });
   if (!connection) {
@@ -24,7 +29,9 @@ async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
   }
 
   const startDate = new Date().toISOString().slice(0, 10);
-  const endDate = new Date(Date.now() + args.days * 86400000).toISOString().slice(0, 10);
+  const endDate = new Date(Date.now() + args.days * 86400000)
+    .toISOString()
+    .slice(0, 10);
 
   try {
     const workouts = await fetchPlannedWorkouts({
