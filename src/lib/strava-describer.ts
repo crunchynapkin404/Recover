@@ -10,6 +10,11 @@ import { and, desc, eq, gte } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { getBestEffortsCached } from "@/lib/athlete-curves";
+import {
+  isFieldEnabled,
+  type DescriptionField,
+  type DescriptionFields,
+} from "@/lib/strava-description-fields";
 import type { IntervalsBestEffort } from "@/lib/connectors/intervals";
 import {
   getStravaDescription,
@@ -87,26 +92,40 @@ function joinSegments(segments: Array<string | null>): string | null {
   return present.length > 0 ? present.join(" | ") : null;
 }
 
-/** Render the emoji template. Null fields/lines are omitted (no "N/A"). */
-export function formatActivityDescription(input: DescriptionInput): string {
+/**
+ * Render the emoji template. Null fields/lines are omitted (no "N/A").
+ * `fields` (v0.6.1) gates each metric; null/undefined = every field on.
+ */
+export function formatActivityDescription(
+  input: DescriptionInput,
+  fields?: DescriptionFields
+): string {
+  const on = (key: DescriptionField) => isFieldEnabled(fields, key);
   const lines: string[] = [];
-  lines.push(`${sportEmoji(input.sport)} ${input.title ?? input.sport}`);
+
+  if (on("header")) {
+    lines.push(`${sportEmoji(input.sport)} ${input.title ?? input.sport}`);
+  }
 
   const load = joinSegments([
-    input.load != null ? `TL ${Math.round(input.load)}` : null,
-    input.intensityPct != null ? `IF ${input.intensityPct}%` : null,
-    input.trimp != null ? `TRIMP ${Math.round(input.trimp)}` : null,
+    on("load") && input.load != null ? `TL ${Math.round(input.load)}` : null,
+    on("intensity") && input.intensityPct != null
+      ? `IF ${input.intensityPct}%`
+      : null,
+    on("trimp") && input.trimp != null
+      ? `TRIMP ${Math.round(input.trimp)}`
+      : null,
   ]);
   if (load) lines.push(`🔋 Load: ${load}`);
 
   const decoupling =
-    input.decouplingPct != null
+    on("decoupling") && input.decouplingPct != null
       ? `decoupling ${input.decouplingPct.toFixed(1)}%`
       : null;
   if (isRunSport(input.sport)) {
     // Runs show pace metrics instead of power (spec).
     const pace = joinSegments([
-      input.paceSecPerKm != null
+      on("pace") && input.paceSecPerKm != null
         ? `${formatPace(input.paceSecPerKm)}/km`
         : null,
       decoupling,
@@ -114,7 +133,7 @@ export function formatActivityDescription(input: DescriptionInput): string {
     if (pace) lines.push(`⚡ Pace: ${pace}`);
   } else {
     const efficiency = joinSegments([
-      input.powerHrRatio != null
+      on("powerHrRatio") && input.powerHrRatio != null
         ? `Pw:Hr ${input.powerHrRatio.toFixed(2)}`
         : null,
       decoupling,
@@ -122,19 +141,25 @@ export function formatActivityDescription(input: DescriptionInput): string {
     if (efficiency) lines.push(`⚡ Efficiency: ${efficiency}`);
   }
 
-  if (input.carbsPerHour != null) {
+  if (on("carbs") && input.carbsPerHour != null) {
     lines.push(`🍔 Carbs: ~${Math.round(input.carbsPerHour)} g/u`);
   }
 
   const form = joinSegments([
-    input.ctl != null ? `CTL ${Math.round(input.ctl)}` : null,
-    input.tsb != null ? `TSB ${Math.round(input.tsb)}` : null,
-    input.ftpW != null ? `eFTP ${Math.round(input.ftpW)} W` : null,
-    input.vo2max != null ? `VO2 ${input.vo2max.toFixed(1)}` : null,
+    on("ctl") && input.ctl != null ? `CTL ${Math.round(input.ctl)}` : null,
+    on("tsb") && input.tsb != null ? `TSB ${Math.round(input.tsb)}` : null,
+    on("eftp") && input.ftpW != null
+      ? `eFTP ${Math.round(input.ftpW)} W`
+      : null,
+    on("vo2max") && input.vo2max != null
+      ? `VO2 ${input.vo2max.toFixed(1)}`
+      : null,
   ]);
   if (form) lines.push(`📈 Form: ${form}`);
 
-  for (const pr of input.prLines.slice(0, 3)) lines.push(`🚀 ${pr}`);
+  if (on("prs")) {
+    for (const pr of input.prLines.slice(0, 3)) lines.push(`🚀 ${pr}`);
+  }
 
   return lines.join("\n");
 }

@@ -10,6 +10,10 @@ import {
   stravaIdFromRaw,
   type DescriptionInput,
 } from "./strava-describer";
+import {
+  ALL_DESCRIPTION_FIELDS,
+  type DescriptionField,
+} from "./strava-description-fields";
 
 const FULL: DescriptionInput = {
   title: "Zwift - 3x15 Sweet Spot",
@@ -98,6 +102,62 @@ describe("formatActivityDescription", () => {
     expect(formatActivityDescription({ ...minimal, sport: "Hike" })).toBe(
       "🏔️ Hike"
     );
+  });
+});
+
+/** Every field on, with overrides — the shape the settings UI submits. */
+function allOn(
+  overrides: Partial<Record<DescriptionField, boolean>> = {}
+): Record<DescriptionField, boolean> {
+  const base = Object.fromEntries(
+    ALL_DESCRIPTION_FIELDS.map((f) => [f.key, true])
+  ) as Record<DescriptionField, boolean>;
+  return { ...base, ...overrides };
+}
+
+describe("formatActivityDescription — field selection", () => {
+  it("renders byte-identical v0.6 output when no field set is passed", () => {
+    const v06 = formatActivityDescription(FULL);
+    expect(formatActivityDescription(FULL, null)).toBe(v06);
+    expect(formatActivityDescription(FULL, undefined)).toBe(v06);
+    expect(formatActivityDescription(FULL, allOn())).toBe(v06);
+  });
+
+  it("omits a disabled field but keeps the rest of its line", () => {
+    const out = formatActivityDescription(FULL, allOn({ trimp: false }));
+    expect(out).toContain("🔋 Load: TL 85 | IF 87%");
+    expect(out).not.toContain("TRIMP");
+  });
+
+  it("drops the whole line when every field in the group is disabled", () => {
+    const out = formatActivityDescription(
+      FULL,
+      allOn({ load: false, intensity: false, trimp: false })
+    );
+    expect(out).not.toContain("🔋");
+    expect(out).toContain("📈 Form:");
+  });
+
+  it("drops the header when disabled", () => {
+    const out = formatActivityDescription(FULL, allOn({ header: false }));
+    expect(out).not.toContain("Zwift");
+    expect(out.startsWith("🔋 Load:")).toBe(true);
+  });
+
+  it("drops PR lines when disabled", () => {
+    const out = formatActivityDescription(FULL, allOn({ prs: false }));
+    expect(out).not.toContain("🚀");
+  });
+
+  it("honors the pace toggle on runs", () => {
+    const run = { ...FULL, sport: "Run", paceSecPerKm: 272, prLines: [] };
+    const out = formatActivityDescription(run, allOn({ pace: false }));
+    expect(out).toContain("⚡ Pace: decoupling 3.2%");
+    expect(out).not.toContain("/km");
+  });
+
+  it("returns an empty string when every field is disabled", () => {
+    expect(formatActivityDescription(FULL, {})).toBe("");
   });
 });
 
