@@ -207,6 +207,21 @@ export async function runSchedulerTick(
           message: err instanceof Error ? err.message : String(err),
         });
       }
+      // v0.6 auto-describe — pushes metric descriptions to Strava for
+      // opted-in users. Guards inside; errors never touch the sync job.
+      if (job.provider === "intervals_icu") {
+        try {
+          const { runAutoDescribeStrava } = await import(
+            "@/lib/strava-describer"
+          );
+          await runAutoDescribeStrava(job.userId);
+        } catch (err) {
+          logger.error("auto-describe failed", {
+            userId: job.userId,
+            message: err instanceof Error ? err.message : String(err),
+          });
+        }
+      }
     } catch (err) {
       failed++;
       const message = err instanceof Error ? err.message : String(err);
