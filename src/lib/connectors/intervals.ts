@@ -365,3 +365,52 @@ export async function fetchBestEfforts(params: {
   }
   return out;
 }
+
+/** A normalized planned workout from intervals.icu events. */
+export interface IntervalsPlannedWorkout {
+  id: string;
+  name: string;
+  sport: string;
+  date: string; // YYYY-MM-DD
+  durationMins: number | null;
+  targetLoad: number | null;
+  description: string | null;
+}
+
+/** Fetch planned workouts (events) for a date range. */
+export async function fetchPlannedWorkouts(params: {
+  apiKey: string;
+  athleteId: string;
+  startDate: string; // YYYY-MM-DD
+  endDate: string; // YYYY-MM-DD
+}): Promise<IntervalsPlannedWorkout[]> {
+  const path =
+    `/athlete/${encodeURIComponent(params.athleteId)}/events` +
+    `?oldest=${params.startDate}&newest=${params.endDate}&category=WORKOUT`;
+
+  const response = await icuFetch(path, params.apiKey);
+  const rows = (await response.json()) as unknown;
+  if (!Array.isArray(rows)) return [];
+
+  const out: IntervalsPlannedWorkout[] = [];
+  for (const row of rows as Array<Record<string, unknown>>) {
+    const dateStr =
+      str(row.start_date_local) ?? str(row.start_date);
+    if (!dateStr) continue;
+    const movingTime = num(row.moving_time);
+    const duration = num(row.duration);
+    out.push({
+      id: row.id != null ? String(row.id) : "",
+      name: str(row.name) ?? str(row.description) ?? "Workout",
+      sport: str(row.type) ?? "Workout",
+      date: dateStr.slice(0, 10),
+      durationMins:
+        movingTime != null ? movingTime / 60 :
+        duration != null ? duration / 60 :
+        null,
+      targetLoad: num(row.icu_training_load) ?? num(row.load_target) ?? null,
+      description: str(row.description) ?? null,
+    });
+  }
+  return out;
+}

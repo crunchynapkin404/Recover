@@ -8,6 +8,7 @@ import {
   fetchAthletePowerCurves,
   fetchBestEfforts,
   fetchDailyWellness,
+  fetchPlannedWorkouts,
   validateKey,
 } from "./intervals";
 
@@ -296,5 +297,60 @@ describe("v0.4c curve fetchers", () => {
     await expect(
       fetchBestEfforts({ apiKey: "k", athleteId: "i1", days: 90 })
     ).rejects.toMatchObject({ code: "rate_limited" });
+  });
+});
+
+describe("fetchPlannedWorkouts", () => {
+  it("parses planned workout events", async () => {
+    const fn = mockFetch(200, [
+      {
+        id: 42,
+        name: "Tempo ride",
+        type: "Ride",
+        start_date_local: "2026-07-20T08:00:00",
+        moving_time: 5400,
+        icu_training_load: 85,
+        description: "3x20 min Z3",
+      },
+      {
+        id: 43,
+        name: "Easy run",
+        type: "Run",
+        start_date_local: "2026-07-21T07:00:00",
+        moving_time: 2700,
+        icu_training_load: 40,
+        description: null,
+      },
+    ]);
+    const result = await fetchPlannedWorkouts({
+      apiKey: "test",
+      athleteId: "i1",
+      startDate: "2026-07-20",
+      endDate: "2026-07-27",
+    });
+    expect(result).toHaveLength(2);
+    expect(result[0]).toEqual({
+      id: "42",
+      name: "Tempo ride",
+      sport: "Ride",
+      date: "2026-07-20",
+      durationMins: 90,
+      targetLoad: 85,
+      description: "3x20 min Z3",
+    });
+    const url = fn.mock.calls[0][0] as string;
+    expect(url).toContain("/athlete/i1/events");
+    expect(url).toContain("category=WORKOUT");
+  });
+
+  it("returns empty array on non-array response", async () => {
+    mockFetch(200, {});
+    const result = await fetchPlannedWorkouts({
+      apiKey: "test",
+      athleteId: "i1",
+      startDate: "2026-07-20",
+      endDate: "2026-07-27",
+    });
+    expect(result).toEqual([]);
   });
 });
