@@ -6,6 +6,7 @@ import {
   jsonb,
   pgTable,
   real,
+  smallint,
   text,
   timestamp,
   uniqueIndex,
@@ -231,7 +232,7 @@ export const chatThreads = pgTable("chat_threads", {
     .references(() => users.id, { onDelete: "cascade" }),
   title: text("title"),
   // System threads: 'morning' holds the daily proactive coach insight.
-  kind: text("kind", { enum: ["chat", "morning"] })
+  kind: text("kind", { enum: ["chat", "morning", "weekly"] })
     .notNull()
     .default("chat"),
   // Ghost threads: auto-purged by the scheduler 24h after last activity.
@@ -382,6 +383,8 @@ export const notificationPrefs = pgTable("notification_prefs", {
     .references(() => users.id, { onDelete: "cascade" }),
   morningPushEnabled: boolean("morning_push_enabled").notNull().default(true),
   lastMorningPushDate: date("last_morning_push_date"),
+  weeklyReviewDay: smallint("weekly_review_day").notNull().default(1), // 0=Sun..6=Sat, default Monday
+  weeklyReviewHour: smallint("weekly_review_hour").notNull().default(7), // 0-23, default 7am
 });
 
 // Instance-level key/value config (e.g. auto-generated VAPID keys; secret

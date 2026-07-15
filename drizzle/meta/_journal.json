@@ -43,6 +43,13 @@
       "when": 1784104061988,
       "tag": "0005_wet_doctor_faustus",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1784113032977,
+      "tag": "0006_early_snowbird",
+      "breakpoints": true
     }
   ]
 }

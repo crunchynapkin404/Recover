@@ -1,0 +1,2 @@
+ALTER TABLE "notification_prefs" ADD COLUMN "weekly_review_day" smallint DEFAULT 1 NOT NULL;--> statement-breakpoint
+ALTER TABLE "notification_prefs" ADD COLUMN "weekly_review_hour" smallint DEFAULT 7 NOT NULL;
