@@ -41,8 +41,9 @@ import { getBestEfforts } from "./get-best-efforts";
 import { logWellnessTool } from "./log-wellness";
 import { rememberFact } from "./remember";
 import { forgetFact } from "./forget";
+import { renderChart } from "./render-chart";
 
-/** All registered tools (14 — docs/PLAN.md MCP design + v0.4a memory + v0.4c depth). */
+/** All registered tools (15 — docs/PLAN.md MCP design + v0.4a memory + v0.4c depth + v0.5a artifacts). */
 export const allTools: ToolDefinition[] = [
   getReadiness,
   getReadinessHistory,
@@ -58,6 +59,7 @@ export const allTools: ToolDefinition[] = [
   logWellnessTool,
   rememberFact,
   forgetFact,
+  renderChart,
 ];
 
 /** Required scope for a tool (default "read"). */

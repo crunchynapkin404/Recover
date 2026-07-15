@@ -29,10 +29,8 @@ describe("tool registry", () => {
     }
   });
 
-  it("registers the v0.4c depth tools (14 total)", () => {
-    // Spec said 15, but get_training_load_summary predates v0.4c (P4R),
-    // so only three tools are net-new. See the v0.4c plan header.
-    expect(allTools.length).toBe(14);
+  it("registers the v0.5a artifact tools (15 total)", () => {
+    expect(allTools.length).toBe(15);
     const names = allTools.map((t) => t.name);
     for (const name of [
       "remember_fact",
@@ -41,9 +39,16 @@ describe("tool registry", () => {
       "get_pace_curve",
       "get_best_efforts",
       "get_training_load_summary",
+      "render_chart",
     ]) {
       expect(names).toContain(name);
     }
+  });
+
+  it("render_chart validates chart type enum", () => {
+    const tool = allTools.find((t) => t.name === "render_chart")!;
+    expect(tool.parameters.safeParse({ type: "line", title: "T", series: [{ label: "A", data: [{ x: 1, y: 1 }] }] }).success).toBe(true);
+    expect(tool.parameters.safeParse({ type: "pie", title: "T", series: [{ label: "A", data: [{ x: 1, y: 1 }] }] }).success).toBe(false);
   });
 
   it("curve tools validate the days literal union", () => {
