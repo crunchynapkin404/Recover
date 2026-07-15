@@ -38,7 +38,8 @@ export async function GET(req: Request) {
     client_id: env("GOOGLE_CLIENT_ID"),
     redirect_uri: redirectUri,
     response_type: "code",
-    scope: "https://www.googleapis.com/auth/calendar.readonly",
+    // FreeBusy-only: the narrowest scope that returns busy/free blocks.
+    scope: "https://www.googleapis.com/auth/calendar.freebusy",
     state,
     access_type: "offline",
     prompt: "consent",

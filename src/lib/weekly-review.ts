@@ -1,9 +1,14 @@
 /**
- * Weekly review generator — one proactive summary per user per ISO week,
- * written into a system thread (kind='weekly'). LLM-phrased when a provider
+ * Weekly review generator — one proactive summary per user per review cycle,
+ * written into the weekly thread (kind='weekly'). LLM-phrased when a provider
  * is configured, deterministic template otherwise. Never throws to callers.
+ *
+ * Scheduling: fires from the post-sync hook once the user's configured weekly
+ * slot (day + hour, default Monday 04:00 — before the ~05:00 sync) has passed
+ * and no review exists since that slot. Exact-hour matching would silently
+ * never fire, because syncs run at SYNC_HOUR, not at the user's review hour.
  */
-import { and, desc, eq, gte, lte, sql, count, avg, sum } from "drizzle-orm";
+import { and, desc, eq, gte, lte, ne, count, avg, sum } from "drizzle-orm";
 import { generateText } from "ai";
 import { db, schema } from "@/lib/db";
 import { logger } from "@/lib/logger";
@@ -25,6 +30,20 @@ function isoWeekLabel(d: Date): string {
 
 function localYmd(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/** Most recent occurrence of the configured weekly slot, always in the past week. */
+export function mostRecentSlot(
+  now: Date,
+  reviewDay: number,
+  reviewHour: number
+): Date {
+  const slot = new Date(now);
+  slot.setHours(reviewHour, 0, 0, 0);
+  const dayDiff = (slot.getDay() - reviewDay + 7) % 7;
+  slot.setDate(slot.getDate() - dayDiff);
+  if (slot > now) slot.setDate(slot.getDate() - 7);
+  return slot;
 }
 
 async function findOrCreateWeeklyThread(userId: string) {
@@ -54,10 +73,11 @@ export async function getLatestWeeklyReview(userId: string): Promise<{
     ),
   });
   if (!thread) return null;
+  // Reviews are stored as assistant messages so the thread UI renders them.
   const msg = await db.query.chatMessages.findFirst({
     where: and(
       eq(schema.chatMessages.threadId, thread.id),
-      eq(schema.chatMessages.role, "system")
+      eq(schema.chatMessages.role, "assistant")
     ),
     orderBy: [desc(schema.chatMessages.createdAt)],
   });
@@ -68,33 +88,26 @@ export async function getLatestWeeklyReview(userId: string): Promise<{
 export async function generateWeeklyReview(userId: string): Promise<void> {
   const now = new Date();
 
-  // ── Day/hour guard — only run at user's configured review time ─────────
+  // ── Due-since-slot guard ────────────────────────────────────────────────
   const prefs = await db.query.notificationPrefs.findFirst({
     where: eq(schema.notificationPrefs.userId, userId),
   });
-  const dayOfWeek = now.getDay(); // 0=Sun
-  const hour = now.getHours();
   const reviewDay = prefs?.weeklyReviewDay ?? 1; // default Monday
-  const reviewHour = prefs?.weeklyReviewHour ?? 7; // default 7am
-  if (dayOfWeek !== reviewDay || hour !== reviewHour) return;
+  // Default hour sits BEFORE the daily sync hour so the review lands with
+  // the Monday-morning sync; later hours land on the next sync after them.
+  const reviewHour = prefs?.weeklyReviewHour ?? 4;
+  const slot = mostRecentSlot(now, reviewDay, reviewHour);
 
   const weekLabel = isoWeekLabel(now);
 
-  // ── At-most-once guard ─────────────────────────────────────────────────
+  // ── At-most-once-per-cycle guard ───────────────────────────────────────
   const thread = await findOrCreateWeeklyThread(userId);
   const latest = await db.query.chatMessages.findFirst({
     where: eq(schema.chatMessages.threadId, thread.id),
     orderBy: desc(schema.chatMessages.createdAt),
   });
-  if (latest) {
-    const meta = (latest.toolCalls ?? {}) as { week?: string };
-    if (meta.week === weekLabel) {
-      logger.info("weekly review already exists for this week", {
-        userId,
-        weekLabel,
-      });
-      return;
-    }
+  if (latest && latest.createdAt >= slot) {
+    return; // already reviewed this cycle
   }
 
   // ── Skip if insufficient data ──────────────────────────────────────────
@@ -104,15 +117,17 @@ export async function generateWeeklyReview(userId: string): Promise<void> {
   fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
 
   const sevenAgoYmd = localYmd(sevenDaysAgo);
-  const fourteenAgoYmd = localYmd(fourteenDaysAgo);
   const todayYmd = localYmd(now);
 
+  // Strava-sourced rows are excluded from every aggregate below: these
+  // numbers feed the LLM prompt and plan adherence (Strava API AI clause).
   const [activityCount] = await db
     .select({ n: count() })
     .from(schema.activities)
     .where(
       and(
         eq(schema.activities.userId, userId),
+        ne(schema.activities.provider, "strava"),
         gte(schema.activities.startDate, sevenDaysAgo)
       )
     );
@@ -128,7 +143,6 @@ export async function generateWeeklyReview(userId: string): Promise<void> {
   // ── Gather this week's data ────────────────────────────────────────────
   const [thisWeekMetrics] = await db
     .select({
-      totalLoad: sum(schema.dailyMetrics.tsb).mapWith(Number), // placeholder; use activities
       avgReadiness: avg(schema.dailyMetrics.readiness).mapWith(Number),
     })
     .from(schema.dailyMetrics)
@@ -149,6 +163,7 @@ export async function generateWeeklyReview(userId: string): Promise<void> {
     .where(
       and(
         eq(schema.activities.userId, userId),
+        ne(schema.activities.provider, "strava"),
         gte(schema.activities.startDate, sevenDaysAgo)
       )
     );
@@ -163,21 +178,9 @@ export async function generateWeeklyReview(userId: string): Promise<void> {
     .where(
       and(
         eq(schema.activities.userId, userId),
+        ne(schema.activities.provider, "strava"),
         gte(schema.activities.startDate, fourteenDaysAgo),
         lte(schema.activities.startDate, sevenDaysAgo)
-      )
-    );
-
-  const [prevWeekMetrics] = await db
-    .select({
-      avgReadiness: avg(schema.dailyMetrics.readiness).mapWith(Number),
-    })
-    .from(schema.dailyMetrics)
-    .where(
-      and(
-        eq(schema.dailyMetrics.userId, userId),
-        gte(schema.dailyMetrics.date, fourteenAgoYmd),
-        lte(schema.dailyMetrics.date, sevenAgoYmd)
       )
     );
 
@@ -210,56 +213,35 @@ export async function generateWeeklyReview(userId: string): Promise<void> {
     (latestWellness?.ctl ?? 0) - (prevWellness?.ctl ?? 0)
   );
 
-  // ── Check for active training plan ─────────────────────────────────────
+  // ── Plan adherence (read-only here; writes happen after the review is
+  //    stored, so a crash can't advance the plan without a review) ─────────
   const activePlan = await db.query.trainingPlans.findFirst({
     where: and(
       eq(schema.trainingPlans.userId, userId),
       eq(schema.trainingPlans.status, "active")
     ),
+    orderBy: desc(schema.trainingPlans.createdAt),
   });
 
-  let planAdherence: {
-    weekNumber: number;
-    targetLoad: number;
-    actualLoad: number;
-    adherencePct: number;
-  } | null = null;
+  const currentBlock = activePlan
+    ? await db.query.trainingBlocks.findFirst({
+        where: and(
+          eq(schema.trainingBlocks.planId, activePlan.id),
+          eq(schema.trainingBlocks.weekNumber, activePlan.currentWeek)
+        ),
+      })
+    : null;
 
-  if (activePlan) {
-    const currentBlock = await db.query.trainingBlocks.findFirst({
-      where: and(
-        eq(schema.trainingBlocks.planId, activePlan.id),
-        eq(schema.trainingBlocks.weekNumber, activePlan.currentWeek)
-      ),
-    });
-    if (currentBlock) {
-      const adherencePct = currentBlock.targetLoadTotal
-        ? Math.round((weekLoad / currentBlock.targetLoadTotal) * 100)
-        : null;
-      // Update the block with actual data
-      await db
-        .update(schema.trainingBlocks)
-        .set({
-          actualLoad: weekLoad,
-          actualSessions: sessions,
-          adherencePct: adherencePct,
-        })
-        .where(eq(schema.trainingBlocks.id, currentBlock.id));
-
-      // Advance current_week on the plan
-      await db
-        .update(schema.trainingPlans)
-        .set({ currentWeek: activePlan.currentWeek + 1 })
-        .where(eq(schema.trainingPlans.id, activePlan.id));
-
-      planAdherence = {
+  const planAdherence = currentBlock
+    ? {
         weekNumber: currentBlock.weekNumber,
         targetLoad: currentBlock.targetLoadTotal ?? 0,
         actualLoad: weekLoad,
-        adherencePct: adherencePct ?? 0,
-      };
-    }
-  }
+        adherencePct: currentBlock.targetLoadTotal
+          ? Math.round((weekLoad / currentBlock.targetLoadTotal) * 100)
+          : 0,
+      }
+    : null;
 
   // ── Generate review ────────────────────────────────────────────────────
   const templateText =
@@ -286,14 +268,13 @@ export async function generateWeeklyReview(userId: string): Promise<void> {
           : "") +
         `\n## Instructions\n` +
         `- Lead with the headline: bigger/smaller/recovery week\n` +
-        `- Use render_chart with type "bar", title "Daily Load", one series with each day's load\n` +
         `- Comment on readiness trend and recovery quality\n` +
         `- End with one actionable suggestion for next week\n` +
-        `- Keep it to 3-4 sentences + the chart`;
+        `- Keep it to 3-4 sentences. Plain text only — no tool calls, no charts.`;
 
-      const [user] = await Promise.all([
-        db.query.users.findFirst({ where: eq(schema.users.id, userId) }),
-      ]);
+      const user = await db.query.users.findFirst({
+        where: eq(schema.users.id, userId),
+      });
       const system = buildSystemPrompt({
         userName: user?.name ?? "the athlete",
         todayDate: todayYmd,
@@ -315,10 +296,10 @@ export async function generateWeeklyReview(userId: string): Promise<void> {
     });
   }
 
-  // ── Store ──────────────────────────────────────────────────────────────
+  // ── Store (assistant role so the thread UI renders it) ────────────────
   await db.insert(schema.chatMessages).values({
     threadId: thread.id,
-    role: "system",
+    role: "assistant",
     content: text,
     toolCalls: {
       week: weekLabel,
@@ -329,6 +310,28 @@ export async function generateWeeklyReview(userId: string): Promise<void> {
     .update(schema.chatThreads)
     .set({ updatedAt: now })
     .where(eq(schema.chatThreads.id, thread.id));
+
+  // ── Plan side-effects LAST: the stored review is the idempotency marker,
+  //    so a retry after a crash here can at worst redo these writes once ──
+  if (activePlan && currentBlock && planAdherence) {
+    await db
+      .update(schema.trainingBlocks)
+      .set({
+        actualLoad: weekLoad,
+        actualSessions: sessions,
+        adherencePct: planAdherence.adherencePct,
+      })
+      .where(eq(schema.trainingBlocks.id, currentBlock.id));
+    await db
+      .update(schema.trainingPlans)
+      .set({ currentWeek: activePlan.currentWeek + 1 })
+      .where(
+        and(
+          eq(schema.trainingPlans.id, activePlan.id),
+          eq(schema.trainingPlans.currentWeek, activePlan.currentWeek)
+        )
+      );
+  }
 
   logger.info("weekly review generated", {
     userId,

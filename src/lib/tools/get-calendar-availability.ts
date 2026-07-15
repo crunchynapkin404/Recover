@@ -2,8 +2,10 @@ import { z } from "zod";
 import type { ToolDefinition, ToolContext } from "./registry";
 import { db, schema } from "@/lib/db";
 import { and, eq } from "drizzle-orm";
-import { decrypt } from "@/lib/crypto";
-import { fetchBusyTimes } from "@/lib/connectors/google-calendar";
+import {
+  fetchBusyTimes,
+  getValidGoogleAccessToken,
+} from "@/lib/connectors/google-calendar";
 
 const parameters = z.object({
   days: z
@@ -33,7 +35,7 @@ async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
     .slice(0, 10);
 
   try {
-    const accessToken = decrypt(connection.encryptedAccessToken);
+    const accessToken = await getValidGoogleAccessToken(connection);
     const busyBlocks = await fetchBusyTimes({
       accessToken,
       startDate,

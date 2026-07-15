@@ -8,28 +8,55 @@ export interface CalendarBusyBlock {
   summary?: string;
 }
 
-/** Refresh the Google access token using the stored refresh token. */
-export async function refreshAccessToken(
-  connectionId: string,
-  refreshToken: string
+type Connection = typeof schema.connections.$inferSelect;
+
+const REFRESH_MARGIN_S = 120;
+
+/**
+ * Return a valid access token, refreshing via the stored refresh token when
+ * the current one is near expiry. Google refresh tokens are reusable (unlike
+ * Strava's single-use tokens), so no advisory lock is needed here.
+ */
+export async function getValidGoogleAccessToken(
+  connection: Connection
 ): Promise<string> {
+  const expiresAt = connection.expiresAt?.getTime() ?? 0;
+  if (expiresAt > Date.now() + REFRESH_MARGIN_S * 1000) {
+    return decrypt(connection.encryptedAccessToken);
+  }
+  if (!connection.encryptedRefreshToken) {
+    // No refresh token (user didn't grant offline access) — best effort.
+    return decrypt(connection.encryptedAccessToken);
+  }
+
   const res = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
       client_id: process.env.GOOGLE_CLIENT_ID!,
       client_secret: process.env.GOOGLE_CLIENT_SECRET!,
-      refresh_token: refreshToken,
+      refresh_token: decrypt(connection.encryptedRefreshToken),
       grant_type: "refresh_token",
     }),
   });
   if (!res.ok) throw new Error(`Google token refresh failed: ${res.status}`);
-  const data = await res.json();
-  // Update stored access token
+  const data = (await res.json()) as {
+    access_token: string;
+    expires_in?: number;
+  };
+
   await db
     .update(schema.connections)
-    .set({ encryptedAccessToken: encrypt(data.access_token) })
-    .where(eq(schema.connections.id, connectionId));
+    .set({
+      encryptedAccessToken: encrypt(data.access_token),
+      expiresAt: data.expires_in
+        ? new Date(Date.now() + data.expires_in * 1000)
+        : null,
+      status: "active",
+      lastError: null,
+    })
+    .where(eq(schema.connections.id, connection.id));
+
   return data.access_token;
 }
 

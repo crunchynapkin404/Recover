@@ -17,7 +17,7 @@ import { SleepCard } from "@/components/dashboard/sleep-card";
 import { WeeklySummary } from "@/components/dashboard/weekly-summary";
 import { BodyBatteryCurve } from "@/components/dashboard/body-battery";
 import { BehaviorTags } from "@/components/dashboard/behavior-tags";
-import type { Band, ComponentScores } from "@/lib/readiness";
+import type { Band } from "@/lib/readiness";
 import { formatDay, formatDuration, formatKm } from "@/lib/format";
 
 function daysAgo(n: number): string {
@@ -140,12 +140,6 @@ export default async function DashboardPage() {
     [...metrics].reverse().find((m) => m.readiness != null) ?? metrics.at(-1);
   const band = (todayMetric?.band ?? "calibrating") as Band;
   const readiness = todayMetric?.readiness ?? 0;
-  const components = (todayMetric?.componentScores ?? {
-    hrv: null,
-    rhr: null,
-    sleep: null,
-    form: null,
-  }) as ComponentScores;
 
   // ── Onboarding ──────────────────────────────────────────────────────────
   if (!connection && wellness.length === 0) {
