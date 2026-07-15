@@ -6,6 +6,8 @@ import { IntervalsCard } from "@/components/settings/intervals-card";
 import { NotificationsCard } from "@/components/settings/notifications-card";
 import { getVapidKeys } from "@/lib/push";
 import { LlmSettingsCard } from "@/components/settings/llm-settings-card";
+import { CoachCard } from "@/components/settings/coach-card";
+import { listMemories } from "@/lib/coach-memory";
 import { ApiTokensCard } from "@/components/settings/api-tokens-card";
 import { StravaCard } from "@/components/settings/strava-card";
 import { SignOutButton } from "@/components/sign-out-button";
@@ -37,6 +39,8 @@ export default async function SettingsPage({
   const llmSettings = await db.query.llmSettings.findFirst({
     where: eq(schema.llmSettings.userId, user.id),
   });
+
+  const coachMemories = await listMemories(user.id);
 
   const apiTokens = await db.query.apiTokens.findMany({
     where: and(
@@ -142,11 +146,25 @@ export default async function SettingsPage({
               ? {
                   providerType: llmSettings.providerType,
                   model: llmSettings.model,
+                  modelQuick: llmSettings.modelQuick,
+                  modelDeep: llmSettings.modelDeep,
+                  defaultMode: llmSettings.defaultMode,
                   baseUrl: llmSettings.baseUrl,
                   hasKey: !!llmSettings.encryptedApiKey,
                 }
               : null
           }
+        />
+
+        {/* Coach personality & memory */}
+        <CoachCard
+          configured={!!llmSettings}
+          personality={llmSettings?.coachPersonality ?? "encouraging"}
+          memories={coachMemories.map((m) => ({
+            id: m.id,
+            category: m.category,
+            content: m.content,
+          }))}
         />
 
         {/* MCP Tokens */}

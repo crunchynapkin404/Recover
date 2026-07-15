@@ -22,20 +22,41 @@ export async function saveLlmSettings(
     return { ok: false, message: "Invalid provider type." };
   }
 
-  const model = String(formData.get("model") ?? "").trim();
-  if (!model) {
-    return { ok: false, message: "Model name is required." };
+  const modelQuick = String(formData.get("modelQuick") ?? "").trim();
+  const modelDeep = String(formData.get("modelDeep") ?? "").trim();
+  const defaultMode =
+    formData.get("defaultMode") === "quick"
+      ? ("quick" as const)
+      : ("deep" as const);
+  if (!modelQuick || !modelDeep) {
+    return { ok: false, message: "Both model fields are required." };
   }
+  // Legacy column mirrors the deep slot (fallback for pre-v0.4 code paths).
+  const model = modelDeep;
 
   const apiKey = String(formData.get("apiKey") ?? "").trim();
   const baseUrl = String(formData.get("baseUrl") ?? "").trim() || null;
 
-  // Anthropic requires an API key; Ollama/local may not
-  if (providerType === "anthropic" && !apiKey) {
+  const existing = await db.query.llmSettings.findFirst({
+    where: eq(schema.llmSettings.userId, user.id),
+  });
+
+  // Anthropic requires an API key; Ollama/local may not. A blank key on an
+  // existing config means "keep the stored key" (matches the UI placeholder).
+  if (providerType === "anthropic" && !apiKey && !existing?.encryptedApiKey) {
     return { ok: false, message: "Anthropic API key is required." };
   }
 
-  const encryptedApiKey = apiKey ? encrypt(apiKey) : null;
+  const set: Partial<typeof schema.llmSettings.$inferInsert> = {
+    providerType,
+    model,
+    modelQuick,
+    modelDeep,
+    defaultMode,
+    baseUrl,
+    updatedAt: new Date(),
+  };
+  if (apiKey) set.encryptedApiKey = encrypt(apiKey);
 
   await db
     .insert(schema.llmSettings)
@@ -43,18 +64,15 @@ export async function saveLlmSettings(
       userId: user.id,
       providerType,
       model,
-      encryptedApiKey,
+      modelQuick,
+      modelDeep,
+      defaultMode,
+      encryptedApiKey: apiKey ? encrypt(apiKey) : null,
       baseUrl,
     })
     .onConflictDoUpdate({
       target: schema.llmSettings.userId,
-      set: {
-        providerType,
-        model,
-        encryptedApiKey,
-        baseUrl,
-        updatedAt: new Date(),
-      },
+      set,
     });
 
   revalidatePath("/settings");

@@ -23,6 +23,9 @@ interface Props {
   settings: {
     providerType: "anthropic" | "openai_compatible";
     model: string;
+    modelQuick: string | null;
+    modelDeep: string | null;
+    defaultMode: "quick" | "deep";
     baseUrl: string | null;
     hasKey: boolean;
   } | null;
@@ -93,19 +96,48 @@ export function LlmSettingsCard({ settings }: Props) {
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor="model">Model</Label>
+            <Label htmlFor="modelQuick">Quick model (fast answers)</Label>
             <Input
-              id="model"
-              name="model"
+              id="modelQuick"
+              name="modelQuick"
               type="text"
-              defaultValue={settings?.model ?? ""}
+              defaultValue={settings?.modelQuick ?? settings?.model ?? ""}
               placeholder={
                 providerType === "anthropic"
-                  ? "claude-sonnet-4-20250514"
+                  ? "claude-haiku-4-5"
                   : "llama3.1:8b"
               }
               required
             />
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="modelDeep">Deep model (hard questions)</Label>
+            <Input
+              id="modelDeep"
+              name="modelDeep"
+              type="text"
+              defaultValue={settings?.modelDeep ?? settings?.model ?? ""}
+              placeholder={
+                providerType === "anthropic"
+                  ? "claude-opus-4-8"
+                  : "llama3.1:70b"
+              }
+              required
+            />
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="defaultMode">Default thinking mode</Label>
+            <select
+              id="defaultMode"
+              name="defaultMode"
+              defaultValue={settings?.defaultMode ?? "deep"}
+              className="border-input bg-background flex h-9 w-full rounded-md border px-3 py-1 text-sm"
+            >
+              <option value="deep">Deep</option>
+              <option value="quick">Quick</option>
+            </select>
           </div>
 
           <div className="grid gap-2">
