@@ -114,4 +114,41 @@ describe.skipIf(!hasDb)("description field selection — write guard", () => {
     expect(outcome.generated).toContain("🚴 Guard ride");
     expect(outcome.generated).toContain("TL 85 | IF 87%");
   });
+
+  it("previews against the user's most recent real activity", async () => {
+    const { previewDescription } = await import("@/lib/strava-describer");
+    const preview = await previewDescription(USER, {
+      header: true,
+      load: true,
+    });
+
+    expect(preview.sample).toBe(false);
+    expect(preview.text).toContain("🚴 Guard ride");
+    expect(preview.text).toContain("TL 85");
+    // The marker is appended at write time, not part of the generated block.
+    expect(preview.text).not.toContain("📊 Recover");
+  });
+
+  it("falls back to sample data for a user with no raw activities", async () => {
+    const { db, schema } = await import("@/lib/db");
+    const EMPTY = "test-desc-fields-empty";
+    await db
+      .insert(schema.users)
+      .values({ id: EMPTY, name: "Empty", email: "dfe@example.invalid" })
+      .onConflictDoNothing();
+
+    const { previewDescription } = await import("@/lib/strava-describer");
+    const preview = await previewDescription(EMPTY, null);
+
+    expect(preview.sample).toBe(true);
+    expect(preview.text).toContain("🚴");
+    expect(preview.text.length).toBeGreaterThan(0);
+
+    await db.delete(schema.users).where(eq(schema.users.id, EMPTY));
+  });
+
+  it("previews an empty string when every field is disabled", async () => {
+    const { previewDescription } = await import("@/lib/strava-describer");
+    expect((await previewDescription(USER, {})).text).toBe("");
+  });
 });

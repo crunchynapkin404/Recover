@@ -324,6 +324,56 @@ export async function describeActivityOnStrava(params: {
   return { wrote: true, generated };
 }
 
+// ── Preview (settings UI) ────────────────────────────────────────────────────
+
+/** Canned data for users with no synced activity yet. Plausible, not real. */
+export const SAMPLE_PREVIEW_INPUT: DescriptionInput = {
+  title: "Zone 2 endurance",
+  sport: "Ride",
+  load: 82,
+  intensityPct: 87,
+  trimp: 141,
+  powerHrRatio: 1.83,
+  decouplingPct: 4.2,
+  carbsPerHour: 62,
+  paceSecPerKm: null,
+  ctl: 71,
+  tsb: -8,
+  ftpW: 288,
+  vo2max: 54.1,
+  prLines: ["594W/1m — all-time PR"],
+};
+
+/**
+ * Render what a candidate field set would publish, against the athlete's most
+ * recent real activity when one exists. The returned text is the generated
+ * block only — the marker is appended at write time.
+ */
+export async function previewDescription(
+  userId: string,
+  fields: DescriptionFields
+): Promise<{ text: string; sample: boolean }> {
+  const recent = await db.query.activities.findMany({
+    where: and(
+      eq(schema.activities.userId, userId),
+      eq(schema.activities.provider, "intervals_icu")
+    ),
+    orderBy: [desc(schema.activities.startDate)],
+    limit: 20,
+  });
+  const target = recent.find((a) => a.raw != null);
+  if (!target) {
+    return {
+      text: formatActivityDescription(SAMPLE_PREVIEW_INPUT, fields),
+      sample: true,
+    };
+  }
+  return {
+    text: await buildGeneratedDescription(userId, target, fields),
+    sample: false,
+  };
+}
+
 export interface AutoDescribeResult {
   written: number;
   skipped: number;
