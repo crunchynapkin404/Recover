@@ -393,3 +393,31 @@ export const appConfig = pgTable("app_config", {
     .notNull()
     .defaultNow(),
 });
+
+/**
+ * v0.4c — cached athlete-level curves/best-efforts fetched precomputed from
+ * intervals.icu (6 h TTL in src/lib/athlete-curves.ts; stale-if-error).
+ * `params` is the canonicalized query string, e.g. "days=90".
+ */
+export const athleteCurves = pgTable(
+  "athlete_curves",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    kind: text("kind", { enum: ["power", "pace", "best_efforts"] }).notNull(),
+    params: text("params").notNull(),
+    data: jsonb("data").notNull(),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("athlete_curves_user_kind_params_uq").on(
+      t.userId,
+      t.kind,
+      t.params
+    ),
+  ]
+);
