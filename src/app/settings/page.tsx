@@ -123,6 +123,7 @@ export default async function SettingsPage({
           <StravaCard
             configured={!!process.env.STRAVA_CLIENT_ID}
             errorParam={strava_error}
+            autoDescribe={notificationPrefs?.autoDescribeStrava ?? false}
             connection={
               stravaConnection
                 ? {
@@ -133,6 +134,7 @@ export default async function SettingsPage({
                     lastSyncAt:
                       stravaConnection.lastSyncAt?.toISOString() ?? null,
                     lastError: stravaConnection.lastError,
+                    writeEnabled: stravaConnection.stravaWriteEnabled,
                   }
                 : null
             }

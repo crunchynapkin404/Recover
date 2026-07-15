@@ -42,3 +42,15 @@ export async function stravaDisconnect(): Promise<ActionResult> {
   revalidatePath("/settings");
   return { ok: true, message: "Strava disconnected. Synced data is kept." };
 }
+
+export async function setAutoDescribeStrava(enabled: boolean): Promise<void> {
+  const user = await requireUser();
+  await db
+    .insert(schema.notificationPrefs)
+    .values({ userId: user.id, autoDescribeStrava: enabled })
+    .onConflictDoUpdate({
+      target: schema.notificationPrefs.userId,
+      set: { autoDescribeStrava: enabled },
+    });
+  revalidatePath("/settings");
+}
