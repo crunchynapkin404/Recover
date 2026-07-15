@@ -168,6 +168,20 @@ export async function runSchedulerTick(
         kind: "incremental",
         runAfter: nextMorning(),
       });
+      // Morning coach insight — must run before the push so the teaser
+      // exists; guards inside make it at-most-once/day, errors never
+      // touch the sync job.
+      try {
+        const { generateMorningInsight } = await import(
+          "@/lib/morning-insight"
+        );
+        await generateMorningInsight(job.userId);
+      } catch (err) {
+        logger.error("morning insight failed", {
+          userId: job.userId,
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
       // Morning readiness push — guards inside make this at-most-once/day.
       try {
         const { maybeSendMorningReadinessPush } = await import("@/lib/push");
