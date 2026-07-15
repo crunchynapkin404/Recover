@@ -424,3 +424,54 @@ export const athleteCurves = pgTable(
     ),
   ]
 );
+
+// ── v0.5d Training Plan Generation ──────────────────────────────────────────
+
+export const trainingPlans = pgTable(
+  "training_plans",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    raceType: text("race_type").notNull(),
+    raceDate: date("race_date").notNull(),
+    startDate: date("start_date").notNull(),
+    weeksTotal: smallint("weeks_total").notNull(),
+    currentWeek: smallint("current_week").notNull().default(1),
+    targetCtl: real("target_ctl"),
+    startingCtl: real("starting_ctl"),
+    status: text("status", { enum: ["active", "completed", "archived"] })
+      .notNull()
+      .default("active"),
+    constraints: jsonb("constraints"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("training_plans_user_status_idx").on(t.userId, t.status),
+  ]
+);
+
+export const trainingBlocks = pgTable(
+  "training_blocks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    planId: uuid("plan_id")
+      .notNull()
+      .references(() => trainingPlans.id, { onDelete: "cascade" }),
+    weekNumber: smallint("week_number").notNull(),
+    phase: text("phase", { enum: ["base", "build", "peak", "taper", "recovery"] }).notNull(),
+    targetLoadTotal: real("target_load_total"),
+    targetSessions: smallint("target_sessions"),
+    workouts: jsonb("workouts").notNull(),
+    actualLoad: real("actual_load"),
+    actualSessions: smallint("actual_sessions"),
+    adherencePct: real("adherence_pct"),
+    notes: text("notes"),
+  },
+  (t) => [
+    uniqueIndex("training_blocks_plan_week_uq").on(t.planId, t.weekNumber),
+  ]
+);
