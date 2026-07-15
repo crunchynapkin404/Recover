@@ -1,0 +1,2 @@
+ALTER TABLE "connections" ADD COLUMN "strava_write_enabled" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+ALTER TABLE "notification_prefs" ADD COLUMN "auto_describe_strava" boolean DEFAULT false NOT NULL;

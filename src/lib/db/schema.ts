@@ -106,6 +106,11 @@ export const connections = pgTable(
       .default("active"),
     lastSyncAt: timestamp("last_sync_at", { withTimezone: true }),
     lastError: text("last_error"),
+    // v0.6: true only when the OAuth grant includes activity:write
+    // (Strava description write-back). Flipped false on write auth failures.
+    stravaWriteEnabled: boolean("strava_write_enabled")
+      .notNull()
+      .default(false),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -387,6 +392,8 @@ export const notificationPrefs = pgTable("notification_prefs", {
   lastMorningPushDate: date("last_morning_push_date"),
   weeklyReviewDay: smallint("weekly_review_day").notNull().default(1), // 0=Sun..6=Sat, default Monday
   weeklyReviewHour: smallint("weekly_review_hour").notNull().default(7), // 0-23, default 7am
+  // v0.6: opt-in Strava auto-describe (write-back of intervals.icu metrics).
+  autoDescribeStrava: boolean("auto_describe_strava").notNull().default(false),
 });
 
 // Instance-level key/value config (e.g. auto-generated VAPID keys; secret

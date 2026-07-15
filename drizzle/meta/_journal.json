@@ -57,6 +57,13 @@
       "when": 1784115290309,
       "tag": "0007_dark_stone_men",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1784122265081,
+      "tag": "0008_military_wolfsbane",
+      "breakpoints": true
     }
   ]
 }
