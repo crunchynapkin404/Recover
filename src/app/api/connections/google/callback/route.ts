@@ -1,6 +1,7 @@
 import { cookies, headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { publicBaseUrl } from "@/lib/base-url";
 import { db, schema } from "@/lib/db";
 import { encrypt } from "@/lib/crypto";
 import { logger } from "@/lib/logger";
@@ -41,7 +42,7 @@ export async function GET(req: Request) {
   try {
     const redirectUri = new URL(
       "/api/connections/google/callback",
-      req.url
+      publicBaseUrl(req)
     ).toString();
 
     const res = await fetch("https://oauth2.googleapis.com/token", {

@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { cookies, headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { publicBaseUrl } from "@/lib/base-url";
 import { buildAuthorizeUrl } from "@/lib/connectors/strava";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +17,7 @@ export async function GET(req: Request) {
   const state = randomBytes(16).toString("hex");
   const redirectUri = new URL(
     "/api/connections/strava/callback",
-    req.url
+    publicBaseUrl(req)
   ).toString();
 
   const jar = await cookies();
