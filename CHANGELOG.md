@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.6.2 — Strava description fields
+## v0.6.2 — 2026-07-16 — Strava description fields
 
 - **Field selection**: choose which metrics appear in your Strava descriptions, with a live preview rendered against your most recent activity
 - Users who never customize keep the full v0.6 template unchanged
