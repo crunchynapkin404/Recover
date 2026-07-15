@@ -38,12 +38,13 @@ import { getTrainingLoadSummary } from "./get-training-load-summary";
 import { getPowerCurve } from "./get-power-curve";
 import { getPaceCurve } from "./get-pace-curve";
 import { getBestEfforts } from "./get-best-efforts";
+import { getPlannedWorkouts } from "./get-planned-workouts";
 import { logWellnessTool } from "./log-wellness";
 import { rememberFact } from "./remember";
 import { forgetFact } from "./forget";
 import { renderChart } from "./render-chart";
 
-/** All registered tools (15 — docs/PLAN.md MCP design + v0.4a memory + v0.4c depth + v0.5a artifacts). */
+/** All registered tools (16 — docs/PLAN.md MCP design + v0.4a memory + v0.4c depth + v0.5a artifacts + v0.5c calendar). */
 export const allTools: ToolDefinition[] = [
   getReadiness,
   getReadinessHistory,
@@ -56,6 +57,7 @@ export const allTools: ToolDefinition[] = [
   getPowerCurve,
   getPaceCurve,
   getBestEfforts,
+  getPlannedWorkouts,
   logWellnessTool,
   rememberFact,
   forgetFact,

@@ -29,8 +29,8 @@ describe("tool registry", () => {
     }
   });
 
-  it("registers the v0.5a artifact tools (15 total)", () => {
-    expect(allTools.length).toBe(15);
+  it("registers the v0.5a artifact tools (16 total)", () => {
+    expect(allTools.length).toBe(16);
     const names = allTools.map((t) => t.name);
     for (const name of [
       "remember_fact",
@@ -40,6 +40,7 @@ describe("tool registry", () => {
       "get_best_efforts",
       "get_training_load_summary",
       "render_chart",
+      "get_planned_workouts",
     ]) {
       expect(names).toContain(name);
     }
@@ -63,6 +64,14 @@ describe("tool registry", () => {
       expect(tool.parameters.safeParse({ days: 365 }).success).toBe(true);
       expect(tool.parameters.safeParse({ days: 45 }).success).toBe(false);
     }
+  });
+
+  it("get_planned_workouts validates days range", () => {
+    const tool = allTools.find((t) => t.name === "get_planned_workouts")!;
+    expect(tool.parameters.safeParse({}).success).toBe(true); // default 7
+    expect(tool.parameters.safeParse({ days: 14 }).success).toBe(true);
+    expect(tool.parameters.safeParse({ days: 0 }).success).toBe(false);
+    expect(tool.parameters.safeParse({ days: 15 }).success).toBe(false);
   });
 
   it("remember_fact is a no-op in ghost threads", async () => {
