@@ -1,4 +1,4 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, lt, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { logger } from "@/lib/logger";
 
@@ -198,8 +198,33 @@ export async function runSchedulerTick(
     }
   }
 
+  // Ghost-thread housekeeping — guarded like the push hook: never break the tick.
+  try {
+    const purged = await purgeEphemeralThreads();
+    if (purged > 0) logger.info("ghost threads purged", { purged });
+  } catch (err) {
+    logger.error("ghost purge failed", {
+      message: err instanceof Error ? err.message : String(err),
+    });
+  }
+
   if (claimed.length > 0) {
     logger.info("scheduler tick", { claimed: claimed.length, failed });
   }
   return { claimed: claimed.length, failed };
+}
+
+/** Delete ghost (ephemeral) threads idle for 24h; messages cascade. */
+export async function purgeEphemeralThreads(): Promise<number> {
+  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const rows = await db
+    .delete(schema.chatThreads)
+    .where(
+      and(
+        eq(schema.chatThreads.ephemeral, true),
+        lt(schema.chatThreads.updatedAt, cutoff)
+      )
+    )
+    .returning();
+  return rows.length;
 }
