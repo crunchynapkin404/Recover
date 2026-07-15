@@ -29,8 +29,8 @@ describe("tool registry", () => {
     }
   });
 
-  it("registers the v0.5c calendar tools (17 total)", () => {
-    expect(allTools.length).toBe(17);
+  it("registers the v0.5d training plan tools (20 total)", () => {
+    expect(allTools.length).toBe(20);
     const names = allTools.map((t) => t.name);
     for (const name of [
       "remember_fact",
@@ -42,6 +42,9 @@ describe("tool registry", () => {
       "render_chart",
       "get_planned_workouts",
       "get_calendar_availability",
+      "generate_training_plan",
+      "get_training_plan",
+      "update_training_plan",
     ]) {
       expect(names).toContain(name);
     }
@@ -142,6 +145,60 @@ describe("tool registry", () => {
       true
     );
     expect(tool.parameters.safeParse({ limit: 50 }).success).toBe(false); // over max
+  });
+
+  it("generate_training_plan validates raceType enum and daysPerWeek range", () => {
+    const tool = allTools.find((t) => t.name === "generate_training_plan")!;
+    expect(
+      tool.parameters.safeParse({ raceType: "marathon", raceDate: "2027-04-01" }).success
+    ).toBe(true);
+    expect(
+      tool.parameters.safeParse({ raceType: "ironman", raceDate: "2027-06-01", daysPerWeek: 6 }).success
+    ).toBe(true);
+    // Invalid race type
+    expect(
+      tool.parameters.safeParse({ raceType: "swimming", raceDate: "2027-04-01" }).success
+    ).toBe(false);
+    // daysPerWeek out of range
+    expect(
+      tool.parameters.safeParse({ raceType: "10k", raceDate: "2027-04-01", daysPerWeek: 2 }).success
+    ).toBe(false);
+    expect(
+      tool.parameters.safeParse({ raceType: "10k", raceDate: "2027-04-01", daysPerWeek: 8 }).success
+    ).toBe(false);
+    // Missing required raceDate
+    expect(
+      tool.parameters.safeParse({ raceType: "marathon" }).success
+    ).toBe(false);
+  });
+
+  it("get_training_plan accepts optional weekNumber", () => {
+    const tool = allTools.find((t) => t.name === "get_training_plan")!;
+    expect(tool.parameters.safeParse({}).success).toBe(true);
+    expect(tool.parameters.safeParse({ weekNumber: 3 }).success).toBe(true);
+    expect(tool.parameters.safeParse({ weekNumber: "three" }).success).toBe(false);
+  });
+
+  it("update_training_plan validates action enum and requires all fields", () => {
+    const tool = allTools.find((t) => t.name === "update_training_plan")!;
+    expect(
+      tool.parameters.safeParse({ weekNumber: 2, action: "reduce_load", reason: "feeling tired" }).success
+    ).toBe(true);
+    expect(
+      tool.parameters.safeParse({ weekNumber: 4, action: "skip_week", reason: "vacation" }).success
+    ).toBe(true);
+    // Invalid action
+    expect(
+      tool.parameters.safeParse({ weekNumber: 2, action: "delete", reason: "test" }).success
+    ).toBe(false);
+    // Missing reason
+    expect(
+      tool.parameters.safeParse({ weekNumber: 2, action: "reduce_load" }).success
+    ).toBe(false);
+    // Missing weekNumber
+    expect(
+      tool.parameters.safeParse({ action: "reduce_load", reason: "test" }).success
+    ).toBe(false);
   });
 });
 

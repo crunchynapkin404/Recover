@@ -44,8 +44,11 @@ import { logWellnessTool } from "./log-wellness";
 import { rememberFact } from "./remember";
 import { forgetFact } from "./forget";
 import { renderChart } from "./render-chart";
+import { generateTrainingPlanTool } from "./generate-training-plan";
+import { getTrainingPlanTool } from "./get-training-plan";
+import { updateTrainingPlanTool } from "./update-training-plan";
 
-/** All registered tools (17 — docs/PLAN.md MCP design + v0.4a memory + v0.4c depth + v0.5a artifacts + v0.5c calendar). */
+/** All registered tools (20 — docs/PLAN.md MCP design + v0.4a memory + v0.4c depth + v0.5a artifacts + v0.5c calendar + v0.5d training plans). */
 export const allTools: ToolDefinition[] = [
   getReadiness,
   getReadinessHistory,
@@ -64,6 +67,9 @@ export const allTools: ToolDefinition[] = [
   rememberFact,
   forgetFact,
   renderChart,
+  generateTrainingPlanTool,
+  getTrainingPlanTool,
+  updateTrainingPlanTool,
 ];
 
 /** Required scope for a tool (default "read"). */
