@@ -116,6 +116,18 @@ describe.skipIf(!hasDb)("MCP security gates", () => {
     expect(JSON.stringify(result.content)).toContain("write:wellness");
   });
 
+  it("rejects remember_fact without write:memory scope", async () => {
+    const { executeToolHandler } = await import("@/lib/mcp/server");
+    const tool = await toolByName("remember_fact");
+    const result = await executeToolHandler(
+      tool,
+      { category: "fact", content: "MCP write attempt" },
+      authExtra(USER_A, ["read", "write:wellness"])
+    );
+    expect(result.isError).toBe(true);
+    expect(JSON.stringify(result.content)).toContain("write:memory");
+  });
+
   it("rejects read tools for a token without the read scope", async () => {
     const { executeToolHandler } = await import("@/lib/mcp/server");
     const tool = await toolByName("get_wellness");

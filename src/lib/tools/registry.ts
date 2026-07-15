@@ -23,6 +23,8 @@ export interface ToolDefinition<T extends z.ZodType = z.ZodType> {
 export interface ToolContext {
   userId: string;
   db: Database;
+  /** True when the request comes from a ghost (ephemeral) thread. */
+  ephemeral?: boolean;
 }
 
 import { getReadiness } from "./get-readiness";
@@ -34,8 +36,10 @@ import { getActivity } from "./get-activity";
 import { getAthleteProfile } from "./get-athlete-profile";
 import { getTrainingLoadSummary } from "./get-training-load-summary";
 import { logWellnessTool } from "./log-wellness";
+import { rememberFact } from "./remember";
+import { forgetFact } from "./forget";
 
-/** All registered tools (9 — docs/PLAN.md MCP design). */
+/** All registered tools (11 — docs/PLAN.md MCP design + v0.4a memory). */
 export const allTools: ToolDefinition[] = [
   getReadiness,
   getReadinessHistory,
@@ -46,6 +50,8 @@ export const allTools: ToolDefinition[] = [
   getAthleteProfile,
   getTrainingLoadSummary,
   logWellnessTool,
+  rememberFact,
+  forgetFact,
 ];
 
 /** Required scope for a tool (default "read"). */

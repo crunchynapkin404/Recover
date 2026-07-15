@@ -48,7 +48,7 @@ export async function saveMemory(
   const [row] = await db
     .insert(schema.coachMemories)
     .values({ userId, category, content: trimmed })
-    .returning({ id: schema.coachMemories.id });
+    .returning();
   return { ok: true, id: row.id };
 }
 
@@ -68,7 +68,7 @@ export async function updateMemory(
         eq(schema.coachMemories.userId, userId)
       )
     )
-    .returning({ id: schema.coachMemories.id });
+    .returning();
   return rows.length > 0;
 }
 
@@ -84,7 +84,7 @@ export async function deleteMemory(
         eq(schema.coachMemories.userId, userId)
       )
     )
-    .returning({ id: schema.coachMemories.id });
+    .returning();
   return rows.length > 0;
 }
 

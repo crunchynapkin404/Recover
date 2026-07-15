@@ -29,6 +29,22 @@ describe("tool registry", () => {
     }
   });
 
+  it("registers the v0.4a coach-memory tools (11 total)", () => {
+    expect(allTools.length).toBe(11);
+    const names = allTools.map((t) => t.name);
+    expect(names).toContain("remember_fact");
+    expect(names).toContain("forget_fact");
+  });
+
+  it("remember_fact is a no-op in ghost threads", async () => {
+    const tool = allTools.find((t) => t.name === "remember_fact")!;
+    const result = await tool.execute(
+      { category: "fact", content: "should not persist" },
+      { userId: "ghost-user", db: {} as never, ephemeral: true }
+    );
+    expect(result).toEqual({ saved: false, reason: "ghost thread" });
+  });
+
   it("tools with no required params accept empty input", () => {
     const noParamTools = [
       "get_readiness",

@@ -14,7 +14,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { and, eq, isNull } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 
-export type Scope = "read" | "write:wellness";
+export type Scope = "read" | "write:wellness" | "write:memory";
 
 export interface TokenInfo {
   userId: string;
@@ -36,7 +36,10 @@ export function lookupPrefixFromHash(hash: string): string {
 function parseScopes(scopesStr: string): Scope[] {
   return scopesStr
     .split("|")
-    .filter((s): s is Scope => s === "read" || s === "write:wellness");
+    .filter(
+      (s): s is Scope =>
+        s === "read" || s === "write:wellness" || s === "write:memory"
+    );
 }
 
 /**
