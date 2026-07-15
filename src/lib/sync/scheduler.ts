@@ -45,6 +45,9 @@ export async function ensureJobsForConnections(): Promise<void> {
   });
 
   for (const c of connections) {
+    // google_calendar doesn't use sync_jobs (no incremental sync pipeline yet)
+    if (c.provider === "google_calendar") continue;
+
     const existing = await db.query.syncJobs.findFirst({
       where: and(
         eq(schema.syncJobs.userId, c.userId),
@@ -79,6 +82,9 @@ export async function requestImmediateSync(userId: string): Promise<void> {
   });
 
   for (const c of conns) {
+    // google_calendar doesn't use sync_jobs (no incremental sync pipeline yet)
+    if (c.provider === "google_calendar") continue;
+
     const bumped = await db
       .update(schema.syncJobs)
       .set({ runAfter: new Date(), updatedAt: new Date() })

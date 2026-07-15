@@ -91,7 +91,7 @@ export const connections = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    provider: text("provider", { enum: ["intervals_icu", "strava"] }).notNull(),
+    provider: text("provider", { enum: ["intervals_icu", "strava", "google_calendar"] }).notNull(),
     // AES-256-GCM encrypted (see lib/crypto.ts). For intervals.icu this is the
     // API key; for Strava, access + refresh tokens.
     encryptedAccessToken: text("encrypted_access_token").notNull(),
