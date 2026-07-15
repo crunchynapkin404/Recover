@@ -1,5 +1,5 @@
 /**
- * v0.6.1 — user-selectable fields for Strava descriptions.
+ * v0.6.2 — user-selectable fields for Strava descriptions.
  *
  * Zero imports on purpose: db/schema.ts types the JSONB column with
  * DescriptionFields, and strava-describer.ts imports db/schema. Anything

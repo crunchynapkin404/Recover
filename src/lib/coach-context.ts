@@ -4,7 +4,7 @@
  * so the coach has ground truth without needing to make tool calls.
  */
 
-import { and, desc, eq, gte } from "drizzle-orm";
+import { and, desc, eq, gte, ne } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
 
@@ -36,7 +36,11 @@ export async function fetchAthleteContext(
       limit: 7,
     }),
     db.query.activities.findMany({
-      where: eq(schema.activities.userId, userId),
+      // Strava rows never reach LLM context (Strava API AI clause).
+      where: and(
+        eq(schema.activities.userId, userId),
+        ne(schema.activities.provider, "strava")
+      ),
       orderBy: desc(schema.activities.startDate),
       limit: 5,
     }),

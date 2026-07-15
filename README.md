@@ -65,12 +65,21 @@ OpenAI-compatible endpoint including a fully local Ollama. Keys are encrypted
   - **Ghost Mode** — ephemeral threads that auto-purge after 24h
   - **Personalities** — Analytical, Encouraging, or Direct tone presets
   - **Overtraining Warnings** — automatic alerts on sustained HRV suppression or RHR spikes
+  - **Training plans** — periodized multi-week plans from your current fitness and a target race date; the coach tracks planned-vs-actual load each week
+  - **Calendar awareness** — optional Google Calendar (FreeBusy) so suggestions fit around work and life
+  - **Artifacts** — the coach can draw inline SVG charts (HRV trends, load vs recovery, PMC) right in the chat
+  - **Weekly review** — a proactive written summary comparing this week's load and recovery to last week
+- **Strava AI descriptions** — opt-in write-back that appends an emoji-rich
+  metrics block (load, IF, TRIMP, form, PRs — from intervals.icu data only)
+  below a separator on your Strava activities. Strava-sourced data is never
+  fed to the AI coach or MCP, per Strava's API terms.
 - **MCP server** — stateless streamable-HTTP endpoint at `/api/mcp` with
-  hashed, scoped (`read` / `write:wellness`), revocable bearer tokens and rate
-  limiting. 14 tools: readiness, wellness, fitness summary, training load
-  (weekly load/duration/distance trend + CTL/ATL/TSB), power curve, pace
-  curve, best efforts, activity detail, activity list, athlete profile,
-  log-wellness, remember/forget (coach memory).
+  hashed, scoped (`read` / `write:wellness` / `write:plan` / `write:memory` /
+  `write:strava`), revocable bearer tokens and rate limiting. 21 tools:
+  readiness (+ history), wellness, log-wellness, fitness & training-load
+  summaries, power/pace curves, best efforts, activity list & detail, athlete
+  profile, planned workouts, calendar availability, coach memory
+  (remember/forget), chart rendering, and training-plan generate/get/update.
 - **Installable PWA** — add it to your phone's home screen; a push
   notification delivers your readiness score every morning, and
   pull-to-refresh or the sync chip pulls fresh data on demand.
@@ -112,12 +121,13 @@ fills a demo account with 90 days of plausible training history (see
 
 ## Status & roadmap
 
-**Current release: v0.4.0** — Coach Intelligence. The full stack: sync,
-readiness, dashboard, journal, analytics depth, installable PWA with morning
-push notifications, AI coach with memory/personalities/proactive insights, 14
-MCP tools including power/pace curves and best efforts. Next up: Training
-Intelligence (v0.5) — AI-generated periodized plans, calendar integration, and
-inline chart artifacts. The full plan lives in
+**Current release: v0.6.1.** The full stack: intervals.icu sync, readiness,
+dashboard, journal, analytics depth, installable PWA with morning push
+notifications, an AI coach with memory/personalities/proactive insights,
+periodized training plans, Google Calendar awareness, inline chart artifacts,
+proactive weekly reviews, opt-in Strava AI activity descriptions, and 21 MCP
+tools. Next up: Body Intelligence (v0.7) — energy bank, biological age, and
+health-record import. The full plan lives in
 [docs/ROADMAP.md](docs/ROADMAP.md).
 
 An honest hobby project built for one owner and about ten friends. If it's
@@ -127,7 +137,7 @@ useful to you, self-host it and make it yours. Issues and PRs welcome — see
 ## Stack
 
 Next.js 16 · TypeScript · Postgres + Drizzle · Better Auth · Tailwind + shadcn
-· Recharts · Vercel AI SDK · @modelcontextprotocol/sdk
+· hand-rolled SVG charts · Vercel AI SDK · @modelcontextprotocol/sdk
 
 ## License
 

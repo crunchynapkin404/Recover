@@ -6,14 +6,8 @@ import { and, eq } from "drizzle-orm";
 const parameters = z.object({
   weekNumber: z.number().int().describe("Week to adjust."),
   action: z
-    .enum([
-      "reduce_load",
-      "increase_load",
-      "swap_rest_day",
-      "skip_week",
-      "extend",
-    ])
-    .describe("Adjustment type."),
+    .enum(["reduce_load", "increase_load", "skip_week"])
+    .describe("Adjustment type (adjusts the week's target load)."),
   reason: z.string().describe("Why the adjustment is being made."),
 });
 
@@ -46,10 +40,6 @@ async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
       break;
     case "skip_week":
       newLoad = 0;
-      break;
-    case "swap_rest_day":
-    case "extend":
-      // These modify the workout structure — for now just add a note
       break;
   }
 

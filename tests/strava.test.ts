@@ -7,7 +7,7 @@ import {
   it,
   vi,
 } from "vitest";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { randomBytes } from "node:crypto";
 
 // Strava layer tests (P5): token refresh under the advisory lock (single

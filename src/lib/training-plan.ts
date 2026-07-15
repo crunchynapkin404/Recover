@@ -3,7 +3,7 @@
  * training plan generator. No LLM dependency; uses template-based
  * periodization with sport-specific workout prescriptions.
  */
-import { desc, eq, and, gte } from "drizzle-orm";
+import { desc, eq, and } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 
 // ── Types ───────────────────────────────────────────────────────────────────
@@ -527,7 +527,19 @@ export async function generateTrainingPlan(
     sports
   );
 
-  // 4. Store in DB
+  // 4. Store in DB — archive any existing active plan first so there is
+  // always at most one active plan per user (adherence/update pick it via
+  // findFirst; multiple actives would make that arbitrary).
+  await db
+    .update(schema.trainingPlans)
+    .set({ status: "archived" })
+    .where(
+      and(
+        eq(schema.trainingPlans.userId, userId),
+        eq(schema.trainingPlans.status, "active")
+      )
+    );
+
   const [plan] = await db
     .insert(schema.trainingPlans)
     .values({

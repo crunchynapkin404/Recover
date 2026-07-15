@@ -26,7 +26,15 @@ export async function createApiToken(
   }
 
   const scopesRaw = String(formData.get("scopes") ?? "read").trim();
-  const validScopes = ["read", "write:wellness", "write:strava"];
+  // Keep in sync with the Scope type in lib/mcp/token-auth.ts and the tools'
+  // declared scopes — every write-capable tool must be authorizable.
+  const validScopes = [
+    "read",
+    "write:wellness",
+    "write:strava",
+    "write:plan",
+    "write:memory",
+  ];
   const scopes = scopesRaw.split("|").filter((s) => validScopes.includes(s));
   if (scopes.length === 0) {
     return { ok: false, message: "At least one scope is required." };

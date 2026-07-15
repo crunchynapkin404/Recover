@@ -94,7 +94,7 @@ function joinSegments(segments: Array<string | null>): string | null {
 
 /**
  * Render the emoji template. Null fields/lines are omitted (no "N/A").
- * `fields` (v0.6.1) gates each metric; null/undefined = every field on.
+ * `fields` (v0.6.2) gates each metric; null/undefined = every field on.
  */
 export function formatActivityDescription(
   input: DescriptionInput,

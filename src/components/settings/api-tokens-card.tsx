@@ -126,8 +126,11 @@ export function ApiTokensCard({ tokens }: Props) {
             >
               <option value="read">Read only</option>
               <option value="read|write:wellness">Read + write wellness</option>
-              <option value="read|write:wellness|write:strava">
-                Read + write wellness + Strava descriptions
+              <option value="read|write:wellness|write:plan|write:memory">
+                Read + write wellness, plans &amp; memory
+              </option>
+              <option value="read|write:wellness|write:plan|write:memory|write:strava">
+                Full access (incl. Strava descriptions)
               </option>
             </select>
           </div>
