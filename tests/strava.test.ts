@@ -183,8 +183,8 @@ describe.skipIf(!hasDb)("strava layer", () => {
       (t) => t.name === "get_training_load_summary"
     )!;
     const summary = (await loadSummary.execute({}, ctx)) as {
-      load_last_7d: number;
+      weeks: Array<{ load: number }>;
     };
-    expect(summary.load_last_7d).toBe(80); // strava's 100 not counted
+    expect(summary.weeks.at(-1)!.load).toBe(80); // strava's 100 not counted
   });
 });

@@ -6,6 +6,7 @@ import {
   localYmd,
   rollingAvg,
   weeklyLoads,
+  weeklyActivitySummaries,
 } from "./charts";
 
 describe("downsample", () => {
@@ -80,5 +81,38 @@ describe("weeklyLoads", () => {
 describe("localYmd", () => {
   it("formats a local date as YYYY-MM-DD with zero padding", () => {
     expect(localYmd(new Date(2026, 0, 5))).toBe("2026-01-05");
+  });
+});
+
+describe("weeklyActivitySummaries", () => {
+  it("buckets load, duration, distance, and sessions by Monday week", () => {
+    const now = new Date();
+    const summaries = weeklyActivitySummaries(
+      [
+        { startDate: now, load: 50, durationS: 3600, distanceM: 30000 },
+        { startDate: now, load: 30, durationS: 1800, distanceM: 10000 },
+      ],
+      4
+    );
+    expect(summaries).toHaveLength(4);
+    const thisWeek = summaries.at(-1)!;
+    expect(thisWeek.load).toBe(80);
+    expect(thisWeek.durationS).toBe(5400);
+    expect(thisWeek.distanceM).toBe(40000);
+    expect(thisWeek.sessions).toBe(2);
+    // trailing zero-filled weeks
+    expect(summaries[0]).toMatchObject({ load: 0, sessions: 0 });
+  });
+
+  it("weeklyLoads stays consistent with the generalized helper", () => {
+    const now = new Date();
+    const acts = [
+      { startDate: now, load: 42, durationS: null, distanceM: null },
+    ];
+    const loads = weeklyLoads(acts, 2);
+    const summaries = weeklyActivitySummaries(acts, 2);
+    expect(loads).toEqual(
+      summaries.map((s) => ({ weekStart: s.weekStart, load: s.load }))
+    );
   });
 });

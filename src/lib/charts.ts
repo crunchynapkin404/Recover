@@ -54,7 +54,7 @@ export function localYmd(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-function mondayOf(d: Date): Date {
+export function mondayOf(d: Date): Date {
   const out = new Date(d.getFullYear(), d.getMonth(), d.getDate());
   const dow = (out.getDay() + 6) % 7; // Mon=0
   out.setDate(out.getDate() - dow);
@@ -66,24 +66,57 @@ export interface WeeklyLoad {
   load: number;
 }
 
+export interface WeeklyActivitySummary {
+  weekStart: string;
+  load: number;
+  durationS: number;
+  distanceM: number;
+  sessions: number;
+}
+
+/** Monday-based weekly totals for the trailing `weeks`, zero-filled. */
+export function weeklyActivitySummaries(
+  activities: {
+    startDate: Date;
+    load: number | null;
+    durationS: number | null;
+    distanceM: number | null;
+  }[],
+  weeks = 12
+): WeeklyActivitySummary[] {
+  const thisMonday = mondayOf(new Date());
+  const out: WeeklyActivitySummary[] = [];
+  for (let w = weeks - 1; w >= 0; w--) {
+    const start = new Date(thisMonday);
+    start.setDate(start.getDate() - w * 7);
+    out.push({
+      weekStart: localYmd(start),
+      load: 0,
+      durationS: 0,
+      distanceM: 0,
+      sessions: 0,
+    });
+  }
+  const index = new Map(out.map((e, i) => [e.weekStart, i]));
+  for (const a of activities) {
+    const i = index.get(localYmd(mondayOf(a.startDate)));
+    if (i == null) continue;
+    out[i].sessions += 1;
+    out[i].load += a.load ?? 0;
+    out[i].durationS += a.durationS ?? 0;
+    out[i].distanceM += a.distanceM ?? 0;
+  }
+  for (const e of out) e.load = Math.round(e.load * 10) / 10;
+  return out;
+}
+
 /** Monday-based weekly load sums for the trailing `weeks`, zero-filled. */
 export function weeklyLoads(
   activities: { startDate: Date; load: number | null }[],
   weeks = 12
 ): WeeklyLoad[] {
-  const thisMonday = mondayOf(new Date());
-  const out: WeeklyLoad[] = [];
-  for (let w = weeks - 1; w >= 0; w--) {
-    const start = new Date(thisMonday);
-    start.setDate(start.getDate() - w * 7);
-    out.push({ weekStart: localYmd(start), load: 0 });
-  }
-  const index = new Map(out.map((e, i) => [e.weekStart, i]));
-  for (const a of activities) {
-    const key = localYmd(mondayOf(a.startDate));
-    const i = index.get(key);
-    if (i != null && a.load != null) out[i].load += a.load;
-  }
-  for (const e of out) e.load = Math.round(e.load * 10) / 10;
-  return out;
+  return weeklyActivitySummaries(
+    activities.map((a) => ({ ...a, durationS: null, distanceM: null })),
+    weeks
+  ).map((s) => ({ weekStart: s.weekStart, load: s.load }));
 }
