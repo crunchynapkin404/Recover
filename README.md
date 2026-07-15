@@ -61,7 +61,10 @@ OpenAI-compatible endpoint including a fully local Ollama. Keys are encrypted
   OpenAI-compatible endpoint (Ollama included).
 - **MCP server** — stateless streamable-HTTP endpoint at `/api/mcp` with
   hashed, scoped (`read` / `write:wellness`), revocable bearer tokens and rate
-  limiting.
+  limiting. 14 tools: readiness, wellness, fitness summary, training load
+  (weekly load/duration/distance trend + CTL/ATL/TSB), power curve, pace
+  curve, best efforts, activity detail, activity list, athlete profile,
+  log-wellness, remember/forget (coach memory).
 - **Installable PWA** — add it to your phone's home screen; a push
   notification delivers your readiness score every morning, and
   pull-to-refresh or the sync chip pulls fresh data on demand.

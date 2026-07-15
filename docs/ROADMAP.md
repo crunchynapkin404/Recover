@@ -48,7 +48,7 @@ The coach becomes a proactive, memory-rich training partner.
 - [ ] **Ghost Mode**: ephemeral threads (`ephemeral: true` column) — auto-purge after 24h via cleanup job; quick Q&A without cluttering history
 - [ ] **Coach Personalities**: selectable tone presets (Analytical, Encouraging, Direct) that modify system prompt preamble; stored in user settings
 - [ ] **Overtraining Warnings**: automatic alerts on sustained HRV suppression (>7 days) or RHR spikes (>10bpm above baseline)
-- [ ] **Extended MCP tools**: power/pace curves, best efforts, training load summaries
+- [x] **Extended MCP tools**: power/pace curves, best efforts, training load summaries
 
 **Done when:** coach memory persists across threads; morning insight appears unasked; ghost threads auto-delete; thinking modes switch the underlying model.
 

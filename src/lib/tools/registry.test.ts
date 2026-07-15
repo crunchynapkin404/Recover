@@ -47,7 +47,11 @@ describe("tool registry", () => {
   });
 
   it("curve tools validate the days literal union", () => {
-    for (const name of ["get_power_curve", "get_pace_curve", "get_best_efforts"]) {
+    for (const name of [
+      "get_power_curve",
+      "get_pace_curve",
+      "get_best_efforts",
+    ]) {
       const tool = allTools.find((t) => t.name === name)!;
       expect(tool.parameters.safeParse({}).success).toBe(true);
       expect(tool.parameters.safeParse({ days: 30 }).success).toBe(true);

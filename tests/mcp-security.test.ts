@@ -181,7 +181,10 @@ describe.skipIf(!hasDb)("MCP security gates", () => {
         {},
         authExtra(USER_A, ["read"])
       );
-      expect(result.isError, `${name} should accept read scope`).toBeUndefined();
+      expect(
+        result.isError,
+        `${name} should accept read scope`
+      ).toBeUndefined();
     }
   });
 

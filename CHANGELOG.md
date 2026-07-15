@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.4.0 — Unreleased
+
+Coach intelligence.
+
+### Added
+
+- MCP depth: `get_power_curve`, `get_pace_curve`, `get_best_efforts` (intervals.icu precomputed, 6 h cache, stale-if-error) and weekly-bucket `get_training_load_summary`.
+
 ## v0.3.0 — 2026-07-14
 
 Analytics depth.
