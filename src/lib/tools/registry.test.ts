@@ -29,9 +29,10 @@ describe("tool registry", () => {
     }
   });
 
-  it("registers the v0.5d training plan tools (20 total)", () => {
-    expect(allTools.length).toBe(20);
+  it("registers the v0.6 strava describe tool (21 total)", () => {
+    expect(allTools.length).toBe(21);
     const names = allTools.map((t) => t.name);
+    expect(names).toContain("describe_strava_activity");
     for (const name of [
       "remember_fact",
       "forget_fact",

@@ -26,7 +26,7 @@ export async function createApiToken(
   }
 
   const scopesRaw = String(formData.get("scopes") ?? "read").trim();
-  const validScopes = ["read", "write:wellness"];
+  const validScopes = ["read", "write:wellness", "write:strava"];
   const scopes = scopesRaw.split("|").filter((s) => validScopes.includes(s));
   if (scopes.length === 0) {
     return { ok: false, message: "At least one scope is required." };

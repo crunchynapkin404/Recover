@@ -14,7 +14,12 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { and, eq, isNull } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 
-export type Scope = "read" | "write:wellness" | "write:memory" | "write:plan";
+export type Scope =
+  | "read"
+  | "write:wellness"
+  | "write:memory"
+  | "write:plan"
+  | "write:strava";
 
 export interface TokenInfo {
   userId: string;
@@ -41,7 +46,8 @@ function parseScopes(scopesStr: string): Scope[] {
         s === "read" ||
         s === "write:wellness" ||
         s === "write:memory" ||
-        s === "write:plan"
+        s === "write:plan" ||
+        s === "write:strava"
     );
 }
 

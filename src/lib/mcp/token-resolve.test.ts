@@ -112,4 +112,16 @@ describe("hasScope", () => {
     };
     expect(hasScope(info, "write:wellness")).toBe(false);
   });
+
+  it("gates write:strava like any other scope", () => {
+    const info: TokenInfo = {
+      userId: "u1",
+      tokenId: "t1",
+      scopes: ["read", "write:strava"],
+    };
+    expect(hasScope(info, "write:strava")).toBe(true);
+    expect(hasScope({ ...info, scopes: ["read"] }, "write:strava")).toBe(
+      false
+    );
+  });
 });
