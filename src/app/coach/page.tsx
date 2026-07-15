@@ -21,10 +21,12 @@ export default async function CoachPage() {
     <AppShell noChrome>
       <ChatInterface
         configured={!!llmSettings}
+        defaultMode={llmSettings?.defaultMode ?? "deep"}
         threads={threads.map((t) => ({
           id: t.id,
           title: t.title ?? "New chat",
           updatedAt: t.updatedAt.toISOString(),
+          ephemeral: t.ephemeral,
         }))}
       />
     </AppShell>

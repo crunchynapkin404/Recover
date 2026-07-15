@@ -4,32 +4,40 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { useCallback, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Plus, Send } from "lucide-react";
+import { ArrowLeft, Ghost, Plus, Send } from "lucide-react";
 
 interface ThreadSummary {
   id: string;
   title: string;
   updatedAt: string;
+  ephemeral: boolean;
 }
 
 interface Props {
   configured: boolean;
+  defaultMode: "quick" | "deep";
   threads: ThreadSummary[];
 }
 
-export function ChatInterface({ configured, threads }: Props) {
+export function ChatInterface({ configured, defaultMode, threads }: Props) {
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
   const [threadList] = useState(threads);
   const [input, setInput] = useState("");
+  const [mode, setMode] = useState<"quick" | "deep">(defaultMode);
+  const [ghost, setGhost] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
         api: "/api/chat",
-        body: { threadId: activeThreadId },
+        body: {
+          threadId: activeThreadId,
+          mode,
+          ephemeral: ghost && !activeThreadId,
+        },
       }),
-    [activeThreadId]
+    [activeThreadId, mode, ghost]
   );
 
   const {
@@ -86,6 +94,7 @@ export function ChatInterface({ configured, threads }: Props) {
 
   const startNewChat = useCallback(() => {
     setActiveThreadId(null);
+    setGhost(false);
     setMessages([]);
   }, [setMessages]);
 
@@ -134,13 +143,33 @@ export function ChatInterface({ configured, threads }: Props) {
               </span>
             </div>
           </div>
-          <button
-            onClick={startNewChat}
-            className="glass flex h-10 w-10 items-center justify-center rounded-full transition-transform active:scale-95"
-          >
-            <Plus className="size-[18px]" />
-          </button>
+          <div className="flex items-center gap-2">
+            {!activeThreadId && (
+              <button
+                onClick={() => setGhost((g) => !g)}
+                aria-pressed={ghost}
+                aria-label="Ghost chat — deletes after 24 hours"
+                className={`glass flex h-10 w-10 items-center justify-center rounded-full transition-transform active:scale-95 ${
+                  ghost ? "bg-purple-500/20 text-purple-300" : "text-white/60"
+                }`}
+              >
+                <Ghost className="size-[18px]" />
+              </button>
+            )}
+            <button
+              onClick={startNewChat}
+              className="glass flex h-10 w-10 items-center justify-center rounded-full transition-transform active:scale-95"
+            >
+              <Plus className="size-[18px]" />
+            </button>
+          </div>
         </div>
+
+        {ghost && !activeThreadId && (
+          <p className="mt-2 text-center text-[9px] font-bold uppercase tracking-widest text-purple-300/70">
+            Ghost chat — deletes in 24 h, coach won&apos;t save memories
+          </p>
+        )}
 
         {/* Thread pills */}
         <div className="hide-scrollbar -mx-6 mt-4 flex gap-2 overflow-x-auto px-6">
@@ -152,19 +181,37 @@ export function ChatInterface({ configured, threads }: Props) {
           >
             Today
           </button>
-          {threadList.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => loadThread(t.id)}
-              className={`glass whitespace-nowrap rounded-full px-4 py-2 text-[10px] font-bold uppercase tracking-wider ${
-                t.id === activeThreadId
-                  ? "bg-white/10 text-white"
-                  : "text-white/50"
-              }`}
-            >
-              {t.title}
-            </button>
-          ))}
+          {threadList
+            .filter((t) => !t.ephemeral)
+            .map((t) => (
+              <button
+                key={t.id}
+                onClick={() => loadThread(t.id)}
+                className={`glass whitespace-nowrap rounded-full px-4 py-2 text-[10px] font-bold uppercase tracking-wider ${
+                  t.id === activeThreadId
+                    ? "bg-white/10 text-white"
+                    : "text-white/50"
+                }`}
+              >
+                {t.title}
+              </button>
+            ))}
+          {threadList
+            .filter((t) => t.ephemeral)
+            .map((t) => (
+              <button
+                key={t.id}
+                onClick={() => loadThread(t.id)}
+                className={`glass flex items-center gap-1.5 whitespace-nowrap rounded-full px-4 py-2 text-[10px] font-bold uppercase tracking-wider ${
+                  t.id === activeThreadId
+                    ? "bg-purple-500/20 text-purple-200"
+                    : "text-purple-300/50"
+                }`}
+              >
+                <Ghost className="size-3" aria-hidden />
+                {t.title}
+              </button>
+            ))}
         </div>
       </header>
 
@@ -260,6 +307,27 @@ export function ChatInterface({ configured, threads }: Props) {
           onSubmit={handleSubmit}
           className="flex items-center gap-2 rounded-[2rem] border border-white/8 bg-white/3 p-2 shadow-2xl backdrop-blur-xl"
         >
+          <div
+            role="group"
+            aria-label="Thinking mode"
+            className="flex shrink-0 rounded-full bg-white/5 p-0.5"
+          >
+            {(["quick", "deep"] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setMode(m)}
+                aria-pressed={mode === m}
+                className={`rounded-full px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-wider transition-colors ${
+                  mode === m
+                    ? "bg-emerald-500/20 text-emerald-400"
+                    : "text-white/40"
+                }`}
+              >
+                {m === "quick" ? "⚡ Quick" : "🧠 Deep"}
+              </button>
+            ))}
+          </div>
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
