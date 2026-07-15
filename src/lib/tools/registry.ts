@@ -35,11 +35,14 @@ import { listActivities } from "./list-activities";
 import { getActivity } from "./get-activity";
 import { getAthleteProfile } from "./get-athlete-profile";
 import { getTrainingLoadSummary } from "./get-training-load-summary";
+import { getPowerCurve } from "./get-power-curve";
+import { getPaceCurve } from "./get-pace-curve";
+import { getBestEfforts } from "./get-best-efforts";
 import { logWellnessTool } from "./log-wellness";
 import { rememberFact } from "./remember";
 import { forgetFact } from "./forget";
 
-/** All registered tools (11 — docs/PLAN.md MCP design + v0.4a memory). */
+/** All registered tools (14 — docs/PLAN.md MCP design + v0.4a memory + v0.4c depth). */
 export const allTools: ToolDefinition[] = [
   getReadiness,
   getReadinessHistory,
@@ -49,6 +52,9 @@ export const allTools: ToolDefinition[] = [
   getActivity,
   getAthleteProfile,
   getTrainingLoadSummary,
+  getPowerCurve,
+  getPaceCurve,
+  getBestEfforts,
   logWellnessTool,
   rememberFact,
   forgetFact,

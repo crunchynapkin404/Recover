@@ -29,11 +29,31 @@ describe("tool registry", () => {
     }
   });
 
-  it("registers the v0.4a coach-memory tools (11 total)", () => {
-    expect(allTools.length).toBe(11);
+  it("registers the v0.4c depth tools (14 total)", () => {
+    // Spec said 15, but get_training_load_summary predates v0.4c (P4R),
+    // so only three tools are net-new. See the v0.4c plan header.
+    expect(allTools.length).toBe(14);
     const names = allTools.map((t) => t.name);
-    expect(names).toContain("remember_fact");
-    expect(names).toContain("forget_fact");
+    for (const name of [
+      "remember_fact",
+      "forget_fact",
+      "get_power_curve",
+      "get_pace_curve",
+      "get_best_efforts",
+      "get_training_load_summary",
+    ]) {
+      expect(names).toContain(name);
+    }
+  });
+
+  it("curve tools validate the days literal union", () => {
+    for (const name of ["get_power_curve", "get_pace_curve", "get_best_efforts"]) {
+      const tool = allTools.find((t) => t.name === name)!;
+      expect(tool.parameters.safeParse({}).success).toBe(true);
+      expect(tool.parameters.safeParse({ days: 30 }).success).toBe(true);
+      expect(tool.parameters.safeParse({ days: 365 }).success).toBe(true);
+      expect(tool.parameters.safeParse({ days: 45 }).success).toBe(false);
+    }
   });
 
   it("remember_fact is a no-op in ghost threads", async () => {
