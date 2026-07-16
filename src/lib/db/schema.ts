@@ -406,6 +406,24 @@ export const notificationPrefs = pgTable("notification_prefs", {
   ).$type<DescriptionFields>(),
 });
 
+/**
+ * v0.9.0 — per-user body/sleep preferences.
+ *
+ * Separate from notificationPrefs, which has drifted into a junk drawer
+ * (autoDescribeStrava lives there). These are not notifications.
+ */
+export const bodyPrefs = pgTable("body_prefs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: text("user_id")
+    .notNull()
+    .unique()
+    .references(() => users.id, { onDelete: "cascade" }),
+  // null = not set. Deliberately no default: a guessed wake time would put an
+  // invented bedtime on the dashboard, which is what v0.9.0 removes.
+  wakeTime: text("wake_time"), // "HH:MM" local
+  sleepNeedSecs: integer("sleep_need_secs").notNull().default(28800), // 8h
+});
+
 // Instance-level key/value config (e.g. auto-generated VAPID keys; secret
 // values stored encrypted via lib/crypto).
 export const appConfig = pgTable("app_config", {

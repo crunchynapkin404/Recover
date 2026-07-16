@@ -4,6 +4,7 @@ import { requireUser } from "@/lib/session";
 import { AppShell } from "@/components/app-shell";
 import { IntervalsCard } from "@/components/settings/intervals-card";
 import { NotificationsCard } from "@/components/settings/notifications-card";
+import { BodyPrefsCard } from "@/components/settings/body-prefs-card";
 import { getVapidKeys } from "@/lib/push";
 import { LlmSettingsCard } from "@/components/settings/llm-settings-card";
 import { CoachCard } from "@/components/settings/coach-card";
@@ -59,6 +60,10 @@ export default async function SettingsPage({
       columns: { id: true },
     }),
   ]);
+
+  const bodyPrefsRow = await db.query.bodyPrefs.findFirst({
+    where: eq(schema.bodyPrefs.userId, user.id),
+  });
 
   return (
     <AppShell>
@@ -188,6 +193,11 @@ export default async function SettingsPage({
           vapidPublicKey={vapid.publicKey}
           morningPushEnabled={notificationPrefs?.morningPushEnabled ?? true}
           subscriptionCount={pushSubs.length}
+        />
+
+        <BodyPrefsCard
+          wakeTime={bodyPrefsRow?.wakeTime ?? null}
+          sleepNeedSecs={bodyPrefsRow?.sleepNeedSecs ?? 28800}
         />
 
         {/* App Preferences */}
