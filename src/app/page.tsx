@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { and, desc, eq, gte } from "drizzle-orm";
+import { and, desc, eq, gte, ne } from "drizzle-orm";
 import { Sparkles, User } from "lucide-react";
 import { db, schema } from "@/lib/db";
 import { requireUser } from "@/lib/session";
@@ -19,6 +19,12 @@ import { BodyBatteryCurve } from "@/components/dashboard/body-battery";
 import { BehaviorTags } from "@/components/dashboard/behavior-tags";
 import type { Band } from "@/lib/readiness";
 import { formatDay, formatDuration, formatKm } from "@/lib/format";
+import {
+  computeBodyBattery,
+  DEFAULT_BED_MINUTES,
+  DEFAULT_WAKE_MINUTES,
+} from "@/lib/body-battery";
+import { computeSleepDebt, DEFAULT_SLEEP_NEED_SECS } from "@/lib/sleep-debt";
 
 function daysAgo(n: number): string {
   const d = new Date();
@@ -135,11 +141,30 @@ export default async function DashboardPage() {
     orderBy: schema.dailyMetrics.date,
   });
 
+  const bodyPrefsRow = await db.query.bodyPrefs.findFirst({
+    where: eq(schema.bodyPrefs.userId, user.id),
+  });
+
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+
+  // Strava rows are excluded from analytics throughout (Nov 2024 API agreement).
+  const todayActivities = await db.query.activities.findMany({
+    where: and(
+      eq(schema.activities.userId, user.id),
+      ne(schema.activities.provider, "strava"),
+      gte(schema.activities.startDate, startOfToday)
+    ),
+  });
+
   // Use the most recent metric with a readiness score (today may be incomplete)
   const todayMetric =
     [...metrics].reverse().find((m) => m.readiness != null) ?? metrics.at(-1);
   const band = (todayMetric?.band ?? "calibrating") as Band;
   const readiness = todayMetric?.readiness ?? 0;
+  // The battery needs the real null; `readiness` above is coalesced to 0 for
+  // the score ring, which would model a calibrating athlete as flat empty.
+  const readinessOrNull = todayMetric?.readiness ?? null;
 
   // ── Onboarding ──────────────────────────────────────────────────────────
   if (!connection && wellness.length === 0) {
@@ -213,6 +238,36 @@ export default async function DashboardPage() {
   const recoveryScore = Math.max(0, Math.min(100, Math.round((tsb + 30) * 2)));
 
   const sleepHours = latest?.sleepSecs != null ? latest.sleepSecs / 3600 : null;
+
+  const sleepDebt = computeSleepDebt({
+    nights: wellness
+      .filter((w) => w.date >= daysAgo(14))
+      .map((w) => ({ sleepSecs: w.sleepSecs })),
+    sleepNeedSecs: bodyPrefsRow?.sleepNeedSecs ?? DEFAULT_SLEEP_NEED_SECS,
+    wakeTime: bodyPrefsRow?.wakeTime ?? null,
+  });
+
+  const hhmmToMinutes = (v: string): number => {
+    const [h, m] = v.split(":").map(Number);
+    return h * 60 + m;
+  };
+
+  const now = new Date();
+  const battery = computeBodyBattery({
+    readiness: readinessOrNull,
+    wakeMinutes: bodyPrefsRow?.wakeTime
+      ? hhmmToMinutes(bodyPrefsRow.wakeTime)
+      : DEFAULT_WAKE_MINUTES,
+    bedMinutes: sleepDebt.bedtime
+      ? hhmmToMinutes(sleepDebt.bedtime)
+      : DEFAULT_BED_MINUTES,
+    activities: todayActivities.map((a) => ({
+      startMinutes: a.startDate.getHours() * 60 + a.startDate.getMinutes(),
+      durationMin: (a.durationS ?? 0) / 60,
+      load: a.load ?? 0,
+    })),
+    nowMinutes: now.getHours() * 60 + now.getMinutes(),
+  });
 
   // Activities this week
   const weekStartDate = new Date(daysAgo(7));
@@ -461,12 +516,11 @@ export default async function DashboardPage() {
             </section>
           )}
 
-          {/* ── Body Battery Curve ──────────────────────────────────── */}
+          {/* ── Estimated Energy ────────────────────────────────────── */}
           <section className="mb-10">
             <BodyBatteryCurve
-              current={Math.round(
-                ((sleepHours ?? 7) / 9) * 100 * (readiness / 100 || 0.5)
-              )}
+              current={battery.current}
+              points={battery.points}
             />
           </section>
 
