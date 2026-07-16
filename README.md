@@ -22,10 +22,10 @@
 Recover is a health and training companion you run on your own
 hardware: readiness scoring, training load, a behavior journal, and an AI coach
 — without the subscription, the wearable lock-in, or anyone else holding your
-data. It pulls wellness (HRV, resting HR, sleep) and activities from
-intervals.icu into your own Postgres, computes a daily readiness score from
-_your_ personal baselines — not population norms — and shows it on one calm
-dashboard.
+data. Start with **manual entry alone**, import a CSV, or connect
+intervals.icu / Strava — your choice. Recover computes a daily readiness score
+from _your_ personal baselines — not population norms — and shows it on one
+calm dashboard.
 
 ## Your Claude, your training data
 
@@ -48,6 +48,10 @@ OpenAI-compatible endpoint including a fully local Ollama. Keys are encrypted
   resting HR (25%), sleep (20%), form/TSB (15%) — with an honest
   "calibrating" state until enough history exists, and a component breakdown
   explaining every score.
+- **Data freedom** — no integrations required. Log HRV, resting HR, sleep, and
+  activities manually; import CSV data from any source (Apple Health, Garmin,
+  Whoop, spreadsheets); or connect intervals.icu / Strava for automatic sync.
+  Your readiness score unlocks after 14 days of data regardless of source.
 - **intervals.icu sync** — wellness, activities, and training load, kept fresh
   by an in-process scheduler. **Strava OAuth** as a second source, with
   provenance tracking (Strava data is excluded from AI context by default, per
@@ -100,9 +104,10 @@ cp .env.example .env   # then set ENCRYPTION_KEY, BETTER_AUTH_SECRET, OWNER_EMAI
 docker compose up -d
 ```
 
-Open http://localhost:3000, sign in with your owner credentials, and paste
-your intervals.icu API key under **Settings → intervals.icu**. Details, tunnel
-setup, upgrading, and troubleshooting: [docs/SELF-HOSTING.md](docs/SELF-HOSTING.md).
+Open http://localhost:3000, sign in with your owner credentials, and start
+logging — or connect intervals.icu under **Settings** for automatic sync.
+Details, tunnel setup, upgrading, and troubleshooting:
+[docs/SELF-HOSTING.md](docs/SELF-HOSTING.md).
 
 Want to poke around without real data? `SEED_DEMO=1 npm run db:seed-demo`
 fills a demo account with 90 days of plausible training history (see
@@ -121,13 +126,14 @@ fills a demo account with 90 days of plausible training history (see
 
 ## Status & roadmap
 
-**Current release: v0.6.1.** The full stack: intervals.icu sync, readiness,
-dashboard, journal, analytics depth, installable PWA with morning push
-notifications, an AI coach with memory/personalities/proactive insights,
-periodized training plans, Google Calendar awareness, inline chart artifacts,
-proactive weekly reviews, opt-in Strava AI activity descriptions, and 21 MCP
-tools. Next up: Body Intelligence (v0.7) — energy bank, biological age, and
-health-record import. The full plan lives in
+**Current release: v0.8.0 — Data Freedom.** No integrations required: manual
+vitals entry, activity logging, and CSV import alongside the full stack
+(intervals.icu sync, readiness scoring, dashboard, journal, analytics depth,
+installable PWA with morning push, AI coach with
+memory/personalities/proactive insights, training plans, Google Calendar
+awareness, chart artifacts, weekly reviews, Strava AI descriptions, 21 MCP
+tools). Next up: wearable connectors (v0.9 — Whoop, Oura), smarter adaptive
+coaching (v0.10), and body intelligence (v0.11). The full plan lives in
 [docs/ROADMAP.md](docs/ROADMAP.md).
 
 An honest hobby project built for one owner and about ten friends. If it's
