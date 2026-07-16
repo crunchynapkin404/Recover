@@ -17,11 +17,18 @@ const base = {
 };
 
 describe("sleep card", () => {
+  // The `Props` type is the real, compile-time guard here: `stages` is no
+  // longer a prop at all, so a reintroduced stage bar would be a type error
+  // before it ever reached a test. The runtime assertions below are a
+  // secondary, best-effort check — `renderToString` strips React `key`s, so
+  // asserting on stage *labels* ("REM"/"Deep"/"Core") would pass even against
+  // a reintroduced stage bar (the old bar only used `s.label` as a key, never
+  // as rendered text). Assert on markup that was actually a text/attribute
+  // node in the old card instead.
   it("renders no stage breakdown — there is no stage data", () => {
     const html = renderToString(<SleepCard {...base} />);
-    expect(html).not.toContain("REM");
-    expect(html).not.toContain("Deep");
-    expect(html).not.toContain("Core");
+    expect(html).not.toContain("clip-reveal");
+    expect(html).not.toMatch(/width:\s*\d+%/);
   });
 
   it("renders no efficiency figure — there is no time-in-bed data", () => {
