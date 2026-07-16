@@ -478,14 +478,11 @@ export default async function DashboardPage() {
                 {
                   label: "Sleep Score",
                   value:
-                    sleepHours != null
-                      ? Math.round((sleepHours / 9) * 100).toString()
+                    latest?.sleepScore != null
+                      ? Math.round(latest.sleepScore).toString()
                       : "—",
                   unit: "/100",
-                  avg7d:
-                    sleepHours != null
-                      ? `Efficiency: ${Math.min(Math.round((sleepHours / 8) * 100), 100)}%`
-                      : null,
+                  avg7d: null,
                   trend: "flat",
                   trendGood: true,
                   sparkPath: sparkPath(window7.map((w) => w.sleepSecs)),
@@ -516,16 +513,11 @@ export default async function DashboardPage() {
           {sleepHours != null && (
             <section className="mb-10">
               <SleepCard
-                score={Math.round((sleepHours / 9) * 100)}
+                score={latest?.sleepScore ?? null}
                 duration={`${Math.floor(sleepHours)}h ${Math.round((sleepHours % 1) * 60)}m`}
-                efficiency={`${Math.min(Math.round((sleepHours / 8) * 100), 100)}%`}
-                stages={[
-                  { label: "Awake", pct: 8, color: "rgba(239,68,68,0.8)" },
-                  { label: "Deep", pct: 20, color: "#6366f1" },
-                  { label: "Core", pct: 25, color: "#3b82f6" },
-                  { label: "REM", pct: 47, color: "#38bdf8" },
-                ]}
-                bedtimeAdvice="22:30 – 23:00"
+                debtSecs={sleepDebt.debtSecs}
+                bedtimeAdvice={sleepDebt.bedtime}
+                wakeTimeSet={bodyPrefsRow?.wakeTime != null}
               />
             </section>
           )}
