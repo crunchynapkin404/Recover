@@ -1,33 +1,61 @@
 "use client";
 
+import type { BatteryPoint } from "@/lib/body-battery";
+
 interface Props {
-  /** Current battery percentage 0-100 */
-  current: number;
-  /** SVG path for the energy curve (full day) */
-  curvePath?: string;
+  /** Current charge 0-100, or null when there is not enough data. */
+  current: number | null;
+  /** The modelled curve. Empty when current is null. */
+  points: BatteryPoint[];
+}
+
+const VIEW_W = 400;
+const VIEW_H = 180;
+const MINUTES_PER_DAY = 1440;
+
+function toPath(points: BatteryPoint[]): string {
+  return points
+    .map((p, i) => {
+      const x = (p.minutes / MINUTES_PER_DAY) * VIEW_W;
+      const y = VIEW_H - (p.charge / 100) * VIEW_H;
+      return `${i === 0 ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`;
+    })
+    .join(" ");
 }
 
 /**
- * Garmin-style body battery curve showing energy levels through the day.
- * Uses a placeholder curve shape when no intraday data is available.
+ * Estimated energy through the day — a labelled model, not a measurement.
+ * Renders nothing rather than inventing a curve when readiness is unavailable.
  */
-export function BodyBatteryCurve({ current, curvePath }: Props) {
-  const path =
-    curvePath ??
-    "M0 40 Q50 30 80 45 L120 120 L160 140 Q200 130 250 110 L300 80 L400 90";
-  const fillPath = `${path} L400 180 L0 180 Z`;
+export function BodyBatteryCurve({ current, points }: Props) {
+  if (current == null || points.length === 0) {
+    return (
+      <div className="glass rounded-[2rem] p-7">
+        <span className="label-micro">Estimated Energy</span>
+        <p className="mt-4 text-sm text-white/50">
+          Not enough data yet — your readiness score needs more history before
+          energy can be estimated.
+        </p>
+      </div>
+    );
+  }
+
+  const path = toPath(points);
+  const lastX = ((points.at(-1)?.minutes ?? 0) / MINUTES_PER_DAY) * VIEW_W;
+  const fillPath = `${path} L${lastX.toFixed(1)} ${VIEW_H} L0 ${VIEW_H} Z`;
 
   return (
     <div className="glass rounded-[2rem] p-7 overflow-hidden">
-      <div className="mb-6 flex items-center justify-between">
-        <span className="label-micro">Body Battery Curve</span>
-        <span className="text-xs font-bold text-white/80">
-          {current}% currently
-        </span>
+      <div className="mb-1 flex items-center justify-between">
+        <span className="label-micro">Estimated Energy</span>
+        <span className="text-xs font-bold text-white/80">{current}% now</span>
       </div>
+      <p className="mb-6 text-[11px] text-white/40">
+        Modelled from readiness and training load
+      </p>
       <div className="relative h-[180px] w-full">
         <svg
-          viewBox="0 0 400 180"
+          viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
           preserveAspectRatio="none"
           className="clip-reveal h-full w-full"
         >
@@ -52,7 +80,7 @@ export function BodyBatteryCurve({ current, curvePath }: Props) {
         <span>6 AM</span>
         <span>12 PM</span>
         <span>6 PM</span>
-        <span>NOW</span>
+        <span>12 AM</span>
       </div>
     </div>
   );

@@ -1,5 +1,87 @@
 # Changelog
 
+## v0.9.0 — 2026-07-16 — Honest Body Intelligence
+
+v0.7 fixed fabricated data in the database. It never reached the dashboard:
+a hardcoded body-battery curve every athlete saw identically, a sleep card
+showing a 47%-REM stage breakdown every night no matter what, a
+`"22:30 – 23:00"` bedtime string literal, and a "Sleep Score" tile that was
+actually `sleepHours / 9 * 100` — while the real `sleepScore` column the
+provider sends (populated on the large majority of days) was read nowhere on
+the dashboard. Verified against the live DB: intervals.icu's 46-key wellness
+payload carries no sleep stages and no bed/wake times at all, so those cards
+could not be fixed, only removed.
+
+### Added
+
+- **Body battery, for real**: the energy curve is now modelled from the
+  day's actual readiness score and real activity loads at the times they
+  happened, instead of a fixed decorative SVG path. Labelled "Estimated
+  Energy"; renders an empty state instead of a curve when readiness is
+  `calibrating`.
+- **Sleep debt**: cumulative deficit over the last 14 recorded nights of
+  real `sleepSecs`, measured against the athlete's own sleep-need target.
+  Nights with no sleep row are skipped, never counted as a perfect night; a
+  surplus night does not offset a prior deficit.
+- **Bedtime target**: computed from tonight's debt repayment (capped at
+  1h/night) plus the athlete's own wake time. No wake time set means a
+  prompt to set one in Settings — never a guessed time.
+- **`body_prefs`**: per-user wake time and sleep-need target.
+
+### Fixed
+
+- **The sleep card invented a stage breakdown.** "47% REM / 25% Core / 20%
+  Deep / 8% Awake" was a hardcoded literal shown identically to every
+  athlete, every night — no connected provider, intervals.icu included,
+  returns sleep stages. Removed entirely; the `stages` prop no longer
+  exists.
+- **"Efficiency" was actually `sleepHours / 8`.** Removed from both the
+  sleep card and the vitals grid — there is no time-in-bed data anywhere to
+  compute a real efficiency from.
+- **"Sleep Score" was actually `sleepHours / 9 * 100`,** never the real
+  `sleep_score` column the provider returns. The vitals grid and sleep card
+  now both read `latest.sleepScore` and show "—" when the provider gave
+  none, rather than a formula standing in for a measurement.
+- **The bedtime recommendation was a string literal**, `"22:30 – 23:00"`,
+  shown to every athlete regardless of schedule. Replaced by a target
+  computed from real sleep debt and the athlete's own wake time.
+- **The body-battery curve was a fixed decorative SVG path**
+  (`M0 40 Q50 30 80 45 ...`) that no caller ever overrode — every athlete
+  saw the same fictional day regardless of readiness or training.
+
+**Done when:** the five sleep/energy fabrications above — the stage
+breakdown, the `"22:30 – 23:00"` bedtime literal, "Efficiency", the
+`sleepHours / 9 * 100` Sleep Score, and the fixed body-battery SVG path,
+spanning eight code sites — are gone from the dashboard; a day with training
+shows a curve that drops when the athlete actually trained; an athlete with
+no wake time set sees a prompt, not a bedtime.
+
+This release deliberately scoped itself to the sleep and energy cards. It
+does **not** claim the dashboard is now free of invented numbers — see below.
+
+**Known remaining work — the dashboard still fabricates elsewhere.** These
+are pre-existing on `main`, untouched by this release, and named here so the
+ledger is honest rather than flattering:
+
+- **Recovery and Strain are already fabricated for manual-only athletes.**
+  `recoveryScore` and `strainFraction` (`src/app/page.tsx`) derive from
+  `latest?.atl ?? 0` / `latest?.ctl ?? 0`. `atl`/`ctl` are nullable and
+  written only by the intervals.icu sync, so an athlete on v0.8's
+  no-integration path has both `null` — and the `?? 0` coalesce renders a
+  hero **"Recovery 60"** and **"Strain 0.0"** built from zero training data.
+  This is live today, in the page's most prominent cards (`ScoreRing`,
+  `StrainBudget`) and in the narrative text. Fixing it needs an honest
+  null-propagation path for CTL/ATL — the same `calibrating` treatment
+  readiness already gets — which is a larger change than this release.
+- **The "This Week" rings are hardcoded** to `ringOuter={0.7}` /
+  `ringInner={0.8}` for every athlete, forever — the same defect class as
+  the body-battery path removed above. They were left alone rather than
+  wired to `recoveryScore`/`strainFraction`, because doing so would only
+  propagate the fabrication above into two more rings.
+- **The logging "streak" is a count, not a streak** — `Math.min(window30.length, 30)`
+  counts rows in a 30-day window, so 22 scattered days renders "22-day streak".
+  Proper streak semantics land with Achievements in v0.9.2.
+
 ## v0.8.0 — 2026-07-16 — Data Freedom
 
 Use Recover without any integrations. Log vitals and activities manually,

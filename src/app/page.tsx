@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { and, desc, eq, gte } from "drizzle-orm";
+import { and, desc, eq, gte, ne } from "drizzle-orm";
 import { Sparkles, User } from "lucide-react";
 import { db, schema } from "@/lib/db";
 import { requireUser } from "@/lib/session";
@@ -19,6 +19,13 @@ import { BodyBatteryCurve } from "@/components/dashboard/body-battery";
 import { BehaviorTags } from "@/components/dashboard/behavior-tags";
 import type { Band } from "@/lib/readiness";
 import { formatDay, formatDuration, formatKm } from "@/lib/format";
+import {
+  computeBodyBattery,
+  typicalBedMinutes,
+  DEFAULT_BED_MINUTES,
+  DEFAULT_WAKE_MINUTES,
+} from "@/lib/body-battery";
+import { computeSleepDebt, DEFAULT_SLEEP_NEED_SECS } from "@/lib/sleep-debt";
 
 function daysAgo(n: number): string {
   const d = new Date();
@@ -135,11 +142,30 @@ export default async function DashboardPage() {
     orderBy: schema.dailyMetrics.date,
   });
 
+  const bodyPrefsRow = await db.query.bodyPrefs.findFirst({
+    where: eq(schema.bodyPrefs.userId, user.id),
+  });
+
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+
+  // Strava rows are excluded from analytics throughout (Nov 2024 API agreement).
+  const todayActivities = await db.query.activities.findMany({
+    where: and(
+      eq(schema.activities.userId, user.id),
+      ne(schema.activities.provider, "strava"),
+      gte(schema.activities.startDate, startOfToday)
+    ),
+  });
+
   // Use the most recent metric with a readiness score (today may be incomplete)
   const todayMetric =
     [...metrics].reverse().find((m) => m.readiness != null) ?? metrics.at(-1);
   const band = (todayMetric?.band ?? "calibrating") as Band;
   const readiness = todayMetric?.readiness ?? 0;
+  // The battery needs the real null; `readiness` above is coalesced to 0 for
+  // the score ring, which would model a calibrating athlete as flat empty.
+  const readinessOrNull = todayMetric?.readiness ?? null;
 
   // ── Onboarding ──────────────────────────────────────────────────────────
   if (!connection && wellness.length === 0) {
@@ -213,6 +239,60 @@ export default async function DashboardPage() {
   const recoveryScore = Math.max(0, Math.min(100, Math.round((tsb + 30) * 2)));
 
   const sleepHours = latest?.sleepSecs != null ? latest.sleepSecs / 3600 : null;
+
+  // sleepDebt is a recommendation for tonight (used by the sleep card, v0.9.0
+  // Task 5) — it must not leak into the battery's waking window below, which
+  // models the athlete's actual schedule instead.
+  const sleepDebt = computeSleepDebt({
+    nights: wellness
+      .filter((w) => w.date >= daysAgo(14))
+      .map((w) => ({ sleepSecs: w.sleepSecs })),
+    sleepNeedSecs: bodyPrefsRow?.sleepNeedSecs ?? DEFAULT_SLEEP_NEED_SECS,
+    wakeTime: bodyPrefsRow?.wakeTime ?? null,
+  });
+
+  // null on anything that doesn't parse as a valid "HH:MM" — mirrors
+  // sleep-debt.ts's parseHhMm degrading to null rather than NaN. Unreachable
+  // today (the server action regex-validates on write); this is hardening,
+  // not a live bug fix.
+  const hhmmToMinutes = (v: string): number | null => {
+    const m = /^(\d{1,2}):(\d{2})$/.exec(v.trim());
+    if (!m) return null;
+    const h = Number(m[1]);
+    const min = Number(m[2]);
+    if (h > 23 || min > 59) return null;
+    return h * 60 + min;
+  };
+
+  // The battery's waking window comes from the athlete's own schedule (wake
+  // time + typical sleep need), never from tonight's debt-repayment bedtime
+  // recommendation — carrying debt must not silently compress the modelled
+  // day. A malformed wakeTime degrades to the same defaults as "unset"
+  // rather than propagating NaN into the curve and its SVG path.
+  const parsedWakeMinutes = bodyPrefsRow?.wakeTime
+    ? hhmmToMinutes(bodyPrefsRow.wakeTime)
+    : null;
+  const wakeMinutes = parsedWakeMinutes ?? DEFAULT_WAKE_MINUTES;
+  const bedMinutes =
+    parsedWakeMinutes != null
+      ? typicalBedMinutes(
+          wakeMinutes,
+          bodyPrefsRow?.sleepNeedSecs ?? DEFAULT_SLEEP_NEED_SECS
+        )
+      : DEFAULT_BED_MINUTES;
+
+  const now = new Date();
+  const battery = computeBodyBattery({
+    readiness: readinessOrNull,
+    wakeMinutes,
+    bedMinutes,
+    activities: todayActivities.map((a) => ({
+      startMinutes: a.startDate.getHours() * 60 + a.startDate.getMinutes(),
+      durationMin: (a.durationS ?? 0) / 60,
+      load: a.load ?? 0,
+    })),
+    nowMinutes: now.getHours() * 60 + now.getMinutes(),
+  });
 
   // Activities this week
   const weekStartDate = new Date(daysAgo(7));
@@ -409,14 +489,11 @@ export default async function DashboardPage() {
                 {
                   label: "Sleep Score",
                   value:
-                    sleepHours != null
-                      ? Math.round((sleepHours / 9) * 100).toString()
+                    latest?.sleepScore != null
+                      ? Math.round(latest.sleepScore).toString()
                       : "—",
                   unit: "/100",
-                  avg7d:
-                    sleepHours != null
-                      ? `Efficiency: ${Math.min(Math.round((sleepHours / 8) * 100), 100)}%`
-                      : null,
+                  avg7d: null,
                   trend: "flat",
                   trendGood: true,
                   sparkPath: sparkPath(window7.map((w) => w.sleepSecs)),
@@ -447,26 +524,20 @@ export default async function DashboardPage() {
           {sleepHours != null && (
             <section className="mb-10">
               <SleepCard
-                score={Math.round((sleepHours / 9) * 100)}
+                score={latest?.sleepScore ?? null}
                 duration={`${Math.floor(sleepHours)}h ${Math.round((sleepHours % 1) * 60)}m`}
-                efficiency={`${Math.min(Math.round((sleepHours / 8) * 100), 100)}%`}
-                stages={[
-                  { label: "Awake", pct: 8, color: "rgba(239,68,68,0.8)" },
-                  { label: "Deep", pct: 20, color: "#6366f1" },
-                  { label: "Core", pct: 25, color: "#3b82f6" },
-                  { label: "REM", pct: 47, color: "#38bdf8" },
-                ]}
-                bedtimeAdvice="22:30 – 23:00"
+                debtSecs={sleepDebt.debtSecs}
+                bedtimeAdvice={sleepDebt.bedtime}
+                wakeTimeSet={bodyPrefsRow?.wakeTime != null}
               />
             </section>
           )}
 
-          {/* ── Body Battery Curve ──────────────────────────────────── */}
+          {/* ── Estimated Energy ────────────────────────────────────── */}
           <section className="mb-10">
             <BodyBatteryCurve
-              current={Math.round(
-                ((sleepHours ?? 7) / 9) * 100 * (readiness / 100 || 0.5)
-              )}
+              current={battery.current}
+              points={battery.points}
             />
           </section>
 
