@@ -1,5 +1,33 @@
 # Changelog
 
+## v0.9.1 — 2026-07-16 — Honest Pixels
+
+Small fixes in the same defect class v0.9.0 worked through: things on screen
+claiming to be something they are not. No schema or behavior changes beyond
+the pixels below. (The roadmap's planned "v0.9.1 — Smarter Coach" feature
+release moves to v0.9.2; subsequent planned versions shift accordingly.)
+
+### Fixed
+
+- **The favicon was still the stock Next.js logo.** `src/app/favicon.ico`
+  had never been replaced since project scaffolding, so browser tabs showed
+  the Next triangle instead of the Recover ring (Safari masked this by
+  preferring the apple-touch icon, which was correct). Replaced with a
+  proper multi-size ICO (16/32/48) rendered from the logo on the app's dark
+  tile, matching the home-screen icon.
+- **The Sleep Score sparkline plotted the wrong series.** The tile's value
+  read `sleepScore` (fixed in v0.9.0), but the sparkline under it still
+  plotted raw `sleepSecs` — real data, wrong series. It now plots the
+  7-day `sleepScore` history the label promises.
+- **Sparklines fabricated a flat line from no data.** Fewer than two real
+  data points rendered a horizontal line — a visual claim of stability made
+  from nothing (the last dashboard item on the honesty-debt list that was
+  fixable without the strain/recovery rework). `sparkPath` moved to
+  `src/lib/sparkline.ts`, returns an empty path below two points, and the
+  vitals grid renders no sparkline at all for an empty path.
+- **`package.json` version drift**: it still said `0.8.0` while v0.8.1 and
+  v0.9.0 were tagged. Now `0.9.1` and part of the release checklist.
+
 ## v0.9.0 — 2026-07-16 — Honest Body Intelligence
 
 v0.7 fixed fabricated data in the database. It never reached the dashboard:

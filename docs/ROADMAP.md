@@ -140,7 +140,19 @@ an athlete with no wake time set sees a prompt, not a bedtime.
 
 Design: [docs/specs/2026-07-16-v0.9.0-honest-body-intelligence-design.md](specs/2026-07-16-v0.9.0-honest-body-intelligence-design.md)
 
-## v0.9.1 — Smarter Coach
+## ✅ v0.9.1 — Honest Pixels
+
+Patch release: same defect class as v0.9.0, smaller pixels. Claimed the
+v0.9.1 number, so the planned feature releases below shift one patch digit.
+
+- [x] Favicon was still the stock Next.js triangle — replaced with the
+      Recover ring on the dark app tile (multi-size ICO)
+- [x] Sleep Score sparkline plotted `sleepSecs` under a `sleepScore` label
+- [x] Sparklines no longer fabricate a flat line from <2 data points —
+      empty path, no SVG rendered
+- [x] `package.json` version drift (`0.8.0` at the v0.9.0 tag) corrected
+
+## v0.9.2 — Smarter Coach
 
 Plans that react to the life the athlete actually had, not the one the plan
 assumed. Extends v0.5's `generateTrainingPlan` and the `adherencePct` the
@@ -153,7 +165,7 @@ weekly review already computes.
 **Done when:** skipping a week visibly reshapes next week's plan, and the coach
 can explain what it changed and why.
 
-## v0.9.2 — Deeper Insights
+## v0.9.3 — Deeper Insights
 
 - [ ] **Correlation engine v2**: extend `lib/correlations.ts` — time-of-day patterns, weekday/weekend split, confidence intervals on impact scores; report "not enough data" rather than a thin correlation
 - [ ] **Auto-tags from activities**: derive "Hard session", "Double day", "Rest day", "Late training" from activity data instead of asking
@@ -162,7 +174,7 @@ can explain what it changed and why.
 **Done when:** auto-tags appear without user input; correlations carry a
 confidence interval; a streak survives a restart.
 
-## v0.9.3 — Infrastructure
+## v0.9.4 — Infrastructure
 
 - [ ] **Nightly `pg_dump` backups**: to volume/S3, with a documented restore drill
 - [ ] **Absorb `intervals-icu-mcp`**: merge the standalone server's tools into Recover's built-in MCP (58 → ~40 after dedupe)
@@ -209,8 +221,8 @@ defect class as the sleep/energy cards that release cleaned up.
 
 - [ ] **Recovery & Strain are invented for manual-only athletes**: `recoveryScore`/`strainFraction` come from `latest?.atl ?? 0` / `latest?.ctl ?? 0`, and `atl`/`ctl` are written only by the intervals.icu sync — so a v0.8 no-integration athlete gets a hero "Recovery 60" and "Strain 0.0" from zero data. Needs the `calibrating` treatment readiness already has, propagated through `ScoreRing`, `StrainBudget`, and the narrative.
 - [ ] **"This Week" rings hardcoded**: `ringOuter={0.7}` / `ringInner={0.8}` for every athlete, forever. Blocked on the above — wiring the current values would just spread the fabrication.
-- [ ] **The logging "streak" is a count, not a streak**: `Math.min(window30.length, 30)` renders "22-day streak" for 22 scattered days. Folded into Achievements (v0.9.2).
-- [ ] **Sparklines flat-line on no data**: `sparkPath` returns `"M0 10 L100 10"` for <2 points — a visual claim of stability made from nothing.
+- [ ] **The logging "streak" is a count, not a streak**: `Math.min(window30.length, 30)` renders "22-day streak" for 22 scattered days. Folded into Achievements (v0.9.3).
+- [x] **Sparklines flat-line on no data**: `sparkPath` returned `"M0 10 L100 10"` for <2 points — a visual claim of stability made from nothing. Fixed in v0.9.1: empty path, no SVG rendered.
 
 ## Ongoing — polish backlog
 
@@ -222,7 +234,7 @@ any release.
 - [ ] Accessibility: ScoreRing aria labels, contrast, button roles
 - [ ] Performance log filters: wire up the month/sport controls
 - [ ] Dead UI sweep: remove non-functional settings controls (v0.9.0 cleared the dashboard's sleep/energy share)
-- [ ] Sleep Score sparkline plots `sleepSecs` under a "Sleep Score" label — real data, wrong series
+- [x] Sleep Score sparkline plotted `sleepSecs` under a "Sleep Score" label — real data, wrong series. Fixed in v0.9.1.
 
 ## Not planned
 
