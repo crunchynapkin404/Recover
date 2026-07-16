@@ -14,6 +14,7 @@ import { StravaCard } from "@/components/settings/strava-card";
 import { SignOutButton } from "@/components/sign-out-button";
 import Link from "next/link";
 import { User } from "lucide-react";
+import { DEFAULT_SLEEP_NEED_SECS } from "@/lib/sleep-debt";
 
 export default async function SettingsPage({
   searchParams,
@@ -197,7 +198,7 @@ export default async function SettingsPage({
 
         <BodyPrefsCard
           wakeTime={bodyPrefsRow?.wakeTime ?? null}
-          sleepNeedSecs={bodyPrefsRow?.sleepNeedSecs ?? 28800}
+          sleepNeedSecs={bodyPrefsRow?.sleepNeedSecs ?? DEFAULT_SLEEP_NEED_SECS}
         />
 
         {/* App Preferences */}
