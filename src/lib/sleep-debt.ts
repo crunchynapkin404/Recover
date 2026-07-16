@@ -48,7 +48,11 @@ function parseHhMm(v: string): number | null {
 }
 
 function formatHhMm(minutes: number): string {
-  const m = ((minutes % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
+  // debtSecs is a sum of real per-second sleep durations, so `minutes` is
+  // frequently fractional. Round to a whole minute here so the "HH:MM"
+  // contract holds for any numeric input, not just whole-minute callers.
+  const rounded = Math.round(minutes);
+  const m = ((rounded % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
   const h = Math.floor(m / 60);
   return `${String(h).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 }
