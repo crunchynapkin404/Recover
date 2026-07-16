@@ -3,6 +3,14 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
+// Rendering by hand means opting into act() support ourselves — the flag a
+// framework like @testing-library/react would set. Without it React warns and
+// act() does not flush updates deterministically.
+declare global {
+  var IS_REACT_ACT_ENVIRONMENT: boolean;
+}
+globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+
 /**
  * v0.7 Part 1 — the journal must not invent subjective answers.
  *
