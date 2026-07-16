@@ -21,6 +21,8 @@ services:
     #   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
     image: ghcr.io/crunchynapkin404/recover:latest
     restart: unless-stopped
+    labels:
+      - "com.centurylinklabs.watchtower.scope=recover"
     ports:
       - "${APP_PORT:-3000}:3000"
     environment:
@@ -47,6 +49,20 @@ services:
     command: tunnel run --token ${CLOUDFLARED_TOKEN:-}
     depends_on:
       - app
+
+  # Auto-update: polls GHCR every 5 min, restarts app on new image
+  watchtower:
+    image: containrrr/watchtower:latest
+    restart: unless-stopped
+    profiles: ["autoupdate"]
+    environment:
+      WATCHTOWER_CLEANUP: "true"
+      WATCHTOWER_POLL_INTERVAL: "300"
+      WATCHTOWER_SCOPE: recover
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    labels:
+      - "com.centurylinklabs.watchtower.scope=recover"
 
 volumes:
   recover-db:
