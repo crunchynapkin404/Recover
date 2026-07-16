@@ -407,12 +407,15 @@ export function JournalForm({
           <div className="glass rounded-[2rem] p-6">
             <h3 className="label-micro mb-6">Today&apos;s Vitals</h3>
             <p className="mb-4 text-[10px] text-white/50">
-              Enter your morning readings. Log HRV &amp; resting HR daily
-              to unlock your readiness score after 14 days.
+              Enter your morning readings. Log HRV &amp; resting HR daily to
+              unlock your readiness score after 14 days.
             </p>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label htmlFor="manual-hrv" className="mb-1 block text-[10px] font-bold uppercase text-white/50">
+                <label
+                  htmlFor="manual-hrv"
+                  className="mb-1 block text-[10px] font-bold uppercase text-white/50"
+                >
                   HRV (ms)
                 </label>
                 <input
@@ -429,7 +432,10 @@ export function JournalForm({
                 />
               </div>
               <div>
-                <label htmlFor="manual-rhr" className="mb-1 block text-[10px] font-bold uppercase text-white/50">
+                <label
+                  htmlFor="manual-rhr"
+                  className="mb-1 block text-[10px] font-bold uppercase text-white/50"
+                >
                   Resting HR (bpm)
                 </label>
                 <input
@@ -446,7 +452,10 @@ export function JournalForm({
                 />
               </div>
               <div>
-                <label htmlFor="manual-sleep" className="mb-1 block text-[10px] font-bold uppercase text-white/50">
+                <label
+                  htmlFor="manual-sleep"
+                  className="mb-1 block text-[10px] font-bold uppercase text-white/50"
+                >
                   Sleep (hours)
                 </label>
                 <input
@@ -463,7 +472,10 @@ export function JournalForm({
                 />
               </div>
               <div>
-                <label htmlFor="manual-weight" className="mb-1 block text-[10px] font-bold uppercase text-white/50">
+                <label
+                  htmlFor="manual-weight"
+                  className="mb-1 block text-[10px] font-bold uppercase text-white/50"
+                >
                   Weight (kg)
                 </label>
                 <input

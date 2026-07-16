@@ -15,7 +15,7 @@ export type ImportResult = {
 
 export async function importWellnessCSV(
   _prev: ImportResult | null,
-  formData: FormData,
+  formData: FormData
 ): Promise<ImportResult> {
   const user = await requireUser();
   const file = formData.get("file") as File | null;
@@ -72,7 +72,7 @@ export async function importWellnessCSV(
 
 export async function importActivityCSV(
   _prev: ImportResult | null,
-  formData: FormData,
+  formData: FormData
 ): Promise<ImportResult> {
   const user = await requireUser();
   const file = formData.get("file") as File | null;

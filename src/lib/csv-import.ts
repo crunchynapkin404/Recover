@@ -3,9 +3,12 @@
 function parseCSV(text: string): Record<string, string>[] {
   const lines = text.trim().split(/\r?\n/);
   if (lines.length < 2) return [];
-  const headers = lines[0]
-    .split(",")
-    .map((h) => h.trim().toLowerCase().replace(/[\s_]+/g, "_"));
+  const headers = lines[0].split(",").map((h) =>
+    h
+      .trim()
+      .toLowerCase()
+      .replace(/[\s_]+/g, "_")
+  );
   return lines
     .slice(1)
     .filter((l) => l.trim())
@@ -76,7 +79,7 @@ export function parseWellnessCSV(text: string): {
   const hasDate = headers.some((h) => WELLNESS_COLUMN_MAP[h] === "date");
   if (!hasDate) {
     errors.push(
-      "Missing required 'date' column. Expected headers: date, hrv, resting_hr, sleep_hours, weight_kg, energy, soreness, stress",
+      "Missing required 'date' column. Expected headers: date, hrv, resting_hr, sleep_hours, weight_kg, energy, soreness, stress"
     );
     return { rows, errors };
   }
@@ -91,7 +94,7 @@ export function parseWellnessCSV(text: string): {
 
     if (!mapped.date || !/^\d{4}-\d{2}-\d{2}$/.test(mapped.date)) {
       errors.push(
-        `Row ${i + 2}: Invalid or missing date (expected YYYY-MM-DD)`,
+        `Row ${i + 2}: Invalid or missing date (expected YYYY-MM-DD)`
       );
       continue;
     }

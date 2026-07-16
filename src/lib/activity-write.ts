@@ -31,9 +31,7 @@ export async function createManualActivity(
           ? Math.round(input.durationMinutes * 60)
           : null,
       distanceM:
-        input.distanceKm != null
-          ? Math.round(input.distanceKm * 1000)
-          : null,
+        input.distanceKm != null ? Math.round(input.distanceKm * 1000) : null,
       load: input.load ?? null,
       avgHr: input.avgHr ?? null,
       avgPower: input.avgPower ?? null,

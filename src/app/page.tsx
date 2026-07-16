@@ -177,8 +177,8 @@ export default async function DashboardPage() {
             </div>
 
             <p className="mt-6 text-[11px] text-white/30">
-              Log 14 days of HRV &amp; resting HR to unlock your readiness score.
-              Connect integrations anytime from Settings.
+              Log 14 days of HRV &amp; resting HR to unlock your readiness
+              score. Connect integrations anytime from Settings.
             </p>
           </div>
         </div>

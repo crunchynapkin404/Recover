@@ -49,7 +49,10 @@ export function ImportForm() {
     const reader = new FileReader();
     reader.onload = () => {
       const text = reader.result as string;
-      const lines = text.trim().split(/\r?\n/).filter((l) => l.trim());
+      const lines = text
+        .trim()
+        .split(/\r?\n/)
+        .filter((l) => l.trim());
       // Subtract 1 for header row
       setRowCount(Math.max(0, lines.length - 1));
     };
@@ -172,10 +175,7 @@ export function ImportForm() {
               {state.errors.length > 0 && (
                 <ul className="mt-2 space-y-1">
                   {state.errors.map((err, i) => (
-                    <li
-                      key={i}
-                      className="text-[11px] text-white/50"
-                    >
+                    <li key={i} className="text-[11px] text-white/50">
                       {err}
                     </li>
                   ))}
