@@ -120,7 +120,7 @@ forward and shipped early — this section is the release that exists.)
 Apple Health file-export/webhook and a Google Health / Fitbit connector were
 cut from this release and fold into v0.11 alongside the other connectors.
 
-## v0.9.0 — Honest Body Intelligence ← next
+## ✅ v0.9.0 — Honest Body Intelligence
 
 v0.7 fixed fabricated data in the database. It never reached the dashboard,
 which still ships invented numbers: a hardcoded body-battery curve every
@@ -129,10 +129,10 @@ athlete sees identically, a `"22:30 – 23:00"` bedtime string literal, and a
 DB: intervals.icu's wellness payload carries **no sleep stages and no
 bed/wake times** — those cards cannot be fixed, only removed.
 
-- [ ] **Body battery, for real**: energy curve modelled from morning readiness + real activity loads at their real times; explicitly labelled an estimate; returns nothing when readiness is `calibrating`
-- [ ] **Sleep debt**: cumulative deficit over 14 nights from real `sleepSecs`; missing nights skipped, never counted as perfect sleep
-- [ ] **Bedtime target**: derived from debt + a wake time the athlete sets; no wake time = no recommendation, never a guess
-- [ ] **Delete the unbackable**: sleep-stage breakdown and the `sleepHours / 8` "efficiency" figure
+- [x] **Body battery, for real**: energy curve modelled from morning readiness + real activity loads at their real times; explicitly labelled an estimate; returns nothing when readiness is `calibrating`
+- [x] **Sleep debt**: cumulative deficit over 14 nights from real `sleepSecs`; missing nights skipped, never counted as perfect sleep
+- [x] **Bedtime target**: derived from debt + a wake time the athlete sets; no wake time = no recommendation, never a guess
+- [x] **Delete the unbackable**: sleep-stage breakdown and the `sleepHours / 8` "efficiency" figure
 
 **Done when:** the dashboard contains no hardcoded physiological constant; a
 day with training shows a curve that drops when the athlete actually trained;
