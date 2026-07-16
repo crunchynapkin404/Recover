@@ -76,10 +76,19 @@ export function typicalBedMinutes(
   return wrapMinutes(wakeMinutes - sleepNeedSecs / 60);
 }
 
-/** Cumulative awake drain at t — linear across the waking window. */
+/**
+ * Cumulative awake drain at t — linear across the waking window.
+ *
+ * `bed` is a wall-clock minute (0..1439) from `typicalBedMinutes`, which
+ * wraps across midnight. Whenever the derived bedtime falls at or before
+ * `wake` (e.g. wake 08:00, bed 00:00), it actually means "tomorrow" — unwrap
+ * it forward by a full day before computing the span, or the span collapses
+ * to ~1 minute and the entire drain lands on the first minute after waking.
+ */
 function awakeDrainAt(t: number, wake: number, bed: number): number {
   if (t <= wake) return 0;
-  const span = Math.max(1, bed - wake);
+  const bedAdj = bed <= wake ? bed + MINUTES_PER_DAY : bed;
+  const span = Math.max(1, bedAdj - wake);
   return AWAKE_DRAIN_TOTAL * clamp((t - wake) / span, 0, 1);
 }
 

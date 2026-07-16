@@ -80,6 +80,44 @@ describe("body battery (hand-computed fixtures)", () => {
     const withNone = computeBodyBattery({ ...base, nowMinutes: 600 });
     expect(withFuture.current).toBe(withNone.current);
   });
+
+  it("declines smoothly across the day when bedtime wraps past midnight (bed <= wake)", () => {
+    // wake 08:00 (480), 8h need -> typicalBedMinutes wraps to 00:00 (0).
+    // Naive `bed - wake` would collapse span to 1 minute, dumping the whole
+    // AWAKE_DRAIN_TOTAL into the first minute after waking (a cliff, then
+    // flat for the rest of the day). The correct curve is a smooth decline
+    // across the full waking window, ending at 100 - AWAKE_DRAIN_TOTAL.
+    const r = computeBodyBattery({
+      ...base,
+      wakeMinutes: 480,
+      bedMinutes: 0,
+      nowMinutes: 1440,
+    });
+    const midday = r.points.find((p) => p.minutes === 720); // 12:00
+    expect(midday).toBeDefined();
+    // Strictly between the pre-drain start (100) and the fully-drained end.
+    expect(midday!.charge).toBeGreaterThan(100 - AWAKE_DRAIN_TOTAL);
+    expect(midday!.charge).toBeLessThan(100);
+    expect(r.current).toBe(100 - AWAKE_DRAIN_TOTAL);
+  });
+
+  it("declines smoothly for another wrapped bedtime (wake 07:00, 7h need -> bed 00:00)", () => {
+    // wake 07:00 (420), 7h need (25200s) -> typicalBedMinutes wraps to 00:00 (0).
+    // This is the exact pairing called out in the settings validation message
+    // example ("07:00") combined with the shortest permitted target (4h..12h
+    // range) that still wraps.
+    const r = computeBodyBattery({
+      ...base,
+      wakeMinutes: 420,
+      bedMinutes: 0,
+      nowMinutes: 1440,
+    });
+    const midday = r.points.find((p) => p.minutes === 720); // 12:00
+    expect(midday).toBeDefined();
+    expect(midday!.charge).toBeGreaterThan(100 - AWAKE_DRAIN_TOTAL);
+    expect(midday!.charge).toBeLessThan(100);
+    expect(r.current).toBe(100 - AWAKE_DRAIN_TOTAL);
+  });
 });
 
 describe("typicalBedMinutes (schedule, not a debt recommendation)", () => {
