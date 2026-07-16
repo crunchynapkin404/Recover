@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   computeBodyBattery,
+  typicalBedMinutes,
   AWAKE_DRAIN_TOTAL,
   type BodyBatteryInput,
 } from "./body-battery";
@@ -78,5 +79,30 @@ describe("body battery (hand-computed fixtures)", () => {
     });
     const withNone = computeBodyBattery({ ...base, nowMinutes: 600 });
     expect(withFuture.current).toBe(withNone.current);
+  });
+});
+
+describe("typicalBedMinutes (schedule, not a debt recommendation)", () => {
+  it("derives 23:00 from a 07:00 wake and an 8h need", () => {
+    expect(typicalBedMinutes(420, 28800)).toBe(1380); // 23:00
+  });
+
+  it("derives 21:00 from a 05:00 wake and an 8h need", () => {
+    expect(typicalBedMinutes(300, 28800)).toBe(1260); // 21:00
+  });
+
+  it("wraps across midnight when wake minus need goes negative", () => {
+    // 01:00 wake, 8h need: 60 - 480 = -420 -> wraps to 17:00 the previous day.
+    expect(typicalBedMinutes(60, 28800)).toBe(1020); // 17:00
+  });
+
+  it("lands exactly on midnight rather than 1440 when it divides evenly", () => {
+    // 08:00 wake, 8h need: 480 - 480 = 0.
+    expect(typicalBedMinutes(480, 28800)).toBe(0); // 00:00
+  });
+
+  it("needs no wrap when wake minus need stays within the day", () => {
+    // 23:00 wake, 1h need: 1380 - 60 = 1320.
+    expect(typicalBedMinutes(1380, 3600)).toBe(1320); // 22:00
   });
 });

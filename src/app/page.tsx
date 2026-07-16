@@ -21,6 +21,7 @@ import type { Band } from "@/lib/readiness";
 import { formatDay, formatDuration, formatKm } from "@/lib/format";
 import {
   computeBodyBattery,
+  typicalBedMinutes,
   DEFAULT_BED_MINUTES,
   DEFAULT_WAKE_MINUTES,
 } from "@/lib/body-battery";
@@ -239,6 +240,9 @@ export default async function DashboardPage() {
 
   const sleepHours = latest?.sleepSecs != null ? latest.sleepSecs / 3600 : null;
 
+  // sleepDebt is a recommendation for tonight (used by the sleep card, v0.9.0
+  // Task 5) — it must not leak into the battery's waking window below, which
+  // models the athlete's actual schedule instead.
   const sleepDebt = computeSleepDebt({
     nights: wellness
       .filter((w) => w.date >= daysAgo(14))
@@ -252,15 +256,25 @@ export default async function DashboardPage() {
     return h * 60 + m;
   };
 
+  // The battery's waking window comes from the athlete's own schedule (wake
+  // time + typical sleep need), never from tonight's debt-repayment bedtime
+  // recommendation — carrying debt must not silently compress the modelled
+  // day.
+  const wakeMinutes = bodyPrefsRow?.wakeTime
+    ? hhmmToMinutes(bodyPrefsRow.wakeTime)
+    : DEFAULT_WAKE_MINUTES;
+  const bedMinutes = bodyPrefsRow?.wakeTime
+    ? typicalBedMinutes(
+        wakeMinutes,
+        bodyPrefsRow?.sleepNeedSecs ?? DEFAULT_SLEEP_NEED_SECS
+      )
+    : DEFAULT_BED_MINUTES;
+
   const now = new Date();
   const battery = computeBodyBattery({
     readiness: readinessOrNull,
-    wakeMinutes: bodyPrefsRow?.wakeTime
-      ? hhmmToMinutes(bodyPrefsRow.wakeTime)
-      : DEFAULT_WAKE_MINUTES,
-    bedMinutes: sleepDebt.bedtime
-      ? hhmmToMinutes(sleepDebt.bedtime)
-      : DEFAULT_BED_MINUTES,
+    wakeMinutes,
+    bedMinutes,
     activities: todayActivities.map((a) => ({
       startMinutes: a.startDate.getHours() * 60 + a.startDate.getMinutes(),
       durationMin: (a.durationS ?? 0) / 60,

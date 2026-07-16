@@ -33,8 +33,8 @@ export function BodyBatteryCurve({ current, points }: Props) {
       <div className="glass rounded-[2rem] p-7">
         <span className="label-micro">Estimated Energy</span>
         <p className="mt-4 text-sm text-white/50">
-          Not enough data yet — your readiness score has to be out of
-          calibration before energy can be estimated.
+          Not enough data yet — your readiness score needs more history before
+          energy can be estimated.
         </p>
       </div>
     );

@@ -58,6 +58,24 @@ function clamp(v: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, v));
 }
 
+/** Wrap arbitrary minutes (possibly negative, possibly >= 1440) into 0..1439. */
+function wrapMinutes(m: number): number {
+  return ((m % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
+}
+
+/**
+ * The athlete's typical bedtime, derived from their own wake time and sleep
+ * need — a fact about their schedule, not a debt-repayment recommendation.
+ * Wraps correctly across midnight (e.g. wake 07:00 with an 8h need → 23:00
+ * the previous day).
+ */
+export function typicalBedMinutes(
+  wakeMinutes: number,
+  sleepNeedSecs: number
+): number {
+  return wrapMinutes(wakeMinutes - sleepNeedSecs / 60);
+}
+
 /** Cumulative awake drain at t — linear across the waking window. */
 function awakeDrainAt(t: number, wake: number, bed: number): number {
   if (t <= wake) return 0;
