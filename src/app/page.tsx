@@ -95,7 +95,7 @@ export default async function DashboardPage() {
   const connection = await db.query.connections.findFirst({
     where: and(
       eq(schema.connections.userId, user.id),
-      eq(schema.connections.provider, "intervals_icu")
+      eq(schema.connections.status, "active")
     ),
   });
 
@@ -146,19 +146,40 @@ export default async function DashboardPage() {
     return (
       <AppShell>
         <div className="flex min-h-[60svh] flex-col items-center justify-center text-center">
-          <div className="glass mx-auto max-w-sm rounded-[2.5rem] p-8">
+          <div className="glass mx-auto max-w-md rounded-[2.5rem] p-8">
             <h2 className="text-xl font-bold tracking-tight">
               Welcome to Recover
             </h2>
             <p className="mt-2 text-sm text-white/50">
-              Connect intervals.icu to pull in your wellness and training data.
+              Track your readiness, recovery, and training — your way.
             </p>
-            <Link
-              href="/settings"
-              className="mt-6 inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-6 py-3 font-bold text-black transition-all hover:bg-emerald-400"
-            >
-              Connect intervals.icu
-            </Link>
+
+            <div className="mt-8 space-y-3">
+              <Link
+                href="/journal"
+                className="flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-6 py-3 font-bold text-black transition-all hover:bg-emerald-400"
+              >
+                <Sparkles className="h-4 w-4" />
+                Start logging manually
+              </Link>
+              <Link
+                href="/settings"
+                className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 px-6 py-3 font-medium text-white/70 transition-all hover:bg-white/5"
+              >
+                Connect intervals.icu
+              </Link>
+              <Link
+                href="/import"
+                className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 px-6 py-3 font-medium text-white/70 transition-all hover:bg-white/5"
+              >
+                Import CSV data
+              </Link>
+            </div>
+
+            <p className="mt-6 text-[11px] text-white/30">
+              Log 14 days of HRV &amp; resting HR to unlock your readiness score.
+              Connect integrations anytime from Settings.
+            </p>
           </div>
         </div>
       </AppShell>

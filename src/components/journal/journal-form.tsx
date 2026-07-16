@@ -28,6 +28,8 @@ interface Props {
   streakDays: number;
   /** Existing entries keyed by YYYY-MM-DD for the calendar strip days. */
   entriesByDate: Record<string, DayEntry>;
+  /** True when user has an active intervals.icu / Strava connection. */
+  hasActiveConnection: boolean;
 }
 
 const MOODS = [
@@ -56,6 +58,7 @@ export function JournalForm({
   syncedSleepHours,
   streakDays,
   entriesByDate,
+  hasActiveConnection,
 }: Props) {
   const [state, action, pending] = useActionState<
     ActionResult | null,
@@ -88,6 +91,10 @@ export function JournalForm({
   );
   const [notes, setNotes] = useState(todayEntry?.notes ?? "");
   const [selectedDate, setSelectedDate] = useState(todayYmd);
+  const [manualHrv, setManualHrv] = useState<string>("");
+  const [manualRhr, setManualRhr] = useState<string>("");
+  const [manualSleep, setManualSleep] = useState<string>("");
+  const [manualWeight, setManualWeight] = useState<string>("");
 
   const toggleDayFlag = (flag: DayFlag) => {
     setDayFlags((prev) => {
@@ -122,6 +129,10 @@ export function JournalForm({
       setDayFlags(new Set());
       setNotes("");
     }
+    setManualHrv("");
+    setManualRhr("");
+    setManualSleep("");
+    setManualWeight("");
   }
 
   const toggleTag = (tag: string) => {
@@ -390,6 +401,87 @@ export function JournalForm({
             )}
           </div>
         </div>
+
+        {/* Manual vitals — shown when no integration provides them automatically */}
+        {!hasActiveConnection && (
+          <div className="glass rounded-[2rem] p-6">
+            <h3 className="label-micro mb-6">Today&apos;s Vitals</h3>
+            <p className="mb-4 text-[10px] text-white/50">
+              Enter your morning readings. Log HRV &amp; resting HR daily
+              to unlock your readiness score after 14 days.
+            </p>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="manual-hrv" className="mb-1 block text-[10px] font-bold uppercase text-white/50">
+                  HRV (ms)
+                </label>
+                <input
+                  id="manual-hrv"
+                  type="number"
+                  name="hrvMs"
+                  min={1}
+                  max={300}
+                  step={0.1}
+                  value={manualHrv}
+                  onChange={(e) => setManualHrv(e.target.value)}
+                  placeholder="e.g. 55"
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none placeholder:text-white/30 focus:border-emerald-400/50"
+                />
+              </div>
+              <div>
+                <label htmlFor="manual-rhr" className="mb-1 block text-[10px] font-bold uppercase text-white/50">
+                  Resting HR (bpm)
+                </label>
+                <input
+                  id="manual-rhr"
+                  type="number"
+                  name="restingHr"
+                  min={20}
+                  max={120}
+                  step={1}
+                  value={manualRhr}
+                  onChange={(e) => setManualRhr(e.target.value)}
+                  placeholder="e.g. 58"
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none placeholder:text-white/30 focus:border-emerald-400/50"
+                />
+              </div>
+              <div>
+                <label htmlFor="manual-sleep" className="mb-1 block text-[10px] font-bold uppercase text-white/50">
+                  Sleep (hours)
+                </label>
+                <input
+                  id="manual-sleep"
+                  type="number"
+                  name="sleepHours"
+                  min={0}
+                  max={24}
+                  step={0.25}
+                  value={manualSleep}
+                  onChange={(e) => setManualSleep(e.target.value)}
+                  placeholder="e.g. 7.5"
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none placeholder:text-white/30 focus:border-emerald-400/50"
+                />
+              </div>
+              <div>
+                <label htmlFor="manual-weight" className="mb-1 block text-[10px] font-bold uppercase text-white/50">
+                  Weight (kg)
+                </label>
+                <input
+                  id="manual-weight"
+                  type="number"
+                  name="weightKg"
+                  min={20}
+                  max={300}
+                  step={0.1}
+                  value={manualWeight}
+                  onChange={(e) => setManualWeight(e.target.value)}
+                  placeholder="e.g. 72"
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none placeholder:text-white/30 focus:border-emerald-400/50"
+                />
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Vitals auto-submitted from sync — no manual entry needed */}
         {syncedHrv != null && (

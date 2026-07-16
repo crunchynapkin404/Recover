@@ -1,5 +1,38 @@
 # Changelog
 
+## v0.8.0 — 2026-07-16 — Data Freedom
+
+Use Recover without any integrations. Log vitals and activities manually,
+import CSV data, and unlock your readiness score from day one — no
+intervals.icu required.
+
+### Added
+
+- **Manual-first onboarding**: the dashboard now offers three paths — start
+  logging manually, connect intervals.icu, or import CSV data. No
+  integration is required to begin.
+- **Manual vitals entry**: when no integration is active, the journal form
+  shows HRV, resting HR, sleep, and weight input fields. Synced values
+  still auto-populate when an integration is connected.
+- **Manual activity logging** (`/activity/log`): log rides, runs, swims, and
+  other sessions with sport type, duration, distance, HR, power, elevation,
+  and training load.
+- **CSV import** (`/import`): upload wellness or activity CSVs with flexible
+  column name mapping (supports common formats from Apple Health, Garmin,
+  Whoop, and spreadsheets). Drag-and-drop upload, row preview, batch
+  upsert.
+- CSV parser tests (7 cases covering both wellness and activity formats).
+
+### Fixed
+
+- **Middleware was dead code**: `src/proxy.ts` exported a function named
+  `proxy()` instead of `middleware()`, so Next.js never called it — no
+  session redirects worked. Renamed to `src/middleware.ts` with the correct
+  export. The route guard matcher (which correctly excludes `/api/mcp`,
+  `/api/cron`, and public assets) is now active.
+- **Behavior tag buttons did nothing**: dashboard tags were `<button>`
+  elements with no click handler. Now link to the journal page.
+
 ## v0.7.0 — 2026-07-16 — Score Integrity
 
 Stop the app from knowing things it doesn't know. Both fixes protect the

@@ -72,6 +72,14 @@ export default async function JournalPage() {
     );
   const streakDays = journaled[0]?.count ?? 0;
 
+  const activeConnection = await db.query.connections.findFirst({
+    where: and(
+      eq(schema.connections.userId, user.id),
+      eq(schema.connections.status, "active")
+    ),
+    columns: { id: true },
+  });
+
   const correlations = await computeTagCorrelations(user.id);
 
   return (
@@ -85,6 +93,7 @@ export default async function JournalPage() {
         }
         streakDays={streakDays}
         entriesByDate={entriesByDate}
+        hasActiveConnection={!!activeConnection}
       />
       <section className="mt-8">
         <CorrelationInsights correlations={correlations} />

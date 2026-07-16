@@ -40,6 +40,7 @@ const baseProps = {
   syncedSleepHours: null,
   streakDays: 0,
   entriesByDate: {},
+  hasActiveConnection: false,
 };
 
 let root: Root | null = null;

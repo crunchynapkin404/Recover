@@ -24,15 +24,16 @@ export function BehaviorTags() {
       </div>
       <div className="flex flex-wrap gap-2.5">
         {TAGS.map((tag) => (
-          <button
+          <Link
             key={tag.label}
+            href="/journal"
             className="glass flex items-center gap-2 rounded-full border-white/10 px-4 py-2 transition-transform active:scale-95"
           >
             <span className="text-xs">{tag.emoji}</span>
             <span className="text-xs font-semibold text-white/90">
               {tag.label}
             </span>
-          </button>
+          </Link>
         ))}
       </div>
     </div>
