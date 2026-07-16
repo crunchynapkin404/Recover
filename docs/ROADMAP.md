@@ -84,18 +84,18 @@ Auto-generate data-dense activity descriptions from intervals.icu metrics and pu
 
 **Done when:** a user unticks TRIMP and their next activity's description omits it.
 
-## v0.7 — Score Integrity
+## ✅ v0.7 — Score Integrity
 
 Stop the app from knowing things it doesn't know: the journal fabricated
 subjective input, and illness silently poisoned the baselines the readiness
 score is measured against. Both had to be fixed before anything else consumes
 those baselines.
 
-- [ ] **Honest subjective input**: unanswered energy/soreness/stress sliders write nothing instead of submitting invented defaults; unanswered state is announced to screen readers
-- [ ] **Day flags**: athletes flag abnormal days (🤒 ill, ✈️ travel, 🏔️ altitude); flagged days are excluded from rolling baselines but still scored
-- [ ] **Retroactive repair**: flagging a past day recomputes every score after it
-- [ ] **Honest degradation**: flagging most of the window returns `calibrating`, not a confident wrong number
-- [ ] **Coach visibility**: `get_wellness` returns day flags
+- [x] **Honest subjective input**: unanswered energy/soreness/stress sliders write nothing instead of submitting invented defaults; unanswered state is announced to screen readers
+- [x] **Day flags**: athletes flag abnormal days (🤒 ill, ✈️ travel, 🏔️ altitude); flagged days are excluded from rolling baselines but still scored
+- [x] **Retroactive repair**: flagging a past day recomputes every score after it
+- [x] **Honest degradation**: flagging most of the window returns `calibrating`, not a confident wrong number
+- [x] **Coach visibility**: `get_wellness` returns day flags
 
 **Done when:** saving the journal without touching a slider writes no
 subjective values; a flagged illness day scores red but never appears in a
@@ -103,44 +103,94 @@ later day's baseline.
 
 Design: [docs/specs/2026-07-15-v0.7-score-integrity-design.md](specs/2026-07-15-v0.7-score-integrity-design.md)
 
-## v0.8 — Body Intelligence
+## ✅ v0.8 — Data Freedom
 
-Longer-term health metrics that keep users engaged beyond the daily score.
+intervals.icu stops being a hard requirement. (Planned as v0.10; pulled
+forward and shipped early — this section is the release that exists.)
 
-- [ ] **Energy Bank / Body Battery**: cumulative daily energy curve derived from morning readiness + intraday strain; depletes with training load, partially recovers with rest; displayed as the existing BodyBatteryCurve component with real data
-- [ ] **Biological Age**: weekly score calculated from RHR baseline trend, HRV percentile-for-age, sleep consistency, VO2max estimate (from intervals.icu), body composition; 20-year projection chart
-- [ ] **Health Records**: upload blood test PDF/photo → LLM extracts biomarkers → stored in a `biomarkers` table; enriches readiness model and biological age calculation
-- [ ] **Blood Pressure**: manual entry or auto-import; tracked in a biology/vitals section
-
-**Done when:** energy bank shows a real intraday curve; biological age updates weekly; a blood test PDF is parsed and biomarkers appear in the app.
-
-## v0.9 — Journal Evolution
-
-Make the daily check-in smarter with less manual input.
-
-- [ ] **Auto-tags from activity data**: detect "Hard session", "Double day", "Rest day", "Late training" from intervals.icu and inject into journal without manual entry
-- [ ] **Sleep debt + bedtime targets**: show recommended bedtime based on accumulated sleep debt + tomorrow's planned training intensity
-- [ ] **Default entries**: pre-toggle frequent behaviors so user only marks exceptions (Bevel's "set default entries" pattern)
-- [ ] **Correlation engine V2**: factor in time-of-day, distinguish weekday/weekend patterns, show confidence intervals on impact scores
-
-**Done when:** auto-tags appear without user input; bedtime recommendation shows on the journal page; defaults reduce daily tap count.
-
-## v0.10 — Data-source freedom
-
-intervals.icu stops being a hard requirement.
-
-- [ ] Manual-first onboarding: fully usable with zero integrations
-- [ ] CSV import for wellness history
-- [ ] Apple Health: file-export upload + Health Auto Export-style webhook
-- [ ] Google Health / Fitbit connector (if demand materializes)
+- [x] Manual-first onboarding: fully usable with zero integrations
+- [x] Manual vitals entry in the journal when no integration is active
+- [x] Manual activity logging (`/activity/log`)
+- [x] CSV import for wellness and activity history, with flexible column mapping
+- [x] Fixed: `proxy.ts` exported `proxy()` instead of `middleware()` — the route guard had never run
+- [x] v0.8.1: navigation to the activity-log and import pages
 
 **Done when:** a user with no intervals.icu account gets a readiness score.
 
+Apple Health file-export/webhook and a Google Health / Fitbit connector were
+cut from this release and fold into v0.11 alongside the other connectors.
+
+## v0.9.0 — Honest Body Intelligence ← next
+
+v0.7 fixed fabricated data in the database. It never reached the dashboard,
+which still ships invented numbers: a hardcoded body-battery curve every
+athlete sees identically, a `"22:30 – 23:00"` bedtime string literal, and a
+47%-REM sleep breakdown backed by no data at all. Verified against the live
+DB: intervals.icu's wellness payload carries **no sleep stages and no
+bed/wake times** — those cards cannot be fixed, only removed.
+
+- [ ] **Body battery, for real**: energy curve modelled from morning readiness + real activity loads at their real times; explicitly labelled an estimate; returns nothing when readiness is `calibrating`
+- [ ] **Sleep debt**: cumulative deficit over 14 nights from real `sleepSecs`; missing nights skipped, never counted as perfect sleep
+- [ ] **Bedtime target**: derived from debt + a wake time the athlete sets; no wake time = no recommendation, never a guess
+- [ ] **Delete the unbackable**: sleep-stage breakdown and the `sleepHours / 8` "efficiency" figure
+
+**Done when:** the dashboard contains no hardcoded physiological constant; a
+day with training shows a curve that drops when the athlete actually trained;
+an athlete with no wake time set sees a prompt, not a bedtime.
+
+Design: [docs/specs/2026-07-16-v0.9.0-honest-body-intelligence-design.md](specs/2026-07-16-v0.9.0-honest-body-intelligence-design.md)
+
+## v0.9.1 — Smarter Coach
+
+Plans that react to the life the athlete actually had, not the one the plan
+assumed. Extends v0.5's `generateTrainingPlan` and the `adherencePct` the
+weekly review already computes.
+
+- [ ] **Adaptive training plans**: weekly auto-adjust from adherence + readiness trend; a missed week rewrites what's ahead instead of silently falling behind
+- [ ] **Adherence intelligence**: planned vs actual load surfaced continuously (not just in the weekly review), with trend alerts the coach can act on
+- [ ] **Coach visibility**: adherence and plan drift available as coach context/tools
+
+**Done when:** skipping a week visibly reshapes next week's plan, and the coach
+can explain what it changed and why.
+
+## v0.9.2 — Deeper Insights
+
+- [ ] **Correlation engine v2**: extend `lib/correlations.ts` — time-of-day patterns, weekday/weekend split, confidence intervals on impact scores; report "not enough data" rather than a thin correlation
+- [ ] **Auto-tags from activities**: derive "Hard session", "Double day", "Rest day", "Late training" from activity data instead of asking
+- [ ] **Achievements / streaks**: consistency milestones and plan completions
+
+**Done when:** auto-tags appear without user input; correlations carry a
+confidence interval; a streak survives a restart.
+
+## v0.9.3 — Infrastructure
+
+- [ ] **Nightly `pg_dump` backups**: to volume/S3, with a documented restore drill
+- [ ] **Absorb `intervals-icu-mcp`**: merge the standalone server's tools into Recover's built-in MCP (58 → ~40 after dedupe)
+
+**Done when:** a backup restores into a clean database unattended, and the
+standalone MCP server can be retired.
+
+## v0.10 — Deep Biology
+
+Long-horizon health metrics. Deferred from the original v0.8 "Body
+Intelligence" because the data isn't there yet: the live DB has 0/368 days of
+blood pressure, 0/368 respiration, and only 79/368 VO2max.
+
+- [ ] **Health Records**: upload blood test PDF/photo → LLM extracts biomarkers → `biomarkers` table
+- [ ] **Biological Age**: weekly score from RHR baseline trend, HRV percentile-for-age, sleep consistency, VO2max, body composition; 20-year projection
+- [ ] **Blood Pressure**: manual entry (`systolic`/`diastolic` exist in the intervals.icu payload but arrive empty)
+
+**Done when:** a blood test PDF is parsed and biomarkers appear in the app.
+
 ## v0.11 — Wearable connectors
+
+Whoop and Oura would also be the first providers to carry sleep stages and
+bed/wake times — the data v0.9.0 had to delete cards for.
 
 - [ ] Whoop OAuth (recovery, HRV, sleep)
 - [ ] Oura OAuth
-- [ ] Fitbit direct — if demand shows up
+- [ ] Apple Health: file-export upload + Health Auto Export-style webhook (cut from v0.8)
+- [ ] Google Health / Fitbit direct — if demand shows up
 
 **Done when:** HRV/sleep flows in from a real Whoop or Oura account with full data isolation.
 
@@ -148,9 +198,20 @@ intervals.icu stops being a hard requirement.
 
 Small chunks, shipped alongside feature phases.
 
-- [ ] Nightly `pg_dump` backup + documented restore drill
 - [ ] Sync-jobs admin UI
 - [ ] Vercel + Neon deployment guide refresh
+- [ ] Native `ubuntu-24.04-arm` release runners — restore the arm64 image dropped in v0.8 (QEMU builds took ~50 min)
+
+## Ongoing — polish backlog
+
+Considered for v0.9 and deliberately not scheduled. Cheap; pick up alongside
+any release.
+
+- [ ] Data export (GDPR): full history download — the read side of v0.8's import
+- [ ] Default journal entries: pre-toggle frequent behaviors so only exceptions get marked
+- [ ] Accessibility: ScoreRing aria labels, contrast, button roles
+- [ ] Performance log filters: wire up the month/sport controls
+- [ ] Dead UI sweep: remove non-functional settings controls (v0.9.0 clears the dashboard's share)
 
 ## Not planned
 
