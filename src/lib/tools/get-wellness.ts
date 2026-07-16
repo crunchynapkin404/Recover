@@ -40,6 +40,9 @@ async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
       energy: r.energy1_10,
       soreness: r.soreness1_10,
       stress: r.stress1_10,
+      // An athlete being ill/travelling materially changes the advice, and
+      // these days are excluded from their baselines.
+      day_flags: r.dayFlags ?? [],
     })),
     count: rows.length,
   };

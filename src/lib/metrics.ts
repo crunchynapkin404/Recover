@@ -2,6 +2,7 @@ import { and, asc, eq, gte } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { BASELINE_WINDOW_DAYS, computeReadiness } from "@/lib/readiness";
+import { isBaselineExcluded } from "@/lib/day-flags";
 
 function addDays(ymd: string, days: number): string {
   const d = new Date(`${ymd}T00:00:00Z`);
@@ -34,8 +35,20 @@ export async function computeDailyMetrics(
 
   for (const day of targets) {
     const baselineFloor = addDays(day.date, -BASELINE_WINDOW_DAYS);
+    // Flagged days (ill/travel/altitude) are excluded from the baseline the
+    // athlete is measured against — five days of flu must not drag the
+    // 60-day reference down for the next two months. Exclusion happens here,
+    // where the baseline array is assembled: computeReadiness takes plain
+    // numbers and has no idea where they came from.
+    //
+    // Note this governs baseline MEMBERSHIP only. `day` itself is still
+    // scored below regardless of its flags — an ill day should read red;
+    // it just shouldn't redefine "normal".
     const baseline = rows.filter(
-      (r) => r.date < day.date && r.date >= baselineFloor
+      (r) =>
+        r.date < day.date &&
+        r.date >= baselineFloor &&
+        !isBaselineExcluded(r.dayFlags)
     );
 
     const result = computeReadiness({

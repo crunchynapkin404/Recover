@@ -1,5 +1,6 @@
 import { db, schema } from "@/lib/db";
 import { computeDailyMetrics } from "@/lib/metrics";
+import type { DayFlag } from "@/lib/day-flags";
 
 export interface WellnessWriteInput {
   date: string; // YYYY-MM-DD
@@ -12,6 +13,7 @@ export interface WellnessWriteInput {
   restingHr?: number;
   mood?: string;
   tags?: string[];
+  dayFlags?: DayFlag[];
   notes?: string;
 }
 
@@ -34,6 +36,7 @@ export async function upsertWellness(
   if (input.restingHr != null) values.restingHr = input.restingHr;
   if (input.mood != null) values.mood = input.mood;
   if (input.tags != null) values.tags = input.tags;
+  if (input.dayFlags != null) values.dayFlags = input.dayFlags;
   if (input.notes != null) values.notes = input.notes;
 
   const fieldsWritten = Object.keys(values).length;

@@ -4,6 +4,13 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireUser } from "@/lib/session";
 import { upsertWellness } from "@/lib/wellness-write";
+import { ALL_DAY_FLAGS, sanitizeDayFlags } from "@/lib/day-flags";
+
+const DAY_FLAG_VALUES = ALL_DAY_FLAGS.map((f) => f.key) as [
+  "ill",
+  "travel",
+  "altitude",
+];
 
 export interface ActionResult {
   ok: boolean;
@@ -48,6 +55,20 @@ const wellnessSchema = z.object({
     (v) => (v === "" || v == null ? undefined : v),
     z.string().max(2000).optional()
   ),
+  // Day flags arrive as a JSON array string, like tags. Sanitized against the
+  // known flag list so a client can't write arbitrary JSON into the column.
+  // "[]" is meaningful (a normal day); an absent field leaves it untouched.
+  dayFlags: z.preprocess(
+    (v) => {
+      if (typeof v !== "string" || v === "") return undefined;
+      try {
+        return sanitizeDayFlags(JSON.parse(v));
+      } catch {
+        return undefined;
+      }
+    },
+    z.array(z.enum(DAY_FLAG_VALUES)).optional()
+  ),
 });
 
 export async function logWellness(
@@ -76,6 +97,7 @@ export async function logWellness(
     restingHr: input.restingHr,
     mood: input.mood,
     tags: input.tags,
+    dayFlags: input.dayFlags,
     notes: input.notes,
   });
 

@@ -1,0 +1,1 @@
+ALTER TABLE "wellness_daily" ADD COLUMN "day_flags" jsonb;

@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import { Flame, CheckCircle } from "lucide-react";
 import { logWellness, type ActionResult } from "@/app/wellness/actions";
+import { ALL_DAY_FLAGS, type DayFlag } from "@/lib/day-flags";
 
 function localYmd(d: Date): string {
   return d.toLocaleDateString("en-CA");
@@ -14,6 +15,7 @@ interface DayEntry {
   stress: number | null;
   mood: string | null;
   tags: string[] | null;
+  dayFlags: DayFlag[] | null;
   notes: string | null;
 }
 
@@ -67,34 +69,57 @@ export function JournalForm({
     if (!todayEntry?.mood) return null;
     return MOODS.findIndex((m) => m.label === todayEntry.mood);
   });
-  const [energy, setEnergy] = useState(todayEntry?.energy ?? 7);
-  const [soreness, setSoreness] = useState(todayEntry?.soreness ?? 4);
-  const [stress, setStress] = useState(todayEntry?.stress ?? 4);
+  // null = unanswered. Never default to a number: a submitted 7 the athlete
+  // never gave is indistinguishable from a real 7 once it's in the database.
+  const [energy, setEnergy] = useState<number | null>(
+    todayEntry?.energy ?? null
+  );
+  const [soreness, setSoreness] = useState<number | null>(
+    todayEntry?.soreness ?? null
+  );
+  const [stress, setStress] = useState<number | null>(
+    todayEntry?.stress ?? null
+  );
   const [activeTags, setActiveTags] = useState<Set<string>>(
     () => new Set(todayEntry?.tags ?? [])
   );
+  const [dayFlags, setDayFlags] = useState<Set<DayFlag>>(
+    () => new Set(todayEntry?.dayFlags ?? [])
+  );
   const [notes, setNotes] = useState(todayEntry?.notes ?? "");
   const [selectedDate, setSelectedDate] = useState(todayYmd);
+
+  const toggleDayFlag = (flag: DayFlag) => {
+    setDayFlags((prev) => {
+      const next = new Set(prev);
+      if (next.has(flag)) next.delete(flag);
+      else next.add(flag);
+      return next;
+    });
+  };
 
   function switchDay(ymd: string) {
     setSelectedDate(ymd);
     const entry = entriesByDate[ymd];
     if (entry) {
-      setEnergy(entry.energy ?? 7);
-      setSoreness(entry.soreness ?? 4);
-      setStress(entry.stress ?? 4);
+      // A stored value shows as answered; its absence shows as unanswered.
+      setEnergy(entry.energy ?? null);
+      setSoreness(entry.soreness ?? null);
+      setStress(entry.stress ?? null);
       setSelectedMood(
         entry.mood ? MOODS.findIndex((m) => m.label === entry.mood) : null
       );
       setActiveTags(new Set(entry.tags ?? []));
+      setDayFlags(new Set(entry.dayFlags ?? []));
       setNotes(entry.notes ?? "");
     } else {
-      // No entry for this day — reset to defaults
-      setEnergy(7);
-      setSoreness(4);
-      setStress(4);
+      // No entry for this day — everything unanswered
+      setEnergy(null);
+      setSoreness(null);
+      setStress(null);
       setSelectedMood(null);
       setActiveTags(new Set());
+      setDayFlags(new Set());
       setNotes("");
     }
   }
@@ -213,9 +238,17 @@ export function JournalForm({
 
       <form action={action} className="space-y-3">
         <input type="hidden" name="date" value={selectedDate} />
-        <input type="hidden" name="energy" value={energy} />
-        <input type="hidden" name="soreness" value={soreness} />
-        <input type="hidden" name="stress" value={stress} />
+        {/* "" when unanswered — the action's zod preprocess turns it into
+            undefined and upsertWellness skips the field entirely. */}
+        <input type="hidden" name="energy" value={energy ?? ""} />
+        <input type="hidden" name="soreness" value={soreness ?? ""} />
+        <input type="hidden" name="stress" value={stress ?? ""} />
+        {/* Always submitted: clearing every flag means "a normal day". */}
+        <input
+          type="hidden"
+          name="dayFlags"
+          value={JSON.stringify([...dayFlags])}
+        />
         <input
           type="hidden"
           name="mood"
@@ -274,6 +307,7 @@ export function JournalForm({
                   "Drained",
                   "Energized",
                   true,
+                  7,
                 ],
                 [
                   "Muscle Soreness",
@@ -283,6 +317,7 @@ export function JournalForm({
                   "None",
                   "Very sore",
                   false,
+                  4,
                 ],
                 [
                   "Stress",
@@ -292,6 +327,7 @@ export function JournalForm({
                   "Calm",
                   "Overwhelmed",
                   false,
+                  4,
                 ],
               ] as const
             ).map(
@@ -303,24 +339,39 @@ export function JournalForm({
                 lowLabel,
                 highLabel,
                 highIsGood,
+                resting,
               ]) => (
                 <div key={label} className="flex flex-col gap-2">
                   <div className="flex justify-between">
                     <span className="text-xs font-bold text-white/80">
                       {label}
                     </span>
-                    <span className={`text-xs font-bold ${color}`}>
-                      {value}/10
+                    <span
+                      className={`text-xs font-bold ${value == null ? "text-white/40" : color}`}
+                    >
+                      {value == null ? "—" : `${value}/10`}
                     </span>
                   </div>
+                  {/* Unanswered sliders rest at a neutral position but submit
+                      nothing. "Answered" is tracked on interaction, not on
+                      value change: tapping exactly the resting value fires no
+                      change event, so pointerdown/keydown commit it first and
+                      change (if the thumb moved) overwrites with the real one.
+                      pointerdown is guaranteed to precede input/change. */}
                   <input
                     type="range"
                     min="1"
                     max="10"
-                    value={value}
-                    aria-label={`${label}, 1 to 10`}
+                    value={value ?? resting}
+                    aria-label={
+                      value == null
+                        ? `${label}: not answered`
+                        : `${label}: ${value} of 10`
+                    }
+                    onPointerDown={() => setter((v) => v ?? resting)}
+                    onKeyDown={() => setter((v) => v ?? resting)}
                     onChange={(e) => setter(Number(e.target.value))}
-                    className="w-full accent-emerald-500"
+                    className={`w-full accent-emerald-500 ${value == null ? "opacity-50" : ""}`}
                   />
                   <div className="flex justify-between">
                     <span
@@ -389,6 +440,36 @@ export function JournalForm({
               </div>
             ))}
           </div>
+        </div>
+
+        {/* Day flags — facts that invalidate the day as a baseline reference.
+            Visually distinct from behavior tags above: a tag is a choice you
+            want measured, a flag is a fact that discounts the measurement. */}
+        <div className="glass rounded-[2rem] p-6">
+          <h3 className="label-micro mb-4">Anything unusual today?</h3>
+          <div
+            className="flex flex-wrap gap-2"
+            role="group"
+            aria-label="Day flags"
+          >
+            {ALL_DAY_FLAGS.map(({ key, emoji, label }) => (
+              <button
+                key={key}
+                type="button"
+                aria-pressed={dayFlags.has(key)}
+                onClick={() => toggleDayFlag(key)}
+                className={`glass flex items-center gap-1.5 rounded-full border-white/10 px-3 py-1.5 text-[10px] font-medium ${
+                  dayFlags.has(key) ? "tag-active" : ""
+                }`}
+              >
+                <span aria-hidden>{emoji}</span> {label}
+              </button>
+            ))}
+          </div>
+          <p className="mt-3 text-[10px] text-white/50">
+            Flagged days still get a score — they&apos;re just left out of your
+            baselines.
+          </p>
         </div>
 
         {/* 5. Notes */}

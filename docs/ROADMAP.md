@@ -84,7 +84,26 @@ Auto-generate data-dense activity descriptions from intervals.icu metrics and pu
 
 **Done when:** a user unticks TRIMP and their next activity's description omits it.
 
-## v0.7 — Body Intelligence
+## v0.7 — Score Integrity
+
+Stop the app from knowing things it doesn't know: the journal fabricated
+subjective input, and illness silently poisoned the baselines the readiness
+score is measured against. Both had to be fixed before anything else consumes
+those baselines.
+
+- [ ] **Honest subjective input**: unanswered energy/soreness/stress sliders write nothing instead of submitting invented defaults; unanswered state is announced to screen readers
+- [ ] **Day flags**: athletes flag abnormal days (🤒 ill, ✈️ travel, 🏔️ altitude); flagged days are excluded from rolling baselines but still scored
+- [ ] **Retroactive repair**: flagging a past day recomputes every score after it
+- [ ] **Honest degradation**: flagging most of the window returns `calibrating`, not a confident wrong number
+- [ ] **Coach visibility**: `get_wellness` returns day flags
+
+**Done when:** saving the journal without touching a slider writes no
+subjective values; a flagged illness day scores red but never appears in a
+later day's baseline.
+
+Design: [docs/specs/2026-07-15-v0.7-score-integrity-design.md](specs/2026-07-15-v0.7-score-integrity-design.md)
+
+## v0.8 — Body Intelligence
 
 Longer-term health metrics that keep users engaged beyond the daily score.
 
@@ -95,7 +114,7 @@ Longer-term health metrics that keep users engaged beyond the daily score.
 
 **Done when:** energy bank shows a real intraday curve; biological age updates weekly; a blood test PDF is parsed and biomarkers appear in the app.
 
-## v0.8 — Journal Evolution
+## v0.9 — Journal Evolution
 
 Make the daily check-in smarter with less manual input.
 
@@ -106,7 +125,7 @@ Make the daily check-in smarter with less manual input.
 
 **Done when:** auto-tags appear without user input; bedtime recommendation shows on the journal page; defaults reduce daily tap count.
 
-## v0.9 — Data-source freedom
+## v0.10 — Data-source freedom
 
 intervals.icu stops being a hard requirement.
 
@@ -117,7 +136,7 @@ intervals.icu stops being a hard requirement.
 
 **Done when:** a user with no intervals.icu account gets a readiness score.
 
-## v0.10 — Wearable connectors
+## v0.11 — Wearable connectors
 
 - [ ] Whoop OAuth (recovery, HRV, sleep)
 - [ ] Oura OAuth

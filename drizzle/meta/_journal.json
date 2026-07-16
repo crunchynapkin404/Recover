@@ -71,6 +71,13 @@
       "when": 1784151755719,
       "tag": "0009_smooth_nebula",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1784187224125,
+      "tag": "0010_day_flags",
+      "breakpoints": true
     }
   ]
 }

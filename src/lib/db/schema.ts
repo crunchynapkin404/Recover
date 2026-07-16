@@ -14,6 +14,7 @@ import {
 } from "drizzle-orm/pg-core";
 // Relative, not "@/": drizzle-kit loads this file outside the Next resolver.
 import type { DescriptionFields } from "../strava-description-fields";
+import type { DayFlag } from "../day-flags";
 
 // ── Better Auth tables (field names per Better Auth drizzle adapter) ─────────
 
@@ -196,6 +197,9 @@ export const wellnessDaily = pgTable(
     stress1_10: integer("stress_1_10"),
     mood: text("mood"),
     tags: jsonb("tags").$type<string[]>(),
+    // Facts that invalidate the day as a baseline reference (ill/travel/
+    // altitude). null and [] both mean "a normal day". See lib/day-flags.ts.
+    dayFlags: jsonb("day_flags").$type<DayFlag[]>(),
     notes: text("notes"),
     source: text("source", { enum: ["intervals_icu", "manual", "strava"] })
       .notNull()

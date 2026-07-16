@@ -5,6 +5,7 @@ import { AppShell } from "@/components/app-shell";
 import { JournalForm } from "@/components/journal/journal-form";
 import { CorrelationInsights } from "@/components/journal/correlation-insights";
 import { computeTagCorrelations } from "@/lib/correlations";
+import type { DayFlag } from "@/lib/day-flags";
 
 function daysAgo(n: number): string {
   const d = new Date();
@@ -37,6 +38,7 @@ export default async function JournalPage() {
       stress: number | null;
       mood: string | null;
       tags: string[] | null;
+      dayFlags: DayFlag[] | null;
       notes: string | null;
     }
   > = {};
@@ -47,6 +49,7 @@ export default async function JournalPage() {
       stress: entry.stress1_10,
       mood: entry.mood,
       tags: entry.tags,
+      dayFlags: entry.dayFlags,
       notes: entry.notes,
     };
   }
