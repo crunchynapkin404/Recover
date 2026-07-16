@@ -1,5 +1,38 @@
 # Changelog
 
+## v0.7.0 — 2026-07-16 — Score Integrity
+
+Stop the app from knowing things it doesn't know. Both fixes protect the
+readiness score's foundation, which everything after this consumes.
+
+### Fixed
+
+- **The journal no longer invents answers.** Energy/soreness/stress
+  initialized to 7/4/4 and were submitted on every save, so ticking a single
+  behavior tag wrote three subjective numbers the athlete never gave —
+  stored indistinguishably from real ones. Unanswered sliders now submit
+  nothing, read `—`, and announce "not answered" to screen readers. A
+  deliberate tap on the resting value is still kept.
+- No existing data is deleted or altered: pre-v0.7 rows can't be separated
+  from genuine answers, and destroying truth to hide a lie is worse.
+
+### Added
+
+- **Day flags** (🤒 ill, ✈️ travel, 🏔️ altitude): facts that invalidate a day
+  as a baseline reference. Flagged days are excluded from the 60-day rolling
+  baselines, so a week of flu no longer makes you read falsely green for the
+  next two months.
+- Flagged days are **still scored** — exclusion governs baseline membership
+  only; an ill day should read red, it just shouldn't redefine "normal".
+- Flagging a past day **retroactively repairs** every score after it.
+- Over-flagging degrades honestly to `calibrating` rather than a confident
+  wrong number.
+- `get_wellness` returns day flags — the coach knowing you were ill changes
+  its advice.
+
+The readiness engine itself is unchanged: exclusion happens where the
+baseline array is assembled, and `readiness.ts` and its tests are untouched.
+
 ## v0.6.2 — 2026-07-16 — Strava description fields
 
 - **Field selection**: choose which metrics appear in your Strava descriptions, with a live preview rendered against your most recent activity
