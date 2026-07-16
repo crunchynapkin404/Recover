@@ -59,6 +59,7 @@ services:
       WATCHTOWER_CLEANUP: "true"
       WATCHTOWER_POLL_INTERVAL: "300"
       WATCHTOWER_SCOPE: recover
+      DOCKER_API_VERSION: "1.43"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     labels:
