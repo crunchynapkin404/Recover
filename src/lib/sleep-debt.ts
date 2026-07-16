@@ -4,8 +4,9 @@
  * Two deliberate choices, both about not inventing data:
  *
  *  - Nights with no sleep record are SKIPPED, never counted as zero deficit.
- *    147 of 459 days in the reference dataset have no sleep row; treating
- *    those as perfect nights would quietly understate debt.
+ *    146 of the owner's 368 wellness days have no sleep row (verified against
+ *    the live DB); treating those as perfect nights would quietly understate
+ *    debt.
  *  - A surplus does not offset a deficit. Sleeping 10h on Sunday does not
  *    repay Wednesday, and modelling it as though it does is a tidy fiction.
  *
