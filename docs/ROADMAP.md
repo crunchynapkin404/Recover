@@ -202,6 +202,16 @@ Small chunks, shipped alongside feature phases.
 - [ ] Vercel + Neon deployment guide refresh
 - [ ] Native `ubuntu-24.04-arm` release runners — restore the arm64 image dropped in v0.8 (QEMU builds took ~50 min)
 
+## Ongoing — honesty debt
+
+Fabrications v0.9.0 found but did not fix. All pre-existing; all the same
+defect class as the sleep/energy cards that release cleaned up.
+
+- [ ] **Recovery & Strain are invented for manual-only athletes**: `recoveryScore`/`strainFraction` come from `latest?.atl ?? 0` / `latest?.ctl ?? 0`, and `atl`/`ctl` are written only by the intervals.icu sync — so a v0.8 no-integration athlete gets a hero "Recovery 60" and "Strain 0.0" from zero data. Needs the `calibrating` treatment readiness already has, propagated through `ScoreRing`, `StrainBudget`, and the narrative.
+- [ ] **"This Week" rings hardcoded**: `ringOuter={0.7}` / `ringInner={0.8}` for every athlete, forever. Blocked on the above — wiring the current values would just spread the fabrication.
+- [ ] **The logging "streak" is a count, not a streak**: `Math.min(window30.length, 30)` renders "22-day streak" for 22 scattered days. Folded into Achievements (v0.9.2).
+- [ ] **Sparklines flat-line on no data**: `sparkPath` returns `"M0 10 L100 10"` for <2 points — a visual claim of stability made from nothing.
+
 ## Ongoing — polish backlog
 
 Considered for v0.9 and deliberately not scheduled. Cheap; pick up alongside
@@ -211,7 +221,8 @@ any release.
 - [ ] Default journal entries: pre-toggle frequent behaviors so only exceptions get marked
 - [ ] Accessibility: ScoreRing aria labels, contrast, button roles
 - [ ] Performance log filters: wire up the month/sport controls
-- [ ] Dead UI sweep: remove non-functional settings controls (v0.9.0 clears the dashboard's share)
+- [ ] Dead UI sweep: remove non-functional settings controls (v0.9.0 cleared the dashboard's sleep/energy share)
+- [ ] Sleep Score sparkline plots `sleepSecs` under a "Sleep Score" label — real data, wrong series
 
 ## Not planned
 

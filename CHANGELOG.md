@@ -49,25 +49,38 @@ could not be fixed, only removed.
   (`M0 40 Q50 30 80 45 ...`) that no caller ever overrode — every athlete
   saw the same fictional day regardless of readiness or training.
 
-**Done when:** the eight named sleep/energy fabrications above (stage
-breakdown, "22:30 – 23:00" bedtime literal, "Efficiency", the
-`sleepHours / 9 * 100` Sleep Score, and the fixed body-battery SVG path) are
-gone from the dashboard; a day with training shows a curve that drops when
-the athlete actually trained; an athlete with no wake time set sees a
-prompt, not a bedtime.
+**Done when:** the five sleep/energy fabrications above — the stage
+breakdown, the `"22:30 – 23:00"` bedtime literal, "Efficiency", the
+`sleepHours / 9 * 100` Sleep Score, and the fixed body-battery SVG path,
+spanning eight code sites — are gone from the dashboard; a day with training
+shows a curve that drops when the athlete actually trained; an athlete with
+no wake time set sees a prompt, not a bedtime.
 
-**Known remaining work:** the "This Week" card's nested rings
-(`ringOuter`/`ringInner` on `WeeklySummary`, `src/app/page.tsx`) are still
-hardcoded to `0.7`/`0.8` for every athlete. Real recovery/strain numbers
-exist elsewhere on this same page (`recoveryScore`, `strainFraction`), but
-they are not safe to wire in as-is: both derive from `todayAtl`/`todayCtl`,
-which fall back to `latest?.atl ?? 0` / `latest?.ctl ?? 0` — and `atl`/`ctl`
-are nullable columns populated only by the intervals.icu sync, so any
-manual-only athlete (the v0.8 no-integration onboarding path) has both
-`null` today. Wiring them in would silently render a fabricated 60%/0%
-"recovery"/"strain" ring for that whole cohort — the exact defect class
-this release removes elsewhere. Left hardcoded and tracked as follow-up
-rather than papered over with a same-shaped bug.
+This release deliberately scoped itself to the sleep and energy cards. It
+does **not** claim the dashboard is now free of invented numbers — see below.
+
+**Known remaining work — the dashboard still fabricates elsewhere.** These
+are pre-existing on `main`, untouched by this release, and named here so the
+ledger is honest rather than flattering:
+
+- **Recovery and Strain are already fabricated for manual-only athletes.**
+  `recoveryScore` and `strainFraction` (`src/app/page.tsx`) derive from
+  `latest?.atl ?? 0` / `latest?.ctl ?? 0`. `atl`/`ctl` are nullable and
+  written only by the intervals.icu sync, so an athlete on v0.8's
+  no-integration path has both `null` — and the `?? 0` coalesce renders a
+  hero **"Recovery 60"** and **"Strain 0.0"** built from zero training data.
+  This is live today, in the page's most prominent cards (`ScoreRing`,
+  `StrainBudget`) and in the narrative text. Fixing it needs an honest
+  null-propagation path for CTL/ATL — the same `calibrating` treatment
+  readiness already gets — which is a larger change than this release.
+- **The "This Week" rings are hardcoded** to `ringOuter={0.7}` /
+  `ringInner={0.8}` for every athlete, forever — the same defect class as
+  the body-battery path removed above. They were left alone rather than
+  wired to `recoveryScore`/`strainFraction`, because doing so would only
+  propagate the fabrication above into two more rings.
+- **The logging "streak" is a count, not a streak** — `Math.min(window30.length, 30)`
+  counts rows in a 30-day window, so 22 scattered days renders "22-day streak".
+  Proper streak semantics land with Achievements in v0.9.2.
 
 ## v0.8.0 — 2026-07-16 — Data Freedom
 
