@@ -49,9 +49,25 @@ could not be fixed, only removed.
   (`M0 40 Q50 30 80 45 ...`) that no caller ever overrode — every athlete
   saw the same fictional day regardless of readiness or training.
 
-**Done when:** the dashboard contains no hardcoded physiological constant; a
-day with training shows a curve that drops when the athlete actually
-trained; an athlete with no wake time set sees a prompt, not a bedtime.
+**Done when:** the eight named sleep/energy fabrications above (stage
+breakdown, "22:30 – 23:00" bedtime literal, "Efficiency", the
+`sleepHours / 9 * 100` Sleep Score, and the fixed body-battery SVG path) are
+gone from the dashboard; a day with training shows a curve that drops when
+the athlete actually trained; an athlete with no wake time set sees a
+prompt, not a bedtime.
+
+**Known remaining work:** the "This Week" card's nested rings
+(`ringOuter`/`ringInner` on `WeeklySummary`, `src/app/page.tsx`) are still
+hardcoded to `0.7`/`0.8` for every athlete. Real recovery/strain numbers
+exist elsewhere on this same page (`recoveryScore`, `strainFraction`), but
+they are not safe to wire in as-is: both derive from `todayAtl`/`todayCtl`,
+which fall back to `latest?.atl ?? 0` / `latest?.ctl ?? 0` — and `atl`/`ctl`
+are nullable columns populated only by the intervals.icu sync, so any
+manual-only athlete (the v0.8 no-integration onboarding path) has both
+`null` today. Wiring them in would silently render a fabricated 60%/0%
+"recovery"/"strain" ring for that whole cohort — the exact defect class
+this release removes elsewhere. Left hardcoded and tracked as follow-up
+rather than papered over with a same-shaped bug.
 
 ## v0.8.0 — 2026-07-16 — Data Freedom
 
