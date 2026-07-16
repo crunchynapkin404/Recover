@@ -251,24 +251,35 @@ export default async function DashboardPage() {
     wakeTime: bodyPrefsRow?.wakeTime ?? null,
   });
 
-  const hhmmToMinutes = (v: string): number => {
-    const [h, m] = v.split(":").map(Number);
-    return h * 60 + m;
+  // null on anything that doesn't parse as a valid "HH:MM" — mirrors
+  // sleep-debt.ts's parseHhMm degrading to null rather than NaN. Unreachable
+  // today (the server action regex-validates on write); this is hardening,
+  // not a live bug fix.
+  const hhmmToMinutes = (v: string): number | null => {
+    const m = /^(\d{1,2}):(\d{2})$/.exec(v.trim());
+    if (!m) return null;
+    const h = Number(m[1]);
+    const min = Number(m[2]);
+    if (h > 23 || min > 59) return null;
+    return h * 60 + min;
   };
 
   // The battery's waking window comes from the athlete's own schedule (wake
   // time + typical sleep need), never from tonight's debt-repayment bedtime
   // recommendation — carrying debt must not silently compress the modelled
-  // day.
-  const wakeMinutes = bodyPrefsRow?.wakeTime
+  // day. A malformed wakeTime degrades to the same defaults as "unset"
+  // rather than propagating NaN into the curve and its SVG path.
+  const parsedWakeMinutes = bodyPrefsRow?.wakeTime
     ? hhmmToMinutes(bodyPrefsRow.wakeTime)
-    : DEFAULT_WAKE_MINUTES;
-  const bedMinutes = bodyPrefsRow?.wakeTime
-    ? typicalBedMinutes(
-        wakeMinutes,
-        bodyPrefsRow?.sleepNeedSecs ?? DEFAULT_SLEEP_NEED_SECS
-      )
-    : DEFAULT_BED_MINUTES;
+    : null;
+  const wakeMinutes = parsedWakeMinutes ?? DEFAULT_WAKE_MINUTES;
+  const bedMinutes =
+    parsedWakeMinutes != null
+      ? typicalBedMinutes(
+          wakeMinutes,
+          bodyPrefsRow?.sleepNeedSecs ?? DEFAULT_SLEEP_NEED_SECS
+        )
+      : DEFAULT_BED_MINUTES;
 
   const now = new Date();
   const battery = computeBodyBattery({
