@@ -12,9 +12,9 @@ import { createRoot, type Root } from "react-dom/client";
  * stored. These tests pin the contract at the submission boundary: the hidden
  * inputs are what actually reach the server action.
  *
- * Rendered with react-dom/client rather than @testing-library/react: that
- * library resolves its own React instance under Vitest, leaving the hook
- * dispatcher null. Everything needed here is plain DOM anyway.
+ * Rendered with react-dom/client rather than @testing-library/react: the
+ * assertions here are all plain DOM (hidden inputs and aria-labels), so the
+ * library would add a dependency without adding reach.
  *
  * The action module is stubbed because it is "use server" — a genuine module
  * boundary, not the logic under test (the write path has its own DB tests).

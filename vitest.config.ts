@@ -2,9 +2,6 @@ import { defineConfig } from "vitest/config";
 import path from "node:path";
 
 export default defineConfig({
-  // tsconfig sets jsx:"preserve" for Next, which esbuild would leave in place
-  // and fail to parse — component tests need it transformed here.
-  esbuild: { jsx: "automatic" },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
