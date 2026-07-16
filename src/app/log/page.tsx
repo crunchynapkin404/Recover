@@ -8,7 +8,7 @@ import { PmcChart } from "@/components/log/pmc-chart";
 import { WeeklyLoadBars } from "@/components/log/weekly-load-bars";
 import { WellnessTrends } from "@/components/log/wellness-trends";
 import { localYmd, weeklyLoads } from "@/lib/charts";
-import { TrendingUp, Bike, Mountain } from "lucide-react";
+import { TrendingUp, Bike, Mountain, Plus } from "lucide-react";
 import { formatDuration, formatKm } from "@/lib/format";
 
 const RANGES = [30, 90, 180, 365];
@@ -158,6 +158,13 @@ export default async function LogPage({
               Training Analytics
             </span>
           </div>
+          <Link
+            href="/activity/log"
+            className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1.5 text-[11px] font-bold text-emerald-400 transition-all hover:bg-emerald-500/20"
+          >
+            <Plus className="size-3.5" />
+            Log Activity
+          </Link>
         </div>
 
         {/* Training Status */}

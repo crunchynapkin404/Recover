@@ -218,6 +218,20 @@ export default async function SettingsPage({
                 Export
               </a>
             </div>
+            <div className="flex items-center justify-between border-t border-white/5 py-3">
+              <div className="flex flex-col">
+                <span className="text-sm font-medium">Import CSV</span>
+                <span className="text-[10px] font-bold uppercase text-white/50">
+                  Wellness or activity data from any source
+                </span>
+              </div>
+              <Link
+                href="/import"
+                className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-white/80 transition-colors hover:bg-white/10"
+              >
+                Import
+              </Link>
+            </div>
           </div>
         </section>
 
