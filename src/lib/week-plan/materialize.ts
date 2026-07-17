@@ -11,6 +11,7 @@ import {
   type DaySlot,
   type WeekState,
   isQuality,
+  QUALITY_TYPES,
   STEP_DOWN,
 } from "./types";
 
@@ -125,7 +126,7 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
     input.hoursPerWeek * (load / Math.max(1, input.skeleton.targetLoadTotal));
   let effectiveLoad = load;
 
-  if (hoursBudget < neededHours && sessions > 0) {
+  if (neededHours > 0 && hoursBudget < neededHours) {
     effectiveLoad = Math.round(load * (hoursBudget / neededHours));
     adjustments.push({
       date: input.weekStart,
@@ -165,8 +166,8 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
       input.raceType,
       input.sports
     )
-      .slice(0, sessions)
-      .sort((a, b) => b.durationMins - a.durationMins);
+      .sort((a, b) => b.durationMins - a.durationMins)
+      .slice(0, sessions);
 
     // Roomiest days first; stable by index for determinism.
     const slots = [...availableIdx].sort((a, b) => b.m - a.m || a.i - b.i);
@@ -192,12 +193,19 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
       let idx = place(w, quality);
       let workout = { ...w };
       if (idx === null && quality) {
-        // Unavoidable adjacency: step the session down instead.
+        // Unavoidable adjacency: step the session down repeatedly until it
+        // is no longer a quality type (Intervals→Tempo→Endurance), since
+        // Tempo alone is still in QUALITY_TYPES and would re-break the
+        // adjacency invariant.
+        let steppedType = w.type;
+        while ((QUALITY_TYPES as readonly string[]).includes(steppedType)) {
+          steppedType = STEP_DOWN[steppedType] ?? "Endurance";
+        }
         idx = place(w, false);
         if (idx !== null) {
           workout = {
             ...w,
-            type: STEP_DOWN[w.type] ?? "Endurance",
+            type: steppedType,
             intensity: "Z1-Z2",
           };
           adjustments.push({

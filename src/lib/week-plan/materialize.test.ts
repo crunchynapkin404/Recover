@@ -223,5 +223,38 @@ describe("materializeWeek layout", () => {
     });
     expect(r.week.days.every((d) => d.workout === null)).toBe(true);
     expect(r.week.days.every((d) => d.status === "rest")).toBe(true);
+    expect(r.effectiveLoad).toBe(0);
+    expect(
+      r.adjustments.some(
+        (a) => a.trigger === "weekly_rollover" && a.reason.includes("lowered")
+      )
+    ).toBe(true);
+  });
+
+  it("keeps a stepped-down session out of QUALITY_TYPES so adjacency still holds (triathlon)", () => {
+    const r = materializeWeek({
+      ...baseInput,
+      skeleton: { ...baseInput.skeleton, phase: "build", targetSessions: 5 },
+      raceType: "ironman",
+      sports: ["Swim", "Bike", "Run"],
+      availabilityMins: [90, 90, 90, 90, 90, 0, 0],
+    });
+    for (let i = 1; i < 7; i++) {
+      const both =
+        isQuality(r.week.days[i - 1].workout) &&
+        isQuality(r.week.days[i].workout);
+      expect(both).toBe(false);
+    }
+  });
+
+  it("keeps the primary (longest) session when generateWorkouts over-produces for a small session count", () => {
+    const r = materializeWeek({
+      ...baseInput,
+      availabilityMins: [0, 0, 0, 0, 0, 0, 90],
+    });
+    const placed = r.week.days.filter((d) => d.workout !== null);
+    expect(placed).toHaveLength(1);
+    expect(r.week.days[6].workout).not.toBeNull();
+    expect(r.week.days[6].workout!.type).toBe("Long");
   });
 });
