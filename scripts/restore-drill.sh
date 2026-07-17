@@ -20,7 +20,7 @@ echo "drill: starting scratch postgres ($NAME)"
 docker run -d --name "$NAME" \
   -e POSTGRES_USER=recover -e POSTGRES_PASSWORD=drill -e POSTGRES_DB=recover \
   -v "$VOLUME":/backups:ro \
-  postgres:16-alpine >/dev/null
+  postgres:16-alpine >/dev/null || fail "could not start scratch postgres container"
 
 ready=false
 for _ in $(seq 1 30); do
