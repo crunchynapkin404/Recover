@@ -137,7 +137,17 @@ export async function rolloverWeekPlan(
       eq(schema.weekPlans.weekStart, weekStart)
     ),
   });
-  if (existing) return "skipped"; // idempotency: one row per user-week
+  let supersededPlan = false;
+  if (existing) {
+    if (existing.planId === plan.id) return "skipped"; // idempotency
+    // The plan was regenerated mid-week: the archived plan's week would
+    // shadow the new plan until next Monday. Replace it (the user-week
+    // unique index means the old row must go, adjustments cascade).
+    await db
+      .delete(schema.weekPlans)
+      .where(eq(schema.weekPlans.id, existing.id));
+    supersededPlan = true;
+  }
 
   // 1. Close every still-open week and write its actuals back to the
   //    skeleton block (same formula as the weekly review's adherence).
@@ -196,6 +206,7 @@ export async function rolloverWeekPlan(
     ),
   });
   const constraints = planConstraints(plan.constraints);
+  const today = localYmd(now);
   const availabilityMins = prefillAvailability({
     hoursPerWeek: constraints.hoursPerWeek,
     daysPerWeek: constraints.daysPerWeek,
@@ -205,7 +216,10 @@ export async function rolloverWeekPlan(
     // Calendar prefill is applied in the UI/action layer where a human
     // confirms it, never inside the automatic rollover.
     busyMinsPerDay: null,
-  });
+    // Days already behind us have no availability: a mid-week start (new
+    // plan or "Plan this week") must not invent workouts in the past. On
+    // the normal Monday rollover this is a no-op.
+  }).map((mins, i) => (addDaysYmd(weekStart, i) < today ? 0 : mins));
 
   // 3. Materialize.
   const r = materializeWeek({
@@ -236,6 +250,16 @@ export async function rolloverWeekPlan(
       status: "open",
     })
     .returning();
+  if (supersededPlan) {
+    r.adjustments.unshift({
+      date: today,
+      trigger: "weekly_rollover",
+      action: "swapped",
+      before: [],
+      after: [],
+      reason: "plan changed — this week re-materialized from the new plan",
+    });
+  }
   await saveAdjustments(inserted.id, r.adjustments);
   return "rolled";
 }

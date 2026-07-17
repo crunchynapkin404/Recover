@@ -13,7 +13,7 @@ import {
   getValidGoogleAccessToken,
   type CalendarBusyBlock,
 } from "@/lib/connectors/google-calendar";
-import { submitAvailability } from "./actions";
+import { startWeek, submitAvailability } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -234,12 +234,19 @@ export default async function PlanPage() {
         </>
       ) : (
         <section className="mb-10">
-          <div className="glass rounded-[2rem] p-7">
+          <form action={startWeek} className="glass rounded-[2rem] p-7">
             <p className="text-sm text-white/70">
-              This week hasn&apos;t been materialized yet — it appears with the
-              next weekly review.
+              This week hasn&apos;t been planned yet. Start it now and it
+              materializes from your skeleton — you can adjust your availability
+              right after.
             </p>
-          </div>
+            <button
+              type="submit"
+              className="mt-5 w-full rounded-2xl bg-emerald-500/90 py-3 text-sm font-bold text-neutral-950 transition-opacity hover:opacity-90"
+            >
+              Plan this week
+            </button>
+          </form>
         </section>
       )}
 

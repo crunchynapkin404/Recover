@@ -579,5 +579,18 @@ export async function generateTrainingPlan(
     `${daysPerWeek} sessions/week, ~${hoursPerWeek}h/week. ` +
     `Starting CTL: ${Math.round(startingCtl)}.`;
 
+  // v0.9.3: the living week starts now, not at the next weekly review.
+  // Dynamic import: week-plan/service → materialize → this module.
+  try {
+    const { rolloverWeekPlan } = await import("@/lib/week-plan/service");
+    await rolloverWeekPlan(userId);
+  } catch (err) {
+    const { logger } = await import("@/lib/logger");
+    logger.warn("week materialization after plan generation failed", {
+      userId,
+      message: err instanceof Error ? err.message : String(err),
+    });
+  }
+
   return { planId: plan.id, summary };
 }
