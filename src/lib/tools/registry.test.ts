@@ -29,8 +29,8 @@ describe("tool registry", () => {
     }
   });
 
-  it("registers the v0.6 strava describe tool (21 total)", () => {
-    expect(allTools.length).toBe(21);
+  it("registers the v0.6 strava describe tool (24 total)", () => {
+    expect(allTools.length).toBe(24);
     const names = allTools.map((t) => t.name);
     expect(names).toContain("describe_strava_activity");
     for (const name of [
@@ -48,6 +48,39 @@ describe("tool registry", () => {
       "update_training_plan",
     ]) {
       expect(names).toContain(name);
+    }
+  });
+
+  it("registers the v0.9.2 living-week tools", () => {
+    const names = allTools.map((t) => t.name);
+    for (const name of [
+      "get_week_plan",
+      "set_week_availability",
+      "get_plan_drift",
+    ]) {
+      expect(names).toContain(name);
+    }
+    const setAvail = allTools.find((t) => t.name === "set_week_availability")!;
+    expect(setAvail.scope).toBe("write:plan");
+    expect(
+      setAvail.parameters.safeParse({
+        availableMins: [0, 60, 60, 60, 60, 120, 150],
+      }).success
+    ).toBe(true);
+    // wrong length
+    expect(
+      setAvail.parameters.safeParse({ availableMins: [60, 60] }).success
+    ).toBe(false);
+    // out of range
+    expect(
+      setAvail.parameters.safeParse({
+        availableMins: [0, 60, 60, 60, 60, 120, 800],
+      }).success
+    ).toBe(false);
+    // read-only tools take no parameters
+    for (const name of ["get_week_plan", "get_plan_drift"]) {
+      const tool = allTools.find((t) => t.name === name)!;
+      expect(tool.parameters.safeParse({}).success).toBe(true);
     }
   });
 

@@ -48,8 +48,11 @@ import { generateTrainingPlanTool } from "./generate-training-plan";
 import { getTrainingPlanTool } from "./get-training-plan";
 import { updateTrainingPlanTool } from "./update-training-plan";
 import { describeStravaActivityTool } from "./describe-strava-activity";
+import { getWeekPlanTool } from "./get-week-plan";
+import { setWeekAvailabilityTool } from "./set-week-availability";
+import { getPlanDriftTool } from "./get-plan-drift";
 
-/** All registered tools (21 — docs/PLAN.md MCP design + v0.4a memory + v0.4c depth + v0.5a artifacts + v0.5c calendar + v0.5d training plans + v0.6 strava describe). */
+/** All registered tools (24 — docs/PLAN.md MCP design + v0.4a memory + v0.4c depth + v0.5a artifacts + v0.5c calendar + v0.5d training plans + v0.6 strava describe + v0.9.2 living week). */
 export const allTools: ToolDefinition[] = [
   getReadiness,
   getReadinessHistory,
@@ -72,6 +75,9 @@ export const allTools: ToolDefinition[] = [
   getTrainingPlanTool,
   updateTrainingPlanTool,
   describeStravaActivityTool,
+  getWeekPlanTool,
+  setWeekAvailabilityTool,
+  getPlanDriftTool,
 ];
 
 /** Required scope for a tool (default "read"). */
