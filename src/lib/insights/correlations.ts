@@ -1,4 +1,6 @@
-import { AUTO_TAGS, addDaysYmd } from "./auto-tags";
+import { and, eq, gte, isNotNull, ne } from "drizzle-orm";
+import { db, schema } from "@/lib/db";
+import { AUTO_TAGS, addDaysYmd, deriveAutoTags, localYmd } from "./auto-tags";
 import { mean, welchCompare } from "./stats";
 
 export const MIN_EVENTS = 5;
@@ -123,5 +125,48 @@ export function correlateTags(input: CorrelateInput): TagInsight[] {
     return a.conclusive
       ? Math.abs(b.impactPct) - Math.abs(a.impactPct)
       : b.events - a.events;
+  });
+}
+
+/** The one DB wrapper: window queries + auto-tag derivation + pure core. */
+export async function computeTagInsights(
+  userId: string,
+  now = new Date()
+): Promise<TagInsight[]> {
+  const end = localYmd(now);
+  const start = addDaysYmd(end, -WINDOW_DAYS);
+
+  const [tagged, metrics, acts] = await Promise.all([
+    db.query.wellnessDaily.findMany({
+      where: and(
+        eq(schema.wellnessDaily.userId, userId),
+        gte(schema.wellnessDaily.date, start),
+        isNotNull(schema.wellnessDaily.tags)
+      ),
+      columns: { date: true, tags: true },
+    }),
+    db.query.dailyMetrics.findMany({
+      where: and(
+        eq(schema.dailyMetrics.userId, userId),
+        gte(schema.dailyMetrics.date, start),
+        isNotNull(schema.dailyMetrics.readiness)
+      ),
+      columns: { date: true, readiness: true },
+    }),
+    // Strava is excluded from all analytics (API AI clause).
+    db.query.activities.findMany({
+      where: and(
+        eq(schema.activities.userId, userId),
+        ne(schema.activities.provider, "strava"),
+        gte(schema.activities.startDate, new Date(`${start}T00:00:00`))
+      ),
+      columns: { startDate: true, durationS: true, load: true },
+    }),
+  ]);
+
+  return correlateTags({
+    manualTagsByDate: new Map(tagged.map((t) => [t.date, t.tags ?? []])),
+    autoTagsByDate: deriveAutoTags(acts, { start, end }),
+    readinessByDate: new Map(metrics.map((m) => [m.date, m.readiness!])),
   });
 }
