@@ -6,6 +6,7 @@ import { db, schema } from "@/lib/db";
 import { materializeWeek } from "./materialize";
 import { adaptDay } from "./adapt-day";
 import { prefillAvailability } from "./availability";
+import { isQuality } from "./types";
 import type { AdjustmentRecord, Band, DaySlot } from "./types";
 
 export type AdjustmentRow = typeof schema.planAdjustments.$inferSelect;
@@ -404,4 +405,128 @@ export async function applyAvailability(
   // Re-check today against the new week (its own persistence + logging).
   await runDailyAdaptation(userId, now);
   return "applied";
+}
+
+/**
+ * Coach-initiated move: same adjacency/availability checks as adaptDay's
+ * move — the target day must be free, fit the session, and (for quality
+ * sessions) not sit next to another quality day.
+ */
+export async function moveWorkout(
+  userId: string,
+  fromDate: string,
+  toDate: string
+): Promise<"moved" | "no_open_week" | "invalid"> {
+  const week = await getOpenWeekPlan(userId);
+  if (!week) return "no_open_week";
+  const fromIdx = week.days.findIndex((d) => d.date === fromDate);
+  const toIdx = week.days.findIndex((d) => d.date === toDate);
+  if (fromIdx === -1 || toIdx === -1 || fromIdx === toIdx) return "invalid";
+
+  const from = week.days[fromIdx];
+  const to = week.days[toIdx];
+  if (!from.workout) return "invalid";
+  if (from.status === "completed" || from.status === "missed") return "invalid";
+  if (to.workout !== null) return "invalid";
+  if (to.status === "completed" || to.status === "missed") return "invalid";
+  if (to.availableMins < from.workout.durationMins) return "invalid";
+
+  const days = week.days.map((d) => ({
+    ...d,
+    workout: d.workout ? { ...d.workout } : null,
+  }));
+  const workout = days[fromIdx].workout!;
+  days[fromIdx] = {
+    ...days[fromIdx],
+    workout: null,
+    status: "rest",
+    movedFrom: undefined,
+  };
+  if (
+    isQuality(workout) &&
+    (isQuality(days[toIdx - 1]?.workout ?? null) ||
+      isQuality(days[toIdx + 1]?.workout ?? null))
+  ) {
+    return "invalid";
+  }
+  const before = [
+    { ...from, workout: { ...from.workout } },
+    { ...to, workout: null },
+  ];
+  days[toIdx] = {
+    ...days[toIdx],
+    workout,
+    status: "moved",
+    movedFrom: fromDate,
+  };
+
+  await db
+    .update(schema.weekPlans)
+    .set({ days, updatedAt: new Date() })
+    .where(eq(schema.weekPlans.id, week.id));
+  await saveAdjustments(week.id, [
+    {
+      date: fromDate,
+      trigger: "availability_change",
+      action: "moved",
+      before,
+      after: [{ ...days[fromIdx] }, { ...days[toIdx] }],
+      reason: `moved by coach: ${fromDate} → ${toDate}`,
+    },
+  ]);
+  return "moved";
+}
+
+/** Coach-initiated swap: both sessions must fit each other's day. */
+export async function swapWorkouts(
+  userId: string,
+  fromDate: string,
+  toDate: string
+): Promise<"swapped" | "no_open_week" | "invalid"> {
+  const week = await getOpenWeekPlan(userId);
+  if (!week) return "no_open_week";
+  const fromIdx = week.days.findIndex((d) => d.date === fromDate);
+  const toIdx = week.days.findIndex((d) => d.date === toDate);
+  if (fromIdx === -1 || toIdx === -1 || fromIdx === toIdx) return "invalid";
+
+  const from = week.days[fromIdx];
+  const to = week.days[toIdx];
+  if (!from.workout || !to.workout) return "invalid";
+  for (const d of [from, to]) {
+    if (d.status === "completed" || d.status === "missed") return "invalid";
+  }
+  if (
+    to.availableMins < from.workout.durationMins ||
+    from.availableMins < to.workout.durationMins
+  ) {
+    return "invalid";
+  }
+
+  const days = week.days.map((d) => ({
+    ...d,
+    workout: d.workout ? { ...d.workout } : null,
+  }));
+  const before = [
+    { ...from, workout: { ...from.workout } },
+    { ...to, workout: { ...to.workout } },
+  ];
+  const fromWorkout = days[fromIdx].workout!;
+  days[fromIdx] = { ...days[fromIdx], workout: days[toIdx].workout };
+  days[toIdx] = { ...days[toIdx], workout: fromWorkout };
+
+  await db
+    .update(schema.weekPlans)
+    .set({ days, updatedAt: new Date() })
+    .where(eq(schema.weekPlans.id, week.id));
+  await saveAdjustments(week.id, [
+    {
+      date: fromDate,
+      trigger: "availability_change",
+      action: "swapped",
+      before,
+      after: [{ ...days[fromIdx] }, { ...days[toIdx] }],
+      reason: `swapped by coach: ${fromDate} ↔ ${toDate}`,
+    },
+  ]);
+  return "swapped";
 }

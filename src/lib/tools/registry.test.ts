@@ -268,6 +268,34 @@ describe("tool registry", () => {
         .success
     ).toBe(false);
   });
+
+  it("update_training_plan supports day-level move/swap actions", () => {
+    const tool = allTools.find((t) => t.name === "update_training_plan")!;
+    expect(
+      tool.parameters.safeParse({
+        action: "move_workout",
+        reason: "conflict",
+        fromDate: "2026-07-21",
+        toDate: "2026-07-23",
+      }).success
+    ).toBe(true);
+    expect(
+      tool.parameters.safeParse({
+        action: "swap_workout",
+        reason: "prefer long ride sunday",
+        fromDate: "2026-07-21",
+        toDate: "2026-07-26",
+      }).success
+    ).toBe(true);
+    // Day-level actions require both dates.
+    expect(
+      tool.parameters.safeParse({ action: "move_workout", reason: "r" }).success
+    ).toBe(false);
+    // Week-level actions unchanged: weekNumber still required.
+    expect(
+      tool.parameters.safeParse({ action: "skip_week", reason: "r" }).success
+    ).toBe(false);
+  });
 });
 
 describe("tool registry - userId scoping", () => {

@@ -349,4 +349,106 @@ describe.skipIf(!hasDb)("week-plan service", () => {
     expect(week).not.toBeNull();
     expect(week!.days).toHaveLength(7);
   });
+
+  it("moveWorkout moves a session between days and logs the coach adjustment", async () => {
+    const { db, schema } = await import("@/lib/db");
+    const { moveWorkout, getOpenWeekPlan, listAdjustments } =
+      await import("@/lib/week-plan/service");
+
+    await db.insert(schema.weekPlans).values({
+      userId: USER,
+      planId,
+      weekStart,
+      skeletonWeek: 1,
+      days: seededDays(),
+      status: "open",
+    });
+
+    const toDate = seededDays().find((d) => d.date !== todayYmd)!.date;
+    expect(await moveWorkout(USER, todayYmd, toDate)).toBe("moved");
+
+    const week = await getOpenWeekPlan(USER);
+    const from = week!.days.find((d) => d.date === todayYmd)!;
+    const to = week!.days.find((d) => d.date === toDate)!;
+    expect(from.workout).toBeNull();
+    expect(from.status).toBe("rest");
+    expect(to.workout?.type).toBe("Intervals");
+    expect(to.status).toBe("moved");
+    expect(to.movedFrom).toBe(todayYmd);
+
+    const adjustments = await listAdjustments(week!.id);
+    expect(
+      adjustments.some(
+        (a) =>
+          a.trigger === "availability_change" &&
+          a.action === "moved" &&
+          a.reason === `moved by coach: ${todayYmd} → ${toDate}`
+      )
+    ).toBe(true);
+  });
+
+  it("moveWorkout validates: empty origin or occupied target is invalid", async () => {
+    const { db, schema } = await import("@/lib/db");
+    const { moveWorkout } = await import("@/lib/week-plan/service");
+
+    await db.insert(schema.weekPlans).values({
+      userId: USER,
+      planId,
+      weekStart,
+      skeletonWeek: 1,
+      days: seededDays(),
+      status: "open",
+    });
+
+    const restDate = seededDays().find((d) => d.date !== todayYmd)!.date;
+    // Origin has no workout.
+    expect(await moveWorkout(USER, restDate, todayYmd)).toBe("invalid");
+    // Target already has a workout.
+    const otherRest = seededDays().filter((d) => d.date !== todayYmd)[1].date;
+    expect(await moveWorkout(USER, otherRest, todayYmd)).toBe("invalid");
+    // No open week at all.
+    expect(await moveWorkout(OTHER, todayYmd, restDate)).toBe("no_open_week");
+  });
+
+  it("swapWorkouts exchanges two days when both fit", async () => {
+    const { db, schema } = await import("@/lib/db");
+    const { swapWorkouts, getOpenWeekPlan } =
+      await import("@/lib/week-plan/service");
+
+    const days = seededDays();
+    const otherDate = days.find((d) => d.date !== todayYmd)!.date;
+    const withSecond = days.map((d) =>
+      d.date === otherDate
+        ? {
+            ...d,
+            workout: {
+              day: 0,
+              sport: "Run",
+              type: "Endurance",
+              durationMins: 40,
+              intensity: "Z1-Z2",
+              description: "Easy run",
+            },
+            status: "planned" as const,
+          }
+        : d
+    );
+    await db.insert(schema.weekPlans).values({
+      userId: USER,
+      planId,
+      weekStart,
+      skeletonWeek: 1,
+      days: withSecond,
+      status: "open",
+    });
+
+    expect(await swapWorkouts(USER, todayYmd, otherDate)).toBe("swapped");
+    const week = await getOpenWeekPlan(USER);
+    expect(week!.days.find((d) => d.date === todayYmd)!.workout?.type).toBe(
+      "Endurance"
+    );
+    expect(week!.days.find((d) => d.date === otherDate)!.workout?.type).toBe(
+      "Intervals"
+    );
+  });
 });
