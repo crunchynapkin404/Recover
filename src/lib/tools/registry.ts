@@ -51,8 +51,16 @@ import { describeStravaActivityTool } from "./describe-strava-activity";
 import { getWeekPlanTool } from "./get-week-plan";
 import { setWeekAvailabilityTool } from "./set-week-availability";
 import { getPlanDriftTool } from "./get-plan-drift";
+import { icuGetCalendarEvents } from "./icu-get-calendar-events";
+import { icuGetEvent } from "./icu-get-event";
+import { icuCreateEvent } from "./icu-create-event";
+import { icuUpdateEvent } from "./icu-update-event";
+import { icuDeleteEvent } from "./icu-delete-event";
+import { icuBulkCreateEvents } from "./icu-bulk-create-events";
+import { icuBulkDeleteEvents } from "./icu-bulk-delete-events";
+import { icuDuplicateEvents } from "./icu-duplicate-events";
 
-/** All registered tools (24 — docs/PLAN.md MCP design + v0.4a memory + v0.4c depth + v0.5a artifacts + v0.5c calendar + v0.5d training plans + v0.6 strava describe + v0.9.2 living week). */
+/** All registered tools (32 — docs/PLAN.md MCP design + v0.4a memory + v0.4c depth + v0.5a artifacts + v0.5c calendar + v0.5d training plans + v0.6 strava describe + v0.9.2 living week + v0.9.6 absorbed icu_* event tools). */
 export const allTools: ToolDefinition[] = [
   getReadiness,
   getReadinessHistory,
@@ -78,6 +86,14 @@ export const allTools: ToolDefinition[] = [
   getWeekPlanTool,
   setWeekAvailabilityTool,
   getPlanDriftTool,
+  icuGetCalendarEvents,
+  icuGetEvent,
+  icuCreateEvent,
+  icuUpdateEvent,
+  icuDeleteEvent,
+  icuBulkCreateEvents,
+  icuBulkDeleteEvents,
+  icuDuplicateEvents,
 ];
 
 /** Required scope for a tool (default "read"). */

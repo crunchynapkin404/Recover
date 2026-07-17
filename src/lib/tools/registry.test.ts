@@ -30,7 +30,7 @@ describe("tool registry", () => {
   });
 
   it("registers the v0.6 strava describe tool (24 total)", () => {
-    expect(allTools.length).toBe(24);
+    expect(allTools.length).toBe(32);
     const names = allTools.map((t) => t.name);
     expect(names).toContain("describe_strava_activity");
     for (const name of [
@@ -81,6 +81,39 @@ describe("tool registry", () => {
     for (const name of ["get_week_plan", "get_plan_drift"]) {
       const tool = allTools.find((t) => t.name === name)!;
       expect(tool.parameters.safeParse({}).success).toBe(true);
+    }
+  });
+
+  it("registers the v0.9.6 absorbed icu_* event tools with correct scopes", () => {
+    const names = allTools.map((t) => t.name);
+    for (const name of [
+      "icu_get_calendar_events",
+      "icu_get_event",
+      "icu_create_event",
+      "icu_update_event",
+      "icu_delete_event",
+      "icu_bulk_create_events",
+      "icu_bulk_delete_events",
+      "icu_duplicate_events",
+    ]) {
+      expect(names).toContain(name);
+    }
+    // The 2 reads default to "read" (no explicit scope).
+    for (const name of ["icu_get_calendar_events", "icu_get_event"]) {
+      const tool = allTools.find((t) => t.name === name)!;
+      expect(tool.scope).toBeUndefined();
+    }
+    // The 6 writes require write:icu.
+    for (const name of [
+      "icu_create_event",
+      "icu_update_event",
+      "icu_delete_event",
+      "icu_bulk_create_events",
+      "icu_bulk_delete_events",
+      "icu_duplicate_events",
+    ]) {
+      const tool = allTools.find((t) => t.name === name)!;
+      expect(tool.scope).toBe("write:icu");
     }
   });
 
