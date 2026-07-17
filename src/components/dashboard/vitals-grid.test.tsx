@@ -25,7 +25,7 @@ const SPARK_SVG = 'viewBox="0 0 100 20"';
 describe("vitals grid sparkline", () => {
   it("renders the sparkline when a real path is given", () => {
     const html = renderToString(
-      <VitalsGrid tiles={[tile("M0.0 18.0 L100.0 2.0")]} />,
+      <VitalsGrid tiles={[tile("M0.0 18.0 L100.0 2.0")]} />
     );
     expect(html).toContain(SPARK_SVG);
     expect(html).toContain('d="M0.0 18.0 L100.0 2.0"');

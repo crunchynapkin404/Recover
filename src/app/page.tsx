@@ -26,6 +26,7 @@ import {
   DEFAULT_WAKE_MINUTES,
 } from "@/lib/body-battery";
 import { computeSleepDebt, DEFAULT_SLEEP_NEED_SECS } from "@/lib/sleep-debt";
+import { sparkPath } from "@/lib/sparkline";
 
 function daysAgo(n: number): string {
   const d = new Date();
@@ -78,22 +79,6 @@ function buildNarrative(
     parts.push(`Take it easy today. Focus on recovery and mobility.`);
   else parts.push(`Still calibrating — keep logging and it'll dial in.`);
   return parts.join(" ");
-}
-
-/** Simple SVG-safe sparkline path from data */
-function sparkPath(values: (number | null)[]): string {
-  const nums = values.filter((v): v is number => v != null);
-  if (nums.length < 2) return "M0 10 L100 10";
-  const min = Math.min(...nums);
-  const max = Math.max(...nums);
-  const range = max - min || 1;
-  return nums
-    .map((v, i) => {
-      const x = (i / (nums.length - 1)) * 100;
-      const y = 18 - ((v - min) / range) * 16;
-      return `${i === 0 ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`;
-    })
-    .join(" ");
 }
 
 export default async function DashboardPage() {
@@ -496,7 +481,7 @@ export default async function DashboardPage() {
                   avg7d: null,
                   trend: "flat",
                   trendGood: true,
-                  sparkPath: sparkPath(window7.map((w) => w.sleepSecs)),
+                  sparkPath: sparkPath(window7.map((w) => w.sleepScore)),
                   sparkColor: "#3b82f6",
                 },
                 {
@@ -513,7 +498,7 @@ export default async function DashboardPage() {
                   avg7d: todayCtl > 0 ? `Optimal load intensity` : null,
                   trend: "flat",
                   trendGood: band === "green",
-                  sparkPath: "M0 10 L100 10",
+                  sparkPath: "",
                   sparkColor: "transparent",
                 },
               ]}
