@@ -1,5 +1,33 @@
 # Changelog
 
+## v0.9.4 — 2026-07-17 — Deeper Insights
+
+Auto-tags, honest confidence intervals, and real streaks. Everything is
+pure and computed on read — no new tables, nothing stored that the data
+could stop supporting. Design:
+`docs/specs/2026-07-17-v0.9.4-deeper-insights-design.md`.
+
+### Added
+
+- **Auto-tags from activities** (never stored, Strava excluded):
+  🔥 Hard session (own top-quartile load, silent under 20 training days),
+  2️⃣ Double day, 😴 Rest day, 🌅 Morning training, 🌙 Late training. They
+  join the journal's manual tags in the correlation analysis, marked
+  "auto".
+- **Correlations v2**: per-tag two-sample comparison (tagged vs untagged
+  days) with a t-based 95% confidence interval. Rows whose CI crosses
+  zero say "inconclusive · n events" instead of asserting an impact. Each
+  row expands into weekday/weekend splits, gated at 5 events per side.
+- **Milestones card** (dashboard + journal): real logging streak with
+  best-ever, plan weeks completed at ≥70% adherence, plans completed.
+
+### Fixed
+
+- **The streaks are real now.** The dashboard's "N-day logging streak"
+  was `Math.min(days logged in last 30, 30)` and the journal's was a
+  7-day count — both now show the true consecutive run (today not yet
+  logged doesn't break yesterday's run). Closes the honesty-debt item.
+
 ## v0.9.3 — 2026-07-17 — Week Starts Now
 
 Patch release for the Adaptive Week: a plan's living week now begins the

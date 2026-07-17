@@ -1,10 +1,12 @@
-import { and, desc, eq, gte, isNotNull, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { AppShell } from "@/components/app-shell";
 import { JournalForm } from "@/components/journal/journal-form";
 import { CorrelationInsights } from "@/components/journal/correlation-insights";
-import { computeTagCorrelations } from "@/lib/correlations";
+import { computeTagInsights } from "@/lib/insights/correlations";
+import { MilestonesCard } from "@/components/dashboard/milestones-card";
+import { getMilestones } from "@/lib/insights/milestones";
 import type { DayFlag } from "@/lib/day-flags";
 
 function daysAgo(n: number): string {
@@ -54,23 +56,7 @@ export default async function JournalPage() {
     };
   }
 
-  // Real streak: days in the last 7 with any journal signal.
-  const journaled = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(schema.wellnessDaily)
-    .where(
-      and(
-        eq(schema.wellnessDaily.userId, user.id),
-        gte(schema.wellnessDaily.date, daysAgo(6)),
-        or(
-          isNotNull(schema.wellnessDaily.mood),
-          isNotNull(schema.wellnessDaily.tags),
-          isNotNull(schema.wellnessDaily.notes),
-          isNotNull(schema.wellnessDaily.energy1_10)
-        )
-      )
-    );
-  const streakDays = journaled[0]?.count ?? 0;
+  const milestones = await getMilestones(user.id);
 
   const activeConnection = await db.query.connections.findFirst({
     where: and(
@@ -80,7 +66,7 @@ export default async function JournalPage() {
     columns: { id: true },
   });
 
-  const correlations = await computeTagCorrelations(user.id);
+  const insights = await computeTagInsights(user.id);
 
   return (
     <AppShell>
@@ -91,12 +77,15 @@ export default async function JournalPage() {
         syncedSleepHours={
           latest?.sleepSecs != null ? latest.sleepSecs / 3600 : null
         }
-        streakDays={streakDays}
+        streakDays={milestones.currentStreak}
         entriesByDate={entriesByDate}
         hasActiveConnection={!!activeConnection}
       />
       <section className="mt-8">
-        <CorrelationInsights correlations={correlations} />
+        <CorrelationInsights insights={insights} />
+      </section>
+      <section className="mt-8">
+        <MilestonesCard {...milestones} />
       </section>
     </AppShell>
   );

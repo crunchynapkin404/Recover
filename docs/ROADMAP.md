@@ -189,14 +189,14 @@ releases below shift one patch digit (again).
 - [x] Mid-week starts give already-past days zero availability — no
       fabricated workouts behind the clock
 
-## v0.9.4 — Deeper Insights
+## ✅ v0.9.4 — Deeper Insights
 
-- [ ] **Correlation engine v2**: extend `lib/correlations.ts` — time-of-day patterns, weekday/weekend split, confidence intervals on impact scores; report "not enough data" rather than a thin correlation
-- [ ] **Auto-tags from activities**: derive "Hard session", "Double day", "Rest day", "Late training" from activity data instead of asking
-- [ ] **Achievements / streaks**: consistency milestones and plan completions
+- [x] **Correlation engine v2**: extend `lib/correlations.ts` — time-of-day patterns, weekday/weekend split, confidence intervals on impact scores; report "not enough data" rather than a thin correlation
+- [x] **Auto-tags from activities**: derive "Hard session", "Double day", "Rest day", "Late training" from activity data instead of asking
+- [x] **Achievements / streaks**: consistency milestones and plan completions. Shipped as sober milestones (design decision: no badges/XP).
 
 **Done when:** auto-tags appear without user input; correlations carry a
-confidence interval; a streak survives a restart.
+confidence interval; a streak survives a restart. ✅
 
 ## v0.9.5 — Infrastructure
 
@@ -245,7 +245,7 @@ defect class as the sleep/energy cards that release cleaned up.
 
 - [ ] **Recovery & Strain are invented for manual-only athletes**: `recoveryScore`/`strainFraction` come from `latest?.atl ?? 0` / `latest?.ctl ?? 0`, and `atl`/`ctl` are written only by the intervals.icu sync — so a v0.8 no-integration athlete gets a hero "Recovery 60" and "Strain 0.0" from zero data. Needs the `calibrating` treatment readiness already has, propagated through `ScoreRing`, `StrainBudget`, and the narrative.
 - [ ] **"This Week" rings hardcoded**: `ringOuter={0.7}` / `ringInner={0.8}` for every athlete, forever. Blocked on the above — wiring the current values would just spread the fabrication.
-- [ ] **The logging "streak" is a count, not a streak**: `Math.min(window30.length, 30)` renders "22-day streak" for 22 scattered days. Folded into Achievements (v0.9.4).
+- [x] **The logging "streak" is a count, not a streak**: `Math.min(window30.length, 30)` renders "22-day streak" for 22 scattered days. Folded into Achievements (v0.9.4). Fixed in v0.9.4: real consecutive runs on dashboard and journal.
 - [x] **Sparklines flat-line on no data**: `sparkPath` returned `"M0 10 L100 10"` for <2 points — a visual claim of stability made from nothing. Fixed in v0.9.1: empty path, no SVG rendered.
 
 ## Ongoing — polish backlog

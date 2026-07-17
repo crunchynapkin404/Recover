@@ -49,3 +49,4 @@ docs/superpowers/
 
 # Claude Code worktrees/config (never commit local tooling state)
 .claude/
+.superpowers/
