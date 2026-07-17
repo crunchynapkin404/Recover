@@ -1,5 +1,42 @@
 # Changelog
 
+## v0.9.2 — 2026-07-17 — Adaptive Week
+
+JOIN-style rolling week on the v0.5d skeleton: workouts materialize one week
+at a time from an availability intake and adapt every morning to measured
+readiness and available time, with every automatic change logged and
+explainable. Design: `docs/specs/2026-07-17-v0.9.2-adaptive-week-design.md`.
+
+### Added
+
+- **Living week tables**: `week_plans` (one open row per user-week, 7 JSON
+  day slots) and `plan_adjustments` (one row per automatic change — trigger,
+  action, before/after, deterministic reason). Purely additive migration.
+- **Two pure engines** in `src/lib/week-plan/`: `materializeWeek` lays the
+  skeleton week onto real availability (adherence rule below 70%, readiness
+  suppression at ≥4 amber-or-worse days, ±20% ramp guard, a fully missed
+  week restarts at 60% of skeleton instead of freezing at ±20%-of-zero);
+  `adaptDay` handles each morning (missed quality sessions move once then
+  drop with capped redistribution; red replaces quality with 30min recovery
+  and shortens endurance 30%; amber steps intensity down at 85% duration;
+  `calibrating` never triggers readiness changes; availability always wins
+  first).
+- **Weekly rollover** wired into the weekly review: closes last week's plan,
+  writes actual load/sessions/adherence back to its skeleton block, and
+  materializes the new week. **Daily adaptation** runs in the post-sync
+  morning pipeline before the morning insight, so the insight quotes today's
+  adjustment reasons verbatim instead of inventing them.
+- **Availability intake with calendar prefill**: `/plan` suggests minutes
+  per day from last week's pattern, halving days with ≥8h of calendar
+  meetings (Google Calendar connection optional — a hint, never a blocker).
+- **Coach tools**: `get_week_plan`, `set_week_availability` (write:plan),
+  `get_plan_drift`; `update_training_plan` gains day-level
+  `move_workout`/`swap_workout` actions with the same adjacency and
+  availability checks the engines use.
+- **`/plan` page**: the living week day-by-day, an adjustments timeline
+  ("what changed and why"), the remaining skeleton, and the intake form.
+  Dashboard gains a Today card and a 7-dot week strip.
+
 ## v0.9.1 — 2026-07-16 — Honest Pixels
 
 Small fixes in the same defect class v0.9.0 worked through: things on screen

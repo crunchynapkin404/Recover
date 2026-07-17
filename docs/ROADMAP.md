@@ -152,18 +152,28 @@ v0.9.1 number, so the planned feature releases below shift one patch digit.
       empty path, no SVG rendered
 - [x] `package.json` version drift (`0.8.0` at the v0.9.0 tag) corrected
 
-## v0.9.2 — Smarter Coach
+## ✅ v0.9.2 — Adaptive Week (Smarter Coach)
 
 Plans that react to the life the athlete actually had, not the one the plan
-assumed. Extends v0.5's `generateTrainingPlan` and the `adherencePct` the
-weekly review already computes.
+assumed. Shipped as the rolling week + daily adaptation
+([design](specs/2026-07-17-v0.9.2-adaptive-week-design.md)).
 
-- [ ] **Adaptive training plans**: weekly auto-adjust from adherence + readiness trend; a missed week rewrites what's ahead instead of silently falling behind
-- [ ] **Adherence intelligence**: planned vs actual load surfaced continuously (not just in the weekly review), with trend alerts the coach can act on
-- [ ] **Coach visibility**: adherence and plan drift available as coach context/tools
+- [x] **Rolling week + daily adaptation** (subsumes "adaptive training
+      plans" and "adherence intelligence"): each week materializes from the
+      skeleton against real availability — adherence below 70% rebuilds on
+      actual load, a suppressed readiness trend reduces the target, a ±20%
+      ramp guard clamps jumps, and a fully missed week restarts at 60% of
+      skeleton; every morning the day re-adapts to readiness and available
+      time, and every change is logged with a deterministic reason
+- [x] **Coach visibility**: `get_week_plan`, `set_week_availability`,
+      `get_plan_drift` tools; day-level `move_workout`/`swap_workout` in
+      `update_training_plan`; morning insight and weekly review quote the
+      logged adjustment reasons verbatim
+- [x] **`/plan` page**: living week, adjustments timeline, remaining
+      skeleton, availability intake with calendar prefill
 
 **Done when:** skipping a week visibly reshapes next week's plan, and the coach
-can explain what it changed and why.
+can explain what it changed and why. ✅
 
 ## v0.9.3 — Deeper Insights
 

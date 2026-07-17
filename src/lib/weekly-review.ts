@@ -252,6 +252,23 @@ export async function generateWeeklyReview(userId: string): Promise<void> {
       ? ` Plan week ${planAdherence.weekNumber}: ${planAdherence.adherencePct}% adherence.`
       : "");
 
+  // v0.9.2 plan drift — quoted from the week's rollover adjustments (the
+  // deterministic reasons carry the effective-vs-skeleton numbers); never
+  // computed by the LLM.
+  let driftLine = "";
+  const { getOpenWeekPlan, listAdjustments } =
+    await import("@/lib/week-plan/service");
+  const openWeek = await getOpenWeekPlan(userId);
+  if (openWeek) {
+    const rolloverReasons = (await listAdjustments(openWeek.id))
+      .filter((a) => a.trigger === "weekly_rollover")
+      .map((a) => a.reason);
+    driftLine =
+      rolloverReasons.length > 0
+        ? `Plan drift: this week's target was adjusted at rollover — ${rolloverReasons.join("; ")}\n`
+        : "";
+  }
+
   let text = templateText;
   try {
     const resolved = await resolveProvider(userId, "quick");
@@ -266,6 +283,7 @@ export async function generateWeeklyReview(userId: string): Promise<void> {
         (planAdherence
           ? `Plan adherence: ${planAdherence.adherencePct}% (target ${planAdherence.targetLoad}, actual ${planAdherence.actualLoad})\n`
           : "") +
+        driftLine +
         `\n## Instructions\n` +
         `- Lead with the headline: bigger/smaller/recovery week\n` +
         `- Comment on readiness trend and recovery quality\n` +

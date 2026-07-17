@@ -2,7 +2,6 @@
 import {
   type AdjustmentRecord,
   type Band,
-  type DaySlot,
   type WeekState,
   AMBER_SCALE,
   DAY_REDISTRIBUTE_CAP_PCT,
