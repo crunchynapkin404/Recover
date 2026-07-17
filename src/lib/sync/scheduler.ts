@@ -174,6 +174,17 @@ export async function runSchedulerTick(
         kind: "incremental",
         runAfter: nextMorning(),
       });
+      // v0.9.2 daily plan adaptation — must run before the morning insight
+      // so the insight can explain today's changes. Guards inside.
+      try {
+        const { runDailyAdaptation } = await import("@/lib/week-plan/service");
+        await runDailyAdaptation(job.userId);
+      } catch (err) {
+        logger.error("daily plan adaptation failed", {
+          userId: job.userId,
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
       // Morning coach insight — must run before the push so the teaser
       // exists; guards inside make it at-most-once/day, errors never
       // touch the sync job.

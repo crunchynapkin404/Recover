@@ -333,6 +333,17 @@ export async function generateWeeklyReview(userId: string): Promise<void> {
       );
   }
 
+  // v0.9.2: the living week — close last week's plan, materialize this one.
+  try {
+    const { rolloverWeekPlan } = await import("@/lib/week-plan/service");
+    await rolloverWeekPlan(userId);
+  } catch (err) {
+    logger.warn("week-plan rollover failed", {
+      userId,
+      message: err instanceof Error ? err.message : String(err),
+    });
+  }
+
   logger.info("weekly review generated", {
     userId,
     weekLabel,

@@ -90,6 +90,23 @@ async function resetState() {
     .update(schema.trainingBlocks)
     .set({ actualLoad: null, actualSessions: null, adherencePct: null })
     .where(eq(schema.trainingBlocks.planId, planId));
+  // The Task-8 pipeline test runs the real weekly review, which advances
+  // currentWeek and stores a review message (its at-most-once marker).
+  await db
+    .update(schema.trainingPlans)
+    .set({ currentWeek: 1 })
+    .where(eq(schema.trainingPlans.id, planId));
+  const threads = await db.query.chatThreads.findMany({
+    where: eq(schema.chatThreads.userId, USER),
+  });
+  for (const t of threads) {
+    await db
+      .delete(schema.chatMessages)
+      .where(eq(schema.chatMessages.threadId, t.id));
+  }
+  await db
+    .delete(schema.chatThreads)
+    .where(eq(schema.chatThreads.userId, USER));
 }
 
 describe.skipIf(!hasDb)("week-plan service", () => {
@@ -294,5 +311,42 @@ describe.skipIf(!hasDb)("week-plan service", () => {
       await import("@/lib/week-plan/service");
     expect(await rolloverWeekPlan(OTHER)).toBe("skipped");
     expect(await runDailyAdaptation(OTHER)).toBe("skipped");
+  });
+
+  it("generateWeeklyReview leaves an open week_plans row (rollover wired)", async () => {
+    const { db, schema } = await import("@/lib/db");
+    const { generateWeeklyReview } = await import("@/lib/weekly-review");
+    const { getOpenWeekPlan } = await import("@/lib/week-plan/service");
+
+    // Make the review due now (due-since-slot guard).
+    const now = new Date();
+    await db
+      .insert(schema.notificationPrefs)
+      .values({
+        userId: USER,
+        weeklyReviewDay: now.getDay(),
+        weeklyReviewHour: now.getHours(),
+      })
+      .onConflictDoNothing();
+    // The review requires ≥3 activities in its window.
+    for (let i = 0; i < 3; i++) {
+      const startDate = new Date(now);
+      startDate.setDate(startDate.getDate() - (i + 1));
+      await db.insert(schema.activities).values({
+        userId: USER,
+        provider: "intervals_icu",
+        externalId: `week-plans-review-${i}-${Date.now()}`,
+        startDate,
+        sport: "Run",
+        name: `Run ${i}`,
+        load: 60,
+      });
+    }
+
+    await generateWeeklyReview(USER);
+
+    const week = await getOpenWeekPlan(USER);
+    expect(week).not.toBeNull();
+    expect(week!.days).toHaveLength(7);
   });
 });
