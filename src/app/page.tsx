@@ -12,6 +12,9 @@ import { MorningBrief } from "@/components/dashboard/morning-brief";
 import { CoachInsight } from "@/components/dashboard/coach-insight";
 import { getLatestMorningInsight } from "@/lib/morning-insight";
 import { getLatestWeeklyReview } from "@/lib/weekly-review";
+import { getOpenWeekPlan, listAdjustments } from "@/lib/week-plan/service";
+import { TodayCard } from "@/components/plan/today-card";
+import { WeekStrip } from "@/components/plan/week-strip";
 import { VitalsGrid } from "@/components/dashboard/vitals-grid";
 import { SleepCard } from "@/components/dashboard/sleep-card";
 import { WeeklySummary } from "@/components/dashboard/weekly-summary";
@@ -118,6 +121,17 @@ export default async function DashboardPage() {
 
   const insight = await getLatestMorningInsight(user.id);
   const weeklyReview = await getLatestWeeklyReview(user.id);
+
+  // v0.9.2 living week — today's slot + latest adjustment, or nothing.
+  const weekPlan = await getOpenWeekPlan(user.id);
+  const todayDate = new Date();
+  const todayYmd = `${todayDate.getFullYear()}-${String(todayDate.getMonth() + 1).padStart(2, "0")}-${String(todayDate.getDate()).padStart(2, "0")}`;
+  const todaySlot = weekPlan?.days.find((d) => d.date === todayYmd) ?? null;
+  const todayAdjustment = weekPlan
+    ? ((await listAdjustments(weekPlan.id))
+        .filter((a) => a.date === todayYmd)
+        .at(-1)?.reason ?? null)
+    : null;
 
   const metrics = await db.query.dailyMetrics.findMany({
     where: and(
@@ -431,6 +445,14 @@ export default async function DashboardPage() {
                     : weeklyReview.text}
                 </p>
               </Link>
+            </section>
+          )}
+
+          {/* ── Living week (v0.9.2) ────────────────────────────────── */}
+          {weekPlan && (
+            <section className="mb-10 space-y-4">
+              <TodayCard slot={todaySlot} adjustmentReason={todayAdjustment} />
+              <WeekStrip days={weekPlan.days} />
             </section>
           )}
 
