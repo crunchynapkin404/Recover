@@ -81,13 +81,30 @@ export async function generateMorningInsight(
 
   const warning = await getOvertrainingStatus(userId);
 
-  const template = [
-    `Readiness ${Math.round(metric.readiness)} (${metric.band}).` +
-      (metric.tsb != null ? ` TSB ${Math.round(metric.tsb)}.` : ""),
-    warning ? warningSentence(warning) : (BAND_LINES[metric.band ?? ""] ?? ""),
-  ]
-    .filter(Boolean)
-    .join(" ");
+  // v0.9.2: today's plan adjustments — quoted verbatim, never invented.
+  let adjustmentReasons: string[] = [];
+  const { getOpenWeekPlan, listAdjustments } =
+    await import("@/lib/week-plan/service");
+  const weekPlan = await getOpenWeekPlan(userId);
+  if (weekPlan) {
+    adjustmentReasons = (await listAdjustments(weekPlan.id))
+      .filter((a) => a.date === today)
+      .map((a) => a.reason);
+  }
+
+  const template =
+    [
+      `Readiness ${Math.round(metric.readiness)} (${metric.band}).` +
+        (metric.tsb != null ? ` TSB ${Math.round(metric.tsb)}.` : ""),
+      warning
+        ? warningSentence(warning)
+        : (BAND_LINES[metric.band ?? ""] ?? ""),
+    ]
+      .filter(Boolean)
+      .join(" ") +
+    (adjustmentReasons.length > 0
+      ? ` Plan: ${adjustmentReasons.join("; ")}.`
+      : "");
 
   const instruction =
     `Write this morning's proactive check-in for the athlete (max 120 words, no greeting fluff). ` +
@@ -96,6 +113,10 @@ export async function generateMorningInsight(
     `. ` +
     (warning
       ? `LEAD with this warning and make it unmissable: ${warningSentence(warning)} `
+      : "") +
+    (adjustmentReasons.length > 0
+      ? `Plan adjustments this morning: ${adjustmentReasons.join("; ")}. ` +
+        `Mention what changed in the plan and why — quote the given reasons, do not invent adjustments. `
       : "") +
     `End with one concrete suggestion for today.`;
 

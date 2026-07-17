@@ -30,6 +30,11 @@ async function cleanup() {
   await db
     .delete(schema.wellnessDaily)
     .where(eq(schema.wellnessDaily.userId, USER));
+  // v0.9.2: week plans (plan_adjustments cascade with them)
+  await db.delete(schema.weekPlans).where(eq(schema.weekPlans.userId, USER));
+  await db
+    .delete(schema.trainingPlans)
+    .where(eq(schema.trainingPlans.userId, USER));
   await db.delete(schema.users).where(eq(schema.users.id, USER));
 }
 
@@ -90,6 +95,10 @@ describe.skipIf(!hasDb)("morning insight", () => {
     await db
       .delete(schema.wellnessDaily)
       .where(eq(schema.wellnessDaily.userId, USER));
+    await db.delete(schema.weekPlans).where(eq(schema.weekPlans.userId, USER));
+    await db
+      .delete(schema.trainingPlans)
+      .where(eq(schema.trainingPlans.userId, USER));
   });
 
   afterAll(cleanup);
@@ -168,6 +177,63 @@ describe.skipIf(!hasDb)("morning insight", () => {
       where: eq(schema.chatMessages.threadId, result.threadId),
     });
     expect(msg?.toolCalls).toMatchObject({ generated: "llm" });
+  });
+
+  it("quotes today's plan adjustments verbatim in the template", async () => {
+    const { db, schema } = await import("@/lib/db");
+    const { generateMorningInsight } = await import("@/lib/morning-insight");
+    await seedMetric({ band: "red", readiness: 25 });
+
+    const now = new Date();
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+    const weekStart = localYmd(monday);
+    const [plan] = await db
+      .insert(schema.trainingPlans)
+      .values({
+        userId: USER,
+        title: "Insight test plan",
+        raceType: "marathon",
+        raceDate: localYmd(new Date(now.getTime() + 60 * 86_400_000)),
+        startDate: weekStart,
+        weeksTotal: 8,
+        currentWeek: 1,
+        status: "active",
+      })
+      .returning();
+    const days = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      return {
+        date: localYmd(d),
+        availableMins: 60,
+        workout: null,
+        status: "rest",
+      };
+    });
+    const [week] = await db
+      .insert(schema.weekPlans)
+      .values({
+        userId: USER,
+        planId: plan.id,
+        weekStart,
+        skeletonWeek: 1,
+        days,
+        status: "open",
+      })
+      .returning();
+    const reason = "readiness red — Intervals replaced by recovery";
+    await db.insert(schema.planAdjustments).values({
+      weekPlanId: week.id,
+      date: localYmd(now),
+      trigger: "low_readiness",
+      action: "swapped",
+      reason,
+    });
+
+    const result = await generateMorningInsight(USER);
+    if (result === "skipped") throw new Error("expected insight");
+    expect(result.text).toContain(reason);
   });
 
   it("getLatestMorningInsight returns today's insight only", async () => {
