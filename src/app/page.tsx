@@ -20,6 +20,8 @@ import { SleepCard } from "@/components/dashboard/sleep-card";
 import { WeeklySummary } from "@/components/dashboard/weekly-summary";
 import { BodyBatteryCurve } from "@/components/dashboard/body-battery";
 import { BehaviorTags } from "@/components/dashboard/behavior-tags";
+import { MilestonesCard } from "@/components/dashboard/milestones-card";
+import { getMilestones } from "@/lib/insights/milestones";
 import type { Band } from "@/lib/readiness";
 import { formatDay, formatDuration, formatKm } from "@/lib/format";
 import {
@@ -124,6 +126,7 @@ export default async function DashboardPage() {
 
   // v0.9.2 living week — today's slot + latest adjustment, or nothing.
   const weekPlan = await getOpenWeekPlan(user.id);
+  const milestones = await getMilestones(user.id);
   const todayDate = new Date();
   const todayYmd = `${todayDate.getFullYear()}-${String(todayDate.getMonth() + 1).padStart(2, "0")}-${String(todayDate.getDate()).padStart(2, "0")}`;
   const todaySlot = weekPlan?.days.find((d) => d.date === todayYmd) ?? null;
@@ -217,7 +220,6 @@ export default async function DashboardPage() {
     .find((w) => w.hrvMs != null || w.restingHr != null);
 
   const window7 = wellness.filter((w) => w.date >= daysAgo(7));
-  const window30 = wellness.filter((w) => w.date >= daysAgo(30));
 
   const avg7hrv =
     window7.reduce((s, w) => s + (w.hrvMs ?? 0), 0) /
@@ -593,10 +595,15 @@ export default async function DashboardPage() {
               workouts={weekActivities.length}
               totalVolume={`${(weekVolume / 3600).toFixed(1)}h`}
               avgLoad={avgLoad.toString()}
-              streak={Math.min(window30.length, 30)}
+              streak={milestones.currentStreak}
               ringOuter={0.7}
               ringInner={0.8}
             />
+          </section>
+
+          {/* ── Milestones ──────────────────────────────────────────── */}
+          <section className="mb-10">
+            <MilestonesCard {...milestones} />
           </section>
         </div>
       </PullToRefresh>

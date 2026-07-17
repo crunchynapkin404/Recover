@@ -177,7 +177,7 @@ export function JournalForm({
         </div>
         <div
           role="img"
-          aria-label={`Journal streak: ${streakClamped} of the last 7 days logged`}
+          aria-label={`Logging streak: ${streakDays} ${streakDays === 1 ? "day" : "days"}`}
           className="relative flex h-8 w-8 items-center justify-center rounded-full border-2 border-white/10"
         >
           <svg className="-rotate-90 h-full w-full" viewBox="0 0 36 36">
