@@ -198,7 +198,7 @@ function loadMultiplier(phase: Block["phase"], weekInPhase: number): number {
 
 // ── Workout generation ──────────────────────────────────────────────────────
 
-function generateWorkouts(
+export function generateWorkouts(
   sessions: number,
   weekHours: number,
   phase: Block["phase"],

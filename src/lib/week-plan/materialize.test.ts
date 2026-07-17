@@ -124,3 +124,104 @@ describe("effectiveWeekLoad (hand-computed fixtures)", () => {
     expect(r.load).toBe(400);
   });
 });
+
+import { materializeWeek } from "./materialize";
+import { isQuality } from "./types";
+
+const baseInput = {
+  weekStart: "2026-07-20", // a Monday
+  skeleton: {
+    weekNumber: 5,
+    phase: "build" as const,
+    targetLoadTotal: 400,
+    targetSessions: 5,
+  },
+  prevWeek: { actualLoad: 390, adherencePct: 95 },
+  recentBands: Array(7).fill("green") as import("./types").Band[],
+  raceType: "marathon",
+  sports: ["Run"],
+  hoursPerWeek: 8,
+};
+
+describe("materializeWeek layout", () => {
+  it("produces exactly 7 days, Monday first, dates consecutive", () => {
+    const r = materializeWeek({
+      ...baseInput,
+      availabilityMins: [60, 90, 0, 60, 45, 120, 150],
+    });
+    expect(r.week.days).toHaveLength(7);
+    expect(r.week.days[0].date).toBe("2026-07-20");
+    expect(r.week.days[6].date).toBe("2026-07-26");
+  });
+
+  it("puts the longest session on the roomiest day", () => {
+    const r = materializeWeek({
+      ...baseInput,
+      availabilityMins: [60, 90, 0, 60, 45, 120, 150],
+    });
+    const sunday = r.week.days[6]; // 150 mins — roomiest
+    const durations = r.week.days
+      .filter((d) => d.workout)
+      .map((d) => d.workout!.durationMins);
+    expect(sunday.workout!.durationMins).toBe(Math.max(...durations));
+  });
+
+  it("gives a zero-availability day rest, never a workout", () => {
+    const r = materializeWeek({
+      ...baseInput,
+      availabilityMins: [60, 90, 0, 60, 45, 120, 150],
+    });
+    expect(r.week.days[2].workout).toBeNull();
+    expect(r.week.days[2].status).toBe("rest");
+  });
+
+  it("never schedules quality sessions on consecutive days", () => {
+    const r = materializeWeek({
+      ...baseInput,
+      availabilityMins: [90, 90, 90, 90, 90, 90, 90],
+    });
+    for (let i = 1; i < 7; i++) {
+      const both =
+        isQuality(r.week.days[i - 1].workout) &&
+        isQuality(r.week.days[i].workout);
+      expect(both).toBe(false);
+    }
+  });
+
+  it("shortens a workout that exceeds its day and logs no_time", () => {
+    const r = materializeWeek({
+      ...baseInput,
+      availabilityMins: [30, 30, 30, 30, 30, 30, 30],
+    });
+    for (const d of r.week.days) {
+      if (d.workout) expect(d.workout.durationMins).toBeLessThanOrEqual(30);
+    }
+    expect(r.adjustments.some((a) => a.trigger === "no_time")).toBe(true);
+  });
+
+  it("availability wins: too few hours lowers effectiveLoad and logs it", () => {
+    const roomy = materializeWeek({
+      ...baseInput,
+      availabilityMins: [90, 90, 90, 90, 90, 90, 90],
+    });
+    const tight = materializeWeek({
+      ...baseInput,
+      availabilityMins: [45, 45, 0, 0, 45, 45, 60],
+    });
+    expect(tight.effectiveLoad).toBeLessThan(roomy.effectiveLoad);
+    expect(
+      tight.adjustments.some(
+        (a) => a.trigger === "weekly_rollover" && a.reason.includes("lowered")
+      )
+    ).toBe(true);
+  });
+
+  it("an all-zero availability week is all rest — no invented sessions", () => {
+    const r = materializeWeek({
+      ...baseInput,
+      availabilityMins: [0, 0, 0, 0, 0, 0, 0],
+    });
+    expect(r.week.days.every((d) => d.workout === null)).toBe(true);
+    expect(r.week.days.every((d) => d.status === "rest")).toBe(true);
+  });
+});
