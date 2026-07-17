@@ -7,6 +7,8 @@
  * CTL/ATL) and activities, so it is Recover's primary data source.
  */
 
+import { decrypt } from "@/lib/crypto";
+
 const INTERVALS_API_BASE = "https://intervals.icu/api/v1";
 
 export type ConnectorErrorCode =
@@ -79,10 +81,25 @@ function ymd(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
-async function icuFetch(path: string, apiKey: string): Promise<Response> {
-  const response = await fetch(`${INTERVALS_API_BASE}${path}`, {
+async function icuFetch(
+  path: string,
+  apiKey: string,
+  opts?: {
+    method?: "GET" | "POST" | "PUT" | "DELETE";
+    body?: unknown;
+  }
+): Promise<Response> {
+  const init: RequestInit = {
+    method: opts?.method ?? "GET",
     headers: { Authorization: authHeader(apiKey) },
-  });
+  };
+  if (opts?.body !== undefined) {
+    init.method = opts?.method ?? "POST";
+    (init.headers as Record<string, string>)["Content-Type"] =
+      "application/json";
+    init.body = JSON.stringify(opts.body);
+  }
+  const response = await fetch(`${INTERVALS_API_BASE}${path}`, init);
   if (response.status === 401 || response.status === 403) {
     throw new ConnectorError("auth_expired", "intervals.icu: invalid API key");
   }
@@ -414,4 +431,49 @@ export async function fetchPlannedWorkouts(params: {
     });
   }
   return out;
+}
+
+export interface IcuConnection {
+  encryptedAccessToken: string;
+  externalAthleteId: string;
+}
+
+export interface IcuRequestOpts {
+  method?: "GET" | "POST" | "PUT" | "DELETE";
+  query?: Record<string, string | number | boolean | undefined>;
+  body?: unknown;
+}
+
+/**
+ * Authenticated call to the intervals.icu API for a given user connection.
+ * Substitutes `{id}` with the athlete id, serializes query/body, returns
+ * parsed JSON (or null for empty 204 responses). Throws ConnectorError on
+ * non-2xx. All absorbed icu_* tools go through here.
+ */
+export async function icuRequest(
+  connection: IcuConnection,
+  path: string,
+  opts?: IcuRequestOpts
+): Promise<unknown> {
+  const apiKey = decrypt(connection.encryptedAccessToken);
+  let resolved = path.replace(
+    "{id}",
+    encodeURIComponent(connection.externalAthleteId)
+  );
+  if (opts?.query) {
+    const qs = Object.entries(opts.query)
+      .filter(([, v]) => v !== undefined)
+      .map(
+        ([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`
+      )
+      .join("&");
+    if (qs) resolved += `${resolved.includes("?") ? "&" : "?"}${qs}`;
+  }
+  const response = await icuFetch(resolved, apiKey, {
+    method: opts?.method,
+    body: opts?.body,
+  });
+  if (response.status === 204) return null;
+  const text = await response.text();
+  return text ? JSON.parse(text) : null;
 }

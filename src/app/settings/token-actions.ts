@@ -34,6 +34,7 @@ export async function createApiToken(
     "write:strava",
     "write:plan",
     "write:memory",
+    "write:icu",
   ];
   const scopes = scopesRaw.split("|").filter((s) => validScopes.includes(s));
   if (scopes.length === 0) {

@@ -15,7 +15,12 @@ import { and, eq, isNull } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 
 export type Scope =
-  "read" | "write:wellness" | "write:memory" | "write:plan" | "write:strava";
+  | "read"
+  | "write:wellness"
+  | "write:memory"
+  | "write:plan"
+  | "write:strava"
+  | "write:icu";
 
 export interface TokenInfo {
   userId: string;
@@ -43,7 +48,8 @@ function parseScopes(scopesStr: string): Scope[] {
         s === "write:wellness" ||
         s === "write:memory" ||
         s === "write:plan" ||
-        s === "write:strava"
+        s === "write:strava" ||
+        s === "write:icu"
     );
 }
 
