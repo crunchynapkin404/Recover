@@ -59,6 +59,16 @@ OpenAI-compatible endpoint including a fully local Ollama. Keys are encrypted
 - **Analytics depth** — open any activity for stream charts (HR, power, pace,
   elevation) and laps; track fitness with CTL/ATL/TSB over 30–365 day ranges;
   watch HRV, resting HR, and sleep trend against your personal baselines.
+- **Living week plan** — your training plan materializes into a concrete,
+  adaptive week: set which days you're available, let poor readiness move or
+  shrink sessions instead of pretending the plan still fits, and track
+  planned-vs-actual drift. One tap on `/plan` starts the week.
+- **Deeper insights** — the journal correlates behaviors against next-day
+  readiness with honest 95% confidence intervals: manual tags plus auto-tags
+  derived from your activities (hard sessions, double days, rest days,
+  morning/late training), weekday/weekend splits, and rows that say
+  "inconclusive" instead of asserting an impact the data can't back. Plus
+  real logging streaks (consecutive runs, not counts) and sober milestones.
 - **AI coach** — evidence-based endurance-coach persona that cites the actual
   numbers from your data, adapts its tone to your readiness band, and refuses
   to program through injury or illness. BYO key: Anthropic or any
@@ -79,11 +89,13 @@ OpenAI-compatible endpoint including a fully local Ollama. Keys are encrypted
   fed to the AI coach or MCP, per Strava's API terms.
 - **MCP server** — stateless streamable-HTTP endpoint at `/api/mcp` with
   hashed, scoped (`read` / `write:wellness` / `write:plan` / `write:memory` /
-  `write:strava`), revocable bearer tokens and rate limiting. 21 tools:
+  `write:strava`), revocable bearer tokens and rate limiting. 24 tools:
   readiness (+ history), wellness, log-wellness, fitness & training-load
   summaries, power/pace curves, best efforts, activity list & detail, athlete
   profile, planned workouts, calendar availability, coach memory
-  (remember/forget), chart rendering, and training-plan generate/get/update.
+  (remember/forget), chart rendering, training-plan generate/get/update,
+  Strava description write-back, and the living week (get plan / set
+  availability / drift).
 - **Installable PWA** — add it to your phone's home screen; a push
   notification delivers your readiness score every morning, and
   pull-to-refresh or the sync chip pulls fresh data on demand.
@@ -126,14 +138,18 @@ fills a demo account with 90 days of plausible training history (see
 
 ## Status & roadmap
 
-**Current release: v0.8.0 — Data Freedom.** No integrations required: manual
-vitals entry, activity logging, and CSV import alongside the full stack
-(intervals.icu sync, readiness scoring, dashboard, journal, analytics depth,
-installable PWA with morning push, AI coach with
-memory/personalities/proactive insights, training plans, Google Calendar
-awareness, chart artifacts, weekly reviews, Strava AI descriptions, 21 MCP
-tools). Next up: wearable connectors (v0.9 — Whoop, Oura), smarter adaptive
-coaching (v0.10), and body intelligence (v0.11). The full plan lives in
+**Current release: v0.9.4 — Deeper Insights.** The v0.9 series made the app
+honest and adaptive: v0.9.0 deleted every metric the data couldn't back,
+v0.9.2–0.9.3 turned static training plans into a living week that adapts to
+your availability and readiness, and v0.9.4 added auto-tags, correlation
+insights with real confidence intervals, and true logging streaks. All on
+top of the full stack: manual entry and CSV import, intervals.icu sync,
+readiness scoring, dashboard, journal, analytics depth, installable PWA
+with morning push, AI coach with memory/personalities/proactive insights,
+training plans, Google Calendar awareness, chart artifacts, weekly reviews,
+Strava AI descriptions, and 24 MCP tools. Next up: infrastructure hardening
+(v0.9.5 — nightly backups), deep biology (v0.10 — blood work, biological
+age), and wearable connectors (v0.11 — Whoop, Oura). The full plan lives in
 [docs/ROADMAP.md](docs/ROADMAP.md).
 
 An honest hobby project built for one owner and about ten friends. If it's
