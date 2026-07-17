@@ -4,8 +4,12 @@ import {
   type Band,
   type DaySlot,
   type WeekState,
+  AMBER_SCALE,
   DAY_REDISTRIBUTE_CAP_PCT,
   isQuality,
+  RED_ENDURANCE_SCALE,
+  RED_RECOVERY_MINS,
+  STEP_DOWN,
 } from "./types";
 
 export interface AdaptDayInput {
@@ -117,6 +121,120 @@ export function adaptDay(input: AdaptDayInput): AdaptDayResult {
   } else if (input.yesterdayCompleted === true) {
     const y = week.days[todayIdx - 1];
     if (y && y.workout && y.status !== "completed") y.status = "completed";
+  }
+
+  const today = week.days[todayIdx];
+
+  // Availability first: time is a hard constraint, readiness a soft one.
+  if (today.workout && today.workout.durationMins > today.availableMins) {
+    const before = [{ ...today, workout: { ...today.workout } }];
+    if (today.availableMins === 0) {
+      const workout = today.workout;
+      week.days[todayIdx] = { ...today, workout: null, status: "rest" };
+      const target = week.days.findIndex(
+        (d, i) =>
+          i > todayIdx &&
+          d.workout === null &&
+          d.availableMins >= workout.durationMins
+      );
+      if (target !== -1) {
+        week.days[target] = {
+          ...week.days[target],
+          workout,
+          status: "moved",
+          movedFrom: today.date,
+        };
+      }
+      adjustments.push({
+        date: today.date,
+        trigger: "no_time",
+        action: target !== -1 ? "moved" : "dropped",
+        before,
+        after: [
+          { ...week.days[todayIdx] },
+          ...(target !== -1 ? [{ ...week.days[target] }] : []),
+        ],
+        reason:
+          target !== -1
+            ? `no time on ${today.date} — ${workout.type} moved to ${week.days[target].date}`
+            : `no time on ${today.date} — ${workout.type} dropped`,
+      });
+    } else {
+      today.workout.durationMins = today.availableMins;
+      today.status = "adapted";
+      adjustments.push({
+        date: today.date,
+        trigger: "no_time",
+        action: "scaled",
+        before,
+        after: [{ ...today, workout: { ...today.workout } }],
+        reason: `shortened to fit available time (${today.availableMins}min)`,
+      });
+    }
+  }
+
+  const t = week.days[todayIdx]; // may have been replaced above
+  if (t.workout && (input.band === "red" || input.band === "amber")) {
+    const before = [{ ...t, workout: { ...t.workout } }];
+    if (input.band === "red") {
+      if (isQuality(t.workout)) {
+        if (t.availableMins < RED_RECOVERY_MINS) {
+          week.days[todayIdx] = { ...t, workout: null, status: "rest" };
+        } else {
+          week.days[todayIdx] = {
+            ...t,
+            status: "adapted",
+            workout: {
+              ...t.workout,
+              type: "Recovery",
+              intensity: "Recovery",
+              durationMins: RED_RECOVERY_MINS,
+              description: "Easy recovery session — readiness is red",
+            },
+          };
+        }
+        adjustments.push({
+          date: t.date,
+          trigger: "low_readiness",
+          action: "swapped",
+          before,
+          after: [{ ...week.days[todayIdx] }],
+          reason: `readiness red — ${before[0].workout!.type} replaced by recovery`,
+        });
+      } else {
+        t.workout.durationMins = Math.round(
+          t.workout.durationMins * RED_ENDURANCE_SCALE
+        );
+        t.status = "adapted";
+        adjustments.push({
+          date: t.date,
+          trigger: "low_readiness",
+          action: "scaled",
+          before,
+          after: [{ ...t, workout: { ...t.workout } }],
+          reason: `readiness red — duration reduced ${Math.round((1 - RED_ENDURANCE_SCALE) * 100)}%`,
+        });
+      }
+    } else {
+      const steppedType = isQuality(t.workout)
+        ? (STEP_DOWN[t.workout.type] ?? "Endurance")
+        : t.workout.type;
+      t.workout = {
+        ...t.workout,
+        type: steppedType,
+        intensity: isQuality(before[0].workout) ? "Z3" : t.workout.intensity,
+        durationMins: Math.round(t.workout.durationMins * AMBER_SCALE),
+      };
+      t.status = "adapted";
+      adjustments.push({
+        date: t.date,
+        trigger: "low_readiness",
+        action: "scaled",
+        before,
+        after: [{ ...t, workout: { ...t.workout } }],
+        reason: `readiness amber — one step down, duration ×${AMBER_SCALE}`,
+      });
+    }
   }
 
   return { week, adjustments };
