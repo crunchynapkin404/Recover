@@ -62,4 +62,16 @@ describe("MilestonesCard", () => {
     expect(container.textContent).toContain("1 day");
     expect(container.textContent).not.toContain("1 days");
   });
+
+  it("keeps a durable best-ever streak visible when the current streak lapses", () => {
+    render({
+      currentStreak: 0,
+      bestStreak: 21,
+      planWeeksCompleted: 0,
+      plansCompleted: 0,
+    });
+    expect(container.textContent).toContain("—");
+    expect(container.textContent).toContain("best 21");
+    expect(container.textContent).not.toContain("0 days");
+  });
 });

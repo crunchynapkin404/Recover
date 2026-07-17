@@ -42,7 +42,7 @@ export function MilestonesCard({
             <span className="text-xs text-white/70">{r.label}</span>
             <span className="text-xs font-bold">
               {r.value ?? <span className="font-normal text-white/30">—</span>}
-              {r.value != null && r.detail != null && (
+              {r.detail != null && (
                 <span className="ml-1.5 font-normal text-white/40">
                   · {r.detail}
                 </span>
