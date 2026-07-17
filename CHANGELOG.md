@@ -1,5 +1,29 @@
 # Changelog
 
+## v0.9.5 — 2026-07-17 — Nightly Backups
+
+The database now backs itself up, and one command proves a backup
+restores. Design: `docs/specs/2026-07-17-v0.9.5-backups-design.md`.
+
+### Added
+
+- **Nightly backups**: a default-on `backup` sidecar (`postgres:16-alpine`
+  and crond) runs `pg_dump -Fc` at 03:30 into the new `recover-backups`
+  volume, keeping the newest 14 dumps (`BACKUP_KEEP` to change). Dumps
+  write to a temp name and rename on success; rotation runs only after a
+  successful dump, so a failing backup can never eat the old ones.
+- **Restore drill**: `scripts/restore-drill.sh` restores the latest dump
+  into a disposable scratch Postgres, verifies core tables and row
+  counts, prints data freshness, and tears everything down — unattended,
+  exit 0/1. Documented in `docs/SELF-HOSTING.md` alongside the real
+  disaster-recovery procedure.
+
+### Changed
+
+- Roadmap: the old v0.9.5 "Infrastructure" is split — backups shipped
+  here; absorbing the standalone `intervals-icu-mcp` server moves to
+  v0.9.6.
+
 ## v0.9.4 — 2026-07-17 — Deeper Insights
 
 Auto-tags, honest confidence intervals, and real streaks. Everything is

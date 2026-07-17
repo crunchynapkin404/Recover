@@ -41,6 +41,27 @@ services:
       db:
         condition: service_healthy
 
+  # Nightly pg_dump to the recover-backups volume, 14-dump rotation.
+  # Deliberately default-on (no profile): forgetting a profile flag must
+  # not mean having no backups. Drill: scripts/restore-drill.sh
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      PGHOST: db
+      PGUSER: recover
+      PGPASSWORD: ${POSTGRES_PASSWORD:-recover}
+      PGDATABASE: recover
+      BACKUP_KEEP: ${BACKUP_KEEP:-14}
+    volumes:
+      - recover-backups:/backups
+      - ./scripts/backup.sh:/backup.sh:ro
+    # Install the crontab at start, then run busybox crond in the foreground.
+    command: sh -c 'echo "30 3 * * * sh /backup.sh" | crontab - && crond -f -l 8'
+    depends_on:
+      db:
+        condition: service_healthy
+
   # Optional public ingress: docker compose --profile tunnel up -d
   cloudflared:
     image: cloudflare/cloudflared:latest
@@ -67,3 +88,4 @@ services:
 
 volumes:
   recover-db:
+  recover-backups:

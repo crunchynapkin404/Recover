@@ -198,13 +198,17 @@ releases below shift one patch digit (again).
 **Done when:** auto-tags appear without user input; correlations carry a
 confidence interval; a streak survives a restart. ✅
 
-## v0.9.5 — Infrastructure
+## ✅ v0.9.5 — Nightly Backups
 
-- [ ] **Nightly `pg_dump` backups**: to volume/S3, with a documented restore drill
+- [x] **Nightly `pg_dump` backups**: default-on sidecar to the `recover-backups` volume, 14-dump rotation, with `scripts/restore-drill.sh` as the documented restore drill. (S3/offsite deliberately out of scope — disk loss is the hypervisor layer's job.)
+
+**Done when:** a backup restores into a clean database unattended. ✅
+
+## v0.9.6 — Absorb intervals-icu-mcp
+
 - [ ] **Absorb `intervals-icu-mcp`**: merge the standalone server's tools into Recover's built-in MCP (58 → ~40 after dedupe)
 
-**Done when:** a backup restores into a clean database unattended, and the
-standalone MCP server can be retired.
+**Done when:** the standalone MCP server can be retired.
 
 ## v0.10 — Deep Biology
 

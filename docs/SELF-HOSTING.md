@@ -87,5 +87,40 @@ Version pins are available if you prefer them: images are tagged `latest`,
 
 - **Health:** `GET /api/health` → `{status, db, lastSyncAgeS}` (200/503) — point your uptime monitor here.
 - **Migrations:** run automatically at container start (`scripts/migrate.mjs`).
-- **Backups:** `docker compose exec db pg_dump -U recover recover > backup.sql` (nightly job + restore drill land in a later phase).
+- **Backups:** nightly at 03:30 UTC to the `recover-backups` volume, 14 dumps kept — see [Backups & restore](#backups--restore).
 - **Logs:** `docker compose logs -f app` — structured JSON lines.
+
+## Backups & restore
+
+The `backup` service (default-on, no profile needed) runs `pg_dump -Fc`
+every night at 03:30 UTC into the `recover-backups` volume and keeps the
+newest 14 dumps. Set `BACKUP_KEEP` in `.env` to change retention. A
+failed dump never deletes old backups. Watch it with
+`docker compose logs backup`.
+
+**Existing deployments:** compose changes arrive via git, not Watchtower —
+run `git pull && docker compose up -d` once to create the service and
+volume.
+
+**Prove a backup restores** (unattended, ~30 seconds):
+
+```bash
+scripts/restore-drill.sh
+```
+
+It restores the newest dump into a disposable scratch Postgres, checks the
+core tables have data, prints the newest wellness date, and cleans up
+after itself. Exit 0 means your latest backup is restorable.
+
+**Real disaster recovery** (restores INTO the live db — destructive):
+
+First copy the chosen dump out of the volume:
+`docker compose exec backup sh -c 'ls /backups'` then
+`docker compose cp backup:/backups/<name>.dump ./`. Then:
+
+```bash
+docker compose stop app
+docker compose cp ./<name>.dump db:/tmp/restore.dump
+docker compose exec db pg_restore -U recover -d recover --clean --if-exists --single-transaction --no-owner /tmp/restore.dump
+docker compose start app
+```
