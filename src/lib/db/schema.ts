@@ -516,3 +516,64 @@ export const trainingBlocks = pgTable(
     uniqueIndex("training_blocks_plan_week_uq").on(t.planId, t.weekNumber),
   ]
 );
+
+// ── v0.9.2 Adaptive Week ─────────────────────────────────────────────────────
+
+export const weekPlans = pgTable(
+  "week_plans",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    planId: uuid("plan_id")
+      .notNull()
+      .references(() => trainingPlans.id, { onDelete: "cascade" }),
+    weekStart: date("week_start").notNull(),
+    skeletonWeek: smallint("skeleton_week").notNull(),
+    days: jsonb("days").notNull(),
+    status: text("status", { enum: ["open", "closed"] })
+      .notNull()
+      .default("open"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("week_plans_user_week_uq").on(t.userId, t.weekStart),
+    index("week_plans_user_status_idx").on(t.userId, t.status),
+  ]
+);
+
+export const planAdjustments = pgTable(
+  "plan_adjustments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    weekPlanId: uuid("week_plan_id")
+      .notNull()
+      .references(() => weekPlans.id, { onDelete: "cascade" }),
+    date: date("date").notNull(),
+    trigger: text("trigger", {
+      enum: [
+        "low_readiness",
+        "no_time",
+        "missed_workout",
+        "availability_change",
+        "weekly_rollover",
+      ],
+    }).notNull(),
+    action: text("action", {
+      enum: ["scaled", "moved", "swapped", "dropped", "redistributed"],
+    }).notNull(),
+    before: jsonb("before"),
+    after: jsonb("after"),
+    reason: text("reason").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("plan_adjustments_week_idx").on(t.weekPlanId, t.date)]
+);
