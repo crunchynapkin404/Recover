@@ -4,7 +4,7 @@ import { requireUser } from "@/lib/session";
 import { AppShell } from "@/components/app-shell";
 import { JournalForm } from "@/components/journal/journal-form";
 import { CorrelationInsights } from "@/components/journal/correlation-insights";
-import { computeTagCorrelations } from "@/lib/correlations";
+import { computeTagInsights } from "@/lib/insights/correlations";
 import type { DayFlag } from "@/lib/day-flags";
 
 function daysAgo(n: number): string {
@@ -80,7 +80,7 @@ export default async function JournalPage() {
     columns: { id: true },
   });
 
-  const correlations = await computeTagCorrelations(user.id);
+  const insights = await computeTagInsights(user.id);
 
   return (
     <AppShell>
@@ -96,7 +96,7 @@ export default async function JournalPage() {
         hasActiveConnection={!!activeConnection}
       />
       <section className="mt-8">
-        <CorrelationInsights correlations={correlations} />
+        <CorrelationInsights insights={insights} />
       </section>
     </AppShell>
   );
