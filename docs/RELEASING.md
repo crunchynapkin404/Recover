@@ -2,7 +2,7 @@
 
 The tag is the last step, never the first. Pushing any `v*` tag builds and
 publishes the Docker image from exactly that commit (`release.yml`), and
-watchtower-equipped servers will run it — so whatever the tag points at *is*
+watchtower-equipped servers will run it — so whatever the tag points at _is_
 the release, regardless of what the changelog next to it claims.
 
 Born from v0.9.1: a work-in-progress commit was tagged and released before
