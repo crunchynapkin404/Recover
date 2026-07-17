@@ -74,6 +74,51 @@ describe.skipIf(!hasDb)("insights integration", () => {
       });
     }
     await db.insert(schema.dailyMetrics).values(metrics);
+
+    // Milestone fixtures: 3 consecutive journaled days ending today, one
+    // plan with a completed and an incomplete week, one finished plan.
+    await db.insert(schema.wellnessDaily).values(
+      [0, 1, 2].map((i) => ({
+        userId: USER,
+        date: daysAgoYmd(i),
+        mood: "good",
+        source: "manual" as const,
+      }))
+    );
+    const [plan] = await db
+      .insert(schema.trainingPlans)
+      .values({
+        userId: USER,
+        title: "Insights test plan",
+        raceType: "marathon",
+        raceDate: daysAgoYmd(-30),
+        startDate: daysAgoYmd(30),
+        weeksTotal: 8,
+        currentWeek: 3,
+        status: "completed",
+        constraints: { daysPerWeek: 4, hoursPerWeek: 6, sports: ["Run"] },
+      })
+      .returning();
+    await db.insert(schema.trainingBlocks).values([
+      {
+        planId: plan.id,
+        weekNumber: 1,
+        phase: "base",
+        targetLoadTotal: 300,
+        targetSessions: 4,
+        workouts: [],
+        adherencePct: 82,
+      },
+      {
+        planId: plan.id,
+        weekNumber: 2,
+        phase: "base",
+        targetLoadTotal: 300,
+        targetSessions: 4,
+        workouts: [],
+        adherencePct: 55,
+      },
+    ]);
   });
 
   afterAll(cleanup);
@@ -91,5 +136,14 @@ describe.skipIf(!hasDb)("insights integration", () => {
     const { computeTagInsights } = await import("@/lib/insights/correlations");
     const rows = await computeTagInsights(USER);
     expect(rows.find((r) => r.behavior === "Hard session")).toBeUndefined();
+  });
+
+  it("milestones derive from durable rows", async () => {
+    const { getMilestones } = await import("@/lib/insights/milestones");
+    const m = await getMilestones(USER);
+    expect(m.currentStreak).toBe(3);
+    expect(m.bestStreak).toBeGreaterThanOrEqual(3);
+    expect(m.planWeeksCompleted).toBe(1); // 82% counts, 55% doesn't
+    expect(m.plansCompleted).toBe(1);
   });
 });
