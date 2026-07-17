@@ -6,6 +6,10 @@ set -eu
 
 BACKUP_DIR="${BACKUP_DIR:-/backups}"
 KEEP="${BACKUP_KEEP:-14}"
+case "$KEEP" in
+  '' | *[!0-9]*) KEEP=14 ;; # non-numeric → default
+esac
+[ "$KEEP" -ge 1 ] || KEEP=1 # 0 would delete the dump we just wrote
 STAMP="$(date +%Y%m%d-%H%M%S)"
 TMP="$BACKUP_DIR/recover-$STAMP.dump.tmp"
 OUT="$BACKUP_DIR/recover-$STAMP.dump"

@@ -87,13 +87,13 @@ Version pins are available if you prefer them: images are tagged `latest`,
 
 - **Health:** `GET /api/health` → `{status, db, lastSyncAgeS}` (200/503) — point your uptime monitor here.
 - **Migrations:** run automatically at container start (`scripts/migrate.mjs`).
-- **Backups:** nightly at 03:30 to the `recover-backups` volume, 14 dumps kept — see [Backups & restore](#backups--restore).
+- **Backups:** nightly at 03:30 UTC to the `recover-backups` volume, 14 dumps kept — see [Backups & restore](#backups--restore).
 - **Logs:** `docker compose logs -f app` — structured JSON lines.
 
 ## Backups & restore
 
 The `backup` service (default-on, no profile needed) runs `pg_dump -Fc`
-every night at 03:30 into the `recover-backups` volume and keeps the
+every night at 03:30 UTC into the `recover-backups` volume and keeps the
 newest 14 dumps. Set `BACKUP_KEEP` in `.env` to change retention. A
 failed dump never deletes old backups. Watch it with
 `docker compose logs backup`.
@@ -121,6 +121,6 @@ First copy the chosen dump out of the volume:
 ```bash
 docker compose stop app
 docker compose cp ./<name>.dump db:/tmp/restore.dump
-docker compose exec db pg_restore -U recover -d recover --clean --if-exists --no-owner /tmp/restore.dump
+docker compose exec db pg_restore -U recover -d recover --clean --if-exists --single-transaction --no-owner /tmp/restore.dump
 docker compose start app
 ```
