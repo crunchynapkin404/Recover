@@ -7,11 +7,13 @@ import {
   PenLine,
   Sparkles,
   BookOpen,
+  CalendarRange,
   Settings2,
 } from "lucide-react";
 
 const NAV_ITEMS = [
   { href: "/", label: "Home", icon: LayoutGrid },
+  { href: "/plan", label: "Plan", icon: CalendarRange },
   { href: "/log", label: "Log", icon: PenLine },
   { href: "/coach", label: "Coach", icon: Sparkles },
   { href: "/journal", label: "Journal", icon: BookOpen },

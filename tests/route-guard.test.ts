@@ -41,6 +41,7 @@ describe("route guard matcher", () => {
     "/settings",
     "/journal",
     "/coach",
+    "/plan",
     "/activity/some-id",
     "/api/chat",
     "/api/push/subscribe",
