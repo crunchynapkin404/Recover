@@ -29,7 +29,8 @@ export interface CorrelateInput {
 }
 
 function splitTag(tag: string): { emoji: string; behavior: string } {
-  const match = tag.match(/^(\p{Extended_Pictographic}️?)\s*(.*)$/u);
+  // Keycap sequences (2️⃣) start with a digit — not Extended_Pictographic.
+  const match = tag.match(/^(\p{Extended_Pictographic}️?|[0-9#*]️?⃣)\s*(.*)$/u);
   if (match) return { emoji: match[1], behavior: match[2] || tag };
   return { emoji: "🏷️", behavior: tag };
 }

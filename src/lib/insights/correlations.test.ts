@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { correlateTags } from "./correlations";
-import { AUTO_TAG_REST } from "./auto-tags";
+import { AUTO_TAG_REST, AUTO_TAG_DOUBLE } from "./auto-tags";
 
 // 2026-08-03 is a Monday. Builder: n consecutive days from a start date.
 function dates(start: string, n: number): string[] {
@@ -142,5 +142,24 @@ describe("correlateTags", () => {
     expect(order.indexOf("Big")).toBeLessThan(order.indexOf("Small"));
     expect(order.indexOf("Small")).toBeLessThan(order.indexOf("Flat"));
     expect(out.find((r) => r.behavior === "Flat")!.conclusive).toBe(false);
+  });
+
+  it("parses keycap emoji tags like Double day", () => {
+    const days = dates("2026-08-03", 30);
+    const autoTagsByDate = new Map(
+      days.slice(0, 10).map((d) => [d, [AUTO_TAG_DOUBLE]])
+    );
+    const readinessByDate = new Map<string, number>();
+    days.forEach((d, i) =>
+      readinessByDate.set(dates(d, 2)[1], i < 10 ? 60 : 80)
+    );
+    const out = correlateTags({
+      manualTagsByDate: new Map(),
+      autoTagsByDate,
+      readinessByDate,
+    });
+    expect(out[0].emoji).toBe("2️⃣");
+    expect(out[0].behavior).toBe("Double day");
+    expect(out[0].auto).toBe(true);
   });
 });
