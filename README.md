@@ -105,7 +105,8 @@ OpenAI-compatible endpoint including a fully local Ollama. Keys are encrypted
   with complete data isolation.
 - **Boring operations** — one app container plus Postgres. No Redis, no queue,
   idempotent sync jobs, health endpoint, migrations applied automatically on
-  boot.
+  boot. Nightly `pg_dump` backups with rotation, and a one-command restore
+  drill that proves your latest backup actually restores.
 
 ## Quickstart
 
@@ -138,18 +139,20 @@ fills a demo account with 90 days of plausible training history (see
 
 ## Status & roadmap
 
-**Current release: v0.9.4 — Deeper Insights.** The v0.9 series made the app
-honest and adaptive: v0.9.0 deleted every metric the data couldn't back,
-v0.9.2–0.9.3 turned static training plans into a living week that adapts to
-your availability and readiness, and v0.9.4 added auto-tags, correlation
-insights with real confidence intervals, and true logging streaks. All on
-top of the full stack: manual entry and CSV import, intervals.icu sync,
-readiness scoring, dashboard, journal, analytics depth, installable PWA
-with morning push, AI coach with memory/personalities/proactive insights,
-training plans, Google Calendar awareness, chart artifacts, weekly reviews,
-Strava AI descriptions, and 24 MCP tools. Next up: infrastructure hardening
-(v0.9.5 — nightly backups), deep biology (v0.10 — blood work, biological
-age), and wearable connectors (v0.11 — Whoop, Oura). The full plan lives in
+**Current release: v0.9.5 — Nightly Backups.** The v0.9 series made the app
+honest, adaptive, and durable: v0.9.0 deleted every metric the data couldn't
+back, v0.9.2–0.9.3 turned static training plans into a living week that
+adapts to your availability and readiness, v0.9.4 added auto-tags,
+correlation insights with real confidence intervals, and true logging
+streaks, and v0.9.5 made the database back itself up nightly with a
+one-command restore drill. All on top of the full stack: manual entry and
+CSV import, intervals.icu sync, readiness scoring, dashboard, journal,
+analytics depth, installable PWA with morning push, AI coach with
+memory/personalities/proactive insights, training plans, Google Calendar
+awareness, chart artifacts, weekly reviews, Strava AI descriptions, and 24
+MCP tools. Next up: absorbing the standalone intervals-icu MCP server
+(v0.9.6), deep biology (v0.10 — blood work, biological age), and wearable
+connectors (v0.11 — Whoop, Oura). The full plan lives in
 [docs/ROADMAP.md](docs/ROADMAP.md).
 
 An honest hobby project built for one owner and about ten friends. If it's
