@@ -51,18 +51,22 @@ export function VitalsGrid({ tiles }: Props) {
             <p className="mb-3 text-[10px] text-white/50">7d avg: {t.avg7d}</p>
           )}
           <div className="sparkline-animate h-8">
-            <svg
-              viewBox="0 0 100 20"
-              className="h-full w-full opacity-40"
-              preserveAspectRatio="none"
-            >
-              <path
-                d={t.sparkPath}
-                fill="none"
-                stroke={t.sparkColor}
-                strokeWidth="2"
-              />
-            </svg>
+            {/* An empty path means "not enough data for a trend" — render no
+                chart at all rather than an SVG with an empty stroke. */}
+            {t.sparkPath && (
+              <svg
+                viewBox="0 0 100 20"
+                className="h-full w-full opacity-40"
+                preserveAspectRatio="none"
+              >
+                <path
+                  d={t.sparkPath}
+                  fill="none"
+                  stroke={t.sparkColor}
+                  strokeWidth="2"
+                />
+              </svg>
+            )}
           </div>
         </div>
       ))}
