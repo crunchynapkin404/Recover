@@ -2,8 +2,21 @@
 
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/session";
-import { applyAvailability } from "@/lib/week-plan/service";
+import { applyAvailability, rolloverWeekPlan } from "@/lib/week-plan/service";
 import type { IntakeState } from "@/components/plan/intake-form";
+
+/**
+ * v0.9.3 "Plan this week": materialize the current week on demand — for
+ * plans created mid-week (or before this patch) that would otherwise wait
+ * for the next weekly review. Safe to press twice: the rollover is
+ * idempotent per user-week.
+ */
+export async function startWeek(): Promise<void> {
+  const user = await requireUser();
+  await rolloverWeekPlan(user.id);
+  revalidatePath("/plan");
+  revalidatePath("/");
+}
 
 export async function submitAvailability(
   _prev: IntakeState,

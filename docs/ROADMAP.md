@@ -175,7 +175,21 @@ assumed. Shipped as the rolling week + daily adaptation
 **Done when:** skipping a week visibly reshapes next week's plan, and the coach
 can explain what it changed and why. ✅
 
-## v0.9.3 — Deeper Insights
+## ✅ v0.9.3 — Week Starts Now
+
+Patch release: the living week begins when the plan does, not at the next
+Monday's weekly review. Claimed the v0.9.3 number, so the planned feature
+releases below shift one patch digit (again).
+
+- [x] `generateTrainingPlan` materializes the current week immediately
+- [x] "Plan this week" button on the `/plan` empty state (idempotent)
+- [x] Regenerating a plan mid-week replaces the archived plan's open week
+      instead of being shadowed by it until Monday, with a logged
+      "plan changed" adjustment
+- [x] Mid-week starts give already-past days zero availability — no
+      fabricated workouts behind the clock
+
+## v0.9.4 — Deeper Insights
 
 - [ ] **Correlation engine v2**: extend `lib/correlations.ts` — time-of-day patterns, weekday/weekend split, confidence intervals on impact scores; report "not enough data" rather than a thin correlation
 - [ ] **Auto-tags from activities**: derive "Hard session", "Double day", "Rest day", "Late training" from activity data instead of asking
@@ -184,7 +198,7 @@ can explain what it changed and why. ✅
 **Done when:** auto-tags appear without user input; correlations carry a
 confidence interval; a streak survives a restart.
 
-## v0.9.4 — Infrastructure
+## v0.9.5 — Infrastructure
 
 - [ ] **Nightly `pg_dump` backups**: to volume/S3, with a documented restore drill
 - [ ] **Absorb `intervals-icu-mcp`**: merge the standalone server's tools into Recover's built-in MCP (58 → ~40 after dedupe)
@@ -231,7 +245,7 @@ defect class as the sleep/energy cards that release cleaned up.
 
 - [ ] **Recovery & Strain are invented for manual-only athletes**: `recoveryScore`/`strainFraction` come from `latest?.atl ?? 0` / `latest?.ctl ?? 0`, and `atl`/`ctl` are written only by the intervals.icu sync — so a v0.8 no-integration athlete gets a hero "Recovery 60" and "Strain 0.0" from zero data. Needs the `calibrating` treatment readiness already has, propagated through `ScoreRing`, `StrainBudget`, and the narrative.
 - [ ] **"This Week" rings hardcoded**: `ringOuter={0.7}` / `ringInner={0.8}` for every athlete, forever. Blocked on the above — wiring the current values would just spread the fabrication.
-- [ ] **The logging "streak" is a count, not a streak**: `Math.min(window30.length, 30)` renders "22-day streak" for 22 scattered days. Folded into Achievements (v0.9.3).
+- [ ] **The logging "streak" is a count, not a streak**: `Math.min(window30.length, 30)` renders "22-day streak" for 22 scattered days. Folded into Achievements (v0.9.4).
 - [x] **Sparklines flat-line on no data**: `sparkPath` returned `"M0 10 L100 10"` for <2 points — a visual claim of stability made from nothing. Fixed in v0.9.1: empty path, no SVG rendered.
 
 ## Ongoing — polish backlog

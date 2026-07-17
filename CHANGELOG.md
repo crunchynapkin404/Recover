@@ -1,5 +1,31 @@
 # Changelog
 
+## v0.9.3 — 2026-07-17 — Week Starts Now
+
+Patch release for the Adaptive Week: a plan's living week now begins the
+moment the plan exists, not at the next Monday's weekly review. Claims the
+v0.9.3 number, so the planned feature releases shift one patch digit
+(Deeper Insights → v0.9.4, Infrastructure → v0.9.5).
+
+### Fixed
+
+- **New plans materialize their week immediately**: `generateTrainingPlan`
+  rolls the current week over as its last step, so a plan created on a
+  Thursday shows a living week that Thursday instead of a skeleton-only
+  `/plan` page until Monday.
+- **"Plan this week" button**: for plans that predate this patch (or any
+  state where the current week is missing), the `/plan` empty state now
+  offers to materialize the week on demand. Safe to press twice — the
+  rollover stays idempotent per user-week.
+- **Regenerating a plan mid-week no longer shadows it**: the archived plan's
+  open week row used to block the new plan's week until next Monday; the
+  rollover now replaces that row (adjustments cascade) and logs a
+  "plan changed" adjustment so the timeline explains the swap.
+- **Mid-week starts don't invent the past**: days already behind the clock
+  get zero availability, so a Thursday start plans Thu–Sun instead of
+  backfilling fictional workouts onto Mon–Wed. On the normal Monday
+  rollover this is a no-op.
+
 ## v0.9.2 — 2026-07-17 — Adaptive Week
 
 JOIN-style rolling week on the v0.5d skeleton: workouts materialize one week

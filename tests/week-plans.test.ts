@@ -16,6 +16,7 @@ const hasDb =
 
 const USER = "test-week-plans-user";
 const OTHER = "test-week-plans-no-plan-user";
+const GEN = "test-week-plans-generate-user";
 
 function localYmd(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -74,7 +75,7 @@ function seededDays() {
 
 async function cleanupUsers() {
   const { db, schema } = await import("@/lib/db");
-  for (const id of [USER, OTHER]) {
+  for (const id of [USER, OTHER, GEN]) {
     await db.delete(schema.users).where(eq(schema.users.id, id));
   }
 }
@@ -113,7 +114,7 @@ describe.skipIf(!hasDb)("week-plan service", () => {
   beforeAll(async () => {
     const { db, schema } = await import("@/lib/db");
     await cleanupUsers();
-    for (const id of [USER, OTHER]) {
+    for (const id of [USER, OTHER, GEN]) {
       await db
         .insert(schema.users)
         .values({
@@ -450,5 +451,67 @@ describe.skipIf(!hasDb)("week-plan service", () => {
     expect(week!.days.find((d) => d.date === otherDate)!.workout?.type).toBe(
       "Intervals"
     );
+  });
+
+  it("mid-week rollover gives already-past days zero availability and rest", async () => {
+    const { rolloverWeekPlan, getOpenWeekPlan } =
+      await import("@/lib/week-plan/service");
+
+    // Fixed clock: Thursday 2026-08-06 → weekStart Monday 2026-08-03.
+    const thursday = new Date("2026-08-06T12:00:00");
+    expect(await rolloverWeekPlan(USER, thursday)).toBe("rolled");
+
+    const week = await getOpenWeekPlan(USER);
+    expect(week!.weekStart).toBe("2026-08-03");
+    // Mon–Wed are gone: no availability, no invented workouts.
+    for (const d of week!.days.slice(0, 3)) {
+      expect(d.availableMins).toBe(0);
+      expect(d.workout).toBeNull();
+      expect(d.status).toBe("rest");
+    }
+    // The remaining days still carry the week's sessions.
+    expect(week!.days.slice(3).some((d) => d.workout !== null)).toBe(true);
+  });
+
+  it("generateTrainingPlan materializes the first week immediately", async () => {
+    const { generateTrainingPlan } = await import("@/lib/training-plan");
+    const { getOpenWeekPlan } = await import("@/lib/week-plan/service");
+
+    await generateTrainingPlan({
+      userId: GEN,
+      raceType: "marathon",
+      raceDate: addDaysYmd(weekStart, 10 * 7),
+      daysPerWeek: 5,
+      hoursPerWeek: 8,
+    });
+
+    const week = await getOpenWeekPlan(GEN);
+    expect(week).not.toBeNull();
+    expect(week!.weekStart).toBe(weekStart);
+    expect(week!.days).toHaveLength(7);
+  });
+
+  it("regenerating a plan replaces the archived plan's open week", async () => {
+    const { generateTrainingPlan } = await import("@/lib/training-plan");
+    const { getOpenWeekPlan } = await import("@/lib/week-plan/service");
+
+    const first = await generateTrainingPlan({
+      userId: GEN,
+      raceType: "marathon",
+      raceDate: addDaysYmd(weekStart, 10 * 7),
+    });
+    const firstWeek = await getOpenWeekPlan(GEN);
+    expect(firstWeek?.planId).toBe(first.planId);
+
+    const second = await generateTrainingPlan({
+      userId: GEN,
+      raceType: "half marathon",
+      raceDate: addDaysYmd(weekStart, 12 * 7),
+    });
+
+    const week = await getOpenWeekPlan(GEN);
+    expect(week).not.toBeNull();
+    expect(week!.planId).toBe(second.planId);
+    expect(week!.planId).not.toBe(first.planId);
   });
 });
