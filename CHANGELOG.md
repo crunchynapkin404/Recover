@@ -1,5 +1,32 @@
 # Changelog
 
+## v0.13.0 — 2026-07-18 — Deep Biology
+
+Long-horizon health metrics, finally data-backed: v0.11's Withings
+connector and this release's blood-test extraction fix the input side that
+kept this deferred. Design:
+`docs/specs/2026-07-18-v0.13-deep-biology-design.md`.
+
+### Added
+
+- **Health Records** (`/health`): upload a blood-test PDF/photo or paste
+  the values → your own LLM extracts biomarkers with a per-value confidence
+  → an editable review screen → the `biomarkers` table. Nothing is stored
+  unconfirmed. With no LLM configured, pasted text still parses via a
+  deterministic line parser. Migration 0015 (additive).
+- **Biological age** (`src/lib/biological-age.ts`): a transparent composite
+  — chronological age plus a small capped offset per honest signal (resting
+  HR, HRV, sleep consistency, VO₂max, body fat). Below three signals or
+  without a birth year it shows an "insufficient inputs" state naming
+  what's missing, never a guessed number.
+- **Blood pressure** (`src/lib/blood-pressure.ts`): manual entry plus
+  Withings sync (v0.11), classified against the 2017 ACC/AHA bands with a
+  recent-average trend and direction.
+- **Coach visibility**: a `get_biomarkers` tool (registry 48 → 49) surfaces
+  latest values, BP classification, and the bio-age summary to the coach,
+  bounded to reference trends only — it never diagnoses or recommends
+  treatment.
+
 ## v0.12.0 — 2026-07-18 — Sleep Intelligence
 
 v0.9.0 deleted the fabricated sleep cards; v0.11 started ingesting real

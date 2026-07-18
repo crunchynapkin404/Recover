@@ -30,7 +30,7 @@ describe("tool registry", () => {
   });
 
   it("registers the v0.6 strava describe tool", () => {
-    expect(allTools.length).toBe(48);
+    expect(allTools.length).toBe(49);
     const names = allTools.map((t) => t.name);
     expect(names).toContain("describe_strava_activity");
     for (const name of [
@@ -118,7 +118,7 @@ describe("tool registry", () => {
   });
 
   it("registers the v0.9.6 absorbed icu_* activity/wellness/sport-settings tools with correct scopes", () => {
-    expect(allTools.length).toBe(48);
+    expect(allTools.length).toBe(49);
     const names = allTools.map((t) => t.name);
     for (const name of [
       "icu_update_activity",
@@ -153,7 +153,7 @@ describe("tool registry", () => {
   });
 
   it("registers the v0.9.6 absorbed icu_* histogram/search/intervals/workout-library read tools (48 total)", () => {
-    expect(allTools.length).toBe(48);
+    expect(allTools.length).toBe(49);
     const names = allTools.map((t) => t.name);
     for (const name of [
       "icu_get_hr_histogram",
@@ -172,12 +172,20 @@ describe("tool registry", () => {
     }
   });
 
-  it("registers the v0.9.6 get_workout_syntax reference tool (48 total)", () => {
-    expect(allTools.length).toBe(48);
+  it("registers the v0.9.6 get_workout_syntax reference tool (49 total)", () => {
+    expect(allTools.length).toBe(49);
     const tool = allTools.find((t) => t.name === "get_workout_syntax")!;
     expect(tool).toBeDefined();
     expect(tool.scope).toBeUndefined();
     expect(tool.parameters.safeParse({}).success).toBe(true);
+  });
+
+  it("registers the v0.13 get_biomarkers tool (read scope, never diagnoses)", () => {
+    const tool = allTools.find((t) => t.name === "get_biomarkers")!;
+    expect(tool).toBeDefined();
+    expect(tool.scope).toBeUndefined(); // defaults to read
+    expect(tool.parameters.safeParse({}).success).toBe(true);
+    expect(tool.description.toLowerCase()).toContain("never diagnose");
   });
 
   it("get_calendar_availability validates days range", () => {

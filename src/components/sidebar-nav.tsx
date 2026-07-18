@@ -8,6 +8,7 @@ import {
   Sparkles,
   BookOpen,
   CalendarRange,
+  HeartPulse,
   Settings2,
 } from "lucide-react";
 
@@ -17,6 +18,7 @@ const NAV_ITEMS = [
   { href: "/log", label: "Log", icon: PenLine },
   { href: "/coach", label: "Coach", icon: Sparkles },
   { href: "/journal", label: "Journal", icon: BookOpen },
+  { href: "/health", label: "Health", icon: HeartPulse },
   { href: "/settings", label: "Settings", icon: Settings2 },
 ] as const;
 

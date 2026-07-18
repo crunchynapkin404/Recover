@@ -75,8 +75,9 @@ import { icuGetActivityIntervals } from "./icu-get-activity-intervals";
 import { icuGetWorkoutLibrary } from "./icu-get-workout-library";
 import { icuGetWorkoutsInFolder } from "./icu-get-workouts-in-folder";
 import { getWorkoutSyntax } from "./get-workout-syntax";
+import { getBiomarkers } from "./get-biomarkers";
 
-/** All registered tools (48 — docs/PLAN.md MCP design + v0.4a memory + v0.4c depth + v0.5a artifacts + v0.5c calendar + v0.5d training plans + v0.6 strava describe + v0.9.2 living week + v0.9.6 absorbed icu_* event tools + v0.9.6 absorbed icu_* activity/wellness/sport-settings tools + v0.9.6 absorbed icu_* histogram/search/intervals/workout-library read tools + v0.9.6 workout-syntax reference tool). */
+/** All registered tools (49 — docs/PLAN.md MCP design + v0.4a memory + v0.4c depth + v0.5a artifacts + v0.5c calendar + v0.5d training plans + v0.6 strava describe + v0.9.2 living week + v0.9.6 absorbed icu_* tools + v0.9.6 workout-syntax reference tool + v0.13 get_biomarkers). */
 export const allTools: ToolDefinition[] = [
   getReadiness,
   getReadinessHistory,
@@ -126,6 +127,7 @@ export const allTools: ToolDefinition[] = [
   icuGetWorkoutLibrary,
   icuGetWorkoutsInFolder,
   getWorkoutSyntax,
+  getBiomarkers,
 ];
 
 /** Required scope for a tool (default "read"). */
