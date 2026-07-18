@@ -210,59 +210,283 @@ confidence interval; a streak survives a restart. ✅
 
 **Done when:** the standalone MCP server can be retired.
 
-## v0.10 — Deep Biology
+---
 
-Long-horizon health metrics. Deferred from the original v0.8 "Body
-Intelligence" because the data isn't there yet: the live DB has 0/368 days of
-blood pressure, 0/368 respiration, and only 79/368 VO2max.
+Everything below was replanned at v0.9.6 — ten versions ending where v1.0.0
+begins. Brainstorm, candidate inventory, and rationale:
+[docs/plans/2026-07-18-roadmap-replan-v0.10-v0.19.md](plans/2026-07-18-roadmap-replan-v0.10-v0.19.md).
 
-- [ ] **Health Records**: upload blood test PDF/photo → LLM extracts biomarkers → `biomarkers` table
-- [ ] **Biological Age**: weekly score from RHR baseline trend, HRV percentile-for-age, sleep consistency, VO2max, body composition; 20-year projection
-- [ ] **Blood Pressure**: manual entry (`systolic`/`diastolic` exist in the intervals.icu payload but arrive empty)
+## v0.10 — Honest Load
 
-**Done when:** a blood test PDF is parsed and biomarkers appear in the app.
+Recover still borrows its training-load math: `ctl`/`atl` are written only by
+the intervals.icu sync, so a manual-only athlete gets a hero "Recovery 60"
+and "Strain 0.0" invented from zero data. This is the last big honesty-debt
+item, and the foundation for everything after it — readiness's form
+component, the adaptive week's ramp guard, and v0.14's forecasts all consume
+these numbers.
 
-## v0.11 — Wearable connectors
+- [ ] **Native load engine**: per-activity TRIMP (HR-based) / TSS
+      (power-based) / honest duration fallback, and CTL/ATL/TSB by EMA over
+      them — for every source: manual, CSV, Strava, and the v0.11 connectors
+- [ ] **Source precedence**: intervals.icu's precomputed values keep winning
+      when present; native values fill the gaps, labelled as computed
+- [ ] **Recovery & Strain go honest**: `calibrating` treatment through
+      `ScoreRing`, `StrainBudget`, and the narrative when inputs are missing
+      — never `?? 0` again
+- [ ] **"This Week" rings wired**: real weekly targets from the plan (or a
+      recent-average fallback), replacing the hardcoded 0.7/0.8
+- [ ] **Dead UI sweep**: every remaining non-functional control wired or
+      removed (from the polish backlog)
 
-Whoop and Oura would also be the first providers to carry sleep stages and
-bed/wake times — the data v0.9.0 had to delete cards for.
+**Done when:** a no-integration athlete who logs workouts sees Recovery and
+Strain computed from their own sessions — or `calibrating` — and the
+honesty-debt section of this file is empty.
 
-- [ ] Whoop OAuth (recovery, HRV, sleep)
-- [ ] Oura OAuth
-- [ ] Apple Health: file-export upload + Health Auto Export-style webhook (cut from v0.8)
-- [ ] Google Health / Fitbit direct — if demand shows up
+## v0.11 — Wearable Connectors
 
-**Done when:** HRV/sleep flows in from a real Whoop or Oura account with full data isolation.
+intervals.icu stops being the only automatic pipe. Whoop and Oura are the
+first providers to carry sleep stages and bed/wake times — the data v0.9.0
+had to delete cards for — and Withings brings the blood pressure and body
+composition v0.13 needs.
+
+- [ ] **Connector framework**: one provider interface (OAuth dance, token
+      refresh, field mapping, provenance, per-user isolation) so the third
+      connector is a file, not a project
+- [ ] **Whoop OAuth**: recovery, HRV, RHR, sleep with stages
+- [ ] **Oura OAuth**: sleep with stages, readiness contributors, temperature
+      deviation (which v0.15 wants)
+- [ ] **Apple Health**: file-export upload + Health Auto Export-style
+      webhook (cut from v0.8, promised here since)
+- [ ] **Withings OAuth**: weight, body composition, blood pressure
+- [ ] **Conflict policy**: explicit per-field source priority when two
+      providers report the same morning
+- [ ] **First-run experience**: this release is when "choose your data
+      source" becomes a real decision, so onboarding lands here — a guided
+      source picker (connector / CSV / manual), a calibrating progress state
+      ("day 5 of 14") instead of a bare label, and "what to do this week"
+      prompts so the first fortnight sells the app instead of churning
+      invited friends
+- [ ] Fitbit / Google Health direct — if demand shows up
+
+**Done when:** HRV and staged sleep flow in nightly from a real Whoop or
+Oura account, with full per-user isolation and visible provenance on every
+row — and a fresh invite lands in a guided first run, not on a bare
+`calibrating`.
+
+## v0.12 — Sleep Intelligence
+
+v0.9.0 deleted the fabricated sleep cards; v0.11 delivers real stage data.
+This release earns the cards back — only for athletes whose provider
+actually sends the data.
+
+- [ ] **Sleep stages, for real**: hypnogram and stage breakdown rendered
+      only from provider stage data; absent data shows nothing, not an
+      estimate
+- [ ] **Sleep consistency**: bed/wake regularity scored against the
+      athlete's own pattern — the metric the literature keeps ranking above
+      duration
+- [ ] **Chronotype & social jetlag**: midpoint-of-sleep drift, weekdays vs
+      free days
+- [ ] **Bedtime target v2**: uses real bed/wake times when a provider sends
+      them; the manual wake-time setting stays for everyone else
+- [ ] **Nap handling**: multiple sleep sessions per day summed honestly
+- [ ] **Desktop shell**: hypnograms and consistency trends are data-dense
+      surfaces a 512px column can't carry, so the release that needs the
+      width brings it — responsive app shell (sidebar nav ≥lg, multi-column
+      dashboard, wider charts) replacing the phone-stripe-on-a-monitor
+      `max-w-lg` layout; the bottom tab bar stays on small screens
+
+**Done when:** a Whoop/Oura athlete sees stages and a consistency score; a
+manual athlete sees exactly what they saw before — nothing invented; and
+the dashboard uses a laptop screen instead of the middle 512px of it.
+
+## v0.13 — Deep Biology
+
+Long-horizon health metrics. Deferred twice because the data wasn't there
+(the live DB had 0/368 days of blood pressure); v0.11's Withings connector
+and LLM extraction fix the input side first.
+
+- [ ] **Health Records**: upload blood test PDF/photo → LLM extracts
+      biomarkers with per-value confidence → review screen → `biomarkers`
+      table; nothing enters the DB unconfirmed
+- [ ] **Biological Age**: weekly score from RHR baseline trend, HRV
+      percentile-for-age, sleep consistency, VO2max, body composition — with
+      an honest "insufficient inputs" state that lists what's missing
+- [ ] **Blood Pressure**: manual entry + Withings sync; trends against
+      guideline bands
+- [ ] **Coach visibility**: `get_biomarkers` tool; the coach references
+      bloodwork trends but never diagnoses
+
+**Done when:** a blood test PDF is parsed, reviewed, and appears as trends —
+and a missing biomarker shows as missing, not interpolated.
+
+## v0.14 — Race Ready
+
+The adaptive week manages training; race day is why it exists. Everything
+here stands on v0.10's honest load engine — forecasting from fabricated CTL
+would be fabrication with extra steps.
+
+- [ ] **Race calendar**: A/B/C races as first-class entities (coach memory
+      already knows them informally); countdown on the dashboard
+- [ ] **Taper engine**: the final skeleton weeks reshape into a taper from
+      current CTL and race distance; the ramp guard learns to taper
+- [ ] **Readiness forecast**: projected TSB and readiness band for race day
+      from the planned week — clearly labelled a projection, with honest
+      uncertainty
+- [ ] **What-if simulator**: "what does moving Thursday's intervals to
+      Friday do to Sunday's form?" — plan changes preview their load impact
+      before they're saved
+- [ ] **Race-day report**: morning-of readiness brief, and a post-race
+      debrief comparing plan against execution
+
+**Done when:** an athlete with a race in 8 weeks watches the plan taper into
+it and gets a defensible form projection that updates daily.
+
+## v0.15 — Cycle-Aware Readiness
+
+Half of athletes have a baseline variable the score silently ignores. Cycle
+phase shifts HRV, RHR, and temperature enough to move readiness bands —
+treating it as noise is fabrication by omission.
+
+- [ ] **Cycle tracking**: manual phase logging in the journal; automatic
+      where a connector provides it (Oura temperature deviation)
+- [ ] **Phase-aware baselines**: readiness compares against same-phase
+      history once enough cycles are logged — `calibrating` until then, same
+      as readiness itself was
+- [ ] **Pattern surfacing**: how readiness, HRV, and sleep actually behave
+      per phase for _this_ athlete — reported with the v0.9.4 confidence
+      machinery, "inconclusive" when thin
+- [ ] **Coach awareness**: opt-in per athlete; cites the athlete's own
+      patterns, never generic population advice
+
+**Done when:** a luteal-phase HRV dip reads as "normal for this phase" —
+backed by the athlete's own history — instead of a red alert.
+
+## v0.16 — The Coach Remembers
+
+Coach memory holds structured facts; it still can't recall what you actually
+talked about, and every hard session ends in silence.
+
+- [ ] **Recall over history**: search across past threads, journal notes,
+      and weekly reviews (Postgres full-text search first; embeddings only
+      if FTS demonstrably isn't enough) — the coach cites past conversations
+      ("three weeks ago you said the knee…")
+- [ ] **Session debriefs**: after a hard or flagged workout syncs, the coach
+      opens a short debrief — how did it feel, anything hurt — and files the
+      answers into memory
+- [ ] **Monthly report**: the weekly review's big sibling — load, recovery,
+      adherence, milestones, biomarker deltas, written by the coach
+- [ ] **Voice input**: the coach mic goes live via on-device speech
+      recognition (Web Speech API) — the last dead control gets wired for
+      real
+- [ ] **Token transparency**: per-user LLM usage visible in settings
+
+**Done when:** the coach quotes a real past conversation unprompted, and a
+month-end report shows up without being asked.
+
+## v0.17 — Stronger Together
+
+Recover already runs as an owner plus invited friends; the accounts just
+can't see each other. Opt-in sharing — sober, like the milestones.
+
+- [ ] **Sharing model**: explicit per-pair consent, per-surface scope
+      (readiness band only / trends / full), revocable, off by default
+- [ ] **Group view**: readiness bands and streaks across consenting
+      housemates and teammates — bands, not scores; no leaderboard mechanics
+- [ ] **Coach seat**: grant another user (a real human coach) read access to
+      the same surfaces the AI coach sees
+- [ ] **Weekly group digest**: opt-in summary push
+- [ ] **Shareable cards**: privacy-safe milestone and race images rendered
+      server-side for posting elsewhere — data-minimal, no score by default
+
+**Done when:** two consenting users see each other's bands, a third user
+sees nothing, and revoking consent takes effect immediately.
+
+## v0.18 — Good Self-Hosted Citizen
+
+Recover behaves like the rest of the homelab expects it to. Clears the
+operations track.
+
+- [ ] **Sync-jobs admin UI**: queue, failures, retries, manual kick
+- [ ] **Prometheus `/metrics`** and richer health: sync staleness, job
+      failures, backup age, push delivery
+- [ ] **Outbound webhooks**: readiness computed / band changed / backup
+      completed → Home Assistant, ntfy, whatever's listening
+- [ ] **Data export (GDPR)**: full-history download — the read side of
+      v0.8's import; export → wipe → import must round-trip
+- [ ] **Native `ubuntu-24.04-arm` release runners**: restore the arm64
+      image dropped in v0.8 (QEMU builds took ~50 min)
+- [ ] **Vercel + Neon deployment guide refresh**
+
+**Done when:** readiness lands in Home Assistant via webhook, and a full
+export re-imports into a clean instance losslessly.
+
+## v0.19 — 1.0 Hardening
+
+The last 0.x. Nothing new — everything trustable.
+
+- [ ] **Auth hardening**: passkeys + TOTP 2FA, session management UI
+      (list/revoke devices), audit log for auth and token events
+- [ ] **Accessibility sweep**: ScoreRing aria labels, contrast, focus
+      order, button roles — the polish-backlog item, done properly
+- [ ] **Upgrade guarantees**: migrations tested against real dumps,
+      documented rollback, backup compatibility matrix
+- [ ] **Performance pass**: dashboard cold-load budget, query audit
+- [ ] **API/MCP stability**: freeze tool names and schemas, publish a
+      deprecation policy
+- [ ] **Docs reviewed end-to-end**: self-hosting, connectors,
+      troubleshooting
+- [ ] **Security review**: full pass before the tag
+
+**Done when:** v1.0.0 tags the next commit.
 
 ## Ongoing — operations track
 
-Small chunks, shipped alongside feature phases.
-
-- [ ] Sync-jobs admin UI
-- [ ] Vercel + Neon deployment guide refresh
-- [ ] Native `ubuntu-24.04-arm` release runners — restore the arm64 image dropped in v0.8 (QEMU builds took ~50 min)
+All items scheduled into **v0.18 — Good Self-Hosted Citizen** by the v0.9.6
+replan. Anything cheap can still ship earlier alongside any release.
 
 ## Ongoing — honesty debt
 
 Fabrications v0.9.0 found but did not fix. All pre-existing; all the same
-defect class as the sleep/energy cards that release cleaned up.
+defect class as the sleep/energy cards that release cleaned up. Both open
+items are scheduled as **v0.10 — Honest Load**.
 
-- [ ] **Recovery & Strain are invented for manual-only athletes**: `recoveryScore`/`strainFraction` come from `latest?.atl ?? 0` / `latest?.ctl ?? 0`, and `atl`/`ctl` are written only by the intervals.icu sync — so a v0.8 no-integration athlete gets a hero "Recovery 60" and "Strain 0.0" from zero data. Needs the `calibrating` treatment readiness already has, propagated through `ScoreRing`, `StrainBudget`, and the narrative.
-- [ ] **"This Week" rings hardcoded**: `ringOuter={0.7}` / `ringInner={0.8}` for every athlete, forever. Blocked on the above — wiring the current values would just spread the fabrication.
+- [ ] **Recovery & Strain are invented for manual-only athletes**: `recoveryScore`/`strainFraction` come from `latest?.atl ?? 0` / `latest?.ctl ?? 0`, and `atl`/`ctl` are written only by the intervals.icu sync — so a v0.8 no-integration athlete gets a hero "Recovery 60" and "Strain 0.0" from zero data. Needs the `calibrating` treatment readiness already has, propagated through `ScoreRing`, `StrainBudget`, and the narrative. → v0.10
+- [ ] **"This Week" rings hardcoded**: `ringOuter={0.7}` / `ringInner={0.8}` for every athlete, forever. Blocked on the above — wiring the current values would just spread the fabrication. → v0.10
 - [x] **The logging "streak" is a count, not a streak**: `Math.min(window30.length, 30)` renders "22-day streak" for 22 scattered days. Folded into Achievements (v0.9.4). Fixed in v0.9.4: real consecutive runs on dashboard and journal.
 - [x] **Sparklines flat-line on no data**: `sparkPath` returned `"M0 10 L100 10"` for <2 points — a visual claim of stability made from nothing. Fixed in v0.9.1: empty path, no SVG rendered.
 
 ## Ongoing — polish backlog
 
-Considered for v0.9 and deliberately not scheduled. Cheap; pick up alongside
-any release.
+Cheap; pick up alongside any release. The v0.9.6 replan gave most items a
+scheduled home.
 
-- [ ] Data export (GDPR): full history download — the read side of v0.8's import
+- [ ] Data export (GDPR): full history download — the read side of v0.8's import. → v0.18
 - [ ] Default journal entries: pre-toggle frequent behaviors so only exceptions get marked
-- [ ] Accessibility: ScoreRing aria labels, contrast, button roles
+- [ ] Accessibility: ScoreRing aria labels, contrast, button roles. → v0.19
 - [ ] Performance log filters: wire up the month/sport controls
-- [ ] Dead UI sweep: remove non-functional settings controls (v0.9.0 cleared the dashboard's sleep/energy share)
+- [ ] Dead UI sweep: remove non-functional settings controls (v0.9.0 cleared the dashboard's sleep/energy share). → v0.10
 - [x] Sleep Score sparkline plotted `sleepSecs` under a "Sleep Score" label — real data, wrong series. Fixed in v0.9.1.
+
+## Ongoing — design & UX
+
+Added by the v0.9.6 replan's UI/UX pass. The visual layer is not the
+problem — the structural UX is. The two big items are scheduled (first-run
+→ v0.11, desktop shell → v0.12); everything here is the small continuous
+kind that never earns its own release. Pick up alongside any release, same
+as the polish backlog.
+
+- [ ] Empty states: every page says something useful (and honest) when its
+      data doesn't exist yet, instead of rendering a blank card
+- [ ] Loading skeletons: layout-stable placeholders instead of pop-in
+- [ ] Settings information architecture: one long page currently feeds
+      seven action domains (LLM, push, Strava, tokens, body, coach, …) —
+      split into sections or sub-pages
+- [ ] Chart consistency: one visual grammar (axes, bands, tooltips, colors)
+      across dashboard sparklines, fitness PMC, wellness trends, and coach
+      artifacts
+- [ ] Accessibility as-you-go: new UI ships with labels/contrast/focus
+      handled, so the v0.19 sweep is a check, not a cliff
 
 ## Not planned
 
