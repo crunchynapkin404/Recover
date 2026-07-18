@@ -48,7 +48,7 @@ async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
 export const icuGetHrHistogram: ToolDefinition<typeof parameters> = {
   name: "icu_get_hr_histogram",
   description:
-    "Time-in-zone heart-rate distribution within a single activity — bpm range buckets with seconds spent in each. Different from icu_get_hr_curves (best efforts across many activities). Use for cardiovascular-load breakdown and HR-zone time-in-zone analysis.",
+    "Time-in-zone heart-rate distribution within a single activity — bpm range buckets with seconds spent in each. Shows distribution within ONE activity, not best efforts across many. Use for cardiovascular-load breakdown and HR-zone time-in-zone analysis.",
   parameters,
   execute,
 };

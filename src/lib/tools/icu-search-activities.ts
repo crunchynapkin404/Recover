@@ -58,7 +58,7 @@ async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
 export const icuSearchActivities: ToolDefinition<typeof parameters> = {
   name: "icu_search_activities",
   description:
-    "Search activities by name or tag — LIGHT result list (id, name, type, date, distance, duration, tags) only. Prefix the query with '#' for an exact tag match. Use icu_get_activity_details (existing) for full metrics on a specific match.",
+    "Search activities by name or tag — LIGHT result list (id, name, type, date, distance, duration, tags) only. Prefix the query with '#' for an exact tag match. Use get_activity for full metrics on a specific match.",
   parameters,
   execute,
 };

@@ -61,7 +61,7 @@ async function execute(_args: z.infer<typeof parameters>, ctx: ToolContext) {
 export const icuGetWorkoutLibrary: ToolDefinition<typeof parameters> = {
   name: "icu_get_workout_library",
   description:
-    "List all workout-library folders and training plans the athlete has access to (personal, shared, and followed). Each folder id can be passed to icu_get_workouts_in_folder to see its contents, or to icu_apply_training_plan (existing) to schedule it onto the calendar.",
+    "List all workout-library folders and training plans the athlete has access to (personal, shared, and followed). Each folder id can be passed to icu_get_workouts_in_folder to see its contents, or to icu_apply_training_plan to schedule it onto the calendar.",
   parameters,
   execute,
 };

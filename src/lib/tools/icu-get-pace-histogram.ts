@@ -44,7 +44,7 @@ async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
 export const icuGetPaceHistogram: ToolDefinition<typeof parameters> = {
   name: "icu_get_pace_histogram",
   description:
-    "Time-in-zone pace distribution within a single running activity — pace range buckets (in the athlete's configured pace units) with seconds spent in each. Different from icu_get_pace_curves (best efforts across many activities). Use for pace-distribution / consistency analysis. For elevation-normalized pace use icu_get_gap_histogram.",
+    "Time-in-zone pace distribution within a single running activity — pace range buckets (in the athlete's configured pace units) with seconds spent in each. Different from get_pace_curve (best efforts across many activities). Use for pace-distribution / consistency analysis. For elevation-normalized pace use icu_get_gap_histogram.",
   parameters,
   execute,
 };

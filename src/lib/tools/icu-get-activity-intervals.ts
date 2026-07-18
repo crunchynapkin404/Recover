@@ -84,7 +84,7 @@ async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
 export const icuGetActivityIntervals: ToolDefinition<typeof parameters> = {
   name: "icu_get_activity_intervals",
   description:
-    "Per-lap / per-interval breakdown of one activity — segment type (WORK/RECOVERY), duration, distance, average power/HR/cadence/speed, training load, zone. Use for workout-compliance analysis and lap-by-lap review. For headline summary metrics use icu_get_activity_details (existing); for raw second-by-second data use icu_get_activity_streams (existing).",
+    "Per-lap / per-interval breakdown of one activity — segment type (WORK/RECOVERY), duration, distance, average power/HR/cadence/speed, training load, zone. Use for workout-compliance analysis and lap-by-lap review. For headline summary metrics use get_activity.",
   parameters,
   execute,
 };
