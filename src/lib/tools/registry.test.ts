@@ -29,8 +29,8 @@ describe("tool registry", () => {
     }
   });
 
-  it("registers the v0.6 strava describe tool (24 total)", () => {
-    expect(allTools.length).toBe(24);
+  it("registers the v0.6 strava describe tool", () => {
+    expect(allTools.length).toBe(48);
     const names = allTools.map((t) => t.name);
     expect(names).toContain("describe_strava_activity");
     for (const name of [
@@ -82,6 +82,102 @@ describe("tool registry", () => {
       const tool = allTools.find((t) => t.name === name)!;
       expect(tool.parameters.safeParse({}).success).toBe(true);
     }
+  });
+
+  it("registers the v0.9.6 absorbed icu_* event tools with correct scopes", () => {
+    const names = allTools.map((t) => t.name);
+    for (const name of [
+      "icu_get_calendar_events",
+      "icu_get_event",
+      "icu_create_event",
+      "icu_update_event",
+      "icu_delete_event",
+      "icu_bulk_create_events",
+      "icu_bulk_delete_events",
+      "icu_duplicate_events",
+    ]) {
+      expect(names).toContain(name);
+    }
+    // The 2 reads default to "read" (no explicit scope).
+    for (const name of ["icu_get_calendar_events", "icu_get_event"]) {
+      const tool = allTools.find((t) => t.name === name)!;
+      expect(tool.scope).toBeUndefined();
+    }
+    // The 6 writes require write:icu.
+    for (const name of [
+      "icu_create_event",
+      "icu_update_event",
+      "icu_delete_event",
+      "icu_bulk_create_events",
+      "icu_bulk_delete_events",
+      "icu_duplicate_events",
+    ]) {
+      const tool = allTools.find((t) => t.name === name)!;
+      expect(tool.scope).toBe("write:icu");
+    }
+  });
+
+  it("registers the v0.9.6 absorbed icu_* activity/wellness/sport-settings tools with correct scopes", () => {
+    expect(allTools.length).toBe(48);
+    const names = allTools.map((t) => t.name);
+    for (const name of [
+      "icu_update_activity",
+      "icu_add_activity_message",
+      "icu_get_activity_messages",
+      "icu_update_wellness",
+      "icu_get_sport_settings",
+      "icu_update_sport_settings",
+      "icu_apply_training_plan",
+    ]) {
+      expect(names).toContain(name);
+    }
+    // The 2 reads default to "read" (no explicit scope).
+    for (const name of [
+      "icu_get_activity_messages",
+      "icu_get_sport_settings",
+    ]) {
+      const tool = allTools.find((t) => t.name === name)!;
+      expect(tool.scope).toBeUndefined();
+    }
+    // The 5 writes require write:icu.
+    for (const name of [
+      "icu_update_activity",
+      "icu_add_activity_message",
+      "icu_update_wellness",
+      "icu_update_sport_settings",
+      "icu_apply_training_plan",
+    ]) {
+      const tool = allTools.find((t) => t.name === name)!;
+      expect(tool.scope).toBe("write:icu");
+    }
+  });
+
+  it("registers the v0.9.6 absorbed icu_* histogram/search/intervals/workout-library read tools (48 total)", () => {
+    expect(allTools.length).toBe(48);
+    const names = allTools.map((t) => t.name);
+    for (const name of [
+      "icu_get_hr_histogram",
+      "icu_get_power_histogram",
+      "icu_get_pace_histogram",
+      "icu_get_gap_histogram",
+      "icu_search_activities",
+      "icu_get_activity_intervals",
+      "icu_get_workout_library",
+      "icu_get_workouts_in_folder",
+    ]) {
+      expect(names).toContain(name);
+      const tool = allTools.find((t) => t.name === name)!;
+      // All 8 are reads: default scope, no explicit scope set.
+      expect(tool.scope).toBeUndefined();
+    }
+  });
+
+  it("registers the v0.9.6 get_workout_syntax reference tool (48 total)", () => {
+    expect(allTools.length).toBe(48);
+    const tool = allTools.find((t) => t.name === "get_workout_syntax")!;
+    expect(tool).toBeDefined();
+    expect(tool.scope).toBeUndefined();
+    expect(tool.parameters.safeParse({}).success).toBe(true);
   });
 
   it("get_calendar_availability validates days range", () => {

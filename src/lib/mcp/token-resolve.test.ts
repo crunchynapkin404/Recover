@@ -91,6 +91,29 @@ describe("resolveToken", () => {
     const result = await resolveToken(plaintext);
     expect(result).toBeNull();
   });
+
+  it("parses write:icu and drops unknown scopes", async () => {
+    const plaintext = "icu-token-1";
+    const hash = hashToken(plaintext);
+
+    vi.mocked(db.query.apiTokens.findMany).mockResolvedValue([
+      {
+        id: "tok_3",
+        userId: "user_icu",
+        tokenHash: hash,
+        lookupPrefix: hash.slice(0, 8),
+        label: "test",
+        scopes: "read|write:icu|write:bogus",
+        lastUsedAt: null,
+        revokedAt: null,
+        createdAt: new Date(),
+      },
+    ]);
+
+    const result = await resolveToken(plaintext);
+    expect(result).not.toBeNull();
+    expect(result!.scopes).toEqual(["read", "write:icu"]);
+  });
 });
 
 describe("hasScope", () => {
@@ -121,5 +144,15 @@ describe("hasScope", () => {
     };
     expect(hasScope(info, "write:strava")).toBe(true);
     expect(hasScope({ ...info, scopes: ["read"] }, "write:strava")).toBe(false);
+  });
+
+  it("gates write:icu like any other scope", () => {
+    const info: TokenInfo = {
+      userId: "u1",
+      tokenId: "t1",
+      scopes: ["read", "write:icu"],
+    };
+    expect(hasScope(info, "write:icu")).toBe(true);
+    expect(hasScope({ ...info, scopes: ["read"] }, "write:icu")).toBe(false);
   });
 });

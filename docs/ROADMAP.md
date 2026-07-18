@@ -204,11 +204,11 @@ confidence interval; a streak survives a restart. ✅
 
 **Done when:** a backup restores into a clean database unattended. ✅
 
-## v0.9.6 — Absorb intervals-icu-mcp
+## ✅ v0.9.6 — Absorb intervals-icu-mcp
 
-- [ ] **Absorb `intervals-icu-mcp`**: merge the standalone server's tools into Recover's built-in MCP (58 → ~40 after dedupe)
+- [x] **Absorb `intervals-icu-mcp`**: merge the standalone server's tools into Recover's built-in MCP (24 → 48 tools)
 
-**Done when:** the standalone MCP server can be retired.
+**Done when:** the standalone MCP server can be retired. ✅
 
 ---
 
