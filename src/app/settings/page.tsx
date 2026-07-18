@@ -11,6 +11,12 @@ import { CoachCard } from "@/components/settings/coach-card";
 import { listMemories } from "@/lib/coach-memory";
 import { ApiTokensCard } from "@/components/settings/api-tokens-card";
 import { StravaCard } from "@/components/settings/strava-card";
+import { WhoopCard } from "@/components/settings/whoop-card";
+import { whoopConfigured } from "@/lib/connectors/whoop";
+import { OuraCard } from "@/components/settings/oura-card";
+import { AppleHealthCard } from "@/components/settings/apple-health-card";
+import { WithingsCard } from "@/components/settings/withings-card";
+import { withingsConfigured } from "@/lib/connectors/withings";
 import { SignOutButton } from "@/components/sign-out-button";
 import Link from "next/link";
 import { User } from "lucide-react";
@@ -19,10 +25,15 @@ import { DEFAULT_SLEEP_NEED_SECS } from "@/lib/sleep-debt";
 export default async function SettingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ strava_error?: string }>;
+  searchParams: Promise<{
+    strava_error?: string;
+    whoop_error?: string;
+    oura_error?: string;
+    withings_error?: string;
+  }>;
 }) {
   const user = await requireUser();
-  const { strava_error } = await searchParams;
+  const { strava_error, whoop_error, withings_error } = await searchParams;
 
   const connection = await db.query.connections.findFirst({
     where: and(
@@ -35,6 +46,34 @@ export default async function SettingsPage({
     where: and(
       eq(schema.connections.userId, user.id),
       eq(schema.connections.provider, "strava")
+    ),
+  });
+
+  const whoopConnection = await db.query.connections.findFirst({
+    where: and(
+      eq(schema.connections.userId, user.id),
+      eq(schema.connections.provider, "whoop")
+    ),
+  });
+
+  const ouraConnection = await db.query.connections.findFirst({
+    where: and(
+      eq(schema.connections.userId, user.id),
+      eq(schema.connections.provider, "oura")
+    ),
+  });
+
+  const appleHealthConnection = await db.query.connections.findFirst({
+    where: and(
+      eq(schema.connections.userId, user.id),
+      eq(schema.connections.provider, "apple_health")
+    ),
+  });
+
+  const withingsConnection = await db.query.connections.findFirst({
+    where: and(
+      eq(schema.connections.userId, user.id),
+      eq(schema.connections.provider, "withings")
     ),
   });
 
@@ -144,6 +183,61 @@ export default async function SettingsPage({
                       stravaConnection.lastSyncAt?.toISOString() ?? null,
                     lastError: stravaConnection.lastError,
                     writeEnabled: stravaConnection.stravaWriteEnabled,
+                  }
+                : null
+            }
+          />
+
+          <WhoopCard
+            configured={whoopConfigured()}
+            errorParam={whoop_error}
+            connection={
+              whoopConnection
+                ? {
+                    athleteName:
+                      whoopConnection.externalAthleteName ??
+                      whoopConnection.externalAthleteId,
+                    status: whoopConnection.status,
+                    lastSyncAt:
+                      whoopConnection.lastSyncAt?.toISOString() ?? null,
+                    lastError: whoopConnection.lastError,
+                  }
+                : null
+            }
+          />
+
+          <OuraCard
+            connection={
+              ouraConnection
+                ? {
+                    accountName: ouraConnection.externalAthleteName ?? "",
+                    status: ouraConnection.status,
+                    lastSyncAt:
+                      ouraConnection.lastSyncAt?.toISOString() ?? null,
+                    lastError: ouraConnection.lastError,
+                  }
+                : null
+            }
+          />
+
+          <AppleHealthCard
+            connected={!!appleHealthConnection}
+            lastSyncAt={
+              appleHealthConnection?.lastSyncAt?.toISOString() ?? null
+            }
+            baseUrlConfigured={!!process.env.BETTER_AUTH_URL}
+          />
+
+          <WithingsCard
+            configured={withingsConfigured()}
+            errorParam={withings_error}
+            connection={
+              withingsConnection
+                ? {
+                    status: withingsConnection.status,
+                    lastSyncAt:
+                      withingsConnection.lastSyncAt?.toISOString() ?? null,
+                    lastError: withingsConnection.lastError,
                   }
                 : null
             }

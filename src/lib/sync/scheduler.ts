@@ -25,6 +25,21 @@ async function defaultProcessor(job: SyncJob): Promise<void> {
     await runStravaSync(job.userId);
     return;
   }
+  if (job.provider === "whoop") {
+    const { runWhoopSync } = await import("@/lib/sync/whoop-sync");
+    await runWhoopSync(job.userId);
+    return;
+  }
+  if (job.provider === "oura") {
+    const { runOuraSync } = await import("@/lib/sync/oura-sync");
+    await runOuraSync(job.userId);
+    return;
+  }
+  if (job.provider === "withings") {
+    const { runWithingsSync } = await import("@/lib/sync/withings-sync");
+    await runWithingsSync(job.userId);
+    return;
+  }
   throw new Error(`No processor for provider ${job.provider}`);
 }
 
@@ -45,8 +60,10 @@ export async function ensureJobsForConnections(): Promise<void> {
   });
 
   for (const c of connections) {
-    // google_calendar doesn't use sync_jobs (no incremental sync pipeline yet)
-    if (c.provider === "google_calendar") continue;
+    // google_calendar has no pull pipeline; apple_health is push-only
+    // (Health Auto Export webhook / file upload) — neither uses sync_jobs.
+    if (c.provider === "google_calendar" || c.provider === "apple_health")
+      continue;
 
     const existing = await db.query.syncJobs.findFirst({
       where: and(
@@ -82,8 +99,9 @@ export async function requestImmediateSync(userId: string): Promise<void> {
   });
 
   for (const c of conns) {
-    // google_calendar doesn't use sync_jobs (no incremental sync pipeline yet)
-    if (c.provider === "google_calendar") continue;
+    // google_calendar has no pull pipeline; apple_health is push-only.
+    if (c.provider === "google_calendar" || c.provider === "apple_health")
+      continue;
 
     const bumped = await db
       .update(schema.syncJobs)

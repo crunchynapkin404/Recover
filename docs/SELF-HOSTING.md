@@ -24,16 +24,26 @@ then go to **Settings → intervals.icu** and paste your API key
 
 ## Environment variables
 
-| Variable                           | Required    | Purpose                                                                                        |
-| ---------------------------------- | ----------- | ---------------------------------------------------------------------------------------------- |
-| `ENCRYPTION_KEY`                   | yes         | 64 hex chars (32 bytes). Encrypts connector/LLM keys at rest. Generate: `openssl rand -hex 32` |
-| `BETTER_AUTH_SECRET`               | yes         | Session signing secret. Generate: `openssl rand -base64 32`                                    |
-| `BETTER_AUTH_URL`                  | yes         | Public URL of the app (`http://localhost:3000`, or your domain)                                |
-| `OWNER_EMAIL` / `OWNER_PASSWORD`   | first boot  | Seeds the owner account when the users table is empty (min 8 char password)                    |
-| `POSTGRES_PASSWORD`                | no          | DB password (compose default: `recover`)                                                       |
-| `APP_PORT`                         | no          | Host port (default 3000)                                                                       |
-| `DATABASE_URL` / `DATABASE_DRIVER` | managed     | Set by compose. For Vercel+Neon deploys: Neon URL + omit `DATABASE_DRIVER`                     |
-| `CLOUDFLARED_TOKEN`                | tunnel only | Cloudflare tunnel token for public access                                                      |
+| Variable                                        | Required      | Purpose                                                                                                              |
+| ----------------------------------------------- | ------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `ENCRYPTION_KEY`                                | yes           | 64 hex chars (32 bytes). Encrypts connector/LLM keys at rest. Generate: `openssl rand -hex 32`                       |
+| `BETTER_AUTH_SECRET`                            | yes           | Session signing secret. Generate: `openssl rand -base64 32`                                                          |
+| `BETTER_AUTH_URL`                               | yes           | Public URL of the app (`http://localhost:3000`, or your domain)                                                      |
+| `OWNER_EMAIL` / `OWNER_PASSWORD`                | first boot    | Seeds the owner account when the users table is empty (min 8 char password)                                          |
+| `POSTGRES_PASSWORD`                             | no            | DB password (compose default: `recover`)                                                                             |
+| `APP_PORT`                                      | no            | Host port (default 3000)                                                                                             |
+| `DATABASE_URL` / `DATABASE_DRIVER`              | managed       | Set by compose. For Vercel+Neon deploys: Neon URL + omit `DATABASE_DRIVER`                                           |
+| `CLOUDFLARED_TOKEN`                             | tunnel only   | Cloudflare tunnel token for public access                                                                            |
+| `STRAVA_CLIENT_ID` / `STRAVA_CLIENT_SECRET`     | Strava only   | OAuth app creds for the Strava connector (developers.strava.com)                                                     |
+| `WHOOP_CLIENT_ID` / `WHOOP_CLIENT_SECRET`       | Whoop only    | OAuth app creds for the Whoop connector (developer.whoop.com); redirect → `/api/connections/whoop/callback`          |
+| `WITHINGS_CLIENT_ID` / `WITHINGS_CLIENT_SECRET` | Withings only | OAuth app creds for the Withings connector (developer.withings.com); redirect → `/api/connections/withings/callback` |
+
+**Connectors needing no env config:** intervals.icu and Oura use a personal
+API key / access token pasted in Settings; Apple Health pushes via a
+per-user webhook URL (or a JSON file upload) — no OAuth app, so nothing to
+configure at the instance level. The OAuth connectors above are each
+optional: leave the vars unset and the connector shows a "set …" hint
+instead of a Connect button.
 
 ⚠️ Never rotate `ENCRYPTION_KEY` casually: stored connector/LLM keys become
 undecryptable (AES-GCM fails closed) and must be re-entered.
