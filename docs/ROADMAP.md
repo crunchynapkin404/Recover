@@ -272,32 +272,31 @@ Oura account, with full per-user isolation and visible provenance on every
 field — and a fresh invite lands in a guided first run, not on a bare
 `calibrating`. ✅
 
-## v0.12 — Sleep Intelligence
+## ✅ v0.12 — Sleep Intelligence
 
-v0.9.0 deleted the fabricated sleep cards; v0.11 delivers real stage data.
-This release earns the cards back — only for athletes whose provider
+v0.9.0 deleted the fabricated sleep cards; v0.11 delivered real stage data.
+This release earned the cards back — only for athletes whose provider
 actually sends the data.
 
-- [ ] **Sleep stages, for real**: hypnogram and stage breakdown rendered
-      only from provider stage data; absent data shows nothing, not an
-      estimate
-- [ ] **Sleep consistency**: bed/wake regularity scored against the
-      athlete's own pattern — the metric the literature keeps ranking above
-      duration
-- [ ] **Chronotype & social jetlag**: midpoint-of-sleep drift, weekdays vs
-      free days
-- [ ] **Bedtime target v2**: uses real bed/wake times when a provider sends
-      them; the manual wake-time setting stays for everyone else
-- [ ] **Nap handling**: multiple sleep sessions per day summed honestly
-- [ ] **Desktop shell**: hypnograms and consistency trends are data-dense
-      surfaces a 512px column can't carry, so the release that needs the
-      width brings it — responsive app shell (sidebar nav ≥lg, multi-column
-      dashboard, wider charts) replacing the phone-stripe-on-a-monitor
+- [x] **Sleep stages, for real**: stage breakdown bar rendered only from
+      provider stage data; absent data shows nothing, not an estimate
+- [x] **Sleep consistency**: bed/wake regularity (circular SD of sleep
+      midpoint) scored 0–100 against the athlete's own pattern — the metric
+      the literature keeps ranking above duration
+- [x] **Chronotype & social jetlag**: midpoint-of-sleep, weekdays vs free
+      days
+- [x] **Bedtime target v2**: anchors on real median bed times when a
+      provider sends them; the manual wake-time setting stays for everyone
+      else
+- [x] **Nap handling**: multiple sleep sessions per day summed honestly
+      (`napAware`)
+- [x] **Desktop shell**: responsive app shell (sidebar nav ≥lg, two-column
+      dashboard, wider content) replacing the phone-stripe-on-a-monitor
       `max-w-lg` layout; the bottom tab bar stays on small screens
 
 **Done when:** a Whoop/Oura athlete sees stages and a consistency score; a
 manual athlete sees exactly what they saw before — nothing invented; and
-the dashboard uses a laptop screen instead of the middle 512px of it.
+the dashboard uses a laptop screen instead of the middle 512px of it. ✅
 
 ## v0.13 — Deep Biology
 

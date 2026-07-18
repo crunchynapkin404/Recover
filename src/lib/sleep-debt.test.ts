@@ -136,4 +136,54 @@ describe("sleep debt (hand-computed fixtures)", () => {
     expect(r.nightsCounted).toBe(10);
     expect(r.debtSecs).toBe(0);
   });
+
+  it("v2: anchors bedtime on the median real bedtime when provided", () => {
+    // 8 debt-free nights (no payback), habitual bedtime cluster ~23:00.
+    const bedtimes = [
+      23 * 60,
+      23 * 60 + 10,
+      22 * 60 + 50,
+      23 * 60,
+      23 * 60 + 5,
+      22 * 60 + 55,
+      23 * 60,
+    ];
+    const r = computeSleepDebt({
+      nights: nights(8, 10),
+      sleepNeedSecs: DEFAULT_SLEEP_NEED_SECS,
+      wakeTime: "07:00",
+      bedtimes,
+    });
+    // Median bedtime is 23:00; no debt → target is the habitual bedtime.
+    expect(r.bedtime).toBe("23:00");
+  });
+
+  it("v2: handles after-midnight bedtimes without folding to noon", () => {
+    const bedtimes = [
+      23 * 60 + 30,
+      0 * 60 + 30, // 00:30
+      23 * 60 + 45,
+      0 * 60 + 15, // 00:15
+      23 * 60 + 50,
+    ];
+    const r = computeSleepDebt({
+      nights: nights(8, 10),
+      sleepNeedSecs: DEFAULT_SLEEP_NEED_SECS,
+      wakeTime: null, // no wake time, but real bedtimes still yield a target
+      bedtimes,
+    });
+    // Median of the evening cluster is 23:50, not a noon fold.
+    expect(r.bedtime).toBe("23:50");
+  });
+
+  it("v2: too few bedtimes falls back to the wake-time anchor", () => {
+    const r = computeSleepDebt({
+      nights: nights(8, 10),
+      sleepNeedSecs: DEFAULT_SLEEP_NEED_SECS,
+      wakeTime: "07:00",
+      bedtimes: [23 * 60, 23 * 60], // below MIN_BEDTIME_SAMPLES
+    });
+    // Falls back: 07:00 − 8h = 23:00.
+    expect(r.bedtime).toBe("23:00");
+  });
 });
