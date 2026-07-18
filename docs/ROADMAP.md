@@ -341,7 +341,7 @@ treating it as noise is fabrication by omission.
       history once enough cycles are logged — `calibrating` until then, same
       as readiness itself was
 - [ ] **Pattern surfacing**: how readiness, HRV, and sleep actually behave
-      per phase for *this* athlete — reported with the v0.9.4 confidence
+      per phase for _this_ athlete — reported with the v0.9.4 confidence
       machinery, "inconclusive" when thin
 - [ ] **Coach awareness**: opt-in per athlete; cites the athlete's own
       patterns, never generic population advice

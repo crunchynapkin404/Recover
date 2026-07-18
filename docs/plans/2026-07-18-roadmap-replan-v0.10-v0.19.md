@@ -35,31 +35,31 @@ Everything considered, with disposition. Sources: the old roadmap's future
 sections, the three ongoing tracks, the "not planned" list (re-examined),
 PLAN.md's P7 leftovers, and fresh ideas.
 
-| Candidate | Disposition | Where / why |
-| --- | --- | --- |
-| Native load engine (TRIMP/TSS + CTL/ATL from any source) | **Scheduled** | v0.10 — the root fix for the two open honesty-debt items; unblocks manual/CSV/wearable athletes and every forecast feature |
-| Recovery/Strain `calibrating` treatment; "This Week" rings | **Scheduled** | v0.10 — the honesty-debt items themselves |
-| Whoop + Oura OAuth | **Scheduled** | v0.11 — first providers with sleep stages & bed/wake times |
-| Apple Health export/webhook (cut from v0.8) | **Scheduled** | v0.11 — promised twice already |
-| Withings OAuth (BP, weight, body comp) | **Scheduled** | v0.11 — new; it's what makes Deep Biology data-backed instead of data-starved |
-| Fitbit / Google Health | **Conditional** | v0.11 — only if demand shows up (unchanged) |
-| Sleep stages / consistency / chronotype cards | **Scheduled** | v0.12 — earns back what v0.9.0 deleted, now with real data |
-| Deep Biology (blood tests → biomarkers, bio age, BP) | **Scheduled, moved** | was v0.10, now v0.13 — deferred because 0/368 days of BP existed; v0.11 fixes the input side first |
-| Race calendar, taper engine, readiness forecast, what-if | **Scheduled** | v0.14 — the adaptive week's payoff; needs v0.10's honest load numbers |
-| Cycle-aware readiness | **Scheduled** | v0.15 — new; half of athletes have a baseline variable we currently treat as noise, which is fabrication by omission |
-| Coach recall over history (FTS), session debriefs, monthly report | **Scheduled** | v0.16 — memory holds facts but can't recall conversations |
-| Voice input (the dead mic) | **Scheduled** | v0.16 — Web Speech API, on-device; wired or finally removed |
-| Multi-athlete sharing / group view / coach seat | **Scheduled** | v0.17 — "widen who can run it"; the invite system already ships, accounts just can't see each other |
-| Shareable milestone/race cards | **Scheduled** | v0.17 — privacy-safe, server-rendered |
-| Sync-jobs admin UI, Prometheus metrics, outbound webhooks (Home Assistant/ntfy), GDPR export, arm64 runners, Vercel+Neon guide | **Scheduled** | v0.18 — the whole operations track, plus webhooks: a self-hosted app should talk to the rest of the homelab |
-| Passkeys/2FA, session mgmt, audit log, a11y sweep, upgrade guarantees, MCP schema freeze, security review | **Scheduled** | v0.19 — 1.0 hardening; nothing new, everything trustable |
-| Weather/heat/altitude context on activities | **Deferred** | Real value but needs an external API dependency decision; revisit after v0.14 — race-day weather is the natural entry point |
-| Embeddings/RAG for coach recall | **Deferred** | Postgres FTS first (v0.16); embeddings only if FTS demonstrably isn't enough — no vector DB dependency on a hunch |
-| i18n / localization | **Deferred** | Real cost across every honest-wording string; post-1.0 unless contributors show up for it |
-| Readiness algorithm v2 (ML personal model) | **Rejected** | Unexplainable scores break pillar 1; the component breakdown is the product |
-| Badges / XP / leaderboards | **Rejected** | Re-confirmed v0.9.4's decision — sober milestones only; v0.17's group view shows bands, not rankings |
-| Nutrition, Garmin direct, SaaS, strength builder | **Rejected** | Unchanged from "Not planned" — reasons still hold |
-| S3/offsite backups | **Rejected** | Re-confirmed v0.9.5's decision: disk loss is the hypervisor layer's job |
+| Candidate                                                                                                                      | Disposition          | Where / why                                                                                                                 |
+| ------------------------------------------------------------------------------------------------------------------------------ | -------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Native load engine (TRIMP/TSS + CTL/ATL from any source)                                                                       | **Scheduled**        | v0.10 — the root fix for the two open honesty-debt items; unblocks manual/CSV/wearable athletes and every forecast feature  |
+| Recovery/Strain `calibrating` treatment; "This Week" rings                                                                     | **Scheduled**        | v0.10 — the honesty-debt items themselves                                                                                   |
+| Whoop + Oura OAuth                                                                                                             | **Scheduled**        | v0.11 — first providers with sleep stages & bed/wake times                                                                  |
+| Apple Health export/webhook (cut from v0.8)                                                                                    | **Scheduled**        | v0.11 — promised twice already                                                                                              |
+| Withings OAuth (BP, weight, body comp)                                                                                         | **Scheduled**        | v0.11 — new; it's what makes Deep Biology data-backed instead of data-starved                                               |
+| Fitbit / Google Health                                                                                                         | **Conditional**      | v0.11 — only if demand shows up (unchanged)                                                                                 |
+| Sleep stages / consistency / chronotype cards                                                                                  | **Scheduled**        | v0.12 — earns back what v0.9.0 deleted, now with real data                                                                  |
+| Deep Biology (blood tests → biomarkers, bio age, BP)                                                                           | **Scheduled, moved** | was v0.10, now v0.13 — deferred because 0/368 days of BP existed; v0.11 fixes the input side first                          |
+| Race calendar, taper engine, readiness forecast, what-if                                                                       | **Scheduled**        | v0.14 — the adaptive week's payoff; needs v0.10's honest load numbers                                                       |
+| Cycle-aware readiness                                                                                                          | **Scheduled**        | v0.15 — new; half of athletes have a baseline variable we currently treat as noise, which is fabrication by omission        |
+| Coach recall over history (FTS), session debriefs, monthly report                                                              | **Scheduled**        | v0.16 — memory holds facts but can't recall conversations                                                                   |
+| Voice input (the dead mic)                                                                                                     | **Scheduled**        | v0.16 — Web Speech API, on-device; wired or finally removed                                                                 |
+| Multi-athlete sharing / group view / coach seat                                                                                | **Scheduled**        | v0.17 — "widen who can run it"; the invite system already ships, accounts just can't see each other                         |
+| Shareable milestone/race cards                                                                                                 | **Scheduled**        | v0.17 — privacy-safe, server-rendered                                                                                       |
+| Sync-jobs admin UI, Prometheus metrics, outbound webhooks (Home Assistant/ntfy), GDPR export, arm64 runners, Vercel+Neon guide | **Scheduled**        | v0.18 — the whole operations track, plus webhooks: a self-hosted app should talk to the rest of the homelab                 |
+| Passkeys/2FA, session mgmt, audit log, a11y sweep, upgrade guarantees, MCP schema freeze, security review                      | **Scheduled**        | v0.19 — 1.0 hardening; nothing new, everything trustable                                                                    |
+| Weather/heat/altitude context on activities                                                                                    | **Deferred**         | Real value but needs an external API dependency decision; revisit after v0.14 — race-day weather is the natural entry point |
+| Embeddings/RAG for coach recall                                                                                                | **Deferred**         | Postgres FTS first (v0.16); embeddings only if FTS demonstrably isn't enough — no vector DB dependency on a hunch           |
+| i18n / localization                                                                                                            | **Deferred**         | Real cost across every honest-wording string; post-1.0 unless contributors show up for it                                   |
+| Readiness algorithm v2 (ML personal model)                                                                                     | **Rejected**         | Unexplainable scores break pillar 1; the component breakdown is the product                                                 |
+| Badges / XP / leaderboards                                                                                                     | **Rejected**         | Re-confirmed v0.9.4's decision — sober milestones only; v0.17's group view shows bands, not rankings                        |
+| Nutrition, Garmin direct, SaaS, strength builder                                                                               | **Rejected**         | Unchanged from "Not planned" — reasons still hold                                                                           |
+| S3/offsite backups                                                                                                             | **Rejected**         | Re-confirmed v0.9.5's decision: disk loss is the hypervisor layer's job                                                     |
 
 ## The arc (convergent pass)
 
