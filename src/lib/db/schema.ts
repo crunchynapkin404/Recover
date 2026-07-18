@@ -231,6 +231,11 @@ export const dailyMetrics = pgTable(
     rhrBaselineMean: real("rhr_baseline_mean"),
     rhrBaselineSd: real("rhr_baseline_sd"),
     tsb: real("tsb"), // CTL − ATL (conventional sign)
+    // v0.10 Honest Load: effective training-load state for the day.
+    // Provider (intervals.icu) values win; the native engine fills gaps.
+    ctl: real("ctl"),
+    atl: real("atl"),
+    loadSource: text("load_source", { enum: ["provider", "computed"] }),
     computedAt: timestamp("computed_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -422,6 +427,10 @@ export const bodyPrefs = pgTable("body_prefs", {
   // invented bedtime on the dashboard, which is what v0.9.0 removes.
   wakeTime: text("wake_time"), // "HH:MM" local
   sleepNeedSecs: integer("sleep_need_secs").notNull().default(28800), // 8h
+  // v0.10 Honest Load: athlete thresholds for the native load engine.
+  // null = not set; the engine degrades to its duration fallback.
+  maxHr: integer("max_hr"),
+  ftpWatts: integer("ftp_watts"),
 });
 
 // Instance-level key/value config (e.g. auto-generated VAPID keys; secret

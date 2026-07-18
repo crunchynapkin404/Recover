@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/session";
 import { parseWellnessCSV, parseActivityCSV } from "@/lib/csv-import";
 import { upsertWellness } from "@/lib/wellness-write";
 import { createManualActivity } from "@/lib/activity-write";
+import { computeDailyMetrics } from "@/lib/metrics";
 
 export type ImportResult = {
   ok: boolean;
@@ -96,23 +97,35 @@ export async function importActivityCSV(
   }
 
   let imported = 0;
+  let earliestImported: string | null = null;
   for (const row of rows) {
     try {
-      await createManualActivity(user.id, {
-        sport: row.sport,
-        name: row.name,
-        startDate: row.date,
-        durationMinutes: row.durationMinutes,
-        distanceKm: row.distanceKm,
-        load: row.load,
-        avgHr: row.avgHr,
-        avgPower: row.avgPower,
-        elevationM: row.elevationM,
-      });
+      await createManualActivity(
+        user.id,
+        {
+          sport: row.sport,
+          name: row.name,
+          startDate: row.date,
+          durationMinutes: row.durationMinutes,
+          distanceKm: row.distanceKm,
+          load: row.load,
+          avgHr: row.avgHr,
+          avgPower: row.avgPower,
+          elevationM: row.elevationM,
+        },
+        { recompute: false }
+      );
       imported++;
+      if (earliestImported == null || row.date < earliestImported)
+        earliestImported = row.date;
     } catch {
       errors.push(`Failed to import activity on ${row.date}`);
     }
+  }
+
+  // One metrics pass for the whole batch instead of one per row.
+  if (earliestImported != null) {
+    await computeDailyMetrics(user.id, earliestImported);
   }
 
   revalidatePath("/");

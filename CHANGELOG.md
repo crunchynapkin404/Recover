@@ -1,5 +1,48 @@
 # Changelog
 
+## v0.10.0 — 2026-07-18 — Honest Load
+
+Recover stops borrowing its training-load math. CTL/ATL/TSB are now
+computed natively from the athlete's own sessions when intervals.icu
+doesn't provide them, and every score that used to be invented from
+missing data now says `calibrating` instead. Design:
+`docs/specs/2026-07-18-v0.10-honest-load-design.md`.
+
+### Added
+
+- **Native load engine** (`src/lib/training-load.ts`): per-activity load
+  in TSS-like units via a first-match ladder — provider load → power TSS
+  (needs FTP) → heart-rate TSS (needs max HR + resting-HR baseline) →
+  honest duration fallback (an unlabeled hour counts as easy) — with
+  cross-provider dedup, then CTL (42d) / ATL (7d) EMAs over the daily
+  sums. Works for every source: manual, CSV, Strava, intervals.icu.
+- **Source precedence**: intervals.icu's precomputed ctl/atl keep winning
+  when present; native values fill the gaps and are labelled `computed`
+  on the new `daily_metrics.ctl/atl/load_source` columns (migration 0013,
+  additive). Readiness's form component now works for manual-only
+  athletes.
+- **Training thresholds** in Settings → Body: optional max HR and FTP
+  feed the HR/power rungs; changing them recomputes the recent window.
+- **"This Week" rings wired**: the hardcoded `0.7`/`0.8` fractions are
+  replaced by real targets — planned week volume and the active block's
+  target load, falling back to trailing 28-day averages — and the rings
+  simply don't render when no honest target exists.
+
+### Fixed
+
+- **Recovery & Strain are no longer invented**: the dashboard read
+  `latest?.atl ?? 0` / `latest?.ctl ?? 0`, giving a no-integration
+  athlete a hero "Recovery 60" and "Strain 0.0" from zero data. Both
+  rings, the strain budget, and the narrative now use the effective
+  (provider-or-computed) values and show `calibrating` until at least 7
+  activity days exist in the trailing 6 weeks. Closes the last two
+  honesty-debt items.
+- The Training Status tile's fabricated "Optimal load intensity" caption
+  now shows the real CTL (marked `computed` when native) or nothing.
+- Manual activity logging and CSV import now recompute daily metrics, so
+  a logged workout shows up in load immediately (imports batch into one
+  recompute).
+
 ## v0.9.6 — 2026-07-18 — Absorb intervals-icu MCP
 
 24 new intervals.icu tools (23 `icu_*` tools plus a `get_workout_syntax`

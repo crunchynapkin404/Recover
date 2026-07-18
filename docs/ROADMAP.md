@@ -216,31 +216,32 @@ Everything below was replanned at v0.9.6 — ten versions ending where v1.0.0
 begins. Brainstorm, candidate inventory, and rationale:
 [docs/plans/2026-07-18-roadmap-replan-v0.10-v0.19.md](plans/2026-07-18-roadmap-replan-v0.10-v0.19.md).
 
-## v0.10 — Honest Load
+## ✅ v0.10 — Honest Load
 
-Recover still borrows its training-load math: `ctl`/`atl` are written only by
-the intervals.icu sync, so a manual-only athlete gets a hero "Recovery 60"
-and "Strain 0.0" invented from zero data. This is the last big honesty-debt
-item, and the foundation for everything after it — readiness's form
-component, the adaptive week's ramp guard, and v0.14's forecasts all consume
-these numbers.
+Recover stopped borrowing its training-load math: `ctl`/`atl` used to be
+written only by the intervals.icu sync, so a manual-only athlete got a hero
+"Recovery 60" and "Strain 0.0" invented from zero data. This was the last
+big honesty-debt item, and the foundation for everything after it —
+readiness's form component, the adaptive week's ramp guard, and v0.14's
+forecasts all consume these numbers.
 
-- [ ] **Native load engine**: per-activity TRIMP (HR-based) / TSS
-      (power-based) / honest duration fallback, and CTL/ATL/TSB by EMA over
+- [x] **Native load engine**: per-activity load (power TSS / HR TSS /
+      honest duration fallback), and CTL/ATL/TSB by EMA over
       them — for every source: manual, CSV, Strava, and the v0.11 connectors
-- [ ] **Source precedence**: intervals.icu's precomputed values keep winning
+- [x] **Source precedence**: intervals.icu's precomputed values keep winning
       when present; native values fill the gaps, labelled as computed
-- [ ] **Recovery & Strain go honest**: `calibrating` treatment through
+- [x] **Recovery & Strain go honest**: `calibrating` treatment through
       `ScoreRing`, `StrainBudget`, and the narrative when inputs are missing
       — never `?? 0` again
-- [ ] **"This Week" rings wired**: real weekly targets from the plan (or a
+- [x] **"This Week" rings wired**: real weekly targets from the plan (or a
       recent-average fallback), replacing the hardcoded 0.7/0.8
-- [ ] **Dead UI sweep**: every remaining non-functional control wired or
-      removed (from the polish backlog)
+- [x] **Dead UI sweep**: every remaining non-functional control wired or
+      removed (audit found settings/log/coach/journal already clean; the
+      remaining fabrications were the dashboard captions fixed here)
 
 **Done when:** a no-integration athlete who logs workouts sees Recovery and
 Strain computed from their own sessions — or `calibrating` — and the
-honesty-debt section of this file is empty.
+honesty-debt section of this file is empty. ✅
 
 ## v0.11 — Wearable Connectors
 
@@ -448,11 +449,11 @@ replan. Anything cheap can still ship earlier alongside any release.
 ## Ongoing — honesty debt
 
 Fabrications v0.9.0 found but did not fix. All pre-existing; all the same
-defect class as the sleep/energy cards that release cleaned up. Both open
-items are scheduled as **v0.10 — Honest Load**.
+defect class as the sleep/energy cards that release cleaned up. **Emptied
+by v0.10 — Honest Load.**
 
-- [ ] **Recovery & Strain are invented for manual-only athletes**: `recoveryScore`/`strainFraction` come from `latest?.atl ?? 0` / `latest?.ctl ?? 0`, and `atl`/`ctl` are written only by the intervals.icu sync — so a v0.8 no-integration athlete gets a hero "Recovery 60" and "Strain 0.0" from zero data. Needs the `calibrating` treatment readiness already has, propagated through `ScoreRing`, `StrainBudget`, and the narrative. → v0.10
-- [ ] **"This Week" rings hardcoded**: `ringOuter={0.7}` / `ringInner={0.8}` for every athlete, forever. Blocked on the above — wiring the current values would just spread the fabrication. → v0.10
+- [x] **Recovery & Strain are invented for manual-only athletes**: `recoveryScore`/`strainFraction` came from `latest?.atl ?? 0` / `latest?.ctl ?? 0`, and `atl`/`ctl` were written only by the intervals.icu sync. Fixed in v0.10: native load engine + `calibrating` treatment through `ScoreRing`, `StrainBudget`, and the narrative.
+- [x] **"This Week" rings hardcoded**: `ringOuter={0.7}` / `ringInner={0.8}` for every athlete, forever. Fixed in v0.10: real plan/trailing-average targets, rings hidden without one.
 - [x] **The logging "streak" is a count, not a streak**: `Math.min(window30.length, 30)` renders "22-day streak" for 22 scattered days. Folded into Achievements (v0.9.4). Fixed in v0.9.4: real consecutive runs on dashboard and journal.
 - [x] **Sparklines flat-line on no data**: `sparkPath` returned `"M0 10 L100 10"` for <2 points — a visual claim of stability made from nothing. Fixed in v0.9.1: empty path, no SVG rendered.
 
@@ -465,7 +466,7 @@ scheduled home.
 - [ ] Default journal entries: pre-toggle frequent behaviors so only exceptions get marked
 - [ ] Accessibility: ScoreRing aria labels, contrast, button roles. → v0.19
 - [ ] Performance log filters: wire up the month/sport controls
-- [ ] Dead UI sweep: remove non-functional settings controls (v0.9.0 cleared the dashboard's sleep/energy share). → v0.10
+- [x] Dead UI sweep: remove non-functional settings controls (v0.9.0 cleared the dashboard's sleep/energy share). Closed in v0.10 — audit found the settings/log/coach/journal controls already wired or removed; the dashboard's fabricated captions were the last stragglers.
 - [x] Sleep Score sparkline plotted `sleepSecs` under a "Sleep Score" label — real data, wrong series. Fixed in v0.9.1.
 
 ## Ongoing — design & UX

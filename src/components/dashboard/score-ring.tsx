@@ -7,6 +7,8 @@ interface RingProps {
   size: "sm" | "lg";
   /** For strain-style display (e.g. "5.8") */
   displayValue?: string;
+  /** No honest number to show yet — renders "—" on an empty track. */
+  calibrating?: boolean;
 }
 
 export function ScoreRing({
@@ -15,19 +17,25 @@ export function ScoreRing({
   color,
   size,
   displayValue,
+  calibrating,
 }: RingProps) {
   const isSm = size === "sm";
   const r = isSm ? 42 : 44;
   const circumference = 2 * Math.PI * r;
-  const offset = circumference - circumference * Math.min(value / 100, 1);
+  const shownValue = calibrating ? 0 : value;
+  const offset = circumference - circumference * Math.min(shownValue / 100, 1);
   const strokeWidth = isSm ? 6 : 4.5;
   const svgSize = 100;
+  const centerText = calibrating ? "—" : (displayValue ?? Math.round(value));
+  const ariaValue = calibrating
+    ? "calibrating"
+    : `${displayValue ?? Math.round(value)}${displayValue ? "" : " out of 100"}`;
 
   return (
     <div className="flex flex-col items-center gap-3">
       <div
         role="img"
-        aria-label={`${label}: ${displayValue ?? Math.round(value)}${displayValue ? "" : " out of 100"}`}
+        aria-label={`${label}: ${ariaValue}`}
         className={`relative ${isSm ? "h-20 w-20" : "h-44 w-44"}`}
       >
         {/* Glow for large ring */}
@@ -69,9 +77,9 @@ export function ScoreRing({
           className={`absolute inset-0 flex flex-col items-center justify-center`}
         >
           <span
-            className={`font-bold text-white ${isSm ? "text-xl" : "text-6xl tracking-tighter"}`}
+            className={`font-bold ${calibrating ? "text-white/40" : "text-white"} ${isSm ? "text-xl" : "text-6xl tracking-tighter"}`}
           >
-            {displayValue ?? Math.round(value)}
+            {centerText}
           </span>
           {!isSm && (
             <span className="mt-1 text-[10px] font-bold uppercase tracking-[0.2em] text-white/50">
