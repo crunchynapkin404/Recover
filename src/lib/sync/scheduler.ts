@@ -55,8 +55,10 @@ export async function ensureJobsForConnections(): Promise<void> {
   });
 
   for (const c of connections) {
-    // google_calendar doesn't use sync_jobs (no incremental sync pipeline yet)
-    if (c.provider === "google_calendar") continue;
+    // google_calendar has no pull pipeline; apple_health is push-only
+    // (Health Auto Export webhook / file upload) — neither uses sync_jobs.
+    if (c.provider === "google_calendar" || c.provider === "apple_health")
+      continue;
 
     const existing = await db.query.syncJobs.findFirst({
       where: and(
@@ -92,8 +94,9 @@ export async function requestImmediateSync(userId: string): Promise<void> {
   });
 
   for (const c of conns) {
-    // google_calendar doesn't use sync_jobs (no incremental sync pipeline yet)
-    if (c.provider === "google_calendar") continue;
+    // google_calendar has no pull pipeline; apple_health is push-only.
+    if (c.provider === "google_calendar" || c.provider === "apple_health")
+      continue;
 
     const bumped = await db
       .update(schema.syncJobs)

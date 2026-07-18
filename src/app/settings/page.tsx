@@ -14,6 +14,7 @@ import { StravaCard } from "@/components/settings/strava-card";
 import { WhoopCard } from "@/components/settings/whoop-card";
 import { whoopConfigured } from "@/lib/connectors/whoop";
 import { OuraCard } from "@/components/settings/oura-card";
+import { AppleHealthCard } from "@/components/settings/apple-health-card";
 import { SignOutButton } from "@/components/sign-out-button";
 import Link from "next/link";
 import { User } from "lucide-react";
@@ -56,6 +57,13 @@ export default async function SettingsPage({
     where: and(
       eq(schema.connections.userId, user.id),
       eq(schema.connections.provider, "oura")
+    ),
+  });
+
+  const appleHealthConnection = await db.query.connections.findFirst({
+    where: and(
+      eq(schema.connections.userId, user.id),
+      eq(schema.connections.provider, "apple_health")
     ),
   });
 
@@ -200,6 +208,14 @@ export default async function SettingsPage({
                   }
                 : null
             }
+          />
+
+          <AppleHealthCard
+            connected={!!appleHealthConnection}
+            lastSyncAt={
+              appleHealthConnection?.lastSyncAt?.toISOString() ?? null
+            }
+            baseUrlConfigured={!!process.env.BETTER_AUTH_URL}
           />
         </section>
 

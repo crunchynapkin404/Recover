@@ -102,6 +102,7 @@ export const connections = pgTable(
         "whoop",
         "oura",
         "withings",
+        "apple_health",
       ],
     }).notNull(),
     // AES-256-GCM encrypted (see lib/crypto.ts). For intervals.icu this is the
