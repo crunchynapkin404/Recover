@@ -42,7 +42,7 @@ async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
 export const icuGetPowerHistogram: ToolDefinition<typeof parameters> = {
   name: "icu_get_power_histogram",
   description:
-    "Time-in-zone power distribution within a single activity — watts range buckets with seconds spent in each. Different from icu_get_power_curves (best efforts across many activities). Use for 'how was my workout intensity distributed?' and training-zone breakdown.",
+    "Time-in-zone power distribution within a single activity — watts range buckets with seconds spent in each. Different from get_power_curve (best efforts across many activities). Use for 'how was my workout intensity distributed?' and training-zone breakdown.",
   parameters,
   execute,
 };

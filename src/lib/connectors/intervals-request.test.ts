@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { encrypt } from "@/lib/crypto";
 import { icuRequest } from "./intervals";
 
+process.env.ENCRYPTION_KEY ??= "0".repeat(64);
+
 const conn = {
   encryptedAccessToken: encrypt("test-key"),
   externalAthleteId: "i123",
