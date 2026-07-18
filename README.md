@@ -144,7 +144,7 @@ fills a demo account with 90 days of plausible training history (see
 
 ## Status & roadmap
 
-**Current release: v0.9.6 — Absorb intervals-icu MCP.** The v0.9 series made
+**Current release: v0.12.1 — Sleep Intelligence, Wearable Connectors, and Stability (released 2026-07-18).** The v0.9→v0.12 series made
 the app honest, adaptive, and durable: v0.9.0 deleted every metric the data
 couldn't back, v0.9.2–0.9.3 turned static training plans into a living week
 that adapts to your availability and readiness, v0.9.4 added auto-tags,
