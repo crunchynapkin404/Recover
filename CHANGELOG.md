@@ -1,5 +1,44 @@
 # Changelog
 
+## v0.11.0 — 2026-07-18 — Wearable Connectors
+
+intervals.icu stops being the only automatic pipe. Whoop and Oura bring
+back the staged sleep and bed/wake data v0.9.0 had to delete cards for,
+Withings adds body composition and blood pressure, and Apple Health lets
+anything on an iPhone push in. Two providers reporting the same morning
+now resolve by an explicit per-field priority instead of last-writer-wins.
+Design: `docs/specs/2026-07-18-v0.11-wearable-connectors-design.md`.
+
+### Added
+
+- **Per-field wellness merge** (`src/lib/wellness-merge.ts`): every
+  provider write goes through one priority policy that records which
+  source owns each field (`wellness_daily.field_sources`). Manual entry
+  always wins; dedicated wearables beat intervals.icu on physiology;
+  Withings wins body composition & BP; training-load fields stay
+  intervals.icu-only; a null from any provider never erases existing data.
+  Migration 0014 is additive (staged-sleep, bed-window, temperature,
+  respiration, BP, and body-fat columns plus `field_sources`).
+- **Whoop** (OAuth2, `WHOOP_CLIENT_ID`/`WHOOP_CLIENT_SECRET`): recovery
+  HRV & resting HR joined to staged sleep, mapped to the wake date.
+- **Oura** (Personal Access Token pasted in Settings — no OAuth app
+  needed): staged sleep, HRV/RHR, sleep score, and temperature deviation.
+- **Apple Health**: token-authed Health Auto Export webhook plus a one-off
+  JSON file upload — sleep stages, HRV, resting HR, respiration, blood
+  pressure, and body composition, no Apple API required.
+- **Withings** (OAuth2, `WITHINGS_CLIENT_ID`/`WITHINGS_CLIENT_SECRET`):
+  weight, body-fat ratio, and blood pressure.
+- **Guided first run**: the onboarding screen is now a source picker
+  (connect a device / log manually / import CSV), and the calibrating
+  readiness ring shows an honest "day N of 14" progress bar with a
+  next-step prompt instead of a bare label.
+
+### Changed
+
+- The intervals.icu sync and the manual journal writer now route through
+  the per-field merge, so a second provider can no longer clobber their
+  fields on the same day.
+
 ## v0.10.0 — 2026-07-18 — Honest Load
 
 Recover stops borrowing its training-load math. CTL/ATL/TSB are now

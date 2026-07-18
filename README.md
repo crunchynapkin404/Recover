@@ -153,14 +153,16 @@ streaks, v0.9.5 made the database back itself up nightly with a one-command
 restore drill, and v0.9.6 folded the standalone intervals-icu MCP server's
 tools into Recover's own endpoint so that separate server can be retired,
 and v0.10 made training load honest — CTL/ATL computed natively from your
-own sessions (any source), with `calibrating` instead of invented scores.
-All on top of the full stack: manual entry and CSV import, intervals.icu
-sync, readiness scoring, dashboard, journal, analytics depth, installable
-PWA with morning push, AI coach with memory/personalities/proactive
-insights, training plans, Google Calendar awareness, chart artifacts,
-weekly reviews, Strava AI descriptions, and 48 MCP tools. Next up:
-wearable connectors (v0.11 — Whoop, Oura, Apple Health, Withings), then a
-desktop shell (v0.12) and deep biology (v0.13 — blood work, biological
+own sessions (any source), with `calibrating` instead of invented scores,
+and v0.11 opened up the data sources — Whoop, Oura, Apple Health, and
+Withings feed wellness alongside intervals.icu, resolved by an explicit
+per-field priority, with a guided first run. All on top of the full stack:
+manual entry and CSV import, intervals.icu sync, readiness scoring,
+dashboard, journal, analytics depth, installable PWA with morning push, AI
+coach with memory/personalities/proactive insights, training plans, Google
+Calendar awareness, chart artifacts, weekly reviews, Strava AI
+descriptions, and 48 MCP tools. Next up: sleep intelligence (v0.12 — stages,
+consistency, chronotype), then deep biology (v0.13 — blood work, biological
 age). The full plan lives in [docs/ROADMAP.md](docs/ROADMAP.md).
 
 An honest hobby project built for one owner and about ten friends. If it's

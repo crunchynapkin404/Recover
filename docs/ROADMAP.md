@@ -243,36 +243,34 @@ forecasts all consume these numbers.
 Strain computed from their own sessions — or `calibrating` — and the
 honesty-debt section of this file is empty. ✅
 
-## v0.11 — Wearable Connectors
+## ✅ v0.11 — Wearable Connectors
 
-intervals.icu stops being the only automatic pipe. Whoop and Oura are the
-first providers to carry sleep stages and bed/wake times — the data v0.9.0
-had to delete cards for — and Withings brings the blood pressure and body
-composition v0.13 needs.
+intervals.icu stopped being the only automatic pipe. Whoop and Oura carry
+sleep stages and bed/wake times — the data v0.9.0 had to delete cards for —
+and Withings brings the blood pressure and body composition v0.13 needs.
 
-- [ ] **Connector framework**: one provider interface (OAuth dance, token
-      refresh, field mapping, provenance, per-user isolation) so the third
-      connector is a file, not a project
-- [ ] **Whoop OAuth**: recovery, HRV, RHR, sleep with stages
-- [ ] **Oura OAuth**: sleep with stages, readiness contributors, temperature
-      deviation (which v0.15 wants)
-- [ ] **Apple Health**: file-export upload + Health Auto Export-style
-      webhook (cut from v0.8, promised here since)
-- [ ] **Withings OAuth**: weight, body composition, blood pressure
-- [ ] **Conflict policy**: explicit per-field source priority when two
-      providers report the same morning
-- [ ] **First-run experience**: this release is when "choose your data
-      source" becomes a real decision, so onboarding lands here — a guided
-      source picker (connector / CSV / manual), a calibrating progress state
-      ("day 5 of 14") instead of a bare label, and "what to do this week"
-      prompts so the first fortnight sells the app instead of churning
-      invited friends
-- [ ] Fitbit / Google Health direct — if demand shows up
+- [x] **Connector framework**: one provider shape (OAuth/token, refresh,
+      field mapping, provenance, per-user isolation) so the fourth
+      connector was a file, not a project
+- [x] **Whoop OAuth**: recovery, HRV, RHR, sleep with stages
+- [x] **Oura**: sleep with stages, HRV/RHR, sleep score, temperature
+      deviation (which v0.15 wants). Ships token-first (PAT) rather than
+      OAuth — the API supports it and it's the boring intervals.icu flow;
+      OAuth can reuse Whoop's framework later if multi-user demand shows up
+- [x] **Apple Health**: Health Auto Export webhook + JSON file upload
+      (cut from v0.8, promised here since)
+- [x] **Withings OAuth**: weight, body composition, blood pressure
+- [x] **Conflict policy**: explicit per-field source priority when two
+      providers report the same morning, recorded in `field_sources`
+- [x] **First-run experience**: guided source picker (connect / manual /
+      CSV) and a "day N of 14" calibrating progress bar with a next-step
+      prompt instead of a bare label
+- [ ] Fitbit / Google Health direct — if demand shows up (still conditional)
 
 **Done when:** HRV and staged sleep flow in nightly from a real Whoop or
 Oura account, with full per-user isolation and visible provenance on every
-row — and a fresh invite lands in a guided first run, not on a bare
-`calibrating`.
+field — and a fresh invite lands in a guided first run, not on a bare
+`calibrating`. ✅
 
 ## v0.12 — Sleep Intelligence
 

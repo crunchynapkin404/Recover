@@ -42,6 +42,11 @@ import {
   ringFraction,
   trailingWeeklyAverages,
 } from "@/lib/weekly-targets";
+import {
+  calibrationProgress,
+  CALIBRATION_TARGET_DAYS,
+} from "@/lib/calibration";
+import { CalibrationProgress } from "@/components/dashboard/calibration-progress";
 
 function daysAgo(n: number): string {
   const d = new Date();
@@ -181,6 +186,12 @@ export default async function DashboardPage() {
   // the score ring, which would model a calibrating athlete as flat empty.
   const readinessOrNull = todayMetric?.readiness ?? null;
 
+  // First-run calibrating progress ("day N of 14") — shown in place of a
+  // bare calibrating label while readiness learns the athlete's baseline.
+  const calibration = calibrationProgress(
+    wellness.map((w) => ({ hrvMs: w.hrvMs, restingHr: w.restingHr }))
+  );
+
   // ── Onboarding ──────────────────────────────────────────────────────────
   if (!connection && wellness.length === 0) {
     return (
@@ -191,34 +202,47 @@ export default async function DashboardPage() {
               Welcome to Recover
             </h2>
             <p className="mt-2 text-sm text-white/50">
-              Track your readiness, recovery, and training — your way.
+              Pick how your data gets in. You can add more sources anytime.
             </p>
 
-            <div className="mt-8 space-y-3">
-              <Link
-                href="/journal"
-                className="flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-6 py-3 font-bold text-black transition-all hover:bg-emerald-400"
-              >
-                <Sparkles className="h-4 w-4" />
-                Start logging manually
-              </Link>
+            <div className="mt-8 space-y-3 text-left">
               <Link
                 href="/settings"
-                className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 px-6 py-3 font-medium text-white/70 transition-all hover:bg-white/5"
+                className="flex w-full flex-col rounded-2xl bg-emerald-500 px-5 py-3 text-black transition-all hover:bg-emerald-400"
               >
-                Connect intervals.icu
+                <span className="flex items-center gap-2 font-bold">
+                  <Sparkles className="h-4 w-4" />
+                  Connect a device
+                </span>
+                <span className="text-[11px] font-medium text-black/70">
+                  intervals.icu, Whoop, Oura, Apple Health, or Withings — fully
+                  automatic
+                </span>
+              </Link>
+              <Link
+                href="/journal"
+                className="flex w-full flex-col rounded-2xl border border-white/10 px-5 py-3 transition-all hover:bg-white/5"
+              >
+                <span className="font-bold text-white/80">Log manually</span>
+                <span className="text-[11px] font-medium text-white/50">
+                  Two morning taps: HRV and resting heart rate
+                </span>
               </Link>
               <Link
                 href="/import"
-                className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 px-6 py-3 font-medium text-white/70 transition-all hover:bg-white/5"
+                className="flex w-full flex-col rounded-2xl border border-white/10 px-5 py-3 transition-all hover:bg-white/5"
               >
-                Import CSV data
+                <span className="font-bold text-white/80">Import CSV</span>
+                <span className="text-[11px] font-medium text-white/50">
+                  Bring wellness or activity history from anywhere
+                </span>
               </Link>
             </div>
 
             <p className="mt-6 text-[11px] text-white/30">
-              Log 14 days of HRV &amp; resting HR to unlock your readiness
-              score. Connect integrations anytime from Settings.
+              Recover needs {CALIBRATION_TARGET_DAYS} days of HRV &amp; resting
+              HR to calibrate your readiness score — it&apos;ll show a
+              day-by-day countdown while it learns your baseline.
             </p>
           </div>
         </div>
@@ -485,6 +509,17 @@ export default async function DashboardPage() {
               </p>
             )}
           </section>
+
+          {/* ── Calibration progress (first-run, v0.11) ─────────────── */}
+          {band === "calibrating" && calibration.remaining > 0 && (
+            <section className="mb-10">
+              <CalibrationProgress
+                daysWithSignal={calibration.daysWithSignal}
+                target={calibration.target}
+                prompt={calibration.prompt}
+              />
+            </section>
+          )}
 
           {/* ── Strain Budget ───────────────────────────────────────── */}
           <section className="mb-10">
