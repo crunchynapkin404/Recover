@@ -1,5 +1,28 @@
 # Changelog
 
+## v0.9.6 — 2026-07-18 — Absorb intervals-icu MCP
+
+24 new `icu_*` tools bring the standalone intervals-icu-mcp server's
+capabilities into Recover's own MCP endpoint and the in-app coach, so the
+separate server can be retired. Design:
+`docs/specs/2026-07-17-v0.9.6-absorb-intervals-mcp-design.md`.
+
+### Added
+
+- **Live intervals.icu tools** (registry 24 → 48): calendar events
+  (list/get/create/update/delete/bulk/duplicate), activity edits and
+  messages, wellness push, sport settings, an apply-training-plan action,
+  per-activity histograms (HR/power/pace/GAP), activity search and
+  intervals, the workout library, and a workout-syntax reference. Writes
+  require a new `write:icu` MCP token scope; the in-app coach can use them
+  under your session.
+
+### Changed
+
+- The standalone `intervals-icu-mcp` server is no longer needed — its
+  curated tool set now ships inside Recover. The standalone repos
+  (`intervals-icu-mcp` and its `-deploy` counterpart) can be decommissioned.
+
 ## v0.9.5 — 2026-07-17 — Nightly Backups
 
 The database now backs itself up, and one command proves a backup

@@ -29,8 +29,8 @@ describe("tool registry", () => {
     }
   });
 
-  it("registers the v0.6 strava describe tool (24 total)", () => {
-    expect(allTools.length).toBe(47);
+  it("registers the v0.6 strava describe tool", () => {
+    expect(allTools.length).toBe(48);
     const names = allTools.map((t) => t.name);
     expect(names).toContain("describe_strava_activity");
     for (const name of [
@@ -118,7 +118,7 @@ describe("tool registry", () => {
   });
 
   it("registers the v0.9.6 absorbed icu_* activity/wellness/sport-settings tools with correct scopes (39 total)", () => {
-    expect(allTools.length).toBe(47);
+    expect(allTools.length).toBe(48);
     const names = allTools.map((t) => t.name);
     for (const name of [
       "icu_update_activity",
@@ -152,8 +152,8 @@ describe("tool registry", () => {
     }
   });
 
-  it("registers the v0.9.6 absorbed icu_* histogram/search/intervals/workout-library read tools (47 total)", () => {
-    expect(allTools.length).toBe(47);
+  it("registers the v0.9.6 absorbed icu_* histogram/search/intervals/workout-library read tools (48 total)", () => {
+    expect(allTools.length).toBe(48);
     const names = allTools.map((t) => t.name);
     for (const name of [
       "icu_get_hr_histogram",
@@ -170,6 +170,14 @@ describe("tool registry", () => {
       // All 8 are reads: default scope, no explicit scope set.
       expect(tool.scope).toBeUndefined();
     }
+  });
+
+  it("registers the v0.9.6 get_workout_syntax reference tool (48 total)", () => {
+    expect(allTools.length).toBe(48);
+    const tool = allTools.find((t) => t.name === "get_workout_syntax")!;
+    expect(tool).toBeDefined();
+    expect(tool.scope).toBeUndefined();
+    expect(tool.parameters.safeParse({}).success).toBe(true);
   });
 
   it("get_calendar_availability validates days range", () => {
