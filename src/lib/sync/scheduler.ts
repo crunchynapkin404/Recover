@@ -25,6 +25,16 @@ async function defaultProcessor(job: SyncJob): Promise<void> {
     await runStravaSync(job.userId);
     return;
   }
+  if (job.provider === "whoop") {
+    const { runWhoopSync } = await import("@/lib/sync/whoop-sync");
+    await runWhoopSync(job.userId);
+    return;
+  }
+  if (job.provider === "oura") {
+    const { runOuraSync } = await import("@/lib/sync/oura-sync");
+    await runOuraSync(job.userId);
+    return;
+  }
   throw new Error(`No processor for provider ${job.provider}`);
 }
 
