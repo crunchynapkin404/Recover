@@ -1,5 +1,30 @@
 # Changelog
 
+## v0.12.0 — 2026-07-18 — Sleep Intelligence
+
+v0.9.0 deleted the fabricated sleep cards; v0.11 started ingesting real
+stage data. This release earns the cards back — only for athletes whose
+provider actually sends them — and gives the whole app a desktop layout.
+Design: `docs/specs/2026-07-18-v0.12-sleep-intelligence-design.md`.
+
+### Added
+
+- **Sleep stages, for real** (`src/lib/sleep-insights.ts` + `SleepStagesCard`):
+  a stacked deep/REM/light/awake bar with per-stage minutes and the bed
+  window, rendered only when the provider sent stage data. A manual athlete
+  sees nothing invented — the card doesn't mount.
+- **Sleep consistency**: a 0–100 regularity score from the circular SD of
+  sleep midpoint over the trailing month — the metric the literature ranks
+  above duration — gated on enough real bed/wake nights.
+- **Chronotype & social jetlag**: mean sleep midpoint plus the weekday vs
+  free-day gap, so a shifting weekend schedule shows its cost.
+- **Bedtime target v2**: when a provider sends real bed times, the nightly
+  bedtime target anchors on the athlete's habitual bedtime nudged by sleep
+  debt; the manual wake-time path is unchanged for everyone else.
+- **Desktop shell**: a persistent sidebar nav and a wider, two-column
+  dashboard at `lg`+, replacing the phone-stripe-on-a-monitor `max-w-lg`
+  layout. The floating bottom tab bar stays on small screens.
+
 ## v0.11.0 — 2026-07-18 — Wearable Connectors
 
 intervals.icu stops being the only automatic pipe. Whoop and Oura bring

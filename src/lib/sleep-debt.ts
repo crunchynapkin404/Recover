@@ -27,7 +27,17 @@ export interface SleepDebtInput {
   sleepNeedSecs: number;
   /** "HH:MM" local, or null when the athlete has not told us. */
   wakeTime: string | null;
+  /**
+   * v0.12 bedtime v2: recent provider bed-start clock minutes (from local
+   * midnight). When present, the target anchors on the athlete's real
+   * habitual bedtime instead of wake-time − need. Absent → today's
+   * wake-time behavior exactly.
+   */
+  bedtimes?: number[];
 }
+
+/** Below this many real bedtimes, fall back to the wake-time anchor. */
+export const MIN_BEDTIME_SAMPLES = 5;
 
 export interface SleepDebtResult {
   /** null = not enough data. */
@@ -72,12 +82,25 @@ export function computeSleepDebt(input: SleepDebtInput): SleepDebtResult {
     0
   );
 
+  const payback = Math.min(debtSecs, MAX_NIGHTLY_PAYBACK_SECS);
+
+  // v0.12: with enough real bedtimes, anchor on the athlete's habitual
+  // bedtime and nudge it earlier by any outstanding debt — a target built
+  // from their actual schedule rather than wake-time arithmetic.
+  if (input.bedtimes != null && input.bedtimes.length >= MIN_BEDTIME_SAMPLES) {
+    const median = circularMedianEvening(input.bedtimes);
+    return {
+      debtSecs,
+      nightsCounted: recorded.length,
+      bedtime: formatHhMm(median - payback / 60),
+    };
+  }
+
   const wakeMinutes = input.wakeTime != null ? parseHhMm(input.wakeTime) : null;
   if (wakeMinutes == null) {
     return { debtSecs, nightsCounted: recorded.length, bedtime: null };
   }
 
-  const payback = Math.min(debtSecs, MAX_NIGHTLY_PAYBACK_SECS);
   const needMinutes = (input.sleepNeedSecs + payback) / 60;
 
   return {
@@ -85,4 +108,20 @@ export function computeSleepDebt(input: SleepDebtInput): SleepDebtResult {
     nightsCounted: recorded.length,
     bedtime: formatHhMm(wakeMinutes - needMinutes),
   };
+}
+
+/**
+ * Median of evening/after-midnight bedtimes. After-midnight times (before
+ * noon) are lifted by a day so a 00:30 sorts after a 23:00, then the median
+ * is folded back into a 0–1439 clock minute.
+ */
+function circularMedianEvening(mins: number[]): number {
+  const normalized = mins.map((m) =>
+    m < MINUTES_PER_DAY / 2 ? m + MINUTES_PER_DAY : m
+  );
+  const sorted = [...normalized].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  const median =
+    sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+  return ((median % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
 }
