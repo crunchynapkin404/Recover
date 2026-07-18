@@ -6,11 +6,20 @@ import { setBodyPrefs } from "@/app/settings/body-actions";
 interface Props {
   wakeTime: string | null;
   sleepNeedSecs: number;
+  maxHr: number | null;
+  ftpWatts: number | null;
 }
 
-export function BodyPrefsCard({ wakeTime, sleepNeedSecs }: Props) {
+export function BodyPrefsCard({
+  wakeTime,
+  sleepNeedSecs,
+  maxHr,
+  ftpWatts,
+}: Props) {
   const [wake, setWake] = useState(wakeTime ?? "");
   const [hours, setHours] = useState((sleepNeedSecs / 3600).toString());
+  const [hrMax, setHrMax] = useState(maxHr?.toString() ?? "");
+  const [ftp, setFtp] = useState(ftpWatts?.toString() ?? "");
   const [message, setMessage] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -19,6 +28,8 @@ export function BodyPrefsCard({ wakeTime, sleepNeedSecs }: Props) {
       const result = await setBodyPrefs({
         wakeTime: wake || null,
         sleepNeedSecs: Math.round(Number(hours) * 3600),
+        maxHr: hrMax.trim() ? Number(hrMax) : null,
+        ftpWatts: ftp.trim() ? Number(ftp) : null,
       });
       setMessage(result.ok ? "Saved." : (result.message ?? "Failed."));
     });
@@ -54,6 +65,42 @@ export function BodyPrefsCard({ wakeTime, sleepNeedSecs }: Props) {
             step={0.5}
             value={hours}
             onChange={(e) => setHours(e.target.value)}
+            className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
+          />
+        </label>
+      </div>
+
+      <div>
+        <h2 className="text-sm font-bold">Training thresholds</h2>
+        <p className="mt-1 text-[12px] text-white/50">
+          Used to compute training load from heart rate or power when an
+          activity has no provider load. Optional — without them, unlabeled
+          sessions count as easy time.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <label className="block">
+          <span className="label-micro mb-1 block">Max HR (bpm)</span>
+          <input
+            type="number"
+            min={100}
+            max={230}
+            value={hrMax}
+            onChange={(e) => setHrMax(e.target.value)}
+            placeholder="e.g. 185"
+            className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
+          />
+        </label>
+        <label className="block">
+          <span className="label-micro mb-1 block">FTP (watts)</span>
+          <input
+            type="number"
+            min={50}
+            max={600}
+            value={ftp}
+            onChange={(e) => setFtp(e.target.value)}
+            placeholder="e.g. 250"
             className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
           />
         </label>

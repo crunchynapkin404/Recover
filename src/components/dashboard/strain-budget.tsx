@@ -1,11 +1,28 @@
 interface Props {
   used: number;
   total: number;
+  /** No honest load numbers yet — renders the calibrating note, no bar. */
+  calibrating?: boolean;
 }
 
-export function StrainBudget({ used, total }: Props) {
+export function StrainBudget({ used, total, calibrating }: Props) {
   const remaining = Math.max(0, total - used);
   const pct = total > 0 ? (used / total) * 100 : 0;
+
+  if (calibrating) {
+    return (
+      <div className="glass rounded-2xl p-5">
+        <div className="mb-1 flex items-center justify-between">
+          <span className="label-micro">Strain Budget</span>
+          <span className="text-xs font-bold text-white/50">Calibrating</span>
+        </div>
+        <p className="text-xs text-white/50">
+          Log workouts (or connect intervals.icu) and your strain budget will be
+          sized from your own training load.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="glass rounded-2xl p-5">

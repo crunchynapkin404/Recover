@@ -50,6 +50,15 @@ async function cleanup() {
   await db.delete(schema.users).where(eq(schema.users.id, USER));
 }
 
+function prefs(overrides: {
+  wakeTime: string;
+  sleepNeedSecs: number;
+  maxHr?: number | null;
+  ftpWatts?: number | null;
+}) {
+  return { maxHr: null, ftpWatts: null, ...overrides };
+}
+
 async function row() {
   const { db, schema } = await import("@/lib/db");
   return db.query.bodyPrefs.findFirst({
@@ -77,10 +86,12 @@ describe.skipIf(!hasDb)("setBodyPrefs — honest wake time", () => {
   it("round-trips a valid wake time", async () => {
     const { setBodyPrefs } = await import("@/app/settings/body-actions");
 
-    const result = await setBodyPrefs({
-      wakeTime: "07:00",
-      sleepNeedSecs: 28800,
-    });
+    const result = await setBodyPrefs(
+      prefs({
+        wakeTime: "07:00",
+        sleepNeedSecs: 28800,
+      })
+    );
 
     expect(result.ok).toBe(true);
     const saved = await row();
@@ -91,10 +102,12 @@ describe.skipIf(!hasDb)("setBodyPrefs — honest wake time", () => {
   it("stores an empty wake time as SQL NULL, not '' or '00:00'", async () => {
     const { setBodyPrefs } = await import("@/app/settings/body-actions");
 
-    const result = await setBodyPrefs({
-      wakeTime: "",
-      sleepNeedSecs: 28800,
-    });
+    const result = await setBodyPrefs(
+      prefs({
+        wakeTime: "",
+        sleepNeedSecs: 28800,
+      })
+    );
 
     expect(result.ok).toBe(true);
     const saved = await row();
@@ -106,17 +119,21 @@ describe.skipIf(!hasDb)("setBodyPrefs — honest wake time", () => {
   it("returns an already-set wake time to NULL when cleared", async () => {
     const { setBodyPrefs } = await import("@/app/settings/body-actions");
 
-    const set = await setBodyPrefs({
-      wakeTime: "07:00",
-      sleepNeedSecs: 28800,
-    });
+    const set = await setBodyPrefs(
+      prefs({
+        wakeTime: "07:00",
+        sleepNeedSecs: 28800,
+      })
+    );
     expect(set.ok).toBe(true);
     expect((await row())?.wakeTime).toBe("07:00");
 
-    const cleared = await setBodyPrefs({
-      wakeTime: "",
-      sleepNeedSecs: 28800,
-    });
+    const cleared = await setBodyPrefs(
+      prefs({
+        wakeTime: "",
+        sleepNeedSecs: 28800,
+      })
+    );
     expect(cleared.ok).toBe(true);
     expect((await row())?.wakeTime).toBeNull();
   });
@@ -125,8 +142,8 @@ describe.skipIf(!hasDb)("setBodyPrefs — honest wake time", () => {
     const { db, schema } = await import("@/lib/db");
     const { setBodyPrefs } = await import("@/app/settings/body-actions");
 
-    await setBodyPrefs({ wakeTime: "07:00", sleepNeedSecs: 28800 });
-    await setBodyPrefs({ wakeTime: "06:30", sleepNeedSecs: 25200 });
+    await setBodyPrefs(prefs({ wakeTime: "07:00", sleepNeedSecs: 28800 }));
+    await setBodyPrefs(prefs({ wakeTime: "06:30", sleepNeedSecs: 25200 }));
 
     const rows = await db.query.bodyPrefs.findMany({
       where: eq(schema.bodyPrefs.userId, USER),
@@ -139,11 +156,13 @@ describe.skipIf(!hasDb)("setBodyPrefs — honest wake time", () => {
   it("rejects a malformed wake time and does not write", async () => {
     const { setBodyPrefs } = await import("@/app/settings/body-actions");
 
-    await setBodyPrefs({ wakeTime: "07:00", sleepNeedSecs: 28800 });
-    const result = await setBodyPrefs({
-      wakeTime: "07:60", // invalid minute
-      sleepNeedSecs: 28800,
-    });
+    await setBodyPrefs(prefs({ wakeTime: "07:00", sleepNeedSecs: 28800 }));
+    const result = await setBodyPrefs(
+      prefs({
+        wakeTime: "07:60", // invalid minute
+        sleepNeedSecs: 28800,
+      })
+    );
 
     expect(result.ok).toBe(false);
     expect((await row())?.wakeTime).toBe("07:00"); // unchanged
@@ -152,13 +171,67 @@ describe.skipIf(!hasDb)("setBodyPrefs — honest wake time", () => {
   it("rejects an out-of-range sleep target and does not write", async () => {
     const { setBodyPrefs } = await import("@/app/settings/body-actions");
 
-    await setBodyPrefs({ wakeTime: "07:00", sleepNeedSecs: 28800 });
-    const result = await setBodyPrefs({
-      wakeTime: "07:00",
-      sleepNeedSecs: 3600, // below MIN_NEED_SECS (4h)
-    });
+    await setBodyPrefs(prefs({ wakeTime: "07:00", sleepNeedSecs: 28800 }));
+    const result = await setBodyPrefs(
+      prefs({
+        wakeTime: "07:00",
+        sleepNeedSecs: 3600, // below MIN_NEED_SECS (4h)
+      })
+    );
 
     expect(result.ok).toBe(false);
     expect((await row())?.sleepNeedSecs).toBe(28800); // unchanged
+  });
+
+  it("round-trips training thresholds and clears them to NULL", async () => {
+    const { setBodyPrefs } = await import("@/app/settings/body-actions");
+
+    const set = await setBodyPrefs(
+      prefs({
+        wakeTime: "07:00",
+        sleepNeedSecs: 28800,
+        maxHr: 185,
+        ftpWatts: 250,
+      })
+    );
+    expect(set.ok).toBe(true);
+    let saved = await row();
+    expect(saved?.maxHr).toBe(185);
+    expect(saved?.ftpWatts).toBe(250);
+
+    const cleared = await setBodyPrefs(
+      prefs({ wakeTime: "07:00", sleepNeedSecs: 28800 })
+    );
+    expect(cleared.ok).toBe(true);
+    saved = await row();
+    expect(saved?.maxHr).toBeNull();
+    expect(saved?.ftpWatts).toBeNull();
+  });
+
+  it("rejects out-of-range thresholds and does not write", async () => {
+    const { setBodyPrefs } = await import("@/app/settings/body-actions");
+
+    await setBodyPrefs(
+      prefs({
+        wakeTime: "07:00",
+        sleepNeedSecs: 28800,
+        maxHr: 185,
+        ftpWatts: 250,
+      })
+    );
+
+    const badHr = await setBodyPrefs(
+      prefs({ wakeTime: "07:00", sleepNeedSecs: 28800, maxHr: 300 })
+    );
+    expect(badHr.ok).toBe(false);
+
+    const badFtp = await setBodyPrefs(
+      prefs({ wakeTime: "07:00", sleepNeedSecs: 28800, ftpWatts: 10 })
+    );
+    expect(badFtp.ok).toBe(false);
+
+    const saved = await row();
+    expect(saved?.maxHr).toBe(185); // unchanged
+    expect(saved?.ftpWatts).toBe(250);
   });
 });

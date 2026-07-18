@@ -3,10 +3,13 @@ interface Props {
   totalVolume: string;
   avgLoad: string;
   streak: number;
-  /** 0-1 fraction for outer ring (recovery) */
-  ringOuter: number;
-  /** 0-1 fraction for inner ring (strain) */
-  ringInner: number;
+  /**
+   * 0-1 fraction of the week's VOLUME target (plan or trailing average).
+   * null = no honest target exists → the ring is not drawn.
+   */
+  ringOuter: number | null;
+  /** 0-1 fraction of the week's LOAD target; null hides the ring. */
+  ringInner: number | null;
 }
 
 export function WeeklySummary({
@@ -31,63 +34,73 @@ export function WeeklySummary({
             </span>
           )}
         </div>
-        {/* Apple Watch style nested rings */}
-        <div className="relative h-16 w-16">
-          <svg viewBox="0 0 100 100" className="h-full w-full">
-            <circle
-              cx="50"
-              cy="50"
-              r="40"
-              fill="none"
-              stroke="rgba(16,185,129,0.1)"
-              strokeWidth="12"
-            />
-            <circle
-              cx="50"
-              cy="50"
-              r="40"
-              fill="none"
-              stroke="#10b981"
-              strokeWidth="12"
-              strokeDasharray={outerC}
-              strokeDashoffset={outerC * (1 - ringOuter)}
-              strokeLinecap="round"
-              transform="rotate(-90 50 50)"
-              className="ring-animate"
-              style={
-                {
-                  "--target-offset": outerC * (1 - ringOuter),
-                } as React.CSSProperties
-              }
-            />
-            <circle
-              cx="50"
-              cy="50"
-              r="26"
-              fill="none"
-              stroke="rgba(59,130,246,0.1)"
-              strokeWidth="12"
-            />
-            <circle
-              cx="50"
-              cy="50"
-              r="26"
-              fill="none"
-              stroke="#3b82f6"
-              strokeWidth="12"
-              strokeDasharray={innerC}
-              strokeDashoffset={innerC * (1 - ringInner)}
-              strokeLinecap="round"
-              transform="rotate(-90 50 50)"
-              className="ring-animate"
-              style={
-                {
-                  "--target-offset": innerC * (1 - ringInner),
-                } as React.CSSProperties
-              }
-            />
-          </svg>
-        </div>
+        {/* Apple Watch style nested rings — only rings with a real target render */}
+        {(ringOuter != null || ringInner != null) && (
+          <div className="relative h-16 w-16">
+            <svg viewBox="0 0 100 100" className="h-full w-full">
+              {ringOuter != null && (
+                <>
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="40"
+                    fill="none"
+                    stroke="rgba(16,185,129,0.1)"
+                    strokeWidth="12"
+                  />
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="40"
+                    fill="none"
+                    stroke="#10b981"
+                    strokeWidth="12"
+                    strokeDasharray={outerC}
+                    strokeDashoffset={outerC * (1 - ringOuter)}
+                    strokeLinecap="round"
+                    transform="rotate(-90 50 50)"
+                    className="ring-animate"
+                    style={
+                      {
+                        "--target-offset": outerC * (1 - ringOuter),
+                      } as React.CSSProperties
+                    }
+                  />
+                </>
+              )}
+              {ringInner != null && (
+                <>
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="26"
+                    fill="none"
+                    stroke="rgba(59,130,246,0.1)"
+                    strokeWidth="12"
+                  />
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="26"
+                    fill="none"
+                    stroke="#3b82f6"
+                    strokeWidth="12"
+                    strokeDasharray={innerC}
+                    strokeDashoffset={innerC * (1 - ringInner)}
+                    strokeLinecap="round"
+                    transform="rotate(-90 50 50)"
+                    className="ring-animate"
+                    style={
+                      {
+                        "--target-offset": innerC * (1 - ringInner),
+                      } as React.CSSProperties
+                    }
+                  />
+                </>
+              )}
+            </svg>
+          </div>
+        )}
       </div>
       <div className="grid grid-cols-2 gap-y-6">
         <div className="flex flex-col">

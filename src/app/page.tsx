@@ -32,6 +32,16 @@ import {
 } from "@/lib/body-battery";
 import { computeSleepDebt, DEFAULT_SLEEP_NEED_SECS } from "@/lib/sleep-debt";
 import { sparkPath } from "@/lib/sparkline";
+import {
+  activityLoad,
+  dedupeActivities,
+  type AthleteThresholds,
+} from "@/lib/training-load";
+import {
+  plannedWeekVolumeS,
+  ringFraction,
+  trailingWeeklyAverages,
+} from "@/lib/weekly-targets";
 
 function daysAgo(n: number): string {
   const d = new Date();
@@ -59,7 +69,7 @@ function buildNarrative(
   restingHr: number | null,
   sleepHours: number | null,
   band: Band,
-  strainBudget: number
+  strainBudget: number | null
 ): string {
   const parts: string[] = [];
   if (hrvMs != null)
@@ -74,7 +84,9 @@ function buildNarrative(
     );
   if (band === "green")
     parts.push(
-      `You have a high strain budget today (${strainBudget.toFixed(1)}) — green light for intensity.`
+      strainBudget != null
+        ? `You have a high strain budget today (${strainBudget.toFixed(1)}) — green light for intensity.`
+        : `Green light for intensity.`
     );
   else if (band === "amber")
     parts.push(
@@ -228,16 +240,27 @@ export default async function DashboardPage() {
     window7.reduce((s, w) => s + (w.restingHr ?? 0), 0) /
     (window7.filter((w) => w.restingHr != null).length || 1);
 
-  // Strain & Recovery calculations (all capped 0-100 for ring display)
-  const todayAtl = latest?.atl ?? 0;
-  const todayCtl = latest?.ctl ?? 0;
-  const tsb = todayCtl - todayAtl;
-  const strainMax = Math.max(todayCtl * 1.5, 14);
+  // ── Strain & Recovery (v0.10 Honest Load) ──────────────────────────────
+  // Effective ctl/atl from daily_metrics: provider values win, the native
+  // engine fills gaps, and null means calibrating — never `?? 0` again.
+  const loadMetric =
+    [...metrics].reverse().find((m) => m.ctl != null && m.atl != null) ?? null;
+  const todayCtl = loadMetric?.ctl ?? null;
+  const todayAtl = loadMetric?.atl ?? null;
+  const loadComputed = loadMetric?.loadSource === "computed";
+  const loadCalibrating = todayCtl == null || todayAtl == null;
+
+  const tsb = loadCalibrating ? null : todayCtl! - todayAtl!;
+  const strainMax = loadCalibrating ? null : Math.max(todayCtl! * 1.5, 14);
   // Strain: ATL relative to personal capacity (CTL*1.5), capped at 100
-  const strainFraction = Math.min((todayAtl / strainMax) * 100, 100);
+  const strainFraction = loadCalibrating
+    ? 0
+    : Math.min((todayAtl! / strainMax!) * 100, 100);
   // Recovery: inverse of fatigue — high TSB = high recovery, deep negative TSB = low recovery
   // Maps TSB range [-30, +20] → [0, 100]
-  const recoveryScore = Math.max(0, Math.min(100, Math.round((tsb + 30) * 2)));
+  const recoveryScore = loadCalibrating
+    ? 0
+    : Math.max(0, Math.min(100, Math.round((tsb! + 30) * 2)));
 
   const sleepHours = latest?.sleepSecs != null ? latest.sleepSecs / 3600 : null;
 
@@ -295,17 +318,68 @@ export default async function DashboardPage() {
     nowMinutes: now.getHours() * 60 + now.getMinutes(),
   });
 
-  // Activities this week
+  // ── This week vs a real target (v0.10) ─────────────────────────────────
+  // Trailing 28 days of activities, deduped across providers, loads resolved
+  // through the native engine ladder — same numbers the CTL/ATL series sees.
+  const monthActivities = await db.query.activities.findMany({
+    where: and(
+      eq(schema.activities.userId, user.id),
+      gte(schema.activities.startDate, new Date(daysAgo(28)))
+    ),
+    orderBy: schema.activities.startDate,
+  });
+  const rhrSamples = wellness
+    .map((w) => w.restingHr)
+    .filter((v): v is number => v != null && v > 0);
+  const athlete: AthleteThresholds = {
+    ftpWatts: bodyPrefsRow?.ftpWatts ?? null,
+    maxHr: bodyPrefsRow?.maxHr ?? null,
+    restingHr:
+      rhrSamples.length >= 7
+        ? rhrSamples.reduce((a, b) => a + b, 0) / rhrSamples.length
+        : null,
+  };
+  const dedupedMonth = dedupeActivities(monthActivities).map((a) => ({
+    startDate: a.startDate,
+    durationS: a.durationS,
+    loadValue: activityLoad(a, athlete)?.load ?? null,
+  }));
+
   const weekStartDate = new Date(daysAgo(7));
-  const weekActivities = recentActivities.filter(
+  const weekActivities = dedupedMonth.filter(
     (a) => a.startDate >= weekStartDate
   );
   const weekVolume = weekActivities.reduce((s, a) => s + (a.durationS ?? 0), 0);
-  const weekLoad = weekActivities.reduce((s, a) => s + (a.load ?? 0), 0);
+  const weekLoad = weekActivities.reduce((s, a) => s + (a.loadValue ?? 0), 0);
   const avgLoad =
     weekActivities.length > 0
       ? Math.round(weekLoad / weekActivities.length)
       : 0;
+
+  // Ring targets: the open week plan (volume) and the active block's target
+  // load — falling back to trailing 28-day weekly averages, or nothing.
+  const activePlan = await db.query.trainingPlans.findFirst({
+    where: and(
+      eq(schema.trainingPlans.userId, user.id),
+      eq(schema.trainingPlans.status, "active")
+    ),
+  });
+  const currentBlock =
+    activePlan && weekPlan
+      ? await db.query.trainingBlocks.findFirst({
+          where: and(
+            eq(schema.trainingBlocks.planId, activePlan.id),
+            eq(schema.trainingBlocks.weekNumber, weekPlan.skeletonWeek)
+          ),
+        })
+      : null;
+  const fallback = trailingWeeklyAverages(dedupedMonth, new Date());
+  const volumeTargetS = weekPlan
+    ? (plannedWeekVolumeS(weekPlan.days) ?? fallback.volumeS)
+    : fallback.volumeS;
+  const loadTarget = currentBlock?.targetLoadTotal ?? fallback.load;
+  const ringOuter = ringFraction(weekVolume, volumeTargetS);
+  const ringInner = ringFraction(weekLoad, loadTarget);
 
   const hrvSparkPath = sparkPath(window7.map((w) => w.hrvMs));
   const rhrSparkPath = sparkPath(window7.map((w) => w.restingHr));
@@ -315,7 +389,7 @@ export default async function DashboardPage() {
     latest?.restingHr ?? null,
     sleepHours,
     band,
-    strainMax - todayAtl
+    loadCalibrating ? null : strainMax! - todayAtl!
   );
 
   // ── Render ──────────────────────────────────────────────────────────────
@@ -354,6 +428,7 @@ export default async function DashboardPage() {
                   label="Recovery"
                   color="#10b981"
                   size="sm"
+                  calibrating={loadCalibrating}
                 />
               </div>
               {/* Readiness (center) */}
@@ -378,13 +453,20 @@ export default async function DashboardPage() {
                   label="Strain"
                   color="#3b82f6"
                   size="sm"
-                  displayValue={Math.min(
-                    (todayAtl / strainMax) * 21,
-                    21
-                  ).toFixed(1)}
+                  calibrating={loadCalibrating}
+                  displayValue={
+                    loadCalibrating
+                      ? undefined
+                      : Math.min((todayAtl! / strainMax!) * 21, 21).toFixed(1)
+                  }
                 />
               </div>
             </div>
+            {loadComputed && !loadCalibrating && (
+              <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-white/40">
+                Load computed from your sessions
+              </p>
+            )}
             {/* Status line */}
             {band !== "calibrating" && (
               <p
@@ -407,8 +489,13 @@ export default async function DashboardPage() {
           {/* ── Strain Budget ───────────────────────────────────────── */}
           <section className="mb-10">
             <StrainBudget
-              used={Math.min((todayAtl / strainMax) * 21, 21)}
+              used={
+                loadCalibrating
+                  ? 0
+                  : Math.min((todayAtl! / strainMax!) * 21, 21)
+              }
               total={21}
+              calibrating={loadCalibrating}
             />
           </section>
 
@@ -519,7 +606,10 @@ export default async function DashboardPage() {
                           ? "Recovery"
                           : "Calibrating",
                   unit: "",
-                  avg7d: todayCtl > 0 ? `Optimal load intensity` : null,
+                  avg7d:
+                    todayCtl != null
+                      ? `CTL ${Math.round(todayCtl)}${loadComputed ? " · computed" : ""}`
+                      : null,
                   trend: "flat",
                   trendGood: band === "green",
                   sparkPath: "",
@@ -596,8 +686,8 @@ export default async function DashboardPage() {
               totalVolume={`${(weekVolume / 3600).toFixed(1)}h`}
               avgLoad={avgLoad.toString()}
               streak={milestones.currentStreak}
-              ringOuter={0.7}
-              ringInner={0.8}
+              ringOuter={ringOuter}
+              ringInner={ringInner}
             />
           </section>
 

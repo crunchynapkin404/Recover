@@ -3,6 +3,11 @@ import { db, schema } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { BASELINE_WINDOW_DAYS, computeReadiness } from "@/lib/readiness";
 import { isBaselineExcluded } from "@/lib/day-flags";
+import {
+  nativeLoadMetrics,
+  resolveEffectiveLoad,
+  type LoadActivity,
+} from "@/lib/training-load";
 
 function addDays(ymd: string, days: number): string {
   const d = new Date(`${ymd}T00:00:00Z`);
@@ -10,11 +15,29 @@ function addDays(ymd: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+// Local date, matching the engine's local-date activity buckets: a
+// self-hosted server's "today" must not shift for timezones away from UTC.
+function localYmd(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/** Minimum wellness resting-HR samples before the HR load rung may use it. */
+const MIN_RHR_SAMPLES = 7;
+
 /**
- * (Re)compute daily_metrics for every wellness day from `sinceDate` onward.
+ * (Re)compute daily_metrics for every relevant day from `sinceDate` onward.
  * Baselines come from the trailing BASELINE_WINDOW_DAYS before each day, so
  * a change on day X requires recomputing X and everything after it — which
  * is exactly what callers do by passing the earliest changed date.
+ *
+ * v0.10: days are the union of wellness days, activity days, and today —
+ * an activity-only day still carries honest ctl/atl (native engine), and a
+ * daily recompute refreshes today's EMA decay. Provider (intervals.icu)
+ * ctl/atl win when present; native values fill the gaps, labelled
+ * "computed".
  */
 export async function computeDailyMetrics(
   userId: string,
@@ -30,11 +53,58 @@ export async function computeDailyMetrics(
     orderBy: asc(schema.wellnessDaily.date),
   });
 
-  const targets = rows.filter((r) => r.date >= sinceDate);
+  // Native load inputs: the full activity history (the EMA seeds at the
+  // first activity ever), and the athlete's thresholds.
+  const activityRows = await db.query.activities.findMany({
+    where: eq(schema.activities.userId, userId),
+    columns: {
+      provider: true,
+      startDate: true,
+      durationS: true,
+      load: true,
+      avgHr: true,
+      avgPower: true,
+    },
+  });
+  const activities: LoadActivity[] = activityRows;
+
+  const prefs = await db.query.bodyPrefs.findFirst({
+    where: eq(schema.bodyPrefs.userId, userId),
+  });
+  const rhrSamples = rows
+    .map((r) => r.restingHr)
+    .filter((v): v is number => v != null && v > 0);
+  const restingHr =
+    rhrSamples.length >= MIN_RHR_SAMPLES
+      ? rhrSamples.reduce((a, b) => a + b, 0) / rhrSamples.length
+      : null;
+
+  const today = localYmd(new Date());
+  const targetDates = new Set<string>();
+  for (const r of rows) if (r.date >= sinceDate) targetDates.add(r.date);
+  for (const a of activities) {
+    const d = localYmd(a.startDate);
+    if (d >= sinceDate && d <= today) targetDates.add(d);
+  }
+  if (today >= sinceDate) targetDates.add(today);
+
+  const upToDate = [...targetDates].sort().at(-1) ?? today;
+  const native = nativeLoadMetrics(
+    activities,
+    {
+      ftpWatts: prefs?.ftpWatts ?? null,
+      maxHr: prefs?.maxHr ?? null,
+      restingHr,
+    },
+    upToDate
+  );
+
+  const byDate = new Map(rows.map((r) => [r.date, r]));
   let computed = 0;
 
-  for (const day of targets) {
-    const baselineFloor = addDays(day.date, -BASELINE_WINDOW_DAYS);
+  for (const date of [...targetDates].sort()) {
+    const day = byDate.get(date);
+    const baselineFloor = addDays(date, -BASELINE_WINDOW_DAYS);
     // Flagged days (ill/travel/altitude) are excluded from the baseline the
     // athlete is measured against — five days of flu must not drag the
     // 60-day reference down for the next two months. Exclusion happens here,
@@ -46,18 +116,23 @@ export async function computeDailyMetrics(
     // it just shouldn't redefine "normal".
     const baseline = rows.filter(
       (r) =>
-        r.date < day.date &&
+        r.date < date &&
         r.date >= baselineFloor &&
         !isBaselineExcluded(r.dayFlags)
     );
 
+    const effective = resolveEffectiveLoad(
+      { ctl: day?.ctl ?? null, atl: day?.atl ?? null },
+      native.get(date)
+    );
+
     const result = computeReadiness({
-      hrv: day.hrvMs,
-      restingHr: day.restingHr,
-      sleepScore: day.sleepScore,
-      sleepSecs: day.sleepSecs,
-      ctl: day.ctl,
-      atl: day.atl,
+      hrv: day?.hrvMs ?? null,
+      restingHr: day?.restingHr ?? null,
+      sleepScore: day?.sleepScore ?? null,
+      sleepSecs: day?.sleepSecs ?? null,
+      ctl: effective.ctl,
+      atl: effective.atl,
       hrvBaseline: baseline
         .map((r) => r.hrvMs)
         .filter((v): v is number => v != null),
@@ -66,34 +141,27 @@ export async function computeDailyMetrics(
         .filter((v): v is number => v != null),
     });
 
+    const values = {
+      readiness: result.readiness,
+      band: result.band,
+      componentScores: result.components,
+      hrvBaselineMean: result.baselines.hrvLnMean,
+      hrvBaselineSd: result.baselines.hrvLnSd,
+      rhrBaselineMean: result.baselines.rhrMean,
+      rhrBaselineSd: result.baselines.rhrSd,
+      tsb: result.tsb,
+      ctl: effective.ctl,
+      atl: effective.atl,
+      loadSource: effective.source,
+      computedAt: new Date(),
+    };
+
     await db
       .insert(schema.dailyMetrics)
-      .values({
-        userId,
-        date: day.date,
-        readiness: result.readiness,
-        band: result.band,
-        componentScores: result.components,
-        hrvBaselineMean: result.baselines.hrvLnMean,
-        hrvBaselineSd: result.baselines.hrvLnSd,
-        rhrBaselineMean: result.baselines.rhrMean,
-        rhrBaselineSd: result.baselines.rhrSd,
-        tsb: result.tsb,
-        computedAt: new Date(),
-      })
+      .values({ userId, date, ...values })
       .onConflictDoUpdate({
         target: [schema.dailyMetrics.userId, schema.dailyMetrics.date],
-        set: {
-          readiness: result.readiness,
-          band: result.band,
-          componentScores: result.components,
-          hrvBaselineMean: result.baselines.hrvLnMean,
-          hrvBaselineSd: result.baselines.hrvLnSd,
-          rhrBaselineMean: result.baselines.rhrMean,
-          rhrBaselineSd: result.baselines.rhrSd,
-          tsb: result.tsb,
-          computedAt: new Date(),
-        },
+        set: values,
       });
     computed++;
   }

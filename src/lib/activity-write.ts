@@ -1,4 +1,5 @@
 import { db, schema } from "@/lib/db";
+import { computeDailyMetrics } from "@/lib/metrics";
 
 export interface ActivityWriteInput {
   sport: string;
@@ -12,9 +13,15 @@ export interface ActivityWriteInput {
   elevationM?: number;
 }
 
+/**
+ * Insert a manual activity and recompute daily metrics from its date (the
+ * native load engine feeds ctl/atl from activities — v0.10). Bulk callers
+ * (CSV import) pass `recompute: false` and run one recompute at the end.
+ */
 export async function createManualActivity(
   userId: string,
-  input: ActivityWriteInput
+  input: ActivityWriteInput,
+  opts?: { recompute?: boolean }
 ): Promise<{ activityId: string }> {
   const externalId = `manual-${Date.now()}`;
   const [row] = await db
@@ -38,5 +45,8 @@ export async function createManualActivity(
       elevationM: input.elevationM ?? null,
     })
     .returning();
+  if (opts?.recompute !== false) {
+    await computeDailyMetrics(userId, input.startDate);
+  }
   return { activityId: row.id };
 }

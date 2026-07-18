@@ -199,6 +199,8 @@ export default async function SettingsPage({
         <BodyPrefsCard
           wakeTime={bodyPrefsRow?.wakeTime ?? null}
           sleepNeedSecs={bodyPrefsRow?.sleepNeedSecs ?? DEFAULT_SLEEP_NEED_SECS}
+          maxHr={bodyPrefsRow?.maxHr ?? null}
+          ftpWatts={bodyPrefsRow?.ftpWatts ?? null}
         />
 
         {/* App Preferences */}
