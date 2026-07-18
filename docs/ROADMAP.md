@@ -260,11 +260,18 @@ composition v0.13 needs.
 - [ ] **Withings OAuth**: weight, body composition, blood pressure
 - [ ] **Conflict policy**: explicit per-field source priority when two
       providers report the same morning
+- [ ] **First-run experience**: this release is when "choose your data
+      source" becomes a real decision, so onboarding lands here — a guided
+      source picker (connector / CSV / manual), a calibrating progress state
+      ("day 5 of 14") instead of a bare label, and "what to do this week"
+      prompts so the first fortnight sells the app instead of churning
+      invited friends
 - [ ] Fitbit / Google Health direct — if demand shows up
 
 **Done when:** HRV and staged sleep flow in nightly from a real Whoop or
 Oura account, with full per-user isolation and visible provenance on every
-row.
+row — and a fresh invite lands in a guided first run, not on a bare
+`calibrating`.
 
 ## v0.12 — Sleep Intelligence
 
@@ -283,9 +290,15 @@ actually sends the data.
 - [ ] **Bedtime target v2**: uses real bed/wake times when a provider sends
       them; the manual wake-time setting stays for everyone else
 - [ ] **Nap handling**: multiple sleep sessions per day summed honestly
+- [ ] **Desktop shell**: hypnograms and consistency trends are data-dense
+      surfaces a 512px column can't carry, so the release that needs the
+      width brings it — responsive app shell (sidebar nav ≥lg, multi-column
+      dashboard, wider charts) replacing the phone-stripe-on-a-monitor
+      `max-w-lg` layout; the bottom tab bar stays on small screens
 
 **Done when:** a Whoop/Oura athlete sees stages and a consistency score; a
-manual athlete sees exactly what they saw before — nothing invented.
+manual athlete sees exactly what they saw before — nothing invented; and
+the dashboard uses a laptop screen instead of the middle 512px of it.
 
 ## v0.13 — Deep Biology
 
@@ -454,6 +467,26 @@ scheduled home.
 - [ ] Performance log filters: wire up the month/sport controls
 - [ ] Dead UI sweep: remove non-functional settings controls (v0.9.0 cleared the dashboard's sleep/energy share). → v0.10
 - [x] Sleep Score sparkline plotted `sleepSecs` under a "Sleep Score" label — real data, wrong series. Fixed in v0.9.1.
+
+## Ongoing — design & UX
+
+Added by the v0.9.6 replan's UI/UX pass. The visual layer is not the
+problem — the structural UX is. The two big items are scheduled (first-run
+→ v0.11, desktop shell → v0.12); everything here is the small continuous
+kind that never earns its own release. Pick up alongside any release, same
+as the polish backlog.
+
+- [ ] Empty states: every page says something useful (and honest) when its
+      data doesn't exist yet, instead of rendering a blank card
+- [ ] Loading skeletons: layout-stable placeholders instead of pop-in
+- [ ] Settings information architecture: one long page currently feeds
+      seven action domains (LLM, push, Strava, tokens, body, coach, …) —
+      split into sections or sub-pages
+- [ ] Chart consistency: one visual grammar (axes, bands, tooltips, colors)
+      across dashboard sparklines, fitness PMC, wellness trends, and coach
+      artifacts
+- [ ] Accessibility as-you-go: new UI ships with labels/contrast/focus
+      handled, so the v0.19 sweep is a check, not a cliff
 
 ## Not planned
 

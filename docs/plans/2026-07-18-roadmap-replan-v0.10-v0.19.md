@@ -101,3 +101,20 @@ call — a correctness fix to the score beats new surfaces.
 - **v0.15 needs multiple logged cycles before phase-aware baselines engage**
   — the feature ships with `calibrating` semantics from day one, same as
   readiness did.
+
+## Amendment (same day) — UI/UX pass
+
+The first pass was feature-complete and design-blind. A second look at the
+actual UI found the visual layer is fine — the dark glass dashboard already
+outdresses most self-hosted apps — but three structural UX gaps existed
+nowhere in the plan:
+
+| Candidate                                                                       | Disposition   | Where / why                                                                                                                                      |
+| ------------------------------------------------------------------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| First-run experience (source picker, calibrating progress, first-week guidance) | **Scheduled** | v0.11 — that release makes "choose your data source" a real decision, and the unmanaged 14-day `calibrating` window is where invited users churn |
+| Desktop/responsive shell (sidebar ≥lg, multi-column, wider charts)              | **Scheduled** | v0.12 — `app-shell.tsx` caps every page at `max-w-lg` (~512px) with a bottom tab bar even on a monitor; the sleep surfaces need the width        |
+| Empty states, skeletons, settings IA, chart grammar, a11y-as-you-go             | **Ongoing**   | New "Ongoing — design & UX" track — continuous small work that never earns its own release; keeps the v0.19 a11y sweep a check, not a cliff      |
+
+Considered and not taken: a dedicated UI/UX release (would push the arc
+back a slot for work that is better attached to the releases that need it),
+and redesigning the visual language (nothing wrong with it).
