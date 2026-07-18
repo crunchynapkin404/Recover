@@ -467,7 +467,60 @@ export const bodyPrefs = pgTable("body_prefs", {
   // null = not set; the engine degrades to its duration fallback.
   maxHr: integer("max_hr"),
   ftpWatts: integer("ftp_watts"),
+  // v0.13 Deep Biology: enables the biological-age estimate. null = not set
+  // (bio-age reports "insufficient inputs" listing this among what's missing).
+  birthYear: integer("birth_year"),
 });
+
+/**
+ * v0.13 Deep Biology — extracted/entered blood biomarkers. Nothing lands
+ * here unconfirmed: LLM-extracted rows carry a per-value `confidence` and
+ * pass a human review screen before insert.
+ */
+export const biomarkers = pgTable(
+  "biomarkers",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(), // canonical slug, e.g. ldl_cholesterol
+    displayName: text("display_name").notNull(),
+    category: text("category", {
+      enum: [
+        "lipids",
+        "metabolic",
+        "hematology",
+        "hormones",
+        "vitamins",
+        "organ",
+        "other",
+      ],
+    })
+      .notNull()
+      .default("other"),
+    value: real("value").notNull(),
+    unit: text("unit"),
+    measuredAt: date("measured_at").notNull(),
+    source: text("source", {
+      enum: ["blood_test", "manual", "withings"],
+    }).notNull(),
+    // 0-1 for LLM-extracted values; null for manual entry.
+    confidence: real("confidence"),
+    rawLabel: text("raw_label"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("biomarkers_user_name_date_uq").on(
+      t.userId,
+      t.name,
+      t.measuredAt
+    ),
+    index("biomarkers_user_name_idx").on(t.userId, t.name),
+  ]
+);
 
 // Instance-level key/value config (e.g. auto-generated VAPID keys; secret
 // values stored encrypted via lib/crypto).
