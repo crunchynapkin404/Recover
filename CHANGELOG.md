@@ -2,9 +2,10 @@
 
 ## v0.9.6 — 2026-07-18 — Absorb intervals-icu MCP
 
-24 new `icu_*` tools bring the standalone intervals-icu-mcp server's
-capabilities into Recover's own MCP endpoint and the in-app coach, so the
-separate server can be retired. Design:
+24 new intervals.icu tools (23 `icu_*` tools plus a `get_workout_syntax`
+reference) bring the standalone intervals-icu-mcp server's capabilities
+into Recover's own MCP endpoint and the in-app coach, so the separate
+server can be retired. Design:
 `docs/specs/2026-07-17-v0.9.6-absorb-intervals-mcp-design.md`.
 
 ### Added

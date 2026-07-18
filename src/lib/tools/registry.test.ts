@@ -117,7 +117,7 @@ describe("tool registry", () => {
     }
   });
 
-  it("registers the v0.9.6 absorbed icu_* activity/wellness/sport-settings tools with correct scopes (39 total)", () => {
+  it("registers the v0.9.6 absorbed icu_* activity/wellness/sport-settings tools with correct scopes", () => {
     expect(allTools.length).toBe(48);
     const names = allTools.map((t) => t.name);
     for (const name of [
