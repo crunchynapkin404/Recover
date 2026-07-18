@@ -15,6 +15,8 @@ import { WhoopCard } from "@/components/settings/whoop-card";
 import { whoopConfigured } from "@/lib/connectors/whoop";
 import { OuraCard } from "@/components/settings/oura-card";
 import { AppleHealthCard } from "@/components/settings/apple-health-card";
+import { WithingsCard } from "@/components/settings/withings-card";
+import { withingsConfigured } from "@/lib/connectors/withings";
 import { SignOutButton } from "@/components/sign-out-button";
 import Link from "next/link";
 import { User } from "lucide-react";
@@ -27,10 +29,11 @@ export default async function SettingsPage({
     strava_error?: string;
     whoop_error?: string;
     oura_error?: string;
+    withings_error?: string;
   }>;
 }) {
   const user = await requireUser();
-  const { strava_error, whoop_error } = await searchParams;
+  const { strava_error, whoop_error, withings_error } = await searchParams;
 
   const connection = await db.query.connections.findFirst({
     where: and(
@@ -64,6 +67,13 @@ export default async function SettingsPage({
     where: and(
       eq(schema.connections.userId, user.id),
       eq(schema.connections.provider, "apple_health")
+    ),
+  });
+
+  const withingsConnection = await db.query.connections.findFirst({
+    where: and(
+      eq(schema.connections.userId, user.id),
+      eq(schema.connections.provider, "withings")
     ),
   });
 
@@ -216,6 +226,21 @@ export default async function SettingsPage({
               appleHealthConnection?.lastSyncAt?.toISOString() ?? null
             }
             baseUrlConfigured={!!process.env.BETTER_AUTH_URL}
+          />
+
+          <WithingsCard
+            configured={withingsConfigured()}
+            errorParam={withings_error}
+            connection={
+              withingsConnection
+                ? {
+                    status: withingsConnection.status,
+                    lastSyncAt:
+                      withingsConnection.lastSyncAt?.toISOString() ?? null,
+                    lastError: withingsConnection.lastError,
+                  }
+                : null
+            }
           />
         </section>
 

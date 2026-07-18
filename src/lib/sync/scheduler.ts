@@ -35,6 +35,11 @@ async function defaultProcessor(job: SyncJob): Promise<void> {
     await runOuraSync(job.userId);
     return;
   }
+  if (job.provider === "withings") {
+    const { runWithingsSync } = await import("@/lib/sync/withings-sync");
+    await runWithingsSync(job.userId);
+    return;
+  }
   throw new Error(`No processor for provider ${job.provider}`);
 }
 
