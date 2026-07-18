@@ -30,7 +30,7 @@ describe("tool registry", () => {
   });
 
   it("registers the v0.6 strava describe tool (24 total)", () => {
-    expect(allTools.length).toBe(39);
+    expect(allTools.length).toBe(47);
     const names = allTools.map((t) => t.name);
     expect(names).toContain("describe_strava_activity");
     for (const name of [
@@ -118,7 +118,7 @@ describe("tool registry", () => {
   });
 
   it("registers the v0.9.6 absorbed icu_* activity/wellness/sport-settings tools with correct scopes (39 total)", () => {
-    expect(allTools.length).toBe(39);
+    expect(allTools.length).toBe(47);
     const names = allTools.map((t) => t.name);
     for (const name of [
       "icu_update_activity",
@@ -132,7 +132,10 @@ describe("tool registry", () => {
       expect(names).toContain(name);
     }
     // The 2 reads default to "read" (no explicit scope).
-    for (const name of ["icu_get_activity_messages", "icu_get_sport_settings"]) {
+    for (const name of [
+      "icu_get_activity_messages",
+      "icu_get_sport_settings",
+    ]) {
       const tool = allTools.find((t) => t.name === name)!;
       expect(tool.scope).toBeUndefined();
     }
@@ -146,6 +149,26 @@ describe("tool registry", () => {
     ]) {
       const tool = allTools.find((t) => t.name === name)!;
       expect(tool.scope).toBe("write:icu");
+    }
+  });
+
+  it("registers the v0.9.6 absorbed icu_* histogram/search/intervals/workout-library read tools (47 total)", () => {
+    expect(allTools.length).toBe(47);
+    const names = allTools.map((t) => t.name);
+    for (const name of [
+      "icu_get_hr_histogram",
+      "icu_get_power_histogram",
+      "icu_get_pace_histogram",
+      "icu_get_gap_histogram",
+      "icu_search_activities",
+      "icu_get_activity_intervals",
+      "icu_get_workout_library",
+      "icu_get_workouts_in_folder",
+    ]) {
+      expect(names).toContain(name);
+      const tool = allTools.find((t) => t.name === name)!;
+      // All 8 are reads: default scope, no explicit scope set.
+      expect(tool.scope).toBeUndefined();
     }
   });
 
