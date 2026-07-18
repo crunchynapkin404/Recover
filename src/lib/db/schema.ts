@@ -95,7 +95,14 @@ export const connections = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     provider: text("provider", {
-      enum: ["intervals_icu", "strava", "google_calendar"],
+      enum: [
+        "intervals_icu",
+        "strava",
+        "google_calendar",
+        "whoop",
+        "oura",
+        "withings",
+      ],
     }).notNull(),
     // AES-256-GCM encrypted (see lib/crypto.ts). For intervals.icu this is the
     // API key; for Strava, access + refresh tokens.
@@ -188,6 +195,19 @@ export const wellnessDaily = pgTable(
     restingHr: real("resting_hr"),
     sleepSecs: integer("sleep_secs"),
     sleepScore: real("sleep_score"), // 0-100
+    // v0.11 wearables: staged sleep + bed window (the data v0.9.0 had to
+    // delete cards for), plus vitals the new providers measure.
+    sleepDeepSecs: integer("sleep_deep_secs"),
+    sleepRemSecs: integer("sleep_rem_secs"),
+    sleepLightSecs: integer("sleep_light_secs"),
+    sleepAwakeSecs: integer("sleep_awake_secs"),
+    bedStart: timestamp("bed_start", { withTimezone: true }),
+    bedEnd: timestamp("bed_end", { withTimezone: true }),
+    tempDeviationC: real("temp_deviation_c"),
+    respiratoryRate: real("respiratory_rate"),
+    systolic: real("systolic"),
+    diastolic: real("diastolic"),
+    bodyFatPct: real("body_fat_pct"),
     ctl: real("ctl"),
     atl: real("atl"),
     eftp: real("eftp"),
@@ -201,9 +221,22 @@ export const wellnessDaily = pgTable(
     // altitude). null and [] both mean "a normal day". See lib/day-flags.ts.
     dayFlags: jsonb("day_flags").$type<DayFlag[]>(),
     notes: text("notes"),
-    source: text("source", { enum: ["intervals_icu", "manual", "strava"] })
+    source: text("source", {
+      enum: [
+        "intervals_icu",
+        "manual",
+        "strava",
+        "whoop",
+        "oura",
+        "withings",
+        "apple_health",
+      ],
+    })
       .notNull()
       .default("intervals_icu"),
+    // v0.11: per-field provenance — which source owns each populated field.
+    // null on legacy rows (every field then belongs to `source`).
+    fieldSources: jsonb("field_sources").$type<Record<string, string>>(),
     raw: jsonb("raw"),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
@@ -355,7 +388,9 @@ export const syncJobs = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    provider: text("provider", { enum: ["intervals_icu", "strava"] }).notNull(),
+    provider: text("provider", {
+      enum: ["intervals_icu", "strava", "whoop", "oura", "withings"],
+    }).notNull(),
     kind: text("kind", { enum: ["backfill", "incremental", "compute_metrics"] })
       .notNull()
       .default("incremental"),

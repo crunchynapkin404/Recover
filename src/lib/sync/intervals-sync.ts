@@ -7,6 +7,7 @@ import {
   fetchActivities,
   fetchDailyWellness,
 } from "@/lib/connectors/intervals";
+import { applyWellnessPatch } from "@/lib/wellness-merge";
 
 const BACKFILL_DAYS = 365;
 const INCREMENTAL_OVERLAP_DAYS = 7;
@@ -54,11 +55,12 @@ export async function runIntervalsSync(userId: string): Promise<SyncResult> {
 
     for (const day of wellness) {
       if (!day.date) continue;
-      await db
-        .insert(schema.wellnessDaily)
-        .values({
-          userId,
-          date: day.date,
+      // v0.11: through the per-field merge — a whole-row upsert here would
+      // null out fields another provider (Whoop/Oura) owns for the day.
+      await applyWellnessPatch(
+        userId,
+        day.date,
+        {
           hrvMs: day.hrv,
           restingHr: day.restingHr,
           sleepSecs: day.sleepSecs,
@@ -67,25 +69,10 @@ export async function runIntervalsSync(userId: string): Promise<SyncResult> {
           atl: day.atl,
           eftp: day.eftp,
           weightKg: day.weight,
-          source: "intervals_icu",
-          raw: day.raw,
-          updatedAt: new Date(),
-        })
-        .onConflictDoUpdate({
-          target: [schema.wellnessDaily.userId, schema.wellnessDaily.date],
-          set: {
-            hrvMs: day.hrv,
-            restingHr: day.restingHr,
-            sleepSecs: day.sleepSecs,
-            sleepScore: day.sleepScore,
-            ctl: day.ctl,
-            atl: day.atl,
-            eftp: day.eftp,
-            weightKg: day.weight,
-            raw: day.raw,
-            updatedAt: new Date(),
-          },
-        });
+        },
+        "intervals_icu",
+        day.raw
+      );
     }
 
     for (const activity of activities) {

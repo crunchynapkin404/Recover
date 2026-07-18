@@ -1,6 +1,19 @@
+import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { computeDailyMetrics } from "@/lib/metrics";
 import type { DayFlag } from "@/lib/day-flags";
+
+/**
+ * Fields that also exist in the v0.11 provider merge (wellness-merge.ts).
+ * Manual writes stamp these as manually owned so a later Whoop/Oura/
+ * intervals sync can never overwrite what the athlete typed on purpose.
+ */
+const PRIORITY_MANAGED = [
+  "hrvMs",
+  "restingHr",
+  "sleepSecs",
+  "weightKg",
+] as const;
 
 export interface WellnessWriteInput {
   date: string; // YYYY-MM-DD
@@ -41,6 +54,21 @@ export async function upsertWellness(
 
   const fieldsWritten = Object.keys(values).length;
   if (fieldsWritten === 0) return { fieldsWritten: 0 };
+
+  const stamped = PRIORITY_MANAGED.filter((f) => values[f] != null);
+  if (stamped.length > 0) {
+    const existing = await db.query.wellnessDaily.findFirst({
+      where: and(
+        eq(schema.wellnessDaily.userId, userId),
+        eq(schema.wellnessDaily.date, input.date)
+      ),
+      columns: { fieldSources: true },
+    });
+    values.fieldSources = {
+      ...(existing?.fieldSources ?? {}),
+      ...Object.fromEntries(stamped.map((f) => [f, "manual"])),
+    };
+  }
 
   await db
     .insert(schema.wellnessDaily)
