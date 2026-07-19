@@ -581,6 +581,9 @@ export const trainingPlans = pgTable(
       .notNull()
       .default("active"),
     constraints: jsonb("constraints"),
+    raceId: uuid("race_id").references(() => races.id, {
+      onDelete: "set null",
+    }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -612,6 +615,42 @@ export const trainingBlocks = pgTable(
   },
   (t) => [
     uniqueIndex("training_blocks_plan_week_uq").on(t.planId, t.weekNumber),
+  ]
+);
+
+// ── v0.14 Race Ready ────────────────────────────────────────────────────────
+
+export const races = pgTable(
+  "races",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    raceType: text("race_type").notNull(),
+    sport: text("sport"),
+    date: date("date").notNull(),
+    priority: text("priority", { enum: ["A", "B", "C"] }).notNull(),
+    status: text("status", { enum: ["upcoming", "completed", "skipped"] })
+      .notNull()
+      .default("upcoming"),
+    goalNote: text("goal_note"),
+    resultActivityId: uuid("result_activity_id").references(
+      () => activities.id,
+      { onDelete: "set null" }
+    ),
+    debriefedAt: timestamp("debriefed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("races_user_date_name_uq").on(t.userId, t.date, t.name),
+    index("races_user_status_date_idx").on(t.userId, t.status, t.date),
   ]
 );
 
