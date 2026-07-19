@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.13.0 — 2026-07-18 — Deep Biology
+## v0.13.0 — 2026-07-19 — Deep Biology
 
 Long-horizon health metrics, finally data-backed: v0.11's Withings
 connector and this release's blood-test extraction fix the input side that
@@ -26,6 +26,36 @@ kept this deferred. Design:
   latest values, BP classification, and the bio-age summary to the coach,
   bounded to reference trends only — it never diagnoses or recommends
   treatment.
+
+## v0.12.2 — 2026-07-19 — Audit Fixes
+
+A post-merge audit of v0.10–v0.12 (which shipped without the usual
+per-task review trail) and a pre-merge review of v0.13. The engines held
+up; four fixes came out of it.
+
+### Fixed
+
+- **Strava firewall**: the v0.10 native load engine fed
+  `provider='strava'` activities into the stored CTL/ATL series, which
+  reaches coach context and MCP tools through readiness — the aggregate
+  path the Nov-2024 Strava agreement closes. Strava rows are now excluded
+  from the native series (the dashboard-only weekly rings still count
+  them); a Strava-only athlete honestly stays `calibrating`.
+- **Concurrent wellness writes**: `field_sources` ownership is written as
+  a jsonb union of the changed fields instead of a full-map overwrite, so
+  an Apple Health webhook landing mid-sync can no longer erase another
+  provider's ownership records.
+- **EMA decay**: a scheduler pass recomputes today's metrics once per day
+  for users no sync touches — a manual-only athlete's CTL/ATL now decay
+  through restful days instead of freezing at the last entry.
+- **Apple Health ingest**: payloads over 10 MB are rejected before
+  parsing.
+
+## v0.12.1 — 2026-07-18
+
+Packaging release, no code changes: the first tagged image since v0.9.5,
+delivering v0.10.0, v0.11.0, and v0.12.0 (merged without tags) to
+Watchtower-updated instances.
 
 ## v0.12.0 — 2026-07-18 — Sleep Intelligence
 

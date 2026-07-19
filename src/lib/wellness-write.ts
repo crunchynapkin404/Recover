@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { computeDailyMetrics } from "@/lib/metrics";
 import type { DayFlag } from "@/lib/day-flags";
@@ -56,19 +56,7 @@ export async function upsertWellness(
   if (fieldsWritten === 0) return { fieldsWritten: 0 };
 
   const stamped = PRIORITY_MANAGED.filter((f) => values[f] != null);
-  if (stamped.length > 0) {
-    const existing = await db.query.wellnessDaily.findFirst({
-      where: and(
-        eq(schema.wellnessDaily.userId, userId),
-        eq(schema.wellnessDaily.date, input.date)
-      ),
-      columns: { fieldSources: true },
-    });
-    values.fieldSources = {
-      ...(existing?.fieldSources ?? {}),
-      ...Object.fromEntries(stamped.map((f) => [f, "manual"])),
-    };
-  }
+  const manualStamp = Object.fromEntries(stamped.map((f) => [f, "manual"]));
 
   await db
     .insert(schema.wellnessDaily)
@@ -77,11 +65,22 @@ export async function upsertWellness(
       date: input.date,
       source: "manual",
       ...values,
+      ...(stamped.length > 0 ? { fieldSources: manualStamp } : {}),
       updatedAt: new Date(),
     })
     .onConflictDoUpdate({
       target: [schema.wellnessDaily.userId, schema.wellnessDaily.date],
-      set: { ...values, updatedAt: new Date() },
+      set: {
+        ...values,
+        // jsonb union instead of read-modify-write: a concurrent provider
+        // sync must not have its ownership records overwritten wholesale.
+        ...(stamped.length > 0
+          ? {
+              fieldSources: sql`coalesce(${schema.wellnessDaily.fieldSources}, '{}'::jsonb) || ${JSON.stringify(manualStamp)}::jsonb`,
+            }
+          : {}),
+        updatedAt: new Date(),
+      },
     });
 
   await computeDailyMetrics(userId, input.date);
