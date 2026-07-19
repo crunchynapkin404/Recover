@@ -93,13 +93,17 @@ export function forecastForm(inputs: ForecastInputs): ForecastResult {
   const days = walk(inputs.start, loads, inputs.today, endDate, 1);
   if (days.length === 0) {
     const tsb = round1(inputs.start.ctl - inputs.start.atl);
+    const scenario: ScenarioEnd = { tsb, band: formOutlook(tsb) };
     return {
       insufficient: false,
       days,
       endDate,
       capped,
-      full: { tsb, band: formOutlook(tsb) },
-      adherence: null,
+      full: scenario,
+      // Zero remaining days: adherence scaling is moot, so the adherence
+      // scenario legitimately coincides with full — but it's still null
+      // when the caller supplied no adherenceFraction at all.
+      adherence: inputs.adherenceFraction != null ? scenario : null,
     };
   }
   const last = days[days.length - 1];

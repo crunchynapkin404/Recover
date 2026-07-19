@@ -75,4 +75,16 @@ describe("forecastForm", () => {
   it("exports the floor for consumers", () => {
     expect(ADHERENCE_FLOOR).toBe(0.5);
   });
+
+  it("race-day call (no days left) still honors a supplied adherence fraction", () => {
+    const r = forecastForm({
+      ...base,
+      targetDate: "2026-08-24", // == today: nothing left to walk
+      adherenceFraction: 0.8,
+    });
+    if (r.insufficient) throw new Error("unexpected insufficient");
+    expect(r.days).toHaveLength(0);
+    expect(r.full.tsb).toBe(-10); // 50 - 60, start-derived
+    expect(r.adherence).toEqual({ tsb: -10, band: r.full.band });
+  });
 });
