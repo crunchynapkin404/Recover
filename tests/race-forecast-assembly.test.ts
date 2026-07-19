@@ -63,6 +63,7 @@ describe.skipIf(!hasDb)("assembleForecastInputs", () => {
       userId: USER,
       raceType: "10k",
       raceDate: ymd(56),
+      title: "Goal 10k",
     });
     const created = await createRace(USER, {
       name: "Goal 10k",

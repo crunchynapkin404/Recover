@@ -42,6 +42,11 @@ const parameters = z.object({
     .array(z.string())
     .optional()
     .describe("Override sports list. Defaults to athlete profile."),
+  raceId: z
+    .string()
+    .uuid()
+    .optional()
+    .describe("Target an existing race instead of creating one."),
 });
 
 async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {

@@ -75,4 +75,20 @@ describe.skipIf(!hasDb)("race threading into the living week", () => {
     expect(slot?.status).toBe("race");
     expect(slot?.raceName).toBe("Weekend parkrun");
   });
+
+  it("plan generation creates and links an implicit A race", async () => {
+    const { db, schema } = await import("@/lib/db");
+    const { listRaces } = await import("@/lib/race/service");
+    const { eq, and } = await import("drizzle-orm");
+    const plan = await db.query.trainingPlans.findFirst({
+      where: and(
+        eq(schema.trainingPlans.userId, USER),
+        eq(schema.trainingPlans.status, "active")
+      ),
+    });
+    expect(plan?.raceId).toBeTruthy();
+    const aRaces = await listRaces(USER, { priority: "A" });
+    expect(aRaces.some((r) => r.id === plan!.raceId)).toBe(true);
+    expect(aRaces[0].raceType).toBe("10k");
+  });
 });
