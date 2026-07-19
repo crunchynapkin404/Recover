@@ -1,4 +1,4 @@
-import { and, asc, eq, gte } from "drizzle-orm";
+import { and, asc, eq, gte, ne } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { BASELINE_WINDOW_DAYS, computeReadiness } from "@/lib/readiness";
@@ -54,9 +54,17 @@ export async function computeDailyMetrics(
   });
 
   // Native load inputs: the full activity history (the EMA seeds at the
-  // first activity ever), and the athlete's thresholds.
+  // first activity ever), and the athlete's thresholds. Strava rows are
+  // excluded: the stored ctl/atl and the readiness built on them are
+  // injected into coach context and MCP tools, and the Nov-2024 Strava
+  // agreement bars its API data from AI surfaces — aggregates included
+  // (same rule as weekly-review). Dashboard-only sums (weekly rings) may
+  // still count Strava; this series may not.
   const activityRows = await db.query.activities.findMany({
-    where: eq(schema.activities.userId, userId),
+    where: and(
+      eq(schema.activities.userId, userId),
+      ne(schema.activities.provider, "strava")
+    ),
     columns: {
       provider: true,
       startDate: true,

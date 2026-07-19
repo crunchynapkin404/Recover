@@ -280,10 +280,58 @@ export async function runSchedulerTick(
     });
   }
 
+  // v0.12.2 EMA decay refresh — guarded the same way.
+  try {
+    const refreshed = await refreshDailyDecay();
+    if (refreshed > 0) logger.info("daily decay refreshed", { refreshed });
+  } catch (err) {
+    logger.error("daily decay refresh failed", {
+      message: err instanceof Error ? err.message : String(err),
+    });
+  }
+
   if (claimed.length > 0) {
     logger.info("scheduler tick", { claimed: claimed.length, failed });
   }
   return { claimed: claimed.length, failed };
+}
+
+/**
+ * Refresh today's daily_metrics for users nothing else will touch today
+ * (v0.12.2 audit fix). CTL/ATL are EMAs that must decay through restful
+ * days, but computeDailyMetrics only ran from sync and write paths — a
+ * manual-only athlete's dashboard froze at its last-written values. Any
+ * user with metrics history but no row for today gets one recompute; the
+ * recompute writes today's row, so each user runs at most once per day.
+ */
+export async function refreshDailyDecay(): Promise<number> {
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const stale = await db.execute(sql`
+    SELECT DISTINCT user_id FROM daily_metrics dm
+    WHERE NOT EXISTS (
+      SELECT 1 FROM daily_metrics d2
+      WHERE d2.user_id = dm.user_id AND d2.date >= ${today}
+    )
+    LIMIT 100
+  `);
+  const userIds = (stale.rows as { user_id: string }[]).map((r) => r.user_id);
+  if (userIds.length === 0) return 0;
+
+  const { computeDailyMetrics } = await import("@/lib/metrics");
+  let refreshed = 0;
+  for (const userId of userIds) {
+    try {
+      await computeDailyMetrics(userId, today);
+      refreshed++;
+    } catch (err) {
+      logger.error("decay refresh failed for user", {
+        userId,
+        message: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+  return refreshed;
 }
 
 /** Delete ghost (ephemeral) threads idle for 24h; messages cascade. */
