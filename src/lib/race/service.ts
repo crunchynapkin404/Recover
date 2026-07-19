@@ -106,7 +106,10 @@ export async function nextUpcomingRace(
       eq(schema.races.status, "upcoming"),
       gte(schema.races.date, localYmd(now))
     ),
-    orderBy: asc(schema.races.date),
+    // Same-date ties resolve to the race created first — the
+    // earliest-committed intent (see Task 11: implicit A-race creation
+    // means two A races can legitimately share a date).
+    orderBy: [asc(schema.races.date), asc(schema.races.createdAt)],
   });
   return row ?? null;
 }
@@ -122,8 +125,9 @@ function addDaysYmd(ymd: string, n: number): string {
 /**
  * Upcoming races relevant to the week starting `weekStart`: anything in
  * the week itself (race slots) or within the 27-day lookahead (taper
- * reshaping). Sorted priority A→C then date — materializeWeek treats the
- * first entry as primary.
+ * reshaping). Sorted priority A→C then date then createdAt (earliest wins
+ * same-date ties, see Task 11) — materializeWeek treats the first entry as
+ * primary.
  */
 export async function racesForWeek(
   userId: string,
@@ -136,20 +140,21 @@ export async function racesForWeek(
       gte(schema.races.date, weekStart),
       lte(schema.races.date, addDaysYmd(weekStart, 27))
     ),
-    orderBy: asc(schema.races.date),
+    orderBy: [asc(schema.races.date), asc(schema.races.createdAt)],
   });
   return rows
+    .sort(
+      (a, b) =>
+        PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority] ||
+        a.date.localeCompare(b.date) ||
+        a.createdAt.getTime() - b.createdAt.getTime()
+    )
     .map((r) => ({
       date: r.date,
       priority: r.priority as RaceContext["priority"],
       raceType: r.raceType,
       name: r.name,
-    }))
-    .sort(
-      (a, b) =>
-        PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority] ||
-        a.date.localeCompare(b.date)
-    );
+    }));
 }
 
 /** Latest stored CTL (provider or computed) — taper base fallback. */

@@ -23,13 +23,11 @@ describe.skipIf(!hasDb)("race service CRUD", () => {
   beforeAll(async () => {
     await cleanup();
     const { db, schema } = await import("@/lib/db");
-    await db
-      .insert(schema.users)
-      .values({
-        id: USER,
-        name: "Racer",
-        email: "race-service@example.invalid",
-      });
+    await db.insert(schema.users).values({
+      id: USER,
+      name: "Racer",
+      email: "race-service@example.invalid",
+    });
   });
   afterAll(cleanup);
 
@@ -91,5 +89,49 @@ describe.skipIf(!hasDb)("race service CRUD", () => {
     expect("status" in updated && updated.status).toBe("skipped");
     expect(await deleteRace(USER, tuneUp.id)).toBe(true);
     expect(await listRaces(USER)).toHaveLength(1);
+  });
+
+  it("nextUpcomingRace breaks same-date ties by createdAt, not row-storage order", async () => {
+    const { createRace, nextUpcomingRace, deleteRace, listRaces } =
+      await import("@/lib/race/service");
+    const { db, schema } = await import("@/lib/db");
+    const { eq } = await import("drizzle-orm");
+    // Same future date, two A-priority races — the scenario Task 11's
+    // implicit-A-race creation makes possible. Earlier than "City Marathon"
+    // (day 56) so it's unambiguously the *next* race.
+    const tieDate = ymd(30);
+    // Insert "B" physically first, "A" physically second, then force A's
+    // createdAt to be earlier than B's. Without an explicit ORDER BY on
+    // createdAt, Postgres tends to return rows in physical/insertion order
+    // — i.e. B — so this decouples insertion order from createdAt order
+    // and proves the sort genuinely keys off the column, not storage luck.
+    const b = await createRace(USER, {
+      name: "Tiebreak Marathon B",
+      raceType: "marathon",
+      date: tieDate,
+      priority: "A",
+    });
+    const a = await createRace(USER, {
+      name: "Tiebreak Marathon A",
+      raceType: "marathon",
+      date: tieDate,
+      priority: "A",
+    });
+    expect("race" in a && "race" in b).toBe(true);
+    if (!("race" in a) || !("race" in b)) throw new Error("setup");
+
+    const earlier = new Date(b.race.createdAt.getTime() - 60_000);
+    await db
+      .update(schema.races)
+      .set({ createdAt: earlier })
+      .where(eq(schema.races.id, a.race.id));
+
+    const next = await nextUpcomingRace(USER);
+    expect(next?.name).toBe("Tiebreak Marathon A");
+    expect(next?.id).toBe(a.race.id);
+
+    await deleteRace(USER, a.race.id);
+    await deleteRace(USER, b.race.id);
+    expect(await listRaces(USER, { priority: "A" })).toHaveLength(0);
   });
 });

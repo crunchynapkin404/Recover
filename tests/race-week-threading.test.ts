@@ -91,4 +91,52 @@ describe.skipIf(!hasDb)("race threading into the living week", () => {
     expect(aRaces.some((r) => r.id === plan!.raceId)).toBe(true);
     expect(aRaces[0].raceType).toBe("10k");
   });
+
+  it("racesForWeek breaks same-date, same-priority ties by createdAt, not row-storage order", async () => {
+    const { createRace, racesForWeek, deleteRace, listRaces } =
+      await import("@/lib/race/service");
+    const { db, schema } = await import("@/lib/db");
+    const { eq } = await import("drizzle-orm");
+
+    const weekStart = ymd(new Date());
+    const tieDay = new Date();
+    tieDay.setDate(tieDay.getDate() + 10); // inside the 27-day lookahead
+    const tieDate = ymd(tieDay);
+
+    // Insert "B" physically first, "A" physically second, then force A's
+    // createdAt earlier than B's — decoupling insertion/storage order from
+    // createdAt order so the test can't pass by incidental row order.
+    const b = await createRace(USER, {
+      name: "Threading Tiebreak B",
+      raceType: "half-marathon",
+      date: tieDate,
+      priority: "A",
+    });
+    const a = await createRace(USER, {
+      name: "Threading Tiebreak A",
+      raceType: "half-marathon",
+      date: tieDate,
+      priority: "A",
+    });
+    expect("race" in a && "race" in b).toBe(true);
+    if (!("race" in a) || !("race" in b)) throw new Error("setup");
+
+    const earlier = new Date(b.race.createdAt.getTime() - 60_000);
+    await db
+      .update(schema.races)
+      .set({ createdAt: earlier })
+      .where(eq(schema.races.id, a.race.id));
+
+    const week = await racesForWeek(USER, weekStart);
+    const tied = week.filter((r) => r.date === tieDate);
+    expect(tied).toHaveLength(2);
+    // materializeWeek treats the first entry as primary — must be the
+    // earlier-createdAt race, not storage-order luck.
+    expect(tied[0].name).toBe("Threading Tiebreak A");
+    expect(week[0].name).toBe("Threading Tiebreak A");
+
+    await deleteRace(USER, a.race.id);
+    await deleteRace(USER, b.race.id);
+    expect(await listRaces(USER, { priority: "A" })).toHaveLength(1); // implicit 10k A race remains
+  });
 });
