@@ -21,6 +21,21 @@ interface Props {
 
 type Action = "move" | "swap" | "skip";
 
+// moveWorkout/swapWorkouts (src/lib/week-plan/service.ts) and
+// previewPlanChange/applyPlanChange (src/app/plan/actions.ts) return raw
+// codes on failure — never show those verbatim, translate them here (same
+// idea as races-section.tsx's past_date handling).
+const PLAN_ERROR_MESSAGES: Record<string, string> = {
+  invalid:
+    "That move isn't allowed — the target day may already be taken, unavailable, or too close to another hard session.",
+  no_open_week: "No open week to change right now.",
+};
+
+export function friendlyPlanError(code: string | null | undefined): string {
+  if (!code) return "Could not apply the change.";
+  return PLAN_ERROR_MESSAGES[code] ?? "Could not apply the change.";
+}
+
 interface Preview {
   insufficient: boolean;
   anchorRace: string | null;
@@ -75,7 +90,7 @@ export function DayActions({ day, otherDays }: Props) {
         toDate: needsTarget ? target : undefined,
       });
       if (!result.ok) {
-        setError(result.error);
+        setError(friendlyPlanError(result.error));
         return;
       }
       setPreview({
@@ -99,7 +114,7 @@ export function DayActions({ day, otherDays }: Props) {
         toDate: target,
       });
       if (!result.ok) {
-        setError(result.error ?? "Could not apply the change.");
+        setError(friendlyPlanError(result.error));
         return;
       }
       setApplied(true);
