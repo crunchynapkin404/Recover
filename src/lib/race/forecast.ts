@@ -128,3 +128,55 @@ export function forecastForm(inputs: ForecastInputs): ForecastResult {
     adherence,
   };
 }
+
+export type PlanChange =
+  | { kind: "move"; fromDate: string; toDate: string }
+  | { kind: "swap"; fromDate: string; toDate: string }
+  | { kind: "skip"; fromDate: string };
+
+export interface SimulationResult {
+  before: ForecastResult;
+  after: ForecastResult;
+  /** after.full.tsb − before.full.tsb; null when either side is insufficient. */
+  deltaTsb: number | null;
+  /** Total planned-load change (skip is negative; move/swap are 0). */
+  loadDelta: number;
+}
+
+function applyChange(
+  planned: { date: string; load: number }[],
+  change: PlanChange
+): { date: string; load: number }[] {
+  const map = new Map(planned.map((p) => [p.date, p.load]));
+  const from = map.get(change.fromDate) ?? 0;
+  if (change.kind === "skip") {
+    map.set(change.fromDate, 0);
+  } else if (change.kind === "move") {
+    map.set(change.fromDate, 0);
+    map.set(change.toDate, (map.get(change.toDate) ?? 0) + from);
+  } else {
+    const to = map.get(change.toDate) ?? 0;
+    map.set(change.fromDate, to);
+    map.set(change.toDate, from);
+  }
+  return [...map.entries()].map(([date, load]) => ({ date, load }));
+}
+
+export function simulatePlanChange(
+  inputs: ForecastInputs,
+  change: PlanChange
+): SimulationResult {
+  const before = forecastForm(inputs);
+  const changedLoads = applyChange(inputs.plannedLoads, change);
+  const after = forecastForm({ ...inputs, plannedLoads: changedLoads });
+  const sum = (xs: { load: number }[]) => xs.reduce((s, x) => s + x.load, 0);
+  return {
+    before,
+    after,
+    deltaTsb:
+      before.insufficient || after.insufficient
+        ? null
+        : round1(after.full.tsb - before.full.tsb),
+    loadDelta: sum(changedLoads) - sum(inputs.plannedLoads),
+  };
+}

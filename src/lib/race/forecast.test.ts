@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { ADHERENCE_FLOOR, forecastForm, formOutlook } from "./forecast";
+import {
+  ADHERENCE_FLOOR,
+  forecastForm,
+  formOutlook,
+  simulatePlanChange,
+} from "./forecast";
 
 describe("formOutlook", () => {
   it("maps TSB through the form component to bands", () => {
@@ -86,5 +91,59 @@ describe("forecastForm", () => {
     expect(r.days).toHaveLength(0);
     expect(r.full.tsb).toBe(-10); // 50 - 60, start-derived
     expect(r.adherence).toEqual({ tsb: -10, band: r.full.band });
+  });
+});
+
+describe("simulatePlanChange", () => {
+  const inputs = {
+    today: "2026-08-24",
+    targetDate: "2026-08-30",
+    start: { ctl: 50, atl: 55 },
+    plannedLoads: [
+      { date: "2026-08-25", load: 60 },
+      { date: "2026-08-27", load: 80 },
+      { date: "2026-08-29", load: 30 },
+    ],
+    adherenceFraction: null,
+    horizonEnd: "2026-08-30",
+  };
+
+  it("moving a hard day later lowers race-day freshness", () => {
+    const r = simulatePlanChange(inputs, {
+      kind: "move",
+      fromDate: "2026-08-27",
+      toDate: "2026-08-29",
+    });
+    expect(r.loadDelta).toBe(0);
+    expect(r.deltaTsb).not.toBeNull();
+    expect(r.deltaTsb!).toBeLessThan(0); // 80 TSS lands closer to race day
+  });
+
+  it("skip removes the load and raises race-day TSB", () => {
+    const r = simulatePlanChange(inputs, {
+      kind: "skip",
+      fromDate: "2026-08-27",
+    });
+    expect(r.loadDelta).toBe(-80);
+    expect(r.deltaTsb!).toBeGreaterThan(0);
+  });
+
+  it("swap exchanges two days' loads", () => {
+    const r = simulatePlanChange(inputs, {
+      kind: "swap",
+      fromDate: "2026-08-25",
+      toDate: "2026-08-27",
+    });
+    expect(r.loadDelta).toBe(0);
+    // 80 moves earlier, 60 later → slightly fresher on race day
+    expect(r.deltaTsb!).toBeGreaterThan(0);
+  });
+
+  it("insufficient start propagates as null delta", () => {
+    const r = simulatePlanChange(
+      { ...inputs, start: null },
+      { kind: "skip", fromDate: "2026-08-27" }
+    );
+    expect(r.deltaTsb).toBeNull();
   });
 });
