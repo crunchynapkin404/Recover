@@ -453,6 +453,7 @@ export async function moveWorkout(
   if (from.status === "completed" || from.status === "missed") return "invalid";
   if (to.workout !== null) return "invalid";
   if (to.status === "completed" || to.status === "missed") return "invalid";
+  if (to.status === "race") return "invalid";
   if (to.availableMins < from.workout.durationMins) return "invalid";
 
   const days = week.days.map((d) => ({
