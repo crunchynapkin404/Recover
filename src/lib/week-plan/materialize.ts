@@ -1,5 +1,11 @@
 import { generateWorkouts, type PlannedWorkout } from "@/lib/training-plan";
 import {
+  raceWeekWorkouts,
+  taperFractionForWeek,
+  TAPER_FRACTION_RACE_WEEK,
+  type RaceContext,
+} from "@/lib/race/taper";
+import {
   type Band,
   LOW_ADHERENCE_BUMP,
   LOW_ADHERENCE_PCT,
@@ -19,16 +25,18 @@ export interface EffectiveLoadInput {
   skeletonTarget: number;
   prevWeek: { actualLoad: number; adherencePct: number } | null;
   recentBands: Band[];
+  /** Taper weeks skip restart/adherence logic and the downward ramp clamp. */
+  taperWeek?: boolean;
 }
 
 export function effectiveWeekLoad(input: EffectiveLoadInput): {
   load: number;
   reasons: string[];
 } {
-  const { skeletonTarget, prevWeek, recentBands } = input;
+  const { skeletonTarget, prevWeek, recentBands, taperWeek } = input;
   const reasons: string[] = [];
 
-  if (prevWeek && prevWeek.actualLoad === 0) {
+  if (!taperWeek && prevWeek && prevWeek.actualLoad === 0) {
     const load = Math.round(skeletonTarget * MISSED_WEEK_RESTART);
     reasons.push(
       `last week was fully missed — restarting at ${Math.round(
@@ -40,7 +48,7 @@ export function effectiveWeekLoad(input: EffectiveLoadInput): {
 
   let target = skeletonTarget;
 
-  if (prevWeek && prevWeek.adherencePct < LOW_ADHERENCE_PCT) {
+  if (!taperWeek && prevWeek && prevWeek.adherencePct < LOW_ADHERENCE_PCT) {
     target = prevWeek.actualLoad * LOW_ADHERENCE_BUMP;
     reasons.push(
       `adherence was ${Math.round(prevWeek.adherencePct)}% — building on last week's actual load instead of the skeleton`
@@ -62,13 +70,24 @@ export function effectiveWeekLoad(input: EffectiveLoadInput): {
   if (prevWeek) {
     const lo = prevWeek.actualLoad * (1 - RAMP_CLAMP_PCT);
     const hi = prevWeek.actualLoad * (1 + RAMP_CLAMP_PCT);
-    if (target > hi || target < lo) {
-      target = Math.min(hi, Math.max(lo, target));
+    if (target > hi) {
+      target = hi;
       reasons.push(
         `ramp guard: week-over-week change clamped to ±${Math.round(
           RAMP_CLAMP_PCT * 100
         )}% of last week's actual load`
       );
+    } else if (target < lo) {
+      if (taperWeek) {
+        reasons.push("taper: ramp guard downward clamp bypassed");
+      } else {
+        target = lo;
+        reasons.push(
+          `ramp guard: week-over-week change clamped to ±${Math.round(
+            RAMP_CLAMP_PCT * 100
+          )}% of last week's actual load`
+        );
+      }
     }
   }
 
@@ -89,6 +108,10 @@ export interface MaterializeInput {
   raceType: string;
   sports: string[];
   hoursPerWeek: number;
+  /** Upcoming races, sorted priority A→C then date asc (service does the sort). */
+  races?: RaceContext[];
+  /** Latest stored CTL — taper base fallback when there is no previous week. */
+  currentCtl?: number | null;
 }
 
 export interface MaterializeResult {
@@ -107,10 +130,46 @@ function addDays(ymd: string, n: number): string {
 
 export function materializeWeek(input: MaterializeInput): MaterializeResult {
   const adjustments: AdjustmentRecord[] = [];
+
+  const races = input.races ?? [];
+  const primary = races[0] ?? null;
+  const taperFraction =
+    primary && primary.priority === "A"
+      ? taperFractionForWeek(input.weekStart, primary)
+      : null;
+  const taperBase =
+    input.prevWeek && input.prevWeek.actualLoad > 0
+      ? input.prevWeek.actualLoad
+      : input.currentCtl != null
+        ? input.currentCtl * 7
+        : input.skeleton.targetLoadTotal;
+  const skeleton =
+    taperFraction != null
+      ? {
+          ...input.skeleton,
+          phase: "taper" as const,
+          targetLoadTotal: Math.round(taperBase * taperFraction),
+        }
+      : input.skeleton;
+
+  if (taperFraction != null) {
+    adjustments.push({
+      date: input.weekStart,
+      trigger: "race",
+      action: "scaled",
+      before: [],
+      after: [],
+      reason: `taper: ${primary!.name} on ${primary!.date} — week target set to ${Math.round(
+        taperFraction * 100
+      )}% of current load (${skeleton.targetLoadTotal})`,
+    });
+  }
+
   const { load, reasons } = effectiveWeekLoad({
-    skeletonTarget: input.skeleton.targetLoadTotal,
+    skeletonTarget: skeleton.targetLoadTotal,
     prevWeek: input.prevWeek,
     recentBands: input.recentBands,
+    taperWeek: taperFraction != null,
   });
 
   const dates = Array.from({ length: 7 }, (_, i) =>
@@ -120,10 +179,10 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
     .map((m, i) => ({ m, i }))
     .filter((x) => x.m > 0);
 
-  const sessions = Math.min(input.skeleton.targetSessions, availableIdx.length);
+  const sessions = Math.min(skeleton.targetSessions, availableIdx.length);
   const hoursBudget = input.availabilityMins.reduce((s, m) => s + m, 0) / 60;
   const neededHours =
-    input.hoursPerWeek * (load / Math.max(1, input.skeleton.targetLoadTotal));
+    input.hoursPerWeek * (load / Math.max(1, skeleton.targetLoadTotal));
   let effectiveLoad = load;
 
   if (neededHours > 0 && hoursBudget < neededHours) {
@@ -157,12 +216,21 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
     status: "rest",
   }));
 
-  if (sessions > 0) {
+  const raceIdx = primary ? dates.indexOf(primary.date) : -1;
+  const isRaceWeek = taperFraction === TAPER_FRACTION_RACE_WEEK && raceIdx >= 0;
+
+  if (isRaceWeek) {
+    for (const w of raceWeekWorkouts(input.sports[0] ?? "Run", raceIdx)) {
+      if ((input.availabilityMins[w.day] ?? 0) > 0) {
+        days[w.day] = { ...days[w.day], workout: { ...w }, status: "planned" };
+      }
+    }
+  } else if (sessions > 0) {
     const effectiveHours = Math.min(hoursBudget, neededHours);
     const workouts = generateWorkouts(
       sessions,
       effectiveHours,
-      input.skeleton.phase,
+      skeleton.phase,
       input.raceType,
       input.sports
     )
@@ -236,10 +304,75 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
     }
   }
 
+  for (const race of races) {
+    const idx = dates.indexOf(race.date);
+    if (idx === -1) continue;
+    if (days[idx].workout) {
+      adjustments.push({
+        date: race.date,
+        trigger: "race",
+        action: "swapped",
+        before: [{ ...days[idx], workout: { ...days[idx].workout! } }],
+        after: [],
+        reason: `race day: ${race.name} replaces the planned workout`,
+      });
+    }
+    days[idx] = {
+      ...days[idx],
+      workout: null,
+      status: "race",
+      raceName: race.name,
+    };
+  }
+
+  // A/B protection: rest the day before, no quality 2 days out. C races
+  // train through. The primary race decides (first in sorted input).
+  if (primary && primary.priority !== "C") {
+    const idx = dates.indexOf(primary.date);
+    if (idx >= 1 && days[idx - 1].workout) {
+      const before = {
+        ...days[idx - 1],
+        workout: { ...days[idx - 1].workout! },
+      };
+      days[idx - 1] = { ...days[idx - 1], workout: null, status: "rest" };
+      adjustments.push({
+        date: before.date,
+        trigger: "race",
+        action: "dropped",
+        before: [before],
+        after: [{ ...days[idx - 1] }],
+        reason: `rest before ${primary.name}`,
+      });
+    }
+    if (!isRaceWeek && idx >= 2 && isQuality(days[idx - 2].workout)) {
+      const before = {
+        ...days[idx - 2],
+        workout: { ...days[idx - 2].workout! },
+      };
+      days[idx - 2] = {
+        ...days[idx - 2],
+        workout: {
+          ...days[idx - 2].workout!,
+          type: "Endurance",
+          intensity: "Z1-Z2",
+        },
+        status: "planned",
+      };
+      adjustments.push({
+        date: before.date,
+        trigger: "race",
+        action: "scaled",
+        before: [before],
+        after: [{ ...days[idx - 2] }],
+        reason: `no quality 2 days before ${primary.name} — stepped down to Endurance`,
+      });
+    }
+  }
+
   return {
     week: {
       weekStart: input.weekStart,
-      skeletonWeek: input.skeleton.weekNumber,
+      skeletonWeek: skeleton.weekNumber,
       days,
     },
     adjustments,

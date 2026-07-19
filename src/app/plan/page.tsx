@@ -56,6 +56,7 @@ const STATUS_CHIP: Record<DaySlot["status"], string> = {
   missed: "border-red-400/30 text-red-400",
   planned: "border-white/15 text-white/60",
   rest: "border-white/10 text-white/35",
+  race: "border-fuchsia-400/30 text-fuchsia-300",
 };
 
 export default async function PlanPage() {

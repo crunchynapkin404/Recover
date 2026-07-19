@@ -13,6 +13,7 @@ const STATUS_DOT: Record<DayStatus, string> = {
   missed: "bg-red-400",
   planned: "bg-white/40",
   rest: "bg-white/15",
+  race: "bg-fuchsia-400",
 };
 
 const DAY_LABELS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];

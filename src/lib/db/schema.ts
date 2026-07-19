@@ -700,6 +700,7 @@ export const planAdjustments = pgTable(
         "missed_workout",
         "availability_change",
         "weekly_rollover",
+        "race",
       ],
     }).notNull(),
     action: text("action", {
