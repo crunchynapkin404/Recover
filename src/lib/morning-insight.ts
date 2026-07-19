@@ -40,7 +40,13 @@ function warningSentence(warning: OvertrainingSignal): string {
     : `Heads up: resting HR has been well above baseline for ${warning.sinceDays} days — watch for illness or accumulated fatigue.`;
 }
 
-async function findOrCreateMorningThread(userId: string) {
+function addDaysYmd(ymd: string, n: number): string {
+  const d = new Date(ymd + "T00:00:00");
+  d.setDate(d.getDate() + n);
+  return localYmd(d);
+}
+
+export async function findOrCreateMorningThread(userId: string) {
   const existing = await db.query.chatThreads.findFirst({
     where: and(
       eq(schema.chatThreads.userId, userId),
@@ -62,6 +68,16 @@ export async function generateMorningInsight(
   const now = opts?.now ?? new Date();
   const today = localYmd(now);
 
+  // Task 12: a race today keeps the brief alive even while readiness is
+  // still calibrating — non-race days are unaffected below.
+  const raceToday = await db.query.races.findFirst({
+    where: and(
+      eq(schema.races.userId, userId),
+      eq(schema.races.date, today),
+      eq(schema.races.status, "upcoming")
+    ),
+  });
+
   const metric = await db.query.dailyMetrics.findFirst({
     where: and(
       eq(schema.dailyMetrics.userId, userId),
@@ -69,7 +85,7 @@ export async function generateMorningInsight(
     ),
   });
   if (!metric || metric.readiness == null || metric.band === "calibrating") {
-    return "skipped";
+    if (!raceToday) return "skipped";
   }
 
   const thread = await findOrCreateMorningThread(userId);
@@ -92,33 +108,86 @@ export async function generateMorningInsight(
       .map((a) => a.reason);
   }
 
+  // Task 12: race-day projected-vs-actual TSB — one EMA step from
+  // yesterday's stored ctl/atl over yesterday's planned load (0 when none),
+  // vs today's actual stored TSB. Omitted when yesterday's row is missing
+  // ctl/atl.
+  let projectedLine = "";
+  if (raceToday) {
+    const yesterday = addDaysYmd(today, -1);
+    const yRow = await db.query.dailyMetrics.findFirst({
+      where: and(
+        eq(schema.dailyMetrics.userId, userId),
+        eq(schema.dailyMetrics.date, yesterday)
+      ),
+    });
+    const ySlot = weekPlan?.days.find((d) => d.date === yesterday);
+    if (yRow?.ctl != null && yRow.atl != null) {
+      const { CTL_DAYS, ATL_DAYS } = await import("@/lib/training-load");
+      const yLoad = ySlot?.actualLoad ?? 0;
+      const pCtl = yRow.ctl + (yLoad - yRow.ctl) / CTL_DAYS;
+      const pAtl = yRow.atl + (yLoad - yRow.atl) / ATL_DAYS;
+      const projected = Math.round((pCtl - pAtl) * 10) / 10;
+      projectedLine =
+        metric?.tsb != null
+          ? `Projected TSB ${projected} vs actual ${Math.round(metric.tsb * 10) / 10}. `
+          : `Projected TSB ${projected}. `;
+    }
+  }
+
+  const raceTemplate = raceToday
+    ? `Race day: ${raceToday.name} (${raceToday.priority} race). ` +
+      (metric?.readiness != null
+        ? `Readiness ${Math.round(metric.readiness)} (${metric.band}). `
+        : `Readiness still calibrating — trust your taper. `) +
+      projectedLine +
+      (raceToday.goalNote ? `Goal: ${raceToday.goalNote}.` : "")
+    : null;
+
   const template =
+    raceTemplate ??
     [
-      `Readiness ${Math.round(metric.readiness)} (${metric.band}).` +
-        (metric.tsb != null ? ` TSB ${Math.round(metric.tsb)}.` : ""),
+      `Readiness ${Math.round(metric!.readiness!)} (${metric!.band}).` +
+        (metric!.tsb != null ? ` TSB ${Math.round(metric!.tsb)}.` : ""),
       warning
         ? warningSentence(warning)
-        : (BAND_LINES[metric.band ?? ""] ?? ""),
+        : (BAND_LINES[metric!.band ?? ""] ?? ""),
     ]
       .filter(Boolean)
       .join(" ") +
-    (adjustmentReasons.length > 0
-      ? ` Plan: ${adjustmentReasons.join("; ")}.`
-      : "");
+      (adjustmentReasons.length > 0
+        ? ` Plan: ${adjustmentReasons.join("; ")}.`
+        : "");
+
+  const raceInstruction = raceToday
+    ? `Today is race day: ${raceToday.name} (priority ${raceToday.priority}).` +
+      (raceToday.goalNote
+        ? ` The athlete's goal: ${raceToday.goalNote}.`
+        : "") +
+      ` Write a race-morning brief (max 150 words): lead with the race, ` +
+      `one line on physiological state (${
+        metric?.readiness != null
+          ? `readiness ${Math.round(metric.readiness)}, band ${metric.band}`
+          : "readiness calibrating — do not invent a number"
+      }), ` +
+      projectedLine +
+      `one concrete execution reminder tied to the goal. No generic training advice, no workout suggestions.`
+    : null;
 
   const instruction =
+    raceInstruction ??
     `Write this morning's proactive check-in for the athlete (max 120 words, no greeting fluff). ` +
-    `Today: readiness ${Math.round(metric.readiness)}, band ${metric.band}` +
-    (metric.tsb != null ? `, TSB ${Math.round(metric.tsb)}` : "") +
-    `. ` +
-    (warning
-      ? `LEAD with this warning and make it unmissable: ${warningSentence(warning)} `
-      : "") +
-    (adjustmentReasons.length > 0
-      ? `Plan adjustments this morning: ${adjustmentReasons.join("; ")}. ` +
-        `Mention what changed in the plan and why — quote the given reasons, do not invent adjustments. `
-      : "") +
-    `End with one concrete suggestion for today.`;
+      `Today: readiness ${Math.round(metric!.readiness!)}, band ${metric!.band}` +
+      (metric!.tsb != null ? `, TSB ${Math.round(metric!.tsb)}` : "") +
+      `. ` +
+      (warning
+        ? `LEAD with this warning and make it unmissable: ${warningSentence(warning)} `
+        : "") +
+      (adjustmentReasons.length > 0
+        ? `Plan adjustments this morning: ${adjustmentReasons.join("; ")}. ` +
+          `Mention what changed in the plan and why — quote the given reasons, do not invent adjustments. `
+        : "") +
+      `End with one concrete suggestion for today.`;
 
   let text = template;
   let generated: "llm" | "template" = "template";

@@ -258,3 +258,154 @@ describe.skipIf(!hasDb)("morning insight", () => {
     expect(await getLatestMorningInsight(USER)).toBeNull();
   });
 });
+
+// Task 12: race-day brief — the morning insight goes race-aware when a race
+// with status="upcoming" lands on today's date.
+describe.skipIf(!hasDb)("morning insight — race day (Task 12)", () => {
+  const RACE_USER = "test-morning-insight-race-user";
+  const RACE_USER_2 = "test-morning-insight-race-user-2";
+  const RACE_USER_3 = "test-morning-insight-race-user-3";
+  const RACE_USERS = [RACE_USER, RACE_USER_2, RACE_USER_3];
+
+  async function cleanupRaceUser(id: string) {
+    const { db, schema } = await import("@/lib/db");
+    const threads = await db.query.chatThreads.findMany({
+      where: eq(schema.chatThreads.userId, id),
+    });
+    for (const t of threads) {
+      await db
+        .delete(schema.chatMessages)
+        .where(eq(schema.chatMessages.threadId, t.id));
+    }
+    await db
+      .delete(schema.chatThreads)
+      .where(eq(schema.chatThreads.userId, id));
+    await db.delete(schema.races).where(eq(schema.races.userId, id));
+    await db
+      .delete(schema.dailyMetrics)
+      .where(eq(schema.dailyMetrics.userId, id));
+    await db.delete(schema.weekPlans).where(eq(schema.weekPlans.userId, id));
+    await db
+      .delete(schema.trainingPlans)
+      .where(eq(schema.trainingPlans.userId, id));
+    await db.delete(schema.users).where(eq(schema.users.id, id));
+  }
+
+  beforeAll(async () => {
+    for (const id of RACE_USERS) await cleanupRaceUser(id);
+    const { db, schema } = await import("@/lib/db");
+    await db
+      .insert(schema.users)
+      .values(
+        RACE_USERS.map((id, i) => ({
+          id,
+          name: `Racer ${i + 1}`,
+          email: `race-day-${i + 1}@example.invalid`,
+          role: "member" as const,
+        }))
+      )
+      .onConflictDoNothing();
+  });
+
+  afterAll(async () => {
+    for (const id of RACE_USERS) await cleanupRaceUser(id);
+  });
+
+  it("race day: brief leads with the race and still posts while calibrating", async () => {
+    const { createRace } = await import("@/lib/race/service");
+    const { generateMorningInsight } = await import("@/lib/morning-insight");
+    const today = localYmd(new Date());
+    await createRace(RACE_USER, {
+      name: "Test Marathon",
+      raceType: "marathon",
+      date: today,
+      priority: "A",
+      goalNote: "start easy",
+    });
+
+    // No daily_metrics row at all → calibrating/missing-readiness path.
+    let seenInstruction = "";
+    const r = await generateMorningInsight(RACE_USER, {
+      llm: async (p) => {
+        seenInstruction = p;
+        return "Race brief text";
+      },
+    });
+    expect(r).not.toBe("skipped");
+    expect(seenInstruction).toContain("Test Marathon");
+    expect(seenInstruction).toContain("race");
+    expect(seenInstruction).toContain("start easy");
+    expect(seenInstruction).toContain("calibrating");
+    // No yesterday daily_metrics row → projected/actual TSB lines omitted.
+    expect(seenInstruction).not.toContain("Projected TSB");
+  });
+
+  it("race-day template fallback names the race", async () => {
+    // Second same-day call is guarded; use a second user for the template path.
+    const { createRace } = await import("@/lib/race/service");
+    const { generateMorningInsight } = await import("@/lib/morning-insight");
+    const today = localYmd(new Date());
+    await createRace(RACE_USER_2, {
+      name: "Second City 10K",
+      raceType: "10k",
+      date: today,
+      priority: "B",
+      goalNote: null,
+    });
+
+    const r = await generateMorningInsight(RACE_USER_2, {
+      llm: async () => "", // empty LLM output → template fallback
+    });
+    expect(r).not.toBe("skipped");
+    if (r !== "skipped") expect(r.text).toMatch(/^Race day: /);
+  });
+
+  it("race day: projects tomorrow-vs-actual TSB from yesterday's stored ctl/atl", async () => {
+    const { db, schema } = await import("@/lib/db");
+    const { createRace } = await import("@/lib/race/service");
+    const { generateMorningInsight } = await import("@/lib/morning-insight");
+    const today = localYmd(new Date());
+    const yesterdayDate = new Date();
+    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+    const yesterday = localYmd(yesterdayDate);
+
+    await createRace(RACE_USER_3, {
+      name: "Projection 5K",
+      raceType: "5k",
+      date: today,
+      priority: "C",
+      goalNote: null,
+    });
+    // Yesterday's stored load (no week plan for this user → 0 planned load).
+    await db.insert(schema.dailyMetrics).values({
+      userId: RACE_USER_3,
+      date: yesterday,
+      ctl: 50,
+      atl: 40,
+    });
+    // Today's actual metrics (readiness present, non-calibrating).
+    await db.insert(schema.dailyMetrics).values({
+      userId: RACE_USER_3,
+      date: today,
+      readiness: 70,
+      band: "green",
+      tsb: 8,
+      hrvBaselineMean: Math.log(65),
+      hrvBaselineSd: 0.1,
+      rhrBaselineMean: 48,
+      rhrBaselineSd: 2,
+    });
+
+    let seenInstruction = "";
+    const r = await generateMorningInsight(RACE_USER_3, {
+      llm: async (p) => {
+        seenInstruction = p;
+        return "Race brief text";
+      },
+    });
+    expect(r).not.toBe("skipped");
+    // pCtl = 50 + (0-50)/42 ≈ 48.8095; pAtl = 40 + (0-40)/7 ≈ 34.2857
+    // projected = round((pCtl-pAtl)*10)/10 = 14.5; actual = round(8*10)/10 = 8
+    expect(seenInstruction).toContain("Projected TSB 14.5 vs actual 8");
+  });
+});
