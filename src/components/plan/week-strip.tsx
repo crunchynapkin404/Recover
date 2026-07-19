@@ -32,12 +32,25 @@ export function WeekStrip({ days }: Props) {
           <span className="text-[10px] font-bold uppercase tracking-wider text-white/40">
             {DAY_LABELS[i] ?? ""}
           </span>
-          <span
-            data-status={d.status}
-            className={`h-2.5 w-2.5 rounded-full ${STATUS_DOT[d.status]} ${
-              d.date === today ? "ring-2 ring-white/50" : ""
-            }`}
-          />
+          {d.status === "race" ? (
+            <span
+              data-status="race"
+              title={d.raceName ?? "Race day"}
+              aria-label={d.raceName ? `Race day: ${d.raceName}` : "Race day"}
+              className={`flex h-2.5 w-2.5 items-center justify-center text-[9px] leading-none ${
+                d.date === today ? "ring-2 ring-white/50 rounded-full" : ""
+              }`}
+            >
+              🏁
+            </span>
+          ) : (
+            <span
+              data-status={d.status}
+              className={`h-2.5 w-2.5 rounded-full ${STATUS_DOT[d.status]} ${
+                d.date === today ? "ring-2 ring-white/50" : ""
+              }`}
+            />
+          )}
         </div>
       ))}
     </div>
