@@ -298,25 +298,27 @@ actually sends the data.
 manual athlete sees exactly what they saw before — nothing invented; and
 the dashboard uses a laptop screen instead of the middle 512px of it. ✅
 
-## v0.13 — Deep Biology
+## ✅ v0.13 — Deep Biology
 
 Long-horizon health metrics. Deferred twice because the data wasn't there
 (the live DB had 0/368 days of blood pressure); v0.11's Withings connector
-and LLM extraction fix the input side first.
+and this release's blood-test extraction fixed the input side.
 
-- [ ] **Health Records**: upload blood test PDF/photo → LLM extracts
-      biomarkers with per-value confidence → review screen → `biomarkers`
-      table; nothing enters the DB unconfirmed
-- [ ] **Biological Age**: weekly score from RHR baseline trend, HRV
-      percentile-for-age, sleep consistency, VO2max, body composition — with
-      an honest "insufficient inputs" state that lists what's missing
-- [ ] **Blood Pressure**: manual entry + Withings sync; trends against
-      guideline bands
-- [ ] **Coach visibility**: `get_biomarkers` tool; the coach references
+- [x] **Health Records**: upload blood test PDF/photo (or paste text) → the
+      user's own LLM extracts biomarkers with per-value confidence → review
+      screen → `biomarkers` table; nothing enters the DB unconfirmed. A
+      deterministic line parser covers the no-LLM path.
+- [x] **Biological Age**: a transparent composite of RHR, HRV, sleep
+      consistency, VO₂max, and body composition offset from chronological
+      age — with an honest "insufficient inputs" state that lists what's
+      missing (no birth year or < 3 signals → no number)
+- [x] **Blood Pressure**: manual entry + Withings sync; classified against
+      the 2017 ACC/AHA bands with a recent-average trend
+- [x] **Coach visibility**: `get_biomarkers` tool; the coach references
       bloodwork trends but never diagnoses
 
-**Done when:** a blood test PDF is parsed, reviewed, and appears as trends —
-and a missing biomarker shows as missing, not interpolated.
+**Done when:** a blood test is parsed, reviewed, and appears as trends —
+and a missing biomarker shows as missing, not interpolated. ✅
 
 ## v0.14 — Race Ready
 

@@ -144,7 +144,7 @@ fills a demo account with 90 days of plausible training history (see
 
 ## Status & roadmap
 
-**Current release: v0.12.1 — Sleep Intelligence, Wearable Connectors, and Stability (released 2026-07-18).** The v0.9→v0.12 series made
+**Current release: v0.13.0 — Deep Biology (released 2026-07-19).** The v0.9→v0.13 series made
 the app honest, adaptive, and durable: v0.9.0 deleted every metric the data
 couldn't back, v0.9.2–0.9.3 turned static training plans into a living week
 that adapts to your availability and readiness, v0.9.4 added auto-tags,
@@ -158,14 +158,16 @@ v0.11 opened up the data sources — Whoop, Oura, Apple Health, and Withings
 feed wellness alongside intervals.icu, resolved by an explicit per-field
 priority, with a guided first run — and v0.12 turned that staged-sleep data
 into real sleep-stage, consistency, and chronotype cards, and gave the app
-a proper desktop layout. All on top of the full stack: manual entry and CSV
-import, intervals.icu sync, readiness scoring, dashboard, journal, analytics
-depth, installable PWA with morning push, AI coach with
-memory/personalities/proactive insights, training plans, Google Calendar
-awareness, chart artifacts, weekly reviews, Strava AI descriptions, and 48
-MCP tools. Next up: deep biology (v0.13 — blood work, biological age), then
-the adaptive week's payoff (v0.14 — race calendar, taper, readiness
-forecast). The full plan lives in [docs/ROADMAP.md](docs/ROADMAP.md).
+a proper desktop layout, and v0.13 added deep biology — upload a blood test
+to extract biomarkers (reviewed before anything is stored), a biological-age
+estimate, and blood-pressure trends against clinical bands. All on top of
+the full stack: manual entry and CSV import, intervals.icu sync, readiness
+scoring, dashboard, journal, analytics depth, installable PWA with morning
+push, AI coach with memory/personalities/proactive insights, training plans,
+Google Calendar awareness, chart artifacts, weekly reviews, Strava AI
+descriptions, and 49 MCP tools. Next up: the adaptive week's payoff (v0.14 —
+race calendar, taper engine, readiness forecast), then cycle-aware readiness
+(v0.15). The full plan lives in [docs/ROADMAP.md](docs/ROADMAP.md).
 
 An honest hobby project built for one owner and about ten friends. If it's
 useful to you, self-host it and make it yours. Issues and PRs welcome — see

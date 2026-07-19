@@ -339,6 +339,22 @@ export default async function SettingsPage({
                 Import
               </Link>
             </div>
+            <div className="flex items-center justify-between border-t border-white/5 py-3">
+              <div className="flex flex-col">
+                <span className="text-sm font-medium">
+                  Health &amp; Biomarkers
+                </span>
+                <span className="text-[10px] font-bold uppercase text-white/50">
+                  Blood work, blood pressure, biological age
+                </span>
+              </div>
+              <Link
+                href="/health"
+                className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-white/80 transition-colors hover:bg-white/10"
+              >
+                Open
+              </Link>
+            </div>
           </div>
         </section>
 
