@@ -9,7 +9,7 @@
  * equals) whoever owns the field today. Ownership is recorded per field
  * in wellness_daily.field_sources.
  */
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 
 export type WellnessSource =
@@ -187,7 +187,7 @@ export async function applyWellnessPatch(
     return true;
   }
 
-  const { changed, fieldSources } = mergeWellnessPatch(
+  const { changed } = mergeWellnessPatch(
     existing,
     existing.fieldSources ?? null,
     existing.source as WellnessSource,
@@ -195,11 +195,21 @@ export async function applyWellnessPatch(
     source
   );
   if (Object.keys(changed).length === 0) return false;
+  // Ownership is written as a jsonb union of ONLY the fields this patch
+  // changed, not the full recomputed map: two concurrent writers (a
+  // scheduler sync and the Apple Health webhook) would otherwise each
+  // overwrite the whole column from a stale read and erase the other's
+  // ownership records. Legacy attribution (fields with no recorded owner)
+  // is re-derived from the row source on every read, so it never needs to
+  // be persisted.
+  const ownDelta = Object.fromEntries(
+    Object.keys(changed).map((field) => [field, source])
+  );
   await db
     .update(schema.wellnessDaily)
     .set({
       ...changed,
-      fieldSources,
+      fieldSources: sql`coalesce(${schema.wellnessDaily.fieldSources}, '{}'::jsonb) || ${JSON.stringify(ownDelta)}::jsonb`,
       // raw stays the creating provider's payload unless we own the row.
       ...(existing.source === source && raw !== undefined ? { raw } : {}),
       updatedAt: new Date(),

@@ -21,7 +21,15 @@ function json(body: unknown, status: number) {
   });
 }
 
+/** Health Auto Export batches are small; anything near this is not one. */
+const MAX_BODY_BYTES = 10 * 1024 * 1024;
+
 export async function POST(req: Request) {
+  const contentLength = Number(req.headers.get("content-length") ?? 0);
+  if (contentLength > MAX_BODY_BYTES) {
+    return json({ error: "Payload too large (max 10 MB)" }, 413);
+  }
+
   const token =
     req.headers.get("x-recover-token") ??
     new URL(req.url).searchParams.get("token");
