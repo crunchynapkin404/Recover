@@ -3,6 +3,7 @@
 // this layer only loads state, runs an engine, and persists the result.
 import { and, asc, desc, eq, gte, lt } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
+import { racesForWeek, currentCtl } from "@/lib/race/service";
 import { materializeWeek } from "./materialize";
 import { adaptDay } from "./adapt-day";
 import { prefillAvailability } from "./availability";
@@ -222,6 +223,10 @@ export async function rolloverWeekPlan(
   }).map((mins, i) => (addDaysYmd(weekStart, i) < today ? 0 : mins));
 
   // 3. Materialize.
+  const [races, ctlNow] = await Promise.all([
+    racesForWeek(userId, weekStart),
+    currentCtl(userId),
+  ]);
   const r = materializeWeek({
     weekStart,
     skeleton: {
@@ -236,6 +241,8 @@ export async function rolloverWeekPlan(
     raceType: plan.raceType,
     sports: constraints.sports,
     hoursPerWeek: constraints.hoursPerWeek,
+    races,
+    currentCtl: ctlNow,
   });
 
   // 4. Persist.
@@ -383,6 +390,10 @@ export async function applyAvailability(
   });
   const constraints = planConstraints(plan.constraints);
 
+  const [races, ctlNow] = await Promise.all([
+    racesForWeek(userId, week.weekStart),
+    currentCtl(userId),
+  ]);
   const r = materializeWeek({
     weekStart: week.weekStart,
     skeleton: {
@@ -403,6 +414,8 @@ export async function applyAvailability(
     raceType: plan.raceType,
     sports: constraints.sports,
     hoursPerWeek: constraints.hoursPerWeek,
+    races,
+    currentCtl: ctlNow,
   });
 
   const merged = r.week.days.map((d, i) => (locked[i] ? week.days[i] : d));
