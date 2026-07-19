@@ -22,6 +22,12 @@ import { BodyBatteryCurve } from "@/components/dashboard/body-battery";
 import { BehaviorTags } from "@/components/dashboard/behavior-tags";
 import { MilestonesCard } from "@/components/dashboard/milestones-card";
 import { getMilestones } from "@/lib/insights/milestones";
+import {
+  RaceCountdownCard,
+  type RaceCountdownProps,
+} from "@/components/dashboard/race-countdown";
+import { nextUpcomingRace, assembleForecastInputs } from "@/lib/race/service";
+import { forecastForm } from "@/lib/race/forecast";
 import type { Band } from "@/lib/readiness";
 import { formatDay, formatDuration, formatKm } from "@/lib/format";
 import {
@@ -165,6 +171,49 @@ export default async function DashboardPage() {
         .filter((a) => a.date === todayYmd)
         .at(-1)?.reason ?? null)
     : null;
+
+  // ── Next race (v0.14) ──────────────────────────────────────────────────
+  // Form-only projection, never called "readiness" — HRV/RHR can't be
+  // forecast, so band range is an honest form outlook, not a score.
+  const race = await nextUpcomingRace(user.id, todayDate);
+  let raceCard: RaceCountdownProps = {
+    race: null,
+    daysOut: null,
+    outlook: null,
+  };
+  if (race) {
+    const assembled = await assembleForecastInputs(user.id, race, todayDate);
+    const outlook = !assembled
+      ? ({ kind: "no_plan" } as const)
+      : (() => {
+          const f = forecastForm(assembled.inputs);
+          return f.insufficient
+            ? ({ kind: "insufficient" } as const)
+            : ({
+                kind: "projection",
+                full: f.full,
+                adherence: f.adherence,
+                capped: f.capped,
+              } as const);
+        })();
+    raceCard = {
+      race: {
+        name: race.name,
+        date: race.date,
+        priority: race.priority,
+        goalNote: race.goalNote,
+      },
+      daysOut: Math.max(
+        0,
+        Math.round(
+          (new Date(race.date + "T00:00:00").getTime() -
+            new Date(todayYmd + "T00:00:00").getTime()) /
+            86_400_000
+        )
+      ),
+      outlook,
+    };
+  }
 
   const metrics = await db.query.dailyMetrics.findMany({
     where: and(
@@ -624,6 +673,13 @@ export default async function DashboardPage() {
             <section className="mb-10 space-y-4">
               <TodayCard slot={todaySlot} adjustmentReason={todayAdjustment} />
               <WeekStrip days={weekPlan.days} />
+            </section>
+          )}
+
+          {/* ── Next race (v0.14) ──────────────────────────────────── */}
+          {raceCard.race && (
+            <section className="mb-10">
+              <RaceCountdownCard {...raceCard} />
             </section>
           )}
 
