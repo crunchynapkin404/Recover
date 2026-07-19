@@ -14,6 +14,11 @@ import { findOrCreateMorningThread } from "@/lib/morning-insight";
 
 export const DEBRIEF_NO_DATA_HOURS = 48;
 
+/** The transaction handle `db.transaction()`'s callback receives — used so
+ * the chat-message post and the races-row update it accompanies commit (or
+ * fail) together. */
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
 function localYmd(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
@@ -83,21 +88,28 @@ async function phrase(
   return template;
 }
 
-/** Insert one assistant message into the athlete's morning thread. */
+/**
+ * Insert one assistant message into the athlete's morning thread. Takes the
+ * transaction handle from the caller's `db.transaction(...)` block so the
+ * post commits atomically with the races-row update that marks the race
+ * debriefed — otherwise a crash between the two would leave the message
+ * posted but `debriefedAt` null, and the next tick would post it again.
+ */
 async function postDebrief(
   userId: string,
   text: string,
   raceId: string | null,
-  now: Date
+  now: Date,
+  tx: Tx
 ): Promise<void> {
   const thread = await findOrCreateMorningThread(userId);
-  await db.insert(schema.chatMessages).values({
+  await tx.insert(schema.chatMessages).values({
     threadId: thread.id,
     role: "assistant",
     content: text,
     toolCalls: { generated: "race_debrief", kind: "race_debrief", raceId },
   });
-  await db
+  await tx
     .update(schema.chatThreads)
     .set({ updatedAt: now })
     .where(eq(schema.chatThreads.id, thread.id));
@@ -161,17 +173,20 @@ export async function runRaceDebriefs(
       );
       if (now < deadline) continue; // still waiting for a sync
 
-      await postDebrief(
-        userId,
-        `No activity landed for ${race.name} (${race.date}) after ${DEBRIEF_NO_DATA_HOURS}h. ` +
-          `If you raced, the data never arrived — mark the race completed (or skipped) yourself on the Plan page.`,
-        race.id,
-        now
-      );
-      await db
-        .update(schema.races)
-        .set({ debriefedAt: now, updatedAt: now })
-        .where(eq(schema.races.id, race.id));
+      await db.transaction(async (tx) => {
+        await postDebrief(
+          userId,
+          `No activity landed for ${race.name} (${race.date}) after ${DEBRIEF_NO_DATA_HOURS}h. ` +
+            `If you raced, the data never arrived — mark the race completed (or skipped) yourself on the Plan page.`,
+          race.id,
+          now,
+          tx
+        );
+        await tx
+          .update(schema.races)
+          .set({ debriefedAt: now, updatedAt: now })
+          .where(eq(schema.races.id, race.id));
+      });
       posted = true;
       continue;
     }
@@ -238,16 +253,18 @@ export async function runRaceDebriefs(
       `and close with one recovery instruction. Max 150 words. Never invent numbers not given here.`;
 
     const text = await phrase(userId, instruction, template, opts?.llm);
-    await postDebrief(userId, text, race.id, now);
-    await db
-      .update(schema.races)
-      .set({
-        status: "completed",
-        resultActivityId: match.id,
-        debriefedAt: now,
-        updatedAt: now,
-      })
-      .where(eq(schema.races.id, race.id));
+    await db.transaction(async (tx) => {
+      await postDebrief(userId, text, race.id, now, tx);
+      await tx
+        .update(schema.races)
+        .set({
+          status: "completed",
+          resultActivityId: match.id,
+          debriefedAt: now,
+          updatedAt: now,
+        })
+        .where(eq(schema.races.id, race.id));
+    });
     claimedIds.add(match.id);
     posted = true;
   }

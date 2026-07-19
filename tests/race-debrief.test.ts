@@ -75,7 +75,20 @@ describe.skipIf(!hasDb)("post-race debrief", () => {
     expect(updated?.resultActivityId).toBeTruthy();
     expect(updated?.debriefedAt).toBeTruthy();
 
+    const thread = await db.query.chatThreads.findFirst({
+      where: eq(schema.chatThreads.userId, USER),
+    });
+    const messagesAfterFirst = await db.query.chatMessages.findMany({
+      where: eq(schema.chatMessages.threadId, thread!.id),
+    });
+
+    // Post-and-mark must be atomic: a second tick must not re-post the
+    // debrief message even if it re-queried the same race.
     expect(await runRaceDebriefs(USER)).toBe("skipped");
+    const messagesAfterSecond = await db.query.chatMessages.findMany({
+      where: eq(schema.chatMessages.threadId, thread!.id),
+    });
+    expect(messagesAfterSecond.length).toBe(messagesAfterFirst.length);
   });
 
   it("waits 48h before the no-data message, then posts it once", async () => {
@@ -104,7 +117,21 @@ describe.skipIf(!hasDb)("post-race debrief", () => {
     });
     expect(ghost?.status).toBe("upcoming"); // the user decides
     expect(ghost?.debriefedAt).toBeTruthy();
+
+    const thread = await db.query.chatThreads.findFirst({
+      where: eq(schema.chatThreads.userId, USER),
+    });
+    const messagesAfterFirst = await db.query.chatMessages.findMany({
+      where: eq(schema.chatMessages.threadId, thread!.id),
+    });
+
+    // Post-and-mark must be atomic in the no-data branch too: a second tick
+    // must not re-post the "data never arrived" message.
     expect(await runRaceDebriefs(USER, { now: later })).toBe("skipped");
+    const messagesAfterSecond = await db.query.chatMessages.findMany({
+      where: eq(schema.chatMessages.threadId, thread!.id),
+    });
+    expect(messagesAfterSecond.length).toBe(messagesAfterFirst.length);
   });
 
   it("strava result links but its stats stay out of the narrative", async () => {
