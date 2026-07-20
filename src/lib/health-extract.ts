@@ -6,6 +6,7 @@
  */
 import { generateText } from "ai";
 import { resolveProvider } from "@/lib/llm-provider";
+import { recordLlmUsage } from "@/lib/llm-usage";
 import {
   EXTRACTION_PROMPT,
   parseLabText,
@@ -75,9 +76,18 @@ export async function extractBiomarkers(
   }
 
   try {
-    const { text } = await generateText({
+    const res = await generateText({
       model: provider.provider(provider.model),
       messages: [{ role: "user", content }],
+    });
+    const text = res.text;
+    await recordLlmUsage({
+      userId,
+      model: provider.model,
+      slot: provider.slot,
+      purpose: "health_extract",
+      inputTokens: res.totalUsage?.inputTokens ?? res.usage?.inputTokens,
+      outputTokens: res.totalUsage?.outputTokens ?? res.usage?.outputTokens,
     });
     const parsed = extractJson(text);
     const biomarkers = validateExtraction(parsed);

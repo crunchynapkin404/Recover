@@ -236,12 +236,33 @@ export async function runSchedulerTick(
           message: err instanceof Error ? err.message : String(err),
         });
       }
+      // v0.15 monthly report — guards inside ensure at-most-once/month.
+      try {
+        const { generateMonthlyReport } = await import("@/lib/monthly-report");
+        await generateMonthlyReport(job.userId);
+      } catch (err) {
+        logger.error("monthly report failed", {
+          userId: job.userId,
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
       // v0.14 post-race debrief — guards inside make it once per race.
       try {
         const { runRaceDebriefs } = await import("@/lib/race/debrief");
         await runRaceDebriefs(job.userId);
       } catch (err) {
         logger.error("race debrief failed", {
+          userId: job.userId,
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
+      // v0.15 debrief lifecycle — covers overnight uploads the poll slept
+      // through. Guards inside; never touches the sync job.
+      try {
+        const { runDebriefLifecycle } = await import("@/lib/debrief/lifecycle");
+        await runDebriefLifecycle(job.userId);
+      } catch (err) {
+        logger.error("debrief lifecycle hook failed", {
           userId: job.userId,
           message: err instanceof Error ? err.message : String(err),
         });
@@ -296,6 +317,18 @@ export async function runSchedulerTick(
     if (refreshed > 0) logger.info("daily decay refreshed", { refreshed });
   } catch (err) {
     logger.error("daily decay refresh failed", {
+      message: err instanceof Error ? err.message : String(err),
+    });
+  }
+
+  // v0.15 activity poll — near-real-time ride detection; guarded like the
+  // rest, never breaks the tick.
+  try {
+    const { runActivityPolls } = await import("@/lib/sync/activity-poll");
+    const polled = await runActivityPolls();
+    if (polled > 0) logger.info("activity polls ran", { polled });
+  } catch (err) {
+    logger.error("activity poll pass failed", {
       message: err instanceof Error ? err.message : String(err),
     });
   }

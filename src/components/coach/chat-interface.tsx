@@ -4,7 +4,7 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Ghost, Plus, Send } from "lucide-react";
+import { ArrowLeft, Ghost, Mic, MicOff, Plus, Send } from "lucide-react";
 import { ArtifactCard } from "./artifact-card";
 import type { ChartSpec } from "@/lib/tools/render-chart";
 
@@ -21,6 +21,28 @@ interface Props {
   initialThreadId?: string | null;
   threads: ThreadSummary[];
 }
+
+// ── v0.15 voice input — Web Speech API, dictation only (never auto-sends).
+type SpeechRecognitionLike = {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  onresult:
+    | ((e: {
+        resultIndex: number;
+        results: ArrayLike<{ 0: { transcript: string }; isFinal: boolean }>;
+      }) => void)
+    | null;
+  onend: (() => void) | null;
+  onerror: (() => void) | null;
+  start(): void;
+  stop(): void;
+};
+const SpeechRecognitionCtor =
+  typeof window !== "undefined"
+    ? ((window as unknown as Record<string, unknown>).SpeechRecognition ??
+      (window as unknown as Record<string, unknown>).webkitSpeechRecognition)
+    : undefined;
 
 export function ChatInterface({
   configured,
@@ -93,6 +115,53 @@ export function ChatInterface({
     },
     [input, isLoading, sendMessage]
   );
+
+  // ── v0.15 voice input — Web Speech API, dictation only (never auto-sends).
+  const [dictating, setDictating] = useState(false);
+  const [showDictationHint, setShowDictationHint] = useState(false);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+
+  const toggleDictation = useCallback(() => {
+    if (!SpeechRecognitionCtor) return;
+    if (dictating) {
+      recognitionRef.current?.stop();
+      return; // onend flips state
+    }
+    if (!localStorage.getItem("recover-dictation-hint")) {
+      localStorage.setItem("recover-dictation-hint", "1");
+      setShowDictationHint(true);
+    }
+    const rec = new (
+      SpeechRecognitionCtor as new () => SpeechRecognitionLike
+    )();
+    rec.lang = navigator.language;
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.onresult = (e) => {
+      let finalText = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const r = e.results[i];
+        if (r.isFinal) finalText += r[0].transcript;
+      }
+      if (finalText)
+        setInput((prev) => (prev ? prev + " " : "") + finalText.trim());
+    };
+    rec.onend = () => setDictating(false);
+    rec.onerror = () => setDictating(false);
+    recognitionRef.current = rec;
+    rec.start();
+    setDictating(true);
+  }, [dictating]);
+
+  // Stop any live recognition instance on unmount — otherwise the browser's
+  // SpeechRecognition object (kept alive by its own event-handler closures,
+  // not React's lifecycle) can keep listening after the athlete navigates
+  // away, since continuous:true means it never stops on its own.
+  useEffect(() => {
+    return () => {
+      recognitionRef.current?.stop();
+    };
+  }, []);
 
   const fetchThreadMessages = useCallback(
     async (threadId: string) => {
@@ -387,6 +456,25 @@ export function ChatInterface({
               </button>
             ))}
           </div>
+          {SpeechRecognitionCtor != null && (
+            <button
+              type="button"
+              onClick={toggleDictation}
+              aria-pressed={dictating}
+              aria-label={dictating ? "Stop dictation" : "Dictate a message"}
+              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors ${
+                dictating
+                  ? "bg-red-500/20 text-red-400"
+                  : "bg-white/5 text-white/50"
+              }`}
+            >
+              {dictating ? (
+                <MicOff className="size-4" />
+              ) : (
+                <Mic className="size-4" />
+              )}
+            </button>
+          )}
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -402,6 +490,12 @@ export function ChatInterface({
             <Send className="size-[18px]" />
           </button>
         </form>
+        {showDictationHint && (
+          <p className="mt-2 px-2 text-center text-[10px] text-white/40">
+            Speech is transcribed by your browser and may be processed on its
+            vendor&apos;s servers. Recover never sees or stores audio.
+          </p>
+        )}
       </div>
     </div>
   );

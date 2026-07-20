@@ -30,7 +30,7 @@ describe("tool registry", () => {
   });
 
   it("registers the v0.6 strava describe tool", () => {
-    expect(allTools.length).toBe(53);
+    expect(allTools.length).toBe(54);
     const names = allTools.map((t) => t.name);
     expect(names).toContain("describe_strava_activity");
     for (const name of [
@@ -118,7 +118,7 @@ describe("tool registry", () => {
   });
 
   it("registers the v0.9.6 absorbed icu_* activity/wellness/sport-settings tools with correct scopes", () => {
-    expect(allTools.length).toBe(53);
+    expect(allTools.length).toBe(54);
     const names = allTools.map((t) => t.name);
     for (const name of [
       "icu_update_activity",
@@ -153,7 +153,7 @@ describe("tool registry", () => {
   });
 
   it("registers the v0.9.6 absorbed icu_* histogram/search/intervals/workout-library read tools (48 total)", () => {
-    expect(allTools.length).toBe(53);
+    expect(allTools.length).toBe(54);
     const names = allTools.map((t) => t.name);
     for (const name of [
       "icu_get_hr_histogram",
@@ -173,7 +173,7 @@ describe("tool registry", () => {
   });
 
   it("registers the v0.9.6 get_workout_syntax reference tool (49 total)", () => {
-    expect(allTools.length).toBe(53);
+    expect(allTools.length).toBe(54);
     const tool = allTools.find((t) => t.name === "get_workout_syntax")!;
     expect(tool).toBeDefined();
     expect(tool.scope).toBeUndefined();
@@ -189,7 +189,7 @@ describe("tool registry", () => {
   });
 
   it("registers the v0.14 race tools with correct scopes (53 total)", () => {
-    expect(allTools.length).toBe(53);
+    expect(allTools.length).toBe(54);
     const names = allTools.map((t) => t.name);
     for (const name of [
       "get_races",
@@ -209,6 +209,17 @@ describe("tool registry", () => {
       const tool = allTools.find((t) => t.name === name)!;
       expect(tool.scope).toBe("write:plan");
     }
+  });
+
+  it("registers the v0.15 recall_history tool (54 total)", () => {
+    expect(allTools.length).toBe(54);
+    const tool = allTools.find((t) => t.name === "recall_history")!;
+    expect(tool).toBeDefined();
+    expect(tool.scope).toBeUndefined(); // defaults to read
+    expect(tool.parameters.safeParse({ query: "knee pain" }).success).toBe(
+      true
+    );
+    expect(tool.parameters.safeParse({ query: "a" }).success).toBe(false); // min(2) query
   });
 
   it("get_calendar_availability validates days range", () => {

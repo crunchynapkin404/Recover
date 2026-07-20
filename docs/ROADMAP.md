@@ -254,9 +254,10 @@ and Withings brings the blood pressure and body composition v0.13 needs.
       connector was a file, not a project
 - [x] **Whoop OAuth**: recovery, HRV, RHR, sleep with stages
 - [x] **Oura**: sleep with stages, HRV/RHR, sleep score, temperature
-      deviation (which v0.15 wants). Ships token-first (PAT) rather than
-      OAuth — the API supports it and it's the boring intervals.icu flow;
-      OAuth can reuse Whoop's framework later if multi-user demand shows up
+      deviation (which the deferred Cycle-Aware Readiness would want). Ships
+      token-first (PAT) rather than OAuth — the API supports it and it's the
+      boring intervals.icu flow; OAuth can reuse Whoop's framework later if
+      multi-user demand shows up
 - [x] **Apple Health**: Health Auto Export webhook + JSON file upload
       (cut from v0.8, promised here since)
 - [x] **Withings OAuth**: weight, body composition, blood pressure
@@ -266,6 +267,11 @@ and Withings brings the blood pressure and body composition v0.13 needs.
       CSV) and a "day N of 14" calibrating progress bar with a next-step
       prompt instead of a bare label
 - [ ] Fitbit / Google Health direct — if demand shows up (still conditional)
+- [ ] **Cycle-Aware Readiness** — cycle phase logging, phase-aware baselines
+      against same-phase history, per-phase pattern surfacing, opt-in coach
+      awareness. Deferred — nobody on a running instance generates cycle data
+      today; building phase-aware baselines against synthetic cycles would be
+      fabrication with extra steps. Returns when a real athlete needs it.
 
 **Done when:** HRV and staged sleep flow in nightly from a real Whoop or
 Oura account, with full per-user isolation and visible provenance on every
@@ -342,49 +348,38 @@ would be fabrication with extra steps.
 **Done when:** an athlete with a race in 8 weeks watches the plan taper into
 it and gets a defensible form projection that updates daily. ✅
 
-## v0.15 — Cycle-Aware Readiness
+## ✅ v0.15 — The Coach Remembers
 
-Half of athletes have a baseline variable the score silently ignores. Cycle
-phase shifts HRV, RHR, and temperature enough to move readiness bands —
-treating it as noise is fabrication by omission.
+Coach memory held structured facts; it still couldn't recall what was
+actually said, and every ride ended in silence.
 
-- [ ] **Cycle tracking**: manual phase logging in the journal; automatic
-      where a connector provides it (Oura temperature deviation)
-- [ ] **Phase-aware baselines**: readiness compares against same-phase
-      history once enough cycles are logged — `calibrating` until then, same
-      as readiness itself was
-- [ ] **Pattern surfacing**: how readiness, HRV, and sleep actually behave
-      per phase for _this_ athlete — reported with the v0.9.4 confidence
-      machinery, "inconclusive" when thin
-- [ ] **Coach awareness**: opt-in per athlete; cites the athlete's own
-      patterns, never generic population advice
+- [x] **Recall over history**: `recall_history` coach tool — Postgres
+      full-text search (`simple` config, for mixed Dutch/English) across past
+      conversations, weekly/monthly reviews, ride debriefs, and journal
+      notes; the coach cites results with dates and says so when it finds
+      nothing. Ghost threads excluded — they were promised to vanish.
+- [x] **Post-ride loop**: a 15-minute intervals.icu activity poll (no
+      webhooks exist; quiet 23:00–06:00) detects a fresh ride, a debrief card
+      asks RPE / feel / notes, and the coach writes a ride review reconciling
+      the numbers with the athlete's own words — quoted, never paraphrased.
+      Skipped or expired debriefs get a data-only review that says no
+      feedback was given.
+- [x] **Monthly report**: the weekly review's big sibling — load, recovery,
+      adherence, milestones, biomarker deltas, written by the coach — at
+      most once per calendar month
+- [x] **Voice input**: the coach mic goes live via the Web Speech API —
+      dictation fills the box, never auto-sends, with an honest note that
+      the browser vendor may process the audio (the old "on-device" claim
+      was wrong, and dies here)
+- [x] **Token transparency**: per-user LLM usage visible in settings
 
-**Done when:** a luteal-phase HRV dip reads as "normal for this phase" —
-backed by the athlete's own history — instead of a red alert.
+**Done when:** the coach quotes a real past conversation unprompted, a
+month-end report shows up without being asked, and a synced ride produces a
+debrief prompt within ~15 minutes. ✅
 
-## v0.16 — The Coach Remembers
+Design: [docs/specs/2026-07-19-v0.15-coach-remembers-design.md](specs/2026-07-19-v0.15-coach-remembers-design.md)
 
-Coach memory holds structured facts; it still can't recall what you actually
-talked about, and every hard session ends in silence.
-
-- [ ] **Recall over history**: search across past threads, journal notes,
-      and weekly reviews (Postgres full-text search first; embeddings only
-      if FTS demonstrably isn't enough) — the coach cites past conversations
-      ("three weeks ago you said the knee…")
-- [ ] **Session debriefs**: after a hard or flagged workout syncs, the coach
-      opens a short debrief — how did it feel, anything hurt — and files the
-      answers into memory
-- [ ] **Monthly report**: the weekly review's big sibling — load, recovery,
-      adherence, milestones, biomarker deltas, written by the coach
-- [ ] **Voice input**: the coach mic goes live via on-device speech
-      recognition (Web Speech API) — the last dead control gets wired for
-      real
-- [ ] **Token transparency**: per-user LLM usage visible in settings
-
-**Done when:** the coach quotes a real past conversation unprompted, and a
-month-end report shows up without being asked.
-
-## v0.17 — Stronger Together
+## v0.16 — Stronger Together
 
 Recover already runs as an owner plus invited friends; the accounts just
 can't see each other. Opt-in sharing — sober, like the milestones.
@@ -402,7 +397,7 @@ can't see each other. Opt-in sharing — sober, like the milestones.
 **Done when:** two consenting users see each other's bands, a third user
 sees nothing, and revoking consent takes effect immediately.
 
-## v0.18 — Good Self-Hosted Citizen
+## v0.17 — Good Self-Hosted Citizen
 
 Recover behaves like the rest of the homelab expects it to. Clears the
 operations track.
@@ -421,7 +416,7 @@ operations track.
 **Done when:** readiness lands in Home Assistant via webhook, and a full
 export re-imports into a clean instance losslessly.
 
-## v0.19 — 1.0 Hardening
+## v0.18 — 1.0 Hardening
 
 The last 0.x. Nothing new — everything trustable.
 
@@ -442,7 +437,7 @@ The last 0.x. Nothing new — everything trustable.
 
 ## Ongoing — operations track
 
-All items scheduled into **v0.18 — Good Self-Hosted Citizen** by the v0.9.6
+All items scheduled into **v0.17 — Good Self-Hosted Citizen** by the v0.9.6
 replan. Anything cheap can still ship earlier alongside any release.
 
 ## Ongoing — honesty debt
@@ -461,9 +456,9 @@ by v0.10 — Honest Load.**
 Cheap; pick up alongside any release. The v0.9.6 replan gave most items a
 scheduled home.
 
-- [ ] Data export (GDPR): full history download — the read side of v0.8's import. → v0.18
+- [ ] Data export (GDPR): full history download — the read side of v0.8's import. → v0.17
 - [ ] Default journal entries: pre-toggle frequent behaviors so only exceptions get marked
-- [ ] Accessibility: ScoreRing aria labels, contrast, button roles. → v0.19
+- [ ] Accessibility: ScoreRing aria labels, contrast, button roles. → v0.18
 - [ ] Performance log filters: wire up the month/sport controls
 - [x] Dead UI sweep: remove non-functional settings controls (v0.9.0 cleared the dashboard's sleep/energy share). Closed in v0.10 — audit found the settings/log/coach/journal controls already wired or removed; the dashboard's fabricated captions were the last stragglers.
 - [x] Sleep Score sparkline plotted `sleepSecs` under a "Sleep Score" label — real data, wrong series. Fixed in v0.9.1.
@@ -486,7 +481,7 @@ as the polish backlog.
       across dashboard sparklines, fitness PMC, wellness trends, and coach
       artifacts
 - [ ] Accessibility as-you-go: new UI ships with labels/contrast/focus
-      handled, so the v0.19 sweep is a check, not a cliff
+      handled, so the v0.18 sweep is a check, not a cliff
 
 ## Not planned
 

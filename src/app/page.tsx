@@ -10,6 +10,7 @@ import { ScoreRing } from "@/components/dashboard/score-ring";
 import { StrainBudget } from "@/components/dashboard/strain-budget";
 import { MorningBrief } from "@/components/dashboard/morning-brief";
 import { CoachInsight } from "@/components/dashboard/coach-insight";
+import { PendingDebriefCard } from "@/components/debrief/pending-debrief-card";
 import { getLatestMorningInsight } from "@/lib/morning-insight";
 import { getLatestWeeklyReview } from "@/lib/weekly-review";
 import { getOpenWeekPlan, listAdjustments } from "@/lib/week-plan/service";
@@ -634,6 +635,9 @@ export default async function DashboardPage() {
           <section className="mb-10">
             <MorningBrief narrative={narrative} />
           </section>
+
+          {/* ── Post-ride debrief (v0.15) ───────────────────────────── */}
+          <PendingDebriefCard userId={user.id} />
 
           {/* ── Proactive coach insight (v0.4b) ─────────────────────── */}
           {insight && (

@@ -6,6 +6,7 @@ import {
   ConnectorError,
   fetchActivities,
   fetchDailyWellness,
+  type IntervalsActivity,
 } from "@/lib/connectors/intervals";
 import { applyWellnessPatch } from "@/lib/wellness-merge";
 
@@ -17,6 +18,52 @@ export interface SyncResult {
   activities: number;
   windowStart: string;
   windowEnd: string;
+}
+
+/** Upsert intervals.icu activities (shared by the daily sync and the v0.15
+ * activity poll). Conflict target (userId, provider, externalId). */
+export async function upsertIntervalsActivities(
+  userId: string,
+  activities: IntervalsActivity[]
+): Promise<void> {
+  for (const activity of activities) {
+    await db
+      .insert(schema.activities)
+      .values({
+        userId,
+        provider: "intervals_icu",
+        externalId: activity.externalId,
+        startDate: activity.startDate,
+        sport: activity.sport,
+        name: activity.name,
+        durationS: activity.durationS,
+        distanceM: activity.distanceM,
+        load: activity.load,
+        avgHr: activity.avgHr,
+        avgPower: activity.avgPower,
+        elevationM: activity.elevationM,
+        raw: activity.raw,
+      })
+      .onConflictDoUpdate({
+        target: [
+          schema.activities.userId,
+          schema.activities.provider,
+          schema.activities.externalId,
+        ],
+        set: {
+          startDate: activity.startDate,
+          sport: activity.sport,
+          name: activity.name,
+          durationS: activity.durationS,
+          distanceM: activity.distanceM,
+          load: activity.load,
+          avgHr: activity.avgHr,
+          avgPower: activity.avgPower,
+          elevationM: activity.elevationM,
+          raw: activity.raw,
+        },
+      });
+  }
 }
 
 /**
@@ -75,44 +122,7 @@ export async function runIntervalsSync(userId: string): Promise<SyncResult> {
       );
     }
 
-    for (const activity of activities) {
-      await db
-        .insert(schema.activities)
-        .values({
-          userId,
-          provider: "intervals_icu",
-          externalId: activity.externalId,
-          startDate: activity.startDate,
-          sport: activity.sport,
-          name: activity.name,
-          durationS: activity.durationS,
-          distanceM: activity.distanceM,
-          load: activity.load,
-          avgHr: activity.avgHr,
-          avgPower: activity.avgPower,
-          elevationM: activity.elevationM,
-          raw: activity.raw,
-        })
-        .onConflictDoUpdate({
-          target: [
-            schema.activities.userId,
-            schema.activities.provider,
-            schema.activities.externalId,
-          ],
-          set: {
-            startDate: activity.startDate,
-            sport: activity.sport,
-            name: activity.name,
-            durationS: activity.durationS,
-            distanceM: activity.distanceM,
-            load: activity.load,
-            avgHr: activity.avgHr,
-            avgPower: activity.avgPower,
-            elevationM: activity.elevationM,
-            raw: activity.raw,
-          },
-        });
-    }
+    await upsertIntervalsActivities(userId, activities);
 
     await db
       .update(schema.connections)

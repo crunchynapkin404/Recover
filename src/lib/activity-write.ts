@@ -48,5 +48,12 @@ export async function createManualActivity(
   if (opts?.recompute !== false) {
     await computeDailyMetrics(userId, input.startDate);
   }
+  // v0.15: a manual ride enters the debrief loop like a synced one.
+  try {
+    const { runDebriefLifecycle } = await import("@/lib/debrief/lifecycle");
+    await runDebriefLifecycle(userId);
+  } catch {
+    // best-effort; the log entry comes from inside the lifecycle
+  }
   return { activityId: row.id };
 }

@@ -1,5 +1,8 @@
+import { sql } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
 import {
   boolean,
+  customType,
   date,
   index,
   integer,
@@ -15,6 +18,13 @@ import {
 // Relative, not "@/": drizzle-kit loads this file outside the Next resolver.
 import type { DescriptionFields } from "../strava-description-fields";
 import type { DayFlag } from "../day-flags";
+
+/** Postgres tsvector — drizzle has no built-in type (v0.15 recall FTS). */
+const tsvector = customType<{ data: string }>({
+  dataType() {
+    return "tsvector";
+  },
+});
 
 // ── Better Auth tables (field names per Better Auth drizzle adapter) ─────────
 
@@ -117,6 +127,10 @@ export const connections = pgTable(
       .default("active"),
     lastSyncAt: timestamp("last_sync_at", { withTimezone: true }),
     lastError: text("last_error"),
+    // v0.15: activity-poll cursor — set every poll attempt, success or not.
+    lastActivityPollAt: timestamp("last_activity_poll_at", {
+      withTimezone: true,
+    }),
     // v0.6: true only when the OAuth grant includes activity:write
     // (Strava description write-back). Flipped false on write auth failures.
     stravaWriteEnabled: boolean("strava_write_enabled")
@@ -152,6 +166,22 @@ export const activities = pgTable(
     avgPower: real("avg_power"),
     elevationM: real("elevation_m"),
     raw: jsonb("raw"),
+    // v0.15 post-ride loop. debriefState null = never eligible (pre-v0.15
+    // rows and historical imports get no retroactive prompts).
+    perceivedExertion: real("perceived_exertion"),
+    feel: text("feel", { enum: ["strong", "normal", "weak"] }),
+    debriefNotes: text("debrief_notes"),
+    debriefState: text("debrief_state", {
+      enum: ["pending", "answered", "skipped", "expired"],
+    }),
+    debriefThreadId: uuid("debrief_thread_id").references(
+      () => chatThreads.id,
+      {
+        onDelete: "set null",
+      }
+    ),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    reviewAttempts: integer("review_attempts").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -163,6 +193,7 @@ export const activities = pgTable(
       t.externalId
     ),
     index("activities_user_start_idx").on(t.userId, t.startDate),
+    index("activities_user_debrief_idx").on(t.userId, t.debriefState),
   ]
 );
 
@@ -222,6 +253,10 @@ export const wellnessDaily = pgTable(
     // altitude). null and [] both mean "a normal day". See lib/day-flags.ts.
     dayFlags: jsonb("day_flags").$type<DayFlag[]>(),
     notes: text("notes"),
+    // v0.15 recall FTS over journal notes (see chatMessages.search).
+    search: tsvector("search").generatedAlwaysAs(
+      (): SQL => sql`to_tsvector('simple', coalesce(notes, ''))`
+    ),
     source: text("source", {
       enum: [
         "intervals_icu",
@@ -246,6 +281,7 @@ export const wellnessDaily = pgTable(
   (t) => [
     uniqueIndex("wellness_user_date_uq").on(t.userId, t.date),
     index("wellness_user_date_idx").on(t.userId, t.date),
+    index("wellness_search_idx").using("gin", t.search),
   ]
 );
 
@@ -284,7 +320,9 @@ export const chatThreads = pgTable("chat_threads", {
     .references(() => users.id, { onDelete: "cascade" }),
   title: text("title"),
   // System threads: 'morning' holds the daily proactive coach insight.
-  kind: text("kind", { enum: ["chat", "morning", "weekly"] })
+  kind: text("kind", {
+    enum: ["chat", "morning", "weekly", "debrief", "monthly"],
+  })
     .notNull()
     .default("chat"),
   // Ghost threads: auto-purged by the scheduler 24h after last activity.
@@ -333,8 +371,16 @@ export const chatMessages = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
+    // v0.15 recall FTS. 'simple' config: mixed Dutch/English conversations —
+    // language stemming would mangle one of them; exact tokens are never wrong.
+    search: tsvector("search").generatedAlwaysAs(
+      (): SQL => sql`to_tsvector('simple', coalesce(content, ''))`
+    ),
   },
-  (t) => [index("chat_messages_thread_idx").on(t.threadId, t.createdAt)]
+  (t) => [
+    index("chat_messages_thread_idx").on(t.threadId, t.createdAt),
+    index("chat_messages_search_idx").using("gin", t.search),
+  ]
 );
 
 export const apiTokens = pgTable("api_tokens", {
@@ -445,6 +491,9 @@ export const notificationPrefs = pgTable("notification_prefs", {
   stravaDescriptionFields: jsonb(
     "strava_description_fields"
   ).$type<DescriptionFields>(),
+  // v0.15 post-ride loop: the loop's kill switch, and its opt-in push.
+  rideDebriefsEnabled: boolean("ride_debriefs_enabled").notNull().default(true),
+  debriefPushEnabled: boolean("debrief_push_enabled").notNull().default(false),
 });
 
 /**
@@ -520,6 +569,39 @@ export const biomarkers = pgTable(
     ),
     index("biomarkers_user_name_idx").on(t.userId, t.name),
   ]
+);
+
+// ── v0.15 The Coach Remembers ───────────────────────────────────────────────
+
+/** One row per LLM call. Tokens, never cost estimates (BYO endpoints make
+ * pricing unknowable). Providers that omit usage produce no row at all. */
+export const llmUsage = pgTable(
+  "llm_usage",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    model: text("model").notNull(),
+    slot: text("slot", { enum: ["quick", "deep"] }).notNull(),
+    purpose: text("purpose", {
+      enum: [
+        "chat",
+        "morning",
+        "weekly",
+        "monthly",
+        "ride_review",
+        "race_debrief",
+        "health_extract",
+      ],
+    }).notNull(),
+    inputTokens: integer("input_tokens"),
+    outputTokens: integer("output_tokens"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("llm_usage_user_created_idx").on(t.userId, t.createdAt)]
 );
 
 // Instance-level key/value config (e.g. auto-generated VAPID keys; secret
