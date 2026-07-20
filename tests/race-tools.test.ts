@@ -161,7 +161,7 @@ describe.skipIf(!hasDb)("race coach tools", () => {
     ).not.toBeNull();
   });
 
-  it("delete_race removes and the registry counts 53", async () => {
+  it("delete_race removes and the registry counts 54", async () => {
     const { db } = await import("@/lib/db");
     const { getRacesTool } = await import("@/lib/tools/get-races");
     const { deleteRaceTool } = await import("@/lib/tools/delete-race");
@@ -176,7 +176,7 @@ describe.skipIf(!hasDb)("race coach tools", () => {
       expect(r.success).toBe(true);
     }
     const { allTools } = await import("@/lib/tools/registry");
-    expect(allTools.length).toBe(53);
+    expect(allTools.length).toBe(54);
     expect(allTools.map((t) => t.name)).toEqual(
       expect.arrayContaining([
         "get_races",

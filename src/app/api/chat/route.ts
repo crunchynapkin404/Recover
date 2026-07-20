@@ -119,7 +119,12 @@ export async function POST(req: Request) {
   // One registry, every provider: OpenAI-compatible endpoints (Ollama, LM
   // Studio, OpenRouter) support tool calling too — without tools the coach
   // can only hallucinate numbers, which the persona forbids.
-  const tools = buildAiSdkTools({ userId, db, ephemeral: isGhost });
+  const tools = buildAiSdkTools({
+    userId,
+    db,
+    ephemeral: isGhost,
+    threadId: activeThreadId ?? undefined,
+  });
 
   // LLM generation parameters — lower temperature for factual coaching
   const generationParams =

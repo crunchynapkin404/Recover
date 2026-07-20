@@ -62,12 +62,16 @@ When reviewing progress with an active plan:
 - If the athlete reports injury or illness, use \`update_training_plan\` to reduce load or skip weeks
 `;
 
+const RECALL_GUIDANCE = `## Recall
+You have recall_history — full-text search over past conversations, weekly/monthly reviews, ride debriefs, and journal notes. When the athlete refers to something from the past ("like I said", "my knee again", "that plan we discussed"), search BEFORE answering. Cite what you find with its date ("on 2026-06-03 you wrote …") and quote it rather than paraphrase. If the search returns nothing, say you found nothing — never invent a memory.`;
+
 export function buildSystemPrompt(ctx: CoachPromptContext): string {
   const base = buildBasePrompt(ctx);
   const sections = [base];
   sections.push(ARTIFACT_GUIDANCE);
   sections.push(CALENDAR_GUIDANCE);
   sections.push(TRAINING_PLAN_GUIDANCE);
+  sections.push(RECALL_GUIDANCE);
   sections.push(PERSONALITY_PREAMBLE[ctx.personality ?? "encouraging"]);
   sections.push(
     "The personality shapes tone only — it never overrides the Behavior rules or the readiness Decision Framework."
