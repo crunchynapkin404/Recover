@@ -257,6 +257,59 @@ describe.skipIf(!hasDb)("morning insight", () => {
       .where(eq(schema.chatMessages.threadId, result.threadId));
     expect(await getLatestMorningInsight(USER)).toBeNull();
   });
+
+  // Fix: a post-race debrief message landing in the morning thread (e.g. a
+  // post-midnight sync tick) must not be mistaken for "today's morning
+  // insight" — that would silently eat the athlete's real morning check-in.
+  it("a race-debrief message today does not suppress the morning insight", async () => {
+    const { db, schema } = await import("@/lib/db");
+    const { generateMorningInsight, findOrCreateMorningThread } =
+      await import("@/lib/morning-insight");
+    await seedMetric();
+
+    const thread = await findOrCreateMorningThread(USER);
+    await db.insert(schema.chatMessages).values({
+      threadId: thread.id,
+      role: "assistant",
+      content: "No activity landed for Test Race — mark it yourself.",
+      toolCalls: {
+        generated: "race_debrief",
+        kind: "race_debrief",
+        raceId: null,
+      },
+    });
+
+    const result = await generateMorningInsight(USER);
+    expect(result).not.toBe("skipped");
+  });
+
+  it("getLatestMorningInsight ignores a race-debrief message and returns the last real insight", async () => {
+    const { db, schema } = await import("@/lib/db");
+    const {
+      generateMorningInsight,
+      getLatestMorningInsight,
+      findOrCreateMorningThread,
+    } = await import("@/lib/morning-insight");
+    await seedMetric();
+
+    const result = await generateMorningInsight(USER);
+    if (result === "skipped") throw new Error("expected insight");
+
+    const thread = await findOrCreateMorningThread(USER);
+    await db.insert(schema.chatMessages).values({
+      threadId: thread.id,
+      role: "assistant",
+      content: "Debrief text",
+      toolCalls: {
+        generated: "race_debrief",
+        kind: "race_debrief",
+        raceId: null,
+      },
+    });
+
+    const latest = await getLatestMorningInsight(USER);
+    expect(latest?.text).toBe(result.text);
+  });
 });
 
 // Task 12: race-day brief — the morning insight goes race-aware when a race

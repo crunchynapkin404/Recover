@@ -46,6 +46,28 @@ function addDaysYmd(ymd: string, n: number): string {
   return localYmd(d);
 }
 
+/**
+ * Post-race debriefs (src/lib/race/debrief.ts's postDebrief) also land in the
+ * morning thread. They must never count as "today's morning insight" for the
+ * at-most-once guard or the dashboard card — a debrief landing first (e.g. a
+ * post-midnight sync tick) would otherwise silently eat the athlete's real
+ * morning check-in for the day.
+ */
+function isRaceDebriefMessage(msg: { toolCalls: unknown }): boolean {
+  const meta = (msg.toolCalls ?? {}) as { kind?: string };
+  return meta.kind === "race_debrief";
+}
+
+/** Most recent message in the thread that is not a race debrief. */
+async function latestNonDebriefMessage(threadId: string) {
+  const recent = await db.query.chatMessages.findMany({
+    where: eq(schema.chatMessages.threadId, threadId),
+    orderBy: desc(schema.chatMessages.createdAt),
+    limit: 10,
+  });
+  return recent.find((m) => !isRaceDebriefMessage(m)) ?? null;
+}
+
 export async function findOrCreateMorningThread(userId: string) {
   const existing = await db.query.chatThreads.findFirst({
     where: and(
@@ -89,10 +111,7 @@ export async function generateMorningInsight(
   }
 
   const thread = await findOrCreateMorningThread(userId);
-  const latest = await db.query.chatMessages.findFirst({
-    where: eq(schema.chatMessages.threadId, thread.id),
-    orderBy: desc(schema.chatMessages.createdAt),
-  });
+  const latest = await latestNonDebriefMessage(thread.id);
   if (latest && localYmd(latest.createdAt) === today) return "skipped";
 
   const warning = await getOvertrainingStatus(userId);
@@ -260,10 +279,7 @@ export async function getLatestMorningInsight(
     ),
   });
   if (!thread) return null;
-  const latest = await db.query.chatMessages.findFirst({
-    where: eq(schema.chatMessages.threadId, thread.id),
-    orderBy: desc(schema.chatMessages.createdAt),
-  });
+  const latest = await latestNonDebriefMessage(thread.id);
   if (!latest || localYmd(latest.createdAt) !== localYmd(now)) return null;
   const meta = (latest.toolCalls ?? {}) as { warning?: string | null };
   return {
