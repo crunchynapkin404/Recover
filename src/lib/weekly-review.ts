@@ -13,6 +13,7 @@ import { generateText } from "ai";
 import { db, schema } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { resolveProvider } from "@/lib/llm-provider";
+import { recordLlmUsage } from "@/lib/llm-usage";
 import { buildSystemPrompt } from "@/lib/coach-persona";
 
 export const WEEKLY_THREAD_TITLE = "Weekly Review";
@@ -299,11 +300,20 @@ export async function generateWeeklyReview(userId: string): Promise<void> {
         personality: resolved.personality,
       });
 
-      const { text: out } = await generateText({
+      const res = await generateText({
         model: resolved.provider(resolved.model),
         system,
         prompt: instruction,
         abortSignal: AbortSignal.timeout(15_000),
+      });
+      const out = res.text;
+      await recordLlmUsage({
+        userId,
+        model: resolved.model,
+        slot: resolved.slot,
+        purpose: "weekly",
+        inputTokens: res.totalUsage?.inputTokens ?? res.usage?.inputTokens,
+        outputTokens: res.totalUsage?.outputTokens ?? res.usage?.outputTokens,
       });
       if (out.trim()) text = out.trim();
     }

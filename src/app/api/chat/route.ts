@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth";
 import { db, schema } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { resolveProvider } from "@/lib/llm-provider";
+import { recordLlmUsage } from "@/lib/llm-usage";
 import { buildSystemPrompt } from "@/lib/coach-persona";
 import { buildAiSdkTools } from "@/lib/tools/registry";
 import { fetchAthleteContext } from "@/lib/coach-context";
@@ -143,7 +144,15 @@ export async function POST(req: Request) {
     tools,
     ...generationParams,
     stopWhen: stepCountIs(6),
-    onFinish: async ({ text }) => {
+    onFinish: async ({ text, totalUsage }) => {
+      await recordLlmUsage({
+        userId,
+        model: resolved.model,
+        slot: resolved.slot,
+        purpose: "chat",
+        inputTokens: totalUsage?.inputTokens,
+        outputTokens: totalUsage?.outputTokens,
+      });
       // Persist assistant response (skip if empty — e.g. tool-only responses)
       if (text?.trim() && activeThreadId) {
         await db.insert(schema.chatMessages).values({

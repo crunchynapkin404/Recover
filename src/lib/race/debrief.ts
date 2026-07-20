@@ -17,6 +17,7 @@ import { generateText } from "ai";
 import { db, schema } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { resolveProvider } from "@/lib/llm-provider";
+import { recordLlmUsage } from "@/lib/llm-usage";
 import { buildSystemPrompt } from "@/lib/coach-persona";
 import { fetchAthleteContext } from "@/lib/coach-context";
 import { inferSports } from "@/lib/training-plan";
@@ -80,11 +81,20 @@ async function phrase(
             todayDate: localYmd(new Date()),
             personality: resolved.personality,
           }) + `\n\n${context}`;
-        const { text: out } = await generateText({
+        const res = await generateText({
           model: resolved.provider(resolved.model),
           system,
           prompt: instruction,
           abortSignal: AbortSignal.timeout(10_000),
+        });
+        const out = res.text;
+        await recordLlmUsage({
+          userId,
+          model: resolved.model,
+          slot: resolved.slot,
+          purpose: "race_debrief",
+          inputTokens: res.totalUsage?.inputTokens ?? res.usage?.inputTokens,
+          outputTokens: res.totalUsage?.outputTokens ?? res.usage?.outputTokens,
         });
         if (out.trim()) return out.trim();
       }

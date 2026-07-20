@@ -17,6 +17,7 @@ export interface ResolvedProvider {
   providerType: "anthropic" | "openai_compatible";
   personality: "analytical" | "encouraging" | "direct";
   defaultMode: ChatMode;
+  slot: ChatMode;
 }
 
 export type ChatMode = "quick" | "deep";
@@ -55,6 +56,10 @@ export async function resolveProvider(
     ? decrypt(settings.encryptedApiKey)
     : undefined;
 
+  // The slot pickModel actually chose (same precedence: explicit mode →
+  // user default) — hoisted so both return branches can report it.
+  const slot: ChatMode = mode ?? settings.defaultMode;
+
   if (settings.providerType === "anthropic") {
     if (!apiKey) return null;
     const provider = createAnthropic({ apiKey });
@@ -64,6 +69,7 @@ export async function resolveProvider(
       providerType: "anthropic",
       personality: settings.coachPersonality,
       defaultMode: settings.defaultMode,
+      slot,
     };
   }
 
@@ -83,5 +89,6 @@ export async function resolveProvider(
     providerType: "openai_compatible",
     personality: settings.coachPersonality,
     defaultMode: settings.defaultMode,
+    slot,
   };
 }
