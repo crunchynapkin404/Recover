@@ -17,6 +17,8 @@ import { OuraCard } from "@/components/settings/oura-card";
 import { AppleHealthCard } from "@/components/settings/apple-health-card";
 import { WithingsCard } from "@/components/settings/withings-card";
 import { withingsConfigured } from "@/lib/connectors/withings";
+import { RideDebriefCard } from "@/components/settings/ride-debrief-card";
+import { LlmUsageCard } from "@/components/settings/llm-usage-card";
 import { SignOutButton } from "@/components/sign-out-button";
 import Link from "next/link";
 import { User } from "lucide-react";
@@ -289,6 +291,10 @@ export default async function SettingsPage({
           morningPushEnabled={notificationPrefs?.morningPushEnabled ?? true}
           subscriptionCount={pushSubs.length}
         />
+
+        <RideDebriefCard />
+
+        <LlmUsageCard />
 
         <BodyPrefsCard
           wakeTime={bodyPrefsRow?.wakeTime ?? null}
