@@ -113,6 +113,20 @@
       "when": 1784393515840,
       "tag": "0015_massive_lilandra",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1784476958930,
+      "tag": "0016_lovely_chameleon",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1784523149105,
+      "tag": "0017_lucky_makkari",
+      "breakpoints": true
     }
   ]
 }

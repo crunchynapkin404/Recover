@@ -249,3 +249,78 @@ describe("adaptDay — readiness and availability", () => {
     expect(r.week.days[2].workout!.durationMins).toBe(21);
   });
 });
+
+describe("adaptDay — race-day guards", () => {
+  it("leaves a race day untouched even on red readiness", () => {
+    const w = week([
+      D("2026-07-20", 60, { durationMins: 45 }),
+      D("2026-07-21", 60, { durationMins: 40 }),
+      D("2026-07-22", 90, null),
+      D("2026-07-23", 0, null, "race"),
+      D("2026-07-24", 60, null),
+      D("2026-07-25", 60, null),
+      D("2026-07-26", 60, null),
+    ]);
+    w.days[3] = { ...w.days[3], raceName: "Tune-up" };
+    const r = adaptDay({
+      week: w,
+      today: "2026-07-23",
+      band: "red",
+      yesterdayCompleted: null,
+    });
+    expect(r.adjustments).toHaveLength(0);
+    expect(r.week.days[3].status).toBe("race");
+    expect(r.week.days[3].workout).toBeNull();
+  });
+
+  it("no-time move never lands a workout on a race day", () => {
+    const w = week([
+      D("2026-07-20", 60, null, "rest"),
+      D("2026-07-21", 60, null, "rest"),
+      D("2026-07-22", 0, { type: "Endurance", durationMins: 45 }),
+      D("2026-07-23", 60, { durationMins: 40 }),
+      D("2026-07-24", 60, { durationMins: 40 }),
+      D("2026-07-25", 120, null, "race"),
+      D("2026-07-26", 60, { durationMins: 40 }),
+    ]);
+    w.days[5] = { ...w.days[5], raceName: "R" };
+    const r = adaptDay({
+      week: w,
+      today: "2026-07-22",
+      band: "green",
+      yesterdayCompleted: null,
+    });
+    expect(r.week.days[5].status).toBe("race");
+    expect(r.week.days[5].workout).toBeNull();
+    // dropped, not moved anywhere else that would displace the race slot
+    expect(
+      r.adjustments.some(
+        (a) => a.trigger === "no_time" && a.action === "dropped"
+      )
+    ).toBe(true);
+  });
+
+  it("missed-yesterday move-forward search skips a race day and finds the next free day", () => {
+    const w = week([
+      D("2026-07-20", 60, { type: "Intervals", durationMins: 50 }),
+      D("2026-07-21", 20, null), // today: not enough time, skipped as a target
+      D("2026-07-22", 90, null, "race"), // would otherwise be picked — must be skipped
+      D("2026-07-23", 90, null), // should receive the moved workout instead
+      D("2026-07-24", 60, null),
+      D("2026-07-25", 60, null),
+      D("2026-07-26", 60, null),
+    ]);
+    w.days[2] = { ...w.days[2], raceName: "R" };
+    const r = adaptDay({
+      week: w,
+      today: "2026-07-21",
+      band: "green",
+      yesterdayCompleted: false,
+    });
+    expect(r.week.days[2].status).toBe("race");
+    expect(r.week.days[2].workout).toBeNull();
+    const moved = r.week.days.find((d) => d.movedFrom === "2026-07-20");
+    expect(moved).toBeDefined();
+    expect(moved!.date).toBe("2026-07-23");
+  });
+});

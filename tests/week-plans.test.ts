@@ -411,6 +411,38 @@ describe.skipIf(!hasDb)("week-plan service", () => {
     expect(await moveWorkout(OTHER, todayYmd, restDate)).toBe("no_open_week");
   });
 
+  it("moveWorkout refuses to move a workout onto a race-day slot", async () => {
+    const { db, schema } = await import("@/lib/db");
+    const { moveWorkout, getOpenWeekPlan } =
+      await import("@/lib/week-plan/service");
+
+    const raceDate = seededDays().find((d) => d.date !== todayYmd)!.date;
+    const days = seededDays().map((d) =>
+      d.date === raceDate
+        ? { ...d, workout: null, status: "race" as const, raceName: "Test 10K" }
+        : d
+    );
+    await db.insert(schema.weekPlans).values({
+      userId: USER,
+      planId,
+      weekStart,
+      skeletonWeek: 1,
+      days,
+      status: "open",
+    });
+
+    expect(await moveWorkout(USER, todayYmd, raceDate)).toBe("invalid");
+
+    const week = await getOpenWeekPlan(USER);
+    const race = week!.days.find((d) => d.date === raceDate)!;
+    expect(race.status).toBe("race");
+    expect(race.raceName).toBe("Test 10K");
+    expect(race.workout).toBeNull();
+    const source = week!.days.find((d) => d.date === todayYmd)!;
+    expect(source.workout?.type).toBe("Intervals");
+    expect(source.status).toBe("planned");
+  });
+
   it("swapWorkouts exchanges two days when both fit", async () => {
     const { db, schema } = await import("@/lib/db");
     const { swapWorkouts, getOpenWeekPlan } =

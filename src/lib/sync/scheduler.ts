@@ -236,6 +236,16 @@ export async function runSchedulerTick(
           message: err instanceof Error ? err.message : String(err),
         });
       }
+      // v0.14 post-race debrief — guards inside make it once per race.
+      try {
+        const { runRaceDebriefs } = await import("@/lib/race/debrief");
+        await runRaceDebriefs(job.userId);
+      } catch (err) {
+        logger.error("race debrief failed", {
+          userId: job.userId,
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
       // v0.6 auto-describe — pushes metric descriptions to Strava for
       // opted-in users. Guards inside; errors never touch the sync job.
       if (job.provider === "intervals_icu") {

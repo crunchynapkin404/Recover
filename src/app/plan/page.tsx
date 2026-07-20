@@ -5,8 +5,11 @@ import { requireUser } from "@/lib/session";
 import { AppShell } from "@/components/app-shell";
 import { IntakeForm } from "@/components/plan/intake-form";
 import { WeekStrip } from "@/components/plan/week-strip";
+import { RacesSection } from "@/components/plan/races-section";
+import { DayActions } from "@/components/plan/day-actions";
 import { getOpenWeekPlan, listAdjustments } from "@/lib/week-plan/service";
 import { prefillAvailability } from "@/lib/week-plan/availability";
+import { listRaces } from "@/lib/race/service";
 import type { DaySlot } from "@/lib/week-plan/types";
 import {
   fetchBusyTimes,
@@ -56,6 +59,7 @@ const STATUS_CHIP: Record<DaySlot["status"], string> = {
   missed: "border-red-400/30 text-red-400",
   planned: "border-white/15 text-white/60",
   rest: "border-white/10 text-white/35",
+  race: "border-fuchsia-400/30 text-fuchsia-300",
 };
 
 export default async function PlanPage() {
@@ -91,6 +95,7 @@ export default async function PlanPage() {
 
   const week = await getOpenWeekPlan(user.id);
   const adjustments = week ? await listAdjustments(week.id) : [];
+  const races = await listRaces(user.id);
 
   // Availability intake — only while the week hasn't started completing.
   let intake: { suggested: number[] } | null = null;
@@ -137,17 +142,30 @@ export default async function PlanPage() {
     orderBy: [asc(schema.trainingBlocks.weekNumber)],
   });
   const remaining = blocks.filter((b) => b.weekNumber >= plan.currentWeek);
+  const openBlock = blocks.find(
+    (b) => b.weekNumber === (week?.skeletonWeek ?? plan.currentWeek)
+  );
 
   return (
     <AppShell>
       <header className="mb-8 pt-8">
-        <h1 className="text-2xl font-bold tracking-tight text-white/90">
-          {plan.title}
-        </h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold tracking-tight text-white/90">
+            {plan.title}
+          </h1>
+          {openBlock?.phase === "taper" && (
+            <span className="rounded-full border border-fuchsia-400/30 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-fuchsia-300">
+              Taper
+            </span>
+          )}
+        </div>
         <p className="mt-1 text-[12px] text-white/50">
           {`Race ${plan.raceDate} · week ${Math.min(plan.currentWeek, plan.weeksTotal)} of ${plan.weeksTotal}`}
+          {openBlock?.phase && ` · ${openBlock.phase} phase`}
         </p>
       </header>
+
+      <RacesSection races={races} />
 
       {intake && week && (
         <section className="mb-10">
@@ -166,40 +184,57 @@ export default async function PlanPage() {
 
           <section className="mb-10 space-y-3">
             {week.days.map((d) => (
-              <div
-                key={d.date}
-                className="glass flex items-center justify-between rounded-2xl px-5 py-4"
-              >
-                <div>
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-white/40">
-                    {dayLabel(d.date)}
-                  </p>
-                  {d.workout ? (
-                    <p className="mt-1 text-sm font-bold text-white">
-                      {`${d.workout.type} · ${d.workout.durationMins} min`}
-                      <span className="ml-2 font-normal text-white/50">
-                        {d.workout.intensity}
-                      </span>
+              <div key={d.date} className="glass rounded-2xl px-5 py-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-white/40">
+                      {dayLabel(d.date)}
                     </p>
-                  ) : (
-                    <p className="mt-1 text-sm font-bold text-white/50">Rest</p>
-                  )}
-                  {d.movedFrom && (
-                    <p className="mt-0.5 text-[11px] text-amber-400/80">
-                      {`moved from ${d.movedFrom}`}
-                    </p>
-                  )}
+                    {d.workout ? (
+                      <p className="mt-1 text-sm font-bold text-white">
+                        {`${d.workout.type} · ${d.workout.durationMins} min`}
+                        <span className="ml-2 font-normal text-white/50">
+                          {d.workout.intensity}
+                        </span>
+                      </p>
+                    ) : d.status === "race" ? (
+                      <p className="mt-1 text-sm font-bold text-fuchsia-300">
+                        {`🏁 ${d.raceName ?? "Race day"}`}
+                      </p>
+                    ) : (
+                      <p className="mt-1 text-sm font-bold text-white/50">
+                        Rest
+                      </p>
+                    )}
+                    {d.movedFrom && (
+                      <p className="mt-0.5 text-[11px] text-amber-400/80">
+                        {`moved from ${d.movedFrom}`}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex flex-col items-end gap-1">
+                    <span
+                      className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${STATUS_CHIP[d.status]}`}
+                    >
+                      {d.status}
+                    </span>
+                    <span className="text-[11px] text-white/40">
+                      {`${d.availableMins} min free`}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex flex-col items-end gap-1">
-                  <span
-                    className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${STATUS_CHIP[d.status]}`}
-                  >
-                    {d.status}
-                  </span>
-                  <span className="text-[11px] text-white/40">
-                    {`${d.availableMins} min free`}
-                  </span>
-                </div>
+                {d.workout && (
+                  <DayActions
+                    day={{ date: d.date, hasWorkout: true }}
+                    otherDays={week.days
+                      .filter((o) => o.date !== d.date)
+                      .map((o) => ({
+                        date: o.date,
+                        hasWorkout: o.workout !== null,
+                        isRace: o.status === "race",
+                      }))}
+                  />
+                )}
               </div>
             ))}
           </section>

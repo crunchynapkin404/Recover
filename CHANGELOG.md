@@ -1,5 +1,50 @@
 # Changelog
 
+## v0.14.0 — 2026-07-19 — Race Ready
+
+The adaptive week manages training; race day is why it exists. Everything
+here stands on v0.10's honest load engine — forecasting from fabricated CTL
+would be fabrication with extra steps. Design:
+`docs/specs/2026-07-19-v0.14-race-ready-design.md`.
+
+### Added
+
+- **Race calendar**: a `races` table (migration 0016) makes A/B/C races
+  first-class entities, with `training_plans.race_id` linking a plan to its
+  goal race. Generating a plan without an explicit race implicitly creates
+  the A race from the plan's target date, so coach memory's informal race
+  knowledge finally has a real row behind it.
+- **Taper engine** (`materializeWeek`): the living week reshapes into a taper
+  as race day approaches — window length by race distance (21/14/10 days)
+  and weekly load fractions (45%/65%/80%) — and the ramp guard's downward
+  clamp steps aside during taper weeks so the drop isn't fought as an
+  anomaly. Race-week openers keep the taper from feeling like a dead stop,
+  and race-day slots are untouchable by adaptation or manual moves.
+- **B/C race convention**: B races get a protected pre-race ease-off (a rest
+  day the day before, no quality work two days out); C races are training
+  days like any other and the plan trains straight through them.
+- **Readiness forecast** (`src/lib/race/forecast.ts`): a pure EMA
+  forward-simulation of CTL/ATL over the planned week, reported as an honest
+  two-scenario band — full execution vs trailing-adherence-scaled, floored
+  at 50% — and only ever FORM (TSB), never a projected readiness score. Falls
+  back to an explicit `insufficient` state when load history isn't
+  calibrated yet instead of guessing.
+- **What-if simulator** (`simulatePlanChange`): move/swap/skip previews on
+  `/plan` show the load and TSB impact before the change is saved, gated
+  behind a confirmation dialog when the delta is material, plus a read-only
+  `simulate_plan_change` coach tool for the same preview in chat.
+- **Race-day brief & post-race debrief**: the morning coach thread leads
+  with the race on race day; afterward, a debrief links the result activity,
+  closes the race, and — if no result has landed after 48 hours — says so
+  honestly instead of stalling silently. Both are transactional and
+  idempotent. The debrief links to Strava's results but keeps Strava's own
+  stats out of the AI narrative, per the existing firewall.
+- **Dashboard `RaceCountdownCard`**: next race, days out, and a projected
+  form-outlook band range, with honest `insufficient`/no-plan states instead
+  of a blank or fabricated card.
+- 4 new coach/MCP tools (49 → 53 total): `get_races`, `upsert_race`,
+  `delete_race`, `simulate_plan_change`.
+
 ## v0.13.0 — 2026-07-19 — Deep Biology
 
 Long-horizon health metrics, finally data-backed: v0.11's Withings

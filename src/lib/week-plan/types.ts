@@ -2,7 +2,7 @@ import type { PlannedWorkout } from "@/lib/training-plan";
 import type { Band } from "@/lib/readiness";
 
 export type DayStatus =
-  "planned" | "completed" | "adapted" | "moved" | "missed" | "rest";
+  "planned" | "completed" | "adapted" | "moved" | "missed" | "rest" | "race";
 
 export interface DaySlot {
   date: string; // YYYY-MM-DD
@@ -13,6 +13,8 @@ export interface DaySlot {
   movedFrom?: string;
   activityId?: string;
   actualLoad?: number;
+  /** Set on race-day slots (status "race"): the race's display name. */
+  raceName?: string;
 }
 
 export interface WeekState {
@@ -26,7 +28,8 @@ export type AdjustmentTrigger =
   | "no_time"
   | "missed_workout"
   | "availability_change"
-  | "weekly_rollover";
+  | "weekly_rollover"
+  | "race";
 
 export type AdjustmentAction =
   "scaled" | "moved" | "swapped" | "dropped" | "redistributed";

@@ -1,0 +1,1 @@
+ALTER TABLE "week_plans" ADD COLUMN "effective_target" real;

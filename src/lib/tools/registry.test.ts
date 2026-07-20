@@ -30,7 +30,7 @@ describe("tool registry", () => {
   });
 
   it("registers the v0.6 strava describe tool", () => {
-    expect(allTools.length).toBe(49);
+    expect(allTools.length).toBe(53);
     const names = allTools.map((t) => t.name);
     expect(names).toContain("describe_strava_activity");
     for (const name of [
@@ -118,7 +118,7 @@ describe("tool registry", () => {
   });
 
   it("registers the v0.9.6 absorbed icu_* activity/wellness/sport-settings tools with correct scopes", () => {
-    expect(allTools.length).toBe(49);
+    expect(allTools.length).toBe(53);
     const names = allTools.map((t) => t.name);
     for (const name of [
       "icu_update_activity",
@@ -153,7 +153,7 @@ describe("tool registry", () => {
   });
 
   it("registers the v0.9.6 absorbed icu_* histogram/search/intervals/workout-library read tools (48 total)", () => {
-    expect(allTools.length).toBe(49);
+    expect(allTools.length).toBe(53);
     const names = allTools.map((t) => t.name);
     for (const name of [
       "icu_get_hr_histogram",
@@ -173,7 +173,7 @@ describe("tool registry", () => {
   });
 
   it("registers the v0.9.6 get_workout_syntax reference tool (49 total)", () => {
-    expect(allTools.length).toBe(49);
+    expect(allTools.length).toBe(53);
     const tool = allTools.find((t) => t.name === "get_workout_syntax")!;
     expect(tool).toBeDefined();
     expect(tool.scope).toBeUndefined();
@@ -186,6 +186,29 @@ describe("tool registry", () => {
     expect(tool.scope).toBeUndefined(); // defaults to read
     expect(tool.parameters.safeParse({}).success).toBe(true);
     expect(tool.description.toLowerCase()).toContain("never diagnose");
+  });
+
+  it("registers the v0.14 race tools with correct scopes (53 total)", () => {
+    expect(allTools.length).toBe(53);
+    const names = allTools.map((t) => t.name);
+    for (const name of [
+      "get_races",
+      "upsert_race",
+      "delete_race",
+      "simulate_plan_change",
+    ]) {
+      expect(names).toContain(name);
+    }
+    // The 2 reads default to "read" (no explicit scope).
+    for (const name of ["get_races", "simulate_plan_change"]) {
+      const tool = allTools.find((t) => t.name === name)!;
+      expect(tool.scope).toBeUndefined();
+    }
+    // The 2 writes require write:plan.
+    for (const name of ["upsert_race", "delete_race"]) {
+      const tool = allTools.find((t) => t.name === name)!;
+      expect(tool.scope).toBe("write:plan");
+    }
   });
 
   it("get_calendar_availability validates days range", () => {

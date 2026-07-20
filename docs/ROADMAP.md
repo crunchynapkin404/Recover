@@ -320,27 +320,27 @@ and this release's blood-test extraction fixed the input side.
 **Done when:** a blood test is parsed, reviewed, and appears as trends —
 and a missing biomarker shows as missing, not interpolated. ✅
 
-## v0.14 — Race Ready
+## ✅ v0.14 — Race Ready
 
 The adaptive week manages training; race day is why it exists. Everything
 here stands on v0.10's honest load engine — forecasting from fabricated CTL
 would be fabrication with extra steps.
 
-- [ ] **Race calendar**: A/B/C races as first-class entities (coach memory
+- [x] **Race calendar**: A/B/C races as first-class entities (coach memory
       already knows them informally); countdown on the dashboard
-- [ ] **Taper engine**: the final skeleton weeks reshape into a taper from
+- [x] **Taper engine**: the final skeleton weeks reshape into a taper from
       current CTL and race distance; the ramp guard learns to taper
-- [ ] **Readiness forecast**: projected TSB and readiness band for race day
+- [x] **Readiness forecast**: projected TSB and readiness band for race day
       from the planned week — clearly labelled a projection, with honest
       uncertainty
-- [ ] **What-if simulator**: "what does moving Thursday's intervals to
+- [x] **What-if simulator**: "what does moving Thursday's intervals to
       Friday do to Sunday's form?" — plan changes preview their load impact
       before they're saved
-- [ ] **Race-day report**: morning-of readiness brief, and a post-race
+- [x] **Race-day report**: morning-of readiness brief, and a post-race
       debrief comparing plan against execution
 
 **Done when:** an athlete with a race in 8 weeks watches the plan taper into
-it and gets a defensible form projection that updates daily.
+it and gets a defensible form projection that updates daily. ✅
 
 ## v0.15 — Cycle-Aware Readiness
 

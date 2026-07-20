@@ -61,6 +61,7 @@ function handleMissedYesterday(
         isQuality(week.days[i + 1]?.workout ?? null);
       if (
         t.workout === null &&
+        t.status !== "race" &&
         t.availableMins >= workout.durationMins &&
         !adjacentQuality
       ) {
@@ -85,7 +86,11 @@ function handleMissedYesterday(
 
   // Drop + redistribute over remaining planned days, capped per day.
   const remaining = week.days.filter(
-    (d, i) => i >= todayIdx && d.workout && d.status !== "completed"
+    (d, i) =>
+      i >= todayIdx &&
+      d.workout &&
+      d.status !== "completed" &&
+      d.status !== "race"
   );
   const share = remaining.length ? workout.durationMins / remaining.length : 0;
   for (const d of remaining) {
@@ -124,6 +129,9 @@ export function adaptDay(input: AdaptDayInput): AdaptDayResult {
 
   const today = week.days[todayIdx];
 
+  // Race day: the slot is sacred — no scaling, no adaptation, no moves in.
+  if (today.status === "race") return { week, adjustments };
+
   // Availability first: time is a hard constraint, readiness a soft one.
   if (today.workout && today.workout.durationMins > today.availableMins) {
     const before = [{ ...today, workout: { ...today.workout } }];
@@ -134,6 +142,7 @@ export function adaptDay(input: AdaptDayInput): AdaptDayResult {
         (d, i) =>
           i > todayIdx &&
           d.workout === null &&
+          d.status !== "race" &&
           d.availableMins >= workout.durationMins
       );
       if (target !== -1) {

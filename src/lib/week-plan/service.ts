@@ -3,6 +3,7 @@
 // this layer only loads state, runs an engine, and persists the result.
 import { and, asc, desc, eq, gte, lt } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
+import { racesForWeek, currentCtl } from "@/lib/race/service";
 import { materializeWeek } from "./materialize";
 import { adaptDay } from "./adapt-day";
 import { prefillAvailability } from "./availability";
@@ -17,6 +18,8 @@ export interface OpenWeekPlan {
   weekStart: string;
   skeletonWeek: number;
   days: DaySlot[];
+  /** materializeWeek's effectiveLoad for this week — null on pre-fix rows. */
+  effectiveTarget: number | null;
 }
 
 function localYmd(d: Date): string {
@@ -111,6 +114,7 @@ export async function getOpenWeekPlan(
     weekStart: row.weekStart,
     skeletonWeek: row.skeletonWeek,
     days: row.days as DaySlot[],
+    effectiveTarget: row.effectiveTarget,
   };
 }
 
@@ -168,9 +172,13 @@ export async function rolloverWeekPlan(
         eq(schema.trainingBlocks.weekNumber, row.skeletonWeek)
       ),
     });
-    const adherencePct = block?.targetLoadTotal
-      ? Math.round((actualLoad / block.targetLoadTotal) * 100)
-      : 0;
+    // The week's persisted effective target (post-taper, post-hours-budget)
+    // wins over the block's un-tapered skeleton value — a taper week closed
+    // out at 100% of its actual (small) target must not score ~45% just
+    // because the skeleton block still holds the pre-taper number. Rows
+    // written before this column existed fall back to the block value.
+    const target = row.effectiveTarget ?? block?.targetLoadTotal ?? null;
+    const adherencePct = target ? Math.round((actualLoad / target) * 100) : 0;
     if (block) {
       await db
         .update(schema.trainingBlocks)
@@ -222,6 +230,10 @@ export async function rolloverWeekPlan(
   }).map((mins, i) => (addDaysYmd(weekStart, i) < today ? 0 : mins));
 
   // 3. Materialize.
+  const [races, ctlNow] = await Promise.all([
+    racesForWeek(userId, weekStart),
+    currentCtl(userId),
+  ]);
   const r = materializeWeek({
     weekStart,
     skeleton: {
@@ -236,6 +248,8 @@ export async function rolloverWeekPlan(
     raceType: plan.raceType,
     sports: constraints.sports,
     hoursPerWeek: constraints.hoursPerWeek,
+    races,
+    currentCtl: ctlNow,
   });
 
   // 4. Persist.
@@ -248,6 +262,7 @@ export async function rolloverWeekPlan(
       skeletonWeek: skeleton.weekNumber,
       days: r.week.days,
       status: "open",
+      effectiveTarget: r.effectiveLoad,
     })
     .returning();
   if (supersededPlan) {
@@ -383,6 +398,10 @@ export async function applyAvailability(
   });
   const constraints = planConstraints(plan.constraints);
 
+  const [races, ctlNow] = await Promise.all([
+    racesForWeek(userId, week.weekStart),
+    currentCtl(userId),
+  ]);
   const r = materializeWeek({
     weekStart: week.weekStart,
     skeleton: {
@@ -403,6 +422,8 @@ export async function applyAvailability(
     raceType: plan.raceType,
     sports: constraints.sports,
     hoursPerWeek: constraints.hoursPerWeek,
+    races,
+    currentCtl: ctlNow,
   });
 
   const merged = r.week.days.map((d, i) => (locked[i] ? week.days[i] : d));
@@ -412,7 +433,7 @@ export async function applyAvailability(
   const now = new Date();
   await db
     .update(schema.weekPlans)
-    .set({ days: merged, updatedAt: now })
+    .set({ days: merged, effectiveTarget: r.effectiveLoad, updatedAt: now })
     .where(eq(schema.weekPlans.id, week.id));
   const today = localYmd(now);
   await saveAdjustments(week.id, [
@@ -453,6 +474,7 @@ export async function moveWorkout(
   if (from.status === "completed" || from.status === "missed") return "invalid";
   if (to.workout !== null) return "invalid";
   if (to.status === "completed" || to.status === "missed") return "invalid";
+  if (to.status === "race") return "invalid";
   if (to.availableMins < from.workout.durationMins) return "invalid";
 
   const days = week.days.map((d) => ({

@@ -63,6 +63,14 @@ OpenAI-compatible endpoint including a fully local Ollama. Keys are encrypted
   adaptive week: set which days you're available, let poor readiness move or
   shrink sessions instead of pretending the plan still fits, and track
   planned-vs-actual drift. One tap on `/plan` starts the week.
+- **Race Ready** — A/B/C races are first-class, with a dashboard countdown
+  card. The living week tapers automatically as race day nears (window and
+  weekly load by race distance), B races get a protected pre-race ease-off,
+  and race-day slots are untouchable. A pure EMA forecast projects an honest
+  form band for race day — never a readiness guess — and a what-if simulator
+  previews the load/form impact of a move, swap, or skip before you commit.
+  The morning coach leads with a race-day brief, and a post-race debrief
+  links the result and closes the loop.
 - **Deeper insights** — the journal correlates behaviors against next-day
   readiness with honest 95% confidence intervals: manual tags plus auto-tags
   derived from your activities (hard sessions, double days, rest days,
@@ -90,12 +98,13 @@ OpenAI-compatible endpoint including a fully local Ollama. Keys are encrypted
 - **MCP server** — stateless streamable-HTTP endpoint at `/api/mcp` with
   hashed, scoped (`read` / `write:wellness` / `write:plan` / `write:memory` /
   `write:strava` / `write:icu`), revocable bearer tokens and rate limiting.
-  48 tools: readiness (+ history), wellness, log-wellness, fitness &
+  53 tools: readiness (+ history), wellness, log-wellness, fitness &
   training-load summaries, power/pace curves, best efforts, activity list &
   detail, athlete profile, planned workouts, calendar availability, coach
   memory (remember/forget), chart rendering, training-plan generate/get/update,
-  Strava description write-back, and the living week (get plan / set
-  availability / drift). Also a full intervals.icu tool set absorbed from the
+  Strava description write-back, the living week (get plan / set
+  availability / drift), biomarkers, and races (get/upsert/delete/simulate
+  plan change). Also a full intervals.icu tool set absorbed from the
   standalone `intervals-icu-mcp` server: calendar events (list/get/create/
   update/delete/bulk/duplicate), activity edits and messages, wellness push,
   sport settings, an apply-training-plan action, per-activity histograms
@@ -144,7 +153,7 @@ fills a demo account with 90 days of plausible training history (see
 
 ## Status & roadmap
 
-**Current release: v0.13.0 — Deep Biology (released 2026-07-19).** The v0.9→v0.13 series made
+**Current release: v0.14.0 — Race Ready (released 2026-07-19).** The v0.9→v0.14 series made
 the app honest, adaptive, and durable: v0.9.0 deleted every metric the data
 couldn't back, v0.9.2–0.9.3 turned static training plans into a living week
 that adapts to your availability and readiness, v0.9.4 added auto-tags,
@@ -158,16 +167,19 @@ v0.11 opened up the data sources — Whoop, Oura, Apple Health, and Withings
 feed wellness alongside intervals.icu, resolved by an explicit per-field
 priority, with a guided first run — and v0.12 turned that staged-sleep data
 into real sleep-stage, consistency, and chronotype cards, and gave the app
-a proper desktop layout, and v0.13 added deep biology — upload a blood test
+a proper desktop layout, v0.13 added deep biology — upload a blood test
 to extract biomarkers (reviewed before anything is stored), a biological-age
-estimate, and blood-pressure trends against clinical bands. All on top of
-the full stack: manual entry and CSV import, intervals.icu sync, readiness
+estimate, and blood-pressure trends against clinical bands — and v0.14 gave
+the living week its payoff: A/B/C races as first-class entities with a
+dashboard countdown, a taper engine that reshapes the week from current load
+and race distance, an honest EMA form-outlook band for race day, and a
+what-if simulator that previews a plan change's impact before it's saved.
+All on top of the full stack: manual entry and CSV import, intervals.icu sync, readiness
 scoring, dashboard, journal, analytics depth, installable PWA with morning
 push, AI coach with memory/personalities/proactive insights, training plans,
 Google Calendar awareness, chart artifacts, weekly reviews, Strava AI
-descriptions, and 49 MCP tools. Next up: the adaptive week's payoff (v0.14 —
-race calendar, taper engine, readiness forecast), then cycle-aware readiness
-(v0.15). The full plan lives in [docs/ROADMAP.md](docs/ROADMAP.md).
+descriptions, and 53 MCP tools. Next up: cycle-aware readiness (v0.15). The
+full plan lives in [docs/ROADMAP.md](docs/ROADMAP.md).
 
 An honest hobby project built for one owner and about ten friends. If it's
 useful to you, self-host it and make it yours. Issues and PRs welcome — see

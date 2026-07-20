@@ -258,3 +258,115 @@ describe("materializeWeek layout", () => {
     expect(r.week.days[6].workout!.type).toBe("Long");
   });
 });
+
+import type { RaceContext } from "@/lib/race/taper";
+
+const AVAIL = [60, 90, 60, 90, 60, 120, 180]; // Mon..Sun
+const SKELETON = {
+  weekNumber: 10,
+  phase: "peak" as const,
+  targetLoadTotal: 400,
+  targetSessions: 5,
+};
+const BASE_INPUT = {
+  weekStart: "2026-08-24",
+  skeleton: SKELETON,
+  availabilityMins: AVAIL,
+  prevWeek: { actualLoad: 380, adherencePct: 95 },
+  recentBands: [] as import("./types").Band[],
+  raceType: "marathon",
+  sports: ["Run"],
+  hoursPerWeek: 8,
+};
+const A_RACE: RaceContext = {
+  date: "2026-08-30", // Sunday of BASE_INPUT week
+  priority: "A",
+  raceType: "marathon",
+  name: "City Marathon",
+};
+
+describe("materializeWeek race handling", () => {
+  it("A race week: openers only, race slot on race day, rest the day before", () => {
+    const r = materializeWeek({ ...BASE_INPUT, races: [A_RACE] });
+    const days = r.week.days;
+    expect(days[6].status).toBe("race");
+    expect(days[6].workout).toBeNull();
+    expect(days[6].raceName).toBe("City Marathon");
+    expect(days[5].workout).toBeNull(); // Saturday rest
+    expect(days[3].workout?.durationMins).toBe(30); // Thursday easy
+    expect(days[4].workout?.durationMins).toBe(20); // Friday openers
+    // Taper target: 0.45 × 380 = 171
+    expect(r.effectiveLoad).toBe(171);
+    expect(r.adjustments.some((a) => a.reason.startsWith("taper:"))).toBe(true);
+  });
+
+  it("taper bypasses the downward ramp clamp but not the upward one", () => {
+    const r = materializeWeek({ ...BASE_INPUT, races: [A_RACE] });
+    // 171 is far below 380×0.8=304 — without the bypass it would clamp.
+    expect(r.effectiveLoad).toBe(171);
+    expect(
+      r.adjustments.some((a) =>
+        a.reason.includes("ramp guard downward clamp bypassed")
+      )
+    ).toBe(true);
+  });
+
+  it("A race next week (week−1): load reshaped, no race slot", () => {
+    const r = materializeWeek({
+      ...BASE_INPUT,
+      weekStart: "2026-08-17",
+      races: [A_RACE],
+    });
+    expect(r.effectiveLoad).toBe(Math.round(380 * 0.65));
+    expect(r.week.days.every((d) => d.status !== "race")).toBe(true);
+  });
+
+  it("taper base falls back to currentCtl*7 when no prev week", () => {
+    const r = materializeWeek({
+      ...BASE_INPUT,
+      prevWeek: null,
+      currentCtl: 50,
+      races: [A_RACE],
+    });
+    expect(r.effectiveLoad).toBe(Math.round(50 * 7 * 0.45)); // 158
+  });
+
+  it("B race: race slot, day before rest, quality 2 days out stepped down", () => {
+    const bRace: RaceContext = { ...A_RACE, priority: "B", name: "Tune-up" };
+    const r = materializeWeek({ ...BASE_INPUT, races: [bRace] });
+    const days = r.week.days;
+    expect(days[6].status).toBe("race");
+    expect(days[5].workout).toBeNull();
+    if (days[4].workout) expect(isQuality(days[4].workout)).toBe(false);
+    // No taper reshaping for B: load is the normal effective load.
+    expect(r.effectiveLoad).not.toBe(171);
+    expect(r.adjustments.some((a) => a.trigger === "race")).toBe(true);
+  });
+
+  it("C race: only the race day is replaced", () => {
+    const cRace: RaceContext = { ...A_RACE, priority: "C", name: "Parkrun" };
+    const r = materializeWeek({ ...BASE_INPUT, races: [cRace] });
+    const days = r.week.days;
+    expect(days[6].status).toBe("race");
+    // Saturday untouched by protection (may or may not hold a workout,
+    // but no race-trigger adjustment references it):
+    expect(
+      r.adjustments
+        .filter((a) => a.trigger === "race")
+        .every((a) => a.date === "2026-08-30")
+    ).toBe(true);
+  });
+
+  it("two races: primary (first) reshapes, both get slots", () => {
+    const cSat: RaceContext = {
+      date: "2026-08-29",
+      priority: "C",
+      raceType: "5k",
+      name: "Shakeout 5k",
+    };
+    const r = materializeWeek({ ...BASE_INPUT, races: [A_RACE, cSat] });
+    expect(r.week.days[6].status).toBe("race");
+    expect(r.week.days[5].status).toBe("race");
+    expect(r.effectiveLoad).toBe(171); // A won the reshaping
+  });
+});

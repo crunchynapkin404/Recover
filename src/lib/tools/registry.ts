@@ -76,8 +76,12 @@ import { icuGetWorkoutLibrary } from "./icu-get-workout-library";
 import { icuGetWorkoutsInFolder } from "./icu-get-workouts-in-folder";
 import { getWorkoutSyntax } from "./get-workout-syntax";
 import { getBiomarkers } from "./get-biomarkers";
+import { getRacesTool } from "./get-races";
+import { upsertRaceTool } from "./upsert-race";
+import { deleteRaceTool } from "./delete-race";
+import { simulatePlanChangeTool } from "./simulate-plan-change";
 
-/** All registered tools (49 — docs/PLAN.md MCP design + v0.4a memory + v0.4c depth + v0.5a artifacts + v0.5c calendar + v0.5d training plans + v0.6 strava describe + v0.9.2 living week + v0.9.6 absorbed icu_* tools + v0.9.6 workout-syntax reference tool + v0.13 get_biomarkers). */
+/** All registered tools (53 — docs/PLAN.md MCP design + v0.4a memory + v0.4c depth + v0.5a artifacts + v0.5c calendar + v0.5d training plans + v0.6 strava describe + v0.9.2 living week + v0.9.6 absorbed icu_* tools + v0.9.6 workout-syntax reference tool + v0.13 get_biomarkers + v0.14 races/what-if). */
 export const allTools: ToolDefinition[] = [
   getReadiness,
   getReadinessHistory,
@@ -128,6 +132,10 @@ export const allTools: ToolDefinition[] = [
   icuGetWorkoutsInFolder,
   getWorkoutSyntax,
   getBiomarkers,
+  getRacesTool,
+  upsertRaceTool,
+  deleteRaceTool,
+  simulatePlanChangeTool,
 ];
 
 /** Required scope for a tool (default "read"). */

@@ -5,6 +5,7 @@
  */
 import { desc, eq, and } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
+import { createRace } from "@/lib/race/service";
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -33,6 +34,7 @@ export interface GeneratePlanParams {
   daysPerWeek?: number; // default 5
   hoursPerWeek?: number; // default 8
   sports?: string[];
+  raceId?: string;
 }
 
 export interface GeneratePlanResult {
@@ -51,7 +53,7 @@ function localYmd(d: Date): string {
 }
 
 /** Infer primary sport from race type */
-function inferSports(raceType: string, explicit?: string[]): string[] {
+export function inferSports(raceType: string, explicit?: string[]): string[] {
   if (explicit?.length) return explicit;
   const rt = raceType.toLowerCase();
   if (rt.includes("triathlon") || rt.includes("ironman") || rt.includes("70.3"))
@@ -480,13 +482,19 @@ function generateTriathlonWorkouts(
 export async function generateTrainingPlan(
   params: GeneratePlanParams
 ): Promise<GeneratePlanResult> {
-  const {
-    userId,
-    raceType,
-    raceDate,
-    daysPerWeek = 5,
-    hoursPerWeek = 8,
-  } = params;
+  const { userId, daysPerWeek = 5, hoursPerWeek = 8 } = params;
+
+  let raceId = params.raceId ?? null;
+  let raceType = params.raceType;
+  let raceDate = params.raceDate;
+  if (raceId) {
+    const race = await db.query.races.findFirst({
+      where: and(eq(schema.races.id, raceId), eq(schema.races.userId, userId)),
+    });
+    if (!race) throw new Error("race_not_found");
+    raceType = race.raceType;
+    raceDate = race.date;
+  }
 
   // 1. Calculate plan duration
   const today = new Date();
@@ -540,6 +548,17 @@ export async function generateTrainingPlan(
       )
     );
 
+  if (!raceId) {
+    const created = await createRace(userId, {
+      name: params.title ?? `${raceType}`,
+      raceType,
+      date: raceDate,
+      priority: "A",
+    });
+    if ("race" in created) raceId = created.race.id;
+    // past_date is unreachable here: weeksTotal >= 4 already guarantees a future date
+  }
+
   const [plan] = await db
     .insert(schema.trainingPlans)
     .values({
@@ -550,6 +569,7 @@ export async function generateTrainingPlan(
       startDate,
       weeksTotal,
       startingCtl,
+      raceId,
       constraints: { daysPerWeek, hoursPerWeek, sports },
     })
     .returning();
