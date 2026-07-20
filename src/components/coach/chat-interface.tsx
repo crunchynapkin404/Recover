@@ -153,6 +153,16 @@ export function ChatInterface({
     setDictating(true);
   }, [dictating]);
 
+  // Stop any live recognition instance on unmount — otherwise the browser's
+  // SpeechRecognition object (kept alive by its own event-handler closures,
+  // not React's lifecycle) can keep listening after the athlete navigates
+  // away, since continuous:true means it never stops on its own.
+  useEffect(() => {
+    return () => {
+      recognitionRef.current?.stop();
+    };
+  }, []);
+
   const fetchThreadMessages = useCallback(
     async (threadId: string) => {
       try {
