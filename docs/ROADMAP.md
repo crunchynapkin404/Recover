@@ -435,7 +435,7 @@ The last 0.x. Nothing new — everything trustable.
 
 **Done when:** v1.0.0 tags the next commit.
 
-## v0.19 — Design Refresh
+## ✅ v0.19 — Design Refresh
 
 A Superdesign pass (`docs/flow-export-1784540566598/`, project
 `feee3bd4-a46d-4c81-93eb-16107ffebbcf`) rethought the dashboard, coach, log,
@@ -445,23 +445,26 @@ rebuild: the underlying data and features are unchanged, and several of its
 patterns directly close items already sitting in "Ongoing — design & UX"
 below.
 
-- [ ] **Dashboard hero simplification**: one animated Readiness ring as the
-      page's single focal metric; Recovery/Sleep/BRI demoted to a compact
-      stat row; "Recovery Metrics" and "Recent Sessions" become
+- [x] **Dashboard hero simplification**: one animated Readiness ring as the
+      page's single focal metric; Recovery/Sleep/Strain demoted to a compact
+      stat row (the mockup's "BRI Score" was dropped — no such metric exists
+      in the codebase); "Recovery Metrics" and "Recent Sessions" become
       collapsed-by-default accordions instead of always-expanded sections
-- [ ] **Settings information architecture**: one accordion per domain
-      (Integrations, AI & Tech, Advanced, App, About), only Profile open by
-      default — closes the "Settings information architecture" item below
-- [ ] **Log page time navigation**: Today/Week/Month segmented toggle plus a
-      month strip, replacing the current Training/Wellness-only toggle; PMC
-      chart wrapped in a collapsible section — a first step on "Chart
-      consistency" below, not a full resolution (restyles the wrapper, not
-      the underlying chart grammar)
-- [ ] **Journal restructure**: stepped check-in (one open step, completed
+- [x] **Settings information architecture**: one accordion per domain
+      (Integrations, AI & Tech, Advanced/API, App, About), only Profile open
+      by default — closes the "Settings information architecture" item below
+- [x] **Log page time navigation**: Today/Week/Month segmented toggle plus a
+      month strip, replacing the current Training/Wellness-only toggle; both
+      the PMC ("Performance Trends") and Wellness Trends panels wrapped in
+      collapsible sections, always present (the old toggle's wellness-trends
+      view is preserved as a collapsed section, not dropped) — a first step
+      on "Chart consistency" below, not a full resolution (restyles the
+      wrapper, not the underlying chart grammar)
+- [x] **Journal restructure**: stepped check-in (one open step, completed
       steps collapse with a checkmark) instead of one long flat form;
       correlation insights promoted above the form instead of below it;
       5-day calendar strip with a streak indicator
-- [ ] **AI Coach chat chrome**: collapsible chat-history and quick-context
+- [x] **AI Coach chat chrome**: collapsible chat-history and quick-context
       panels, inline structured data cards in coach replies, quick-reply
       chips — voice input in the composer shipped as part of v0.15, not
       duplicated here
@@ -472,12 +475,19 @@ flow-navigation artifact linking between draft pages, not an intended
 logout control. The settings mockup's light/dark toggle is decorative;
 Recover stays dark-only until a real light theme is scoped. Coach-header
 search/bookmark/archive icons and composer image/mic buttons beyond voice
-are visual stubs unless a later task backs them with real features.
+are dropped, not built as stubs. Login itself was out of scope for this
+release (the mockup export includes a login draft, but the roadmap above
+never named it, and it's a flow-tool artifact rather than a real target).
+Also shipped beyond the original scope: honest empty states and
+layout-stable loading skeletons on all five touched pages, and a semantic
+heading wrapper on every new collapsible trigger (found during the
+whole-branch review — the shared primitive had dropped screen-reader
+heading navigation across all five pages).
 
 **Done when:** the dashboard, coach, log, journal, and settings pages match
 the export's structural pattern (collapsed-by-default sections, restyled
 charts), and the "Settings information architecture" backlog item is
-checked off.
+checked off. ✅
 
 ## Ongoing — operations track
 
@@ -516,11 +526,15 @@ kind that never earns its own release. Pick up alongside any release, same
 as the polish backlog.
 
 - [ ] Empty states: every page says something useful (and honest) when its
-      data doesn't exist yet, instead of rendering a blank card
-- [ ] Loading skeletons: layout-stable placeholders instead of pop-in
-- [ ] Settings information architecture: one long page currently feeds
+      data doesn't exist yet, instead of rendering a blank card. Done for
+      the 5 pages v0.19 restructured (dashboard, settings, log, journal,
+      coach); the rest of the app (plan, activity, health, import) is
+      still open
+- [ ] Loading skeletons: layout-stable placeholders instead of pop-in.
+      Done for the same 5 pages v0.19 restructured; the rest is still open
+- [x] Settings information architecture: one long page currently feeds
       seven action domains (LLM, push, Strava, tokens, body, coach, …) —
-      split into sections or sub-pages. → v0.19 (accordion-per-domain)
+      split into sections or sub-pages. → v0.19 (accordion-per-domain) ✅
 - [ ] Chart consistency: one visual grammar (axes, bands, tooltips, colors)
       across dashboard sparklines, fitness PMC, wellness trends, and coach
       artifacts. v0.19 restyles chart wrappers on log/dashboard but doesn't
