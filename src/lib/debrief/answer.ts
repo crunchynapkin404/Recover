@@ -38,7 +38,7 @@ export async function storeDebriefAnswer(
   }
   const a = await pendingActivity(userId, activityId);
   if (!a) return { ok: false, message: "No pending debrief for this ride." };
-  await db
+  const rows = await db
     .update(schema.activities)
     .set({
       debriefState: "answered",
@@ -52,7 +52,10 @@ export async function storeDebriefAnswer(
         eq(schema.activities.id, activityId),
         eq(schema.activities.debriefState, "pending")
       )
-    );
+    )
+    .returning();
+  if (rows.length === 0)
+    return { ok: false, message: "No pending debrief for this ride." };
   return { ok: true };
 }
 
@@ -62,7 +65,7 @@ export async function storeDebriefSkip(
 ): Promise<DebriefResult> {
   const a = await pendingActivity(userId, activityId);
   if (!a) return { ok: false, message: "No pending debrief for this ride." };
-  await db
+  const rows = await db
     .update(schema.activities)
     .set({ debriefState: "skipped" })
     .where(
@@ -70,6 +73,9 @@ export async function storeDebriefSkip(
         eq(schema.activities.id, activityId),
         eq(schema.activities.debriefState, "pending")
       )
-    );
+    )
+    .returning();
+  if (rows.length === 0)
+    return { ok: false, message: "No pending debrief for this ride." };
   return { ok: true };
 }

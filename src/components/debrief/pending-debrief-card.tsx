@@ -13,11 +13,13 @@ export async function PendingDebriefCard({ userId }: { userId: string }) {
   if (!pending) return null;
   const raw = pending.raw as Record<string, unknown> | null;
   return (
-    <DebriefForm
-      activityId={pending.id}
-      activityName={pending.name ?? pending.sport}
-      prefillRpe={rpeFromRaw(raw)}
-      prefillFeel={feelFromIcu(raw?.feel)}
-    />
+    <div className="mb-10">
+      <DebriefForm
+        activityId={pending.id}
+        activityName={pending.name ?? pending.sport}
+        prefillRpe={rpeFromRaw(raw)}
+        prefillFeel={feelFromIcu(raw?.feel)}
+      />
+    </div>
   );
 }

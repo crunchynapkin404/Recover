@@ -110,4 +110,42 @@ describe.skipIf(!hasDb)("storeDebriefAnswer", () => {
     expect(row?.debriefState).toBe("skipped");
     expect(row?.perceivedExertion).toBeNull();
   });
+
+  it("a losing race on double-submit reports ok:false, not a silent no-op", async () => {
+    const { db, schema } = await import("@/lib/db");
+    const { storeDebriefAnswer } = await import("@/lib/debrief/answer");
+    const a = await makePending();
+    // First submit wins the race and transitions pending → answered.
+    const first = await storeDebriefAnswer(USER, a.id, {
+      rpe: 6,
+      feel: "normal",
+      notes: null,
+    });
+    expect(first.ok).toBe(true);
+    // Second submit races in right after — the row is no longer pending, so
+    // its UPDATE...WHERE correctly touches 0 rows. The function must report
+    // that honestly instead of claiming ok:true on a no-op.
+    const second = await storeDebriefAnswer(USER, a.id, {
+      rpe: 9,
+      feel: "weak",
+      notes: "should never be written",
+    });
+    expect(second.ok).toBe(false);
+    const row = await db.query.activities.findFirst({
+      where: eq(schema.activities.id, a.id),
+    });
+    // Losing submit's data must never have landed.
+    expect(row?.perceivedExertion).toBe(6);
+    expect(row?.feel).toBe("normal");
+    expect(row?.debriefNotes).toBeNull();
+  });
+
+  it("a losing race on double-skip reports ok:false, not a silent no-op", async () => {
+    const { storeDebriefSkip } = await import("@/lib/debrief/answer");
+    const a = await makePending();
+    const first = await storeDebriefSkip(USER, a.id);
+    expect(first.ok).toBe(true);
+    const second = await storeDebriefSkip(USER, a.id);
+    expect(second.ok).toBe(false);
+  });
 });
