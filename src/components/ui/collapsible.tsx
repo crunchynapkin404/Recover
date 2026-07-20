@@ -21,23 +21,25 @@ function CollapsibleTrigger({
   ...props
 }: CollapsiblePrimitive.Trigger.Props & { badge?: React.ReactNode }) {
   return (
-    <CollapsiblePrimitive.Trigger
-      data-slot="collapsible-trigger"
-      className={cn(
-        "glass group flex w-full items-center justify-between gap-3 rounded-2xl p-5 text-left",
-        className
-      )}
-      {...props}
-    >
-      <span className="flex items-center gap-3">{children}</span>
-      <span className="flex items-center gap-2">
-        {badge}
-        <ChevronDown
-          aria-hidden
-          className="size-4 text-white/40 transition-transform duration-300 group-data-[panel-open]:rotate-180"
-        />
-      </span>
-    </CollapsiblePrimitive.Trigger>
+    <h3 className="contents">
+      <CollapsiblePrimitive.Trigger
+        data-slot="collapsible-trigger"
+        className={cn(
+          "glass group flex w-full items-center justify-between gap-3 rounded-2xl p-5 text-left",
+          className
+        )}
+        {...props}
+      >
+        <span className="flex items-center gap-3">{children}</span>
+        <span className="flex items-center gap-2">
+          {badge}
+          <ChevronDown
+            aria-hidden
+            className="size-4 text-white/40 transition-transform duration-300 group-data-[panel-open]:rotate-180"
+          />
+        </span>
+      </CollapsiblePrimitive.Trigger>
+    </h3>
   );
 }
 
