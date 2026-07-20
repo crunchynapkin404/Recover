@@ -4,6 +4,11 @@ import { useActionState, useState } from "react";
 import { Flame, CheckCircle } from "lucide-react";
 import { logWellness, type ActionResult } from "@/app/wellness/actions";
 import { ALL_DAY_FLAGS, type DayFlag } from "@/lib/day-flags";
+import {
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsiblePanel,
+} from "@/components/ui/collapsible";
 
 function localYmd(d: Date): string {
   return d.toLocaleDateString("en-CA");
@@ -95,6 +100,9 @@ export function JournalForm({
   const [manualRhr, setManualRhr] = useState<string>("");
   const [manualSleep, setManualSleep] = useState<string>("");
   const [manualWeight, setManualWeight] = useState<string>("");
+  const [activeStep, setActiveStep] = useState<
+    "feeling" | "sliders" | "vitals"
+  >("feeling");
 
   const toggleDayFlag = (flag: DayFlag) => {
     setDayFlags((prev) => {
@@ -272,250 +280,301 @@ export function JournalForm({
         />
 
         {/* 1. Subjective feeling */}
-        <div className="glass rounded-3xl p-5">
-          <div className="mb-4 flex items-center justify-between">
-            <h3 className="label-micro">1. Subjective Feeling</h3>
-            {selectedMood != null && (
-              <CheckCircle aria-hidden className="size-4 text-emerald-500" />
-            )}
-          </div>
-          <div
-            className="flex justify-between"
-            role="radiogroup"
-            aria-label="Mood"
+        <Collapsible
+          open={activeStep === "feeling"}
+          onOpenChange={(open) => open && setActiveStep("feeling")}
+        >
+          <CollapsibleTrigger
+            badge={
+              selectedMood != null ? (
+                <CheckCircle aria-hidden className="size-4 text-emerald-500" />
+              ) : undefined
+            }
           >
-            {MOODS.map((mood, i) => (
-              <button
-                key={mood.label}
-                type="button"
-                role="radio"
-                aria-checked={selectedMood === i}
-                aria-label={`Mood: ${mood.label}`}
-                onClick={() => setSelectedMood(selectedMood === i ? null : i)}
-                className={`text-2xl transition-all ${
-                  selectedMood === i
-                    ? "rounded-full ring-2 ring-emerald-500 p-1"
-                    : "grayscale hover:grayscale-0"
-                }`}
-              >
-                <span aria-hidden>{mood.emoji}</span>
-              </button>
-            ))}
-          </div>
-        </div>
+            <span className="label-micro">1. Subjective Feeling</span>
+          </CollapsibleTrigger>
+          <CollapsiblePanel>
+            <div
+              className="flex justify-between p-5 pt-4"
+              role="radiogroup"
+              aria-label="Mood"
+            >
+              {MOODS.map((mood, i) => (
+                <button
+                  key={mood.label}
+                  type="button"
+                  role="radio"
+                  aria-checked={selectedMood === i}
+                  aria-label={`Mood: ${mood.label}`}
+                  onClick={() => {
+                    setSelectedMood(selectedMood === i ? null : i);
+                    setActiveStep("sliders");
+                  }}
+                  className={`text-2xl transition-all ${
+                    selectedMood === i
+                      ? "rounded-full ring-2 ring-emerald-500 p-1"
+                      : "grayscale hover:grayscale-0"
+                  }`}
+                >
+                  <span aria-hidden>{mood.emoji}</span>
+                </button>
+              ))}
+            </div>
+          </CollapsiblePanel>
+        </Collapsible>
 
         {/* 2. Wellness sliders */}
-        <div className="glass rounded-3xl p-5">
-          <h3 className="label-micro mb-4">2. Wellness Sliders</h3>
-          <div className="space-y-6">
-            {(
-              [
+        <Collapsible
+          open={activeStep === "sliders"}
+          onOpenChange={(open) => open && setActiveStep("sliders")}
+        >
+          <CollapsibleTrigger>
+            <span className="label-micro">2. Wellness Sliders</span>
+          </CollapsibleTrigger>
+          <CollapsiblePanel>
+            <div className="space-y-6 p-5 pt-4">
+              {(
                 [
-                  "Energy",
-                  energy,
-                  setEnergy,
-                  "text-emerald-400",
-                  "Drained",
-                  "Energized",
-                  true,
-                  7,
-                ],
-                [
-                  "Muscle Soreness",
-                  soreness,
-                  setSoreness,
-                  "text-amber-400",
-                  "None",
-                  "Very sore",
-                  false,
-                  4,
-                ],
-                [
-                  "Stress",
-                  stress,
-                  setStress,
-                  "text-sky-400",
-                  "Calm",
-                  "Overwhelmed",
-                  false,
-                  4,
-                ],
-              ] as const
-            ).map(
-              ([
-                label,
-                value,
-                setter,
-                color,
-                lowLabel,
-                highLabel,
-                highIsGood,
-                resting,
-              ]) => (
-                <div key={label} className="flex flex-col gap-2">
-                  <div className="flex justify-between">
-                    <span className="text-xs font-bold text-white/80">
-                      {label}
-                    </span>
-                    <span
-                      className={`text-xs font-bold ${value == null ? "text-white/40" : color}`}
-                    >
-                      {value == null ? "—" : `${value}/10`}
-                    </span>
+                  [
+                    "Energy",
+                    energy,
+                    setEnergy,
+                    "text-emerald-400",
+                    "Drained",
+                    "Energized",
+                    true,
+                    7,
+                  ],
+                  [
+                    "Muscle Soreness",
+                    soreness,
+                    setSoreness,
+                    "text-amber-400",
+                    "None",
+                    "Very sore",
+                    false,
+                    4,
+                  ],
+                  [
+                    "Stress",
+                    stress,
+                    setStress,
+                    "text-sky-400",
+                    "Calm",
+                    "Overwhelmed",
+                    false,
+                    4,
+                  ],
+                ] as const
+              ).map(
+                ([
+                  label,
+                  value,
+                  setter,
+                  color,
+                  lowLabel,
+                  highLabel,
+                  highIsGood,
+                  resting,
+                ]) => (
+                  <div key={label} className="flex flex-col gap-2">
+                    <div className="flex justify-between">
+                      <span className="text-xs font-bold text-white/80">
+                        {label}
+                      </span>
+                      <span
+                        className={`text-xs font-bold ${value == null ? "text-white/40" : color}`}
+                      >
+                        {value == null ? "—" : `${value}/10`}
+                      </span>
+                    </div>
+                    {/* Unanswered sliders rest at a neutral position but submit
+                        nothing. "Answered" is tracked on interaction, not on
+                        value change: tapping exactly the resting value fires no
+                        change event, so pointerdown/keydown commit it first and
+                        change (if the thumb moved) overwrites with the real one.
+                        pointerdown is guaranteed to precede input/change. */}
+                    <input
+                      type="range"
+                      min="1"
+                      max="10"
+                      value={value ?? resting}
+                      aria-label={
+                        value == null
+                          ? `${label}: not answered`
+                          : `${label}: ${value} of 10`
+                      }
+                      onPointerDown={() => setter((v) => v ?? resting)}
+                      onKeyDown={() => setter((v) => v ?? resting)}
+                      onChange={(e) => setter(Number(e.target.value))}
+                      className={`w-full accent-emerald-500 ${value == null ? "opacity-50" : ""}`}
+                    />
+                    <div className="flex justify-between">
+                      <span
+                        className={`text-[9px] font-medium ${!highIsGood ? "text-emerald-400/60" : "text-red-400/60"}`}
+                      >
+                        {lowLabel}
+                      </span>
+                      <span
+                        className={`text-[9px] font-medium ${highIsGood ? "text-emerald-400/60" : "text-red-400/60"}`}
+                      >
+                        {highLabel}
+                      </span>
+                    </div>
                   </div>
-                  {/* Unanswered sliders rest at a neutral position but submit
-                      nothing. "Answered" is tracked on interaction, not on
-                      value change: tapping exactly the resting value fires no
-                      change event, so pointerdown/keydown commit it first and
-                      change (if the thumb moved) overwrites with the real one.
-                      pointerdown is guaranteed to precede input/change. */}
-                  <input
-                    type="range"
-                    min="1"
-                    max="10"
-                    value={value ?? resting}
-                    aria-label={
-                      value == null
-                        ? `${label}: not answered`
-                        : `${label}: ${value} of 10`
-                    }
-                    onPointerDown={() => setter((v) => v ?? resting)}
-                    onKeyDown={() => setter((v) => v ?? resting)}
-                    onChange={(e) => setter(Number(e.target.value))}
-                    className={`w-full accent-emerald-500 ${value == null ? "opacity-50" : ""}`}
-                  />
-                  <div className="flex justify-between">
-                    <span
-                      className={`text-[9px] font-medium ${!highIsGood ? "text-emerald-400/60" : "text-red-400/60"}`}
-                    >
-                      {lowLabel}
-                    </span>
-                    <span
-                      className={`text-[9px] font-medium ${highIsGood ? "text-emerald-400/60" : "text-red-400/60"}`}
-                    >
-                      {highLabel}
-                    </span>
+                )
+              )}
+              <button
+                type="button"
+                onClick={() => setActiveStep("vitals")}
+                className="w-full rounded-2xl bg-white/5 py-3 text-xs font-bold text-white/70 transition-colors hover:bg-white/10"
+              >
+                Continue
+              </button>
+            </div>
+          </CollapsiblePanel>
+        </Collapsible>
+
+        {/* 3. Vitals check */}
+        <Collapsible
+          open={activeStep === "vitals"}
+          onOpenChange={(open) => open && setActiveStep("vitals")}
+        >
+          <CollapsibleTrigger>
+            <span className="label-micro">3. Vitals Check</span>
+            {hasActiveConnection && (
+              <span className="text-[10px] font-bold uppercase text-white/40">
+                intervals.icu synced
+              </span>
+            )}
+          </CollapsibleTrigger>
+          <CollapsiblePanel>
+            <div className="p-5 pt-4">
+              {/* Manual vitals — shown when no integration provides them automatically */}
+              {!hasActiveConnection && (
+                <div className="glass rounded-[2rem] p-6">
+                  <h3 className="label-micro mb-6">Today&apos;s Vitals</h3>
+                  <p className="mb-4 text-[10px] text-white/50">
+                    Enter your morning readings. Log HRV &amp; resting HR daily
+                    to unlock your readiness score after 14 days.
+                  </p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label
+                        htmlFor="manual-hrv"
+                        className="mb-1 block text-[10px] font-bold uppercase text-white/50"
+                      >
+                        HRV (ms)
+                      </label>
+                      <input
+                        id="manual-hrv"
+                        type="number"
+                        name="hrvMs"
+                        min={1}
+                        max={300}
+                        step={0.1}
+                        value={manualHrv}
+                        onChange={(e) => setManualHrv(e.target.value)}
+                        placeholder="e.g. 55"
+                        className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none placeholder:text-white/30 focus:border-emerald-400/50"
+                      />
+                    </div>
+                    <div>
+                      <label
+                        htmlFor="manual-rhr"
+                        className="mb-1 block text-[10px] font-bold uppercase text-white/50"
+                      >
+                        Resting HR (bpm)
+                      </label>
+                      <input
+                        id="manual-rhr"
+                        type="number"
+                        name="restingHr"
+                        min={20}
+                        max={120}
+                        step={1}
+                        value={manualRhr}
+                        onChange={(e) => setManualRhr(e.target.value)}
+                        placeholder="e.g. 58"
+                        className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none placeholder:text-white/30 focus:border-emerald-400/50"
+                      />
+                    </div>
+                    <div>
+                      <label
+                        htmlFor="manual-sleep"
+                        className="mb-1 block text-[10px] font-bold uppercase text-white/50"
+                      >
+                        Sleep (hours)
+                      </label>
+                      <input
+                        id="manual-sleep"
+                        type="number"
+                        name="sleepHours"
+                        min={0}
+                        max={24}
+                        step={0.25}
+                        value={manualSleep}
+                        onChange={(e) => setManualSleep(e.target.value)}
+                        placeholder="e.g. 7.5"
+                        className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none placeholder:text-white/30 focus:border-emerald-400/50"
+                      />
+                    </div>
+                    <div>
+                      <label
+                        htmlFor="manual-weight"
+                        className="mb-1 block text-[10px] font-bold uppercase text-white/50"
+                      >
+                        Weight (kg)
+                      </label>
+                      <input
+                        id="manual-weight"
+                        type="number"
+                        name="weightKg"
+                        min={20}
+                        max={300}
+                        step={0.1}
+                        value={manualWeight}
+                        onChange={(e) => setManualWeight(e.target.value)}
+                        placeholder="e.g. 72"
+                        className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none placeholder:text-white/30 focus:border-emerald-400/50"
+                      />
+                    </div>
                   </div>
                 </div>
-              )
-            )}
-          </div>
-        </div>
+              )}
 
-        {/* Manual vitals — shown when no integration provides them automatically */}
-        {!hasActiveConnection && (
-          <div className="glass rounded-[2rem] p-6">
-            <h3 className="label-micro mb-6">Today&apos;s Vitals</h3>
-            <p className="mb-4 text-[10px] text-white/50">
-              Enter your morning readings. Log HRV &amp; resting HR daily to
-              unlock your readiness score after 14 days.
-            </p>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label
-                  htmlFor="manual-hrv"
-                  className="mb-1 block text-[10px] font-bold uppercase text-white/50"
-                >
-                  HRV (ms)
-                </label>
+              {/* Vitals auto-submitted from sync — no manual entry needed */}
+              {syncedHrv != null && (
                 <input
-                  id="manual-hrv"
-                  type="number"
+                  type="hidden"
                   name="hrvMs"
-                  min={1}
-                  max={300}
-                  step={0.1}
-                  value={manualHrv}
-                  onChange={(e) => setManualHrv(e.target.value)}
-                  placeholder="e.g. 55"
-                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none placeholder:text-white/30 focus:border-emerald-400/50"
+                  value={syncedHrv.toFixed(0)}
                 />
-              </div>
-              <div>
-                <label
-                  htmlFor="manual-rhr"
-                  className="mb-1 block text-[10px] font-bold uppercase text-white/50"
-                >
-                  Resting HR (bpm)
-                </label>
+              )}
+              {syncedRhr != null && (
                 <input
-                  id="manual-rhr"
-                  type="number"
+                  type="hidden"
                   name="restingHr"
-                  min={20}
-                  max={120}
-                  step={1}
-                  value={manualRhr}
-                  onChange={(e) => setManualRhr(e.target.value)}
-                  placeholder="e.g. 58"
-                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none placeholder:text-white/30 focus:border-emerald-400/50"
+                  value={syncedRhr.toFixed(0)}
                 />
-              </div>
-              <div>
-                <label
-                  htmlFor="manual-sleep"
-                  className="mb-1 block text-[10px] font-bold uppercase text-white/50"
-                >
-                  Sleep (hours)
-                </label>
+              )}
+              {syncedWeight != null && (
                 <input
-                  id="manual-sleep"
-                  type="number"
-                  name="sleepHours"
-                  min={0}
-                  max={24}
-                  step={0.25}
-                  value={manualSleep}
-                  onChange={(e) => setManualSleep(e.target.value)}
-                  placeholder="e.g. 7.5"
-                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none placeholder:text-white/30 focus:border-emerald-400/50"
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="manual-weight"
-                  className="mb-1 block text-[10px] font-bold uppercase text-white/50"
-                >
-                  Weight (kg)
-                </label>
-                <input
-                  id="manual-weight"
-                  type="number"
+                  type="hidden"
                   name="weightKg"
-                  min={20}
-                  max={300}
-                  step={0.1}
-                  value={manualWeight}
-                  onChange={(e) => setManualWeight(e.target.value)}
-                  placeholder="e.g. 72"
-                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none placeholder:text-white/30 focus:border-emerald-400/50"
+                  value={syncedWeight.toFixed(1)}
                 />
-              </div>
+              )}
+              {syncedSleepHours != null && (
+                <input
+                  type="hidden"
+                  name="sleepHours"
+                  value={syncedSleepHours.toFixed(1)}
+                />
+              )}
             </div>
-          </div>
-        )}
-
-        {/* Vitals auto-submitted from sync — no manual entry needed */}
-        {syncedHrv != null && (
-          <input type="hidden" name="hrvMs" value={syncedHrv.toFixed(0)} />
-        )}
-        {syncedRhr != null && (
-          <input type="hidden" name="restingHr" value={syncedRhr.toFixed(0)} />
-        )}
-        {syncedWeight != null && (
-          <input
-            type="hidden"
-            name="weightKg"
-            value={syncedWeight.toFixed(1)}
-          />
-        )}
-        {syncedSleepHours != null && (
-          <input
-            type="hidden"
-            name="sleepHours"
-            value={syncedSleepHours.toFixed(1)}
-          />
-        )}
+          </CollapsiblePanel>
+        </Collapsible>
 
         {/* 4. Behavior tags */}
         <div className="glass rounded-[2rem] p-6">

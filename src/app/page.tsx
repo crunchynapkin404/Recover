@@ -6,8 +6,10 @@ import { requireUser } from "@/lib/session";
 import { AppShell } from "@/components/app-shell";
 import { PullToRefresh } from "@/components/dashboard/pull-to-refresh";
 import { SyncChip } from "@/components/dashboard/sync-chip";
-import { ScoreRing } from "@/components/dashboard/score-ring";
 import { StrainBudget } from "@/components/dashboard/strain-budget";
+import { HeroReadiness } from "@/components/dashboard/hero-readiness";
+import { RecoveryMetricsAccordion } from "@/components/dashboard/recovery-metrics-accordion";
+import { RecentSessionsAccordion } from "@/components/dashboard/recent-sessions-accordion";
 import { MorningBrief } from "@/components/dashboard/morning-brief";
 import { CoachInsight } from "@/components/dashboard/coach-insight";
 import { PendingDebriefCard } from "@/components/debrief/pending-debrief-card";
@@ -16,12 +18,7 @@ import { getLatestWeeklyReview } from "@/lib/weekly-review";
 import { getOpenWeekPlan, listAdjustments } from "@/lib/week-plan/service";
 import { TodayCard } from "@/components/plan/today-card";
 import { WeekStrip } from "@/components/plan/week-strip";
-import { VitalsGrid } from "@/components/dashboard/vitals-grid";
-import { SleepCard } from "@/components/dashboard/sleep-card";
-import { WeeklySummary } from "@/components/dashboard/weekly-summary";
-import { BodyBatteryCurve } from "@/components/dashboard/body-battery";
 import { BehaviorTags } from "@/components/dashboard/behavior-tags";
-import { MilestonesCard } from "@/components/dashboard/milestones-card";
 import { getMilestones } from "@/lib/insights/milestones";
 import {
   RaceCountdownCard,
@@ -30,7 +27,6 @@ import {
 import { nextUpcomingRace, assembleForecastInputs } from "@/lib/race/service";
 import { forecastForm } from "@/lib/race/forecast";
 import type { Band } from "@/lib/readiness";
-import { formatDay, formatDuration, formatKm } from "@/lib/format";
 import {
   computeBodyBattery,
   typicalBedMinutes,
@@ -60,8 +56,6 @@ import {
   chronotype,
   type SleepNight,
 } from "@/lib/sleep-insights";
-import { SleepStagesCard } from "@/components/dashboard/sleep-stages-card";
-import { SleepQualityCard } from "@/components/dashboard/sleep-quality-card";
 
 function daysAgo(n: number): string {
   const d = new Date();
@@ -539,73 +533,15 @@ export default async function DashboardPage() {
             </Link>
           </header>
 
-          {/* ── Hero Trifecta ───────────────────────────────────────── */}
-          <section className="mb-8 flex flex-col items-center">
-            <div className="mb-6 flex items-end justify-center gap-4">
-              {/* Recovery (left) */}
-              <div className="mb-4">
-                <ScoreRing
-                  value={recoveryScore}
-                  label="Recovery"
-                  color="#10b981"
-                  size="sm"
-                  calibrating={loadCalibrating}
-                />
-              </div>
-              {/* Readiness (center) */}
-              <ScoreRing
-                value={readiness}
-                label="Readiness"
-                color={
-                  band === "green"
-                    ? "#10b981"
-                    : band === "amber"
-                      ? "#f59e0b"
-                      : band === "red"
-                        ? "#ef4444"
-                        : "rgba(255,255,255,0.3)"
-                }
-                size="lg"
-              />
-              {/* Strain (right) */}
-              <div className="mb-4">
-                <ScoreRing
-                  value={strainFraction}
-                  label="Strain"
-                  color="#3b82f6"
-                  size="sm"
-                  calibrating={loadCalibrating}
-                  displayValue={
-                    loadCalibrating
-                      ? undefined
-                      : Math.min((todayAtl! / strainMax!) * 21, 21).toFixed(1)
-                  }
-                />
-              </div>
-            </div>
-            {loadComputed && !loadCalibrating && (
-              <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-white/40">
-                Load computed from your sessions
-              </p>
-            )}
-            {/* Status line */}
-            {band !== "calibrating" && (
-              <p
-                className={`flex items-center gap-1.5 text-[13px] font-medium ${
-                  band === "green"
-                    ? "text-emerald-400"
-                    : band === "amber"
-                      ? "text-amber-400"
-                      : "text-red-400"
-                }`}
-              >
-                {band === "green" && "✓ Recovery strong · Ready for intensity"}
-                {band === "amber" &&
-                  "⚡ Moderate recovery · Consider easy work"}
-                {band === "red" && "⚠ Low recovery · Prioritize rest"}
-              </p>
-            )}
-          </section>
+          <HeroReadiness
+            readiness={readiness}
+            band={band}
+            recoveryScore={recoveryScore}
+            strainFraction={strainFraction}
+            sleepScore={latest?.sleepScore ?? null}
+            loadCalibrating={loadCalibrating}
+            loadComputed={loadComputed}
+          />
 
           {/* ── Calibration progress (first-run, v0.11) ─────────────── */}
           {band === "calibrating" && calibration.remaining > 0 && (
@@ -687,11 +623,9 @@ export default async function DashboardPage() {
             </section>
           )}
 
-          {/* Lower cards tile into two columns on desktop (v0.12). */}
           <div className="lg:grid lg:grid-cols-2 lg:items-start lg:gap-x-6">
-            {/* ── Vitals Grid ─────────────────────────────────────────── */}
             <section className="mb-10">
-              <VitalsGrid
+              <RecoveryMetricsAccordion
                 tiles={[
                   {
                     label: "HRV",
@@ -760,110 +694,55 @@ export default async function DashboardPage() {
                     sparkColor: "transparent",
                   },
                 ]}
+                sleep={
+                  sleepHours != null
+                    ? {
+                        score: latest?.sleepScore ?? null,
+                        duration: `${Math.floor(sleepHours)}h ${Math.round((sleepHours % 1) * 60)}m`,
+                        debtSecs: sleepDebt.debtSecs,
+                        bedtimeAdvice: sleepDebt.bedtime,
+                        wakeTimeSet: bodyPrefsRow?.wakeTime != null,
+                      }
+                    : null
+                }
+                stages={
+                  stages
+                    ? {
+                        deepSecs: stages.deepSecs,
+                        remSecs: stages.remSecs,
+                        lightSecs: stages.lightSecs,
+                        awakeSecs: stages.awakeSecs,
+                        fractions: stages.fractions,
+                        bedWindow: stageBedWindow,
+                      }
+                    : null
+                }
+                quality={
+                  consistency || chrono
+                    ? { consistency, chronotype: chrono }
+                    : null
+                }
+                battery={battery}
               />
             </section>
 
-            {/* ── Sleep Card ──────────────────────────────────────────── */}
-            {sleepHours != null && (
-              <section className="mb-10">
-                <SleepCard
-                  score={latest?.sleepScore ?? null}
-                  duration={`${Math.floor(sleepHours)}h ${Math.round((sleepHours % 1) * 60)}m`}
-                  debtSecs={sleepDebt.debtSecs}
-                  bedtimeAdvice={sleepDebt.bedtime}
-                  wakeTimeSet={bodyPrefsRow?.wakeTime != null}
-                />
-              </section>
-            )}
-
-            {/* ── Sleep Stages (v0.12, provider stage data only) ──────── */}
-            {stages && (
-              <section className="mb-10">
-                <SleepStagesCard
-                  deepSecs={stages.deepSecs}
-                  remSecs={stages.remSecs}
-                  lightSecs={stages.lightSecs}
-                  awakeSecs={stages.awakeSecs}
-                  fractions={stages.fractions}
-                  bedWindow={stageBedWindow}
-                />
-              </section>
-            )}
-
-            {/* ── Sleep Quality (v0.12, consistency + chronotype) ─────── */}
-            {(consistency || chrono) && (
-              <section className="mb-10">
-                <SleepQualityCard
-                  consistency={consistency}
-                  chronotype={chrono}
-                />
-              </section>
-            )}
-
-            {/* ── Estimated Energy ────────────────────────────────────── */}
-            <section className="mb-10">
-              <BodyBatteryCurve
-                current={battery.current}
-                points={battery.points}
-              />
-            </section>
-
-            {/* ── Behavior Tags ───────────────────────────────────────── */}
             <section className="mb-10">
               <BehaviorTags />
             </section>
 
-            {/* ── Recent Activities ────────────────────────────────────── */}
-            {recentActivities.length > 0 && (
-              <section className="mb-10">
-                <div className="glass rounded-[2rem] p-6">
-                  <span className="label-micro mb-4 block">
-                    Recent Activities
-                  </span>
-                  <div className="divide-y divide-white/5">
-                    {recentActivities.slice(0, 5).map((a) => (
-                      <Link
-                        href={`/activity/${a.id}`}
-                        key={a.id}
-                        className="flex items-baseline justify-between gap-4 py-3 transition-colors hover:bg-white/5"
-                      >
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-bold">
-                            {a.name ?? a.sport}
-                          </p>
-                          <p className="text-[10px] text-white/40">
-                            {a.sport} · {formatDay(a.startDate)}
-                          </p>
-                        </div>
-                        <p className="shrink-0 text-xs tabular-nums text-white/40">
-                          {formatDuration(a.durationS)}
-                          {a.distanceM != null && (
-                            <> · {formatKm(a.distanceM)}</>
-                          )}
-                          {a.load != null && <> · {Math.round(a.load)}</>}
-                        </p>
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-              </section>
-            )}
-
-            {/* ── Weekly Summary ──────────────────────────────────────── */}
             <section className="mb-10">
-              <WeeklySummary
-                workouts={weekActivities.length}
-                totalVolume={`${(weekVolume / 3600).toFixed(1)}h`}
-                avgLoad={avgLoad.toString()}
-                streak={milestones.currentStreak}
-                ringOuter={ringOuter}
-                ringInner={ringInner}
+              <RecentSessionsAccordion
+                weeklySummary={{
+                  workouts: weekActivities.length,
+                  totalVolume: `${(weekVolume / 3600).toFixed(1)}h`,
+                  avgLoad: avgLoad.toString(),
+                  streak: milestones.currentStreak,
+                  ringOuter,
+                  ringInner,
+                }}
+                milestones={milestones}
+                recentActivities={recentActivities}
               />
-            </section>
-
-            {/* ── Milestones ──────────────────────────────────────────── */}
-            <section className="mb-10">
-              <MilestonesCard {...milestones} />
             </section>
           </div>
         </div>

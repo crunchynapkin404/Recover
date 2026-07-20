@@ -1,5 +1,43 @@
 # Changelog
 
+## v0.19.0 — 2026-07-20 — Design Refresh
+
+A Superdesign pass rethought the dashboard, coach, log, journal, and
+settings screens around progressive disclosure — collapsed-by-default
+sections instead of everything rendered flat. Purely structural: same data,
+same queries, same features. Design:
+`docs/specs/2026-07-20-v0.19-design-refresh-design.md`.
+
+### Added
+
+- **Shared `Collapsible` and `EmptyState` primitives** (`@base-ui/react`,
+  the `render`-prop convention) — one disclosure grammar used consistently
+  across all five restructured pages instead of five ad hoc ones.
+- **Dashboard**: one animated Readiness ring as the page's single focal
+  metric; Recovery/Sleep/Strain demoted to a compact stat row; "Recovery
+  Metrics" and "Recent Sessions" become collapsed-by-default accordions.
+- **Settings**: one accordion per domain (Integrations, AI & Tech,
+  Advanced/API, App, About) — only Profile stays always-open. Closes the
+  "Settings information architecture" backlog item.
+- **Log**: Today/Week/Month time-range navigation (plus a month strip)
+  replaces the old Training/Wellness content toggle; the Performance Trends
+  (PMC) and Wellness Trends panels are now always-present, independently
+  collapsible sections instead of one being reachable only via a tab.
+- **Journal**: stepped check-in (mood → wellness sliders → vitals, one step
+  open at a time, completed steps collapse to a checkmark); correlation
+  insights promoted above the form; the honest-input contract (v0.7) is
+  unchanged — no step can force-fill an untouched field.
+- **Coach**: collapsible Chat History and Quick Context panels; quick-reply
+  chips above the composer (fill the input, never auto-send, matching the
+  voice-dictation rule).
+- Honest empty states and layout-stable loading skeletons on all five
+  touched pages.
+
+### Fixed
+
+- Screen-reader heading navigation for every new collapsible section (all
+  five pages) — the shared trigger now sits inside a semantic heading.
+
 ## v0.15.0 — 2026-07-20 — The Coach Remembers
 
 Coach memory held structured facts; it still couldn't recall what was

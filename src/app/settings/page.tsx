@@ -23,6 +23,18 @@ import { SignOutButton } from "@/components/sign-out-button";
 import Link from "next/link";
 import { User } from "lucide-react";
 import { DEFAULT_SLEEP_NEED_SECS } from "@/lib/sleep-debt";
+import {
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsiblePanel,
+} from "@/components/ui/collapsible";
+import {
+  Layers,
+  Sparkles,
+  Terminal,
+  SlidersHorizontal,
+  Info,
+} from "lucide-react";
 
 export default async function SettingsPage({
   searchParams,
@@ -149,232 +161,280 @@ export default async function SettingsPage({
           </div>
         </section>
 
-        {/* Connections */}
-        <section className="space-y-4">
-          <h3 className="label-micro px-2">Connections</h3>
-          <IntervalsCard
-            connection={
-              connection
-                ? {
-                    athleteName:
-                      connection.externalAthleteName ??
-                      connection.externalAthleteId,
-                    status: connection.status,
-                    lastSyncAt: connection.lastSyncAt?.toISOString() ?? null,
-                    lastError: connection.lastError,
-                  }
-                : null
-            }
-          />
-
-          <StravaCard
-            configured={!!process.env.STRAVA_CLIENT_ID}
-            errorParam={strava_error}
-            autoDescribe={notificationPrefs?.autoDescribeStrava ?? false}
-            descriptionFields={
-              notificationPrefs?.stravaDescriptionFields ?? null
-            }
-            connection={
-              stravaConnection
-                ? {
-                    athleteName:
-                      stravaConnection.externalAthleteName ??
-                      stravaConnection.externalAthleteId,
-                    status: stravaConnection.status,
-                    lastSyncAt:
-                      stravaConnection.lastSyncAt?.toISOString() ?? null,
-                    lastError: stravaConnection.lastError,
-                    writeEnabled: stravaConnection.stravaWriteEnabled,
-                  }
-                : null
-            }
-          />
-
-          <WhoopCard
-            configured={whoopConfigured()}
-            errorParam={whoop_error}
-            connection={
-              whoopConnection
-                ? {
-                    athleteName:
-                      whoopConnection.externalAthleteName ??
-                      whoopConnection.externalAthleteId,
-                    status: whoopConnection.status,
-                    lastSyncAt:
-                      whoopConnection.lastSyncAt?.toISOString() ?? null,
-                    lastError: whoopConnection.lastError,
-                  }
-                : null
-            }
-          />
-
-          <OuraCard
-            connection={
-              ouraConnection
-                ? {
-                    accountName: ouraConnection.externalAthleteName ?? "",
-                    status: ouraConnection.status,
-                    lastSyncAt:
-                      ouraConnection.lastSyncAt?.toISOString() ?? null,
-                    lastError: ouraConnection.lastError,
-                  }
-                : null
-            }
-          />
-
-          <AppleHealthCard
-            connected={!!appleHealthConnection}
-            lastSyncAt={
-              appleHealthConnection?.lastSyncAt?.toISOString() ?? null
-            }
-            baseUrlConfigured={!!process.env.BETTER_AUTH_URL}
-          />
-
-          <WithingsCard
-            configured={withingsConfigured()}
-            errorParam={withings_error}
-            connection={
-              withingsConnection
-                ? {
-                    status: withingsConnection.status,
-                    lastSyncAt:
-                      withingsConnection.lastSyncAt?.toISOString() ?? null,
-                    lastError: withingsConnection.lastError,
-                  }
-                : null
-            }
-          />
-        </section>
-
-        {/* AI Coach */}
-        <LlmSettingsCard
-          settings={
-            llmSettings
-              ? {
-                  providerType: llmSettings.providerType,
-                  model: llmSettings.model,
-                  modelQuick: llmSettings.modelQuick,
-                  modelDeep: llmSettings.modelDeep,
-                  defaultMode: llmSettings.defaultMode,
-                  baseUrl: llmSettings.baseUrl,
-                  hasKey: !!llmSettings.encryptedApiKey,
+        {/* Integrations */}
+        <Collapsible>
+          <CollapsibleTrigger>
+            <Layers aria-hidden className="size-[18px] text-blue-400" />
+            <span className="text-xs font-bold uppercase tracking-widest text-white/80">
+              Integrations
+            </span>
+          </CollapsibleTrigger>
+          <CollapsiblePanel>
+            <div className="space-y-4 p-5 pt-4">
+              <IntervalsCard
+                connection={
+                  connection
+                    ? {
+                        athleteName:
+                          connection.externalAthleteName ??
+                          connection.externalAthleteId,
+                        status: connection.status,
+                        lastSyncAt:
+                          connection.lastSyncAt?.toISOString() ?? null,
+                        lastError: connection.lastError,
+                      }
+                    : null
                 }
-              : null
-          }
-        />
+              />
 
-        {/* Coach personality & memory */}
-        <CoachCard
-          configured={!!llmSettings}
-          personality={llmSettings?.coachPersonality ?? "encouraging"}
-          memories={coachMemories.map((m) => ({
-            id: m.id,
-            category: m.category,
-            content: m.content,
-          }))}
-        />
+              <StravaCard
+                configured={!!process.env.STRAVA_CLIENT_ID}
+                errorParam={strava_error}
+                autoDescribe={notificationPrefs?.autoDescribeStrava ?? false}
+                descriptionFields={
+                  notificationPrefs?.stravaDescriptionFields ?? null
+                }
+                connection={
+                  stravaConnection
+                    ? {
+                        athleteName:
+                          stravaConnection.externalAthleteName ??
+                          stravaConnection.externalAthleteId,
+                        status: stravaConnection.status,
+                        lastSyncAt:
+                          stravaConnection.lastSyncAt?.toISOString() ?? null,
+                        lastError: stravaConnection.lastError,
+                        writeEnabled: stravaConnection.stravaWriteEnabled,
+                      }
+                    : null
+                }
+              />
 
-        {/* MCP Tokens */}
-        <ApiTokensCard
-          tokens={apiTokens.map((t) => ({
-            id: t.id,
-            label: t.label,
-            scopes: t.scopes,
-            lastUsedAt: t.lastUsedAt?.toISOString() ?? null,
-            createdAt: t.createdAt.toISOString(),
-          }))}
-        />
+              <WhoopCard
+                configured={whoopConfigured()}
+                errorParam={whoop_error}
+                connection={
+                  whoopConnection
+                    ? {
+                        athleteName:
+                          whoopConnection.externalAthleteName ??
+                          whoopConnection.externalAthleteId,
+                        status: whoopConnection.status,
+                        lastSyncAt:
+                          whoopConnection.lastSyncAt?.toISOString() ?? null,
+                        lastError: whoopConnection.lastError,
+                      }
+                    : null
+                }
+              />
 
-        {/* Notifications */}
-        <NotificationsCard
-          vapidPublicKey={vapid.publicKey}
-          morningPushEnabled={notificationPrefs?.morningPushEnabled ?? true}
-          subscriptionCount={pushSubs.length}
-        />
+              <OuraCard
+                connection={
+                  ouraConnection
+                    ? {
+                        accountName: ouraConnection.externalAthleteName ?? "",
+                        status: ouraConnection.status,
+                        lastSyncAt:
+                          ouraConnection.lastSyncAt?.toISOString() ?? null,
+                        lastError: ouraConnection.lastError,
+                      }
+                    : null
+                }
+              />
 
-        <RideDebriefCard />
+              <AppleHealthCard
+                connected={!!appleHealthConnection}
+                lastSyncAt={
+                  appleHealthConnection?.lastSyncAt?.toISOString() ?? null
+                }
+                baseUrlConfigured={!!process.env.BETTER_AUTH_URL}
+              />
 
-        <LlmUsageCard />
+              <WithingsCard
+                configured={withingsConfigured()}
+                errorParam={withings_error}
+                connection={
+                  withingsConnection
+                    ? {
+                        status: withingsConnection.status,
+                        lastSyncAt:
+                          withingsConnection.lastSyncAt?.toISOString() ?? null,
+                        lastError: withingsConnection.lastError,
+                      }
+                    : null
+                }
+              />
+            </div>
+          </CollapsiblePanel>
+        </Collapsible>
 
-        <BodyPrefsCard
-          wakeTime={bodyPrefsRow?.wakeTime ?? null}
-          sleepNeedSecs={bodyPrefsRow?.sleepNeedSecs ?? DEFAULT_SLEEP_NEED_SECS}
-          maxHr={bodyPrefsRow?.maxHr ?? null}
-          ftpWatts={bodyPrefsRow?.ftpWatts ?? null}
-        />
+        {/* AI & Tech */}
+        <Collapsible>
+          <CollapsibleTrigger>
+            <Sparkles aria-hidden className="size-[18px] text-emerald-400" />
+            <span className="text-xs font-bold uppercase tracking-widest text-white/80">
+              AI &amp; Tech
+            </span>
+          </CollapsibleTrigger>
+          <CollapsiblePanel>
+            <div className="space-y-4 p-5 pt-4">
+              <LlmSettingsCard
+                settings={
+                  llmSettings
+                    ? {
+                        providerType: llmSettings.providerType,
+                        model: llmSettings.model,
+                        modelQuick: llmSettings.modelQuick,
+                        modelDeep: llmSettings.modelDeep,
+                        defaultMode: llmSettings.defaultMode,
+                        baseUrl: llmSettings.baseUrl,
+                        hasKey: !!llmSettings.encryptedApiKey,
+                      }
+                    : null
+                }
+              />
 
-        {/* App Preferences */}
-        <section className="glass rounded-[2.5rem] p-6 space-y-4">
-          <h3 className="label-micro">App Preferences</h3>
-          <div className="space-y-1">
-            <div className="flex items-center justify-between py-3">
-              <div className="flex flex-col">
-                <span className="text-sm font-medium">Appearance</span>
-                <span className="text-[10px] font-bold uppercase text-white/50">
-                  Dark (only theme for now)
-                </span>
+              <CoachCard
+                configured={!!llmSettings}
+                personality={llmSettings?.coachPersonality ?? "encouraging"}
+                memories={coachMemories.map((m) => ({
+                  id: m.id,
+                  category: m.category,
+                  content: m.content,
+                }))}
+              />
+            </div>
+          </CollapsiblePanel>
+        </Collapsible>
+
+        {/* Advanced / API */}
+        <Collapsible>
+          <CollapsibleTrigger>
+            <Terminal aria-hidden className="size-[18px] text-white/40" />
+            <span className="text-xs font-bold uppercase tracking-widest text-white/80">
+              Advanced / API
+            </span>
+          </CollapsibleTrigger>
+          <CollapsiblePanel>
+            <div className="p-5 pt-4">
+              <ApiTokensCard
+                tokens={apiTokens.map((t) => ({
+                  id: t.id,
+                  label: t.label,
+                  scopes: t.scopes,
+                  lastUsedAt: t.lastUsedAt?.toISOString() ?? null,
+                  createdAt: t.createdAt.toISOString(),
+                }))}
+              />
+            </div>
+          </CollapsiblePanel>
+        </Collapsible>
+
+        {/* App */}
+        <Collapsible>
+          <CollapsibleTrigger>
+            <SlidersHorizontal
+              aria-hidden
+              className="size-[18px] text-orange-400"
+            />
+            <span className="text-xs font-bold uppercase tracking-widest text-white/80">
+              App
+            </span>
+          </CollapsibleTrigger>
+          <CollapsiblePanel>
+            <div className="space-y-4 p-5 pt-4">
+              <NotificationsCard
+                vapidPublicKey={vapid.publicKey}
+                morningPushEnabled={
+                  notificationPrefs?.morningPushEnabled ?? true
+                }
+                subscriptionCount={pushSubs.length}
+              />
+
+              <RideDebriefCard />
+
+              <LlmUsageCard />
+
+              <BodyPrefsCard
+                wakeTime={bodyPrefsRow?.wakeTime ?? null}
+                sleepNeedSecs={
+                  bodyPrefsRow?.sleepNeedSecs ?? DEFAULT_SLEEP_NEED_SECS
+                }
+                maxHr={bodyPrefsRow?.maxHr ?? null}
+                ftpWatts={bodyPrefsRow?.ftpWatts ?? null}
+              />
+
+              <div className="space-y-1">
+                <div className="flex items-center justify-between py-3">
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium">Data Export</span>
+                    <span className="text-[10px] font-bold uppercase text-white/50">
+                      Download all your data as JSON
+                    </span>
+                  </div>
+                  <a
+                    href="/api/export"
+                    download
+                    aria-label="Download all your data as JSON"
+                    className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-white/80 transition-colors hover:bg-white/10"
+                  >
+                    Export
+                  </a>
+                </div>
+                <div className="flex items-center justify-between border-t border-white/5 py-3">
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium">Import CSV</span>
+                    <span className="text-[10px] font-bold uppercase text-white/50">
+                      Wellness or activity data from any source
+                    </span>
+                  </div>
+                  <Link
+                    href="/import"
+                    className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-white/80 transition-colors hover:bg-white/10"
+                  >
+                    Import
+                  </Link>
+                </div>
+                <div className="flex items-center justify-between border-t border-white/5 py-3">
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium">
+                      Health &amp; Biomarkers
+                    </span>
+                    <span className="text-[10px] font-bold uppercase text-white/50">
+                      Blood work, blood pressure, biological age
+                    </span>
+                  </div>
+                  <Link
+                    href="/health"
+                    className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-white/80 transition-colors hover:bg-white/10"
+                  >
+                    Open
+                  </Link>
+                </div>
               </div>
             </div>
-            <div className="flex items-center justify-between border-t border-white/5 py-3">
-              <div className="flex flex-col">
-                <span className="text-sm font-medium">Data Export</span>
-                <span className="text-[10px] font-bold uppercase text-white/50">
-                  Download all your data as JSON
-                </span>
-              </div>
-              <a
-                href="/api/export"
-                download
-                aria-label="Download all your data as JSON"
-                className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-white/80 transition-colors hover:bg-white/10"
-              >
-                Export
-              </a>
-            </div>
-            <div className="flex items-center justify-between border-t border-white/5 py-3">
-              <div className="flex flex-col">
-                <span className="text-sm font-medium">Import CSV</span>
-                <span className="text-[10px] font-bold uppercase text-white/50">
-                  Wellness or activity data from any source
-                </span>
-              </div>
-              <Link
-                href="/import"
-                className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-white/80 transition-colors hover:bg-white/10"
-              >
-                Import
-              </Link>
-            </div>
-            <div className="flex items-center justify-between border-t border-white/5 py-3">
-              <div className="flex flex-col">
-                <span className="text-sm font-medium">
-                  Health &amp; Biomarkers
-                </span>
-                <span className="text-[10px] font-bold uppercase text-white/50">
-                  Blood work, blood pressure, biological age
-                </span>
-              </div>
-              <Link
-                href="/health"
-                className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-white/80 transition-colors hover:bg-white/10"
-              >
-                Open
-              </Link>
-            </div>
-          </div>
-        </section>
+          </CollapsiblePanel>
+        </Collapsible>
 
         {/* About */}
-        <section className="pb-12 text-center">
-          <div className="flex flex-col items-center gap-2">
-            <h2 className="text-xl font-bold tracking-tighter opacity-40">
-              Recover
-            </h2>
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/50">
-              Self-hosted · AGPL-3.0
-            </p>
-          </div>
-        </section>
+        <Collapsible>
+          <CollapsibleTrigger>
+            <Info aria-hidden className="size-[18px] text-white/20" />
+            <span className="text-xs font-bold uppercase tracking-widest text-white/80">
+              About
+            </span>
+          </CollapsibleTrigger>
+          <CollapsiblePanel>
+            <div className="p-5 pt-4 text-center">
+              <h2 className="text-xl font-bold tracking-tighter opacity-40">
+                Recover
+              </h2>
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/50">
+                Self-hosted · AGPL-3.0
+              </p>
+            </div>
+          </CollapsiblePanel>
+        </Collapsible>
       </div>
     </AppShell>
   );
