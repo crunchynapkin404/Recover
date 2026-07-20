@@ -19,6 +19,9 @@ async function cleanup() {
     .delete(schema.trainingPlans)
     .where(eq(schema.trainingPlans.userId, USER));
   await db.delete(schema.races).where(eq(schema.races.userId, USER));
+  await db
+    .delete(schema.dailyMetrics)
+    .where(eq(schema.dailyMetrics.userId, USER));
   await db.delete(schema.users).where(eq(schema.users.id, USER));
 }
 
@@ -69,12 +72,21 @@ describe.skipIf(!hasDb)("race coach tools", () => {
   });
 
   it("simulate_plan_change reports a delta without saving", async () => {
-    const { db } = await import("@/lib/db");
+    const { db, schema } = await import("@/lib/db");
     const { generateTrainingPlan } = await import("@/lib/training-plan");
     await generateTrainingPlan({
       userId: USER,
       raceType: "10k",
       raceDate: ymd(56),
+    });
+    // Calibrated CTL/ATL: without it assembleForecastInputs' `start` is null
+    // and the tool honestly reports {insufficient: true} instead of a delta.
+    await db.insert(schema.dailyMetrics).values({
+      userId: USER,
+      date: ymd(0),
+      ctl: 40,
+      atl: 35,
+      loadSource: "computed",
     });
     const { getOpenWeekPlan } = await import("@/lib/week-plan/service");
     const week = await getOpenWeekPlan(USER);
