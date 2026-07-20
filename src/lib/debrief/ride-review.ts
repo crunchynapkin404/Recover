@@ -9,7 +9,7 @@
  * filing (remember_fact during generation) happens outside the transaction —
  * a duplicate memory on retry is acceptable; a duplicate review is not.
  */
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { generateText, stepCountIs } from "ai";
 import { db, schema } from "@/lib/db";
 import { logger } from "@/lib/logger";
@@ -18,6 +18,7 @@ import { buildSystemPrompt } from "@/lib/coach-persona";
 import { fetchAthleteContext } from "@/lib/coach-context";
 import { buildAiSdkTools } from "@/lib/tools/registry";
 import { recordLlmUsage } from "@/lib/llm-usage";
+import { inferSports } from "@/lib/training-plan";
 
 export const REVIEW_MAX_ATTEMPTS = 3;
 
@@ -98,6 +99,24 @@ export async function generateRideReview(
     a.debriefState !== "skipped" &&
     a.debriefState !== "expired"
   )
+    return "skipped";
+
+  // v0.15 fix: a race-result activity gets only the race debrief, never a
+  // separate ride review — defer to runRaceDebriefs (src/lib/race/debrief.ts),
+  // which claims the activity (sets reviewedAt) the day after the race. If
+  // this activity lands on the same calendar day as an upcoming race whose
+  // inferred sports include this activity's sport, skip here; the retry step
+  // in runDebriefLifecycle will re-call this once the race is no longer
+  // "upcoming" (claimed, or manually completed/skipped by the athlete).
+  const activityYmd = localYmd(a.startDate);
+  const raceMatch = await db.query.races.findFirst({
+    where: and(
+      eq(schema.races.userId, a.userId),
+      eq(schema.races.status, "upcoming"),
+      eq(schema.races.date, activityYmd)
+    ),
+  });
+  if (raceMatch && inferSports(raceMatch.raceType).includes(a.sport))
     return "skipped";
 
   const thread = await findOrCreateDebriefThread(a);
