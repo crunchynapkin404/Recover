@@ -91,6 +91,11 @@ OpenAI-compatible endpoint including a fully local Ollama. Keys are encrypted
   - **Calendar awareness** — optional Google Calendar (FreeBusy) so suggestions fit around work and life
   - **Artifacts** — the coach can draw inline SVG charts (HRV trends, load vs recovery, PMC) right in the chat
   - **Weekly review** — a proactive written summary comparing this week's load and recovery to last week
+  - **Recall over history** — full-text search across past conversations, journal notes, and reviews; the coach cites what you actually said, with dates
+  - **Ride debriefs** — a card asks RPE / feel / notes after a synced ride, and the coach writes a review that quotes your own words alongside the numbers
+  - **Monthly report** — the weekly review's big sibling: load, recovery, adherence, milestones, and biomarker deltas, once a month
+  - **Voice input** — dictate into the chat composer (Web Speech API); it fills the box, never auto-sends
+  - **Usage transparency** — token counts by model and purpose, visible in settings
 - **Strava AI descriptions** — opt-in write-back that appends an emoji-rich
   metrics block (load, IF, TRIMP, form, PRs — from intervals.icu data only)
   below a separator on your Strava activities. Strava-sourced data is never
@@ -98,13 +103,14 @@ OpenAI-compatible endpoint including a fully local Ollama. Keys are encrypted
 - **MCP server** — stateless streamable-HTTP endpoint at `/api/mcp` with
   hashed, scoped (`read` / `write:wellness` / `write:plan` / `write:memory` /
   `write:strava` / `write:icu`), revocable bearer tokens and rate limiting.
-  53 tools: readiness (+ history), wellness, log-wellness, fitness &
+  54 tools: readiness (+ history), wellness, log-wellness, fitness &
   training-load summaries, power/pace curves, best efforts, activity list &
   detail, athlete profile, planned workouts, calendar availability, coach
-  memory (remember/forget), chart rendering, training-plan generate/get/update,
-  Strava description write-back, the living week (get plan / set
-  availability / drift), biomarkers, and races (get/upsert/delete/simulate
-  plan change). Also a full intervals.icu tool set absorbed from the
+  memory (remember/forget), recall over history (full-text search across past
+  conversations and reviews), chart rendering, training-plan
+  generate/get/update, Strava description write-back, the living week (get
+  plan / set availability / drift), biomarkers, and races (get/upsert/delete/
+  simulate plan change). Also a full intervals.icu tool set absorbed from the
   standalone `intervals-icu-mcp` server: calendar events (list/get/create/
   update/delete/bulk/duplicate), activity edits and messages, wellness push,
   sport settings, an apply-training-plan action, per-activity histograms
@@ -153,7 +159,7 @@ fills a demo account with 90 days of plausible training history (see
 
 ## Status & roadmap
 
-**Current release: v0.14.0 — Race Ready (released 2026-07-19).** The v0.9→v0.14 series made
+**Current release: v0.15.0 — The Coach Remembers (released 2026-07-20).** The v0.9→v0.14 series made
 the app honest, adaptive, and durable: v0.9.0 deleted every metric the data
 couldn't back, v0.9.2–0.9.3 turned static training plans into a living week
 that adapts to your availability and readiness, v0.9.4 added auto-tags,
@@ -173,12 +179,16 @@ estimate, and blood-pressure trends against clinical bands — and v0.14 gave
 the living week its payoff: A/B/C races as first-class entities with a
 dashboard countdown, a taper engine that reshapes the week from current load
 and race distance, an honest EMA form-outlook band for race day, and a
-what-if simulator that previews a plan change's impact before it's saved.
-All on top of the full stack: manual entry and CSV import, intervals.icu sync, readiness
-scoring, dashboard, journal, analytics depth, installable PWA with morning
-push, AI coach with memory/personalities/proactive insights, training plans,
-Google Calendar awareness, chart artifacts, weekly reviews, Strava AI
-descriptions, and 53 MCP tools. Next up: cycle-aware readiness (v0.15). The
+what-if simulator that previews a plan change's impact before it's saved,
+and v0.15 gave the coach memory: full-text recall over past conversations
+and reviews, a post-ride debrief loop that reconciles RPE/feel/notes with
+the numbers, a monthly report, voice dictation, and per-user token usage in
+settings. All on top of the full stack: manual entry and CSV import,
+intervals.icu sync, readiness scoring, dashboard, journal, analytics depth,
+installable PWA with morning push, AI coach with memory/personalities/
+proactive insights, training plans, Google Calendar awareness, chart
+artifacts, weekly reviews, Strava AI descriptions, and 54 MCP tools. Next
+up: opt-in sharing between consenting users (v0.16 — Stronger Together). The
 full plan lives in [docs/ROADMAP.md](docs/ROADMAP.md).
 
 An honest hobby project built for one owner and about ten friends. If it's

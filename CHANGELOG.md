@@ -1,5 +1,43 @@
 # Changelog
 
+## v0.15.0 — 2026-07-20 — The Coach Remembers
+
+Coach memory held structured facts; it still couldn't recall what was
+actually said, and every ride ended in silence. Design:
+`docs/specs/2026-07-19-v0.15-coach-remembers-design.md`.
+
+### Added
+
+- **Recall over history**: `recall_history` coach tool (53 → 54) — Postgres
+  full-text search ('simple' config for mixed Dutch/English) across past
+  conversations, weekly/monthly reviews, ride debriefs, and journal notes.
+  The coach cites results with dates and says so when it finds nothing.
+  Ghost threads are excluded — they were promised to vanish.
+- **Post-ride loop**: a 15-minute intervals.icu activity poll (no webhooks
+  exist; quiet 23:00–06:00) detects a fresh ride, a debrief card asks RPE /
+  feel / notes (untouched fields write nothing; intervals.icu RPE prefills),
+  and the coach writes a ride review reconciling the numbers with the
+  athlete's own words — quoted, never paraphrased. Skipped or expired
+  debriefs get a data-only review that says no feedback was given. Strava
+  activities are excluded end-to-end (API AI clause). Opt-in push.
+- **Monthly report**: the weekly review's big sibling — load vs previous
+  month, readiness trend, milestones, biomarkers logged, races — at-most-once
+  per calendar month, sections omitted when the data isn't there.
+- **Voice input**: mic in the chat composer (Web Speech API) — dictation
+  fills the box, never auto-sends, with an honest note that the browser
+  vendor may process the audio. Recover never sees or stores audio.
+- **Token transparency**: `llm_usage` rows at every real LLM call site;
+  settings shows this and last month by model and purpose. Tokens, never
+  cost estimates.
+
+### Changed
+
+- Cycle-Aware Readiness deferred (roadmap): no athlete on a running instance
+  generates cycle data; later versions renumbered (v0.16 Stronger Together,
+  v0.17 Good Self-Hosted Citizen, v0.18 1.0 Hardening).
+- Migration 0018: FTS columns + GIN indexes, debrief state on activities,
+  `llm_usage`, poll cursor, debrief prefs.
+
 ## v0.14.0 — 2026-07-19 — Race Ready
 
 The adaptive week manages training; race day is why it exists. Everything
