@@ -236,6 +236,16 @@ export async function runSchedulerTick(
           message: err instanceof Error ? err.message : String(err),
         });
       }
+      // v0.15 monthly report — guards inside ensure at-most-once/month.
+      try {
+        const { generateMonthlyReport } = await import("@/lib/monthly-report");
+        await generateMonthlyReport(job.userId);
+      } catch (err) {
+        logger.error("monthly report failed", {
+          userId: job.userId,
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
       // v0.14 post-race debrief — guards inside make it once per race.
       try {
         const { runRaceDebriefs } = await import("@/lib/race/debrief");
