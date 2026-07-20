@@ -159,7 +159,7 @@ fills a demo account with 90 days of plausible training history (see
 
 ## Status & roadmap
 
-**Current release: v0.15.0 — The Coach Remembers (released 2026-07-20).** The v0.9→v0.14 series made
+**Current release: v0.19.0 — Design Refresh (released 2026-07-20).** The v0.9→v0.14 series made
 the app honest, adaptive, and durable: v0.9.0 deleted every metric the data
 couldn't back, v0.9.2–0.9.3 turned static training plans into a living week
 that adapts to your availability and readiness, v0.9.4 added auto-tags,
@@ -187,9 +187,16 @@ settings. All on top of the full stack: manual entry and CSV import,
 intervals.icu sync, readiness scoring, dashboard, journal, analytics depth,
 installable PWA with morning push, AI coach with memory/personalities/
 proactive insights, training plans, Google Calendar awareness, chart
-artifacts, weekly reviews, Strava AI descriptions, and 54 MCP tools. Next
-up: opt-in sharing between consenting users (v0.16 — Stronger Together). The
-full plan lives in [docs/ROADMAP.md](docs/ROADMAP.md).
+artifacts, weekly reviews, Strava AI descriptions, and 54 MCP tools. v0.19
+jumped ahead of the operations/hardening track for a design pass: the
+dashboard, coach, log, journal, and settings screens are now built around
+progressive disclosure — one focal metric and a compact stat row on the
+dashboard, an accordion per settings domain, collapsible trend panels on
+the log page, a stepped journal check-in, and collapsible chat chrome on
+the coach — collapsed by default instead of everything rendered flat. Next
+up: opt-in sharing between consenting users (v0.16 — Stronger Together),
+still queued behind this release. The full plan lives in
+[docs/ROADMAP.md](docs/ROADMAP.md).
 
 An honest hobby project built for one owner and about ten friends. If it's
 useful to you, self-host it and make it yours. Issues and PRs welcome — see
