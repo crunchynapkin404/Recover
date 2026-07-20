@@ -60,6 +60,14 @@ export async function runDebriefLifecycle(
   const today = localYmd(now);
 
   try {
+    // Kill switch — checked once, up front, before any lifecycle step runs.
+    // No row = default enabled (matches the schema's notNull().default(true)
+    // and the "no row = default" convention used elsewhere in this file).
+    const prefs = await db.query.notificationPrefs.findFirst({
+      where: eq(schema.notificationPrefs.userId, userId),
+    });
+    if (prefs?.rideDebriefsEnabled === false) return;
+
     // 1) Expire pending cards from a previous day → data-only review.
     const pendingRows = await db.query.activities.findMany({
       where: and(
@@ -130,9 +138,6 @@ export async function runDebriefLifecycle(
       .set({ debriefState: "pending" })
       .where(eq(schema.activities.id, next.id));
 
-    const prefs = await db.query.notificationPrefs.findFirst({
-      where: eq(schema.notificationPrefs.userId, userId),
-    });
     if (prefs?.debriefPushEnabled) {
       try {
         const { sendToUser } = await import("@/lib/push");

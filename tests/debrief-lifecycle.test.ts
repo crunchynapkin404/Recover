@@ -15,6 +15,9 @@ async function cleanup() {
   await db.delete(schema.races).where(eq(schema.races.userId, USER));
   await db.delete(schema.activities).where(eq(schema.activities.userId, USER));
   await db
+    .delete(schema.notificationPrefs)
+    .where(eq(schema.notificationPrefs.userId, USER));
+  await db
     .delete(schema.dailyMetrics)
     .where(eq(schema.dailyMetrics.userId, USER));
   await db.delete(schema.users).where(eq(schema.users.id, USER));
@@ -194,5 +197,28 @@ describe.skipIf(!hasDb)("runDebriefLifecycle", () => {
       llm: async () => "should never run",
     });
     expect(outcome).toBe("skipped");
+  });
+
+  it("honors rideDebriefsEnabled: false as the whole loop's kill switch, even called directly (not via activity-poll)", async () => {
+    const { db, schema } = await import("@/lib/db");
+    const { runDebriefLifecycle } = await import("@/lib/debrief/lifecycle");
+
+    // Clear any prior state on this user's activities so the eligible ride
+    // below is the only candidate for promotion.
+    await db
+      .delete(schema.activities)
+      .where(eq(schema.activities.userId, USER));
+    await db.insert(schema.notificationPrefs).values({
+      userId: USER,
+      rideDebriefsEnabled: false,
+    });
+
+    const eligible = await makeActivity();
+    await runDebriefLifecycle(USER, { now: NOW, llm: async () => "review" });
+
+    const updated = await db.query.activities.findFirst({
+      where: eq(schema.activities.id, eligible.id),
+    });
+    expect(updated?.debriefState).toBeNull();
   });
 });
