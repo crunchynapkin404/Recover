@@ -5,6 +5,7 @@ import { db, schema } from "@/lib/db";
 import { encrypt } from "@/lib/crypto";
 import { logger } from "@/lib/logger";
 import { publicBaseUrl } from "@/lib/base-url";
+import { recordAuditEvent } from "@/lib/audit";
 import { exchangeCode, fetchProfile, WhoopError } from "@/lib/connectors/whoop";
 
 export const dynamic = "force-dynamic";
@@ -67,6 +68,12 @@ export async function GET(req: Request) {
           lastSyncAt: null, // fresh backfill window
         },
       });
+
+    await recordAuditEvent({
+      event: "connection_added",
+      userId: session.user.id,
+      metadata: { provider: "whoop" },
+    });
 
     // First backfill inline (90 days of recovery + sleep).
     const { runWhoopSync } = await import("@/lib/sync/whoop-sync");

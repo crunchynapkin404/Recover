@@ -6,6 +6,7 @@ import { eq, and, isNull } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { hashToken, lookupPrefixFromHash } from "@/lib/mcp/token-auth";
+import { recordAuditEvent } from "@/lib/audit";
 
 export interface TokenActionResult {
   ok: boolean;
@@ -54,6 +55,12 @@ export async function createApiToken(
     scopes: scopes.join("|"),
   });
 
+  await recordAuditEvent({
+    event: "token_created",
+    userId: user.id,
+    metadata: { label, scopes: scopes.join("|") },
+  });
+
   revalidatePath("/settings");
   return {
     ok: true,
@@ -84,6 +91,12 @@ export async function revokeApiToken(
     .update(schema.apiTokens)
     .set({ revokedAt: new Date() })
     .where(eq(schema.apiTokens.id, tokenId));
+
+  await recordAuditEvent({
+    event: "token_revoked",
+    userId: user.id,
+    metadata: { label: token.label },
+  });
 
   revalidatePath("/settings");
   return { ok: true, message: "Token revoked." };

@@ -5,6 +5,7 @@ import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { runWithingsSync } from "@/lib/sync/withings-sync";
+import { recordAuditEvent } from "@/lib/audit";
 
 export interface ActionResult {
   ok: boolean;
@@ -39,6 +40,11 @@ export async function withingsDisconnect(): Promise<ActionResult> {
         eq(schema.connections.provider, "withings")
       )
     );
+  await recordAuditEvent({
+    event: "connection_revoked",
+    userId: user.id,
+    metadata: { provider: "withings" },
+  });
   revalidatePath("/settings");
   return { ok: true, message: "Withings disconnected. Synced data is kept." };
 }

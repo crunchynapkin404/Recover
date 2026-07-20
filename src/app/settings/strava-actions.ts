@@ -7,6 +7,7 @@ import { requireUser } from "@/lib/session";
 import { runStravaSync } from "@/lib/sync/strava-sync";
 import { previewDescription } from "@/lib/strava-describer";
 import { sanitizeDescriptionFields } from "@/lib/strava-description-fields";
+import { recordAuditEvent } from "@/lib/audit";
 
 export interface ActionResult {
   ok: boolean;
@@ -41,6 +42,11 @@ export async function stravaDisconnect(): Promise<ActionResult> {
         eq(schema.connections.provider, "strava")
       )
     );
+  await recordAuditEvent({
+    event: "connection_revoked",
+    userId: user.id,
+    metadata: { provider: "strava" },
+  });
   revalidatePath("/settings");
   return { ok: true, message: "Strava disconnected. Synced data is kept." };
 }

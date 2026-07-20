@@ -5,6 +5,7 @@ import { publicBaseUrl } from "@/lib/base-url";
 import { db, schema } from "@/lib/db";
 import { encrypt } from "@/lib/crypto";
 import { logger } from "@/lib/logger";
+import { recordAuditEvent } from "@/lib/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -98,6 +99,12 @@ export async function GET(req: Request) {
           lastError: null,
         },
       });
+
+    await recordAuditEvent({
+      event: "connection_added",
+      userId: session.user.id,
+      metadata: { provider: "google_calendar" },
+    });
 
     return settingsRedirect(req);
   } catch (err) {

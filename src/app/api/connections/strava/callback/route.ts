@@ -5,6 +5,7 @@ import { db, schema } from "@/lib/db";
 import { encrypt } from "@/lib/crypto";
 import { logger } from "@/lib/logger";
 import { publicBaseUrl } from "@/lib/base-url";
+import { recordAuditEvent } from "@/lib/audit";
 import {
   exchangeCode,
   StravaError,
@@ -69,6 +70,12 @@ export async function GET(req: Request) {
           lastSyncAt: null, // fresh backfill window
         },
       });
+
+    await recordAuditEvent({
+      event: "connection_added",
+      userId: session.user.id,
+      metadata: { provider: "strava" },
+    });
 
     // First backfill inline (90 days of summaries — a couple of pages).
     const { runStravaSync } = await import("@/lib/sync/strava-sync");

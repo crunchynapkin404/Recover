@@ -5,6 +5,7 @@ import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { runWhoopSync } from "@/lib/sync/whoop-sync";
+import { recordAuditEvent } from "@/lib/audit";
 
 export interface ActionResult {
   ok: boolean;
@@ -39,6 +40,11 @@ export async function whoopDisconnect(): Promise<ActionResult> {
         eq(schema.connections.provider, "whoop")
       )
     );
+  await recordAuditEvent({
+    event: "connection_revoked",
+    userId: user.id,
+    metadata: { provider: "whoop" },
+  });
   revalidatePath("/settings");
   return { ok: true, message: "Whoop disconnected. Synced data is kept." };
 }
