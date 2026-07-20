@@ -3,7 +3,7 @@ import { getSessionCookie } from "better-auth/cookies";
 
 // Optimistic redirect only — every page/action still verifies the session
 // server-side via requireUser().
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const sessionCookie = getSessionCookie(request);
   if (!sessionCookie) {
     return NextResponse.redirect(new URL("/login", request.url));

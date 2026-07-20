@@ -9,7 +9,7 @@ import { describe, expect, it } from "vitest";
  * The matcher regex is asserted directly; live-route behavior is covered by
  * the docker smoke run in SELF-HOSTING verification.
  */
-import { config } from "@/middleware";
+import { config } from "@/proxy";
 
 function guarded(path: string): boolean {
   // Next.js matcher patterns are path-to-regexp-style; ours is a single
