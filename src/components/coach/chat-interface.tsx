@@ -4,8 +4,22 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Ghost, Mic, MicOff, Plus, Send } from "lucide-react";
+import {
+  ArrowLeft,
+  Ghost,
+  Mic,
+  MicOff,
+  MessageCircle,
+  Plus,
+  Send,
+} from "lucide-react";
 import { ArtifactCard } from "./artifact-card";
+import {
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsiblePanel,
+} from "@/components/ui/collapsible";
+import { EmptyState } from "@/components/ui/empty-state";
 import type { ChartSpec } from "@/lib/tools/render-chart";
 
 interface ThreadSummary {
@@ -21,6 +35,17 @@ interface Props {
   initialThreadId?: string | null;
   threads: ThreadSummary[];
 }
+
+const QUICK_CONTEXT_PROMPTS = [
+  "Today",
+  "Weekly Review",
+  "Analyze Week",
+  "Training Load",
+  "HRV Trends",
+  "Sleep Quality",
+  "Recovery Plan",
+  "Next Race",
+] as const;
 
 // ── v0.15 voice input — Web Speech API, dictation only (never auto-sends).
 type SpeechRecognitionLike = {
@@ -280,48 +305,77 @@ export function ChatInterface({
           </p>
         )}
 
-        {/* Thread pills */}
-        <div className="hide-scrollbar -mx-6 mt-4 flex gap-2 overflow-x-auto px-6">
-          <button
-            onClick={startNewChat}
-            className={`glass whitespace-nowrap rounded-full px-4 py-2 text-[10px] font-bold uppercase tracking-wider ${
-              !activeThreadId ? "bg-white/10 text-white" : "text-white/50"
-            }`}
-          >
-            Today
-          </button>
-          {threadList
-            .filter((t) => !t.ephemeral)
-            .map((t) => (
+        <Collapsible>
+          <CollapsibleTrigger>
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30">
+              Chat History
+            </span>
+          </CollapsibleTrigger>
+          <CollapsiblePanel>
+            <div className="hide-scrollbar mt-2 flex gap-2 overflow-x-auto pb-2 pt-2">
               <button
-                key={t.id}
-                onClick={() => loadThread(t.id)}
+                onClick={startNewChat}
                 className={`glass whitespace-nowrap rounded-full px-4 py-2 text-[10px] font-bold uppercase tracking-wider ${
-                  t.id === activeThreadId
-                    ? "bg-white/10 text-white"
-                    : "text-white/50"
+                  !activeThreadId ? "bg-white/10 text-white" : "text-white/50"
                 }`}
               >
-                {t.title}
+                Today
               </button>
-            ))}
-          {threadList
-            .filter((t) => t.ephemeral)
-            .map((t) => (
-              <button
-                key={t.id}
-                onClick={() => loadThread(t.id)}
-                className={`glass flex items-center gap-1.5 whitespace-nowrap rounded-full px-4 py-2 text-[10px] font-bold uppercase tracking-wider ${
-                  t.id === activeThreadId
-                    ? "bg-purple-500/20 text-purple-200"
-                    : "text-purple-300/50"
-                }`}
-              >
-                <Ghost className="size-3" aria-hidden />
-                {t.title}
-              </button>
-            ))}
-        </div>
+              {threadList
+                .filter((t) => !t.ephemeral)
+                .map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => loadThread(t.id)}
+                    className={`glass whitespace-nowrap rounded-full px-4 py-2 text-[10px] font-bold uppercase tracking-wider ${
+                      t.id === activeThreadId
+                        ? "bg-white/10 text-white"
+                        : "text-white/50"
+                    }`}
+                  >
+                    {t.title}
+                  </button>
+                ))}
+              {threadList
+                .filter((t) => t.ephemeral)
+                .map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => loadThread(t.id)}
+                    className={`glass flex items-center gap-1.5 whitespace-nowrap rounded-full px-4 py-2 text-[10px] font-bold uppercase tracking-wider ${
+                      t.id === activeThreadId
+                        ? "bg-purple-500/20 text-purple-200"
+                        : "text-purple-300/50"
+                    }`}
+                  >
+                    <Ghost className="size-3" aria-hidden />
+                    {t.title}
+                  </button>
+                ))}
+            </div>
+          </CollapsiblePanel>
+        </Collapsible>
+
+        <Collapsible>
+          <CollapsibleTrigger>
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30">
+              Quick Context
+            </span>
+          </CollapsibleTrigger>
+          <CollapsiblePanel>
+            <div className="flex flex-wrap gap-2 pb-2 pt-2">
+              {QUICK_CONTEXT_PROMPTS.map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setInput(p)}
+                  className="glass rounded-full px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest text-white/40"
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
+          </CollapsiblePanel>
+        </Collapsible>
       </header>
 
       {/* ── Messages ────────────────────────────────────────────────── */}
@@ -330,12 +384,11 @@ export function ChatInterface({
         className="hide-scrollbar flex-1 overflow-y-auto px-6 pb-56 pt-2"
       >
         {messages.length === 0 && (
-          <div className="flex h-full items-center justify-center text-center text-sm text-white/50">
-            <p>
-              Ask about your readiness, training load, recovery trends, or
-              anything related to your training.
-            </p>
-          </div>
+          <EmptyState
+            icon={MessageCircle}
+            message="Ask about your readiness, training load, recovery trends, or anything related to your training."
+            className="mx-auto mt-12 max-w-sm"
+          />
         )}
         {messages.map((m) => {
           const text =
@@ -431,6 +484,19 @@ export function ChatInterface({
 
       {/* ── Input area ──────────────────────────────────────────────── */}
       <div className="fixed bottom-24 left-0 z-40 w-full px-6">
+        <div className="mb-3 flex justify-center gap-2">
+          {(["Today's Plan", "Recovery Score", "Next Race"] as const).map(
+            (p) => (
+              <button
+                key={p}
+                onClick={() => setInput(p)}
+                className="glass rounded-full border-white/5 px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest text-white/40 transition-all hover:bg-white/10"
+              >
+                {p}
+              </button>
+            )
+          )}
+        </div>
         <form
           onSubmit={handleSubmit}
           className="flex items-center gap-2 rounded-[2rem] border border-white/8 bg-white/3 p-2 shadow-2xl backdrop-blur-xl"
