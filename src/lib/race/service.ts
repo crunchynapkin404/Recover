@@ -18,6 +18,8 @@ export interface RaceInput {
   priority: RacePriority;
   sport?: string | null;
   goalNote?: string | null;
+  /** Defaults to "upcoming" on create; left untouched on conflict when omitted. */
+  status?: RaceStatus;
 }
 
 function localYmd(d: Date): string {
@@ -40,6 +42,8 @@ export async function createRace(
       date: input.date,
       priority: input.priority,
       goalNote: input.goalNote ?? null,
+      // Omitted → the column default ("upcoming") applies.
+      ...(input.status ? { status: input.status } : {}),
     })
     .onConflictDoUpdate({
       target: [schema.races.userId, schema.races.date, schema.races.name],
@@ -49,6 +53,8 @@ export async function createRace(
         priority: input.priority,
         goalNote: input.goalNote ?? null,
         updatedAt: now,
+        // Omitted → leave the existing row's status untouched.
+        ...(input.status ? { status: input.status } : {}),
       },
     })
     .returning();

@@ -71,6 +71,60 @@ describe.skipIf(!hasDb)("race coach tools", () => {
     expect(r).toEqual({ success: false, error: "past_date" });
   });
 
+  it("upsert_race honors status on create (no id)", async () => {
+    const { db, schema } = await import("@/lib/db");
+    const { upsertRaceTool } = await import("@/lib/tools/upsert-race");
+    const ctx = { userId: USER, db };
+    const created = (await upsertRaceTool.execute(
+      {
+        name: "Status Create Race",
+        raceType: "5k",
+        date: ymd(15),
+        priority: "C",
+        status: "completed",
+      },
+      ctx
+    )) as { success: boolean; race: { id: string } };
+    expect(created.success).toBe(true);
+    const row = await db.query.races.findFirst({
+      where: eq(schema.races.id, created.race.id),
+    });
+    expect(row?.status).toBe("completed");
+  });
+
+  it("upsert_race without id updates status on the conflict path too", async () => {
+    const { db, schema } = await import("@/lib/db");
+    const { upsertRaceTool } = await import("@/lib/tools/upsert-race");
+    const ctx = { userId: USER, db };
+    const date = ymd(16);
+    const first = (await upsertRaceTool.execute(
+      { name: "Conflict Status Race", raceType: "10k", date, priority: "B" },
+      ctx
+    )) as { success: boolean; race: { id: string } };
+    expect(first.success).toBe(true);
+    const row1 = await db.query.races.findFirst({
+      where: eq(schema.races.id, first.race.id),
+    });
+    expect(row1?.status).toBe("upcoming"); // default when omitted
+
+    const second = (await upsertRaceTool.execute(
+      {
+        name: "Conflict Status Race",
+        raceType: "10k",
+        date,
+        priority: "B",
+        status: "skipped",
+      },
+      ctx
+    )) as { success: boolean; race: { id: string } };
+    expect(second.success).toBe(true);
+    expect(second.race.id).toBe(first.race.id); // same conflict-resolved row
+    const row2 = await db.query.races.findFirst({
+      where: eq(schema.races.id, first.race.id),
+    });
+    expect(row2?.status).toBe("skipped");
+  });
+
   it("simulate_plan_change reports a delta without saving", async () => {
     const { db, schema } = await import("@/lib/db");
     const { generateTrainingPlan } = await import("@/lib/training-plan");
