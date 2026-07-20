@@ -294,6 +294,17 @@
   scrollbar-width: none;
 }
 
+/* ── Collapsible panel height transition (v0.19) ─────────────────────────── */
+.collapsible-panel {
+  overflow: hidden;
+  height: var(--collapsible-panel-height, auto);
+  transition: height 0.3s ease-out;
+}
+.collapsible-panel[data-starting-style],
+.collapsible-panel[data-ending-style] {
+  height: 0;
+}
+
 /* ── Data-viz palette ────────────────────────────────────────────────────── */
 :root {
   --viz-series-1: #3b82f6;
