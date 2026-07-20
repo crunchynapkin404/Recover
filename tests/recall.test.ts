@@ -22,7 +22,6 @@ async function cleanup() {
 
 describe.skipIf(!hasDb)("recall searchHistory", () => {
   let threadId = "";
-  let ghostId = "";
 
   beforeAll(async () => {
     await cleanup();
@@ -44,7 +43,6 @@ describe.skipIf(!hasDb)("recall searchHistory", () => {
       .insert(schema.chatThreads)
       .values({ userId: USER, title: "Ghost", kind: "chat", ephemeral: true })
       .returning();
-    ghostId = ghost.id;
     const [otherThread] = await db
       .insert(schema.chatThreads)
       .values({ userId: OTHER, title: "Other user", kind: "chat" })
