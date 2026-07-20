@@ -30,6 +30,14 @@ export const auth = betterAuth({
       },
     },
   },
+  // Brute-force protection. In-memory store is fine for this single-instance
+  // deploy (counters reset on restart — acceptable; the tunnel + invite-only
+  // model already blunts mass attacks). window in seconds, max requests/window.
+  rateLimit: {
+    enabled: true,
+    window: 60,
+    max: 20,
+  },
   plugins: [nextCookies()],
 });
 
