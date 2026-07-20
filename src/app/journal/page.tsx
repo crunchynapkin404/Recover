@@ -70,6 +70,9 @@ export default async function JournalPage() {
 
   return (
     <AppShell>
+      <section className="mb-8">
+        <CorrelationInsights insights={insights} />
+      </section>
       <JournalForm
         syncedHrv={latest?.hrvMs ?? null}
         syncedRhr={latest?.restingHr ?? null}
@@ -81,9 +84,6 @@ export default async function JournalPage() {
         entriesByDate={entriesByDate}
         hasActiveConnection={!!activeConnection}
       />
-      <section className="mt-8">
-        <CorrelationInsights insights={insights} />
-      </section>
       <section className="mt-8">
         <MilestonesCard {...milestones} />
       </section>
