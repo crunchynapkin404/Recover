@@ -672,6 +672,12 @@ export const weekPlans = pgTable(
     status: text("status", { enum: ["open", "closed"] })
       .notNull()
       .default("open"),
+    // v0.14 Race Ready fix: materializeWeek's effectiveLoad (post-taper,
+    // post-hours-budget) — the week's *actual* target once taper reshaping
+    // and availability clamp it, distinct from trainingBlocks.targetLoadTotal
+    // which stays the un-tapered skeleton value. null on rows written before
+    // this column existed and on rows the adaptive engines never touch.
+    effectiveTarget: real("effective_target"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

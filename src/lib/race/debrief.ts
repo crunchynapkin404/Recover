@@ -2,7 +2,17 @@
 // race, and post one honest coach-thread comparison of plan vs execution.
 // Strava firewall: a Strava result is LINKED (bookkeeping) but its stats
 // never enter the narrative (Nov 2024 API agreement).
-import { and, asc, desc, eq, gte, isNotNull, isNull, lt } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  gte,
+  inArray,
+  isNotNull,
+  isNull,
+  lt,
+} from "drizzle-orm";
 import { generateText } from "ai";
 import { db, schema } from "@/lib/db";
 import { logger } from "@/lib/logger";
@@ -230,8 +240,30 @@ export async function runRaceDebriefs(
         .sort((a, b) => b.weekNumber - a.weekNumber)
         .slice(0, 2);
       if (closed.length > 0) {
+        // "Planned" must be the week's persisted effective target (post-
+        // taper, post-hours-budget), not the block's un-tapered skeleton
+        // value — otherwise a perfectly-executed taper reports as if the
+        // athlete fell far short. Rows written before the column existed
+        // fall back to the block's skeleton target.
+        const weekRows = await db.query.weekPlans.findMany({
+          where: and(
+            eq(schema.weekPlans.planId, planId),
+            eq(schema.weekPlans.status, "closed"),
+            inArray(
+              schema.weekPlans.skeletonWeek,
+              closed.map((b) => b.weekNumber)
+            )
+          ),
+          orderBy: asc(schema.weekPlans.weekStart),
+        });
+        // Later weekStart wins per skeleton week — the plan-regeneration
+        // edge case can leave more than one closed row per skeleton week.
+        const effectiveByWeek = new Map(
+          weekRows.map((w) => [w.skeletonWeek, w.effectiveTarget])
+        );
         const planned = closed.reduce(
-          (s, b) => s + (b.targetLoadTotal ?? 0),
+          (s, b) =>
+            s + (effectiveByWeek.get(b.weekNumber) ?? b.targetLoadTotal ?? 0),
           0
         );
         const actual = closed.reduce((s, b) => s + (b.actualLoad ?? 0), 0);

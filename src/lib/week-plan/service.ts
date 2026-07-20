@@ -18,6 +18,8 @@ export interface OpenWeekPlan {
   weekStart: string;
   skeletonWeek: number;
   days: DaySlot[];
+  /** materializeWeek's effectiveLoad for this week — null on pre-fix rows. */
+  effectiveTarget: number | null;
 }
 
 function localYmd(d: Date): string {
@@ -112,6 +114,7 @@ export async function getOpenWeekPlan(
     weekStart: row.weekStart,
     skeletonWeek: row.skeletonWeek,
     days: row.days as DaySlot[],
+    effectiveTarget: row.effectiveTarget,
   };
 }
 
@@ -169,9 +172,13 @@ export async function rolloverWeekPlan(
         eq(schema.trainingBlocks.weekNumber, row.skeletonWeek)
       ),
     });
-    const adherencePct = block?.targetLoadTotal
-      ? Math.round((actualLoad / block.targetLoadTotal) * 100)
-      : 0;
+    // The week's persisted effective target (post-taper, post-hours-budget)
+    // wins over the block's un-tapered skeleton value — a taper week closed
+    // out at 100% of its actual (small) target must not score ~45% just
+    // because the skeleton block still holds the pre-taper number. Rows
+    // written before this column existed fall back to the block value.
+    const target = row.effectiveTarget ?? block?.targetLoadTotal ?? null;
+    const adherencePct = target ? Math.round((actualLoad / target) * 100) : 0;
     if (block) {
       await db
         .update(schema.trainingBlocks)
@@ -255,6 +262,7 @@ export async function rolloverWeekPlan(
       skeletonWeek: skeleton.weekNumber,
       days: r.week.days,
       status: "open",
+      effectiveTarget: r.effectiveLoad,
     })
     .returning();
   if (supersededPlan) {
@@ -425,7 +433,7 @@ export async function applyAvailability(
   const now = new Date();
   await db
     .update(schema.weekPlans)
-    .set({ days: merged, updatedAt: now })
+    .set({ days: merged, effectiveTarget: r.effectiveLoad, updatedAt: now })
     .where(eq(schema.weekPlans.id, week.id));
   const today = localYmd(now);
   await saveAdjustments(week.id, [

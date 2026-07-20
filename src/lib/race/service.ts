@@ -219,7 +219,13 @@ export async function assembleForecastInputs(
     (s, d) => s + (d.workout?.durationMins ?? 0),
     0
   );
-  const weekTarget = openBlock?.targetLoadTotal ?? 0;
+  // The open week's persisted effective target (post-taper, post-hours-
+  // budget) wins over the block's un-tapered skeleton value — in race week
+  // the block still holds the pre-taper number, which would otherwise
+  // overstate the load distributed across the tiny opener sessions and
+  // understate race-day freshness. Falls back to the block target on rows
+  // written before this column existed.
+  const weekTarget = week.effectiveTarget ?? openBlock?.targetLoadTotal ?? 0;
   for (const d of workoutDays) {
     if (d.date <= today || totalMins === 0) continue;
     plannedLoads.push({

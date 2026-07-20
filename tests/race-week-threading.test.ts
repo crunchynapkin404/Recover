@@ -140,3 +140,218 @@ describe.skipIf(!hasDb)("race threading into the living week", () => {
     expect(await listRaces(USER, { priority: "A" })).toHaveLength(1); // implicit 10k A race remains
   });
 });
+
+// Fix 1 seam regression: rolloverWeekPlan must persist materializeWeek's
+// effectiveLoad (the taper-reshaped target), and the week-closing adherence
+// math must read it back — not trainingBlocks.targetLoadTotal, which stays
+// the un-tapered skeleton value and would otherwise score a
+// perfectly-executed taper week at ~30% adherence.
+describe.skipIf(!hasDb)(
+  "taper effective target persists through rollover",
+  () => {
+    const TAPER_USER = "test-race-threading-taper-user";
+
+    function mondayOf(d: Date): string {
+      const day = (d.getDay() + 6) % 7; // Mon=0
+      const m = new Date(d);
+      m.setDate(d.getDate() - day);
+      return ymd(m);
+    }
+    function addDaysYmd(ymdStr: string, n: number): string {
+      const d = new Date(ymdStr + "T00:00:00");
+      d.setDate(d.getDate() + n);
+      return ymd(d);
+    }
+
+    async function cleanupTaperUser() {
+      const { db, schema } = await import("@/lib/db");
+      await db
+        .delete(schema.weekPlans)
+        .where(eq(schema.weekPlans.userId, TAPER_USER));
+      await db
+        .delete(schema.trainingPlans)
+        .where(eq(schema.trainingPlans.userId, TAPER_USER));
+      await db.delete(schema.races).where(eq(schema.races.userId, TAPER_USER));
+      await db
+        .delete(schema.dailyMetrics)
+        .where(eq(schema.dailyMetrics.userId, TAPER_USER));
+      await db.delete(schema.users).where(eq(schema.users.id, TAPER_USER));
+    }
+
+    beforeAll(async () => {
+      await cleanupTaperUser();
+      const { db, schema } = await import("@/lib/db");
+      await db.insert(schema.users).values({
+        id: TAPER_USER,
+        name: "Taper Threader",
+        email: "race-threading-taper@example.invalid",
+      });
+    });
+    afterAll(cleanupTaperUser);
+
+    it("a taper week's persisted effectiveTarget (not the skeleton block) drives week-close adherence", async () => {
+      const { db, schema } = await import("@/lib/db");
+      const { createRace } = await import("@/lib/race/service");
+      const { rolloverWeekPlan } = await import("@/lib/week-plan/service");
+      const { TAPER_FRACTION_RACE_WEEK } = await import("@/lib/race/taper");
+
+      // Pick a week comfortably in the future so createRace's past-date guard
+      // (compared against the real clock) never trips, independent of when
+      // this test happens to run.
+      const far = new Date();
+      far.setDate(far.getDate() + 70);
+      const week2Start = mondayOf(far);
+      const week1Start = addDaysYmd(week2Start, -7);
+      const raceDate = addDaysYmd(week2Start, 2); // Wed of week2: d=2<=6, race week
+
+      const [plan] = await db
+        .insert(schema.trainingPlans)
+        .values({
+          userId: TAPER_USER,
+          title: "Taper effective-target test",
+          raceType: "10k",
+          raceDate,
+          startDate: week1Start,
+          weeksTotal: 4,
+          currentWeek: 2,
+          status: "active",
+          constraints: { daysPerWeek: 5, hoursPerWeek: 8, sports: ["Run"] },
+        })
+        .returning();
+      // week2's skeleton keeps a big un-tapered target (300) — the bug this
+      // test guards against is adherence computed against this stale number.
+      await db.insert(schema.trainingBlocks).values([
+        {
+          planId: plan.id,
+          weekNumber: 1,
+          phase: "build",
+          targetLoadTotal: 250,
+          targetSessions: 5,
+          workouts: [],
+        },
+        {
+          planId: plan.id,
+          weekNumber: 2,
+          phase: "build",
+          targetLoadTotal: 300,
+          targetSessions: 5,
+          workouts: [],
+        },
+      ]);
+
+      // Last week: fully executed, actualLoad 200 — this becomes the taper
+      // base (materializeWeek's taperBase = prevWeek.actualLoad).
+      const PREV_ACTUAL = 200;
+      const week1Days = Array.from({ length: 7 }, (_, i) => {
+        const date = addDaysYmd(week1Start, i);
+        if (i === 0) {
+          return {
+            date,
+            availableMins: 120,
+            workout: {
+              day: 0,
+              sport: "Run",
+              type: "Endurance",
+              durationMins: 90,
+              intensity: "Z1-Z2",
+              description: "Long run",
+            },
+            status: "completed" as const,
+            actualLoad: PREV_ACTUAL,
+          };
+        }
+        return {
+          date,
+          availableMins: 120,
+          workout: null,
+          status: "rest" as const,
+        };
+      });
+      await db.insert(schema.weekPlans).values({
+        userId: TAPER_USER,
+        planId: plan.id,
+        weekStart: week1Start,
+        skeletonWeek: 1,
+        days: week1Days,
+        status: "open",
+      });
+
+      const raceResult = await createRace(TAPER_USER, {
+        name: "Taper Target 10K",
+        raceType: "10k",
+        date: raceDate,
+        priority: "A",
+      });
+      expect("race" in raceResult).toBe(true);
+
+      // Rollover closes week1 (actualLoad 200) and materializes week2 as a
+      // taper/race week from that actual.
+      const rolled = await rolloverWeekPlan(
+        TAPER_USER,
+        new Date(week2Start + "T08:00:00")
+      );
+      expect(rolled).toBe("rolled");
+
+      const { and } = await import("drizzle-orm");
+      const expectedTaperTarget = Math.round(
+        PREV_ACTUAL * TAPER_FRACTION_RACE_WEEK
+      );
+      const week2Row = await db.query.weekPlans.findFirst({
+        where: and(
+          eq(schema.weekPlans.userId, TAPER_USER),
+          eq(schema.weekPlans.weekStart, week2Start)
+        ),
+      });
+      // Persisted effective target is the taper target, not the skeleton's 300.
+      expect(week2Row?.effectiveTarget).toBe(expectedTaperTarget);
+      expect(week2Row?.effectiveTarget).not.toBe(300);
+
+      // Athlete executes the taper exactly as planned.
+      const closingDays = Array.from({ length: 7 }, (_, i) => {
+        const date = addDaysYmd(week2Start, i);
+        if (i === 0) {
+          return {
+            date,
+            availableMins: 120,
+            workout: null,
+            status: "completed" as const,
+            actualLoad: expectedTaperTarget,
+          };
+        }
+        return {
+          date,
+          availableMins: 120,
+          workout: null,
+          status: "rest" as const,
+        };
+      });
+      await db
+        .update(schema.weekPlans)
+        .set({ days: closingDays })
+        .where(eq(schema.weekPlans.id, week2Row!.id));
+
+      // Roll into week3 to close week2 and write its adherence back.
+      const week3Start = addDaysYmd(week2Start, 7);
+      const rolled2 = await rolloverWeekPlan(
+        TAPER_USER,
+        new Date(week3Start + "T08:00:00")
+      );
+      expect(rolled2).toBe("rolled");
+
+      const closedWeek2 = await db.query.weekPlans.findFirst({
+        where: eq(schema.weekPlans.id, week2Row!.id),
+      });
+      expect(closedWeek2?.status).toBe("closed");
+
+      const block2 = await db.query.trainingBlocks.findFirst({
+        where: and(
+          eq(schema.trainingBlocks.planId, plan.id),
+          eq(schema.trainingBlocks.weekNumber, 2)
+        ),
+      });
+      // A perfectly-executed taper reads as ~100% adherence — not the ~30%
+      // (90/300) the un-tapered skeleton target would have produced.
+      expect(block2?.adherencePct).toBe(100);
+    });
+  }
+);
