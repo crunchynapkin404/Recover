@@ -803,3 +803,27 @@ export const planAdjustments = pgTable(
   },
   (t) => [index("plan_adjustments_week_idx").on(t.weekPlanId, t.date)]
 );
+
+// ── v0.18 Security Hardening ──────────────────────────────────────────────
+
+export const auditLog = pgTable("audit_log", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  // Nullable: a failed login has no authenticated user.
+  userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
+  event: text("event", {
+    enum: [
+      "login_success",
+      "login_fail",
+      "token_created",
+      "token_revoked",
+      "connection_added",
+      "connection_revoked",
+    ],
+  }).notNull(),
+  ip: text("ip"),
+  userAgent: text("user_agent"),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
