@@ -246,6 +246,17 @@ export async function runSchedulerTick(
           message: err instanceof Error ? err.message : String(err),
         });
       }
+      // v0.15 debrief lifecycle — covers overnight uploads the poll slept
+      // through. Guards inside; never touches the sync job.
+      try {
+        const { runDebriefLifecycle } = await import("@/lib/debrief/lifecycle");
+        await runDebriefLifecycle(job.userId);
+      } catch (err) {
+        logger.error("debrief lifecycle hook failed", {
+          userId: job.userId,
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
       // v0.6 auto-describe — pushes metric descriptions to Strava for
       // opted-in users. Guards inside; errors never touch the sync job.
       if (job.provider === "intervals_icu") {

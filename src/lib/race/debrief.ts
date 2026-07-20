@@ -306,6 +306,14 @@ export async function runRaceDebriefs(
           updatedAt: now,
         })
         .where(eq(schema.races.id, race.id));
+      // v0.15: a race-result activity gets only the race debrief, never
+      // both — claim it for the review system so runDebriefLifecycle's
+      // retry step (and generateRideReview) treat it as already reviewed,
+      // even if it was promoted to `pending` before this claim landed.
+      await tx
+        .update(schema.activities)
+        .set({ reviewedAt: now })
+        .where(eq(schema.activities.id, match.id));
     });
     claimedIds.add(match.id);
     posted = true;

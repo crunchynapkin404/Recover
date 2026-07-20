@@ -109,7 +109,8 @@ export async function runActivityPolls(opts?: {
         await computeDailyMetrics(conn.userId, localYmd(startDate));
       }
       polled++;
-      // Task 7 wires runDebriefLifecycle(conn.userId, { now }) here.
+      const { runDebriefLifecycle } = await import("@/lib/debrief/lifecycle");
+      await runDebriefLifecycle(conn.userId, { now });
     } catch (err) {
       logger.warn("activity poll failed", {
         userId: conn.userId,
