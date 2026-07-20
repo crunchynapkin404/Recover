@@ -172,7 +172,7 @@ to extract biomarkers (reviewed before anything is stored), a biological-age
 estimate, and blood-pressure trends against clinical bands — and v0.14 gave
 the living week its payoff: A/B/C races as first-class entities with a
 dashboard countdown, a taper engine that reshapes the week from current load
-and race distance, an honest EMA readiness forecast band for race day, and a
+and race distance, an honest EMA form-outlook band for race day, and a
 what-if simulator that previews a plan change's impact before it's saved.
 All on top of the full stack: manual entry and CSV import, intervals.icu sync, readiness
 scoring, dashboard, journal, analytics depth, installable PWA with morning

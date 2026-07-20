@@ -429,7 +429,8 @@ describe.skipIf(!hasDb)("morning insight — race day (Task 12)", () => {
       priority: "C",
       goalNote: null,
     });
-    // Yesterday's stored load (no week plan for this user → 0 planned load).
+    // Yesterday's stored ctl/atl — the projection is a pure decay step and
+    // no longer looks at yesterday's planned/actual load at all (Fix 4).
     await db.insert(schema.dailyMetrics).values({
       userId: RACE_USER_3,
       date: yesterday,
@@ -457,7 +458,8 @@ describe.skipIf(!hasDb)("morning insight — race day (Task 12)", () => {
       },
     });
     expect(r).not.toBe("skipped");
-    // pCtl = 50 + (0-50)/42 ≈ 48.8095; pAtl = 40 + (0-40)/7 ≈ 34.2857
+    // Pure decay: pCtl = 50*(1-1/42) = 50*41/42 ≈ 48.8095;
+    // pAtl = 40*(1-1/7) = 40*6/7 ≈ 34.2857
     // projected = round((pCtl-pAtl)*10)/10 = 14.5; actual = round(8*10)/10 = 8
     expect(seenInstruction).toContain("Projected TSB 14.5 vs actual 8");
   });

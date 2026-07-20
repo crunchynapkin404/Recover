@@ -127,10 +127,12 @@ export async function generateMorningInsight(
       .map((a) => a.reason);
   }
 
-  // Task 12: race-day projected-vs-actual TSB — one EMA step from
-  // yesterday's stored ctl/atl over yesterday's planned load (0 when none),
-  // vs today's actual stored TSB. Omitted when yesterday's row is missing
-  // ctl/atl.
+  // Task 12: race-day projected-vs-actual TSB — a pure EMA decay step from
+  // yesterday's stored ctl/atl, vs today's actual stored TSB. Yesterday's
+  // stored ctl/atl already includes yesterday's session (house EMA
+  // convention — see training-load.ts's walk), so projecting today's
+  // pre-session form is decay only; adding yesterday's load again would
+  // double-count it. Omitted when yesterday's row is missing ctl/atl.
   let projectedLine = "";
   if (raceToday) {
     const yesterday = addDaysYmd(today, -1);
@@ -140,12 +142,10 @@ export async function generateMorningInsight(
         eq(schema.dailyMetrics.date, yesterday)
       ),
     });
-    const ySlot = weekPlan?.days.find((d) => d.date === yesterday);
     if (yRow?.ctl != null && yRow.atl != null) {
       const { CTL_DAYS, ATL_DAYS } = await import("@/lib/training-load");
-      const yLoad = ySlot?.actualLoad ?? 0;
-      const pCtl = yRow.ctl + (yLoad - yRow.ctl) / CTL_DAYS;
-      const pAtl = yRow.atl + (yLoad - yRow.atl) / ATL_DAYS;
+      const pCtl = yRow.ctl * (1 - 1 / CTL_DAYS);
+      const pAtl = yRow.atl * (1 - 1 / ATL_DAYS);
       const projected = Math.round((pCtl - pAtl) * 10) / 10;
       projectedLine =
         metric?.tsb != null
