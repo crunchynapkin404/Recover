@@ -66,11 +66,22 @@ export default async function LogPage({
   const range = RANGES.includes(Number(sp.range)) ? Number(sp.range) : 90;
 
   // Every state change is a link; this builds hrefs that keep the rest of
-  // the URL state intact ("" clears the sport filter).
-  const href = (over: { sport?: string }): string => {
-    const q = new URLSearchParams({ view, range: String(range) });
-    if (view === "month") q.set("month", month);
+  // the URL state intact ("" clears the sport filter). Shared by the
+  // sport-filter chips below as well as ViewTabs and RangeTabs, so that
+  // switching one axis of state (view, month, range, sport) never silently
+  // resets the others.
+  const href = (over: {
+    view?: "today" | "week" | "month";
+    month?: string;
+    range?: number;
+    sport?: string;
+  }): string => {
+    const v = over.view !== undefined ? over.view : view;
+    const m = over.month !== undefined ? over.month : month;
+    const r = over.range !== undefined ? over.range : range;
     const s = over.sport !== undefined ? over.sport : (sportFilter ?? "");
+    const q = new URLSearchParams({ view: v, range: String(r) });
+    if (v === "month") q.set("month", m);
     if (s) q.set("sport", s);
     return `/log?${q.toString()}`;
   };
@@ -246,7 +257,7 @@ export default async function LogPage({
           </div>
         </div>
 
-        <ViewTabs active={view} month={month} />
+        <ViewTabs active={view} month={month} href={href} />
       </header>
 
       <div className="pb-12">
@@ -261,7 +272,7 @@ export default async function LogPage({
             <CollapsiblePanel>
               <div className="p-5 pt-4">
                 <div className="mb-4 flex justify-end">
-                  <RangeTabs active={range} view="training" />
+                  <RangeTabs active={range} view="training" href={href} />
                 </div>
                 {wellness.some((w) => w.ctl != null) ? (
                   <PmcChart
@@ -294,7 +305,7 @@ export default async function LogPage({
             <CollapsiblePanel>
               <div className="p-5 pt-4">
                 <div className="mb-4 flex justify-end">
-                  <RangeTabs active={range} view="wellness" />
+                  <RangeTabs active={range} view="wellness" href={href} />
                 </div>
                 <WellnessTrends
                   wellness={wellness.map((w) => ({

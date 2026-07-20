@@ -25,12 +25,21 @@ function recentMonths(): string[] {
   return out;
 }
 
+export type LogHref = (over: {
+  view?: "today" | "week" | "month";
+  month?: string;
+  range?: number;
+  sport?: string;
+}) => string;
+
 export function ViewTabs({
   active,
   month,
+  href,
 }: {
   active: "today" | "week" | "month";
   month: string;
+  href: LogHref;
 }) {
   const views = [
     ["today", "Today"],
@@ -44,7 +53,7 @@ export function ViewTabs({
         {views.map(([v, label]) => (
           <Link
             key={v}
-            href={`/log?view=${v}${v === "month" ? `&month=${month}` : ""}`}
+            href={href({ view: v })}
             aria-current={active === v ? "true" : undefined}
             className={`flex-1 rounded-full py-2 text-center text-[10px] font-bold uppercase tracking-wider ${
               active === v ? "glass bg-white/10" : "glass opacity-40"
@@ -59,7 +68,7 @@ export function ViewTabs({
           {recentMonths().map((ym) => (
             <Link
               key={ym}
-              href={`/log?view=month&month=${ym}`}
+              href={href({ view: "month", month: ym })}
               aria-current={month === ym ? "true" : undefined}
               className={`relative whitespace-nowrap text-sm font-bold ${
                 month === ym ? "text-white" : "opacity-30"
