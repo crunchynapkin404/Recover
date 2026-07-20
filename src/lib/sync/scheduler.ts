@@ -300,6 +300,18 @@ export async function runSchedulerTick(
     });
   }
 
+  // v0.15 activity poll — near-real-time ride detection; guarded like the
+  // rest, never breaks the tick.
+  try {
+    const { runActivityPolls } = await import("@/lib/sync/activity-poll");
+    const polled = await runActivityPolls();
+    if (polled > 0) logger.info("activity polls ran", { polled });
+  } catch (err) {
+    logger.error("activity poll pass failed", {
+      message: err instanceof Error ? err.message : String(err),
+    });
+  }
+
   if (claimed.length > 0) {
     logger.info("scheduler tick", { claimed: claimed.length, failed });
   }
