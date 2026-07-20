@@ -6,6 +6,7 @@ import { getOrFetchActivityDetail } from "@/lib/activity-streams";
 import { AppShell } from "@/components/app-shell";
 import { StreamChart } from "@/components/activity/stream-chart";
 import { LapsTable } from "@/components/activity/laps-table";
+import { ActivityDebriefSection } from "@/components/debrief/activity-debrief-section";
 import { formatDuration, formatKm } from "@/lib/format";
 
 const paceMinKm = (v: number) => {
@@ -76,6 +77,8 @@ export default async function ActivityPage({
             </div>
           ))}
         </section>
+
+        <ActivityDebriefSection activityId={id} userId={user.id} />
 
         {streams?.heartrate && (
           <StreamChart
