@@ -23,6 +23,12 @@ interface WebhookRow {
   url: string;
   events: string[];
   createdAt: string;
+  lastDelivery: {
+    status: "success" | "failed";
+    attempts: number;
+    at: string;
+    lastError: string | null;
+  } | null;
 }
 
 interface Props {
@@ -34,6 +40,57 @@ const EVENT_OPTIONS: { value: string; label: string }[] = [
   { value: "band_changed", label: "Band changed" },
   { value: "backup_completed", label: "Backup completed" },
 ];
+
+/** Tiny local relative-time formatter — no existing helper in src/lib, and
+ * this is the only place that needs one, so no new dependency. */
+function formatAgo(iso: string): string {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const diffSec = Math.floor(diffMs / 1000);
+  if (diffSec < 60) return "just now";
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}h ago`;
+  const diffDay = Math.floor(diffHr / 24);
+  return `${diffDay}d ago`;
+}
+
+function DeliveryStatus({
+  lastDelivery,
+}: {
+  lastDelivery: WebhookRow["lastDelivery"];
+}) {
+  if (!lastDelivery) {
+    return (
+      <span className="text-muted-foreground text-xs">No deliveries yet</span>
+    );
+  }
+
+  if (lastDelivery.status === "success") {
+    return (
+      <span className="text-muted-foreground text-xs">
+        ✓ Delivered · {formatAgo(lastDelivery.at)}
+      </span>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span className="text-destructive text-xs">
+        Failed after {lastDelivery.attempts} attempt
+        {lastDelivery.attempts === 1 ? "" : "s"} · {formatAgo(lastDelivery.at)}
+      </span>
+      {lastDelivery.lastError && (
+        <span
+          className="text-destructive line-clamp-1 text-xs"
+          title={lastDelivery.lastError}
+        >
+          {lastDelivery.lastError}
+        </span>
+      )}
+    </div>
+  );
+}
 
 export function WebhooksCard({ webhooks }: Props) {
   const [createState, createAction, creating] = useActionState<
@@ -91,6 +148,7 @@ export function WebhooksCard({ webhooks }: Props) {
                       </Badge>
                     ))}
                   </div>
+                  <DeliveryStatus lastDelivery={w.lastDelivery} />
                 </div>
                 <Button
                   variant="ghost"

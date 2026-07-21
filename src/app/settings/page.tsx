@@ -1,4 +1,4 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { requireSession } from "@/lib/session";
 import { getMySessions } from "@/lib/sessions";
@@ -119,6 +119,22 @@ export default async function SettingsPage({
       eq(schema.webhookSubscriptions.active, true)
     ),
   });
+
+  // Latest delivery per subscription, in one query (not N+1): DISTINCT ON
+  // (subscription_id) ordered by created_at desc is served directly by the
+  // webhook_deliveries_subscription_idx (subscriptionId, createdAt) index.
+  const subIds = webhookSubscriptions.map((w) => w.id);
+  const lastDeliveries = subIds.length
+    ? await db
+        .selectDistinctOn([schema.webhookDeliveries.subscriptionId])
+        .from(schema.webhookDeliveries)
+        .where(inArray(schema.webhookDeliveries.subscriptionId, subIds))
+        .orderBy(
+          schema.webhookDeliveries.subscriptionId,
+          desc(schema.webhookDeliveries.createdAt)
+        )
+    : [];
+  const lastBySub = new Map(lastDeliveries.map((d) => [d.subscriptionId, d]));
 
   const [vapid, notificationPrefs, pushSubs] = await Promise.all([
     getVapidKeys(),
@@ -346,12 +362,23 @@ export default async function SettingsPage({
               />
 
               <WebhooksCard
-                webhooks={webhookSubscriptions.map((w) => ({
-                  id: w.id,
-                  url: w.url,
-                  events: w.events ?? [],
-                  createdAt: w.createdAt.toISOString(),
-                }))}
+                webhooks={webhookSubscriptions.map((w) => {
+                  const d = lastBySub.get(w.id);
+                  return {
+                    id: w.id,
+                    url: w.url,
+                    events: w.events ?? [],
+                    createdAt: w.createdAt.toISOString(),
+                    lastDelivery: d
+                      ? {
+                          status: d.status,
+                          attempts: d.attempts,
+                          at: d.createdAt.toISOString(),
+                          lastError: d.lastError,
+                        }
+                      : null,
+                  };
+                })}
               />
             </div>
           </CollapsiblePanel>
