@@ -35,12 +35,22 @@ For each tool in `allTools`:
   remove is caught even in the pathological case where a rename happens to
   collide with another entry's old name.
 
-`description` is deliberately **not** part of the frozen surface. It is
-documentation text an MCP client may show a user, not part of the wire
-contract — rewording it for clarity or fixing a typo should not require a
-deprecation cycle. If a `description` edit ever _implies_ a behavior change,
-that's a signal the underlying `execute`/`parameters` contract changed too,
-which the freeze test below does catch.
+The **top-level tool `description`** is deliberately **not** part of the
+frozen surface. It is documentation text an MCP client may show a user, not
+part of the wire contract — rewording it for clarity or fixing a typo should
+not require a deprecation cycle. If a `description` edit ever _implies_ a
+behavior change, that's a signal the underlying `execute`/`parameters`
+contract changed too, which the freeze test below does catch.
+
+Note the scope of that exemption precisely: only the tool object's top-level
+`description` is excluded. **Per-field `.describe()` text lives _inside_
+`parameters`**, so `z.toJSONSchema()` serializes it into each field's schema
+and the snapshot _does_ freeze it — rewording an individual argument's
+description will turn the freeze test red. That's intentional (a field's
+documented meaning is part of what a client relies on), just worth knowing
+before you reach for a one-word tweak: a per-field wording change is a
+deliberate snapshot update with a CHANGELOG line, same as any other schema
+edit.
 
 ## The mechanical guard
 
