@@ -38,10 +38,13 @@ then go to **Settings → intervals.icu** and paste your API key
 | `POSTGRES_PASSWORD`                             | no            | DB password (compose default: `recover`)                                                                                                                                                                                                                                              |
 | `APP_PORT`                                      | no            | Host port (default 3000)                                                                                                                                                                                                                                                              |
 | `DATABASE_URL` / `DATABASE_DRIVER`              | managed       | Set by compose. For Vercel+Neon: `DATABASE_DRIVER=pg` + Neon's **pooled** connection string (not the HTTP/unpooled one) — the scheduler needs Postgres advisory locks, which only the pooled Postgres-protocol endpoint supports. See [Deploying to Vercel + Neon](DEPLOY-VERCEL.md). |
+| `METRICS_TOKEN`                                 | no            | Bearer token to scrape `GET /api/metrics` (Prometheus text format). Unset = the endpoint 404s (no metrics exposed). Generate: `openssl rand -hex 32`                                                                                                                                  |
+| `BACKUP_NOTIFY_SECRET`                          | no            | Shared secret for `POST /api/internal/backup-complete`, which `scripts/backup.sh` calls after a successful nightly rotate so `/api/health` and `/api/metrics` can report backup freshness. Generate: `openssl rand -hex 32`                                                           |
 | `CLOUDFLARED_TOKEN`                             | tunnel only   | Cloudflare tunnel token for public access                                                                                                                                                                                                                                             |
 | `STRAVA_CLIENT_ID` / `STRAVA_CLIENT_SECRET`     | Strava only   | OAuth app creds for the Strava connector (developers.strava.com)                                                                                                                                                                                                                      |
 | `WHOOP_CLIENT_ID` / `WHOOP_CLIENT_SECRET`       | Whoop only    | OAuth app creds for the Whoop connector (developer.whoop.com); redirect → `/api/connections/whoop/callback`                                                                                                                                                                           |
 | `WITHINGS_CLIENT_ID` / `WITHINGS_CLIENT_SECRET` | Withings only | OAuth app creds for the Withings connector (developer.withings.com); redirect → `/api/connections/withings/callback`                                                                                                                                                                  |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`     | Calendar only | OAuth app creds for Google Calendar FreeBusy awareness (console.cloud.google.com); redirect → `/api/connections/google/callback`                                                                                                                                                      |
 
 **Connectors needing no env config:** intervals.icu and Oura use a personal
 API key / access token pasted in Settings; Apple Health pushes via a
@@ -98,11 +101,18 @@ is just pulling the new image. Take a backup first for peace of mind (below).
 Version pins are available if you prefer them: images are tagged `latest`,
 `0.1`, and `0.1.0`.
 
+Something go wrong after an upgrade? See [UPGRADING.md](UPGRADING.md) for
+the rollback procedure (there are no down-migrations — rollback means
+restoring the pre-upgrade backup) and the backup-compatibility matrix.
+
 ## Operations
 
 - **Health:** `GET /api/health` → `{status, db, lastSyncAgeS}` (200/503) — point your uptime monitor here.
+- **Metrics:** `GET /api/metrics` → Prometheus text exposition format, gated by `METRICS_TOKEN` (unset = 404, wrong/missing bearer = 401). Point Prometheus/Grafana at it for readiness, sync, and backup-freshness gauges.
 - **Migrations:** run automatically at container start (`scripts/migrate.mjs`).
 - **Backups:** nightly at 03:30 UTC to the `recover-backups` volume, 14 dumps kept — see [Backups & restore](#backups--restore).
+- **Sync-job queue:** the owner-only `/admin` panel (linked from Settings) lists queued/failed sync jobs and lets you retry or kick a stuck one, alongside the security audit log.
+- **Webhooks:** every user can add outbound webhook subscriptions in Settings — signed (`x-recover-signature`, HMAC-SHA256) HTTP POSTs on `readiness_computed`, `band_changed`, and (instance-wide) `backup_completed` events, for your own automation.
 - **Logs:** `docker compose logs -f app` — structured JSON lines.
 
 ## Backups & restore
@@ -184,3 +194,11 @@ export back in, exports again, and asserts the two exports match
 webhook_subscriptions correctly come back empty. Exit 0 means the round
 trip is lossless. The container is torn down whether the drill passes or
 fails.
+
+## Active sessions
+
+Settings lists every active session (device/browser) for the signed-in
+account, with a **sign out** on any single one or **sign out everywhere
+else** to revoke every other session at once — useful after a lost device
+or a shared/borrowed browser. Revocation is immediate (Better Auth checks
+the session on every request).

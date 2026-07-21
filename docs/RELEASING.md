@@ -26,7 +26,12 @@ notes promised.
 6. **Only now, tag the merge commit** — annotated, on `main`:
    `git tag -a vX.Y.Z -m "vX.Y.Z — Name" && git push origin vX.Y.Z`
 7. **Watch the release build** (`gh run watch`) — the image publish is part
-   of the release, not an afterthought.
+   of the release, not an afterthought. `release.yml` runs three jobs: amd64
+   and arm64 build natively in parallel (`ubuntu-24.04` /
+   `ubuntu-24.04-arm`, no QEMU), then a `merge` job combines both digests
+   into one multi-arch manifest under the real tags. The version/`latest`
+   tags don't exist until `merge` finishes — a green `build` matrix alone
+   isn't a shipped release yet.
 8. **Release notes = the CHANGELOG section**, not the auto-generated PR
    list: `gh release edit vX.Y.Z --notes-file <extract>`.
 9. **Refresh the server** (watchtower profile pulls automatically;
