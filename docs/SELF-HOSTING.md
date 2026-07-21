@@ -134,3 +134,48 @@ docker compose cp ./<name>.dump db:/tmp/restore.dump
 docker compose exec db pg_restore -U recover -d recover --clean --if-exists --single-transaction --no-owner /tmp/restore.dump
 docker compose start app
 ```
+
+## Personal data export & import
+
+Separate from the whole-instance backup above: every account can export
+and re-import _their own_ data (GDPR data portability), independent of
+`pg_dump`/`pg_restore`.
+
+- **Export:** `GET /api/export` (signed in) downloads a JSON file with
+  every table you own — wellness, activities, chat history, training
+  plans, biomarkers, and more. Secrets (connector tokens, API keys,
+  webhook signing secrets) are never included. See
+  `src/lib/export/export-user.ts`'s header comment for the full
+  table-by-table inclusion/exclusion reasoning.
+- **Import:** `POST /api/import-account` (signed in) restores a
+  previously-exported JSON file into your account. It always imports into
+  _your own_ signed-in account — there's no way to target anyone else's.
+  Every row gets a freshly generated id; every internal reference (e.g. a
+  chat message's thread, a race's linked activity) is rewritten to point
+  at the newly-imported row, not the old exported one. Intended for
+  restoring your own data into a fresh or freshly-wiped account (new
+  install, migrated host), not for merging a backup into an
+  already-active account — importing into an account that already has
+  body/notification/journal/LLM preferences set fails the whole import
+  cleanly (nothing partially applied) rather than overwriting them.
+  Connector connections, API tokens, and webhook subscriptions are never
+  re-imported — their secret/credential columns are dropped at export
+  time by design and can't be reconstructed, so those rows would be
+  useless (or, for tokens, impossible to insert at all — the columns are
+  `NOT NULL`). Reconnect providers and re-issue tokens after an import.
+
+**Prove export → import is lossless** (unattended, scratch Postgres —
+never touches your real database):
+
+```bash
+scripts/export-import-drill.sh
+```
+
+It spins up its own disposable Postgres container (a random local port,
+never your real `DATABASE_URL`), runs migrations, seeds a throwaway user
+across every exported table, exports, wipes that user's data, imports the
+export back in, exports again, and asserts the two exports match
+(content-for-content, ids aside) — including that connections/api_tokens/
+webhook_subscriptions correctly come back empty. Exit 0 means the round
+trip is lossless. The container is torn down whether the drill passes or
+fails.

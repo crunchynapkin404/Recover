@@ -101,7 +101,10 @@ import { schema } from "@/lib/db";
  *   app_config
  */
 
-const EXPORT_VERSION = 1;
+// Exported (not just module-local) so import-user.ts can validate a
+// submitted export's version against the same single source of truth
+// rather than hardcoding a second copy of the number.
+export const EXPORT_VERSION = 1;
 
 export interface UserExport {
   version: number;
@@ -123,7 +126,10 @@ export interface UserExport {
   body_prefs: (typeof schema.bodyPrefs.$inferSelect)[];
   notification_prefs: (typeof schema.notificationPrefs.$inferSelect)[];
   journal_prefs: (typeof schema.journalPrefs.$inferSelect)[];
-  llm_settings: Omit<typeof schema.llmSettings.$inferSelect, "encryptedApiKey">[];
+  llm_settings: Omit<
+    typeof schema.llmSettings.$inferSelect,
+    "encryptedApiKey"
+  >[];
   races: (typeof schema.races.$inferSelect)[];
   training_plans: (typeof schema.trainingPlans.$inferSelect)[];
   training_blocks: (typeof schema.trainingBlocks.$inferSelect)[];
