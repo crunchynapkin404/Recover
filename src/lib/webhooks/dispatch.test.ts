@@ -144,6 +144,53 @@ describe.skipIf(!hasDb)("dispatchWebhook", () => {
     expect(deliveries[0].lastError).toBeTruthy();
   });
 
+  it("treats a hung fetch as a failed attempt (retries, doesn't hang or throw)", async () => {
+    await db.insert(schema.webhookSubscriptions).values({
+      userId: USER_A,
+      url: "https://hooks.example.invalid/hangs",
+      encryptedSecret: encrypt(SECRET_A),
+      events: ["readiness_computed"],
+      active: true,
+    });
+
+    // Simulates a target that accepts the connection but never responds:
+    // never resolves on its own, only rejects when the signal dispatch.ts
+    // attaches (AbortSignal.timeout) fires — exactly how real fetch/undici
+    // behaves under an abort. A short fetchTimeoutMs override keeps this
+    // test fast without touching the production FETCH_TIMEOUT_MS constant.
+    const fetcher = vi.fn(
+      (_url: string, init: { signal?: AbortSignal }) =>
+        new Promise<{ ok: boolean; status?: number }>((_resolve, reject) => {
+          init.signal?.addEventListener("abort", () => {
+            reject(new DOMException("The operation was aborted.", "TimeoutError"));
+          });
+        })
+    );
+
+    await expect(
+      dispatchWebhook(
+        USER_A,
+        "readiness_computed",
+        { band: "green" },
+        { fetcher, maxAttempts: 2, fetchTimeoutMs: 25 }
+      )
+    ).resolves.toBeUndefined();
+
+    expect(fetcher).toHaveBeenCalledTimes(2);
+
+    const sub = await db.query.webhookSubscriptions.findFirst({
+      where: eq(schema.webhookSubscriptions.userId, USER_A),
+      columns: { id: true },
+    });
+    const deliveries = await db.query.webhookDeliveries.findMany({
+      where: eq(schema.webhookDeliveries.subscriptionId, sub!.id),
+    });
+    expect(deliveries).toHaveLength(1);
+    expect(deliveries[0].status).toBe("failed");
+    expect(deliveries[0].attempts).toBe(2);
+    expect(deliveries[0].lastError).toBeTruthy();
+  });
+
   it("never dispatches to another user's subscriptions", async () => {
     await db.insert(schema.webhookSubscriptions).values([
       {

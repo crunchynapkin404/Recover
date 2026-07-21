@@ -30,7 +30,12 @@ export type WebhookEvent =
  */
 export type WebhookFetcher = (
   url: string,
-  init: { method: string; headers: Record<string, string>; body: string }
+  init: {
+    method: string;
+    headers: Record<string, string>;
+    body: string;
+    signal?: AbortSignal;
+  }
 ) => Promise<{ ok: boolean; status?: number }>;
 
 export interface DispatchOptions {
@@ -38,11 +43,23 @@ export interface DispatchOptions {
   fetcher?: WebhookFetcher;
   /** Total attempts (first try + retries) before giving up. Default 4. */
   maxAttempts?: number;
+  /** Per-attempt fetch timeout in ms. Defaults to FETCH_TIMEOUT_MS; override in tests. */
+  fetchTimeoutMs?: number;
 }
 
 const DEFAULT_MAX_ATTEMPTS = 4;
 const BASE_BACKOFF_MS = 300;
 const MAX_BACKOFF_MS = 4000;
+/**
+ * Per-attempt timeout for an outbound webhook fetch. `dispatchWebhook` is
+ * awaited synchronously from computeDailyMetrics, which runs inside the
+ * scheduler's shared sequential tick loop (sync/scheduler.ts) — a target
+ * that accepts a TCP connection but never responds must not be allowed to
+ * hang that loop for every user's sync job in the same tick. 8s is long
+ * enough for a real but slow endpoint, short enough that even
+ * DEFAULT_MAX_ATTEMPTS worst-case retries don't meaningfully stall a tick.
+ */
+const FETCH_TIMEOUT_MS = 8_000;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -65,6 +82,7 @@ async function deliverToSubscription(
   const fetcher: WebhookFetcher =
     opts.fetcher ?? ((url, init) => fetch(url, init));
   const maxAttempts = opts.maxAttempts ?? DEFAULT_MAX_ATTEMPTS;
+  const fetchTimeoutMs = opts.fetchTimeoutMs ?? FETCH_TIMEOUT_MS;
 
   const body = JSON.stringify({
     event,
@@ -92,6 +110,12 @@ async function deliverToSubscription(
   while (attempts < maxAttempts && !ok) {
     attempts++;
     try {
+      // A fresh signal each attempt — AbortSignal.timeout starts its clock
+      // as soon as it's created, and a fired signal can't be reused. A
+      // fetch that hangs (connection accepted, no response) rejects once
+      // the timeout fires, which the catch below turns into a failed
+      // attempt — same as any other network error — rather than hanging
+      // this call (and its caller) indefinitely.
       const res = await fetcher(sub.url, {
         method: "POST",
         headers: {
@@ -100,6 +124,7 @@ async function deliverToSubscription(
           "x-recover-signature": signature,
         },
         body,
+        signal: AbortSignal.timeout(fetchTimeoutMs),
       });
       ok = !!res.ok;
       if (!ok) lastError = `HTTP ${res.status ?? "unknown"}`;

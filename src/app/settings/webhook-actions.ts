@@ -6,6 +6,7 @@ import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { encrypt } from "@/lib/crypto";
+import { recordAuditEvent } from "@/lib/audit";
 import type { WebhookEvent } from "@/lib/webhooks/dispatch";
 
 export interface WebhookActionResult {
@@ -55,12 +56,21 @@ export async function createWebhookSubscription(
   // user once here; dispatchWebhook decrypts it only to compute the HMAC.
   const secret = randomBytes(32).toString("hex");
 
-  await db.insert(schema.webhookSubscriptions).values({
+  const [created] = await db
+    .insert(schema.webhookSubscriptions)
+    .values({
+      userId: user.id,
+      url,
+      encryptedSecret: encrypt(secret),
+      events,
+      active: true,
+    })
+    .returning();
+
+  await recordAuditEvent({
+    event: "webhook_created",
     userId: user.id,
-    url,
-    encryptedSecret: encrypt(secret),
-    events,
-    active: true,
+    metadata: { subscriptionId: created.id, url, events },
   });
 
   revalidatePath("/settings");
@@ -91,6 +101,12 @@ export async function revokeWebhookSubscription(
     .update(schema.webhookSubscriptions)
     .set({ active: false })
     .where(eq(schema.webhookSubscriptions.id, subscriptionId));
+
+  await recordAuditEvent({
+    event: "webhook_revoked",
+    userId: user.id,
+    metadata: { subscriptionId: sub.id, url: sub.url },
+  });
 
   revalidatePath("/settings");
   return { ok: true, message: "Webhook revoked." };

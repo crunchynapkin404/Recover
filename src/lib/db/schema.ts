@@ -845,6 +845,8 @@ export const auditLog = pgTable("audit_log", {
       "token_revoked",
       "connection_added",
       "connection_revoked",
+      "webhook_created",
+      "webhook_revoked",
     ],
   }).notNull(),
   ip: text("ip"),
