@@ -94,7 +94,7 @@ constructed in exactly two places, both traced to an authenticated identity:
 resolution) and `src/app/api/chat/route.ts` / `src/lib/debrief/ride-review.ts`
 (the in-app coach chat / ride-review paths — see note below).
 
-29 of the tools (`icu_*`) share one chokepoint, `activeIcuConnection(ctx)` in
+23 of the tools (`icu_*`) share one chokepoint, `activeIcuConnection(ctx)` in
 `src/lib/tools/icu-connection.ts`, which resolves the user's intervals.icu
 connection strictly via `eq(connections.userId, ctx.userId)`. No `icu_*` tool
 accepts or uses any other id to pick a connection.
@@ -193,8 +193,8 @@ parsing (no ReDoS surface), no `fetch`/`fs`/`exec` calls anywhere in
 | Category                                 | Surfaces                                     | ✅      | ❌    |
 | ---------------------------------------- | -------------------------------------------- | ------- | ----- |
 | Route handlers                           | 17                                           | 17      | 0     |
-| Server actions (files)                   | 19                                           | 19      | 0     |
-| MCP tools                                | 55 (53 scoped + 2 stateless-by-design)       | 55      | 0     |
+| Server actions (files)                   | 20                                           | 20      | 0     |
+| MCP tools                                | 54 (52 scoped + 2 stateless-by-design)       | 54      | 0     |
 | OAuth callbacks                          | 4                                            | 4       | 0     |
 | Webhooks                                 | 3 (1 applicable, 2 confirmed not-applicable) | 3       | 0     |
 | LLM biomarker extraction                 | 1                                            | 1       | 0     |
