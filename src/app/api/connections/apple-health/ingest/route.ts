@@ -62,7 +62,18 @@ export async function POST(req: Request) {
     new URL(req.url).searchParams.get("token");
   if (!token) return json({ error: "Ingest token required" }, 401);
 
-  const bodyText = await readCappedText(req);
+  let bodyText: string | null;
+  try {
+    bodyText = await readCappedText(req);
+  } catch (err) {
+    // Stream itself errored mid-read (e.g. client disconnected) — distinct
+    // from exceeding the size cap. Route through json() so this failure path
+    // still carries Referrer-Policy/Cache-Control like every other response.
+    logger.error("apple health ingest: body read failed", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return json({ error: "Failed to read request body" }, 400);
+  }
   if (bodyText === null) {
     return json({ error: "Payload too large (max 10 MB)" }, 413);
   }

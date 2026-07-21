@@ -17,7 +17,7 @@ describe("recordAuditEvent", () => {
       .values({
         id: TEST_USER,
         name: "Test Audit User",
-        email: "test-audit-user@recover.invalid",
+        email: `${TEST_USER}@example.invalid`,
       })
       .onConflictDoNothing();
   });
