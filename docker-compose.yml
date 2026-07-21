@@ -37,6 +37,8 @@ services:
       CRON_SECRET: ${CRON_SECRET:-}
       STRAVA_CLIENT_ID: ${STRAVA_CLIENT_ID:-}
       STRAVA_CLIENT_SECRET: ${STRAVA_CLIENT_SECRET:-}
+      METRICS_TOKEN: ${METRICS_TOKEN:-}
+      BACKUP_NOTIFY_SECRET: ${BACKUP_NOTIFY_SECRET:-}
     depends_on:
       db:
         condition: service_healthy
@@ -53,6 +55,10 @@ services:
       PGPASSWORD: ${POSTGRES_PASSWORD:-recover}
       PGDATABASE: recover
       BACKUP_KEEP: ${BACKUP_KEEP:-14}
+      # Reports backup freshness to the app after a successful rotate
+      # (scripts/backup.sh); same shared secret the app verifies against.
+      BACKUP_NOTIFY_SECRET: ${BACKUP_NOTIFY_SECRET:-}
+      BACKUP_NOTIFY_URL: http://app:3000/api/internal/backup-complete
     volumes:
       - recover-backups:/backups
       - ./scripts/backup.sh:/backup.sh:ro
