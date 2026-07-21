@@ -68,9 +68,15 @@ export const auth = betterAuth({
         ctx.context.returned instanceof Error
       ) {
         const { recordAuditEvent } = await import("@/lib/audit");
+        // Verified against the installed better-auth 1.6.23
+        // (api/routes/sign-in.mjs): the /sign-in/email body schema is
+        // `{ email, password, callbackURL?, rememberMe? }`, and the
+        // attempted email — not a secret, per the audit spec — is the
+        // useful forensic detail here.
         await recordAuditEvent({
           event: "login_fail",
           ip: ctx.request?.headers.get("x-forwarded-for") ?? null,
+          metadata: { email: ctx.body?.email ?? null },
         });
       }
     }),
