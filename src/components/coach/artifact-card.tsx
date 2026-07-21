@@ -2,12 +2,11 @@
 
 import { useState } from "react";
 import type { ChartSpec } from "@/lib/tools/render-chart";
-
-const PALETTE = ["#3b82f6", "#ef4444", "#34d399", "#f59e0b", "#a855f7"];
+import { CHART_TOKENS } from "@/lib/charts";
 
 function getColor(index: number, explicit?: string): string {
   if (explicit) return explicit;
-  return PALETTE[index % PALETTE.length];
+  return CHART_TOKENS.series[index % CHART_TOKENS.series.length];
 }
 
 function LineChart({ spec }: { spec: ChartSpec }) {
@@ -63,8 +62,10 @@ function LineChart({ spec }: { spec: ChartSpec }) {
               points={pts}
               fill="none"
               stroke={getColor(si, s.color)}
-              strokeWidth="0.7"
-              strokeDasharray={s.style === "dashed" ? "1.5 1" : undefined}
+              strokeWidth={CHART_TOKENS.strokeWidth.regular}
+              strokeDasharray={
+                s.style === "dashed" ? CHART_TOKENS.dash : undefined
+              }
               vectorEffect="non-scaling-stroke"
             />
           </g>

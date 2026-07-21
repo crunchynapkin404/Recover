@@ -1,4 +1,4 @@
-import { downsample } from "@/lib/charts";
+import { downsample, CHART_TOKENS, formatChartValue } from "@/lib/charts";
 
 interface Props {
   label: string;
@@ -23,7 +23,7 @@ export function StreamChart({ label, unit, color, values, format }: Props) {
     const y = 38 - ((v - min) / range) * 34;
     pts.push(`${x.toFixed(2)},${y.toFixed(2)}`);
   });
-  const fmt = format ?? ((v: number) => String(Math.round(v)));
+  const fmt = format ?? ((v: number) => formatChartValue(v));
   const avg = nums.reduce((s, v) => s + v, 0) / nums.length;
 
   return (
@@ -45,7 +45,7 @@ export function StreamChart({ label, unit, color, values, format }: Props) {
           points={pts.join(" ")}
           fill="none"
           stroke={color}
-          strokeWidth="0.8"
+          strokeWidth={CHART_TOKENS.strokeWidth.regular}
           vectorEffect="non-scaling-stroke"
         />
       </svg>

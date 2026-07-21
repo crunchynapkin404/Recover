@@ -7,6 +7,9 @@ import {
   rollingAvg,
   weeklyLoads,
   weeklyActivitySummaries,
+  CHART_TOKENS,
+  axisTicks,
+  formatChartValue,
 } from "./charts";
 
 describe("downsample", () => {
@@ -114,5 +117,48 @@ describe("weeklyActivitySummaries", () => {
     expect(loads).toEqual(
       summaries.map((s) => ({ weekStart: s.weekStart, load: s.load }))
     );
+  });
+});
+
+describe("axisTicks", () => {
+  it("returns evenly spaced, rounded ticks within range", () => {
+    const ticks = axisTicks(0, 100, 5);
+    expect(ticks[0]).toBe(0);
+    expect(ticks.at(-1)).toBe(100);
+    expect(ticks).toHaveLength(5);
+    expect(ticks).toEqual([0, 25, 50, 75, 100]);
+  });
+
+  it("handles non-zero, non-round ranges", () => {
+    const ticks = axisTicks(10, 20, 3);
+    expect(ticks).toEqual([10, 15, 20]);
+  });
+
+  it("returns just the minimum for count <= 1", () => {
+    expect(axisTicks(5, 40, 1)).toEqual([5]);
+  });
+});
+
+describe("CHART_TOKENS", () => {
+  it("exposes one series palette shared by all charts", () => {
+    expect(CHART_TOKENS.series.length).toBeGreaterThanOrEqual(3);
+    expect(CHART_TOKENS.grid).toMatch(/rgba|#|oklch/);
+  });
+
+  it("exposes a band fill, dash pattern, stroke widths, and a tick font size", () => {
+    expect(CHART_TOKENS.band).toMatch(/rgba|#|oklch/);
+    expect(CHART_TOKENS.dash).toMatch(/^[\d.]+ [\d.]+$/);
+    expect(CHART_TOKENS.strokeWidth.regular).toBeGreaterThan(0);
+    expect(CHART_TOKENS.fontSize.tick).toBeGreaterThan(0);
+  });
+});
+
+describe("formatChartValue", () => {
+  it("rounds to 0 decimals by default", () => {
+    expect(formatChartValue(42.7)).toBe("43");
+  });
+
+  it("rounds to the given decimal count", () => {
+    expect(formatChartValue(65.34, 1)).toBe("65.3");
   });
 });

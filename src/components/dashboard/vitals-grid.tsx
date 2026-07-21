@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowUp, ArrowDown, Minus } from "lucide-react";
+import { CHART_TOKENS } from "@/lib/charts";
 
 interface VitalTile {
   label: string;
@@ -63,7 +64,7 @@ export function VitalsGrid({ tiles }: Props) {
                   d={t.sparkPath}
                   fill="none"
                   stroke={t.sparkColor}
-                  strokeWidth="2"
+                  strokeWidth={CHART_TOKENS.strokeWidth.spark}
                 />
               </svg>
             )}
