@@ -24,6 +24,7 @@ import {
   HeartPulse,
 } from "lucide-react";
 import { formatDuration, formatKm } from "@/lib/format";
+import { buildLogHref, type LogHref } from "@/lib/log-href";
 
 const RANGES = [30, 90, 180, 365];
 
@@ -65,26 +66,13 @@ export default async function LogPage({
     sp.month && /^\d{4}-\d{2}$/.test(sp.month) ? sp.month : currentYm();
   const range = RANGES.includes(Number(sp.range)) ? Number(sp.range) : 90;
 
-  // Every state change is a link; this builds hrefs that keep the rest of
-  // the URL state intact ("" clears the sport filter). Shared by the
-  // sport-filter chips below as well as ViewTabs and RangeTabs, so that
-  // switching one axis of state (view, month, range, sport) never silently
-  // resets the others.
-  const href = (over: {
-    view?: "today" | "week" | "month";
-    month?: string;
-    range?: number;
-    sport?: string;
-  }): string => {
-    const v = over.view !== undefined ? over.view : view;
-    const m = over.month !== undefined ? over.month : month;
-    const r = over.range !== undefined ? over.range : range;
-    const s = over.sport !== undefined ? over.sport : (sportFilter ?? "");
-    const q = new URLSearchParams({ view: v, range: String(r) });
-    if (v === "month") q.set("month", m);
-    if (s) q.set("sport", s);
-    return `/log?${q.toString()}`;
-  };
+  // Every state change is a link; buildLogHref keeps the rest of the URL
+  // state intact ("" clears the sport filter). Shared by the sport-filter
+  // chips below as well as ViewTabs and RangeTabs, so that switching one
+  // axis of state (view, month, range, sport) never silently resets the
+  // others. See src/lib/log-href.ts for the regression-tested logic.
+  const href: LogHref = (over) =>
+    buildLogHref({ view, month, range, sport: sportFilter ?? "" }, over);
 
   const wellness = await db.query.wellnessDaily.findMany({
     where: and(

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { LogHref } from "./view-tabs";
+import type { LogHref } from "@/lib/log-href";
 
 const RANGES = [30, 90, 180, 365] as const;
 
