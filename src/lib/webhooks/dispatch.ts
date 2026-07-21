@@ -20,9 +20,7 @@ import { decrypt } from "@/lib/crypto";
 import { logger } from "@/lib/logger";
 
 export type WebhookEvent =
-  | "readiness_computed"
-  | "band_changed"
-  | "backup_completed";
+  "readiness_computed" | "band_changed" | "backup_completed";
 
 /**
  * Narrow shape both global `fetch` and a test double satisfy — the test

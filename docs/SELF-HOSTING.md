@@ -99,7 +99,7 @@ Database migrations run automatically when the container starts
 (`docker-entrypoint.sh` applies them before the server boots), so an upgrade
 is just pulling the new image. Take a backup first for peace of mind (below).
 Version pins are available if you prefer them: images are tagged `latest`,
-`0.1`, and `0.1.0`.
+`0.20`, and `0.20.0` (and every prior release, e.g. `0.19`/`0.19.0`).
 
 Something go wrong after an upgrade? See [UPGRADING.md](UPGRADING.md) for
 the rollback procedure (there are no down-migrations — rollback means

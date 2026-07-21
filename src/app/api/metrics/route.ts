@@ -41,9 +41,7 @@ export async function GET(req: Request) {
     return new NextResponse(null, { status: 404 });
   }
 
-  const provided = req.headers
-    .get("authorization")
-    ?.replace(/^Bearer /, "");
+  const provided = req.headers.get("authorization")?.replace(/^Bearer /, "");
   if (!provided || !secretsMatch(provided, token)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }

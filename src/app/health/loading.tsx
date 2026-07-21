@@ -14,7 +14,8 @@ export default function Loading() {
         <Skeleton className="h-32 rounded-[2rem]" /> {/* blood pressure card */}
         <Skeleton className="h-36 rounded-[2rem]" /> {/* health upload */}
         <Skeleton className="h-40 rounded-[2rem]" /> {/* manual entry */}
-        <Skeleton className="h-56 rounded-[2rem] lg:col-span-2" /> {/* biomarker list */}
+        <Skeleton className="h-56 rounded-[2rem] lg:col-span-2" />{" "}
+        {/* biomarker list */}
       </div>
     </AppShell>
   );

@@ -58,12 +58,10 @@ vi.mock("next/headers", () => ({
 // signed session cookie (Better Auth signs the session cookie with
 // ctx.setSignedCookie, which isn't reasonably reproducible from a unit
 // test without duplicating better-call's signing internals).
-const { revokeSessionApiMock, revokeOtherSessionsApiMock } = vi.hoisted(
-  () => ({
-    revokeSessionApiMock: vi.fn().mockResolvedValue({ status: true }),
-    revokeOtherSessionsApiMock: vi.fn().mockResolvedValue({ status: true }),
-  })
-);
+const { revokeSessionApiMock, revokeOtherSessionsApiMock } = vi.hoisted(() => ({
+  revokeSessionApiMock: vi.fn().mockResolvedValue({ status: true }),
+  revokeOtherSessionsApiMock: vi.fn().mockResolvedValue({ status: true }),
+}));
 vi.mock("@/lib/auth", () => ({
   auth: {
     api: {
@@ -232,9 +230,7 @@ describe.skipIf(!hasDb)("session-management actions", () => {
       const auditRows = await db.query.auditLog.findMany({
         where: eq(schema.auditLog.userId, USER_A),
       });
-      expect(auditRows.some((r) => r.event === "session_revoked")).toBe(
-        true
-      );
+      expect(auditRows.some((r) => r.event === "session_revoked")).toBe(true);
     });
   });
 
@@ -263,9 +259,9 @@ describe.skipIf(!hasDb)("session-management actions", () => {
       const auditRows = await db.query.auditLog.findMany({
         where: eq(schema.auditLog.userId, USER_A),
       });
-      expect(
-        auditRows.some((r) => r.event === "session_revoked_others")
-      ).toBe(true);
+      expect(auditRows.some((r) => r.event === "session_revoked_others")).toBe(
+        true
+      );
     });
   });
 });

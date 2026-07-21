@@ -25,23 +25,21 @@ export interface OpsSnapshot {
 }
 
 export async function getOpsSnapshot(): Promise<OpsSnapshot> {
-  const [latestSync, jobCounts, backupRow, pushCountRows] = await Promise.all(
-    [
-      db.query.connections.findFirst({
-        where: isNotNull(schema.connections.lastSyncAt),
-        orderBy: desc(schema.connections.lastSyncAt),
-        columns: { lastSyncAt: true },
-      }),
-      db
-        .select({ status: schema.syncJobs.status, n: count() })
-        .from(schema.syncJobs)
-        .groupBy(schema.syncJobs.status),
-      db.query.appConfig.findFirst({
-        where: eq(schema.appConfig.key, BACKUP_LAST_SUCCESS_KEY),
-      }),
-      db.select({ n: count() }).from(schema.pushSubscriptions),
-    ]
-  );
+  const [latestSync, jobCounts, backupRow, pushCountRows] = await Promise.all([
+    db.query.connections.findFirst({
+      where: isNotNull(schema.connections.lastSyncAt),
+      orderBy: desc(schema.connections.lastSyncAt),
+      columns: { lastSyncAt: true },
+    }),
+    db
+      .select({ status: schema.syncJobs.status, n: count() })
+      .from(schema.syncJobs)
+      .groupBy(schema.syncJobs.status),
+    db.query.appConfig.findFirst({
+      where: eq(schema.appConfig.key, BACKUP_LAST_SUCCESS_KEY),
+    }),
+    db.select({ n: count() }).from(schema.pushSubscriptions),
+  ]);
 
   const lastSyncAgeS = latestSync?.lastSyncAt
     ? Math.round((Date.now() - latestSync.lastSyncAt.getTime()) / 1000)

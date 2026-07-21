@@ -381,6 +381,13 @@ Design: [docs/specs/2026-07-19-v0.15-coach-remembers-design.md](specs/2026-07-19
 
 ## v0.16 — Stronger Together
 
+→ deferred to the new roadmap. v0.20's final-sweep spec
+(`docs/specs/2026-07-21-v0.20-final-sweep-design.md`) scoped this out
+explicitly: Stronger Together is a real social subsystem — per-pair
+sharing, group view, coach seat, digest, shareable cards — that deserves
+its own brainstorm and spec, not a line item in a closing sweep. Nothing
+below shipped in v0.20; the section is unchanged and carries forward.
+
 Recover already runs as an owner plus invited friends; the accounts just
 can't see each other. Opt-in sharing — sober, like the milestones.
 
@@ -397,26 +404,37 @@ can't see each other. Opt-in sharing — sober, like the milestones.
 **Done when:** two consenting users see each other's bands, a third user
 sees nothing, and revoking consent takes effect immediately.
 
-## v0.17 — Good Self-Hosted Citizen
+## ✅ v0.17 — Good Self-Hosted Citizen
 
 Recover behaves like the rest of the homelab expects it to. Clears the
-operations track.
+operations track. Shipped as Track 2 of **v0.20.0 — Final Sweep**.
 
-- [ ] **Sync-jobs admin UI**: queue, failures, retries, manual kick
-- [ ] **Prometheus `/metrics`** and richer health: sync staleness, job
-      failures, backup age, push delivery
-- [ ] **Outbound webhooks**: readiness computed / band changed / backup
-      completed → Home Assistant, ntfy, whatever's listening
-- [ ] **Data export (GDPR)**: full-history download — the read side of
-      v0.8's import; export → wipe → import must round-trip
-- [ ] **Native `ubuntu-24.04-arm` release runners**: restore the arm64
-      image dropped in v0.8 (QEMU builds took ~50 min)
-- [ ] **Vercel + Neon deployment guide refresh**
+- [x] **Sync-jobs admin UI**: queue, failures, retries, manual kick —
+      owner-only panel on `/admin` (queue/running/failed, retry + kick
+      controls)
+- [x] **Prometheus `/metrics`** and richer health: sync staleness, job
+      failures, backup age, push delivery — token-gated Prometheus text
+      endpoint plus a shared ops snapshot backing both `/api/health` and
+      `/api/metrics`
+- [x] **Outbound webhooks**: readiness computed / band changed / backup
+      completed → Home Assistant, ntfy, whatever's listening — HMAC-signed
+      per-subscription delivery with retry/backoff and a fetch timeout
+- [x] **Data export (GDPR)**: full-history download — the read side of
+      v0.8's import; export → wipe → import must round-trip — export now
+      covers every user table (journal, biomarkers, coach memories, chat
+      messages, connections/settings, races, plans, tokens metadata); a
+      matching import path lands data back into the caller's own account;
+      the round trip is proven losslessly on a scratch DB
+- [x] **Native `ubuntu-24.04-arm` release runners**: restore the arm64
+      image dropped in v0.8 (QEMU builds took ~50 min) — native
+      `ubuntu-24.04-arm` runner + manifest merge, no QEMU
+- [x] **Vercel + Neon deployment guide refresh** — brought current against
+      Next 16 and the current schema, with corrected driver guidance
 
 **Done when:** readiness lands in Home Assistant via webhook, and a full
-export re-imports into a clean instance losslessly.
+export re-imports into a clean instance losslessly. ✅
 
-## v0.18 — 1.0 Hardening
+## ✅ v0.18 — 1.0 Hardening
 
 The last 0.x. Nothing new — everything trustable.
 
@@ -425,26 +443,45 @@ headers, login rate-limiting + boot-time secret validation, Apple Health
 ingest hardening, a dependency audit, an owner-viewable auth/token/
 connection audit log, and an exhaustive 101-surface per-user isolation &
 input audit (zero gaps found — `docs/security/2026-07-20-isolation-audit.md`).
-Design: `docs/specs/2026-07-20-v0.18-security-hardening-design.md`. Still
-open below: passkeys/2FA, session-management UI, the accessibility sweep,
-upgrade guarantees, the performance pass, API/MCP stability freeze, and
-the end-to-end docs review — deferred past this slice by design.
+Design: `docs/specs/2026-07-20-v0.18-security-hardening-design.md`.
+**v0.20.0 (2026-07-21) closed the rest of this list as Track 3 of
+Final Sweep**: the accessibility sweep, session-management UI, upgrade
+guarantees, the performance pass, the API/MCP stability freeze, the
+end-to-end docs review, and a final security review re-confirming every
+new v0.20 surface (`docs/security/2026-07-21-v0.20-review.md`, zero gaps).
+Passkeys/TOTP 2FA is the one item **not** carried forward — see the note
+below; everything else on this list is now closed.
 
-- [ ] **Auth hardening**: passkeys + TOTP 2FA, session management UI
-      (list/revoke devices) — audit log for auth and token events shipped
-      in v0.18.0
-- [ ] **Accessibility sweep**: ScoreRing aria labels, contrast, focus
-      order, button roles — the polish-backlog item, done properly
-- [ ] **Upgrade guarantees**: migrations tested against real dumps,
-      documented rollback, backup compatibility matrix
-- [ ] **Performance pass**: dashboard cold-load budget, query audit
-- [ ] **API/MCP stability**: freeze tool names and schemas, publish a
-      deprecation policy
-- [ ] **Docs reviewed end-to-end**: self-hosting, connectors,
+- [x] **Session-management UI**: list/revoke active sessions/devices
+      (Better Auth's `sessions` table) — shipped v0.20.0. **Passkeys/TOTP
+      2FA deliberately stays out of scope**, not deferred-pending-work: per
+      `docs/specs/2026-07-21-v0.20-final-sweep-design.md`, the deployment
+      model (self-hosted, invite-only, no public signup, ~10 friends,
+      behind a Cloudflare tunnel, single owner) already gets login
+      rate-limiting and an auth/token audit log from v0.18.0; 2FA/passkeys
+      would be real work defending against a threat that model already
+      blunts. Revisit only if the deployment model itself changes.
+- [x] **Accessibility sweep**: ScoreRing aria labels, contrast, focus
+      order, button roles — the polish-backlog item, done properly.
+      `docs/a11y-sweep-2026-07.md`
+- [x] **Upgrade guarantees**: migrations tested against real dumps,
+      documented rollback, backup compatibility matrix. `docs/UPGRADING.md`
+- [x] **Performance pass**: dashboard cold-load budget, query audit.
+      `docs/perf-pass-2026-07.md`
+- [x] **API/MCP stability**: freeze tool names and schemas, publish a
+      deprecation policy. `docs/API-STABILITY.md` (54 tools frozen)
+- [x] **Docs reviewed end-to-end**: self-hosting, connectors,
       troubleshooting
-- [ ] **Security review**: full pass before the tag
+- [x] **Security review**: full pass before the tag.
+      `docs/security/2026-07-21-v0.20-review.md`
 
-**Done when:** v1.0.0 tags the next commit.
+**Done when:** every item on this list ships or is deliberately scoped
+out. Closed in **v0.20.0** (2026-07-21), the roadmap's closing release —
+not the v1.0.0 tag this section originally envisioned; see
+`docs/specs/2026-07-21-v0.20-final-sweep-design.md` for why the release
+plan changed (v0.19's design pass and this sweep both slotted in ahead of
+a 1.0 tag, same pattern as the v0.9.x patch releases earlier in this
+file). ✅
 
 ## ✅ v0.19 — Design Refresh
 
@@ -504,6 +541,7 @@ checked off. ✅
 
 All items scheduled into **v0.17 — Good Self-Hosted Citizen** by the v0.9.6
 replan. Anything cheap can still ship earlier alongside any release.
+**Closed** — every item shipped in v0.17 (v0.20.0). See that section above.
 
 ## Ongoing — honesty debt
 
@@ -519,12 +557,12 @@ by v0.10 — Honest Load.**
 ## Ongoing — polish backlog
 
 Cheap; pick up alongside any release. The v0.9.6 replan gave most items a
-scheduled home.
+scheduled home. **Fully closed as of v0.20.0** (final-sweep Track 1).
 
-- [ ] Data export (GDPR): full history download — the read side of v0.8's import. → v0.17
-- [ ] Default journal entries: pre-toggle frequent behaviors so only exceptions get marked
-- [ ] Accessibility: ScoreRing aria labels, contrast, button roles. → v0.18
-- [ ] Performance log filters: wire up the month/sport controls
+- [x] Data export (GDPR): full history download — the read side of v0.8's import. → v0.17. Closed in v0.17 (v0.20.0) — full-table export plus a matching import path, round-trips losslessly.
+- [x] Default journal entries: pre-toggle frequent behaviors so only exceptions get marked. Closed in v0.20.0 — behavioural tags only; subjective sliders (energy/soreness/stress) still write nothing unanswered, per the v0.7 honesty contract.
+- [x] Accessibility: ScoreRing aria labels, contrast, button roles. → v0.18. Closed in v0.18 (v0.20.0) — `docs/a11y-sweep-2026-07.md`.
+- [x] Performance log filters: wire up the month/sport controls. Closed in v0.20.0 — verified end-to-end against the shared `view/month/range/sport` href-builder v0.19 already wired; no gap found, confirmed with a regression test on the filter href-builder.
 - [x] Dead UI sweep: remove non-functional settings controls (v0.9.0 cleared the dashboard's sleep/energy share). Closed in v0.10 — audit found the settings/log/coach/journal controls already wired or removed; the dashboard's fabricated captions were the last stragglers.
 - [x] Sleep Score sparkline plotted `sleepSecs` under a "Sleep Score" label — real data, wrong series. Fixed in v0.9.1.
 
@@ -536,22 +574,32 @@ problem — the structural UX is. The two big items are scheduled (first-run
 kind that never earns its own release. Pick up alongside any release, same
 as the polish backlog.
 
-- [ ] Empty states: every page says something useful (and honest) when its
+- [x] Empty states: every page says something useful (and honest) when its
       data doesn't exist yet, instead of rendering a blank card. Done for
       the 5 pages v0.19 restructured (dashboard, settings, log, journal,
-      coach); the rest of the app (plan, activity, health, import) is
-      still open
-- [ ] Loading skeletons: layout-stable placeholders instead of pop-in.
-      Done for the same 5 pages v0.19 restructured; the rest is still open
+      coach); closed for the rest of the app (plan, activity, health,
+      import) in v0.20.0 — every page now uses the shared `EmptyState`
+      primitive
+- [x] Loading skeletons: layout-stable placeholders instead of pop-in.
+      Done for the same 5 pages v0.19 restructured; closed for the rest in
+      v0.20.0 — including a fix for `plan/loading.tsx`'s always-rendered
+      add-race bar
 - [x] Settings information architecture: one long page currently feeds
       seven action domains (LLM, push, Strava, tokens, body, coach, …) —
       split into sections or sub-pages. → v0.19 (accordion-per-domain) ✅
-- [ ] Chart consistency: one visual grammar (axes, bands, tooltips, colors)
+- [x] Chart consistency: one visual grammar (axes, bands, tooltips, colors)
       across dashboard sparklines, fitness PMC, wellness trends, and coach
-      artifacts. v0.19 restyles chart wrappers on log/dashboard but doesn't
-      settle the grammar — item stays open
+      artifacts. v0.19 restyled chart wrappers on log/dashboard; v0.20.0
+      closed the item at the scope the final-sweep spec deliberately
+      capped it to — one shared token + axis/legend grammar across
+      `stream-chart`, `wellness-trends`, `weekly-load-bars`, dashboard
+      sparklines, and the coach artifact card (not a full chart-engine
+      rewrite; charts stay hand-rolled SVG)
 - [ ] Accessibility as-you-go: new UI ships with labels/contrast/focus
-      handled, so the v0.18 sweep is a check, not a cliff
+      handled, so the v0.18 sweep is a check, not a cliff. Standing
+      practice, not a one-time deliverable — stays open by nature; the
+      v0.20.0 a11y sweep (`docs/a11y-sweep-2026-07.md`) found the
+      commitment had mostly held since v0.19
 
 ## Not planned
 

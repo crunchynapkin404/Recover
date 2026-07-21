@@ -32,8 +32,16 @@ describe.skipIf(!hasDb)("exportUserData", () => {
     await db
       .insert(schema.users)
       .values([
-        { id: USER, name: "Export Test User", email: "export-test@example.invalid" },
-        { id: OTHER_USER, name: "Other User", email: "export-other@example.invalid" },
+        {
+          id: USER,
+          name: "Export Test User",
+          email: "export-test@example.invalid",
+        },
+        {
+          id: OTHER_USER,
+          name: "Other User",
+          email: "export-other@example.invalid",
+        },
       ])
       .onConflictDoNothing();
 
@@ -291,9 +299,7 @@ describe.skipIf(!hasDb)("exportUserData", () => {
     expect(out.connections[0]).not.toHaveProperty("encryptedRefreshToken");
     expect(out.api_tokens[0]).not.toHaveProperty("tokenHash");
     expect(out.llm_settings[0]).not.toHaveProperty("encryptedApiKey");
-    expect(out.webhook_subscriptions[0]).not.toHaveProperty(
-      "encryptedSecret"
-    );
+    expect(out.webhook_subscriptions[0]).not.toHaveProperty("encryptedSecret");
     expect(out.activities[0]).not.toHaveProperty("raw");
 
     // No decrypted/encrypted secret value ever leaves as a substring

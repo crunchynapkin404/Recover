@@ -171,7 +171,7 @@ fills a demo account with 90 days of plausible training history (see
 
 ## Status & roadmap
 
-**Current release: v0.18.0 — Security Hardening (released 2026-07-21).** The v0.9→v0.14 series made
+**Current release: v0.20.0 — Final Sweep (released 2026-07-21).** The v0.9→v0.14 series made
 the app honest, adaptive, and durable: v0.9.0 deleted every metric the data
 couldn't back, v0.9.2–0.9.3 turned static training plans into a living week
 that adapts to your availability and readiness, v0.9.4 added auto-tags,
@@ -210,9 +210,20 @@ followed with the first slice of 1.0 hardening: security headers, login
 rate-limiting and boot-time secret validation, a hardened Apple Health
 ingest endpoint, an owner-viewable auth/token/connection audit log, and an
 exhaustive 101-surface per-user isolation audit that found zero cross-user
-data-leak gaps. A full pass over the remaining roadmap is next, to settle
-what's left before 1.0. The full plan lives in
-[docs/ROADMAP.md](docs/ROADMAP.md).
+data-leak gaps. v0.20 closed out the rest of the roadmap in one sweep:
+honest empty states and loading skeletons on every remaining page, a
+unified chart token/axis grammar, pre-toggled journal defaults, a
+Prometheus `/metrics` endpoint and richer health signals, signed outbound
+webhooks (readiness/band/backup events), an owner-only sync-jobs admin
+panel, a complete GDPR export with a matching lossless import, restored
+native arm64 release images, a refreshed Vercel + Neon deploy guide, an
+accessibility sweep, session-management UI (list/revoke your own active
+sessions), documented upgrade and rollback guarantees, a dashboard
+performance pass, a frozen 54-tool MCP surface with a deprecation policy,
+an end-to-end docs review, and a final security review that re-confirmed
+every new surface — zero gaps. Stronger Together (social/sharing) is
+deferred to a fresh roadmap rather than folded in here. The full plan
+lives in [docs/ROADMAP.md](docs/ROADMAP.md).
 
 An honest hobby project built for one owner and about ten friends. If it's
 useful to you, self-host it and make it yours. Issues and PRs welcome — see

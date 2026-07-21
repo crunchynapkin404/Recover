@@ -123,8 +123,7 @@ export function SessionsCard({ sessions }: Props) {
                 : `Sign out everywhere else (${otherCount})`}
             </Button>
             <p className="text-muted-foreground mt-1 text-xs">
-              Ends every session except this one — this device stays signed
-              in.
+              Ends every session except this one — this device stays signed in.
             </p>
           </div>
         )}

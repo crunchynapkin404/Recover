@@ -1,5 +1,124 @@
 # Changelog
 
+## v0.20.0 — 2026-07-21 — Final Sweep
+
+Closes out the current roadmap in one release: cross-cutting polish, the
+v0.17 operations track, and the remainder of v0.18's 1.0-hardening list.
+Nothing net-new in user-facing scope — every item here finishes a
+half-done backlog line or makes what already exists more trustable.
+Stronger Together (v0.16, social/sharing) is explicitly deferred to a new
+roadmap rather than squeezed in here. Design:
+`docs/specs/2026-07-21-v0.20-final-sweep-design.md`.
+
+### Track 1 — Polish
+
+- **Empty states and loading skeletons** on the four pages v0.19's
+  restructuring skipped (`plan`, `activity/[id]`, `activity/log`,
+  `health`, `import`) — reusing the shared `EmptyState` primitive and
+  matching layout-stable skeletons, including a fix for `plan/loading.tsx`
+  missing `RacesSection`'s always-rendered "add race" bar (content would
+  otherwise shift on stream-in).
+- **Chart consistency**: one shared token + axis/legend grammar
+  (`CHART_TOKENS`, `formatChartValue` in `src/lib/charts.ts`) across
+  `stream-chart`, `wellness-trends`, `weekly-load-bars`, the dashboard
+  sparklines, and the coach `artifact-card` — hand-rolled SVG stays
+  hand-rolled, this is a token unification, not a chart-engine rewrite.
+  An unwired `axisTicks` helper and an unused `fontSize.tick` token added
+  during the migration were caught in review and removed rather than left
+  as dead code.
+- **Default journal entries**: frequent _behavioural_ tags now pre-toggle
+  from a "remember these as usual" setting — the energy/soreness/stress
+  sliders are untouched by this and still write nothing when left
+  unanswered, preserving the v0.7 score-integrity contract.
+- **Performance-log filters**: verified end-to-end (view/month/range/sport
+  all round-trip through one shared href-builder, extracted to
+  `src/lib/log-href.ts` with a new regression test) — confirmed already
+  correct since v0.19, no functional gap found.
+
+### Track 2 — Ops / Self-Hosted Citizen
+
+- **Prometheus `/metrics`** (`METRICS_TOKEN`-gated, timing-safe compare,
+  404 when unset) and a richer `/api/health`: sync staleness, sync-job
+  queue depth (pending/running/failed), backup age, and push-subscription
+  count — all instance-wide aggregates, backed by one shared
+  `getOpsSnapshot()` helper so the two endpoints can't drift.
+- **`POST /api/internal/backup-complete`**: `BACKUP_NOTIFY_SECRET`
+  shared-secret gate (timing-safe), called by `scripts/backup.sh` after
+  every successful rotation; records backup freshness and fires the new
+  `backup_completed` webhook.
+- **Signed outbound webhooks** (migration `0021`,
+  `webhook_subscriptions` / `webhook_deliveries`): HMAC-SHA256-signed
+  POSTs on `readiness_computed`, `band_changed`, and `backup_completed`,
+  with bounded retry (4 attempts, capped exponential backoff) and a
+  per-attempt fetch timeout so a hung target can't stall the scheduler's
+  sequential tick loop. Per-user dispatch is strictly scoped to the
+  subscription owner's `userId`; `backup_completed` alone is deliberately
+  instance-wide (it's not per-user data). Create/revoke are self-service
+  and now audit-logged, matching the existing API-token audit pattern.
+- **Sync-jobs admin panel**: owner-only view of every user's sync jobs
+  (queue/running/failed) with manual retry (resets `runAfter` to now, not
+  just `status`, so a backed-off job is actually picked up again) and a
+  per-user "kick" — both re-gated independently of the page-level guard.
+- **Complete GDPR export** across every user-owned table (journal,
+  biomarkers, coach memories, chat messages, connections/settings, races,
+  training plans, week plans, adjustments, token metadata — secrets
+  stripped, never decrypted) plus a matching **import** path
+  (`POST /api/import-account`, session-gated, always writes to
+  `session.user.id`). `scripts/export-import-drill.sh` proves the
+  export → wipe → import round trip is lossless against an ephemeral
+  scratch database — never the live DB.
+- **Native `ubuntu-24.04-arm` release runners**: multi-arch images
+  restored (amd64 + arm64 native + manifest merge) without the ~50-minute
+  QEMU cost that got arm64 dropped in v0.8.
+- **Vercel + Neon deployment guide** (`docs/DEPLOY-VERCEL.md`): corrects
+  prior guidance that told Neon deployers to omit `DATABASE_DRIVER`
+  (which silently disables the scheduler's advisory locks); documents the
+  correct pooled-connection + `DATABASE_DRIVER=pg` setup and a known gap
+  (Vercel's native GET-only Cron Jobs can't reach `/api/cron`, which is
+  POST-only — use an external scheduler).
+
+### Track 3 — Hardening
+
+- **Accessibility sweep**: a check-and-close pass over navigation,
+  `ScoreRing`, the dashboard hero, journal form, settings accordions, and
+  the coach composer — real, targeted gaps fixed (a missing
+  `aria-hidden` on `ScoreRing`'s decorative subtree, three unlabeled
+  icon-only buttons in the chat composer, several sub-AA-contrast text
+  labels bumped `/30`→`/50`, three textareas/inputs with `outline-none`
+  and zero replacement focus style). Full writeup and contrast math in
+  `docs/a11y-sweep-2026-07.md`.
+- **Session-management UI**: list active sessions/devices and revoke one
+  or all-others, backed by Better Auth's own `sessions` table and
+  `revokeSession`/`revokeOtherSessions` APIs, with an explicit
+  self-ownership check and a guard against revoking your own current
+  session. No 2FA/passkeys — deliberately out of scope for this
+  deployment model (self-hosted, invite-only, behind a tunnel; see
+  `docs/ROADMAP.md`'s v0.18 section for the reasoning).
+- **Upgrade guarantees**: `scripts/migration-drill.sh` restores a real
+  nightly `pg_dump` into a scratch Postgres and runs migrations against
+  it, plus runs the full migration chain against an empty scratch DB —
+  both scratch-only, never the live database. Documented rollback
+  procedure and a backup-compatibility matrix in `docs/UPGRADING.md`.
+- **Performance pass**: a dashboard cold-load budget plus a query audit
+  found and fixed real N+1/missing-index gaps on the hot path. Findings
+  and methodology in `docs/perf-pass-2026-07.md`.
+- **API/MCP stability freeze**: the 54-tool surface in
+  `src/lib/tools/registry.ts` (names and schemas, including per-field
+  descriptions) is now frozen with a snapshot test and a published
+  deprecation policy — see `docs/API-STABILITY.md`.
+- **Docs reviewed end-to-end**: doc claims re-verified against code
+  rather than trusted as-is (tool count, connector list, env-var names);
+  fixed a real drift (`.env.example` was missing the Whoop and Withings
+  OAuth env vars entirely) and filled gaps in `docs/SELF-HOSTING.md` for
+  every surface this release added.
+- **Final security review**: re-ran the v0.18.0 per-user-isolation lens
+  over every surface this release added — `/metrics`,
+  `/api/internal/backup-complete`, webhook dispatch, the account-import
+  route, and the sync-jobs admin panel. **Zero gaps found** — full
+  evidence trail in `docs/security/2026-07-21-v0.20-review.md`. The
+  import route in particular was re-confirmed to write only to
+  `session.user.id`, never a caller-supplied target.
+
 ## v0.18.0 — 2026-07-21 — Security Hardening
 
 The first slice of the roadmap's "1.0 Hardening" epic — shipped after

@@ -45,7 +45,11 @@ export function WebhooksCard({ webhooks }: Props) {
   const [showSecret, setShowSecret] = useState<string | null>(null);
 
   // Show the newly created secret once.
-  if (createState?.ok && createState.secret && showSecret !== createState.secret) {
+  if (
+    createState?.ok &&
+    createState.secret &&
+    showSecret !== createState.secret
+  ) {
     setShowSecret(createState.secret);
   }
 
@@ -62,8 +66,8 @@ export function WebhooksCard({ webhooks }: Props) {
         <CardTitle>Outbound Webhooks</CardTitle>
         <CardDescription>
           Signed HTTP POSTs to a URL of your choice on readiness, band, and
-          backup events — wire this into Home Assistant, ntfy, or anything
-          else listening. Each request carries an{" "}
+          backup events — wire this into Home Assistant, ntfy, or anything else
+          listening. Each request carries an{" "}
           <code className="text-xs">x-recover-signature</code> header (HMAC-
           SHA256 of the body, using the secret shown once below) so your
           receiver can verify it came from this server.
@@ -79,9 +83,7 @@ export function WebhooksCard({ webhooks }: Props) {
                 className="flex items-center justify-between rounded-md border px-3 py-2"
               >
                 <div className="flex flex-col gap-1">
-                  <span className="break-all text-sm font-medium">
-                    {w.url}
-                  </span>
+                  <span className="break-all text-sm font-medium">{w.url}</span>
                   <div className="flex flex-wrap gap-1">
                     {w.events.map((e) => (
                       <Badge key={e} variant="outline">

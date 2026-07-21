@@ -44,9 +44,7 @@ export async function createWebhookSubscription(
   const events = formData
     .getAll("events")
     .map(String)
-    .filter((e): e is WebhookEvent =>
-      (VALID_EVENTS as string[]).includes(e)
-    );
+    .filter((e): e is WebhookEvent => (VALID_EVENTS as string[]).includes(e));
   if (events.length === 0) {
     return { ok: false, message: "Pick at least one event." };
   }
