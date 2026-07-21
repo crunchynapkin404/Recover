@@ -10,6 +10,7 @@ import { LlmSettingsCard } from "@/components/settings/llm-settings-card";
 import { CoachCard } from "@/components/settings/coach-card";
 import { listMemories } from "@/lib/coach-memory";
 import { ApiTokensCard } from "@/components/settings/api-tokens-card";
+import { WebhooksCard } from "@/components/settings/webhooks-card";
 import { StravaCard } from "@/components/settings/strava-card";
 import { WhoopCard } from "@/components/settings/whoop-card";
 import { whoopConfigured } from "@/lib/connectors/whoop";
@@ -101,6 +102,13 @@ export default async function SettingsPage({
     where: and(
       eq(schema.apiTokens.userId, user.id),
       isNull(schema.apiTokens.revokedAt)
+    ),
+  });
+
+  const webhookSubscriptions = await db.query.webhookSubscriptions.findMany({
+    where: and(
+      eq(schema.webhookSubscriptions.userId, user.id),
+      eq(schema.webhookSubscriptions.active, true)
     ),
   });
 
@@ -324,6 +332,15 @@ export default async function SettingsPage({
                   scopes: t.scopes,
                   lastUsedAt: t.lastUsedAt?.toISOString() ?? null,
                   createdAt: t.createdAt.toISOString(),
+                }))}
+              />
+
+              <WebhooksCard
+                webhooks={webhookSubscriptions.map((w) => ({
+                  id: w.id,
+                  url: w.url,
+                  events: w.events ?? [],
+                  createdAt: w.createdAt.toISOString(),
                 }))}
               />
             </div>

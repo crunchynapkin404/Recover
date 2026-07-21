@@ -172,6 +172,48 @@ export async function computeDailyMetrics(
         set: values,
       });
     computed++;
+
+    // v0.20 outbound webhooks — fire only for the live "today" row, never
+    // for a historical backfill recompute (CSV import, or a multi-day
+    // incremental catch-up after downtime): those touch many past dates in
+    // this same loop and firing for each would replay months of events at
+    // a subscriber. Guarded like every other post-write side effect in
+    // this codebase (see scheduler.ts's morning-insight/push/weekly-review
+    // blocks) — a webhook failure must never break metrics computation.
+    if (date === today) {
+      try {
+        const { dispatchWebhook } = await import("@/lib/webhooks/dispatch");
+        const prevDay = await db.query.dailyMetrics.findFirst({
+          where: and(
+            eq(schema.dailyMetrics.userId, userId),
+            eq(schema.dailyMetrics.date, addDays(date, -1))
+          ),
+          columns: { band: true },
+        });
+        await dispatchWebhook(userId, "readiness_computed", {
+          date,
+          readiness: result.readiness,
+          band: result.band,
+        });
+        // band_changed only when a prior day's band is known and differs —
+        // computeReadiness (lib/readiness.ts) is the sole source of the
+        // band value itself; this just diffs its output day-over-day.
+        if (prevDay?.band && prevDay.band !== result.band) {
+          await dispatchWebhook(userId, "band_changed", {
+            date,
+            from: prevDay.band,
+            to: result.band,
+            readiness: result.readiness,
+          });
+        }
+      } catch (err) {
+        logger.error("webhook dispatch failed after metrics compute", {
+          userId,
+          date,
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
   }
 
   logger.info("daily metrics computed", { userId, sinceDate, computed });

@@ -2,6 +2,8 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { db, schema } from "@/lib/db";
 import { BACKUP_LAST_SUCCESS_KEY } from "@/lib/ops-metrics";
+import { broadcastWebhook } from "@/lib/webhooks/dispatch";
+import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +37,17 @@ export async function POST(req: Request) {
       target: schema.appConfig.key,
       set: { value: nowEpochS, updatedAt: new Date() },
     });
+
+  // v0.20 outbound webhooks — fire after the config write succeeds. Guarded:
+  // a webhook failure must never turn a successful backup notification into
+  // a 500 for scripts/backup.sh.
+  try {
+    await broadcastWebhook("backup_completed", { at: nowEpochS });
+  } catch (err) {
+    logger.error("backup_completed webhook dispatch failed", {
+      message: err instanceof Error ? err.message : String(err),
+    });
+  }
 
   return NextResponse.json({ ok: true });
 }

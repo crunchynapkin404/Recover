@@ -854,3 +854,64 @@ export const auditLog = pgTable("audit_log", {
     .notNull()
     .defaultNow(),
 });
+
+// ── v0.20 Outbound Webhooks ──────────────────────────────────────────────────
+
+/**
+ * Signed HTTP POSTs to a user-configured URL on key events (readiness
+ * computed, band changed, backup completed) — lets a self-hoster wire
+ * Recover into Home Assistant, ntfy, or anything else listening. See
+ * lib/webhooks/dispatch.ts.
+ *
+ * `encryptedSecret` is AES-256-GCM at rest (lib/crypto, same treatment as
+ * connections.encryptedAccessToken) — it signs every delivery via
+ * HMAC-SHA256 and must never appear in a list/read response after creation
+ * (the plaintext is shown once, like api_tokens.tokenHash).
+ */
+export const webhookSubscriptions = pgTable(
+  "webhook_subscriptions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    url: text("url").notNull(),
+    encryptedSecret: text("encrypted_secret").notNull(),
+    // "readiness_computed" | "band_changed" | "backup_completed" — kept
+    // loose (not a DB enum) matching the jsonb list-column convention used
+    // elsewhere (e.g. journalPrefs.usualBehaviorTags) rather than a native
+    // pg text[], which nothing else in this schema uses.
+    events: jsonb("events").$type<string[]>().notNull(),
+    active: boolean("active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("webhook_subscriptions_user_idx").on(t.userId)]
+);
+
+/** One row per dispatch (cumulative attempts), not one row per retry. */
+export const webhookDeliveries = pgTable(
+  "webhook_deliveries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    subscriptionId: uuid("subscription_id")
+      .notNull()
+      .references(() => webhookSubscriptions.id, { onDelete: "cascade" }),
+    event: text("event", {
+      enum: ["readiness_computed", "band_changed", "backup_completed"],
+    }).notNull(),
+    status: text("status", { enum: ["success", "failed"] }).notNull(),
+    attempts: integer("attempts").notNull(),
+    lastError: text("last_error"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("webhook_deliveries_subscription_idx").on(
+      t.subscriptionId,
+      t.createdAt
+    ),
+  ]
+);
