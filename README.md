@@ -159,7 +159,7 @@ fills a demo account with 90 days of plausible training history (see
 
 ## Status & roadmap
 
-**Current release: v0.19.0 — Design Refresh (released 2026-07-20).** The v0.9→v0.14 series made
+**Current release: v0.18.0 — Security Hardening (released 2026-07-21).** The v0.9→v0.14 series made
 the app honest, adaptive, and durable: v0.9.0 deleted every metric the data
 couldn't back, v0.9.2–0.9.3 turned static training plans into a living week
 that adapts to your availability and readiness, v0.9.4 added auto-tags,
@@ -193,9 +193,13 @@ dashboard, coach, log, journal, and settings screens are now built around
 progressive disclosure — one focal metric and a compact stat row on the
 dashboard, an accordion per settings domain, collapsible trend panels on
 the log page, a stepped journal check-in, and collapsible chat chrome on
-the coach — collapsed by default instead of everything rendered flat. Next
-up: opt-in sharing between consenting users (v0.16 — Stronger Together),
-still queued behind this release. The full plan lives in
+the coach — collapsed by default instead of everything rendered flat. v0.18
+followed with the first slice of 1.0 hardening: security headers, login
+rate-limiting and boot-time secret validation, a hardened Apple Health
+ingest endpoint, an owner-viewable auth/token/connection audit log, and an
+exhaustive 101-surface per-user isolation audit that found zero cross-user
+data-leak gaps. A full pass over the remaining roadmap is next, to settle
+what's left before 1.0. The full plan lives in
 [docs/ROADMAP.md](docs/ROADMAP.md).
 
 An honest hobby project built for one owner and about ten friends. If it's
