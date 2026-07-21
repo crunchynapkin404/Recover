@@ -8,7 +8,9 @@ export type AuditEvent =
   | "connection_added"
   | "connection_revoked"
   | "webhook_created"
-  | "webhook_revoked";
+  | "webhook_revoked"
+  | "session_revoked"
+  | "session_revoked_others";
 
 /**
  * Record a security-relevant event. Never pass a secret in `metadata` — a

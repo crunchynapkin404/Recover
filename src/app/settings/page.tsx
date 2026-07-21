@@ -1,6 +1,7 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
-import { requireUser } from "@/lib/session";
+import { requireSession } from "@/lib/session";
+import { getMySessions } from "@/lib/sessions";
 import { AppShell } from "@/components/app-shell";
 import { IntervalsCard } from "@/components/settings/intervals-card";
 import { NotificationsCard } from "@/components/settings/notifications-card";
@@ -11,6 +12,7 @@ import { CoachCard } from "@/components/settings/coach-card";
 import { listMemories } from "@/lib/coach-memory";
 import { ApiTokensCard } from "@/components/settings/api-tokens-card";
 import { WebhooksCard } from "@/components/settings/webhooks-card";
+import { SessionsCard } from "@/components/settings/sessions-card";
 import { StravaCard } from "@/components/settings/strava-card";
 import { WhoopCard } from "@/components/settings/whoop-card";
 import { whoopConfigured } from "@/lib/connectors/whoop";
@@ -47,8 +49,14 @@ export default async function SettingsPage({
     withings_error?: string;
   }>;
 }) {
-  const user = await requireUser();
+  const session = await requireSession();
+  const user = session.user;
   const { strava_error, whoop_error, withings_error } = await searchParams;
+
+  const { sessions: activeSessions } = await getMySessions(
+    user.id,
+    session.session.id
+  );
 
   const connection = await db.query.connections.findFirst({
     where: and(
@@ -324,7 +332,9 @@ export default async function SettingsPage({
             </span>
           </CollapsibleTrigger>
           <CollapsiblePanel>
-            <div className="p-5 pt-4">
+            <div className="space-y-4 p-5 pt-4">
+              <SessionsCard sessions={activeSessions} />
+
               <ApiTokensCard
                 tokens={apiTokens.map((t) => ({
                   id: t.id,
