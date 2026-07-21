@@ -49,21 +49,7 @@ export const CHART_TOKENS = {
     /** Compact dashboard sparkline path. */
     spark: 2,
   },
-  fontSize: {
-    /** Axis tick / label size, for charts that render SVG tick text. */
-    tick: 10,
-  },
 } as const;
-
-/** Evenly spaced ticks spanning [min, max], `count` of them, min and max included. */
-export function axisTicks(min: number, max: number, count: number): number[] {
-  if (count <= 1) return [min];
-  const step = (max - min) / (count - 1);
-  return Array.from(
-    { length: count },
-    (_, i) => Math.round((min + step * i) * 100) / 100
-  );
-}
 
 /** Shared tooltip/label number format: round to `decimals` places (default 0). */
 export function formatChartValue(v: number, decimals = 0): string {
