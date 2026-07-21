@@ -177,7 +177,14 @@ export default async function DashboardPage() {
     outlook: null,
   };
   if (race) {
-    const assembled = await assembleForecastInputs(user.id, race, todayDate);
+    // weekPlan was already fetched above for the living-week card — pass it
+    // through so assembleForecastInputs doesn't re-run getOpenWeekPlan.
+    const assembled = await assembleForecastInputs(
+      user.id,
+      race,
+      todayDate,
+      weekPlan
+    );
     const outlook = !assembled
       ? ({ kind: "no_plan" } as const)
       : (() => {

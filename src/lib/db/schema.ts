@@ -313,27 +313,40 @@ export const dailyMetrics = pgTable(
   (t) => [uniqueIndex("daily_metrics_user_date_uq").on(t.userId, t.date)]
 );
 
-export const chatThreads = pgTable("chat_threads", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: text("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  title: text("title"),
-  // System threads: 'morning' holds the daily proactive coach insight.
-  kind: text("kind", {
-    enum: ["chat", "morning", "weekly", "debrief", "monthly"],
-  })
-    .notNull()
-    .default("chat"),
-  // Ghost threads: auto-purged by the scheduler 24h after last activity.
-  ephemeral: boolean("ephemeral").notNull().default(false),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-});
+export const chatThreads = pgTable(
+  "chat_threads",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    title: text("title"),
+    // System threads: 'morning' holds the daily proactive coach insight.
+    kind: text("kind", {
+      enum: ["chat", "morning", "weekly", "debrief", "monthly"],
+    })
+      .notNull()
+      .default("chat"),
+    // Ghost threads: auto-purged by the scheduler 24h after last activity.
+    ephemeral: boolean("ephemeral").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  // v0.20 perf pass: every other per-user table in this schema carries a
+  // userId-scoped index (wellness_daily, activities, daily_metrics,
+  // coach_memories, ...) — this one was missing it. Queried by (userId, kind)
+  // on the dashboard's cold-load path twice (morning insight + weekly
+  // review lookup) and by userId alone on the coach thread list; today's
+  // table is small enough that Postgres prefers a seq scan regardless (see
+  // docs/perf-pass-2026-07.md), but chat threads accumulate per
+  // conversation with no cap, so this is the same forward-looking bet the
+  // existing indexes already made at similar table sizes.
+  (t) => [index("chat_threads_user_kind_idx").on(t.userId, t.kind)]
+);
 
 export const coachMemories = pgTable(
   "coach_memories",

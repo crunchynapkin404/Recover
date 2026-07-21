@@ -1,0 +1,1 @@
+CREATE INDEX "chat_threads_user_kind_idx" ON "chat_threads" USING btree ("user_id","kind");

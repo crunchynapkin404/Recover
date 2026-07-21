@@ -6,6 +6,7 @@ import type { RaceContext } from "./taper";
 import type { ForecastInputs } from "./forecast";
 import { taperFractionForWeek } from "./taper";
 import type { DaySlot } from "@/lib/week-plan/types";
+import type { OpenWeekPlan } from "@/lib/week-plan/service";
 
 export type RaceRow = typeof schema.races.$inferSelect;
 export type RacePriority = "A" | "B" | "C";
@@ -183,14 +184,24 @@ export interface AssembledForecast {
  * week's remaining planned loads, and the remaining skeleton weeks
  * (taper-reshaped for an A race). Distribution is deterministic: a week's
  * target load splits across its workout days proportional to duration.
+ *
+ * `preloadedWeek` lets a caller that already fetched the open week plan in
+ * the same request (e.g. the dashboard) pass it through instead of paying
+ * for a second identical `getOpenWeekPlan` round trip — perf pass, v0.20.
+ * Omit it (the default, `undefined`) to fetch fresh, exactly as before;
+ * explicit `null` means "there is no open week," matching what
+ * `getOpenWeekPlan` itself would have returned.
  */
 export async function assembleForecastInputs(
   userId: string,
   race: RaceRow | null,
-  now = new Date()
+  now = new Date(),
+  preloadedWeek?: OpenWeekPlan | null
 ): Promise<AssembledForecast | null> {
-  const { getOpenWeekPlan } = await import("@/lib/week-plan/service");
-  const week = await getOpenWeekPlan(userId);
+  const week =
+    preloadedWeek !== undefined
+      ? preloadedWeek
+      : await (await import("@/lib/week-plan/service")).getOpenWeekPlan(userId);
   if (!week) return null;
   const plan = await db.query.trainingPlans.findFirst({
     where: eq(schema.trainingPlans.id, week.planId),
