@@ -9,7 +9,7 @@ indexes, fix what's real, and record the before/after honestly.
 **Committed budget: query-count / round-trip, not wall-clock.** The
 sandbox's `DATABASE_URL` here points at `localhost:5434` — a loopback
 Postgres with no network hop. Wall-clock numbers measured against it (below)
-are real and useful as a *lower bound* / sanity check that no individual
+are real and useful as a _lower bound_ / sanity check that no individual
 query is pathological, but they understate what production sees once every
 query pays a real network round trip (Neon, same-region TCP). So the number
 this task is accountable to is:
@@ -22,8 +22,11 @@ this task is accountable to is:
 
 Concretely, for a user with an active plan, an open week, and an upcoming
 race (the busiest real path through the page — everything is populated):
-**26 round trips**, none of which grow with table size (all are `findFirst`,
-`limit`-bounded, or filtered to a tight date window). That count is the
+**26 round trips**, none of which grow with total table size (nearly all are
+`findFirst`, `limit`-bounded, or filtered to a tight date window — with one
+benign exception, `getMilestones`'s journaled-days select, which grows only
+with a single user's own logged-day history and is unfixable without changing
+results; see "Checked and found not material"). That count is the
 number to watch in future dashboard work — a change that pushes it into the
 30s+ or, worse, makes it scale with a `for` loop, should get the same
 scrutiny this pass gave the current code.
@@ -45,22 +48,22 @@ Read `src/app/page.tsx` in full (752 lines) and traced every `db.query.*`
 call it makes directly, plus every data-loading function it calls, into
 their own source:
 
-| Path | File | What it does |
-|---|---|---|
-| Connections + last sync | `page.tsx` inline | `connections.findFirst` (userId+status), `connections.findMany` (userId, columns-only) |
-| Wellness (90d) | `page.tsx` inline | `wellnessDaily.findMany` (userId + date range), ordered by date |
-| Recent activities (8) | `page.tsx` inline | `activities.findMany` (userId), `limit 8`, ordered desc |
-| Morning insight | `src/lib/morning-insight.ts` → `getLatestMorningInsight` | `chatThreads.findFirst` (userId+kind), then `chatMessages.findMany` (threadId, `limit 10`, filtered in JS for non-debrief) |
-| Weekly review | `src/lib/weekly-review.ts` → `getLatestWeeklyReview` | `chatThreads.findFirst` (userId+kind), `chatMessages.findFirst` (threadId+role) |
-| Open week plan | `src/lib/week-plan/service.ts` → `getOpenWeekPlan` | `weekPlans.findFirst` (userId+status) |
-| Today's plan adjustment | `src/lib/week-plan/service.ts` → `listAdjustments` | `planAdjustments.findMany` (weekPlanId), filtered/sliced in JS |
-| Milestones | `src/lib/insights/milestones.ts` → `getMilestones` | 3 queries run via `Promise.all` (wellnessDaily select, trainingBlocks⋈trainingPlans, trainingPlans count) |
-| Next race | `src/lib/race/service.ts` → `nextUpcomingRace` | `races.findFirst` (userId+status+date) |
-| Race forecast inputs | `src/lib/race/service.ts` → `assembleForecastInputs` | up to 6 queries: open week (was: always re-fetched — see Finding 1), trainingPlans, dailyMetrics, trainingBlocks×2, weekPlans (lastClosed) |
-| Daily metrics (30d) | `page.tsx` inline | `dailyMetrics.findMany` (userId + date range), ordered by date |
-| Body prefs | `page.tsx` inline | `bodyPrefs.findFirst` (userId, unique) |
-| Today's + month's activities | `page.tsx` inline | 2× `activities.findMany` (userId + date range) |
-| Active plan + current block | `page.tsx` inline | `trainingPlans.findFirst` (userId+status), conditionally `trainingBlocks.findFirst` (planId+weekNumber) |
+| Path                         | File                                                     | What it does                                                                                                                               |
+| ---------------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| Connections + last sync      | `page.tsx` inline                                        | `connections.findFirst` (userId+status), `connections.findMany` (userId, columns-only)                                                     |
+| Wellness (90d)               | `page.tsx` inline                                        | `wellnessDaily.findMany` (userId + date range), ordered by date                                                                            |
+| Recent activities (8)        | `page.tsx` inline                                        | `activities.findMany` (userId), `limit 8`, ordered desc                                                                                    |
+| Morning insight              | `src/lib/morning-insight.ts` → `getLatestMorningInsight` | `chatThreads.findFirst` (userId+kind), then `chatMessages.findMany` (threadId, `limit 10`, filtered in JS for non-debrief)                 |
+| Weekly review                | `src/lib/weekly-review.ts` → `getLatestWeeklyReview`     | `chatThreads.findFirst` (userId+kind), `chatMessages.findFirst` (threadId+role)                                                            |
+| Open week plan               | `src/lib/week-plan/service.ts` → `getOpenWeekPlan`       | `weekPlans.findFirst` (userId+status)                                                                                                      |
+| Today's plan adjustment      | `src/lib/week-plan/service.ts` → `listAdjustments`       | `planAdjustments.findMany` (weekPlanId), filtered/sliced in JS                                                                             |
+| Milestones                   | `src/lib/insights/milestones.ts` → `getMilestones`       | 3 queries run via `Promise.all` (wellnessDaily select, trainingBlocks⋈trainingPlans, trainingPlans count)                                  |
+| Next race                    | `src/lib/race/service.ts` → `nextUpcomingRace`           | `races.findFirst` (userId+status+date)                                                                                                     |
+| Race forecast inputs         | `src/lib/race/service.ts` → `assembleForecastInputs`     | up to 6 queries: open week (was: always re-fetched — see Finding 1), trainingPlans, dailyMetrics, trainingBlocks×2, weekPlans (lastClosed) |
+| Daily metrics (30d)          | `page.tsx` inline                                        | `dailyMetrics.findMany` (userId + date range), ordered by date                                                                             |
+| Body prefs                   | `page.tsx` inline                                        | `bodyPrefs.findFirst` (userId, unique)                                                                                                     |
+| Today's + month's activities | `page.tsx` inline                                        | 2× `activities.findMany` (userId + date range)                                                                                             |
+| Active plan + current block  | `page.tsx` inline                                        | `trainingPlans.findFirst` (userId+status), conditionally `trainingBlocks.findFirst` (planId+weekNumber)                                    |
 
 Also cross-checked every filter/sort column above against
 `src/lib/db/schema.ts`'s existing `index(`/`uniqueIndex(` declarations
@@ -153,14 +156,26 @@ This is a small win — one query out of ~26 — and is reported as such, not
 inflated. It's the one clean, safe, no-schema-change fix Step 3 asked to be
 preferred, and it was real, so it's included.
 
-### Finding 2 (fixed, migration `0022`) — `chat_threads` has zero indexes
+### Finding 2 (fixed, migration `0022`) — `chat_threads` had no index on its dashboard query
 
-Every other per-user table in the schema (`wellness_daily`, `activities`,
+Most per-user tables in the schema (`wellness_daily`, `activities`,
 `daily_metrics`, `coach_memories`, `training_plans`, `races`, `week_plans`,
-`biomarkers`, `llm_usage`, `webhook_subscriptions`, ...) carries at least one
-index on `userId` or `(userId, <hot filter column>)`. **`chat_threads` had
-none** — not even on `userId` alone. It's queried by `(userId, kind)` in four
-places, two of them on this dashboard's cold-load path:
+`biomarkers`, `llm_usage`, `webhook_subscriptions`, ...) already carry an
+index on `userId` or `(userId, <hot filter column>)`. Several do **not**:
+`chat_threads`, `sessions`, `api_tokens`, and `push_subscriptions` have no
+index at all, and `sync_jobs`'s only index is `(status, runAfter)`, not
+`userId`. Of that unindexed set, **`chat_threads` is the only table queried
+on this dashboard's cold-load path** — which is why it is the one (and the
+only one) this pass indexes. `sessions` / `api_tokens` / `push_subscriptions`
+/ `sync_jobs` are touched only on the settings, token-management, push, and
+scheduler paths — none of them the dashboard cold load this task is scoped
+to, and none showing a demonstrated problem. Speculatively indexing them
+would be precisely the "optimization just to have a diff" the brief warned
+against, so they are deliberately left alone. (Called out here so a future
+reader does **not** mistake this section for a claim that those four are
+already covered — they are not; they are simply out of scope for this pass.)
+`chat_threads` is queried by `(userId, kind)` in four places, two of them on
+this dashboard's cold-load path:
 
 - `src/lib/morning-insight.ts` — `findOrCreateMorningThread` +
   `getLatestMorningInsight`, both `(userId, kind='morning')`
@@ -185,7 +200,7 @@ Row counts on this dev DB are small (61 `chat_threads` total; the real user
 already has 58 of them — this is a per-conversation table with no cap, so it
 grows with usage, not with time alone). At today's size Postgres correctly
 prefers a seq scan over an index scan regardless — re-running the same
-`EXPLAIN` on `wellness_daily`, which *does* have a `(userId, date)` index,
+`EXPLAIN` on `wellness_daily`, which _does_ have a `(userId, date)` index,
 shows the planner picking a seq scan there too, at a similar row count. That
 is the honest caveat: **this index will not change today's query plan.** It
 is the same forward-looking bet every other index in this schema already
@@ -228,7 +243,7 @@ purely additive.
   becomes a real scan regardless of overall table growth.
 - **`chatMessages.findFirst`** in `getLatestWeeklyReview` filters
   `(threadId, role='assistant')` against an index on `(threadId,
-  createdAt)` — role isn't in the index. Same reasoning: message count per
+createdAt)` — role isn't in the index. Same reasoning: message count per
   thread is small and bounded (the weekly thread gets ~1 message per
   review cycle), so the leftmost `threadId` equality already does the real
   work.
@@ -237,6 +252,19 @@ purely additive.
   (unindexed) — but blocks per plan are bounded (a plan has at most
   `weeksTotal` blocks, typically ≤ 52), so this is a small in-memory-scale
   join regardless of total table size.
+- **`getMilestones`'s journaled-days select** (`wellnessDaily` filtered to
+  rows carrying user-entered signal — energy/soreness/stress/mood/notes/tags)
+  has **no date bound and no `limit`**: it returns one row per logged day
+  across the user's whole history. This is the one query among the 26 that is
+  _not_ strictly bounded by construction — it grows with a single user's
+  cumulative logged-day count. Not fixed, and not fixable without changing
+  results: `computeStreaks` needs the complete journaled-day set to find the
+  best-ever streak, so a date window would drop real data, not just cost. In
+  practice it is bounded by real calendar days a person can log (hundreds over
+  years on a personal instance), and the leftmost `userId` of the
+  `(userId, date)` index still scopes the scan to that one user. Immaterial at
+  any realistic personal-instance scale — flagged only so the budget's
+  "bounded by construction" framing is not read as absolute.
 
 None of these are "hot paths" in the sense the task asked to hunt for — they
 don't scale with total data volume, only with a single user's bounded
