@@ -9,7 +9,8 @@ export default function Loading() {
         <Skeleton className="mb-8 h-3 w-64" /> {/* race/week subtitle */}
 
         <Skeleton className="mb-4 h-3 w-16" /> {/* "Races" label */}
-        <Skeleton className="mb-10 h-16 rounded-2xl" /> {/* races list */}
+        <Skeleton className="mb-4 h-16 rounded-2xl" /> {/* races list */}
+        <Skeleton className="mb-10 h-11 rounded-2xl" /> {/* "+ Add race" bar */}
 
         <Skeleton className="mb-6 h-20 rounded-[2rem]" /> {/* week strip */}
 
