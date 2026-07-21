@@ -420,8 +420,19 @@ export re-imports into a clean instance losslessly.
 
 The last 0.x. Nothing new — everything trustable.
 
+**v0.18.0 (2026-07-21) shipped the security slice**: HTTP security
+headers, login rate-limiting + boot-time secret validation, Apple Health
+ingest hardening, a dependency audit, an owner-viewable auth/token/
+connection audit log, and an exhaustive 101-surface per-user isolation &
+input audit (zero gaps found — `docs/security/2026-07-20-isolation-audit.md`).
+Design: `docs/specs/2026-07-20-v0.18-security-hardening-design.md`. Still
+open below: passkeys/2FA, session-management UI, the accessibility sweep,
+upgrade guarantees, the performance pass, API/MCP stability freeze, and
+the end-to-end docs review — deferred past this slice by design.
+
 - [ ] **Auth hardening**: passkeys + TOTP 2FA, session management UI
-      (list/revoke devices), audit log for auth and token events
+      (list/revoke devices) — audit log for auth and token events shipped
+      in v0.18.0
 - [ ] **Accessibility sweep**: ScoreRing aria labels, contrast, focus
       order, button roles — the polish-backlog item, done properly
 - [ ] **Upgrade guarantees**: migrations tested against real dumps,
