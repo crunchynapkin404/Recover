@@ -19,6 +19,12 @@ const SECRET_API_KEY = "SECRET-MARKER-LLM-API-KEY-91de";
 const SECRET_TOKEN_HASH = "SECRET-MARKER-TOKEN-HASH-c03f";
 const SECRET_WEBHOOK_SECRET = "SECRET-MARKER-WEBHOOK-SECRET-77aa";
 
+// Markers for the activity_streams scoping check (join via activities.id,
+// no userId column of its own — a marker-based check proves the *other*
+// user's stream row is excluded, not just that the key exists).
+const STREAM_MARKER_OWNED = "STREAM-MARKER-OWNED-4b1a";
+const STREAM_MARKER_OTHER = "STREAM-MARKER-OTHER-7c2d";
+
 describe.skipIf(!hasDb)("exportUserData", () => {
   beforeAll(async () => {
     const { db, schema } = await import("@/lib/db");
@@ -38,6 +44,25 @@ describe.skipIf(!hasDb)("exportUserData", () => {
       hrvMs: 999,
     });
 
+    // Decoy activity + stream for the other user — proves the
+    // activity_streams join is scoped via *this* user's activities, not a
+    // global/unscoped query.
+    const [otherActivity] = await db
+      .insert(schema.activities)
+      .values({
+        userId: OTHER_USER,
+        provider: "manual",
+        externalId: "other-ext-1",
+        startDate: new Date("2026-01-01T08:00:00Z"),
+        sport: "Ride",
+      })
+      .returning();
+    await db.insert(schema.activityStreams).values({
+      activityId: otherActivity.id,
+      type: "heartrate",
+      data: { series: [999], marker: STREAM_MARKER_OTHER },
+    });
+
     await db.insert(schema.wellnessDaily).values({
       userId: USER,
       date: "2026-01-02",
@@ -45,13 +70,22 @@ describe.skipIf(!hasDb)("exportUserData", () => {
       notes: "felt good",
     });
 
-    await db.insert(schema.activities).values({
-      userId: USER,
-      provider: "manual",
-      externalId: "ext-1",
-      startDate: new Date("2026-01-02T08:00:00Z"),
-      sport: "Ride",
-      raw: { some: "provider-blob", shouldNotAppear: "raw-marker-xyz" },
+    const [activity] = await db
+      .insert(schema.activities)
+      .values({
+        userId: USER,
+        provider: "manual",
+        externalId: "ext-1",
+        startDate: new Date("2026-01-02T08:00:00Z"),
+        sport: "Ride",
+        raw: { some: "provider-blob", shouldNotAppear: "raw-marker-xyz" },
+      })
+      .returning();
+
+    await db.insert(schema.activityStreams).values({
+      activityId: activity.id,
+      type: "heartrate",
+      data: { series: [120, 125, 130], marker: STREAM_MARKER_OWNED },
     });
 
     await db.insert(schema.dailyMetrics).values({
@@ -212,6 +246,7 @@ describe.skipIf(!hasDb)("exportUserData", () => {
         "training_blocks",
         "week_plans",
         "plan_adjustments",
+        "activity_streams",
         "api_tokens",
         "connections",
         "webhook_subscriptions",
@@ -228,6 +263,7 @@ describe.skipIf(!hasDb)("exportUserData", () => {
     expect(out.chat_messages.length).toBeGreaterThanOrEqual(2);
     expect(out.training_blocks.length).toBeGreaterThanOrEqual(1);
     expect(out.plan_adjustments.length).toBeGreaterThanOrEqual(1);
+    expect(out.activity_streams.length).toBeGreaterThanOrEqual(1);
     expect(out.connections.length).toBeGreaterThanOrEqual(1);
     expect(out.api_tokens.length).toBeGreaterThanOrEqual(1);
     expect(out.llm_settings.length).toBeGreaterThanOrEqual(1);
@@ -238,6 +274,15 @@ describe.skipIf(!hasDb)("exportUserData", () => {
     // Scoping: the other user's decoy row must never appear.
     expect(
       out.wellness_daily.every((w: { userId: string }) => w.userId === USER)
+    ).toBe(true);
+
+    // Scoping for the activities.id-joined activity_streams table: the
+    // other user's stream row (tied to their own activity) must not leak
+    // in, even though activity_streams has no userId column of its own.
+    expect(
+      out.activity_streams.every(
+        (s: { activityId: string }) => s.activityId === out.activities[0].id
+      )
     ).toBe(true);
 
     // Structural secret-stripping: the fields must not exist at all, not
@@ -260,5 +305,10 @@ describe.skipIf(!hasDb)("exportUserData", () => {
     expect(json).not.toContain(SECRET_TOKEN_HASH);
     expect(json).not.toContain(SECRET_WEBHOOK_SECRET);
     expect(json).not.toContain("raw-marker-xyz");
+
+    // activity_streams: the owned stream's content must be present, and
+    // the other user's decoy stream must not have leaked in.
+    expect(json).toContain(STREAM_MARKER_OWNED);
+    expect(json).not.toContain(STREAM_MARKER_OTHER);
   });
 });

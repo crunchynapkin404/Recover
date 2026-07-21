@@ -42,6 +42,27 @@ import { schema } from "@/lib/db";
  *   chat_messages      — joined via chat_threads.id
  *   training_blocks    — joined via training_plans.id
  *   plan_adjustments   — joined via week_plans.id
+ *   activity_streams   — joined via activities.id; per-activity HR/power/
+ *                        velocity/altitude time-series (the `data` jsonb
+ *                        column is the substantive content, not a
+ *                        provider-blob field to strip — same treatment as
+ *                        training_blocks.workouts elsewhere in this file).
+ *                        No userId column of its own, and — unlike
+ *                        athlete_curves below — no TTL and no refresh job,
+ *                        so it does not behave like a cache: once
+ *                        populated it's effectively primary content.
+ *                        getOrFetchActivityDetail (activity-streams.ts)
+ *                        only fetches streams for provider ===
+ *                        "intervals_icu"; there is no Strava streams
+ *                        connector, so Strava-sourced and manually-logged
+ *                        activities' streams can never be re-fetched at
+ *                        all. Even for intervals.icu activities,
+ *                        "re-fetchable" requires reconnecting the
+ *                        provider and revisiting every activity detail
+ *                        page one at a time (no bulk backfill exists).
+ *                        Excluding this table would make that data
+ *                        silently unrecoverable after any real
+ *                        export -> wipe -> import cycle, so it's included.
  *
  * EXCLUDED — authentication/session material (never belongs in a data
  * export; equivalent to exporting a password):
@@ -75,17 +96,6 @@ import { schema } from "@/lib/db";
  * cache with a TTL in schema.ts; always reconstructable on demand from
  * the provider, so it is not part of "the user's data"):
  *   athlete_curves     — 6h TTL, stale-if-error cache of provider curves.
- *   activity_streams   — raw per-sample provider time-series, same
- *                        ingestion pipeline and bulk-blob character as
- *                        activities.raw (also stripped above); no
- *                        userId column (would require a join through
- *                        activities.id). Re-derivable by reconnecting
- *                        the provider and re-syncing, as long as the
- *                        provider still retains the source activity.
- *                        NOTE for Task 10: an export -> wipe -> import
- *                        round trip will NOT restore per-activity
- *                        stream charts under this design — flag this
- *                        explicitly if that matters for the drill.
  *
  * NOT APPLICABLE — instance-level, not per-user:
  *   app_config
@@ -119,6 +129,7 @@ export interface UserExport {
   training_blocks: (typeof schema.trainingBlocks.$inferSelect)[];
   week_plans: (typeof schema.weekPlans.$inferSelect)[];
   plan_adjustments: (typeof schema.planAdjustments.$inferSelect)[];
+  activity_streams: (typeof schema.activityStreams.$inferSelect)[];
   api_tokens: {
     id: string;
     label: string;
@@ -234,18 +245,23 @@ export async function exportUserData(
   const threadIds = chatThreads.map((t) => t.id);
   const planIds = trainingPlans.map((p) => p.id);
   const weekPlanIds = weekPlans.map((w) => w.id);
+  const activityIds = activitiesRaw.map((a) => a.id);
 
-  const [chatMessages, trainingBlocks, planAdjustments] = await Promise.all([
-    db.query.chatMessages.findMany({
-      where: inArray(schema.chatMessages.threadId, threadIds),
-    }),
-    db.query.trainingBlocks.findMany({
-      where: inArray(schema.trainingBlocks.planId, planIds),
-    }),
-    db.query.planAdjustments.findMany({
-      where: inArray(schema.planAdjustments.weekPlanId, weekPlanIds),
-    }),
-  ]);
+  const [chatMessages, trainingBlocks, planAdjustments, activityStreams] =
+    await Promise.all([
+      db.query.chatMessages.findMany({
+        where: inArray(schema.chatMessages.threadId, threadIds),
+      }),
+      db.query.trainingBlocks.findMany({
+        where: inArray(schema.trainingBlocks.planId, planIds),
+      }),
+      db.query.planAdjustments.findMany({
+        where: inArray(schema.planAdjustments.weekPlanId, weekPlanIds),
+      }),
+      db.query.activityStreams.findMany({
+        where: inArray(schema.activityStreams.activityId, activityIds),
+      }),
+    ]);
 
   return {
     version: EXPORT_VERSION,
@@ -310,6 +326,7 @@ export async function exportUserData(
     training_blocks: trainingBlocks,
     week_plans: weekPlans,
     plan_adjustments: planAdjustments,
+    activity_streams: activityStreams,
     api_tokens: apiTokensRaw.map((t) => ({
       id: t.id,
       label: t.label,
