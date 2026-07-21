@@ -111,7 +111,7 @@ restoring the pre-upgrade backup) and the backup-compatibility matrix.
 - **Metrics:** `GET /api/metrics` → Prometheus text exposition format, gated by `METRICS_TOKEN` (unset = 404, wrong/missing bearer = 401). Point Prometheus/Grafana at it for readiness, sync, and backup-freshness gauges.
 - **Migrations:** run automatically at container start (`scripts/migrate.mjs`).
 - **Backups:** nightly at 03:30 UTC to the `recover-backups` volume, 14 dumps kept — see [Backups & restore](#backups--restore).
-- **Sync-job queue:** the owner-only `/admin` panel (linked from Settings) lists queued/failed sync jobs and lets you retry or kick a stuck one, alongside the security audit log.
+- **Sync-job queue:** the owner-only `/admin` panel (linked from Settings) lists pending, running, and failed sync jobs and lets you retry or kick a stuck one, alongside the security audit log.
 - **Webhooks:** every user can add outbound webhook subscriptions in Settings — signed (`x-recover-signature`, HMAC-SHA256) HTTP POSTs on `readiness_computed`, `band_changed`, and (instance-wide) `backup_completed` events, for your own automation.
 - **Logs:** `docker compose logs -f app` — structured JSON lines.
 
