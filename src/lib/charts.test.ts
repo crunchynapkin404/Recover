@@ -7,6 +7,8 @@ import {
   rollingAvg,
   weeklyLoads,
   weeklyActivitySummaries,
+  CHART_TOKENS,
+  formatChartValue,
 } from "./charts";
 
 describe("downsample", () => {
@@ -114,5 +116,28 @@ describe("weeklyActivitySummaries", () => {
     expect(loads).toEqual(
       summaries.map((s) => ({ weekStart: s.weekStart, load: s.load }))
     );
+  });
+});
+
+describe("CHART_TOKENS", () => {
+  it("exposes one series palette shared by all charts", () => {
+    expect(CHART_TOKENS.series.length).toBeGreaterThanOrEqual(3);
+    expect(CHART_TOKENS.grid).toMatch(/rgba|#|oklch/);
+  });
+
+  it("exposes a band fill, dash pattern, and stroke widths", () => {
+    expect(CHART_TOKENS.band).toMatch(/rgba|#|oklch/);
+    expect(CHART_TOKENS.dash).toMatch(/^[\d.]+ [\d.]+$/);
+    expect(CHART_TOKENS.strokeWidth.regular).toBeGreaterThan(0);
+  });
+});
+
+describe("formatChartValue", () => {
+  it("rounds to 0 decimals by default", () => {
+    expect(formatChartValue(42.7)).toBe("43");
+  });
+
+  it("rounds to the given decimal count", () => {
+    expect(formatChartValue(65.34, 1)).toBe("65.3");
   });
 });

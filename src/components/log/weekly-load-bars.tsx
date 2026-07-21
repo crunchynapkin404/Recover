@@ -1,4 +1,4 @@
-import type { WeeklyLoad } from "@/lib/charts";
+import { formatChartValue, type WeeklyLoad } from "@/lib/charts";
 
 export function WeeklyLoadBars({ data }: { data: WeeklyLoad[] }) {
   const max = Math.max(...data.map((d) => d.load), 1);
@@ -23,7 +23,7 @@ export function WeeklyLoadBars({ data }: { data: WeeklyLoad[] }) {
               style={{
                 height: `${Math.max((w.load / max) * 100, w.load > 0 ? 4 : 1)}%`,
               }}
-              title={`${w.weekStart}: ${Math.round(w.load)}`}
+              title={`${w.weekStart}: ${formatChartValue(w.load)}`}
             />
           </div>
         ))}

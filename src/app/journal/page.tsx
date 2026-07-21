@@ -68,6 +68,11 @@ export default async function JournalPage() {
 
   const insights = await computeTagInsights(user.id);
 
+  const journalPrefsRow = await db.query.journalPrefs.findFirst({
+    where: eq(schema.journalPrefs.userId, user.id),
+    columns: { usualBehaviorTags: true },
+  });
+
   return (
     <AppShell>
       <section className="mb-8">
@@ -83,6 +88,7 @@ export default async function JournalPage() {
         streakDays={milestones.currentStreak}
         entriesByDate={entriesByDate}
         hasActiveConnection={!!activeConnection}
+        usualTags={journalPrefsRow?.usualBehaviorTags ?? []}
       />
       <section className="mt-8">
         <MilestonesCard {...milestones} />

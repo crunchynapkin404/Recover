@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { LogHref } from "@/lib/log-href";
 
 function monthLabel(ym: string): string {
   const [y, m] = ym.split("-").map(Number);
@@ -24,13 +25,6 @@ function recentMonths(): string[] {
   }
   return out;
 }
-
-export type LogHref = (over: {
-  view?: "today" | "week" | "month";
-  month?: string;
-  range?: number;
-  sport?: string;
-}) => string;
 
 export function ViewTabs({
   active,

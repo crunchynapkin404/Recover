@@ -1,6 +1,7 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
-import { requireUser } from "@/lib/session";
+import { requireSession } from "@/lib/session";
+import { getMySessions } from "@/lib/sessions";
 import { AppShell } from "@/components/app-shell";
 import { IntervalsCard } from "@/components/settings/intervals-card";
 import { NotificationsCard } from "@/components/settings/notifications-card";
@@ -10,6 +11,8 @@ import { LlmSettingsCard } from "@/components/settings/llm-settings-card";
 import { CoachCard } from "@/components/settings/coach-card";
 import { listMemories } from "@/lib/coach-memory";
 import { ApiTokensCard } from "@/components/settings/api-tokens-card";
+import { WebhooksCard } from "@/components/settings/webhooks-card";
+import { SessionsCard } from "@/components/settings/sessions-card";
 import { StravaCard } from "@/components/settings/strava-card";
 import { WhoopCard } from "@/components/settings/whoop-card";
 import { whoopConfigured } from "@/lib/connectors/whoop";
@@ -46,8 +49,14 @@ export default async function SettingsPage({
     withings_error?: string;
   }>;
 }) {
-  const user = await requireUser();
+  const session = await requireSession();
+  const user = session.user;
   const { strava_error, whoop_error, withings_error } = await searchParams;
+
+  const { sessions: activeSessions } = await getMySessions(
+    user.id,
+    session.session.id
+  );
 
   const connection = await db.query.connections.findFirst({
     where: and(
@@ -103,6 +112,29 @@ export default async function SettingsPage({
       isNull(schema.apiTokens.revokedAt)
     ),
   });
+
+  const webhookSubscriptions = await db.query.webhookSubscriptions.findMany({
+    where: and(
+      eq(schema.webhookSubscriptions.userId, user.id),
+      eq(schema.webhookSubscriptions.active, true)
+    ),
+  });
+
+  // Latest delivery per subscription, in one query (not N+1): DISTINCT ON
+  // (subscription_id) ordered by created_at desc is served directly by the
+  // webhook_deliveries_subscription_idx (subscriptionId, createdAt) index.
+  const subIds = webhookSubscriptions.map((w) => w.id);
+  const lastDeliveries = subIds.length
+    ? await db
+        .selectDistinctOn([schema.webhookDeliveries.subscriptionId])
+        .from(schema.webhookDeliveries)
+        .where(inArray(schema.webhookDeliveries.subscriptionId, subIds))
+        .orderBy(
+          schema.webhookDeliveries.subscriptionId,
+          desc(schema.webhookDeliveries.createdAt)
+        )
+    : [];
+  const lastBySub = new Map(lastDeliveries.map((d) => [d.subscriptionId, d]));
 
   const [vapid, notificationPrefs, pushSubs] = await Promise.all([
     getVapidKeys(),
@@ -316,7 +348,9 @@ export default async function SettingsPage({
             </span>
           </CollapsibleTrigger>
           <CollapsiblePanel>
-            <div className="p-5 pt-4">
+            <div className="space-y-4 p-5 pt-4">
+              <SessionsCard sessions={activeSessions} />
+
               <ApiTokensCard
                 tokens={apiTokens.map((t) => ({
                   id: t.id,
@@ -325,6 +359,26 @@ export default async function SettingsPage({
                   lastUsedAt: t.lastUsedAt?.toISOString() ?? null,
                   createdAt: t.createdAt.toISOString(),
                 }))}
+              />
+
+              <WebhooksCard
+                webhooks={webhookSubscriptions.map((w) => {
+                  const d = lastBySub.get(w.id);
+                  return {
+                    id: w.id,
+                    url: w.url,
+                    events: w.events ?? [],
+                    createdAt: w.createdAt.toISOString(),
+                    lastDelivery: d
+                      ? {
+                          status: d.status,
+                          attempts: d.attempts,
+                          at: d.createdAt.toISOString(),
+                          lastError: d.lastError,
+                        }
+                      : null,
+                  };
+                })}
               />
             </div>
           </CollapsiblePanel>

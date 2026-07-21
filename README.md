@@ -55,7 +55,9 @@ OpenAI-compatible endpoint including a fully local Ollama. Keys are encrypted
 - **intervals.icu sync** — wellness, activities, and training load, kept fresh
   by an in-process scheduler. **Strava OAuth** as a second source, with
   provenance tracking (Strava data is excluded from AI context by default, per
-  Strava's API terms).
+  Strava's API terms). **Whoop and Withings** connect via OAuth and **Oura**
+  via a pasted personal access token, each feeding wellness alongside
+  intervals.icu with an explicit per-field priority when sources overlap.
 - **Analytics depth** — open any activity for stream charts (HR, power, pace,
   elevation) and laps; track fitness with CTL/ATL/TSB over 30–365 day ranges;
   watch HRV, resting HR, and sleep trend against your personal baselines.
@@ -115,18 +117,26 @@ OpenAI-compatible endpoint including a fully local Ollama. Keys are encrypted
   update/delete/bulk/duplicate), activity edits and messages, wellness push,
   sport settings, an apply-training-plan action, per-activity histograms
   (HR/power/pace/GAP), activity search & intervals, the workout library, and
-  a workout-syntax reference.
+  a workout-syntax reference. This 54-tool surface (names, scopes, schemas)
+  is frozen as of v0.20 — see [docs/API-STABILITY.md](docs/API-STABILITY.md)
+  for the guarantee and deprecation policy.
 - **Installable PWA** — add it to your phone's home screen; a push
   notification delivers your readiness score every morning, and
   pull-to-refresh or the sync chip pulls fresh data on demand.
 - **Behavior journal** — mood, energy, soreness, stress, tags, and notes
   alongside synced vitals.
 - **Multi-user, invite-only** — built for one owner and a handful of friends,
-  with complete data isolation.
+  with complete data isolation. Every account can export and re-import its
+  own data (GDPR portability) and list/revoke its own active sessions from
+  Settings.
 - **Boring operations** — one app container plus Postgres. No Redis, no queue,
-  idempotent sync jobs, health endpoint, migrations applied automatically on
-  boot. Nightly `pg_dump` backups with rotation, and a one-command restore
-  drill that proves your latest backup actually restores.
+  idempotent sync jobs, health endpoint, a Prometheus `/metrics` endpoint,
+  migrations applied automatically on boot. Nightly `pg_dump` backups with
+  rotation, a one-command restore drill that proves your latest backup
+  actually restores, an owner-only admin panel for the sync-job queue, and
+  outbound webhooks (readiness/band/backup events) for your own automation.
+  See [docs/SELF-HOSTING.md](docs/SELF-HOSTING.md) for the full operations
+  rundown, including [rollback and upgrade guarantees](docs/UPGRADING.md).
 
 ## Quickstart
 
@@ -140,7 +150,8 @@ docker compose up -d
 Open http://localhost:3000, sign in with your owner credentials, and start
 logging — or connect intervals.icu under **Settings** for automatic sync.
 Details, tunnel setup, upgrading, and troubleshooting:
-[docs/SELF-HOSTING.md](docs/SELF-HOSTING.md).
+[docs/SELF-HOSTING.md](docs/SELF-HOSTING.md). Prefer serverless? See
+[docs/DEPLOY-VERCEL.md](docs/DEPLOY-VERCEL.md) for Vercel + Neon.
 
 Want to poke around without real data? `SEED_DEMO=1 npm run db:seed-demo`
 fills a demo account with 90 days of plausible training history (see
@@ -154,12 +165,13 @@ fills a demo account with 90 days of plausible training history (see
 3. Add a custom connector in claude.ai (or `claude mcp add --transport http`)
    pointing at your instance's `/api/mcp` endpoint with the token as a bearer
    token.
+4. Ask Claude about your training.
 
-**Live demo instance:** [recover.bartabraas.nl](https://recover.bartabraas.nl/) 4. Ask Claude about your training.
+**Live demo instance:** [recover.bartabraas.nl](https://recover.bartabraas.nl/)
 
 ## Status & roadmap
 
-**Current release: v0.18.0 — Security Hardening (released 2026-07-21).** The v0.9→v0.14 series made
+**Current release: v0.20.0 — Final Sweep (released 2026-07-21).** The v0.9→v0.14 series made
 the app honest, adaptive, and durable: v0.9.0 deleted every metric the data
 couldn't back, v0.9.2–0.9.3 turned static training plans into a living week
 that adapts to your availability and readiness, v0.9.4 added auto-tags,
@@ -198,9 +210,20 @@ followed with the first slice of 1.0 hardening: security headers, login
 rate-limiting and boot-time secret validation, a hardened Apple Health
 ingest endpoint, an owner-viewable auth/token/connection audit log, and an
 exhaustive 101-surface per-user isolation audit that found zero cross-user
-data-leak gaps. A full pass over the remaining roadmap is next, to settle
-what's left before 1.0. The full plan lives in
-[docs/ROADMAP.md](docs/ROADMAP.md).
+data-leak gaps. v0.20 closed out the rest of the roadmap in one sweep:
+honest empty states and loading skeletons on every remaining page, a
+unified chart token/axis grammar, pre-toggled journal defaults, a
+Prometheus `/metrics` endpoint and richer health signals, signed outbound
+webhooks (readiness/band/backup events), an owner-only sync-jobs admin
+panel, a complete GDPR export with a matching lossless import, restored
+native arm64 release images, a refreshed Vercel + Neon deploy guide, an
+accessibility sweep, session-management UI (list/revoke your own active
+sessions), documented upgrade and rollback guarantees, a dashboard
+performance pass, a frozen 54-tool MCP surface with a deprecation policy,
+an end-to-end docs review, and a final security review that re-confirmed
+every new surface — zero gaps. Stronger Together (social/sharing) is
+deferred to a fresh roadmap rather than folded in here. The full plan
+lives in [docs/ROADMAP.md](docs/ROADMAP.md).
 
 An honest hobby project built for one owner and about ten friends. If it's
 useful to you, self-host it and make it yours. Issues and PRs welcome — see

@@ -8,6 +8,10 @@ const EVENT_LABEL: Record<string, string> = {
   token_revoked: "Token revoked",
   connection_added: "Connection added",
   connection_revoked: "Connection removed",
+  webhook_created: "Webhook created",
+  webhook_revoked: "Webhook revoked",
+  session_revoked: "Session revoked",
+  session_revoked_others: "Signed out other sessions",
 };
 
 export async function SecurityEvents() {

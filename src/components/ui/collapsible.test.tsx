@@ -3,11 +3,20 @@ import { describe, expect, it } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToString } from "react-dom/server";
+import * as matchers from "vitest-axe/matchers";
+import { axe } from "vitest-axe";
 import {
   Collapsible,
   CollapsibleTrigger,
   CollapsiblePanel,
 } from "./collapsible";
+
+// vitest-axe (0.1.0, last published years ago) ships a broken/empty
+// `vitest-axe/extend-expect` entry point for this Vitest version — importing
+// it registers nothing and `toHaveNoViolations` throws "Invalid Chai
+// property". The matchers themselves (`vitest-axe/matchers`) work fine, so
+// register them by hand instead. See docs/a11y-sweep-2026-07.md.
+expect.extend(matchers);
 
 function Example({
   defaultOpen,
@@ -74,6 +83,46 @@ describe("Collapsible", () => {
         trigger.dispatchEvent(new MouseEvent("click", { bubbles: true }));
       });
       expect(lastOpen).toBe(true);
+    });
+  });
+
+  // This is the exact accordion pattern used for every settings domain
+  // section (src/app/settings/page.tsx), the journal form's numbered steps,
+  // and the coach composer's Chat History / Quick Context sections — so
+  // covering it here covers all of those call sites at once.
+  describe("accessibility", () => {
+    let container: HTMLDivElement;
+    let root: Root;
+
+    function mount(el: React.ReactElement) {
+      container = document.createElement("div");
+      document.body.appendChild(container);
+      act(() => {
+        root = createRoot(container);
+        root.render(el);
+      });
+    }
+
+    it("has no axe violations when closed (default)", async () => {
+      mount(<Example />);
+      expect(await axe(container)).toHaveNoViolations();
+    });
+
+    it("has no axe violations when open", async () => {
+      mount(<Example defaultOpen />);
+      expect(await axe(container)).toHaveNoViolations();
+    });
+
+    it("closed panel content is not reachable by keyboard tab order", () => {
+      mount(<Example />);
+      const panelText = Array.from(container.querySelectorAll("p")).find(
+        (p) => p.textContent === "HRV Trend 52ms"
+      );
+      // base-ui's Collapsible.Panel sets `hidden` once a closed panel is no
+      // longer animating — `hidden` removes the subtree from both the
+      // accessibility tree and tab order. This guards the v0.19 "collapsed
+      // sections skip their hidden content" focus-order requirement.
+      expect(panelText?.closest("[hidden]")).not.toBeNull();
     });
   });
 });

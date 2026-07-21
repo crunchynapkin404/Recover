@@ -313,27 +313,40 @@ export const dailyMetrics = pgTable(
   (t) => [uniqueIndex("daily_metrics_user_date_uq").on(t.userId, t.date)]
 );
 
-export const chatThreads = pgTable("chat_threads", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: text("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  title: text("title"),
-  // System threads: 'morning' holds the daily proactive coach insight.
-  kind: text("kind", {
-    enum: ["chat", "morning", "weekly", "debrief", "monthly"],
-  })
-    .notNull()
-    .default("chat"),
-  // Ghost threads: auto-purged by the scheduler 24h after last activity.
-  ephemeral: boolean("ephemeral").notNull().default(false),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-});
+export const chatThreads = pgTable(
+  "chat_threads",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    title: text("title"),
+    // System threads: 'morning' holds the daily proactive coach insight.
+    kind: text("kind", {
+      enum: ["chat", "morning", "weekly", "debrief", "monthly"],
+    })
+      .notNull()
+      .default("chat"),
+    // Ghost threads: auto-purged by the scheduler 24h after last activity.
+    ephemeral: boolean("ephemeral").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  // v0.20 perf pass: every other per-user table in this schema carries a
+  // userId-scoped index (wellness_daily, activities, daily_metrics,
+  // coach_memories, ...) — this one was missing it. Queried by (userId, kind)
+  // on the dashboard's cold-load path twice (morning insight + weekly
+  // review lookup) and by userId alone on the coach thread list; today's
+  // table is small enough that Postgres prefers a seq scan regardless (see
+  // docs/perf-pass-2026-07.md), but chat threads accumulate per
+  // conversation with no cap, so this is the same forward-looking bet the
+  // existing indexes already made at similar table sizes.
+  (t) => [index("chat_threads_user_kind_idx").on(t.userId, t.kind)]
+);
 
 export const coachMemories = pgTable(
   "coach_memories",
@@ -519,6 +532,33 @@ export const bodyPrefs = pgTable("body_prefs", {
   // v0.13 Deep Biology: enables the biological-age estimate. null = not set
   // (bio-age reports "insufficient inputs" listing this among what's missing).
   birthYear: integer("birth_year"),
+});
+
+/**
+ * v0.20 — per-user "usual" journal defaults. A dedicated table rather than
+ * another field on notificationPrefs or bodyPrefs: this isn't a notification
+ * and it isn't body/sleep data, and piling it onto either would repeat the
+ * exact junk-drawer drift bodyPrefs's own comment above was written to call
+ * out and avoid.
+ *
+ * Behavioural only, by design: this stores the athlete's usual *behavior
+ * tags* (☕ caffeine, 💧 hydration, etc. — see BEHAVIOR_TAGS in
+ * journal-form.tsx), never mood, day flags, or the energy/soreness/stress
+ * sliders. Day flags mean "this day is unusual" (v0.7 Score Integrity), so a
+ * default that pre-flags every day as unusual would invert their purpose.
+ * The sliders are covered by v0.7's honest-subjective-input guarantee, which
+ * this table must never interact with.
+ */
+export const journalPrefs = pgTable("journal_prefs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: text("user_id")
+    .notNull()
+    .unique()
+    .references(() => users.id, { onDelete: "cascade" }),
+  // null = the athlete has never opted in to a "usual" set. Deliberately no
+  // default: pre-checking a tag nobody chose would be the same fabrication
+  // v0.7 banned for sliders, just moved to a different field.
+  usualBehaviorTags: jsonb("usual_behavior_tags").$type<string[]>(),
 });
 
 /**
@@ -818,6 +858,10 @@ export const auditLog = pgTable("audit_log", {
       "token_revoked",
       "connection_added",
       "connection_revoked",
+      "webhook_created",
+      "webhook_revoked",
+      "session_revoked",
+      "session_revoked_others",
     ],
   }).notNull(),
   ip: text("ip"),
@@ -827,3 +871,64 @@ export const auditLog = pgTable("audit_log", {
     .notNull()
     .defaultNow(),
 });
+
+// ── v0.20 Outbound Webhooks ──────────────────────────────────────────────────
+
+/**
+ * Signed HTTP POSTs to a user-configured URL on key events (readiness
+ * computed, band changed, backup completed) — lets a self-hoster wire
+ * Recover into Home Assistant, ntfy, or anything else listening. See
+ * lib/webhooks/dispatch.ts.
+ *
+ * `encryptedSecret` is AES-256-GCM at rest (lib/crypto, same treatment as
+ * connections.encryptedAccessToken) — it signs every delivery via
+ * HMAC-SHA256 and must never appear in a list/read response after creation
+ * (the plaintext is shown once, like api_tokens.tokenHash).
+ */
+export const webhookSubscriptions = pgTable(
+  "webhook_subscriptions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    url: text("url").notNull(),
+    encryptedSecret: text("encrypted_secret").notNull(),
+    // "readiness_computed" | "band_changed" | "backup_completed" — kept
+    // loose (not a DB enum) matching the jsonb list-column convention used
+    // elsewhere (e.g. journalPrefs.usualBehaviorTags) rather than a native
+    // pg text[], which nothing else in this schema uses.
+    events: jsonb("events").$type<string[]>().notNull(),
+    active: boolean("active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("webhook_subscriptions_user_idx").on(t.userId)]
+);
+
+/** One row per dispatch (cumulative attempts), not one row per retry. */
+export const webhookDeliveries = pgTable(
+  "webhook_deliveries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    subscriptionId: uuid("subscription_id")
+      .notNull()
+      .references(() => webhookSubscriptions.id, { onDelete: "cascade" }),
+    event: text("event", {
+      enum: ["readiness_computed", "band_changed", "backup_completed"],
+    }).notNull(),
+    status: text("status", { enum: ["success", "failed"] }).notNull(),
+    attempts: integer("attempts").notNull(),
+    lastError: text("last_error"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("webhook_deliveries_subscription_idx").on(
+      t.subscriptionId,
+      t.createdAt
+    ),
+  ]
+);

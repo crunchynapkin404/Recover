@@ -3,6 +3,8 @@ import {
   baselineBandLn,
   downsample,
   rollingAvg,
+  CHART_TOKENS,
+  formatChartValue,
 } from "@/lib/charts";
 
 interface WellnessDay {
@@ -67,7 +69,7 @@ function TrendChart({
       <div className="mb-3 flex items-baseline justify-between">
         <h3 className="text-sm font-bold">{title}</h3>
         <span className="text-sm font-bold" style={{ color }}>
-          {Math.round(latest * 10) / 10} {unit}
+          {formatChartValue(latest, 1)} {unit}
         </span>
       </div>
       <svg
@@ -75,7 +77,7 @@ function TrendChart({
         preserveAspectRatio="none"
         className="h-28 w-full"
         role="img"
-        aria-label={`${title} trend, latest ${Math.round(latest)} ${unit}`}
+        aria-label={`${title} trend, latest ${formatChartValue(latest)} ${unit}`}
       >
         {band && (
           <rect
@@ -83,14 +85,14 @@ function TrendChart({
             y={y(band.high)}
             width="100"
             height={Math.max(y(band.low) - y(band.high), 0.5)}
-            fill="rgba(255,255,255,0.06)"
+            fill={CHART_TOKENS.band}
           />
         )}
         <polyline
           points={line(values)}
           fill="none"
           stroke={color}
-          strokeWidth="0.4"
+          strokeWidth={CHART_TOKENS.strokeWidth.thin}
           opacity="0.5"
           vectorEffect="non-scaling-stroke"
         />
@@ -98,7 +100,7 @@ function TrendChart({
           points={line(avg)}
           fill="none"
           stroke={color}
-          strokeWidth="0.9"
+          strokeWidth={CHART_TOKENS.strokeWidth.bold}
           vectorEffect="non-scaling-stroke"
         />
       </svg>
@@ -150,8 +152,11 @@ function SleepChart({ wellness }: { wellness: WellnessDay[] }) {
     <div className="glass rounded-[2rem] p-6">
       <div className="mb-3 flex items-baseline justify-between">
         <h3 className="text-sm font-bold">Sleep</h3>
-        <span className="text-sm font-bold" style={{ color: "#818cf8" }}>
-          {Math.round(latest * 10) / 10} h
+        <span
+          className="text-sm font-bold"
+          style={{ color: CHART_TOKENS.series[8] /* indigo-400 */ }}
+        >
+          {formatChartValue(latest, 1)} h
         </span>
       </div>
       <svg
@@ -159,7 +164,7 @@ function SleepChart({ wellness }: { wellness: WellnessDay[] }) {
         preserveAspectRatio="none"
         className="h-28 w-full"
         role="img"
-        aria-label={`Sleep trend, latest ${Math.round(latest * 10) / 10} hours`}
+        aria-label={`Sleep trend, latest ${formatChartValue(latest, 1)} hours`}
       >
         {dur.map((h, i) =>
           h == null ? null : (
@@ -169,7 +174,7 @@ function SleepChart({ wellness }: { wellness: WellnessDay[] }) {
               y={yDur(h).toFixed(2)}
               width={(barW * 0.7).toFixed(2)}
               height={(38 - yDur(h)).toFixed(2)}
-              fill="#818cf8"
+              fill={CHART_TOKENS.series[8] /* indigo-400 */}
               opacity="0.55"
             />
           )
@@ -179,16 +184,16 @@ function SleepChart({ wellness }: { wellness: WellnessDay[] }) {
           y1={yDur(8).toFixed(2)}
           x2="100"
           y2={yDur(8).toFixed(2)}
-          stroke="rgba(255,255,255,0.35)"
-          strokeWidth="0.3"
-          strokeDasharray="1.5 1"
+          stroke={CHART_TOKENS.grid}
+          strokeWidth={CHART_TOKENS.strokeWidth.hairline}
+          strokeDasharray={CHART_TOKENS.dash}
         />
         {scoreLine && (
           <polyline
             points={scoreLine}
             fill="none"
-            stroke="#e5e7eb"
-            strokeWidth="0.6"
+            stroke={CHART_TOKENS.series[9] /* gray-200, neutral overlay */}
+            strokeWidth={CHART_TOKENS.strokeWidth.overlay}
             opacity="0.8"
             vectorEffect="non-scaling-stroke"
           />
@@ -220,14 +225,14 @@ export function WellnessTrends({
     <div className="space-y-4">
       <TrendChart
         title="HRV"
-        color="#34d399"
+        color={CHART_TOKENS.series[2] /* emerald-400 */}
         unit="ms"
         values={wellness.map((w) => w.hrvMs)}
         band={hrvBand}
       />
       <TrendChart
         title="Resting HR"
-        color="#f87171"
+        color={CHART_TOKENS.series[5] /* red-400 */}
         unit="bpm"
         values={wellness.map((w) => w.restingHr)}
         band={rhrBand}

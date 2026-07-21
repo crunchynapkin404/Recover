@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { and, asc, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { requireUser } from "@/lib/session";
@@ -7,6 +6,7 @@ import { IntakeForm } from "@/components/plan/intake-form";
 import { WeekStrip } from "@/components/plan/week-strip";
 import { RacesSection } from "@/components/plan/races-section";
 import { DayActions } from "@/components/plan/day-actions";
+import { PlanEmpty } from "@/components/plan/plan-empty";
 import { getOpenWeekPlan, listAdjustments } from "@/lib/week-plan/service";
 import { prefillAvailability } from "@/lib/week-plan/availability";
 import { listRaces } from "@/lib/race/service";
@@ -80,15 +80,7 @@ export default async function PlanPage() {
             Plan
           </h1>
         </header>
-        <div className="glass rounded-[2rem] p-7">
-          <p className="text-sm text-white/70">
-            No training plan yet — ask the{" "}
-            <Link href="/coach" className="font-bold text-emerald-400">
-              coach
-            </Link>{" "}
-            to generate one.
-          </p>
-        </div>
+        <PlanEmpty />
       </AppShell>
     );
   }

@@ -1,5 +1,62 @@
 /** Pure chart math for the analytics pages. No I/O, no DOM. */
 
+/**
+ * Shared visual grammar for every hand-rolled SVG chart in the app
+ * (stream-chart, wellness-trends, weekly-load-bars, artifact-card, and the
+ * dashboard sparklines). Values are drawn from the union of what those charts
+ * already used — see task-3-report.md for the per-file inventory — not a
+ * fresh palette. Charts stay hand-rolled SVG; this just gives them one
+ * source of truth instead of five locally hard-coded copies.
+ */
+export const CHART_TOKENS = {
+  /**
+   * Ordered series palette. Index 0-4 preserve artifact-card's original
+   * generic palette (used by index for arbitrary AI-generated chart specs);
+   * 5-10 are the semantic per-metric colors already used elsewhere
+   * (heart rate, power, pace, sleep, etc.) so every call site can reference
+   * one shared array instead of re-declaring the same hex.
+   */
+  series: [
+    "#3b82f6", // blue-500   — generic series 1 / dashboard sleep-score spark
+    "#ef4444", // red-500    — generic series 2
+    "#34d399", // emerald-400 — generic series 3 / elevation / HRV
+    "#f59e0b", // amber-500  — generic series 4
+    "#a855f7", // purple-500 — generic series 5
+    "#f87171", // red-400    — heart rate / resting heart rate
+    "#a78bfa", // violet-400 — power
+    "#22d3ee", // cyan-400   — pace
+    "#818cf8", // indigo-400 — sleep duration
+    "#e5e7eb", // gray-200   — neutral overlay (sleep score line)
+    "#10b981", // emerald-500 — dashboard positive-trend spark
+  ],
+  /** Translucent baseline/reference band fill (e.g. a 60-day baseline ± SD). */
+  band: "rgba(255,255,255,0.06)",
+  /** Grid / reference-line color (e.g. an 8h sleep guide line). */
+  grid: "rgba(255,255,255,0.35)",
+  /** Dash pattern shared by every dashed guide or series line. */
+  dash: "1.5 1",
+  strokeWidth: {
+    /** Dashed reference/guide lines. */
+    hairline: 0.3,
+    /** Faint secondary/raw series line drawn under a bolder overlay. */
+    thin: 0.4,
+    /** A line drawn over another series (e.g. sleep score over duration bars). */
+    overlay: 0.6,
+    /** Standard single-series line. */
+    regular: 0.8,
+    /** Emphasized line (e.g. a rolling average). */
+    bold: 0.9,
+    /** Compact dashboard sparkline path. */
+    spark: 2,
+  },
+} as const;
+
+/** Shared tooltip/label number format: round to `decimals` places (default 0). */
+export function formatChartValue(v: number, decimals = 0): string {
+  const factor = 10 ** decimals;
+  return String(Math.round(v * factor) / factor);
+}
+
 export function downsample(
   values: (number | null)[],
   target = 300

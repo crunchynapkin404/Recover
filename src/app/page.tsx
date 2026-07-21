@@ -177,7 +177,14 @@ export default async function DashboardPage() {
     outlook: null,
   };
   if (race) {
-    const assembled = await assembleForecastInputs(user.id, race, todayDate);
+    // weekPlan was already fetched above for the living-week card — pass it
+    // through so assembleForecastInputs doesn't re-run getOpenWeekPlan.
+    const assembled = await assembleForecastInputs(
+      user.id,
+      race,
+      todayDate,
+      weekPlan
+    );
     const outlook = !assembled
       ? ({ kind: "no_plan" } as const)
       : (() => {
@@ -296,7 +303,7 @@ export default async function DashboardPage() {
               </Link>
             </div>
 
-            <p className="mt-6 text-[11px] text-white/30">
+            <p className="mt-6 text-[11px] text-white/50">
               Recover needs {CALIBRATION_TARGET_DAYS} days of HRV &amp; resting
               HR to calibrate your readiness score — it&apos;ll show a
               day-by-day countdown while it learns your baseline.

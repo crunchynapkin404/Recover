@@ -46,6 +46,7 @@ export function ScoreRing({
           />
         )}
         <svg
+          aria-hidden
           viewBox={`0 0 ${svgSize} ${svgSize}`}
           className="relative h-full w-full -rotate-90"
         >
@@ -72,8 +73,11 @@ export function ScoreRing({
             className="ring-animate"
           />
         </svg>
-        {/* Center text */}
+        {/* Center text — redundant with the aria-label above; hidden from
+            the accessibility tree so screen readers announce the role="img"
+            name once instead of also reading these visual-only nodes. */}
         <div
+          aria-hidden
           className={`absolute inset-0 flex flex-col items-center justify-center`}
         >
           <span

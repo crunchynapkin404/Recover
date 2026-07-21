@@ -2,6 +2,10 @@
 # Nightly pg_dump for Recover. Runs inside the backup sidecar
 # (postgres:16-alpine, busybox sh); crond triggers it at 03:30. Connection
 # comes from PGHOST/PGUSER/PGPASSWORD/PGDATABASE in the environment.
+#
+# v0.20: on a successful rotate, notifies the app so /api/health and
+# /api/metrics can report backup freshness (BACKUP_NOTIFY_URL/_SECRET below).
+# Uses wget, not curl — postgres:16-alpine (busybox) ships wget but not curl.
 set -eu
 
 BACKUP_DIR="${BACKUP_DIR:-/backups}"
@@ -32,3 +36,21 @@ if [ "$excess" -gt 0 ]; then
   done
 fi
 echo "backup: done, $(ls "$BACKUP_DIR"/recover-*.dump | wc -l) dump(s) retained (keep $KEEP)"
+
+# Notify the app of the successful rotate so /api/health and /api/metrics
+# can report backup freshness. Best-effort: the dump is already safely on
+# disk by this point, so a notify failure (app down, bad secret, network
+# blip) must not fail the backup job — it only logs.
+NOTIFY_URL="${BACKUP_NOTIFY_URL:-http://app:3000/api/internal/backup-complete}"
+if [ -n "${BACKUP_NOTIFY_SECRET:-}" ]; then
+  if wget -q -O /dev/null -T 5 \
+      --header="Authorization: Bearer $BACKUP_NOTIFY_SECRET" \
+      --post-data='' \
+      "$NOTIFY_URL"; then
+    echo "backup: notified $NOTIFY_URL"
+  else
+    echo "backup: notify to $NOTIFY_URL failed (non-fatal)"
+  fi
+else
+  echo "backup: BACKUP_NOTIFY_SECRET not set, skipping freshness notify"
+fi

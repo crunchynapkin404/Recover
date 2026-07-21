@@ -1,3 +1,5 @@
+import { FlaskConical } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 import type { BiomarkerCategory } from "@/lib/health-records";
 
 export interface BiomarkerRow {
@@ -45,9 +47,12 @@ export function BiomarkerList({ rows }: { rows: BiomarkerRow[] }) {
     return (
       <div className="glass rounded-[2rem] p-6">
         <span className="label-micro">Biomarkers</span>
-        <p className="mt-3 text-sm text-white/50">
-          No blood work yet. Add a test above and your markers will trend here.
-        </p>
+        <div className="mt-3">
+          <EmptyState
+            icon={FlaskConical}
+            message="No biomarkers yet — upload a blood test or add a reading."
+          />
+        </div>
       </div>
     );
   }

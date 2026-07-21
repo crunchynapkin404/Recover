@@ -1,0 +1,1828 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`MCP tool surface is frozen (names + scopes + schemas) 1`] = `
+[
+  {
+    "name": "delete_race",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+          "type": "string",
+        },
+      },
+      "required": [
+        "id",
+      ],
+      "type": "object",
+    },
+    "scope": "write:plan",
+  },
+  {
+    "name": "describe_strava_activity",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "activityId": {
+          "description": "Strava activity ID. Omit to describe the most recent activity.",
+          "type": "string",
+        },
+        "style": {
+          "description": "Custom instructions for the description format. Reserved: v0.6 always writes the default metrics template.",
+          "type": "string",
+        },
+      },
+      "type": "object",
+    },
+    "scope": "write:strava",
+  },
+  {
+    "name": "forget_fact",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "The [id] prefix shown in your memory block",
+          "minLength": 8,
+          "type": "string",
+        },
+      },
+      "required": [
+        "id",
+      ],
+      "type": "object",
+    },
+    "scope": "write:memory",
+  },
+  {
+    "name": "generate_training_plan",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "daysPerWeek": {
+          "default": 5,
+          "description": "Training days per week (3-7).",
+          "maximum": 7,
+          "minimum": 3,
+          "type": "integer",
+        },
+        "hoursPerWeek": {
+          "default": 8,
+          "description": "Available training hours per week.",
+          "maximum": 25,
+          "minimum": 3,
+          "type": "number",
+        },
+        "raceDate": {
+          "description": "Target race date (YYYY-MM-DD).",
+          "type": "string",
+        },
+        "raceId": {
+          "description": "Target an existing race instead of creating one.",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+          "type": "string",
+        },
+        "raceType": {
+          "description": "Type of target race or training goal.",
+          "enum": [
+            "marathon",
+            "half_marathon",
+            "10k",
+            "5k",
+            "ultra",
+            "ironman",
+            "70.3",
+            "olympic_tri",
+            "sprint_tri",
+            "gran_fondo",
+            "century",
+            "crit",
+            "general_fitness",
+          ],
+          "type": "string",
+        },
+        "sports": {
+          "description": "Override sports list. Defaults to athlete profile.",
+          "items": {
+            "type": "string",
+          },
+          "type": "array",
+        },
+        "title": {
+          "description": "Plan name, e.g. 'Berlin Marathon 2026'.",
+          "type": "string",
+        },
+      },
+      "required": [
+        "raceType",
+        "raceDate",
+        "daysPerWeek",
+        "hoursPerWeek",
+      ],
+      "type": "object",
+    },
+    "scope": "write:plan",
+  },
+  {
+    "name": "get_activity",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "Activity id (from list_activities).",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+          "type": "string",
+        },
+      },
+      "required": [
+        "id",
+      ],
+      "type": "object",
+    },
+    "scope": "read",
+  },
+  {
+    "name": "get_athlete_profile",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object",
+    },
+    "scope": "read",
+  },
+  {
+    "name": "get_best_efforts",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "days": {
+          "anyOf": [
+            {
+              "const": 30,
+              "type": "number",
+            },
+            {
+              "const": 90,
+              "type": "number",
+            },
+            {
+              "const": 365,
+              "type": "number",
+            },
+          ],
+          "default": 90,
+          "description": "Trailing window in days (30, 90, or 365).",
+        },
+        "sport": {
+          "description": "Filter by sport type (e.g. 'Ride', 'Run').",
+          "type": "string",
+        },
+      },
+      "required": [
+        "days",
+      ],
+      "type": "object",
+    },
+    "scope": "read",
+  },
+  {
+    "name": "get_biomarkers",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object",
+    },
+    "scope": "read",
+  },
+  {
+    "name": "get_calendar_availability",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "days": {
+          "default": 3,
+          "description": "Look-ahead window (1-7 days).",
+          "maximum": 7,
+          "minimum": 1,
+          "type": "integer",
+        },
+      },
+      "required": [
+        "days",
+      ],
+      "type": "object",
+    },
+    "scope": "read",
+  },
+  {
+    "name": "get_fitness_summary",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object",
+    },
+    "scope": "read",
+  },
+  {
+    "name": "get_pace_curve",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "days": {
+          "anyOf": [
+            {
+              "const": 30,
+              "type": "number",
+            },
+            {
+              "const": 90,
+              "type": "number",
+            },
+            {
+              "const": 365,
+              "type": "number",
+            },
+          ],
+          "default": 90,
+          "description": "Trailing window in days (30, 90, or 365).",
+        },
+      },
+      "required": [
+        "days",
+      ],
+      "type": "object",
+    },
+    "scope": "read",
+  },
+  {
+    "name": "get_plan_drift",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object",
+    },
+    "scope": "read",
+  },
+  {
+    "name": "get_planned_workouts",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "days": {
+          "default": 7,
+          "description": "Look-ahead window in days (1-14).",
+          "maximum": 14,
+          "minimum": 1,
+          "type": "integer",
+        },
+      },
+      "required": [
+        "days",
+      ],
+      "type": "object",
+    },
+    "scope": "read",
+  },
+  {
+    "name": "get_power_curve",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "days": {
+          "anyOf": [
+            {
+              "const": 30,
+              "type": "number",
+            },
+            {
+              "const": 90,
+              "type": "number",
+            },
+            {
+              "const": 365,
+              "type": "number",
+            },
+          ],
+          "default": 90,
+          "description": "Trailing window in days (30, 90, or 365).",
+        },
+      },
+      "required": [
+        "days",
+      ],
+      "type": "object",
+    },
+    "scope": "read",
+  },
+  {
+    "name": "get_races",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "priority": {
+          "enum": [
+            "A",
+            "B",
+            "C",
+          ],
+          "type": "string",
+        },
+        "status": {
+          "enum": [
+            "upcoming",
+            "completed",
+            "skipped",
+          ],
+          "type": "string",
+        },
+      },
+      "type": "object",
+    },
+    "scope": "read",
+  },
+  {
+    "name": "get_readiness",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object",
+    },
+    "scope": "read",
+  },
+  {
+    "name": "get_readiness_history",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "days": {
+          "default": 7,
+          "description": "Number of days of history to retrieve (max 90).",
+          "maximum": 90,
+          "minimum": 1,
+          "type": "integer",
+        },
+      },
+      "required": [
+        "days",
+      ],
+      "type": "object",
+    },
+    "scope": "read",
+  },
+  {
+    "name": "get_training_load_summary",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "weeks": {
+          "anyOf": [
+            {
+              "const": 4,
+              "type": "number",
+            },
+            {
+              "const": 12,
+              "type": "number",
+            },
+            {
+              "const": 26,
+              "type": "number",
+            },
+          ],
+          "default": 12,
+          "description": "Number of trailing Monday-based weeks to bucket (4, 12, or 26).",
+        },
+      },
+      "required": [
+        "weeks",
+      ],
+      "type": "object",
+    },
+    "scope": "read",
+  },
+  {
+    "name": "get_training_plan",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "weekNumber": {
+          "description": "Specific week to detail. Omit for plan overview.",
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer",
+        },
+      },
+      "type": "object",
+    },
+    "scope": "read",
+  },
+  {
+    "name": "get_week_plan",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object",
+    },
+    "scope": "read",
+  },
+  {
+    "name": "get_wellness",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "days": {
+          "default": 7,
+          "description": "Number of days of wellness data to retrieve (max 30).",
+          "maximum": 30,
+          "minimum": 1,
+          "type": "integer",
+        },
+      },
+      "required": [
+        "days",
+      ],
+      "type": "object",
+    },
+    "scope": "read",
+  },
+  {
+    "name": "get_workout_syntax",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object",
+    },
+    "scope": "read",
+  },
+  {
+    "name": "icu_add_activity_message",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "activityId": {
+          "description": "The intervals.icu activity ID.",
+          "type": "string",
+        },
+        "content": {
+          "description": "Message content (note or comment text).",
+          "type": "string",
+        },
+      },
+      "required": [
+        "activityId",
+        "content",
+      ],
+      "type": "object",
+    },
+    "scope": "write:icu",
+  },
+  {
+    "name": "icu_apply_training_plan",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "extraWorkouts": {
+          "description": "Optional additional workout objects to schedule alongside the plan.",
+          "items": {
+            "additionalProperties": {},
+            "propertyNames": {
+              "type": "string",
+            },
+            "type": "object",
+          },
+          "type": "array",
+        },
+        "folderId": {
+          "description": "Workout-library folder ID of the training plan to apply (from icu_get_workout_library).",
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer",
+        },
+        "startDate": {
+          "description": "Date to start the plan on, YYYY-MM-DD.",
+          "type": "string",
+        },
+      },
+      "required": [
+        "folderId",
+        "startDate",
+      ],
+      "type": "object",
+    },
+    "scope": "write:icu",
+  },
+  {
+    "name": "icu_bulk_create_events",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "events": {
+          "description": "Events to create in a single batch call.",
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "category": {
+                "description": "Event category, e.g. WORKOUT, NOTE, RACE_A.",
+                "type": "string",
+              },
+              "color": {
+                "description": "Custom display color (hex string).",
+                "type": "string",
+              },
+              "date": {
+                "description": "Start date, YYYY-MM-DD.",
+                "type": "string",
+              },
+              "description": {
+                "description": "Event description. For WORKOUT events, use intervals.icu structured workout syntax.",
+                "type": "string",
+              },
+              "distanceMeters": {
+                "description": "Planned distance in meters.",
+                "type": "number",
+              },
+              "durationSeconds": {
+                "description": "Planned duration in seconds.",
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer",
+              },
+              "endDate": {
+                "description": "End date, YYYY-MM-DD. Use for ranged categories (INJURED, SICK, HOLIDAY, SEASON_START).",
+                "type": "string",
+              },
+              "name": {
+                "description": "Event name.",
+                "type": "string",
+              },
+              "notOnFitnessChart": {
+                "description": "Hide event entirely from the fitness chart.",
+                "type": "boolean",
+              },
+              "showAsNote": {
+                "description": "Show event as a note marker on the fitness chart.",
+                "type": "boolean",
+              },
+              "showOnCtlLine": {
+                "description": "Render event on the CTL line.",
+                "type": "boolean",
+              },
+              "trainingAvailability": {
+                "enum": [
+                  "NORMAL",
+                  "LIMITED",
+                  "UNAVAILABLE",
+                ],
+                "type": "string",
+              },
+              "trainingLoad": {
+                "description": "Planned training load.",
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer",
+              },
+              "type": {
+                "description": "Activity discipline (not the category): Ride, Run, Swim, Walk, Hike, VirtualRide, VirtualRun, Other.",
+                "type": "string",
+              },
+            },
+            "required": [
+              "date",
+              "category",
+              "name",
+            ],
+            "type": "object",
+          },
+          "minItems": 1,
+          "type": "array",
+        },
+      },
+      "required": [
+        "events",
+      ],
+      "type": "object",
+    },
+    "scope": "write:icu",
+  },
+  {
+    "name": "icu_bulk_delete_events",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "eventIds": {
+          "description": "Event IDs to delete in a single batch call.",
+          "items": {
+            "maximum": 9007199254740991,
+            "minimum": -9007199254740991,
+            "type": "integer",
+          },
+          "minItems": 1,
+          "type": "array",
+        },
+      },
+      "required": [
+        "eventIds",
+      ],
+      "type": "object",
+    },
+    "scope": "write:icu",
+  },
+  {
+    "name": "icu_create_event",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "category": {
+          "description": "Event category: WORKOUT, NOTE, RACE_A, RACE_B, RACE_C, TARGET, PLAN, HOLIDAY, SICK, INJURED, SET_EFTP, FITNESS_DAYS, SEASON_START, SET_FITNESS.",
+          "type": "string",
+        },
+        "color": {
+          "description": "Custom display color (hex string).",
+          "type": "string",
+        },
+        "date": {
+          "description": "Start date, YYYY-MM-DD.",
+          "type": "string",
+        },
+        "description": {
+          "description": "Event description. For WORKOUT events, use intervals.icu structured workout syntax.",
+          "type": "string",
+        },
+        "distanceMeters": {
+          "description": "Planned distance in meters.",
+          "type": "number",
+        },
+        "durationSeconds": {
+          "description": "Planned duration in seconds.",
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer",
+        },
+        "endDate": {
+          "description": "End date, YYYY-MM-DD. Use for ranged categories (INJURED, SICK, HOLIDAY, SEASON_START).",
+          "type": "string",
+        },
+        "name": {
+          "description": "Event name.",
+          "type": "string",
+        },
+        "notOnFitnessChart": {
+          "description": "Hide event entirely from the fitness chart.",
+          "type": "boolean",
+        },
+        "showAsNote": {
+          "description": "Show event as a note marker on the fitness chart.",
+          "type": "boolean",
+        },
+        "showOnCtlLine": {
+          "description": "Render event on the CTL line.",
+          "type": "boolean",
+        },
+        "trainingAvailability": {
+          "enum": [
+            "NORMAL",
+            "LIMITED",
+            "UNAVAILABLE",
+          ],
+          "type": "string",
+        },
+        "trainingLoad": {
+          "description": "Planned training load.",
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer",
+        },
+        "type": {
+          "description": "Activity discipline (not the category): Ride, Run, Swim, Walk, Hike, VirtualRide, VirtualRun, Other.",
+          "type": "string",
+        },
+      },
+      "required": [
+        "date",
+        "category",
+        "name",
+      ],
+      "type": "object",
+    },
+    "scope": "write:icu",
+  },
+  {
+    "name": "icu_delete_event",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "eventId": {
+          "description": "The intervals.icu event ID to delete.",
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer",
+        },
+      },
+      "required": [
+        "eventId",
+      ],
+      "type": "object",
+    },
+    "scope": "write:icu",
+  },
+  {
+    "name": "icu_duplicate_events",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "eventIds": {
+          "description": "Event IDs to duplicate forward in time.",
+          "items": {
+            "maximum": 9007199254740991,
+            "minimum": -9007199254740991,
+            "type": "integer",
+          },
+          "minItems": 1,
+          "type": "array",
+        },
+        "numCopies": {
+          "default": 1,
+          "description": "Number of copies to create per event.",
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "type": "integer",
+        },
+        "weeksBetween": {
+          "default": 1,
+          "description": "Weeks between each copy.",
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "type": "integer",
+        },
+      },
+      "required": [
+        "eventIds",
+        "numCopies",
+        "weeksBetween",
+      ],
+      "type": "object",
+    },
+    "scope": "write:icu",
+  },
+  {
+    "name": "icu_get_activity_intervals",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "activityId": {
+          "description": "The intervals.icu activity ID.",
+          "type": "string",
+        },
+      },
+      "required": [
+        "activityId",
+      ],
+      "type": "object",
+    },
+    "scope": "read",
+  },
+  {
+    "name": "icu_get_activity_messages",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "activityId": {
+          "description": "The intervals.icu activity ID.",
+          "type": "string",
+        },
+      },
+      "required": [
+        "activityId",
+      ],
+      "type": "object",
+    },
+    "scope": "read",
+  },
+  {
+    "name": "icu_get_calendar_events",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "newest": {
+          "description": "End date, YYYY-MM-DD",
+          "type": "string",
+        },
+        "oldest": {
+          "description": "Start date, YYYY-MM-DD",
+          "type": "string",
+        },
+      },
+      "required": [
+        "oldest",
+        "newest",
+      ],
+      "type": "object",
+    },
+    "scope": "read",
+  },
+  {
+    "name": "icu_get_event",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "eventId": {
+          "description": "The intervals.icu event ID.",
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer",
+        },
+      },
+      "required": [
+        "eventId",
+      ],
+      "type": "object",
+    },
+    "scope": "read",
+  },
+  {
+    "name": "icu_get_gap_histogram",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "activityId": {
+          "description": "The intervals.icu activity ID.",
+          "type": "string",
+        },
+      },
+      "required": [
+        "activityId",
+      ],
+      "type": "object",
+    },
+    "scope": "read",
+  },
+  {
+    "name": "icu_get_hr_histogram",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "activityId": {
+          "description": "The intervals.icu activity ID.",
+          "type": "string",
+        },
+      },
+      "required": [
+        "activityId",
+      ],
+      "type": "object",
+    },
+    "scope": "read",
+  },
+  {
+    "name": "icu_get_pace_histogram",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "activityId": {
+          "description": "The intervals.icu activity ID.",
+          "type": "string",
+        },
+      },
+      "required": [
+        "activityId",
+      ],
+      "type": "object",
+    },
+    "scope": "read",
+  },
+  {
+    "name": "icu_get_power_histogram",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "activityId": {
+          "description": "The intervals.icu activity ID.",
+          "type": "string",
+        },
+      },
+      "required": [
+        "activityId",
+      ],
+      "type": "object",
+    },
+    "scope": "read",
+  },
+  {
+    "name": "icu_get_sport_settings",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object",
+    },
+    "scope": "read",
+  },
+  {
+    "name": "icu_get_workout_library",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object",
+    },
+    "scope": "read",
+  },
+  {
+    "name": "icu_get_workouts_in_folder",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "folderId": {
+          "description": "Workout-library folder ID (from icu_get_workout_library).",
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer",
+        },
+      },
+      "required": [
+        "folderId",
+      ],
+      "type": "object",
+    },
+    "scope": "read",
+  },
+  {
+    "name": "icu_search_activities",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "limit": {
+          "description": "Maximum number of results to return.",
+          "maximum": 100,
+          "minimum": 1,
+          "type": "integer",
+        },
+        "q": {
+          "description": "Search query — case-insensitive activity name search, or exact tag match if prefixed with '#'.",
+          "minLength": 1,
+          "type": "string",
+        },
+      },
+      "required": [
+        "q",
+      ],
+      "type": "object",
+    },
+    "scope": "read",
+  },
+  {
+    "name": "icu_update_activity",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "activityId": {
+          "description": "The intervals.icu activity ID to update.",
+          "type": "string",
+        },
+        "commute": {
+          "description": "Mark as a commute.",
+          "type": "boolean",
+        },
+        "description": {
+          "description": "Updated description.",
+          "type": "string",
+        },
+        "feel": {
+          "description": "How you felt (1-5 scale).",
+          "maximum": 5,
+          "minimum": 1,
+          "type": "integer",
+        },
+        "name": {
+          "description": "Updated activity name.",
+          "type": "string",
+        },
+        "perceivedExertion": {
+          "description": "RPE rating (1-10 scale).",
+          "maximum": 10,
+          "minimum": 1,
+          "type": "number",
+        },
+        "trainer": {
+          "description": "Mark as a trainer/indoor workout.",
+          "type": "boolean",
+        },
+        "type": {
+          "description": "Updated activity discipline, e.g. Ride, Run, Swim.",
+          "type": "string",
+        },
+      },
+      "required": [
+        "activityId",
+      ],
+      "type": "object",
+    },
+    "scope": "write:icu",
+  },
+  {
+    "name": "icu_update_event",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "category": {
+          "description": "Updated event category.",
+          "type": "string",
+        },
+        "color": {
+          "description": "Custom display color (hex string).",
+          "type": "string",
+        },
+        "date": {
+          "description": "Updated start date, YYYY-MM-DD.",
+          "type": "string",
+        },
+        "description": {
+          "description": "Event description. For WORKOUT events, use intervals.icu structured workout syntax.",
+          "type": "string",
+        },
+        "distanceMeters": {
+          "description": "Planned distance in meters.",
+          "type": "number",
+        },
+        "durationSeconds": {
+          "description": "Planned duration in seconds.",
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer",
+        },
+        "endDate": {
+          "description": "End date, YYYY-MM-DD. Use for ranged categories (INJURED, SICK, HOLIDAY, SEASON_START).",
+          "type": "string",
+        },
+        "eventId": {
+          "description": "The intervals.icu event ID to update.",
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer",
+        },
+        "name": {
+          "description": "Updated event name.",
+          "type": "string",
+        },
+        "notOnFitnessChart": {
+          "description": "Hide event entirely from the fitness chart.",
+          "type": "boolean",
+        },
+        "showAsNote": {
+          "description": "Show event as a note marker on the fitness chart.",
+          "type": "boolean",
+        },
+        "showOnCtlLine": {
+          "description": "Render event on the CTL line.",
+          "type": "boolean",
+        },
+        "trainingAvailability": {
+          "enum": [
+            "NORMAL",
+            "LIMITED",
+            "UNAVAILABLE",
+          ],
+          "type": "string",
+        },
+        "trainingLoad": {
+          "description": "Planned training load.",
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer",
+        },
+        "type": {
+          "description": "Activity discipline (not the category): Ride, Run, Swim, Walk, Hike, VirtualRide, VirtualRun, Other.",
+          "type": "string",
+        },
+      },
+      "required": [
+        "eventId",
+      ],
+      "type": "object",
+    },
+    "scope": "write:icu",
+  },
+  {
+    "name": "icu_update_sport_settings",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "fthr": {
+          "description": "Functional/Lactate Threshold Heart Rate in bpm.",
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer",
+        },
+        "ftp": {
+          "description": "Functional Threshold Power in watts (cycling).",
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer",
+        },
+        "hrZones": {
+          "description": "Heart-rate zone boundaries.",
+          "items": {
+            "maximum": 9007199254740991,
+            "minimum": -9007199254740991,
+            "type": "integer",
+          },
+          "type": "array",
+        },
+        "maxHr": {
+          "description": "Maximum heart rate in bpm.",
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer",
+        },
+        "paceZones": {
+          "description": "Pace zone boundaries.",
+          "items": {
+            "type": "number",
+          },
+          "type": "array",
+        },
+        "powerZones": {
+          "description": "Power zone boundaries.",
+          "items": {
+            "maximum": 9007199254740991,
+            "minimum": -9007199254740991,
+            "type": "integer",
+          },
+          "type": "array",
+        },
+        "recalcHrZones": {
+          "default": false,
+          "description": "Recalculate HR zones from the new threshold values.",
+          "type": "boolean",
+        },
+        "sportId": {
+          "description": "ID of the sport-settings profile to update.",
+          "type": "string",
+        },
+        "thresholdPace": {
+          "description": "Threshold pace/speed for this sport, in the unit already configured for the profile (see paceUnits from icu_get_sport_settings).",
+          "type": "number",
+        },
+        "wPrime": {
+          "description": "W' (anaerobic work capacity) in joules.",
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer",
+        },
+      },
+      "required": [
+        "sportId",
+        "recalcHrZones",
+      ],
+      "type": "object",
+    },
+    "scope": "write:icu",
+  },
+  {
+    "name": "icu_update_wellness",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "abdomen": {
+          "description": "Abdominal circumference in cm.",
+          "type": "number",
+        },
+        "bloodGlucose": {
+          "description": "Blood glucose in mmol/L.",
+          "type": "number",
+        },
+        "bodyFat": {
+          "description": "Body fat percentage.",
+          "type": "number",
+        },
+        "caloriesConsumed": {
+          "description": "Calories consumed (kcal).",
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer",
+        },
+        "carbohydrates": {
+          "description": "Carbohydrates consumed (grams).",
+          "type": "number",
+        },
+        "comments": {
+          "description": "Comments or notes.",
+          "type": "string",
+        },
+        "date": {
+          "description": "Date in YYYY-MM-DD format.",
+          "type": "string",
+        },
+        "diastolic": {
+          "description": "Diastolic blood pressure in mmHg.",
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer",
+        },
+        "fatTotal": {
+          "description": "Total fat consumed (grams).",
+          "type": "number",
+        },
+        "fatigue": {
+          "description": "Fatigue level, 1-5 (1=very low, 5=very high).",
+          "maximum": 5,
+          "minimum": 1,
+          "type": "integer",
+        },
+        "hrv": {
+          "description": "HRV (rMSSD) value.",
+          "type": "number",
+        },
+        "hydrationLiters": {
+          "description": "Hydration volume (liters).",
+          "type": "number",
+        },
+        "injury": {
+          "description": "Injury severity, 1-5 (1=none, 5=severe).",
+          "maximum": 5,
+          "minimum": 1,
+          "type": "integer",
+        },
+        "lactate": {
+          "description": "Blood lactate in mmol/L — lab result.",
+          "type": "number",
+        },
+        "locked": {
+          "description": "Lock record to prevent device sync from overwriting manual entries.",
+          "type": "boolean",
+        },
+        "menstrualPhase": {
+          "description": "Menstrual phase, e.g. FOLLICULAR, OVULATING, LUTEAL, MENSTRUAL.",
+          "type": "string",
+        },
+        "mood": {
+          "description": "Mood level, 1-5 (1=very poor, 5=very good).",
+          "maximum": 5,
+          "minimum": 1,
+          "type": "integer",
+        },
+        "motivation": {
+          "description": "Motivation level, 1-5 (1=very low, 5=very high).",
+          "maximum": 5,
+          "minimum": 1,
+          "type": "integer",
+        },
+        "protein": {
+          "description": "Protein consumed (grams).",
+          "type": "number",
+        },
+        "readiness": {
+          "description": "Readiness score (0-100).",
+          "type": "number",
+        },
+        "respiration": {
+          "description": "Respiration rate in breaths per minute.",
+          "type": "number",
+        },
+        "restingHr": {
+          "description": "Resting heart rate in bpm.",
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer",
+        },
+        "sleepQuality": {
+          "description": "Sleep quality, 1-5 (1=Great, 5=Poor — inverted scale).",
+          "maximum": 5,
+          "minimum": 1,
+          "type": "integer",
+        },
+        "sleepSecs": {
+          "description": "Sleep duration in seconds.",
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer",
+        },
+        "soreness": {
+          "description": "Soreness level, 1-5 (1=very low, 5=very high).",
+          "maximum": 5,
+          "minimum": 1,
+          "type": "integer",
+        },
+        "spo2": {
+          "description": "Blood oxygen saturation percentage (SpO2).",
+          "type": "number",
+        },
+        "stress": {
+          "description": "Stress level, 1-5 (1=very low, 5=very high).",
+          "maximum": 5,
+          "minimum": 1,
+          "type": "integer",
+        },
+        "systolic": {
+          "description": "Systolic blood pressure in mmHg.",
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer",
+        },
+        "vo2max": {
+          "description": "VO2max (ml/kg/min) — lab result or device estimate.",
+          "type": "number",
+        },
+        "weight": {
+          "description": "Weight in kg.",
+          "type": "number",
+        },
+      },
+      "required": [
+        "date",
+      ],
+      "type": "object",
+    },
+    "scope": "write:icu",
+  },
+  {
+    "name": "list_activities",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "days": {
+          "default": 7,
+          "description": "Number of days to look back for activities (max 30).",
+          "maximum": 30,
+          "minimum": 1,
+          "type": "integer",
+        },
+        "limit": {
+          "default": 10,
+          "description": "Maximum number of activities to return (max 20).",
+          "maximum": 20,
+          "minimum": 1,
+          "type": "integer",
+        },
+        "sport": {
+          "description": "Filter by sport type (e.g. 'Ride', 'Run').",
+          "type": "string",
+        },
+      },
+      "required": [
+        "days",
+        "limit",
+      ],
+      "type": "object",
+    },
+    "scope": "read",
+  },
+  {
+    "name": "log_wellness",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "date": {
+          "description": "Date to log, YYYY-MM-DD.",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+          "type": "string",
+        },
+        "energy": {
+          "description": "Energy 1-10.",
+          "maximum": 10,
+          "minimum": 1,
+          "type": "integer",
+        },
+        "hrv_ms": {
+          "description": "HRV rMSSD in ms.",
+          "maximum": 300,
+          "minimum": 1,
+          "type": "number",
+        },
+        "mood": {
+          "description": "One-word mood label.",
+          "maxLength": 32,
+          "type": "string",
+        },
+        "notes": {
+          "description": "Free-form journal note.",
+          "maxLength": 2000,
+          "type": "string",
+        },
+        "resting_hr": {
+          "maximum": 120,
+          "minimum": 20,
+          "type": "number",
+        },
+        "sleep_hours": {
+          "description": "Hours slept.",
+          "maximum": 24,
+          "minimum": 0,
+          "type": "number",
+        },
+        "soreness": {
+          "description": "Soreness 1-10.",
+          "maximum": 10,
+          "minimum": 1,
+          "type": "integer",
+        },
+        "stress": {
+          "description": "Stress 1-10.",
+          "maximum": 10,
+          "minimum": 1,
+          "type": "integer",
+        },
+        "weight_kg": {
+          "maximum": 300,
+          "minimum": 20,
+          "type": "number",
+        },
+      },
+      "required": [
+        "date",
+      ],
+      "type": "object",
+    },
+    "scope": "write:wellness",
+  },
+  {
+    "name": "recall_history",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "limit": {
+          "maximum": 10,
+          "minimum": 1,
+          "type": "integer",
+        },
+        "query": {
+          "description": "Plain search words. Quoted phrases and -exclusions supported (websearch syntax).",
+          "minLength": 2,
+          "type": "string",
+        },
+      },
+      "required": [
+        "query",
+      ],
+      "type": "object",
+    },
+    "scope": "read",
+  },
+  {
+    "name": "remember_fact",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "category": {
+          "enum": [
+            "goal",
+            "injury",
+            "race",
+            "preference",
+            "fact",
+          ],
+          "type": "string",
+        },
+        "content": {
+          "description": "One short durable fact about the athlete",
+          "maxLength": 280,
+          "minLength": 3,
+          "type": "string",
+        },
+      },
+      "required": [
+        "category",
+        "content",
+      ],
+      "type": "object",
+    },
+    "scope": "write:memory",
+  },
+  {
+    "name": "render_chart",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "annotations": {
+          "description": "Vertical markers (e.g., race day, today).",
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "color": {
+                "type": "string",
+              },
+              "label": {
+                "type": "string",
+              },
+              "x": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                  },
+                  {
+                    "type": "number",
+                  },
+                ],
+              },
+            },
+            "required": [
+              "x",
+              "label",
+            ],
+            "type": "object",
+          },
+          "type": "array",
+        },
+        "series": {
+          "description": "Data series to plot.",
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "color": {
+                "description": "Tailwind color name or hex. Defaults to theme palette.",
+                "type": "string",
+              },
+              "data": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "x": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                        },
+                        {
+                          "type": "number",
+                        },
+                      ],
+                    },
+                    "y": {
+                      "type": "number",
+                    },
+                  },
+                  "required": [
+                    "x",
+                    "y",
+                  ],
+                  "type": "object",
+                },
+                "minItems": 1,
+                "type": "array",
+              },
+              "label": {
+                "type": "string",
+              },
+              "style": {
+                "default": "solid",
+                "enum": [
+                  "solid",
+                  "dashed",
+                  "area",
+                ],
+                "type": "string",
+              },
+            },
+            "required": [
+              "label",
+              "data",
+              "style",
+            ],
+            "type": "object",
+          },
+          "minItems": 1,
+          "type": "array",
+        },
+        "title": {
+          "description": "Short chart title shown above the visualization.",
+          "type": "string",
+        },
+        "type": {
+          "description": "Chart type: line (time series), bar (categorical), area (filled), table (rows).",
+          "enum": [
+            "line",
+            "bar",
+            "area",
+            "table",
+          ],
+          "type": "string",
+        },
+        "xLabel": {
+          "description": "X-axis label.",
+          "type": "string",
+        },
+        "yLabel": {
+          "description": "Y-axis label.",
+          "type": "string",
+        },
+      },
+      "required": [
+        "type",
+        "title",
+        "series",
+      ],
+      "type": "object",
+    },
+    "scope": "read",
+  },
+  {
+    "name": "set_week_availability",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "availableMins": {
+          "description": "Minutes available per day, Monday first",
+          "items": {
+            "maximum": 720,
+            "minimum": 0,
+            "type": "integer",
+          },
+          "maxItems": 7,
+          "minItems": 7,
+          "type": "array",
+        },
+      },
+      "required": [
+        "availableMins",
+      ],
+      "type": "object",
+    },
+    "scope": "write:plan",
+  },
+  {
+    "name": "simulate_plan_change",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "enum": [
+            "move",
+            "swap",
+            "skip",
+          ],
+          "type": "string",
+        },
+        "fromDate": {
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+          "type": "string",
+        },
+        "toDate": {
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+          "type": "string",
+        },
+      },
+      "required": [
+        "action",
+        "fromDate",
+      ],
+      "type": "object",
+    },
+    "scope": "read",
+  },
+  {
+    "name": "update_training_plan",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "description": "Week-level: adjusts the week's target load. Day-level (move_workout/swap_workout): rearranges the current week's days.",
+          "enum": [
+            "reduce_load",
+            "increase_load",
+            "skip_week",
+            "move_workout",
+            "swap_workout",
+          ],
+          "type": "string",
+        },
+        "fromDate": {
+          "description": "YYYY-MM-DD — source day (day-level actions).",
+          "type": "string",
+        },
+        "reason": {
+          "description": "Why the adjustment is being made.",
+          "type": "string",
+        },
+        "toDate": {
+          "description": "YYYY-MM-DD — target day (day-level actions).",
+          "type": "string",
+        },
+        "weekNumber": {
+          "description": "Week to adjust (required for week-level actions).",
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer",
+        },
+      },
+      "required": [
+        "action",
+        "reason",
+      ],
+      "type": "object",
+    },
+    "scope": "write:plan",
+  },
+  {
+    "name": "upsert_race",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "date": {
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+          "type": "string",
+        },
+        "goalNote": {
+          "type": "string",
+        },
+        "id": {
+          "description": "Set to update an existing race.",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+          "type": "string",
+        },
+        "name": {
+          "minLength": 1,
+          "type": "string",
+        },
+        "priority": {
+          "description": "A = full taper target; B = short pre-race ease-off; C = train through.",
+          "enum": [
+            "A",
+            "B",
+            "C",
+          ],
+          "type": "string",
+        },
+        "raceType": {
+          "description": "Free text, e.g. "marathon", "70.3", "gran fondo", "10k".",
+          "type": "string",
+        },
+        "sport": {
+          "type": "string",
+        },
+        "status": {
+          "enum": [
+            "upcoming",
+            "completed",
+            "skipped",
+          ],
+          "type": "string",
+        },
+      },
+      "required": [
+        "name",
+        "raceType",
+        "date",
+        "priority",
+      ],
+      "type": "object",
+    },
+    "scope": "write:plan",
+  },
+]
+`;

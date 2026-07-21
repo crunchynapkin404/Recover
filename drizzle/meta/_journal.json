@@ -141,6 +141,27 @@
       "when": 1784580765901,
       "tag": "0019_secret_sprite",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1784616277241,
+      "tag": "0020_classy_switch",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1784619573298,
+      "tag": "0021_deep_mattie_franklin",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1784645945135,
+      "tag": "0022_typical_tattoo",
+      "breakpoints": true
     }
   ]
 }
