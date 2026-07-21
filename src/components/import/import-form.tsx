@@ -1,12 +1,13 @@
 "use client";
 
 import { useActionState, useRef, useState } from "react";
-import { Upload, CheckCircle, AlertTriangle } from "lucide-react";
+import { Upload, CheckCircle, AlertTriangle, FileUp } from "lucide-react";
 import {
   importWellnessCSV,
   importActivityCSV,
   type ImportResult,
 } from "@/app/import/actions";
+import { EmptyState } from "@/components/ui/empty-state";
 
 type Tab = "wellness" | "activities";
 
@@ -156,7 +157,7 @@ export function ImportForm() {
       </form>
 
       {/* Results */}
-      {state && (
+      {state ? (
         <div
           className={`glass rounded-[2rem] p-6 ${state.ok ? "border border-emerald-500/30" : "border border-red-500/30"}`}
         >
@@ -184,6 +185,11 @@ export function ImportForm() {
             </div>
           </div>
         </div>
+      ) : (
+        <EmptyState
+          icon={FileUp}
+          message="Nothing imported yet. Choose a CSV to map columns."
+        />
       )}
     </div>
   );

@@ -6,6 +6,7 @@ import { getOrFetchActivityDetail } from "@/lib/activity-streams";
 import { AppShell } from "@/components/app-shell";
 import { StreamChart } from "@/components/activity/stream-chart";
 import { LapsTable } from "@/components/activity/laps-table";
+import { StreamDataEmpty } from "@/components/activity/stream-data-empty";
 import { ActivityDebriefSection } from "@/components/debrief/activity-debrief-section";
 import { formatDuration, formatKm } from "@/lib/format";
 
@@ -116,13 +117,7 @@ export default async function ActivityPage({
 
         {laps && laps.length > 0 && <LapsTable laps={laps} />}
 
-        {!streams && (
-          <section className="glass rounded-[2rem] p-6 text-sm text-white/50">
-            {reason === "fetch_failed"
-              ? "Couldn't load detailed data from intervals.icu right now — the summary above is still accurate."
-              : "No detailed data available for this activity."}
-          </section>
-        )}
+        {!streams && <StreamDataEmpty reason={reason} />}
       </div>
     </AppShell>
   );
