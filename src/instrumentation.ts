@@ -12,6 +12,9 @@ declare global {
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
 
+  const { assertAuthSecret } = await import("@/lib/env-validation");
+  assertAuthSecret();
+
   const { ensureOwnerSeeded } = await import("@/lib/bootstrap");
   try {
     await ensureOwnerSeeded();

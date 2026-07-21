@@ -5,6 +5,7 @@ import { db, schema } from "@/lib/db";
 import { encrypt } from "@/lib/crypto";
 import { logger } from "@/lib/logger";
 import { publicBaseUrl } from "@/lib/base-url";
+import { recordAuditEvent } from "@/lib/audit";
 import { exchangeCode, WithingsError } from "@/lib/connectors/withings";
 
 export const dynamic = "force-dynamic";
@@ -65,6 +66,12 @@ export async function GET(req: Request) {
           lastSyncAt: null, // fresh backfill window
         },
       });
+
+    await recordAuditEvent({
+      event: "connection_added",
+      userId: session.user.id,
+      metadata: { provider: "withings" },
+    });
 
     const { runWithingsSync } = await import("@/lib/sync/withings-sync");
     await runWithingsSync(session.user.id).catch((err) => {

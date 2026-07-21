@@ -7,6 +7,7 @@ import { encrypt } from "@/lib/crypto";
 import { requireUser } from "@/lib/session";
 import { ConnectorError, validateKey } from "@/lib/connectors/intervals";
 import { runIntervalsSync } from "@/lib/sync/intervals-sync";
+import { recordAuditEvent } from "@/lib/audit";
 
 export interface ActionResult {
   ok: boolean;
@@ -55,6 +56,12 @@ export async function connectIntervals(
       },
     });
 
+  await recordAuditEvent({
+    event: "connection_added",
+    userId: user.id,
+    metadata: { provider: "intervals_icu" },
+  });
+
   try {
     const result = await runIntervalsSync(user.id);
     revalidatePath("/");
@@ -97,6 +104,11 @@ export async function disconnectIntervals(): Promise<ActionResult> {
         eq(schema.connections.provider, "intervals_icu")
       )
     );
+  await recordAuditEvent({
+    event: "connection_revoked",
+    userId: user.id,
+    metadata: { provider: "intervals_icu" },
+  });
   revalidatePath("/settings");
   return {
     ok: true,

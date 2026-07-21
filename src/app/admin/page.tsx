@@ -4,6 +4,7 @@ import { db, schema } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { AppShell } from "@/components/app-shell";
 import { InviteManager } from "@/components/admin/invite-manager";
+import { SecurityEvents } from "@/components/admin/security-events";
 
 export default async function AdminPage() {
   const user = await requireUser();
@@ -66,6 +67,8 @@ export default async function AdminPage() {
             expiresAt: i.expiresAt.toISOString().slice(0, 10),
           }))}
         />
+
+        <SecurityEvents />
       </div>
     </AppShell>
   );

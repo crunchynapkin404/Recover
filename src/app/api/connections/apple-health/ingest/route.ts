@@ -17,16 +17,43 @@ export const dynamic = "force-dynamic";
 function json(body: unknown, status: number) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      // Token may arrive via ?token= (Health Auto Export needs a URL); keep it
+      // out of referrers and caches. Header path (x-recover-token) is preferred.
+      "Referrer-Policy": "no-referrer",
+      "Cache-Control": "no-store",
+    },
   });
 }
 
 /** Health Auto Export batches are small; anything near this is not one. */
 const MAX_BODY_BYTES = 10 * 1024 * 1024;
 
+/** Read the whole body but abort if it exceeds the cap — content-length is
+ *  advisory (a client can omit or understate it). Returns null if too large. */
+async function readCappedText(req: Request): Promise<string | null> {
+  if (!req.body) return "";
+  const reader = req.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > MAX_BODY_BYTES) {
+      await reader.cancel();
+      return null;
+    }
+    chunks.push(value);
+  }
+  return Buffer.concat(chunks).toString("utf8");
+}
+
 export async function POST(req: Request) {
-  const contentLength = Number(req.headers.get("content-length") ?? 0);
-  if (contentLength > MAX_BODY_BYTES) {
+  // Fast early-out on an honest content-length, then authoritative byte count.
+  const declared = Number(req.headers.get("content-length") ?? 0);
+  if (declared > MAX_BODY_BYTES) {
     return json({ error: "Payload too large (max 10 MB)" }, 413);
   }
 
@@ -34,6 +61,22 @@ export async function POST(req: Request) {
     req.headers.get("x-recover-token") ??
     new URL(req.url).searchParams.get("token");
   if (!token) return json({ error: "Ingest token required" }, 401);
+
+  let bodyText: string | null;
+  try {
+    bodyText = await readCappedText(req);
+  } catch (err) {
+    // Stream itself errored mid-read (e.g. client disconnected) — distinct
+    // from exceeding the size cap. Route through json() so this failure path
+    // still carries Referrer-Policy/Cache-Control like every other response.
+    logger.error("apple health ingest: body read failed", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return json({ error: "Failed to read request body" }, 400);
+  }
+  if (bodyText === null) {
+    return json({ error: "Payload too large (max 10 MB)" }, 413);
+  }
 
   const connection = await db.query.connections.findFirst({
     where: and(
@@ -46,7 +89,7 @@ export async function POST(req: Request) {
 
   let payload: unknown;
   try {
-    payload = await req.json();
+    payload = bodyText.trim() === "" ? {} : JSON.parse(bodyText);
   } catch {
     return json({ error: "Body must be JSON" }, 400);
   }

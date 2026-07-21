@@ -7,6 +7,7 @@ import { encrypt } from "@/lib/crypto";
 import { requireUser } from "@/lib/session";
 import { OuraError, validateToken } from "@/lib/connectors/oura";
 import { runOuraSync } from "@/lib/sync/oura-sync";
+import { recordAuditEvent } from "@/lib/audit";
 
 export interface ActionResult {
   ok: boolean;
@@ -55,6 +56,12 @@ export async function connectOura(
       },
     });
 
+  await recordAuditEvent({
+    event: "connection_added",
+    userId: user.id,
+    metadata: { provider: "oura" },
+  });
+
   try {
     const result = await runOuraSync(user.id);
     revalidatePath("/");
@@ -99,6 +106,11 @@ export async function ouraDisconnect(): Promise<ActionResult> {
         eq(schema.connections.provider, "oura")
       )
     );
+  await recordAuditEvent({
+    event: "connection_revoked",
+    userId: user.id,
+    metadata: { provider: "oura" },
+  });
   revalidatePath("/settings");
   return { ok: true, message: "Oura disconnected. Synced data is kept." };
 }

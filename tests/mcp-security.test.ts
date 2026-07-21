@@ -49,6 +49,22 @@ describe.skipIf(!hasDb)("MCP security gates", () => {
         source: "manual",
       })
       .onConflictDoNothing();
+    // Distinguishing readiness score for the get_readiness isolation test
+    // below — only USER_A should ever see this via a token minted for them.
+    // Dated well before the wellness fixture's 2026-07-10 (and before
+    // "today"): the log_wellness test further down calls computeDailyMetrics
+    // starting at 2026-07-10, which recomputes (and would null out) any
+    // daily_metrics row from that date forward — this row predates that
+    // window so it survives regardless of test execution order.
+    await db
+      .insert(schema.dailyMetrics)
+      .values({
+        userId: USER_A,
+        date: "2026-06-01",
+        readiness: 82,
+        band: "green",
+      })
+      .onConflictDoNothing();
   });
 
   afterAll(async () => {
@@ -165,6 +181,40 @@ describe.skipIf(!hasDb)("MCP security gates", () => {
     const payload = JSON.parse((result.content[0] as { text: string }).text);
     expect(payload.count).toBe(0);
     expect(payload.days).toEqual([]);
+  });
+
+  // Task 8 (isolation audit) — the app's "read your own health data via
+  // Claude" pitch depends on this: a token minted for one user must never
+  // surface another user's readiness score, even though get_readiness takes
+  // no id-like parameter to guard (it's scoped purely by authInfo.extra.userId
+  // -> ctx.userId, so this also exercises that no other identifier can leak
+  // through the dispatch chokepoint in src/lib/mcp/server.ts).
+  it("isolates users: B cannot read A's readiness", async () => {
+    const { executeToolHandler } = await import("@/lib/mcp/server");
+    const tool = await toolByName("get_readiness");
+    const result = await executeToolHandler(
+      tool,
+      {},
+      authExtra(USER_B, ["read"])
+    );
+    expect(result.isError).toBeUndefined();
+    const payload = JSON.parse((result.content[0] as { text: string }).text);
+    expect(payload.status).toBe("calibrating");
+    expect(payload.readiness).toBeUndefined();
+  });
+
+  it("a token minted for A does see A's own readiness", async () => {
+    const { executeToolHandler } = await import("@/lib/mcp/server");
+    const tool = await toolByName("get_readiness");
+    const result = await executeToolHandler(
+      tool,
+      {},
+      authExtra(USER_A, ["read"])
+    );
+    expect(result.isError).toBeUndefined();
+    const payload = JSON.parse((result.content[0] as { text: string }).text);
+    expect(payload.readiness).toBe(82);
+    expect(payload.band).toBe("green");
   });
 
   it("read scope grants all four v0.4c depth tools", async () => {

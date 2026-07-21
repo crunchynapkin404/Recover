@@ -8,6 +8,7 @@ import { encrypt } from "@/lib/crypto";
 import { requireUser } from "@/lib/session";
 import { hashToken } from "@/lib/mcp/token-auth";
 import { ingestAppleHealth } from "@/lib/sync/apple-health-ingest";
+import { recordAuditEvent } from "@/lib/audit";
 
 export interface ActionResult {
   ok: boolean;
@@ -50,6 +51,12 @@ export async function enableAppleHealth(): Promise<
       },
     });
 
+  await recordAuditEvent({
+    event: "connection_added",
+    userId: user.id,
+    metadata: { provider: "apple_health" },
+  });
+
   revalidatePath("/settings");
   return {
     ok: true,
@@ -68,6 +75,11 @@ export async function disableAppleHealth(): Promise<ActionResult> {
         eq(schema.connections.provider, "apple_health")
       )
     );
+  await recordAuditEvent({
+    event: "connection_revoked",
+    userId: user.id,
+    metadata: { provider: "apple_health" },
+  });
   revalidatePath("/settings");
   return { ok: true, message: "Apple Health disabled. Synced data is kept." };
 }

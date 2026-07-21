@@ -134,6 +134,13 @@
       "when": 1784525343753,
       "tag": "0018_foamy_mathemanic",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1784580765901,
+      "tag": "0019_secret_sprite",
+      "breakpoints": true
     }
   ]
 }

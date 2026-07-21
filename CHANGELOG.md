@@ -1,5 +1,55 @@
 # Changelog
 
+## v0.18.0 — 2026-07-21 — Security Hardening
+
+The first slice of the roadmap's "1.0 Hardening" epic — shipped after
+v0.19.0 because v0.19 jumped this slot's place in the queue for a design
+pass (see that entry below). Cheap high-value web-security fixes, a light
+auth/token/connection audit log, and an exhaustive per-user isolation and
+input audit over the full post-v0.19 codebase. Design:
+`docs/specs/2026-07-20-v0.18-security-hardening-design.md`.
+
+### Added
+
+- **HTTP security headers** on every response: `X-Frame-Options: DENY`,
+  `X-Content-Type-Options: nosniff`, `Referrer-Policy:
+strict-origin-when-cross-origin`, HSTS, a pragmatic
+  `Content-Security-Policy` (`frame-ancestors 'none'`), and a
+  Permissions-Policy that deliberately does not deny microphone — v0.15's
+  voice dictation needs it. `src/middleware.ts` renamed to `src/proxy.ts`
+  per Next.js 16's convention.
+- **Login rate-limiting** (20 requests/60s) and boot-time
+  `BETTER_AUTH_SECRET` validation — the app now fails loud at startup on a
+  missing or too-short secret instead of silently degrading session
+  security, mirroring the existing `ENCRYPTION_KEY` check.
+- **Security event audit log**: a new `audit_log` table records
+  login success/failure, API token creation/revocation, and connection
+  add/remove events (7 providers) — never a secret value, only labels and
+  provider names. Owner-only "Recent security events" list on `/admin`.
+- **Exhaustive per-user isolation & input audit**: every route handler,
+  server action, MCP tool (all 54), OAuth callback, and webhook checked
+  for cross-user data leaks; the LLM biomarker-extraction and file-upload
+  paths re-confirmed against their original no-tools/bounded-parsing
+  guarantees. Zero gaps found — the full checklist and reasoning live at
+  `docs/security/2026-07-20-isolation-audit.md`. Backed by new regression
+  tests proving MCP token isolation, export-endpoint scoping, and a
+  representative server action's cross-user denial.
+
+### Fixed
+
+- **Apple Health ingest**: `Referrer-Policy: no-referrer` and
+  `Cache-Control: no-store` on every response (the ingest token can arrive
+  via a `?token=` URL parameter), and the size cap is now enforced by
+  actually counting bytes read instead of trusting the client-supplied
+  `content-length` header, which can be omitted or understated.
+- Two moderate `npm audit` advisories (a nested build-time `postcss` copy
+  in `next`, a dev-only `esbuild` pulled in transitively by `drizzle-kit`)
+  investigated to root cause and confirmed unreachable at runtime; not
+  forced via a breaking major downgrade.
+
+Deferred past this slice, still open in the roadmap: passkeys/TOTP 2FA,
+full session-management UI, a strict `script-src` CSP.
+
 ## v0.19.0 — 2026-07-20 — Design Refresh
 
 A Superdesign pass rethought the dashboard, coach, log, journal, and
