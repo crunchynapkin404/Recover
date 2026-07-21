@@ -1,10 +1,11 @@
 import { redirect } from "next/navigation";
-import { desc, isNull, and, gte } from "drizzle-orm";
+import { desc, inArray, isNull, and, gte } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { AppShell } from "@/components/app-shell";
 import { InviteManager } from "@/components/admin/invite-manager";
 import { SecurityEvents } from "@/components/admin/security-events";
+import { SyncJobsPanel } from "@/components/admin/sync-jobs-panel";
 
 export default async function AdminPage() {
   const user = await requireUser();
@@ -22,6 +23,38 @@ export default async function AdminPage() {
     ),
     orderBy: desc(schema.invites.createdAt),
   });
+
+  // Owner-only view across ALL users' sync jobs — intentionally not scoped
+  // to the calling user, unlike every other query in this app. "done" jobs
+  // are excluded; the panel only needs queue/running/failed.
+  const syncJobRows = await db.query.syncJobs.findMany({
+    where: inArray(schema.syncJobs.status, ["pending", "running", "failed"]),
+    orderBy: desc(schema.syncJobs.updatedAt),
+    columns: {
+      id: true,
+      userId: true,
+      provider: true,
+      kind: true,
+      status: true,
+      attempts: true,
+      lastError: true,
+      runAfter: true,
+      updatedAt: true,
+    },
+  });
+  const userLabel = new Map(users.map((u) => [u.id, u.name || u.email]));
+  const syncJobs = syncJobRows.map((j) => ({
+    id: j.id,
+    userId: j.userId,
+    userLabel: userLabel.get(j.userId) ?? j.userId,
+    provider: j.provider,
+    kind: j.kind,
+    status: j.status,
+    attempts: j.attempts,
+    lastError: j.lastError,
+    runAfter: j.runAfter.toISOString(),
+    updatedAt: j.updatedAt.toISOString(),
+  }));
 
   return (
     <AppShell>
@@ -66,6 +99,11 @@ export default async function AdminPage() {
             email: i.email,
             expiresAt: i.expiresAt.toISOString().slice(0, 10),
           }))}
+        />
+
+        <SyncJobsPanel
+          jobs={syncJobs}
+          users={users.map((u) => ({ id: u.id, label: u.name || u.email }))}
         />
 
         <SecurityEvents />
