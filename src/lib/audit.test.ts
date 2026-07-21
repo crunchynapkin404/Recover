@@ -5,7 +5,11 @@ import { recordAuditEvent } from "./audit";
 
 const TEST_USER = "test-audit-user";
 
-describe("recordAuditEvent", () => {
+// requires Postgres; skips without DATABASE_URL.
+const hasDb =
+  !!process.env.DATABASE_URL && process.env.DATABASE_DRIVER === "pg";
+
+describe.skipIf(!hasDb)("recordAuditEvent", () => {
   // auditLog.userId is a real FK to users.id (onDelete: set null), so a
   // "fake" test user id must actually exist in `users` or the insert throws
   // a foreign-key violation (23503) — recordAuditEvent swallows that error
