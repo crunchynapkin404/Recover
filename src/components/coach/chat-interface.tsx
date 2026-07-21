@@ -264,9 +264,10 @@ export function ChatInterface({
         <div className="flex items-center justify-between">
           <Link
             href="/"
+            aria-label="Back to dashboard"
             className="glass flex h-10 w-10 items-center justify-center rounded-full transition-transform active:scale-95"
           >
-            <ArrowLeft className="size-[18px]" />
+            <ArrowLeft aria-hidden className="size-[18px]" />
           </Link>
           <div className="flex flex-col items-center">
             <h1 className="text-lg font-bold tracking-tight">AI Coach</h1>
@@ -292,9 +293,10 @@ export function ChatInterface({
             )}
             <button
               onClick={startNewChat}
+              aria-label="Start new chat"
               className="glass flex h-10 w-10 items-center justify-center rounded-full transition-transform active:scale-95"
             >
-              <Plus className="size-[18px]" />
+              <Plus aria-hidden className="size-[18px]" />
             </button>
           </div>
         </div>
@@ -307,7 +309,7 @@ export function ChatInterface({
 
         <Collapsible>
           <CollapsibleTrigger>
-            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30">
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/50">
               Chat History
             </span>
           </CollapsibleTrigger>
@@ -358,7 +360,7 @@ export function ChatInterface({
 
         <Collapsible>
           <CollapsibleTrigger>
-            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30">
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/50">
               Quick Context
             </span>
           </CollapsibleTrigger>
@@ -545,15 +547,16 @@ export function ChatInterface({
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ask your coach..."
-            className="flex-1 bg-transparent px-2 py-2 text-sm text-white outline-none placeholder:text-white/50"
+            className="flex-1 rounded-full bg-transparent px-2 py-2 text-sm text-white outline-none placeholder:text-white/50 focus-visible:ring-2 focus-visible:ring-emerald-400/50"
             disabled={isLoading}
           />
           <button
             type="submit"
             disabled={isLoading || !input.trim()}
+            aria-label="Send message"
             className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500 text-black shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-transform active:scale-90 disabled:opacity-40"
           >
-            <Send className="size-[18px]" />
+            <Send aria-hidden className="size-[18px]" />
           </button>
         </form>
         {showDictationHint && (

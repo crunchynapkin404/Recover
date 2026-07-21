@@ -702,7 +702,7 @@ export function JournalForm({
             maxLength={2000}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="h-32 w-full resize-none bg-transparent text-sm leading-relaxed text-white/80 outline-none placeholder:text-white/40"
+            className="h-32 w-full resize-none rounded-xl bg-transparent text-sm leading-relaxed text-white/80 outline-none placeholder:text-white/40 focus-visible:ring-2 focus-visible:ring-emerald-400/50"
             placeholder="Anything on your mind — training, recovery, life..."
           />
         </div>

@@ -296,7 +296,7 @@ export default async function DashboardPage() {
               </Link>
             </div>
 
-            <p className="mt-6 text-[11px] text-white/30">
+            <p className="mt-6 text-[11px] text-white/50">
               Recover needs {CALIBRATION_TARGET_DAYS} days of HRV &amp; resting
               HR to calibrate your readiness score — it&apos;ll show a
               day-by-day countdown while it learns your baseline.

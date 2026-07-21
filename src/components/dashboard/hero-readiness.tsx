@@ -38,7 +38,7 @@ export function HeroReadiness({
       />
       <div className="mt-6 grid grid-cols-3 gap-3 self-stretch">
         <div className="glass rounded-2xl p-4 text-center">
-          <span className="mb-1 block text-[9px] font-bold uppercase tracking-widest text-white/30">
+          <span className="mb-1 block text-[9px] font-bold uppercase tracking-widest text-white/50">
             Recovery
           </span>
           <span className="text-xl font-bold text-white">
@@ -46,7 +46,7 @@ export function HeroReadiness({
           </span>
         </div>
         <div className="glass rounded-2xl p-4 text-center">
-          <span className="mb-1 block text-[9px] font-bold uppercase tracking-widest text-white/30">
+          <span className="mb-1 block text-[9px] font-bold uppercase tracking-widest text-white/50">
             Sleep
           </span>
           <span className="text-xl font-bold text-white">
@@ -54,7 +54,7 @@ export function HeroReadiness({
           </span>
         </div>
         <div className="glass rounded-2xl p-4 text-center">
-          <span className="mb-1 block text-[9px] font-bold uppercase tracking-widest text-white/30">
+          <span className="mb-1 block text-[9px] font-bold uppercase tracking-widest text-white/50">
             Strain
           </span>
           <span className="text-xl font-bold text-white">
@@ -63,7 +63,7 @@ export function HeroReadiness({
         </div>
       </div>
       {loadComputed && !loadCalibrating && (
-        <p className="mt-3 text-[10px] font-bold uppercase tracking-widest text-white/40">
+        <p className="mt-3 text-[10px] font-bold uppercase tracking-widest text-white/50">
           Load computed from your sessions
         </p>
       )}

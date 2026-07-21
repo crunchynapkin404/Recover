@@ -99,7 +99,7 @@ export function DebriefForm({
         onChange={(e) => setNotes(e.target.value)}
         placeholder="Anything to note — pain, mood, conditions?"
         rows={2}
-        className="mt-4 w-full rounded-2xl border border-white/8 bg-white/3 p-3 text-sm text-white outline-none placeholder:text-white/40"
+        className="mt-4 w-full rounded-2xl border border-white/8 bg-white/3 p-3 text-sm text-white outline-none placeholder:text-white/40 focus:border-emerald-400/50"
       />
 
       {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
