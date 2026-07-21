@@ -522,6 +522,33 @@ export const bodyPrefs = pgTable("body_prefs", {
 });
 
 /**
+ * v0.20 — per-user "usual" journal defaults. A dedicated table rather than
+ * another field on notificationPrefs or bodyPrefs: this isn't a notification
+ * and it isn't body/sleep data, and piling it onto either would repeat the
+ * exact junk-drawer drift bodyPrefs's own comment above was written to call
+ * out and avoid.
+ *
+ * Behavioural only, by design: this stores the athlete's usual *behavior
+ * tags* (☕ caffeine, 💧 hydration, etc. — see BEHAVIOR_TAGS in
+ * journal-form.tsx), never mood, day flags, or the energy/soreness/stress
+ * sliders. Day flags mean "this day is unusual" (v0.7 Score Integrity), so a
+ * default that pre-flags every day as unusual would invert their purpose.
+ * The sliders are covered by v0.7's honest-subjective-input guarantee, which
+ * this table must never interact with.
+ */
+export const journalPrefs = pgTable("journal_prefs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: text("user_id")
+    .notNull()
+    .unique()
+    .references(() => users.id, { onDelete: "cascade" }),
+  // null = the athlete has never opted in to a "usual" set. Deliberately no
+  // default: pre-checking a tag nobody chose would be the same fabrication
+  // v0.7 banned for sliders, just moved to a different field.
+  usualBehaviorTags: jsonb("usual_behavior_tags").$type<string[]>(),
+});
+
+/**
  * v0.13 Deep Biology — extracted/entered blood biomarkers. Nothing lands
  * here unconfirmed: LLM-extracted rows carry a per-value `confidence` and
  * pass a human review screen before insert.

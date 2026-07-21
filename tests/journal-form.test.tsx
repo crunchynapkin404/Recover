@@ -30,8 +30,17 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 vi.mock("@/app/wellness/actions", () => ({
   logWellness: vi.fn(async () => ({ ok: true, message: "saved" })),
 }));
+// v0.20 — "Remember these as usual" writes here. Stubbed for the same
+// use-server-is-a-module-boundary reason as logWellness above; its DB write
+// path has its own coverage (see task-4-report.md).
+vi.mock("@/app/journal/actions", () => ({
+  setUsualBehaviorTags: vi.fn(async () => ({ ok: true })),
+}));
 
 import { JournalForm } from "@/components/journal/journal-form";
+import { setUsualBehaviorTags } from "@/app/journal/actions";
+
+const setUsualBehaviorTagsMock = vi.mocked(setUsualBehaviorTags);
 
 const baseProps = {
   syncedHrv: null,
@@ -41,6 +50,7 @@ const baseProps = {
   streakDays: 0,
   entriesByDate: {},
   hasActiveConnection: false,
+  usualTags: [] as string[],
 };
 
 let root: Root | null = null;
@@ -59,6 +69,7 @@ afterEach(async () => {
   if (root) await act(async () => root!.unmount());
   root = null;
   container?.remove();
+  vi.clearAllMocks();
 });
 
 const hidden = (name: string): HTMLInputElement => {
@@ -255,5 +266,92 @@ describe("journal form — stepped check-in", () => {
     // Step 2's slider value survives even though its panel is now unmounted.
     expect(hidden("energy").value).toBe("8");
     expect(hidden("mood").value).toBe("happy");
+  });
+});
+
+/**
+ * v0.20 — default journal entries (behavioural pre-toggles).
+ *
+ * The regression guard: a saved "usual" set pre-checks behavior tags on a
+ * fresh entry, and must never — under any circumstance — pre-fill or mark
+ * answered the energy/soreness/stress sliders. That would resurrect the
+ * exact fabricated-default bug v0.7 fixed (see the describe block above),
+ * just moved to a different feature. Day flags ("Anything unusual today?")
+ * and mood are also left untouched: a day flag defaulting to "on" would
+ * contradict its own purpose of flagging something unusual.
+ */
+describe("journal form — usual behaviour pre-toggle (v0.20)", () => {
+  it("pre-checks a saved usual behavior tag on a fresh entry, without touching the subjective sliders", async () => {
+    await renderForm({ usualTags: ["💧 Hydration"] });
+
+    expect(button("💧 Hydration").getAttribute("aria-pressed")).toBe("true");
+
+    // The hard constraint: sliders remain in their real unanswered state —
+    // the hidden inputs the form actually submits still carry "".
+    expect(hidden("energy").value).toBe("");
+    expect(hidden("soreness").value).toBe("");
+    expect(hidden("stress").value).toBe("");
+
+    await openStep("Wellness Sliders");
+    expect(byLabel("Energy: not answered")).not.toBeNull();
+    expect(byLabel("Muscle Soreness: not answered")).not.toBeNull();
+    expect(byLabel("Stress: not answered")).not.toBeNull();
+  });
+
+  it("does not pre-check mood or day flags from a behavioural default", async () => {
+    await renderForm({ usualTags: ["💧 Hydration"] });
+
+    expect(hidden("mood").value).toBe("");
+    for (const flag of ["Ill", "Travel", "Altitude"]) {
+      expect(button(flag).getAttribute("aria-pressed")).toBe("false");
+    }
+  });
+
+  it("does not apply the usual default once the day already has a real entry, even one with zero saved tags", async () => {
+    const today = new Date().toLocaleDateString("en-CA");
+    await renderForm({
+      usualTags: ["💧 Hydration"],
+      entriesByDate: {
+        [today]: {
+          energy: null,
+          soreness: null,
+          stress: null,
+          mood: null,
+          tags: [], // athlete already explicitly saved zero tags today
+          dayFlags: null,
+          notes: null,
+        },
+      },
+    });
+
+    expect(button("💧 Hydration").getAttribute("aria-pressed")).toBe("false");
+  });
+
+  it("with no usualTags supplied, behaves exactly as before (nothing pre-checked)", async () => {
+    await renderForm({ usualTags: [] });
+    expect(button("💧 Hydration").getAttribute("aria-pressed")).toBe("false");
+  });
+
+  it('"Remember these as usual" is a deliberate, separate action — saves only the currently active behavior tags', async () => {
+    await renderForm();
+
+    await click(button("☕ Caffeine"));
+    expect(setUsualBehaviorTagsMock).not.toHaveBeenCalled();
+
+    await click(button("Remember these as usual"));
+
+    expect(setUsualBehaviorTagsMock).toHaveBeenCalledTimes(1);
+    expect(setUsualBehaviorTagsMock).toHaveBeenCalledWith(["☕ Caffeine"]);
+  });
+
+  it("filling out one day's entry normally never calls the remember action on its own", async () => {
+    await renderForm();
+
+    await click(byLabel("Mood: happy")!);
+    await openStep("Wellness Sliders");
+    await slideTo(byLabel("Energy: not answered")!, "8");
+    await click(button("☕ Caffeine"));
+
+    expect(setUsualBehaviorTagsMock).not.toHaveBeenCalled();
   });
 });

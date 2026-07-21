@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState, useState } from "react";
-import { Flame, CheckCircle } from "lucide-react";
+import { useActionState, useState, useTransition } from "react";
+import { Flame, CheckCircle, Star } from "lucide-react";
 import { logWellness, type ActionResult } from "@/app/wellness/actions";
+import { setUsualBehaviorTags } from "@/app/journal/actions";
 import { ALL_DAY_FLAGS, type DayFlag } from "@/lib/day-flags";
 import {
   Collapsible,
@@ -35,6 +36,14 @@ interface Props {
   entriesByDate: Record<string, DayEntry>;
   /** True when user has an active intervals.icu / Strava connection. */
   hasActiveConnection: boolean;
+  /**
+   * The athlete's saved "usual" behavior tags (journalPrefs.usualBehaviorTags),
+   * e.g. ["💧 Hydration", "💊 Creatine"]. Applied only to behavior tags, and
+   * only on a day with no entry yet — never to mood, day flags, or the
+   * energy/soreness/stress sliders. See journal-form.test.tsx for the
+   * regression guard.
+   */
+  usualTags: string[];
 }
 
 const MOODS = [
@@ -64,6 +73,7 @@ export function JournalForm({
   streakDays,
   entriesByDate,
   hasActiveConnection,
+  usualTags,
 }: Props) {
   const [state, action, pending] = useActionState<
     ActionResult | null,
@@ -88,8 +98,13 @@ export function JournalForm({
   const [stress, setStress] = useState<number | null>(
     todayEntry?.stress ?? null
   );
+  // Behavioural pre-toggle: a fresh day (no stored entry at all yet) starts
+  // from the athlete's saved "usual" set; a day that already has a real
+  // entry keeps its actual saved tags — even an explicit empty list — and is
+  // never overridden by the default. Never applies to mood, day flags, or
+  // the sliders below (untouched, still null = unanswered).
   const [activeTags, setActiveTags] = useState<Set<string>>(
-    () => new Set(todayEntry?.tags ?? [])
+    () => new Set(todayEntry ? (todayEntry.tags ?? []) : usualTags)
   );
   const [dayFlags, setDayFlags] = useState<Set<DayFlag>>(
     () => new Set(todayEntry?.dayFlags ?? [])
@@ -128,12 +143,14 @@ export function JournalForm({
       setDayFlags(new Set(entry.dayFlags ?? []));
       setNotes(entry.notes ?? "");
     } else {
-      // No entry for this day — everything unanswered
+      // No entry for this day — everything unanswered, except the
+      // behavioural tags default to the athlete's saved "usual" set (mood,
+      // day flags, and the sliders below stay unanswered/empty regardless).
       setEnergy(null);
       setSoreness(null);
       setStress(null);
       setSelectedMood(null);
-      setActiveTags(new Set());
+      setActiveTags(new Set(usualTags));
       setDayFlags(new Set());
       setNotes("");
     }
@@ -143,7 +160,24 @@ export function JournalForm({
     setManualWeight("");
   }
 
+  // "Remember these as usual" — a deliberate, separate action (type="button",
+  // its own transition) that is never triggered as a side effect of the main
+  // "Save check-in" submit. Only ever writes the current *behavior tags*;
+  // never reads or writes mood, day flags, or the sliders.
+  const [rememberPending, startRemember] = useTransition();
+  const [rememberSaved, setRememberSaved] = useState(false);
+
+  function rememberUsualTags() {
+    setRememberSaved(false);
+    const tags = [...activeTags];
+    startRemember(async () => {
+      const result = await setUsualBehaviorTags(tags);
+      if (result.ok) setRememberSaved(true);
+    });
+  }
+
   const toggleTag = (tag: string) => {
+    setRememberSaved(false);
     setActiveTags((prev) => {
       const next = new Set(prev);
       if (next.has(tag)) next.delete(tag);
@@ -603,6 +637,23 @@ export function JournalForm({
               </div>
             ))}
           </div>
+          {/* Deliberate, separate action — never fires from the main
+              "Save check-in" submit. Saves only the behavior tags currently
+              checked above; mood, day flags, and the sliders are never read
+              or written by this. */}
+          <button
+            type="button"
+            onClick={rememberUsualTags}
+            disabled={rememberPending}
+            className="mt-6 flex w-full items-center justify-center gap-1.5 rounded-2xl bg-white/5 py-2.5 text-[10px] font-bold uppercase tracking-wide text-white/60 transition-colors hover:bg-white/10 disabled:opacity-50"
+          >
+            <Star aria-hidden className="size-3" />
+            {rememberPending
+              ? "Saving…"
+              : rememberSaved
+                ? "Saved as your usual"
+                : "Remember these as usual"}
+          </button>
         </div>
 
         {/* Day flags — facts that invalidate the day as a baseline reference.

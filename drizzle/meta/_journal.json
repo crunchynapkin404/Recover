@@ -141,6 +141,13 @@
       "when": 1784580765901,
       "tag": "0019_secret_sprite",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1784616277241,
+      "tag": "0020_classy_switch",
+      "breakpoints": true
     }
   ]
 }
