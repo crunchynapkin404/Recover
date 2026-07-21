@@ -1,19 +1,29 @@
 #!/usr/bin/env bash
 # Migration drill: proves the drizzle migration chain applies cleanly, in
 # two complementary ways, both against scratch Postgres containers this
-# script creates and destroys itself. NEVER touches the live DB. Run from
-# anywhere on the host:
+# script creates and destroys itself. NEVER touches the live DB. Must be
+# run from the repo root (it resolves relative paths — drizzle/*.sql,
+# .env):
 #   scripts/migration-drill.sh
 # Exit 0 = PASS. Exit 1 = the first failed check, named on stderr.
 #
 #   Phase A — restore a REAL nightly pg_dump (from the backups volume:
 #   real production data shape, real row counts) into a scratch DB, then
-#   run `npm run db:migrate` against it. As of this writing the live DB is
-#   already at the latest migration (see docs/UPGRADING.md), so the dump
-#   is already at head and this phase is today a clean no-op — but that's
-#   still a genuine, valuable assertion (restoring a real dump and running
-#   migrate against it does not error), and it makes this drill a
-#   permanent regression guard: the next migration anyone adds will be
+#   run `npm run db:migrate` against it. What this step actually exercises
+#   is dump-timing-dependent, not a fixed property of this script: it
+#   depends on how the newest nightly dump's schema state compares to the
+#   latest migration on disk at the moment the drill runs.
+#     - If the dump predates the latest migration(s) — taken before those
+#       migrations existed — migrate genuinely APPLIES them against real
+#       restored production data. This is the strongest coverage the
+#       drill can offer: a real dump plus real pending migrations on top,
+#       which is the exact real-world upgrade scenario.
+#     - If the dump is already at the latest migration — nothing new has
+#       shipped since the last nightly dump — migrate is a clean no-op.
+#       That's still a genuine, valuable assertion (restoring a real dump
+#       and running migrate against it does not error).
+#   Either way, this makes the drill a permanent regression guard: any
+#   migration that lands between now and the next nightly dump will be
 #   exercised, by this exact script, against real production data shape
 #   before it ships. That's what catches the classic "works against an
 #   empty dev DB, breaks against a populated table" migration bug (e.g. a
@@ -21,15 +31,18 @@
 #
 #   Phase B — run the FULL migration chain (0000 .. latest) from a
 #   completely empty scratch DB. This proves the chain as a whole applies
-#   cleanly end-to-end, independent of any dump's starting point.
+#   cleanly end-to-end, independent of any dump's starting point — and
+#   independent of whichever of the two Phase A cases above applies today.
 #
-# Neither phase proves "an OLD dump upgrades to the current schema under
-# real data," because the only real dump available is the current nightly
-# one (already at head) — there is no older dump on a prior schema to
-# restore. See docs/UPGRADING.md for the honest compatibility statement
-# this implies (a dump restores cleanly into the app version that made
-# it; upgrading to a newer version means restore + migrate, which this
-# drill is what proves works).
+# Neither phase proves "an OLD dump (several versions back) upgrades to
+# the current schema under real data," because only the newest nightly
+# dump is available here — older nightlies age out per the backup
+# volume's retention window (see scripts/backup.sh) — so there's no
+# guarantee a dump sitting on some much older schema exists to restore.
+# See docs/UPGRADING.md for the honest compatibility statement this
+# implies (a dump restores cleanly into the app version that made it;
+# upgrading to a newer version means restore + migrate, which this drill
+# is what proves works).
 #
 # ── Isolation, the single most important property of this script ────────
 # Same non-negotiable isolation as scripts/export-import-drill.sh (which
