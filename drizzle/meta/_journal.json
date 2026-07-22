@@ -162,6 +162,13 @@
       "when": 1784645945135,
       "tag": "0022_typical_tattoo",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1784740531364,
+      "tag": "0023_abnormal_roxanne_simpson",
+      "breakpoints": true
     }
   ]
 }
