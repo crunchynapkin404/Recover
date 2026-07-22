@@ -139,15 +139,14 @@ export default async function LogPage({
   const atl = latest?.atl ?? 0;
   const tsb = ctl - atl;
 
-  const latestEftp = [...wellness].reverse().find((w) => w.eftp != null)
-    ?.eftp;
-  const latestPMax = [...wellness].reverse().find((w) => w.pMax != null)
-    ?.pMax;
-  const latestWPrime = [...wellness].reverse().find((w) => w.wPrime != null)
-    ?.wPrime;
-  const latestRampRate = [...wellness].reverse().find(
-    (w) => w.rampRate != null
-  )?.rampRate;
+  const latestEftp = [...wellness].reverse().find((w) => w.eftp != null)?.eftp;
+  const latestPMax = [...wellness].reverse().find((w) => w.pMax != null)?.pMax;
+  const latestWPrime = [...wellness]
+    .reverse()
+    .find((w) => w.wPrime != null)?.wPrime;
+  const latestRampRate = [...wellness]
+    .reverse()
+    .find((w) => w.rampRate != null)?.rampRate;
 
   const fitnessStats: { label: string; value: string }[] = [];
   if (latestEftp != null) {
