@@ -47,7 +47,7 @@ export default async function ActivityPage({
 
   return (
     <AppShell>
-      <header className="mb-6 pt-8">
+      <header className="mb-8 pt-8">
         <Link
           href="/log"
           className="mb-4 inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-white/50"

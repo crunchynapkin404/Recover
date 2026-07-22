@@ -76,7 +76,7 @@ export default async function PlanPage() {
     return (
       <AppShell>
         <header className="mb-8 pt-8">
-          <h1 className="text-2xl font-bold tracking-tight text-white/90">
+          <h1 className="text-2xl font-bold tracking-tighter">
             Plan
           </h1>
         </header>
@@ -142,7 +142,7 @@ export default async function PlanPage() {
     <AppShell>
       <header className="mb-8 pt-8">
         <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold tracking-tight text-white/90">
+          <h1 className="text-2xl font-bold tracking-tighter">
             {plan.title}
           </h1>
           {openBlock?.phase === "taper" && (
