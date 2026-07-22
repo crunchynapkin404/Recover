@@ -1,6 +1,5 @@
 import { ScoreRing } from "@/components/dashboard/score-ring";
 import { HeroCard } from "@/components/ui/hero-card";
-import { GlassTile } from "@/components/ui/glass-tile";
 import type { Band } from "@/lib/readiness";
 
 interface Props {
@@ -13,9 +12,9 @@ interface Props {
   loadComputed: boolean;
 }
 
-// All visuals below are keyed to the one real signal — the readiness band.
-// Nothing here invents a value; width comes from the real metric, color from
-// the band the score already resolved to.
+// The central ring is keyed to the readiness band; each satellite to its own
+// metric. Nothing here invents a value — every arc fills to the real number,
+// and a ring shows "—" on an empty track when there is no honest value yet.
 const BAND_VISUAL: Record<
   Band,
   { start: string; end: string; glow: string; headline: string }
@@ -46,6 +45,11 @@ const BAND_VISUAL: Record<
   },
 };
 
+// Satellite identity colours — all from existing design tokens.
+const RECOVERY_COLOR = "#10b981"; // emerald
+const SLEEP_COLOR = "#3b82f6"; // blue (--viz-series-1)
+const STRAIN_COLOR = "#f59e0b"; // amber
+
 export function HeroReadiness({
   readiness,
   band,
@@ -60,14 +64,48 @@ export function HeroReadiness({
   return (
     <section className="mb-8 flex flex-col items-center">
       <HeroCard className="w-full" glowColor={v.glow}>
-        <ScoreRing
-          value={readiness}
-          label="Readiness"
-          color={v.start}
-          colorEnd={v.end}
-          size="lg"
-        />
-        <p className="mt-5 text-xl font-bold tracking-tight text-white">
+        {/* Constellation: central readiness ring + 3 satellite metric rings.
+            Flanking on md+, reflows to a row of three on narrow screens. */}
+        <div className="relative flex w-full max-w-md flex-col items-center md:h-72 md:justify-center">
+          <ScoreRing
+            value={readiness}
+            label="Readiness"
+            color={v.start}
+            colorEnd={v.end}
+            size="lg"
+          />
+          <div className="mt-6 grid w-full grid-cols-3 gap-4 md:mt-0 md:contents">
+            <div className="flex justify-center md:absolute md:top-6 md:left-0">
+              <ScoreRing
+                value={recoveryScore}
+                label="Recovery"
+                color={RECOVERY_COLOR}
+                size="sm"
+                calibrating={loadCalibrating}
+              />
+            </div>
+            <div className="flex justify-center md:absolute md:top-6 md:right-0">
+              <ScoreRing
+                value={sleepScore ?? 0}
+                label="Sleep"
+                color={SLEEP_COLOR}
+                size="sm"
+                calibrating={sleepScore == null}
+              />
+            </div>
+            <div className="flex justify-center md:absolute md:bottom-0 md:left-1/2 md:-translate-x-1/2">
+              <ScoreRing
+                value={strainFraction}
+                label="Strain"
+                color={STRAIN_COLOR}
+                size="sm"
+                calibrating={loadCalibrating}
+              />
+            </div>
+          </div>
+        </div>
+
+        <p className="mt-6 text-xl font-bold tracking-tight text-white">
           {v.headline}
         </p>
         {band !== "calibrating" && (
@@ -86,38 +124,6 @@ export function HeroReadiness({
           </p>
         )}
       </HeroCard>
-      <div className="mt-4 grid w-full grid-cols-3 gap-3">
-        <GlassTile
-          className="text-center"
-          label="Recovery"
-          value={loadCalibrating ? "—" : `${Math.round(recoveryScore)}%`}
-          bar={
-            loadCalibrating
-              ? undefined
-              : { value: recoveryScore, color: v.start }
-          }
-        />
-        <GlassTile
-          className="text-center"
-          label="Sleep"
-          value={sleepScore != null ? Math.round(sleepScore) : "—"}
-          bar={
-            sleepScore != null
-              ? { value: sleepScore, color: v.start }
-              : undefined
-          }
-        />
-        <GlassTile
-          className="text-center"
-          label="Strain"
-          value={loadCalibrating ? "—" : `${Math.round(strainFraction)}%`}
-          bar={
-            loadCalibrating
-              ? undefined
-              : { value: strainFraction, color: v.start }
-          }
-        />
-      </div>
       {loadComputed && !loadCalibrating && (
         <p className="mt-3 text-[10px] font-bold uppercase tracking-widest text-white/50">
           Load computed from your sessions

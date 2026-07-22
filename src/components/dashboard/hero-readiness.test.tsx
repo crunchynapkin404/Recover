@@ -19,15 +19,16 @@ describe("HeroReadiness", () => {
     expect(html).toContain("glass-no-hover");
   });
 
-  it("renders a single Readiness ring plus the Recovery/Sleep/Strain stat row", () => {
+  it("renders the central Readiness ring plus Recovery/Sleep/Strain satellite rings", () => {
     const html = renderToString(<HeroReadiness {...base} />);
     expect(html).toContain("Readiness");
     expect(html).toContain("Recovery");
     expect(html).toContain("Sleep");
     expect(html).toContain("Strain");
-    expect(html).toContain("65%");
+    // Satellite rings show the plain metric value (the ring fill carries the %).
+    expect(html).toContain("65");
     expect(html).toContain("88");
-    expect(html).toContain("40%");
+    expect(html).toContain("40");
   });
 
   it("shows a dash for recovery and strain while load is calibrating", () => {

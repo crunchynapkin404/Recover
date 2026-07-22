@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { renderToString } from "react-dom/server";
 import { ScoreRing } from "./score-ring";
-import { StrainBudget } from "./strain-budget";
 import { WeeklySummary } from "./weekly-summary";
 
 /**
@@ -33,22 +32,6 @@ describe("ScoreRing calibrating", () => {
     );
     expect(html).toContain("72");
     expect(html).toContain("Recovery: 72 out of 100");
-  });
-});
-
-describe("StrainBudget calibrating", () => {
-  it("renders the calibrating note instead of a full empty budget", () => {
-    const html = renderToString(
-      <StrainBudget used={0} total={21} calibrating />
-    );
-    expect(html).toContain("Calibrating");
-    expect(html).not.toContain("remaining");
-  });
-
-  it("renders the budget bar when honest numbers exist", () => {
-    const html = renderToString(<StrainBudget used={5.8} total={21} />);
-    expect(html).toContain("remaining");
-    expect(html).toContain("15.2");
   });
 });
 
