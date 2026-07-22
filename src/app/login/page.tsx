@@ -51,7 +51,7 @@ export default function LoginPage() {
           RECOVER
         </h1>
         <span className="text-[10px] font-bold uppercase tracking-[0.4em] text-white/30">
-          Premium Athlete Edition
+          Recovery &amp; Training Analytics
         </span>
       </div>
 
@@ -68,7 +68,7 @@ export default function LoginPage() {
                 autoComplete="email"
                 required
                 autoFocus
-                placeholder="athlete@recover.ai"
+                placeholder="you@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="login-input w-full rounded-2xl px-6 py-4 text-sm text-white placeholder:text-white/20"
@@ -103,12 +103,6 @@ export default function LoginPage() {
               <span>{loading ? "Signing in…" : "Sign In"}</span>
               {!loading && <ArrowRight className="size-[18px]" />}
             </button>
-          </div>
-
-          <div className="flex justify-center">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-white/20">
-              Forgot Access Key?
-            </span>
           </div>
         </form>
       </div>

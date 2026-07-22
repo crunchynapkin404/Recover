@@ -6,7 +6,6 @@ import { requireUser } from "@/lib/session";
 import { AppShell } from "@/components/app-shell";
 import { PullToRefresh } from "@/components/dashboard/pull-to-refresh";
 import { SyncChip } from "@/components/dashboard/sync-chip";
-import { StrainBudget } from "@/components/dashboard/strain-budget";
 import { HeroReadiness } from "@/components/dashboard/hero-readiness";
 import { RecoveryMetricsAccordion } from "@/components/dashboard/recovery-metrics-accordion";
 import { RecentSessionsAccordion } from "@/components/dashboard/recent-sessions-accordion";
@@ -525,7 +524,7 @@ export default async function DashboardPage() {
               <span className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.2em] text-white/50">
                 {todayLabel()}
               </span>
-              <h1 className="text-2xl font-bold tracking-tight text-white/90">
+              <h1 className="text-2xl font-bold tracking-tighter">
                 {greetingLine()}
               </h1>
               <div className="mt-2">
@@ -560,19 +559,6 @@ export default async function DashboardPage() {
               />
             </section>
           )}
-
-          {/* ── Strain Budget ───────────────────────────────────────── */}
-          <section className="mb-10">
-            <StrainBudget
-              used={
-                loadCalibrating
-                  ? 0
-                  : Math.min((todayAtl! / strainMax!) * 21, 21)
-              }
-              total={21}
-              calibrating={loadCalibrating}
-            />
-          </section>
 
           {/* ── AI Morning Brief ────────────────────────────────────── */}
           <section className="mb-10">

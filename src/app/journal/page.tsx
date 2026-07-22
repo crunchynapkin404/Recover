@@ -91,7 +91,9 @@ export default async function JournalPage() {
         usualTags={journalPrefsRow?.usualBehaviorTags ?? []}
       />
       <section className="mt-8">
-        <MilestonesCard {...milestones} />
+        {/* Streak already shown by the journal form's ring above — hide it
+            here so the same streak isn't rendered twice on this page. */}
+        <MilestonesCard {...milestones} hideStreak />
       </section>
     </AppShell>
   );

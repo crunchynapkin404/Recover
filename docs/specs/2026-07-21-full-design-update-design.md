@@ -68,29 +68,29 @@ risks the app feeling like several stitched-together products).
 
 ## Scope — all 11 route surfaces
 
-| Route | Current state | New in v0.20-final-sweep |
-|---|---|---|
-| `/` (Dashboard) | v0.19-restyled | — |
-| `/coach` | v0.19-restyled | — |
-| `/log` | v0.19-restyled | shared chart-grammar refactor |
-| `/wellness` (Journal) | v0.19-restyled | journal-form changes |
-| `/settings` | v0.19-restyled | **new webhooks card** |
-| `/login` | never restyled (unused draft exists) | — |
-| `/plan` | never restyled (unused draft exists) | **new empty states** |
-| `/activity/[id]` | never restyled | shared chart-grammar refactor |
-| `/health` | never restyled | biomarker-list changes |
-| `/import` | never restyled | **new GDPR export/import flow** |
-| `/admin` | never restyled (page didn't exist pre-v0.18) | **new sync-jobs panel** |
+| Route                 | Current state                                | New in v0.20-final-sweep        |
+| --------------------- | -------------------------------------------- | ------------------------------- |
+| `/` (Dashboard)       | v0.19-restyled                               | —                               |
+| `/coach`              | v0.19-restyled                               | —                               |
+| `/log`                | v0.19-restyled                               | shared chart-grammar refactor   |
+| `/wellness` (Journal) | v0.19-restyled                               | journal-form changes            |
+| `/settings`           | v0.19-restyled                               | **new webhooks card**           |
+| `/login`              | never restyled (unused draft exists)         | —                               |
+| `/plan`               | never restyled (unused draft exists)         | **new empty states**            |
+| `/activity/[id]`      | never restyled                               | shared chart-grammar refactor   |
+| `/health`             | never restyled                               | biomarker-list changes          |
+| `/import`             | never restyled                               | **new GDPR export/import flow** |
+| `/admin`              | never restyled (page didn't exist pre-v0.18) | **new sync-jobs panel**         |
 
 ## Per-page treatment
 
-| Page | Primary treatment |
-|---|---|
-| Dashboard | Cinematic hero ring (Storytelling) + glass hero card (Glassmorphism) |
-| Login | Dark-glass as-is — an unused draft (`19b8dc93`) already matches the shipped style; needs copy fixed to match the real invite-only Better Auth flow (drop "Forgot Access Key?" / "Secure Protocol" language that doesn't correspond to any real feature) |
-| Coach, Journal, Plan | Light glass-tile touch-up only, no major restructure — Plan already has an unused production-ready draft (`934e5b02`) close to target |
-| Settings, Health, Admin, Import | Hairline restraint (Scandinavian) layered over dark-glass tokens — denser, config/lookup-oriented pages |
-| Log, Activity detail | Glass-tile stat cards (Glassmorphism) for chart/stat surfaces; keep v0.20's already-unified chart grammar untouched |
+| Page                            | Primary treatment                                                                                                                                                                                                                                       |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Dashboard                       | Cinematic hero ring (Storytelling) + glass hero card (Glassmorphism)                                                                                                                                                                                    |
+| Login                           | Dark-glass as-is — an unused draft (`19b8dc93`) already matches the shipped style; needs copy fixed to match the real invite-only Better Auth flow (drop "Forgot Access Key?" / "Secure Protocol" language that doesn't correspond to any real feature) |
+| Coach, Journal, Plan            | Light glass-tile touch-up only, no major restructure — Plan already has an unused production-ready draft (`934e5b02`) close to target                                                                                                                   |
+| Settings, Health, Admin, Import | Hairline restraint (Scandinavian) layered over dark-glass tokens — denser, config/lookup-oriented pages                                                                                                                                                 |
+| Log, Activity detail            | Glass-tile stat cards (Glassmorphism) for chart/stat surfaces; keep v0.20's already-unified chart grammar untouched                                                                                                                                     |
 
 ## Design system changes needed
 

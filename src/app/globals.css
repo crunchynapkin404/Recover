@@ -168,6 +168,21 @@
   }
 }
 
+/* Concentric readiness rings — each draws in from empty (--ring-circ) to its
+   value (--ring-offset). Resting state is the filled value (set inline), so
+   reduced-motion users simply see the filled ring with no animation. */
+.ring-fill {
+  animation: ring-fill 1.2s cubic-bezier(0.65, 0, 0.35, 1);
+}
+@keyframes ring-fill {
+  from {
+    stroke-dashoffset: var(--ring-circ);
+  }
+  to {
+    stroke-dashoffset: var(--ring-offset);
+  }
+}
+
 .sparkline-animate path {
   stroke-dasharray: 200;
   stroke-dashoffset: 200;
@@ -303,6 +318,38 @@
 .collapsible-panel[data-starting-style],
 .collapsible-panel[data-ending-style] {
   height: 0;
+}
+
+/* ── Hairline restraint (Settings / Health / Admin / Import) ──────────────────
+   Dense config/lookup pages read calmer as one grouped surface than as a
+   stack of glass-in-glass boxes. `.hairline-list` flattens its direct
+   children — whatever glass wrapper each one brings — into rows divided by a
+   single hairline, with no hover lift. Restyle only: no markup or logic in the
+   flattened cards changes. */
+.hairline-list > * {
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  transform: none !important;
+  padding: 1.25rem 0 !important;
+}
+.hairline-list > * + * {
+  border-top: 1px solid rgba(255, 255, 255, 0.06) !important;
+}
+/* Shadcn Card insets its own header/content/footer; zero those so a Card row
+   left-aligns with the plainer <section>/<div> rows beside it. */
+.hairline-list [data-slot="card-header"],
+.hairline-list [data-slot="card-content"],
+.hairline-list [data-slot="card-footer"] {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+.hairline-list [data-slot="card-footer"] {
+  background: transparent !important;
+  border-top: 0 !important;
 }
 
 /* ── Data-viz palette ────────────────────────────────────────────────────── */

@@ -236,7 +236,7 @@ export default async function LogPage({
               <h2 className="text-lg font-bold">{trainingStatus}</h2>
               <p className="text-xs font-medium text-white/40">
                 {readiness != null
-                  ? `Readiness ${readiness} · TSB ${tsb.toFixed(0)}`
+                  ? `Readiness ${readiness}`
                   : latest
                     ? `TSB ${tsb.toFixed(0)}`
                     : "Connect intervals.icu in Settings"}

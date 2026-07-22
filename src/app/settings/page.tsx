@@ -202,7 +202,7 @@ export default async function SettingsPage({
             </span>
           </CollapsibleTrigger>
           <CollapsiblePanel>
-            <div className="space-y-4 p-5 pt-4">
+            <div className="hairline-list px-5 pb-3">
               <IntervalsCard
                 connection={
                   connection
@@ -309,7 +309,7 @@ export default async function SettingsPage({
             </span>
           </CollapsibleTrigger>
           <CollapsiblePanel>
-            <div className="space-y-4 p-5 pt-4">
+            <div className="hairline-list px-5 pb-3">
               <LlmSettingsCard
                 settings={
                   llmSettings
@@ -348,7 +348,7 @@ export default async function SettingsPage({
             </span>
           </CollapsibleTrigger>
           <CollapsiblePanel>
-            <div className="space-y-4 p-5 pt-4">
+            <div className="hairline-list px-5 pb-3">
               <SessionsCard sessions={activeSessions} />
 
               <ApiTokensCard
@@ -396,7 +396,7 @@ export default async function SettingsPage({
             </span>
           </CollapsibleTrigger>
           <CollapsiblePanel>
-            <div className="space-y-4 p-5 pt-4">
+            <div className="hairline-list px-5 pb-3">
               <NotificationsCard
                 vapidPublicKey={vapid.publicKey}
                 morningPushEnabled={

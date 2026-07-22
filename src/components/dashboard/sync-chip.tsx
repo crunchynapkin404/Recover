@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
@@ -14,10 +14,27 @@ function relative(iso: string | null): string {
   return h < 24 ? `${h}h ago` : `${Math.round(h / 24)}d ago`;
 }
 
+function subscribeNever() {
+  return () => {};
+}
+
+// True only once hydrated on the client. Relative time reads differently at
+// SSR vs. hydration instants, so the server/first-client snapshot (false)
+// renders a stable placeholder and only the real client snapshot (true)
+// computes it — no setState-in-effect, no hydration mismatch.
+function useHasMounted(): boolean {
+  return useSyncExternalStore(
+    subscribeNever,
+    () => true,
+    () => false
+  );
+}
+
 export function SyncChip({ lastSyncAt }: { lastSyncAt: string | null }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [last, setLast] = useState(lastSyncAt);
+  const mounted = useHasMounted();
 
   async function syncNow() {
     if (busy) return;
@@ -48,7 +65,9 @@ export function SyncChip({ lastSyncAt }: { lastSyncAt: string | null }) {
       className="flex items-center gap-2 rounded-full border border-white/10 px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest text-white/50 transition-colors hover:text-white/80"
     >
       <RefreshCw className={`size-3 ${busy ? "animate-spin" : ""}`} />
-      <span>{busy ? "Syncing…" : `Synced ${relative(last)}`}</span>
+      <span>
+        {busy ? "Syncing…" : `Synced ${mounted ? relative(last) : "…"}`}
+      </span>
     </button>
   );
 }

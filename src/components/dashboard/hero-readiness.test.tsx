@@ -13,15 +13,22 @@ const base = {
 };
 
 describe("HeroReadiness", () => {
-  it("renders a single Readiness ring plus the Recovery/Sleep/Strain stat row", () => {
+  it("wraps the ring in a bounded hero card", () => {
+    const html = renderToString(<HeroReadiness {...base} />);
+    expect(html).toContain("rounded-[2rem]");
+    expect(html).toContain("glass-no-hover");
+  });
+
+  it("renders the central Readiness ring plus Recovery/Sleep/Strain satellite rings", () => {
     const html = renderToString(<HeroReadiness {...base} />);
     expect(html).toContain("Readiness");
     expect(html).toContain("Recovery");
     expect(html).toContain("Sleep");
     expect(html).toContain("Strain");
-    expect(html).toContain("65%");
+    // Satellite rings show the plain metric value (the ring fill carries the %).
+    expect(html).toContain("65");
     expect(html).toContain("88");
-    expect(html).toContain("40%");
+    expect(html).toContain("40");
   });
 
   it("shows a dash for recovery and strain while load is calibrating", () => {
@@ -59,8 +66,9 @@ describe("HeroReadiness", () => {
     expect(html).not.toContain("Load computed from your sessions");
   });
 
-  it("shows no status line while calibrating", () => {
+  it("shows the calibrating status line, not a band-specific one", () => {
     const html = renderToString(<HeroReadiness {...base} band="calibrating" />);
+    expect(html).toContain("Calibrating");
     expect(html).not.toContain("Ready for intensity");
     expect(html).not.toContain("Consider easy work");
     expect(html).not.toContain("Prioritize rest");
