@@ -15,29 +15,13 @@ interface Props {
 // The centre readiness number is keyed to the band; each ring to its own
 // metric. Nothing here invents a value — a ring fills to the real number and
 // stays an empty track (with "—" in the legend) when there is no honest value.
-const BAND_VISUAL: Record<
-  Band,
-  { start: string; glow: string; headline: string }
-> = {
-  green: {
-    start: "#10b981",
-    glow: "rgba(16,185,129,0.45)",
-    headline: "Optimal Recovery",
-  },
-  amber: {
-    start: "#f59e0b",
-    glow: "rgba(245,158,11,0.4)",
-    headline: "Moderate Recovery",
-  },
-  red: {
-    start: "#ef4444",
-    glow: "rgba(239,68,68,0.4)",
-    headline: "Low Recovery",
-  },
+const BAND_VISUAL: Record<Band, { start: string; glow: string }> = {
+  green: { start: "#10b981", glow: "rgba(16,185,129,0.45)" },
+  amber: { start: "#f59e0b", glow: "rgba(245,158,11,0.4)" },
+  red: { start: "#ef4444", glow: "rgba(239,68,68,0.4)" },
   calibrating: {
     start: "rgba(255,255,255,0.4)",
     glow: "rgba(255,255,255,0.12)",
-    headline: "Calibrating",
   },
 };
 
@@ -124,12 +108,13 @@ export function HeroReadiness({
           </div>
         </div>
 
-        <p className="mt-6 text-xl font-bold tracking-tight text-white">
-          {v.headline}
-        </p>
-        {band !== "calibrating" && (
+        {band === "calibrating" ? (
+          <p className="mt-6 text-[13px] font-medium text-white/50">
+            Calibrating · learning your baseline
+          </p>
+        ) : (
           <p
-            className={`mt-1 flex items-center gap-1.5 text-[13px] font-medium ${
+            className={`mt-6 flex items-center gap-1.5 text-[13px] font-medium ${
               band === "green"
                 ? "text-emerald-400"
                 : band === "amber"
