@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.22.0 — 2026-07-22 — Wellness Fitness Metrics
+
+intervals.icu was already sending `vo2max`, `rampRate`, and per-sport
+`pMax`/`wPrime` in the daily wellness payload we fetch nightly — none of
+the four made it into a typed column. Design:
+`docs/specs/2026-07-22-v0.22-wellness-fitness-metrics-design.md`.
+
+- **Bio-Age's dormant VO2max slot filled**: the health page's `vo2max`
+  input was hardcoded `null` with a comment claiming no provider carried
+  it — the data has been in the raw payload since day one. Now wired from
+  the athlete's most recent Garmin-synced reading.
+- **New Log page stat row**: eFTP, max power, and W′ (anaerobic capacity)
+  now render next to the PMC chart, alongside a sign-aware CTL ramp-rate
+  trend label (Ramping / Tapering / Steady). Each stat hides itself when
+  the athlete has no real value for it — no zero, no placeholder.
+- **Data layer**: `vo2max`/`rampRate`/`pMax`/`wPrime` added to
+  `wellness_daily`, the intervals.icu connector, and the per-field wellness
+  merge policy (`vo2max` under the physiology priority ladder, the other
+  three under the intervals.icu-only training-load ladder, same bucket as
+  `eftp`).
+
 ## v0.21.0 — 2026-07-22 — Design Consistency
 
 A second Superdesign pass extends v0.19's dark-glass visual language to

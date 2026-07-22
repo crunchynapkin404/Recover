@@ -571,6 +571,28 @@ data, metrics, features, or migrations.
 `/settings`, `/log`, `/health`, `/import`, `/plan`, `/admin`,
 `/activity/[id]`) share one consistent dark-glass visual language. ✅
 
+## ✅ v0.22 — Wellness Fitness Metrics
+
+intervals.icu's daily wellness payload has carried `vo2max`, `rampRate`,
+and per-sport `pMax`/`wPrime` since the v0.11 wearable-connectors work —
+none of the four were ever extracted into a typed column. Design:
+`docs/specs/2026-07-22-v0.22-wellness-fitness-metrics-design.md`.
+
+- [x] **Bio-Age VO2max wired**: `health/page.tsx`'s hardcoded `vo2max: null`
+      replaced with the athlete's latest real reading; `biological-age.ts`'s
+      existing scoring factor needed no changes
+- [x] **Log page fitness stats row**: eFTP / max power / W′ plus a
+      rampRate-derived trend label, inside the existing Performance Trends
+      panel next to the PMC chart
+- [x] **Data layer**: additive migration on `wellness_daily`; connector,
+      merge-policy (`vo2max` → physiology ladder, the other three →
+      intervals.icu-only load ladder), and sync wiring extended to match
+      `eftp`'s existing treatment
+
+**Done when:** any athlete with Garmin-synced VO2max data sees it feed a
+real Bio-Age score, and eFTP/pMax/wPrime/rampRate are visible on the Log
+page. ✅
+
 ## Ongoing — operations track
 
 All items scheduled into **v0.17 — Good Self-Hosted Citizen** by the v0.9.6
