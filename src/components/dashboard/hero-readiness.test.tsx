@@ -66,8 +66,9 @@ describe("HeroReadiness", () => {
     expect(html).not.toContain("Load computed from your sessions");
   });
 
-  it("shows no status line while calibrating", () => {
+  it("shows the calibrating status line, not a band-specific one", () => {
     const html = renderToString(<HeroReadiness {...base} band="calibrating" />);
+    expect(html).toContain("Calibrating");
     expect(html).not.toContain("Ready for intensity");
     expect(html).not.toContain("Consider easy work");
     expect(html).not.toContain("Prioritize rest");
