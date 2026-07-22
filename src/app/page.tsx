@@ -524,7 +524,7 @@ export default async function DashboardPage() {
               <span className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.2em] text-white/50">
                 {todayLabel()}
               </span>
-              <h1 className="text-2xl font-bold tracking-tight text-white/90">
+              <h1 className="text-2xl font-bold tracking-tighter">
                 {greetingLine()}
               </h1>
               <div className="mt-2">
