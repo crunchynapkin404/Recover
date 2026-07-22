@@ -125,6 +125,50 @@ describe("mergeWellnessPatch", () => {
     expect(intervals.changed).toEqual({ ctl: 50, atl: 40 });
   });
 
+  it("rampRate/pMax/wPrime accept only intervals_icu (LOAD bucket)", () => {
+    const wearable = mergeWellnessPatch(
+      {},
+      null,
+      "whoop",
+      { rampRate: 5, pMax: 1200, wPrime: 20000 },
+      "whoop"
+    );
+    expect(wearable.changed).toEqual({});
+
+    const intervals = mergeWellnessPatch(
+      {},
+      null,
+      "intervals_icu",
+      { rampRate: 5, pMax: 1200, wPrime: 20000 },
+      "intervals_icu"
+    );
+    expect(intervals.changed).toEqual({
+      rampRate: 5,
+      pMax: 1200,
+      wPrime: 20000,
+    });
+  });
+
+  it("vo2max follows the physiology ladder like hrv", () => {
+    const stale = mergeWellnessPatch(
+      { vo2max: 50 },
+      { vo2max: "whoop" },
+      "whoop",
+      { vo2max: 48 },
+      "intervals_icu"
+    );
+    expect(stale.changed).toEqual({});
+
+    const takeover = mergeWellnessPatch(
+      { vo2max: 50 },
+      { vo2max: "intervals_icu" },
+      "intervals_icu",
+      { vo2max: 52 },
+      "whoop"
+    );
+    expect(takeover.changed).toEqual({ vo2max: 52 });
+  });
+
   it("withings outranks wearables on body composition but not physiology", () => {
     const body = mergeWellnessPatch(
       { weightKg: 71.2 },
@@ -166,6 +210,10 @@ describe("mergeWellnessPatch", () => {
       ctl: 1,
       atl: 1,
       eftp: 1,
+      vo2max: 1,
+      rampRate: 1,
+      pMax: 1,
+      wPrime: 1,
     };
     for (const key of Object.keys(patch)) {
       expect(

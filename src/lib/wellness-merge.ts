@@ -42,6 +42,10 @@ export interface WellnessPatch {
   ctl?: number | null;
   atl?: number | null;
   eftp?: number | null;
+  vo2max?: number | null;
+  rampRate?: number | null;
+  pMax?: number | null;
+  wPrime?: number | null;
 }
 
 export type WellnessField = keyof WellnessPatch;
@@ -81,6 +85,7 @@ export const FIELD_PRIORITY: Record<WellnessField, WellnessSource[]> = {
   bedEnd: PHYSIOLOGY,
   tempDeviationC: PHYSIOLOGY,
   respiratoryRate: PHYSIOLOGY,
+  vo2max: PHYSIOLOGY,
   weightKg: BODY,
   bodyFatPct: BODY,
   systolic: BODY,
@@ -88,6 +93,9 @@ export const FIELD_PRIORITY: Record<WellnessField, WellnessSource[]> = {
   ctl: LOAD,
   atl: LOAD,
   eftp: LOAD,
+  rampRate: LOAD,
+  pMax: LOAD,
+  wPrime: LOAD,
 };
 
 /** Lower = better. Infinity = source may never write this field. */
