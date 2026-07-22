@@ -95,6 +95,9 @@ export default async function HealthPage() {
   const latestBodyFat = [...wellness]
     .reverse()
     .find((w) => w.bodyFatPct != null)?.bodyFatPct;
+  const latestVo2max = [...wellness]
+    .reverse()
+    .find((w) => w.vo2max != null)?.vo2max;
 
   const bioAge = biologicalAge({
     chronologicalAge:
@@ -104,7 +107,7 @@ export default async function HealthPage() {
     restingHr: latestWellness?.restingHr ?? null,
     hrvMs: latestWellness?.hrvMs ?? null,
     sleepConsistency: consistency?.score ?? null,
-    vo2max: null, // no provider wired for VO2max yet (v0.11 doesn't carry it)
+    vo2max: latestVo2max ?? null,
     bodyFatPct: latestBodyFat ?? null,
   });
 
