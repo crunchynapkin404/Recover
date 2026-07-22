@@ -34,6 +34,10 @@ export interface IntervalsWellnessDay {
   ctl: number | null;
   atl: number | null;
   eftp: number | null;
+  vo2max: number | null;
+  rampRate: number | null;
+  pMax: number | null;
+  wPrime: number | null;
   weight: number | null;
   raw: Record<string, unknown>;
 }
@@ -160,6 +164,10 @@ export async function fetchDailyWellness(params: {
         ctl: num(row.ctl),
         atl: num(row.atl),
         eftp: num(sportInfo?.eftp),
+        vo2max: num(row.vo2max),
+        rampRate: num(row.rampRate),
+        pMax: num(sportInfo?.pMax),
+        wPrime: num(sportInfo?.wPrime),
         weight: num(row.weight),
         raw: row,
       };

@@ -96,6 +96,33 @@ describe("intervals.icu connector (ported — Principle-1 validation)", () => {
     });
   });
 
+  it("parses vo2max, rampRate, and sportInfo pMax/wPrime", async () => {
+    mockFetch(200, [
+      {
+        id: "2026-01-10",
+        vo2max: 52.3,
+        rampRate: 7.46764,
+        sportInfo: [{ eftp: 265, pMax: 1509.3558, wPrime: 21088 }],
+      },
+    ]);
+    const [day] = await fetchDailyWellness(params);
+    expect(day).toMatchObject({
+      vo2max: 52.3,
+      rampRate: 7.46764,
+      pMax: 1509.3558,
+      wPrime: 21088,
+    });
+  });
+
+  it("defaults vo2max/rampRate/pMax/wPrime to null when absent", async () => {
+    mockFetch(200, [{ id: "2026-01-10" }]);
+    const [day] = await fetchDailyWellness(params);
+    expect(day.vo2max).toBeNull();
+    expect(day.rampRate).toBeNull();
+    expect(day.pMax).toBeNull();
+    expect(day.wPrime).toBeNull();
+  });
+
   // Defect pinned 2026-07-14: rows without an id used to become date:"".
   it("skips wellness rows that have no id", async () => {
     mockFetch(200, [{ hrv: 50 }, { id: "2026-01-11", hrv: 60 }]);
