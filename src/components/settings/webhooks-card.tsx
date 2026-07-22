@@ -166,11 +166,11 @@ export function WebhooksCard({ webhooks }: Props) {
 
         {/* Newly created secret display */}
         {showSecret && (
-          <div className="rounded-md border border-green-200 bg-green-50 p-3 dark:border-green-800 dark:bg-green-950">
-            <p className="mb-1 text-sm font-medium text-green-800 dark:text-green-200">
+          <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3">
+            <p className="mb-1 text-sm font-medium text-emerald-300">
               Copy this secret now — it won&apos;t be shown again:
             </p>
-            <code className="block break-all rounded bg-white px-2 py-1 text-xs dark:bg-black">
+            <code className="block break-all rounded bg-black/40 px-2 py-1 text-xs text-white/80">
               {showSecret}
             </code>
           </div>
