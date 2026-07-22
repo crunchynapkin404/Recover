@@ -168,6 +168,21 @@
   }
 }
 
+/* Concentric readiness rings — each draws in from empty (--ring-circ) to its
+   value (--ring-offset). Resting state is the filled value (set inline), so
+   reduced-motion users simply see the filled ring with no animation. */
+.ring-fill {
+  animation: ring-fill 1.2s cubic-bezier(0.65, 0, 0.35, 1);
+}
+@keyframes ring-fill {
+  from {
+    stroke-dashoffset: var(--ring-circ);
+  }
+  to {
+    stroke-dashoffset: var(--ring-offset);
+  }
+}
+
 .sparkline-animate path {
   stroke-dasharray: 200;
   stroke-dashoffset: 200;
