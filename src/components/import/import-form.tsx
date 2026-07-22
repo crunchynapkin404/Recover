@@ -69,10 +69,10 @@ export function ImportForm() {
 
   return (
     <div className="space-y-6">
-      <header className="mb-6 pt-8">
-        <h2 className="text-2xl font-bold tracking-tighter">Import Data</h2>
-        <p className="mt-1 text-xs text-white/50">
-          Import wellness or activity data from a CSV file
+      <header className="mb-8 pt-8">
+        <h1 className="text-2xl font-bold tracking-tighter">Import Data</h1>
+        <p className="mt-1 text-xs font-medium uppercase tracking-widest text-white/50">
+          Wellness or activity data from a CSV file
         </p>
       </header>
 
@@ -108,7 +108,7 @@ export function ImportForm() {
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="glass w-full rounded-2xl border-2 border-dashed border-white/20 p-8 text-center cursor-pointer hover:border-emerald-400/50 transition-colors"
+            className="w-full cursor-pointer rounded-2xl border-2 border-dashed border-white/20 bg-white/[0.02] p-8 text-center transition-colors hover:border-emerald-400/50 hover:bg-white/[0.03]"
           >
             <Upload className="mx-auto mb-3 h-8 w-8 text-white/40" />
             <p className="text-sm text-white/70">
