@@ -66,16 +66,18 @@ export function HeroReadiness({
       <HeroCard className="w-full" glowColor={v.glow}>
         {/* Constellation: central readiness ring + 3 satellite metric rings.
             Flanking on md+, reflows to a row of three on narrow screens. */}
-        <div className="relative flex w-full max-w-md flex-col items-center md:h-72 md:justify-center">
-          <ScoreRing
-            value={readiness}
-            label="Readiness"
-            color={v.start}
-            colorEnd={v.end}
-            size="lg"
-          />
+        <div className="relative flex w-full max-w-md flex-col items-center md:block md:h-96">
+          <div className="md:absolute md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2">
+            <ScoreRing
+              value={readiness}
+              label="Readiness"
+              color={v.start}
+              colorEnd={v.end}
+              size="lg"
+            />
+          </div>
           <div className="mt-6 grid w-full grid-cols-3 gap-4 md:mt-0 md:contents">
-            <div className="flex justify-center md:absolute md:top-6 md:left-0">
+            <div className="flex justify-center md:absolute md:top-0 md:left-0">
               <ScoreRing
                 value={recoveryScore}
                 label="Recovery"
@@ -84,7 +86,7 @@ export function HeroReadiness({
                 calibrating={loadCalibrating}
               />
             </div>
-            <div className="flex justify-center md:absolute md:top-6 md:right-0">
+            <div className="flex justify-center md:absolute md:top-0 md:right-0">
               <ScoreRing
                 value={sleepScore ?? 0}
                 label="Sleep"
