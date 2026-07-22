@@ -7,17 +7,26 @@ export function MilestonesCard({
   bestStreak,
   planWeeksCompleted,
   plansCompleted,
-}: Milestones) {
+  hideStreak = false,
+}: Milestones & {
+  /** Drop the logging-streak row where it is already shown (e.g. the journal
+   * form's streak ring) — avoids showing the same streak twice on a page. */
+  hideStreak?: boolean;
+}) {
   const rows: { label: string; value: string | null; detail: string | null }[] =
     [
-      {
-        label: "Logging streak",
-        value:
-          currentStreak > 0
-            ? `${currentStreak} ${currentStreak === 1 ? "day" : "days"}`
-            : null,
-        detail: bestStreak > 0 ? `best ${bestStreak}` : null,
-      },
+      ...(hideStreak
+        ? []
+        : [
+            {
+              label: "Logging streak",
+              value:
+                currentStreak > 0
+                  ? `${currentStreak} ${currentStreak === 1 ? "day" : "days"}`
+                  : null,
+              detail: bestStreak > 0 ? `best ${bestStreak}` : null,
+            },
+          ]),
       {
         label: "Plan weeks completed (≥70%)",
         value: planWeeksCompleted > 0 ? String(planWeeksCompleted) : null,
