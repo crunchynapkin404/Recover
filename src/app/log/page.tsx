@@ -6,6 +6,10 @@ import { AppShell } from "@/components/app-shell";
 import { ViewTabs, currentYm } from "@/components/log/view-tabs";
 import { RangeTabs } from "@/components/log/range-tabs";
 import { PmcChart } from "@/components/log/pmc-chart";
+import {
+  FitnessStatsRow,
+  rampTrendLabel,
+} from "@/components/log/fitness-stats-row";
 import { WeeklyLoadBars } from "@/components/log/weekly-load-bars";
 import { WellnessTrends } from "@/components/log/wellness-trends";
 import {
@@ -134,6 +138,37 @@ export default async function LogPage({
   const ctl = latest?.ctl ?? 0;
   const atl = latest?.atl ?? 0;
   const tsb = ctl - atl;
+
+  const latestEftp = [...wellness].reverse().find((w) => w.eftp != null)
+    ?.eftp;
+  const latestPMax = [...wellness].reverse().find((w) => w.pMax != null)
+    ?.pMax;
+  const latestWPrime = [...wellness].reverse().find((w) => w.wPrime != null)
+    ?.wPrime;
+  const latestRampRate = [...wellness].reverse().find(
+    (w) => w.rampRate != null
+  )?.rampRate;
+
+  const fitnessStats: { label: string; value: string }[] = [];
+  if (latestEftp != null) {
+    fitnessStats.push({ label: "eFTP", value: `${Math.round(latestEftp)}W` });
+  }
+  if (latestPMax != null) {
+    fitnessStats.push({
+      label: "Max Power",
+      value: `${Math.round(latestPMax)}W`,
+    });
+  }
+  if (latestWPrime != null) {
+    fitnessStats.push({
+      label: "W'",
+      value: `${(latestWPrime / 1000).toFixed(1)}kJ`,
+    });
+  }
+  const rampLabel = rampTrendLabel(latestRampRate ?? null);
+  if (rampLabel != null) {
+    fitnessStats.push({ label: "Ramp Rate", value: rampLabel });
+  }
 
   // Use readiness from daily_metrics for consistent status with dashboard
   const latestMetric = await db.query.dailyMetrics.findFirst({
@@ -275,6 +310,11 @@ export default async function LogPage({
                     icon={LineChart}
                     message="No training-load data yet."
                   />
+                )}
+                {fitnessStats.length > 0 && (
+                  <div className="mt-4">
+                    <FitnessStatsRow stats={fitnessStats} />
+                  </div>
                 )}
               </div>
             </CollapsiblePanel>
