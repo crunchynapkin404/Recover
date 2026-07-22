@@ -1,10 +1,16 @@
 "use client";
 
+import { useId } from "react";
+
+import { AnimatedCounter } from "@/components/dashboard/animated-counter";
+
 interface RingProps {
   value: number; // 0-100 or fractional for strain
   label: string;
-  color: string; // CSS color
+  color: string; // CSS color (gradient start on lg)
   size: "sm" | "lg";
+  /** Second gradient stop for the lg stroke — gives the ring a lit sheen. */
+  colorEnd?: string;
   /** For strain-style display (e.g. "5.8") */
   displayValue?: string;
   /** No honest number to show yet — renders "—" on an empty track. */
@@ -16,6 +22,7 @@ export function ScoreRing({
   label,
   color,
   size,
+  colorEnd,
   displayValue,
   calibrating,
 }: RingProps) {
@@ -26,10 +33,17 @@ export function ScoreRing({
   const offset = circumference - circumference * Math.min(shownValue / 100, 1);
   const strokeWidth = isSm ? 6 : 4.5;
   const svgSize = 100;
-  const centerText = calibrating ? "—" : (displayValue ?? Math.round(value));
+  const roundedValue = Math.round(value);
+  const gradientId = useId();
+  const useGradient = !isSm && !calibrating && !!colorEnd;
+  const stroke = useGradient ? `url(#${gradientId})` : color;
   const ariaValue = calibrating
     ? "calibrating"
-    : `${displayValue ?? Math.round(value)}${displayValue ? "" : " out of 100"}`;
+    : `${displayValue ?? roundedValue}${displayValue ? "" : " out of 100"}`;
+  // The large ring counts its number up on load; small rings and the strain
+  // display-value stay static. The animated node is aria-hidden, so screen
+  // readers still read the real value once via the role="img" aria-label.
+  const animate = !isSm && !calibrating && displayValue === undefined;
 
   return (
     <div className="flex flex-col items-center gap-3">
@@ -50,6 +64,14 @@ export function ScoreRing({
           viewBox={`0 0 ${svgSize} ${svgSize}`}
           className="relative h-full w-full -rotate-90"
         >
+          {useGradient && (
+            <defs>
+              <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stopColor={color} />
+                <stop offset="1" stopColor={colorEnd} />
+              </linearGradient>
+            </defs>
+          )}
           {/* Track */}
           <circle
             cx="50"
@@ -65,7 +87,7 @@ export function ScoreRing({
             cy="50"
             r={r}
             fill="none"
-            stroke={color}
+            stroke={stroke}
             strokeWidth={strokeWidth}
             strokeLinecap="round"
             strokeDasharray={circumference}
@@ -83,7 +105,13 @@ export function ScoreRing({
           <span
             className={`font-bold ${calibrating ? "text-white/40" : "text-white"} ${isSm ? "text-xl" : "text-6xl tracking-tighter"}`}
           >
-            {centerText}
+            {calibrating ? (
+              "—"
+            ) : animate ? (
+              <AnimatedCounter target={roundedValue} />
+            ) : (
+              (displayValue ?? roundedValue)
+            )}
           </span>
           {!isSm && (
             <span className="mt-1 text-[10px] font-bold uppercase tracking-[0.2em] text-white/50">

@@ -15,13 +15,22 @@ describe("HeroCard", () => {
     expect(html).toContain("glass-no-hover");
   });
 
-  it("applies the emerald glow shadow by default", () => {
+  it("applies an emerald glow shadow by default", () => {
     const html = renderToString(<HeroCard>x</HeroCard>);
-    expect(html).toContain("rgba(16,185,129,0.25)");
+    expect(html).toContain("box-shadow");
+    expect(html).toContain("rgba(16,185,129,0.5)");
+  });
+
+  it("uses a caller-supplied glow color (e.g. the readiness band)", () => {
+    const html = renderToString(
+      <HeroCard glowColor="rgba(239,68,68,0.4)">x</HeroCard>
+    );
+    expect(html).toContain("rgba(239,68,68,0.4)");
+    expect(html).not.toContain("rgba(16,185,129,0.5)");
   });
 
   it("omits the glow shadow when glow is false", () => {
     const html = renderToString(<HeroCard glow={false}>x</HeroCard>);
-    expect(html).not.toContain("rgba(16,185,129,0.25)");
+    expect(html).not.toContain("box-shadow");
   });
 });

@@ -27,4 +27,28 @@ describe("GlassTile", () => {
     );
     expect(html).toContain("text-center");
   });
+
+  it("renders a progress bar clamped to 0–100 with the given color", () => {
+    const html = renderToString(
+      <GlassTile
+        label="Recovery"
+        value="65%"
+        bar={{ value: 65, color: "#f59e0b" }}
+      />
+    );
+    expect(html).toContain("width:65%");
+    expect(html).toContain("#f59e0b");
+  });
+
+  it("clamps an over-100 bar value to 100%", () => {
+    const html = renderToString(
+      <GlassTile label="X" value="120" bar={{ value: 120 }} />
+    );
+    expect(html).toContain("width:100%");
+  });
+
+  it("renders no bar when bar is omitted", () => {
+    const html = renderToString(<GlassTile label="X" value="—" />);
+    expect(html).not.toContain("width:");
+  });
 });
