@@ -537,6 +537,40 @@ the export's structural pattern (collapsed-by-default sections, restyled
 charts), and the "Settings information architecture" backlog item is
 checked off. ✅
 
+## ✅ v0.21 — Design Consistency
+
+A second Superdesign pass (project `feee3bd4-a46d-4c81-93eb-16107ffebbcf`;
+design spec `docs/specs/2026-07-21-full-design-update-design.md`,
+implementation spec `docs/specs/2026-07-22-full-design-update-implementation.md`)
+extends the dark-glass visual language to every remaining route, including
+the five pages v0.19 already restyled. A restyle, not a rebuild: no new
+data, metrics, features, or migrations.
+
+- [x] **Dashboard hero rebuilt**: the single Readiness ring replaced with
+      concentric Apple-Watch-style `ReadinessRings` (center number + nested
+      Recovery/Sleep/Strain rings, each independently calibrating);
+      `StrainBudget` deleted as a duplicate of `strainFraction`; the
+      now-fully-superseded `ScoreRing` deleted
+- [x] **Hairline-restraint tier** (Settings, Health, Admin, Import): a
+      `.hairline-list` utility flattens nested glass-in-glass card stacks
+      into hairline-divided rows on Settings and Import; Health and Admin's
+      existing structure was judged already consistent and left unchanged
+- [x] **Glass-tile tier** (Log, Activity detail, Coach, Journal, Plan): dedup + header-consistency pass — Log's duplicate TSB display, Journal's
+      duplicate logging streak (now hidden on the shared `MilestonesCard`
+      via a `hideStreak` prop, kept visible on Dashboard), consistent
+      page-header treatment across all seven hairline/glass-tile pages
+- [x] **Login copy fix**: dropped the invented "Premium Athlete Edition" /
+      "Forgot Access Key?" language that didn't correspond to any real
+      feature; Join was already honest and left as-is
+- [x] **Final whole-branch review fixes**: `sync-chip.tsx`'s pre-existing
+      SSR/hydration relative-time mismatch closed
+      (`useSyncExternalStore`-backed mount gate); the now-orphaned
+      `GlassTile` primitive deleted alongside `ScoreRing`
+
+**Done when:** all 11 route surfaces (`/`, `/login`, `/wellness`, `/coach`,
+`/settings`, `/log`, `/health`, `/import`, `/plan`, `/admin`,
+`/activity/[id]`) share one consistent dark-glass visual language. ✅
+
 ## Ongoing — operations track
 
 All items scheduled into **v0.17 — Good Self-Hosted Citizen** by the v0.9.6

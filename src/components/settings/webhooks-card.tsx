@@ -100,7 +100,7 @@ export function WebhooksCard({ webhooks }: Props) {
   const [revoking, startRevoke] = useTransition();
   const [revokeResult, setRevokeResult] = useState<string | null>(null);
 
-  const revealSecret = createState?.ok ? createState.secret ?? null : null;
+  const revealSecret = createState?.ok ? (createState.secret ?? null) : null;
 
   function handleRevoke(id: string) {
     startRevoke(async () => {

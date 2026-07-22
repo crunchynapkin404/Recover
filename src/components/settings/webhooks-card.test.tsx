@@ -3,12 +3,15 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
-const { mockActionState, mockCreateWebhookSubscription, mockRevokeWebhookSubscription } =
-  vi.hoisted(() => ({
-    mockActionState: { ok: true, secret: "top-secret", message: "ok" },
-    mockCreateWebhookSubscription: vi.fn(),
-    mockRevokeWebhookSubscription: vi.fn(),
-  }));
+const {
+  mockActionState,
+  mockCreateWebhookSubscription,
+  mockRevokeWebhookSubscription,
+} = vi.hoisted(() => ({
+  mockActionState: { ok: true, secret: "top-secret", message: "ok" },
+  mockCreateWebhookSubscription: vi.fn(),
+  mockRevokeWebhookSubscription: vi.fn(),
+}));
 
 vi.mock("@/app/settings/webhook-actions", () => ({
   createWebhookSubscription: mockCreateWebhookSubscription,
@@ -19,7 +22,11 @@ vi.mock("react", async () => {
   const actual = await vi.importActual<typeof import("react")>("react");
   return {
     ...actual,
-    useActionState: vi.fn(() => [mockActionState, mockCreateWebhookSubscription, false]),
+    useActionState: vi.fn(() => [
+      mockActionState,
+      mockCreateWebhookSubscription,
+      false,
+    ]),
   };
 });
 

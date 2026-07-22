@@ -26,7 +26,7 @@ function useHasMounted(): boolean {
   return useSyncExternalStore(
     subscribeNever,
     () => true,
-    () => false,
+    () => false
   );
 }
 
@@ -65,7 +65,9 @@ export function SyncChip({ lastSyncAt }: { lastSyncAt: string | null }) {
       className="flex items-center gap-2 rounded-full border border-white/10 px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest text-white/50 transition-colors hover:text-white/80"
     >
       <RefreshCw className={`size-3 ${busy ? "animate-spin" : ""}`} />
-      <span>{busy ? "Syncing…" : `Synced ${mounted ? relative(last) : "…"}`}</span>
+      <span>
+        {busy ? "Syncing…" : `Synced ${mounted ? relative(last) : "…"}`}
+      </span>
     </button>
   );
 }

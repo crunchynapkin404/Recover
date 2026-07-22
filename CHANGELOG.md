@@ -1,5 +1,39 @@
 # Changelog
 
+## v0.21.0 — 2026-07-22 — Design Consistency
+
+A second Superdesign pass extends v0.19's dark-glass visual language to
+every remaining route, including the five pages v0.19 already restyled.
+Presentation only — no new data, metrics, features, or migrations. Design:
+`docs/specs/2026-07-21-full-design-update-design.md`, implementation:
+`docs/specs/2026-07-22-full-design-update-implementation.md`.
+
+- **Dashboard hero rebuilt**: concentric Apple-Watch-style `ReadinessRings`
+  (center readiness number, nested Recovery/Sleep/Strain rings, each
+  independently calibrating) replace the old single ring. `StrainBudget`
+  (a duplicate of `strainFraction`) and the now-superseded `ScoreRing` are
+  both deleted.
+- **Hairline-restraint tier** (Settings, Health, Admin, Import): a new
+  `.hairline-list` CSS utility flattens nested glass-in-glass card stacks
+  into hairline-divided rows. Applied to Settings and Import; Health and
+  Admin's existing structure was already consistent and left unchanged.
+- **Glass-tile tier** (Log, Activity detail, Coach, Journal, Plan): dedup
+  and header-consistency pass. Log's duplicate TSB display and Journal's
+  duplicate logging streak are resolved — the streak now hides on the
+  shared `MilestonesCard` via a `hideStreak` prop (still shown on
+  Dashboard, its other consumer).
+- **Login copy fix**: removed invented "Premium Athlete Edition" /
+  "Forgot Access Key?" language that didn't correspond to any real
+  feature. Join was already honest and needed no change.
+- **Final whole-branch review fixes**: closed a pre-existing SSR/hydration
+  relative-time mismatch in the dashboard's sync chip
+  (`useSyncExternalStore`-backed mount gate, avoiding the
+  `react-hooks/set-state-in-effect` trap a naive effect-based fix would
+  hit); deleted the `GlassTile` primitive, which ended up with no
+  production consumer once the concentric-rings direction was chosen;
+  restored three `WeeklySummary` regression tests that had been dropped
+  as collateral damage of the `ScoreRing` cleanup.
+
 ## v0.20.0 — 2026-07-21 — Final Sweep
 
 Closes out the current roadmap in one release: cross-cutting polish, the
