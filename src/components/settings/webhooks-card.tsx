@@ -99,16 +99,8 @@ export function WebhooksCard({ webhooks }: Props) {
   >(createWebhookSubscription, null);
   const [revoking, startRevoke] = useTransition();
   const [revokeResult, setRevokeResult] = useState<string | null>(null);
-  const [showSecret, setShowSecret] = useState<string | null>(null);
 
-  // Show the newly created secret once.
-  if (
-    createState?.ok &&
-    createState.secret &&
-    showSecret !== createState.secret
-  ) {
-    setShowSecret(createState.secret);
-  }
+  const revealSecret = createState?.ok ? createState.secret ?? null : null;
 
   function handleRevoke(id: string) {
     startRevoke(async () => {
@@ -165,13 +157,13 @@ export function WebhooksCard({ webhooks }: Props) {
         )}
 
         {/* Newly created secret display */}
-        {showSecret && (
+        {revealSecret && (
           <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3">
             <p className="mb-1 text-sm font-medium text-emerald-300">
               Copy this secret now — it won&apos;t be shown again:
             </p>
             <code className="block break-all rounded bg-black/40 px-2 py-1 text-xs text-white/80">
-              {showSecret}
+              {revealSecret}
             </code>
           </div>
         )}
