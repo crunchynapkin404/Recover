@@ -13,6 +13,12 @@ const base = {
 };
 
 describe("HeroReadiness", () => {
+  it("wraps the ring in a bounded hero card", () => {
+    const html = renderToString(<HeroReadiness {...base} />);
+    expect(html).toContain("rounded-[2rem]");
+    expect(html).toContain("glass-no-hover");
+  });
+
   it("renders a single Readiness ring plus the Recovery/Sleep/Strain stat row", () => {
     const html = renderToString(<HeroReadiness {...base} />);
     expect(html).toContain("Readiness");
