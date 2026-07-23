@@ -4,15 +4,7 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import {
-  ArrowLeft,
-  Ghost,
-  Mic,
-  MicOff,
-  MessageCircle,
-  Plus,
-  Send,
-} from "lucide-react";
+import { Ghost, Mic, MicOff, MessageCircle, Plus, Send } from "lucide-react";
 import { ArtifactCard } from "./artifact-card";
 import {
   Collapsible,
@@ -34,6 +26,11 @@ interface Props {
   defaultMode: "quick" | "deep";
   initialThreadId?: string | null;
   threads: ThreadSummary[];
+  /**
+   * Chat | Inbox segmented control, rendered by the server so the unread
+   * count is fresh on every load rather than a client guess.
+   */
+  segmentNav?: React.ReactNode;
 }
 
 const QUICK_CONTEXT_PROMPTS = [
@@ -74,6 +71,7 @@ export function ChatInterface({
   defaultMode,
   initialThreadId,
   threads,
+  segmentNav,
 }: Props) {
   const [activeThreadId, setActiveThreadId] = useState<string | null>(
     initialThreadId ?? null
@@ -262,22 +260,9 @@ export function ChatInterface({
       {/* ── Header ──────────────────────────────────────────────────── */}
       <header className="relative z-20 px-6 pb-4 pt-8">
         <div className="flex items-center justify-between">
-          <Link
-            href="/"
-            aria-label="Back to dashboard"
-            className="glass flex h-10 w-10 items-center justify-center rounded-full transition-transform active:scale-95"
-          >
-            <ArrowLeft aria-hidden className="size-[18px]" />
-          </Link>
-          <div className="flex flex-col items-center">
-            <h1 className="text-lg font-bold tracking-tight">AI Coach</h1>
-            <div className="flex items-center gap-1.5 opacity-60">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              <span className="text-[9px] font-bold uppercase tracking-widest">
-                Personalized Logic
-              </span>
-            </div>
-          </div>
+          {/* The bottom/side nav owns "go back" now, so the header keeps only
+              the page's own title and its actions. */}
+          <h1 className="text-[22px] font-bold tracking-[-0.03em]">Coach</h1>
           <div className="flex items-center gap-2">
             {!activeThreadId && (
               <button
@@ -300,6 +285,8 @@ export function ChatInterface({
             </button>
           </div>
         </div>
+
+        {segmentNav}
 
         {ghost && !activeThreadId && (
           <p className="mt-2 text-center text-[9px] font-bold uppercase tracking-widest text-purple-300/70">

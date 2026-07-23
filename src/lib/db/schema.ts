@@ -388,6 +388,12 @@ export const chatMessages = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
+    // v0.23 coach inbox: when the athlete opened this item. Only ever set on
+    // coach-authored messages in system threads (morning / weekly / debrief /
+    // monthly) — chat replies are read as they're written. Null means unread,
+    // which is also the honest answer for every message that predates the
+    // inbox: nothing claims they were seen.
+    readAt: timestamp("read_at", { withTimezone: true }),
     // v0.15 recall FTS. 'simple' config: mixed Dutch/English conversations —
     // language stemming would mangle one of them; exact tokens are never wrong.
     search: tsvector("search").generatedAlwaysAs(
