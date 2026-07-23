@@ -98,7 +98,7 @@ async function execute(_args: z.infer<typeof parameters>, ctx: ToolContext) {
     restingHr: latestWellness?.restingHr ?? null,
     hrvMs: latestWellness?.hrvMs ?? null,
     sleepConsistency: consistency?.score ?? null,
-    vo2max: null,
+    vo2max: [...wellness].reverse().find((w) => w.vo2max != null)?.vo2max ?? null,
     bodyFatPct: latestBodyFat ?? null,
   });
 

@@ -182,6 +182,10 @@ export const activities = pgTable(
     ),
     reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
     reviewAttempts: integer("review_attempts").notNull().default(0),
+    // Short (~1 sentence) summary of the ride review, distinct from the
+    // full review posted to the debrief chat thread; feeds the optional
+    // "review" Strava description field.
+    reviewSummary: text("review_summary"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

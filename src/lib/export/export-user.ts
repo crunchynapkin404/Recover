@@ -305,6 +305,7 @@ export async function exportUserData(
       debriefThreadId: a.debriefThreadId,
       reviewedAt: a.reviewedAt,
       reviewAttempts: a.reviewAttempts,
+      reviewSummary: a.reviewSummary,
       createdAt: a.createdAt,
     })),
     daily_metrics: dailyMetrics,

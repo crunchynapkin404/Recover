@@ -176,6 +176,13 @@
       "when": 1784792211212,
       "tag": "0024_parallel_ultron",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1784805053826,
+      "tag": "0025_milky_kingpin",
+      "breakpoints": true
     }
   ]
 }

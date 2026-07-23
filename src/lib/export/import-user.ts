@@ -348,6 +348,7 @@ export async function importUserData(
             : null,
           reviewedAt: toDateOrNull(r.reviewedAt),
           reviewAttempts: r.reviewAttempts,
+          reviewSummary: r.reviewSummary,
           createdAt: toDate(r.createdAt),
         })
         .returning();

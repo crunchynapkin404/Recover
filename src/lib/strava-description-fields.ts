@@ -19,7 +19,9 @@ export type DescriptionField =
   | "tsb"
   | "eftp"
   | "vo2max"
-  | "prs";
+  | "prs"
+  | "rpe" // athlete's own perceived exertion + feel from the debrief
+  | "review"; // short ride review summary
 
 /** null/undefined = every field enabled (v0.6 behavior, byte-identical). */
 export type DescriptionFields = Partial<
@@ -44,6 +46,8 @@ export const ALL_DESCRIPTION_FIELDS: ReadonlyArray<{
   { key: "eftp", label: "eFTP" },
   { key: "vo2max", label: "VO2max" },
   { key: "prs", label: "Personal records" },
+  { key: "rpe", label: "RPE / feel" },
+  { key: "review", label: "Ride review (short summary)" },
 ];
 
 /**

@@ -19,8 +19,39 @@ import { fetchAthleteContext } from "@/lib/coach-context";
 import { buildAiSdkTools } from "@/lib/tools/registry";
 import { recordLlmUsage } from "@/lib/llm-usage";
 import { inferSports } from "@/lib/training-plan";
+import { describeActivityOnStravaForUser } from "@/lib/strava-describer";
+
+/**
+ * The review just resolved the "awaiting_review" gate in strava-describer.ts
+ * — fire the Strava write now instead of waiting for the next daily sweep.
+ * Best-effort: a Strava hiccup here must never turn a successfully posted
+ * review into a thrown error for the caller (debrief-actions.ts awaits this
+ * inline from the popup submit action).
+ */
+async function describeOnStravaBestEffort(
+  userId: string,
+  activityId: string
+): Promise<void> {
+  try {
+    await describeActivityOnStravaForUser(userId, activityId);
+  } catch (err) {
+    logger.warn("post-review strava describe failed", {
+      activityId,
+      message: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
 
 export const REVIEW_MAX_ATTEMPTS = 3;
+
+const SUMMARY_MAX_CHARS = 140;
+
+/** First sentence of the review, capped for the Strava description field. */
+function summarizeReview(text: string): string {
+  const firstSentence = text.trim().split(/(?<=[.!?])\s+/)[0] ?? text.trim();
+  if (firstSentence.length <= SUMMARY_MAX_CHARS) return firstSentence;
+  return firstSentence.slice(0, SUMMARY_MAX_CHARS - 1).trimEnd() + "…";
+}
 
 function localYmd(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -140,6 +171,7 @@ export async function generateRideReview(
         .set({ updatedAt: now })
         .where(eq(schema.chatThreads.id, thread.id));
     });
+    await describeOnStravaBestEffort(a.userId, a.id);
     return "posted";
   }
 
@@ -237,12 +269,17 @@ export async function generateRideReview(
     });
     await tx
       .update(schema.activities)
-      .set({ reviewedAt: now, debriefThreadId: thread.id })
+      .set({
+        reviewedAt: now,
+        debriefThreadId: thread.id,
+        reviewSummary: summarizeReview(text),
+      })
       .where(eq(schema.activities.id, a.id));
     await tx
       .update(schema.chatThreads)
       .set({ updatedAt: now })
       .where(eq(schema.chatThreads.id, thread.id));
   });
+  await describeOnStravaBestEffort(a.userId, a.id);
   return "posted";
 }

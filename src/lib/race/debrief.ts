@@ -22,6 +22,7 @@ import { buildSystemPrompt } from "@/lib/coach-persona";
 import { fetchAthleteContext } from "@/lib/coach-context";
 import { inferSports } from "@/lib/training-plan";
 import { findOrCreateMorningThread } from "@/lib/morning-insight";
+import { describeActivityOnStravaForUser } from "@/lib/strava-describer";
 
 export const DEBRIEF_NO_DATA_HOURS = 48;
 
@@ -315,6 +316,17 @@ export async function runRaceDebriefs(
         .set({ reviewedAt: now })
         .where(eq(schema.activities.id, match.id));
     });
+    // Claiming the activity above resolves strava-describer's
+    // awaiting_review gate (no ride review will ever follow for a race
+    // result) — describe now instead of waiting for the next daily sweep.
+    try {
+      await describeActivityOnStravaForUser(userId, match.id);
+    } catch (err) {
+      logger.warn("post-race-debrief strava describe failed", {
+        activityId: match.id,
+        message: err instanceof Error ? err.message : String(err),
+      });
+    }
     claimedIds.add(match.id);
     posted = true;
   }

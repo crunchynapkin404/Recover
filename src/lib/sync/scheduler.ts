@@ -268,7 +268,14 @@ export async function runSchedulerTick(
         });
       }
       // v0.6 auto-describe — pushes metric descriptions to Strava for
-      // opted-in users. Guards inside; errors never touch the sync job.
+      // opted-in users. This is a catch-up sweep only: describing a brand
+      // new activity here (same tick it's promoted to a pending debrief,
+      // above) would lock in a description with no review — the MARKER
+      // makes that permanent, so describeActivityOnStrava's awaiting_review
+      // guard defers those and the real write happens right after the
+      // review posts (generateRideReview/runRaceDebriefs call
+      // describeActivityOnStravaForUser directly). Guards inside; errors
+      // never touch the sync job.
       if (job.provider === "intervals_icu") {
         try {
           const { runAutoDescribeStrava } =
