@@ -1,97 +1,81 @@
-import Link from "next/link";
-import { eq, desc } from "drizzle-orm";
+import { redirect } from "next/navigation";
+import { and, eq, desc } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { AppShell, shellUser } from "@/components/app-shell";
 import { ChatInterface } from "@/components/coach/chat-interface";
-import { InboxRail } from "@/components/coach/inbox-rail";
-import {
-  listInboxItems,
-  markThreadRead,
-  unreadInboxCount,
-} from "@/lib/coach-inbox";
-
-/** Chat | Inbox · n — links, so the segment survives a reload and a share. */
-function Segments({ tab, unread }: { tab: "chat" | "inbox"; unread: number }) {
-  const items = [
-    { key: "chat" as const, href: "/coach", label: "Chat" },
-    { key: "inbox" as const, href: "/coach?tab=inbox", label: "Inbox" },
-  ];
-  return (
-    <nav aria-label="Coach sections" className="mt-4 flex gap-1.5">
-      {items.map((i) => (
-        <Link
-          key={i.key}
-          href={i.href}
-          aria-current={i.key === tab ? "page" : undefined}
-          className={`rounded-full px-4 py-1.5 text-[11px] font-bold transition-colors ${
-            i.key === tab
-              ? "bg-white/[0.12] text-white"
-              : "bg-white/[0.04] text-white/50 hover:text-white/80"
-          }`}
-        >
-          {i.label}
-          {i.key === "inbox" && unread > 0 && (
-            <span className="ml-1.5 text-emerald-400">· {unread}</span>
-          )}
-        </Link>
-      ))}
-    </nav>
-  );
-}
+import { HistorySheet } from "@/components/coach/history-panel";
+import { listInboxItems, markThreadRead } from "@/lib/coach-inbox";
 
 export default async function CoachPage({
   searchParams,
 }: {
-  searchParams: Promise<{ thread?: string; tab?: string }>;
+  searchParams: Promise<{ thread?: string; tab?: string; history?: string }>;
 }) {
   const user = await requireUser();
-  const { thread: initialThreadId, tab } = await searchParams;
+  const { thread: initialThreadId, tab, history } = await searchParams;
+
+  // The merged History panel covers what the old Inbox tab did.
+  if (tab === "inbox") redirect("/coach");
 
   // Opening a coach thread is what marks its items read — the athlete has
   // the whole conversation in front of them at that point.
   if (initialThreadId) await markThreadRead(user.id, initialThreadId);
 
-  const unread = await unreadInboxCount(user.id);
-
-  if (tab === "inbox") {
-    const items = await listInboxItems(user.id);
-    return (
-      <AppShell user={shellUser(user)}>
-        <header className="mb-5 pt-8">
-          <h1 className="text-[22px] font-bold tracking-[-0.03em]">Coach</h1>
-          <Segments tab="inbox" unread={unread} />
-        </header>
-        <div className="pb-10">
-          <InboxRail items={items} />
-        </div>
-      </AppShell>
-    );
-  }
-
   const llmSettings = await db.query.llmSettings.findFirst({
     where: eq(schema.llmSettings.userId, user.id),
   });
 
-  const threads = await db.query.chatThreads.findMany({
-    where: eq(schema.chatThreads.userId, user.id),
-    orderBy: desc(schema.chatThreads.updatedAt),
-    limit: 20,
-  });
+  const [threadRows, inboxItems] = await Promise.all([
+    db.query.chatThreads.findMany({
+      where: and(
+        eq(schema.chatThreads.userId, user.id),
+        eq(schema.chatThreads.kind, "chat")
+      ),
+      orderBy: desc(schema.chatThreads.updatedAt),
+      limit: 20,
+    }),
+    listInboxItems(user.id),
+  ]);
+
+  const threads = threadRows.map((t) => ({
+    id: t.id,
+    title: t.title ?? "New chat",
+    updatedAt: t.updatedAt.toISOString(),
+    ephemeral: t.ephemeral,
+  }));
+  const unread = inboxItems.filter((i) => i.unread).length;
 
   return (
-    <AppShell noChrome user={shellUser(user)}>
+    <AppShell
+      noChrome
+      user={shellUser(user)}
+      overlay={
+        history === "1" ? (
+          // Mobile only — desktop reads History from the header dropdown,
+          // which lives inline in ChatInterface rather than this overlay.
+          <div className="lg:hidden">
+            <HistorySheet
+              inboxItems={inboxItems}
+              threads={threads}
+              activeThreadId={initialThreadId ?? null}
+              unread={unread}
+              closeHref={
+                initialThreadId ? `/coach?thread=${initialThreadId}` : "/coach"
+              }
+            />
+          </div>
+        ) : null
+      }
+    >
       <ChatInterface
+        key={initialThreadId ?? "new"}
         configured={!!llmSettings}
         defaultMode={llmSettings?.defaultMode ?? "deep"}
         initialThreadId={initialThreadId ?? null}
-        segmentNav={<Segments tab="chat" unread={unread} />}
-        threads={threads.map((t) => ({
-          id: t.id,
-          title: t.title ?? "New chat",
-          updatedAt: t.updatedAt.toISOString(),
-          ephemeral: t.ephemeral,
-        }))}
+        threads={threads}
+        inboxItems={inboxItems}
+        unread={unread}
       />
     </AppShell>
   );

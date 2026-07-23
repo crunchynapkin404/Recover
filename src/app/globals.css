@@ -380,6 +380,22 @@
   }
 }
 
+/* ── Coach history dropdown (desktop) ─────────────────────────────────────── */
+.menu-pop {
+  animation: menu-pop 160ms ease-out;
+  transform-origin: top left;
+}
+@keyframes menu-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.98) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
 /* ── Reduced motion ──────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   * {
