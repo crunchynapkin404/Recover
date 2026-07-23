@@ -83,7 +83,9 @@ const hasDb =
 const OWNER_ID = "9182736450"; // Strava athlete id — arbitrary, test-only
 const USER_ID = "test-strava-webhook-user";
 
-function event(overrides: Partial<StravaWebhookEvent> = {}): StravaWebhookEvent {
+function event(
+  overrides: Partial<StravaWebhookEvent> = {}
+): StravaWebhookEvent {
   return {
     aspect_type: "create",
     object_type: "activity",
@@ -98,9 +100,7 @@ function event(overrides: Partial<StravaWebhookEvent> = {}): StravaWebhookEvent 
 describe.skipIf(!hasDb)("handleStravaWebhookEvent", () => {
   afterAll(async () => {
     const { db, schema } = await import("@/lib/db");
-    await db
-      .delete(schema.syncJobs)
-      .where(eq(schema.syncJobs.userId, USER_ID));
+    await db.delete(schema.syncJobs).where(eq(schema.syncJobs.userId, USER_ID));
     await db
       .delete(schema.connections)
       .where(eq(schema.connections.userId, USER_ID));
@@ -117,9 +117,7 @@ describe.skipIf(!hasDb)("handleStravaWebhookEvent", () => {
         email: "strava-webhook-test@example.invalid",
       })
       .onConflictDoNothing();
-    await db
-      .delete(schema.syncJobs)
-      .where(eq(schema.syncJobs.userId, USER_ID));
+    await db.delete(schema.syncJobs).where(eq(schema.syncJobs.userId, USER_ID));
     await db
       .delete(schema.connections)
       .where(eq(schema.connections.userId, USER_ID));
