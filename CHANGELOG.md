@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.25.1 — 2026-07-23 — Webhook Callback Fix
+
+v0.25.0 added `/api/webhooks/strava` but never actually made it reachable:
+the session-redirect proxy 307'd every unauthenticated request to `/login`,
+including Strava's own verification handshake and every subsequent event
+POST — so the webhook shipped dead on arrival.
+
+- **`/api/webhooks/*` now bypasses the session gate**, alongside the
+  existing `/api/mcp`/`/api/cron` bearer-auth routes — verified live via
+  Strava's actual push-subscription creation, not just a local curl.
+
 ## v0.25.0 — 2026-07-23 — Strava-Triggered Intervals Sync
 
 intervals.icu has no webhooks, so a new ride only ever showed up after the
