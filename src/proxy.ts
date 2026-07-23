@@ -4,6 +4,11 @@ import { getSessionCookie } from "better-auth/cookies";
 // Optimistic redirect only — every page/action still verifies the session
 // server-side via requireUser().
 export function proxy(request: NextRequest) {
+  const pathname = new URL(request.url).pathname;
+  if (pathname.startsWith("/api/webhooks")) {
+    return NextResponse.next();
+  }
+
   const sessionCookie = getSessionCookie(request);
   if (!sessionCookie) {
     return NextResponse.redirect(new URL("/login", request.url));
@@ -12,12 +17,13 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // /api/mcp and /api/cron authenticate with bearer tokens/secrets, not
-  // session cookies — they must bypass the session redirect or external
-  // clients get 307'd to /login before the handler runs. PWA assets
-  // (manifest, service worker, icons) are fetched by the browser outside
-  // normal navigation and must also stay reachable without a session.
+  // /api/mcp and /api/cron authenticate with bearer tokens/secrets, and
+  // /api/webhooks with a provider-issued verify token/signature, not session
+  // cookies — they must bypass the session redirect or external clients get
+  // 307'd to /login before the handler runs. PWA assets (manifest, service
+  // worker, icons) are fetched by the browser outside normal navigation and
+  // must also stay reachable without a session.
   matcher: [
-    "/((?!login|join|api/auth|api/health|api/mcp|api/cron|_next|favicon.ico|manifest.webmanifest|sw.js|icons).*)",
+    "/((?!login|join|api/auth|api/health|api/mcp|api/cron|api/webhooks|_next|favicon.ico|manifest.webmanifest|sw.js|icons).*)",
   ],
 };
