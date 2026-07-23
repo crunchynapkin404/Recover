@@ -593,6 +593,43 @@ none of the four were ever extracted into a typed column. Design:
 real Bio-Age score, and eFTP/pMax/wPrime/rampRate are visible on the Log
 page. ✅
 
+## ✅ v0.23 — IA & Navigation Redesign
+
+Navigation off `Home / Plan / Log / Coach / Journal / Menu` and onto
+`Today / Train / Coach / Body / Menu` — one job per screen, one home per
+duplicated module. Handoff:
+`docs/design_handoff_ia_redesign/README.md`.
+
+- [x] **Today rebuilt**: single glass hero, 2×2/4-across vitals grid, a
+      real **Mark done** action (`markDayDone`, status only — no invented
+      load or activity)
+- [x] **`/plan` + `/log` → `/train`**: Week (grouped hairline-row surface),
+      History (7-day stat strip + compact rows), Fitness (CTL/ATL/TSB
+      tiles above the PMC chart). Old routes retired as 308s.
+- [x] **`/journal` + `/health` + `/log`'s wellness half → `/body`**: Trends
+      against the athlete's own baseline band, Sleep with real stages/
+      consistency/chronotype/bedtime, Journal, Labs. Old routes retired
+      as 308s.
+- [x] **Coach inbox**: `Chat | Inbox · n`, sourced from existing
+      morning/weekly/debrief/monthly system-thread messages — no new
+      tables. Migration `0024`: one additive column,
+      `chat_messages.read_at`.
+- [x] **Two URL-driven bottom sheets** (`?sheet=checkin`,
+      `?sheet=debrief&activity=…`) replace the inline check-in and debrief
+      forms; both push notifications deep-link into them.
+- [x] **Menu + activity detail restyled**: collapsed groups carry real
+      summary lines; activity detail gets a 3×2 stat grid and an
+      emerald-tinted debrief card.
+- [x] **Desktop layout**: Today splits 7fr/5fr at `lg+`; sidebar at its
+      spec'd 216px with a pinned account row.
+- [x] **Duplicate data removed**: PMC chart's own CTL/ATL/TSB readout,
+      biological age's double headline, the next race appearing as both a
+      chip and a list row.
+
+**Done when:** every screen in the handoff renders from the app's own live
+data, on both viewport sizes, with no duplicated figure anywhere on a
+single screen. ✅
+
 ## Ongoing — operations track
 
 All items scheduled into **v0.17 — Good Self-Hosted Citizen** by the v0.9.6

@@ -1,5 +1,61 @@
 # Changelog
 
+## v0.23.0 — 2026-07-23 — IA & Navigation Redesign
+
+Every route gets a job, duplicated modules get one home, and the nav is
+renamed to match: `Home / Plan / Log / Coach / Journal / Menu` becomes
+`Today / Train / Coach / Body / Menu`. Handoff:
+`docs/design_handoff_ia_redesign/README.md` (mockups, rationale, screen
+specs for every screen below).
+
+- **Today rebuilt**: one glass hero (readiness ring, band verdict, a
+  numeric why-line, Recovery/Sleep legend), a 2×2 (4-across on desktop)
+  vitals grid with 7-day sparklines, a session card whose **Mark done**
+  button is now real — `markDayDone` records the athlete's word as status
+  only (no invented load, no synthetic activity), so week adherence still
+  reflects only what actually synced.
+- **`/plan` and `/log` merge into `/train`** (Week · History · Fitness
+  tabs): the week becomes one grouped hairline-row surface instead of
+  seven glass cards; History gets a 7-day stat strip over compact rows;
+  Fitness gets CTL/ATL/TSB tiles above the PMC chart. `/plan` and `/log`
+  retire as framework-level 308s to `/train`.
+- **`/journal`, `/health`, and `/log`'s wellness half merge into `/body`**
+  (Trends · Sleep · Journal · Labs): HRV/RHR trends render against the
+  athlete's own baseline band instead of a population norm; sleep gets its
+  real stage breakdown, consistency, chronotype and tonight's recommended
+  bedtime. `/journal` and `/health` retire as 308s to `/body`.
+- **Coach gains an inbox** (`Chat | Inbox · n`): a chronological rail of
+  every morning brief, ride debrief, weekly review, and overtraining
+  warning the coach has written, sourced from the existing system-thread
+  messages — no new tables. Migration `0024` adds one additive column,
+  `chat_messages.read_at`.
+- **Two new URL-driven bottom sheets** replace the morning check-in and
+  post-ride debrief inline forms: `?sheet=checkin` and
+  `?sheet=debrief&activity=…`, so both push notifications now deep-link
+  straight into an open sheet instead of the dashboard or the activity
+  page.
+- **Menu and activity detail restyled**: collapsed settings groups now
+  carry a real summary line (`Claude · deep · 1 memory`,
+  `push on · wake 06:00 · FTP 310`); activity detail gets a 3×2 stat-tile
+  grid and an emerald-tinted debrief card quoting the athlete and the
+  coach in turn.
+- **A real desktop layout**: Today splits into a 7fr/5fr grid at `lg+`
+  (150px readiness ring, a week-progress row, an inbox teaser on the
+  coach brief), and the sidebar gets its spec'd 216px width with a pinned
+  account row.
+- **Duplicate data removed** along the way: the PMC chart's own CTL/ATL/TSB
+  readout (now redundant with the tiles above it), biological age printed
+  in both a new tile and `BioAgeCard`'s headline, and the next race
+  appearing both as a chip and as a list row on Train.
+- **Fixed while touching the surfaces that exposed them**: the coach
+  writes markdown that had never been rendered anywhere in the app (chat,
+  ride reviews, inbox previews all showed raw `**`); TSB and sleep-debt
+  tiles that printed raw floats and triple-digit minute counts; a sheet
+  backdrop that was unclickable on desktop (a stacking-context bug that
+  trapped it under the sidebar); a malformed activity id in a sheet URL or
+  route param that 500'd instead of 404ing; neither nav marking its
+  active item `aria-current`.
+
 ## v0.22.0 — 2026-07-22 — Wellness Fitness Metrics
 
 intervals.icu was already sending `vo2max`, `rampRate`, and per-sport
