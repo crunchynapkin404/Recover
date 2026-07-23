@@ -30,6 +30,10 @@ export type LoadSource = "provider" | "power" | "hr" | "duration";
 export interface LoadActivity {
   provider: string;
   startDate: Date;
+  // Optional: callers that bucket by the athlete's local calendar day (e.g.
+  // metrics.ts) read this when present, falling back to startDate. Not used
+  // by this file's own load-calculation functions.
+  startDateLocal?: Date | null;
   durationS: number | null;
   load: number | null;
   avgHr: number | null;
