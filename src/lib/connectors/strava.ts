@@ -181,7 +181,19 @@ export async function fetchActivities(params: {
     if (!id || !start) continue;
     const startDate = new Date(start);
     if (Number.isNaN(startDate.getTime())) continue;
-    const localStr = str(row.start_date_local);
+    // Strava's start_date_local carries a misleading trailing "Z" even
+    // though the digits are the athlete's local wall-clock time, not true
+    // UTC (confirmed against Strava's own API schema and this project's
+    // live data — see docs/specs/2026-07-23-activity-timezone-fix-design.md).
+    // Strip it so this parses the same offset-less way as intervals.icu's
+    // genuinely offset-less start_date_local: Date's no-offset form is
+    // parsed as local time and read back via local getters, which
+    // round-trips the original digits regardless of the host process's own
+    // timezone. (In the UTC-pinned deployment this produces byte-identical
+    // output to the old Z-forced-UTC parse, since local getters == UTC
+    // getters there — see strava.test.ts for the cross-TZ proof.)
+    const localRaw = str(row.start_date_local);
+    const localStr = localRaw?.endsWith("Z") ? localRaw.slice(0, -1) : localRaw;
     const localParsed = localStr ? new Date(localStr) : null;
     const startDateLocal =
       localParsed && !Number.isNaN(localParsed.getTime()) ? localParsed : null;

@@ -20,7 +20,12 @@ describe("fetchActivities", () => {
           {
             id: 19435415759,
             start_date: "2026-07-23T17:57:38Z",
-            start_date_local: "2026-07-23T19:57:38",
+            // Strava's real wire format: start_date_local carries a
+            // trailing "Z" even though the digits are the athlete's local
+            // wall clock, not true UTC (confirmed against Strava's own API
+            // schema and this project's live data — see
+            // docs/specs/2026-07-23-activity-timezone-fix-design.md).
+            start_date_local: "2026-07-23T19:57:38Z",
             sport_type: "Ride",
             name: "Evening ride",
           },
