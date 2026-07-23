@@ -8,7 +8,14 @@ import { StreamChart } from "@/components/activity/stream-chart";
 import { LapsTable } from "@/components/activity/laps-table";
 import { StreamDataEmpty } from "@/components/activity/stream-data-empty";
 import { ActivityDebriefSection } from "@/components/debrief/activity-debrief-section";
-import { formatDuration, formatKm } from "@/lib/format";
+import { formatDuration } from "@/lib/format";
+
+// Provenance, spelled the way the athlete would recognise it.
+const PROVIDER_LABEL: Record<string, string> = {
+  intervals_icu: "intervals.icu",
+  strava: "Strava",
+  manual: "logged by hand",
+};
 
 const paceMinKm = (v: number) => {
   const m = Math.floor(v);
@@ -27,19 +34,40 @@ export default async function ActivityPage({
   if (!detail) notFound();
   const { activity, streams, laps, reason } = detail;
 
-  const stats: [string, string][] = [];
+  // Value + its unit are separate so the tile can set the unit smaller —
+  // only stats the activity actually carries are pushed.
+  const stats: { label: string; value: string; unit?: string }[] = [];
   if (activity.durationS != null)
-    stats.push(["Duration", formatDuration(activity.durationS)]);
+    stats.push({
+      label: "Duration",
+      value: formatDuration(activity.durationS),
+    });
   if (activity.distanceM != null)
-    stats.push(["Distance", formatKm(activity.distanceM)]);
+    stats.push({
+      label: "Distance",
+      value: (activity.distanceM / 1000).toFixed(1),
+      unit: "km",
+    });
   if (activity.load != null)
-    stats.push(["Load", String(Math.round(activity.load))]);
+    stats.push({ label: "Load", value: String(Math.round(activity.load)) });
   if (activity.avgHr != null)
-    stats.push(["Avg HR", String(Math.round(activity.avgHr))]);
+    stats.push({
+      label: "Avg HR",
+      value: String(Math.round(activity.avgHr)),
+      unit: "bpm",
+    });
   if (activity.avgPower != null)
-    stats.push(["Avg Power", `${Math.round(activity.avgPower)} W`]);
+    stats.push({
+      label: "Avg Power",
+      value: String(Math.round(activity.avgPower)),
+      unit: "W",
+    });
   if (activity.elevationM != null)
-    stats.push(["Climb", `${Math.round(activity.elevationM)} m`]);
+    stats.push({
+      label: "Climb",
+      value: String(Math.round(activity.elevationM)),
+      unit: "m",
+    });
 
   const pace = streams?.velocity_smooth?.map((v) =>
     v != null && v > 0.5 ? 1000 / 60 / v : null
@@ -47,34 +75,48 @@ export default async function ActivityPage({
 
   return (
     <AppShell>
-      <header className="mb-8 pt-8">
+      <header className="mb-5 pt-8">
         <Link
           href="/train?tab=history"
-          className="mb-4 inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-white/50"
+          className="mb-3 inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.15em] text-white/50 transition-colors hover:text-white/80"
         >
-          <ArrowLeft className="size-3" /> Performance
+          <ArrowLeft aria-hidden className="size-3" /> Train / History
         </Link>
-        <h1 className="text-2xl font-bold tracking-tighter">
+        <h1 className="text-[21px] font-bold tracking-[-0.03em]">
           {activity.name ?? activity.sport}
         </h1>
-        <p className="mt-1 text-xs font-medium uppercase tracking-widest text-white/50">
-          {activity.sport} ·{" "}
-          {activity.startDate.toLocaleDateString("en-US", {
-            weekday: "short",
-            month: "short",
-            day: "numeric",
-          })}
+        <p className="mt-1 text-[9.5px] font-bold uppercase tracking-[0.15em] text-white/40">
+          {[
+            activity.sport,
+            activity.startDate.toLocaleDateString("en-US", {
+              weekday: "short",
+              month: "short",
+              day: "numeric",
+            }),
+            PROVIDER_LABEL[activity.provider] ?? activity.provider,
+          ].join(" · ")}
         </p>
       </header>
 
-      <div className="space-y-4 pb-12">
-        <section className="glass grid grid-cols-3 gap-4 rounded-[2rem] p-6">
-          {stats.map(([k, v]) => (
-            <div key={k} className="flex flex-col">
-              <span className="text-lg font-bold">{v}</span>
-              <span className="text-[10px] font-bold uppercase tracking-widest text-white/50">
-                {k}
-              </span>
+      <div className="space-y-3 pb-12">
+        {/* 3×2 tiles (2b) — the glass stats card broken into its parts. */}
+        <section className="grid grid-cols-3 gap-2">
+          {stats.map((s) => (
+            <div
+              key={s.label}
+              className="rounded-[14px] border border-white/[0.09] bg-white/[0.04] px-3 py-2.5"
+            >
+              <p className="font-mono text-[14px] font-bold leading-none text-white">
+                {s.value}
+                {s.unit && (
+                  <span className="ml-0.5 text-[10px] font-medium text-white/40">
+                    {s.unit}
+                  </span>
+                )}
+              </p>
+              <p className="mt-1.5 text-[8.5px] font-bold uppercase tracking-[0.15em] text-white/40">
+                {s.label}
+              </p>
             </div>
           ))}
         </section>
@@ -112,6 +154,8 @@ export default async function ActivityPage({
             unit="m"
             color="#34d399"
             values={streams.altitude}
+            height={44}
+            fill="rgba(52,211,153,0.15)"
           />
         )}
 

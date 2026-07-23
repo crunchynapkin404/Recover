@@ -2,6 +2,7 @@ import { and, desc, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { feelFromIcu, rpeFromRaw } from "@/lib/debrief/lifecycle";
 import { DebriefForm } from "./debrief-form";
+import { InlineMarkdown } from "@/components/ui/inline-markdown";
 
 export async function ActivityDebriefSection({
   activityId,
@@ -40,28 +41,54 @@ export async function ActivityDebriefSection({
       })
     : null;
 
+  // "RPE 7 · felt normal", or the honest absence of an answer.
+  const answer =
+    a.debriefState === "answered"
+      ? [
+          a.perceivedExertion != null
+            ? `RPE ${Math.round(a.perceivedExertion)}`
+            : null,
+          a.feel != null ? `felt ${a.feel}` : null,
+        ]
+          .filter(Boolean)
+          .join(" · ")
+      : a.debriefState === "skipped"
+        ? "skipped"
+        : a.debriefState === "expired"
+          ? "no answer"
+          : null;
+
   return (
-    <section className="glass rounded-[2rem] p-6">
-      <h3 className="text-sm font-semibold text-white">Ride review</h3>
-      <div className="mt-2 flex gap-3 text-xs text-white/60">
-        {a.perceivedExertion != null && (
-          <span>RPE {a.perceivedExertion}/10</span>
+    <section className="rounded-[18px] border border-emerald-500/25 bg-emerald-500/[0.05] p-4">
+      <div className="flex items-baseline justify-between gap-3">
+        <h3 className="text-[9.5px] font-bold uppercase tracking-[0.15em] text-white/40">
+          Debrief
+        </h3>
+        {answer && (
+          <span className="text-[10.5px] font-bold text-emerald-400">
+            {answer}
+          </span>
         )}
-        {a.feel != null && <span className="capitalize">Felt {a.feel}</span>}
-        {a.debriefState !== "answered" && <span>No feedback given</span>}
       </div>
+
       {a.debriefNotes && (
-        <p className="mt-2 text-xs italic text-white/50">“{a.debriefNotes}”</p>
-      )}
-      {review ? (
-        <p className="mt-3 whitespace-pre-wrap text-sm text-white/80">
-          {review.content}
-        </p>
-      ) : (
-        <p className="mt-3 text-xs text-white/40">
-          Review not generated yet — it&apos;ll appear shortly.
+        <p className="mt-2 text-[12px] italic leading-snug text-white/60">
+          &ldquo;{a.debriefNotes}&rdquo;
         </p>
       )}
+
+      <div className="mt-3 border-t border-white/[0.08] pt-3">
+        {review ? (
+          <p className="whitespace-pre-wrap text-[11.5px] leading-[1.55] text-white/80">
+            <strong className="font-bold text-violet-400">Coach: </strong>
+            <InlineMarkdown text={review.content} />
+          </p>
+        ) : (
+          <p className="text-[11px] text-white/40">
+            Review not generated yet — it&apos;ll appear shortly.
+          </p>
+        )}
+      </div>
     </section>
   );
 }

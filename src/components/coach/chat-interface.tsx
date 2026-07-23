@@ -7,6 +7,7 @@ import Link from "next/link";
 import { Ghost, Mic, MicOff, MessageCircle, Plus, Send } from "lucide-react";
 import { ArtifactCard } from "./artifact-card";
 import { useDictation } from "@/lib/use-dictation";
+import { InlineMarkdown } from "@/components/ui/inline-markdown";
 import {
   Collapsible,
   CollapsibleTrigger,
@@ -362,7 +363,9 @@ export function ChatInterface({
                     isUser ? "chat-bubble-user" : "chat-bubble-ai"
                   }`}
                 >
-                  <span className="whitespace-pre-wrap">{text}</span>
+                  <span className="whitespace-pre-wrap">
+                    <InlineMarkdown text={text} />
+                  </span>
                 </div>
               )}
               {artifacts.map((p) => {

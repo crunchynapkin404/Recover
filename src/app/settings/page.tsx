@@ -36,7 +36,7 @@ import {
   Sparkles,
   Terminal,
   SlidersHorizontal,
-  Info,
+  Download,
 } from "lucide-react";
 
 export default async function SettingsPage({
@@ -151,51 +151,108 @@ export default async function SettingsPage({
     where: eq(schema.bodyPrefs.userId, user.id),
   });
 
+  const initial = (user.name ?? user.email ?? "")
+    .trim()
+    .charAt(0)
+    .toUpperCase();
+
+  // ── Group summary lines (2c) ──────────────────────────────────────────
+  // Each one states what is actually configured, so a closed group still
+  // answers "is this set up?". Nothing is claimed that isn't in the data.
+  const connectedProviders = [
+    connection?.status === "active" ? "intervals.icu" : null,
+    stravaConnection?.status === "active" ? "Strava" : null,
+    whoopConnection?.status === "active" ? "Whoop" : null,
+    ouraConnection?.status === "active" ? "Oura" : null,
+    appleHealthConnection?.status === "active" ? "Apple Health" : null,
+    withingsConnection?.status === "active" ? "Withings" : null,
+  ].filter((p): p is string => p !== null);
+
+  const integrationsSummary =
+    connectedProviders.length === 0
+      ? "none connected"
+      : connectedProviders.length <= 2
+        ? connectedProviders.join(" · ")
+        : `${connectedProviders[0]} · +${connectedProviders.length - 1} more`;
+
+  const coachSummary = llmSettings
+    ? [
+        llmSettings.providerType === "anthropic"
+          ? "Claude"
+          : llmSettings.providerType === "openai_compatible"
+            ? "OpenAI-compatible"
+            : llmSettings.providerType,
+        llmSettings.defaultMode,
+        `${coachMemories.length} ${coachMemories.length === 1 ? "memory" : "memories"}`,
+      ].join(" · ")
+    : "not configured";
+
+  const appSummary =
+    [
+      notificationPrefs?.morningPushEnabled === false
+        ? "push off"
+        : pushSubs.length > 0
+          ? "push on"
+          : null,
+      bodyPrefsRow?.wakeTime ? `wake ${bodyPrefsRow.wakeTime}` : null,
+      bodyPrefsRow?.ftpWatts ? `FTP ${bodyPrefsRow.ftpWatts}` : null,
+    ]
+      .filter(Boolean)
+      .join(" · ") || "defaults";
+
+  const advancedSummary = [
+    `${apiTokens.length} ${apiTokens.length === 1 ? "token" : "tokens"}`,
+    `${webhookSubscriptions.length} ${webhookSubscriptions.length === 1 ? "webhook" : "webhooks"}`,
+    `${activeSessions.length} ${activeSessions.length === 1 ? "session" : "sessions"}`,
+  ].join(" · ");
+
   return (
     <AppShell>
       {/* Header */}
-      <header className="mb-8 pt-8">
-        <h1 className="text-2xl font-bold tracking-tighter">Settings</h1>
-        <p className="mt-1 text-xs font-medium uppercase tracking-widest text-white/50">
-          App configuration & accounts
-        </p>
+      <header className="mb-5 pt-8">
+        <h1 className="text-[22px] font-bold tracking-[-0.03em]">Menu</h1>
       </header>
 
-      <div className="space-y-6">
-        {/* Profile */}
-        <section className="glass rounded-[2rem] p-6">
-          <div className="mb-4 flex items-center justify-between">
-            <h3 className="label-micro">Profile</h3>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="glass flex h-14 w-14 items-center justify-center rounded-full border-white/10">
-              <User className="size-6 text-white/60" />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-lg font-bold">
-                {user.name ?? "Athlete"}
+      <div className="space-y-3">
+        {/* Profile — one slim row, not a card of its own */}
+        <section className="flex items-center gap-3 rounded-[18px] border border-white/[0.08] bg-white/[0.03] px-4 py-3">
+          <span className="glass flex size-[38px] shrink-0 items-center justify-center rounded-full">
+            {initial ? (
+              <span aria-hidden className="text-[14px] font-bold text-white/80">
+                {initial}
               </span>
-              <span className="text-sm text-white/50">{user.email}</span>
-            </div>
-          </div>
+            ) : (
+              <User aria-hidden className="size-5 text-white/60" />
+            )}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-[13.5px] font-bold">
+              {user.name ?? "Athlete"}
+            </span>
+            <span className="block truncate text-[10.5px] text-white/45">
+              {user.email}
+              {user.role === "owner" && " · owner"}
+            </span>
+          </span>
           {user.role === "owner" && (
-            <div className="mt-4 border-t border-white/5 pt-4">
-              <Link
-                href="/admin"
-                className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 hover:underline"
-              >
-                Admin — members & invites
-              </Link>
-            </div>
+            <Link
+              href="/admin"
+              className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-emerald-400 hover:underline"
+            >
+              Admin →
+            </Link>
           )}
-          <div className="mt-4 border-t border-white/5 pt-4">
-            <SignOutButton />
-          </div>
         </section>
 
         {/* Integrations */}
         <Collapsible>
-          <CollapsibleTrigger>
+          <CollapsibleTrigger
+            badge={
+              <span className="text-[10px] font-medium text-white/35">
+                {integrationsSummary}
+              </span>
+            }
+          >
             <Layers aria-hidden className="size-[18px] text-blue-400" />
             <span className="text-xs font-bold uppercase tracking-widest text-white/80">
               Integrations
@@ -302,10 +359,16 @@ export default async function SettingsPage({
 
         {/* AI & Tech */}
         <Collapsible>
-          <CollapsibleTrigger>
+          <CollapsibleTrigger
+            badge={
+              <span className="text-[10px] font-medium text-white/35">
+                {coachSummary}
+              </span>
+            }
+          >
             <Sparkles aria-hidden className="size-[18px] text-emerald-400" />
             <span className="text-xs font-bold uppercase tracking-widest text-white/80">
-              AI &amp; Tech
+              AI &amp; Coach
             </span>
           </CollapsibleTrigger>
           <CollapsiblePanel>
@@ -341,7 +404,13 @@ export default async function SettingsPage({
 
         {/* Advanced / API */}
         <Collapsible>
-          <CollapsibleTrigger>
+          <CollapsibleTrigger
+            badge={
+              <span className="text-[10px] font-medium text-white/35">
+                {advancedSummary}
+              </span>
+            }
+          >
             <Terminal aria-hidden className="size-[18px] text-white/40" />
             <span className="text-xs font-bold uppercase tracking-widest text-white/80">
               Advanced / API
@@ -386,7 +455,13 @@ export default async function SettingsPage({
 
         {/* App */}
         <Collapsible>
-          <CollapsibleTrigger>
+          <CollapsibleTrigger
+            badge={
+              <span className="text-[10px] font-medium text-white/35">
+                {appSummary}
+              </span>
+            }
+          >
             <SlidersHorizontal
               aria-hidden
               className="size-[18px] text-orange-400"
@@ -417,78 +492,67 @@ export default async function SettingsPage({
                 maxHr={bodyPrefsRow?.maxHr ?? null}
                 ftpWatts={bodyPrefsRow?.ftpWatts ?? null}
               />
+            </div>
+          </CollapsiblePanel>
+        </Collapsible>
 
-              <div className="space-y-1">
-                <div className="flex items-center justify-between py-3">
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium">Data Export</span>
-                    <span className="text-[10px] font-bold uppercase text-white/50">
-                      Download all your data as JSON
-                    </span>
-                  </div>
-                  <a
-                    href="/api/export"
-                    download
-                    aria-label="Download all your data as JSON"
-                    className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-white/80 transition-colors hover:bg-white/10"
-                  >
-                    Export
-                  </a>
+        {/* Data — export and import get their own group (2c) */}
+        <Collapsible>
+          <CollapsibleTrigger
+            badge={
+              <span className="text-[10px] font-medium text-white/35">
+                Export · Import CSV
+              </span>
+            }
+          >
+            <Download aria-hidden className="size-[18px] text-white/40" />
+            <span className="text-xs font-bold uppercase tracking-widest text-white/80">
+              Data
+            </span>
+          </CollapsibleTrigger>
+          <CollapsiblePanel>
+            <div className="hairline-list px-5 pb-3">
+              <div className="flex items-center justify-between py-3">
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium">Data export</span>
+                  <span className="text-[10px] font-bold uppercase text-white/50">
+                    Download all your data as JSON
+                  </span>
                 </div>
-                <div className="flex items-center justify-between border-t border-white/5 py-3">
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium">Import CSV</span>
-                    <span className="text-[10px] font-bold uppercase text-white/50">
-                      Wellness or activity data from any source
-                    </span>
-                  </div>
-                  <Link
-                    href="/import"
-                    className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-white/80 transition-colors hover:bg-white/10"
-                  >
-                    Import
-                  </Link>
+                <a
+                  href="/api/export"
+                  download
+                  aria-label="Download all your data as JSON"
+                  className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-white/80 transition-colors hover:bg-white/10"
+                >
+                  Export
+                </a>
+              </div>
+              <div className="flex items-center justify-between border-t border-white/5 py-3">
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium">Import CSV</span>
+                  <span className="text-[10px] font-bold uppercase text-white/50">
+                    Wellness or activity data from any source
+                  </span>
                 </div>
-                <div className="flex items-center justify-between border-t border-white/5 py-3">
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium">
-                      Health &amp; Biomarkers
-                    </span>
-                    <span className="text-[10px] font-bold uppercase text-white/50">
-                      Blood work, blood pressure, biological age
-                    </span>
-                  </div>
-                  <Link
-                    href="/body?tab=labs"
-                    className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-white/80 transition-colors hover:bg-white/10"
-                  >
-                    Open
-                  </Link>
-                </div>
+                <Link
+                  href="/import"
+                  className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-white/80 transition-colors hover:bg-white/10"
+                >
+                  Import
+                </Link>
               </div>
             </div>
           </CollapsiblePanel>
         </Collapsible>
 
-        {/* About */}
-        <Collapsible>
-          <CollapsibleTrigger>
-            <Info aria-hidden className="size-[18px] text-white/20" />
-            <span className="text-xs font-bold uppercase tracking-widest text-white/80">
-              About
-            </span>
-          </CollapsibleTrigger>
-          <CollapsiblePanel>
-            <div className="p-5 pt-4 text-center">
-              <h2 className="text-xl font-bold tracking-tighter opacity-40">
-                Recover
-              </h2>
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/50">
-                Self-hosted · AGPL-3.0
-              </p>
-            </div>
-          </CollapsiblePanel>
-        </Collapsible>
+        <div className="pt-2">
+          <SignOutButton />
+        </div>
+
+        <p className="pb-4 pt-2 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-white/25">
+          Recover · Self-hosted · AGPL-3.0
+        </p>
       </div>
     </AppShell>
   );
