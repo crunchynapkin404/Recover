@@ -271,7 +271,9 @@ async function buildGeneratedDescription(
   const raw = (activity.raw ?? {}) as Record<string, unknown>;
   const metrics = metricsFromRaw(raw);
 
-  const day = activity.startDate.toISOString().slice(0, 10);
+  const day = (activity.startDateLocal ?? activity.startDate)
+    .toISOString()
+    .slice(0, 10);
   const wellness = await db.query.wellnessDaily.findFirst({
     where: and(
       eq(schema.wellnessDaily.userId, userId),
