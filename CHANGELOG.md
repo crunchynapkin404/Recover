@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.25.4 — 2026-07-23 — Deleted Activities Don't Linger
+
+An activity removed at the source stayed in Recover forever — nothing ever
+told it the ride was gone.
+
+- **Deleting an activity on Strava now deletes it here too.** Strava's
+  webhook already sends `aspect_type: "delete"` events; Recover received
+  them but silently did nothing. It now removes both the native
+  `provider: "strava"` sync row and any `provider: "intervals_icu"` row
+  sourced from that same Strava activity (matched the same way
+  auto-describe resolves a Strava id from an intervals.icu row — see
+  v0.25.3).
+- **New manual "Delete activity" action** on the activity page (trash icon
+  next to the title, confirm-before-delete) covers what no webhook ever
+  can: intervals.icu itself has no webhooks at all, so a ride removed there
+  can only be caught by hand.
+
 ## v0.25.3 — 2026-07-23 — Auto-Describe Reaches Strava-Sourced Rides
 
 Same root cause as v0.25.2's debrief gap, this time hitting Strava

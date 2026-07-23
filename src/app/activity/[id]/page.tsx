@@ -8,6 +8,7 @@ import { StreamChart } from "@/components/activity/stream-chart";
 import { LapsTable } from "@/components/activity/laps-table";
 import { StreamDataEmpty } from "@/components/activity/stream-data-empty";
 import { ActivityDebriefSection } from "@/components/debrief/activity-debrief-section";
+import { DeleteActivityButton } from "@/components/activity/delete-activity-button";
 import { formatDuration } from "@/lib/format";
 
 // Provenance, spelled the way the athlete would recognise it.
@@ -82,9 +83,15 @@ export default async function ActivityPage({
         >
           <ArrowLeft aria-hidden className="size-3" /> Train / History
         </Link>
-        <h1 className="text-[21px] font-bold tracking-[-0.03em]">
-          {activity.name ?? activity.sport}
-        </h1>
+        <div className="flex items-start justify-between gap-3">
+          <h1 className="text-[21px] font-bold tracking-[-0.03em]">
+            {activity.name ?? activity.sport}
+          </h1>
+          <DeleteActivityButton
+            activityId={id}
+            activityName={activity.name ?? activity.sport}
+          />
+        </div>
         <p className="mt-1 text-[9.5px] font-bold uppercase tracking-[0.15em] text-white/40">
           {[
             activity.sport,

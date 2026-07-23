@@ -12,7 +12,7 @@
  * only uses the webhook as a trigger to pull the ride from intervals.icu
  * sooner, never as the ride's source of truth.
  */
-import { and, eq } from "drizzle-orm";
+import { and, eq, or, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { scheduleIntervalsSync } from "@/lib/sync/scheduler";
@@ -63,14 +63,19 @@ export function verifyChallenge(
 
 /**
  * Handle one webhook event: for a new/updated activity belonging to a known
- * athlete, schedule a catch-up intervals.icu sync. No-ops for unknown
- * athletes, deletes, and non-activity events (e.g. athlete deauthorization).
+ * athlete, schedule a catch-up intervals.icu sync; for a delete, remove the
+ * matching row(s) instead — both the native `provider: "strava"` sync's own
+ * row and any `provider: "intervals_icu"` row it sourced from Strava (their
+ * externalId is the Strava id too — see resolveStravaId). intervals.icu has
+ * no webhooks of its own, so a ride deleted there can't be caught this way;
+ * a manual delete action covers that case. No-ops for unknown athletes and
+ * non-activity events (e.g. athlete deauthorization).
  */
 export async function handleStravaWebhookEvent(
   event: StravaWebhookEvent
-): Promise<{ scheduled: boolean }> {
-  if (event.object_type !== "activity" || event.aspect_type === "delete") {
-    return { scheduled: false };
+): Promise<{ scheduled: boolean; deleted: number }> {
+  if (event.object_type !== "activity") {
+    return { scheduled: false, deleted: 0 };
   }
 
   const connection = await db.query.connections.findFirst({
@@ -85,7 +90,35 @@ export async function handleStravaWebhookEvent(
     logger.info("strava webhook: no matching active connection", {
       ownerId: event.owner_id,
     });
-    return { scheduled: false };
+    return { scheduled: false, deleted: 0 };
+  }
+
+  if (event.aspect_type === "delete") {
+    const externalId = String(event.object_id);
+    const removed = await db
+      .delete(schema.activities)
+      .where(
+        and(
+          eq(schema.activities.userId, connection.userId),
+          eq(schema.activities.externalId, externalId),
+          or(
+            eq(schema.activities.provider, "strava"),
+            and(
+              eq(schema.activities.provider, "intervals_icu"),
+              sql`${schema.activities.raw} ->> 'source' = 'STRAVA'`
+            )
+          )
+        )
+      )
+      .returning();
+    if (removed.length > 0) {
+      logger.info("strava webhook: deleted activity", {
+        userId: connection.userId,
+        activityId: event.object_id,
+        rows: removed.length,
+      });
+    }
+    return { scheduled: false, deleted: removed.length };
   }
 
   const scheduled = await scheduleIntervalsSync(
@@ -99,5 +132,5 @@ export async function handleStravaWebhookEvent(
       aspectType: event.aspect_type,
     });
   }
-  return { scheduled };
+  return { scheduled, deleted: 0 };
 }

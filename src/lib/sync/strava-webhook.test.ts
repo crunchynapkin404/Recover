@@ -134,7 +134,7 @@ describe.skipIf(!hasDb)("handleStravaWebhookEvent", () => {
     expect(jobs).toHaveLength(0);
   });
 
-  it("no-ops for a delete event", async () => {
+  it("deletes both the native strava row and any Strava-sourced intervals.icu stub for a delete event, leaving other activities alone", async () => {
     const { db, schema } = await import("@/lib/db");
     await db.insert(schema.connections).values({
       userId: USER_ID,
@@ -150,16 +150,66 @@ describe.skipIf(!hasDb)("handleStravaWebhookEvent", () => {
       externalAthleteId: "i1",
       status: "active",
     });
+    await db.delete(schema.activities).where(
+      eq(schema.activities.userId, USER_ID)
+    );
+    await db.insert(schema.activities).values([
+      {
+        userId: USER_ID,
+        provider: "strava",
+        externalId: "123",
+        startDate: new Date(),
+        sport: "Ride",
+        name: "deleted on strava",
+      },
+      {
+        userId: USER_ID,
+        provider: "intervals_icu",
+        externalId: "123",
+        startDate: new Date(),
+        sport: "Workout",
+        raw: { source: "STRAVA" },
+      },
+      // A same-externalId intervals.icu activity NOT sourced from Strava
+      // must survive — the id collision is coincidental, not the same ride.
+      {
+        userId: USER_ID,
+        provider: "intervals_icu",
+        externalId: "999",
+        startDate: new Date(),
+        sport: "Ride",
+        name: "unrelated ride",
+      },
+    ]);
 
     const result = await handleStravaWebhookEvent(
-      event({ aspect_type: "delete" })
+      event({ aspect_type: "delete", object_id: 123 })
     );
     expect(result.scheduled).toBe(false);
+    expect(result.deleted).toBe(2);
+
+    const remaining = await db.query.activities.findMany({
+      where: eq(schema.activities.userId, USER_ID),
+    });
+    expect(remaining).toHaveLength(1);
+    expect(remaining[0].name).toBe("unrelated ride");
+
+    await db
+      .delete(schema.activities)
+      .where(eq(schema.activities.userId, USER_ID));
 
     const jobs = await db.query.syncJobs.findMany({
       where: eq(schema.syncJobs.userId, USER_ID),
     });
     expect(jobs).toHaveLength(0);
+  });
+
+  it("no-ops a delete event for an unknown athlete (no active connection)", async () => {
+    const result = await handleStravaWebhookEvent(
+      event({ aspect_type: "delete" })
+    );
+    expect(result.scheduled).toBe(false);
+    expect(result.deleted).toBe(0);
   });
 
   it("schedules a near-term intervals.icu sync for a known athlete", async () => {

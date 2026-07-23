@@ -1,3 +1,4 @@
+import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { computeDailyMetrics } from "@/lib/metrics";
 
@@ -56,4 +57,24 @@ export async function createManualActivity(
     // best-effort; the log entry comes from inside the lifecycle
   }
   return { activityId: row.id };
+}
+
+/**
+ * Manual delete fallback for activities a sync can never detect as removed
+ * upstream — most notably intervals.icu, which has no webhooks (the Strava
+ * webhook's own delete event is handled automatically, see
+ * strava-webhook.ts). Scoped by userId in the query itself, not just the
+ * caller's own check.
+ */
+export async function deleteActivity(
+  userId: string,
+  activityId: string
+): Promise<boolean> {
+  const removed = await db
+    .delete(schema.activities)
+    .where(
+      and(eq(schema.activities.id, activityId), eq(schema.activities.userId, userId))
+    )
+    .returning();
+  return removed.length > 0;
 }
