@@ -29,10 +29,19 @@ export interface ActivityDetail {
 
 const LAPS_TYPE = "intervals";
 
+/**
+ * Activity ids reach this from route params, so a malformed one must read
+ * as "no such activity" (→ notFound) rather than reaching Postgres, where
+ * an unparseable uuid raises a query error and 500s the page.
+ */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function getOrFetchActivityDetail(
   userId: string,
   activityId: string
 ): Promise<ActivityDetail | null> {
+  if (!UUID.test(activityId)) return null;
+
   const activity = await db.query.activities.findFirst({
     where: and(
       eq(schema.activities.id, activityId),

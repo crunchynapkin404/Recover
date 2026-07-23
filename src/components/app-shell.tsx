@@ -18,9 +18,16 @@ interface Props {
    * rendering, including /login, which has no business being dynamic.
    */
   user?: ShellUser | null;
+  /**
+   * Full-screen overlays — the bottom sheets. Rendered as a sibling of the
+   * content wrapper rather than inside it: that wrapper is `relative z-10`,
+   * which opens a stacking context, so anything mounted within it can never
+   * rise above the sidebar's own z-40 no matter what z-index it asks for.
+   */
+  overlay?: React.ReactNode;
 }
 
-export function AppShell({ children, noChrome = false, user }: Props) {
+export function AppShell({ children, noChrome = false, user, overlay }: Props) {
   return (
     <div className="mesh-gradient relative min-h-svh pb-32 pt-[env(safe-area-inset-top)] lg:pb-0">
       {/* Depth layers */}
@@ -43,6 +50,8 @@ export function AppShell({ children, noChrome = false, user }: Props) {
       </div>
 
       <BottomNav />
+
+      {overlay}
     </div>
   );
 }

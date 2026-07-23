@@ -4,6 +4,14 @@ import { feelFromIcu, rpeFromRaw } from "@/lib/debrief/lifecycle";
 import { CheckinSheet } from "@/components/today/checkin-sheet";
 import { DebriefSheet } from "@/components/debrief/debrief-sheet";
 
+/**
+ * The id arrives from the URL (and from a push payload), so it is checked
+ * before it reaches Postgres — an unparseable uuid raised a query error and
+ * took the whole page down with a 500 rather than simply not opening a
+ * sheet.
+ */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 function addDays(ymd: string, n: number): string {
   const d = new Date(ymd + "T00:00:00");
   d.setDate(d.getDate() + n);
@@ -85,19 +93,22 @@ export async function SheetHost({
 
   if (sheet === "debrief") {
     // Scoped by userId: an activity id from another account finds nothing.
-    const activity = activityId
-      ? await db.query.activities.findFirst({
-          where: and(
-            eq(schema.activities.id, activityId),
-            eq(schema.activities.userId, userId)
-          ),
-        })
-      : await db.query.activities.findFirst({
-          where: and(
-            eq(schema.activities.userId, userId),
-            eq(schema.activities.debriefState, "pending")
-          ),
-        });
+    const activity =
+      activityId && UUID.test(activityId)
+        ? await db.query.activities.findFirst({
+            where: and(
+              eq(schema.activities.id, activityId),
+              eq(schema.activities.userId, userId)
+            ),
+          })
+        : activityId
+          ? null
+          : await db.query.activities.findFirst({
+              where: and(
+                eq(schema.activities.userId, userId),
+                eq(schema.activities.debriefState, "pending")
+              ),
+            });
     if (!activity) return null;
 
     const raw = activity.raw as Record<string, unknown> | null;

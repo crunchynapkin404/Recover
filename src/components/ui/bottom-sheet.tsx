@@ -64,7 +64,7 @@ export function BottomSheet({
   const translate = closing ? "100%" : `${dragY}px`;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center">
+    <div className="fixed inset-0 z-[60] flex items-end justify-center">
       <button
         type="button"
         aria-label="Close"

@@ -419,7 +419,19 @@ export default async function DashboardPage({
 
   // ── Render (2a Today) ────────────────────────────────────────────────────
   return (
-    <AppShell noChrome user={shellUser(user)}>
+    <AppShell
+      noChrome
+      user={shellUser(user)}
+      overlay={
+        <SheetHost
+          userId={user.id}
+          sheet={sheet}
+          activityId={sheetActivity}
+          closeHref="/"
+          todayYmd={todayYmd}
+        />
+      }
+    >
       <PullToRefresh>
         <div className="mx-auto max-w-lg px-6 pb-16 lg:max-w-6xl lg:px-10">
           {/* ── Header ──────────────────────────────────────────────── */}
@@ -528,14 +540,6 @@ export default async function DashboardPage({
           </div>
         </div>
       </PullToRefresh>
-
-      <SheetHost
-        userId={user.id}
-        sheet={sheet}
-        activityId={sheetActivity}
-        closeHref="/"
-        todayYmd={todayYmd}
-      />
     </AppShell>
   );
 }
