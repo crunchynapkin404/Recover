@@ -329,34 +329,94 @@ describe("metricsFromRaw", () => {
 });
 
 describe("isAwaitingReview", () => {
+  const PAST = new Date(Date.now() - 3_600_000);
+  const FUTURE = new Date(Date.now() + 3_600_000);
+
   it("waits while a debrief is outstanding and no review has posted", () => {
     expect(
-      isAwaitingReview({ debriefState: "pending", reviewedAt: null })
+      isAwaitingReview({
+        debriefState: "pending",
+        reviewedAt: null,
+        startDate: PAST,
+        raw: null,
+      })
     ).toBe(true);
     expect(
-      isAwaitingReview({ debriefState: "answered", reviewedAt: null })
+      isAwaitingReview({
+        debriefState: "answered",
+        reviewedAt: null,
+        startDate: PAST,
+        raw: null,
+      })
     ).toBe(true);
     expect(
-      isAwaitingReview({ debriefState: "skipped", reviewedAt: null })
+      isAwaitingReview({
+        debriefState: "skipped",
+        reviewedAt: null,
+        startDate: PAST,
+        raw: null,
+      })
     ).toBe(true);
     expect(
-      isAwaitingReview({ debriefState: "expired", reviewedAt: null })
+      isAwaitingReview({
+        debriefState: "expired",
+        reviewedAt: null,
+        startDate: PAST,
+        raw: null,
+      })
     ).toBe(true);
   });
 
   it("clears once reviewedAt is set, regardless of debrief state", () => {
     expect(
-      isAwaitingReview({ debriefState: "answered", reviewedAt: new Date() })
+      isAwaitingReview({
+        debriefState: "answered",
+        reviewedAt: new Date(),
+        startDate: PAST,
+        raw: null,
+      })
     ).toBe(false);
     expect(
-      isAwaitingReview({ debriefState: "pending", reviewedAt: new Date() })
+      isAwaitingReview({
+        debriefState: "pending",
+        reviewedAt: new Date(),
+        startDate: PAST,
+        raw: null,
+      })
     ).toBe(false);
   });
 
-  it("never waits for activities that were never debrief-eligible", () => {
-    expect(isAwaitingReview({ debriefState: null, reviewedAt: null })).toBe(
-      false
-    );
+  it("never waits for a non-Strava activity that was never debrief-eligible", () => {
+    expect(
+      isAwaitingReview({
+        debriefState: null,
+        reviewedAt: null,
+        startDate: PAST,
+        raw: null,
+      })
+    ).toBe(false);
+  });
+
+  it("waits for a Strava-sourced stub whose startDate is still in the future (the timezone quirk hasn't self-corrected yet)", () => {
+    expect(
+      isAwaitingReview({
+        debriefState: null,
+        reviewedAt: null,
+        startDate: FUTURE,
+        raw: { source: "STRAVA" },
+      })
+    ).toBe(true);
+  });
+
+  it("stops waiting for a Strava-sourced stub once its startDate is no longer in the future", () => {
+    expect(
+      isAwaitingReview({
+        debriefState: null,
+        reviewedAt: null,
+        startDate: PAST,
+        raw: { source: "STRAVA" },
+      })
+    ).toBe(false);
   });
 });
 

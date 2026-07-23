@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.25.6 — 2026-07-23 — Auto-Describe No Longer Races the Debrief
+
+Auto-describe's `isAwaitingReview` gate assumed a null `debriefState` always
+meant "this activity was never debrief-eligible" — true for historical
+imports, but no longer true now that the webhook (v0.25.1) syncs a ride
+within seconds. A Strava-sourced stub's `startDate` can still land in the
+future for a while (the timezone quirk noted in v0.25.2/v0.25.3 — real
+`start_date` is withheld, and the local-time fallback lands ~the athlete's
+UTC offset ahead), which blocks debrief promotion until real time catches
+up. Auto-describe raced ahead of that delay, describing the ride before it
+ever had a chance to be promoted — and because a description write is
+permanent (the marker blocks all future writes), that ride's Strava
+description could never be updated with RPE/feel once the athlete actually
+answered the debrief later.
+
+- `isAwaitingReview` now also waits for a Strava-sourced stub whose
+  `startDate` is still in the future — bounded, not indefinite: once real
+  time passes it, the lifecycle has had its fair shot either way and
+  describing proceeds exactly as before.
+
 ## v0.25.5 — 2026-07-23 — Push Notifications Actually Deliver
 
 The test-notification button reported nothing failing, but no push ever

@@ -333,13 +333,26 @@ export interface DescribeOutcome {
  * review hasn't been generated yet). Describing early would permanently
  * lock out the review line — MARKER makes every write after the first a
  * no-op — so the caller must wait for reviewedAt instead of racing it.
- * debriefState == null means the activity was never eligible for a debrief
- * (pre-v0.15 rows, historical imports): describe those immediately.
+ * debriefState == null usually means the activity was never eligible for a
+ * debrief (pre-v0.15 rows, historical imports): describe those immediately.
+ *
+ * One narrow exception: a Strava-sourced intervals.icu stub's startDate can
+ * be temporarily stuck in the future (intervals.icu only gives a bare local
+ * wall-clock string for these, parsed as if it were already UTC — see the
+ * timezone note in debrief/lifecycle.ts), which blocks debriefEligible's
+ * age check until real time catches up. A still-null debriefState during
+ * that window means "hasn't had its fair turn yet", not "never eligible" —
+ * describing now would burn the one write this activity ever gets before
+ * the athlete has a chance to answer. Once startDate is no longer in the
+ * future, the lifecycle has had its shot either way and describing
+ * proceeds as before.
  */
 export function isAwaitingReview(
-  activity: Pick<ActivityRow, "debriefState" | "reviewedAt">
+  activity: Pick<ActivityRow, "debriefState" | "reviewedAt" | "startDate" | "raw">
 ): boolean {
-  return activity.debriefState != null && activity.reviewedAt == null;
+  if (activity.debriefState != null) return activity.reviewedAt == null;
+  const raw = activity.raw as Record<string, unknown> | null;
+  return raw?.source === "STRAVA" && activity.startDate.getTime() > Date.now();
 }
 
 /**
