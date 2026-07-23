@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { and, eq } from "drizzle-orm";
 
 // Lock-safety integration test (docs/PLAN.md P2): two concurrent tickers must
@@ -75,5 +75,104 @@ describe.skipIf(!hasDb)("scheduler lock safety", () => {
       ),
     });
     expect(pending).toHaveLength(5);
+  });
+});
+
+const SCHEDULE_USER = "test-schedule-intervals-sync-user";
+
+describe.skipIf(!hasDb)("scheduleIntervalsSync", () => {
+  beforeAll(async () => {
+    const { db, schema } = await import("@/lib/db");
+    await db
+      .insert(schema.users)
+      .values({
+        id: SCHEDULE_USER,
+        name: "Schedule Intervals Sync Test",
+        email: "schedule-intervals-sync-test@example.invalid",
+      })
+      .onConflictDoNothing();
+    await db
+      .insert(schema.connections)
+      .values({
+        userId: SCHEDULE_USER,
+        provider: "intervals_icu",
+        encryptedAccessToken: "x",
+        externalAthleteId: "i1",
+        status: "active",
+      })
+      .onConflictDoNothing();
+  });
+
+  afterAll(async () => {
+    const { db, schema } = await import("@/lib/db");
+    await db
+      .delete(schema.syncJobs)
+      .where(eq(schema.syncJobs.userId, SCHEDULE_USER));
+    await db
+      .delete(schema.connections)
+      .where(eq(schema.connections.userId, SCHEDULE_USER));
+    await db.delete(schema.users).where(eq(schema.users.id, SCHEDULE_USER));
+  });
+
+  beforeEach(async () => {
+    const { db, schema } = await import("@/lib/db");
+    await db
+      .delete(schema.syncJobs)
+      .where(eq(schema.syncJobs.userId, SCHEDULE_USER));
+  });
+
+  it("creates a job when none exists", async () => {
+    const { scheduleIntervalsSync } = await import("@/lib/sync/scheduler");
+    const { db, schema } = await import("@/lib/db");
+
+    const before = Date.now();
+    await scheduleIntervalsSync(SCHEDULE_USER, 90);
+
+    const job = await db.query.syncJobs.findFirst({
+      where: and(
+        eq(schema.syncJobs.userId, SCHEDULE_USER),
+        eq(schema.syncJobs.provider, "intervals_icu")
+      ),
+    });
+    expect(job?.status).toBe("pending");
+    expect(job!.runAfter.getTime()).toBeGreaterThan(before + 60_000);
+  });
+
+  it("brings an existing job forward, never pushes it back", async () => {
+    const { scheduleIntervalsSync } = await import("@/lib/sync/scheduler");
+    const { db, schema } = await import("@/lib/db");
+
+    const farFuture = new Date(Date.now() + 6 * 60 * 60 * 1000);
+    await db.insert(schema.syncJobs).values({
+      userId: SCHEDULE_USER,
+      provider: "intervals_icu",
+      kind: "incremental",
+      runAfter: farFuture,
+    });
+
+    await scheduleIntervalsSync(SCHEDULE_USER, 90);
+    const bumped = await db.query.syncJobs.findFirst({
+      where: eq(schema.syncJobs.userId, SCHEDULE_USER),
+    });
+    expect(bumped!.runAfter.getTime()).toBeLessThan(farFuture.getTime());
+
+    // A second call with a longer delay must not push an already-sooner job back.
+    const soonerRunAfter = bumped!.runAfter;
+    await scheduleIntervalsSync(SCHEDULE_USER, 3600);
+    const unchanged = await db.query.syncJobs.findFirst({
+      where: eq(schema.syncJobs.userId, SCHEDULE_USER),
+    });
+    expect(unchanged!.runAfter.getTime()).toBe(soonerRunAfter.getTime());
+  });
+
+  it("no-ops when the user has no active intervals.icu connection", async () => {
+    const { scheduleIntervalsSync } = await import("@/lib/sync/scheduler");
+    const { db, schema } = await import("@/lib/db");
+
+    await scheduleIntervalsSync("test-nonexistent-user-xyz", 90);
+    const jobs = await db.query.syncJobs.findMany({
+      where: eq(schema.syncJobs.userId, "test-nonexistent-user-xyz"),
+    });
+    expect(jobs).toHaveLength(0);
   });
 });
