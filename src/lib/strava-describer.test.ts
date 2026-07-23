@@ -4,6 +4,7 @@ import {
   formatActivityDescription,
   formatPace,
   formatPrLines,
+  isAwaitingReview,
   MARKER,
   metricsFromRaw,
   normalizeIntensityPct,
@@ -30,6 +31,9 @@ const FULL: DescriptionInput = {
   ftpW: 286,
   vo2max: 52.34,
   prLines: ["594W/1m — all-time PR"],
+  perceivedExertion: null,
+  feel: null,
+  review: null,
 };
 
 describe("formatActivityDescription", () => {
@@ -103,6 +107,46 @@ describe("formatActivityDescription", () => {
       "🏔️ Hike"
     );
   });
+
+  it("appends the review line last when present", () => {
+    const out = formatActivityDescription({
+      ...FULL,
+      review: "Solid steady-state effort, right in zone despite the wind.",
+    });
+    expect(out.split("\n").at(-1)).toBe(
+      "📝 Solid steady-state effort, right in zone despite the wind."
+    );
+  });
+
+  it("omits the review line when null", () => {
+    expect(formatActivityDescription(FULL)).not.toContain("📝");
+  });
+
+  it("renders RPE and feel together", () => {
+    const out = formatActivityDescription({
+      ...FULL,
+      perceivedExertion: 6,
+      feel: "strong",
+    });
+    expect(out).toContain("💪 RPE 6/10 | felt strong");
+  });
+
+  it("renders RPE alone when feel is missing, and vice versa", () => {
+    expect(
+      formatActivityDescription({ ...FULL, perceivedExertion: 7, feel: null })
+    ).toContain("💪 RPE 7/10");
+    expect(
+      formatActivityDescription({
+        ...FULL,
+        perceivedExertion: null,
+        feel: "weak",
+      })
+    ).toContain("💪 felt weak");
+  });
+
+  it("omits the RPE line when both are null", () => {
+    expect(formatActivityDescription(FULL)).not.toContain("💪");
+  });
 });
 
 /** Every field on, with overrides — the shape the settings UI submits. */
@@ -158,6 +202,24 @@ describe("formatActivityDescription — field selection", () => {
 
   it("returns an empty string when every field is disabled", () => {
     expect(formatActivityDescription(FULL, {})).toBe("");
+  });
+
+  it("honors the review toggle", () => {
+    const withReview = { ...FULL, review: "Great effort." };
+    expect(
+      formatActivityDescription(withReview, allOn({ review: false }))
+    ).not.toContain("📝");
+    expect(formatActivityDescription(withReview, allOn())).toContain(
+      "📝 Great effort."
+    );
+  });
+
+  it("honors the rpe toggle", () => {
+    const withRpe = { ...FULL, perceivedExertion: 6, feel: "strong" as const };
+    expect(
+      formatActivityDescription(withRpe, allOn({ rpe: false }))
+    ).not.toContain("💪");
+    expect(formatActivityDescription(withRpe, allOn())).toContain("💪");
   });
 });
 
@@ -237,6 +299,38 @@ describe("metricsFromRaw", () => {
     const m = metricsFromRaw({ icu_training_load: "85" });
     expect(m.load).toBeNull();
     expect(m.vo2max).toBeNull();
+  });
+});
+
+describe("isAwaitingReview", () => {
+  it("waits while a debrief is outstanding and no review has posted", () => {
+    expect(
+      isAwaitingReview({ debriefState: "pending", reviewedAt: null })
+    ).toBe(true);
+    expect(
+      isAwaitingReview({ debriefState: "answered", reviewedAt: null })
+    ).toBe(true);
+    expect(
+      isAwaitingReview({ debriefState: "skipped", reviewedAt: null })
+    ).toBe(true);
+    expect(
+      isAwaitingReview({ debriefState: "expired", reviewedAt: null })
+    ).toBe(true);
+  });
+
+  it("clears once reviewedAt is set, regardless of debrief state", () => {
+    expect(
+      isAwaitingReview({ debriefState: "answered", reviewedAt: new Date() })
+    ).toBe(false);
+    expect(
+      isAwaitingReview({ debriefState: "pending", reviewedAt: new Date() })
+    ).toBe(false);
+  });
+
+  it("never waits for activities that were never debrief-eligible", () => {
+    expect(isAwaitingReview({ debriefState: null, reviewedAt: null })).toBe(
+      false
+    );
   });
 });
 

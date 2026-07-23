@@ -7,10 +7,10 @@ import {
 } from "./strava-description-fields";
 
 describe("ALL_DESCRIPTION_FIELDS", () => {
-  it("lists all 13 fields exactly once and never the marker", () => {
+  it("lists all 15 fields exactly once and never the marker", () => {
     const keys = ALL_DESCRIPTION_FIELDS.map((f) => f.key);
-    expect(keys).toHaveLength(13);
-    expect(new Set(keys).size).toBe(13);
+    expect(keys).toHaveLength(15);
+    expect(new Set(keys).size).toBe(15);
     expect(keys).not.toContain("marker");
   });
 

@@ -52,6 +52,11 @@ export interface DescriptionInput {
   vo2max: number | null;
   /** Pre-formatted, e.g. "594W/1m — all-time PR". Max 3 rendered. */
   prLines: string[];
+  /** Athlete's own debrief answers — never inferred, only what they gave. */
+  perceivedExertion: number | null;
+  feel: "strong" | "normal" | "weak" | null;
+  /** Short (~1 sentence) ride review summary, if one has been generated. */
+  review: string | null;
 }
 
 function num(v: unknown): number | null {
@@ -161,6 +166,20 @@ export function formatActivityDescription(
     for (const pr of input.prLines.slice(0, 3)) lines.push(`🚀 ${pr}`);
   }
 
+  if (on("rpe")) {
+    const rpe = joinSegments([
+      input.perceivedExertion != null
+        ? `RPE ${input.perceivedExertion}/10`
+        : null,
+      input.feel != null ? `felt ${input.feel}` : null,
+    ]);
+    if (rpe) lines.push(`💪 ${rpe}`);
+  }
+
+  if (on("review") && input.review) {
+    lines.push(`📝 ${input.review}`);
+  }
+
   return lines.join("\n");
 }
 
@@ -266,10 +285,14 @@ async function buildGeneratedDescription(
       sport: activity.sport,
       ...metrics,
       ftpW: metrics.ftpW ?? wellness?.eftp ?? null,
+      vo2max: metrics.vo2max ?? wellness?.vo2max ?? null,
       paceSecPerKm,
       ctl,
       tsb,
       prLines,
+      perceivedExertion: activity.perceivedExertion ?? null,
+      feel: activity.feel ?? null,
+      review: activity.reviewSummary ?? null,
     },
     fields
   );
@@ -279,7 +302,26 @@ export interface DescribeOutcome {
   wrote: boolean;
   /** The generated block only — safe for LLM context (never Strava text). */
   generated: string;
-  reason?: "no_data" | "no_strava_id" | "already_described" | "no_fields";
+  reason?:
+    | "no_data"
+    | "no_strava_id"
+    | "already_described"
+    | "no_fields"
+    | "awaiting_review";
+}
+
+/**
+ * True while the activity's debrief popup is still outstanding (or its
+ * review hasn't been generated yet). Describing early would permanently
+ * lock out the review line — MARKER makes every write after the first a
+ * no-op — so the caller must wait for reviewedAt instead of racing it.
+ * debriefState == null means the activity was never eligible for a debrief
+ * (pre-v0.15 rows, historical imports): describe those immediately.
+ */
+export function isAwaitingReview(
+  activity: Pick<ActivityRow, "debriefState" | "reviewedAt">
+): boolean {
+  return activity.debriefState != null && activity.reviewedAt == null;
 }
 
 /**
@@ -295,6 +337,9 @@ export async function describeActivityOnStrava(params: {
   if (!raw) return { wrote: false, generated: "", reason: "no_data" };
   const stravaId = stravaIdFromRaw(raw);
   if (!stravaId) return { wrote: false, generated: "", reason: "no_strava_id" };
+  if (isAwaitingReview(params.activity)) {
+    return { wrote: false, generated: "", reason: "awaiting_review" };
+  }
 
   const prefs = await db.query.notificationPrefs.findFirst({
     where: eq(schema.notificationPrefs.userId, params.userId),
@@ -342,6 +387,9 @@ export const SAMPLE_PREVIEW_INPUT: DescriptionInput = {
   ftpW: 288,
   vo2max: 54.1,
   prLines: ["594W/1m — all-time PR"],
+  perceivedExertion: 6,
+  feel: "strong",
+  review: "Solid steady-state effort, right in zone despite the wind.",
 };
 
 /**
@@ -381,8 +429,79 @@ export interface AutoDescribeResult {
 }
 
 /**
+ * Auth failures disable stravaWriteEnabled so we stop hammering Strava every
+ * sync (settings re-shows the reconnect banner); any other error is just
+ * logged and skipped. Returns true when the caller should stop further
+ * attempts for this user (auth is dead until they reconnect).
+ */
+async function handleDescribeError(
+  err: unknown,
+  userId: string,
+  connectionId: string,
+  activityId: string
+): Promise<boolean> {
+  if (err instanceof StravaError && err.code === "auth") {
+    await db
+      .update(schema.connections)
+      .set({ stravaWriteEnabled: false, lastError: err.message })
+      .where(eq(schema.connections.id, connectionId));
+    logger.warn("strava write disabled after auth failure", { userId });
+    return true;
+  }
+  logger.error("auto-describe activity failed", {
+    userId,
+    activityId,
+    message: err instanceof Error ? err.message : String(err),
+  });
+  return false;
+}
+
+/**
+ * Describe a single activity right after its debrief resolves (review
+ * posted, skipped, or expired) — called from generateRideReview/race debrief
+ * so the Strava write lands within moments of the review being ready,
+ * instead of waiting for the next daily sweep. No-ops quietly when the user
+ * hasn't opted in, has no write-enabled connection, or the activity isn't an
+ * intervals.icu one; describeActivityOnStrava's own awaiting_review guard
+ * still applies, so this is safe to call speculatively.
+ */
+export async function describeActivityOnStravaForUser(
+  userId: string,
+  activityId: string
+): Promise<void> {
+  const prefs = await db.query.notificationPrefs.findFirst({
+    where: eq(schema.notificationPrefs.userId, userId),
+  });
+  if (!prefs?.autoDescribeStrava) return;
+
+  const connection = await db.query.connections.findFirst({
+    where: and(
+      eq(schema.connections.userId, userId),
+      eq(schema.connections.provider, "strava"),
+      eq(schema.connections.status, "active")
+    ),
+  });
+  if (!connection || !connection.stravaWriteEnabled) return;
+
+  const activity = await db.query.activities.findFirst({
+    where: eq(schema.activities.id, activityId),
+  });
+  if (!activity || activity.provider !== "intervals_icu") return;
+
+  try {
+    const accessToken = await getValidStravaAccessToken(connection);
+    await describeActivityOnStrava({ userId, activity, accessToken });
+  } catch (err) {
+    await handleDescribeError(err, userId, connection.id, activityId);
+  }
+}
+
+/**
  * Post-sync hook: describe recent intervals.icu activities on Strava for
- * an opted-in user with a write-enabled Strava connection.
+ * an opted-in user with a write-enabled Strava connection. Catch-up sweep —
+ * describeActivityOnStravaForUser already covers the common case of "review
+ * just resolved", so this mainly picks up activities that were still
+ * awaiting_review, had write scope off, or errored earlier.
  */
 export async function runAutoDescribeStrava(
   userId: string
@@ -432,22 +551,14 @@ export async function runAutoDescribeStrava(
       if (outcome.wrote) written++;
       else skipped++;
     } catch (err) {
-      if (err instanceof StravaError && err.code === "auth") {
-        // Token lacks activity:write (or was revoked): disable and stop so
-        // we don't hammer Strava every sync; settings re-shows the banner.
-        await db
-          .update(schema.connections)
-          .set({ stravaWriteEnabled: false, lastError: err.message })
-          .where(eq(schema.connections.id, connection.id));
-        logger.warn("strava write disabled after auth failure", { userId });
-        break;
-      }
-      skipped++;
-      logger.error("auto-describe activity failed", {
+      const authFailed = await handleDescribeError(
+        err,
         userId,
-        activityId: activity.id,
-        message: err instanceof Error ? err.message : String(err),
-      });
+        connection.id,
+        activity.id
+      );
+      skipped++;
+      if (authFailed) break;
     }
   }
 
