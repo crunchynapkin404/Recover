@@ -290,6 +290,7 @@ export async function exportUserData(
       provider: a.provider,
       externalId: a.externalId,
       startDate: a.startDate,
+      startDateLocal: a.startDateLocal,
       sport: a.sport,
       name: a.name,
       durationS: a.durationS,
