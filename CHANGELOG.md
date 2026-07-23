@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.23.1 — 2026-07-23 — Coach Composer & History
+
+Follow-up to v0.23.0's inbox. The composer was `fixed left-0 w-full`, so
+it could slide under the desktop sidebar or sit off-center; it now lives
+in normal flow (`h-svh` column: header → scrollable messages →
+composer), so it can't drift regardless of viewport width.
+
+- **Chat|Inbox segments, the Chat History and Quick Context
+  collapsibles, and the pill row above the composer are gone.**
+  Suggestions now show only on an empty chat (max 3), and clicking one
+  sends it immediately instead of just filling the input.
+- **Inbox merges into one History surface**: "From your coach"
+  (system-thread messages, unread dots, kind tiles) above "Chats" — a
+  bottom sheet on mobile, a dropdown from the thread-title button on
+  desktop. `/coach?tab=inbox` now redirects to `/coach`.
+- Input is now an auto-growing textarea (Enter sends, Shift+Enter
+  newlines) instead of a single-line field.
+
 ## v0.23.0 — 2026-07-23 — IA & Navigation Redesign
 
 Every route gets a job, duplicated modules get one home, and the nav is
