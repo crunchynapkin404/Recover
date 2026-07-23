@@ -51,7 +51,42 @@ export function buildMorningPayload(m: MorningMetricsInput): PushPayload {
     title: `Readiness ${Math.round(m.readiness)} · ${band}`,
     body,
     tag: "morning-readiness",
-    url: "/",
+    // Deep-links into the open check-in sheet (1h): the point of the morning
+    // push is the sixty seconds it asks for, not the dashboard.
+    url: "/?sheet=checkin",
+  };
+}
+
+export interface DebriefPushInput {
+  activityId: string;
+  activityName: string;
+  durationS: number | null;
+  load: number | null;
+}
+
+/** "1:15" — same compact clock the debrief sheet shows. */
+function clock(secs: number): string {
+  const h = Math.floor(secs / 3600);
+  const m = Math.round((secs % 3600) / 60);
+  return `${h}:${String(m).padStart(2, "0")}`;
+}
+
+/**
+ * Post-ride debrief push (1i). Carries the numbers the ride already has so
+ * the athlete can answer from the notification's own context, and opens the
+ * debrief sheet directly rather than the activity page.
+ */
+export function buildDebriefPayload(a: DebriefPushInput): PushPayload {
+  const facts = [
+    a.durationS != null ? clock(a.durationS) : null,
+    a.load != null ? `load ${Math.round(a.load)}` : null,
+  ].filter(Boolean);
+  const detail = facts.length > 0 ? ` · ${facts.join(" · ")}` : "";
+  return {
+    title: "Ride synced — how did it go?",
+    body: `${a.activityName}${detail}. How did it feel?`,
+    tag: "ride-debrief",
+    url: `/?sheet=debrief&activity=${a.activityId}`,
   };
 }
 

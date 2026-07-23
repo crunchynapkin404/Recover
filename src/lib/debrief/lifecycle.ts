@@ -140,13 +140,16 @@ export async function runDebriefLifecycle(
 
     if (prefs?.debriefPushEnabled) {
       try {
-        const { sendToUser } = await import("@/lib/push");
-        await sendToUser(userId, {
-          title: "Ride synced — how did it go?",
-          body: next.name ?? next.sport,
-          tag: "ride-debrief",
-          url: `/activity/${next.id}`,
-        });
+        const { sendToUser, buildDebriefPayload } = await import("@/lib/push");
+        await sendToUser(
+          userId,
+          buildDebriefPayload({
+            activityId: next.id,
+            activityName: next.name ?? next.sport,
+            durationS: next.durationS,
+            load: next.load,
+          })
+        );
       } catch (err) {
         logger.warn("debrief push failed", {
           userId,

@@ -25,6 +25,7 @@ import { SessionCard } from "@/components/today/session-card";
 import { DebriefChip } from "@/components/today/debrief-chip";
 import { RaceChip } from "@/components/today/race-chip";
 import { CoachBrief } from "@/components/today/coach-brief";
+import { SheetHost } from "@/components/today/sheet-host";
 
 function daysAgo(n: number): string {
   const d = new Date();
@@ -65,8 +66,15 @@ function fmtSleepDebt(debtSecs: number): string {
   return `debt ${(mins / 60).toFixed(1)}h · 14d`;
 }
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ sheet?: string; activity?: string }>;
+}) {
   const user = await requireUser();
+  // Sheet state lives in the URL so the morning and post-ride pushes can
+  // deep-link straight into an open sheet, and Back closes it.
+  const { sheet, activity: sheetActivity } = await searchParams;
 
   const connection = await db.query.connections.findFirst({
     where: and(
@@ -384,22 +392,30 @@ export default async function DashboardPage() {
                 {greetingLine()}
               </h1>
             </div>
-            <Link
-              href="/settings"
-              aria-label="Menu"
-              className="glass flex size-9 shrink-0 items-center justify-center rounded-full"
-            >
-              {initial ? (
-                <span
-                  aria-hidden
-                  className="text-[13px] font-bold text-white/80"
-                >
-                  {initial}
-                </span>
-              ) : (
-                <User className="size-5 text-white/80" strokeWidth={1.5} />
-              )}
-            </Link>
+            <div className="flex shrink-0 items-center gap-2">
+              <Link
+                href="/?sheet=checkin"
+                className="rounded-full bg-emerald-500/10 px-3 py-1.5 text-[10.5px] font-bold text-emerald-400 transition-colors hover:bg-emerald-500/20"
+              >
+                Check in
+              </Link>
+              <Link
+                href="/settings"
+                aria-label="Menu"
+                className="glass flex size-9 shrink-0 items-center justify-center rounded-full"
+              >
+                {initial ? (
+                  <span
+                    aria-hidden
+                    className="text-[13px] font-bold text-white/80"
+                  >
+                    {initial}
+                  </span>
+                ) : (
+                  <User className="size-5 text-white/80" strokeWidth={1.5} />
+                )}
+              </Link>
+            </div>
           </header>
 
           {/* ── Hero (the only glass mega-card) ─────────────────────── */}
@@ -452,6 +468,14 @@ export default async function DashboardPage() {
           )}
         </div>
       </PullToRefresh>
+
+      <SheetHost
+        userId={user.id}
+        sheet={sheet}
+        activityId={sheetActivity}
+        closeHref="/"
+        todayYmd={todayYmd}
+      />
     </AppShell>
   );
 }

@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Ghost, Mic, MicOff, MessageCircle, Plus, Send } from "lucide-react";
 import { ArtifactCard } from "./artifact-card";
+import { useDictation } from "@/lib/use-dictation";
 import {
   Collapsible,
   CollapsibleTrigger,
@@ -43,28 +44,6 @@ const QUICK_CONTEXT_PROMPTS = [
   "Recovery Plan",
   "Next Race",
 ] as const;
-
-// ── v0.15 voice input — Web Speech API, dictation only (never auto-sends).
-type SpeechRecognitionLike = {
-  lang: string;
-  continuous: boolean;
-  interimResults: boolean;
-  onresult:
-    | ((e: {
-        resultIndex: number;
-        results: ArrayLike<{ 0: { transcript: string }; isFinal: boolean }>;
-      }) => void)
-    | null;
-  onend: (() => void) | null;
-  onerror: (() => void) | null;
-  start(): void;
-  stop(): void;
-};
-const SpeechRecognitionCtor =
-  typeof window !== "undefined"
-    ? ((window as unknown as Record<string, unknown>).SpeechRecognition ??
-      (window as unknown as Record<string, unknown>).webkitSpeechRecognition)
-    : undefined;
 
 export function ChatInterface({
   configured,
@@ -140,51 +119,22 @@ export function ChatInterface({
   );
 
   // ── v0.15 voice input — Web Speech API, dictation only (never auto-sends).
-  const [dictating, setDictating] = useState(false);
   const [showDictationHint, setShowDictationHint] = useState(false);
-  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const dictation = useDictation((chunk) =>
+    setInput((prev) => (prev ? prev + " " : "") + chunk)
+  );
 
+  /** Wraps the shared hook to show the one-time processing hint. */
   const toggleDictation = useCallback(() => {
-    if (!SpeechRecognitionCtor) return;
-    if (dictating) {
-      recognitionRef.current?.stop();
-      return; // onend flips state
-    }
-    if (!localStorage.getItem("recover-dictation-hint")) {
+    if (
+      !dictation.dictating &&
+      !localStorage.getItem("recover-dictation-hint")
+    ) {
       localStorage.setItem("recover-dictation-hint", "1");
       setShowDictationHint(true);
     }
-    const rec = new (
-      SpeechRecognitionCtor as new () => SpeechRecognitionLike
-    )();
-    rec.lang = navigator.language;
-    rec.continuous = true;
-    rec.interimResults = true;
-    rec.onresult = (e) => {
-      let finalText = "";
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const r = e.results[i];
-        if (r.isFinal) finalText += r[0].transcript;
-      }
-      if (finalText)
-        setInput((prev) => (prev ? prev + " " : "") + finalText.trim());
-    };
-    rec.onend = () => setDictating(false);
-    rec.onerror = () => setDictating(false);
-    recognitionRef.current = rec;
-    rec.start();
-    setDictating(true);
-  }, [dictating]);
-
-  // Stop any live recognition instance on unmount — otherwise the browser's
-  // SpeechRecognition object (kept alive by its own event-handler closures,
-  // not React's lifecycle) can keep listening after the athlete navigates
-  // away, since continuous:true means it never stops on its own.
-  useEffect(() => {
-    return () => {
-      recognitionRef.current?.stop();
-    };
-  }, []);
+    dictation.toggle();
+  }, [dictation]);
 
   const fetchThreadMessages = useCallback(
     async (threadId: string) => {
@@ -511,19 +461,21 @@ export function ChatInterface({
               </button>
             ))}
           </div>
-          {SpeechRecognitionCtor != null && (
+          {dictation.supported && (
             <button
               type="button"
               onClick={toggleDictation}
-              aria-pressed={dictating}
-              aria-label={dictating ? "Stop dictation" : "Dictate a message"}
+              aria-pressed={dictation.dictating}
+              aria-label={
+                dictation.dictating ? "Stop dictation" : "Dictate a message"
+              }
               className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors ${
-                dictating
+                dictation.dictating
                   ? "bg-red-500/20 text-red-400"
                   : "bg-white/5 text-white/50"
               }`}
             >
-              {dictating ? (
+              {dictation.dictating ? (
                 <MicOff className="size-4" />
               ) : (
                 <Mic className="size-4" />
