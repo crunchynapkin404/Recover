@@ -46,6 +46,9 @@ export interface IntervalsWellnessDay {
 export interface IntervalsActivity {
   externalId: string;
   startDate: Date;
+  /** Athlete's local wall-clock time, for day/hour bucketing — null only
+   *  if intervals.icu omitted start_date_local entirely (not observed). */
+  startDateLocal: Date | null;
   sport: string;
   name: string | null;
   durationS: number | null;
@@ -191,13 +194,22 @@ export async function fetchActivities(params: {
   const out: IntervalsActivity[] = [];
   for (const row of rows) {
     const externalId = str(row.id) ?? (row.id != null ? String(row.id) : null);
-    const start = str(row.start_date_local) ?? str(row.start_date);
+    const localStr = str(row.start_date_local);
+    const utcStr = str(row.start_date);
+    // True UTC preferred; local-as-UTC parse is a last resort (only hit by
+    // the intervals.icu Strava-stub payload, which omits start_date — see
+    // docs/specs/2026-07-23-activity-timezone-fix-design.md).
+    const start = utcStr ?? localStr;
     if (!externalId || !start) continue;
     const startDate = new Date(start);
     if (Number.isNaN(startDate.getTime())) continue;
+    const localParsed = localStr ? new Date(localStr) : null;
+    const startDateLocal =
+      localParsed && !Number.isNaN(localParsed.getTime()) ? localParsed : null;
     out.push({
       externalId,
       startDate,
+      startDateLocal,
       sport: str(row.type) ?? "Workout",
       name: str(row.name),
       durationS: num(row.moving_time) ?? num(row.elapsed_time),
