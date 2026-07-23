@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.25.0 — 2026-07-23 — Strava-Triggered Intervals Sync
+
+intervals.icu has no webhooks, so a new ride only ever showed up after the
+daily 5am sync, the 15-min ride-debrief poll, or a manual "Sync now" click
+— nothing pushed a fresh ride to an open dashboard tab.
+
+- **New `/api/webhooks/strava` endpoint.** Strava does support push
+  subscriptions; on an activity-create event we now schedule an
+  intervals.icu catch-up sync ~90s later (giving intervals.icu's own
+  Strava ingestion a head start) instead of waiting on the poll or daily
+  sync. intervals.icu stays the ride source of truth — Strava rows are
+  still excluded from every AI/MCP surface, unchanged.
+- **The sync chip now polls `/api/sync/status` every 45s** and refreshes
+  the dashboard when a background or webhook-triggered sync lands, so a
+  new ride shows up without a manual reload.
+- New `STRAVA_WEBHOOK_VERIFY_TOKEN` env var; one-time subscription
+  registration `curl` documented in the webhook route's file header.
+
 ## v0.24.0 — 2026-07-23 — Strava Auto-Describe Fixes & Fields
 
 VO2max was effectively always blank on Strava descriptions — it only ever
