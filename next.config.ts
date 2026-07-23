@@ -32,6 +32,15 @@ const nextConfig: NextConfig = {
   async headers() {
     return [{ source: "/(.*)", headers: SECURITY_HEADERS }];
   },
+  // Retired routes from the Option B IA. These are framework-level 308s so an
+  // old bookmark, push deep-link or coach-authored link resolves before any
+  // page renders — a redirect() inside a page component would answer the
+  // document request with a 200 and a client-side hop instead.
+  async redirects() {
+    return [
+      { source: "/plan", destination: "/train?tab=week", permanent: true },
+    ];
+  },
 };
 
 export default nextConfig;

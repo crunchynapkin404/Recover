@@ -20,8 +20,20 @@ function polyline(
   return pts.join(" ");
 }
 
-/** CTL (solid blue), ATL (dashed red), TSB (emerald area vs zero line). */
-export function PmcChart({ wellness }: { wellness: Day[] }) {
+/**
+ * CTL (solid blue), ATL (dashed red), TSB (emerald area vs zero line).
+ *
+ * `showStats` prints today's three values under the chart. Train's Fitness
+ * segment turns it off because its stat tiles above the chart already carry
+ * those exact numbers — the same value twice on one screen is clutter.
+ */
+export function PmcChart({
+  wellness,
+  showStats = true,
+}: {
+  wellness: Day[];
+  showStats?: boolean;
+}) {
   const ctl = wellness.map((w) => w.ctl);
   const atl = wellness.map((w) => w.atl);
   const tsb = wellness.map((w) =>
@@ -96,11 +108,13 @@ export function PmcChart({ wellness }: { wellness: Day[] }) {
           vectorEffect="non-scaling-stroke"
         />
       </svg>
-      <div className="mt-4 flex justify-around border-t border-white/5 pt-4 text-center">
-        <Stat color="text-blue-400" label="CTL" value={latest?.ctl} />
-        <Stat color="text-red-400" label="ATL" value={latest?.atl} />
-        <Stat color="text-emerald-400" label="TSB" value={latestTsb} />
-      </div>
+      {showStats && (
+        <div className="mt-4 flex justify-around border-t border-white/5 pt-4 text-center">
+          <Stat color="text-blue-400" label="CTL" value={latest?.ctl} />
+          <Stat color="text-red-400" label="ATL" value={latest?.atl} />
+          <Stat color="text-emerald-400" label="TSB" value={latestTsb} />
+        </div>
+      )}
     </div>
   );
 }

@@ -95,7 +95,7 @@ export function RaceCountdownCard({
         {outlook?.kind === "no_plan" && (
           <p className="text-white/50">
             No plan targets this race.{" "}
-            <Link href="/plan" className="underline text-white/70">
+            <Link href="/train?tab=week" className="underline text-white/70">
               Plan it
             </Link>
           </p>

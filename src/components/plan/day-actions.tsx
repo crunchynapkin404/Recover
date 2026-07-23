@@ -36,6 +36,13 @@ export function friendlyPlanError(code: string | null | undefined): string {
   return PLAN_ERROR_MESSAGES[code] ?? "Could not apply the change.";
 }
 
+/** "2026-07-24" → "Fri" — target days are always inside the open week. */
+function dayName(ymd: string): string {
+  return new Date(ymd + "T00:00:00").toLocaleDateString("en-US", {
+    weekday: "short",
+  });
+}
+
 interface Preview {
   insufficient: boolean;
   anchorRace: string | null;
@@ -170,7 +177,7 @@ export function DayActions({ day, otherDays }: Props) {
             value={action}
             aria-label="Plan change"
             onChange={(e) => changeAction(e.target.value as Action)}
-            className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-[11px] text-white/70 focus:border-white/30 focus:outline-none"
+            className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-[11px] font-bold text-white/80 focus:border-white/30 focus:outline-none"
           >
             <option value="move">Move</option>
             <option value="swap">Swap</option>
@@ -181,23 +188,30 @@ export function DayActions({ day, otherDays }: Props) {
               value={target}
               aria-label="Target day"
               onChange={(e) => setTarget(e.target.value)}
-              className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-[11px] text-white/70 focus:border-white/30 focus:outline-none"
+              className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-[11px] text-white/70 focus:border-white/30 focus:outline-none"
             >
               <option value="">Target day…</option>
               {targets.map((t) => (
                 <option key={t.date} value={t.date}>
-                  {t.date}
+                  {dayName(t.date)}
                 </option>
               ))}
             </select>
           )}
+          {/* The projection *is* the mockup's violet "What if?" — same
+              previewPlanChange call, named for what it answers. */}
           <button
             type="button"
             disabled={pending || (needsTarget && target === "")}
             onClick={runPreview}
-            className="rounded-lg bg-white/10 px-3 py-1 text-[11px] font-bold text-white/80 disabled:opacity-40"
+            className="rounded-full border px-3 py-1 text-[11px] font-bold disabled:opacity-40"
+            style={{
+              background: "rgba(139,92,246,0.1)",
+              borderColor: "rgba(139,92,246,0.3)",
+              color: "#a78bfa",
+            }}
           >
-            Preview
+            What if?
           </button>
           {error && <span className="text-[11px] text-red-400">{error}</span>}
         </div>

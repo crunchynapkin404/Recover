@@ -118,7 +118,7 @@ describe("DayActions error rendering (interaction)", () => {
     previewMock.mockResolvedValue({ ok: false, error: "no_open_week" });
     renderComponent();
 
-    // "skip" needs no target day, so we can go straight to Preview.
+    // "skip" needs no target day, so we can go straight to the projection.
     const actionSelect = container.querySelector(
       'select[aria-label="Plan change"]'
     ) as HTMLSelectElement;
@@ -128,7 +128,7 @@ describe("DayActions error rendering (interaction)", () => {
     });
 
     await act(async () => {
-      click(findButtonByText("Preview"));
+      click(findButtonByText("What if?"));
       await Promise.resolve();
       await Promise.resolve();
     });
@@ -163,7 +163,7 @@ describe("DayActions error rendering (interaction)", () => {
     });
 
     await act(async () => {
-      click(findButtonByText("Preview"));
+      click(findButtonByText("What if?"));
       await Promise.resolve();
       await Promise.resolve();
     });

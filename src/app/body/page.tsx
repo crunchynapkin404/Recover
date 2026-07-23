@@ -10,7 +10,7 @@ const TABS = [
   {
     key: "trends",
     label: "Trends",
-    href: "/log",
+    href: "/log?view=week",
     cta: "current trends",
     blurb: "HRV & RHR against your own baseline bands.",
   },

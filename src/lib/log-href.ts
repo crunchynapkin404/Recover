@@ -36,3 +36,39 @@ export function buildLogHref(
   if (s) q.set("sport", s);
   return `/log?${q.toString()}`;
 }
+
+export type TrainTab = "week" | "history" | "fitness";
+
+export const TRAIN_TABS: TrainTab[] = ["week", "history", "fitness"];
+
+export const TRAIN_DEFAULTS = { view: "week", range: 90 } as const;
+
+export type TrainFilterState = LogFilterState & { tab: TrainTab };
+
+export type TrainHrefOverride = LogHrefOverride & { tab?: TrainTab };
+
+export type TrainHref = (over: TrainHrefOverride) => string;
+
+/**
+ * Builds a /train URL. Same contract as buildLogHref — changing one axis
+ * never drops the others — with the segment (tab) as a fourth axis, so
+ * flipping Week → Fitness → History round-trips back to the sport filter
+ * and month the athlete had chosen. Defaults are omitted to keep the URL
+ * readable; "" clears the sport filter.
+ */
+export function buildTrainHref(
+  current: TrainFilterState,
+  over: TrainHrefOverride
+): string {
+  const t = over.tab !== undefined ? over.tab : current.tab;
+  const v = over.view !== undefined ? over.view : current.view;
+  const m = over.month !== undefined ? over.month : current.month;
+  const r = over.range !== undefined ? over.range : current.range;
+  const s = over.sport !== undefined ? over.sport : current.sport;
+  const q = new URLSearchParams({ tab: t });
+  if (v !== TRAIN_DEFAULTS.view) q.set("view", v);
+  if (v === "month") q.set("month", m);
+  if (r !== TRAIN_DEFAULTS.range) q.set("range", String(r));
+  if (s) q.set("sport", s);
+  return `/train?${q.toString()}`;
+}

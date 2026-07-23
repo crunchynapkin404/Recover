@@ -17,6 +17,11 @@ export interface RaceListItem {
 
 interface Props {
   races: RaceListItem[];
+  /**
+   * Drops the section's own "Races" label. Train's Week segment nests this
+   * under a disclosure whose trigger already says it.
+   */
+  hideHeading?: boolean;
 }
 
 // Repo avoids blue/indigo for accents — A races get the same fuchsia the
@@ -33,7 +38,7 @@ const STATUS_LABEL: Record<RaceStatus, string> = {
   skipped: "Skipped",
 };
 
-export function RacesSection({ races }: Props) {
+export function RacesSection({ races, hideHeading = false }: Props) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const detailsRef = useRef<HTMLDetailsElement>(null);
@@ -72,7 +77,7 @@ export function RacesSection({ races }: Props) {
 
   return (
     <section className="mb-10">
-      <p className="label-micro mb-3">Races</p>
+      {!hideHeading && <p className="label-micro mb-3">Races</p>}
 
       {races.length === 0 ? (
         <div className="glass mb-4 rounded-2xl p-5">
