@@ -225,7 +225,7 @@ export default async function DashboardPage() {
                 </span>
               </Link>
               <Link
-                href="/journal"
+                href="/body?tab=journal"
                 className="flex w-full flex-col rounded-2xl border border-white/10 px-5 py-3 transition-all hover:bg-white/5"
               >
                 <span className="font-bold text-white/80">Log manually</span>

@@ -16,7 +16,7 @@ export function BehaviorTags() {
       <div className="mb-5 flex items-center justify-between">
         <span className="label-micro">Yesterday&apos;s Behaviors</span>
         <Link
-          href="/journal"
+          href="/body?tab=journal"
           className="text-[11px] font-bold uppercase text-emerald-400"
         >
           + Log
@@ -26,7 +26,7 @@ export function BehaviorTags() {
         {TAGS.map((tag) => (
           <Link
             key={tag.label}
-            href="/journal"
+            href="/body?tab=journal"
             className="glass flex items-center gap-2 rounded-full border-white/10 px-4 py-2 transition-transform active:scale-95"
           >
             <span className="text-xs">{tag.emoji}</span>

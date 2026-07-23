@@ -1,5 +1,9 @@
 "use server";
 
+// Retired route (Option B IA): the page moved to /body?tab=labs and
+// next.config.ts redirects the old URL. These server actions stay put —
+// the forms that call them are mounted by Body now.
+
 import { revalidatePath } from "next/cache";
 import { db, schema } from "@/lib/db";
 import { requireUser } from "@/lib/session";
@@ -132,7 +136,7 @@ export async function saveBiomarkers(
       });
   }
 
-  revalidatePath("/health");
+  revalidatePath("/body");
   return {
     ok: true,
     message: `Saved ${clean.length} biomarkers.`,
@@ -176,7 +180,7 @@ export async function saveBloodPressure(
       target: [schema.wellnessDaily.userId, schema.wellnessDaily.date],
       set: { systolic, diastolic },
     });
-  revalidatePath("/health");
+  revalidatePath("/body");
   revalidatePath("/");
   return { ok: true, message: "Blood pressure saved." };
 }
@@ -197,7 +201,7 @@ export async function setBirthYear(
       target: schema.bodyPrefs.userId,
       set: { birthYear: year },
     });
-  revalidatePath("/health");
+  revalidatePath("/body");
   revalidatePath("/");
   return {
     ok: true,

@@ -1,5 +1,9 @@
 "use server";
 
+// Retired route (Option B IA): the page moved to /body?tab=journal and
+// next.config.ts redirects the old URL. These server actions stay put —
+// the forms that call them are mounted by Body now.
+
 import { revalidatePath } from "next/cache";
 import { db, schema } from "@/lib/db";
 import { requireUser } from "@/lib/session";
@@ -37,6 +41,6 @@ export async function setUsualBehaviorTags(
       set: { usualBehaviorTags: clean },
     });
 
-  revalidatePath("/journal");
+  revalidatePath("/body");
   return { ok: true };
 }

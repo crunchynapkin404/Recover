@@ -49,7 +49,7 @@ export default async function ActivityPage({
     <AppShell>
       <header className="mb-8 pt-8">
         <Link
-          href="/log"
+          href="/train?tab=history"
           className="mb-4 inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-white/50"
         >
           <ArrowLeft className="size-3" /> Performance

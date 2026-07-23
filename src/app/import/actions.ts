@@ -62,7 +62,7 @@ export async function importWellnessCSV(
   }
 
   revalidatePath("/");
-  revalidatePath("/journal");
+  revalidatePath("/body");
   return {
     ok: true,
     message: `Imported ${imported} of ${rows.length} wellness entries.`,
@@ -129,7 +129,7 @@ export async function importActivityCSV(
   }
 
   revalidatePath("/");
-  revalidatePath("/log");
+  revalidatePath("/train");
   return {
     ok: true,
     message: `Imported ${imported} of ${rows.length} activities.`,

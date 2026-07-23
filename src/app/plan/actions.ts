@@ -28,7 +28,7 @@ import type { IntakeState } from "@/components/plan/intake-form";
 export async function startWeek(): Promise<void> {
   const user = await requireUser();
   await rolloverWeekPlan(user.id);
-  revalidatePath("/plan");
+  revalidatePath("/train");
   revalidatePath("/");
 }
 
@@ -47,7 +47,7 @@ export async function submitAvailability(
   }
 
   const result = await applyAvailability(user.id, mins);
-  revalidatePath("/plan");
+  revalidatePath("/train");
   revalidatePath("/");
   return {
     message:
@@ -75,7 +75,7 @@ export async function addRace(input: {
     goalNote: input.goalNote ?? null,
   });
   if ("error" in result) return { ok: false, error: result.error };
-  revalidatePath("/plan");
+  revalidatePath("/train");
   revalidatePath("/");
   return { ok: true };
 }
@@ -83,7 +83,7 @@ export async function addRace(input: {
 export async function removeRace(id: string): Promise<void> {
   const user = await requireUser();
   await deleteRace(user.id, id);
-  revalidatePath("/plan");
+  revalidatePath("/train");
   revalidatePath("/");
 }
 
@@ -93,7 +93,7 @@ export async function setRaceStatus(
 ): Promise<void> {
   const user = await requireUser();
   await updateRace(user.id, id, { status });
-  revalidatePath("/plan");
+  revalidatePath("/train");
   revalidatePath("/");
 }
 
@@ -167,7 +167,7 @@ export async function applyPlanChange(input: {
       : await swapWorkouts(user.id, input.fromDate, input.toDate);
 
   if (result === "moved" || result === "swapped") {
-    revalidatePath("/plan");
+    revalidatePath("/train");
     revalidatePath("/");
     return { ok: true };
   }

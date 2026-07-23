@@ -52,7 +52,7 @@ export async function logActivity(
       elevationM: input.elevationM,
     });
     revalidatePath("/");
-    revalidatePath("/log");
+    revalidatePath("/train");
     return { ok: true, message: "Activity logged!" };
   } catch {
     return { ok: false, message: "Failed to save activity." };

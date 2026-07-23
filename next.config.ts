@@ -39,6 +39,9 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [
       { source: "/plan", destination: "/train?tab=week", permanent: true },
+      { source: "/log", destination: "/train?tab=history", permanent: true },
+      { source: "/journal", destination: "/body?tab=journal", permanent: true },
+      { source: "/health", destination: "/body?tab=labs", permanent: true },
     ];
   },
 };

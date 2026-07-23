@@ -106,6 +106,6 @@ export async function logWellness(
   }
 
   revalidatePath("/");
-  revalidatePath("/journal");
+  revalidatePath("/body");
   return { ok: true, message: `Saved ${input.date}. Readiness recomputed.` };
 }

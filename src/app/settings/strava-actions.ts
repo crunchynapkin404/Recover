@@ -19,7 +19,7 @@ export async function stravaSyncNow(): Promise<ActionResult> {
   try {
     const result = await runStravaSync(user.id);
     revalidatePath("/settings");
-    revalidatePath("/log");
+    revalidatePath("/train");
     return {
       ok: true,
       message: `Synced ${result.activities} activities (since ${result.windowStart}).`,

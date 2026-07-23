@@ -37,11 +37,33 @@ export function buildLogHref(
   return `/log?${q.toString()}`;
 }
 
+export const TRAIN_DEFAULTS = { view: "week", range: 90 } as const;
+
+export type BodyTab = "trends" | "sleep" | "journal" | "labs";
+
+export const BODY_TABS: BodyTab[] = ["trends", "sleep", "journal", "labs"];
+
+export type BodyHref = (over: { tab?: BodyTab; range?: number }) => string;
+
+/**
+ * Builds a /body URL. Body has two axes — the segment and the trend range —
+ * and the same rule as everywhere else: changing one keeps the other. The
+ * default range is omitted so a plain segment link stays readable.
+ */
+export function buildBodyHref(
+  current: { tab: BodyTab; range: number },
+  over: { tab?: BodyTab; range?: number }
+): string {
+  const t = over.tab !== undefined ? over.tab : current.tab;
+  const r = over.range !== undefined ? over.range : current.range;
+  const q = new URLSearchParams({ tab: t });
+  if (r !== TRAIN_DEFAULTS.range) q.set("range", String(r));
+  return `/body?${q.toString()}`;
+}
+
 export type TrainTab = "week" | "history" | "fitness";
 
 export const TRAIN_TABS: TrainTab[] = ["week", "history", "fitness"];
-
-export const TRAIN_DEFAULTS = { view: "week", range: 90 } as const;
 
 export type TrainFilterState = LogFilterState & { tab: TrainTab };
 
