@@ -3,20 +3,19 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutGrid,
-  PenLine,
-  Sparkles,
-  BookOpen,
+  Clock,
   CalendarRange,
+  Sparkles,
+  Activity,
   Settings2,
 } from "lucide-react";
 
+// Option B IA (v0.21): one home per job — Today / Train / Coach / Body / Menu.
 const NAV_ITEMS = [
-  { href: "/", label: "Home", icon: LayoutGrid },
-  { href: "/plan", label: "Plan", icon: CalendarRange },
-  { href: "/log", label: "Log", icon: PenLine },
+  { href: "/", label: "Today", icon: Clock },
+  { href: "/train", label: "Train", icon: CalendarRange },
   { href: "/coach", label: "Coach", icon: Sparkles },
-  { href: "/journal", label: "Journal", icon: BookOpen },
+  { href: "/body", label: "Body", icon: Activity },
   { href: "/settings", label: "Menu", icon: Settings2 },
 ] as const;
 

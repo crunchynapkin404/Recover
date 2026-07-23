@@ -1,0 +1,1117 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&amp;family=Geist+Mono:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#101012;font-family:'Geist',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#10b981;text-decoration:none}a:hover{color:#34d399}
+.dv-turn{padding:44px 48px 36px;border-bottom:1px solid rgba(255,255,255,0.07);scroll-margin-top:16px;background:#101012;border-radius:24px;width:fit-content;max-width:100%;box-sizing:border-box}
+.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 8px}
+.dv-tid{font:600 10px 'Geist Mono',monospace;padding:3px 8px;background:#fafafa;color:#101012;border-radius:4px;text-decoration:none}
+.dv-tname{font:700 15px/1.2 'Geist',sans-serif;color:#fafafa;letter-spacing:-0.01em}
+.dv-sub{margin:0 0 26px;font:400 12.5px/1.5 'Geist',sans-serif;color:rgba(255,255,255,0.45);max-width:720px}
+.dv-opts{display:flex;flex-wrap:wrap;gap:34px;align-items:flex-start}
+.dv-opt{flex:none;display:flex;flex-direction:column;gap:10px;scroll-margin-top:16px}
+.dv-oid{font:700 10.5px 'Geist Mono',monospace;padding:3px 8px;background:rgba(255,255,255,0.1);color:#fafafa;border-radius:5px;text-decoration:none}
+.dv-olabel{display:flex;align-items:baseline;gap:8px;font:500 11.5px/1.3 'Geist',sans-serif;color:rgba(255,255,255,0.6);max-width:390px}
+.dv-opt:target .dv-oid{background:#10b981;color:#000}
+.dv-next{margin:26px 0 0;font:12px/1.6 'Geist',sans-serif;color:rgba(255,255,255,0.45)}
+</style>
+</helmet>
+
+<section class="dv-turn" id="t3">
+<div class="dv-thd"><a class="dv-tid" href="#t3">3</a><span class="dv-tname">Desktop — <a class="dv-oid" href="#2a">2a</a> on the lg+ shell (fixed sidebar, two-column grid)</span></div>
+<p class="dv-sub">Same modules, no new content: sidebar replaces the tab bar (as in the app's existing lg+ shell), briefing column left, action column right. Train/Coach/Body reuse this shell with their own grids.</p>
+<div class="dv-opts">
+
+<div class="dv-opt" id="3a"><div class="dv-olabel"><a class="dv-oid" href="#3a">3a</a>Today — desktop 1280. Verdict + vitals left, session / chips / coach right — whole briefing above the fold.</div>
+<div style="width:1240px;background:radial-gradient(at 8% 0%,rgba(59,130,246,0.06) 0%,transparent 35%),radial-gradient(at 92% 10%,rgba(16,185,129,0.06) 0%,transparent 40%),#0a0a0a;border:1px solid rgba(255,255,255,0.12);border-radius:20px;display:flex;color:#fafafa;box-sizing:border-box;overflow:hidden">
+
+  <div style="flex:none;width:216px;border-right:1px solid rgba(255,255,255,0.05);background:rgba(10,10,10,0.5);padding:28px 16px;display:flex;flex-direction:column;gap:4px">
+    <span style="font-size:17px;font-weight:800;letter-spacing:-0.04em;color:rgba(255,255,255,0.9);padding:0 12px;margin-bottom:24px">Recover</span>
+    <span style="display:flex;align-items:center;gap:12px;border-radius:14px;padding:10px 12px;font-size:13px;font-weight:600;background:rgba(255,255,255,0.1);color:#fff"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="7"></circle><path d="M10 10l3-3"></path></svg>Today</span>
+    <span style="display:flex;align-items:center;gap:12px;border-radius:14px;padding:10px 12px;font-size:13px;font-weight:500;color:rgba(255,255,255,0.5)"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="14" height="13" rx="2"></rect><path d="M3 8h14M7 2v4M13 2v4"></path></svg>Train</span>
+    <span style="display:flex;align-items:center;gap:12px;border-radius:14px;padding:10px 12px;font-size:13px;font-weight:500;color:rgba(255,255,255,0.5)"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 3l1.8 4.2L16 9l-4.2 1.8L10 15l-1.8-4.2L4 9l4.2-1.8z"></path></svg>Coach</span>
+    <span style="display:flex;align-items:center;gap:12px;border-radius:14px;padding:10px 12px;font-size:13px;font-weight:500;color:rgba(255,255,255,0.5)"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="2,11 6,11 8,6 11,15 13,11 18,11"></polyline></svg>Body</span>
+    <span style="display:flex;align-items:center;gap:12px;border-radius:14px;padding:10px 12px;font-size:13px;font-weight:500;color:rgba(255,255,255,0.5)"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 6h12M4 10h12M4 14h12"></path></svg>Menu</span>
+    <div style="margin-top:auto;display:flex;align-items:center;gap:10px;padding:10px 12px;border-top:1px solid rgba(255,255,255,0.05)">
+      <span style="width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;font-size:11px;color:rgba(255,255,255,0.7)">B</span>
+      <div><p style="margin:0;font-size:11.5px;font-weight:600">Bart</p><p style="margin:0;font-size:9px;color:rgba(255,255,255,0.4)">owner</p></div>
+    </div>
+  </div>
+
+  <div style="flex:1;padding:32px 36px;display:flex;flex-direction:column;gap:20px;min-width:0">
+    <div style="display:flex;justify-content:space-between;align-items:flex-end">
+      <div>
+        <span style="font-size:10px;text-transform:uppercase;letter-spacing:0.2em;font-weight:700;color:rgba(255,255,255,0.4)">Tuesday, July 22</span>
+        <p style="margin:3px 0 0;font-size:26px;font-weight:700;letter-spacing:-0.03em">Good morning</p>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center">
+        <span style="display:inline-flex;align-items:center;gap:6px;border:1px solid rgba(255,255,255,0.1);border-radius:999px;padding:6px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;color:rgba(255,255,255,0.5)">⟳ Synced 12m ago</span>
+        <span style="display:inline-flex;align-items:center;gap:8px;background:#10b981;color:#000;border-radius:999px;padding:8px 16px;font-size:11.5px;font-weight:700">Check in · 60s</span>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:7fr 5fr;gap:20px;align-items:start">
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:24px;padding:24px 28px;display:flex;gap:28px;align-items:center;box-shadow:0 0 80px -30px rgba(245,158,11,0.25)">
+          <div style="position:relative;width:150px;height:150px;flex:none">
+            <svg viewBox="0 0 100 100" width="150" height="150" aria-hidden="true">
+              <g transform="rotate(-90 50 50)">
+                <circle cx="50" cy="50" r="44" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="8"></circle>
+                <circle cx="50" cy="50" r="44" fill="none" stroke="#f59e0b" stroke-width="8" stroke-linecap="round" stroke-dasharray="276" stroke-dashoffset="94"></circle>
+              </g>
+            </svg>
+            <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+              <span style="font-size:42px;font-weight:700;letter-spacing:-0.04em;color:#f59e0b;line-height:1">66</span>
+              <span style="font-size:8.5px;text-transform:uppercase;letter-spacing:0.2em;font-weight:700;color:rgba(255,255,255,0.4);margin-top:3px">Readiness</span>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;min-width:0">
+            <span style="font-size:16px;font-weight:700;color:#f59e0b">⚡ Moderate recovery · consider easy work</span>
+            <span style="font-size:13px;line-height:1.55;color:rgba(255,255,255,0.55)">HRV 64 vs 65 baseline after Saturday's long ride · resting HR steady at 47 · slept 7:12 · form −1.9</span>
+            <div style="display:flex;gap:18px;margin-top:4px">
+              <span style="font-size:12px;color:rgba(255,255,255,0.7)"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10b981;margin-right:6px"></span>Recovery <b style="color:#fff">62</b></span>
+              <span style="font-size:12px;color:rgba(255,255,255,0.7)"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#3b82f6;margin-right:6px"></span>Sleep <b style="color:#fff">82</b></span>
+              <span style="font-size:12px;color:rgba(255,255,255,0.7)"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f59e0b;margin-right:6px"></span>Strain <b style="color:#fff">71</b></span>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px">
+          <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:14px;padding:14px 16px"><p style="margin:0;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.4)">HRV</p><p style="margin:4px 0 0;font-size:22px;font-weight:700;font-family:'Geist Mono',monospace">64<span style="font-size:11px;color:rgba(255,255,255,0.4)">ms</span></p><div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:6px"><span style="font-size:10px;color:#10b981;font-weight:600">▲ 7d 63</span><svg width="52" height="16" viewBox="0 0 52 16"><polyline points="0,13 9,11 18,13 26,8 35,9 44,6 52,5" fill="none" stroke="#10b981" stroke-width="1.5"></polyline></svg></div></div>
+          <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:14px;padding:14px 16px"><p style="margin:0;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.4)">RHR</p><p style="margin:4px 0 0;font-size:22px;font-weight:700;font-family:'Geist Mono',monospace">47<span style="font-size:11px;color:rgba(255,255,255,0.4)">bpm</span></p><div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:6px"><span style="font-size:10px;color:#10b981;font-weight:600">▼ 7d 48</span><svg width="52" height="16" viewBox="0 0 52 16"><polyline points="0,5 9,6 18,5 26,8 35,9 44,10 52,11" fill="none" stroke="#10b981" stroke-width="1.5"></polyline></svg></div></div>
+          <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:14px;padding:14px 16px"><p style="margin:0;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.4)">Sleep</p><p style="margin:4px 0 0;font-size:22px;font-weight:700;font-family:'Geist Mono',monospace">7:12</p><div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:6px"><span style="font-size:10px;color:#f59e0b;font-weight:600">debt 40m</span><svg width="52" height="16" viewBox="0 0 52 16"><polyline points="0,8 9,6 18,10 26,7 35,11 44,9 52,8" fill="none" stroke="#3b82f6" stroke-width="1.5"></polyline></svg></div></div>
+          <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:14px;padding:14px 16px"><p style="margin:0;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.4)">Form · TSB</p><p style="margin:4px 0 0;font-size:22px;font-weight:700;font-family:'Geist Mono',monospace">−1.9</p><div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:6px"><span style="font-size:10px;color:rgba(255,255,255,0.45);font-weight:600">CTL 58 · ATL 60</span><svg width="52" height="16" viewBox="0 0 52 16"><polyline points="0,6 9,8 18,7 26,10 35,8 44,9 52,8" fill="none" stroke="#8b5cf6" stroke-width="1.5"></polyline></svg></div></div>
+        </div>
+
+        <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:16px 20px;display:flex;align-items:center;gap:24px">
+          <span style="font-size:10px;text-transform:uppercase;letter-spacing:0.2em;font-weight:700;color:rgba(255,255,255,0.4);flex:none">This week</span>
+          <div style="display:flex;gap:22px;flex:1">
+            <span style="display:flex;flex-direction:column;align-items:center;gap:5px"><span style="font-size:9px;font-weight:700;text-transform:uppercase;color:rgba(255,255,255,0.4)">Mo</span><span style="width:8px;height:8px;border-radius:50%;background:#34d399"></span></span>
+            <span style="display:flex;flex-direction:column;align-items:center;gap:5px"><span style="font-size:9px;font-weight:700;text-transform:uppercase;color:#fff">Tu</span><span style="width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,0.4);box-shadow:0 0 0 2px rgba(255,255,255,0.5)"></span></span>
+            <span style="display:flex;flex-direction:column;align-items:center;gap:5px"><span style="font-size:9px;font-weight:700;text-transform:uppercase;color:rgba(255,255,255,0.4)">We</span><span style="width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,0.15)"></span></span>
+            <span style="display:flex;flex-direction:column;align-items:center;gap:5px"><span style="font-size:9px;font-weight:700;text-transform:uppercase;color:rgba(255,255,255,0.4)">Th</span><span style="width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,0.4)"></span></span>
+            <span style="display:flex;flex-direction:column;align-items:center;gap:5px"><span style="font-size:9px;font-weight:700;text-transform:uppercase;color:rgba(255,255,255,0.4)">Fr</span><span style="width:8px;height:8px;border-radius:50%;background:#fbbf24"></span></span>
+            <span style="display:flex;flex-direction:column;align-items:center;gap:5px"><span style="font-size:9px;font-weight:700;text-transform:uppercase;color:rgba(255,255,255,0.4)">Sa</span><span style="width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,0.4)"></span></span>
+            <span style="display:flex;flex-direction:column;align-items:center;gap:5px"><span style="font-size:9px;font-weight:700;text-transform:uppercase;color:rgba(255,255,255,0.4)">Su</span><span style="width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,0.15)"></span></span>
+          </div>
+          <span style="font-size:11px;color:rgba(255,255,255,0.5);flex:none">8.4h of 9h target · <span style="color:#34d399;font-weight:600">on track</span> · Train →</span>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:20px;padding:18px 20px;display:flex;flex-direction:column;gap:9px">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:10px;text-transform:uppercase;letter-spacing:0.2em;font-weight:700;color:rgba(255,255,255,0.4)">Today's session</span>
+            <span style="border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);border-radius:999px;padding:3px 10px;font-size:10.5px;font-weight:700;color:rgba(255,255,255,0.8)">Tempo</span>
+          </div>
+          <div>
+            <p style="margin:0;font-size:19px;font-weight:700">Ride · 75 min</p>
+            <p style="margin:3px 0 0;font-size:12.5px;color:rgba(255,255,255,0.6)">2×20 @ 88–93% FTP, cadence 90+</p>
+          </div>
+          <p style="margin:0;font-size:11.5px;color:rgba(245,158,11,0.85);background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:8px 10px">↻ Shortened from 90 min — amber readiness this morning</p>
+          <div style="display:flex;gap:6px">
+            <span style="flex:1;text-align:center;background:#10b981;color:#000;border-radius:999px;padding:8px 0;font-size:11.5px;font-weight:700">Mark done</span>
+            <span style="flex:1;text-align:center;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:999px;padding:8px 0;font-size:11.5px;font-weight:600;color:rgba(255,255,255,0.7)">Move</span>
+            <span style="flex:1;text-align:center;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:999px;padding:8px 0;font-size:11.5px;font-weight:600;color:rgba(255,255,255,0.7)">Shrink</span>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:10px;background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.3);border-radius:14px;padding:11px 14px">
+          <span style="font-size:11.5px;color:rgba(255,255,255,0.8);flex:1">How was <b>Morning Intervals</b>?</span>
+          <span style="font-size:10.5px;font-weight:700;color:#10b981">Debrief · 30s →</span>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.04);border:1px solid rgba(232,121,249,0.25);border-radius:14px;padding:11px 14px">
+          <span style="font-size:12px">🏁</span>
+          <span style="font-size:11.5px;color:rgba(255,255,255,0.8);flex:1"><b>Gran Fondo Utrecht</b> · B race</span>
+          <span style="font-size:11px;font-weight:700;color:#e879f9">18 days · form +5 ±4</span>
+        </div>
+
+        <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:20px;padding:16px 18px;display:flex;flex-direction:column;gap:7px">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span style="display:flex;align-items:center;gap:6px;font-size:10px;text-transform:uppercase;letter-spacing:0.2em;font-weight:700;color:rgba(255,255,255,0.4)"><svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="#a78bfa" stroke-width="1.5"><path d="M10 3l1.8 4.2L16 9l-4.2 1.8L10 15l-1.8-4.2L4 9l4.2-1.8z"></path></svg>Coach</span>
+            <span style="font-size:10.5px;font-weight:700;color:#10b981">Reply →</span>
+          </div>
+          <p style="margin:0;font-size:12.5px;line-height:1.55;color:rgba(255,255,255,0.75)">HRV is a touch under baseline after Saturday's long ride. Today's tempo is trimmed, not cancelled — hold the top of Z3 and stop at two sets if legs argue.</p>
+          <p style="margin:0;font-size:10.5px;color:rgba(255,255,255,0.4);border-top:1px solid rgba(255,255,255,0.06);padding-top:7px">Inbox: weekly review (Sun) · debrief — Endurance Spin (Mon)</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div></div>
+
+</div>
+<p class="dv-next">Try next: "desktop Train / Body too" · "handoff package" (included below as a download)</p>
+</section>
+
+<section class="dv-turn" id="t2">
+<div class="dv-thd"><a class="dv-tid" href="#t2">2</a><span class="dv-tname">Final Today (<a class="dv-oid" href="#1b">1b</a> hero + <a class="dv-oid" href="#1a">1a</a> tiles &amp; session) + the remaining screens</span></div>
+<p class="dv-sub">Your picks merged into <a class="dv-oid" href="#2a">2a</a>, and the rest of the app designed to match: activity detail, Menu, and the Coach chat view.</p>
+<div class="dv-opts">
+
+<!-- ═════ 2a TODAY final ═════ -->
+<div class="dv-opt" id="2a"><div class="dv-olabel"><a class="dv-oid" href="#2a">2a</a>Today — final: compact hero, 2×2 vitals, full session card, debrief + race chips, coach brief.</div>
+<div style="width:390px;background:radial-gradient(at 10% 0%,rgba(59,130,246,0.07) 0%,transparent 40%),radial-gradient(at 90% 8%,rgba(16,185,129,0.07) 0%,transparent 45%),#0a0a0a;border:1px solid rgba(255,255,255,0.12);border-radius:34px;padding:26px 22px 14px;display:flex;flex-direction:column;gap:14px;color:#fafafa;box-sizing:border-box">
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <div style="display:flex;flex-direction:column;gap:2px">
+      <span style="font-size:9.5px;text-transform:uppercase;letter-spacing:0.2em;font-weight:700;color:rgba(255,255,255,0.4)">Tue Jul 22 · synced 12m</span>
+      <span style="font-size:21px;font-weight:700;letter-spacing:-0.03em">Good morning</span>
+    </div>
+    <span style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;font-size:12px;color:rgba(255,255,255,0.7)">B</span>
+  </div>
+
+  <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:22px;padding:16px 18px;display:flex;gap:16px;align-items:center;box-shadow:0 0 60px -20px rgba(245,158,11,0.2)">
+    <div style="position:relative;width:104px;height:104px;flex:none">
+      <svg viewBox="0 0 100 100" width="104" height="104" aria-hidden="true">
+        <g transform="rotate(-90 50 50)">
+          <circle cx="50" cy="50" r="44" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="8"></circle>
+          <circle cx="50" cy="50" r="44" fill="none" stroke="#f59e0b" stroke-width="8" stroke-linecap="round" stroke-dasharray="276" stroke-dashoffset="94"></circle>
+        </g>
+      </svg>
+      <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+        <span style="font-size:30px;font-weight:700;letter-spacing:-0.04em;color:#f59e0b;line-height:1">66</span>
+        <span style="font-size:7.5px;text-transform:uppercase;letter-spacing:0.18em;font-weight:700;color:rgba(255,255,255,0.4);margin-top:2px">Readiness</span>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:5px;min-width:0">
+      <span style="font-size:12.5px;font-weight:700;color:#f59e0b">⚡ Moderate · easy work</span>
+      <span style="font-size:11px;line-height:1.5;color:rgba(255,255,255,0.55)">HRV 64 vs 65 baseline · RHR 47 · slept 7:12 · TSB −1.9</span>
+      <div style="display:flex;gap:10px;margin-top:2px">
+        <span style="font-size:10.5px;color:rgba(255,255,255,0.7)"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#10b981;margin-right:4px"></span>Recovery 62</span>
+        <span style="font-size:10.5px;color:rgba(255,255,255,0.7)"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#3b82f6;margin-right:4px"></span>Sleep 82</span>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+    <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:12px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
+      <div><p style="margin:0;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.4)">HRV</p><p style="margin:2px 0 0;font-size:19px;font-weight:700;font-family:'Geist Mono',monospace">64<span style="font-size:10px;color:rgba(255,255,255,0.4)">ms</span></p></div>
+      <div style="text-align:right"><span style="font-size:9.5px;color:#10b981;font-weight:600">▲ 7d 63</span><svg width="42" height="14" viewBox="0 0 42 14" style="display:block;margin-top:2px"><polyline points="0,11 7,9 14,11 21,7 28,8 35,5 42,4" fill="none" stroke="#10b981" stroke-width="1.5"></polyline></svg></div>
+    </div>
+    <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:12px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
+      <div><p style="margin:0;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.4)">RHR</p><p style="margin:2px 0 0;font-size:19px;font-weight:700;font-family:'Geist Mono',monospace">47<span style="font-size:10px;color:rgba(255,255,255,0.4)">bpm</span></p></div>
+      <div style="text-align:right"><span style="font-size:9.5px;color:#10b981;font-weight:600">▼ 7d 48</span><svg width="42" height="14" viewBox="0 0 42 14" style="display:block;margin-top:2px"><polyline points="0,4 7,5 14,4 21,7 28,8 35,9 42,10" fill="none" stroke="#10b981" stroke-width="1.5"></polyline></svg></div>
+    </div>
+    <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:12px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
+      <div><p style="margin:0;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.4)">Sleep</p><p style="margin:2px 0 0;font-size:19px;font-weight:700;font-family:'Geist Mono',monospace">7:12</p></div>
+      <div style="text-align:right"><span style="font-size:9.5px;color:#f59e0b;font-weight:600">debt 40m</span><svg width="42" height="14" viewBox="0 0 42 14" style="display:block;margin-top:2px"><polyline points="0,7 7,5 14,9 21,6 28,10 35,8 42,7" fill="none" stroke="#3b82f6" stroke-width="1.5"></polyline></svg></div>
+    </div>
+    <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:12px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
+      <div><p style="margin:0;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.4)">Form · TSB</p><p style="margin:2px 0 0;font-size:19px;font-weight:700;font-family:'Geist Mono',monospace">−1.9</p></div>
+      <div style="text-align:right"><span style="font-size:9.5px;color:rgba(255,255,255,0.45);font-weight:600">CTL 58</span><svg width="42" height="14" viewBox="0 0 42 14" style="display:block;margin-top:2px"><polyline points="0,5 7,7 14,6 21,9 28,7 35,8 42,7" fill="none" stroke="#8b5cf6" stroke-width="1.5"></polyline></svg></div>
+    </div>
+  </div>
+
+  <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:20px;padding:16px 18px;display:flex;flex-direction:column;gap:8px">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:10px;text-transform:uppercase;letter-spacing:0.2em;font-weight:700;color:rgba(255,255,255,0.4)">Today's session</span>
+      <span style="border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);border-radius:999px;padding:3px 10px;font-size:10.5px;font-weight:700;color:rgba(255,255,255,0.8)">Tempo</span>
+    </div>
+    <div>
+      <p style="margin:0;font-size:18px;font-weight:700">Ride · 75 min</p>
+      <p style="margin:3px 0 0;font-size:12.5px;color:rgba(255,255,255,0.6)">2×20 @ 88–93% FTP, cadence 90+</p>
+    </div>
+    <p style="margin:0;font-size:11.5px;color:rgba(245,158,11,0.85);background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:8px 10px">↻ Shortened from 90 min — amber readiness this morning</p>
+    <div style="display:flex;gap:6px">
+      <span style="flex:1;text-align:center;background:#10b981;color:#000;border-radius:999px;padding:8px 0;font-size:11.5px;font-weight:700">Mark done</span>
+      <span style="flex:1;text-align:center;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:999px;padding:8px 0;font-size:11.5px;font-weight:600;color:rgba(255,255,255,0.7)">Move</span>
+      <span style="flex:1;text-align:center;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:999px;padding:8px 0;font-size:11.5px;font-weight:600;color:rgba(255,255,255,0.7)">Shrink</span>
+    </div>
+  </div>
+
+  <div style="display:flex;align-items:center;gap:10px;background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.3);border-radius:14px;padding:10px 14px">
+    <span style="font-size:11.5px;color:rgba(255,255,255,0.8);flex:1">How was <b>Morning Intervals</b>?</span>
+    <span style="font-size:10.5px;font-weight:700;color:#10b981">Debrief · 30s →</span>
+  </div>
+
+  <div style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.04);border:1px solid rgba(232,121,249,0.25);border-radius:14px;padding:10px 14px">
+    <span style="font-size:12px">🏁</span>
+    <span style="font-size:11.5px;color:rgba(255,255,255,0.8);flex:1"><b>Gran Fondo Utrecht</b> · B race</span>
+    <span style="font-size:11px;font-weight:700;color:#e879f9">18 days · form +5 ±4</span>
+  </div>
+
+  <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:20px;padding:14px 18px;display:flex;flex-direction:column;gap:6px">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <span style="display:flex;align-items:center;gap:6px;font-size:10px;text-transform:uppercase;letter-spacing:0.2em;font-weight:700;color:rgba(255,255,255,0.4)"><svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="#a78bfa" stroke-width="1.5"><path d="M10 3l1.8 4.2L16 9l-4.2 1.8L10 15l-1.8-4.2L4 9l4.2-1.8z"></path></svg>Coach</span>
+      <span style="font-size:10.5px;font-weight:700;color:#10b981">Reply →</span>
+    </div>
+    <p style="margin:0;font-size:12.5px;line-height:1.55;color:rgba(255,255,255,0.75)">HRV is a touch under baseline after Saturday's long ride. Today's tempo is trimmed, not cancelled — hold the top of Z3 and stop at two sets if legs argue.</p>
+  </div>
+
+  <div style="margin-top:2px;display:flex;justify-content:space-between;align-items:center;background:#0c0c0d;border:1px solid rgba(255,255,255,0.1);border-radius:40px;padding:10px 20px">
+    <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:#fff;position:relative"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="7"></circle><path d="M10 10l3-3"></path></svg><span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em">Today</span><span style="position:absolute;bottom:-6px;width:4px;height:4px;border-radius:50%;background:#fff;box-shadow:0 0 10px #fff"></span></span>
+    <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:rgba(255,255,255,0.45)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="14" height="13" rx="2"></rect><path d="M3 8h14M7 2v4M13 2v4"></path></svg><span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em">Train</span></span>
+    <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:rgba(255,255,255,0.45)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 3l1.8 4.2L16 9l-4.2 1.8L10 15l-1.8-4.2L4 9l4.2-1.8z"></path></svg><span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em">Coach</span></span>
+    <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:rgba(255,255,255,0.45)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="2,11 6,11 8,6 11,15 13,11 18,11"></polyline></svg><span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em">Body</span></span>
+    <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:rgba(255,255,255,0.45)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 6h12M4 10h12M4 14h12"></path></svg><span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em">Menu</span></span>
+  </div>
+</div></div>
+
+<!-- ═════ 2b ACTIVITY DETAIL ═════ -->
+<div class="dv-opt" id="2b"><div class="dv-olabel"><a class="dv-oid" href="#2b">2b</a>Activity detail — dense stat tiles, your debrief + coach review together, compact stream charts, laps.</div>
+<div style="width:390px;background:radial-gradient(at 10% 0%,rgba(59,130,246,0.07) 0%,transparent 40%),radial-gradient(at 90% 8%,rgba(16,185,129,0.07) 0%,transparent 45%),#0a0a0a;border:1px solid rgba(255,255,255,0.12);border-radius:34px;padding:26px 22px 22px;display:flex;flex-direction:column;gap:13px;color:#fafafa;box-sizing:border-box">
+  <div>
+    <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;color:rgba(255,255,255,0.5)">← Train / History</span>
+    <p style="margin:8px 0 0;font-size:21px;font-weight:700;letter-spacing:-0.03em">Morning Intervals</p>
+    <p style="margin:2px 0 0;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.15em;color:rgba(255,255,255,0.5)">Ride · Tue, Jul 22 · intervals.icu</p>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px">
+    <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:11px;padding:9px 11px"><p style="margin:0;font-size:14px;font-weight:700;font-family:'Geist Mono',monospace">1:15</p><p style="margin:1px 0 0;font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.4)">Duration</p></div>
+    <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:11px;padding:9px 11px"><p style="margin:0;font-size:14px;font-weight:700;font-family:'Geist Mono',monospace">32.4<span style="font-size:9px;color:rgba(255,255,255,0.4)">km</span></p><p style="margin:1px 0 0;font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.4)">Distance</p></div>
+    <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:11px;padding:9px 11px"><p style="margin:0;font-size:14px;font-weight:700;font-family:'Geist Mono',monospace">78</p><p style="margin:1px 0 0;font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.4)">Load</p></div>
+    <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:11px;padding:9px 11px"><p style="margin:0;font-size:14px;font-weight:700;font-family:'Geist Mono',monospace">148<span style="font-size:9px;color:rgba(255,255,255,0.4)">bpm</span></p><p style="margin:1px 0 0;font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.4)">Avg HR</p></div>
+    <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:11px;padding:9px 11px"><p style="margin:0;font-size:14px;font-weight:700;font-family:'Geist Mono',monospace">218<span style="font-size:9px;color:rgba(255,255,255,0.4)">W</span></p><p style="margin:1px 0 0;font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.4)">Avg power</p></div>
+    <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:11px;padding:9px 11px"><p style="margin:0;font-size:14px;font-weight:700;font-family:'Geist Mono',monospace">312<span style="font-size:9px;color:rgba(255,255,255,0.4)">m</span></p><p style="margin:1px 0 0;font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.4)">Climb</p></div>
+  </div>
+
+  <div style="background:rgba(16,185,129,0.05);border:1px solid rgba(16,185,129,0.25);border-radius:16px;padding:13px 15px;display:flex;flex-direction:column;gap:7px">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:10px;text-transform:uppercase;letter-spacing:0.2em;font-weight:700;color:rgba(255,255,255,0.4)">Debrief</span>
+      <span style="font-size:10.5px;font-weight:700;color:#34d399">RPE 7 · felt normal</span>
+    </div>
+    <p style="margin:0;font-size:11.5px;line-height:1.5;color:rgba(255,255,255,0.6);font-style:italic">"Second set was a grind, headwind on the way back."</p>
+    <p style="margin:0;font-size:11.5px;line-height:1.55;color:rgba(255,255,255,0.75);border-top:1px solid rgba(255,255,255,0.06);padding-top:7px"><b style="color:#a78bfa">Coach:</b> The grind you felt shows in the data — power held at 224W in set two but HR drifted +5%. That's honest tempo fatigue, not a red flag. Recovery spin tomorrow.</p>
+  </div>
+
+  <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:13px 15px">
+    <div style="display:flex;justify-content:space-between;margin-bottom:7px"><span style="font-size:11px;font-weight:700">Heart rate</span><span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.4)">avg 148 · max 176 bpm</span></div>
+    <svg viewBox="0 0 100 30" preserveAspectRatio="none" style="width:100%;height:56px;display:block"><polyline points="0,26 6,20 12,14 18,8 24,9 30,11 36,22 42,21 48,9 54,7 60,8 66,10 72,23 78,24 84,20 90,18 100,25" fill="none" stroke="#f87171" stroke-width="0.8" vector-effect="non-scaling-stroke"></polyline></svg>
+  </div>
+  <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:13px 15px">
+    <div style="display:flex;justify-content:space-between;margin-bottom:7px"><span style="font-size:11px;font-weight:700">Power</span><span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.4)">avg 218 · max 641 W</span></div>
+    <svg viewBox="0 0 100 30" preserveAspectRatio="none" style="width:100%;height:56px;display:block"><polyline points="0,25 5,22 10,24 15,6 20,7 25,6.5 30,7 35,24 40,25 45,6.5 50,8 55,7 60,7.5 65,25 70,23 75,24 80,22 85,25 90,24 100,27" fill="none" stroke="#a78bfa" stroke-width="0.8" vector-effect="non-scaling-stroke"></polyline></svg>
+  </div>
+  <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:13px 15px">
+    <div style="display:flex;justify-content:space-between;margin-bottom:7px"><span style="font-size:11px;font-weight:700">Elevation</span><span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.4)">312 m climb</span></div>
+    <svg viewBox="0 0 100 30" preserveAspectRatio="none" style="width:100%;height:44px;display:block"><path d="M0 26 L10 24 L20 18 L30 14 L40 16 L50 10 L60 8 L70 14 L80 20 L90 24 L100 26 L100 30 L0 30 Z" fill="rgba(52,211,153,0.15)" stroke="#34d399" stroke-width="0.6" vector-effect="non-scaling-stroke"></path></svg>
+  </div>
+
+  <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:13px 15px">
+    <p style="margin:0 0 8px;font-size:11px;font-weight:700">Laps &amp; intervals</p>
+    <div style="display:grid;grid-template-columns:18px 1fr 44px 44px 40px 48px;gap:4px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:rgba(255,255,255,0.4);padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,0.08)">
+      <span>#</span><span>Label</span><span>Time</span><span>Dist</span><span>HR</span><span style="text-align:right">Power</span>
+    </div>
+    <div style="display:grid;grid-template-columns:18px 1fr 44px 44px 40px 48px;gap:4px;font-size:10.5px;font-family:'Geist Mono',monospace;color:rgba(255,255,255,0.75);padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.05)"><span style="color:rgba(255,255,255,0.4)">1</span><span>Warmup</span><span>15:00</span><span>6.8</span><span>121</span><span style="text-align:right">142 W</span></div>
+    <div style="display:grid;grid-template-columns:18px 1fr 44px 44px 40px 48px;gap:4px;font-size:10.5px;font-family:'Geist Mono',monospace;color:#fff;padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.05)"><span style="color:rgba(255,255,255,0.4)">2</span><span>Set 1</span><span>20:00</span><span>9.4</span><span>152</span><span style="text-align:right">226 W</span></div>
+    <div style="display:grid;grid-template-columns:18px 1fr 44px 44px 40px 48px;gap:4px;font-size:10.5px;font-family:'Geist Mono',monospace;color:rgba(255,255,255,0.75);padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.05)"><span style="color:rgba(255,255,255,0.4)">3</span><span>Recovery</span><span>8:00</span><span>3.1</span><span>128</span><span style="text-align:right">118 W</span></div>
+    <div style="display:grid;grid-template-columns:18px 1fr 44px 44px 40px 48px;gap:4px;font-size:10.5px;font-family:'Geist Mono',monospace;color:#fff;padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.05)"><span style="color:rgba(255,255,255,0.4)">4</span><span>Set 2</span><span>20:00</span><span>9.1</span><span>158</span><span style="text-align:right">224 W</span></div>
+    <div style="display:grid;grid-template-columns:18px 1fr 44px 44px 40px 48px;gap:4px;font-size:10.5px;font-family:'Geist Mono',monospace;color:rgba(255,255,255,0.75);padding:7px 0"><span style="color:rgba(255,255,255,0.4)">5</span><span>Cooldown</span><span>12:00</span><span>4.0</span><span>116</span><span style="text-align:right">104 W</span></div>
+  </div>
+</div></div>
+
+<!-- ═════ 2c MENU ═════ -->
+<div class="dv-opt" id="2c"><div class="dv-olabel"><a class="dv-oid" href="#2c">2c</a>Menu — slim profile, accordion per domain (right place for accordions), hairline rows inside.</div>
+<div style="width:390px;background:radial-gradient(at 10% 0%,rgba(59,130,246,0.07) 0%,transparent 40%),radial-gradient(at 90% 8%,rgba(16,185,129,0.07) 0%,transparent 45%),#0a0a0a;border:1px solid rgba(255,255,255,0.12);border-radius:34px;padding:26px 22px 14px;display:flex;flex-direction:column;gap:12px;color:#fafafa;box-sizing:border-box">
+  <span style="font-size:22px;font-weight:700;letter-spacing:-0.03em">Menu</span>
+
+  <div style="display:flex;align-items:center;gap:12px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:16px;padding:12px 14px">
+    <span style="width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;font-size:13px;color:rgba(255,255,255,0.7)">B</span>
+    <div style="flex:1"><p style="margin:0;font-size:13.5px;font-weight:700">Bart</p><p style="margin:1px 0 0;font-size:10.5px;color:rgba(255,255,255,0.45)">bart@kpn.com · owner</p></div>
+    <span style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#34d399">Admin →</span>
+  </div>
+
+  <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:0 16px">
+    <div style="display:flex;align-items:center;gap:10px;padding:14px 0">
+      <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="#60a5fa" stroke-width="1.5"><rect x="3" y="3" width="6" height="6" rx="1.5"></rect><rect x="11" y="3" width="6" height="6" rx="1.5"></rect><rect x="3" y="11" width="6" height="6" rx="1.5"></rect><rect x="11" y="11" width="6" height="6" rx="1.5"></rect></svg>
+      <span style="flex:1;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.8)">Integrations</span>
+      <span style="color:rgba(255,255,255,0.35);font-size:11px">▴</span>
+    </div>
+    <div style="border-top:1px solid rgba(255,255,255,0.06);padding:12px 0;display:flex;align-items:center;gap:10px">
+      <div style="flex:1"><p style="margin:0;font-size:12.5px;font-weight:600">intervals.icu</p><p style="margin:1px 0 0;font-size:10px;color:rgba(255,255,255,0.4)">Synced 12m ago · wellness + activities</p></div>
+      <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;border:1px solid rgba(52,211,153,0.3);color:#34d399;border-radius:999px;padding:3px 9px">active</span>
+    </div>
+    <div style="border-top:1px solid rgba(255,255,255,0.06);padding:12px 0;display:flex;align-items:center;gap:10px">
+      <div style="flex:1"><p style="margin:0;font-size:12.5px;font-weight:600">Whoop</p><p style="margin:1px 0 0;font-size:10px;color:rgba(255,255,255,0.4)">Sleep + HRV · priority for sleep stages</p></div>
+      <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;border:1px solid rgba(52,211,153,0.3);color:#34d399;border-radius:999px;padding:3px 9px">active</span>
+    </div>
+    <div style="border-top:1px solid rgba(255,255,255,0.06);padding:12px 0;display:flex;align-items:center;gap:10px">
+      <div style="flex:1"><p style="margin:0;font-size:12.5px;font-weight:600">Strava</p><p style="margin:1px 0 0;font-size:10px;color:rgba(255,255,255,0.4)">AI descriptions on · excluded from coach</p></div>
+      <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;border:1px solid rgba(52,211,153,0.3);color:#34d399;border-radius:999px;padding:3px 9px">active</span>
+    </div>
+    <div style="border-top:1px solid rgba(255,255,255,0.06);padding:12px 0;display:flex;align-items:center;gap:10px">
+      <div style="flex:1"><p style="margin:0;font-size:12.5px;font-weight:600;color:rgba(255,255,255,0.6)">Oura · Apple Health · Withings</p><p style="margin:1px 0 0;font-size:10px;color:rgba(255,255,255,0.35)">Not connected</p></div>
+      <span style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.5)">Connect →</span>
+    </div>
+  </div>
+
+  <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:0 16px">
+    <div style="display:flex;align-items:center;gap:10px;padding:14px 0">
+      <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="#34d399" stroke-width="1.5"><path d="M10 3l1.8 4.2L16 9l-4.2 1.8L10 15l-1.8-4.2L4 9l4.2-1.8z"></path></svg>
+      <span style="flex:1;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.8)">AI &amp; Coach</span>
+      <span style="font-size:10px;color:rgba(255,255,255,0.35)">Claude · Direct · 12 memories</span>
+      <span style="color:rgba(255,255,255,0.35);font-size:11px">▾</span>
+    </div>
+  </div>
+  <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:0 16px">
+    <div style="display:flex;align-items:center;gap:10px;padding:14px 0">
+      <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="#fb923c" stroke-width="1.5"><circle cx="10" cy="10" r="2.5"></circle><path d="M10 3v3M10 14v3M3 10h3M14 10h3"></path></svg>
+      <span style="flex:1;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.8)">App</span>
+      <span style="font-size:10px;color:rgba(255,255,255,0.35)">Push on · wake 06:45 · FTP 252</span>
+      <span style="color:rgba(255,255,255,0.35);font-size:11px">▾</span>
+    </div>
+  </div>
+  <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:0 16px">
+    <div style="display:flex;align-items:center;gap:10px;padding:14px 0">
+      <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="1.5"><path d="M4 14l4-8 3 5 2-3 3 6"></path></svg>
+      <span style="flex:1;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.8)">Advanced / API</span>
+      <span style="font-size:10px;color:rgba(255,255,255,0.35)">2 tokens · 1 webhook · 3 sessions</span>
+      <span style="color:rgba(255,255,255,0.35);font-size:11px">▾</span>
+    </div>
+  </div>
+  <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:0 16px">
+    <div style="display:flex;align-items:center;gap:10px;padding:14px 0">
+      <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="1.5"><path d="M10 3v10M6 9l4 4 4-4M4 16h12"></path></svg>
+      <span style="flex:1;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.8)">Data</span>
+      <span style="font-size:10px;color:rgba(255,255,255,0.35)">Export · Import CSV · backups ✓</span>
+      <span style="color:rgba(255,255,255,0.35);font-size:11px">▾</span>
+    </div>
+  </div>
+
+  <p style="margin:2px 0 0;text-align:center;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:rgba(255,255,255,0.3)">Recover · self-hosted · AGPL-3.0</p>
+
+  <div style="margin-top:auto;display:flex;justify-content:space-between;align-items:center;background:#0c0c0d;border:1px solid rgba(255,255,255,0.1);border-radius:40px;padding:10px 20px">
+    <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:rgba(255,255,255,0.45)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="7"></circle><path d="M10 10l3-3"></path></svg><span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em">Today</span></span>
+    <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:rgba(255,255,255,0.45)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="14" height="13" rx="2"></rect><path d="M3 8h14M7 2v4M13 2v4"></path></svg><span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em">Train</span></span>
+    <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:rgba(255,255,255,0.45)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 3l1.8 4.2L16 9l-4.2 1.8L10 15l-1.8-4.2L4 9l4.2-1.8z"></path></svg><span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em">Coach</span></span>
+    <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:rgba(255,255,255,0.45)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="2,11 6,11 8,6 11,15 13,11 18,11"></polyline></svg><span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em">Body</span></span>
+    <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:#fff;position:relative"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 6h12M4 10h12M4 14h12"></path></svg><span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em">Menu</span><span style="position:absolute;bottom:-6px;width:4px;height:4px;border-radius:50%;background:#fff;box-shadow:0 0 10px #fff"></span></span>
+  </div>
+</div></div>
+
+<!-- ═════ 2d COACH chat ═════ -->
+<div class="dv-opt" id="2d"><div class="dv-olabel"><a class="dv-oid" href="#2d">2d</a>Coach / Chat — bubbles per the app's chat styles, inline SVG artifact, composer with mode + voice.</div>
+<div style="width:390px;background:radial-gradient(at 10% 0%,rgba(59,130,246,0.07) 0%,transparent 40%),radial-gradient(at 90% 8%,rgba(16,185,129,0.07) 0%,transparent 45%),#0a0a0a;border:1px solid rgba(255,255,255,0.12);border-radius:34px;padding:26px 22px 14px;display:flex;flex-direction:column;gap:12px;color:#fafafa;box-sizing:border-box">
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <span style="font-size:22px;font-weight:700;letter-spacing:-0.03em">Coach</span>
+    <span style="display:flex;align-items:center;gap:6px;border:1px solid rgba(255,255,255,0.1);border-radius:999px;padding:5px 11px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.5)">Deep ▾</span>
+  </div>
+  <div style="display:flex;gap:6px">
+    <span style="font-size:11px;font-weight:700;padding:7px 16px;border-radius:999px;background:rgba(255,255,255,0.12);color:#fff">Chat</span>
+    <span style="font-size:11px;font-weight:700;padding:7px 16px;border-radius:999px;background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.5)">Inbox <span style="color:#10b981">· 2</span></span>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:10px;flex:1">
+    <div style="align-self:flex-end;max-width:75%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.05);border-radius:16px;border-bottom-right-radius:4px;padding:10px 14px">
+      <p style="margin:0;font-size:12.5px;line-height:1.5;color:rgba(255,255,255,0.85)">Should I still do the tempo today or swap it with Thursday's VO₂?</p>
+    </div>
+    <div style="align-self:flex-start;max-width:85%;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.1);border-radius:16px;border-bottom-left-radius:4px;padding:11px 14px;display:flex;flex-direction:column;gap:8px">
+      <p style="margin:0;font-size:12.5px;line-height:1.55;color:rgba(255,255,255,0.85)">Keep the order. Your readiness is 66 (amber) — tempo at reduced volume fits that; VO₂ on Thursday needs a greener day, and your HRV trend suggests you'll have one.</p>
+      <div style="background:rgba(0,0,0,0.25);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:10px 12px">
+        <p style="margin:0 0 6px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.4)">HRV · last 14 days</p>
+        <svg viewBox="0 0 100 26" preserveAspectRatio="none" style="width:100%;height:52px;display:block">
+          <rect x="0" y="8" width="100" height="8" fill="rgba(16,185,129,0.08)"></rect>
+          <polyline points="0,14 8,12 16,15 24,10 32,12 40,9 48,13 56,10 64,14 72,17 80,15 88,12 100,11" fill="none" stroke="#10b981" stroke-width="0.9" vector-effect="non-scaling-stroke"></polyline>
+        </svg>
+      </div>
+      <p style="margin:0;font-size:10px;color:rgba(255,255,255,0.4)">Cites: readiness 66 · HRV 64/65 · plan week 6 · TSB −1.9</p>
+    </div>
+    <div style="align-self:flex-end;max-width:75%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.05);border-radius:16px;border-bottom-right-radius:4px;padding:10px 14px">
+      <p style="margin:0;font-size:12.5px;line-height:1.5;color:rgba(255,255,255,0.85)">Ok — and shrink Saturday if the week gets heavy.</p>
+    </div>
+    <div style="align-self:flex-start;display:flex;gap:5px;padding:4px 8px">
+      <span style="width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.3)"></span><span style="width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.2)"></span><span style="width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.1)"></span>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:6px">
+    <span style="font-size:10px;padding:6px 12px;border-radius:999px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.55)">Plan my taper</span>
+    <span style="font-size:10px;padding:6px 12px;border-radius:999px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.55)">Why amber today?</span>
+    <span style="font-size:10px;padding:6px 12px;border-radius:999px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.55)">Chart my load</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:999px;padding:10px 16px">
+    <span style="flex:1;font-size:12px;color:rgba(255,255,255,0.35)">Message your coach…</span>
+    <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"><path d="M10 3v9M7 6a3 3 0 006 0M5 12a5 5 0 0010 0M10 17v-3"></path></svg>
+    <span style="width:28px;height:28px;border-radius:50%;background:#10b981;color:#000;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700">↑</span>
+  </div>
+
+  <div style="margin-top:2px;display:flex;justify-content:space-between;align-items:center;background:#0c0c0d;border:1px solid rgba(255,255,255,0.1);border-radius:40px;padding:10px 20px">
+    <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:rgba(255,255,255,0.45)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="7"></circle><path d="M10 10l3-3"></path></svg><span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em">Today</span></span>
+    <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:rgba(255,255,255,0.45)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="14" height="13" rx="2"></rect><path d="M3 8h14M7 2v4M13 2v4"></path></svg><span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em">Train</span></span>
+    <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:#fff;position:relative"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 3l1.8 4.2L16 9l-4.2 1.8L10 15l-1.8-4.2L4 9l4.2-1.8z"></path></svg><span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em">Coach</span><span style="position:absolute;bottom:-6px;width:4px;height:4px;border-radius:50%;background:#fff;box-shadow:0 0 10px #fff"></span></span>
+    <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:rgba(255,255,255,0.45)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="2,11 6,11 8,6 11,15 13,11 18,11"></polyline></svg><span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em">Body</span></span>
+    <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:rgba(255,255,255,0.45)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 6h12M4 10h12M4 14h12"></path></svg><span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em">Menu</span></span>
+  </div>
+</div></div>
+
+</div>
+<p class="dv-next">Try next: "desktop layout for <a class="dv-oid" href="#2a">2a</a>" · "expand the AI &amp; Coach accordion in <a class="dv-oid" href="#2c">2c</a>" · "refactor tickets per screen"</p>
+</section>
+
+<section class="dv-turn" id="t1">
+<div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">Option B — hi-fi mockups · Today · Train · Coach · Body + the two sheets</span></div>
+<p class="dv-sub">Built 1:1 from the repo's visual language: Geist, emerald #10b981, glass surfaces, the concentric-ring hero, label-micro caps. Data is your README demo story (readiness 66 · amber, HRV 63.8 vs 65 baseline, TSB −1.9). <a class="dv-oid" href="#1a">1a</a> vs <a class="dv-oid" href="#1b">1b</a> are two density takes on Today — everything else assumes whichever you pick.</p>
+<div class="dv-opts">
+
+<!-- ═════ 1a TODAY calm ═════ -->
+<div class="dv-opt" id="1a"><div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a>Today — calm. Verdict + why in the hero, vitals always visible, session + coach brief. Nothing else.</div>
+<div style="width:390px;background:radial-gradient(at 10% 0%,rgba(59,130,246,0.07) 0%,transparent 40%),radial-gradient(at 90% 8%,rgba(16,185,129,0.07) 0%,transparent 45%),#0a0a0a;border:1px solid rgba(255,255,255,0.12);border-radius:34px;padding:26px 22px 14px;display:flex;flex-direction:column;gap:16px;color:#fafafa;box-sizing:border-box">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start">
+    <div style="display:flex;flex-direction:column;gap:5px">
+      <span style="font-size:10px;text-transform:uppercase;letter-spacing:0.2em;font-weight:700;color:rgba(255,255,255,0.4)">Tuesday, July 22</span>
+      <span style="font-size:23px;font-weight:700;letter-spacing:-0.03em">Good morning</span>
+      <span style="display:inline-flex;align-items:center;gap:6px;border:1px solid rgba(255,255,255,0.1);border-radius:999px;padding:4px 10px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;color:rgba(255,255,255,0.5);width:fit-content">⟳ Synced 12m ago</span>
+    </div>
+    <span style="width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;font-size:13px;color:rgba(255,255,255,0.7)">B</span>
+  </div>
+
+  <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:28px;padding:22px 20px 18px;display:flex;flex-direction:column;align-items:center;gap:12px;box-shadow:0 0 60px -20px rgba(245,158,11,0.25)">
+    <div style="position:relative;width:186px;height:186px">
+      <svg viewBox="0 0 200 200" width="186" height="186" aria-hidden="true">
+        <g transform="rotate(-90 100 100)">
+          <circle cx="100" cy="100" r="88" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="10"></circle>
+          <circle cx="100" cy="100" r="88" fill="none" stroke="#10b981" stroke-width="10" stroke-linecap="round" stroke-dasharray="553" stroke-dashoffset="210"></circle>
+          <circle cx="100" cy="100" r="70" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="10"></circle>
+          <circle cx="100" cy="100" r="70" fill="none" stroke="#3b82f6" stroke-width="10" stroke-linecap="round" stroke-dasharray="440" stroke-dashoffset="79"></circle>
+          <circle cx="100" cy="100" r="52" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="10"></circle>
+          <circle cx="100" cy="100" r="52" fill="none" stroke="#f59e0b" stroke-width="10" stroke-linecap="round" stroke-dasharray="327" stroke-dashoffset="95"></circle>
+        </g>
+      </svg>
+      <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+        <span style="font-size:44px;font-weight:700;letter-spacing:-0.04em;color:#f59e0b;line-height:1">66</span>
+        <span style="font-size:9px;text-transform:uppercase;letter-spacing:0.2em;font-weight:700;color:rgba(255,255,255,0.4);margin-top:3px">Readiness</span>
+      </div>
+    </div>
+    <div style="display:flex;gap:14px">
+      <span style="display:flex;align-items:center;gap:6px;font-size:12px;color:rgba(255,255,255,0.7)"><span style="width:9px;height:9px;border-radius:50%;background:#10b981"></span>Recovery <b style="color:#fff">62</b></span>
+      <span style="display:flex;align-items:center;gap:6px;font-size:12px;color:rgba(255,255,255,0.7)"><span style="width:9px;height:9px;border-radius:50%;background:#3b82f6"></span>Sleep <b style="color:#fff">82</b></span>
+      <span style="display:flex;align-items:center;gap:6px;font-size:12px;color:rgba(255,255,255,0.7)"><span style="width:9px;height:9px;border-radius:50%;background:#f59e0b"></span>Strain <b style="color:#fff">71</b></span>
+    </div>
+    <div style="text-align:center;display:flex;flex-direction:column;gap:4px">
+      <span style="font-size:13px;font-weight:600;color:#f59e0b">⚡ Moderate recovery · consider easy work</span>
+      <span style="font-size:11.5px;color:rgba(255,255,255,0.5)">HRV 64 vs 65 baseline · slept 7:12 · form −1.9</span>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+    <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:12px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
+      <div><p style="margin:0;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.4)">HRV</p><p style="margin:2px 0 0;font-size:19px;font-weight:700;font-family:'Geist Mono',monospace">64<span style="font-size:10px;color:rgba(255,255,255,0.4)">ms</span></p></div>
+      <div style="text-align:right"><span style="font-size:9.5px;color:#10b981;font-weight:600">▲ 7d 63</span><svg width="42" height="14" viewBox="0 0 42 14" style="display:block;margin-top:2px"><polyline points="0,11 7,9 14,11 21,7 28,8 35,5 42,4" fill="none" stroke="#10b981" stroke-width="1.5"></polyline></svg></div>
+    </div>
+    <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:12px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
+      <div><p style="margin:0;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.4)">RHR</p><p style="margin:2px 0 0;font-size:19px;font-weight:700;font-family:'Geist Mono',monospace">47<span style="font-size:10px;color:rgba(255,255,255,0.4)">bpm</span></p></div>
+      <div style="text-align:right"><span style="font-size:9.5px;color:#10b981;font-weight:600">▼ 7d 48</span><svg width="42" height="14" viewBox="0 0 42 14" style="display:block;margin-top:2px"><polyline points="0,4 7,5 14,4 21,7 28,8 35,9 42,10" fill="none" stroke="#10b981" stroke-width="1.5"></polyline></svg></div>
+    </div>
+    <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:12px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
+      <div><p style="margin:0;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.4)">Sleep</p><p style="margin:2px 0 0;font-size:19px;font-weight:700;font-family:'Geist Mono',monospace">7:12</p></div>
+      <div style="text-align:right"><span style="font-size:9.5px;color:#f59e0b;font-weight:600">debt 40m</span><svg width="42" height="14" viewBox="0 0 42 14" style="display:block;margin-top:2px"><polyline points="0,7 7,5 14,9 21,6 28,10 35,8 42,7" fill="none" stroke="#3b82f6" stroke-width="1.5"></polyline></svg></div>
+    </div>
+    <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:12px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
+      <div><p style="margin:0;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.4)">Form · TSB</p><p style="margin:2px 0 0;font-size:19px;font-weight:700;font-family:'Geist Mono',monospace">−1.9</p></div>
+      <div style="text-align:right"><span style="font-size:9.5px;color:rgba(255,255,255,0.45);font-weight:600">CTL 58</span><svg width="42" height="14" viewBox="0 0 42 14" style="display:block;margin-top:2px"><polyline points="0,5 7,7 14,6 21,9 28,7 35,8 42,7" fill="none" stroke="#8b5cf6" stroke-width="1.5"></polyline></svg></div>
+    </div>
+  </div>
+
+  <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:20px;padding:16px 18px;display:flex;flex-direction:column;gap:8px">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:10px;text-transform:uppercase;letter-spacing:0.2em;font-weight:700;color:rgba(255,255,255,0.4)">Today's session</span>
+      <span style="border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);border-radius:999px;padding:3px 10px;font-size:10.5px;font-weight:700;color:rgba(255,255,255,0.8)">Tempo</span>
+    </div>
+    <div>
+      <p style="margin:0;font-size:18px;font-weight:700">Ride · 75 min</p>
+      <p style="margin:3px 0 0;font-size:12.5px;color:rgba(255,255,255,0.6)">2×20 @ 88–93% FTP, cadence 90+</p>
+    </div>
+    <p style="margin:0;font-size:11.5px;color:rgba(245,158,11,0.85);background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:8px 10px">↻ Shortened from 90 min — amber readiness this morning</p>
+    <div style="display:flex;gap:6px">
+      <span style="flex:1;text-align:center;background:#10b981;color:#000;border-radius:999px;padding:8px 0;font-size:11.5px;font-weight:700">Mark done</span>
+      <span style="flex:1;text-align:center;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:999px;padding:8px 0;font-size:11.5px;font-weight:600;color:rgba(255,255,255,0.7)">Move</span>
+      <span style="flex:1;text-align:center;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:999px;padding:8px 0;font-size:11.5px;font-weight:600;color:rgba(255,255,255,0.7)">Shrink</span>
+    </div>
+  </div>
+
+  <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:20px;padding:14px 18px;display:flex;flex-direction:column;gap:6px">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <span style="display:flex;align-items:center;gap:6px;font-size:10px;text-transform:uppercase;letter-spacing:0.2em;font-weight:700;color:rgba(255,255,255,0.4)"><svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="#a78bfa" stroke-width="1.5"><path d="M10 3l1.8 4.2L16 9l-4.2 1.8L10 15l-1.8-4.2L4 9l4.2-1.8z"></path></svg>Coach</span>
+      <span style="font-size:10.5px;font-weight:700;color:#10b981">Reply →</span>
+    </div>
+    <p style="margin:0;font-size:12.5px;line-height:1.55;color:rgba(255,255,255,0.75)">HRV is a touch under baseline after Saturday's long ride. Today's tempo is trimmed, not cancelled — hold the top of Z3 and stop at two sets if legs argue.</p>
+  </div>
+
+  <div style="margin-top:2px;display:flex;justify-content:space-between;align-items:center;background:#0c0c0d;border:1px solid rgba(255,255,255,0.1);border-radius:40px;padding:10px 20px">
+    <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:#fff;position:relative"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="7"></circle><path d="M10 10l3-3"></path></svg><span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em">Today</span><span style="position:absolute;bottom:-6px;width:4px;height:4px;border-radius:50%;background:#fff;box-shadow:0 0 10px #fff"></span></span>
+    <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:rgba(255,255,255,0.45)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="14" height="13" rx="2"></rect><path d="M3 8h14M7 2v4M13 2v4"></path></svg><span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em">Train</span></span>
+    <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:rgba(255,255,255,0.45)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 3l1.8 4.2L16 9l-4.2 1.8L10 15l-1.8-4.2L4 9l4.2-1.8z"></path></svg><span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em">Coach</span></span>
+    <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:rgba(255,255,255,0.45)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="2,11 6,11 8,6 11,15 13,11 18,11"></polyline></svg><span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em">Body</span></span>
+    <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:rgba(255,255,255,0.45)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 6h12M4 10h12M4 14h12"></path></svg><span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em">Menu</span></span>
+  </div>
+</div></div>
+
+<!-- ═════ 1b TODAY dense ═════ -->
+<div class="dv-opt" id="1b"><div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a>Today — dense. Whole briefing in one viewport: compact horizontal hero, race chip, session as a row.</div>
+<div style="width:390px;background:radial-gradient(at 10% 0%,rgba(59,130,246,0.07) 0%,transparent 40%),radial-gradient(at 90% 8%,rgba(16,185,129,0.07) 0%,transparent 45%),#0a0a0a;border:1px solid rgba(255,255,255,0.12);border-radius:34px;padding:26px 22px 14px;display:flex;flex-direction:column;gap:13px;color:#fafafa;box-sizing:border-box">
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <div style="display:flex;flex-direction:column;gap:2px">
+      <span style="font-size:9.5px;text-transform:uppercase;letter-spacing:0.2em;font-weight:700;color:rgba(255,255,255,0.4)">Tue Jul 22 · synced 12m</span>
+      <span style="font-size:19px;font-weight:700;letter-spacing:-0.03em">Good morning</span>
+    </div>
+    <span style="width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;font-size:12px;color:rgba(255,255,255,0.7)">B</span>
+  </div>
+
+  <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:22px;padding:16px 18px;display:flex;gap:16px;align-items:center">
+    <div style="position:relative;width:104px;height:104px;flex:none">
+      <svg viewBox="0 0 100 100" width="104" height="104" aria-hidden="true">
+        <g transform="rotate(-90 50 50)">
+          <circle cx="50" cy="50" r="44" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="8"></circle>
+          <circle cx="50" cy="50" r="44" fill="none" stroke="#f59e0b" stroke-width="8" stroke-linecap="round" stroke-dasharray="276" stroke-dashoffset="94"></circle>
+        </g>
+      </svg>
+      <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+        <span style="font-size:30px;font-weight:700;letter-spacing:-0.04em;color:#f59e0b;line-height:1">66</span>
+        <span style="font-size:7.5px;text-transform:uppercase;letter-spacing:0.18em;font-weight:700;color:rgba(255,255,255,0.4);margin-top:2px">Readiness</span>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:5px;min-width:0">
+      <span style="font-size:12.5px;font-weight:700;color:#f59e0b">⚡ Moderate · easy work</span>
+      <span style="font-size:11px;line-height:1.5;color:rgba(255,255,255,0.55)">HRV 64 vs 65 baseline · RHR 47 · slept 7:12 · TSB −1.9</span>
+      <div style="display:flex;gap:10px;margin-top:2px">
+        <span style="font-size:10.5px;color:rgba(255,255,255,0.7)"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#10b981;margin-right:4px"></span>62</span>
+        <span style="font-size:10.5px;color:rgba(255,255,255,0.7)"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#3b82f6;margin-right:4px"></span>82</span>
+        <span style="font-size:10.5px;color:rgba(255,255,255,0.7)"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#f59e0b;margin-right:4px"></span>71</span>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:7px">
+    <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:11px;padding:8px 10px"><p style="margin:0;font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.4)">HRV</p><p style="margin:2px 0 0;font-size:15px;font-weight:700;font-family:'Geist Mono',monospace">64</p><p style="margin:1px 0 0;font-size:9px;color:#10b981;font-weight:600">▲ 7d</p></div>
+    <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:11px;padding:8px 10px"><p style="margin:0;font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.4)">RHR</p><p style="margin:2px 0 0;font-size:15px;font-weight:700;font-family:'Geist Mono',monospace">47</p><p style="margin:1px 0 0;font-size:9px;color:#10b981;font-weight:600">▼ 7d</p></div>
+    <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:11px;padding:8px 10px"><p style="margin:0;font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.4)">Sleep</p><p style="margin:2px 0 0;font-size:15px;font-weight:700;font-family:'Geist Mono',monospace">7:12</p><p style="margin:1px 0 0;font-size:9px;color:#f59e0b;font-weight:600">−40m</p></div>
+    <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:11px;padding:8px 10px"><p style="margin:0;font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.4)">TSB</p><p style="margin:2px 0 0;font-size:15px;font-weight:700;font-family:'Geist Mono',monospace">−1.9</p><p style="margin:1px 0 0;font-size:9px;color:rgba(255,255,255,0.45);font-weight:600">CTL 58</p></div>
+  </div>
+
+  <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:12px 14px;display:flex;align-items:center;gap:12px;border-left:4px solid rgba(59,130,246,0.8)">
+    <div style="min-width:0;flex:1">
+      <div style="display:flex;align-items:center;gap:8px"><span style="font-size:14px;font-weight:700">Ride · 75 min</span><span style="border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);border-radius:999px;padding:2px 8px;font-size:9.5px;font-weight:700;color:rgba(255,255,255,0.75)">Tempo</span></div>
+      <p style="margin:2px 0 0;font-size:11px;color:rgba(255,255,255,0.55)">2×20 @ 88–93% FTP · <span style="color:rgba(245,158,11,0.85)">↻ shortened, amber</span></p>
+    </div>
+    <span style="flex:none;background:#10b981;color:#000;border-radius:999px;padding:7px 14px;font-size:10.5px;font-weight:700">Done</span>
+  </div>
+
+  <div style="display:flex;align-items:center;gap:10px;background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.3);border-radius:14px;padding:10px 14px">
+    <span style="font-size:11.5px;color:rgba(255,255,255,0.8);flex:1">How was <b>Morning Intervals</b>?</span>
+    <span style="font-size:10.5px;font-weight:700;color:#10b981">Debrief · 30s →</span>
+  </div>
+
+  <div style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.04);border:1px solid rgba(232,121,249,0.25);border-radius:14px;padding:10px 14px">
+    <span style="font-size:12px">🏁</span>
+    <span style="font-size:11.5px;color:rgba(255,255,255,0.8);flex:1"><b>Gran Fondo Utrecht</b> · B race</span>
+    <span style="font-size:11px;font-weight:700;color:#e879f9">18 days · form +5 ±4</span>
+  </div>
+
+  <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:12px 14px;display:flex;gap:10px;align-items:flex-start">
+    <svg width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="#a78bfa" stroke-width="1.5" style="flex:none;margin-top:2px"><path d="M10 3l1.8 4.2L16 9l-4.2 1.8L10 15l-1.8-4.2L4 9l4.2-1.8z"></path></svg>
+    <p style="margin:0;font-size:11.5px;line-height:1.5;color:rgba(255,255,255,0.7)">Tempo trimmed, not cancelled — hold top of Z3, stop at two sets if legs argue. <span style="color:#10b981;font-weight:600">Reply →</span></p>
+  </div>
+
+  <div style="margin-top:2px;display:flex;justify-content:space-between;align-items:center;background:#0c0c0d;border:1px solid rgba(255,255,255,0.1);border-radius:40px;padding:10px 20px">
+    <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:#fff;position:relative"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="7"></circle><path d="M10 10l3-3"></path></svg><span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em">Today</span><span style="position:absolute;bottom:-6px;width:4px;height:4px;border-radius:50%;background:#fff;box-shadow:0 0 10px #fff"></span></span>
+    <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:rgba(255,255,255,0.45)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="14" height="13" rx="2"></rect><path d="M3 8h14M7 2v4M13 2v4"></path></svg><span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em">Train</span></span>
+    <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:rgba(255,255,255,0.45)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 3l1.8 4.2L16 9l-4.2 1.8L10 15l-1.8-4.2L4 9l4.2-1.8z"></path></svg><span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em">Coach</span></span>
+    <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:rgba(255,255,255,0.45)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="2,11 6,11 8,6 11,15 13,11 18,11"></polyline></svg><span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em">Body</span></span>
+    <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:rgba(255,255,255,0.45)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 6h12M4 10h12M4 14h12"></path></svg><span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em">Menu</span></span>
+  </div>
+</div></div>
+
+<!-- ═════ 1c TRAIN Week ═════ -->
+<div class="dv-opt" id="1c"><div class="dv-olabel"><a class="dv-oid" href="#1c">1c</a>Train / Week — Plan+Log merged behind segments. Readiness echoes as a chip (rule R6), day rows stay actionable.</div>
+<div style="width:390px;background:radial-gradient(at 10% 0%,rgba(59,130,246,0.07) 0%,transparent 40%),radial-gradient(at 90% 8%,rgba(16,185,129,0.07) 0%,transparent 45%),#0a0a0a;border:1px solid rgba(255,255,255,0.12);border-radius:34px;padding:26px 22px 14px;display:flex;flex-direction:column;gap:14px;color:#fafafa;box-sizing:border-box">
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <div style="display:flex;flex-direction:column;gap:3px">
+      <span style="font-size:22px;font-weight:700;letter-spacing:-0.03em">Train</span>
+      <span style="font-size:10.5px;color:rgba(255,255,255,0.5)">Base build · week 6 of 16 · build phase</span>
+    </div>
+    <span style="display:flex;align-items:center;gap:6px;border:1px solid rgba(245,158,11,0.35);border-radius:999px;padding:5px 11px;font-size:10.5px;font-weight:700;color:#f59e0b"><span style="width:7px;height:7px;border-radius:50%;background:#f59e0b"></span>66 · amber</span>
+  </div>
+
+  <div style="display:flex;gap:6px">
+    <span style="font-size:11px;font-weight:700;padding:7px 16px;border-radius:999px;background:rgba(255,255,255,0.12);color:#fff">Week</span>
+    <span style="font-size:11px;font-weight:700;padding:7px 16px;border-radius:999px;background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.5)">History</span>
+    <span style="font-size:11px;font-weight:700;padding:7px 16px;border-radius:999px;background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.5)">Fitness</span>
+  </div>
+
+  <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:18px;padding:12px 20px;display:flex;justify-content:space-between">
+    <span style="display:flex;flex-direction:column;align-items:center;gap:6px"><span style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.4)">Mo</span><span style="width:9px;height:9px;border-radius:50%;background:#34d399"></span></span>
+    <span style="display:flex;flex-direction:column;align-items:center;gap:6px"><span style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.4)">Tu</span><span style="width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,0.4);box-shadow:0 0 0 2px rgba(255,255,255,0.5)"></span></span>
+    <span style="display:flex;flex-direction:column;align-items:center;gap:6px"><span style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.4)">We</span><span style="width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,0.15)"></span></span>
+    <span style="display:flex;flex-direction:column;align-items:center;gap:6px"><span style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.4)">Th</span><span style="width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,0.4)"></span></span>
+    <span style="display:flex;flex-direction:column;align-items:center;gap:6px"><span style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.4)">Fr</span><span style="width:9px;height:9px;border-radius:50%;background:#fbbf24"></span></span>
+    <span style="display:flex;flex-direction:column;align-items:center;gap:6px"><span style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.4)">Sa</span><span style="width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,0.4)"></span></span>
+    <span style="display:flex;flex-direction:column;align-items:center;gap:6px"><span style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.4)">Su</span><span style="width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,0.15)"></span></span>
+  </div>
+
+  <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:4px 16px">
+    <div style="display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,0.06)">
+      <span style="flex:none;width:34px;font-size:9.5px;font-weight:700;text-transform:uppercase;color:rgba(255,255,255,0.4)">Mon</span>
+      <span style="flex:1;font-size:12.5px;color:rgba(255,255,255,0.75)">Endurance · 60 min <span style="color:rgba(255,255,255,0.4)">Z2</span></span>
+      <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;border:1px solid rgba(52,211,153,0.3);color:#34d399;border-radius:999px;padding:2px 8px">done</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,0.06);background:linear-gradient(90deg,rgba(255,255,255,0.03),transparent);margin:0 -16px;padding-left:16px;padding-right:16px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="flex:none;width:34px;font-size:9.5px;font-weight:700;text-transform:uppercase;color:#fff">Tue</span>
+        <span style="flex:1;font-size:12.5px;font-weight:600;color:#fff">Tempo · 75 min <span style="font-weight:400;color:rgba(255,255,255,0.4)">2×20</span></span>
+        <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;border:1px solid rgba(251,191,36,0.3);color:#fbbf24;border-radius:999px;padding:2px 8px">adapted</span>
+      </div>
+      <div style="display:flex;gap:6px;padding-left:44px">
+        <span style="font-size:10px;font-weight:600;color:rgba(255,255,255,0.7);background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:999px;padding:4px 10px">Move →</span>
+        <span style="font-size:10px;font-weight:600;color:rgba(255,255,255,0.7);background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:999px;padding:4px 10px">Shrink</span>
+        <span style="font-size:10px;font-weight:600;color:rgba(255,255,255,0.7);background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:999px;padding:4px 10px">Swap</span>
+        <span style="font-size:10px;font-weight:600;color:#a78bfa;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.3);border-radius:999px;padding:4px 10px">What if?</span>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,0.06)">
+      <span style="flex:none;width:34px;font-size:9.5px;font-weight:700;text-transform:uppercase;color:rgba(255,255,255,0.4)">Wed</span>
+      <span style="flex:1;font-size:12.5px;color:rgba(255,255,255,0.45)">Rest</span>
+      <span style="font-size:10px;color:rgba(255,255,255,0.35)">90 min free</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,0.06)">
+      <span style="flex:none;width:34px;font-size:9.5px;font-weight:700;text-transform:uppercase;color:rgba(255,255,255,0.4)">Thu</span>
+      <span style="flex:1;font-size:12.5px;color:rgba(255,255,255,0.75)">VO₂ · 60 min <span style="color:rgba(255,255,255,0.4)">5×4</span></span>
+      <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.6);border-radius:999px;padding:2px 8px">planned</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,0.06)">
+      <span style="flex:none;width:34px;font-size:9.5px;font-weight:700;text-transform:uppercase;color:rgba(255,255,255,0.4)">Fri</span>
+      <span style="flex:1;font-size:12.5px;color:rgba(255,255,255,0.75)">Endurance · 45 min <span style="color:#fbbf24">moved from Wed</span></span>
+      <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;border:1px solid rgba(251,191,36,0.3);color:#fbbf24;border-radius:999px;padding:2px 8px">moved</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,0.06)">
+      <span style="flex:none;width:34px;font-size:9.5px;font-weight:700;text-transform:uppercase;color:rgba(255,255,255,0.4)">Sat</span>
+      <span style="flex:1;font-size:12.5px;color:rgba(255,255,255,0.75)">Long ride · 180 min <span style="color:rgba(255,255,255,0.4)">Z2</span></span>
+      <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.6);border-radius:999px;padding:2px 8px">planned</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;padding:11px 0">
+      <span style="flex:none;width:34px;font-size:9.5px;font-weight:700;text-transform:uppercase;color:rgba(255,255,255,0.4)">Sun</span>
+      <span style="flex:1;font-size:12.5px;color:rgba(255,255,255,0.45)">Rest</span>
+      <span style="font-size:10px;color:rgba(255,255,255,0.35)">all day free</span>
+    </div>
+  </div>
+
+  <div style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.04);border:1px solid rgba(232,121,249,0.25);border-radius:14px;padding:11px 14px">
+    <span style="font-size:12px">🏁</span>
+    <span style="font-size:11.5px;color:rgba(255,255,255,0.8);flex:1"><b>Gran Fondo Utrecht</b> · B · Aug 9</span>
+    <span style="font-size:11px;font-weight:700;color:#e879f9">18 days · form +5 ±4</span>
+  </div>
+
+  <div style="display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:11px 14px">
+    <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.45)">What changed &amp; why · 2</span>
+    <span style="color:rgba(255,255,255,0.35);font-size:12px">▾</span>
+  </div>
+
+  <div style="margin-top:auto;display:flex;justify-content:space-between;align-items:center;background:#0c0c0d;border:1px solid rgba(255,255,255,0.1);border-radius:40px;padding:10px 20px">
+    <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:rgba(255,255,255,0.45)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="7"></circle><path d="M10 10l3-3"></path></svg><span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em">Today</span></span>
+    <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:#fff;position:relative"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="14" height="13" rx="2"></rect><path d="M3 8h14M7 2v4M13 2v4"></path></svg><span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em">Train</span><span style="position:absolute;bottom:-6px;width:4px;height:4px;border-radius:50%;background:#fff;box-shadow:0 0 10px #fff"></span></span>
+    <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:rgba(255,255,255,0.45)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 3l1.8 4.2L16 9l-4.2 1.8L10 15l-1.8-4.2L4 9l4.2-1.8z"></path></svg><span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em">Coach</span></span>
+    <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:rgba(255,255,255,0.45)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="2,11 6,11 8,6 11,15 13,11 18,11"></polyline></svg><span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em">Body</span></span>
+    <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:rgba(255,255,255,0.45)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 6h12M4 10h12M4 14h12"></path></svg><span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em">Menu</span></span>
+  </div>
+</div></div>
+
+<!-- ═════ 1d TRAIN History ═════ -->
+<div class="dv-opt" id="1d"><div class="dv-olabel"><a class="dv-oid" href="#1d">1d</a>Train / History — the 300px ride-card becomes a 56px hairline row: ~5× more rides per screen.</div>
+<div style="width:390px;background:radial-gradient(at 10% 0%,rgba(59,130,246,0.07) 0%,transparent 40%),radial-gradient(at 90% 8%,rgba(16,185,129,0.07) 0%,transparent 45%),#0a0a0a;border:1px solid rgba(255,255,255,0.12);border-radius:34px;padding:26px 22px 14px;display:flex;flex-direction:column;gap:14px;color:#fafafa;box-sizing:border-box">
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <span style="font-size:22px;font-weight:700;letter-spacing:-0.03em">Train</span>
+    <span style="display:flex;align-items:center;gap:5px;background:rgba(16,185,129,0.1);border-radius:999px;padding:6px 12px;font-size:10.5px;font-weight:700;color:#34d399">+ Log activity</span>
+  </div>
+  <div style="display:flex;gap:6px">
+    <span style="font-size:11px;font-weight:700;padding:7px 16px;border-radius:999px;background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.5)">Week</span>
+    <span style="font-size:11px;font-weight:700;padding:7px 16px;border-radius:999px;background:rgba(255,255,255,0.12);color:#fff">History</span>
+    <span style="font-size:11px;font-weight:700;padding:7px 16px;border-radius:999px;background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.5)">Fitness</span>
+  </div>
+
+  <div style="display:flex;gap:14px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:14px;padding:10px 16px">
+    <span style="font-size:11px;color:rgba(255,255,255,0.5)">7 days</span>
+    <span style="font-size:11px;font-weight:700;font-family:'Geist Mono',monospace">8.4h</span>
+    <span style="font-size:11px;font-weight:700;font-family:'Geist Mono',monospace">412 <span style="font-weight:400;color:rgba(255,255,255,0.4)">load</span></span>
+    <span style="font-size:11px;font-weight:700;font-family:'Geist Mono',monospace">5 <span style="font-weight:400;color:rgba(255,255,255,0.4)">sessions</span></span>
+    <span style="font-size:11px;font-weight:700;font-family:'Geist Mono',monospace;margin-left:auto">228 <span style="font-weight:400;color:rgba(255,255,255,0.4)">km</span></span>
+  </div>
+
+  <div style="display:flex;gap:6px">
+    <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;background:rgba(255,255,255,0.1);border-radius:999px;padding:6px 14px">All</span>
+    <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.5);border-radius:999px;padding:6px 14px">Ride</span>
+    <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.5);border-radius:999px;padding:6px 14px">Run</span>
+    <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.5);border-radius:999px;padding:6px 14px">Gym</span>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:12px">
+    <div>
+      <p style="margin:0 0 4px;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;color:rgba(255,255,255,0.4)">Tue, Jul 22</p>
+      <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:2px 14px">
+        <div style="display:flex;align-items:center;gap:10px;padding:11px 0">
+          <span style="flex:none;width:8px;height:28px;border-radius:4px;background:rgba(59,130,246,0.8)"></span>
+          <div style="flex:1;min-width:0"><p style="margin:0;font-size:12.5px;font-weight:600">Morning Intervals</p><p style="margin:1px 0 0;font-size:9.5px;text-transform:uppercase;color:rgba(255,255,255,0.4)">Ride · debrief pending</p></div>
+          <span style="font-size:11px;font-family:'Geist Mono',monospace;color:rgba(255,255,255,0.65)">1:15 · 78 · 32km</span>
+        </div>
+      </div>
+    </div>
+    <div>
+      <p style="margin:0 0 4px;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;color:rgba(255,255,255,0.4)">Mon, Jul 21</p>
+      <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:2px 14px">
+        <div style="display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,0.06)">
+          <span style="flex:none;width:8px;height:28px;border-radius:4px;background:rgba(59,130,246,0.8)"></span>
+          <div style="flex:1;min-width:0"><p style="margin:0;font-size:12.5px;font-weight:600">Endurance Spin</p><p style="margin:1px 0 0;font-size:9.5px;text-transform:uppercase;color:rgba(255,255,255,0.4)">Ride · RPE 4 · felt normal</p></div>
+          <span style="font-size:11px;font-family:'Geist Mono',monospace;color:rgba(255,255,255,0.65)">1:02 · 45 · 28km</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;padding:11px 0">
+          <span style="flex:none;width:8px;height:28px;border-radius:4px;background:rgba(16,185,129,0.8)"></span>
+          <div style="flex:1;min-width:0"><p style="margin:0;font-size:12.5px;font-weight:600">Lunch Run</p><p style="margin:1px 0 0;font-size:9.5px;text-transform:uppercase;color:rgba(255,255,255,0.4)">Run · RPE 6</p></div>
+          <span style="font-size:11px;font-family:'Geist Mono',monospace;color:rgba(255,255,255,0.65)">0:42 · 38 · 8.2km</span>
+        </div>
+      </div>
+    </div>
+    <div>
+      <p style="margin:0 0 4px;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;color:rgba(255,255,255,0.4)">Sat, Jul 19</p>
+      <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:2px 14px">
+        <div style="display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,0.06)">
+          <span style="flex:none;width:8px;height:28px;border-radius:4px;background:rgba(59,130,246,0.8)"></span>
+          <div style="flex:1;min-width:0"><p style="margin:0;font-size:12.5px;font-weight:600">Long Ride — Veluwe</p><p style="margin:1px 0 0;font-size:9.5px;text-transform:uppercase;color:rgba(255,255,255,0.4)">Ride · RPE 7 · felt strong</p></div>
+          <span style="font-size:11px;font-family:'Geist Mono',monospace;color:rgba(255,255,255,0.65)">3:24 · 186 · 96km</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;padding:11px 0">
+          <span style="flex:none;width:8px;height:28px;border-radius:4px;background:rgba(59,130,246,0.8)"></span>
+          <div style="flex:1;min-width:0"><p style="margin:0;font-size:12.5px;font-weight:600">Coffee Shake-out</p><p style="margin:1px 0 0;font-size:9.5px;text-transform:uppercase;color:rgba(255,255,255,0.4)">Ride</p></div>
+          <span style="font-size:11px;font-family:'Geist Mono',monospace;color:rgba(255,255,255,0.65)">0:38 · 18 · 14km</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:auto;display:flex;justify-content:space-between;align-items:center;background:#0c0c0d;border:1px solid rgba(255,255,255,0.1);border-radius:40px;padding:10px 20px">
+    <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:rgba(255,255,255,0.45)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="7"></circle><path d="M10 10l3-3"></path></svg><span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em">Today</span></span>
+    <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:#fff;position:relative"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="14" height="13" rx="2"></rect><path d="M3 8h14M7 2v4M13 2v4"></path></svg><span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em">Train</span><span style="position:absolute;bottom:-6px;width:4px;height:4px;border-radius:50%;background:#fff;box-shadow:0 0 10px #fff"></span></span>
+    <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:rgba(255,255,255,0.45)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 3l1.8 4.2L16 9l-4.2 1.8L10 15l-1.8-4.2L4 9l4.2-1.8z"></path></svg><span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em">Coach</span></span>
+    <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:rgba(255,255,255,0.45)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="2,11 6,11 8,6 11,15 13,11 18,11"></polyline></svg><span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em">Body</span></span>
+    <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:rgba(255,255,255,0.45)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 6h12M4 10h12M4 14h12"></path></svg><span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em">Menu</span></span>
+  </div>
+</div></div>
+
+<!-- ═════ 1e TRAIN Fitness ═════ -->
+<div class="dv-opt" id="1e"><div class="dv-olabel"><a class="dv-oid" href="#1e">1e</a>Train / Fitness — numbers first (CTL·ATL·TSB row), PMC below, no accordions. intervals.icu density.</div>
+<div style="width:390px;background:radial-gradient(at 10% 0%,rgba(59,130,246,0.07) 0%,transparent 40%),radial-gradient(at 90% 8%,rgba(16,185,129,0.07) 0%,transparent 45%),#0a0a0a;border:1px solid rgba(255,255,255,0.12);border-radius:34px;padding:26px 22px 14px;display:flex;flex-direction:column;gap:14px;color:#fafafa;box-sizing:border-box">
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <span style="font-size:22px;font-weight:700;letter-spacing:-0.03em">Train</span>
+    <div style="display:flex;gap:4px">
+      <span style="font-size:9.5px;font-weight:700;padding:5px 10px;border-radius:999px;background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.5)">30</span>
+      <span style="font-size:9.5px;font-weight:700;padding:5px 10px;border-radius:999px;background:rgba(255,255,255,0.12)">90</span>
+      <span style="font-size:9.5px;font-weight:700;padding:5px 10px;border-radius:999px;background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.5)">180</span>
+      <span style="font-size:9.5px;font-weight:700;padding:5px 10px;border-radius:999px;background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.5)">365</span>
+    </div>
+  </div>
+  <div style="display:flex;gap:6px">
+    <span style="font-size:11px;font-weight:700;padding:7px 16px;border-radius:999px;background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.5)">Week</span>
+    <span style="font-size:11px;font-weight:700;padding:7px 16px;border-radius:999px;background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.5)">History</span>
+    <span style="font-size:11px;font-weight:700;padding:7px 16px;border-radius:999px;background:rgba(255,255,255,0.12);color:#fff">Fitness</span>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+    <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:12px;padding:10px 12px"><p style="margin:0;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.4)">Fitness · CTL</p><p style="margin:2px 0 0;font-size:20px;font-weight:700;font-family:'Geist Mono',monospace;color:#60a5fa">58</p><p style="margin:1px 0 0;font-size:9.5px;color:#10b981;font-weight:600">▲ +4 this block</p></div>
+    <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:12px;padding:10px 12px"><p style="margin:0;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.4)">Fatigue · ATL</p><p style="margin:2px 0 0;font-size:20px;font-weight:700;font-family:'Geist Mono',monospace;color:#f87171">60</p><p style="margin:1px 0 0;font-size:9.5px;color:rgba(255,255,255,0.45);font-weight:600">7d load 412</p></div>
+    <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:12px;padding:10px 12px"><p style="margin:0;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.4)">Form · TSB</p><p style="margin:2px 0 0;font-size:20px;font-weight:700;font-family:'Geist Mono',monospace;color:#34d399">−1.9</p><p style="margin:1px 0 0;font-size:9.5px;color:rgba(255,255,255,0.45);font-weight:600">neutral zone</p></div>
+  </div>
+
+  <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:16px">
+    <svg viewBox="0 0 100 40" preserveAspectRatio="none" style="width:100%;height:130px;display:block" aria-label="PMC chart">
+      <path d="M0 22 L10 23 L20 21 L30 24 L40 22 L50 25 L60 23 L70 24 L80 22 L90 23 L100 24 L100 23.5 L0 23.5 Z" fill="#34d399" opacity="0.12"></path>
+      <line x1="0" y1="23.5" x2="100" y2="23.5" stroke="rgba(255,255,255,0.15)" stroke-width="0.3" stroke-dasharray="1 1"></line>
+      <polyline points="0,30 10,29 20,28.5 30,27 40,26.5 50,25 60,24 70,23 80,21.5 90,20 100,19" fill="none" stroke="#3b82f6" stroke-width="0.7" vector-effect="non-scaling-stroke"></polyline>
+      <polyline points="0,31 10,28 20,30 30,24 40,27 50,22 60,25 70,20 80,23 90,18 100,20" fill="none" stroke="#ef4444" stroke-width="0.5" stroke-dasharray="1.5 1" vector-effect="non-scaling-stroke"></polyline>
+    </svg>
+    <div style="display:flex;gap:14px;margin-top:10px;border-top:1px solid rgba(255,255,255,0.05);padding-top:10px">
+      <span style="font-size:9.5px;color:rgba(255,255,255,0.5)"><span style="display:inline-block;width:14px;height:2px;background:#3b82f6;vertical-align:middle;margin-right:5px"></span>CTL</span>
+      <span style="font-size:9.5px;color:rgba(255,255,255,0.5)"><span style="display:inline-block;width:14px;height:2px;background:#ef4444;vertical-align:middle;margin-right:5px"></span>ATL</span>
+      <span style="font-size:9.5px;color:rgba(255,255,255,0.5)"><span style="display:inline-block;width:14px;height:8px;background:rgba(52,211,153,0.2);vertical-align:middle;margin-right:5px"></span>TSB</span>
+    </div>
+  </div>
+
+  <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:16px">
+    <div style="display:flex;justify-content:space-between;margin-bottom:10px"><span style="font-size:10px;text-transform:uppercase;letter-spacing:0.2em;font-weight:700;color:rgba(255,255,255,0.4)">Weekly load</span><span style="font-size:9.5px;color:rgba(255,255,255,0.35)">12 weeks</span></div>
+    <div style="display:flex;align-items:flex-end;gap:5px;height:64px">
+      <span style="flex:1;height:38%;background:rgba(255,255,255,0.18);border-radius:3px 3px 0 0"></span><span style="flex:1;height:46%;background:rgba(255,255,255,0.18);border-radius:3px 3px 0 0"></span><span style="flex:1;height:42%;background:rgba(255,255,255,0.18);border-radius:3px 3px 0 0"></span><span style="flex:1;height:55%;background:rgba(255,255,255,0.18);border-radius:3px 3px 0 0"></span><span style="flex:1;height:30%;background:rgba(255,255,255,0.18);border-radius:3px 3px 0 0"></span><span style="flex:1;height:58%;background:rgba(255,255,255,0.18);border-radius:3px 3px 0 0"></span><span style="flex:1;height:64%;background:rgba(255,255,255,0.18);border-radius:3px 3px 0 0"></span><span style="flex:1;height:50%;background:rgba(255,255,255,0.18);border-radius:3px 3px 0 0"></span><span style="flex:1;height:70%;background:rgba(255,255,255,0.18);border-radius:3px 3px 0 0"></span><span style="flex:1;height:76%;background:rgba(255,255,255,0.18);border-radius:3px 3px 0 0"></span><span style="flex:1;height:60%;background:rgba(255,255,255,0.18);border-radius:3px 3px 0 0"></span><span style="flex:1;height:82%;background:#3b82f6;border-radius:3px 3px 0 0"></span>
+    </div>
+  </div>
+
+  <div style="display:flex;justify-content:space-between;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:12px 16px">
+    <div><p style="margin:0;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.4)">eFTP</p><p style="margin:2px 0 0;font-size:13px;font-weight:700;font-family:'Geist Mono',monospace">246W</p></div>
+    <div><p style="margin:0;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.4)">Max power</p><p style="margin:2px 0 0;font-size:13px;font-weight:700;font-family:'Geist Mono',monospace">892W</p></div>
+    <div><p style="margin:0;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.4)">W′</p><p style="margin:2px 0 0;font-size:13px;font-weight:700;font-family:'Geist Mono',monospace">21.4kJ</p></div>
+    <div><p style="margin:0;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.4)">Ramp</p><p style="margin:2px 0 0;font-size:13px;font-weight:700;font-family:'Geist Mono',monospace">Steady</p></div>
+  </div>
+
+  <div style="margin-top:auto;display:flex;justify-content:space-between;align-items:center;background:#0c0c0d;border:1px solid rgba(255,255,255,0.1);border-radius:40px;padding:10px 20px">
+    <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:rgba(255,255,255,0.45)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="7"></circle><path d="M10 10l3-3"></path></svg><span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em">Today</span></span>
+    <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:#fff;position:relative"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="14" height="13" rx="2"></rect><path d="M3 8h14M7 2v4M13 2v4"></path></svg><span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em">Train</span><span style="position:absolute;bottom:-6px;width:4px;height:4px;border-radius:50%;background:#fff;box-shadow:0 0 10px #fff"></span></span>
+    <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:rgba(255,255,255,0.45)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 3l1.8 4.2L16 9l-4.2 1.8L10 15l-1.8-4.2L4 9l4.2-1.8z"></path></svg><span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em">Coach</span></span>
+    <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:rgba(255,255,255,0.45)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="2,11 6,11 8,6 11,15 13,11 18,11"></polyline></svg><span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em">Body</span></span>
+    <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:rgba(255,255,255,0.45)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 6h12M4 10h12M4 14h12"></path></svg><span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em">Menu</span></span>
+  </div>
+</div></div>
+
+<!-- ═════ 1f COACH inbox ═════ -->
+<div class="dv-opt" id="1f"><div class="dv-olabel"><a class="dv-oid" href="#1f">1f</a>Coach — Chat + the new Inbox: every coach-authored item (briefs, reviews, debriefs, warnings) in one rail.</div>
+<div style="width:390px;background:radial-gradient(at 10% 0%,rgba(59,130,246,0.07) 0%,transparent 40%),radial-gradient(at 90% 8%,rgba(16,185,129,0.07) 0%,transparent 45%),#0a0a0a;border:1px solid rgba(255,255,255,0.12);border-radius:34px;padding:26px 22px 14px;display:flex;flex-direction:column;gap:14px;color:#fafafa;box-sizing:border-box">
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <span style="font-size:22px;font-weight:700;letter-spacing:-0.03em">Coach</span>
+    <span style="display:flex;align-items:center;gap:6px;border:1px solid rgba(255,255,255,0.1);border-radius:999px;padding:5px 11px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.5)">Deep · Direct</span>
+  </div>
+  <div style="display:flex;gap:6px">
+    <span style="font-size:11px;font-weight:700;padding:7px 16px;border-radius:999px;background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.5)">Chat</span>
+    <span style="font-size:11px;font-weight:700;padding:7px 16px;border-radius:999px;background:rgba(255,255,255,0.12);color:#fff">Inbox <span style="color:#10b981">· 2</span></span>
+  </div>
+
+  <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:4px 16px">
+    <div style="display:flex;gap:12px;padding:13px 0;border-bottom:1px solid rgba(255,255,255,0.06)">
+      <span style="flex:none;width:34px;height:34px;border-radius:11px;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.3);display:flex;align-items:center;justify-content:center;font-size:14px">☀</span>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:12.5px;font-weight:700">Morning brief <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#10b981;margin-left:3px;vertical-align:middle"></span></span><span style="font-size:9.5px;color:rgba(255,255,255,0.35)">07:02</span></div>
+        <p style="margin:2px 0 0;font-size:11px;line-height:1.45;color:rgba(255,255,255,0.55);overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">Readiness 66 — HRV a touch under baseline after Saturday. Tempo trimmed to 2×20; hold the top of Z3…</p>
+      </div>
+    </div>
+    <div style="display:flex;gap:12px;padding:13px 0;border-bottom:1px solid rgba(255,255,255,0.06)">
+      <span style="flex:none;width:34px;height:34px;border-radius:11px;background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);display:flex;align-items:center;justify-content:center;font-size:14px">✓</span>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:12.5px;font-weight:700">Ride debrief — Endurance Spin</span><span style="font-size:9.5px;color:rgba(255,255,255,0.35)">Mon</span></div>
+        <p style="margin:2px 0 0;font-size:11px;line-height:1.45;color:rgba(255,255,255,0.55);overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">"Legs felt flat early" — matches the numbers: HR drifted 6% in hour one. Z2 discipline was good…</p>
+      </div>
+    </div>
+    <div style="display:flex;gap:12px;padding:13px 0;border-bottom:1px solid rgba(255,255,255,0.06)">
+      <span style="flex:none;width:34px;height:34px;border-radius:11px;background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.3);display:flex;align-items:center;justify-content:center;font-size:14px">▤</span>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:12.5px;font-weight:700">Weekly review <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#10b981;margin-left:3px;vertical-align:middle"></span></span><span style="font-size:9.5px;color:rgba(255,255,255,0.35)">Sun</span></div>
+        <p style="margin:2px 0 0;font-size:11px;line-height:1.45;color:rgba(255,255,255,0.55);overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">Load 412 vs 388 last week (+6%), recovery held — HRV baseline stable. One flag: two late-evening sessions…</p>
+      </div>
+    </div>
+    <div style="display:flex;gap:12px;padding:13px 0;border-bottom:1px solid rgba(255,255,255,0.06)">
+      <span style="flex:none;width:34px;height:34px;border-radius:11px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);display:flex;align-items:center;justify-content:center;font-size:14px">⚠</span>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:12.5px;font-weight:700;color:rgba(255,255,255,0.7)">Overtraining watch — cleared</span><span style="font-size:9.5px;color:rgba(255,255,255,0.35)">Jul 14</span></div>
+        <p style="margin:2px 0 0;font-size:11px;line-height:1.45;color:rgba(255,255,255,0.55);overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">HRV suppression resolved after two easy days. Watch closed, no action needed.</p>
+      </div>
+    </div>
+    <div style="display:flex;gap:12px;padding:13px 0">
+      <span style="flex:none;width:34px;height:34px;border-radius:11px;background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.25);display:flex;align-items:center;justify-content:center;font-size:14px">◔</span>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:12.5px;font-weight:700;color:rgba(255,255,255,0.7)">Monthly report — June</span><span style="font-size:9.5px;color:rgba(255,255,255,0.35)">Jul 1</span></div>
+        <p style="margin:2px 0 0;font-size:11px;line-height:1.45;color:rgba(255,255,255,0.55);overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">CTL 51 → 58, adherence 84%, sleep debt trimmed by 2h. Biggest win: consistency…</p>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:999px;padding:10px 16px">
+    <span style="flex:1;font-size:12px;color:rgba(255,255,255,0.35)">Ask about your training…</span>
+    <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"><path d="M10 3v9M7 6a3 3 0 006 0M5 12a5 5 0 0010 0M10 17v-3"></path></svg>
+    <span style="width:28px;height:28px;border-radius:50%;background:#10b981;color:#000;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700">↑</span>
+  </div>
+
+  <div style="margin-top:auto;display:flex;justify-content:space-between;align-items:center;background:#0c0c0d;border:1px solid rgba(255,255,255,0.1);border-radius:40px;padding:10px 20px">
+    <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:rgba(255,255,255,0.45)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="7"></circle><path d="M10 10l3-3"></path></svg><span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em">Today</span></span>
+    <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:rgba(255,255,255,0.45)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="14" height="13" rx="2"></rect><path d="M3 8h14M7 2v4M13 2v4"></path></svg><span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em">Train</span></span>
+    <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:#fff;position:relative"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 3l1.8 4.2L16 9l-4.2 1.8L10 15l-1.8-4.2L4 9l4.2-1.8z"></path></svg><span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em">Coach</span><span style="position:absolute;bottom:-6px;width:4px;height:4px;border-radius:50%;background:#fff;box-shadow:0 0 10px #fff"></span></span>
+    <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:rgba(255,255,255,0.45)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="2,11 6,11 8,6 11,15 13,11 18,11"></polyline></svg><span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em">Body</span></span>
+    <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:rgba(255,255,255,0.45)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 6h12M4 10h12M4 14h12"></path></svg><span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em">Menu</span></span>
+  </div>
+</div></div>
+
+<!-- ═════ 1g BODY ═════ -->
+<div class="dv-opt" id="1g"><div class="dv-olabel"><a class="dv-oid" href="#1g">1g</a>Body — trends vs baselines, sleep intelligence, journal insights, labs. Health finally on the phone nav.</div>
+<div style="width:390px;background:radial-gradient(at 10% 0%,rgba(59,130,246,0.07) 0%,transparent 40%),radial-gradient(at 90% 8%,rgba(16,185,129,0.07) 0%,transparent 45%),#0a0a0a;border:1px solid rgba(255,255,255,0.12);border-radius:34px;padding:26px 22px 14px;display:flex;flex-direction:column;gap:14px;color:#fafafa;box-sizing:border-box">
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <span style="font-size:22px;font-weight:700;letter-spacing:-0.03em">Body</span>
+    <span style="display:flex;align-items:center;gap:5px;background:rgba(16,185,129,0.1);border-radius:999px;padding:6px 12px;font-size:10.5px;font-weight:700;color:#34d399">Streak 12d ✓</span>
+  </div>
+  <div style="display:flex;gap:6px">
+    <span style="font-size:11px;font-weight:700;padding:7px 14px;border-radius:999px;background:rgba(255,255,255,0.12);color:#fff">Trends</span>
+    <span style="font-size:11px;font-weight:700;padding:7px 14px;border-radius:999px;background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.5)">Sleep</span>
+    <span style="font-size:11px;font-weight:700;padding:7px 14px;border-radius:999px;background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.5)">Journal</span>
+    <span style="font-size:11px;font-weight:700;padding:7px 14px;border-radius:999px;background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.5)">Labs</span>
+  </div>
+
+  <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:16px">
+    <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+      <span style="font-size:10px;text-transform:uppercase;letter-spacing:0.2em;font-weight:700;color:rgba(255,255,255,0.4)">HRV vs baseline</span>
+      <span style="font-size:11px;font-weight:700;font-family:'Geist Mono',monospace">64<span style="color:rgba(255,255,255,0.4)">ms</span> <span style="color:rgba(255,255,255,0.35);font-weight:400">· 65 ±4</span></span>
+    </div>
+    <svg viewBox="0 0 100 32" preserveAspectRatio="none" style="width:100%;height:88px;display:block">
+      <rect x="0" y="10" width="100" height="10" fill="rgba(16,185,129,0.08)"></rect>
+      <line x1="0" y1="15" x2="100" y2="15" stroke="rgba(16,185,129,0.25)" stroke-width="0.3" stroke-dasharray="1.5 1.5"></line>
+      <polyline points="0,18 8,16 16,19 24,14 32,15 40,12 48,16 56,13 64,17 72,20 80,18 88,16 100,15.5" fill="none" stroke="#10b981" stroke-width="0.8" vector-effect="non-scaling-stroke"></polyline>
+    </svg>
+  </div>
+  <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:16px">
+    <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+      <span style="font-size:10px;text-transform:uppercase;letter-spacing:0.2em;font-weight:700;color:rgba(255,255,255,0.4)">Resting HR vs baseline</span>
+      <span style="font-size:11px;font-weight:700;font-family:'Geist Mono',monospace">47<span style="color:rgba(255,255,255,0.4)">bpm</span> <span style="color:rgba(255,255,255,0.35);font-weight:400">· 48 ±2</span></span>
+    </div>
+    <svg viewBox="0 0 100 32" preserveAspectRatio="none" style="width:100%;height:72px;display:block">
+      <rect x="0" y="12" width="100" height="8" fill="rgba(59,130,246,0.08)"></rect>
+      <polyline points="0,14 10,15 20,13 30,16 40,15 50,17 60,15 70,16 80,17 90,16 100,17.5" fill="none" stroke="#3b82f6" stroke-width="0.8" vector-effect="non-scaling-stroke"></polyline>
+    </svg>
+  </div>
+
+  <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:10px">
+    <div style="display:flex;justify-content:space-between"><span style="font-size:10px;text-transform:uppercase;letter-spacing:0.2em;font-weight:700;color:rgba(255,255,255,0.4)">Last night · 7:12</span><span style="font-size:10px;color:rgba(255,255,255,0.4)">23:41 → 07:02</span></div>
+    <div style="display:flex;height:14px;border-radius:7px;overflow:hidden">
+      <span style="width:21%;background:#3b82f6"></span><span style="width:24%;background:#8b5cf6"></span><span style="width:49%;background:rgba(59,130,246,0.35)"></span><span style="width:6%;background:rgba(255,255,255,0.25)"></span>
+    </div>
+    <div style="display:flex;gap:12px;font-size:9.5px;color:rgba(255,255,255,0.5)">
+      <span><span style="display:inline-block;width:7px;height:7px;border-radius:2px;background:#3b82f6;margin-right:4px"></span>Deep 1:31</span>
+      <span><span style="display:inline-block;width:7px;height:7px;border-radius:2px;background:#8b5cf6;margin-right:4px"></span>REM 1:44</span>
+      <span><span style="display:inline-block;width:7px;height:7px;border-radius:2px;background:rgba(59,130,246,0.35);margin-right:4px"></span>Light 3:32</span>
+      <span><span style="display:inline-block;width:7px;height:7px;border-radius:2px;background:rgba(255,255,255,0.25);margin-right:4px"></span>Awake 0:25</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;border-top:1px solid rgba(255,255,255,0.06);padding-top:10px">
+      <span style="font-size:10.5px;color:rgba(255,255,255,0.55)">Consistency <b style="color:#fff">78</b></span>
+      <span style="font-size:10.5px;color:rgba(255,255,255,0.55)">Chronotype <b style="color:#fff">early</b></span>
+      <span style="font-size:10.5px;color:#f59e0b">Tonight: bed by 23:10</span>
+    </div>
+  </div>
+
+  <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:14px 16px;display:flex;flex-direction:column;gap:8px">
+    <span style="font-size:10px;text-transform:uppercase;letter-spacing:0.2em;font-weight:700;color:rgba(255,255,255,0.4)">90-day correlations</span>
+    <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:12px;color:rgba(255,255,255,0.8)">🍷 Alcohol</span><span style="font-size:11.5px;font-weight:700;color:#f87171">−9% ± 4 next-day</span></div>
+    <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:12px;color:rgba(255,255,255,0.8)">🧘 Stretching</span><span style="font-size:11.5px;font-weight:700;color:#34d399">+4% ± 3 next-day</span></div>
+    <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:12px;color:rgba(255,255,255,0.7)">☕ Late caffeine</span><span style="font-size:11px;color:rgba(255,255,255,0.4)">inconclusive · 11 events</span></div>
+  </div>
+
+  <div style="display:flex;gap:8px">
+    <div style="flex:1;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:14px 16px">
+      <p style="margin:0;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.4)">Biological age</p>
+      <p style="margin:4px 0 0;font-size:22px;font-weight:700;font-family:'Geist Mono',monospace">34 <span style="font-size:11px;color:#34d399">▼ 4.2 yr</span></p>
+    </div>
+    <div style="flex:1;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:14px 16px">
+      <p style="margin:0;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.4)">Labs</p>
+      <p style="margin:4px 0 0;font-size:12px;color:rgba(255,255,255,0.7);line-height:1.4">12 biomarkers<br><span style="color:rgba(255,255,255,0.4)">last draw May 12 →</span></p>
+    </div>
+  </div>
+
+  <div style="margin-top:auto;display:flex;justify-content:space-between;align-items:center;background:#0c0c0d;border:1px solid rgba(255,255,255,0.1);border-radius:40px;padding:10px 20px">
+    <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:rgba(255,255,255,0.45)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="7"></circle><path d="M10 10l3-3"></path></svg><span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em">Today</span></span>
+    <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:rgba(255,255,255,0.45)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="14" height="13" rx="2"></rect><path d="M3 8h14M7 2v4M13 2v4"></path></svg><span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em">Train</span></span>
+    <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:rgba(255,255,255,0.45)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 3l1.8 4.2L16 9l-4.2 1.8L10 15l-1.8-4.2L4 9l4.2-1.8z"></path></svg><span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em">Coach</span></span>
+    <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:#fff;position:relative"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="2,11 6,11 8,6 11,15 13,11 18,11"></polyline></svg><span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em">Body</span><span style="position:absolute;bottom:-6px;width:4px;height:4px;border-radius:50%;background:#fff;box-shadow:0 0 10px #fff"></span></span>
+    <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:rgba(255,255,255,0.45)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 6h12M4 10h12M4 14h12"></path></svg><span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em">Menu</span></span>
+  </div>
+</div></div>
+
+<!-- ═════ 1h CHECK-IN sheet ═════ -->
+<div class="dv-opt" id="1h"><div class="dv-olabel"><a class="dv-oid" href="#1h">1h</a>Morning check-in — bottom sheet over Today. Synced values shown, three sliders, pre-toggled tags. 60 seconds.</div>
+<div style="width:390px;height:720px;background:#050506;border:1px solid rgba(255,255,255,0.12);border-radius:34px;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden;color:#fafafa;box-sizing:border-box;position:relative">
+  <div style="position:absolute;top:0;left:0;right:0;padding:26px 22px;opacity:0.25;filter:blur(2px)">
+    <span style="font-size:10px;text-transform:uppercase;letter-spacing:0.2em;font-weight:700;color:rgba(255,255,255,0.4)">Tuesday, July 22</span>
+    <p style="margin:4px 0 0;font-size:23px;font-weight:700">Good morning</p>
+    <div style="margin-top:16px;height:150px;border-radius:28px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1)"></div>
+  </div>
+  <div style="position:relative;background:#111113;border:1px solid rgba(255,255,255,0.12);border-bottom:none;border-radius:28px 28px 0 0;padding:12px 22px 22px;display:flex;flex-direction:column;gap:14px;box-shadow:0 -20px 60px rgba(0,0,0,0.6)">
+    <span style="width:40px;height:4px;border-radius:2px;background:rgba(255,255,255,0.2);margin:0 auto"></span>
+    <div style="display:flex;justify-content:space-between;align-items:baseline">
+      <span style="font-size:16px;font-weight:700">Morning check-in</span>
+      <span style="font-size:10px;color:rgba(255,255,255,0.4)">Tue Jul 22</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;background:rgba(16,185,129,0.07);border:1px solid rgba(16,185,129,0.25);border-radius:12px;padding:9px 12px">
+      <span style="font-size:11px;color:#34d399;font-weight:600">✓ Synced</span>
+      <span style="font-size:11px;color:rgba(255,255,255,0.6);font-family:'Geist Mono',monospace">HRV 64 · RHR 47 · sleep 7:12</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="font-size:11px;font-weight:600;color:rgba(255,255,255,0.7)">Energy</span><span style="font-size:11px;font-weight:700;font-family:'Geist Mono',monospace;color:#10b981">7</span></div>
+        <div style="position:relative;height:6px;border-radius:3px;background:rgba(255,255,255,0.08)"><span style="position:absolute;left:0;top:0;bottom:0;width:70%;border-radius:3px;background:#10b981"></span><span style="position:absolute;left:70%;top:50%;transform:translate(-50%,-50%);width:16px;height:16px;border-radius:50%;background:#fff"></span></div>
+      </div>
+      <div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="font-size:11px;font-weight:600;color:rgba(255,255,255,0.7)">Soreness</span><span style="font-size:11px;font-weight:700;font-family:'Geist Mono',monospace;color:rgba(255,255,255,0.7)">3</span></div>
+        <div style="position:relative;height:6px;border-radius:3px;background:rgba(255,255,255,0.08)"><span style="position:absolute;left:0;top:0;bottom:0;width:30%;border-radius:3px;background:rgba(255,255,255,0.35)"></span><span style="position:absolute;left:30%;top:50%;transform:translate(-50%,-50%);width:16px;height:16px;border-radius:50%;background:#fff"></span></div>
+      </div>
+      <div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="font-size:11px;font-weight:600;color:rgba(255,255,255,0.7)">Stress</span><span style="font-size:11px;font-weight:700;font-family:'Geist Mono',monospace;color:rgba(255,255,255,0.7)">4</span></div>
+        <div style="position:relative;height:6px;border-radius:3px;background:rgba(255,255,255,0.08)"><span style="position:absolute;left:0;top:0;bottom:0;width:40%;border-radius:3px;background:rgba(255,255,255,0.35)"></span><span style="position:absolute;left:40%;top:50%;transform:translate(-50%,-50%);width:16px;height:16px;border-radius:50%;background:#fff"></span></div>
+      </div>
+    </div>
+    <div>
+      <p style="margin:0 0 7px;font-size:10px;text-transform:uppercase;letter-spacing:0.15em;font-weight:700;color:rgba(255,255,255,0.4)">Yesterday's behaviors <span style="text-transform:none;letter-spacing:0;font-weight:500">· usual pre-toggled</span></p>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        <span style="font-size:11px;padding:6px 12px;border-radius:999px;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.5);color:#10b981;font-weight:600">🧘 Stretching</span>
+        <span style="font-size:11px;padding:6px 12px;border-radius:999px;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.5);color:#10b981;font-weight:600">💧 Hydrated</span>
+        <span style="font-size:11px;padding:6px 12px;border-radius:999px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.6)">🍷 Alcohol</span>
+        <span style="font-size:11px;padding:6px 12px;border-radius:999px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.6)">☕ Late caffeine</span>
+        <span style="font-size:11px;padding:6px 12px;border-radius:999px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.6)">🌙 Late screen</span>
+        <span style="font-size:11px;padding:6px 12px;border-radius:999px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.6)">+ more</span>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:11px 14px">
+      <span style="flex:1;font-size:12px;color:rgba(255,255,255,0.35)">Anything to note?</span>
+      <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"><path d="M10 3v9M7 6a3 3 0 006 0M5 12a5 5 0 0010 0M10 17v-3"></path></svg>
+    </div>
+    <div style="display:flex;gap:8px">
+      <span style="flex:1;text-align:center;background:#10b981;color:#000;border-radius:999px;padding:12px 0;font-size:13px;font-weight:700">Save check-in</span>
+      <span style="flex:none;text-align:center;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:999px;padding:12px 20px;font-size:12px;font-weight:600;color:rgba(255,255,255,0.6)">Skip</span>
+    </div>
+  </div>
+</div></div>
+
+<!-- ═════ 1i DEBRIEF sheet ═════ -->
+<div class="dv-opt" id="1i"><div class="dv-olabel"><a class="dv-oid" href="#1i">1i</a>Post-ride debrief — push notification opens this sheet. RPE + feel + note, then the coach writes the review.</div>
+<div style="width:390px;height:720px;background:#050506;border:1px solid rgba(255,255,255,0.12);border-radius:34px;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden;color:#fafafa;box-sizing:border-box;position:relative">
+  <div style="position:absolute;top:18px;left:16px;right:16px;background:rgba(30,30,32,0.95);border:1px solid rgba(255,255,255,0.15);border-radius:18px;padding:12px 14px;display:flex;gap:11px;align-items:center;box-shadow:0 8px 30px rgba(0,0,0,0.5)">
+    <span style="flex:none;width:34px;height:34px;border-radius:9px;background:#10b981;display:flex;align-items:center;justify-content:center;color:#000;font-weight:800;font-size:15px">R</span>
+    <div style="flex:1;min-width:0">
+      <div style="display:flex;justify-content:space-between"><span style="font-size:11.5px;font-weight:700">Recover</span><span style="font-size:10px;color:rgba(255,255,255,0.4)">now</span></div>
+      <p style="margin:1px 0 0;font-size:11.5px;color:rgba(255,255,255,0.75)">Ride synced: <b>Morning Intervals</b> · 1:15 · load 78. How did it feel?</p>
+    </div>
+  </div>
+  <div style="position:relative;background:#111113;border:1px solid rgba(255,255,255,0.12);border-bottom:none;border-radius:28px 28px 0 0;padding:12px 22px 22px;display:flex;flex-direction:column;gap:15px;box-shadow:0 -20px 60px rgba(0,0,0,0.6)">
+    <span style="width:40px;height:4px;border-radius:2px;background:rgba(255,255,255,0.2);margin:0 auto"></span>
+    <div>
+      <span style="font-size:16px;font-weight:700">How was Morning Intervals?</span>
+      <p style="margin:3px 0 0;font-size:11px;color:rgba(255,255,255,0.45)">Feeds the coach's ride review. Leave anything blank — nothing is invented from silence.</p>
+    </div>
+    <div style="display:flex;gap:12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:9px 12px">
+      <span style="font-size:11px;font-family:'Geist Mono',monospace;color:rgba(255,255,255,0.6)">1:15 · 78 load · 32km · IF 0.86 · 148bpm</span>
+    </div>
+    <div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px"><span style="font-size:11px;font-weight:600;color:rgba(255,255,255,0.7)">RPE</span><span style="font-size:11px;font-weight:700;color:#10b981">7/10 — hard</span></div>
+      <div style="display:flex;gap:5px">
+        <span style="width:29px;height:29px;border-radius:50%;background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.6);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center">1</span>
+        <span style="width:29px;height:29px;border-radius:50%;background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.6);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center">2</span>
+        <span style="width:29px;height:29px;border-radius:50%;background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.6);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center">3</span>
+        <span style="width:29px;height:29px;border-radius:50%;background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.6);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center">4</span>
+        <span style="width:29px;height:29px;border-radius:50%;background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.6);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center">5</span>
+        <span style="width:29px;height:29px;border-radius:50%;background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.6);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center">6</span>
+        <span style="width:29px;height:29px;border-radius:50%;background:#10b981;color:#000;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center">7</span>
+        <span style="width:29px;height:29px;border-radius:50%;background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.6);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center">8</span>
+        <span style="width:29px;height:29px;border-radius:50%;background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.6);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center">9</span>
+        <span style="width:29px;height:29px;border-radius:50%;background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.6);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center">10</span>
+      </div>
+    </div>
+    <div>
+      <span style="font-size:11px;font-weight:600;color:rgba(255,255,255,0.7)">Feel</span>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <span style="font-size:12px;padding:7px 18px;border-radius:999px;background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.6);font-weight:600">Strong</span>
+        <span style="font-size:12px;padding:7px 18px;border-radius:999px;background:rgba(16,185,129,0.2);color:#10b981;font-weight:700">Normal</span>
+        <span style="font-size:12px;padding:7px 18px;border-radius:999px;background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.6);font-weight:600">Weak</span>
+      </div>
+    </div>
+    <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:12px 14px;display:flex;align-items:flex-start;gap:10px">
+      <span style="flex:1;font-size:12px;color:rgba(255,255,255,0.75);line-height:1.5">Second set was a grind, headwind on the way back.</span>
+      <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="#10b981" stroke-width="1.5" style="flex:none;margin-top:1px"><path d="M10 3v9M7 6a3 3 0 006 0M5 12a5 5 0 0010 0M10 17v-3"></path></svg>
+    </div>
+    <div style="display:flex;gap:8px">
+      <span style="flex:1;text-align:center;background:#10b981;color:#000;border-radius:999px;padding:12px 0;font-size:13px;font-weight:700">Save &amp; get review</span>
+      <span style="flex:none;text-align:center;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:999px;padding:12px 20px;font-size:12px;font-weight:600;color:rgba(255,255,255,0.6)">Skip</span>
+    </div>
+  </div>
+</div></div>
+
+</div>
+<p class="dv-next">Try next: "go with <a class="dv-oid" href="#1a">1a</a> (or <a class="dv-oid" href="#1b">1b</a>) as the Today default" · "make the History rows even denser" · "show the desktop layout" · "mock the Menu page too"</p>
+</section>
+</x-dc>
+</body>
+</html>

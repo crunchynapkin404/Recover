@@ -3,3 +3,5 @@ node_modules
 drizzle
 package-lock.json
 public
+# Design references exported from Superdesign — kept byte-identical to the handoff bundle
+docs/design_handoff_ia_redesign/*.dc.html

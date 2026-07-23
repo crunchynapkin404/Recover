@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0a0a0a;color:#fafafa;font-family:'Geist',system-ui,sans-serif;-webkit-font-smoothing:antialiased;letter-spacing:-0.01em}
+a{color:#10b981;text-decoration:none}a:hover{color:#34d399;text-decoration:underline}
+</style>
+</helmet>
+<div style="background:radial-gradient(at 10% 0%, rgba(59,130,246,0.06) 0%, transparent 40%),radial-gradient(at 90% 10%, rgba(16,185,129,0.06) 0%, transparent 40%),#0a0a0a;min-height:100vh">
+<div style="max-width:960px;margin:0 auto;padding:64px 32px 120px;display:flex;flex-direction:column;gap:72px">
+
+<!-- ═══ Header ═══ -->
+<header style="display:flex;flex-direction:column;gap:16px">
+  <div style="display:flex;align-items:center;gap:12px">
+    <span style="font-size:10px;text-transform:uppercase;letter-spacing:0.2em;font-weight:700;color:rgba(255,255,255,0.4)">Recover · v0.20 · IA &amp; UX plan</span>
+    <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#10b981;border:1px solid rgba(16,185,129,0.3);border-radius:999px;padding:3px 10px">For review</span>
+  </div>
+  <h1 style="margin:0;font-size:44px;font-weight:800;letter-spacing:-0.03em;line-height:1.05">Every page, one job.</h1>
+  <p style="margin:0;max-width:640px;font-size:16px;line-height:1.6;color:rgba(255,255,255,0.6)">A page-by-page information-architecture plan for Recover. Diagnosis of why the app feels wrong today, a set of rules borrowed from Whoop / Garmin / Athlytic / intervals.icu, three navigation options, and the full content plan for every screen — before any pixels move.</p>
+  <div style="display:flex;gap:24px;font-size:12px;color:rgba(255,255,255,0.4)">
+    <span><b style="color:rgba(255,255,255,0.7)">Basis:</b> full source read of all 11 pages</span>
+    <span><b style="color:rgba(255,255,255,0.7)">Persona:</b> data-literate cyclist, 80% mobile</span>
+    <span><b style="color:rgba(255,255,255,0.7)">Next:</b> hi-fi mockups per page</span>
+  </div>
+</header>
+
+<!-- ═══ 01 Diagnosis ═══ -->
+<section style="display:flex;flex-direction:column;gap:24px">
+  <div style="display:flex;align-items:baseline;gap:14px;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:14px">
+    <span style="font-family:'Geist Mono',monospace;font-size:13px;color:#10b981">01</span>
+    <h2 style="margin:0;font-size:24px;font-weight:700;letter-spacing:-0.02em">Diagnosis — why it feels wrong</h2>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+    <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:20px 22px">
+      <p style="margin:0 0 8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;color:#ef4444">"Too much and too little"</p>
+      <p style="margin:0;font-size:13.5px;line-height:1.6;color:rgba(255,255,255,0.75)">Home stacks <b>13 modules</b>, and 7 of them are copies of other pages (week plan, races, sessions, milestones, tags, reviews). Meanwhile the numbers you actually open the app for — HRV, RHR, sleep, TSB — are <b>two taps deep</b> inside an accordion.</p>
+    </div>
+    <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:20px 22px">
+      <p style="margin:0 0 8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;color:#f59e0b">"Too much clicking"</p>
+      <p style="margin:0;font-size:13.5px;line-height:1.6;color:rgba(255,255,255,0.75)">v0.19 applied progressive disclosure <b>inside</b> pages: primary vitals live behind collapsed accordions. Disclosure should mean <i>navigate to the page that owns the topic</i> — never <i>expand a box to see today's number</i>.</p>
+    </div>
+    <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:20px 22px">
+      <p style="margin:0 0 8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;color:#3b82f6">"Fields too big for the data"</p>
+      <p style="margin:0;font-size:13.5px;line-height:1.6;color:rgba(255,255,255,0.75)">The glass mega-card (2rem radius, generous padding) is used for <b>everything</b> — even a card holding two numbers. One value per hero is right; one value per 300px card is why a screen holds 3 facts. Data needs a dense tile-and-row grammar.</p>
+    </div>
+  </div>
+
+  <!-- Duplication matrix -->
+  <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:24px;overflow-x:auto">
+    <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;color:rgba(255,255,255,0.5)">Duplication map — where each module renders today</p>
+    <p style="margin:0 0 18px;font-size:12px;color:rgba(255,255,255,0.4)">● primary home &nbsp;·&nbsp; ○ duplicate &nbsp;·&nbsp; every ○ is a card the eye must re-parse</p>
+    <div style="display:grid;grid-template-columns:220px repeat(7,1fr);gap:0;font-size:12px;min-width:760px">
+      <div style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.1)"></div>
+      <div style="padding:8px 4px;border-bottom:1px solid rgba(255,255,255,0.1);text-align:center;font-weight:700;color:rgba(255,255,255,0.7)">Home</div>
+      <div style="padding:8px 4px;border-bottom:1px solid rgba(255,255,255,0.1);text-align:center;font-weight:700;color:rgba(255,255,255,0.7)">Plan</div>
+      <div style="padding:8px 4px;border-bottom:1px solid rgba(255,255,255,0.1);text-align:center;font-weight:700;color:rgba(255,255,255,0.7)">Log</div>
+      <div style="padding:8px 4px;border-bottom:1px solid rgba(255,255,255,0.1);text-align:center;font-weight:700;color:rgba(255,255,255,0.7)">Coach</div>
+      <div style="padding:8px 4px;border-bottom:1px solid rgba(255,255,255,0.1);text-align:center;font-weight:700;color:rgba(255,255,255,0.7)">Journal</div>
+      <div style="padding:8px 4px;border-bottom:1px solid rgba(255,255,255,0.1);text-align:center;font-weight:700;color:rgba(255,255,255,0.7)">Health</div>
+      <div style="padding:8px 4px;border-bottom:1px solid rgba(255,255,255,0.1);text-align:center;font-weight:700;color:rgba(255,255,255,0.7)">Settings</div>
+
+      <div style="padding:9px 0;color:rgba(255,255,255,0.8);border-bottom:1px solid rgba(255,255,255,0.05)">Readiness score</div>
+      <div style="padding:9px 4px;text-align:center;color:#10b981;border-bottom:1px solid rgba(255,255,255,0.05)">●</div><div style="padding:9px 4px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.05)"></div><div style="padding:9px 4px;text-align:center;color:#f59e0b;border-bottom:1px solid rgba(255,255,255,0.05)">○</div><div style="padding:9px 4px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.05)"></div><div style="padding:9px 4px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.05)"></div><div style="padding:9px 4px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.05)"></div><div style="padding:9px 4px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.05)"></div>
+
+      <div style="padding:9px 0;color:rgba(255,255,255,0.8);border-bottom:1px solid rgba(255,255,255,0.05)">Week plan + today's session</div>
+      <div style="padding:9px 4px;text-align:center;color:#f59e0b;border-bottom:1px solid rgba(255,255,255,0.05)">○</div><div style="padding:9px 4px;text-align:center;color:#10b981;border-bottom:1px solid rgba(255,255,255,0.05)">●</div><div style="padding:9px 4px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.05)"></div><div style="padding:9px 4px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.05)"></div><div style="padding:9px 4px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.05)"></div><div style="padding:9px 4px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.05)"></div><div style="padding:9px 4px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.05)"></div>
+
+      <div style="padding:9px 0;color:rgba(255,255,255,0.8);border-bottom:1px solid rgba(255,255,255,0.05)">Race countdown</div>
+      <div style="padding:9px 4px;text-align:center;color:#f59e0b;border-bottom:1px solid rgba(255,255,255,0.05)">○</div><div style="padding:9px 4px;text-align:center;color:#10b981;border-bottom:1px solid rgba(255,255,255,0.05)">●</div><div style="padding:9px 4px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.05)"></div><div style="padding:9px 4px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.05)"></div><div style="padding:9px 4px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.05)"></div><div style="padding:9px 4px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.05)"></div><div style="padding:9px 4px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.05)"></div>
+
+      <div style="padding:9px 0;color:rgba(255,255,255,0.8);border-bottom:1px solid rgba(255,255,255,0.05)">Recent activities</div>
+      <div style="padding:9px 4px;text-align:center;color:#f59e0b;border-bottom:1px solid rgba(255,255,255,0.05)">○</div><div style="padding:9px 4px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.05)"></div><div style="padding:9px 4px;text-align:center;color:#10b981;border-bottom:1px solid rgba(255,255,255,0.05)">●</div><div style="padding:9px 4px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.05)"></div><div style="padding:9px 4px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.05)"></div><div style="padding:9px 4px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.05)"></div><div style="padding:9px 4px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.05)"></div>
+
+      <div style="padding:9px 0;color:rgba(255,255,255,0.8);border-bottom:1px solid rgba(255,255,255,0.05)">Weekly volume / load stats</div>
+      <div style="padding:9px 4px;text-align:center;color:#f59e0b;border-bottom:1px solid rgba(255,255,255,0.05)">○</div><div style="padding:9px 4px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.05)"></div><div style="padding:9px 4px;text-align:center;color:#10b981;border-bottom:1px solid rgba(255,255,255,0.05)">●</div><div style="padding:9px 4px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.05)"></div><div style="padding:9px 4px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.05)"></div><div style="padding:9px 4px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.05)"></div><div style="padding:9px 4px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.05)"></div>
+
+      <div style="padding:9px 0;color:rgba(255,255,255,0.8);border-bottom:1px solid rgba(255,255,255,0.05)">Coach output (brief · insight · review)</div>
+      <div style="padding:9px 4px;text-align:center;color:#f59e0b;border-bottom:1px solid rgba(255,255,255,0.05)">○○○</div><div style="padding:9px 4px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.05)"></div><div style="padding:9px 4px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.05)"></div><div style="padding:9px 4px;text-align:center;color:#10b981;border-bottom:1px solid rgba(255,255,255,0.05)">●</div><div style="padding:9px 4px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.05)"></div><div style="padding:9px 4px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.05)"></div><div style="padding:9px 4px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.05)"></div>
+
+      <div style="padding:9px 0;color:rgba(255,255,255,0.8);border-bottom:1px solid rgba(255,255,255,0.05)">Milestones &amp; streak</div>
+      <div style="padding:9px 4px;text-align:center;color:#f59e0b;border-bottom:1px solid rgba(255,255,255,0.05)">○</div><div style="padding:9px 4px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.05)"></div><div style="padding:9px 4px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.05)"></div><div style="padding:9px 4px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.05)"></div><div style="padding:9px 4px;text-align:center;color:#10b981;border-bottom:1px solid rgba(255,255,255,0.05)">●○</div><div style="padding:9px 4px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.05)"></div><div style="padding:9px 4px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.05)"></div>
+
+      <div style="padding:9px 0;color:rgba(255,255,255,0.8);border-bottom:1px solid rgba(255,255,255,0.05)">Behavior tags</div>
+      <div style="padding:9px 4px;text-align:center;color:#f59e0b;border-bottom:1px solid rgba(255,255,255,0.05)">○</div><div style="padding:9px 4px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.05)"></div><div style="padding:9px 4px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.05)"></div><div style="padding:9px 4px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.05)"></div><div style="padding:9px 4px;text-align:center;color:#10b981;border-bottom:1px solid rgba(255,255,255,0.05)">●</div><div style="padding:9px 4px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.05)"></div><div style="padding:9px 4px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.05)"></div>
+
+      <div style="padding:9px 0;color:rgba(255,255,255,0.8)">Biomarkers · bio-age · BP</div>
+      <div style="padding:9px 4px;text-align:center"></div><div style="padding:9px 4px;text-align:center"></div><div style="padding:9px 4px;text-align:center"></div><div style="padding:9px 4px;text-align:center"></div><div style="padding:9px 4px;text-align:center"></div><div style="padding:9px 4px;text-align:center;color:#10b981">●</div><div style="padding:9px 4px;text-align:center;color:#f59e0b">○ link</div>
+    </div>
+    <p style="margin:18px 0 0;font-size:12.5px;line-height:1.6;color:rgba(255,255,255,0.5)">Two structural bugs fall straight out of this map: <b style="color:rgba(255,255,255,0.8)">Home is a copy of every other page</b> (so it's long, and nothing on it feels authoritative), and <b style="color:rgba(255,255,255,0.8)">Health has no home on mobile</b> — it's reachable only through Settings, though it holds some of the most interesting data in the app.</p>
+  </div>
+</section>
+
+<!-- ═══ 02 Principles ═══ -->
+<section style="display:flex;flex-direction:column;gap:24px">
+  <div style="display:flex;align-items:baseline;gap:14px;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:14px">
+    <span style="font-family:'Geist Mono',monospace;font-size:13px;color:#10b981">02</span>
+    <h2 style="margin:0;font-size:24px;font-weight:700;letter-spacing:-0.02em">Rules — deep-learned from the apps you named</h2>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+    <div style="display:flex;gap:16px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:18px 20px">
+      <span style="font-family:'Geist Mono',monospace;font-size:12px;color:#10b981;flex:none">R1</span>
+      <div><p style="margin:0 0 4px;font-size:14px;font-weight:700">One job per page, stated in one sentence</p><p style="margin:0;font-size:13px;line-height:1.55;color:rgba(255,255,255,0.6)">If a module doesn't serve the sentence, it moves to the page whose sentence it serves. This single rule removes 7 of Home's 13 modules.</p></div>
+    </div>
+    <div style="display:flex;gap:16px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:18px 20px">
+      <span style="font-family:'Geist Mono',monospace;font-size:12px;color:#10b981;flex:none">R2</span>
+      <div><p style="margin:0 0 4px;font-size:14px;font-weight:700">Glance beats click for core vitals <span style="font-weight:500;color:rgba(255,255,255,0.4)">— Whoop</span></p><p style="margin:0;font-size:13px;line-height:1.55;color:rgba(255,255,255,0.6)">Whoop's home puts its three dials plus HRV/RHR right on the surface; deep-dives are separate pages, not expanders. No accordion may hide a today-value.</p></div>
+    </div>
+    <div style="display:flex;gap:16px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:18px 20px">
+      <span style="font-family:'Geist Mono',monospace;font-size:12px;color:#10b981;flex:none">R3</span>
+      <div><p style="margin:0 0 4px;font-size:14px;font-weight:700">Density is a dial per page <span style="font-weight:500;color:rgba(255,255,255,0.4)">— intervals.icu vs Whoop</span></p><p style="margin:0;font-size:13px;line-height:1.55;color:rgba(255,255,255,0.6)">Today reads calm: one verdict, few words. Train &amp; Body read dense: tables, small tiles, hairline rows — you know what TSB means; the UI should stop re-explaining it in 300px cards.</p></div>
+    </div>
+    <div style="display:flex;gap:16px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:18px 20px">
+      <span style="font-family:'Geist Mono',monospace;font-size:12px;color:#10b981;flex:none">R4</span>
+      <div><p style="margin:0 0 4px;font-size:14px;font-weight:700">Coach content gets one inbox</p><p style="margin:0;font-size:13px;line-height:1.55;color:rgba(255,255,255,0.6)">Briefs, insights, weekly reviews, monthly reports, debriefs — today they're scattered as Home cards. They're all coach-authored: one chronological inbox on Coach; Home shows only today's 3-line brief.</p></div>
+    </div>
+    <div style="display:flex;gap:16px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:18px 20px">
+      <span style="font-family:'Geist Mono',monospace;font-size:12px;color:#10b981;flex:none">R5</span>
+      <div><p style="margin:0 0 4px;font-size:14px;font-weight:700">Rituals are flows, not pages <span style="font-weight:500;color:rgba(255,255,255,0.4)">— Garmin morning report</span></p><p style="margin:0;font-size:13px;line-height:1.55;color:rgba(255,255,255,0.6)">Morning check-in and post-ride debrief arrive as push → bottom sheet, prefilled, ≤3 taps to done. They stop being destinations you must remember to visit.</p></div>
+    </div>
+    <div style="display:flex;gap:16px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:18px 20px">
+      <span style="font-family:'Geist Mono',monospace;font-size:12px;color:#10b981;flex:none">R6</span>
+      <div><p style="margin:0 0 4px;font-size:14px;font-weight:700">A metric renders as a card once, as a chip everywhere else</p><p style="margin:0;font-size:13px;line-height:1.55;color:rgba(255,255,255,0.6)">Readiness may echo on Train as a small chip ("66 · amber"), never as a second hero. Kills the double-parse without losing context.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ 03 Navigation options ═══ -->
+<section style="display:flex;flex-direction:column;gap:24px">
+  <div style="display:flex;align-items:baseline;gap:14px;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:14px">
+    <span style="font-family:'Geist Mono',monospace;font-size:13px;color:#10b981">03</span>
+    <h2 style="margin:0;font-size:24px;font-weight:700;letter-spacing:-0.02em">Three navigation options</h2>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;align-items:stretch">
+
+    <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:22px;display:flex;flex-direction:column;gap:14px">
+      <div><span style="font-family:'Geist Mono',monospace;font-size:11px;color:rgba(255,255,255,0.4)">OPTION A</span><h3 style="margin:4px 0 0;font-size:17px;font-weight:700">Same tabs, strict jobs</h3></div>
+      <div style="display:flex;gap:4px">
+        <span style="flex:1;text-align:center;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:7px 0;border-radius:8px;background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.8)">Home</span><span style="flex:1;text-align:center;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:7px 0;border-radius:8px;background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.8)">Plan</span><span style="flex:1;text-align:center;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:7px 0;border-radius:8px;background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.8)">Log</span><span style="flex:1;text-align:center;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:7px 0;border-radius:8px;background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.8)">Coach</span><span style="flex:1;text-align:center;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:7px 0;border-radius:8px;background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.8)">Journal</span><span style="flex:1;text-align:center;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:7px 0;border-radius:8px;background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.8)">Menu</span>
+      </div>
+      <p style="margin:0;font-size:12.5px;line-height:1.6;color:rgba(255,255,255,0.6)">Keep all six tabs; only redistribute content by rule R1 and flatten accordions. Zero relearning cost.</p>
+      <ul style="margin:0;padding:0 0 0 16px;font-size:12px;line-height:1.7;color:rgba(255,255,255,0.55)">
+        <li>Cheapest to ship, purely additive/subtractive</li>
+        <li style="color:rgba(239,68,68,0.8)">Health stays orphaned off mobile nav</li>
+        <li style="color:rgba(239,68,68,0.8)">Plan vs Log split still forces two visits per training question</li>
+      </ul>
+    </div>
+
+    <div style="background:rgba(16,185,129,0.05);border:1px solid rgba(16,185,129,0.35);border-radius:16px;padding:22px;display:flex;flex-direction:column;gap:14px;position:relative">
+      <span style="position:absolute;top:-10px;right:16px;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.12em;background:#10b981;color:#000;border-radius:999px;padding:4px 10px">Recommended</span>
+      <div><span style="font-family:'Geist Mono',monospace;font-size:11px;color:#10b981">OPTION B</span><h3 style="margin:4px 0 0;font-size:17px;font-weight:700">Today · Train · Coach · Body</h3></div>
+      <div style="display:flex;gap:4px">
+        <span style="flex:1;text-align:center;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:7px 0;border-radius:8px;background:rgba(16,185,129,0.18);color:#34d399">Today</span><span style="flex:1;text-align:center;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:7px 0;border-radius:8px;background:rgba(16,185,129,0.18);color:#34d399">Train</span><span style="flex:1;text-align:center;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:7px 0;border-radius:8px;background:rgba(16,185,129,0.18);color:#34d399">Coach</span><span style="flex:1;text-align:center;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:7px 0;border-radius:8px;background:rgba(16,185,129,0.18);color:#34d399">Body</span><span style="flex:1;text-align:center;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:7px 0;border-radius:8px;background:rgba(16,185,129,0.18);color:#34d399">Menu</span>
+      </div>
+      <p style="margin:0;font-size:12.5px;line-height:1.6;color:rgba(255,255,255,0.7)"><b>Train</b> = Plan + Log merged (Week · History · Fitness segments). <b>Body</b> = wellness trends + sleep + journal insights + Health merged. Check-in becomes a bottom sheet launched from Today.</p>
+      <ul style="margin:0;padding:0 0 0 16px;font-size:12px;line-height:1.7;color:rgba(255,255,255,0.6)">
+        <li>Every question has exactly one destination</li>
+        <li>Health data finally reachable on phone</li>
+        <li>Journal stops being a tab you forget; becomes a 60s ritual</li>
+        <li style="color:rgba(245,158,11,0.8)">Medium build: two merged pages, one new sheet</li>
+      </ul>
+    </div>
+
+    <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:22px;display:flex;flex-direction:column;gap:14px">
+      <div><span style="font-family:'Geist Mono',monospace;font-size:11px;color:rgba(255,255,255,0.4)">OPTION C</span><h3 style="margin:4px 0 0;font-size:17px;font-weight:700">4 tabs + action button</h3></div>
+      <div style="display:flex;gap:4px;align-items:center">
+        <span style="flex:1;text-align:center;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:7px 0;border-radius:8px;background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.8)">Home</span><span style="flex:1;text-align:center;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:7px 0;border-radius:8px;background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.8)">Train</span><span style="flex:none;width:30px;height:30px;border-radius:50%;background:#10b981;color:#000;font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center">+</span><span style="flex:1;text-align:center;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:7px 0;border-radius:8px;background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.8)">Coach</span><span style="flex:1;text-align:center;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:7px 0;border-radius:8px;background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.8)">You</span>
+      </div>
+      <p style="margin:0;font-size:12.5px;line-height:1.6;color:rgba(255,255,255,0.6)">Whoop's current pattern: dense scrollable Home, and a center <b>+</b> that opens every capture action — check-in, log activity, debrief, note to coach.</p>
+      <ul style="margin:0;padding:0 0 0 16px;font-size:12px;line-height:1.7;color:rgba(255,255,255,0.55)">
+        <li>All capture actions one thumb-reach away</li>
+        <li>Cleanest possible tab bar</li>
+        <li style="color:rgba(239,68,68,0.8)">Home must carry trends too → gets long again unless ruthless</li>
+        <li style="color:rgba(245,158,11,0.8)">The + can layer onto Option B later — not either/or</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ 04 Page-by-page plan ═══ -->
+<section style="display:flex;flex-direction:column;gap:24px">
+  <div style="display:flex;align-items:baseline;gap:14px;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:14px">
+    <span style="font-family:'Geist Mono',monospace;font-size:13px;color:#10b981">04</span>
+    <h2 style="margin:0;font-size:24px;font-weight:700;letter-spacing:-0.02em">Page-by-page plan <span style="font-size:14px;font-weight:500;color:rgba(255,255,255,0.4)">(Option B)</span></h2>
+  </div>
+
+  <!-- TODAY -->
+  <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:26px;display:grid;grid-template-columns:150px 1fr;gap:24px">
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <h3 style="margin:0;font-size:19px;font-weight:800">Today</h3>
+      <p style="margin:0;font-size:12px;line-height:1.5;color:#10b981;font-style:italic">"Can I train hard today, and what's on?"</p>
+      <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.35)">Answer visible in ≤5 seconds, above the fold, zero taps.</p>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;flex-direction:column;gap:6px;font-size:13px;line-height:1.55;color:rgba(255,255,255,0.75)">
+        <div style="display:flex;gap:10px"><span style="font-family:'Geist Mono',monospace;font-size:11px;color:rgba(255,255,255,0.35);flex:none;width:16px">1</span><span><b>Verdict:</b> readiness dial + band + one honest sentence of <i>why</i> ("HRV 64 vs 65 baseline · TSB −1.9") — the morning-brief narrative merges into the hero, not a separate card.</span></div>
+        <div style="display:flex;gap:10px"><span style="font-family:'Geist Mono',monospace;font-size:11px;color:rgba(255,255,255,0.35);flex:none;width:16px">2</span><span><b>Vitals strip:</b> HRV · RHR · Sleep · TSB as four compact tiles — value, 7-day delta, sparkline. Always visible, never in an accordion. Tap a tile → Body, scrolled to that trend.</span></div>
+        <div style="display:flex;gap:10px"><span style="font-family:'Geist Mono',monospace;font-size:11px;color:rgba(255,255,255,0.35);flex:none;width:16px">3</span><span><b>Today's session:</b> workout, duration, intensity, plus the adaptation note if readiness moved it. Inline actions: done / move / shrink. Pending-debrief chip attaches here.</span></div>
+        <div style="display:flex;gap:10px"><span style="font-family:'Geist Mono',monospace;font-size:11px;color:rgba(255,255,255,0.35);flex:none;width:16px">4</span><span><b>Coach brief:</b> today's 3 lines, tap → Coach thread. Race chip appears here only inside 21 days out. "Check in" button opens the 60-second sheet.</span></div>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;border-top:1px solid rgba(255,255,255,0.06);padding-top:12px">
+        <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.35);margin-right:4px;padding:4px 0">Leaves this page →</span>
+        <span style="font-size:11px;padding:4px 10px;border-radius:999px;border:1px solid rgba(245,158,11,0.35);color:#f59e0b">week strip → Train</span>
+        <span style="font-size:11px;padding:4px 10px;border-radius:999px;border:1px solid rgba(245,158,11,0.35);color:#f59e0b">weekly review → Coach</span>
+        <span style="font-size:11px;padding:4px 10px;border-radius:999px;border:1px solid rgba(245,158,11,0.35);color:#f59e0b">recent sessions → Train</span>
+        <span style="font-size:11px;padding:4px 10px;border-radius:999px;border:1px solid rgba(245,158,11,0.35);color:#f59e0b">sleep stages · battery → Body</span>
+        <span style="font-size:11px;padding:4px 10px;border-radius:999px;border:1px solid rgba(245,158,11,0.35);color:#f59e0b">milestones · tags → Body</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- TRAIN -->
+  <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:26px;display:grid;grid-template-columns:150px 1fr;gap:24px">
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <h3 style="margin:0;font-size:19px;font-weight:800">Train</h3>
+      <p style="margin:0;font-size:12px;line-height:1.5;color:#10b981;font-style:italic">"Plan the week, review the work."</p>
+      <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.35)">Plan + Log merged. Readiness echoes only as a chip (R6).</p>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;gap:6px">
+        <span style="font-size:11px;font-weight:700;padding:6px 14px;border-radius:999px;background:rgba(255,255,255,0.1)">Week</span><span style="font-size:11px;font-weight:700;padding:6px 14px;border-radius:999px;background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.5)">History</span><span style="font-size:11px;font-weight:700;padding:6px 14px;border-radius:999px;background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.5)">Fitness</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;font-size:13px;line-height:1.55;color:rgba(255,255,255,0.75)">
+        <div style="display:flex;gap:10px"><span style="font-family:'Geist Mono',monospace;font-size:11px;color:rgba(255,255,255,0.35);flex:none;width:52px">Week</span><span>Living week: strip + day rows with move/shrink/swap + what-if simulator, availability intake, races &amp; taper state, "what changed and why" log (collapsed — archival content is what accordions are for).</span></div>
+        <div style="display:flex;gap:10px"><span style="font-family:'Geist Mono',monospace;font-size:11px;color:rgba(255,255,255,0.35);flex:none;width:52px">History</span><span>Activity list as dense hairline rows (name · duration · load · IF · avg HR on one line), day-grouped, sport filter. The current 300px card-per-ride becomes a 56px row → 5× more rides per screen.</span></div>
+        <div style="display:flex;gap:10px"><span style="font-family:'Geist Mono',monospace;font-size:11px;color:rgba(255,255,255,0.35);flex:none;width:52px">Fitness</span><span>PMC chart with CTL/ATL/TSB stat row above it (numbers first, chart explains), weekly load bars, eFTP · W′ · ramp rate. Range tabs 30/90/180/365. intervals.icu density is the reference.</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- COACH -->
+  <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:26px;display:grid;grid-template-columns:150px 1fr;gap:24px">
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <h3 style="margin:0;font-size:19px;font-weight:800">Coach</h3>
+      <p style="margin:0;font-size:12px;line-height:1.5;color:#10b981;font-style:italic">"Talk — and everything the coach ever wrote, in one place."</p>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px;font-size:13px;line-height:1.55;color:rgba(255,255,255,0.75)">
+      <div style="display:flex;gap:10px"><span style="font-family:'Geist Mono',monospace;font-size:11px;color:rgba(255,255,255,0.35);flex:none;width:52px">Chat</span><span>Unchanged core: threads, thinking modes, ghost mode, voice input, artifacts.</span></div>
+      <div style="display:flex;gap:10px"><span style="font-family:'Geist Mono',monospace;font-size:11px;color:rgba(255,255,255,0.35);flex:none;width:52px">Inbox</span><span><b>New:</b> a chronological rail of coach-authored items — morning briefs, weekly reviews, monthly reports, ride debriefs, overtraining warnings. Each opens as a thread you can reply to. This is where Home's evicted Weekly-Review and Insight cards land.</span></div>
+    </div>
+  </div>
+
+  <!-- BODY -->
+  <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:26px;display:grid;grid-template-columns:150px 1fr;gap:24px">
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <h3 style="margin:0;font-size:19px;font-weight:800">Body</h3>
+      <p style="margin:0;font-size:12px;line-height:1.5;color:#10b981;font-style:italic">"How is my body trending — and what's driving it?"</p>
+      <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.35)">Absorbs the orphaned Health page + journal analysis.</p>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px;font-size:13px;line-height:1.55;color:rgba(255,255,255,0.75)">
+      <div style="display:flex;gap:10px"><span style="font-family:'Geist Mono',monospace;font-size:11px;color:rgba(255,255,255,0.35);flex:none;width:52px">Trends</span><span>HRV / RHR / sleep charts against personal baseline bands — promoted from a collapsed Log panel to the page opener.</span></div>
+      <div style="display:flex;gap:10px"><span style="font-family:'Geist Mono',monospace;font-size:11px;color:rgba(255,255,255,0.35);flex:none;width:52px">Sleep</span><span>Stages, consistency, chronotype, debt + tonight's bedtime advice, body-battery curve — the entire sleep accordion from Home, given room to breathe.</span></div>
+      <div style="display:flex;gap:10px"><span style="font-family:'Geist Mono',monospace;font-size:11px;color:rgba(255,255,255,0.35);flex:none;width:52px">Journal</span><span>Check-in history, correlation insights with confidence intervals, streaks &amp; milestones. The check-in <i>form</i> itself is the sheet on Today — this is the analysis of it.</span></div>
+      <div style="display:flex;gap:10px"><span style="font-family:'Geist Mono',monospace;font-size:11px;color:rgba(255,255,255,0.35);flex:none;width:52px">Labs</span><span>Biomarkers, biological age, blood pressure, upload &amp; manual entry — finally on the phone nav.</span></div>
+    </div>
+  </div>
+
+  <!-- MENU -->
+  <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:26px;display:grid;grid-template-columns:150px 1fr;gap:24px">
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <h3 style="margin:0;font-size:19px;font-weight:800">Menu</h3>
+      <p style="margin:0;font-size:12px;line-height:1.5;color:#10b981;font-style:italic">"Configure it and get out."</p>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px;font-size:13px;line-height:1.55;color:rgba(255,255,255,0.75)">
+      <p style="margin:0">Structure already works (v0.19/0.20 accordion-per-domain + hairline rows is right — settings is archival, so accordions belong here). Changes: profile row slims to one line; the "Health &amp; Biomarkers" escape-hatch link disappears (Body owns it); Import and Export stay under Data; Admin stays owner-only.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ 05 Rituals ═══ -->
+<section style="display:flex;flex-direction:column;gap:24px">
+  <div style="display:flex;align-items:baseline;gap:14px;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:14px">
+    <span style="font-family:'Geist Mono',monospace;font-size:13px;color:#10b981">05</span>
+    <h2 style="margin:0;font-size:24px;font-weight:700;letter-spacing:-0.02em">The three rituals <span style="font-size:14px;font-weight:500;color:rgba(255,255,255,0.4)">— designed as flows, not pages</span></h2>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+    <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:22px;display:flex;flex-direction:column;gap:12px">
+      <p style="margin:0;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#3b82f6">Morning · ~90 sec</p>
+      <div style="display:flex;flex-direction:column;gap:8px;font-size:12.5px;line-height:1.5;color:rgba(255,255,255,0.7)">
+        <div style="display:flex;gap:10px"><span style="flex:none;width:20px;height:20px;border-radius:50%;background:rgba(59,130,246,0.15);color:#3b82f6;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center">1</span><span>Push: "Readiness 66 · amber — HRV dipped"</span></div>
+        <div style="display:flex;gap:10px"><span style="flex:none;width:20px;height:20px;border-radius:50%;background:rgba(59,130,246,0.15);color:#3b82f6;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center">2</span><span>Open → Today answers in 5s: verdict + vitals + session</span></div>
+        <div style="display:flex;gap:10px"><span style="flex:none;width:20px;height:20px;border-radius:50%;background:rgba(59,130,246,0.15);color:#3b82f6;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center">3</span><span>"Check in" sheet: 3 prefilled sliders, pre-toggled tags, optional note — 60s, done</span></div>
+        <div style="display:flex;gap:10px"><span style="flex:none;width:20px;height:20px;border-radius:50%;background:rgba(59,130,246,0.15);color:#3b82f6;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center">4</span><span>Skim the coach brief; reply if needed</span></div>
+      </div>
+    </div>
+    <div style="background:rgba(16,185,129,0.05);border:1px solid rgba(16,185,129,0.3);border-radius:16px;padding:22px;display:flex;flex-direction:column;gap:12px">
+      <p style="margin:0;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#10b981">Post-ride · your explicit ask</p>
+      <div style="display:flex;flex-direction:column;gap:8px;font-size:12.5px;line-height:1.5;color:rgba(255,255,255,0.7)">
+        <div style="display:flex;gap:10px"><span style="flex:none;width:20px;height:20px;border-radius:50%;background:rgba(16,185,129,0.15);color:#10b981;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center">1</span><span>Sync lands the ride → push: "How was <i>Zwift Race</i>?"</span></div>
+        <div style="display:flex;gap:10px"><span style="flex:none;width:20px;height:20px;border-radius:50%;background:rgba(16,185,129,0.15);color:#10b981;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center">2</span><span>Tap → debrief <b>bottom sheet</b> over Today: RPE 1–10 chips, feel chips, note / voice dictation</span></div>
+        <div style="display:flex;gap:10px"><span style="flex:none;width:20px;height:20px;border-radius:50%;background:rgba(16,185,129,0.15);color:#10b981;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center">3</span><span>Coach writes the debrief review, quoting your words next to the numbers</span></div>
+        <div style="display:flex;gap:10px"><span style="flex:none;width:20px;height:20px;border-radius:50%;background:rgba(16,185,129,0.15);color:#10b981;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center">4</span><span>Review lands in the Coach inbox; chip clears from Today</span></div>
+      </div>
+    </div>
+    <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:22px;display:flex;flex-direction:column;gap:12px">
+      <p style="margin:0;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#8b5cf6">Week start · Sunday evening</p>
+      <div style="display:flex;flex-direction:column;gap:8px;font-size:12.5px;line-height:1.5;color:rgba(255,255,255,0.7)">
+        <div style="display:flex;gap:10px"><span style="flex:none;width:20px;height:20px;border-radius:50%;background:rgba(139,92,246,0.15);color:#8b5cf6;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center">1</span><span>Push: "Plan next week — 3 min"</span></div>
+        <div style="display:flex;gap:10px"><span style="flex:none;width:20px;height:20px;border-radius:50%;background:rgba(139,92,246,0.15);color:#8b5cf6;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center">2</span><span>Train / Week: availability intake, calendar-prefilled</span></div>
+        <div style="display:flex;gap:10px"><span style="flex:none;width:20px;height:20px;border-radius:50%;background:rgba(139,92,246,0.15);color:#8b5cf6;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center">3</span><span>Week materializes; taper/race constraints applied</span></div>
+        <div style="display:flex;gap:10px"><span style="flex:none;width:20px;height:20px;border-radius:50%;background:rgba(139,92,246,0.15);color:#8b5cf6;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center">4</span><span>Monday's Today shows the first session</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ 06 Density grammar ═══ -->
+<section style="display:flex;flex-direction:column;gap:24px">
+  <div style="display:flex;align-items:baseline;gap:14px;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:14px">
+    <span style="font-family:'Geist Mono',monospace;font-size:13px;color:#10b981">06</span>
+    <h2 style="margin:0;font-size:24px;font-weight:700;letter-spacing:-0.02em">Density grammar — fixing "fields too big"</h2>
+  </div>
+  <div style="display:grid;grid-template-columns:1.1fr 1fr;gap:16px;align-items:start">
+    <div style="display:flex;flex-direction:column;gap:10px;font-size:13px;line-height:1.6;color:rgba(255,255,255,0.75)">
+      <div style="display:flex;gap:12px;border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:10px"><b style="flex:none;width:120px;color:rgba(255,255,255,0.9)">One hero</b><span>Max one glass mega-card per screen — the page's focal metric. Everything else: flat tiles and hairline rows.</span></div>
+      <div style="display:flex;gap:12px;border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:10px"><b style="flex:none;width:120px;color:rgba(255,255,255,0.9)">Stat tile</b><span>≤64px tall: 10px caps label, 20–22px value, delta + sparkline on the right. Four fit in one phone row-pair.</span></div>
+      <div style="display:flex;gap:12px;border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:10px"><b style="flex:none;width:120px;color:rgba(255,255,255,0.9)">Rows, not cards</b><span>Lists (activities, biomarkers, adjustments) are 48–56px hairline rows. A ride is a row; a ride <i>detail</i> is a page.</span></div>
+      <div style="display:flex;gap:12px;border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:10px"><b style="flex:none;width:120px;color:rgba(255,255,255,0.9)">Radius scale</b><span>Hero 24px · tile 12px · row 0. The current uniform 2rem is what makes small data feel inflated.</span></div>
+      <div style="display:flex;gap:12px"><b style="flex:none;width:120px;color:rgba(255,255,255,0.9)">Accordion policy</b><span>Only for archival content: adjustment history, remaining skeleton, settings domains. Never for a today-value.</span></div>
+    </div>
+    <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:20px;display:flex;flex-direction:column;gap:10px">
+      <p style="margin:0;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;color:rgba(255,255,255,0.4)">Stat tile — target spec</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:12px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
+          <div><p style="margin:0;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.4)">HRV</p><p style="margin:2px 0 0;font-size:20px;font-weight:700;font-family:'Geist Mono',monospace">64<span style="font-size:11px;color:rgba(255,255,255,0.4)">ms</span></p></div>
+          <div style="text-align:right"><span style="font-size:10px;color:#10b981;font-weight:600">▲ vs 7d</span><svg width="44" height="16" viewBox="0 0 44 16" style="display:block;margin-top:2px"><polyline points="0,12 8,10 16,13 24,8 32,9 40,4" fill="none" stroke="#10b981" stroke-width="1.5"></polyline></svg></div>
+        </div>
+        <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:12px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
+          <div><p style="margin:0;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.4)">RHR</p><p style="margin:2px 0 0;font-size:20px;font-weight:700;font-family:'Geist Mono',monospace">47<span style="font-size:11px;color:rgba(255,255,255,0.4)">bpm</span></p></div>
+          <div style="text-align:right"><span style="font-size:10px;color:#10b981;font-weight:600">▼ vs 7d</span><svg width="44" height="16" viewBox="0 0 44 16" style="display:block;margin-top:2px"><polyline points="0,4 8,6 16,5 24,9 32,10 40,12" fill="none" stroke="#10b981" stroke-width="1.5"></polyline></svg></div>
+        </div>
+        <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:12px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
+          <div><p style="margin:0;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.4)">Sleep</p><p style="margin:2px 0 0;font-size:20px;font-weight:700;font-family:'Geist Mono',monospace">7:12</p></div>
+          <div style="text-align:right"><span style="font-size:10px;color:#f59e0b;font-weight:600">debt 40m</span><svg width="44" height="16" viewBox="0 0 44 16" style="display:block;margin-top:2px"><polyline points="0,8 8,6 16,10 24,7 32,11 40,9" fill="none" stroke="#3b82f6" stroke-width="1.5"></polyline></svg></div>
+        </div>
+        <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:12px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
+          <div><p style="margin:0;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.4)">Form · TSB</p><p style="margin:2px 0 0;font-size:20px;font-weight:700;font-family:'Geist Mono',monospace">−1.9</p></div>
+          <div style="text-align:right"><span style="font-size:10px;color:rgba(255,255,255,0.45);font-weight:600">CTL 58</span><svg width="44" height="16" viewBox="0 0 44 16" style="display:block;margin-top:2px"><polyline points="0,6 8,8 16,7 24,10 32,8 40,8" fill="none" stroke="#8b5cf6" stroke-width="1.5"></polyline></svg></div>
+        </div>
+      </div>
+      <p style="margin:4px 0 0;font-size:11.5px;line-height:1.5;color:rgba(255,255,255,0.45)">This 2×2 grid replaces the entire Recovery-Metrics accordion: same information, zero taps, one-third the height.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ 07 Next steps ═══ -->
+<section style="display:flex;flex-direction:column;gap:20px">
+  <div style="display:flex;align-items:baseline;gap:14px;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:14px">
+    <span style="font-family:'Geist Mono',monospace;font-size:13px;color:#10b981">07</span>
+    <h2 style="margin:0;font-size:24px;font-weight:700;letter-spacing:-0.02em">Next steps</h2>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:10px;font-size:14px;line-height:1.6;color:rgba(255,255,255,0.75)">
+    <div style="display:flex;gap:12px"><span style="font-family:'Geist Mono',monospace;color:#10b981;flex:none">→</span><span><b>You pick:</b> nav Option A, B, or C (or B now, C's + button later) — and flag anything above that reads wrong.</span></div>
+    <div style="display:flex;gap:12px"><span style="font-family:'Geist Mono',monospace;color:#10b981;flex:none">→</span><span><b>Then I build hi-fi phone mockups</b> in Recover's exact visual language (Geist, emerald, glass hero) — starting with Today in 2–3 density variations, then Train, Coach inbox, Body, and the two sheets (check-in, post-ride debrief).</span></div>
+    <div style="display:flex;gap:12px"><span style="font-family:'Geist Mono',monospace;color:#10b981;flex:none">→</span><span>Each mockup maps 1:1 to existing components so it translates directly into refactor tickets.</span></div>
+  </div>
+</section>
+
+</div>
+</div>
+</x-dc>
+</body>
+</html>
