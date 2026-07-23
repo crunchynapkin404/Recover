@@ -2,7 +2,7 @@ import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { requireSession } from "@/lib/session";
 import { getMySessions } from "@/lib/sessions";
-import { AppShell } from "@/components/app-shell";
+import { AppShell, shellUser } from "@/components/app-shell";
 import { IntervalsCard } from "@/components/settings/intervals-card";
 import { NotificationsCard } from "@/components/settings/notifications-card";
 import { BodyPrefsCard } from "@/components/settings/body-prefs-card";
@@ -207,7 +207,7 @@ export default async function SettingsPage({
   ].join(" · ");
 
   return (
-    <AppShell>
+    <AppShell user={shellUser(user)}>
       {/* Header */}
       <header className="mb-5 pt-8">
         <h1 className="text-[22px] font-bold tracking-[-0.03em]">Menu</h1>

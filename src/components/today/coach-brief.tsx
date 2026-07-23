@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Sparkles } from "lucide-react";
+import { InlineMarkdown } from "@/components/ui/inline-markdown";
 
 /**
  * Today's coach brief (2a) — the latest morning insight, clamped to three
@@ -8,9 +9,12 @@ import { Sparkles } from "lucide-react";
 export function CoachBrief({
   text,
   threadId,
+  inboxTeaser,
 }: {
   text: string;
   threadId: string;
+  /** 3a: what else is waiting in the inbox. Desktop only; null when empty. */
+  inboxTeaser?: string | null;
 }) {
   return (
     <Link
@@ -33,8 +37,13 @@ export function CoachBrief({
         </span>
       </div>
       <p className="line-clamp-3 text-[12.5px] leading-[1.55] text-white/75">
-        {text}
+        <InlineMarkdown text={text} />
       </p>
+      {inboxTeaser && (
+        <p className="mt-3 hidden border-t border-white/[0.06] pt-2.5 text-[10.5px] text-white/35 lg:block">
+          {inboxTeaser}
+        </p>
+      )}
     </Link>
   );
 }

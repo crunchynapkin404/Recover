@@ -19,13 +19,14 @@ const TONE: Record<"good" | "warn" | "muted", string> = {
 };
 
 /**
- * Today's 2×2 vitals grid — replaces the RecoveryMetricsAccordion here. Each
+ * Today's vitals — 2×2 on phones, one row of four at lg+ (3a). Replaces the
+ * RecoveryMetricsAccordion here. Each
  * tile is a tap target into Body's matching trend. Values are Geist Mono;
  * calibrating tiles show "—" with no sparkline (never an invented value).
  */
 export function VitalsGrid({ tiles }: { tiles: VitalTile[] }) {
   return (
-    <div className="mb-6 grid grid-cols-2 gap-2">
+    <div className="mb-6 grid grid-cols-2 gap-2 lg:grid-cols-4">
       {tiles.map((t) => (
         <Link
           key={t.label}

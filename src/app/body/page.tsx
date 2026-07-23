@@ -2,7 +2,7 @@ import Link from "next/link";
 import { and, desc, eq, gte } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { requireUser } from "@/lib/session";
-import { AppShell } from "@/components/app-shell";
+import { AppShell, shellUser } from "@/components/app-shell";
 import { BaselineTrendCard } from "@/components/body/baseline-trend-card";
 import { SleepNightCard } from "@/components/body/sleep-night-card";
 import { CorrelationRows } from "@/components/body/correlation-rows";
@@ -90,7 +90,7 @@ export default async function BodyPage({
   const milestones = await getMilestones(user.id);
 
   return (
-    <AppShell>
+    <AppShell user={shellUser(user)}>
       <header className="mb-5 pt-8">
         <div className="mb-4 flex items-start justify-between gap-3">
           <h1 className="text-[22px] font-bold tracking-[-0.03em]">Body</h1>

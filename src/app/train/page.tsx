@@ -3,7 +3,7 @@ import { and, asc, desc, eq, gte, ne } from "drizzle-orm";
 import { Bike, ClipboardList, LineChart, Plus } from "lucide-react";
 import { db, schema } from "@/lib/db";
 import { requireUser } from "@/lib/session";
-import { AppShell } from "@/components/app-shell";
+import { AppShell, shellUser } from "@/components/app-shell";
 import { WeekStrip } from "@/components/plan/week-strip";
 import { RacesSection } from "@/components/plan/races-section";
 import { IntakeForm } from "@/components/plan/intake-form";
@@ -144,7 +144,7 @@ export default async function TrainPage({
     buildTrainHref({ tab, view, month, range, sport: sportFilter ?? "" }, over);
 
   return (
-    <AppShell>
+    <AppShell user={shellUser(user)}>
       {tab === "week" ? (
         <WeekTab userId={user.id} href={href} />
       ) : tab === "history" ? (

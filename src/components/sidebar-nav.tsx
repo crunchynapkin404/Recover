@@ -24,12 +24,21 @@ const NAV_ITEMS = [
  * lg+. On small screens the floating bottom tab bar stays; the two never
  * appear together (BottomNav is lg:hidden).
  */
-export function SidebarNav() {
+export function SidebarNav({
+  user,
+}: {
+  /** Pinned bottom row (3a); omitted when the shell has no session to show. */
+  user?: { name: string | null; email: string; role: string } | null;
+}) {
   const pathname = usePathname();
+  const initial = (user?.name ?? user?.email ?? "")
+    .trim()
+    .charAt(0)
+    .toUpperCase();
 
   return (
-    <nav className="fixed left-0 top-0 z-40 hidden h-svh w-56 flex-col border-r border-white/5 bg-neutral-950/40 px-4 py-8 backdrop-blur-xl lg:flex">
-      <span className="mb-8 px-3 text-lg font-bold tracking-tighter text-white/90">
+    <nav className="fixed left-0 top-0 z-40 hidden h-svh w-[216px] flex-col border-r border-white/5 bg-neutral-950/40 px-4 py-8 backdrop-blur-xl lg:flex">
+      <span className="mb-8 px-3 text-[17px] font-extrabold tracking-[-0.04em] text-white/90">
         Recover
       </span>
       <div className="flex flex-col gap-1">
@@ -40,7 +49,7 @@ export function SidebarNav() {
             <Link
               key={href}
               href={href}
-              className={`flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-medium transition-colors ${
+              className={`flex items-center gap-3 rounded-[14px] px-3 py-2.5 text-[13px] font-medium transition-colors ${
                 active
                   ? "bg-white/10 text-white"
                   : "text-white/50 hover:bg-white/5 hover:text-white"
@@ -52,6 +61,25 @@ export function SidebarNav() {
           );
         })}
       </div>
+
+      {user && (
+        <Link
+          href="/settings"
+          className="mt-auto flex items-center gap-3 border-t border-white/5 px-3 pt-4 transition-colors hover:text-white"
+        >
+          <span className="glass flex size-8 shrink-0 items-center justify-center rounded-full text-[12px] font-bold text-white/80">
+            {initial || "?"}
+          </span>
+          <span className="min-w-0">
+            <span className="block truncate text-[12.5px] font-bold text-white/85">
+              {user.name ?? "Athlete"}
+            </span>
+            <span className="block truncate text-[10px] text-white/40">
+              {user.role}
+            </span>
+          </span>
+        </Link>
+      )}
     </nav>
   );
 }

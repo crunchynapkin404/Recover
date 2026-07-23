@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { requireUser } from "@/lib/session";
 import { getOrFetchActivityDetail } from "@/lib/activity-streams";
-import { AppShell } from "@/components/app-shell";
+import { AppShell, shellUser } from "@/components/app-shell";
 import { StreamChart } from "@/components/activity/stream-chart";
 import { LapsTable } from "@/components/activity/laps-table";
 import { StreamDataEmpty } from "@/components/activity/stream-data-empty";
@@ -74,7 +74,7 @@ export default async function ActivityPage({
   );
 
   return (
-    <AppShell>
+    <AppShell user={shellUser(user)}>
       <header className="mb-5 pt-8">
         <Link
           href="/train?tab=history"

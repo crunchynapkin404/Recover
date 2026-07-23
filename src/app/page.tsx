@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { and, eq, gte } from "drizzle-orm";
+import { and, eq, gte, ne } from "drizzle-orm";
 import { Sparkles, User } from "lucide-react";
 import { db, schema } from "@/lib/db";
 import { requireUser } from "@/lib/session";
-import { AppShell } from "@/components/app-shell";
+import { AppShell, shellUser } from "@/components/app-shell";
 import { PullToRefresh } from "@/components/dashboard/pull-to-refresh";
 import { SyncChip } from "@/components/dashboard/sync-chip";
 import { getLatestMorningInsight } from "@/lib/morning-insight";
@@ -26,6 +26,8 @@ import { DebriefChip } from "@/components/today/debrief-chip";
 import { RaceChip } from "@/components/today/race-chip";
 import { CoachBrief } from "@/components/today/coach-brief";
 import { SheetHost } from "@/components/today/sheet-host";
+import { WeekRow } from "@/components/today/week-row";
+import { listInboxItems } from "@/lib/coach-inbox";
 
 function daysAgo(n: number): string {
   const d = new Date();
@@ -183,6 +185,46 @@ export default async function DashboardPage({
   const bodyPrefsRow = await db.query.bodyPrefs.findFirst({
     where: eq(schema.bodyPrefs.userId, user.id),
   });
+
+  // ── Desktop (3a) extras ────────────────────────────────────────────────
+  // This week's real volume against the plan's own stated target. Both come
+  // from stored data; when the plan states no weekly hours, the row shows
+  // what was done and claims no target.
+  const weekActivities = await db.query.activities.findMany({
+    where: and(
+      eq(schema.activities.userId, user.id),
+      gte(schema.activities.startDate, new Date(daysAgo(7))),
+      ne(schema.activities.provider, "strava")
+    ),
+    columns: { durationS: true },
+  });
+  const weekHours =
+    weekActivities.reduce((sum, a) => sum + (a.durationS ?? 0), 0) / 3600;
+
+  const activePlan = await db.query.trainingPlans.findFirst({
+    where: and(
+      eq(schema.trainingPlans.userId, user.id),
+      eq(schema.trainingPlans.status, "active")
+    ),
+    columns: { constraints: true },
+  });
+  const hoursTarget =
+    (activePlan?.constraints as { hoursPerWeek?: number } | null)
+      ?.hoursPerWeek ?? null;
+
+  // "Inbox: weekly review (Sun) · debrief — Endurance Spin (Mon)" — the two
+  // most recent unread coach items, or nothing when the inbox is clear.
+  const inboxItems = await listInboxItems(user.id, 6);
+  const unreadTeaser = inboxItems.filter((i) => i.unread).slice(0, 2);
+  const inboxTeaser =
+    unreadTeaser.length > 0
+      ? `Inbox: ${unreadTeaser
+          .map(
+            (i) =>
+              `${i.title.toLowerCase()} (${i.createdAt.toLocaleDateString("en-US", { weekday: "short" })})`
+          )
+          .join(" · ")}`
+      : null;
 
   // Avatar initial, per the 2a mockup; falls back to the generic glyph when
   // the account has no usable name.
@@ -377,11 +419,11 @@ export default async function DashboardPage({
 
   // ── Render (2a Today) ────────────────────────────────────────────────────
   return (
-    <AppShell noChrome>
+    <AppShell noChrome user={shellUser(user)}>
       <PullToRefresh>
-        <div className="mx-auto max-w-lg px-6 pb-16">
+        <div className="mx-auto max-w-lg px-6 pb-16 lg:max-w-6xl lg:px-10">
           {/* ── Header ──────────────────────────────────────────────── */}
-          <header className="mb-6 flex items-start justify-between pt-8">
+          <header className="mb-6 flex items-start justify-between pt-8 lg:mb-5">
             <div className="flex min-w-0 flex-col gap-1">
               <SyncChip
                 variant="microLabel"
@@ -395,9 +437,10 @@ export default async function DashboardPage({
             <div className="flex shrink-0 items-center gap-2">
               <Link
                 href="/?sheet=checkin"
-                className="rounded-full bg-emerald-500/10 px-3 py-1.5 text-[10.5px] font-bold text-emerald-400 transition-colors hover:bg-emerald-500/20"
+                className="rounded-full bg-emerald-500/10 px-3 py-1.5 text-[10.5px] font-bold text-emerald-400 transition-colors hover:bg-emerald-500/20 lg:bg-emerald-500 lg:px-5 lg:py-2 lg:text-[12.5px] lg:text-black lg:hover:opacity-90"
               >
                 Check in
+                <span className="hidden lg:inline"> · 60s</span>
               </Link>
               <Link
                 href="/settings"
@@ -418,54 +461,71 @@ export default async function DashboardPage({
             </div>
           </header>
 
-          {/* ── Hero (the only glass mega-card) ─────────────────────── */}
-          <TodayHero
-            readiness={readinessOrNull}
-            band={band}
-            recoveryScore={recoveryScore}
-            sleepScore={latest?.sleepScore ?? null}
-            why={{
-              hrv: latest?.hrvMs ?? null,
-              hrvBaseline: avg7hrv > 0 ? avg7hrv : null,
-              rhr: latest?.restingHr ?? null,
-              sleepHours,
-              tsb,
-            }}
-          />
-
-          {/* Calibrating keeps the progress bar directly under the hero. */}
-          {band === "calibrating" && calibration.remaining > 0 && (
-            <section className="mb-6">
-              <CalibrationProgress
-                daysWithSignal={calibration.daysWithSignal}
-                target={calibration.target}
-                prompt={calibration.prompt}
+          <div className="lg:grid lg:grid-cols-[7fr_5fr] lg:items-start lg:gap-5">
+            <div className="min-w-0">
+              {/* ── Hero (the only glass mega-card) ─────────────────────── */}
+              <TodayHero
+                readiness={readinessOrNull}
+                band={band}
+                recoveryScore={recoveryScore}
+                sleepScore={latest?.sleepScore ?? null}
+                why={{
+                  hrv: latest?.hrvMs ?? null,
+                  hrvBaseline: avg7hrv > 0 ? avg7hrv : null,
+                  rhr: latest?.restingHr ?? null,
+                  sleepHours,
+                  tsb,
+                }}
               />
-            </section>
-          )}
 
-          {/* ── Vitals 2×2 ──────────────────────────────────────────── */}
-          <VitalsGrid tiles={vitals} />
+              {/* Calibrating keeps the progress bar directly under the hero. */}
+              {band === "calibrating" && calibration.remaining > 0 && (
+                <section className="mb-6">
+                  <CalibrationProgress
+                    daysWithSignal={calibration.daysWithSignal}
+                    target={calibration.target}
+                    prompt={calibration.prompt}
+                  />
+                </section>
+              )}
 
-          {/* ── Today's session ─────────────────────────────────────── */}
-          <SessionCard
-            slot={todaySlot}
-            adjustmentReason={todayAdjustment}
-            otherDays={otherDays}
-          />
+              {/* ── Vitals ─────────────────────────────────────────────── */}
+              <VitalsGrid tiles={vitals} />
 
-          {/* ── Post-ride debrief chip (v0.15) ──────────────────────── */}
-          <DebriefChip userId={user.id} />
+              {/* Desktop only: the week at a glance, with Train one click away. */}
+              <WeekRow
+                days={weekPlan?.days ?? null}
+                hoursDone={weekHours}
+                hoursTarget={hoursTarget}
+              />
+            </div>
 
-          {/* ── Race chip (next race ≤ 21 days) ─────────────────────── */}
-          {raceCard.race &&
-            raceCard.daysOut != null &&
-            raceCard.daysOut <= 21 && <RaceChip {...raceCard} />}
+            <div className="min-w-0">
+              {/* ── Today's session ─────────────────────────────────────── */}
+              <SessionCard
+                slot={todaySlot}
+                adjustmentReason={todayAdjustment}
+                otherDays={otherDays}
+              />
 
-          {/* ── Coach brief ─────────────────────────────────────────── */}
-          {insight && (
-            <CoachBrief text={insight.text} threadId={insight.threadId} />
-          )}
+              {/* ── Post-ride debrief chip (v0.15) ──────────────────────── */}
+              <DebriefChip userId={user.id} />
+
+              {/* ── Race chip (next race ≤ 21 days) ─────────────────────── */}
+              {raceCard.race &&
+                raceCard.daysOut != null &&
+                raceCard.daysOut <= 21 && <RaceChip {...raceCard} />}
+
+              {/* ── Coach brief ─────────────────────────────────────────── */}
+              {insight && (
+                <CoachBrief
+                  text={insight.text}
+                  threadId={insight.threadId}
+                  inboxTeaser={inboxTeaser}
+                />
+              )}
+            </div>
+          </div>
         </div>
       </PullToRefresh>
 

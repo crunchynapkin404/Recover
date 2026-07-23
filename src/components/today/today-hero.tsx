@@ -25,6 +25,8 @@ interface Props {
   why: TodayHeroWhy;
 }
 
+// One geometry, scaled by CSS at lg+ (3a wants a 150px ring) so the ring's
+// own draw-in animation and stroke maths stay in one place.
 const SIZE = 104;
 const STROKE = 8;
 const R = (SIZE - STROKE) / 2; // 48
@@ -84,10 +86,10 @@ export function TodayHero({
 
   return (
     <section
-      className="mb-6 flex items-center gap-4 rounded-[22px] border border-white/10 bg-white/5 p-4"
+      className="mb-6 flex items-center gap-4 rounded-[22px] border border-white/10 bg-white/5 p-4 lg:gap-6 lg:p-6"
       style={{ boxShadow: `0 0 60px -20px ${BAND_GLOW[band]}` }}
     >
-      <div className="relative shrink-0" style={{ width: SIZE, height: SIZE }}>
+      <div className="relative aspect-square w-[104px] shrink-0 lg:w-[150px]">
         <svg
           aria-hidden
           viewBox={`0 0 ${SIZE} ${SIZE}`}
@@ -125,7 +127,7 @@ export function TodayHero({
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <span
             aria-hidden
-            className="text-[30px] font-bold leading-none tracking-tighter"
+            className="text-[30px] font-bold leading-none tracking-tighter lg:text-[44px]"
             style={{ color }}
           >
             {calibrating ? "—" : Math.round(readiness ?? 0)}
@@ -143,7 +145,7 @@ export function TodayHero({
 
       <div className="min-w-0 flex-1">
         <p
-          className="text-[12.5px] font-bold"
+          className="text-[12.5px] font-bold lg:text-[16px]"
           style={{ color: calibrating ? "rgba(255,255,255,0.6)" : color }}
         >
           {BAND_VERDICT[band]}

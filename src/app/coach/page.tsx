@@ -2,7 +2,7 @@ import Link from "next/link";
 import { eq, desc } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { requireUser } from "@/lib/session";
-import { AppShell } from "@/components/app-shell";
+import { AppShell, shellUser } from "@/components/app-shell";
 import { ChatInterface } from "@/components/coach/chat-interface";
 import { InboxRail } from "@/components/coach/inbox-rail";
 import {
@@ -57,7 +57,7 @@ export default async function CoachPage({
   if (tab === "inbox") {
     const items = await listInboxItems(user.id);
     return (
-      <AppShell>
+      <AppShell user={shellUser(user)}>
         <header className="mb-5 pt-8">
           <h1 className="text-[22px] font-bold tracking-[-0.03em]">Coach</h1>
           <Segments tab="inbox" unread={unread} />
@@ -80,7 +80,7 @@ export default async function CoachPage({
   });
 
   return (
-    <AppShell noChrome>
+    <AppShell noChrome user={shellUser(user)}>
       <ChatInterface
         configured={!!llmSettings}
         defaultMode={llmSettings?.defaultMode ?? "deep"}
