@@ -1,5 +1,27 @@
 # Changelog
 
+## v0.25.5 — 2026-07-23 — Push Notifications Actually Deliver
+
+The test-notification button reported nothing failing, but no push ever
+arrived. Root cause: the server's VAPID key pair had changed at some point
+(exact trigger unconfirmed — no error was ever logged for it, so it
+predates the retention window), which cryptographically orphaned every
+existing browser subscription. Apple and Mozilla each reported this
+clearly (`VapidPkHashMismatch` / `"VAPID public key mismatch"`) — but
+`sendToUser` only ever pruned a subscription on 404/410, so these just
+failed silently on every send, forever, with `sendTestNotification`
+reporting the misleading "no active subscription" message.
+
+- **`sendToUser` now also prunes on an unrecoverable VAPID key mismatch**
+  (matched specifically, not a blanket "any 400/401" — a generic 400 stays
+  logged-and-retried, since it might be transient).
+- **The bigger fix: re-enabling notifications couldn't actually fix this.**
+  The browser's Push API silently returns an _existing_ subscription from
+  `pushManager.subscribe()` rather than creating a new one — even when it
+  no longer matches the server's key — so clicking "Enable" again kept
+  saving the same broken subscription. It now unsubscribes any existing
+  one first, guaranteeing a fresh subscription tied to the current key.
+
 ## v0.25.4 — 2026-07-23 — Deleted Activities Don't Linger
 
 An activity removed at the source stayed in Recover forever — nothing ever

@@ -156,8 +156,24 @@ export async function getVapidKeys(): Promise<VapidKeys> {
 }
 
 /**
- * Send a payload to every subscription the user has. 404/410 responses
- * prune the subscription; other failures log and continue.
+ * True for the one class of 400/401 that can never succeed on retry: the
+ * subscription was created against a VAPID public key the server no longer
+ * has (e.g. after a key regeneration — see getVapidKeys' decrypt-failure
+ * fallback). Apple and Mozilla each report it in their own words; both are
+ * unambiguous, unlike a generic 400/401 that might be transient.
+ */
+function isUnrecoverableVapidMismatch(body: unknown): boolean {
+  if (typeof body !== "string") return false;
+  return (
+    body.includes("VapidPkHashMismatch") ||
+    body.toLowerCase().includes("vapid public key mismatch")
+  );
+}
+
+/**
+ * Send a payload to every subscription the user has. 404/410 responses and
+ * an unrecoverable VAPID key mismatch both prune the subscription; other
+ * failures log and continue (may be transient).
  */
 export async function sendToUser(
   userId: string,
@@ -192,7 +208,8 @@ export async function sendToUser(
       sent++;
     } catch (err) {
       const status = (err as { statusCode?: number }).statusCode;
-      if (status === 404 || status === 410) {
+      const body = (err as { body?: unknown }).body;
+      if (status === 404 || status === 410 || isUnrecoverableVapidMismatch(body)) {
         await db
           .delete(schema.pushSubscriptions)
           .where(eq(schema.pushSubscriptions.id, sub.id));

@@ -67,6 +67,12 @@ export function NotificationsCard({
         return;
       }
       const reg = await navigator.serviceWorker.ready;
+      // A stale subscription (e.g. from before the server's VAPID key
+      // changed) must be dropped first — subscribe() silently returns the
+      // existing one otherwise, even once it no longer matches the
+      // server's key, and some browsers reject a differing key outright.
+      const existing = await reg.pushManager.getSubscription();
+      if (existing) await existing.unsubscribe();
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),

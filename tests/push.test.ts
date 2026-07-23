@@ -125,6 +125,72 @@ describe.skipIf(!hasDb)("push pipeline", () => {
     );
     expect(bCalls.length).toBe(0);
   });
+
+  it("prunes a subscription on an unrecoverable VAPID key mismatch, but not on a generic 400", async () => {
+    const { db, schema } = await import("@/lib/db");
+    const { sendToUser } = await import("@/lib/push");
+    await db
+      .delete(schema.pushSubscriptions)
+      .where(eq(schema.pushSubscriptions.userId, USER_A));
+    await db.insert(schema.pushSubscriptions).values([
+      {
+        userId: USER_A,
+        endpoint: "https://push.example/apple-mismatch",
+        p256dh: "k",
+        auth: "a",
+      },
+      {
+        userId: USER_A,
+        endpoint: "https://push.example/mozilla-mismatch",
+        p256dh: "k",
+        auth: "a",
+      },
+      {
+        userId: USER_A,
+        endpoint: "https://push.example/generic-400",
+        p256dh: "k",
+        auth: "a",
+      },
+    ]);
+    sendNotification.mockImplementation((sub: { endpoint: string }) => {
+      const err = new Error("bad request") as Error & {
+        statusCode: number;
+        body: string;
+      };
+      if (sub.endpoint.includes("apple-mismatch")) {
+        err.statusCode = 400;
+        err.body = JSON.stringify({ reason: "VapidPkHashMismatch" });
+        return Promise.reject(err);
+      }
+      if (sub.endpoint.includes("mozilla-mismatch")) {
+        err.statusCode = 401;
+        err.body = JSON.stringify({
+          error: "Unauthorized",
+          message: "VAPID public key mismatch",
+        });
+        return Promise.reject(err);
+      }
+      // A generic 400 unrelated to VAPID must NOT be treated as unfixable.
+      err.statusCode = 400;
+      err.body = "bad payload";
+      return Promise.reject(err);
+    });
+
+    const res = await sendToUser(USER_A, {
+      title: "t",
+      body: "b",
+      tag: "x",
+      url: "/",
+    });
+    expect(res.sent).toBe(0);
+    expect(res.pruned).toBe(2);
+    const remaining = await db.query.pushSubscriptions.findMany({
+      where: eq(schema.pushSubscriptions.userId, USER_A),
+    });
+    expect(remaining.map((r) => r.endpoint)).toEqual([
+      "https://push.example/generic-400",
+    ]);
+  });
 });
 
 describe.skipIf(!hasDb)("maybeSendMorningReadinessPush", () => {
