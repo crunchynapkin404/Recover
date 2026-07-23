@@ -223,6 +223,24 @@ export function stravaIdFromRaw(
 }
 
 /**
+ * Resolve the Strava activity id to describe, including the one case
+ * `stravaIdFromRaw` alone can't cover: an activity intervals.icu sourced
+ * from Strava carries no `strava_id`/`strava_activity_id` field at all (its
+ * API withholds that data — see the module comment) — but for those rows
+ * intervals.icu's own `id` (== this row's `externalId`) already *is* the
+ * Strava activity id, confirmed against the sibling native `provider:
+ * "strava"` row's `externalId` for the same ride.
+ */
+export function resolveStravaId(activity: {
+  raw: Record<string, unknown> | null;
+  externalId: string;
+}): string | null {
+  const direct = stravaIdFromRaw(activity.raw);
+  if (direct) return direct;
+  return activity.raw?.source === "STRAVA" ? activity.externalId : null;
+}
+
+/**
  * PR lines for efforts set in this activity ("all-time" = 365d cache, the
  * widest window Recover ever backfills). Capped at 3.
  */
@@ -335,7 +353,10 @@ export async function describeActivityOnStrava(params: {
 }): Promise<DescribeOutcome> {
   const raw = params.activity.raw as Record<string, unknown> | null;
   if (!raw) return { wrote: false, generated: "", reason: "no_data" };
-  const stravaId = stravaIdFromRaw(raw);
+  const stravaId = resolveStravaId({
+    raw,
+    externalId: params.activity.externalId,
+  });
   if (!stravaId) return { wrote: false, generated: "", reason: "no_strava_id" };
   if (isAwaitingReview(params.activity)) {
     return { wrote: false, generated: "", reason: "awaiting_review" };
@@ -409,7 +430,15 @@ export async function previewDescription(
     orderBy: [desc(schema.activities.startDate)],
     limit: 20,
   });
-  const target = recent.find((a) => a.raw != null);
+  // Skip activities intervals.icu sourced from Strava — their raw payload
+  // is a bare stub (no load/intensity/name/etc., see the module comment),
+  // so previewing one would show an almost-empty description even though a
+  // real recent ride would render fully.
+  const target = recent.find(
+    (a) =>
+      a.raw != null &&
+      (a.raw as Record<string, unknown>).source !== "STRAVA"
+  );
   if (!target) {
     return {
       text: formatActivityDescription(SAMPLE_PREVIEW_INPUT, fields),

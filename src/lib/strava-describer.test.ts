@@ -8,6 +8,7 @@ import {
   MARKER,
   metricsFromRaw,
   normalizeIntensityPct,
+  resolveStravaId,
   stravaIdFromRaw,
   type DescriptionInput,
 } from "./strava-describer";
@@ -267,6 +268,31 @@ describe("stravaIdFromRaw", () => {
     ).toBe("42");
     expect(stravaIdFromRaw({})).toBeNull();
     expect(stravaIdFromRaw(null)).toBeNull();
+  });
+});
+
+describe("resolveStravaId", () => {
+  it("prefers an explicit strava_id when present", () => {
+    expect(
+      resolveStravaId({ raw: { strava_id: 123 }, externalId: "999" })
+    ).toBe("123");
+  });
+
+  it("falls back to the activity's own externalId for Strava-sourced rows intervals.icu withholds strava_id for", () => {
+    expect(
+      resolveStravaId({
+        raw: { source: "STRAVA" },
+        externalId: "19433226653",
+      })
+    ).toBe("19433226653");
+  });
+
+  it("returns null for a non-Strava-sourced row with no linked id", () => {
+    expect(
+      resolveStravaId({ raw: { source: "GARMIN_CONNECT" }, externalId: "1" })
+    ).toBeNull();
+    expect(resolveStravaId({ raw: {}, externalId: "1" })).toBeNull();
+    expect(resolveStravaId({ raw: null, externalId: "1" })).toBeNull();
   });
 });
 

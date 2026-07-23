@@ -162,6 +162,35 @@ describe.skipIf(!hasDb)("strava auto-describe", () => {
     expect(text.endsWith(MARKER)).toBe(true);
   });
 
+  it("writes onto a Strava-sourced activity whose raw payload has no strava_id, using its own externalId", async () => {
+    const { db, schema } = await import("@/lib/db");
+    // intervals.icu withholds strava_id/metrics for activities it sourced
+    // from Strava — this row's externalId (an intervals.icu id borrowed
+    // from Strava for these) is the only way to find where to write.
+    await db
+      .update(schema.activities)
+      .set({
+        externalId: STRAVA_ID,
+        raw: { source: "STRAVA" },
+        durationS: null,
+        load: null,
+      })
+      .where(eq(schema.activities.userId, USER));
+
+    const puts: PutCall[] = [];
+    stubStrava(null, puts);
+
+    const { runAutoDescribeStrava } = await import("@/lib/strava-describer");
+    const result = await runAutoDescribeStrava(USER);
+
+    expect(result.written).toBe(1);
+    expect(puts).toHaveLength(1);
+    expect(puts[0].url).toContain(`/activities/${STRAVA_ID}`);
+    // Only CTL/TSB (from wellness) survive — everything raw-derived is
+    // absent, matching intervals.icu's actual withheld payload.
+    expect(puts[0].body.description).toContain("📈 Form: CTL 72 | TSB -12");
+  });
+
   it("appends below an existing description", async () => {
     const { runAutoDescribeStrava } = await import("@/lib/strava-describer");
     const puts: PutCall[] = [];

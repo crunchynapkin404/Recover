@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.25.3 — 2026-07-23 — Auto-Describe Reaches Strava-Sourced Rides
+
+Same root cause as v0.25.2's debrief gap, this time hitting Strava
+auto-describe: intervals.icu withholds `strava_id`/`strava_activity_id` for
+any activity it sourced from Strava, so a completed ride review could never
+find where to write the description — `describeActivityOnStrava` silently
+skipped every one with `reason: "no_strava_id"`, and would have forever.
+
+- **New `resolveStravaId()`** falls back to the activity's own
+  intervals.icu `externalId` when `raw.source === "STRAVA"` — confirmed 1:1
+  against the sibling native `provider: "strava"` sync row's `externalId`
+  for the same ride, since intervals.icu borrows the Strava id as its own
+  for activities it can't otherwise access. Used by both the post-sync
+  auto-describe path and the `describe_strava_activity` coach tool.
+- **The settings preview no longer picks a Strava-sourced stub** as its
+  "most recent activity" sample — those carry almost no fields to render
+  (only CTL/TSB survive, from wellness data, not the activity itself),
+  which made the preview look broken even with every field enabled. It now
+  skips straight to a real data-bearing ride, same as before this gap was
+  introduced.
+
 ## v0.25.2 — 2026-07-23 — Ride Review Actually Pops Up
 
 Two gaps kept the post-ride debrief from ever reaching the athlete in

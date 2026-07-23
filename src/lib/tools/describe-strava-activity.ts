@@ -4,7 +4,7 @@ import { schema } from "@/lib/db";
 import type { ToolDefinition, ToolContext } from "./registry";
 import {
   describeActivityOnStrava,
-  stravaIdFromRaw,
+  resolveStravaId,
 } from "@/lib/strava-describer";
 import { getValidStravaAccessToken } from "@/lib/sync/strava-sync";
 
@@ -49,15 +49,14 @@ async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
     orderBy: [desc(schema.activities.startDate)],
     limit: 50,
   });
-  const linked = recent.filter(
-    (a) => stravaIdFromRaw(a.raw as Record<string, unknown> | null) != null
-  );
+  const resolve = (a: (typeof recent)[number]) =>
+    resolveStravaId({
+      raw: a.raw as Record<string, unknown> | null,
+      externalId: a.externalId,
+    });
+  const linked = recent.filter((a) => resolve(a) != null);
   const target = args.activityId
-    ? linked.find(
-        (a) =>
-          stravaIdFromRaw(a.raw as Record<string, unknown> | null) ===
-          args.activityId
-      )
+    ? linked.find((a) => resolve(a) === args.activityId)
     : linked[0];
   if (!target) {
     return {
