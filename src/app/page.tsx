@@ -1,60 +1,30 @@
 import Link from "next/link";
-import { and, desc, eq, gte, ne } from "drizzle-orm";
+import { and, eq, gte } from "drizzle-orm";
 import { Sparkles, User } from "lucide-react";
 import { db, schema } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { AppShell } from "@/components/app-shell";
 import { PullToRefresh } from "@/components/dashboard/pull-to-refresh";
 import { SyncChip } from "@/components/dashboard/sync-chip";
-import { HeroReadiness } from "@/components/dashboard/hero-readiness";
-import { RecoveryMetricsAccordion } from "@/components/dashboard/recovery-metrics-accordion";
-import { RecentSessionsAccordion } from "@/components/dashboard/recent-sessions-accordion";
-import { MorningBrief } from "@/components/dashboard/morning-brief";
-import { CoachInsight } from "@/components/dashboard/coach-insight";
-import { PendingDebriefCard } from "@/components/debrief/pending-debrief-card";
 import { getLatestMorningInsight } from "@/lib/morning-insight";
-import { getLatestWeeklyReview } from "@/lib/weekly-review";
 import { getOpenWeekPlan, listAdjustments } from "@/lib/week-plan/service";
-import { TodayCard } from "@/components/plan/today-card";
-import { WeekStrip } from "@/components/plan/week-strip";
-import { BehaviorTags } from "@/components/dashboard/behavior-tags";
-import { getMilestones } from "@/lib/insights/milestones";
-import {
-  RaceCountdownCard,
-  type RaceCountdownProps,
-} from "@/components/dashboard/race-countdown";
 import { nextUpcomingRace, assembleForecastInputs } from "@/lib/race/service";
 import { forecastForm } from "@/lib/race/forecast";
+import type { RaceCountdownProps } from "@/components/dashboard/race-countdown";
 import type { Band } from "@/lib/readiness";
-import {
-  computeBodyBattery,
-  typicalBedMinutes,
-  DEFAULT_BED_MINUTES,
-  DEFAULT_WAKE_MINUTES,
-} from "@/lib/body-battery";
 import { computeSleepDebt, DEFAULT_SLEEP_NEED_SECS } from "@/lib/sleep-debt";
 import { sparkPath } from "@/lib/sparkline";
-import {
-  activityLoad,
-  dedupeActivities,
-  type AthleteThresholds,
-} from "@/lib/training-load";
-import {
-  plannedWeekVolumeS,
-  ringFraction,
-  trailingWeeklyAverages,
-} from "@/lib/weekly-targets";
 import {
   calibrationProgress,
   CALIBRATION_TARGET_DAYS,
 } from "@/lib/calibration";
 import { CalibrationProgress } from "@/components/dashboard/calibration-progress";
-import {
-  stageBreakdown,
-  sleepConsistency,
-  chronotype,
-  type SleepNight,
-} from "@/lib/sleep-insights";
+import { TodayHero } from "@/components/today/today-hero";
+import { VitalsGrid, type VitalTile } from "@/components/today/vitals-grid";
+import { SessionCard } from "@/components/today/session-card";
+import { DebriefChip } from "@/components/today/debrief-chip";
+import { RaceChip } from "@/components/today/race-chip";
+import { CoachBrief } from "@/components/today/coach-brief";
 
 function daysAgo(n: number): string {
   const d = new Date();
@@ -69,51 +39,24 @@ function greetingLine(): string {
   return "Good evening";
 }
 
-function todayLabel(): string {
-  return new Date().toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-  });
+/** "Tue Jul 22" — the date prefix in the header sync micro-label. */
+function todayShort(): string {
+  const d = new Date();
+  const wd = d.toLocaleDateString("en-US", { weekday: "short" });
+  const mo = d.toLocaleDateString("en-US", { month: "short" });
+  return `${wd} ${mo} ${d.getDate()}`;
 }
 
-/** Local "HH:MM" for a bed-window edge. */
-function fmtClock(d: Date): string {
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+/** Decimal hours → "7:12" for the sleep vital. */
+function hoursToClock(hours: number): string {
+  const h = Math.floor(hours);
+  const m = Math.round((hours - h) * 60);
+  return `${h}:${String(m).padStart(2, "0")}`;
 }
 
-function buildNarrative(
-  hrvMs: number | null,
-  restingHr: number | null,
-  sleepHours: number | null,
-  band: Band,
-  strainBudget: number | null
-): string {
-  const parts: string[] = [];
-  if (hrvMs != null)
-    parts.push(
-      `Your HRV is at ${Math.round(hrvMs)}ms${band === "green" ? " — a strong signal" : ""}.`
-    );
-  if (restingHr != null)
-    parts.push(`Resting HR is ${Math.round(restingHr)} bpm.`);
-  if (sleepHours != null)
-    parts.push(
-      `Sleep was ${sleepHours.toFixed(1)} hours${sleepHours >= 7 ? " with good recovery time" : ""}.`
-    );
-  if (band === "green")
-    parts.push(
-      strainBudget != null
-        ? `You have a high strain budget today (${strainBudget.toFixed(1)}) — green light for intensity.`
-        : `Green light for intensity.`
-    );
-  else if (band === "amber")
-    parts.push(
-      `Moderate readiness — consider a lighter session or zone-2 work.`
-    );
-  else if (band === "red")
-    parts.push(`Take it easy today. Focus on recovery and mobility.`);
-  else parts.push(`Still calibrating — keep logging and it'll dial in.`);
-  return parts.join(" ");
+/** TSB with a real minus sign: -1.9 → "−1.9". */
+function fmtTsb(tsb: number): string {
+  return tsb < 0 ? `−${Math.abs(tsb)}` : `${tsb}`;
 }
 
 export default async function DashboardPage() {
@@ -145,18 +88,10 @@ export default async function DashboardPage() {
     orderBy: schema.wellnessDaily.date,
   });
 
-  const recentActivities = await db.query.activities.findMany({
-    where: eq(schema.activities.userId, user.id),
-    orderBy: desc(schema.activities.startDate),
-    limit: 8,
-  });
-
   const insight = await getLatestMorningInsight(user.id);
-  const weeklyReview = await getLatestWeeklyReview(user.id);
 
   // v0.9.2 living week — today's slot + latest adjustment, or nothing.
   const weekPlan = await getOpenWeekPlan(user.id);
-  const milestones = await getMilestones(user.id);
   const todayDate = new Date();
   const todayYmd = `${todayDate.getFullYear()}-${String(todayDate.getMonth() + 1).padStart(2, "0")}-${String(todayDate.getDate()).padStart(2, "0")}`;
   const todaySlot = weekPlan?.days.find((d) => d.date === todayYmd) ?? null;
@@ -165,6 +100,15 @@ export default async function DashboardPage() {
         .filter((a) => a.date === todayYmd)
         .at(-1)?.reason ?? null)
     : null;
+  const otherDays = weekPlan
+    ? weekPlan.days
+        .filter((o) => o.date !== todayYmd)
+        .map((o) => ({
+          date: o.date,
+          hasWorkout: o.workout !== null,
+          isRace: o.status === "race",
+        }))
+    : [];
 
   // ── Next race (v0.14) ──────────────────────────────────────────────────
   // Form-only projection, never called "readiness" — HRV/RHR can't be
@@ -176,8 +120,6 @@ export default async function DashboardPage() {
     outlook: null,
   };
   if (race) {
-    // weekPlan was already fetched above for the living-week card — pass it
-    // through so assembleForecastInputs doesn't re-run getOpenWeekPlan.
     const assembled = await assembleForecastInputs(
       user.id,
       race,
@@ -228,29 +170,16 @@ export default async function DashboardPage() {
     where: eq(schema.bodyPrefs.userId, user.id),
   });
 
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-
-  // Strava rows are excluded from analytics throughout (Nov 2024 API agreement).
-  const todayActivities = await db.query.activities.findMany({
-    where: and(
-      eq(schema.activities.userId, user.id),
-      ne(schema.activities.provider, "strava"),
-      gte(schema.activities.startDate, startOfToday)
-    ),
-  });
-
   // Use the most recent metric with a readiness score (today may be incomplete)
   const todayMetric =
     [...metrics].reverse().find((m) => m.readiness != null) ?? metrics.at(-1);
   const band = (todayMetric?.band ?? "calibrating") as Band;
-  const readiness = todayMetric?.readiness ?? 0;
-  // The battery needs the real null; `readiness` above is coalesced to 0 for
-  // the score ring, which would model a calibrating athlete as flat empty.
+  // The real null (not coalesced) so a calibrating athlete gets a track-only
+  // ring and "—", never a modelled empty score.
   const readinessOrNull = todayMetric?.readiness ?? null;
 
-  // First-run calibrating progress ("day N of 14") — shown in place of a
-  // bare calibrating label while readiness learns the athlete's baseline.
+  // First-run calibrating progress ("day N of 14") — shown under the hero
+  // while readiness learns the athlete's baseline.
   const calibration = calibrationProgress(
     wellness.map((w) => ({ hrvMs: w.hrvMs, restingHr: w.restingHr }))
   );
@@ -327,66 +256,26 @@ export default async function DashboardPage() {
     window7.reduce((s, w) => s + (w.restingHr ?? 0), 0) /
     (window7.filter((w) => w.restingHr != null).length || 1);
 
-  // ── Strain & Recovery (v0.10 Honest Load) ──────────────────────────────
-  // Effective ctl/atl from daily_metrics: provider values win, the native
-  // engine fills gaps, and null means calibrating — never `?? 0` again.
+  // ── Form (v0.10 Honest Load) ────────────────────────────────────────────
+  // Effective ctl/atl from daily_metrics; null means calibrating — never ?? 0.
   const loadMetric =
     [...metrics].reverse().find((m) => m.ctl != null && m.atl != null) ?? null;
   const todayCtl = loadMetric?.ctl ?? null;
   const todayAtl = loadMetric?.atl ?? null;
-  const loadComputed = loadMetric?.loadSource === "computed";
   const loadCalibrating = todayCtl == null || todayAtl == null;
-
   const tsb = loadCalibrating ? null : todayCtl! - todayAtl!;
-  const strainMax = loadCalibrating ? null : Math.max(todayCtl! * 1.5, 14);
-  // Strain: ATL relative to personal capacity (CTL*1.5), capped at 100
-  const strainFraction = loadCalibrating
-    ? 0
-    : Math.min((todayAtl! / strainMax!) * 100, 100);
-  // Recovery: inverse of fatigue — high TSB = high recovery, deep negative TSB = low recovery
-  // Maps TSB range [-30, +20] → [0, 100]
+  // Recovery: TSB range [-30, +20] → [0, 100]; null while load calibrates.
   const recoveryScore = loadCalibrating
-    ? 0
+    ? null
     : Math.max(0, Math.min(100, Math.round((tsb! + 30) * 2)));
 
   const sleepHours = latest?.sleepSecs != null ? latest.sleepSecs / 3600 : null;
 
-  // ── Sleep intelligence (v0.12) ─────────────────────────────────────────
-  // Everything here is gated on real provider stage/bed data; a manual
-  // athlete gets null and the new cards simply don't mount.
-  const sleepNights: SleepNight[] = wellness.map((w) => ({
-    date: w.date,
-    sleepSecs: w.sleepSecs,
-    sleepDeepSecs: w.sleepDeepSecs,
-    sleepRemSecs: w.sleepRemSecs,
-    sleepLightSecs: w.sleepLightSecs,
-    sleepAwakeSecs: w.sleepAwakeSecs,
-    bedStart: w.bedStart,
-    bedEnd: w.bedEnd,
-  }));
-  const window30Nights = sleepNights.filter((n) => n.date >= daysAgo(30));
-  const latestStageNight = [...sleepNights]
-    .reverse()
-    .find((n) => stageBreakdown(n) != null);
-  const stages = latestStageNight ? stageBreakdown(latestStageNight) : null;
-  const stageBedWindow =
-    latestStageNight?.bedStart && latestStageNight?.bedEnd
-      ? {
-          start: fmtClock(latestStageNight.bedStart),
-          end: fmtClock(latestStageNight.bedEnd),
-        }
-      : null;
-  const consistency = sleepConsistency(window30Nights);
-  const chrono = chronotype(window30Nights);
-
-  // Real bed-start clock minutes for bedtime v2 (last 14 nights).
-  const bedtimes = sleepNights
-    .filter((n) => n.date >= daysAgo(14) && n.bedStart != null)
-    .map((n) => n.bedStart!.getHours() * 60 + n.bedStart!.getMinutes());
-
-  // sleepDebt is a recommendation for tonight (used by the sleep card, v0.9.0
-  // Task 5) — it must not leak into the battery's waking window below, which
-  // models the athlete's actual schedule instead.
+  // sleepDebt is a recommendation for tonight (the sleep vital's delta). Its
+  // waking-window inputs come from the athlete's own schedule.
+  const bedtimes = wellness
+    .filter((w) => w.date >= daysAgo(14) && w.bedStart != null)
+    .map((w) => w.bedStart!.getHours() * 60 + w.bedStart!.getMinutes());
   const sleepDebt = computeSleepDebt({
     nights: wellness
       .filter((w) => w.date >= daysAgo(14))
@@ -396,162 +285,120 @@ export default async function DashboardPage() {
     bedtimes,
   });
 
-  // null on anything that doesn't parse as a valid "HH:MM" — mirrors
-  // sleep-debt.ts's parseHhMm degrading to null rather than NaN. Unreachable
-  // today (the server action regex-validates on write); this is hardening,
-  // not a live bug fix.
-  const hhmmToMinutes = (v: string): number | null => {
-    const m = /^(\d{1,2}):(\d{2})$/.exec(v.trim());
-    if (!m) return null;
-    const h = Number(m[1]);
-    const min = Number(m[2]);
-    if (h > 23 || min > 59) return null;
-    return h * 60 + min;
-  };
-
-  // The battery's waking window comes from the athlete's own schedule (wake
-  // time + typical sleep need), never from tonight's debt-repayment bedtime
-  // recommendation — carrying debt must not silently compress the modelled
-  // day. A malformed wakeTime degrades to the same defaults as "unset"
-  // rather than propagating NaN into the curve and its SVG path.
-  const parsedWakeMinutes = bodyPrefsRow?.wakeTime
-    ? hhmmToMinutes(bodyPrefsRow.wakeTime)
-    : null;
-  const wakeMinutes = parsedWakeMinutes ?? DEFAULT_WAKE_MINUTES;
-  const bedMinutes =
-    parsedWakeMinutes != null
-      ? typicalBedMinutes(
-          wakeMinutes,
-          bodyPrefsRow?.sleepNeedSecs ?? DEFAULT_SLEEP_NEED_SECS
-        )
-      : DEFAULT_BED_MINUTES;
-
-  const now = new Date();
-  const battery = computeBodyBattery({
-    readiness: readinessOrNull,
-    wakeMinutes,
-    bedMinutes,
-    activities: todayActivities.map((a) => ({
-      startMinutes: a.startDate.getHours() * 60 + a.startDate.getMinutes(),
-      durationMin: (a.durationS ?? 0) / 60,
-      load: a.load ?? 0,
-    })),
-    nowMinutes: now.getHours() * 60 + now.getMinutes(),
-  });
-
-  // ── This week vs a real target (v0.10) ─────────────────────────────────
-  // Trailing 28 days of activities, deduped across providers, loads resolved
-  // through the native engine ladder — same numbers the CTL/ATL series sees.
-  const monthActivities = await db.query.activities.findMany({
-    where: and(
-      eq(schema.activities.userId, user.id),
-      gte(schema.activities.startDate, new Date(daysAgo(28)))
-    ),
-    orderBy: schema.activities.startDate,
-  });
-  const rhrSamples = wellness
-    .map((w) => w.restingHr)
-    .filter((v): v is number => v != null && v > 0);
-  const athlete: AthleteThresholds = {
-    ftpWatts: bodyPrefsRow?.ftpWatts ?? null,
-    maxHr: bodyPrefsRow?.maxHr ?? null,
-    restingHr:
-      rhrSamples.length >= 7
-        ? rhrSamples.reduce((a, b) => a + b, 0) / rhrSamples.length
-        : null,
-  };
-  const dedupedMonth = dedupeActivities(monthActivities).map((a) => ({
-    startDate: a.startDate,
-    durationS: a.durationS,
-    loadValue: activityLoad(a, athlete)?.load ?? null,
-  }));
-
-  const weekStartDate = new Date(daysAgo(7));
-  const weekActivities = dedupedMonth.filter(
-    (a) => a.startDate >= weekStartDate
-  );
-  const weekVolume = weekActivities.reduce((s, a) => s + (a.durationS ?? 0), 0);
-  const weekLoad = weekActivities.reduce((s, a) => s + (a.loadValue ?? 0), 0);
-  const avgLoad =
-    weekActivities.length > 0
-      ? Math.round(weekLoad / weekActivities.length)
-      : 0;
-
-  // Ring targets: the open week plan (volume) and the active block's target
-  // load — falling back to trailing 28-day weekly averages, or nothing.
-  const activePlan = await db.query.trainingPlans.findFirst({
-    where: and(
-      eq(schema.trainingPlans.userId, user.id),
-      eq(schema.trainingPlans.status, "active")
-    ),
-  });
-  const currentBlock =
-    activePlan && weekPlan
-      ? await db.query.trainingBlocks.findFirst({
-          where: and(
-            eq(schema.trainingBlocks.planId, activePlan.id),
-            eq(schema.trainingBlocks.weekNumber, weekPlan.skeletonWeek)
-          ),
-        })
-      : null;
-  const fallback = trailingWeeklyAverages(dedupedMonth, new Date());
-  const volumeTargetS = weekPlan
-    ? (plannedWeekVolumeS(weekPlan.days) ?? fallback.volumeS)
-    : fallback.volumeS;
-  const loadTarget = currentBlock?.targetLoadTotal ?? fallback.load;
-  const ringOuter = ringFraction(weekVolume, volumeTargetS);
-  const ringInner = ringFraction(weekLoad, loadTarget);
-
+  // ── Vitals sparklines (7d) — "" when fewer than two real points ─────────
   const hrvSparkPath = sparkPath(window7.map((w) => w.hrvMs));
   const rhrSparkPath = sparkPath(window7.map((w) => w.restingHr));
-
-  const narrative = buildNarrative(
-    latest?.hrvMs ?? null,
-    latest?.restingHr ?? null,
-    sleepHours,
-    band,
-    loadCalibrating ? null : strainMax! - todayAtl!
+  const sleepSparkPath = sparkPath(window7.map((w) => w.sleepSecs));
+  const formSparkPath = sparkPath(
+    metrics
+      .filter((m) => m.date >= daysAgo(7))
+      .map((m) => (m.ctl != null && m.atl != null ? m.ctl - m.atl : null))
   );
 
-  // ── Render ──────────────────────────────────────────────────────────────
+  const hrvGood = latest?.hrvMs != null && latest.hrvMs >= avg7hrv;
+  const rhrGood = latest?.restingHr != null && latest.restingHr <= avg7rhr;
+  const sleepDebtMin = Math.round((sleepDebt.debtSecs ?? 0) / 60);
+
+  const vitals: VitalTile[] = [
+    {
+      label: "HRV",
+      value: latest?.hrvMs != null ? String(Math.round(latest.hrvMs)) : "—",
+      unit: "ms",
+      delta:
+        latest?.hrvMs != null && avg7hrv > 0
+          ? {
+              text: `${hrvGood ? "▲" : "▼"} 7d ${Math.round(avg7hrv)}`,
+              tone: hrvGood ? "good" : "muted",
+            }
+          : null,
+      sparkPath: hrvSparkPath,
+      sparkColor: "#10b981",
+      href: "/body?tab=trends",
+    },
+    {
+      label: "RHR",
+      value:
+        latest?.restingHr != null ? String(Math.round(latest.restingHr)) : "—",
+      unit: "bpm",
+      delta:
+        latest?.restingHr != null && avg7rhr > 0
+          ? {
+              text: `${rhrGood ? "▼" : "▲"} 7d ${Math.round(avg7rhr)}`,
+              tone: rhrGood ? "good" : "muted",
+            }
+          : null,
+      sparkPath: rhrSparkPath,
+      sparkColor: "#10b981",
+      href: "/body?tab=trends",
+    },
+    {
+      label: "Sleep",
+      value: sleepHours != null ? hoursToClock(sleepHours) : "—",
+      delta:
+        sleepDebtMin > 0
+          ? { text: `debt ${sleepDebtMin}m`, tone: "warn" }
+          : null,
+      sparkPath: sleepSparkPath,
+      sparkColor: "#3b82f6",
+      href: "/body?tab=sleep",
+    },
+    {
+      label: "Form · TSB",
+      value: tsb != null ? fmtTsb(tsb) : "—",
+      delta:
+        todayCtl != null
+          ? { text: `CTL ${Math.round(todayCtl)}`, tone: "muted" }
+          : null,
+      sparkPath: formSparkPath,
+      sparkColor: "#8b5cf6",
+      href: "/body?tab=trends",
+    },
+  ];
+
+  // ── Render (2a Today) ────────────────────────────────────────────────────
   return (
     <AppShell noChrome>
       <PullToRefresh>
-        <div className="mx-auto max-w-lg px-6 lg:max-w-5xl lg:pb-16">
+        <div className="mx-auto max-w-lg px-6 pb-16">
           {/* ── Header ──────────────────────────────────────────────── */}
-          <header className="mb-8 flex items-start justify-between pt-8">
-            <div className="flex flex-col">
-              <span className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.2em] text-white/50">
-                {todayLabel()}
-              </span>
-              <h1 className="text-2xl font-bold tracking-tighter">
+          <header className="mb-6 flex items-start justify-between pt-8">
+            <div className="flex min-w-0 flex-col gap-1">
+              <SyncChip
+                variant="microLabel"
+                datePrefix={todayShort()}
+                lastSyncAt={lastSyncAt}
+              />
+              <h1 className="text-[21px] font-bold tracking-[-0.03em]">
                 {greetingLine()}
               </h1>
-              <div className="mt-2">
-                <SyncChip lastSyncAt={lastSyncAt} />
-              </div>
             </div>
             <Link
               href="/settings"
-              className="glass flex h-10 w-10 items-center justify-center rounded-full"
+              aria-label="Menu"
+              className="glass flex size-9 shrink-0 items-center justify-center rounded-full"
             >
               <User className="size-5 text-white/80" strokeWidth={1.5} />
             </Link>
           </header>
 
-          <HeroReadiness
-            readiness={readiness}
+          {/* ── Hero (the only glass mega-card) ─────────────────────── */}
+          <TodayHero
+            readiness={readinessOrNull}
             band={band}
             recoveryScore={recoveryScore}
-            strainFraction={strainFraction}
             sleepScore={latest?.sleepScore ?? null}
-            loadCalibrating={loadCalibrating}
-            loadComputed={loadComputed}
+            why={{
+              hrv: latest?.hrvMs ?? null,
+              hrvBaseline: avg7hrv > 0 ? avg7hrv : null,
+              rhr: latest?.restingHr ?? null,
+              sleepHours,
+              tsb,
+            }}
           />
 
-          {/* ── Calibration progress (first-run, v0.11) ─────────────── */}
+          {/* Calibrating keeps the progress bar directly under the hero. */}
           {band === "calibrating" && calibration.remaining > 0 && (
-            <section className="mb-10">
+            <section className="mb-6">
               <CalibrationProgress
                 daysWithSignal={calibration.daysWithSignal}
                 target={calibration.target}
@@ -560,184 +407,28 @@ export default async function DashboardPage() {
             </section>
           )}
 
-          {/* ── AI Morning Brief ────────────────────────────────────── */}
-          <section className="mb-10">
-            <MorningBrief narrative={narrative} />
-          </section>
+          {/* ── Vitals 2×2 ──────────────────────────────────────────── */}
+          <VitalsGrid tiles={vitals} />
 
-          {/* ── Post-ride debrief (v0.15) ───────────────────────────── */}
-          <PendingDebriefCard userId={user.id} />
+          {/* ── Today's session ─────────────────────────────────────── */}
+          <SessionCard
+            slot={todaySlot}
+            adjustmentReason={todayAdjustment}
+            otherDays={otherDays}
+          />
 
-          {/* ── Proactive coach insight (v0.4b) ─────────────────────── */}
+          {/* ── Post-ride debrief chip (v0.15) ──────────────────────── */}
+          <DebriefChip userId={user.id} />
+
+          {/* ── Race chip (next race ≤ 21 days) ─────────────────────── */}
+          {raceCard.race &&
+            raceCard.daysOut != null &&
+            raceCard.daysOut <= 21 && <RaceChip {...raceCard} />}
+
+          {/* ── Coach brief ─────────────────────────────────────────── */}
           {insight && (
-            <section className="mb-10">
-              <CoachInsight
-                text={insight.text}
-                warning={insight.warning}
-                threadId={insight.threadId}
-              />
-            </section>
+            <CoachBrief text={insight.text} threadId={insight.threadId} />
           )}
-
-          {/* ── Weekly Review (v0.5b) ───────────────────────────────── */}
-          {weeklyReview && (
-            <section className="mb-10">
-              <Link
-                href={`/coach?thread=${weeklyReview.threadId}`}
-                className="glass block rounded-[2rem] p-5 transition-colors hover:bg-white/5"
-              >
-                <div className="mb-2 flex items-center gap-2">
-                  <Sparkles aria-hidden className="size-4 text-violet-400" />
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-white/50">
-                    Weekly Review
-                  </span>
-                </div>
-                <p className="text-sm leading-relaxed text-white/80">
-                  {weeklyReview.text.length > 200
-                    ? weeklyReview.text.slice(0, 200) + "…"
-                    : weeklyReview.text}
-                </p>
-              </Link>
-            </section>
-          )}
-
-          {/* ── Living week (v0.9.2) ────────────────────────────────── */}
-          {weekPlan && (
-            <section className="mb-10 space-y-4">
-              <TodayCard slot={todaySlot} adjustmentReason={todayAdjustment} />
-              <WeekStrip days={weekPlan.days} />
-            </section>
-          )}
-
-          {/* ── Next race (v0.14) ──────────────────────────────────── */}
-          {raceCard.race && (
-            <section className="mb-10">
-              <RaceCountdownCard {...raceCard} />
-            </section>
-          )}
-
-          <div className="lg:grid lg:grid-cols-2 lg:items-start lg:gap-x-6">
-            <section className="mb-10">
-              <RecoveryMetricsAccordion
-                tiles={[
-                  {
-                    label: "HRV",
-                    value:
-                      latest?.hrvMs != null
-                        ? Math.round(latest.hrvMs).toString()
-                        : "—",
-                    unit: "ms",
-                    avg7d: avg7hrv > 0 ? `${Math.round(avg7hrv)}ms` : null,
-                    trend:
-                      latest?.hrvMs != null && latest.hrvMs > avg7hrv
-                        ? "up"
-                        : "down",
-                    trendGood: latest?.hrvMs != null && latest.hrvMs >= avg7hrv,
-                    sparkPath: hrvSparkPath,
-                    sparkColor: "#10b981",
-                  },
-                  {
-                    label: "Resting HR",
-                    value:
-                      latest?.restingHr != null
-                        ? Math.round(latest.restingHr).toString()
-                        : "—",
-                    unit: "bpm",
-                    avg7d: avg7rhr > 0 ? `${Math.round(avg7rhr)}bpm` : null,
-                    trend:
-                      latest?.restingHr != null && latest.restingHr < avg7rhr
-                        ? "down"
-                        : "up",
-                    trendGood:
-                      latest?.restingHr != null && latest.restingHr <= avg7rhr,
-                    sparkPath: rhrSparkPath,
-                    sparkColor: "#10b981",
-                  },
-                  {
-                    label: "Sleep Score",
-                    value:
-                      latest?.sleepScore != null
-                        ? Math.round(latest.sleepScore).toString()
-                        : "—",
-                    unit: "/100",
-                    avg7d: null,
-                    trend: "flat",
-                    trendGood: true,
-                    sparkPath: sparkPath(window7.map((w) => w.sleepScore)),
-                    sparkColor: "#3b82f6",
-                  },
-                  {
-                    label: "Training Status",
-                    value:
-                      band === "green"
-                        ? "Productive"
-                        : band === "amber"
-                          ? "Maintaining"
-                          : band === "red"
-                            ? "Recovery"
-                            : "Calibrating",
-                    unit: "",
-                    avg7d:
-                      todayCtl != null
-                        ? `CTL ${Math.round(todayCtl)}${loadComputed ? " · computed" : ""}`
-                        : null,
-                    trend: "flat",
-                    trendGood: band === "green",
-                    sparkPath: "",
-                    sparkColor: "transparent",
-                  },
-                ]}
-                sleep={
-                  sleepHours != null
-                    ? {
-                        score: latest?.sleepScore ?? null,
-                        duration: `${Math.floor(sleepHours)}h ${Math.round((sleepHours % 1) * 60)}m`,
-                        debtSecs: sleepDebt.debtSecs,
-                        bedtimeAdvice: sleepDebt.bedtime,
-                        wakeTimeSet: bodyPrefsRow?.wakeTime != null,
-                      }
-                    : null
-                }
-                stages={
-                  stages
-                    ? {
-                        deepSecs: stages.deepSecs,
-                        remSecs: stages.remSecs,
-                        lightSecs: stages.lightSecs,
-                        awakeSecs: stages.awakeSecs,
-                        fractions: stages.fractions,
-                        bedWindow: stageBedWindow,
-                      }
-                    : null
-                }
-                quality={
-                  consistency || chrono
-                    ? { consistency, chronotype: chrono }
-                    : null
-                }
-                battery={battery}
-              />
-            </section>
-
-            <section className="mb-10">
-              <BehaviorTags />
-            </section>
-
-            <section className="mb-10">
-              <RecentSessionsAccordion
-                weeklySummary={{
-                  workouts: weekActivities.length,
-                  totalVolume: `${(weekVolume / 3600).toFixed(1)}h`,
-                  avgLoad: avgLoad.toString(),
-                  streak: milestones.currentStreak,
-                  ringOuter,
-                  ringInner,
-                }}
-                milestones={milestones}
-                recentActivities={recentActivities}
-              />
-            </section>
-          </div>
         </div>
       </PullToRefresh>
     </AppShell>

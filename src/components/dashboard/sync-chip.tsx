@@ -30,7 +30,25 @@ function useHasMounted(): boolean {
   );
 }
 
-export function SyncChip({ lastSyncAt }: { lastSyncAt: string | null }) {
+/** Compact "12M" / "NOW" / "NEVER" form for the header micro-label variant. */
+function relativeCompact(iso: string | null): string {
+  const r = relative(iso);
+  if (r === "just now") return "NOW";
+  if (r === "never") return "NEVER";
+  return r.replace(" ago", "").toUpperCase();
+}
+
+export function SyncChip({
+  lastSyncAt,
+  variant = "chip",
+  datePrefix,
+}: {
+  lastSyncAt: string | null;
+  /** "chip" (default) is the bordered pill; "microLabel" is the Today header. */
+  variant?: "chip" | "microLabel";
+  /** e.g. "Tue Jul 22" — prefixed before "· SYNCED …" in the microLabel. */
+  datePrefix?: string;
+}) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [last, setLast] = useState(lastSyncAt);
@@ -55,6 +73,20 @@ export function SyncChip({ lastSyncAt }: { lastSyncAt: string | null }) {
     } finally {
       setBusy(false);
     }
+  }
+
+  if (variant === "microLabel") {
+    return (
+      <button
+        onClick={syncNow}
+        disabled={busy}
+        aria-label="Sync now"
+        className="text-left text-[10px] font-bold uppercase tracking-[0.2em] text-white/40 transition-colors hover:text-white/70"
+      >
+        {datePrefix ? `${datePrefix} · ` : ""}
+        {busy ? "SYNCING…" : `SYNCED ${mounted ? relativeCompact(last) : "…"}`}
+      </button>
+    );
   }
 
   return (
