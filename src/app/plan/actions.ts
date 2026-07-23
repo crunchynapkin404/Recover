@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/session";
 import {
   applyAvailability,
+  markDayDone,
   moveWorkout,
   rolloverWeekPlan,
   swapWorkouts,
@@ -168,6 +169,24 @@ export async function applyPlanChange(input: {
   if (result === "moved" || result === "swapped") {
     revalidatePath("/plan");
     revalidatePath("/");
+    return { ok: true };
+  }
+  return { ok: false, error: result };
+}
+
+/**
+ * "Mark done" on Today's session card (2a). Records that the athlete did
+ * the session; it never fabricates load or an activity, so the week's
+ * load-based adherence still reflects only what actually synced.
+ */
+export async function markSessionDone(
+  date: string
+): Promise<{ ok: boolean; error?: string }> {
+  const user = await requireUser();
+  const result = await markDayDone(user.id, date);
+  if (result === "completed") {
+    revalidatePath("/");
+    revalidatePath("/train");
     return { ok: true };
   }
   return { ok: false, error: result };

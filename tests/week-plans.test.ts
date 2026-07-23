@@ -546,4 +546,96 @@ describe.skipIf(!hasDb)("week-plan service", () => {
     expect(week!.planId).toBe(second.planId);
     expect(week!.planId).not.toBe(first.planId);
   });
+
+  it("markDayDone completes a planned session without inventing load", async () => {
+    const { db, schema } = await import("@/lib/db");
+    const { markDayDone, getOpenWeekPlan } =
+      await import("@/lib/week-plan/service");
+
+    await db.insert(schema.weekPlans).values({
+      userId: USER,
+      planId,
+      weekStart,
+      skeletonWeek: 1,
+      days: seededDays(),
+      status: "open",
+    });
+
+    expect(await markDayDone(USER, todayYmd)).toBe("completed");
+
+    const week = await getOpenWeekPlan(USER);
+    const day = week!.days.find((d) => d.date === todayYmd)!;
+    expect(day.status).toBe("completed");
+    // The athlete's word is a status, not data: no load, no activity, and
+    // the planned session itself is left intact.
+    expect(day.actualLoad).toBeUndefined();
+    expect(day.activityId).toBeUndefined();
+    expect(day.workout?.type).toBe("Intervals");
+  });
+
+  it("markDayDone leaves the week's load-based adherence untouched", async () => {
+    const { db, schema } = await import("@/lib/db");
+    const { markDayDone, rolloverWeekPlan } =
+      await import("@/lib/week-plan/service");
+
+    await db.insert(schema.weekPlans).values({
+      userId: USER,
+      planId,
+      weekStart: lastWeekStart,
+      skeletonWeek: 1,
+      days: seededDays().map((d) => ({
+        ...d,
+        date: addDaysYmd(d.date, -7),
+      })),
+      status: "open",
+    });
+
+    const markedDate = addDaysYmd(todayYmd, -7);
+    expect(await markDayDone(USER, markedDate)).toBe("completed");
+
+    // Closing that week writes adherence back to its block. Nothing synced,
+    // so actual load — and therefore adherence — must still be zero.
+    await rolloverWeekPlan(USER);
+    const block = await db.query.trainingBlocks.findFirst({
+      where: and(
+        eq(schema.trainingBlocks.planId, planId),
+        eq(schema.trainingBlocks.weekNumber, 1)
+      ),
+    });
+    expect(block?.actualLoad).toBe(0);
+    expect(block?.adherencePct).toBe(0);
+    // The tick is still recorded as a session that happened.
+    expect(block?.actualSessions).toBe(1);
+  });
+
+  it("markDayDone refuses rest days, race days and repeat ticks", async () => {
+    const { db, schema } = await import("@/lib/db");
+    const { markDayDone } = await import("@/lib/week-plan/service");
+
+    const days = seededDays();
+    const restDate = days.find((d) => d.date !== todayYmd)!.date;
+    const raceDate = days.filter((d) => d.date !== todayYmd)[1].date;
+    await db.insert(schema.weekPlans).values({
+      userId: USER,
+      planId,
+      weekStart,
+      skeletonWeek: 1,
+      days: days.map((d) =>
+        d.date === raceDate
+          ? { ...d, status: "race" as const, raceName: "Test race" }
+          : d
+      ),
+      status: "open",
+    });
+
+    expect(await markDayDone(USER, restDate)).toBe("invalid");
+    expect(await markDayDone(USER, raceDate)).toBe("invalid");
+    expect(await markDayDone(USER, todayYmd)).toBe("completed");
+    expect(await markDayDone(USER, todayYmd)).toBe("invalid");
+  });
+
+  it("markDayDone without an open week reports no_open_week", async () => {
+    const { markDayDone } = await import("@/lib/week-plan/service");
+    expect(await markDayDone(USER, todayYmd)).toBe("no_open_week");
+  });
 });

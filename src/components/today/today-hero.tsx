@@ -36,6 +36,12 @@ function fmtClock(hours: number): string {
   return `${h}:${String(m).padStart(2, "0")}`;
 }
 
+/** TSB to one decimal with a real minus sign: -1.94 → "−1.9". */
+export function fmtTsb(tsb: number): string {
+  const v = Math.abs(tsb).toFixed(1);
+  return tsb < 0 ? `−${v}` : v;
+}
+
 // One line of numbers, never prose — built from the same inputs buildNarrative
 // used. Any missing signal is simply dropped (honest, never invented).
 function buildWhy(why: TodayHeroWhy): string {
@@ -48,7 +54,7 @@ function buildWhy(why: TodayHeroWhy): string {
     );
   if (why.rhr != null) parts.push(`RHR ${Math.round(why.rhr)}`);
   if (why.sleepHours != null) parts.push(`slept ${fmtClock(why.sleepHours)}`);
-  if (why.tsb != null) parts.push(`TSB ${why.tsb}`);
+  if (why.tsb != null) parts.push(`TSB ${fmtTsb(why.tsb)}`);
   return parts.join(" · ");
 }
 

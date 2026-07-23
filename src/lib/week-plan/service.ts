@@ -576,3 +576,41 @@ export async function swapWorkouts(
   ]);
   return "swapped";
 }
+
+/**
+ * Athlete-initiated "Mark done" (2a). Flips a planned day to completed
+ * without inventing anything: no actualLoad, no activityId, no synthetic
+ * activity row. Adherence is load-based (actualLoad / target), so a manual
+ * tick moves the week's session count and nothing else — if the ride later
+ * syncs, adaptDay attaches the real load and the day is already where it
+ * belongs.
+ *
+ * Refuses days that have no workout (nothing to complete), days already
+ * completed or missed, and race days, which the race flow owns.
+ */
+export async function markDayDone(
+  userId: string,
+  date: string
+): Promise<"completed" | "no_open_week" | "invalid"> {
+  const week = await getOpenWeekPlan(userId);
+  if (!week) return "no_open_week";
+  const idx = week.days.findIndex((d) => d.date === date);
+  if (idx === -1) return "invalid";
+
+  const day = week.days[idx];
+  if (!day.workout) return "invalid";
+  if (day.status === "completed" || day.status === "missed") return "invalid";
+  if (day.status === "race") return "invalid";
+
+  const days = week.days.map((d) => ({
+    ...d,
+    workout: d.workout ? { ...d.workout } : null,
+  }));
+  days[idx] = { ...days[idx], status: "completed" };
+
+  await db
+    .update(schema.weekPlans)
+    .set({ days, updatedAt: new Date() })
+    .where(eq(schema.weekPlans.id, week.id));
+  return "completed";
+}

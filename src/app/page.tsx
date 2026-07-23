@@ -19,7 +19,7 @@ import {
   CALIBRATION_TARGET_DAYS,
 } from "@/lib/calibration";
 import { CalibrationProgress } from "@/components/dashboard/calibration-progress";
-import { TodayHero } from "@/components/today/today-hero";
+import { TodayHero, fmtTsb } from "@/components/today/today-hero";
 import { VitalsGrid, type VitalTile } from "@/components/today/vitals-grid";
 import { SessionCard } from "@/components/today/session-card";
 import { DebriefChip } from "@/components/today/debrief-chip";
@@ -54,9 +54,15 @@ function hoursToClock(hours: number): string {
   return `${h}:${String(m).padStart(2, "0")}`;
 }
 
-/** TSB with a real minus sign: -1.9 → "−1.9". */
-function fmtTsb(tsb: number): string {
-  return tsb < 0 ? `−${Math.abs(tsb)}` : `${tsb}`;
+/**
+ * Sleep debt is a 14-night cumulative deficit, so it routinely runs to hours.
+ * Minutes stay minutes while they read naturally; past 90 it switches to
+ * hours rather than printing "debt 1359m" in a 9.5px slot.
+ */
+function fmtSleepDebt(debtSecs: number): string {
+  const mins = Math.round(debtSecs / 60);
+  if (mins < 90) return `debt ${mins}m`;
+  return `debt ${(mins / 60).toFixed(1)}h · 14d`;
 }
 
 export default async function DashboardPage() {
@@ -169,6 +175,13 @@ export default async function DashboardPage() {
   const bodyPrefsRow = await db.query.bodyPrefs.findFirst({
     where: eq(schema.bodyPrefs.userId, user.id),
   });
+
+  // Avatar initial, per the 2a mockup; falls back to the generic glyph when
+  // the account has no usable name.
+  const initial = (user.name ?? user.email ?? "")
+    .trim()
+    .charAt(0)
+    .toUpperCase();
 
   // Use the most recent metric with a readiness score (today may be incomplete)
   const todayMetric =
@@ -297,7 +310,6 @@ export default async function DashboardPage() {
 
   const hrvGood = latest?.hrvMs != null && latest.hrvMs >= avg7hrv;
   const rhrGood = latest?.restingHr != null && latest.restingHr <= avg7rhr;
-  const sleepDebtMin = Math.round((sleepDebt.debtSecs ?? 0) / 60);
 
   const vitals: VitalTile[] = [
     {
@@ -335,8 +347,8 @@ export default async function DashboardPage() {
       label: "Sleep",
       value: sleepHours != null ? hoursToClock(sleepHours) : "—",
       delta:
-        sleepDebtMin > 0
-          ? { text: `debt ${sleepDebtMin}m`, tone: "warn" }
+        sleepDebt.debtSecs != null && sleepDebt.debtSecs > 0
+          ? { text: fmtSleepDebt(sleepDebt.debtSecs), tone: "warn" }
           : null,
       sparkPath: sleepSparkPath,
       sparkColor: "#3b82f6",
@@ -377,7 +389,16 @@ export default async function DashboardPage() {
               aria-label="Menu"
               className="glass flex size-9 shrink-0 items-center justify-center rounded-full"
             >
-              <User className="size-5 text-white/80" strokeWidth={1.5} />
+              {initial ? (
+                <span
+                  aria-hidden
+                  className="text-[13px] font-bold text-white/80"
+                >
+                  {initial}
+                </span>
+              ) : (
+                <User className="size-5 text-white/80" strokeWidth={1.5} />
+              )}
             </Link>
           </header>
 

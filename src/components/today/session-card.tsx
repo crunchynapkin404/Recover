@@ -3,6 +3,7 @@ import {
   DayActions,
   type DayActionsOtherDay,
 } from "@/components/plan/day-actions";
+import { MarkDoneButton } from "./mark-done-button";
 
 interface Props {
   /** Today's slot from the open week; null → render nothing. */
@@ -15,9 +16,10 @@ interface Props {
 
 /**
  * Today's session (2a) — restyled from TodayCard to the tighter rounded-[20px]
- * surface. The action row reuses the real DayActions server actions
- * (move / swap / skip); the mockup's "Mark done" / "Shrink" have no backing
- * server action in v0.20, so they are intentionally not faked here.
+ * surface. The action row is "Mark done" plus the real DayActions server
+ * actions (move / swap / skip). The mockup's "Shrink" still has no backing
+ * action — adaptDay owns scaling, and there is no athlete-facing one — so it
+ * is intentionally not faked here.
  */
 export function SessionCard({ slot, adjustmentReason, otherDays }: Props) {
   if (!slot) return null;
@@ -56,12 +58,21 @@ export function SessionCard({ slot, adjustmentReason, otherDays }: Props) {
         </div>
       )}
 
-      {w != null && (
-        <DayActions
-          day={{ date: slot.date, hasWorkout: true }}
-          otherDays={otherDays}
-        />
-      )}
+      {w != null &&
+        (slot.status === "completed" ? (
+          <p className="mt-3 border-t border-white/5 pt-3 text-[11px] font-bold text-emerald-400">
+            ✓ Done
+          </p>
+        ) : (
+          <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-white/5 pt-3">
+            <MarkDoneButton date={slot.date} />
+            <DayActions
+              day={{ date: slot.date, hasWorkout: true }}
+              otherDays={otherDays}
+              bare
+            />
+          </div>
+        ))}
     </section>
   );
 }

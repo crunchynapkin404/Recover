@@ -17,6 +17,12 @@ export interface DayActionsOtherDay {
 interface Props {
   day: DayActionsDay;
   otherDays: DayActionsOtherDay[];
+  /**
+   * Drops the component's own divider and top margin, for callers that
+   * already lay the actions out in a row of their own (Today's session card
+   * sits "Mark done" next to them).
+   */
+  bare?: boolean;
 }
 
 type Action = "move" | "swap" | "skip";
@@ -58,7 +64,7 @@ interface Preview {
  * so this renders nothing for them — same guard as "no workout, no
  * actions".
  */
-export function DayActions({ day, otherDays }: Props) {
+export function DayActions({ day, otherDays, bare = false }: Props) {
   const [pending, startTransition] = useTransition();
   const [action, setAction] = useState<Action>("move");
   const [target, setTarget] = useState("");
@@ -129,7 +135,7 @@ export function DayActions({ day, otherDays }: Props) {
   }
 
   return (
-    <div className="mt-3 border-t border-white/5 pt-3">
+    <div className={bare ? "contents" : "mt-3 border-t border-white/5 pt-3"}>
       {applied ? (
         <p className="text-[11px] font-bold text-emerald-400">
           {action === "move" ? "Moved." : "Swapped."}
