@@ -111,6 +111,7 @@ export async function runStravaSync(userId: string): Promise<StravaSyncResult> {
             provider: "strava",
             externalId: activity.externalId,
             startDate: activity.startDate,
+            startDateLocal: activity.startDateLocal,
             sport: activity.sport,
             name: activity.name,
             durationS: activity.durationS,
@@ -129,6 +130,7 @@ export async function runStravaSync(userId: string): Promise<StravaSyncResult> {
             ],
             set: {
               startDate: activity.startDate,
+              startDateLocal: activity.startDateLocal,
               sport: activity.sport,
               name: activity.name,
               durationS: activity.durationS,

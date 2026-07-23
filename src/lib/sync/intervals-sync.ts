@@ -21,19 +21,42 @@ export interface SyncResult {
 }
 
 /** Upsert intervals.icu activities (shared by the daily sync and the v0.15
- * activity poll). Conflict target (userId, provider, externalId). */
+ * activity poll). Conflict target (userId, provider, externalId).
+ *
+ * Strava-sourced stub rows (intervals.icu withholds real data for them —
+ * "STRAVA activities are not available via the API") never carry a true
+ * start_date, only the local wall-clock string. When a sibling strava-
+ * provider row already exists for the same externalId, its startDate (the
+ * Strava connector has always parsed the true UTC field directly) replaces
+ * the stub's own last-resort local-as-UTC value.
+ */
 export async function upsertIntervalsActivities(
   userId: string,
   activities: IntervalsActivity[]
 ): Promise<void> {
   for (const activity of activities) {
+    let startDate = activity.startDate;
+    const raw = activity.raw as { source?: unknown; start_date?: unknown };
+    if (raw.source === "STRAVA" && raw.start_date == null) {
+      const sibling = await db.query.activities.findFirst({
+        where: and(
+          eq(schema.activities.userId, userId),
+          eq(schema.activities.provider, "strava"),
+          eq(schema.activities.externalId, activity.externalId)
+        ),
+        columns: { startDate: true },
+      });
+      if (sibling) startDate = sibling.startDate;
+    }
+
     await db
       .insert(schema.activities)
       .values({
         userId,
         provider: "intervals_icu",
         externalId: activity.externalId,
-        startDate: activity.startDate,
+        startDate,
+        startDateLocal: activity.startDateLocal,
         sport: activity.sport,
         name: activity.name,
         durationS: activity.durationS,
@@ -51,7 +74,8 @@ export async function upsertIntervalsActivities(
           schema.activities.externalId,
         ],
         set: {
-          startDate: activity.startDate,
+          startDate,
+          startDateLocal: activity.startDateLocal,
           sport: activity.sport,
           name: activity.name,
           durationS: activity.durationS,
