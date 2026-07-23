@@ -37,6 +37,8 @@ export interface StravaAthlete {
 export interface StravaActivitySummary {
   externalId: string;
   startDate: Date;
+  /** Athlete's local wall-clock time, for day/hour bucketing. */
+  startDateLocal: Date | null;
   sport: string;
   name: string | null;
   durationS: number | null;
@@ -179,9 +181,14 @@ export async function fetchActivities(params: {
     if (!id || !start) continue;
     const startDate = new Date(start);
     if (Number.isNaN(startDate.getTime())) continue;
+    const localStr = str(row.start_date_local);
+    const localParsed = localStr ? new Date(localStr) : null;
+    const startDateLocal =
+      localParsed && !Number.isNaN(localParsed.getTime()) ? localParsed : null;
     out.push({
       externalId: id,
       startDate,
+      startDateLocal,
       sport: str(row.sport_type) ?? str(row.type) ?? "Workout",
       name: str(row.name),
       durationS: num(row.moving_time) ?? num(row.elapsed_time),
