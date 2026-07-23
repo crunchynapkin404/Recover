@@ -22,15 +22,53 @@ export function debriefEligible(
     durationS: number | null;
     startDate: Date;
     debriefState: string | null;
+    raw?: unknown;
   },
   now: Date
 ): boolean {
   if (a.provider === "strava") return false; // AI firewall — no review possible
   if (a.debriefState !== null) return false; // already in the loop (or resolved)
-  if ((a.durationS ?? 0) < DEBRIEF_MIN_DURATION_S) return false;
+  if (a.durationS == null) {
+    // intervals.icu withholds duration/load for activities it sourced from
+    // Strava (its own API response carries "STRAVA activities are not
+    // available via the API") — a real create event already proves this is
+    // a genuine ride, so an unknowable duration shouldn't block it forever.
+    // Any other null-duration case (not yet populated) still waits its turn.
+    const stravaSourced =
+      (a.raw as { source?: unknown } | null | undefined)?.source ===
+      "STRAVA";
+    if (!stravaSourced) return false;
+  } else if (a.durationS < DEBRIEF_MIN_DURATION_S) {
+    return false;
+  }
   const age = now.getTime() - a.startDate.getTime();
   if (age < 0 || age > DEBRIEF_FRESH_HOURS * 3_600_000) return false;
   return true;
+}
+
+/** "1:15 · 78 load · 32km · 142bpm" — only the metrics that exist; shared by
+ *  the URL-driven sheet and the activity page's own popup mount. */
+export function formatActivityMetrics(a: {
+  durationS: number | null;
+  load: number | null;
+  distanceM: number | null;
+  avgHr: number | null;
+}): string {
+  const clock = (secs: number) => {
+    const h = Math.floor(secs / 3600);
+    const m = Math.round((secs % 3600) / 60);
+    return `${h}:${String(m).padStart(2, "0")}`;
+  };
+  return [
+    a.durationS != null ? clock(a.durationS) : null,
+    a.load != null ? `${Math.round(a.load)} load` : null,
+    a.distanceM != null
+      ? `${(a.distanceM / 1000).toFixed(a.distanceM < 10_000 ? 1 : 0)}km`
+      : null,
+    a.avgHr != null ? `${Math.round(a.avgHr)}bpm` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 /** intervals.icu `feel` is 1–5 with 1 = strongest. */

@@ -67,6 +67,28 @@ describe("debriefEligible", () => {
       )
     ).toBe(false);
   });
+
+  it("treats a null duration as eligible only when intervals.icu withheld it for being Strava-sourced", async () => {
+    const { debriefEligible } = await import("@/lib/debrief/lifecycle");
+    // intervals.icu's own "not available via the API" note for Strava-origin
+    // activities — durationS is null not because sync hasn't finished, but
+    // because it structurally never will.
+    expect(
+      debriefEligible(
+        { ...base, durationS: null, raw: { source: "STRAVA" } },
+        NOW
+      )
+    ).toBe(true);
+    // A plain null duration (not yet synced, unrelated to Strava) still
+    // waits its turn rather than being assumed eligible.
+    expect(debriefEligible({ ...base, durationS: null }, NOW)).toBe(false);
+    expect(
+      debriefEligible(
+        { ...base, durationS: null, raw: { source: "GARMIN_CONNECT" } },
+        NOW
+      )
+    ).toBe(false);
+  });
 });
 
 describe("intervals.icu prefills", () => {

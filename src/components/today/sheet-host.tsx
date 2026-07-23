@@ -1,6 +1,10 @@
 import { and, eq, gte } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
-import { feelFromIcu, rpeFromRaw } from "@/lib/debrief/lifecycle";
+import {
+  feelFromIcu,
+  formatActivityMetrics,
+  rpeFromRaw,
+} from "@/lib/debrief/lifecycle";
 import { CheckinSheet } from "@/components/today/checkin-sheet";
 import { DebriefSheet } from "@/components/debrief/debrief-sheet";
 
@@ -112,16 +116,7 @@ export async function SheetHost({
     if (!activity) return null;
 
     const raw = activity.raw as Record<string, unknown> | null;
-    const metrics = [
-      activity.durationS != null ? clock(activity.durationS) : null,
-      activity.load != null ? `${Math.round(activity.load)} load` : null,
-      activity.distanceM != null
-        ? `${(activity.distanceM / 1000).toFixed(activity.distanceM < 10_000 ? 1 : 0)}km`
-        : null,
-      activity.avgHr != null ? `${Math.round(activity.avgHr)}bpm` : null,
-    ]
-      .filter(Boolean)
-      .join(" · ");
+    const metrics = formatActivityMetrics(activity);
 
     return (
       <DebriefSheet

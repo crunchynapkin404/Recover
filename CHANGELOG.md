@@ -1,5 +1,27 @@
 # Changelog
 
+## v0.25.2 — 2026-07-23 — Ride Review Actually Pops Up
+
+Two gaps kept the post-ride debrief from ever reaching the athlete in
+practice: it only ever showed as a Today-dashboard chip or push-notification
+deep link, never on the ride's own page, and rendered as a form buried in
+the page flow rather than the bottom-sheet popup used everywhere else in the
+app. Opening a ride with a pending debrief now pops the same sheet.
+
+- **`debriefEligible` no longer permanently excludes Strava-sourced rides.**
+  intervals.icu withholds `duration`/`load` for any activity it sourced from
+  Strava (own API note: "STRAVA activities are not available via the API"),
+  which previously failed the 15-minute-minimum check forever, with no
+  retry that could ever fix it. A real webhook-triggered create event is
+  already proof of a genuine ride, so an unknowable duration no longer
+  blocks it — a plain not-yet-synced null duration (any other provider)
+  still waits its turn as before.
+- **The activity page now mounts the real `DebriefSheet` popup** for a
+  pending debrief instead of the old inline `DebriefForm`, matching the
+  sheet already used for the dashboard chip and push-notification deep
+  link. Metric formatting (`formatActivityMetrics`) is now shared between
+  both entry points instead of duplicated.
+
 ## v0.25.1 — 2026-07-23 — Webhook Callback Fix
 
 v0.25.0 added `/api/webhooks/strava` but never actually made it reachable:

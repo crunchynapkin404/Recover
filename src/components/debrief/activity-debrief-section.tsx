@@ -1,7 +1,11 @@
 import { and, desc, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
-import { feelFromIcu, rpeFromRaw } from "@/lib/debrief/lifecycle";
-import { DebriefForm } from "./debrief-form";
+import {
+  feelFromIcu,
+  formatActivityMetrics,
+  rpeFromRaw,
+} from "@/lib/debrief/lifecycle";
+import { DebriefSheet } from "./debrief-sheet";
 import { InlineMarkdown } from "@/components/ui/inline-markdown";
 
 export async function ActivityDebriefSection({
@@ -22,11 +26,13 @@ export async function ActivityDebriefSection({
   if (a.debriefState === "pending") {
     const raw = a.raw as Record<string, unknown> | null;
     return (
-      <DebriefForm
+      <DebriefSheet
         activityId={a.id}
         activityName={a.name ?? a.sport}
+        metrics={formatActivityMetrics(a)}
         prefillRpe={rpeFromRaw(raw)}
         prefillFeel={feelFromIcu(raw?.feel)}
+        closeHref={`/activity/${a.id}`}
       />
     );
   }
