@@ -138,6 +138,73 @@ export async function requestImmediateSync(userId: string): Promise<void> {
 }
 
 /**
+ * Bring the user's intervals.icu sync forward to `delayS` seconds from now
+ * — or leave it alone if one's already scheduled at least that soon. Used
+ * by the Strava webhook (src/lib/sync/strava-webhook.ts) to react to a new
+ * ride without waiting for the 15-min activity poll or the daily sync. The
+ * delay gives intervals.icu's own Strava ingestion a head start, since a
+ * pull that runs before intervals.icu has the ride would just miss it.
+ * No-ops if the user has no active intervals.icu connection, or a sync for
+ * it is already running. Returns whether a job was actually created or
+ * brought forward, so callers (e.g. the Strava webhook) can tell a real
+ * schedule from a no-op.
+ */
+export async function scheduleIntervalsSync(
+  userId: string,
+  delayS = 0
+): Promise<boolean> {
+  const connection = await db.query.connections.findFirst({
+    where: and(
+      eq(schema.connections.userId, userId),
+      eq(schema.connections.provider, "intervals_icu"),
+      eq(schema.connections.status, "active")
+    ),
+    columns: { id: true },
+  });
+  if (!connection) return false;
+
+  const runAfter = new Date(Date.now() + delayS * 1000);
+
+  const existing = await db.query.syncJobs.findFirst({
+    where: and(
+      eq(schema.syncJobs.userId, userId),
+      eq(schema.syncJobs.provider, "intervals_icu"),
+      inArray(schema.syncJobs.status, ["pending", "running"])
+    ),
+  });
+  if (existing?.status === "running") return false;
+  if (existing) {
+    if (existing.runAfter <= runAfter) return false;
+    await db
+      .update(schema.syncJobs)
+      .set({ runAfter, updatedAt: new Date() })
+      .where(eq(schema.syncJobs.id, existing.id));
+    return true;
+  }
+
+  await db.insert(schema.syncJobs).values({
+    userId,
+    provider: "intervals_icu",
+    kind: "incremental",
+    runAfter,
+  });
+  return true;
+}
+
+/** Most recent lastSyncAt across all of a user's connections, or null. */
+export async function getLastSyncAt(userId: string): Promise<string | null> {
+  const conns = await db.query.connections.findMany({
+    where: eq(schema.connections.userId, userId),
+    columns: { lastSyncAt: true },
+  });
+  const last = conns
+    .map((c) => c.lastSyncAt)
+    .filter((d): d is Date => d != null)
+    .sort((a, b) => b.getTime() - a.getTime())[0];
+  return last?.toISOString() ?? null;
+}
+
+/**
  * One scheduler tick: claim due jobs (single runner via pg advisory lock,
  * SKIP LOCKED against concurrent claimers, stale-"running" reclaim) and
  * process them. Safe to call from both the in-process interval and /api/cron.

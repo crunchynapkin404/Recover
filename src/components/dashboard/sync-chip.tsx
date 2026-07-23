@@ -1,9 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { RefreshCw } from "lucide-react";
 import { toast } from "sonner";
+
+/** How often to check for a background/webhook-triggered sync while the
+ *  dashboard is open. Cheap read, no rate limiting needed server-side. */
+const STATUS_POLL_MS = 45_000;
 
 function relative(iso: string | null): string {
   if (!iso) return "never";
@@ -53,6 +57,25 @@ export function SyncChip({
   const [busy, setBusy] = useState(false);
   const [last, setLast] = useState(lastSyncAt);
   const mounted = useHasMounted();
+
+  // Picks up a sync that happened in the background — the Strava webhook or
+  // the scheduler tick — without the user clicking anything or reloading.
+  useEffect(() => {
+    const id = setInterval(async () => {
+      try {
+        const res = await fetch("/api/sync/status");
+        if (!res.ok) return;
+        const data = (await res.json()) as { lastSyncAt: string | null };
+        if (data.lastSyncAt && data.lastSyncAt !== last) {
+          setLast(data.lastSyncAt);
+          router.refresh();
+        }
+      } catch {
+        // Silent — the next poll retries.
+      }
+    }, STATUS_POLL_MS);
+    return () => clearInterval(id);
+  }, [last, router]);
 
   async function syncNow() {
     if (busy) return;
