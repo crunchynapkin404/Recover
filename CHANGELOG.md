@@ -1,5 +1,28 @@
 # Changelog
 
+## v0.24.0 — 2026-07-23 — Strava Auto-Describe Fixes & Fields
+
+VO2max was effectively always blank on Strava descriptions — it only ever
+read the per-activity intervals.icu payload, which rarely carries an
+estimate. Worse, auto-describe used to write the Strava description in
+the same tick a ride was promoted to a pending debrief, before the
+athlete had even seen the popup; because the write is append-once
+(marker-gated), that meant the ride review could never be added
+afterward, no matter when the athlete answered.
+
+- **VO2max now falls back to the daily wellness value** (`wellnessDaily.vo2max`)
+  when the activity itself doesn't carry an estimate — same pattern as the
+  existing eFTP fallback. The coach's `get_biomarkers` tool had the same
+  bug (hardcoded `vo2max: null`) despite already fetching the data; fixed.
+- **Auto-describe now waits for the debrief to resolve.** `describeActivityOnStrava`
+  gates on `debriefState`/`reviewedAt`; the Strava write fires the moment
+  the ride review actually posts (from the popup submit, the debrief
+  lifecycle retry, or a race debrief) instead of racing it or waiting for
+  the next daily sweep.
+- **Two new opt-in description fields**, same per-field settings toggle as
+  the rest: **Ride review** (short AI-generated summary, ~140 chars) and
+  **RPE / feel** (the athlete's own debrief answer, shown alongside it).
+
 ## v0.23.1 — 2026-07-23 — Coach Composer & History
 
 Follow-up to v0.23.0's inbox. The composer was `fixed left-0 w-full`, so
