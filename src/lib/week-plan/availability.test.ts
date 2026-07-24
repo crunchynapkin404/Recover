@@ -1,6 +1,6 @@
 // src/lib/week-plan/availability.test.ts
 import { describe, expect, it } from "vitest";
-import { prefillAvailability } from "./availability";
+import { formatAvailability, prefillAvailability } from "./availability";
 
 describe("prefillAvailability", () => {
   it("repeats last week's pattern when there is one", () => {
@@ -48,5 +48,21 @@ describe("prefillAvailability", () => {
         busyMinsPerDay: null,
       })
     ).toEqual(last);
+  });
+});
+
+describe("formatAvailability", () => {
+  it("shows Rest for zero", () => {
+    expect(formatAvailability(0)).toBe("Rest");
+  });
+
+  it("shows minutes only under an hour", () => {
+    expect(formatAvailability(45)).toBe("45m");
+  });
+
+  it("shows hours and minutes, zero-padded, at or over an hour", () => {
+    expect(formatAvailability(60)).toBe("1h 00m");
+    expect(formatAvailability(90)).toBe("1h 30m");
+    expect(formatAvailability(150)).toBe("2h 30m");
   });
 });
