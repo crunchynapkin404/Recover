@@ -638,4 +638,71 @@ describe.skipIf(!hasDb)("week-plan service", () => {
     const { markDayDone } = await import("@/lib/week-plan/service");
     expect(await markDayDone(USER, todayYmd)).toBe("no_open_week");
   });
+
+  it("runDailyAdaptation matches yesterday's completion via startDateLocal when it crosses the UTC day boundary", async () => {
+    const { db, schema } = await import("@/lib/db");
+    const { runDailyAdaptation, getOpenWeekPlan } =
+      await import("@/lib/week-plan/service");
+
+    // Fix "now" to a mid-week Wednesday of the already-seeded current week
+    // so yesterday (Tuesday) is guaranteed to fall inside `weekStart..+6`
+    // regardless of what real-world weekday the suite runs on.
+    const wednesday = addDaysYmd(weekStart, 2);
+    const now = new Date(wednesday + "T12:00:00");
+    const tuesday = addDaysYmd(weekStart, 1);
+
+    const days = Array.from({ length: 7 }, (_, i) => {
+      const date = addDaysYmd(weekStart, i);
+      if (date === tuesday) {
+        return {
+          date,
+          availableMins: 60,
+          workout: {
+            day: i,
+            sport: "Run",
+            type: "Endurance",
+            durationMins: 45,
+            intensity: "Z1-Z2",
+            description: "Easy run",
+          },
+          status: "planned" as const,
+        };
+      }
+      return restDay(date);
+    });
+    await db.insert(schema.weekPlans).values({
+      userId: USER,
+      planId,
+      weekStart,
+      skeletonWeek: 1,
+      days,
+      status: "open",
+    });
+
+    // The activity's true UTC instant already rolled into Wednesday
+    // (00:20), but the athlete's local wall-clock time was still Tuesday
+    // night (23:40) — startDateLocal keeps it on the correct calendar day.
+    const tuesdayMidnight = new Date(tuesday + "T00:00:00").getTime();
+    const [activity] = await db
+      .insert(schema.activities)
+      .values({
+        userId: USER,
+        provider: "manual",
+        externalId: `week8-boundary-${Date.now()}`,
+        sport: "Run",
+        startDate: new Date(tuesdayMidnight + 24 * 3_600_000 + 20 * 60_000),
+        startDateLocal: new Date(
+          tuesdayMidnight + 23 * 3_600_000 + 40 * 60_000
+        ),
+        load: 42,
+      })
+      .returning();
+
+    expect(await runDailyAdaptation(USER, now)).toBe("adapted");
+
+    const week = await getOpenWeekPlan(USER);
+    const yesterdaySlot = week!.days.find((d) => d.date === tuesday)!;
+    expect(yesterdaySlot.activityId).toBe(activity.id);
+    expect(yesterdaySlot.actualLoad).toBe(42);
+  });
 });

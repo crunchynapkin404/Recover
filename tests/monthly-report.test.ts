@@ -100,3 +100,80 @@ describe.skipIf(!hasDb)("generateMonthlyReport", () => {
     expect(again.length).toBe(1);
   });
 });
+
+const BOUNDARY_USER = "test-monthly-report-boundary-user";
+
+async function cleanupBoundary() {
+  const { db, schema } = await import("@/lib/db");
+  await db
+    .delete(schema.chatThreads)
+    .where(eq(schema.chatThreads.userId, BOUNDARY_USER));
+  await db
+    .delete(schema.activities)
+    .where(eq(schema.activities.userId, BOUNDARY_USER));
+  await db.delete(schema.users).where(eq(schema.users.id, BOUNDARY_USER));
+}
+
+describe.skipIf(!hasDb)("generateMonthlyReport — startDateLocal boundary", () => {
+  afterAll(cleanupBoundary);
+
+  it("counts a session whose true UTC startDate crosses into next month but whose startDateLocal keeps it in the report month", async () => {
+    const { db, schema } = await import("@/lib/db");
+    await cleanupBoundary();
+    await db.insert(schema.users).values({
+      id: BOUNDARY_USER,
+      name: "Boundary",
+      email: "monthly-report-boundary@example.invalid",
+    });
+    // 3 ordinary June sessions...
+    const ordinary = [5, 12, 18].map((day, i) => ({
+      userId: BOUNDARY_USER,
+      provider: "intervals_icu" as const,
+      externalId: `mrb-${i}`,
+      startDate: new Date(2026, 5, day, 10, 0),
+      sport: "Ride",
+      durationS: 3600,
+      load: 10,
+    }));
+    // ...plus one whose true UTC instant is July 1st 00:15 (past monthEnd)
+    // but whose local wall-clock time was still June 30th 23:45 — this is
+    // the fourth session needed to clear MIN_SESSIONS, and its load (5) is
+    // only reflected in the total if the query buckets it by startDateLocal.
+    const juneMidnight = new Date(2026, 5, 30).getTime();
+    await db.insert(schema.activities).values([
+      ...ordinary,
+      {
+        userId: BOUNDARY_USER,
+        provider: "intervals_icu" as const,
+        externalId: "mrb-boundary",
+        startDate: new Date(juneMidnight + 24 * 3_600_000 + 15 * 60_000),
+        startDateLocal: new Date(juneMidnight + 23 * 3_600_000 + 45 * 60_000),
+        sport: "Ride",
+        durationS: 1200,
+        load: 5,
+      },
+    ]);
+
+    const { generateMonthlyReport } = await import("@/lib/monthly-report");
+    await generateMonthlyReport(BOUNDARY_USER, {
+      now: new Date(2026, 6, 3, 6, 0, 0),
+      llm: async () => "",
+    });
+
+    const thread = await db.query.chatThreads.findFirst({
+      where: and(
+        eq(schema.chatThreads.userId, BOUNDARY_USER),
+        eq(schema.chatThreads.kind, "monthly")
+      ),
+    });
+    // Without the 4th (boundary) session counted, MIN_SESSIONS (4) isn't
+    // met and no report is posted at all — so thread-existence plus the
+    // total together prove the boundary row was included.
+    expect(thread).toBeTruthy();
+    const msgs = await db.query.chatMessages.findMany({
+      where: eq(schema.chatMessages.threadId, thread!.id),
+    });
+    expect(msgs.length).toBe(1);
+    expect(msgs[0].content).toContain("35"); // 10+10+10+5
+  });
+});

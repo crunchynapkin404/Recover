@@ -6,7 +6,7 @@
  * interpolated one). Strava rows are excluded from every aggregate (AI
  * firewall). No push — a monthly report can wait for the next visit.
  */
-import { and, avg, count, desc, eq, gte, lt, ne, sum } from "drizzle-orm";
+import { and, avg, count, desc, eq, gte, lt, ne, sql, sum } from "drizzle-orm";
 import { generateText } from "ai";
 import { db, schema } from "@/lib/db";
 import { logger } from "@/lib/logger";
@@ -78,8 +78,19 @@ async function loadForRange(userId: string, from: Date, to: Date) {
       and(
         eq(schema.activities.userId, userId),
         ne(schema.activities.provider, "strava"),
-        gte(schema.activities.startDate, from),
-        lt(schema.activities.startDate, to)
+        // COALESCE at the SQL level, not just in JS: a plain
+        // gte(startDateLocal, ...) would silently drop every pre-migration
+        // row (startDateLocal is a nullable, not-yet-backfilled column —
+        // NULL >= x is NULL/false in SQL), excluding them from the window
+        // entirely rather than falling back to startDate.
+        gte(
+          sql`coalesce(${schema.activities.startDateLocal}, ${schema.activities.startDate})`,
+          from
+        ),
+        lt(
+          sql`coalesce(${schema.activities.startDateLocal}, ${schema.activities.startDate})`,
+          to
+        )
       )
     );
   return { totalLoad: row?.totalLoad ?? 0, sessions: row?.sessions ?? 0 };
