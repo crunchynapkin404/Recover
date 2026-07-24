@@ -209,10 +209,20 @@ describe("apple health ingest payload cap", () => {
   it("rejects an oversized payload before touching auth or the db", async () => {
     const { POST } =
       await import("@/app/api/connections/apple-health/ingest/route");
+    // A spoofed content-length header on a bodyless Request is unreliable
+    // across Node/undici versions (some overwrite it to match the real
+    // body), and a real body never gets an auto content-length either —
+    // Request.headers only carries it once a request actually goes over
+    // the wire. Send a real oversized body plus a (bogus) token so the
+    // route gets past the token-presence check and reaches the streamed
+    // byte-count cap (MAX_BODY_BYTES), which rejects deterministically
+    // without ever reaching the DB-backed token lookup.
+    const big = "x".repeat(51 * 1024 * 1024);
     const res = await POST(
       new Request("http://localhost/api/connections/apple-health/ingest", {
         method: "POST",
-        headers: { "content-length": String(60 * 1024 * 1024) },
+        headers: { "x-recover-token": "no-such-token" },
+        body: big,
       })
     );
     expect(res.status).toBe(413);
