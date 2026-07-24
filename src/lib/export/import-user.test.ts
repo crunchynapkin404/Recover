@@ -100,6 +100,12 @@ describe.skipIf(!hasDb)("importUserData", () => {
         provider: "manual",
         externalId: "import-test-ext-1",
         startDate: new Date("2026-01-02T08:00:00Z"),
+        // Local Date constructor (not a UTC ISO string) so the paired
+        // assertion via local getters is TZ-agnostic — matches the house
+        // pattern in src/lib/training-load.test.ts. Distinct wall-clock
+        // from startDate above proves the round-trip carries local time
+        // forward, not just re-deriving it from the UTC instant.
+        startDateLocal: new Date(2026, 0, 2, 14, 30, 0),
         sport: "Ride",
         name: "IMPORT-TEST-ACTIVITY",
         debriefThreadId: thread.id,
@@ -245,6 +251,21 @@ describe.skipIf(!hasDb)("importUserData", () => {
     expect(activities[0].debriefThreadId).not.toBe(
       sample.activities[0].debriefThreadId
     );
+
+    // startDateLocal must survive the export/import round-trip distinctly
+    // from startDate (true UTC instant) — asserted via local getters, never
+    // toISOString()/getTime(), since startDateLocal encodes the athlete's
+    // wall-clock time (see src/lib/training-load.test.ts for the pattern).
+    expect(sample.activities[0].startDateLocal).not.toBeNull();
+    expect(activities[0].startDateLocal).not.toBeNull();
+    const importedLocal = activities[0].startDateLocal as Date;
+    expect(importedLocal.getFullYear()).toBe(2026);
+    expect(importedLocal.getMonth()).toBe(0); // January
+    expect(importedLocal.getDate()).toBe(2);
+    expect(importedLocal.getHours()).toBe(14);
+    expect(importedLocal.getMinutes()).toBe(30);
+    // Distinct wall-clock from startDate, proving it's not just a copy/alias.
+    expect(importedLocal.getTime()).not.toBe(activities[0].startDate.getTime());
 
     const streams = await db.query.activityStreams.findMany({
       where: eq(schema.activityStreams.activityId, activities[0].id),

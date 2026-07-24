@@ -77,6 +77,7 @@ describe.skipIf(!hasDb)("runActivityPolls", () => {
       {
         externalId: "poll-ride-1",
         startDate: new Date(NOW.getTime() - 60 * 60_000),
+        startDateLocal: null,
         sport: "Ride",
         name: "Lunch ride",
         durationS: 3600,

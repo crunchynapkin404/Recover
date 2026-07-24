@@ -157,6 +157,13 @@ export const activities = pgTable(
     }).notNull(),
     externalId: text("external_id").notNull(),
     startDate: timestamp("start_date", { withTimezone: true }).notNull(),
+    // True UTC instant, added alongside startDate to fix a storage bug: the
+    // intervals.icu connector used to store the athlete's local wall-clock
+    // time as if it were UTC. startDate now holds the true instant (for
+    // age/freshness/ordering); startDateLocal holds the athlete's wall-clock
+    // time (for local-day/hour bucketing) — see
+    // docs/specs/2026-07-23-activity-timezone-fix-design.md.
+    startDateLocal: timestamp("start_date_local", { withTimezone: true }),
     sport: text("sport").notNull(),
     name: text("name"),
     durationS: integer("duration_s"),

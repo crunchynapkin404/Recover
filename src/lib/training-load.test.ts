@@ -155,6 +155,50 @@ describe("dailyLoadSeries", () => {
   });
 });
 
+describe("dailyLoadSeries local-day bucketing", () => {
+  it("buckets by startDateLocal, not the true-UTC startDate, when both are present", () => {
+    // A ride that's really 23:30 UTC on July 1st, but 01:30 local (July 2nd)
+    // for an athlete at UTC+2 — the exact near-midnight case this task exists for.
+    const activities: LoadActivity[] = [
+      {
+        provider: "manual",
+        startDate: new Date("2026-07-01T23:30:00Z"),
+        startDateLocal: new Date(2026, 6, 2, 1, 30, 0), // local getters read July 2nd
+        durationS: 3600,
+        load: 80,
+        avgHr: null,
+        avgPower: null,
+      },
+    ];
+    const series = dailyLoadSeries(activities, noThresholds);
+    expect(series.has("2026-07-02")).toBe(true);
+    expect(series.has("2026-07-01")).toBe(false);
+    expect(series.get("2026-07-02")).toEqual({
+      load: 80,
+      sources: ["provider"],
+    });
+  });
+
+  it("falls back to startDate when startDateLocal is absent", () => {
+    const activities: LoadActivity[] = [
+      {
+        provider: "manual",
+        startDate: new Date(2026, 6, 15, 9, 0, 0), // local getters read July 15th
+        durationS: 3600,
+        load: 50,
+        avgHr: null,
+        avgPower: null,
+      },
+    ];
+    const series = dailyLoadSeries(activities, noThresholds);
+    expect(series.has("2026-07-15")).toBe(true);
+    expect(series.get("2026-07-15")).toEqual({
+      load: 50,
+      sources: ["provider"],
+    });
+  });
+});
+
 describe("nativeLoadMetrics", () => {
   it("EMA matches hand-computed values from a single session", () => {
     const byDate = nativeLoadMetrics(

@@ -166,4 +166,42 @@ describe.skipIf(!hasDb)("post-race debrief", () => {
     expect(prompt).not.toContain("90");
     expect(prompt.toLowerCase()).toContain("strava");
   });
+
+  it("matches a race-day activity via startDateLocal when its true UTC startDate crosses into the next day", async () => {
+    const { db, schema } = await import("@/lib/db");
+    const raceDate = ymdOffset(now, -1);
+    await db.insert(schema.races).values({
+      userId: USER,
+      name: "Boundary 10k",
+      raceType: "10k",
+      date: raceDate,
+      priority: "B",
+    });
+    // The activity's true UTC instant is 00:20 the day AFTER the race — past
+    // dayEnd — but the athlete's local wall-clock time was still 23:40 on
+    // race day itself. Only startDateLocal keeps it inside the race window.
+    const raceMidnight = new Date(raceDate + "T00:00:00").getTime();
+    await db.insert(schema.activities).values({
+      userId: USER,
+      provider: "manual",
+      externalId: "debrief-boundary-act-1",
+      sport: "Run",
+      startDate: new Date(raceMidnight + 24 * 3_600_000 + 20 * 60_000),
+      startDateLocal: new Date(raceMidnight + 23 * 3_600_000 + 40 * 60_000),
+      durationS: 2600,
+      load: 97,
+    });
+    const { runRaceDebriefs } = await import("@/lib/race/debrief");
+    const r = await runRaceDebriefs(USER, {
+      llm: async () => "Great boundary race.",
+    });
+    expect(r).toBe("posted");
+    const updated = await db.query.races.findFirst({
+      where: eq(schema.races.name, "Boundary 10k"),
+    });
+    // "completed" (real match) rather than "upcoming" (the no-data ghost
+    // path) proves the activity was actually matched, not just timed out.
+    expect(updated?.status).toBe("completed");
+    expect(updated?.resultActivityId).toBeTruthy();
+  });
 });

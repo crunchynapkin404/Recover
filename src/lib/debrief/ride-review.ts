@@ -102,7 +102,7 @@ async function findOrCreateDebriefThread(a: ActivityRow) {
     });
     if (existing) return existing;
   }
-  const ymd = localYmd(a.startDate);
+  const ymd = localYmd(a.startDateLocal ?? a.startDate);
   const [created] = await db
     .insert(schema.chatThreads)
     .values({
@@ -139,7 +139,7 @@ export async function generateRideReview(
   // inferred sports include this activity's sport, skip here; the retry step
   // in runDebriefLifecycle will re-call this once the race is no longer
   // "upcoming" (claimed, or manually completed/skipped by the athlete).
-  const activityYmd = localYmd(a.startDate);
+  const activityYmd = localYmd(a.startDateLocal ?? a.startDate);
   const raceMatch = await db.query.races.findFirst({
     where: and(
       eq(schema.races.userId, a.userId),
@@ -180,13 +180,15 @@ export async function generateRideReview(
     orderBy: (t, { desc }) => [desc(t.date)],
   });
   const readinessLine =
-    metric && metric.date === localYmd(a.startDate) && metric.readiness != null
+    metric &&
+    metric.date === localYmd(a.startDateLocal ?? a.startDate) &&
+    metric.readiness != null
       ? `Readiness that morning: ${Math.round(metric.readiness)} (${metric.band}).`
       : null;
 
   const stats = statLines(a, readinessLine);
   const subj = subjectiveLines(a);
-  const ymd = localYmd(a.startDate);
+  const ymd = localYmd(a.startDateLocal ?? a.startDate);
   const template = [
     `Ride review — ${a.name ?? a.sport} (${ymd}):`,
     ...stats,

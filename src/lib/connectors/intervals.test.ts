@@ -166,6 +166,43 @@ describe("intervals.icu connector (ported — Principle-1 validation)", () => {
       elevationM: 300,
     });
   });
+
+  it("prefers the true UTC start_date over the local wall-clock string for startDate, and exposes the local string separately", async () => {
+    mockFetch(200, [
+      {
+        id: "i950",
+        start_date: "2026-01-10T06:00:00Z",
+        start_date_local: "2026-01-10T08:00:00",
+        type: "Ride",
+        name: "Two hours ahead",
+      },
+    ]);
+    const [act] = await fetchActivities(params);
+    // startDate: parsed from the Z-suffixed true-UTC string — safe to
+    // compare via getTime()/toISOString() regardless of runner TZ.
+    expect(act.startDate.getTime()).toBe(
+      new Date("2026-01-10T06:00:00Z").getTime()
+    );
+    // startDateLocal: parsed from a TZ-less string, so only its local
+    // getters (not toISOString()) reproduce the same numbers in every TZ.
+    expect(act.startDateLocal?.getFullYear()).toBe(2026);
+    expect(act.startDateLocal?.getMonth()).toBe(0);
+    expect(act.startDateLocal?.getDate()).toBe(10);
+    expect(act.startDateLocal?.getHours()).toBe(8);
+    expect(act.startDateLocal?.getMinutes()).toBe(0);
+  });
+
+  it("falls back to the local wall-clock string for startDate when start_date is absent (the intervals.icu Strava-stub case)", async () => {
+    mockFetch(200, [
+      { id: "i951", start_date_local: "2026-01-11T08:00:00", type: "Ride" },
+    ]);
+    const [act] = await fetchActivities(params);
+    expect(act.startDate.getFullYear()).toBe(2026);
+    expect(act.startDate.getMonth()).toBe(0);
+    expect(act.startDate.getDate()).toBe(11);
+    expect(act.startDate.getHours()).toBe(8);
+    expect(act.startDateLocal?.getTime()).toBe(act.startDate.getTime());
+  });
 });
 
 describe("activity streams + intervals", () => {

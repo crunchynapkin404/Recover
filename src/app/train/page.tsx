@@ -559,22 +559,21 @@ async function HistoryTab({
   const sportActivities = sportFilter
     ? allActivities.filter((a) => a.sport === sportFilter)
     : allActivities;
-  const activities = sportActivities.filter(
-    (a) =>
-      a.startDate >= windowStart &&
-      (windowEnd == null || a.startDate < windowEnd)
-  );
+  const activities = sportActivities.filter((a) => {
+    const local = a.startDateLocal ?? a.startDate;
+    return local >= windowStart && (windowEnd == null || local < windowEnd);
+  });
 
   // Grouped by local day; the query already returns newest-first.
   const groups: HistoryGroup[] = [];
   for (const a of activities) {
-    const key = localYmd(a.startDate);
+    const key = localYmd(a.startDateLocal ?? a.startDate);
     const last = groups[groups.length - 1];
     const row = {
       id: a.id,
       name: a.name ?? a.sport,
       sport: a.sport,
-      startDate: a.startDate,
+      startDate: a.startDateLocal ?? a.startDate,
       durationS: a.durationS,
       load: a.load,
       distanceM: a.distanceM,
@@ -708,7 +707,10 @@ async function FitnessTab({
   });
 
   const weekly = weeklyLoads(
-    activities.map((a) => ({ startDate: a.startDate, load: a.load })),
+    activities.map((a) => ({
+      startDate: a.startDateLocal ?? a.startDate,
+      load: a.load,
+    })),
     12
   );
 
@@ -728,7 +730,7 @@ async function FitnessTab({
 
   const weekStart = new Date(daysAgo(7));
   const weekLoad = activities
-    .filter((a) => a.startDate >= weekStart)
+    .filter((a) => (a.startDateLocal ?? a.startDate) >= weekStart)
     .reduce((s, a) => s + (a.load ?? 0), 0);
 
   const tiles: FitnessTile[] = [

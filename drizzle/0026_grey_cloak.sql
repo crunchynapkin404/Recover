@@ -1,0 +1,1 @@
+ALTER TABLE "activities" ADD COLUMN "start_date_local" timestamp with time zone;

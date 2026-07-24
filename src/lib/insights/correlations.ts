@@ -1,4 +1,4 @@
-import { and, eq, gte, isNotNull, ne } from "drizzle-orm";
+import { and, eq, gte, isNotNull, ne, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { AUTO_TAGS, addDaysYmd, deriveAutoTags, localYmd } from "./auto-tags";
 import { mean, welchCompare } from "./stats";
@@ -158,15 +158,31 @@ export async function computeTagInsights(
       where: and(
         eq(schema.activities.userId, userId),
         ne(schema.activities.provider, "strava"),
-        gte(schema.activities.startDate, new Date(`${start}T00:00:00`))
+        // COALESCE at the SQL level, not just in the deriveAutoTags remap
+        // below: a plain gte(startDateLocal, ...) would silently drop every
+        // pre-migration row (startDateLocal is a nullable, not-yet-backfilled
+        // column — NULL >= x is NULL/false in SQL), excluding them from the
+        // window entirely rather than falling back to startDate.
+        gte(
+          sql`coalesce(${schema.activities.startDateLocal}, ${schema.activities.startDate})`,
+          new Date(`${start}T00:00:00`)
+        )
       ),
-      columns: { startDate: true, durationS: true, load: true },
+      columns: {
+        startDate: true,
+        startDateLocal: true,
+        durationS: true,
+        load: true,
+      },
     }),
   ]);
 
   return correlateTags({
     manualTagsByDate: new Map(tagged.map((t) => [t.date, t.tags ?? []])),
-    autoTagsByDate: deriveAutoTags(acts, { start, end }),
+    autoTagsByDate: deriveAutoTags(
+      acts.map((a) => ({ ...a, startDate: a.startDateLocal ?? a.startDate })),
+      { start, end }
+    ),
     readinessByDate: new Map(metrics.map((m) => [m.date, m.readiness!])),
   });
 }

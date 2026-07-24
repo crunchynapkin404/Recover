@@ -12,6 +12,7 @@ import {
   isNotNull,
   isNull,
   lt,
+  sql,
 } from "drizzle-orm";
 import { generateText } from "ai";
 import { db, schema } from "@/lib/db";
@@ -175,11 +176,22 @@ export async function runRaceDebriefs(
     const sports = inferSports(race.raceType);
     const dayStart = new Date(race.date + "T00:00:00");
     const dayEnd = new Date(dayStart.getTime() + 86_400_000);
+    // COALESCE at the SQL level, not just in JS: a plain
+    // gte(startDateLocal, ...) would silently drop every pre-migration row
+    // (startDateLocal is a nullable, not-yet-backfilled column — NULL >= x
+    // is NULL/false in SQL), excluding them from the window entirely rather
+    // than falling back to startDate.
     const candidates = await db.query.activities.findMany({
       where: and(
         eq(schema.activities.userId, userId),
-        gte(schema.activities.startDate, dayStart),
-        lt(schema.activities.startDate, dayEnd)
+        gte(
+          sql`coalesce(${schema.activities.startDateLocal}, ${schema.activities.startDate})`,
+          dayStart
+        ),
+        lt(
+          sql`coalesce(${schema.activities.startDateLocal}, ${schema.activities.startDate})`,
+          dayEnd
+        )
       ),
       orderBy: desc(schema.activities.startDate),
     });

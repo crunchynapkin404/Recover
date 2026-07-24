@@ -114,7 +114,7 @@ export async function runDebriefLifecycle(
       ),
     });
     for (const a of pendingRows) {
-      if (localYmd(a.startDate) < today) {
+      if (localYmd(a.startDateLocal ?? a.startDate) < today) {
         await db
           .update(schema.activities)
           .set({ debriefState: "expired" })

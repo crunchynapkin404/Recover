@@ -147,3 +147,74 @@ describe.skipIf(!hasDb)("insights integration", () => {
     expect(m.plansCompleted).toBe(1);
   });
 });
+
+describe.skipIf(!hasDb)("insights integration — timezone", () => {
+  const TZ_USER = "test-insights-tz-user";
+
+  async function tzCleanup() {
+    const { db, schema } = await import("@/lib/db");
+    await db.delete(schema.users).where(eq(schema.users.id, TZ_USER));
+  }
+
+  beforeAll(async () => {
+    const { db, schema } = await import("@/lib/db");
+    await tzCleanup();
+    await db
+      .insert(schema.users)
+      .values({
+        id: TZ_USER,
+        name: "TZInsightsTest",
+        email: "tz-insights@example.invalid",
+        role: "member",
+      })
+      .onConflictDoNothing();
+
+    // 6 sessions whose true-UTC startDate sits ~150 days back (well outside
+    // the 90-day WINDOW_DAYS, so the OLD gte(startDate, ...) boundary would
+    // drop every one of these rows) but whose startDateLocal — the
+    // athlete's real wall-clock time — is within the window at 20:00
+    // (>= LATE_FROM_HOUR). The 150-day gap swamps any possible timezone
+    // offset, so which day/whether-in-window each row lands on is
+    // unambiguous regardless of the host's local timezone. Local getters on
+    // startDateLocal (built from explicit y/m/d/h/m/s, not a parsed string)
+    // round-trip exactly, per this repo's TZ-safe test convention.
+    const acts = [];
+    for (let i = 10; i <= 15; i++) {
+      const dayYmd = daysAgoYmd(i);
+      const [y, m, d] = dayYmd.split("-").map(Number);
+      acts.push({
+        userId: TZ_USER,
+        provider: "intervals_icu" as const,
+        externalId: `tz-late-${i}`,
+        startDate: new Date(Date.UTC(y, m - 1, d - 150, 12, 0, 0)),
+        startDateLocal: new Date(y, m - 1, d, 20, 0, 0),
+        sport: "Run",
+        durationS: 1800,
+        load: 5,
+      });
+    }
+    await db.insert(schema.activities).values(acts);
+
+    const metrics = [];
+    for (let i = 0; i <= 70; i++) {
+      metrics.push({
+        userId: TZ_USER,
+        date: daysAgoYmd(i),
+        readiness: 65 + (i % 7),
+        band: "green" as const,
+      });
+    }
+    await db.insert(schema.dailyMetrics).values(metrics);
+  });
+
+  afterAll(tzCleanup);
+
+  it("buckets and times auto-tags by startDateLocal, not true-UTC startDate", async () => {
+    const { computeTagInsights } = await import("@/lib/insights/correlations");
+    const rows = await computeTagInsights(TZ_USER);
+    const late = rows.find((r) => r.behavior === "Late training");
+    expect(late).toBeDefined();
+    expect(late!.auto).toBe(true);
+    expect(late!.events).toBe(6);
+  });
+});

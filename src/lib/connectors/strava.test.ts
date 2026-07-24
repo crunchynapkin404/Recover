@@ -12,6 +12,44 @@ process.env.STRAVA_CLIENT_SECRET ??= "test-secret";
 
 afterEach(() => vi.unstubAllGlobals());
 
+describe("fetchActivities", () => {
+  it("parses both start_date (true UTC) and start_date_local (athlete wall clock)", async () => {
+    const fetchSpy = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify([
+          {
+            id: 19435415759,
+            start_date: "2026-07-23T17:57:38Z",
+            // Strava's real wire format: start_date_local carries a
+            // trailing "Z" even though the digits are the athlete's local
+            // wall clock, not true UTC (confirmed against Strava's own API
+            // schema and this project's live data — see
+            // docs/specs/2026-07-23-activity-timezone-fix-design.md).
+            start_date_local: "2026-07-23T19:57:38Z",
+            sport_type: "Ride",
+            name: "Evening ride",
+          },
+        ]),
+        { status: 200 }
+      )
+    );
+    vi.stubGlobal("fetch", fetchSpy);
+    const { fetchActivities } = await import("./strava");
+    const [act] = await fetchActivities({
+      accessToken: "t",
+      afterEpochS: 0,
+    });
+    expect(act.startDate.getTime()).toBe(
+      new Date("2026-07-23T17:57:38Z").getTime()
+    );
+    expect(act.startDateLocal?.getFullYear()).toBe(2026);
+    expect(act.startDateLocal?.getMonth()).toBe(6);
+    expect(act.startDateLocal?.getDate()).toBe(23);
+    expect(act.startDateLocal?.getHours()).toBe(19);
+    expect(act.startDateLocal?.getMinutes()).toBe(57);
+  });
+});
+
 describe("writeScopeGranted", () => {
   it("detects activity:write in the callback scope param", () => {
     expect(writeScopeGranted("read,activity:read_all,activity:write")).toBe(

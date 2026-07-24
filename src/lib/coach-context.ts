@@ -120,7 +120,7 @@ export async function fetchAthleteContext(
         ? `${Math.floor(a.durationS / 3600)}h${Math.round((a.durationS % 3600) / 60)}m`
         : "—";
       lines.push(
-        `- ${a.name ?? a.sport} (${a.sport}) on ${a.startDate.toISOString().slice(0, 10)}: ${dur}, load ${a.load != null ? Math.round(a.load) : "—"}`
+        `- ${a.name ?? a.sport} (${a.sport}) on ${(a.startDateLocal ?? a.startDate).toISOString().slice(0, 10)}: ${dur}, load ${a.load != null ? Math.round(a.load) : "—"}`
       );
     }
   }

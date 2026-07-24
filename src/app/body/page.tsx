@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { and, desc, eq, gte } from "drizzle-orm";
+import { and, desc, eq, gte, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { AppShell, shellUser } from "@/components/app-shell";
@@ -285,7 +285,15 @@ async function SleepTab({ userId }: { userId: string }) {
   const todayActivities = await db.query.activities.findMany({
     where: and(
       eq(schema.activities.userId, userId),
-      gte(schema.activities.startDate, new Date(`${todayYmd}T00:00:00`))
+      // COALESCE at the SQL level, not just in JS: a plain
+      // gte(startDateLocal, ...) would silently drop every pre-migration row
+      // (startDateLocal is a nullable, not-yet-backfilled column — NULL >= x
+      // is NULL/false in SQL), excluding them from the window entirely
+      // rather than falling back to startDate.
+      gte(
+        sql`coalesce(${schema.activities.startDateLocal}, ${schema.activities.startDate})`,
+        new Date(`${todayYmd}T00:00:00`)
+      )
     ),
   });
   const todayMetric = await db.query.dailyMetrics.findFirst({
@@ -312,7 +320,9 @@ async function SleepTab({ userId }: { userId: string }) {
     wakeMinutes,
     bedMinutes,
     activities: todayActivities.map((a) => ({
-      startMinutes: a.startDate.getHours() * 60 + a.startDate.getMinutes(),
+      startMinutes:
+        (a.startDateLocal ?? a.startDate).getHours() * 60 +
+        (a.startDateLocal ?? a.startDate).getMinutes(),
       durationMin: (a.durationS ?? 0) / 60,
       load: a.load ?? 0,
     })),

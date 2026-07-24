@@ -1,7 +1,7 @@
 // src/lib/week-plan/service.ts — DB orchestration for the living week.
 // All plan logic lives in the pure engines (materialize.ts / adapt-day.ts);
 // this layer only loads state, runs an engine, and persists the result.
-import { and, asc, desc, eq, gte, lt } from "drizzle-orm";
+import { and, asc, desc, eq, gte, lt, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { racesForWeek, currentCtl } from "@/lib/race/service";
 import { materializeWeek } from "./materialize";
@@ -301,12 +301,23 @@ export async function runDailyAdaptation(
       ySlot.status === "moved" ||
       ySlot.status === "adapted")
   ) {
+    // COALESCE at the SQL level, not just in JS: a plain
+    // gte(startDateLocal, ...) would silently drop every pre-migration row
+    // (startDateLocal is a nullable, not-yet-backfilled column — NULL >= x
+    // is NULL/false in SQL), excluding them from the window entirely rather
+    // than falling back to startDate.
     const activity = await db.query.activities.findFirst({
       where: and(
         eq(schema.activities.userId, userId),
         eq(schema.activities.sport, ySlot.workout.sport),
-        gte(schema.activities.startDate, new Date(yesterdayYmd + "T00:00:00")),
-        lt(schema.activities.startDate, new Date(today + "T00:00:00"))
+        gte(
+          sql`coalesce(${schema.activities.startDateLocal}, ${schema.activities.startDate})`,
+          new Date(yesterdayYmd + "T00:00:00")
+        ),
+        lt(
+          sql`coalesce(${schema.activities.startDateLocal}, ${schema.activities.startDate})`,
+          new Date(today + "T00:00:00")
+        )
       ),
       orderBy: desc(schema.activities.startDate),
     });

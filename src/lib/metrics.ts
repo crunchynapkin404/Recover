@@ -68,6 +68,7 @@ export async function computeDailyMetrics(
     columns: {
       provider: true,
       startDate: true,
+      startDateLocal: true,
       durationS: true,
       load: true,
       avgHr: true,
@@ -91,7 +92,7 @@ export async function computeDailyMetrics(
   const targetDates = new Set<string>();
   for (const r of rows) if (r.date >= sinceDate) targetDates.add(r.date);
   for (const a of activities) {
-    const d = localYmd(a.startDate);
+    const d = localYmd(a.startDateLocal ?? a.startDate);
     if (d >= sinceDate && d <= today) targetDates.add(d);
   }
   if (today >= sinceDate) targetDates.add(today);
