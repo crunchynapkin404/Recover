@@ -173,7 +173,10 @@ describe("dailyLoadSeries local-day bucketing", () => {
     const series = dailyLoadSeries(activities, noThresholds);
     expect(series.has("2026-07-02")).toBe(true);
     expect(series.has("2026-07-01")).toBe(false);
-    expect(series.get("2026-07-02")).toEqual({ load: 80, sources: ["provider"] });
+    expect(series.get("2026-07-02")).toEqual({
+      load: 80,
+      sources: ["provider"],
+    });
   });
 
   it("falls back to startDate when startDateLocal is absent", () => {
@@ -189,7 +192,10 @@ describe("dailyLoadSeries local-day bucketing", () => {
     ];
     const series = dailyLoadSeries(activities, noThresholds);
     expect(series.has("2026-07-15")).toBe(true);
-    expect(series.get("2026-07-15")).toEqual({ load: 50, sources: ["provider"] });
+    expect(series.get("2026-07-15")).toEqual({
+      load: 50,
+      sources: ["provider"],
+    });
   });
 });
 

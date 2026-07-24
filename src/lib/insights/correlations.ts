@@ -168,7 +168,12 @@ export async function computeTagInsights(
           new Date(`${start}T00:00:00`)
         )
       ),
-      columns: { startDate: true, startDateLocal: true, durationS: true, load: true },
+      columns: {
+        startDate: true,
+        startDateLocal: true,
+        durationS: true,
+        load: true,
+      },
     }),
   ]);
 

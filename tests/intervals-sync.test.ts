@@ -9,7 +9,9 @@ const USER = "test-intervals-sync-user";
 describe.skipIf(!hasDb)("upsertIntervalsActivities", () => {
   afterAll(async () => {
     const { db, schema } = await import("@/lib/db");
-    await db.delete(schema.activities).where(eq(schema.activities.userId, USER));
+    await db
+      .delete(schema.activities)
+      .where(eq(schema.activities.userId, USER));
     await db.delete(schema.users).where(eq(schema.users.id, USER));
   });
 
@@ -17,16 +19,21 @@ describe.skipIf(!hasDb)("upsertIntervalsActivities", () => {
     const { db, schema } = await import("@/lib/db");
     await db
       .insert(schema.users)
-      .values({ id: USER, name: "Sync Test", email: "sync-test@example.invalid" })
+      .values({
+        id: USER,
+        name: "Sync Test",
+        email: "sync-test@example.invalid",
+      })
       .onConflictDoNothing();
-    await db.delete(schema.activities).where(eq(schema.activities.userId, USER));
+    await db
+      .delete(schema.activities)
+      .where(eq(schema.activities.userId, USER));
   });
 
   it("stores startDateLocal alongside startDate for a normal activity", async () => {
     const { db, schema } = await import("@/lib/db");
-    const { upsertIntervalsActivities } = await import(
-      "@/lib/sync/intervals-sync"
-    );
+    const { upsertIntervalsActivities } =
+      await import("@/lib/sync/intervals-sync");
     await upsertIntervalsActivities(USER, [
       {
         externalId: "is-1",
@@ -59,9 +66,8 @@ describe.skipIf(!hasDb)("upsertIntervalsActivities", () => {
 
   it("corrects startDate for a Strava-sourced stub row using the sibling strava-provider row", async () => {
     const { db, schema } = await import("@/lib/db");
-    const { upsertIntervalsActivities } = await import(
-      "@/lib/sync/intervals-sync"
-    );
+    const { upsertIntervalsActivities } =
+      await import("@/lib/sync/intervals-sync");
     // The native Strava sync already landed its own, correctly-UTC row.
     await db.insert(schema.activities).values({
       userId: USER,
