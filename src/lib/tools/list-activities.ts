@@ -50,7 +50,7 @@ async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
 
   return {
     activities: safe.map((a) => ({
-      date: a.startDate.toISOString().slice(0, 10),
+      date: (a.startDateLocal ?? a.startDate).toISOString().slice(0, 10),
       sport: a.sport,
       name: a.name,
       duration_min: a.durationS != null ? +(a.durationS / 60).toFixed(0) : null,

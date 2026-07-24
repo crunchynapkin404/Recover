@@ -81,7 +81,7 @@ async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
     activity: {
       name: target.name,
       sport: target.sport,
-      date: target.startDate.toISOString().slice(0, 10),
+      date: (target.startDateLocal ?? target.startDate).toISOString().slice(0, 10),
     },
     description: outcome.generated,
     ...(outcome.reason ? { reason: outcome.reason } : {}),

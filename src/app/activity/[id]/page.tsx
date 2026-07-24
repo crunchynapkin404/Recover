@@ -95,11 +95,14 @@ export default async function ActivityPage({
         <p className="mt-1 text-[9.5px] font-bold uppercase tracking-[0.15em] text-white/40">
           {[
             activity.sport,
-            activity.startDate.toLocaleDateString("en-US", {
-              weekday: "short",
-              month: "short",
-              day: "numeric",
-            }),
+            (activity.startDateLocal ?? activity.startDate).toLocaleDateString(
+              "en-US",
+              {
+                weekday: "short",
+                month: "short",
+                day: "numeric",
+              }
+            ),
             PROVIDER_LABEL[activity.provider] ?? activity.provider,
           ].join(" · ")}
         </p>
