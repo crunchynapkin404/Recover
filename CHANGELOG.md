@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.25.8 — 2026-07-24 — Weekly Load Bars Are Actually Visible
+
+Train → Fitness → Weekly load rendered every bar at 0px, even though the
+data behind it was correct.
+
+- **Fixed the bar chart's invisible bars.** Each week's bar wrapper sat in
+  a row-flex container using `items-end` (not `stretch`), so the wrapper
+  never inherited a definite height — its own height stayed intrinsic,
+  which for a single child whose height is itself a percentage resolves to
+  `0`. The bar's `height: X%` was then a percentage of a `0px` box, so it
+  also rendered at `0px` regardless of the (correct) load value or color.
+  Fixed by giving each wrapper `h-full` so it takes the full height of the
+  chart's fixed-height container, letting the inline percentage heights
+  resolve against a real number.
+
 ## v0.25.7 — 2026-07-24 — Activity Times Are Stored in True UTC, Not Local-Time-Mislabeled-As-UTC
 
 The root cause behind this session's whole run of timezone symptoms
