@@ -23,9 +23,8 @@ describe("parseWallClockAsUtc", () => {
   });
 
   it("preserves wall-clock digits as the stored UTC instant, independent of process.env.TZ", async () => {
-    const { parseWallClockAsUtc } = await import(
-      "../scripts/backfill-start-date-local"
-    );
+    const { parseWallClockAsUtc } =
+      await import("../scripts/backfill-start-date-local");
 
     for (const tz of ["UTC", "Europe/Amsterdam", "Pacific/Kiritimati"]) {
       process.env.TZ = tz;
@@ -49,7 +48,9 @@ describe("parseWallClockAsUtc", () => {
 describe.skipIf(!hasDb)("backfillStartDateLocal", () => {
   afterAll(async () => {
     const { db, schema } = await import("@/lib/db");
-    await db.delete(schema.activities).where(eq(schema.activities.userId, USER));
+    await db
+      .delete(schema.activities)
+      .where(eq(schema.activities.userId, USER));
     await db.delete(schema.users).where(eq(schema.users.id, USER));
   });
 
@@ -57,16 +58,21 @@ describe.skipIf(!hasDb)("backfillStartDateLocal", () => {
     const { db, schema } = await import("@/lib/db");
     await db
       .insert(schema.users)
-      .values({ id: USER, name: "Backfill Test", email: "backfill-test@example.invalid" })
+      .values({
+        id: USER,
+        name: "Backfill Test",
+        email: "backfill-test@example.invalid",
+      })
       .onConflictDoNothing();
-    await db.delete(schema.activities).where(eq(schema.activities.userId, USER));
+    await db
+      .delete(schema.activities)
+      .where(eq(schema.activities.userId, USER));
   });
 
   it("recomputes startDate/startDateLocal from a row's own raw JSON, dry-run changes nothing", async () => {
     const { db, schema } = await import("@/lib/db");
-    const { backfillStartDateLocal } = await import(
-      "../scripts/backfill-start-date-local"
-    );
+    const { backfillStartDateLocal } =
+      await import("../scripts/backfill-start-date-local");
     const [row] = await db
       .insert(schema.activities)
       .values({
@@ -119,15 +125,17 @@ describe.skipIf(!hasDb)("backfillStartDateLocal", () => {
 
     // Idempotent — a second real run (still scoped to USER) reports zero
     // changes.
-    const second = await backfillStartDateLocal({ dryRun: false, userId: USER });
+    const second = await backfillStartDateLocal({
+      dryRun: false,
+      userId: USER,
+    });
     expect(second.changed).toBe(0);
   });
 
   it("corrects a Strava-sourced stub row using its sibling strava-provider row", async () => {
     const { db, schema } = await import("@/lib/db");
-    const { backfillStartDateLocal } = await import(
-      "../scripts/backfill-start-date-local"
-    );
+    const { backfillStartDateLocal } =
+      await import("../scripts/backfill-start-date-local");
     await db.insert(schema.activities).values({
       userId: USER,
       provider: "strava",
@@ -172,9 +180,8 @@ describe.skipIf(!hasDb)("backfillStartDateLocal", () => {
     // via parseWallClockAsUtc, so the stored value doesn't depend on the
     // host TZ the backfill script happens to run under.
     const { db, schema } = await import("@/lib/db");
-    const { backfillStartDateLocal } = await import(
-      "../scripts/backfill-start-date-local"
-    );
+    const { backfillStartDateLocal } =
+      await import("../scripts/backfill-start-date-local");
     const [row] = await db
       .insert(schema.activities)
       .values({
@@ -211,9 +218,8 @@ describe.skipIf(!hasDb)("backfillStartDateLocal", () => {
 
   it("scopes to userId: a real (non-dry-run) call with userId never touches another user's rows", async () => {
     const { db, schema } = await import("@/lib/db");
-    const { backfillStartDateLocal } = await import(
-      "../scripts/backfill-start-date-local"
-    );
+    const { backfillStartDateLocal } =
+      await import("../scripts/backfill-start-date-local");
     const OTHER_USER = "test-backfill-other-user";
     await db
       .insert(schema.users)
