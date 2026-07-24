@@ -89,4 +89,31 @@ describe("AvailabilitySheet", () => {
     const minutesCol = container.querySelector('[aria-label="Minutes"]');
     expect(minutesCol?.getAttribute("aria-disabled")).toBe("true");
   });
+
+  it("clicking a wheel option jumps directly to that value", () => {
+    const onChange = vi.fn();
+    act(() => {
+      root = createRoot(container);
+      root.render(
+        <AvailabilitySheet
+          dayLabel="Wednesday"
+          mins={0}
+          onChange={onChange}
+          onClose={() => {}}
+        />
+      );
+    });
+
+    const hoursCol = container.querySelector('[aria-label="Hours"]');
+    const option = Array.from(hoursCol!.querySelectorAll('[role="option"]')).find(
+      (el) => el.textContent === "02"
+    );
+    expect(option).toBeTruthy();
+
+    act(() => {
+      option!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(onChange).toHaveBeenCalledWith(120); // 2 hours, 0 minutes
+  });
 });

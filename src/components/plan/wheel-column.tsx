@@ -93,6 +93,9 @@ export function WheelColumn({
           role="option"
           aria-selected={i === selectedIdx}
           className="flex h-10 snap-center items-center justify-center text-[15px] font-bold text-white"
+          onClick={() => {
+            if (!disabled) onChange(opt);
+          }}
         >
           {String(opt).padStart(2, "0")}
         </div>

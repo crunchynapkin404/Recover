@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, expect, it, beforeEach, vi } from "vitest";
+import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToString } from "react-dom/server";
@@ -55,6 +55,11 @@ describe("intake form (interaction)", () => {
   beforeEach(() => {
     container = document.createElement("div");
     document.body.appendChild(container);
+  });
+
+  afterEach(() => {
+    act(() => root.unmount());
+    container.remove();
   });
 
   it("tapping a day pill opens the sheet for that day, and a preset chip updates the pill, hidden input, and total", () => {
