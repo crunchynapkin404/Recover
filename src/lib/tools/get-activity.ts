@@ -21,7 +21,7 @@ async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
   return {
     found: true,
     id: activity.id,
-    date: activity.startDate.toISOString(),
+    date: (activity.startDateLocal ?? activity.startDate).toISOString(),
     sport: activity.sport,
     name: activity.name,
     duration_min:
