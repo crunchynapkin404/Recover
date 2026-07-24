@@ -16,6 +16,7 @@ export interface ResolvedProvider {
   model: string;
   providerType: "anthropic" | "openai_compatible";
   personality: "analytical" | "encouraging" | "direct";
+  language: string;
   defaultMode: ChatMode;
   slot: ChatMode;
 }
@@ -68,6 +69,7 @@ export async function resolveProvider(
       model: pickModel(settings, mode),
       providerType: "anthropic",
       personality: settings.coachPersonality,
+      language: settings.coachLanguage,
       defaultMode: settings.defaultMode,
       slot,
     };
@@ -88,6 +90,7 @@ export async function resolveProvider(
     model: pickModel(settings, mode),
     providerType: "openai_compatible",
     personality: settings.coachPersonality,
+    language: settings.coachLanguage,
     defaultMode: settings.defaultMode,
     slot,
   };

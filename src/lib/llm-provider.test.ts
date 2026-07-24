@@ -60,6 +60,7 @@ const baseSlots = {
   modelDeep: null,
   defaultMode: "deep" as const,
   coachPersonality: "encouraging" as const,
+  coachLanguage: "auto",
 };
 
 describe("resolveProvider", () => {
@@ -85,6 +86,7 @@ describe("resolveProvider", () => {
     expect(result).not.toBeNull();
     expect(result!.providerType).toBe("anthropic");
     expect(result!.model).toBe("claude-sonnet-4-20250514");
+    expect(result!.language).toBe("auto");
   });
 
   it("resolves openai_compatible provider with baseUrl", async () => {
@@ -103,6 +105,23 @@ describe("resolveProvider", () => {
     expect(result).not.toBeNull();
     expect(result!.providerType).toBe("openai_compatible");
     expect(result!.model).toBe("llama3.1:8b");
+  });
+
+  it("passes through a pinned coach language", async () => {
+    vi.mocked(db.query.llmSettings.findFirst).mockResolvedValue({
+      id: "s4",
+      userId: "user_123",
+      providerType: "anthropic",
+      model: "claude-sonnet-4-20250514",
+      encryptedApiKey: "enc_key_abc",
+      baseUrl: null,
+      updatedAt: new Date(),
+      ...baseSlots,
+      coachLanguage: "nl",
+    });
+
+    const result = await resolveProvider("user_123");
+    expect(result!.language).toBe("nl");
   });
 
   it("returns null for anthropic without key", async () => {
