@@ -150,9 +150,9 @@ describe.skipIf(!hasDb)("handleStravaWebhookEvent", () => {
       externalAthleteId: "i1",
       status: "active",
     });
-    await db.delete(schema.activities).where(
-      eq(schema.activities.userId, USER_ID)
-    );
+    await db
+      .delete(schema.activities)
+      .where(eq(schema.activities.userId, USER_ID));
     await db.insert(schema.activities).values([
       {
         userId: USER_ID,

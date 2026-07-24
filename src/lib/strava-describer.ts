@@ -350,7 +350,10 @@ export interface DescribeOutcome {
  * proceeds as before.
  */
 export function isAwaitingReview(
-  activity: Pick<ActivityRow, "debriefState" | "reviewedAt" | "startDate" | "raw">
+  activity: Pick<
+    ActivityRow,
+    "debriefState" | "reviewedAt" | "startDate" | "raw"
+  >
 ): boolean {
   if (activity.debriefState != null) return activity.reviewedAt == null;
   const raw = activity.raw as Record<string, unknown> | null;
@@ -451,8 +454,7 @@ export async function previewDescription(
   // real recent ride would render fully.
   const target = recent.find(
     (a) =>
-      a.raw != null &&
-      (a.raw as Record<string, unknown>).source !== "STRAVA"
+      a.raw != null && (a.raw as Record<string, unknown>).source !== "STRAVA"
   );
   if (!target) {
     return {

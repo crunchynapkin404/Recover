@@ -209,7 +209,11 @@ export async function sendToUser(
     } catch (err) {
       const status = (err as { statusCode?: number }).statusCode;
       const body = (err as { body?: unknown }).body;
-      if (status === 404 || status === 410 || isUnrecoverableVapidMismatch(body)) {
+      if (
+        status === 404 ||
+        status === 410 ||
+        isUnrecoverableVapidMismatch(body)
+      ) {
         await db
           .delete(schema.pushSubscriptions)
           .where(eq(schema.pushSubscriptions.id, sub.id));

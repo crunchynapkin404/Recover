@@ -15,7 +15,10 @@ function ctx(activity: unknown): ToolContext {
 
 describe("get_activity", () => {
   it("returns found: false when no activity matches", async () => {
-    const out = await getActivity.execute({ id: "11111111-1111-1111-1111-111111111111" }, ctx(undefined));
+    const out = await getActivity.execute(
+      { id: "11111111-1111-1111-1111-111111111111" },
+      ctx(undefined)
+    );
     expect(out).toEqual({ found: false });
   });
 

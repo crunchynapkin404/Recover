@@ -35,8 +35,7 @@ export function debriefEligible(
     // a genuine ride, so an unknowable duration shouldn't block it forever.
     // Any other null-duration case (not yet populated) still waits its turn.
     const stravaSourced =
-      (a.raw as { source?: unknown } | null | undefined)?.source ===
-      "STRAVA";
+      (a.raw as { source?: unknown } | null | undefined)?.source === "STRAVA";
     if (!stravaSourced) return false;
   } else if (a.durationS < DEBRIEF_MIN_DURATION_S) {
     return false;

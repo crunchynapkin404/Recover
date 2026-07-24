@@ -73,7 +73,10 @@ export async function deleteActivity(
   const removed = await db
     .delete(schema.activities)
     .where(
-      and(eq(schema.activities.id, activityId), eq(schema.activities.userId, userId))
+      and(
+        eq(schema.activities.id, activityId),
+        eq(schema.activities.userId, userId)
+      )
     )
     .returning();
   return removed.length > 0;

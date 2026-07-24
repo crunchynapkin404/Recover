@@ -22,8 +22,8 @@ This went unnoticed for a long time because of a second, compounding fact:
 **Recover has no per-athlete timezone field anywhere**, and every "what
 day/hour did this happen" computation in the app (18 separate local
 implementations of a `localYmd()` helper, plus a handful of raw
-`.getHours()`/`.getDate()` calls) reads JS Date's *local* getters, which
-report the *server's* timezone — UTC, in this container. The storage bug
+`.getHours()`/`.getDate()` calls) reads JS Date's _local_ getters, which
+report the _server's_ timezone — UTC, in this container. The storage bug
 (local time mislabeled UTC) and the reading pattern (UTC-container local
 getters) cancel out by coincidence and happen to recover the athlete's
 correct local day/hour for exactly this deployment's timezone.
@@ -92,7 +92,7 @@ New precedence for the two fields:
 - `startDate` (true UTC instant): prefer `row.start_date` (has a real `Z`
   suffix). If absent — the only case observed is the Strava-sourced stub
   payload intervals.icu returns when it withheld real data (`"STRAVA
-  activities are not available via the API"`) — fall back to the sibling
+activities are not available via the API"`) — fall back to the sibling
   `strava`-provider row's already-correct `startDate`, matched by
   `externalId` (Strava's own connector has never had this bug — it already
   parses `start_date`, the true-UTC field, directly). If no sibling row
@@ -124,7 +124,7 @@ buckets:
    raw `.getHours()`/`.getDate()` calls on activity rows
    (`insights/auto-tags.ts`, `app/body/page.tsx`). One-line swap at each
    call site: `localYmd(a.startDate)` → `localYmd(a.startDateLocal ??
-   a.startDate)`. No rewrite of `localYmd` itself.
+a.startDate)`. No rewrite of `localYmd` itself.
 2. **Local-day-boundary DB range queries** — the few places filtering
    "today"/"yesterday" directly in SQL: `week-plan/service.ts:308-309`,
    `app/body/page.tsx:288`, `race/debrief.ts:181-182`. Swap their `gte`/`lt`

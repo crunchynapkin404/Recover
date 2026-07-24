@@ -9,7 +9,9 @@ const USER = "test-activity-write-user";
 describe.skipIf(!hasDb)("deleteActivity", () => {
   afterAll(async () => {
     const { db, schema } = await import("@/lib/db");
-    await db.delete(schema.activities).where(eq(schema.activities.userId, USER));
+    await db
+      .delete(schema.activities)
+      .where(eq(schema.activities.userId, USER));
     await db.delete(schema.users).where(eq(schema.users.id, USER));
   });
 
@@ -17,9 +19,15 @@ describe.skipIf(!hasDb)("deleteActivity", () => {
     const { db, schema } = await import("@/lib/db");
     await db
       .insert(schema.users)
-      .values({ id: USER, name: "Delete Test", email: "delete-test@example.invalid" })
+      .values({
+        id: USER,
+        name: "Delete Test",
+        email: "delete-test@example.invalid",
+      })
       .onConflictDoNothing();
-    await db.delete(schema.activities).where(eq(schema.activities.userId, USER));
+    await db
+      .delete(schema.activities)
+      .where(eq(schema.activities.userId, USER));
   });
 
   it("deletes an activity the user owns and returns true", async () => {
