@@ -1,5 +1,6 @@
 // src/lib/week-plan/availability.ts
 import { BUSY_DAY_MINS } from "./types";
+import { formatDuration } from "@/lib/format";
 
 export interface PrefillInput {
   hoursPerWeek: number;
@@ -10,6 +11,11 @@ export interface PrefillInput {
 
 function roundTo5(n: number): number {
   return Math.max(0, Math.round(n / 5) * 5);
+}
+
+export function formatAvailability(mins: number): string {
+  if (mins === 0) return "Rest";
+  return formatDuration(mins * 60);
 }
 
 export function prefillAvailability(input: PrefillInput): number[] {
