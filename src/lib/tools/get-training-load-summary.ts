@@ -25,7 +25,13 @@ async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
       // Strava-sourced rows are excluded from AI/MCP surfaces (Strava API AI clause).
       ne(schema.activities.provider, "strava")
     ),
-    columns: { startDate: true, load: true, durationS: true, distanceM: true },
+    columns: {
+      startDate: true,
+      startDateLocal: true,
+      load: true,
+      durationS: true,
+      distanceM: true,
+    },
   });
 
   const latest = await ctx.db.query.wellnessDaily.findFirst({
@@ -40,7 +46,10 @@ async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
   const atl = latest?.atl ?? null;
 
   return {
-    weeks: weeklyActivitySummaries(recent, weeks).map((w) => ({
+    weeks: weeklyActivitySummaries(
+      recent.map((a) => ({ ...a, startDate: a.startDateLocal ?? a.startDate })),
+      weeks
+    ).map((w) => ({
       week_start: w.weekStart,
       load: Math.round(w.load),
       hours: +(w.durationS / 3600).toFixed(1),
