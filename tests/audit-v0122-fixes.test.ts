@@ -212,7 +212,7 @@ describe("apple health ingest payload cap", () => {
     const res = await POST(
       new Request("http://localhost/api/connections/apple-health/ingest", {
         method: "POST",
-        headers: { "content-length": String(20 * 1024 * 1024) },
+        headers: { "content-length": String(60 * 1024 * 1024) },
       })
     );
     expect(res.status).toBe(413);
