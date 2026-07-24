@@ -1,5 +1,45 @@
 # Changelog
 
+## v0.25.7 — 2026-07-24 — Activity Times Are Stored in True UTC, Not Local-Time-Mislabeled-As-UTC
+
+The root cause behind this session's whole run of timezone symptoms
+(v0.25.2 through v0.25.6): `activities.startDate` was never storing a true
+UTC instant. `fetchActivities()` preferred intervals.icu's
+`start_date_local` — the athlete's wall-clock time with no offset suffix
+(e.g. `"2026-07-21T18:50:01"`) — and `new Date()` parses an unsuffixed
+string as UTC, so a ride that really started at 18:50 local (16:50 true
+UTC for a UTC+2 athlete) got stored as if it started at 18:50 UTC: two
+hours in the future relative to reality. This canceled out by coincidence
+for local-day/hour bucketing, because every reader in the app also ran
+`.getHours()`/`.getDate()` in the same always-UTC production container —
+but it broke outright for any real elapsed-time comparison against
+`Date.now()`, which is what actually produced the debrief-promotion delay,
+the future-dated `isAwaitingReview` gate, and auto-describe racing ahead
+of the debrief.
+
+- **New `activities.start_date_local` column** (additive-only) stores the
+  athlete's wall-clock string separately from `start_date`, so the two
+  concerns — "what instant did this happen" and "what was the athlete's
+  local day/hour" — are no longer conflated in one field.
+- **`start_date` now stores the true UTC instant** for both the
+  intervals.icu and Strava connectors (Strava attaches a misleading
+  trailing `Z` to its own `start_date_local`, which is stripped before
+  parsing rather than trusted).
+- **Every local-day/hour call site across the app** (training load, debrief
+  lifecycle, scheduling boundaries, insights auto-tagging, the weekly
+  train view, activity display) now reads `startDateLocal` instead of
+  reading local getters off `startDate` — the fix that actually closes the
+  loop without regressing calendar-day bucketing.
+- **GDPR export/import** round-trips `startDateLocal` too, so a
+  re-imported account doesn't silently lose the distinction.
+- **New backfill script** (`scripts/backfill-start-date-local.ts`)
+  recomputes both fields for existing rows from each activity's stored raw
+  provider JSON, using the same precedence as the connector fix. Its
+  wall-clock parse is anchored explicitly to UTC
+  (`parseWallClockAsUtc`) rather than relying on the parsing process's
+  host timezone, since — unlike the always-UTC production container — the
+  script may be run from any operator machine.
+
 ## v0.25.6 — 2026-07-23 — Auto-Describe No Longer Races the Debrief
 
 Auto-describe's `isAwaitingReview` gate assumed a null `debriefState` always
