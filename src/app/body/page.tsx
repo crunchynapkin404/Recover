@@ -74,6 +74,25 @@ function minsToHhMm(mins: number): string {
   return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 }
 
+/**
+ * One entry per calendar day across the window, oldest first. Days with no
+ * synced row are explicit nulls rather than being omitted — BaselineTrendCard
+ * positions points by array index, so a sparse array (missing days silently
+ * dropped) compresses sync gaps in x instead of showing them as gaps.
+ */
+function fillDailyGaps<Row extends { date: string }, T>(
+  rows: Row[],
+  days: number,
+  pick: (row: Row) => T | null
+): (T | null)[] {
+  const byDate = new Map(rows.map((r) => [r.date, pick(r)]));
+  const out: (T | null)[] = [];
+  for (let i = days; i >= 0; i--) {
+    out.push(byDate.get(daysAgo(i)) ?? null);
+  }
+  return out;
+}
+
 export default async function BodyPage({
   searchParams,
 }: {
@@ -187,7 +206,7 @@ async function TrendsTab({
 
       <BaselineTrendCard
         title="HRV vs baseline"
-        values={wellness.map((w) => w.hrvMs)}
+        values={fillDailyGaps(wellness, range, (w) => w.hrvMs)}
         band={hrvBand}
         color="#10b981"
         bandFill="rgba(16,185,129,0.08)"
@@ -195,7 +214,7 @@ async function TrendsTab({
       />
       <BaselineTrendCard
         title="Resting HR vs baseline"
-        values={wellness.map((w) => w.restingHr)}
+        values={fillDailyGaps(wellness, range, (w) => w.restingHr)}
         band={rhrBand}
         color="#3b82f6"
         bandFill="rgba(59,130,246,0.08)"
@@ -203,7 +222,7 @@ async function TrendsTab({
       />
       <BaselineTrendCard
         title="Weight"
-        values={wellness.map((w) => w.weightKg)}
+        values={fillDailyGaps(wellness, range, (w) => w.weightKg)}
         band={null}
         color="#a78bfa"
         bandFill="transparent"
@@ -351,7 +370,7 @@ async function SleepTab({ userId }: { userId: string }) {
 
       <BaselineTrendCard
         title="Sleep duration"
-        values={wellness.map((w) =>
+        values={fillDailyGaps(wellness, 90, (w) =>
           w.sleepSecs != null ? w.sleepSecs / 3600 : null
         )}
         band={null}
@@ -364,7 +383,7 @@ async function SleepTab({ userId }: { userId: string }) {
       {wellness.some((w) => w.sleepScore != null) && (
         <BaselineTrendCard
           title="Sleep score"
-          values={wellness.map((w) => w.sleepScore)}
+          values={fillDailyGaps(wellness, 90, (w) => w.sleepScore)}
           band={null}
           color="#8b5cf6"
           bandFill="transparent"
