@@ -330,6 +330,7 @@ export async function importUserData(
           provider: r.provider,
           externalId: r.externalId,
           startDate: toDate(r.startDate),
+          startDateLocal: toDateOrNull(r.startDateLocal),
           sport: r.sport,
           name: r.name,
           durationS: r.durationS,
