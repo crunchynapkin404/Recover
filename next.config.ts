@@ -23,6 +23,12 @@ const SECURITY_HEADERS = [
 const nextConfig: NextConfig = {
   // Standalone output for the Docker image; harmless on Vercel.
   output: "standalone",
+  experimental: {
+    // Health Auto Export can post large multi-day/all-metric payloads to
+    // /api/connections/apple-health/ingest; match the route's own cap
+    // (MAX_BODY_BYTES in that route) so Next doesn't truncate first.
+    middlewareClientMaxBodySize: "50mb",
+  },
   // Dev-only: allow LAN/tunnel origins for `next dev`, via env (comma-separated
   // hostnames), never hardcoded machine-specific IPs.
   allowedDevOrigins: (process.env.DEV_ORIGINS ?? "")

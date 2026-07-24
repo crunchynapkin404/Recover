@@ -27,8 +27,8 @@ function json(body: unknown, status: number) {
   });
 }
 
-/** Health Auto Export batches are small; anything near this is not one. */
-const MAX_BODY_BYTES = 10 * 1024 * 1024;
+/** Health Auto Export can send large all-metric/multi-day batches. */
+const MAX_BODY_BYTES = 50 * 1024 * 1024;
 
 /** Read the whole body but abort if it exceeds the cap — content-length is
  *  advisory (a client can omit or understate it). Returns null if too large. */
@@ -54,7 +54,7 @@ export async function POST(req: Request) {
   // Fast early-out on an honest content-length, then authoritative byte count.
   const declared = Number(req.headers.get("content-length") ?? 0);
   if (declared > MAX_BODY_BYTES) {
-    return json({ error: "Payload too large (max 10 MB)" }, 413);
+    return json({ error: "Payload too large (max 50 MB)" }, 413);
   }
 
   const token =
@@ -75,7 +75,7 @@ export async function POST(req: Request) {
     return json({ error: "Failed to read request body" }, 400);
   }
   if (bodyText === null) {
-    return json({ error: "Payload too large (max 10 MB)" }, 413);
+    return json({ error: "Payload too large (max 50 MB)" }, 413);
   }
 
   const connection = await db.query.connections.findFirst({

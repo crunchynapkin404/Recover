@@ -15,9 +15,9 @@ const hasDb =
 
 describe("apple ingest hardening", () => {
   it("rejects an oversized body even when content-length lies", async () => {
-    // 11 MB body, but claim it's tiny. The byte cap fires before the token
+    // 51 MB body, but claim it's tiny. The byte cap fires before the token
     // DB lookup (Task 3's ordering fix), so this doesn't need a real DB.
-    const big = "x".repeat(11 * 1024 * 1024);
+    const big = "x".repeat(51 * 1024 * 1024);
     const res = await POST(reqWithBody(big, { "content-length": "10" }));
     expect(res.status).toBe(413);
   });
