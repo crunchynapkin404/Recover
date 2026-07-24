@@ -55,6 +55,12 @@ export function WheelColumn({
     }
   }, [selectedIdx]);
 
+  useEffect(() => {
+    return () => {
+      if (settleTimer.current) clearTimeout(settleTimer.current);
+    };
+  }, []);
+
   function handleScroll() {
     if (settleTimer.current) clearTimeout(settleTimer.current);
     settleTimer.current = setTimeout(() => {
