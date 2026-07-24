@@ -1,0 +1,1 @@
+ALTER TABLE "llm_settings" ADD COLUMN "coach_language" text DEFAULT 'auto' NOT NULL;

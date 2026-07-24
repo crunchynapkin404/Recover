@@ -457,6 +457,11 @@ export const llmSettings = pgTable("llm_settings", {
   })
     .notNull()
     .default("encouraging"),
+  // Pinned reply language (code from SUPPORTED_COACH_LANGUAGES in
+  // coach-persona.ts); "auto" = match the athlete's own language per
+  // message. Plain text, not a DB enum — the list is long and will grow,
+  // validated at the application layer instead (coach-actions.ts).
+  coachLanguage: text("coach_language").notNull().default("auto"),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
