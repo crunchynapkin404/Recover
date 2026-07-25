@@ -138,6 +138,7 @@ describe.skipIf(!hasDb)("exportUserData", () => {
       providerType: "anthropic",
       model: "claude-sonnet",
       encryptedApiKey: SECRET_API_KEY,
+      coachLanguage: "nl",
     });
 
     await db.insert(schema.races).values({
@@ -299,6 +300,7 @@ describe.skipIf(!hasDb)("exportUserData", () => {
     expect(out.connections[0]).not.toHaveProperty("encryptedRefreshToken");
     expect(out.api_tokens[0]).not.toHaveProperty("tokenHash");
     expect(out.llm_settings[0]).not.toHaveProperty("encryptedApiKey");
+    expect(out.llm_settings[0].coachLanguage).toBe("nl");
     expect(out.webhook_subscriptions[0]).not.toHaveProperty("encryptedSecret");
     expect(out.activities[0]).not.toHaveProperty("raw");
 
