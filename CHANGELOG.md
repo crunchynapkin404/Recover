@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.25.9 — 2026-07-25 — Coach Language Setting
+
+- **New "Coaching language" setting in Settings**, next to Personality,
+  using the same dropdown pattern and saving in one submit. Previously the
+  coach only ever matched whatever language the athlete last typed in
+  chat — with no way to pin it, and no signal at all for the five
+  proactive/no-input surfaces (morning insight, weekly review, monthly
+  report, ride debrief, race debrief), whose output language was an
+  unconstrained LLM guess. Defaults to "Automatic" (today's match-the-
+  athlete behavior); once pinned to a specific language, the coach replies
+  in it everywhere, chat included, even if the athlete writes in a
+  different language. Supports 21 languages. An unrecognized/stale
+  language code anywhere falls back to the automatic rule rather than
+  erroring. Round-trips through GDPR export/import like every other coach
+  setting. Spec: `docs/specs/2026-07-24-coach-language-setting-design.md`.
+
 ## v0.25.8 — 2026-07-24 — Availability Picker, Bigger Health Exports, and Chart Fixes
 
 - **New tap-to-open Availability Picker.** The weekly plan intake step's
