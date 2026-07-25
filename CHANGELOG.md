@@ -1,5 +1,29 @@
 # Changelog
 
+## v0.25.10 — 2026-07-25 — Coaching Language Actually Saves
+
+Live-testing v0.25.9's new Coaching language setting immediately after
+release surfaced two real bugs in it.
+
+- **Fixed the Personality/Coaching-language dropdowns appearing to not
+  save.** They used `defaultValue` inside a `<form action={...}>` bound
+  via `useActionState`. React 19's form-action submission path calls the
+  DOM's native `form.reset()` once the action settles, which snaps every
+  `<select>` back to whichever `<option>` has no explicit HTML `selected`
+  attribute (the first option in the list) — not whatever was just picked.
+  The save always persisted correctly server-side; only the displayed
+  value was wrong, making the setting look impossible to save. Fixed by
+  submitting imperatively instead of via the form's `action` prop, which
+  avoids the native reset path entirely.
+- **Fixed chat suggestion chips staying in English regardless of the
+  pinned coaching language**, and — because the save bug above meant the
+  language setting was never actually sticking — using one of those
+  English-worded suggestions always got an English reply even with a
+  language pinned, which read as "the pinned language doesn't work" when
+  the underlying prompt rule was fine all along. Suggestion chip text is
+  now localized to the pinned language (21 languages, "auto" or an
+  unrecognized code falls back to English).
+
 ## v0.25.9 — 2026-07-25 — Coach Language Setting
 
 - **New "Coaching language" setting in Settings**, next to Personality,
