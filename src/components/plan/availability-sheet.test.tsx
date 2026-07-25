@@ -73,6 +73,32 @@ describe("AvailabilitySheet", () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 
+  it("tapping the Done button calls onClose", () => {
+    const onClose = vi.fn();
+    act(() => {
+      root = createRoot(container);
+      root.render(
+        <AvailabilitySheet
+          dayLabel="Wednesday"
+          mins={0}
+          onChange={vi.fn()}
+          onClose={onClose}
+        />
+      );
+    });
+
+    const doneButton = Array.from(container.querySelectorAll("button")).find(
+      (b) => b.textContent === "Done"
+    );
+    expect(doneButton).toBeTruthy();
+
+    act(() => {
+      doneButton!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   it("disables the minutes wheel at the 12h ceiling", () => {
     act(() => {
       root = createRoot(container);

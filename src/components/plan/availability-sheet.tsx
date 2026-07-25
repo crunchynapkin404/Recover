@@ -49,9 +49,18 @@ export function AvailabilitySheet({
           aria-hidden
           className="mx-auto mb-4 h-1 w-10 rounded-full bg-white/20"
         />
-        <h2 className="mb-4 text-[16px] font-bold tracking-[-0.02em]">
-          {dayLabel}
-        </h2>
+        <div className="mb-4 flex items-baseline justify-between gap-3">
+          <h2 className="text-[16px] font-bold tracking-[-0.02em]">
+            {dayLabel}
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="shrink-0 text-[12px] font-bold text-emerald-400"
+          >
+            Done
+          </button>
+        </div>
 
         <div className="mb-5 flex flex-wrap gap-2">
           {PRESETS.map((p) => (
