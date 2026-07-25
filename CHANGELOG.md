@@ -1,19 +1,40 @@
 # Changelog
 
-## v0.25.8 — 2026-07-24 — Weekly Load Bars Are Actually Visible
+## v0.25.8 — 2026-07-24 — Availability Picker, Bigger Health Exports, and Chart Fixes
 
-Train → Fitness → Weekly load rendered every bar at 0px, even though the
-data behind it was correct.
-
-- **Fixed the bar chart's invisible bars.** Each week's bar wrapper sat in
-  a row-flex container using `items-end` (not `stretch`), so the wrapper
-  never inherited a definite height — its own height stayed intrinsic,
-  which for a single child whose height is itself a percentage resolves to
-  `0`. The bar's `height: X%` was then a percentage of a `0px` box, so it
-  also rendered at `0px` regardless of the (correct) load value or color.
-  Fixed by giving each wrapper `h-full` so it takes the full height of the
-  chart's fixed-height container, letting the inline percentage heights
-  resolve against a real number.
+- **New tap-to-open Availability Picker.** The weekly plan intake step's
+  7-day "minutes available" grid used raw `<input type="number">` fields —
+  slow and fiddly on a mobile numeric keypad. Each day is now a tap target
+  showing its value as a pill ("1h 30m" / "Rest"); tapping opens a bottom
+  sheet with one-tap preset chips (Rest, 30m, 45m, 1h, 1h30, 2h, 2h30) plus
+  a scroll-snap hour/minute wheel for anything else, both auto-saving with
+  no Done button, and a live weekly-total footer. 15-minute granularity
+  throughout, replacing the old 5-minute step. Spec:
+  `docs/specs/2026-07-24-availability-picker-design.md`.
+- **Apple Health ingest cap raised 10MB → 50MB.** Health Auto Export's
+  all-metric/multi-day exports were hitting the old cap on both Next's
+  middleware body limit and the route's own `MAX_BODY_BYTES`, silently
+  dropping every sync attempt (`last_sync_at` never advanced, zero new
+  `wellness_daily` rows, no error surfaced to the user).
+- **Fixed the bar chart's invisible weekly-load bars.** Train → Fitness →
+  Weekly load rendered every bar at `0px`, even though the underlying data
+  was correct. Each week's bar wrapper sat in a row-flex container using
+  `items-end` (not `stretch`), so the wrapper never inherited a definite
+  height — its own height stayed intrinsic, which for a single child whose
+  height is itself a percentage resolves to `0`. The bar's `height: X%` was
+  then a percentage of a `0px` box, so it also rendered at `0px` regardless
+  of the (correct) load value or color. Fixed by giving each wrapper
+  `h-full` so it takes the full height of the chart's fixed-height
+  container, letting the inline percentage heights resolve against a real
+  number.
+- **Fixed sync gaps compressing instead of showing as gaps** on the Body
+  page's HRV/RHR/weight/sleep trend charts. `BaselineTrendCard` positions
+  points by array index, but the Sleep/Trends tabs built values by mapping
+  over the sparse wellness query result — days with no synced row were
+  silently omitted rather than represented as gaps, so any sync hole
+  compressed that stretch of time in the chart instead of showing a break.
+  A new `fillDailyGaps()` helper now builds one entry per calendar day
+  across the window, with explicit nulls for missing days.
 
 ## v0.25.7 — 2026-07-24 — Activity Times Are Stored in True UTC, Not Local-Time-Mislabeled-As-UTC
 
