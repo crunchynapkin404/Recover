@@ -251,6 +251,7 @@ export async function importUserData(
           modelDeep: r.modelDeep,
           defaultMode: r.defaultMode,
           coachPersonality: r.coachPersonality,
+          coachLanguage: r.coachLanguage,
           updatedAt: toDate(r.updatedAt),
         }))
       );

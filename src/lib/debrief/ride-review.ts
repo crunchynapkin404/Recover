@@ -223,6 +223,7 @@ export async function generateRideReview(
             userName: user?.name ?? "the athlete",
             todayDate: localYmd(now),
             personality: resolved.personality,
+            language: resolved.language,
           }) + `\n\n${context}`;
         // Memory tools only: the review may file pain/injury mentions, but
         // must not wander into the full registry.

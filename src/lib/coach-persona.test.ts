@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { buildSystemPrompt, type CoachPersonality } from "@/lib/coach-persona";
+import {
+  buildSystemPrompt,
+  type CoachPersonality,
+  SUPPORTED_COACH_LANGUAGES,
+} from "@/lib/coach-persona";
 
 describe("coach personality presets (v0.4a)", () => {
   const base = { userName: "Test", todayDate: "2026-01-01" };
@@ -74,5 +78,50 @@ describe("coach persona", () => {
     expect(prompt).toMatch(/## Recovery Protocols/);
     expect(prompt).toMatch(/## Pattern Recognition/);
     expect(prompt).toMatch(/## Behavior rules/);
+  });
+});
+
+describe("coach language setting", () => {
+  const base = { userName: "Test", todayDate: "2026-01-01" };
+
+  it("defaults to the auto (match-the-athlete) rule when language is unset", () => {
+    const prompt = buildSystemPrompt(base);
+    expect(prompt).toContain(
+      "You MUST reply in the SAME language the athlete writes in"
+    );
+  });
+
+  it("uses the auto rule when language is explicitly 'auto'", () => {
+    const prompt = buildSystemPrompt({ ...base, language: "auto" });
+    expect(prompt).toContain(
+      "You MUST reply in the SAME language the athlete writes in"
+    );
+  });
+
+  it("pins the reply language when a specific language is set", () => {
+    const prompt = buildSystemPrompt({ ...base, language: "nl" });
+    expect(prompt).toContain("You MUST reply in Dutch");
+    expect(prompt).toContain(
+      "regardless of what language the athlete writes in"
+    );
+    expect(prompt).not.toContain(
+      "You MUST reply in the SAME language the athlete writes in"
+    );
+  });
+
+  it("falls back to auto for an unrecognized language code", () => {
+    const prompt = buildSystemPrompt({ ...base, language: "xx-bogus" });
+    expect(prompt).toContain(
+      "You MUST reply in the SAME language the athlete writes in"
+    );
+  });
+
+  it("exposes a code for every language it claims to support, English and Dutch included", () => {
+    const codes = SUPPORTED_COACH_LANGUAGES.map((l) => l.code);
+    expect(codes).toContain("auto");
+    expect(codes).toContain("en");
+    expect(codes).toContain("nl");
+    // No duplicate codes.
+    expect(new Set(codes).size).toBe(codes.length);
   });
 });

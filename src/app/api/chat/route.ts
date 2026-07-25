@@ -113,6 +113,7 @@ export async function POST(req: Request) {
     userName: session.user.name,
     todayDate: new Date().toISOString().slice(0, 10),
     personality: resolved.personality,
+    language: resolved.language,
     memoryBlock,
   });
   const systemPrompt = `${basePrompt}\n\n${athleteSnapshot}`;

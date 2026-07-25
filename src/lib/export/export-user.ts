@@ -327,6 +327,7 @@ export async function exportUserData(
       modelDeep: s.modelDeep,
       defaultMode: s.defaultMode,
       coachPersonality: s.coachPersonality,
+      coachLanguage: s.coachLanguage,
       updatedAt: s.updatedAt,
     })),
     races,

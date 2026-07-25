@@ -5,11 +5,40 @@
 
 export type CoachPersonality = "analytical" | "encouraging" | "direct";
 
+export const SUPPORTED_COACH_LANGUAGES = [
+  { code: "auto", label: "Automatic" },
+  { code: "en", label: "English" },
+  { code: "nl", label: "Dutch" },
+  { code: "de", label: "German" },
+  { code: "fr", label: "French" },
+  { code: "es", label: "Spanish" },
+  { code: "it", label: "Italian" },
+  { code: "pt", label: "Portuguese" },
+  { code: "pl", label: "Polish" },
+  { code: "sv", label: "Swedish" },
+  { code: "no", label: "Norwegian" },
+  { code: "da", label: "Danish" },
+  { code: "fi", label: "Finnish" },
+  { code: "tr", label: "Turkish" },
+  { code: "ru", label: "Russian" },
+  { code: "uk", label: "Ukrainian" },
+  { code: "ja", label: "Japanese" },
+  { code: "ko", label: "Korean" },
+  { code: "zh", label: "Chinese" },
+  { code: "ar", label: "Arabic" },
+  { code: "hi", label: "Hindi" },
+] as const;
+
+export type CoachLanguageCode =
+  (typeof SUPPORTED_COACH_LANGUAGES)[number]["code"];
+
 export interface CoachPromptContext {
   userName: string;
   todayDate: string;
   /** Tone preset (v0.4a). Shapes voice only — never the safety rules. */
   personality?: CoachPersonality;
+  /** Pinned reply language (code from SUPPORTED_COACH_LANGUAGES); absent or "auto" = match the athlete's own language. */
+  language?: string;
   /** Pre-built coach memory block (v0.4a); empty string = no memories. */
   memoryBlock?: string;
 }
@@ -80,9 +109,19 @@ export function buildSystemPrompt(ctx: CoachPromptContext): string {
   return sections.join("\n\n");
 }
 
+function languageRule(language: string | undefined): string {
+  const pinned =
+    language && language !== "auto"
+      ? SUPPORTED_COACH_LANGUAGES.find((l) => l.code === language)
+      : undefined;
+  if (pinned) {
+    return `## LANGUAGE RULE (HIGHEST PRIORITY)\nYou MUST reply in ${pinned.label}, regardless of what language the athlete writes in or explicitly asks for. Never switch to another language. This rule overrides everything else.`;
+  }
+  return `## LANGUAGE RULE (HIGHEST PRIORITY)\nYou MUST reply in the SAME language the athlete writes in. If they write Dutch, reply ONLY in Dutch. If English, reply ONLY in English. NEVER reply in Thai, Chinese, or any language the athlete did not use. This rule overrides everything else.`;
+}
+
 function buildBasePrompt(ctx: CoachPromptContext): string {
-  return `## LANGUAGE RULE (HIGHEST PRIORITY)
-You MUST reply in the SAME language the athlete writes in. If they write Dutch, reply ONLY in Dutch. If English, reply ONLY in English. NEVER reply in Thai, Chinese, or any language the athlete did not use. This rule overrides everything else.
+  return `${languageRule(ctx.language)}
 
 You are Coach — a world-class endurance performance advisor for ${ctx.userName}. Today is ${ctx.todayDate}.
 

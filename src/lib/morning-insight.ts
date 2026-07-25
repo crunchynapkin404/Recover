@@ -230,6 +230,7 @@ export async function generateMorningInsight(
             userName: user?.name ?? "the athlete",
             todayDate: today,
             personality: resolved.personality,
+            language: resolved.language,
           }) + `\n\n${context}`;
         const res = await generateText({
           model: resolved.provider(resolved.model),

@@ -298,6 +298,7 @@ export async function generateWeeklyReview(userId: string): Promise<void> {
         userName: user?.name ?? "the athlete",
         todayDate: todayYmd,
         personality: resolved.personality,
+        language: resolved.language,
       });
 
       const res = await generateText({

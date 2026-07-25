@@ -59,6 +59,7 @@ describe.skipIf(!hasDb)("importUserData", () => {
       providerType: "anthropic",
       model: "claude-sonnet",
       encryptedApiKey: "SECRET-SHOULD-NOT-IMPORT",
+      coachLanguage: "nl",
     });
     await db.insert(schema.biomarkers).values({
       userId: SOURCE_USER,
@@ -334,6 +335,7 @@ describe.skipIf(!hasDb)("importUserData", () => {
     });
     expect(llmSettings.length).toBe(1);
     expect(llmSettings[0].encryptedApiKey).toBeNull();
+    expect(llmSettings[0].coachLanguage).toBe("nl");
 
     // No row anywhere carries the source user's id.
     expect(activities.every((a) => a.userId === TARGET_USER)).toBe(true);

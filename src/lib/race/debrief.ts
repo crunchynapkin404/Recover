@@ -82,6 +82,7 @@ async function phrase(
             userName: user?.name ?? "the athlete",
             todayDate: localYmd(new Date()),
             personality: resolved.personality,
+            language: resolved.language,
           }) + `\n\n${context}`;
         const res = await generateText({
           model: resolved.provider(resolved.model),
