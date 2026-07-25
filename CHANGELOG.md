@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.25.11 — 2026-07-25 — Lock Mobile Pinch-Zoom
+
+- **Disabled pinch-to-zoom and double-tap zoom on mobile.** The viewport
+  meta tag now sets `maximum-scale=1, user-scalable=no` (in addition to
+  the existing `viewport-fit=cover`), and `html` gets
+  `touch-action: pan-x pan-y` as a backup for browsers that don't fully
+  honor the meta tag's scale lock. Layout now stays fixed at its intended
+  scale regardless of touch gestures.
+
 ## v0.25.10 — 2026-07-25 — Coaching Language Actually Saves
 
 Live-testing v0.25.9's new Coaching language setting immediately after
