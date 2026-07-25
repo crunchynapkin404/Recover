@@ -16,7 +16,7 @@ export function WeeklyLoadBars({ data }: { data: WeeklyLoad[] }) {
         {data.map((w) => (
           <div
             key={w.weekStart}
-            className="group flex flex-1 flex-col items-center gap-1"
+            className="group flex h-full flex-1 flex-col items-center gap-1"
           >
             <div
               className="w-full rounded-t bg-emerald-500/60 transition-colors group-hover:bg-emerald-400"

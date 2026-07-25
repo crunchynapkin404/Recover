@@ -19,7 +19,7 @@ through.
 - Each grid cell becomes a tap target showing the day's value as a pill
   ("1h 30m", or "Rest" for 0). Tapping it opens a bottom sheet for that day.
 - The sheet offers both speed and precision: a row of preset chips (`Rest,
-  30m, 45m, 1h, 1h30, 2h, 2h30`) for one-tap common values, plus a
+30m, 45m, 1h, 1h30, 2h, 2h30`) for one-tap common values, plus a
   two-column scroll-snap wheel (hours 0–12, minutes 0/15/30/45) for
   anything else. 15-minute granularity throughout, replacing today's 5-minute
   step.
@@ -62,7 +62,7 @@ bottom with the existing `glass` rounded-card look. Structure:
 - Header: the day's full name (`Wednesday`), derived from `openDay`.
 - Preset chip row: `Rest · 30m · 45m · 1h · 1h30 · 2h · 2h30`. Tapping a
   chip both writes the value (calling the parent's `onChange(openDay,
-  mins)`) and scrolls the wheel columns to match.
+mins)`) and scrolls the wheel columns to match.
 - Wheel: two side-by-side scrollable columns (hours 0–12, minutes
   0/15/30/45), each `scroll-snap-type: y mandatory` with each option a
   `scroll-snap-align: center` block. The centered option is read via
@@ -103,7 +103,7 @@ from the same `mins` array — no new state.
   settle auto-saves," just resolved before the close animation finishes.
 - Existing stored values not on a 15-minute boundary (e.g. old data saved
   under the previous 5-minute step): on sheet open, the wheel snaps to the
-  *nearest* 15-minute value for display, but doesn't silently rewrite
+  _nearest_ 15-minute value for display, but doesn't silently rewrite
   `mins[i]` until the user actually interacts with that day's sheet.
 - Touch vs. mouse: scroll-snap columns work with native touch scroll on
   mobile and wheel/drag-scroll on desktop without separate code paths;

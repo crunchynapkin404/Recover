@@ -1,6 +1,8 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { formatAvailability } from "@/lib/week-plan/availability";
+import { AvailabilitySheet } from "./availability-sheet";
 
 export interface IntakeState {
   message: string;
@@ -13,12 +15,28 @@ interface Props {
 }
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const DAY_NAMES = [
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+  "Sunday",
+];
 
 export function IntakeForm({ suggested, action }: Props) {
   const [state, formAction, pending] = useActionState(action, { message: "" });
   const [mins, setMins] = useState(() =>
-    Array.from({ length: 7 }, (_, i) => String(suggested[i] ?? 0))
+    Array.from({ length: 7 }, (_, i) => suggested[i] ?? 0)
   );
+  const [openDay, setOpenDay] = useState<number | null>(null);
+
+  function setDay(i: number, value: number) {
+    setMins((prev) => prev.map((m, j) => (j === i ? value : m)));
+  }
+
+  const totalMins = mins.reduce((s, m) => s + m, 0);
 
   return (
     <form action={formAction} className="glass rounded-[2rem] p-7">
@@ -26,33 +44,26 @@ export function IntakeForm({ suggested, action }: Props) {
       <p className="mb-5 text-[12px] text-white/50">
         Minutes you can train per day — the week plans itself around this.
       </p>
-      <div className="mb-6 grid grid-cols-7 gap-2">
+      <div className="mb-3 grid grid-cols-7 gap-2">
         {mins.map((v, i) => (
-          <label
-            key={DAY_LABELS[i]}
-            className="flex flex-col items-center gap-2"
-          >
+          <div key={DAY_LABELS[i]} className="flex flex-col items-center gap-2">
             <span className="text-[10px] font-bold uppercase tracking-wider text-white/40">
               {DAY_LABELS[i]}
             </span>
-            <input
-              type="number"
-              name={`mins-${i}`}
-              min={0}
-              max={720}
-              step={5}
-              inputMode="numeric"
-              value={v}
-              onChange={(e) =>
-                setMins((prev) =>
-                  prev.map((m, j) => (j === i ? e.target.value : m))
-                )
-              }
-              className="w-full rounded-xl border border-white/10 bg-white/5 px-1 py-2 text-center text-sm font-bold text-white focus:border-white/30 focus:outline-none"
-            />
-          </label>
+            <button
+              type="button"
+              onClick={() => setOpenDay(i)}
+              className="w-full rounded-xl border border-white/10 bg-white/5 px-1 py-2 text-center text-[11px] font-bold text-white focus:border-white/30 focus:outline-none"
+            >
+              {formatAvailability(v)}
+            </button>
+            <input type="hidden" name={`mins-${i}`} value={v} />
+          </div>
         ))}
       </div>
+      <p className="mb-6 text-center text-[11px] text-white/40">
+        {formatAvailability(totalMins)} this week
+      </p>
       <button
         type="submit"
         disabled={pending}
@@ -64,6 +75,14 @@ export function IntakeForm({ suggested, action }: Props) {
         <p className="mt-3 text-center text-[12px] text-white/60">
           {state.message}
         </p>
+      )}
+      {openDay !== null && (
+        <AvailabilitySheet
+          dayLabel={DAY_NAMES[openDay]}
+          mins={mins[openDay]}
+          onChange={(v) => setDay(openDay, v)}
+          onClose={() => setOpenDay(null)}
+        />
       )}
     </form>
   );

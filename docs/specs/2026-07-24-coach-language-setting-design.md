@@ -3,8 +3,8 @@
 ## Problem
 
 The coach's system prompt (`buildBasePrompt()` in `src/lib/coach-persona.ts`)
-carries one hardcoded rule at the top: *"reply in the SAME language the
-athlete writes in."* Two problems:
+carries one hardcoded rule at the top: _"reply in the SAME language the
+athlete writes in."_ Two problems:
 
 - It's not a choice — an athlete who wants the coach to always speak Dutch
   (say) has no way to pin that; the coach language drifts with whatever
@@ -71,11 +71,11 @@ the server-action layer against `SUPPORTED_COACH_LANGUAGES`.
 `CoachPromptContext` gains `language?: string` (a `code` from the list, or
 absent/`"auto"`). `buildBasePrompt()`'s `LANGUAGE RULE` block branches:
 
-- `language` absent or `"auto"` → unchanged: *"You MUST reply in the SAME
-  language the athlete writes in. ..."*
-- `language` set to a specific code → *"You MUST reply in {Label},
+- `language` absent or `"auto"` → unchanged: _"You MUST reply in the SAME
+  language the athlete writes in. ..."_
+- `language` set to a specific code → _"You MUST reply in {Label},
   regardless of what language the athlete writes in or explicitly asks for.
-  Never switch to another language."* — substituting the matched `label`
+  Never switch to another language."_ — substituting the matched `label`
   (e.g. "Dutch"), not the code.
 
 This block is already the first section of the prompt and is documented as
