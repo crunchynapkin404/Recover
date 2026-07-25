@@ -46,10 +46,7 @@ export function IntakeForm({ suggested, action }: Props) {
       </p>
       <div className="mb-3 grid grid-cols-7 gap-2">
         {mins.map((v, i) => (
-          <div
-            key={DAY_LABELS[i]}
-            className="flex flex-col items-center gap-2"
-          >
+          <div key={DAY_LABELS[i]} className="flex flex-col items-center gap-2">
             <span className="text-[10px] font-bold uppercase tracking-wider text-white/40">
               {DAY_LABELS[i]}
             </span>

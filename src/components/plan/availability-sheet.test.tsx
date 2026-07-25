@@ -105,9 +105,9 @@ describe("AvailabilitySheet", () => {
     });
 
     const hoursCol = container.querySelector('[aria-label="Hours"]');
-    const option = Array.from(hoursCol!.querySelectorAll('[role="option"]')).find(
-      (el) => el.textContent === "02"
-    );
+    const option = Array.from(
+      hoursCol!.querySelectorAll('[role="option"]')
+    ).find((el) => el.textContent === "02");
     expect(option).toBeTruthy();
 
     act(() => {
