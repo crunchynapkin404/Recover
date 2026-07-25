@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.25.12 — 2026-07-25 — Availability Sheet Can Be Closed
+
+- **Added a visible "Done" button to the weekly-availability bottom
+  sheet.** It previously only closed by tapping the dim backdrop, which
+  the preset chips and hour/minute wheels left little to no visible room
+  for — there was no discoverable way to close it after entering hours
+  for a day.
+
 ## v0.25.11 — 2026-07-25 — Lock Mobile Pinch-Zoom
 
 - **Disabled pinch-to-zoom and double-tap zoom on mobile.** The viewport
