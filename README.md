@@ -13,10 +13,10 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/dashboard.png" width="24%" alt="Dashboard with readiness score">
-  <img src="docs/screenshots/coach.png" width="24%" alt="AI coach chat citing real metrics">
-  <img src="docs/screenshots/log.png" width="24%" alt="Performance log with training stress balance">
-  <img src="docs/screenshots/journal.png" width="24%" alt="Behavior journal with wellness sliders">
+  <img src="docs/screenshots/today.png" width="24%" alt="Today dashboard with concentric readiness rings">
+  <img src="docs/screenshots/train.png" width="24%" alt="Living week training plan with availability picker">
+  <img src="docs/screenshots/coach.png" width="24%" alt="AI coach chat with suggested prompts">
+  <img src="docs/screenshots/body.png" width="24%" alt="Body trends: HRV, resting HR, and weight vs baseline">
 </p>
 
 Recover is a health and training companion you run on your own
@@ -64,7 +64,7 @@ OpenAI-compatible endpoint including a fully local Ollama. Keys are encrypted
 - **Living week plan** — your training plan materializes into a concrete,
   adaptive week: set which days you're available, let poor readiness move or
   shrink sessions instead of pretending the plan still fits, and track
-  planned-vs-actual drift. One tap on `/plan` starts the week.
+  planned-vs-actual drift. One tap on `/train` starts the week.
 - **Race Ready** — A/B/C races are first-class, with a dashboard countdown
   card. The living week tapers automatically as race day nears (window and
   weekly load by race distance), B races get a protected pre-race ease-off,
@@ -171,7 +171,40 @@ fills a demo account with 90 days of plausible training history (see
 
 ## Status & roadmap
 
-**Current release: v0.20.0 — Final Sweep (released 2026-07-21).** The v0.9→v0.14 series made
+**Current release: v0.25.8 (released 2026-07-24).** Since v0.20.0, six more
+releases landed: **v0.21.0 Design Consistency** extended the dark-glass
+visual language to every remaining screen (concentric readiness rings,
+hairline-list settings, glass-tile dedup). **v0.23.0 IA & Navigation
+Redesign** replaced the old five-tab layout with **Today / Train / Coach /
+Body / Menu**: Today got a concentric-ring readiness hero, a 4-across vitals
+row, and a real "mark done" action; `/plan` and `/log` merged into **Train**
+(Week/History/Fitness tabs); `/journal`, `/health`, and the wellness half of
+the old log page merged into **Body** (Trends/Sleep/Journal/Labs); morning
+check-in and post-ride debrief became URL-driven bottom sheets instead of
+buried inline forms; and Coach picked up a Chat/Inbox split. **v0.24.0**
+backed VO2max on Strava descriptions with the daily wellness value instead
+of leaving it blank, and added two opt-in description fields (ride review,
+RPE/feel). **v0.25.0 Strava-Triggered Intervals Sync** added a Strava
+webhook so a finished ride pulls a fresh intervals.icu sync immediately
+instead of waiting for the next poll — then **v0.25.1–v0.25.8** shipped a
+run of fixes found by testing against the live instance rather than just
+reading the diff: the webhook route itself was unreachable (307-redirected
+before the handler ever ran) until v0.25.1; the ride-review popup never
+mounted for Strava-sourced activities (their duration is null by Strava's
+own API design) until v0.25.2; auto-describe couldn't resolve a Strava
+activity id at all (v0.25.3) and then raced ahead of debrief promotion,
+permanently burning the one-time description write (v0.25.6); deleted
+activities lingered instead of being cleaned up (v0.25.4); push
+notifications silently died from an orphaned VAPID key (v0.25.5); activity
+times were stored as local wall-clock mislabeled as UTC, root-caused and
+fixed at every affected call site rather than patched around (v0.25.7); and
+v0.25.8 added a tap-to-open availability picker for the weekly plan intake,
+raised the Apple Health ingest cap 10MB→50MB, and fixed two real rendering
+bugs (invisible weekly-load bars on Train, sync gaps compressing instead of
+showing as gaps on Body's trend charts). Full detail in
+[CHANGELOG.md](CHANGELOG.md).
+
+The v0.9→v0.14 series made
 the app honest, adaptive, and durable: v0.9.0 deleted every metric the data
 couldn't back, v0.9.2–0.9.3 turned static training plans into a living week
 that adapts to your availability and readiness, v0.9.4 added auto-tags,
