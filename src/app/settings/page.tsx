@@ -392,6 +392,7 @@ export default async function SettingsPage({
               <CoachCard
                 configured={!!llmSettings}
                 personality={llmSettings?.coachPersonality ?? "encouraging"}
+                language={llmSettings?.coachLanguage ?? "auto"}
                 memories={coachMemories.map((m) => ({
                   id: m.id,
                   category: m.category,

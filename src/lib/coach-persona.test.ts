@@ -101,7 +101,9 @@ describe("coach language setting", () => {
   it("pins the reply language when a specific language is set", () => {
     const prompt = buildSystemPrompt({ ...base, language: "nl" });
     expect(prompt).toContain("You MUST reply in Dutch");
-    expect(prompt).toContain("regardless of what language the athlete writes in");
+    expect(prompt).toContain(
+      "regardless of what language the athlete writes in"
+    );
     expect(prompt).not.toContain(
       "You MUST reply in the SAME language the athlete writes in"
     );

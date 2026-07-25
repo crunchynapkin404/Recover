@@ -29,7 +29,8 @@ export const SUPPORTED_COACH_LANGUAGES = [
   { code: "hi", label: "Hindi" },
 ] as const;
 
-export type CoachLanguageCode = (typeof SUPPORTED_COACH_LANGUAGES)[number]["code"];
+export type CoachLanguageCode =
+  (typeof SUPPORTED_COACH_LANGUAGES)[number]["code"];
 
 export interface CoachPromptContext {
   userName: string;

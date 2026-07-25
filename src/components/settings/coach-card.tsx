@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 import {
   deleteMemoryAction,
-  saveCoachPersonality,
+  saveCoachSettings,
   updateMemoryAction,
 } from "@/app/settings/coach-actions";
 import type { LlmActionResult } from "@/app/settings/llm-actions";
@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SUPPORTED_COACH_LANGUAGES } from "@/lib/coach-persona";
 
 export interface CoachMemoryItem {
   id: string;
@@ -29,14 +30,20 @@ export interface CoachMemoryItem {
 interface Props {
   configured: boolean;
   personality: "analytical" | "encouraging" | "direct";
+  language: string;
   memories: CoachMemoryItem[];
 }
 
-export function CoachCard({ configured, personality, memories }: Props) {
+export function CoachCard({
+  configured,
+  personality,
+  language,
+  memories,
+}: Props) {
   const [saveState, saveAction, saving] = useActionState<
     LlmActionResult | null,
     FormData
-  >(saveCoachPersonality, null);
+  >(saveCoachSettings, null);
   const [rows, setRows] = useState(memories);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
@@ -99,6 +106,21 @@ export function CoachCard({ configured, personality, memories }: Props) {
               Configure the AI coach above to enable personality and memory.
             </p>
           )}
+
+          <Label htmlFor="language">Coaching language</Label>
+          <select
+            id="language"
+            name="language"
+            defaultValue={language}
+            className="border-input bg-background flex h-9 w-full rounded-md border px-3 py-1 text-sm"
+            disabled={!configured}
+          >
+            {SUPPORTED_COACH_LANGUAGES.map((l) => (
+              <option key={l.code} value={l.code}>
+                {l.label}
+              </option>
+            ))}
+          </select>
         </form>
 
         {rows.length > 0 && (
