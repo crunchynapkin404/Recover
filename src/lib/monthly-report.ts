@@ -236,6 +236,7 @@ export async function generateMonthlyReport(
           userName: user?.name ?? "the athlete",
           todayDate: localYmd(now),
           personality: resolved.personality,
+          language: resolved.language,
         });
         const instruction =
           `You are writing the athlete's monthly training report for ${label}.\n\n` +
