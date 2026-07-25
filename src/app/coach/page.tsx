@@ -76,6 +76,7 @@ export default async function CoachPage({
         threads={threads}
         inboxItems={inboxItems}
         unread={unread}
+        language={llmSettings?.coachLanguage ?? "auto"}
       />
     </AppShell>
   );

@@ -31,13 +31,110 @@ interface Props {
   threads: HistoryThread[];
   inboxItems: InboxItem[];
   unread: number;
+  /** Pinned coach language (code from SUPPORTED_COACH_LANGUAGES); "auto"
+   * or unset localizes suggestion chips to English, matching the same
+   * fallback coach-persona.ts uses for an unrecognized code. */
+  language?: string;
 }
 
-const SUGGESTIONS = [
-  "How should I train today?",
-  "Why is my HRV low?",
-  "Analyze my week",
-] as const;
+/** Suggestion chip text per pinned coach language. "auto" has no single
+ * language to localize to (it varies per message), so it — and any
+ * unrecognized code — falls back to English, same as the prompt's own
+ * LANGUAGE RULE fallback in coach-persona.ts. */
+const SUGGESTIONS_BY_LANGUAGE: Record<
+  string,
+  readonly [string, string, string]
+> = {
+  auto: ["How should I train today?", "Why is my HRV low?", "Analyze my week"],
+  en: ["How should I train today?", "Why is my HRV low?", "Analyze my week"],
+  nl: [
+    "Hoe moet ik vandaag trainen?",
+    "Waarom is mijn HRV laag?",
+    "Analyseer mijn week",
+  ],
+  de: [
+    "Wie sollte ich heute trainieren?",
+    "Warum ist meine HRV niedrig?",
+    "Analysiere meine Woche",
+  ],
+  fr: [
+    "Comment devrais-je m'entraîner aujourd'hui ?",
+    "Pourquoi mon HRV est-il bas ?",
+    "Analyse ma semaine",
+  ],
+  es: [
+    "¿Cómo debería entrenar hoy?",
+    "¿Por qué mi HRV está bajo?",
+    "Analiza mi semana",
+  ],
+  it: [
+    "Come dovrei allenarmi oggi?",
+    "Perché il mio HRV è basso?",
+    "Analizza la mia settimana",
+  ],
+  pt: [
+    "Como devo treinar hoje?",
+    "Por que meu HRV está baixo?",
+    "Analise minha semana",
+  ],
+  pl: [
+    "Jak powinienem dziś trenować?",
+    "Dlaczego mój HRV jest niski?",
+    "Przeanalizuj mój tydzień",
+  ],
+  sv: [
+    "Hur ska jag träna idag?",
+    "Varför är min HRV låg?",
+    "Analysera min vecka",
+  ],
+  no: [
+    "Hvordan bør jeg trene i dag?",
+    "Hvorfor er HRV-en min lav?",
+    "Analyser uken min",
+  ],
+  da: [
+    "Hvordan bør jeg træne i dag?",
+    "Hvorfor er min HRV lav?",
+    "Analyser min uge",
+  ],
+  fi: [
+    "Miten minun pitäisi harjoitella tänään?",
+    "Miksi HRV:ni on matala?",
+    "Analysoi viikkoni",
+  ],
+  tr: [
+    "Bugün nasıl antrenman yapmalıyım?",
+    "HRV'm neden düşük?",
+    "Haftamı analiz et",
+  ],
+  ru: [
+    "Как мне сегодня тренироваться?",
+    "Почему у меня низкий HRV?",
+    "Проанализируй мою неделю",
+  ],
+  uk: [
+    "Як мені сьогодні тренуватися?",
+    "Чому мій HRV низький?",
+    "Проаналізуй мій тиждень",
+  ],
+  ja: [
+    "今日はどうトレーニングすべきですか?",
+    "なぜHRVが低いのですか?",
+    "今週を分析して",
+  ],
+  ko: [
+    "오늘 어떻게 훈련해야 하나요?",
+    "왜 제 HRV가 낮은가요?",
+    "이번 주를 분석해줘",
+  ],
+  zh: ["我今天应该怎么训练?", "为什么我的HRV偏低?", "分析我这一周"],
+  ar: ["كيف يجب أن أتدرب اليوم؟", "لماذا معدل HRV لدي منخفض؟", "حلل أسبوعي"],
+  hi: [
+    "आज मुझे कैसे ट्रेनिंग करनी चाहिए?",
+    "मेरा HRV कम क्यों है?",
+    "मेरे सप्ताह का विश्लेषण करें",
+  ],
+};
 
 export function ChatInterface({
   configured,
@@ -46,7 +143,10 @@ export function ChatInterface({
   threads,
   inboxItems,
   unread,
+  language,
 }: Props) {
+  const suggestions =
+    SUGGESTIONS_BY_LANGUAGE[language ?? "auto"] ?? SUGGESTIONS_BY_LANGUAGE.auto;
   const [activeThreadId, setActiveThreadId] = useState<string | null>(
     initialThreadId ?? null
   );
@@ -366,7 +466,7 @@ export function ChatInterface({
                 className="max-w-sm"
               />
               <div className="flex w-full max-w-[300px] flex-col gap-2">
-                {SUGGESTIONS.map((s) => (
+                {suggestions.map((s) => (
                   <button
                     key={s}
                     onClick={() => sendText(s)}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { startTransition, useActionState, useState } from "react";
 import {
   deleteMemoryAction,
   saveCoachSettings,
@@ -44,6 +44,13 @@ export function CoachCard({
     LlmActionResult | null,
     FormData
   >(saveCoachSettings, null);
+  // Controlled, not defaultValue: React resets uncontrolled form fields to
+  // their defaultValue after every action submit, which snapped these back
+  // to whatever was loaded at page-mount regardless of what was just saved
+  // (a real production bug — the save always persisted, the dropdown just
+  // never showed it without a hard reload).
+  const [personalityValue, setPersonalityValue] = useState(personality);
+  const [languageValue, setLanguageValue] = useState(language);
   const [rows, setRows] = useState(memories);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
@@ -83,13 +90,35 @@ export function CoachCard({
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-6">
-        <form action={saveAction} className="grid gap-2">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            // Not action={saveAction}: React's form-action submission path
+            // calls the DOM's native form.reset() once the action settles,
+            // which snaps every <select> back to whichever <option> has no
+            // explicit HTML `selected` — the FIRST option in the list, not
+            // whatever was just saved. Controlled value/onChange alone does
+            // NOT exempt a field from this (verified: it still reset even
+            // fully controlled). Submitting imperatively, outside the
+            // action-prop pathway, avoids the native reset entirely.
+            const fd = new FormData();
+            fd.set("personality", personalityValue);
+            fd.set("language", languageValue);
+            startTransition(() => saveAction(fd));
+          }}
+          className="grid gap-2"
+        >
           <Label htmlFor="personality">Personality</Label>
           <div className="flex gap-2">
             <select
               id="personality"
               name="personality"
-              defaultValue={personality}
+              value={personalityValue}
+              onChange={(e) =>
+                setPersonalityValue(
+                  e.target.value as "analytical" | "encouraging" | "direct"
+                )
+              }
               className="border-input bg-background flex h-9 w-full rounded-md border px-3 py-1 text-sm"
               disabled={!configured}
             >
@@ -111,7 +140,8 @@ export function CoachCard({
           <select
             id="language"
             name="language"
-            defaultValue={language}
+            value={languageValue}
+            onChange={(e) => setLanguageValue(e.target.value)}
             className="border-input bg-background flex h-9 w-full rounded-md border px-3 py-1 text-sm"
             disabled={!configured}
           >
