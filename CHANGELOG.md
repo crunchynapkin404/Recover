@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.25.13 — 2026-07-26 — Apple Health Ingest 405 Fix
+
+- **Fixed the Apple Health (Health Auto Export) ingest endpoint returning
+  405 to the iOS app.** `src/proxy.ts`'s session-cookie auth guard excludes
+  token-authenticated external endpoints (`/api/mcp`, `/api/cron`,
+  `/api/webhooks`) since they have no browser session to check — but
+  `/api/connections/apple-health/ingest` (authenticated by a per-user
+  ingest token, not a cookie) was never added to that list. An
+  unauthenticated POST got 307-redirected to `/login`, which preserves the
+  POST method; `/login` is a GET-only page route, so the redirected
+  request came back as 405 — the symptom the app actually showed, not
+  anything from the ingest handler itself. Added the route to the proxy's
+  bypass list (matcher regex + inline check), matching how the other
+  token-authenticated endpoints are handled.
+
 ## v0.25.12 — 2026-07-25 — Availability Sheet Can Be Closed
 
 - **Added a visible "Done" button to the weekly-availability bottom
