@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const runDailyAdaptation = vi.fn().mockResolvedValue("adapted");
 vi.mock("@/lib/week-plan/service", () => ({
@@ -24,7 +24,19 @@ describe("onWellnessDataChanged", () => {
     maybeSendMorningReadinessPush.mockClear();
   });
 
+  afterEach(() => {
+    // Belt-and-suspenders: guarantees real timers are restored even if a
+    // test using vi.setSystemTime below throws before its own cleanup runs.
+    vi.useRealTimers();
+  });
+
   it("calls adaptation, insight, and push, returns 'fired' when insight is generated", async () => {
+    // Fixed system time past the 4am floor (Fix 4): opts is omitted below,
+    // so onWellnessDataChanged falls back to `new Date()` internally — a
+    // real-clock default here would make this test flaky between
+    // 00:00-03:59 local time.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 6, 26, 9, 0, 0));
     generateMorningInsight.mockResolvedValue({
       text: "hi",
       warning: null,
@@ -43,6 +55,7 @@ describe("onWellnessDataChanged", () => {
       "user-1",
       undefined
     );
+    vi.useRealTimers();
   });
 
   it("returns 'skipped' when generateMorningInsight skips", async () => {
@@ -73,5 +86,57 @@ describe("onWellnessDataChanged", () => {
     const { onWellnessDataChanged } =
       await import("@/lib/sync/wellness-changed");
     await expect(onWellnessDataChanged("user-4")).resolves.toBe("skipped");
+  });
+
+  // Fix 4: a non-forced trigger before 04:00 local (e.g. an overnight Apple
+  // Health push) must not post the brief or push — but adaptation, which
+  // isn't a user-facing notification, still runs.
+  it("skips insight and push, but still adapts, before the 4am floor when not forced", async () => {
+    const now = new Date(2026, 6, 26, 2, 0, 0); // 02:00 local
+    const { onWellnessDataChanged } =
+      await import("@/lib/sync/wellness-changed");
+    const outcome = await onWellnessDataChanged("user-5", { now });
+    expect(outcome).toBe("skipped");
+    expect(runDailyAdaptation).toHaveBeenCalledWith("user-5", now);
+    expect(generateMorningInsight).not.toHaveBeenCalled();
+    expect(maybeSendMorningReadinessPush).not.toHaveBeenCalled();
+  });
+
+  it("does not apply the 4am floor when force is true", async () => {
+    generateMorningInsight.mockResolvedValue({
+      text: "hi",
+      warning: null,
+      threadId: "t1",
+    });
+    const now = new Date(2026, 6, 26, 2, 0, 0); // 02:00 local, but forced
+    const { onWellnessDataChanged } =
+      await import("@/lib/sync/wellness-changed");
+    const outcome = await onWellnessDataChanged("user-6", {
+      now,
+      force: true,
+    });
+    expect(outcome).toBe("fired");
+    expect(generateMorningInsight).toHaveBeenCalledWith("user-6", {
+      now,
+      force: true,
+    });
+    expect(maybeSendMorningReadinessPush).toHaveBeenCalledWith("user-6", now);
+  });
+
+  it("does not apply the floor at exactly 04:00 (boundary is inclusive of 4)", async () => {
+    generateMorningInsight.mockResolvedValue({
+      text: "hi",
+      warning: null,
+      threadId: "t1",
+    });
+    const now = new Date(2026, 6, 26, 4, 0, 0); // exactly 04:00 local
+    const { onWellnessDataChanged } =
+      await import("@/lib/sync/wellness-changed");
+    const outcome = await onWellnessDataChanged("user-7", { now });
+    expect(outcome).toBe("fired");
+    expect(generateMorningInsight).toHaveBeenCalledWith("user-7", {
+      now,
+      force: undefined,
+    });
   });
 });
