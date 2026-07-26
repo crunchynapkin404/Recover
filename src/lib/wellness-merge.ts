@@ -35,10 +35,15 @@ export interface WellnessPatch {
   bedEnd?: Date | null;
   tempDeviationC?: number | null;
   respiratoryRate?: number | null;
+  bloodOxygenPct?: number | null;
+  wristTempC?: number | null;
   weightKg?: number | null;
   bodyFatPct?: number | null;
   systolic?: number | null;
   diastolic?: number | null;
+  bmi?: number | null;
+  leanMassKg?: number | null;
+  waistCm?: number | null;
   ctl?: number | null;
   atl?: number | null;
   eftp?: number | null;
@@ -57,16 +62,16 @@ const PHYSIOLOGY: WellnessSource[] = [
   "manual",
   "whoop",
   "oura",
-  "intervals_icu",
   "apple_health",
+  "intervals_icu",
 ];
 const BODY: WellnessSource[] = [
   "manual",
   "withings",
   "oura",
   "whoop",
-  "intervals_icu",
   "apple_health",
+  "intervals_icu",
 ];
 // Training-load numbers exist only in intervals.icu's model — a wearable
 // or manual "ctl" would be fabrication.
@@ -85,11 +90,16 @@ export const FIELD_PRIORITY: Record<WellnessField, WellnessSource[]> = {
   bedEnd: PHYSIOLOGY,
   tempDeviationC: PHYSIOLOGY,
   respiratoryRate: PHYSIOLOGY,
+  bloodOxygenPct: PHYSIOLOGY,
+  wristTempC: PHYSIOLOGY,
   vo2max: PHYSIOLOGY,
   weightKg: BODY,
   bodyFatPct: BODY,
   systolic: BODY,
   diastolic: BODY,
+  bmi: BODY,
+  leanMassKg: BODY,
+  waistCm: BODY,
   ctl: LOAD,
   atl: LOAD,
   eftp: LOAD,
