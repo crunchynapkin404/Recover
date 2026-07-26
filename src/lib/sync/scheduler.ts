@@ -259,36 +259,17 @@ export async function runSchedulerTick(
         kind: "incremental",
         runAfter: nextMorning(),
       });
-      // v0.9.2 daily plan adaptation — must run before the morning insight
-      // so the insight can explain today's changes. Guards inside.
+      // Daily plan adaptation + morning insight + morning push now share
+      // one hook with Apple Health ingest and manual wellness entry (event-
+      // driven sync triggers, docs/specs/2026-07-26-event-driven-sync-
+      // triggers-design.md) — whichever source completes first fires it.
+      // Guards inside each step; this never touches the sync job itself.
       try {
-        const { runDailyAdaptation } = await import("@/lib/week-plan/service");
-        await runDailyAdaptation(job.userId);
+        const { onWellnessDataChanged } =
+          await import("@/lib/sync/wellness-changed");
+        await onWellnessDataChanged(job.userId);
       } catch (err) {
-        logger.error("daily plan adaptation failed", {
-          userId: job.userId,
-          message: err instanceof Error ? err.message : String(err),
-        });
-      }
-      // Morning coach insight — must run before the push so the teaser
-      // exists; guards inside make it at-most-once/day, errors never
-      // touch the sync job.
-      try {
-        const { generateMorningInsight } =
-          await import("@/lib/morning-insight");
-        await generateMorningInsight(job.userId);
-      } catch (err) {
-        logger.error("morning insight failed", {
-          userId: job.userId,
-          message: err instanceof Error ? err.message : String(err),
-        });
-      }
-      // Morning readiness push — guards inside make this at-most-once/day.
-      try {
-        const { maybeSendMorningReadinessPush } = await import("@/lib/push");
-        await maybeSendMorningReadinessPush(job.userId);
-      } catch (err) {
-        logger.error("morning push hook failed", {
+        logger.error("wellness-changed hook failed", {
           userId: job.userId,
           message: err instanceof Error ? err.message : String(err),
         });
