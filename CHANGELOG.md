@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.25.16 — 2026-07-26 — Event-Driven Sync Triggers
+
+- **The morning brief no longer waits on the fixed 05:00 provider sync.**
+  It now fires as soon as enough of today's data has landed — from an
+  Apple Health push, any provider sync, or a manual wellness entry,
+  whichever arrives first — instead of only reacting to the once-daily
+  intervals.icu/Strava/Whoop/Oura/Withings sync. A new 09:00 server-local
+  backstop still posts a brief with whatever's available if nothing has
+  fired by then, so the athlete never goes without one.
+- **Weekly and monthly review default their slot to 09:00** (was 04:00),
+  matching the new backstop, and are now re-checked every scheduler tick
+  past that hour rather than only when a provider sync happens to
+  complete — a user-set `weeklyReviewHour` preference still overrides
+  this default exactly as before.
+
 ## v0.25.15 — 2026-07-26 — Apple Health Metric-Name Diagnostic
 
 - **Temporary diagnostic logging** for the Apple Health ingest endpoint: logs
