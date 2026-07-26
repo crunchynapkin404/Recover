@@ -95,6 +95,19 @@ export async function POST(req: Request) {
   }
 
   try {
+    // TEMPORARY diagnostic (remove once vo2max/wrist-temp/BMI/lean-mass/
+    // waist-circumference metric-name guesses are confirmed against a real
+    // payload — see docs/specs/2026-07-26-apple-health-hybrid-vitals-design.md).
+    // Logs metric type identifiers only, never values.
+    const metricNames = Array.isArray(
+      (payload as { data?: { metrics?: unknown } })?.data?.metrics
+    )
+      ? (
+          payload as { data: { metrics: Array<{ name?: unknown }> } }
+        ).data.metrics.map((m) => m.name)
+      : [];
+    logger.info("apple health ingest: metric names", { metricNames });
+
     const result = await ingestAppleHealth(connection.userId, payload ?? {});
     logger.info("apple health ingest", {
       userId: connection.userId,
