@@ -229,6 +229,71 @@ async function TrendsTab({
         unit="kg"
         decimals={1}
       />
+      {wellness.some((w) => w.vo2max != null) && (
+        <BaselineTrendCard
+          title="VO2max"
+          values={fillDailyGaps(wellness, range, (w) => w.vo2max)}
+          band={null}
+          color="#f59e0b"
+          bandFill="transparent"
+          unit="ml/kg/min"
+          decimals={1}
+        />
+      )}
+      {wellness.some((w) => w.bloodOxygenPct != null) && (
+        <BaselineTrendCard
+          title="Blood oxygen"
+          values={fillDailyGaps(wellness, range, (w) => w.bloodOxygenPct)}
+          band={null}
+          color="#06b6d4"
+          bandFill="transparent"
+          unit="%"
+        />
+      )}
+      {wellness.some((w) => w.wristTempC != null) && (
+        <BaselineTrendCard
+          title="Wrist temperature"
+          values={fillDailyGaps(wellness, range, (w) => w.wristTempC)}
+          band={null}
+          color="#f472b6"
+          bandFill="transparent"
+          unit="°C"
+          decimals={1}
+        />
+      )}
+      {wellness.some((w) => w.bmi != null) && (
+        <BaselineTrendCard
+          title="BMI"
+          values={fillDailyGaps(wellness, range, (w) => w.bmi)}
+          band={null}
+          color="#facc15"
+          bandFill="transparent"
+          unit=""
+          decimals={1}
+        />
+      )}
+      {wellness.some((w) => w.leanMassKg != null) && (
+        <BaselineTrendCard
+          title="Lean body mass"
+          values={fillDailyGaps(wellness, range, (w) => w.leanMassKg)}
+          band={null}
+          color="#34d399"
+          bandFill="transparent"
+          unit="kg"
+          decimals={1}
+        />
+      )}
+      {wellness.some((w) => w.waistCm != null) && (
+        <BaselineTrendCard
+          title="Waist circumference"
+          values={fillDailyGaps(wellness, range, (w) => w.waistCm)}
+          band={null}
+          color="#fb923c"
+          bandFill="transparent"
+          unit="cm"
+          decimals={1}
+        />
+      )}
 
       {wellness.length === 0 && (
         <EmptyState
