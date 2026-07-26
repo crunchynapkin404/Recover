@@ -86,7 +86,11 @@ export async function findOrCreateMorningThread(userId: string) {
 
 export async function generateMorningInsight(
   userId: string,
-  opts?: { now?: Date; llm?: (prompt: string) => Promise<string> }
+  opts?: {
+    now?: Date;
+    llm?: (prompt: string) => Promise<string>;
+    force?: boolean;
+  }
 ): Promise<MorningInsight | "skipped"> {
   const now = opts?.now ?? new Date();
   const today = localYmd(now);
@@ -107,8 +111,14 @@ export async function generateMorningInsight(
       eq(schema.dailyMetrics.date, today)
     ),
   });
-  if (!metric || metric.readiness == null || metric.band === "calibrating") {
-    if (!raceToday) return "skipped";
+  const calibrating =
+    !metric || metric.readiness == null || metric.band === "calibrating";
+  // 09:00 backstop (event-driven sync triggers, 2026-07-26): force bypasses
+  // the "not enough data yet" gate so the athlete still gets a brief today,
+  // using the same honest "calibrating" degraded text the race branch
+  // already produces when readiness is missing.
+  if (calibrating && !raceToday && !opts?.force) {
+    return "skipped";
   }
 
   const thread = await findOrCreateMorningThread(userId);
@@ -167,11 +177,13 @@ export async function generateMorningInsight(
   const template =
     raceTemplate ??
     [
-      `Readiness ${Math.round(metric!.readiness!)} (${metric!.band}).` +
-        (metric!.tsb != null ? ` TSB ${Math.round(metric!.tsb)}.` : ""),
+      metric?.readiness != null
+        ? `Readiness ${Math.round(metric.readiness)} (${metric.band}).` +
+          (metric.tsb != null ? ` TSB ${Math.round(metric.tsb)}.` : "")
+        : `Still calibrating — not enough data yet for a readiness score today.`,
       warning
         ? warningSentence(warning)
-        : (BAND_LINES[metric!.band ?? ""] ?? ""),
+        : (BAND_LINES[metric?.band ?? ""] ?? ""),
     ]
       .filter(Boolean)
       .join(" ") +
@@ -197,8 +209,11 @@ export async function generateMorningInsight(
   const instruction =
     raceInstruction ??
     `Write this morning's proactive check-in for the athlete (max 120 words, no greeting fluff). ` +
-      `Today: readiness ${Math.round(metric!.readiness!)}, band ${metric!.band}` +
-      (metric!.tsb != null ? `, TSB ${Math.round(metric!.tsb)}` : "") +
+      `Today: ` +
+      (metric?.readiness != null
+        ? `readiness ${Math.round(metric.readiness)}, band ${metric.band}` +
+          (metric.tsb != null ? `, TSB ${Math.round(metric.tsb)}` : "")
+        : `readiness still calibrating — not enough data today, do not invent a number`) +
       `. ` +
       (warning
         ? `LEAD with this warning and make it unmissable: ${warningSentence(warning)} `
@@ -264,7 +279,11 @@ export async function generateMorningInsight(
     threadId: thread.id,
     role: "assistant",
     content: text,
-    toolCalls: { generated, warning: warning?.kind ?? null },
+    toolCalls: {
+      generated,
+      warning: warning?.kind ?? null,
+      forced: opts?.force ?? false,
+    },
   });
   await db
     .update(schema.chatThreads)

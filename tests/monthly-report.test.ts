@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { and, desc, eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 const hasDb =
   !!process.env.DATABASE_URL && process.env.DATABASE_DRIVER === "pg";
@@ -36,6 +36,11 @@ describe("mostRecentMonthlySlot", () => {
     // Jan 1 before the hour → Dec 1 of the previous year.
     const jan = mostRecentMonthlySlot(new Date(2026, 0, 1, 2, 0), 4);
     expect([jan.getFullYear(), jan.getMonth()]).toEqual([2025, 11]);
+  });
+
+  it("reuses weekly-review's FALLBACK_REVIEW_HOUR (9) as its own default", async () => {
+    const { FALLBACK_REVIEW_HOUR } = await import("@/lib/weekly-review");
+    expect(FALLBACK_REVIEW_HOUR).toBe(9);
   });
 });
 

@@ -14,6 +14,7 @@ import { resolveProvider } from "@/lib/llm-provider";
 import { buildSystemPrompt } from "@/lib/coach-persona";
 import { getMilestones } from "@/lib/insights/milestones";
 import { recordLlmUsage } from "@/lib/llm-usage";
+import { FALLBACK_REVIEW_HOUR } from "@/lib/weekly-review";
 
 export const MONTHLY_THREAD_TITLE = "Monthly Report";
 const MIN_SESSIONS = 4;
@@ -106,7 +107,7 @@ export async function generateMonthlyReport(
   const prefs = await db.query.notificationPrefs.findFirst({
     where: eq(schema.notificationPrefs.userId, userId),
   });
-  const reviewHour = prefs?.weeklyReviewHour ?? 4;
+  const reviewHour = prefs?.weeklyReviewHour ?? FALLBACK_REVIEW_HOUR;
   const slot = mostRecentMonthlySlot(now, reviewHour);
 
   // ── At-most-once-per-cycle guard ───────────────────────────────────────

@@ -4,9 +4,14 @@
  * is configured, deterministic template otherwise. Never throws to callers.
  *
  * Scheduling: fires from the post-sync hook once the user's configured weekly
- * slot (day + hour, default Monday 04:00 — before the ~05:00 sync) has passed
- * and no review exists since that slot. Exact-hour matching would silently
- * never fire, because syncs run at SYNC_HOUR, not at the user's review hour.
+ * slot (day + hour, default Monday 07:00 — the notification_prefs column
+ * default, see FALLBACK_REVIEW_HOUR below) has passed and no review exists
+ * since that slot. Also re-checked every scheduler tick past BACKSTOP_HOUR
+ * (scheduler.ts) so the slot doesn't have to wait for the next day's sync to
+ * notice it's due — before that re-check existed, a 07:00 slot checked only
+ * at the once-daily 05:00 sync always read as "not due yet" and fired a full
+ * day late, every cycle. Exact-hour matching would silently never fire,
+ * because syncs run at SYNC_HOUR, not at the user's review hour.
  */
 import { and, desc, eq, gte, lte, ne, count, avg, sum } from "drizzle-orm";
 import { generateText } from "ai";
@@ -17,6 +22,17 @@ import { recordLlmUsage } from "@/lib/llm-usage";
 import { buildSystemPrompt } from "@/lib/coach-persona";
 
 export const WEEKLY_THREAD_TITLE = "Weekly Review";
+/**
+ * Fallback weekly/monthly review hour used ONLY when a user has no
+ * notification_prefs row at all — `notification_prefs.weekly_review_hour`
+ * is `smallint NOT NULL DEFAULT 7` (schema.ts), so for every user who has a
+ * prefs row (getOrCreatePrefs in push.ts creates one for every user) this
+ * constant is never consulted; the operative default is the column's own 7,
+ * not this value. Kept distinct from BACKSTOP_HOUR (scheduler.ts, 9): that's
+ * the hour past which the scheduler re-checks a due review, not the review's
+ * own configured slot.
+ */
+export const FALLBACK_REVIEW_HOUR = 9;
 
 /** Returns "2026-W03" style ISO week string for a given date. */
 function isoWeekLabel(d: Date): string {
@@ -94,9 +110,9 @@ export async function generateWeeklyReview(userId: string): Promise<void> {
     where: eq(schema.notificationPrefs.userId, userId),
   });
   const reviewDay = prefs?.weeklyReviewDay ?? 1; // default Monday
-  // Default hour sits BEFORE the daily sync hour so the review lands with
-  // the Monday-morning sync; later hours land on the next sync after them.
-  const reviewHour = prefs?.weeklyReviewHour ?? 4;
+  // FALLBACK_REVIEW_HOUR only applies when prefs is undefined (no row at
+  // all) — see its own doc comment above for why that's rare in practice.
+  const reviewHour = prefs?.weeklyReviewHour ?? FALLBACK_REVIEW_HOUR;
   const slot = mostRecentSlot(now, reviewDay, reviewHour);
 
   const weekLabel = isoWeekLabel(now);

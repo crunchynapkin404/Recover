@@ -41,6 +41,9 @@ export async function ingestAppleHealth(
       );
     const { computeDailyMetrics } = await import("@/lib/metrics");
     await computeDailyMetrics(userId, earliest);
+    const { onWellnessDataChanged } =
+      await import("@/lib/sync/wellness-changed");
+    await onWellnessDataChanged(userId);
   }
   return { days: days.size, earliest };
 }

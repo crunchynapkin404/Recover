@@ -25,18 +25,25 @@ const parameters = z.object({
 });
 
 async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
-  const { fieldsWritten } = await upsertWellness(ctx.userId, {
-    date: args.date,
-    sleepSecs: args.sleep_hours != null ? args.sleep_hours * 3600 : undefined,
-    weightKg: args.weight_kg,
-    energy1_10: args.energy,
-    soreness1_10: args.soreness,
-    stress1_10: args.stress,
-    hrvMs: args.hrv_ms,
-    restingHr: args.resting_hr,
-    mood: args.mood,
-    notes: args.notes,
-  });
+  // notify: false — the athlete is actively chatting with the coach right
+  // now; a separate morning-brief message (and push, 04:00-12:00) firing
+  // mid-conversation would be a surprising, redundant interruption.
+  const { fieldsWritten } = await upsertWellness(
+    ctx.userId,
+    {
+      date: args.date,
+      sleepSecs: args.sleep_hours != null ? args.sleep_hours * 3600 : undefined,
+      weightKg: args.weight_kg,
+      energy1_10: args.energy,
+      soreness1_10: args.soreness,
+      stress1_10: args.stress,
+      hrvMs: args.hrv_ms,
+      restingHr: args.resting_hr,
+      mood: args.mood,
+      notes: args.notes,
+    },
+    { notify: false }
+  );
   if (fieldsWritten === 0) {
     return { saved: false, reason: "No fields provided." };
   }

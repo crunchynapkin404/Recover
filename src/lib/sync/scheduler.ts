@@ -9,6 +9,15 @@ const STALE_RUNNING_MINUTES = 15;
 const MAX_ATTEMPTS = 5;
 /** Daily sync hour (server-local). */
 const SYNC_HOUR = 5;
+/**
+ * Server-local hour after which the morning brief fires even with
+ * incomplete data, and weekly/monthly review are re-checked. Their own
+ * due-since-slot guards only fire once actually due — this is what lets
+ * BOTH slots move to this hour without waiting for tomorrow's sync to
+ * notice the slot passed (see docs/specs/2026-07-26-event-driven-sync-
+ * triggers-design.md).
+ */
+const BACKSTOP_HOUR = 9;
 
 type SyncJob = typeof schema.syncJobs.$inferSelect;
 
@@ -259,36 +268,17 @@ export async function runSchedulerTick(
         kind: "incremental",
         runAfter: nextMorning(),
       });
-      // v0.9.2 daily plan adaptation — must run before the morning insight
-      // so the insight can explain today's changes. Guards inside.
+      // Daily plan adaptation + morning insight + morning push now share
+      // one hook with Apple Health ingest and manual wellness entry (event-
+      // driven sync triggers, docs/specs/2026-07-26-event-driven-sync-
+      // triggers-design.md) — whichever source completes first fires it.
+      // Guards inside each step; this never touches the sync job itself.
       try {
-        const { runDailyAdaptation } = await import("@/lib/week-plan/service");
-        await runDailyAdaptation(job.userId);
+        const { onWellnessDataChanged } =
+          await import("@/lib/sync/wellness-changed");
+        await onWellnessDataChanged(job.userId);
       } catch (err) {
-        logger.error("daily plan adaptation failed", {
-          userId: job.userId,
-          message: err instanceof Error ? err.message : String(err),
-        });
-      }
-      // Morning coach insight — must run before the push so the teaser
-      // exists; guards inside make it at-most-once/day, errors never
-      // touch the sync job.
-      try {
-        const { generateMorningInsight } =
-          await import("@/lib/morning-insight");
-        await generateMorningInsight(job.userId);
-      } catch (err) {
-        logger.error("morning insight failed", {
-          userId: job.userId,
-          message: err instanceof Error ? err.message : String(err),
-        });
-      }
-      // Morning readiness push — guards inside make this at-most-once/day.
-      try {
-        const { maybeSendMorningReadinessPush } = await import("@/lib/push");
-        await maybeSendMorningReadinessPush(job.userId);
-      } catch (err) {
-        logger.error("morning push hook failed", {
+        logger.error("wellness-changed hook failed", {
           userId: job.userId,
           message: err instanceof Error ? err.message : String(err),
         });
@@ -407,6 +397,19 @@ export async function runSchedulerTick(
     });
   }
 
+  // Morning brief backstop (+ weekly/monthly re-check past BACKSTOP_HOUR) —
+  // guarded like the rest, never breaks the tick.
+  try {
+    const backstopped = await runMorningBriefBackstop();
+    if (backstopped > 0) {
+      logger.info("morning brief backstop fired", { backstopped });
+    }
+  } catch (err) {
+    logger.error("morning brief backstop pass failed", {
+      message: err instanceof Error ? err.message : String(err),
+    });
+  }
+
   if (claimed.length > 0) {
     logger.info("scheduler tick", { claimed: claimed.length, failed });
   }
@@ -449,6 +452,116 @@ export async function refreshDailyDecay(): Promise<number> {
     }
   }
   return refreshed;
+}
+
+/**
+ * Past BACKSTOP_HOUR server-local, force a morning brief for every user
+ * with an active connection who hasn't had one fire today via the
+ * event-driven path — bypassing generateMorningInsight's calibrating gate,
+ * same honest degraded ("calibrating") text it already produces for a
+ * race-day athlete with no readiness yet. Also re-checks weekly/monthly
+ * review (bounded to a narrow window near the top of the hour — see
+ * `withinReviewWindow` below) so their slot can live at BACKSTOP_HOUR too.
+ *
+ * Each user is skipped entirely — before onWellnessDataChanged is even
+ * called — once getLatestMorningInsight shows today's brief already
+ * exists. onWellnessDataChanged unconditionally re-runs runDailyAdaptation
+ * regardless of whether the insight itself is a no-op, and adaptDay's
+ * red/amber band scaling is NOT idempotent: re-running it against an
+ * already-adapted day keeps scaling the same stored duration down every
+ * call (and appends a fresh plan_adjustments row every time). Running the
+ * full hook every tick past the hour is therefore only safe for a user who
+ * hasn't had a brief yet today — once one exists, only the weekly/monthly
+ * re-check below still applies to that user. Returns how many users
+ * actually got a new brief this call.
+ *
+ * `opts.userIds`, when given, additionally restricts the DB-wide connections
+ * query to that set — this is a test-only safety valve. This function's
+ * production call site (scheduler.ts's runSchedulerTick) always calls it
+ * with no options, so this restriction never applies outside tests. It
+ * exists because this is a DB-wide guarded scheduler pass, tested against a
+ * shared dev/live database (this repo's DB-gated tests have no separate
+ * test database), that writes real user-facing content (a "Still
+ * calibrating" chat message) into whichever real rows the unscoped query
+ * happens to match — an unscoped run previously fired for real against a
+ * live user during this suite's own test run, writing a stray message into
+ * their real coaching thread. See activity-poll.ts's `runActivityPolls` for
+ * the identical pattern, established after that function hit the same class
+ * of incident first.
+ */
+export async function runMorningBriefBackstop(
+  now = new Date(),
+  opts?: { userIds?: string[] }
+): Promise<number> {
+  if (now.getHours() < BACKSTOP_HOUR) return 0;
+
+  const active = await db.query.connections.findMany({
+    where: and(
+      eq(schema.connections.status, "active"),
+      opts?.userIds
+        ? inArray(schema.connections.userId, opts.userIds)
+        : undefined
+    ),
+    columns: { userId: true },
+  });
+  const userIds = [...new Set(active.map((c) => c.userId))];
+
+  const { onWellnessDataChanged } = await import("@/lib/sync/wellness-changed");
+  const { getLatestMorningInsight } = await import("@/lib/morning-insight");
+  const { generateWeeklyReview } = await import("@/lib/weekly-review");
+  const { generateMonthlyReport } = await import("@/lib/monthly-report");
+
+  // generateWeeklyReview/generateMonthlyReport can return without writing
+  // anything when data is insufficient (weekly: <3 non-Strava activities in
+  // 7 days; monthly: sessions < MIN_SESSIONS) — their own "has a message
+  // been written since the slot?" guards never advance in that case, so an
+  // unbounded re-check would re-run (and log-spam) on every tick past
+  // BACKSTOP_HOUR, forever, for an athlete who simply never accumulates
+  // enough data (the monthly case can never self-resolve, since last
+  // month's session count is fixed). Bounding the re-check to a ~5-minute
+  // window at the top of the hour keeps it to ~5 attempts/day at the 60s
+  // tick instead of ~900, while still tolerating a missed tick.
+  const withinReviewWindow =
+    now.getHours() === BACKSTOP_HOUR && now.getMinutes() < 5;
+
+  let fired = 0;
+  for (const userId of userIds) {
+    try {
+      const already = await getLatestMorningInsight(userId, now);
+      if (!already) {
+        const outcome = await onWellnessDataChanged(userId, {
+          now,
+          force: true,
+        });
+        if (outcome === "fired") fired++;
+      }
+    } catch (err) {
+      logger.error("morning brief backstop failed", {
+        userId,
+        message: err instanceof Error ? err.message : String(err),
+      });
+    }
+
+    if (!withinReviewWindow) continue;
+
+    try {
+      await generateWeeklyReview(userId);
+    } catch (err) {
+      logger.error("weekly review backstop check failed", {
+        userId,
+        message: err instanceof Error ? err.message : String(err),
+      });
+    }
+    try {
+      await generateMonthlyReport(userId);
+    } catch (err) {
+      logger.error("monthly report backstop check failed", {
+        userId,
+        message: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+  return fired;
 }
 
 /** Delete ghost (ephemeral) threads idle for 24h; messages cascade. */

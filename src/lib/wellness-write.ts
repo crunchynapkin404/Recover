@@ -31,13 +31,21 @@ export interface WellnessWriteInput {
 }
 
 /**
- * Merge-not-overwrite wellness upsert shared by the journal form action and
- * the log_wellness tool: only provided fields are written, then readiness is
- * recomputed from the changed date onward.
+ * Merge-not-overwrite wellness upsert shared by the journal form action, the
+ * log_wellness tool, and the CSV importer: only provided fields are
+ * written, then readiness is recomputed from the changed date onward.
+ *
+ * `opts.notify` (default true) gates the shared onWellnessDataChanged hook.
+ * Callers that write many rows in a loop (the CSV importer) or that fire
+ * while the athlete is already mid-conversation with the coach (the
+ * log_wellness tool) pass `{ notify: false }` and trigger the hook
+ * themselves at most once for the whole batch — same convention as
+ * createManualActivity's `{ recompute: false }` (src/app/import/actions.ts).
  */
 export async function upsertWellness(
   userId: string,
-  input: WellnessWriteInput
+  input: WellnessWriteInput,
+  opts?: { notify?: boolean }
 ): Promise<{ fieldsWritten: number }> {
   const values: Partial<typeof schema.wellnessDaily.$inferInsert> = {};
   if (input.sleepSecs != null) values.sleepSecs = Math.round(input.sleepSecs);
@@ -84,5 +92,10 @@ export async function upsertWellness(
     });
 
   await computeDailyMetrics(userId, input.date);
+  if (opts?.notify !== false) {
+    const { onWellnessDataChanged } =
+      await import("@/lib/sync/wellness-changed");
+    await onWellnessDataChanged(userId);
+  }
   return { fieldsWritten };
 }

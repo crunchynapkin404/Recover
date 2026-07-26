@@ -37,6 +37,6 @@ describe.skipIf(!hasDb)("scheduler morning-push hook", () => {
   it("calls the morning push after a successful job", async () => {
     const { runSchedulerTick } = await import("@/lib/sync/scheduler");
     await runSchedulerTick(async () => {});
-    expect(maybeSend).toHaveBeenCalledWith(TEST_USER);
+    expect(maybeSend).toHaveBeenCalledWith(TEST_USER, undefined);
   });
 });

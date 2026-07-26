@@ -140,6 +140,34 @@ describe.skipIf(!hasDb)("morning insight", () => {
     expect(await generateMorningInsight(USER)).toBe("skipped");
   });
 
+  it("force:true posts a degraded brief when calibrating, with real readiness untouched", async () => {
+    const { generateMorningInsight } = await import("@/lib/morning-insight");
+    await seedMetric({ readiness: null, band: "calibrating" });
+
+    const forced = await generateMorningInsight(USER, { force: true });
+    expect(forced).not.toBe("skipped");
+    if (forced === "skipped") throw new Error("unreachable");
+    expect(forced.text).toContain("Still calibrating");
+
+    // Same-day guard still applies even when forced twice.
+    expect(await generateMorningInsight(USER, { force: true })).toBe("skipped");
+  });
+
+  it("force:true posts a degraded brief when there is no daily_metrics row at all", async () => {
+    const { generateMorningInsight } = await import("@/lib/morning-insight");
+    // No seedMetric() call — zero rows for USER today.
+    const forced = await generateMorningInsight(USER, { force: true });
+    expect(forced).not.toBe("skipped");
+    if (forced === "skipped") throw new Error("unreachable");
+    expect(forced.text).toContain("Still calibrating");
+  });
+
+  it("force:false (default) still skips while calibrating, unchanged", async () => {
+    const { generateMorningInsight } = await import("@/lib/morning-insight");
+    await seedMetric({ readiness: null, band: "calibrating" });
+    expect(await generateMorningInsight(USER)).toBe("skipped");
+  });
+
   it("flags an overtraining warning in text and metadata", async () => {
     const { db, schema } = await import("@/lib/db");
     const { generateMorningInsight } = await import("@/lib/morning-insight");
