@@ -460,9 +460,20 @@ export async function refreshDailyDecay(): Promise<number> {
  * event-driven path — bypassing generateMorningInsight's calibrating gate,
  * same honest degraded ("calibrating") text it already produces for a
  * race-day athlete with no readiness yet. Also re-checks weekly/monthly
- * review so their slot can live at BACKSTOP_HOUR too. Everything called
- * here is independently idempotent, so running this every tick past the
- * hour is safe. Returns how many users actually got a new brief this call.
+ * review (bounded to a narrow window near the top of the hour — see
+ * `withinReviewWindow` below) so their slot can live at BACKSTOP_HOUR too.
+ *
+ * Each user is skipped entirely — before onWellnessDataChanged is even
+ * called — once getLatestMorningInsight shows today's brief already
+ * exists. onWellnessDataChanged unconditionally re-runs runDailyAdaptation
+ * regardless of whether the insight itself is a no-op, and adaptDay's
+ * red/amber band scaling is NOT idempotent: re-running it against an
+ * already-adapted day keeps scaling the same stored duration down every
+ * call (and appends a fresh plan_adjustments row every time). Running the
+ * full hook every tick past the hour is therefore only safe for a user who
+ * hasn't had a brief yet today — once one exists, only the weekly/monthly
+ * re-check below still applies to that user. Returns how many users
+ * actually got a new brief this call.
  *
  * `opts.userIds`, when given, additionally restricts the DB-wide connections
  * query to that set — this is a test-only safety valve. This function's
@@ -496,20 +507,43 @@ export async function runMorningBriefBackstop(
   const userIds = [...new Set(active.map((c) => c.userId))];
 
   const { onWellnessDataChanged } = await import("@/lib/sync/wellness-changed");
+  const { getLatestMorningInsight } = await import("@/lib/morning-insight");
   const { generateWeeklyReview } = await import("@/lib/weekly-review");
   const { generateMonthlyReport } = await import("@/lib/monthly-report");
+
+  // generateWeeklyReview/generateMonthlyReport can return without writing
+  // anything when data is insufficient (weekly: <3 non-Strava activities in
+  // 7 days; monthly: sessions < MIN_SESSIONS) — their own "has a message
+  // been written since the slot?" guards never advance in that case, so an
+  // unbounded re-check would re-run (and log-spam) on every tick past
+  // BACKSTOP_HOUR, forever, for an athlete who simply never accumulates
+  // enough data (the monthly case can never self-resolve, since last
+  // month's session count is fixed). Bounding the re-check to a ~5-minute
+  // window at the top of the hour keeps it to ~5 attempts/day at the 60s
+  // tick instead of ~900, while still tolerating a missed tick.
+  const withinReviewWindow =
+    now.getHours() === BACKSTOP_HOUR && now.getMinutes() < 5;
 
   let fired = 0;
   for (const userId of userIds) {
     try {
-      const outcome = await onWellnessDataChanged(userId, { now, force: true });
-      if (outcome === "fired") fired++;
+      const already = await getLatestMorningInsight(userId, now);
+      if (!already) {
+        const outcome = await onWellnessDataChanged(userId, {
+          now,
+          force: true,
+        });
+        if (outcome === "fired") fired++;
+      }
     } catch (err) {
       logger.error("morning brief backstop failed", {
         userId,
         message: err instanceof Error ? err.message : String(err),
       });
     }
+
+    if (!withinReviewWindow) continue;
+
     try {
       await generateWeeklyReview(userId);
     } catch (err) {
