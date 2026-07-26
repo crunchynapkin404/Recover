@@ -113,6 +113,11 @@ async function seed() {
     date: "2026-01-02",
     hrvMs: 55,
     notes: "drill wellness note",
+    // vo2max is one of nine wellness_daily columns importUserData's
+    // explicit insert column list previously omitted; a real (non-null)
+    // value here means compare()'s full-row deepEqual below actually
+    // exercises the fix instead of comparing null against null.
+    vo2max: 48.2,
   });
   await db.insert(schema.dailyMetrics).values({
     userId: DRILL_USER,

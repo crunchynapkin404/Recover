@@ -3,8 +3,10 @@
  * via a token-authed webhook (the iOS app POSTs on a schedule) and a
  * one-off file upload. There is no Apple API to pull from; Apple Health is
  * a push source. Data is mapped to WellnessPatch per date and written
- * through wellness-merge's per-field policy, where apple_health sits at the
- * bottom of every ladder (a dedicated wearable's reading wins).
+ * through wellness-merge's per-field policy, where apple_health ranks above
+ * intervals_icu in both the PHYSIOLOGY and BODY ladders, but still below
+ * manual entry and dedicated wearables/scales (whoop/oura/withings — a
+ * dedicated wearable's reading still wins over Apple Health's).
  */
 import type { WellnessPatch } from "@/lib/wellness-merge";
 
