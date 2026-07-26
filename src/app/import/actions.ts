@@ -42,23 +42,39 @@ export async function importWellnessCSV(
   let imported = 0;
   for (const row of rows) {
     try {
-      await upsertWellness(user.id, {
-        date: row.date,
-        hrvMs: row.hrvMs,
-        restingHr: row.restingHr,
-        sleepSecs:
-          row.sleepHours != null
-            ? Math.round(row.sleepHours * 3600)
-            : undefined,
-        weightKg: row.weightKg,
-        energy1_10: row.energy,
-        soreness1_10: row.soreness,
-        stress1_10: row.stress,
-      });
+      await upsertWellness(
+        user.id,
+        {
+          date: row.date,
+          hrvMs: row.hrvMs,
+          restingHr: row.restingHr,
+          sleepSecs:
+            row.sleepHours != null
+              ? Math.round(row.sleepHours * 3600)
+              : undefined,
+          weightKg: row.weightKg,
+          energy1_10: row.energy,
+          soreness1_10: row.soreness,
+          stress1_10: row.stress,
+        },
+        // Suppress the per-row hook: a multi-row historical backfill must
+        // not post a morning brief (and push, 04:00-12:00) from mid-import
+        // partial state, nor burn the day's one brief slot on it.
+        { notify: false }
+      );
       imported++;
     } catch {
       errors.push(`Failed to import row for ${row.date}`);
     }
+  }
+
+  // One wellness-changed notification for the whole batch instead of one
+  // per row (same convention as importActivityCSV's single computeDailyMetrics
+  // pass below) — only when a real import happened.
+  if (imported > 0) {
+    const { onWellnessDataChanged } =
+      await import("@/lib/sync/wellness-changed");
+    await onWellnessDataChanged(user.id);
   }
 
   revalidatePath("/");

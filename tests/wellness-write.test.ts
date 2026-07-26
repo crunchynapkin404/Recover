@@ -69,4 +69,23 @@ describe.skipIf(!hasDb)("upsertWellness", () => {
     await upsertWellness(USER, { date: localYmd(new Date()) });
     expect(onWellnessDataChanged).not.toHaveBeenCalled();
   });
+
+  // Fix 3: the CSV importer and the log_wellness MCP tool both pass
+  // { notify: false } so a multi-row backfill (or a mid-chat tool call)
+  // doesn't fire a morning brief/push per row.
+  it("does not call onWellnessDataChanged when notify:false is passed", async () => {
+    const { upsertWellness } = await import("@/lib/wellness-write");
+    await upsertWellness(
+      USER,
+      { date: localYmd(new Date()), hrvMs: 60 },
+      { notify: false }
+    );
+    expect(onWellnessDataChanged).not.toHaveBeenCalled();
+  });
+
+  it("still calls onWellnessDataChanged when notify is omitted (default true)", async () => {
+    const { upsertWellness } = await import("@/lib/wellness-write");
+    await upsertWellness(USER, { date: localYmd(new Date()), hrvMs: 60 }, {});
+    expect(onWellnessDataChanged).toHaveBeenCalledWith(USER);
+  });
 });
