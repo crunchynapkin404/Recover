@@ -189,6 +189,95 @@ describe("mergeWellnessPatch", () => {
     expect(hrv.changed).toEqual({});
   });
 
+  it("apple_health now outranks intervals_icu on physiology fields", () => {
+    const stale = mergeWellnessPatch(
+      { hrvMs: 62 },
+      { hrvMs: "apple_health" },
+      "apple_health",
+      { hrvMs: 58 },
+      "intervals_icu"
+    );
+    expect(stale.changed).toEqual({});
+
+    const takeover = mergeWellnessPatch(
+      { hrvMs: 58 },
+      { hrvMs: "intervals_icu" },
+      "intervals_icu",
+      { hrvMs: 62 },
+      "apple_health"
+    );
+    expect(takeover.changed).toEqual({ hrvMs: 62 });
+  });
+
+  it("apple_health now outranks intervals_icu on body-composition fields", () => {
+    const stale = mergeWellnessPatch(
+      { weightKg: 71 },
+      { weightKg: "apple_health" },
+      "apple_health",
+      { weightKg: 70.5 },
+      "intervals_icu"
+    );
+    expect(stale.changed).toEqual({});
+
+    const takeover = mergeWellnessPatch(
+      { weightKg: 70.5 },
+      { weightKg: "intervals_icu" },
+      "intervals_icu",
+      { weightKg: 71 },
+      "apple_health"
+    );
+    expect(takeover.changed).toEqual({ weightKg: 71 });
+  });
+
+  it("manual/whoop/oura/withings still outrank apple_health after the reorder", () => {
+    const vsWhoop = mergeWellnessPatch(
+      { hrvMs: 62 },
+      { hrvMs: "whoop" },
+      "whoop",
+      { hrvMs: 58 },
+      "apple_health"
+    );
+    expect(vsWhoop.changed).toEqual({});
+
+    const vsWithings = mergeWellnessPatch(
+      { weightKg: 71 },
+      { weightKg: "withings" },
+      "withings",
+      { weightKg: 70.5 },
+      "apple_health"
+    );
+    expect(vsWithings.changed).toEqual({});
+
+    const vsManual = mergeWellnessPatch(
+      { weightKg: 71 },
+      { weightKg: "manual" },
+      "manual",
+      { weightKg: 70.5 },
+      "apple_health"
+    );
+    expect(vsManual.changed).toEqual({});
+  });
+
+  it("new vitals/body fields follow their declared ladder", () => {
+    const bloodOxygen = mergeWellnessPatch(
+      {},
+      null,
+      "apple_health",
+      { bloodOxygenPct: 97 },
+      "apple_health"
+    );
+    expect(bloodOxygen.changed).toEqual({ bloodOxygenPct: 97 });
+
+    const bmiFromIntervals = mergeWellnessPatch(
+      { bmi: 22.9 },
+      { bmi: "apple_health" },
+      "apple_health",
+      { bmi: 23.1 },
+      "intervals_icu"
+    );
+    expect(bmiFromIntervals.changed).toEqual({});
+  });
+
   it("every patch field has a declared priority ladder", () => {
     const patch: Required<WellnessPatch> = {
       hrvMs: 1,
@@ -203,10 +292,15 @@ describe("mergeWellnessPatch", () => {
       bedEnd: new Date(),
       tempDeviationC: 1,
       respiratoryRate: 1,
+      bloodOxygenPct: 1,
+      wristTempC: 1,
       weightKg: 1,
       bodyFatPct: 1,
       systolic: 1,
       diastolic: 1,
+      bmi: 1,
+      leanMassKg: 1,
+      waistCm: 1,
       ctl: 1,
       atl: 1,
       eftp: 1,

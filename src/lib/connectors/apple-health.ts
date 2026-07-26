@@ -3,8 +3,10 @@
  * via a token-authed webhook (the iOS app POSTs on a schedule) and a
  * one-off file upload. There is no Apple API to pull from; Apple Health is
  * a push source. Data is mapped to WellnessPatch per date and written
- * through wellness-merge's per-field policy, where apple_health sits at the
- * bottom of every ladder (a dedicated wearable's reading wins).
+ * through wellness-merge's per-field policy, where apple_health ranks above
+ * intervals_icu in both the PHYSIOLOGY and BODY ladders, but still below
+ * manual entry and dedicated wearables/scales (whoop/oura/withings — a
+ * dedicated wearable's reading still wins over Apple Health's).
  */
 import type { WellnessPatch } from "@/lib/wellness-merge";
 
@@ -155,6 +157,37 @@ export function mapAppleHealth(
           break;
         case "blood_pressure_diastolic":
           set(out, day, "diastolic", qty);
+          break;
+        case "vo2_max":
+          set(out, day, "vo2max", qty);
+          break;
+        case "blood_oxygen_saturation":
+          // Apple reports a fraction (0–1); store as a percentage, like body fat.
+          set(out, day, "bloodOxygenPct", qty <= 1 ? qty * 100 : qty);
+          break;
+        case "apple_sleeping_wrist_temperature":
+          // Absolute skin temperature — NOT Oura's tempDeviationC (a
+          // baseline-relative delta). Never conflate the two.
+          set(
+            out,
+            day,
+            "wristTempC",
+            units === "degf" ? (qty - 32) / 1.8 : qty
+          );
+          break;
+        case "body_mass_index":
+          set(out, day, "bmi", qty);
+          break;
+        case "lean_body_mass":
+          set(
+            out,
+            day,
+            "leanMassKg",
+            units === "lb" || units === "lbs" ? qty * 0.453592 : qty
+          );
+          break;
+        case "waist_circumference":
+          set(out, day, "waistCm", units === "in" ? qty * 2.54 : qty);
           break;
         default:
           break; // unknown metric — ignore

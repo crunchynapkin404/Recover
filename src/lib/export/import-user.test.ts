@@ -40,6 +40,12 @@ describe.skipIf(!hasDb)("importUserData", () => {
       date: "2026-01-02",
       hrvMs: 55,
       notes: "felt good",
+      // vo2max is one of nine wellness_daily columns (5 new to this branch
+      // plus 4 pre-existing) that importUserData's explicit insert column
+      // list previously omitted — seeded with a real value here so the
+      // round-trip assertion below actually exercises the fix instead of
+      // just checking row counts.
+      vo2max: 48.2,
     });
     await db.insert(schema.dailyMetrics).values({
       userId: SOURCE_USER,
@@ -217,6 +223,10 @@ describe.skipIf(!hasDb)("importUserData", () => {
       where: eq(schema.wellnessDaily.userId, TARGET_USER),
     });
     expect(wellness.length).toBe(sample.wellness_daily.length);
+    // Guards against importUserData's explicit wellness_daily column list
+    // silently dropping fields (nullable columns don't get caught by
+    // TypeScript) — vo2max is one of nine that were previously omitted.
+    expect(wellness[0]?.vo2max).toBe(48.2);
 
     const dailyMetrics = await db.query.dailyMetrics.findMany({
       where: eq(schema.dailyMetrics.userId, TARGET_USER),

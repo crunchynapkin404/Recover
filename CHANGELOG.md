@@ -1,5 +1,28 @@
 # Changelog
 
+## v0.25.14 — 2026-07-26 — Apple Health Hybrid Vitals
+
+- **Apple Health now outranks intervals_icu for physiology and body-composition
+  fields.** intervals.icu's wellness sync runs once a day; Apple Health can
+  push every 15 minutes via Health Auto Export. Previously `apple_health`
+  ranked lowest in the wellness merge-priority ladder, so any same-day
+  freshness advantage got silently overwritten each morning by the next
+  intervals_icu sync. `apple_health` now ranks just above `intervals_icu` in
+  both the physiology (HRV, sleep, resting HR, etc.) and body-composition
+  (weight, body fat, blood pressure) priority ladders — still below manual
+  entry and any dedicated wearable/scale.
+- **Six new Apple Health metrics mapped**: VO2max, blood oxygen, wrist
+  temperature, BMI, lean body mass, and waist circumference now flow from
+  Health Auto Export into `wellness_daily` and appear as new trend cards on
+  the `/body` page. Wrist temperature is stored as its own absolute value —
+  not conflated with Oura's baseline-relative temperature deviation, which
+  uses a different scale entirely.
+- **Fixed a GDPR export/import round-trip gap**: the account-import path was
+  silently dropping 9 `wellness_daily` columns on restore (this release's 5
+  new fields, plus 4 from an earlier release — `vo2max`, `rampRate`, `pMax`,
+  `wPrime` — that had the same gap since v0.22). Export already carried every
+  column; import now does too.
+
 ## v0.25.13 — 2026-07-26 — Apple Health Ingest 405 Fix
 
 - **Fixed the Apple Health (Health Auto Export) ingest endpoint returning

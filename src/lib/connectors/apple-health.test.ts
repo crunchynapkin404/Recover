@@ -102,6 +102,80 @@ describe("mapAppleHealth", () => {
     expect(day.diastolic).toBe(74);
   });
 
+  it("maps vo2max, blood oxygen, wrist temperature, and body composition", () => {
+    const days = mapAppleHealth({
+      data: {
+        metrics: [
+          {
+            name: "vo2_max",
+            units: "ml/(kg·min)",
+            data: [{ date: "2026-07-15 06:00:00 +0000", qty: 52.3 }],
+          },
+          {
+            name: "blood_oxygen_saturation",
+            units: "%",
+            data: [{ date: "2026-07-15 06:00:00 +0000", qty: 0.97 }],
+          },
+          {
+            name: "apple_sleeping_wrist_temperature",
+            units: "degC",
+            data: [{ date: "2026-07-15 06:00:00 +0000", qty: 34.2 }],
+          },
+          {
+            name: "body_mass_index",
+            units: "count",
+            data: [{ date: "2026-07-15 06:00:00 +0000", qty: 22.9 }],
+          },
+          {
+            name: "lean_body_mass",
+            units: "kg",
+            data: [{ date: "2026-07-15 06:00:00 +0000", qty: 58.4 }],
+          },
+          {
+            name: "waist_circumference",
+            units: "cm",
+            data: [{ date: "2026-07-15 06:00:00 +0000", qty: 81 }],
+          },
+        ],
+      },
+    });
+    const day = days.get("2026-07-15")!;
+    expect(day.vo2max).toBe(52.3);
+    expect(day.bloodOxygenPct).toBeCloseTo(97, 5);
+    expect(day.wristTempC).toBe(34.2);
+    expect(day.bmi).toBe(22.9);
+    expect(day.leanMassKg).toBe(58.4);
+    expect(day.waistCm).toBe(81);
+  });
+
+  it("converts wrist temperature from Fahrenheit and lean mass/waist from imperial units", () => {
+    const days = mapAppleHealth({
+      data: {
+        metrics: [
+          {
+            name: "apple_sleeping_wrist_temperature",
+            units: "degF",
+            data: [{ date: "2026-07-15 06:00:00 +0000", qty: 93.56 }],
+          },
+          {
+            name: "lean_body_mass",
+            units: "lb",
+            data: [{ date: "2026-07-15 06:00:00 +0000", qty: 128.75 }],
+          },
+          {
+            name: "waist_circumference",
+            units: "in",
+            data: [{ date: "2026-07-15 06:00:00 +0000", qty: 32 }],
+          },
+        ],
+      },
+    });
+    const day = days.get("2026-07-15")!;
+    expect(day.wristTempC).toBeCloseTo(34.2, 1);
+    expect(day.leanMassKg).toBeCloseTo(58.4, 1);
+    expect(day.waistCm).toBeCloseTo(81.28, 1);
+  });
+
   it("ignores unknown metrics and malformed payloads", () => {
     expect(mapAppleHealth({}).size).toBe(0);
     expect(mapAppleHealth({ data: { metrics: "nope" } }).size).toBe(0);
