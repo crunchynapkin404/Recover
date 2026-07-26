@@ -84,5 +84,7 @@ export async function upsertWellness(
     });
 
   await computeDailyMetrics(userId, input.date);
+  const { onWellnessDataChanged } = await import("@/lib/sync/wellness-changed");
+  await onWellnessDataChanged(userId);
   return { fieldsWritten };
 }
