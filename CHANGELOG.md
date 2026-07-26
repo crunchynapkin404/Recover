@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.25.15 — 2026-07-26 — Apple Health Metric-Name Diagnostic
+
+- **Temporary diagnostic logging** for the Apple Health ingest endpoint: logs
+  the metric type identifiers present in each Health Auto Export payload
+  (never values). v0.25.14's VO2max mapping isn't populating despite the
+  athlete confirming VO2 data is tracked and selected for sync, while the
+  same release's blood-oxygen mapping works correctly — this log will show
+  the real metric name Health Auto Export sends so the guessed `"vo2_max"`
+  case can be corrected if wrong. To be removed once confirmed.
+
 ## v0.25.14 — 2026-07-26 — Apple Health Hybrid Vitals
 
 - **Apple Health now outranks intervals_icu for physiology and body-composition
