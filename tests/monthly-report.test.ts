@@ -37,6 +37,11 @@ describe("mostRecentMonthlySlot", () => {
     const jan = mostRecentMonthlySlot(new Date(2026, 0, 1, 2, 0), 4);
     expect([jan.getFullYear(), jan.getMonth()]).toEqual([2025, 11]);
   });
+
+  it("reuses weekly-review's DEFAULT_REVIEW_HOUR (9) as its own default", async () => {
+    const { DEFAULT_REVIEW_HOUR } = await import("@/lib/weekly-review");
+    expect(DEFAULT_REVIEW_HOUR).toBe(9);
+  });
 });
 
 describe.skipIf(!hasDb)("generateMonthlyReport", () => {

@@ -119,6 +119,11 @@ describe("mostRecentSlot", () => {
     expect(slot.getHours()).toBe(4);
     expect(slot.getTime()).toBeLessThan(now.getTime());
   });
+
+  it("DEFAULT_REVIEW_HOUR is 9 (aligned with the 09:00 backstop)", async () => {
+    const { DEFAULT_REVIEW_HOUR } = await import("@/lib/weekly-review");
+    expect(DEFAULT_REVIEW_HOUR).toBe(9);
+  });
 });
 
 describe.skipIf(!hasDb)("weekly review", () => {

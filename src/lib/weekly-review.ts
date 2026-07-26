@@ -4,9 +4,11 @@
  * is configured, deterministic template otherwise. Never throws to callers.
  *
  * Scheduling: fires from the post-sync hook once the user's configured weekly
- * slot (day + hour, default Monday 04:00 — before the ~05:00 sync) has passed
- * and no review exists since that slot. Exact-hour matching would silently
- * never fire, because syncs run at SYNC_HOUR, not at the user's review hour.
+ * slot (day + hour, default Monday DEFAULT_REVIEW_HOUR) has passed and no
+ * review exists since that slot. Also re-checked every scheduler tick past
+ * BACKSTOP_HOUR (scheduler.ts) so the slot doesn't have to wait for the next
+ * day's sync to notice it's due. Exact-hour matching would silently never
+ * fire, because syncs run at SYNC_HOUR, not at the user's review hour.
  */
 import { and, desc, eq, gte, lte, ne, count, avg, sum } from "drizzle-orm";
 import { generateText } from "ai";
@@ -17,6 +19,14 @@ import { recordLlmUsage } from "@/lib/llm-usage";
 import { buildSystemPrompt } from "@/lib/coach-persona";
 
 export const WEEKLY_THREAD_TITLE = "Weekly Review";
+/**
+ * Default weekly/monthly review hour when no user preference is set.
+ * Aligned with scheduler.ts's BACKSTOP_HOUR — both moved from 04:00 (before
+ * the old fixed 05:00 sync) to 09:00 now that the actual trigger is
+ * event-driven and this is the fallback catch-up check, not the primary
+ * path.
+ */
+export const DEFAULT_REVIEW_HOUR = 9;
 
 /** Returns "2026-W03" style ISO week string for a given date. */
 function isoWeekLabel(d: Date): string {
@@ -94,9 +104,9 @@ export async function generateWeeklyReview(userId: string): Promise<void> {
     where: eq(schema.notificationPrefs.userId, userId),
   });
   const reviewDay = prefs?.weeklyReviewDay ?? 1; // default Monday
-  // Default hour sits BEFORE the daily sync hour so the review lands with
-  // the Monday-morning sync; later hours land on the next sync after them.
-  const reviewHour = prefs?.weeklyReviewHour ?? 4;
+  // Default hour aligns with the scheduler's BACKSTOP_HOUR re-check — see
+  // DEFAULT_REVIEW_HOUR's own doc comment above.
+  const reviewHour = prefs?.weeklyReviewHour ?? DEFAULT_REVIEW_HOUR;
   const slot = mostRecentSlot(now, reviewDay, reviewHour);
 
   const weekLabel = isoWeekLabel(now);
