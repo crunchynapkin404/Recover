@@ -9,6 +9,15 @@ const STALE_RUNNING_MINUTES = 15;
 const MAX_ATTEMPTS = 5;
 /** Daily sync hour (server-local). */
 const SYNC_HOUR = 5;
+/**
+ * Server-local hour after which the morning brief fires even with
+ * incomplete data, and weekly/monthly review are re-checked. Their own
+ * due-since-slot guards only fire once actually due — this is what lets
+ * BOTH slots move to this hour without waiting for tomorrow's sync to
+ * notice the slot passed (see docs/specs/2026-07-26-event-driven-sync-
+ * triggers-design.md).
+ */
+const BACKSTOP_HOUR = 9;
 
 type SyncJob = typeof schema.syncJobs.$inferSelect;
 
@@ -388,6 +397,19 @@ export async function runSchedulerTick(
     });
   }
 
+  // Morning brief backstop (+ weekly/monthly re-check past BACKSTOP_HOUR) —
+  // guarded like the rest, never breaks the tick.
+  try {
+    const backstopped = await runMorningBriefBackstop();
+    if (backstopped > 0) {
+      logger.info("morning brief backstop fired", { backstopped });
+    }
+  } catch (err) {
+    logger.error("morning brief backstop pass failed", {
+      message: err instanceof Error ? err.message : String(err),
+    });
+  }
+
   if (claimed.length > 0) {
     logger.info("scheduler tick", { claimed: claimed.length, failed });
   }
@@ -430,6 +452,61 @@ export async function refreshDailyDecay(): Promise<number> {
     }
   }
   return refreshed;
+}
+
+/**
+ * Past BACKSTOP_HOUR server-local, force a morning brief for every user
+ * with an active connection who hasn't had one fire today via the
+ * event-driven path — bypassing generateMorningInsight's calibrating gate,
+ * same honest degraded ("calibrating") text it already produces for a
+ * race-day athlete with no readiness yet. Also re-checks weekly/monthly
+ * review so their slot can live at BACKSTOP_HOUR too. Everything called
+ * here is independently idempotent, so running this every tick past the
+ * hour is safe. Returns how many users actually got a new brief this call.
+ */
+export async function runMorningBriefBackstop(
+  now = new Date()
+): Promise<number> {
+  if (now.getHours() < BACKSTOP_HOUR) return 0;
+
+  const active = await db.execute(sql`
+    SELECT DISTINCT user_id FROM connections WHERE status = 'active'
+  `);
+  const userIds = (active.rows as { user_id: string }[]).map((r) => r.user_id);
+
+  const { onWellnessDataChanged } = await import("@/lib/sync/wellness-changed");
+  const { generateWeeklyReview } = await import("@/lib/weekly-review");
+  const { generateMonthlyReport } = await import("@/lib/monthly-report");
+
+  let fired = 0;
+  for (const userId of userIds) {
+    try {
+      const outcome = await onWellnessDataChanged(userId, { now, force: true });
+      if (outcome === "fired") fired++;
+    } catch (err) {
+      logger.error("morning brief backstop failed", {
+        userId,
+        message: err instanceof Error ? err.message : String(err),
+      });
+    }
+    try {
+      await generateWeeklyReview(userId);
+    } catch (err) {
+      logger.error("weekly review backstop check failed", {
+        userId,
+        message: err instanceof Error ? err.message : String(err),
+      });
+    }
+    try {
+      await generateMonthlyReport(userId);
+    } catch (err) {
+      logger.error("monthly report backstop check failed", {
+        userId,
+        message: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+  return fired;
 }
 
 /** Delete ghost (ephemeral) threads idle for 24h; messages cascade. */
