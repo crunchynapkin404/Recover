@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 const hasDb =
   !!process.env.DATABASE_URL && process.env.DATABASE_DRIVER === "pg";
@@ -95,8 +95,21 @@ describe.skipIf(!hasDb)("runMorningBriefBackstop", () => {
     });
     expect(fired).toBe(1);
 
+    // Scoped by kind: runMorningBriefBackstop also calls generateWeeklyReview
+    // and generateMonthlyReport for this same user in the same pass, and both
+    // create their own (here, empty) "weekly"/"monthly" chatThreads rows
+    // before bailing out on insufficient data — an unscoped findFirst races
+    // against those sibling rows (chatThreads.id is a random UUID, so
+    // ordering with no ORDER BY is not guaranteed) and can intermittently
+    // pick an empty thread instead of the "morning" one this test actually
+    // wrote to. Same scoping convention already used by
+    // monthly-report.test.ts / weekly-review.test.ts / morning-insight.test.ts
+    // for this identical query shape.
     const thread = await db.query.chatThreads.findFirst({
-      where: eq(schema.chatThreads.userId, USER),
+      where: and(
+        eq(schema.chatThreads.userId, USER),
+        eq(schema.chatThreads.kind, "morning")
+      ),
     });
     const msg = await db.query.chatMessages.findFirst({
       where: eq(schema.chatMessages.threadId, thread!.id),
