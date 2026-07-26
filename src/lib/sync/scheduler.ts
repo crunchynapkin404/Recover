@@ -463,16 +463,37 @@ export async function refreshDailyDecay(): Promise<number> {
  * review so their slot can live at BACKSTOP_HOUR too. Everything called
  * here is independently idempotent, so running this every tick past the
  * hour is safe. Returns how many users actually got a new brief this call.
+ *
+ * `opts.userIds`, when given, additionally restricts the DB-wide connections
+ * query to that set — this is a test-only safety valve. This function's
+ * production call site (scheduler.ts's runSchedulerTick) always calls it
+ * with no options, so this restriction never applies outside tests. It
+ * exists because this is a DB-wide guarded scheduler pass, tested against a
+ * shared dev/live database (this repo's DB-gated tests have no separate
+ * test database), that writes real user-facing content (a "Still
+ * calibrating" chat message) into whichever real rows the unscoped query
+ * happens to match — an unscoped run previously fired for real against a
+ * live user during this suite's own test run, writing a stray message into
+ * their real coaching thread. See activity-poll.ts's `runActivityPolls` for
+ * the identical pattern, established after that function hit the same class
+ * of incident first.
  */
 export async function runMorningBriefBackstop(
-  now = new Date()
+  now = new Date(),
+  opts?: { userIds?: string[] }
 ): Promise<number> {
   if (now.getHours() < BACKSTOP_HOUR) return 0;
 
-  const active = await db.execute(sql`
-    SELECT DISTINCT user_id FROM connections WHERE status = 'active'
-  `);
-  const userIds = (active.rows as { user_id: string }[]).map((r) => r.user_id);
+  const active = await db.query.connections.findMany({
+    where: and(
+      eq(schema.connections.status, "active"),
+      opts?.userIds
+        ? inArray(schema.connections.userId, opts.userIds)
+        : undefined
+    ),
+    columns: { userId: true },
+  });
+  const userIds = [...new Set(active.map((c) => c.userId))];
 
   const { onWellnessDataChanged } = await import("@/lib/sync/wellness-changed");
   const { generateWeeklyReview } = await import("@/lib/weekly-review");

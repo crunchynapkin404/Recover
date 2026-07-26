@@ -82,13 +82,17 @@ describe.skipIf(!hasDb)("runMorningBriefBackstop", () => {
 
   it("does nothing before the backstop hour", async () => {
     const { runMorningBriefBackstop } = await import("@/lib/sync/scheduler");
-    expect(await runMorningBriefBackstop(BEFORE_HOUR)).toBe(0);
+    expect(
+      await runMorningBriefBackstop(BEFORE_HOUR, { userIds: [USER] })
+    ).toBe(0);
   });
 
   it("forces a calibrating brief for a connected user past the backstop hour", async () => {
     const { runMorningBriefBackstop } = await import("@/lib/sync/scheduler");
     const { db, schema } = await import("@/lib/db");
-    const fired = await runMorningBriefBackstop(AFTER_HOUR);
+    const fired = await runMorningBriefBackstop(AFTER_HOUR, {
+      userIds: [USER],
+    });
     expect(fired).toBe(1);
 
     const thread = await db.query.chatThreads.findFirst({
@@ -103,10 +107,12 @@ describe.skipIf(!hasDb)("runMorningBriefBackstop", () => {
 
   it("is idempotent — a second call the same morning fires nothing new", async () => {
     const { runMorningBriefBackstop } = await import("@/lib/sync/scheduler");
-    await runMorningBriefBackstop(AFTER_HOUR);
+    await runMorningBriefBackstop(AFTER_HOUR, { userIds: [USER] });
     const laterSameMorning = new Date();
     laterSameMorning.setHours(10, 0, 0, 0);
-    const second = await runMorningBriefBackstop(laterSameMorning);
+    const second = await runMorningBriefBackstop(laterSameMorning, {
+      userIds: [USER],
+    });
     expect(second).toBe(0);
   });
 });
