@@ -12,6 +12,7 @@ import {
   RED_RECOVERY_MINS,
   STEP_DOWN,
 } from "./types";
+import { blockMins } from "@/lib/availability/types";
 import { withPurpose } from "@/lib/training-plan";
 
 export interface AdaptDayInput {
@@ -102,11 +103,11 @@ function handleMissedYesterday(
   for (const d of remaining) {
     const w = d.workouts[0]!;
     const cap = Math.round(w.durationMins * (1 + DAY_REDISTRIBUTE_CAP_PCT));
-    // interim: total-day minutes, not per-block — Task 6 replaces this
-    // with proper slot admission.
+    const block = d.availableBlocks[w.blockIdx];
+    const blockCapacity = block ? blockMins(block) : 0;
     w.durationMins = Math.min(
       cap,
-      Math.min(dayMins(d), Math.round(w.durationMins + share))
+      Math.min(blockCapacity, Math.round(w.durationMins + share))
     );
   }
   adjustments.push({

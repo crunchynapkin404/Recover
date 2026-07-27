@@ -4,6 +4,7 @@ import { adaptDay } from "./adapt-day";
 import { dayMins } from "./types";
 import type { DaySlot, ScheduledWorkout, WeekState } from "./types";
 import { withPurpose } from "@/lib/training-plan";
+import { blockMins } from "@/lib/availability/types";
 
 function blocksFor(mins: number): DaySlot["availableBlocks"] {
   return mins > 0
@@ -131,6 +132,39 @@ describe("adaptDay — missed yesterday", () => {
     });
     expect(r.week.days[0].status).toBe("missed");
     expect(r.week.days.some((d) => d.movedFrom)).toBe(false);
+  });
+
+  it("drop-and-redistribute caps growth to the occupied block's own capacity, not the day's total across blocks", () => {
+    const w = week([
+      D("2026-07-20", 60, null, "missed"),
+      D("2026-07-21", 60, { type: "Endurance", durationMins: 30 }),
+      D("2026-07-22", 60, { durationMins: 20 }),
+      D("2026-07-23", 60, null),
+      D("2026-07-24", 60, null),
+      D("2026-07-25", 60, null),
+      D("2026-07-26", 60, null),
+    ]);
+    // Today's day carries two blocks: the 20min block its own workout
+    // occupies (blockIdx 0), and an untouched, much roomier 200min sibling
+    // (blockIdx 1). The redistribute cap must be judged against the block
+    // the workout actually occupies (20min), never the day's 220min total.
+    w.days[2] = {
+      ...w.days[2],
+      availableBlocks: [
+        { start: null, end: null, mins: 20, energy: "normal", sports: null },
+        { start: null, end: null, mins: 200, energy: "normal", sports: null },
+      ],
+    };
+    const r = adaptDay({
+      week: w,
+      today: "2026-07-22",
+      band: "green",
+      yesterdayCompleted: false,
+    });
+    const grown = r.week.days[2].workouts[0]!;
+    expect(grown.durationMins).toBeLessThanOrEqual(
+      blockMins(r.week.days[2].availableBlocks[grown.blockIdx]!)
+    );
   });
 
   it("does nothing on yesterdayCompleted true or null", () => {
