@@ -154,6 +154,8 @@ describe("adaptDay — readiness and availability", () => {
     expect(today.workout!.type).toBe("Recovery");
     expect(today.workout!.durationMins).toBe(30);
     expect(today.status).toBe("adapted");
+    expect(today.workout!.purpose).toBe("recovery");
+    expect(today.workout!.minEffectiveMins).toBe(20);
     expect(
       r.adjustments.some(
         (a) => a.trigger === "low_readiness" && a.action === "swapped"
@@ -182,6 +184,22 @@ describe("adaptDay — readiness and availability", () => {
     const today = r.week.days[1];
     expect(today.workout!.type).toBe("Tempo");
     expect(today.workout!.durationMins).toBe(43); // round(50 × 0.85)
+    expect(today.workout!.purpose).toBe("threshold");
+    expect(today.workout!.minEffectiveMins).toBe(45);
+  });
+
+  it("amber: tempo steps down to endurance at 85% duration, purpose follows the new type", () => {
+    const r = adaptDay({
+      week: base(),
+      today: "2026-07-24",
+      band: "amber",
+      yesterdayCompleted: null,
+    });
+    const today = r.week.days[4];
+    expect(today.workout!.type).toBe("Endurance");
+    expect(today.workout!.durationMins).toBe(38); // round(45 × 0.85)
+    expect(today.workout!.purpose).toBe("aerobic_base");
+    expect(today.workout!.minEffectiveMins).toBe(40);
   });
 
   it("calibrating: readiness rules never fire", () => {

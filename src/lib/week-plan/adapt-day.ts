@@ -10,6 +10,7 @@ import {
   RED_RECOVERY_MINS,
   STEP_DOWN,
 } from "./types";
+import { withPurpose } from "@/lib/training-plan";
 
 export interface AdaptDayInput {
   week: WeekState;
@@ -192,13 +193,13 @@ export function adaptDay(input: AdaptDayInput): AdaptDayResult {
           week.days[todayIdx] = {
             ...t,
             status: "adapted",
-            workout: {
+            workout: withPurpose({
               ...t.workout,
               type: "Recovery",
               intensity: "Recovery",
               durationMins: RED_RECOVERY_MINS,
               description: "Easy recovery session — readiness is red",
-            },
+            }),
           };
         }
         adjustments.push({
@@ -227,12 +228,12 @@ export function adaptDay(input: AdaptDayInput): AdaptDayResult {
       const steppedType = isQuality(t.workout)
         ? (STEP_DOWN[t.workout.type] ?? "Endurance")
         : t.workout.type;
-      t.workout = {
+      t.workout = withPurpose({
         ...t.workout,
         type: steppedType,
         intensity: isQuality(before[0].workout) ? "Z3" : t.workout.intensity,
         durationMins: Math.round(t.workout.durationMins * AMBER_SCALE),
-      };
+      });
       t.status = "adapted";
       adjustments.push({
         date: t.date,
