@@ -275,6 +275,67 @@ describe.skipIf(!hasDb)("week-plan service", () => {
     expect(block?.adherencePct).toBe(Math.round((50 / 400) * 100));
   });
 
+  // Task 10: a rest-day bonus ride books its load as `unplannedLoad` (never
+  // `actualLoad`, never a session), but it's still real training stress —
+  // rollover's adherence math must count it in the week's total exactly as
+  // it would have if the load had landed in `actualLoad`, per the docstring
+  // on `recordUnplannedLoad`.
+  it("rollover folds unplannedLoad into the block's actualLoad without counting it as a session", async () => {
+    const { db, schema } = await import("@/lib/db");
+    const { rolloverWeekPlan } = await import("@/lib/week-plan/service");
+
+    const prevDays = Array.from({ length: 7 }, (_, i) => {
+      const date = addDaysYmd(lastWeekStart, i);
+      if (i === 0) {
+        return {
+          date,
+          availableBlocks: blocksFor(60),
+          availableMins: 60,
+          workouts: [
+            {
+              day: 0,
+              sport: "Run",
+              type: "Endurance",
+              durationMins: 45,
+              intensity: "Z1-Z2",
+              description: "Easy run",
+              blockIdx: 0,
+            },
+          ],
+          status: "completed" as const,
+          actualLoad: 50,
+        };
+      }
+      // A genuine rest day with an unplanned bonus ride booked onto it.
+      if (i === 2) {
+        return { ...restDay(date), unplannedLoad: 30 };
+      }
+      return restDay(date);
+    });
+    await db.insert(schema.weekPlans).values({
+      userId: USER,
+      planId,
+      weekStart: lastWeekStart,
+      skeletonWeek: 1,
+      days: prevDays,
+      status: "open",
+    });
+
+    expect(await rolloverWeekPlan(USER)).toBe("rolled");
+
+    const block = await db.query.trainingBlocks.findFirst({
+      where: and(
+        eq(schema.trainingBlocks.planId, planId),
+        eq(schema.trainingBlocks.weekNumber, 1)
+      ),
+    });
+    // 50 (planned, completed) + 30 (unplanned rest-day ride) = 80.
+    expect(block?.actualLoad).toBe(80);
+    // The rest day's status is untouched — still not a session.
+    expect(block?.actualSessions).toBe(1);
+    expect(block?.adherencePct).toBe(Math.round((80 / 400) * 100));
+  });
+
   it("runDailyAdaptation on a red morning adapts today and logs an adjustment", async () => {
     const { db, schema } = await import("@/lib/db");
     const { runDailyAdaptation, getOpenWeekPlan, listAdjustments } =

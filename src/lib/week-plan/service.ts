@@ -118,7 +118,15 @@ function weekActuals(days: DaySlot[]): {
   actualSessions: number;
 } {
   return {
-    actualLoad: days.reduce((s, d) => s + (d.actualLoad ?? 0), 0),
+    // unplannedLoad is real training stress too (a rest-day bonus ride still
+    // shows up in the athlete's legs) — it must count toward the week's
+    // total exactly as actualLoad does. The two fields only differ in
+    // whether they're allowed to trigger a replan; they're equal for
+    // adherence and for next week's ramp-clamp target.
+    actualLoad: days.reduce(
+      (s, d) => s + (d.actualLoad ?? 0) + (d.unplannedLoad ?? 0),
+      0
+    ),
     actualSessions: days.filter((d) => d.status === "completed").length,
   };
 }
@@ -294,6 +302,32 @@ export async function rolloverWeekPlan(
   return "rolled";
 }
 
+/**
+ * Books an activity's load onto a day. Work the plan did not ask for goes
+ * to `unplannedLoad`, which counts toward the week's actuals but never
+ * triggers a replan — an extra easy hour on a rest day must not cost you a
+ * session later in the week.
+ *
+ * A day that DID have a planned session books the whole activity's load as
+ * that session's `actualLoad`, even when the activity ran long (e.g. a
+ * planned 60min ride that turned into a 3hr group ride): there is no
+ * expected-load figure on a `PlannedWorkout` to diff against (only duration
+ * + a free-text intensity band), so splitting "the planned part" from "the
+ * excess" would mean inventing an unspecified estimate rather than reading
+ * one. The invariant this function exists to protect — no session is ever
+ * removed for running over on load — holds either way: nothing here (or in
+ * adaptDay) removes a session because of accumulated load.
+ *
+ * Pure, and exported for its tests: the only thing it decides is which
+ * field the load lands in.
+ */
+export function recordUnplannedLoad(day: DaySlot, load: number): DaySlot {
+  if (day.workouts.length === 0) {
+    return { ...day, unplannedLoad: (day.unplannedLoad ?? 0) + load };
+  }
+  return { ...day, actualLoad: load };
+}
+
 export async function runDailyAdaptation(
   userId: string,
   now = new Date()
@@ -354,6 +388,9 @@ export async function runDailyAdaptation(
   });
   const band = (metric?.band ?? "calibrating") as Band;
 
+  // adaptDay may scale, step down or move a session in response to
+  // readiness and availability. It must never remove one because the
+  // week's load ran ahead of target — that is what unplannedLoad is for.
   const result = adaptDay({
     week: {
       weekStart: week.weekStart,
@@ -366,10 +403,12 @@ export async function runDailyAdaptation(
   });
 
   if (matched) {
-    const slot = result.week.days.find((d) => d.date === yesterdayYmd);
-    if (slot) {
-      slot.activityId = matched.id;
-      slot.actualLoad = matched.load ?? undefined;
+    const idx = result.week.days.findIndex((d) => d.date === yesterdayYmd);
+    if (idx !== -1) {
+      result.week.days[idx] = {
+        ...recordUnplannedLoad(result.week.days[idx], matched.load ?? 0),
+        activityId: matched.id,
+      };
     }
   }
 

@@ -1,7 +1,12 @@
 import { describe, expect, it, beforeAll, afterAll, beforeEach } from "vitest";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
-import { getOpenWeekPlan, moveWorkout, swapWorkouts } from "./service";
+import {
+  getOpenWeekPlan,
+  moveWorkout,
+  recordUnplannedLoad,
+  swapWorkouts,
+} from "./service";
 import { blockFits } from "./types";
 import type { DaySlot, ScheduledWorkout } from "./types";
 import { withPurpose } from "@/lib/training-plan";
@@ -61,6 +66,53 @@ function weekDates(): string[] {
   return out;
 }
 const DATES = weekDates();
+
+/**
+ * Task 10: an activity's load always lands somewhere, but only a day WITH a
+ * planned session may book it as `actualLoad` — a day with none (a rest day,
+ * or a day whose session was already pulled elsewhere) must book it as
+ * `unplannedLoad` instead, so it counts toward the week's totals without
+ * ever reading as "this session's actual" and without ever triggering a
+ * replan. Pure — no database involved, so this isn't gated on `hasDb`.
+ */
+describe("recordUnplannedLoad", () => {
+  it("books load on a day with no planned session as unplanned", () => {
+    const d = recordUnplannedLoad(emptyDay(DATES[0]), 55);
+    expect(d.unplannedLoad).toBe(55);
+    expect(d.actualLoad).toBeUndefined();
+    expect(d.status).toBe("rest");
+    expect(d.workouts).toHaveLength(0);
+  });
+
+  it("books load on a planned day as the session's actual", () => {
+    const planned: DaySlot = {
+      ...emptyDay(DATES[0]),
+      status: "planned",
+      workouts: [sw({ sport: "Bike", durationMins: 60 })],
+    };
+    const d = recordUnplannedLoad(planned, 55);
+    expect(d.actualLoad).toBe(55);
+    expect(d.unplannedLoad).toBeUndefined();
+  });
+
+  it("never removes a workout, even when the activity's load far exceeds what was planned", () => {
+    const planned: DaySlot = {
+      ...emptyDay(DATES[0]),
+      status: "planned",
+      workouts: [sw({ sport: "Bike", type: "Intervals", durationMins: 90 })],
+    };
+    const d = recordUnplannedLoad(planned, 400);
+    expect(d.workouts).toHaveLength(1);
+    expect(d.workouts[0].durationMins).toBe(90);
+    expect(d.actualLoad).toBe(400);
+  });
+
+  it("accumulates repeated unplanned bookings on the same day rather than overwriting", () => {
+    const once = recordUnplannedLoad(emptyDay(DATES[0]), 30);
+    const twice = recordUnplannedLoad(once, 20);
+    expect(twice.unplannedLoad).toBe(50);
+  });
+});
 
 /**
  * Task 9b: moveWorkout and swapWorkouts must pick whichever block on the
