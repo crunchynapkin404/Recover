@@ -43,20 +43,20 @@ and their public feature board (313 requests, retrieved 2026-07-27 via
 > will always overwrite the default availability that you may have set
 > earlier for the entire week.
 
-Their board also shows what they have *not* built, which is where this
+Their board also shows what they have _not_ built, which is where this
 design goes further:
 
-| Their item | Status there | Votes |
-| --- | --- | --- |
-| Multiple availabilities per day | Potential | 279 |
-| Plan activity further in the future | Planned | 196 |
-| Availability beyond one week ahead | In Review | 152 |
-| Add holiday (weeks with *more* time) | Canceled | 82 |
-| Complement energy level with availability | **Completed** | 31 |
-| Running Y/N in weekly availability | In Review | 10 |
+| Their item                                | Status there  | Votes |
+| ----------------------------------------- | ------------- | ----- |
+| Multiple availabilities per day           | Potential     | 279   |
+| Plan activity further in the future       | Planned       | 196   |
+| Availability beyond one week ahead        | In Review     | 152   |
+| Add holiday (weeks with _more_ time)      | Canceled      | 82    |
+| Complement energy level with availability | **Completed** | 31    |
+| Running Y/N in weekly availability        | In Review     | 10    |
 
-One item is a lesson in what not to copy: *Remove fixed rest day after
-three days training* (Canceled, 31 votes) reports that JOIN inserts a rest
+One item is a lesson in what not to copy: _Remove fixed rest day after
+three days training_ (Canceled, 31 votes) reports that JOIN inserts a rest
 day after three training days "independent of my training load in the
 previous days or availability for the next days". The replan ladder below
 looks ahead specifically to avoid that failure.
@@ -66,7 +66,7 @@ looks ahead specifically to avoid that failure.
 - A standard week of availability per weekday, expressed as time blocks.
 - Date-specific overrides that always beat the default and survive later
   default edits, settable arbitrarily far ahead.
-- Sessions fit a *block*, never a daily sum; two blocks can carry two
+- Sessions fit a _block_, never a daily sum; two blocks can carry two
   sessions.
 - Each block carries an expected energy level and an optional sport
   restriction, both of which constrain what may be scheduled in it.
@@ -81,10 +81,10 @@ looks ahead specifically to avoid that failure.
 
 - **Athlete level / abilities.** Today the only level signal is starting
   CTL at plan generation (`src/lib/training-plan.ts:517`). A real level
-  model (experience, threshold power, progression tolerance) drives *which*
+  model (experience, threshold power, progression tolerance) drives _which_
   workouts get generated and is a separate spec, to follow this one.
 - **Recurring calendar items** (commutes, weekly club rides). The standard
-  week covers the recurring *time*; naming a recurring *event* is out.
+  week covers the recurring _time_; naming a recurring _event_ is out.
 - **Rewriting workout generation.** `generateWorkouts` keeps its current
   procedural shape; this spec adds metadata to what it produces
   (`purpose`, `minEffectiveMins`) and changes where the results are placed.
@@ -111,9 +111,9 @@ Both carry the same shape:
 
 ```ts
 interface AvailabilityBlock {
-  start: string | null;  // "HH:MM" local; null only on migrated legacy rows
+  start: string | null; // "HH:MM" local; null only on migrated legacy rows
   end: string | null;
-  mins: number;          // derived from start/end on write when both present
+  mins: number; // derived from start/end on write when both present
   energy: "easy" | "normal" | "full";
   sports: string[] | null; // null = any sport in the plan
 }
@@ -125,7 +125,7 @@ have no clock times. When `start` and `end` are both present, writes derive
 `blockMins(b)`, is the only reader.
 
 **Why two tables rather than one with a flag:** JOIN's precedence rule
-falls out for free. An override is a *complete replacement* of that date,
+falls out for free. An override is a _complete replacement_ of that date,
 never a delta, and editing defaults touches a different table entirely —
 there is no code path that could corrupt the rule. An override either
 exists or doesn't, which also makes "reset to standard" a row delete.
@@ -140,9 +140,9 @@ default".
 interface DaySlot {
   date: string;
   availableBlocks: AvailabilityBlock[]; // resolved for this date
-  workouts: PlannedWorkout[];           // was: workout: PlannedWorkout | null
-  availableMins: number;                // derived sum, read-only compat
-  unplannedLoad?: number;               // bonus work, see §7
+  workouts: PlannedWorkout[]; // was: workout: PlannedWorkout | null
+  availableMins: number; // derived sum, read-only compat
+  unplannedLoad?: number; // bonus work, see §7
   // ...existing: status, movedFrom, activityId, actualLoad, raceName
 }
 ```
@@ -160,8 +160,12 @@ is defect 4.
 `PlannedWorkout` gains:
 
 ```ts
-purpose: "recovery" | "aerobic_base" | "threshold" | "vo2max" | "long"
-       | "brick";
+purpose: "recovery" |
+  "aerobic_base" |
+  "threshold" |
+  "vo2max" |
+  "long" |
+  "brick";
 minEffectiveMins: number;
 ```
 
@@ -179,7 +183,7 @@ adds the tables:
 
 - `workout: X` → `workouts: [X]`; `workout: null` → `workouts: []`
 - `availableMins: N` where N > 0 → `availableBlocks: [{ start: null, end:
-  null, mins: N, energy: "normal", sports: null }]`; where N is 0 →
+null, mins: N, energy: "normal", sports: null }]`; where N is 0 →
   `availableBlocks: []`, since a zero-minute block is not a real
   opportunity. `availableMins` is retained either way
 - `purpose` / `minEffectiveMins` on legacy workouts are inferred from
@@ -203,11 +207,11 @@ requested dates in two queries and maps `resolveDay` over them.
 
 `prefillAvailability` is **deleted**, along with
 `src/lib/week-plan/availability.test.ts`'s prefill cases — its "copy last
-week" behaviour *is* defect 2, and `resolveWeek` replaces it outright.
+week" behaviour _is_ defect 2, and `resolveWeek` replaces it outright.
 `formatAvailability` in the same file survives and moves to the block
 formatting helpers. Rollover resolves the standard week plus any overrides
 already set for those dates. The Google Calendar hint keeps its current role: on the
-confirmation screen only, a heavily-booked day lowers the *suggestion*
+confirmation screen only, a heavily-booked day lowers the _suggestion_
 shown, never what is stored.
 
 ### 4. Placement
@@ -216,8 +220,13 @@ shown, never what is stored.
 a flat slot list across the week:
 
 ```ts
-interface Slot { dayIdx: number; blockIdx: number; mins: number;
-                 energy: Energy; sports: string[] | null; }
+interface Slot {
+  dayIdx: number;
+  blockIdx: number;
+  mins: number;
+  energy: Energy;
+  sports: string[] | null;
+}
 ```
 
 Sorted by `mins` descending, then `dayIdx`, then `blockIdx` — deterministic,
@@ -252,7 +261,7 @@ replanWeek(week: WeekState, resolved: Map<string, AvailabilityBlock[]>)
 
 It never regenerates the week. It recomputes each day's slots from the new
 availability, marks every session whose slot no longer admits it as
-*displaced*, leaves every other session byte-identical, and walks each
+_displaced_, leaves every other session byte-identical, and walks each
 displaced session down four rungs in order:
 
 1. **Move** — the nearest free slot in the week that admits it whole.
@@ -262,7 +271,7 @@ displaced session down four rungs in order:
 2. **Compress** — same purpose, duration reduced to the largest fitting
    value, never below `minEffectiveMins`. The description is regenerated to
    match (e.g. `5×4min` → `4×4min`).
-3. **Substitute** — a workout of a different purpose that *is* effective at
+3. **Substitute** — a workout of a different purpose that _is_ effective at
    the available duration, stepping toward the nearest stimulus:
    `vo2max → threshold → aerobic_base → recovery`, `brick → threshold`,
    and `long → aerobic_base`. Each step re-checks the new purpose's floor,
@@ -272,12 +281,12 @@ displaced session down four rungs in order:
 Each rung writes an `AdjustmentRecord` with the reason, so "What changed &
 why" explains the whole chain.
 
-**Look-ahead.** Rung 1 only considers days whose *resolved* availability
+**Look-ahead.** Rung 1 only considers days whose _resolved_ availability
 has room — including days later in the week whose overrides are already
 set. If the week's remaining capacity cannot hold the session whole, the
 ladder skips rung 1 rather than moving it into a dead end, and goes
 straight to compress. This is the specific failure the JOIN board reports
-as *Remove fixed rest day after three days training*.
+as _Remove fixed rest day after three days training_.
 
 Days with status `completed` or `missed` stay locked, as
 `applyAvailability` already does today.

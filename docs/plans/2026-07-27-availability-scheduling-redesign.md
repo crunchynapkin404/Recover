@@ -4,7 +4,7 @@
 
 **Goal:** Replace the copy-last-week availability model with a standard week of time blocks plus date-keyed overrides that always beat the default, and replace whole-week rematerialization with a deterministic replan ladder that preserves each session's training purpose.
 
-**Architecture:** A new pure module `src/lib/availability/` owns the block value type and the precedence resolver. `src/lib/week-plan/` gains two pure engines beside the existing ones: `slots.ts` (turn resolved blocks into placeable slots, decide admission) and `replan.ts` (the four-rung ladder). `materializeWeek` keeps its role for a *fresh* week but places into slots instead of days; `applyAvailability` stops calling it and calls `replanWeek` instead, so changing availability never regenerates the week. Two new tables persist defaults and overrides; the week row keeps holding the resolved snapshot.
+**Architecture:** A new pure module `src/lib/availability/` owns the block value type and the precedence resolver. `src/lib/week-plan/` gains two pure engines beside the existing ones: `slots.ts` (turn resolved blocks into placeable slots, decide admission) and `replan.ts` (the four-rung ladder). `materializeWeek` keeps its role for a _fresh_ week but places into slots instead of days; `applyAvailability` stops calling it and calls `replanWeek` instead, so changing availability never regenerates the week. Two new tables persist defaults and overrides; the week row keeps holding the resolved snapshot.
 
 **Tech Stack:** Next.js 16 App Router (read `node_modules/next/dist/docs/` before UI work — this Next has breaking changes), Drizzle ORM + Postgres, Vitest (pure-function suites + `describe.skipIf(!hasDb)` integration suites + component tests), zod tool definitions in `src/lib/tools/registry.ts`.
 
@@ -73,10 +73,12 @@ src/lib/tools/
 ### Task 1: Availability block value type
 
 **Files:**
+
 - Create: `src/lib/availability/types.ts`
 - Test: `src/lib/availability/types.test.ts`
 
 **Interfaces:**
+
 - Consumes: nothing.
 - Produces: `AvailabilityBlock`, `Energy`, `Purpose`, `blockMins(b: AvailabilityBlock): number`, `ENERGY_CEILING: Record<Energy, Purpose[]>`, `PURPOSE_FLOORS: Record<Purpose, number>`, `SUBSTITUTE_TO: Partial<Record<Purpose, Purpose>>`, `validateBlocks(blocks: AvailabilityBlock[]): string | null`, `MAX_SESSIONS_PER_DAY = 2`.
 
@@ -105,7 +107,9 @@ const block = (o: Partial<AvailabilityBlock> = {}): AvailabilityBlock => ({
 
 describe("blockMins", () => {
   it("derives minutes from clock times", () => {
-    expect(blockMins(block({ start: "06:30", end: "07:15", mins: 999 }))).toBe(45);
+    expect(blockMins(block({ start: "06:30", end: "07:15", mins: 999 }))).toBe(
+      45
+    );
   });
 
   it("falls back to stored mins on legacy blocks with no times", () => {
@@ -124,9 +128,9 @@ describe("validateBlocks", () => {
   });
 
   it("rejects an end before its start", () => {
-    expect(validateBlocks([block({ start: "19:00", end: "18:00", mins: 0 })])).toBe(
-      "A block must end after it starts."
-    );
+    expect(
+      validateBlocks([block({ start: "19:00", end: "18:00", mins: 0 })])
+    ).toBe("A block must end after it starts.");
   });
 
   it("rejects overlapping blocks", () => {
@@ -188,12 +192,7 @@ Expected: FAIL — `Failed to resolve import "./types"`.
 export type Energy = "easy" | "normal" | "full";
 
 export type Purpose =
-  | "recovery"
-  | "aerobic_base"
-  | "threshold"
-  | "vo2max"
-  | "brick"
-  | "long";
+  "recovery" | "aerobic_base" | "threshold" | "vo2max" | "brick" | "long";
 
 export interface AvailabilityBlock {
   /** "HH:MM" local. null only on rows migrated from the pre-block model. */
@@ -254,7 +253,11 @@ export function blockMins(b: AvailabilityBlock): number {
 /** Null when the list is a legal day. An empty list is legal: "unavailable". */
 export function validateBlocks(blocks: AvailabilityBlock[]): string | null {
   for (const b of blocks) {
-    if (b.start != null && b.end != null && toMinutes(b.end) <= toMinutes(b.start)) {
+    if (
+      b.start != null &&
+      b.end != null &&
+      toMinutes(b.end) <= toMinutes(b.start)
+    ) {
       return "A block must end after it starts.";
     }
   }
@@ -288,10 +291,12 @@ git commit -m "feat(availability): block value type, energy ceilings and purpose
 ### Task 2: The precedence rule
 
 **Files:**
+
 - Create: `src/lib/availability/resolve-day.ts`
 - Test: `src/lib/availability/resolve-day.test.ts`
 
 **Interfaces:**
+
 - Consumes: `AvailabilityBlock` from Task 1.
 - Produces: `resolveDay(defaults: AvailabilityBlock[], override: AvailabilityBlock[] | null): AvailabilityBlock[]`.
 
@@ -390,10 +395,12 @@ git commit -m "feat(availability): date override always beats the weekday defaul
 ### Task 3: Schema and migration
 
 **Files:**
+
 - Modify: `src/lib/db/schema.ts` (add two tables after `weekPlans`, add one column to `weekPlans`)
 - Create: `drizzle/00NN_*.sql` (generated, then hand-edited to add the backfill)
 
 **Interfaces:**
+
 - Consumes: nothing at runtime.
 - Produces: `schema.availabilityDefaults`, `schema.availabilityOverrides`, `schema.weekPlans.availabilityConfirmedAt`.
 
@@ -435,7 +442,12 @@ export const availabilityDefaults = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (t) => [uniqueIndex("availability_defaults_user_weekday_uq").on(t.userId, t.weekday)]
+  (t) => [
+    uniqueIndex("availability_defaults_user_weekday_uq").on(
+      t.userId,
+      t.weekday
+    ),
+  ]
 );
 
 /**
@@ -460,7 +472,9 @@ export const availabilityOverrides = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (t) => [uniqueIndex("availability_overrides_user_date_uq").on(t.userId, t.date)]
+  (t) => [
+    uniqueIndex("availability_overrides_user_date_uq").on(t.userId, t.date),
+  ]
 );
 ```
 
@@ -556,11 +570,13 @@ git commit -m "feat(db): availability defaults and overrides, week days backfill
 ### Task 4: Workout purpose and effective floor
 
 **Files:**
+
 - Modify: `src/lib/training-plan.ts:12-19` (the `PlannedWorkout` interface), and every literal that constructs a workout in `generateRunningWorkouts` (`:219`), `generateCyclingWorkouts` (`:306`), `generateTriathlonWorkouts` (`:375`)
 - Modify: `src/lib/race/taper.ts` (`raceWeekWorkouts` also constructs workouts)
 - Test: `src/lib/training-plan.test.ts` (add cases; create the file if absent)
 
 **Interfaces:**
+
 - Consumes: `Purpose`, `PURPOSE_FLOORS` from Task 1.
 - Produces: `PlannedWorkout` with `purpose: Purpose` and `minEffectiveMins: number`; `PURPOSE_BY_TYPE: Record<string, Purpose>`; `withPurpose(w: Omit<PlannedWorkout, "purpose" | "minEffectiveMins">): PlannedWorkout`.
 
@@ -569,7 +585,11 @@ git commit -m "feat(db): availability defaults and overrides, week days backfill
 ```ts
 // src/lib/training-plan.test.ts  (add to the existing describe blocks if present)
 import { describe, expect, it } from "vitest";
-import { generateWorkouts, withPurpose, PURPOSE_BY_TYPE } from "./training-plan";
+import {
+  generateWorkouts,
+  withPurpose,
+  PURPOSE_BY_TYPE,
+} from "./training-plan";
 
 describe("workout purpose", () => {
   it("maps every generated type to a purpose one-to-one", () => {
@@ -674,11 +694,11 @@ Also update the step-down site in `src/lib/week-plan/materialize.ts:270-277`,
 which builds a modified copy — it must restamp the purpose:
 
 ```ts
-          workout = withPurpose({
-            ...w,
-            type: steppedType,
-            intensity: "Z1-Z2",
-          });
+workout = withPurpose({
+  ...w,
+  type: steppedType,
+  intensity: "Z1-Z2",
+});
 ```
 
 and the race step-down at `materialize.ts:353-359`:
@@ -712,6 +732,7 @@ This is the widest change in the plan. Land it complete — a half-migrated
 `DaySlot` dragged through Tasks 6–8 is the failure mode to avoid.
 
 **Files:**
+
 - Modify: `src/lib/week-plan/types.ts:7-18`
 - Modify: `src/lib/week-plan/materialize.ts`, `src/lib/week-plan/adapt-day.ts`, `src/lib/week-plan/service.ts`
 - Modify: `src/components/plan/week-strip.tsx`, `src/components/plan/day-actions.tsx`, `src/components/train/week-day-list.tsx`, `src/components/plan/today-card.tsx`
@@ -719,6 +740,7 @@ This is the widest change in the plan. Land it complete — a half-migrated
 - Test: existing suites are the gate; add one case to `src/lib/week-plan/materialize.test.ts`
 
 **Interfaces:**
+
 - Consumes: `AvailabilityBlock`, `blockMins` from Task 1.
 - Produces: `DaySlot` with `availableBlocks: AvailabilityBlock[]`, `workouts: PlannedWorkout[]`, `unplannedLoad?: number`; helper `dayMins(d: DaySlot): number`.
 
@@ -733,8 +755,20 @@ describe("DaySlot shape", () => {
     const day = {
       date: "2026-08-03",
       availableBlocks: [
-        { start: "06:30", end: "07:15", mins: 45, energy: "normal" as const, sports: null },
-        { start: "19:00", end: "20:00", mins: 60, energy: "normal" as const, sports: null },
+        {
+          start: "06:30",
+          end: "07:15",
+          mins: 45,
+          energy: "normal" as const,
+          sports: null,
+        },
+        {
+          start: "19:00",
+          end: "20:00",
+          mins: 60,
+          energy: "normal" as const,
+          sports: null,
+        },
       ],
       workouts: [],
       availableMins: 999, // deliberately wrong: nothing may trust it
@@ -828,10 +862,12 @@ git commit -m "refactor(week-plan): a day carries blocks and a list of workouts"
 ### Task 6: Slots and admission
 
 **Files:**
+
 - Create: `src/lib/week-plan/slots.ts`
 - Test: `src/lib/week-plan/slots.test.ts`
 
 **Interfaces:**
+
 - Consumes: `AvailabilityBlock`, `blockMins`, `ENERGY_CEILING`, `MAX_SESSIONS_PER_DAY`, `PURPOSE_FLOORS`, `SUBSTITUTE_TO` (Task 1); `PlannedWorkout`, `withPurpose` (Task 4); `DaySlot`, `isQuality` (Task 5).
 - Produces: `Slot { dayIdx: number; blockIdx: number; mins: number; energy: Energy; sports: string[] | null }`, `buildSlots(days: DaySlot[]): Slot[]`, `admits(slot: Slot, w: PlannedWorkout, days: DaySlot[], taken: Set<string>): boolean`, `slotKey(s: Slot): string`, `TYPE_BY_PURPOSE`, `fitToBlock(w: PlannedWorkout, roomMins: number): { workout: PlannedWorkout; how: "whole" | "compressed" | "substituted" } | null`.
 
@@ -891,11 +927,13 @@ describe("buildSlots", () => {
       day("2026-08-04", [{ mins: 180 }]),
       day("2026-08-05", []),
     ]);
-    expect(buildSlots(days).map((s) => [s.dayIdx, s.blockIdx, s.mins])).toEqual([
-      [1, 0, 180],
-      [0, 1, 60],
-      [0, 0, 45],
-    ]);
+    expect(buildSlots(days).map((s) => [s.dayIdx, s.blockIdx, s.mins])).toEqual(
+      [
+        [1, 0, 180],
+        [0, 1, 60],
+        [0, 0, 45],
+      ]
+    );
   });
 
   it("emits nothing for a day with no blocks", () => {
@@ -908,28 +946,38 @@ describe("admits", () => {
 
   it("refuses a session longer than the block", () => {
     const days = week([day("2026-08-03", [{ mins: 45 }])]);
-    expect(admits(buildSlots(days)[0], workout({ durationMins: 60 }), days, empty)).toBe(false);
+    expect(
+      admits(buildSlots(days)[0], workout({ durationMins: 60 }), days, empty)
+    ).toBe(false);
   });
 
   it("refuses a session the block's sport list excludes", () => {
     const days = week([day("2026-08-03", [{ mins: 90, sports: ["Run"] }])]);
-    expect(admits(buildSlots(days)[0], workout({ sport: "Bike" }), days, empty)).toBe(false);
+    expect(
+      admits(buildSlots(days)[0], workout({ sport: "Bike" }), days, empty)
+    ).toBe(false);
   });
 
   it("admits any sport when the block names none", () => {
     const days = week([day("2026-08-03", [{ mins: 90, sports: null }])]);
-    expect(admits(buildSlots(days)[0], workout({ sport: "Bike" }), days, empty)).toBe(true);
+    expect(
+      admits(buildSlots(days)[0], workout({ sport: "Bike" }), days, empty)
+    ).toBe(true);
   });
 
   it("refuses vo2max in an easy block", () => {
     const days = week([day("2026-08-03", [{ mins: 90, energy: "easy" }])]);
-    expect(admits(buildSlots(days)[0], workout({ purpose: "vo2max" }), days, empty)).toBe(false);
+    expect(
+      admits(buildSlots(days)[0], workout({ purpose: "vo2max" }), days, empty)
+    ).toBe(false);
   });
 
   it("admits threshold in a normal block but not vo2max", () => {
     const days = week([day("2026-08-03", [{ mins: 90, energy: "normal" }])]);
     const s = buildSlots(days)[0];
-    expect(admits(s, workout({ purpose: "threshold", type: "Tempo" }), days, empty)).toBe(true);
+    expect(
+      admits(s, workout({ purpose: "threshold", type: "Tempo" }), days, empty)
+    ).toBe(true);
     expect(admits(s, workout({ purpose: "vo2max" }), days, empty)).toBe(false);
   });
 
@@ -939,17 +987,31 @@ describe("admits", () => {
       day("2026-08-04", [{ mins: 90 }]),
     ]);
     const target = buildSlots(days).find((s) => s.dayIdx === 1)!;
-    expect(admits(target, workout({ type: "Intervals" }), days, empty)).toBe(false);
+    expect(admits(target, workout({ type: "Intervals" }), days, empty)).toBe(
+      false
+    );
   });
 
   it("refuses a third session on a day that already has two", () => {
     const days = week([
-      day("2026-08-03", [{ mins: 60 }, { mins: 60 }, { mins: 60 }],
-        [workout({ type: "Endurance", purpose: "aerobic_base" }),
-         workout({ type: "Endurance", purpose: "aerobic_base" })]),
+      day(
+        "2026-08-03",
+        [{ mins: 60 }, { mins: 60 }, { mins: 60 }],
+        [
+          workout({ type: "Endurance", purpose: "aerobic_base" }),
+          workout({ type: "Endurance", purpose: "aerobic_base" }),
+        ]
+      ),
     ]);
     const third = buildSlots(days)[2];
-    expect(admits(third, workout({ type: "Endurance", purpose: "aerobic_base" }), days, empty)).toBe(false);
+    expect(
+      admits(
+        third,
+        workout({ type: "Endurance", purpose: "aerobic_base" }),
+        days,
+        empty
+      )
+    ).toBe(false);
   });
 
   it("refuses a slot already taken in this pass", () => {
@@ -1072,7 +1134,8 @@ export function admits(
     // Never two quality sessions on one day, nor on adjacent days.
     if (day.workouts.some((x) => isQuality(x))) return false;
     const neighbours = [days[slot.dayIdx - 1], days[slot.dayIdx + 1]];
-    if (neighbours.some((n) => n?.workouts.some((x) => isQuality(x)))) return false;
+    if (neighbours.some((n) => n?.workouts.some((x) => isQuality(x))))
+      return false;
   }
   return true;
 }
@@ -1083,11 +1146,18 @@ a fresh week (Task 7) and a replan (Task 8) must shrink and substitute
 identically:
 
 ```ts
-import { PURPOSE_FLOORS, SUBSTITUTE_TO, type Purpose } from "@/lib/availability/types";
+import {
+  PURPOSE_FLOORS,
+  SUBSTITUTE_TO,
+  type Purpose,
+} from "@/lib/availability/types";
 import { withPurpose } from "@/lib/training-plan";
 
 /** The display label a substituted purpose is shown under. */
-export const TYPE_BY_PURPOSE: Record<Purpose, { type: string; intensity: string }> = {
+export const TYPE_BY_PURPOSE: Record<
+  Purpose,
+  { type: string; intensity: string }
+> = {
   recovery: { type: "Recovery", intensity: "Recovery" },
   aerobic_base: { type: "Endurance", intensity: "Z1-Z2" },
   long: { type: "Long", intensity: "Z1-Z2" },
@@ -1107,7 +1177,10 @@ export const TYPE_BY_PURPOSE: Record<Purpose, { type: string; intensity: string 
 export function fitToBlock(
   w: PlannedWorkout,
   roomMins: number
-): { workout: PlannedWorkout; how: "whole" | "compressed" | "substituted" } | null {
+): {
+  workout: PlannedWorkout;
+  how: "whole" | "compressed" | "substituted";
+} | null {
   if (roomMins <= 0) return null;
   if (roomMins >= w.durationMins) return { workout: w, how: "whole" };
   if (roomMins >= w.minEffectiveMins) {
@@ -1163,10 +1236,12 @@ git commit -m "feat(week-plan): sessions are placed into blocks, not into daily 
 ### Task 7: `materializeWeek` places into slots
 
 **Files:**
+
 - Modify: `src/lib/week-plan/materialize.ts` (the placement section, roughly `:175-305`)
 - Test: `src/lib/week-plan/materialize.test.ts`
 
 **Interfaces:**
+
 - Consumes: `buildSlots`, `admits`, `slotKey` (Task 6).
 - Produces: `MaterializeInput.availableBlocksPerDay: AvailabilityBlock[][]` replacing `availabilityMins: number[]`.
 
@@ -1176,11 +1251,22 @@ git commit -m "feat(week-plan): sessions are placed into blocks, not into daily 
 // src/lib/week-plan/materialize.test.ts  (append)
 describe("materializeWeek — block fitting", () => {
   const blocks = (mins: number[]) =>
-    mins.map((m) => ({ start: null, end: null, mins: m, energy: "full" as const, sports: null }));
+    mins.map((m) => ({
+      start: null,
+      end: null,
+      mins: m,
+      energy: "full" as const,
+      sports: null,
+    }));
 
   const base = {
     weekStart: "2026-08-03",
-    skeleton: { weekNumber: 3, phase: "build" as const, targetLoadTotal: 400, targetSessions: 4 },
+    skeleton: {
+      weekNumber: 3,
+      phase: "build" as const,
+      targetLoadTotal: 400,
+      targetSessions: 4,
+    },
     prevWeek: null,
     recentBands: [],
     raceType: "Gran Fondo",
@@ -1193,14 +1279,19 @@ describe("materializeWeek — block fitting", () => {
       ...base,
       availableBlocksPerDay: [
         blocks([45, 60]), // 105 total, but no block over 60
-        blocks([]), blocks([]), blocks([]), blocks([]), blocks([]), blocks([]),
+        blocks([]),
+        blocks([]),
+        blocks([]),
+        blocks([]),
+        blocks([]),
+        blocks([]),
       ],
     });
     for (const d of r.week.days) {
       for (const w of d.workouts) {
-        expect(Math.max(0, ...d.availableBlocks.map((b) => b.mins))).toBeGreaterThanOrEqual(
-          w.durationMins
-        );
+        expect(
+          Math.max(0, ...d.availableBlocks.map((b) => b.mins))
+        ).toBeGreaterThanOrEqual(w.durationMins);
       }
     }
   });
@@ -1209,8 +1300,13 @@ describe("materializeWeek — block fitting", () => {
     const r = materializeWeek({
       ...base,
       availableBlocksPerDay: [
-        blocks([50]), blocks([50]), blocks([50]), blocks([50]),
-        blocks([50]), blocks([50]), blocks([50]),
+        blocks([50]),
+        blocks([50]),
+        blocks([50]),
+        blocks([50]),
+        blocks([50]),
+        blocks([50]),
+        blocks([50]),
       ],
     });
     // Every placed session is at or above its own floor: nothing was
@@ -1226,15 +1322,22 @@ describe("materializeWeek — block fitting", () => {
     const r = materializeWeek({
       ...base,
       availableBlocksPerDay: [
-        blocks([30]), blocks([30]), blocks([30]), blocks([30]),
-        blocks([30]), blocks([30]), blocks([30]),
+        blocks([30]),
+        blocks([30]),
+        blocks([30]),
+        blocks([30]),
+        blocks([30]),
+        blocks([30]),
+        blocks([30]),
       ],
     });
     const planned = r.week.days.reduce((s, d) => s + d.workouts.length, 0);
     // Whatever the engine could not place must be accounted for.
     if (planned < base.skeleton.targetSessions) {
       expect(
-        r.adjustments.some((a) => a.action === "dropped" || a.action === "swapped")
+        r.adjustments.some(
+          (a) => a.action === "dropped" || a.action === "swapped"
+        )
       ).toBe(true);
     }
   });
@@ -1245,7 +1348,12 @@ describe("materializeWeek — block fitting", () => {
       skeleton: { ...base.skeleton, targetSessions: 2 },
       availableBlocksPerDay: [
         blocks([90, 90]),
-        blocks([]), blocks([]), blocks([]), blocks([]), blocks([]), blocks([]),
+        blocks([]),
+        blocks([]),
+        blocks([]),
+        blocks([]),
+        blocks([]),
+        blocks([]),
       ],
     });
     expect(r.week.days[0].workouts.length).toBe(2);
@@ -1264,115 +1372,128 @@ In `MaterializeInput`, replace `availabilityMins: number[]` with
 `availableBlocksPerDay: AvailabilityBlock[][]`. Then:
 
 ```ts
-  const days: DaySlot[] = dates.map((date, i) => {
-    const availableBlocks = input.availableBlocksPerDay[i] ?? [];
-    return {
-      date,
-      availableBlocks,
-      workouts: [],
-      availableMins: dayMins({ availableBlocks }),
-      status: "rest",
-    };
-  });
+const days: DaySlot[] = dates.map((date, i) => {
+  const availableBlocks = input.availableBlocksPerDay[i] ?? [];
+  return {
+    date,
+    availableBlocks,
+    workouts: [],
+    availableMins: dayMins({ availableBlocks }),
+    status: "rest",
+  };
+});
 
-  const hoursBudget = days.reduce((s, d) => s + dayMins(d), 0) / 60;
-  const usableDays = days.filter((d) => d.availableBlocks.length > 0).length;
-  const sessions = Math.min(skeleton.targetSessions, usableDays * MAX_SESSIONS_PER_DAY);
+const hoursBudget = days.reduce((s, d) => s + dayMins(d), 0) / 60;
+const usableDays = days.filter((d) => d.availableBlocks.length > 0).length;
+const sessions = Math.min(
+  skeleton.targetSessions,
+  usableDays * MAX_SESSIONS_PER_DAY
+);
 ```
 
 Replace the whole `place()` / `for (const w of workouts)` body with:
 
 ```ts
-    const workouts = generateWorkouts(
-      sessions,
-      effectiveHours,
-      skeleton.phase,
-      input.raceType,
-      input.sports
-    )
-      .sort((a, b) => b.durationMins - a.durationMins)
-      .slice(0, sessions);
+const workouts = generateWorkouts(
+  sessions,
+  effectiveHours,
+  skeleton.phase,
+  input.raceType,
+  input.sports
+)
+  .sort((a, b) => b.durationMins - a.durationMins)
+  .slice(0, sessions);
 
-    const taken = new Set<string>();
+const taken = new Set<string>();
 
-    for (const w of workouts) {
-      const slots = buildSlots(days); // rebuilt: earlier placements change admission
-      let slot = slots.find((s) => admits(s, w, days, taken));
-      let workout = w;
+for (const w of workouts) {
+  const slots = buildSlots(days); // rebuilt: earlier placements change admission
+  let slot = slots.find((s) => admits(s, w, days, taken));
+  let workout = w;
 
-      if (!slot && isQuality(w)) {
-        // No admitting slot for a quality session: step it down until it is
-        // no longer quality, exactly as the previous engine did.
-        let steppedType = w.type;
-        while ((QUALITY_TYPES as readonly string[]).includes(steppedType)) {
-          steppedType = STEP_DOWN[steppedType] ?? "Endurance";
-        }
-        const stepped = withPurpose({ ...w, type: steppedType, intensity: "Z1-Z2" });
-        const steppedSlot = buildSlots(days).find((s) => admits(s, stepped, days, taken));
-        if (steppedSlot) {
-          slot = steppedSlot;
-          workout = stepped;
-          adjustments.push({
-            date: days[steppedSlot.dayIdx].date,
-            trigger: "weekly_rollover",
-            action: "scaled",
-            before: [],
-            after: [],
-            reason: `no admitting slot for ${w.type} — stepped down to ${stepped.type}`,
-          });
-        }
-      }
+  if (!slot && isQuality(w)) {
+    // No admitting slot for a quality session: step it down until it is
+    // no longer quality, exactly as the previous engine did.
+    let steppedType = w.type;
+    while ((QUALITY_TYPES as readonly string[]).includes(steppedType)) {
+      steppedType = STEP_DOWN[steppedType] ?? "Endurance";
+    }
+    const stepped = withPurpose({
+      ...w,
+      type: steppedType,
+      intensity: "Z1-Z2",
+    });
+    const steppedSlot = buildSlots(days).find((s) =>
+      admits(s, stepped, days, taken)
+    );
+    if (steppedSlot) {
+      slot = steppedSlot;
+      workout = stepped;
+      adjustments.push({
+        date: days[steppedSlot.dayIdx].date,
+        trigger: "weekly_rollover",
+        action: "scaled",
+        before: [],
+        after: [],
+        reason: `no admitting slot for ${w.type} — stepped down to ${stepped.type}`,
+      });
+    }
+  }
 
-      if (!slot) {
-        // Nothing admits it whole. Rather than drop it silently, try the
-        // same fitting rule a replan uses: the roomiest slot whose energy
-        // and sport allow this session, shortened or substituted to fit.
-        const relaxed = buildSlots(days).find(
-          (s) =>
-            !taken.has(slotKey(s)) &&
-            days[s.dayIdx].workouts.length < MAX_SESSIONS_PER_DAY &&
-            (s.sports === null || s.sports.includes(workout.sport))
-        );
-        const fitted = relaxed ? fitToBlock(workout, relaxed.mins) : null;
-        if (relaxed && fitted && ENERGY_CEILING[relaxed.energy].includes(fitted.workout.purpose)) {
-          taken.add(slotKey(relaxed));
-          const target = days[relaxed.dayIdx];
-          days[relaxed.dayIdx] = {
-            ...target,
-            workouts: [...target.workouts, fitted.workout],
-            status: "planned",
-          };
-          adjustments.push({
-            date: target.date,
-            trigger: "no_time",
-            action: fitted.how === "compressed" ? "scaled" : "swapped",
-            before: [],
-            after: [],
-            reason:
-              fitted.how === "compressed"
-                ? `no block fits ${workout.durationMins}min — ${workout.type} shortened to ${fitted.workout.durationMins}min`
-                : `no block fits ${workout.type} — replaced by ${fitted.workout.type}, which works in ${fitted.workout.durationMins}min`,
-          });
-          continue;
-        }
-        adjustments.push({
-          date: input.weekStart,
-          trigger: "no_time",
-          action: "dropped",
-          before: [],
-          after: [],
-          reason: `no block in the week fits a ${workout.durationMins}min ${workout.type} — session dropped`,
-        });
-        continue;
-      }
-      taken.add(slotKey(slot));
-      const target = days[slot.dayIdx];
-      days[slot.dayIdx] = {
+  if (!slot) {
+    // Nothing admits it whole. Rather than drop it silently, try the
+    // same fitting rule a replan uses: the roomiest slot whose energy
+    // and sport allow this session, shortened or substituted to fit.
+    const relaxed = buildSlots(days).find(
+      (s) =>
+        !taken.has(slotKey(s)) &&
+        days[s.dayIdx].workouts.length < MAX_SESSIONS_PER_DAY &&
+        (s.sports === null || s.sports.includes(workout.sport))
+    );
+    const fitted = relaxed ? fitToBlock(workout, relaxed.mins) : null;
+    if (
+      relaxed &&
+      fitted &&
+      ENERGY_CEILING[relaxed.energy].includes(fitted.workout.purpose)
+    ) {
+      taken.add(slotKey(relaxed));
+      const target = days[relaxed.dayIdx];
+      days[relaxed.dayIdx] = {
         ...target,
-        workouts: [...target.workouts, workout],
+        workouts: [...target.workouts, fitted.workout],
         status: "planned",
       };
+      adjustments.push({
+        date: target.date,
+        trigger: "no_time",
+        action: fitted.how === "compressed" ? "scaled" : "swapped",
+        before: [],
+        after: [],
+        reason:
+          fitted.how === "compressed"
+            ? `no block fits ${workout.durationMins}min — ${workout.type} shortened to ${fitted.workout.durationMins}min`
+            : `no block fits ${workout.type} — replaced by ${fitted.workout.type}, which works in ${fitted.workout.durationMins}min`,
+      });
+      continue;
     }
+    adjustments.push({
+      date: input.weekStart,
+      trigger: "no_time",
+      action: "dropped",
+      before: [],
+      after: [],
+      reason: `no block in the week fits a ${workout.durationMins}min ${workout.type} — session dropped`,
+    });
+    continue;
+  }
+  taken.add(slotKey(slot));
+  const target = days[slot.dayIdx];
+  days[slot.dayIdx] = {
+    ...target,
+    workouts: [...target.workouts, workout],
+    status: "planned",
+  };
+}
 ```
 
 Delete the truncation block that previously set
@@ -1402,10 +1523,12 @@ git commit -m "feat(week-plan): materialize into blocks and stop truncating sess
 ### Task 8: The replan ladder
 
 **Files:**
+
 - Create: `src/lib/week-plan/replan.ts`
 - Test: `src/lib/week-plan/replan.test.ts`
 
 **Interfaces:**
+
 - Consumes: `buildSlots`, `admits`, `slotKey` (Task 6); `PURPOSE_FLOORS`, `SUBSTITUTE_TO` (Task 1); `withPurpose` (Task 4).
 - Produces: `replanWeek(week: WeekState, resolved: Map<string, AvailabilityBlock[]>): { week: WeekState; adjustments: AdjustmentRecord[] }`.
 
@@ -1420,16 +1543,28 @@ import type { PlannedWorkout } from "@/lib/training-plan";
 import type { AvailabilityBlock } from "@/lib/availability/types";
 
 const blk = (mins: number): AvailabilityBlock => ({
-  start: null, end: null, mins, energy: "full", sports: null,
+  start: null,
+  end: null,
+  mins,
+  energy: "full",
+  sports: null,
 });
 
 const w = (o: Partial<PlannedWorkout> = {}): PlannedWorkout => ({
-  day: 0, sport: "Bike", type: "Intervals", durationMins: 90,
-  intensity: "Z4-Z5", description: "5×4min", purpose: "vo2max",
-  minEffectiveMins: 40, ...o,
+  day: 0,
+  sport: "Bike",
+  type: "Intervals",
+  durationMins: 90,
+  intensity: "Z4-Z5",
+  description: "5×4min",
+  purpose: "vo2max",
+  minEffectiveMins: 40,
+  ...o,
 });
 
-function week(spec: { mins: number[]; workouts?: PlannedWorkout[] }[]): WeekState {
+function week(
+  spec: { mins: number[]; workouts?: PlannedWorkout[] }[]
+): WeekState {
   const days: DaySlot[] = spec.map((s, i) => {
     const availableBlocks = s.mins.map(blk);
     return {
@@ -1444,20 +1579,46 @@ function week(spec: { mins: number[]; workouts?: PlannedWorkout[] }[]): WeekStat
 }
 
 const resolve = (mins: number[][], start = 3) =>
-  new Map(mins.map((m, i) => [`2026-08-${String(start + i).padStart(2, "0")}`, m.map(blk)]));
+  new Map(
+    mins.map((m, i) => [
+      `2026-08-${String(start + i).padStart(2, "0")}`,
+      m.map(blk),
+    ])
+  );
 
 describe("replanWeek — rung 1, move", () => {
   it("moves the displaced session and leaves every other day byte-identical", () => {
     const before = week([
       { mins: [0] },
-      { mins: [60], workouts: [w({ type: "Endurance", purpose: "aerobic_base", durationMins: 60 })] },
-      { mins: [90], workouts: [w()] },          // Wed: intervals
-      { mins: [90] },                            // Thu: free, same size
-      { mins: [60], workouts: [w({ type: "Endurance", purpose: "aerobic_base", durationMins: 60 })] },
-      { mins: [180], workouts: [w({ type: "Long", purpose: "long", durationMins: 180 })] },
-      { mins: [90], workouts: [w({ type: "Endurance", purpose: "aerobic_base", durationMins: 90 })] },
+      {
+        mins: [60],
+        workouts: [
+          w({ type: "Endurance", purpose: "aerobic_base", durationMins: 60 }),
+        ],
+      },
+      { mins: [90], workouts: [w()] }, // Wed: intervals
+      { mins: [90] }, // Thu: free, same size
+      {
+        mins: [60],
+        workouts: [
+          w({ type: "Endurance", purpose: "aerobic_base", durationMins: 60 }),
+        ],
+      },
+      {
+        mins: [180],
+        workouts: [w({ type: "Long", purpose: "long", durationMins: 180 })],
+      },
+      {
+        mins: [90],
+        workouts: [
+          w({ type: "Endurance", purpose: "aerobic_base", durationMins: 90 }),
+        ],
+      },
     ]);
-    const r = replanWeek(before, resolve([[0], [60], [], [90], [60], [180], [90]]));
+    const r = replanWeek(
+      before,
+      resolve([[0], [60], [], [90], [60], [180], [90]])
+    );
 
     expect(r.week.days[2].workouts).toEqual([]);
     expect(r.week.days[3].workouts[0].type).toBe("Intervals");
@@ -1572,21 +1733,38 @@ export function replanWeek(
   const days: DaySlot[] = week.days.map((d) => {
     if (locked(d)) return d;
     const availableBlocks = resolved.get(d.date) ?? d.availableBlocks;
-    return { ...d, availableBlocks, availableMins: dayMins({ availableBlocks }) };
+    return {
+      ...d,
+      availableBlocks,
+      availableMins: dayMins({ availableBlocks }),
+    };
   });
 
   // 2. Find displaced sessions: those whose day no longer holds them.
-  const displaced: { dayIdx: number; workout: PlannedWorkout; before: DaySlot }[] = [];
+  const displaced: {
+    dayIdx: number;
+    workout: PlannedWorkout;
+    before: DaySlot;
+  }[] = [];
   days.forEach((d, dayIdx) => {
     if (locked(d)) return;
     const room = biggestBlock(d.availableBlocks);
     const keep: PlannedWorkout[] = [];
     for (const w of d.workouts) {
       if (w.durationMins <= room) keep.push(w);
-      else displaced.push({ dayIdx, workout: w, before: { ...d, workouts: [...d.workouts] } });
+      else
+        displaced.push({
+          dayIdx,
+          workout: w,
+          before: { ...d, workouts: [...d.workouts] },
+        });
     }
     if (keep.length !== d.workouts.length) {
-      days[dayIdx] = { ...d, workouts: keep, status: keep.length > 0 ? d.status : "rest" };
+      days[dayIdx] = {
+        ...d,
+        workouts: keep,
+        status: keep.length > 0 ? d.status : "rest",
+      };
     }
   });
 
@@ -1690,12 +1868,14 @@ git commit -m "feat(week-plan): move, compress, substitute, drop — one session
 ### Task 9: Resolver against the database, and service wiring
 
 **Files:**
+
 - Create: `src/lib/availability/resolve.ts`, `src/lib/availability/resolve.test.ts`
 - Create: `src/lib/availability/format.ts`, `src/lib/availability/format.test.ts`
 - Delete: `src/lib/week-plan/availability.ts`, `src/lib/week-plan/availability.test.ts`
 - Modify: `src/lib/week-plan/service.ts` (`rolloverWeekPlan`, `applyAvailability`)
 
 **Interfaces:**
+
 - Consumes: `resolveDay` (Task 2), `replanWeek` (Task 8), `schema.availabilityDefaults` / `schema.availabilityOverrides` (Task 3).
 - Produces: `resolveWeek(userId: string, dates: string[]): Promise<Map<string, AvailabilityBlock[]>>`, `formatAvailability(mins: number): string`, `formatBlock(b: AvailabilityBlock): string`, `applyAvailability(userId: string, blocksPerDay: AvailabilityBlock[][])`.
 
@@ -1730,13 +1910,19 @@ import { describe, expect, it } from "vitest";
 import { formatAvailability, formatBlock, formatBlocks } from "./format";
 
 const b = (o = {}) => ({
-  start: "18:00", end: "19:30", mins: 90, energy: "normal" as const, sports: null, ...o,
+  start: "18:00",
+  end: "19:30",
+  mins: 90,
+  energy: "normal" as const,
+  sports: null,
+  ...o,
 });
 
 describe("formatAvailability", () => {
   it("calls zero a rest day", () => expect(formatAvailability(0)).toBe("Rest"));
   it("formats under an hour", () => expect(formatAvailability(45)).toBe("45m"));
-  it("formats a mixed duration", () => expect(formatAvailability(90)).toBe("1h 30m"));
+  it("formats a mixed duration", () =>
+    expect(formatAvailability(90)).toBe("1h 30m"));
 });
 
 describe("formatBlock", () => {
@@ -1747,10 +1933,12 @@ describe("formatBlock", () => {
 });
 
 describe("formatBlocks", () => {
-  it("calls an empty day a rest day", () => expect(formatBlocks([])).toBe("Rest"));
+  it("calls an empty day a rest day", () =>
+    expect(formatBlocks([])).toBe("Rest"));
   it("joins two blocks", () =>
-    expect(formatBlocks([b({ start: "06:30", end: "07:15", mins: 45 }), b()]))
-      .toBe("06:30–07:15 · 45m + 18:00–19:30 · 1h 30m"));
+    expect(
+      formatBlocks([b({ start: "06:30", end: "07:15", mins: 45 }), b()])
+    ).toBe("06:30–07:15 · 45m + 18:00–19:30 · 1h 30m"));
 });
 ```
 
@@ -1766,23 +1954,42 @@ import { db, schema } from "@/lib/db";
 import { resolveWeek } from "./resolve";
 
 // requires Postgres; skips without DATABASE_URL.
-const hasDb = !!process.env.DATABASE_URL && process.env.DATABASE_DRIVER === "pg";
+const hasDb =
+  !!process.env.DATABASE_URL && process.env.DATABASE_DRIVER === "pg";
 const USER = "test-availability-user";
 
 describe.skipIf(!hasDb)("resolveWeek", () => {
   beforeAll(async () => {
-    await db.insert(schema.users).values({ id: USER, email: `${USER}@example.test` })
+    await db
+      .insert(schema.users)
+      .values({ id: USER, email: `${USER}@example.test` })
       .onConflictDoNothing();
     // Standard week: Wednesday (weekday 2) 90 minutes, nothing else.
-    await db.insert(schema.availabilityDefaults).values({
-      userId: USER, weekday: 2,
-      blocks: [{ start: "18:00", end: "19:30", mins: 90, energy: "normal", sports: null }],
-    }).onConflictDoNothing();
+    await db
+      .insert(schema.availabilityDefaults)
+      .values({
+        userId: USER,
+        weekday: 2,
+        blocks: [
+          {
+            start: "18:00",
+            end: "19:30",
+            mins: 90,
+            energy: "normal",
+            sports: null,
+          },
+        ],
+      })
+      .onConflictDoNothing();
   });
 
   afterAll(async () => {
-    await db.delete(schema.availabilityOverrides).where(eq(schema.availabilityOverrides.userId, USER));
-    await db.delete(schema.availabilityDefaults).where(eq(schema.availabilityDefaults.userId, USER));
+    await db
+      .delete(schema.availabilityOverrides)
+      .where(eq(schema.availabilityOverrides.userId, USER));
+    await db
+      .delete(schema.availabilityDefaults)
+      .where(eq(schema.availabilityDefaults.userId, USER));
     await db.delete(schema.users).where(eq(schema.users.id, USER));
   });
 
@@ -1798,20 +2005,41 @@ describe.skipIf(!hasDb)("resolveWeek", () => {
 
   it("lets a date override beat the default, and survive a default change", async () => {
     await db.insert(schema.availabilityOverrides).values({
-      userId: USER, date: "2026-08-05",
-      blocks: [{ start: "19:00", end: "20:00", mins: 60, energy: "easy", sports: null }],
+      userId: USER,
+      date: "2026-08-05",
+      blocks: [
+        {
+          start: "19:00",
+          end: "20:00",
+          mins: 60,
+          energy: "easy",
+          sports: null,
+        },
+      ],
     });
-    await db.update(schema.availabilityDefaults)
-      .set({ blocks: [{ start: "17:00", end: "20:00", mins: 180, energy: "full", sports: null }] })
+    await db
+      .update(schema.availabilityDefaults)
+      .set({
+        blocks: [
+          {
+            start: "17:00",
+            end: "20:00",
+            mins: 180,
+            energy: "full",
+            sports: null,
+          },
+        ],
+      })
       .where(eq(schema.availabilityDefaults.userId, USER));
 
     const r = await resolveWeek(USER, ["2026-08-05", "2026-08-12"]);
-    expect(r.get("2026-08-05")?.[0].mins).toBe(60);   // pinned
-    expect(r.get("2026-08-12")?.[0].mins).toBe(180);  // follows the new default
+    expect(r.get("2026-08-05")?.[0].mins).toBe(60); // pinned
+    expect(r.get("2026-08-12")?.[0].mins).toBe(180); // follows the new default
   });
 
   it("treats an empty override as unavailable", async () => {
-    await db.insert(schema.availabilityOverrides)
+    await db
+      .insert(schema.availabilityOverrides)
       .values({ userId: USER, date: "2026-08-19", blocks: [] });
     const r = await resolveWeek(USER, ["2026-08-19"]);
     expect(r.get("2026-08-19")).toEqual([]);
@@ -1870,7 +2098,10 @@ export async function resolveWeek(
   return new Map(
     dates.map((date) => [
       date,
-      resolveDay(byWeekday.get(weekdayOf(date)) ?? [], byDate.get(date) ?? null),
+      resolveDay(
+        byWeekday.get(weekdayOf(date)) ?? [],
+        byDate.get(date) ?? null
+      ),
     ])
   );
 }
@@ -1884,14 +2115,14 @@ Delete the `prefillAvailability` import and its call in `rolloverWeekPlan`
 (`:218-230`), replacing it with:
 
 ```ts
-  const dates = Array.from({ length: 7 }, (_, i) => addDaysYmd(weekStart, i));
-  const resolved = await resolveWeek(userId, dates);
-  // Days already behind us have no availability: a mid-week start must not
-  // invent workouts in the past. On the normal Monday rollover this is a
-  // no-op.
-  const availableBlocksPerDay = dates.map((d) =>
-    d < today ? [] : (resolved.get(d) ?? [])
-  );
+const dates = Array.from({ length: 7 }, (_, i) => addDaysYmd(weekStart, i));
+const resolved = await resolveWeek(userId, dates);
+// Days already behind us have no availability: a mid-week start must not
+// invent workouts in the past. On the normal Monday rollover this is a
+// no-op.
+const availableBlocksPerDay = dates.map((d) =>
+  d < today ? [] : (resolved.get(d) ?? [])
+);
 ```
 
 and pass `availableBlocksPerDay` to `materializeWeek` in place of
@@ -1910,7 +2141,11 @@ export async function applyAvailability(
 
   const resolved = new Map(week.days.map((d, i) => [d.date, blocksPerDay[i]]));
   const r = replanWeek(
-    { weekStart: week.weekStart, skeletonWeek: week.skeletonWeek, days: week.days },
+    {
+      weekStart: week.weekStart,
+      skeletonWeek: week.skeletonWeek,
+      days: week.days,
+    },
     resolved
   );
 
@@ -1972,10 +2207,12 @@ git commit -m "feat(week-plan): resolve availability from defaults and overrides
 ### Task 10: Bonus work never costs you a session
 
 **Files:**
+
 - Modify: `src/lib/week-plan/service.ts` (`runDailyAdaptation`)
 - Test: `src/lib/week-plan/service.test.ts` (create; `describe.skipIf(!hasDb)`)
 
 **Interfaces:**
+
 - Consumes: `DaySlot.unplannedLoad` (Task 5).
 - Produces: no new exports; a behavioural guarantee.
 
@@ -2007,11 +2244,18 @@ describe("recordUnplannedLoad", () => {
   it("books load on a planned day as the session's actual", () => {
     const planned = day({
       status: "planned",
-      workouts: [{
-        day: 0, sport: "Bike", type: "Endurance", durationMins: 60,
-        intensity: "Z1-Z2", description: "ride",
-        purpose: "aerobic_base", minEffectiveMins: 40,
-      }],
+      workouts: [
+        {
+          day: 0,
+          sport: "Bike",
+          type: "Endurance",
+          durationMins: 60,
+          intensity: "Z1-Z2",
+          description: "ride",
+          purpose: "aerobic_base",
+          minEffectiveMins: 40,
+        },
+      ],
     });
     const d = recordUnplannedLoad(planned, 55);
     expect(d.actualLoad).toBe(55);
@@ -2021,11 +2265,18 @@ describe("recordUnplannedLoad", () => {
   it("never removes a workout", () => {
     const planned = day({
       status: "planned",
-      workouts: [{
-        day: 0, sport: "Bike", type: "Intervals", durationMins: 90,
-        intensity: "Z4-Z5", description: "intervals",
-        purpose: "vo2max", minEffectiveMins: 40,
-      }],
+      workouts: [
+        {
+          day: 0,
+          sport: "Bike",
+          type: "Intervals",
+          durationMins: 90,
+          intensity: "Z4-Z5",
+          description: "intervals",
+          purpose: "vo2max",
+          minEffectiveMins: 40,
+        },
+      ],
     });
     expect(recordUnplannedLoad(planned, 400).workouts.length).toBe(1);
   });
@@ -2062,23 +2313,23 @@ export function recordUnplannedLoad(day: DaySlot, load: number): DaySlot {
 In `runDailyAdaptation`, replace the direct assignment at `:351-357`:
 
 ```ts
-  if (matched) {
-    const idx = result.week.days.findIndex((d) => d.date === yesterdayYmd);
-    if (idx !== -1) {
-      result.week.days[idx] = {
-        ...recordUnplannedLoad(result.week.days[idx], matched.load ?? 0),
-        activityId: matched.id,
-      };
-    }
+if (matched) {
+  const idx = result.week.days.findIndex((d) => d.date === yesterdayYmd);
+  if (idx !== -1) {
+    result.week.days[idx] = {
+      ...recordUnplannedLoad(result.week.days[idx], matched.load ?? 0),
+      activityId: matched.id,
+    };
   }
+}
 ```
 
 Add a comment above the `adaptDay` call stating the invariant:
 
 ```ts
-  // adaptDay may scale, step down or move a session in response to
-  // readiness and availability. It must never remove one because the
-  // week's load ran ahead of target — that is what unplannedLoad is for.
+// adaptDay may scale, step down or move a session in response to
+// readiness and availability. It must never remove one because the
+// week's load ran ahead of target — that is what unplannedLoad is for.
 ```
 
 - [ ] **Step 4: Run test to verify it passes**
@@ -2099,10 +2350,12 @@ git commit -m "feat(week-plan): unplanned work counts toward actuals but never c
 ### Task 11: CTL projection and the insufficient-time verdict
 
 **Files:**
+
 - Create: `src/lib/week-plan/ctl-projection.ts`
 - Test: `src/lib/week-plan/ctl-projection.test.ts`
 
 **Interfaces:**
+
 - Consumes: nothing.
 - Produces: `projectCtl(currentCtl: number, weekLoad: number, days?: number): number`, `availabilityVerdict(input: VerdictInput): Verdict`, with
   `VerdictInput { offeredMins: number; currentCtl: number | null; loadPerHour: number | null; historyDays: number; effectiveTarget: number }`
@@ -2139,16 +2392,24 @@ describe("availabilityVerdict", () => {
   // maintenance = 60 × 7 = 420 load = 6h at 70 load/h
 
   it("stays silent below 28 days of history", () => {
-    expect(availabilityVerdict({ ...base, historyDays: 27, offeredMins: 60 }).kind).toBe("silent");
+    expect(
+      availabilityVerdict({ ...base, historyDays: 27, offeredMins: 60 }).kind
+    ).toBe("silent");
   });
 
   it("stays silent with no CTL yet", () => {
-    expect(availabilityVerdict({ ...base, currentCtl: null, offeredMins: 60 }).kind).toBe("silent");
+    expect(
+      availabilityVerdict({ ...base, currentCtl: null, offeredMins: 60 }).kind
+    ).toBe("silent");
   });
 
   it("stays silent when load per hour is unknown or zero", () => {
-    expect(availabilityVerdict({ ...base, loadPerHour: 0, offeredMins: 60 }).kind).toBe("silent");
-    expect(availabilityVerdict({ ...base, loadPerHour: null, offeredMins: 60 }).kind).toBe("silent");
+    expect(
+      availabilityVerdict({ ...base, loadPerHour: 0, offeredMins: 60 }).kind
+    ).toBe("silent");
+    expect(
+      availabilityVerdict({ ...base, loadPerHour: null, offeredMins: 60 }).kind
+    ).toBe("silent");
   });
 
   it("warns about losing fitness below maintenance", () => {
@@ -2167,8 +2428,12 @@ describe("availabilityVerdict", () => {
   });
 
   it("says nothing at or above target", () => {
-    expect(availabilityVerdict({ ...base, offeredMins: 8 * 60 }).kind).toBe("ok");
-    expect(availabilityVerdict({ ...base, offeredMins: 10 * 60 }).kind).toBe("ok");
+    expect(availabilityVerdict({ ...base, offeredMins: 8 * 60 }).kind).toBe(
+      "ok"
+    );
+    expect(availabilityVerdict({ ...base, offeredMins: 10 * 60 }).kind).toBe(
+      "ok"
+    );
   });
 });
 ```
@@ -2195,7 +2460,11 @@ export const MIN_HISTORY_DAYS = 28;
  * standard exponential smoothing. Load equal to CTL × 7 over a week holds
  * CTL flat, which is what makes "maintenance" a real number.
  */
-export function projectCtl(currentCtl: number, weekLoad: number, days = 7): number {
+export function projectCtl(
+  currentCtl: number,
+  weekLoad: number,
+  days = 7
+): number {
   const daily = weekLoad / 7;
   const alpha = 1 - Math.exp(-1 / CTL_TAU);
   let ctl = currentCtl;
@@ -2223,7 +2492,8 @@ export type Verdict =
  * nothing.
  */
 export function availabilityVerdict(input: VerdictInput): Verdict {
-  const { offeredMins, currentCtl, loadPerHour, historyDays, effectiveTarget } = input;
+  const { offeredMins, currentCtl, loadPerHour, historyDays, effectiveTarget } =
+    input;
   if (historyDays < MIN_HISTORY_DAYS) return { kind: "silent" };
   if (currentCtl == null || loadPerHour == null || loadPerHour <= 0) {
     return { kind: "silent" };
@@ -2263,10 +2533,12 @@ git commit -m "feat(week-plan): tell the athlete when the time given cannot hold
 ### Task 12: Server actions
 
 **Files:**
+
 - Modify: `src/app/plan/actions.ts`
 - Test: `src/app/plan/actions.test.ts` (create; `describe.skipIf(!hasDb)`)
 
 **Interfaces:**
+
 - Consumes: `validateBlocks` (Task 1), `applyAvailability` (Task 9).
 - Produces: `setStandardWeekDay(weekday: number, blocks: AvailabilityBlock[])`, `setDayOverride(date: string, blocks: AvailabilityBlock[])`, `clearDayOverride(date: string)`, `zeroDay(date: string)`, and `submitAvailability` reshaped to blocks.
 
@@ -2276,7 +2548,10 @@ git commit -m "feat(week-plan): tell the athlete when the time given cannot hold
 // src/app/plan/actions.ts  (append; keep the existing exports)
 import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
-import { validateBlocks, type AvailabilityBlock } from "@/lib/availability/types";
+import {
+  validateBlocks,
+  type AvailabilityBlock,
+} from "@/lib/availability/types";
 
 type Result = { ok: true } | { ok: false; error: string };
 
@@ -2291,7 +2566,8 @@ export async function setStandardWeekDay(
   blocks: AvailabilityBlock[]
 ): Promise<Result> {
   const user = await requireUser();
-  if (weekday < 0 || weekday > 6) return { ok: false, error: "invalid_weekday" };
+  if (weekday < 0 || weekday > 6)
+    return { ok: false, error: "invalid_weekday" };
   const invalid = validateBlocks(blocks);
   if (invalid) return { ok: false, error: invalid };
 
@@ -2299,7 +2575,10 @@ export async function setStandardWeekDay(
     .insert(schema.availabilityDefaults)
     .values({ userId: user.id, weekday, blocks })
     .onConflictDoUpdate({
-      target: [schema.availabilityDefaults.userId, schema.availabilityDefaults.weekday],
+      target: [
+        schema.availabilityDefaults.userId,
+        schema.availabilityDefaults.weekday,
+      ],
       set: { blocks, updatedAt: new Date() },
     });
   revalidatePlan();
@@ -2312,7 +2591,8 @@ export async function setDayOverride(
   blocks: AvailabilityBlock[]
 ): Promise<Result> {
   const user = await requireUser();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { ok: false, error: "invalid_date" };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date))
+    return { ok: false, error: "invalid_date" };
   const invalid = validateBlocks(blocks);
   if (invalid) return { ok: false, error: invalid };
 
@@ -2320,7 +2600,10 @@ export async function setDayOverride(
     .insert(schema.availabilityOverrides)
     .values({ userId: user.id, date, blocks })
     .onConflictDoUpdate({
-      target: [schema.availabilityOverrides.userId, schema.availabilityOverrides.date],
+      target: [
+        schema.availabilityOverrides.userId,
+        schema.availabilityOverrides.date,
+      ],
       set: { blocks, updatedAt: new Date() },
     });
   revalidatePlan();
@@ -2361,7 +2644,9 @@ as a pure exported function so it can be tested without a session:
  * Pure and exported for its tests: server actions need a session, this
  * does not.
  */
-export function parseDayBlocks(raw: FormDataEntryValue | null): AvailabilityBlock[] {
+export function parseDayBlocks(
+  raw: FormDataEntryValue | null
+): AvailabilityBlock[] {
   if (raw == null) return [];
   let parsed: unknown;
   try {
@@ -2427,8 +2712,20 @@ describe("parseDayBlocks", () => {
 
   it("drops a day whose blocks overlap instead of storing them", () => {
     const overlapping = JSON.stringify([
-      { start: "18:00", end: "19:30", mins: 90, energy: "normal", sports: null },
-      { start: "19:00", end: "20:00", mins: 60, energy: "normal", sports: null },
+      {
+        start: "18:00",
+        end: "19:30",
+        mins: 90,
+        energy: "normal",
+        sports: null,
+      },
+      {
+        start: "19:00",
+        end: "20:00",
+        mins: 60,
+        energy: "normal",
+        sports: null,
+      },
     ]);
     expect(parseDayBlocks(overlapping)).toEqual([]);
   });
@@ -2457,11 +2754,13 @@ git commit -m "feat(plan): server actions for the standard week and date overrid
 ### Task 13: The block editor sheet
 
 **Files:**
+
 - Create: `src/components/plan/block-sheet.tsx`
 - Test: `src/components/plan/block-sheet.test.tsx`
 - Reuse: `src/components/plan/availability-sheet.tsx` (sheet shell + backdrop), `src/components/plan/wheel-column.tsx` (time control)
 
 **Interfaces:**
+
 - Consumes: `AvailabilityBlock`, `validateBlocks`, `formatBlock`.
 - Produces: `<BlockSheet dayLabel blocks sports onChange onClose />` where `onChange(next: AvailabilityBlock[]): void`.
 
@@ -2477,14 +2776,25 @@ import { renderToString } from "react-dom/server";
 import { BlockSheet } from "./block-sheet";
 
 const blocks = [
-  { start: "18:00", end: "19:30", mins: 90, energy: "normal" as const, sports: null },
+  {
+    start: "18:00",
+    end: "19:30",
+    mins: 90,
+    energy: "normal" as const,
+    sports: null,
+  },
 ];
 
 describe("BlockSheet", () => {
   it("lists each block with its window and duration", () => {
     const html = renderToString(
-      <BlockSheet dayLabel="Wednesday" blocks={blocks} sports={["Bike"]}
-        onChange={vi.fn()} onClose={vi.fn()} />
+      <BlockSheet
+        dayLabel="Wednesday"
+        blocks={blocks}
+        sports={["Bike"]}
+        onChange={vi.fn()}
+        onClose={vi.fn()}
+      />
     );
     expect(html).toContain("Wednesday");
     expect(html).toContain("18:00");
@@ -2493,8 +2803,13 @@ describe("BlockSheet", () => {
 
   it("offers the three energy levels", () => {
     const html = renderToString(
-      <BlockSheet dayLabel="Wednesday" blocks={blocks} sports={["Bike"]}
-        onChange={vi.fn()} onClose={vi.fn()} />
+      <BlockSheet
+        dayLabel="Wednesday"
+        blocks={blocks}
+        sports={["Bike"]}
+        onChange={vi.fn()}
+        onClose={vi.fn()}
+      />
     );
     expect(html).toContain("Easy");
     expect(html).toContain("Normal");
@@ -2503,20 +2818,35 @@ describe("BlockSheet", () => {
 
   it("says the day is a rest day when there are no blocks", () => {
     const html = renderToString(
-      <BlockSheet dayLabel="Monday" blocks={[]} sports={["Bike"]}
-        onChange={vi.fn()} onClose={vi.fn()} />
+      <BlockSheet
+        dayLabel="Monday"
+        blocks={[]}
+        sports={["Bike"]}
+        onChange={vi.fn()}
+        onClose={vi.fn()}
+      />
     );
     expect(html).toContain("Rest");
   });
 
   it("shows sport chips only when the plan has more than one sport", () => {
     const one = renderToString(
-      <BlockSheet dayLabel="Wednesday" blocks={blocks} sports={["Bike"]}
-        onChange={vi.fn()} onClose={vi.fn()} />
+      <BlockSheet
+        dayLabel="Wednesday"
+        blocks={blocks}
+        sports={["Bike"]}
+        onChange={vi.fn()}
+        onClose={vi.fn()}
+      />
     );
     const two = renderToString(
-      <BlockSheet dayLabel="Wednesday" blocks={blocks} sports={["Bike", "Run"]}
-        onChange={vi.fn()} onClose={vi.fn()} />
+      <BlockSheet
+        dayLabel="Wednesday"
+        blocks={blocks}
+        sports={["Bike", "Run"]}
+        onChange={vi.fn()}
+        onClose={vi.fn()}
+      />
     );
     expect(one).not.toContain("Run");
     expect(two).toContain("Run");
@@ -2573,7 +2903,13 @@ function minutesBetween(start: string, end: string): number {
   return eh * 60 + em - (sh * 60 + sm);
 }
 
-export function BlockSheet({ dayLabel, blocks, sports, onChange, onClose }: Props) {
+export function BlockSheet({
+  dayLabel,
+  blocks,
+  sports,
+  onChange,
+  onClose,
+}: Props) {
   const [error, setError] = useState<string | null>(null);
 
   function commit(next: AvailabilityBlock[]) {
@@ -2614,12 +2950,17 @@ export function BlockSheet({ dayLabel, blocks, sports, onChange, onClose }: Prop
         </div>
 
         {blocks.length === 0 && (
-          <p className="mb-4 text-[12px] text-white/50">Rest — no time set for this day.</p>
+          <p className="mb-4 text-[12px] text-white/50">
+            Rest — no time set for this day.
+          </p>
         )}
 
         <ul className="mb-4 space-y-3">
           {blocks.map((b, i) => (
-            <li key={i} className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
+            <li
+              key={i}
+              className="rounded-2xl border border-white/10 bg-white/[0.04] p-3"
+            >
               <div className="mb-2 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <input
@@ -2686,7 +3027,9 @@ export function BlockSheet({ dayLabel, blocks, sports, onChange, onClose }: Prop
                           });
                         }}
                         className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${
-                          on ? "bg-white/[0.14] text-white" : "bg-white/[0.04] text-white/40"
+                          on
+                            ? "bg-white/[0.14] text-white"
+                            : "bg-white/[0.04] text-white/40"
                         }`}
                       >
                         {s}
@@ -2733,11 +3076,13 @@ git commit -m "feat(plan): block editor with clock window, energy level and spor
 ### Task 14: The standard week screen
 
 **Files:**
+
 - Create: `src/components/plan/standard-week.tsx`
 - Test: `src/components/plan/standard-week.test.tsx`
 - Modify: `src/app/train/page.tsx` (render it in the Week tab, under a `Collapsible`)
 
 **Interfaces:**
+
 - Consumes: `BlockSheet` (Task 13), `setStandardWeekDay` (Task 12), `formatBlocks` (Task 9).
 - Produces: `<StandardWeek defaults sports />` where `defaults: AvailabilityBlock[][]` is Monday-first, seven entries.
 
@@ -2753,14 +3098,26 @@ const empty = Array.from({ length: 7 }, () => []);
 
 describe("StandardWeek", () => {
   it("lists all seven weekdays", () => {
-    const html = renderToString(<StandardWeek defaults={empty} sports={["Bike"]} />);
-    for (const d of ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]) {
+    const html = renderToString(
+      <StandardWeek defaults={empty} sports={["Bike"]} />
+    );
+    for (const d of [
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+      "Sunday",
+    ]) {
       expect(html).toContain(d);
     }
   });
 
   it("shows a rest day for a weekday with no blocks", () => {
-    const html = renderToString(<StandardWeek defaults={empty} sports={["Bike"]} />);
+    const html = renderToString(
+      <StandardWeek defaults={empty} sports={["Bike"]} />
+    );
     expect(html).toContain("Rest");
   });
 
@@ -2768,21 +3125,47 @@ describe("StandardWeek", () => {
     const defaults = empty.map((d, i) =>
       i === 2
         ? [
-            { start: "06:30", end: "07:15", mins: 45, energy: "easy" as const, sports: null },
-            { start: "19:00", end: "20:00", mins: 60, energy: "full" as const, sports: null },
+            {
+              start: "06:30",
+              end: "07:15",
+              mins: 45,
+              energy: "easy" as const,
+              sports: null,
+            },
+            {
+              start: "19:00",
+              end: "20:00",
+              mins: 60,
+              energy: "full" as const,
+              sports: null,
+            },
           ]
         : d
     );
-    const html = renderToString(<StandardWeek defaults={defaults} sports={["Bike"]} />);
+    const html = renderToString(
+      <StandardWeek defaults={defaults} sports={["Bike"]} />
+    );
     expect(html).toContain("06:30");
     expect(html).toContain("19:00");
   });
 
   it("totals the standard week", () => {
     const defaults = empty.map((d, i) =>
-      i === 5 ? [{ start: "09:00", end: "12:00", mins: 180, energy: "full" as const, sports: null }] : d
+      i === 5
+        ? [
+            {
+              start: "09:00",
+              end: "12:00",
+              mins: 180,
+              energy: "full" as const,
+              sports: null,
+            },
+          ]
+        : d
     );
-    const html = renderToString(<StandardWeek defaults={defaults} sports={["Bike"]} />);
+    const html = renderToString(
+      <StandardWeek defaults={defaults} sports={["Bike"]} />
+    );
     expect(html).toContain("3h");
   });
 });
@@ -2806,7 +3189,13 @@ import { setStandardWeekDay } from "@/app/plan/actions";
 import { BlockSheet } from "./block-sheet";
 
 const DAY_NAMES = [
-  "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+  "Sunday",
 ];
 
 interface Props {
@@ -2838,8 +3227,8 @@ export function StandardWeek({ defaults, sports }: Props) {
     <div className="glass rounded-[2rem] p-6">
       <p className="label-micro mb-1">Your standard week</p>
       <p className="mb-5 text-[12px] text-white/50">
-        The time you normally have. Any single day you change from the week
-        view overrides this — and keeps overriding it.
+        The time you normally have. Any single day you change from the week view
+        overrides this — and keeps overriding it.
       </p>
 
       <ul className="mb-4">
@@ -2851,8 +3240,12 @@ export function StandardWeek({ defaults, sports }: Props) {
               disabled={pending}
               className="flex w-full items-center justify-between py-3 text-left disabled:opacity-50"
             >
-              <span className="text-[12.5px] font-bold text-white/85">{name}</span>
-              <span className="text-[11.5px] text-white/50">{formatBlocks(week[i])}</span>
+              <span className="text-[12.5px] font-bold text-white/85">
+                {name}
+              </span>
+              <span className="text-[11.5px] text-white/50">
+                {formatBlocks(week[i])}
+              </span>
             </button>
           </li>
         ))}
@@ -2861,7 +3254,9 @@ export function StandardWeek({ defaults, sports }: Props) {
       <p className="text-center text-[11px] text-white/40">
         {formatAvailability(total)} in a standard week
       </p>
-      {error && <p className="mt-2 text-center text-[11px] text-red-400">{error}</p>}
+      {error && (
+        <p className="mt-2 text-center text-[11px] text-red-400">{error}</p>
+      )}
 
       {open !== null && (
         <BlockSheet
@@ -2883,34 +3278,37 @@ In `src/app/train/page.tsx`, inside `WeekTab`, load the defaults alongside
 the existing queries:
 
 ```ts
-  const defaultRows = await db.query.availabilityDefaults.findMany({
-    where: eq(schema.availabilityDefaults.userId, userId),
-  });
-  const standardWeek: AvailabilityBlock[][] = Array.from({ length: 7 }, (_, i) =>
-    (defaultRows.find((r) => r.weekday === i)?.blocks as AvailabilityBlock[]) ?? []
-  );
+const defaultRows = await db.query.availabilityDefaults.findMany({
+  where: eq(schema.availabilityDefaults.userId, userId),
+});
+const standardWeek: AvailabilityBlock[][] = Array.from(
+  { length: 7 },
+  (_, i) =>
+    (defaultRows.find((r) => r.weekday === i)?.blocks as AvailabilityBlock[]) ??
+    []
+);
 ```
 
 and render it below the intake section:
 
 ```tsx
-          <div className="mb-6">
-            <Collapsible>
-              <CollapsibleTrigger className="rounded-[18px] p-4">
-                <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-white/60">
-                  Standard week
-                </span>
-              </CollapsibleTrigger>
-              <CollapsiblePanel>
-                <div className="px-1 pb-1 pt-3">
-                  <StandardWeek
-                    defaults={standardWeek}
-                    sports={constraints.sports ?? ["Bike"]}
-                  />
-                </div>
-              </CollapsiblePanel>
-            </Collapsible>
-          </div>
+<div className="mb-6">
+  <Collapsible>
+    <CollapsibleTrigger className="rounded-[18px] p-4">
+      <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-white/60">
+        Standard week
+      </span>
+    </CollapsibleTrigger>
+    <CollapsiblePanel>
+      <div className="px-1 pb-1 pt-3">
+        <StandardWeek
+          defaults={standardWeek}
+          sports={constraints.sports ?? ["Bike"]}
+        />
+      </div>
+    </CollapsiblePanel>
+  </Collapsible>
+</div>
 ```
 
 - [ ] **Step 5: Run tests and the type checker**
@@ -2931,11 +3329,13 @@ git commit -m "feat(plan): a standard week you set once"
 ### Task 15: Week view — resolved blocks, override badge, warning
 
 **Files:**
+
 - Modify: `src/components/plan/intake-form.tsx`
 - Modify: `src/components/plan/intake-form.test.tsx`
 - Modify: `src/app/train/page.tsx` (feed resolved blocks, override dates, and the verdict)
 
 **Interfaces:**
+
 - Consumes: `BlockSheet` (Task 13), `clearDayOverride` (Task 12), `availabilityVerdict` (Task 11), `resolveWeek` (Task 9).
 - Produces: `<IntakeForm resolved overrideDates verdict sports action />` where `resolved: AvailabilityBlock[][]`, `overrideDates: string[]`, `verdict: Verdict`.
 
@@ -2948,41 +3348,82 @@ import { renderToString } from "react-dom/server";
 import { IntakeForm } from "./intake-form";
 
 const resolved = Array.from({ length: 7 }, (_, i) =>
-  i === 2 ? [{ start: "18:00", end: "19:30", mins: 90, energy: "normal" as const, sports: null }] : []
+  i === 2
+    ? [
+        {
+          start: "18:00",
+          end: "19:30",
+          mins: 90,
+          energy: "normal" as const,
+          sports: null,
+        },
+      ]
+    : []
 );
 const noop = vi.fn();
 
 describe("IntakeForm", () => {
   it("carries each day's blocks into the form as JSON", () => {
     const html = renderToString(
-      <IntakeForm resolved={resolved} overrideDates={[]} dates={[]}
-        verdict={{ kind: "ok" }} sports={["Bike"]} action={noop} />
+      <IntakeForm
+        resolved={resolved}
+        overrideDates={[]}
+        dates={[]}
+        verdict={{ kind: "ok" }}
+        sports={["Bike"]}
+        action={noop}
+      />
     );
     expect(html).toContain('name="blocks-2"');
   });
 
   it("badges a day that is pinned by an override", () => {
-    const dates = ["2026-08-03","2026-08-04","2026-08-05","2026-08-06","2026-08-07","2026-08-08","2026-08-09"];
+    const dates = [
+      "2026-08-03",
+      "2026-08-04",
+      "2026-08-05",
+      "2026-08-06",
+      "2026-08-07",
+      "2026-08-08",
+      "2026-08-09",
+    ];
     const html = renderToString(
-      <IntakeForm resolved={resolved} overrideDates={["2026-08-05"]} dates={dates}
-        verdict={{ kind: "ok" }} sports={["Bike"]} action={noop} />
+      <IntakeForm
+        resolved={resolved}
+        overrideDates={["2026-08-05"]}
+        dates={dates}
+        verdict={{ kind: "ok" }}
+        sports={["Bike"]}
+        action={noop}
+      />
     );
     expect(html).toContain("Pinned");
   });
 
   it("shows the weekly total", () => {
     const html = renderToString(
-      <IntakeForm resolved={resolved} overrideDates={[]} dates={[]}
-        verdict={{ kind: "ok" }} sports={["Bike"]} action={noop} />
+      <IntakeForm
+        resolved={resolved}
+        overrideDates={[]}
+        dates={[]}
+        verdict={{ kind: "ok" }}
+        sports={["Bike"]}
+        action={noop}
+      />
     );
     expect(html).toContain("1h 30m this week");
   });
 
   it("warns when the time given cannot hold fitness", () => {
     const html = renderToString(
-      <IntakeForm resolved={resolved} overrideDates={[]} dates={[]}
+      <IntakeForm
+        resolved={resolved}
+        overrideDates={[]}
+        dates={[]}
         verdict={{ kind: "losing", maintenanceHrs: 6, projectedCtl: 57 }}
-        sports={["Bike"]} action={noop} />
+        sports={["Bike"]}
+        action={noop}
+      />
     );
     expect(html).toContain("6h");
     expect(html).toContain("57");
@@ -2990,8 +3431,14 @@ describe("IntakeForm", () => {
 
   it("says nothing at all when the verdict is silent", () => {
     const html = renderToString(
-      <IntakeForm resolved={resolved} overrideDates={[]} dates={[]}
-        verdict={{ kind: "silent" }} sports={["Bike"]} action={noop} />
+      <IntakeForm
+        resolved={resolved}
+        overrideDates={[]}
+        dates={[]}
+        verdict={{ kind: "silent" }}
+        sports={["Bike"]}
+        action={noop}
+      />
     );
     expect(html).not.toContain("hold your fitness");
   });
@@ -3034,7 +3481,13 @@ interface Props {
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const DAY_NAMES = [
-  "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+  "Sunday",
 ];
 
 function verdictLine(v: Verdict): string | null {
@@ -3048,7 +3501,12 @@ function verdictLine(v: Verdict): string | null {
 }
 
 export function IntakeForm({
-  resolved, dates, overrideDates, verdict, sports, action,
+  resolved,
+  dates,
+  overrideDates,
+  verdict,
+  sports,
+  action,
 }: Props) {
   const [state, formAction, pending] = useActionState(action, { message: "" });
   const [week, setWeek] = useState(resolved);
@@ -3078,7 +3536,10 @@ export function IntakeForm({
         {week.map((blocks, i) => {
           const pinned = overrideDates.includes(dates[i] ?? "");
           return (
-            <li key={DAY_LABELS[i]} className="border-b border-white/[0.06] last:border-0">
+            <li
+              key={DAY_LABELS[i]}
+              className="border-b border-white/[0.06] last:border-0"
+            >
               <div className="flex items-center gap-3 py-2.5">
                 <button
                   type="button"
@@ -3088,7 +3549,9 @@ export function IntakeForm({
                   <span className="text-[11px] font-bold uppercase tracking-wider text-white/45">
                     {DAY_LABELS[i]}
                   </span>
-                  <span className="text-[11.5px] text-white/70">{formatBlocks(blocks)}</span>
+                  <span className="text-[11.5px] text-white/70">
+                    {formatBlocks(blocks)}
+                  </span>
                 </button>
                 {pinned && (
                   <button
@@ -3101,7 +3564,11 @@ export function IntakeForm({
                   </button>
                 )}
               </div>
-              <input type="hidden" name={`blocks-${i}`} value={JSON.stringify(blocks)} />
+              <input
+                type="hidden"
+                name={`blocks-${i}`}
+                value={JSON.stringify(blocks)}
+              />
             </li>
           );
         })}
@@ -3124,7 +3591,9 @@ export function IntakeForm({
         Confirm week
       </button>
       {state.message !== "" && (
-        <p className="mt-3 text-center text-[12px] text-white/60">{state.message}</p>
+        <p className="mt-3 text-center text-[12px] text-white/60">
+          {state.message}
+        </p>
       )}
 
       {openDay !== null && (
@@ -3148,83 +3617,84 @@ export function IntakeForm({
 In `src/app/train/page.tsx`, replace the `intake` block (`:264-302`):
 
 ```ts
-  let intake: {
-    resolved: AvailabilityBlock[][];
-    dates: string[];
-    overrideDates: string[];
-    verdict: Verdict;
-  } | null = null;
-  if (week && week.days[0]?.status !== "completed") {
-    const dates = week.days.map((d) => d.date);
-    const resolvedMap = await resolveWeek(userId, dates);
-    const overrides = await db.query.availabilityOverrides.findMany({
-      where: and(
-        eq(schema.availabilityOverrides.userId, userId),
-        inArray(schema.availabilityOverrides.date, dates)
-      ),
-    });
+let intake: {
+  resolved: AvailabilityBlock[][];
+  dates: string[];
+  overrideDates: string[];
+  verdict: Verdict;
+} | null = null;
+if (week && week.days[0]?.status !== "completed") {
+  const dates = week.days.map((d) => d.date);
+  const resolvedMap = await resolveWeek(userId, dates);
+  const overrides = await db.query.availabilityOverrides.findMany({
+    where: and(
+      eq(schema.availabilityOverrides.userId, userId),
+      inArray(schema.availabilityOverrides.date, dates)
+    ),
+  });
 
-    // Load per hour over the last 28 days, from real sessions only.
-    const since = new Date();
-    since.setDate(since.getDate() - 28);
-    const recent = await db.query.activities.findMany({
-      where: and(
-        eq(schema.activities.userId, userId),
-        ne(schema.activities.provider, "strava"),
-        gte(schema.activities.startDate, since)
-      ),
-    });
-    const hours = recent.reduce((s, a) => s + (a.durationS ?? 0) / 3600, 0);
-    const load = recent.reduce((s, a) => s + (a.load ?? 0), 0);
-    const loadPerHour = hours > 0 ? load / hours : null;
+  // Load per hour over the last 28 days, from real sessions only.
+  const since = new Date();
+  since.setDate(since.getDate() - 28);
+  const recent = await db.query.activities.findMany({
+    where: and(
+      eq(schema.activities.userId, userId),
+      ne(schema.activities.provider, "strava"),
+      gte(schema.activities.startDate, since)
+    ),
+  });
+  const hours = recent.reduce((s, a) => s + (a.durationS ?? 0) / 3600, 0);
+  const load = recent.reduce((s, a) => s + (a.load ?? 0), 0);
+  const loadPerHour = hours > 0 ? load / hours : null;
 
-    // The real span of history, not "any activity means 28 days". An
-    // athlete who synced their first ride yesterday must not be told what
-    // their CTL will do.
-    const oldest = recent.reduce<Date | null>((min, a) => {
-      const d = a.startDateLocal ?? a.startDate;
-      return min == null || d < min ? d : min;
-    }, null);
-    const historyDays =
-      oldest == null
-        ? 0
-        : Math.floor((Date.now() - oldest.getTime()) / 86_400_000);
+  // The real span of history, not "any activity means 28 days". An
+  // athlete who synced their first ride yesterday must not be told what
+  // their CTL will do.
+  const oldest = recent.reduce<Date | null>((min, a) => {
+    const d = a.startDateLocal ?? a.startDate;
+    return min == null || d < min ? d : min;
+  }, null);
+  const historyDays =
+    oldest == null
+      ? 0
+      : Math.floor((Date.now() - oldest.getTime()) / 86_400_000);
 
-    const offeredMins = dates.reduce(
-      (s, d) => s + (resolvedMap.get(d) ?? []).reduce((x, b) => x + blockMins(b), 0),
-      0
-    );
+  const offeredMins = dates.reduce(
+    (s, d) =>
+      s + (resolvedMap.get(d) ?? []).reduce((x, b) => x + blockMins(b), 0),
+    0
+  );
 
-    intake = {
-      resolved: dates.map((d) => resolvedMap.get(d) ?? []),
-      dates,
-      overrideDates: overrides.map((o) => o.date),
-      verdict: availabilityVerdict({
-        offeredMins,
-        currentCtl: latestMetric?.ctl ?? null,
-        loadPerHour,
-        historyDays,
-        effectiveTarget: week.effectiveTarget ?? 0,
-      }),
-    };
-  }
+  intake = {
+    resolved: dates.map((d) => resolvedMap.get(d) ?? []),
+    dates,
+    overrideDates: overrides.map((o) => o.date),
+    verdict: availabilityVerdict({
+      offeredMins,
+      currentCtl: latestMetric?.ctl ?? null,
+      loadPerHour,
+      historyDays,
+      effectiveTarget: week.effectiveTarget ?? 0,
+    }),
+  };
+}
 ```
 
 and render:
 
 ```tsx
-              <IntakeForm
-                resolved={intake.resolved}
-                dates={intake.dates}
-                overrideDates={intake.overrideDates}
-                verdict={intake.verdict}
-                sports={constraints.sports ?? ["Bike"]}
-                action={submitAvailability}
-              />
+<IntakeForm
+  resolved={intake.resolved}
+  dates={intake.dates}
+  overrideDates={intake.overrideDates}
+  verdict={intake.verdict}
+  sports={constraints.sports ?? ["Bike"]}
+  action={submitAvailability}
+/>
 ```
 
 The Google Calendar block above stays where it is — it keeps lowering the
-*suggestion*, never what is stored.
+_suggestion_, never what is stored.
 
 - [ ] **Step 5: Run tests and the type checker**
 
@@ -3244,10 +3714,12 @@ git commit -m "feat(plan): week view shows resolved blocks, pinned days and an h
 ### Task 16: "Set this day to zero"
 
 **Files:**
+
 - Modify: `src/components/plan/day-actions.tsx`
 - Modify: `src/components/plan/day-actions.test.tsx`
 
 **Interfaces:**
+
 - Consumes: `zeroDay` (Task 12).
 - Produces: no new exports.
 
@@ -3271,7 +3743,10 @@ describe("DayActions — zero the day", () => {
 
   it("renders nothing for a day with no session", () => {
     const html = renderToString(
-      <DayActions day={{ date: "2026-08-05", workoutCount: 0 }} otherDays={[]} />
+      <DayActions
+        day={{ date: "2026-08-05", workoutCount: 0 }}
+        otherDays={[]}
+      />
     );
     expect(html).toBe("");
   });
@@ -3288,28 +3763,34 @@ Expected: FAIL — "No time today" not found.
 In `src/components/plan/day-actions.tsx`, import the action and add state:
 
 ```tsx
-import { applyPlanChange, previewPlanChange, zeroDay } from "@/app/plan/actions";
+import {
+  applyPlanChange,
+  previewPlanChange,
+  zeroDay,
+} from "@/app/plan/actions";
 ```
 
 Add the button to the default (non-preview) branch, after the "What if?"
 button:
 
 ```tsx
-          {/* Pins this date to zero — an override, so it survives any later
-              change to the standard week (that is the whole point). */}
-          <button
-            type="button"
-            disabled={pending}
-            onClick={() =>
-              startTransition(async () => {
-                const r = await zeroDay(day.date);
-                if (!r.ok) setError(friendlyPlanError(r.error));
-              })
-            }
-            className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[11px] font-bold text-white/60 disabled:opacity-40"
-          >
-            No time today
-          </button>
+{
+  /* Pins this date to zero — an override, so it survives any later
+              change to the standard week (that is the whole point). */
+}
+<button
+  type="button"
+  disabled={pending}
+  onClick={() =>
+    startTransition(async () => {
+      const r = await zeroDay(day.date);
+      if (!r.ok) setError(friendlyPlanError(r.error));
+    })
+  }
+  className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[11px] font-bold text-white/60 disabled:opacity-40"
+>
+  No time today
+</button>;
 ```
 
 - [ ] **Step 4: Run test to verify it passes**
@@ -3330,11 +3811,13 @@ git commit -m "feat(plan): zero a day straight from its action menu"
 ### Task 17: The weekly prompt
 
 **Files:**
+
 - Modify: `src/lib/sync/scheduler.ts` (the weekly-review slot)
 - Create: `src/lib/week-plan/availability-prompt.ts`
 - Test: `src/lib/week-plan/availability-prompt.test.ts`
 
 **Interfaces:**
+
 - Consumes: `weekPlans.availabilityConfirmedAt` (Task 3), `sendPush` from `src/lib/push.ts`.
 - Produces: `shouldPromptAvailability(input: { confirmedAt: Date | null; weekStart: string; today: string }): boolean`, `promptAvailability(userId: string, now?: Date): Promise<"sent" | "skipped">`.
 
@@ -3349,7 +3832,9 @@ describe("shouldPromptAvailability", () => {
   it("prompts an unconfirmed open week", () => {
     expect(
       shouldPromptAvailability({
-        confirmedAt: null, weekStart: "2026-08-03", today: "2026-08-03",
+        confirmedAt: null,
+        weekStart: "2026-08-03",
+        today: "2026-08-03",
       })
     ).toBe(true);
   });
@@ -3358,7 +3843,8 @@ describe("shouldPromptAvailability", () => {
     expect(
       shouldPromptAvailability({
         confirmedAt: new Date("2026-08-03T08:00:00Z"),
-        weekStart: "2026-08-03", today: "2026-08-04",
+        weekStart: "2026-08-03",
+        today: "2026-08-04",
       })
     ).toBe(false);
   });
@@ -3367,7 +3853,8 @@ describe("shouldPromptAvailability", () => {
     expect(
       shouldPromptAvailability({
         confirmedAt: new Date("2026-07-27T08:00:00Z"),
-        weekStart: "2026-08-03", today: "2026-08-03",
+        weekStart: "2026-08-03",
+        today: "2026-08-03",
       })
     ).toBe(true);
   });
@@ -3375,7 +3862,9 @@ describe("shouldPromptAvailability", () => {
   it("stops prompting once the week is more than half gone", () => {
     expect(
       shouldPromptAvailability({
-        confirmedAt: null, weekStart: "2026-08-03", today: "2026-08-08",
+        confirmedAt: null,
+        weekStart: "2026-08-03",
+        today: "2026-08-08",
       })
     ).toBe(false);
   });
@@ -3396,7 +3885,8 @@ const PROMPT_WINDOW_DAYS = 4;
 
 function daysBetween(from: string, to: string): number {
   return Math.round(
-    (new Date(to + "T00:00:00").getTime() - new Date(from + "T00:00:00").getTime()) /
+    (new Date(to + "T00:00:00").getTime() -
+      new Date(from + "T00:00:00").getTime()) /
       86_400_000
   );
 }
@@ -3480,12 +3970,14 @@ git commit -m "feat(week-plan): one prompt a week to keep availability current"
 ### Task 18: Coach tools
 
 **Files:**
+
 - Modify: `src/lib/tools/set-week-availability.ts`
 - Create: `src/lib/tools/set-standard-week.ts`, `src/lib/tools/clear-availability-override.ts`
 - Modify: `src/lib/tools/registry.ts`, `src/lib/tools/get-week-plan.ts`
 - Modify: `src/lib/tools/registry.test.ts`
 
 **Interfaces:**
+
 - Consumes: `applyAvailability` (Task 9), `setStandardWeekDay` equivalent logic (Task 12).
 - Produces: tools `set_week_availability` (blocks or legacy integers), `set_standard_week`, `clear_availability_override`.
 
@@ -3506,8 +3998,21 @@ describe("set_week_availability", () => {
   it("accepts blocks per day", () => {
     const parsed = setWeekAvailabilityTool.parameters.parse({
       availableBlocks: [
-        [], [{ start: "18:00", end: "19:00", mins: 60, energy: "normal", sports: null }],
-        [], [], [], [], [],
+        [],
+        [
+          {
+            start: "18:00",
+            end: "19:00",
+            mins: 60,
+            energy: "normal",
+            sports: null,
+          },
+        ],
+        [],
+        [],
+        [],
+        [],
+        [],
       ],
     });
     expect(parsed.availableBlocks?.[1][0].mins).toBe(60);
@@ -3536,8 +4041,14 @@ import { applyAvailability, getOpenWeekPlan } from "@/lib/week-plan/service";
 import type { AvailabilityBlock } from "@/lib/availability/types";
 
 const blockSchema = z.object({
-  start: z.string().regex(/^\d{2}:\d{2}$/).nullable(),
-  end: z.string().regex(/^\d{2}:\d{2}$/).nullable(),
+  start: z
+    .string()
+    .regex(/^\d{2}:\d{2}$/)
+    .nullable(),
+  end: z
+    .string()
+    .regex(/^\d{2}:\d{2}$/)
+    .nullable(),
   mins: z.number().int().min(0).max(720),
   energy: z.enum(["easy", "normal", "full"]),
   sports: z.array(z.string()).nullable(),
@@ -3562,10 +4073,19 @@ const parameters = z
 
 /** A plain number becomes one untimed block — same meaning, new shape. */
 function toBlocks(args: z.infer<typeof parameters>): AvailabilityBlock[][] {
-  if (args.availableBlocks) return args.availableBlocks as AvailabilityBlock[][];
+  if (args.availableBlocks)
+    return args.availableBlocks as AvailabilityBlock[][];
   return (args.availableMins ?? []).map((mins) =>
     mins > 0
-      ? [{ start: null, end: null, mins, energy: "normal" as const, sports: null }]
+      ? [
+          {
+            start: null,
+            end: null,
+            mins,
+            energy: "normal" as const,
+            sports: null,
+          },
+        ]
       : []
   );
 }
@@ -3608,11 +4128,20 @@ these talk to the database directly:
 import { z } from "zod";
 import type { ToolDefinition, ToolContext } from "./registry";
 import { db, schema } from "@/lib/db";
-import { validateBlocks, type AvailabilityBlock } from "@/lib/availability/types";
+import {
+  validateBlocks,
+  type AvailabilityBlock,
+} from "@/lib/availability/types";
 
 const blockSchema = z.object({
-  start: z.string().regex(/^\d{2}:\d{2}$/).nullable(),
-  end: z.string().regex(/^\d{2}:\d{2}$/).nullable(),
+  start: z
+    .string()
+    .regex(/^\d{2}:\d{2}$/)
+    .nullable(),
+  end: z
+    .string()
+    .regex(/^\d{2}:\d{2}$/)
+    .nullable(),
   mins: z.number().int().min(0).max(720),
   energy: z.enum(["easy", "normal", "full"]),
   sports: z.array(z.string()).nullable(),
@@ -3620,7 +4149,9 @@ const blockSchema = z.object({
 
 const parameters = z.object({
   weekday: z.number().int().min(0).max(6).describe("0 = Monday"),
-  blocks: z.array(blockSchema).describe("Time blocks; an empty list means a rest day"),
+  blocks: z
+    .array(blockSchema)
+    .describe("Time blocks; an empty list means a rest day"),
 });
 
 async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
@@ -3632,7 +4163,10 @@ async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
     .insert(schema.availabilityDefaults)
     .values({ userId: ctx.userId, weekday: args.weekday, blocks })
     .onConflictDoUpdate({
-      target: [schema.availabilityDefaults.userId, schema.availabilityDefaults.weekday],
+      target: [
+        schema.availabilityDefaults.userId,
+        schema.availabilityDefaults.weekday,
+      ],
       set: { blocks, updatedAt: new Date() },
     });
   return { applied: true, weekday: args.weekday, blocks };
@@ -3656,7 +4190,10 @@ import type { ToolDefinition, ToolContext } from "./registry";
 import { db, schema } from "@/lib/db";
 
 const parameters = z.object({
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe("YYYY-MM-DD"),
+  date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .describe("YYYY-MM-DD"),
 });
 
 async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
@@ -3672,14 +4209,15 @@ async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
   return { cleared: deleted.length > 0, date: args.date };
 }
 
-export const clearAvailabilityOverrideTool: ToolDefinition<typeof parameters> = {
-  name: "clear_availability_override",
-  description:
-    "Remove the athlete's pinned availability for one date, so that date follows the standard week again.",
-  parameters,
-  scope: "write:plan",
-  execute,
-};
+export const clearAvailabilityOverrideTool: ToolDefinition<typeof parameters> =
+  {
+    name: "clear_availability_override",
+    description:
+      "Remove the athlete's pinned availability for one date, so that date follows the standard week again.",
+    parameters,
+    scope: "write:plan",
+    execute,
+  };
 ```
 
 Register both in `src/lib/tools/registry.ts` beside the existing
@@ -3707,10 +4245,12 @@ git commit -m "feat(tools): coach can set the standard week and pin or clear a d
 ### Task 19: Full verification and changelog
 
 **Files:**
+
 - Modify: `CHANGELOG.md`
 - Modify: `docs/ROADMAP.md` (mark the item done, if it is listed)
 
 **Interfaces:**
+
 - Consumes: everything.
 - Produces: a merge-ready branch.
 
@@ -3731,7 +4271,7 @@ for and no unit test proves them end to end:
 2. Change that single date's availability. Confirm the week again.
 3. Go back to the standard week and change that same weekday's default.
 4. Reload `/train`: the pinned date must still show the pinned value, and
-   every *other* instance of that weekday must show the new default.
+   every _other_ instance of that weekday must show the new default.
 5. Zero a day that holds a session. The session must move to a day that
    fits it whole, and no other day may change.
 
