@@ -832,8 +832,12 @@ git commit -m "refactor(week-plan): a day carries blocks and a list of workouts"
 - Test: `src/lib/week-plan/slots.test.ts`
 
 **Interfaces:**
-- Consumes: `AvailabilityBlock`, `blockMins`, `ENERGY_CEILING`, `MAX_SESSIONS_PER_DAY` (Task 1); `PlannedWorkout` (Task 4); `DaySlot`, `isQuality` (Task 5).
-- Produces: `Slot { dayIdx: number; blockIdx: number; mins: number; energy: Energy; sports: string[] | null }`, `buildSlots(days: DaySlot[]): Slot[]`, `admits(slot: Slot, w: PlannedWorkout, days: DaySlot[], taken: Set<string>): boolean`, `slotKey(s: Slot): string`.
+- Consumes: `AvailabilityBlock`, `blockMins`, `ENERGY_CEILING`, `MAX_SESSIONS_PER_DAY`, `PURPOSE_FLOORS`, `SUBSTITUTE_TO` (Task 1); `PlannedWorkout`, `withPurpose` (Task 4); `DaySlot`, `isQuality` (Task 5).
+- Produces: `Slot { dayIdx: number; blockIdx: number; mins: number; energy: Energy; sports: string[] | null }`, `buildSlots(days: DaySlot[]): Slot[]`, `admits(slot: Slot, w: PlannedWorkout, days: DaySlot[], taken: Set<string>): boolean`, `slotKey(s: Slot): string`, `TYPE_BY_PURPOSE`, `fitToBlock(w: PlannedWorkout, roomMins: number): { workout: PlannedWorkout; how: "whole" | "compressed" | "substituted" } | null`.
+
+`fitToBlock` is shared deliberately: Task 7 (a fresh week) and Task 8 (a
+replan) must shrink and substitute by exactly the same rules, and
+duplicating that logic in two engines is how they drift apart.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -954,7 +958,49 @@ describe("admits", () => {
     expect(admits(s, workout(), days, new Set([slotKey(s)]))).toBe(false);
   });
 });
+
+describe("fitToBlock", () => {
+  it("keeps the session whole when the room allows it", () => {
+    const r = fitToBlock(workout({ durationMins: 60 }), 90)!;
+    expect(r.how).toBe("whole");
+    expect(r.workout.durationMins).toBe(60);
+  });
+
+  it("compresses within the same purpose down to the floor", () => {
+    const r = fitToBlock(workout({ durationMins: 90 }), 60)!; // vo2max floor 40
+    expect(r.how).toBe("compressed");
+    expect(r.workout.purpose).toBe("vo2max");
+    expect(r.workout.durationMins).toBe(60);
+  });
+
+  it("substitutes when the room is below the session's floor", () => {
+    const r = fitToBlock(workout({ durationMins: 90 }), 30)!; // below vo2max's 40
+    expect(r.how).toBe("substituted");
+    expect(r.workout.purpose).toBe("recovery");
+    expect(r.workout.durationMins).toBe(30);
+  });
+
+  it("steps a long ride down to aerobic base", () => {
+    const r = fitToBlock(
+      workout({ type: "Long", purpose: "long", durationMins: 180 }),
+      60
+    )!; // long floor 90, aerobic_base floor 40
+    expect(r.how).toBe("substituted");
+    expect(r.workout.purpose).toBe("aerobic_base");
+    expect(r.workout.durationMins).toBe(60);
+  });
+
+  it("returns null when there is no room at all", () => {
+    expect(fitToBlock(workout(), 0)).toBeNull();
+  });
+
+  it("returns null when even recovery does not fit", () => {
+    expect(fitToBlock(workout(), 15)).toBeNull(); // recovery floor is 20
+  });
+});
 ```
+
+Add `fitToBlock` to the imports at the top of this test file.
 
 - [ ] **Step 2: Run test to verify it fails**
 
@@ -1032,6 +1078,63 @@ export function admits(
 }
 ```
 
+Then, in the same file, the shared fitting rule. Both engines call this —
+a fresh week (Task 7) and a replan (Task 8) must shrink and substitute
+identically:
+
+```ts
+import { PURPOSE_FLOORS, SUBSTITUTE_TO, type Purpose } from "@/lib/availability/types";
+import { withPurpose } from "@/lib/training-plan";
+
+/** The display label a substituted purpose is shown under. */
+export const TYPE_BY_PURPOSE: Record<Purpose, { type: string; intensity: string }> = {
+  recovery: { type: "Recovery", intensity: "Recovery" },
+  aerobic_base: { type: "Endurance", intensity: "Z1-Z2" },
+  long: { type: "Long", intensity: "Z1-Z2" },
+  threshold: { type: "Tempo", intensity: "Z3" },
+  vo2max: { type: "Intervals", intensity: "Z4-Z5" },
+  brick: { type: "Brick", intensity: "Z3" },
+};
+
+/**
+ * Fit a session into `roomMins`: keep it whole, shorten it within its own
+ * purpose, or replace it with the nearest lesser stimulus that still works
+ * at that length. Null when nothing does — not even a recovery spin.
+ *
+ * A session is never returned below its own floor, which is the rule that
+ * replaces the old truncate-to-fit behaviour.
+ */
+export function fitToBlock(
+  w: PlannedWorkout,
+  roomMins: number
+): { workout: PlannedWorkout; how: "whole" | "compressed" | "substituted" } | null {
+  if (roomMins <= 0) return null;
+  if (roomMins >= w.durationMins) return { workout: w, how: "whole" };
+  if (roomMins >= w.minEffectiveMins) {
+    return { workout: { ...w, durationMins: roomMins }, how: "compressed" };
+  }
+
+  let purpose: Purpose | undefined = SUBSTITUTE_TO[w.purpose];
+  while (purpose && PURPOSE_FLOORS[purpose] > roomMins) {
+    purpose = SUBSTITUTE_TO[purpose];
+  }
+  if (!purpose) return null;
+
+  const label = TYPE_BY_PURPOSE[purpose];
+  return {
+    workout: withPurpose({
+      day: w.day,
+      sport: w.sport,
+      type: label.type,
+      durationMins: roomMins,
+      intensity: label.intensity,
+      description: `${label.type} — replaces ${w.type}, which needs ${w.minEffectiveMins}min to be worth doing`,
+    }),
+    how: "substituted",
+  };
+}
+```
+
 `isQuality` in `src/lib/week-plan/types.ts` currently takes
 `PlannedWorkout | null`. Widen it to accept a non-null workout too — its
 body already handles both:
@@ -1045,7 +1148,7 @@ export function isQuality(w: PlannedWorkout | null | undefined): boolean {
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run src/lib/week-plan/slots.test.ts`
-Expected: PASS — 10 tests.
+Expected: PASS — 16 tests.
 
 - [ ] **Step 5: Commit**
 
@@ -1116,6 +1219,23 @@ describe("materializeWeek — block fitting", () => {
       for (const w of d.workouts) {
         expect(w.durationMins).toBeGreaterThanOrEqual(w.minEffectiveMins);
       }
+    }
+  });
+
+  it("never drops a session without saying why", () => {
+    const r = materializeWeek({
+      ...base,
+      availableBlocksPerDay: [
+        blocks([30]), blocks([30]), blocks([30]), blocks([30]),
+        blocks([30]), blocks([30]), blocks([30]),
+      ],
+    });
+    const planned = r.week.days.reduce((s, d) => s + d.workouts.length, 0);
+    // Whatever the engine could not place must be accounted for.
+    if (planned < base.skeleton.targetSessions) {
+      expect(
+        r.adjustments.some((a) => a.action === "dropped" || a.action === "swapped")
+      ).toBe(true);
     }
   });
 
@@ -1203,7 +1323,48 @@ Replace the whole `place()` / `for (const w of workouts)` body with:
         }
       }
 
-      if (!slot) continue; // fewer opportunities than sessions
+      if (!slot) {
+        // Nothing admits it whole. Rather than drop it silently, try the
+        // same fitting rule a replan uses: the roomiest slot whose energy
+        // and sport allow this session, shortened or substituted to fit.
+        const relaxed = buildSlots(days).find(
+          (s) =>
+            !taken.has(slotKey(s)) &&
+            days[s.dayIdx].workouts.length < MAX_SESSIONS_PER_DAY &&
+            (s.sports === null || s.sports.includes(workout.sport))
+        );
+        const fitted = relaxed ? fitToBlock(workout, relaxed.mins) : null;
+        if (relaxed && fitted && ENERGY_CEILING[relaxed.energy].includes(fitted.workout.purpose)) {
+          taken.add(slotKey(relaxed));
+          const target = days[relaxed.dayIdx];
+          days[relaxed.dayIdx] = {
+            ...target,
+            workouts: [...target.workouts, fitted.workout],
+            status: "planned",
+          };
+          adjustments.push({
+            date: target.date,
+            trigger: "no_time",
+            action: fitted.how === "compressed" ? "scaled" : "swapped",
+            before: [],
+            after: [],
+            reason:
+              fitted.how === "compressed"
+                ? `no block fits ${workout.durationMins}min — ${workout.type} shortened to ${fitted.workout.durationMins}min`
+                : `no block fits ${workout.type} — replaced by ${fitted.workout.type}, which works in ${fitted.workout.durationMins}min`,
+          });
+          continue;
+        }
+        adjustments.push({
+          date: input.weekStart,
+          trigger: "no_time",
+          action: "dropped",
+          before: [],
+          after: [],
+          reason: `no block in the week fits a ${workout.durationMins}min ${workout.type} — session dropped`,
+        });
+        continue;
+      }
       taken.add(slotKey(slot));
       const target = days[slot.dayIdx];
       days[slot.dayIdx] = {
@@ -1215,8 +1376,9 @@ Replace the whole `place()` / `for (const w of workouts)` body with:
 ```
 
 Delete the truncation block that previously set
-`workout.durationMins = cap` and pushed a `no_time` adjustment. A session
-that fits nothing is simply not placed; the ladder in Task 8 owns shrinking.
+`workout.durationMins = cap`. Nothing is truncated below its floor any
+more, and nothing is dropped without a logged reason — a week that ends up
+with fewer sessions than its target now says why in "What changed & why".
 
 Update the race-day and A/B-protection sections below to use `workouts`
 (they were mechanically converted in Task 5; confirm they still compile).
@@ -1385,27 +1547,11 @@ Expected: FAIL — `Failed to resolve import "./replan"`.
 // src/lib/week-plan/replan.ts
 // The ladder. Unlike materializeWeek this never regenerates the week: it
 // recomputes each day's slots, and only sessions that no longer fit move.
-import {
-  blockMins,
-  PURPOSE_FLOORS,
-  SUBSTITUTE_TO,
-  type AvailabilityBlock,
-  type Purpose,
-} from "@/lib/availability/types";
-import { withPurpose, type PlannedWorkout } from "@/lib/training-plan";
-import { admits, buildSlots, slotKey } from "./slots";
+import { blockMins, type AvailabilityBlock } from "@/lib/availability/types";
+import type { PlannedWorkout } from "@/lib/training-plan";
+import { admits, buildSlots, fitToBlock, slotKey } from "./slots";
 import type { AdjustmentRecord, DaySlot, WeekState } from "./types";
 import { dayMins } from "./types";
-
-/** Display label for a purpose the engine substituted in. */
-const TYPE_BY_PURPOSE: Record<Purpose, { type: string; intensity: string }> = {
-  recovery: { type: "Recovery", intensity: "Recovery" },
-  aerobic_base: { type: "Endurance", intensity: "Z1-Z2" },
-  long: { type: "Long", intensity: "Z1-Z2" },
-  threshold: { type: "Tempo", intensity: "Z3" },
-  vo2max: { type: "Intervals", intensity: "Z4-Z5" },
-  brick: { type: "Brick", intensity: "Z3" },
-};
 
 function locked(d: DaySlot): boolean {
   return d.status === "completed" || d.status === "missed";
@@ -1487,52 +1633,26 @@ export function replanWeek(
 
     const room = biggestBlock(days[dayIdx].availableBlocks);
 
-    // Rung 2 — compress within the same purpose.
-    if (room >= workout.minEffectiveMins) {
-      const shorter = { ...workout, durationMins: room };
+    // Rungs 2 and 3 — shorten within the purpose, or substitute the nearest
+    // lesser stimulus that works at that length. Same helper materializeWeek
+    // uses, so a fresh week and a replan can never drift apart.
+    const fitted = fitToBlock(workout, room);
+    if (fitted) {
       days[dayIdx] = {
         ...days[dayIdx],
-        workouts: [...days[dayIdx].workouts, shorter],
+        workouts: [...days[dayIdx].workouts, fitted.workout],
         status: "adapted",
       };
       adjustments.push({
         date: fromDate,
         trigger: "no_time",
-        action: "scaled",
+        action: fitted.how === "compressed" ? "scaled" : "swapped",
         before: [before],
         after: [{ ...days[dayIdx] }],
-        reason: `${workout.type} shortened from ${workout.durationMins} to ${room}min — same session, less of it`,
-      });
-      continue;
-    }
-
-    // Rung 3 — substitute toward the nearest lesser stimulus that fits.
-    let purpose: Purpose | undefined = SUBSTITUTE_TO[workout.purpose];
-    while (purpose && PURPOSE_FLOORS[purpose] > room) {
-      purpose = SUBSTITUTE_TO[purpose];
-    }
-    if (purpose && room > 0) {
-      const label = TYPE_BY_PURPOSE[purpose];
-      const swapped = withPurpose({
-        day: workout.day,
-        sport: workout.sport,
-        type: label.type,
-        durationMins: room,
-        intensity: label.intensity,
-        description: `${label.type} — replaces ${workout.type}, which needs ${workout.minEffectiveMins}min to be worth doing`,
-      });
-      days[dayIdx] = {
-        ...days[dayIdx],
-        workouts: [...days[dayIdx].workouts, swapped],
-        status: "adapted",
-      };
-      adjustments.push({
-        date: fromDate,
-        trigger: "no_time",
-        action: "swapped",
-        before: [before],
-        after: [{ ...days[dayIdx] }],
-        reason: `only ${room}min on ${fromDate} — ${workout.type} replaced by ${label.type}, which still works at that length`,
+        reason:
+          fitted.how === "compressed"
+            ? `${workout.type} shortened from ${workout.durationMins} to ${room}min — same session, less of it`
+            : `only ${room}min on ${fromDate} — ${workout.type} replaced by ${fitted.workout.type}, which still works at that length`,
       });
       continue;
     }
@@ -2229,27 +2349,40 @@ export async function zeroDay(date: string): Promise<Result> {
 ```
 
 Reshape `submitAvailability` to carry blocks. The form serialises each
-day's blocks as JSON in a single field per day:
+day's blocks as JSON in a single field per day. The parsing is pulled out
+as a pure exported function so it can be tested without a session:
 
 ```ts
+/**
+ * One day's blocks out of a form field. Anything unparseable, malformed,
+ * or failing validation degrades to an empty day — a rest day is the safe
+ * reading of "I could not understand what you sent".
+ *
+ * Pure and exported for its tests: server actions need a session, this
+ * does not.
+ */
+export function parseDayBlocks(raw: FormDataEntryValue | null): AvailabilityBlock[] {
+  if (raw == null) return [];
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(String(raw));
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(parsed)) return [];
+  const blocks = parsed as AvailabilityBlock[];
+  return validateBlocks(blocks) === null ? blocks : [];
+}
+
 export async function submitAvailability(
   _prev: IntakeState,
   formData: FormData
 ): Promise<IntakeState> {
   const user = await requireUser();
 
-  const blocksPerDay: AvailabilityBlock[][] = [];
-  for (let i = 0; i < 7; i++) {
-    const raw = formData.get(`blocks-${i}`);
-    let parsed: AvailabilityBlock[] = [];
-    try {
-      parsed = raw ? (JSON.parse(String(raw)) as AvailabilityBlock[]) : [];
-    } catch {
-      parsed = [];
-    }
-    if (validateBlocks(parsed) !== null) parsed = [];
-    blocksPerDay.push(parsed);
-  }
+  const blocksPerDay = Array.from({ length: 7 }, (_, i) =>
+    parseDayBlocks(formData.get(`blocks-${i}`))
+  );
 
   const result = await applyAvailability(user.id, blocksPerDay);
   revalidatePlan();
@@ -2267,22 +2400,41 @@ export async function submitAvailability(
 ```ts
 // src/app/plan/actions.test.ts
 import { describe, expect, it } from "vitest";
-import { validateBlocks } from "@/lib/availability/types";
+import { parseDayBlocks } from "./actions";
 
-// The actions themselves need a session; their guard logic is what matters
-// and is exercised through validateBlocks, which they delegate to.
-describe("availability action guards", () => {
-  it("rejects overlapping blocks before they can reach the database", () => {
-    expect(
-      validateBlocks([
-        { start: "18:00", end: "19:30", mins: 90, energy: "normal", sports: null },
-        { start: "19:00", end: "20:00", mins: 60, energy: "normal", sports: null },
-      ])
-    ).not.toBeNull();
+const one = JSON.stringify([
+  { start: "18:00", end: "19:30", mins: 90, energy: "normal", sports: null },
+]);
+
+describe("parseDayBlocks", () => {
+  it("reads a day's blocks out of the form field", () => {
+    const r = parseDayBlocks(one);
+    expect(r).toHaveLength(1);
+    expect(r[0].mins).toBe(90);
   });
 
-  it("accepts an empty day, which is how zeroDay works", () => {
-    expect(validateBlocks([])).toBeNull();
+  it("reads a missing field as a rest day", () => {
+    expect(parseDayBlocks(null)).toEqual([]);
+  });
+
+  it("reads malformed JSON as a rest day rather than throwing", () => {
+    expect(parseDayBlocks("{not json")).toEqual([]);
+  });
+
+  it("reads a non-array payload as a rest day", () => {
+    expect(parseDayBlocks('{"mins":90}')).toEqual([]);
+  });
+
+  it("drops a day whose blocks overlap instead of storing them", () => {
+    const overlapping = JSON.stringify([
+      { start: "18:00", end: "19:30", mins: 90, energy: "normal", sports: null },
+      { start: "19:00", end: "20:00", mins: 60, energy: "normal", sports: null },
+    ]);
+    expect(parseDayBlocks(overlapping)).toEqual([]);
+  });
+
+  it("keeps an explicitly empty day empty", () => {
+    expect(parseDayBlocks("[]")).toEqual([]);
   });
 });
 ```
