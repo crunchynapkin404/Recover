@@ -17,18 +17,24 @@ describe("overnightComplete", () => {
 
 describe("arrivalFromWellness", () => {
   it("maps present values to true", () => {
-    expect(arrivalFromWellness({ hrvMs: 62, sleepSecs: 25000 })).toEqual({
+    expect(
+      arrivalFromWellness({ hrvMs: 62, sleepSecs: 25000, sleepScore: null })
+    ).toEqual({
       hrv: true,
       sleep: true,
     });
   });
 
   it("treats null fields as not arrived", () => {
-    expect(arrivalFromWellness({ hrvMs: null, sleepSecs: 25000 })).toEqual({
+    expect(
+      arrivalFromWellness({ hrvMs: null, sleepSecs: 25000, sleepScore: null })
+    ).toEqual({
       hrv: false,
       sleep: true,
     });
-    expect(arrivalFromWellness({ hrvMs: 62, sleepSecs: null })).toEqual({
+    expect(
+      arrivalFromWellness({ hrvMs: 62, sleepSecs: null, sleepScore: null })
+    ).toEqual({
       hrv: true,
       sleep: false,
     });
@@ -45,9 +51,40 @@ describe("arrivalFromWellness", () => {
   // A zero reading is a real measurement, not an absence — only null means
   // "not measured" in this schema.
   it("treats 0 as arrived, not missing", () => {
-    expect(arrivalFromWellness({ hrvMs: 0, sleepSecs: 0 })).toEqual({
+    expect(
+      arrivalFromWellness({ hrvMs: 0, sleepSecs: 0, sleepScore: 0 })
+    ).toEqual({
       hrv: true,
       sleep: true,
+    });
+  });
+
+  // Fix: readiness.ts scores sleep from either source (preferring the
+  // score), so arrival must recognize either source too — a provider that
+  // only ever sends a sleep score (no duration) must not be gated forever.
+  describe("sleep arrival from either source", () => {
+    it("counts a sleep score alone as arrived, with no duration", () => {
+      expect(
+        arrivalFromWellness({ hrvMs: 62, sleepSecs: null, sleepScore: 78 })
+      ).toEqual({ hrv: true, sleep: true });
+    });
+
+    it("counts a sleep duration alone as arrived, with no score", () => {
+      expect(
+        arrivalFromWellness({ hrvMs: 62, sleepSecs: 25000, sleepScore: null })
+      ).toEqual({ hrv: true, sleep: true });
+    });
+
+    it("counts both present as arrived", () => {
+      expect(
+        arrivalFromWellness({ hrvMs: 62, sleepSecs: 25000, sleepScore: 78 })
+      ).toEqual({ hrv: true, sleep: true });
+    });
+
+    it("counts neither present as not arrived", () => {
+      expect(
+        arrivalFromWellness({ hrvMs: 62, sleepSecs: null, sleepScore: null })
+      ).toEqual({ hrv: true, sleep: false });
     });
   });
 });

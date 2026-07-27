@@ -29,13 +29,27 @@ export function overnightComplete(a: OvernightArrival): boolean {
 /**
  * Map today's wellness_daily row to an arrival. Only `null` counts as "not
  * measured" — 0 is a real reading.
+ *
+ * Sleep arrival is "either source", mirroring readiness.ts's own scoring
+ * (readiness.ts:135-138 scores from sleepScore when present, falling back to
+ * sleepSecs): Oura, Whoop and intervals.icu can each populate sleep_score
+ * independently of sleep_secs. Gating on sleepSecs alone would hold an
+ * athlete whose provider only ever sends a score, forever, to the 09:00
+ * backstop.
  */
 export function arrivalFromWellness(
-  row: { hrvMs: number | null; sleepSecs: number | null } | null | undefined
+  row:
+    | {
+        hrvMs: number | null;
+        sleepSecs: number | null;
+        sleepScore: number | null;
+      }
+    | null
+    | undefined
 ): OvernightArrival {
   return {
     hrv: row?.hrvMs != null,
-    sleep: row?.sleepSecs != null,
+    sleep: row?.sleepSecs != null || row?.sleepScore != null,
   };
 }
 
