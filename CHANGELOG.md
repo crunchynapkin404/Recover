@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.25.17 — 2026-07-27 — Brief Waits For Real Data
+
+- **The morning brief now waits until last night's HRV and sleep have
+  actually arrived.** Those two carry 60% of the readiness weight between
+  them, but the engine would happily score without either — so a brief
+  could fire on resting heart rate alone and read "green, good day for
+  intensity" while the completed data said amber. It now holds until the
+  overnight measurement is in.
+- **When it can't wait, it says so.** If the data still hasn't arrived by
+  the 09:00 backstop, the brief still appears but names exactly which
+  signals are missing and what the number leans on instead, rather than
+  presenting a partial reading as a whole one.
+- **An incomplete brief gets one silent correction.** If the real data
+  lands later that morning, the brief is replaced in place — one message,
+  no second notification — so the day never ends on advice the app already
+  knows is wrong. A brief that was complete to begin with is never touched.
+
 ## v0.25.16 — 2026-07-26 — Event-Driven Sync Triggers
 
 - **The morning brief no longer waits on the fixed 05:00 provider sync.**
