@@ -352,6 +352,34 @@ describe("materializeWeek race handling", () => {
     expect(r.adjustments.some((a) => a.reason.startsWith("taper:"))).toBe(true);
   });
 
+  it("never drops a race-week session without logging why — energy tier mismatch", () => {
+    // Friday (raceIdx - 2) is where the Tempo opener lands. Give it minutes
+    // but only an "easy" block — ENERGY_CEILING["easy"] excludes "threshold"
+    // (Tempo's purpose), so findBlockFor returns null even though the day
+    // isn't empty. The opener must not vanish with no trace.
+    const availableBlocksPerDay = blocksPerDay(AVAIL);
+    availableBlocksPerDay[4] = [
+      {
+        start: null,
+        end: null,
+        mins: 90,
+        energy: "easy" as const,
+        sports: null,
+      },
+    ];
+    const r = materializeWeek({
+      ...BASE_INPUT,
+      availableBlocksPerDay,
+      races: [A_RACE],
+    });
+    const friday = r.week.days[4];
+    const placedOnFriday = friday.workouts.length > 0;
+    const loggedDrop = r.adjustments.some(
+      (a) => a.reason.includes(friday.date) && a.reason.includes("Tempo")
+    );
+    expect(placedOnFriday || loggedDrop).toBe(true);
+  });
+
   it("taper bypasses the downward ramp clamp but not the upward one", () => {
     const r = materializeWeek({ ...BASE_INPUT, races: [A_RACE] });
     // 171 is far below 380×0.8=304 — without the bypass it would clamp.

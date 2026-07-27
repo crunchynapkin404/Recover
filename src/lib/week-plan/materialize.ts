@@ -251,7 +251,62 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
           workouts: [...days[w.day].workouts, { ...w, blockIdx }],
           status: "planned",
         };
+        continue;
       }
+
+      // Nothing admits it whole on its designated pre-race day (energy
+      // tier, size, sport, adjacency, or the per-day cap). Race-week
+      // sessions are pinned to a specific day relative to the race, so —
+      // unlike the main loop below — only that day's own blocks are
+      // candidates; try the same fitting rule a replan uses before giving
+      // up, and only drop, with a logged reason, when nothing does.
+      const candidates = buildSlots(days).filter(
+        (s) =>
+          s.dayIdx === w.day &&
+          !taken.has(slotKey(s)) &&
+          days[s.dayIdx].workouts.length < MAX_SESSIONS_PER_DAY &&
+          (s.sports === null || s.sports.includes(w.sport))
+      );
+      let placed = false;
+      for (const candidate of candidates) {
+        const fitted = fitToBlock(w, candidate.mins);
+        if (!fitted) continue;
+        if (!admits(candidate, fitted.workout, days, taken)) continue;
+
+        taken.add(slotKey(candidate));
+        const target = days[candidate.dayIdx];
+        days[candidate.dayIdx] = {
+          ...target,
+          workouts: [
+            ...target.workouts,
+            { ...fitted.workout, blockIdx: candidate.blockIdx },
+          ],
+          status: "planned",
+        };
+        adjustments.push({
+          date: target.date,
+          trigger: "no_time",
+          action: fitted.how === "compressed" ? "scaled" : "swapped",
+          before: [],
+          after: [],
+          reason:
+            fitted.how === "compressed"
+              ? `no block fits ${w.durationMins}min — ${w.type} shortened to ${fitted.workout.durationMins}min`
+              : `no block fits ${w.type} — replaced by ${fitted.workout.type}, which works in ${fitted.workout.durationMins}min`,
+        });
+        placed = true;
+        break;
+      }
+      if (placed) continue;
+
+      adjustments.push({
+        date: days[w.day].date,
+        trigger: "no_time",
+        action: "dropped",
+        before: [],
+        after: [],
+        reason: `no block on ${days[w.day].date} fits a ${w.durationMins}min ${w.type} — race-week session dropped`,
+      });
     }
   } else if (sessions > 0) {
     const effectiveHours = Math.min(hoursBudget, neededHours);
