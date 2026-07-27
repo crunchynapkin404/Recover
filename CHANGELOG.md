@@ -2,13 +2,21 @@
 
 ## v0.25.18 — 2026-07-27 — Notifications, Clocks And Language
 
-- **Push notifications no longer die silently.** A missing or malformed
-  `ENCRYPTION_KEY` — a configuration hiccup, with the stored key itself
-  perfectly intact — was enough to make the app throw away the instance's
-  push keypair, which unsubscribed every device at once. Recovery meant
-  re-enabling notifications by hand, and nothing announced that it had
+- **One way push notifications could die silently is closed off.** A missing
+  or malformed `ENCRYPTION_KEY` — a configuration hiccup, with the stored key
+  itself perfectly intact — was enough to make the app throw away the
+  instance's push keypair, which unsubscribed every device at once. Recovery
+  meant re-enabling notifications by hand, and nothing announced that it had
   happened. That fault is now told apart from a genuinely unreadable key:
   the keypair is kept and the error surfaces instead.
+
+  _Corrected after release:_ this was **not** the cause of the repeated
+  orphaning actually seen in the wild. That turned out to be a test
+  overwriting the live instance's keypair on every full-suite run, fixed
+  separately in `ae0d1df` — after v0.25.18 had already shipped, and not part
+  of it. The guard above is still right, but it does not by itself mean push
+  can no longer be orphaned silently.
+
 - **Bed and wake times now show your clock, not the server's.** A 23:32
   bedtime was displayed as "21:32" and a 07:53 wake as "05:52". The times
   were recorded correctly all along — they were being read back in the
