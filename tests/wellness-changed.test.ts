@@ -17,6 +17,11 @@ vi.mock("@/lib/push", () => ({
     maybeSendMorningReadinessPush(...args),
 }));
 
+// Narrow two-key stub: this mock only supports the one call the gate
+// actually makes (db.query.wellnessDaily.findFirst). Any future code in
+// wellness-changed.ts that touches a different table or db method would
+// silently get `undefined` here rather than a helpful error — if this file
+// starts exercising more of @/lib/db, widen the mock rather than guessing.
 const findFirstWellness = vi.fn();
 vi.mock("@/lib/db", () => ({
   db: {
@@ -226,5 +231,17 @@ describe("onWellnessDataChanged — overnight completeness gate", () => {
       await import("@/lib/sync/wellness-changed");
     await onWellnessDataChanged("u", { now: noon });
     expect(runDailyAdaptation).toHaveBeenCalledWith("u", noon);
+  });
+
+  // Fix: the gate's fail-closed catch is the branch's core safety property —
+  // if the completeness read itself throws, we must not guess and fire a
+  // brief we can't vouch for.
+  it("fails closed when the completeness read throws", async () => {
+    findFirstWellness.mockRejectedValue(new Error("boom"));
+    const { onWellnessDataChanged } =
+      await import("@/lib/sync/wellness-changed");
+    expect(await onWellnessDataChanged("u", { now: noon })).toBe("skipped");
+    expect(generateMorningInsight).not.toHaveBeenCalled();
+    expect(maybeSendMorningReadinessPush).not.toHaveBeenCalled();
   });
 });

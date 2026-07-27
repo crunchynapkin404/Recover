@@ -8,10 +8,11 @@
   could fire on resting heart rate alone and read "green, good day for
   intensity" while the completed data said amber. It now holds until the
   overnight measurement is in.
-- **When it can't wait, it says so.** If the data still hasn't arrived by
-  the 09:00 backstop, the brief still appears but names exactly which
-  signals are missing and what the number leans on instead, rather than
-  presenting a partial reading as a whole one.
+- **When it can't wait, it says so.** For athletes with a connected data
+  source, if the data still hasn't arrived by the 09:00 backstop, the brief
+  still appears but names exactly which signals are missing and what the
+  number leans on instead, rather than presenting a partial reading as a
+  whole one.
 - **An incomplete brief gets one silent correction.** If the real data
   lands later that morning, the brief is replaced in place — one message,
   no second notification — so the day never ends on advice the app already
