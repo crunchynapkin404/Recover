@@ -1,6 +1,15 @@
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import { and, eq } from "drizzle-orm";
 import {
+  blocksEqual,
   clearDayOverride,
   parseDayBlocks,
   setDayOverride,
@@ -8,6 +17,7 @@ import {
   submitAvailability,
   zeroDay,
 } from "./actions";
+import type { AvailabilityBlock } from "@/lib/availability/types";
 
 // requires Postgres; skips without DATABASE_URL.
 const hasDb =
@@ -154,6 +164,83 @@ describe("parseDayBlocks", () => {
       { start: null, end: null, mins: 45, energy: "easy", sports: null },
     ]);
     expect(parseDayBlocks(legacy)).toHaveLength(1);
+  });
+});
+
+// ── Task 16b: submitAvailability must turn a day that actually differs from
+// the standard week into a date override, and leave (or clear) one that
+// doesn't. blocksEqual is the pure comparison that decision rests on. ──────
+describe("blocksEqual", () => {
+  function blk(overrides: Partial<AvailabilityBlock> = {}): AvailabilityBlock {
+    return {
+      start: null,
+      end: null,
+      mins: 60,
+      energy: "normal",
+      sports: null,
+      ...overrides,
+    };
+  }
+
+  it("is true for two empty lists", () => {
+    expect(blocksEqual([], [])).toBe(true);
+  });
+
+  it("is true for identical blocks", () => {
+    expect(blocksEqual([blk()], [blk()])).toBe(true);
+  });
+
+  it("is false when lengths differ", () => {
+    expect(blocksEqual([blk()], [blk(), blk()])).toBe(false);
+  });
+
+  it("is false when start differs", () => {
+    expect(
+      blocksEqual([blk({ start: "06:00" })], [blk({ start: "07:00" })])
+    ).toBe(false);
+  });
+
+  it("is false when end differs", () => {
+    expect(blocksEqual([blk({ end: "07:00" })], [blk({ end: "08:00" })])).toBe(
+      false
+    );
+  });
+
+  it("is false when mins differs", () => {
+    expect(blocksEqual([blk({ mins: 30 })], [blk({ mins: 45 })])).toBe(false);
+  });
+
+  it("is false when energy differs", () => {
+    expect(
+      blocksEqual([blk({ energy: "easy" })], [blk({ energy: "full" })])
+    ).toBe(false);
+  });
+
+  it("treats sports: null and sports: [] as distinct — null means any sport, [] admits nothing", () => {
+    expect(blocksEqual([blk({ sports: null })], [blk({ sports: [] })])).toBe(
+      false
+    );
+  });
+
+  it("is true when both sports are null", () => {
+    expect(blocksEqual([blk({ sports: null })], [blk({ sports: null })])).toBe(
+      true
+    );
+  });
+
+  it("is true when both sports arrays hold the same values", () => {
+    expect(
+      blocksEqual(
+        [blk({ sports: ["Run", "Bike"] })],
+        [blk({ sports: ["Run", "Bike"] })]
+      )
+    ).toBe(true);
+  });
+
+  it("is false when sports arrays differ", () => {
+    expect(
+      blocksEqual([blk({ sports: ["Run"] })], [blk({ sports: ["Bike"] })])
+    ).toBe(false);
   });
 });
 
@@ -441,6 +528,236 @@ describe.skipIf(!hasDb)("server actions", () => {
       fd.set("blocks-0", one);
       const result = await submitAvailability({ message: "" }, fd);
       expect(result.message).toBe("No open week to update yet.");
+    });
+
+    // ── Task 16b: an edit that differs from the standard week must survive
+    // as a date override; one that matches must create no row, or clear one
+    // that already existed. ────────────────────────────────────────────────
+    describe("date overrides from a submitted week", () => {
+      const WEEK_START = "2026-09-07"; // Monday
+
+      function ymd(offset: number): string {
+        const d = new Date(WEEK_START + "T00:00:00");
+        d.setDate(d.getDate() + offset);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+          d.getDate()
+        ).padStart(2, "0")}`;
+      }
+      const DATES = Array.from({ length: 7 }, (_, i) => ymd(i));
+
+      function blk(
+        overrides: Partial<AvailabilityBlock> = {}
+      ): AvailabilityBlock {
+        return {
+          start: null,
+          end: null,
+          mins: 60,
+          energy: "normal",
+          sports: null,
+          ...overrides,
+        };
+      }
+
+      function daySlot(date: string, status: "rest" | "completed" = "rest") {
+        return {
+          date,
+          availableBlocks: [] as AvailabilityBlock[],
+          availableMins: 0,
+          workouts: [],
+          status,
+        };
+      }
+
+      let planId: string;
+
+      async function seedWeek(
+        days: ReturnType<typeof daySlot>[]
+      ): Promise<void> {
+        const { db, schema } = await import("@/lib/db");
+        await db.insert(schema.weekPlans).values({
+          userId: USER,
+          planId,
+          weekStart: WEEK_START,
+          skeletonWeek: 1,
+          days,
+          status: "open",
+          effectiveTarget: 300,
+        });
+      }
+
+      beforeAll(async () => {
+        const { db, schema } = await import("@/lib/db");
+        const [plan] = await db
+          .insert(schema.trainingPlans)
+          .values({
+            userId: USER,
+            title: "Plan Actions Test Plan",
+            raceType: "marathon",
+            raceDate: "2027-01-01",
+            startDate: "2026-01-01",
+            weeksTotal: 16,
+            currentWeek: 1,
+            status: "active",
+          })
+          .returning();
+        planId = plan.id;
+      });
+
+      afterAll(async () => {
+        const { db, schema } = await import("@/lib/db");
+        await db
+          .delete(schema.weekPlans)
+          .where(eq(schema.weekPlans.userId, USER));
+        await db
+          .delete(schema.trainingPlans)
+          .where(eq(schema.trainingPlans.userId, USER));
+      });
+
+      beforeEach(async () => {
+        const { db, schema } = await import("@/lib/db");
+        await db
+          .delete(schema.weekPlans)
+          .where(eq(schema.weekPlans.userId, USER));
+        await db
+          .delete(schema.availabilityOverrides)
+          .where(eq(schema.availabilityOverrides.userId, USER));
+        await db
+          .delete(schema.availabilityDefaults)
+          .where(eq(schema.availabilityDefaults.userId, USER));
+      });
+
+      it("pins a date whose submitted blocks differ from the standard week", async () => {
+        const { db, schema } = await import("@/lib/db");
+        const defaultBlocks = [blk({ start: "06:00", end: "07:00" })];
+        await db.insert(schema.availabilityDefaults).values({
+          userId: USER,
+          weekday: 0,
+          blocks: defaultBlocks,
+        });
+        await seedWeek(DATES.map((d) => daySlot(d)));
+
+        const submitted = [
+          blk({ start: "18:00", end: "19:00", energy: "easy" }),
+        ];
+        const fd = new FormData();
+        fd.set("blocks-0", JSON.stringify(submitted));
+        await submitAvailability({ message: "" }, fd);
+
+        const override = await db.query.availabilityOverrides.findFirst({
+          where: and(
+            eq(schema.availabilityOverrides.userId, USER),
+            eq(schema.availabilityOverrides.date, DATES[0])
+          ),
+        });
+        expect(override?.blocks).toEqual(submitted);
+      });
+
+      it("creates no override row when the submitted day matches the standard week", async () => {
+        const { db, schema } = await import("@/lib/db");
+        const defaultBlocks = [blk({ start: "07:00", end: "08:00" })];
+        await db.insert(schema.availabilityDefaults).values({
+          userId: USER,
+          weekday: 1,
+          blocks: defaultBlocks,
+        });
+        await seedWeek(DATES.map((d) => daySlot(d)));
+
+        const fd = new FormData();
+        fd.set("blocks-1", JSON.stringify(defaultBlocks));
+        await submitAvailability({ message: "" }, fd);
+
+        const override = await db.query.availabilityOverrides.findFirst({
+          where: and(
+            eq(schema.availabilityOverrides.userId, USER),
+            eq(schema.availabilityOverrides.date, DATES[1])
+          ),
+        });
+        expect(override).toBeUndefined();
+      });
+
+      it("deletes an existing override once its submission matches the standard week again", async () => {
+        const { db, schema } = await import("@/lib/db");
+        const defaultBlocks = [blk({ start: "12:00", end: "13:00" })];
+        await db.insert(schema.availabilityDefaults).values({
+          userId: USER,
+          weekday: 2,
+          blocks: defaultBlocks,
+        });
+        await db.insert(schema.availabilityOverrides).values({
+          userId: USER,
+          date: DATES[2],
+          blocks: [],
+        });
+        await seedWeek(DATES.map((d) => daySlot(d)));
+
+        const fd = new FormData();
+        fd.set("blocks-2", JSON.stringify(defaultBlocks));
+        await submitAvailability({ message: "" }, fd);
+
+        const override = await db.query.availabilityOverrides.findFirst({
+          where: and(
+            eq(schema.availabilityOverrides.userId, USER),
+            eq(schema.availabilityOverrides.date, DATES[2])
+          ),
+        });
+        expect(override).toBeUndefined();
+      });
+
+      it("does not pin a day the open week already marks completed", async () => {
+        const { db, schema } = await import("@/lib/db");
+        const defaultBlocks = [blk({ start: "06:00", end: "07:00" })];
+        await db.insert(schema.availabilityDefaults).values({
+          userId: USER,
+          weekday: 3,
+          blocks: defaultBlocks,
+        });
+        const days = DATES.map((d) => daySlot(d));
+        days[3] = daySlot(DATES[3], "completed");
+        await seedWeek(days);
+
+        const fd = new FormData();
+        fd.set(
+          "blocks-3",
+          JSON.stringify([blk({ start: "20:00", end: "21:00" })])
+        );
+        await submitAvailability({ message: "" }, fd);
+
+        const override = await db.query.availabilityOverrides.findFirst({
+          where: and(
+            eq(schema.availabilityOverrides.userId, USER),
+            eq(schema.availabilityOverrides.date, DATES[3])
+          ),
+        });
+        expect(override).toBeUndefined();
+      });
+
+      it("the rule itself: an override's date stays put when its weekday default later changes, while other instances of that weekday follow the new default", async () => {
+        const { db, schema } = await import("@/lib/db");
+        const defaultV1 = [blk({ start: "06:00", end: "07:00" })];
+        await db.insert(schema.availabilityDefaults).values({
+          userId: USER,
+          weekday: 0,
+          blocks: defaultV1,
+        });
+        await seedWeek(DATES.map((d) => daySlot(d)));
+
+        const pinned = [blk({ start: "20:00", end: "21:00", energy: "easy" })];
+        const fd = new FormData();
+        fd.set("blocks-0", JSON.stringify(pinned));
+        await submitAvailability({ message: "" }, fd);
+
+        const defaultV2 = [
+          blk({ start: "05:00", end: "05:30", mins: 30, energy: "full" }),
+        ];
+        await setStandardWeekDay(0, defaultV2);
+
+        const otherMonday = ymd(7); // next Monday — never overridden
+        const { resolveWeek } = await import("@/lib/availability/resolve");
+        const resolved = await resolveWeek(USER, [DATES[0], otherMonday]);
+
+        expect(resolved.get(DATES[0])).toEqual(pinned);
+        expect(resolved.get(otherMonday)).toEqual(defaultV2);
+      });
     });
   });
 });

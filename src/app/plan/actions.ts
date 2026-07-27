@@ -6,11 +6,13 @@ import { requireUser } from "@/lib/session";
 import { db, schema } from "@/lib/db";
 import {
   applyAvailability,
+  getOpenWeekPlan,
   markDayDone,
   moveWorkout,
   rolloverWeekPlan,
   swapWorkouts,
 } from "@/lib/week-plan/service";
+import { resolveDay } from "@/lib/availability/resolve-day";
 import {
   assembleForecastInputs,
   createRace,
@@ -69,6 +71,102 @@ export function parseDayBlocks(
   return validateBlocks(blocks) === null ? blocks : [];
 }
 
+/**
+ * True when two block lists are the same availability value: same length,
+ * and every block equal on every field the athlete can actually set.
+ * `sports: null` ("any sport") and `sports: []` ("admits nothing") are
+ * deliberately never equal to each other — collapsing them would let a
+ * day pinned "no sport allowed" silently re-merge with a weekday default
+ * that means "anything goes".
+ *
+ * Pure and exported for its own tests.
+ */
+export function blocksEqual(
+  a: AvailabilityBlock[],
+  b: AvailabilityBlock[]
+): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((block, i) => oneBlockEqual(block, b[i]));
+}
+
+function oneBlockEqual(a: AvailabilityBlock, b: AvailabilityBlock): boolean {
+  return (
+    a.start === b.start &&
+    a.end === b.end &&
+    a.mins === b.mins &&
+    a.energy === b.energy &&
+    sportsEqual(a.sports, b.sports)
+  );
+}
+
+function sportsEqual(a: string[] | null, b: string[] | null): boolean {
+  if (a === null || b === null) return a === b;
+  return a.length === b.length && a.every((s, i) => s === b[i]);
+}
+
+/** Monday = 0, matching availability_defaults.weekday. */
+function weekdayOf(ymd: string): number {
+  return (new Date(ymd + "T00:00:00").getDay() + 6) % 7;
+}
+
+/**
+ * Keeps each date's override row honest with what was actually submitted.
+ * A day whose blocks now differ from its weekday default is pinned, so the
+ * edit survives the next re-materialization — the whole reason the override
+ * table exists. A day that now matches the default again has its pin
+ * removed, so editing a day back to standard is as valid a way to return it
+ * to the standard week as the "Pinned" badge's own clear action.
+ *
+ * Skips any date the open week already marks completed or missed — those
+ * are already lived, and a form resubmission must not retroactively pin
+ * them. Never reads or writes availability_defaults itself beyond looking
+ * up what it would resolve to; the standard week is never touched here.
+ */
+async function syncDateOverrides(
+  userId: string,
+  blocksPerDay: AvailabilityBlock[][]
+): Promise<void> {
+  const week = await getOpenWeekPlan(userId);
+  if (!week) return;
+
+  const defaults = await db.query.availabilityDefaults.findMany({
+    where: eq(schema.availabilityDefaults.userId, userId),
+  });
+  const byWeekday = new Map<number, AvailabilityBlock[]>(
+    defaults.map((d) => [d.weekday, d.blocks as AvailabilityBlock[]])
+  );
+
+  for (let i = 0; i < week.days.length; i++) {
+    const day = week.days[i];
+    if (day.status === "completed" || day.status === "missed") continue;
+
+    const submitted = blocksPerDay[i] ?? [];
+    const standard = resolveDay(byWeekday.get(weekdayOf(day.date)) ?? [], null);
+
+    if (blocksEqual(submitted, standard)) {
+      await db
+        .delete(schema.availabilityOverrides)
+        .where(
+          and(
+            eq(schema.availabilityOverrides.userId, userId),
+            eq(schema.availabilityOverrides.date, day.date)
+          )
+        );
+    } else {
+      await db
+        .insert(schema.availabilityOverrides)
+        .values({ userId, date: day.date, blocks: submitted })
+        .onConflictDoUpdate({
+          target: [
+            schema.availabilityOverrides.userId,
+            schema.availabilityOverrides.date,
+          ],
+          set: { blocks: submitted, updatedAt: new Date() },
+        });
+    }
+  }
+}
+
 export async function submitAvailability(
   _prev: IntakeState,
   formData: FormData
@@ -78,6 +176,8 @@ export async function submitAvailability(
   const blocksPerDay = Array.from({ length: 7 }, (_, i) =>
     parseDayBlocks(formData.get(`blocks-${i}`))
   );
+
+  await syncDateOverrides(user.id, blocksPerDay);
 
   const result = await applyAvailability(user.id, blocksPerDay);
   revalidatePlan();
