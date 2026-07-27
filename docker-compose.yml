@@ -26,6 +26,13 @@ services:
     ports:
       - "${APP_PORT:-3000}:3000"
     environment:
+      # The athlete's timezone. Recover has no per-user timezone field, so the
+      # container's local time IS the athlete's wall clock: it decides how bed
+      # times, sleep midpoint/chronotype and the recommended bedtime are
+      # rendered, and which local hour the sync/brief/backstop slots fire at.
+      # Left at UTC a CEST athlete sees "went to bed 21:32" for a 23:32 bedtime.
+      # Set TZ in .env to your own zone (e.g. Europe/Amsterdam).
+      TZ: ${TZ:-UTC}
       DATABASE_URL: postgres://recover:${POSTGRES_PASSWORD:-recover}@db:5432/recover
       DATABASE_DRIVER: pg
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:?set in .env — 64 hex chars}
