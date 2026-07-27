@@ -45,6 +45,21 @@ export function dayMins(d: Pick<DaySlot, "availableBlocks">): number {
   return d.availableBlocks.reduce((s, b) => s + blockMins(b), 0);
 }
 
+/**
+ * Whether the SPECIFIC block at this index can hold a session this long.
+ * Never "does some block on this day work?" — a session judged against a
+ * roomier sibling block it doesn't actually occupy is exactly the defect
+ * this replaces: a day's biggest block excusing every session on it.
+ */
+export function blockFits(
+  d: Pick<DaySlot, "availableBlocks">,
+  blockIdx: number,
+  mins: number
+): boolean {
+  const block = d.availableBlocks[blockIdx];
+  return block != null && blockMins(block) >= mins;
+}
+
 export interface WeekState {
   weekStart: string; // Monday, YYYY-MM-DD
   skeletonWeek: number;

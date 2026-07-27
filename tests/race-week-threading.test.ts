@@ -186,6 +186,25 @@ describe.skipIf(!hasDb)(
         name: "Taper Threader",
         email: "race-threading-taper@example.invalid",
       });
+      // rolloverWeekPlan now resolves availability from availability_defaults
+      // rather than synthesizing it from plan constraints — seed a generous
+      // standard week so the taper target isn't also clamped by the
+      // hours-budget guard, which isn't what this test is checking.
+      await db.insert(schema.availabilityDefaults).values(
+        Array.from({ length: 7 }, (_, weekday) => ({
+          userId: TAPER_USER,
+          weekday,
+          blocks: [
+            {
+              start: null,
+              end: null,
+              mins: 120,
+              energy: "normal" as const,
+              sports: null,
+            },
+          ],
+        }))
+      );
     });
     afterAll(cleanupTaperUser);
 
@@ -269,6 +288,7 @@ describe.skipIf(!hasDb)(
                 durationMins: 90,
                 intensity: "Z1-Z2",
                 description: "Long run",
+                blockIdx: 0,
               },
             ],
             status: "completed" as const,

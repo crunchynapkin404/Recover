@@ -324,6 +324,7 @@ describe.skipIf(!hasDb)(
                   durationMins: 90,
                   intensity: "Z2",
                   description: "Long run",
+                  blockIdx: 0,
                 },
               ],
               status: "planned" as const,

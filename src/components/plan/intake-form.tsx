@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { formatAvailability } from "@/lib/week-plan/availability";
+import { formatAvailability } from "@/lib/availability/format";
 import { AvailabilitySheet } from "./availability-sheet";
 
 export interface IntakeState {

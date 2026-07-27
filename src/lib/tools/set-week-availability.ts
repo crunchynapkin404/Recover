@@ -1,6 +1,10 @@
 import { z } from "zod";
 import type { ToolDefinition, ToolContext } from "./registry";
-import { applyAvailability, getOpenWeekPlan } from "@/lib/week-plan/service";
+import {
+  applyAvailability,
+  getOpenWeekPlan,
+  minsToAvailableBlocks,
+} from "@/lib/week-plan/service";
 
 const parameters = z.object({
   availableMins: z
@@ -10,7 +14,10 @@ const parameters = z.object({
 });
 
 async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
-  const result = await applyAvailability(ctx.userId, args.availableMins);
+  const result = await applyAvailability(
+    ctx.userId,
+    minsToAvailableBlocks(args.availableMins)
+  );
   if (result !== "applied") return { applied: false, reason: result };
   const week = await getOpenWeekPlan(ctx.userId);
   return {

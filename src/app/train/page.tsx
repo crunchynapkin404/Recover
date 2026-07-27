@@ -38,7 +38,7 @@ import type { RaceCountdownProps } from "@/components/dashboard/race-countdown";
 import { BAND_COLOR } from "@/lib/band-color";
 import type { Band } from "@/lib/readiness";
 import { getOpenWeekPlan, listAdjustments } from "@/lib/week-plan/service";
-import { prefillAvailability } from "@/lib/week-plan/availability";
+import { BUSY_DAY_MINS } from "@/lib/week-plan/types";
 import {
   listRaces,
   nextUpcomingRace,
@@ -99,6 +99,10 @@ function busyMinsPerDay(
     }
   }
   return result;
+}
+
+function roundTo5(n: number): number {
+  return Math.max(0, Math.round(n / 5) * 5);
 }
 
 /** The activity's own sub-line: what the athlete said about it, or nothing. */
@@ -287,16 +291,16 @@ async function WeekTab({ userId, href }: { userId: string; href: TrainHref }) {
         busy = null; // calendar is a hint, never a blocker
       }
     }
-    const constraints = (plan.constraints ?? {}) as {
-      daysPerWeek?: number;
-      hoursPerWeek?: number;
-    };
+    // The week's already-resolved availability (standard week + any date
+    // overrides, applied at rollover) is the starting suggestion — a
+    // calendar-busy day halves it, same as before. This no longer copies
+    // last week's minutes forward: that behaviour is what let a one-off
+    // change outlive the week it was made for.
     intake = {
-      suggested: prefillAvailability({
-        hoursPerWeek: constraints.hoursPerWeek ?? 8,
-        daysPerWeek: constraints.daysPerWeek ?? 5,
-        lastWeekMins: week.days.map((d) => d.availableMins),
-        busyMinsPerDay: busy,
+      suggested: week.days.map((d, i) => {
+        const busyMins = busy?.[i] ?? 0;
+        const mins = d.availableMins;
+        return roundTo5(busyMins >= BUSY_DAY_MINS ? mins / 2 : mins);
       }),
     };
   }

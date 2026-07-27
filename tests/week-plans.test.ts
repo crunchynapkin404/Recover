@@ -82,6 +82,7 @@ function seededDays() {
             durationMins: 50,
             intensity: "Z4-Z5",
             description: "Interval session",
+            blockIdx: 0,
           },
         ],
         status: "planned" as const,
@@ -166,6 +167,26 @@ describe.skipIf(!hasDb)("week-plan service", () => {
       targetSessions: 5,
       workouts: [],
     });
+    // A standard week for USER: rolloverWeekPlan now resolves availability
+    // from availability_defaults instead of synthesizing it from plan
+    // constraints, so tests exercising the real rollover need a real
+    // standard week seeded (a user with none configured gets an all-rest
+    // week, by design — see resolveWeek).
+    await db.insert(schema.availabilityDefaults).values(
+      Array.from({ length: 7 }, (_, weekday) => ({
+        userId: USER,
+        weekday,
+        blocks: [
+          {
+            start: null,
+            end: null,
+            mins: 90,
+            energy: "normal" as const,
+            sports: null,
+          },
+        ],
+      }))
+    );
   });
 
   afterAll(cleanupUsers);
@@ -208,6 +229,7 @@ describe.skipIf(!hasDb)("week-plan service", () => {
               durationMins: 45,
               intensity: "Z1-Z2",
               description: "Easy run",
+              blockIdx: 0,
             },
           ],
           status: "completed" as const,
@@ -306,9 +328,12 @@ describe.skipIf(!hasDb)("week-plan service", () => {
     } = await import("@/lib/week-plan/service");
 
     await rolloverWeekPlan(USER);
-    expect(await applyAvailability(USER, [0, 60, 60, 60, 60, 120, 150])).toBe(
-      "applied"
-    );
+    expect(
+      await applyAvailability(
+        USER,
+        [0, 60, 60, 60, 60, 120, 150].map(blocksFor)
+      )
+    ).toBe("applied");
 
     const week = await getOpenWeekPlan(USER);
     expect(week).not.toBeNull();
@@ -323,9 +348,12 @@ describe.skipIf(!hasDb)("week-plan service", () => {
 
   it("applyAvailability without an open week reports no_open_week", async () => {
     const { applyAvailability } = await import("@/lib/week-plan/service");
-    expect(await applyAvailability(USER, [0, 60, 60, 60, 60, 120, 150])).toBe(
-      "no_open_week"
-    );
+    expect(
+      await applyAvailability(
+        USER,
+        [0, 60, 60, 60, 60, 120, 150].map(blocksFor)
+      )
+    ).toBe("no_open_week");
   });
 
   it("no active plan → everything is a no-op", async () => {
@@ -464,6 +492,58 @@ describe.skipIf(!hasDb)("week-plan service", () => {
     expect(source.status).toBe("planned");
   });
 
+  it("moveWorkout refuses a target whose OWN block (not a roomier sibling) is too small", async () => {
+    const { db, schema } = await import("@/lib/db");
+    const { moveWorkout, getOpenWeekPlan } =
+      await import("@/lib/week-plan/service");
+
+    // The workout occupies blockIdx 0 wherever it lands (carried across
+    // days unchanged — a later task's concern). The target's block 0 is
+    // only 10min, far short of the 50min Intervals session; its block 1
+    // is a roomy 120min. A day-level "does some block fit?" check would
+    // wrongly admit this move.
+    const toDate = seededDays().find((d) => d.date !== todayYmd)!.date;
+    const days = seededDays().map((d) =>
+      d.date === toDate
+        ? {
+            ...d,
+            availableBlocks: [
+              {
+                start: null,
+                end: null,
+                mins: 10,
+                energy: "normal" as const,
+                sports: null,
+              },
+              {
+                start: null,
+                end: null,
+                mins: 120,
+                energy: "normal" as const,
+                sports: null,
+              },
+            ],
+            availableMins: 130,
+          }
+        : d
+    );
+    await db.insert(schema.weekPlans).values({
+      userId: USER,
+      planId,
+      weekStart,
+      skeletonWeek: 1,
+      days,
+      status: "open",
+    });
+
+    expect(await moveWorkout(USER, todayYmd, toDate)).toBe("invalid");
+
+    const week = await getOpenWeekPlan(USER);
+    const source = week!.days.find((d) => d.date === todayYmd)!;
+    expect(source.workouts[0]?.type).toBe("Intervals");
+    expect(source.status).toBe("planned");
+  });
+
   it("swapWorkouts exchanges two days when both fit", async () => {
     const { db, schema } = await import("@/lib/db");
     const { swapWorkouts, getOpenWeekPlan } =
@@ -483,6 +563,7 @@ describe.skipIf(!hasDb)("week-plan service", () => {
                 durationMins: 40,
                 intensity: "Z1-Z2",
                 description: "Easy run",
+                blockIdx: 0,
               },
             ],
             status: "planned" as const,
@@ -689,6 +770,7 @@ describe.skipIf(!hasDb)("week-plan service", () => {
               durationMins: 45,
               intensity: "Z1-Z2",
               description: "Easy run",
+              blockIdx: 0,
             },
           ],
           status: "planned" as const,

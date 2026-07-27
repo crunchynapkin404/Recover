@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/session";
 import {
   applyAvailability,
   markDayDone,
+  minsToAvailableBlocks,
   moveWorkout,
   rolloverWeekPlan,
   swapWorkouts,
@@ -46,7 +47,7 @@ export async function submitAvailability(
     );
   }
 
-  const result = await applyAvailability(user.id, mins);
+  const result = await applyAvailability(user.id, minsToAvailableBlocks(mins));
   revalidatePath("/train");
   revalidatePath("/");
   return {

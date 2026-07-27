@@ -6,10 +6,10 @@ import { db, schema } from "@/lib/db";
 import { racesForWeek, currentCtl } from "@/lib/race/service";
 import { materializeWeek } from "./materialize";
 import { adaptDay } from "./adapt-day";
-import { prefillAvailability } from "./availability";
-import { isQuality } from "./types";
+import { replanWeek } from "./replan";
+import { resolveWeek } from "@/lib/availability/resolve";
+import { blockFits, dayMins, isQuality } from "./types";
 import type { AdjustmentRecord, Band, DaySlot } from "./types";
-import { blockMins } from "@/lib/availability/types";
 import type { AvailabilityBlock } from "@/lib/availability/types";
 
 export type AdjustmentRow = typeof schema.planAdjustments.$inferSelect;
@@ -42,12 +42,13 @@ function addDaysYmd(ymd: string, n: number): string {
 }
 
 /**
- * Interim: this service still only knows one number per day (prefill /
- * the availability-change form). Wrap it into materializeWeek's block
- * shape as a single block, or no blocks at all when the day is empty.
- * Task 9 replaces this with the real per-day block resolver.
+ * Legacy adapter for callers that still only speak one number per day (the
+ * coach tool and the availability-change form haven't been rebuilt around
+ * blocks yet). Wraps each day's minutes into a single untimed block, or no
+ * blocks at all when the day is empty, so they can still call
+ * `applyAvailability`'s block-based signature.
  */
-function wrapMinsAsBlocks(mins: number[]): AvailabilityBlock[][] {
+export function minsToAvailableBlocks(mins: number[]): AvailabilityBlock[][] {
   return mins.map((m) =>
     m > 0
       ? [
@@ -231,27 +232,16 @@ export async function rolloverWeekPlan(
     }));
   if (!skeleton) return "skipped";
 
-  const lastWeekRow = await db.query.weekPlans.findFirst({
-    where: and(
-      eq(schema.weekPlans.userId, userId),
-      eq(schema.weekPlans.weekStart, addDaysYmd(weekStart, -7))
-    ),
-  });
   const constraints = planConstraints(plan.constraints);
   const today = localYmd(now);
-  const availabilityMins = prefillAvailability({
-    hoursPerWeek: constraints.hoursPerWeek,
-    daysPerWeek: constraints.daysPerWeek,
-    lastWeekMins: lastWeekRow
-      ? (lastWeekRow.days as DaySlot[]).map((d) => d.availableMins)
-      : null,
-    // Calendar prefill is applied in the UI/action layer where a human
-    // confirms it, never inside the automatic rollover.
-    busyMinsPerDay: null,
-    // Days already behind us have no availability: a mid-week start (new
-    // plan or "Plan this week") must not invent workouts in the past. On
-    // the normal Monday rollover this is a no-op.
-  }).map((mins, i) => (addDaysYmd(weekStart, i) < today ? 0 : mins));
+  const dates = Array.from({ length: 7 }, (_, i) => addDaysYmd(weekStart, i));
+  const resolved = await resolveWeek(userId, dates);
+  // Days already behind us have no availability: a mid-week start must not
+  // invent workouts in the past. On the normal Monday rollover this is a
+  // no-op.
+  const availableBlocksPerDay = dates.map((d) =>
+    d < today ? [] : (resolved.get(d) ?? [])
+  );
 
   // 3. Materialize.
   const [races, ctlNow] = await Promise.all([
@@ -266,7 +256,7 @@ export async function rolloverWeekPlan(
       targetLoadTotal: skeleton.targetLoadTotal ?? 0,
       targetSessions: skeleton.targetSessions ?? 0,
     },
-    availableBlocksPerDay: wrapMinsAsBlocks(availabilityMins),
+    availableBlocksPerDay,
     prevWeek,
     recentBands: await recentBands(userId),
     raceType: plan.raceType,
@@ -402,89 +392,45 @@ function fmtHours(mins: number): string {
 
 export async function applyAvailability(
   userId: string,
-  mins: number[]
+  blocksPerDay: AvailabilityBlock[][]
 ): Promise<"applied" | "no_open_week"> {
   const week = await getOpenWeekPlan(userId);
-  if (!week || mins.length !== 7) return "no_open_week";
-  const plan = await db.query.trainingPlans.findFirst({
-    where: eq(schema.trainingPlans.id, week.planId),
-  });
-  if (!plan) return "no_open_week";
+  if (!week || blocksPerDay.length !== 7) return "no_open_week";
 
-  const skeleton =
-    (await db.query.trainingBlocks.findFirst({
-      where: and(
-        eq(schema.trainingBlocks.planId, week.planId),
-        eq(schema.trainingBlocks.weekNumber, week.skeletonWeek)
-      ),
-    })) ?? null;
-  if (!skeleton) return "no_open_week";
-
-  // Days already lived (completed/missed) keep their slot untouched; the
-  // rest of the week rematerializes against the new availability.
-  const locked = week.days.map(
-    (d) => d.status === "completed" || d.status === "missed"
-  );
-  const availabilityMins = mins.map((m, i) => (locked[i] ? 0 : m));
-
-  const prevBlock = await db.query.trainingBlocks.findFirst({
-    where: and(
-      eq(schema.trainingBlocks.planId, week.planId),
-      eq(schema.trainingBlocks.weekNumber, week.skeletonWeek - 1)
-    ),
-  });
-  const constraints = planConstraints(plan.constraints);
-
-  const [races, ctlNow] = await Promise.all([
-    racesForWeek(userId, week.weekStart),
-    currentCtl(userId),
-  ]);
-  const r = materializeWeek({
-    weekStart: week.weekStart,
-    skeleton: {
-      weekNumber: skeleton.weekNumber,
-      phase: skeleton.phase,
-      targetLoadTotal: skeleton.targetLoadTotal ?? 0,
-      targetSessions: skeleton.targetSessions ?? 0,
+  // replanWeek keeps completed/missed days exactly as they are — no need to
+  // zero their incoming availability here.
+  const resolved = new Map(week.days.map((d, i) => [d.date, blocksPerDay[i]]));
+  const r = replanWeek(
+    {
+      weekStart: week.weekStart,
+      skeletonWeek: week.skeletonWeek,
+      days: week.days,
     },
-    availableBlocksPerDay: wrapMinsAsBlocks(availabilityMins),
-    prevWeek:
-      prevBlock?.actualLoad != null
-        ? {
-            actualLoad: prevBlock.actualLoad,
-            adherencePct: prevBlock.adherencePct ?? 0,
-          }
-        : null,
-    recentBands: await recentBands(userId),
-    raceType: plan.raceType,
-    sports: constraints.sports,
-    hoursPerWeek: constraints.hoursPerWeek,
-    races,
-    currentCtl: ctlNow,
-  });
+    resolved
+  );
 
-  const merged = r.week.days.map((d, i) => (locked[i] ? week.days[i] : d));
-  const oldTotal = week.days.reduce((s, d) => s + d.availableMins, 0);
-  const newTotal = merged.reduce((s, d) => s + d.availableMins, 0);
-
+  const oldTotal = week.days.reduce((s, d) => s + dayMins(d), 0);
+  const newTotal = r.week.days.reduce((s, d) => s + dayMins(d), 0);
   const now = new Date();
+
   await db
     .update(schema.weekPlans)
-    .set({ days: merged, effectiveTarget: r.effectiveLoad, updatedAt: now })
+    .set({ days: r.week.days, availabilityConfirmedAt: now, updatedAt: now })
     .where(eq(schema.weekPlans.id, week.id));
+
   const today = localYmd(now);
   await saveAdjustments(week.id, [
+    ...r.adjustments,
     {
       date: week.days.some((d) => d.date === today) ? today : week.weekStart,
       trigger: "availability_change",
       action: "redistributed",
-      before: week.days.filter((_, i) => !locked[i]),
-      after: merged.filter((_, i) => !locked[i]),
+      before: [],
+      after: [],
       reason: `availability updated: ${fmtHours(oldTotal)}h→${fmtHours(newTotal)}h`,
     },
   ]);
 
-  // Re-check today against the new week (its own persistence + logging).
   await runDailyAdaptation(userId, now);
   return "applied";
 }
@@ -513,10 +459,7 @@ export async function moveWorkout(
   if (to.workouts.length > 0) return "invalid";
   if (to.status === "completed" || to.status === "missed") return "invalid";
   if (to.status === "race") return "invalid";
-  // interim: Task 6 replaces this with proper slot admission.
-  if (
-    !to.availableBlocks.some((b) => blockMins(b) >= fromWorkoutSrc.durationMins)
-  )
+  if (!blockFits(to, fromWorkoutSrc.blockIdx, fromWorkoutSrc.durationMins))
     return "invalid";
 
   const days = week.days.map((d) => ({
@@ -589,12 +532,9 @@ export async function swapWorkouts(
   for (const d of [from, to]) {
     if (d.status === "completed" || d.status === "missed") return "invalid";
   }
-  // interim: Task 6 replaces this with proper slot admission.
   if (
-    !to.availableBlocks.some(
-      (b) => blockMins(b) >= fromWorkoutSrc.durationMins
-    ) ||
-    !from.availableBlocks.some((b) => blockMins(b) >= toWorkoutSrc.durationMins)
+    !blockFits(to, fromWorkoutSrc.blockIdx, fromWorkoutSrc.durationMins) ||
+    !blockFits(from, toWorkoutSrc.blockIdx, toWorkoutSrc.durationMins)
   ) {
     return "invalid";
   }

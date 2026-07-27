@@ -4,6 +4,7 @@ import {
   type Band,
   type WeekState,
   AMBER_SCALE,
+  blockFits,
   DAY_REDISTRIBUTE_CAP_PCT,
   dayMins,
   isQuality,
@@ -12,7 +13,6 @@ import {
   STEP_DOWN,
 } from "./types";
 import { withPurpose } from "@/lib/training-plan";
-import { blockMins } from "@/lib/availability/types";
 
 export interface AdaptDayInput {
   week: WeekState;
@@ -66,8 +66,7 @@ function handleMissedYesterday(
       if (
         t.workouts.length === 0 &&
         t.status !== "race" &&
-        // interim: Task 6 replaces this with proper slot admission.
-        t.availableBlocks.some((b) => blockMins(b) >= workout.durationMins) &&
+        blockFits(t, workout.blockIdx, workout.durationMins) &&
         !adjacentQuality
       ) {
         // interim: Task 9 — blockIdx is carried across days unchecked; safe
@@ -146,10 +145,7 @@ export function adaptDay(input: AdaptDayInput): AdaptDayResult {
   // Availability first: time is a hard constraint, readiness a soft one.
   if (
     todayWorkout &&
-    // interim: Task 6 replaces this with proper slot admission.
-    !today.availableBlocks.some(
-      (b) => blockMins(b) >= todayWorkout.durationMins
-    )
+    !blockFits(today, todayWorkout.blockIdx, todayWorkout.durationMins)
   ) {
     const before = [
       { ...today, workouts: today.workouts.map((w) => ({ ...w })) },
@@ -163,8 +159,7 @@ export function adaptDay(input: AdaptDayInput): AdaptDayResult {
           i > todayIdx &&
           d.workouts.length === 0 &&
           d.status !== "race" &&
-          // interim: Task 6 replaces this with proper slot admission.
-          d.availableBlocks.some((b) => blockMins(b) >= workout.durationMins)
+          blockFits(d, workout.blockIdx, workout.durationMins)
       );
       if (target !== -1) {
         // interim: Task 9 — blockIdx is carried across days unchecked; safe
@@ -210,10 +205,7 @@ export function adaptDay(input: AdaptDayInput): AdaptDayResult {
     const before = [{ ...t, workouts: t.workouts.map((w) => ({ ...w })) }];
     if (input.band === "red") {
       if (isQuality(tWorkout)) {
-        if (
-          // interim: Task 6 replaces this with proper slot admission.
-          !t.availableBlocks.some((b) => blockMins(b) >= RED_RECOVERY_MINS)
-        ) {
+        if (!blockFits(t, tWorkout.blockIdx, RED_RECOVERY_MINS)) {
           week.days[todayIdx] = { ...t, workouts: [], status: "rest" };
         } else {
           week.days[todayIdx] = {

@@ -290,6 +290,29 @@ describe("adaptDay — readiness and availability", () => {
     // shortened to 30 by availability, then ×0.7 = 21
     expect(r.week.days[2].workouts[0]!.durationMins).toBe(21);
   });
+
+  it("a roomy sibling block does not excuse a session in its own shrunk block", () => {
+    const w = base();
+    // Today now carries two blocks: its own occupied block (blockIdx 0)
+    // shrinks to 20min — too small for the 50min Intervals session it
+    // holds — while a second, untouched 120min block sits alongside it.
+    // Asking "does some block on this day fit?" would wrongly say yes.
+    w.days[1] = {
+      ...w.days[1],
+      availableBlocks: [
+        { start: null, end: null, mins: 20, energy: "normal", sports: null },
+        { start: null, end: null, mins: 120, energy: "normal", sports: null },
+      ],
+    };
+    const r = adaptDay({
+      week: w,
+      today: "2026-07-21",
+      band: "green",
+      yesterdayCompleted: null,
+    });
+    expect(r.adjustments.some((a) => a.trigger === "no_time")).toBe(true);
+    expect(r.week.days[1].status).toBe("adapted");
+  });
 });
 
 describe("adaptDay — race-day guards", () => {
