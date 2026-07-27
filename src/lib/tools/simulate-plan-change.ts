@@ -27,7 +27,8 @@ async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
   const week = await getOpenWeekPlan(ctx.userId);
   if (!week) return { success: false, error: "no_open_week" };
   const from = week.days.find((d) => d.date === args.fromDate);
-  if (!from?.workout) return { success: false, error: "no_workout_on_from" };
+  if (!from || from.workouts.length === 0)
+    return { success: false, error: "no_workout_on_from" };
 
   const race = await nextUpcomingRace(ctx.userId);
   const assembled = await assembleForecastInputs(ctx.userId, race);

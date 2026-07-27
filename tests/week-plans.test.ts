@@ -41,11 +41,26 @@ const todayYmd = localYmd(new Date());
 
 let planId: string;
 
+function blocksFor(mins: number) {
+  return mins > 0
+    ? [
+        {
+          start: null,
+          end: null,
+          mins,
+          energy: "normal" as const,
+          sports: null,
+        },
+      ]
+    : [];
+}
+
 function restDay(date: string) {
   return {
     date,
+    availableBlocks: blocksFor(60),
     availableMins: 60,
-    workout: null,
+    workouts: [],
     status: "rest" as const,
   };
 }
@@ -57,15 +72,18 @@ function seededDays() {
     if (date === todayYmd) {
       return {
         date,
+        availableBlocks: blocksFor(60),
         availableMins: 60,
-        workout: {
-          day: i,
-          sport: "Run",
-          type: "Intervals",
-          durationMins: 50,
-          intensity: "Z4-Z5",
-          description: "Interval session",
-        },
+        workouts: [
+          {
+            day: i,
+            sport: "Run",
+            type: "Intervals",
+            durationMins: 50,
+            intensity: "Z4-Z5",
+            description: "Interval session",
+          },
+        ],
         status: "planned" as const,
       };
     }
@@ -180,15 +198,18 @@ describe.skipIf(!hasDb)("week-plan service", () => {
       if (i === 0) {
         return {
           date,
+          availableBlocks: blocksFor(60),
           availableMins: 60,
-          workout: {
-            day: 0,
-            sport: "Run",
-            type: "Endurance",
-            durationMins: 45,
-            intensity: "Z1-Z2",
-            description: "Easy run",
-          },
+          workouts: [
+            {
+              day: 0,
+              sport: "Run",
+              type: "Endurance",
+              durationMins: 45,
+              intensity: "Z1-Z2",
+              description: "Easy run",
+            },
+          ],
           status: "completed" as const,
           actualLoad: 50,
         };
@@ -249,7 +270,7 @@ describe.skipIf(!hasDb)("week-plan service", () => {
 
     const week = await getOpenWeekPlan(USER);
     const today = week!.days.find((d) => d.date === todayYmd);
-    expect(today?.workout?.type).toBe("Recovery");
+    expect(today?.workouts[0]?.type).toBe("Recovery");
     const adjustments = await listAdjustments(week!.id);
     expect(
       adjustments.some(
@@ -293,7 +314,7 @@ describe.skipIf(!hasDb)("week-plan service", () => {
     expect(week).not.toBeNull();
     const monday = week!.days[0];
     expect(monday.availableMins).toBe(0);
-    expect(monday.workout).toBeNull();
+    expect(monday.workouts).toHaveLength(0);
     const adjustments = await listAdjustments(week!.id);
     expect(adjustments.some((a) => a.trigger === "availability_change")).toBe(
       true
@@ -371,9 +392,9 @@ describe.skipIf(!hasDb)("week-plan service", () => {
     const week = await getOpenWeekPlan(USER);
     const from = week!.days.find((d) => d.date === todayYmd)!;
     const to = week!.days.find((d) => d.date === toDate)!;
-    expect(from.workout).toBeNull();
+    expect(from.workouts).toHaveLength(0);
     expect(from.status).toBe("rest");
-    expect(to.workout?.type).toBe("Intervals");
+    expect(to.workouts[0]?.type).toBe("Intervals");
     expect(to.status).toBe("moved");
     expect(to.movedFrom).toBe(todayYmd);
 
@@ -419,7 +440,7 @@ describe.skipIf(!hasDb)("week-plan service", () => {
     const raceDate = seededDays().find((d) => d.date !== todayYmd)!.date;
     const days = seededDays().map((d) =>
       d.date === raceDate
-        ? { ...d, workout: null, status: "race" as const, raceName: "Test 10K" }
+        ? { ...d, workouts: [], status: "race" as const, raceName: "Test 10K" }
         : d
     );
     await db.insert(schema.weekPlans).values({
@@ -437,9 +458,9 @@ describe.skipIf(!hasDb)("week-plan service", () => {
     const race = week!.days.find((d) => d.date === raceDate)!;
     expect(race.status).toBe("race");
     expect(race.raceName).toBe("Test 10K");
-    expect(race.workout).toBeNull();
+    expect(race.workouts).toHaveLength(0);
     const source = week!.days.find((d) => d.date === todayYmd)!;
-    expect(source.workout?.type).toBe("Intervals");
+    expect(source.workouts[0]?.type).toBe("Intervals");
     expect(source.status).toBe("planned");
   });
 
@@ -454,14 +475,16 @@ describe.skipIf(!hasDb)("week-plan service", () => {
       d.date === otherDate
         ? {
             ...d,
-            workout: {
-              day: 0,
-              sport: "Run",
-              type: "Endurance",
-              durationMins: 40,
-              intensity: "Z1-Z2",
-              description: "Easy run",
-            },
+            workouts: [
+              {
+                day: 0,
+                sport: "Run",
+                type: "Endurance",
+                durationMins: 40,
+                intensity: "Z1-Z2",
+                description: "Easy run",
+              },
+            ],
             status: "planned" as const,
           }
         : d
@@ -477,12 +500,12 @@ describe.skipIf(!hasDb)("week-plan service", () => {
 
     expect(await swapWorkouts(USER, todayYmd, otherDate)).toBe("swapped");
     const week = await getOpenWeekPlan(USER);
-    expect(week!.days.find((d) => d.date === todayYmd)!.workout?.type).toBe(
+    expect(week!.days.find((d) => d.date === todayYmd)!.workouts[0]?.type).toBe(
       "Endurance"
     );
-    expect(week!.days.find((d) => d.date === otherDate)!.workout?.type).toBe(
-      "Intervals"
-    );
+    expect(
+      week!.days.find((d) => d.date === otherDate)!.workouts[0]?.type
+    ).toBe("Intervals");
   });
 
   it("mid-week rollover gives already-past days zero availability and rest", async () => {
@@ -498,11 +521,11 @@ describe.skipIf(!hasDb)("week-plan service", () => {
     // Mon–Wed are gone: no availability, no invented workouts.
     for (const d of week!.days.slice(0, 3)) {
       expect(d.availableMins).toBe(0);
-      expect(d.workout).toBeNull();
+      expect(d.workouts).toHaveLength(0);
       expect(d.status).toBe("rest");
     }
     // The remaining days still carry the week's sessions.
-    expect(week!.days.slice(3).some((d) => d.workout !== null)).toBe(true);
+    expect(week!.days.slice(3).some((d) => d.workouts.length > 0)).toBe(true);
   });
 
   it("generateTrainingPlan materializes the first week immediately", async () => {
@@ -570,7 +593,7 @@ describe.skipIf(!hasDb)("week-plan service", () => {
     // the planned session itself is left intact.
     expect(day.actualLoad).toBeUndefined();
     expect(day.activityId).toBeUndefined();
-    expect(day.workout?.type).toBe("Intervals");
+    expect(day.workouts[0]?.type).toBe("Intervals");
   });
 
   it("markDayDone leaves the week's load-based adherence untouched", async () => {
@@ -656,15 +679,18 @@ describe.skipIf(!hasDb)("week-plan service", () => {
       if (date === tuesday) {
         return {
           date,
+          availableBlocks: blocksFor(60),
           availableMins: 60,
-          workout: {
-            day: i,
-            sport: "Run",
-            type: "Endurance",
-            durationMins: 45,
-            intensity: "Z1-Z2",
-            description: "Easy run",
-          },
+          workouts: [
+            {
+              day: i,
+              sport: "Run",
+              type: "Endurance",
+              durationMins: 45,
+              intensity: "Z1-Z2",
+              description: "Easy run",
+            },
+          ],
           status: "planned" as const,
         };
       }

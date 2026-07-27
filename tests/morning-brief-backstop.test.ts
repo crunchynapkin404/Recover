@@ -306,22 +306,42 @@ describe.skipIf(!hasDb)(
           if (date === todayYmd) {
             return {
               date,
+              availableBlocks: [
+                {
+                  start: null,
+                  end: null,
+                  mins: 120,
+                  energy: "normal" as const,
+                  sports: null,
+                },
+              ],
               availableMins: 120,
-              workout: {
-                day: i,
-                sport: "Run",
-                type: "Endurance",
-                durationMins: 90,
-                intensity: "Z2",
-                description: "Long run",
-              },
+              workouts: [
+                {
+                  day: i,
+                  sport: "Run",
+                  type: "Endurance",
+                  durationMins: 90,
+                  intensity: "Z2",
+                  description: "Long run",
+                },
+              ],
               status: "planned" as const,
             };
           }
           return {
             date,
+            availableBlocks: [
+              {
+                start: null,
+                end: null,
+                mins: 60,
+                energy: "normal" as const,
+                sports: null,
+              },
+            ],
             availableMins: 60,
-            workout: null,
+            workouts: [],
             status: "rest" as const,
           };
         }),
@@ -344,7 +364,7 @@ describe.skipIf(!hasDb)(
       const afterFirst = await getOpenWeekPlan(ADAPT_USER);
       const dayAfterFirst = afterFirst!.days.find((d) => d.date === todayYmd);
       // amber: round(90 * 0.85) = 77 — the one legitimate adaptation.
-      expect(dayAfterFirst?.workout?.durationMins).toBe(77);
+      expect(dayAfterFirst?.workouts[0]?.durationMins).toBe(77);
       const adjustmentsAfterFirst = await listAdjustments(afterFirst!.id);
       expect(
         adjustmentsAfterFirst.filter((a) => a.trigger === "low_readiness")
@@ -363,7 +383,7 @@ describe.skipIf(!hasDb)(
 
       const afterSecond = await getOpenWeekPlan(ADAPT_USER);
       const dayAfterSecond = afterSecond!.days.find((d) => d.date === todayYmd);
-      expect(dayAfterSecond?.workout?.durationMins).toBe(77);
+      expect(dayAfterSecond?.workouts[0]?.durationMins).toBe(77);
       const adjustmentsAfterSecond = await listAdjustments(afterSecond!.id);
       expect(
         adjustmentsAfterSecond.filter((a) => a.trigger === "low_readiness")

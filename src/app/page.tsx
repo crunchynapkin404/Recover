@@ -121,7 +121,7 @@ export default async function DashboardPage({
         .filter((o) => o.date !== todayYmd)
         .map((o) => ({
           date: o.date,
-          hasWorkout: o.workout !== null,
+          workoutCount: o.workouts.length,
           isRace: o.status === "race",
         }))
     : [];

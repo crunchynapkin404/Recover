@@ -7,11 +7,14 @@ import { withPurpose } from "@/lib/training-plan";
 const slot = (
   date: string,
   status: DaySlot["status"],
-  workout: DaySlot["workout"] = null
+  workout: DaySlot["workouts"][number] | null = null
 ): DaySlot => ({
   date,
+  availableBlocks: [
+    { start: null, end: null, mins: 60, energy: "normal", sports: null },
+  ],
   availableMins: 60,
-  workout,
+  workouts: workout ? [workout] : [],
   status,
 });
 

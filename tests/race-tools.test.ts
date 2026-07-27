@@ -144,7 +144,9 @@ describe.skipIf(!hasDb)("race coach tools", () => {
     });
     const { getOpenWeekPlan } = await import("@/lib/week-plan/service");
     const week = await getOpenWeekPlan(USER);
-    const from = week!.days.find((d) => d.workout && d.date > ymd(0));
+    const from = week!.days.find(
+      (d) => d.workouts.length > 0 && d.date > ymd(0)
+    );
     if (!from) return; // late-week test run: nothing left to simulate — fine
     const { simulatePlanChangeTool } =
       await import("@/lib/tools/simulate-plan-change");
@@ -157,8 +159,8 @@ describe.skipIf(!hasDb)("race coach tools", () => {
     // and nothing was saved:
     const after = await getOpenWeekPlan(USER);
     expect(
-      after!.days.find((d) => d.date === from.date)?.workout
-    ).not.toBeNull();
+      after!.days.find((d) => d.date === from.date)?.workouts[0]
+    ).not.toBeUndefined();
   });
 
   it("delete_race removes and the registry counts 54", async () => {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { effectiveWeekLoad } from "./materialize";
+import { dayMins } from "./types";
 
 const greens = Array(7).fill("green") as import("./types").Band[];
 const suppressed = [
@@ -161,9 +162,9 @@ describe("materializeWeek layout", () => {
     });
     const sunday = r.week.days[6]; // 150 mins — roomiest
     const durations = r.week.days
-      .filter((d) => d.workout)
-      .map((d) => d.workout!.durationMins);
-    expect(sunday.workout!.durationMins).toBe(Math.max(...durations));
+      .filter((d) => d.workouts.length > 0)
+      .map((d) => d.workouts[0].durationMins);
+    expect(sunday.workouts[0].durationMins).toBe(Math.max(...durations));
   });
 
   it("gives a zero-availability day rest, never a workout", () => {
@@ -171,7 +172,7 @@ describe("materializeWeek layout", () => {
       ...baseInput,
       availabilityMins: [60, 90, 0, 60, 45, 120, 150],
     });
-    expect(r.week.days[2].workout).toBeNull();
+    expect(r.week.days[2].workouts).toHaveLength(0);
     expect(r.week.days[2].status).toBe("rest");
   });
 
@@ -182,8 +183,8 @@ describe("materializeWeek layout", () => {
     });
     for (let i = 1; i < 7; i++) {
       const both =
-        isQuality(r.week.days[i - 1].workout) &&
-        isQuality(r.week.days[i].workout);
+        isQuality(r.week.days[i - 1].workouts[0] ?? null) &&
+        isQuality(r.week.days[i].workouts[0] ?? null);
       expect(both).toBe(false);
     }
   });
@@ -194,7 +195,8 @@ describe("materializeWeek layout", () => {
       availabilityMins: [30, 30, 30, 30, 30, 30, 30],
     });
     for (const d of r.week.days) {
-      if (d.workout) expect(d.workout.durationMins).toBeLessThanOrEqual(30);
+      if (d.workouts[0])
+        expect(d.workouts[0].durationMins).toBeLessThanOrEqual(30);
     }
     expect(r.adjustments.some((a) => a.trigger === "no_time")).toBe(true);
   });
@@ -221,7 +223,7 @@ describe("materializeWeek layout", () => {
       ...baseInput,
       availabilityMins: [0, 0, 0, 0, 0, 0, 0],
     });
-    expect(r.week.days.every((d) => d.workout === null)).toBe(true);
+    expect(r.week.days.every((d) => d.workouts.length === 0)).toBe(true);
     expect(r.week.days.every((d) => d.status === "rest")).toBe(true);
     expect(r.effectiveLoad).toBe(0);
     expect(
@@ -241,8 +243,8 @@ describe("materializeWeek layout", () => {
     });
     for (let i = 1; i < 7; i++) {
       const both =
-        isQuality(r.week.days[i - 1].workout) &&
-        isQuality(r.week.days[i].workout);
+        isQuality(r.week.days[i - 1].workouts[0] ?? null) &&
+        isQuality(r.week.days[i].workouts[0] ?? null);
       expect(both).toBe(false);
     }
   });
@@ -252,10 +254,38 @@ describe("materializeWeek layout", () => {
       ...baseInput,
       availabilityMins: [0, 0, 0, 0, 0, 0, 90],
     });
-    const placed = r.week.days.filter((d) => d.workout !== null);
+    const placed = r.week.days.filter((d) => d.workouts.length > 0);
     expect(placed).toHaveLength(1);
-    expect(r.week.days[6].workout).not.toBeNull();
-    expect(r.week.days[6].workout!.type).toBe("Long");
+    expect(r.week.days[6].workouts).toHaveLength(1);
+    expect(r.week.days[6].workouts[0].type).toBe("Long");
+  });
+});
+
+describe("DaySlot shape", () => {
+  it("sums a day's blocks rather than trusting availableMins", () => {
+    const day = {
+      date: "2026-08-03",
+      availableBlocks: [
+        {
+          start: "06:30",
+          end: "07:15",
+          mins: 45,
+          energy: "normal" as const,
+          sports: null,
+        },
+        {
+          start: "19:00",
+          end: "20:00",
+          mins: 60,
+          energy: "normal" as const,
+          sports: null,
+        },
+      ],
+      workouts: [],
+      availableMins: 999, // deliberately wrong: nothing may trust it
+      status: "rest" as const,
+    };
+    expect(dayMins(day)).toBe(105);
   });
 });
 
@@ -290,11 +320,11 @@ describe("materializeWeek race handling", () => {
     const r = materializeWeek({ ...BASE_INPUT, races: [A_RACE] });
     const days = r.week.days;
     expect(days[6].status).toBe("race");
-    expect(days[6].workout).toBeNull();
+    expect(days[6].workouts).toHaveLength(0);
     expect(days[6].raceName).toBe("City Marathon");
-    expect(days[5].workout).toBeNull(); // Saturday rest
-    expect(days[3].workout?.durationMins).toBe(30); // Thursday easy
-    expect(days[4].workout?.durationMins).toBe(20); // Friday openers
+    expect(days[5].workouts).toHaveLength(0); // Saturday rest
+    expect(days[3].workouts[0]?.durationMins).toBe(30); // Thursday easy
+    expect(days[4].workouts[0]?.durationMins).toBe(20); // Friday openers
     // Taper target: 0.45 × 380 = 171
     expect(r.effectiveLoad).toBe(171);
     expect(r.adjustments.some((a) => a.reason.startsWith("taper:"))).toBe(true);
@@ -336,8 +366,8 @@ describe("materializeWeek race handling", () => {
     const r = materializeWeek({ ...BASE_INPUT, races: [bRace] });
     const days = r.week.days;
     expect(days[6].status).toBe("race");
-    expect(days[5].workout).toBeNull();
-    if (days[4].workout) expect(isQuality(days[4].workout)).toBe(false);
+    expect(days[5].workouts).toHaveLength(0);
+    if (days[4].workouts[0]) expect(isQuality(days[4].workouts[0])).toBe(false);
     // No taper reshaping for B: load is the normal effective load.
     expect(r.effectiveLoad).not.toBe(171);
     expect(r.adjustments.some((a) => a.trigger === "race")).toBe(true);

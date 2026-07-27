@@ -12,7 +12,7 @@ const TODAY = localYmd(new Date());
 const TOMORROW = localYmd(new Date(Date.now() + 86_400_000));
 const YESTERDAY = localYmd(new Date(Date.now() - 86_400_000));
 
-const tempo: DaySlot["workout"] = withPurpose({
+const tempo: DaySlot["workouts"][number] = withPurpose({
   day: 0,
   sport: "Ride",
   type: "Tempo",
@@ -24,12 +24,15 @@ const tempo: DaySlot["workout"] = withPurpose({
 const slot = (
   date: string,
   status: DaySlot["status"],
-  workout: DaySlot["workout"] = null,
+  workout: DaySlot["workouts"][number] | null = null,
   extra: Partial<DaySlot> = {}
 ): DaySlot => ({
   date,
+  availableBlocks: [
+    { start: null, end: null, mins: 90, energy: "normal", sports: null },
+  ],
   availableMins: 90,
-  workout,
+  workouts: workout ? [workout] : [],
   status,
   ...extra,
 });

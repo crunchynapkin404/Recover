@@ -5,12 +5,14 @@ import {
   type WeekState,
   AMBER_SCALE,
   DAY_REDISTRIBUTE_CAP_PCT,
+  dayMins,
   isQuality,
   RED_ENDURANCE_SCALE,
   RED_RECOVERY_MINS,
   STEP_DOWN,
 } from "./types";
 import { withPurpose } from "@/lib/training-plan";
+import { blockMins } from "@/lib/availability/types";
 
 export interface AdaptDayInput {
   week: WeekState;
@@ -29,7 +31,7 @@ function clone(week: WeekState): WeekState {
     ...week,
     days: week.days.map((d) => ({
       ...d,
-      workout: d.workout ? { ...d.workout } : null,
+      workouts: d.workouts.map((w) => ({ ...w })),
     })),
   };
 }
@@ -42,14 +44,15 @@ function handleMissedYesterday(
   const yIdx = todayIdx - 1;
   if (yIdx < 0) return;
   const y = week.days[yIdx];
-  if (!y.workout || y.status === "completed" || y.status === "missed") return;
+  const yWorkout = y.workouts[0] ?? null;
+  if (!yWorkout || y.status === "completed" || y.status === "missed") return;
 
-  const before = [{ ...y, workout: { ...y.workout } }];
+  const before = [{ ...y, workouts: y.workouts.map((w) => ({ ...w })) }];
   const wasMovedBefore = y.movedFrom != null;
-  const workout = y.workout;
+  const workout = yWorkout;
   week.days[yIdx] = {
     ...y,
-    workout: null,
+    workouts: [],
     status: "missed",
     movedFrom: undefined,
   };
@@ -58,17 +61,18 @@ function handleMissedYesterday(
     for (let i = todayIdx; i < 7; i++) {
       const t = week.days[i];
       const adjacentQuality =
-        isQuality(week.days[i - 1]?.workout ?? null) ||
-        isQuality(week.days[i + 1]?.workout ?? null);
+        isQuality(week.days[i - 1]?.workouts[0] ?? null) ||
+        isQuality(week.days[i + 1]?.workouts[0] ?? null);
       if (
-        t.workout === null &&
+        t.workouts.length === 0 &&
         t.status !== "race" &&
-        t.availableMins >= workout.durationMins &&
+        // interim: Task 6 replaces this with proper slot admission.
+        t.availableBlocks.some((b) => blockMins(b) >= workout.durationMins) &&
         !adjacentQuality
       ) {
         week.days[i] = {
           ...t,
-          workout,
+          workouts: [workout],
           status: "moved",
           movedFrom: y.date,
         };
@@ -89,18 +93,19 @@ function handleMissedYesterday(
   const remaining = week.days.filter(
     (d, i) =>
       i >= todayIdx &&
-      d.workout &&
+      d.workouts.length > 0 &&
       d.status !== "completed" &&
       d.status !== "race"
   );
   const share = remaining.length ? workout.durationMins / remaining.length : 0;
   for (const d of remaining) {
-    const cap = Math.round(
-      d.workout!.durationMins * (1 + DAY_REDISTRIBUTE_CAP_PCT)
-    );
-    d.workout!.durationMins = Math.min(
+    const w = d.workouts[0]!;
+    const cap = Math.round(w.durationMins * (1 + DAY_REDISTRIBUTE_CAP_PCT));
+    // interim: total-day minutes, not per-block — Task 6 replaces this
+    // with proper slot admission.
+    w.durationMins = Math.min(
       cap,
-      Math.min(d.availableMins, Math.round(d.workout!.durationMins + share))
+      Math.min(dayMins(d), Math.round(w.durationMins + share))
     );
   }
   adjustments.push({
@@ -125,7 +130,8 @@ export function adaptDay(input: AdaptDayInput): AdaptDayResult {
     handleMissedYesterday(week, todayIdx, adjustments);
   } else if (input.yesterdayCompleted === true) {
     const y = week.days[todayIdx - 1];
-    if (y && y.workout && y.status !== "completed") y.status = "completed";
+    if (y && y.workouts.length > 0 && y.status !== "completed")
+      y.status = "completed";
   }
 
   const today = week.days[todayIdx];
@@ -133,23 +139,35 @@ export function adaptDay(input: AdaptDayInput): AdaptDayResult {
   // Race day: the slot is sacred — no scaling, no adaptation, no moves in.
   if (today.status === "race") return { week, adjustments };
 
+  const todayWorkout = today.workouts[0] ?? null;
+
   // Availability first: time is a hard constraint, readiness a soft one.
-  if (today.workout && today.workout.durationMins > today.availableMins) {
-    const before = [{ ...today, workout: { ...today.workout } }];
-    if (today.availableMins === 0) {
-      const workout = today.workout;
-      week.days[todayIdx] = { ...today, workout: null, status: "rest" };
+  if (
+    todayWorkout &&
+    // interim: Task 6 replaces this with proper slot admission.
+    !today.availableBlocks.some(
+      (b) => blockMins(b) >= todayWorkout.durationMins
+    )
+  ) {
+    const before = [
+      { ...today, workouts: today.workouts.map((w) => ({ ...w })) },
+    ];
+    const roomToday = dayMins(today);
+    if (roomToday === 0) {
+      const workout = todayWorkout;
+      week.days[todayIdx] = { ...today, workouts: [], status: "rest" };
       const target = week.days.findIndex(
         (d, i) =>
           i > todayIdx &&
-          d.workout === null &&
+          d.workouts.length === 0 &&
           d.status !== "race" &&
-          d.availableMins >= workout.durationMins
+          // interim: Task 6 replaces this with proper slot admission.
+          d.availableBlocks.some((b) => blockMins(b) >= workout.durationMins)
       );
       if (target !== -1) {
         week.days[target] = {
           ...week.days[target],
-          workout,
+          workouts: [workout],
           status: "moved",
           movedFrom: today.date,
         };
@@ -169,37 +187,43 @@ export function adaptDay(input: AdaptDayInput): AdaptDayResult {
             : `no time on ${today.date} — ${workout.type} dropped`,
       });
     } else {
-      today.workout.durationMins = today.availableMins;
+      todayWorkout.durationMins = roomToday;
       today.status = "adapted";
       adjustments.push({
         date: today.date,
         trigger: "no_time",
         action: "scaled",
         before,
-        after: [{ ...today, workout: { ...today.workout } }],
-        reason: `shortened to fit available time (${today.availableMins}min)`,
+        after: [{ ...today, workouts: today.workouts.map((w) => ({ ...w })) }],
+        reason: `shortened to fit available time (${roomToday}min)`,
       });
     }
   }
 
   const t = week.days[todayIdx]; // may have been replaced above
-  if (t.workout && (input.band === "red" || input.band === "amber")) {
-    const before = [{ ...t, workout: { ...t.workout } }];
+  const tWorkout = t.workouts[0] ?? null;
+  if (tWorkout && (input.band === "red" || input.band === "amber")) {
+    const before = [{ ...t, workouts: t.workouts.map((w) => ({ ...w })) }];
     if (input.band === "red") {
-      if (isQuality(t.workout)) {
-        if (t.availableMins < RED_RECOVERY_MINS) {
-          week.days[todayIdx] = { ...t, workout: null, status: "rest" };
+      if (isQuality(tWorkout)) {
+        if (
+          // interim: Task 6 replaces this with proper slot admission.
+          !t.availableBlocks.some((b) => blockMins(b) >= RED_RECOVERY_MINS)
+        ) {
+          week.days[todayIdx] = { ...t, workouts: [], status: "rest" };
         } else {
           week.days[todayIdx] = {
             ...t,
             status: "adapted",
-            workout: withPurpose({
-              ...t.workout,
-              type: "Recovery",
-              intensity: "Recovery",
-              durationMins: RED_RECOVERY_MINS,
-              description: "Easy recovery session — readiness is red",
-            }),
+            workouts: [
+              withPurpose({
+                ...tWorkout,
+                type: "Recovery",
+                intensity: "Recovery",
+                durationMins: RED_RECOVERY_MINS,
+                description: "Easy recovery session — readiness is red",
+              }),
+            ],
           };
         }
         adjustments.push({
@@ -208,11 +232,11 @@ export function adaptDay(input: AdaptDayInput): AdaptDayResult {
           action: "swapped",
           before,
           after: [{ ...week.days[todayIdx] }],
-          reason: `readiness red — ${before[0].workout!.type} replaced by recovery`,
+          reason: `readiness red — ${before[0].workouts[0]!.type} replaced by recovery`,
         });
       } else {
-        t.workout.durationMins = Math.round(
-          t.workout.durationMins * RED_ENDURANCE_SCALE
+        tWorkout.durationMins = Math.round(
+          tWorkout.durationMins * RED_ENDURANCE_SCALE
         );
         t.status = "adapted";
         adjustments.push({
@@ -220,19 +244,21 @@ export function adaptDay(input: AdaptDayInput): AdaptDayResult {
           trigger: "low_readiness",
           action: "scaled",
           before,
-          after: [{ ...t, workout: { ...t.workout } }],
+          after: [{ ...t, workouts: t.workouts.map((w) => ({ ...w })) }],
           reason: `readiness red — duration reduced ${Math.round((1 - RED_ENDURANCE_SCALE) * 100)}%`,
         });
       }
     } else {
-      const steppedType = isQuality(t.workout)
-        ? (STEP_DOWN[t.workout.type] ?? "Endurance")
-        : t.workout.type;
-      t.workout = withPurpose({
-        ...t.workout,
+      const steppedType = isQuality(tWorkout)
+        ? (STEP_DOWN[tWorkout.type] ?? "Endurance")
+        : tWorkout.type;
+      t.workouts[0] = withPurpose({
+        ...tWorkout,
         type: steppedType,
-        intensity: isQuality(before[0].workout) ? "Z3" : t.workout.intensity,
-        durationMins: Math.round(t.workout.durationMins * AMBER_SCALE),
+        intensity: isQuality(before[0].workouts[0] ?? null)
+          ? "Z3"
+          : tWorkout.intensity,
+        durationMins: Math.round(tWorkout.durationMins * AMBER_SCALE),
       });
       t.status = "adapted";
       adjustments.push({
@@ -240,7 +266,7 @@ export function adaptDay(input: AdaptDayInput): AdaptDayResult {
         trigger: "low_readiness",
         action: "scaled",
         before,
-        after: [{ ...t, workout: { ...t.workout } }],
+        after: [{ ...t, workouts: t.workouts.map((w) => ({ ...w })) }],
         reason: `readiness amber — one step down, duration ×${AMBER_SCALE}`,
       });
     }

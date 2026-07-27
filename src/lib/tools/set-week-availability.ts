@@ -21,7 +21,7 @@ async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
           days: week.days.map((d) => ({
             date: d.date,
             availableMins: d.availableMins,
-            workout: d.workout,
+            workouts: d.workouts,
             status: d.status,
           })),
         }

@@ -20,7 +20,7 @@ describe("DayActions", () => {
     expect(
       renderToString(
         <DayActions
-          day={{ date: "2026-08-25", hasWorkout: false }}
+          day={{ date: "2026-08-25", workoutCount: 0 }}
           otherDays={[]}
         />
       )
@@ -30,10 +30,10 @@ describe("DayActions", () => {
   it("offers move/swap/skip for a workout day", () => {
     const html = renderToString(
       <DayActions
-        day={{ date: "2026-08-25", hasWorkout: true }}
+        day={{ date: "2026-08-25", workoutCount: 1 }}
         otherDays={[
-          { date: "2026-08-26", hasWorkout: false, isRace: false },
-          { date: "2026-08-30", hasWorkout: false, isRace: true },
+          { date: "2026-08-26", workoutCount: 0, isRace: false },
+          { date: "2026-08-30", workoutCount: 0, isRace: true },
         ]}
       />
     );
@@ -45,10 +45,10 @@ describe("DayActions", () => {
   it("includes the non-race target date as a move option", () => {
     const html = renderToString(
       <DayActions
-        day={{ date: "2026-08-25", hasWorkout: true }}
+        day={{ date: "2026-08-25", workoutCount: 1 }}
         otherDays={[
-          { date: "2026-08-26", hasWorkout: false, isRace: false },
-          { date: "2026-08-30", hasWorkout: false, isRace: true },
+          { date: "2026-08-26", workoutCount: 0, isRace: false },
+          { date: "2026-08-30", workoutCount: 0, isRace: true },
         ]}
       />
     );
@@ -94,8 +94,8 @@ describe("DayActions error rendering (interaction)", () => {
       root = createRoot(container);
       root.render(
         <DayActions
-          day={{ date: "2026-08-25", hasWorkout: true }}
-          otherDays={[{ date: "2026-08-26", hasWorkout: false, isRace: false }]}
+          day={{ date: "2026-08-25", workoutCount: 1 }}
+          otherDays={[{ date: "2026-08-26", workoutCount: 0, isRace: false }]}
         />
       );
     });

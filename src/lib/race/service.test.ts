@@ -17,7 +17,15 @@ function emptyWeek(weekStart: string): DaySlot[] {
   const d = new Date(weekStart + "T00:00:00");
   for (let i = 0; i < 7; i++) {
     const ymd = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    days.push({ date: ymd, availableMins: 60, workout: null, status: "rest" });
+    days.push({
+      date: ymd,
+      availableBlocks: [
+        { start: null, end: null, mins: 60, energy: "normal", sports: null },
+      ],
+      availableMins: 60,
+      workouts: [],
+      status: "rest",
+    });
     d.setDate(d.getDate() + 1);
   }
   return days;

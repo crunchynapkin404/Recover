@@ -15,7 +15,7 @@ async function execute(_args: z.infer<typeof parameters>, ctx: ToolContext) {
     days: week.days.map((d) => ({
       date: d.date,
       availableMins: d.availableMins,
-      workout: d.workout,
+      workouts: d.workouts,
       status: d.status,
       movedFrom: d.movedFrom ?? null,
     })),
@@ -26,7 +26,7 @@ async function execute(_args: z.infer<typeof parameters>, ctx: ToolContext) {
 export const getWeekPlanTool: ToolDefinition<typeof parameters> = {
   name: "get_week_plan",
   description:
-    "Get the current materialized week: each day's workout (or rest), availability, completion status, and every automatic adjustment with its reason.",
+    "Get the current materialized week: each day's workouts (or rest), availability, completion status, and every automatic adjustment with its reason.",
   parameters,
   execute,
 };

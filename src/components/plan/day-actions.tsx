@@ -5,12 +5,12 @@ import { applyPlanChange, previewPlanChange } from "@/app/plan/actions";
 
 export interface DayActionsDay {
   date: string;
-  hasWorkout: boolean;
+  workoutCount: number;
 }
 
 export interface DayActionsOtherDay {
   date: string;
-  hasWorkout: boolean;
+  workoutCount: number;
   isRace: boolean;
 }
 
@@ -72,13 +72,13 @@ export function DayActions({ day, otherDays, bare = false }: Props) {
   const [applied, setApplied] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (!day.hasWorkout) return null;
+  if (day.workoutCount === 0) return null;
 
   const targets =
     action === "move"
-      ? otherDays.filter((d) => !d.hasWorkout && !d.isRace)
+      ? otherDays.filter((d) => d.workoutCount === 0 && !d.isRace)
       : action === "swap"
-        ? otherDays.filter((d) => d.hasWorkout && !d.isRace)
+        ? otherDays.filter((d) => d.workoutCount > 0 && !d.isRace)
         : [];
   const needsTarget = action !== "skip";
 

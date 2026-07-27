@@ -20,10 +20,12 @@ import {
   type AdjustmentRecord,
   type DaySlot,
   type WeekState,
+  dayMins,
   isQuality,
   QUALITY_TYPES,
   STEP_DOWN,
 } from "./types";
+import type { AvailabilityBlock } from "@/lib/availability/types";
 
 export interface EffectiveLoadInput {
   skeletonTarget: number;
@@ -213,12 +215,23 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
     });
   }
 
-  const days: DaySlot[] = dates.map((date, i) => ({
-    date,
-    availableMins: input.availabilityMins[i] ?? 0,
-    workout: null,
-    status: "rest",
-  }));
+  const days: DaySlot[] = dates.map((date, i) => {
+    const mins = input.availabilityMins[i] ?? 0;
+    // Legacy single-number model, wrapped in a single synthetic block —
+    // same convention as drizzle/0029's backfill. Task 8 replaces this
+    // input with real per-day blocks (availableBlocksPerDay).
+    const availableBlocks: AvailabilityBlock[] =
+      mins > 0
+        ? [{ start: null, end: null, mins, energy: "normal", sports: null }]
+        : [];
+    return {
+      date,
+      availableBlocks,
+      availableMins: dayMins({ availableBlocks }),
+      workouts: [],
+      status: "rest",
+    };
+  });
 
   const raceIdx = primary ? dates.indexOf(primary.date) : -1;
   const isRaceWeek = taperFraction === TAPER_FRACTION_RACE_WEEK && raceIdx >= 0;
@@ -226,7 +239,11 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
   if (isRaceWeek) {
     for (const w of raceWeekWorkouts(input.sports[0] ?? "Run", raceIdx)) {
       if ((input.availabilityMins[w.day] ?? 0) > 0) {
-        days[w.day] = { ...days[w.day], workout: { ...w }, status: "planned" };
+        days[w.day] = {
+          ...days[w.day],
+          workouts: [...days[w.day].workouts, { ...w }],
+          status: "planned",
+        };
       }
     }
   } else if (sessions > 0) {
@@ -250,8 +267,8 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
         if (taken.has(s.i)) continue;
         if (
           avoidAdjacentQuality &&
-          (isQuality(days[s.i - 1]?.workout ?? null) ||
-            isQuality(days[s.i + 1]?.workout ?? null))
+          (isQuality(days[s.i - 1]?.workouts[0] ?? null) ||
+            isQuality(days[s.i + 1]?.workouts[0] ?? null))
         )
           continue;
         taken.add(s.i);
@@ -291,39 +308,56 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
         }
       }
       if (idx === null) continue; // fewer slots than workouts: drop silently sized by `sessions`
-      const cap = days[idx].availableMins;
+      // interim: total-day minutes, not per-block — Task 6 replaces this
+      // with proper slot admission (fitToBlock/biggestBlock).
+      const cap = dayMins(days[idx]);
       if (workout.durationMins > cap) {
-        const before = { ...days[idx], workout: { ...workout } };
+        const before = {
+          ...days[idx],
+          workouts: [...days[idx].workouts, { ...workout }],
+        };
         workout.durationMins = cap;
         adjustments.push({
           date: days[idx].date,
           trigger: "no_time",
           action: "scaled",
           before: [before],
-          after: [{ ...days[idx], workout: { ...workout }, status: "planned" }],
+          after: [
+            {
+              ...days[idx],
+              workouts: [...days[idx].workouts, { ...workout }],
+              status: "planned",
+            },
+          ],
           reason: `shortened to fit available time (${cap}min) on ${days[idx].date}`,
         });
       }
-      days[idx] = { ...days[idx], workout, status: "planned" };
+      days[idx] = {
+        ...days[idx],
+        workouts: [...days[idx].workouts, workout],
+        status: "planned",
+      };
     }
   }
 
   for (const race of races) {
     const idx = dates.indexOf(race.date);
     if (idx === -1) continue;
-    if (days[idx].workout) {
+    if (days[idx].workouts.length > 0) {
       adjustments.push({
         date: race.date,
         trigger: "race",
         action: "swapped",
-        before: [{ ...days[idx], workout: { ...days[idx].workout! } }],
+        before: [
+          { ...days[idx], workouts: days[idx].workouts.map((w) => ({ ...w })) },
+        ],
         after: [],
         reason: `race day: ${race.name} replaces the planned workout`,
       });
     }
     days[idx] = {
       ...days[idx],
-      workout: null,
+      workouts: [],
       status: "race",
       raceName: race.name,
     };
@@ -333,12 +367,12 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
   // train through. The primary race decides (first in sorted input).
   if (primary && primary.priority !== "C") {
     const idx = dates.indexOf(primary.date);
-    if (idx >= 1 && days[idx - 1].workout) {
+    if (idx >= 1 && days[idx - 1].workouts.length > 0) {
       const before = {
         ...days[idx - 1],
-        workout: { ...days[idx - 1].workout! },
+        workouts: days[idx - 1].workouts.map((w) => ({ ...w })),
       };
-      days[idx - 1] = { ...days[idx - 1], workout: null, status: "rest" };
+      days[idx - 1] = { ...days[idx - 1], workouts: [], status: "rest" };
       adjustments.push({
         date: before.date,
         trigger: "race",
@@ -348,18 +382,24 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
         reason: `rest before ${primary.name}`,
       });
     }
-    if (!isRaceWeek && idx >= 2 && isQuality(days[idx - 2].workout)) {
+    if (
+      !isRaceWeek &&
+      idx >= 2 &&
+      isQuality(days[idx - 2].workouts[0] ?? null)
+    ) {
       const before = {
         ...days[idx - 2],
-        workout: { ...days[idx - 2].workout! },
+        workouts: days[idx - 2].workouts.map((w) => ({ ...w })),
       };
       days[idx - 2] = {
         ...days[idx - 2],
-        workout: withPurpose({
-          ...days[idx - 2].workout!,
-          type: "Endurance",
-          intensity: "Z1-Z2",
-        }),
+        workouts: [
+          withPurpose({
+            ...days[idx - 2].workouts[0]!,
+            type: "Endurance",
+            intensity: "Z1-Z2",
+          }),
+        ],
         status: "planned",
       };
       adjustments.push({

@@ -9,6 +9,7 @@ import { adaptDay } from "./adapt-day";
 import { prefillAvailability } from "./availability";
 import { isQuality } from "./types";
 import type { AdjustmentRecord, Band, DaySlot } from "./types";
+import { blockMins } from "@/lib/availability/types";
 
 export type AdjustmentRow = typeof schema.planAdjustments.$inferSelect;
 
@@ -293,10 +294,12 @@ export async function runDailyAdaptation(
   // context, so Strava rows count here).
   const yesterdayYmd = addDaysYmd(today, -1);
   const ySlot = week.days.find((d) => d.date === yesterdayYmd);
+  const ySlotWorkout = ySlot?.workouts[0] ?? null;
   let yesterdayCompleted: boolean | null = null;
   let matched: { id: string; load: number | null } | null = null;
   if (
-    ySlot?.workout &&
+    ySlotWorkout &&
+    ySlot != null &&
     (ySlot.status === "planned" ||
       ySlot.status === "moved" ||
       ySlot.status === "adapted")
@@ -309,7 +312,7 @@ export async function runDailyAdaptation(
     const activity = await db.query.activities.findFirst({
       where: and(
         eq(schema.activities.userId, userId),
-        eq(schema.activities.sport, ySlot.workout.sport),
+        eq(schema.activities.sport, ySlotWorkout.sport),
         gte(
           sql`coalesce(${schema.activities.startDateLocal}, ${schema.activities.startDate})`,
           new Date(yesterdayYmd + "T00:00:00")
@@ -481,38 +484,43 @@ export async function moveWorkout(
 
   const from = week.days[fromIdx];
   const to = week.days[toIdx];
-  if (!from.workout) return "invalid";
+  const fromWorkoutSrc = from.workouts[0] ?? null;
+  if (!fromWorkoutSrc) return "invalid";
   if (from.status === "completed" || from.status === "missed") return "invalid";
-  if (to.workout !== null) return "invalid";
+  if (to.workouts.length > 0) return "invalid";
   if (to.status === "completed" || to.status === "missed") return "invalid";
   if (to.status === "race") return "invalid";
-  if (to.availableMins < from.workout.durationMins) return "invalid";
+  // interim: Task 6 replaces this with proper slot admission.
+  if (
+    !to.availableBlocks.some((b) => blockMins(b) >= fromWorkoutSrc.durationMins)
+  )
+    return "invalid";
 
   const days = week.days.map((d) => ({
     ...d,
-    workout: d.workout ? { ...d.workout } : null,
+    workouts: d.workouts.map((w) => ({ ...w })),
   }));
-  const workout = days[fromIdx].workout!;
+  const workout = days[fromIdx].workouts[0]!;
   days[fromIdx] = {
     ...days[fromIdx],
-    workout: null,
+    workouts: [],
     status: "rest",
     movedFrom: undefined,
   };
   if (
     isQuality(workout) &&
-    (isQuality(days[toIdx - 1]?.workout ?? null) ||
-      isQuality(days[toIdx + 1]?.workout ?? null))
+    (isQuality(days[toIdx - 1]?.workouts[0] ?? null) ||
+      isQuality(days[toIdx + 1]?.workouts[0] ?? null))
   ) {
     return "invalid";
   }
   const before = [
-    { ...from, workout: { ...from.workout } },
-    { ...to, workout: null },
+    { ...from, workouts: from.workouts.map((w) => ({ ...w })) },
+    { ...to, workouts: [] },
   ];
   days[toIdx] = {
     ...days[toIdx],
-    workout,
+    workouts: [workout],
     status: "moved",
     movedFrom: fromDate,
   };
@@ -548,28 +556,33 @@ export async function swapWorkouts(
 
   const from = week.days[fromIdx];
   const to = week.days[toIdx];
-  if (!from.workout || !to.workout) return "invalid";
+  const fromWorkoutSrc = from.workouts[0] ?? null;
+  const toWorkoutSrc = to.workouts[0] ?? null;
+  if (!fromWorkoutSrc || !toWorkoutSrc) return "invalid";
   for (const d of [from, to]) {
     if (d.status === "completed" || d.status === "missed") return "invalid";
   }
+  // interim: Task 6 replaces this with proper slot admission.
   if (
-    to.availableMins < from.workout.durationMins ||
-    from.availableMins < to.workout.durationMins
+    !to.availableBlocks.some(
+      (b) => blockMins(b) >= fromWorkoutSrc.durationMins
+    ) ||
+    !from.availableBlocks.some((b) => blockMins(b) >= toWorkoutSrc.durationMins)
   ) {
     return "invalid";
   }
 
   const days = week.days.map((d) => ({
     ...d,
-    workout: d.workout ? { ...d.workout } : null,
+    workouts: d.workouts.map((w) => ({ ...w })),
   }));
   const before = [
-    { ...from, workout: { ...from.workout } },
-    { ...to, workout: { ...to.workout } },
+    { ...from, workouts: from.workouts.map((w) => ({ ...w })) },
+    { ...to, workouts: to.workouts.map((w) => ({ ...w })) },
   ];
-  const fromWorkout = days[fromIdx].workout!;
-  days[fromIdx] = { ...days[fromIdx], workout: days[toIdx].workout };
-  days[toIdx] = { ...days[toIdx], workout: fromWorkout };
+  const fromWorkout = days[fromIdx].workouts[0]!;
+  days[fromIdx] = { ...days[fromIdx], workouts: days[toIdx].workouts };
+  days[toIdx] = { ...days[toIdx], workouts: [fromWorkout] };
 
   await db
     .update(schema.weekPlans)
@@ -609,13 +622,13 @@ export async function markDayDone(
   if (idx === -1) return "invalid";
 
   const day = week.days[idx];
-  if (!day.workout) return "invalid";
+  if (day.workouts.length === 0) return "invalid";
   if (day.status === "completed" || day.status === "missed") return "invalid";
   if (day.status === "race") return "invalid";
 
   const days = week.days.map((d) => ({
     ...d,
-    workout: d.workout ? { ...d.workout } : null,
+    workouts: d.workouts.map((w) => ({ ...w })),
   }));
   days[idx] = { ...days[idx], status: "completed" };
 

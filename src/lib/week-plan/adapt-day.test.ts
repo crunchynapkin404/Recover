@@ -1,30 +1,53 @@
 // src/lib/week-plan/adapt-day.test.ts
 import { describe, expect, it } from "vitest";
 import { adaptDay } from "./adapt-day";
+import { dayMins } from "./types";
 import type { DaySlot, WeekState } from "./types";
 import { withPurpose } from "@/lib/training-plan";
+import type { PlannedWorkout } from "@/lib/training-plan";
+
+function blocksFor(mins: number): DaySlot["availableBlocks"] {
+  return mins > 0
+    ? [{ start: null, end: null, mins, energy: "normal", sports: null }]
+    : [];
+}
 
 const D = (
   date: string,
   mins: number,
-  workout: Partial<DaySlot["workout"]> | null,
+  workout: Partial<PlannedWorkout> | null,
   status: DaySlot["status"] = workout ? "planned" : "rest"
-): DaySlot => ({
-  date,
-  availableMins: mins,
-  workout: workout
-    ? withPurpose({
-        day: 0,
-        sport: "Run",
-        type: "Endurance",
-        durationMins: 45,
-        intensity: "Z1-Z2",
-        description: "Easy run",
-        ...workout,
-      })
-    : null,
-  status,
-});
+): DaySlot => {
+  const availableBlocks = blocksFor(mins);
+  return {
+    date,
+    availableBlocks,
+    availableMins: dayMins({ availableBlocks }),
+    workouts: workout
+      ? [
+          withPurpose({
+            day: 0,
+            sport: "Run",
+            type: "Endurance",
+            durationMins: 45,
+            intensity: "Z1-Z2",
+            description: "Easy run",
+            ...workout,
+          }),
+        ]
+      : [],
+    status,
+  };
+};
+
+/** Overwrites a day's availability in place (mins only) — keeps
+ * availableBlocks/availableMins consistent, the way a real resolved day
+ * would. */
+function setMins(day: DaySlot, mins: number): void {
+  const availableBlocks = blocksFor(mins);
+  day.availableBlocks = availableBlocks;
+  day.availableMins = dayMins({ availableBlocks });
+}
 
 const week = (days: DaySlot[]): WeekState => ({
   weekStart: days[0].date,
@@ -52,7 +75,7 @@ describe("adaptDay — missed yesterday", () => {
     expect(r.week.days[0].status).toBe("missed");
     const moved = r.week.days.find((d) => d.movedFrom === "2026-07-20");
     expect(moved).toBeDefined();
-    expect(moved!.workout!.type).toBe("Intervals");
+    expect(moved!.workouts[0]!.type).toBe("Intervals");
     expect(moved!.status).toBe("moved");
     expect(
       r.adjustments.some(
@@ -81,8 +104,8 @@ describe("adaptDay — missed yesterday", () => {
     expect(r.week.days[1].status).toBe("missed");
     expect(r.week.days.some((d) => d.movedFrom === "2026-07-21")).toBe(false);
     // 40 × 1.25 = 50 max per remaining day
-    expect(r.week.days[2].workout!.durationMins).toBeLessThanOrEqual(50);
-    expect(r.week.days[3].workout!.durationMins).toBeLessThanOrEqual(50);
+    expect(r.week.days[2].workouts[0]!.durationMins).toBeLessThanOrEqual(50);
+    expect(r.week.days[3].workouts[0]!.durationMins).toBeLessThanOrEqual(50);
     expect(
       r.adjustments.some(
         (a) => a.trigger === "missed_workout" && a.action === "dropped"
@@ -151,11 +174,11 @@ describe("adaptDay — readiness and availability", () => {
       yesterdayCompleted: null,
     });
     const today = r.week.days[1];
-    expect(today.workout!.type).toBe("Recovery");
-    expect(today.workout!.durationMins).toBe(30);
+    expect(today.workouts[0]!.type).toBe("Recovery");
+    expect(today.workouts[0]!.durationMins).toBe(30);
     expect(today.status).toBe("adapted");
-    expect(today.workout!.purpose).toBe("recovery");
-    expect(today.workout!.minEffectiveMins).toBe(20);
+    expect(today.workouts[0]!.purpose).toBe("recovery");
+    expect(today.workouts[0]!.minEffectiveMins).toBe(20);
     expect(
       r.adjustments.some(
         (a) => a.trigger === "low_readiness" && a.action === "swapped"
@@ -170,8 +193,8 @@ describe("adaptDay — readiness and availability", () => {
       band: "red",
       yesterdayCompleted: null,
     });
-    expect(r.week.days[2].workout!.durationMins).toBe(42); // 60 × 0.7
-    expect(r.week.days[2].workout!.type).toBe("Endurance");
+    expect(r.week.days[2].workouts[0]!.durationMins).toBe(42); // 60 × 0.7
+    expect(r.week.days[2].workouts[0]!.type).toBe("Endurance");
   });
 
   it("amber: intervals step down to tempo at 85% duration", () => {
@@ -182,10 +205,10 @@ describe("adaptDay — readiness and availability", () => {
       yesterdayCompleted: null,
     });
     const today = r.week.days[1];
-    expect(today.workout!.type).toBe("Tempo");
-    expect(today.workout!.durationMins).toBe(43); // round(50 × 0.85)
-    expect(today.workout!.purpose).toBe("threshold");
-    expect(today.workout!.minEffectiveMins).toBe(45);
+    expect(today.workouts[0]!.type).toBe("Tempo");
+    expect(today.workouts[0]!.durationMins).toBe(43); // round(50 × 0.85)
+    expect(today.workouts[0]!.purpose).toBe("threshold");
+    expect(today.workouts[0]!.minEffectiveMins).toBe(45);
   });
 
   it("amber: tempo steps down to endurance at 85% duration, purpose follows the new type", () => {
@@ -196,10 +219,10 @@ describe("adaptDay — readiness and availability", () => {
       yesterdayCompleted: null,
     });
     const today = r.week.days[4];
-    expect(today.workout!.type).toBe("Endurance");
-    expect(today.workout!.durationMins).toBe(38); // round(45 × 0.85)
-    expect(today.workout!.purpose).toBe("aerobic_base");
-    expect(today.workout!.minEffectiveMins).toBe(40);
+    expect(today.workouts[0]!.type).toBe("Endurance");
+    expect(today.workouts[0]!.durationMins).toBe(38); // round(45 × 0.85)
+    expect(today.workouts[0]!.purpose).toBe("aerobic_base");
+    expect(today.workouts[0]!.minEffectiveMins).toBe(40);
   });
 
   it("calibrating: readiness rules never fire", () => {
@@ -209,7 +232,7 @@ describe("adaptDay — readiness and availability", () => {
       band: "calibrating",
       yesterdayCompleted: null,
     });
-    expect(r.week.days[1].workout!.type).toBe("Intervals");
+    expect(r.week.days[1].workouts[0]!.type).toBe("Intervals");
     expect(
       r.adjustments.filter((a) => a.trigger === "low_readiness")
     ).toHaveLength(0);
@@ -229,35 +252,35 @@ describe("adaptDay — readiness and availability", () => {
 
   it("no time today: workout shortens to the available minutes", () => {
     const w = base();
-    w.days[1].availableMins = 25;
+    setMins(w.days[1], 25);
     const r = adaptDay({
       week: w,
       today: "2026-07-21",
       band: "green",
       yesterdayCompleted: null,
     });
-    expect(r.week.days[1].workout!.durationMins).toBe(25);
+    expect(r.week.days[1].workouts[0]!.durationMins).toBe(25);
     expect(r.adjustments.some((a) => a.trigger === "no_time")).toBe(true);
   });
 
   it("zero time today: workout swaps to a later free day", () => {
     const w = base();
-    w.days[1].availableMins = 0;
+    setMins(w.days[1], 0);
     const r = adaptDay({
       week: w,
       today: "2026-07-21",
       band: "green",
       yesterdayCompleted: null,
     });
-    expect(r.week.days[1].workout).toBeNull();
+    expect(r.week.days[1].workouts).toHaveLength(0);
     expect(r.week.days[1].status).toBe("rest");
     const moved = r.week.days.find((d) => d.movedFrom === "2026-07-21");
-    expect(moved?.workout?.type).toBe("Intervals");
+    expect(moved?.workouts[0]?.type).toBe("Intervals");
   });
 
   it("red + no time: availability wins first, then readiness scales", () => {
     const w = base();
-    w.days[2].availableMins = 30;
+    setMins(w.days[2], 30);
     const r = adaptDay({
       week: w,
       today: "2026-07-22",
@@ -265,7 +288,7 @@ describe("adaptDay — readiness and availability", () => {
       yesterdayCompleted: null,
     });
     // shortened to 30 by availability, then ×0.7 = 21
-    expect(r.week.days[2].workout!.durationMins).toBe(21);
+    expect(r.week.days[2].workouts[0]!.durationMins).toBe(21);
   });
 });
 
@@ -289,7 +312,7 @@ describe("adaptDay — race-day guards", () => {
     });
     expect(r.adjustments).toHaveLength(0);
     expect(r.week.days[3].status).toBe("race");
-    expect(r.week.days[3].workout).toBeNull();
+    expect(r.week.days[3].workouts).toHaveLength(0);
   });
 
   it("no-time move never lands a workout on a race day", () => {
@@ -310,7 +333,7 @@ describe("adaptDay — race-day guards", () => {
       yesterdayCompleted: null,
     });
     expect(r.week.days[5].status).toBe("race");
-    expect(r.week.days[5].workout).toBeNull();
+    expect(r.week.days[5].workouts).toHaveLength(0);
     // dropped, not moved anywhere else that would displace the race slot
     expect(
       r.adjustments.some(
@@ -337,7 +360,7 @@ describe("adaptDay — race-day guards", () => {
       yesterdayCompleted: false,
     });
     expect(r.week.days[2].status).toBe("race");
-    expect(r.week.days[2].workout).toBeNull();
+    expect(r.week.days[2].workouts).toHaveLength(0);
     const moved = r.week.days.find((d) => d.movedFrom === "2026-07-20");
     expect(moved).toBeDefined();
     expect(moved!.date).toBe("2026-07-23");

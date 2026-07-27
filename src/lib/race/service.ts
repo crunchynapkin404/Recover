@@ -227,15 +227,14 @@ export async function assembleForecastInputs(
       eq(schema.trainingBlocks.weekNumber, week.skeletonWeek)
     ),
   });
+  const dayWorkoutMins = (d: DaySlot) =>
+    d.workouts.reduce((s, w) => s + (w.durationMins ?? 0), 0);
   const workoutDays = week.days.filter(
     (d) =>
-      d.workout &&
+      d.workouts.length > 0 &&
       (d.status === "planned" || d.status === "moved" || d.status === "adapted")
   );
-  const totalMins = workoutDays.reduce(
-    (s, d) => s + (d.workout?.durationMins ?? 0),
-    0
-  );
+  const totalMins = workoutDays.reduce((s, d) => s + dayWorkoutMins(d), 0);
   // The open week's persisted effective target (post-taper, post-hours-
   // budget) wins over the block's un-tapered skeleton value — in race week
   // the block still holds the pre-taper number, which would otherwise
@@ -247,10 +246,7 @@ export async function assembleForecastInputs(
     if (d.date <= today || totalMins === 0) continue;
     plannedLoads.push({
       date: d.date,
-      load:
-        Math.round(
-          weekTarget * ((d.workout!.durationMins ?? 0) / totalMins) * 10
-        ) / 10,
+      load: Math.round(weekTarget * (dayWorkoutMins(d) / totalMins) * 10) / 10,
     });
   }
 

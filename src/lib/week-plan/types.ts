@@ -1,20 +1,37 @@
 import type { PlannedWorkout } from "@/lib/training-plan";
 import type { Band } from "@/lib/readiness";
+import type { AvailabilityBlock } from "@/lib/availability/types";
+import { blockMins } from "@/lib/availability/types";
 
 export type DayStatus =
   "planned" | "completed" | "adapted" | "moved" | "missed" | "rest" | "race";
 
 export interface DaySlot {
   date: string; // YYYY-MM-DD
-  availableMins: number; // 0 = rest day by availability
-  workout: PlannedWorkout | null;
+  /** Resolved availability for this date. Empty = unavailable. */
+  availableBlocks: AvailabilityBlock[];
+  /** Up to MAX_SESSIONS_PER_DAY sessions. Empty = rest. */
+  workouts: PlannedWorkout[];
+  /**
+   * Derived sum, kept only so existing displays and the race forecast keep
+   * working. Placement logic must never read it — a day of 45m + 60m is
+   * two opportunities, not one 105-minute one.
+   */
+  availableMins: number;
   status: DayStatus;
   /** Set when a workout was moved here from another day (its original date). */
   movedFrom?: string;
   activityId?: string;
   actualLoad?: number;
+  /** Load from work the plan did not ask for. Never triggers a replan. */
+  unplannedLoad?: number;
   /** Set on race-day slots (status "race"): the race's display name. */
   raceName?: string;
+}
+
+/** The day's total available minutes, from its blocks. */
+export function dayMins(d: Pick<DaySlot, "availableBlocks">): number {
+  return d.availableBlocks.reduce((s, b) => s + blockMins(b), 0);
 }
 
 export interface WeekState {
