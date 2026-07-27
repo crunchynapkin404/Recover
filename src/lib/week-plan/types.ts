@@ -64,7 +64,7 @@ export type { Band };
 
 /** Quality sessions never sit on consecutive days and get readiness care. */
 export const QUALITY_TYPES = ["Intervals", "Tempo", "Brick"] as const;
-export function isQuality(w: PlannedWorkout | null): boolean {
+export function isQuality(w: PlannedWorkout | null | undefined): boolean {
   return w != null && (QUALITY_TYPES as readonly string[]).includes(w.type);
 }
 
