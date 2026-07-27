@@ -121,6 +121,24 @@ export async function generateMorningInsight(
     return "skipped";
   }
 
+  // Completeness (2026-07-26): the gate in wellness-changed.ts already held
+  // the non-forced path until last night's HRV and sleep arrived, so a
+  // brief reaching this point without them is a forced/backstop one. Say so
+  // rather than presenting a partial number as whole.
+  const { arrivalFromWellness, overnightComplete, gapSentence } =
+    await import("@/lib/brief-completeness");
+  const wellnessToday = await db.query.wellnessDaily.findFirst({
+    where: and(
+      eq(schema.wellnessDaily.userId, userId),
+      eq(schema.wellnessDaily.date, today)
+    ),
+  });
+  const arrival = arrivalFromWellness(wellnessToday);
+  const dataComplete = overnightComplete(arrival);
+  const caveat = dataComplete
+    ? null
+    : gapSentence(metric?.componentScores, arrival);
+
   const thread = await findOrCreateMorningThread(userId);
   const latest = await latestNonDebriefMessage(thread.id);
   if (latest && localYmd(latest.createdAt) === today) return "skipped";
@@ -174,7 +192,7 @@ export async function generateMorningInsight(
       (raceToday.goalNote ? `Goal: ${raceToday.goalNote}.` : "")
     : null;
 
-  const template =
+  const templateBody =
     raceTemplate ??
     [
       metric?.readiness != null
@@ -191,6 +209,8 @@ export async function generateMorningInsight(
         ? ` Plan: ${adjustmentReasons.join("; ")}.`
         : "");
 
+  const template = caveat ? `${caveat} ${templateBody}` : templateBody;
+
   const raceInstruction = raceToday
     ? `Today is race day: ${raceToday.name} (priority ${raceToday.priority}).` +
       (raceToday.goalNote
@@ -206,7 +226,7 @@ export async function generateMorningInsight(
       `one concrete execution reminder tied to the goal. No generic training advice, no workout suggestions.`
     : null;
 
-  const instruction =
+  const instructionBody =
     raceInstruction ??
     `Write this morning's proactive check-in for the athlete (max 120 words, no greeting fluff). ` +
       `Today: ` +
@@ -223,6 +243,10 @@ export async function generateMorningInsight(
           `Mention what changed in the plan and why — quote the given reasons, do not invent adjustments. `
         : "") +
       `End with one concrete suggestion for today.`;
+
+  const instruction = caveat
+    ? `${instructionBody} IMPORTANT — the data is incomplete: ${caveat} Open with that limitation in your own words; do not present the readiness number as a complete picture.`
+    : instructionBody;
 
   let text = template;
   let generated: "llm" | "template" = "template";
@@ -283,6 +307,7 @@ export async function generateMorningInsight(
       generated,
       warning: warning?.kind ?? null,
       forced: opts?.force ?? false,
+      dataComplete,
     },
   });
   await db

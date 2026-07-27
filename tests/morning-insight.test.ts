@@ -286,6 +286,94 @@ describe.skipIf(!hasDb)("morning insight", () => {
     expect(await getLatestMorningInsight(USER)).toBeNull();
   });
 
+  it("forced brief names the missing components and records dataComplete:false", async () => {
+    const { db, schema } = await import("@/lib/db");
+    const { generateMorningInsight } = await import("@/lib/morning-insight");
+    // Scored on RHR + form only — exactly the 2026-07-26 failure shape.
+    await db.insert(schema.dailyMetrics).values({
+      userId: USER,
+      date: localYmd(new Date()),
+      readiness: 67,
+      band: "green",
+      tsb: 5,
+      componentScores: { hrv: null, rhr: 71, sleep: null, form: 58 },
+      hrvBaselineMean: Math.log(65),
+      hrvBaselineSd: 0.1,
+      rhrBaselineMean: 48,
+      rhrBaselineSd: 2,
+    });
+
+    const r = await generateMorningInsight(USER, { force: true });
+    if (r === "skipped") throw new Error("expected a brief");
+    expect(r.text).toContain("Incomplete picture");
+    expect(r.text).toContain("HRV");
+
+    const msg = await db.query.chatMessages.findFirst({
+      where: eq(schema.chatMessages.threadId, r.threadId),
+    });
+    expect(msg?.toolCalls).toMatchObject({ dataComplete: false });
+  });
+
+  it("a complete brief carries no caveat and records dataComplete:true", async () => {
+    const { db, schema } = await import("@/lib/db");
+    const { generateMorningInsight } = await import("@/lib/morning-insight");
+    const today = localYmd(new Date());
+    await db.insert(schema.wellnessDaily).values({
+      userId: USER,
+      date: today,
+      hrvMs: 62,
+      sleepSecs: 25000,
+    });
+    await db.insert(schema.dailyMetrics).values({
+      userId: USER,
+      date: today,
+      readiness: 70,
+      band: "green",
+      tsb: 5,
+      componentScores: { hrv: 55, rhr: 71, sleep: 68, form: 58 },
+      hrvBaselineMean: Math.log(65),
+      hrvBaselineSd: 0.1,
+      rhrBaselineMean: 48,
+      rhrBaselineSd: 2,
+    });
+
+    const r = await generateMorningInsight(USER);
+    if (r === "skipped") throw new Error("expected a brief");
+    expect(r.text).not.toContain("Incomplete picture");
+
+    const msg = await db.query.chatMessages.findFirst({
+      where: eq(schema.chatMessages.threadId, r.threadId),
+    });
+    expect(msg?.toolCalls).toMatchObject({ dataComplete: true });
+  });
+
+  it("passes the caveat to the LLM instruction too", async () => {
+    const { db, schema } = await import("@/lib/db");
+    const { generateMorningInsight } = await import("@/lib/morning-insight");
+    await db.insert(schema.dailyMetrics).values({
+      userId: USER,
+      date: localYmd(new Date()),
+      readiness: 67,
+      band: "green",
+      tsb: 5,
+      componentScores: { hrv: null, rhr: 71, sleep: null, form: 58 },
+      hrvBaselineMean: Math.log(65),
+      hrvBaselineSd: 0.1,
+      rhrBaselineMean: 48,
+      rhrBaselineSd: 2,
+    });
+
+    let seen = "";
+    await generateMorningInsight(USER, {
+      force: true,
+      llm: async (p) => {
+        seen = p;
+        return "Brief text";
+      },
+    });
+    expect(seen).toContain("Incomplete picture");
+  });
+
   // Fix: a post-race debrief message landing in the morning thread (e.g. a
   // post-midnight sync tick) must not be mistaken for "today's morning
   // insight" — that would silently eat the athlete's real morning check-in.
@@ -438,7 +526,11 @@ describe.skipIf(!hasDb)("morning insight — race day (Task 12)", () => {
       llm: async () => "", // empty LLM output → template fallback
     });
     expect(r).not.toBe("skipped");
-    if (r !== "skipped") expect(r.text).toMatch(/^Race day: /);
+    // RACE_USER_2 has no wellness_daily/daily_metrics rows at all today, so
+    // the completeness caveat (2026-07-26) legitimately leads the race
+    // template here too — assert the race content rather than the exact
+    // start of the string.
+    if (r !== "skipped") expect(r.text).toContain("Race day: Second City 10K");
   });
 
   it("race day: projects tomorrow-vs-actual TSB from yesterday's stored ctl/atl", async () => {
