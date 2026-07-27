@@ -634,6 +634,101 @@ describe.skipIf(!hasDb)("morning insight", () => {
     // No wellness row inserted — still incomplete.
     expect(await generateMorningInsight(USER, { force: true })).toBe("skipped");
   });
+
+  // Fix: the morning thread is a live conversational thread, not an
+  // append-only feed — production has seen 11+ messages land in a single
+  // day. Today's brief is posted first (~05:00) and so is the *oldest* of
+  // them; once more than 10 further messages land the same day, it falls
+  // out of recentMessages()'s 10-row page entirely. Since that page used to
+  // be the only place the revision target was found, the brief would
+  // silently stop being revisable on any day chatty enough to push it out —
+  // the same failure mode the previous fix addressed, just requiring more
+  // conversation to trigger. todaysBrief() must query for the brief
+  // directly instead of scanning the page.
+  it("revises today's brief even when it has fallen out of the 10-row recent-messages window", async () => {
+    const { db, schema } = await import("@/lib/db");
+    const { generateMorningInsight } = await import("@/lib/morning-insight");
+    const today = localYmd(new Date());
+    await db.insert(schema.dailyMetrics).values({
+      userId: USER,
+      date: today,
+      readiness: 67,
+      band: "green",
+      tsb: 5,
+      componentScores: { hrv: null, rhr: 71, sleep: null, form: 58 },
+      hrvBaselineMean: Math.log(65),
+      hrvBaselineSd: 0.1,
+      rhrBaselineMean: 48,
+      rhrBaselineSd: 2,
+    });
+
+    // 1. Backstop posts an incomplete brief.
+    const first = await generateMorningInsight(USER, { force: true });
+    if (first === "skipped") throw new Error("expected a brief");
+    expect(first.text).toContain("Incomplete picture");
+
+    const briefRow = await db.query.chatMessages.findFirst({
+      where: and(
+        eq(schema.chatMessages.threadId, first.threadId),
+        eq(schema.chatMessages.role, "assistant")
+      ),
+    });
+    if (!briefRow) throw new Error("expected the brief row to exist");
+    const briefId = briefRow.id;
+    const briefCreatedAt = briefRow.createdAt;
+
+    // 2. More than 10 further messages (athlete replies, in this case) land
+    // in the thread the same day, each strictly newer than the brief —
+    // pushing it well outside the 10 most recent rows.
+    for (let i = 0; i < 11; i++) {
+      await db.insert(schema.chatMessages).values({
+        threadId: first.threadId,
+        role: "user",
+        content: `filler message ${i}`,
+        createdAt: new Date(briefCreatedAt.getTime() + (i + 1) * 1000),
+      });
+    }
+
+    // 3. The real overnight data lands and readiness is recomputed.
+    await db.insert(schema.wellnessDaily).values({
+      userId: USER,
+      date: today,
+      hrvMs: 62,
+      sleepSecs: 25000,
+    });
+    await db
+      .update(schema.dailyMetrics)
+      .set({
+        readiness: 58,
+        band: "amber",
+        componentScores: { hrv: 50, rhr: 71, sleep: 68, form: 58 },
+      })
+      .where(
+        and(
+          eq(schema.dailyMetrics.userId, USER),
+          eq(schema.dailyMetrics.date, today)
+        )
+      );
+
+    // 4. A normal (non-forced) trigger must still find and revise the
+    // original brief in place, even though it's no longer among the 10 most
+    // recent thread messages.
+    const second = await generateMorningInsight(USER);
+    if (second === "skipped") throw new Error("expected a revision");
+    expect(second.text).not.toContain("Incomplete picture");
+    expect(second.text).toContain("58");
+
+    const msgs = await db.query.chatMessages.findMany({
+      where: eq(schema.chatMessages.threadId, first.threadId),
+    });
+    const assistantMsgs = msgs.filter((m) => m.role === "assistant");
+    // Updated in place — same row id, still exactly one assistant brief in
+    // the thread, no second brief inserted alongside it.
+    expect(assistantMsgs).toHaveLength(1);
+    expect(assistantMsgs[0].id).toBe(briefId);
+    expect(assistantMsgs[0].content).toBe(second.text);
+    expect(assistantMsgs[0].toolCalls).toMatchObject({ dataComplete: true });
+  });
 });
 
 // Task 12: race-day brief — the morning insight goes race-aware when a race

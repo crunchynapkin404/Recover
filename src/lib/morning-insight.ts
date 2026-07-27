@@ -4,7 +4,7 @@
  * LLM-phrased when a provider is configured (10s cap), deterministic
  * template otherwise. Never throws to callers in the sync path.
  */
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, gte, sql } from "drizzle-orm";
 import { generateText } from "ai";
 import { db, schema } from "@/lib/db";
 import { logger } from "@/lib/logger";
@@ -59,7 +59,16 @@ function isRaceDebriefMessage(msg: { toolCalls: unknown }): boolean {
   return meta.kind === "race_debrief";
 }
 
-/** The 10 most recent messages in the thread, newest first. */
+/**
+ * The 10 most recent messages in the thread, newest first. This window backs
+ * the plain same-day guard (`latest`, any role) and the dashboard card
+ * (`latestNonDebriefMessage`) — both only ever care about the newest one or
+ * two messages, so 10 is generous headroom for those. It does NOT govern the
+ * revision target: the morning thread is a live conversational thread, and a
+ * busy day can carry today's brief (posted first, ~05:00) past this window
+ * long before the day is over — todaysBrief() below queries for that
+ * directly rather than scanning this page.
+ */
 async function recentMessages(threadId: string) {
   return db.query.chatMessages.findMany({
     where: eq(schema.chatMessages.threadId, threadId),
@@ -68,8 +77,6 @@ async function recentMessages(threadId: string) {
   });
 }
 
-type ChatMessageRow = Awaited<ReturnType<typeof recentMessages>>[number];
-
 /** Most recent message in the thread that is not a race debrief. */
 async function latestNonDebriefMessage(threadId: string) {
   const recent = await recentMessages(threadId);
@@ -77,34 +84,50 @@ async function latestNonDebriefMessage(threadId: string) {
 }
 
 /**
- * A morning-brief message (as opposed to a race debrief, or the athlete's
- * own reply) — brief messages are always role='assistant' and always carry
- * a `generated` key ("template" | "llm") in toolCalls; race debriefs also
- * have a `generated` key ("race_debrief"), so they must be excluded
- * explicitly rather than relying on the key's mere presence.
- */
-function isBriefMessage(msg: ChatMessageRow): boolean {
-  if (msg.role !== "assistant") return false;
-  if (isRaceDebriefMessage(msg)) return false;
-  const meta = (msg.toolCalls ?? {}) as { generated?: unknown };
-  return "generated" in meta;
-}
-
-/**
  * Today's morning brief, if one exists — the sole valid revision target.
  * Deliberately distinct from "latest message" (used by the same-day skip
  * guard, which must fire on any same-day message including a user reply)
  * and from "latest non-debrief message" (used unchanged by
- * getLatestMorningInsight for the dashboard card). Searches the same
- * already-fetched page of recent messages rather than issuing a second
- * query.
+ * getLatestMorningInsight for the dashboard card).
+ *
+ * Queried directly rather than scanned out of recentMessages()'s 10-row
+ * page: the morning thread is a live conversational thread (athlete replies,
+ * race debriefs), not an append-only feed, and today's brief — posted first,
+ * ~05:00 — can fall out of a 10-row window well before the day is over on a
+ * chatty day. Since this is now the sole path to the revision target, that
+ * window being wrong here means the revision silently stops firing.
+ *
+ * The "is a brief" filter — role='assistant', not a race debrief, carries a
+ * `generated` key in toolCalls (mirroring isRaceDebriefMessage's logic; race
+ * debriefs also set `generated`, so they must be excluded explicitly rather
+ * than relying on the key's mere presence) — is applied in SQL rather than
+ * in code on a single fetched row: if we instead fetched only the newest
+ * assistant message of the day and then filtered it in code, a race debrief
+ * landing after the real brief (e.g. a post-midnight sync tick) would be the
+ * newest row, fail the filter, and hide an older real brief that's still
+ * sitting there waiting to be revised. Filtering in SQL lets the database
+ * find the newest row that actually satisfies "is a brief," skipping over
+ * any race debrief in between.
  */
-function todaysBrief(messages: ChatMessageRow[], today: string) {
-  return (
-    messages.find(
-      (m) => isBriefMessage(m) && localYmd(m.createdAt) === today
-    ) ?? null
+async function todaysBrief(threadId: string, now: Date) {
+  const startOfToday = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate()
   );
+  const row = await db.query.chatMessages.findFirst({
+    where: and(
+      eq(schema.chatMessages.threadId, threadId),
+      eq(schema.chatMessages.role, "assistant"),
+      gte(schema.chatMessages.createdAt, startOfToday),
+      // Has a `generated` key in toolCalls (jsonb key-existence operator)...
+      sql`${schema.chatMessages.toolCalls} ? 'generated'`,
+      // ...and is not a race debrief (which also sets `generated`).
+      sql`(${schema.chatMessages.toolCalls} ->> 'kind') IS DISTINCT FROM 'race_debrief'`
+    ),
+    orderBy: desc(schema.chatMessages.createdAt),
+  });
+  return row ?? null;
 }
 
 export async function findOrCreateMorningThread(userId: string) {
@@ -209,7 +232,7 @@ export async function generateMorningInsight(
   // silently give up on ever correcting the brief.
   let revising: { id: string } | null = null;
   if (latest && localYmd(latest.createdAt) === today) {
-    const brief = todaysBrief(recent, today);
+    const brief = await todaysBrief(thread.id, now);
     const meta = (brief?.toolCalls ?? {}) as { dataComplete?: boolean };
     const revisable = brief != null && meta.dataComplete === false;
     if (!revisable || !dataComplete) return "skipped";
