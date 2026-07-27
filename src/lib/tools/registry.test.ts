@@ -1,6 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { allTools } from "@/lib/tools/registry";
+import type { ToolContext } from "@/lib/tools/registry";
 import { setWeekAvailabilityTool } from "./set-week-availability";
+
+function fakeCtx(): ToolContext {
+  // Only used by execute() paths that fail validateBlocks before ever
+  // touching applyAvailability, so db is never actually read.
+  return { userId: "u1", db: {} as unknown as ToolContext["db"] };
+}
 
 describe("tool registry", () => {
   it("every tool has required fields", () => {
@@ -472,6 +479,66 @@ describe("set_week_availability", () => {
     expect(() =>
       setWeekAvailabilityTool.parameters.parse({ availableMins: [60, 60] })
     ).toThrow();
+  });
+
+  it("rejects an out-of-range time the local per-field regex lets through, naming the day", async () => {
+    // "25:99" matches the tool's loose /^\d{2}:\d{2}$/ shape check but is
+    // not a real clock time, so only validateBlocks (TIME_RE) catches it.
+    const args = setWeekAvailabilityTool.parameters.parse({
+      availableBlocks: [
+        [
+          {
+            start: "25:99",
+            end: "26:00",
+            mins: 60,
+            energy: "normal",
+            sports: null,
+          },
+        ],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+      ],
+    });
+    const out = (await setWeekAvailabilityTool.execute(args, fakeCtx())) as {
+      applied: boolean;
+      reason?: string;
+    };
+    expect(out.applied).toBe(false);
+    expect(out.reason).toBe(
+      "Monday: A block's start and end must both be times, or both be empty."
+    );
+  });
+
+  it("rejects a block whose end is not after its start, naming the day", async () => {
+    const args = setWeekAvailabilityTool.parameters.parse({
+      availableBlocks: [
+        [],
+        [
+          {
+            start: "10:00",
+            end: "09:00",
+            mins: 60,
+            energy: "normal",
+            sports: null,
+          },
+        ],
+        [],
+        [],
+        [],
+        [],
+        [],
+      ],
+    });
+    const out = (await setWeekAvailabilityTool.execute(args, fakeCtx())) as {
+      applied: boolean;
+      reason?: string;
+    };
+    expect(out.applied).toBe(false);
+    expect(out.reason).toBe("Tuesday: A block must end after it starts.");
   });
 });
 

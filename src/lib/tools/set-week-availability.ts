@@ -1,7 +1,21 @@
 import { z } from "zod";
 import type { ToolDefinition, ToolContext } from "./registry";
 import { applyAvailability, getOpenWeekPlan } from "@/lib/week-plan/service";
-import type { AvailabilityBlock } from "@/lib/availability/types";
+import {
+  validateBlocks,
+  type AvailabilityBlock,
+} from "@/lib/availability/types";
+
+/** Days are Monday-first, matching the tool's own weekday indexing. */
+const WEEKDAY_NAMES = [
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+  "Sunday",
+];
 
 const blockSchema = z.object({
   start: z
@@ -54,7 +68,17 @@ function toBlocks(args: z.infer<typeof parameters>): AvailabilityBlock[][] {
 }
 
 async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
-  const result = await applyAvailability(ctx.userId, toBlocks(args));
+  const blocks = toBlocks(args);
+  for (let i = 0; i < blocks.length; i++) {
+    const invalid = validateBlocks(blocks[i]);
+    if (invalid) {
+      return {
+        applied: false,
+        reason: `${WEEKDAY_NAMES[i] ?? `day ${i}`}: ${invalid}`,
+      };
+    }
+  }
+  const result = await applyAvailability(ctx.userId, blocks);
   if (result !== "applied") return { applied: false, reason: result };
   const week = await getOpenWeekPlan(ctx.userId);
   return {
