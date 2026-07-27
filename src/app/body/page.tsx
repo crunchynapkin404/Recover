@@ -19,7 +19,12 @@ import {
   type BiomarkerRow,
 } from "@/components/health/biomarker-list";
 import { EmptyState } from "@/components/ui/empty-state";
-import { baselineBandLn, baselineBandLinear } from "@/lib/charts";
+import {
+  baselineBandFromSeries,
+  baselineBandLn,
+  baselineBandLinear,
+} from "@/lib/charts";
+import { BASELINE_WINDOW_DAYS } from "@/lib/readiness";
 import { computeTagInsights } from "@/lib/insights/correlations";
 import { getMilestones } from "@/lib/insights/milestones";
 import { biologicalAge } from "@/lib/biological-age";
@@ -39,7 +44,7 @@ import {
 import { computeSleepDebt, DEFAULT_SLEEP_NEED_SECS } from "@/lib/sleep-debt";
 import { buildBodyHref, BODY_TABS, type BodyTab } from "@/lib/log-href";
 import type { BiomarkerCategory } from "@/lib/health-records";
-import type { DayFlag } from "@/lib/day-flags";
+import { isBaselineExcluded, type DayFlag } from "@/lib/day-flags";
 import { HeartPulse, Moon } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -91,6 +96,32 @@ function fillDailyGaps<Row extends { date: string }, T>(
     out.push(byDate.get(daysAgo(i)) ?? null);
   }
   return out;
+}
+
+/**
+ * Only HRV and RHR have a stored baseline (daily_metrics carries those two
+ * columns and no others), so every other metric's band is computed here from
+ * the athlete's own readings — under the readiness engine's own rules: the
+ * trailing BASELINE_WINDOW_DAYS, flagged days (ill/travel/altitude) excluded,
+ * and the reading the chart shows as "current" left out of what it is being
+ * measured against.
+ */
+function ownBaselineBand<
+  Row extends { date: string; dayFlags: DayFlag[] | null },
+>(
+  rows: Row[],
+  pick: (row: Row) => number | null
+): { low: number; high: number } | null {
+  const history = rows
+    .filter(
+      (r) =>
+        r.date >= daysAgo(BASELINE_WINDOW_DAYS) &&
+        !isBaselineExcluded(r.dayFlags)
+    )
+    .map(pick)
+    .filter((v): v is number => v != null);
+  // Rows arrive oldest-first, so the last reading is the current one.
+  return baselineBandFromSeries(history.slice(0, -1));
 }
 
 export default async function BodyPage({
@@ -161,16 +192,24 @@ async function TrendsTab({
   range: number;
   href: (over: { tab?: BodyTab; range?: number }) => string;
 }) {
+  // Always at least the baseline window, even on the 30d chart: the band is
+  // a fixed 60-day reference, so a shorter range must not quietly narrow it
+  // to whatever happens to be on screen. fillDailyGaps only reads the days it
+  // is asked for, so the extra rows never reach the chart itself.
   const wellness = await db.query.wellnessDaily.findMany({
     where: and(
       eq(schema.wellnessDaily.userId, userId),
-      gte(schema.wellnessDaily.date, daysAgo(range))
+      gte(
+        schema.wellnessDaily.date,
+        daysAgo(Math.max(range, BASELINE_WINDOW_DAYS))
+      )
     ),
     orderBy: schema.wellnessDaily.date,
   });
 
-  // Baselines are the athlete's own, computed nightly into daily_metrics —
-  // never a population norm.
+  // HRV and RHR read their baselines from daily_metrics, where the nightly
+  // job stores them; the rest are derived from the same rows the chart draws.
+  // Either way they're the athlete's own — never a population norm.
   const baseline = await db.query.dailyMetrics.findFirst({
     where: eq(schema.dailyMetrics.userId, userId),
     orderBy: desc(schema.dailyMetrics.date),
@@ -184,6 +223,11 @@ async function TrendsTab({
     baseline?.rhrBaselineMean != null && baseline?.rhrBaselineSd != null
       ? baselineBandLinear(baseline.rhrBaselineMean, baseline.rhrBaselineSd)
       : null;
+
+  // Which optional cards render is a question about the chosen range, not
+  // about the baseline window — a VO2max reading from 50 days ago must not
+  // put an empty card on the 30d view.
+  const inRange = wellness.filter((w) => w.date >= daysAgo(range));
 
   return (
     <div className="pb-10">
@@ -223,79 +267,79 @@ async function TrendsTab({
       <BaselineTrendCard
         title="Weight"
         values={fillDailyGaps(wellness, range, (w) => w.weightKg)}
-        band={null}
+        band={ownBaselineBand(wellness, (w) => w.weightKg)}
         color="#a78bfa"
-        bandFill="transparent"
+        bandFill="rgba(167,139,250,0.08)"
         unit="kg"
         decimals={1}
       />
-      {wellness.some((w) => w.vo2max != null) && (
+      {inRange.some((w) => w.vo2max != null) && (
         <BaselineTrendCard
           title="VO2max"
           values={fillDailyGaps(wellness, range, (w) => w.vo2max)}
-          band={null}
+          band={ownBaselineBand(wellness, (w) => w.vo2max)}
           color="#f59e0b"
-          bandFill="transparent"
+          bandFill="rgba(245,158,11,0.08)"
           unit="ml/kg/min"
           decimals={1}
         />
       )}
-      {wellness.some((w) => w.bloodOxygenPct != null) && (
+      {inRange.some((w) => w.bloodOxygenPct != null) && (
         <BaselineTrendCard
           title="Blood oxygen"
           values={fillDailyGaps(wellness, range, (w) => w.bloodOxygenPct)}
-          band={null}
+          band={ownBaselineBand(wellness, (w) => w.bloodOxygenPct)}
           color="#06b6d4"
-          bandFill="transparent"
+          bandFill="rgba(6,182,212,0.08)"
           unit="%"
         />
       )}
-      {wellness.some((w) => w.wristTempC != null) && (
+      {inRange.some((w) => w.wristTempC != null) && (
         <BaselineTrendCard
           title="Wrist temperature"
           values={fillDailyGaps(wellness, range, (w) => w.wristTempC)}
-          band={null}
+          band={ownBaselineBand(wellness, (w) => w.wristTempC)}
           color="#f472b6"
-          bandFill="transparent"
+          bandFill="rgba(244,114,182,0.08)"
           unit="°C"
           decimals={1}
         />
       )}
-      {wellness.some((w) => w.bmi != null) && (
+      {inRange.some((w) => w.bmi != null) && (
         <BaselineTrendCard
           title="BMI"
           values={fillDailyGaps(wellness, range, (w) => w.bmi)}
-          band={null}
+          band={ownBaselineBand(wellness, (w) => w.bmi)}
           color="#facc15"
-          bandFill="transparent"
+          bandFill="rgba(250,204,21,0.08)"
           unit=""
           decimals={1}
         />
       )}
-      {wellness.some((w) => w.leanMassKg != null) && (
+      {inRange.some((w) => w.leanMassKg != null) && (
         <BaselineTrendCard
           title="Lean body mass"
           values={fillDailyGaps(wellness, range, (w) => w.leanMassKg)}
-          band={null}
+          band={ownBaselineBand(wellness, (w) => w.leanMassKg)}
           color="#34d399"
-          bandFill="transparent"
+          bandFill="rgba(52,211,153,0.08)"
           unit="kg"
           decimals={1}
         />
       )}
-      {wellness.some((w) => w.waistCm != null) && (
+      {inRange.some((w) => w.waistCm != null) && (
         <BaselineTrendCard
           title="Waist circumference"
           values={fillDailyGaps(wellness, range, (w) => w.waistCm)}
-          band={null}
+          band={ownBaselineBand(wellness, (w) => w.waistCm)}
           color="#fb923c"
-          bandFill="transparent"
+          bandFill="rgba(251,146,60,0.08)"
           unit="cm"
           decimals={1}
         />
       )}
 
-      {wellness.length === 0 && (
+      {inRange.length === 0 && (
         <EmptyState
           icon={HeartPulse}
           message="No wellness readings in this range yet."
@@ -434,24 +478,26 @@ async function SleepTab({ userId }: { userId: string }) {
       />
 
       <BaselineTrendCard
-        title="Sleep duration"
+        title="Sleep duration vs baseline"
         values={fillDailyGaps(wellness, 90, (w) =>
           w.sleepSecs != null ? w.sleepSecs / 3600 : null
         )}
-        band={null}
+        band={ownBaselineBand(wellness, (w) =>
+          w.sleepSecs != null ? w.sleepSecs / 3600 : null
+        )}
         color="#3b82f6"
-        bandFill="transparent"
+        bandFill="rgba(59,130,246,0.08)"
         unit="h"
         decimals={1}
       />
 
       {wellness.some((w) => w.sleepScore != null) && (
         <BaselineTrendCard
-          title="Sleep score"
+          title="Sleep score vs baseline"
           values={fillDailyGaps(wellness, 90, (w) => w.sleepScore)}
-          band={null}
+          band={ownBaselineBand(wellness, (w) => w.sleepScore)}
           color="#8b5cf6"
-          bandFill="transparent"
+          bandFill="rgba(139,92,246,0.08)"
           unit=""
         />
       )}
