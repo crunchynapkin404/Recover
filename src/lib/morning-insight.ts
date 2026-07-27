@@ -59,14 +59,52 @@ function isRaceDebriefMessage(msg: { toolCalls: unknown }): boolean {
   return meta.kind === "race_debrief";
 }
 
-/** Most recent message in the thread that is not a race debrief. */
-async function latestNonDebriefMessage(threadId: string) {
-  const recent = await db.query.chatMessages.findMany({
+/** The 10 most recent messages in the thread, newest first. */
+async function recentMessages(threadId: string) {
+  return db.query.chatMessages.findMany({
     where: eq(schema.chatMessages.threadId, threadId),
     orderBy: desc(schema.chatMessages.createdAt),
     limit: 10,
   });
+}
+
+type ChatMessageRow = Awaited<ReturnType<typeof recentMessages>>[number];
+
+/** Most recent message in the thread that is not a race debrief. */
+async function latestNonDebriefMessage(threadId: string) {
+  const recent = await recentMessages(threadId);
   return recent.find((m) => !isRaceDebriefMessage(m)) ?? null;
+}
+
+/**
+ * A morning-brief message (as opposed to a race debrief, or the athlete's
+ * own reply) — brief messages are always role='assistant' and always carry
+ * a `generated` key ("template" | "llm") in toolCalls; race debriefs also
+ * have a `generated` key ("race_debrief"), so they must be excluded
+ * explicitly rather than relying on the key's mere presence.
+ */
+function isBriefMessage(msg: ChatMessageRow): boolean {
+  if (msg.role !== "assistant") return false;
+  if (isRaceDebriefMessage(msg)) return false;
+  const meta = (msg.toolCalls ?? {}) as { generated?: unknown };
+  return "generated" in meta;
+}
+
+/**
+ * Today's morning brief, if one exists — the sole valid revision target.
+ * Deliberately distinct from "latest message" (used by the same-day skip
+ * guard, which must fire on any same-day message including a user reply)
+ * and from "latest non-debrief message" (used unchanged by
+ * getLatestMorningInsight for the dashboard card). Searches the same
+ * already-fetched page of recent messages rather than issuing a second
+ * query.
+ */
+function todaysBrief(messages: ChatMessageRow[], today: string) {
+  return (
+    messages.find(
+      (m) => isBriefMessage(m) && localYmd(m.createdAt) === today
+    ) ?? null
+  );
 }
 
 export async function findOrCreateMorningThread(userId: string) {
@@ -153,19 +191,29 @@ export async function generateMorningInsight(
     : gapSentence(metric?.componentScores, arrival);
 
   const thread = await findOrCreateMorningThread(userId);
-  const latest = await latestNonDebriefMessage(thread.id);
+  const recent = await recentMessages(thread.id);
+  const latest = recent.find((m) => !isRaceDebriefMessage(m)) ?? null;
 
   // At-most-once per day, with exactly one exception: a brief that admitted
   // to being incomplete may be replaced once the real overnight data lands.
   // This check MUST come before the plain same-day guard — that guard
   // returns early on any same-day message and would otherwise make the
   // revision path unreachable.
+  //
+  // The same-day guard itself still keys off `latest` (the newest message of
+  // any role) — a same-day reply from the athlete must go on suppressing a
+  // brand-new brief exactly as it always has. But the revision *target* must
+  // be today's actual brief, not whatever message happens to be newest: if
+  // the athlete replies to an incomplete brief before the real data lands,
+  // `latest` is that reply (toolCalls null), and keying revision off it would
+  // silently give up on ever correcting the brief.
   let revising: { id: string } | null = null;
   if (latest && localYmd(latest.createdAt) === today) {
-    const meta = (latest.toolCalls ?? {}) as { dataComplete?: boolean };
-    const revisable = meta.dataComplete === false;
+    const brief = todaysBrief(recent, today);
+    const meta = (brief?.toolCalls ?? {}) as { dataComplete?: boolean };
+    const revisable = brief != null && meta.dataComplete === false;
     if (!revisable || !dataComplete) return "skipped";
-    revising = { id: latest.id };
+    revising = { id: brief.id };
   }
 
   const warning = await getOvertrainingStatus(userId);
@@ -208,14 +256,28 @@ export async function generateMorningInsight(
     }
   }
 
+  // Fix (race-day caveat ordering): the caveat belongs after the race
+  // lead-in, not ahead of it — race day is the highest-stakes brief of the
+  // athlete's season and "lead with the race" must actually be true of the
+  // rendered text. Woven in here (rather than prepended outside, as the
+  // non-race branch does below) so it lands right after "Race day: <name>
+  // (<priority> race)." and before the physiological-state line.
   const raceTemplate = raceToday
     ? `Race day: ${raceToday.name} (${raceToday.priority} race). ` +
+      (caveat ? `${caveat} ` : "") +
       (metric?.readiness != null
         ? `Readiness ${Math.round(metric.readiness)} (${metric.band}). `
         : `Readiness still calibrating — trust your taper. `) +
       projectedLine +
       (raceToday.goalNote ? `Goal: ${raceToday.goalNote}.` : "")
     : null;
+
+  // Fix (redundant caveat): when there's no race and readiness itself is
+  // null, the template body already says "Still calibrating — not enough
+  // data yet..." — the completeness caveat would just repeat that same fact
+  // in different words. The race branch's "trust your taper" line doesn't
+  // duplicate the caveat the same way, so it's untouched above.
+  const calibratingNoRace = !raceToday && metric?.readiness == null;
 
   const templateBody =
     raceTemplate ??
@@ -234,7 +296,13 @@ export async function generateMorningInsight(
         ? ` Plan: ${adjustmentReasons.join("; ")}.`
         : "");
 
-  const template = caveat ? `${caveat} ${templateBody}` : templateBody;
+  // Race day: the caveat (if any) is already woven into raceTemplate above,
+  // so templateBody must not be prefixed again here.
+  const template = raceToday
+    ? templateBody
+    : caveat && !calibratingNoRace
+      ? `${caveat} ${templateBody}`
+      : templateBody;
 
   const raceInstruction = raceToday
     ? `Today is race day: ${raceToday.name} (priority ${raceToday.priority}).` +
@@ -269,9 +337,20 @@ export async function generateMorningInsight(
         : "") +
       `End with one concrete suggestion for today.`;
 
-  const instruction = caveat
-    ? `${instructionBody} IMPORTANT — the data is incomplete: ${caveat} Open with that limitation in your own words; do not present the readiness number as a complete picture.`
-    : instructionBody;
+  // Race day keeps the caveat (honesty principle) but must not contradict
+  // the race branch's own "lead with the race" instruction above — so the
+  // race phrasing asks the LLM to place the limitation after the race
+  // lead-in rather than to open with it. The non-race phrasing is unchanged.
+  // Suppressed entirely when the instruction body already says readiness is
+  // still calibrating (Fix: redundant caveat) — see calibratingNoRace above.
+  const instruction =
+    caveat && !calibratingNoRace
+      ? `${instructionBody} IMPORTANT — the data is incomplete: ${caveat} ${
+          raceToday
+            ? "Mention this limitation after the race lead-in; do not present the readiness number as a complete picture."
+            : "Open with that limitation in your own words; do not present the readiness number as a complete picture."
+        }`
+      : instructionBody;
 
   let text = template;
   let generated: "llm" | "template" = "template";
