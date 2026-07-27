@@ -1,5 +1,61 @@
 # Changelog
 
+## v0.26.0 — 2026-07-27 — Availability, Block By Block
+
+- **Your availability is a standard week now, with per-date exceptions on
+  top.** You set each weekday once — that's the shape of a normal week — and
+  a change to a single date is pinned to that date. The pin always beats the
+  default and survives later changes to it, so a one-off is a one-off again:
+  moving next Tuesday's ride no longer quietly becomes every Tuesday's new
+  normal. Editing a pinned date back to match the standard week un-pins it.
+
+- **A day is a list of time blocks, not a bucket of minutes.** Forty-five
+  minutes before work and an hour in the evening are two training
+  opportunities, not one 105-minute one — and the planner no longer pretends
+  otherwise. Sessions are placed into a specific block and must fit _that_
+  block whole. Two blocks can carry two sessions on the same day.
+
+- **Each block carries the energy you expect to have, and optionally which
+  sport.** An easy block will take a recovery, endurance or long ride;
+  a normal one adds threshold work; only a full block gets intervals or a
+  brick. A block marked for one sport won't be handed a session from
+  another. Both constrain what may be scheduled there — they are not hints.
+
+- **Changing your availability no longer regenerates the week.** Only the
+  sessions actually displaced by the change move, along a fixed ladder: move
+  to another day that fits it whole, shorten it while keeping its purpose,
+  substitute a session that still works at the length available, and only
+  then drop it. Everything the change didn't touch stays exactly where it
+  was, and every automatic change is logged with the reason it happened.
+
+- **A session is never truncated below the point where it stops working.**
+  Twenty minutes of a ninety-minute long ride is not a short long ride, it's
+  nothing — so the planner substitutes something that does deliver at that
+  length instead of shipping you a stub.
+
+- **Unplanned work counts toward the week without eating the plan.** A bonus
+  ride on a rest day is recorded against the week's actuals; it never
+  removes a session you were meant to do.
+
+- **One prompt a week to confirm your training time**, and a warning when
+  the time you gave can't hold the fitness you have — measured against your
+  own CTL, not a generic table. It stays silent until there are 28 days of
+  load history behind it, and it stops asking once you've answered or once
+  the week is more than half gone.
+
+- **"No time today"** on a day's action menu pins that date to zero and
+  replans around it.
+
+- **The coach can manage all of this too.** `set_week_availability` now
+  takes time blocks (and still accepts the old seven-integers form, so
+  existing conversations keep working), joined by two new tools:
+  `set_standard_week` for one weekday of the standard week, and
+  `clear_availability_override` to un-pin a date. The frozen MCP tool
+  surface goes from 54 to 56 tools; the change to `set_week_availability`'s
+  schema is additive. `get_week_plan` and `set_week_availability` now report
+  each day's `availableBlocks` and a `workouts` list in place of the old
+  `availableMins` and single `workout`.
+
 ## v0.25.19 — 2026-07-27 — Every Trend Against Your Own Normal
 
 - **Every chart on Body now shows the band it's being judged against.** HRV
