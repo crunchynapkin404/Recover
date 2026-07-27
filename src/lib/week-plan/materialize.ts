@@ -234,7 +234,7 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
       if (dayMins(days[w.day]) > 0) {
         days[w.day] = {
           ...days[w.day],
-          workouts: [...days[w.day].workouts, { ...w }],
+          workouts: [...days[w.day].workouts, { ...w, blockIdx: 0 }],
           status: "planned",
         };
       }
@@ -309,7 +309,10 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
           const target = days[candidate.dayIdx];
           days[candidate.dayIdx] = {
             ...target,
-            workouts: [...target.workouts, fitted.workout],
+            workouts: [
+              ...target.workouts,
+              { ...fitted.workout, blockIdx: candidate.blockIdx },
+            ],
             status: "planned",
           };
           adjustments.push({
@@ -341,7 +344,7 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
       const target = days[slot.dayIdx];
       days[slot.dayIdx] = {
         ...target,
-        workouts: [...target.workouts, workout],
+        workouts: [...target.workouts, { ...workout, blockIdx: slot.blockIdx }],
         status: "planned",
       };
     }

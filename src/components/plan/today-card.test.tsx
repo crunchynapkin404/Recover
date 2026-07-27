@@ -18,6 +18,7 @@ const workoutSlot: DaySlot = {
       durationMins: 50,
       intensity: "Z4-Z5",
       description: "6×3min hard with jog recoveries",
+      blockIdx: 0,
     }),
   ],
   status: "planned",

@@ -2,9 +2,8 @@
 import { describe, expect, it } from "vitest";
 import { adaptDay } from "./adapt-day";
 import { dayMins } from "./types";
-import type { DaySlot, WeekState } from "./types";
+import type { DaySlot, ScheduledWorkout, WeekState } from "./types";
 import { withPurpose } from "@/lib/training-plan";
-import type { PlannedWorkout } from "@/lib/training-plan";
 
 function blocksFor(mins: number): DaySlot["availableBlocks"] {
   return mins > 0
@@ -15,7 +14,7 @@ function blocksFor(mins: number): DaySlot["availableBlocks"] {
 const D = (
   date: string,
   mins: number,
-  workout: Partial<PlannedWorkout> | null,
+  workout: Partial<ScheduledWorkout> | null,
   status: DaySlot["status"] = workout ? "planned" : "rest"
 ): DaySlot => {
   const availableBlocks = blocksFor(mins);
@@ -32,6 +31,7 @@ const D = (
             durationMins: 45,
             intensity: "Z1-Z2",
             description: "Easy run",
+            blockIdx: 0,
             ...workout,
           }),
         ]

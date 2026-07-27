@@ -5,16 +5,16 @@
 import { blockMins, type AvailabilityBlock } from "@/lib/availability/types";
 import type { PlannedWorkout } from "@/lib/training-plan";
 import { admits, buildSlots, fitToBlock, slotKey, type Slot } from "./slots";
-import type { AdjustmentRecord, DaySlot, WeekState } from "./types";
+import type {
+  AdjustmentRecord,
+  DaySlot,
+  ScheduledWorkout,
+  WeekState,
+} from "./types";
 import { dayMins } from "./types";
 
 function locked(d: DaySlot): boolean {
   return d.status === "completed" || d.status === "missed";
-}
-
-/** The largest block on a day, or 0 when the day has none. */
-function biggestBlock(blocks: AvailabilityBlock[]): number {
-  return blocks.reduce((m, b) => Math.max(m, blockMins(b)), 0);
 }
 
 export function replanWeek(
@@ -34,27 +34,47 @@ export function replanWeek(
     };
   });
 
-  // 2. Find displaced sessions: those whose day no longer holds them. This
-  // is a full pre-pass over the whole week before any ladder rung runs, so
-  // every displaced session is known — and removed from its day — before
-  // rung 1 goes looking for somewhere else to put any of them.
+  // 2. Find displaced sessions: those whose OWN block no longer holds
+  // them — shrunk below their duration, or gone entirely (index now out of
+  // range). A session is judged against the specific block it occupies,
+  // never against a roomier sibling block elsewhere on the same day: the
+  // day's biggest block excusing every session on it is exactly the defect
+  // this replaces (a shrunk 30→5min morning block left standing because
+  // the day also holds an untouched 90min evening block). This is a full
+  // pre-pass over the whole week before any ladder rung runs, so every
+  // displaced session is known — and removed from its day — before rung 1
+  // goes looking for somewhere else to put any of them. Every kept
+  // session's block is marked taken here too, so the ladder can never
+  // double-book a block a kept session already occupies.
   const displaced: {
     dayIdx: number;
     workout: PlannedWorkout;
     before: DaySlot;
   }[] = [];
+  const taken = new Set<string>();
   days.forEach((d, dayIdx) => {
     if (locked(d)) return;
-    const room = biggestBlock(d.availableBlocks);
-    const keep: PlannedWorkout[] = [];
+    const keep: ScheduledWorkout[] = [];
     for (const w of d.workouts) {
-      if (w.durationMins <= room) keep.push(w);
-      else
+      const block = d.availableBlocks[w.blockIdx];
+      if (block && w.durationMins <= blockMins(block)) {
+        keep.push(w);
+        taken.add(
+          slotKey({
+            dayIdx,
+            blockIdx: w.blockIdx,
+            mins: 0,
+            energy: "full",
+            sports: null,
+          })
+        );
+      } else {
         displaced.push({
           dayIdx,
           workout: w,
           before: { ...d, workouts: [...d.workouts] },
         });
+      }
     }
     if (keep.length !== d.workouts.length) {
       days[dayIdx] = {
@@ -71,7 +91,6 @@ export function replanWeek(
   // later day's search always sees the final outcome of every earlier
   // day's placement — including a compress that kept an earlier day
   // quality, which a later move must not land next to.
-  const taken = new Set<string>();
   for (const { dayIdx, workout, before } of displaced) {
     const fromDate = days[dayIdx].date;
 
@@ -96,7 +115,7 @@ export function replanWeek(
       const target = days[move.dayIdx];
       days[move.dayIdx] = {
         ...target,
-        workouts: [...target.workouts, workout],
+        workouts: [...target.workouts, { ...workout, blockIdx: move.blockIdx }],
         status: "moved",
         movedFrom: fromDate,
       };
@@ -144,7 +163,10 @@ export function replanWeek(
       taken.add(slotKey(fit.slot));
       days[dayIdx] = {
         ...days[dayIdx],
-        workouts: [...days[dayIdx].workouts, fit.workout],
+        workouts: [
+          ...days[dayIdx].workouts,
+          { ...fit.workout, blockIdx: fit.slot.blockIdx },
+        ],
         status: "adapted",
       };
       adjustments.push({

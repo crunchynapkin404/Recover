@@ -33,10 +33,16 @@ export const PURPOSE_BY_TYPE: Record<string, Purpose> = {
   Brick: "brick",
 };
 
-/** Stamps purpose + floor onto a workout literal. Unknown types are aerobic. */
-export function withPurpose(
-  w: Omit<PlannedWorkout, "purpose" | "minEffectiveMins">
-): PlannedWorkout {
+/**
+ * Stamps purpose + floor onto a workout literal. Unknown types are aerobic.
+ * Generic over the input so extra fields survive the transform untouched —
+ * in particular `ScheduledWorkout`'s `blockIdx`, when this re-derives
+ * purpose for a session that has already been placed. A plain template
+ * (no extra fields) still returns a plain `PlannedWorkout`, unchanged.
+ */
+export function withPurpose<
+  T extends Omit<PlannedWorkout, "purpose" | "minEffectiveMins">,
+>(w: T): T & Pick<PlannedWorkout, "purpose" | "minEffectiveMins"> {
   const purpose = PURPOSE_BY_TYPE[w.type] ?? "aerobic_base";
   return { ...w, purpose, minEffectiveMins: PURPOSE_FLOORS[purpose] };
 }

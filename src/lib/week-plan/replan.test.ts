@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { replanWeek } from "./replan";
-import type { WeekState, DaySlot } from "./types";
-import type { PlannedWorkout } from "@/lib/training-plan";
+import { blockMins } from "@/lib/availability/types";
+import type { WeekState, DaySlot, ScheduledWorkout } from "./types";
 import type { AvailabilityBlock } from "@/lib/availability/types";
 
 const blk = (mins: number): AvailabilityBlock => ({
@@ -12,7 +12,7 @@ const blk = (mins: number): AvailabilityBlock => ({
   sports: null,
 });
 
-const w = (o: Partial<PlannedWorkout> = {}): PlannedWorkout => ({
+const w = (o: Partial<ScheduledWorkout> = {}): ScheduledWorkout => ({
   day: 0,
   sport: "Bike",
   type: "Intervals",
@@ -21,11 +21,12 @@ const w = (o: Partial<PlannedWorkout> = {}): PlannedWorkout => ({
   description: "5×4min",
   purpose: "vo2max",
   minEffectiveMins: 40,
+  blockIdx: 0,
   ...o,
 });
 
 function week(
-  spec: { mins: number[]; workouts?: PlannedWorkout[] }[]
+  spec: { mins: number[]; workouts?: ScheduledWorkout[] }[]
 ): WeekState {
   const days: DaySlot[] = spec.map((s, i) => {
     const availableBlocks = s.mins.map(blk);
@@ -47,6 +48,29 @@ const resolve = (mins: number[][], start = 3) =>
       m.map(blk),
     ])
   );
+
+/**
+ * Like `week`, but each day is given kept sessions already sitting in a
+ * named block — the shape a replan actually receives, once a day can hold
+ * more than one. Reuses `w`'s defaults so only what the test cares about
+ * (blockIdx, duration, type, purpose) needs to be spelled out.
+ */
+function weekWithKept(
+  spec: { mins: number[]; kept?: Partial<ScheduledWorkout>[] }[]
+): WeekState {
+  const days: DaySlot[] = spec.map((s, i) => {
+    const availableBlocks = s.mins.map(blk);
+    const workouts = (s.kept ?? []).map((k) => w(k));
+    return {
+      date: `2026-08-${String(3 + i).padStart(2, "0")}`,
+      availableBlocks,
+      workouts,
+      availableMins: availableBlocks.reduce((a, b) => a + b.mins, 0),
+      status: workouts.length > 0 ? "planned" : "rest",
+    };
+  });
+  return { weekStart: "2026-08-03", skeletonWeek: 3, days };
+}
 
 describe("replanWeek — rung 1, move", () => {
   it("moves the displaced session and leaves every other day byte-identical", () => {
@@ -224,5 +248,105 @@ describe("replanWeek — fitted placements are validated with admits, not energy
       );
       expect(prevQuality && dayQuality).toBe(false);
     }
+  });
+});
+
+describe("replanWeek — multi-block days", () => {
+  it("never moves a session into a block a kept session already occupies", () => {
+    // Day 0: one 90min block, already holding a kept 80min Endurance session.
+    // Day 1: an 85min Intervals session whose availability drops to zero.
+    // The Intervals session must NOT land in day 0's single, occupied block.
+    // It has nowhere whole to go, so it must compress, substitute or drop —
+    // anything except double-booking the block.
+    const before = weekWithKept([
+      {
+        mins: [90],
+        kept: [
+          {
+            blockIdx: 0,
+            durationMins: 80,
+            type: "Endurance",
+            purpose: "aerobic_base",
+          },
+        ],
+      },
+      {
+        mins: [85],
+        kept: [
+          {
+            blockIdx: 0,
+            durationMins: 85,
+            type: "Intervals",
+            purpose: "vo2max",
+          },
+        ],
+      },
+    ]);
+    const r = replanWeek(before, resolve([[90], []]));
+
+    const day0 = r.week.days[0];
+    const used = day0.workouts.map((w) => w.blockIdx);
+    expect(new Set(used).size).toBe(used.length); // no block claimed twice
+    const totalOnDay0 = day0.workouts.reduce((s, w) => s + w.durationMins, 0);
+    expect(totalOnDay0).toBeLessThanOrEqual(90);
+  });
+
+  it("displaces a session whose own block shrank, even when a bigger block on that day is untouched", () => {
+    // Day 0 has two blocks: 90min (kept 85min ride) and 30min (kept 25min
+    // recovery). The small block shrinks to 5min. The recovery session no
+    // longer fits ITS block and must be adjusted — the untouched 90min block
+    // must not excuse it.
+    const before = weekWithKept([
+      {
+        mins: [90, 30],
+        kept: [
+          {
+            blockIdx: 0,
+            durationMins: 85,
+            type: "Endurance",
+            purpose: "aerobic_base",
+          },
+          {
+            blockIdx: 1,
+            durationMins: 25,
+            type: "Recovery",
+            purpose: "recovery",
+          },
+        ],
+      },
+    ]);
+    const r = replanWeek(before, resolve([[90, 5]]));
+
+    expect(r.adjustments.length).toBeGreaterThan(0);
+    const survivors = r.week.days[0].workouts;
+    for (const w of survivors) {
+      const block = r.week.days[0].availableBlocks[w.blockIdx];
+      expect(w.durationMins).toBeLessThanOrEqual(blockMins(block));
+    }
+  });
+
+  it("still reports no-op on unchanged availability with multiple blocks", () => {
+    const before = weekWithKept([
+      {
+        mins: [90, 30],
+        kept: [
+          {
+            blockIdx: 0,
+            durationMins: 85,
+            type: "Endurance",
+            purpose: "aerobic_base",
+          },
+          {
+            blockIdx: 1,
+            durationMins: 25,
+            type: "Recovery",
+            purpose: "recovery",
+          },
+        ],
+      },
+    ]);
+    const r = replanWeek(before, resolve([[90, 30]]));
+    expect(r.week.days).toEqual(before.days);
+    expect(r.adjustments).toEqual([]);
   });
 });

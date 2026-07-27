@@ -25,6 +25,7 @@ const run = withPurpose({
   durationMins: 45,
   intensity: "Z1-Z2",
   description: "Easy run",
+  blockIdx: 0,
 });
 
 const days: DaySlot[] = [

@@ -1,13 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { buildSlots, admits, slotKey, fitToBlock } from "./slots";
-import type { DaySlot } from "./types";
-import type { PlannedWorkout } from "@/lib/training-plan";
+import type { DaySlot, ScheduledWorkout } from "./types";
 import { PURPOSE_FLOORS, type Energy } from "@/lib/availability/types";
 
 function day(
   date: string,
   blocks: { mins: number; energy?: Energy; sports?: string[] | null }[],
-  workouts: PlannedWorkout[] = []
+  workouts: ScheduledWorkout[] = []
 ): DaySlot {
   const availableBlocks = blocks.map((b) => ({
     start: null,
@@ -25,7 +24,7 @@ function day(
   };
 }
 
-const workout = (o: Partial<PlannedWorkout> = {}): PlannedWorkout => ({
+const workout = (o: Partial<ScheduledWorkout> = {}): ScheduledWorkout => ({
   day: 0,
   sport: "Bike",
   type: "Intervals",
@@ -34,6 +33,7 @@ const workout = (o: Partial<PlannedWorkout> = {}): PlannedWorkout => ({
   description: "intervals",
   purpose: "vo2max",
   minEffectiveMins: 40,
+  blockIdx: 0,
   ...o,
 });
 
@@ -132,8 +132,8 @@ describe("admits", () => {
         "2026-08-03",
         [{ mins: 60 }, { mins: 60 }, { mins: 60 }],
         [
-          workout({ type: "Endurance", purpose: "aerobic_base" }),
-          workout({ type: "Endurance", purpose: "aerobic_base" }),
+          workout({ type: "Endurance", purpose: "aerobic_base", blockIdx: 0 }),
+          workout({ type: "Endurance", purpose: "aerobic_base", blockIdx: 1 }),
         ]
       ),
     ]);

@@ -6,12 +6,23 @@ import { blockMins } from "@/lib/availability/types";
 export type DayStatus =
   "planned" | "completed" | "adapted" | "moved" | "missed" | "rest" | "race";
 
+/**
+ * A session that has actually been placed. `blockIdx` says which of its
+ * day's availableBlocks it occupies — a template from generateWorkouts has
+ * no such answer, which is why this is a distinct type: placing a session
+ * without saying where is a compile error, not a silent wrong week.
+ */
+export interface ScheduledWorkout extends PlannedWorkout {
+  /** Index into its day's availableBlocks. The block this session occupies. */
+  blockIdx: number;
+}
+
 export interface DaySlot {
   date: string; // YYYY-MM-DD
   /** Resolved availability for this date. Empty = unavailable. */
   availableBlocks: AvailabilityBlock[];
   /** Up to MAX_SESSIONS_PER_DAY sessions. Empty = rest. */
-  workouts: PlannedWorkout[];
+  workouts: ScheduledWorkout[];
   /**
    * Derived sum, kept only so existing displays and the race forecast keep
    * working. Placement logic must never read it — a day of 45m + 60m is

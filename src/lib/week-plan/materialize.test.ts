@@ -533,6 +533,29 @@ describe("materializeWeek — block fitting", () => {
     expect(r.week.days[0].workouts.length).toBe(2);
   });
 
+  it("records which block each placed session occupies", () => {
+    const r = materializeWeek({
+      ...base,
+      skeleton: { ...base.skeleton, targetSessions: 2 },
+      availableBlocksPerDay: [
+        blocks([90, 90]),
+        blocks([]),
+        blocks([]),
+        blocks([]),
+        blocks([]),
+        blocks([]),
+        blocks([]),
+      ],
+    });
+    const day = r.week.days[0];
+    expect(day.workouts.length).toBe(2);
+    const used = day.workouts.map((w) => w.blockIdx);
+    expect(new Set(used).size).toBe(2); // two distinct blocks
+    for (const w of day.workouts) {
+      expect(day.availableBlocks[w.blockIdx]).toBeDefined();
+    }
+  });
+
   describe("fallback path: quality adjacency and same-day rules", () => {
     it("never places two quality sessions on adjacent days, even when a session only fits via the relaxed fallback", () => {
       // Triathlon build week: Monday is roomy enough to take the biggest

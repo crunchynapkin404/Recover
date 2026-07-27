@@ -19,6 +19,7 @@ const tempo: DaySlot["workouts"][number] = withPurpose({
   durationMins: 75,
   intensity: "2×20",
   description: "Sweet spot",
+  blockIdx: 0,
 });
 
 const slot = (
