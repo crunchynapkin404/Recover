@@ -1,5 +1,27 @@
 # Changelog
 
+## v0.25.19 — 2026-07-27 — Every Trend Against Your Own Normal
+
+- **Every chart on Body now shows the band it's being judged against.** HRV
+  and resting HR have always been drawn against your own baseline; sleep
+  duration, sleep score, weight, VO2max, blood oxygen, wrist temperature,
+  BMI, lean body mass and waist circumference were bare lines you had to
+  eyeball. They now carry the same shaded band and dashed centreline, with
+  `mean ± sd` in the card header. The band is your own trailing 60 days,
+  under the same rules the readiness engine uses: days you flagged (🤒 ill,
+  ✈️ travel, 🏔️ altitude) are left out, and the current reading is not
+  counted in the normal it's compared to. Nothing here is a population norm.
+
+  Two deliberate silences: fewer than 14 readings shows no band rather than
+  inventing a normal from four days, and a perfectly flat history (a VO2max
+  that hasn't moved in two months) shows no band rather than a hairline you
+  fall outside of every day.
+
+- **The 30-day view no longer shrinks the baseline to fit.** The band is a
+  fixed 60-day reference, so the shorter ranges now read the full window
+  instead of whatever happened to be on screen — the same metric no longer
+  reports a different "normal" at 30d than at 90d.
+
 ## v0.25.18 — 2026-07-27 — Notifications, Clocks And Language
 
 - **One way push notifications could die silently is closed off.** A missing
