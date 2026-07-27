@@ -204,6 +204,13 @@
       "when": 1785060870041,
       "tag": "0028_parched_robin_chapel",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1785154061759,
+      "tag": "0029_short_william_stryker",
+      "breakpoints": true
     }
   ]
 }

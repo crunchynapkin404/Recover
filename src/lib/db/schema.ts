@@ -831,6 +831,12 @@ export const weekPlans = pgTable(
     // which stays the un-tapered skeleton value. null on rows written before
     // this column existed and on rows the adaptive engines never touch.
     effectiveTarget: real("effective_target"),
+    // Set when the athlete confirms the week's availability — even without
+    // changing anything. The weekly prompt fires only while this is null,
+    // so confirming an unchanged week silences it.
+    availabilityConfirmedAt: timestamp("availability_confirmed_at", {
+      withTimezone: true,
+    }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -841,6 +847,61 @@ export const weekPlans = pgTable(
   (t) => [
     uniqueIndex("week_plans_user_week_uq").on(t.userId, t.weekStart),
     index("week_plans_user_status_idx").on(t.userId, t.status),
+  ]
+);
+
+/**
+ * The athlete's standard week: one row per weekday (Monday = 0). `blocks`
+ * is an AvailabilityBlock[] (src/lib/availability/types.ts).
+ */
+export const availabilityDefaults = pgTable(
+  "availability_defaults",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    weekday: smallint("weekday").notNull(), // 0 = Monday
+    blocks: jsonb("blocks").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("availability_defaults_user_weekday_uq").on(
+      t.userId,
+      t.weekday
+    ),
+  ]
+);
+
+/**
+ * Date-specific availability. A row here replaces that date's weekday
+ * default entirely — including `blocks: []`, which means "unavailable".
+ * Kept in its own table so that editing a default can never disturb a
+ * pinned date (see resolveDay).
+ */
+export const availabilityOverrides = pgTable(
+  "availability_overrides",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    date: date("date").notNull(),
+    blocks: jsonb("blocks").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("availability_overrides_user_date_uq").on(t.userId, t.date),
   ]
 );
 
