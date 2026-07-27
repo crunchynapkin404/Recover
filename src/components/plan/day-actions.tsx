@@ -1,7 +1,11 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { applyPlanChange, previewPlanChange } from "@/app/plan/actions";
+import {
+  applyPlanChange,
+  previewPlanChange,
+  zeroDay,
+} from "@/app/plan/actions";
 
 export interface DayActionsDay {
   date: string;
@@ -218,6 +222,21 @@ export function DayActions({ day, otherDays, bare = false }: Props) {
             }}
           >
             What if?
+          </button>
+          {/* Pins this date to zero — an override, so it survives any later
+              change to the standard week (that is the whole point). */}
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() =>
+              startTransition(async () => {
+                const r = await zeroDay(day.date);
+                if (!r.ok) setError(friendlyPlanError(r.error));
+              })
+            }
+            className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[11px] font-bold text-white/60 disabled:opacity-40"
+          >
+            No time today
           </button>
           {error && <span className="text-[11px] text-red-400">{error}</span>}
         </div>

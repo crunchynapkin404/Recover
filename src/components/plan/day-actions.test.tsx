@@ -8,6 +8,7 @@ import { DayActions, friendlyPlanError } from "./day-actions";
 vi.mock("@/app/plan/actions", () => ({
   previewPlanChange: vi.fn(),
   applyPlanChange: vi.fn(),
+  zeroDay: vi.fn(),
 }));
 
 import { applyPlanChange, previewPlanChange } from "@/app/plan/actions";
@@ -176,5 +177,27 @@ describe("DayActions error rendering (interaction)", () => {
 
     expect(container.textContent).not.toContain("invalid");
     expect(container.textContent).toContain("That move isn't allowed");
+  });
+});
+
+describe("DayActions — zero the day", () => {
+  it("offers the reset next to move, swap and skip", () => {
+    const html = renderToString(
+      <DayActions
+        day={{ date: "2026-08-05", workoutCount: 1 }}
+        otherDays={[{ date: "2026-08-06", workoutCount: 0, isRace: false }]}
+      />
+    );
+    expect(html).toContain("No time today");
+  });
+
+  it("renders nothing for a day with no session", () => {
+    const html = renderToString(
+      <DayActions
+        day={{ date: "2026-08-05", workoutCount: 0 }}
+        otherDays={[]}
+      />
+    );
+    expect(html).toBe("");
   });
 });
