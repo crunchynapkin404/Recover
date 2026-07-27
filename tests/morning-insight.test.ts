@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 // Morning insight service integration tests (v0.4b). Requires Postgres.
 const hasDb =
@@ -425,6 +425,122 @@ describe.skipIf(!hasDb)("morning insight", () => {
 
     const latest = await getLatestMorningInsight(USER);
     expect(latest?.text).toBe(result.text);
+  });
+
+  it("replaces an incomplete brief in place once the data completes", async () => {
+    const { db, schema } = await import("@/lib/db");
+    const { generateMorningInsight } = await import("@/lib/morning-insight");
+    const today = localYmd(new Date());
+    await db.insert(schema.dailyMetrics).values({
+      userId: USER,
+      date: today,
+      readiness: 67,
+      band: "green",
+      tsb: 5,
+      componentScores: { hrv: null, rhr: 71, sleep: null, form: 58 },
+      hrvBaselineMean: Math.log(65),
+      hrvBaselineSd: 0.1,
+      rhrBaselineMean: 48,
+      rhrBaselineSd: 2,
+    });
+
+    // 1. Backstop posts an incomplete brief.
+    const first = await generateMorningInsight(USER, { force: true });
+    if (first === "skipped") throw new Error("expected a brief");
+    expect(first.text).toContain("Incomplete picture");
+
+    // 2. The real overnight data lands and readiness is recomputed.
+    await db.insert(schema.wellnessDaily).values({
+      userId: USER,
+      date: today,
+      hrvMs: 62,
+      sleepSecs: 25000,
+    });
+    await db
+      .update(schema.dailyMetrics)
+      .set({
+        readiness: 58,
+        band: "amber",
+        componentScores: { hrv: 50, rhr: 71, sleep: 68, form: 58 },
+      })
+      .where(
+        and(
+          eq(schema.dailyMetrics.userId, USER),
+          eq(schema.dailyMetrics.date, today)
+        )
+      );
+
+    // 3. A normal (non-forced) trigger revises it.
+    const second = await generateMorningInsight(USER);
+    if (second === "skipped") throw new Error("expected a revision");
+    expect(second.text).not.toContain("Incomplete picture");
+    expect(second.text).toContain("58");
+
+    // Exactly one message in the thread — replaced, not appended.
+    const msgs = await db.query.chatMessages.findMany({
+      where: eq(schema.chatMessages.threadId, first.threadId),
+    });
+    expect(msgs).toHaveLength(1);
+    expect(msgs[0].toolCalls).toMatchObject({ dataComplete: true });
+
+    // 4. A further trigger does not revise again.
+    expect(await generateMorningInsight(USER)).toBe("skipped");
+  });
+
+  it("never revises a brief that was already complete", async () => {
+    const { db, schema } = await import("@/lib/db");
+    const { generateMorningInsight } = await import("@/lib/morning-insight");
+    const today = localYmd(new Date());
+    await db.insert(schema.wellnessDaily).values({
+      userId: USER,
+      date: today,
+      hrvMs: 62,
+      sleepSecs: 25000,
+    });
+    await db.insert(schema.dailyMetrics).values({
+      userId: USER,
+      date: today,
+      readiness: 70,
+      band: "green",
+      tsb: 5,
+      componentScores: { hrv: 55, rhr: 71, sleep: 68, form: 58 },
+      hrvBaselineMean: Math.log(65),
+      hrvBaselineSd: 0.1,
+      rhrBaselineMean: 48,
+      rhrBaselineSd: 2,
+    });
+
+    const first = await generateMorningInsight(USER);
+    if (first === "skipped") throw new Error("expected a brief");
+    expect(await generateMorningInsight(USER)).toBe("skipped");
+
+    const msgs = await db.query.chatMessages.findMany({
+      where: eq(schema.chatMessages.threadId, first.threadId),
+    });
+    expect(msgs).toHaveLength(1);
+    expect(msgs[0].content).toBe(first.text);
+  });
+
+  it("an incomplete brief stays put while the data is still incomplete", async () => {
+    const { db, schema } = await import("@/lib/db");
+    const { generateMorningInsight } = await import("@/lib/morning-insight");
+    await db.insert(schema.dailyMetrics).values({
+      userId: USER,
+      date: localYmd(new Date()),
+      readiness: 67,
+      band: "green",
+      tsb: 5,
+      componentScores: { hrv: null, rhr: 71, sleep: null, form: 58 },
+      hrvBaselineMean: Math.log(65),
+      hrvBaselineSd: 0.1,
+      rhrBaselineMean: 48,
+      rhrBaselineSd: 2,
+    });
+
+    const first = await generateMorningInsight(USER, { force: true });
+    if (first === "skipped") throw new Error("expected a brief");
+    // No wellness row inserted — still incomplete.
+    expect(await generateMorningInsight(USER, { force: true })).toBe("skipped");
   });
 });
 

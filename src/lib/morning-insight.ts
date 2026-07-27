@@ -154,7 +154,19 @@ export async function generateMorningInsight(
 
   const thread = await findOrCreateMorningThread(userId);
   const latest = await latestNonDebriefMessage(thread.id);
-  if (latest && localYmd(latest.createdAt) === today) return "skipped";
+
+  // At-most-once per day, with exactly one exception: a brief that admitted
+  // to being incomplete may be replaced once the real overnight data lands.
+  // This check MUST come before the plain same-day guard — that guard
+  // returns early on any same-day message and would otherwise make the
+  // revision path unreachable.
+  let revising: { id: string } | null = null;
+  if (latest && localYmd(latest.createdAt) === today) {
+    const meta = (latest.toolCalls ?? {}) as { dataComplete?: boolean };
+    const revisable = meta.dataComplete === false;
+    if (!revisable || !dataComplete) return "skipped";
+    revising = { id: latest.id };
+  }
 
   const warning = await getOvertrainingStatus(userId);
 
@@ -312,17 +324,29 @@ export async function generateMorningInsight(
     });
   }
 
-  await db.insert(schema.chatMessages).values({
-    threadId: thread.id,
-    role: "assistant",
-    content: text,
-    toolCalls: {
-      generated,
-      warning: warning?.kind ?? null,
-      forced: opts?.force ?? false,
-      dataComplete,
-    },
-  });
+  const meta = {
+    generated,
+    warning: warning?.kind ?? null,
+    forced: opts?.force ?? false,
+    dataComplete,
+  };
+  if (revising) {
+    // UPDATE, not a second INSERT: the thread keeps exactly one brief per
+    // day and the dashboard card (which reads the latest non-debrief
+    // message) needs no change. chat_messages.search is a generated column
+    // and refreshes itself from the new content — never write it directly.
+    await db
+      .update(schema.chatMessages)
+      .set({ content: text, toolCalls: meta })
+      .where(eq(schema.chatMessages.id, revising.id));
+  } else {
+    await db.insert(schema.chatMessages).values({
+      threadId: thread.id,
+      role: "assistant",
+      content: text,
+      toolCalls: meta,
+    });
+  }
   await db
     .update(schema.chatThreads)
     .set({ updatedAt: now })
