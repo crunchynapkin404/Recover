@@ -1,5 +1,7 @@
 /** Pure chart math for the analytics pages. No I/O, no DOM. */
 
+import { MIN_BASELINE_DAYS } from "@/lib/readiness";
+
 /**
  * Shared visual grammar for every hand-rolled SVG chart in the app
  * (stream-chart, wellness-trends, weekly-load-bars, artifact-card, and the
@@ -93,6 +95,35 @@ export function baselineBandLinear(
   sd: number
 ): { low: number; high: number } {
   return { low: mean - sd, high: mean + sd };
+}
+
+/**
+ * A band for metrics the readiness engine doesn't store a baseline for (sleep
+ * duration, sleep score): the athlete's own mean ± 1 SD over whatever history
+ * is handed in — the same shape `baselineBandLinear` produces from the stored
+ * HRV/RHR baselines, so both read identically on the chart.
+ *
+ * The caller owns window and membership (trailing days, flagged days dropped,
+ * today excluded), exactly as `computeReadiness` takes plain numbers and has
+ * no idea where they came from.
+ *
+ * Null below MIN_BASELINE_DAYS readings — and null for a perfectly flat
+ * history, where a zero-width band would draw a hairline the athlete is
+ * "outside of" every night.
+ */
+export function baselineBandFromSeries(
+  values: (number | null)[],
+  minReadings = MIN_BASELINE_DAYS
+): { low: number; high: number } | null {
+  const nums = values.filter((v): v is number => v != null);
+  if (nums.length < minReadings) return null;
+  const mean = nums.reduce((a, b) => a + b, 0) / nums.length;
+  const variance =
+    nums.reduce((a, b) => a + (b - mean) ** 2, 0) / (nums.length - 1);
+  // Below 1e-12 is floating-point dust from identical values, matching the
+  // readiness engine's sd().
+  if (variance < 1e-12) return null;
+  return baselineBandLinear(mean, Math.sqrt(variance));
 }
 
 export function rollingAvg(

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  baselineBandFromSeries,
   baselineBandLinear,
   baselineBandLn,
   downsample,
@@ -37,6 +38,32 @@ describe("baseline bands", () => {
   });
   it("linear band is mean±sd", () => {
     expect(baselineBandLinear(48, 2)).toEqual({ low: 46, high: 50 });
+  });
+});
+
+describe("baselineBandFromSeries", () => {
+  it("is mean ± sample sd of the athlete's own readings", () => {
+    // 14 readings: 7×7 and 7×8 → mean 7.5, sample sd = sqrt(3.5/13) ≈ 0.5189
+    const values = [...Array(7).fill(7), ...Array(7).fill(8)];
+    const band = baselineBandFromSeries(values);
+    expect(band).not.toBeNull();
+    expect((band!.low + band!.high) / 2).toBeCloseTo(7.5, 6);
+    expect(band!.high - band!.low).toBeCloseTo(2 * Math.sqrt(3.5 / 13), 6);
+  });
+
+  it("is null below MIN_BASELINE_DAYS readings", () => {
+    expect(baselineBandFromSeries(Array(13).fill(7))).toBeNull();
+    expect(baselineBandFromSeries([])).toBeNull();
+  });
+
+  it("ignores nulls but counts only real readings toward the minimum", () => {
+    const sparse = [...Array(13).fill(7), null, null, null];
+    expect(baselineBandFromSeries(sparse)).toBeNull();
+    expect(baselineBandFromSeries([...sparse, 8])).not.toBeNull();
+  });
+
+  it("is null for a perfectly flat history — a zero-width band claims a precision the athlete doesn't have", () => {
+    expect(baselineBandFromSeries(Array(30).fill(7.5))).toBeNull();
   });
 });
 
