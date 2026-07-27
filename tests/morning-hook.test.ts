@@ -27,6 +27,16 @@ describe.skipIf(!hasDb)("scheduler morning-push hook", () => {
       kind: "incremental",
       runAfter: new Date(Date.now() - 1000),
     });
+    // v0.25.17: the brief/push half of the post-sync hook is now gated on
+    // last night's overnight measurement having actually arrived, so the
+    // fixture needs a complete wellness row — a successful sync job alone
+    // no longer implies a push. See brief-completeness.ts.
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    await db
+      .insert(schema.wellnessDaily)
+      .values({ userId: TEST_USER, date: today, hrvMs: 62, sleepSecs: 25000 })
+      .onConflictDoNothing();
   });
 
   afterAll(async () => {

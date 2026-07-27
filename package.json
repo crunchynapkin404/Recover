@@ -1,6 +1,6 @@
 {
   "name": "recover",
-  "version": "0.25.16",
+  "version": "0.25.17",
   "private": true,
   "scripts": {
     "dev": "next dev",

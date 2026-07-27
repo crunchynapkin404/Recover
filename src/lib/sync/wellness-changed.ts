@@ -10,8 +10,9 @@ import { logger } from "@/lib/logger";
  * failure can't suppress the others or propagate to the caller's own
  * write path.
  *
- * The morning-brief/push half of this also has an earliest-hour floor
- * (04:00 local, non-forced calls only) — see the check inline below.
+ * The morning-brief/push half also has two guards, both non-forced-only:
+ * an earliest-hour floor (04:00 local) and a completeness gate (last
+ * night's HRV and sleep must both have arrived). See inline below.
  */
 export async function onWellnessDataChanged(
   userId: string,
@@ -38,6 +39,40 @@ export async function onWellnessDataChanged(
   // always past 4.
   if (!opts?.force && (opts?.now ?? new Date()).getHours() < 4) {
     return "skipped";
+  }
+
+  // Completeness gate (2026-07-26): last night's HRV and sleep carry 60% of
+  // the readiness weight between them (0.40 + 0.20), and the engine happily
+  // produces a confident-looking score without either — on 2026-07-26 that
+  // put out "readiness 67, green, go hard" at 08:21 from resting HR alone,
+  // which the completed data later read as 58, amber. Wait for the real
+  // measurement instead. The forced path (09:00 backstop) deliberately
+  // bypasses this and says what's missing in the brief itself.
+  if (!opts?.force) {
+    try {
+      const { db, schema } = await import("@/lib/db");
+      const { and, eq } = await import("drizzle-orm");
+      const { arrivalFromWellness, overnightComplete } =
+        await import("@/lib/brief-completeness");
+      const d = opts?.now ?? new Date();
+      const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      const row = await db.query.wellnessDaily.findFirst({
+        where: and(
+          eq(schema.wellnessDaily.userId, userId),
+          eq(schema.wellnessDaily.date, today)
+        ),
+      });
+      if (!overnightComplete(arrivalFromWellness(row))) return "skipped";
+    } catch (err) {
+      // Fail closed: if we can't confirm completeness, don't fire — the
+      // whole point of this gate is to avoid a confident-looking brief
+      // built on data we can't vouch for.
+      logger.error("completeness gate check failed", {
+        userId,
+        message: err instanceof Error ? err.message : String(err),
+      });
+      return "skipped";
+    }
   }
 
   let outcome: "fired" | "skipped" = "skipped";

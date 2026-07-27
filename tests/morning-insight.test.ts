@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 // Morning insight service integration tests (v0.4b). Requires Postgres.
 const hasDb =
@@ -162,6 +162,19 @@ describe.skipIf(!hasDb)("morning insight", () => {
     expect(forced.text).toContain("Still calibrating");
   });
 
+  // Fix: the template's "Still calibrating" sentence already says the
+  // picture is incomplete — the completeness caveat must not repeat that
+  // same fact in different words.
+  it("suppresses the redundant caveat when the brief is already the calibrating line", async () => {
+    const { generateMorningInsight } = await import("@/lib/morning-insight");
+    // No seedMetric() and no wellness row → both "calibrating" (no
+    // daily_metrics row) and "incomplete" (no wellness_daily row) are true.
+    const forced = await generateMorningInsight(USER, { force: true });
+    if (forced === "skipped") throw new Error("expected a brief");
+    expect(forced.text).toContain("Still calibrating");
+    expect(forced.text).not.toContain("Incomplete picture");
+  });
+
   it("force:false (default) still skips while calibrating, unchanged", async () => {
     const { generateMorningInsight } = await import("@/lib/morning-insight");
     await seedMetric({ readiness: null, band: "calibrating" });
@@ -286,6 +299,94 @@ describe.skipIf(!hasDb)("morning insight", () => {
     expect(await getLatestMorningInsight(USER)).toBeNull();
   });
 
+  it("forced brief names the missing components and records dataComplete:false", async () => {
+    const { db, schema } = await import("@/lib/db");
+    const { generateMorningInsight } = await import("@/lib/morning-insight");
+    // Scored on RHR + form only — exactly the 2026-07-26 failure shape.
+    await db.insert(schema.dailyMetrics).values({
+      userId: USER,
+      date: localYmd(new Date()),
+      readiness: 67,
+      band: "green",
+      tsb: 5,
+      componentScores: { hrv: null, rhr: 71, sleep: null, form: 58 },
+      hrvBaselineMean: Math.log(65),
+      hrvBaselineSd: 0.1,
+      rhrBaselineMean: 48,
+      rhrBaselineSd: 2,
+    });
+
+    const r = await generateMorningInsight(USER, { force: true });
+    if (r === "skipped") throw new Error("expected a brief");
+    expect(r.text).toContain("Incomplete picture");
+    expect(r.text).toContain("HRV");
+
+    const msg = await db.query.chatMessages.findFirst({
+      where: eq(schema.chatMessages.threadId, r.threadId),
+    });
+    expect(msg?.toolCalls).toMatchObject({ dataComplete: false });
+  });
+
+  it("a complete brief carries no caveat and records dataComplete:true", async () => {
+    const { db, schema } = await import("@/lib/db");
+    const { generateMorningInsight } = await import("@/lib/morning-insight");
+    const today = localYmd(new Date());
+    await db.insert(schema.wellnessDaily).values({
+      userId: USER,
+      date: today,
+      hrvMs: 62,
+      sleepSecs: 25000,
+    });
+    await db.insert(schema.dailyMetrics).values({
+      userId: USER,
+      date: today,
+      readiness: 70,
+      band: "green",
+      tsb: 5,
+      componentScores: { hrv: 55, rhr: 71, sleep: 68, form: 58 },
+      hrvBaselineMean: Math.log(65),
+      hrvBaselineSd: 0.1,
+      rhrBaselineMean: 48,
+      rhrBaselineSd: 2,
+    });
+
+    const r = await generateMorningInsight(USER);
+    if (r === "skipped") throw new Error("expected a brief");
+    expect(r.text).not.toContain("Incomplete picture");
+
+    const msg = await db.query.chatMessages.findFirst({
+      where: eq(schema.chatMessages.threadId, r.threadId),
+    });
+    expect(msg?.toolCalls).toMatchObject({ dataComplete: true });
+  });
+
+  it("passes the caveat to the LLM instruction too", async () => {
+    const { db, schema } = await import("@/lib/db");
+    const { generateMorningInsight } = await import("@/lib/morning-insight");
+    await db.insert(schema.dailyMetrics).values({
+      userId: USER,
+      date: localYmd(new Date()),
+      readiness: 67,
+      band: "green",
+      tsb: 5,
+      componentScores: { hrv: null, rhr: 71, sleep: null, form: 58 },
+      hrvBaselineMean: Math.log(65),
+      hrvBaselineSd: 0.1,
+      rhrBaselineMean: 48,
+      rhrBaselineSd: 2,
+    });
+
+    let seen = "";
+    await generateMorningInsight(USER, {
+      force: true,
+      llm: async (p) => {
+        seen = p;
+        return "Brief text";
+      },
+    });
+    expect(seen).toContain("Incomplete picture");
+  });
+
   // Fix: a post-race debrief message landing in the morning thread (e.g. a
   // post-midnight sync tick) must not be mistaken for "today's morning
   // insight" — that would silently eat the athlete's real morning check-in.
@@ -338,6 +439,296 @@ describe.skipIf(!hasDb)("morning insight", () => {
     const latest = await getLatestMorningInsight(USER);
     expect(latest?.text).toBe(result.text);
   });
+
+  it("replaces an incomplete brief in place once the data completes", async () => {
+    const { db, schema } = await import("@/lib/db");
+    const { generateMorningInsight } = await import("@/lib/morning-insight");
+    const today = localYmd(new Date());
+    await db.insert(schema.dailyMetrics).values({
+      userId: USER,
+      date: today,
+      readiness: 67,
+      band: "green",
+      tsb: 5,
+      componentScores: { hrv: null, rhr: 71, sleep: null, form: 58 },
+      hrvBaselineMean: Math.log(65),
+      hrvBaselineSd: 0.1,
+      rhrBaselineMean: 48,
+      rhrBaselineSd: 2,
+    });
+
+    // 1. Backstop posts an incomplete brief.
+    const first = await generateMorningInsight(USER, { force: true });
+    if (first === "skipped") throw new Error("expected a brief");
+    expect(first.text).toContain("Incomplete picture");
+
+    // 2. The real overnight data lands and readiness is recomputed.
+    await db.insert(schema.wellnessDaily).values({
+      userId: USER,
+      date: today,
+      hrvMs: 62,
+      sleepSecs: 25000,
+    });
+    await db
+      .update(schema.dailyMetrics)
+      .set({
+        readiness: 58,
+        band: "amber",
+        componentScores: { hrv: 50, rhr: 71, sleep: 68, form: 58 },
+      })
+      .where(
+        and(
+          eq(schema.dailyMetrics.userId, USER),
+          eq(schema.dailyMetrics.date, today)
+        )
+      );
+
+    // 3. A normal (non-forced) trigger revises it.
+    const second = await generateMorningInsight(USER);
+    if (second === "skipped") throw new Error("expected a revision");
+    expect(second.text).not.toContain("Incomplete picture");
+    expect(second.text).toContain("58");
+
+    // Exactly one message in the thread — replaced, not appended.
+    const msgs = await db.query.chatMessages.findMany({
+      where: eq(schema.chatMessages.threadId, first.threadId),
+    });
+    expect(msgs).toHaveLength(1);
+    expect(msgs[0].toolCalls).toMatchObject({ dataComplete: true });
+
+    // 4. A further trigger does not revise again.
+    expect(await generateMorningInsight(USER)).toBe("skipped");
+  });
+
+  // Fix: the revision target must be today's newest *assistant brief*, not
+  // the newest *message* in the thread. If the athlete replies to the
+  // incomplete brief before the real data lands, that reply becomes the
+  // newest message (toolCalls null) — the old code keyed revision off it and
+  // gave up, leaving the wrong advice standing all day.
+  it("revises today's brief even when the athlete replied in between", async () => {
+    const { db, schema } = await import("@/lib/db");
+    const { generateMorningInsight } = await import("@/lib/morning-insight");
+    const today = localYmd(new Date());
+    await db.insert(schema.dailyMetrics).values({
+      userId: USER,
+      date: today,
+      readiness: 67,
+      band: "green",
+      tsb: 5,
+      componentScores: { hrv: null, rhr: 71, sleep: null, form: 58 },
+      hrvBaselineMean: Math.log(65),
+      hrvBaselineSd: 0.1,
+      rhrBaselineMean: 48,
+      rhrBaselineSd: 2,
+    });
+
+    // 1. Backstop posts an incomplete brief.
+    const first = await generateMorningInsight(USER, { force: true });
+    if (first === "skipped") throw new Error("expected a brief");
+    expect(first.text).toContain("Incomplete picture");
+
+    const beforeReply = await db.query.chatMessages.findMany({
+      where: eq(schema.chatMessages.threadId, first.threadId),
+    });
+    const briefId = beforeReply.find((m) => m.role === "assistant")!.id;
+
+    // 2. The athlete replies to the incomplete brief before the real data
+    // lands — this reply, not the brief, is now the newest thread message.
+    await db.insert(schema.chatMessages).values({
+      threadId: first.threadId,
+      role: "user",
+      content: "so should I still go hard?",
+    });
+
+    // 3. The real overnight data lands and readiness is recomputed.
+    await db.insert(schema.wellnessDaily).values({
+      userId: USER,
+      date: today,
+      hrvMs: 62,
+      sleepSecs: 25000,
+    });
+    await db
+      .update(schema.dailyMetrics)
+      .set({
+        readiness: 58,
+        band: "amber",
+        componentScores: { hrv: 50, rhr: 71, sleep: 68, form: 58 },
+      })
+      .where(
+        and(
+          eq(schema.dailyMetrics.userId, USER),
+          eq(schema.dailyMetrics.date, today)
+        )
+      );
+
+    // 4. A normal (non-forced) trigger must still revise the original brief.
+    const second = await generateMorningInsight(USER);
+    if (second === "skipped") throw new Error("expected a revision");
+    expect(second.text).not.toContain("Incomplete picture");
+    expect(second.text).toContain("58");
+
+    const msgs = await db.query.chatMessages.findMany({
+      where: eq(schema.chatMessages.threadId, first.threadId),
+    });
+    const assistantMsgs = msgs.filter((m) => m.role === "assistant");
+    // Original brief row updated in place — same id, still exactly one
+    // assistant brief in the thread alongside the athlete's untouched reply.
+    expect(assistantMsgs).toHaveLength(1);
+    expect(assistantMsgs[0].id).toBe(briefId);
+    expect(assistantMsgs[0].toolCalls).toMatchObject({ dataComplete: true });
+    expect(msgs).toHaveLength(2);
+  });
+
+  it("never revises a brief that was already complete", async () => {
+    const { db, schema } = await import("@/lib/db");
+    const { generateMorningInsight } = await import("@/lib/morning-insight");
+    const today = localYmd(new Date());
+    await db.insert(schema.wellnessDaily).values({
+      userId: USER,
+      date: today,
+      hrvMs: 62,
+      sleepSecs: 25000,
+    });
+    await db.insert(schema.dailyMetrics).values({
+      userId: USER,
+      date: today,
+      readiness: 70,
+      band: "green",
+      tsb: 5,
+      componentScores: { hrv: 55, rhr: 71, sleep: 68, form: 58 },
+      hrvBaselineMean: Math.log(65),
+      hrvBaselineSd: 0.1,
+      rhrBaselineMean: 48,
+      rhrBaselineSd: 2,
+    });
+
+    const first = await generateMorningInsight(USER);
+    if (first === "skipped") throw new Error("expected a brief");
+    expect(await generateMorningInsight(USER)).toBe("skipped");
+
+    const msgs = await db.query.chatMessages.findMany({
+      where: eq(schema.chatMessages.threadId, first.threadId),
+    });
+    expect(msgs).toHaveLength(1);
+    expect(msgs[0].content).toBe(first.text);
+  });
+
+  it("an incomplete brief stays put while the data is still incomplete", async () => {
+    const { db, schema } = await import("@/lib/db");
+    const { generateMorningInsight } = await import("@/lib/morning-insight");
+    await db.insert(schema.dailyMetrics).values({
+      userId: USER,
+      date: localYmd(new Date()),
+      readiness: 67,
+      band: "green",
+      tsb: 5,
+      componentScores: { hrv: null, rhr: 71, sleep: null, form: 58 },
+      hrvBaselineMean: Math.log(65),
+      hrvBaselineSd: 0.1,
+      rhrBaselineMean: 48,
+      rhrBaselineSd: 2,
+    });
+
+    const first = await generateMorningInsight(USER, { force: true });
+    if (first === "skipped") throw new Error("expected a brief");
+    // No wellness row inserted — still incomplete.
+    expect(await generateMorningInsight(USER, { force: true })).toBe("skipped");
+  });
+
+  // Fix: the morning thread is a live conversational thread, not an
+  // append-only feed — production has seen 11+ messages land in a single
+  // day. Today's brief is posted first (~05:00) and so is the *oldest* of
+  // them; once more than 10 further messages land the same day, it falls
+  // out of recentMessages()'s 10-row page entirely. Since that page used to
+  // be the only place the revision target was found, the brief would
+  // silently stop being revisable on any day chatty enough to push it out —
+  // the same failure mode the previous fix addressed, just requiring more
+  // conversation to trigger. todaysBrief() must query for the brief
+  // directly instead of scanning the page.
+  it("revises today's brief even when it has fallen out of the 10-row recent-messages window", async () => {
+    const { db, schema } = await import("@/lib/db");
+    const { generateMorningInsight } = await import("@/lib/morning-insight");
+    const today = localYmd(new Date());
+    await db.insert(schema.dailyMetrics).values({
+      userId: USER,
+      date: today,
+      readiness: 67,
+      band: "green",
+      tsb: 5,
+      componentScores: { hrv: null, rhr: 71, sleep: null, form: 58 },
+      hrvBaselineMean: Math.log(65),
+      hrvBaselineSd: 0.1,
+      rhrBaselineMean: 48,
+      rhrBaselineSd: 2,
+    });
+
+    // 1. Backstop posts an incomplete brief.
+    const first = await generateMorningInsight(USER, { force: true });
+    if (first === "skipped") throw new Error("expected a brief");
+    expect(first.text).toContain("Incomplete picture");
+
+    const briefRow = await db.query.chatMessages.findFirst({
+      where: and(
+        eq(schema.chatMessages.threadId, first.threadId),
+        eq(schema.chatMessages.role, "assistant")
+      ),
+    });
+    if (!briefRow) throw new Error("expected the brief row to exist");
+    const briefId = briefRow.id;
+    const briefCreatedAt = briefRow.createdAt;
+
+    // 2. More than 10 further messages (athlete replies, in this case) land
+    // in the thread the same day, each strictly newer than the brief —
+    // pushing it well outside the 10 most recent rows.
+    for (let i = 0; i < 11; i++) {
+      await db.insert(schema.chatMessages).values({
+        threadId: first.threadId,
+        role: "user",
+        content: `filler message ${i}`,
+        createdAt: new Date(briefCreatedAt.getTime() + (i + 1) * 1000),
+      });
+    }
+
+    // 3. The real overnight data lands and readiness is recomputed.
+    await db.insert(schema.wellnessDaily).values({
+      userId: USER,
+      date: today,
+      hrvMs: 62,
+      sleepSecs: 25000,
+    });
+    await db
+      .update(schema.dailyMetrics)
+      .set({
+        readiness: 58,
+        band: "amber",
+        componentScores: { hrv: 50, rhr: 71, sleep: 68, form: 58 },
+      })
+      .where(
+        and(
+          eq(schema.dailyMetrics.userId, USER),
+          eq(schema.dailyMetrics.date, today)
+        )
+      );
+
+    // 4. A normal (non-forced) trigger must still find and revise the
+    // original brief in place, even though it's no longer among the 10 most
+    // recent thread messages.
+    const second = await generateMorningInsight(USER);
+    if (second === "skipped") throw new Error("expected a revision");
+    expect(second.text).not.toContain("Incomplete picture");
+    expect(second.text).toContain("58");
+
+    const msgs = await db.query.chatMessages.findMany({
+      where: eq(schema.chatMessages.threadId, first.threadId),
+    });
+    const assistantMsgs = msgs.filter((m) => m.role === "assistant");
+    // Updated in place — same row id, still exactly one assistant brief in
+    // the thread, no second brief inserted alongside it.
+    expect(assistantMsgs).toHaveLength(1);
+    expect(assistantMsgs[0].id).toBe(briefId);
+    expect(assistantMsgs[0].content).toBe(second.text);
+    expect(assistantMsgs[0].toolCalls).toMatchObject({ dataComplete: true });
+  });
 });
 
 // Task 12: race-day brief — the morning insight goes race-aware when a race
@@ -346,7 +737,8 @@ describe.skipIf(!hasDb)("morning insight — race day (Task 12)", () => {
   const RACE_USER = "test-morning-insight-race-user";
   const RACE_USER_2 = "test-morning-insight-race-user-2";
   const RACE_USER_3 = "test-morning-insight-race-user-3";
-  const RACE_USERS = [RACE_USER, RACE_USER_2, RACE_USER_3];
+  const RACE_USER_4 = "test-morning-insight-race-user-4";
+  const RACE_USERS = [RACE_USER, RACE_USER_2, RACE_USER_3, RACE_USER_4];
 
   async function cleanupRaceUser(id: string) {
     const { db, schema } = await import("@/lib/db");
@@ -438,7 +830,44 @@ describe.skipIf(!hasDb)("morning insight — race day (Task 12)", () => {
       llm: async () => "", // empty LLM output → template fallback
     });
     expect(r).not.toBe("skipped");
+    // RACE_USER_2 has no wellness_daily/daily_metrics rows at all today, so
+    // the completeness caveat (2026-07-26) applies here too — but it is now
+    // woven in *after* the race lead-in (Fix), not prepended ahead of it, so
+    // the stronger assertion is restored: the text must actually start with
+    // the race line.
     if (r !== "skipped") expect(r.text).toMatch(/^Race day: /);
+    if (r !== "skipped") expect(r.text).toContain("Race day: Second City 10K");
+  });
+
+  // Fix: the caveat must be woven in after the race lead-in, never ahead of
+  // it — "lead with the race" has to be true of the rendered text on the
+  // highest-stakes brief of the athlete's season.
+  it("race day: the incomplete-data caveat appears after the race lead-in, not before it", async () => {
+    const { createRace } = await import("@/lib/race/service");
+    const { generateMorningInsight } = await import("@/lib/morning-insight");
+    const today = localYmd(new Date());
+    await createRace(RACE_USER_4, {
+      name: "Fourth Race 5K",
+      raceType: "5k",
+      date: today,
+      priority: "B",
+      goalNote: null,
+    });
+
+    // No wellness_daily/daily_metrics rows at all → both calibrating and
+    // incomplete, so the caveat definitely fires.
+    const r = await generateMorningInsight(RACE_USER_4, {
+      llm: async () => "", // empty LLM output → template fallback
+    });
+    expect(r).not.toBe("skipped");
+    if (r === "skipped") throw new Error("expected a brief");
+    expect(r.text).toMatch(
+      /^Race day: Fourth Race 5K \(B race\)\. Incomplete picture/
+    );
+    const leadIdx = r.text.indexOf("Race day:");
+    const caveatIdx = r.text.indexOf("Incomplete picture");
+    expect(leadIdx).toBe(0);
+    expect(caveatIdx).toBeGreaterThan(leadIdx);
   });
 
   it("race day: projects tomorrow-vs-actual TSB from yesterday's stored ctl/atl", async () => {
