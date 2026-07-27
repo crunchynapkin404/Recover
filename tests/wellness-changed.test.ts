@@ -17,11 +17,27 @@ vi.mock("@/lib/push", () => ({
     maybeSendMorningReadinessPush(...args),
 }));
 
+const findFirstWellness = vi.fn();
+vi.mock("@/lib/db", () => ({
+  db: {
+    query: {
+      wellnessDaily: {
+        findFirst: (...args: unknown[]) => findFirstWellness(...args),
+      },
+    },
+  },
+  schema: {
+    wellnessDaily: { userId: "user_id", date: "date" },
+  },
+}));
+
 describe("onWellnessDataChanged", () => {
   beforeEach(() => {
     runDailyAdaptation.mockClear();
     generateMorningInsight.mockClear();
     maybeSendMorningReadinessPush.mockClear();
+    findFirstWellness.mockReset();
+    findFirstWellness.mockResolvedValue({ hrvMs: 62, sleepSecs: 25000 });
   });
 
   afterEach(() => {
@@ -138,5 +154,77 @@ describe("onWellnessDataChanged", () => {
       now,
       force: undefined,
     });
+  });
+});
+
+describe("onWellnessDataChanged — overnight completeness gate", () => {
+  beforeEach(() => {
+    runDailyAdaptation.mockClear();
+    generateMorningInsight.mockClear();
+    maybeSendMorningReadinessPush.mockClear();
+    findFirstWellness.mockReset();
+    generateMorningInsight.mockResolvedValue({
+      text: "hi",
+      warning: null,
+      threadId: "t1",
+    });
+  });
+
+  const noon = new Date();
+  noon.setHours(12, 0, 0, 0);
+
+  it("skips the brief when HRV has not arrived", async () => {
+    findFirstWellness.mockResolvedValue({ hrvMs: null, sleepSecs: 25000 });
+    const { onWellnessDataChanged } =
+      await import("@/lib/sync/wellness-changed");
+    expect(await onWellnessDataChanged("u", { now: noon })).toBe("skipped");
+    expect(generateMorningInsight).not.toHaveBeenCalled();
+    expect(maybeSendMorningReadinessPush).not.toHaveBeenCalled();
+  });
+
+  it("skips the brief when sleep has not arrived", async () => {
+    findFirstWellness.mockResolvedValue({ hrvMs: 62, sleepSecs: null });
+    const { onWellnessDataChanged } =
+      await import("@/lib/sync/wellness-changed");
+    expect(await onWellnessDataChanged("u", { now: noon })).toBe("skipped");
+    expect(generateMorningInsight).not.toHaveBeenCalled();
+  });
+
+  it("skips the brief when there is no wellness row at all", async () => {
+    findFirstWellness.mockResolvedValue(undefined);
+    const { onWellnessDataChanged } =
+      await import("@/lib/sync/wellness-changed");
+    expect(await onWellnessDataChanged("u", { now: noon })).toBe("skipped");
+    expect(generateMorningInsight).not.toHaveBeenCalled();
+  });
+
+  it("fires once both HRV and sleep have arrived", async () => {
+    findFirstWellness.mockResolvedValue({ hrvMs: 62, sleepSecs: 25000 });
+    const { onWellnessDataChanged } =
+      await import("@/lib/sync/wellness-changed");
+    expect(await onWellnessDataChanged("u", { now: noon })).toBe("fired");
+    expect(generateMorningInsight).toHaveBeenCalled();
+  });
+
+  // The 09:00 backstop must still be able to post an (honest, caveated)
+  // brief precisely when the data never arrived.
+  it("force bypasses the gate", async () => {
+    findFirstWellness.mockResolvedValue({ hrvMs: null, sleepSecs: null });
+    const { onWellnessDataChanged } =
+      await import("@/lib/sync/wellness-changed");
+    expect(await onWellnessDataChanged("u", { now: noon, force: true })).toBe(
+      "fired"
+    );
+    expect(generateMorningInsight).toHaveBeenCalled();
+  });
+
+  // Training-load adaptation does not depend on the overnight measurement,
+  // so a blocked brief must not block it.
+  it("still runs daily adaptation when the gate blocks the brief", async () => {
+    findFirstWellness.mockResolvedValue({ hrvMs: null, sleepSecs: null });
+    const { onWellnessDataChanged } =
+      await import("@/lib/sync/wellness-changed");
+    await onWellnessDataChanged("u", { now: noon });
+    expect(runDailyAdaptation).toHaveBeenCalledWith("u", noon);
   });
 });
