@@ -33,7 +33,7 @@ type Action = "move" | "swap" | "skip";
 // idea as races-section.tsx's past_date handling).
 const PLAN_ERROR_MESSAGES: Record<string, string> = {
   invalid:
-    "That move isn't allowed — the target day may already be taken, unavailable, or too close to another hard session.",
+    "That move isn't allowed — a day involved may already hold two sessions, or the target day may be taken, unavailable, or too close to another hard session.",
   no_open_week: "No open week to change right now.",
 };
 

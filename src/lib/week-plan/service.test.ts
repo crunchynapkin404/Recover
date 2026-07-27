@@ -236,3 +236,275 @@ describe.skipIf(!hasDb)(
     });
   }
 );
+
+/**
+ * Task 9c, finding 2: a day can now genuinely hold two sessions
+ * (MAX_SESSIONS_PER_DAY). moveWorkout/swapWorkouts only ever read/wrote
+ * workouts[0], so the second session on such a day was silently discarded.
+ * The fix is conservative: refuse the operation ("invalid") rather than try
+ * to guess which of the two sessions the caller meant.
+ */
+describe.skipIf(!hasDb)(
+  "moveWorkout / swapWorkouts — refuse multi-session days (Task 9c)",
+  () => {
+    let planId: string;
+
+    beforeAll(async () => {
+      await db
+        .insert(schema.users)
+        .values({
+          id: TEST_USER,
+          name: "Test Week Plan Service User",
+          email: `${TEST_USER}@example.invalid`,
+        })
+        .onConflictDoNothing();
+
+      const [plan] = await db
+        .insert(schema.trainingPlans)
+        .values({
+          userId: TEST_USER,
+          title: "Test Plan",
+          raceType: "marathon",
+          raceDate: "2026-12-01",
+          startDate: "2026-01-01",
+          weeksTotal: 16,
+          currentWeek: 1,
+          status: "active",
+        })
+        .returning();
+      planId = plan.id;
+    });
+
+    afterAll(async () => {
+      await db
+        .delete(schema.weekPlans)
+        .where(eq(schema.weekPlans.userId, TEST_USER));
+      await db
+        .delete(schema.trainingPlans)
+        .where(eq(schema.trainingPlans.userId, TEST_USER));
+      await db.delete(schema.users).where(eq(schema.users.id, TEST_USER));
+    });
+
+    beforeEach(async () => {
+      await db
+        .delete(schema.weekPlans)
+        .where(eq(schema.weekPlans.userId, TEST_USER));
+    });
+
+    async function seedWeek(days: DaySlot[]): Promise<void> {
+      await db.insert(schema.weekPlans).values({
+        userId: TEST_USER,
+        planId,
+        weekStart: WEEK_START,
+        skeletonWeek: 1,
+        days,
+        status: "open",
+        effectiveTarget: 300,
+      });
+    }
+
+    it("moveWorkout refuses when the source day holds two sessions, leaving both untouched", async () => {
+      const days = DATES.map((d) => emptyDay(d));
+      days[0].availableBlocks = [blk(45), blk(60)];
+      days[0].workouts = [
+        sw({ durationMins: 40, blockIdx: 0 }),
+        sw({ durationMins: 50, blockIdx: 1 }),
+      ];
+      days[0].status = "planned";
+      days[1].availableBlocks = [blk(90)]; // empty, would otherwise admit a move
+      await seedWeek(days);
+
+      const result = await moveWorkout(TEST_USER, DATES[0], DATES[1]);
+      expect(result).toBe("invalid");
+
+      const week = await getOpenWeekPlan(TEST_USER);
+      expect(week!.days[0].workouts).toHaveLength(2);
+      expect(week!.days[0].workouts[0].durationMins).toBe(40);
+      expect(week!.days[0].workouts[1].durationMins).toBe(50);
+      expect(week!.days[1].workouts).toHaveLength(0);
+    });
+
+    it("moveWorkout refuses when the destination day holds two sessions, leaving both untouched", async () => {
+      const days = DATES.map((d) => emptyDay(d));
+      days[0].availableBlocks = [blk(60)];
+      days[0].workouts = [sw({ durationMins: 45, blockIdx: 0 })];
+      days[0].status = "planned";
+      days[1].availableBlocks = [blk(45), blk(60)];
+      days[1].workouts = [
+        sw({ durationMins: 40, blockIdx: 0 }),
+        sw({ durationMins: 50, blockIdx: 1 }),
+      ];
+      days[1].status = "planned";
+      await seedWeek(days);
+
+      const result = await moveWorkout(TEST_USER, DATES[0], DATES[1]);
+      expect(result).toBe("invalid");
+
+      const week = await getOpenWeekPlan(TEST_USER);
+      expect(week!.days[0].workouts).toHaveLength(1);
+      expect(week!.days[0].workouts[0].durationMins).toBe(45);
+      expect(week!.days[1].workouts).toHaveLength(2);
+      expect(week!.days[1].workouts[0].durationMins).toBe(40);
+      expect(week!.days[1].workouts[1].durationMins).toBe(50);
+    });
+
+    it("swapWorkouts refuses when either day holds two sessions, leaving both untouched", async () => {
+      const days = DATES.map((d) => emptyDay(d));
+      days[0].availableBlocks = [blk(45), blk(60)];
+      days[0].workouts = [
+        sw({ durationMins: 40, blockIdx: 0 }),
+        sw({ durationMins: 50, blockIdx: 1 }),
+      ];
+      days[0].status = "planned";
+      days[3].availableBlocks = [blk(60)];
+      days[3].workouts = [sw({ durationMins: 45, blockIdx: 0 })];
+      days[3].status = "planned";
+      await seedWeek(days);
+
+      const result = await swapWorkouts(TEST_USER, DATES[0], DATES[3]);
+      expect(result).toBe("invalid");
+
+      const week = await getOpenWeekPlan(TEST_USER);
+      expect(week!.days[0].workouts).toHaveLength(2);
+      expect(week!.days[0].workouts[0].durationMins).toBe(40);
+      expect(week!.days[0].workouts[1].durationMins).toBe(50);
+      expect(week!.days[3].workouts).toHaveLength(1);
+      expect(week!.days[3].workouts[0].durationMins).toBe(45);
+    });
+  }
+);
+
+/**
+ * Task 9c, finding 3: swapWorkouts clears both days then places one side at
+ * a time, so the second placement sees the first's post-clear result — a
+ * reviewer verified by hand that this correctly refuses an adjacency
+ * violation and allows a legal non-adjacent swap, but no test shipped.
+ */
+describe.skipIf(!hasDb)(
+  "swapWorkouts — quality adjacency regression (Task 9c)",
+  () => {
+    let planId: string;
+
+    beforeAll(async () => {
+      await db
+        .insert(schema.users)
+        .values({
+          id: TEST_USER,
+          name: "Test Week Plan Service User",
+          email: `${TEST_USER}@example.invalid`,
+        })
+        .onConflictDoNothing();
+
+      const [plan] = await db
+        .insert(schema.trainingPlans)
+        .values({
+          userId: TEST_USER,
+          title: "Test Plan",
+          raceType: "marathon",
+          raceDate: "2026-12-01",
+          startDate: "2026-01-01",
+          weeksTotal: 16,
+          currentWeek: 1,
+          status: "active",
+        })
+        .returning();
+      planId = plan.id;
+    });
+
+    afterAll(async () => {
+      await db
+        .delete(schema.weekPlans)
+        .where(eq(schema.weekPlans.userId, TEST_USER));
+      await db
+        .delete(schema.trainingPlans)
+        .where(eq(schema.trainingPlans.userId, TEST_USER));
+      await db.delete(schema.users).where(eq(schema.users.id, TEST_USER));
+    });
+
+    beforeEach(async () => {
+      await db
+        .delete(schema.weekPlans)
+        .where(eq(schema.weekPlans.userId, TEST_USER));
+    });
+
+    async function seedWeek(days: DaySlot[]): Promise<void> {
+      await db.insert(schema.weekPlans).values({
+        userId: TEST_USER,
+        planId,
+        weekStart: WEEK_START,
+        skeletonWeek: 1,
+        days,
+        status: "open",
+        effectiveTarget: 300,
+      });
+    }
+
+    // Monday: quality (Tempo). Tuesday: easy (Endurance), sandwiched between
+    // Monday's quality and Wednesday's quality (Intervals) — an illegal
+    // swap target for Monday's Tempo. Saturday: easy (Endurance), with no
+    // quality neighbours — a legal swap target for the same session.
+    function seedDays(): DaySlot[] {
+      const days = DATES.map((d) => emptyDay(d));
+      days[0].availableBlocks = [blk(60)];
+      days[0].workouts = [sw({ type: "Tempo", durationMins: 45, blockIdx: 0 })];
+      days[0].status = "planned";
+      days[1].availableBlocks = [blk(60)];
+      days[1].workouts = [
+        sw({ type: "Endurance", durationMins: 40, blockIdx: 0 }),
+      ];
+      days[1].status = "planned";
+      days[2].availableBlocks = [blk(60)];
+      days[2].workouts = [
+        sw({ type: "Intervals", durationMins: 40, blockIdx: 0 }),
+      ];
+      days[2].status = "planned";
+      days[5].availableBlocks = [blk(60)];
+      days[5].workouts = [
+        sw({ type: "Endurance", durationMins: 40, blockIdx: 0 }),
+      ];
+      days[5].status = "planned";
+      return days;
+    }
+
+    it("refuses a swap that would place a quality session adjacent to an existing quality day", async () => {
+      const days = seedDays();
+      await seedWeek(days);
+
+      // Monday (Tempo) ↔ Tuesday (Endurance): Tuesday would then sit next
+      // to Wednesday's Intervals — two quality days back to back.
+      const result = await swapWorkouts(TEST_USER, DATES[0], DATES[1]);
+      expect(result).toBe("invalid");
+
+      const week = await getOpenWeekPlan(TEST_USER);
+      expect(week!.days[0].workouts[0].type).toBe("Tempo");
+      expect(week!.days[0].workouts[0].durationMins).toBe(45);
+      expect(week!.days[1].workouts[0].type).toBe("Endurance");
+      expect(week!.days[1].workouts[0].durationMins).toBe(40);
+      expect(week!.days[2].workouts[0].type).toBe("Intervals");
+    });
+
+    it("allows a non-adjacent swap of the same shape", async () => {
+      const days = seedDays();
+      await seedWeek(days);
+
+      // Monday (Tempo) ↔ Saturday (Endurance): Saturday has no quality
+      // neighbours (Friday and Sunday are both rest), so this is legal.
+      const result = await swapWorkouts(TEST_USER, DATES[0], DATES[5]);
+      expect(result).toBe("swapped");
+
+      const week = await getOpenWeekPlan(TEST_USER);
+      const mon = week!.days[0];
+      const sat = week!.days[5];
+      expect(mon.workouts[0].type).toBe("Endurance");
+      expect(mon.workouts[0].durationMins).toBe(40);
+      expect(
+        blockFits(mon, mon.workouts[0].blockIdx, mon.workouts[0].durationMins)
+      ).toBe(true);
+      expect(sat.workouts[0].type).toBe("Tempo");
+      expect(sat.workouts[0].durationMins).toBe(45);
+      expect(
+        blockFits(sat, sat.workouts[0].blockIdx, sat.workouts[0].durationMins)
+      ).toBe(true);
+    });
+  }
+);

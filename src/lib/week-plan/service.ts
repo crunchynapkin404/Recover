@@ -454,6 +454,15 @@ export async function moveWorkout(
 
   const from = week.days[fromIdx];
   const to = week.days[toIdx];
+  // A day can now genuinely hold two sessions (MAX_SESSIONS_PER_DAY). This
+  // signature only names a day, not which of its sessions to move, so a
+  // multi-session source is refused rather than guessed at — and moving one
+  // session out from under the other would also strand the survivor with a
+  // stale blockIdx. (The destination check below already refuses any
+  // occupied day, so this only bites on the source side, but is kept
+  // explicit in case that check ever loosens.)
+  if (from.workouts.length > 1) return "invalid";
+  if (to.workouts.length > 1) return "invalid";
   const fromWorkoutSrc = from.workouts[0] ?? null;
   if (!fromWorkoutSrc) return "invalid";
   if (from.status === "completed" || from.status === "missed") return "invalid";
@@ -522,6 +531,11 @@ export async function swapWorkouts(
 
   const from = week.days[fromIdx];
   const to = week.days[toIdx];
+  // Same conservative refusal as moveWorkout: swapping a specific session
+  // out of a multi-session day needs the caller to say which one, which
+  // this signature cannot express, so refuse rather than guess and strand
+  // the other session with a stale blockIdx.
+  if (from.workouts.length > 1 || to.workouts.length > 1) return "invalid";
   const fromWorkoutSrc = from.workouts[0] ?? null;
   const toWorkoutSrc = to.workouts[0] ?? null;
   if (!fromWorkoutSrc || !toWorkoutSrc) return "invalid";
