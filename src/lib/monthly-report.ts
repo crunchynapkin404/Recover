@@ -11,7 +11,7 @@ import { generateText } from "ai";
 import { db, schema } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { resolveProvider } from "@/lib/llm-provider";
-import { buildSystemPrompt } from "@/lib/coach-persona";
+import { buildSystemPrompt, languageDirective } from "@/lib/coach-persona";
 import { getMilestones } from "@/lib/insights/milestones";
 import { recordLlmUsage } from "@/lib/llm-usage";
 import { FALLBACK_REVIEW_HOUR } from "@/lib/weekly-review";
@@ -248,7 +248,7 @@ export async function generateMonthlyReport(
         const res = await generateText({
           model: resolved.provider(resolved.model),
           system,
-          prompt: instruction,
+          prompt: languageDirective(instruction, resolved.language),
           abortSignal: AbortSignal.timeout(15_000),
         });
         await recordLlmUsage({

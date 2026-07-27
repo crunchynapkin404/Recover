@@ -120,6 +120,30 @@ function languageRule(language: string | undefined): string {
   return `## LANGUAGE RULE (HIGHEST PRIORITY)\nYou MUST reply in the SAME language the athlete writes in. If they write Dutch, reply ONLY in Dutch. If English, reply ONLY in English. NEVER reply in Thai, Chinese, or any language the athlete did not use. This rule overrides everything else.`;
 }
 
+/**
+ * Reinforce a pinned reply language ON the instruction itself, for the five
+ * proactive surfaces (morning insight, weekly review, monthly report, ride
+ * debrief, race debrief).
+ *
+ * `languageRule()` already puts the rule first in the system prompt, which is
+ * enough in chat — the athlete's own message is a second, matching signal. The
+ * no-input surfaces have no such signal: the last thing the model reads is a
+ * long, directive ENGLISH instruction, and it can mirror that language instead.
+ * Observed live 2026-07-27 with `coach_language='nl'`. Returns the instruction
+ * unchanged on "auto" or an unrecognized code, so automatic mode is untouched.
+ */
+export function languageDirective(
+  instruction: string,
+  language: string | undefined
+): string {
+  const pinned =
+    language && language !== "auto"
+      ? SUPPORTED_COACH_LANGUAGES.find((l) => l.code === language)
+      : undefined;
+  if (!pinned) return instruction;
+  return `${instruction}\n\nWrite your entire response in ${pinned.label}. This instruction is written in English, but your reply must be in ${pinned.label} — including any headings, labels and section titles.`;
+}
+
 function buildBasePrompt(ctx: CoachPromptContext): string {
   return `${languageRule(ctx.language)}
 

@@ -6,6 +6,7 @@ import webpush from "web-push";
 import { and, eq, inArray } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { decrypt, encrypt } from "@/lib/crypto";
+import { vapidRecoveryAction } from "@/lib/vapid-recovery";
 import { logger } from "@/lib/logger";
 import { getLatestMorningInsight } from "@/lib/morning-insight";
 
@@ -115,7 +116,18 @@ async function readVapidRows(): Promise<VapidKeys | null> {
   if (!pub || !priv) return null;
   try {
     return { publicKey: pub, privateKey: decrypt(priv) };
-  } catch {
+  } catch (err) {
+    if (vapidRecoveryAction(err) === "rethrow") {
+      // ENCRYPTION_KEY is missing or malformed in THIS process. The stored
+      // pair is intact and will decrypt again once the key is back, so
+      // regenerating here would destroy working keys over a config blip and
+      // silently orphan every push subscription instance-wide. Fail loudly.
+      logger.error(
+        "VAPID private key unreadable: ENCRYPTION_KEY unavailable — keeping the stored pair; fix the env and retry",
+        { message: err instanceof Error ? err.message : String(err) }
+      );
+      throw err;
+    }
     // ENCRYPTION_KEY was rotated (or the row is corrupt): the stored private
     // key is unrecoverable. Drop the pair so a fresh one is generated —
     // existing subscriptions will fail against the new key and get pruned;

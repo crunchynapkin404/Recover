@@ -14,7 +14,7 @@ import { generateText, stepCountIs } from "ai";
 import { db, schema } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { resolveProvider } from "@/lib/llm-provider";
-import { buildSystemPrompt } from "@/lib/coach-persona";
+import { buildSystemPrompt, languageDirective } from "@/lib/coach-persona";
 import { fetchAthleteContext } from "@/lib/coach-context";
 import { buildAiSdkTools } from "@/lib/tools/registry";
 import { recordLlmUsage } from "@/lib/llm-usage";
@@ -235,7 +235,7 @@ export async function generateRideReview(
         const res = await generateText({
           model: resolved.provider(resolved.model),
           system,
-          prompt: instruction,
+          prompt: languageDirective(instruction, resolved.language),
           tools: memoryTools,
           stopWhen: stepCountIs(3),
           abortSignal: AbortSignal.timeout(15_000),
