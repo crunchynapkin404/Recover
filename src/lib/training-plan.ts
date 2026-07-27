@@ -538,6 +538,53 @@ function generateTriathlonWorkouts(
   return workouts.sort((a, b) => a.day - b.day);
 }
 
+/**
+ * Seeds a standard week for a brand-new athlete so rolloverWeekPlan never
+ * silently resolves to an all-rest week for someone who has never touched
+ * Settings → Availability. Spreads hoursPerWeek across the last
+ * daysPerWeek days of the week (Sunday backwards), one untimed block per
+ * training day — the same shape migration 0031's fallback produces, and
+ * the same shape the deleted prefillAvailability produced for a fresh
+ * athlete, so a backfilled athlete and a newly created one end up
+ * consistent. Never touches a day the athlete already configured: rows are
+ * inserted only where no (userId, weekday) row exists yet.
+ */
+async function seedAvailabilityDefaults(
+  userId: string,
+  daysPerWeek: number,
+  hoursPerWeek: number
+): Promise<void> {
+  const perDayMins =
+    daysPerWeek > 0
+      ? Math.max(0, Math.round((hoursPerWeek * 60) / daysPerWeek / 5) * 5)
+      : 0;
+  const rows = Array.from({ length: 7 }, (_, weekday) => ({
+    userId,
+    weekday,
+    blocks:
+      daysPerWeek > 0 && weekday >= 7 - daysPerWeek
+        ? [
+            {
+              start: null,
+              end: null,
+              mins: perDayMins,
+              energy: "normal" as const,
+              sports: null,
+            },
+          ]
+        : [],
+  }));
+  await db
+    .insert(schema.availabilityDefaults)
+    .values(rows)
+    .onConflictDoNothing({
+      target: [
+        schema.availabilityDefaults.userId,
+        schema.availabilityDefaults.weekday,
+      ],
+    });
+}
+
 // ── Main entry point ────────────────────────────────────────────────────────
 
 export async function generateTrainingPlan(
@@ -634,6 +681,8 @@ export async function generateTrainingPlan(
       constraints: { daysPerWeek, hoursPerWeek, sports },
     })
     .returning();
+
+  await seedAvailabilityDefaults(userId, daysPerWeek, hoursPerWeek);
 
   for (const block of blocks) {
     await db.insert(schema.trainingBlocks).values({
