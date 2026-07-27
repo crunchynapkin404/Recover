@@ -128,6 +128,28 @@ describe("effectiveWeekLoad (hand-computed fixtures)", () => {
 
 import { materializeWeek } from "./materialize";
 import { isQuality } from "./types";
+import type { AvailabilityBlock } from "@/lib/availability/types";
+
+/**
+ * Legacy per-day-minutes fixtures, wrapped into a single full-energy block
+ * per day (or no blocks at all when a day's number is 0). These tests only
+ * ever cared about "how much time on this day", not block shape.
+ */
+function blocksPerDay(mins: number[]): AvailabilityBlock[][] {
+  return mins.map((m) =>
+    m > 0
+      ? [
+          {
+            start: null,
+            end: null,
+            mins: m,
+            energy: "full" as const,
+            sports: null,
+          },
+        ]
+      : []
+  );
+}
 
 const baseInput = {
   weekStart: "2026-07-20", // a Monday
@@ -148,7 +170,7 @@ describe("materializeWeek layout", () => {
   it("produces exactly 7 days, Monday first, dates consecutive", () => {
     const r = materializeWeek({
       ...baseInput,
-      availabilityMins: [60, 90, 0, 60, 45, 120, 150],
+      availableBlocksPerDay: blocksPerDay([60, 90, 0, 60, 45, 120, 150]),
     });
     expect(r.week.days).toHaveLength(7);
     expect(r.week.days[0].date).toBe("2026-07-20");
@@ -158,7 +180,7 @@ describe("materializeWeek layout", () => {
   it("puts the longest session on the roomiest day", () => {
     const r = materializeWeek({
       ...baseInput,
-      availabilityMins: [60, 90, 0, 60, 45, 120, 150],
+      availableBlocksPerDay: blocksPerDay([60, 90, 0, 60, 45, 120, 150]),
     });
     const sunday = r.week.days[6]; // 150 mins — roomiest
     const durations = r.week.days
@@ -170,7 +192,7 @@ describe("materializeWeek layout", () => {
   it("gives a zero-availability day rest, never a workout", () => {
     const r = materializeWeek({
       ...baseInput,
-      availabilityMins: [60, 90, 0, 60, 45, 120, 150],
+      availableBlocksPerDay: blocksPerDay([60, 90, 0, 60, 45, 120, 150]),
     });
     expect(r.week.days[2].workouts).toHaveLength(0);
     expect(r.week.days[2].status).toBe("rest");
@@ -179,7 +201,7 @@ describe("materializeWeek layout", () => {
   it("never schedules quality sessions on consecutive days", () => {
     const r = materializeWeek({
       ...baseInput,
-      availabilityMins: [90, 90, 90, 90, 90, 90, 90],
+      availableBlocksPerDay: blocksPerDay([90, 90, 90, 90, 90, 90, 90]),
     });
     for (let i = 1; i < 7; i++) {
       const both =
@@ -192,7 +214,7 @@ describe("materializeWeek layout", () => {
   it("shortens a workout that exceeds its day and logs no_time", () => {
     const r = materializeWeek({
       ...baseInput,
-      availabilityMins: [30, 30, 30, 30, 30, 30, 30],
+      availableBlocksPerDay: blocksPerDay([30, 30, 30, 30, 30, 30, 30]),
     });
     for (const d of r.week.days) {
       if (d.workouts[0])
@@ -204,11 +226,11 @@ describe("materializeWeek layout", () => {
   it("availability wins: too few hours lowers effectiveLoad and logs it", () => {
     const roomy = materializeWeek({
       ...baseInput,
-      availabilityMins: [90, 90, 90, 90, 90, 90, 90],
+      availableBlocksPerDay: blocksPerDay([90, 90, 90, 90, 90, 90, 90]),
     });
     const tight = materializeWeek({
       ...baseInput,
-      availabilityMins: [45, 45, 0, 0, 45, 45, 60],
+      availableBlocksPerDay: blocksPerDay([45, 45, 0, 0, 45, 45, 60]),
     });
     expect(tight.effectiveLoad).toBeLessThan(roomy.effectiveLoad);
     expect(
@@ -221,7 +243,7 @@ describe("materializeWeek layout", () => {
   it("an all-zero availability week is all rest — no invented sessions", () => {
     const r = materializeWeek({
       ...baseInput,
-      availabilityMins: [0, 0, 0, 0, 0, 0, 0],
+      availableBlocksPerDay: blocksPerDay([0, 0, 0, 0, 0, 0, 0]),
     });
     expect(r.week.days.every((d) => d.workouts.length === 0)).toBe(true);
     expect(r.week.days.every((d) => d.status === "rest")).toBe(true);
@@ -239,7 +261,7 @@ describe("materializeWeek layout", () => {
       skeleton: { ...baseInput.skeleton, phase: "build", targetSessions: 5 },
       raceType: "ironman",
       sports: ["Swim", "Bike", "Run"],
-      availabilityMins: [90, 90, 90, 90, 90, 0, 0],
+      availableBlocksPerDay: blocksPerDay([90, 90, 90, 90, 90, 0, 0]),
     });
     for (let i = 1; i < 7; i++) {
       const both =
@@ -252,7 +274,7 @@ describe("materializeWeek layout", () => {
   it("keeps the primary (longest) session when generateWorkouts over-produces for a small session count", () => {
     const r = materializeWeek({
       ...baseInput,
-      availabilityMins: [0, 0, 0, 0, 0, 0, 90],
+      availableBlocksPerDay: blocksPerDay([0, 0, 0, 0, 0, 0, 90]),
     });
     const placed = r.week.days.filter((d) => d.workouts.length > 0);
     expect(placed).toHaveLength(1);
@@ -301,7 +323,7 @@ const SKELETON = {
 const BASE_INPUT = {
   weekStart: "2026-08-24",
   skeleton: SKELETON,
-  availabilityMins: AVAIL,
+  availableBlocksPerDay: blocksPerDay(AVAIL),
   prevWeek: { actualLoad: 380, adherencePct: 95 },
   recentBands: [] as import("./types").Band[],
   raceType: "marathon",
@@ -398,5 +420,116 @@ describe("materializeWeek race handling", () => {
     expect(r.week.days[6].status).toBe("race");
     expect(r.week.days[5].status).toBe("race");
     expect(r.effectiveLoad).toBe(171); // A won the reshaping
+  });
+});
+
+describe("materializeWeek — block fitting", () => {
+  const blocks = (mins: number[]) =>
+    mins.map((m) => ({
+      start: null,
+      end: null,
+      mins: m,
+      energy: "full" as const,
+      sports: null,
+    }));
+
+  const base = {
+    weekStart: "2026-08-03",
+    skeleton: {
+      weekNumber: 3,
+      phase: "build" as const,
+      targetLoadTotal: 400,
+      targetSessions: 4,
+    },
+    prevWeek: null,
+    recentBands: [],
+    raceType: "Gran Fondo",
+    sports: ["Bike"],
+    hoursPerWeek: 8,
+  };
+
+  it("never schedules a session longer than any single block", () => {
+    const r = materializeWeek({
+      ...base,
+      availableBlocksPerDay: [
+        blocks([45, 60]), // 105 total, but no block over 60
+        blocks([]),
+        blocks([]),
+        blocks([]),
+        blocks([]),
+        blocks([]),
+        blocks([]),
+      ],
+    });
+    for (const d of r.week.days) {
+      for (const w of d.workouts) {
+        expect(
+          Math.max(0, ...d.availableBlocks.map((b) => b.mins))
+        ).toBeGreaterThanOrEqual(w.durationMins);
+      }
+    }
+  });
+
+  it("does not truncate a session to fit — it places a fitting one instead", () => {
+    const r = materializeWeek({
+      ...base,
+      availableBlocksPerDay: [
+        blocks([50]),
+        blocks([50]),
+        blocks([50]),
+        blocks([50]),
+        blocks([50]),
+        blocks([50]),
+        blocks([50]),
+      ],
+    });
+    // Every placed session is at or above its own floor: nothing was
+    // clipped below the point where it stops delivering its stimulus.
+    for (const d of r.week.days) {
+      for (const w of d.workouts) {
+        expect(w.durationMins).toBeGreaterThanOrEqual(w.minEffectiveMins);
+      }
+    }
+  });
+
+  it("never drops a session without saying why", () => {
+    const r = materializeWeek({
+      ...base,
+      availableBlocksPerDay: [
+        blocks([30]),
+        blocks([30]),
+        blocks([30]),
+        blocks([30]),
+        blocks([30]),
+        blocks([30]),
+        blocks([30]),
+      ],
+    });
+    const planned = r.week.days.reduce((s, d) => s + d.workouts.length, 0);
+    // Whatever the engine could not place must be accounted for.
+    if (planned < base.skeleton.targetSessions) {
+      expect(
+        r.adjustments.some(
+          (a) => a.action === "dropped" || a.action === "swapped"
+        )
+      ).toBe(true);
+    }
+  });
+
+  it("can place two sessions on a day with two blocks", () => {
+    const r = materializeWeek({
+      ...base,
+      skeleton: { ...base.skeleton, targetSessions: 2 },
+      availableBlocksPerDay: [
+        blocks([90, 90]),
+        blocks([]),
+        blocks([]),
+        blocks([]),
+        blocks([]),
+        blocks([]),
+        blocks([]),
+      ],
+    });
+    expect(r.week.days[0].workouts.length).toBe(2);
   });
 });

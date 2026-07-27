@@ -10,6 +10,7 @@ import { prefillAvailability } from "./availability";
 import { isQuality } from "./types";
 import type { AdjustmentRecord, Band, DaySlot } from "./types";
 import { blockMins } from "@/lib/availability/types";
+import type { AvailabilityBlock } from "@/lib/availability/types";
 
 export type AdjustmentRow = typeof schema.planAdjustments.$inferSelect;
 
@@ -38,6 +39,28 @@ function addDaysYmd(ymd: string, n: number): string {
   const d = new Date(ymd + "T00:00:00");
   d.setDate(d.getDate() + n);
   return localYmd(d);
+}
+
+/**
+ * Interim: this service still only knows one number per day (prefill /
+ * the availability-change form). Wrap it into materializeWeek's block
+ * shape as a single block, or no blocks at all when the day is empty.
+ * Task 9 replaces this with the real per-day block resolver.
+ */
+function wrapMinsAsBlocks(mins: number[]): AvailabilityBlock[][] {
+  return mins.map((m) =>
+    m > 0
+      ? [
+          {
+            start: null,
+            end: null,
+            mins: m,
+            energy: "normal" as const,
+            sports: null,
+          },
+        ]
+      : []
+  );
 }
 
 interface PlanConstraints {
@@ -243,7 +266,7 @@ export async function rolloverWeekPlan(
       targetLoadTotal: skeleton.targetLoadTotal ?? 0,
       targetSessions: skeleton.targetSessions ?? 0,
     },
-    availabilityMins,
+    availableBlocksPerDay: wrapMinsAsBlocks(availabilityMins),
     prevWeek,
     recentBands: await recentBands(userId),
     raceType: plan.raceType,
@@ -424,7 +447,7 @@ export async function applyAvailability(
       targetLoadTotal: skeleton.targetLoadTotal ?? 0,
       targetSessions: skeleton.targetSessions ?? 0,
     },
-    availabilityMins,
+    availableBlocksPerDay: wrapMinsAsBlocks(availabilityMins),
     prevWeek:
       prevBlock?.actualLoad != null
         ? {
