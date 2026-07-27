@@ -325,6 +325,31 @@ describe("adaptDay — readiness and availability", () => {
     expect(r.week.days[2].workouts[0]!.durationMins).toBe(21);
   });
 
+  it("no-time shortening caps duration to the occupied block's own capacity, not the day's total across blocks", () => {
+    const w = base();
+    // Today carries two blocks: the 20min block its own workout occupies
+    // (blockIdx 0) and an untouched, much roomier 200min sibling (blockIdx
+    // 1). The shortening must be judged against the block the workout
+    // actually occupies (20min), never the day's 220min total.
+    w.days[1] = {
+      ...w.days[1],
+      availableBlocks: [
+        { start: null, end: null, mins: 20, energy: "normal", sports: null },
+        { start: null, end: null, mins: 200, energy: "normal", sports: null },
+      ],
+    };
+    const r = adaptDay({
+      week: w,
+      today: "2026-07-21",
+      band: "green",
+      yesterdayCompleted: null,
+    });
+    const shortened = r.week.days[1].workouts[0]!;
+    expect(shortened.durationMins).toBeLessThanOrEqual(
+      blockMins(r.week.days[1].availableBlocks[shortened.blockIdx]!)
+    );
+  });
+
   it("a roomy sibling block does not excuse a session in its own shrunk block", () => {
     const w = base();
     // Today now carries two blocks: its own occupied block (blockIdx 0)

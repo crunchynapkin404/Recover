@@ -6,7 +6,6 @@ import {
   AMBER_SCALE,
   blockFits,
   DAY_REDISTRIBUTE_CAP_PCT,
-  dayMins,
   isQuality,
   RED_ENDURANCE_SCALE,
   RED_RECOVERY_MINS,
@@ -151,8 +150,9 @@ export function adaptDay(input: AdaptDayInput): AdaptDayResult {
     const before = [
       { ...today, workouts: today.workouts.map((w) => ({ ...w })) },
     ];
-    const roomToday = dayMins(today);
-    if (roomToday === 0) {
+    const block = today.availableBlocks[todayWorkout.blockIdx];
+    const blockCapacity = block ? blockMins(block) : 0;
+    if (blockCapacity === 0) {
       const workout = todayWorkout;
       week.days[todayIdx] = { ...today, workouts: [], status: "rest" };
       const target = week.days.findIndex(
@@ -187,7 +187,7 @@ export function adaptDay(input: AdaptDayInput): AdaptDayResult {
             : `no time on ${today.date} — ${workout.type} dropped`,
       });
     } else {
-      todayWorkout.durationMins = roomToday;
+      todayWorkout.durationMins = blockCapacity;
       today.status = "adapted";
       adjustments.push({
         date: today.date,
@@ -195,7 +195,7 @@ export function adaptDay(input: AdaptDayInput): AdaptDayResult {
         action: "scaled",
         before,
         after: [{ ...today, workouts: today.workouts.map((w) => ({ ...w })) }],
-        reason: `shortened to fit available time (${roomToday}min)`,
+        reason: `shortened to fit available time (${blockCapacity}min)`,
       });
     }
   }
