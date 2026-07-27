@@ -68,6 +68,23 @@ export function admits(
   return true;
 }
 
+/**
+ * The block on `dayIdx` that should hold this session, or null when none
+ * admits it. Deterministic: candidates are tried roomiest-first, then by
+ * block index, exactly as buildSlots orders them.
+ */
+export function findBlockFor(
+  days: DaySlot[],
+  dayIdx: number,
+  w: PlannedWorkout,
+  taken: Set<string>
+): number | null {
+  const slot = buildSlots(days)
+    .filter((s) => s.dayIdx === dayIdx)
+    .find((s) => admits(s, w, days, taken));
+  return slot ? slot.blockIdx : null;
+}
+
 /** The display label a substituted purpose is shown under. */
 export const TYPE_BY_PURPOSE: Record<
   Purpose,

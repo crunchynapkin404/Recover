@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { and, eq } from "drizzle-orm";
+import { withPurpose } from "@/lib/training-plan";
 
 /**
  * Integration tests for the v0.9.2 week-plan service layer. Same idiom as
@@ -41,6 +42,12 @@ const todayYmd = localYmd(new Date());
 
 let planId: string;
 
+// "full" energy: matches materialize.test.ts's and replan.test.ts's default
+// block helpers, so a seeded day's ordinary block admits any session type
+// (including seededDays()'s Intervals/vo2max session) unless a test
+// deliberately narrows it. moveWorkout/swapWorkouts now route cross-day
+// placement through admits() (Task 9b), which enforces the energy ceiling
+// that this suite was never exercising before.
 function blocksFor(mins: number) {
   return mins > 0
     ? [
@@ -48,7 +55,7 @@ function blocksFor(mins: number) {
           start: null,
           end: null,
           mins,
-          energy: "normal" as const,
+          energy: "full" as const,
           sports: null,
         },
       ]
@@ -75,7 +82,7 @@ function seededDays() {
         availableBlocks: blocksFor(60),
         availableMins: 60,
         workouts: [
-          {
+          withPurpose({
             day: i,
             sport: "Run",
             type: "Intervals",
@@ -83,7 +90,7 @@ function seededDays() {
             intensity: "Z4-Z5",
             description: "Interval session",
             blockIdx: 0,
-          },
+          }),
         ],
         status: "planned" as const,
       };
@@ -600,16 +607,17 @@ describe.skipIf(!hasDb)("week-plan service", () => {
     expect(source.status).toBe("planned");
   });
 
-  it("moveWorkout refuses a target whose OWN block (not a roomier sibling) is too small", async () => {
+  it("moveWorkout picks the roomier sibling block when the carried index would be too small (Task 9b)", async () => {
     const { db, schema } = await import("@/lib/db");
     const { moveWorkout, getOpenWeekPlan } =
       await import("@/lib/week-plan/service");
 
-    // The workout occupies blockIdx 0 wherever it lands (carried across
-    // days unchanged — a later task's concern). The target's block 0 is
-    // only 10min, far short of the 50min Intervals session; its block 1
-    // is a roomy 120min. A day-level "does some block fit?" check would
-    // wrongly admit this move.
+    // The target's block 0 is only 10min, far short of the 50min Intervals
+    // session; its block 1 is a roomy 120min. Before Task 9b, blockIdx was
+    // carried unchanged (0) and this move was refused even though the day
+    // plainly had room elsewhere — that carried-index bug is exactly what
+    // Task 9b fixes: the engine now searches every block on the destination
+    // day and records whichever one actually admits the session.
     const toDate = seededDays().find((d) => d.date !== todayYmd)!.date;
     const days = seededDays().map((d) =>
       d.date === toDate
@@ -620,14 +628,14 @@ describe.skipIf(!hasDb)("week-plan service", () => {
                 start: null,
                 end: null,
                 mins: 10,
-                energy: "normal" as const,
+                energy: "full" as const,
                 sports: null,
               },
               {
                 start: null,
                 end: null,
                 mins: 120,
-                energy: "normal" as const,
+                energy: "full" as const,
                 sports: null,
               },
             ],
@@ -644,12 +652,15 @@ describe.skipIf(!hasDb)("week-plan service", () => {
       status: "open",
     });
 
-    expect(await moveWorkout(USER, todayYmd, toDate)).toBe("invalid");
+    expect(await moveWorkout(USER, todayYmd, toDate)).toBe("moved");
 
     const week = await getOpenWeekPlan(USER);
+    const dest = week!.days.find((d) => d.date === toDate)!;
+    expect(dest.workouts[0]?.type).toBe("Intervals");
+    expect(dest.workouts[0]?.blockIdx).toBe(1);
     const source = week!.days.find((d) => d.date === todayYmd)!;
-    expect(source.workouts[0]?.type).toBe("Intervals");
-    expect(source.status).toBe("planned");
+    expect(source.workouts).toHaveLength(0);
+    expect(source.status).toBe("rest");
   });
 
   it("swapWorkouts exchanges two days when both fit", async () => {
@@ -664,7 +675,7 @@ describe.skipIf(!hasDb)("week-plan service", () => {
         ? {
             ...d,
             workouts: [
-              {
+              withPurpose({
                 day: 0,
                 sport: "Run",
                 type: "Endurance",
@@ -672,7 +683,7 @@ describe.skipIf(!hasDb)("week-plan service", () => {
                 intensity: "Z1-Z2",
                 description: "Easy run",
                 blockIdx: 0,
-              },
+              }),
             ],
             status: "planned" as const,
           }

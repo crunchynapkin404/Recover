@@ -8,8 +8,9 @@ import { materializeWeek } from "./materialize";
 import { adaptDay } from "./adapt-day";
 import { replanWeek } from "./replan";
 import { resolveWeek } from "@/lib/availability/resolve";
-import { blockFits, dayMins, isQuality } from "./types";
+import { dayMins } from "./types";
 import type { AdjustmentRecord, Band, DaySlot } from "./types";
+import { findBlockFor } from "./slots";
 import type { AvailabilityBlock } from "@/lib/availability/types";
 
 export type AdjustmentRow = typeof schema.planAdjustments.$inferSelect;
@@ -459,15 +460,11 @@ export async function moveWorkout(
   if (to.workouts.length > 0) return "invalid";
   if (to.status === "completed" || to.status === "missed") return "invalid";
   if (to.status === "race") return "invalid";
-  if (!blockFits(to, fromWorkoutSrc.blockIdx, fromWorkoutSrc.durationMins))
-    return "invalid";
 
   const days = week.days.map((d) => ({
     ...d,
     workouts: d.workouts.map((w) => ({ ...w })),
   }));
-  // interim: Task 9 — blockIdx is carried across days unchecked; safe only
-  // while every day has one block.
   const workout = days[fromIdx].workouts[0]!;
   days[fromIdx] = {
     ...days[fromIdx],
@@ -475,22 +472,21 @@ export async function moveWorkout(
     status: "rest",
     movedFrom: undefined,
   };
-  if (
-    isQuality(workout) &&
-    (isQuality(days[toIdx - 1]?.workouts[0] ?? null) ||
-      isQuality(days[toIdx + 1]?.workouts[0] ?? null))
-  ) {
-    return "invalid";
-  }
+
+  // The destination's own workouts are already empty (checked above), so
+  // nothing on that day is taken; admits() picks the block, size, sport,
+  // energy ceiling and quality adjacency all in one test — not a day-level
+  // "does some block fit?" check.
+  const blockIdx = findBlockFor(days, toIdx, workout, new Set());
+  if (blockIdx == null) return "invalid";
+
   const before = [
     { ...from, workouts: from.workouts.map((w) => ({ ...w })) },
     { ...to, workouts: [] },
   ];
-  // interim: Task 9 — blockIdx is carried across days unchecked; safe only
-  // while every day has one block.
   days[toIdx] = {
     ...days[toIdx],
-    workouts: [workout],
+    workouts: [{ ...workout, blockIdx }],
     status: "moved",
     movedFrom: fromDate,
   };
@@ -532,12 +528,6 @@ export async function swapWorkouts(
   for (const d of [from, to]) {
     if (d.status === "completed" || d.status === "missed") return "invalid";
   }
-  if (
-    !blockFits(to, fromWorkoutSrc.blockIdx, fromWorkoutSrc.durationMins) ||
-    !blockFits(from, toWorkoutSrc.blockIdx, toWorkoutSrc.durationMins)
-  ) {
-    return "invalid";
-  }
 
   const days = week.days.map((d) => ({
     ...d,
@@ -547,11 +537,30 @@ export async function swapWorkouts(
     { ...from, workouts: from.workouts.map((w) => ({ ...w })) },
     { ...to, workouts: to.workouts.map((w) => ({ ...w })) },
   ];
-  // interim: Task 9 — blockIdx is carried across days unchecked; safe only
-  // while every day has one block.
-  const fromWorkout = days[fromIdx].workouts[0]!;
-  days[fromIdx] = { ...days[fromIdx], workouts: days[toIdx].workouts };
-  days[toIdx] = { ...days[toIdx], workouts: [fromWorkout] };
+
+  // Each session must land in a block on its NEW day that actually admits
+  // it, not the index it happened to carry from its old one. Both days are
+  // cleared first so a session's own departure is never mistaken for an
+  // occupant, then placed one at a time so the second placement sees the
+  // first's final position — matters only when fromDate and toDate are
+  // adjacent, which is exactly when admits()'s quality-adjacency check
+  // needs the real post-swap neighbour, not the pre-swap one.
+  days[fromIdx] = { ...days[fromIdx], workouts: [] };
+  days[toIdx] = { ...days[toIdx], workouts: [] };
+
+  const toBlockIdx = findBlockFor(days, toIdx, fromWorkoutSrc, new Set());
+  if (toBlockIdx == null) return "invalid";
+  days[toIdx] = {
+    ...days[toIdx],
+    workouts: [{ ...fromWorkoutSrc, blockIdx: toBlockIdx }],
+  };
+
+  const fromBlockIdx = findBlockFor(days, fromIdx, toWorkoutSrc, new Set());
+  if (fromBlockIdx == null) return "invalid";
+  days[fromIdx] = {
+    ...days[fromIdx],
+    workouts: [{ ...toWorkoutSrc, blockIdx: fromBlockIdx }],
+  };
 
   await db
     .update(schema.weekPlans)

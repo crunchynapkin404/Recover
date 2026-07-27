@@ -1,0 +1,238 @@
+import { describe, expect, it, beforeAll, afterAll, beforeEach } from "vitest";
+import { eq } from "drizzle-orm";
+import { db, schema } from "@/lib/db";
+import { getOpenWeekPlan, moveWorkout, swapWorkouts } from "./service";
+import { blockFits } from "./types";
+import type { DaySlot, ScheduledWorkout } from "./types";
+import { withPurpose } from "@/lib/training-plan";
+import type { AvailabilityBlock } from "@/lib/availability/types";
+
+// requires Postgres; skips without DATABASE_URL.
+const hasDb =
+  !!process.env.DATABASE_URL && process.env.DATABASE_DRIVER === "pg";
+
+const TEST_USER = "test-week-plan-service-user";
+const WEEK_START = "2026-07-20"; // Monday
+
+function blk(
+  mins: number,
+  energy: AvailabilityBlock["energy"] = "full"
+): AvailabilityBlock {
+  return { start: null, end: null, mins, energy, sports: null };
+}
+
+function sw(o: Partial<ScheduledWorkout> = {}): ScheduledWorkout {
+  return withPurpose({
+    day: 0,
+    sport: "Run",
+    type: "Endurance",
+    durationMins: 45,
+    intensity: "Z1-Z2",
+    description: "Easy run",
+    blockIdx: 0,
+    ...o,
+  });
+}
+
+function emptyDay(
+  date: string,
+  blocks: AvailabilityBlock[] = [blk(60)]
+): DaySlot {
+  return {
+    date,
+    availableBlocks: blocks,
+    availableMins: blocks.reduce((s, b) => s + b.mins, 0),
+    workouts: [],
+    status: "rest",
+  };
+}
+
+function weekDates(): string[] {
+  const out: string[] = [];
+  const d = new Date(WEEK_START + "T00:00:00");
+  for (let i = 0; i < 7; i++) {
+    out.push(
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+        d.getDate()
+      ).padStart(2, "0")}`
+    );
+    d.setDate(d.getDate() + 1);
+  }
+  return out;
+}
+const DATES = weekDates();
+
+/**
+ * Task 9b: moveWorkout and swapWorkouts must pick whichever block on the
+ * destination day actually admits the session — never carry the origin's
+ * blockIdx across unchecked, and never decide fit with a day-level "does
+ * some block work?" question.
+ */
+describe.skipIf(!hasDb)(
+  "moveWorkout / swapWorkouts — block-aware placement (Task 9b)",
+  () => {
+    let planId: string;
+
+    beforeAll(async () => {
+      await db
+        .insert(schema.users)
+        .values({
+          id: TEST_USER,
+          name: "Test Week Plan Service User",
+          email: `${TEST_USER}@example.invalid`,
+        })
+        .onConflictDoNothing();
+
+      const [plan] = await db
+        .insert(schema.trainingPlans)
+        .values({
+          userId: TEST_USER,
+          title: "Test Plan",
+          raceType: "marathon",
+          raceDate: "2026-12-01",
+          startDate: "2026-01-01",
+          weeksTotal: 16,
+          currentWeek: 1,
+          status: "active",
+        })
+        .returning();
+      planId = plan.id;
+    });
+
+    afterAll(async () => {
+      await db
+        .delete(schema.weekPlans)
+        .where(eq(schema.weekPlans.userId, TEST_USER));
+      await db
+        .delete(schema.trainingPlans)
+        .where(eq(schema.trainingPlans.userId, TEST_USER));
+      await db.delete(schema.users).where(eq(schema.users.id, TEST_USER));
+    });
+
+    beforeEach(async () => {
+      await db
+        .delete(schema.weekPlans)
+        .where(eq(schema.weekPlans.userId, TEST_USER));
+    });
+
+    async function seedWeek(days: DaySlot[]): Promise<void> {
+      await db.insert(schema.weekPlans).values({
+        userId: TEST_USER,
+        planId,
+        weekStart: WEEK_START,
+        skeletonWeek: 1,
+        days,
+        status: "open",
+        effectiveTarget: 300,
+      });
+    }
+
+    it("moveWorkout onto a day whose only fitting block is not index 0", async () => {
+      const days = DATES.map((d) => emptyDay(d));
+      days[0].availableBlocks = [blk(90)];
+      days[0].workouts = [sw({ durationMins: 90, blockIdx: 0 })];
+      days[0].status = "planned";
+      // Destination's only fitting block sits at index 1 — the 20min block
+      // at index 0 (the carried index) is too small.
+      days[1].availableBlocks = [blk(20), blk(120)];
+      await seedWeek(days);
+
+      const result = await moveWorkout(TEST_USER, DATES[0], DATES[1]);
+      expect(result).toBe("moved");
+
+      const week = await getOpenWeekPlan(TEST_USER);
+      const dest = week!.days[1];
+      expect(dest.workouts).toHaveLength(1);
+      expect(dest.workouts[0].blockIdx).toBe(1);
+      expect(
+        blockFits(
+          dest,
+          dest.workouts[0].blockIdx,
+          dest.workouts[0].durationMins
+        )
+      ).toBe(true);
+    });
+
+    it("moveWorkout refuses a day where the only large-enough block is already occupied", async () => {
+      const days = DATES.map((d) => emptyDay(d));
+      days[0].availableBlocks = [blk(90)];
+      days[0].workouts = [sw({ durationMins: 90, blockIdx: 0 })];
+      days[0].status = "planned";
+      days[1].availableBlocks = [blk(20), blk(120)];
+      days[1].workouts = [sw({ durationMins: 100, blockIdx: 1 })];
+      days[1].status = "planned";
+      await seedWeek(days);
+
+      const result = await moveWorkout(TEST_USER, DATES[0], DATES[1]);
+      expect(result).toBe("invalid");
+
+      // Not silently double-booked: the destination day is untouched.
+      const week = await getOpenWeekPlan(TEST_USER);
+      expect(week!.days[1].workouts).toHaveLength(1);
+      expect(week!.days[1].workouts[0].blockIdx).toBe(1);
+    });
+
+    it("moveWorkout corrects blockIdx to 0 when the destination day has fewer blocks than the carried index", async () => {
+      const days = DATES.map((d) => emptyDay(d));
+      days[0].availableBlocks = [blk(60), blk(90)];
+      days[0].workouts = [sw({ durationMins: 80, blockIdx: 1 })];
+      days[0].status = "planned";
+      // Destination has a single block — the carried index (1) points at
+      // nothing there, but block 0 plainly fits.
+      days[1].availableBlocks = [blk(90)];
+      await seedWeek(days);
+
+      const result = await moveWorkout(TEST_USER, DATES[0], DATES[1]);
+      expect(result).toBe("moved");
+
+      const week = await getOpenWeekPlan(TEST_USER);
+      const dest = week!.days[1];
+      expect(dest.workouts[0].blockIdx).toBe(0);
+      expect(
+        blockFits(
+          dest,
+          dest.workouts[0].blockIdx,
+          dest.workouts[0].durationMins
+        )
+      ).toBe(true);
+    });
+
+    it("swapWorkouts keeps both sessions in blocks that fit them, correcting each carried index", async () => {
+      const days = DATES.map((d) => emptyDay(d));
+      // Monday: a small 20min block and a roomy 150min sibling. Its own
+      // 45min session sits in the roomy one (blockIdx 1).
+      days[0].availableBlocks = [blk(20), blk(150)];
+      days[0].workouts = [sw({ durationMins: 45, blockIdx: 1 })];
+      days[0].status = "planned";
+      // Thursday: a roomy 100min block and a tiny 10min sibling. Its own
+      // 80min session sits in the roomy one (blockIdx 0).
+      days[3].availableBlocks = [blk(100), blk(10)];
+      days[3].workouts = [sw({ durationMins: 80, blockIdx: 0 })];
+      days[3].status = "planned";
+      await seedWeek(days);
+
+      const result = await swapWorkouts(TEST_USER, DATES[0], DATES[3]);
+      expect(result).toBe("swapped");
+
+      const week = await getOpenWeekPlan(TEST_USER);
+      const mon = week!.days[0];
+      const thu = week!.days[3];
+
+      // Thursday's 80min session, carried index 0, must land in Monday's
+      // 150min block (index 1) — its own 20min block at index 0 is too small.
+      expect(mon.workouts[0].durationMins).toBe(80);
+      expect(mon.workouts[0].blockIdx).toBe(1);
+      expect(
+        blockFits(mon, mon.workouts[0].blockIdx, mon.workouts[0].durationMins)
+      ).toBe(true);
+
+      // Monday's 45min session, carried index 1, must land in Thursday's
+      // 100min block (index 0) — its own 10min block at index 1 is too small.
+      expect(thu.workouts[0].durationMins).toBe(45);
+      expect(thu.workouts[0].blockIdx).toBe(0);
+      expect(
+        blockFits(thu, thu.workouts[0].blockIdx, thu.workouts[0].durationMins)
+      ).toBe(true);
+    });
+  }
+);

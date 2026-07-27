@@ -1,14 +1,19 @@
 // src/lib/week-plan/adapt-day.test.ts
 import { describe, expect, it } from "vitest";
 import { adaptDay } from "./adapt-day";
-import { dayMins } from "./types";
+import { blockFits, dayMins } from "./types";
 import type { DaySlot, ScheduledWorkout, WeekState } from "./types";
 import { withPurpose } from "@/lib/training-plan";
 import { blockMins } from "@/lib/availability/types";
 
+// "full" energy, matching materialize.test.ts's and replan.test.ts's default
+// block helpers: a day's ordinary block should admit any session type unless
+// a test deliberately narrows it. adaptDay's move sites now route through
+// admits() (Task 9b), so an energy tier that can't host a quality session
+// would otherwise silently gate tests that were never about energy at all.
 function blocksFor(mins: number): DaySlot["availableBlocks"] {
   return mins > 0
-    ? [{ start: null, end: null, mins, energy: "normal", sports: null }]
+    ? [{ start: null, end: null, mins, energy: "full", sports: null }]
     : [];
 }
 
@@ -81,6 +86,70 @@ describe("adaptDay — missed yesterday", () => {
     expect(
       r.adjustments.some(
         (a) => a.trigger === "missed_workout" && a.action === "moved"
+      )
+    ).toBe(true);
+  });
+
+  it("missed-yesterday move-forward corrects a carried blockIdx to the block that actually admits it (Task 9b)", () => {
+    const w = week([
+      D("2026-07-20", 60, { type: "Intervals", durationMins: 50 }),
+      D("2026-07-21", 60, { durationMins: 40 }), // today: occupied, not a candidate
+      D("2026-07-22", 60, { durationMins: 40 }), // occupied
+      D("2026-07-23", 60, { durationMins: 40 }), // occupied
+      D("2026-07-24", 60, { durationMins: 40 }), // occupied
+      D("2026-07-25", 60, null), // the only free day
+      D("2026-07-26", 60, { durationMins: 40 }), // occupied
+    ]);
+    // The only free day carries two blocks: a 20min block at the carried
+    // index (0, from the missed session's own day) and a 120min sibling at
+    // index 1. Only the sibling actually fits the 50min session — a naive
+    // carry-the-index check would reject this day entirely and drop the
+    // session, even though it plainly has room.
+    w.days[5] = {
+      ...w.days[5],
+      availableBlocks: [
+        { start: null, end: null, mins: 20, energy: "full", sports: null },
+        { start: null, end: null, mins: 120, energy: "full", sports: null },
+      ],
+    };
+    const r = adaptDay({
+      week: w,
+      today: "2026-07-21",
+      band: "green",
+      yesterdayCompleted: false,
+    });
+    const moved = r.week.days.find((d) => d.movedFrom === "2026-07-20");
+    expect(moved).toBeDefined();
+    expect(moved!.workouts[0]!.blockIdx).toBe(1);
+    expect(
+      blockFits(
+        moved!,
+        moved!.workouts[0]!.blockIdx,
+        moved!.workouts[0]!.durationMins
+      )
+    ).toBe(true);
+  });
+
+  it("missed-yesterday move-forward never forces a session onto a block that can't hold it — drops it instead (Task 9b)", () => {
+    const w = week([
+      D("2026-07-20", 60, { type: "Intervals", durationMins: 50 }),
+      D("2026-07-21", 20, null),
+      D("2026-07-22", 20, null),
+      D("2026-07-23", 20, null),
+      D("2026-07-24", 20, null),
+      D("2026-07-25", 20, null),
+      D("2026-07-26", 20, null),
+    ]);
+    const r = adaptDay({
+      week: w,
+      today: "2026-07-21",
+      band: "green",
+      yesterdayCompleted: false,
+    });
+    expect(r.week.days.some((d) => d.movedFrom === "2026-07-20")).toBe(false);
+    expect(
+      r.adjustments.some(
+        (a) => a.trigger === "missed_workout" && a.action === "dropped"
       )
     ).toBe(true);
   });
@@ -298,7 +367,21 @@ describe("adaptDay — readiness and availability", () => {
   });
 
   it("zero time today: workout swaps to a later free day", () => {
-    const w = base();
+    // Own local week rather than base(): base()'s day4 Tempo session is
+    // load-bearing for other tests in this block (amber step-down), and
+    // reusing it here would put every free day adjacent to a quality
+    // session, which is exactly the scenario the next test exists to cover.
+    // This week's free days (day3, day5) sit next to non-quality sessions
+    // only, so a real admitting block exists and the move should succeed.
+    const w = week([
+      D("2026-07-20", 60, null, "rest"),
+      D("2026-07-21", 60, { type: "Intervals", durationMins: 50 }), // today
+      D("2026-07-22", 90, { durationMins: 60 }), // occupied, Endurance
+      D("2026-07-23", 60, null), // free — not adjacent to any quality day
+      D("2026-07-24", 60, null), // free
+      D("2026-07-25", 60, null), // free
+      D("2026-07-26", 120, { type: "Long", durationMins: 110 }), // occupied
+    ]);
     setMins(w.days[1], 0);
     const r = adaptDay({
       week: w,
@@ -310,6 +393,94 @@ describe("adaptDay — readiness and availability", () => {
     expect(r.week.days[1].status).toBe("rest");
     const moved = r.week.days.find((d) => d.movedFrom === "2026-07-21");
     expect(moved?.workouts[0]?.type).toBe("Intervals");
+  });
+
+  it("zero time today: drops the session (with a logged reason) when every free day sits next to a quality session", () => {
+    // Same shape as base(), but deliberately kept: today's Intervals session
+    // has nowhere to go because both remaining free days (day3, day5) are
+    // adjacent to day4's Tempo session — admits()'s quality-adjacency rule
+    // correctly refuses both, and the drop-and-explain path (pre-existing,
+    // unchanged by Task 9b) takes over instead of forcing a bad placement.
+    const w = base();
+    setMins(w.days[1], 0);
+    const r = adaptDay({
+      week: w,
+      today: "2026-07-21",
+      band: "green",
+      yesterdayCompleted: null,
+    });
+    expect(r.week.days[1].workouts).toHaveLength(0);
+    expect(r.week.days[1].status).toBe("rest");
+    expect(r.week.days.some((d) => d.movedFrom)).toBe(false);
+    const dropped = r.adjustments.find(
+      (a) => a.trigger === "no_time" && a.action === "dropped"
+    );
+    expect(dropped).toBeDefined();
+    expect(dropped!.reason).toContain("2026-07-21");
+    expect(dropped!.reason).toContain("Intervals");
+  });
+
+  it("no-time move-forward corrects a carried blockIdx to the block that actually admits it (Task 9b)", () => {
+    const w = week([
+      D("2026-07-20", 60, null, "rest"),
+      D("2026-07-21", 60, { type: "Endurance", durationMins: 45 }), // today
+      D("2026-07-22", 60, { durationMins: 40 }), // occupied
+      D("2026-07-23", 60, null), // the only free day
+      D("2026-07-24", 60, { durationMins: 40 }), // occupied
+      D("2026-07-25", 60, { durationMins: 40 }), // occupied
+      D("2026-07-26", 60, { durationMins: 40 }), // occupied
+    ]);
+    setMins(w.days[1], 0);
+    // Same shape as the missed-yesterday case: the only free day's fitting
+    // block is index 1, not the index (0) the session carries from today.
+    w.days[3] = {
+      ...w.days[3],
+      availableBlocks: [
+        { start: null, end: null, mins: 20, energy: "full", sports: null },
+        { start: null, end: null, mins: 120, energy: "full", sports: null },
+      ],
+    };
+    const r = adaptDay({
+      week: w,
+      today: "2026-07-21",
+      band: "green",
+      yesterdayCompleted: null,
+    });
+    const moved = r.week.days.find((d) => d.movedFrom === "2026-07-21");
+    expect(moved).toBeDefined();
+    expect(moved!.workouts[0]!.blockIdx).toBe(1);
+    expect(
+      blockFits(
+        moved!,
+        moved!.workouts[0]!.blockIdx,
+        moved!.workouts[0]!.durationMins
+      )
+    ).toBe(true);
+  });
+
+  it("no-time move-forward never forces a session onto a block that can't hold it — drops it instead (Task 9b)", () => {
+    const w = week([
+      D("2026-07-20", 60, null, "rest"),
+      D("2026-07-21", 60, { type: "Endurance", durationMins: 45 }),
+      D("2026-07-22", 20, null),
+      D("2026-07-23", 20, null),
+      D("2026-07-24", 20, null),
+      D("2026-07-25", 20, null),
+      D("2026-07-26", 20, null),
+    ]);
+    setMins(w.days[1], 0);
+    const r = adaptDay({
+      week: w,
+      today: "2026-07-21",
+      band: "green",
+      yesterdayCompleted: null,
+    });
+    expect(r.week.days.some((d) => d.movedFrom === "2026-07-21")).toBe(false);
+    expect(
+      r.adjustments.some(
+        (a) => a.trigger === "no_time" && a.action === "dropped"
+      )
+    ).toBe(true);
   });
 
   it("red + no time: availability wins first, then readiness scales", () => {

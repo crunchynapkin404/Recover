@@ -11,6 +11,7 @@ import {
   RED_RECOVERY_MINS,
   STEP_DOWN,
 } from "./types";
+import { findBlockFor } from "./slots";
 import { blockMins } from "@/lib/availability/types";
 import { withPurpose } from "@/lib/training-plan";
 
@@ -60,32 +61,28 @@ function handleMissedYesterday(
   if (isQuality(workout) && !wasMovedBefore) {
     for (let i = todayIdx; i < 7; i++) {
       const t = week.days[i];
-      const adjacentQuality =
-        isQuality(week.days[i - 1]?.workouts[0] ?? null) ||
-        isQuality(week.days[i + 1]?.workouts[0] ?? null);
-      if (
-        t.workouts.length === 0 &&
-        t.status !== "race" &&
-        blockFits(t, workout.blockIdx, workout.durationMins) &&
-        !adjacentQuality
-      ) {
-        // interim: Task 9 — blockIdx is carried across days unchecked; safe
-        // only while every day has one block.
-        week.days[i] = {
-          ...t,
-          workouts: [workout],
-          status: "moved",
-          movedFrom: y.date,
-        };
-        adjustments.push({
-          date: y.date,
-          trigger: "missed_workout",
-          action: "moved",
-          before,
-          after: [{ ...week.days[i] }],
-          reason: `${workout.type} missed on ${y.date} — moved to ${t.date}`,
-        });
-        return;
+      if (t.workouts.length === 0 && t.status !== "race") {
+        // admits() carries the quality-adjacency check itself (and size,
+        // sport, energy ceiling) — the block tried is whichever on this day
+        // actually fits, not the one the session happened to occupy before.
+        const blockIdx = findBlockFor(week.days, i, workout, new Set());
+        if (blockIdx != null) {
+          week.days[i] = {
+            ...t,
+            workouts: [{ ...workout, blockIdx }],
+            status: "moved",
+            movedFrom: y.date,
+          };
+          adjustments.push({
+            date: y.date,
+            trigger: "missed_workout",
+            action: "moved",
+            before,
+            after: [{ ...week.days[i] }],
+            reason: `${workout.type} missed on ${y.date} — moved to ${t.date}`,
+          });
+          return;
+        }
       }
     }
   }
@@ -155,19 +152,28 @@ export function adaptDay(input: AdaptDayInput): AdaptDayResult {
     if (blockCapacity === 0) {
       const workout = todayWorkout;
       week.days[todayIdx] = { ...today, workouts: [], status: "rest" };
-      const target = week.days.findIndex(
-        (d, i) =>
-          i > todayIdx &&
-          d.workouts.length === 0 &&
-          d.status !== "race" &&
-          blockFits(d, workout.blockIdx, workout.durationMins)
-      );
+      // Same rule as the missed-yesterday move above: pick whichever block
+      // on a candidate day actually admits the session, not the index it
+      // carried from today. findIndex can't hand back a block index, so the
+      // search is unrolled — first day (in order) with an admitting block
+      // wins, matching the previous findIndex's ordering exactly.
+      let target = -1;
+      let targetBlockIdx: number | null = null;
+      for (let i = todayIdx + 1; i < 7; i++) {
+        const d = week.days[i];
+        if (d.workouts.length === 0 && d.status !== "race") {
+          const blockIdx = findBlockFor(week.days, i, workout, new Set());
+          if (blockIdx != null) {
+            target = i;
+            targetBlockIdx = blockIdx;
+            break;
+          }
+        }
+      }
       if (target !== -1) {
-        // interim: Task 9 — blockIdx is carried across days unchecked; safe
-        // only while every day has one block.
         week.days[target] = {
           ...week.days[target],
-          workouts: [workout],
+          workouts: [{ ...workout, blockIdx: targetBlockIdx! }],
           status: "moved",
           movedFrom: today.date,
         };

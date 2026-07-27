@@ -21,7 +21,7 @@ import {
   QUALITY_TYPES,
   STEP_DOWN,
 } from "./types";
-import { buildSlots, admits, slotKey, fitToBlock } from "./slots";
+import { buildSlots, admits, slotKey, fitToBlock, findBlockFor } from "./slots";
 import type { AvailabilityBlock } from "@/lib/availability/types";
 import { MAX_SESSIONS_PER_DAY } from "@/lib/availability/types";
 
@@ -230,13 +230,25 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
   const isRaceWeek = taperFraction === TAPER_FRACTION_RACE_WEEK && raceIdx >= 0;
 
   if (isRaceWeek) {
+    const taken = new Set<string>();
     for (const w of raceWeekWorkouts(input.sports[0] ?? "Run", raceIdx)) {
-      if (dayMins(days[w.day]) > 0) {
-        // interim: Task 9 — blockIdx is carried across days unchecked; safe
-        // only while every day has one block.
+      // Which block on this day actually admits the session — never a
+      // hardcoded blockIdx 0, and never dayMins' summed-across-blocks
+      // question of whether the day has room at all.
+      const blockIdx = findBlockFor(days, w.day, w, taken);
+      if (blockIdx != null) {
+        taken.add(
+          slotKey({
+            dayIdx: w.day,
+            blockIdx,
+            mins: 0,
+            energy: "full",
+            sports: null,
+          })
+        );
         days[w.day] = {
           ...days[w.day],
-          workouts: [...days[w.day].workouts, { ...w, blockIdx: 0 }],
+          workouts: [...days[w.day].workouts, { ...w, blockIdx }],
           status: "planned",
         };
       }
