@@ -7,6 +7,7 @@ import { AppShell, shellUser } from "@/components/app-shell";
 import { WeekStrip } from "@/components/plan/week-strip";
 import { RacesSection } from "@/components/plan/races-section";
 import { IntakeForm } from "@/components/plan/intake-form";
+import { StandardWeek } from "@/components/plan/standard-week";
 import { PlanEmpty } from "@/components/plan/plan-empty";
 import { PmcChart } from "@/components/log/pmc-chart";
 import { WeeklyLoadBars } from "@/components/log/weekly-load-bars";
@@ -37,7 +38,11 @@ import { RaceChip } from "@/components/today/race-chip";
 import type { RaceCountdownProps } from "@/components/dashboard/race-countdown";
 import { BAND_COLOR } from "@/lib/band-color";
 import type { Band } from "@/lib/readiness";
-import { getOpenWeekPlan, listAdjustments } from "@/lib/week-plan/service";
+import {
+  getOpenWeekPlan,
+  listAdjustments,
+  planConstraints,
+} from "@/lib/week-plan/service";
 import { BUSY_DAY_MINS } from "@/lib/week-plan/types";
 import {
   listRaces,
@@ -58,6 +63,7 @@ import {
   type TrainTab,
 } from "@/lib/log-href";
 import { startWeek, submitAvailability } from "@/app/plan/actions";
+import type { AvailabilityBlock } from "@/lib/availability/types";
 
 export const dynamic = "force-dynamic";
 
@@ -255,6 +261,17 @@ async function WeekTab({ userId, href }: { userId: string; href: TrainHref }) {
   const week = await getOpenWeekPlan(userId);
   const adjustments = week ? await listAdjustments(week.id) : [];
   const races = await listRaces(userId);
+  const constraints = planConstraints(plan.constraints);
+
+  const defaultRows = await db.query.availabilityDefaults.findMany({
+    where: eq(schema.availabilityDefaults.userId, userId),
+  });
+  const standardWeek: AvailabilityBlock[][] = Array.from(
+    { length: 7 },
+    (_, i) =>
+      (defaultRows.find((r) => r.weekday === i)?.blocks as
+        AvailabilityBlock[] | undefined) ?? []
+  );
 
   const blocks = await db.query.trainingBlocks.findMany({
     where: eq(schema.trainingBlocks.planId, plan.id),
@@ -424,6 +441,24 @@ async function WeekTab({ userId, href }: { userId: string; href: TrainHref }) {
               />
             </section>
           )}
+
+          <div className="mb-6">
+            <Collapsible>
+              <CollapsibleTrigger className="rounded-[18px] p-4">
+                <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-white/60">
+                  Standard week
+                </span>
+              </CollapsibleTrigger>
+              <CollapsiblePanel>
+                <div className="px-1 pb-1 pt-3">
+                  <StandardWeek
+                    defaults={standardWeek}
+                    sports={constraints.sports ?? ["Bike"]}
+                  />
+                </div>
+              </CollapsiblePanel>
+            </Collapsible>
+          </div>
         </>
       ) : (
         <section className="mb-6">

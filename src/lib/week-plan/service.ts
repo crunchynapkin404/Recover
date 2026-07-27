@@ -71,7 +71,7 @@ interface PlanConstraints {
   sports: string[];
 }
 
-function planConstraints(constraints: unknown): PlanConstraints {
+export function planConstraints(constraints: unknown): PlanConstraints {
   const c = (constraints ?? {}) as {
     daysPerWeek?: number;
     hoursPerWeek?: number;
