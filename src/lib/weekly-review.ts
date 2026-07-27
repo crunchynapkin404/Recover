@@ -19,7 +19,7 @@ import { db, schema } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { resolveProvider } from "@/lib/llm-provider";
 import { recordLlmUsage } from "@/lib/llm-usage";
-import { buildSystemPrompt } from "@/lib/coach-persona";
+import { buildSystemPrompt, languageDirective } from "@/lib/coach-persona";
 
 export const WEEKLY_THREAD_TITLE = "Weekly Review";
 /**
@@ -320,7 +320,7 @@ export async function generateWeeklyReview(userId: string): Promise<void> {
       const res = await generateText({
         model: resolved.provider(resolved.model),
         system,
-        prompt: instruction,
+        prompt: languageDirective(instruction, resolved.language),
         abortSignal: AbortSignal.timeout(15_000),
       });
       const out = res.text;
