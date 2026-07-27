@@ -1,5 +1,5 @@
 // src/lib/race/taper.ts — pure taper math. No db, no I/O (Principle 1).
-import type { PlannedWorkout } from "@/lib/training-plan";
+import { withPurpose, type PlannedWorkout } from "@/lib/training-plan";
 
 export interface RaceContext {
   date: string; // YYYY-MM-DD
@@ -66,24 +66,28 @@ export function raceWeekWorkouts(
 ): PlannedWorkout[] {
   const workouts: PlannedWorkout[] = [];
   if (raceDayIdx >= 3) {
-    workouts.push({
-      day: raceDayIdx - 3,
-      sport,
-      type: "Endurance",
-      durationMins: 30,
-      intensity: "Z1-Z2",
-      description: "Short easy session — race week, stay loose",
-    });
+    workouts.push(
+      withPurpose({
+        day: raceDayIdx - 3,
+        sport,
+        type: "Endurance",
+        durationMins: 30,
+        intensity: "Z1-Z2",
+        description: "Short easy session — race week, stay loose",
+      })
+    );
   }
   if (raceDayIdx >= 2) {
-    workouts.push({
-      day: raceDayIdx - 2,
-      sport,
-      type: "Tempo",
-      durationMins: 20,
-      intensity: "Z3",
-      description: "Race openers: 3×90s at race effort, full recovery",
-    });
+    workouts.push(
+      withPurpose({
+        day: raceDayIdx - 2,
+        sport,
+        type: "Tempo",
+        durationMins: 20,
+        intensity: "Z3",
+        description: "Race openers: 3×90s at race effort, full recovery",
+      })
+    );
   }
   return workouts;
 }

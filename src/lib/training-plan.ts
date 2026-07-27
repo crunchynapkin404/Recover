@@ -6,6 +6,8 @@
 import { desc, eq, and } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { createRace } from "@/lib/race/service";
+import type { Purpose } from "@/lib/availability/types";
+import { PURPOSE_FLOORS } from "@/lib/availability/types";
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -16,6 +18,27 @@ export interface PlannedWorkout {
   durationMins: number;
   intensity: string; // "Z1-Z2", "Z3", "Z4-Z5", "Recovery"
   description: string;
+  /** What the engine reasons about. Derived from `type`, one-to-one. */
+  purpose: Purpose;
+  /** Below this the session no longer delivers its stimulus. */
+  minEffectiveMins: number;
+}
+
+export const PURPOSE_BY_TYPE: Record<string, Purpose> = {
+  Recovery: "recovery",
+  Endurance: "aerobic_base",
+  Long: "long",
+  Tempo: "threshold",
+  Intervals: "vo2max",
+  Brick: "brick",
+};
+
+/** Stamps purpose + floor onto a workout literal. Unknown types are aerobic. */
+export function withPurpose(
+  w: Omit<PlannedWorkout, "purpose" | "minEffectiveMins">
+): PlannedWorkout {
+  const purpose = PURPOSE_BY_TYPE[w.type] ?? "aerobic_base";
+  return { ...w, purpose, minEffectiveMins: PURPOSE_FLOORS[purpose] };
 }
 
 interface Block {
@@ -227,56 +250,64 @@ function generateRunningWorkouts(
 
   // Sunday: long run (30-35% of volume)
   const longRunMins = Math.round(totalMins * 0.32);
-  workouts.push({
-    day: 6, // Sunday
-    sport: "Run",
-    type: "Long",
-    durationMins: Math.min(longRunMins, phase === "taper" ? 60 : 180),
-    intensity: "Z1-Z2",
-    description:
-      phase === "taper"
-        ? "Easy long run — reduced duration for taper"
-        : "Long run at conversational pace",
-  });
+  workouts.push(
+    withPurpose({
+      day: 6, // Sunday
+      sport: "Run",
+      type: "Long",
+      durationMins: Math.min(longRunMins, phase === "taper" ? 60 : 180),
+      intensity: "Z1-Z2",
+      description:
+        phase === "taper"
+          ? "Easy long run — reduced duration for taper"
+          : "Long run at conversational pace",
+    })
+  );
 
   // Tuesday: tempo or intervals depending on phase
   if (phase === "build" || phase === "peak") {
-    workouts.push({
-      day: 1,
-      sport: "Run",
-      type: "Intervals",
-      durationMins: Math.round(totalMins * 0.15),
-      intensity: "Z4-Z5",
-      description: raceType.includes("5k")
-        ? "5×1000m at 5K pace, 90s jog recovery"
-        : raceType.includes("10k")
-          ? "4×1600m at 10K pace, 2min jog recovery"
-          : "6×800m at 5K-10K pace, 90s jog recovery",
-    });
+    workouts.push(
+      withPurpose({
+        day: 1,
+        sport: "Run",
+        type: "Intervals",
+        durationMins: Math.round(totalMins * 0.15),
+        intensity: "Z4-Z5",
+        description: raceType.includes("5k")
+          ? "5×1000m at 5K pace, 90s jog recovery"
+          : raceType.includes("10k")
+            ? "4×1600m at 10K pace, 2min jog recovery"
+            : "6×800m at 5K-10K pace, 90s jog recovery",
+      })
+    );
   } else if (phase !== "recovery") {
-    workouts.push({
-      day: 1,
-      sport: "Run",
-      type: "Tempo",
-      durationMins: Math.round(totalMins * 0.15),
-      intensity: "Z3",
-      description: "Tempo run at half-marathon effort",
-    });
+    workouts.push(
+      withPurpose({
+        day: 1,
+        sport: "Run",
+        type: "Tempo",
+        durationMins: Math.round(totalMins * 0.15),
+        intensity: "Z3",
+        description: "Tempo run at half-marathon effort",
+      })
+    );
   }
 
   // Thursday: tempo in build/peak, endurance otherwise
   if (sessions >= 4 && phase !== "recovery") {
-    workouts.push({
-      day: 3,
-      sport: "Run",
-      type: phase === "build" || phase === "peak" ? "Tempo" : "Endurance",
-      durationMins: Math.round(totalMins * 0.15),
-      intensity: phase === "build" || phase === "peak" ? "Z3" : "Z1-Z2",
-      description:
-        phase === "build" || phase === "peak"
-          ? "Tempo run — sustained effort"
-          : "Easy endurance run",
-    });
+    workouts.push(
+      withPurpose({
+        day: 3,
+        sport: "Run",
+        type: phase === "build" || phase === "peak" ? "Tempo" : "Endurance",
+        durationMins: Math.round(totalMins * 0.15),
+        intensity: phase === "build" || phase === "peak" ? "Z3" : "Z1-Z2",
+        description:
+          phase === "build" || phase === "peak"
+            ? "Tempo run — sustained effort"
+            : "Easy endurance run",
+      })
+    );
   }
 
   // Fill remaining sessions with easy runs
@@ -289,15 +320,17 @@ function generateRunningWorkouts(
   );
 
   for (let i = 0; i < remaining && i < easyDays.length; i++) {
-    workouts.push({
-      day: easyDays[i],
-      sport: "Run",
-      type: phase === "recovery" ? "Recovery" : "Endurance",
-      durationMins: Math.max(20, Math.min(easyMins, 60)),
-      intensity: phase === "recovery" ? "Recovery" : "Z1-Z2",
-      description:
-        phase === "recovery" ? "Easy recovery run" : "Easy aerobic run",
-    });
+    workouts.push(
+      withPurpose({
+        day: easyDays[i],
+        sport: "Run",
+        type: phase === "recovery" ? "Recovery" : "Endurance",
+        durationMins: Math.max(20, Math.min(easyMins, 60)),
+        intensity: phase === "recovery" ? "Recovery" : "Z1-Z2",
+        description:
+          phase === "recovery" ? "Easy recovery run" : "Easy aerobic run",
+      })
+    );
   }
 
   return workouts.sort((a, b) => a.day - b.day);
@@ -312,40 +345,46 @@ function generateCyclingWorkouts(
   const workouts: PlannedWorkout[] = [];
 
   // Saturday or Sunday: long ride (35-40% of volume)
-  workouts.push({
-    day: 5, // Saturday
-    sport: "Bike",
-    type: "Long",
-    durationMins: Math.min(
-      Math.round(totalMins * 0.38),
-      phase === "taper" ? 90 : 240
-    ),
-    intensity: "Z1-Z2",
-    description:
-      phase === "taper"
-        ? "Reduced endurance ride"
-        : "Long endurance ride — steady aerobic effort",
-  });
+  workouts.push(
+    withPurpose({
+      day: 5, // Saturday
+      sport: "Bike",
+      type: "Long",
+      durationMins: Math.min(
+        Math.round(totalMins * 0.38),
+        phase === "taper" ? 90 : 240
+      ),
+      intensity: "Z1-Z2",
+      description:
+        phase === "taper"
+          ? "Reduced endurance ride"
+          : "Long endurance ride — steady aerobic effort",
+    })
+  );
 
   // Midweek intervals in build/peak
   if (phase === "build" || phase === "peak") {
-    workouts.push({
-      day: 2, // Wednesday
-      sport: "Bike",
-      type: "Intervals",
-      durationMins: Math.round(totalMins * 0.18),
-      intensity: "Z4-Z5",
-      description: "VO2max intervals: 5×4min at threshold+, 3min recovery",
-    });
+    workouts.push(
+      withPurpose({
+        day: 2, // Wednesday
+        sport: "Bike",
+        type: "Intervals",
+        durationMins: Math.round(totalMins * 0.18),
+        intensity: "Z4-Z5",
+        description: "VO2max intervals: 5×4min at threshold+, 3min recovery",
+      })
+    );
   } else if (phase !== "recovery") {
-    workouts.push({
-      day: 2,
-      sport: "Bike",
-      type: "Tempo",
-      durationMins: Math.round(totalMins * 0.18),
-      intensity: "Z3",
-      description: "Tempo ride — steady sweetspot effort",
-    });
+    workouts.push(
+      withPurpose({
+        day: 2,
+        sport: "Bike",
+        type: "Tempo",
+        durationMins: Math.round(totalMins * 0.18),
+        intensity: "Z3",
+        description: "Tempo ride — steady sweetspot effort",
+      })
+    );
   }
 
   // Fill remaining with endurance rides
@@ -358,15 +397,19 @@ function generateCyclingWorkouts(
   );
 
   for (let i = 0; i < remaining && i < availDays.length; i++) {
-    workouts.push({
-      day: availDays[i],
-      sport: "Bike",
-      type: phase === "recovery" ? "Recovery" : "Endurance",
-      durationMins: Math.max(30, Math.min(easyMins, 90)),
-      intensity: phase === "recovery" ? "Recovery" : "Z1-Z2",
-      description:
-        phase === "recovery" ? "Easy recovery spin" : "Aerobic endurance ride",
-    });
+    workouts.push(
+      withPurpose({
+        day: availDays[i],
+        sport: "Bike",
+        type: phase === "recovery" ? "Recovery" : "Endurance",
+        durationMins: Math.max(30, Math.min(easyMins, 90)),
+        intensity: phase === "recovery" ? "Recovery" : "Z1-Z2",
+        description:
+          phase === "recovery"
+            ? "Easy recovery spin"
+            : "Aerobic endurance ride",
+      })
+    );
   }
 
   return workouts.sort((a, b) => a.day - b.day);
@@ -388,66 +431,76 @@ function generateTriathlonWorkouts(
   // Sunday: long bike or brick
   const isBrickWeek = phase === "build" || phase === "peak";
   if (isBrickWeek) {
-    workouts.push({
-      day: 6,
-      sport: "Bike",
-      type: "Brick",
-      durationMins: Math.round(bikeMins * 0.5),
-      intensity: "Z1-Z2",
-      description:
-        "Bike-to-run brick: ride at race effort then 15-20min transition run",
-    });
+    workouts.push(
+      withPurpose({
+        day: 6,
+        sport: "Bike",
+        type: "Brick",
+        durationMins: Math.round(bikeMins * 0.5),
+        intensity: "Z1-Z2",
+        description:
+          "Bike-to-run brick: ride at race effort then 15-20min transition run",
+      })
+    );
   } else {
-    workouts.push({
-      day: 6,
-      sport: "Bike",
-      type: "Long",
-      durationMins: Math.round(bikeMins * 0.5),
-      intensity: "Z1-Z2",
-      description:
-        phase === "taper" ? "Easy endurance ride" : "Long endurance ride",
-    });
+    workouts.push(
+      withPurpose({
+        day: 6,
+        sport: "Bike",
+        type: "Long",
+        durationMins: Math.round(bikeMins * 0.5),
+        intensity: "Z1-Z2",
+        description:
+          phase === "taper" ? "Easy endurance ride" : "Long endurance ride",
+      })
+    );
   }
 
   // Saturday: long run
-  workouts.push({
-    day: 5,
-    sport: "Run",
-    type: "Long",
-    durationMins: Math.min(
-      Math.round(runMins * 0.45),
-      phase === "taper" ? 45 : 120
-    ),
-    intensity: "Z1-Z2",
-    description: "Long run at easy aerobic effort",
-  });
+  workouts.push(
+    withPurpose({
+      day: 5,
+      sport: "Run",
+      type: "Long",
+      durationMins: Math.min(
+        Math.round(runMins * 0.45),
+        phase === "taper" ? 45 : 120
+      ),
+      intensity: "Z1-Z2",
+      description: "Long run at easy aerobic effort",
+    })
+  );
 
   // Tuesday: swim
-  workouts.push({
-    day: 1,
-    sport: "Swim",
-    type: phase === "build" || phase === "peak" ? "Intervals" : "Endurance",
-    durationMins: Math.round(swimMins * 0.55),
-    intensity: phase === "build" || phase === "peak" ? "Z3" : "Z1-Z2",
-    description:
-      phase === "build" || phase === "peak"
-        ? "Swim intervals: 10×100m at threshold, 15s rest"
-        : "Steady swim with technique drills",
-  });
+  workouts.push(
+    withPurpose({
+      day: 1,
+      sport: "Swim",
+      type: phase === "build" || phase === "peak" ? "Intervals" : "Endurance",
+      durationMins: Math.round(swimMins * 0.55),
+      intensity: phase === "build" || phase === "peak" ? "Z3" : "Z1-Z2",
+      description:
+        phase === "build" || phase === "peak"
+          ? "Swim intervals: 10×100m at threshold, 15s rest"
+          : "Steady swim with technique drills",
+    })
+  );
 
   // Thursday: bike intervals or endurance
   if (sessions >= 4) {
-    workouts.push({
-      day: 3,
-      sport: "Bike",
-      type: phase === "build" || phase === "peak" ? "Intervals" : "Endurance",
-      durationMins: Math.round(bikeMins * 0.3),
-      intensity: phase === "build" || phase === "peak" ? "Z4-Z5" : "Z1-Z2",
-      description:
-        phase === "build" || phase === "peak"
-          ? "Bike intervals: 4×5min above threshold, 3min recovery"
-          : "Easy aerobic ride",
-    });
+    workouts.push(
+      withPurpose({
+        day: 3,
+        sport: "Bike",
+        type: phase === "build" || phase === "peak" ? "Intervals" : "Endurance",
+        durationMins: Math.round(bikeMins * 0.3),
+        intensity: phase === "build" || phase === "peak" ? "Z4-Z5" : "Z1-Z2",
+        description:
+          phase === "build" || phase === "peak"
+            ? "Bike intervals: 4×5min above threshold, 3min recovery"
+            : "Easy aerobic ride",
+      })
+    );
   }
 
   // Fill remaining with easy runs / swims
@@ -458,20 +511,22 @@ function generateTriathlonWorkouts(
 
   for (let i = 0; i < remaining && i < availDays.length; i++) {
     const sport = sportsCycle[i % sportsCycle.length];
-    workouts.push({
-      day: availDays[i],
-      sport,
-      type: phase === "recovery" ? "Recovery" : "Endurance",
-      durationMins: Math.max(
-        20,
-        Math.round((sport === "Swim" ? swimMins : runMins) * 0.3)
-      ),
-      intensity: phase === "recovery" ? "Recovery" : "Z1-Z2",
-      description:
-        phase === "recovery"
-          ? `Easy recovery ${sport.toLowerCase()}`
-          : `Easy aerobic ${sport.toLowerCase()}`,
-    });
+    workouts.push(
+      withPurpose({
+        day: availDays[i],
+        sport,
+        type: phase === "recovery" ? "Recovery" : "Endurance",
+        durationMins: Math.max(
+          20,
+          Math.round((sport === "Swim" ? swimMins : runMins) * 0.3)
+        ),
+        intensity: phase === "recovery" ? "Recovery" : "Z1-Z2",
+        description:
+          phase === "recovery"
+            ? `Easy recovery ${sport.toLowerCase()}`
+            : `Easy aerobic ${sport.toLowerCase()}`,
+      })
+    );
   }
 
   return workouts.sort((a, b) => a.day - b.day);

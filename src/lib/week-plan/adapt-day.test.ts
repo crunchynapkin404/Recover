@@ -2,6 +2,7 @@
 import { describe, expect, it } from "vitest";
 import { adaptDay } from "./adapt-day";
 import type { DaySlot, WeekState } from "./types";
+import { withPurpose } from "@/lib/training-plan";
 
 const D = (
   date: string,
@@ -12,7 +13,7 @@ const D = (
   date,
   availableMins: mins,
   workout: workout
-    ? {
+    ? withPurpose({
         day: 0,
         sport: "Run",
         type: "Endurance",
@@ -20,7 +21,7 @@ const D = (
         intensity: "Z1-Z2",
         description: "Easy run",
         ...workout,
-      }
+      })
     : null,
   status,
 });

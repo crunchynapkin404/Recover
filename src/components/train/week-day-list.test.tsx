@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { renderToString } from "react-dom/server";
 import { WeekDayList } from "./week-day-list";
 import type { DaySlot } from "@/lib/week-plan/types";
+import { withPurpose } from "@/lib/training-plan";
 
 function localYmd(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -11,14 +12,14 @@ const TODAY = localYmd(new Date());
 const TOMORROW = localYmd(new Date(Date.now() + 86_400_000));
 const YESTERDAY = localYmd(new Date(Date.now() - 86_400_000));
 
-const tempo: DaySlot["workout"] = {
+const tempo: DaySlot["workout"] = withPurpose({
   day: 0,
   sport: "Ride",
   type: "Tempo",
   durationMins: 75,
   intensity: "2×20",
   description: "Sweet spot",
-};
+});
 
 const slot = (
   date: string,

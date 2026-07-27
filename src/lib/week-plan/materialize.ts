@@ -1,4 +1,8 @@
-import { generateWorkouts, type PlannedWorkout } from "@/lib/training-plan";
+import {
+  generateWorkouts,
+  withPurpose,
+  type PlannedWorkout,
+} from "@/lib/training-plan";
 import {
   raceWeekWorkouts,
   taperFractionForWeek,
@@ -271,11 +275,11 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
         }
         idx = place(w, false);
         if (idx !== null) {
-          workout = {
+          workout = withPurpose({
             ...w,
             type: steppedType,
             intensity: "Z1-Z2",
-          };
+          });
           adjustments.push({
             date: days[idx].date,
             trigger: "weekly_rollover",
@@ -351,11 +355,11 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
       };
       days[idx - 2] = {
         ...days[idx - 2],
-        workout: {
+        workout: withPurpose({
           ...days[idx - 2].workout!,
           type: "Endurance",
           intensity: "Z1-Z2",
-        },
+        }),
         status: "planned",
       };
       adjustments.push({

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { renderToString } from "react-dom/server";
 import { WeekStrip } from "./week-strip";
 import type { DaySlot } from "@/lib/week-plan/types";
+import { withPurpose } from "@/lib/training-plan";
 
 const slot = (
   date: string,
@@ -14,14 +15,14 @@ const slot = (
   status,
 });
 
-const run = {
+const run = withPurpose({
   day: 0,
   sport: "Run",
   type: "Endurance",
   durationMins: 45,
   intensity: "Z1-Z2",
   description: "Easy run",
-};
+});
 
 const days: DaySlot[] = [
   slot("2026-07-20", "completed", run),
