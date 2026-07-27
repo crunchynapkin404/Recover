@@ -1,16 +1,25 @@
 "use client";
 
-import { useActionState, useState } from "react";
-import { formatAvailability } from "@/lib/availability/format";
-import { AvailabilitySheet } from "./availability-sheet";
+import { useActionState, useState, useTransition } from "react";
+import { blockMins, type AvailabilityBlock } from "@/lib/availability/types";
+import { formatAvailability, formatBlocks } from "@/lib/availability/format";
+import type { Verdict } from "@/lib/week-plan/ctl-projection";
+import { clearDayOverride } from "@/app/plan/actions";
+import { BlockSheet } from "./block-sheet";
 
 export interface IntakeState {
   message: string;
 }
 
 interface Props {
-  /** Suggested availableMins per day, Monday first (7 entries). */
-  suggested: number[];
+  /** Resolved blocks per day, Monday first. */
+  resolved: AvailabilityBlock[][];
+  /** The dates of this week, Monday first. */
+  dates: string[];
+  /** Which of those dates are pinned by an override. */
+  overrideDates: string[];
+  verdict: Verdict;
+  sports: string[];
   action: (prev: IntakeState, formData: FormData) => Promise<IntakeState>;
 }
 
@@ -25,45 +34,111 @@ const DAY_NAMES = [
   "Sunday",
 ];
 
-export function IntakeForm({ suggested, action }: Props) {
-  const [state, formAction, pending] = useActionState(action, { message: "" });
-  const [mins, setMins] = useState(() =>
-    Array.from({ length: 7 }, (_, i) => suggested[i] ?? 0)
-  );
-  const [openDay, setOpenDay] = useState<number | null>(null);
-
-  function setDay(i: number, value: number) {
-    setMins((prev) => prev.map((m, j) => (j === i ? value : m)));
+function verdictLine(v: Verdict): string | null {
+  if (v.kind === "losing") {
+    return `That's under the ${formatAvailability(Math.round(v.maintenanceHrs * 60))} it takes to hold your fitness — CTL is projected to fall to about ${Math.round(v.projectedCtl)} this week.`;
   }
+  if (v.kind === "holding") {
+    return `Enough to hold your fitness, not to build it — this week's plan asks for about ${formatAvailability(Math.round(v.targetHrs * 60))}.`;
+  }
+  return null;
+}
 
-  const totalMins = mins.reduce((s, m) => s + m, 0);
+/**
+ * This week's availability (task 15): resolved blocks per day (standard week
+ * + any date override, already merged by resolveWeek), a "Pinned" badge on
+ * any day whose date carries an override, and an honest verdict line when
+ * the time offered cannot hold — let alone build — fitness.
+ *
+ * Unpinning a day only ever deletes its override row (clearDayOverride) —
+ * that is the one and only way back to the standard week for that date.
+ * Editing this form and resubmitting never clears a pin: submitAvailability
+ * writes per-day blocks, which is exactly what an override already is, so a
+ * day left untouched here keeps whatever was last saved for it.
+ */
+export function IntakeForm({
+  resolved,
+  dates,
+  overrideDates,
+  verdict,
+  sports,
+  action,
+}: Props) {
+  const [state, formAction, pending] = useActionState(action, { message: "" });
+  const [week, setWeek] = useState(resolved);
+  const [openDay, setOpenDay] = useState<number | null>(null);
+  const [, startTransition] = useTransition();
+
+  const totalMins = week.reduce(
+    (s, day) => s + day.reduce((d, b) => d + blockMins(b), 0),
+    0
+  );
+  const warning = verdictLine(verdict);
+
+  function unpin(i: number) {
+    startTransition(async () => {
+      await clearDayOverride(dates[i]);
+    });
+  }
 
   return (
     <form action={formAction} className="glass rounded-[2rem] p-7">
       <p className="label-micro mb-1">This week&apos;s availability</p>
       <p className="mb-5 text-[12px] text-white/50">
-        Minutes you can train per day — the week plans itself around this.
+        When you can train — the week plans itself around these blocks.
       </p>
-      <div className="mb-3 grid grid-cols-7 gap-2">
-        {mins.map((v, i) => (
-          <div key={DAY_LABELS[i]} className="flex flex-col items-center gap-2">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-white/40">
-              {DAY_LABELS[i]}
-            </span>
-            <button
-              type="button"
-              onClick={() => setOpenDay(i)}
-              className="w-full rounded-xl border border-white/10 bg-white/5 px-1 py-2 text-center text-[11px] font-bold text-white focus:border-white/30 focus:outline-none"
+
+      <ul className="mb-3">
+        {week.map((blocks, i) => {
+          const pinned = overrideDates.includes(dates[i] ?? "");
+          return (
+            <li
+              key={DAY_LABELS[i]}
+              className="border-b border-white/[0.06] last:border-0"
             >
-              {formatAvailability(v)}
-            </button>
-            <input type="hidden" name={`mins-${i}`} value={v} />
-          </div>
-        ))}
-      </div>
-      <p className="mb-6 text-center text-[11px] text-white/40">
-        {formatAvailability(totalMins)} this week
+              <div className="flex items-center gap-3 py-2.5">
+                <button
+                  type="button"
+                  onClick={() => setOpenDay(i)}
+                  className="flex flex-1 items-center justify-between text-left"
+                >
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-white/45">
+                    {DAY_LABELS[i]}
+                  </span>
+                  <span className="text-[11.5px] text-white/70">
+                    {formatBlocks(blocks)}
+                  </span>
+                </button>
+                {pinned && (
+                  <button
+                    type="button"
+                    onClick={() => unpin(i)}
+                    title="Back to your standard week"
+                    className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[9.5px] font-bold text-amber-300"
+                  >
+                    Pinned ×
+                  </button>
+                )}
+              </div>
+              <input
+                type="hidden"
+                name={`blocks-${i}`}
+                value={JSON.stringify(blocks)}
+              />
+            </li>
+          );
+        })}
+      </ul>
+
+      <p className="mb-2 text-center text-[11px] text-white/40">
+        {`${formatAvailability(totalMins)} this week`}
       </p>
+      {warning && (
+        <p className="mb-5 text-center text-[11px] leading-relaxed text-amber-300/80">
+          {warning}
+        </p>
+      )}
+
       <button
         type="submit"
         disabled={pending}
@@ -76,11 +151,15 @@ export function IntakeForm({ suggested, action }: Props) {
           {state.message}
         </p>
       )}
+
       {openDay !== null && (
-        <AvailabilitySheet
+        <BlockSheet
           dayLabel={DAY_NAMES[openDay]}
-          mins={mins[openDay]}
-          onChange={(v) => setDay(openDay, v)}
+          blocks={week[openDay]}
+          sports={sports}
+          onChange={(next) =>
+            setWeek((prev) => prev.map((d, j) => (j === openDay ? next : d)))
+          }
           onClose={() => setOpenDay(null)}
         />
       )}
