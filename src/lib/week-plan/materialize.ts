@@ -23,7 +23,7 @@ import {
 } from "./types";
 import { buildSlots, admits, slotKey, fitToBlock } from "./slots";
 import type { AvailabilityBlock } from "@/lib/availability/types";
-import { ENERGY_CEILING, MAX_SESSIONS_PER_DAY } from "@/lib/availability/types";
+import { MAX_SESSIONS_PER_DAY } from "@/lib/availability/types";
 
 export interface EffectiveLoadInput {
   skeletonTarget: number;
@@ -289,23 +289,25 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
 
       if (!slot) {
         // Nothing admits it whole. Rather than drop it silently, try the
-        // same fitting rule a replan uses: the roomiest slot whose energy
-        // and sport allow this session, shortened or substituted to fit.
-        const relaxed = buildSlots(days).find(
+        // same fitting rule a replan uses — but a fitted (shortened or
+        // substituted) session still needs to be *safe* to place, so every
+        // candidate is checked with the real admission rule, roomiest
+        // first, until one passes or none do.
+        const candidates = buildSlots(days).filter(
           (s) =>
             !taken.has(slotKey(s)) &&
             days[s.dayIdx].workouts.length < MAX_SESSIONS_PER_DAY &&
             (s.sports === null || s.sports.includes(workout.sport))
         );
-        const fitted = relaxed ? fitToBlock(workout, relaxed.mins) : null;
-        if (
-          relaxed &&
-          fitted &&
-          ENERGY_CEILING[relaxed.energy].includes(fitted.workout.purpose)
-        ) {
-          taken.add(slotKey(relaxed));
-          const target = days[relaxed.dayIdx];
-          days[relaxed.dayIdx] = {
+        let placed = false;
+        for (const candidate of candidates) {
+          const fitted = fitToBlock(workout, candidate.mins);
+          if (!fitted) continue;
+          if (!admits(candidate, fitted.workout, days, taken)) continue;
+
+          taken.add(slotKey(candidate));
+          const target = days[candidate.dayIdx];
+          days[candidate.dayIdx] = {
             ...target,
             workouts: [...target.workouts, fitted.workout],
             status: "planned",
@@ -321,8 +323,10 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
                 ? `no block fits ${workout.durationMins}min — ${workout.type} shortened to ${fitted.workout.durationMins}min`
                 : `no block fits ${workout.type} — replaced by ${fitted.workout.type}, which works in ${fitted.workout.durationMins}min`,
           });
-          continue;
+          placed = true;
+          break;
         }
+        if (placed) continue;
         adjustments.push({
           date: input.weekStart,
           trigger: "no_time",

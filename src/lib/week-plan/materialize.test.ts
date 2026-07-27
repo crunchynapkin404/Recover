@@ -532,4 +532,89 @@ describe("materializeWeek — block fitting", () => {
     });
     expect(r.week.days[0].workouts.length).toBe(2);
   });
+
+  describe("fallback path: quality adjacency and same-day rules", () => {
+    it("never places two quality sessions on adjacent days, even when a session only fits via the relaxed fallback", () => {
+      // Triathlon build week: Monday is roomy enough to take the biggest
+      // session whole (Brick); Tuesday is a middling block that can't fit
+      // the swim Intervals session whole, so it falls to the relaxed
+      // fitting path. That path must still honour quality adjacency.
+      const r = materializeWeek({
+        ...base,
+        skeleton: { ...base.skeleton, targetSessions: 3 },
+        raceType: "Ironman 70.3",
+        sports: ["Swim", "Bike", "Run"],
+        hoursPerWeek: 20,
+        availableBlocksPerDay: blocksPerDay([1100, 100, 90, 90, 90, 90, 90]),
+      });
+      for (let i = 1; i < 7; i++) {
+        const prevQuality = r.week.days[i - 1].workouts.some(isQuality);
+        const dayQuality = r.week.days[i].workouts.some(isQuality);
+        expect(prevQuality && dayQuality).toBe(false);
+      }
+    });
+
+    it("never places two quality sessions on the same day via the relaxed fallback", () => {
+      // Same triathlon week, but only Monday has any availability (two
+      // blocks: 1100min and 100min). The fallback must not pack a second
+      // quality session into Monday's smaller block just because the day
+      // isn't at its session cap yet.
+      const r = materializeWeek({
+        ...base,
+        skeleton: { ...base.skeleton, targetSessions: 3 },
+        raceType: "Ironman 70.3",
+        sports: ["Swim", "Bike", "Run"],
+        hoursPerWeek: 20,
+        availableBlocksPerDay: [
+          blocks([1100, 100]),
+          blocks([]),
+          blocks([]),
+          blocks([]),
+          blocks([]),
+          blocks([]),
+          blocks([]),
+        ],
+      });
+      for (const d of r.week.days) {
+        expect(d.workouts.filter(isQuality).length).toBeLessThanOrEqual(1);
+      }
+    });
+
+    it("uses a smaller, non-adjacent slot instead of dropping the session or violating adjacency", () => {
+      // Wednesday is by far the roomiest block and takes the Intervals
+      // session whole. The next-biggest remaining block (Thursday) is
+      // adjacent to Wednesday, so once Tempo can't fit anywhere whole, the
+      // roomiest fallback candidate (Thursday) must be rejected for
+      // adjacency — but Saturday, a smaller and non-adjacent block, still
+      // fits it. The session must land there rather than being dropped.
+      const r = materializeWeek({
+        ...base,
+        skeleton: { ...base.skeleton, targetSessions: 4 },
+        raceType: "Marathon",
+        sports: ["Run"],
+        hoursPerWeek: 20,
+        availableBlocksPerDay: [
+          blocks([60]), // Mon
+          blocks([60]), // Tue
+          blocks([700]), // Wed — roomiest, takes Intervals whole
+          blocks([170]), // Thu — adjacent to Wed, would be the fallback's
+          // first-tried candidate, but must be rejected for adjacency
+          blocks([50]), // Fri
+          blocks([100]), // Sat — smaller, non-adjacent, still fits
+          blocks([90]), // Sun
+        ],
+      });
+
+      expect(r.adjustments.some((a) => a.action === "dropped")).toBe(false);
+
+      for (let i = 1; i < 7; i++) {
+        const prevQuality = r.week.days[i - 1].workouts.some(isQuality);
+        const dayQuality = r.week.days[i].workouts.some(isQuality);
+        expect(prevQuality && dayQuality).toBe(false);
+      }
+      for (const d of r.week.days) {
+        expect(d.workouts.filter(isQuality).length).toBeLessThanOrEqual(1);
+      }
+    });
+  });
 });
