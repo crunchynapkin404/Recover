@@ -1,11 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { and, eq } from "drizzle-orm";
 import { requireUser } from "@/lib/session";
+import { db, schema } from "@/lib/db";
 import {
   applyAvailability,
   markDayDone,
-  minsToAvailableBlocks,
   moveWorkout,
   rolloverWeekPlan,
   swapWorkouts,
@@ -18,7 +19,34 @@ import {
   updateRace,
 } from "@/lib/race/service";
 import { simulatePlanChange, type PlanChange } from "@/lib/race/forecast";
+import {
+  validateBlocks,
+  type AvailabilityBlock,
+} from "@/lib/availability/types";
 import type { IntakeState } from "@/components/plan/intake-form";
+
+type Result = { ok: true } | { ok: false; error: string };
+
+function revalidatePlan(): void {
+  revalidatePath("/train");
+  revalidatePath("/");
+}
+
+/** "HH:MM", hour 00-23, minute 00-59 — the shape toMinutes() itself never checks. */
+const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+/** Both null (legacy/unset), or both present and a plausible "HH:MM". */
+function hasValidClockShape(b: unknown): b is AvailabilityBlock {
+  if (typeof b !== "object" || b === null) return false;
+  const { start, end } = b as { start?: unknown; end?: unknown };
+  if (start === null && end === null) return true;
+  return (
+    typeof start === "string" &&
+    typeof end === "string" &&
+    TIME_RE.test(start) &&
+    TIME_RE.test(end)
+  );
+}
 
 /**
  * v0.9.3 "Plan this week": materialize the current week on demand — for
@@ -33,29 +61,123 @@ export async function startWeek(): Promise<void> {
   revalidatePath("/");
 }
 
+/**
+ * One day's blocks out of a form field. Anything unparseable, malformed, or
+ * failing validation degrades to an empty day — a rest day is the safe
+ * reading of "I could not understand what you sent." Never write a
+ * half-understood block.
+ *
+ * Pure and exported for its own tests: server actions need a session, this
+ * does not.
+ */
+export function parseDayBlocks(
+  raw: FormDataEntryValue | null
+): AvailabilityBlock[] {
+  if (raw == null) return [];
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(String(raw));
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(parsed)) return [];
+  if (!parsed.every(hasValidClockShape)) return [];
+  const blocks = parsed as AvailabilityBlock[];
+  return validateBlocks(blocks) === null ? blocks : [];
+}
+
 export async function submitAvailability(
   _prev: IntakeState,
   formData: FormData
 ): Promise<IntakeState> {
   const user = await requireUser();
 
-  const mins: number[] = [];
-  for (let i = 0; i < 7; i++) {
-    const raw = Number(formData.get(`mins-${i}`));
-    mins.push(
-      Number.isFinite(raw) ? Math.max(0, Math.min(720, Math.round(raw))) : 0
-    );
-  }
+  const blocksPerDay = Array.from({ length: 7 }, (_, i) =>
+    parseDayBlocks(formData.get(`blocks-${i}`))
+  );
 
-  const result = await applyAvailability(user.id, minsToAvailableBlocks(mins));
-  revalidatePath("/train");
-  revalidatePath("/");
+  const result = await applyAvailability(user.id, blocksPerDay);
+  revalidatePlan();
   return {
     message:
       result === "applied"
         ? "Week updated around your availability."
         : "No open week to update yet.",
   };
+}
+
+// ── Standard week + date overrides ────────────────────────────────────────
+
+/** Standard week: one weekday's blocks. Never touches existing overrides. */
+export async function setStandardWeekDay(
+  weekday: number,
+  blocks: AvailabilityBlock[]
+): Promise<Result> {
+  const user = await requireUser();
+  if (weekday < 0 || weekday > 6) {
+    return { ok: false, error: "invalid_weekday" };
+  }
+  const invalid = validateBlocks(blocks);
+  if (invalid) return { ok: false, error: invalid };
+
+  await db
+    .insert(schema.availabilityDefaults)
+    .values({ userId: user.id, weekday, blocks })
+    .onConflictDoUpdate({
+      target: [
+        schema.availabilityDefaults.userId,
+        schema.availabilityDefaults.weekday,
+      ],
+      set: { blocks, updatedAt: new Date() },
+    });
+  revalidatePlan();
+  return { ok: true };
+}
+
+/** Pin one date. Wins over the weekday default from now on. */
+export async function setDayOverride(
+  date: string,
+  blocks: AvailabilityBlock[]
+): Promise<Result> {
+  const user = await requireUser();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return { ok: false, error: "invalid_date" };
+  }
+  const invalid = validateBlocks(blocks);
+  if (invalid) return { ok: false, error: invalid };
+
+  await db
+    .insert(schema.availabilityOverrides)
+    .values({ userId: user.id, date, blocks })
+    .onConflictDoUpdate({
+      target: [
+        schema.availabilityOverrides.userId,
+        schema.availabilityOverrides.date,
+      ],
+      set: { blocks, updatedAt: new Date() },
+    });
+  revalidatePlan();
+  return { ok: true };
+}
+
+/** "Back to standard": deletes the pin so the weekday default applies again. */
+export async function clearDayOverride(date: string): Promise<Result> {
+  const user = await requireUser();
+  await db
+    .delete(schema.availabilityOverrides)
+    .where(
+      and(
+        eq(schema.availabilityOverrides.userId, user.id),
+        eq(schema.availabilityOverrides.date, date)
+      )
+    );
+  revalidatePlan();
+  return { ok: true };
+}
+
+/** The swap menu's reset: an override of zero blocks means unavailable. */
+export async function zeroDay(date: string): Promise<Result> {
+  return setDayOverride(date, []);
 }
 
 // ── v0.14 Race Ready: races management + move/swap with preview ──────────

@@ -1,0 +1,446 @@
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { and, eq } from "drizzle-orm";
+import {
+  clearDayOverride,
+  parseDayBlocks,
+  setDayOverride,
+  setStandardWeekDay,
+  submitAvailability,
+  zeroDay,
+} from "./actions";
+
+// requires Postgres; skips without DATABASE_URL.
+const hasDb =
+  !!process.env.DATABASE_URL && process.env.DATABASE_DRIVER === "pg";
+
+const USER = "test-plan-actions-user";
+
+const { requireUserMock } = vi.hoisted(() => ({
+  requireUserMock: vi.fn(),
+}));
+vi.mock("@/lib/session", () => ({
+  requireUser: requireUserMock,
+}));
+
+// revalidatePath requires a real Next.js request/static-generation context,
+// which a plain vitest unit test has none of.
+vi.mock("next/cache", () => ({
+  revalidatePath: vi.fn(),
+}));
+
+const one = JSON.stringify([
+  { start: "18:00", end: "19:30", mins: 90, energy: "normal", sports: null },
+]);
+
+describe("parseDayBlocks", () => {
+  it("reads a day's blocks out of the form field", () => {
+    const r = parseDayBlocks(one);
+    expect(r).toHaveLength(1);
+    expect(r[0].mins).toBe(90);
+  });
+
+  it("reads a missing field as a rest day", () => {
+    expect(parseDayBlocks(null)).toEqual([]);
+  });
+
+  it("reads malformed JSON as a rest day rather than throwing", () => {
+    expect(parseDayBlocks("{not json")).toEqual([]);
+  });
+
+  it("reads a non-array payload as a rest day", () => {
+    expect(parseDayBlocks('{"mins":90}')).toEqual([]);
+  });
+
+  it("drops a day whose blocks overlap instead of storing them", () => {
+    const overlapping = JSON.stringify([
+      {
+        start: "18:00",
+        end: "19:30",
+        mins: 90,
+        energy: "normal",
+        sports: null,
+      },
+      {
+        start: "19:00",
+        end: "20:00",
+        mins: 60,
+        energy: "normal",
+        sports: null,
+      },
+    ]);
+    expect(parseDayBlocks(overlapping)).toEqual([]);
+  });
+
+  it("keeps an explicitly empty day empty", () => {
+    expect(parseDayBlocks("[]")).toEqual([]);
+  });
+
+  // ── "HH:MM" shape gap (closed in Task 12) ──────────────────────────────
+  // toMinutes() in @/lib/availability/types has no shape check of its own —
+  // a malformed clock string silently becomes NaN instead of an error, and
+  // validateBlocks' comparisons (NaN <= NaN, NaN < NaN) are always false, so
+  // a garbage string sails straight through. parseDayBlocks is the form
+  // boundary where raw strings first arrive, so it must guard the shape
+  // itself before a block ever reaches validateBlocks or the database.
+
+  it("drops a block whose start is not a time string", () => {
+    const bad = JSON.stringify([
+      {
+        start: "garbage",
+        end: "19:30",
+        mins: 90,
+        energy: "normal",
+        sports: null,
+      },
+    ]);
+    expect(parseDayBlocks(bad)).toEqual([]);
+  });
+
+  it("drops a block whose end is not a time string", () => {
+    const bad = JSON.stringify([
+      {
+        start: "18:00",
+        end: "not-a-time",
+        mins: 90,
+        energy: "normal",
+        sports: null,
+      },
+    ]);
+    expect(parseDayBlocks(bad)).toEqual([]);
+  });
+
+  it("drops a block with an out-of-range hour", () => {
+    const bad = JSON.stringify([
+      {
+        start: "25:00",
+        end: "26:00",
+        mins: 60,
+        energy: "normal",
+        sports: null,
+      },
+    ]);
+    expect(parseDayBlocks(bad)).toEqual([]);
+  });
+
+  it("drops a block with an out-of-range minute", () => {
+    const bad = JSON.stringify([
+      {
+        start: "18:00",
+        end: "18:75",
+        mins: 60,
+        energy: "normal",
+        sports: null,
+      },
+    ]);
+    expect(parseDayBlocks(bad)).toEqual([]);
+  });
+
+  it("drops a block with one clock field null and the other set", () => {
+    const bad = JSON.stringify([
+      { start: "18:00", end: null, mins: 60, energy: "normal", sports: null },
+    ]);
+    expect(parseDayBlocks(bad)).toEqual([]);
+  });
+
+  it("drops a block whose start is a non-string value", () => {
+    const bad = JSON.stringify([
+      { start: 1800, end: "19:30", mins: 90, energy: "normal", sports: null },
+    ]);
+    expect(parseDayBlocks(bad)).toEqual([]);
+  });
+
+  it("keeps a legacy block with both start and end null", () => {
+    const legacy = JSON.stringify([
+      { start: null, end: null, mins: 45, energy: "easy", sports: null },
+    ]);
+    expect(parseDayBlocks(legacy)).toHaveLength(1);
+  });
+});
+
+describe.skipIf(!hasDb)("server actions", () => {
+  beforeAll(async () => {
+    requireUserMock.mockResolvedValue({ id: USER });
+    const { db, schema } = await import("@/lib/db");
+    await db
+      .insert(schema.users)
+      .values({
+        id: USER,
+        name: "Plan Actions Test",
+        email: `${USER}@example.test`,
+      })
+      .onConflictDoNothing();
+  });
+
+  afterAll(async () => {
+    const { db, schema } = await import("@/lib/db");
+    await db
+      .delete(schema.availabilityOverrides)
+      .where(eq(schema.availabilityOverrides.userId, USER));
+    await db
+      .delete(schema.availabilityDefaults)
+      .where(eq(schema.availabilityDefaults.userId, USER));
+    await db.delete(schema.users).where(eq(schema.users.id, USER));
+  });
+
+  describe("setStandardWeekDay", () => {
+    it("rejects an out-of-range weekday", async () => {
+      const r = await setStandardWeekDay(7, []);
+      expect(r).toEqual({ ok: false, error: "invalid_weekday" });
+    });
+
+    it("rejects invalid blocks without writing anything", async () => {
+      const { db, schema } = await import("@/lib/db");
+      const overlapping = [
+        {
+          start: "18:00",
+          end: "19:30",
+          mins: 90,
+          energy: "normal" as const,
+          sports: null,
+        },
+        {
+          start: "19:00",
+          end: "20:00",
+          mins: 60,
+          energy: "normal" as const,
+          sports: null,
+        },
+      ];
+      const r = await setStandardWeekDay(3, overlapping);
+      expect(r.ok).toBe(false);
+
+      const row = await db.query.availabilityDefaults.findFirst({
+        where: and(
+          eq(schema.availabilityDefaults.userId, USER),
+          eq(schema.availabilityDefaults.weekday, 3)
+        ),
+      });
+      expect(row).toBeUndefined();
+    });
+
+    it("upserts a weekday's blocks and leaves an unrelated override untouched", async () => {
+      const { db, schema } = await import("@/lib/db");
+      await db
+        .insert(schema.availabilityOverrides)
+        .values({ userId: USER, date: "2026-09-01", blocks: [] })
+        .onConflictDoNothing();
+
+      const blocks = [
+        {
+          start: "06:00",
+          end: "07:00",
+          mins: 60,
+          energy: "easy" as const,
+          sports: null,
+        },
+      ];
+      const r = await setStandardWeekDay(0, blocks);
+      expect(r).toEqual({ ok: true });
+
+      const row = await db.query.availabilityDefaults.findFirst({
+        where: and(
+          eq(schema.availabilityDefaults.userId, USER),
+          eq(schema.availabilityDefaults.weekday, 0)
+        ),
+      });
+      expect(row?.blocks).toEqual(blocks);
+
+      const untouchedOverride = await db.query.availabilityOverrides.findFirst({
+        where: and(
+          eq(schema.availabilityOverrides.userId, USER),
+          eq(schema.availabilityOverrides.date, "2026-09-01")
+        ),
+      });
+      expect(untouchedOverride?.blocks).toEqual([]);
+
+      // Second call on the same weekday exercises the onConflictDoUpdate path.
+      const blocks2 = [
+        {
+          start: "05:00",
+          end: "06:00",
+          mins: 60,
+          energy: "full" as const,
+          sports: null,
+        },
+      ];
+      const r2 = await setStandardWeekDay(0, blocks2);
+      expect(r2).toEqual({ ok: true });
+      const row2 = await db.query.availabilityDefaults.findFirst({
+        where: and(
+          eq(schema.availabilityDefaults.userId, USER),
+          eq(schema.availabilityDefaults.weekday, 0)
+        ),
+      });
+      expect(row2?.blocks).toEqual(blocks2);
+    });
+  });
+
+  describe("setDayOverride / clearDayOverride / zeroDay", () => {
+    it("rejects a malformed date", async () => {
+      const r = await setDayOverride("2026-9-1", []);
+      expect(r).toEqual({ ok: false, error: "invalid_date" });
+    });
+
+    it("rejects invalid blocks without writing anything", async () => {
+      const { db, schema } = await import("@/lib/db");
+      const overlapping = [
+        {
+          start: "18:00",
+          end: "19:30",
+          mins: 90,
+          energy: "normal" as const,
+          sports: null,
+        },
+        {
+          start: "19:00",
+          end: "20:00",
+          mins: 60,
+          energy: "normal" as const,
+          sports: null,
+        },
+      ];
+      const r = await setDayOverride("2026-08-20", overlapping);
+      expect(r.ok).toBe(false);
+
+      const row = await db.query.availabilityOverrides.findFirst({
+        where: and(
+          eq(schema.availabilityOverrides.userId, USER),
+          eq(schema.availabilityOverrides.date, "2026-08-20")
+        ),
+      });
+      expect(row).toBeUndefined();
+    });
+
+    it("pins a date and leaves that weekday's default untouched", async () => {
+      const { db, schema } = await import("@/lib/db");
+      const defaultBlocks = [
+        {
+          start: "17:00",
+          end: "18:00",
+          mins: 60,
+          energy: "normal" as const,
+          sports: null,
+        },
+      ];
+      await db
+        .insert(schema.availabilityDefaults)
+        .values({ userId: USER, weekday: 4, blocks: defaultBlocks })
+        .onConflictDoUpdate({
+          target: [
+            schema.availabilityDefaults.userId,
+            schema.availabilityDefaults.weekday,
+          ],
+          set: { blocks: defaultBlocks },
+        });
+
+      // 2026-08-21 is a Friday (weekday 4).
+      const pinned = [
+        {
+          start: "12:00",
+          end: "13:00",
+          mins: 60,
+          energy: "easy" as const,
+          sports: null,
+        },
+      ];
+      const r = await setDayOverride("2026-08-21", pinned);
+      expect(r).toEqual({ ok: true });
+
+      const override = await db.query.availabilityOverrides.findFirst({
+        where: and(
+          eq(schema.availabilityOverrides.userId, USER),
+          eq(schema.availabilityOverrides.date, "2026-08-21")
+        ),
+      });
+      expect(override?.blocks).toEqual(pinned);
+
+      const def = await db.query.availabilityDefaults.findFirst({
+        where: and(
+          eq(schema.availabilityDefaults.userId, USER),
+          eq(schema.availabilityDefaults.weekday, 4)
+        ),
+      });
+      expect(def?.blocks).toEqual(defaultBlocks);
+    });
+
+    it("zeroDay pins an empty override for that date", async () => {
+      const { db, schema } = await import("@/lib/db");
+      const r = await zeroDay("2026-08-25");
+      expect(r).toEqual({ ok: true });
+
+      const override = await db.query.availabilityOverrides.findFirst({
+        where: and(
+          eq(schema.availabilityOverrides.userId, USER),
+          eq(schema.availabilityOverrides.date, "2026-08-25")
+        ),
+      });
+      expect(override?.blocks).toEqual([]);
+    });
+
+    it("clearDayOverride deletes the override and never touches defaults", async () => {
+      const { db, schema } = await import("@/lib/db");
+      const defaultBlocks = [
+        {
+          start: "09:00",
+          end: "10:00",
+          mins: 60,
+          energy: "normal" as const,
+          sports: null,
+        },
+      ];
+      await db
+        .insert(schema.availabilityDefaults)
+        .values({ userId: USER, weekday: 5, blocks: defaultBlocks })
+        .onConflictDoUpdate({
+          target: [
+            schema.availabilityDefaults.userId,
+            schema.availabilityDefaults.weekday,
+          ],
+          set: { blocks: defaultBlocks },
+        });
+
+      await setDayOverride("2026-08-29", [
+        {
+          start: "11:00",
+          end: "12:00",
+          mins: 60,
+          energy: "easy",
+          sports: null,
+        },
+      ]);
+
+      const r = await clearDayOverride("2026-08-29");
+      expect(r).toEqual({ ok: true });
+
+      const override = await db.query.availabilityOverrides.findFirst({
+        where: and(
+          eq(schema.availabilityOverrides.userId, USER),
+          eq(schema.availabilityOverrides.date, "2026-08-29")
+        ),
+      });
+      expect(override).toBeUndefined();
+
+      const def = await db.query.availabilityDefaults.findFirst({
+        where: and(
+          eq(schema.availabilityDefaults.userId, USER),
+          eq(schema.availabilityDefaults.weekday, 5)
+        ),
+      });
+      expect(def?.blocks).toEqual(defaultBlocks);
+    });
+
+    it("clearDayOverride on a date with no override is a harmless no-op", async () => {
+      const r = await clearDayOverride("2026-11-11");
+      expect(r).toEqual({ ok: true });
+    });
+  });
+
+  describe("submitAvailability", () => {
+    it("returns the no-open-week message when there's no active plan", async () => {
+      const fd = new FormData();
+      fd.set("blocks-0", one);
+      const result = await submitAvailability({ message: "" }, fd);
+      expect(result.message).toBe("No open week to update yet.");
+    });
+  });
+});
