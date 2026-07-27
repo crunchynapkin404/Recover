@@ -4,15 +4,30 @@ const ALGORITHM = "aes-256-gcm";
 const IV_LENGTH = 12; // 96 bits recommended for GCM
 const AUTH_TAG_LENGTH = 16; // 128 bits
 
+/**
+ * The key itself is missing or malformed — a configuration fault, not a data
+ * fault. Stored ciphertext is untouched and still perfectly decryptable once
+ * the key is back. Callers that react destructively to a decrypt failure MUST
+ * distinguish this case: treating it as corruption throws away good data (see
+ * `vapidRecoveryAction`, added after a transient gap here wiped the instance
+ * VAPID pair and orphaned every push subscription on 2026-07-26).
+ */
+export class EncryptionKeyError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "EncryptionKeyError";
+  }
+}
+
 function getEncryptionKey(): Buffer {
   const hex = process.env.ENCRYPTION_KEY;
   if (!hex) {
-    throw new Error(
+    throw new EncryptionKeyError(
       "ENCRYPTION_KEY env var is missing. Generate one with: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\""
     );
   }
   if (hex.length !== 64 || !/^[0-9a-fA-F]{64}$/.test(hex)) {
-    throw new Error(
+    throw new EncryptionKeyError(
       "ENCRYPTION_KEY must be exactly 64 hex characters (32 bytes)."
     );
   }
