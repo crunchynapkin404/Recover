@@ -14,7 +14,9 @@ import type {
 import { dayMins } from "./types";
 
 function locked(d: DaySlot): boolean {
-  return d.status === "completed" || d.status === "missed";
+  return (
+    d.status === "completed" || d.status === "missed" || d.status === "race"
+  );
 }
 
 export function replanWeek(
@@ -57,17 +59,29 @@ export function replanWeek(
     const keep: ScheduledWorkout[] = [];
     for (const w of d.workouts) {
       const block = d.availableBlocks[w.blockIdx];
-      if (block && w.durationMins <= blockMins(block)) {
-        keep.push(w);
-        taken.add(
-          slotKey({
+      const slot: Slot | null = block
+        ? {
             dayIdx,
             blockIdx: w.blockIdx,
-            mins: 0,
-            energy: "full",
-            sports: null,
-          })
-        );
+            mins: blockMins(block),
+            energy: block.energy,
+            sports: block.sports,
+          }
+        : null;
+      // admits() reads day.workouts.length (the per-day cap) and
+      // day.workouts.some(isQuality) (same-day/adjacency), both of which
+      // still include THIS session at this point — check against a copy
+      // of this day with it removed, or it rejects itself.
+      const daysForCheck = slot
+        ? days.map((dd, i) =>
+            i === dayIdx
+              ? { ...dd, workouts: dd.workouts.filter((x) => x !== w) }
+              : dd
+          )
+        : days;
+      if (slot && admits(slot, w, daysForCheck, taken)) {
+        keep.push(w);
+        taken.add(slotKey(slot));
       } else {
         displaced.push({
           dayIdx,
@@ -121,11 +135,16 @@ export function replanWeek(
     if (move) {
       taken.add(slotKey(move));
       const target = days[move.dayIdx];
+      // Only the moved-in session's arrival defines the target day's
+      // status when the day was otherwise empty. When the target already
+      // held a session of its own, that session didn't move — stamping
+      // "moved"/movedFrom over the whole day would clobber its own status.
+      const targetHadOwnSession = target.workouts.length > 0;
       days[move.dayIdx] = {
         ...target,
         workouts: [...target.workouts, { ...workout, blockIdx: move.blockIdx }],
-        status: "moved",
-        movedFrom: fromDate,
+        status: targetHadOwnSession ? target.status : "moved",
+        movedFrom: targetHadOwnSession ? target.movedFrom : fromDate,
       };
       adjustments.push({
         date: fromDate,

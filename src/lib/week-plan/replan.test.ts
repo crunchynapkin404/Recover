@@ -406,3 +406,205 @@ describe("replanWeek — multi-block days", () => {
     expect(r.adjustments).toEqual([]);
   });
 });
+
+describe("replanWeek — C1: displacement checks admits(), not just size", () => {
+  it("displaces a session whose block dropped to an energy tier that no longer admits it, even though size is unchanged", () => {
+    const before = week([
+      {
+        mins: [60],
+        workouts: [
+          w({ type: "Intervals", purpose: "vo2max", durationMins: 60 }),
+        ],
+      }, // Mon: 60min block, full energy — unchanged size
+      { mins: [60] }, // Tue: free, full energy, admits vo2max
+    ]);
+    const resolved = new Map([
+      [
+        "2026-08-03",
+        [
+          {
+            start: null,
+            end: null,
+            mins: 60,
+            energy: "easy" as const,
+            sports: null,
+          },
+        ],
+      ],
+      [
+        "2026-08-04",
+        [
+          {
+            start: null,
+            end: null,
+            mins: 60,
+            energy: "full" as const,
+            sports: null,
+          },
+        ],
+      ],
+    ]);
+    const r = replanWeek(before, resolved);
+
+    // Same size block, only the energy tier dropped — the session must
+    // still be recognised as displaced, not left resident on Monday.
+    expect(r.week.days[0].workouts).toEqual([]);
+    expect(r.week.days[1].workouts[0]?.type).toBe("Intervals");
+    expect(r.week.days[1].workouts[0]?.durationMins).toBe(60);
+    expect(r.adjustments.length).toBeGreaterThan(0);
+    expect(r.adjustments[0].action).toBe("moved");
+  });
+
+  it("displaces a session whose block gained a sport restriction that excludes it, even though size and energy are unchanged", () => {
+    const before = week([
+      {
+        mins: [60],
+        workouts: [
+          w({
+            type: "Endurance",
+            sport: "Run",
+            purpose: "aerobic_base",
+            durationMins: 60,
+          }),
+        ],
+      }, // Mon: a Run session
+      { mins: [60] }, // Tue: free, any sport
+    ]);
+    const resolved = new Map([
+      [
+        "2026-08-03",
+        [
+          {
+            start: null,
+            end: null,
+            mins: 60,
+            energy: "full" as const,
+            sports: ["Bike"],
+          },
+        ],
+      ],
+      [
+        "2026-08-04",
+        [
+          {
+            start: null,
+            end: null,
+            mins: 60,
+            energy: "full" as const,
+            sports: null,
+          },
+        ],
+      ],
+    ]);
+    const r = replanWeek(before, resolved);
+
+    // Same size, same energy — only the sport list narrowed to exclude Run.
+    expect(r.week.days[0].workouts).toEqual([]);
+    expect(r.week.days[1].workouts[0]?.type).toBe("Endurance");
+    expect(r.week.days[1].workouts[0]?.durationMins).toBe(60);
+    expect(r.adjustments.length).toBeGreaterThan(0);
+    expect(r.adjustments[0].action).toBe("moved");
+  });
+});
+
+describe("replanWeek — C2: never places a displaced session on a race day", () => {
+  it("drops a displaced session rather than moving it onto the week's race day, even when that day is the roomiest candidate", () => {
+    const before = week([
+      {
+        mins: [60],
+        workouts: [
+          w({ type: "Endurance", purpose: "aerobic_base", durationMins: 60 }),
+        ],
+      }, // Mon
+      {
+        mins: [60],
+        workouts: [
+          w({ type: "Endurance", purpose: "aerobic_base", durationMins: 55 }),
+        ],
+      }, // Tue — full, no room
+      {
+        mins: [60],
+        workouts: [
+          w({ type: "Endurance", purpose: "aerobic_base", durationMins: 55 }),
+        ],
+      }, // Wed — full, no room
+      {
+        mins: [60],
+        workouts: [
+          w({ type: "Endurance", purpose: "aerobic_base", durationMins: 55 }),
+        ],
+      }, // Thu — full, no room
+      {
+        mins: [60],
+        workouts: [
+          w({ type: "Endurance", purpose: "aerobic_base", durationMins: 55 }),
+        ],
+      }, // Fri — full, no room
+      { mins: [300] }, // Sat — race day, roomy
+      {
+        mins: [60],
+        workouts: [
+          w({ type: "Endurance", purpose: "aerobic_base", durationMins: 55 }),
+        ],
+      }, // Sun — full, no room
+    ]);
+    before.days[5] = {
+      ...before.days[5],
+      status: "race",
+      raceName: "Amsterdam 10k",
+    };
+
+    const r = replanWeek(
+      before,
+      resolve([[], [60], [60], [60], [60], [300], [60]])
+    );
+
+    // The race day must survive completely untouched.
+    expect(r.week.days[5].status).toBe("race");
+    expect(r.week.days[5].raceName).toBe("Amsterdam 10k");
+    expect(r.week.days[5].workouts).toEqual([]);
+
+    // Monday's session has nowhere legal to go (every other day is full,
+    // and the only free block is the race day) — it must be dropped, not
+    // moved onto the race.
+    expect(r.week.days[0].workouts).toEqual([]);
+    expect(r.adjustments).toHaveLength(1);
+    expect(r.adjustments[0].date).toBe("2026-08-03");
+    expect(r.adjustments[0].action).toBe("dropped");
+  });
+});
+
+describe("replanWeek — Minor: a move must not clobber the target day's own status", () => {
+  it("preserves a target day's own status and movedFrom when it already held its own session", () => {
+    const before = weekWithKept([
+      {
+        mins: [60],
+        kept: [
+          {
+            blockIdx: 0,
+            durationMins: 55,
+            type: "Endurance",
+            purpose: "aerobic_base",
+          },
+        ],
+      }, // Mon: displaced (resolves to zero)
+      {
+        mins: [90, 60],
+        kept: [
+          { blockIdx: 0, durationMins: 85, type: "Long", purpose: "long" },
+        ],
+      }, // Tue: keeps its own Long in block0, free block1 to receive the move
+    ]);
+    // Every other day of the week is unavailable, so Tuesday's free
+    // sibling block is the only legal destination for Monday's session.
+    const r = replanWeek(before, resolve([[], [90, 60]]));
+
+    const tuesday = r.week.days[1];
+    expect(tuesday.workouts.some((x) => x.type === "Long")).toBe(true);
+    expect(tuesday.workouts.some((x) => x.type === "Endurance")).toBe(true);
+    // Tuesday's own session didn't move — its day status must not become
+    // "moved", and movedFrom must not point at Monday.
+    expect(tuesday.status).toBe("planned");
+    expect(tuesday.movedFrom).toBeUndefined();
+  });
+});
