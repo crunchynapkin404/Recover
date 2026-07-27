@@ -16,9 +16,20 @@ function daysBetween(from: string, to: string): number {
   );
 }
 
+function localYmd(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 /**
  * Pure. A confirmation counts only when it was made during the week it
  * confirms — last week's tick must not silence this week.
+ *
+ * confirmedYmd must be derived from the *local* calendar day (via
+ * localYmd), matching weekStart/today. The app runs under
+ * TZ=Europe/Amsterdam; a confirmation made between local midnight and the
+ * UTC offset boundary would land on the previous UTC date, so deriving it
+ * with confirmedAt.toISOString() would wrongly read as belonging to last
+ * week and re-trigger the prompt on the very day the athlete confirmed.
  */
 export function shouldPromptAvailability(input: {
   confirmedAt: Date | null;
@@ -28,12 +39,8 @@ export function shouldPromptAvailability(input: {
   const age = daysBetween(input.weekStart, input.today);
   if (age < 0 || age > PROMPT_WINDOW_DAYS) return false;
   if (input.confirmedAt == null) return true;
-  const confirmedYmd = input.confirmedAt.toISOString().slice(0, 10);
+  const confirmedYmd = localYmd(input.confirmedAt);
   return confirmedYmd < input.weekStart;
-}
-
-function localYmd(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 /**
