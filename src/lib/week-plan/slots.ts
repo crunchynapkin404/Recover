@@ -116,7 +116,7 @@ export function fitToBlock(
       type: label.type,
       durationMins: roomMins,
       intensity: label.intensity,
-      description: `${label.type} — replaces ${w.type}, which needs ${w.minEffectiveMins}min to be worth doing`,
+      description: `${label.type} — replaces ${w.type}, which needs ${PURPOSE_FLOORS[w.purpose]}min to be worth doing`,
     }),
     how: "substituted",
   };

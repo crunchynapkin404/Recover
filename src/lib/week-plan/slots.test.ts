@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildSlots, admits, slotKey, fitToBlock } from "./slots";
 import type { DaySlot } from "./types";
 import type { PlannedWorkout } from "@/lib/training-plan";
-import type { Energy } from "@/lib/availability/types";
+import { PURPOSE_FLOORS, type Energy } from "@/lib/availability/types";
 
 function day(
   date: string,
@@ -57,6 +57,21 @@ describe("buildSlots", () => {
 
   it("emits nothing for a day with no blocks", () => {
     expect(buildSlots(week([day("2026-08-03", [])]))).toEqual([]);
+  });
+
+  it("breaks a genuine tie by day index, then block index", () => {
+    const days = week([
+      day("2026-08-03", [{ mins: 60 }, { mins: 60 }]),
+      day("2026-08-04", []),
+      day("2026-08-05", [{ mins: 60 }]),
+    ]);
+    expect(buildSlots(days).map((s) => [s.dayIdx, s.blockIdx, s.mins])).toEqual(
+      [
+        [0, 0, 60],
+        [0, 1, 60],
+        [2, 0, 60],
+      ]
+    );
   });
 });
 
@@ -177,5 +192,20 @@ describe("fitToBlock", () => {
 
   it("returns null when even recovery does not fit", () => {
     expect(fitToBlock(workout(), 15)).toBeNull(); // recovery floor is 20
+  });
+
+  it("compresses to exactly the floor without substituting", () => {
+    const floor = PURPOSE_FLOORS.threshold;
+    const r = fitToBlock(
+      workout({ type: "Tempo", purpose: "threshold", durationMins: 90 }),
+      floor
+    )!;
+    expect(r.how).toBe("compressed");
+    expect(r.workout.purpose).toBe("threshold");
+    expect(r.workout.durationMins).toBe(floor);
+  });
+
+  it("returns null instead of a negative-duration workout when room is negative", () => {
+    expect(fitToBlock(workout(), -10)).toBeNull();
   });
 });
