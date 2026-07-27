@@ -14,7 +14,7 @@ async function execute(_args: z.infer<typeof parameters>, ctx: ToolContext) {
     skeletonWeek: week.skeletonWeek,
     days: week.days.map((d) => ({
       date: d.date,
-      availableMins: d.availableMins,
+      availableBlocks: d.availableBlocks,
       workouts: d.workouts,
       status: d.status,
       movedFrom: d.movedFrom ?? null,

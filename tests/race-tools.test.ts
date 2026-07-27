@@ -178,7 +178,7 @@ describe.skipIf(!hasDb)("race coach tools", () => {
       expect(r.success).toBe(true);
     }
     const { allTools } = await import("@/lib/tools/registry");
-    expect(allTools.length).toBe(54);
+    expect(allTools.length).toBe(56);
     expect(allTools.map((t) => t.name)).toEqual(
       expect.arrayContaining([
         "get_races",
