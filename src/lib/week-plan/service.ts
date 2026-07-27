@@ -337,9 +337,12 @@ export async function runDailyAdaptation(
   const today = localYmd(now);
   if (!week.days.some((d) => d.date === today)) return "skipped";
 
-  // Yesterday completion: match any provider's activity on yesterday's
-  // local date with the planned sport (matching is bookkeeping, not AI
-  // context, so Strava rows count here).
+  // Yesterday completion: match a synced activity to whatever yesterday
+  // held. A planned/moved/adapted day matches on ITS OWN sport (below) —
+  // that constraint makes sense there because the plan named an expected
+  // sport for that slot. `yesterdayCompleted` is meaningful only for that
+  // case: it feeds adaptDay's missed/completed handling, which needs to
+  // know whether a *planned* session did or didn't happen.
   const yesterdayYmd = addDaysYmd(today, -1);
   const ySlot = week.days.find((d) => d.date === yesterdayYmd);
   const ySlotWorkout = ySlot?.workouts[0] ?? null;
@@ -377,6 +380,45 @@ export async function runDailyAdaptation(
       matched = { id: activity.id, load: activity.load };
     } else {
       yesterdayCompleted = false;
+    }
+  } else if (
+    ySlot != null &&
+    (ySlot.status === "rest" || ySlot.status === "race")
+  ) {
+    // No planned session yesterday — a rest day never had a sport to match
+    // against, and a race day's "session" isn't represented in `workouts`
+    // either (materializeWeek clears it there in favour of `raceName`), so
+    // the sport-equality constraint above simply doesn't apply: there is no
+    // expected sport to compare to. Match ANY activity on the local date
+    // instead. Whatever comes back — a bonus ride on the rest day, or the
+    // race performance itself — is booked purely through
+    // recordUnplannedLoad below, which routes a day with no workouts to
+    // unplannedLoad without touching status: a race day keeps
+    // "race"/raceName, a rest day keeps "rest". Covering race days here
+    // (not just rest) follows the design directly — "an activity landing on
+    // a day with no planned session ... is recorded as unplannedLoad"
+    // describes both equally; a race day has no `workouts` entry any more
+    // than a rest day does, and letting its activity book as unplanned load
+    // is strictly additive information (nothing is fabricated or removed).
+    // yesterdayCompleted is deliberately left null: there was nothing
+    // planned to mark completed or missed, so adaptDay's missed-workout
+    // handling must not run for this day.
+    const activity = await db.query.activities.findFirst({
+      where: and(
+        eq(schema.activities.userId, userId),
+        gte(
+          sql`coalesce(${schema.activities.startDateLocal}, ${schema.activities.startDate})`,
+          new Date(yesterdayYmd + "T00:00:00")
+        ),
+        lt(
+          sql`coalesce(${schema.activities.startDateLocal}, ${schema.activities.startDate})`,
+          new Date(today + "T00:00:00")
+        )
+      ),
+      orderBy: desc(schema.activities.startDate),
+    });
+    if (activity) {
+      matched = { id: activity.id, load: activity.load };
     }
   }
 

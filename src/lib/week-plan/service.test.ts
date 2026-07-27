@@ -5,6 +5,7 @@ import {
   getOpenWeekPlan,
   moveWorkout,
   recordUnplannedLoad,
+  runDailyAdaptation,
   swapWorkouts,
 } from "./service";
 import { blockFits } from "./types";
@@ -557,6 +558,179 @@ describe.skipIf(!hasDb)(
       expect(
         blockFits(sat, sat.workouts[0].blockIdx, sat.workouts[0].durationMins)
       ).toBe(true);
+    });
+  }
+);
+
+/**
+ * Task 10 fix: the design states plainly that "an activity landing on a day
+ * with no planned session ... is recorded as unplannedLoad" — but
+ * runDailyAdaptation's activity match used to require a planned workout on
+ * yesterday's slot before it would even query for a synced activity. A
+ * genuine rest-day bonus ride (or a race day, whose "session" was never a
+ * `workouts` entry to begin with) had no planned workout to match against,
+ * so the query never ran and unplannedLoad was never written — the
+ * recordUnplannedLoad branch above was only exercised by its own direct unit
+ * tests, never end to end. These tests drive it through
+ * runDailyAdaptation itself.
+ */
+describe.skipIf(!hasDb)(
+  "runDailyAdaptation — activity on a day with no planned session (Task 10 fix)",
+  () => {
+    let planId: string;
+
+    beforeAll(async () => {
+      await db
+        .insert(schema.users)
+        .values({
+          id: TEST_USER,
+          name: "Test Week Plan Service User",
+          email: `${TEST_USER}@example.invalid`,
+        })
+        .onConflictDoNothing();
+
+      const [plan] = await db
+        .insert(schema.trainingPlans)
+        .values({
+          userId: TEST_USER,
+          title: "Test Plan",
+          raceType: "marathon",
+          raceDate: "2026-12-01",
+          startDate: "2026-01-01",
+          weeksTotal: 16,
+          currentWeek: 1,
+          status: "active",
+        })
+        .returning();
+      planId = plan.id;
+    });
+
+    afterAll(async () => {
+      await db
+        .delete(schema.weekPlans)
+        .where(eq(schema.weekPlans.userId, TEST_USER));
+      await db
+        .delete(schema.activities)
+        .where(eq(schema.activities.userId, TEST_USER));
+      await db
+        .delete(schema.trainingPlans)
+        .where(eq(schema.trainingPlans.userId, TEST_USER));
+      await db.delete(schema.users).where(eq(schema.users.id, TEST_USER));
+    });
+
+    beforeEach(async () => {
+      await db
+        .delete(schema.weekPlans)
+        .where(eq(schema.weekPlans.userId, TEST_USER));
+      await db
+        .delete(schema.activities)
+        .where(eq(schema.activities.userId, TEST_USER));
+    });
+
+    async function seedWeek(days: DaySlot[]): Promise<void> {
+      await db.insert(schema.weekPlans).values({
+        userId: TEST_USER,
+        planId,
+        weekStart: WEEK_START,
+        skeletonWeek: 1,
+        days,
+        status: "open",
+        effectiveTarget: 300,
+      });
+    }
+
+    const YESTERDAY = DATES[0]; // Monday
+    const TODAY = DATES[1]; // Tuesday
+    const NOW = new Date(TODAY + "T12:00:00");
+
+    it("books a synced activity on a rest day as unplannedLoad, without completing it or inventing a session", async () => {
+      const days = DATES.map((d) => emptyDay(d));
+      await seedWeek(days);
+
+      const [activity] = await db
+        .insert(schema.activities)
+        .values({
+          userId: TEST_USER,
+          provider: "manual",
+          externalId: `task10-rest-${Date.now()}`,
+          sport: "Run",
+          startDate: new Date(YESTERDAY + "T09:00:00"),
+          load: 38,
+        })
+        .returning();
+
+      expect(await runDailyAdaptation(TEST_USER, NOW)).toBe("adapted");
+
+      const week = await getOpenWeekPlan(TEST_USER);
+      const yesterdaySlot = week!.days.find((d) => d.date === YESTERDAY)!;
+      expect(yesterdaySlot.unplannedLoad).toBe(38);
+      expect(yesterdaySlot.actualLoad).toBeUndefined();
+      expect(yesterdaySlot.status).toBe("rest");
+      expect(yesterdaySlot.workouts).toHaveLength(0);
+      expect(yesterdaySlot.activityId).toBe(activity.id);
+    });
+
+    it("leaves every other day byte-identical when a rest-day activity is booked as unplanned load", async () => {
+      const days = DATES.map((d) => emptyDay(d));
+      // A real planned session elsewhere in the week — the invariant this
+      // protects only means something if there's a session it could have
+      // touched but didn't.
+      days[3] = {
+        ...emptyDay(DATES[3]),
+        status: "planned",
+        workouts: [sw({ sport: "Bike", durationMins: 60 })],
+      };
+      await seedWeek(days);
+
+      await db.insert(schema.activities).values({
+        userId: TEST_USER,
+        provider: "manual",
+        externalId: `task10-invariant-${Date.now()}`,
+        sport: "Run",
+        startDate: new Date(YESTERDAY + "T09:00:00"),
+        load: 25,
+      });
+
+      const before = await getOpenWeekPlan(TEST_USER);
+      expect(await runDailyAdaptation(TEST_USER, NOW)).toBe("adapted");
+      const after = await getOpenWeekPlan(TEST_USER);
+
+      for (let i = 0; i < 7; i++) {
+        if (DATES[i] === YESTERDAY) continue;
+        expect(after!.days[i]).toEqual(before!.days[i]);
+      }
+    });
+
+    it("books a synced activity on a race day as unplanned load, keeping status race and raceName intact", async () => {
+      const days = DATES.map((d) => emptyDay(d));
+      days[0] = {
+        ...emptyDay(YESTERDAY),
+        status: "race",
+        raceName: "Tune-up 10k",
+      };
+      await seedWeek(days);
+
+      const [activity] = await db
+        .insert(schema.activities)
+        .values({
+          userId: TEST_USER,
+          provider: "manual",
+          externalId: `task10-race-${Date.now()}`,
+          sport: "Run",
+          startDate: new Date(YESTERDAY + "T09:00:00"),
+          load: 95,
+        })
+        .returning();
+
+      expect(await runDailyAdaptation(TEST_USER, NOW)).toBe("adapted");
+
+      const week = await getOpenWeekPlan(TEST_USER);
+      const raceSlot = week!.days.find((d) => d.date === YESTERDAY)!;
+      expect(raceSlot.status).toBe("race");
+      expect(raceSlot.raceName).toBe("Tune-up 10k");
+      expect(raceSlot.workouts).toHaveLength(0);
+      expect(raceSlot.unplannedLoad).toBe(95);
+      expect(raceSlot.activityId).toBe(activity.id);
     });
   }
 );
