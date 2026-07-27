@@ -127,12 +127,25 @@ export async function generateMorningInsight(
   // rather than presenting a partial number as whole.
   const { arrivalFromWellness, overnightComplete, gapSentence } =
     await import("@/lib/brief-completeness");
-  const wellnessToday = await db.query.wellnessDaily.findFirst({
-    where: and(
-      eq(schema.wellnessDaily.userId, userId),
-      eq(schema.wellnessDaily.date, today)
-    ),
-  });
+  // Fail closed: if we can't confirm what arrived, treat it as absent rather
+  // than silently presenting a possibly-partial number as complete — a
+  // transient DB error should produce an honest, caveated brief, not one
+  // that claims complete data it never confirmed.
+  let wellnessToday: typeof schema.wellnessDaily.$inferSelect | undefined;
+  try {
+    wellnessToday = await db.query.wellnessDaily.findFirst({
+      where: and(
+        eq(schema.wellnessDaily.userId, userId),
+        eq(schema.wellnessDaily.date, today)
+      ),
+    });
+  } catch (err) {
+    logger.error("completeness read failed", {
+      userId,
+      message: err instanceof Error ? err.message : String(err),
+    });
+    wellnessToday = undefined;
+  }
   const arrival = arrivalFromWellness(wellnessToday);
   const dataComplete = overnightComplete(arrival);
   const caveat = dataComplete
