@@ -57,6 +57,67 @@ describe("validateBlocks", () => {
   it("accepts an empty list — that is an unavailable day", () => {
     expect(validateBlocks([])).toBeNull();
   });
+
+  // ── "HH:MM" shape gap ────────────────────────────────────────────────
+  // toMinutes() has no shape check of its own — a malformed clock string
+  // silently becomes NaN, and the end-after-start/overlap comparisons
+  // above (NaN <= NaN, NaN < NaN) are always false, so a garbage string
+  // would otherwise sail straight through. validateBlocks is called by
+  // every writer (parseDayBlocks, setStandardWeekDay, setDayOverride), so
+  // the shape guard belongs here rather than only at the form boundary.
+
+  it("keeps a legacy block with both start and end null", () => {
+    expect(
+      validateBlocks([block({ start: null, end: null, mins: 45 })])
+    ).toBeNull();
+  });
+
+  it("keeps a valid timed block", () => {
+    expect(
+      validateBlocks([block({ start: "06:00", end: "07:00", mins: 60 })])
+    ).toBeNull();
+  });
+
+  it("rejects a non-time garbage string", () => {
+    expect(validateBlocks([block({ start: "garbage", end: "19:30" })])).toBe(
+      "A block's start and end must both be times, or both be empty."
+    );
+  });
+
+  it("rejects a time string with no colon", () => {
+    expect(validateBlocks([block({ start: "1830", end: "19:30" })])).toBe(
+      "A block's start and end must both be times, or both be empty."
+    );
+  });
+
+  it("rejects an impossible hour", () => {
+    expect(validateBlocks([block({ start: "25:00", end: "26:00" })])).toBe(
+      "A block's start and end must both be times, or both be empty."
+    );
+  });
+
+  it("rejects an impossible minute", () => {
+    expect(validateBlocks([block({ start: "12:60", end: "13:00" })])).toBe(
+      "A block's start and end must both be times, or both be empty."
+    );
+  });
+
+  it("rejects one null and one set clock field", () => {
+    expect(validateBlocks([block({ start: "18:00", end: null })])).toBe(
+      "A block's start and end must both be times, or both be empty."
+    );
+    expect(validateBlocks([block({ start: null, end: "19:00" })])).toBe(
+      "A block's start and end must both be times, or both be empty."
+    );
+  });
+
+  it("catches a malformed shape before the end-after-start comparison would run", () => {
+    // "garbage" <= "garbage" via toMinutes() is NaN <= NaN, always false —
+    // this must resolve via the shape message, not silently pass.
+    expect(validateBlocks([block({ start: "garbage", end: "garbage" })])).toBe(
+      "A block's start and end must both be times, or both be empty."
+    );
+  });
 });
 
 describe("engine tables", () => {

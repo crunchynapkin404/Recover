@@ -32,22 +32,6 @@ function revalidatePlan(): void {
   revalidatePath("/");
 }
 
-/** "HH:MM", hour 00-23, minute 00-59 — the shape toMinutes() itself never checks. */
-const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
-
-/** Both null (legacy/unset), or both present and a plausible "HH:MM". */
-function hasValidClockShape(b: unknown): b is AvailabilityBlock {
-  if (typeof b !== "object" || b === null) return false;
-  const { start, end } = b as { start?: unknown; end?: unknown };
-  if (start === null && end === null) return true;
-  return (
-    typeof start === "string" &&
-    typeof end === "string" &&
-    TIME_RE.test(start) &&
-    TIME_RE.test(end)
-  );
-}
-
 /**
  * v0.9.3 "Plan this week": materialize the current week on demand — for
  * plans created mid-week (or before this patch) that would otherwise wait
@@ -81,7 +65,6 @@ export function parseDayBlocks(
     return [];
   }
   if (!Array.isArray(parsed)) return [];
-  if (!parsed.every(hasValidClockShape)) return [];
   const blocks = parsed as AvailabilityBlock[];
   return validateBlocks(blocks) === null ? blocks : [];
 }

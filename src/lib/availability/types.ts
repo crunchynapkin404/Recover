@@ -50,6 +50,26 @@ function toMinutes(hhmm: string): number {
   return h * 60 + m;
 }
 
+/** "HH:MM", hour 00-23, minute 00-59 — the shape toMinutes() itself never checks. */
+const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+/**
+ * Both null (legacy/unset), or both present and a plausible "HH:MM". Guards
+ * against non-object entries first: callers pass this the raw contents of a
+ * parsed JSON array, which TypeScript's `AvailabilityBlock` type does not
+ * enforce at runtime.
+ */
+function hasValidClockShape(b: AvailabilityBlock): boolean {
+  if (typeof b !== "object" || b === null) return false;
+  if (b.start === null && b.end === null) return true;
+  return (
+    typeof b.start === "string" &&
+    typeof b.end === "string" &&
+    TIME_RE.test(b.start) &&
+    TIME_RE.test(b.end)
+  );
+}
+
 /**
  * The only reader of a block's duration. Clock times win when present so
  * `mins` can never drift from them; legacy blocks carry `mins` alone.
@@ -64,6 +84,9 @@ export function blockMins(b: AvailabilityBlock): number {
 /** Null when the list is a legal day. An empty list is legal: "unavailable". */
 export function validateBlocks(blocks: AvailabilityBlock[]): string | null {
   for (const b of blocks) {
+    if (!hasValidClockShape(b)) {
+      return "A block's start and end must both be times, or both be empty.";
+    }
     if (
       b.start != null &&
       b.end != null &&
