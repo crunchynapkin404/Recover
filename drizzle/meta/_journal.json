@@ -218,6 +218,13 @@
       "when": 1785165191434,
       "tag": "0030_blockidx_backfill",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1785171525532,
+      "tag": "0031_backfill_availability_defaults",
+      "breakpoints": true
     }
   ]
 }

@@ -319,7 +319,7 @@ describe.skipIf(!hasDb)("week-plan service", () => {
     expect(await runDailyAdaptation(USER)).toBe("skipped");
   });
 
-  it("applyAvailability rematerializes only non-completed days and logs availability_change", async () => {
+  it("applyAvailability replans only non-completed days and logs availability_change", async () => {
     const {
       rolloverWeekPlan,
       applyAvailability,
@@ -361,6 +361,114 @@ describe.skipIf(!hasDb)("week-plan service", () => {
       await import("@/lib/week-plan/service");
     expect(await rolloverWeekPlan(OTHER)).toBe("skipped");
     expect(await runDailyAdaptation(OTHER)).toBe("skipped");
+  });
+
+  // Regression for the migration in drizzle/0031_backfill_availability_defaults.sql:
+  // an active-plan user with zero availability_defaults rows used to roll
+  // over into a silently all-rest week (resolveWeek returns [] for every
+  // weekday with no default). Deliberately does NOT hand-seed
+  // availability_defaults — that would mask exactly the bug this proves is
+  // fixed. Instead it applies the real, committed migration file verbatim
+  // (the actual fix) against a user left in the pre-migration broken state,
+  // then asserts the product-level consequence: the resulting week is not
+  // all-rest.
+  it("a user with an active plan and no availability_defaults gets a real week once the standard-week backfill runs", async () => {
+    const { db, schema } = await import("@/lib/db");
+    const { sql } = await import("drizzle-orm");
+    const { readFileSync } = await import("node:fs");
+    const { fileURLToPath } = await import("node:url");
+    const { rolloverWeekPlan, getOpenWeekPlan } =
+      await import("@/lib/week-plan/service");
+
+    const NODEFAULTS = "test-week-plans-no-defaults-user";
+    try {
+      await db
+        .insert(schema.users)
+        .values({
+          id: NODEFAULTS,
+          name: "No Defaults Test",
+          email: `${NODEFAULTS}@example.invalid`,
+          role: "member",
+        })
+        .onConflictDoNothing();
+
+      const [plan] = await db
+        .insert(schema.trainingPlans)
+        .values({
+          userId: NODEFAULTS,
+          title: "No-defaults plan",
+          raceType: "marathon",
+          raceDate: addDaysYmd(weekStart, 12 * 7),
+          startDate: lastWeekStart,
+          weeksTotal: 12,
+          currentWeek: 1,
+          status: "active",
+          constraints: { daysPerWeek: 4, hoursPerWeek: 8, sports: ["Run"] },
+        })
+        .returning();
+      await db.insert(schema.trainingBlocks).values({
+        planId: plan.id,
+        weekNumber: 1,
+        phase: "build",
+        targetLoadTotal: 400,
+        targetSessions: 4,
+        workouts: [],
+      });
+
+      // The best available record of what this athlete actually had: a
+      // closed prior week, training on its last 4 days (Thu–Sun), exactly
+      // the profile the migration derives a standard week from. No
+      // availability_defaults rows exist for this user yet.
+      await db.insert(schema.weekPlans).values({
+        userId: NODEFAULTS,
+        planId: plan.id,
+        weekStart: lastWeekStart,
+        skeletonWeek: 1,
+        status: "closed",
+        days: Array.from({ length: 7 }, (_, i) => {
+          const date = addDaysYmd(lastWeekStart, i);
+          const trainingDay = i >= 3;
+          return {
+            date,
+            availableBlocks: blocksFor(trainingDay ? 120 : 0),
+            availableMins: trainingDay ? 120 : 0,
+            workouts: [],
+            status: "rest" as const,
+          };
+        }),
+      });
+
+      const before = await db.query.availabilityDefaults.findMany({
+        where: eq(schema.availabilityDefaults.userId, NODEFAULTS),
+      });
+      expect(before).toHaveLength(0);
+
+      // Apply the actual committed migration SQL verbatim — the fix under
+      // test, not a hand-rolled equivalent.
+      const migrationPath = fileURLToPath(
+        new URL(
+          "../drizzle/0031_backfill_availability_defaults.sql",
+          import.meta.url
+        )
+      );
+      await db.execute(sql.raw(readFileSync(migrationPath, "utf8")));
+
+      const after = await db.query.availabilityDefaults.findMany({
+        where: eq(schema.availabilityDefaults.userId, NODEFAULTS),
+      });
+      expect(after).toHaveLength(7);
+
+      expect(await rolloverWeekPlan(NODEFAULTS)).toBe("rolled");
+      const week = await getOpenWeekPlan(NODEFAULTS);
+      expect(week).not.toBeNull();
+      // The product-level consequence: not every day materialized as rest.
+      expect(week!.days.every((d) => d.status === "rest")).toBe(false);
+    } finally {
+      // users cascades to trainingPlans/trainingBlocks/weekPlans/
+      // availabilityDefaults — same cascade-style cleanup as the rest of
+      // this file.
+      await db.delete(schema.users).where(eq(schema.users.id, NODEFAULTS));
+    }
   });
 
   it("generateWeeklyReview leaves an open week_plans row (rollover wired)", async () => {
