@@ -236,6 +236,67 @@ describe("adaptDay — missed yesterday", () => {
     );
   });
 
+  it("C3: a missed two-session day accounts for both sessions, not just the first, in the drop/redistribute record", () => {
+    const missedDay: DaySlot = {
+      date: "2026-07-20",
+      availableBlocks: [
+        { start: null, end: null, mins: 60, energy: "full", sports: null },
+        { start: null, end: null, mins: 120, energy: "full", sports: null },
+      ],
+      availableMins: 180,
+      workouts: [
+        withPurpose({
+          day: 0,
+          sport: "Run",
+          type: "Endurance",
+          durationMins: 50,
+          intensity: "Z1-Z2",
+          description: "d",
+          blockIdx: 0,
+        }),
+        withPurpose({
+          day: 0,
+          sport: "Run",
+          type: "Long",
+          durationMins: 100,
+          intensity: "Z1-Z2",
+          description: "d",
+          blockIdx: 1,
+        }),
+      ],
+      status: "planned",
+    };
+    const w = week([
+      missedDay,
+      D("2026-07-21", 60, { type: "Endurance", durationMins: 40 }),
+      D("2026-07-22", 60, { type: "Endurance", durationMins: 40 }),
+      D("2026-07-23", 60, null),
+      D("2026-07-24", 60, null),
+      D("2026-07-25", 60, null),
+      D("2026-07-26", 60, null),
+    ]);
+    const r = adaptDay({
+      week: w,
+      today: "2026-07-21",
+      band: "green",
+      yesterdayCompleted: false,
+    });
+    expect(r.week.days[0].workouts).toEqual([]);
+    expect(r.week.days[0].status).toBe("missed");
+    const dropped = r.adjustments.find(
+      (a) => a.trigger === "missed_workout" && a.action === "dropped"
+    );
+    expect(dropped).toBeDefined();
+    // Both missed sessions must be named — not just the first (Endurance).
+    expect(dropped!.reason).toContain("Endurance");
+    expect(dropped!.reason).toContain("Long");
+    expect(dropped!.before[0].workouts).toHaveLength(2);
+    // Both remaining days must have absorbed some of the combined 150min,
+    // each capped at +25% of its own original duration (40 → 50 max).
+    expect(r.week.days[1].workouts[0]!.durationMins).toBeLessThanOrEqual(50);
+    expect(r.week.days[2].workouts[0]!.durationMins).toBeLessThanOrEqual(50);
+  });
+
   it("does nothing on yesterdayCompleted true or null", () => {
     const w = week([
       D("2026-07-20", 60, { durationMins: 45 }, "completed"),
@@ -521,6 +582,108 @@ describe("adaptDay — readiness and availability", () => {
     );
   });
 
+  it("C3: a two-session day whose first block collapses to zero keeps the untouched second session, not workouts: []", () => {
+    // Exact reproduction from the review: Wednesday has availableBlocks
+    // [0min, 120min] and workouts [Endurance@0, Long@1]. Only block 0
+    // collapsed; the 100min Long in the untouched 120min block must
+    // survive, not vanish along with the affected Endurance session.
+    const today: DaySlot = {
+      date: "2026-07-22",
+      availableBlocks: [
+        { start: null, end: null, mins: 0, energy: "full", sports: null },
+        { start: null, end: null, mins: 120, energy: "full", sports: null },
+      ],
+      availableMins: 120,
+      workouts: [
+        withPurpose({
+          day: 2,
+          sport: "Run",
+          type: "Endurance",
+          durationMins: 45,
+          intensity: "Z1-Z2",
+          description: "d",
+          blockIdx: 0,
+        }),
+        withPurpose({
+          day: 2,
+          sport: "Run",
+          type: "Long",
+          durationMins: 100,
+          intensity: "Z1-Z2",
+          description: "d",
+          blockIdx: 1,
+        }),
+      ],
+      status: "planned",
+    };
+    const w = week([
+      D("2026-07-20", 60, null, "rest"),
+      D("2026-07-21", 60, null, "rest"),
+      today,
+      D("2026-07-23", 60, null),
+      D("2026-07-24", 60, null),
+      D("2026-07-25", 60, null),
+      D("2026-07-26", 60, null),
+    ]);
+    const r = adaptDay({
+      week: w,
+      today: "2026-07-22",
+      band: "green",
+      yesterdayCompleted: null,
+    });
+    const result = r.week.days[2];
+    const long = result.workouts.find((x) => x.type === "Long");
+    expect(long).toBeDefined();
+    expect(long!.durationMins).toBe(100);
+    expect(long!.blockIdx).toBe(1);
+    expect(result.status).not.toBe("rest");
+    // The affected Endurance session is the one accounted for, either
+    // moved elsewhere or logged as dropped — never silently gone.
+    const enduranceGone = !result.workouts.some((x) => x.type === "Endurance");
+    expect(enduranceGone).toBe(true);
+    expect(
+      r.adjustments.some(
+        (a) => a.trigger === "no_time" && a.reason.includes("Endurance")
+      )
+    ).toBe(true);
+  });
+
+  it("I5: a session whose block shrinks below its own purpose floor is fitted, not truncated below the floor", () => {
+    // Reproduction from the review: a 90min Intervals (vo2max, floor 40)
+    // session whose block shrinks to 20min. The old code set
+    // durationMins to 20 directly — below vo2max's own floor and even
+    // below every substitute's floor down to threshold/aerobic_base,
+    // landing exactly on recovery's floor (20). fitToBlock must route
+    // this through the same substitution chain materializeWeek uses.
+    const w = week([
+      D("2026-07-20", 60, null, "rest"),
+      D("2026-07-21", 90, { type: "Intervals", durationMins: 90 }),
+      D("2026-07-22", 60, null),
+      D("2026-07-23", 60, null),
+      D("2026-07-24", 60, null),
+      D("2026-07-25", 60, null),
+      D("2026-07-26", 60, null),
+    ]);
+    setMins(w.days[1], 20);
+    const r = adaptDay({
+      week: w,
+      today: "2026-07-21",
+      band: "green",
+      yesterdayCompleted: null,
+    });
+    const result = r.week.days[1].workouts[0]!;
+    // Never below its own (possibly substituted) purpose floor.
+    expect(result.durationMins).toBeGreaterThanOrEqual(result.minEffectiveMins);
+    expect(result.durationMins).toBe(20);
+    // No longer the untouched-purpose truncation the review flagged.
+    expect(result.type).not.toBe("Intervals");
+    expect(
+      r.adjustments.some(
+        (a) => a.trigger === "no_time" && a.action === "swapped"
+      )
+    ).toBe(true);
+  });
+
   it("a roomy sibling block does not excuse a session in its own shrunk block", () => {
     const w = base();
     // Today now carries two blocks: its own occupied block (blockIdx 0)
@@ -542,6 +705,68 @@ describe("adaptDay — readiness and availability", () => {
     });
     expect(r.adjustments.some((a) => a.trigger === "no_time")).toBe(true);
     expect(r.week.days[1].status).toBe("adapted");
+  });
+});
+
+describe("adaptDay — C3: red readiness with no room for a recovery spin", () => {
+  it("removes only the affected quality session, keeping an untouched sibling session on the same day", () => {
+    const today: DaySlot = {
+      date: "2026-07-21",
+      availableBlocks: [
+        { start: null, end: null, mins: 20, energy: "full", sports: null },
+        { start: null, end: null, mins: 90, energy: "full", sports: null },
+      ],
+      availableMins: 110,
+      workouts: [
+        withPurpose({
+          day: 0,
+          sport: "Run",
+          type: "Intervals",
+          durationMins: 20,
+          intensity: "Z4-Z5",
+          description: "d",
+          blockIdx: 0,
+        }),
+        withPurpose({
+          day: 0,
+          sport: "Run",
+          type: "Endurance",
+          durationMins: 80,
+          intensity: "Z1-Z2",
+          description: "d",
+          blockIdx: 1,
+        }),
+      ],
+      status: "planned",
+    };
+    const w = week([
+      D("2026-07-20", 60, null, "rest"),
+      today,
+      D("2026-07-22", 60, null),
+      D("2026-07-23", 60, null),
+      D("2026-07-24", 60, null),
+      D("2026-07-25", 60, null),
+      D("2026-07-26", 60, null),
+    ]);
+    const r = adaptDay({
+      week: w,
+      today: "2026-07-21",
+      band: "red",
+      yesterdayCompleted: null,
+    });
+    const result = r.week.days[1];
+    // Intervals' own 20min block can't even hold a 30min recovery spin, so
+    // it must be removed — but the untouched 80min Endurance session in
+    // the sibling block must survive.
+    expect(result.workouts).toHaveLength(1);
+    expect(result.workouts[0].type).toBe("Endurance");
+    expect(result.workouts[0].durationMins).toBe(80);
+    expect(result.status).not.toBe("rest");
+    expect(
+      r.adjustments.some(
+        (a) => a.trigger === "low_readiness" && a.action === "swapped"
+      )
+    ).toBe(true);
   });
 });
 

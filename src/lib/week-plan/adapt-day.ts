@@ -11,9 +11,9 @@ import {
   RED_RECOVERY_MINS,
   STEP_DOWN,
 } from "./types";
-import { findBlockFor } from "./slots";
+import { findBlockFor, fitToBlock } from "./slots";
 import { blockMins } from "@/lib/availability/types";
-import { withPurpose } from "@/lib/training-plan";
+import { withPurpose, type PlannedWorkout } from "@/lib/training-plan";
 
 export interface AdaptDayInput {
   week: WeekState;
@@ -45,12 +45,19 @@ function handleMissedYesterday(
   const yIdx = todayIdx - 1;
   if (yIdx < 0) return;
   const y = week.days[yIdx];
-  const yWorkout = y.workouts[0] ?? null;
-  if (!yWorkout || y.status === "completed" || y.status === "missed") return;
+  if (
+    y.workouts.length === 0 ||
+    y.status === "completed" ||
+    y.status === "missed"
+  )
+    return;
 
   const before = [{ ...y, workouts: y.workouts.map((w) => ({ ...w })) }];
   const wasMovedBefore = y.movedFrom != null;
-  const workout = yWorkout;
+  // Snapshot every session on the missed day — not just the first — before
+  // the day itself is wiped below. A two-session day misses both sessions,
+  // and each needs its own chance to move forward or be recorded as dropped.
+  const missedWorkouts = y.workouts.map((w) => ({ ...w }));
   week.days[yIdx] = {
     ...y,
     workouts: [],
@@ -58,36 +65,49 @@ function handleMissedYesterday(
     movedFrom: undefined,
   };
 
-  if (isQuality(workout) && !wasMovedBefore) {
-    for (let i = todayIdx; i < 7; i++) {
-      const t = week.days[i];
-      if (t.workouts.length === 0 && t.status !== "race") {
-        // admits() carries the quality-adjacency check itself (and size,
-        // sport, energy ceiling) — the block tried is whichever on this day
-        // actually fits, not the one the session happened to occupy before.
-        const blockIdx = findBlockFor(week.days, i, workout, new Set());
-        if (blockIdx != null) {
-          week.days[i] = {
-            ...t,
-            workouts: [{ ...workout, blockIdx }],
-            status: "moved",
-            movedFrom: y.date,
-          };
-          adjustments.push({
-            date: y.date,
-            trigger: "missed_workout",
-            action: "moved",
-            before,
-            after: [{ ...week.days[i] }],
-            reason: `${workout.type} missed on ${y.date} — moved to ${t.date}`,
-          });
-          return;
+  const toDrop: PlannedWorkout[] = [];
+  for (const workout of missedWorkouts) {
+    if (isQuality(workout) && !wasMovedBefore) {
+      let moved = false;
+      for (let i = todayIdx; i < 7; i++) {
+        const t = week.days[i];
+        if (t.workouts.length === 0 && t.status !== "race") {
+          // admits() carries the quality-adjacency check itself (and size,
+          // sport, energy ceiling) — the block tried is whichever on this
+          // day actually fits, not the one the session happened to occupy
+          // before.
+          const blockIdx = findBlockFor(week.days, i, workout, new Set());
+          if (blockIdx != null) {
+            week.days[i] = {
+              ...t,
+              workouts: [{ ...workout, blockIdx }],
+              status: "moved",
+              movedFrom: y.date,
+            };
+            adjustments.push({
+              date: y.date,
+              trigger: "missed_workout",
+              action: "moved",
+              before,
+              after: [{ ...week.days[i] }],
+              reason: `${workout.type} missed on ${y.date} — moved to ${t.date}`,
+            });
+            moved = true;
+            break;
+          }
         }
       }
+      if (moved) continue;
     }
+    toDrop.push(workout);
   }
 
-  // Drop + redistribute over remaining planned days, capped per day.
+  if (toDrop.length === 0) return;
+
+  // Drop + redistribute over remaining planned days, capped per day. One
+  // combined pass over every dropped session's minutes — not one pass per
+  // session — so the +25%/day cap is judged against each remaining day's
+  // own original duration once, not compounded across multiple passes.
   const remaining = week.days.filter(
     (d, i) =>
       i >= todayIdx &&
@@ -95,7 +115,8 @@ function handleMissedYesterday(
       d.status !== "completed" &&
       d.status !== "race"
   );
-  const share = remaining.length ? workout.durationMins / remaining.length : 0;
+  const totalMins = toDrop.reduce((s, wo) => s + wo.durationMins, 0);
+  const share = remaining.length ? totalMins / remaining.length : 0;
   for (const d of remaining) {
     const w = d.workouts[0]!;
     const cap = Math.round(w.durationMins * (1 + DAY_REDISTRIBUTE_CAP_PCT));
@@ -106,6 +127,7 @@ function handleMissedYesterday(
       Math.min(blockCapacity, Math.round(w.durationMins + share))
     );
   }
+  const label = toDrop.map((wo) => wo.type).join(" + ");
   adjustments.push({
     date: y.date,
     trigger: "missed_workout",
@@ -113,8 +135,8 @@ function handleMissedYesterday(
     before,
     after: remaining.map((d) => ({ ...d })),
     reason: wasMovedBefore
-      ? `${workout.type} missed twice — dropped; remaining sessions absorb what fits (max +${Math.round(DAY_REDISTRIBUTE_CAP_PCT * 100)}%/day)`
-      : `${workout.type} missed on ${y.date} — dropped; remaining sessions absorb what fits (max +${Math.round(DAY_REDISTRIBUTE_CAP_PCT * 100)}%/day)`,
+      ? `${label} missed twice — dropped; remaining sessions absorb what fits (max +${Math.round(DAY_REDISTRIBUTE_CAP_PCT * 100)}%/day)`
+      : `${label} missed on ${y.date} — dropped; remaining sessions absorb what fits (max +${Math.round(DAY_REDISTRIBUTE_CAP_PCT * 100)}%/day)`,
   });
 }
 
@@ -149,9 +171,19 @@ export function adaptDay(input: AdaptDayInput): AdaptDayResult {
     ];
     const block = today.availableBlocks[todayWorkout.blockIdx];
     const blockCapacity = block ? blockMins(block) : 0;
-    if (blockCapacity === 0) {
+    // Only this one session is removed from today's workouts below — any
+    // sibling session (a second block, untouched) is left exactly as it
+    // was, never wiped out as a side effect of this one's fate.
+    const remainingToday = today.workouts.filter((w) => w !== todayWorkout);
+    const fitted = fitToBlock(todayWorkout, blockCapacity);
+
+    if (!fitted) {
       const workout = todayWorkout;
-      week.days[todayIdx] = { ...today, workouts: [], status: "rest" };
+      week.days[todayIdx] = {
+        ...today,
+        workouts: remainingToday,
+        status: remainingToday.length > 0 ? today.status : "rest",
+      };
       // Same rule as the missed-yesterday move above: pick whichever block
       // on a candidate day actually admits the session, not the index it
       // carried from today. findIndex can't hand back a block index, so the
@@ -193,15 +225,24 @@ export function adaptDay(input: AdaptDayInput): AdaptDayResult {
             : `no time on ${today.date} — ${workout.type} dropped`,
       });
     } else {
-      todayWorkout.durationMins = blockCapacity;
-      today.status = "adapted";
+      week.days[todayIdx] = {
+        ...today,
+        workouts: [
+          ...remainingToday,
+          { ...fitted.workout, blockIdx: todayWorkout.blockIdx },
+        ],
+        status: "adapted",
+      };
       adjustments.push({
         date: today.date,
         trigger: "no_time",
-        action: "scaled",
+        action: fitted.how === "compressed" ? "scaled" : "swapped",
         before,
-        after: [{ ...today, workouts: today.workouts.map((w) => ({ ...w })) }],
-        reason: `shortened to fit available time (${blockCapacity}min)`,
+        after: [{ ...week.days[todayIdx] }],
+        reason:
+          fitted.how === "compressed"
+            ? `shortened to fit available time (${fitted.workout.durationMins}min)`
+            : `only ${fitted.workout.durationMins}min available — ${todayWorkout.type} replaced by ${fitted.workout.type}, which still works at that length`,
       });
     }
   }
@@ -213,7 +254,12 @@ export function adaptDay(input: AdaptDayInput): AdaptDayResult {
     if (input.band === "red") {
       if (isQuality(tWorkout)) {
         if (!blockFits(t, tWorkout.blockIdx, RED_RECOVERY_MINS)) {
-          week.days[todayIdx] = { ...t, workouts: [], status: "rest" };
+          const remaining = t.workouts.filter((w) => w !== tWorkout);
+          week.days[todayIdx] = {
+            ...t,
+            workouts: remaining,
+            status: remaining.length > 0 ? t.status : "rest",
+          };
         } else {
           week.days[todayIdx] = {
             ...t,
