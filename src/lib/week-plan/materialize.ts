@@ -232,6 +232,8 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
   if (isRaceWeek) {
     for (const w of raceWeekWorkouts(input.sports[0] ?? "Run", raceIdx)) {
       if (dayMins(days[w.day]) > 0) {
+        // interim: Task 9 — blockIdx is carried across days unchecked; safe
+        // only while every day has one block.
         days[w.day] = {
           ...days[w.day],
           workouts: [...days[w.day].workouts, { ...w, blockIdx: 0 }],

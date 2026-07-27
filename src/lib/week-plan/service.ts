@@ -523,6 +523,8 @@ export async function moveWorkout(
     ...d,
     workouts: d.workouts.map((w) => ({ ...w })),
   }));
+  // interim: Task 9 — blockIdx is carried across days unchecked; safe only
+  // while every day has one block.
   const workout = days[fromIdx].workouts[0]!;
   days[fromIdx] = {
     ...days[fromIdx],
@@ -541,6 +543,8 @@ export async function moveWorkout(
     { ...from, workouts: from.workouts.map((w) => ({ ...w })) },
     { ...to, workouts: [] },
   ];
+  // interim: Task 9 — blockIdx is carried across days unchecked; safe only
+  // while every day has one block.
   days[toIdx] = {
     ...days[toIdx],
     workouts: [workout],
@@ -603,6 +607,8 @@ export async function swapWorkouts(
     { ...from, workouts: from.workouts.map((w) => ({ ...w })) },
     { ...to, workouts: to.workouts.map((w) => ({ ...w })) },
   ];
+  // interim: Task 9 — blockIdx is carried across days unchecked; safe only
+  // while every day has one block.
   const fromWorkout = days[fromIdx].workouts[0]!;
   days[fromIdx] = { ...days[fromIdx], workouts: days[toIdx].workouts };
   days[toIdx] = { ...days[toIdx], workouts: [fromWorkout] };

@@ -70,6 +70,8 @@ function handleMissedYesterday(
         t.availableBlocks.some((b) => blockMins(b) >= workout.durationMins) &&
         !adjacentQuality
       ) {
+        // interim: Task 9 — blockIdx is carried across days unchecked; safe
+        // only while every day has one block.
         week.days[i] = {
           ...t,
           workouts: [workout],
@@ -165,6 +167,8 @@ export function adaptDay(input: AdaptDayInput): AdaptDayResult {
           d.availableBlocks.some((b) => blockMins(b) >= workout.durationMins)
       );
       if (target !== -1) {
+        // interim: Task 9 — blockIdx is carried across days unchecked; safe
+        // only while every day has one block.
         week.days[target] = {
           ...week.days[target],
           workouts: [workout],

@@ -94,14 +94,22 @@ export function replanWeek(
   for (const { dayIdx, workout, before } of displaced) {
     const fromDate = days[dayIdx].date;
 
-    // Rung 1 — move. "Nearest" is the smallest absolute day distance from
-    // the original date; ties break toward the earlier day, then the
+    // Rung 1 — move. Candidates include slots on the session's OWN day, not
+    // just other days: its original block is why it was displaced (shrunk
+    // below its duration, or gone), so admits() rejects that specific block
+    // on size alone, without any special case — but a free sibling block on
+    // the same day is exactly as legitimate a target as one on any other
+    // day, and the distance sort below already puts it first (distance
+    // zero). Excluding the whole day here was the bug: it let a session be
+    // dropped even when an untouched sibling block on its own day would
+    // have fit it whole. "Nearest" is the smallest absolute day distance
+    // from the original date; ties break toward the earlier day, then the
     // earlier block. Only days with real room under the *new* availability
     // are ever candidates (buildSlots only emits slots for blocks that
     // exist, and admits() rejects anything too small), so a session is
     // never pushed onto a day the athlete has marked unavailable.
     const candidates = buildSlots(days)
-      .filter((s) => s.dayIdx !== dayIdx && !locked(days[s.dayIdx]))
+      .filter((s) => !locked(days[s.dayIdx]))
       .filter((s) => admits(s, workout, days, taken))
       .sort(
         (a, b) =>
@@ -153,7 +161,14 @@ export function replanWeek(
     } | null = null;
     for (const slot of homeSlots) {
       const fitted = fitToBlock(workout, slot.mins);
-      if (!fitted || fitted.how === "whole") continue; // ruled out in step 2
+      // A "whole" fit here would mean some block on this very day admits
+      // the session unchanged — but rung 1 above already searched every
+      // block on every unlocked day, including this one, for exactly that,
+      // and the nearest-day sort tries same-day blocks first. If a whole
+      // fit were legal here, rung 1 would already have placed it. What's
+      // left to try on the home day is only ever a squeeze: compress within
+      // purpose, or substitute for a lesser stimulus.
+      if (!fitted || fitted.how === "whole") continue;
       if (!admits(slot, fitted.workout, days, taken)) continue;
       fit = { slot, workout: fitted.workout, how: fitted.how };
       break;

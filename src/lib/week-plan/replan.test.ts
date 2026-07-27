@@ -349,4 +349,60 @@ describe("replanWeek — multi-block days", () => {
     expect(r.week.days).toEqual(before.days);
     expect(r.adjustments).toEqual([]);
   });
+
+  it("relocates a displaced session to a free sibling block on its own day, whole and undegraded", () => {
+    // Day 0 has two blocks: 30min (holding a kept 25min Recovery session in
+    // block 0) and 90min (block 1, completely free). Block 0 shrinks to
+    // 5min, displacing the recovery session — but the untouched 90min
+    // sibling block on the SAME day fits it whole. It must relocate there,
+    // not be dropped: a free block on the session's own day is exactly as
+    // legitimate a rung-1 target as one on any other day.
+    const before = weekWithKept([
+      {
+        mins: [30, 90],
+        kept: [
+          {
+            blockIdx: 0,
+            durationMins: 25,
+            type: "Recovery",
+            purpose: "recovery",
+          },
+        ],
+      },
+    ]);
+    const r = replanWeek(before, resolve([[5, 90]]));
+
+    const survivors = r.week.days[0].workouts;
+    const recovery = survivors.find((s) => s.type === "Recovery");
+    expect(recovery).toBeDefined();
+    expect(recovery!.durationMins).toBe(25);
+    expect(recovery!.purpose).toBe("recovery");
+    const block = r.week.days[0].availableBlocks[recovery!.blockIdx];
+    expect(recovery!.durationMins).toBeLessThanOrEqual(blockMins(block));
+
+    expect(
+      r.adjustments.some(
+        (a) => a.date === "2026-08-03" && a.action === "dropped"
+      )
+    ).toBe(false);
+  });
+
+  it("keeps the no-op guarantee now that rung 1 can target the session's own day", () => {
+    const before = weekWithKept([
+      {
+        mins: [30, 90],
+        kept: [
+          {
+            blockIdx: 0,
+            durationMins: 25,
+            type: "Recovery",
+            purpose: "recovery",
+          },
+        ],
+      },
+    ]);
+    const r = replanWeek(before, resolve([[30, 90]]));
+    expect(r.week.days).toEqual(before.days);
+    expect(r.adjustments).toEqual([]);
+  });
 });
