@@ -23,6 +23,8 @@ export interface OpenWeekPlan {
   days: DaySlot[];
   /** materializeWeek's effectiveLoad for this week — null on pre-fix rows. */
   effectiveTarget: number | null;
+  /** Set once the athlete (or the coach, on their behalf) confirms this week's availability. */
+  availabilityConfirmedAt: Date | null;
 }
 
 function localYmd(d: Date): string {
@@ -149,6 +151,7 @@ export async function getOpenWeekPlan(
     skeletonWeek: row.skeletonWeek,
     days: row.days as DaySlot[],
     effectiveTarget: row.effectiveTarget,
+    availabilityConfirmedAt: row.availabilityConfirmedAt,
   };
 }
 
