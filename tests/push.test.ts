@@ -42,7 +42,7 @@ const VAPID_KEYS = ["vapid_public_key", "vapid_private_key"];
  * file touches anything, and put it back afterwards. `afterAll` rather than an
  * in-test restore, so a mid-test failure still restores.
  */
-let vapidSnapshot: { key: string; value: string }[] = [];
+let vapidSnapshot: { key: string; value: string; updatedAt: Date }[] = [];
 
 // File-level lifecycle: the users must outlive BOTH describe blocks.
 beforeAll(async () => {
@@ -52,7 +52,16 @@ beforeAll(async () => {
   const rows = await db.query.appConfig.findMany({
     where: inArray(schema.appConfig.key, VAPID_KEYS),
   });
-  vapidSnapshot = rows.map((r) => ({ key: r.key, value: r.value }));
+  // updatedAt is restored too: it is the first thing anyone checks when push
+  // dies ("was the pair rewritten, and when?"), so a test must not move it.
+  // Round-tripping through a JS Date truncates Postgres' microseconds to
+  // milliseconds — the key material is byte-identical, the timestamp is
+  // faithful to the millisecond. Good enough to keep the signal honest.
+  vapidSnapshot = rows.map((r) => ({
+    key: r.key,
+    value: r.value,
+    updatedAt: r.updatedAt,
+  }));
   for (const id of [USER_A, USER_B]) {
     await db
       .insert(schema.users)
