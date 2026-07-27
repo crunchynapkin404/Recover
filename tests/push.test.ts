@@ -24,10 +24,35 @@ vi.mock("web-push", async (importOriginal) => {
 const USER_A = "test-push-user-a";
 const USER_B = "test-push-user-b";
 
+const VAPID_KEYS = ["vapid_public_key", "vapid_private_key"];
+
+/**
+ * The instance VAPID pair is a SINGLE global row-pair in app_config, shared
+ * with the live app — there is no per-test scoping possible, and this repo's
+ * DB tests run against the real database. The regeneration test below has to
+ * corrupt that pair to exercise its branch, and `getVapidKeys()` then writes a
+ * BRAND NEW pair. Left alone, every full-suite run silently orphans every real
+ * push subscription on the instance: subscriptions are bound to the public key
+ * they were minted against, so the next send reports `sent:0, pruned:N` and
+ * the athlete has to re-enable notifications by hand, with nothing announcing
+ * it.
+ *
+ * That is exactly what happened on 2026-07-26 and again on 2026-07-27 — twice
+ * misdiagnosed as a mystery key rotation. So: snapshot the pair before this
+ * file touches anything, and put it back afterwards. `afterAll` rather than an
+ * in-test restore, so a mid-test failure still restores.
+ */
+let vapidSnapshot: { key: string; value: string }[] = [];
+
 // File-level lifecycle: the users must outlive BOTH describe blocks.
 beforeAll(async () => {
   if (!hasDb) return;
   const { db, schema } = await import("@/lib/db");
+  const { inArray } = await import("drizzle-orm");
+  const rows = await db.query.appConfig.findMany({
+    where: inArray(schema.appConfig.key, VAPID_KEYS),
+  });
+  vapidSnapshot = rows.map((r) => ({ key: r.key, value: r.value }));
   for (const id of [USER_A, USER_B]) {
     await db
       .insert(schema.users)
@@ -42,8 +67,17 @@ beforeAll(async () => {
 afterAll(async () => {
   if (!hasDb) return;
   const { db, schema } = await import("@/lib/db");
+  const { inArray } = await import("drizzle-orm");
   for (const id of [USER_A, USER_B])
     await db.delete(schema.users).where(eq(schema.users.id, id));
+
+  // Put the instance's real VAPID pair back, exactly as it was.
+  await db
+    .delete(schema.appConfig)
+    .where(inArray(schema.appConfig.key, VAPID_KEYS));
+  if (vapidSnapshot.length > 0) {
+    await db.insert(schema.appConfig).values(vapidSnapshot);
+  }
 });
 
 describe.skipIf(!hasDb)("push pipeline", () => {
