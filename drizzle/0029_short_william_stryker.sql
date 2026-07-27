@@ -30,8 +30,10 @@ UPDATE "week_plans" SET "days" = (
     (d - 'workout')
     || jsonb_build_object(
       'workouts',
-      CASE WHEN d->'workout' IS NULL OR d->'workout' = 'null'::jsonb
-        THEN '[]'::jsonb
+      CASE
+        WHEN d ? 'workouts' THEN d->'workouts'
+        WHEN d->'workout' IS NULL OR d->'workout' = 'null'::jsonb
+          THEN '[]'::jsonb
         ELSE jsonb_build_array(
           (d->'workout') || jsonb_build_object(
             'purpose',
@@ -58,12 +60,14 @@ UPDATE "week_plans" SET "days" = (
         )
       END,
       'availableBlocks',
-      CASE WHEN COALESCE((d->>'availableMins')::int, 0) > 0
-        THEN jsonb_build_array(jsonb_build_object(
-          'start', NULL, 'end', NULL,
-          'mins', (d->>'availableMins')::int,
-          'energy', 'normal', 'sports', NULL
-        ))
+      CASE
+        WHEN d ? 'availableBlocks' THEN d->'availableBlocks'
+        WHEN (d->>'availableMins') ~ '^[0-9]+$' AND (d->>'availableMins')::int > 0
+          THEN jsonb_build_array(jsonb_build_object(
+            'start', NULL, 'end', NULL,
+            'mins', (d->>'availableMins')::int,
+            'energy', 'normal', 'sports', NULL
+          ))
         ELSE '[]'::jsonb
       END
     )
@@ -71,4 +75,4 @@ UPDATE "week_plans" SET "days" = (
   )
   FROM jsonb_array_elements("days") WITH ORDINALITY AS t(d, ord)
 )
-WHERE jsonb_typeof("days") = 'array';
+WHERE jsonb_typeof("days") = 'array' AND jsonb_array_length("days") > 0;
