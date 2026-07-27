@@ -1,5 +1,30 @@
 # Changelog
 
+## v0.25.18 — 2026-07-27 — Notifications, Clocks And Language
+
+- **Push notifications no longer die silently.** A missing or malformed
+  `ENCRYPTION_KEY` — a configuration hiccup, with the stored key itself
+  perfectly intact — was enough to make the app throw away the instance's
+  push keypair, which unsubscribed every device at once. Recovery meant
+  re-enabling notifications by hand, and nothing announced that it had
+  happened. That fault is now told apart from a genuinely unreadable key:
+  the keypair is kept and the error surfaces instead.
+- **Bed and wake times now show your clock, not the server's.** A 23:32
+  bedtime was displayed as "21:32" and a 07:53 wake as "05:52". The times
+  were recorded correctly all along — they were being read back in the
+  wrong timezone. Sleep midpoint, chronotype, consistency, social jetlag
+  and the recommended bedtime were shifted by the same amount. Set `TZ` in
+  your `.env` (defaults to UTC, so existing installs are unchanged); it
+  also puts the daily sync, the morning brief and the 09:00 backstop on
+  your local clock rather than the server's.
+- **The coaching language setting now holds on the coach's own messages.**
+  With the language pinned to Dutch, a morning brief could still come back
+  in English — the setting was applied, but the instruction behind it was
+  written in English and the model followed that instead. The chosen
+  language now travels with the instruction on all five coach-written
+  surfaces: morning brief, weekly review, monthly report, ride debrief and
+  race debrief. Automatic mode is unchanged.
+
 ## v0.25.17 — 2026-07-27 — Brief Waits For Real Data
 
 - **The morning brief now waits until last night's HRV and sleep have
