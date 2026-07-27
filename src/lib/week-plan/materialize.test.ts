@@ -423,6 +423,57 @@ describe("materializeWeek race handling", () => {
     expect(r.adjustments.some((a) => a.trigger === "race")).toBe(true);
   });
 
+  it("I9: steps down every quality session 2 days before the race, not just workouts[0], and never drops a sibling", () => {
+    // Only Friday (raceIdx - 2) has any availability, split across two
+    // blocks — forcing both generated sessions onto that one day. Cycling
+    // in build/peak phase always generates a bigger, non-quality Long ride
+    // first and a smaller, quality Intervals session second, so Friday
+    // ends up [Long@block0 (non-quality), Intervals@block1 (quality)] —
+    // quality landing at index 1, exactly the position the old
+    // `isQuality(workouts[0])` check could never see.
+    const bRace: RaceContext = { ...A_RACE, priority: "B", name: "Tune-up" };
+    const blocks = (mins: number[]) =>
+      mins.map((m) => ({
+        start: null,
+        end: null,
+        mins: m,
+        energy: "full" as const,
+        sports: null,
+      }));
+    const r = materializeWeek({
+      ...BASE_INPUT,
+      skeleton: { ...SKELETON, targetSessions: 2 },
+      sports: ["Bike"],
+      raceType: "Gran Fondo",
+      hoursPerWeek: 6,
+      prevWeek: null,
+      availableBlocksPerDay: [
+        blocks([]),
+        blocks([]),
+        blocks([]),
+        blocks([]),
+        blocks([300, 150]), // Friday
+        blocks([]),
+        blocks([]),
+      ],
+      races: [bRace],
+    });
+
+    const friday = r.week.days[4];
+    // Both sessions must survive — the bug rebuilt the day as a
+    // one-element array, silently dropping whichever wasn't workouts[0].
+    expect(friday.workouts).toHaveLength(2);
+    expect(friday.workouts.some((w) => w.type === "Long")).toBe(true);
+    // No quality session may remain 2 days before a non-C race, regardless
+    // of which index it was generated into.
+    expect(friday.workouts.every((w) => !isQuality(w))).toBe(true);
+    expect(
+      r.adjustments.some(
+        (a) => a.date === friday.date && a.reason.includes("stepped down")
+      )
+    ).toBe(true);
+  });
+
   it("C race: only the race day is replaced", () => {
     const cRace: RaceContext = { ...A_RACE, priority: "C", name: "Parkrun" };
     const r = materializeWeek({ ...BASE_INPUT, races: [cRace] });

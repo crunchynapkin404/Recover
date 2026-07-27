@@ -464,21 +464,22 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
     if (
       !isRaceWeek &&
       idx >= 2 &&
-      isQuality(days[idx - 2].workouts[0] ?? null)
+      days[idx - 2].workouts.some((w) => isQuality(w))
     ) {
       const before = {
         ...days[idx - 2],
         workouts: days[idx - 2].workouts.map((w) => ({ ...w })),
       };
+      // Step down every quality session on the day, keeping any
+      // non-quality sibling exactly as it was — never rebuilding the day
+      // as a one-element array, which silently dropped a second session.
       days[idx - 2] = {
         ...days[idx - 2],
-        workouts: [
-          withPurpose({
-            ...days[idx - 2].workouts[0]!,
-            type: "Endurance",
-            intensity: "Z1-Z2",
-          }),
-        ],
+        workouts: days[idx - 2].workouts.map((w) =>
+          isQuality(w)
+            ? withPurpose({ ...w, type: "Endurance", intensity: "Z1-Z2" })
+            : w
+        ),
         status: "planned",
       };
       adjustments.push({
