@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 /**
  * v0.14 Task 15 — /plan race actions. previewPlanChange must be read-only
@@ -93,5 +93,198 @@ describe.skipIf(!hasDb)("plan race actions", () => {
       stages: [],
     });
     expect(r).toEqual({ ok: false, error: "past_date" });
+  });
+
+  /**
+   * Task 10 review Finding 4: races-section-demand.test.tsx mocks addRace
+   * entirely (it only proves the client sends the right shape), and the
+   * past-date test above never reads anything back. These read schema.races
+   * and schema.raceStages after the call to prove the server write path
+   * actually persists the demand fields field-by-field — swapping
+   * distanceKm/elevationM in the actions.ts .set({...}) left all of the
+   * shape-only tests passing.
+   */
+  it("persists event demand and per-day stages field by field, rounding fractional elevation", async () => {
+    const { addRace } = await import("@/app/plan/actions");
+    const { db, schema } = await import("@/lib/db");
+    const date = ymd(40);
+    const name = "Stage Race Demand";
+
+    const r = await addRace({
+      name,
+      raceType: "cycling",
+      date,
+      priority: "A",
+      eventDays: 3,
+      distanceKm: 300.5,
+      elevationM: 4500.6,
+      stages: [
+        { dayNumber: 1, distanceKm: 100, elevationM: 1500.4 },
+        { dayNumber: 2, distanceKm: 100.25, elevationM: 1500 },
+        { dayNumber: 3, distanceKm: 100.25, elevationM: 1500 },
+      ],
+    });
+    expect(r).toEqual({ ok: true });
+
+    const race = await db.query.races.findFirst({
+      where: and(eq(schema.races.userId, USER), eq(schema.races.name, name)),
+    });
+    expect(race).toBeDefined();
+    expect(race!.eventDays).toBe(3);
+    expect(race!.distanceKm).toBeCloseTo(300.5);
+    // elevation_m is an integer column: 4500.6 must round, not truncate or throw.
+    expect(race!.elevationM).toBe(4501);
+
+    const stages = (
+      await db.query.raceStages.findMany({
+        where: eq(schema.raceStages.raceId, race!.id),
+      })
+    ).sort((a, b) => a.dayNumber - b.dayNumber);
+    expect(stages).toHaveLength(3);
+    expect(stages[0].distanceKm).toBeCloseTo(100);
+    expect(stages[0].elevationM).toBe(1500); // 1500.4 rounds down
+    expect(stages[1].distanceKm).toBeCloseTo(100.25);
+    expect(stages[1].elevationM).toBe(1500);
+    expect(stages[2].dayNumber).toBe(3);
+  });
+
+  it("re-submitting the same race with fewer days drops the stale stage rows", async () => {
+    const { addRace } = await import("@/app/plan/actions");
+    const { db, schema } = await import("@/lib/db");
+    const date = ymd(41);
+    const name = "Shrinking Stage Race";
+
+    const first = await addRace({
+      name,
+      raceType: "cycling",
+      date,
+      priority: "B",
+      eventDays: 3,
+      distanceKm: 300,
+      elevationM: 3000,
+      stages: [
+        { dayNumber: 1, distanceKm: 100, elevationM: 1000 },
+        { dayNumber: 2, distanceKm: 100, elevationM: 1000 },
+        { dayNumber: 3, distanceKm: 100, elevationM: 1000 },
+      ],
+    });
+    expect(first).toEqual({ ok: true });
+
+    // Same (userId, date, name) — createRace's upsert key — reuses the row.
+    const second = await addRace({
+      name,
+      raceType: "cycling",
+      date,
+      priority: "B",
+      eventDays: 2,
+      distanceKm: 200,
+      elevationM: 2000,
+      stages: [
+        { dayNumber: 1, distanceKm: 100, elevationM: 1000 },
+        { dayNumber: 2, distanceKm: 100, elevationM: 1000 },
+      ],
+    });
+    expect(second).toEqual({ ok: true });
+
+    const race = await db.query.races.findFirst({
+      where: and(eq(schema.races.userId, USER), eq(schema.races.name, name)),
+    });
+    expect(race).toBeDefined();
+    expect(race!.eventDays).toBe(2);
+
+    const stages = await db.query.raceStages.findMany({
+      where: eq(schema.raceStages.raceId, race!.id),
+    });
+    expect(stages).toHaveLength(2);
+    expect(stages.some((s) => s.dayNumber === 3)).toBe(false);
+  });
+
+  it("rejects invalid demand values without writing anything", async () => {
+    const { addRace } = await import("@/app/plan/actions");
+    const { db, schema } = await import("@/lib/db");
+    const date = ymd(42);
+
+    const cases: {
+      name: string;
+      eventDays: number;
+      distanceKm: number | null;
+      elevationM: number | null;
+      stages: {
+        dayNumber: number;
+        distanceKm: number | null;
+        elevationM: number | null;
+      }[];
+    }[] = [
+      {
+        name: "Bad Distance Race",
+        eventDays: 1,
+        distanceKm: -5,
+        elevationM: null,
+        stages: [],
+      },
+      {
+        name: "Bad Elevation Race",
+        eventDays: 1,
+        distanceKm: null,
+        elevationM: NaN,
+        stages: [],
+      },
+      {
+        name: "Bad Elevation Infinity Race",
+        eventDays: 1,
+        distanceKm: null,
+        elevationM: Infinity,
+        stages: [],
+      },
+      {
+        name: "Bad Stage Distance Race",
+        eventDays: 2,
+        distanceKm: 100,
+        elevationM: 100,
+        stages: [
+          { dayNumber: 1, distanceKm: -10, elevationM: 0 },
+          { dayNumber: 2, distanceKm: 10, elevationM: 0 },
+        ],
+      },
+      {
+        name: "Bad Stage Elevation Race",
+        eventDays: 2,
+        distanceKm: 100,
+        elevationM: 100,
+        stages: [
+          { dayNumber: 1, distanceKm: 10, elevationM: NaN },
+          { dayNumber: 2, distanceKm: 10, elevationM: 0 },
+        ],
+      },
+      {
+        name: "Bad Event Days Race",
+        eventDays: 0,
+        distanceKm: null,
+        elevationM: null,
+        stages: [],
+      },
+    ];
+
+    for (const c of cases) {
+      const r = await addRace({
+        name: c.name,
+        raceType: "cycling",
+        date,
+        priority: "C",
+        eventDays: c.eventDays,
+        distanceKm: c.distanceKm,
+        elevationM: c.elevationM,
+        stages: c.stages,
+      });
+      expect(r.ok, `case ${c.name} should be rejected`).toBe(false);
+
+      const rows = await db.query.races.findMany({
+        where: and(
+          eq(schema.races.userId, USER),
+          eq(schema.races.name, c.name)
+        ),
+      });
+      expect(rows, `case ${c.name} must not write a race row`).toHaveLength(0);
+    }
   });
 });

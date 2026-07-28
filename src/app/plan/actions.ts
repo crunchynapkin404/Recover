@@ -180,6 +180,35 @@ export async function zeroDay(date: string): Promise<Result> {
 
 // ── v0.14 Race Ready: races management + move/swap with preview ──────────
 
+/**
+ * `distance_km` is a `real` column, which happily accepts the strings
+ * "NaN"/"Infinity" — so a non-finite value would NOT throw on insert, it
+ * would silently corrupt the row. Reject it here rather than relying on
+ * Postgres to catch it.
+ */
+function validateDistance(value: number | null, label: string): string | null {
+  if (value == null) return null;
+  if (!Number.isFinite(value)) return `${label} must be a valid number.`;
+  if (value < 0) return `${label} cannot be negative.`;
+  return null;
+}
+
+/**
+ * `elevation_m` is an `integer` column, so a fractional or non-finite value
+ * throws `invalid input syntax for integer` in Postgres — and by the time
+ * that happens for the top-level field, `createRace` has already committed.
+ * Validate finiteness/sign up front; fractional values are rounded (not
+ * rejected) by `roundElevation` below, since someone typing 1234.7m meant
+ * something reasonable.
+ */
+function validateElevation(value: number | null, label: string): string | null {
+  return validateDistance(value, label);
+}
+
+function roundElevation(value: number | null): number | null {
+  return value == null ? null : Math.round(value);
+}
+
 export async function addRace(input: {
   name: string;
   raceType: string;
@@ -199,11 +228,22 @@ export async function addRace(input: {
   if (!Number.isInteger(input.eventDays) || input.eventDays < 1) {
     return { ok: false, error: "An event runs over at least one day." };
   }
-  if (input.distanceKm != null && input.distanceKm < 0) {
-    return { ok: false, error: "Distance cannot be negative." };
-  }
-  if (input.elevationM != null && input.elevationM < 0) {
-    return { ok: false, error: "Elevation cannot be negative." };
+  const distanceError = validateDistance(input.distanceKm, "Distance");
+  if (distanceError) return { ok: false, error: distanceError };
+  const elevationError = validateElevation(input.elevationM, "Elevation");
+  if (elevationError) return { ok: false, error: elevationError };
+
+  for (const stage of input.stages) {
+    const stageDistanceError = validateDistance(
+      stage.distanceKm,
+      `Day ${stage.dayNumber} distance`
+    );
+    if (stageDistanceError) return { ok: false, error: stageDistanceError };
+    const stageElevationError = validateElevation(
+      stage.elevationM,
+      `Day ${stage.dayNumber} elevation`
+    );
+    if (stageElevationError) return { ok: false, error: stageElevationError };
   }
 
   const result = await createRace(user.id, {
@@ -215,33 +255,42 @@ export async function addRace(input: {
   });
   if ("error" in result) return { ok: false, error: result.error };
 
-  await db
-    .update(schema.races)
-    .set({
-      eventDays: input.eventDays,
-      distanceKm: input.distanceKm,
-      elevationM: input.elevationM,
-      updatedAt: new Date(),
-    })
-    .where(eq(schema.races.id, result.race.id));
+  // Update + stage-replace run as one transaction: without it, a failure
+  // partway through (e.g. a duplicate dayNumber hitting the unique index on
+  // the insert) leaves the update and delete committed but the insert not —
+  // the race would claim new days/distance/elevation with zero race_stages
+  // rows, destroying the previously-good per-day data. `createRace` does its
+  // own insert/upsert and is deliberately left outside: a failure there
+  // returns cleanly before any demand write happens.
+  await db.transaction(async (tx) => {
+    await tx
+      .update(schema.races)
+      .set({
+        eventDays: input.eventDays,
+        distanceKm: input.distanceKm,
+        elevationM: roundElevation(input.elevationM),
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.races.id, result.race.id));
 
-  // Stages are replaced wholesale. `createRace` upserts on
-  // (userId, date, name), so re-adding the same race reuses its row — a
-  // partial write would leave a stale day 7 behind when an eight-day event is
-  // re-entered as six.
-  await db
-    .delete(schema.raceStages)
-    .where(eq(schema.raceStages.raceId, result.race.id));
-  if (input.stages.length > 0) {
-    await db.insert(schema.raceStages).values(
-      input.stages.map((s) => ({
-        raceId: result.race.id,
-        dayNumber: s.dayNumber,
-        distanceKm: s.distanceKm,
-        elevationM: s.elevationM,
-      }))
-    );
-  }
+    // Stages are replaced wholesale. `createRace` upserts on
+    // (userId, date, name), so re-adding the same race reuses its row — a
+    // partial write would leave a stale day 7 behind when an eight-day event
+    // is re-entered as six.
+    await tx
+      .delete(schema.raceStages)
+      .where(eq(schema.raceStages.raceId, result.race.id));
+    if (input.stages.length > 0) {
+      await tx.insert(schema.raceStages).values(
+        input.stages.map((s) => ({
+          raceId: result.race.id,
+          dayNumber: s.dayNumber,
+          distanceKm: s.distanceKm,
+          elevationM: roundElevation(s.elevationM),
+        }))
+      );
+    }
+  });
 
   revalidatePath("/train");
   revalidatePath("/");

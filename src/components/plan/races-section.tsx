@@ -103,28 +103,35 @@ export function RacesSection({ races, hideHeading = false }: Props) {
 
     setError(null);
     startTransition(async () => {
-      const result = await addRace({
-        name,
-        raceType,
-        date,
-        priority,
-        goalNote: goalNote.length > 0 ? goalNote : undefined,
-        eventDays,
-        distanceKm,
-        elevationM,
-        stages: stagesForSubmit(),
-      });
-      if (!result.ok) {
-        setError(
-          result.error === "past_date"
-            ? "Race date must be today or later."
-            : result.error
-        );
-        return;
+      try {
+        const result = await addRace({
+          name,
+          raceType,
+          date,
+          priority,
+          goalNote: goalNote.length > 0 ? goalNote : undefined,
+          eventDays,
+          distanceKm,
+          elevationM,
+          stages: stagesForSubmit(),
+        });
+        if (!result.ok) {
+          setError(
+            result.error === "past_date"
+              ? "Race date must be today or later."
+              : result.error
+          );
+          return;
+        }
+        form.reset();
+        resetDemandFields();
+        if (detailsRef.current) detailsRef.current.open = false;
+      } catch {
+        // addRace is a directly reachable server action — an unexpected
+        // throw (e.g. a DB error) must not become an unhandled rejection
+        // with nothing shown to the athlete.
+        setError("Couldn't save that race — please try again.");
       }
-      form.reset();
-      resetDemandFields();
-      if (detailsRef.current) detailsRef.current.open = false;
     });
   }
 
