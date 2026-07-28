@@ -87,6 +87,10 @@ describe.skipIf(!hasDb)("plan race actions", () => {
       raceType: "5k",
       date: ymd(-2),
       priority: "C",
+      eventDays: 1,
+      distanceKm: null,
+      elevationM: null,
+      stages: [],
     });
     expect(r).toEqual({ ok: false, error: "past_date" });
   });

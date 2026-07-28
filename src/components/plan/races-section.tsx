@@ -43,6 +43,54 @@ export function RacesSection({ races, hideHeading = false }: Props) {
   const [error, setError] = useState<string | null>(null);
   const detailsRef = useRef<HTMLDetailsElement>(null);
 
+  const [eventDays, setEventDays] = useState(1);
+  const [distanceKm, setDistanceKm] = useState<number | null>(null);
+  const [elevationM, setElevationM] = useState<number | null>(null);
+  const [stages, setStages] = useState<
+    { distanceKm: number | null; elevationM: number | null }[]
+  >([]);
+
+  function setStageField(
+    index: number,
+    field: "distanceKm" | "elevationM",
+    raw: string
+  ) {
+    const value = raw === "" ? null : Number(raw);
+    setStages((prev) => {
+      const next = [...prev];
+      while (next.length <= index) {
+        next.push({ distanceKm: null, elevationM: null });
+      }
+      next[index] = { ...next[index], [field]: value };
+      return next;
+    });
+  }
+
+  /**
+   * Per-day rows as the server wants them. A one-day event has no stages by
+   * definition, and a multi-day event nobody filled in sends none rather than a
+   * row of nulls per day — `eventDemand` reads an empty list as "no per-day
+   * detail" and falls back to the average day, which is exactly right.
+   */
+  function stagesForSubmit() {
+    if (eventDays <= 1) return [];
+    const rows = Array.from({ length: eventDays }, (_, i) => ({
+      dayNumber: i + 1,
+      distanceKm: stages[i]?.distanceKm ?? null,
+      elevationM: stages[i]?.elevationM ?? null,
+    }));
+    return rows.some((r) => r.distanceKm != null || r.elevationM != null)
+      ? rows
+      : [];
+  }
+
+  function resetDemandFields() {
+    setEventDays(1);
+    setDistanceKm(null);
+    setElevationM(null);
+    setStages([]);
+  }
+
   function handleAdd(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = e.currentTarget;
@@ -61,6 +109,10 @@ export function RacesSection({ races, hideHeading = false }: Props) {
         date,
         priority,
         goalNote: goalNote.length > 0 ? goalNote : undefined,
+        eventDays,
+        distanceKm,
+        elevationM,
+        stages: stagesForSubmit(),
       });
       if (!result.ok) {
         setError(
@@ -71,6 +123,7 @@ export function RacesSection({ races, hideHeading = false }: Props) {
         return;
       }
       form.reset();
+      resetDemandFields();
       if (detailsRef.current) detailsRef.current.open = false;
     });
   }
@@ -158,6 +211,7 @@ export function RacesSection({ races, hideHeading = false }: Props) {
         </summary>
         <form onSubmit={handleAdd} className="space-y-3 px-5 pb-5">
           <input
+            id="race-name"
             name="name"
             required
             placeholder="Race name"
@@ -182,11 +236,96 @@ export function RacesSection({ races, hideHeading = false }: Props) {
             </select>
           </div>
           <input
+            id="race-date"
             name="date"
             type="date"
             required
             className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-white/30 focus:outline-none"
           />
+
+          <label className="label-micro" htmlFor="event-days">
+            Days
+          </label>
+          <input
+            id="event-days"
+            type="number"
+            min={1}
+            value={eventDays}
+            onChange={(e) =>
+              setEventDays(Math.max(1, Number(e.target.value) || 1))
+            }
+            className="w-full rounded-xl bg-white/[0.06] px-3 py-2 text-sm"
+          />
+
+          <label className="label-micro" htmlFor="event-distance">
+            Total distance (km)
+          </label>
+          <input
+            id="event-distance"
+            type="number"
+            min={0}
+            value={distanceKm ?? ""}
+            onChange={(e) =>
+              setDistanceKm(
+                e.target.value === "" ? null : Number(e.target.value)
+              )
+            }
+            className="w-full rounded-xl bg-white/[0.06] px-3 py-2 text-sm"
+          />
+
+          <label className="label-micro" htmlFor="event-elevation">
+            Total elevation (m)
+          </label>
+          <input
+            id="event-elevation"
+            type="number"
+            min={0}
+            value={elevationM ?? ""}
+            onChange={(e) =>
+              setElevationM(
+                e.target.value === "" ? null : Number(e.target.value)
+              )
+            }
+            className="w-full rounded-xl bg-white/[0.06] px-3 py-2 text-sm"
+          />
+
+          {eventDays > 1 && (
+            <details className="mt-3">
+              <summary className="label-micro cursor-pointer">
+                Per-day detail (optional)
+              </summary>
+              <p className="mt-1 text-[11px] text-white/50">
+                Enter each day and we can tell you what your longest training
+                ride needs to be. Without it we assume every day is the average.
+              </p>
+              {Array.from({ length: eventDays }, (_, i) => (
+                <div key={i} className="mt-2 flex items-center gap-2">
+                  <span className="w-12 text-[11px] text-white/50">{`Day ${i + 1}`}</span>
+                  <input
+                    aria-label={`Day ${i + 1} distance in km`}
+                    type="number"
+                    min={0}
+                    value={stages[i]?.distanceKm ?? ""}
+                    onChange={(e) =>
+                      setStageField(i, "distanceKm", e.target.value)
+                    }
+                    className="w-24 rounded-lg bg-white/[0.06] px-2 py-1 text-[12px]"
+                  />
+                  <input
+                    aria-label={`Day ${i + 1} elevation in m`}
+                    type="number"
+                    min={0}
+                    value={stages[i]?.elevationM ?? ""}
+                    onChange={(e) =>
+                      setStageField(i, "elevationM", e.target.value)
+                    }
+                    className="w-24 rounded-lg bg-white/[0.06] px-2 py-1 text-[12px]"
+                  />
+                </div>
+              ))}
+            </details>
+          )}
+
           <input
             name="goalNote"
             placeholder="Goal note (optional)"

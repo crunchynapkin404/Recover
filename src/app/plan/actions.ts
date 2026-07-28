@@ -186,8 +186,26 @@ export async function addRace(input: {
   date: string;
   priority: "A" | "B" | "C";
   goalNote?: string;
-}): Promise<{ ok: true } | { ok: false; error: string }> {
+  eventDays: number;
+  distanceKm: number | null;
+  elevationM: number | null;
+  stages: {
+    dayNumber: number;
+    distanceKm: number | null;
+    elevationM: number | null;
+  }[];
+}): Promise<Result> {
   const user = await requireUser();
+  if (!Number.isInteger(input.eventDays) || input.eventDays < 1) {
+    return { ok: false, error: "An event runs over at least one day." };
+  }
+  if (input.distanceKm != null && input.distanceKm < 0) {
+    return { ok: false, error: "Distance cannot be negative." };
+  }
+  if (input.elevationM != null && input.elevationM < 0) {
+    return { ok: false, error: "Elevation cannot be negative." };
+  }
+
   const result = await createRace(user.id, {
     name: input.name,
     raceType: input.raceType,
@@ -196,6 +214,35 @@ export async function addRace(input: {
     goalNote: input.goalNote ?? null,
   });
   if ("error" in result) return { ok: false, error: result.error };
+
+  await db
+    .update(schema.races)
+    .set({
+      eventDays: input.eventDays,
+      distanceKm: input.distanceKm,
+      elevationM: input.elevationM,
+      updatedAt: new Date(),
+    })
+    .where(eq(schema.races.id, result.race.id));
+
+  // Stages are replaced wholesale. `createRace` upserts on
+  // (userId, date, name), so re-adding the same race reuses its row — a
+  // partial write would leave a stale day 7 behind when an eight-day event is
+  // re-entered as six.
+  await db
+    .delete(schema.raceStages)
+    .where(eq(schema.raceStages.raceId, result.race.id));
+  if (input.stages.length > 0) {
+    await db.insert(schema.raceStages).values(
+      input.stages.map((s) => ({
+        raceId: result.race.id,
+        dayNumber: s.dayNumber,
+        distanceKm: s.distanceKm,
+        elevationM: s.elevationM,
+      }))
+    );
+  }
+
   revalidatePath("/train");
   revalidatePath("/");
   return { ok: true };
