@@ -173,8 +173,8 @@ describe.skipIf(!hasDb)("migration 0033", () => {
 
 ```bash
 cd /home/vscode/recover
-DATABASE_URL="postgres://recover:recover@localhost:5435/recover" DATABASE_DRIVER=pg node scripts/migrate.mjs
-DATABASE_URL="postgres://recover:recover@localhost:5435/recover" DATABASE_DRIVER=pg npx vitest run tests/race-demand-schema.test.ts
+DATABASE_URL="postgres://recover:devpass@localhost:5435/recover" DATABASE_DRIVER=pg node scripts/migrate.mjs
+DATABASE_URL="postgres://recover:devpass@localhost:5435/recover" DATABASE_DRIVER=pg npx vitest run tests/race-demand-schema.test.ts
 ```
 
 Expected: migration reports applied; 3 tests PASS.
