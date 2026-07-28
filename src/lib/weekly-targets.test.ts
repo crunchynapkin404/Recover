@@ -39,7 +39,7 @@ describe("trailingWeeklyAverages", () => {
   ) {
     const d = new Date(today);
     d.setDate(d.getDate() - daysAgo);
-    return { startDate: d, durationS, loadValue };
+    return { provider: "strava", startDate: d, durationS, loadValue };
   }
 
   it("averages a month of training into weekly targets", () => {
@@ -82,6 +82,60 @@ describe("trailingWeeklyAverages", () => {
       volumeS: null,
       load: null,
     });
+  });
+});
+
+describe("trailingWeeklyAverages de-duplication", () => {
+  const day = (n: number) => new Date(2026, 6, n, 18, 33);
+
+  it("counts a ride synced by two providers once", () => {
+    const both = [];
+    // Six distinct days clears MIN_FALLBACK_ACTIVITY_DAYS.
+    for (let i = 1; i <= 6; i++) {
+      both.push({
+        provider: "intervals_icu",
+        startDate: day(i),
+        durationS: 7200,
+        loadValue: 100,
+      });
+      both.push({
+        provider: "strava",
+        startDate: day(i),
+        durationS: 7200,
+        loadValue: 100,
+      });
+    }
+    const single = both.filter((a) => a.provider === "intervals_icu");
+
+    const dup = trailingWeeklyAverages(both, day(7));
+    const clean = trailingWeeklyAverages(single, day(7));
+
+    expect(dup.volumeS).toBe(clean.volumeS);
+    expect(dup.load).toBe(clean.load);
+  });
+
+  it("still counts two genuinely separate rides on one day", () => {
+    const rides = [];
+    for (let i = 1; i <= 6; i++) {
+      rides.push({
+        provider: "strava",
+        startDate: new Date(2026, 6, i, 8, 0),
+        durationS: 3600,
+        loadValue: 50,
+      });
+      rides.push({
+        provider: "strava",
+        startDate: new Date(2026, 6, i, 18, 0),
+        durationS: 3600,
+        loadValue: 50,
+      });
+    }
+    const r = trailingWeeklyAverages(rides, day(7));
+    const half = trailingWeeklyAverages(
+      rides.filter((_, i) => i % 2 === 0),
+      day(7)
+    );
+    expect(r.volumeS!).toBeGreaterThan(half.volumeS!);
   });
 });
 

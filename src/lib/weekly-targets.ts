@@ -6,6 +6,8 @@
  * is hidden, never a hardcoded fraction.
  */
 
+import { dedupeActivities } from "./training-load";
+
 export const FALLBACK_WINDOW_DAYS = 28;
 /** Trailing-average fallback needs activities on at least this many distinct days. */
 export const MIN_FALLBACK_ACTIVITY_DAYS = 6;
@@ -30,6 +32,8 @@ export function plannedWeekVolumeS(
 }
 
 export interface TrailingActivity {
+  /** Needed to collapse the same ride synced from two providers. */
+  provider: string;
   startDate: Date;
   durationS: number | null;
   /** Engine-resolved load (activityLoad), not raw provider load. */
@@ -54,9 +58,26 @@ export function trailingWeeklyAverages(
 ): { volumeS: number | null; load: number | null } {
   const floor = new Date(today);
   floor.setDate(floor.getDate() - FALLBACK_WINDOW_DAYS);
-  const window = activities.filter(
-    (a) => a.startDate >= floor && a.startDate <= today
-  );
+  // The same ride reaches us once per connected provider (activities is
+  // unique on (provider, external_id), so duplication across providers is by
+  // design). Summing raw doubles an athlete's volume — and this function
+  // grades their level.
+  const window = dedupeActivities(
+    activities
+      .filter((a) => a.startDate >= floor && a.startDate <= today)
+      .map((a) => ({
+        provider: a.provider,
+        startDate: a.startDate,
+        durationS: a.durationS,
+        load: a.loadValue,
+        avgHr: null,
+        avgPower: null,
+      }))
+  ).map((a) => ({
+    startDate: a.startDate,
+    durationS: a.durationS,
+    loadValue: a.load,
+  }));
   const days = new Set(window.map((a) => localYmd(a.startDate)));
   if (days.size < MIN_FALLBACK_ACTIVITY_DAYS) {
     return { volumeS: null, load: null };
