@@ -73,6 +73,40 @@ describe("weeklyTargetHours", () => {
       availabilityHours: 20,
     });
     expect(r.hours).toBeLessThanOrEqual(4);
+    // A mislabelled source here would still pass the bound above while
+    // feeding the wrong rationale text ("floor" instead of "ceiling") to the
+    // athlete, so pin the label too.
+    expect(r.source).toBe("ceiling");
+  });
+
+  it("leaves the target unchanged when the floor is already below it", () => {
+    // Every other floor test sets floorHours ABOVE the target, so a
+    // regression that dropped the `> target` guard — unconditionally setting
+    // target = floorHours whenever it's non-null — would still pass all of
+    // them. Here the floor (3) sits well below the race-driven target (8),
+    // so it must be a no-op.
+    const r = weeklyTargetHours({
+      ...base,
+      raceDemandHours: 8,
+      ceilingHours: 11.6,
+      floorHours: 3,
+      availabilityHours: 12.5,
+    });
+    expect(r.hours).toBe(8);
+    expect(r.source).toBe("race");
+  });
+
+  it("still caps at availability even when the floor is the binding constraint", () => {
+    const r = weeklyTargetHours({
+      ...base,
+      raceDemandHours: 1,
+      ceilingHours: 11.6,
+      floorHours: 5.3,
+      availabilityHours: 3,
+    });
+    expect(r.hours).toBe(3);
+    expect(r.source).toBe("availability");
+    expect(r.shortfall).toEqual({ wantedHours: 5.3, offeredHours: 3 });
   });
 
   it("caps at availability and reports the shortfall", () => {
