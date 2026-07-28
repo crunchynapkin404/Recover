@@ -21,12 +21,25 @@ export interface RidingTimeInput {
   massKg: number;
 }
 
-/** Sustainable share of FTP for an event expected to last `hours`. */
-function ftpFractionFor(hours: number): number {
-  for (const band of C.FTP_FRACTION) {
-    if (hours <= band.upToHours) return band.fraction;
+/**
+ * Sustainable share of FTP for a continuous effort of `hours`, linearly
+ * interpolated between the anchors and held flat outside them.
+ */
+export function ftpFractionFor(hours: number): number {
+  const anchors = C.FTP_FRACTION_ANCHORS;
+  const first = anchors[0];
+  const last = anchors[anchors.length - 1];
+  if (!(hours > first.hours)) return first.fraction;
+  if (hours >= last.hours) return last.fraction;
+  for (let i = 0; i < anchors.length - 1; i++) {
+    const a = anchors[i];
+    const b = anchors[i + 1];
+    if (hours <= b.hours) {
+      const t = (hours - a.hours) / (b.hours - a.hours);
+      return a.fraction + t * (b.fraction - a.fraction);
+    }
   }
-  return C.FTP_FRACTION[C.FTP_FRACTION.length - 1].fraction;
+  return last.fraction;
 }
 
 /**

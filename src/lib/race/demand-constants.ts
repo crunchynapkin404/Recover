@@ -12,11 +12,26 @@ export const DEMAND_CONSTANTS = {
   AIR_DENSITY: 1.225,
   /** Wind, corners, rolling resistance, stops — flat speed is never ideal. */
   REAL_WORLD_FACTOR: 0.85,
-  /** Fraction of FTP sustainable for an event of a given length. */
-  FTP_FRACTION: [
-    { upToHours: 3, fraction: 0.85 },
-    { upToHours: 5, fraction: 0.75 },
-    { upToHours: Infinity, fraction: 0.68 },
+  /**
+   * Sustainable share of FTP against the duration of a CONTINUOUS effort,
+   * as interpolation anchors rather than steps. Same three fractions the
+   * step bands used; the difference is that they are now reached smoothly.
+   *
+   * Stepping made estimates unstable at the edges: 114km predicted 4.985h
+   * and 116km predicted 5.424h, an 8.8% jump for 1.75% more distance.
+   *
+   * Flat below the first anchor and above the last. The flat tail matters:
+   * extrapolating the decline out to a 42-hour "ride" would produce a
+   * sustainable fraction no rider could be measured at, and the demand model
+   * must never be handed a duration it treats as one continuous effort when
+   * it is not. The 8h anchor is where 0.68 becomes fully effective and is
+   * LOW CONFIDENCE — it is a reading of what the old `>5h` band meant, not a
+   * published figure.
+   */
+  FTP_FRACTION_ANCHORS: [
+    { hours: 3, fraction: 0.85 },
+    { hours: 5, fraction: 0.75 },
+    { hours: 8, fraction: 0.68 },
   ],
   /**
    * Average gradient of the climbing portions of an event. Used to work out
