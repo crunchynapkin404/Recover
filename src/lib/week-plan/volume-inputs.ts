@@ -127,7 +127,14 @@ export async function assembleVolumeInputs(
     db.query.races.findMany({
       where: and(
         eq(schema.races.userId, userId),
-        eq(schema.races.status, "upcoming")
+        eq(schema.races.status, "upcoming"),
+        // A past-due race with no synced result activity stays "upcoming"
+        // forever (see runRaceDebriefs in race/debrief.ts — only
+        // debriefedAt is set on the no-data path, never status). Without
+        // this guard, sorted-by-date-ascending would let that stale race
+        // outrank the real next race. Same convention as nextUpcomingRace
+        // in race/service.ts.
+        gte(schema.races.date, localYmd(now))
       ),
     }),
   ]);
