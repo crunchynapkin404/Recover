@@ -32,7 +32,9 @@ Nothing here depends on further deployment.
 
 ## Start here
 
-Then **Task 9 — the riskiest task on the branch.** Full gate required,
+Tasks 1-8 and 13 are done and reviewed clean. Nothing is half-finished.
+
+**Go straight to Task 9 — the riskiest task on the branch.** Full gate required,
 **including `npm run build`**: `tsc` does not model the `"use server"` rule
 that every export be async, and only the build catches it. Task 9 must pass
 **both** `level.ceilingHours` and `level.floorHours` into `weeklyTargetHours`.
