@@ -7,7 +7,7 @@
 ## The problem
 
 An athlete training ~9 hours a week, offering 12.5 hours of availability, and
-preparing for an alpine gran fondo was planned **4.9 hours**.
+preparing for an 8-day alpine tour (900km, 20,000hm) was planned **4.9 hours**.
 
 Three causes, in descending order of blame:
 
@@ -63,20 +63,37 @@ read as authority.
 
 ### 1.1 Race demand
 
-Migration 0033 adds three nullable columns to `races`:
+An event may run over several days. A one-day event is not a separate case —
+it is an event with `event_days = 1`, and the same arithmetic covers both.
+
+Migration 0033 adds four columns to `races` — three nullable, one defaulted:
 
 | Column                  | Type      | Meaning                                  |
 | ----------------------- | --------- | ---------------------------------------- |
-| `distance_km`           | `real`    | null on every existing race              |
-| `elevation_m`           | `integer` | null on every existing race              |
+| `event_days`            | `integer` | default 1; null-safe for existing races  |
+| `distance_km`           | `real`    | **total** across all days                |
+| `elevation_m`           | `integer` | **total** across all days                |
 | `demand_hours_override` | `real`    | athlete's own figure; wins over computed |
+
+…and one optional table for per-day detail:
+
+| `race_stages`                                                 |
+| ------------------------------------------------------------- |
+| `race_id`, `day_number`, `distance_km`, `elevation_m`, `name` |
+
+**Stages are optional.** Enter totals plus a day count and every stage is
+treated as the average day. Enter stages and the totals are derived by summing
+them — which additionally yields the **queen stage**, the single hardest day.
+The queen stage is what sets the longest-ride target in §1.6; without stage
+detail it falls back to the average day, and the feasibility verdict says so
+rather than pretending to know.
 
 **Which race drives the plan:** highest priority (A→C), then nearest date —
 reusing `racesForWeek`'s existing ordering so there is one rule, not two.
 
 New pure module `src/lib/race/demand.ts`, no I/O.
 
-**Step 1 — estimated finish time.** Physics, because the inputs already exist in
+**Step 1 — estimated riding time.** Physics, because the inputs already exist in
 the database (`body_prefs.ftp_watts`, `wellness_daily.eftp`,
 `wellness_daily.weight_kg`):
 
@@ -92,14 +109,32 @@ t_flat  = distance_km / speed_kmh(power_W)                     hours
 at 4–5h, 0.68 at 6h+. Circular (duration needs power, power needs duration), so
 resolved by **two fixed-point iterations**.
 
-**Step 2 — event hours → weekly hours.**
+Applied per stage when stages exist, otherwise once over the totals.
+
+**Step 2 — event hours → weekly hours.** One formula, every event shape:
 
 ```text
-recommendedHours = eventHours × VOLUME_FACTOR        // ≈ 1.8
+weeklyHours = (totalEventHours / eventDays) × 7 × TRAINING_FRACTION   // ≈ 0.25
 ```
 
-Calibrated against the one real anchor available: a ~5.5h alpine gran fondo,
-which the athlete independently estimated at 9–12h/week. 5.5 × 1.8 = 9.9h.
+The event's **daily rate** extrapolated to a week, then trained at a quarter of
+it. Worked against both available anchors:
+
+| Event                               | Daily rate | Weekly hours |
+| ----------------------------------- | ---------- | ------------ |
+| 8-day alpine tour, 900km / 20,000hm | 6.3h       | **11.0h**    |
+| Single-day gran fondo, ~5.5h        | 5.5h       | **9.6h**     |
+
+The athlete independently estimated 9–12h/week for the 8-day tour, which the
+model lands inside without being fitted to it. The single-day figure reproduces
+what a separate `VOLUME_FACTOR = 1.8` gave (9.9h), so that constant is deleted:
+`VOLUME_FACTOR` was only ever `7 × TRAINING_FRACTION`.
+
+**Multi-day demand is met by plan shape, not only by volume.** Nobody trains 50
+hours a week for a 50-hour tour. The published coaching consensus is that the
+decisive quality in stage events is recovering day after day, so the extra
+demand becomes **back-to-back long rides in the peak phase** — a structural
+change, delivered in Phase 2 (§2.5), not a larger weekly number.
 
 ### 1.2 Athlete level and the volume ceiling
 
@@ -236,6 +271,52 @@ it.** That silence is why a 4.9h week reads as a bug rather than an explanation.
   asks about 11h a week; you're offering 7h — expect to complete it, not race
   it."
 
+### 1.6 Can you finish it? — the feasibility verdict
+
+New pure module `src/lib/race/feasibility.ts`. The question an athlete actually
+has when entering a hard event, and the one nothing in the app answers today. Two independent gaps, both computable from
+data already held:
+
+| Dimension        | Requirement                           | Source                                      |
+| ---------------- | ------------------------------------- | ------------------------------------------- |
+| **Volume**       | `weeklyHours` from §1.1               | vs the rolling peak from §1.2               |
+| **Longest ride** | `LONGEST_RIDE_FRACTION` × queen stage | vs longest single ride in the last 12 weeks |
+
+Volume alone is not enough: an athlete riding 11h a week as five two-hour
+sessions is not prepared for a seven-hour mountain stage. The queen stage is why
+per-day detail is worth entering.
+
+Weeks needed to close each gap follows from the ramp guard, which already caps
+growth at `RAMP_CLAMP_PCT` (±20%) per week:
+
+```text
+weeksNeeded = ceil( ln(required / current) / ln(1 + RAMP_CLAMP_PCT) )
+```
+
+Against `weeksUntilEvent`, that gives a four-state verdict:
+
+| Verdict           | Meaning                                                 |
+| ----------------- | ------------------------------------------------------- |
+| **Ready**         | both requirements already met                           |
+| **On track**      | the plan closes both gaps before event day              |
+| **Tight**         | closes with no margin — one missed week and it does not |
+| **Not realistic** | cannot close in the weeks remaining, at any adherence   |
+
+"Not realistic" is the case worth building for and the one most tools avoid:
+_"you have 7 weeks; you would need to add 40% volume and double your longest
+ride. This is not reachable from here."_ Saying that early is worth far more
+than a plan that quietly aims at something unattainable — and it is the same
+honesty principle as the shortfall line above.
+
+**Never a hard block.** The verdict informs; it never refuses to build a plan or
+prevents entering an event. An athlete is allowed to attempt something ambitious
+having been told plainly what it asks.
+
+**Degradation.** With no stage detail the queen stage falls back to the average
+day, and the verdict states that it is reasoning from an average rather than a
+known hardest day. With no rolling peak (§1.2), no verdict is produced at all —
+the same rule as the ceiling: absent evidence, say nothing rather than guess.
+
 ## Phase 2 — Structured workouts
 
 ### 2.1 Why it is in this spec
@@ -282,32 +363,66 @@ Structures render to intervals.icu structured-workout syntax, for which the
 reference already exists in `src/lib/tools/get-workout-syntax.ts`. That is the
 existing path to a head unit; no new integration.
 
+### 2.5 Back-to-back long rides for multi-day events
+
+Where §1.1's multi-day demand is actually delivered. When the target event has
+`event_days > 1`, the peak phase schedules **consecutive long sessions** rather
+than one long day per week, because the quality a stage event tests is
+recovering overnight and riding again.
+
+The longest of those sessions builds toward `LONGEST_RIDE_FRACTION` × queen
+stage, which is the same requirement §1.6's verdict measures — one number, used
+both to judge readiness and to plan for it.
+
+This is constrained by the availability engine like any other session: it
+requires two adjacent days with enough room, and where the athlete does not have
+them the plan falls back to a single long ride and the verdict reflects the
+weaker preparation rather than silently claiming the same readiness.
+
 ## Constants
 
-`VOLUME_FACTOR` (1.8), `HEADROOM` (1.3), the level bands, and the FTP fractions
-are **coaching heuristics, not derived truth**, calibrated against one athlete
-and one published anchor. They live in single exported constants objects with
-unit tests pinning known cases, so tuning is a one-line change with tests that
-fail loudly rather than a hunt through the engine.
+`TRAINING_FRACTION` (0.25), `HEADROOM` (1.3), `LONGEST_RIDE_FRACTION` (0.8), the
+level bands, and the FTP fractions are **coaching heuristics, not derived
+truth**, calibrated against one athlete and the published coaching consensus.
+They live in single exported constants objects with unit tests pinning known
+cases, so tuning is a one-line change with tests that fail loudly rather than a
+hunt through the engine.
+
+`VOLUME_FACTOR` from an earlier draft is deleted: it was only ever
+`7 × TRAINING_FRACTION`, and keeping both invites them to disagree.
 
 ## Testing
 
-- Pure modules (`demand.ts`, `volume.ts`, `athlete-level.ts`, templates) get unit
-  tests with real numbers pinned — including the calibration case: 5.5h event,
-  8.9h peak, CTL 80 → Intermediate, ceiling 11.6h, demand 9.9h.
-- Every new Vitest file touching `@/lib/db` needs
-  `describe.skipIf(!hasDb)` or CI crashes instead of skipping.
+- Pure modules (`demand.ts`, `volume.ts`, `athlete-level.ts`, `feasibility.ts`,
+  templates) get unit tests with real numbers pinned. Both calibration anchors
+  are asserted:
+  - **8-day, 900km, 20,000hm**, FTP 310, 79kg → ~50h event, 6.3h/day, **11.0h
+    weekly** (athlete's own estimate: 9–12h)
+  - **Single-day ~5.5h fondo** → **9.6h weekly**, and a `days = 1` event must
+    take exactly the same code path as a multi-day one
+  - Athlete at 8.9h peak, CTL 80 → **Intermediate**, ceiling **11.6h**
+- Feasibility gets its own table-driven test over the four verdicts, including
+  the boundary between "tight" and "not realistic".
+- Every new Vitest file touching `@/lib/db` needs `describe.skipIf(!hasDb)` or
+  CI crashes instead of skipping.
 - The verification gate must include `npm run build` — it is the only check that
   catches a sync export from a `"use server"` file, and it is not in the default
   gate.
-- Migration 0033 is additive and nullable only: no backfill, no destructive
-  change, no down migration needed.
+- Migration 0033 is additive: nullable columns plus one new table. No backfill,
+  no destructive change, no down migration needed. `event_days` defaults to 1 so
+  every existing race remains a valid single-day event.
 
 ## Out of scope
 
+- **An event calendar of real events with their data prefilled.** JOIN has one,
+  and it is the obvious next step once manual entry works — but manual entry has
+  to be right first, and it is what makes the calendar's data useful rather than
+  the other way round.
 - A separate finish-vs-compete ambition field on races — level plus the editable
   override already cover it; adding a field before it is needed is speculative.
-- An event library with pre-filled distance/elevation. Useful, not required.
 - Strength training, nutrition, cycle tracking.
 - Deleting duplicate activity rows. Read-time dedupe via the existing helper is
   sufficient and non-destructive.
+- Terrain, altitude and temperature as demand inputs. Coaching sources treat all
+  three as real, and the physics model has natural places for them, but each
+  needs its own calibration and none is required to fix the problem in hand.
