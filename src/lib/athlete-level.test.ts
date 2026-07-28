@@ -105,6 +105,20 @@ describe("athleteLevel", () => {
     expect(r.ceilingHours).toBeCloseTo(6 * LEVEL_CONSTANTS.HEADROOM, 3);
   });
 
+  it("refuses to grade a level from non-finite peak input instead of defaulting to advanced", () => {
+    // A NaN peak (e.g. corrupt upstream data) makes every `value < band.max`
+    // comparison false; without a guard the band loop falls through to the
+    // most permissive band. It must report no level, not "advanced".
+    const r = athleteLevel({
+      weeklyHoursByWeek: [NaN, NaN, NaN],
+      ctlByWeek: flat(50),
+      override: null,
+    });
+    expect(r.level).toBeNull();
+    expect(r.level).not.toBe("advanced");
+    expect(r.source).toBe("calibrating");
+  });
+
   it("keeps the ceiling continuous, with no cliff at a band edge", () => {
     // 8.9h and 9.1h straddle the Intermediate/Advanced boundary. Their
     // ceilings must stay close — the band changes, the ceiling does not jump.

@@ -86,7 +86,11 @@ export interface LevelResult {
 function bandFor(
   value: number,
   bands: readonly { max: number; level: AthleteLevel }[]
-): AthleteLevel {
+): AthleteLevel | null {
+  // NaN (or +/-Infinity) makes every `value < band.max` comparison false, so
+  // without this guard the loop falls through to the *last* band — the most
+  // permissive level, in a module built to be conservative. Refuse instead.
+  if (!Number.isFinite(value)) return null;
   for (const band of bands) {
     if (value < band.max) return band.level;
   }
@@ -134,6 +138,13 @@ export function athleteLevel(input: LevelInput): LevelResult {
   // tolerance.
   const fromHours = bandFor(peakHours, LEVEL_CONSTANTS.HOURS_BANDS);
   const fromCtl = bandFor(peakCtl, LEVEL_CONSTANTS.CTL_BANDS);
+
+  // Corrupt (non-finite) peak input: bandFor already refused to guess, and
+  // there is no safe level to report here either.
+  if (fromHours == null || fromCtl == null) {
+    return { level: null, peakHours, ceilingHours, source: "calibrating" };
+  }
+
   const level =
     ORDER.indexOf(fromHours) <= ORDER.indexOf(fromCtl) ? fromHours : fromCtl;
 
