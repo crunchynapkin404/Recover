@@ -6,13 +6,13 @@ import { requireUser } from "@/lib/session";
 import { db, schema } from "@/lib/db";
 import {
   applyAvailability,
-  getOpenWeekPlan,
+  applyResolvedAvailability,
   markDayDone,
   moveWorkout,
   rolloverWeekPlan,
   swapWorkouts,
 } from "@/lib/week-plan/service";
-import { resolveDay } from "@/lib/availability/resolve-day";
+import { syncDateOverrides } from "@/lib/availability/sync-overrides";
 import {
   assembleForecastInputs,
   createRace,
@@ -69,102 +69,6 @@ export function parseDayBlocks(
   if (!Array.isArray(parsed)) return [];
   const blocks = parsed as AvailabilityBlock[];
   return validateBlocks(blocks) === null ? blocks : [];
-}
-
-/**
- * True when two block lists are the same availability value: same length,
- * and every block equal on every field the athlete can actually set.
- * `sports: null` ("any sport") and `sports: []` ("admits nothing") are
- * deliberately never equal to each other — collapsing them would let a
- * day pinned "no sport allowed" silently re-merge with a weekday default
- * that means "anything goes".
- *
- * Pure and exported for its own tests.
- */
-export function blocksEqual(
-  a: AvailabilityBlock[],
-  b: AvailabilityBlock[]
-): boolean {
-  if (a.length !== b.length) return false;
-  return a.every((block, i) => oneBlockEqual(block, b[i]));
-}
-
-function oneBlockEqual(a: AvailabilityBlock, b: AvailabilityBlock): boolean {
-  return (
-    a.start === b.start &&
-    a.end === b.end &&
-    a.mins === b.mins &&
-    a.energy === b.energy &&
-    sportsEqual(a.sports, b.sports)
-  );
-}
-
-function sportsEqual(a: string[] | null, b: string[] | null): boolean {
-  if (a === null || b === null) return a === b;
-  return a.length === b.length && a.every((s, i) => s === b[i]);
-}
-
-/** Monday = 0, matching availability_defaults.weekday. */
-function weekdayOf(ymd: string): number {
-  return (new Date(ymd + "T00:00:00").getDay() + 6) % 7;
-}
-
-/**
- * Keeps each date's override row honest with what was actually submitted.
- * A day whose blocks now differ from its weekday default is pinned, so the
- * edit survives the next re-materialization — the whole reason the override
- * table exists. A day that now matches the default again has its pin
- * removed, so editing a day back to standard is as valid a way to return it
- * to the standard week as the "Pinned" badge's own clear action.
- *
- * Skips any date the open week already marks completed or missed — those
- * are already lived, and a form resubmission must not retroactively pin
- * them. Never reads or writes availability_defaults itself beyond looking
- * up what it would resolve to; the standard week is never touched here.
- */
-async function syncDateOverrides(
-  userId: string,
-  blocksPerDay: AvailabilityBlock[][]
-): Promise<void> {
-  const week = await getOpenWeekPlan(userId);
-  if (!week) return;
-
-  const defaults = await db.query.availabilityDefaults.findMany({
-    where: eq(schema.availabilityDefaults.userId, userId),
-  });
-  const byWeekday = new Map<number, AvailabilityBlock[]>(
-    defaults.map((d) => [d.weekday, d.blocks as AvailabilityBlock[]])
-  );
-
-  for (let i = 0; i < week.days.length; i++) {
-    const day = week.days[i];
-    if (day.status === "completed" || day.status === "missed") continue;
-
-    const submitted = blocksPerDay[i] ?? [];
-    const standard = resolveDay(byWeekday.get(weekdayOf(day.date)) ?? [], null);
-
-    if (blocksEqual(submitted, standard)) {
-      await db
-        .delete(schema.availabilityOverrides)
-        .where(
-          and(
-            eq(schema.availabilityOverrides.userId, userId),
-            eq(schema.availabilityOverrides.date, day.date)
-          )
-        );
-    } else {
-      await db
-        .insert(schema.availabilityOverrides)
-        .values({ userId, date: day.date, blocks: submitted })
-        .onConflictDoUpdate({
-          target: [
-            schema.availabilityOverrides.userId,
-            schema.availabilityOverrides.date,
-          ],
-          set: { blocks: submitted, updatedAt: new Date() },
-        });
-    }
-  }
 }
 
 export async function submitAvailability(
@@ -246,6 +150,9 @@ export async function setDayOverride(
 /** "Back to standard": deletes the pin so the weekday default applies again. */
 export async function clearDayOverride(date: string): Promise<Result> {
   const user = await requireUser();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return { ok: false, error: "invalid_date" };
+  }
   await db
     .delete(schema.availabilityOverrides)
     .where(
@@ -258,9 +165,24 @@ export async function clearDayOverride(date: string): Promise<Result> {
   return { ok: true };
 }
 
-/** The swap menu's reset: an override of zero blocks means unavailable. */
+/**
+ * "No time today": pins the date to zero AND moves what was scheduled on it.
+ *
+ * Writing the override row alone changes nothing the athlete can see —
+ * adaptDay reads availableBlocks off the stored week, not the override
+ * table — so the button, which only appears when the day holds a session,
+ * left that session sitting on a day now labelled "Rest · Pinned". This is
+ * the spec's "JOIN swap-menu reset", and a reset that does not move the
+ * session is not one.
+ */
 export async function zeroDay(date: string): Promise<Result> {
-  return setDayOverride(date, []);
+  const written = await setDayOverride(date, []);
+  if (!written.ok) return written;
+
+  const user = await requireUser();
+  await applyResolvedAvailability(user.id);
+  revalidatePlan();
+  return { ok: true };
 }
 
 // ── v0.14 Race Ready: races management + move/swap with preview ──────────

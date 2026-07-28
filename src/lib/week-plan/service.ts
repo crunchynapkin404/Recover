@@ -521,6 +521,30 @@ export async function applyAvailability(
 }
 
 /**
+ * Replans the open week from what the availability tables now say, rather
+ * than from a submitted form. Used by any caller that has just written a
+ * default or an override directly ("No time today", say) and needs the
+ * week's sessions to actually follow it: writing the row alone changes
+ * nothing the athlete can see, because adaptDay reads availableBlocks off
+ * the stored week, not the override table.
+ */
+export async function applyResolvedAvailability(
+  userId: string
+): Promise<"applied" | "no_open_week"> {
+  const week = await getOpenWeekPlan(userId);
+  if (!week) return "no_open_week";
+
+  const resolved = await resolveWeek(
+    userId,
+    week.days.map((d) => d.date)
+  );
+  return applyAvailability(
+    userId,
+    week.days.map((d) => resolved.get(d.date) ?? [])
+  );
+}
+
+/**
  * Coach-initiated move: same adjacency/availability checks as adaptDay's
  * move — the target day must be free, fit the session, and (for quality
  * sessions) not sit next to another quality day.

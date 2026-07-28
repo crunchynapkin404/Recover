@@ -9,7 +9,6 @@ import {
 } from "vitest";
 import { and, eq } from "drizzle-orm";
 import {
-  blocksEqual,
   clearDayOverride,
   parseDayBlocks,
   setDayOverride,
@@ -17,7 +16,10 @@ import {
   submitAvailability,
   zeroDay,
 } from "./actions";
+// Moved out of the "use server" module so the coach tools can share it (I11).
+import { blocksEqual } from "@/lib/availability/sync-overrides";
 import type { AvailabilityBlock } from "@/lib/availability/types";
+import type { DaySlot } from "@/lib/week-plan/types";
 
 // requires Postgres; skips without DATABASE_URL.
 const hasDb =
@@ -241,6 +243,19 @@ describe("blocksEqual", () => {
     expect(
       blocksEqual([blk({ sports: ["Run"] })], [blk({ sports: ["Bike"] })])
     ).toBe(false);
+  });
+
+  // Sports are a set, not a sequence. The editor emits a stable order, but
+  // set_standard_week lets an LLM pick its own — and I11 now routes the
+  // coach's writes through this same comparison, so an order-sensitive
+  // compare would pin dates that in fact match the standard week.
+  it("is true when both sports arrays hold the same values in a different order", () => {
+    expect(
+      blocksEqual(
+        [blk({ sports: ["Bike", "Run"] })],
+        [blk({ sports: ["Run", "Bike"] })]
+      )
+    ).toBe(true);
   });
 });
 
@@ -558,7 +573,10 @@ describe.skipIf(!hasDb)("server actions", () => {
         };
       }
 
-      function daySlot(date: string, status: "rest" | "completed" = "rest") {
+      function daySlot(
+        date: string,
+        status: "rest" | "completed" = "rest"
+      ): DaySlot {
         return {
           date,
           availableBlocks: [] as AvailabilityBlock[],
@@ -570,9 +588,7 @@ describe.skipIf(!hasDb)("server actions", () => {
 
       let planId: string;
 
-      async function seedWeek(
-        days: ReturnType<typeof daySlot>[]
-      ): Promise<void> {
+      async function seedWeek(days: DaySlot[]): Promise<void> {
         const { db, schema } = await import("@/lib/db");
         await db.insert(schema.weekPlans).values({
           userId: USER,
@@ -624,6 +640,58 @@ describe.skipIf(!hasDb)("server actions", () => {
         await db
           .delete(schema.availabilityDefaults)
           .where(eq(schema.availabilityDefaults.userId, USER));
+      });
+
+      // I8: "No time today" wrote the override row and stopped there. The
+      // button only appears when the day HOLDS a session, and adaptDay reads
+      // availableBlocks off the stored week rather than the override table,
+      // so the session stayed put — the availability card said "Rest · Pinned"
+      // while the week grid below it still showed the session.
+      it("zeroDay moves the session off the day it just pinned to zero", async () => {
+        const { db, schema } = await import("@/lib/db");
+
+        // Every weekday has room, so the displaced session has somewhere to go.
+        await db.insert(schema.availabilityDefaults).values(
+          Array.from({ length: 7 }, (_, weekday) => ({
+            userId: USER,
+            weekday,
+            blocks: [blk({ mins: 120 })],
+          }))
+        );
+
+        const session = {
+          day: 0,
+          sport: "Run",
+          type: "Endurance",
+          durationMins: 60,
+          intensity: "Z1-Z2",
+          description: "Steady hour",
+          purpose: "aerobic_base" as const,
+          minEffectiveMins: 40,
+          blockIdx: 0,
+        };
+        await seedWeek(
+          DATES.map((d, i) => ({
+            ...daySlot(d),
+            availableBlocks: [blk({ mins: 120 })],
+            availableMins: 120,
+            workouts: i === 0 ? [session] : [],
+            status: i === 0 ? ("planned" as const) : ("rest" as const),
+          }))
+        );
+
+        const r = await zeroDay(DATES[0]);
+        expect(r).toEqual({ ok: true });
+
+        const week = await db.query.weekPlans.findFirst({
+          where: eq(schema.weekPlans.userId, USER),
+        });
+        const days = week!.days as { date: string; workouts: unknown[] }[];
+
+        // The pinned day is actually free now...
+        expect(days[0].workouts).toEqual([]);
+        // ...and the session was not simply deleted.
+        expect(days.slice(1).some((d) => d.workouts.length > 0)).toBe(true);
       });
 
       it("pins a date whose submitted blocks differ from the standard week", async () => {

@@ -5,6 +5,8 @@ import {
   validateBlocks,
   type AvailabilityBlock,
 } from "@/lib/availability/types";
+import { syncDateOverrides } from "@/lib/availability/sync-overrides";
+import { availabilityBlockSchema } from "./availability-block-schema";
 
 /** Days are Monday-first, matching the tool's own weekday indexing. */
 const WEEKDAY_NAMES = [
@@ -17,24 +19,10 @@ const WEEKDAY_NAMES = [
   "Sunday",
 ];
 
-const blockSchema = z.object({
-  start: z
-    .string()
-    .regex(/^\d{2}:\d{2}$/)
-    .nullable(),
-  end: z
-    .string()
-    .regex(/^\d{2}:\d{2}$/)
-    .nullable(),
-  mins: z.number().int().min(0).max(720),
-  energy: z.enum(["easy", "normal", "full"]),
-  sports: z.array(z.string()).nullable(),
-});
-
 const parameters = z
   .object({
     availableBlocks: z
-      .array(z.array(blockSchema))
+      .array(z.array(availabilityBlockSchema))
       .length(7)
       .optional()
       .describe("Time blocks per day, Monday first"),
@@ -78,6 +66,12 @@ async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
       };
     }
   }
+  // Pin the dates first, exactly as submitAvailability does. Without this the
+  // open week's jsonb changes but nothing is recorded in availability_overrides,
+  // so the coach's change is invisible to resolveWeek and dies at the next
+  // rematerialization -- the athlete's identical edit would survive.
+  await syncDateOverrides(ctx.userId, blocks);
+
   const result = await applyAvailability(ctx.userId, blocks);
   if (result !== "applied") return { applied: false, reason: result };
   const week = await getOpenWeekPlan(ctx.userId);

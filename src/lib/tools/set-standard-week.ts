@@ -5,25 +5,12 @@ import {
   validateBlocks,
   type AvailabilityBlock,
 } from "@/lib/availability/types";
-
-const blockSchema = z.object({
-  start: z
-    .string()
-    .regex(/^\d{2}:\d{2}$/)
-    .nullable(),
-  end: z
-    .string()
-    .regex(/^\d{2}:\d{2}$/)
-    .nullable(),
-  mins: z.number().int().min(0).max(720),
-  energy: z.enum(["easy", "normal", "full"]),
-  sports: z.array(z.string()).nullable(),
-});
+import { availabilityBlockSchema } from "./availability-block-schema";
 
 const parameters = z.object({
   weekday: z.number().int().min(0).max(6).describe("0 = Monday"),
   blocks: z
-    .array(blockSchema)
+    .array(availabilityBlockSchema)
     .describe("Time blocks; an empty list means a rest day"),
 });
 
