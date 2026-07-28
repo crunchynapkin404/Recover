@@ -640,7 +640,11 @@ replan. Anything cheap can still ship earlier alongside any release.
 
 Fabrications v0.9.0 found but did not fix. All pre-existing; all the same
 defect class as the sleep/energy cards that release cleaned up. **Emptied
-by v0.10 — Honest Load.**
+by v0.10 — Honest Load**, then reopened by v0.27.0: the same class of defect
+recurred somewhere v0.10 never looked.
+
+- [x] **"Last week was fully missed" about a week with 13.9 hours of riding**: the completion matcher compared the plan's `Bike` to the provider's `Ride` with a raw equality and never matched, so `actualLoad` stayed empty and every week closed at zero. The plan then cut the next week to 60% — compounding — while logging a reason that read as fact. Fixed in v0.27.0: one shared sport vocabulary, plus a backfill for days already passed.
+- [ ] **Weekly hours are a number typed once and never revisited**: `constraints.hoursPerWeek` is set by the coach at plan creation and no code path updates it. Availability can only ever cap it (`Math.min`), so the plan silently ignores the time you offer, and a race carries no demand to derive it from. Phase 1 of the race-driven volume design.
 
 - [x] **Recovery & Strain are invented for manual-only athletes**: `recoveryScore`/`strainFraction` came from `latest?.atl ?? 0` / `latest?.ctl ?? 0`, and `atl`/`ctl` were written only by the intervals.icu sync. Fixed in v0.10: native load engine + `calibrating` treatment through `ScoreRing`, `StrainBudget`, and the narrative.
 - [x] **"This Week" rings hardcoded**: `ringOuter={0.7}` / `ringInner={0.8}` for every athlete, forever. Fixed in v0.10: real plan/trailing-average targets, rings hidden without one.

@@ -1,7 +1,7 @@
 // src/lib/week-plan/service.ts — DB orchestration for the living week.
 // All plan logic lives in the pure engines (materialize.ts / adapt-day.ts);
 // this layer only loads state, runs an engine, and persists the result.
-import { and, asc, desc, eq, gte, lt, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { racesForWeek, currentCtl } from "@/lib/race/service";
 import { materializeWeek } from "./materialize";
@@ -11,6 +11,7 @@ import { resolveWeek } from "@/lib/availability/resolve";
 import { dayMins } from "./types";
 import type { AdjustmentRecord, Band, DaySlot } from "./types";
 import { findBlockFor } from "./slots";
+import { providerSportAliases } from "@/lib/canonical-sport";
 import type { AvailabilityBlock } from "@/lib/availability/types";
 
 export type AdjustmentRow = typeof schema.planAdjustments.$inferSelect;
@@ -371,10 +372,20 @@ export async function runDailyAdaptation(
     // (startDateLocal is a nullable, not-yet-backfilled column — NULL >= x
     // is NULL/false in SQL), excluding them from the window entirely rather
     // than falling back to startDate.
+    // Sport is compared through the canonical vocabulary, never with a raw
+    // equality: the planner says "Bike", every provider says "Ride" (or
+    // "VirtualRide", …), so `eq()` here matched nothing for cyclists. Not one
+    // planned ride ever completed, so every week closed with actualLoad 0,
+    // effectiveWeekLoad read that as "fully missed", and the next week
+    // restarted at 60% of skeleton — compounding, week after week. Runners
+    // never saw it, because "Run" happened to equal "Run".
     const activity = await db.query.activities.findFirst({
       where: and(
         eq(schema.activities.userId, userId),
-        eq(schema.activities.sport, ySlotWorkout.sport),
+        inArray(
+          sql`lower(${schema.activities.sport})`,
+          providerSportAliases(ySlotWorkout.sport)
+        ),
         gte(
           sql`coalesce(${schema.activities.startDateLocal}, ${schema.activities.startDate})`,
           new Date(yesterdayYmd + "T00:00:00")
