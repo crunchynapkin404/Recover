@@ -2979,3 +2979,248 @@ git commit -m "feat(plan): show whether an event is reachable from here"
 - [ ] **Calibration check:** enter 8 days / 900km / 20,000hm and confirm the weekly target lands between 9 and 12 hours
 - [ ] Bump `version` in `package.json`, add the `CHANGELOG.md` entry, update `docs/ROADMAP.md`
 - [ ] Merge to `main`, verify `main` is green, and only then tag — the image builds from the tag
+
+---
+
+### Task 13: A continuous duration model, and per-day pricing for stage events
+
+**Added 2026-07-28**, after Tasks 2-6 shipped. Two coupled corrections to the
+demand model. The user delegated both calls; the reasoning is in the spec and
+in `docs/specs/2026-07-28-training-volume-evidence.md`.
+
+**Why:** `FTP_FRACTION` is a step function, so an event landing near a band
+edge is unstable — 114km predicted 4.985h and 116km predicted 5.424h, an 8.8%
+jump for 1.75% more distance. The calibration athlete's Dolomites day sits
+1.6% under the 5h edge, so the tour's whole estimate hangs on that cliff.
+Separately, `eventDemand` priced a multi-day event without stage data as ONE
+continuous ride, charging an 8-day tour the deep-fatigue fraction it would
+earn only by riding 42 hours without sleeping.
+
+**Files:**
+
+- Modify: `src/lib/race/demand-constants.ts` (replace `FTP_FRACTION`)
+- Modify: `src/lib/race/riding-time.ts` (`ftpFractionFor`, export it)
+- Modify: `src/lib/race/riding-time.test.ts` (add continuity cases)
+- Modify: `src/lib/race/demand.ts` (per-day pricing when stages are absent)
+- Modify: `src/lib/race/demand.test.ts` (two expectations move — see Step 5)
+
+**Interfaces:**
+
+- `ftpFractionFor` becomes exported so continuity can be tested directly.
+- `FTP_FRACTION` is deleted and replaced by `FTP_FRACTION_ANCHORS`.
+- `eventDemand`'s signature is unchanged; only the no-stage path changes.
+
+- [ ] **Step 1: Replace the bands with anchors**
+
+In `src/lib/race/demand-constants.ts`, delete `FTP_FRACTION` and add:
+
+```ts
+  /**
+   * Sustainable share of FTP against the duration of a CONTINUOUS effort,
+   * as interpolation anchors rather than steps. Same three fractions the
+   * step bands used; the difference is that they are now reached smoothly.
+   *
+   * Stepping made estimates unstable at the edges: 114km predicted 4.985h
+   * and 116km predicted 5.424h, an 8.8% jump for 1.75% more distance.
+   *
+   * Flat below the first anchor and above the last. The flat tail matters:
+   * extrapolating the decline out to a 42-hour "ride" would produce a
+   * sustainable fraction no rider could be measured at, and the demand model
+   * must never be handed a duration it treats as one continuous effort when
+   * it is not. The 8h anchor is where 0.68 becomes fully effective and is
+   * LOW CONFIDENCE — it is a reading of what the old `>5h` band meant, not a
+   * published figure.
+   */
+  FTP_FRACTION_ANCHORS: [
+    { hours: 3, fraction: 0.85 },
+    { hours: 5, fraction: 0.75 },
+    { hours: 8, fraction: 0.68 },
+  ],
+```
+
+- [ ] **Step 2: Interpolate**
+
+In `src/lib/race/riding-time.ts`, replace `ftpFractionFor` with:
+
+```ts
+/**
+ * Sustainable share of FTP for a continuous effort of `hours`, linearly
+ * interpolated between the anchors and held flat outside them.
+ */
+export function ftpFractionFor(hours: number): number {
+  const anchors = C.FTP_FRACTION_ANCHORS;
+  const first = anchors[0];
+  const last = anchors[anchors.length - 1];
+  if (!(hours > first.hours)) return first.fraction;
+  if (hours >= last.hours) return last.fraction;
+  for (let i = 0; i < anchors.length - 1; i++) {
+    const a = anchors[i];
+    const b = anchors[i + 1];
+    if (hours <= b.hours) {
+      const t = (hours - a.hours) / (b.hours - a.hours);
+      return a.fraction + t * (b.fraction - a.fraction);
+    }
+  }
+  return last.fraction;
+}
+```
+
+`!(hours > first.hours)` rather than `hours <= first.hours` so a NaN duration
+returns the most conservative (highest) fraction instead of falling through.
+
+- [ ] **Step 3: Test the interpolation**
+
+Append to `src/lib/race/riding-time.test.ts`:
+
+```ts
+import { ftpFractionFor } from "./riding-time";
+
+describe("ftpFractionFor", () => {
+  it("returns exactly the anchor fraction at each anchor", () => {
+    expect(ftpFractionFor(3)).toBeCloseTo(0.85, 10);
+    expect(ftpFractionFor(5)).toBeCloseTo(0.75, 10);
+    expect(ftpFractionFor(8)).toBeCloseTo(0.68, 10);
+  });
+
+  it("is flat outside the anchor range", () => {
+    expect(ftpFractionFor(0.5)).toBeCloseTo(0.85, 10);
+    expect(ftpFractionFor(1)).toBeCloseTo(0.85, 10);
+    expect(ftpFractionFor(20)).toBeCloseTo(0.68, 10);
+    expect(ftpFractionFor(42)).toBeCloseTo(0.68, 10);
+  });
+
+  it("interpolates rather than stepping between anchors", () => {
+    // Midpoint of the 3-5h span is the midpoint of 0.85 and 0.75.
+    expect(ftpFractionFor(4)).toBeCloseTo(0.8, 10);
+    // The old step function returned 0.75 for both of these.
+    expect(ftpFractionFor(4.99)).toBeGreaterThan(ftpFractionFor(5.01));
+  });
+
+  it("never jumps at an anchor, which is the whole point", () => {
+    for (const edge of [3, 5, 8]) {
+      const below = ftpFractionFor(edge - 0.01);
+      const above = ftpFractionFor(edge + 0.01);
+      expect(Math.abs(below - above)).toBeLessThan(0.005);
+    }
+  });
+
+  it("never increases with duration", () => {
+    let previous = Infinity;
+    for (let h = 0.5; h <= 12; h += 0.1) {
+      const f = ftpFractionFor(h);
+      expect(f).toBeLessThanOrEqual(previous + 1e-12);
+      previous = f;
+    }
+  });
+});
+```
+
+And, in the `estimateRidingHours` describe block, the cliff that motivated all
+of this:
+
+```ts
+  it("no longer jumps across the old 5-hour band edge", () => {
+    // 114km predicted 4.985h and 116km predicted 5.424h under the step
+    // function: 8.8% more time for 1.75% more distance. The response must
+    // now be proportionate to the input.
+    const shorter = estimateRidingHours({
+      distanceKm: 114,
+      elevationM: 2533,
+      ...ATHLETE,
+    })!;
+    const longer = estimateRidingHours({
+      distanceKm: 116,
+      elevationM: 2578,
+      ...ATHLETE,
+    })!;
+    expect(longer).toBeGreaterThan(shorter);
+    expect(longer / shorter).toBeLessThan(1.05);
+  });
+```
+
+- [ ] **Step 4: Price a stage event per day**
+
+In `src/lib/race/demand.ts`, the branch that runs when no usable stages were
+supplied currently estimates the whole event as one ride. Replace it so a
+multi-day event is estimated as its average DAY, multiplied by the day count:
+
+```ts
+  if (totalHours == null) {
+    // Without stage data, estimate the AVERAGE DAY and multiply. Pricing the
+    // whole event as one continuous ride would charge an 8-day tour the
+    // deep-fatigue fraction a rider earns only by riding 42 hours without
+    // sleeping. The FTP ladder models within-ride fatigue; riders sleep
+    // between stages.
+    //
+    // Cumulative fatigue across consecutive days is real and is NOT modelled
+    // here — there is no published magnitude for it in the evidence base, and
+    // inventing one by mispricing the duration is worse than omitting it.
+    const perDay = estimateRidingHours({
+      distanceKm: (input.distanceKm ?? 0) / days,
+      elevationM: (input.elevationM ?? 0) / days,
+      ftpWatts,
+      massKg,
+    });
+    totalHours = perDay == null ? null : perDay * days;
+  }
+```
+
+Use the same `days`, `ftpWatts` and `massKg` locals the surrounding code
+already resolved. Do not change how `days` is derived or guarded.
+
+- [ ] **Step 5: Update the two expectations this moves**
+
+Both are in `src/lib/race/demand.test.ts`. **These are deliberate model
+changes, not loosened bounds.** If any OTHER expectation fails, stop and
+report.
+
+a) The tour's daily rate. It was `> 5` because the whole-block price inflated
+it to 5.26. Per-day it is 4.90:
+
+```ts
+    expect(d.dailyRateHours).toBeGreaterThan(4.5);
+    expect(d.dailyRateHours).toBeLessThan(8);
+```
+
+b) The staged-versus-totals test. It currently asserts the two paths DIVERGE,
+because they used to: one summed per-stage estimates while the other priced a
+single long block, so they landed in different fatigue bands. Now both price
+per day, so they agree to about 0.01h. Replace the two assertions and the
+comment above them with:
+
+```ts
+    // Both paths now price per DAY — the stage loop uses the real stages, the
+    // totals path uses the average day — so they agree closely. They are not
+    // identical: unequal stages cost slightly more than their average.
+    //
+    // This assertion failed before Task 13 and is restored deliberately. The
+    // original plan asserted it, Task 3 had to overturn it because the model
+    // priced the two paths on different fatigue bands, and making the model
+    // coherent has made it true again.
+    expect(d.totalHours).toBeCloseTo(fromTotals.totalHours, 1);
+```
+
+- [ ] **Step 6: Run the gate**
+
+```bash
+npx vitest run src/lib/race/
+npx vitest run
+npx tsc --noEmit
+```
+
+Expected, for the calibration athlete (FTP 310W, 87kg):
+
+| quantity                        | before | after |
+| ------------------------------- | ------ | ----- |
+| fondo 130km/4000m               | 6.82h  | 6.57h |
+| tour day 112.5km/2500m          | 4.92h  | 4.90h |
+| tour total (8 days)             | 42.09h | 39.18h |
+| tour weeklyHours                | 16.8   | 15.68 |
+| fondo weeklyHours               | 11.4   | 10.95 |
+| whole-block 900km/20000m        | 42.09h | 42.09h (flat tail) |
+
+The fondo and a flat century both stay inside the published 8-12 h/week band.
+The tour still exceeds the ceiling and still reports the athlete
+under-prepared — that conclusion is robust to both changes.
+
+- [ ] **Step 7: Commit** (two commits — the ladder, then the pricing)
