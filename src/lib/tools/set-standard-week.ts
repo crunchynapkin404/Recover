@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { ToolDefinition, ToolContext } from "./registry";
 import { db, schema } from "@/lib/db";
+import { applyResolvedAvailability } from "@/lib/week-plan/service";
 import {
   validateBlocks,
   type AvailabilityBlock,
@@ -29,6 +30,11 @@ async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
       ],
       set: { blocks, updatedAt: new Date() },
     });
+
+  // Same reason the server action does it: the standard week is what
+  // resolveWeek reads, so without replanning, the open week's stored days
+  // keep availability the athlete no longer has. Overrides still win.
+  await applyResolvedAvailability(ctx.userId);
   return { applied: true, weekday: args.weekday, blocks };
 }
 
