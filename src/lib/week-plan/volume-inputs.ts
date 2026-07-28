@@ -21,6 +21,20 @@ function weekStartOf(d: Date): Date {
   return out;
 }
 
+/**
+ * Oldest-first bucket index for the week starting at `weekStart`, in a
+ * `weeks`-slot window ending at (and including) `thisWeek`. Shared by
+ * weeklyHoursByWeek and the CTL-bucketing loop in assembleVolumeInputs so
+ * the two copies of this arithmetic cannot drift. Out-of-window results
+ * (negative, or >= weeks) are the caller's responsibility to skip.
+ */
+function weekIndex(weekStart: Date, thisWeek: Date, weeks: number): number {
+  const weeksAgo = Math.round(
+    (thisWeek.getTime() - weekStart.getTime()) / (7 * 24 * 3600 * 1000)
+  );
+  return weeks - 1 - weeksAgo;
+}
+
 // wellnessDaily.date is a Postgres `date` column, which drizzle types as a
 // plain YYYY-MM-DD string (see races.date / dailyMetrics.date elsewhere in
 // this codebase) — comparing it against a JS Date fails npx tsc --noEmit
@@ -62,10 +76,7 @@ export function weeklyHoursByWeek(
 
   for (const a of unique) {
     const start = weekStartOf(a.startDate);
-    const weeksAgo = Math.round(
-      (thisWeek.getTime() - start.getTime()) / (7 * 24 * 3600 * 1000)
-    );
-    const idx = weeks - 1 - weeksAgo;
+    const idx = weekIndex(start, thisWeek, weeks);
     if (idx < 0 || idx >= weeks) continue;
     buckets[idx] += (a.durationS ?? 0) / 3600;
   }
@@ -156,12 +167,7 @@ export async function assembleVolumeInputs(
     // race/debrief.ts, race/service.ts, race/taper.ts, race/forecast.ts,
     // format.ts, sleep-insights.ts, morning-insight.ts, training-plan.ts.
     const start = weekStartOf(new Date(w.date + "T00:00:00"));
-    const idx =
-      weeks -
-      1 -
-      Math.round(
-        (thisWeek.getTime() - start.getTime()) / (7 * 24 * 3600 * 1000)
-      );
+    const idx = weekIndex(start, thisWeek, weeks);
     if (idx < 0 || idx >= weeks) continue;
     ctlBuckets[idx] = Math.max(ctlBuckets[idx], w.ctl);
   }
