@@ -245,6 +245,25 @@ export async function addRace(input: {
     );
     if (stageElevationError) return { ok: false, error: stageElevationError };
   }
+  // `race_stages` has a unique index on (raceId, dayNumber), so duplicates
+  // throw on insert. The transaction means that rolls back cleanly rather
+  // than corrupting anything, but this action's contract is to RETURN its
+  // errors, not raise them — and it is an exported "use server" function, so
+  // a caller other than our own form can reach it. The UI cannot produce this
+  // (`stagesForSubmit` always emits sequential days); a direct caller can.
+  const days = new Set<number>();
+  for (const stage of input.stages) {
+    if (!Number.isInteger(stage.dayNumber) || stage.dayNumber < 1) {
+      return {
+        ok: false,
+        error: "Each stage needs a day number of 1 or more.",
+      };
+    }
+    if (days.has(stage.dayNumber)) {
+      return { ok: false, error: `Day ${stage.dayNumber} is listed twice.` };
+    }
+    days.add(stage.dayNumber);
+  }
 
   const result = await createRace(user.id, {
     name: input.name,

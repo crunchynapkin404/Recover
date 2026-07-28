@@ -237,6 +237,31 @@ describe.skipIf(!hasDb)("plan race actions", () => {
         stages: [],
       },
       {
+        // race_stages has a unique index on (raceId, dayNumber). The
+        // transaction stops this corrupting anything, but the action's
+        // contract is to return errors, not throw them — and it is a
+        // reachable "use server" endpoint, so a caller other than our own
+        // form can send this.
+        name: "Duplicate Stage Day Race",
+        eventDays: 2,
+        distanceKm: 100,
+        elevationM: 100,
+        stages: [
+          { dayNumber: 1, distanceKm: 10, elevationM: 0 },
+          { dayNumber: 1, distanceKm: 20, elevationM: 0 },
+        ],
+      },
+      {
+        name: "Bad Stage Day Number Race",
+        eventDays: 2,
+        distanceKm: 100,
+        elevationM: 100,
+        stages: [
+          { dayNumber: 0, distanceKm: 10, elevationM: 0 },
+          { dayNumber: 1, distanceKm: 20, elevationM: 0 },
+        ],
+      },
+      {
         name: "Bad Stage Distance Race",
         eventDays: 2,
         distanceKm: 100,
