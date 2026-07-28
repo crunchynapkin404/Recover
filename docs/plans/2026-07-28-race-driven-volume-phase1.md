@@ -1348,7 +1348,7 @@ export interface VolumeInput {
 }
 export interface VolumeResult {
   hours: number;
-  source: "race" | "ceiling" | "availability" | "fallback";
+  source: "race" | "ceiling" | "floor" | "availability" | "fallback";
   shortfall: { wantedHours: number; offeredHours: number } | null;
 }
 export function weeklyTargetHours(input: VolumeInput): VolumeResult;
