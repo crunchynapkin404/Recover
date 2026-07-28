@@ -26,6 +26,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { TrainTabs } from "@/components/train/train-tabs";
 import { WeekDayList } from "@/components/train/week-day-list";
 import { WeekRationale } from "@/components/plan/week-rationale";
+import { EventReadiness } from "@/components/plan/event-readiness";
 import {
   HistoryList,
   type HistoryGroup,
@@ -46,6 +47,8 @@ import {
 } from "@/lib/week-plan/service";
 import { assembleVolumeInputs } from "@/lib/week-plan/volume-inputs";
 import { weeklyDisplayTarget } from "@/lib/week-plan/volume";
+import { assessFeasibility, type Feasibility } from "@/lib/race/feasibility";
+import type { EventDemand } from "@/lib/race/demand";
 import {
   listRaces,
   nextUpcomingRace,
@@ -248,6 +251,15 @@ async function WeekTab({ userId, href }: { userId: string; href: TrainHref }) {
     shortfall: { wantedHours: number; offeredHours: number } | null;
     raceName: string | null;
   } | null = null;
+  // Is the athlete's next race reachable from here — the question anyone
+  // entering a hard event actually has. Captured out of the `if (week)`
+  // block below (where `volumeInputs` lives) so it survives to the render
+  // section further down.
+  let eventReadiness: {
+    raceName: string;
+    feasibility: Feasibility;
+    demand: EventDemand;
+  } | null = null;
   if (week) {
     const volumeInputs = await assembleVolumeInputs(userId, new Date());
     // `adjustments` above already holds every plan_adjustments row for this
@@ -288,6 +300,41 @@ async function WeekTab({ userId, href }: { userId: string; href: TrainHref }) {
       shortfall: target.shortfall,
       raceName: volumeInputs.targetRace?.name ?? null,
     };
+
+    // Weeks until the event, counted from this week's Monday so it agrees
+    // with the rest of the page rather than drifting by a day mid-week.
+    const raceDate = volumeInputs.targetRace?.date ?? null;
+    const weeksUntilEvent =
+      raceDate == null
+        ? null
+        : Math.max(
+            0,
+            Math.round(
+              (new Date(raceDate + "T00:00:00").getTime() -
+                new Date(week.weekStart + "T00:00:00").getTime()) /
+                (7 * 24 * 60 * 60 * 1000)
+            )
+          );
+
+    const feasibility =
+      volumeInputs.demand == null || weeksUntilEvent == null
+        ? null
+        : assessFeasibility({
+            requiredWeeklyHours: volumeInputs.demand.weeklyHours,
+            currentWeeklyHours: volumeInputs.level.peakHours,
+            queenStageHours: volumeInputs.demand.queenStageHours,
+            queenStageKnown: volumeInputs.demand.queenStageKnown,
+            longestRideHours: volumeInputs.longestRideHours,
+            weeksUntilEvent,
+          });
+
+    if (volumeInputs.targetRace && volumeInputs.demand && feasibility) {
+      eventReadiness = {
+        raceName: volumeInputs.targetRace.name,
+        feasibility,
+        demand: volumeInputs.demand,
+      };
+    }
   }
 
   const defaultRows = await db.query.availabilityDefaults.findMany({
@@ -442,6 +489,14 @@ async function WeekTab({ userId, href }: { userId: string; href: TrainHref }) {
               plannedHours={rationale.plannedHours}
               shortfall={rationale.shortfall}
               raceName={rationale.raceName}
+            />
+          )}
+
+          {eventReadiness && (
+            <EventReadiness
+              raceName={eventReadiness.raceName}
+              feasibility={eventReadiness.feasibility}
+              demand={eventReadiness.demand}
             />
           )}
 
