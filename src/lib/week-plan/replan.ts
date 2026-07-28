@@ -21,7 +21,13 @@ function locked(d: DaySlot): boolean {
 
 export function replanWeek(
   week: WeekState,
-  resolved: Map<string, AvailabilityBlock[]>
+  resolved: Map<string, AvailabilityBlock[]>,
+  /**
+   * The athlete's local calendar day (YYYY-MM-DD). Days before it can never
+   * RECEIVE a moved session — required rather than optional so a caller
+   * cannot silently reintroduce the defect described at rung 1.
+   */
+  today: string
 ): { week: WeekState; adjustments: AdjustmentRecord[] } {
   const adjustments: AdjustmentRecord[] = [];
 
@@ -124,6 +130,15 @@ export function replanWeek(
     // never pushed onto a day the athlete has marked unavailable.
     const candidates = buildSlots(days)
       .filter((s) => !locked(days[s.dayIdx]))
+      // Never move a session into a day that has already happened. A past
+      // day is not locked (a quiet rest day earlier this week is just
+      // "rest"), it often has the most room left, and the distance sort
+      // below breaks ties TOWARD the earlier day — so zeroing today sent
+      // the session to yesterday, where the next daily adaptation marked it
+      // missed and dissolved it into the remaining days. The athlete
+      // silently lost a session while the log said "moved to <yesterday>,
+      // which fits it whole".
+      .filter((s) => days[s.dayIdx].date >= today)
       .filter((s) => admits(s, workout, days, taken))
       .sort(
         (a, b) =>

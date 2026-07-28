@@ -499,7 +499,8 @@ export async function applyAvailability(
       skeletonWeek: week.skeletonWeek,
       days: week.days,
     },
-    resolved
+    resolved,
+    localYmd(new Date())
   );
 
   const oldTotal = week.days.reduce((s, d) => s + dayMins(d), 0);
