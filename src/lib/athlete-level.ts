@@ -104,7 +104,13 @@ function bandFor(
 function peakOf(series: number[], weeks: number): number | null {
   const window = series.slice(-weeks);
   if (window.length === 0) return null;
-  return Math.max(...window);
+  const peak = Math.max(...window);
+  // Math.max poisons the whole window if any single entry is NaN, and one
+  // corrupt week among eleven good ones is the realistic failure mode — a bad
+  // activity import, not an all-NaN series. Guard here rather than at each use
+  // site: NaN is not nullish, so a caller writing `peak ?? fallback` would get
+  // NaN back and carry it silently into arithmetic downstream.
+  return Number.isFinite(peak) ? peak : null;
 }
 
 export function athleteLevel(input: LevelInput): LevelResult {

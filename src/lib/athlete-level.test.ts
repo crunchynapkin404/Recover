@@ -118,7 +118,26 @@ describe("athleteLevel", () => {
       override: null,
     });
     expect(r.level).toBeNull();
-    expect(r.level).not.toBe("advanced");
+    expect(r.source).toBe("calibrating");
+    // The ceiling must not leak NaN. It is not nullish, so a consumer writing
+    // `ceilingHours ?? fallback` would carry NaN into its arithmetic instead of
+    // falling back.
+    expect(r.peakHours).toBeNull();
+    expect(r.ceilingHours).toBeNull();
+  });
+
+  it("refuses a peak poisoned by one corrupt week among good ones", () => {
+    // The realistic failure mode, and worse than an all-NaN series: Math.max
+    // returns NaN if ANY entry is NaN, so a single bad activity import
+    // invalidates the whole window. Ten good weeks must not launder it.
+    const r = athleteLevel({
+      weeklyHoursByWeek: [8, 8, 8, 8, 8, NaN, 8, 8, 8, 8, 8],
+      ctlByWeek: flat(50),
+      override: null,
+    });
+    expect(r.peakHours).toBeNull();
+    expect(r.ceilingHours).toBeNull();
+    expect(r.level).toBeNull();
     expect(r.source).toBe("calibrating");
   });
 
