@@ -97,6 +97,48 @@ test so nobody "fixes" it later.
 `as const` on `DEMAND_CONSTANTS` pins `INITIAL_FTP_FRACTION` to the literal
 `0.75`, so `let fraction: number` needs its explicit annotation.
 
+## ⛔ BLOCKING — the demand formula is wrong. Fix before Task 3.
+
+**Do not implement Task 3 as written.** The user spotted this and they are
+right: the formula makes a bigger event ask for LESS training.
+
+`weeklyHours = (totalEventHours / eventDays) × 7 × TRAINING_FRACTION` keys off
+the AVERAGE DAILY duration and discards total event load. The 8-day tour is 42
+riding hours; the single fondo is 6.8 — a 6× difference — yet the tour comes out
+LOWER (9.2h vs 11.9h) purely because its average day is easier. Averaging is the
+error: eight consecutive days are cumulative, and the capacity to ride day six is
+built by chronic weekly volume.
+
+The spec's claim that "multi-day demand is met by plan shape, not volume" (§1.1,
+§2.5) was used to justify having no multi-day term at all. That was
+rationalisation — the coaching sources say the decisive quality is recovering day
+after day, which is built by volume AND structure.
+
+**Proposed fix**, both anchors still satisfied:
+
+```text
+weeklyHours = dailyRate × 7 × 0.20 × (1 + MULTI_DAY_SLOPE × ln(days))
+              TRAINING_FRACTION 0.25 → 0.20,  MULTI_DAY_SLOPE ≈ 0.25
+```
+
+| event | total | /day | current | proposed |
+| --- | --- | --- | --- | --- |
+| 8-day alpine tour | 42.1h | 5.26 | 9.2h | **11.2h** |
+| 1-day alpine fondo | 6.8h | 6.82 | 11.9h | **9.6h** |
+| 3-day stage race | 13.6h | 4.53 | 7.9h | 8.1h |
+| local crit | 1.3h | 1.28 | 2.2h | 1.8h |
+
+**Second hole, exposed by the same check: a criterium prescribes 1.8 h/week.**
+The model is volume-only, so a short intense event reads as almost no demand and
+the plan would DETRAIN the athlete. Needs a floor tied to what they already do —
+most naturally the rolling peak from Task 5 — so entering a short race can never
+prescribe less than maintaining current fitness.
+
+Both need a spec amendment (§1.1) and a plan amendment (Task 3's formula,
+constants and test bounds) before Task 3 is dispatched. Tasks 1 and 2 are
+unaffected: `estimateRidingHours` returns event hours and is independent of how
+those become a weekly target.
+
 ## Design decisions already settled — do not reopen
 
 1. Race demand computed from distance + elevation, editable override.
