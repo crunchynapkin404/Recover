@@ -10,14 +10,16 @@ import {
 import { and, eq } from "drizzle-orm";
 import {
   clearDayOverride,
-  parseDayBlocks,
   setDayOverride,
   setStandardWeekDay,
   submitAvailability,
   zeroDay,
 } from "./actions";
-// Moved out of the "use server" module so the coach tools can share it (I11).
+// Both moved out of the "use server" module: blocksEqual so the coach tools
+// can share it (I11), parseDayBlocks because a sync export there breaks the
+// production build.
 import { blocksEqual } from "@/lib/availability/sync-overrides";
+import { parseDayBlocks } from "@/lib/availability/parse-day-blocks";
 import type { AvailabilityBlock } from "@/lib/availability/types";
 import type { DaySlot } from "@/lib/week-plan/types";
 
@@ -48,22 +50,25 @@ describe("parseDayBlocks", () => {
   it("reads a day's blocks out of the form field", () => {
     const r = parseDayBlocks(one);
     expect(r).toHaveLength(1);
-    expect(r[0].mins).toBe(90);
+    expect(r![0].mins).toBe(90);
   });
 
   it("reads a missing field as a rest day", () => {
     expect(parseDayBlocks(null)).toEqual([]);
   });
 
-  it("reads malformed JSON as a rest day rather than throwing", () => {
-    expect(parseDayBlocks("{not json")).toEqual([]);
+  // null, NOT [] — an empty list is a real answer ("no time that day") that
+  // pins the date and moves its sessions away, so reading garbage as a rest
+  // day would be the most destructive interpretation available.
+  it("refuses malformed JSON rather than reading it as a rest day", () => {
+    expect(parseDayBlocks("{not json")).toBeNull();
   });
 
-  it("reads a non-array payload as a rest day", () => {
-    expect(parseDayBlocks('{"mins":90}')).toEqual([]);
+  it("refuses a non-array payload", () => {
+    expect(parseDayBlocks('{"mins":90}')).toBeNull();
   });
 
-  it("drops a day whose blocks overlap instead of storing them", () => {
+  it("refuses a day whose blocks overlap instead of storing them", () => {
     const overlapping = JSON.stringify([
       {
         start: "18:00",
@@ -80,7 +85,7 @@ describe("parseDayBlocks", () => {
         sports: null,
       },
     ]);
-    expect(parseDayBlocks(overlapping)).toEqual([]);
+    expect(parseDayBlocks(overlapping)).toBeNull();
   });
 
   it("keeps an explicitly empty day empty", () => {
@@ -95,7 +100,7 @@ describe("parseDayBlocks", () => {
   // boundary where raw strings first arrive, so it must guard the shape
   // itself before a block ever reaches validateBlocks or the database.
 
-  it("drops a block whose start is not a time string", () => {
+  it("refuses a block whose start is not a time string", () => {
     const bad = JSON.stringify([
       {
         start: "garbage",
@@ -105,10 +110,10 @@ describe("parseDayBlocks", () => {
         sports: null,
       },
     ]);
-    expect(parseDayBlocks(bad)).toEqual([]);
+    expect(parseDayBlocks(bad)).toBeNull();
   });
 
-  it("drops a block whose end is not a time string", () => {
+  it("refuses a block whose end is not a time string", () => {
     const bad = JSON.stringify([
       {
         start: "18:00",
@@ -118,10 +123,10 @@ describe("parseDayBlocks", () => {
         sports: null,
       },
     ]);
-    expect(parseDayBlocks(bad)).toEqual([]);
+    expect(parseDayBlocks(bad)).toBeNull();
   });
 
-  it("drops a block with an out-of-range hour", () => {
+  it("refuses a block with an out-of-range hour", () => {
     const bad = JSON.stringify([
       {
         start: "25:00",
@@ -131,10 +136,10 @@ describe("parseDayBlocks", () => {
         sports: null,
       },
     ]);
-    expect(parseDayBlocks(bad)).toEqual([]);
+    expect(parseDayBlocks(bad)).toBeNull();
   });
 
-  it("drops a block with an out-of-range minute", () => {
+  it("refuses a block with an out-of-range minute", () => {
     const bad = JSON.stringify([
       {
         start: "18:00",
@@ -144,21 +149,21 @@ describe("parseDayBlocks", () => {
         sports: null,
       },
     ]);
-    expect(parseDayBlocks(bad)).toEqual([]);
+    expect(parseDayBlocks(bad)).toBeNull();
   });
 
-  it("drops a block with one clock field null and the other set", () => {
+  it("refuses a block with one clock field null and the other set", () => {
     const bad = JSON.stringify([
       { start: "18:00", end: null, mins: 60, energy: "normal", sports: null },
     ]);
-    expect(parseDayBlocks(bad)).toEqual([]);
+    expect(parseDayBlocks(bad)).toBeNull();
   });
 
-  it("drops a block whose start is a non-string value", () => {
+  it("refuses a block whose start is a non-string value", () => {
     const bad = JSON.stringify([
       { start: 1800, end: "19:30", mins: 90, energy: "normal", sports: null },
     ]);
-    expect(parseDayBlocks(bad)).toEqual([]);
+    expect(parseDayBlocks(bad)).toBeNull();
   });
 
   it("keeps a legacy block with both start and end null", () => {
@@ -692,6 +697,35 @@ describe.skipIf(!hasDb)("server actions", () => {
         expect(days[0].workouts).toEqual([]);
         // ...and the session was not simply deleted.
         expect(days.slice(1).some((d) => d.workouts.length > 0)).toBe(true);
+      });
+
+      it("refuses the whole submission when one day cannot be read", async () => {
+        const { db, schema } = await import("@/lib/db");
+        const defaultBlocks = [blk({ start: "06:00", end: "07:00" })];
+        await db.insert(schema.availabilityDefaults).values({
+          userId: USER,
+          weekday: 0,
+          blocks: defaultBlocks,
+        });
+        await seedWeek(DATES.map((d) => daySlot(d)));
+
+        const fd = new FormData();
+        fd.set(
+          "blocks-0",
+          JSON.stringify([blk({ start: "18:00", end: "19:00" })])
+        );
+        fd.set("blocks-1", "{not json");
+
+        const result = await submitAvailability({ message: "" }, fd);
+        expect(result.message).toContain("Nothing was changed");
+
+        // Not a partial save: the readable day must not have been pinned
+        // either, and no date may have been zeroed on the strength of a
+        // field nobody could parse.
+        const rows = await db.query.availabilityOverrides.findMany({
+          where: eq(schema.availabilityOverrides.userId, USER),
+        });
+        expect(rows).toEqual([]);
       });
 
       it("pins a date whose submitted blocks differ from the standard week", async () => {

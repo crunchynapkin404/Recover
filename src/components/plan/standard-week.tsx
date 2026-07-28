@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { blockMins, type AvailabilityBlock } from "@/lib/availability/types";
 import { formatAvailability, formatBlocks } from "@/lib/availability/format";
 import { setStandardWeekDay } from "@/app/plan/actions";
@@ -41,8 +41,22 @@ export function StandardWeek({ defaults, sports }: Props) {
     0
   );
 
-  function save(weekday: number, blocks: AvailabilityBlock[]) {
+  // BlockSheet commits on every interaction, so wiring onChange straight to
+  // the server action made each keystroke in a time input its own DB write
+  // plus revalidatePath. Edits are staged locally and written once, when the
+  // sheet closes.
+  const staged = useRef<AvailabilityBlock[] | null>(null);
+
+  function stage(weekday: number, blocks: AvailabilityBlock[]) {
+    staged.current = blocks;
     setWeek((prev) => prev.map((d, i) => (i === weekday ? blocks : d)));
+  }
+
+  function closeAndSave(weekday: number) {
+    const blocks = staged.current;
+    staged.current = null;
+    setOpen(null);
+    if (!blocks) return; // opened and closed without editing anything
     startTransition(async () => {
       const r = await setStandardWeekDay(weekday, blocks);
       setError(r.ok ? null : r.error);
@@ -89,8 +103,8 @@ export function StandardWeek({ defaults, sports }: Props) {
           dayLabel={DAY_NAMES[open]}
           blocks={week[open]}
           sports={sports}
-          onChange={(next) => save(open, next)}
-          onClose={() => setOpen(null)}
+          onChange={(next) => stage(open, next)}
+          onClose={() => closeAndSave(open)}
         />
       )}
     </div>

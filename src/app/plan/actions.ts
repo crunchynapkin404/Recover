@@ -13,6 +13,7 @@ import {
   swapWorkouts,
 } from "@/lib/week-plan/service";
 import { syncDateOverrides } from "@/lib/availability/sync-overrides";
+import { parseDayBlocks } from "@/lib/availability/parse-day-blocks";
 import {
   assembleForecastInputs,
   createRace,
@@ -47,39 +48,23 @@ export async function startWeek(): Promise<void> {
   revalidatePath("/");
 }
 
-/**
- * One day's blocks out of a form field. Anything unparseable, malformed, or
- * failing validation degrades to an empty day — a rest day is the safe
- * reading of "I could not understand what you sent." Never write a
- * half-understood block.
- *
- * Pure and exported for its own tests: server actions need a session, this
- * does not.
- */
-export function parseDayBlocks(
-  raw: FormDataEntryValue | null
-): AvailabilityBlock[] {
-  if (raw == null) return [];
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(String(raw));
-  } catch {
-    return [];
-  }
-  if (!Array.isArray(parsed)) return [];
-  const blocks = parsed as AvailabilityBlock[];
-  return validateBlocks(blocks) === null ? blocks : [];
-}
-
 export async function submitAvailability(
   _prev: IntakeState,
   formData: FormData
 ): Promise<IntakeState> {
   const user = await requireUser();
 
-  const blocksPerDay = Array.from({ length: 7 }, (_, i) =>
+  const parsed = Array.from({ length: 7 }, (_, i) =>
     parseDayBlocks(formData.get(`blocks-${i}`))
   );
+  if (parsed.some((day) => day === null)) {
+    // Writing the understood days and zeroing the rest would pin those dates
+    // and move their sessions away — a silent, destructive partial save.
+    return {
+      message: "Some of that week didn't come through. Nothing was changed.",
+    };
+  }
+  const blocksPerDay = parsed as AvailabilityBlock[][];
 
   await syncDateOverrides(user.id, blocksPerDay);
 
