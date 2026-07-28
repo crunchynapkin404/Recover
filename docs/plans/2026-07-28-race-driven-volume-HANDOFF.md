@@ -7,7 +7,7 @@ without re-deriving anything. Read this, then the ledger, then the plan.
 
 ```bash
 cd /home/vscode/recover
-git checkout feat/race-driven-volume        # HEAD 7678a40
+git checkout feat/race-driven-volume        # HEAD e7f8ba6
 tail -80 .superpowers/sdd/progress.md       # the ledger is authoritative
 ```
 
@@ -19,22 +19,35 @@ any compaction, trust the ledger and `git log` over recollection.
 |        |                                                                             |
 | ------ | --------------------------------------------------------------------------- |
 | Branch | `feat/race-driven-volume` (off `docs/race-driven-volume-spec`, off `main`)   |
-| HEAD   | `3f657d0`                                                                   |
+| HEAD   | `e7f8ba6`                                                                   |
 | Spec   | `docs/specs/2026-07-28-race-driven-volume-design.md` (approved)             |
 | Evidence | `docs/specs/2026-07-28-training-volume-evidence.md` (research, per-constant confidence) |
 | Plan   | `docs/plans/2026-07-28-race-driven-volume-phase1.md` (12 tasks + Task 13)             |
 | Ledger | `.superpowers/sdd/progress.md` (gitignored — recover from `git log` if lost) |
-| Done   | Tasks 1–6 **and 13**, all reviewed clean                                     |
-| Next   | **Task 7 — feasibility verdict.** BASE for Task 7 = `3f657d0`               |
+| Done   | Tasks 1–8 **and 13**. 1–7 + 13 reviewed clean; Task 8's re-review was in flight at session end |
+| Next   | **Task 9 — rollover wiring.** BASE = current HEAD                          |
 
 Prerequisite **v0.27.0 is shipped and live** (the sport-vocabulary fix).
 Nothing here depends on further deployment.
 
 ## Start here
 
-Tasks 1–6 and 13 are done and reviewed clean. **Start Task 7 directly** —
-generate its brief, record BASE `3f657d0`, dispatch. Nothing is half-finished; the working
-tree is clean and the full suite is green.
+**First, confirm Task 8's re-review.** It was dispatched but had not reported
+when the session ended. The package is on disk —
+`.superpowers/sdd/review-a9d9402..e7f8ba6.diff` (BASE `a9d9402`, 5 commits) —
+so just dispatch a reviewer at it. Ask it specifically about the race-date
+boundary (does a race happening *today* still count as upcoming, or did the
+new guard drop it?) and about the `weekIndex()` refactor, which changed shared
+arithmetic three existing tests depend on, including the DST rounding that made
+the original correct.
+
+Then **Task 9 — the riskiest task on the branch.** Full gate required,
+**including `npm run build`**: `tsc` does not model the `"use server"` rule
+that every export be async, and only the build catches it. Task 9 must pass
+**both** `level.ceilingHours` and `level.floorHours` into `weeklyTargetHours`.
+
+The working tree is clean and the full suite is green (1070 passed / 321
+skipped).
 
 ## How to run the remaining tasks
 
@@ -66,8 +79,8 @@ whole-branch review is the exception — dispatch that on Opus.
 > If any test's numeric expectation does not hold, STOP and report rather than
 > loosening the test, adjusting the expectation, or tweaking a constant.
 
-**It has now caught four real defects, and every single time the PLAN was
-wrong and the code was right.** Implementers stopped on Tasks 2, 3 and 6.
+**It has now caught six real defects, and every single time the PLAN was
+wrong and the code was right.** Implementers stopped on Tasks 2, 3, 6 and 7.
 Do not drop it.
 
 The converse also holds, and Task 13 proved it: when a test and a model
@@ -78,8 +91,6 @@ overturn became true again once the model was made coherent.
 
 | #   | Task                               | Notes                                                                          |
 | --- | ---------------------------------- | ------------------------------------------------------------------------------ |
-| 7   | Feasibility verdict                | Imports `RAMP_CLAMP_PCT` from `week-plan/types.ts`. See §1.6 — the longest-ride rule is DEMOTED. |
-| 8   | `assembleVolumeInputs`             | The only DB-touching module. Returns `LevelResult`, which now carries `floorHours`. |
 | 9   | Rollover wiring                    | Exports `periodize`; riskiest task — full gate required, **including `npm run build`**. |
 | 10  | Race form fields + stages          | `RacesSection` props are `{ races, hideHeading? }` — no `sports` prop.         |
 | 11  | `WeekRationale` + shortfall line   | Renders reasons already in `plan_adjustments`.                                 |
