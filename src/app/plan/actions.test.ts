@@ -699,6 +699,70 @@ describe.skipIf(!hasDb)("server actions", () => {
         expect(days.slice(1).some((d) => d.workouts.length > 0)).toBe(true);
       });
 
+      // Reported from production on v0.26.0: editing the standard week moved
+      // the availability card (which renders resolveWeek's live merge) but
+      // left the session grid (which renders the STORED week) untouched. The
+      // athlete zeroed their Friday, saw Friday go to Rest, and still had a
+      // session sitting on it. Same defect class as "No time today": write the
+      // row, never replan.
+      it("a standard-week change replans the open week, not just the card", async () => {
+        const { db, schema } = await import("@/lib/db");
+
+        // Standard week: two hours every day. No overrides, so the default
+        // applies to every date directly.
+        await db.insert(schema.availabilityDefaults).values(
+          Array.from({ length: 7 }, (_, weekday) => ({
+            userId: USER,
+            weekday,
+            blocks: [blk({ mins: 120 })],
+          }))
+        );
+
+        const session = {
+          day: 3,
+          sport: "Run",
+          type: "Endurance",
+          durationMins: 90,
+          intensity: "Z1-Z2",
+          description: "Long steady",
+          purpose: "aerobic_base" as const,
+          minEffectiveMins: 40,
+          blockIdx: 0,
+        };
+        // The session sits on DATES[3]; every day carries real availability.
+        await seedWeek(
+          DATES.map((d, i) => ({
+            ...daySlot(d),
+            availableBlocks: [blk({ mins: 120 })],
+            availableMins: 120,
+            workouts: i === 3 ? [session] : [],
+            status: i === 3 ? ("planned" as const) : ("rest" as const),
+          }))
+        );
+
+        // Zero that weekday in the STANDARD WEEK — the exact production action.
+        const weekday = (new Date(DATES[3] + "T00:00:00").getDay() + 6) % 7;
+        const r = await setStandardWeekDay(weekday, []);
+        expect(r).toEqual({ ok: true });
+
+        const week = await db.query.weekPlans.findFirst({
+          where: eq(schema.weekPlans.userId, USER),
+        });
+        const days = week!.days as {
+          date: string;
+          availableMins: number;
+          workouts: unknown[];
+        }[];
+
+        // The stored week must agree with what the card now shows...
+        expect(days[3].availableMins).toBe(0);
+        expect(days[3].workouts).toEqual([]);
+        // ...and the session must have been relocated, not silently dropped.
+        expect(days.some((d, i) => i !== 3 && d.workouts.length > 0)).toBe(
+          true
+        );
+      });
+
       it("refuses the whole submission when one day cannot be read", async () => {
         const { db, schema } = await import("@/lib/db");
         const defaultBlocks = [blk({ start: "06:00", end: "07:00" })];

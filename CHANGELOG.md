@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.26.1 — 2026-07-28 — Editing Your Standard Week Replans It
+
+- **Fixed: changing your standard week updated the availability card but not
+  the plan.** The card shows your standard week merged with any pinned dates,
+  so it moved the moment you saved — while the week below it still showed the
+  sessions from before. Zeroing a Friday made Friday read "Rest" with a
+  session still sitting on it. Saving a weekday now replans the open week the
+  same way editing a single date already did; pinned dates keep winning, and
+  nothing else in the week moves. The same gap is fixed in the coach's
+  `set_standard_week` tool.
+
 ## v0.26.0 — 2026-07-28 — Availability, Block By Block
 
 - **Your availability is a standard week now, with per-date exceptions on

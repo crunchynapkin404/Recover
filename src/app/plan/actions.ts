@@ -102,6 +102,14 @@ export async function setStandardWeekDay(
       ],
       set: { blocks, updatedAt: new Date() },
     });
+
+  // Replan the open week too. The availability card renders resolveWeek's
+  // live merge of defaults + overrides, so it moves the moment this row is
+  // written — while the week grid renders the STORED week. Without this the
+  // two disagree on screen: the athlete zeroes their Friday, watches Friday
+  // go to Rest, and still has a session sitting on it. Pinned dates are
+  // unaffected, because resolveWeek still lets their override win.
+  await applyResolvedAvailability(user.id);
   revalidatePlan();
   return { ok: true };
 }
