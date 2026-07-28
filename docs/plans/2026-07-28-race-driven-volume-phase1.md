@@ -474,6 +474,26 @@ git commit -m "feat(race): estimate event riding time from distance and elevatio
 **Interfaces:**
 
 - Consumes: `estimateRidingHours` and `DEMAND_CONSTANTS` from Task 2.
+- **Modifies `src/lib/race/demand-constants.ts`:** delete `TRAINING_FRACTION`
+  (0.25) and add the two constants below. Task 2 shipped `TRAINING_FRACTION`
+  before the research pass superseded it; nothing consumes it yet.
+
+```ts
+  /**
+   * An event's total load as a multiple of a weekly training load, at one day.
+   * A long sportive is 200-350 TSS against ~630 sustainable weekly TSS at
+   * CTL 90 — about half a training week. Cross-checked against published
+   * 8-12 h/week century plans.
+   */
+  EVENT_TO_WEEKLY_1DAY: 0.6,
+  /**
+   * How that multiple grows with event length. Fitted to exactly two anchors:
+   * 0.60 at one day (above) and 2.50 at eight days (CTS: "a multi-day event is
+   * likely 2-3 times your normal weekly training load").
+   */
+  MULTI_DAY_EXPONENT: 0.686,
+```
+
 - Produces:
 
 ```ts
@@ -521,25 +541,27 @@ const base: EventDemandInput = {
 };
 
 describe("eventDemand", () => {
-  it("puts the 8-day alpine tour at 9-12 weekly hours", () => {
-    // 900km / 20,000hm over 8 days. The athlete's own estimate was 9-12h/wk.
+  it("puts the 8-day alpine tour near 17 weekly hours", () => {
+    // 42.1h of riding / 2.50 = 16.8. That is MORE than the athlete believes
+    // they can manage (they estimated 9-12h) — deliberately. The ceiling in
+    // weeklyTargetHours cuts it to what their chronic load supports, and the
+    // gap is the finding. Do not tune the constants to close it here.
     const d = eventDemand({
       ...base,
       eventDays: 8,
       distanceKm: 900,
       elevationM: 20000,
     })!;
-    expect(d.weeklyHours).toBeGreaterThanOrEqual(9);
-    expect(d.weeklyHours).toBeLessThanOrEqual(12);
+    expect(d.weeklyHours).toBeGreaterThan(15);
+    expect(d.weeklyHours).toBeLessThan(19);
     expect(d.dailyRateHours).toBeGreaterThan(5);
     expect(d.dailyRateHours).toBeLessThan(8);
   });
 
-  it("puts a single alpine gran fondo in a plausible weekly range", () => {
-    // A 130km/4000m fondo is a ~6.8h day, so it asks MORE per week than the
-    // 8-day tour above, whose average day is easier (112km/2500m). That is
-    // the model working, not a bug: the tour's demand comes from repetition,
-    // which is met by back-to-back long rides rather than weekly volume.
+  it("puts a single alpine gran fondo inside the published 8-12h band", () => {
+    // 6.8h / 0.60 = 11.4 h/week. Published intermediate century and gran fondo
+    // plans run 8-12 h/week, and this lands inside that band without being
+    // fitted to it — only the two endpoint ratios were fitted.
     const d = eventDemand({
       ...base,
       eventDays: 1,
@@ -547,7 +569,25 @@ describe("eventDemand", () => {
       elevationM: 4000,
     })!;
     expect(d.weeklyHours).toBeGreaterThan(8);
-    expect(d.weeklyHours).toBeLessThan(14);
+    expect(d.weeklyHours).toBeLessThan(13);
+  });
+
+  it("asks MORE for a longer event of the same daily rate", () => {
+    // The defect this formula replaced: averaging over days made a bigger
+    // event ask for LESS. Total load must drive the number.
+    const oneDay = eventDemand({
+      ...base,
+      eventDays: 1,
+      distanceKm: 120,
+      elevationM: 2500,
+    })!;
+    const sixDays = eventDemand({
+      ...base,
+      eventDays: 6,
+      distanceKm: 720,
+      elevationM: 15000,
+    })!;
+    expect(sixDays.weeklyHours).toBeGreaterThan(oneDay.weeklyHours);
   });
 
   it("treats a one-day event as days=1, not a special case", () => {
@@ -681,12 +721,12 @@ Create `src/lib/race/demand.ts`:
  * A one-day race is not a separate case — it is an event with `eventDays = 1`,
  * and the same arithmetic covers a criterium and an eight-day alpine tour:
  *
- *   weeklyHours = (totalEventHours / eventDays) × 7 × TRAINING_FRACTION
+ *   ratio(days) = EVENT_TO_WEEKLY_1DAY × days ^ MULTI_DAY_EXPONENT
+ *   weeklyHours = totalEventHours / ratio(days)
  *
- * The event's daily rate extrapolated to a week, then trained at a quarter of
- * it. An earlier draft carried a separate VOLUME_FACTOR for single-day events;
- * it turned out to be exactly `7 × TRAINING_FRACTION`, so it is gone. Two
- * constants that must agree eventually do not.
+ * One quantity — the event's total load as a multiple of a weekly training
+ * load — with the multiple growing as the event lengthens. Both endpoints come
+ * from published sources: 0.60 at one day, 2.50 at eight.
  *
  * Nobody trains fifty hours a week for a fifty-hour tour. The rest of a stage
  * event's demand is met by plan SHAPE — back-to-back long rides — because the
@@ -780,7 +820,13 @@ export function eventDemand(input: EventDemandInput): EventDemand | null {
   // as a longest-ride target.
   const queen = queenStageKnown ? queenStageHours! : dailyRateHours;
 
-  const computedWeekly = dailyRateHours * 7 * C.TRAINING_FRACTION;
+  // The event's total load as a multiple of a weekly training load, with the
+  // multiple growing as the event lengthens. An earlier draft averaged over
+  // days and trained at a fixed share of that daily rate — which discarded
+  // total event load entirely, so a 42h 8-day tour asked for LESS weekly
+  // training than a 6.8h one-day fondo. Eight consecutive days are cumulative.
+  const ratio = C.EVENT_TO_WEEKLY_1DAY * Math.pow(days, C.MULTI_DAY_EXPONENT);
+  const computedWeekly = totalHours / ratio;
   const override = input.overrideWeeklyHours;
   const useOverride = override != null && override > 0;
 
@@ -1295,6 +1341,8 @@ git commit -m "feat(athlete): derived level and continuous volume ceiling"
 export interface VolumeInput {
   raceDemandHours: number | null;
   ceilingHours: number | null;
+  /** MAINTENANCE_FLOOR × rolling peak; null when there is no measured peak. */
+  floorHours: number | null;
   availabilityHours: number;
   fallbackHours: number;
 }
@@ -1317,6 +1365,7 @@ import { weeklyTargetHours } from "./volume";
 const base = {
   raceDemandHours: null,
   ceilingHours: null,
+  floorHours: null,
   availabilityHours: 12.5,
   fallbackHours: 10,
 };
@@ -1363,10 +1412,35 @@ describe("weeklyTargetHours", () => {
     expect(r.source).toBe("fallback");
   });
 
+  it("floors a short event so it cannot prescribe a detraining week", () => {
+    // A criterium demands ~2h. The athlete's peak is 8.9h, so the floor is
+    // 5.3h. Prescribing 2h would actively cost them fitness.
+    const r = weeklyTargetHours({
+      ...base,
+      raceDemandHours: 2.1,
+      ceilingHours: 11.6,
+      floorHours: 5.3,
+      availabilityHours: 12.5,
+    });
+    expect(r.hours).toBeCloseTo(5.3, 5);
+  });
+
+  it("does not let the floor exceed the ceiling", () => {
+    const r = weeklyTargetHours({
+      ...base,
+      raceDemandHours: 1,
+      ceilingHours: 4,
+      floorHours: 9,
+      availabilityHours: 20,
+    });
+    expect(r.hours).toBeLessThanOrEqual(4);
+  });
+
   it("caps at availability and reports the shortfall", () => {
     const r = weeklyTargetHours({
       raceDemandHours: 11,
       ceilingHours: 13,
+      floorHours: null,
       availabilityHours: 7,
       fallbackHours: 10,
     });
@@ -1381,6 +1455,7 @@ describe("weeklyTargetHours", () => {
     const r = weeklyTargetHours({
       raceDemandHours: 10,
       ceilingHours: 13,
+      floorHours: null,
       availabilityHours: 20,
       fallbackHours: 8,
     });
@@ -1392,6 +1467,7 @@ describe("weeklyTargetHours", () => {
     const r = weeklyTargetHours({
       raceDemandHours: null,
       ceilingHours: null,
+      floorHours: null,
       availabilityHours: -5,
       fallbackHours: 0,
     });
@@ -1434,6 +1510,14 @@ export interface VolumeInput {
   raceDemandHours: number | null;
   /** From the athlete's rolling peak. null when there is too little history. */
   ceilingHours: number | null;
+  /**
+   * Never prescribe less than this. The demand model is volume-only, so a
+   * criterium reads as almost no demand (2.1 h/week for an athlete who trains
+   * 9) and prescribing it would be a DETRAINING plan. Detraining research sets
+   * the level: a 70% volume reduction with intensity maintained preserves
+   * VO2max, and 50-75% of normal volume shows no aerobic loss.
+   */
+  floorHours: number | null;
   /** This week's resolved availability, in hours. */
   availabilityHours: number;
   /** `constraints.hoursPerWeek` — the pre-existing behaviour. */
@@ -1443,7 +1527,8 @@ export interface VolumeInput {
 export interface VolumeResult {
   hours: number;
   /** Which input bound the result; drives the legibility surface. */
-  source: "race" | "ceiling" | "availability" | "fallback";
+  /** Which input bound the result; drives the legibility surface. */
+  source: "race" | "ceiling" | "floor" | "availability" | "fallback";
   shortfall: { wantedHours: number; offeredHours: number } | null;
 }
 
