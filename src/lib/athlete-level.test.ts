@@ -68,6 +68,9 @@ describe("athleteLevel", () => {
       override: null,
     });
     expect(r.peakHours).toBe(2);
+    // Close the loop: the rolled-off 20h peak must actually demote the
+    // athlete, not just change the reported peakHours number.
+    expect(r.level).toBe("recreational");
   });
 
   it("lets an override win outright", () => {
