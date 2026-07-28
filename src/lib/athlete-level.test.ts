@@ -91,6 +91,20 @@ describe("athleteLevel", () => {
     expect(r.source).toBe("calibrating");
   });
 
+  it("still reports a ceiling from hours alone while CTL history is missing", () => {
+    // Asymmetric on purpose: real peak-hours history is usable evidence even
+    // when we can't yet grade a level, and Task 6 needs it either way.
+    const r = athleteLevel({
+      weeklyHoursByWeek: flat(6),
+      ctlByWeek: [],
+      override: null,
+    });
+    expect(r.level).toBeNull();
+    expect(r.source).toBe("calibrating");
+    expect(r.ceilingHours).not.toBeNull();
+    expect(r.ceilingHours).toBeCloseTo(6 * LEVEL_CONSTANTS.HEADROOM, 3);
+  });
+
   it("keeps the ceiling continuous, with no cliff at a band edge", () => {
     // 8.9h and 9.1h straddle the Intermediate/Advanced boundary. Their
     // ceilings must stay close — the band changes, the ceiling does not jump.

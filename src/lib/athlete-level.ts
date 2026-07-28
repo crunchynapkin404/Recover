@@ -73,7 +73,12 @@ export interface LevelInput {
 export interface LevelResult {
   level: AthleteLevel | null;
   peakHours: number | null;
-  /** Weekly-hours ceiling. null when there is not enough history. */
+  /**
+   * Weekly-hours ceiling, derived from peak hours alone (peakHours *
+   * HEADROOM). Independent of `level` — non-null whenever any hours history
+   * exists, even while `source` is "calibrating" because CTL history is
+   * still missing. Null only when there is no hours history at all.
+   */
   ceilingHours: number | null;
   source: "override" | "computed" | "calibrating";
 }
