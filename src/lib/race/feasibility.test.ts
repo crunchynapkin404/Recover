@@ -92,6 +92,22 @@ describe("assessFeasibility", () => {
     expect(Number.isFinite(r.volumeWeeksNeeded)).toBe(true);
   });
 
+  it("floors ride-gap softening at tight, even from an already-tight verdict", () => {
+    // The one case where the floor actually does anything. Both the other
+    // ride-gap tests start from "ready", where capping at "tight" versus
+    // allowing "not_realistic" makes no observable difference — so removing
+    // the cap passes them both. Volume here is genuinely tight AND the ride
+    // gap is severe; only volume may reach the worst rung.
+    const f = assessFeasibility({
+      ...base,
+      currentWeeklyHours: 6,
+      longestRideHours: 0.1,
+      weeksUntilEvent: 4,
+    })!;
+    expect(f.verdict).toBe("tight");
+    expect(f.longestRideWeeksNeeded).toBeGreaterThan(f.weeksUntilEvent);
+  });
+
   it("never lets a longest-ride gap alone condemn an event", () => {
     // Volume fully satisfied, longest ride absurdly short. Even at the
     // extreme, a contested rule must not reach the worst rung by itself.
