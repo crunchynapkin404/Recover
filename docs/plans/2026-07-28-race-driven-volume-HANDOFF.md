@@ -114,7 +114,15 @@ The spec's claim that "multi-day demand is met by plan shape, not volume" (§1.1
 rationalisation — the coaching sources say the decisive quality is recovering day
 after day, which is built by volume AND structure.
 
-**Proposed fix**, both anchors still satisfied:
+**Research pass done — see `docs/specs/2026-07-28-training-volume-evidence.md`.**
+It replaces several guesses with published anchors (ACWR for the ceiling,
+detraining literature for a new floor, CTS's 2-3× rule for multi-day) and flags
+which constants remain unsourced. Read it before amending the formula.
+
+STILL OPEN: the single-day path has no clean quantitative anchor, and the two
+coaching sources actively disagree on whether the long-ride rule matters.
+
+**Earlier proposed fix** (superseded in part by the research):
 
 ```text
 weeklyHours = dailyRate × 7 × 0.20 × (1 + MULTI_DAY_SLOPE × ln(days))
