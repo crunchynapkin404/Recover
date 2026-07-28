@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { hoursForMaterialize, weeklyTargetHours } from "./volume";
+import {
+  hoursForMaterialize,
+  weeklyDisplayTarget,
+  weeklyTargetHours,
+} from "./volume";
 
 const base = {
   raceDemandHours: null,
@@ -180,5 +184,39 @@ describe("hoursForMaterialize", () => {
     expect(target.source).toBe("race");
     expect(target.shortfall).toBeNull();
     expect(hoursForMaterialize(target)).toBe(target.hours);
+  });
+});
+
+describe("weeklyDisplayTarget", () => {
+  // Pins the train-page Finding 1 regression: an earlier version of this
+  // call site passed the week's own availability as `fallbackHours`, which
+  // makes `availability < target` structurally impossible — the plan's real
+  // hoursPerWeek target and the shortfall sentence both silently vanish. An
+  // athlete with no race and no measured ceiling whose free weekend exceeds
+  // their plan's hoursPerWeek must still see the PLAN's target, not their
+  // calendar's availability, echoed back as if nothing needed explaining.
+  it("uses the plan's hoursPerWeek, not availability, when there is no race and no ceiling", () => {
+    const r = weeklyDisplayTarget({
+      raceDemandHours: null,
+      ceilingHours: null,
+      floorHours: null,
+      availabilityHours: 12,
+      planHoursPerWeek: 8,
+    });
+    expect(r.hours).toBe(8);
+    expect(r.source).toBe("fallback");
+    expect(r.shortfall).toBeNull();
+  });
+
+  it("still reports a shortfall against the plan's hoursPerWeek when availability falls short", () => {
+    const r = weeklyDisplayTarget({
+      raceDemandHours: null,
+      ceilingHours: null,
+      floorHours: null,
+      availabilityHours: 3,
+      planHoursPerWeek: 8,
+    });
+    expect(r.hours).toBe(3);
+    expect(r.shortfall).toEqual({ wantedHours: 8, offeredHours: 3 });
   });
 });

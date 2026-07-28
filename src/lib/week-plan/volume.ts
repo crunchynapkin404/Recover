@@ -104,6 +104,43 @@ export function weeklyTargetHours(input: VolumeInput): VolumeResult {
   return { hours: target, source, shortfall: null };
 }
 
+export interface WeeklyDisplayTargetInput {
+  raceDemandHours: number | null;
+  ceilingHours: number | null;
+  floorHours: number | null;
+  availabilityHours: number;
+  /**
+   * The active plan's own `constraints.hoursPerWeek` — the only correct
+   * fallback for a display-side call. Passing this week's own availability
+   * instead makes `availability < target` structurally false (target and
+   * availability are then the same number), so the shortfall branch can
+   * never fire: the shown target silently becomes "whatever the calendar
+   * offered" no matter what the plan actually asks for, and an athlete whose
+   * free weekend exceeds their plan's hours sees no explanation at all.
+   */
+  planHoursPerWeek: number;
+}
+
+/**
+ * `weeklyTargetHours` called the one correct way for anything that displays
+ * the result rather than materializing a week: fallbackHours is always the
+ * plan's own hoursPerWeek. Exists as a named, separately-tested wrapper
+ * because the train page had this call site inline with `fallbackHours` set
+ * to the week's own availability — a one-line mistake that made the
+ * shortfall sentence permanently unreachable and every test still passed.
+ */
+export function weeklyDisplayTarget(
+  input: WeeklyDisplayTargetInput
+): VolumeResult {
+  return weeklyTargetHours({
+    raceDemandHours: input.raceDemandHours,
+    ceilingHours: input.ceilingHours,
+    floorHours: input.floorHours,
+    availabilityHours: input.availabilityHours,
+    fallbackHours: input.planHoursPerWeek,
+  });
+}
+
 /**
  * The hours figure `materializeWeek` must receive: the target BEFORE the
  * availability clamp.

@@ -45,7 +45,7 @@ import {
   planConstraints,
 } from "@/lib/week-plan/service";
 import { assembleVolumeInputs } from "@/lib/week-plan/volume-inputs";
-import { weeklyTargetHours } from "@/lib/week-plan/volume";
+import { weeklyDisplayTarget } from "@/lib/week-plan/volume";
 import {
   listRaces,
   nextUpcomingRace,
@@ -249,13 +249,11 @@ async function WeekTab({ userId, href }: { userId: string; href: TrainHref }) {
     raceName: string | null;
   } | null = null;
   if (week) {
-    const [adjustmentRows, volumeInputs] = await Promise.all([
-      db.query.planAdjustments.findMany({
-        where: eq(schema.planAdjustments.weekPlanId, week.id),
-      }),
-      assembleVolumeInputs(userId, new Date()),
-    ]);
-    const reasons = adjustmentRows
+    const volumeInputs = await assembleVolumeInputs(userId, new Date());
+    // `adjustments` above already holds every plan_adjustments row for this
+    // week (fetched for the "What changed & why" panel) — filter the array
+    // already in scope instead of re-querying the same table.
+    const reasons = adjustments
       .filter(
         (a) =>
           a.trigger === "weekly_rollover" || a.trigger === "availability_change"
@@ -264,17 +262,18 @@ async function WeekTab({ userId, href }: { userId: string; href: TrainHref }) {
 
     const availabilityHours =
       week.days.reduce((s, d) => s + d.availableMins, 0) / 60;
-    // fallbackHours is the week's own availability here rather than
-    // constraints.hoursPerWeek: this page has no plan constraints in scope,
-    // and a fallback equal to availability makes weeklyTargetHours return
-    // the honest "no race, no ceiling — nothing to explain" case instead of
-    // inventing a target.
-    const target = weeklyTargetHours({
+    // fallbackHours must be the active plan's own hoursPerWeek — exactly what
+    // rolloverWeekPlan passes — never this week's own availability. A
+    // fallback equal to availability makes `availability < target`
+    // structurally false, so the shortfall could never fire and the shown
+    // target would silently always equal whatever the calendar offered,
+    // regardless of the plan's real hoursPerWeek.
+    const target = weeklyDisplayTarget({
       raceDemandHours: volumeInputs.demand?.weeklyHours ?? null,
       ceilingHours: volumeInputs.level.ceilingHours,
       floorHours: volumeInputs.level.floorHours,
       availabilityHours,
-      fallbackHours: availabilityHours,
+      planHoursPerWeek: constraints.hoursPerWeek,
     });
     const plannedHours =
       week.days.reduce(
