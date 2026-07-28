@@ -111,30 +111,55 @@ resolved by **two fixed-point iterations**.
 
 Applied per stage when stages exist, otherwise once over the totals.
 
-**Step 2 — event hours → weekly hours.** One formula, every event shape:
+**Step 2 — event hours → weekly hours.** One formula, every event shape.
+
+An earlier draft averaged the event over its days and trained at a fixed share
+of that daily rate. It was wrong: it discarded total event load, so a 42-hour
+8-day tour asked for LESS weekly training than a 6.8-hour one-day fondo. Eight
+consecutive days are cumulative, and the capacity to ride day six is built by
+chronic weekly volume.
+
+The replacement expresses one quantity — **the event's total load as a multiple
+of a weekly training load** — with the multiplier growing as the event
+lengthens. Both endpoints come from published sources (see
+`docs/specs/2026-07-28-training-volume-evidence.md`):
+
+| Event shape | Event ÷ weekly load | Source                                                                                                                                                                |
+| ----------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1 day       | **0.60**            | A long sportive is 200–350 TSS against ~630 sustainable weekly TSS at CTL 90 — about half a training week. Cross-checked against published 8–12 h/week century plans. |
+| 8 days      | **2.50**            | CTS: "a multi-day event is likely 2-3 times your normal weekly training load".                                                                                        |
 
 ```text
-weeklyHours = (totalEventHours / eventDays) × 7 × TRAINING_FRACTION   // ≈ 0.25
+ratio(days) = EVENT_TO_WEEKLY_1DAY × days ^ MULTI_DAY_EXPONENT
+            = 0.60 × days ^ 0.686          // 0.686 fits both anchors exactly
+weeklyHours = totalEventHours / ratio(days)
 ```
 
-The event's **daily rate** extrapolated to a week, then trained at a quarter of
-it. Worked against both available anchors:
+Validated against published plan volumes, with nothing fitted beyond the two
+endpoint ratios:
 
-| Event                               | Daily rate | Weekly hours |
-| ----------------------------------- | ---------- | ------------ |
-| 8-day alpine tour, 900km / 20,000hm | 6.3h       | **11.0h**    |
-| Single-day gran fondo, ~5.5h        | 5.5h       | **9.6h**     |
+| Event                               | Total | Raw weekly | Literature              |
+| ----------------------------------- | ----- | ---------- | ----------------------- |
+| 8-day alpine tour, 900km / 20,000hm | 42.1h | 16.8h      | —                       |
+| 1-day alpine fondo, 130km / 4,000hm | 6.8h  | 11.4h      | 8–12 (intermediate)     |
+| Flat century, ~5h                   | 5.6h  | 9.4h       | 8–12                    |
+| Local criterium                     | 1.3h  | 2.1h       | n/a — floored, see §1.3 |
 
-The athlete independently estimated 9–12h/week for the 8-day tour, which the
-model lands inside without being fitted to it. The single-day figure reproduces
-what a separate `VOLUME_FACTOR = 1.8` gave (9.9h), so that constant is deleted:
-`VOLUME_FACTOR` was only ever `7 × TRAINING_FRACTION`.
+Both single-day cases land inside the published band on their own.
 
-**Multi-day demand is met by plan shape, not only by volume.** Nobody trains 50
-hours a week for a 50-hour tour. The published coaching consensus is that the
-decisive quality in stage events is recovering day after day, so the extra
-demand becomes **back-to-back long rides in the peak phase** — a structural
-change, delivered in Phase 2 (§2.5), not a larger weekly number.
+**On the tour's 16.8 hours.** The athlete trains ~9h/week, so that event is
+**4.7× their weekly load where the literature calls 2–3× normal** — by the
+published guideline they are under-prepared for it. §1.3's ceiling will cut the
+prescription to what their chronic load safely supports, and §1.5 will say so.
+**Do not tune these constants until the model agrees with an athlete's own
+estimate of what they can manage.** An athlete's estimate describes their
+calendar; the model describes the event. Making them agree by hand deletes the
+only useful signal here.
+
+**Multi-day demand is also met by plan shape.** Nobody trains 42 hours a week
+for a 42-hour tour, which is why the ceiling exists. The remaining gap is
+closed by **back-to-back long rides in the peak phase** (§2.5), per the coaching
+consensus that stage events test overnight recovery above single-day strength.
 
 ### 1.2 Athlete level and the volume ceiling
 
@@ -211,12 +236,30 @@ export function weeklyTargetHours(input: {
 ```
 
 ```text
+demand    = max(raceDemandHours, floorHours)      // floor: see below
 target    = ceilingHours == null
-              ? fallbackHours                                  // see below
-              : min(raceDemandHours ?? fallbackHours, ceilingHours)
+              ? fallbackHours                     // no measured ceiling
+              : min(demand, ceilingHours)
 planned   = min(target, availabilityHours)
 shortfall = planned < target ? { target, availability } : null
+
+floorHours   = MAINTENANCE_FLOOR × peakHours      // 0.6
+ceilingHours = HEADROOM × peakHours               // 1.3
 ```
+
+**The floor exists so a short event cannot detrain you.** The demand model is
+volume-only, so a criterium reads as almost no demand — 2.1 h/week for an
+athlete who trains 9. Prescribing that would be a detraining plan. The
+detraining literature sets the level: **a 70% volume reduction with intensity
+maintained preserves VO₂max**, and 50–75% of normal volume shows no aerobic
+loss. `MAINTENANCE_FLOOR = 0.6` therefore never prescribes less than holding
+current fitness.
+
+**The ceiling is the acute:chronic workload limit.** `HEADROOM = 1.3` is not a
+round number: the ACWR safe zone is **0.8–1.3**, danger begins above 1.5, and
+**≥2.0 carries the greatest injury risk**. The ceiling is "the most this
+athlete's chronic load supports", and when it binds — as it does for the 8-day
+tour at 16.8h raw — that is a finding to report (§1.5), not a number to tune.
 
 `source` names whichever input bound the result, for the legibility surface in
 §1.5.
@@ -282,9 +325,21 @@ data already held:
 | **Volume**       | `weeklyHours` from §1.1               | vs the rolling peak from §1.2               |
 | **Longest ride** | `LONGEST_RIDE_FRACTION` × queen stage | vs longest single ride in the last 12 weeks |
 
-Volume alone is not enough: an athlete riding 11h a week as five two-hour
-sessions is not prepared for a seven-hour mountain stage. The queen stage is why
-per-day detail is worth entering.
+Volume alone is not obviously enough: an athlete riding 11h a week as five
+two-hour sessions may not be prepared for a seven-hour mountain stage. The queen
+stage is why per-day detail is worth entering.
+
+**But the sources disagree on how much this matters, so it must not by itself
+produce a "not realistic" verdict.** Gran fondo coaching calls the long ride
+_"the single biggest predictor of performance"_ at 70–80% of event distance;
+CTS states the opposite — _"there is nothing magical about achieving a specific
+percentage of the race or event distance in a single training ride… you can
+absolutely develop the fitness necessary to complete a challenging century or
+gran fondo with training rides that never exceed 3 hours."_ Given that conflict,
+a rider with ample weekly volume and no single long ride reads as a **caution**,
+not a refusal: the longest-ride gap may soften a verdict by one step
+(ready → on track, on track → tight) but never drives it to "not realistic" on
+its own. Volume does that.
 
 Weeks needed to close each gap follows from the ramp guard, which already caps
 growth at `RAMP_CLAMP_PCT` (±20%) per week:
@@ -381,15 +436,33 @@ weaker preparation rather than silently claiming the same readiness.
 
 ## Constants
 
-`TRAINING_FRACTION` (0.25), `HEADROOM` (1.3), `LONGEST_RIDE_FRACTION` (0.8), the
-level bands, and the FTP fractions are **coaching heuristics, not derived
-truth**, calibrated against one athlete and the published coaching consensus.
-They live in single exported constants objects with unit tests pinning known
-cases, so tuning is a one-line change with tests that fail loudly rather than a
-hunt through the engine.
+Every constant carries a confidence rating from the research pass
+(`docs/specs/2026-07-28-training-volume-evidence.md`). They live in single
+exported constants objects with unit tests pinning known cases, so tuning is a
+one-line change with tests that fail loudly rather than a hunt through the
+engine.
 
-`VOLUME_FACTOR` from an earlier draft is deleted: it was only ever
-`7 × TRAINING_FRACTION`, and keeping both invites them to disagree.
+| Constant                | Value                 | Confidence                                                 |
+| ----------------------- | --------------------- | ---------------------------------------------------------- |
+| `CDA`                   | 0.32                  | **High** — measured hoods position is 0.316 m²             |
+| `HEADROOM`              | 1.3                   | **High** — ACWR safe-zone upper bound                      |
+| `MAINTENANCE_FLOOR`     | 0.6                   | **High** — 50–75% of volume preserves VO₂max               |
+| `EVENT_TO_WEEKLY_1DAY`  | 0.60                  | Medium — 200–350 TSS event vs ~630 weekly                  |
+| `MULTI_DAY_EXPONENT`    | 0.686                 | Medium — fits the 1-day and 8-day anchors                  |
+| Level bands             | 3/5/9 h, 35/55/80 CTL | Medium                                                     |
+| `FTP_FRACTION`          | 0.85/0.75/0.68        | Medium — CP decays ~10% after fatigue; our span is steeper |
+| `LONGEST_RIDE_FRACTION` | 0.8                   | **Low — sources actively disagree**                        |
+| `REAL_WORLD_FACTOR`     | 0.85                  | **Low — no source**                                        |
+| `CLIMB_GRADIENT`        | 0.07                  | **Low — no source**                                        |
+
+Two of these have **no published basis at all**. `REAL_WORLD_FACTOR` and
+`CLIMB_GRADIENT` are empirical corrections that make finish times come out
+plausible. They are kept because the model needs them and honest about what
+they are.
+
+`TRAINING_FRACTION` and `VOLUME_FACTOR` from earlier drafts are both deleted —
+superseded by `ratio(days)`, which covers every event shape with anchors at
+both ends.
 
 ## Testing
 
