@@ -88,12 +88,22 @@ export function eventDemand(input: EventDemandInput): EventDemand | null {
   }
 
   if (totalHours == null) {
-    totalHours = estimateRidingHours({
-      distanceKm: input.distanceKm ?? 0,
-      elevationM: input.elevationM ?? 0,
+    // Without stage data, estimate the AVERAGE DAY and multiply. Pricing the
+    // whole event as one continuous ride would charge an 8-day tour the
+    // deep-fatigue fraction a rider earns only by riding 42 hours without
+    // sleeping. The FTP ladder models within-ride fatigue; riders sleep
+    // between stages.
+    //
+    // Cumulative fatigue across consecutive days is real and is NOT modelled
+    // here — there is no published magnitude for it in the evidence base, and
+    // inventing one by mispricing the duration is worse than omitting it.
+    const perDay = estimateRidingHours({
+      distanceKm: (input.distanceKm ?? 0) / days,
+      elevationM: (input.elevationM ?? 0) / days,
       ftpWatts,
       massKg,
     });
+    totalHours = perDay == null ? null : perDay * days;
   }
   if (totalHours == null) return null;
 

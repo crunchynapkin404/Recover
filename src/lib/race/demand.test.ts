@@ -25,7 +25,7 @@ describe("eventDemand", () => {
     })!;
     expect(d.weeklyHours).toBeGreaterThan(15);
     expect(d.weeklyHours).toBeLessThan(19);
-    expect(d.dailyRateHours).toBeGreaterThan(5);
+    expect(d.dailyRateHours).toBeGreaterThan(4.5);
     expect(d.dailyRateHours).toBeLessThan(8);
   });
 
@@ -98,20 +98,15 @@ describe("eventDemand", () => {
       elevationM: 5000,
     })!;
 
-    // These two paths deliberately DISAGREE, and the direction matters.
-    // estimateRidingHours picks a sustainable FTP fraction from the duration
-    // of the ride it is handed. Two stages ridden on separate days each land
-    // in a shallower fatigue band than one 10-hour block does, so splitting a
-    // route across days costs less total moving time. Asserting equality here
-    // would contradict the FTP ladder Task 2 exists to implement.
-    expect(d.totalHours).toBeLessThan(fromTotals.totalHours);
-
-    // But they must stay in the same neighbourhood. A large gap would mean the
-    // stage loop and the totals path had structurally diverged rather than
-    // merely landing in different fatigue bands.
-    // 5%, against an observed gap of 2.7%. A looser bound would still pass
-    // while a real structural divergence hid inside it.
-    expect(d.totalHours).toBeGreaterThan(fromTotals.totalHours * 0.95);
+    // Both paths now price per DAY — the stage loop uses the real stages, the
+    // totals path uses the average day — so they agree closely. They are not
+    // identical: unequal stages cost slightly more than their average.
+    //
+    // This assertion failed before Task 13 and is restored deliberately. The
+    // original plan asserted it, Task 3 had to overturn it because the model
+    // priced the two paths on different fatigue bands, and making the model
+    // coherent has made it true again.
+    expect(d.totalHours).toBeCloseTo(fromTotals.totalHours, 1);
   });
 
   it("reports the queen stage as the hardest day when stages are known", () => {
