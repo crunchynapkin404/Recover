@@ -1635,6 +1635,10 @@ export interface Feasibility {
   /** True when queenStageHours is an average, not a known hardest day. */
   fromAverageDay: boolean;
 }
+export const FEASIBILITY_CONSTANTS: {
+  LONGEST_RIDE_FRACTION: number;
+  TIGHT_MARGIN_WEEKS: number;
+};
 export function assessFeasibility(input: FeasibilityInput): Feasibility | null;
 ```
 
