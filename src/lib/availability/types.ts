@@ -87,6 +87,27 @@ export function validateBlocks(blocks: AvailabilityBlock[]): string | null {
     if (!hasValidClockShape(b)) {
       return "A block's start and end must both be times, or both be empty.";
     }
+    // These three reach the engine as-is. `energy` indexes ENERGY_CEILING in
+    // admits(), so an unrecognised tier throws there rather than here — and
+    // once stored, it throws on every subsequent materialize/replan for this
+    // athlete. Validate at the only gate every writer passes through.
+    if (!Object.prototype.hasOwnProperty.call(ENERGY_CEILING, b.energy)) {
+      return "A block's energy must be easy, normal or full.";
+    }
+    if (!Number.isInteger(b.mins) || b.mins < 0) {
+      return "A block's minutes must be a whole number of minutes, not negative.";
+    }
+    if (
+      b.sports !== null &&
+      (!Array.isArray(b.sports) || b.sports.some((s) => typeof s !== "string"))
+    ) {
+      return "A block's sports must be names, or empty for any sport.";
+    }
+    // `[]` is not `null`: admits() reads it as "no sport qualifies", so the
+    // block is availability the athlete can see but nothing can ever occupy.
+    if (Array.isArray(b.sports) && b.sports.length === 0) {
+      return "A block with no sport selected can never hold a session. Pick at least one, or leave it open to any sport.";
+    }
     if (
       b.start != null &&
       b.end != null &&

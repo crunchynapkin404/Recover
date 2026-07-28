@@ -120,6 +120,85 @@ describe("validateBlocks", () => {
   });
 });
 
+// I6: validateBlocks is the only gate between raw JSON from a form field
+// (parseDayBlocks) and availability_defaults / availability_overrides. A bad
+// value stored there poisons every later materializeWeek/replanWeek for that
+// user — admits() does ENERGY_CEILING[slot.energy].includes(...), which throws
+// on an unrecognised tier. That is a persistent 500 on the plan engine which
+// survives restarts, so the value must never reach the database.
+describe("validateBlocks — value validation (I6)", () => {
+  it("rejects an energy level the engine has no ceiling for", () => {
+    expect(
+      validateBlocks([
+        block({
+          energy: "superhuman" as unknown as AvailabilityBlock["energy"],
+        }),
+      ])
+    ).toBe("A block's energy must be easy, normal or full.");
+  });
+
+  it("rejects a missing energy level", () => {
+    expect(
+      validateBlocks([
+        block({ energy: undefined as unknown as AvailabilityBlock["energy"] }),
+      ])
+    ).toBe("A block's energy must be easy, normal or full.");
+  });
+
+  it("rejects negative or non-finite minutes on an untimed block", () => {
+    expect(validateBlocks([block({ start: null, end: null, mins: -30 })])).toBe(
+      "A block's minutes must be a whole number of minutes, not negative."
+    );
+    expect(
+      validateBlocks([block({ start: null, end: null, mins: Number.NaN })])
+    ).toBe(
+      "A block's minutes must be a whole number of minutes, not negative."
+    );
+    expect(
+      validateBlocks([
+        block({
+          start: null,
+          end: null,
+          mins: "60" as unknown as number,
+        }),
+      ])
+    ).toBe(
+      "A block's minutes must be a whole number of minutes, not negative."
+    );
+  });
+
+  it("rejects a sports list that is not null and not a list of strings", () => {
+    expect(
+      validateBlocks([
+        block({ sports: [3] as unknown as AvailabilityBlock["sports"] }),
+      ])
+    ).toBe("A block's sports must be names, or empty for any sport.");
+    expect(
+      validateBlocks([
+        block({ sports: "Run" as unknown as AvailabilityBlock["sports"] }),
+      ])
+    ).toBe("A block's sports must be names, or empty for any sport.");
+  });
+
+  // Triage 1: sports: [] is deliberately distinct from null ("any sport"), but
+  // admits() reads it as "no sport qualifies" — silently dead availability the
+  // athlete cannot see. Reachable from the editor (toggling every sport off)
+  // and from the coach (set_week_availability's zod allows []).
+  it("rejects an all-sports-off block, which would admit nothing", () => {
+    expect(validateBlocks([block({ sports: [] })])).toBe(
+      "A block with no sport selected can never hold a session. Pick at least one, or leave it open to any sport."
+    );
+  });
+
+  it("still accepts a well-formed block and null sports", () => {
+    expect(validateBlocks([block({ sports: null })])).toBeNull();
+    expect(validateBlocks([block({ sports: ["Run", "Bike"] })])).toBeNull();
+    expect(
+      validateBlocks([block({ start: null, end: null, mins: 0 })])
+    ).toBeNull();
+  });
+});
+
 describe("engine tables", () => {
   it("caps easy energy at aerobic work", () => {
     expect(ENERGY_CEILING.easy).toEqual(["recovery", "aerobic_base", "long"]);
