@@ -109,7 +109,9 @@ describe("eventDemand", () => {
     // But they must stay in the same neighbourhood. A large gap would mean the
     // stage loop and the totals path had structurally diverged rather than
     // merely landing in different fatigue bands.
-    expect(d.totalHours).toBeGreaterThan(fromTotals.totalHours * 0.9);
+    // 5%, against an observed gap of 2.7%. A looser bound would still pass
+    // while a real structural divergence hid inside it.
+    expect(d.totalHours).toBeGreaterThan(fromTotals.totalHours * 0.95);
   });
 
   it("reports the queen stage as the hardest day when stages are known", () => {
