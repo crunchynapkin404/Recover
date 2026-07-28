@@ -2912,14 +2912,21 @@ git commit -m "feat(plan): capture event days, distance, elevation and per-day s
 
 Create `src/components/plan/week-rationale.test.tsx`:
 
+**`@testing-library/react` is NOT a dependency of this repo** — do not import
+`render`, `screen`, `userEvent`, or jest-dom matchers like
+`toBeInTheDocument` / `toBeEmptyDOMElement`, and do not install anything.
+`WeekRationale` holds no state and has no handlers, so `renderToString` is the
+right tool; it is what `src/components/plan/races-section.test.tsx` already
+uses.
+
 ```tsx
 import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { renderToString } from "react-dom/server";
 import { WeekRationale } from "./week-rationale";
 
 describe("WeekRationale", () => {
   it("shows every reason the engine recorded", () => {
-    render(
+    const html = renderToString(
       <WeekRationale
         reasons={[
           "last week was fully missed — restarting at 60% of the skeleton target (244)",
@@ -2931,12 +2938,12 @@ describe("WeekRationale", () => {
         raceName={null}
       />
     );
-    expect(screen.getByText(/fully missed/)).toBeInTheDocument();
-    expect(screen.getByText(/3.1h available/)).toBeInTheDocument();
+    expect(html).toContain("fully missed");
+    expect(html).toContain("3.1h available");
   });
 
   it("states planned against target", () => {
-    render(
+    const html = renderToString(
       <WeekRationale
         reasons={[]}
         targetHours={11}
@@ -2945,25 +2952,40 @@ describe("WeekRationale", () => {
         raceName={null}
       />
     );
-    expect(screen.getByText(/11h/)).toBeInTheDocument();
+    expect(html).toContain("11h planned against an 11h target");
   });
 
   it("states the shortfall plainly when availability capped the week", () => {
-    render(
+    const html = renderToString(
       <WeekRationale
         reasons={[]}
-        targetHours={11}
+        targetHours={7}
         plannedHours={7}
         shortfall={{ wantedHours: 11, offeredHours: 7 }}
         raceName="Dolomites"
       />
     );
-    expect(screen.getByText(/Dolomites asks about 11h/)).toBeInTheDocument();
-    expect(screen.getByText(/not race it/)).toBeInTheDocument();
+    expect(html).toContain("Dolomites asks about 11h");
+    expect(html).toContain("not race it");
+  });
+
+  it("names no event it was not given", () => {
+    // The shortfall sentence must still work before a race is entered.
+    const html = renderToString(
+      <WeekRationale
+        reasons={[]}
+        targetHours={7}
+        plannedHours={7}
+        shortfall={{ wantedHours: 11, offeredHours: 7 }}
+        raceName={null}
+      />
+    );
+    expect(html).toContain("asks about 11h");
+    expect(html).not.toContain("null");
   });
 
   it("renders nothing when there is nothing to explain", () => {
-    const { container } = render(
+    const html = renderToString(
       <WeekRationale
         reasons={[]}
         targetHours={null}
@@ -2972,7 +2994,7 @@ describe("WeekRationale", () => {
         raceName={null}
       />
     );
-    expect(container).toBeEmptyDOMElement();
+    expect(html).toBe("");
   });
 });
 ```
@@ -3012,6 +3034,13 @@ function fmt(hours: number): string {
   return Number.isInteger(hours) ? `${hours}h` : `${hours.toFixed(1)}h`;
 }
 
+/** "a 6h target" but "an 11h target". */
+function article(hours: number): string {
+  return fmt(hours).startsWith("8") || fmt(hours).startsWith("11")
+    ? "an"
+    : "a";
+}
+
 export function WeekRationale({
   reasons,
   targetHours,
@@ -3028,7 +3057,18 @@ export function WeekRationale({
       <p className="label-micro mb-2">Why this week</p>
       {plannedHours != null && targetHours != null && (
         <p className="mb-2 text-[12.5px] text-white/70">
-          {`${fmt(plannedHours)} planned against a ${fmt(targetHours)} target.`}
+          {`${fmt(plannedHours)} planned against ${article(targetHours)} ${fmt(
+            targetHours
+          )} target.`}
+        </p>
+      )}
+      {shortfall && (
+        <p className="mb-2 text-[12.5px] text-white/70">
+          {`${raceName ?? "Your event"} asks about ${fmt(
+            shortfall.wantedHours
+          )} a week. Your calendar offers ${fmt(
+            shortfall.offeredHours
+          )} — enough to ride it, not race it.`}
         </p>
       )}
       <ul className="space-y-1">
@@ -3046,32 +3086,75 @@ export function WeekRationale({
 }
 ```
 
+**The shortfall block is the point of this task's `shortfall`/`raceName`
+props.** An earlier draft declared both and rendered neither, so the test
+asserting the sentence would have failed against a component that looked
+complete. This branch has shipped a declared-with-no-producer defect once
+already; do not let the props drift back out of the body.
+
 - [ ] **Step 4: Render it on the train page**
 
-In `src/app/train/page.tsx`, load the open week's adjustments and render below the week grid:
+`src/app/train/page.tsx` gets the open week from `getOpenWeekPlan(userId)` at
+line 232 and renders `<WeekDayList days={week.days} />` at line 380. None of
+`targetHours`, `plannedHours`, `shortfall` or the race name exist on that page
+yet — the page must derive them itself, the same way `rolloverWeekPlan` does.
+Add this inside the branch where `week` is non-null:
 
 ```tsx
-const adjustments = await db.query.planAdjustments.findMany({
-  where: eq(schema.planAdjustments.weekPlanId, week.id),
-});
-const reasons = adjustments
+const [adjustmentRows, volumeInputs] = await Promise.all([
+  db.query.planAdjustments.findMany({
+    where: eq(schema.planAdjustments.weekPlanId, week.id),
+  }),
+  assembleVolumeInputs(userId, new Date()),
+]);
+const reasons = adjustmentRows
   .filter(
     (a) =>
       a.trigger === "weekly_rollover" || a.trigger === "availability_change"
   )
-  .map((a) => a.reason)
-  .filter((r): r is string => !!r);
+  .map((a) => a.reason);
+
+// The same figures the rollover derived, recomputed for display. Reading
+// them off the stored week instead would show a target that no longer
+// matches what the athlete's calendar and races now say.
+const availabilityHours =
+  week.days.reduce((s, d) => s + d.availableMins, 0) / 60;
+const target = weeklyTargetHours({
+  raceDemandHours: volumeInputs.demand?.weeklyHours ?? null,
+  ceilingHours: volumeInputs.level.ceilingHours,
+  floorHours: volumeInputs.level.floorHours,
+  availabilityHours,
+  fallbackHours: availabilityHours,
+});
+const plannedHours =
+  week.days.reduce(
+    (s, d) => s + d.workouts.reduce((t, w) => t + w.durationMins, 0),
+    0
+  ) / 60;
 ```
+
+`fallbackHours` is the week's own availability here rather than
+`constraints.hoursPerWeek`: this page has no plan constraints in scope, and a
+fallback equal to availability makes `weeklyTargetHours` return the honest "no
+race, no ceiling — nothing to explain" case instead of inventing a target.
+`reason` is `notNull` in the schema, so no null-filter is needed.
+
+Render it directly under `<WeekDayList days={week.days} />`:
 
 ```tsx
 <WeekRationale
   reasons={reasons}
-  targetHours={targetHours}
+  targetHours={target.hours}
   plannedHours={plannedHours}
   shortfall={target.shortfall}
-  raceName={inputs.targetRace?.name ?? null}
+  raceName={volumeInputs.targetRace?.name ?? null}
 />
 ```
+
+Add the imports it needs: `assembleVolumeInputs` from
+`@/lib/week-plan/volume-inputs`, `weeklyTargetHours` from
+`@/lib/week-plan/volume`, and `WeekRationale`. `eq`, `db` and `schema` are
+already imported.
 
 - [ ] **Step 5: Run to verify it passes**
 
@@ -3079,13 +3162,13 @@ const reasons = adjustments
 npx vitest run src/components/plan/week-rationale.test.tsx
 ```
 
-Expected: 3 tests PASS.
+Expected: 5 tests PASS.
 
 - [ ] **Step 6: Full gate and commit**
 
 ```bash
 npx prettier --write src/components/plan/week-rationale.tsx src/components/plan/week-rationale.test.tsx src/app/train/page.tsx
-npm run typecheck && npm run lint && npm run build
+npm run typecheck && npm run lint && npm test && npm run build
 git add src/components/plan/week-rationale.tsx src/components/plan/week-rationale.test.tsx src/app/train/page.tsx
 git commit -m "feat(plan): surface the week's own reasons instead of leaving them in the log"
 ```
