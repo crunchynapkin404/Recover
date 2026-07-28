@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.26.0 — 2026-07-27 — Availability, Block By Block
+## v0.26.0 — 2026-07-28 — Availability, Block By Block
 
 - **Your availability is a standard week now, with per-date exceptions on
   top.** You set each weekday once — that's the shape of a normal week — and
