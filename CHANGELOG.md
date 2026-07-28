@@ -1,5 +1,34 @@
 # Changelog
 
+## v0.27.0 — 2026-07-28 — The Planner Can See You Ride
+
+- **Fixed: no cycling session was ever recorded as completed.** The plan
+  describes a bike session as `Bike`; every provider stores the ride itself as
+  `Ride` (or `VirtualRide`). The completion matcher compared the two with a raw
+  equality, so across 219 rides it never matched once. Runners were unaffected —
+  `Run` happened to equal `Run` — which is why it survived every review.
+- **What that cost.** With nothing ever matched, each day kept `actualLoad`
+  empty, so every week closed with zero actual load and was read as "last week
+  was fully missed". The next week then restarted at 60% of its target. Week
+  after week, compounding. Landing on a scheduled recovery week (a further 60%)
+  it produced a **4.9-hour plan for an athlete training ~9 hours and offering
+  12.5**. The reasons were logged accurately the whole time; nothing surfaced
+  them.
+- **Sport is now read through one shared vocabulary**
+  (`src/lib/canonical-sport.ts`), used by the matcher and its tests alike.
+  Unfamiliar activity types pass through untouched rather than being forced into
+  the nearest training sport — a tennis match must never book as a completed
+  ride.
+- **Days already behind you have been repaired.**
+  `scripts/backfill-day-load.ts` books the open and most recently closed week
+  using exactly the rules the daily adaptation uses, collapsing rides synced from
+  both intervals.icu and Strava so they count once. It leaves a matched activity
+  whose load has not yet been computed for a later run rather than booking a
+  zero. Idempotent.
+- **Expect a gradual recovery, not a jump.** Week-over-week load is still
+  clamped to ±20% of what you actually did, so a plan climbs back over two to
+  three weeks. The difference is that the figure it climbs from is now real.
+
 ## v0.26.1 — 2026-07-28 — Editing Your Standard Week Replans It
 
 - **Fixed: changing your standard week updated the availability card but not
