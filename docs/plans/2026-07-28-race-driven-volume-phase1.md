@@ -1017,6 +1017,13 @@ git commit -m "fix(targets): trailing averages counted cross-provider duplicates
 
 ### Task 5: Athlete level and the volume ceiling
 
+> **The shipped `src/lib/athlete-level.ts` is the source of truth, not the
+> reference implementation below.** Review added four things this block does
+> not show: `MAINTENANCE_FLOOR`/`floorHours`, a `bandFor` guard so non-finite
+> input cannot fail open to "advanced", a `peakOf` guard so one corrupt week
+> cannot leak `NaN` as a ceiling, and a corrected `ceilingHours` doc comment.
+> Do not re-run this task from the block below — it would regress all four.
+
 **Files:**
 
 - Create: `src/lib/athlete-level.ts`
@@ -1033,6 +1040,7 @@ export type AthleteLevel =
 export const LEVEL_CONSTANTS: {
   PEAK_WINDOW_WEEKS: number;
   HEADROOM: number;
+  MAINTENANCE_FLOOR: number;
   HOURS_BANDS: { max: number; level: AthleteLevel }[];
   CTL_BANDS: { max: number; level: AthleteLevel }[];
 };
@@ -1045,6 +1053,8 @@ export interface LevelResult {
   level: AthleteLevel | null;
   peakHours: number | null;
   ceilingHours: number | null;
+  /** MAINTENANCE_FLOOR x peakHours. Null in lockstep with ceilingHours. */
+  floorHours: number | null;
   source: "override" | "computed" | "calibrating";
 }
 export function athleteLevel(input: LevelInput): LevelResult;
@@ -1243,8 +1253,14 @@ export interface LevelInput {
 export interface LevelResult {
   level: AthleteLevel | null;
   peakHours: number | null;
-  /** Weekly-hours ceiling. null when there is not enough history. */
+  /**
+   * Weekly-hours ceiling, peakHours × HEADROOM. Level-INDEPENDENT: non-null
+   * whenever any usable hours history exists, including while `source` is
+   * "calibrating". Null only when there is no usable hours history at all.
+   */
   ceilingHours: number | null;
+  /** peakHours × MAINTENANCE_FLOOR. Null exactly when ceilingHours is null. */
+  floorHours: number | null;
   source: "override" | "computed" | "calibrating";
 }
 
@@ -2266,6 +2282,7 @@ const availabilityHours =
 const target = weeklyTargetHours({
   raceDemandHours: volumeInputs.demand?.weeklyHours ?? null,
   ceilingHours: volumeInputs.level.ceilingHours,
+  floorHours: volumeInputs.level.floorHours,
   availabilityHours,
   fallbackHours: constraints.hoursPerWeek,
 });
