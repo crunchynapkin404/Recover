@@ -2463,30 +2463,172 @@ git commit -m "feat(week-plan): derive the weekly skeleton at rollover, never fr
 - Consumes: `schema.races`, `schema.raceStages`. `RacesSection`'s props are
   `{ races: RaceListItem[]; hideHeading?: boolean }` — it takes no `sports`
   prop; do not add one.
-- Produces: server action `setRaceDemand(input: { raceId: string; eventDays: number; distanceKm: number | null; elevationM: number | null; stages: { dayNumber: number; distanceKm: number | null; elevationM: number | null }[] }): Promise<{ ok: true } | { ok: false; error: string }>`.
+- Produces: `addRace` gains the event-demand fields, so its input becomes
+  `{ name; raceType; date; priority; goalNote?; eventDays: number; distanceKm: number | null; elevationM: number | null; stages: { dayNumber: number; distanceKm: number | null; elevationM: number | null }[] }`,
+  return type unchanged.
+
+**Do NOT add a separate exported `setRaceDemand` server action.** An earlier
+draft of this task did, and nothing would have called it: `RacesSection` has
+only an add form, no edit form. In a `"use server"` file every export is a
+reachable RPC endpoint, so a dead one is attack surface with no consumer. This
+branch has already shipped one field with no producer; this is the same defect
+inverted. `createRace` returns `{ race: RaceRow }`, so `addRace` already has
+the new race's id in hand and can write the demand in the same call — no id
+round-trip to the client and no window where a race exists without its demand.
+When an edit form arrives, the edit action arrives with it.
 
 - [ ] **Step 1: Write the failing test**
 
-Add to `src/components/plan/races-section.test.tsx`:
+**`@testing-library/react` is NOT a dependency of this repo** — do not import
+`render`, `screen`, or `userEvent`, and do not install it. The existing
+`src/components/plan/races-section.test.tsx` uses `renderToString`, which
+cannot drive interaction. The repo's idiom for interactive component tests is
+hand-rolled `react-dom/client` + `act()`; copy it from
+`tests/journal-form.test.tsx`.
 
-```ts
-it("captures days, distance and elevation for an event", async () => {
-  render(<RacesSection races={[]} />);
-  await userEvent.click(screen.getByRole("button", { name: /add race/i }));
-  expect(screen.getByLabelText(/days/i)).toBeInTheDocument();
-  expect(screen.getByLabelText(/total distance/i)).toBeInTheDocument();
-  expect(screen.getByLabelText(/total elevation/i)).toBeInTheDocument();
+Create a NEW file `src/components/plan/races-section-demand.test.tsx` (leaving
+the existing `renderToString` file untouched — the `@vitest-environment`
+pragma is file-level):
+
+```tsx
+// @vitest-environment jsdom
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { act } from "react";
+import { createRoot, type Root } from "react-dom/client";
+
+declare global {
+  var IS_REACT_ACT_ENVIRONMENT: boolean;
+}
+globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+
+// "use server" is a genuine module boundary, not the logic under test; the
+// write path has its own DB coverage. Stubbed the same way journal-form does.
+vi.mock("@/app/plan/actions", () => ({
+  addRace: vi.fn(async () => ({ ok: true })),
+  removeRace: vi.fn(async () => {}),
+  setRaceStatus: vi.fn(async () => ({ ok: true })),
+}));
+
+import { RacesSection } from "./races-section";
+import { addRace } from "@/app/plan/actions";
+
+const addRaceMock = vi.mocked(addRace);
+
+let root: Root | null = null;
+let container: HTMLDivElement;
+
+async function open() {
+  container = document.createElement("div");
+  document.body.appendChild(container);
+  root = createRoot(container);
+  await act(async () => {
+    root!.render(<RacesSection races={[]} />);
+  });
+  await click("Add race");
+}
+
+afterEach(async () => {
+  if (root) await act(async () => root!.unmount());
+  root = null;
+  container?.remove();
+  vi.clearAllMocks();
 });
 
-it("only offers per-day stages once the event runs over more than one day", async () => {
-  render(<RacesSection races={[]} />);
-  await userEvent.click(screen.getByRole("button", { name: /add race/i }));
-  expect(screen.queryByText(/per-day detail/i)).not.toBeInTheDocument();
-  await userEvent.clear(screen.getByLabelText(/days/i));
-  await userEvent.type(screen.getByLabelText(/days/i), "8");
-  expect(screen.getByText(/per-day detail/i)).toBeInTheDocument();
+const byId = (id: string): HTMLInputElement => {
+  const el = container.querySelector<HTMLInputElement>(`#${id}`);
+  if (!el) throw new Error(`no field with id ${id}`);
+  return el;
+};
+
+const byLabel = (label: string): HTMLInputElement | null =>
+  container.querySelector<HTMLInputElement>(`[aria-label="${label}"]`);
+
+async function click(text: string) {
+  const btn = Array.from(container.querySelectorAll("button")).find((b) =>
+    b.textContent?.includes(text)
+  );
+  if (!btn) throw new Error(`no button containing "${text}"`);
+  await act(async () => {
+    btn.click();
+  });
+}
+
+async function set(el: HTMLInputElement, value: string) {
+  await act(async () => {
+    // React tracks the previous value on the DOM node; bypass its setter or
+    // the synthetic change event is swallowed as a no-op.
+    const setter = Object.getOwnPropertyDescriptor(
+      window.HTMLInputElement.prototype,
+      "value"
+    )!.set!;
+    setter.call(el, value);
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+}
+
+describe("RacesSection event demand", () => {
+  it("captures days, distance and elevation for an event", async () => {
+    await open();
+    expect(byId("event-days")).toBeTruthy();
+    expect(byId("event-distance")).toBeTruthy();
+    expect(byId("event-elevation")).toBeTruthy();
+  });
+
+  it("only offers per-day stages once the event runs over more than one day", async () => {
+    await open();
+    expect(container.textContent).not.toContain("Per-day detail");
+    await set(byId("event-days"), "8");
+    expect(container.textContent).toContain("Per-day detail");
+    expect(byLabel("Day 8 distance in km")).toBeTruthy();
+  });
+
+  it("sends the demand fields to addRace, not just to local state", async () => {
+    // The defect this pins: fields that render, hold state, and are never
+    // submitted. Rendering proves nothing about persistence.
+    await open();
+    await set(byId("race-name"), "Alpine Tour");
+    await set(byId("race-date"), "2026-09-01");
+    await set(byId("event-days"), "2");
+    await set(byId("event-distance"), "220");
+    await set(byId("event-elevation"), "5000");
+    await set(byLabel("Day 1 distance in km")!, "100");
+    await set(byLabel("Day 2 distance in km")!, "120");
+
+    const form = container.querySelector("form")!;
+    await act(async () => {
+      form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    });
+
+    expect(addRaceMock).toHaveBeenCalledTimes(1);
+    const arg = addRaceMock.mock.calls[0][0];
+    expect(arg.eventDays).toBe(2);
+    expect(arg.distanceKm).toBe(220);
+    expect(arg.elevationM).toBe(5000);
+    expect(arg.stages).toEqual([
+      { dayNumber: 1, distanceKm: 100, elevationM: null },
+      { dayNumber: 2, distanceKm: 120, elevationM: null },
+    ]);
+  });
+
+  it("sends no stages for a one-day event", async () => {
+    await open();
+    await set(byId("race-name"), "Gran Fondo");
+    await set(byId("race-date"), "2026-09-01");
+    await set(byId("event-distance"), "130");
+    const form = container.querySelector("form")!;
+    await act(async () => {
+      form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    });
+    expect(addRaceMock.mock.calls[0][0].eventDays).toBe(1);
+    expect(addRaceMock.mock.calls[0][0].stages).toEqual([]);
+  });
 });
 ```
+
+The existing form's name and date inputs may not carry `id` attributes yet. If
+they do not, add `id="race-name"` and `id="race-date"` to them (with matching
+`htmlFor` on their labels) as part of Step 4 — that is an accessibility
+improvement the form wants anyway, not scope creep.
 
 - [ ] **Step 2: Run to verify it fails**
 
@@ -2496,13 +2638,23 @@ npx vitest run src/components/plan/races-section.test.tsx
 
 Expected: FAIL — the fields do not exist.
 
-- [ ] **Step 3: Add the server action**
+- [ ] **Step 3: Extend `addRace` to persist the demand**
 
-In `src/app/plan/actions.ts` (a `"use server"` file — **every export must be an async function**):
+In `src/app/plan/actions.ts` (a `"use server"` file — **every export must be
+an async function**; only `npm run build` catches a violation, so keep the
+helper below unexported, matching the existing non-async `revalidatePlan`).
+
+Widen `addRace`'s input with the four demand fields and write them after
+`createRace` returns. `createRace` yields `{ race: RaceRow }`, so its id is
+already in hand:
 
 ```ts
-export async function setRaceDemand(input: {
-  raceId: string;
+export async function addRace(input: {
+  name: string;
+  raceType: string;
+  date: string;
+  priority: "A" | "B" | "C";
+  goalNote?: string;
   eventDays: number;
   distanceKm: number | null;
   elevationM: number | null;
@@ -2519,14 +2671,18 @@ export async function setRaceDemand(input: {
   if (input.distanceKm != null && input.distanceKm < 0) {
     return { ok: false, error: "Distance cannot be negative." };
   }
+  if (input.elevationM != null && input.elevationM < 0) {
+    return { ok: false, error: "Elevation cannot be negative." };
+  }
 
-  const owned = await db.query.races.findFirst({
-    where: and(
-      eq(schema.races.id, input.raceId),
-      eq(schema.races.userId, user.id)
-    ),
+  const result = await createRace(user.id, {
+    name: input.name,
+    raceType: input.raceType,
+    date: input.date,
+    priority: input.priority,
+    goalNote: input.goalNote ?? null,
   });
-  if (!owned) return { ok: false, error: "That race isn't yours." };
+  if ("error" in result) return { ok: false, error: result.error };
 
   await db
     .update(schema.races)
@@ -2536,17 +2692,19 @@ export async function setRaceDemand(input: {
       elevationM: input.elevationM,
       updatedAt: new Date(),
     })
-    .where(eq(schema.races.id, input.raceId));
+    .where(eq(schema.races.id, result.race.id));
 
-  // Stages are replaced wholesale: a partial write would leave a stale day 7
-  // behind when an eight-day event is re-entered as six.
+  // Stages are replaced wholesale. `createRace` upserts on
+  // (userId, date, name), so re-adding the same race reuses its row — a
+  // partial write would leave a stale day 7 behind when an eight-day event is
+  // re-entered as six.
   await db
     .delete(schema.raceStages)
-    .where(eq(schema.raceStages.raceId, input.raceId));
+    .where(eq(schema.raceStages.raceId, result.race.id));
   if (input.stages.length > 0) {
     await db.insert(schema.raceStages).values(
       input.stages.map((s) => ({
-        raceId: input.raceId,
+        raceId: result.race.id,
         dayNumber: s.dayNumber,
         distanceKm: s.distanceKm,
         elevationM: s.elevationM,
@@ -2554,10 +2712,14 @@ export async function setRaceDemand(input: {
     );
   }
 
-  revalidatePlan();
+  revalidatePath("/train");
+  revalidatePath("/");
   return { ok: true };
 }
 ```
+
+Keep whatever `db`/`schema`/`eq` imports this needs; check what the file
+already imports before adding.
 
 - [ ] **Step 4: Add the form fields**
 
@@ -2665,20 +2827,67 @@ function setStageField(
 }
 ```
 
+Then **wire it into the submit path** — this is the step whose omission the
+Step 1 tests exist to catch. In `handleAdd`, extend the existing `addRace({…})`
+call with the demand fields:
+
+```tsx
+const result = await addRace({
+  // …the existing name/raceType/date/priority/goalNote fields, unchanged…
+  eventDays,
+  distanceKm,
+  elevationM,
+  stages: stagesForSubmit(),
+});
+```
+
+with, alongside `setStageField`:
+
+```tsx
+/**
+ * Per-day rows as the server wants them. A one-day event has no stages by
+ * definition, and a multi-day event nobody filled in sends none rather than a
+ * row of nulls per day — `eventDemand` reads an empty list as "no per-day
+ * detail" and falls back to the average day, which is exactly right.
+ */
+function stagesForSubmit() {
+  if (eventDays <= 1) return [];
+  const rows = Array.from({ length: eventDays }, (_, i) => ({
+    dayNumber: i + 1,
+    distanceKm: stages[i]?.distanceKm ?? null,
+    elevationM: stages[i]?.elevationM ?? null,
+  }));
+  return rows.some((r) => r.distanceKm != null || r.elevationM != null)
+    ? rows
+    : [];
+}
+```
+
+Reset the new state alongside whatever `handleAdd` already resets on success,
+so a second race does not inherit the first one's distance.
+
 - [ ] **Step 5: Run the tests to verify they pass**
 
 ```bash
-npx vitest run src/components/plan/races-section.test.tsx
+npx vitest run src/components/plan/races-section.test.tsx src/components/plan/races-section-demand.test.tsx
 ```
 
-Expected: all tests PASS.
+Expected: all tests PASS, including the two that assert `addRace` actually
+received the demand fields.
+
+Then grep for every other caller of `addRace` — widening its input is a
+breaking change, and `npm run typecheck` must come back clean:
+
+```bash
+grep -rn "addRace" src --include=*.tsx --include=*.ts
+```
 
 - [ ] **Step 6: Full gate and commit**
 
 ```bash
-npx prettier --write src/components/plan/races-section.tsx src/app/plan/actions.ts src/components/plan/races-section.test.tsx
-npm run typecheck && npm run lint && npm run build
-git add src/components/plan/races-section.tsx src/app/plan/actions.ts src/components/plan/races-section.test.tsx
+npx prettier --write src/components/plan/races-section.tsx src/app/plan/actions.ts src/components/plan/races-section-demand.test.tsx
+npm run typecheck && npm run lint && npm test && npm run build
+git add src/components/plan/races-section.tsx src/app/plan/actions.ts src/components/plan/races-section-demand.test.tsx
 git commit -m "feat(plan): capture event days, distance, elevation and per-day stages"
 ```
 
