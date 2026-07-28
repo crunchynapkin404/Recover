@@ -151,7 +151,11 @@ export async function assembleVolumeInputs(
   const thisWeek = weekStartOf(now);
   for (const w of wellness) {
     if (w.ctl == null) continue;
-    const start = weekStartOf(new Date(w.date));
+    // w.date is a YYYY-MM-DD string; bare `new Date()` parses it as UTC
+    // midnight, which lands in the wrong local week behind UTC. Same fix as
+    // race/debrief.ts, race/service.ts, race/taper.ts, race/forecast.ts,
+    // format.ts, sleep-insights.ts, morning-insight.ts, training-plan.ts.
+    const start = weekStartOf(new Date(w.date + "T00:00:00"));
     const idx =
       weeks -
       1 -
