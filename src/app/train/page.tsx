@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { and, asc, desc, eq, gte, ne } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, ne } from "drizzle-orm";
 import { Bike, ClipboardList, LineChart, Plus } from "lucide-react";
 import { db, schema } from "@/lib/db";
 import { requireUser } from "@/lib/session";
@@ -7,6 +7,7 @@ import { AppShell, shellUser } from "@/components/app-shell";
 import { WeekStrip } from "@/components/plan/week-strip";
 import { RacesSection } from "@/components/plan/races-section";
 import { IntakeForm } from "@/components/plan/intake-form";
+import { StandardWeek } from "@/components/plan/standard-week";
 import { PlanEmpty } from "@/components/plan/plan-empty";
 import { PmcChart } from "@/components/log/pmc-chart";
 import { WeeklyLoadBars } from "@/components/log/weekly-load-bars";
@@ -37,19 +38,17 @@ import { RaceChip } from "@/components/today/race-chip";
 import type { RaceCountdownProps } from "@/components/dashboard/race-countdown";
 import { BAND_COLOR } from "@/lib/band-color";
 import type { Band } from "@/lib/readiness";
-import { getOpenWeekPlan, listAdjustments } from "@/lib/week-plan/service";
-import { prefillAvailability } from "@/lib/week-plan/availability";
+import {
+  getOpenWeekPlan,
+  listAdjustments,
+  planConstraints,
+} from "@/lib/week-plan/service";
 import {
   listRaces,
   nextUpcomingRace,
   assembleForecastInputs,
 } from "@/lib/race/service";
 import { forecastForm } from "@/lib/race/forecast";
-import {
-  fetchBusyTimes,
-  getValidGoogleAccessToken,
-  type CalendarBusyBlock,
-} from "@/lib/connectors/google-calendar";
 import { localYmd, weeklyLoads } from "@/lib/charts";
 import {
   buildTrainHref,
@@ -58,6 +57,12 @@ import {
   type TrainTab,
 } from "@/lib/log-href";
 import { startWeek, submitAvailability } from "@/app/plan/actions";
+import { blockMins, type AvailabilityBlock } from "@/lib/availability/types";
+import { resolveWeek } from "@/lib/availability/resolve";
+import {
+  availabilityVerdict,
+  type Verdict,
+} from "@/lib/week-plan/ctl-projection";
 
 export const dynamic = "force-dynamic";
 
@@ -69,36 +74,12 @@ function daysAgo(n: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-function addDaysYmd(ymd: string, n: number): string {
-  const d = new Date(ymd + "T00:00:00");
-  d.setDate(d.getDate() + n);
-  return localYmd(d);
-}
-
 function monthLabelFor(ym: string): string {
   const [y, m] = ym.split("-").map(Number);
   return new Date(y, m - 1, 1).toLocaleDateString("en-US", {
     month: "long",
     year: "numeric",
   });
-}
-
-/** Total busy minutes per week day (Monday first) from calendar blocks. */
-function busyMinsPerDay(
-  blocks: CalendarBusyBlock[],
-  weekStart: string
-): number[] {
-  const result = Array.from({ length: 7 }, () => 0);
-  for (let i = 0; i < 7; i++) {
-    const dayStart = new Date(addDaysYmd(weekStart, i) + "T00:00:00").getTime();
-    const dayEnd = dayStart + 86_400_000;
-    for (const b of blocks) {
-      const s = Math.max(new Date(b.start).getTime(), dayStart);
-      const e = Math.min(new Date(b.end).getTime(), dayEnd);
-      if (e > s) result[i] += Math.round((e - s) / 60_000);
-    }
-  }
-  return result;
 }
 
 /** The activity's own sub-line: what the athlete said about it, or nothing. */
@@ -251,6 +232,17 @@ async function WeekTab({ userId, href }: { userId: string; href: TrainHref }) {
   const week = await getOpenWeekPlan(userId);
   const adjustments = week ? await listAdjustments(week.id) : [];
   const races = await listRaces(userId);
+  const constraints = planConstraints(plan.constraints);
+
+  const defaultRows = await db.query.availabilityDefaults.findMany({
+    where: eq(schema.availabilityDefaults.userId, userId),
+  });
+  const standardWeek: AvailabilityBlock[][] = Array.from(
+    { length: 7 },
+    (_, i) =>
+      (defaultRows.find((r) => r.weekday === i)?.blocks as
+        AvailabilityBlock[] | undefined) ?? []
+  );
 
   const blocks = await db.query.trainingBlocks.findMany({
     where: eq(schema.trainingBlocks.planId, plan.id),
@@ -262,41 +254,64 @@ async function WeekTab({ userId, href }: { userId: string; href: TrainHref }) {
   );
 
   // Availability intake — only while the week hasn't started completing.
-  let intake: { suggested: number[] } | null = null;
+  let intake: {
+    resolved: AvailabilityBlock[][];
+    dates: string[];
+    overrideDates: string[];
+    verdict: Verdict;
+  } | null = null;
   if (week && week.days[0]?.status !== "completed") {
-    // Calendar prefill lives here, where a human confirms it — never in
-    // the automatic rollover (spec).
-    let busy: number[] | null = null;
-    const connection = await db.query.connections.findFirst({
+    const dates = week.days.map((d) => d.date);
+    const resolvedMap = await resolveWeek(userId, dates);
+    const overrides = await db.query.availabilityOverrides.findMany({
       where: and(
-        eq(schema.connections.userId, userId),
-        eq(schema.connections.provider, "google_calendar"),
-        eq(schema.connections.status, "active")
+        eq(schema.availabilityOverrides.userId, userId),
+        inArray(schema.availabilityOverrides.date, dates)
       ),
     });
-    if (connection) {
-      try {
-        const accessToken = await getValidGoogleAccessToken(connection);
-        const busyBlocks = await fetchBusyTimes({
-          accessToken,
-          startDate: week.weekStart,
-          endDate: addDaysYmd(week.weekStart, 7),
-        });
-        busy = busyMinsPerDay(busyBlocks, week.weekStart);
-      } catch {
-        busy = null; // calendar is a hint, never a blocker
-      }
-    }
-    const constraints = (plan.constraints ?? {}) as {
-      daysPerWeek?: number;
-      hoursPerWeek?: number;
-    };
+
+    // Load per hour over the last 28 days, from real sessions only.
+    const since = new Date();
+    since.setDate(since.getDate() - 28);
+    const recent = await db.query.activities.findMany({
+      where: and(
+        eq(schema.activities.userId, userId),
+        ne(schema.activities.provider, "strava"),
+        gte(schema.activities.startDate, since)
+      ),
+    });
+    const hours = recent.reduce((s, a) => s + (a.durationS ?? 0) / 3600, 0);
+    const load = recent.reduce((s, a) => s + (a.load ?? 0), 0);
+    const loadPerHour = hours > 0 ? load / hours : null;
+
+    // The real span of history, not "any activity means 28 days". An
+    // athlete who synced their first ride yesterday must not be told what
+    // their CTL will do.
+    const oldest = recent.reduce<Date | null>((min, a) => {
+      const d = a.startDateLocal ?? a.startDate;
+      return min == null || d < min ? d : min;
+    }, null);
+    const historyDays =
+      oldest == null
+        ? 0
+        : Math.floor((new Date().getTime() - oldest.getTime()) / 86_400_000);
+
+    const offeredMins = dates.reduce(
+      (s, d) =>
+        s + (resolvedMap.get(d) ?? []).reduce((x, b) => x + blockMins(b), 0),
+      0
+    );
+
     intake = {
-      suggested: prefillAvailability({
-        hoursPerWeek: constraints.hoursPerWeek ?? 8,
-        daysPerWeek: constraints.daysPerWeek ?? 5,
-        lastWeekMins: week.days.map((d) => d.availableMins),
-        busyMinsPerDay: busy,
+      resolved: dates.map((d) => resolvedMap.get(d) ?? []),
+      dates,
+      overrideDates: overrides.map((o) => o.date),
+      verdict: availabilityVerdict({
+        offeredMins,
+        currentCtl: latestMetric?.ctl ?? null,
+        loadPerHour,
+        historyDays,
+        effectiveTarget: week.effectiveTarget ?? 0,
       }),
     };
   }
@@ -415,11 +430,33 @@ async function WeekTab({ userId, href }: { userId: string; href: TrainHref }) {
           {intake && (
             <section className="mb-6">
               <IntakeForm
-                suggested={intake.suggested}
+                resolved={intake.resolved}
+                dates={intake.dates}
+                overrideDates={intake.overrideDates}
+                verdict={intake.verdict}
+                sports={constraints.sports ?? ["Bike"]}
                 action={submitAvailability}
               />
             </section>
           )}
+
+          <div className="mb-6">
+            <Collapsible>
+              <CollapsibleTrigger className="rounded-[18px] p-4">
+                <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-white/60">
+                  Standard week
+                </span>
+              </CollapsibleTrigger>
+              <CollapsiblePanel>
+                <div className="px-1 pb-1 pt-3">
+                  <StandardWeek
+                    defaults={standardWeek}
+                    sports={constraints.sports ?? ["Bike"]}
+                  />
+                </div>
+              </CollapsiblePanel>
+            </Collapsible>
+          </div>
         </>
       ) : (
         <section className="mb-6">

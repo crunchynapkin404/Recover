@@ -3,6 +3,25 @@
 exports[`MCP tool surface is frozen (names + scopes + schemas) 1`] = `
 [
   {
+    "name": "clear_availability_override",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "date": {
+          "description": "YYYY-MM-DD",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+          "type": "string",
+        },
+      },
+      "required": [
+        "date",
+      ],
+      "type": "object",
+    },
+    "scope": "write:plan",
+  },
+  {
     "name": "delete_race",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -1667,13 +1686,169 @@ exports[`MCP tool surface is frozen (names + scopes + schemas) 1`] = `
     "scope": "read",
   },
   {
+    "name": "set_standard_week",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "blocks": {
+          "description": "Time blocks; an empty list means a rest day",
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "end": {
+                "anyOf": [
+                  {
+                    "pattern": "^\\d{2}:\\d{2}$",
+                    "type": "string",
+                  },
+                  {
+                    "type": "null",
+                  },
+                ],
+              },
+              "energy": {
+                "enum": [
+                  "easy",
+                  "normal",
+                  "full",
+                ],
+                "type": "string",
+              },
+              "mins": {
+                "maximum": 720,
+                "minimum": 0,
+                "type": "integer",
+              },
+              "sports": {
+                "anyOf": [
+                  {
+                    "items": {
+                      "type": "string",
+                    },
+                    "type": "array",
+                  },
+                  {
+                    "type": "null",
+                  },
+                ],
+              },
+              "start": {
+                "anyOf": [
+                  {
+                    "pattern": "^\\d{2}:\\d{2}$",
+                    "type": "string",
+                  },
+                  {
+                    "type": "null",
+                  },
+                ],
+              },
+            },
+            "required": [
+              "start",
+              "end",
+              "mins",
+              "energy",
+              "sports",
+            ],
+            "type": "object",
+          },
+          "type": "array",
+        },
+        "weekday": {
+          "description": "0 = Monday",
+          "maximum": 6,
+          "minimum": 0,
+          "type": "integer",
+        },
+      },
+      "required": [
+        "weekday",
+        "blocks",
+      ],
+      "type": "object",
+    },
+    "scope": "write:plan",
+  },
+  {
     "name": "set_week_availability",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
       "properties": {
+        "availableBlocks": {
+          "description": "Time blocks per day, Monday first",
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "end": {
+                  "anyOf": [
+                    {
+                      "pattern": "^\\d{2}:\\d{2}$",
+                      "type": "string",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+                "energy": {
+                  "enum": [
+                    "easy",
+                    "normal",
+                    "full",
+                  ],
+                  "type": "string",
+                },
+                "mins": {
+                  "maximum": 720,
+                  "minimum": 0,
+                  "type": "integer",
+                },
+                "sports": {
+                  "anyOf": [
+                    {
+                      "items": {
+                        "type": "string",
+                      },
+                      "type": "array",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+                "start": {
+                  "anyOf": [
+                    {
+                      "pattern": "^\\d{2}:\\d{2}$",
+                      "type": "string",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+              },
+              "required": [
+                "start",
+                "end",
+                "mins",
+                "energy",
+                "sports",
+              ],
+              "type": "object",
+            },
+            "type": "array",
+          },
+          "maxItems": 7,
+          "minItems": 7,
+          "type": "array",
+        },
         "availableMins": {
-          "description": "Minutes available per day, Monday first",
+          "description": "Legacy: total minutes per day, Monday first",
           "items": {
             "maximum": 720,
             "minimum": 0,
@@ -1684,9 +1859,6 @@ exports[`MCP tool surface is frozen (names + scopes + schemas) 1`] = `
           "type": "array",
         },
       },
-      "required": [
-        "availableMins",
-      ],
       "type": "object",
     },
     "scope": "write:plan",

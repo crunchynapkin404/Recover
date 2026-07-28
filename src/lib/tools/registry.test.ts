@@ -1,5 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { allTools } from "@/lib/tools/registry";
+import type { ToolContext } from "@/lib/tools/registry";
+import { setWeekAvailabilityTool } from "./set-week-availability";
+
+function fakeCtx(): ToolContext {
+  // Only used by execute() paths that fail validateBlocks before ever
+  // touching applyAvailability, so db is never actually read.
+  return { userId: "u1", db: {} as unknown as ToolContext["db"] };
+}
 
 describe("tool registry", () => {
   it("every tool has required fields", () => {
@@ -30,7 +38,7 @@ describe("tool registry", () => {
   });
 
   it("registers the v0.6 strava describe tool", () => {
-    expect(allTools.length).toBe(54);
+    expect(allTools.length).toBe(56);
     const names = allTools.map((t) => t.name);
     expect(names).toContain("describe_strava_activity");
     for (const name of [
@@ -118,7 +126,7 @@ describe("tool registry", () => {
   });
 
   it("registers the v0.9.6 absorbed icu_* activity/wellness/sport-settings tools with correct scopes", () => {
-    expect(allTools.length).toBe(54);
+    expect(allTools.length).toBe(56);
     const names = allTools.map((t) => t.name);
     for (const name of [
       "icu_update_activity",
@@ -153,7 +161,7 @@ describe("tool registry", () => {
   });
 
   it("registers the v0.9.6 absorbed icu_* histogram/search/intervals/workout-library read tools (48 total)", () => {
-    expect(allTools.length).toBe(54);
+    expect(allTools.length).toBe(56);
     const names = allTools.map((t) => t.name);
     for (const name of [
       "icu_get_hr_histogram",
@@ -173,7 +181,7 @@ describe("tool registry", () => {
   });
 
   it("registers the v0.9.6 get_workout_syntax reference tool (49 total)", () => {
-    expect(allTools.length).toBe(54);
+    expect(allTools.length).toBe(56);
     const tool = allTools.find((t) => t.name === "get_workout_syntax")!;
     expect(tool).toBeDefined();
     expect(tool.scope).toBeUndefined();
@@ -189,7 +197,7 @@ describe("tool registry", () => {
   });
 
   it("registers the v0.14 race tools with correct scopes (53 total)", () => {
-    expect(allTools.length).toBe(54);
+    expect(allTools.length).toBe(56);
     const names = allTools.map((t) => t.name);
     for (const name of [
       "get_races",
@@ -212,7 +220,7 @@ describe("tool registry", () => {
   });
 
   it("registers the v0.15 recall_history tool (54 total)", () => {
-    expect(allTools.length).toBe(54);
+    expect(allTools.length).toBe(56);
     const tool = allTools.find((t) => t.name === "recall_history")!;
     expect(tool).toBeDefined();
     expect(tool.scope).toBeUndefined(); // defaults to read
@@ -433,6 +441,104 @@ describe("tool registry", () => {
     expect(
       tool.parameters.safeParse({ action: "skip_week", reason: "r" }).success
     ).toBe(false);
+  });
+});
+
+describe("set_week_availability", () => {
+  it("still accepts seven plain integers", () => {
+    const parsed = setWeekAvailabilityTool.parameters.parse({
+      availableMins: [0, 60, 90, 0, 60, 180, 120],
+    });
+    expect(parsed.availableMins).toHaveLength(7);
+  });
+
+  it("accepts blocks per day", () => {
+    const parsed = setWeekAvailabilityTool.parameters.parse({
+      availableBlocks: [
+        [],
+        [
+          {
+            start: "18:00",
+            end: "19:00",
+            mins: 60,
+            energy: "normal",
+            sports: null,
+          },
+        ],
+        [],
+        [],
+        [],
+        [],
+        [],
+      ],
+    });
+    expect(parsed.availableBlocks?.[1][0].mins).toBe(60);
+  });
+
+  it("rejects a week that is not seven days long", () => {
+    expect(() =>
+      setWeekAvailabilityTool.parameters.parse({ availableMins: [60, 60] })
+    ).toThrow();
+  });
+
+  it("rejects an out-of-range time the local per-field regex lets through, naming the day", async () => {
+    // "25:99" matches the tool's loose /^\d{2}:\d{2}$/ shape check but is
+    // not a real clock time, so only validateBlocks (TIME_RE) catches it.
+    const args = setWeekAvailabilityTool.parameters.parse({
+      availableBlocks: [
+        [
+          {
+            start: "25:99",
+            end: "26:00",
+            mins: 60,
+            energy: "normal",
+            sports: null,
+          },
+        ],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+      ],
+    });
+    const out = (await setWeekAvailabilityTool.execute(args, fakeCtx())) as {
+      applied: boolean;
+      reason?: string;
+    };
+    expect(out.applied).toBe(false);
+    expect(out.reason).toBe(
+      "Monday: A block's start and end must both be times, or both be empty."
+    );
+  });
+
+  it("rejects a block whose end is not after its start, naming the day", async () => {
+    const args = setWeekAvailabilityTool.parameters.parse({
+      availableBlocks: [
+        [],
+        [
+          {
+            start: "10:00",
+            end: "09:00",
+            mins: 60,
+            energy: "normal",
+            sports: null,
+          },
+        ],
+        [],
+        [],
+        [],
+        [],
+        [],
+      ],
+    });
+    const out = (await setWeekAvailabilityTool.execute(args, fakeCtx())) as {
+      applied: boolean;
+      reason?: string;
+    };
+    expect(out.applied).toBe(false);
+    expect(out.reason).toBe("Tuesday: A block must end after it starts.");
   });
 });
 

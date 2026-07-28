@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { and, eq } from "drizzle-orm";
+import { withPurpose } from "@/lib/training-plan";
 
 /**
  * Integration tests for the v0.9.2 week-plan service layer. Same idiom as
@@ -41,11 +42,32 @@ const todayYmd = localYmd(new Date());
 
 let planId: string;
 
+// "full" energy: matches materialize.test.ts's and replan.test.ts's default
+// block helpers, so a seeded day's ordinary block admits any session type
+// (including seededDays()'s Intervals/vo2max session) unless a test
+// deliberately narrows it. moveWorkout/swapWorkouts now route cross-day
+// placement through admits() (Task 9b), which enforces the energy ceiling
+// that this suite was never exercising before.
+function blocksFor(mins: number) {
+  return mins > 0
+    ? [
+        {
+          start: null,
+          end: null,
+          mins,
+          energy: "full" as const,
+          sports: null,
+        },
+      ]
+    : [];
+}
+
 function restDay(date: string) {
   return {
     date,
+    availableBlocks: blocksFor(60),
     availableMins: 60,
-    workout: null,
+    workouts: [],
     status: "rest" as const,
   };
 }
@@ -57,15 +79,19 @@ function seededDays() {
     if (date === todayYmd) {
       return {
         date,
+        availableBlocks: blocksFor(60),
         availableMins: 60,
-        workout: {
-          day: i,
-          sport: "Run",
-          type: "Intervals",
-          durationMins: 50,
-          intensity: "Z4-Z5",
-          description: "Interval session",
-        },
+        workouts: [
+          withPurpose({
+            day: i,
+            sport: "Run",
+            type: "Intervals",
+            durationMins: 50,
+            intensity: "Z4-Z5",
+            description: "Interval session",
+            blockIdx: 0,
+          }),
+        ],
         status: "planned" as const,
       };
     }
@@ -148,6 +174,26 @@ describe.skipIf(!hasDb)("week-plan service", () => {
       targetSessions: 5,
       workouts: [],
     });
+    // A standard week for USER: rolloverWeekPlan now resolves availability
+    // from availability_defaults instead of synthesizing it from plan
+    // constraints, so tests exercising the real rollover need a real
+    // standard week seeded (a user with none configured gets an all-rest
+    // week, by design — see resolveWeek).
+    await db.insert(schema.availabilityDefaults).values(
+      Array.from({ length: 7 }, (_, weekday) => ({
+        userId: USER,
+        weekday,
+        blocks: [
+          {
+            start: null,
+            end: null,
+            mins: 90,
+            energy: "normal" as const,
+            sports: null,
+          },
+        ],
+      }))
+    );
   });
 
   afterAll(cleanupUsers);
@@ -180,15 +226,19 @@ describe.skipIf(!hasDb)("week-plan service", () => {
       if (i === 0) {
         return {
           date,
+          availableBlocks: blocksFor(60),
           availableMins: 60,
-          workout: {
-            day: 0,
-            sport: "Run",
-            type: "Endurance",
-            durationMins: 45,
-            intensity: "Z1-Z2",
-            description: "Easy run",
-          },
+          workouts: [
+            {
+              day: 0,
+              sport: "Run",
+              type: "Endurance",
+              durationMins: 45,
+              intensity: "Z1-Z2",
+              description: "Easy run",
+              blockIdx: 0,
+            },
+          ],
           status: "completed" as const,
           actualLoad: 50,
         };
@@ -225,6 +275,67 @@ describe.skipIf(!hasDb)("week-plan service", () => {
     expect(block?.adherencePct).toBe(Math.round((50 / 400) * 100));
   });
 
+  // Task 10: a rest-day bonus ride books its load as `unplannedLoad` (never
+  // `actualLoad`, never a session), but it's still real training stress —
+  // rollover's adherence math must count it in the week's total exactly as
+  // it would have if the load had landed in `actualLoad`, per the docstring
+  // on `recordUnplannedLoad`.
+  it("rollover folds unplannedLoad into the block's actualLoad without counting it as a session", async () => {
+    const { db, schema } = await import("@/lib/db");
+    const { rolloverWeekPlan } = await import("@/lib/week-plan/service");
+
+    const prevDays = Array.from({ length: 7 }, (_, i) => {
+      const date = addDaysYmd(lastWeekStart, i);
+      if (i === 0) {
+        return {
+          date,
+          availableBlocks: blocksFor(60),
+          availableMins: 60,
+          workouts: [
+            {
+              day: 0,
+              sport: "Run",
+              type: "Endurance",
+              durationMins: 45,
+              intensity: "Z1-Z2",
+              description: "Easy run",
+              blockIdx: 0,
+            },
+          ],
+          status: "completed" as const,
+          actualLoad: 50,
+        };
+      }
+      // A genuine rest day with an unplanned bonus ride booked onto it.
+      if (i === 2) {
+        return { ...restDay(date), unplannedLoad: 30 };
+      }
+      return restDay(date);
+    });
+    await db.insert(schema.weekPlans).values({
+      userId: USER,
+      planId,
+      weekStart: lastWeekStart,
+      skeletonWeek: 1,
+      days: prevDays,
+      status: "open",
+    });
+
+    expect(await rolloverWeekPlan(USER)).toBe("rolled");
+
+    const block = await db.query.trainingBlocks.findFirst({
+      where: and(
+        eq(schema.trainingBlocks.planId, planId),
+        eq(schema.trainingBlocks.weekNumber, 1)
+      ),
+    });
+    // 50 (planned, completed) + 30 (unplanned rest-day ride) = 80.
+    expect(block?.actualLoad).toBe(80);
+    // The rest day's status is untouched — still not a session.
+    expect(block?.actualSessions).toBe(1);
+    expect(block?.adherencePct).toBe(Math.round((80 / 400) * 100));
+  });
+
   it("runDailyAdaptation on a red morning adapts today and logs an adjustment", async () => {
     const { db, schema } = await import("@/lib/db");
     const { runDailyAdaptation, getOpenWeekPlan, listAdjustments } =
@@ -249,7 +360,7 @@ describe.skipIf(!hasDb)("week-plan service", () => {
 
     const week = await getOpenWeekPlan(USER);
     const today = week!.days.find((d) => d.date === todayYmd);
-    expect(today?.workout?.type).toBe("Recovery");
+    expect(today?.workouts[0]?.type).toBe("Recovery");
     const adjustments = await listAdjustments(week!.id);
     expect(
       adjustments.some(
@@ -276,7 +387,7 @@ describe.skipIf(!hasDb)("week-plan service", () => {
     expect(await runDailyAdaptation(USER)).toBe("skipped");
   });
 
-  it("applyAvailability rematerializes only non-completed days and logs availability_change", async () => {
+  it("applyAvailability replans only non-completed days and logs availability_change", async () => {
     const {
       rolloverWeekPlan,
       applyAvailability,
@@ -285,15 +396,18 @@ describe.skipIf(!hasDb)("week-plan service", () => {
     } = await import("@/lib/week-plan/service");
 
     await rolloverWeekPlan(USER);
-    expect(await applyAvailability(USER, [0, 60, 60, 60, 60, 120, 150])).toBe(
-      "applied"
-    );
+    expect(
+      await applyAvailability(
+        USER,
+        [0, 60, 60, 60, 60, 120, 150].map(blocksFor)
+      )
+    ).toBe("applied");
 
     const week = await getOpenWeekPlan(USER);
     expect(week).not.toBeNull();
     const monday = week!.days[0];
     expect(monday.availableMins).toBe(0);
-    expect(monday.workout).toBeNull();
+    expect(monday.workouts).toHaveLength(0);
     const adjustments = await listAdjustments(week!.id);
     expect(adjustments.some((a) => a.trigger === "availability_change")).toBe(
       true
@@ -302,9 +416,12 @@ describe.skipIf(!hasDb)("week-plan service", () => {
 
   it("applyAvailability without an open week reports no_open_week", async () => {
     const { applyAvailability } = await import("@/lib/week-plan/service");
-    expect(await applyAvailability(USER, [0, 60, 60, 60, 60, 120, 150])).toBe(
-      "no_open_week"
-    );
+    expect(
+      await applyAvailability(
+        USER,
+        [0, 60, 60, 60, 60, 120, 150].map(blocksFor)
+      )
+    ).toBe("no_open_week");
   });
 
   it("no active plan → everything is a no-op", async () => {
@@ -312,6 +429,114 @@ describe.skipIf(!hasDb)("week-plan service", () => {
       await import("@/lib/week-plan/service");
     expect(await rolloverWeekPlan(OTHER)).toBe("skipped");
     expect(await runDailyAdaptation(OTHER)).toBe("skipped");
+  });
+
+  // Regression for the migration in drizzle/0031_backfill_availability_defaults.sql:
+  // an active-plan user with zero availability_defaults rows used to roll
+  // over into a silently all-rest week (resolveWeek returns [] for every
+  // weekday with no default). Deliberately does NOT hand-seed
+  // availability_defaults — that would mask exactly the bug this proves is
+  // fixed. Instead it applies the real, committed migration file verbatim
+  // (the actual fix) against a user left in the pre-migration broken state,
+  // then asserts the product-level consequence: the resulting week is not
+  // all-rest.
+  it("a user with an active plan and no availability_defaults gets a real week once the standard-week backfill runs", async () => {
+    const { db, schema } = await import("@/lib/db");
+    const { sql } = await import("drizzle-orm");
+    const { readFileSync } = await import("node:fs");
+    const { fileURLToPath } = await import("node:url");
+    const { rolloverWeekPlan, getOpenWeekPlan } =
+      await import("@/lib/week-plan/service");
+
+    const NODEFAULTS = "test-week-plans-no-defaults-user";
+    try {
+      await db
+        .insert(schema.users)
+        .values({
+          id: NODEFAULTS,
+          name: "No Defaults Test",
+          email: `${NODEFAULTS}@example.invalid`,
+          role: "member",
+        })
+        .onConflictDoNothing();
+
+      const [plan] = await db
+        .insert(schema.trainingPlans)
+        .values({
+          userId: NODEFAULTS,
+          title: "No-defaults plan",
+          raceType: "marathon",
+          raceDate: addDaysYmd(weekStart, 12 * 7),
+          startDate: lastWeekStart,
+          weeksTotal: 12,
+          currentWeek: 1,
+          status: "active",
+          constraints: { daysPerWeek: 4, hoursPerWeek: 8, sports: ["Run"] },
+        })
+        .returning();
+      await db.insert(schema.trainingBlocks).values({
+        planId: plan.id,
+        weekNumber: 1,
+        phase: "build",
+        targetLoadTotal: 400,
+        targetSessions: 4,
+        workouts: [],
+      });
+
+      // The best available record of what this athlete actually had: a
+      // closed prior week, training on its last 4 days (Thu–Sun), exactly
+      // the profile the migration derives a standard week from. No
+      // availability_defaults rows exist for this user yet.
+      await db.insert(schema.weekPlans).values({
+        userId: NODEFAULTS,
+        planId: plan.id,
+        weekStart: lastWeekStart,
+        skeletonWeek: 1,
+        status: "closed",
+        days: Array.from({ length: 7 }, (_, i) => {
+          const date = addDaysYmd(lastWeekStart, i);
+          const trainingDay = i >= 3;
+          return {
+            date,
+            availableBlocks: blocksFor(trainingDay ? 120 : 0),
+            availableMins: trainingDay ? 120 : 0,
+            workouts: [],
+            status: "rest" as const,
+          };
+        }),
+      });
+
+      const before = await db.query.availabilityDefaults.findMany({
+        where: eq(schema.availabilityDefaults.userId, NODEFAULTS),
+      });
+      expect(before).toHaveLength(0);
+
+      // Apply the actual committed migration SQL verbatim — the fix under
+      // test, not a hand-rolled equivalent.
+      const migrationPath = fileURLToPath(
+        new URL(
+          "../drizzle/0031_backfill_availability_defaults.sql",
+          import.meta.url
+        )
+      );
+      await db.execute(sql.raw(readFileSync(migrationPath, "utf8")));
+
+      const after = await db.query.availabilityDefaults.findMany({
+        where: eq(schema.availabilityDefaults.userId, NODEFAULTS),
+      });
+      expect(after).toHaveLength(7);
+
+      expect(await rolloverWeekPlan(NODEFAULTS)).toBe("rolled");
+      const week = await getOpenWeekPlan(NODEFAULTS);
+      expect(week).not.toBeNull();
+      // The product-level consequence: not every day materialized as rest.
+      expect(week!.days.every((d) => d.status === "rest")).toBe(false);
+    } finally {
+      // users cascades to trainingPlans/trainingBlocks/weekPlans/
+      // availabilityDefaults — same cascade-style cleanup as the rest of
+      // this file.
+      await db.delete(schema.users).where(eq(schema.users.id, NODEFAULTS));
+    }
   });
 
   it("generateWeeklyReview leaves an open week_plans row (rollover wired)", async () => {
@@ -371,9 +596,9 @@ describe.skipIf(!hasDb)("week-plan service", () => {
     const week = await getOpenWeekPlan(USER);
     const from = week!.days.find((d) => d.date === todayYmd)!;
     const to = week!.days.find((d) => d.date === toDate)!;
-    expect(from.workout).toBeNull();
+    expect(from.workouts).toHaveLength(0);
     expect(from.status).toBe("rest");
-    expect(to.workout?.type).toBe("Intervals");
+    expect(to.workouts[0]?.type).toBe("Intervals");
     expect(to.status).toBe("moved");
     expect(to.movedFrom).toBe(todayYmd);
 
@@ -419,7 +644,7 @@ describe.skipIf(!hasDb)("week-plan service", () => {
     const raceDate = seededDays().find((d) => d.date !== todayYmd)!.date;
     const days = seededDays().map((d) =>
       d.date === raceDate
-        ? { ...d, workout: null, status: "race" as const, raceName: "Test 10K" }
+        ? { ...d, workouts: [], status: "race" as const, raceName: "Test 10K" }
         : d
     );
     await db.insert(schema.weekPlans).values({
@@ -437,10 +662,66 @@ describe.skipIf(!hasDb)("week-plan service", () => {
     const race = week!.days.find((d) => d.date === raceDate)!;
     expect(race.status).toBe("race");
     expect(race.raceName).toBe("Test 10K");
-    expect(race.workout).toBeNull();
+    expect(race.workouts).toHaveLength(0);
     const source = week!.days.find((d) => d.date === todayYmd)!;
-    expect(source.workout?.type).toBe("Intervals");
+    expect(source.workouts[0]?.type).toBe("Intervals");
     expect(source.status).toBe("planned");
+  });
+
+  it("moveWorkout picks the roomier sibling block when the carried index would be too small (Task 9b)", async () => {
+    const { db, schema } = await import("@/lib/db");
+    const { moveWorkout, getOpenWeekPlan } =
+      await import("@/lib/week-plan/service");
+
+    // The target's block 0 is only 10min, far short of the 50min Intervals
+    // session; its block 1 is a roomy 120min. Before Task 9b, blockIdx was
+    // carried unchanged (0) and this move was refused even though the day
+    // plainly had room elsewhere — that carried-index bug is exactly what
+    // Task 9b fixes: the engine now searches every block on the destination
+    // day and records whichever one actually admits the session.
+    const toDate = seededDays().find((d) => d.date !== todayYmd)!.date;
+    const days = seededDays().map((d) =>
+      d.date === toDate
+        ? {
+            ...d,
+            availableBlocks: [
+              {
+                start: null,
+                end: null,
+                mins: 10,
+                energy: "full" as const,
+                sports: null,
+              },
+              {
+                start: null,
+                end: null,
+                mins: 120,
+                energy: "full" as const,
+                sports: null,
+              },
+            ],
+            availableMins: 130,
+          }
+        : d
+    );
+    await db.insert(schema.weekPlans).values({
+      userId: USER,
+      planId,
+      weekStart,
+      skeletonWeek: 1,
+      days,
+      status: "open",
+    });
+
+    expect(await moveWorkout(USER, todayYmd, toDate)).toBe("moved");
+
+    const week = await getOpenWeekPlan(USER);
+    const dest = week!.days.find((d) => d.date === toDate)!;
+    expect(dest.workouts[0]?.type).toBe("Intervals");
+    expect(dest.workouts[0]?.blockIdx).toBe(1);
+    const source = week!.days.find((d) => d.date === todayYmd)!;
+    expect(source.workouts).toHaveLength(0);
+    expect(source.status).toBe("rest");
   });
 
   it("swapWorkouts exchanges two days when both fit", async () => {
@@ -454,14 +735,17 @@ describe.skipIf(!hasDb)("week-plan service", () => {
       d.date === otherDate
         ? {
             ...d,
-            workout: {
-              day: 0,
-              sport: "Run",
-              type: "Endurance",
-              durationMins: 40,
-              intensity: "Z1-Z2",
-              description: "Easy run",
-            },
+            workouts: [
+              withPurpose({
+                day: 0,
+                sport: "Run",
+                type: "Endurance",
+                durationMins: 40,
+                intensity: "Z1-Z2",
+                description: "Easy run",
+                blockIdx: 0,
+              }),
+            ],
             status: "planned" as const,
           }
         : d
@@ -477,12 +761,12 @@ describe.skipIf(!hasDb)("week-plan service", () => {
 
     expect(await swapWorkouts(USER, todayYmd, otherDate)).toBe("swapped");
     const week = await getOpenWeekPlan(USER);
-    expect(week!.days.find((d) => d.date === todayYmd)!.workout?.type).toBe(
+    expect(week!.days.find((d) => d.date === todayYmd)!.workouts[0]?.type).toBe(
       "Endurance"
     );
-    expect(week!.days.find((d) => d.date === otherDate)!.workout?.type).toBe(
-      "Intervals"
-    );
+    expect(
+      week!.days.find((d) => d.date === otherDate)!.workouts[0]?.type
+    ).toBe("Intervals");
   });
 
   it("mid-week rollover gives already-past days zero availability and rest", async () => {
@@ -498,11 +782,11 @@ describe.skipIf(!hasDb)("week-plan service", () => {
     // Mon–Wed are gone: no availability, no invented workouts.
     for (const d of week!.days.slice(0, 3)) {
       expect(d.availableMins).toBe(0);
-      expect(d.workout).toBeNull();
+      expect(d.workouts).toHaveLength(0);
       expect(d.status).toBe("rest");
     }
     // The remaining days still carry the week's sessions.
-    expect(week!.days.slice(3).some((d) => d.workout !== null)).toBe(true);
+    expect(week!.days.slice(3).some((d) => d.workouts.length > 0)).toBe(true);
   });
 
   it("generateTrainingPlan materializes the first week immediately", async () => {
@@ -570,7 +854,7 @@ describe.skipIf(!hasDb)("week-plan service", () => {
     // the planned session itself is left intact.
     expect(day.actualLoad).toBeUndefined();
     expect(day.activityId).toBeUndefined();
-    expect(day.workout?.type).toBe("Intervals");
+    expect(day.workouts[0]?.type).toBe("Intervals");
   });
 
   it("markDayDone leaves the week's load-based adherence untouched", async () => {
@@ -656,15 +940,19 @@ describe.skipIf(!hasDb)("week-plan service", () => {
       if (date === tuesday) {
         return {
           date,
+          availableBlocks: blocksFor(60),
           availableMins: 60,
-          workout: {
-            day: i,
-            sport: "Run",
-            type: "Endurance",
-            durationMins: 45,
-            intensity: "Z1-Z2",
-            description: "Easy run",
-          },
+          workouts: [
+            {
+              day: i,
+              sport: "Run",
+              type: "Endurance",
+              durationMins: 45,
+              intensity: "Z1-Z2",
+              description: "Easy run",
+              blockIdx: 0,
+            },
+          ],
           status: "planned" as const,
         };
       }

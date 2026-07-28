@@ -9,25 +9,37 @@ interface Props {
 
 export function TodayCard({ slot, adjustmentReason }: Props) {
   if (!slot) return null;
-  const w = slot.workout;
+  const workouts = slot.workouts;
   return (
     <div className="glass rounded-[2rem] p-7">
       <div className="mb-4 flex items-center justify-between">
         <span className="label-micro">Today</span>
-        {w != null && (
+        {workouts.length === 1 && (
           <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-bold text-white/80">
-            {w.intensity}
+            {workouts[0].intensity}
           </span>
         )}
       </div>
 
-      {w != null ? (
-        <>
-          <p className="text-xl font-bold text-white">
-            {`${w.type} · ${w.durationMins} min`}
-          </p>
-          <p className="mt-1 text-[13px] text-white/60">{w.description}</p>
-        </>
+      {workouts.length > 0 ? (
+        workouts.map((w, i) => (
+          <div
+            key={i}
+            className={i > 0 ? "mt-4 border-t border-white/5 pt-4" : undefined}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xl font-bold text-white">
+                {`${w.type} · ${w.durationMins} min`}
+              </p>
+              {workouts.length > 1 && (
+                <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-bold text-white/80">
+                  {w.intensity}
+                </span>
+              )}
+            </div>
+            <p className="mt-1 text-[13px] text-white/60">{w.description}</p>
+          </div>
+        ))
       ) : (
         <p className="text-xl font-bold text-white">Rest</p>
       )}

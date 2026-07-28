@@ -1,16 +1,20 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { applyPlanChange, previewPlanChange } from "@/app/plan/actions";
+import {
+  applyPlanChange,
+  previewPlanChange,
+  zeroDay,
+} from "@/app/plan/actions";
 
 export interface DayActionsDay {
   date: string;
-  hasWorkout: boolean;
+  workoutCount: number;
 }
 
 export interface DayActionsOtherDay {
   date: string;
-  hasWorkout: boolean;
+  workoutCount: number;
   isRace: boolean;
 }
 
@@ -33,7 +37,7 @@ type Action = "move" | "swap" | "skip";
 // idea as races-section.tsx's past_date handling).
 const PLAN_ERROR_MESSAGES: Record<string, string> = {
   invalid:
-    "That move isn't allowed — the target day may already be taken, unavailable, or too close to another hard session.",
+    "That move isn't allowed — a day involved may already hold two sessions, or the target day may be taken, unavailable, or too close to another hard session.",
   no_open_week: "No open week to change right now.",
 };
 
@@ -72,13 +76,13 @@ export function DayActions({ day, otherDays, bare = false }: Props) {
   const [applied, setApplied] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (!day.hasWorkout) return null;
+  if (day.workoutCount === 0) return null;
 
   const targets =
     action === "move"
-      ? otherDays.filter((d) => !d.hasWorkout && !d.isRace)
+      ? otherDays.filter((d) => d.workoutCount === 0 && !d.isRace)
       : action === "swap"
-        ? otherDays.filter((d) => d.hasWorkout && !d.isRace)
+        ? otherDays.filter((d) => d.workoutCount > 0 && !d.isRace)
         : [];
   const needsTarget = action !== "skip";
 
@@ -218,6 +222,21 @@ export function DayActions({ day, otherDays, bare = false }: Props) {
             }}
           >
             What if?
+          </button>
+          {/* Pins this date to zero — an override, so it survives any later
+              change to the standard week (that is the whole point). */}
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() =>
+              startTransition(async () => {
+                const r = await zeroDay(day.date);
+                if (!r.ok) setError(friendlyPlanError(r.error));
+              })
+            }
+            className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[11px] font-bold text-white/60 disabled:opacity-40"
+          >
+            No time today
           </button>
           {error && <span className="text-[11px] text-red-400">{error}</span>}
         </div>

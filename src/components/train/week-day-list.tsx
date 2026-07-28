@@ -42,7 +42,7 @@ export function WeekDayList({ days }: { days: DaySlot[] }) {
   const today = localYmd(new Date());
   const otherDays: DayActionsOtherDay[] = days.map((o) => ({
     date: o.date,
-    hasWorkout: o.workout !== null,
+    workoutCount: o.workouts.length,
     isRace: o.status === "race",
   }));
 
@@ -68,15 +68,18 @@ export function WeekDayList({ days }: { days: DaySlot[] }) {
               </span>
 
               <div className="min-w-0 flex-1">
-                {d.workout ? (
-                  <p
-                    className={`truncate text-[12.5px] ${isToday ? "font-bold text-white" : "text-white/85"}`}
-                  >
-                    {`${d.workout.type} · ${d.workout.durationMins} min`}
-                    <span className="ml-1.5 font-normal text-white/40">
-                      {d.workout.intensity}
-                    </span>
-                  </p>
+                {d.workouts.length > 0 ? (
+                  d.workouts.map((w, i) => (
+                    <p
+                      key={i}
+                      className={`truncate text-[12.5px] ${isToday ? "font-bold text-white" : "text-white/85"}`}
+                    >
+                      {`${w.type} · ${w.durationMins} min`}
+                      <span className="ml-1.5 font-normal text-white/40">
+                        {w.intensity}
+                      </span>
+                    </p>
+                  ))
                 ) : d.status === "race" ? (
                   <p className="truncate text-[12.5px] font-bold text-fuchsia-300">
                     <span aria-hidden>🏁 </span>
@@ -104,9 +107,9 @@ export function WeekDayList({ days }: { days: DaySlot[] }) {
               </span>
             </div>
 
-            {isToday && d.workout && (
+            {isToday && d.workouts.length > 0 && (
               <DayActions
-                day={{ date: d.date, hasWorkout: true }}
+                day={{ date: d.date, workoutCount: d.workouts.length }}
                 otherDays={otherDays.filter((o) => o.date !== d.date)}
               />
             )}

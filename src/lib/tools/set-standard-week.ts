@@ -1,0 +1,42 @@
+import { z } from "zod";
+import type { ToolDefinition, ToolContext } from "./registry";
+import { db, schema } from "@/lib/db";
+import {
+  validateBlocks,
+  type AvailabilityBlock,
+} from "@/lib/availability/types";
+import { availabilityBlockSchema } from "./availability-block-schema";
+
+const parameters = z.object({
+  weekday: z.number().int().min(0).max(6).describe("0 = Monday"),
+  blocks: z
+    .array(availabilityBlockSchema)
+    .describe("Time blocks; an empty list means a rest day"),
+});
+
+async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
+  const blocks = args.blocks as AvailabilityBlock[];
+  const invalid = validateBlocks(blocks);
+  if (invalid) return { applied: false, reason: invalid };
+
+  await db
+    .insert(schema.availabilityDefaults)
+    .values({ userId: ctx.userId, weekday: args.weekday, blocks })
+    .onConflictDoUpdate({
+      target: [
+        schema.availabilityDefaults.userId,
+        schema.availabilityDefaults.weekday,
+      ],
+      set: { blocks, updatedAt: new Date() },
+    });
+  return { applied: true, weekday: args.weekday, blocks };
+}
+
+export const setStandardWeekTool: ToolDefinition<typeof parameters> = {
+  name: "set_standard_week",
+  description:
+    "Set one weekday of the athlete's standard weekly availability. Dates the athlete has already pinned keep their pinned value — this only changes weekdays that follow the default.",
+  parameters,
+  scope: "write:plan",
+  execute,
+};

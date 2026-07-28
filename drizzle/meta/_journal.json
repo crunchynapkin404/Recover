@@ -204,6 +204,34 @@
       "when": 1785060870041,
       "tag": "0028_parched_robin_chapel",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1785154061759,
+      "tag": "0029_short_william_stryker",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1785165191434,
+      "tag": "0030_blockidx_backfill",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1785171525532,
+      "tag": "0031_backfill_availability_defaults",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1785175125532,
+      "tag": "0032_availability_prompted_at",
+      "breakpoints": true
     }
   ]
 }

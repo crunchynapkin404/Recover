@@ -2,26 +2,31 @@ import { describe, expect, it } from "vitest";
 import { renderToString } from "react-dom/server";
 import { WeekStrip } from "./week-strip";
 import type { DaySlot } from "@/lib/week-plan/types";
+import { withPurpose } from "@/lib/training-plan";
 
 const slot = (
   date: string,
   status: DaySlot["status"],
-  workout: DaySlot["workout"] = null
+  workout: DaySlot["workouts"][number] | null = null
 ): DaySlot => ({
   date,
+  availableBlocks: [
+    { start: null, end: null, mins: 60, energy: "normal", sports: null },
+  ],
   availableMins: 60,
-  workout,
+  workouts: workout ? [workout] : [],
   status,
 });
 
-const run = {
+const run = withPurpose({
   day: 0,
   sport: "Run",
   type: "Endurance",
   durationMins: 45,
   intensity: "Z1-Z2",
   description: "Easy run",
-};
+  blockIdx: 0,
+});
 
 const days: DaySlot[] = [
   slot("2026-07-20", "completed", run),

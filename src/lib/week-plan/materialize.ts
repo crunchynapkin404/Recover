@@ -1,4 +1,4 @@
-import { generateWorkouts, type PlannedWorkout } from "@/lib/training-plan";
+import { generateWorkouts, withPurpose } from "@/lib/training-plan";
 import {
   raceWeekWorkouts,
   taperFractionForWeek,
@@ -16,10 +16,14 @@ import {
   type AdjustmentRecord,
   type DaySlot,
   type WeekState,
+  dayMins,
   isQuality,
   QUALITY_TYPES,
   STEP_DOWN,
 } from "./types";
+import { buildSlots, admits, slotKey, fitToBlock, findBlockFor } from "./slots";
+import type { AvailabilityBlock } from "@/lib/availability/types";
+import { MAX_SESSIONS_PER_DAY } from "@/lib/availability/types";
 
 export interface EffectiveLoadInput {
   skeletonTarget: number;
@@ -102,7 +106,8 @@ export interface MaterializeInput {
     targetLoadTotal: number;
     targetSessions: number;
   };
-  availabilityMins: number[];
+  /** One entry per day (Mon..Sun); each is that day's list of blocks. */
+  availableBlocksPerDay: AvailabilityBlock[][];
   prevWeek: { actualLoad: number; adherencePct: number } | null;
   recentBands: Band[];
   raceType: string;
@@ -175,12 +180,24 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
   const dates = Array.from({ length: 7 }, (_, i) =>
     addDays(input.weekStart, i)
   );
-  const availableIdx = input.availabilityMins
-    .map((m, i) => ({ m, i }))
-    .filter((x) => x.m > 0);
 
-  const sessions = Math.min(skeleton.targetSessions, availableIdx.length);
-  const hoursBudget = input.availabilityMins.reduce((s, m) => s + m, 0) / 60;
+  const days: DaySlot[] = dates.map((date, i) => {
+    const availableBlocks = input.availableBlocksPerDay[i] ?? [];
+    return {
+      date,
+      availableBlocks,
+      workouts: [],
+      availableMins: dayMins({ availableBlocks }),
+      status: "rest",
+    };
+  });
+
+  const hoursBudget = days.reduce((s, d) => s + dayMins(d), 0) / 60;
+  const usableDays = days.filter((d) => d.availableBlocks.length > 0).length;
+  const sessions = Math.min(
+    skeleton.targetSessions,
+    usableDays * MAX_SESSIONS_PER_DAY
+  );
   const neededHours =
     input.hoursPerWeek * (load / Math.max(1, skeleton.targetLoadTotal));
   let effectiveLoad = load;
@@ -209,21 +226,87 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
     });
   }
 
-  const days: DaySlot[] = dates.map((date, i) => ({
-    date,
-    availableMins: input.availabilityMins[i] ?? 0,
-    workout: null,
-    status: "rest",
-  }));
-
   const raceIdx = primary ? dates.indexOf(primary.date) : -1;
   const isRaceWeek = taperFraction === TAPER_FRACTION_RACE_WEEK && raceIdx >= 0;
 
   if (isRaceWeek) {
+    const taken = new Set<string>();
     for (const w of raceWeekWorkouts(input.sports[0] ?? "Run", raceIdx)) {
-      if ((input.availabilityMins[w.day] ?? 0) > 0) {
-        days[w.day] = { ...days[w.day], workout: { ...w }, status: "planned" };
+      // Which block on this day actually admits the session — never a
+      // hardcoded blockIdx 0, and never dayMins' summed-across-blocks
+      // question of whether the day has room at all.
+      const blockIdx = findBlockFor(days, w.day, w, taken);
+      if (blockIdx != null) {
+        taken.add(
+          slotKey({
+            dayIdx: w.day,
+            blockIdx,
+            mins: 0,
+            energy: "full",
+            sports: null,
+          })
+        );
+        days[w.day] = {
+          ...days[w.day],
+          workouts: [...days[w.day].workouts, { ...w, blockIdx }],
+          status: "planned",
+        };
+        continue;
       }
+
+      // Nothing admits it whole on its designated pre-race day (energy
+      // tier, size, sport, adjacency, or the per-day cap). Race-week
+      // sessions are pinned to a specific day relative to the race, so —
+      // unlike the main loop below — only that day's own blocks are
+      // candidates; try the same fitting rule a replan uses before giving
+      // up, and only drop, with a logged reason, when nothing does.
+      const candidates = buildSlots(days).filter(
+        (s) =>
+          s.dayIdx === w.day &&
+          !taken.has(slotKey(s)) &&
+          days[s.dayIdx].workouts.length < MAX_SESSIONS_PER_DAY &&
+          (s.sports === null || s.sports.includes(w.sport))
+      );
+      let placed = false;
+      for (const candidate of candidates) {
+        const fitted = fitToBlock(w, candidate.mins);
+        if (!fitted) continue;
+        if (!admits(candidate, fitted.workout, days, taken)) continue;
+
+        taken.add(slotKey(candidate));
+        const target = days[candidate.dayIdx];
+        days[candidate.dayIdx] = {
+          ...target,
+          workouts: [
+            ...target.workouts,
+            { ...fitted.workout, blockIdx: candidate.blockIdx },
+          ],
+          status: "planned",
+        };
+        adjustments.push({
+          date: target.date,
+          trigger: "no_time",
+          action: fitted.how === "compressed" ? "scaled" : "swapped",
+          before: [],
+          after: [],
+          reason:
+            fitted.how === "compressed"
+              ? `no block fits ${w.durationMins}min — ${w.type} shortened to ${fitted.workout.durationMins}min`
+              : `no block fits ${w.type} — replaced by ${fitted.workout.type}, which works in ${fitted.workout.durationMins}min`,
+        });
+        placed = true;
+        break;
+      }
+      if (placed) continue;
+
+      adjustments.push({
+        date: days[w.day].date,
+        trigger: "no_time",
+        action: "dropped",
+        before: [],
+        after: [],
+        reason: `no block on ${days[w.day].date} fits a ${w.durationMins}min ${w.type} — race-week session dropped`,
+      });
     }
   } else if (sessions > 0) {
     const effectiveHours = Math.min(hoursBudget, neededHours);
@@ -237,89 +320,123 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
       .sort((a, b) => b.durationMins - a.durationMins)
       .slice(0, sessions);
 
-    // Roomiest days first; stable by index for determinism.
-    const slots = [...availableIdx].sort((a, b) => b.m - a.m || a.i - b.i);
-    const taken = new Set<number>();
-
-    const place = (w: PlannedWorkout, avoidAdjacentQuality: boolean) => {
-      for (const s of slots) {
-        if (taken.has(s.i)) continue;
-        if (
-          avoidAdjacentQuality &&
-          (isQuality(days[s.i - 1]?.workout ?? null) ||
-            isQuality(days[s.i + 1]?.workout ?? null))
-        )
-          continue;
-        taken.add(s.i);
-        return s.i;
-      }
-      return null;
-    };
+    const taken = new Set<string>();
 
     for (const w of workouts) {
-      const quality = isQuality(w);
-      let idx = place(w, quality);
-      let workout = { ...w };
-      if (idx === null && quality) {
-        // Unavoidable adjacency: step the session down repeatedly until it
-        // is no longer a quality type (Intervals→Tempo→Endurance), since
-        // Tempo alone is still in QUALITY_TYPES and would re-break the
-        // adjacency invariant.
+      const slots = buildSlots(days); // rebuilt: earlier placements change admission
+      let slot = slots.find((s) => admits(s, w, days, taken));
+      let workout = w;
+
+      if (!slot && isQuality(w)) {
+        // No admitting slot for a quality session: step it down until it is
+        // no longer quality, exactly as the previous engine did.
         let steppedType = w.type;
         while ((QUALITY_TYPES as readonly string[]).includes(steppedType)) {
           steppedType = STEP_DOWN[steppedType] ?? "Endurance";
         }
-        idx = place(w, false);
-        if (idx !== null) {
-          workout = {
-            ...w,
-            type: steppedType,
-            intensity: "Z1-Z2",
-          };
+        const stepped = withPurpose({
+          ...w,
+          type: steppedType,
+          intensity: "Z1-Z2",
+        });
+        const steppedSlot = buildSlots(days).find((s) =>
+          admits(s, stepped, days, taken)
+        );
+        if (steppedSlot) {
+          slot = steppedSlot;
+          workout = stepped;
           adjustments.push({
-            date: days[idx].date,
+            date: days[steppedSlot.dayIdx].date,
             trigger: "weekly_rollover",
             action: "scaled",
             before: [],
             after: [],
-            reason: `no non-adjacent day left for ${w.type} — stepped down to ${workout.type}`,
+            reason: `no admitting slot for ${w.type} — stepped down to ${stepped.type}`,
           });
         }
       }
-      if (idx === null) continue; // fewer slots than workouts: drop silently sized by `sessions`
-      const cap = days[idx].availableMins;
-      if (workout.durationMins > cap) {
-        const before = { ...days[idx], workout: { ...workout } };
-        workout.durationMins = cap;
+
+      if (!slot) {
+        // Nothing admits it whole. Rather than drop it silently, try the
+        // same fitting rule a replan uses — but a fitted (shortened or
+        // substituted) session still needs to be *safe* to place, so every
+        // candidate is checked with the real admission rule, roomiest
+        // first, until one passes or none do.
+        const candidates = buildSlots(days).filter(
+          (s) =>
+            !taken.has(slotKey(s)) &&
+            days[s.dayIdx].workouts.length < MAX_SESSIONS_PER_DAY &&
+            (s.sports === null || s.sports.includes(workout.sport))
+        );
+        let placed = false;
+        for (const candidate of candidates) {
+          const fitted = fitToBlock(workout, candidate.mins);
+          if (!fitted) continue;
+          if (!admits(candidate, fitted.workout, days, taken)) continue;
+
+          taken.add(slotKey(candidate));
+          const target = days[candidate.dayIdx];
+          days[candidate.dayIdx] = {
+            ...target,
+            workouts: [
+              ...target.workouts,
+              { ...fitted.workout, blockIdx: candidate.blockIdx },
+            ],
+            status: "planned",
+          };
+          adjustments.push({
+            date: target.date,
+            trigger: "no_time",
+            action: fitted.how === "compressed" ? "scaled" : "swapped",
+            before: [],
+            after: [],
+            reason:
+              fitted.how === "compressed"
+                ? `no block fits ${workout.durationMins}min — ${workout.type} shortened to ${fitted.workout.durationMins}min`
+                : `no block fits ${workout.type} — replaced by ${fitted.workout.type}, which works in ${fitted.workout.durationMins}min`,
+          });
+          placed = true;
+          break;
+        }
+        if (placed) continue;
         adjustments.push({
-          date: days[idx].date,
+          date: input.weekStart,
           trigger: "no_time",
-          action: "scaled",
-          before: [before],
-          after: [{ ...days[idx], workout: { ...workout }, status: "planned" }],
-          reason: `shortened to fit available time (${cap}min) on ${days[idx].date}`,
+          action: "dropped",
+          before: [],
+          after: [],
+          reason: `no block in the week fits a ${workout.durationMins}min ${workout.type} — session dropped`,
         });
+        continue;
       }
-      days[idx] = { ...days[idx], workout, status: "planned" };
+      taken.add(slotKey(slot));
+      const target = days[slot.dayIdx];
+      days[slot.dayIdx] = {
+        ...target,
+        workouts: [...target.workouts, { ...workout, blockIdx: slot.blockIdx }],
+        status: "planned",
+      };
     }
   }
 
   for (const race of races) {
     const idx = dates.indexOf(race.date);
     if (idx === -1) continue;
-    if (days[idx].workout) {
+    if (days[idx].workouts.length > 0) {
       adjustments.push({
         date: race.date,
         trigger: "race",
         action: "swapped",
-        before: [{ ...days[idx], workout: { ...days[idx].workout! } }],
+        before: [
+          { ...days[idx], workouts: days[idx].workouts.map((w) => ({ ...w })) },
+        ],
         after: [],
         reason: `race day: ${race.name} replaces the planned workout`,
       });
     }
     days[idx] = {
       ...days[idx],
-      workout: null,
+      workouts: [],
       status: "race",
       raceName: race.name,
     };
@@ -329,12 +446,12 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
   // train through. The primary race decides (first in sorted input).
   if (primary && primary.priority !== "C") {
     const idx = dates.indexOf(primary.date);
-    if (idx >= 1 && days[idx - 1].workout) {
+    if (idx >= 1 && days[idx - 1].workouts.length > 0) {
       const before = {
         ...days[idx - 1],
-        workout: { ...days[idx - 1].workout! },
+        workouts: days[idx - 1].workouts.map((w) => ({ ...w })),
       };
-      days[idx - 1] = { ...days[idx - 1], workout: null, status: "rest" };
+      days[idx - 1] = { ...days[idx - 1], workouts: [], status: "rest" };
       adjustments.push({
         date: before.date,
         trigger: "race",
@@ -344,18 +461,25 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
         reason: `rest before ${primary.name}`,
       });
     }
-    if (!isRaceWeek && idx >= 2 && isQuality(days[idx - 2].workout)) {
+    if (
+      !isRaceWeek &&
+      idx >= 2 &&
+      days[idx - 2].workouts.some((w) => isQuality(w))
+    ) {
       const before = {
         ...days[idx - 2],
-        workout: { ...days[idx - 2].workout! },
+        workouts: days[idx - 2].workouts.map((w) => ({ ...w })),
       };
+      // Step down every quality session on the day, keeping any
+      // non-quality sibling exactly as it was — never rebuilding the day
+      // as a one-element array, which silently dropped a second session.
       days[idx - 2] = {
         ...days[idx - 2],
-        workout: {
-          ...days[idx - 2].workout!,
-          type: "Endurance",
-          intensity: "Z1-Z2",
-        },
+        workouts: days[idx - 2].workouts.map((w) =>
+          isQuality(w)
+            ? withPurpose({ ...w, type: "Endurance", intensity: "Z1-Z2" })
+            : w
+        ),
         status: "planned",
       };
       adjustments.push({

@@ -8,8 +8,10 @@ consumers" (see the comment at the top of `registry.ts`) means every tool a
 same object the in-app coach calls — there is no separate, hand-maintained
 MCP schema to drift out of sync.
 
-As of **v0.20**, that surface — **54 tools**, their names, required scopes,
-and input schemas — is **frozen**. This is the point past which the sweep's
+As of **v0.20**, that surface — its tool names, required scopes, and input
+schemas — is **frozen**. The count was **54** when the freeze landed and is
+**56** as of v0.26.0, which added `set_standard_week` and
+`clear_availability_override`. This is the point past which the sweep's
 API/MCP freeze task (`docs/specs/2026-07-21-v0.20-final-sweep-design.md`)
 was placed last in the release: nothing else in the sweep touches a tool
 schema after this doc and its guard test land.
@@ -31,7 +33,7 @@ For each tool in `allTools`:
   new _optional_ field) are allowed without bumping past a minor version,
   but still require updating the frozen snapshot deliberately (see below)
   and a CHANGELOG entry.
-- The **tool count** (54) is asserted directly, so an accidental add or
+- The **tool count** (56) is asserted directly, so an accidental add or
   remove is caught even in the pathological case where a rename happens to
   collide with another entry's old name.
 
@@ -57,7 +59,7 @@ edit.
 `src/lib/tools/__tests__/frozen-tools.test.ts` is the enforcement
 mechanism, not just documentation of intent:
 
-- `MCP tool count is frozen` — fails if `allTools.length !== 54`.
+- `MCP tool count is frozen` — fails if `allTools.length !== 56`.
 - `MCP tool surface is frozen (names + scopes + schemas)` — snapshots
   `{ name, scope, schema }` for every tool, sorted by name, via Vitest's
   `toMatchSnapshot()` against

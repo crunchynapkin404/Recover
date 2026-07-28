@@ -1,20 +1,63 @@
 import type { PlannedWorkout } from "@/lib/training-plan";
 import type { Band } from "@/lib/readiness";
+import type { AvailabilityBlock } from "@/lib/availability/types";
+import { blockMins } from "@/lib/availability/types";
 
 export type DayStatus =
   "planned" | "completed" | "adapted" | "moved" | "missed" | "rest" | "race";
 
+/**
+ * A session that has actually been placed. `blockIdx` says which of its
+ * day's availableBlocks it occupies — a template from generateWorkouts has
+ * no such answer, which is why this is a distinct type: placing a session
+ * without saying where is a compile error, not a silent wrong week.
+ */
+export interface ScheduledWorkout extends PlannedWorkout {
+  /** Index into its day's availableBlocks. The block this session occupies. */
+  blockIdx: number;
+}
+
 export interface DaySlot {
   date: string; // YYYY-MM-DD
-  availableMins: number; // 0 = rest day by availability
-  workout: PlannedWorkout | null;
+  /** Resolved availability for this date. Empty = unavailable. */
+  availableBlocks: AvailabilityBlock[];
+  /** Up to MAX_SESSIONS_PER_DAY sessions. Empty = rest. */
+  workouts: ScheduledWorkout[];
+  /**
+   * Derived sum, kept only so existing displays and the race forecast keep
+   * working. Placement logic must never read it — a day of 45m + 60m is
+   * two opportunities, not one 105-minute one.
+   */
+  availableMins: number;
   status: DayStatus;
   /** Set when a workout was moved here from another day (its original date). */
   movedFrom?: string;
   activityId?: string;
   actualLoad?: number;
+  /** Load from work the plan did not ask for. Never triggers a replan. */
+  unplannedLoad?: number;
   /** Set on race-day slots (status "race"): the race's display name. */
   raceName?: string;
+}
+
+/** The day's total available minutes, from its blocks. */
+export function dayMins(d: Pick<DaySlot, "availableBlocks">): number {
+  return d.availableBlocks.reduce((s, b) => s + blockMins(b), 0);
+}
+
+/**
+ * Whether the SPECIFIC block at this index can hold a session this long.
+ * Never "does some block on this day work?" — a session judged against a
+ * roomier sibling block it doesn't actually occupy is exactly the defect
+ * this replaces: a day's biggest block excusing every session on it.
+ */
+export function blockFits(
+  d: Pick<DaySlot, "availableBlocks">,
+  blockIdx: number,
+  mins: number
+): boolean {
+  const block = d.availableBlocks[blockIdx];
+  return block != null && blockMins(block) >= mins;
 }
 
 export interface WeekState {
@@ -47,7 +90,7 @@ export type { Band };
 
 /** Quality sessions never sit on consecutive days and get readiness care. */
 export const QUALITY_TYPES = ["Intervals", "Tempo", "Brick"] as const;
-export function isQuality(w: PlannedWorkout | null): boolean {
+export function isQuality(w: PlannedWorkout | null | undefined): boolean {
   return w != null && (QUALITY_TYPES as readonly string[]).includes(w.type);
 }
 
@@ -80,7 +123,3 @@ export const STEP_DOWN: Record<string, string> = {
   Tempo: "Endurance",
   Brick: "Endurance",
 };
-
-// ── availability prefill constants ──────────────────────────────────────
-/** A day with at least this many busy calendar minutes halves its prefill. */
-export const BUSY_DAY_MINS = 480;

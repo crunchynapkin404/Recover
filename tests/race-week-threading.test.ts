@@ -186,6 +186,25 @@ describe.skipIf(!hasDb)(
         name: "Taper Threader",
         email: "race-threading-taper@example.invalid",
       });
+      // rolloverWeekPlan now resolves availability from availability_defaults
+      // rather than synthesizing it from plan constraints — seed a generous
+      // standard week so the taper target isn't also clamped by the
+      // hours-budget guard, which isn't what this test is checking.
+      await db.insert(schema.availabilityDefaults).values(
+        Array.from({ length: 7 }, (_, weekday) => ({
+          userId: TAPER_USER,
+          weekday,
+          blocks: [
+            {
+              start: null,
+              end: null,
+              mins: 120,
+              energy: "normal" as const,
+              sports: null,
+            },
+          ],
+        }))
+      );
     });
     afterAll(cleanupTaperUser);
 
@@ -242,28 +261,45 @@ describe.skipIf(!hasDb)(
       // Last week: fully executed, actualLoad 200 — this becomes the taper
       // base (materializeWeek's taperBase = prevWeek.actualLoad).
       const PREV_ACTUAL = 200;
+      const blocksFor = (mins: number) =>
+        mins > 0
+          ? [
+              {
+                start: null,
+                end: null,
+                mins,
+                energy: "normal" as const,
+                sports: null,
+              },
+            ]
+          : [];
       const week1Days = Array.from({ length: 7 }, (_, i) => {
         const date = addDaysYmd(week1Start, i);
         if (i === 0) {
           return {
             date,
+            availableBlocks: blocksFor(120),
             availableMins: 120,
-            workout: {
-              day: 0,
-              sport: "Run",
-              type: "Endurance",
-              durationMins: 90,
-              intensity: "Z1-Z2",
-              description: "Long run",
-            },
+            workouts: [
+              {
+                day: 0,
+                sport: "Run",
+                type: "Endurance",
+                durationMins: 90,
+                intensity: "Z1-Z2",
+                description: "Long run",
+                blockIdx: 0,
+              },
+            ],
             status: "completed" as const,
             actualLoad: PREV_ACTUAL,
           };
         }
         return {
           date,
+          availableBlocks: blocksFor(120),
           availableMins: 120,
-          workout: null,
+          workouts: [],
           status: "rest" as const,
         };
       });
@@ -312,16 +348,18 @@ describe.skipIf(!hasDb)(
         if (i === 0) {
           return {
             date,
+            availableBlocks: blocksFor(120),
             availableMins: 120,
-            workout: null,
+            workouts: [],
             status: "completed" as const,
             actualLoad: expectedTaperTarget,
           };
         }
         return {
           date,
+          availableBlocks: blocksFor(120),
           availableMins: 120,
-          workout: null,
+          workouts: [],
           status: "rest" as const,
         };
       });

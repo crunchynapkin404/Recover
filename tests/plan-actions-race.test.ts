@@ -67,15 +67,17 @@ describe.skipIf(!hasDb)("plan race actions", () => {
     const { getOpenWeekPlan } = await import("@/lib/week-plan/service");
     const { previewPlanChange } = await import("@/app/plan/actions");
     const week = await getOpenWeekPlan(USER);
-    const from = week!.days.find((d) => d.workout && d.date > ymd(0));
+    const from = week!.days.find(
+      (d) => d.workouts.length > 0 && d.date > ymd(0)
+    );
     if (!from) return; // nothing future to preview this late in the week
     const r = await previewPlanChange({ action: "skip", fromDate: from.date });
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.loadDelta).toBeLessThanOrEqual(0);
     const after = await getOpenWeekPlan(USER);
     expect(
-      after!.days.find((d) => d.date === from.date)?.workout
-    ).not.toBeNull();
+      after!.days.find((d) => d.date === from.date)?.workouts[0]
+    ).not.toBeUndefined();
   });
 
   it("addRace validates past dates", async () => {

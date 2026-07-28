@@ -10,11 +10,22 @@ export const FALLBACK_WINDOW_DAYS = 28;
 /** Trailing-average fallback needs activities on at least this many distinct days. */
 export const MIN_FALLBACK_ACTIVITY_DAYS = 6;
 
-/** Planned volume (seconds) of the open week, or null when nothing is planned. */
+/**
+ * Planned volume (seconds) of the open week, or null when nothing is planned.
+ *
+ * Reads `workouts[]`, the shape a DaySlot has carried since the availability
+ * redesign — a day can hold two sessions. The old single-`workout` signature
+ * still type-checked against nothing (this function has no callers yet), so
+ * had it ever been wired up it would have summed zero and returned null,
+ * silently hiding the ring rather than failing.
+ */
 export function plannedWeekVolumeS(
-  days: Array<{ workout: { durationMins: number } | null }>
+  days: Array<{ workouts: Array<{ durationMins: number }> }>
 ): number | null {
-  const mins = days.reduce((s, d) => s + (d.workout?.durationMins ?? 0), 0);
+  const mins = days.reduce(
+    (s, d) => s + d.workouts.reduce((t, w) => t + w.durationMins, 0),
+    0
+  );
   return mins > 0 ? mins * 60 : null;
 }
 

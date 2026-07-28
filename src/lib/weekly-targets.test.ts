@@ -9,17 +9,23 @@ import {
 describe("plannedWeekVolumeS", () => {
   it("sums planned workout minutes into seconds", () => {
     const days = [
-      { workout: { durationMins: 60 } },
-      { workout: null },
-      { workout: { durationMins: 45 } },
+      { workouts: [{ durationMins: 60 }] },
+      { workouts: [] },
+      { workouts: [{ durationMins: 45 }] },
+    ];
+    expect(plannedWeekVolumeS(days)).toBe(105 * 60);
+  });
+
+  it("counts both sessions on a two-session day", () => {
+    const days = [
+      { workouts: [{ durationMins: 45 }, { durationMins: 60 }] },
+      { workouts: [] },
     ];
     expect(plannedWeekVolumeS(days)).toBe(105 * 60);
   });
 
   it("a week with no planned workouts has no volume target", () => {
-    expect(
-      plannedWeekVolumeS([{ workout: null }, { workout: null }])
-    ).toBeNull();
+    expect(plannedWeekVolumeS([{ workouts: [] }, { workouts: [] }])).toBeNull();
   });
 });
 

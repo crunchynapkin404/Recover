@@ -1,6 +1,6 @@
 "use client";
 
-import { formatAvailability } from "@/lib/week-plan/availability";
+import { formatAvailability } from "@/lib/availability/format";
 import { WheelColumn } from "./wheel-column";
 
 const PRESETS = [0, 30, 45, 60, 90, 120, 150];

@@ -2,25 +2,33 @@ import { describe, expect, it } from "vitest";
 import { renderToString } from "react-dom/server";
 import { TodayCard } from "./today-card";
 import type { DaySlot } from "@/lib/week-plan/types";
+import { withPurpose } from "@/lib/training-plan";
 
 const workoutSlot: DaySlot = {
   date: "2026-07-21",
+  availableBlocks: [
+    { start: null, end: null, mins: 60, energy: "normal", sports: null },
+  ],
   availableMins: 60,
-  workout: {
-    day: 1,
-    sport: "Run",
-    type: "Intervals",
-    durationMins: 50,
-    intensity: "Z4-Z5",
-    description: "6×3min hard with jog recoveries",
-  },
+  workouts: [
+    withPurpose({
+      day: 1,
+      sport: "Run",
+      type: "Intervals",
+      durationMins: 50,
+      intensity: "Z4-Z5",
+      description: "6×3min hard with jog recoveries",
+      blockIdx: 0,
+    }),
+  ],
   status: "planned",
 };
 
 const restSlot: DaySlot = {
   date: "2026-07-21",
+  availableBlocks: [],
   availableMins: 0,
-  workout: null,
+  workouts: [],
   status: "rest",
 };
 

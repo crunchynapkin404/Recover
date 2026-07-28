@@ -247,8 +247,17 @@ describe.skipIf(!hasDb)("morning insight", () => {
       d.setDate(monday.getDate() + i);
       return {
         date: localYmd(d),
+        availableBlocks: [
+          {
+            start: null,
+            end: null,
+            mins: 60,
+            energy: "normal" as const,
+            sports: null,
+          },
+        ],
         availableMins: 60,
-        workout: null,
+        workouts: [],
         status: "rest",
       };
     });
