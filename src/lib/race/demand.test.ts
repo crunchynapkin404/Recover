@@ -12,8 +12,8 @@ const base: EventDemandInput = {
 };
 
 describe("eventDemand", () => {
-  it("puts the 8-day alpine tour near 17 weekly hours", () => {
-    // 42.1h of riding / 2.50 = 16.8. That is MORE than the athlete believes
+  it("puts the 8-day alpine tour near 16 weekly hours", () => {
+    // 39.2h of riding / 2.50 = 15.7. That is MORE than the athlete believes
     // they can manage (they estimated 9-12h) — deliberately. The ceiling in
     // weeklyTargetHours cuts it to what their chronic load supports, and the
     // gap is the finding. Do not tune the constants to close it here.
@@ -30,7 +30,7 @@ describe("eventDemand", () => {
   });
 
   it("puts a single alpine gran fondo inside the published 8-12h band", () => {
-    // 6.8h / 0.60 = 11.4 h/week. Published intermediate century and gran fondo
+    // 6.6h / 0.60 = 10.9 h/week. Published intermediate century and gran fondo
     // plans run 8-12 h/week, and this lands inside that band without being
     // fitted to it — only the two endpoint ratios were fitted.
     const d = eventDemand({
@@ -80,7 +80,7 @@ describe("eventDemand", () => {
     expect(asStage.weeklyHours).toBeCloseTo(oneDay.weeklyHours, 5);
   });
 
-  it("sums stages independently, which is not the same as one long ride", () => {
+  it("agrees whether the days are given as stages or as totals", () => {
     const d = eventDemand({
       ...base,
       eventDays: 2,
