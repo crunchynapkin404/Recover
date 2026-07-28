@@ -222,11 +222,11 @@ describe("estimateRidingHours", () => {
       ...ATHLETE,
     });
     expect(h).not.toBeNull();
-    expect(h!).toBeGreaterThan(45);
-    expect(h!).toBeLessThan(56);
+    expect(h!).toBeGreaterThan(38);
+    expect(h!).toBeLessThan(50);
   });
 
-  it("estimates a single alpine gran fondo at roughly 5-6 hours", () => {
+  it("estimates a single alpine gran fondo at roughly 6-7 hours", () => {
     const h = estimateRidingHours({
       distanceKm: 130,
       elevationM: 4000,
@@ -329,6 +329,12 @@ export const DEMAND_CONSTANTS = {
     { upToHours: 5, fraction: 0.75 },
     { upToHours: Infinity, fraction: 0.68 },
   ],
+  /**
+   * Average gradient of the climbing portions of an event. Used to work out
+   * how much of the total distance is spent ascending, so that distance is
+   * not charged twice — see riding-time.ts.
+   */
+  CLIMB_GRADIENT: 0.07,
   /** Fixed-point iterations resolving "power needs duration needs power". */
   POWER_ITERATIONS: 2,
   /** Starting guess before the first iteration. */
@@ -406,15 +412,32 @@ export function estimateRidingHours(input: RidingTimeInput): number | null {
 
   if (!(distanceKm > 0) || !(ftpWatts > 0) || !(massKg > 0)) return null;
 
-  let fraction = C.INITIAL_FTP_FRACTION;
+  // Annotated: DEMAND_CONSTANTS is `as const`, so an inferred type would be
+  // the literal 0.75 and the reassignment below would not compile.
+  let fraction: number = C.INITIAL_FTP_FRACTION;
   let hours = 0;
 
   for (let i = 0; i < C.POWER_ITERATIONS + 1; i++) {
     const powerW = ftpWatts * fraction;
+    const speedKmh = flatSpeedKmh(powerW);
+
     // Work to lift mass against gravity, delivered at this power.
     const climbHours = (massKg * 9.81 * elevationM) / (powerW * 3600);
-    const flatHours = distanceKm / flatSpeedKmh(powerW);
-    hours = climbHours + flatHours;
+    const flatHours = distanceKm / speedKmh;
+
+    // Those two terms overlap. The flat term charges the WHOLE distance at
+    // flat speed; the climb term then adds the time to gain the elevation —
+    // but you cover ground while climbing, so the ascending kilometres are
+    // paid for twice. Subtract their flat-equivalent time.
+    //
+    // Without this correction a 130km/4000m alpine fondo came out at 8.6h for
+    // a 3.9 W/kg rider who rides it in about 6:30.
+    const climbDistanceKm = elevationM / 1000 / C.CLIMB_GRADIENT;
+    // Capped at the whole distance: on a hill-climb time trial the ascent
+    // accounts for every kilometre, and the overlap can never exceed the ride.
+    const overlapHours = Math.min(flatHours, climbDistanceKm / speedKmh);
+
+    hours = climbHours + flatHours - overlapHours;
     fraction = ftpFractionFor(hours);
   }
 
@@ -512,15 +535,19 @@ describe("eventDemand", () => {
     expect(d.dailyRateHours).toBeLessThan(8);
   });
 
-  it("puts a single alpine gran fondo near 9-10 weekly hours", () => {
+  it("puts a single alpine gran fondo in a plausible weekly range", () => {
+    // A 130km/4000m fondo is a ~6.8h day, so it asks MORE per week than the
+    // 8-day tour above, whose average day is easier (112km/2500m). That is
+    // the model working, not a bug: the tour's demand comes from repetition,
+    // which is met by back-to-back long rides rather than weekly volume.
     const d = eventDemand({
       ...base,
       eventDays: 1,
       distanceKm: 130,
       elevationM: 4000,
     })!;
-    expect(d.weeklyHours).toBeGreaterThan(7);
-    expect(d.weeklyHours).toBeLessThan(12);
+    expect(d.weeklyHours).toBeGreaterThan(8);
+    expect(d.weeklyHours).toBeLessThan(14);
   });
 
   it("treats a one-day event as days=1, not a special case", () => {
