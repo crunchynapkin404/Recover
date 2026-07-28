@@ -46,14 +46,18 @@ export const LEVEL_CONSTANTS = {
   PEAK_WINDOW_WEEKS: 12,
   /** Weekly-hours ceiling as a multiple of the rolling peak. */
   HEADROOM: 1.3,
-  /** Upper bound of each band, in trailing weekly hours. */
+  /** Upper bound of each band, in trailing weekly hours. `max` is exclusive
+   *  (bandFor uses value < max), so a value exactly at a boundary — e.g.
+   *  9 hours — falls into the next-higher band, not this one. */
   HOURS_BANDS: [
     { max: 3, level: "recreational" as AthleteLevel },
     { max: 5, level: "amateur" as AthleteLevel },
     { max: 9, level: "intermediate" as AthleteLevel },
     { max: Infinity, level: "advanced" as AthleteLevel },
   ],
-  /** Upper bound of each band, in CTL. */
+  /** Upper bound of each band, in CTL. `max` is exclusive, same as
+   *  HOURS_BANDS above — a value exactly at a boundary belongs to the
+   *  next-higher band. */
   CTL_BANDS: [
     { max: 35, level: "recreational" as AthleteLevel },
     { max: 55, level: "amateur" as AthleteLevel },
