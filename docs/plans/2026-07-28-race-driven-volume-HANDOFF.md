@@ -19,21 +19,21 @@ any compaction, trust the ledger and `git log` over recollection.
 |        |                                                                             |
 | ------ | --------------------------------------------------------------------------- |
 | Branch | `feat/race-driven-volume` (off `docs/race-driven-volume-spec`, off `main`)   |
-| HEAD   | `cf50f57`                                                                   |
+| HEAD   | `3f657d0`                                                                   |
 | Spec   | `docs/specs/2026-07-28-race-driven-volume-design.md` (approved)             |
 | Evidence | `docs/specs/2026-07-28-training-volume-evidence.md` (research, per-constant confidence) |
 | Plan   | `docs/plans/2026-07-28-race-driven-volume-phase1.md` (12 tasks)             |
 | Ledger | `.superpowers/sdd/progress.md` (gitignored — recover from `git log` if lost) |
-| Done   | Tasks 1–6, all reviewed clean                                               |
-| Next   | **Task 7 — feasibility verdict.** BASE for Task 7 = `cf50f57`               |
+| Done   | Tasks 1–6 **and 13**, all reviewed clean                                     |
+| Next   | **Task 7 — feasibility verdict.** BASE for Task 7 = `3f657d0`               |
 
 Prerequisite **v0.27.0 is shipped and live** (the sport-vocabulary fix).
 Nothing here depends on further deployment.
 
 ## Start here
 
-Tasks 1–6 are done and reviewed clean. **Start Task 7 directly** — generate its
-brief, record BASE `cf50f57`, dispatch. Nothing is half-finished; the working
+Tasks 1–6 and 13 are done and reviewed clean. **Start Task 7 directly** —
+generate its brief, record BASE `3f657d0`, dispatch. Nothing is half-finished; the working
 tree is clean and the full suite is green.
 
 ## How to run the remaining tasks
@@ -84,44 +84,62 @@ Do not drop it.
 Then: final whole-branch review (**Opus**), then
 `superpowers:finishing-a-development-branch`.
 
-## Two decisions still owed by the user
+## Both open decisions are SETTLED and IMPLEMENTED (Task 13)
 
-Neither blocks Tasks 7–12. Both were raised and are unanswered.
+The user delegated both ("take the lead on both and proceed"). They were
+**coupled** — fixing the ladder without fixing the pricing would have been
+incoherent. Do not reopen either.
 
-### 1. The FTP ladder is a step function, and the tour sits on a cliff edge
+**1. The FTP ladder is now continuous.** `FTP_FRACTION` step bands became
+`FTP_FRACTION_ANCHORS` (3h→0.85, 5h→0.75, 8h→0.68), linearly interpolated and
+**flat outside the range**. Same three fractions; only how they are reached
+changed. The cliff is gone: 114km/116km predicted 4.985h/5.424h, now
+4.981h/5.081h.
 
-`FTP_FRACTION` steps at 3h and 5h. The Dolomites average day is **4.920h**,
-**1.6% under the 5.00h boundary**:
+**The flat tail above 8h is load-bearing, not laziness.** Extrapolating the
+decline out to a 42-hour "ride" would produce a sustainable fraction no rider
+has been measured at. The 8h anchor position is **new and Low confidence** — it
+is a reading of what the old `>5h` band meant, not a published figure.
 
-| ride   | predicted |
-| ------ | --------- |
-| 114 km | 4.985 h   |
-| 116 km | 5.424 h   |
+**2. A multi-day event is priced per DAY, not as one continuous ride.** The
+ladder models *within-ride* fatigue, and riders sleep between stages. Charging
+an 8-day tour the deep-fatigue fraction it would earn by riding 42 hours
+without sleeping was a category error.
 
-A 1.75% longer ride jumps **8.8%** in predicted time. This affects every
-estimate, not just tours.
+**Cumulative cross-day fatigue is real and deliberately NOT modelled.** There
+is no published magnitude for it in the evidence base, and inventing one by
+mispricing the duration is worse than omitting it. If it is ever added, it
+belongs as its own explicit term, not folded into the duration.
 
-**Coordinator's recommendation: interpolate between bands instead of stepping**,
-as its own task against Task 2's `riding-time.ts`. It removes the cliff and
-makes decision 2 much less consequential.
+Numbers after, computed independently **three times** — coordinator,
+implementer and reviewer all matched to four decimals:
 
-### 2. Should a multi-day event carry a cumulative-fatigue penalty?
+| quantity                 | before | after  |
+| ------------------------ | ------ | ------ |
+| fondo 130km/4000m        | 6.82h  | 6.57h  |
+| tour day 112.5km/2500m   | 4.92h  | 4.90h  |
+| tour total (8 days)      | 42.09h | 39.18h |
+| tour weeklyHours         | 16.8   | 15.68  |
+| fondo weeklyHours        | 11.4   | 10.95  |
+| whole-block 900km/20000m | 42.09h | 42.09h |
 
-Without stage data, `eventDemand` prices a multi-day event as **one continuous
-block**. Dolomites: **42.09h** that way, **39.36h** as per-day × 8 (~7%).
+Fondo and century still sit inside the published 8–12 h/week band. **The tour
+still exceeds the ceiling and still reports the athlete under-prepared — that
+conclusion is robust to both changes.**
 
-- **Per-day** is right if the ladder models *within-ride* fatigue — you sleep
-  between stages, and an 8-day tour is not a 42-hour ride.
-- **Whole-event** is right if it also absorbs *cumulative* stage-race fatigue,
-  which is real and is in the evidence base (the medRxiv stage-race source).
+**The satisfying part, and the lesson.** Task 3 had to *overturn* the original
+plan's assertion that the staged and unstaged paths agree within 0.05h — they
+were 0.283h apart, because the two paths were priced on different fatigue
+bands. With per-day pricing the gap is **0.012h and the original assertion is
+restored and passes.** The plan author's instinct was right; the model was
+wrong. When a test and a model disagree, the model is worth suspecting too.
 
-Both effects exist and the current model conflates them. It hits the **common**
-case, since most events are entered without per-stage detail, and it flows into
-`weeklyHours` and the `queenStageHours` average-day fallback.
-
-**The headline conclusion is robust either way:** at 39.36h the tour still asks
-~15.7 h/week, still exceeds the ceiling, still leaves the athlete
-under-prepared.
+Convergence was checked, since a continuous fraction could in principle
+oscillate where coarse bands could not: a sweep of ~9,000 combinations of
+distance × elevation × FTP × mass, 3-pass loop against 40-pass, found **zero
+oscillations**, all traces monotone toward the fixed point, worst-case residual
+0.0497h at an unrealistic 25km/4000m case and thousandths of an hour on
+realistic rides. `POWER_ITERATIONS = 2` stays.
 
 ## What the model does now — settled, research-backed
 
