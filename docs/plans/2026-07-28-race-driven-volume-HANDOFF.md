@@ -84,15 +84,18 @@ the total distance so a hill-climb time trial cannot go negative. Verified
 against both anchors:
 
 ```text
-tour   900km/20,000hm, 8 days  ->  42.09h  ->  5.26 h/day  ->  9.21 h/week
-fondo  130km/4,000hm,  1 day   ->   6.82h               ->  11.94 h/week
+tour   900km/20,000hm, 8 days  ->  42.09h
+fondo  130km/4,000hm,  1 day   ->   6.82h
 ```
 
-**The single fondo asks more per week than the 8-day tour, and that is
-correct.** The tour averages 112km/2,500m per day, an easier day than the
-fondo. The tour's extra demand is repetition, met by back-to-back long rides
-(Phase 2 §2.5) rather than weekly volume. The reasoning is written into the
-test so nobody "fixes" it later.
+Those riding-time figures still stand — Task 2's tests assert only hours of
+riding, and nothing in them needed changing. **The per-week numbers that
+originally accompanied them (tour 9.21, fondo 11.94) are dead.** They came from
+the averaging formula the user rejected, and the rationalisation for them —
+"the tour's average day is easier, its extra demand is repetition" — was
+motivated reasoning to preserve a tidy one-line formula. See the settled
+formula below; a longer event must ask for more, and Task 3 has a test
+asserting exactly that.
 
 `as const` on `DEMAND_CONSTANTS` pins `INITIAL_FTP_FRACTION` to the literal
 `0.75`, so `let fraction: number` needs its explicit annotation.
@@ -201,8 +204,10 @@ the band edges.
   most-recent-created so there is no bug today, but two should be archived.
 - The `<input type="time">` picker has still never been exercised by a human
   on any engine (owed since v0.26.0).
-- Constants (`TRAINING_FRACTION` 0.25, `HEADROOM` 1.3,
-  `LONGEST_RIDE_FRACTION` 0.8, `CLIMB_GRADIENT` 0.07, the level bands) are
-  heuristics calibrated on one athlete and two anchors. They are isolated in
-  tested constants objects so tuning is a one-line change. **They need real
-  tuning against more events.**
+- Constants still lacking a published basis — `REAL_WORLD_FACTOR` 0.85,
+  `CLIMB_GRADIENT` 0.07, `LONGEST_RIDE_FRACTION` 0.8 (contested), the level
+  bands — are heuristics calibrated on one athlete and two anchors. They are
+  isolated in tested constants objects so tuning is a one-line change. **They
+  need real tuning against more events.** `HEADROOM` 1.3 and the 0.6
+  maintenance floor are no longer in this list; both now have evidence.
+  `TRAINING_FRACTION` is deleted by Task 3.
