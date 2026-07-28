@@ -25,6 +25,7 @@ import {
 import { EmptyState } from "@/components/ui/empty-state";
 import { TrainTabs } from "@/components/train/train-tabs";
 import { WeekDayList } from "@/components/train/week-day-list";
+import { WeekRationale } from "@/components/plan/week-rationale";
 import {
   HistoryList,
   type HistoryGroup,
@@ -43,6 +44,8 @@ import {
   listAdjustments,
   planConstraints,
 } from "@/lib/week-plan/service";
+import { assembleVolumeInputs } from "@/lib/week-plan/volume-inputs";
+import { weeklyTargetHours } from "@/lib/week-plan/volume";
 import {
   listRaces,
   nextUpcomingRace,
@@ -234,6 +237,60 @@ async function WeekTab({ userId, href }: { userId: string; href: TrainHref }) {
   const races = await listRaces(userId);
   const constraints = planConstraints(plan.constraints);
 
+  // Why this week looks the way it does — the same figures the rollover
+  // derived, recomputed for display. Reading them off the stored week
+  // instead would show a target that no longer matches what the athlete's
+  // calendar and races now say.
+  let rationale: {
+    reasons: string[];
+    targetHours: number | null;
+    plannedHours: number | null;
+    shortfall: { wantedHours: number; offeredHours: number } | null;
+    raceName: string | null;
+  } | null = null;
+  if (week) {
+    const [adjustmentRows, volumeInputs] = await Promise.all([
+      db.query.planAdjustments.findMany({
+        where: eq(schema.planAdjustments.weekPlanId, week.id),
+      }),
+      assembleVolumeInputs(userId, new Date()),
+    ]);
+    const reasons = adjustmentRows
+      .filter(
+        (a) =>
+          a.trigger === "weekly_rollover" || a.trigger === "availability_change"
+      )
+      .map((a) => a.reason);
+
+    const availabilityHours =
+      week.days.reduce((s, d) => s + d.availableMins, 0) / 60;
+    // fallbackHours is the week's own availability here rather than
+    // constraints.hoursPerWeek: this page has no plan constraints in scope,
+    // and a fallback equal to availability makes weeklyTargetHours return
+    // the honest "no race, no ceiling — nothing to explain" case instead of
+    // inventing a target.
+    const target = weeklyTargetHours({
+      raceDemandHours: volumeInputs.demand?.weeklyHours ?? null,
+      ceilingHours: volumeInputs.level.ceilingHours,
+      floorHours: volumeInputs.level.floorHours,
+      availabilityHours,
+      fallbackHours: availabilityHours,
+    });
+    const plannedHours =
+      week.days.reduce(
+        (s, d) => s + d.workouts.reduce((t, w) => t + w.durationMins, 0),
+        0
+      ) / 60;
+
+    rationale = {
+      reasons,
+      targetHours: target.hours,
+      plannedHours,
+      shortfall: target.shortfall,
+      raceName: volumeInputs.targetRace?.name ?? null,
+    };
+  }
+
   const defaultRows = await db.query.availabilityDefaults.findMany({
     where: eq(schema.availabilityDefaults.userId, userId),
   });
@@ -378,6 +435,16 @@ async function WeekTab({ userId, href }: { userId: string; href: TrainHref }) {
           </section>
 
           <WeekDayList days={week.days} />
+
+          {rationale && (
+            <WeekRationale
+              reasons={rationale.reasons}
+              targetHours={rationale.targetHours}
+              plannedHours={rationale.plannedHours}
+              shortfall={rationale.shortfall}
+              raceName={rationale.raceName}
+            />
+          )}
 
           {raceCard.race && (
             <>
