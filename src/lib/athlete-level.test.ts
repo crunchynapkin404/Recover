@@ -91,6 +91,10 @@ describe("athleteLevel", () => {
     });
     expect(r.level).toBeNull();
     expect(r.ceilingHours).toBeNull();
+    // Floor and ceiling both derive from peakHours, so with no history at
+    // all neither can exist — they must be null together, not just the
+    // ceiling.
+    expect(r.floorHours).toBeNull();
     expect(r.source).toBe("calibrating");
   });
 
@@ -106,6 +110,35 @@ describe("athleteLevel", () => {
     expect(r.source).toBe("calibrating");
     expect(r.ceilingHours).not.toBeNull();
     expect(r.ceilingHours).toBeCloseTo(6 * LEVEL_CONSTANTS.HEADROOM, 3);
+    // The floor rides along with the ceiling even while the level itself is
+    // still "calibrating" — hours history alone is enough for both.
+    expect(r.floorHours).not.toBeNull();
+    expect(r.floorHours).toBeCloseTo(6 * LEVEL_CONSTANTS.MAINTENANCE_FLOOR, 3);
+  });
+
+  it("computes the floor as MAINTENANCE_FLOOR times the peak for a normal athlete", () => {
+    const r = athleteLevel({
+      weeklyHoursByWeek: flat(8.9),
+      ctlByWeek: flat(80),
+      override: null,
+    });
+    expect(r.floorHours).toBeCloseTo(8.9 * LEVEL_CONSTANTS.MAINTENANCE_FLOOR, 3);
+    expect(r.floorHours).toBeCloseTo(5.34, 2);
+  });
+
+  it("keeps the floor below the ceiling for any positive peak", () => {
+    // MAINTENANCE_FLOOR (0.6) < HEADROOM (1.3), so floorHours < ceilingHours
+    // must hold for every positive peak, not just the examples above.
+    for (const peak of [0.1, 1, 4, 8.9, 20, 50]) {
+      const r = athleteLevel({
+        weeklyHoursByWeek: flat(peak),
+        ctlByWeek: flat(50),
+        override: null,
+      });
+      expect(r.floorHours).not.toBeNull();
+      expect(r.ceilingHours).not.toBeNull();
+      expect(r.floorHours!).toBeLessThan(r.ceilingHours!);
+    }
   });
 
   it("refuses to grade a level from non-finite peak input instead of defaulting to advanced", () => {

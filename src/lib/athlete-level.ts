@@ -46,6 +46,12 @@ export const LEVEL_CONSTANTS = {
   PEAK_WINDOW_WEEKS: 12,
   /** Weekly-hours ceiling as a multiple of the rolling peak. */
   HEADROOM: 1.3,
+  /** Weekly-hours floor as a fraction of the rolling peak. Detraining
+   *  research: a 70% volume reduction with intensity maintained preserves
+   *  VO2max, and 50-75% of normal volume shows no aerobic loss. 0.6 sits
+   *  inside that band, so the floor never prescribes less than holding
+   *  fitness. */
+  MAINTENANCE_FLOOR: 0.6,
   /** Upper bound of each band, in trailing weekly hours. `max` is exclusive
    *  (bandFor uses value < max), so a value exactly at a boundary — e.g.
    *  9 hours — falls into the next-higher band, not this one. */
@@ -84,6 +90,14 @@ export interface LevelResult {
    * still missing. Null only when there is no hours history at all.
    */
   ceilingHours: number | null;
+  /**
+   * Weekly-hours maintenance floor, derived from peak hours alone (peakHours
+   * * MAINTENANCE_FLOOR). Null exactly when `ceilingHours` is null — both are
+   * derived from the same `peakHours` in every return path, so volume.ts can
+   * rely on floor and ceiling never disagreeing about whether history
+   * exists.
+   */
+  floorHours: number | null;
   source: "override" | "computed" | "calibrating";
 }
 
@@ -124,12 +138,19 @@ export function athleteLevel(input: LevelInput): LevelResult {
   // Without them there is no ceiling, whatever the override says.
   const ceilingHours =
     peakHours == null ? null : peakHours * LEVEL_CONSTANTS.HEADROOM;
+  // The floor derives from the very same peakHours value as the ceiling, in
+  // every return path below. That makes it structurally impossible for floor
+  // and ceiling to disagree about whether history exists — volume.ts relies
+  // on that lockstep.
+  const floorHours =
+    peakHours == null ? null : peakHours * LEVEL_CONSTANTS.MAINTENANCE_FLOOR;
 
   if (input.override != null) {
     return {
       level: input.override,
       peakHours,
       ceilingHours,
+      floorHours,
       source: "override",
     };
   }
@@ -139,6 +160,7 @@ export function athleteLevel(input: LevelInput): LevelResult {
       level: null,
       peakHours,
       ceilingHours,
+      floorHours,
       source: "calibrating",
     };
   }
@@ -152,11 +174,17 @@ export function athleteLevel(input: LevelInput): LevelResult {
   // Corrupt (non-finite) peak input: bandFor already refused to guess, and
   // there is no safe level to report here either.
   if (fromHours == null || fromCtl == null) {
-    return { level: null, peakHours, ceilingHours, source: "calibrating" };
+    return {
+      level: null,
+      peakHours,
+      ceilingHours,
+      floorHours,
+      source: "calibrating",
+    };
   }
 
   const level =
     ORDER.indexOf(fromHours) <= ORDER.indexOf(fromCtl) ? fromHours : fromCtl;
 
-  return { level, peakHours, ceilingHours, source: "computed" };
+  return { level, peakHours, ceilingHours, floorHours, source: "computed" };
 }
