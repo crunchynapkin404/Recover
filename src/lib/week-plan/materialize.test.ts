@@ -720,3 +720,38 @@ describe("materializeWeek — block fitting", () => {
     });
   });
 });
+
+describe("materializeWeek availability scaling (Task 9 regression)", () => {
+  // 6h of availability against a 10h week. materializeWeek is the ONE place
+  // availability lowers the week's load, which is why rolloverWeekPlan hands
+  // it the pre-availability target.
+  const sixHours = blocksPerDay([60, 60, 60, 60, 60, 60, 0]);
+
+  it("lowers the week load, and says so, when time is short", () => {
+    const r = materializeWeek({
+      ...baseInput,
+      hoursPerWeek: 10,
+      availableBlocksPerDay: sixHours,
+    });
+    // needed 10h vs 6h budget: 400 × 6/10 = 240
+    expect(r.effectiveLoad).toBe(240);
+    expect(
+      r.adjustments.some((a) => a.reason.includes("available instead of"))
+    ).toBe(true);
+  });
+
+  it("does nothing once the target has already been clamped to availability", () => {
+    // The defect this guards: pre-clamping to 6h makes the branch above
+    // unreachable, so the week keeps its full 400 load with only 6h to ride
+    // it and the athlete is never told why.
+    const r = materializeWeek({
+      ...baseInput,
+      hoursPerWeek: 6,
+      availableBlocksPerDay: sixHours,
+    });
+    expect(r.effectiveLoad).toBe(400);
+    expect(
+      r.adjustments.some((a) => a.reason.includes("available instead of"))
+    ).toBe(false);
+  });
+});

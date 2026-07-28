@@ -113,7 +113,13 @@ function isTriathlon(raceType: string): boolean {
 
 // ── Periodization engine ────────────────────────────────────────────────────
 
-function periodize(
+/**
+ * Exported so the weekly rollover can recompute the skeleton fresh rather
+ * than reading `training_blocks` as authority. Pure: the same inputs always
+ * yield the same blocks, and `startingCtl` is a fixed historical fact, so a
+ * recomputation only moves when demand or ceiling genuinely moves.
+ */
+export function periodize(
   weeksTotal: number,
   startingCtl: number,
   daysPerWeek: number,
