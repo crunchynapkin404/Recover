@@ -1830,22 +1830,42 @@ export function assessFeasibility(input: FeasibilityInput): Feasibility | null {
     input.longestRideHours,
     requiredLongestRideHours
   );
-  const weeksNeeded = Math.max(volumeWeeksNeeded, longestRideWeeksNeeded);
   const weeksUntilEvent = Math.max(0, input.weeksUntilEvent);
 
-  let verdict: Verdict;
-  if (weeksNeeded === 0) {
-    verdict = "ready";
-  } else if (weeksNeeded > weeksUntilEvent) {
-    verdict = "not_realistic";
+  // AMENDED after Task 7 was dispatched. This originally read
+  //   const weeksNeeded = Math.max(volumeWeeksNeeded, longestRideWeeksNeeded);
+  // which gave the longest-ride rule EQUAL FOOTING with volume, letting it
+  // alone drive "not_realistic". That contradicts spec 1.6: the evidence is
+  // genuinely contested — gran fondo coaching calls the long ride the biggest
+  // single predictor of finishing, CTS says there is nothing magical about a
+  // percentage of event distance and 3-hour rides can prepare you for a
+  // century. A rule that disputed does not get to tell an athlete their event
+  // is impossible. Volume decides the rung; the ride gap softens it by one.
+  const RUNGS: Verdict[] = ["ready", "on_track", "tight", "not_realistic"];
+
+  let volumeVerdict: Verdict;
+  if (volumeWeeksNeeded === 0) {
+    volumeVerdict = "ready";
+  } else if (volumeWeeksNeeded > weeksUntilEvent) {
+    volumeVerdict = "not_realistic";
   } else if (
-    weeksUntilEvent - weeksNeeded <
+    weeksUntilEvent - volumeWeeksNeeded <
     FEASIBILITY_CONSTANTS.TIGHT_MARGIN_WEEKS
   ) {
-    verdict = "tight";
+    volumeVerdict = "tight";
   } else {
-    verdict = "on_track";
+    volumeVerdict = "on_track";
   }
+
+  // One step worse, floored at "tight", and never better than volume alone.
+  const rideGap = longestRideWeeksNeeded > weeksUntilEvent;
+  const softenedIndex = Math.min(
+    RUNGS.indexOf(volumeVerdict) + 1,
+    RUNGS.indexOf("tight")
+  );
+  const verdict = rideGap
+    ? RUNGS[Math.max(RUNGS.indexOf(volumeVerdict), softenedIndex)]
+    : volumeVerdict;
 
   return {
     verdict,
