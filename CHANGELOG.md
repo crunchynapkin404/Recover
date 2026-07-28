@@ -50,11 +50,17 @@
   takes time blocks (and still accepts the old seven-integers form, so
   existing conversations keep working), joined by two new tools:
   `set_standard_week` for one weekday of the standard week, and
-  `clear_availability_override` to un-pin a date. The frozen MCP tool
-  surface goes from 54 to 56 tools; the change to `set_week_availability`'s
-  schema is additive. `get_week_plan` and `set_week_availability` now report
-  each day's `availableBlocks` and a `workouts` list in place of the old
-  `availableMins` and single `workout`.
+  `clear_availability_override` to un-pin a date. A change the coach makes
+  is pinned exactly as one of yours is, so it survives the next replan.
+
+- **Breaking, for MCP clients only: `get_week_plan` and
+  `set_week_availability` changed their output shape.** Each day now reports
+  `availableBlocks` (a list of blocks) instead of `availableMins`, and
+  `workouts` (a list) instead of a single `workout`. Anything reading those
+  two fields must be updated. Tool _inputs_ are unaffected — the frozen
+  surface grows from 54 to 56 tools and `set_week_availability`'s schema
+  change is additive, so existing calls keep working (see
+  `docs/API-STABILITY.md`).
 
 ## v0.25.19 — 2026-07-27 — Every Trend Against Your Own Normal
 

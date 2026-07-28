@@ -75,4 +75,11 @@ UPDATE "week_plans" SET "days" = (
   )
   FROM jsonb_array_elements("days") WITH ORDINALITY AS t(d, ord)
 )
-WHERE jsonb_typeof("days") = 'array' AND jsonb_array_length("days") > 0;
+-- jsonb_array_length() errors on a non-array, and Postgres does not promise
+-- to evaluate the jsonb_typeof() guard first, so express the whole test as
+-- one CASE rather than relying on AND short-circuiting. The app never writes
+-- a scalar "days", but an error here aborts the entire migration transaction.
+WHERE CASE
+        WHEN jsonb_typeof("days") = 'array' THEN jsonb_array_length("days")
+        ELSE 0
+      END > 0;

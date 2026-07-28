@@ -123,7 +123,3 @@ export const STEP_DOWN: Record<string, string> = {
   Tempo: "Endurance",
   Brick: "Endurance",
 };
-
-// ── availability prefill constants ──────────────────────────────────────
-/** A day with at least this many busy calendar minutes halves its prefill. */
-export const BUSY_DAY_MINS = 480;

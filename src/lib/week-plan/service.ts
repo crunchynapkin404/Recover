@@ -131,7 +131,12 @@ function weekActuals(days: DaySlot[]): {
       (s, d) => s + (d.actualLoad ?? 0) + (d.unplannedLoad ?? 0),
       0
     ),
-    actualSessions: days.filter((d) => d.status === "completed").length,
+    // Sessions, not days: a completed day can hold two of them. markDayDone
+    // refuses a day with no workouts and preserves the ones it has, so
+    // summing is exact rather than an estimate.
+    actualSessions: days
+      .filter((d) => d.status === "completed")
+      .reduce((s, d) => s + d.workouts.length, 0),
   };
 }
 

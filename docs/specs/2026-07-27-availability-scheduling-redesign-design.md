@@ -88,9 +88,12 @@ looks ahead specifically to avoid that failure.
 - **Rewriting workout generation.** `generateWorkouts` keeps its current
   procedural shape; this spec adds metadata to what it produces
   (`purpose`, `minEffectiveMins`) and changes where the results are placed.
-- **Google Calendar conflict detection.** Calendar stays the hint it is
-  today (a suggestion that lowers a prefill). Blocks make real conflict
-  detection possible later; building it now widens the spec.
+- **Google Calendar conflict detection.** The old hint (a busy day halved
+  its prefilled minutes) is **removed** rather than kept: prefills were a
+  single number per day, and there is no defined way to halve a block that
+  names a clock window. The Calendar connection itself is untouched. Blocks
+  make real conflict detection possible later; building it now widens the
+  spec.
 - **A holiday/vacation period as its own concept.** Overrides far ahead
   already express "that week I have much more time".
 
@@ -210,9 +213,10 @@ requested dates in two queries and maps `resolveDay` over them.
 week" behaviour _is_ defect 2, and `resolveWeek` replaces it outright.
 `formatAvailability` in the same file survives and moves to the block
 formatting helpers. Rollover resolves the standard week plus any overrides
-already set for those dates. The Google Calendar hint keeps its current role: on the
-confirmation screen only, a heavily-booked day lowers the _suggestion_
-shown, never what is stored.
+already set for those dates. The Google Calendar prefill hint goes with it
+(see non-goals): a suggestion that halves a day's minutes has no meaning
+once a day is a list of clock windows, so `BUSY_DAY_MINS` and the
+busy-minutes lookup are deleted rather than left looking live.
 
 ### 4. Placement
 
