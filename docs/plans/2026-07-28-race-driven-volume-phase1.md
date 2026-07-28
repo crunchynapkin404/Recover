@@ -1698,14 +1698,17 @@ describe("assessFeasibility", () => {
 
   it("judges longest ride separately from volume", () => {
     // Plenty of volume, but only ever in short rides — not prepared for a
-    // seven-hour mountain day.
+    // seven-hour mountain day. AMENDED: volume is already satisfied, so the
+    // ride gap softens ONE step (ready -> on_track) rather than condemning the
+    // event. LONGEST_RIDE_FRACTION is the weakest constant in this feature and
+    // the sources contradict each other; see spec 1.6.
     const r = assessFeasibility({
       ...base,
       currentWeeklyHours: 14,
       longestRideHours: 1.5,
       weeksUntilEvent: 2,
     })!;
-    expect(r.verdict).toBe("not_realistic");
+    expect(r.verdict).toBe("on_track");
     expect(r.longestRideWeeksNeeded).toBeGreaterThan(2);
   });
 
