@@ -157,6 +157,7 @@ describe("athleteLevel", () => {
     // falling back.
     expect(r.peakHours).toBeNull();
     expect(r.ceilingHours).toBeNull();
+    expect(r.floorHours).toBeNull();
   });
 
   it("refuses a peak poisoned by one corrupt week among good ones", () => {
@@ -170,6 +171,9 @@ describe("athleteLevel", () => {
     });
     expect(r.peakHours).toBeNull();
     expect(r.ceilingHours).toBeNull();
+    // Both, not just the ceiling: a regression deriving the floor from an
+    // independently computed peak would bypass peakOf's guard and leak NaN.
+    expect(r.floorHours).toBeNull();
     expect(r.level).toBeNull();
     expect(r.source).toBe("calibrating");
   });
