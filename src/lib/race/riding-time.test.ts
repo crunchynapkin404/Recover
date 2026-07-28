@@ -12,11 +12,11 @@ describe("estimateRidingHours", () => {
       ...ATHLETE,
     });
     expect(h).not.toBeNull();
-    expect(h!).toBeGreaterThan(45);
-    expect(h!).toBeLessThan(56);
+    expect(h!).toBeGreaterThan(38);
+    expect(h!).toBeLessThan(50);
   });
 
-  it("estimates a single alpine gran fondo at roughly 5-6 hours", () => {
+  it("estimates a single alpine gran fondo at roughly 6-7 hours", () => {
     const h = estimateRidingHours({
       distanceKm: 130,
       elevationM: 4000,

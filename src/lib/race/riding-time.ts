@@ -55,15 +55,32 @@ export function estimateRidingHours(input: RidingTimeInput): number | null {
 
   if (!(distanceKm > 0) || !(ftpWatts > 0) || !(massKg > 0)) return null;
 
+  // Annotated: DEMAND_CONSTANTS is `as const`, so an inferred type would be
+  // the literal 0.75 and the reassignment below would not compile.
   let fraction: number = C.INITIAL_FTP_FRACTION;
   let hours = 0;
 
   for (let i = 0; i < C.POWER_ITERATIONS + 1; i++) {
     const powerW = ftpWatts * fraction;
+    const speedKmh = flatSpeedKmh(powerW);
+
     // Work to lift mass against gravity, delivered at this power.
     const climbHours = (massKg * 9.81 * elevationM) / (powerW * 3600);
-    const flatHours = distanceKm / flatSpeedKmh(powerW);
-    hours = climbHours + flatHours;
+    const flatHours = distanceKm / speedKmh;
+
+    // Those two terms overlap. The flat term charges the WHOLE distance at
+    // flat speed; the climb term then adds the time to gain the elevation —
+    // but you cover ground while climbing, so the ascending kilometres are
+    // paid for twice. Subtract their flat-equivalent time.
+    //
+    // Without this correction a 130km/4000m alpine fondo came out at 8.6h for
+    // a 3.9 W/kg rider who rides it in about 6:30.
+    const climbDistanceKm = elevationM / 1000 / C.CLIMB_GRADIENT;
+    // Capped at the whole distance: on a hill-climb time trial the ascent
+    // accounts for every kilometre, and the overlap can never exceed the ride.
+    const overlapHours = Math.min(flatHours, climbDistanceKm / speedKmh);
+
+    hours = climbHours + flatHours - overlapHours;
     fraction = ftpFractionFor(hours);
   }
 

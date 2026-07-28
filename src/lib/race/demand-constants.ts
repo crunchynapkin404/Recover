@@ -18,6 +18,12 @@ export const DEMAND_CONSTANTS = {
     { upToHours: 5, fraction: 0.75 },
     { upToHours: Infinity, fraction: 0.68 },
   ],
+  /**
+   * Average gradient of the climbing portions of an event. Used to work out
+   * how much of the total distance is spent ascending, so that distance is
+   * not charged twice — see riding-time.ts.
+   */
+  CLIMB_GRADIENT: 0.07,
   /** Fixed-point iterations resolving "power needs duration needs power". */
   POWER_ITERATIONS: 2,
   /** Starting guess before the first iteration. */
