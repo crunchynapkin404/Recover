@@ -28,6 +28,17 @@ describe("athleteLevel", () => {
     expect(r.level).toBe("amateur");
   });
 
+  it("takes the LOWER verdict when CTL restricts high hours", () => {
+    // Many easy hours must not claim VO2max tolerance: 12h/week alone would
+    // grade Advanced, but a CTL of 20 caps it at Recreational.
+    const r = athleteLevel({
+      weeklyHoursByWeek: flat(12),
+      ctlByWeek: flat(20),
+      override: null,
+    });
+    expect(r.level).toBe("recreational");
+  });
+
   it("is unmoved by a bad fortnight — the rolling peak holds", () => {
     const history = flat(9, 10).concat([0.5, 0.5]);
     const r = athleteLevel({
