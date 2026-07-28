@@ -29,11 +29,18 @@ export const DEMAND_CONSTANTS = {
   /** Starting guess before the first iteration. */
   INITIAL_FTP_FRACTION: 0.75,
   /**
-   * Weekly training volume as a share of the event's daily rate extrapolated
-   * to a week. Replaces the earlier VOLUME_FACTOR, which was only ever
-   * 7 × this.
+   * An event's total load as a multiple of a weekly training load, at one day.
+   * A long sportive is 200-350 TSS against ~630 sustainable weekly TSS at
+   * CTL 90 — about half a training week. Cross-checked against published
+   * 8-12 h/week century plans.
    */
-  TRAINING_FRACTION: 0.25,
+  EVENT_TO_WEEKLY_1DAY: 0.6,
+  /**
+   * How that multiple grows with event length. Fitted to exactly two anchors:
+   * 0.60 at one day (above) and 2.50 at eight days (CTS: "a multi-day event is
+   * likely 2-3 times your normal weekly training load").
+   */
+  MULTI_DAY_EXPONENT: 0.686,
   /** Default total mass (kg) when the athlete's weight is unknown. */
   DEFAULT_MASS_KG: 83,
 } as const;
