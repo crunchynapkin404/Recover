@@ -837,6 +837,14 @@ export const weekPlans = pgTable(
     availabilityConfirmedAt: timestamp("availability_confirmed_at", {
       withTimezone: true,
     }),
+    // Set when the weekly "confirm your availability" nudge is actually
+    // pushed for this week. The window guard alone is not enough: the
+    // scheduler re-runs daily, so an athlete who never confirms would be
+    // nudged on every day of the window. One row per user-week makes this
+    // the at-most-once-per-week record.
+    availabilityPromptedAt: timestamp("availability_prompted_at", {
+      withTimezone: true,
+    }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

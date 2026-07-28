@@ -6,6 +6,7 @@ describe("shouldPromptAvailability", () => {
     expect(
       shouldPromptAvailability({
         confirmedAt: null,
+        promptedAt: null,
         weekStart: "2026-08-03",
         today: "2026-08-03",
       })
@@ -16,6 +17,7 @@ describe("shouldPromptAvailability", () => {
     expect(
       shouldPromptAvailability({
         confirmedAt: new Date("2026-08-03T08:00:00Z"),
+        promptedAt: null,
         weekStart: "2026-08-03",
         today: "2026-08-04",
       })
@@ -26,6 +28,7 @@ describe("shouldPromptAvailability", () => {
     expect(
       shouldPromptAvailability({
         confirmedAt: new Date("2026-07-27T08:00:00Z"),
+        promptedAt: null,
         weekStart: "2026-08-03",
         today: "2026-08-03",
       })
@@ -36,6 +39,7 @@ describe("shouldPromptAvailability", () => {
     expect(
       shouldPromptAvailability({
         confirmedAt: null,
+        promptedAt: null,
         weekStart: "2026-08-03",
         today: "2026-08-08",
       })
@@ -69,6 +73,7 @@ describe("shouldPromptAvailability — UTC/local calendar-day boundary", () => {
     expect(
       shouldPromptAvailability({
         confirmedAt: new Date("2026-08-02T22:30:00Z"),
+        promptedAt: null,
         weekStart: "2026-08-03",
         today: "2026-08-03",
       })
@@ -81,9 +86,57 @@ describe("shouldPromptAvailability — UTC/local calendar-day boundary", () => {
     expect(
       shouldPromptAvailability({
         confirmedAt: new Date("2026-01-04T23:30:00Z"),
+        promptedAt: null,
         weekStart: "2026-01-05",
         today: "2026-01-05",
       })
     ).toBe(false);
+  });
+});
+
+// I10: the window is five days wide and the scheduler's sync job re-chains
+// daily, so "unconfirmed and inside the window" alone pushed the athlete on
+// Monday, Tuesday, Wednesday, Thursday AND Friday. The spec says once a week.
+describe("shouldPromptAvailability — at most one nudge per week (I10)", () => {
+  it("stays quiet on every later day of the window once it has nudged", () => {
+    const promptedAt = new Date("2026-08-03T05:00:00Z");
+    for (const today of [
+      "2026-08-03",
+      "2026-08-04",
+      "2026-08-05",
+      "2026-08-06",
+      "2026-08-07",
+    ]) {
+      expect(
+        shouldPromptAvailability({
+          confirmedAt: null,
+          promptedAt,
+          weekStart: "2026-08-03",
+          today,
+        })
+      ).toBe(false);
+    }
+  });
+
+  it("still nudges the first time, before anything has been sent", () => {
+    expect(
+      shouldPromptAvailability({
+        confirmedAt: null,
+        promptedAt: null,
+        weekStart: "2026-08-03",
+        today: "2026-08-03",
+      })
+    ).toBe(true);
+  });
+
+  it("nudges again next week, when the record belongs to the week before", () => {
+    expect(
+      shouldPromptAvailability({
+        confirmedAt: null,
+        promptedAt: new Date("2026-07-27T05:00:00Z"),
+        weekStart: "2026-08-03",
+        today: "2026-08-03",
+      })
+    ).toBe(true);
   });
 });

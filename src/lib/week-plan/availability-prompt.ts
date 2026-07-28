@@ -1,7 +1,9 @@
 // v0.20 weekly availability prompt: nudge the athlete to confirm their week's
 // training time, and stop nagging once they have (or once it's too late for
 // the nudge to be useful).
+import { eq } from "drizzle-orm";
 import { getOpenWeekPlan } from "./service";
+import { db, schema } from "@/lib/db";
 import { sendToUser } from "@/lib/push";
 import { logger } from "@/lib/logger";
 
@@ -33,11 +35,22 @@ function localYmd(d: Date): string {
  */
 export function shouldPromptAvailability(input: {
   confirmedAt: Date | null;
+  promptedAt: Date | null;
   weekStart: string;
   today: string;
 }): boolean {
   const age = daysBetween(input.weekStart, input.today);
   if (age < 0 || age > PROMPT_WINDOW_DAYS) return false;
+  // Already nudged for THIS week — the window spans five days and the
+  // scheduler runs daily, so without this the athlete who does not confirm
+  // is pushed every one of them. A stale timestamp from an earlier week
+  // (rows are per user-week, but a week can be re-opened) does not count.
+  if (
+    input.promptedAt != null &&
+    localYmd(input.promptedAt) >= input.weekStart
+  ) {
+    return false;
+  }
   if (input.confirmedAt == null) return true;
   const confirmedYmd = localYmd(input.confirmedAt);
   return confirmedYmd < input.weekStart;
@@ -57,12 +70,22 @@ export async function promptAvailability(
   if (
     !shouldPromptAvailability({
       confirmedAt: week.availabilityConfirmedAt,
+      promptedAt: week.availabilityPromptedAt,
       weekStart: week.weekStart,
       today: localYmd(now),
     })
   ) {
     return "skipped";
   }
+
+  // Recorded BEFORE the push: a send that throws half-way (or a push service
+  // that is briefly down) must not license a retry on every remaining day of
+  // the window. One missed nudge beats five delivered ones.
+  await db
+    .update(schema.weekPlans)
+    .set({ availabilityPromptedAt: now })
+    .where(eq(schema.weekPlans.id, week.id));
+
   const { sent, pruned } = await sendToUser(userId, {
     title: "How's your week looking?",
     body: "Confirm your training time so this week plans itself around it.",

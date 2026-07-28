@@ -225,6 +225,13 @@
       "when": 1785171525532,
       "tag": "0031_backfill_availability_defaults",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1785175125532,
+      "tag": "0032_availability_prompted_at",
+      "breakpoints": true
     }
   ]
 }

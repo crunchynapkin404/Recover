@@ -25,6 +25,8 @@ export interface OpenWeekPlan {
   effectiveTarget: number | null;
   /** Set once the athlete (or the coach, on their behalf) confirms this week's availability. */
   availabilityConfirmedAt: Date | null;
+  /** Set once this week's availability nudge has actually been pushed. */
+  availabilityPromptedAt: Date | null;
 }
 
 function localYmd(d: Date): string {
@@ -152,6 +154,7 @@ export async function getOpenWeekPlan(
     days: row.days as DaySlot[],
     effectiveTarget: row.effectiveTarget,
     availabilityConfirmedAt: row.availabilityConfirmedAt,
+    availabilityPromptedAt: row.availabilityPromptedAt,
   };
 }
 
