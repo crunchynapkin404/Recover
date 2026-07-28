@@ -96,6 +96,13 @@ overturn became true again once the model was made coherent.
 | 11  | `WeekRationale` + shortfall line   | Renders reasons already in `plan_adjustments`.                                 |
 | 12  | `EventReadiness`                   | Page computes `assessFeasibility` itself; Task 8 deliberately does not judge.  |
 
+**Owed at Task 9/12:** `weeksToGrow` returns `Infinity` when `currentWeeklyHours`
+is zero (not merely null). The verdict maths resolves sanely, but the raw field
+is returned and the UI stub in the plan renders
+`` `${Math.max(feasibility.volumeWeeksNeeded, …)} weeks` `` — which would print
+**"Infinity weeks"** to the athlete. Not reachable yet, since nothing called
+`assessFeasibility` until Task 12.
+
 Then: final whole-branch review (**Opus**), then
 `superpowers:finishing-a-development-branch`.
 
