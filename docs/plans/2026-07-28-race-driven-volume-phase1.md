@@ -2294,7 +2294,11 @@ import { assembleVolumeInputs } from "./volume-inputs";
 import { weeklyTargetHours } from "./volume";
 ```
 
-In `rolloverWeekPlan`, immediately after `const constraints = planConstraints(plan.constraints);`, insert:
+In `rolloverWeekPlan`, insert the following immediately after
+`availableBlocksPerDay` is computed (it is built from `dates`/`resolved`, a few
+lines below `const constraints = planConstraints(plan.constraints);`). Do NOT
+move the `constraints` line — it already precedes `availableBlocksPerDay`, so
+both names are in scope at the insertion point:
 
 ```ts
 // Derive this week's hours target rather than reading a number typed once
@@ -2315,7 +2319,14 @@ const target = weeklyTargetHours({
 });
 ```
 
-Note this must come _after_ `availableBlocksPerDay` is computed (it currently is, a few lines below `constraints`) — move the `constraints` line down if needed so the ordering holds.
+Leave the stored-skeleton lookup and its `if (!skeleton) return "skipped";`
+guard exactly as they are. `weeksTotal` is `notNull` in the schema, so that
+lookup is not a "weeksTotal is unknown" fallback — it is the gate that decides
+whether this plan has any blocks at all, and removing it would make the
+rollover materialize a week for a plan that was never periodized. Leave the
+persisted `skeletonWeek: skeleton.weekNumber` on the stored value too: the
+adherence loop in step 1 looks blocks up by that number, so it must keep
+pointing at a row that exists in `training_blocks`.
 
 Replace the stored-skeleton lookup. The existing block that reads
 `db.query.trainingBlocks.findFirst(...)` stays as a fallback for plans whose
@@ -2347,24 +2358,93 @@ Then change the `materializeWeek` call's `skeleton` and `hoursPerWeek`:
       targetSessions: derived.targetSessions,
     },
     ...
-    hoursPerWeek: target.hours,
+    hoursPerWeek: target.shortfall?.wantedHours ?? target.hours,
 ```
 
-- [ ] **Step 5: Run the tests to verify they pass**
+**Pass the PRE-availability figure, not `target.hours`.** `weeklyTargetHours`
+applies availability last, and `materializeWeek` already applies it too — it
+computes `hoursBudget` from exactly the same `dayMins` sum and, when
+`hoursBudget < neededHours`, scales `effectiveLoad` down and pushes the
+`"Xh available instead of Yh — week load lowered to Z"` adjustment that tells
+the athlete why their week shrank.
+
+Handing `materializeWeek` an already-clamped number makes `neededHours` fall to
+`hoursBudget`, so that branch stops firing: the week keeps its full skeleton
+load, adherence is then scored against a target the athlete had no time to
+reach, and the explanatory adjustment disappears. `shortfall.wantedHours` is
+the demand/ceiling/floor/fallback figure with availability not yet applied, so
+this keeps availability enforced in exactly one place — the place that already
+explains itself. `weeklyTargetHours`'s own availability clamp stays: it is what
+drives `source: "availability"` and the Task 11 shortfall line.
+
+- [ ] **Step 5: Guard the availability regression**
+
+Nothing above would fail if a later edit "simplified" `hoursPerWeek` back to
+`target.hours`, so pin the behaviour that choice protects. Append to
+`src/lib/week-plan/materialize.test.ts` (reuse the file's existing `baseInput`
+and `blocksPerDay` helpers):
+
+```ts
+describe("materializeWeek availability scaling (Task 9 regression)", () => {
+  // 6h of availability against a 10h week. materializeWeek is the ONE place
+  // availability lowers the week's load, which is why rolloverWeekPlan hands
+  // it the pre-availability target.
+  const sixHours = blocksPerDay([60, 60, 60, 60, 60, 60, 0]);
+
+  it("lowers the week load, and says so, when time is short", () => {
+    const r = materializeWeek({
+      ...baseInput,
+      hoursPerWeek: 10,
+      availableBlocksPerDay: sixHours,
+    });
+    // needed 10h vs 6h budget: 400 × 6/10 = 240
+    expect(r.effectiveLoad).toBe(240);
+    expect(
+      r.adjustments.some((a) => a.reason.includes("available instead of"))
+    ).toBe(true);
+  });
+
+  it("does nothing once the target has already been clamped to availability", () => {
+    // The defect this guards: pre-clamping to 6h makes the branch above
+    // unreachable, so the week keeps its full 400 load with only 6h to ride
+    // it and the athlete is never told why.
+    const r = materializeWeek({
+      ...baseInput,
+      hoursPerWeek: 6,
+      availableBlocksPerDay: sixHours,
+    });
+    expect(r.effectiveLoad).toBe(400);
+    expect(
+      r.adjustments.some((a) => a.reason.includes("available instead of"))
+    ).toBe(false);
+  });
+});
+```
+
+If either expected number does not hold, STOP and report rather than adjusting
+it — the numbers are hand-computed from `neededHours = hoursPerWeek × (load /
+targetLoadTotal)` and a disagreement means the model moved, not the test.
+
+- [ ] **Step 6: Run the tests to verify they pass**
 
 ```bash
 npx vitest run src/lib/week-plan/rollover-volume.test.ts
 npx vitest run src/lib/week-plan/
 ```
 
-Expected: 3 new tests PASS; every existing week-plan test still passes.
+Expected: 3 new `rollover-volume` tests and 2 new `materialize` tests PASS;
+every existing week-plan test still passes.
 
-- [ ] **Step 6: Full gate and commit**
+- [ ] **Step 7: Full gate and commit**
+
+`npm run build` is REQUIRED here and is not optional: `tsc` does not model the
+`"use server"` rule that every export be async, and only the build catches a
+violation. This repo has already shipped one broken release that way.
 
 ```bash
-npx prettier --write src/lib/training-plan.ts src/lib/week-plan/service.ts src/lib/week-plan/rollover-volume.test.ts
+npx prettier --write src/lib/training-plan.ts src/lib/week-plan/service.ts src/lib/week-plan/rollover-volume.test.ts src/lib/week-plan/materialize.test.ts
 npm run typecheck && npm run lint && npm test && npm run build
-git add src/lib/training-plan.ts src/lib/week-plan/service.ts src/lib/week-plan/rollover-volume.test.ts
+git add src/lib/training-plan.ts src/lib/week-plan/service.ts src/lib/week-plan/rollover-volume.test.ts src/lib/week-plan/materialize.test.ts
 git commit -m "feat(week-plan): derive the weekly skeleton at rollover, never from a stored target"
 ```
 
