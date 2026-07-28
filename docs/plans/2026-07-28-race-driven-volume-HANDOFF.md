@@ -16,14 +16,14 @@ any compaction, trust the ledger and `git log` over recollection.
 
 ## State
 
-| | |
-| --- | --- |
-| Branch | `feat/race-driven-volume` (off `docs/race-driven-volume-spec`, off `main`) |
-| Spec | `docs/specs/2026-07-28-race-driven-volume-design.md` (approved) |
-| Plan | `docs/plans/2026-07-28-race-driven-volume-phase1.md` (12 tasks) |
+|        |                                                                              |
+| ------ | ---------------------------------------------------------------------------- |
+| Branch | `feat/race-driven-volume` (off `docs/race-driven-volume-spec`, off `main`)   |
+| Spec   | `docs/specs/2026-07-28-race-driven-volume-design.md` (approved)              |
+| Plan   | `docs/plans/2026-07-28-race-driven-volume-phase1.md` (12 tasks)              |
 | Ledger | `.superpowers/sdd/progress.md` (gitignored — recover from `git log` if lost) |
-| Done | Tasks 1 and 2, both reviewed clean |
-| Next | **Task 3 — unified event demand model** |
+| Done   | Tasks 1 and 2, both reviewed clean                                           |
+| Next   | **Task 3 — unified event demand model**                                      |
 
 Prerequisite **v0.27.0 is already shipped and live** — the sport-vocabulary
 fix. Nothing here depends on further deployment.
@@ -55,18 +55,18 @@ whole-branch review is the exception — dispatch that on Opus.
 
 ## Remaining tasks
 
-| # | Task | Notes |
-| --- | --- | --- |
-| 3 | Unified event demand model | Depends on Tasks 1–2. Bands already recalibrated against the corrected physics. |
-| 4 | Dedupe trailing weekly averages | **Breaks 4 existing test fixtures** — Step 1 updates them first, deliberately. |
-| 5 | Athlete level + continuous ceiling | Rolling 12-week peak. |
-| 6 | `weeklyTargetHours` | The rollout-safety property lives here. |
-| 7 | Feasibility verdict | Imports `RAMP_CLAMP_PCT` from `week-plan/types.ts`. |
-| 8 | `assembleVolumeInputs` | The only DB-touching module of the five. |
-| 9 | Rollover wiring | Exports `periodize`; the riskiest task — full gate required. |
-| 10 | Race form fields + stages | `RacesSection` props are `{ races, hideHeading? }` — no `sports` prop. |
-| 11 | `WeekRationale` + shortfall line | Renders reasons already in `plan_adjustments`. |
-| 12 | `EventReadiness` | Page computes `assessFeasibility` itself; Task 8 deliberately does not judge. |
+| #   | Task                               | Notes                                                                           |
+| --- | ---------------------------------- | ------------------------------------------------------------------------------- |
+| 3   | Unified event demand model         | Depends on Tasks 1–2. Bands already recalibrated against the corrected physics. |
+| 4   | Dedupe trailing weekly averages    | **Breaks 4 existing test fixtures** — Step 1 updates them first, deliberately.  |
+| 5   | Athlete level + continuous ceiling | Rolling 12-week peak.                                                           |
+| 6   | `weeklyTargetHours`                | The rollout-safety property lives here.                                         |
+| 7   | Feasibility verdict                | Imports `RAMP_CLAMP_PCT` from `week-plan/types.ts`.                             |
+| 8   | `assembleVolumeInputs`             | The only DB-touching module of the five.                                        |
+| 9   | Rollover wiring                    | Exports `periodize`; the riskiest task — full gate required.                    |
+| 10  | Race form fields + stages          | `RacesSection` props are `{ races, hideHeading? }` — no `sports` prop.          |
+| 11  | `WeekRationale` + shortfall line   | Renders reasons already in `plan_adjustments`.                                  |
+| 12  | `EventReadiness`                   | Page computes `assessFeasibility` itself; Task 8 deliberately does not judge.   |
 
 Then: final whole-branch review (Opus), then
 `superpowers:finishing-a-development-branch`.
@@ -97,61 +97,49 @@ test so nobody "fixes" it later.
 `as const` on `DEMAND_CONSTANTS` pins `INITIAL_FTP_FRACTION` to the literal
 `0.75`, so `let fraction: number` needs its explicit annotation.
 
-## ⛔ BLOCKING — the demand formula is wrong. Fix before Task 3.
+## Formula settled — research-backed, spec and plan amended
 
-**Do not implement Task 3 as written.** The user spotted this and they are
-right: the formula makes a bigger event ask for LESS training.
-
-`weeklyHours = (totalEventHours / eventDays) × 7 × TRAINING_FRACTION` keys off
-the AVERAGE DAILY duration and discards total event load. The 8-day tour is 42
-riding hours; the single fondo is 6.8 — a 6× difference — yet the tour comes out
-LOWER (9.2h vs 11.9h) purely because its average day is easier. Averaging is the
-error: eight consecutive days are cumulative, and the capacity to ride day six is
-built by chronic weekly volume.
-
-The spec's claim that "multi-day demand is met by plan shape, not volume" (§1.1,
-§2.5) was used to justify having no multi-day term at all. That was
-rationalisation — the coaching sources say the decisive quality is recovering day
-after day, which is built by volume AND structure.
-
-**Research pass done — see `docs/specs/2026-07-28-training-volume-evidence.md`.**
-It replaces several guesses with published anchors (ACWR for the ceiling,
-detraining literature for a new floor, CTS's 2-3× rule for multi-day) and flags
-which constants remain unsourced. Read it before amending the formula.
-
-RESOLVED: the single-day path now has an anchor too, and both unify into ONE
-concept — event total load as a multiple of a weekly training load:
-`ratio(days) = 0.60 × days^0.686`, `weeklyHours = totalEventHours / ratio`,
-then floor at 0.6×peak and ceiling at 1.3×peak. Single-day outputs land inside
-the published 8-12 h/week band without being fitted to it.
-
-STILL OPEN: the two coaching sources actively disagree on whether the long-ride
-rule matters at all — soften it in the feasibility verdict.
-
-**Earlier proposed fix** (superseded in part by the research):
+The demand formula was rewritten after the user spotted that a bigger event
+asked for LESS training. Root cause: it averaged over event days and discarded
+total event load. **Fixed, and both spec and plan are amended — no action
+outstanding.** Evidence in `docs/specs/2026-07-28-training-volume-evidence.md`.
 
 ```text
-weeklyHours = dailyRate × 7 × 0.20 × (1 + MULTI_DAY_SLOPE × ln(days))
-              TRAINING_FRACTION 0.25 → 0.20,  MULTI_DAY_SLOPE ≈ 0.25
+ratio(days) = 0.60 × days ^ 0.686
+weeklyHours = totalEventHours / ratio(days)
+then: max(floor 0.6 × peak), then min(ceiling 1.3 × peak)
 ```
 
-| event | total | /day | current | proposed |
-| --- | --- | --- | --- | --- |
-| 8-day alpine tour | 42.1h | 5.26 | 9.2h | **11.2h** |
-| 1-day alpine fondo | 6.8h | 6.82 | 11.9h | **9.6h** |
-| 3-day stage race | 13.6h | 4.53 | 7.9h | 8.1h |
-| local crit | 1.3h | 1.28 | 2.2h | 1.8h |
+Anchors, both published: **0.60 at one day** (a 200-350 TSS sportive against
+~630 sustainable weekly TSS at CTL 90, cross-checked against 8-12 h/week century
+plans) and **2.50 at eight days** (CTS: "a multi-day event is likely 2-3 times
+your normal weekly training load").
 
-**Second hole, exposed by the same check: a criterium prescribes 1.8 h/week.**
-The model is volume-only, so a short intense event reads as almost no demand and
-the plan would DETRAIN the athlete. Needs a floor tied to what they already do —
-most naturally the rolling peak from Task 5 — so entering a short race can never
-prescribe less than maintaining current fitness.
+| Event              | Total | Raw   | Final           | Literature |
+| ------------------ | ----- | ----- | --------------- | ---------- |
+| 8-day alpine tour  | 42.1h | 16.8h | 11.6h (ceiling) | —          |
+| 1-day alpine fondo | 6.8h  | 11.4h | 11.4h           | 8–12       |
+| Flat century ~5h   | 5.6h  | 9.4h  | 9.4h            | 8–12       |
+| Local crit         | 1.3h  | 2.1h  | 5.3h (floor)    | n/a        |
 
-Both need a spec amendment (§1.1) and a plan amendment (Task 3's formula,
-constants and test bounds) before Task 3 is dispatched. Tasks 1 and 2 are
-unaffected: `estimateRidingHours` returns event hours and is independent of how
-those become a weekly target.
+**Do not tune these constants to match an athlete's own estimate of what they
+can manage.** The tour asking 16.8h against 9h of actual training means the
+event is 4.7× their weekly load where 2-3× is normal — they are under-prepared
+by the published guideline, and surfacing that is the entire point of the
+feasibility verdict.
+
+`HEADROOM = 1.3` is the ACWR safe-zone upper bound (0.8-1.3, danger >1.5,
+worst ≥2.0). `MAINTENANCE_FLOOR = 0.6` comes from detraining research (50-75% of
+volume preserves VO₂max) and exists so a criterium cannot prescribe a
+detraining week. `REAL_WORLD_FACTOR` and `CLIMB_GRADIENT` have **no published
+basis at all** and are flagged Low confidence in both documents.
+
+**Still open, and it is a judgement call, not a blocker:**
+`LONGEST_RIDE_FRACTION` is contested — gran fondo coaching calls the long ride
+the single biggest predictor at 70-80% of event distance; CTS says there is
+nothing magical about it and 3h rides can prepare you for a century. Spec §1.6
+now says the longest-ride gap may soften a verdict by one step but can never
+produce "not realistic" on its own.
 
 ## Design decisions already settled — do not reopen
 
