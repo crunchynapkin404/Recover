@@ -22,8 +22,8 @@ any compaction, trust the ledger and `git log` over recollection.
 | Spec | `docs/specs/2026-07-28-race-driven-volume-design.md` (approved) |
 | Plan | `docs/plans/2026-07-28-race-driven-volume-phase1.md` (12 tasks) |
 | Ledger | `.superpowers/sdd/progress.md` (gitignored — recover from `git log` if lost) |
-| Done | Task 1 (reviewed clean), Task 2 (committed, **review not yet run**) |
-| Next | **Run the Task 2 review, then Task 3** |
+| Done | Tasks 1 and 2, both reviewed clean |
+| Next | **Task 3 — unified event demand model** |
 
 Prerequisite **v0.27.0 is already shipped and live** — the sport-vocabulary
 fix. Nothing here depends on further deployment.
@@ -57,7 +57,7 @@ whole-branch review is the exception — dispatch that on Opus.
 
 | # | Task | Notes |
 | --- | --- | --- |
-| 3 | Unified event demand model | Depends on Tasks 1–2. Bands already recalibrated. |
+| 3 | Unified event demand model | Depends on Tasks 1–2. Bands already recalibrated against the corrected physics. |
 | 4 | Dedupe trailing weekly averages | **Breaks 4 existing test fixtures** — Step 1 updates them first, deliberately. |
 | 5 | Athlete level + continuous ceiling | Rolling 12-week peak. |
 | 6 | `weeklyTargetHours` | The rollout-safety property lives here. |
@@ -132,6 +132,20 @@ the band edges.
   runs.** The container applies migrations on boot.
 - Read `node_modules/next/dist/docs/` before writing Next.js code — this is
   not the Next.js in training data (`proxy.ts`, not `middleware.ts`).
+
+## Deferred Minors, for the final fix wave
+
+- **`riding-time.ts` has no test targeting the overlap correction's extremes** —
+  no hill-climb-time-trial saturation case, no assertion that the result never
+  falls below the pure climbing time. That correction is exactly the bug Task 2
+  uncovered, so it is the single piece of logic most deserving a regression
+  guard. A reviewer swept ~81,600 input combinations and found no oscillation,
+  negative or non-finite result, so this is a coverage gap rather than a live
+  defect.
+- `climbDistanceKm` is recomputed on every loop pass though it depends only on
+  elevation — efficiency nit.
+- `tests/race-demand-schema.test.ts` asserts `toContain("1")` on a column
+  default, which would also pass for `10`, `21` or `100`.
 
 ## Open items beyond this plan
 
