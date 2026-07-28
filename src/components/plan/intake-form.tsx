@@ -69,6 +69,20 @@ export function IntakeForm({
   const [openDay, setOpenDay] = useState<number | null>(null);
   const [, startTransition] = useTransition();
 
+  // The server owns what is actually stored. Unpinning a day deletes its
+  // override and revalidates, so `resolved` comes back as the standard week —
+  // without this resync the client keeps the deleted override's blocks, the
+  // hidden inputs below resubmit them, and syncDateOverrides re-creates the
+  // override that was just removed. Compared by value: every server render
+  // hands down fresh array identities, so identity would resync constantly
+  // and discard the athlete's in-progress edits.
+  const serverWeek = JSON.stringify(resolved);
+  const [syncedWeek, setSyncedWeek] = useState(serverWeek);
+  if (syncedWeek !== serverWeek) {
+    setSyncedWeek(serverWeek);
+    setWeek(resolved);
+  }
+
   const totalMins = week.reduce(
     (s, day) => s + day.reduce((d, b) => d + blockMins(b), 0),
     0
