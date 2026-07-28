@@ -2224,7 +2224,9 @@ git commit -m "feat(week-plan): derive the weekly skeleton at rollover, never fr
 
 **Interfaces:**
 
-- Consumes: `schema.races`, `schema.raceStages`.
+- Consumes: `schema.races`, `schema.raceStages`. `RacesSection`'s props are
+  `{ races: RaceListItem[]; hideHeading?: boolean }` — it takes no `sports`
+  prop; do not add one.
 - Produces: server action `setRaceDemand(input: { raceId: string; eventDays: number; distanceKm: number | null; elevationM: number | null; stages: { dayNumber: number; distanceKm: number | null; elevationM: number | null }[] }): Promise<{ ok: true } | { ok: false; error: string }>`.
 
 - [ ] **Step 1: Write the failing test**
@@ -2233,7 +2235,7 @@ Add to `src/components/plan/races-section.test.tsx`:
 
 ```ts
 it("captures days, distance and elevation for an event", async () => {
-  render(<RacesSection races={[]} sports={["Bike"]} />);
+  render(<RacesSection races={[]} />);
   await userEvent.click(screen.getByRole("button", { name: /add race/i }));
   expect(screen.getByLabelText(/days/i)).toBeInTheDocument();
   expect(screen.getByLabelText(/total distance/i)).toBeInTheDocument();
@@ -2241,7 +2243,7 @@ it("captures days, distance and elevation for an event", async () => {
 });
 
 it("only offers per-day stages once the event runs over more than one day", async () => {
-  render(<RacesSection races={[]} sports={["Bike"]} />);
+  render(<RacesSection races={[]} />);
   await userEvent.click(screen.getByRole("button", { name: /add race/i }));
   expect(screen.queryByText(/per-day detail/i)).not.toBeInTheDocument();
   await userEvent.clear(screen.getByLabelText(/days/i));
