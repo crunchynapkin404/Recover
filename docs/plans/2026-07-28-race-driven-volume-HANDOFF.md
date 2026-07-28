@@ -24,22 +24,13 @@ any compaction, trust the ledger and `git log` over recollection.
 | Evidence | `docs/specs/2026-07-28-training-volume-evidence.md` (research, per-constant confidence) |
 | Plan   | `docs/plans/2026-07-28-race-driven-volume-phase1.md` (12 tasks + Task 13)             |
 | Ledger | `.superpowers/sdd/progress.md` (gitignored — recover from `git log` if lost) |
-| Done   | Tasks 1–8 **and 13**. 1–7 + 13 reviewed clean; Task 8's re-review was in flight at session end |
+| Done   | Tasks 1–8 **and 13**, all reviewed clean                                     |
 | Next   | **Task 9 — rollover wiring.** BASE = current HEAD                          |
 
 Prerequisite **v0.27.0 is shipped and live** (the sport-vocabulary fix).
 Nothing here depends on further deployment.
 
 ## Start here
-
-**First, confirm Task 8's re-review.** It was dispatched but had not reported
-when the session ended. The package is on disk —
-`.superpowers/sdd/review-a9d9402..e7f8ba6.diff` (BASE `a9d9402`, 5 commits) —
-so just dispatch a reviewer at it. Ask it specifically about the race-date
-boundary (does a race happening *today* still count as upcoming, or did the
-new guard drop it?) and about the `weekIndex()` refactor, which changed shared
-arithmetic three existing tests depend on, including the DST rounding that made
-the original correct.
 
 Then **Task 9 — the riskiest task on the branch.** Full gate required,
 **including `npm run build`**: `tsc` does not model the `"use server"` rule
