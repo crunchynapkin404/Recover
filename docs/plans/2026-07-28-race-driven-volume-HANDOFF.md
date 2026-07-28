@@ -1,13 +1,13 @@
 # Handoff — Race-Driven Training Volume, Phase 1
 
-**Rewritten 2026-07-28 at Task 6.** Everything a fresh session needs to resume
+**Rewritten 2026-07-28 after Task 13.** Everything a fresh session needs to resume
 without re-deriving anything. Read this, then the ledger, then the plan.
 
 ## Resume in three commands
 
 ```bash
 cd /home/vscode/recover
-git checkout feat/race-driven-volume        # HEAD b796d6d
+git checkout feat/race-driven-volume        # HEAD 7678a40
 tail -80 .superpowers/sdd/progress.md       # the ledger is authoritative
 ```
 
@@ -22,7 +22,7 @@ any compaction, trust the ledger and `git log` over recollection.
 | HEAD   | `3f657d0`                                                                   |
 | Spec   | `docs/specs/2026-07-28-race-driven-volume-design.md` (approved)             |
 | Evidence | `docs/specs/2026-07-28-training-volume-evidence.md` (research, per-constant confidence) |
-| Plan   | `docs/plans/2026-07-28-race-driven-volume-phase1.md` (12 tasks)             |
+| Plan   | `docs/plans/2026-07-28-race-driven-volume-phase1.md` (12 tasks + Task 13)             |
 | Ledger | `.superpowers/sdd/progress.md` (gitignored — recover from `git log` if lost) |
 | Done   | Tasks 1–6 **and 13**, all reviewed clean                                     |
 | Next   | **Task 7 — feasibility verdict.** BASE for Task 7 = `3f657d0`               |
@@ -69,6 +69,10 @@ whole-branch review is the exception — dispatch that on Opus.
 **It has now caught four real defects, and every single time the PLAN was
 wrong and the code was right.** Implementers stopped on Tasks 2, 3 and 6.
 Do not drop it.
+
+The converse also holds, and Task 13 proved it: when a test and a model
+disagree, the model is worth suspecting too. An assertion Task 3 had to
+overturn became true again once the model was made coherent.
 
 ## Remaining tasks
 
