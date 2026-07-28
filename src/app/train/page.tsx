@@ -250,6 +250,7 @@ async function WeekTab({ userId, href }: { userId: string; href: TrainHref }) {
     plannedHours: number | null;
     shortfall: { wantedHours: number; offeredHours: number } | null;
     raceName: string | null;
+    source: "race" | "ceiling" | "floor" | "fallback" | null;
   } | null = null;
   // Is the athlete's next race reachable from here — the question anyone
   // entering a hard event actually has. Captured out of the `if (week)`
@@ -299,6 +300,7 @@ async function WeekTab({ userId, href }: { userId: string; href: TrainHref }) {
       plannedHours,
       shortfall: target.shortfall,
       raceName: volumeInputs.targetRace?.name ?? null,
+      source: target.source,
     };
 
     // Weeks until the event, counted from this week's Monday so it agrees
@@ -489,6 +491,7 @@ async function WeekTab({ userId, href }: { userId: string; href: TrainHref }) {
               plannedHours={rationale.plannedHours}
               shortfall={rationale.shortfall}
               raceName={rationale.raceName}
+              source={rationale.source}
             />
           )}
 

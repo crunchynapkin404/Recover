@@ -7,6 +7,7 @@ import {
 } from "@/lib/race/taper";
 import {
   type Band,
+  GENERATOR_CAP_SHORTFALL_PCT,
   LOW_ADHERENCE_BUMP,
   LOW_ADHERENCE_PCT,
   MISSED_WEEK_RESTART,
@@ -319,6 +320,30 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
     )
       .sort((a, b) => b.durationMins - a.durationMins)
       .slice(0, sessions);
+
+    // generateWorkouts hard-caps the long session and every filler
+    // (training-plan.ts), so a target well above what those caps can ever
+    // express saturates far short of effectiveHours regardless of how much
+    // time is actually available — and unlike the availability clamp above,
+    // that shortfall has no adjustment of its own. Say so rather than let
+    // WeekRationale print an unexplained deficit.
+    const generatedHours =
+      workouts.reduce((s, w) => s + w.durationMins, 0) / 60;
+    if (
+      effectiveHours > 0 &&
+      generatedHours < effectiveHours * (1 - GENERATOR_CAP_SHORTFALL_PCT)
+    ) {
+      adjustments.push({
+        date: input.weekStart,
+        trigger: "weekly_rollover",
+        action: "scaled",
+        before: [],
+        after: [],
+        reason: `session limits cap this week at ${generatedHours.toFixed(
+          1
+        )}h against a ${effectiveHours.toFixed(1)}h target`,
+      });
+    }
 
     const taken = new Set<string>();
 

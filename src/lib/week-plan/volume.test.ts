@@ -43,6 +43,24 @@ describe("weeklyTargetHours", () => {
     expect(r.source).toBe("ceiling");
   });
 
+  it("keeps source 'ceiling' through the availability clamp, not just when availability doesn't bind", () => {
+    // Final-review Finding 3's own example: a low-peak athlete (ceiling
+    // 3.13h) entering a demanding tour (56.35h demand) gets a ceiling-bound
+    // target that availability ALSO caps. WeekRationale must be able to see
+    // this came from the ceiling, not the race, or it prints a number that
+    // visibly contradicts EventReadiness's demand figure on the same screen.
+    const r = weeklyTargetHours({
+      raceDemandHours: 56.35,
+      ceilingHours: 3.13,
+      floorHours: null,
+      availabilityHours: 2,
+      fallbackHours: 6,
+    });
+    expect(r.hours).toBe(2);
+    expect(r.source).toBe("ceiling");
+    expect(r.shortfall).toEqual({ wantedHours: 3.13, offeredHours: 2 });
+  });
+
   it("SUPPRESSES race demand when there is no measured ceiling", () => {
     // A brand-new athlete who logs an alpine tour must not be handed ~11h/week
     // on no evidence. This is the largest injury risk in the design.
@@ -109,7 +127,13 @@ describe("weeklyTargetHours", () => {
       availabilityHours: 3,
     });
     expect(r.hours).toBe(3);
-    expect(r.source).toBe("availability");
+    // `source` names what the pre-clamp target (5.3, the shortfall's
+    // wantedHours) actually IS — the maintenance floor — not that
+    // availability capped it; `shortfall != null` already says that. See
+    // Finding 3: a consumer like WeekRationale needs to know the number's
+    // origin survives the clamp so it never attributes a floor- or
+    // ceiling-derived figure to the race.
+    expect(r.source).toBe("floor");
     expect(r.shortfall).toEqual({ wantedHours: 5.3, offeredHours: 3 });
   });
 
@@ -122,7 +146,10 @@ describe("weeklyTargetHours", () => {
       fallbackHours: 10,
     });
     expect(r.hours).toBe(7);
-    expect(r.source).toBe("availability");
+    // Same as above: wantedHours (11) came from race demand, so `source`
+    // stays "race" through the availability clamp instead of collapsing to
+    // a fourth "availability" value.
+    expect(r.source).toBe("race");
     expect(r.shortfall).toEqual({ wantedHours: 11, offeredHours: 7 });
   });
 
@@ -167,7 +194,11 @@ describe("hoursForMaterialize", () => {
       availabilityHours: 7,
       fallbackHours: 10,
     });
-    expect(target.source).toBe("availability");
+    // wantedHours (11) came from race demand; `source` keeps saying "race"
+    // through the availability clamp rather than collapsing to a fourth
+    // "availability" value — see Finding 3 in volume.ts's VolumeResult doc.
+    expect(target.source).toBe("race");
+    expect(target.shortfall).not.toBeNull();
     const hours = hoursForMaterialize(target);
     expect(hours).toBe(11);
     expect(hours).toBeGreaterThan(target.hours);
@@ -217,6 +248,11 @@ describe("weeklyDisplayTarget", () => {
       planHoursPerWeek: 8,
     });
     expect(r.hours).toBe(3);
+    // The pre-existing-race-with-no-distance case from Finding 3: wantedHours
+    // (8) is the plan's own hoursPerWeek, not a race demand — `source` must
+    // say "fallback" through the clamp so a consumer never attributes this
+    // number to a race.
+    expect(r.source).toBe("fallback");
     expect(r.shortfall).toEqual({ wantedHours: 8, offeredHours: 3 });
   });
 });

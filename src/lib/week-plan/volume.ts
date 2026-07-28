@@ -43,8 +43,17 @@ export interface VolumeInput {
 
 export interface VolumeResult {
   hours: number;
-  /** Which input bound the result; drives the legibility surface. */
-  source: "race" | "ceiling" | "floor" | "availability" | "fallback";
+  /**
+   * Which input the TARGET (the pre-availability-clamp number, i.e.
+   * `shortfall.wantedHours` when `shortfall` is set) came from. This is
+   * deliberately NOT overwritten when availability then caps `hours` —
+   * `shortfall != null` is already the signal for "did availability bind";
+   * a consumer that needs to know what the number MEANS (e.g. WeekRationale
+   * deciding whether it may attribute the figure to a race) needs this
+   * field to keep its value through that clamp, not collapse to a fourth
+   * "availability" value that erases the distinction it exists to make.
+   */
+  source: "race" | "ceiling" | "floor" | "fallback";
   shortfall: { wantedHours: number; offeredHours: number } | null;
 }
 
@@ -96,7 +105,7 @@ export function weeklyTargetHours(input: VolumeInput): VolumeResult {
   if (availability < target) {
     return {
       hours: availability,
-      source: "availability",
+      source,
       shortfall: { wantedHours: target, offeredHours: availability },
     };
   }

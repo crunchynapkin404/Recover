@@ -58,9 +58,13 @@ export function eventDemand(input: EventDemandInput): EventDemand | null {
   // A zero or negative day count is data corruption, not a rest event.
   const days = Math.max(1, Math.floor(input.eventDays || 1));
 
-  const usable = input.stages.filter(
-    (s) => (s.distanceKm ?? 0) > 0 || (s.elevationM ?? 0) > 0
-  );
+  // estimateRidingHours requires distanceKm > 0 and returns null otherwise —
+  // an elevation-only stage would silently `continue` past the loop below,
+  // shrinking the sum's day-count without shrinking `days` (the ratio()
+  // divisor), understating demand. Require distance here, at the same
+  // boundary, so a stage is either fully usable or fully excluded — never
+  // admitted here and dropped two lines later.
+  const usable = input.stages.filter((s) => (s.distanceKm ?? 0) > 0);
 
   let totalHours: number | null = null;
   let queenStageHours: number | null = null;
@@ -83,7 +87,15 @@ export function eventDemand(input: EventDemandInput): EventDemand | null {
     if (sum > 0) {
       totalHours = sum;
       queenStageHours = hardest;
-      queenStageKnown = true;
+      // Only claim the hardest day is truly KNOWN — and let EventReadiness
+      // drop its "reasoning from an average day" caveat — when every event
+      // day contributed a usable stage. A race form lets an athlete fill in
+      // elevation for all `days` but distance for only some of them
+      // (stagesForSubmit emits a row whenever either field is set); with
+      // fewer usable stages than event days, the unpriced days are simply
+      // missing from `sum`, not zero-cost, so the total still understates
+      // demand and the caveat must stay on.
+      queenStageKnown = usable.length >= days;
     }
   }
 

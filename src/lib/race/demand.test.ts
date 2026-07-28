@@ -169,6 +169,87 @@ describe("eventDemand", () => {
     expect(d).not.toBeNull();
   });
 
+  // Final-review Finding 4: the `usable` filter used to admit a stage with
+  // elevation but no distance, then silently drop it two lines later
+  // (estimateRidingHours requires distanceKm > 0 and returns null for it).
+  // `days` — both the sum's implicit day-count and the ratio() divisor —
+  // stayed the full eventDays regardless, understating weekly demand.
+  it("excludes a stage with elevation but no distance from the usable total, rather than pricing it as zero", () => {
+    const withElevationOnlyStage = eventDemand({
+      ...base,
+      eventDays: 2,
+      distanceKm: null,
+      elevationM: null,
+      stages: [
+        { dayNumber: 1, distanceKm: 100, elevationM: 1500 },
+        // Known climbing, unknown distance — reachable straight from the
+        // race form: stagesForSubmit emits a row whenever EITHER field is
+        // filled.
+        { dayNumber: 2, distanceKm: null, elevationM: 1500 },
+      ],
+    })!;
+    const singleStageOnly = eventDemand({
+      ...base,
+      eventDays: 2,
+      distanceKm: null,
+      elevationM: null,
+      stages: [{ dayNumber: 1, distanceKm: 100, elevationM: 1500 }],
+    })!;
+    // The elevation-only day must not contribute anything — totalHours (and
+    // therefore weeklyHours) must come from day 1 alone, exactly as if day
+    // 2 had never been submitted at all.
+    expect(withElevationOnlyStage.totalHours).toBeCloseTo(
+      singleStageOnly.totalHours,
+      5
+    );
+  });
+
+  it("marks the queen stage unknown when the usable stages do not cover every event day", () => {
+    // The exact scenario from the finding: an 8-day tour where the athlete
+    // entered climbing for all 8 days but distance for only 6.
+    const knownDays = Array.from({ length: 6 }, (_, i) => ({
+      dayNumber: i + 1,
+      distanceKm: 90,
+      elevationM: 1200,
+    }));
+    const elevationOnlyDays = [7, 8].map((dayNumber) => ({
+      dayNumber,
+      distanceKm: null,
+      elevationM: 1200,
+    }));
+    const d = eventDemand({
+      ...base,
+      eventDays: 8,
+      distanceKm: null,
+      elevationM: null,
+      stages: [...knownDays, ...elevationOnlyDays],
+    })!;
+    // Partial coverage must not claim EventReadiness's "known hardest day"
+    // confidence — the 2 unpriced days mean the total (and therefore
+    // dailyRateHours) already understates demand, so the "reasoning from an
+    // average day" caveat must stay on.
+    expect(d.queenStageKnown).toBe(false);
+    // Sanity: still prices off the 6 known stages, not zero.
+    expect(d.totalHours).toBeGreaterThan(0);
+  });
+
+  it("still marks the queen stage known when the usable stages cover every event day", () => {
+    // Regression guard: the coverage check must not always fail. Every one
+    // of eventDays' worth of stages is fully usable here.
+    const d = eventDemand({
+      ...base,
+      eventDays: 3,
+      distanceKm: null,
+      elevationM: null,
+      stages: [
+        { dayNumber: 1, distanceKm: 80, elevationM: 1000 },
+        { dayNumber: 2, distanceKm: 90, elevationM: 1200 },
+        { dayNumber: 3, distanceKm: 100, elevationM: 1400 },
+      ],
+    })!;
+    expect(d.queenStageKnown).toBe(true);
+  });
+
   it("never divides by zero on a malformed day count", () => {
     const d = eventDemand({
       ...base,

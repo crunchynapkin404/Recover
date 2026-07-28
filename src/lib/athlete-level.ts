@@ -124,7 +124,20 @@ function peakOf(series: number[], weeks: number): number | null {
   // activity import, not an all-NaN series. Guard here rather than at each use
   // site: NaN is not nullish, so a caller writing `peak ?? fallback` would get
   // NaN back and carry it silently into arithmetic downstream.
-  return Number.isFinite(peak) ? peak : null;
+  if (!Number.isFinite(peak)) return null;
+
+  // A peak of zero is not a measurement. Every production caller
+  // (weeklyHoursByWeek's fixed-length buckets, assembleVolumeInputs' CTL
+  // bucketing loop) fills a full-length array of zeros rather than an empty
+  // one when there is no history, so the `window.length === 0` guard above
+  // can never fire from any real caller — it only protects hand-written test
+  // literals. Gating on the VALUE instead of the shape makes "no training in
+  // the window" read as null structurally, for both callers, rather than
+  // relying on every producer to remember to special-case the empty case.
+  // This matters downstream: volume.ts's `ceilingHours == null` branch is the
+  // only thing standing between a no-history athlete and a race-demand
+  // target computed against a zero ceiling.
+  return peak > 0 ? peak : null;
 }
 
 export function athleteLevel(input: LevelInput): LevelResult {

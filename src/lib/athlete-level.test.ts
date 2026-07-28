@@ -98,6 +98,28 @@ describe("athleteLevel", () => {
     expect(r.source).toBe("calibrating");
   });
 
+  it("treats an all-zero peak as no measurement, not a measured zero of 0h", () => {
+    // The shape that actually reaches athleteLevel in production: neither
+    // weeklyHoursByWeek (volume-inputs.ts) nor the CTL bucket loop in
+    // assembleVolumeInputs ever returns an empty array — both fill a
+    // fixed-length array of zeros when there is no history. The test above
+    // ([] in, [] in) exercises a shape no real caller can produce; this one
+    // exercises the one that matters. Before the peakOf fix, this returned
+    // peakHours: 0 / ceilingHours: 0 / floorHours: 0 / source: "computed",
+    // which downstream let weeklyTargetHours compute a target of 0 instead
+    // of falling back — a 0-hour week for a no-history athlete with a race.
+    const r = athleteLevel({
+      weeklyHoursByWeek: flat(0),
+      ctlByWeek: flat(0),
+      override: null,
+    });
+    expect(r.level).toBeNull();
+    expect(r.peakHours).toBeNull();
+    expect(r.ceilingHours).toBeNull();
+    expect(r.floorHours).toBeNull();
+    expect(r.source).toBe("calibrating");
+  });
+
   it("still reports a ceiling from hours alone while CTL history is missing", () => {
     // Asymmetric on purpose: real peak-hours history is usable evidence even
     // when we can't yet grade a level, and Task 6 needs it either way.

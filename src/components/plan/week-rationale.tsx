@@ -14,6 +14,19 @@ interface Props {
   shortfall: { wantedHours: number; offeredHours: number } | null;
   /** Name of the event being trained for, for the shortfall sentence. */
   raceName: string | null;
+  /**
+   * From weeklyTargetHours/weeklyDisplayTarget: which input `shortfall.
+   * wantedHours` actually came from. `shortfall != null` already says
+   * whether availability capped the returned hours — this says what the
+   * pre-clamp number MEANS, and it is not always the race. Final-review
+   * finding: this component used to attribute every shortfall's wantedHours
+   * to the race regardless of where it came from, so a pre-existing race
+   * with no distance on file (source "fallback") had its own plan hours
+   * printed as what the race "asks", and a ceiling-bound number printed a
+   * figure that visibly contradicted EventReadiness's demand figure one
+   * panel below.
+   */
+  source: "race" | "ceiling" | "floor" | "fallback" | null;
 }
 
 function fmt(hours: number): string {
@@ -42,12 +55,38 @@ function article(hours: number): string {
  * rounding artifact of zero, so the honest "no time at all" wording applies. */
 const NO_AVAILABILITY_EPSILON = 0.05;
 
+/**
+ * The lead sentence naming what `wantedHours` actually is. Only the "race"
+ * source may name the event — every other source is true about a number
+ * that has nothing to do with any race, and saying so plainly beats a
+ * generic "Your event" that implies one exists.
+ */
+function shortfallLead(
+  source: Props["source"],
+  raceName: string | null,
+  wantedHours: number
+): string {
+  const hours = fmt(wantedHours);
+  switch (source) {
+    case "race":
+      return `${raceName ?? "Your event"} asks about ${hours} a week.`;
+    case "ceiling":
+      return `Your current training capacity calls for about ${hours} a week.`;
+    case "floor":
+      return `Staying at maintenance calls for about ${hours} a week.`;
+    case "fallback":
+    default:
+      return `Your plan calls for about ${hours} a week.`;
+  }
+}
+
 export function WeekRationale({
   reasons,
   targetHours,
   plannedHours,
   shortfall,
   raceName,
+  source,
 }: Props) {
   if (reasons.length === 0 && targetHours == null && shortfall == null) {
     return null;
@@ -66,14 +105,24 @@ export function WeekRationale({
       {shortfall && (
         <p className="mb-2 text-[12.5px] text-white/70">
           {shortfall.offeredHours < NO_AVAILABILITY_EPSILON
-            ? `${raceName ?? "Your event"} asks about ${fmt(
+            ? `${shortfallLead(
+                source,
+                raceName,
                 shortfall.wantedHours
-              )} a week. Your calendar offered no time at all this week.`
-            : `${raceName ?? "Your event"} asks about ${fmt(
-                shortfall.wantedHours
-              )} a week. Your calendar offers ${fmt(
-                shortfall.offeredHours
-              )} — enough to ride it, not race it.`}
+              )} Your calendar offered no time at all this week.`
+            : source === "race"
+              ? `${shortfallLead(
+                  source,
+                  raceName,
+                  shortfall.wantedHours
+                )} Your calendar offers ${fmt(
+                  shortfall.offeredHours
+                )} — enough to ride it, not race it.`
+              : `${shortfallLead(
+                  source,
+                  raceName,
+                  shortfall.wantedHours
+                )} Your calendar offers ${fmt(shortfall.offeredHours)} instead.`}
         </p>
       )}
       <ul className="space-y-1">

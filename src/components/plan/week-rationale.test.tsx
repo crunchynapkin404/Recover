@@ -14,6 +14,7 @@ describe("WeekRationale", () => {
         plannedHours={4.9}
         shortfall={null}
         raceName={null}
+        source={null}
       />
     );
     expect(html).toContain("fully missed");
@@ -28,6 +29,7 @@ describe("WeekRationale", () => {
         plannedHours={11}
         shortfall={null}
         raceName={null}
+        source={null}
       />
     );
     expect(html).toContain("11h planned against an 11h target");
@@ -44,6 +46,7 @@ describe("WeekRationale", () => {
         plannedHours={6}
         shortfall={null}
         raceName={null}
+        source={null}
       />
     );
     expect(html).toContain("6h planned against a 6h target");
@@ -62,12 +65,13 @@ describe("WeekRationale", () => {
         plannedHours={18}
         shortfall={null}
         raceName={null}
+        source={null}
       />
     );
     expect(html).toContain("18h planned against an 18h target");
   });
 
-  it("states the shortfall plainly when availability capped the week", () => {
+  it("attributes the shortfall to the race only when source is 'race'", () => {
     const html = renderToString(
       <WeekRationale
         reasons={[]}
@@ -75,6 +79,7 @@ describe("WeekRationale", () => {
         plannedHours={7}
         shortfall={{ wantedHours: 11, offeredHours: 7 }}
         raceName="Dolomites"
+        source="race"
       />
     );
     expect(html).toContain("Dolomites asks about 11h");
@@ -91,6 +96,7 @@ describe("WeekRationale", () => {
         plannedHours={0}
         shortfall={{ wantedHours: 8, offeredHours: 0 }}
         raceName="Dolomites"
+        source="race"
       />
     );
     expect(html).toContain("Dolomites asks about 8h");
@@ -98,19 +104,96 @@ describe("WeekRationale", () => {
     expect(html).not.toContain("enough to ride it");
   });
 
-  it("names no event it was not given", () => {
-    // The shortfall sentence must still work before a race is entered.
-    const html = renderToString(
-      <WeekRationale
-        reasons={[]}
-        targetHours={7}
-        plannedHours={7}
-        shortfall={{ wantedHours: 11, offeredHours: 7 }}
-        raceName={null}
-      />
-    );
-    expect(html).toContain("asks about 11h");
-    expect(html).not.toContain("null");
+  // Final-review Finding 3: shortfall.wantedHours is the post-floor /
+  // post-ceiling / post-fallback target, NOT demand.weeklyHours. Before this
+  // fix, every source printed "${raceName ?? "Your event"} asks about Xh a
+  // week" regardless of where X actually came from — misattributing the
+  // athlete's own ceiling, floor, or plan fallback to the race. Each source
+  // now gets its own true sentence, and only "race" may name the event.
+  describe("attributes the shortfall correctly per source", () => {
+    it("source 'race': names the race", () => {
+      const html = renderToString(
+        <WeekRationale
+          reasons={[]}
+          targetHours={7}
+          plannedHours={7}
+          shortfall={{ wantedHours: 11, offeredHours: 7 }}
+          raceName="Dolomites"
+          source="race"
+        />
+      );
+      expect(html).toContain("Dolomites asks about 11h a week");
+    });
+
+    it("source 'ceiling': attributes the number to measured capacity, not the race", () => {
+      // The exact contradiction Finding 3 found live: a low-peak athlete's
+      // ceiling-bound number must not be printed as what the race "asks",
+      // since EventReadiness shows the race's real (much larger) demand
+      // figure one panel below.
+      const html = renderToString(
+        <WeekRationale
+          reasons={[]}
+          targetHours={2}
+          plannedHours={2}
+          shortfall={{ wantedHours: 3.1, offeredHours: 2 }}
+          raceName="Dolomites"
+          source="ceiling"
+        />
+      );
+      expect(html).toContain("training capacity");
+      expect(html).toContain("3.1h a week");
+      expect(html).not.toContain("Dolomites asks");
+    });
+
+    it("source 'floor': attributes the number to the maintenance floor, not the race", () => {
+      const html = renderToString(
+        <WeekRationale
+          reasons={[]}
+          targetHours={3}
+          plannedHours={3}
+          shortfall={{ wantedHours: 5.3, offeredHours: 3 }}
+          raceName="Criterium"
+          source="floor"
+        />
+      );
+      expect(html).toContain("maintenance");
+      expect(html).toContain("5.3h a week");
+      expect(html).not.toContain("Criterium asks");
+    });
+
+    it("source 'fallback': names no event — the pre-existing-race-with-no-distance case", () => {
+      // The common case today: every pre-existing race has distance_km
+      // NULL, so demand is null and source is "fallback" — wantedHours is
+      // the athlete's own typed hoursPerWeek. The race had no part in it.
+      const html = renderToString(
+        <WeekRationale
+          reasons={[]}
+          targetHours={3}
+          plannedHours={3}
+          shortfall={{ wantedHours: 8, offeredHours: 3 }}
+          raceName="Some Upcoming Race"
+          source="fallback"
+        />
+      );
+      expect(html).toContain("Your plan calls for about 8h a week");
+      expect(html).not.toContain("Some Upcoming Race asks");
+    });
+
+    it("source 'fallback' with no race entered at all: still true, still no event named", () => {
+      const html = renderToString(
+        <WeekRationale
+          reasons={[]}
+          targetHours={7}
+          plannedHours={7}
+          shortfall={{ wantedHours: 8, offeredHours: 7 }}
+          raceName={null}
+          source="fallback"
+        />
+      );
+      expect(html).toContain("Your plan calls for about 8h a week");
+      expect(html).not.toContain("asks about");
+      expect(html).not.toContain("null");
+    });
   });
 
   it("renders nothing when there is nothing to explain", () => {
@@ -121,6 +204,7 @@ describe("WeekRationale", () => {
         plannedHours={null}
         shortfall={null}
         raceName={null}
+        source={null}
       />
     );
     expect(html).toBe("");

@@ -3,6 +3,8 @@ import {
   longestRideHoursOf,
   weeklyHoursByWeek,
 } from "@/lib/week-plan/volume-inputs";
+import { athleteLevel } from "@/lib/athlete-level";
+import { weeklyTargetHours } from "@/lib/week-plan/volume";
 
 // weeklyHoursByWeek is the pure half of this module and is exported for
 // exactly this reason: the DB half needs a database, this does not.
@@ -47,6 +49,44 @@ describe("weeklyHoursByWeek", () => {
     expect(out).toHaveLength(3);
     expect(out[0]).toBe(0);
     expect(out[2]).toBe(1);
+  });
+
+  // Final-review CRITICAL: weeklyHoursByWeek([], ...) never returns [] — it
+  // fills a full-length array of zeros, same as the CTL bucket loop in
+  // assembleVolumeInputs. Every prior null-ceiling test in athlete-level.test
+  // and volume.test.ts supplied `[]` or `null` by hand, a shape the real
+  // producer can never emit, so the "no measured ceiling suppresses race
+  // demand" guard in weeklyTargetHours was never actually exercised by
+  // anything resembling production data. This test drives the real producer
+  // and follows its output through athleteLevel into weeklyTargetHours to
+  // prove the whole chain: a no-history athlete with an upcoming race must
+  // get the plan's fallback hours, not a target of 0.
+  it("feeds a no-history athlete's real output into weeklyTargetHours and gets the fallback, not 0", () => {
+    const now = new Date("2026-08-02T10:00:00Z");
+    const hours = weeklyHoursByWeek([], now, 12);
+    expect(hours).toHaveLength(12);
+    expect(hours.every((h) => h === 0)).toBe(true);
+
+    const level = athleteLevel({
+      weeklyHoursByWeek: hours,
+      ctlByWeek: new Array(12).fill(0),
+      override: null,
+    });
+    expect(level.ceilingHours).toBeNull();
+    expect(level.floorHours).toBeNull();
+
+    const target = weeklyTargetHours({
+      // An upcoming race with a distance on file — the exact combination
+      // that, with a measured ceiling, would drive the target off race
+      // demand instead.
+      raceDemandHours: 11,
+      ceilingHours: level.ceilingHours,
+      floorHours: level.floorHours,
+      availabilityHours: 12.5,
+      fallbackHours: 10, // the plan's own hoursPerWeek
+    });
+    expect(target.hours).toBe(10);
+    expect(target.source).toBe("fallback");
   });
 });
 

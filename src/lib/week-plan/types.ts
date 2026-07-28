@@ -107,6 +107,16 @@ export const SUPPRESSED_READINESS_DAYS = 4;
 export const SUPPRESSED_REDUCTION = 0.85;
 /** A fully missed week (actual 0) restarts at this fraction of skeleton. */
 export const MISSED_WEEK_RESTART = 0.6;
+/**
+ * How far generateWorkouts' own duration caps (long session 240min/180min
+ * for runs, filler sessions 90min/60min for runs — see training-plan.ts) may
+ * fall short of the week's target before materializeWeek must say so. Raising
+ * those caps to close the gap is explicitly out of scope: it would change
+ * every existing user's prescribed workouts as a side effect of a legibility
+ * branch, and the generator rewrite is separately scoped Phase 2 work. This
+ * threshold exists so the deficit is at least explained, not silent.
+ */
+export const GENERATOR_CAP_SHORTFALL_PCT = 0.1;
 
 // ── adaptDay constants ──────────────────────────────────────────────────
 /** Redistribution may add at most this fraction to a day's load. */
