@@ -119,8 +119,14 @@ It replaces several guesses with published anchors (ACWR for the ceiling,
 detraining literature for a new floor, CTS's 2-3× rule for multi-day) and flags
 which constants remain unsourced. Read it before amending the formula.
 
-STILL OPEN: the single-day path has no clean quantitative anchor, and the two
-coaching sources actively disagree on whether the long-ride rule matters.
+RESOLVED: the single-day path now has an anchor too, and both unify into ONE
+concept — event total load as a multiple of a weekly training load:
+`ratio(days) = 0.60 × days^0.686`, `weeklyHours = totalEventHours / ratio`,
+then floor at 0.6×peak and ceiling at 1.3×peak. Single-day outputs land inside
+the published 8-12 h/week band without being fitted to it.
+
+STILL OPEN: the two coaching sources actively disagree on whether the long-ride
+rule matters at all — soften it in the feasibility verdict.
 
 **Earlier proposed fix** (superseded in part by the research):
 

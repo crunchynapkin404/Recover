@@ -16,7 +16,7 @@ overriding.
 | `HEADROOM` (ceiling) | 1.3 | ACWR safe zone **0.8–1.3** | **High** |
 | `RAMP_CLAMP_PCT` (existing) | 0.2 | ACWR 1.2, inside the safe band | **High** |
 | Maintenance floor (new) | 0.5–0.7 | **50–75% of volume maintains VO₂max** | **High** |
-| `EVENT_TO_WEEKLY` (new) | 2.5 | CTS: multi-day event ≈ **2–3× weekly load** | Medium — single source |
+| `EVENT_TO_WEEKLY` ratio(days) | 0.6 → 2.5 | 1-day: **300 TSS vs ~630 weekly**, cross-checked vs **8–12 h/wk** plans. 8-day: CTS **2–3×** | Medium |
 | Level CTL bands | 35/55/80 | CTS: fondo riders **40–100**, competitors **70–120** | Medium |
 | Level hours bands | 3/5/9 | Elite **14.7–19.7 h/wk**; competitive amateurs **~9.8**; elite junior/masters competitive at **6–12** | Medium |
 | `FTP_FRACTION` | 0.85/0.75/0.68 | Durability: critical power decays **~10%** after fatiguing work — our 20% span is steeper | Medium |
@@ -80,6 +80,52 @@ describes the time they have, not the training the event asks for. Surfacing
 exactly that gap is what the feasibility verdict exists to do. Do not tune the
 constant until the model agrees with the athlete's estimate; that would delete
 the finding.
+
+### 3b. The single-day anchor — and the two paths unify
+
+The 2–3× rule is for multi-day events; applied to one 6.8h fondo it gives
+2.7 h/week, which is nonsense. A second research pass found the single-day
+numbers directly:
+
+- **Beginner century/gran fondo plans: 6–8 h/week.**
+- **Intermediate: 8–12 h/week.**
+- **Advanced: peak 15 h/week, longest ride 5h.**
+- Summarised as *"about 6 hours per week on the low end, to about 12 hours per
+  week on the high end."*
+- A long sportive or race generates **200–350+ TSS**; sustainable weekly TSS is
+  about **CTL × 7–8**. At CTL 90 (mid competitive-fondo band) that is ~630
+  weekly TSS, so a 300-TSS event is roughly **half a training week**.
+
+That last line is the unifying insight. Both endpoints express the same
+quantity — **event total load as a multiple of a weekly training load**:
+
+| Event shape | Event ÷ weekly load | Source |
+| --- | --- | --- |
+| 1 day | **≈ 0.6** | 300 TSS event vs ~630 weekly TSS; cross-checked against 8–12 h/week plans |
+| 8 days | **≈ 2.5** | CTS "2-3 times your normal weekly training load" |
+
+So one formula, with the multiplier growing as the event lengthens:
+
+```text
+ratio(days)  = 0.60 × days^0.686        // 0.686 fits the two anchors exactly
+weeklyHours  = totalEventHours / ratio(days)
+then clamp:    max(floor 0.6 × peak, …) then min(ceiling 1.3 × peak)
+```
+
+Checked against the published bands, with nothing fitted to them beyond the two
+endpoint ratios:
+
+| Event | Total | Raw | Final | Literature |
+| --- | --- | --- | --- | --- |
+| 8-day alpine tour | 42.1h | 16.8h | **11.6h** (ceiling) | — |
+| 1-day alpine fondo | 6.8h | 11.4h | **11.4h** | 8–12 (intermediate) |
+| Flat century ~5h | 5.6h | 9.4h | **9.4h** | 8–12 |
+| 3-day stage race | 13.6h | 10.7h | **10.7h** | — |
+| Local crit | 1.3h | 2.1h | **5.3h** (floor) | n/a |
+
+Both single-day cases land inside the published range. The tour's raw 16.8h is
+cut to 11.6h by the ACWR ceiling — which is the shortfall the feasibility
+verdict should report, not a number to tune away.
 
 ### 4. `LONGEST_RIDE_FRACTION` is contested and must be softened
 
