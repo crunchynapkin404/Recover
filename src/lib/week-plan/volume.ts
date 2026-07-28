@@ -103,3 +103,22 @@ export function weeklyTargetHours(input: VolumeInput): VolumeResult {
 
   return { hours: target, source, shortfall: null };
 }
+
+/**
+ * The hours figure `materializeWeek` must receive: the target BEFORE the
+ * availability clamp.
+ *
+ * `weeklyTargetHours` applies availability last, and `materializeWeek` applies
+ * it again from the same `dayMins` sum — lowering `effectiveLoad` and pushing
+ * the adjustment that tells the athlete why their week shrank. Handing it an
+ * already-clamped number makes that branch unreachable: the week keeps its
+ * full skeleton load with no time to ride it, adherence is scored against an
+ * unreachable target, and the explanation disappears.
+ *
+ * This is a named export rather than an inline expression because reverting it
+ * to `target.hours` looks like a harmless simplification and, before this
+ * existed, broke nothing any test could see.
+ */
+export function hoursForMaterialize(target: VolumeResult): number {
+  return target.shortfall?.wantedHours ?? target.hours;
+}

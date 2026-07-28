@@ -115,9 +115,25 @@ function isTriathlon(raceType: string): boolean {
 
 /**
  * Exported so the weekly rollover can recompute the skeleton fresh rather
- * than reading `training_blocks` as authority. Pure: the same inputs always
- * yield the same blocks, and `startingCtl` is a fixed historical fact, so a
- * recomputation only moves when demand or ceiling genuinely moves.
+ * than reading `training_blocks` as authority.
+ *
+ * What "fresh" actually buys: `targetLoad`, `phase` and `targetSessions` —
+ * the three fields `rolloverWeekPlan` keeps from a block — are driven by
+ * `startingCtl`, `weeksTotal` and fixed phase multipliers (`targetSessions`
+ * also reads `constraints.daysPerWeek`), never by `hoursPerWeek`. A 20×
+ * spread in `hoursPerWeek` leaves them byte-identical; only `workouts`
+ * responds to it, and `rolloverWeekPlan` discards `derived.workouts`. So the
+ * recompute's value is keeping the skeleton in step with the plan's
+ * *current* `constraints.daysPerWeek`, `startingCtl` and `weeksTotal` —
+ * whichever they are today — rather than whatever `training_blocks` held at
+ * plan creation. It is not how the derived hours figure reaches the
+ * athlete's week.
+ *
+ * The derived hours figure reaches the athlete's week through
+ * `materializeWeek`'s `hoursPerWeek` parameter, a separate argument
+ * `rolloverWeekPlan` passes alongside these blocks — not through
+ * `targetLoad`/`targetSessions` here. Do not "simplify" that parameter away
+ * on the assumption these blocks already carry it; they don't.
  */
 export function periodize(
   weeksTotal: number,

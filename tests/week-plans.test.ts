@@ -539,6 +539,156 @@ describe.skipIf(!hasDb)("week-plan service", () => {
     }
   });
 
+  // Task 9 integration coverage: a reviewer proved by mutation that
+  // reverting the `materializeWeek` call site's `hoursPerWeek` argument
+  // (rolloverWeekPlan, service.ts) from `hoursForMaterialize(target)` back to
+  // `target.hours` left every other week-plan test passing — nothing calls
+  // `rolloverWeekPlan` itself with inputs that make the two diverge.
+  // `hoursForMaterialize` is pinned at the unit level in volume.test.ts; this
+  // closes the gap at the integration level by seeding real DB rows that
+  // drive `assembleVolumeInputs` to a non-null `ceilingHours`, a real
+  // upcoming race with distance/elevation, and availability BELOW the
+  // resulting derived target — the exact combination that fails if the call
+  // site passes an already-clamped number.
+  //
+  // A dedicated user (own plan/blocks/availabilityDefaults/activities/
+  // race/bodyPrefs), following the NODEFAULTS pattern above, rather than
+  // reusing the shared USER fixture: a seeded race and bodyPrefs.ftpWatts
+  // row would otherwise leak into every other test sharing USER, since
+  // resetState() does not clean either table.
+  it("rollover clamps materializeWeek's hours to availability, not the periodized skeleton's already-clamped target (Task 9)", async () => {
+    const { db, schema } = await import("@/lib/db");
+    const { rolloverWeekPlan, getOpenWeekPlan, listAdjustments } =
+      await import("@/lib/week-plan/service");
+    const { periodize } = await import("@/lib/training-plan");
+
+    const VOLUME_USER = "test-week-plans-volume-user";
+    try {
+      await db
+        .insert(schema.users)
+        .values({
+          id: VOLUME_USER,
+          name: "Volume Integration Test",
+          email: `${VOLUME_USER}@example.invalid`,
+          role: "member",
+        })
+        .onConflictDoNothing();
+
+      const [plan] = await db
+        .insert(schema.trainingPlans)
+        .values({
+          userId: VOLUME_USER,
+          title: "Race-driven volume integration plan",
+          raceType: "gran fondo",
+          raceDate: addDaysYmd(weekStart, 12 * 7),
+          startDate: weekStart,
+          weeksTotal: 12,
+          currentWeek: 1,
+          status: "active",
+          constraints: { daysPerWeek: 5, hoursPerWeek: 8, sports: ["Bike"] },
+        })
+        .returning();
+      await db.insert(schema.trainingBlocks).values({
+        planId: plan.id,
+        weekNumber: 1,
+        phase: "build",
+        targetLoadTotal: 400,
+        targetSessions: 5,
+        workouts: [],
+      });
+
+      // Thin, uniform availability: 30min/day = 3.5h/week total — well
+      // below the ~10.6h/week the race demand below derives, so the
+      // availability clamp is guaranteed to bind regardless of which
+      // weekday this suite happens to run on (mid-week rollover zeroes
+      // already-past days, only ever shrinking this further).
+      await db.insert(schema.availabilityDefaults).values(
+        Array.from({ length: 7 }, (_, wd) => ({
+          userId: VOLUME_USER,
+          weekday: wd,
+          blocks: [
+            {
+              start: null,
+              end: null,
+              mins: 30,
+              energy: "normal" as const,
+              sports: null,
+            },
+          ],
+        }))
+      );
+
+      // Recent history: one 14h ride three weeks ago gives athleteLevel a
+      // measured peak (peakHours=14 -> ceilingHours=18.2), so the ceiling
+      // does not suppress race demand.
+      await db.insert(schema.activities).values({
+        userId: VOLUME_USER,
+        provider: "manual",
+        externalId: `volume-integration-history-${Date.now()}`,
+        startDate: new Date(Date.now() - 21 * 24 * 3600 * 1000),
+        sport: "Ride",
+        name: "Long history ride",
+        durationS: 14 * 3600,
+      });
+
+      await db.insert(schema.bodyPrefs).values({
+        userId: VOLUME_USER,
+        ftpWatts: 310,
+      });
+
+      // Same distance/elevation as the eventDemand fixture that lands
+      // inside the published 8-12h/week gran fondo band (~10.6h here, see
+      // src/lib/race/demand.test.ts). Dated 70 days out — inside
+      // assembleVolumeInputs' unbounded "upcoming" query (so demand still
+      // sees it) but outside racesForWeek's 27-day window (so this week
+      // never becomes a taper week, keeping the scenario isolated to the
+      // availability clamp under test).
+      await db.insert(schema.races).values({
+        userId: VOLUME_USER,
+        name: "Integration Gran Fondo",
+        raceType: "gran fondo",
+        date: addDaysYmd(weekStart, 70),
+        priority: "B",
+        status: "upcoming",
+        eventDays: 1,
+        distanceKm: 130,
+        elevationM: 4000,
+      });
+
+      expect(await rolloverWeekPlan(VOLUME_USER)).toBe("rolled");
+
+      const week = await getOpenWeekPlan(VOLUME_USER);
+      expect(week).not.toBeNull();
+
+      // The freshly-periodized week-1 skeleton. Deterministic off
+      // startingCtl(0)/weeksTotal/daysPerWeek/raceType/sports alone — the
+      // hours argument here is arbitrary and does not affect targetLoad
+      // (see rollover-volume.test.ts's 20x-spread test), so this
+      // independently reproduces what rolloverWeekPlan computed internally
+      // without needing to replicate the volume-derivation pipeline.
+      const derived = periodize(12, 0, 5, 999, "gran fondo", ["Bike"]).find(
+        (b) => b.weekNumber === 1
+      )!;
+
+      // This is the finding: passing an already-clamped hours figure to
+      // materializeWeek would make its own availability-vs-need comparison
+      // unreachable, leaving effectiveTarget at the full (unclamped)
+      // skeleton load and producing no adjustment explaining the shortfall.
+      expect(week!.effectiveTarget).not.toBeNull();
+      expect(week!.effectiveTarget!).toBeLessThan(derived.targetLoad);
+
+      const adjustments = await listAdjustments(week!.id);
+      expect(
+        adjustments.some((a) => a.reason.includes("available instead of"))
+      ).toBe(true);
+    } finally {
+      // users cascades to trainingPlans/trainingBlocks/weekPlans/
+      // availabilityDefaults/activities/races/bodyPrefs — same
+      // cascade-style cleanup as the NODEFAULTS test above.
+      await db.delete(schema.users).where(eq(schema.users.id, VOLUME_USER));
+    }
+  });
+
   it("generateWeeklyReview leaves an open week_plans row (rollover wired)", async () => {
     const { db, schema } = await import("@/lib/db");
     const { generateWeeklyReview } = await import("@/lib/weekly-review");

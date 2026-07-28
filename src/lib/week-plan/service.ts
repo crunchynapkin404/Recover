@@ -15,7 +15,7 @@ import { providerSportAliases } from "@/lib/canonical-sport";
 import type { AvailabilityBlock } from "@/lib/availability/types";
 import { periodize } from "@/lib/training-plan";
 import { assembleVolumeInputs } from "./volume-inputs";
-import { weeklyTargetHours } from "./volume";
+import { hoursForMaterialize, weeklyTargetHours } from "./volume";
 
 export type AdjustmentRow = typeof schema.planAdjustments.$inferSelect;
 
@@ -316,7 +316,7 @@ export async function rolloverWeekPlan(
     recentBands: await recentBands(userId),
     raceType: plan.raceType,
     sports: constraints.sports,
-    hoursPerWeek: target.shortfall?.wantedHours ?? target.hours,
+    hoursPerWeek: hoursForMaterialize(target),
     races,
     currentCtl: ctlNow,
   });

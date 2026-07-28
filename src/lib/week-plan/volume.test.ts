@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { weeklyTargetHours } from "./volume";
+import { hoursForMaterialize, weeklyTargetHours } from "./volume";
 
 const base = {
   raceDemandHours: null,
@@ -146,5 +146,39 @@ describe("weeklyTargetHours", () => {
     });
     expect(r.hours).toBeGreaterThanOrEqual(0);
     expect(Number.isFinite(r.hours)).toBe(true);
+  });
+});
+
+describe("hoursForMaterialize", () => {
+  // This is the exact call-site expression `rolloverWeekPlan` hands to
+  // `materializeWeek`. It exists as a named export — rather than staying
+  // inline — specifically so it can be pinned here; see the Task 9 finding
+  // this guards: reverting it to `target.hours` left all 154 week-plan tests
+  // passing.
+  it("returns the pre-clamp wantedHours when availability binds", () => {
+    const target = weeklyTargetHours({
+      raceDemandHours: 11,
+      ceilingHours: 13,
+      floorHours: null,
+      availabilityHours: 7,
+      fallbackHours: 10,
+    });
+    expect(target.source).toBe("availability");
+    const hours = hoursForMaterialize(target);
+    expect(hours).toBe(11);
+    expect(hours).toBeGreaterThan(target.hours);
+  });
+
+  it("returns target.hours unchanged when availability does not bind", () => {
+    const target = weeklyTargetHours({
+      raceDemandHours: 11,
+      ceilingHours: 13,
+      floorHours: null,
+      availabilityHours: 20,
+      fallbackHours: 10,
+    });
+    expect(target.source).toBe("race");
+    expect(target.shortfall).toBeNull();
+    expect(hoursForMaterialize(target)).toBe(target.hours);
   });
 });

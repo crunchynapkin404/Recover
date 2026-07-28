@@ -8,7 +8,24 @@ describe("periodize under a derived hours target", () => {
     expect(JSON.stringify(a)).toBe(JSON.stringify(b));
   });
 
-  it("produces a bigger week-5 target for a bigger hours figure", () => {
+  // Renamed from "produces a bigger week-5 target for a bigger hours
+  // figure" — that name implied this pins the SKELETON (targetLoad), which
+  // it does not. What it actually pins is generateWorkouts' own
+  // hours-responsiveness: the `workouts` array embedded in each block scales
+  // with the hours figure passed in. `rolloverWeekPlan` discards
+  // `derived.workouts` entirely (see the sibling test below — targetLoad,
+  // phase and targetSessions are identical regardless of hours), so this is
+  // NOT coverage of the skeleton `rolloverWeekPlan` keeps.
+  //
+  // The behaviour is still live in production, just through a different
+  // door: `materializeWeek` makes its own separate `generateWorkouts` call
+  // using `hoursForMaterialize(target)` as `hoursPerWeek`
+  // (src/lib/week-plan/materialize.ts:312, `effectiveHours = Math.min(
+  // hoursBudget, neededHours)`), and that is what reaches the athlete's
+  // actual sessions. This test exists to pin that generateWorkouts
+  // responds to its `weekHours` argument at all — a precondition that path
+  // relies on — not to cover the periodized skeleton.
+  it("generateWorkouts scales week-5 workout minutes with the hours figure (not the skeleton — see sibling test)", () => {
     const small = periodize(9, 76.7, 4, 6, "century", ["Bike"]);
     const large = periodize(9, 76.7, 4, 12, "century", ["Bike"]);
     const w5s = small.find((b) => b.weekNumber === 5)!;
@@ -16,6 +33,28 @@ describe("periodize under a derived hours target", () => {
     const mins = (b: typeof w5s) =>
       b.workouts.reduce((s, w) => s + w.durationMins, 0);
     expect(mins(w5l)).toBeGreaterThan(mins(w5s));
+  });
+
+  // A reviewer measured this exact 20x spread (2h vs 40h/week) producing
+  // byte-identical targetLoad, phase and targetSessions for every week of
+  // the plan. Documented here deliberately so a future reader does not
+  // assume the periodized blocks track the hours figure they were called
+  // with — they don't; only `workouts` (discarded by `rolloverWeekPlan`,
+  // see the test above) responds to it. See the docstring on `periodize` in
+  // src/lib/training-plan.ts for why this is safe: targetLoad is driven by
+  // startingCtl and fixed phase multipliers, targetSessions by
+  // daysPerWeek, and phase by week index alone.
+  it("keeps targetLoad, phase and targetSessions identical across a 20x hours spread", () => {
+    const small = periodize(9, 76.7, 4, 2, "century", ["Bike"]);
+    const large = periodize(9, 76.7, 4, 40, "century", ["Bike"]);
+    const strip = (blocks: typeof small) =>
+      blocks.map(({ weekNumber, phase, targetLoad, targetSessions }) => ({
+        weekNumber,
+        phase,
+        targetLoad,
+        targetSessions,
+      }));
+    expect(strip(large)).toEqual(strip(small));
   });
 
   it("still marks week 4 of a 9-week plan a recovery week", () => {
