@@ -3192,9 +3192,16 @@ git commit -m "feat(plan): surface the week's own reasons instead of leaving the
 
 Create `src/components/plan/event-readiness.test.tsx`:
 
+**`@testing-library/react` is NOT a dependency of this repo** — do not import
+`render`, `screen`, or jest-dom matchers, and do not install anything.
+`EventReadiness` is stateless, so `renderToString` is the right tool, matching
+`src/components/plan/races-section.test.tsx` and `week-rationale.test.tsx`.
+Replace every `render(...)` + `screen.getByText(/x/)` pair below with
+`renderToString(...)` + `expect(html).toContain("x")`.
+
 ```tsx
 import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { renderToString } from "react-dom/server";
 import { EventReadiness } from "./event-readiness";
 
 const demand = {
@@ -3264,6 +3271,40 @@ describe("EventReadiness", () => {
     );
     expect(screen.getByText(/average day/i)).toBeInTheDocument();
   });
+
+  it("never prints Infinity weeks", () => {
+    // `weeksToGrow` returns Infinity when current hours are zero, and
+    // `assessFeasibility` only returns null when they are NULL — so an
+    // athlete with a race and no measured training reaches this component
+    // with a non-finite figure. "Closing the gap needs Infinity weeks" is
+    // the single worst sentence this feature could show someone.
+    const html = renderToString(
+      <EventReadiness
+        raceName="Dolomites"
+        feasibility={{
+          ...feasibility,
+          verdict: "not_realistic",
+          volumeWeeksNeeded: Infinity,
+          longestRideWeeksNeeded: Infinity,
+        }}
+        demand={demand}
+      />
+    );
+    expect(html).not.toContain("Infinity");
+    expect(html).toContain("no recent training");
+  });
+
+  it("counts a single week in the singular", () => {
+    const html = renderToString(
+      <EventReadiness
+        raceName="Dolomites"
+        feasibility={{ ...feasibility, weeksUntilEvent: 1 }}
+        demand={demand}
+      />
+    );
+    expect(html).toContain("1 week to go");
+    expect(html).not.toContain("1 weeks");
+  });
 });
 ```
 
@@ -3307,8 +3348,16 @@ function fmt(hours: number): string {
   return Number.isInteger(hours) ? `${hours}h` : `${hours.toFixed(1)}h`;
 }
 
+function weeks(n: number): string {
+  return n === 1 ? "1 week" : `${n} weeks`;
+}
+
 export function EventReadiness({ raceName, feasibility, demand }: Props) {
   const { verdict, weeksUntilEvent, requiredLongestRideHours } = feasibility;
+  const weeksNeeded = Math.max(
+    feasibility.volumeWeeksNeeded,
+    feasibility.longestRideWeeksNeeded
+  );
 
   return (
     <div className="glass mt-4 rounded-[1.5rem] p-5">
@@ -3317,11 +3366,13 @@ export function EventReadiness({ raceName, feasibility, demand }: Props) {
         {VERDICT_COPY[verdict]}
       </p>
       <p className="text-[11.5px] leading-relaxed text-white/60">
-        {`Asks about ${fmt(demand.weeklyHours)} a week, and a longest ride of about ${fmt(requiredLongestRideHours)}. ${weeksUntilEvent} weeks to go.`}
+        {`Asks about ${fmt(demand.weeklyHours)} a week, and a longest ride of about ${fmt(requiredLongestRideHours)}. ${weeks(weeksUntilEvent)} to go.`}
       </p>
       {verdict === "not_realistic" && (
         <p className="mt-2 text-[11.5px] leading-relaxed text-white/60">
-          {`Closing the gap needs ${Math.max(feasibility.volumeWeeksNeeded, feasibility.longestRideWeeksNeeded)} weeks of steady building, and there are ${weeksUntilEvent}. You can still ride it — go in knowing what it asks.`}
+          {Number.isFinite(weeksNeeded)
+            ? `Closing the gap needs ${weeks(weeksNeeded)} of steady building, and there are ${weeks(weeksUntilEvent)}. You can still ride it — go in knowing what it asks.`
+            : `There is no recent training here to build from, so there is no honest estimate of how long closing the gap would take. You can still ride it — go in knowing what it asks.`}
         </p>
       )}
       {feasibility.fromAverageDay && (
@@ -3337,19 +3388,59 @@ export function EventReadiness({ raceName, feasibility, demand }: Props) {
 
 - [ ] **Step 4: Render it on the train page**
 
-In `src/app/train/page.tsx`, after loading `assembleVolumeInputs`:
+Task 11 already put `volumeInputs` (from `assembleVolumeInputs`) in scope
+inside the `if (week)` block on `src/app/train/page.tsx`. There is no
+`feasibility` anywhere on that page — the page must compute it. Add, beside
+the Task 11 derivation:
 
 ```tsx
-{
-  inputs.targetRace && inputs.demand && feasibility && (
-    <EventReadiness
-      raceName={inputs.targetRace.name}
-      feasibility={feasibility}
-      demand={inputs.demand}
-    />
-  );
-}
+// Weeks until the event, counted from this week's Monday so it agrees with
+// the rest of the page rather than drifting by a day mid-week.
+const raceDate = volumeInputs.targetRace?.date ?? null;
+const weeksUntilEvent =
+  raceDate == null
+    ? null
+    : Math.max(
+        0,
+        Math.round(
+          (new Date(raceDate + "T00:00:00").getTime() -
+            new Date(week.weekStart + "T00:00:00").getTime()) /
+            (7 * 24 * 60 * 60 * 1000)
+        )
+      );
+
+const feasibility =
+  volumeInputs.demand == null || weeksUntilEvent == null
+    ? null
+    : assessFeasibility({
+        requiredWeeklyHours: volumeInputs.demand.weeklyHours,
+        currentWeeklyHours: volumeInputs.level.peakHours,
+        queenStageHours: volumeInputs.demand.queenStageHours,
+        queenStageKnown: volumeInputs.demand.queenStageKnown,
+        longestRideHours: volumeInputs.longestRideHours,
+        weeksUntilEvent,
+      });
 ```
+
+`new Date(ymd + "T00:00:00")` parses as LOCAL midnight; a bare
+`new Date(ymd)` parses as UTC and shifts the count by a day in this app's
+timezone. That exact bug has already shipped here once — see
+`src/lib/week-plan/volume-inputs.ts`.
+
+Render it beside `<WeekRationale>`:
+
+```tsx
+{volumeInputs.targetRace && volumeInputs.demand && feasibility && (
+  <EventReadiness
+    raceName={volumeInputs.targetRace.name}
+    feasibility={feasibility}
+    demand={volumeInputs.demand}
+  />
+)}
+```
+
+Import `assessFeasibility` from `@/lib/race/feasibility` and `EventReadiness`
+from `@/components/plan/event-readiness`.
 
 - [ ] **Step 5: Run to verify it passes**
 
@@ -3357,7 +3448,7 @@ In `src/app/train/page.tsx`, after loading `assembleVolumeInputs`:
 npx vitest run src/components/plan/event-readiness.test.tsx
 ```
 
-Expected: 4 tests PASS.
+Expected: 6 tests PASS.
 
 - [ ] **Step 6: Full gate and commit**
 
@@ -3375,7 +3466,13 @@ git commit -m "feat(plan): show whether an event is reachable from here"
 - [ ] `npm run typecheck && npm run lint && npm test && npm run build` — all green
 - [ ] Migration applied against the dev database and `tests/race-demand-schema.test.ts` passes
 - [ ] **Inertness check:** on a plan with no event distance, the derived target equals `constraints.hoursPerWeek` and the week materialises identically to before
-- [ ] **Calibration check:** enter 8 days / 900km / 20,000hm and confirm the weekly target lands between 9 and 12 hours
+- [ ] **Calibration check:** enter 8 days / 900km / 20,000hm and confirm the
+      _derived demand_ lands between 15 and 19 weekly hours (Task 13 settled
+      this at ~15.7), and that the _prescribed target_ is then cut to the
+      athlete's ceiling. **Do not tune constants to close that gap** — the
+      event asking far more than the athlete currently trains is the finding,
+      not a calibration error. The old "9 to 12 hours" figure here predated
+      Task 13's per-day pricing and was stale.
 - [ ] Bump `version` in `package.json`, add the `CHANGELOG.md` entry, update `docs/ROADMAP.md`
 - [ ] Merge to `main`, verify `main` is green, and only then tag — the image builds from the tag
 
