@@ -65,9 +65,16 @@ export type TrainTab = "week" | "history" | "fitness";
 
 export const TRAIN_TABS: TrainTab[] = ["week", "history", "fitness"];
 
-export type TrainFilterState = LogFilterState & { tab: TrainTab };
+export type TrainFilterState = LogFilterState & {
+  tab: TrainTab;
+  /** `"next"` when the availability week switcher is in next-week mode; `""` (or absent) otherwise. */
+  availability?: string;
+};
 
-export type TrainHrefOverride = LogHrefOverride & { tab?: TrainTab };
+export type TrainHrefOverride = LogHrefOverride & {
+  tab?: TrainTab;
+  availability?: string;
+};
 
 export type TrainHref = (over: TrainHrefOverride) => string;
 
@@ -76,7 +83,10 @@ export type TrainHref = (over: TrainHrefOverride) => string;
  * never drops the others — with the segment (tab) as a fourth axis, so
  * flipping Week → Fitness → History round-trips back to the sport filter
  * and month the athlete had chosen. Defaults are omitted to keep the URL
- * readable; "" clears the sport filter.
+ * readable; "" clears the sport filter. `availability` follows the same
+ * rule: set it to "next" to link straight into the week switcher's
+ * next-week mode (see the "Set next week's availability" link on the week
+ * tab) without dropping whatever else the current URL already carries.
  */
 export function buildTrainHref(
   current: TrainFilterState,
@@ -87,10 +97,15 @@ export function buildTrainHref(
   const m = over.month !== undefined ? over.month : current.month;
   const r = over.range !== undefined ? over.range : current.range;
   const s = over.sport !== undefined ? over.sport : current.sport;
+  const a =
+    over.availability !== undefined
+      ? over.availability
+      : (current.availability ?? "");
   const q = new URLSearchParams({ tab: t });
   if (v !== TRAIN_DEFAULTS.view) q.set("view", v);
   if (v === "month") q.set("month", m);
   if (r !== TRAIN_DEFAULTS.range) q.set("range", String(r));
   if (s) q.set("sport", s);
+  if (a) q.set("availability", a);
   return `/train?${q.toString()}`;
 }

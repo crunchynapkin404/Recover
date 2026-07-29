@@ -44,7 +44,7 @@ function mondayOf(d: Date): string {
   return localYmd(m);
 }
 
-function addDaysYmd(ymd: string, n: number): string {
+export function addDaysYmd(ymd: string, n: number): string {
   const d = new Date(ymd + "T00:00:00");
   d.setDate(d.getDate() + n);
   return localYmd(d);

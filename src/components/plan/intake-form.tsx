@@ -21,6 +21,23 @@ interface Props {
   verdict: Verdict;
   sports: string[];
   action: (prev: IntakeState, formData: FormData) => Promise<IntakeState>;
+  /**
+   * Which week this submission targets — the week switcher's hidden field.
+   * Empty (the default) means the current open week, matching
+   * `submitAvailability`'s presence-based branch: absent/empty replans the
+   * open week exactly as before, a real Monday targets a future week and
+   * only writes overrides.
+   */
+  weekStart?: string;
+  /**
+   * The label above the day list. Defaults to the current-week copy so
+   * every pre-existing caller (and `intake-form.test.tsx`, which never
+   * passes this prop) keeps behaving exactly as before. The availability
+   * week switcher passes "Next week's availability" for its next-week
+   * instance — the heading must follow which week is actually being
+   * edited, not always claim "this week" regardless of `weekStart`.
+   */
+  heading?: string;
 }
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -34,12 +51,12 @@ const DAY_NAMES = [
   "Sunday",
 ];
 
-function verdictLine(v: Verdict): string | null {
+function verdictLine(v: Verdict, weekLabel: string): string | null {
   if (v.kind === "losing") {
-    return `That's under the ${formatAvailability(Math.round(v.maintenanceHrs * 60))} it takes to hold your fitness — CTL is projected to fall to about ${Math.round(v.projectedCtl)} this week.`;
+    return `That's under the ${formatAvailability(Math.round(v.maintenanceHrs * 60))} it takes to hold your fitness — CTL is projected to fall to about ${Math.round(v.projectedCtl)} ${weekLabel}.`;
   }
   if (v.kind === "holding") {
-    return `Enough to hold your fitness, not to build it — this week's plan asks for about ${formatAvailability(Math.round(v.targetHrs * 60))}.`;
+    return `Enough to hold your fitness, not to build it — ${weekLabel}'s plan asks for about ${formatAvailability(Math.round(v.targetHrs * 60))}.`;
   }
   return null;
 }
@@ -63,6 +80,8 @@ export function IntakeForm({
   verdict,
   sports,
   action,
+  weekStart = "",
+  heading = "This week's availability",
 }: Props) {
   const [state, formAction, pending] = useActionState(action, { message: "" });
   const [week, setWeek] = useState(resolved);
@@ -87,7 +106,15 @@ export function IntakeForm({
     (s, day) => s + day.reduce((d, b) => d + blockMins(b), 0),
     0
   );
-  const warning = verdictLine(verdict);
+  // `weekStart` is the same presence-based signal `submitAvailability` and
+  // the week switcher already key off of: empty means this instance is
+  // editing the current open week, a real Monday means it's editing a
+  // future one. `heading` follows it (see the prop doc above) — these
+  // derived strings must follow the exact same mode, not just the heading's
+  // own text, so they never contradict it the way "this week" did while
+  // `heading` already said "Next week's availability".
+  const weekLabel = weekStart ? "next week" : "this week";
+  const warning = verdictLine(verdict, weekLabel);
 
   function unpin(i: number) {
     startTransition(async () => {
@@ -97,7 +124,8 @@ export function IntakeForm({
 
   return (
     <form action={formAction} className="glass rounded-[2rem] p-7">
-      <p className="label-micro mb-1">This week&apos;s availability</p>
+      <input type="hidden" name="weekStart" value={weekStart} />
+      <p className="label-micro mb-1">{heading}</p>
       <p className="mb-5 text-[12px] text-white/50">
         When you can train — the week plans itself around these blocks.
       </p>
@@ -145,7 +173,7 @@ export function IntakeForm({
       </ul>
 
       <p className="mb-2 text-center text-[11px] text-white/40">
-        {`${formatAvailability(totalMins)} this week`}
+        {`${formatAvailability(totalMins)} ${weekLabel}`}
       </p>
       {warning && (
         <p className="mb-5 text-center text-[11px] leading-relaxed text-amber-300/80">

@@ -44,6 +44,7 @@ import type { RaceCountdownProps } from "@/components/dashboard/race-countdown";
 import { BAND_COLOR } from "@/lib/band-color";
 import type { Band } from "@/lib/readiness";
 import {
+  addDaysYmd,
   getOpenWeekPlan,
   listAdjustments,
   planConstraints,
@@ -65,12 +66,16 @@ import {
   type TrainTab,
 } from "@/lib/log-href";
 import { startWeek, submitAvailability } from "@/app/plan/actions";
+import {
+  AvailabilityWeekSwitcher,
+  type AvailabilityWeekMode,
+  type WeekIntake,
+} from "@/components/plan/availability-week-switcher";
 import { blockMins, type AvailabilityBlock } from "@/lib/availability/types";
 import { resolveWeek } from "@/lib/availability/resolve";
-import {
-  availabilityVerdict,
-  type Verdict,
-} from "@/lib/week-plan/ctl-projection";
+import { availabilityVerdict } from "@/lib/week-plan/ctl-projection";
+import { projectWeek } from "@/lib/week-plan/project";
+import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -105,6 +110,42 @@ function feedbackLine(a: {
   return a.debriefState === "pending" ? "debrief pending" : null;
 }
 
+/**
+ * One week's worth of `IntakeForm` data — resolved blocks, which dates carry
+ * an override, and the availability verdict. Shared by this week's and next
+ * week's derivation (Task 5's fix pass) so the two never drift apart; only
+ * `dates` and `effectiveTarget` differ between the two callers.
+ */
+async function resolveWeekIntake(
+  userId: string,
+  dates: string[],
+  verdictInput: {
+    currentCtl: number | null;
+    loadPerHour: number | null;
+    historyDays: number;
+    effectiveTarget: number;
+  }
+): Promise<Omit<WeekIntake, "weekStart">> {
+  const resolvedMap = await resolveWeek(userId, dates);
+  const overrides = await db.query.availabilityOverrides.findMany({
+    where: and(
+      eq(schema.availabilityOverrides.userId, userId),
+      inArray(schema.availabilityOverrides.date, dates)
+    ),
+  });
+  const offeredMins = dates.reduce(
+    (s, d) =>
+      s + (resolvedMap.get(d) ?? []).reduce((x, b) => x + blockMins(b), 0),
+    0
+  );
+  return {
+    resolved: dates.map((d) => resolvedMap.get(d) ?? []),
+    dates,
+    overrideDates: overrides.map((o) => o.date),
+    verdict: availabilityVerdict({ ...verdictInput, offeredMins }),
+  };
+}
+
 export default async function TrainPage({
   searchParams,
 }: {
@@ -114,6 +155,7 @@ export default async function TrainPage({
     view?: string;
     month?: string;
     range?: string;
+    availability?: string;
   }>;
 }) {
   const user = await requireUser();
@@ -126,6 +168,11 @@ export default async function TrainPage({
     sp.month && /^\d{4}-\d{2}$/.test(sp.month) ? sp.month : currentYm();
   const range = RANGES.includes(Number(sp.range)) ? Number(sp.range) : 90;
   const sportFilter = sp.sport;
+  // Direct reachability for the availability week switcher: a link to
+  // `?availability=next` (the next-week preview, wired up separately) must
+  // start the control in next-week mode on a fresh load, not only on click.
+  const initialAvailabilityMode: AvailabilityWeekMode =
+    sp.availability === "next" ? "next" : "this";
 
   // One href builder for every segment, filter and range link on the page —
   // switching one axis never drops the others (see src/lib/log-href.ts).
@@ -135,7 +182,11 @@ export default async function TrainPage({
   return (
     <AppShell user={shellUser(user)}>
       {tab === "week" ? (
-        <WeekTab userId={user.id} href={href} />
+        <WeekTab
+          userId={user.id}
+          href={href}
+          initialAvailabilityMode={initialAvailabilityMode}
+        />
       ) : tab === "history" ? (
         <HistoryTab
           userId={user.id}
@@ -183,7 +234,15 @@ function TrainHeader({
 
 // ── Week (1c) ─────────────────────────────────────────────────────────────
 
-async function WeekTab({ userId, href }: { userId: string; href: TrainHref }) {
+async function WeekTab({
+  userId,
+  href,
+  initialAvailabilityMode,
+}: {
+  userId: string;
+  href: TrainHref;
+  initialAvailabilityMode: AvailabilityWeekMode;
+}) {
   const plan = await db.query.trainingPlans.findFirst({
     where: and(
       eq(schema.trainingPlans.userId, userId),
@@ -389,24 +448,60 @@ async function WeekTab({ userId, href }: { userId: string; href: TrainHref }) {
     (b) => b.weekNumber === (week?.skeletonWeek ?? plan.currentWeek)
   );
 
-  // Availability intake — only while the week hasn't started completing.
-  let intake: {
-    resolved: AvailabilityBlock[][];
-    dates: string[];
-    overrideDates: string[];
-    verdict: Verdict;
-  } | null = null;
-  if (week && week.days[0]?.status !== "completed") {
-    const dates = week.days.map((d) => d.date);
-    const resolvedMap = await resolveWeek(userId, dates);
-    const overrides = await db.query.availabilityOverrides.findMany({
-      where: and(
-        eq(schema.availabilityOverrides.userId, userId),
-        inArray(schema.availabilityOverrides.date, dates)
-      ),
-    });
+  // Next week does not exist as a row — it is derived on every render and
+  // never written. See docs/specs/2026-07-29-next-week-preview-design.md.
+  // Computed here, unconditionally whenever there's an open week, rather
+  // than only inside the availability-intake block below: the rolling day
+  // list's "next week" preview must still render once this week starts
+  // completing (Sunday evening is exactly when an athlete needs to see
+  // what's ahead), even though the intake/switcher below — which edits
+  // THIS week's availability — rightly stops applying at that point. This
+  // is also the ONLY `projectWeek` call for the render; the availability
+  // intake block reuses `projected` rather than calling it a second time.
+  const nextWeekStart = week ? addDaysYmd(week.weekStart, 7) : null;
+  // `projectWeek` throws if the plan record it resolves to has disappeared
+  // or if `periodize` yields no blocks for the requested skeleton week
+  // (see project.ts's two explicit `throw`s). `/train` is force-dynamic,
+  // so `next build` can never exercise this render path — an uncaught
+  // throw here would break the whole page, not just the preview. Take the
+  // degraded path (no preview, no switcher) instead, but log it — a
+  // corrupted plan should be diagnosable, not silently swallowed.
+  let projected: Awaited<ReturnType<typeof projectWeek>> = null;
+  if (week && nextWeekStart) {
+    try {
+      projected = await projectWeek(userId, nextWeekStart, new Date());
+    } catch (err) {
+      logger.error("next-week projection failed; showing this week only", {
+        userId,
+        nextWeekStart,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+  const nextWeekPreview = projected
+    ? { days: projected.days, pinned: projected.pinned }
+    : null;
 
-    // Load per hour over the last 28 days, from real sessions only.
+  // Availability intake. This week's half only applies while the week
+  // hasn't started completing — this week's availability is frozen once
+  // Monday is done (unchanged rule). Next week's half is independent of
+  // that: it must stay reachable all week, so the next-week entry point
+  // this release exists for does not vanish the moment Monday completes
+  // (review finding on this task, closed in the "Fix pass" section of
+  // task-6-report.md). Either half may be null on its own — `intake`
+  // itself is null only when NEITHER half applies (Monday completed and no
+  // projection: nothing to show).
+  const mondayCompleted = week?.days[0]?.status === "completed";
+  let intake: {
+    thisWeek: WeekIntake | null;
+    nextWeek: WeekIntake | null;
+  } | null = null;
+  if (week && (!mondayCompleted || projected)) {
+    const dates = week.days.map((d) => d.date);
+
+    // Load per hour over the last 28 days, from real sessions only. Week-
+    // independent — today's real rate feeds both this week's and next
+    // week's verdict identically.
     const since = new Date();
     since.setDate(since.getDate() - 28);
     const recent = await db.query.activities.findMany({
@@ -432,23 +527,64 @@ async function WeekTab({ userId, href }: { userId: string; href: TrainHref }) {
         ? 0
         : Math.floor((new Date().getTime() - oldest.getTime()) / 86_400_000);
 
-    const offeredMins = dates.reduce(
-      (s, d) =>
-        s + (resolvedMap.get(d) ?? []).reduce((x, b) => x + blockMins(b), 0),
-      0
-    );
+    // This week's half — skipped once Monday has completed; this week's
+    // availability is frozen from that point on (unchanged rule).
+    const thisWeekData = mondayCompleted
+      ? null
+      : await resolveWeekIntake(userId, dates, {
+          currentCtl: latestMetric?.ctl ?? null,
+          loadPerHour,
+          historyDays,
+          effectiveTarget: week.effectiveTarget ?? 0,
+        });
+
+    // Next week's OWN data — not this week's, copied. This is the second
+    // critical fix from Task 5's review: the switcher used to hand next-
+    // week mode this week's `resolved`/`dates`/`overrideDates`/`verdict`
+    // unchanged, so unpinning or submitting in next-week mode acted on
+    // this week's rows. `projected` (computed once, above, shared with the
+    // rolling day list's preview) is `null` when there's no active plan to
+    // project from (the spec's edge case: "No projection; the rolling list
+    // shows this week only"), so there is no next-week half either — the
+    // page below falls back to this week's plain `IntakeForm` (or nothing,
+    // if Monday has also completed).
+    //
+    // `projected.weekStart` is read directly as next week's `weekStart`
+    // here, rather than re-deriving or re-checking the outer
+    // `nextWeekStart` local: `materializeWeek` always echoes its
+    // `weekStart` input back unchanged (materialize.ts's
+    // `weekStart: input.weekStart`), so the two are the same value by
+    // construction, and `projected` is already narrowed non-null in this
+    // branch — no second `&& nextWeekStart` check needed just to satisfy
+    // the type checker.
+    const nextWeekData = projected
+      ? {
+          ...(await resolveWeekIntake(
+            userId,
+            Array.from({ length: 7 }, (_, i) =>
+              addDaysYmd(projected.weekStart, i)
+            ),
+            {
+              currentCtl: latestMetric?.ctl ?? null,
+              loadPerHour,
+              historyDays,
+              // NOT `projected.target.hours` — that's the pre-materialize
+              // hours figure fed into `periodize`, a different unit than the
+              // load quantity `availabilityVerdict` divides by `loadPerHour`.
+              // `effectiveLoad` is `materializeWeek`'s actual result, the same
+              // field this week's own `effectiveTarget` above reads off the
+              // stored week (see `project.ts`'s `ProjectedWeek.effectiveLoad`
+              // docstring).
+              effectiveTarget: projected.effectiveLoad,
+            }
+          )),
+          weekStart: projected.weekStart,
+        }
+      : null;
 
     intake = {
-      resolved: dates.map((d) => resolvedMap.get(d) ?? []),
-      dates,
-      overrideDates: overrides.map((o) => o.date),
-      verdict: availabilityVerdict({
-        offeredMins,
-        currentCtl: latestMetric?.ctl ?? null,
-        loadPerHour,
-        historyDays,
-        effectiveTarget: week.effectiveTarget ?? 0,
-      }),
+      thisWeek: thisWeekData ? { ...thisWeekData, weekStart: "" } : null,
+      nextWeek: nextWeekData,
     };
   }
 
@@ -513,7 +649,20 @@ async function WeekTab({ userId, href }: { userId: string; href: TrainHref }) {
             <WeekStrip days={week.days} />
           </section>
 
-          <WeekDayList days={week.days} />
+          <WeekDayList
+            days={week.days}
+            today={localYmd(today)}
+            nextWeek={nextWeekPreview}
+          />
+
+          {nextWeekPreview && (
+            <p className="-mt-3 mb-5 px-1 text-[11px] text-white/40">
+              Assumes this week goes to plan. Firms up Monday.{" "}
+              <Link href={href({ availability: "next" })} className="underline">
+                Set next week&apos;s availability
+              </Link>
+            </p>
+          )}
 
           {rationale && (
             <WeekRationale
@@ -584,14 +733,53 @@ async function WeekTab({ userId, href }: { userId: string; href: TrainHref }) {
 
           {intake && (
             <section className="mb-6">
-              <IntakeForm
-                resolved={intake.resolved}
-                dates={intake.dates}
-                overrideDates={intake.overrideDates}
-                verdict={intake.verdict}
-                sports={constraints.sports ?? ["Bike"]}
-                action={submitAvailability}
-              />
+              {intake.thisWeek && intake.nextWeek ? (
+                <AvailabilityWeekSwitcher
+                  // `initialMode` only seeds `useState` on the FIRST mount —
+                  // a prop change on its own does nothing once mounted. The
+                  // "Set next week's availability" link below is now a
+                  // `Link` (Finding 3), which does a client-side transition
+                  // that keeps this component instance alive across the
+                  // `?availability=` change rather than a full reload
+                  // remounting it fresh. Keying on the mode forces exactly
+                  // that remount when the URL's mode actually changes, so
+                  // the link still lands in next-week mode after the
+                  // switch away from a plain `<a>`.
+                  key={initialAvailabilityMode}
+                  thisWeek={intake.thisWeek}
+                  nextWeek={intake.nextWeek}
+                  initialMode={initialAvailabilityMode}
+                  sports={constraints.sports ?? ["Bike"]}
+                  action={submitAvailability}
+                />
+              ) : intake.nextWeek ? (
+                // Monday has completed, so this week's half is frozen — but
+                // a projection exists, so next week must still be enterable
+                // (the fix this section exists for: the "Set next week's
+                // availability" link above must always land on a real
+                // control, not a page with nothing to activate). No
+                // switcher, no "this week" option — just next week's plain
+                // form, matching the switcher's own next-week heading.
+                <IntakeForm
+                  heading="Next week's availability"
+                  resolved={intake.nextWeek.resolved}
+                  dates={intake.nextWeek.dates}
+                  overrideDates={intake.nextWeek.overrideDates}
+                  verdict={intake.nextWeek.verdict}
+                  sports={constraints.sports ?? ["Bike"]}
+                  action={submitAvailability}
+                  weekStart={intake.nextWeek.weekStart}
+                />
+              ) : intake.thisWeek ? (
+                <IntakeForm
+                  resolved={intake.thisWeek.resolved}
+                  dates={intake.thisWeek.dates}
+                  overrideDates={intake.thisWeek.overrideDates}
+                  verdict={intake.thisWeek.verdict}
+                  sports={constraints.sports ?? ["Bike"]}
+                  action={submitAvailability}
+                />
+              ) : null}
             </section>
           )}
 

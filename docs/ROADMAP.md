@@ -677,6 +677,47 @@ than none at all); an FTP sanity floor; a horizon on target-race selection;
 and `EventReadiness` / `RaceChip` can name different races (priority-first vs
 date-first selection).
 
+## ✅ v0.29 — Next-Week Preview
+
+The planning horizon collapsed to zero every Sunday — nothing showed what
+Monday held until the week actually rolled over. Spec:
+`docs/specs/2026-07-29-next-week-preview-design.md`. Deferred work and
+research notes: `docs/plans/2026-07-29-HANDOFF-next-week-preview.md`.
+
+- [x] **`projectWeek(userId, weekStart, now)`**: one derivation renders any
+      week, stored or not, without persisting it. `computeWeekRepair` is now
+      a thin caller of the same pipeline it always should have shared; no
+      `week_plans` row is ever created for a week that hasn't happened.
+- [x] **`/train`'s day list rolls into next week**: today through the end of
+      next week, one list, a visible boundary between them. Days before
+      today drop off; today never does.
+- [x] **The projection assumes this week closes to plan.** It deliberately
+      does not react to this week's actuals-so-far — doing so would drift
+      the forecast downward early in the week for reasons unconnected to
+      anything the athlete decided. Unpinned days render provisional and say
+      so; pinned days render firm. It firms up for real at Monday's
+      rollover.
+- [x] **Availability gets a horizon of its own**: a `This week | Next week`
+      switcher (`?availability=next`) edits next week's own resolved
+      availability, pinned days, and verdict — not a copy of this week's.
+      Submitting a future week writes overrides and replans nothing; only
+      the current week's submission replans.
+- [x] **The next-week entry point stays reachable all week**, even once this
+      week's own availability has frozen (unchanged: this week locks the
+      moment it's underway) — an early entry point that disappeared by
+      Wednesday would defeat the point of it.
+
+**Done when:** an athlete on Sunday evening can see next week's sessions and
+set next week's availability, and neither creates a stored row for a week
+that hasn't happened yet. ✅
+
+**Deliberately deferred:** projecting more than one week ahead (each week's
+shape depends on how the previous one actually closed, so the assumptions
+would stack); editing next week's individual sessions; the replan "fill"
+rung that adds training back once availability opens up mid-week;
+reconciling a week's plan against load that arrives after it closed; and the
+stale-open-week / multiple-active-plan cleanup. See the handoff doc above.
+
 ## Ongoing — operations track
 
 All items scheduled into **v0.17 — Good Self-Hosted Citizen** by the v0.9.6
