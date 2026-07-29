@@ -394,6 +394,25 @@ export async function runDailyAdaptation(
   const ySlotWorkout = ySlot?.workouts[0] ?? null;
   let yesterdayCompleted: boolean | null = null;
   let matched: { id: string; load: number | null } | null = null;
+
+  // A session may only be written off as missed once the ride has had a
+  // chance to arrive. onWellnessDataChanged re-runs this on every wellness
+  // event — including an hourly Apple Health push at 04:50 — and an
+  // activity sync has usually not run yet at that hour. Judging "missed"
+  // there wrote off rides the athlete had actually done: three consecutive
+  // weeks closed as "fully missed", each cutting the next to 60%.
+  const ACTIVITY_PROVIDERS = ["intervals_icu", "strava"] as const;
+  const activityConns = await db.query.connections.findMany({
+    where: and(
+      eq(schema.connections.userId, userId),
+      inArray(schema.connections.provider, [...ACTIVITY_PROVIDERS])
+    ),
+  });
+  const dayEnd = new Date(today + "T00:00:00"); // local midnight = end of yesterday
+  const activitiesSettled =
+    activityConns.length === 0 ||
+    activityConns.some((c) => c.lastSyncAt != null && c.lastSyncAt >= dayEnd);
+
   if (
     ySlotWorkout &&
     ySlot != null &&
@@ -434,9 +453,11 @@ export async function runDailyAdaptation(
     if (activity) {
       yesterdayCompleted = true;
       matched = { id: activity.id, load: activity.load };
-    } else {
+    } else if (activitiesSettled) {
       yesterdayCompleted = false;
     }
+    // else: leave null — nothing to judge yet, so adaptDay's missed-workout
+    // handling does not run and the session stays put.
   } else if (
     ySlot != null &&
     (ySlot.status === "rest" || ySlot.status === "race")
