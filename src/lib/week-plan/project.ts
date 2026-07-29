@@ -205,7 +205,11 @@ export async function projectWeek(
     constraints.daysPerWeek,
     target.hours,
     plan.raceType,
-    constraints.sports
+    constraints.sports,
+    // The hardest single day this athlete's event demands — what a long
+    // ride should build toward. Null when there is no race or no FTP, which
+    // keeps the pre-existing 240-minute bound.
+    volumeInputs.demand?.queenStageHours ?? null
   );
   // Matched by the requested skeleton week number — the stored week's own
   // skeletonWeek, or the open week's skeletonWeek + 1 for a projection —

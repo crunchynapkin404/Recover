@@ -9,6 +9,7 @@ import {
   generateTrainingPlan,
   longRideBoundMins,
   distributeRemainder,
+  periodize,
 } from "./training-plan";
 
 // requires Postgres; skips without DATABASE_URL.
@@ -260,6 +261,31 @@ describe("generateCyclingWorkouts distributes the target", () => {
       .map((w) => w.durationMins)
       .sort((a, b) => b - a);
     expect(easy).toEqual([149, 149, 149, 149, 148]);
+  });
+});
+
+describe("periodize passes event demand to the cycling generator", () => {
+  it("bounds the long ride by the event's hardest day", () => {
+    const withDemand = periodize(
+      9,
+      76.7,
+      4,
+      12.5,
+      "century",
+      ["Bike"],
+      4.897963084361944
+    );
+    const withoutDemand = periodize(9, 76.7, 4, 12.5, "century", ["Bike"]);
+
+    const longOf = (blocks: ReturnType<typeof periodize>) =>
+      blocks
+        .find((b) => b.weekNumber === 5)!
+        .workouts.find((w) => w.type === "Long")!.durationMins;
+
+    // 12.5h x 1.03 = 773 min; 38% = 294, which the event allows and the
+    // 240 no-demand fallback does not.
+    expect(longOf(withDemand)).toBe(294);
+    expect(longOf(withoutDemand)).toBe(240);
   });
 });
 

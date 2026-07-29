@@ -250,7 +250,8 @@ export function periodize(
   daysPerWeek: number,
   hoursPerWeek: number,
   raceType: string,
-  sports: string[]
+  sports: string[],
+  queenStageHours: number | null = null
 ): Block[] {
   // Phase distribution
   const baseWeeks = Math.max(2, Math.round(weeksTotal * 0.4));
@@ -300,7 +301,8 @@ export function periodize(
           hoursPerWeek * 0.6,
           "recovery",
           raceType,
-          sports
+          sports,
+          queenStageHours
         ),
       });
       // Don't increase load after recovery
@@ -315,7 +317,8 @@ export function periodize(
           hoursPerWeek * loadMultiplier(phase, weekInPhase),
           phase,
           raceType,
-          sports
+          sports,
+          queenStageHours
         ),
       });
 
@@ -365,13 +368,14 @@ export function generateWorkouts(
   weekHours: number,
   phase: Block["phase"],
   raceType: string,
-  sports: string[]
+  sports: string[],
+  queenStageHours: number | null = null
 ): PlannedWorkout[] {
   if (isTriathlon(raceType)) {
     return generateTriathlonWorkouts(sessions, weekHours, phase);
   }
   if (sports[0] === "Bike") {
-    return generateCyclingWorkouts(sessions, weekHours, phase);
+    return generateCyclingWorkouts(sessions, weekHours, phase, queenStageHours);
   }
   return generateRunningWorkouts(sessions, weekHours, phase, raceType);
 }

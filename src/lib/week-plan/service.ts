@@ -292,7 +292,11 @@ export async function rolloverWeekPlan(
     constraints.daysPerWeek,
     target.hours,
     plan.raceType,
-    constraints.sports
+    constraints.sports,
+    // The hardest single day this athlete's event demands — what a long
+    // ride should build toward. Null when there is no race or no FTP, which
+    // keeps the pre-existing 240-minute bound.
+    volumeInputs.demand?.queenStageHours ?? null
   );
   const derived =
     derivedBlocks.find((b) => b.weekNumber === plan.currentWeek) ??
