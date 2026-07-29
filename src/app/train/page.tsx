@@ -45,8 +45,7 @@ import {
   listAdjustments,
   planConstraints,
 } from "@/lib/week-plan/service";
-import { assembleVolumeInputs } from "@/lib/week-plan/volume-inputs";
-import { weeklyDisplayTarget } from "@/lib/week-plan/volume";
+import { assembleWeeklyTarget } from "@/lib/week-plan/volume-inputs";
 import { assessFeasibility, type Feasibility } from "@/lib/race/feasibility";
 import type { EventDemand } from "@/lib/race/demand";
 import {
@@ -262,7 +261,6 @@ async function WeekTab({ userId, href }: { userId: string; href: TrainHref }) {
     demand: EventDemand;
   } | null = null;
   if (week) {
-    const volumeInputs = await assembleVolumeInputs(userId, new Date());
     // `adjustments` above already holds every plan_adjustments row for this
     // week (fetched for the "What changed & why" panel) — filter the array
     // already in scope instead of re-querying the same table.
@@ -280,14 +278,15 @@ async function WeekTab({ userId, href }: { userId: string; href: TrainHref }) {
     // fallback equal to availability makes `availability < target`
     // structurally false, so the shortfall could never fire and the shown
     // target would silently always equal whatever the calendar offered,
-    // regardless of the plan's real hoursPerWeek.
-    const target = weeklyDisplayTarget({
-      raceDemandHours: volumeInputs.demand?.weeklyHours ?? null,
-      ceilingHours: volumeInputs.level.ceilingHours,
-      floorHours: volumeInputs.level.floorHours,
-      availabilityHours,
-      planHoursPerWeek: constraints.hoursPerWeek,
-    });
+    // regardless of the plan's real hoursPerWeek. Routed through
+    // assembleWeeklyTarget — the same producer the dashboard's WeekRow
+    // calls — so the two surfaces can never show different numbers
+    // (final-review Finding I5).
+    const { target, ...volumeInputs } = await assembleWeeklyTarget(
+      userId,
+      new Date(),
+      { availabilityHours, planHoursPerWeek: constraints.hoursPerWeek }
+    );
     const plannedHours =
       week.days.reduce(
         (s, d) => s + d.workouts.reduce((t, w) => t + w.durationMins, 0),

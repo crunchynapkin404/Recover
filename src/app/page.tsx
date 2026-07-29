@@ -7,7 +7,12 @@ import { AppShell, shellUser } from "@/components/app-shell";
 import { PullToRefresh } from "@/components/dashboard/pull-to-refresh";
 import { SyncChip } from "@/components/dashboard/sync-chip";
 import { getLatestMorningInsight } from "@/lib/morning-insight";
-import { getOpenWeekPlan, listAdjustments } from "@/lib/week-plan/service";
+import {
+  getOpenWeekPlan,
+  listAdjustments,
+  planConstraints,
+} from "@/lib/week-plan/service";
+import { assembleWeeklyTarget } from "@/lib/week-plan/volume-inputs";
 import { nextUpcomingRace, assembleForecastInputs } from "@/lib/race/service";
 import { forecastForm } from "@/lib/race/forecast";
 import type { RaceCountdownProps } from "@/components/dashboard/race-countdown";
@@ -208,9 +213,23 @@ export default async function DashboardPage({
     ),
     columns: { constraints: true },
   });
-  const hoursTarget =
-    (activePlan?.constraints as { hoursPerWeek?: number } | null)
-      ?.hoursPerWeek ?? null;
+  // The same derived, race/ceiling-aware figure /train's WeekRationale
+  // shows — never the plan's raw typed constraints.hoursPerWeek — so the
+  // two surfaces can never disagree (final-review Finding I5). weekPlan is
+  // already fetched above for the today card, so this adds no query. No
+  // active plan or no open week: null, same as before — WeekRow renders
+  // nothing without `days` regardless.
+  let hoursTarget: number | null = null;
+  if (activePlan && weekPlan) {
+    const constraints = planConstraints(activePlan.constraints);
+    const availabilityHours =
+      weekPlan.days.reduce((s, d) => s + d.availableMins, 0) / 60;
+    const { target } = await assembleWeeklyTarget(user.id, todayDate, {
+      availabilityHours,
+      planHoursPerWeek: constraints.hoursPerWeek,
+    });
+    hoursTarget = target.hours;
+  }
 
   // "Inbox: weekly review (Sun) · debrief — Endurance Spin (Mon)" — the two
   // most recent unread coach items, or nothing when the inbox is clear.

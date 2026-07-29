@@ -13,6 +13,7 @@ import {
   type AthleteLevel,
   type LevelResult,
 } from "@/lib/athlete-level";
+import { weeklyDisplayTarget, type VolumeResult } from "./volume";
 
 /** Monday of the week containing `d`, at local midnight. */
 function weekStartOf(d: Date): Date {
@@ -219,4 +220,40 @@ export async function assembleVolumeInputs(
       ? { id: target.id, name: target.name, date: String(target.date) }
       : null,
   };
+}
+
+export interface WeeklyTargetResult extends VolumeInputsResult {
+  target: VolumeResult;
+}
+
+/**
+ * The single place `weeklyDisplayTarget` is called for anything that
+ * DISPLAYS this week's hours target. Both the dashboard (`/`, WeekRow) and
+ * `/train` (WeekRationale) render "planned vs target" from this function's
+ * `target.hours`, so the two surfaces are structurally incapable of
+ * disagreeing.
+ *
+ * Before this existed, the dashboard showed the plan's typed
+ * `constraints.hoursPerWeek` while /train showed the derived, race/ceiling-
+ * aware figure — the exact staleness this branch exists to retire
+ * (final-review Finding I5).
+ *
+ * Callers supply what they already have in scope — the open week's
+ * resolved availability and the plan's own `hoursPerWeek` — rather than
+ * this function re-querying either.
+ */
+export async function assembleWeeklyTarget(
+  userId: string,
+  now: Date,
+  input: { availabilityHours: number; planHoursPerWeek: number }
+): Promise<WeeklyTargetResult> {
+  const volumeInputs = await assembleVolumeInputs(userId, now);
+  const target = weeklyDisplayTarget({
+    raceDemandHours: volumeInputs.demand?.weeklyHours ?? null,
+    ceilingHours: volumeInputs.level.ceilingHours,
+    floorHours: volumeInputs.level.floorHours,
+    availabilityHours: input.availabilityHours,
+    planHoursPerWeek: input.planHoursPerWeek,
+  });
+  return { ...volumeInputs, target };
 }

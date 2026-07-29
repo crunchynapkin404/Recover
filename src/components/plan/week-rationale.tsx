@@ -29,7 +29,12 @@ interface Props {
   source: "race" | "ceiling" | "floor" | "fallback" | null;
 }
 
-function fmt(hours: number): string {
+/** "6h" for a whole number, "6.3h" otherwise. Exported so week-row.tsx's
+ * dashboard tile formats the derived target the same way this component
+ * does — both now read from the same assembleWeeklyTarget producer
+ * (final-review Finding I5), and a display mismatch would look like the
+ * two surfaces disagreeing again even though the underlying number agrees. */
+export function fmt(hours: number): string {
   return Number.isInteger(hours) ? `${hours}h` : `${hours.toFixed(1)}h`;
 }
 
