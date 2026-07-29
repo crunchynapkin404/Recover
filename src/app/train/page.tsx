@@ -28,7 +28,7 @@ import {
 import { EmptyState } from "@/components/ui/empty-state";
 import { TrainTabs } from "@/components/train/train-tabs";
 import { WeekDayList } from "@/components/train/week-day-list";
-import { WeekRationale, fmt } from "@/components/plan/week-rationale";
+import { WeekRationale, fmt, article } from "@/components/plan/week-rationale";
 import { EventReadiness } from "@/components/plan/event-readiness";
 import {
   HistoryList,
@@ -668,9 +668,9 @@ async function WeekTab({
 
           {nextWeekPreview && (
             <p className="-mt-3 mb-5 px-1 text-[11px] text-white/40">
-              {`${fmt(nextWeekPlannedHours)} planned against a ${fmt(
+              {`${fmt(nextWeekPlannedHours)} planned against ${article(
                 nextWeekTargetHours
-              )} target. `}
+              )} ${fmt(nextWeekTargetHours)} target. `}
               Assumes this week goes to plan. Firms up Monday.{" "}
               <Link href={href({ availability: "next" })} className="underline">
                 Set next week&apos;s availability

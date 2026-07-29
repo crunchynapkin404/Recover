@@ -48,8 +48,13 @@ export function fmt(hours: number): string {
  * ("a hundred eleven-…"). A realistic stage race lands 15-19h/week (see
  * race/demand.test.ts) — squarely the range this component exists to show —
  * so 18 is not a contrived case.
+ *
+ * Exported so the next-week preview in src/app/train/page.tsx can pick the
+ * same article for its own "planned against target" sentence — both
+ * surfaces render that sentence for the same numbers and must not disagree
+ * about its grammar.
  */
-function article(hours: number): string {
+export function article(hours: number): string {
   const s = fmt(hours);
   return s.startsWith("8") || s.startsWith("11") || s.startsWith("18")
     ? "an"
