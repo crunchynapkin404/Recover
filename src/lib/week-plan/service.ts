@@ -602,10 +602,20 @@ export async function applyAvailability(
  * week's sessions to actually follow it: writing the row alone changes
  * nothing the athlete can see, because adaptDay reads availableBlocks off
  * the stored week, not the override table.
+ *
+ * Callers (set-standard-week, the availability-change form) invoke this on
+ * every touch, whether or not the resolution actually moved — a plain
+ * defaults edit that leaves this week's dates untouched, or a second save
+ * of the same values, resolves to exactly what the week already holds. Only
+ * replan when the resolved blocks genuinely differ from the stored week's,
+ * date by date and block by block — not just by comparing total hours,
+ * since two different block shapes can land on the same total and do need
+ * a replan. `availability_change/redistributed — 19.2h→19.2h`, logged three
+ * times running against no actual change, is what this guards against.
  */
 export async function applyResolvedAvailability(
   userId: string
-): Promise<"applied" | "no_open_week"> {
+): Promise<"applied" | "no_open_week" | "skipped"> {
   const week = await getOpenWeekPlan(userId);
   if (!week) return "no_open_week";
 
@@ -613,6 +623,14 @@ export async function applyResolvedAvailability(
     userId,
     week.days.map((d) => d.date)
   );
+
+  const unchanged = week.days.every(
+    (d) =>
+      JSON.stringify(resolved.get(d.date) ?? []) ===
+      JSON.stringify(d.availableBlocks)
+  );
+  if (unchanged) return "skipped";
+
   return applyAvailability(
     userId,
     week.days.map((d) => resolved.get(d.date) ?? [])

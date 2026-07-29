@@ -1,7 +1,8 @@
 import { describe, expect, it, beforeAll, afterAll, beforeEach } from "vitest";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import {
+  applyResolvedAvailability,
   getOpenWeekPlan,
   moveWorkout,
   recordUnplannedLoad,
@@ -731,6 +732,149 @@ describe.skipIf(!hasDb)(
       expect(raceSlot.workouts).toHaveLength(0);
       expect(raceSlot.unplannedLoad).toBe(95);
       expect(raceSlot.activityId).toBe(activity.id);
+    });
+  }
+);
+
+/**
+ * Task 3: an unchanged availability resolution must not trigger a replan.
+ * The evidence: availability_change/redistributed logged three times
+ * running on 2026-07-27, each time "19.2h→19.2h" — resolveWeek was re-run
+ * and re-applied even though nothing about the athlete's schedule had
+ * actually changed.
+ */
+describe.skipIf(!hasDb)(
+  "applyResolvedAvailability — no-op on an unchanged resolution (Task 3)",
+  () => {
+    let planId: string;
+
+    beforeAll(async () => {
+      await db
+        .insert(schema.users)
+        .values({
+          id: TEST_USER,
+          name: "Test Week Plan Service User",
+          email: `${TEST_USER}@example.invalid`,
+        })
+        .onConflictDoNothing();
+
+      const [plan] = await db
+        .insert(schema.trainingPlans)
+        .values({
+          userId: TEST_USER,
+          title: "Test Plan",
+          raceType: "marathon",
+          raceDate: "2026-12-01",
+          startDate: "2026-01-01",
+          weeksTotal: 16,
+          currentWeek: 1,
+          status: "active",
+        })
+        .returning();
+      planId = plan.id;
+    });
+
+    afterAll(async () => {
+      await db
+        .delete(schema.weekPlans)
+        .where(eq(schema.weekPlans.userId, TEST_USER));
+      await db
+        .delete(schema.availabilityOverrides)
+        .where(eq(schema.availabilityOverrides.userId, TEST_USER));
+      await db
+        .delete(schema.availabilityDefaults)
+        .where(eq(schema.availabilityDefaults.userId, TEST_USER));
+      await db
+        .delete(schema.trainingPlans)
+        .where(eq(schema.trainingPlans.userId, TEST_USER));
+      await db.delete(schema.users).where(eq(schema.users.id, TEST_USER));
+    });
+
+    beforeEach(async () => {
+      await db
+        .delete(schema.weekPlans)
+        .where(eq(schema.weekPlans.userId, TEST_USER));
+      await db
+        .delete(schema.availabilityOverrides)
+        .where(eq(schema.availabilityOverrides.userId, TEST_USER));
+      await db
+        .delete(schema.availabilityDefaults)
+        .where(eq(schema.availabilityDefaults.userId, TEST_USER));
+      // A standard week: 60min, full energy, every day — same shape
+      // resolveWeek will keep handing back across repeat calls, so a
+      // second applyResolvedAvailability has nothing new to apply.
+      await db.insert(schema.availabilityDefaults).values(
+        Array.from({ length: 7 }, (_, weekday) => ({
+          userId: TEST_USER,
+          weekday,
+          blocks: [blk(60)],
+        }))
+      );
+    });
+
+    // Seeded strictly smaller than the defaults (30min vs 60min) so the
+    // first applyResolvedAvailability call is a genuine replan, not itself
+    // a no-op — the no-op under test is specifically the SECOND call.
+    async function seedWeek(): Promise<void> {
+      const days = DATES.map((d) => emptyDay(d, [blk(30)]));
+      await db.insert(schema.weekPlans).values({
+        userId: TEST_USER,
+        planId,
+        weekStart: WEEK_START,
+        skeletonWeek: 1,
+        days,
+        status: "open",
+        effectiveTarget: 300,
+      });
+    }
+
+    it("does not replan or log when resolved availability is unchanged", async () => {
+      await seedWeek();
+
+      const first = await applyResolvedAvailability(TEST_USER);
+      expect(first).toBe("applied");
+
+      const week = await getOpenWeekPlan(TEST_USER);
+      const before = await db.query.planAdjustments.findMany({
+        where: eq(schema.planAdjustments.weekPlanId, week!.id),
+      });
+
+      const second = await applyResolvedAvailability(TEST_USER);
+      expect(second).toBe("skipped");
+
+      const after = await db.query.planAdjustments.findMany({
+        where: eq(schema.planAdjustments.weekPlanId, week!.id),
+      });
+      expect(after).toHaveLength(before.length);
+
+      // The week itself is untouched too, not just the adjustment log.
+      const weekAfter = await getOpenWeekPlan(TEST_USER);
+      expect(weekAfter!.days).toEqual(week!.days);
+    });
+
+    it("still replans when the resolved blocks change shape at the same total hours", async () => {
+      await seedWeek();
+
+      expect(await applyResolvedAvailability(TEST_USER)).toBe("applied");
+
+      // Monday's default goes from one 60min block to two 30min blocks —
+      // same total (60min), genuinely different shape (two opportunities
+      // instead of one). Comparing only the hour total would wrongly skip
+      // this.
+      await db
+        .update(schema.availabilityDefaults)
+        .set({ blocks: [blk(30), blk(30)] })
+        .where(
+          and(
+            eq(schema.availabilityDefaults.userId, TEST_USER),
+            eq(schema.availabilityDefaults.weekday, 0) // Monday = DATES[0]
+          )
+        );
+
+      expect(await applyResolvedAvailability(TEST_USER)).toBe("applied");
+
+      const week = await getOpenWeekPlan(TEST_USER);
+      expect(week!.days[0].availableBlocks).toHaveLength(2);
     });
   }
 );
