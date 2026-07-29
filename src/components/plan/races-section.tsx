@@ -13,6 +13,16 @@ export interface RaceListItem {
   priority: RacePriority;
   status: RaceStatus;
   goalNote: string | null;
+  /** Days the event runs over. 1 = a normal single-day race. */
+  eventDays: number;
+  /** TOTAL distance across all days, km. null = demand not computable. */
+  distanceKm: number | null;
+  /** TOTAL elevation gain across all days, m. */
+  elevationM: number | null;
+  /** Whether per-day stage detail is on file for this race — distinct from
+   * `eventDays > 1`, since a multi-day event can still have only the totals
+   * filled in. */
+  hasStages: boolean;
 }
 
 interface Props {
@@ -37,6 +47,23 @@ const STATUS_LABEL: Record<RaceStatus, string> = {
   completed: "Completed",
   skipped: "Skipped",
 };
+
+/**
+ * What's actually driving this race's training-volume demand — the whole
+ * point of Finding I6: an athlete must be able to confirm what was stored,
+ * not just that the add form once accepted it. A mistyped 20,000m instead
+ * of 2,000m is invisible unless this line prints it back.
+ */
+function demandSummary(race: RaceListItem): string {
+  const parts: string[] = [];
+  if (race.eventDays > 1) parts.push(`${race.eventDays} days`);
+  if (race.distanceKm != null) {
+    parts.push(`${Math.round(race.distanceKm * 10) / 10}km`);
+  }
+  if (race.elevationM != null) parts.push(`${Math.round(race.elevationM)}m`);
+  if (race.hasStages) parts.push("per-day detail");
+  return parts.length > 0 ? parts.join(" · ") : "No distance/elevation set";
+}
 
 export function RacesSection({ races, hideHeading = false }: Props) {
   const [pending, startTransition] = useTransition();
@@ -167,6 +194,9 @@ export function RacesSection({ races, hideHeading = false }: Props) {
                   <p className="mt-1 truncate text-[11px] text-white/50">
                     {`${race.raceType} · ${race.date}`}
                     {race.goalNote && ` · ${race.goalNote}`}
+                  </p>
+                  <p className="mt-0.5 truncate text-[10.5px] text-white/35">
+                    {demandSummary(race)}
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">

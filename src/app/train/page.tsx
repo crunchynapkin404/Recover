@@ -5,7 +5,7 @@ import { db, schema } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { AppShell, shellUser } from "@/components/app-shell";
 import { WeekStrip } from "@/components/plan/week-strip";
-import { RacesSection } from "@/components/plan/races-section";
+import { RacesSection, type RaceListItem } from "@/components/plan/races-section";
 import { IntakeForm } from "@/components/plan/intake-form";
 import { StandardWeek } from "@/components/plan/standard-week";
 import { PlanEmpty } from "@/components/plan/plan-empty";
@@ -237,6 +237,28 @@ async function WeekTab({ userId, href }: { userId: string; href: TrainHref }) {
   const week = await getOpenWeekPlan(userId);
   const adjustments = week ? await listAdjustments(week.id) : [];
   const races = await listRaces(userId);
+  // Whether per-day stage detail is on file per race — a separate table, so
+  // one batched query rather than N+1. Final-review Finding I6: the races
+  // list must show what's actually driving each race's demand, not just
+  // accept it silently on the add form.
+  const stageRaceIds =
+    races.length > 0
+      ? new Set(
+          (
+            await db.query.raceStages.findMany({
+              where: inArray(
+                schema.raceStages.raceId,
+                races.map((r) => r.id)
+              ),
+              columns: { raceId: true },
+            })
+          ).map((s) => s.raceId)
+        )
+      : new Set<string>();
+  const raceListItems: RaceListItem[] = races.map((r) => ({
+    ...r,
+    hasStages: stageRaceIds.has(r.id),
+  }));
   const constraints = planConstraints(plan.constraints);
 
   // Why this week looks the way it does — the same figures the rollover
@@ -615,7 +637,7 @@ async function WeekTab({ userId, href }: { userId: string; href: TrainHref }) {
             </CollapsibleTrigger>
             <CollapsiblePanel>
               <div className="px-4 pb-1 pt-3">
-                <RacesSection races={races} hideHeading />
+                <RacesSection races={raceListItems} hideHeading />
               </div>
             </CollapsiblePanel>
           </Collapsible>
@@ -623,7 +645,7 @@ async function WeekTab({ userId, href }: { userId: string; href: TrainHref }) {
       )}
       {races.length === 0 && (
         <div className="mb-5">
-          <RacesSection races={races} />
+          <RacesSection races={raceListItems} />
         </div>
       )}
 
