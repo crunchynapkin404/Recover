@@ -5,7 +5,7 @@ import { db, schema } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { AppShell, shellUser } from "@/components/app-shell";
 import { WeekStrip } from "@/components/plan/week-strip";
-import { RacesSection } from "@/components/plan/races-section";
+import { RacesSection, type RaceListItem } from "@/components/plan/races-section";
 import { IntakeForm } from "@/components/plan/intake-form";
 import { StandardWeek } from "@/components/plan/standard-week";
 import { PlanEmpty } from "@/components/plan/plan-empty";
@@ -25,6 +25,8 @@ import {
 import { EmptyState } from "@/components/ui/empty-state";
 import { TrainTabs } from "@/components/train/train-tabs";
 import { WeekDayList } from "@/components/train/week-day-list";
+import { WeekRationale } from "@/components/plan/week-rationale";
+import { EventReadiness } from "@/components/plan/event-readiness";
 import {
   HistoryList,
   type HistoryGroup,
@@ -43,6 +45,9 @@ import {
   listAdjustments,
   planConstraints,
 } from "@/lib/week-plan/service";
+import { assembleWeeklyTarget } from "@/lib/week-plan/volume-inputs";
+import { assessFeasibility, type Feasibility } from "@/lib/race/feasibility";
+import type { EventDemand } from "@/lib/race/demand";
 import {
   listRaces,
   nextUpcomingRace,
@@ -232,7 +237,135 @@ async function WeekTab({ userId, href }: { userId: string; href: TrainHref }) {
   const week = await getOpenWeekPlan(userId);
   const adjustments = week ? await listAdjustments(week.id) : [];
   const races = await listRaces(userId);
+  // Per-day stage detail per race — a separate table, so one batched query
+  // rather than N+1. Final-review Finding I6: the races list must show
+  // (and, part 2, let the athlete correct) what's actually driving each
+  // race's demand, not just accept it silently on the add form.
+  const stageRows =
+    races.length > 0
+      ? await db.query.raceStages.findMany({
+          where: inArray(
+            schema.raceStages.raceId,
+            races.map((r) => r.id)
+          ),
+        })
+      : [];
+  const stagesByRace = new Map<string, RaceListItem["stages"]>();
+  for (const s of stageRows) {
+    const arr = stagesByRace.get(s.raceId) ?? [];
+    arr.push({
+      dayNumber: s.dayNumber,
+      distanceKm: s.distanceKm,
+      elevationM: s.elevationM,
+    });
+    stagesByRace.set(s.raceId, arr);
+  }
+  const raceListItems: RaceListItem[] = races.map((r) => ({
+    ...r,
+    stages: (stagesByRace.get(r.id) ?? []).sort(
+      (a, b) => a.dayNumber - b.dayNumber
+    ),
+  }));
   const constraints = planConstraints(plan.constraints);
+
+  // Why this week looks the way it does — the same figures the rollover
+  // derived, recomputed for display. Reading them off the stored week
+  // instead would show a target that no longer matches what the athlete's
+  // calendar and races now say.
+  let rationale: {
+    reasons: string[];
+    targetHours: number | null;
+    plannedHours: number | null;
+    shortfall: { wantedHours: number; offeredHours: number } | null;
+    raceName: string | null;
+    source: "race" | "ceiling" | "floor" | "fallback" | null;
+  } | null = null;
+  // Is the athlete's next race reachable from here — the question anyone
+  // entering a hard event actually has. Captured out of the `if (week)`
+  // block below (where `volumeInputs` lives) so it survives to the render
+  // section further down.
+  let eventReadiness: {
+    raceName: string;
+    feasibility: Feasibility;
+    demand: EventDemand;
+  } | null = null;
+  if (week) {
+    // `adjustments` above already holds every plan_adjustments row for this
+    // week (fetched for the "What changed & why" panel) — filter the array
+    // already in scope instead of re-querying the same table.
+    const reasons = adjustments
+      .filter(
+        (a) =>
+          a.trigger === "weekly_rollover" || a.trigger === "availability_change"
+      )
+      .map((a) => a.reason);
+
+    const availabilityHours =
+      week.days.reduce((s, d) => s + d.availableMins, 0) / 60;
+    // fallbackHours must be the active plan's own hoursPerWeek — exactly what
+    // rolloverWeekPlan passes — never this week's own availability. A
+    // fallback equal to availability makes `availability < target`
+    // structurally false, so the shortfall could never fire and the shown
+    // target would silently always equal whatever the calendar offered,
+    // regardless of the plan's real hoursPerWeek. Routed through
+    // assembleWeeklyTarget — the same producer the dashboard's WeekRow
+    // calls — so the two surfaces can never show different numbers
+    // (final-review Finding I5).
+    const { target, ...volumeInputs } = await assembleWeeklyTarget(
+      userId,
+      new Date(),
+      { availabilityHours, planHoursPerWeek: constraints.hoursPerWeek }
+    );
+    const plannedHours =
+      week.days.reduce(
+        (s, d) => s + d.workouts.reduce((t, w) => t + w.durationMins, 0),
+        0
+      ) / 60;
+
+    rationale = {
+      reasons,
+      targetHours: target.hours,
+      plannedHours,
+      shortfall: target.shortfall,
+      raceName: volumeInputs.targetRace?.name ?? null,
+      source: target.source,
+    };
+
+    // Weeks until the event, counted from this week's Monday so it agrees
+    // with the rest of the page rather than drifting by a day mid-week.
+    const raceDate = volumeInputs.targetRace?.date ?? null;
+    const weeksUntilEvent =
+      raceDate == null
+        ? null
+        : Math.max(
+            0,
+            Math.round(
+              (new Date(raceDate + "T00:00:00").getTime() -
+                new Date(week.weekStart + "T00:00:00").getTime()) /
+                (7 * 24 * 60 * 60 * 1000)
+            )
+          );
+
+    const feasibility =
+      volumeInputs.demand == null || weeksUntilEvent == null
+        ? null
+        : assessFeasibility({
+            requiredWeeklyHours: volumeInputs.demand.weeklyHours,
+            currentWeeklyHours: volumeInputs.level.peakHours,
+            queenStageHours: volumeInputs.demand.queenStageHours,
+            queenStageKnown: volumeInputs.demand.queenStageKnown,
+            longestRideHours: volumeInputs.longestRideHours,
+            weeksUntilEvent,
+          });
+
+    if (volumeInputs.targetRace && volumeInputs.demand && feasibility) {
+      eventReadiness = {
+        raceName: volumeInputs.targetRace.name,
+        feasibility,
+        demand: volumeInputs.demand,
+      };
+    }
+  }
 
   const defaultRows = await db.query.availabilityDefaults.findMany({
     where: eq(schema.availabilityDefaults.userId, userId),
@@ -379,6 +512,25 @@ async function WeekTab({ userId, href }: { userId: string; href: TrainHref }) {
 
           <WeekDayList days={week.days} />
 
+          {rationale && (
+            <WeekRationale
+              reasons={rationale.reasons}
+              targetHours={rationale.targetHours}
+              plannedHours={rationale.plannedHours}
+              shortfall={rationale.shortfall}
+              raceName={rationale.raceName}
+              source={rationale.source}
+            />
+          )}
+
+          {eventReadiness && (
+            <EventReadiness
+              raceName={eventReadiness.raceName}
+              feasibility={eventReadiness.feasibility}
+              demand={eventReadiness.demand}
+            />
+          )}
+
           {raceCard.race && (
             <>
               <RaceChip {...raceCard} />
@@ -492,7 +644,7 @@ async function WeekTab({ userId, href }: { userId: string; href: TrainHref }) {
             </CollapsibleTrigger>
             <CollapsiblePanel>
               <div className="px-4 pb-1 pt-3">
-                <RacesSection races={races} hideHeading />
+                <RacesSection races={raceListItems} hideHeading />
               </div>
             </CollapsiblePanel>
           </Collapsible>
@@ -500,7 +652,7 @@ async function WeekTab({ userId, href }: { userId: string; href: TrainHref }) {
       )}
       {races.length === 0 && (
         <div className="mb-5">
-          <RacesSection races={races} />
+          <RacesSection races={raceListItems} />
         </div>
       )}
 

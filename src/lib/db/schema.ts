@@ -563,6 +563,8 @@ export const bodyPrefs = pgTable("body_prefs", {
   // v0.13 Deep Biology: enables the biological-age estimate. null = not set
   // (bio-age reports "insufficient inputs" listing this among what's missing).
   birthYear: integer("birth_year"),
+  /** Manual athlete-level override; null = use the computed level. */
+  levelOverride: text("level_override"),
 });
 
 /**
@@ -789,6 +791,14 @@ export const races = pgTable(
       .notNull()
       .default("upcoming"),
     goalNote: text("goal_note"),
+    /** Days the event runs over. 1 = a normal single-day race. */
+    eventDays: integer("event_days").notNull().default(1),
+    /** TOTAL distance across all days. null = demand not computable. */
+    distanceKm: real("distance_km"),
+    /** TOTAL elevation gain across all days. */
+    elevationM: integer("elevation_m"),
+    /** Athlete's own weekly-hours figure; wins over the computed one. */
+    demandHoursOverride: real("demand_hours_override"),
     resultActivityId: uuid("result_activity_id").references(
       () => activities.id,
       { onDelete: "set null" }
@@ -805,6 +815,29 @@ export const races = pgTable(
     uniqueIndex("races_user_date_name_uq").on(t.userId, t.date, t.name),
     index("races_user_status_date_idx").on(t.userId, t.status, t.date),
   ]
+);
+
+/**
+ * Per-day detail for a multi-day event. Optional: without stages the demand
+ * model treats every day as the average day. With them it also learns the
+ * QUEEN STAGE — the hardest single day — which sets the longest-ride target.
+ */
+export const raceStages = pgTable(
+  "race_stages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    raceId: uuid("race_id")
+      .notNull()
+      .references(() => races.id, { onDelete: "cascade" }),
+    dayNumber: integer("day_number").notNull(),
+    distanceKm: real("distance_km"),
+    elevationM: integer("elevation_m"),
+    name: text("name"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [uniqueIndex("race_stages_race_day_uq").on(t.raceId, t.dayNumber)]
 );
 
 // ── v0.9.2 Adaptive Week ─────────────────────────────────────────────────────

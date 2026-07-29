@@ -180,14 +180,158 @@ export async function zeroDay(date: string): Promise<Result> {
 
 // ── v0.14 Race Ready: races management + move/swap with preview ──────────
 
+/**
+ * `distance_km` is a `real` column, which happily accepts the strings
+ * "NaN"/"Infinity" — so a non-finite value would NOT throw on insert, it
+ * would silently corrupt the row. Reject it here rather than relying on
+ * Postgres to catch it.
+ */
+function validateDistance(value: number | null, label: string): string | null {
+  if (value == null) return null;
+  if (!Number.isFinite(value)) return `${label} must be a valid number.`;
+  if (value < 0) return `${label} cannot be negative.`;
+  return null;
+}
+
+/**
+ * `elevation_m` is an `integer` column, so a fractional or non-finite value
+ * throws `invalid input syntax for integer` in Postgres — and by the time
+ * that happens for the top-level field, `createRace` has already committed.
+ * Validate finiteness/sign up front; fractional values are rounded (not
+ * rejected) by `roundElevation` below, since someone typing 1234.7m meant
+ * something reasonable.
+ */
+function validateElevation(value: number | null, label: string): string | null {
+  return validateDistance(value, label);
+}
+
+function roundElevation(value: number | null): number | null {
+  return value == null ? null : Math.round(value);
+}
+
+interface DemandInput {
+  eventDays: number;
+  distanceKm: number | null;
+  elevationM: number | null;
+  stages: {
+    dayNumber: number;
+    distanceKm: number | null;
+    elevationM: number | null;
+  }[];
+}
+
+/**
+ * Shared by `addRace` and `updateRaceDemand` so a correction goes through
+ * the exact same checks as the original entry — final-review Finding I6
+ * part 2. Two passes over `stages` (distance/elevation first, then
+ * dayNumber/duplicates), matching addRace's original structure exactly:
+ * collapsing this into one pass would change which error surfaces first for
+ * a malformed multi-stage payload, and that precedence is untested but not
+ * worth risking on a refactor.
+ */
+function validateDemandInput(input: DemandInput): string | null {
+  if (!Number.isInteger(input.eventDays) || input.eventDays < 1) {
+    return "An event runs over at least one day.";
+  }
+  const distanceError = validateDistance(input.distanceKm, "Distance");
+  if (distanceError) return distanceError;
+  const elevationError = validateElevation(input.elevationM, "Elevation");
+  if (elevationError) return elevationError;
+
+  for (const stage of input.stages) {
+    const stageDistanceError = validateDistance(
+      stage.distanceKm,
+      `Day ${stage.dayNumber} distance`
+    );
+    if (stageDistanceError) return stageDistanceError;
+    const stageElevationError = validateElevation(
+      stage.elevationM,
+      `Day ${stage.dayNumber} elevation`
+    );
+    if (stageElevationError) return stageElevationError;
+  }
+  // `race_stages` has a unique index on (raceId, dayNumber), so duplicates
+  // throw on insert. The transaction means that rolls back cleanly rather
+  // than corrupting anything, but this action's contract is to RETURN its
+  // errors, not raise them — and it is an exported "use server" function, so
+  // a caller other than our own form can reach it. The UI cannot produce this
+  // (`stagesForSubmit` always emits sequential days); a direct caller can.
+  const days = new Set<number>();
+  for (const stage of input.stages) {
+    if (!Number.isInteger(stage.dayNumber) || stage.dayNumber < 1) {
+      return "Each stage needs a day number of 1 or more.";
+    }
+    if (days.has(stage.dayNumber)) {
+      return `Day ${stage.dayNumber} is listed twice.`;
+    }
+    days.add(stage.dayNumber);
+  }
+  return null;
+}
+
+/**
+ * Writes a race's demand fields + replaces its stages wholesale, as one
+ * transaction — shared by `addRace` (new race) and `updateRaceDemand`
+ * (correcting an existing one). Without the transaction, a failure partway
+ * through (e.g. a duplicate dayNumber hitting the unique index on the
+ * insert) would leave the update and delete committed but the insert not —
+ * the race would claim new days/distance/elevation with zero race_stages
+ * rows, destroying the previously-good per-day data.
+ */
+async function writeRaceDemand(
+  raceId: string,
+  input: DemandInput
+): Promise<void> {
+  await db.transaction(async (tx) => {
+    await tx
+      .update(schema.races)
+      .set({
+        eventDays: input.eventDays,
+        distanceKm: input.distanceKm,
+        elevationM: roundElevation(input.elevationM),
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.races.id, raceId));
+
+    // Stages are replaced wholesale. `createRace` upserts on
+    // (userId, date, name), so re-adding the same race reuses its row — a
+    // partial write would leave a stale day 7 behind when an eight-day event
+    // is re-entered as six.
+    await tx
+      .delete(schema.raceStages)
+      .where(eq(schema.raceStages.raceId, raceId));
+    if (input.stages.length > 0) {
+      await tx.insert(schema.raceStages).values(
+        input.stages.map((s) => ({
+          raceId,
+          dayNumber: s.dayNumber,
+          distanceKm: s.distanceKm,
+          elevationM: roundElevation(s.elevationM),
+        }))
+      );
+    }
+  });
+}
+
 export async function addRace(input: {
   name: string;
   raceType: string;
   date: string;
   priority: "A" | "B" | "C";
   goalNote?: string;
-}): Promise<{ ok: true } | { ok: false; error: string }> {
+  eventDays: number;
+  distanceKm: number | null;
+  elevationM: number | null;
+  stages: {
+    dayNumber: number;
+    distanceKm: number | null;
+    elevationM: number | null;
+  }[];
+}): Promise<Result> {
   const user = await requireUser();
+  const demandError = validateDemandInput(input);
+  if (demandError) return { ok: false, error: demandError };
+
   const result = await createRace(user.id, {
     name: input.name,
     raceType: input.raceType,
@@ -196,6 +340,48 @@ export async function addRace(input: {
     goalNote: input.goalNote ?? null,
   });
   if ("error" in result) return { ok: false, error: result.error };
+
+  // `createRace` is deliberately left outside writeRaceDemand's transaction:
+  // a failure there returns cleanly before any demand write happens.
+  await writeRaceDemand(result.race.id, input);
+
+  revalidatePath("/train");
+  revalidatePath("/");
+  return { ok: true };
+}
+
+/**
+ * Corrects an existing race's demand fields without deleting and re-adding
+ * it — final-review Finding I6 part 2. Ownership is checked explicitly
+ * (rather than trusting the id) because this is a directly reachable
+ * "use server" export: nothing stops a caller other than our own edit form
+ * from passing another athlete's race id.
+ */
+export async function updateRaceDemand(
+  id: string,
+  input: {
+    eventDays: number;
+    distanceKm: number | null;
+    elevationM: number | null;
+    stages: {
+      dayNumber: number;
+      distanceKm: number | null;
+      elevationM: number | null;
+    }[];
+  }
+): Promise<Result> {
+  const user = await requireUser();
+  const demandError = validateDemandInput(input);
+  if (demandError) return { ok: false, error: demandError };
+
+  const existing = await db.query.races.findFirst({
+    where: and(eq(schema.races.id, id), eq(schema.races.userId, user.id)),
+    columns: { id: true },
+  });
+  if (!existing) return { ok: false, error: "Race not found." };
+
+  await writeRaceDemand(id, input);
+
   revalidatePath("/train");
   revalidatePath("/");
   return { ok: true };

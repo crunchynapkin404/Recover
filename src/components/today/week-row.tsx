@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { WeekStrip } from "@/components/plan/week-strip";
+import { fmt } from "@/components/plan/week-rationale";
 import type { DaySlot } from "@/lib/week-plan/types";
 
 /**
@@ -7,9 +8,11 @@ import type { DaySlot } from "@/lib/week-plan/types";
  * the athlete's own target. Hidden below lg, where the week belongs to Train
  * and Today stays a single column.
  *
- * The target is the plan's stated hours per week; when the plan doesn't
- * state one, the row shows the hours done and claims no target rather than
- * inventing a denominator.
+ * `hoursTarget` is the same derived, race/ceiling-aware figure /train's
+ * WeekRationale shows (both come from assembleWeeklyTarget — final-review
+ * Finding I5), not the plan's raw typed hoursPerWeek. When there is no
+ * active plan or no open week, the caller passes null and the row shows the
+ * hours done and claims no target rather than inventing a denominator.
  */
 export function WeekRow({
   days,
@@ -41,7 +44,7 @@ export function WeekRow({
         <strong className="font-bold text-white/85">
           {hoursDone.toFixed(1)}h
         </strong>
-        {hoursTarget != null && ` of ${hoursTarget}h target`}
+        {hoursTarget != null && ` of ${fmt(hoursTarget)} target`}
         {onTrack != null && (
           <span
             className={`ml-1.5 font-bold ${onTrack ? "text-emerald-400" : "text-amber-400"}`}

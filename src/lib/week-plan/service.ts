@@ -13,6 +13,9 @@ import type { AdjustmentRecord, Band, DaySlot } from "./types";
 import { findBlockFor } from "./slots";
 import { providerSportAliases } from "@/lib/canonical-sport";
 import type { AvailabilityBlock } from "@/lib/availability/types";
+import { periodize } from "@/lib/training-plan";
+import { assembleVolumeInputs } from "./volume-inputs";
+import { hoursForMaterialize, weeklyTargetHours } from "./volume";
 
 export type AdjustmentRow = typeof schema.planAdjustments.$inferSelect;
 
@@ -264,6 +267,37 @@ export async function rolloverWeekPlan(
     d < today ? [] : (resolved.get(d) ?? [])
   );
 
+  // Derive this week's hours target rather than reading a number typed once
+  // at plan creation. With no event demand and no measured ceiling this
+  // returns `constraints.hoursPerWeek` — today's behaviour, unchanged.
+  const volumeInputs = await assembleVolumeInputs(userId, now);
+  const availabilityHours =
+    availableBlocksPerDay.reduce(
+      (s, blocks) => s + dayMins({ availableBlocks: blocks }),
+      0
+    ) / 60;
+  const target = weeklyTargetHours({
+    raceDemandHours: volumeInputs.demand?.weeklyHours ?? null,
+    ceilingHours: volumeInputs.level.ceilingHours,
+    floorHours: volumeInputs.level.floorHours,
+    availabilityHours,
+    fallbackHours: constraints.hoursPerWeek,
+  });
+
+  // Recomputed fresh, never read as authority — a stored target is exactly
+  // how `hoursPerWeek` went stale in the first place.
+  const derivedBlocks = periodize(
+    plan.weeksTotal,
+    plan.startingCtl ?? 0,
+    constraints.daysPerWeek,
+    target.hours,
+    plan.raceType,
+    constraints.sports
+  );
+  const derived =
+    derivedBlocks.find((b) => b.weekNumber === plan.currentWeek) ??
+    derivedBlocks[derivedBlocks.length - 1];
+
   // 3. Materialize.
   const [races, ctlNow] = await Promise.all([
     racesForWeek(userId, weekStart),
@@ -272,17 +306,17 @@ export async function rolloverWeekPlan(
   const r = materializeWeek({
     weekStart,
     skeleton: {
-      weekNumber: skeleton.weekNumber,
-      phase: skeleton.phase,
-      targetLoadTotal: skeleton.targetLoadTotal ?? 0,
-      targetSessions: skeleton.targetSessions ?? 0,
+      weekNumber: derived.weekNumber,
+      phase: derived.phase,
+      targetLoadTotal: derived.targetLoad,
+      targetSessions: derived.targetSessions,
     },
     availableBlocksPerDay,
     prevWeek,
     recentBands: await recentBands(userId),
     raceType: plan.raceType,
     sports: constraints.sports,
-    hoursPerWeek: constraints.hoursPerWeek,
+    hoursPerWeek: hoursForMaterialize(target),
     races,
     currentCtl: ctlNow,
   });

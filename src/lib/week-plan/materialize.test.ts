@@ -283,6 +283,56 @@ describe("materializeWeek layout", () => {
   });
 });
 
+describe("materializeWeek — generator cap explained (final-review Finding 2)", () => {
+  // generateWorkouts hard-caps the long ride/run and every filler session
+  // regardless of the target it is asked for, so a large-enough target
+  // saturates the generator far below effectiveHours with no adjustment of
+  // its own — the exact unexplained-deficit failure mode WeekRationale
+  // exists to eliminate. These pin the new adjustment materializeWeek must
+  // push when that happens, and its absence when the generator can meet the
+  // target.
+  const CAP_BASE = {
+    weekStart: "2026-08-24",
+    skeleton: {
+      weekNumber: 5,
+      phase: "build" as const,
+      targetLoadTotal: 400,
+      targetSessions: 5,
+    },
+    prevWeek: null,
+    recentBands: [] as import("./types").Band[],
+    raceType: "gran fondo",
+    sports: ["Bike"],
+  };
+
+  it("logs an adjustment explaining the cap when the target exceeds what the generator can express", () => {
+    const r = materializeWeek({
+      ...CAP_BASE,
+      hoursPerWeek: 20,
+      // Ample availability — 27h across the week — so the shortfall comes
+      // from the generator's own duration caps, not a lack of time to ride.
+      availableBlocksPerDay: blocksPerDay([180, 240, 180, 240, 180, 300, 300]),
+    });
+    const capAdjustment = r.adjustments.find((a) =>
+      a.reason.includes("session limits cap")
+    );
+    expect(capAdjustment).toBeDefined();
+    expect(capAdjustment!.trigger).toBe("weekly_rollover");
+    expect(capAdjustment!.reason).toContain("20.0h target");
+  });
+
+  it("logs no cap adjustment when the target is within what the generator can produce", () => {
+    const r = materializeWeek({
+      ...CAP_BASE,
+      hoursPerWeek: 6,
+      availableBlocksPerDay: blocksPerDay([60, 60, 60, 60, 60, 90, 90]),
+    });
+    expect(
+      r.adjustments.some((a) => a.reason.includes("session limits cap"))
+    ).toBe(false);
+  });
+});
+
 describe("DaySlot shape", () => {
   it("sums a day's blocks rather than trusting availableMins", () => {
     const day = {
@@ -718,5 +768,40 @@ describe("materializeWeek — block fitting", () => {
         expect(d.workouts.filter(isQuality).length).toBeLessThanOrEqual(1);
       }
     });
+  });
+});
+
+describe("materializeWeek availability scaling (Task 9 regression)", () => {
+  // 6h of availability against a 10h week. materializeWeek is the ONE place
+  // availability lowers the week's load, which is why rolloverWeekPlan hands
+  // it the pre-availability target.
+  const sixHours = blocksPerDay([60, 60, 60, 60, 60, 60, 0]);
+
+  it("lowers the week load, and says so, when time is short", () => {
+    const r = materializeWeek({
+      ...baseInput,
+      hoursPerWeek: 10,
+      availableBlocksPerDay: sixHours,
+    });
+    // needed 10h vs 6h budget: 400 × 6/10 = 240
+    expect(r.effectiveLoad).toBe(240);
+    expect(
+      r.adjustments.some((a) => a.reason.includes("available instead of"))
+    ).toBe(true);
+  });
+
+  it("does nothing once the target has already been clamped to availability", () => {
+    // The defect this guards: pre-clamping to 6h makes the branch above
+    // unreachable, so the week keeps its full 400 load with only 6h to ride
+    // it and the athlete is never told why.
+    const r = materializeWeek({
+      ...baseInput,
+      hoursPerWeek: 6,
+      availableBlocksPerDay: sixHours,
+    });
+    expect(r.effectiveLoad).toBe(400);
+    expect(
+      r.adjustments.some((a) => a.reason.includes("available instead of"))
+    ).toBe(false);
   });
 });

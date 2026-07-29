@@ -1,5 +1,54 @@
 # Changelog
 
+## v0.28.0 — 2026-07-29 — The Race Sets the Week
+
+- **Your weekly hours now come from the event you're training for**, not from a
+  number typed once when the plan was created. Enter a race's days, distance and
+  climbing — optionally day by day — and the app estimates what it physically
+  asks, then derives a weekly target from it.
+- **Bounded by your own history, in both directions.** The target is capped at
+  1.3× your rolling 12-week peak (the acute:chronic workload ratio's safe-zone
+  bound) and floored at 0.6× it, so a low-volume event like a criterium can't
+  prescribe a detraining week. **With no measured history there is no ceiling and
+  no race-driven target at all** — the plan's own figure stands. Absent evidence,
+  the app says nothing rather than guessing.
+- **Availability is a ceiling, never a target.** A free week does not become a
+  bigger prescription.
+- **The week now explains itself.** The engine has always logged its own
+  arithmetic accurately — "last week was fully missed — restarting at 60% of the
+  skeleton target", "3.1h available instead of 6.0h" — and nothing ever showed
+  it. A small week read as a bug. Those reasons now appear under the week grid,
+  alongside what was planned against what was targeted.
+- **A readiness verdict for the event itself**: ready / on track / tight / not
+  realistic, judged on volume _and_ on longest ride, because eleven hours a week
+  ridden as five short sessions does not prepare anyone for a seven-hour mountain
+  day. It informs and never blocks — you can still enter anything you like,
+  having been told plainly what it asks.
+- **The skeleton is recomputed every rollover** rather than read from the stored
+  plan. A stored target going stale is what this release exists to end.
+- **The dashboard and Train now show the same target.** They previously
+  disagreed, and the dashboard's was the stale number.
+
+**Honest about its limits.** `HEADROOM` and the maintenance floor come from
+published research; `REAL_WORLD_FACTOR` and `CLIMB_GRADIENT` are calibration
+constants with **no published basis**, and the longest-ride fraction is
+**contested** — sources contradict each other, so it can soften a verdict but
+never declare an event impossible on its own. Every constant and its confidence
+level is recorded in `docs/specs/2026-07-28-training-volume-evidence.md`.
+
+**One known gap, deliberately not closed here.** The workout generator caps
+individual sessions, so a week saturates around 9.8 hours no matter how high the
+target goes. The engine now _says so_ when that happens rather than showing an
+unexplained deficit; actually lifting the cap means rewriting the generator, and
+that is its own release.
+
+**Caught before it shipped.** The final review found that an athlete with no
+recent training and a logged event would have been prescribed a **zero-hour
+week** — the "no measured ceiling" safety branch was unreachable, because the
+hours-history builder returns twelve zeros rather than an empty list, so a peak
+of zero read as a real measurement. It would have hit new users and anyone
+returning from injury: exactly who that ceiling protects.
+
 ## v0.27.0 — 2026-07-28 — The Planner Can See You Ride
 
 - **Fixed: no cycling session was ever recorded as completed.** The plan
