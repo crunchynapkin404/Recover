@@ -14,7 +14,7 @@ const races: RaceListItem[] = [
     eventDays: 1,
     distanceKm: 42.2,
     elevationM: 250,
-    hasStages: false,
+    stages: [],
   },
 ];
 
@@ -71,7 +71,17 @@ describe("RacesSection", () => {
   it("flags when per-day stage detail is on file", () => {
     const html = renderToString(
       <RacesSection
-        races={[{ ...races[0], id: "3", eventDays: 3, hasStages: true }]}
+        races={[
+          {
+            ...races[0],
+            id: "3",
+            eventDays: 3,
+            stages: [
+              { dayNumber: 1, distanceKm: 100, elevationM: 1000 },
+              { dayNumber: 2, distanceKm: 120, elevationM: 1200 },
+            ],
+          },
+        ]}
       />
     );
     expect(html).toContain("per-day detail");

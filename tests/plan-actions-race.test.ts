@@ -20,6 +20,10 @@ import { and, eq } from "drizzle-orm";
 const hasDb =
   !!process.env.DATABASE_URL && process.env.DATABASE_DRIVER === "pg";
 const USER = "test-plan-actions-race-user";
+// A second athlete, used only to prove updateRaceDemand's ownership check —
+// requireUser is mocked to always return USER, so this row can never
+// legitimately belong to "the caller."
+const OTHER_USER = "test-plan-actions-race-other-user";
 
 vi.mock("@/lib/session", () => ({
   requireUser: async () => ({ id: USER, name: "ActionUser" }),
@@ -42,6 +46,10 @@ async function cleanup() {
     .where(eq(schema.trainingPlans.userId, USER));
   await db.delete(schema.races).where(eq(schema.races.userId, USER));
   await db.delete(schema.users).where(eq(schema.users.id, USER));
+  await db
+    .delete(schema.races)
+    .where(eq(schema.races.userId, OTHER_USER));
+  await db.delete(schema.users).where(eq(schema.users.id, OTHER_USER));
 }
 
 describe.skipIf(!hasDb)("plan race actions", () => {
@@ -311,5 +319,146 @@ describe.skipIf(!hasDb)("plan race actions", () => {
       });
       expect(rows, `case ${c.name} must not write a race row`).toHaveLength(0);
     }
+  });
+
+  // Final-review Finding I6 part 2: correcting a race's stored demand used
+  // to mean deleting the race and re-adding it. updateRaceDemand is the new
+  // action — these prove it actually persists a correction, shares addRace's
+  // validation, and cannot be pointed at another athlete's race.
+  describe("updateRaceDemand", () => {
+    it("corrects an existing race's demand and replaces its stages", async () => {
+      const { addRace, updateRaceDemand } = await import(
+        "@/app/plan/actions"
+      );
+      const { db, schema } = await import("@/lib/db");
+      const date = ymd(43);
+      const name = "Typo Elevation Race";
+
+      const created = await addRace({
+        name,
+        raceType: "cycling",
+        date,
+        priority: "B",
+        eventDays: 1,
+        distanceKm: 100,
+        // The exact defect Finding I6 exists to fix: a 20,000m typo for
+        // 2,000m, with no prior way to see or correct it in place.
+        elevationM: 20000,
+        stages: [],
+      });
+      expect(created).toEqual({ ok: true });
+
+      const race = await db.query.races.findFirst({
+        where: and(eq(schema.races.userId, USER), eq(schema.races.name, name)),
+      });
+      expect(race).toBeDefined();
+      expect(race!.elevationM).toBe(20000);
+
+      const result = await updateRaceDemand(race!.id, {
+        eventDays: 2,
+        distanceKm: 100,
+        elevationM: 2000,
+        stages: [
+          { dayNumber: 1, distanceKm: 50, elevationM: 1000 },
+          { dayNumber: 2, distanceKm: 50, elevationM: 1000 },
+        ],
+      });
+      expect(result).toEqual({ ok: true });
+
+      const corrected = await db.query.races.findFirst({
+        where: eq(schema.races.id, race!.id),
+      });
+      expect(corrected!.elevationM).toBe(2000);
+      expect(corrected!.eventDays).toBe(2);
+
+      const stages = (
+        await db.query.raceStages.findMany({
+          where: eq(schema.raceStages.raceId, race!.id),
+        })
+      ).sort((a, b) => a.dayNumber - b.dayNumber);
+      expect(stages).toHaveLength(2);
+      expect(stages[0].elevationM).toBe(1000);
+    });
+
+    it("rejects invalid demand values without writing anything, same rules as addRace", async () => {
+      const { addRace, updateRaceDemand } = await import(
+        "@/app/plan/actions"
+      );
+      const { db, schema } = await import("@/lib/db");
+      const date = ymd(44);
+      const name = "Update Validation Race";
+
+      const created = await addRace({
+        name,
+        raceType: "cycling",
+        date,
+        priority: "C",
+        eventDays: 1,
+        distanceKm: 50,
+        elevationM: 500,
+        stages: [],
+      });
+      expect(created).toEqual({ ok: true });
+      const race = await db.query.races.findFirst({
+        where: and(eq(schema.races.userId, USER), eq(schema.races.name, name)),
+      });
+
+      const result = await updateRaceDemand(race!.id, {
+        eventDays: 1,
+        distanceKm: -10,
+        elevationM: null,
+        stages: [],
+      });
+      expect(result).toEqual({
+        ok: false,
+        error: "Distance cannot be negative.",
+      });
+
+      const unchanged = await db.query.races.findFirst({
+        where: eq(schema.races.id, race!.id),
+      });
+      expect(unchanged!.distanceKm).toBeCloseTo(50);
+    });
+
+    it("cannot be pointed at another athlete's race", async () => {
+      const { updateRaceDemand } = await import("@/app/plan/actions");
+      const { db, schema } = await import("@/lib/db");
+
+      await db
+        .insert(schema.users)
+        .values({
+          id: OTHER_USER,
+          name: "OtherAthlete",
+          email: `${OTHER_USER}@example.invalid`,
+          role: "member",
+        })
+        .onConflictDoNothing();
+      const [otherRace] = await db
+        .insert(schema.races)
+        .values({
+          userId: OTHER_USER,
+          name: "Not Yours",
+          raceType: "cycling",
+          date: ymd(45),
+          priority: "B",
+          distanceKm: 100,
+          elevationM: 1000,
+        })
+        .returning();
+
+      const result = await updateRaceDemand(otherRace.id, {
+        eventDays: 1,
+        distanceKm: 999,
+        elevationM: 9999,
+        stages: [],
+      });
+      expect(result.ok).toBe(false);
+
+      const untouched = await db.query.races.findFirst({
+        where: eq(schema.races.id, otherRace.id),
+      });
+      expect(untouched!.distanceKm).toBeCloseTo(100);
+      expect(untouched!.elevationM).toBe(1000);
+    });
   });
 });

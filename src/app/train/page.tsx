@@ -237,27 +237,34 @@ async function WeekTab({ userId, href }: { userId: string; href: TrainHref }) {
   const week = await getOpenWeekPlan(userId);
   const adjustments = week ? await listAdjustments(week.id) : [];
   const races = await listRaces(userId);
-  // Whether per-day stage detail is on file per race — a separate table, so
-  // one batched query rather than N+1. Final-review Finding I6: the races
-  // list must show what's actually driving each race's demand, not just
-  // accept it silently on the add form.
-  const stageRaceIds =
+  // Per-day stage detail per race — a separate table, so one batched query
+  // rather than N+1. Final-review Finding I6: the races list must show
+  // (and, part 2, let the athlete correct) what's actually driving each
+  // race's demand, not just accept it silently on the add form.
+  const stageRows =
     races.length > 0
-      ? new Set(
-          (
-            await db.query.raceStages.findMany({
-              where: inArray(
-                schema.raceStages.raceId,
-                races.map((r) => r.id)
-              ),
-              columns: { raceId: true },
-            })
-          ).map((s) => s.raceId)
-        )
-      : new Set<string>();
+      ? await db.query.raceStages.findMany({
+          where: inArray(
+            schema.raceStages.raceId,
+            races.map((r) => r.id)
+          ),
+        })
+      : [];
+  const stagesByRace = new Map<string, RaceListItem["stages"]>();
+  for (const s of stageRows) {
+    const arr = stagesByRace.get(s.raceId) ?? [];
+    arr.push({
+      dayNumber: s.dayNumber,
+      distanceKm: s.distanceKm,
+      elevationM: s.elevationM,
+    });
+    stagesByRace.set(s.raceId, arr);
+  }
   const raceListItems: RaceListItem[] = races.map((r) => ({
     ...r,
-    hasStages: stageRaceIds.has(r.id),
+    stages: (stagesByRace.get(r.id) ?? []).sort(
+      (a, b) => a.dayNumber - b.dayNumber
+    ),
   }));
   const constraints = planConstraints(plan.constraints);
 
