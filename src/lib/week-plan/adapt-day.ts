@@ -2,6 +2,8 @@
 import {
   type AdjustmentRecord,
   type Band,
+  type DaySlot,
+  type ScheduledWorkout,
   type WeekState,
   AMBER_SCALE,
   blockFits,
@@ -140,6 +142,157 @@ function handleMissedYesterday(
   });
 }
 
+/**
+ * Removes `workout` from today and offers it to the first later day (in
+ * date order) with room for it; drops it if none exists. Mutates
+ * `week.days[todayIdx]` (and the target day, if one is found) and returns
+ * exactly one adjustment describing whichever actually happened — never a
+ * fixed story that might not match the outcome.
+ *
+ * Shared by the availability pass below and the red-readiness quality swap:
+ * both face the identical "doesn't fit today — does anything else?"
+ * question, and the swap must offer the session to another day rather than
+ * deleting it outright just because a recovery-length substitute doesn't
+ * fit today either. A session removed here and not picked up by any later
+ * day is gone from the whole week, so this is the ONE place that is allowed
+ * to happen — every caller must route through it rather than deleting
+ * inline.
+ */
+function moveOrDropWorkout(
+  week: WeekState,
+  todayIdx: number,
+  today: DaySlot,
+  workout: ScheduledWorkout,
+  remainingToday: ScheduledWorkout[],
+  before: DaySlot[],
+  trigger: AdjustmentRecord["trigger"],
+  reason: (targetDate: string | null) => string
+): AdjustmentRecord {
+  week.days[todayIdx] = {
+    ...today,
+    workouts: remainingToday,
+    status: remainingToday.length > 0 ? today.status : "rest",
+    // The session that owned this base is gone from today — moved or
+    // dropped. A stale base left in place would let a later band change
+    // "restore" it right back onto today, resurrecting a session that
+    // was just placed elsewhere (or dropped for good reason).
+    readinessBase: undefined,
+  };
+  // Same rule as the missed-yesterday move above: pick whichever block
+  // on a candidate day actually admits the session, not the index it
+  // carried from today. findIndex can't hand back a block index, so the
+  // search is unrolled — first day (in order) with an admitting block
+  // wins, matching the previous findIndex's ordering exactly.
+  let target = -1;
+  let targetBlockIdx: number | null = null;
+  for (let i = todayIdx + 1; i < 7; i++) {
+    const d = week.days[i];
+    if (d.workouts.length === 0 && d.status !== "race") {
+      const blockIdx = findBlockFor(week.days, i, workout, new Set());
+      if (blockIdx != null) {
+        target = i;
+        targetBlockIdx = blockIdx;
+        break;
+      }
+    }
+  }
+  if (target !== -1) {
+    week.days[target] = {
+      ...week.days[target],
+      workouts: [{ ...workout, blockIdx: targetBlockIdx! }],
+      status: "moved",
+      movedFrom: today.date,
+    };
+  }
+  return {
+    date: today.date,
+    trigger,
+    action: target !== -1 ? "moved" : "dropped",
+    before,
+    after: [
+      { ...week.days[todayIdx] },
+      ...(target !== -1 ? [{ ...week.days[target] }] : []),
+    ],
+    reason: reason(target !== -1 ? week.days[target].date : null),
+  };
+}
+
+/**
+ * Availability is a hard constraint: fit today's first session into the
+ * block it occupies, or move/drop it when nothing — not even a substitute
+ * at its floor — fits. Mutates `week.days[todayIdx]` in place and pushes a
+ * `no_time` adjustment when a change was needed; a no-op (no adjustment)
+ * when the session already fits.
+ *
+ * Shared by both the availability-first pass (below, on whatever is
+ * actually sitting on today right now) and the final pass after readiness
+ * has produced today's result — availability gets the last word either
+ * way, via the exact same fitting logic.
+ */
+function fitAvailability(
+  week: WeekState,
+  todayIdx: number,
+  adjustments: AdjustmentRecord[]
+): void {
+  const today = week.days[todayIdx];
+  const todayWorkout = today.workouts[0] ?? null;
+  if (
+    !todayWorkout ||
+    blockFits(today, todayWorkout.blockIdx, todayWorkout.durationMins)
+  ) {
+    return;
+  }
+
+  const before = [
+    { ...today, workouts: today.workouts.map((w) => ({ ...w })) },
+  ];
+  const block = today.availableBlocks[todayWorkout.blockIdx];
+  const blockCapacity = block ? blockMins(block) : 0;
+  // Only this one session is removed from today's workouts below — any
+  // sibling session (a second block, untouched) is left exactly as it
+  // was, never wiped out as a side effect of this one's fate.
+  const remainingToday = today.workouts.filter((w) => w !== todayWorkout);
+  const fitted = fitToBlock(todayWorkout, blockCapacity);
+
+  if (!fitted) {
+    adjustments.push(
+      moveOrDropWorkout(
+        week,
+        todayIdx,
+        today,
+        todayWorkout,
+        remainingToday,
+        before,
+        "no_time",
+        (targetDate) =>
+          targetDate
+            ? `no time on ${today.date} — ${todayWorkout.type} moved to ${targetDate}`
+            : `no time on ${today.date} — ${todayWorkout.type} dropped`
+      )
+    );
+  } else {
+    week.days[todayIdx] = {
+      ...today,
+      workouts: [
+        ...remainingToday,
+        { ...fitted.workout, blockIdx: todayWorkout.blockIdx },
+      ],
+      status: "adapted",
+    };
+    adjustments.push({
+      date: today.date,
+      trigger: "no_time",
+      action: fitted.how === "compressed" ? "scaled" : "swapped",
+      before,
+      after: [{ ...week.days[todayIdx] }],
+      reason:
+        fitted.how === "compressed"
+          ? `shortened to fit available time (${fitted.workout.durationMins}min)`
+          : `only ${fitted.workout.durationMins}min available — ${todayWorkout.type} replaced by ${fitted.workout.type}, which still works at that length`,
+    });
+  }
+}
+
 export function adaptDay(input: AdaptDayInput): AdaptDayResult {
   const week = clone(input.week);
   const adjustments: AdjustmentRecord[] = [];
@@ -159,110 +312,100 @@ export function adaptDay(input: AdaptDayInput): AdaptDayResult {
   // Race day: the slot is sacred — no scaling, no adaptation, no moves in.
   if (today.status === "race") return { week, adjustments };
 
-  const todayWorkout = today.workouts[0] ?? null;
+  // Readiness adaptation is a function of the ORIGINAL session and today's
+  // band — never of its own previous output. See DaySlot.readinessBase:
+  // onWellnessDataChanged re-runs this on every wellness event, and a
+  // version that read its own already-adapted output back would keep
+  // shrinking the same session run after run.
+  const priorBase = today.readinessBase;
+  const bandChanging =
+    priorBase != null &&
+    priorBase.date === input.today &&
+    priorBase.band !== input.band;
 
-  // Availability first: time is a hard constraint, readiness a soft one.
-  if (
-    todayWorkout &&
-    !blockFits(today, todayWorkout.blockIdx, todayWorkout.durationMins)
-  ) {
-    const before = [
-      { ...today, workouts: today.workouts.map((w) => ({ ...w })) },
-    ];
-    const block = today.availableBlocks[todayWorkout.blockIdx];
-    const blockCapacity = block ? blockMins(block) : 0;
-    // Only this one session is removed from today's workouts below — any
-    // sibling session (a second block, untouched) is left exactly as it
-    // was, never wiped out as a side effect of this one's fate.
-    const remainingToday = today.workouts.filter((w) => w !== todayWorkout);
-    const fitted = fitToBlock(todayWorkout, blockCapacity);
-
-    if (!fitted) {
-      const workout = todayWorkout;
-      week.days[todayIdx] = {
-        ...today,
-        workouts: remainingToday,
-        status: remainingToday.length > 0 ? today.status : "rest",
-      };
-      // Same rule as the missed-yesterday move above: pick whichever block
-      // on a candidate day actually admits the session, not the index it
-      // carried from today. findIndex can't hand back a block index, so the
-      // search is unrolled — first day (in order) with an admitting block
-      // wins, matching the previous findIndex's ordering exactly.
-      let target = -1;
-      let targetBlockIdx: number | null = null;
-      for (let i = todayIdx + 1; i < 7; i++) {
-        const d = week.days[i];
-        if (d.workouts.length === 0 && d.status !== "race") {
-          const blockIdx = findBlockFor(week.days, i, workout, new Set());
-          if (blockIdx != null) {
-            target = i;
-            targetBlockIdx = blockIdx;
-            break;
-          }
-        }
-      }
-      if (target !== -1) {
-        week.days[target] = {
-          ...week.days[target],
-          workouts: [{ ...workout, blockIdx: targetBlockIdx! }],
-          status: "moved",
-          movedFrom: today.date,
-        };
-      }
-      adjustments.push({
-        date: today.date,
-        trigger: "no_time",
-        action: target !== -1 ? "moved" : "dropped",
-        before,
-        after: [
-          { ...week.days[todayIdx] },
-          ...(target !== -1 ? [{ ...week.days[target] }] : []),
-        ],
-        reason:
-          target !== -1
-            ? `no time on ${today.date} — ${workout.type} moved to ${week.days[target].date}`
-            : `no time on ${today.date} — ${workout.type} dropped`,
-      });
-    } else {
-      week.days[todayIdx] = {
-        ...today,
-        workouts: [
-          ...remainingToday,
-          { ...fitted.workout, blockIdx: todayWorkout.blockIdx },
-        ],
-        status: "adapted",
-      };
-      adjustments.push({
-        date: today.date,
-        trigger: "no_time",
-        action: fitted.how === "compressed" ? "scaled" : "swapped",
-        before,
-        after: [{ ...week.days[todayIdx] }],
-        reason:
-          fitted.how === "compressed"
-            ? `shortened to fit available time (${fitted.workout.durationMins}min)`
-            : `only ${fitted.workout.durationMins}min available — ${todayWorkout.type} replaced by ${fitted.workout.type}, which still works at that length`,
-      });
-    }
+  if (!bandChanging) {
+    // Ordinary path: either today has no readiness history yet, or the
+    // band hasn't moved since the last adaptation. Availability is a hard
+    // constraint checked against whatever is actually sitting on today
+    // right now — time wins first, readiness (below) scales what's left.
+    fitAvailability(week, todayIdx, adjustments);
   }
+  // else: the band is about to change, which means the restore below is
+  // going to replace today's session with the pristine original anyway.
+  // Checking the stale, about-to-be-discarded session against availability
+  // here would produce a throwaway adjustment at best — and at worst could
+  // move or drop that stale session to another day, only for the restore
+  // to resurrect it right back onto today a moment later. Skip straight to
+  // the restore; the correct pipeline for this case is "restore → apply
+  // readiness → fit to available time", not "fit stale → restore → scale".
 
   const t = week.days[todayIdx]; // may have been replaced above
-  const tWorkout = t.workouts[0] ?? null;
+  const currentBase = t.readinessBase;
+  if (currentBase && currentBase.date === input.today) {
+    if (currentBase.band === input.band) {
+      // Already adapted for exactly this band today. Nothing left to do —
+      // and critically, no further adjustment: runDailyAdaptation persists
+      // whenever anything changed, so a no-op here (beyond whatever
+      // fitAvailability above already logged) is what stops the
+      // compounding.
+      return { week, adjustments };
+    }
+    // The band moved. Restore the original session and re-derive from it
+    // below, so amber-then-red lands exactly where red-only would, and a
+    // recovery to green undoes the day entirely.
+    week.days[todayIdx] = {
+      ...t,
+      workouts: currentBase.workouts.map((w) => ({ ...w })),
+      status: "planned",
+      readinessBase: undefined,
+    };
+  }
+
+  const day = week.days[todayIdx];
+  const tWorkout = day.workouts[0] ?? null;
   if (tWorkout && (input.band === "red" || input.band === "amber")) {
-    const before = [{ ...t, workouts: t.workouts.map((w) => ({ ...w })) }];
+    // Snapshot the ORIGINAL session before any mutation below — this is
+    // what the next run must derive from, not whatever we're about to
+    // produce.
+    const base = {
+      date: input.today,
+      band: input.band,
+      workouts: day.workouts.map((w) => ({ ...w })),
+    };
+    const before = [{ ...day, workouts: day.workouts.map((w) => ({ ...w })) }];
     if (input.band === "red") {
       if (isQuality(tWorkout)) {
-        if (!blockFits(t, tWorkout.blockIdx, RED_RECOVERY_MINS)) {
-          const remaining = t.workouts.filter((w) => w !== tWorkout);
-          week.days[todayIdx] = {
-            ...t,
-            workouts: remaining,
-            status: remaining.length > 0 ? t.status : "rest",
-          };
+        if (!blockFits(day, tWorkout.blockIdx, RED_RECOVERY_MINS)) {
+          // Not even a recovery-length substitute fits today's block — most
+          // often reached when the band worsens to red in the same call as
+          // an availability collapse (the bandChanging skip above means the
+          // pre-readiness fitAvailability pass never ran, so this is the
+          // first time the just-restored, pristine session has met today's
+          // shrunk block). Route through the same move/drop search
+          // fitAvailability uses, rather than deleting the session inline:
+          // deleting it here silently drops it from the entire week — even
+          // when a wide-open day is sitting right there — and a
+          // "replaced by recovery" reason would be a lie once nothing was
+          // actually replaced.
+          const remaining = day.workouts.filter((w) => w !== tWorkout);
+          adjustments.push(
+            moveOrDropWorkout(
+              week,
+              todayIdx,
+              day,
+              tWorkout,
+              remaining,
+              before,
+              "low_readiness",
+              (targetDate) =>
+                targetDate
+                  ? `readiness red — no room today even for a recovery session; ${tWorkout.type} moved to ${targetDate}`
+                  : `readiness red — no room today even for a recovery session; ${tWorkout.type} dropped`
+            )
+          );
         } else {
           week.days[todayIdx] = {
-            ...t,
+            ...day,
             status: "adapted",
             workouts: [
               withPurpose({
@@ -273,27 +416,29 @@ export function adaptDay(input: AdaptDayInput): AdaptDayResult {
                 description: "Easy recovery session — readiness is red",
               }),
             ],
+            readinessBase: base,
           };
+          adjustments.push({
+            date: day.date,
+            trigger: "low_readiness",
+            action: "swapped",
+            before,
+            after: [{ ...week.days[todayIdx] }],
+            reason: `readiness red — ${before[0].workouts[0]!.type} replaced by recovery`,
+          });
         }
-        adjustments.push({
-          date: t.date,
-          trigger: "low_readiness",
-          action: "swapped",
-          before,
-          after: [{ ...week.days[todayIdx] }],
-          reason: `readiness red — ${before[0].workouts[0]!.type} replaced by recovery`,
-        });
       } else {
         tWorkout.durationMins = Math.round(
           tWorkout.durationMins * RED_ENDURANCE_SCALE
         );
-        t.status = "adapted";
+        day.status = "adapted";
+        day.readinessBase = base;
         adjustments.push({
-          date: t.date,
+          date: day.date,
           trigger: "low_readiness",
           action: "scaled",
           before,
-          after: [{ ...t, workouts: t.workouts.map((w) => ({ ...w })) }],
+          after: [{ ...day, workouts: day.workouts.map((w) => ({ ...w })) }],
           reason: `readiness red — duration reduced ${Math.round((1 - RED_ENDURANCE_SCALE) * 100)}%`,
         });
       }
@@ -301,7 +446,7 @@ export function adaptDay(input: AdaptDayInput): AdaptDayResult {
       const steppedType = isQuality(tWorkout)
         ? (STEP_DOWN[tWorkout.type] ?? "Endurance")
         : tWorkout.type;
-      t.workouts[0] = withPurpose({
+      day.workouts[0] = withPurpose({
         ...tWorkout,
         type: steppedType,
         intensity: isQuality(before[0].workouts[0] ?? null)
@@ -309,17 +454,25 @@ export function adaptDay(input: AdaptDayInput): AdaptDayResult {
           : tWorkout.intensity,
         durationMins: Math.round(tWorkout.durationMins * AMBER_SCALE),
       });
-      t.status = "adapted";
+      day.status = "adapted";
+      day.readinessBase = base;
       adjustments.push({
-        date: t.date,
+        date: day.date,
         trigger: "low_readiness",
         action: "scaled",
         before,
-        after: [{ ...t, workouts: t.workouts.map((w) => ({ ...w })) }],
+        after: [{ ...day, workouts: day.workouts.map((w) => ({ ...w })) }],
         reason: `readiness amber — one step down, duration ×${AMBER_SCALE}`,
       });
     }
   }
+
+  // Availability has the last word: whatever readiness just produced — a
+  // restored-and-rescaled session, or the ordinary fitted-then-scaled one —
+  // must still fit today's block. A no-op when it already does (the
+  // ordinary path above already fit it once), which is what keeps a repeat
+  // run with nothing changed from emitting a second no_time adjustment.
+  fitAvailability(week, todayIdx, adjustments);
 
   return { week, adjustments };
 }

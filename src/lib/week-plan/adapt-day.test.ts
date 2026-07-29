@@ -1,7 +1,7 @@
 // src/lib/week-plan/adapt-day.test.ts
 import { describe, expect, it } from "vitest";
 import { adaptDay } from "./adapt-day";
-import { blockFits, dayMins } from "./types";
+import { AMBER_SCALE, blockFits, dayMins } from "./types";
 import type { DaySlot, ScheduledWorkout, WeekState } from "./types";
 import { withPurpose } from "@/lib/training-plan";
 import { blockMins } from "@/lib/availability/types";
@@ -756,17 +756,83 @@ describe("adaptDay — C3: red readiness with no room for a recovery spin", () =
     });
     const result = r.week.days[1];
     // Intervals' own 20min block can't even hold a 30min recovery spin, so
-    // it must be removed — but the untouched 80min Endurance session in
-    // the sibling block must survive.
+    // it must not simply vanish — the week has open days later on, so the
+    // ORIGINAL Intervals session is offered to the first one that admits it
+    // (2026-07-22, an empty 60min day), exactly like a no_time move. The
+    // untouched 80min Endurance session in the sibling block survives on
+    // today either way.
     expect(result.workouts).toHaveLength(1);
     expect(result.workouts[0].type).toBe("Endurance");
     expect(result.workouts[0].durationMins).toBe(80);
     expect(result.status).not.toBe("rest");
+
+    const moveAdj = r.adjustments.find(
+      (a) => a.trigger === "low_readiness" && a.action === "moved"
+    );
+    expect(moveAdj).toBeDefined();
+    expect(moveAdj!.reason).toContain("moved to 2026-07-22");
+    // Nothing claims a replacement that didn't happen.
     expect(
-      r.adjustments.some(
-        (a) => a.trigger === "low_readiness" && a.action === "swapped"
-      )
-    ).toBe(true);
+      r.adjustments.some((a) => a.reason.includes("replaced by recovery"))
+    ).toBe(false);
+
+    const target = r.week.days.find((d) => d.date === "2026-07-22")!;
+    expect(target.workouts).toHaveLength(1);
+    expect(target.workouts[0].type).toBe("Intervals");
+    expect(target.workouts[0].durationMins).toBe(20);
+    expect(target.status).toBe("moved");
+    expect(target.movedFrom).toBe("2026-07-21");
+  });
+
+  it("drops the affected quality session (with an honest reason) when no later day has room for it either", () => {
+    const today: DaySlot = {
+      date: "2026-07-21",
+      availableBlocks: [
+        { start: null, end: null, mins: 20, energy: "full", sports: null },
+      ],
+      availableMins: 20,
+      workouts: [
+        withPurpose({
+          day: 0,
+          sport: "Run",
+          type: "Intervals",
+          durationMins: 20,
+          intensity: "Z4-Z5",
+          description: "d",
+          blockIdx: 0,
+        }),
+      ],
+      status: "planned",
+    };
+    // Every later day is fully booked (or a rest day too small for a
+    // 20min quality session), so there is nowhere for it to go.
+    const w = week([
+      D("2026-07-20", 60, null, "rest"),
+      today,
+      D("2026-07-22", 10, null),
+      D("2026-07-23", 10, null),
+      D("2026-07-24", 10, null),
+      D("2026-07-25", 10, null),
+      D("2026-07-26", 10, null),
+    ]);
+    const r = adaptDay({
+      week: w,
+      today: "2026-07-21",
+      band: "red",
+      yesterdayCompleted: null,
+    });
+    const result = r.week.days[1];
+    expect(result.workouts).toHaveLength(0);
+    expect(result.status).toBe("rest");
+
+    const dropAdj = r.adjustments.find(
+      (a) => a.trigger === "low_readiness" && a.action === "dropped"
+    );
+    expect(dropAdj).toBeDefined();
+    expect(dropAdj!.reason).toContain("dropped");
+    expect(
+      r.adjustments.some((a) => a.reason.includes("replaced by recovery"))
+    ).toBe(false);
   });
 });
 
@@ -842,5 +908,91 @@ describe("adaptDay — race-day guards", () => {
     const moved = r.week.days.find((d) => d.movedFrom === "2026-07-20");
     expect(moved).toBeDefined();
     expect(moved!.date).toBe("2026-07-23");
+  });
+});
+
+describe("adaptDay — readiness idempotency", () => {
+  const amberWeek = () =>
+    week([
+      D("2026-07-20", 300, { type: "Long", durationMins: 137 }),
+      D("2026-07-21", 300, null),
+      D("2026-07-22", 300, null),
+      D("2026-07-23", 300, null),
+      D("2026-07-24", 300, null),
+      D("2026-07-25", 300, null),
+      D("2026-07-26", 300, null),
+    ]);
+  const mins = (w: WeekState) => w.days[0].workouts[0]?.durationMins ?? 0;
+
+  it("applies amber once, however many times it runs", () => {
+    let w = amberWeek();
+    const first = adaptDay({
+      week: w,
+      today: "2026-07-20",
+      band: "amber",
+      yesterdayCompleted: null,
+    });
+    const once = mins(first.week);
+    expect(once).toBe(Math.round(137 * AMBER_SCALE));
+
+    w = first.week;
+    for (let i = 0; i < 4; i++) {
+      const again = adaptDay({
+        week: w,
+        today: "2026-07-20",
+        band: "amber",
+        yesterdayCompleted: null,
+      });
+      expect(mins(again.week)).toBe(once);
+      expect(
+        again.adjustments.filter((a) => a.trigger === "low_readiness")
+      ).toHaveLength(0);
+      w = again.week;
+    }
+  });
+
+  it("recomputes from the original session when the band worsens", () => {
+    // amber then red must equal red applied once — never red on top of amber.
+    const amber = adaptDay({
+      week: amberWeek(),
+      today: "2026-07-20",
+      band: "amber",
+      yesterdayCompleted: null,
+    });
+    const thenRed = adaptDay({
+      week: amber.week,
+      today: "2026-07-20",
+      band: "red",
+      yesterdayCompleted: null,
+    });
+    const redOnly = adaptDay({
+      week: amberWeek(),
+      today: "2026-07-20",
+      band: "red",
+      yesterdayCompleted: null,
+    });
+    expect(mins(thenRed.week)).toBe(mins(redOnly.week));
+    expect(thenRed.week.days[0].workouts[0]?.type).toBe(
+      redOnly.week.days[0].workouts[0]?.type
+    );
+  });
+
+  it("restores the original session when readiness recovers to green", () => {
+    // A day scaled down at 06:00 on amber must come back if the athlete's
+    // band improves later the same day — otherwise the morning's worst
+    // reading silently governs the whole day.
+    const amber = adaptDay({
+      week: amberWeek(),
+      today: "2026-07-20",
+      band: "amber",
+      yesterdayCompleted: null,
+    });
+    const recovered = adaptDay({
+      week: amber.week,
+      today: "2026-07-20",
+      band: "green",
+      yesterdayCompleted: null,
+    });
+    expect(mins(recovered.week)).toBe(137);
   });
 });

@@ -38,6 +38,26 @@ export interface DaySlot {
   unplannedLoad?: number;
   /** Set on race-day slots (status "race"): the race's display name. */
   raceName?: string;
+  /**
+   * The session as it stood BEFORE any readiness adaptation today, with the
+   * band and date that adaptation was computed for.
+   *
+   * The readiness adaptation is a function of the ORIGINAL session and
+   * today's band. Without this it was a function of its own previous
+   * output: `onWellnessDataChanged` re-runs the adaptation on every
+   * wellness event (five call sites, one of them an hourly Apple Health
+   * push), and each run multiplied the ALREADY-scaled duration again. A
+   * real athlete's 137-minute long ride reached 60 minutes in five runs and
+   * 8 minutes in twelve.
+   *
+   * Absent on days that have never been readiness-adapted, so existing
+   * stored weeks deserialize unchanged.
+   */
+  readinessBase?: {
+    date: string;
+    band: Band;
+    workouts: ScheduledWorkout[];
+  };
 }
 
 /** The day's total available minutes, from its blocks. */

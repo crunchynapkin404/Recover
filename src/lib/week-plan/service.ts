@@ -394,6 +394,48 @@ export async function runDailyAdaptation(
   const ySlotWorkout = ySlot?.workouts[0] ?? null;
   let yesterdayCompleted: boolean | null = null;
   let matched: { id: string; load: number | null } | null = null;
+
+  // A session may only be written off as missed once the ride has had a
+  // chance to arrive. onWellnessDataChanged re-runs this on every wellness
+  // event — including an hourly Apple Health push at 04:50 — and an
+  // activity sync has usually not run yet at that hour. Judging "missed"
+  // there wrote off rides the athlete had actually done: three consecutive
+  // weeks closed as "fully missed", each cutting the next to 60%.
+  const ACTIVITY_PROVIDERS = ["intervals_icu", "strava"] as const;
+  const activityConns = await db.query.connections.findMany({
+    where: and(
+      eq(schema.connections.userId, userId),
+      inArray(schema.connections.provider, [...ACTIVITY_PROVIDERS])
+    ),
+  });
+  const dayEnd = new Date(today + "T00:00:00"); // local midnight = end of yesterday
+  // Bound the wait: `lastSyncAt` is written only on a SUCCESSFUL sync
+  // (intervals-sync.ts), and on auth_expired it sets status "error" — after
+  // which ensureJobsForConnections (scheduler.ts) only schedules "active"
+  // connections, so nothing ever syncs again and lastSyncAt freezes for
+  // good. Left unbounded, that reads as "wait forever": missed-workout
+  // judgement silently disables itself the moment a token expires, with no
+  // signal to the athlete or anyone else. A non-auth_expired failure,
+  // though, leaves status "active" (same file) and can keep failing
+  // indefinitely without ever flipping — so status alone doesn't cover
+  // every stall. Two independent bounds, either one enough to call a
+  // connection done waiting for: it will provably never sync again
+  // (status !== "active"), or it has gone quiet long enough that waiting
+  // longer stops being "the ride probably hasn't landed yet" and starts
+  // being "something is wrong" — a small number of days, not hours, so a
+  // normal overnight/weekend sync gap never trips it.
+  const ACTIVITY_SYNC_STALE_DAYS = 3;
+  const staleCutoff = new Date(now);
+  staleCutoff.setDate(staleCutoff.getDate() - ACTIVITY_SYNC_STALE_DAYS);
+  const activitiesSettled =
+    activityConns.length === 0 ||
+    activityConns.some(
+      (c) =>
+        (c.lastSyncAt != null && c.lastSyncAt >= dayEnd) ||
+        c.status !== "active" ||
+        (c.lastSyncAt != null && c.lastSyncAt < staleCutoff)
+    );
+
   if (
     ySlotWorkout &&
     ySlot != null &&
@@ -434,9 +476,11 @@ export async function runDailyAdaptation(
     if (activity) {
       yesterdayCompleted = true;
       matched = { id: activity.id, load: activity.load };
-    } else {
+    } else if (activitiesSettled) {
       yesterdayCompleted = false;
     }
+    // else: leave null — nothing to judge yet, so adaptDay's missed-workout
+    // handling does not run and the session stays put.
   } else if (
     ySlot != null &&
     (ySlot.status === "rest" || ySlot.status === "race")
@@ -502,7 +546,20 @@ export async function runDailyAdaptation(
 
   if (matched) {
     const idx = result.week.days.findIndex((d) => d.date === yesterdayYmd);
-    if (idx !== -1) {
+    // Only book this activity once. Without this guard, a rest/race day
+    // with a synced activity re-applies recordUnplannedLoad on EVERY
+    // runDailyAdaptation call — including the hourly Apple Health push —
+    // because yesterdayCompleted is null for rest/race days (there is
+    // nothing to mark completed/missed), so nothing else here changes and
+    // "adapted" never turns into "skipped". A real run compounded
+    // unplannedLoad 100/200/300/400/500/600 across six invocations, which
+    // then fed weekActuals().actualLoad and inflated the next week's
+    // ramp-clamp target. `activities.findFirst` can only ever return one
+    // row for this window, so once `activityId` already matches what we
+    // just matched, there is nothing new to add — but a DIFFERENT activity
+    // landing on the same day (a second bonus ride) is real load and must
+    // still be added.
+    if (idx !== -1 && result.week.days[idx].activityId !== matched.id) {
       result.week.days[idx] = {
         ...recordUnplannedLoad(result.week.days[idx], matched.load ?? 0),
         activityId: matched.id,
@@ -581,10 +638,20 @@ export async function applyAvailability(
  * week's sessions to actually follow it: writing the row alone changes
  * nothing the athlete can see, because adaptDay reads availableBlocks off
  * the stored week, not the override table.
+ *
+ * Callers (set-standard-week, the availability-change form) invoke this on
+ * every touch, whether or not the resolution actually moved — a plain
+ * defaults edit that leaves this week's dates untouched, or a second save
+ * of the same values, resolves to exactly what the week already holds. Only
+ * replan when the resolved blocks genuinely differ from the stored week's,
+ * date by date and block by block — not just by comparing total hours,
+ * since two different block shapes can land on the same total and do need
+ * a replan. `availability_change/redistributed — 19.2h→19.2h`, logged three
+ * times running against no actual change, is what this guards against.
  */
 export async function applyResolvedAvailability(
   userId: string
-): Promise<"applied" | "no_open_week"> {
+): Promise<"applied" | "no_open_week" | "skipped"> {
   const week = await getOpenWeekPlan(userId);
   if (!week) return "no_open_week";
 
@@ -592,6 +659,14 @@ export async function applyResolvedAvailability(
     userId,
     week.days.map((d) => d.date)
   );
+
+  const unchanged = week.days.every(
+    (d) =>
+      JSON.stringify(resolved.get(d.date) ?? []) ===
+      JSON.stringify(d.availableBlocks)
+  );
+  if (unchanged) return "skipped";
+
   return applyAvailability(
     userId,
     week.days.map((d) => resolved.get(d.date) ?? [])

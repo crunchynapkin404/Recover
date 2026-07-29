@@ -1,5 +1,56 @@
 # Changelog
 
+## v0.28.1 — 2026-07-29 — Stopping The Compounding
+
+- **Fixed: the daily adaptation was compounding readiness scaling on every
+  run instead of applying it once.** `onWellnessDataChanged` calls
+  `runDailyAdaptation` from five call sites by design — every wellness
+  write, every scheduler sync job, the 09:00 backstop, every Apple Health
+  push ("roughly hourly" per its own comment), and CSV import. The readiness
+  scaler read its own already-shrunk output back as its input each time it
+  ran, so amber (×0.85) and red (×0.70) kept multiplying onto a session that
+  had already been multiplied. A separate bug judged yesterday "missed"
+  before the day's ride had a chance to sync, and a third rebooked a
+  rest-day bonus ride's load on every repeat run instead of once.
+- **What that cost a real athlete.** A 137-minute Long ride was ground down
+  to 8 minutes on 2026-07-24 (six amber scalings then six red — 0.85⁶ ×
+  0.70⁶ = 0.0445) and to 60 minutes on 2026-07-28 (five amber runs, 0.85⁵ =
+  0.4437). The missed-too-early bug dropped a session the athlete had
+  actually ridden — 1.94h at 18:50 the evening before — because the
+  adaptation ran at 04:50, ahead of the sync. That closed three consecutive
+  weeks (2026-07-13, -20, -27) as "fully missed" while the athlete was
+  riding roughly 7 hours a week, each one restarting the next at 60% of
+  skeleton. The rebooking bug counted a single rest-day ride's load
+  anywhere from 5 to 15× over, depending on how many runs hit it before the
+  ride was replaced by something else, inflating the following week's
+  ramp-clamp target with the inflated total.
+- **The readiness adaptation is now a function of the originally planned
+  session and today's band — never of its own previous output.** Each day
+  remembers what it was adapted from; a second run for the same band is a
+  no-op, a worsening band recomputes from the original rather than scaling
+  what's already scaled, and a recovery to green restores the session
+  outright. A session is only judged missed once activity data for that day
+  is actually settled — an activity-providing connection has synced since,
+  or the athlete has none at all — and a connection that will provably
+  never sync again, or has gone quiet for 3 days, no longer freezes that
+  judgement forever. A rest/race-day activity is now booked once, guarded
+  on its own id. An availability resolution that hasn't actually changed no
+  longer triggers a replan or logs a no-op adjustment.
+- **Already-corrupted weeks have a way back.**
+  `scripts/repair-corrupted-week.ts` recomputes what an open week should
+  hold using the exact same derivation the weekly rollover uses, and
+  replaces every day that isn't already completed, missed, or a race —
+  clearing the stale readiness anchor so the next adaptation starts from the
+  restored session, not the corrupted one. Real synced activity load is
+  never touched, on any day. Dry-run by default and prints a per-day
+  before/after table; `--apply` writes, `--user` scopes to one athlete;
+  running it twice makes no further change the second time.
+- **This corruption was ours.** The adaptation re-derived itself from its
+  own output for multiple release cycles without anyone noticing, because
+  any single run looked reasonable in isolation — it was the accumulation
+  across five call sites firing all day, every day, that ground a real
+  athlete's week down to nothing.
+
 ## v0.28.0 — 2026-07-29 — The Race Sets the Week
 
 - **Your weekly hours now come from the event you're training for**, not from a
