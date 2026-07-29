@@ -170,7 +170,7 @@ Intervals   139
 Endurance   170  below bound (294) — absorbs share of remainder
 Endurance   170  below bound (294) — absorbs share of remainder
             ---
-            773  ≈ target        unallocatedMins: 0
+            773  ≈ target
 ```
 
 Note `round(772 × 0.38) = 294 min = 4.90 h` is _exactly_ the owner's
@@ -179,24 +179,43 @@ Note `round(772 × 0.38) = 294 min = 4.90 h` is _exactly_ the owner's
 
 ### The residual
 
-Whatever cannot be allocated once every session is at its bound is returned as
-`unallocatedMins`. Non-zero means something real — "your available days cannot
-absorb this target" — not a silent clamp.
+Whatever cannot be allocated once every session is at its bound simply stays
+unallocated — the week's scheduled total comes in under its target. **No new
+return value is needed to express this**; see Reporting below.
 
 ---
 
 ## Reporting
 
-Two distinct gaps exist; only one has reporting today.
+**Corrected after checking the code.** An earlier draft of this spec claimed the
+target-vs-scheduled gap was invisible. It is not: `WeekRationale` already renders
 
-| gap                                                    | today                                       | after                            |
-| ------------------------------------------------------ | ------------------------------------------- | -------------------------------- |
-| demand vs availability (15.7 wanted / 12.5 offered)    | surfaced in `WeekRationale` via `shortfall` | unchanged                        |
-| **target vs scheduled** (12.5 target / 8.75 scheduled) | **invisible**                               | one line, from `unallocatedMins` |
+```
+{plannedHours}h planned against a {targetHours}h target.
+```
 
-`WeekRationale` gains a single line for the open week. Next week's preview has no
-rationale panel — v0.29.0 deliberately kept those panels weekly — so it gets a
-single line rather than inheriting the panel.
+where `plannedHours` is the summed `durationMins` of the week's scheduled
+workouts (`page.tsx:381-384`). The app has been reporting this defect accurately
+the whole time — "8.8h planned against a 12.5h target" _was_ the leak, stated
+plainly, and read as a display bug instead. The handoff's note about a user seeing
+"4h planned against a 12.5h target" attributed it to frozen-vs-live state; the
+generator discarding volume is at least a second cause.
+
+| gap                                                    | today                                       | after                                             |
+| ------------------------------------------------------ | ------------------------------------------- | ------------------------------------------------- |
+| demand vs availability (15.7 wanted / 12.5 offered)    | surfaced in `WeekRationale` via `shortfall` | unchanged                                         |
+| **target vs scheduled** (12.5 target / 8.75 scheduled) | already surfaced in `WeekRationale`         | unchanged — the line simply starts reading ~12.5h |
+
+**Consequences for the implementation:**
+
+- **No new return value.** `generateCyclingWorkouts`, `generateWorkouts`,
+  `periodize` and `Block` keep their current shapes. `plannedHours` vs
+  `targetHours` already captures both the generator's residual _and_
+  `materializeWeek`'s block-fitting compression — strictly more than
+  `unallocatedMins` would have.
+- **The only genuine reporting gap is the projected week**, which has no
+  rationale panel at all because v0.29.0 deliberately kept those panels weekly.
+  It gets one line of the same form.
 
 **Out of scope:** a full rationale panel for the projected week. That is its own
 design pass and must not be smuggled in here.
@@ -252,8 +271,10 @@ The invariant that was never pinned, and which would have caught this on day one
   minimum-effective floor.
 - Redistribution: a session pinned at its bound pushes its remainder onto
   sessions with room, rather than dropping it.
-- `unallocatedMins` is 0 in the ordinary case and non-zero only when every session
-  is at its bound.
+- The scheduled total falls short of target **only** when every participating
+  session sits at its bound — never because remainder was discarded. Construct a
+  case where the bounds genuinely cannot absorb the target (few days, high
+  target) and assert the shortfall equals the arithmetic minimum.
 - Null demand (no race, or no FTP) takes the documented fallback, not infinity.
 - Taper and recovery phases still shrink.
 
