@@ -354,15 +354,81 @@ describe("adaptDay — availability wins over a readiness restore", () => {
     });
 
     const today = r.week.days[0];
-    expect(today.workouts).toHaveLength(0); // removed, not squeezed in
+    // Removed from today (not squeezed in) — but final-review Finding 2:
+    // it must be OFFERED to a later day rather than deleted outright, since
+    // the rest of the week is wide open (300min/day). Deleting it here was
+    // the exact regression this branch introduced: the pristine 50min
+    // Intervals session vanished from the whole week, even with a free day
+    // sitting right there, and the logged reason claimed a replacement that
+    // never happened.
+    expect(today.workouts).toHaveLength(0);
     expect(today.availableMins).toBe(15);
     expect(
       r.adjustments.some(
-        (a) => a.trigger === "low_readiness" && a.action === "swapped"
+        (a) => a.trigger === "low_readiness" && a.action === "moved"
       )
     ).toBe(true);
+    // Nothing claims a replacement that didn't happen.
+    expect(
+      r.adjustments.some((a) => a.reason.includes("replaced by recovery"))
+    ).toBe(false);
     // No no_time adjustment on top — the readiness branch's own guard
     // already resolved it; the final availability pass is a no-op.
     expect(r.adjustments.some((a) => a.trigger === "no_time")).toBe(false);
+
+    // The original, undiminished session survives on the first open day.
+    const target = r.week.days.find((d) => d.date === "2026-07-28")!;
+    expect(target.workouts).toHaveLength(1);
+    expect(target.workouts[0].type).toBe("Intervals");
+    expect(target.workouts[0].durationMins).toBe(50);
+    expect(target.status).toBe("moved");
+    expect(target.movedFrom).toBe("2026-07-27");
+  });
+
+  it("drops the red quality-swap session (with an honest reason) when even a later day has no room", () => {
+    const w = week([
+      D("2026-07-27", 300, {
+        sport: "Run",
+        type: "Intervals",
+        durationMins: 50,
+        intensity: "Z4-Z5",
+      }),
+      D("2026-07-28", 10, null),
+      D("2026-07-29", 10, null),
+      D("2026-07-30", 10, null),
+      D("2026-07-31", 10, null),
+      D("2026-08-01", 10, null),
+      D("2026-08-02", 10, null),
+    ]);
+    const amber = adaptDay({
+      week: w,
+      today: "2026-07-27",
+      band: "amber",
+      yesterdayCompleted: null,
+    });
+    expect(amber.week.days[0].workouts[0]!.type).toBe("Tempo");
+
+    setMins(amber.week.days[0], 15);
+    const r = adaptDay({
+      week: amber.week,
+      today: "2026-07-27",
+      band: "red",
+      yesterdayCompleted: null,
+    });
+
+    const today = r.week.days[0];
+    expect(today.workouts).toHaveLength(0);
+    expect(
+      r.adjustments.some(
+        (a) => a.trigger === "low_readiness" && a.action === "dropped"
+      )
+    ).toBe(true);
+    expect(
+      r.adjustments.some((a) => a.reason.includes("replaced by recovery"))
+    ).toBe(false);
+    // Every other day is genuinely untouched — no phantom placement.
+    for (let i = 1; i < 7; i++) {
+      expect(r.week.days[i].workouts).toHaveLength(0);
+    }
   });
 });

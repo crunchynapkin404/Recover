@@ -756,17 +756,83 @@ describe("adaptDay — C3: red readiness with no room for a recovery spin", () =
     });
     const result = r.week.days[1];
     // Intervals' own 20min block can't even hold a 30min recovery spin, so
-    // it must be removed — but the untouched 80min Endurance session in
-    // the sibling block must survive.
+    // it must not simply vanish — the week has open days later on, so the
+    // ORIGINAL Intervals session is offered to the first one that admits it
+    // (2026-07-22, an empty 60min day), exactly like a no_time move. The
+    // untouched 80min Endurance session in the sibling block survives on
+    // today either way.
     expect(result.workouts).toHaveLength(1);
     expect(result.workouts[0].type).toBe("Endurance");
     expect(result.workouts[0].durationMins).toBe(80);
     expect(result.status).not.toBe("rest");
+
+    const moveAdj = r.adjustments.find(
+      (a) => a.trigger === "low_readiness" && a.action === "moved"
+    );
+    expect(moveAdj).toBeDefined();
+    expect(moveAdj!.reason).toContain("moved to 2026-07-22");
+    // Nothing claims a replacement that didn't happen.
     expect(
-      r.adjustments.some(
-        (a) => a.trigger === "low_readiness" && a.action === "swapped"
-      )
-    ).toBe(true);
+      r.adjustments.some((a) => a.reason.includes("replaced by recovery"))
+    ).toBe(false);
+
+    const target = r.week.days.find((d) => d.date === "2026-07-22")!;
+    expect(target.workouts).toHaveLength(1);
+    expect(target.workouts[0].type).toBe("Intervals");
+    expect(target.workouts[0].durationMins).toBe(20);
+    expect(target.status).toBe("moved");
+    expect(target.movedFrom).toBe("2026-07-21");
+  });
+
+  it("drops the affected quality session (with an honest reason) when no later day has room for it either", () => {
+    const today: DaySlot = {
+      date: "2026-07-21",
+      availableBlocks: [
+        { start: null, end: null, mins: 20, energy: "full", sports: null },
+      ],
+      availableMins: 20,
+      workouts: [
+        withPurpose({
+          day: 0,
+          sport: "Run",
+          type: "Intervals",
+          durationMins: 20,
+          intensity: "Z4-Z5",
+          description: "d",
+          blockIdx: 0,
+        }),
+      ],
+      status: "planned",
+    };
+    // Every later day is fully booked (or a rest day too small for a
+    // 20min quality session), so there is nowhere for it to go.
+    const w = week([
+      D("2026-07-20", 60, null, "rest"),
+      today,
+      D("2026-07-22", 10, null),
+      D("2026-07-23", 10, null),
+      D("2026-07-24", 10, null),
+      D("2026-07-25", 10, null),
+      D("2026-07-26", 10, null),
+    ]);
+    const r = adaptDay({
+      week: w,
+      today: "2026-07-21",
+      band: "red",
+      yesterdayCompleted: null,
+    });
+    const result = r.week.days[1];
+    expect(result.workouts).toHaveLength(0);
+    expect(result.status).toBe("rest");
+
+    const dropAdj = r.adjustments.find(
+      (a) => a.trigger === "low_readiness" && a.action === "dropped"
+    );
+    expect(dropAdj).toBeDefined();
+    expect(dropAdj!.reason).toContain("dropped");
+    expect(
+      r.adjustments.some((a) => a.reason.includes("replaced by recovery"))
+    ).toBe(false);
   });
 });
 
