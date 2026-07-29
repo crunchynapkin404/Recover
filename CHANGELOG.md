@@ -1,5 +1,43 @@
 # Changelog
 
+## v0.29.0 — 2026-07-29 — Past Sunday
+
+- **The week doesn't end at Sunday anymore.** `/train`'s day list now rolls
+  from today straight into next week, with a visible boundary marking where
+  one ends and the other begins — no more staring at a blank Monday wondering
+  what's coming. Days before today drop off the list; today never does.
+- **Next week is a forecast, and it says so.** Every day in next week's
+  section renders provisional, because it is one: the projection assumes
+  this week closes out to plan rather than reacting to what you've actually
+  done so far this week — reacting to a half-finished week would otherwise
+  drag the forecast downward early on, for reasons that have nothing to do
+  with anything you decided. It firms up for real the moment Monday's
+  rollover runs. A day you've already pinned availability for renders firm
+  instead of provisional, because that part genuinely is decided.
+- **You can set next week's availability now, not just this week's.** A
+  `This week | Next week` switcher on the availability form — also reachable
+  directly at `?availability=next` — lets you pin next week's days early.
+  Next week gets its own resolved availability, its own pinned days, and its
+  own verdict; it is not this week's numbers with the date changed.
+  Submitting availability for a future week writes your overrides and
+  replans nothing. Only submitting for the current week replans, same as
+  always.
+- **The next-week entry point survives the week.** Availability for next
+  week stays enterable all the way through, even after this week's own
+  availability has frozen for the week already underway (unchanged: that
+  freeze has always happened once Monday's session completes). An early
+  entry point that vanished by Wednesday wouldn't be one.
+- **Nothing is persisted for a week that hasn't happened.** The preview is
+  computed fresh on every render from your plan, your standard week, and any
+  pinned overrides — there is no draft row quietly going stale in the
+  database while nobody's looking.
+
+**Deliberately not in this release:** projecting more than one week out;
+editing next week's individual sessions; a "fill" rung that adds training
+back once availability opens up mid-week; reconciling a week's plan against
+load that arrives after the week has already closed; and cleaning up stale
+open weeks or the rare account carrying more than one active plan.
+
 ## v0.28.1 — 2026-07-29 — Stopping The Compounding
 
 - **Fixed: the daily adaptation was compounding readiness scaling on every
