@@ -248,21 +248,54 @@ export function adaptDay(input: AdaptDayInput): AdaptDayResult {
   }
 
   const t = week.days[todayIdx]; // may have been replaced above
-  const tWorkout = t.workouts[0] ?? null;
+  // Readiness adaptation is a function of the ORIGINAL session and today's
+  // band — never of its own previous output. See DaySlot.readinessBase:
+  // onWellnessDataChanged re-runs this on every wellness event, and a
+  // version that read its own already-adapted output back would keep
+  // shrinking the same session run after run.
+  const priorBase = t.readinessBase;
+  if (priorBase && priorBase.date === input.today) {
+    if (priorBase.band === input.band) {
+      // Already adapted for exactly this band today. Nothing to do — and
+      // critically, no adjustment: runDailyAdaptation persists whenever
+      // anything changed, so a no-op here is what stops the compounding.
+      return { week, adjustments };
+    }
+    // The band moved. Restore the original session and re-derive from it
+    // below, so amber-then-red lands exactly where red-only would, and a
+    // recovery to green undoes the day entirely.
+    week.days[todayIdx] = {
+      ...t,
+      workouts: priorBase.workouts.map((w) => ({ ...w })),
+      status: "planned",
+      readinessBase: undefined,
+    };
+  }
+
+  const day = week.days[todayIdx];
+  const tWorkout = day.workouts[0] ?? null;
   if (tWorkout && (input.band === "red" || input.band === "amber")) {
-    const before = [{ ...t, workouts: t.workouts.map((w) => ({ ...w })) }];
+    // Snapshot the ORIGINAL session before any mutation below — this is
+    // what the next run must derive from, not whatever we're about to
+    // produce.
+    const base = {
+      date: input.today,
+      band: input.band,
+      workouts: day.workouts.map((w) => ({ ...w })),
+    };
+    const before = [{ ...day, workouts: day.workouts.map((w) => ({ ...w })) }];
     if (input.band === "red") {
       if (isQuality(tWorkout)) {
-        if (!blockFits(t, tWorkout.blockIdx, RED_RECOVERY_MINS)) {
-          const remaining = t.workouts.filter((w) => w !== tWorkout);
+        if (!blockFits(day, tWorkout.blockIdx, RED_RECOVERY_MINS)) {
+          const remaining = day.workouts.filter((w) => w !== tWorkout);
           week.days[todayIdx] = {
-            ...t,
+            ...day,
             workouts: remaining,
-            status: remaining.length > 0 ? t.status : "rest",
+            status: remaining.length > 0 ? day.status : "rest",
           };
         } else {
           week.days[todayIdx] = {
-            ...t,
+            ...day,
             status: "adapted",
             workouts: [
               withPurpose({
@@ -273,10 +306,11 @@ export function adaptDay(input: AdaptDayInput): AdaptDayResult {
                 description: "Easy recovery session — readiness is red",
               }),
             ],
+            readinessBase: base,
           };
         }
         adjustments.push({
-          date: t.date,
+          date: day.date,
           trigger: "low_readiness",
           action: "swapped",
           before,
@@ -287,13 +321,14 @@ export function adaptDay(input: AdaptDayInput): AdaptDayResult {
         tWorkout.durationMins = Math.round(
           tWorkout.durationMins * RED_ENDURANCE_SCALE
         );
-        t.status = "adapted";
+        day.status = "adapted";
+        day.readinessBase = base;
         adjustments.push({
-          date: t.date,
+          date: day.date,
           trigger: "low_readiness",
           action: "scaled",
           before,
-          after: [{ ...t, workouts: t.workouts.map((w) => ({ ...w })) }],
+          after: [{ ...day, workouts: day.workouts.map((w) => ({ ...w })) }],
           reason: `readiness red — duration reduced ${Math.round((1 - RED_ENDURANCE_SCALE) * 100)}%`,
         });
       }
@@ -301,7 +336,7 @@ export function adaptDay(input: AdaptDayInput): AdaptDayResult {
       const steppedType = isQuality(tWorkout)
         ? (STEP_DOWN[tWorkout.type] ?? "Endurance")
         : tWorkout.type;
-      t.workouts[0] = withPurpose({
+      day.workouts[0] = withPurpose({
         ...tWorkout,
         type: steppedType,
         intensity: isQuality(before[0].workouts[0] ?? null)
@@ -309,13 +344,14 @@ export function adaptDay(input: AdaptDayInput): AdaptDayResult {
           : tWorkout.intensity,
         durationMins: Math.round(tWorkout.durationMins * AMBER_SCALE),
       });
-      t.status = "adapted";
+      day.status = "adapted";
+      day.readinessBase = base;
       adjustments.push({
-        date: t.date,
+        date: day.date,
         trigger: "low_readiness",
         action: "scaled",
         before,
-        after: [{ ...t, workouts: t.workouts.map((w) => ({ ...w })) }],
+        after: [{ ...day, workouts: day.workouts.map((w) => ({ ...w })) }],
         reason: `readiness amber — one step down, duration ×${AMBER_SCALE}`,
       });
     }

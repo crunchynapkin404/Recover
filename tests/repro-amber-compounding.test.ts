@@ -12,8 +12,12 @@
  */
 import { describe, expect, it } from "vitest";
 import { adaptDay } from "@/lib/week-plan/adapt-day";
-import { dayMins } from "@/lib/week-plan/types";
-import type { DaySlot, ScheduledWorkout, WeekState } from "@/lib/week-plan/types";
+import { AMBER_SCALE, dayMins } from "@/lib/week-plan/types";
+import type {
+  DaySlot,
+  ScheduledWorkout,
+  WeekState,
+} from "@/lib/week-plan/types";
 import { withPurpose } from "@/lib/training-plan";
 
 function blocksFor(mins: number): DaySlot["availableBlocks"] {
@@ -113,6 +117,15 @@ describe("adaptDay amber idempotency", () => {
       }).week;
     }
     console.log(`after 5 amber runs: ${durationOf(w)}min (screen showed 60)`);
-    expect(durationOf(w)).toBe(137);
+    // NOTE: this originally asserted `toBe(137)` — i.e. that five identical
+    // amber runs leave the session completely untouched. That can't be the
+    // fix: amber is meant to have a real, lasting effect (it's not a no-op),
+    // it just must not COMPOUND. The correct invariant, matching this file's
+    // own first test (afterTwo === afterOne, not the pristine original) and
+    // adapt-day.test.ts's "applies amber once, however many times it runs",
+    // is that five identical runs land exactly where ONE run does —
+    // AMBER_SCALE applied once, then stable — never back at the untouched
+    // 137, and never compounded down toward the 60 the bug produced.
+    expect(durationOf(w)).toBe(Math.round(137 * AMBER_SCALE));
   });
 });
