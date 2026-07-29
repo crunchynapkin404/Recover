@@ -18,9 +18,16 @@
   8-day mountain tour raises the cap to 294 minutes; a criterium's short
   queen stage keeps it down near the 120-minute floor rather than
   stretching to fill four hours it doesn't need.
-- **This only lengthens prescriptions for athletes who have a target race.**
-  With no race entered, or no FTP on file, there's no event evidence to size
-  the long ride against, and it keeps exactly the previous 240-minute cap.
+- **Redistribution, not the long-ride bound, is why this affects every
+  athlete.** With no race entered, or no FTP on file, there's no event
+  evidence to size the long ride against, so its cap keeps exactly the
+  previous 240 minutes. But redistribution — the fix above — doesn't check
+  for a race before it runs, and it's the larger source of the extra volume.
+  A 4-session build week targeting 10.3h/week scheduled 526 minutes before
+  this release (a 235-minute long ride, 111-minute intervals, and two
+  endurance rides clamped from 136 down to 90 each) and schedules the full
+  618 after — a ~17% increase in weekly volume for an athlete with no race
+  and no FTP at all.
 - **The weekly total itself is unchanged — only whether the week actually
   delivers it.** The hours a week aims for are already bounded before the
   session generator sees them (the ACWR ceiling, the ramp guard); this

@@ -748,7 +748,10 @@ single 2026-07-15 commit with no rationale, no citation and no test. Spec:
       a 11.8h target," where the same athlete previously saw a 30% gap.
 
 **Done when:** a real 12.5h target produces a real ~12.5h week for an
-athlete with a target race, and nothing changes for one without. ✅
+athlete with a target race. For one without a race, only the long-ride
+bound itself is unchanged — still the old 240-minute cap — while
+redistribution still schedules more of that athlete's target than before,
+since it applies whether or not a race exists. ✅
 
 **Deliberately not touched:** `generateRunningWorkouts` and
 `generateTriathlonWorkouts` carry the identical discard-the-remainder

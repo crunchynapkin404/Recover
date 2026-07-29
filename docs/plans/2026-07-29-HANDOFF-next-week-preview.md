@@ -231,6 +231,56 @@ event demand was safe for cycling specifically. Running needs its own spec
 built around the longest-run rule, not a copy of `longRideBoundMins` /
 `distributeRemainder`.
 
+### 7. `trainingBlocks.workouts` is a stale seed, reachable via the chat tool
+
+`src/lib/tools/get-training-plan.ts:41` returns the raw `trainingBlocks` row
+— including its `.workouts` column — when the coach's `get_training_plan`
+tool is asked about a specific `weekNumber`. That row is written exactly
+once: the `periodize` call in `training-plan.ts:804`, made at plan creation,
+where `queenStageHours` is not passed and therefore defaults to `null` —
+correctly, since no event-demand figure exists yet at plan-creation time.
+So the seed's long ride is always sized by `longRideBoundMins(null)`, i.e.
+the old flat 240-minute bound, regardless of what race the athlete later
+adds.
+
+That row is never regenerated. Only `actualLoad`, `actualSessions` and
+`adherencePct` get written back to it later — by `rolloverWeekPlan`
+(`week-plan/service.ts:234`, `.set({ actualLoad, actualSessions,
+adherencePct })`) and by the weekly review — and neither touches
+`.workouts`. Meanwhile the week an athlete actually trains from comes from
+a separate, fresh `generateWorkouts` call inside `materializeWeek`
+(`week-plan/materialize.ts:322`), which this branch did thread
+`queenStageHours` through (`fc81f94`).
+
+Consequence: for a week that hasn't yet rolled over into a real
+`week_plans` row, an athlete who asks the coach "what does week N look
+like" can be told their long ride is the old no-demand 240-minute figure,
+even once they have a target race and FTP that would justify up to 360
+minutes. It only ever **understates** a future session, never overstates —
+no safety concern, and nothing currently prescribed is wrong — but no task
+or review in this branch considered the chat tool as a consumer of that
+stale row.
+
+**Open question (not a decision): does `periodize` need to generate
+`workouts` at all?** `generateWorkouts` has exactly three call sites today:
+two inside `periodize` (`training-plan.ts:299` and `:315`, which produce
+the `Block.workouts` written to `trainingBlocks` at plan creation — the
+stale seed above) and one inside `materializeWeek`
+(`week-plan/materialize.ts:322`, the one every real week-rendering path
+uses). Every other consumer of `Block.workouts` already discards it in
+favor of a fresh `materializeWeek` call — `periodize`'s own doc comment
+(`training-plan.ts:226`–`245`) notes that the rollover skeleton recompute
+(`week-plan/service.ts:294`, `week-plan/project.ts:207`) throws
+`derived.workouts` away and keeps only `weekNumber`/`phase`/
+`targetLoadTotal`/`targetSessions`. If `periodize` stopped generating
+`workouts` at all, only the `materializeWeek` call site would remain,
+permanently removing the "did we thread it everywhere" risk that made this
+branch need its own follow-up commit (`fc81f94`) — but `get-training-plan.ts`
+would then need its own fix to synthesize a current answer for a
+not-yet-materialized week rather than serving a seed, and the change
+touches the `trainingBlocks` schema and every reader of `.workouts`. Worth
+asking; not decided or acted on here.
+
 ---
 
 ## What shipped today
