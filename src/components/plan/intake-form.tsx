@@ -21,6 +21,14 @@ interface Props {
   verdict: Verdict;
   sports: string[];
   action: (prev: IntakeState, formData: FormData) => Promise<IntakeState>;
+  /**
+   * Which week this submission targets — the week switcher's hidden field.
+   * Empty (the default) means the current open week, matching
+   * `submitAvailability`'s presence-based branch: absent/empty replans the
+   * open week exactly as before, a real Monday targets a future week and
+   * only writes overrides.
+   */
+  weekStart?: string;
 }
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -63,6 +71,7 @@ export function IntakeForm({
   verdict,
   sports,
   action,
+  weekStart = "",
 }: Props) {
   const [state, formAction, pending] = useActionState(action, { message: "" });
   const [week, setWeek] = useState(resolved);
@@ -97,6 +106,7 @@ export function IntakeForm({
 
   return (
     <form action={formAction} className="glass rounded-[2rem] p-7">
+      <input type="hidden" name="weekStart" value={weekStart} />
       <p className="label-micro mb-1">This week&apos;s availability</p>
       <p className="mb-5 text-[12px] text-white/50">
         When you can train — the week plans itself around these blocks.

@@ -44,6 +44,7 @@ import type { RaceCountdownProps } from "@/components/dashboard/race-countdown";
 import { BAND_COLOR } from "@/lib/band-color";
 import type { Band } from "@/lib/readiness";
 import {
+  addDaysYmd,
   getOpenWeekPlan,
   listAdjustments,
   planConstraints,
@@ -65,6 +66,10 @@ import {
   type TrainTab,
 } from "@/lib/log-href";
 import { startWeek, submitAvailability } from "@/app/plan/actions";
+import {
+  AvailabilityWeekSwitcher,
+  type AvailabilityWeekMode,
+} from "@/components/plan/availability-week-switcher";
 import { blockMins, type AvailabilityBlock } from "@/lib/availability/types";
 import { resolveWeek } from "@/lib/availability/resolve";
 import {
@@ -114,6 +119,7 @@ export default async function TrainPage({
     view?: string;
     month?: string;
     range?: string;
+    availability?: string;
   }>;
 }) {
   const user = await requireUser();
@@ -126,6 +132,11 @@ export default async function TrainPage({
     sp.month && /^\d{4}-\d{2}$/.test(sp.month) ? sp.month : currentYm();
   const range = RANGES.includes(Number(sp.range)) ? Number(sp.range) : 90;
   const sportFilter = sp.sport;
+  // Direct reachability for the availability week switcher: a link to
+  // `?availability=next` (the next-week preview, wired up separately) must
+  // start the control in next-week mode on a fresh load, not only on click.
+  const initialAvailabilityMode: AvailabilityWeekMode =
+    sp.availability === "next" ? "next" : "this";
 
   // One href builder for every segment, filter and range link on the page —
   // switching one axis never drops the others (see src/lib/log-href.ts).
@@ -135,7 +146,11 @@ export default async function TrainPage({
   return (
     <AppShell user={shellUser(user)}>
       {tab === "week" ? (
-        <WeekTab userId={user.id} href={href} />
+        <WeekTab
+          userId={user.id}
+          href={href}
+          initialAvailabilityMode={initialAvailabilityMode}
+        />
       ) : tab === "history" ? (
         <HistoryTab
           userId={user.id}
@@ -183,7 +198,15 @@ function TrainHeader({
 
 // ── Week (1c) ─────────────────────────────────────────────────────────────
 
-async function WeekTab({ userId, href }: { userId: string; href: TrainHref }) {
+async function WeekTab({
+  userId,
+  href,
+  initialAvailabilityMode,
+}: {
+  userId: string;
+  href: TrainHref;
+  initialAvailabilityMode: AvailabilityWeekMode;
+}) {
   const plan = await db.query.trainingPlans.findFirst({
     where: and(
       eq(schema.trainingPlans.userId, userId),
@@ -395,6 +418,7 @@ async function WeekTab({ userId, href }: { userId: string; href: TrainHref }) {
     dates: string[];
     overrideDates: string[];
     verdict: Verdict;
+    nextWeekStart: string;
   } | null = null;
   if (week && week.days[0]?.status !== "completed") {
     const dates = week.days.map((d) => d.date);
@@ -442,6 +466,7 @@ async function WeekTab({ userId, href }: { userId: string; href: TrainHref }) {
       resolved: dates.map((d) => resolvedMap.get(d) ?? []),
       dates,
       overrideDates: overrides.map((o) => o.date),
+      nextWeekStart: addDaysYmd(week.weekStart, 7),
       verdict: availabilityVerdict({
         offeredMins,
         currentCtl: latestMetric?.ctl ?? null,
@@ -584,14 +609,22 @@ async function WeekTab({ userId, href }: { userId: string; href: TrainHref }) {
 
           {intake && (
             <section className="mb-6">
-              <IntakeForm
-                resolved={intake.resolved}
-                dates={intake.dates}
-                overrideDates={intake.overrideDates}
-                verdict={intake.verdict}
-                sports={constraints.sports ?? ["Bike"]}
-                action={submitAvailability}
-              />
+              <AvailabilityWeekSwitcher
+                nextWeekStart={intake.nextWeekStart}
+                initialMode={initialAvailabilityMode}
+              >
+                {(weekStart) => (
+                  <IntakeForm
+                    resolved={intake.resolved}
+                    dates={intake.dates}
+                    overrideDates={intake.overrideDates}
+                    verdict={intake.verdict}
+                    sports={constraints.sports ?? ["Bike"]}
+                    action={submitAvailability}
+                    weekStart={weekStart}
+                  />
+                )}
+              </AvailabilityWeekSwitcher>
             </section>
           )}
 
