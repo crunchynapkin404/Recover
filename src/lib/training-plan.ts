@@ -48,29 +48,6 @@ export function withPurpose<
 }
 
 /**
- * How long a single ride may be, in minutes.
- *
- * The old code capped the long ride at a flat 240 and every endurance ride
- * at 90 — numbers that arrived with this file on 2026-07-15 carrying no
- * rationale, no citation and no test. They are the reason a 12.5h target
- * produced a 9.3h week.
- *
- * Cycling has no single-session spike rule. Running does — exceeding your
- * own recent longest run by 10-30% raises injury risk 64% in a study of
- * 5,200+ runners — but that is impact loading, and a bike is not a
- * treadmill. In cycling, overuse injury follows CUMULATIVE load outrunning
- * tissue repair, which `weeklyTargetHours` already bounds upstream via the
- * ACWR ceiling and the ramp clamp. The weekly number handed to this
- * generator is therefore already the safe one.
- *
- * What remains is: how long should ONE ride be? The evidence is
- * event-relative — "for events lasting 4-5 hours, a 4-hour long ride each
- * week is sufficient", endurance rides "longer than two hours and shorter
- * than six" for a moderately experienced rider. So bound the long ride by
- * the hardest single day the athlete's event actually demands.
- */
-
-/**
  * Floor. A criterium's queen stage is under an hour; without this the long
  * ride would collapse below a useful endurance stimulus.
  */
@@ -93,6 +70,29 @@ export const MIN_EFFECTIVE_EASY_MINS = 30;
 export const NO_DEMAND_LONG_BOUND_MINS = 240;
 
 /**
+ * How long a single ride may be, in minutes.
+ *
+ * The old code capped the long ride at a flat 240 and every endurance ride
+ * at 90 — numbers that arrived with this file on 2026-07-15 carrying no
+ * rationale, no citation and no test. They are the reason a 12.5h target
+ * produced a 9.3h week.
+ *
+ * Cycling has no single-session spike rule. Running does — exceeding your
+ * own recent longest run by 10-30% raises injury risk 64% in a study of
+ * 5,200+ runners — but that is impact loading, and a bike is not a
+ * treadmill. In cycling, overuse injury follows CUMULATIVE load outrunning
+ * tissue repair, which is bounded upstream by two separate guards:
+ * `weeklyTargetHours`'s own ACWR ceiling, and the week-over-week ramp clamp
+ * (`RAMP_CLAMP_PCT`, applied in `materializeWeek`, not inside
+ * `weeklyTargetHours`). The weekly number handed to this generator is
+ * therefore already the safe one.
+ *
+ * What remains is: how long should ONE ride be? The evidence is
+ * event-relative — "for events lasting 4-5 hours, a 4-hour long ride each
+ * week is sufficient", endurance rides "longer than two hours and shorter
+ * than six" for a moderately experienced rider. So bound the long ride by
+ * the hardest single day the athlete's event actually demands.
+ *
  * `queenStageHours` comes from `EventDemand` — "the hardest single day;
  * equals `dailyRateHours` when stages are unknown". When
  * `demand.queenStageKnown` is false it is an average across event days, so
@@ -473,24 +473,28 @@ function generateRunningWorkouts(
   return workouts.sort((a, b) => a.day - b.day);
 }
 
-function generateCyclingWorkouts(
+export function generateCyclingWorkouts(
   sessions: number,
   weekHours: number,
-  phase: Block["phase"]
+  phase: Block["phase"],
+  queenStageHours: number | null = null
 ): PlannedWorkout[] {
-  const totalMins = weekHours * 60;
+  const totalMins = Math.round(weekHours * 60);
+
+  // A taper deliberately shortens the long ride — that is periodization,
+  // not the leak this function is being fixed for, so the taper figure is
+  // untouched. Every other phase is bounded by the event's hardest day.
+  const longBound = phase === "taper" ? 90 : longRideBoundMins(queenStageHours);
+
   const workouts: PlannedWorkout[] = [];
 
-  // Saturday or Sunday: long ride (35-40% of volume)
+  // Saturday: long ride (35-40% of volume)
   workouts.push(
     withPurpose({
-      day: 5, // Saturday
+      day: 5,
       sport: "Bike",
       type: "Long",
-      durationMins: Math.min(
-        Math.round(totalMins * 0.38),
-        phase === "taper" ? 90 : 240
-      ),
+      durationMins: Math.min(Math.round(totalMins * 0.38), longBound),
       intensity: "Z1-Z2",
       description:
         phase === "taper"
@@ -499,11 +503,12 @@ function generateCyclingWorkouts(
     })
   );
 
-  // Midweek intervals in build/peak
+  // Midweek intensity in build/peak. Its duration is prescribed by what the
+  // session IS, so it is sized here and never touched again below.
   if (phase === "build" || phase === "peak") {
     workouts.push(
       withPurpose({
-        day: 2, // Wednesday
+        day: 2,
         sport: "Bike",
         type: "Intervals",
         durationMins: Math.round(totalMins * 0.18),
@@ -539,7 +544,10 @@ function generateCyclingWorkouts(
         day: availDays[i],
         sport: "Bike",
         type: phase === "recovery" ? "Recovery" : "Endurance",
-        durationMins: Math.max(30, Math.min(easyMins, 90)),
+        durationMins: Math.max(
+          MIN_EFFECTIVE_EASY_MINS,
+          Math.min(easyMins, longBound)
+        ),
         intensity: phase === "recovery" ? "Recovery" : "Z1-Z2",
         description:
           phase === "recovery"
@@ -547,6 +555,30 @@ function generateCyclingWorkouts(
             : "Aerobic endurance ride",
       })
     );
+  }
+
+  // Whatever the bounds above removed is redistributed rather than
+  // discarded — discarding it is precisely how a 12.5h target became a
+  // 9.3h week. Intensity sessions are excluded: stretching a VO2max block
+  // to absorb volume changes what the session is.
+  const participants = workouts
+    .map((w, i) => i)
+    .filter(
+      (i) => workouts[i].type !== "Intervals" && workouts[i].type !== "Tempo"
+    );
+
+  const scheduled = workouts.reduce((s, w) => s + w.durationMins, 0);
+  const remainder = totalMins - scheduled;
+
+  if (remainder > 0 && participants.length > 0) {
+    const grown = distributeRemainder(
+      participants.map((i) => workouts[i].durationMins),
+      participants.map(() => longBound),
+      remainder
+    );
+    participants.forEach((wi, k) => {
+      workouts[wi] = { ...workouts[wi], durationMins: grown[k] };
+    });
   }
 
   return workouts.sort((a, b) => a.day - b.day);

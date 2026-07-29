@@ -306,19 +306,34 @@ describe("materializeWeek — generator cap explained (final-review Finding 2)",
   };
 
   it("logs an adjustment explaining the cap when the target exceeds what the generator can express", () => {
+    // Recalibrated for the cycling-distribution fix (training-plan.ts): the
+    // no-demand long-ride/filler bound rose from a hardcoded 90min to
+    // longRideBoundMins(null) = 240min, and the remainder that used to be
+    // discarded is now redistributed onto whatever hasn't hit its bound. A
+    // 20h target here no longer saturates the generator (5 sessions, build,
+    // no queenStageHours: totalMins 1200 -> Long min(456,240)=240, Intervals
+    // round(1200*0.18)=216, easyMins round(744/3)=248 clamped to 240 x3=720
+    // -> scheduled 1176 = 19.6h, only 2% short of 20h — under the 10%
+    // GENERATOR_CAP_SHORTFALL_PCT threshold, so no adjustment fires).
+    // 40h still legitimately saturates: totalMins 2400 -> Long
+    // min(912,240)=240, Intervals round(2400*0.18)=432, easyMins
+    // round(1728/3)=576 clamped to 240 x3=720 -> scheduled 1392 = 23.2h
+    // (42% short) because Long and all 3 Endurance rides sit at their
+    // 240min bound with nowhere left to absorb the remainder — a real "the
+    // generator cannot express this", not a discarded remainder.
     const r = materializeWeek({
       ...CAP_BASE,
-      hoursPerWeek: 20,
-      // Ample availability — 27h across the week — so the shortfall comes
+      hoursPerWeek: 40,
+      // Ample availability — 54h across the week — so the shortfall comes
       // from the generator's own duration caps, not a lack of time to ride.
-      availableBlocksPerDay: blocksPerDay([180, 240, 180, 240, 180, 300, 300]),
+      availableBlocksPerDay: blocksPerDay([360, 480, 360, 480, 360, 600, 600]),
     });
     const capAdjustment = r.adjustments.find((a) =>
       a.reason.includes("session limits cap")
     );
     expect(capAdjustment).toBeDefined();
     expect(capAdjustment!.trigger).toBe("weekly_rollover");
-    expect(capAdjustment!.reason).toContain("20.0h target");
+    expect(capAdjustment!.reason).toContain("40.0h target");
   });
 
   it("logs no cap adjustment when the target is within what the generator can produce", () => {

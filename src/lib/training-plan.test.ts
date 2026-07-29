@@ -3,6 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import {
   generateWorkouts,
+  generateCyclingWorkouts,
   withPurpose,
   PURPOSE_BY_TYPE,
   generateTrainingPlan,
@@ -114,6 +115,103 @@ describe("distributeRemainder", () => {
   it("never exceeds any bound", () => {
     const out = distributeRemainder([10, 10, 10], [20, 20, 20], 1000);
     expect(out).toEqual([20, 20, 20]);
+  });
+
+  it("is a no-op for an empty input", () => {
+    expect(distributeRemainder([], [], 50)).toEqual([]);
+  });
+
+  it("is a no-op when every bound is already below current", () => {
+    // No session has headroom, so the remainder cannot be placed anywhere —
+    // the loop must recognize this on the first pass and stop, not loop
+    // forever or push values past bounds already violated coming in.
+    expect(distributeRemainder([100, 100], [90, 90], 50)).toEqual([100, 100]);
+  });
+});
+
+describe("generateCyclingWorkouts distributes the target", () => {
+  function total(ws: { durationMins: number }[]): number {
+    return ws.reduce((s, w) => s + w.durationMins, 0);
+  }
+
+  it("schedules the whole target — the live regression", () => {
+    // Owner account, skeleton week 5, build phase: 12.5h target x the 1.03
+    // build multiplier = 772.5 -> 773 min. This produced 559 min before
+    // the fix (long clamped 294->240, two endurance rides clamped 197->90).
+    const ws = generateCyclingWorkouts(
+      4,
+      12.5 * 1.03,
+      "build",
+      4.897963084361944
+    );
+    expect(total(ws)).toBe(773);
+  });
+
+  it("puts the long ride at the event's hardest day, not a constant", () => {
+    const ws = generateCyclingWorkouts(
+      4,
+      12.5 * 1.03,
+      "build",
+      4.897963084361944
+    );
+    const long = ws.find((w) => w.type === "Long");
+    expect(long?.durationMins).toBe(294);
+  });
+
+  it("leaves the intensity session out of redistribution", () => {
+    // 18% of 773 = 139. It must not grow to soak up volume: duration at
+    // intensity is prescribed, not filler.
+    const ws = generateCyclingWorkouts(
+      4,
+      12.5 * 1.03,
+      "build",
+      4.897963084361944
+    );
+    const hard = ws.find((w) => w.type === "Intervals");
+    expect(hard?.durationMins).toBe(139);
+  });
+
+  it("still fills the target with no event demand, using today's cap", () => {
+    // periodize(9, 76.7, 4, 10, ...) week 5: 10h x 1.03 = 618 min.
+    // Long = round(618 x 0.38) = 235, under the 240 no-demand bound.
+    const ws = generateCyclingWorkouts(4, 10 * 1.03, "build", null);
+    expect(total(ws)).toBe(618);
+    expect(ws.find((w) => w.type === "Long")?.durationMins).toBe(235);
+  });
+
+  it("keeps the taper's shortened long ride", () => {
+    const ws = generateCyclingWorkouts(4, 8, "taper", 4.897963084361944);
+    expect(ws.find((w) => w.type === "Long")?.durationMins).toBe(90);
+  });
+
+  it("falls short only when every participating session is at its bound", () => {
+    // 2 sessions against an impossible 20h target, with a criterium's queen
+    // stage bounding the ride at 120. Long pins at 120 and there are no
+    // endurance rides to absorb anything, so the week legitimately comes in
+    // short — that is a real "these days cannot absorb this", not a
+    // discarded remainder.
+    //
+    // Tempo is NOT bounded by longBound: it is 18% of the target by
+    // prescription (round(1200 × 0.18) = 216) and is excluded from
+    // redistribution, so assert only the participating sessions.
+    const ws = generateCyclingWorkouts(2, 20, "base", 0.5);
+    expect(total(ws)).toBeLessThan(20 * 60);
+
+    const participating = ws.filter(
+      (w) => w.type !== "Intervals" && w.type !== "Tempo"
+    );
+    expect(participating.length).toBeGreaterThan(0);
+    for (const w of participating) {
+      expect(w.durationMins).toBeLessThanOrEqual(120);
+    }
+    expect(ws.find((w) => w.type === "Long")?.durationMins).toBe(120);
+  });
+
+  it("never drops an easy ride below the effective floor", () => {
+    const ws = generateCyclingWorkouts(5, 2, "base", null);
+    for (const w of ws.filter((x) => x.type === "Endurance")) {
+      expect(w.durationMins).toBeGreaterThanOrEqual(30);
+    }
   });
 });
 
