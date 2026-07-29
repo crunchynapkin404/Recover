@@ -7,6 +7,7 @@ import { db, schema } from "@/lib/db";
 import {
   applyAvailability,
   applyResolvedAvailability,
+  getOpenWeekPlan,
   markDayDone,
   moveWorkout,
   rolloverWeekPlan,
@@ -14,7 +15,10 @@ import {
 } from "@/lib/week-plan/service";
 import { syncDateOverrides } from "@/lib/availability/sync-overrides";
 import { parseDayBlocks } from "@/lib/availability/parse-day-blocks";
-import { isMondayYmd } from "@/lib/availability/validate-week-start";
+import {
+  isMondayYmd,
+  resolveWeekStartTarget,
+} from "@/lib/availability/validate-week-start";
 import {
   assembleForecastInputs,
   createRace,
@@ -67,11 +71,12 @@ export async function submitAvailability(
   }
   const blocksPerDay = parsed as AvailabilityBlock[][];
 
-  // `weekStart`, present only from the next-week preview's editor, targets a
-  // FUTURE week: one with no materialised week_plans row to replan. This is
-  // a "use server" export — a directly reachable RPC endpoint, not just
-  // whatever our own UI sends — so anything that isn't a genuine Monday is
-  // refused outright rather than trusted to name a real week.
+  // `weekStart`, present only from the next-week preview's editor, is meant
+  // to target a FUTURE week: one with no materialised week_plans row to
+  // replan. This is a "use server" export — a directly reachable RPC
+  // endpoint, not just whatever our own UI sends — so anything that isn't a
+  // genuine Monday is refused outright rather than trusted to name a real
+  // week.
   const weekStartField = formData.get("weekStart");
   const requestedWeekStart =
     typeof weekStartField === "string" && weekStartField !== ""
@@ -82,7 +87,29 @@ export async function submitAvailability(
       message: "That doesn't look like a Monday. Nothing was changed.",
     };
   }
-  const target = requestedWeekStart;
+
+  // A genuine Monday is not automatically a FUTURE Monday: it names a week,
+  // and that week might turn out to be the one that's already open. That
+  // happens for real, not just adversarially — the week switcher's hidden
+  // `weekStart` is baked in at page-render time, so an athlete with the tab
+  // open across the scheduled Sunday→Monday rollover submits a value that,
+  // by the time this action runs, IS the now-open week's `weekStart`. The
+  // actual decision (current vs. future vs. reject-as-past) is pure — see
+  // `resolveWeekStartTarget` — so only the DB read for the open week's own
+  // `weekStart` lives here, and only when there's a requested value to
+  // resolve against it.
+  const openWeek =
+    requestedWeekStart !== null ? await getOpenWeekPlan(user.id) : null;
+  const resolution = resolveWeekStartTarget(
+    requestedWeekStart,
+    openWeek?.weekStart ?? null
+  );
+  if (resolution.kind === "rejected") {
+    return {
+      message: "That week has already passed. Nothing was changed.",
+    };
+  }
+  const target = resolution.kind === "future" ? resolution.weekStart : null;
 
   await syncDateOverrides(user.id, blocksPerDay, target ?? undefined);
 

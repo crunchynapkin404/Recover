@@ -658,9 +658,9 @@ async function WeekTab({
           {nextWeekPreview && (
             <p className="-mt-3 mb-5 px-1 text-[11px] text-white/40">
               Assumes this week goes to plan. Firms up Monday.{" "}
-              <a href="?availability=next" className="underline">
+              <Link href={href({ availability: "next" })} className="underline">
                 Set next week&apos;s availability
-              </a>
+              </Link>
             </p>
           )}
 
@@ -735,6 +735,17 @@ async function WeekTab({
             <section className="mb-6">
               {intake.thisWeek && intake.nextWeek ? (
                 <AvailabilityWeekSwitcher
+                  // `initialMode` only seeds `useState` on the FIRST mount —
+                  // a prop change on its own does nothing once mounted. The
+                  // "Set next week's availability" link below is now a
+                  // `Link` (Finding 3), which does a client-side transition
+                  // that keeps this component instance alive across the
+                  // `?availability=` change rather than a full reload
+                  // remounting it fresh. Keying on the mode forces exactly
+                  // that remount when the URL's mode actually changes, so
+                  // the link still lands in next-week mode after the
+                  // switch away from a plain `<a>`.
+                  key={initialAvailabilityMode}
                   thisWeek={intake.thisWeek}
                   nextWeek={intake.nextWeek}
                   initialMode={initialAvailabilityMode}

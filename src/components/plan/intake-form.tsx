@@ -51,12 +51,12 @@ const DAY_NAMES = [
   "Sunday",
 ];
 
-function verdictLine(v: Verdict): string | null {
+function verdictLine(v: Verdict, weekLabel: string): string | null {
   if (v.kind === "losing") {
-    return `That's under the ${formatAvailability(Math.round(v.maintenanceHrs * 60))} it takes to hold your fitness — CTL is projected to fall to about ${Math.round(v.projectedCtl)} this week.`;
+    return `That's under the ${formatAvailability(Math.round(v.maintenanceHrs * 60))} it takes to hold your fitness — CTL is projected to fall to about ${Math.round(v.projectedCtl)} ${weekLabel}.`;
   }
   if (v.kind === "holding") {
-    return `Enough to hold your fitness, not to build it — this week's plan asks for about ${formatAvailability(Math.round(v.targetHrs * 60))}.`;
+    return `Enough to hold your fitness, not to build it — ${weekLabel}'s plan asks for about ${formatAvailability(Math.round(v.targetHrs * 60))}.`;
   }
   return null;
 }
@@ -106,7 +106,15 @@ export function IntakeForm({
     (s, day) => s + day.reduce((d, b) => d + blockMins(b), 0),
     0
   );
-  const warning = verdictLine(verdict);
+  // `weekStart` is the same presence-based signal `submitAvailability` and
+  // the week switcher already key off of: empty means this instance is
+  // editing the current open week, a real Monday means it's editing a
+  // future one. `heading` follows it (see the prop doc above) — these
+  // derived strings must follow the exact same mode, not just the heading's
+  // own text, so they never contradict it the way "this week" did while
+  // `heading` already said "Next week's availability".
+  const weekLabel = weekStart ? "next week" : "this week";
+  const warning = verdictLine(verdict, weekLabel);
 
   function unpin(i: number) {
     startTransition(async () => {
@@ -165,7 +173,7 @@ export function IntakeForm({
       </ul>
 
       <p className="mb-2 text-center text-[11px] text-white/40">
-        {`${formatAvailability(totalMins)} this week`}
+        {`${formatAvailability(totalMins)} ${weekLabel}`}
       </p>
       {warning && (
         <p className="mb-5 text-center text-[11px] leading-relaxed text-amber-300/80">
