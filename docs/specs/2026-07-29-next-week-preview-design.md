@@ -237,10 +237,26 @@ must not imply more certainty than it has.
 - **Late-load reconciliation** and the stale-open-week/multiple-active-plans
   cleanup.
 
-## Open question for review
+## Resolved: the availability editor uses a week switcher
 
-Should the availability editor address next week through a **week switcher on
-the existing form** (one form, a toggle) or a **separate "next week" card**
-beneath the preview? The first is less UI; the second puts the control where the
-athlete is already looking when they think about next week. No strong preference
-— worth deciding before planning.
+**Decided 2026-07-29.** The existing availability form gains a week switcher —
+`This week | Next week` — rather than a second "next week" card appearing under
+the preview.
+
+One availability surface, one mental model. A second card would mean two places
+that both write availability, which is how the two surfaces disagreed about the
+weekly target before v0.28.0.
+
+Consequences the plan must carry:
+
+- The form posts a target `weekStart` alongside its seven days of blocks.
+  `submitAvailability` must not infer the week from "today".
+- Switching weeks must not silently discard unsaved edits to the other week —
+  either save on switch or warn. Losing a half-entered week to a stray tap is
+  worse than the feature is good.
+- The switcher's "next week" state must be reachable directly, so the preview
+  can link to it (_"Set next week's availability"_) without duplicating the
+  control.
+- Only the current week's submission replans. A future week's submission writes
+  overrides and nothing else — see "Applying availability to a future week must
+  not replan anything" above.
