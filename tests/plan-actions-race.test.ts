@@ -46,9 +46,7 @@ async function cleanup() {
     .where(eq(schema.trainingPlans.userId, USER));
   await db.delete(schema.races).where(eq(schema.races.userId, USER));
   await db.delete(schema.users).where(eq(schema.users.id, USER));
-  await db
-    .delete(schema.races)
-    .where(eq(schema.races.userId, OTHER_USER));
+  await db.delete(schema.races).where(eq(schema.races.userId, OTHER_USER));
   await db.delete(schema.users).where(eq(schema.users.id, OTHER_USER));
 }
 
@@ -327,9 +325,7 @@ describe.skipIf(!hasDb)("plan race actions", () => {
   // validation, and cannot be pointed at another athlete's race.
   describe("updateRaceDemand", () => {
     it("corrects an existing race's demand and replaces its stages", async () => {
-      const { addRace, updateRaceDemand } = await import(
-        "@/app/plan/actions"
-      );
+      const { addRace, updateRaceDemand } = await import("@/app/plan/actions");
       const { db, schema } = await import("@/lib/db");
       const date = ymd(43);
       const name = "Typo Elevation Race";
@@ -381,9 +377,7 @@ describe.skipIf(!hasDb)("plan race actions", () => {
     });
 
     it("rejects invalid demand values without writing anything, same rules as addRace", async () => {
-      const { addRace, updateRaceDemand } = await import(
-        "@/app/plan/actions"
-      );
+      const { addRace, updateRaceDemand } = await import("@/app/plan/actions");
       const { db, schema } = await import("@/lib/db");
       const date = ymd(44);
       const name = "Update Validation Race";

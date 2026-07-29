@@ -16,16 +16,16 @@ any compaction, trust the ledger and `git log` over recollection.
 
 ## State
 
-|        |                                                                             |
-| ------ | --------------------------------------------------------------------------- |
-| Branch | `feat/race-driven-volume` (off `docs/race-driven-volume-spec`, off `main`)   |
-| HEAD   | `e7f8ba6`                                                                   |
-| Spec   | `docs/specs/2026-07-28-race-driven-volume-design.md` (approved)             |
+|          |                                                                                         |
+| -------- | --------------------------------------------------------------------------------------- |
+| Branch   | `feat/race-driven-volume` (off `docs/race-driven-volume-spec`, off `main`)              |
+| HEAD     | `e7f8ba6`                                                                               |
+| Spec     | `docs/specs/2026-07-28-race-driven-volume-design.md` (approved)                         |
 | Evidence | `docs/specs/2026-07-28-training-volume-evidence.md` (research, per-constant confidence) |
-| Plan   | `docs/plans/2026-07-28-race-driven-volume-phase1.md` (12 tasks + Task 13)             |
-| Ledger | `.superpowers/sdd/progress.md` (gitignored — recover from `git log` if lost) |
-| Done   | Tasks 1–8 **and 13**, all reviewed clean                                     |
-| Next   | **Task 9 — rollover wiring.** BASE = current HEAD                          |
+| Plan     | `docs/plans/2026-07-28-race-driven-volume-phase1.md` (12 tasks + Task 13)               |
+| Ledger   | `.superpowers/sdd/progress.md` (gitignored — recover from `git log` if lost)            |
+| Done     | Tasks 1–8 **and 13**, all reviewed clean                                                |
+| Next     | **Task 9 — rollover wiring.** BASE = current HEAD                                       |
 
 Prerequisite **v0.27.0 is shipped and live** (the sport-vocabulary fix).
 Nothing here depends on further deployment.
@@ -82,12 +82,12 @@ overturn became true again once the model was made coherent.
 
 ## Remaining tasks
 
-| #   | Task                               | Notes                                                                          |
-| --- | ---------------------------------- | ------------------------------------------------------------------------------ |
-| 9   | Rollover wiring                    | Exports `periodize`; riskiest task — full gate required, **including `npm run build`**. |
-| 10  | Race form fields + stages          | `RacesSection` props are `{ races, hideHeading? }` — no `sports` prop.         |
-| 11  | `WeekRationale` + shortfall line   | Renders reasons already in `plan_adjustments`.                                 |
-| 12  | `EventReadiness`                   | Page computes `assessFeasibility` itself; Task 8 deliberately does not judge.  |
+| #   | Task                             | Notes                                                                                   |
+| --- | -------------------------------- | --------------------------------------------------------------------------------------- |
+| 9   | Rollover wiring                  | Exports `periodize`; riskiest task — full gate required, **including `npm run build`**. |
+| 10  | Race form fields + stages        | `RacesSection` props are `{ races, hideHeading? }` — no `sports` prop.                  |
+| 11  | `WeekRationale` + shortfall line | Renders reasons already in `plan_adjustments`.                                          |
+| 12  | `EventReadiness`                 | Page computes `assessFeasibility` itself; Task 8 deliberately does not judge.           |
 
 **Owed at Task 9/12:** `weeksToGrow` returns `Infinity` when `currentWeeklyHours`
 is zero (not merely null). The verdict maths resolves sanely, but the raw field
@@ -117,7 +117,7 @@ has been measured at. The 8h anchor position is **new and Low confidence** — i
 is a reading of what the old `>5h` band meant, not a published figure.
 
 **2. A multi-day event is priced per DAY, not as one continuous ride.** The
-ladder models *within-ride* fatigue, and riders sleep between stages. Charging
+ladder models _within-ride_ fatigue, and riders sleep between stages. Charging
 an 8-day tour the deep-fatigue fraction it would earn by riding 42 hours
 without sleeping was a category error.
 
@@ -142,7 +142,7 @@ Fondo and century still sit inside the published 8–12 h/week band. **The tour
 still exceeds the ceiling and still reports the athlete under-prepared — that
 conclusion is robust to both changes.**
 
-**The satisfying part, and the lesson.** Task 3 had to *overturn* the original
+**The satisfying part, and the lesson.** Task 3 had to _overturn_ the original
 plan's assertion that the staged and unstaged paths agree within 0.05h — they
 were 0.283h apart, because the two paths were priced on different fatigue
 bands. With per-day pricing the gap is **0.012h and the original assertion is
@@ -203,7 +203,7 @@ the longest-ride gap may soften a verdict by one step but can **never** produce
   the ACWR bound, and prescribing above it is the one outcome that can injure
   someone. A floor above a ceiling means the athlete's own recent peak binds.
 - **`ceilingHours` is level-INDEPENDENT** and non-null whenever any usable
-  hours history exists, *including* while `source` is `"calibrating"`. It is
+  hours history exists, _including_ while `source` is `"calibrating"`. It is
   null only when there is no usable hours history at all. Task 6 relies on this.
 - **`floorHours` is null exactly when `ceilingHours` is null.** Both derive
   from the same `peakHours` in the same function, which is why the floor lives
@@ -211,7 +211,7 @@ the longest-ride gap may soften a verdict by one step but can **never** produce
 - **Availability is a ceiling, never a target.** Surplus availability stays
   free. This is also what JOIN does, and it was explicitly decided.
 - `bandFor` must not fail open on non-finite input, and `peakOf` must not
-  return `NaN` — `NaN` is *not* nullish, so `ceilingHours ?? fallback` would
+  return `NaN` — `NaN` is _not_ nullish, so `ceilingHours ?? fallback` would
   carry it into arithmetic instead of falling back. Both are guarded and tested.
 
 ## Design decisions already settled — do not reopen
@@ -243,7 +243,7 @@ actually occurred, all of them in the plan rather than the code.
   is handed, so two stages on separate days each sit in a shallower band than
   one long block. The **test** was wrong; it was replaced with a stronger
   assertion (staged total strictly lower, and within 5%).
-- **Task 5:** the module's central guarantee — level is the *lower* of the
+- **Task 5:** the module's central guarantee — level is the _lower_ of the
   hours and CTL verdicts — was untested in the CTL-restricts direction. A
   regression deleting CTL from the decision would have passed all 8 tests.
 - **Task 6:** `floorHours` had **no producer**. The feature would have shipped

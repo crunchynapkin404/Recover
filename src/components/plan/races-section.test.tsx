@@ -90,9 +90,7 @@ describe("RacesSection", () => {
   it("says plainly when no demand data is stored, rather than staying silent", () => {
     const html = renderToString(
       <RacesSection
-        races={[
-          { ...races[0], id: "4", distanceKm: null, elevationM: null },
-        ]}
+        races={[{ ...races[0], id: "4", distanceKm: null, elevationM: null }]}
       />
     );
     expect(html).toContain("No distance/elevation set");

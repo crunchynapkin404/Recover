@@ -2596,7 +2596,9 @@ describe("RacesSection event demand", () => {
 
     const form = container.querySelector("form")!;
     await act(async () => {
-      form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      form.dispatchEvent(
+        new Event("submit", { bubbles: true, cancelable: true })
+      );
     });
 
     expect(addRaceMock).toHaveBeenCalledTimes(1);
@@ -2617,7 +2619,9 @@ describe("RacesSection event demand", () => {
     await set(byId("event-distance"), "130");
     const form = container.querySelector("form")!;
     await act(async () => {
-      form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      form.dispatchEvent(
+        new Event("submit", { bubbles: true, cancelable: true })
+      );
     });
     expect(addRaceMock.mock.calls[0][0].eventDays).toBe(1);
     expect(addRaceMock.mock.calls[0][0].stages).toEqual([]);
@@ -3036,9 +3040,7 @@ function fmt(hours: number): string {
 
 /** "a 6h target" but "an 11h target". */
 function article(hours: number): string {
-  return fmt(hours).startsWith("8") || fmt(hours).startsWith("11")
-    ? "an"
-    : "a";
+  return fmt(hours).startsWith("8") || fmt(hours).startsWith("11") ? "an" : "a";
 }
 
 export function WeekRationale({
@@ -3430,13 +3432,15 @@ timezone. That exact bug has already shipped here once — see
 Render it beside `<WeekRationale>`:
 
 ```tsx
-{volumeInputs.targetRace && volumeInputs.demand && feasibility && (
-  <EventReadiness
-    raceName={volumeInputs.targetRace.name}
-    feasibility={feasibility}
-    demand={volumeInputs.demand}
-  />
-)}
+{
+  volumeInputs.targetRace && volumeInputs.demand && feasibility && (
+    <EventReadiness
+      raceName={volumeInputs.targetRace.name}
+      feasibility={feasibility}
+      demand={volumeInputs.demand}
+    />
+  );
+}
 ```
 
 Import `assessFeasibility` from `@/lib/race/feasibility` and `EventReadiness`
@@ -3615,23 +3619,23 @@ And, in the `estimateRidingHours` describe block, the cliff that motivated all
 of this:
 
 ```ts
-  it("no longer jumps across the old 5-hour band edge", () => {
-    // 114km predicted 4.985h and 116km predicted 5.424h under the step
-    // function: 8.8% more time for 1.75% more distance. The response must
-    // now be proportionate to the input.
-    const shorter = estimateRidingHours({
-      distanceKm: 114,
-      elevationM: 2533,
-      ...ATHLETE,
-    })!;
-    const longer = estimateRidingHours({
-      distanceKm: 116,
-      elevationM: 2578,
-      ...ATHLETE,
-    })!;
-    expect(longer).toBeGreaterThan(shorter);
-    expect(longer / shorter).toBeLessThan(1.05);
-  });
+it("no longer jumps across the old 5-hour band edge", () => {
+  // 114km predicted 4.985h and 116km predicted 5.424h under the step
+  // function: 8.8% more time for 1.75% more distance. The response must
+  // now be proportionate to the input.
+  const shorter = estimateRidingHours({
+    distanceKm: 114,
+    elevationM: 2533,
+    ...ATHLETE,
+  })!;
+  const longer = estimateRidingHours({
+    distanceKm: 116,
+    elevationM: 2578,
+    ...ATHLETE,
+  })!;
+  expect(longer).toBeGreaterThan(shorter);
+  expect(longer / shorter).toBeLessThan(1.05);
+});
 ```
 
 - [ ] **Step 4: Price a stage event per day**
@@ -3641,24 +3645,24 @@ supplied currently estimates the whole event as one ride. Replace it so a
 multi-day event is estimated as its average DAY, multiplied by the day count:
 
 ```ts
-  if (totalHours == null) {
-    // Without stage data, estimate the AVERAGE DAY and multiply. Pricing the
-    // whole event as one continuous ride would charge an 8-day tour the
-    // deep-fatigue fraction a rider earns only by riding 42 hours without
-    // sleeping. The FTP ladder models within-ride fatigue; riders sleep
-    // between stages.
-    //
-    // Cumulative fatigue across consecutive days is real and is NOT modelled
-    // here — there is no published magnitude for it in the evidence base, and
-    // inventing one by mispricing the duration is worse than omitting it.
-    const perDay = estimateRidingHours({
-      distanceKm: (input.distanceKm ?? 0) / days,
-      elevationM: (input.elevationM ?? 0) / days,
-      ftpWatts,
-      massKg,
-    });
-    totalHours = perDay == null ? null : perDay * days;
-  }
+if (totalHours == null) {
+  // Without stage data, estimate the AVERAGE DAY and multiply. Pricing the
+  // whole event as one continuous ride would charge an 8-day tour the
+  // deep-fatigue fraction a rider earns only by riding 42 hours without
+  // sleeping. The FTP ladder models within-ride fatigue; riders sleep
+  // between stages.
+  //
+  // Cumulative fatigue across consecutive days is real and is NOT modelled
+  // here — there is no published magnitude for it in the evidence base, and
+  // inventing one by mispricing the duration is worse than omitting it.
+  const perDay = estimateRidingHours({
+    distanceKm: (input.distanceKm ?? 0) / days,
+    elevationM: (input.elevationM ?? 0) / days,
+    ftpWatts,
+    massKg,
+  });
+  totalHours = perDay == null ? null : perDay * days;
+}
 ```
 
 Use the same `days`, `ftpWatts` and `massKg` locals the surrounding code
@@ -3674,8 +3678,8 @@ a) The tour's daily rate. It was `> 5` because the whole-block price inflated
 it to 5.26. Per-day it is 4.90:
 
 ```ts
-    expect(d.dailyRateHours).toBeGreaterThan(4.5);
-    expect(d.dailyRateHours).toBeLessThan(8);
+expect(d.dailyRateHours).toBeGreaterThan(4.5);
+expect(d.dailyRateHours).toBeLessThan(8);
 ```
 
 b) The staged-versus-totals test. It currently asserts the two paths DIVERGE,
@@ -3685,15 +3689,15 @@ per day, so they agree to about 0.01h. Replace the two assertions and the
 comment above them with:
 
 ```ts
-    // Both paths now price per DAY — the stage loop uses the real stages, the
-    // totals path uses the average day — so they agree closely. They are not
-    // identical: unequal stages cost slightly more than their average.
-    //
-    // This assertion failed before Task 13 and is restored deliberately. The
-    // original plan asserted it, Task 3 had to overturn it because the model
-    // priced the two paths on different fatigue bands, and making the model
-    // coherent has made it true again.
-    expect(d.totalHours).toBeCloseTo(fromTotals.totalHours, 1);
+// Both paths now price per DAY — the stage loop uses the real stages, the
+// totals path uses the average day — so they agree closely. They are not
+// identical: unequal stages cost slightly more than their average.
+//
+// This assertion failed before Task 13 and is restored deliberately. The
+// original plan asserted it, Task 3 had to overturn it because the model
+// priced the two paths on different fatigue bands, and making the model
+// coherent has made it true again.
+expect(d.totalHours).toBeCloseTo(fromTotals.totalHours, 1);
 ```
 
 - [ ] **Step 6: Run the gate**
@@ -3706,14 +3710,14 @@ npx tsc --noEmit
 
 Expected, for the calibration athlete (FTP 310W, 87kg):
 
-| quantity                        | before | after |
-| ------------------------------- | ------ | ----- |
-| fondo 130km/4000m               | 6.82h  | 6.57h |
-| tour day 112.5km/2500m          | 4.92h  | 4.90h |
-| tour total (8 days)             | 42.09h | 39.18h |
-| tour weeklyHours                | 16.8   | 15.68 |
-| fondo weeklyHours               | 11.4   | 10.95 |
-| whole-block 900km/20000m        | 42.09h | 42.09h (flat tail) |
+| quantity                 | before | after              |
+| ------------------------ | ------ | ------------------ |
+| fondo 130km/4000m        | 6.82h  | 6.57h              |
+| tour day 112.5km/2500m   | 4.92h  | 4.90h              |
+| tour total (8 days)      | 42.09h | 39.18h             |
+| tour weeklyHours         | 16.8   | 15.68              |
+| fondo weeklyHours        | 11.4   | 10.95              |
+| whole-block 900km/20000m | 42.09h | 42.09h (flat tail) |
 
 The fondo and a flat century both stay inside the published 8-12 h/week band.
 The tour still exceeds the ceiling and still reports the athlete

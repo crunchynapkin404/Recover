@@ -10,19 +10,19 @@ overriding.
 
 ## Summary
 
-| Constant | Value | Evidence | Confidence |
-| --- | --- | --- | --- |
-| `CDA` | 0.32 | Measured hoods position **0.316 m²** | **High** |
-| `HEADROOM` (ceiling) | 1.3 | ACWR safe zone **0.8–1.3** | **High** |
-| `RAMP_CLAMP_PCT` (existing) | 0.2 | ACWR 1.2, inside the safe band | **High** |
-| Maintenance floor (new) | 0.5–0.7 | **50–75% of volume maintains VO₂max** | **High** |
-| `EVENT_TO_WEEKLY` ratio(days) | 0.6 → 2.5 | 1-day: **300 TSS vs ~630 weekly**, cross-checked vs **8–12 h/wk** plans. 8-day: CTS **2–3×** | Medium |
-| Level CTL bands | 35/55/80 | CTS: fondo riders **40–100**, competitors **70–120** | Medium |
-| Level hours bands | 3/5/9 | Elite **14.7–19.7 h/wk**; competitive amateurs **~9.8**; elite junior/masters competitive at **6–12** | Medium |
-| `FTP_FRACTION` | 0.85/0.75/0.68 | Durability: critical power decays **~10%** after fatiguing work — our 20% span is steeper | Medium |
-| `LONGEST_RIDE_FRACTION` | 0.8 | **CONTESTED — sources disagree** | **Low** |
-| `REAL_WORLD_FACTOR` | 0.85 | No source found | **Low** |
-| `CLIMB_GRADIENT` | 0.07 | No source found | **Low** |
+| Constant                      | Value          | Evidence                                                                                              | Confidence |
+| ----------------------------- | -------------- | ----------------------------------------------------------------------------------------------------- | ---------- |
+| `CDA`                         | 0.32           | Measured hoods position **0.316 m²**                                                                  | **High**   |
+| `HEADROOM` (ceiling)          | 1.3            | ACWR safe zone **0.8–1.3**                                                                            | **High**   |
+| `RAMP_CLAMP_PCT` (existing)   | 0.2            | ACWR 1.2, inside the safe band                                                                        | **High**   |
+| Maintenance floor (new)       | 0.5–0.7        | **50–75% of volume maintains VO₂max**                                                                 | **High**   |
+| `EVENT_TO_WEEKLY` ratio(days) | 0.6 → 2.5      | 1-day: **300 TSS vs ~630 weekly**, cross-checked vs **8–12 h/wk** plans. 8-day: CTS **2–3×**          | Medium     |
+| Level CTL bands               | 35/55/80       | CTS: fondo riders **40–100**, competitors **70–120**                                                  | Medium     |
+| Level hours bands             | 3/5/9          | Elite **14.7–19.7 h/wk**; competitive amateurs **~9.8**; elite junior/masters competitive at **6–12** | Medium     |
+| `FTP_FRACTION`                | 0.85/0.75/0.68 | Durability: critical power decays **~10%** after fatiguing work — our 20% span is steeper             | Medium     |
+| `LONGEST_RIDE_FRACTION`       | 0.8            | **CONTESTED — sources disagree**                                                                      | **Low**    |
+| `REAL_WORLD_FACTOR`           | 0.85           | No source found                                                                                       | **Low**    |
+| `CLIMB_GRADIENT`              | 0.07           | No source found                                                                                       | **Low**    |
 
 ## What changes
 
@@ -55,8 +55,8 @@ enough to hold fitness, and never a detraining prescription.
 
 ### 3. Multi-day demand has one good quantitative source
 
-CTS: *"A multi-day event is likely 2-3 times your normal weekly training load,
-measured by hours, miles, or Training Stress Score."*
+CTS: _"A multi-day event is likely 2-3 times your normal weekly training load,
+measured by hours, miles, or Training Stress Score."_
 
 Inverted, that gives `weeklyHours = totalEventHours / 2.5`. It is a single
 source and a coaching heuristic rather than a controlled study, but it is
@@ -90,8 +90,8 @@ numbers directly:
 - **Beginner century/gran fondo plans: 6–8 h/week.**
 - **Intermediate: 8–12 h/week.**
 - **Advanced: peak 15 h/week, longest ride 5h.**
-- Summarised as *"about 6 hours per week on the low end, to about 12 hours per
-  week on the high end."*
+- Summarised as _"about 6 hours per week on the low end, to about 12 hours per
+  week on the high end."_
 - A long sportive or race generates **200–350+ TSS**; sustainable weekly TSS is
   about **CTL × 7–8**. At CTL 90 (mid competitive-fondo band) that is ~630
   weekly TSS, so a 300-TSS event is roughly **half a training week**.
@@ -99,10 +99,10 @@ numbers directly:
 That last line is the unifying insight. Both endpoints express the same
 quantity — **event total load as a multiple of a weekly training load**:
 
-| Event shape | Event ÷ weekly load | Source |
-| --- | --- | --- |
-| 1 day | **≈ 0.6** | 300 TSS event vs ~630 weekly TSS; cross-checked against 8–12 h/week plans |
-| 8 days | **≈ 2.5** | CTS "2-3 times your normal weekly training load" |
+| Event shape | Event ÷ weekly load | Source                                                                    |
+| ----------- | ------------------- | ------------------------------------------------------------------------- |
+| 1 day       | **≈ 0.6**           | 300 TSS event vs ~630 weekly TSS; cross-checked against 8–12 h/week plans |
+| 8 days      | **≈ 2.5**           | CTS "2-3 times your normal weekly training load"                          |
 
 So one formula, with the multiplier growing as the event lengthens:
 
@@ -115,13 +115,13 @@ then clamp:    max(floor 0.6 × peak, …) then min(ceiling 1.3 × peak)
 Checked against the published bands, with nothing fitted to them beyond the two
 endpoint ratios:
 
-| Event | Total | Raw | Final | Literature |
-| --- | --- | --- | --- | --- |
-| 8-day alpine tour | 42.1h | 16.8h | **11.6h** (ceiling) | — |
-| 1-day alpine fondo | 6.8h | 11.4h | **11.4h** | 8–12 (intermediate) |
-| Flat century ~5h | 5.6h | 9.4h | **9.4h** | 8–12 |
-| 3-day stage race | 13.6h | 10.7h | **10.7h** | — |
-| Local crit | 1.3h | 2.1h | **5.3h** (floor) | n/a |
+| Event              | Total | Raw   | Final               | Literature          |
+| ------------------ | ----- | ----- | ------------------- | ------------------- |
+| 8-day alpine tour  | 42.1h | 16.8h | **11.6h** (ceiling) | —                   |
+| 1-day alpine fondo | 6.8h  | 11.4h | **11.4h**           | 8–12 (intermediate) |
+| Flat century ~5h   | 5.6h  | 9.4h  | **9.4h**            | 8–12                |
+| 3-day stage race   | 13.6h | 10.7h | **10.7h**           | —                   |
+| Local crit         | 1.3h  | 2.1h  | **5.3h** (floor)    | n/a                 |
 
 Both single-day cases land inside the published range. The tour's raw 16.8h is
 cut to 11.6h by the ACWR ceiling — which is the shortfall the feasibility
@@ -132,16 +132,16 @@ verdict should report, not a number to tune away.
 The feasibility verdict treats "longest ride ≥ 0.8 × queen stage" as a hard
 requirement. The sources disagree about whether that matters at all:
 
-- Gran fondo coaching: *"the long ride is the single biggest predictor of
+- Gran fondo coaching: _"the long ride is the single biggest predictor of
   performance, with riders needing to complete 70–80% of the sportive distance
-  comfortably four weeks before the event"* — and most plans peak at 70–80% of
+  comfortably four weeks before the event"_ — and most plans peak at 70–80% of
   race distance.
-- CTS, directly contradicting it: *"there is nothing magical about achieving a
+- CTS, directly contradicting it: _"there is nothing magical about achieving a
   specific percentage of the race or event distance in a single training ride,
   as approximately 75% of the total event distance makes neither a significant
   difference in finish rates. You can absolutely develop the fitness necessary
   to complete a challenging century or gran fondo with training rides that
-  never exceed 3 hours."*
+  never exceed 3 hours."_
 
 **Recommendation: keep the longest-ride dimension but demote it.** It should
 inform the verdict's wording, not by itself produce "not realistic". A rider
@@ -156,7 +156,7 @@ better VO₂max or performance**, and that training distribution matters more
 than any specific model.
 
 That does not invalidate this design, because it answers a different question:
-it measures *performance improvement* (VO₂max, time-trial) in already-trained
+it measures _performance improvement_ (VO₂max, time-trial) in already-trained
 cyclists, whereas event completion is a question of **durability** — resisting
 decline after many hours, over consecutive days. Those have separate evidence
 bases. But it is a real caution against treating "more hours" as the goal, and
@@ -186,7 +186,7 @@ are different constructs, so the comparison is indicative only.
 - [Training, Performance and Recovery for Multi-Day Cycling Tours — CTS](https://trainright.com/crushing-multi-day-cycling-tours-amateur-stage-race/)
 - [How Long Should Your Longest Training Ride Be? — CTS](https://trainright.com/how-long-should-longest-training-ride-be/)
 - [What is CTL and how to use it — CTS](https://trainright.com/what-is-chronic-training-load-ctl-and-how-to-use-it-to-improve-performance/)
-- [Training distribution, duration and volume in trained cyclists: systematic review and meta-analysis (JSAMS 2024)](https://www.jsams.org/article/S1440-2440(24)00596-6/fulltext)
+- [Training distribution, duration and volume in trained cyclists: systematic review and meta-analysis (JSAMS 2024)](<https://www.jsams.org/article/S1440-2440(24)00596-6/fulltext>)
 - [Training periodization, intensity distribution and volume in trained cyclists: systematic review (PubMed)](https://pubmed.ncbi.nlm.nih.gov/36640771/)
 - [A reduction in training volume and intensity for 21 days does not impair performance in cyclists (PubMed)](https://pubmed.ncbi.nlm.nih.gov/11726481/)
 - [Cardiorespiratory and metabolic consequences of detraining (Frontiers)](https://www.frontiersin.org/journals/physiology/articles/10.3389/fphys.2023.1334766/full)

@@ -165,8 +165,8 @@ function DemandFields({
             Per-day detail (optional)
           </summary>
           <p className="mt-1 text-[11px] text-white/50">
-            Enter each day and we can tell you what your longest training
-            ride needs to be. Without it we assume every day is the average.
+            Enter each day and we can tell you what your longest training ride
+            needs to be. Without it we assume every day is the average.
           </p>
           {Array.from({ length: eventDays }, (_, i) => (
             <div key={i} className="mt-2 flex items-center gap-2">
@@ -184,9 +184,7 @@ function DemandFields({
                 type="number"
                 min={0}
                 value={stages[i]?.elevationM ?? ""}
-                onChange={(e) =>
-                  onStageChange(i, "elevationM", e.target.value)
-                }
+                onChange={(e) => onStageChange(i, "elevationM", e.target.value)}
                 className="w-24 rounded-lg bg-white/[0.06] px-2 py-1 text-[12px]"
               />
             </div>
@@ -214,12 +212,8 @@ function RaceDemandEditor({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [eventDays, setEventDays] = useState(race.eventDays);
-  const [distanceKm, setDistanceKm] = useState<number | null>(
-    race.distanceKm
-  );
-  const [elevationM, setElevationM] = useState<number | null>(
-    race.elevationM
-  );
+  const [distanceKm, setDistanceKm] = useState<number | null>(race.distanceKm);
+  const [elevationM, setElevationM] = useState<number | null>(race.elevationM);
   const [stages, setStages] = useState<
     { distanceKm: number | null; elevationM: number | null }[]
   >(

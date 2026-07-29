@@ -639,7 +639,7 @@ per-constant confidence: `docs/specs/2026-07-28-training-volume-evidence.md`.
 
 - [x] **Event demand model**: days, distance and climbing (optionally per
       stage) priced into riding hours, then `weeklyHours = totalHours /
-    (0.60 × days^0.686)`. Multi-day events price **per day** — riders sleep
+(0.60 × days^0.686)`. Multi-day events price **per day** — riders sleep
       between stages — and cumulative cross-day fatigue is deliberately not
       modelled rather than faked.
 - [x] **Bounded by measured history in both directions**: ceiling at 1.3×
@@ -657,7 +657,7 @@ per-constant confidence: `docs/specs/2026-07-28-training-volume-evidence.md`.
 - [x] **Race form captures the demand** — days, distance, elevation, per-day
       stages — and the races list shows what was stored, with an edit path.
 - [x] Migration `0033`: additive only (`races.event_days/distance_km/
-    elevation_m`, new `race_stages`). Existing rows keep today's behaviour.
+elevation_m`, new `race_stages`). Existing rows keep today's behaviour.
 
 **Done when:** a logged event moves the prescribed week, bounded by the
 athlete's own history, and the screen explains every number it shows. ✅

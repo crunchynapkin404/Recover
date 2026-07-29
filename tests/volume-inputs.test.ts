@@ -201,9 +201,8 @@ describe.skipIf(!hasDb)("assembleWeeklyTarget", () => {
   afterAll(cleanup);
 
   it("derives the target from race demand, never the plan's raw hoursPerWeek — the number both / and /train must show", async () => {
-    const { assembleWeeklyTarget } = await import(
-      "@/lib/week-plan/volume-inputs"
-    );
+    const { assembleWeeklyTarget } =
+      await import("@/lib/week-plan/volume-inputs");
 
     const planHoursPerWeek = 5; // distinct from the 9h the race asks for
     const availabilityHours = 15; // above 9h, so no shortfall clamp
@@ -223,9 +222,8 @@ describe.skipIf(!hasDb)("assembleWeeklyTarget", () => {
   });
 
   it("is deterministic across independent calls with the same inputs — the guarantee that lets / and /train call it separately and never disagree", async () => {
-    const { assembleWeeklyTarget } = await import(
-      "@/lib/week-plan/volume-inputs"
-    );
+    const { assembleWeeklyTarget } =
+      await import("@/lib/week-plan/volume-inputs");
     const input = { availabilityHours: 15, planHoursPerWeek: 5 };
     const now = new Date();
 
@@ -238,9 +236,8 @@ describe.skipIf(!hasDb)("assembleWeeklyTarget", () => {
   });
 
   it("still falls back to the plan's hoursPerWeek when there is no race demand or ceiling — unchanged pre-branch behaviour", async () => {
-    const { assembleWeeklyTarget } = await import(
-      "@/lib/week-plan/volume-inputs"
-    );
+    const { assembleWeeklyTarget } =
+      await import("@/lib/week-plan/volume-inputs");
     const { db, schema } = await import("@/lib/db");
 
     // A second user with no activities and no races: no ceiling, no demand.
@@ -261,9 +258,7 @@ describe.skipIf(!hasDb)("assembleWeeklyTarget", () => {
       expect(result.target.hours).toBe(7);
       expect(result.target.source).toBe("fallback");
     } finally {
-      await db
-        .delete(schema.users)
-        .where(eq(schema.users.id, NO_HISTORY_USER));
+      await db.delete(schema.users).where(eq(schema.users.id, NO_HISTORY_USER));
     }
   });
 });

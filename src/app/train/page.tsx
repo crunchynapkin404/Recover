@@ -5,7 +5,10 @@ import { db, schema } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { AppShell, shellUser } from "@/components/app-shell";
 import { WeekStrip } from "@/components/plan/week-strip";
-import { RacesSection, type RaceListItem } from "@/components/plan/races-section";
+import {
+  RacesSection,
+  type RaceListItem,
+} from "@/components/plan/races-section";
 import { IntakeForm } from "@/components/plan/intake-form";
 import { StandardWeek } from "@/components/plan/standard-week";
 import { PlanEmpty } from "@/components/plan/plan-empty";

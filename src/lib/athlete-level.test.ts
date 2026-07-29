@@ -144,7 +144,10 @@ describe("athleteLevel", () => {
       ctlByWeek: flat(80),
       override: null,
     });
-    expect(r.floorHours).toBeCloseTo(8.9 * LEVEL_CONSTANTS.MAINTENANCE_FLOOR, 3);
+    expect(r.floorHours).toBeCloseTo(
+      8.9 * LEVEL_CONSTANTS.MAINTENANCE_FLOOR,
+      3
+    );
     expect(r.floorHours).toBeCloseTo(5.34, 2);
   });
 
