@@ -448,6 +448,40 @@ async function WeekTab({
     (b) => b.weekNumber === (week?.skeletonWeek ?? plan.currentWeek)
   );
 
+  // Next week does not exist as a row — it is derived on every render and
+  // never written. See docs/specs/2026-07-29-next-week-preview-design.md.
+  // Computed here, unconditionally whenever there's an open week, rather
+  // than only inside the availability-intake block below: the rolling day
+  // list's "next week" preview must still render once this week starts
+  // completing (Sunday evening is exactly when an athlete needs to see
+  // what's ahead), even though the intake/switcher below — which edits
+  // THIS week's availability — rightly stops applying at that point. This
+  // is also the ONLY `projectWeek` call for the render; the availability
+  // intake block reuses `projected` rather than calling it a second time.
+  const nextWeekStart = week ? addDaysYmd(week.weekStart, 7) : null;
+  // `projectWeek` throws if the plan record it resolves to has disappeared
+  // or if `periodize` yields no blocks for the requested skeleton week
+  // (see project.ts's two explicit `throw`s). `/train` is force-dynamic,
+  // so `next build` can never exercise this render path — an uncaught
+  // throw here would break the whole page, not just the preview. Take the
+  // degraded path (no preview, no switcher) instead, but log it — a
+  // corrupted plan should be diagnosable, not silently swallowed.
+  let projected: Awaited<ReturnType<typeof projectWeek>> = null;
+  if (week && nextWeekStart) {
+    try {
+      projected = await projectWeek(userId, nextWeekStart, new Date());
+    } catch (err) {
+      logger.error("next-week projection failed; showing this week only", {
+        userId,
+        nextWeekStart,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+  const nextWeekPreview = projected
+    ? { days: projected.days, pinned: projected.pinned }
+    : null;
+
   // Availability intake — only while the week hasn't started completing.
   let intake: {
     thisWeek: WeekIntake;
@@ -495,56 +529,39 @@ async function WeekTab({
     // critical fix from Task 5's review: the switcher used to hand next-
     // week mode this week's `resolved`/`dates`/`overrideDates`/`verdict`
     // unchanged, so unpinning or submitting in next-week mode acted on
-    // this week's rows. `projectWeek` (Task 3) derives what next week WOULD
-    // hold without ever persisting a `week_plans` row for it; `null` means
-    // there's no active plan to project from (the spec's edge case: "No
-    // projection; the rolling list shows this week only"), so there is no
-    // next-week data and the page below falls back to rendering `IntakeForm`
-    // directly, with no switcher at all.
-    const nextWeekStart = addDaysYmd(week.weekStart, 7);
-    // `projectWeek` throws if the plan record it resolves to has disappeared
-    // or if `periodize` yields no blocks for the requested skeleton week
-    // (see project.ts's two explicit `throw`s). `/train` is force-dynamic,
-    // so `next build` can never exercise this render path — an uncaught
-    // throw here would break the whole page, not just the preview. Take the
-    // same degraded path as "no projection" (this week's plain `IntakeForm`,
-    // no switcher) instead, but log it — a corrupted plan should be
-    // diagnosable, not silently swallowed.
-    let projected: Awaited<ReturnType<typeof projectWeek>> = null;
-    try {
-      projected = await projectWeek(userId, nextWeekStart, new Date());
-    } catch (err) {
-      logger.error("next-week projection failed; showing this week only", {
-        userId,
-        nextWeekStart,
-        error: err instanceof Error ? err.message : String(err),
-      });
-    }
-    const nextWeekData = projected
-      ? await resolveWeekIntake(
-          userId,
-          Array.from({ length: 7 }, (_, i) => addDaysYmd(nextWeekStart, i)),
-          {
-            currentCtl: latestMetric?.ctl ?? null,
-            loadPerHour,
-            historyDays,
-            // NOT `projected.target.hours` — that's the pre-materialize
-            // hours figure fed into `periodize`, a different unit than the
-            // load quantity `availabilityVerdict` divides by `loadPerHour`.
-            // `effectiveLoad` is `materializeWeek`'s actual result, the same
-            // field this week's own `effectiveTarget` above reads off the
-            // stored week (see `project.ts`'s `ProjectedWeek.effectiveLoad`
-            // docstring).
-            effectiveTarget: projected.effectiveLoad,
-          }
-        )
-      : null;
+    // this week's rows. `projected` (computed once, above, shared with the
+    // rolling day list's preview) is `null` when there's no active plan to
+    // project from (the spec's edge case: "No projection; the rolling list
+    // shows this week only"), so there is no next-week data and the page
+    // below falls back to rendering `IntakeForm` directly, with no switcher
+    // at all.
+    const nextWeekData =
+      projected && nextWeekStart
+        ? await resolveWeekIntake(
+            userId,
+            Array.from({ length: 7 }, (_, i) => addDaysYmd(nextWeekStart, i)),
+            {
+              currentCtl: latestMetric?.ctl ?? null,
+              loadPerHour,
+              historyDays,
+              // NOT `projected.target.hours` — that's the pre-materialize
+              // hours figure fed into `periodize`, a different unit than the
+              // load quantity `availabilityVerdict` divides by `loadPerHour`.
+              // `effectiveLoad` is `materializeWeek`'s actual result, the same
+              // field this week's own `effectiveTarget` above reads off the
+              // stored week (see `project.ts`'s `ProjectedWeek.effectiveLoad`
+              // docstring).
+              effectiveTarget: projected.effectiveLoad,
+            }
+          )
+        : null;
 
     intake = {
       thisWeek: { ...thisWeekData, weekStart: "" },
-      nextWeek: nextWeekData
-        ? { ...nextWeekData, weekStart: nextWeekStart }
-        : null,
+      nextWeek:
+        nextWeekData && nextWeekStart
+          ? { ...nextWeekData, weekStart: nextWeekStart }
+          : null,
     };
   }
 
@@ -609,7 +626,20 @@ async function WeekTab({
             <WeekStrip days={week.days} />
           </section>
 
-          <WeekDayList days={week.days} today={localYmd(today)} />
+          <WeekDayList
+            days={week.days}
+            today={localYmd(today)}
+            nextWeek={nextWeekPreview}
+          />
+
+          {nextWeekPreview && (
+            <p className="-mt-3 mb-5 px-1 text-[11px] text-white/40">
+              Assumes this week goes to plan. Firms up Monday.{" "}
+              <a href="?availability=next" className="underline">
+                Set next week&apos;s availability
+              </a>
+            </p>
+          )}
 
           {rationale && (
             <WeekRationale
