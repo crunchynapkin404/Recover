@@ -1,5 +1,41 @@
 # Changelog
 
+## v0.30.0 — 2026-07-29 — The Whole Target
+
+- **Cycling weeks now schedule the hours they were actually targeting.**
+  `generateCyclingWorkouts` capped every endurance ride at 90 minutes and the
+  long ride at a flat 240, and whatever a cap removed was simply discarded
+  rather than moved anywhere else. Live evidence: a 12.5h target was landing
+  as an 8.75h week — roughly 30% gone before the athlete ever saw a session.
+  Minutes a cap removes are now redistributed onto rides that still have
+  room, so the week delivers the number it was already given. Intensity
+  sessions (intervals, tempo) never absorb this — stretching a VO2max block
+  to soak up volume would change what the session is.
+- **Long rides now build toward the hardest day of your event, not a fixed
+  four hours.** The long ride's cap is derived from `queenStageHours` — the
+  single hardest day your target race actually demands — within a
+  documented 120–360 minute range, instead of an unsourced flat 240. An
+  8-day mountain tour raises the cap to 294 minutes; a criterium's short
+  queen stage keeps it down near the 120-minute floor rather than
+  stretching to fill four hours it doesn't need.
+- **This only lengthens prescriptions for athletes who have a target race.**
+  With no race entered, or no FTP on file, there's no event evidence to size
+  the long ride against, and it keeps exactly the previous 240-minute cap.
+- **The weekly total itself is unchanged — only whether the week actually
+  delivers it.** The hours a week aims for are already bounded before the
+  session generator sees them (the ACWR ceiling, the ramp guard); this
+  release doesn't raise that number, it stops throwing part of it away.
+- **The next-week preview now says what it planned against its target**,
+  the same line the current week's rationale panel already showed.
+
+**Cycling only.** Running and triathlon workout generation still discard
+whatever a cap removes — that's deliberately untouched here. Running's
+correct fix is a different rule entirely: a study of over 5,200 runners
+found that exceeding your own recent longest run by 10–30% raises injury
+risk by 64%, which is an athlete-relative spike rule, not an event-relative
+one. Borrowing cycling's fix across sports is the same mistake that
+produced this defect in the first place.
+
 ## v0.29.0 — 2026-07-29 — Past Sunday
 
 - **The week doesn't end at Sunday anymore.** `/train`'s day list now rolls

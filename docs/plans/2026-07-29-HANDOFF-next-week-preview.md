@@ -209,6 +209,28 @@ The v0.28.0 **inertness check**: a plan with no event distance must materialise
 identically to before. The calibration check already **passed** (8 days / 900 km
 / 20,000 m → "asks about 15.7h a week", inside the 15–19 band).
 
+### 6. Running and triathlon still discard the remainder
+
+v0.30 fixed cycling: `generateCyclingWorkouts` no longer throws away whatever
+a session bound clamps off — `distributeRemainder` pushes it onto sessions
+that still have headroom instead
+(`docs/specs/2026-07-29-cycling-session-distribution-design.md`).
+`generateRunningWorkouts` and `generateTriathlonWorkouts` were deliberately
+left untouched and still carry the identical defect: a clamped session's
+lost minutes are dropped, not redistributed.
+
+**Do not port cycling's fix across sports.** That is exactly the mistake
+that produced the original bug — a flat 240/90-minute cap borrowed without
+regard for what each sport's own evidence says. Running's correct rule is
+athlete-relative, not event-relative: a study of 5,200+ runners found that
+exceeding your own recent longest run by 10–30% raises injury risk by 64%.
+Cycling has no equivalent single-session spike rule to borrow — its safety
+bound is cumulative (the ACWR ceiling and the ramp clamp, both already
+applied upstream of the generator), which is why bounding the long ride by
+event demand was safe for cycling specifically. Running needs its own spec
+built around the longest-run rule, not a copy of `longRideBoundMins` /
+`distributeRemainder`.
+
 ---
 
 ## What shipped today
