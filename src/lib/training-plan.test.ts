@@ -213,6 +213,54 @@ describe("generateCyclingWorkouts distributes the target", () => {
       expect(w.durationMins).toBeGreaterThanOrEqual(30);
     }
   });
+
+  // The cases above all happen to leave `remainder <= 0`, because `easyMins`
+  // divides by `remaining` AFTER the long ride is clamped and so absorbs the
+  // clamped minutes implicitly. Redistribution only has work to do when the
+  // endurance loop creates FEWER rides than `remaining` — it runs
+  // `min(remaining, availDays.length)` times against 5 available days. The two
+  // cases below are the ones that actually execute it; without them a
+  // regression in the participant mapping, the bounds array or the write-back
+  // would pass the whole suite.
+
+  it("grows sessions with headroom instead of discarding the remainder", () => {
+    // 7 sessions, 20h, recovery: totalMins 1200, long clamped to its 240
+    // bound, `remaining` 6 against 5 available days, so `easyMins` is
+    // round(960/6) = 160 and only five rides are created — 1040 scheduled,
+    // 160 left over. The long ride is already at its bound and takes none of
+    // it; the five recovery rides each gain 32.
+    const ws = generateCyclingWorkouts(7, 20, "recovery", null);
+
+    expect(total(ws)).toBe(1200);
+    // 192, not the 160 they were first sized at — this is the assertion that
+    // observes redistribution doing work rather than returning its input.
+    for (const w of ws.filter((x) => x.type === "Recovery")) {
+      expect(w.durationMins).toBe(192);
+    }
+    expect(ws.find((w) => w.type === "Long")?.durationMins).toBe(240);
+  });
+
+  it("holds the intensity session flat while the rest absorb the remainder", () => {
+    // Same shape in build, where an Intervals session exists: totalMins 1200,
+    // long 240, intervals round(1200 x 0.18) = 216, `remaining` 6 against 5
+    // days -> easyMins round(744/6) = 124, 1076 scheduled, 124 left over. The
+    // five endurance rides take an even 24 each, then the 4-minute leftover
+    // goes out one at a time: 149/149/149/149/148.
+    //
+    // Unlike the earlier exclusion test, `remainder` here is non-zero and the
+    // block genuinely executes, so this fails if `participants` ever stops
+    // filtering intensity sessions out.
+    const ws = generateCyclingWorkouts(8, 20, "build", null);
+
+    expect(total(ws)).toBe(1200);
+    expect(ws.find((w) => w.type === "Intervals")?.durationMins).toBe(216);
+
+    const easy = ws
+      .filter((w) => w.type === "Endurance")
+      .map((w) => w.durationMins)
+      .sort((a, b) => b - a);
+    expect(easy).toEqual([149, 149, 149, 149, 148]);
+  });
 });
 
 describe.skipIf(!hasDb)("generateTrainingPlan — availability seeding", () => {
