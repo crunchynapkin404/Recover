@@ -513,7 +513,7 @@ async function WeekTab({ userId, href }: { userId: string; href: TrainHref }) {
             <WeekStrip days={week.days} />
           </section>
 
-          <WeekDayList days={week.days} />
+          <WeekDayList days={week.days} today={localYmd(today)} />
 
           {rationale && (
             <WeekRationale
