@@ -118,6 +118,14 @@ export interface MaterializeInput {
   races?: RaceContext[];
   /** Latest stored CTL — taper base fallback when there is no previous week. */
   currentCtl?: number | null;
+  /**
+   * The hardest single day the athlete's event demands, from
+   * `EventDemand.queenStageHours` — what a long ride should build toward.
+   * Null when there is no target race or no FTP, which keeps the
+   * pre-existing no-demand bound. Optional so existing callers and test
+   * fixtures compile unchanged.
+   */
+  queenStageHours?: number | null;
 }
 
 export interface MaterializeResult {
@@ -316,17 +324,23 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
       effectiveHours,
       skeleton.phase,
       input.raceType,
-      input.sports
+      input.sports,
+      input.queenStageHours ?? null
     )
       .sort((a, b) => b.durationMins - a.durationMins)
       .slice(0, sessions);
 
-    // generateWorkouts hard-caps the long session and every filler
-    // (training-plan.ts), so a target well above what those caps can ever
-    // express saturates far short of effectiveHours regardless of how much
-    // time is actually available — and unlike the availability clamp above,
-    // that shortfall has no adjustment of its own. Say so rather than let
-    // WeekRationale print an unexplained deficit.
+    // For cycling, the long ride and every Endurance filler are capped at
+    // longRideBoundMins(queenStageHours) — event-derived when the athlete's
+    // race gives us a queen stage, the old flat 240-minute ceiling when it
+    // doesn't — and whatever that cap removes is redistributed onto
+    // whichever of those sessions still has headroom rather than discarded
+    // (generateCyclingWorkouts' distributeRemainder call). A shortfall below
+    // can still legitimately occur when there is nowhere left to put the
+    // remainder — every capped session already at its bound (few sessions,
+    // a small queen stage) — and running/triathlon weeks have no such
+    // redistribution at all, so their hard caps still discard outright.
+    // Say so rather than let WeekRationale print an unexplained deficit.
     const generatedHours =
       workouts.reduce((s, w) => s + w.durationMins, 0) / 60;
     if (

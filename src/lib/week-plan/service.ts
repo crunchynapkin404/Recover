@@ -323,6 +323,7 @@ export async function rolloverWeekPlan(
     hoursPerWeek: hoursForMaterialize(target),
     races,
     currentCtl: ctlNow,
+    queenStageHours: volumeInputs.demand?.queenStageHours ?? null,
   });
 
   // 4. Persist.

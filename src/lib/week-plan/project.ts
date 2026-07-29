@@ -247,6 +247,7 @@ export async function projectWeek(
     hoursPerWeek: hoursForMaterialize(target),
     races,
     currentCtl: ctlNow,
+    queenStageHours: volumeInputs.demand?.queenStageHours ?? null,
   });
 
   const overrides = await db.query.availabilityOverrides.findMany({
