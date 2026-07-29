@@ -482,12 +482,21 @@ async function WeekTab({
     ? { days: projected.days, pinned: projected.pinned }
     : null;
 
-  // Availability intake — only while the week hasn't started completing.
+  // Availability intake. This week's half only applies while the week
+  // hasn't started completing — this week's availability is frozen once
+  // Monday is done (unchanged rule). Next week's half is independent of
+  // that: it must stay reachable all week, so the next-week entry point
+  // this release exists for does not vanish the moment Monday completes
+  // (review finding on this task, closed in the "Fix pass" section of
+  // task-6-report.md). Either half may be null on its own — `intake`
+  // itself is null only when NEITHER half applies (Monday completed and no
+  // projection: nothing to show).
+  const mondayCompleted = week?.days[0]?.status === "completed";
   let intake: {
-    thisWeek: WeekIntake;
+    thisWeek: WeekIntake | null;
     nextWeek: WeekIntake | null;
   } | null = null;
-  if (week && week.days[0]?.status !== "completed") {
+  if (week && (!mondayCompleted || projected)) {
     const dates = week.days.map((d) => d.date);
 
     // Load per hour over the last 28 days, from real sessions only. Week-
@@ -518,12 +527,16 @@ async function WeekTab({
         ? 0
         : Math.floor((new Date().getTime() - oldest.getTime()) / 86_400_000);
 
-    const thisWeekData = await resolveWeekIntake(userId, dates, {
-      currentCtl: latestMetric?.ctl ?? null,
-      loadPerHour,
-      historyDays,
-      effectiveTarget: week.effectiveTarget ?? 0,
-    });
+    // This week's half — skipped once Monday has completed; this week's
+    // availability is frozen from that point on (unchanged rule).
+    const thisWeekData = mondayCompleted
+      ? null
+      : await resolveWeekIntake(userId, dates, {
+          currentCtl: latestMetric?.ctl ?? null,
+          loadPerHour,
+          historyDays,
+          effectiveTarget: week.effectiveTarget ?? 0,
+        });
 
     // Next week's OWN data — not this week's, copied. This is the second
     // critical fix from Task 5's review: the switcher used to hand next-
@@ -532,14 +545,25 @@ async function WeekTab({
     // this week's rows. `projected` (computed once, above, shared with the
     // rolling day list's preview) is `null` when there's no active plan to
     // project from (the spec's edge case: "No projection; the rolling list
-    // shows this week only"), so there is no next-week data and the page
-    // below falls back to rendering `IntakeForm` directly, with no switcher
-    // at all.
-    const nextWeekData =
-      projected && nextWeekStart
-        ? await resolveWeekIntake(
+    // shows this week only"), so there is no next-week half either — the
+    // page below falls back to this week's plain `IntakeForm` (or nothing,
+    // if Monday has also completed).
+    //
+    // `projected.weekStart` is read directly as next week's `weekStart`
+    // here, rather than re-deriving or re-checking the outer
+    // `nextWeekStart` local: `materializeWeek` always echoes its
+    // `weekStart` input back unchanged (materialize.ts's
+    // `weekStart: input.weekStart`), so the two are the same value by
+    // construction, and `projected` is already narrowed non-null in this
+    // branch — no second `&& nextWeekStart` check needed just to satisfy
+    // the type checker.
+    const nextWeekData = projected
+      ? {
+          ...(await resolveWeekIntake(
             userId,
-            Array.from({ length: 7 }, (_, i) => addDaysYmd(nextWeekStart, i)),
+            Array.from({ length: 7 }, (_, i) =>
+              addDaysYmd(projected.weekStart, i)
+            ),
             {
               currentCtl: latestMetric?.ctl ?? null,
               loadPerHour,
@@ -553,15 +577,14 @@ async function WeekTab({
               // docstring).
               effectiveTarget: projected.effectiveLoad,
             }
-          )
-        : null;
+          )),
+          weekStart: projected.weekStart,
+        }
+      : null;
 
     intake = {
-      thisWeek: { ...thisWeekData, weekStart: "" },
-      nextWeek:
-        nextWeekData && nextWeekStart
-          ? { ...nextWeekData, weekStart: nextWeekStart }
-          : null,
+      thisWeek: thisWeekData ? { ...thisWeekData, weekStart: "" } : null,
+      nextWeek: nextWeekData,
     };
   }
 
@@ -710,7 +733,7 @@ async function WeekTab({
 
           {intake && (
             <section className="mb-6">
-              {intake.nextWeek ? (
+              {intake.thisWeek && intake.nextWeek ? (
                 <AvailabilityWeekSwitcher
                   thisWeek={intake.thisWeek}
                   nextWeek={intake.nextWeek}
@@ -718,7 +741,25 @@ async function WeekTab({
                   sports={constraints.sports ?? ["Bike"]}
                   action={submitAvailability}
                 />
-              ) : (
+              ) : intake.nextWeek ? (
+                // Monday has completed, so this week's half is frozen — but
+                // a projection exists, so next week must still be enterable
+                // (the fix this section exists for: the "Set next week's
+                // availability" link above must always land on a real
+                // control, not a page with nothing to activate). No
+                // switcher, no "this week" option — just next week's plain
+                // form, matching the switcher's own next-week heading.
+                <IntakeForm
+                  heading="Next week's availability"
+                  resolved={intake.nextWeek.resolved}
+                  dates={intake.nextWeek.dates}
+                  overrideDates={intake.nextWeek.overrideDates}
+                  verdict={intake.nextWeek.verdict}
+                  sports={constraints.sports ?? ["Bike"]}
+                  action={submitAvailability}
+                  weekStart={intake.nextWeek.weekStart}
+                />
+              ) : intake.thisWeek ? (
                 <IntakeForm
                   resolved={intake.thisWeek.resolved}
                   dates={intake.thisWeek.dates}
@@ -727,7 +768,7 @@ async function WeekTab({
                   sports={constraints.sports ?? ["Bike"]}
                   action={submitAvailability}
                 />
-              )}
+              ) : null}
             </section>
           )}
 
