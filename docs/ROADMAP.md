@@ -630,6 +630,53 @@ duplicated module. Handoff:
 data, on both viewport sizes, with no duplicated figure anywhere on a
 single screen. ✅
 
+## ✅ v0.28 — Race-Driven Volume (Phase 1)
+
+Weekly training hours derived from the event you are training for, instead of
+a number typed once at plan creation. Spec:
+`docs/specs/2026-07-28-race-driven-volume-design.md`. Evidence base and
+per-constant confidence: `docs/specs/2026-07-28-training-volume-evidence.md`.
+
+- [x] **Event demand model**: days, distance and climbing (optionally per
+      stage) priced into riding hours, then `weeklyHours = totalHours /
+    (0.60 × days^0.686)`. Multi-day events price **per day** — riders sleep
+      between stages — and cumulative cross-day fatigue is deliberately not
+      modelled rather than faked.
+- [x] **Bounded by measured history in both directions**: ceiling at 1.3×
+      the rolling 12-week peak (ACWR safe-zone bound), floor at 0.6× it
+      (detraining research). A null ceiling **suppresses** race demand rather
+      than being bypassed — no history means no race-driven target.
+- [x] **Availability is a ceiling, never a target.** `materializeWeek`
+      remains the single place it lowers a week's load, and it says so.
+- [x] **Wired into the weekly rollover**: the skeleton is recomputed each
+      week rather than read from `training_blocks` as authority.
+- [x] **Legibility**: `WeekRationale` surfaces the reasons the engine was
+      already logging; `EventReadiness` gives a ready / on-track / tight /
+      not-realistic verdict judged on volume **and** longest ride. Informs,
+      never blocks.
+- [x] **Race form captures the demand** — days, distance, elevation, per-day
+      stages — and the races list shows what was stored, with an edit path.
+- [x] Migration `0033`: additive only (`races.event_days/distance_km/
+    elevation_m`, new `race_stages`). Existing rows keep today's behaviour.
+
+**Done when:** a logged event moves the prescribed week, bounded by the
+athlete's own history, and the screen explains every number it shows. ✅
+
+**Deliberately deferred to Phase 2** (no plan yet): the workout generator
+caps individual sessions, so a week saturates around 9.8h regardless of
+target. The engine now emits an adjustment when the generated week falls
+short; lifting the cap means the structured-workout-template and
+`fitToBlock` rewrite. **The ACWR ceiling is therefore unreachable in practice
+today — an accident, not a design, and it becomes load-bearing the moment
+those caps are raised.**
+
+**Fast-follows**: a minimum-session-count threshold before trusting a peak as
+a capacity signal (one 40-minute ride in 12 weeks currently yields a
+ceiling-bound 0.87h target, i.e. more evidence can produce a _lower_ number
+than none at all); an FTP sanity floor; a horizon on target-race selection;
+and `EventReadiness` / `RaceChip` can name different races (priority-first vs
+date-first selection).
+
 ## Ongoing — operations track
 
 All items scheduled into **v0.17 — Good Self-Hosted Citizen** by the v0.9.6
