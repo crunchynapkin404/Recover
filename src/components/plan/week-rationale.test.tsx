@@ -38,7 +38,12 @@ describe("WeekRationale", () => {
   it("uses 'a' rather than 'an' for a target that doesn't start with a vowel sound", () => {
     // Finding 3: article()'s "a" branch had zero coverage — every existing
     // test used 11 (or another "an" case), so `article()` could be hardcoded
-    // to always return "an" and still pass all of them.
+    // to always return "an" and still pass all of them. Correction: this
+    // test (6), the existing "an" test (11) and the "an" test below (18) do
+    // NOT cover all of article()'s branches between them — none of 6, 11 or
+    // 18 starts with "8", so `startsWith("8")`'s true case went untested
+    // until the dedicated 8h test further below was added. Don't read these
+    // three as exhaustive.
     const html = renderToString(
       <WeekRationale
         reasons={[]}
@@ -69,6 +74,26 @@ describe("WeekRationale", () => {
       />
     );
     expect(html).toContain("18h planned against an 18h target");
+  });
+
+  it("uses 'an' for an 8h target", () => {
+    // Coverage gap closed: the "a" test above uses 6h and the "an" tests use
+    // 11h and 18h — none of those starts with "8", so `startsWith("8")`'s
+    // true branch (an 8-series target such as 8h, or 80-89h) was exercised
+    // by no test in this file even though article(8) has always correctly
+    // returned "an". Pinned directly here, in its own block, rather than
+    // repurposing an existing fixture.
+    const html = renderToString(
+      <WeekRationale
+        reasons={[]}
+        targetHours={8}
+        plannedHours={8}
+        shortfall={null}
+        raceName={null}
+        source={null}
+      />
+    );
+    expect(html).toContain("8h planned against an 8h target");
   });
 
   it("attributes the shortfall to the race only when source is 'race'", () => {

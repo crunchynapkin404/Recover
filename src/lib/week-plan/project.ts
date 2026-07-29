@@ -198,6 +198,11 @@ export async function projectWeek(
     availabilityHours,
     fallbackHours: constraints.hoursPerWeek,
   });
+  // The hardest single day this athlete's event demands — what a long ride
+  // should build toward. Null when there is no race or no FTP, which keeps
+  // the pre-existing 240-minute bound. Shared by both `periodize` and
+  // `materializeWeek` below so they can't drift onto different values.
+  const queenStageHours = volumeInputs.demand?.queenStageHours ?? null;
 
   const derivedBlocks = periodize(
     plan.weeksTotal,
@@ -205,7 +210,8 @@ export async function projectWeek(
     constraints.daysPerWeek,
     target.hours,
     plan.raceType,
-    constraints.sports
+    constraints.sports,
+    queenStageHours
   );
   // Matched by the requested skeleton week number — the stored week's own
   // skeletonWeek, or the open week's skeletonWeek + 1 for a projection —
@@ -243,6 +249,7 @@ export async function projectWeek(
     hoursPerWeek: hoursForMaterialize(target),
     races,
     currentCtl: ctlNow,
+    queenStageHours,
   });
 
   const overrides = await db.query.availabilityOverrides.findMany({

@@ -283,6 +283,11 @@ export async function rolloverWeekPlan(
     availabilityHours,
     fallbackHours: constraints.hoursPerWeek,
   });
+  // The hardest single day this athlete's event demands — what a long ride
+  // should build toward. Null when there is no race or no FTP, which keeps
+  // the pre-existing 240-minute bound. Shared by both `periodize` and
+  // `materializeWeek` below so they can't drift onto different values.
+  const queenStageHours = volumeInputs.demand?.queenStageHours ?? null;
 
   // Recomputed fresh, never read as authority — a stored target is exactly
   // how `hoursPerWeek` went stale in the first place.
@@ -292,7 +297,8 @@ export async function rolloverWeekPlan(
     constraints.daysPerWeek,
     target.hours,
     plan.raceType,
-    constraints.sports
+    constraints.sports,
+    queenStageHours
   );
   const derived =
     derivedBlocks.find((b) => b.weekNumber === plan.currentWeek) ??
@@ -319,6 +325,7 @@ export async function rolloverWeekPlan(
     hoursPerWeek: hoursForMaterialize(target),
     races,
     currentCtl: ctlNow,
+    queenStageHours,
   });
 
   // 4. Persist.

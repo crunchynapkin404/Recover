@@ -718,6 +718,49 @@ rung that adds training back once availability opens up mid-week;
 reconciling a week's plan against load that arrives after it closed; and the
 stale-open-week / multiple-active-plan cleanup. See the handoff doc above.
 
+## ✅ v0.30 — Cycling Session Distribution
+
+The weekly hours target has been carefully derived since v0.28 — race demand
+bounded by the ACWR ceiling, floored at maintenance — and then the session
+generator threw away roughly 30% of it against constants that arrived in a
+single 2026-07-15 commit with no rationale, no citation and no test. Spec:
+`docs/specs/2026-07-29-cycling-session-distribution-design.md`.
+
+- [x] **Event-relative long-ride bound**: the long ride's cap now derives
+      from `queenStageHours` — the hardest single day the athlete's own
+      event demands — clamped to a documented 120–360 minute range,
+      replacing an unsourced flat 240. No target race or no FTP keeps the
+      old 240-minute behaviour exactly, the same "no evidence, no invented
+      bound" principle `weeklyTargetHours` already applies to its own
+      ceiling.
+- [x] **Clamped minutes are redistributed, not dropped**:
+      `distributeRemainder` pushes whatever a bound removes onto sessions
+      that still have headroom. Intervals and Tempo are excluded from
+      this — stretching an intensity session to absorb volume changes what
+      the session is.
+- [x] **The fix reaches the materialized week, not just the skeleton**:
+      `materializeWeek` calls the generator independently, so
+      `queenStageHours` had to thread there too — without that the athlete
+      would still have seen 240.
+- [x] **The next-week preview states what it planned against its target**,
+      matching the line `WeekRationale` already renders for the open week.
+- [x] **Verified end-to-end** on a real page render: "11.7h planned against
+      a 11.8h target," where the same athlete previously saw a 30% gap.
+
+**Done when:** a real 12.5h target produces a real ~12.5h week for an
+athlete with a target race. For one without a race, only the long-ride
+bound itself is unchanged — still the old 240-minute cap — while
+redistribution still schedules more of that athlete's target than before,
+since it applies whether or not a race exists. ✅
+
+**Deliberately not touched:** `generateRunningWorkouts` and
+`generateTriathlonWorkouts` carry the identical discard-the-remainder
+defect. Running's correct rule is athlete-relative (exceeding your own
+recent longest run by 10–30% raises injury risk 64% in a study of 5,200+
+runners) rather than event-relative, so reusing this release's fix across
+sports would repeat the mistake that produced the original bug. See
+`docs/plans/2026-07-29-HANDOFF-next-week-preview.md`.
+
 ## Ongoing — operations track
 
 All items scheduled into **v0.17 — Good Self-Hosted Citizen** by the v0.9.6

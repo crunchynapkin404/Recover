@@ -306,19 +306,34 @@ describe("materializeWeek — generator cap explained (final-review Finding 2)",
   };
 
   it("logs an adjustment explaining the cap when the target exceeds what the generator can express", () => {
+    // Recalibrated for the cycling-distribution fix (training-plan.ts): the
+    // no-demand long-ride/filler bound rose from a hardcoded 90min to
+    // longRideBoundMins(null) = 240min, and the remainder that used to be
+    // discarded is now redistributed onto whatever hasn't hit its bound. A
+    // 20h target here no longer saturates the generator (5 sessions, build,
+    // no queenStageHours: totalMins 1200 -> Long min(456,240)=240, Intervals
+    // round(1200*0.18)=216, easyMins round(744/3)=248 clamped to 240 x3=720
+    // -> scheduled 1176 = 19.6h, only 2% short of 20h — under the 10%
+    // GENERATOR_CAP_SHORTFALL_PCT threshold, so no adjustment fires).
+    // 40h still legitimately saturates: totalMins 2400 -> Long
+    // min(912,240)=240, Intervals round(2400*0.18)=432, easyMins
+    // round(1728/3)=576 clamped to 240 x3=720 -> scheduled 1392 = 23.2h
+    // (42% short) because Long and all 3 Endurance rides sit at their
+    // 240min bound with nowhere left to absorb the remainder — a real "the
+    // generator cannot express this", not a discarded remainder.
     const r = materializeWeek({
       ...CAP_BASE,
-      hoursPerWeek: 20,
-      // Ample availability — 27h across the week — so the shortfall comes
+      hoursPerWeek: 40,
+      // Ample availability — 54h across the week — so the shortfall comes
       // from the generator's own duration caps, not a lack of time to ride.
-      availableBlocksPerDay: blocksPerDay([180, 240, 180, 240, 180, 300, 300]),
+      availableBlocksPerDay: blocksPerDay([360, 480, 360, 480, 360, 600, 600]),
     });
     const capAdjustment = r.adjustments.find((a) =>
       a.reason.includes("session limits cap")
     );
     expect(capAdjustment).toBeDefined();
     expect(capAdjustment!.trigger).toBe("weekly_rollover");
-    expect(capAdjustment!.reason).toContain("20.0h target");
+    expect(capAdjustment!.reason).toContain("40.0h target");
   });
 
   it("logs no cap adjustment when the target is within what the generator can produce", () => {
@@ -330,6 +345,81 @@ describe("materializeWeek — generator cap explained (final-review Finding 2)",
     expect(
       r.adjustments.some((a) => a.reason.includes("session limits cap"))
     ).toBe(false);
+  });
+});
+
+describe("materializeWeek — event demand reaches the materialized week (Task 3 gap fix)", () => {
+  // Task 3 threaded queenStageHours through periodize, but periodize's own
+  // Block.workouts are discarded by project.ts/service.ts — only
+  // materializeWeek's OWN generateWorkouts call (materialize.ts) produces
+  // what actually lands in the week, and it never received queenStageHours.
+  // This proves the event-relative long-ride bound now reaches a
+  // materialized week rather than stopping at the (unused) skeleton.
+  //
+  // prevWeek: null and recentBands: [] make effectiveWeekLoad return the
+  // skeleton target unchanged (400), so neededHours = hoursPerWeek *
+  // (400/400) = hoursPerWeek exactly. Availability is 400min/day × 7 days =
+  // 2800min (46.7h) — far above the 13h (780min) target and above the
+  // largest single session (296min) — so effectiveHours = hoursPerWeek = 13
+  // and nothing here is limited by block-fitting or availability.
+  //
+  // generateCyclingWorkouts(sessions=5, weekHours=13, phase="build",
+  // queenStageHours), totalMins = round(13 * 60) = 780:
+  //   Long:            round(780*0.38) = 296, then min(296, longBound)
+  //   Intervals:       round(780*0.18) = 140                (same either way)
+  //   3 Endurance fillers: allocated = Long+140; easyMins =
+  //     round((780-allocated)/3); filler = max(30, min(easyMins, longBound))
+  //   remainder = 780 - (Long+Intervals+3*filler), redistributed across
+  //     Long+fillers up to their own bound (Intervals excluded).
+  //
+  // With queenStageHours 4.897963084361944 (the Dolomites value):
+  //   longBound = round(4.897963084361944*60) = 294 (between
+  //   MIN_LONG_BOUND_MINS=120 and ABSOLUTE_LONG_BOUND_MINS=360, unclamped).
+  //   Long = min(296, 294) = 294 — already at its own bound, so it has no
+  //   headroom left; the 1min remainder (780 - (294+140+115+115+115) = 1)
+  //   goes to a filler instead, not to Long.
+  //
+  // Without queenStageHours: longBound = NO_DEMAND_LONG_BOUND_MINS = 240.
+  //   Long = min(296, 240) = 240 — same reasoning, remainder goes to a
+  //   filler, not to Long.
+  //
+  // 294 > 240: the event-relative bound now reaches the materialized week.
+  const BASE = {
+    weekStart: "2026-09-07",
+    skeleton: {
+      weekNumber: 5,
+      phase: "build" as const,
+      targetLoadTotal: 400,
+      targetSessions: 5,
+    },
+    prevWeek: null,
+    recentBands: [] as import("./types").Band[],
+    raceType: "century",
+    sports: ["Bike"],
+    hoursPerWeek: 13,
+    // Generous, uniform availability: block-fitting is never the limiter.
+    availableBlocksPerDay: blocksPerDay([400, 400, 400, 400, 400, 400, 400]),
+  };
+
+  function longRideMins(r: ReturnType<typeof materializeWeek>): number {
+    const day = r.week.days.find((d) =>
+      d.workouts.some((w) => w.type === "Long")
+    )!;
+    return day.workouts.find((w) => w.type === "Long")!.durationMins;
+  }
+
+  it("makes the long ride longer when the event's queen stage demands more than the no-demand fallback", () => {
+    const withDemand = materializeWeek({
+      ...BASE,
+      queenStageHours: 4.897963084361944,
+    });
+    const withoutDemand = materializeWeek(BASE);
+
+    expect(longRideMins(withDemand)).toBe(294);
+    expect(longRideMins(withoutDemand)).toBe(240);
+    expect(longRideMins(withDemand)).toBeGreaterThan(
+      longRideMins(withoutDemand)
+    );
   });
 });
 
