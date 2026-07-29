@@ -14,6 +14,7 @@ import {
 } from "@/lib/week-plan/service";
 import { syncDateOverrides } from "@/lib/availability/sync-overrides";
 import { parseDayBlocks } from "@/lib/availability/parse-day-blocks";
+import { isMondayYmd } from "@/lib/availability/validate-week-start";
 import {
   assembleForecastInputs,
   createRace,
@@ -66,16 +67,41 @@ export async function submitAvailability(
   }
   const blocksPerDay = parsed as AvailabilityBlock[][];
 
-  await syncDateOverrides(user.id, blocksPerDay);
+  // `weekStart`, present only from the next-week preview's editor, targets a
+  // FUTURE week: one with no materialised week_plans row to replan. This is
+  // a "use server" export — a directly reachable RPC endpoint, not just
+  // whatever our own UI sends — so anything that isn't a genuine Monday is
+  // refused outright rather than trusted to name a real week.
+  const weekStartField = formData.get("weekStart");
+  const requestedWeekStart =
+    typeof weekStartField === "string" && weekStartField !== ""
+      ? weekStartField
+      : null;
+  if (requestedWeekStart !== null && !isMondayYmd(requestedWeekStart)) {
+    return {
+      message: "That doesn't look like a Monday. Nothing was changed.",
+    };
+  }
+  const target = requestedWeekStart;
 
-  const result = await applyAvailability(user.id, blocksPerDay);
+  await syncDateOverrides(user.id, blocksPerDay, target ?? undefined);
+
+  // Only the CURRENT week has a materialised plan to replan. A future week
+  // has no week_plans row — the preview recomputes from these overrides on
+  // its next render, and Monday's rollover reads them for real.
+  if (!target) {
+    const result = await applyAvailability(user.id, blocksPerDay);
+    revalidatePlan();
+    return {
+      message:
+        result === "applied"
+          ? "Week updated around your availability."
+          : "No open week to update yet.",
+    };
+  }
+
   revalidatePlan();
-  return {
-    message:
-      result === "applied"
-        ? "Week updated around your availability."
-        : "No open week to update yet.",
-  };
+  return { message: "Next week updated around your availability." };
 }
 
 // ── Standard week + date overrides ────────────────────────────────────────
