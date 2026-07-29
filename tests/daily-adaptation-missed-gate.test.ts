@@ -227,4 +227,91 @@ describe.skipIf(!hasDb)("runDailyAdaptation missed gate", () => {
     const adjustments = await listAdjustments(week!.id);
     expect(adjustments.some((a) => a.trigger === "missed_workout")).toBe(true);
   });
+
+  /**
+   * Final-review Finding 3: on auth_expired, intervals-sync.ts sets status
+   * "error", and ensureJobsForConnections (scheduler.ts) only schedules
+   * "active" connections — so lastSyncAt freezes for good and, without a
+   * bound, missed-workout judgement would be silently disabled forever.
+   * A dead connection must settle immediately, independent of how recent
+   * (or stale) its last successful sync happened to be.
+   */
+  it("marks yesterday missed once the connection's status is no longer active, regardless of lastSyncAt", async () => {
+    await seedWeek();
+    // Same lastSyncAt as the "no sync since" case above — on its own this
+    // would NOT be settled (it's before dayEnd). It's the status, not the
+    // timestamp, that must settle it here.
+    await db.insert(schema.connections).values({
+      userId: USER,
+      provider: "intervals_icu",
+      encryptedAccessToken: "x",
+      externalAthleteId: "i1",
+      status: "error",
+      lastSyncAt: new Date("2026-07-20T08:00:00Z"),
+    });
+
+    expect(await runDailyAdaptation(USER, NOW)).toBe("adapted");
+
+    const week = await getOpenWeekPlan(USER);
+    const ySlot = week!.days.find((d) => d.date === YESTERDAY)!;
+    expect(ySlot.status).toBe("missed");
+    expect(ySlot.workouts).toHaveLength(0);
+
+    const adjustments = await listAdjustments(week!.id);
+    expect(adjustments.some((a) => a.trigger === "missed_workout")).toBe(true);
+  });
+
+  /**
+   * A connection can also stall without ever flipping out of "active" — any
+   * failure OTHER than auth_expired leaves status "active" and can keep
+   * failing indefinitely (intervals-sync.ts's catch block). The staleness
+   * bound catches that case even though the status check does not.
+   */
+  it("marks yesterday missed once an active connection has gone stale beyond the bound", async () => {
+    await seedWeek();
+    const fourDaysAgo = new Date(NOW.getTime() - 4 * 24 * 60 * 60 * 1000);
+    await db.insert(schema.connections).values({
+      userId: USER,
+      provider: "intervals_icu",
+      encryptedAccessToken: "x",
+      externalAthleteId: "i1",
+      status: "active",
+      lastSyncAt: fourDaysAgo,
+    });
+
+    expect(await runDailyAdaptation(USER, NOW)).toBe("adapted");
+
+    const week = await getOpenWeekPlan(USER);
+    const ySlot = week!.days.find((d) => d.date === YESTERDAY)!;
+    expect(ySlot.status).toBe("missed");
+    expect(ySlot.workouts).toHaveLength(0);
+
+    const adjustments = await listAdjustments(week!.id);
+    expect(adjustments.some((a) => a.trigger === "missed_workout")).toBe(true);
+  });
+
+  it("does NOT mark yesterday missed for an active connection that is merely a couple of days behind", async () => {
+    await seedWeek();
+    // Within the staleness bound and before dayEnd — an ordinary short sync
+    // gap (a weekend, a slow provider) must still wait, not judge.
+    const twoDaysAgo = new Date(NOW.getTime() - 2 * 24 * 60 * 60 * 1000);
+    await db.insert(schema.connections).values({
+      userId: USER,
+      provider: "intervals_icu",
+      encryptedAccessToken: "x",
+      externalAthleteId: "i1",
+      status: "active",
+      lastSyncAt: twoDaysAgo,
+    });
+
+    expect(await runDailyAdaptation(USER, NOW)).toBe("skipped");
+
+    const week = await getOpenWeekPlan(USER);
+    const ySlot = week!.days.find((d) => d.date === YESTERDAY)!;
+    expect(ySlot.status).toBe("planned");
+    expect(ySlot.workouts).toHaveLength(1);
+
+    const adjustments = await listAdjustments(week!.id);
+    expect(adjustments.some((a) => a.trigger === "missed_workout")).toBe(false);
+  });
 });

@@ -409,9 +409,32 @@ export async function runDailyAdaptation(
     ),
   });
   const dayEnd = new Date(today + "T00:00:00"); // local midnight = end of yesterday
+  // Bound the wait: `lastSyncAt` is written only on a SUCCESSFUL sync
+  // (intervals-sync.ts), and on auth_expired it sets status "error" — after
+  // which ensureJobsForConnections (scheduler.ts) only schedules "active"
+  // connections, so nothing ever syncs again and lastSyncAt freezes for
+  // good. Left unbounded, that reads as "wait forever": missed-workout
+  // judgement silently disables itself the moment a token expires, with no
+  // signal to the athlete or anyone else. A non-auth_expired failure,
+  // though, leaves status "active" (same file) and can keep failing
+  // indefinitely without ever flipping — so status alone doesn't cover
+  // every stall. Two independent bounds, either one enough to call a
+  // connection done waiting for: it will provably never sync again
+  // (status !== "active"), or it has gone quiet long enough that waiting
+  // longer stops being "the ride probably hasn't landed yet" and starts
+  // being "something is wrong" — a small number of days, not hours, so a
+  // normal overnight/weekend sync gap never trips it.
+  const ACTIVITY_SYNC_STALE_DAYS = 3;
+  const staleCutoff = new Date(now);
+  staleCutoff.setDate(staleCutoff.getDate() - ACTIVITY_SYNC_STALE_DAYS);
   const activitiesSettled =
     activityConns.length === 0 ||
-    activityConns.some((c) => c.lastSyncAt != null && c.lastSyncAt >= dayEnd);
+    activityConns.some(
+      (c) =>
+        (c.lastSyncAt != null && c.lastSyncAt >= dayEnd) ||
+        c.status !== "active" ||
+        (c.lastSyncAt != null && c.lastSyncAt < staleCutoff)
+    );
 
   if (
     ySlotWorkout &&
