@@ -47,6 +47,115 @@ export function withPurpose<
   return { ...w, purpose, minEffectiveMins: PURPOSE_FLOORS[purpose] };
 }
 
+/**
+ * How long a single ride may be, in minutes.
+ *
+ * The old code capped the long ride at a flat 240 and every endurance ride
+ * at 90 — numbers that arrived with this file on 2026-07-15 carrying no
+ * rationale, no citation and no test. They are the reason a 12.5h target
+ * produced a 9.3h week.
+ *
+ * Cycling has no single-session spike rule. Running does — exceeding your
+ * own recent longest run by 10-30% raises injury risk 64% in a study of
+ * 5,200+ runners — but that is impact loading, and a bike is not a
+ * treadmill. In cycling, overuse injury follows CUMULATIVE load outrunning
+ * tissue repair, which `weeklyTargetHours` already bounds upstream via the
+ * ACWR ceiling and the ramp clamp. The weekly number handed to this
+ * generator is therefore already the safe one.
+ *
+ * What remains is: how long should ONE ride be? The evidence is
+ * event-relative — "for events lasting 4-5 hours, a 4-hour long ride each
+ * week is sufficient", endurance rides "longer than two hours and shorter
+ * than six" for a moderately experienced rider. So bound the long ride by
+ * the hardest single day the athlete's event actually demands.
+ */
+
+/**
+ * Floor. A criterium's queen stage is under an hour; without this the long
+ * ride would collapse below a useful endurance stimulus.
+ */
+export const MIN_LONG_BOUND_MINS = 120;
+
+/** Ceiling: "shorter than six hours", regardless of how long the event is. */
+export const ABSOLUTE_LONG_BOUND_MINS = 360;
+
+/** Today's floor for easy rides, retained — it makes no new claim. */
+export const MIN_EFFECTIVE_EASY_MINS = 30;
+
+/**
+ * Today's cap, retained DELIBERATELY for the no-demand path. Where the
+ * athlete's event gives us evidence we use it; where there is none we keep
+ * today's behaviour rather than inventing a bound. `weeklyTargetHours`
+ * makes the same choice for its own null ceiling, on the grounds that
+ * `min(demand, ceiling ?? Infinity)` "would hand a brand-new athlete
+ * ~11h/week on no evidence at all".
+ */
+export const NO_DEMAND_LONG_BOUND_MINS = 240;
+
+/**
+ * `queenStageHours` comes from `EventDemand` — "the hardest single day;
+ * equals `dailyRateHours` when stages are unknown". When
+ * `demand.queenStageKnown` is false it is an average across event days, so
+ * for a mountain tour the real queen stage is harder and this bound is
+ * conservative.
+ */
+export function longRideBoundMins(queenStageHours: number | null): number {
+  if (
+    queenStageHours == null ||
+    !Number.isFinite(queenStageHours) ||
+    queenStageHours <= 0
+  ) {
+    return NO_DEMAND_LONG_BOUND_MINS;
+  }
+  return Math.min(
+    ABSOLUTE_LONG_BOUND_MINS,
+    Math.max(MIN_LONG_BOUND_MINS, Math.round(queenStageHours * 60))
+  );
+}
+
+/**
+ * Push `remainder` minutes onto sessions that still have headroom.
+ *
+ * The caps were only half the defect. The other half was that whatever a
+ * cap removed was simply DISCARDED — the week silently came in under its
+ * own target. Here a session that reaches its bound drops out and the rest
+ * absorb what is left, so minutes move rather than evaporate.
+ *
+ * Even split, repeated: each pass gives every session with room an equal
+ * share (at least 1, so the loop always makes progress), capped at that
+ * session's own bound. Terminates when the remainder is gone or nothing
+ * has headroom — the latter is a real "these days cannot absorb this".
+ *
+ * `current` and `bounds` are parallel arrays; the return value is a new
+ * array, same length, same order.
+ */
+export function distributeRemainder(
+  current: number[],
+  bounds: number[],
+  remainder: number
+): number[] {
+  const out = [...current];
+  let left = Math.max(0, Math.round(remainder));
+
+  while (left > 0) {
+    const open: number[] = [];
+    for (let i = 0; i < out.length; i++) {
+      if (out[i] < bounds[i]) open.push(i);
+    }
+    if (open.length === 0) break;
+
+    const share = Math.max(1, Math.floor(left / open.length));
+    for (const i of open) {
+      if (left === 0) break;
+      const add = Math.min(share, bounds[i] - out[i], left);
+      out[i] += add;
+      left -= add;
+    }
+  }
+
+  return out;
+}
+
 interface Block {
   weekNumber: number;
   phase: "base" | "build" | "peak" | "taper" | "recovery";

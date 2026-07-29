@@ -6,6 +6,8 @@ import {
   withPurpose,
   PURPOSE_BY_TYPE,
   generateTrainingPlan,
+  longRideBoundMins,
+  distributeRemainder,
 } from "./training-plan";
 
 // requires Postgres; skips without DATABASE_URL.
@@ -57,6 +59,61 @@ describe("workout purpose", () => {
       expect(w.purpose).toBeDefined();
       expect(w.minEffectiveMins).toBeGreaterThan(0);
     }
+  });
+});
+
+describe("longRideBoundMins", () => {
+  it("falls back to today's cap when there is no event demand", () => {
+    // No race, or no FTP -> eventDemand returns null. Keep today's
+    // behaviour rather than inventing a bound on no evidence.
+    expect(longRideBoundMins(null)).toBe(240);
+  });
+
+  it("uses the event's hardest day", () => {
+    // The Ride - Dolomites 2026: queenStageHours 4.897963084361944
+    expect(longRideBoundMins(4.897963084361944)).toBe(294);
+  });
+
+  it("floors a very short event at a useful endurance stimulus", () => {
+    // A criterium's queen stage is under an hour; a 30-minute "long ride"
+    // is not an endurance session.
+    expect(longRideBoundMins(0.5)).toBe(120);
+  });
+
+  it("never exceeds the absolute six-hour bound", () => {
+    expect(longRideBoundMins(9)).toBe(360);
+  });
+
+  it("treats nonsense demand as no demand", () => {
+    expect(longRideBoundMins(0)).toBe(240);
+    expect(longRideBoundMins(-1)).toBe(240);
+    expect(longRideBoundMins(Number.NaN)).toBe(240);
+  });
+});
+
+describe("distributeRemainder", () => {
+  it("splits the remainder evenly when everyone has headroom", () => {
+    // The live case: two 90-minute endurance rides clamped from 197.
+    expect(distributeRemainder([90, 90], [294, 294], 214)).toEqual([197, 197]);
+  });
+
+  it("spills onto sessions with room when one hits its bound", () => {
+    // 0 can take only 20 more; the other 30 must land on 1, not vanish.
+    expect(distributeRemainder([100, 50], [120, 300], 100)).toEqual([120, 130]);
+  });
+
+  it("stops when nothing has headroom, rather than looping", () => {
+    expect(distributeRemainder([100], [100], 50)).toEqual([100]);
+  });
+
+  it("is a no-op for a zero or negative remainder", () => {
+    expect(distributeRemainder([60, 60], [200, 200], 0)).toEqual([60, 60]);
+    expect(distributeRemainder([60, 60], [200, 200], -10)).toEqual([60, 60]);
+  });
+
+  it("never exceeds any bound", () => {
+    const out = distributeRemainder([10, 10, 10], [20, 20, 20], 1000);
+    expect(out).toEqual([20, 20, 20]);
   });
 });
 
