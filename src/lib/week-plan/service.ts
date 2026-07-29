@@ -523,7 +523,20 @@ export async function runDailyAdaptation(
 
   if (matched) {
     const idx = result.week.days.findIndex((d) => d.date === yesterdayYmd);
-    if (idx !== -1) {
+    // Only book this activity once. Without this guard, a rest/race day
+    // with a synced activity re-applies recordUnplannedLoad on EVERY
+    // runDailyAdaptation call — including the hourly Apple Health push —
+    // because yesterdayCompleted is null for rest/race days (there is
+    // nothing to mark completed/missed), so nothing else here changes and
+    // "adapted" never turns into "skipped". A real run compounded
+    // unplannedLoad 100/200/300/400/500/600 across six invocations, which
+    // then fed weekActuals().actualLoad and inflated the next week's
+    // ramp-clamp target. `activities.findFirst` can only ever return one
+    // row for this window, so once `activityId` already matches what we
+    // just matched, there is nothing new to add — but a DIFFERENT activity
+    // landing on the same day (a second bonus ride) is real load and must
+    // still be added.
+    if (idx !== -1 && result.week.days[idx].activityId !== matched.id) {
       result.week.days[idx] = {
         ...recordUnplannedLoad(result.week.days[idx], matched.load ?? 0),
         activityId: matched.id,

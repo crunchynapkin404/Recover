@@ -671,6 +671,77 @@ describe.skipIf(!hasDb)(
       expect(yesterdaySlot.activityId).toBe(activity.id);
     });
 
+    /**
+     * Final-review Finding 1: a rest/race day never sets yesterdayCompleted
+     * (there is nothing planned to judge complete/missed), so nothing else
+     * runDailyAdaptation does changes on a second run against the SAME
+     * activity — the guard on `activityId` is what has to stop it. Without
+     * it, a live run compounded unplannedLoad 100/200/300/400/500/600
+     * across six identical hourly invocations and "adapted" never turned
+     * into "skipped", so `week_plans` kept getting rewritten on every Apple
+     * Health push — the exact write loop this hotfix exists to close.
+     */
+    it("does not re-book the same rest-day activity on a second run — unplannedLoad stays put and the run reports skipped", async () => {
+      const days = DATES.map((d) => emptyDay(d));
+      await seedWeek(days);
+
+      await db.insert(schema.activities).values({
+        userId: TEST_USER,
+        provider: "manual",
+        externalId: `task10-idempotent-${Date.now()}`,
+        sport: "Run",
+        startDate: new Date(YESTERDAY + "T09:00:00"),
+        load: 100,
+      });
+
+      expect(await runDailyAdaptation(TEST_USER, NOW)).toBe("adapted");
+      const afterFirst = await getOpenWeekPlan(TEST_USER);
+      const slotAfterFirst = afterFirst!.days.find(
+        (d) => d.date === YESTERDAY
+      )!;
+      expect(slotAfterFirst.unplannedLoad).toBe(100);
+
+      // Five more runs, exactly as an hourly Apple Health push would drive.
+      for (let i = 0; i < 5; i++) {
+        expect(await runDailyAdaptation(TEST_USER, NOW)).toBe("skipped");
+      }
+
+      const afterMany = await getOpenWeekPlan(TEST_USER);
+      const slotAfterMany = afterMany!.days.find((d) => d.date === YESTERDAY)!;
+      expect(slotAfterMany.unplannedLoad).toBe(100);
+    });
+
+    it("still books a SECOND, different activity landing on the same rest day as additional unplanned load", async () => {
+      const days = DATES.map((d) => emptyDay(d));
+      await seedWeek(days);
+
+      await db.insert(schema.activities).values({
+        userId: TEST_USER,
+        provider: "manual",
+        externalId: `task10-first-${Date.now()}`,
+        sport: "Run",
+        startDate: new Date(YESTERDAY + "T09:00:00"),
+        load: 40,
+      });
+      expect(await runDailyAdaptation(TEST_USER, NOW)).toBe("adapted");
+
+      // A genuinely different activity on the same day — a second bonus
+      // ride — must still add, not be swallowed by the same-activity guard.
+      await db.insert(schema.activities).values({
+        userId: TEST_USER,
+        provider: "manual",
+        externalId: `task10-second-${Date.now()}`,
+        sport: "Run",
+        startDate: new Date(YESTERDAY + "T10:00:00"),
+        load: 20,
+      });
+      expect(await runDailyAdaptation(TEST_USER, NOW)).toBe("adapted");
+
+      const week = await getOpenWeekPlan(TEST_USER);
+      const yesterdaySlot = week!.days.find((d) => d.date === YESTERDAY)!;
+      expect(yesterdaySlot.unplannedLoad).toBe(60);
+    });
+
     it("leaves every other day byte-identical when a rest-day activity is booked as unplanned load", async () => {
       const days = DATES.map((d) => emptyDay(d));
       // A real planned session elsewhere in the week — the invariant this
