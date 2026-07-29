@@ -1,32 +1,62 @@
 "use client";
 
 import { useState } from "react";
+import type { AvailabilityBlock } from "@/lib/availability/types";
+import type { Verdict } from "@/lib/week-plan/ctl-projection";
+import { IntakeForm, type IntakeState } from "./intake-form";
 
 export type AvailabilityWeekMode = "this" | "next";
 
+/**
+ * Everything `IntakeForm` needs to edit one week, as plain serializable
+ * data — safe to build on the server and pass across the Server -> Client
+ * boundary. `weekStart` matches `submitAvailability`'s presence-based
+ * branch exactly: `""` for the current open week (replans exactly as
+ * before), a real Monday for a future week (writes overrides only, never
+ * replans — see `src/app/plan/actions.ts`).
+ */
+export interface WeekIntake {
+  /** Resolved blocks per day, Monday first. */
+  resolved: AvailabilityBlock[][];
+  /** The dates of this week, Monday first. */
+  dates: string[];
+  /** Which of those dates are pinned by an override. */
+  overrideDates: string[];
+  verdict: Verdict;
+  weekStart: string;
+}
+
 interface Props {
+  /** This week's data. Its `weekStart` must be `""`. */
+  thisWeek: WeekIntake;
   /**
-   * Next Monday's date (YYYY-MM-DD), computed server-side with the repo's
-   * `addDaysYmd` off `week.weekStart`. Never derive this from the client's
-   * own clock — its timezone is not the server's, and this repo has already
-   * shipped one bug from that exact mistake.
+   * Next week's data — a real projection (Task 3's `projectWeek`), not a
+   * copy of this week's. Its `weekStart` must be next Monday's date. The
+   * caller (`src/app/train/page.tsx`) only renders this component at all
+   * when `projectWeek` succeeded; when it returns `null` (no active plan to
+   * project from), the page falls back to a bare `IntakeForm` with no
+   * switcher, per the spec's edge-case table.
    */
-  nextWeekStart: string;
+  nextWeek: WeekIntake;
   /**
    * Starting state. Defaults to "this week". `?availability=next` on a
-   * fresh page load should be threaded in as `"next"` so the next-week
-   * preview (a later piece of work) can link straight into this state
-   * without duplicating the control.
+   * fresh page load is threaded in as `"next"` so the next-week preview can
+   * link straight into this state without duplicating the control.
    */
   initialMode?: AvailabilityWeekMode;
+  sports: string[];
   /**
-   * Render prop rather than a plain child: the wrapped form is the one that
-   * owns the `<form>` element, so it is the one that must place the hidden
-   * `weekStart` input as its own descendant for the browser to submit it.
-   * This also keeps the switcher itself free of the form's own dependencies.
+   * `submitAvailability`, a `"use server"` Server Action. This is the ONLY
+   * function-valued prop this component (or its caller) may pass — Server
+   * Actions are specially serialized by Next.js across the RSC boundary;
+   * a plain closure is not. See `availability-week-switcher.test.tsx`'s
+   * compile-time check for what enforces that nothing else here becomes
+   * function-valued by accident.
    */
-  children: (weekStart: string) => React.ReactNode;
+  action: (prev: IntakeState, formData: FormData) => Promise<IntakeState>;
 }
+
+export type { Props as AvailabilityWeekSwitcherProps };
 
 const OPTIONS: { mode: AvailabilityWeekMode; label: string }[] = [
   { mode: "this", label: "This week" },
@@ -35,25 +65,40 @@ const OPTIONS: { mode: AvailabilityWeekMode; label: string }[] = [
 
 /**
  * `This week | Next week` control for the availability form (next-week
- * preview). Local component state, not a navigation: switching modes
- * re-renders the wrapped form with a new `weekStart` prop but never
- * re-mounts it, so any half-entered day edits inside it ride along
- * untouched — the same guarantee a save-on-switch or a "discard changes?"
- * warning would give, without needing either.
+ * preview). Renders `IntakeForm` itself — twice, once per week, both
+ * always mounted — rather than taking a render-prop `children`. A render
+ * prop is a plain closure; the only place this component is used
+ * (`src/app/train/page.tsx`) is a Server Component with no `"use client"`,
+ * and a closure authored there cannot cross into this `"use client"`
+ * module. Everything this component takes instead is plain data, except
+ * `action`, which Next.js already knows how to serialize specially.
  *
- * The `weekStart` value handed to the wrapped form matches
- * `submitAvailability`'s presence-based branch exactly: empty string for
- * "this week" (the current open week — replans exactly as before), the
- * next Monday's date for "next week" (a future week — overrides are
- * written and nothing is replanned).
+ * **Why two mounted `IntakeForm`s, toggled with the `hidden` attribute,
+ * rather than one instance whose props change:** `IntakeForm` resyncs its
+ * own in-progress `week` state whenever its `resolved` prop changes BY
+ * VALUE (see its `serverWeek`/`syncedWeek` effect) — that resync exists so
+ * a server-confirmed change (e.g. unpinning a day) replaces stale local
+ * state. But `thisWeek.resolved` and `nextWeek.resolved` are genuinely
+ * different weeks' data, so swapping one `IntakeForm` between them would
+ * fire that same resync on every mode toggle and silently discard whatever
+ * the athlete had half-entered for the week just switched away from — the
+ * exact bug this component exists to not have. Mounting one `IntakeForm`
+ * per week sidesteps it entirely: each instance's `resolved` prop is
+ * constant across mode toggles (it only ever changes on a genuine server
+ * re-render with new data, which is what that resync is actually for), so
+ * each instance's local edits simply survive being hidden and shown again.
+ * `hidden` (not conditional rendering) is what keeps both instances
+ * mounted; the day list beneath a `hidden` element also isn't in the tab
+ * order or accessibility tree, so the inactive week doesn't intrude.
  */
 export function AvailabilityWeekSwitcher({
-  nextWeekStart,
+  thisWeek,
+  nextWeek,
   initialMode = "this",
-  children,
+  sports,
+  action,
 }: Props) {
   const [mode, setMode] = useState<AvailabilityWeekMode>(initialMode);
-  const weekStart = mode === "next" ? nextWeekStart : "";
 
   return (
     <div>
@@ -78,7 +123,31 @@ export function AvailabilityWeekSwitcher({
           </button>
         ))}
       </div>
-      {children(weekStart)}
+
+      <div hidden={mode !== "this"}>
+        <IntakeForm
+          heading="This week's availability"
+          resolved={thisWeek.resolved}
+          dates={thisWeek.dates}
+          overrideDates={thisWeek.overrideDates}
+          verdict={thisWeek.verdict}
+          sports={sports}
+          action={action}
+          weekStart={thisWeek.weekStart}
+        />
+      </div>
+      <div hidden={mode !== "next"}>
+        <IntakeForm
+          heading="Next week's availability"
+          resolved={nextWeek.resolved}
+          dates={nextWeek.dates}
+          overrideDates={nextWeek.overrideDates}
+          verdict={nextWeek.verdict}
+          sports={sports}
+          action={action}
+          weekStart={nextWeek.weekStart}
+        />
+      </div>
     </div>
   );
 }

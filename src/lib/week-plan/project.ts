@@ -40,6 +40,17 @@ export interface ProjectedWeek {
   skeletonWeek: number;
   days: DaySlot[];
   target: VolumeResult;
+  /**
+   * `materializeWeek`'s `effectiveLoad` for this week — the same value
+   * `rolloverWeekPlan` persists as `week_plans.effective_target`
+   * (`src/lib/week-plan/service.ts`'s `effectiveTarget: r.effectiveLoad`)
+   * and the same field `availabilityVerdict`'s `effectiveTarget` input
+   * expects (a load quantity divided by `loadPerHour`, NOT `target.hours` —
+   * different units; `target` is the pre-materialize hours figure fed into
+   * `periodize`, `effectiveLoad` is what materialize actually landed on
+   * after the availability clamp in `materializeWeek`).
+   */
+  effectiveLoad: number;
   /** True when no `week_plans` row exists for this weekStart — a forecast. */
   provisional: boolean;
   /** date -> the athlete pinned availability for it (an override row exists). */
@@ -250,6 +261,7 @@ export async function projectWeek(
     skeletonWeek: r.week.skeletonWeek,
     days: r.week.days,
     target,
+    effectiveLoad: r.effectiveLoad,
     provisional,
     pinned,
   };

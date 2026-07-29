@@ -29,6 +29,15 @@ interface Props {
    * only writes overrides.
    */
   weekStart?: string;
+  /**
+   * The label above the day list. Defaults to the current-week copy so
+   * every pre-existing caller (and `intake-form.test.tsx`, which never
+   * passes this prop) keeps behaving exactly as before. The availability
+   * week switcher passes "Next week's availability" for its next-week
+   * instance — the heading must follow which week is actually being
+   * edited, not always claim "this week" regardless of `weekStart`.
+   */
+  heading?: string;
 }
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -72,6 +81,7 @@ export function IntakeForm({
   sports,
   action,
   weekStart = "",
+  heading = "This week's availability",
 }: Props) {
   const [state, formAction, pending] = useActionState(action, { message: "" });
   const [week, setWeek] = useState(resolved);
@@ -107,7 +117,7 @@ export function IntakeForm({
   return (
     <form action={formAction} className="glass rounded-[2rem] p-7">
       <input type="hidden" name="weekStart" value={weekStart} />
-      <p className="label-micro mb-1">This week&apos;s availability</p>
+      <p className="label-micro mb-1">{heading}</p>
       <p className="mb-5 text-[12px] text-white/50">
         When you can train — the week plans itself around these blocks.
       </p>
