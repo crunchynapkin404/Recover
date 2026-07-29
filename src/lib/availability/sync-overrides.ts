@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
-import { getOpenWeekPlan } from "@/lib/week-plan/service";
+import { addDaysYmd, getOpenWeekPlan } from "@/lib/week-plan/service";
 import { resolveDay } from "./resolve-day";
 import type { AvailabilityBlock } from "./types";
 
@@ -72,10 +72,34 @@ function sportsEqual(a: string[] | null, b: string[] | null): boolean {
  */
 export async function syncDateOverrides(
   userId: string,
-  blocksPerDay: AvailabilityBlock[][]
+  blocksPerDay: AvailabilityBlock[][],
+  weekStart?: string
 ): Promise<void> {
-  const week = await getOpenWeekPlan(userId);
-  if (!week) return;
+  // Which seven dates are we writing, and which of them may be skipped?
+  //
+  // With no `weekStart` this is the open week, exactly as before: its own
+  // stored days, and completed/missed ones are left alone because their
+  // availability is now historical fact.
+  //
+  // With a `weekStart` — a future week — there is no stored row and nothing
+  // is settled, so all seven dates are writable. `availability_overrides` is
+  // keyed by date and `resolveWeek` takes arbitrary dates, so nothing else
+  // has to change for a week that does not exist yet.
+  let dates: string[];
+  let skippable: Set<string>;
+  if (weekStart) {
+    dates = Array.from({ length: 7 }, (_, i) => addDaysYmd(weekStart, i));
+    skippable = new Set();
+  } else {
+    const week = await getOpenWeekPlan(userId);
+    if (!week) return;
+    dates = week.days.map((d) => d.date);
+    skippable = new Set(
+      week.days
+        .filter((d) => d.status === "completed" || d.status === "missed")
+        .map((d) => d.date)
+    );
+  }
 
   const defaults = await db.query.availabilityDefaults.findMany({
     where: eq(schema.availabilityDefaults.userId, userId),
@@ -84,12 +108,12 @@ export async function syncDateOverrides(
     defaults.map((d) => [d.weekday, d.blocks as AvailabilityBlock[]])
   );
 
-  for (let i = 0; i < week.days.length; i++) {
-    const day = week.days[i];
-    if (day.status === "completed" || day.status === "missed") continue;
+  for (let i = 0; i < dates.length; i++) {
+    const date = dates[i];
+    if (skippable.has(date)) continue;
 
     const submitted = blocksPerDay[i] ?? [];
-    const standard = resolveDay(byWeekday.get(weekdayOf(day.date)) ?? [], null);
+    const standard = resolveDay(byWeekday.get(weekdayOf(date)) ?? [], null);
 
     if (blocksEqual(submitted, standard)) {
       await db
@@ -97,13 +121,13 @@ export async function syncDateOverrides(
         .where(
           and(
             eq(schema.availabilityOverrides.userId, userId),
-            eq(schema.availabilityOverrides.date, day.date)
+            eq(schema.availabilityOverrides.date, date)
           )
         );
     } else {
       await db
         .insert(schema.availabilityOverrides)
-        .values({ userId, date: day.date, blocks: submitted })
+        .values({ userId, date, blocks: submitted })
         .onConflictDoUpdate({
           target: [
             schema.availabilityOverrides.userId,
