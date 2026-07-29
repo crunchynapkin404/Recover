@@ -88,11 +88,9 @@ async function render(initialMode?: "this" | "next") {
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
-  const action = vi.fn(
-    async (_prev: IntakeState, _formData: FormData): Promise<IntakeState> => ({
-      message: "",
-    })
-  );
+  const action = vi.fn(async (): Promise<IntakeState> => ({
+    message: "",
+  }));
   await act(async () => {
     root!.render(
       <AvailabilityWeekSwitcher

@@ -75,6 +75,7 @@ import { blockMins, type AvailabilityBlock } from "@/lib/availability/types";
 import { resolveWeek } from "@/lib/availability/resolve";
 import { availabilityVerdict } from "@/lib/week-plan/ctl-projection";
 import { projectWeek } from "@/lib/week-plan/project";
+import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -501,7 +502,24 @@ async function WeekTab({
     // next-week data and the page below falls back to rendering `IntakeForm`
     // directly, with no switcher at all.
     const nextWeekStart = addDaysYmd(week.weekStart, 7);
-    const projected = await projectWeek(userId, nextWeekStart, new Date());
+    // `projectWeek` throws if the plan record it resolves to has disappeared
+    // or if `periodize` yields no blocks for the requested skeleton week
+    // (see project.ts's two explicit `throw`s). `/train` is force-dynamic,
+    // so `next build` can never exercise this render path — an uncaught
+    // throw here would break the whole page, not just the preview. Take the
+    // same degraded path as "no projection" (this week's plain `IntakeForm`,
+    // no switcher) instead, but log it — a corrupted plan should be
+    // diagnosable, not silently swallowed.
+    let projected: Awaited<ReturnType<typeof projectWeek>> = null;
+    try {
+      projected = await projectWeek(userId, nextWeekStart, new Date());
+    } catch (err) {
+      logger.error("next-week projection failed; showing this week only", {
+        userId,
+        nextWeekStart,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
     const nextWeekData = projected
       ? await resolveWeekIntake(
           userId,
