@@ -109,10 +109,14 @@ describe("recordUnplannedLoad", () => {
     expect(d.actualLoad).toBe(400);
   });
 
-  it("accumulates repeated unplanned bookings on the same day rather than overwriting", () => {
+  it("SETS the day's unplanned total rather than accumulating, so re-running never doubles it", () => {
+    // The caller passes the day's recomputed total, not an increment. An
+    // accumulating version needed an "already seen this activity" guard to
+    // stay idempotent, and that guard is what stopped a second ride on the
+    // same day from ever being counted.
     const once = recordUnplannedLoad(emptyDay(DATES[0]), 30);
-    const twice = recordUnplannedLoad(once, 20);
-    expect(twice.unplannedLoad).toBe(50);
+    const twice = recordUnplannedLoad(once, 30);
+    expect(twice.unplannedLoad).toBe(30);
   });
 });
 
@@ -740,6 +744,101 @@ describe.skipIf(!hasDb)(
       const week = await getOpenWeekPlan(TEST_USER);
       const yesterdaySlot = week!.days.find((d) => d.date === YESTERDAY)!;
       expect(yesterdaySlot.unplannedLoad).toBe(60);
+    });
+
+    it("books BOTH rides when the day's activities are already synced before the first run", async () => {
+      // The test above interleaves insert → run → insert → run, which is not
+      // how a real day arrives: runDailyAdaptation books onto YESTERDAY, so
+      // by the time it runs, every ride of that day is already in the table.
+      // `findFirst` then returns only the latest and the earlier ride's load
+      // is dropped for good. Live evidence 2026-07-30: two rides, loads 63
+      // and 67, of which only 67 would ever have been counted.
+      const days = DATES.map((d) => emptyDay(d));
+      await seedWeek(days);
+
+      await db.insert(schema.activities).values([
+        {
+          userId: TEST_USER,
+          provider: "manual",
+          externalId: `both-morning-${Date.now()}`,
+          sport: "Ride",
+          startDate: new Date(YESTERDAY + "T07:48:00"),
+          load: 63,
+        },
+        {
+          userId: TEST_USER,
+          provider: "manual",
+          externalId: `both-afternoon-${Date.now()}`,
+          sport: "Ride",
+          startDate: new Date(YESTERDAY + "T13:48:00"),
+          load: 67,
+        },
+      ]);
+
+      expect(await runDailyAdaptation(TEST_USER, NOW)).toBe("adapted");
+
+      const week = await getOpenWeekPlan(TEST_USER);
+      const yesterdaySlot = week!.days.find((d) => d.date === YESTERDAY)!;
+      expect(yesterdaySlot.unplannedLoad).toBe(130);
+      expect(yesterdaySlot.status).toBe("rest");
+    });
+
+    it("never books a strava activity as unplanned load", async () => {
+      // Every ride exists twice — once from intervals.icu, once from Strava —
+      // with an IDENTICAL start_date and no tie-break, so which row this
+      // matcher picked came down to heap order, and their loads diverge badly
+      // (live: 67 vs 95, 184 vs 83). Asserting on the twin case would only
+      // re-test that arbitrary ordering, so this seeds a strava-only day: the
+      // firewall is that `provider='strava'` is never a source here at all.
+      // The week plan is read by the coach through get_week_plan.
+      const days = DATES.map((d) => emptyDay(d));
+      await seedWeek(days);
+
+      await db.insert(schema.activities).values({
+        userId: TEST_USER,
+        provider: "strava",
+        externalId: `unplanned-strava-${Date.now()}`,
+        sport: "Ride",
+        startDate: new Date(YESTERDAY + "T09:00:00"),
+        load: 95,
+      });
+
+      await runDailyAdaptation(TEST_USER, NOW);
+
+      const week = await getOpenWeekPlan(TEST_USER);
+      const yesterdaySlot = week!.days.find((d) => d.date === YESTERDAY)!;
+      expect(yesterdaySlot.unplannedLoad).toBeUndefined();
+      expect(yesterdaySlot.activityId).toBeUndefined();
+    });
+
+    it("ignores the strava twin on a PLANNED day too, booking the real load as actualLoad", async () => {
+      // The planned-day matcher has the same omission as the rest-day one:
+      // it filters by canonical sport but not by provider, so the strava
+      // twin could win the tie and book its own divergent load as the
+      // session's actualLoad — which is what week adherence and the next
+      // week's ramp clamp are computed from.
+      const days = DATES.map((d) => emptyDay(d));
+      days[0] = {
+        ...emptyDay(YESTERDAY),
+        status: "planned",
+        workouts: [sw({ sport: "Bike", durationMins: 60 })],
+      };
+      await seedWeek(days);
+
+      await db.insert(schema.activities).values({
+        userId: TEST_USER,
+        provider: "strava",
+        externalId: `planned-strava-${Date.now()}`,
+        sport: "Ride",
+        startDate: new Date(YESTERDAY + "T09:00:00"),
+        load: 83,
+      });
+
+      await runDailyAdaptation(TEST_USER, NOW);
+
+      const week = await getOpenWeekPlan(TEST_USER);
+      const yesterdaySlot = week!.days.find((d) => d.date === YESTERDAY)!;
+      expect(yesterdaySlot.actualLoad).toBeUndefined();
     });
 
     it("leaves every other day byte-identical when a rest-day activity is booked as unplanned load", async () => {

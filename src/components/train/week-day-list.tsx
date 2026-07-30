@@ -29,14 +29,37 @@ function weekdayOf(ymd: string): string {
  */
 type RowBadge = "provisional" | "pinned" | null;
 
+/** What the athlete actually did on a date, summed across its activities. */
+export interface DayActuals {
+  count: number;
+  secs: number;
+  load: number;
+}
+
+/** "1:37" — the same compact clock the debrief sheet and activity list use. */
+function clock(secs: number): string {
+  const h = Math.floor(secs / 3600);
+  const m = Math.round((secs % 3600) / 60);
+  return `${h}:${String(m).padStart(2, "0")}`;
+}
+
 interface DayRowProps {
   day: DaySlot;
   isToday: boolean;
   badge: RowBadge;
   otherDays: DayActionsOtherDay[];
+  actual?: DayActuals;
 }
 
-function DayRow({ day: d, isToday, badge, otherDays }: DayRowProps) {
+function DayRow({ day: d, isToday, badge, otherDays, actual }: DayRowProps) {
+  // Only for days the plan left empty. A planned session that happened
+  // already says so through its own "completed" chip, and repeating the
+  // ride underneath it would be the same duplicated-data problem this
+  // project has had to undo on page after page.
+  const credit =
+    actual && actual.count > 0 && d.workouts.length === 0 && d.status !== "race"
+      ? actual
+      : null;
   const provisional = badge === "provisional";
   return (
     <div
@@ -79,6 +102,15 @@ function DayRow({ day: d, isToday, badge, otherDays }: DayRowProps) {
               <span className="ml-1.5 text-white/30">
                 {`${provisional ? "~" : ""}${d.availableMins} min free`}
               </span>
+            </p>
+          )}
+          {credit && (
+            <p className="mt-0.5 text-[10.5px] text-emerald-400/80">
+              <span aria-hidden>✓ </span>
+              {`${credit.count} session${credit.count === 1 ? "" : "s"} · ${clock(
+                credit.secs
+              )}`}
+              {credit.load > 0 && ` · ${Math.round(credit.load)} load`}
             </p>
           )}
           {d.movedFrom && (
@@ -141,10 +173,18 @@ export function WeekDayList({
   days,
   today,
   nextWeek,
+  actuals,
 }: {
   days: DaySlot[];
   today: string;
   nextWeek?: { days: DaySlot[]; pinned: Record<string, boolean> } | null;
+  /**
+   * What was actually trained, keyed by local Ymd. Read straight from the
+   * activities table rather than from the day slot's own `unplannedLoad`,
+   * which `runDailyAdaptation` only writes the FOLLOWING day — today's ride
+   * has to be visible on today's row, which is the whole point.
+   */
+  actuals?: Record<string, DayActuals>;
 }) {
   // Ymd strings compare lexicographically the same as chronologically —
   // the convention already used for this in replan.ts and service.ts.
@@ -175,6 +215,7 @@ export function WeekDayList({
           isToday={d.date === today}
           badge={null}
           otherDays={otherDays}
+          actual={actuals?.[d.date]}
         />
       ))}
 

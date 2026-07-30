@@ -96,6 +96,58 @@ describe("WeekDayList", () => {
     expect(html).toContain("90 min free");
   });
 
+  it("credits training done on a day the plan left empty", () => {
+    // A rest day the athlete actually rode looked identical to one they
+    // spent on the couch: the agenda renders planned workouts, and an
+    // unplanned ride is by definition not one. Reported 2026-07-30 — two
+    // rides that day, and today's row still read "Rest · 120 min free".
+    const html = renderToString(
+      <WeekDayList
+        today={TODAY}
+        days={[slot(TODAY, "rest")]}
+        actuals={{ [TODAY]: { count: 2, secs: 5823, load: 130 } }}
+      />
+    );
+    expect(html).toContain("Rest");
+    expect(html).toContain("2 sessions");
+    expect(html).toContain("1:37");
+    expect(html).toContain("130 load");
+  });
+
+  it("says a single session in the singular", () => {
+    const html = renderToString(
+      <WeekDayList
+        today={TODAY}
+        days={[slot(TODAY, "rest")]}
+        actuals={{ [TODAY]: { count: 1, secs: 3039, load: 63 } }}
+      />
+    );
+    expect(html).toContain("1 session");
+    expect(html).not.toContain("1 sessions");
+  });
+
+  it("leaves a planned day's row alone — the sub-line is for days the plan left empty", () => {
+    // A completed planned session already reads as "completed" via its own
+    // status chip; repeating the same ride underneath it would be the
+    // duplicate-data problem this project keeps having to undo.
+    const html = renderToString(
+      <WeekDayList
+        today={TODAY}
+        days={[slot(TODAY, "completed", tempo)]}
+        actuals={{ [TODAY]: { count: 1, secs: 3039, load: 63 } }}
+      />
+    );
+    expect(html).not.toContain("1 session");
+  });
+
+  it("shows nothing extra on a rest day with no training", () => {
+    const html = renderToString(
+      <WeekDayList today={TODAY} days={[slot(TODAY, "rest")]} actuals={{}} />
+    );
+    expect(html).toContain("Rest");
+    expect(html).not.toContain("session");
+  });
+
   it("names the race rather than the workout on a race day", () => {
     const html = renderToString(
       <WeekDayList

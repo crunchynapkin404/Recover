@@ -599,6 +599,32 @@ async function WeekTab({
     };
   }
 
+  // What the athlete actually trained, per local day, for the days the week
+  // list still shows. Read from the activities table rather than the day
+  // slot's own `unplannedLoad`: runDailyAdaptation books that onto YESTERDAY,
+  // so a ride done today would not reach its own row until tomorrow — which
+  // is exactly the gap this closes.
+  const dayActuals: Record<
+    string,
+    { count: number; secs: number; load: number }
+  > = {};
+  if (week) {
+    const weekActivities = await db.query.activities.findMany({
+      where: and(
+        eq(schema.activities.userId, userId),
+        ne(schema.activities.provider, "strava"),
+        gte(schema.activities.startDate, new Date(week.weekStart + "T00:00:00"))
+      ),
+    });
+    for (const a of weekActivities) {
+      const ymd = localYmd(a.startDateLocal ?? a.startDate);
+      const acc = (dayActuals[ymd] ??= { count: 0, secs: 0, load: 0 });
+      acc.count += 1;
+      acc.secs += a.durationS ?? 0;
+      acc.load += a.load ?? 0;
+    }
+  }
+
   // Next race as the compact row under the week; the full list stays in the
   // races section below.
   const today = new Date();
@@ -664,6 +690,7 @@ async function WeekTab({
             days={week.days}
             today={localYmd(today)}
             nextWeek={nextWeekPreview}
+            actuals={dayActuals}
           />
 
           {nextWeekPreview && (

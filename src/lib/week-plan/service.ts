@@ -1,7 +1,7 @@
 // src/lib/week-plan/service.ts — DB orchestration for the living week.
 // All plan logic lives in the pure engines (materialize.ts / adapt-day.ts);
 // this layer only loads state, runs an engine, and persists the result.
-import { and, asc, desc, eq, gte, inArray, lt, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, lt, ne, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { racesForWeek, currentCtl } from "@/lib/race/service";
 import { materializeWeek } from "./materialize";
@@ -371,12 +371,19 @@ export async function rolloverWeekPlan(
  * removed for running over on load — holds either way: nothing here (or in
  * adaptDay) removes a session because of accumulated load.
  *
+ * `load` is the day's TOTAL, not an increment — both fields are SET, so
+ * calling this twice with the same figure is a no-op rather than a doubling.
+ * The caller recomputes that total from the activities table on every pass,
+ * which is what makes repeated runs idempotent; an accumulating version had
+ * to be defended with a "have I seen this activity id?" guard, and that guard
+ * is precisely what stopped a second ride on the same day from ever counting.
+ *
  * Pure, and exported for its tests: the only thing it decides is which
  * field the load lands in.
  */
 export function recordUnplannedLoad(day: DaySlot, load: number): DaySlot {
   if (day.workouts.length === 0) {
-    return { ...day, unplannedLoad: (day.unplannedLoad ?? 0) + load };
+    return { ...day, unplannedLoad: load };
   }
   return { ...day, actualLoad: load };
 }
@@ -465,6 +472,12 @@ export async function runDailyAdaptation(
     const activity = await db.query.activities.findFirst({
       where: and(
         eq(schema.activities.userId, userId),
+        // Strava's Nov 2024 API agreement keeps its data out of AI surfaces,
+        // and the week plan is one: the coach reads it through get_week_plan.
+        // Every ride also exists twice (once per connector) with an identical
+        // start_date and no tie-break, so without this the winner came down
+        // to heap order — and the two loads diverge badly (live: 184 vs 83).
+        ne(schema.activities.provider, "strava"),
         inArray(
           sql`lower(${schema.activities.sport})`,
           providerSportAliases(ySlotWorkout.sport)
@@ -510,9 +523,16 @@ export async function runDailyAdaptation(
     // yesterdayCompleted is deliberately left null: there was nothing
     // planned to mark completed or missed, so adaptDay's missed-workout
     // handling must not run for this day.
-    const activity = await db.query.activities.findFirst({
+    // EVERY activity of that day, not just the most recent one. This used to
+    // be a findFirst ordered by startDate desc, which silently dropped the
+    // earlier rides of a multi-ride day: runDailyAdaptation books onto
+    // YESTERDAY, so by the time it runs they have all long since synced and
+    // only the last one was ever seen. Live evidence 2026-07-30 — two rides,
+    // loads 63 and 67, of which only 67 would have counted.
+    const dayActivities = await db.query.activities.findMany({
       where: and(
         eq(schema.activities.userId, userId),
+        ne(schema.activities.provider, "strava"), // see the firewall note above
         gte(
           sql`coalesce(${schema.activities.startDateLocal}, ${schema.activities.startDate})`,
           new Date(yesterdayYmd + "T00:00:00")
@@ -524,8 +544,11 @@ export async function runDailyAdaptation(
       ),
       orderBy: desc(schema.activities.startDate),
     });
-    if (activity) {
-      matched = { id: activity.id, load: activity.load };
+    if (dayActivities.length > 0) {
+      matched = {
+        id: dayActivities[0].id,
+        load: dayActivities.reduce((s, a) => s + (a.load ?? 0), 0),
+      };
     }
   }
 
@@ -553,20 +576,17 @@ export async function runDailyAdaptation(
 
   if (matched) {
     const idx = result.week.days.findIndex((d) => d.date === yesterdayYmd);
-    // Only book this activity once. Without this guard, a rest/race day
-    // with a synced activity re-applies recordUnplannedLoad on EVERY
-    // runDailyAdaptation call — including the hourly Apple Health push —
-    // because yesterdayCompleted is null for rest/race days (there is
-    // nothing to mark completed/missed), so nothing else here changes and
-    // "adapted" never turns into "skipped". A real run compounded
-    // unplannedLoad 100/200/300/400/500/600 across six invocations, which
-    // then fed weekActuals().actualLoad and inflated the next week's
-    // ramp-clamp target. `activities.findFirst` can only ever return one
-    // row for this window, so once `activityId` already matches what we
-    // just matched, there is nothing new to add — but a DIFFERENT activity
-    // landing on the same day (a second bonus ride) is real load and must
-    // still be added.
-    if (idx !== -1 && result.week.days[idx].activityId !== matched.id) {
+    // Idempotent by construction: `matched.load` is the day's total, recomputed
+    // from the activities table on every run, and recordUnplannedLoad SETS the
+    // field rather than adding to it. Re-running therefore writes the same
+    // number, the JSON comparison below sees no change, and the pass reports
+    // "skipped" — which is what stops the hourly Apple Health push from
+    // rewriting week_plans. This replaces an `activityId !== matched.id`
+    // guard that was doing that job before: it stopped the compounding
+    // (a real run reached unplannedLoad 600 across six invocations) but only
+    // by refusing to look again, which is also why a second ride on the same
+    // day could never be added once the first had claimed the slot.
+    if (idx !== -1) {
       result.week.days[idx] = {
         ...recordUnplannedLoad(result.week.days[idx], matched.load ?? 0),
         activityId: matched.id,

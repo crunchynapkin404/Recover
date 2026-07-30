@@ -1,6 +1,48 @@
 # Changelog
 
-## v0.30.1 — 2026-07-30 — Pushes Leave a Trace
+## v0.30.1 — 2026-07-30 — Pushes Leave a Trace, Rides Get Counted
+
+Two reports, both of the same shape: the app knew something and never said
+so. Notifications that left no record, and rides that left no mark on the
+week they belonged to.
+
+### The week now counts every ride you did
+
+- **A day you trained on no longer reads as an empty rest day.** The week
+  agenda renders planned workouts, and an unplanned ride is by definition not
+  one — so a rest day with two rides on it looked exactly like a rest day
+  spent on the couch. Days the plan left empty now carry a line saying what
+  actually happened (`✓ 2 sessions · 1:37 · 130 load`). It is read from the
+  activities table, not from the day slot's stored `unplannedLoad`, because
+  `runDailyAdaptation` books that onto YESTERDAY — a ride done today would
+  otherwise not reach its own row until tomorrow. Planned days are untouched:
+  a completed session already says so through its status chip, and repeating
+  the ride underneath it would be the duplicated-data problem this project
+  keeps having to undo.
+- **Every ride of a multi-ride day is counted, not just the last one.** The
+  unplanned-load matcher was a `findFirst` ordered by `startDate desc`.
+  Because the pass runs the following day, every ride has long since synced by
+  then, so it saw only the most recent and dropped the rest — permanently.
+  Live evidence 2026-07-30: two rides, loads 63 and 67, of which only 67 would
+  ever have counted. It now sums the day. There _was_ a test for the second
+  ride, but it inserted the two activities with an adaptation run in between,
+  which is not how a real day arrives — so it passed throughout.
+- **The booking is now idempotent by recomputation rather than by refusing to
+  look.** `recordUnplannedLoad` SETS the day's total instead of adding to it,
+  and the caller recomputes that total from the activities table on every
+  pass. This replaces an `activityId` guard that kept the figure from
+  compounding (a real run reached `unplannedLoad` 600 over six invocations)
+  but did so by never looking again — which is the same reason a second ride
+  could never be added once the first had claimed the slot.
+- **The week plan no longer books Strava-derived load.** Neither matcher
+  filtered `provider='strava'`. Every ride exists twice, once per connector,
+  with an identical `start_date` and no tie-break — so which row won came down
+  to heap order, and the two loads diverge badly (live: 184 vs 83, 67 vs 95).
+  Beyond being the wrong number, the week plan is read by the coach through
+  `get_week_plan`, making this the same firewall class as the v0.5
+  weekly-review and v0.12.2 metrics fixes. Both matchers now exclude Strava.
+
+### Pushes leave a trace
 
 Reported symptom: two identical "Ride synced — how did it go?" notifications
 for a single ride, minutes apart. This release does not claim to have fixed
