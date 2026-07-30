@@ -1,12 +1,11 @@
 # Changelog
 
-## v0.30.1 — 2026-07-30 — Pushes Leave a Trace, Rides Get Counted
+## v0.31.0 — 2026-07-30 — Rides Get Counted
 
-Two reports, both of the same shape: the app knew something and never said
-so. Notifications that left no record, and rides that left no mark on the
-week they belonged to.
-
-### The week now counts every ride you did
+Reported: "the trainings of today do not show in the train agenda of today."
+Today's slot read `status: rest, workouts: []` while two rides sat in the
+activities table. Three defects behind it, one of them counting load wrong
+for every multi-ride day.
 
 - **A day you trained on no longer reads as an empty rest day.** The week
   agenda renders planned workouts, and an unplanned ride is by definition not
@@ -42,7 +41,7 @@ week they belonged to.
   `get_week_plan`, making this the same firewall class as the v0.5
   weekly-review and v0.12.2 metrics fixes. Both matchers now exclude Strava.
 
-### Pushes leave a trace
+## v0.30.1 — 2026-07-30 — Pushes Leave a Trace
 
 Reported symptom: two identical "Ride synced — how did it go?" notifications
 for a single ride, minutes apart. This release does not claim to have fixed
