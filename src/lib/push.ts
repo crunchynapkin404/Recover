@@ -189,12 +189,27 @@ function isUnrecoverableVapidMismatch(body: unknown): boolean {
  */
 export async function sendToUser(
   userId: string,
-  payload: PushPayload
+  payload: PushPayload,
+  context?: Record<string, string | number | null | undefined>
 ): Promise<{ sent: number; pruned: number }> {
   const subs = await db.query.pushSubscriptions.findMany({
     where: eq(schema.pushSubscriptions.userId, userId),
   });
-  if (subs.length === 0) return { sent: 0, pruned: 0 };
+  // Logged even at zero subscriptions: "nothing to send to" is the shape
+  // silent push death takes, and it used to leave no trace at all.
+  const record = (sent: number, pruned: number) =>
+    logger.info("push sent", {
+      userId,
+      tag: payload.tag,
+      subscriptions: subs.length,
+      sent,
+      pruned,
+      ...context,
+    });
+  if (subs.length === 0) {
+    record(0, 0);
+    return { sent: 0, pruned: 0 };
+  }
 
   const keys = await getVapidKeys();
   const json = JSON.stringify(payload);
@@ -221,15 +236,19 @@ export async function sendToUser(
     } catch (err) {
       const status = (err as { statusCode?: number }).statusCode;
       const body = (err as { body?: unknown }).body;
-      if (
-        status === 404 ||
-        status === 410 ||
-        isUnrecoverableVapidMismatch(body)
-      ) {
+      const gone = status === 404 || status === 410;
+      if (gone || isUnrecoverableVapidMismatch(body)) {
         await db
           .delete(schema.pushSubscriptions)
           .where(eq(schema.pushSubscriptions.id, sub.id));
         pruned++;
+        // A subscription vanishing without a word is how push died unnoticed
+        // twice in v0.25 — say which one went, and why.
+        logger.warn("push subscription pruned", {
+          userId,
+          status,
+          reason: gone ? "gone" : "vapid-mismatch",
+        });
       } else {
         logger.error("push send failed", {
           userId,
@@ -239,6 +258,7 @@ export async function sendToUser(
       }
     }
   }
+  record(sent, pruned);
   return { sent, pruned };
 }
 

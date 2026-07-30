@@ -1,5 +1,46 @@
 # Changelog
 
+## v0.30.1 — 2026-07-30 — Pushes Leave a Trace
+
+Reported symptom: two identical "Ride synced — how did it go?" notifications
+for a single ride, minutes apart. This release does not claim to have fixed
+that — it makes it diagnosable, and closes the one hole the investigation
+did prove.
+
+- **Every push now logs a line.** `sendToUser` is the single chokepoint all
+  notifications funnel through, but logging was bolted on per-caller and only
+  two of its four callers did it: the morning readiness push and the weekly
+  availability prompt logged `{sent, pruned}`, while the ride-debrief push and
+  the settings test push logged nothing at all on success. A debrief
+  notification therefore left no trace whatsoever, which is exactly why "why
+  did I get two?" could not be answered from `docker logs`. The record now
+  lives in `sendToUser` itself — `{userId, tag, subscriptions, sent, pruned}`,
+  plus any caller context (the debrief send passes its `activityId`) — so
+  every push type gets it for free. Payload content stays out: ride names and
+  debrief notes are personal data, and the tag is enough to tell sends apart.
+- **A pruned subscription no longer disappears silently.** `sendToUser`
+  deletes a subscription on 404/410 or an unrecoverable VAPID mismatch, and
+  did so with no log line anywhere — the athlete simply stops receiving
+  notifications and nothing says why. This is very close to the silent push
+  death chased twice in v0.25. Each prune now logs a warning naming the
+  endpoint's owner, the status, and whether it was `gone` or
+  `vapid-mismatch`.
+- **Promoting a ride to a pending debrief is now a compare-and-swap.** The
+  promotion read "is anything pending?", then ran `UPDATE ... WHERE id = X`
+  with no state guard, then sent the push — a check-then-set. A single ride
+  starts several lifecycle passes within minutes of each other (Strava fires
+  `create` and `update` webhooks and each schedules its own intervals
+  catch-up sync; the 15-minute activity poll sweeps independently; both
+  provider sync jobs run the post-sync chain; and `/api/sync/now` runs a full
+  scheduler tick on pull-to-refresh), so two overlapping passes could each
+  clear that read and each notify for the same ride. The new
+  `claimPendingDebrief` makes the state transition itself decide, and the
+  push only fires for the pass that won the row. The window this closes is
+  narrow — microseconds between the read and the write, which is why two
+  in-process passes could not be made to reproduce it deterministically, and
+  why it does not on its own explain notifications arriving minutes apart.
+  The logging above is what will settle that.
+
 ## v0.30.0 — 2026-07-29 — The Whole Target
 
 - **Cycling weeks now schedule the hours they were actually targeting.**

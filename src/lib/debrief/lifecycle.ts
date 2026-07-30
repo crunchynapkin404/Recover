@@ -89,6 +89,35 @@ function localYmd(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+/**
+ * Claim an activity as the user's pending debrief. Returns false when someone
+ * else got there first.
+ *
+ * A ride sets several lifecycle passes running within minutes of each other —
+ * Strava fires `create` AND `update` webhooks and each schedules its own
+ * intervals catch-up sync, the 15-minute activity poll sweeps independently,
+ * both provider sync jobs run the post-sync chain, and `/api/sync/now` runs a
+ * whole tick on pull-to-refresh. Two of those overlapping would each read
+ * "nothing pending" and each promote the same ride, and the push fires on
+ * promotion — so the athlete gets the same notification twice. The state
+ * transition, not the earlier read, is what decides.
+ */
+export async function claimPendingDebrief(
+  activityId: string
+): Promise<boolean> {
+  const claimed = await db
+    .update(schema.activities)
+    .set({ debriefState: "pending" })
+    .where(
+      and(
+        eq(schema.activities.id, activityId),
+        isNull(schema.activities.debriefState)
+      )
+    )
+    .returning();
+  return claimed.length > 0;
+}
+
 export async function runDebriefLifecycle(
   userId: string,
   opts?: { now?: Date; llm?: (prompt: string) => Promise<string> }
@@ -170,10 +199,8 @@ export async function runDebriefLifecycle(
     const next = candidates.find((a) => debriefEligible(a, now));
     if (!next) return;
 
-    await db
-      .update(schema.activities)
-      .set({ debriefState: "pending" })
-      .where(eq(schema.activities.id, next.id));
+    // Only the pass that actually flips the row may notify.
+    if (!(await claimPendingDebrief(next.id))) return;
 
     if (prefs?.debriefPushEnabled) {
       try {
@@ -185,7 +212,8 @@ export async function runDebriefLifecycle(
             activityName: next.name ?? next.sport,
             durationS: next.durationS,
             load: next.load,
-          })
+          }),
+          { activityId: next.id }
         );
       } catch (err) {
         logger.warn("debrief push failed", {

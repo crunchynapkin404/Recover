@@ -27,6 +27,27 @@ const USER_B = "test-push-user-b";
 const VAPID_KEYS = ["vapid_public_key", "vapid_private_key"];
 
 /**
+ * The logger emits one JSON line per event through console.{log,warn,error}
+ * (src/lib/logger.ts). Capture the real thing rather than mocking our own
+ * logger — the assertion is then about what actually lands in `docker logs`.
+ */
+function captureLog(level: "log" | "warn" | "error") {
+  const lines: Record<string, unknown>[] = [];
+  const spy = vi.spyOn(console, level).mockImplementation((...args) => {
+    try {
+      lines.push(JSON.parse(String(args[0])));
+    } catch {
+      // Non-JSON console output from elsewhere; not our concern.
+    }
+  });
+  return {
+    restore: () => spy.mockRestore(),
+    all: (msg: string) => lines.filter((l) => l.msg === msg),
+    find: (msg: string) => lines.find((l) => l.msg === msg),
+  };
+}
+
+/**
  * The instance VAPID pair is a SINGLE global row-pair in app_config, shared
  * with the live app — there is no per-test scoping possible, and this repo's
  * DB tests run against the real database. The regeneration test below has to
@@ -232,6 +253,110 @@ describe.skipIf(!hasDb)("push pipeline", () => {
     });
     expect(remaining.map((r) => r.endpoint)).toEqual([
       "https://push.example/generic-400",
+    ]);
+  });
+
+  it("logs one line per send carrying the tag and the sent/pruned counts", async () => {
+    // Every push in the app funnels through sendToUser, but until v0.30.1
+    // only two of its four callers logged anything on success — so a debrief
+    // push left no trace at all, and "why did I get two?" was unanswerable
+    // from the logs. The record belongs here, once, not in each caller.
+    const { db, schema } = await import("@/lib/db");
+    const { sendToUser } = await import("@/lib/push");
+    await db
+      .delete(schema.pushSubscriptions)
+      .where(eq(schema.pushSubscriptions.userId, USER_A));
+    await db.insert(schema.pushSubscriptions).values([
+      {
+        userId: USER_A,
+        endpoint: "https://push.example/log-live",
+        p256dh: "k",
+        auth: "a",
+      },
+      {
+        userId: USER_A,
+        endpoint: "https://push.example/log-dead",
+        p256dh: "k",
+        auth: "a",
+      },
+    ]);
+    sendNotification.mockImplementation((sub: { endpoint: string }) => {
+      if (sub.endpoint.includes("dead")) {
+        const err = new Error("gone") as Error & { statusCode: number };
+        err.statusCode = 410;
+        return Promise.reject(err);
+      }
+      return Promise.resolve({});
+    });
+
+    const lines = captureLog("log");
+    await sendToUser(
+      USER_A,
+      { title: "t", body: "b", tag: "ride-debrief", url: "/" },
+      { activityId: "act-123" }
+    );
+    lines.restore();
+
+    const sentLine = lines.find("push sent");
+    expect(sentLine).toBeTruthy();
+    expect(sentLine).toMatchObject({
+      level: "info",
+      userId: USER_A,
+      tag: "ride-debrief",
+      sent: 1,
+      pruned: 1,
+      activityId: "act-123",
+    });
+    // Payload content is personal data (ride names, debrief notes) and must
+    // never reach the logs — the tag is enough to tell the sends apart.
+    expect(JSON.stringify(sentLine)).not.toContain('"body"');
+  });
+
+  it("logs a warning naming the reason whenever it prunes a subscription", async () => {
+    // A silently deleted subscription is how push died unnoticed twice in
+    // v0.25 — the athlete keeps riding, nothing arrives, nothing says why.
+    const { db, schema } = await import("@/lib/db");
+    const { sendToUser } = await import("@/lib/push");
+    await db
+      .delete(schema.pushSubscriptions)
+      .where(eq(schema.pushSubscriptions.userId, USER_A));
+    await db.insert(schema.pushSubscriptions).values([
+      {
+        userId: USER_A,
+        endpoint: "https://push.example/prune-410",
+        p256dh: "k",
+        auth: "a",
+      },
+      {
+        userId: USER_A,
+        endpoint: "https://push.example/prune-vapid",
+        p256dh: "k",
+        auth: "a",
+      },
+    ]);
+    sendNotification.mockImplementation((sub: { endpoint: string }) => {
+      const err = new Error("nope") as Error & {
+        statusCode: number;
+        body?: string;
+      };
+      if (sub.endpoint.includes("410")) {
+        err.statusCode = 410;
+        return Promise.reject(err);
+      }
+      err.statusCode = 400;
+      err.body = JSON.stringify({ reason: "VapidPkHashMismatch" });
+      return Promise.reject(err);
+    });
+
+    const lines = captureLog("warn");
+    await sendToUser(USER_A, { title: "t", body: "b", tag: "x", url: "/" });
+    lines.restore();
+
+    const pruneLines = lines.all("push subscription pruned");
+    expect(pruneLines.length).toBe(2);
+    expect(pruneLines.map((l) => l.reason).sort()).toEqual([
+      "gone",
+      "vapid-mismatch",
     ]);
   });
 });

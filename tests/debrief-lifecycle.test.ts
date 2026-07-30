@@ -1,8 +1,22 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { and, eq, isNull } from "drizzle-orm";
 
 const hasDb =
   !!process.env.DATABASE_URL && process.env.DATABASE_DRIVER === "pg";
+
+// The debrief push goes out through web-push; keep it off the wire so the
+// race test can count real send attempts.
+const sendNotification = vi.fn();
+vi.mock("web-push", async (importOriginal) => {
+  const real = await importOriginal<typeof import("web-push")>();
+  const mod = (real as unknown as { default?: typeof real }).default ?? real;
+  return {
+    default: {
+      generateVAPIDKeys: mod.generateVAPIDKeys,
+      sendNotification: (...args: unknown[]) => sendNotification(...args),
+    },
+  };
+});
 
 const USER = "test-debrief-lifecycle-user";
 const NOW = new Date(2026, 6, 20, 10, 0, 0);
@@ -219,6 +233,48 @@ describe.skipIf(!hasDb)("runDebriefLifecycle", () => {
       llm: async () => "should never run",
     });
     expect(outcome).toBe("skipped");
+  });
+
+  it("claims an activity for debrief atomically — a second claim of the same row loses", async () => {
+    // The promotion used to be a check-then-set: read "nothing pending",
+    // then UPDATE ... WHERE id = X with no state guard, then push. Two
+    // lifecycle passes that overlap both passed the read and both pushed,
+    // for the same ride. The claim has to be the thing that decides.
+    const { claimPendingDebrief } = await import("@/lib/debrief/lifecycle");
+    const { db, schema } = await import("@/lib/db");
+    await db
+      .delete(schema.activities)
+      .where(eq(schema.activities.userId, USER));
+    const ride = await makeActivity();
+
+    expect(await claimPendingDebrief(ride.id)).toBe(true);
+    expect(await claimPendingDebrief(ride.id)).toBe(false);
+
+    const row = await db.query.activities.findFirst({
+      where: eq(schema.activities.id, ride.id),
+    });
+    expect(row?.debriefState).toBe("pending");
+  });
+
+  it("pushes only for the pass that actually won the claim", async () => {
+    // The loser of a claim must stay silent. The real race window is the few
+    // microseconds between the "nothing pending" read and the write, which
+    // two in-process passes will not reliably interleave on — so this drives
+    // the guarantee off the claim itself: an activity someone else already
+    // claimed yields no promotion, and therefore no notification.
+    const { db, schema } = await import("@/lib/db");
+    const { claimPendingDebrief } = await import("@/lib/debrief/lifecycle");
+    await db
+      .delete(schema.activities)
+      .where(eq(schema.activities.userId, USER));
+    const ride = await makeActivity();
+
+    // Pass A wins.
+    expect(await claimPendingDebrief(ride.id)).toBe(true);
+    // Pass B, holding a stale "nothing pending" read, tries the same row.
+    sendNotification.mockClear();
+    expect(await claimPendingDebrief(ride.id)).toBe(false);
+    expect(sendNotification).not.toHaveBeenCalled();
   });
 
   it("honors rideDebriefsEnabled: false as the whole loop's kill switch, even called directly (not via activity-poll)", async () => {
