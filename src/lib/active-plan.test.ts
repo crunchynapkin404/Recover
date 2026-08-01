@@ -1,6 +1,15 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
+import { logger } from "@/lib/logger";
 import { getActivePlan } from "./active-plan";
 
 // requires Postgres; skips without DATABASE_URL.
@@ -49,6 +58,10 @@ describe.skipIf(!hasDb)("getActivePlan", () => {
       .where(eq(schema.trainingPlans.userId, USER));
   });
 
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("returns null when the athlete has no plan at all", async () => {
     expect(await getActivePlan(EMPTY_USER)).toBeNull();
   });
@@ -57,6 +70,14 @@ describe.skipIf(!hasDb)("getActivePlan", () => {
     const only = await insertPlan(1, new Date("2026-07-15T12:14:00Z"));
     const found = await getActivePlan(USER);
     expect(found?.id).toBe(only.id);
+    // The resolver returns the whole row, not a column projection.
+    expect(found?.title).toBe("Test Century Plan");
+    expect(found?.raceType).toBe("century");
+    expect(found?.constraints).toEqual({
+      daysPerWeek: 4,
+      hoursPerWeek: 10,
+      sports: ["Bike"],
+    });
     await db
       .delete(schema.trainingPlans)
       .where(eq(schema.trainingPlans.userId, USER));
@@ -65,6 +86,8 @@ describe.skipIf(!hasDb)("getActivePlan", () => {
   it("picks the newest by createdAt when several are active", async () => {
     // Reproduces the owner's live state: three actives from one creation
     // retry, the newest carrying the week the engine actually runs.
+    const warnSpy = vi.spyOn(logger, "warn").mockImplementation(() => {});
+
     await insertPlan(1, new Date("2026-07-15T12:14:00Z"));
     await insertPlan(1, new Date("2026-07-15T12:17:00Z"));
     const newest = await insertPlan(4, new Date("2026-07-15T12:46:00Z"));
@@ -72,6 +95,18 @@ describe.skipIf(!hasDb)("getActivePlan", () => {
     const found = await getActivePlan(USER);
     expect(found?.id).toBe(newest.id);
     expect(found?.currentWeek).toBe(4);
+
+    // The ambiguity warning is the primary observable signal this release
+    // exists to surface — assert it fires with the right fields.
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    expect(warnSpy).toHaveBeenCalledWith(
+      "multiple active training plans",
+      expect.objectContaining({
+        userId: USER,
+        count: 3,
+        chosen: newest.id,
+      })
+    );
   });
 
   it("ignores archived plans even when they are newer", async () => {
