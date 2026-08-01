@@ -3,6 +3,7 @@ import type { ToolDefinition, ToolContext } from "./registry";
 import { db, schema } from "@/lib/db";
 import { and, eq } from "drizzle-orm";
 import { moveWorkout, swapWorkouts } from "@/lib/week-plan/service";
+import { getActivePlan } from "@/lib/active-plan";
 
 const WEEK_ACTIONS = ["reduce_load", "increase_load", "skip_week"] as const;
 const DAY_ACTIONS = ["move_workout", "swap_workout"] as const;
@@ -70,12 +71,7 @@ async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
     return { success: false, error: result };
   }
 
-  const plan = await db.query.trainingPlans.findFirst({
-    where: and(
-      eq(schema.trainingPlans.userId, ctx.userId),
-      eq(schema.trainingPlans.status, "active")
-    ),
-  });
+  const plan = await getActivePlan(ctx.userId);
   if (!plan) return { success: false, error: "no_active_plan" };
 
   const block = await db.query.trainingBlocks.findFirst({
