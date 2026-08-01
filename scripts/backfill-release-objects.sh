@@ -17,6 +17,14 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+# Every exit path removes the notes file, including the aborts below — the
+# plain `rm` after a successful create only covers the happy path.
+notes=
+cleanup() {
+  if [ -n "$notes" ]; then rm -f "$notes"; fi
+}
+trap cleanup EXIT
+
 for v in v0.28.0 v0.28.1 v0.29.0 v0.30.0; do
   if gh release view "$v" >/dev/null 2>&1; then
     echo "== $v already has a release object, skipping"
@@ -39,7 +47,14 @@ for v in v0.28.0 v0.28.1 v0.29.0 v0.30.0; do
     exit 1
   fi
 
+  # An empty subject still exits 0, so `set -e` would not catch it and the
+  # release would be created with --title "". Guard it the same way the
+  # notes body is guarded above.
   title=$(git tag -l --format='%(contents:subject)' "$v")
+  if [ -z "$title" ]; then
+    echo "!! no annotation subject on tag $v — aborting" >&2
+    exit 1
+  fi
   echo "== creating $v — $title"
   gh release create "$v" \
     --title "$title" \
