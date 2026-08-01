@@ -130,4 +130,31 @@ describe.skipIf(!hasDb)("getActivePlan", () => {
     expect(found?.status).toBe("active");
     expect(found?.currentWeek).toBe(4);
   });
+
+  it("breaks a createdAt tie by the greater id, matching migration 0034's survivor", async () => {
+    // Postgres's now() is constant within a transaction, so a plan creation
+    // retried inside one transaction can leave two rows with identical
+    // createdAt. Migration 0034 resolves that tie by (created_at, id) desc
+    // (see drizzle/0034_single_active_plan.sql); the resolver has to agree,
+    // or the two could pick different survivors from the same data.
+    await db
+      .delete(schema.trainingPlans)
+      .where(eq(schema.trainingPlans.userId, USER));
+
+    const tiedCreatedAt = new Date("2026-07-20T09:00:00Z");
+    const a = await insertPlan(1, tiedCreatedAt);
+    const b = await insertPlan(2, tiedCreatedAt);
+
+    // Derive the expected winner from the ids actually inserted — the same
+    // greatest-id rule migration 0034's WHERE clause applies — rather than
+    // restating whatever the resolver happens to return.
+    const expectedWinnerId = [a.id, b.id].sort().reverse()[0];
+
+    const found = await getActivePlan(USER);
+    expect(found?.id).toBe(expectedWinnerId);
+
+    await db
+      .delete(schema.trainingPlans)
+      .where(eq(schema.trainingPlans.userId, USER));
+  });
 });

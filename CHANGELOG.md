@@ -27,8 +27,11 @@ answers in heap order.
   away. Plan creation has archived the previous plan since 2026-07-15, ten
   hours after these rows were made, so this is a one-time cleanup rather than
   a recurring repair.
-- Release pages for v0.28.0, v0.28.1, v0.29.0 and v0.30.0, whose tags shipped
-  without them.
+- **A backfill script for the four missing release pages is staged, not run.**
+  `v0.28.0`, `v0.28.1`, `v0.29.0` and `v0.30.0` are tagged and deployed with no
+  GitHub release object; `scripts/backfill-release-objects.sh` creates all
+  four, but nothing in this branch or in CI calls it — it is a hand-run
+  follow-up, not a completed fix.
 
 ## v0.31.0 — 2026-07-30 — Rides Get Counted
 
