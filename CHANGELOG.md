@@ -1,5 +1,35 @@
 # Changelog
 
+## v0.32.0 — 2026-08-01 — One Plan, One Answer
+
+Three `active` training plans sat on one account, left by a single plan
+creation retried twice on 2026-07-15. Seven code paths ask which plan the
+athlete is on; five of them asked with an unordered query, which Postgres
+answers in heap order.
+
+- **The coach and the training engine agreed on a plan again.** The coach
+  reported week 1 of a nine-week century block while the week engine was
+  running week 4 — not a display bug, two different rows. Every surface now
+  resolves the athlete's plan through one `getActivePlan`, which takes the
+  most recently created active plan. That was already the rule the engine
+  paths used, so the engine's behaviour is unchanged and the coach and
+  dashboard moved onto its answer.
+- **Asking the coach to change your plan changes your plan.**
+  `update_training_plan` resolved the same arbitrary way, so its writes could
+  land on a row nothing else read: it reported success and the athlete saw
+  nothing. It now writes to the plan the engine runs.
+- **Duplicate plans leave a trace.** The resolver logs a warning naming the
+  count and the row it chose, rather than silently picking. The ambiguity here
+  was invisible for two weeks precisely because nothing said anything.
+- **The stored data agrees with the code.** Migration 0034 archives every
+  active plan except the newest per athlete — exactly what the resolver
+  already decides, so nothing observable changes; the ambiguity behind it goes
+  away. Plan creation has archived the previous plan since 2026-07-15, ten
+  hours after these rows were made, so this is a one-time cleanup rather than
+  a recurring repair.
+- Release pages for v0.28.0, v0.28.1, v0.29.0 and v0.30.0, whose tags shipped
+  without them.
+
 ## v0.31.0 — 2026-07-30 — Rides Get Counted
 
 Reported: "the trainings of today do not show in the train agenda of today."
