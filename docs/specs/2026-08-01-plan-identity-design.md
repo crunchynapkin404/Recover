@@ -179,9 +179,11 @@ week's existing binding.
 
 ## Verification beyond the gate
 
-`/` and `/train` are `export const dynamic = "force-dynamic"`, so `next build`
-never renders them and the five-command gate cannot see a broken render on
-either page. Both are in this change's blast radius. **A real authenticated page
+Neither `/` nor `/train` is rendered by `next build`, so the five-command gate
+cannot see a broken render on either page. `/train` says so explicitly with
+`export const dynamic = "force-dynamic"`; `/` reaches the same state
+implicitly, because `requireUser()` awaits `headers()` and everything below
+that point is dynamic and cannot be prerendered. Both are in this change's blast radius. **A real authenticated page
 load is required** — Playwright against `next dev` works in this sandbox.
 
 Gate, in order:
