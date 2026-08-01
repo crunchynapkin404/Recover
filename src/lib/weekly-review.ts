@@ -16,6 +16,7 @@
 import { and, desc, eq, gte, lte, ne, count, avg, sum } from "drizzle-orm";
 import { generateText } from "ai";
 import { db, schema } from "@/lib/db";
+import { getActivePlan } from "@/lib/active-plan";
 import { logger } from "@/lib/logger";
 import { resolveProvider } from "@/lib/llm-provider";
 import { recordLlmUsage } from "@/lib/llm-usage";
@@ -232,13 +233,7 @@ export async function generateWeeklyReview(userId: string): Promise<void> {
 
   // ── Plan adherence (read-only here; writes happen after the review is
   //    stored, so a crash can't advance the plan without a review) ─────────
-  const activePlan = await db.query.trainingPlans.findFirst({
-    where: and(
-      eq(schema.trainingPlans.userId, userId),
-      eq(schema.trainingPlans.status, "active")
-    ),
-    orderBy: desc(schema.trainingPlans.createdAt),
-  });
+  const activePlan = await getActivePlan(userId);
 
   const currentBlock = activePlan
     ? await db.query.trainingBlocks.findFirst({
