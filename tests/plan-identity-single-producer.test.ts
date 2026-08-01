@@ -28,6 +28,20 @@
 // decides "which plan is this athlete on". That is a different operation
 // from the heap-order READ defect this release fixed, and conflating the two
 // would make this guard fire on legitimate code.
+//
+// KNOWN LIMITATION — do not over-trust this guard. It inspects the text
+// inside the matched query call's own parentheses, so it catches the
+// realistic reintroduction (a filter written inline, copy-pasted from an
+// old call site) but NOT one built through indirection:
+//
+//   const activeFilter = and(eq(...userId, userId), eq(...status, "active"));
+//   db.query.trainingPlans.findFirst({ where: activeFilter });
+//
+// There the inspected span is just `{ where: activeFilter }`, which mentions
+// neither the status column nor "active", and this guard stays green. That is
+// an ordinary refactor, not an adversarial one — so treat a passing run as
+// evidence against the common case, not proof that no consumer resolves the
+// active plan on its own.
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { extname, join, relative, sep } from "node:path";
 import { describe, expect, it } from "vitest";

@@ -35,10 +35,6 @@ export async function getActivePlan(
     // retried inside one transaction can produce rows with identical
     // createdAt. `id` breaks that tie, matching the (created_at, id) tuple
     // migration 0034 uses to pick the same survivor.
-    // Postgres's now() is constant within a transaction, so a plan creation
-    // retried inside one transaction can produce rows with identical
-    // createdAt. `id` breaks that tie, matching the (created_at, id) tuple
-    // migration 0034 uses to pick the same survivor.
     orderBy: [
       desc(schema.trainingPlans.createdAt),
       desc(schema.trainingPlans.id),
