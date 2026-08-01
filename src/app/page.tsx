@@ -3,6 +3,7 @@ import { and, eq, gte, ne } from "drizzle-orm";
 import { Sparkles, User } from "lucide-react";
 import { db, schema } from "@/lib/db";
 import { requireUser } from "@/lib/session";
+import { getActivePlan } from "@/lib/active-plan";
 import { AppShell, shellUser } from "@/components/app-shell";
 import { PullToRefresh } from "@/components/dashboard/pull-to-refresh";
 import { SyncChip } from "@/components/dashboard/sync-chip";
@@ -206,13 +207,11 @@ export default async function DashboardPage({
   const weekHours =
     weekActivities.reduce((sum, a) => sum + (a.durationS ?? 0), 0) / 3600;
 
-  const activePlan = await db.query.trainingPlans.findFirst({
-    where: and(
-      eq(schema.trainingPlans.userId, user.id),
-      eq(schema.trainingPlans.status, "active")
-    ),
-    columns: { constraints: true },
-  });
+  // Same resolver every other surface uses, so the dashboard cannot disagree
+  // with the engine about which plan it is describing. The old `columns`
+  // projection is dropped on purpose: one shared shape beats saving four
+  // columns on one query.
+  const activePlan = await getActivePlan(user.id);
   // The same derived, race/ceiling-aware figure /train's WeekRationale
   // shows — never the plan's raw typed constraints.hoursPerWeek — so the
   // two surfaces can never disagree (final-review Finding I5). weekPlan is

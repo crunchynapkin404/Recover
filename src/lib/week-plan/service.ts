@@ -3,6 +3,7 @@
 // this layer only loads state, runs an engine, and persists the result.
 import { and, asc, desc, eq, gte, inArray, lt, ne, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
+import { getActivePlan } from "@/lib/active-plan";
 import { racesForWeek, currentCtl } from "@/lib/race/service";
 import { materializeWeek } from "./materialize";
 import { adaptDay } from "./adapt-day";
@@ -92,16 +93,6 @@ export function planConstraints(constraints: unknown): PlanConstraints {
   };
 }
 
-async function activePlan(userId: string) {
-  return db.query.trainingPlans.findFirst({
-    where: and(
-      eq(schema.trainingPlans.userId, userId),
-      eq(schema.trainingPlans.status, "active")
-    ),
-    orderBy: desc(schema.trainingPlans.createdAt),
-  });
-}
-
 /** Last 7 readiness bands, oldest first; missing rows count as calibrating. */
 async function recentBands(userId: string): Promise<Band[]> {
   const rows = await db.query.dailyMetrics.findMany({
@@ -180,7 +171,7 @@ export async function rolloverWeekPlan(
   userId: string,
   now = new Date()
 ): Promise<"rolled" | "skipped"> {
-  const plan = await activePlan(userId);
+  const plan = await getActivePlan(userId);
   if (!plan) return "skipped";
 
   const weekStart = mondayOf(now);

@@ -3,6 +3,7 @@ import { and, asc, desc, eq, gte, inArray, ne } from "drizzle-orm";
 import { Bike, ClipboardList, LineChart, Plus } from "lucide-react";
 import { db, schema } from "@/lib/db";
 import { requireUser } from "@/lib/session";
+import { getActivePlan } from "@/lib/active-plan";
 import { AppShell, shellUser } from "@/components/app-shell";
 import { WeekStrip } from "@/components/plan/week-strip";
 import {
@@ -243,12 +244,7 @@ async function WeekTab({
   href: TrainHref;
   initialAvailabilityMode: AvailabilityWeekMode;
 }) {
-  const plan = await db.query.trainingPlans.findFirst({
-    where: and(
-      eq(schema.trainingPlans.userId, userId),
-      eq(schema.trainingPlans.status, "active")
-    ),
-  });
+  const plan = await getActivePlan(userId);
 
   // The readiness chip reads the same daily_metrics row Today's hero does,
   // so the two screens can never disagree about the athlete's band.

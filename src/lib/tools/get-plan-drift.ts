@@ -1,18 +1,14 @@
 import { z } from "zod";
 import type { ToolDefinition, ToolContext } from "./registry";
 import { db, schema } from "@/lib/db";
-import { and, asc, eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { getOpenWeekPlan, listAdjustments } from "@/lib/week-plan/service";
+import { getActivePlan } from "@/lib/active-plan";
 
 const parameters = z.object({});
 
 async function execute(_args: z.infer<typeof parameters>, ctx: ToolContext) {
-  const plan = await db.query.trainingPlans.findFirst({
-    where: and(
-      eq(schema.trainingPlans.userId, ctx.userId),
-      eq(schema.trainingPlans.status, "active")
-    ),
-  });
+  const plan = await getActivePlan(ctx.userId);
   if (!plan) return { available: false, reason: "no_active_plan" };
 
   const blocks = await db.query.trainingBlocks.findMany({
