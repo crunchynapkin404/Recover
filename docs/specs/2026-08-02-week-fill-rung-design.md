@@ -53,15 +53,18 @@ A fifth rung in `replanWeek`, running once after the existing four have
 settled and every displaced session has found its outcome.
 
 `replanWeek` takes a new **required** parameter enabling it. Required, not
-optional-defaulting-false: the `today` parameter on this same function is
+optional-defaulting-off: the `today` parameter on this same function is
 already required for exactly this reason — so that a caller cannot silently
-reintroduce a defect by omission. Only two callers pass `true`:
+reintroduce a defect by omission.
 
-- `applyAvailability` — the athlete submitted the availability form.
-- `applyResolvedAvailability` — a default or override was written directly
-  ("No time today", a standard-week edit) and the week must follow it.
+The parameter is `FillOptions | null` rather than a boolean, because the
+target travels with it. A boolean would admit an "enabled but no target"
+state that has no meaning; `null` is the only way to express "no fill".
 
-Every other path passes `false`.
+**There is exactly one enabling call site.** `applyResolvedAvailability`
+resolves the availability tables and then delegates to `applyAvailability`,
+so wiring the target in `applyAvailability` covers both the form and the
+direct-write paths. Every other caller passes `null`.
 
 ### 1a — Grow in place
 
@@ -167,6 +170,17 @@ Cycling has no equivalent single-session spike rule — its injury mechanism is
 cumulative, and already bounded upstream — which is why the `long` path is
 open for it.
 
+### The swim carve-out
+
+**Fill operates on `Bike` and `Run` only.** A triathlon plan also contains
+`Swim` sessions, and this codebase holds no swim duration bound at all —
+`longRideBoundMins` is a cycling figure derived from cycling evidence, and
+applying it to a swim would be exactly the unjustified-constant mistake
+`training-plan.ts`'s original caps represent. Fill has no ceiling it can
+defend for swimming, so it neither grows nor adds one. `fillCeilingMins`
+returns `null` for any sport it cannot bound, and both sub-steps skip a
+session or slot whose ceiling is `null`.
+
 ### Choosing what 1b adds
 
 1. A **`long`** session, only when: the week currently holds no `long`
@@ -185,10 +199,11 @@ longRideBoundMins(...))`.
 entries with no ranking, so "the plan's primary sport" is not a well-defined
 thing to reach for.
 
-Fill instead adds **in a sport the week already contains**: the sport holding
-the most endurance minutes in the current week, ties broken by the order
-`inferSports` returns. A week with no endurance sessions at all gives no
-evidence of what to add, and fill **adds nothing** rather than guessing.
+Fill instead adds **in a sport the week already contains and can bound**: of
+the sports with a non-null `fillCeilingMins`, the one holding the most
+endurance minutes in the current week, ties broken by the order `inferSports`
+returns. A week with no bounded endurance sessions at all gives no evidence of
+what to add, and fill **adds nothing** rather than guessing.
 
 `admits` already rejects a session whose sport a block excludes, so a
 sport-restricted block cannot be mis-filled; if the chosen sport is not
@@ -266,25 +281,38 @@ That is what makes the ladder testable, and fill must not break it.
 The live target is therefore resolved by the **callers**, which already have
 database access, and passed in:
 
+The fill logic itself lives in a **new module**, `src/lib/week-plan/fill.ts`,
+which `replanWeek` calls as its final rung. `replan.ts` is already a dense
+250-line ladder; growing it by another two sub-steps would make the file
+harder to hold in one reading, and fill's placement rules are independently
+testable.
+
 ```text
-applyAvailability ─┐
-                   ├─► assembleWeeklyTarget ─► targetMins ─► replanWeek(…, { fill: true, targetMins })
-applyResolvedAvailability ─┘
+applyResolvedAvailability ─► applyAvailability ─► assembleWeeklyTarget
+                                   │                      │
+                                   │        targetMins, queenStageHours
+                                   ▼                      │
+                             replanWeek(…, fill) ◄────────┘
+                                   │
+                                   ▼
+                             fillWeek(days, opts)   ← rung 5
 ```
 
 `longRideBoundMins` needs `queenStageHours`, which comes from `EventDemand`
-via `assembleVolumeInputs` — already loaded inside `assembleWeeklyTarget`, so
-the callers pass it through rather than issuing a second query.
+via `assembleVolumeInputs` — already loaded inside `assembleWeeklyTarget`,
+which returns it on `demand.queenStageHours`. One call supplies both the
+target and the bound; no second query.
 
 New/changed files:
 
-| file                               | change                                            |
-| ---------------------------------- | ------------------------------------------------- |
-| `src/lib/week-plan/replan.ts`      | rung 5, both sub-steps                            |
-| `src/lib/week-plan/types.ts`       | `restIntent`, `"added"` action                    |
-| `src/lib/week-plan/materialize.ts` | set `restIntent: "pre_race"` on the pre-race rest |
-| `src/lib/week-plan/service.ts`     | resolve the target, pass it in, at both callers   |
-| `src/lib/training-plan.ts`         | name the inline easy-run cap                      |
+| file                               | change                                               |
+| ---------------------------------- | ---------------------------------------------------- |
+| `src/lib/week-plan/fill.ts`        | **new** — `fillWeek`, `fillCeilingMins`, sub-steps   |
+| `src/lib/week-plan/replan.ts`      | the new parameter; call `fillWeek` as rung 5         |
+| `src/lib/week-plan/types.ts`       | `restIntent`, `"added"` action                       |
+| `src/lib/week-plan/materialize.ts` | set `restIntent: "pre_race"` on the pre-race rest    |
+| `src/lib/week-plan/service.ts`     | resolve the target, pass it into `applyAvailability` |
+| `src/lib/training-plan.ts`         | name the inline easy-run cap                         |
 
 No migration. `restIntent` lives inside the existing `week_plans.days` jsonb,
 and is optional.
@@ -304,6 +332,7 @@ with branches:
 - a running plan never receives a `long` session
 - a week with no endurance sessions gains nothing
 - a triathlon week fills in the sport holding the most endurance minutes
+- a swim session is never grown, and a swim-only block is never filled
 - fill disabled (every other caller) is byte-identical to today's output
 
 **Idempotence.** Submitting the same availability twice adds nothing the
