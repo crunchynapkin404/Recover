@@ -8,7 +8,7 @@
  * perpetually-pending poll job would suppress ensureJobsForConnections'
  * duplicate guard for the daily sync), exactly like activity-poll.ts.
  */
-import { and, eq, inArray, isNull, lt, or } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { decrypt } from "@/lib/crypto";
@@ -19,11 +19,41 @@ import {
 import { applyWellnessPatch } from "@/lib/wellness-merge";
 import { wellnessDayToPatch } from "@/lib/sync/intervals-sync";
 
-export const WELLNESS_REFRESH_INTERVAL_MIN = 30;
+/** Minutes between wellness re-pulls when the athlete hasn't chosen. Kept at
+ *  v0.33's cadence so upgrading never silently increases load on
+ *  intervals.icu, which is free and run by one developer. */
+export const DEFAULT_WELLNESS_POLL_INTERVAL_MIN = 30;
+/** What the settings UI offers. 0 = daily sync only. */
+export const WELLNESS_POLL_INTERVAL_CHOICES = [0, 15, 30, 60] as const;
+
 export const WELLNESS_REFRESH_START_HOUR = 5; // == scheduler SYNC_HOUR
-export const WELLNESS_REFRESH_END_HOUR = 12;
+/** Quiet 23:00–05:00: the athlete is asleep, the Companion hasn't written the
+ *  night yet, and the 05:00 daily sync covers the boundary. */
+export const WELLNESS_REFRESH_END_HOUR = 23;
 /** Sleep is attributed to the bed date, so yesterday must be in range. */
 export const WELLNESS_REFRESH_DAYS = 3;
+
+export function effectivePollIntervalMin(
+  configured: number | null | undefined
+): number {
+  return configured ?? DEFAULT_WELLNESS_POLL_INTERVAL_MIN;
+}
+
+/**
+ * Has this connection's own interval elapsed since its last poll?
+ *
+ * Per-connection rather than one global cutoff, which is why this is a
+ * predicate applied in the loop instead of a `lt(...)` in the query.
+ */
+export function isPollDue(
+  lastPollAt: Date | null,
+  intervalMin: number,
+  now: Date
+): boolean {
+  if (intervalMin <= 0) return false; // daily sync only
+  if (!lastPollAt) return true;
+  return now.getTime() - lastPollAt.getTime() >= intervalMin * 60_000;
+}
 
 export type WellnessFetcher = (params: {
   apiKey: string;
@@ -39,28 +69,6 @@ export function refreshWindowOpen(now: Date): boolean {
 
 function localYmd(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-/**
- * Done for the day once yesterday carries both a duration and a stage —
- * the Companion has landed and there is nothing left to wait for.
- */
-async function yesterdaySettled(userId: string, now: Date): Promise<boolean> {
-  const y = new Date(now);
-  y.setDate(y.getDate() - 1);
-  const row = await db.query.wellnessDaily.findFirst({
-    where: and(
-      eq(schema.wellnessDaily.userId, userId),
-      eq(schema.wellnessDaily.date, localYmd(y))
-    ),
-  });
-  if (!row) return false;
-  return (
-    row.sleepSecs != null &&
-    (row.sleepDeepSecs != null ||
-      row.sleepRemSecs != null ||
-      row.sleepLightSecs != null)
-  );
 }
 
 /**
@@ -85,18 +93,14 @@ export async function runWellnessRefresh(opts?: {
   const now = opts?.now ?? new Date();
   if (!refreshWindowOpen(now)) return 0;
   const fetcher = opts?.fetcher ?? fetchDailyWellness;
-  const dueBefore = new Date(
-    now.getTime() - WELLNESS_REFRESH_INTERVAL_MIN * 60_000
-  );
 
+  // The due test is per-connection (each has its own interval), so it happens
+  // in the loop rather than as a single cutoff in the query. That is a handful
+  // of rows on a self-hosted instance; correctness beats one saved round trip.
   const conns = await db.query.connections.findMany({
     where: and(
       eq(schema.connections.provider, "intervals_icu"),
       eq(schema.connections.status, "active"),
-      or(
-        isNull(schema.connections.lastWellnessPollAt),
-        lt(schema.connections.lastWellnessPollAt, dueBefore)
-      ),
       opts?.userIds
         ? inArray(schema.connections.userId, opts.userIds)
         : undefined
@@ -105,7 +109,8 @@ export async function runWellnessRefresh(opts?: {
 
   let refreshed = 0;
   for (const conn of conns) {
-    if (await yesterdaySettled(conn.userId, now)) continue;
+    const interval = effectivePollIntervalMin(conn.wellnessPollIntervalMin);
+    if (!isPollDue(conn.lastWellnessPollAt, interval, now)) continue;
 
     // Stamp the cursor first, success or failure — a broken API key must not
     // tight-loop against intervals.icu every tick.

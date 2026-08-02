@@ -5,6 +5,7 @@ import {
   connectIntervals,
   disconnectIntervals,
   syncNow,
+  setWellnessPollInterval,
   type ActionResult,
 } from "@/app/settings/actions";
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +27,9 @@ interface Props {
     status: "active" | "error" | "revoked";
     lastSyncAt: string | null;
     lastError: string | null;
+    /** null = app default (30). 0 = daily sync only. */
+    wellnessPollIntervalMin: number | null;
+    lastWellnessPollAt: string | null;
   } | null;
 }
 
@@ -102,6 +106,34 @@ export function IntervalsCard({ connection }: Props) {
             >
               Disconnect
             </Button>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="wellness-interval" className="text-xs">
+                Wellness sync
+              </Label>
+              <select
+                id="wellness-interval"
+                className="h-9 rounded-md border border-white/10 bg-transparent px-2 text-sm"
+                defaultValue={String(connection.wellnessPollIntervalMin ?? 30)}
+                disabled={pending}
+                onChange={(e) => {
+                  const minutes = Number(e.target.value);
+                  startTransition(async () =>
+                    setResult(await setWellnessPollInterval(minutes))
+                  );
+                }}
+              >
+                <option value="0">Daily only</option>
+                <option value="60">Every 60 min</option>
+                <option value="30">Every 30 min</option>
+                <option value="15">Every 15 min</option>
+              </select>
+            </div>
+            {connection.lastWellnessPollAt && (
+              <span className="text-[10px] text-white/40">
+                Wellness checked:{" "}
+                {new Date(connection.lastWellnessPollAt).toLocaleTimeString()}
+              </span>
+            )}
             {connection.lastSyncAt && (
               <span className="text-sm text-muted-foreground">
                 Last sync: {new Date(connection.lastSyncAt).toLocaleString()}

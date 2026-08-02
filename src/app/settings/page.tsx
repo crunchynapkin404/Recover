@@ -271,6 +271,10 @@ export default async function SettingsPage({
                         lastSyncAt:
                           connection.lastSyncAt?.toISOString() ?? null,
                         lastError: connection.lastError,
+                        wellnessPollIntervalMin:
+                          connection.wellnessPollIntervalMin,
+                        lastWellnessPollAt:
+                          connection.lastWellnessPollAt?.toISOString() ?? null,
                       }
                     : null
                 }

@@ -25,9 +25,11 @@ describe("wellness refresh window", () => {
     }
   });
 
-  it("is closed from midday onward", () => {
+  // v0.34 widened this to the whole waking day: the morning-only window was
+  // built for sleep arrival and froze intraday wellness after breakfast.
+  it("is closed only overnight", () => {
     expect(refreshWindowOpen(at(WELLNESS_REFRESH_END_HOUR))).toBe(false);
-    expect(refreshWindowOpen(at(18))).toBe(false);
+    expect(refreshWindowOpen(at(18))).toBe(true);
   });
 
   // Sleep is attributed to the bed date: the night of Aug 1->2 lands on the

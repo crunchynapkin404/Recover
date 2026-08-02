@@ -94,6 +94,49 @@ export async function syncNow(): Promise<ActionResult> {
   }
 }
 
+/**
+ * How often to re-pull intervals.icu wellness, in minutes. 0 = daily sync
+ * only. Validated against the offered choices rather than accepting any
+ * number — a stray value would either hammer a free service or silently
+ * disable the poll.
+ */
+export async function setWellnessPollInterval(
+  minutes: number
+): Promise<ActionResult> {
+  const user = await requireUser();
+  const { WELLNESS_POLL_INTERVAL_CHOICES } =
+    await import("@/lib/sync/wellness-refresh");
+  if (
+    !(WELLNESS_POLL_INTERVAL_CHOICES as readonly number[]).includes(minutes)
+  ) {
+    return { ok: false, message: "Unsupported sync interval." };
+  }
+
+  const updated = await db
+    .update(schema.connections)
+    .set({ wellnessPollIntervalMin: minutes })
+    .where(
+      and(
+        eq(schema.connections.userId, user.id),
+        eq(schema.connections.provider, "intervals_icu")
+      )
+    )
+    .returning();
+
+  if (updated.length === 0) {
+    return { ok: false, message: "No intervals.icu connection to configure." };
+  }
+
+  revalidatePath("/settings");
+  return {
+    ok: true,
+    message:
+      minutes === 0
+        ? "Wellness will sync once a day."
+        : `Wellness will sync every ${minutes} minutes.`,
+  };
+}
+
 export async function disconnectIntervals(): Promise<ActionResult> {
   const user = await requireUser();
   await db

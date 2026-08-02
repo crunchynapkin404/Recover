@@ -26,16 +26,16 @@ through the day rather than freezing after breakfast.
 
 ## Decisions
 
-| Decision       | Choice                                                                                                                                                                                                                                                                                                                  |
-| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Setting home   | `connections.wellness_poll_interval_min` (nullable smallint; null = default). It is a property of the intervals.icu connection and sits beside `last_wellness_poll_at`, which already lives there. `notification_prefs` would be convenient but is semantically about notifications.                                    |
-| Values         | Daily only (off) / 60 / 30 / 15 minutes. Stored as the integer minutes; "Daily only" is `0`.                                                                                                                                                                                                                            |
-| Default        | **30** — preserves roughly v0.33's cadence, so upgrading an instance never silently increases load on intervals.icu.                                                                                                                                                                                                    |
-| Stop condition | **Removed.** `yesterdaySettled()` is deleted. It exists to stop polling once sleep lands, which defeats the entire point of an all-day interval. Sleep arrival is still served — a 15/30-minute interval is strictly more aggressive in the morning than the v0.33 throttle was.                                        |
-| Window         | Active 05:00–23:00 local; quiet 23:00–05:00. Polling overnight buys nothing: the athlete is asleep, the Companion has not written the night yet, and the 05:00 daily sync covers the boundary. Starts at `SYNC_HOUR` rather than the activity poll's 06:00 so v0.33's current 05:00–06:00 coverage is not a regression. |
-| Activity poll  | **Untouched.** Its 15-minute cadence and 23:00–06:00 quiet window stay as they are — the ride-debrief loop depends on its timing, and changing both at once would tangle two unrelated behaviours.                                                                                                                      |
-| Load           | At 15 minutes: 72 wellness polls/day/user across an 18-hour window, on top of ~68 existing activity polls. intervals.icu is free and run by one developer, which is why the default stays at 30 and "Daily only" is offered. `icuFetch` already maps 429 → `ConnectorError("rate_limited")`.                            |
-| Awake legend   | `SleepNightCard` renders an "Awake" legend entry that is permanently 0 on this route (the three stages sum to `sleepSecs` by construction). The entry is hidden when `awakeSecs === 0`, rather than implying a night with zero awakenings.                                                                              |
+| Decision       | Choice                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Setting home   | `connections.wellness_poll_interval_min` (nullable smallint; null = default). It is a property of the intervals.icu connection and sits beside `last_wellness_poll_at`, which already lives there. `notification_prefs` would be convenient but is semantically about notifications.                                                                                                                                                                    |
+| Values         | Daily only (off) / 60 / 30 / 15 minutes. Stored as the integer minutes; "Daily only" is `0`.                                                                                                                                                                                                                                                                                                                                                            |
+| Default        | **30** — preserves roughly v0.33's cadence, so upgrading an instance never silently increases load on intervals.icu.                                                                                                                                                                                                                                                                                                                                    |
+| Stop condition | **Removed.** `yesterdaySettled()` is deleted. It exists to stop polling once sleep lands, which defeats the entire point of an all-day interval. Sleep arrival is still served — a 15/30-minute interval is strictly more aggressive in the morning than the v0.33 throttle was.                                                                                                                                                                        |
+| Window         | Active 05:00–23:00 local; quiet 23:00–05:00. Polling overnight buys nothing: the athlete is asleep, the Companion has not written the night yet, and the 05:00 daily sync covers the boundary. Starts at `SYNC_HOUR` rather than the activity poll's 06:00 so v0.33's current 05:00–06:00 coverage is not a regression.                                                                                                                                 |
+| Activity poll  | **Untouched.** Its 15-minute cadence and 23:00–06:00 quiet window stay as they are — the ride-debrief loop depends on its timing, and changing both at once would tangle two unrelated behaviours.                                                                                                                                                                                                                                                      |
+| Load           | At 15 minutes: 72 wellness polls/day/user across an 18-hour window, on top of ~68 existing activity polls. intervals.icu is free and run by one developer, which is why the default stays at 30 and "Daily only" is offered. `icuFetch` already maps 429 → `ConnectorError("rate_limited")`.                                                                                                                                                            |
+| Awake legend   | **No code change needed** — an earlier read of this was wrong. `SleepNightCard` already drops any stage with `secs <= 0` from both the bar and the legend, so the permanently-zero Awake entry never rendered. Only the file's doc comment is updated, to record that awake time must not be derived as `total − stages`: on this route that is a guaranteed 0 (31/31 nights), and rendering it would assert a night with no awakenings as if measured. |
 
 ## Architecture
 
@@ -78,9 +78,10 @@ anything else rather than writing an arbitrary number.
 
 ### Sleep card — `src/components/body/sleep-night-card.tsx`
 
-The stage legend filters out entries whose value is 0 when the field has no
-source. Deep/REM/Light are unaffected; only the permanently-zero Awake row
-disappears.
+Doc comment only. The existing `if (secs <= 0) return null` in both the bar
+and the legend already suppresses the zero Awake entry; the comment records
+why awake time must not be back-computed from `total − stages` so a future
+change doesn't "helpfully" add it.
 
 ## Testing
 
@@ -89,10 +90,16 @@ disappears.
 - **Window:** open at 05:00 and 22:59, closed at 23:00 and 04:59.
 - **No stop condition:** a connection whose yesterday already has stages is
   still polled — the regression test for the behaviour being removed.
-- **Action validation:** `setWellnessPollInterval` accepts 0/15/30/60 and
-  rejects 7, -1, and 1440.
-- **Sleep legend:** an Awake entry of 0 is not rendered; a non-zero one is.
-- Any DB-touching test carries `describe.skipIf(!hasDb)`.
+- **Allowed values:** `WELLNESS_POLL_INTERVAL_CHOICES` is pinned to
+  `[0, 15, 30, 60]` by test. `setWellnessPollInterval` validates against that
+  same array, so a stray value can neither hammer a free service nor silently
+  disable the poll. The action itself is not unit-tested — it is a
+  `requireUser()`-gated server action whose only logic is that membership
+  check, and a test that mocked the session away would assert nothing real.
+- Any DB-touching test carries `describe.skipIf(!hasDb)`, **and the suite is
+  run once with `DATABASE_URL` unset** to prove CI skips rather than crashes.
+  v0.33 shipped a test that passed locally and turned the PR red for exactly
+  this reason; running the gate with the variable set is not the same check.
 
 ## Verification
 
