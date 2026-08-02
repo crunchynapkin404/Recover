@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildBodyHref,
   buildLogHref,
   buildTrainHref,
   type LogFilterState,
@@ -117,5 +118,37 @@ describe("buildTrainHref", () => {
   it("clears the sport filter on an empty-string override", () => {
     const href = buildTrainHref({ ...TRAIN_BASE, sport: "Run" }, { sport: "" });
     expect(href).not.toContain("sport=");
+  });
+});
+
+describe("buildBodyHref night axis", () => {
+  const BASE = { tab: "sleep" as const, range: 90 };
+
+  it("carries the night when another axis changes", () => {
+    const href = buildBodyHref(
+      { ...BASE, night: "2026-07-31" },
+      { range: 180 }
+    );
+    expect(href).toContain("night=2026-07-31");
+    expect(href).toContain("range=180");
+  });
+
+  // v0.19 shipped hrefs that dropped sibling state on every click; the night
+  // axis must not reintroduce that.
+  it("keeps the tab when only the night changes, and vice versa", () => {
+    expect(buildBodyHref(BASE, { night: "2026-07-29" })).toContain("tab=sleep");
+    expect(
+      buildBodyHref({ ...BASE, night: "2026-07-29" }, { tab: "trends" })
+    ).toContain("night=2026-07-29");
+  });
+
+  it("omits night when there isn't one (latest night is the default)", () => {
+    expect(buildBodyHref(BASE, {})).not.toContain("night=");
+  });
+
+  it("clears the night on an empty-string override", () => {
+    expect(
+      buildBodyHref({ ...BASE, night: "2026-07-29" }, { night: "" })
+    ).not.toContain("night=");
   });
 });

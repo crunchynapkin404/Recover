@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export interface SleepStages {
   deepSecs: number;
   remSecs: number;
@@ -6,15 +8,29 @@ export interface SleepStages {
 }
 
 interface Props {
-  /** Total asleep time in seconds, or null when last night wasn't recorded. */
+  /** Total asleep time in seconds, or null when the night wasn't recorded. */
   totalSecs: number | null;
-  /** Provider stage split; null when the provider doesn't send stages. */
+  /** Provider stage split; null when this night has no stages. */
   stages: SleepStages | null;
   /** Local "HH:MM" bed window, when the provider sent one. */
   bedWindow: { start: string; end: string } | null;
-  consistency: number | null;
-  chronotype: string | null;
-  /** Recommended bedtime tonight ("23:10"), or null when unknown. */
+  /** Heading for the night on screen, e.g. "Last night" or "Fri 31 Jul". */
+  heading: string;
+  /** Previous/next night hrefs; omitted at the ends of the history. */
+  prevHref?: string;
+  nextHref?: string;
+  /**
+   * True only when NO night in the window has stages — i.e. the provider
+   * genuinely doesn't send them. False means this particular night is
+   * missing them while siblings have them, which is the common case: the
+   * Companion writes a night's duration before its stages.
+   */
+  stagesUnsupported: boolean;
+  /**
+   * Recommended bedtime tonight ("23:10"), or null. Only ever passed for the
+   * latest night — advising a bedtime while viewing a night from last week
+   * would be nonsense.
+   */
   bedtimeTonight: string | null;
 }
 
@@ -25,10 +41,14 @@ const STAGES = [
   { key: "awakeSecs", label: "Awake", color: "rgba(255,255,255,0.25)" },
 ] as const;
 
+/**
+ * "1:31". Rounds to whole minutes FIRST, then splits — computing hours and
+ * minutes independently renders 3597s as "0:60", because the minute part
+ * rounds up to 60 without carrying into the hour.
+ */
 function clock(secs: number): string {
-  const h = Math.floor(secs / 3600);
-  const m = Math.round((secs % 3600) / 60);
-  return `${h}:${String(m).padStart(2, "0")}`;
+  const totalMin = Math.round(secs / 60);
+  return `${Math.floor(totalMin / 60)}:${String(totalMin % 60).padStart(2, "0")}`;
 }
 
 /**
@@ -51,26 +71,56 @@ export function SleepNightCard({
   totalSecs,
   stages,
   bedWindow,
-  consistency,
-  chronotype,
+  heading,
+  prevHref,
+  nextHref,
+  stagesUnsupported,
   bedtimeTonight,
 }: Props) {
   const stageTotal = stages
     ? stages.deepSecs + stages.remSecs + stages.lightSecs + stages.awakeSecs
     : 0;
 
-  const footer = [
-    consistency != null
-      ? { label: "Consistency", value: String(Math.round(consistency)) }
-      : null,
-    chronotype ? { label: "Chronotype", value: chronotype } : null,
-  ].filter((f): f is { label: string; value: string } => f !== null);
-
   return (
     <section className="mb-3 rounded-[18px] border border-white/[0.08] bg-white/[0.03] p-4">
       <div className="mb-3 flex items-baseline justify-between gap-3">
-        <h3 className="text-[9.5px] font-bold uppercase tracking-[0.15em] text-white/40">
-          Last night{totalSecs != null && ` · ${clock(totalSecs)}`}
+        <h3 className="flex items-baseline gap-2 text-[9.5px] font-bold uppercase tracking-[0.15em] text-white/40">
+          {prevHref ? (
+            <Link
+              href={prevHref}
+              aria-label="Previous night"
+              className="text-[13px] leading-none text-white/45 hover:text-white/80"
+            >
+              ‹
+            </Link>
+          ) : (
+            <span
+              aria-hidden
+              className="text-[13px] leading-none text-white/15"
+            >
+              ‹
+            </span>
+          )}
+          <span>
+            {heading}
+            {totalSecs != null && ` · ${clock(totalSecs)}`}
+          </span>
+          {nextHref ? (
+            <Link
+              href={nextHref}
+              aria-label="Next night"
+              className="text-[13px] leading-none text-white/45 hover:text-white/80"
+            >
+              ›
+            </Link>
+          ) : (
+            <span
+              aria-hidden
+              className="text-[13px] leading-none text-white/15"
+            >
+              ›
+            </span>
+          )}
         </h3>
         {bedWindow && (
           <p className="font-mono text-[11px] text-white/45">
@@ -119,25 +169,19 @@ export function SleepNightCard({
         </>
       ) : (
         <p className="text-[11px] text-white/40">
-          {totalSecs != null
-            ? "Your provider doesn't send sleep stages — total time only."
-            : "No sleep recorded last night."}
+          {totalSecs == null
+            ? "No sleep recorded for this night."
+            : stagesUnsupported
+              ? "Your provider doesn't send sleep stages — total time only."
+              : "No stages recorded for this night yet."}
         </p>
       )}
 
-      {(footer.length > 0 || bedtimeTonight) && (
+      {bedtimeTonight && (
         <div className="mt-3 flex flex-wrap items-baseline gap-x-5 gap-y-1 border-t border-white/[0.06] pt-3">
-          {footer.map((f) => (
-            <span key={f.label} className="text-[11px] text-white/50">
-              {f.label}{" "}
-              <strong className="font-bold text-white/85">{f.value}</strong>
-            </span>
-          ))}
-          {bedtimeTonight && (
-            <span className="text-[11px] font-medium text-amber-400/90">
-              Tonight: bed by {bedtimeTonight}
-            </span>
-          )}
+          <span className="text-[11px] font-medium text-amber-400/90">
+            Tonight: bed by {bedtimeTonight}
+          </span>
         </div>
       )}
     </section>

@@ -1,5 +1,44 @@
 # Changelog
 
+## v0.35.0 — 2026-08-02 — Sleep History
+
+The Sleep tab showed exactly one night: the newest with a duration.
+Everything else in the 90-day window it already loaded was unreachable. That
+turned into a real complaint the day sleep stages started arriving, because
+the Intervals.icu Companion writes a night's duration before it writes that
+night's stages — so the tab reliably landed on the one night without stages
+and reported that the provider sends none, with five complete nights sitting
+one click away and no click to make.
+
+- **A strip of recent nights, newest first.** Fourteen nights, each with a
+  mini stage bar, above the night card. A night with a duration but no stages
+  gets a dimmed bar rather than being hidden — that state is the whole reason
+  this exists, so it has to be visible.
+- **Prev/next arrows** on the card, stepping through the same list the strip
+  shows, so the two controls can never disagree.
+- **Deep-linkable.** `?night=YYYY-MM-DD`, carried through the shared href
+  builder so changing tab or range keeps your place and vice versa. The
+  parameter is validated against the nights actually loaded; anything else
+  falls back to the latest night rather than reaching a query.
+- **The no-stages message tells the truth now.** "Your provider doesn't send
+  sleep stages" is kept only when no night in the window has them. A night
+  missing them while its neighbours have them says "No stages recorded for
+  this night yet."
+- **Consistency and chronotype moved out of the night card.** They are 30-day
+  aggregates and never described the night above them; with navigation they
+  would have looked like they changed per night. Tonight's recommended bedtime
+  is hidden entirely unless you are looking at the latest night — advising a
+  bedtime for a night eleven days gone is nonsense.
+- **Fixed a duration that could render as `0:60`.** Hours and minutes were
+  computed independently, so a 3597-second deep-sleep block rounded its minute
+  part up to 60 without carrying the hour. Rounding to whole minutes first
+  fixes it; a real value from the athlete's own data is now pinned by test.
+
+Two of these were found only by driving the page in a real browser: the
+`0:60` rendering, and a strip that put the selected night off-screen at
+x=528 on a 420px viewport, where it was invisible and unclickable while every
+unit test passed.
+
 ## v0.34.0 — 2026-08-02 — Wellness Sync Interval
 
 v0.33's morning re-pull solved sleep arriving a day late, and did it with a
