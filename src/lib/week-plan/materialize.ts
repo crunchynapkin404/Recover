@@ -490,7 +490,12 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
         ...days[idx - 1],
         workouts: days[idx - 1].workouts.map((w) => ({ ...w })),
       };
-      days[idx - 1] = { ...days[idx - 1], workouts: [], status: "rest" };
+      days[idx - 1] = {
+        ...days[idx - 1],
+        workouts: [],
+        status: "rest",
+        restIntent: "pre_race",
+      };
       adjustments.push({
         date: before.date,
         trigger: "race",

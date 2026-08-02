@@ -895,3 +895,31 @@ describe("materializeWeek availability scaling (Task 9 regression)", () => {
     ).toBe(false);
   });
 });
+
+describe("restIntent", () => {
+  it("marks the day before the primary race as a deliberate rest", () => {
+    // Same BASE_INPUT/A_RACE fixture the neighbouring "B race" test uses,
+    // just with priority swapped to B. An A-priority race in-week reshapes
+    // via raceWeekWorkouts, which never schedules anything on raceIdx-1 in
+    // the first place ("nothing the day before (rest)") — so that day is
+    // already empty walking into the A/B protection block, and the
+    // assignment this test targets never runs. A B race takes the normal
+    // weekly-generation path instead, so Saturday (raceIdx-1, one day
+    // before A_RACE's Sunday) really does get a session first, which the
+    // A/B protection then has to strip — the only reachable route to the
+    // producer this task adds.
+    const bRace: RaceContext = { ...A_RACE, priority: "B", name: "Tune-up" };
+    const { week } = materializeWeek({ ...BASE_INPUT, races: [bRace] });
+
+    expect(week.days[5].workouts).toEqual([]);
+    expect(week.days[5].restIntent).toBe("pre_race");
+  });
+
+  it("leaves an ordinary empty day unmarked", () => {
+    const { week } = materializeWeek(BASE_INPUT);
+
+    const empty = week.days.filter((d) => d.workouts.length === 0);
+    expect(empty.length).toBeGreaterThan(0);
+    for (const d of empty) expect(d.restIntent).toBeUndefined();
+  });
+});

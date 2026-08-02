@@ -39,6 +39,25 @@ export interface DaySlot {
   /** Set on race-day slots (status "race"): the race's display name. */
   raceName?: string;
   /**
+   * Set ONLY where the engine deliberately leaves a day empty, as opposed to
+   * a day that merely ended up with nothing on it. The fill rung
+   * (`fill.ts`) refuses to place a session on a day carrying this.
+   *
+   * `status: "rest"` cannot serve this purpose: `materializeWeek` starts all
+   * seven days at "rest" before placing anything, and both `replanWeek` and
+   * `moveOrDropWorkout` set it when a day's last session leaves. Those days
+   * are legitimately fillable — a day emptied by the drop rung is precisely
+   * where returning time should go.
+   *
+   * Written as a single-member union so a future producer has to extend it
+   * deliberately. Low readiness is deliberately NOT one: `adaptDay` never
+   * empties a day for a red band — it substitutes a recovery session, or
+   * moves the session, or drops it when there is no room.
+   *
+   * Optional so every stored week deserializes unchanged.
+   */
+  restIntent?: "pre_race";
+  /**
    * The session as it stood BEFORE any readiness adaptation today, with the
    * band and date that adaptation was computed for.
    *
@@ -95,7 +114,7 @@ export type AdjustmentTrigger =
   | "race";
 
 export type AdjustmentAction =
-  "scaled" | "moved" | "swapped" | "dropped" | "redistributed";
+  "scaled" | "moved" | "swapped" | "dropped" | "redistributed" | "added";
 
 export interface AdjustmentRecord {
   date: string; // the day the adjustment applies to
