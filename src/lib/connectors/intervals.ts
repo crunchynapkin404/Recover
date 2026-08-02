@@ -154,6 +154,56 @@ export async function validateKey(apiKey: string): Promise<IntervalsAthlete> {
   return { id: String(data.id), name: data.name ?? null };
 }
 
+/**
+ * Map one raw intervals.icu wellness row onto the normalized shape.
+ *
+ * Extracted from `fetchDailyWellness` so the v0.36 backfill can re-map
+ * payloads already stored in `wellness_daily.raw` without a network round
+ * trip. Keeping exactly one copy is the point: a second, divergent mapping is
+ * how the columns silently fell behind `raw` in the first place.
+ *
+ * Returns null for a row without a usable `id` (the date), which is the same
+ * filter the fetch path has always applied.
+ */
+export function normalizeWellnessRow(
+  row: Record<string, unknown>
+): IntervalsWellnessDay | null {
+  if (typeof row.id !== "string" || row.id.length === 0) return null;
+
+  const sportInfo = Array.isArray(row.sportInfo)
+    ? (row.sportInfo[0] as Record<string, unknown> | undefined)
+    : undefined;
+
+  return {
+    date: row.id,
+    hrv: num(row.hrv),
+    restingHr: num(row.restingHR),
+    sleepSecs: num(row.sleepSecs),
+    sleepScore: num(row.sleepScore),
+    ctl: num(row.ctl),
+    atl: num(row.atl),
+    eftp: num(sportInfo?.eftp),
+    vo2max: num(row.vo2max),
+    rampRate: num(row.rampRate),
+    pMax: num(sportInfo?.pMax),
+    wPrime: num(sportInfo?.wPrime),
+    weight: num(row.weight),
+    spO2: num(row.spO2),
+    respiration: num(row.respiration),
+    bodyFat: num(row.bodyFat),
+    sleepingHr: num(row.avgSleepingHR),
+    hrvSdnn: num(row.hrvSDNN),
+    readiness: num(row.readiness),
+    hydrationL: num(row.hydrationVolume),
+    steps: num(row.steps),
+    sleepQuality: num(row.sleepQuality),
+    sleepDeepSecs: num(row.DeepSleep),
+    sleepRemSecs: num(row.REMSleep),
+    sleepLightSecs: num(row.LightSleep),
+    raw: row,
+  };
+}
+
 /** Fetch raw daily wellness/fitness for a date range. */
 export async function fetchDailyWellness(params: {
   apiKey: string;
@@ -170,54 +220,21 @@ export async function fetchDailyWellness(params: {
 
   let missingStages = 0;
 
-  const days = rows
-    .filter((row) => typeof row.id === "string" && row.id.length > 0)
-    .map((row) => {
-      const sportInfo = Array.isArray(row.sportInfo)
-        ? (row.sportInfo[0] as Record<string, unknown> | undefined)
-        : undefined;
+  const days: IntervalsWellnessDay[] = [];
 
-      const deep = num(row.DeepSleep);
-      const rem = num(row.REMSleep);
-      const light = num(row.LightSleep);
-      if (
-        num(row.sleepSecs) !== null &&
-        deep === null &&
-        rem === null &&
-        light === null
-      ) {
-        missingStages++;
-      }
-
-      return {
-        date: String(row.id),
-        hrv: num(row.hrv),
-        restingHr: num(row.restingHR),
-        sleepSecs: num(row.sleepSecs),
-        sleepScore: num(row.sleepScore),
-        ctl: num(row.ctl),
-        atl: num(row.atl),
-        eftp: num(sportInfo?.eftp),
-        vo2max: num(row.vo2max),
-        rampRate: num(row.rampRate),
-        pMax: num(sportInfo?.pMax),
-        wPrime: num(sportInfo?.wPrime),
-        weight: num(row.weight),
-        spO2: num(row.spO2),
-        respiration: num(row.respiration),
-        bodyFat: num(row.bodyFat),
-        sleepingHr: num(row.avgSleepingHR),
-        hrvSdnn: num(row.hrvSDNN),
-        readiness: num(row.readiness),
-        hydrationL: num(row.hydrationVolume),
-        steps: num(row.steps),
-        sleepQuality: num(row.sleepQuality),
-        sleepDeepSecs: deep,
-        sleepRemSecs: rem,
-        sleepLightSecs: light,
-        raw: row,
-      };
-    });
+  for (const row of rows) {
+    const day = normalizeWellnessRow(row);
+    if (!day) continue;
+    if (
+      day.sleepSecs !== null &&
+      day.sleepDeepSecs === null &&
+      day.sleepRemSecs === null &&
+      day.sleepLightSecs === null
+    ) {
+      missingStages++;
+    }
+    days.push(day);
+  }
 
   // Custom field codes are renameable in the intervals.icu UI; a rename turns
   // the stage mapping into permanent nulls with no other symptom. Log once per

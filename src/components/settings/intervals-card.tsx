@@ -6,6 +6,7 @@ import {
   disconnectIntervals,
   syncNow,
   setWellnessPollInterval,
+  backfillHistory,
   type ActionResult,
 } from "@/app/settings/actions";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +31,8 @@ interface Props {
     /** null = app default (30). 0 = daily sync only. */
     wellnessPollIntervalMin: number | null;
     lastWellnessPollAt: string | null;
+    /** A backfill job is pending or running for this user right now. */
+    backfillRunning: boolean;
   } | null;
 }
 
@@ -106,6 +109,17 @@ export function IntervalsCard({ connection }: Props) {
             >
               Disconnect
             </Button>
+            <Button
+              variant="outline"
+              disabled={pending || connection.backfillRunning}
+              onClick={() =>
+                startTransition(async () => setResult(await backfillHistory()))
+              }
+            >
+              {connection.backfillRunning
+                ? "Backfilling…"
+                : "Backfill full history"}
+            </Button>
             <div className="flex items-center gap-2">
               <Label htmlFor="wellness-interval" className="text-xs">
                 Wellness sync
@@ -156,10 +170,18 @@ export function IntervalsCard({ connection }: Props) {
           </p>
         )}
       </CardContent>
-      <CardFooter>
+      <CardFooter className="flex flex-col items-start gap-2">
         <p className="text-xs text-muted-foreground">
           Your API key is stored encrypted (AES-256-GCM) and only used to read
           wellness and activity data.
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Backfilling fetches your full wellness history from intervals.icu, not
+          just the last year — it skips years where intervals.icu has no real
+          data of yours, just its own calculated fitness numbers. It runs in the
+          background and takes a few minutes. Recovery scores may shift
+          afterwards, because older history changes the baselines they are
+          measured against.
         </p>
       </CardFooter>
     </Card>

@@ -65,6 +65,17 @@ export default async function SettingsPage({
     ),
   });
 
+  const backfillJob = connection
+    ? await db.query.syncJobs.findFirst({
+        where: and(
+          eq(schema.syncJobs.userId, user.id),
+          eq(schema.syncJobs.kind, "backfill"),
+          inArray(schema.syncJobs.status, ["pending", "running"])
+        ),
+        columns: { id: true },
+      })
+    : null;
+
   const stravaConnection = await db.query.connections.findFirst({
     where: and(
       eq(schema.connections.userId, user.id),
@@ -275,6 +286,7 @@ export default async function SettingsPage({
                           connection.wellnessPollIntervalMin,
                         lastWellnessPollAt:
                           connection.lastWellnessPollAt?.toISOString() ?? null,
+                        backfillRunning: backfillJob != null,
                       }
                     : null
                 }

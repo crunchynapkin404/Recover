@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { encrypt } from "@/lib/crypto";
 import { requireUser } from "@/lib/session";
@@ -92,6 +92,54 @@ export async function syncNow(): Promise<ActionResult> {
     const message = err instanceof Error ? err.message : "Sync failed.";
     return { ok: false, message };
   }
+}
+
+/**
+ * Queue a full wellness history backfill (v0.36).
+ *
+ * Enqueues and returns — the job runs for minutes and a server action cannot.
+ * The scheduler tick picks it up and routes it on `kind`.
+ */
+export async function backfillHistory(): Promise<ActionResult> {
+  const user = await requireUser();
+
+  const connection = await db.query.connections.findFirst({
+    where: and(
+      eq(schema.connections.userId, user.id),
+      eq(schema.connections.provider, "intervals_icu")
+    ),
+    columns: { id: true },
+  });
+  if (!connection) {
+    return { ok: false, message: "Connect intervals.icu first." };
+  }
+
+  const existing = await db.query.syncJobs.findFirst({
+    where: and(
+      eq(schema.syncJobs.userId, user.id),
+      eq(schema.syncJobs.provider, "intervals_icu"),
+      eq(schema.syncJobs.kind, "backfill"),
+      inArray(schema.syncJobs.status, ["pending", "running"])
+    ),
+    columns: { id: true },
+  });
+  if (existing) {
+    return { ok: false, message: "A backfill is already queued or running." };
+  }
+
+  await db.insert(schema.syncJobs).values({
+    userId: user.id,
+    provider: "intervals_icu",
+    kind: "backfill",
+    runAfter: new Date(),
+  });
+
+  revalidatePath("/settings");
+  return {
+    ok: true,
+    message:
+      "Backfill queued. It runs in the background and can take several minutes.",
+  };
 }
 
 /**

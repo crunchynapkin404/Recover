@@ -42,7 +42,47 @@ type SyncJob = typeof schema.syncJobs.$inferSelect;
 
 export type JobProcessor = (job: SyncJob) => Promise<void>;
 
-async function defaultProcessor(job: SyncJob): Promise<void> {
+/** Keep a long-running job out of the stale-reclaim window. Sets the same
+ *  `updated_at` the reclaim query in runSchedulerTick reads.
+ *
+ *  A heartbeat is monitoring, not the work being monitored: a transient DB
+ *  hiccup here must never abort a backfill or metrics recompute that is
+ *  otherwise succeeding, so failures are caught and logged rather than
+ *  thrown — same rule as the webhook-dispatch guard in lib/metrics.ts, and
+ *  guarding it here protects every call site (Phase A, each Phase B chunk,
+ *  and the Phase C recompute) at once. Logged at warn, not error: this is
+ *  degraded monitoring (the stale-reclaim window might now trip), not a
+ *  failure of the work itself. */
+async function heartbeat(jobId: string): Promise<void> {
+  try {
+    await db
+      .update(schema.syncJobs)
+      .set({ updatedAt: new Date() })
+      .where(eq(schema.syncJobs.id, jobId));
+  } catch (err) {
+    logger.warn("sync job heartbeat failed", {
+      jobId,
+      message: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
+export async function defaultProcessor(job: SyncJob): Promise<void> {
+  // v0.36: kind is checked before provider. Falling through to the provider
+  // dispatch would run an ordinary incremental sync and report success on
+  // work that never happened.
+  if (job.kind === "backfill") {
+    if (job.provider !== "intervals_icu") {
+      throw new Error(`No backfill processor for provider ${job.provider}`);
+    }
+    const { runIntervalsBackfill } =
+      await import("@/lib/sync/intervals-backfill");
+    await runIntervalsBackfill(job.userId, {
+      onProgress: () => heartbeat(job.id),
+    });
+    return;
+  }
+
   if (job.provider === "intervals_icu") {
     const { runIntervalsSync } = await import("@/lib/sync/intervals-sync");
     await runIntervalsSync(job.userId);

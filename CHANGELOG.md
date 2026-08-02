@@ -1,5 +1,67 @@
 # Changelog
 
+## v0.36.0 — 2026-08-02 — Wellness History Backfill
+
+Two independent losses in how Recover syncs intervals.icu wellness, neither
+visible from the daily sync. First: every wellness row has always stored the
+provider's full payload in `raw`, but the columns were only ever written by
+whatever mapping existed at sync time — v0.33 added mappings for steps,
+SpO2, VO2max, sleep quality, sleeping HR, body fat and hydration, and only
+the 7-day incremental overlap ever flowed through them. Second: the first
+sync was capped at 365 days and every sync since re-fetched a 7-day overlap,
+so anything older than that first year was never fetched at all.
+
+- **Phase A re-maps what's already local.** `remapStoredWellness(userId)`
+  walks every stored row's `raw` payload back through the current mapping —
+  no network calls. On the account this shipped against, it recovers ~245
+  days of steps, ~230 of sleep quality, ~147 of SpO2, ~77 of VO2max, ~33 of
+  sleeping HR, ~21 of body fat and ~10 of hydration.
+- **Phase B fetches what was never pulled.** `runIntervalsBackfill` walks
+  intervals.icu history backward one calendar year per request from the
+  oldest date Recover holds. A dry run against a copy of production data
+  found the original stop rule — the first year to come back empty — never
+  fires on real accounts: intervals.icu synthesizes a wellness row for
+  _every_ calendar day back to account creation, carrying only CTL/ATL decay
+  (3,111 such rows, 2010–2018, `ctl` exactly 0.0, on the account this shipped
+  against). The walk now **also** stops at the first chunk that holds
+  nothing beyond intervals.icu's own training-load fields (`ctl`, `atl`,
+  `rampRate`, `eftp`, `pMax`, `wPrime`) — that chunk is discarded, not
+  written, ending the walk there instead of at account creation. A chunk with
+  any other field populated is still written in full, filler days included,
+  and the walk keeps going. `MAX_BACKFILL_YEARS = 20` remains the hard safety
+  stop; `BackfillResult.truncated` now reports whether the walk hit that cap
+  instead of a real stop condition, so a truncated run is distinguishable
+  from one that genuinely reached the athlete's history floor. Both phases
+  write through `applyWellnessPatch`, so a backfilled day can never outrank a
+  better source, and a single `computeDailyMetrics` pass runs once over
+  everything either phase touched rather than once per phase.
+- **A "Backfill full history" button** on the intervals.icu settings card
+  triggers it, queuing a `sync_jobs` row with the previously unused
+  `backfill` kind.
+- **The scheduler now routes backfill jobs** before provider dispatch, and
+  heartbeats while one runs, so the 15-minute stale-reclaim can't start a
+  second copy mid-run. Phase C — the metrics recompute — is heartbeated too
+  now: `computeDailyMetrics` takes an optional `onProgress` callback, fired
+  every 250 processed dates, and the backfill wires it to the same
+  heartbeat. At real-account scale Phase C is thousands of sequential
+  upserts, by far the largest previously-unheartbeated span in the job. None
+  of this touches `connections.last_sync_at` — that cursor is the
+  incremental sync's window, untouched by history recovery.
+- **Recovery scores shift once this runs.** Older history changes the
+  trailing baselines readiness is measured against. The button says so.
+
+No migrations — `sync_jobs.kind` already carried the `backfill` enum value
+and `wellness_daily` already had every column this fills.
+
+Verified against a copy of the live database: `connections.last_sync_at`
+came back byte-identical before and after a real run, and the corrected walk
+stopped after 2018 — dropping all 3,111 filler rows while keeping every real
+measurement, including 2019–2020's roughly 550 sleep nights that a
+zero-rows-only stop condition would have missed entirely (the pre-fix walk
+did not stop until 2010). 239 test files, 1647 tests, green; the suite was
+also re-run with `DATABASE_URL` unset to confirm the DB-gated suites report
+skipped rather than crashing.
+
 ## v0.35.1 — 2026-08-02 — Tests stop calling providers for real
 
 The scheduler tick's DB-wide provider passes ran during test runs. This

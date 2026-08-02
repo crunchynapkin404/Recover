@@ -27,6 +27,12 @@ function localYmd(d: Date): string {
 /** Minimum wellness resting-HR samples before the HR load rung may use it. */
 const MIN_RHR_SAMPLES = 7;
 
+/** How often `opts.onProgress` fires, in processed dates. A backfill-scale
+ *  recompute (thousands of dates, one upsert each) is the longest
+ *  unheartbeated span a caller like the v0.36 wellness backfill has; this
+ *  lets it check in without a callback on every single date. */
+const PROGRESS_INTERVAL = 250;
+
 /**
  * (Re)compute daily_metrics for every relevant day from `sinceDate` onward.
  * Baselines come from the trailing BASELINE_WINDOW_DAYS before each day, so
@@ -38,10 +44,17 @@ const MIN_RHR_SAMPLES = 7;
  * daily recompute refreshes today's EMA decay. Provider (intervals.icu)
  * ctl/atl win when present; native values fill the gaps, labelled
  * "computed".
+ *
+ * `opts.onProgress`, if given, fires every `PROGRESS_INTERVAL` processed
+ * dates (not once per date — this loop can run to thousands of dates for a
+ * multi-year backfill, and a callback that itself does I/O, like a
+ * scheduler heartbeat, must not run that often). Optional and additive:
+ * every existing caller is unaffected.
  */
 export async function computeDailyMetrics(
   userId: string,
-  sinceDate: string
+  sinceDate: string,
+  opts?: { onProgress?: () => Promise<void> | void }
 ): Promise<number> {
   const windowStart = addDays(sinceDate, -BASELINE_WINDOW_DAYS);
 
@@ -173,6 +186,23 @@ export async function computeDailyMetrics(
         set: values,
       });
     computed++;
+
+    if (opts?.onProgress && computed % PROGRESS_INTERVAL === 0) {
+      // `onProgress` is caller-supplied (the v0.36 backfill's scheduler
+      // heartbeat) and this function is public, so any caller's monitoring
+      // callback failing must never break metrics computation — same rule
+      // as the webhook-dispatch guard below, applied to a side effect the
+      // caller controls instead of one this function owns.
+      try {
+        await opts.onProgress();
+      } catch (err) {
+        logger.warn("computeDailyMetrics onProgress callback failed", {
+          userId,
+          date,
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
 
     // v0.20 outbound webhooks — fire only for the live "today" row, never
     // for a historical backfill recompute (CSV import, or a multi-day
