@@ -45,8 +45,30 @@ describe.skipIf(!hasDb)("scheduler morning-push hook", () => {
   });
 
   it("calls the morning push after a successful job", async () => {
-    const { runSchedulerTick } = await import("@/lib/sync/scheduler");
-    await runSchedulerTick(async () => {});
-    expect(maybeSend).toHaveBeenCalledWith(TEST_USER, undefined);
-  });
+    // The tick's post-job hook calls onWellnessDataChanged(userId) with no
+    // `now`, so production's 04:00 floor (wellness-changed.ts) reads the real
+    // clock and suppresses the push between 00:00-03:59 local — this test
+    // failed for four hours a day until the clock was pinned here.
+    //
+    // Fake ONLY Date: setTimeout/setInterval must stay real or the pg driver
+    // stalls. And keep today's real date, moving only the hour — beforeAll
+    // seeded the completeness-gate wellness row under today's date, so a
+    // different day would make the gate block the brief for a second reason.
+    const at9 = new Date();
+    at9.setHours(9, 0, 0, 0);
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(at9);
+    try {
+      const { runSchedulerTick } = await import("@/lib/sync/scheduler");
+      await runSchedulerTick(async () => {});
+      expect(maybeSend).toHaveBeenCalledWith(TEST_USER, undefined);
+    } finally {
+      vi.useRealTimers();
+    }
+    // 20s, not the 5s default: runSchedulerTick runs the whole post-job hook
+    // chain (weekly review, availability prompt, monthly report, race debrief,
+    // debrief lifecycle), which takes ~5s against a populated database. It
+    // previously fitted under the default only by luck, and pinning the clock
+    // to 09:00 puts more of those once-per-period guards on their live path.
+  }, 20_000);
 });
