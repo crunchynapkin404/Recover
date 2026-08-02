@@ -51,13 +51,18 @@ export type BodyHref = (over: { tab?: BodyTab; range?: number }) => string;
  * default range is omitted so a plain segment link stays readable.
  */
 export function buildBodyHref(
-  current: { tab: BodyTab; range: number },
-  over: { tab?: BodyTab; range?: number }
+  current: { tab: BodyTab; range: number; night?: string },
+  over: { tab?: BodyTab; range?: number; night?: string }
 ): string {
   const t = over.tab !== undefined ? over.tab : current.tab;
   const r = over.range !== undefined ? over.range : current.range;
+  // v0.35: the selected sleep night. "" clears it (back to the latest night),
+  // mirroring how buildLogHref's sport override clears a filter. Absent means
+  // "latest", so it stays out of the URL in the default case.
+  const n = over.night !== undefined ? over.night : (current.night ?? "");
   const q = new URLSearchParams({ tab: t });
   if (r !== TRAIN_DEFAULTS.range) q.set("range", String(r));
+  if (n) q.set("night", n);
   return `/body?${q.toString()}`;
 }
 

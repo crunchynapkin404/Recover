@@ -5,6 +5,8 @@ import { requireUser } from "@/lib/session";
 import { AppShell, shellUser } from "@/components/app-shell";
 import { BaselineTrendCard } from "@/components/body/baseline-trend-card";
 import { SleepNightCard } from "@/components/body/sleep-night-card";
+import { SleepHistoryStrip } from "@/components/body/sleep-history-strip";
+import { selectNight } from "@/lib/sleep-history";
 import { CorrelationRows } from "@/components/body/correlation-rows";
 import { LabsTiles } from "@/components/body/labs-tiles";
 import { BodyBatteryCurve } from "@/components/dashboard/body-battery";
@@ -127,14 +129,17 @@ function ownBaselineBand<
 export default async function BodyPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string; range?: string }>;
+  searchParams: Promise<{ tab?: string; range?: string; night?: string }>;
 }) {
   const user = await requireUser();
   const sp = await searchParams;
   const tab: BodyTab = BODY_TABS.find((t) => t === sp.tab) ?? "trends";
   const range = RANGES.includes(Number(sp.range)) ? Number(sp.range) : 90;
-  const href = (over: { tab?: BodyTab; range?: number }) =>
-    buildBodyHref({ tab, range }, over);
+  // Raw URL input — validated against the loaded nights inside SleepTab,
+  // never used to build a query.
+  const night = sp.night;
+  const href = (over: { tab?: BodyTab; range?: number; night?: string }) =>
+    buildBodyHref({ tab, range, night }, over);
 
   // The streak chip is on every segment, so it's fetched once here.
   const milestones = await getMilestones(user.id);
@@ -171,7 +176,7 @@ export default async function BodyPage({
       {tab === "trends" ? (
         <TrendsTab userId={user.id} range={range} href={href} />
       ) : tab === "sleep" ? (
-        <SleepTab userId={user.id} />
+        <SleepTab userId={user.id} night={night} href={href} />
       ) : tab === "journal" ? (
         <JournalTab userId={user.id} milestones={milestones} />
       ) : (
@@ -415,7 +420,15 @@ async function TrendsTab({
 
 // ── Sleep ─────────────────────────────────────────────────────────────────
 
-async function SleepTab({ userId }: { userId: string }) {
+async function SleepTab({
+  userId,
+  night,
+  href,
+}: {
+  userId: string;
+  night: string | undefined;
+  href: (over: { tab?: BodyTab; range?: number; night?: string }) => string;
+}) {
   const wellness = await db.query.wellnessDaily.findMany({
     where: and(
       eq(schema.wellnessDaily.userId, userId),
@@ -439,21 +452,30 @@ async function SleepTab({ userId }: { userId: string }) {
     bedEnd: w.bedEnd,
   }));
 
-  const lastNight = [...nights].reverse().find((n) => n.sleepSecs != null);
-  const stages = lastNight ? stageBreakdown(lastNight) : null;
+  // v0.35: which night is on screen. `night` is raw URL input; selectNight
+  // only honours it by matching a night already loaded.
+  const { selected: shownNight, recent, index } = selectNight(nights, night);
+  const isLatest = index === recent.length - 1;
+
+  const stages = shownNight ? stageBreakdown(shownNight) : null;
+  // "Your provider doesn't send stages" is only true when NO night has them.
+  // Otherwise this night simply hasn't had its stages written yet, which is
+  // routine: the Companion writes a night's duration before its stages.
+  const stagesUnsupported = !nights.some((n) => n.sleepDeepSecs != null);
   const consistency = sleepConsistency(
     nights.filter((n) => n.date >= daysAgo(30))
   );
   const chrono = chronotype(nights);
 
   const bedWindow =
-    lastNight?.bedStart != null && lastNight?.bedEnd != null
+    shownNight?.bedStart != null && shownNight?.bedEnd != null
       ? {
           start: minsToHhMm(
-            lastNight.bedStart.getHours() * 60 + lastNight.bedStart.getMinutes()
+            shownNight.bedStart.getHours() * 60 +
+              shownNight.bedStart.getMinutes()
           ),
           end: minsToHhMm(
-            lastNight.bedEnd.getHours() * 60 + lastNight.bedEnd.getMinutes()
+            shownNight.bedEnd.getHours() * 60 + shownNight.bedEnd.getMinutes()
           ),
         }
       : null;
@@ -523,8 +545,14 @@ async function SleepTab({ userId }: { userId: string }) {
 
   return (
     <div className="pb-10">
+      <SleepHistoryStrip
+        nights={recent}
+        selectedDate={shownNight?.date ?? null}
+        href={(d) => href({ night: d })}
+      />
+
       <SleepNightCard
-        totalSecs={lastNight?.sleepSecs ?? null}
+        totalSecs={shownNight?.sleepSecs ?? null}
         stages={
           stages
             ? {
@@ -536,10 +564,48 @@ async function SleepTab({ userId }: { userId: string }) {
             : null
         }
         bedWindow={bedWindow}
-        consistency={consistency?.score ?? null}
-        chronotype={chrono ? `midpoint ${chrono.midpointHhMm}` : null}
-        bedtimeTonight={debt.bedtime}
+        heading={
+          isLatest ? "Last night" : (shownNight?.date ?? "No sleep recorded")
+        }
+        prevHref={
+          index > 0 ? href({ night: recent[index - 1].date }) : undefined
+        }
+        nextHref={
+          index >= 0 && index < recent.length - 1
+            ? // Stepping back to the newest night clears the param rather than
+              // pinning it, so the URL returns to its default shape.
+              index + 1 === recent.length - 1
+              ? href({ night: "" })
+              : href({ night: recent[index + 1].date })
+            : undefined
+        }
+        stagesUnsupported={stagesUnsupported}
+        bedtimeTonight={isLatest ? debt.bedtime : null}
       />
+
+      {(consistency != null || chrono) && (
+        <div className="mb-3 flex flex-wrap items-baseline gap-x-5 gap-y-1 rounded-[18px] border border-white/[0.08] bg-white/[0.03] px-4 py-3">
+          {/* 30-day aggregates: they describe the athlete's rhythm, not the
+              night selected above, so they live outside that card. */}
+          {consistency != null && (
+            <span className="text-[11px] text-white/50">
+              Consistency{" "}
+              <strong className="font-bold text-white/85">
+                {Math.round(consistency.score)}
+              </strong>
+            </span>
+          )}
+          {chrono && (
+            <span className="text-[11px] text-white/50">
+              Chronotype{" "}
+              <strong className="font-bold text-white/85">
+                midpoint {chrono.midpointHhMm}
+              </strong>
+            </span>
+          )}
+          <span className="text-[10px] text-white/30">last 30 nights</span>
+        </div>
+      )}
 
       <BaselineTrendCard
         title="Sleep duration vs baseline"

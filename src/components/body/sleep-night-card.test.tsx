@@ -12,8 +12,8 @@ const stages = {
 const base = {
   totalSecs: 25920, // 7:12
   bedWindow: null,
-  consistency: null,
-  chronotype: null,
+  heading: "Last night",
+  stagesUnsupported: false,
   bedtimeTonight: null,
 };
 
@@ -35,42 +35,104 @@ describe("SleepNightCard", () => {
     expect(html).toContain("7:12");
   });
 
-  it("says the provider sends no stages rather than estimating a split", () => {
+  // Caught in a real browser: a real 3597s deep-sleep value rendered "0:60"
+  // because hours and minutes were computed independently, so the minute
+  // part rounded to 60 without carrying.
+  it("carries rounded minutes into the hour instead of printing :60", () => {
+    const html = renderToString(
+      <SleepNightCard
+        {...base}
+        totalSecs={3597}
+        stages={{ ...stages, deepSecs: 3597 }}
+      />
+    );
+    expect(html).toContain("1:00");
+    expect(html).not.toContain("0:60");
+  });
+
+  it("drops a zero-duration stage instead of drawing an empty slice", () => {
+    // Awake is always 0 on the intervals.icu route: that feed's total is
+    // asleep time, so deep+REM+light sums to it exactly. Never derive it.
+    const html = renderToString(
+      <SleepNightCard {...base} stages={{ ...stages, awakeSecs: 0 }} />
+    );
+    expect(html).not.toContain("Awake");
+    expect(html).toContain("Deep");
+  });
+
+  // The distinction that made history navigation necessary: the Companion
+  // writes a night's duration before its stages, so the newest night is
+  // routinely stage-less while complete nights sit right behind it.
+  it("says stages are missing for THIS night when others have them", () => {
     const html = renderToString(<SleepNightCard {...base} stages={null} />);
-    // React splices "<!-- -->" between JSX text nodes; match the escaped
-    // apostrophe form the renderer actually emits.
-    expect(html).toContain("send sleep stages");
+    expect(html).toContain("No stages recorded for this night yet");
+    expect(html).not.toContain("send sleep stages");
     expect(html).not.toContain("Deep");
+  });
+
+  it("blames the provider only when no night has stages", () => {
+    const html = renderToString(
+      <SleepNightCard {...base} stages={null} stagesUnsupported />
+    );
+    expect(html).toContain("send sleep stages");
+    expect(html).not.toContain("No stages recorded for this night yet");
   });
 
   it("distinguishes an unrecorded night from a stage-less one", () => {
     const html = renderToString(
       <SleepNightCard {...base} totalSecs={null} stages={null} />
     );
-    expect(html).toContain("No sleep recorded last night");
+    expect(html).toContain("No sleep recorded for this night");
   });
 
-  it("renders the footer only for the facts it actually has", () => {
+  it("uses the supplied heading so a past night isn't labelled last night", () => {
     const html = renderToString(
+      <SleepNightCard {...base} stages={stages} heading="2026-07-31" />
+    );
+    expect(html).toContain("2026-07-31");
+    expect(html).not.toContain("Last night");
+  });
+
+  it("renders navigation links only where there is somewhere to go", () => {
+    const both = renderToString(
       <SleepNightCard
         {...base}
         stages={stages}
-        consistency={78}
-        chronotype="midpoint 03:41"
-        bedtimeTonight="23:10"
+        prevHref="/body?tab=sleep&night=2026-07-30"
+        nextHref="/body?tab=sleep"
       />
     );
-    expect(html).toContain("Consistency");
-    expect(html).toContain("78");
-    expect(html).toContain("midpoint 03:41");
-    expect(html).toContain("bed by ");
-    expect(html).toContain("23:10");
+    expect(both).toContain("night=2026-07-30");
+    expect(both).toContain("Previous night");
+    expect(both).toContain("Next night");
+
+    const neither = renderToString(
+      <SleepNightCard {...base} stages={stages} />
+    );
+    expect(neither).not.toContain("Previous night");
+    expect(neither).not.toContain("Next night");
   });
 
-  it("drops the footer entirely when nothing is known", () => {
+  // Tonight's bedtime describes tonight, not the night on screen — the tab
+  // passes it only for the latest night.
+  it("shows tonight's bedtime only when given one", () => {
+    const withIt = renderToString(
+      <SleepNightCard {...base} stages={stages} bedtimeTonight="23:10" />
+    );
+    expect(withIt).toContain("bed by ");
+    expect(withIt).toContain("23:10");
+
+    const without = renderToString(
+      <SleepNightCard {...base} stages={stages} />
+    );
+    expect(without).not.toContain("bed by ");
+  });
+
+  // 30-day aggregates moved out of this card in v0.35: they describe the
+  // athlete's rhythm, not the selected night.
+  it("no longer claims consistency or chronotype as properties of the night", () => {
     const html = renderToString(<SleepNightCard {...base} stages={stages} />);
     expect(html).not.toContain("Consistency");
     expect(html).not.toContain("Chronotype");
-    expect(html).not.toContain("bed by ");
   });
 });
