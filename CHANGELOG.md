@@ -1,5 +1,46 @@
 # Changelog
 
+## v0.36.0 — 2026-08-02 — Wellness History Backfill
+
+Two independent losses in how Recover syncs intervals.icu wellness, neither
+visible from the daily sync. First: every wellness row has always stored the
+provider's full payload in `raw`, but the columns were only ever written by
+whatever mapping existed at sync time — v0.33 added mappings for steps,
+SpO2, VO2max, sleep quality, sleeping HR, body fat and hydration, and only
+the 7-day incremental overlap ever flowed through them. Second: the first
+sync was capped at 365 days and every sync since re-fetched a 7-day overlap,
+so anything older than that first year was never fetched at all.
+
+- **Phase A re-maps what's already local.** `remapStoredWellness(userId)`
+  walks every stored row's `raw` payload back through the current mapping —
+  no network calls. On the account this shipped against, it recovers ~245
+  days of steps, ~230 of sleep quality, ~147 of SpO2, ~77 of VO2max, ~33 of
+  sleeping HR, ~21 of body fat and ~10 of hydration.
+- **Phase B fetches what was never pulled.** `runIntervalsBackfill` walks
+  intervals.icu history backward one calendar year per request from the
+  oldest date Recover holds, stopping the first time a year comes back
+  empty (a 20-year walk is the safety stop, not the expectation). Both
+  phases write through `applyWellnessPatch`, so a backfilled day can never
+  outrank a better source, and a single `computeDailyMetrics` pass runs once
+  over everything either phase touched rather than once per phase.
+- **A "Backfill full history" button** on the intervals.icu settings card
+  triggers it, queuing a `sync_jobs` row with the previously unused
+  `backfill` kind.
+- **The scheduler now routes backfill jobs** before provider dispatch, and
+  heartbeats while one runs, so the 15-minute stale-reclaim can't start a
+  second copy mid-run. It never touches `connections.last_sync_at` — that
+  cursor is the incremental sync's window, untouched by history recovery.
+- **Recovery scores shift once this runs.** Older history changes the
+  trailing baselines readiness is measured against. The button says so.
+
+No migrations — `sync_jobs.kind` already carried the `backfill` enum value
+and `wellness_daily` already had every column this fills.
+
+Verified against a copy of the live database: `connections.last_sync_at`
+came back byte-identical before and after a real run. 238 test files, 1641
+tests, green; the suite was also re-run with `DATABASE_URL` unset to confirm
+the DB-gated suites report skipped rather than crashing.
+
 ## v0.35.1 — 2026-08-02 — Tests stop calling providers for real
 
 The scheduler tick's DB-wide provider passes ran during test runs. This
