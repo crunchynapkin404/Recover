@@ -36,11 +36,20 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 
+// `mockReset`, never `mockClear`, on every mock in this file: `mockClear`
+// wipes call history but LEAVES a queued `mockRejectedValueOnce`/
+// `mockResolvedValueOnce` in place, so a test whose production path returns
+// early without consuming its own queue silently hands that value to the next
+// test. That is exactly how this file reddened CI for four hours a day. The
+// cost of `mockReset` is that it also discards the default set at declaration,
+// so every default is re-established here rather than at the top of the file.
 describe("onWellnessDataChanged", () => {
   beforeEach(() => {
-    runDailyAdaptation.mockClear();
-    generateMorningInsight.mockClear();
-    maybeSendMorningReadinessPush.mockClear();
+    runDailyAdaptation.mockReset();
+    runDailyAdaptation.mockResolvedValue("adapted");
+    generateMorningInsight.mockReset();
+    maybeSendMorningReadinessPush.mockReset();
+    maybeSendMorningReadinessPush.mockResolvedValue(true);
     findFirstWellness.mockReset();
     findFirstWellness.mockResolvedValue({ hrvMs: 62, sleepSecs: 25000 });
   });
@@ -101,12 +110,25 @@ describe("onWellnessDataChanged", () => {
   });
 
   it("never throws when a sub-step rejects, and still returns a result", async () => {
+    // Explicit `now` past the 4am floor. This previously omitted opts and so
+    // read the real clock: between 00:00-03:59 local the floor returned early,
+    // the last two sub-steps were never called, and their queued rejections
+    // leaked into the next test (`mockClear` does not drain a `once` queue) —
+    // reddening CI for four hours a day. It also meant that in-window this
+    // test silently exercised one of the three guards it claims to cover
+    // while still passing, which is why the assertions below are explicit.
+    const now = new Date(2026, 6, 26, 9, 0, 0); // 09:00 local
     runDailyAdaptation.mockRejectedValueOnce(new Error("boom"));
     generateMorningInsight.mockRejectedValueOnce(new Error("boom2"));
     maybeSendMorningReadinessPush.mockRejectedValueOnce(new Error("boom3"));
     const { onWellnessDataChanged } =
       await import("@/lib/sync/wellness-changed");
-    await expect(onWellnessDataChanged("user-4")).resolves.toBe("skipped");
+    await expect(onWellnessDataChanged("user-4", { now })).resolves.toBe(
+      "skipped"
+    );
+    expect(runDailyAdaptation).toHaveBeenCalled();
+    expect(generateMorningInsight).toHaveBeenCalled();
+    expect(maybeSendMorningReadinessPush).toHaveBeenCalled();
   });
 
   // Fix 4: a non-forced trigger before 04:00 local (e.g. an overnight Apple
@@ -164,10 +186,13 @@ describe("onWellnessDataChanged", () => {
 
 describe("onWellnessDataChanged — overnight completeness gate", () => {
   beforeEach(() => {
-    runDailyAdaptation.mockClear();
-    generateMorningInsight.mockClear();
-    maybeSendMorningReadinessPush.mockClear();
+    // Same `mockReset`-not-`mockClear` rule as the block above.
+    runDailyAdaptation.mockReset();
+    runDailyAdaptation.mockResolvedValue("adapted");
+    maybeSendMorningReadinessPush.mockReset();
+    maybeSendMorningReadinessPush.mockResolvedValue(true);
     findFirstWellness.mockReset();
+    generateMorningInsight.mockReset();
     generateMorningInsight.mockResolvedValue({
       text: "hi",
       warning: null,

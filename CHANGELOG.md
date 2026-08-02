@@ -62,6 +62,42 @@ did not stop until 2010). 239 test files, 1647 tests, green; the suite was
 also re-run with `DATABASE_URL` unset to confirm the DB-gated suites report
 skipped rather than crashing.
 
+## v0.36.1 — 2026-08-02 — CI stops going red at midnight
+
+`main` failed CI for four hours a day. `tests/wellness-changed.test.ts` is not
+DB-gated, so unlike most of this repo's suites it runs in GitHub Actions — and
+between 00:00 and 03:59 UTC it failed deterministically. Every green run
+outside that window said less than it appeared to, and a red run at 01:00 was
+more likely to be this than the branch under test.
+
+The cause was a test that read the real clock. "never throws when a sub-step
+rejects" queued three `mockRejectedValueOnce` values and called
+`onWellnessDataChanged` with no `now`, so production's 04:00 floor
+(`wellness-changed.ts`) returned early inside the window — leaving the last
+two rejections unconsumed. `mockClear` in `beforeEach` wipes call history but
+**not** a queued `once` implementation, so the second rejection leaked into
+"does not apply the 4am floor when force is true", which then saw its mock
+reject instead of resolve and reported `skipped` where it expected `fired`.
+
+- **The leaking test is pinned to 09:00** and now asserts all three sub-steps
+  were actually called. Inside the window it had been exercising one of the
+  three guards it claims to cover — and still passing.
+- **Every mock in the file uses `mockReset`, not `mockClear`**, so an
+  unconsumed `once` queue can never leak forward again. `mockReset` also
+  discards the declaration-site default, so each default is re-established in
+  `beforeEach`. Both layers were mutation-tested: with the pin reverted, the
+  reset contains the leak and the new assertions fail at the source instead.
+- **`tests/morning-hook.test.ts` had the same class of bug** — DB-gated, so it
+  skipped in CI and only failed locally. The tick's post-job hook calls
+  `onWellnessDataChanged` with no `now`, so the same floor suppressed the
+  push. It now fakes `Date` only (real timers must survive for the pg driver),
+  pins 09:00 on today's real date so the completeness-gate fixture still
+  matches, and carries a 20s timeout — the full post-job hook chain takes ~5s
+  and previously fitted under the 5s default only by luck.
+
+Verified by running the whole suite with `DATABASE_URL` unset at a timezone
+inside the window: 1 failed / 1243 passed before, 1244 passed after.
+
 ## v0.35.1 — 2026-08-02 — Tests stop calling providers for real
 
 The scheduler tick's DB-wide provider passes ran during test runs. This
