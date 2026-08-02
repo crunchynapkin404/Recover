@@ -135,6 +135,9 @@ export const connections = pgTable(
     lastWellnessPollAt: timestamp("last_wellness_poll_at", {
       withTimezone: true,
     }),
+    // v0.34: how often to re-pull wellness, in minutes. null = app default,
+    // 0 = daily sync only. See wellness-refresh.ts.
+    wellnessPollIntervalMin: smallint("wellness_poll_interval_min"),
     // v0.6: true only when the OAuth grant includes activity:write
     // (Strava description write-back). Flipped false on write auth failures.
     stravaWriteEnabled: boolean("strava_write_enabled")

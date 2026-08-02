@@ -1,5 +1,36 @@
 # Changelog
 
+## v0.34.0 — 2026-08-02 — Wellness Sync Interval
+
+v0.33's morning re-pull solved sleep arriving a day late, and did it with a
+stop condition: done for the day once yesterday has a duration and a stage.
+Correct for sleep, wrong for everything else — it halted wellness polling
+around 07:00 while the Companion kept writing steps, SpO2, respiratory rate
+and hydration all day, none of which reached Recover until the next morning.
+
+- **How often wellness syncs is now yours to choose.** A select on the
+  intervals.icu settings card: daily only, or every 60 / 30 / 15 minutes,
+  stored per connection alongside the poll cursor. The card also shows when
+  wellness was last checked, so the cadence is visible rather than implied.
+- **The stop condition is gone.** `yesterdaySettled()` and its query are
+  deleted. Sleep arrival is still served — any interval polls more often in
+  the morning than the old fixed 30-minute throttle did.
+- **The window covers the waking day.** 05:00–23:00 instead of 05:00–12:00,
+  still quiet overnight, where polling buys nothing: the athlete is asleep,
+  the Companion has not written the night yet, and the 05:00 daily sync covers
+  the boundary.
+- **The default stays at 30 minutes.** Upgrading an instance never silently
+  increases load on intervals.icu, which is free and run by one developer.
+  "Daily only" is offered for anyone who wants none of this.
+- **Awake sleep time is documented as underivable, not computed.** It is
+  tempting to derive it as total minus the three stages. On this feed that
+  residual is exactly zero on 31 of 31 nights, because the total _is_ asleep
+  time rather than in-bed time — so the subtraction would render a guaranteed
+  0 as though a night with no awakenings had been measured. Real awake time
+  needs an in-bed window, which only a direct HealthKit push carries.
+- Migration 0036 adds one nullable column. Additive-only, no backfill.
+- The activity poll is untouched: still 15 minutes, still quiet 23:00–06:00.
+
 ## v0.33.0 — 2026-08-02 — Wellness Expansion
 
 Health Auto Export's REST automation is a paid feature. The trial ended on

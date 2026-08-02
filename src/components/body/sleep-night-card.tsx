@@ -35,9 +35,17 @@ function clock(secs: number): string {
  * Last night (1g) — the stage bar, its legend with real durations, and the
  * three things worth knowing about the athlete's sleep rhythm.
  *
- * intervals.icu sends no stages and no bed/wake times, so the bar and the
- * window simply don't render for those athletes rather than being estimated
- * from total sleep.
+ * intervals.icu sends no bed/wake times, so the window simply doesn't render
+ * rather than being estimated from total sleep. Stages DO arrive from it as
+ * of v0.33, via custom wellness fields.
+ *
+ * Every stage with a zero duration is dropped from both the bar and the
+ * legend. That is what keeps "Awake" off the intervals.icu route, where it is
+ * always zero: that feed's sleep total is asleep time, not in-bed time, so
+ * deep+REM+light sums to it exactly (verified 31/31 nights). Do NOT try to
+ * derive awake as total-minus-stages — it yields a guaranteed 0 and would
+ * assert a night with no awakenings as though it had been measured. Real
+ * awake time needs an in-bed window, which only a direct HealthKit push has.
  */
 export function SleepNightCard({
   totalSecs,

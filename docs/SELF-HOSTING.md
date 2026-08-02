@@ -77,7 +77,16 @@ you rename those fields in intervals.icu the stages stop arriving — Recover
 logs a warning naming the codes it looked for rather than failing silently.
 
 Bed/wake times cannot travel this route at all, and neither can awake time:
-the three stages sum to the total sleep duration by construction.
+the three stages sum to the total sleep duration by construction. Do not be
+tempted to derive awake as total minus stages — that residual is exactly zero
+on every night, so it would display "no awakenings" as if it were measured.
+
+**Sync frequency.** Settings → intervals.icu offers daily-only, or every
+60 / 30 / 15 minutes, defaulting to 30. Wellness is polled between 05:00 and
+23:00 local and stays quiet overnight. At 15 minutes that is ~72 requests a
+day per athlete on top of the ~68 the activity poll already makes;
+intervals.icu is free and run by one developer, so pick the slowest setting
+that gives you what you need.
 
 ⚠️ Never rotate `ENCRYPTION_KEY` casually: stored connector/LLM keys become
 undecryptable (AES-GCM fails closed) and must be re-entered.
