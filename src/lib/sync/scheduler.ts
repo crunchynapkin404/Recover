@@ -19,6 +19,25 @@ const SYNC_HOUR = 5;
  */
 const BACKSTOP_HOUR = 9;
 
+/**
+ * Whether the tick may run its DB-wide provider passes (activity poll,
+ * wellness refresh).
+ *
+ * False under vitest. Those passes query connections across all users and
+ * then call provider APIs for real — and this repo's DB-gated tests run
+ * against a database holding REAL connection rows, with no separate test
+ * database. So any test touching the tick made live intervals.icu requests,
+ * and on 2026-08-02 one produced a real LLM ride review (haiku, 3027/233
+ * tokens) written into the owner's actual coaching thread.
+ *
+ * Both passes keep their own direct tests, which scope the query with
+ * `userIds` and inject a fetcher; only the tick's unscoped call is
+ * suppressed. Kept as one predicate so the two guards cannot drift.
+ */
+function providerPassesEnabled(): boolean {
+  return !process.env.VITEST;
+}
+
 type SyncJob = typeof schema.syncJobs.$inferSelect;
 
 export type JobProcessor = (job: SyncJob) => Promise<void>;
@@ -400,26 +419,25 @@ export async function runSchedulerTick(
 
   // v0.15 activity poll — near-real-time ride detection; guarded like the
   // rest, never breaks the tick.
-  try {
-    const { runActivityPolls } = await import("@/lib/sync/activity-poll");
-    const polled = await runActivityPolls();
-    if (polled > 0) logger.info("activity polls ran", { polled });
-  } catch (err) {
-    logger.error("activity poll pass failed", {
-      message: err instanceof Error ? err.message : String(err),
-    });
+  if (providerPassesEnabled()) {
+    try {
+      const { runActivityPolls } = await import("@/lib/sync/activity-poll");
+      const polled = await runActivityPolls();
+      if (polled > 0) logger.info("activity polls ran", { polled });
+    } catch (err) {
+      logger.error("activity poll pass failed", {
+        message: err instanceof Error ? err.message : String(err),
+      });
+    }
   }
 
   // v0.33 wellness refresh — the Companion iOS app writes to intervals.icu
   // ~95 min after the SYNC_HOUR pull, so last night's sleep needs a bounded
   // morning re-pull to land today instead of tomorrow.
   //
-  // Skipped under vitest: this repo's DB-gated tests run against a database
-  // carrying real connection rows, so an unguarded pass here fires a live
-  // intervals.icu request and writes to real wellness rows from any test that
-  // exercises the tick — making those tests network-dependent and flaky.
-  // runWellnessRefresh is covered directly by tests/wellness-refresh.test.ts.
-  if (!process.env.VITEST) {
+  // Skipped under vitest for the reason on providerPassesEnabled; covered
+  // directly by tests/wellness-refresh.test.ts.
+  if (providerPassesEnabled()) {
     try {
       const { runWellnessRefresh } =
         await import("@/lib/sync/wellness-refresh");

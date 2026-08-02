@@ -1,5 +1,31 @@
 # Changelog
 
+## v0.35.1 — 2026-08-02 — Tests stop calling providers for real
+
+The scheduler tick's DB-wide provider passes ran during test runs. This
+repo's DB-gated tests execute against a database holding real connection
+rows — there is no separate test database — so every suite run that touched
+`runSchedulerTick` made live intervals.icu requests on behalf of real
+athletes.
+
+It was not only network traffic. On 2026-08-02 a suite run generated a real
+LLM ride review — `llm_usage` recorded haiku at 3027 input / 233 output
+tokens — and wrote a Dutch coaching message into the owner's actual debrief
+thread. Bounded by the existing `reviewedAt` guard, so it fired once rather
+than per run, but it would fire again for every new un-reviewed activity.
+
+- **Both provider passes now sit behind one predicate**, `providerPassesEnabled()`,
+  false under vitest. v0.33 had already guarded the wellness refresh this
+  way; the activity poll was left unguarded, and keeping the decision in one
+  place stops the two drifting again.
+- **No coverage is lost.** `runActivityPolls` and `runWellnessRefresh` keep
+  their own tests, which scope the query with `userIds` and inject a fetcher.
+  Only the tick's unscoped, DB-wide call is suppressed.
+- **Pinned by a regression test** that mocks both modules and asserts the tick
+  calls neither. Verified empirically too: a full 1614-test run no longer
+  advances `connections.last_activity_poll_at`, where before it moved every
+  run.
+
 ## v0.35.0 — 2026-08-02 — Sleep History
 
 The Sleep tab showed exactly one night: the newest with a duration.
