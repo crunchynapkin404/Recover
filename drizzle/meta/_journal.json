@@ -246,6 +246,13 @@
       "when": 1785611674500,
       "tag": "0034_single_active_plan",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1785646629643,
+      "tag": "0035_intervals_wellness_expansion",
+      "breakpoints": true
     }
   ]
 }

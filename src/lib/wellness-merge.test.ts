@@ -316,4 +316,38 @@ describe("mergeWellnessPatch", () => {
       ).toBeDefined();
     }
   });
+
+  it("routes the v0.33 fields to the right priority ladders", () => {
+    for (const f of [
+      "sleepingHr",
+      "hrvSdnnMs",
+      "readiness",
+      "steps",
+      "sleepQuality",
+    ] as const) {
+      expect(FIELD_PRIORITY[f], f).toEqual(FIELD_PRIORITY.hrvMs);
+    }
+    expect(FIELD_PRIORITY.hydrationL).toEqual(FIELD_PRIORITY.weightKg);
+  });
+
+  // Steps must stay writable by a better-ranked source: LOAD is deliberately
+  // intervals-only because CTL/ATL are intervals' own model, but steps are a
+  // plain device measurement Apple Health legitimately supplies.
+  it("does not put steps on the intervals-only LOAD ladder", () => {
+    expect(FIELD_PRIORITY.steps).not.toEqual(FIELD_PRIORITY.ctl);
+    expect(FIELD_PRIORITY.steps).toContain("apple_health");
+  });
+
+  it("keeps apple_health ahead of intervals_icu for the stage fields", () => {
+    for (const f of [
+      "sleepDeepSecs",
+      "sleepRemSecs",
+      "sleepLightSecs",
+    ] as const) {
+      const ladder = FIELD_PRIORITY[f];
+      expect(ladder.indexOf("apple_health")).toBeLessThan(
+        ladder.indexOf("intervals_icu")
+      );
+    }
+  });
 });
