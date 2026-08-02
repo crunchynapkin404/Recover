@@ -258,10 +258,11 @@ and name the arithmetic, matching the ladder's existing voice:
 - grow: `Wednesday's block grew to 120min — Endurance extended from 60 to 120min`
 - add: `Saturday now free — Endurance 180min added; 8.8h planned against a 12.5h target`
 
-When fill runs and the week is **still** short after both sub-steps, it logs
-that too rather than leaving a silent gap. `WeekRationale` already reports
-"planned against target" accurately; a shortfall it cannot close is
-information, not an error to hide.
+Fill writes **no record when it cannot close the gap**. An earlier draft of
+this spec required one; it was dropped before implementation because
+`WeekRationale` already renders "X planned against a Y target" on every page
+load, so an adjustment restating it would be duplication rather than
+information.
 
 ## 6. What fill must never do
 
@@ -327,7 +328,11 @@ with branches:
 - a week already at target gains nothing
 - a `pre_race` rest day is never filled
 - a locked day and a past day are never filled
-- a quality session is never grown; a quality-adjacent slot is never filled
+- a quality session is never grown, and `fillCeilingMins` returns `null` for
+  every quality purpose — the direct guard. There is deliberately **no**
+  quality-adjacency test: fill creates only `aerobic_base` and `long`
+  sessions, so `admits`' adjacency branch is unreachable from here and a test
+  asserting it would pass no matter what the code did
 - room below the purpose floor adds nothing
 - a running plan never receives a `long` session
 - a week with no endurance sessions gains nothing
