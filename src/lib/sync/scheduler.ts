@@ -42,7 +42,31 @@ type SyncJob = typeof schema.syncJobs.$inferSelect;
 
 export type JobProcessor = (job: SyncJob) => Promise<void>;
 
-async function defaultProcessor(job: SyncJob): Promise<void> {
+/** Keep a long-running job out of the stale-reclaim window. Sets the same
+ *  `updated_at` the reclaim query in runSchedulerTick reads. */
+async function heartbeat(jobId: string): Promise<void> {
+  await db
+    .update(schema.syncJobs)
+    .set({ updatedAt: new Date() })
+    .where(eq(schema.syncJobs.id, jobId));
+}
+
+export async function defaultProcessor(job: SyncJob): Promise<void> {
+  // v0.36: kind is checked before provider. Falling through to the provider
+  // dispatch would run an ordinary incremental sync and report success on
+  // work that never happened.
+  if (job.kind === "backfill") {
+    if (job.provider !== "intervals_icu") {
+      throw new Error(`No backfill processor for provider ${job.provider}`);
+    }
+    const { runIntervalsBackfill } =
+      await import("@/lib/sync/intervals-backfill");
+    await runIntervalsBackfill(job.userId, {
+      onProgress: () => heartbeat(job.id),
+    });
+    return;
+  }
+
   if (job.provider === "intervals_icu") {
     const { runIntervalsSync } = await import("@/lib/sync/intervals-sync");
     await runIntervalsSync(job.userId);
