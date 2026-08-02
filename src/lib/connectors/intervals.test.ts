@@ -11,6 +11,7 @@ import {
   fetchPlannedWorkouts,
   validateKey,
 } from "./intervals";
+import { logger } from "@/lib/logger";
 
 function mockFetch(status: number, body: unknown) {
   const fn = vi
@@ -121,6 +122,102 @@ describe("intervals.icu connector (ported — Principle-1 validation)", () => {
     expect(day.rampRate).toBeNull();
     expect(day.pMax).toBeNull();
     expect(day.wPrime).toBeNull();
+  });
+
+  // v0.33 — every key below was read from the live account on 2026-08-02.
+  it("maps native spO2/respiration/bodyFat and the custom sleep-stage keys", async () => {
+    mockFetch(200, [
+      {
+        id: "2026-07-31",
+        sleepSecs: 19664,
+        spO2: 96.675156,
+        respiration: 16.406073,
+        bodyFat: 15.7,
+        hrvSDNN: 68,
+        avgSleepingHR: 52,
+        readiness: 71,
+        hydrationVolume: 3.937,
+        steps: 5694,
+        sleepQuality: 3,
+        DeepSleep: 3597,
+        REMSleep: 4437,
+        LightSleep: 11630,
+      },
+    ]);
+    const [day] = await fetchDailyWellness(params);
+    expect(day).toMatchObject({
+      spO2: 96.675156,
+      respiration: 16.406073,
+      bodyFat: 15.7,
+      hrvSdnn: 68,
+      sleepingHr: 52,
+      readiness: 71,
+      hydrationL: 3.937,
+      steps: 5694,
+      sleepQuality: 3,
+      sleepDeepSecs: 3597,
+      sleepRemSecs: 4437,
+      sleepLightSecs: 11630,
+    });
+  });
+
+  // Apple Health reports a 0-1 fraction; intervals.icu reports a percentage.
+  // Applying the Apple scaling rule here would store 9650%.
+  it("passes spO2 through unscaled (it is already a percentage)", async () => {
+    mockFetch(200, [{ id: "2026-07-31", spO2: 97.5 }]);
+    const [day] = await fetchDailyWellness(params);
+    expect(day.spO2).toBe(97.5);
+  });
+
+  // The account defines a custom "RespirationRate" field that has never been
+  // written; binding to it instead of the native key yields permanent nulls.
+  it("ignores the never-written RespirationRate custom field", async () => {
+    mockFetch(200, [{ id: "2026-07-31", RespirationRate: 99 }]);
+    const [day] = await fetchDailyWellness(params);
+    expect(day.respiration).toBeNull();
+  });
+
+  it("defaults every v0.33 field to null when absent", async () => {
+    mockFetch(200, [{ id: "2026-07-31" }]);
+    const [day] = await fetchDailyWellness(params);
+    for (const k of [
+      "spO2",
+      "respiration",
+      "bodyFat",
+      "sleepDeepSecs",
+      "sleepRemSecs",
+      "sleepLightSecs",
+      "sleepingHr",
+      "hrvSdnn",
+      "readiness",
+      "hydrationL",
+      "steps",
+      "sleepQuality",
+    ] as const) {
+      expect(day[k], k).toBeNull();
+    }
+  });
+
+  // Custom field codes are renameable in the intervals.icu UI — a rename would
+  // otherwise turn the stage mapping into permanent nulls with no symptom.
+  it("warns once per sync when sleepSecs is present but stage keys are gone", async () => {
+    const warn = vi.spyOn(logger, "warn").mockImplementation(() => {});
+    mockFetch(200, [
+      { id: "2026-07-30", sleepSecs: 19301 },
+      { id: "2026-07-31", sleepSecs: 19664 },
+    ]);
+    await fetchDailyWellness(params);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0][0]).toContain("sleep stage");
+    warn.mockRestore();
+  });
+
+  it("does not warn when stages are present", async () => {
+    const warn = vi.spyOn(logger, "warn").mockImplementation(() => {});
+    mockFetch(200, [{ id: "2026-07-31", sleepSecs: 19664, DeepSleep: 3597 }]);
+    await fetchDailyWellness(params);
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
   });
 
   // Defect pinned 2026-07-14: rows without an id used to become date:"".

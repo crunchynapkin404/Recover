@@ -8,6 +8,7 @@
  */
 
 import { decrypt } from "@/lib/crypto";
+import { logger } from "@/lib/logger";
 
 const INTERVALS_API_BASE = "https://intervals.icu/api/v1";
 
@@ -39,6 +40,21 @@ export interface IntervalsWellnessDay {
   pMax: number | null;
   wPrime: number | null;
   weight: number | null;
+  // v0.33 — all verified against the live account 2026-08-02.
+  spO2: number | null; // already a percentage, NOT a 0-1 fraction
+  respiration: number | null; // native key; custom "RespirationRate" is never written
+  bodyFat: number | null;
+  sleepingHr: number | null; // avgSleepingHR
+  hrvSdnn: number | null; // hrvSDNN — distinct from `hrv`, which is rMSSD
+  readiness: number | null;
+  hydrationL: number | null; // hydrationVolume
+  steps: number | null;
+  sleepQuality: number | null; // raw 1-5; scale contested, not surfaced in UI
+  // intervals.icu has no native sleep-stage model — these are the athlete's
+  // custom INPUT_FIELDs, in seconds, summing exactly to sleepSecs.
+  sleepDeepSecs: number | null;
+  sleepRemSecs: number | null;
+  sleepLightSecs: number | null;
   raw: Record<string, unknown>;
 }
 
@@ -152,12 +168,27 @@ export async function fetchDailyWellness(params: {
   const response = await icuFetch(path, params.apiKey);
   const rows = (await response.json()) as Array<Record<string, unknown>>;
 
-  return rows
+  let missingStages = 0;
+
+  const days = rows
     .filter((row) => typeof row.id === "string" && row.id.length > 0)
     .map((row) => {
       const sportInfo = Array.isArray(row.sportInfo)
         ? (row.sportInfo[0] as Record<string, unknown> | undefined)
         : undefined;
+
+      const deep = num(row.DeepSleep);
+      const rem = num(row.REMSleep);
+      const light = num(row.LightSleep);
+      if (
+        num(row.sleepSecs) !== null &&
+        deep === null &&
+        rem === null &&
+        light === null
+      ) {
+        missingStages++;
+      }
+
       return {
         date: String(row.id),
         hrv: num(row.hrv),
@@ -172,9 +203,33 @@ export async function fetchDailyWellness(params: {
         pMax: num(sportInfo?.pMax),
         wPrime: num(sportInfo?.wPrime),
         weight: num(row.weight),
+        spO2: num(row.spO2),
+        respiration: num(row.respiration),
+        bodyFat: num(row.bodyFat),
+        sleepingHr: num(row.avgSleepingHR),
+        hrvSdnn: num(row.hrvSDNN),
+        readiness: num(row.readiness),
+        hydrationL: num(row.hydrationVolume),
+        steps: num(row.steps),
+        sleepQuality: num(row.sleepQuality),
+        sleepDeepSecs: deep,
+        sleepRemSecs: rem,
+        sleepLightSecs: light,
         raw: row,
       };
     });
+
+  // Custom field codes are renameable in the intervals.icu UI; a rename turns
+  // the stage mapping into permanent nulls with no other symptom. Log once per
+  // sync (not per row) so the drift is observable instead of silent.
+  if (missingStages > 0) {
+    logger.warn("intervals wellness: sleep stage custom fields missing", {
+      days: missingStages,
+      expected: ["DeepSleep", "REMSleep", "LightSleep"],
+    });
+  }
+
+  return days;
 }
 
 /** Fetch activity summaries for a date range. */
