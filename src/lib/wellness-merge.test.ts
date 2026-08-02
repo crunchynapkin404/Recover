@@ -308,6 +308,12 @@ describe("mergeWellnessPatch", () => {
       rampRate: 1,
       pMax: 1,
       wPrime: 1,
+      sleepingHr: 1,
+      hrvSdnnMs: 1,
+      readiness: 1,
+      hydrationL: 1,
+      steps: 1,
+      sleepQuality: 1,
     };
     for (const key of Object.keys(patch)) {
       expect(
