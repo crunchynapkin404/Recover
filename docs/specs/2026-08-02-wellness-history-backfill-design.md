@@ -33,30 +33,50 @@ recoverable by any means.
 **Days never fetched at all.** `BACKFILL_DAYS = 365` in `intervals-sync.ts`
 capped the first sync; every sync since has re-fetched a 7-day overlap. Local
 data starts **2025-07-14**, exactly 365 days before that first sync.
-intervals.icu holds ~945 rows, and real data was confirmed as far back as
-**2021-06-15** (sleep duration, RHR, weight, CTL/ATL, eFTP) — roughly **560
-days that have never been pulled**.
+
+A dry run against a copy of production data (2026-08-02) found intervals.icu
+holds far more history than this design originally estimated, and that most
+of it is not real: the walk pulled **385 → 5,882 rows**, reaching all the way
+back to **2010-06-26**. The reason is that intervals.icu synthesizes a
+wellness row for **every calendar day back to account creation**, carrying
+only CTL/ATL decay values — not just days with real measurements. A naive
+"stop at the first chunk that returns zero rows" walk never encounters an
+empty chunk on data like this; it stops at account creation, not at the
+athlete's actual history floor.
+
+Measured breakdown of what came back, per year:
+
+- **2010–2018: 3,111 rows of pure filler** — `ctl` exactly 0.0, zero sleep,
+  zero resting HR, one stray weight reading in 2010.
+- **2019 onward: real signal** — 2019 has 231 sleep rows and real CTL (avg
+  2.2, max 7.2); 2020 has 316 sleep + 16 weight; 2021 has 261 sleep + 19
+  weight.
+
+Real history starts in **2019**; everything before it is noise a backfill
+must not keep.
 
 Done when: an athlete can press one button in Settings and end up with every
-wellness day and every mappable field intervals.icu has ever held for them.
+wellness day that carries real signal — plus every mappable field on it —
+that intervals.icu has ever held for them, with the pre-history CTL/ATL
+filler an old-enough account carries excluded rather than written.
 
 ## Decisions
 
-| Decision            | Choice                                                                                                                                                                                                                                            |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Provider scope      | intervals.icu only. The live instance has no Whoop/Oura/Withings connections, `apple_health` has been dead since 2026-07-29 and never carried history, and Strava supplies activities, not wellness.                                              |
-| Trigger             | A button on the intervals.icu Settings card, enqueuing a `sync_jobs` row. Not a script: it must work for the other athlete on the instance, who has no shell. Not automatic-on-upgrade: thousands of requests against a free service, unprompted. |
-| Job kind            | The existing `sync_jobs.kind` enum value `backfill`, which nothing currently writes. `defaultProcessor` branches only on `job.provider` today and gains a `kind` branch.                                                                          |
-| Enqueue, don't run  | The server action returns immediately. A backfill runs for minutes; a server action cannot.                                                                                                                                                       |
-| Re-entrancy         | Refuse to enqueue when a backfill is already `pending`/`running` for that user, mirroring `scheduleIntervalsSync`.                                                                                                                                |
-| Two phases, one job | Phase A (remap `raw`) needs no network; Phase B (fetch history) does. Running them in one job means one metrics recompute instead of two, and the recompute is the expensive part.                                                                |
-| Mapping location    | The `raw` → `IntervalsWellnessDay` mapping is extracted from inside `fetchDailyWellness` into an exported pure function. Phase A cannot reuse it otherwise, and a duplicated copy would drift from the fetch path within one release.             |
-| Write path          | `applyWellnessPatch`, same as every other wellness write. No direct upserts — the merge is what stops a backfill from overwriting a better-ranked provider's field.                                                                               |
-| `lastSyncAt`        | Untouched by the backfill. That cursor decides the incremental window; moving it would silently widen or skip the daily sync.                                                                                                                     |
-| Chunking            | One request per calendar year rather than one 945-row response, with a delay between chunks. intervals.icu is free and run by one developer.                                                                                                      |
-| History floor       | Discovered by walking back year-chunks until one returns zero rows. Hardcoding 2021 would be correct for this athlete and wrong for the next.                                                                                                     |
-| Stale reclaim       | The job heartbeats `sync_jobs.updated_at` between chunks. `runSchedulerTick` reclaims jobs idle >15 min and re-runs them; a backfill plus a ~1900-day recompute plausibly trips that, and the reclaim would run a second copy concurrently.       |
-| Readiness shift     | Accepted and surfaced, not hidden. Recomputing from 2021 re-derives the trailing baselines readiness scores against, so today's number will move. That is the point of having the history, but it is a visible change and the UI should say so.   |
+| Decision            | Choice                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Provider scope      | intervals.icu only. The live instance has no Whoop/Oura/Withings connections, `apple_health` has been dead since 2026-07-29 and never carried history, and Strava supplies activities, not wellness.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| Trigger             | A button on the intervals.icu Settings card, enqueuing a `sync_jobs` row. Not a script: it must work for the other athlete on the instance, who has no shell. Not automatic-on-upgrade: thousands of requests against a free service, unprompted.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| Job kind            | The existing `sync_jobs.kind` enum value `backfill`, which nothing currently writes. `defaultProcessor` branches only on `job.provider` today and gains a `kind` branch.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| Enqueue, don't run  | The server action returns immediately. A backfill runs for minutes; a server action cannot.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| Re-entrancy         | Refuse to enqueue when a backfill is already `pending`/`running` for that user, mirroring `scheduleIntervalsSync`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| Two phases, one job | Phase A (remap `raw`) needs no network; Phase B (fetch history) does. Running them in one job means one metrics recompute instead of two, and the recompute is the expensive part.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| Mapping location    | The `raw` → `IntervalsWellnessDay` mapping is extracted from inside `fetchDailyWellness` into an exported pure function. Phase A cannot reuse it otherwise, and a duplicated copy would drift from the fetch path within one release.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| Write path          | `applyWellnessPatch`, same as every other wellness write. No direct upserts — the merge is what stops a backfill from overwriting a better-ranked provider's field.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `lastSyncAt`        | Untouched by the backfill. That cursor decides the incremental window; moving it would silently widen or skip the daily sync.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| Chunking            | One request per calendar year rather than one all-history response, with a delay between chunks. intervals.icu is free and run by one developer.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| History floor       | **Not** "walk back until a chunk returns zero rows" — the dry run showed that rule never fires on real data, because intervals.icu synthesizes CTL/ATL-only filler for every calendar day back to account creation. The real rule: stop at the first chunk that is either empty **or** carries nothing beyond intervals.icu's own training-load model outputs (`ctl`, `atl`, `rampRate`, `eftp`, `pMax`, `wPrime` — see `LOAD_ONLY_FIELDS` in `intervals-backfill.ts`). That load-only chunk is discarded, not written; a chunk with any other field populated is written in full, filler days included, and the walk continues. `MAX_BACKFILL_YEARS = 20` remains the hard safety stop for an account where even this rule never fires; `BackfillResult.truncated` reports whether the walk hit it instead of a real stop condition. Hardcoding 2019 would be correct for this athlete and wrong for the next. |
+| Stale reclaim       | The job heartbeats `sync_jobs.updated_at` between chunks, **and now during Phase C too** — `computeDailyMetrics` takes an optional `onProgress` callback, fired every 250 processed dates, that the backfill wires to the same heartbeat. Phase C alone is thousands of sequential upserts at real-account scale, by far the single largest unheartbeated span in the job before this; `runSchedulerTick` reclaims jobs idle >15 min and re-runs them, which would have started a second, concurrent backfill for the same user.                                                                                                                                                                                                                                                                                                                                                                                |
+| Readiness shift     | Accepted and surfaced, not hidden. Recomputing from the real history floor re-derives the trailing baselines readiness scores against, so today's number will move. That is the point of having the history, but it is a visible change and the UI should say so.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 
 ## Architecture
 
@@ -83,13 +103,25 @@ difference, and the existing connector tests must pass unmodified.
 ```ts
 export async function runIntervalsBackfill(
   userId: string,
-  opts?: { fetcher?: WellnessFetcher; onProgress?: () => Promise<void> }
-): Promise<{ remapped: number; fetched: number; earliestDate: string }>;
+  opts?: {
+    fetcher?: WellnessFetcher;
+    onProgress?: () => Promise<void>;
+    delayMs?: number;
+  }
+): Promise<{
+  remapped: number;
+  fetched: number;
+  earliestDate: string | null;
+  truncated: boolean;
+}>;
 ```
 
-`onProgress` is the heartbeat hook, called between chunks; the scheduler passes
-one that bumps `sync_jobs.updated_at`. `fetcher` is the test seam, matching the
-`WellnessFetcher` type `wellness-refresh.ts` already exports.
+`onProgress` is the heartbeat hook, called between Phase B chunks and passed
+through to Phase C's own `onProgress` (see below); the scheduler passes one
+that bumps `sync_jobs.updated_at`. `fetcher` is the test seam, matching the
+`WellnessFetcher` type `wellness-refresh.ts` already exports. `truncated` is
+`true` only when Phase B exhausted `MAX_BACKFILL_YEARS` instead of ending via
+a real stop condition.
 
 **Phase A — remap.** Read the user's `wellness_daily` rows where `raw` is
 non-null and `raw->>'id' = date`. That equality is the discriminator:
@@ -105,12 +137,20 @@ can only add values and never erase one, and where `apple_health` outranks
 
 **Phase B — fetch.** Determine the local earliest date, then request whole
 calendar years backwards from it via the existing `oldest`/`newest` params.
-Stop after the first chunk that returns zero rows. Every returned day goes
-through the identical `wellnessDayToPatch` → `applyWellnessPatch` path as the
-daily sync, so a backfilled day is indistinguishable from a synced one.
+Stop after the first chunk that either returns zero rows **or** contains
+nothing beyond intervals.icu's own training-load model outputs (see "History
+floor" above) — that chunk is discarded, not written. A chunk with any other
+field populated is written in full, filler days included, and the walk
+continues. Every written day goes through the identical `wellnessDayToPatch`
+→ `applyWellnessPatch` path as the daily sync, so a backfilled day is
+indistinguishable from a synced one.
 
 **Phase C — recompute.** A single `computeDailyMetrics(userId,
-earliestTouchedDate)` after both phases.
+earliestTouchedDate, { onProgress: heartbeat })` after both phases.
+`computeDailyMetrics` gained an optional `onProgress` parameter (backward
+compatible — every other caller omits it) fired every 250 processed dates,
+since at real-account scale this recompute is thousands of sequential
+upserts — the single largest unheartbeated span in the job before this.
 
 ### Scheduler — `src/lib/sync/scheduler.ts`
 
@@ -163,7 +203,17 @@ job's `lastError` surfaces the same way the connection's does.
 - Phase B — with an injected fetcher: asserts year-sized chunks, asserts it
   stops after an empty chunk, asserts `connections.lastSyncAt` is unchanged
   afterwards.
-- Heartbeat — `onProgress` is invoked at least once per chunk.
+- Load-only stop rule — with an injected fetcher: a year of load-only rows
+  (`ctl`/`atl`/etc. only) is discarded and ends the walk without being
+  written, including when it is the first (partial-year) chunk; a year with
+  even one real measurement among filler is written in full and the walk
+  continues past it.
+- Truncation — `BackfillResult.truncated` is `false` when the walk ends via
+  a real stop condition, and `true` when it instead exhausts
+  `MAX_BACKFILL_YEARS`.
+- Heartbeat — `onProgress` is invoked at least once per Phase B chunk, and
+  `computeDailyMetrics`'s own `onProgress` (Phase C) is proven to fire once
+  it crosses its 250-date batch boundary.
 - Every DB-touching file carries `describe.skipIf(!hasDb)` per the house
   pattern; a file that omits it crashes CI instead of skipping.
 
@@ -172,9 +222,11 @@ job's `lastError` surfaces the same way the connection's does.
 - Run the full suite with `DATABASE_URL` **unset** before pushing. A green
   local run with `.env` sourced cannot prove the CI guard works.
 - Run the backfill against the dev database (5435, a copy of live) first and
-  diff `wellness_daily` field counts before and after. Expected: the Phase A
-  column counts above rise to match their `raw` counts, and the row count rises
-  from 385 toward ~945.
+  diff `wellness_daily` field counts before and after. Expected, after the
+  load-only stop rule: the Phase A column counts above rise to match their
+  `raw` counts, the row count rises toward the mid-hundreds as 2019 onward is
+  pulled, and the walk does **not** write the ~3,111 pre-2019 filler rows a
+  zero-rows-only stop condition would have let through.
 - Confirm `connections.last_sync_at` is byte-identical before and after.
 - Load `/body` and confirm multi-year trends render, then confirm the next
   daily sync still runs on its normal window.

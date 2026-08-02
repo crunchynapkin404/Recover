@@ -11,6 +11,7 @@ const runIntervalsBackfill = vi.fn<
   remapped: 0,
   fetched: 0,
   earliestDate: null,
+  truncated: false,
 }));
 const runIntervalsSync = vi.fn(async () => ({
   wellnessDays: 0,
@@ -115,7 +116,7 @@ describe.skipIf(!hasDb)("backfill heartbeat (v0.36)", () => {
     const { defaultProcessor } = await import("@/lib/sync/scheduler");
     runIntervalsBackfill.mockImplementationOnce(async (_userId, opts) => {
       await (opts as { onProgress: () => Promise<void> }).onProgress();
-      return { remapped: 0, fetched: 0, earliestDate: null };
+      return { remapped: 0, fetched: 0, earliestDate: null, truncated: false };
     });
     await defaultProcessor(job({ id: row.id, userId, kind: "backfill" }));
 

@@ -18,18 +18,35 @@ so anything older than that first year was never fetched at all.
   sleeping HR, ~21 of body fat and ~10 of hydration.
 - **Phase B fetches what was never pulled.** `runIntervalsBackfill` walks
   intervals.icu history backward one calendar year per request from the
-  oldest date Recover holds, stopping the first time a year comes back
-  empty (a 20-year walk is the safety stop, not the expectation). Both
-  phases write through `applyWellnessPatch`, so a backfilled day can never
-  outrank a better source, and a single `computeDailyMetrics` pass runs once
-  over everything either phase touched rather than once per phase.
+  oldest date Recover holds. A dry run against a copy of production data
+  found the original stop rule — the first year to come back empty — never
+  fires on real accounts: intervals.icu synthesizes a wellness row for
+  _every_ calendar day back to account creation, carrying only CTL/ATL decay
+  (3,111 such rows, 2010–2018, `ctl` exactly 0.0, on the account this shipped
+  against). The walk now **also** stops at the first chunk that holds
+  nothing beyond intervals.icu's own training-load fields (`ctl`, `atl`,
+  `rampRate`, `eftp`, `pMax`, `wPrime`) — that chunk is discarded, not
+  written, ending the walk there instead of at account creation. A chunk with
+  any other field populated is still written in full, filler days included,
+  and the walk keeps going. `MAX_BACKFILL_YEARS = 20` remains the hard safety
+  stop; `BackfillResult.truncated` now reports whether the walk hit that cap
+  instead of a real stop condition, so a truncated run is distinguishable
+  from one that genuinely reached the athlete's history floor. Both phases
+  write through `applyWellnessPatch`, so a backfilled day can never outrank a
+  better source, and a single `computeDailyMetrics` pass runs once over
+  everything either phase touched rather than once per phase.
 - **A "Backfill full history" button** on the intervals.icu settings card
   triggers it, queuing a `sync_jobs` row with the previously unused
   `backfill` kind.
 - **The scheduler now routes backfill jobs** before provider dispatch, and
   heartbeats while one runs, so the 15-minute stale-reclaim can't start a
-  second copy mid-run. It never touches `connections.last_sync_at` — that
-  cursor is the incremental sync's window, untouched by history recovery.
+  second copy mid-run. Phase C — the metrics recompute — is heartbeated too
+  now: `computeDailyMetrics` takes an optional `onProgress` callback, fired
+  every 250 processed dates, and the backfill wires it to the same
+  heartbeat. At real-account scale Phase C is thousands of sequential
+  upserts, by far the largest previously-unheartbeated span in the job. None
+  of this touches `connections.last_sync_at` — that cursor is the
+  incremental sync's window, untouched by history recovery.
 - **Recovery scores shift once this runs.** Older history changes the
   trailing baselines readiness is measured against. The button says so.
 
@@ -37,9 +54,13 @@ No migrations — `sync_jobs.kind` already carried the `backfill` enum value
 and `wellness_daily` already had every column this fills.
 
 Verified against a copy of the live database: `connections.last_sync_at`
-came back byte-identical before and after a real run. 238 test files, 1641
-tests, green; the suite was also re-run with `DATABASE_URL` unset to confirm
-the DB-gated suites report skipped rather than crashing.
+came back byte-identical before and after a real run, and the corrected walk
+stopped after 2018 — dropping all 3,111 filler rows while keeping every real
+measurement, including 2019–2020's roughly 550 sleep nights that a
+zero-rows-only stop condition would have missed entirely (the pre-fix walk
+did not stop until 2010). 239 test files, 1647 tests, green; the suite was
+also re-run with `DATABASE_URL` unset to confirm the DB-gated suites report
+skipped rather than crashing.
 
 ## v0.35.1 — 2026-08-02 — Tests stop calling providers for real
 
