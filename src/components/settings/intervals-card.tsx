@@ -176,10 +176,12 @@ export function IntervalsCard({ connection }: Props) {
           wellness and activity data.
         </p>
         <p className="text-xs text-muted-foreground">
-          Backfilling fetches every wellness day intervals.icu holds for you,
-          not just the last year. It runs in the background and takes a few
-          minutes. Recovery scores may shift afterwards, because older history
-          changes the baselines they are measured against.
+          Backfilling fetches your full wellness history from intervals.icu, not
+          just the last year — it skips years where intervals.icu has no real
+          data of yours, just its own calculated fitness numbers. It runs in the
+          background and takes a few minutes. Recovery scores may shift
+          afterwards, because older history changes the baselines they are
+          measured against.
         </p>
       </CardFooter>
     </Card>

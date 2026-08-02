@@ -1,7 +1,28 @@
-import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { computeDailyMetrics } from "@/lib/metrics";
+
+/**
+ * The logger emits one JSON line per event through console.{log,warn,error}
+ * (src/lib/logger.ts). Capture the real thing rather than mocking our own
+ * logger — the assertion is then about what actually lands in `docker logs`.
+ * Mirrors tests/push.test.ts's captureLog helper.
+ */
+function captureLog(level: "log" | "warn" | "error") {
+  const lines: Record<string, unknown>[] = [];
+  const spy = vi.spyOn(console, level).mockImplementation((...args) => {
+    try {
+      lines.push(JSON.parse(String(args[0])));
+    } catch {
+      // Non-JSON console output from elsewhere; not our concern.
+    }
+  });
+  return {
+    restore: () => spy.mockRestore(),
+    all: (msg: string) => lines.filter((l) => l.msg === msg),
+  };
+}
 
 // v0.36 final-review fix 2: computeDailyMetrics ran Phase C of the wellness
 // backfill (thousands of sequential upserts, one per date) with no
@@ -100,6 +121,44 @@ describe.skipIf(!hasDb)(
       // No opts at all: every pre-existing call site does this today.
       const computed = await computeDailyMetrics(USER, dayN(0));
       expect(computed).toBeGreaterThanOrEqual(10);
+    });
+
+    // Re-review fix: onProgress is caller-supplied and computeDailyMetrics is
+    // public, so a throwing callback (e.g. a scheduler heartbeat hitting a
+    // transient DB blip) must not abort a recompute that's otherwise
+    // succeeding — potentially thousands of dates into a backfill. This is
+    // the test that proves the guard, not just documents it: it asserts the
+    // recompute both finishes AND actually persisted its rows.
+    it("does not abort the recompute when onProgress throws", async () => {
+      await seedDays(260);
+      const log = captureLog("warn");
+      let calls = 0;
+
+      try {
+        const computed = await computeDailyMetrics(USER, dayN(0), {
+          onProgress: () => {
+            calls++;
+            throw new Error("boom: heartbeat DB blip");
+          },
+        });
+
+        // Same crossing as the "fires once" test above — the throw must not
+        // have stopped the loop before it finished all 260+ dates.
+        expect(computed).toBeGreaterThanOrEqual(260);
+        expect(calls).toBe(1);
+
+        const rows = await db.query.dailyMetrics.findMany({
+          where: eq(schema.dailyMetrics.userId, USER),
+        });
+        expect(rows.length).toBeGreaterThanOrEqual(260);
+
+        // Not swallowed silently — degraded monitoring is logged at warn.
+        expect(
+          log.all("computeDailyMetrics onProgress callback failed")
+        ).toHaveLength(1);
+      } finally {
+        log.restore();
+      }
     });
   }
 );

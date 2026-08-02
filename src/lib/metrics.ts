@@ -188,7 +188,20 @@ export async function computeDailyMetrics(
     computed++;
 
     if (opts?.onProgress && computed % PROGRESS_INTERVAL === 0) {
-      await opts.onProgress();
+      // `onProgress` is caller-supplied (the v0.36 backfill's scheduler
+      // heartbeat) and this function is public, so any caller's monitoring
+      // callback failing must never break metrics computation — same rule
+      // as the webhook-dispatch guard below, applied to a side effect the
+      // caller controls instead of one this function owns.
+      try {
+        await opts.onProgress();
+      } catch (err) {
+        logger.warn("computeDailyMetrics onProgress callback failed", {
+          userId,
+          date,
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
     }
 
     // v0.20 outbound webhooks — fire only for the live "today" row, never

@@ -43,12 +43,28 @@ type SyncJob = typeof schema.syncJobs.$inferSelect;
 export type JobProcessor = (job: SyncJob) => Promise<void>;
 
 /** Keep a long-running job out of the stale-reclaim window. Sets the same
- *  `updated_at` the reclaim query in runSchedulerTick reads. */
+ *  `updated_at` the reclaim query in runSchedulerTick reads.
+ *
+ *  A heartbeat is monitoring, not the work being monitored: a transient DB
+ *  hiccup here must never abort a backfill or metrics recompute that is
+ *  otherwise succeeding, so failures are caught and logged rather than
+ *  thrown — same rule as the webhook-dispatch guard in lib/metrics.ts, and
+ *  guarding it here protects every call site (Phase A, each Phase B chunk,
+ *  and the Phase C recompute) at once. Logged at warn, not error: this is
+ *  degraded monitoring (the stale-reclaim window might now trip), not a
+ *  failure of the work itself. */
 async function heartbeat(jobId: string): Promise<void> {
-  await db
-    .update(schema.syncJobs)
-    .set({ updatedAt: new Date() })
-    .where(eq(schema.syncJobs.id, jobId));
+  try {
+    await db
+      .update(schema.syncJobs)
+      .set({ updatedAt: new Date() })
+      .where(eq(schema.syncJobs.id, jobId));
+  } catch (err) {
+    logger.warn("sync job heartbeat failed", {
+      jobId,
+      message: err instanceof Error ? err.message : String(err),
+    });
+  }
 }
 
 export async function defaultProcessor(job: SyncJob): Promise<void> {

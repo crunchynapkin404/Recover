@@ -187,8 +187,10 @@ the job with `runAfter: now`, and revalidates `/settings`.
 ### Settings card — `src/components/settings/intervals-card.tsx`
 
 A "Backfill full history" button below the existing sync controls, with copy
-stating plainly that it fetches every day intervals.icu holds and that recovery
-scores may shift once older history informs the baselines. While a backfill job
+stating that it fetches the athlete's full wellness history (skipping years
+that are nothing but intervals.icu's own calculated training-load numbers,
+with no real data of theirs) and that recovery scores may shift once older
+history informs the baselines. While a backfill job
 is `pending` or `running` the button is disabled and reads "Backfilling…"; the
 job's `lastError` surfaces the same way the connection's does.
 
