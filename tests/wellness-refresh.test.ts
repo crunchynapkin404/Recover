@@ -37,7 +37,13 @@ describe("wellness refresh window", () => {
   });
 });
 
-describe("runWellnessRefresh", () => {
+const hasDb =
+  !!process.env.DATABASE_URL && process.env.DATABASE_DRIVER === "pg";
+
+// skipIf-guarded: these reach the connections query, and CI has no
+// DATABASE_URL. Without the guard the whole `checks` job crashes instead of
+// skipping — invisible locally, where .env always supplies the URL.
+describe.skipIf(!hasDb)("runWellnessRefresh", () => {
   it("no-ops outside the window without touching the fetcher", async () => {
     const fetcher = vi.fn();
     const n = await runWellnessRefresh({
