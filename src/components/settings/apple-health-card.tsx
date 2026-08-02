@@ -8,6 +8,26 @@ import {
   type ActionResult,
 } from "@/app/settings/apple-health-actions";
 
+/** Health Auto Export pushes at least daily when healthy; 3 days of silence
+ *  is well past any plausible gap. */
+const STALE_AFTER_DAYS = 3;
+
+/**
+ * Whole days of silence from a push connector, or null while it is still
+ * plausibly live. A push source has no failure signal of its own — it just
+ * stops — so silence is the only symptom there is.
+ */
+export function staleSilenceDays(
+  lastSyncAt: string | null,
+  now: Date = new Date()
+): number | null {
+  if (!lastSyncAt) return null;
+  const then = new Date(lastSyncAt).getTime();
+  if (Number.isNaN(then)) return null;
+  const days = Math.floor((now.getTime() - then) / 86_400_000);
+  return days >= STALE_AFTER_DAYS ? days : null;
+}
+
 interface Props {
   connected: boolean;
   lastSyncAt: string | null;
@@ -23,6 +43,8 @@ export function AppleHealthCard({
     (ActionResult & { url?: string }) | null
   >(null);
   const [pending, startTransition] = useTransition();
+
+  const staleDays = staleSilenceDays(lastSyncAt);
   const [uploadState, uploadAction, uploading] = useActionState<
     ActionResult | null,
     FormData
@@ -120,6 +142,17 @@ export function AppleHealthCard({
       {connected && lastSyncAt && (
         <p className="mt-2 text-[10px] text-white/40">
           Last received: {new Date(lastSyncAt).toLocaleString()}
+        </p>
+      )}
+
+      {/* A push connector has no failure signal of its own — it just goes
+          quiet. Without this, a connector that stopped days ago (an expired
+          Health Auto Export subscription, a revoked automation) keeps
+          reading as healthy indefinitely. */}
+      {connected && staleDays != null && (
+        <p role="status" className="mt-1 text-[10px] font-bold text-amber-300">
+          Nothing received for {staleDays} days — check the Health Auto Export
+          automation is still running.
         </p>
       )}
 

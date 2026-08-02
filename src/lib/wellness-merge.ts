@@ -48,6 +48,12 @@ export interface WellnessPatch {
   atl?: number | null;
   eftp?: number | null;
   vo2max?: number | null;
+  sleepingHr?: number | null;
+  hrvSdnnMs?: number | null;
+  readiness?: number | null;
+  hydrationL?: number | null;
+  steps?: number | null;
+  sleepQuality?: number | null;
   rampRate?: number | null;
   pMax?: number | null;
   wPrime?: number | null;
@@ -93,6 +99,14 @@ export const FIELD_PRIORITY: Record<WellnessField, WellnessSource[]> = {
   bloodOxygenPct: PHYSIOLOGY,
   wristTempC: PHYSIOLOGY,
   vo2max: PHYSIOLOGY,
+  sleepingHr: PHYSIOLOGY,
+  hrvSdnnMs: PHYSIOLOGY,
+  readiness: PHYSIOLOGY,
+  sleepQuality: PHYSIOLOGY,
+  // A plain device measurement Apple Health legitimately supplies — LOAD is
+  // deliberately intervals-only because CTL/ATL are intervals' own model.
+  steps: PHYSIOLOGY,
+  hydrationL: BODY,
   weightKg: BODY,
   bodyFatPct: BODY,
   systolic: BODY,

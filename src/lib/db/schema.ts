@@ -131,6 +131,10 @@ export const connections = pgTable(
     lastActivityPollAt: timestamp("last_activity_poll_at", {
       withTimezone: true,
     }),
+    // v0.33: morning wellness re-pull cursor — same stamp-first discipline.
+    lastWellnessPollAt: timestamp("last_wellness_poll_at", {
+      withTimezone: true,
+    }),
     // v0.6: true only when the OAuth grant includes activity:write
     // (Strava description write-back). Flipped false on write auth failures.
     stravaWriteEnabled: boolean("strava_write_enabled")
@@ -257,6 +261,12 @@ export const wellnessDaily = pgTable(
     atl: real("atl"),
     eftp: real("eftp"),
     vo2max: real("vo2max"),
+    sleepingHr: real("sleeping_hr"), // intervals.icu avgSleepingHR
+    hrvSdnnMs: real("hrv_sdnn_ms"), // SDNN — hrvMs above is rMSSD
+    readiness: real("readiness"),
+    hydrationL: real("hydration_l"),
+    steps: integer("steps"),
+    sleepQuality: integer("sleep_quality"), // raw 1-5, scale unverified
     rampRate: real("ramp_rate"),
     pMax: real("p_max"),
     wPrime: real("w_prime"),

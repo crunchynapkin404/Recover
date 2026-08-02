@@ -1,5 +1,46 @@
 # Changelog
 
+## v0.33.0 — 2026-08-02 — Wellness Expansion
+
+Health Auto Export's REST automation is a paid feature. The trial ended on
+2026-07-29 and the Apple Health connector went quiet — five days of sleep
+stages, blood oxygen and respiratory rate, then nothing. The replacement
+sender is the free Intervals.icu Companion iOS app, which reads HealthKit via
+background delivery and writes into the intervals.icu wellness log Recover
+already syncs. That exposed how much of that log Recover was throwing away.
+
+- **Twelve wellness fields now arrive instead of none.** `fetchDailyWellness`
+  mapped 13 fields and dropped the rest into `raw`. Six of the discarded ones
+  already had live columns waiting for them — blood oxygen (166 days of it),
+  respiratory rate, body fat, and the three sleep stages. Six more now have
+  columns: sleeping HR, HRV SDNN, readiness, hydration, steps, sleep quality.
+  Every key, unit and scale was read off the live account rather than guessed.
+- **Sleep stages, from a platform that has no sleep stages.** intervals.icu
+  has no native stage model, so the Companion writes them as custom wellness
+  fields. Those are renameable in the intervals.icu UI, and a rename would
+  turn the mapping into permanent nulls with no other symptom — so a row with
+  a sleep duration but no stages now logs a warning once per sync.
+- **Last night's sleep arrives this morning, not tomorrow.** The daily sync
+  runs at 05:00; the Companion writes around 06:40. A bounded morning re-pull
+  (05:00–12:00, at most every 30 min, last 3 days, stopping once yesterday has
+  a duration and a stage) closes the ~95-minute miss and fires the same
+  wellness-changed hook, so the morning brief reflects the night it describes.
+- **A silent push connector stops looking healthy.** The Apple Health card
+  reported "Push via Health Auto Export" for days after the trial lapsed,
+  because "connected" only ever meant "a connection row exists". After three
+  days of silence it now says so. A push source has no failure signal of its
+  own; it just stops.
+- **Blood oxygen is stored as the percentage it already is.** intervals.icu
+  reports 95.9–97.5; Apple Health reports the same measurement as a 0–1
+  fraction needing ×100. Applying the Apple rule to the intervals feed would
+  have stored 9650%.
+- **Sleep quality is stored but not shown.** Its 1–5 scale direction is
+  contested between intervals.icu's own metadata and this project's notes, and
+  rendering it inverted would flip a recovery signal rather than merely look
+  wrong.
+- Migration 0035 adds six nullable columns plus a wellness-poll cursor.
+  Additive-only, no backfill.
+
 ## v0.32.0 — 2026-08-01 — One Plan, One Answer
 
 Three `active` training plans sat on one account, left by a single plan

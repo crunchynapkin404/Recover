@@ -410,6 +410,28 @@ export async function runSchedulerTick(
     });
   }
 
+  // v0.33 wellness refresh — the Companion iOS app writes to intervals.icu
+  // ~95 min after the SYNC_HOUR pull, so last night's sleep needs a bounded
+  // morning re-pull to land today instead of tomorrow.
+  //
+  // Skipped under vitest: this repo's DB-gated tests run against a database
+  // carrying real connection rows, so an unguarded pass here fires a live
+  // intervals.icu request and writes to real wellness rows from any test that
+  // exercises the tick — making those tests network-dependent and flaky.
+  // runWellnessRefresh is covered directly by tests/wellness-refresh.test.ts.
+  if (!process.env.VITEST) {
+    try {
+      const { runWellnessRefresh } =
+        await import("@/lib/sync/wellness-refresh");
+      const refreshed = await runWellnessRefresh();
+      if (refreshed > 0) logger.info("wellness refresh ran", { refreshed });
+    } catch (err) {
+      logger.error("wellness refresh pass failed", {
+        message: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
   // Morning brief backstop (+ weekly/monthly re-check past BACKSTOP_HOUR) —
   // guarded like the rest, never breaks the tick.
   try {
