@@ -7,8 +7,46 @@ import {
   fetchActivities,
   fetchDailyWellness,
   type IntervalsActivity,
+  type IntervalsWellnessDay,
 } from "@/lib/connectors/intervals";
-import { applyWellnessPatch } from "@/lib/wellness-merge";
+import { applyWellnessPatch, type WellnessPatch } from "@/lib/wellness-merge";
+
+/**
+ * Normalize one intervals.icu wellness day into a merge patch.
+ *
+ * Shared by the daily sync and the v0.33 morning wellness refresh so the two
+ * can never drift apart. Fields intervals.icu cannot supply (bedStart/bedEnd,
+ * sleepAwakeSecs) are deliberately absent rather than null — omitting a key
+ * leaves any better-ranked source's value alone.
+ */
+export function wellnessDayToPatch(day: IntervalsWellnessDay): WellnessPatch {
+  return {
+    hrvMs: day.hrv,
+    restingHr: day.restingHr,
+    sleepSecs: day.sleepSecs,
+    sleepScore: day.sleepScore,
+    ctl: day.ctl,
+    atl: day.atl,
+    eftp: day.eftp,
+    vo2max: day.vo2max,
+    rampRate: day.rampRate,
+    pMax: day.pMax,
+    wPrime: day.wPrime,
+    weightKg: day.weight,
+    bloodOxygenPct: day.spO2,
+    respiratoryRate: day.respiration,
+    bodyFatPct: day.bodyFat,
+    sleepDeepSecs: day.sleepDeepSecs,
+    sleepRemSecs: day.sleepRemSecs,
+    sleepLightSecs: day.sleepLightSecs,
+    sleepingHr: day.sleepingHr,
+    hrvSdnnMs: day.hrvSdnn,
+    readiness: day.readiness,
+    hydrationL: day.hydrationL,
+    steps: day.steps,
+    sleepQuality: day.sleepQuality,
+  };
+}
 
 const BACKFILL_DAYS = 365;
 const INCREMENTAL_OVERLAP_DAYS = 7;
@@ -131,20 +169,7 @@ export async function runIntervalsSync(userId: string): Promise<SyncResult> {
       await applyWellnessPatch(
         userId,
         day.date,
-        {
-          hrvMs: day.hrv,
-          restingHr: day.restingHr,
-          sleepSecs: day.sleepSecs,
-          sleepScore: day.sleepScore,
-          ctl: day.ctl,
-          atl: day.atl,
-          eftp: day.eftp,
-          vo2max: day.vo2max,
-          rampRate: day.rampRate,
-          pMax: day.pMax,
-          wPrime: day.wPrime,
-          weightKg: day.weight,
-        },
+        wellnessDayToPatch(day),
         "intervals_icu",
         day.raw
       );
