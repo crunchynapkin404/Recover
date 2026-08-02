@@ -338,6 +338,70 @@ async function TrendsTab({
           decimals={1}
         />
       )}
+      {inRange.some((w) => w.respiratoryRate != null) && (
+        <BaselineTrendCard
+          title="Respiratory rate"
+          values={fillDailyGaps(wellness, range, (w) => w.respiratoryRate)}
+          band={ownBaselineBand(wellness, (w) => w.respiratoryRate)}
+          color="#38bdf8"
+          bandFill="rgba(56,189,248,0.08)"
+          unit="br/min"
+          decimals={1}
+        />
+      )}
+      {inRange.some((w) => w.sleepingHr != null) && (
+        <BaselineTrendCard
+          title="Sleeping HR"
+          values={fillDailyGaps(wellness, range, (w) => w.sleepingHr)}
+          band={ownBaselineBand(wellness, (w) => w.sleepingHr)}
+          color="#818cf8"
+          bandFill="rgba(129,140,248,0.08)"
+          unit="bpm"
+        />
+      )}
+      {inRange.some((w) => w.hrvSdnnMs != null) && (
+        <BaselineTrendCard
+          title="HRV (SDNN)"
+          values={fillDailyGaps(wellness, range, (w) => w.hrvSdnnMs)}
+          band={ownBaselineBand(wellness, (w) => w.hrvSdnnMs)}
+          color="#2dd4bf"
+          bandFill="rgba(45,212,191,0.08)"
+          unit="ms"
+        />
+      )}
+      {/* "Readiness score" (not "Readiness") — /plan already uses
+          EventReadiness for a race's demand, a different concept. */}
+      {inRange.some((w) => w.readiness != null) && (
+        <BaselineTrendCard
+          title="Readiness score"
+          values={fillDailyGaps(wellness, range, (w) => w.readiness)}
+          band={ownBaselineBand(wellness, (w) => w.readiness)}
+          color="#fbbf24"
+          bandFill="rgba(251,191,36,0.08)"
+          unit=""
+        />
+      )}
+      {inRange.some((w) => w.steps != null) && (
+        <BaselineTrendCard
+          title="Steps"
+          values={fillDailyGaps(wellness, range, (w) => w.steps)}
+          band={ownBaselineBand(wellness, (w) => w.steps)}
+          color="#c084fc"
+          bandFill="rgba(192,132,252,0.08)"
+          unit=""
+        />
+      )}
+      {inRange.some((w) => w.hydrationL != null) && (
+        <BaselineTrendCard
+          title="Hydration"
+          values={fillDailyGaps(wellness, range, (w) => w.hydrationL)}
+          band={ownBaselineBand(wellness, (w) => w.hydrationL)}
+          color="#22d3ee"
+          bandFill="rgba(34,211,238,0.08)"
+          unit="L"
+          decimals={1}
+        />
+      )}
 
       {inRange.length === 0 && (
         <EmptyState
