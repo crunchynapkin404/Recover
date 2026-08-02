@@ -259,7 +259,10 @@ and Withings brings the blood pressure and body composition v0.13 needs.
       boring intervals.icu flow; OAuth can reuse Whoop's framework later if
       multi-user demand shows up
 - [x] **Apple Health**: Health Auto Export webhook + JSON file upload
-      (cut from v0.8, promised here since)
+      (cut from v0.8, promised here since). Health Auto Export's REST
+      automation turned out to be a paid feature; v0.33 added the free
+      Intervals.icu Companion route (HealthKit → intervals.icu → Recover)
+      as an alternative that costs nothing but cannot carry bed/wake times
 - [x] **Withings OAuth**: weight, body composition, blood pressure
 - [x] **Conflict policy**: explicit per-field source priority when two
       providers report the same morning, recorded in `field_sources`

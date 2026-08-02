@@ -421,9 +421,8 @@ export async function runSchedulerTick(
   // runWellnessRefresh is covered directly by tests/wellness-refresh.test.ts.
   if (!process.env.VITEST) {
     try {
-      const { runWellnessRefresh } = await import(
-        "@/lib/sync/wellness-refresh"
-      );
+      const { runWellnessRefresh } =
+        await import("@/lib/sync/wellness-refresh");
       const refreshed = await runWellnessRefresh();
       if (refreshed > 0) logger.info("wellness refresh ran", { refreshed });
     } catch (err) {

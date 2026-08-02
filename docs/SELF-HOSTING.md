@@ -53,6 +53,32 @@ configure at the instance level. The OAuth connectors above are each
 optional: leave the vars unset and the connector shows a "set …" hint
 instead of a Connect button.
 
+### Getting Apple Health data in without paying
+
+The Apple Health webhook expects [Health Auto
+Export](https://apps.apple.com/us/app/health-auto-export-json-csv/id1115567069)'s
+JSON, but its REST API automation is a **paid** feature. Apple has no cloud
+API, so something on the iPhone must read HealthKit either way. Two routes:
+
+- **Direct push** (full fidelity): Health Auto Export, or any app that can
+  POST that JSON shape to your per-user webhook URL. This is the only route
+  that carries **bed/wake times** and awake time.
+- **Via intervals.icu** (free): the [Intervals.icu
+  Companion](https://apps.apple.com/us/app/intervals-icu-companion/id6739638454)
+  app reads HealthKit with background delivery and writes to your
+  intervals.icu wellness log, which Recover already syncs. It carries HRV
+  (rMSSD and SDNN), resting and sleeping HR, sleep duration and stages,
+  SpO2, respiratory rate, readiness, steps, hydration, weight and body fat.
+
+Sleep **stages** only survive the intervals.icu route as **custom wellness
+fields**, since intervals.icu has no native stage model. Recover reads the
+field codes `DeepSleep`, `REMSleep` and `LightSleep` (values in seconds). If
+you rename those fields in intervals.icu the stages stop arriving — Recover
+logs a warning naming the codes it looked for rather than failing silently.
+
+Bed/wake times cannot travel this route at all, and neither can awake time:
+the three stages sum to the total sleep duration by construction.
+
 ⚠️ Never rotate `ENCRYPTION_KEY` casually: stored connector/LLM keys become
 undecryptable (AES-GCM fails closed) and must be re-entered.
 

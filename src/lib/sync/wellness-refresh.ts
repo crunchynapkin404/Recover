@@ -142,9 +142,8 @@ export async function runWellnessRefresh(opts?: {
         const { computeDailyMetrics } = await import("@/lib/metrics");
         await computeDailyMetrics(conn.userId, localYmd(startDate));
         // Newly arrived sleep must reach the morning brief today, not tomorrow.
-        const { onWellnessDataChanged } = await import(
-          "@/lib/sync/wellness-changed"
-        );
+        const { onWellnessDataChanged } =
+          await import("@/lib/sync/wellness-changed");
         await onWellnessDataChanged(conn.userId);
       }
       refreshed++;
