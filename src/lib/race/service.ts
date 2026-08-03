@@ -7,6 +7,8 @@ import type { ForecastInputs } from "./forecast";
 import { taperFractionForWeek } from "./taper";
 import type { DaySlot } from "@/lib/week-plan/types";
 import type { OpenWeekPlan } from "@/lib/week-plan/service";
+import { weekLoadPerMin } from "@/lib/week-plan/volume";
+import { openWeekPlannedLoads } from "@/lib/week-plan/planned-loads";
 
 export type RaceRow = typeof schema.races.$inferSelect;
 export type RacePriority = "A" | "B" | "C";
@@ -182,8 +184,10 @@ export interface AssembledForecast {
 /**
  * Gather everything forecastForm needs: today's stored CTL/ATL, the open
  * week's remaining planned loads, and the remaining skeleton weeks
- * (taper-reshaped for an A race). Distribution is deterministic: a week's
- * target load splits across its workout days proportional to duration.
+ * (taper-reshaped for an A race). The open week's days are projected from a
+ * fixed load-per-minute rate set when the week was materialized, so a day's
+ * figure depends only on its own minutes, never on what the rest of the
+ * week holds.
  *
  * `preloadedWeek` lets a caller that already fetched the open week plan in
  * the same request (e.g. the dashboard) pass it through instead of paying
@@ -220,35 +224,31 @@ export async function assembleForecastInputs(
 
   const plannedLoads: { date: string; load: number }[] = [];
 
-  // Open week: block target ∝ workout duration, future days only.
+  // Open week: openBlock now only backs fallbackTarget below.
   const openBlock = await db.query.trainingBlocks.findFirst({
     where: and(
       eq(schema.trainingBlocks.planId, week.planId),
       eq(schema.trainingBlocks.weekNumber, week.skeletonWeek)
     ),
   });
-  const dayWorkoutMins = (d: DaySlot) =>
-    d.workouts.reduce((s, w) => s + (w.durationMins ?? 0), 0);
-  const workoutDays = week.days.filter(
-    (d) =>
-      d.workouts.length > 0 &&
-      (d.status === "planned" || d.status === "moved" || d.status === "adapted")
-  );
-  const totalMins = workoutDays.reduce((s, d) => s + dayWorkoutMins(d), 0);
+  const perMin = weekLoadPerMin({
+    effectiveTarget: week.effectiveTarget,
+    materializedMins: week.materializedMins,
+  });
   // The open week's persisted effective target (post-taper, post-hours-
   // budget) wins over the block's un-tapered skeleton value — in race week
   // the block still holds the pre-taper number, which would otherwise
   // overstate the load distributed across the tiny opener sessions and
   // understate race-day freshness. Falls back to the block target on rows
   // written before this column existed.
-  const weekTarget = week.effectiveTarget ?? openBlock?.targetLoadTotal ?? 0;
-  for (const d of workoutDays) {
-    if (d.date <= today || totalMins === 0) continue;
-    plannedLoads.push({
-      date: d.date,
-      load: Math.round(weekTarget * (dayWorkoutMins(d) / totalMins) * 10) / 10,
-    });
-  }
+  plannedLoads.push(
+    ...openWeekPlannedLoads({
+      days: week.days,
+      perMin,
+      fallbackTarget: week.effectiveTarget ?? openBlock?.targetLoadTotal ?? 0,
+      today,
+    })
+  );
 
   // Future skeleton weeks.
   const blocks = await db.query.trainingBlocks.findMany({
