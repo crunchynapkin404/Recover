@@ -485,25 +485,41 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
   // train through. The primary race decides (first in sorted input).
   if (primary && primary.priority !== "C") {
     const idx = dates.indexOf(primary.date);
-    if (idx >= 1 && days[idx - 1].workouts.length > 0) {
-      const before = {
-        ...days[idx - 1],
-        workouts: days[idx - 1].workouts.map((w) => ({ ...w })),
-      };
+    // Guard against clobbering a day that the race loop above already
+    // turned into its OWN race day (e.g. a C-priority shakeout race that
+    // happens to fall the day before the primary). That day must keep its
+    // "race" status and raceName, not get overwritten into a stale "rest"
+    // day — it is not the kind of empty day restIntent describes.
+    if (idx >= 1 && days[idx - 1].status !== "race") {
+      // `before` is only built when the day held sessions — that's the
+      // signal for whether a "dropped" adjustment record is warranted. The
+      // strip-and-stamp below is unconditional: an A-priority race's
+      // pre-race day is never populated in the first place (raceWeekWorkouts
+      // places nothing at raceIdx-1), so restIntent must still land there
+      // even though there is nothing to strip and no adjustment to log.
+      let before: DaySlot | null = null;
+      if (days[idx - 1].workouts.length > 0) {
+        before = {
+          ...days[idx - 1],
+          workouts: days[idx - 1].workouts.map((w) => ({ ...w })),
+        };
+      }
       days[idx - 1] = {
         ...days[idx - 1],
         workouts: [],
         status: "rest",
         restIntent: "pre_race",
       };
-      adjustments.push({
-        date: before.date,
-        trigger: "race",
-        action: "dropped",
-        before: [before],
-        after: [{ ...days[idx - 1] }],
-        reason: `rest before ${primary.name}`,
-      });
+      if (before) {
+        adjustments.push({
+          date: before.date,
+          trigger: "race",
+          action: "dropped",
+          before: [before],
+          after: [{ ...days[idx - 1] }],
+          reason: `rest before ${primary.name}`,
+        });
+      }
     }
     if (
       !isRaceWeek &&

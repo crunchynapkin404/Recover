@@ -922,4 +922,21 @@ describe("restIntent", () => {
     expect(empty.length).toBeGreaterThan(0);
     for (const d of empty) expect(d.restIntent).toBeUndefined();
   });
+
+  it("marks the day before an A-priority race too, even though raceWeekWorkouts never leaves anything there to strip", () => {
+    // A_RACE (priority "A") reshapes via raceWeekWorkouts, which never
+    // schedules anything on raceIdx-1 in the first place — so this day is
+    // naturally empty, not stripped. It still must carry restIntent, since
+    // that field (not "did a workout get removed") is the fill rung's only
+    // race signal. And because nothing was actually dropped here, no
+    // adjustment record should claim otherwise.
+    const r = materializeWeek({ ...BASE_INPUT, races: [A_RACE] });
+
+    expect(r.week.days[5].restIntent).toBe("pre_race");
+    expect(
+      r.adjustments.some(
+        (a) => a.date === r.week.days[5].date && a.action === "dropped"
+      )
+    ).toBe(false);
+  });
 });
