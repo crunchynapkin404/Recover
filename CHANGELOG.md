@@ -41,6 +41,16 @@ shed load when time disappeared but never reclaim it when time reappeared.
   the races the pre-race taper protection exists for. Fixed alongside fill
   rather than left for a separate release, since fill would otherwise have
   filled the one day A-race protection most needs untouched.
+- **Fill declines entirely on a taper or race week — not a smaller bound for
+  those weeks, no fill at all.** `materializeWeek` deliberately shrinks a
+  taper or race week's target (`taperFractionForWeek`), but neither fill's
+  own ceiling nor the live target it fills toward has any notion of phase or
+  race proximity to shrink back to — `restIntent` only ever protected the
+  single day immediately before the race, leaving the rest of that week
+  fillable against a target that still reads close to peak. Rather than
+  invent a taper bound it cannot defend, fill refuses the whole week — the
+  same "decline outright" reasoning that already keeps it off long runs and
+  out of swimming, applied here to the week as a unit instead of a session.
 
 No migrations. The one new `DaySlot` field, `restIntent`, lives inside the
 existing `week_plans.days` jsonb.
