@@ -4,9 +4,17 @@
 //
 // Pure — no I/O, no clock. The target and the event's queen stage are
 // resolved by the caller and passed in.
-import type { Purpose } from "@/lib/availability/types";
-import { blockMins } from "@/lib/availability/types";
-import { EASY_RUN_CAP_MINS, longRideBoundMins } from "@/lib/training-plan";
+import {
+  PURPOSE_FLOORS,
+  blockMins,
+  type Purpose,
+} from "@/lib/availability/types";
+import {
+  EASY_RUN_CAP_MINS,
+  longRideBoundMins,
+  withPurpose,
+} from "@/lib/training-plan";
+import { TYPE_BY_PURPOSE, admits, buildSlots } from "./slots";
 import type { AdjustmentRecord, DaySlot } from "./types";
 
 /**
@@ -176,6 +184,101 @@ export function fillWeek(
         ],
         reason: `more time on ${day.date} — ${workout.type} extended from ${workout.durationMins} to ${grown}min`,
       });
+    }
+  }
+
+  // ── 1b. Add one ──────────────────────────────────────────────────────
+  // At most ONE new session per call. An athlete making three availability
+  // edits gets at most three sessions, each bounded by the target — rather
+  // than one edit conjuring a whole week.
+  if (planned < opts.targetMins) {
+    const sport = fillSport(out, opts.queenStageHours);
+    if (sport) {
+      const hasLong = out.some((d) =>
+        d.workouts.some((x) => x.purpose === "long")
+      );
+      // A long session only when the week holds none yet and the sport can
+      // actually be bounded for it — which excludes running by design.
+      const purposes: Purpose[] = hasLong
+        ? ["aerobic_base"]
+        : ["long", "aerobic_base"];
+
+      // Blocks already occupied by a session must never be double-booked.
+      // Built as `${dayIdx}:${blockIdx}` to match slotKey's format exactly —
+      // admits() checks taken.has(slotKey(slot)) internally, so this literal
+      // must stay in lockstep with slotKey or the double-booking guard goes
+      // silently inert.
+      const taken = new Set<string>();
+      out.forEach((d, dayIdx) =>
+        d.workouts.forEach((x) => taken.add(`${dayIdx}:${x.blockIdx}`))
+      );
+
+      const todayIdx = Math.max(
+        0,
+        out.findIndex((d) => d.date >= opts.today)
+      );
+
+      const slots = buildSlots(out)
+        .filter((s) => !locked(out[s.dayIdx]))
+        .filter((s) => out[s.dayIdx].restIntent == null)
+        .filter((s) => out[s.dayIdx].date >= opts.today)
+        .sort(
+          (a, b) =>
+            Math.abs(a.dayIdx - todayIdx) - Math.abs(b.dayIdx - todayIdx) ||
+            a.dayIdx - b.dayIdx ||
+            a.blockIdx - b.blockIdx
+        );
+
+      outer: for (const slot of slots) {
+        for (const purpose of purposes) {
+          const ceiling = fillCeilingMins(purpose, sport, opts.queenStageHours);
+          if (ceiling == null) continue;
+
+          const mins = Math.min(slot.mins, ceiling, opts.targetMins - planned);
+          if (mins < PURPOSE_FLOORS[purpose]) continue;
+
+          const label = TYPE_BY_PURPOSE[purpose];
+          const candidate = withPurpose({
+            day: slot.dayIdx,
+            sport,
+            type: label.type,
+            durationMins: mins,
+            intensity: label.intensity,
+            description: `${label.type} — added from newly available time`,
+          });
+          if (!admits(slot, candidate, out, taken)) continue;
+
+          const day = out[slot.dayIdx];
+          const before = {
+            ...day,
+            workouts: day.workouts.map((x) => ({ ...x })),
+          };
+          out[slot.dayIdx] = {
+            ...day,
+            workouts: [
+              ...day.workouts,
+              { ...candidate, blockIdx: slot.blockIdx },
+            ],
+            status: day.workouts.length > 0 ? day.status : "planned",
+          };
+          planned += mins;
+
+          adjustments.push({
+            date: day.date,
+            trigger: "availability_change",
+            action: "added",
+            before: [before],
+            after: [
+              {
+                ...out[slot.dayIdx],
+                workouts: out[slot.dayIdx].workouts.map((x) => ({ ...x })),
+              },
+            ],
+            reason: `${day.date} is now free — ${label.type} ${mins}min added; ${(planned / 60).toFixed(1)}h planned against a ${(opts.targetMins / 60).toFixed(1)}h target`,
+          });
+          break outer;
+        }
+      }
     }
   }
 

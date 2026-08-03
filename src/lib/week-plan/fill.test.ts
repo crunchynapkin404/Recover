@@ -342,3 +342,142 @@ describe("fillWeek — 1a grow in place", () => {
     expect(r.days[0].workouts[0].durationMins).toBe(70);
   });
 });
+
+describe("fillWeek — 1b add one", () => {
+  const opts = { targetMins: 600, queenStageHours: 4, today: "2026-08-03" };
+
+  it("places one new session in a freed block", () => {
+    const d = days([
+      { mins: [90], workouts: [w({ durationMins: 90 })] },
+      { mins: [180] },
+    ]);
+
+    const r = fillWeek(d, opts);
+
+    expect(r.days[1].workouts).toHaveLength(1);
+    expect(r.days[1].workouts[0].sport).toBe("Bike");
+    expect(r.days[1].status).toBe("planned");
+  });
+
+  it("adds at most one session per call", () => {
+    const d = days([
+      { mins: [90], workouts: [w({ durationMins: 90 })] },
+      { mins: [180] },
+      { mins: [180] },
+      { mins: [180] },
+    ]);
+
+    const r = fillWeek(d, opts);
+    const added = r.days.filter(
+      (x) => x.date !== d[0].date && x.workouts.length > 0
+    );
+
+    expect(added).toHaveLength(1);
+  });
+
+  it("never fills a deliberate pre-race rest day", () => {
+    const d = days([
+      { mins: [90], workouts: [w({ durationMins: 90 })] },
+      { mins: [180] },
+    ]);
+    d[1] = { ...d[1], restIntent: "pre_race" };
+
+    const r = fillWeek(d, opts);
+
+    expect(r.days[1].workouts).toEqual([]);
+  });
+
+  it("never fills a day that has already happened", () => {
+    const d = days([
+      { mins: [180] },
+      { mins: [90], workouts: [w({ durationMins: 90 })] },
+    ]);
+
+    const r = fillWeek(d, { ...opts, today: "2026-08-04" });
+
+    expect(r.days[0].workouts).toEqual([]);
+  });
+
+  it("never fills a locked day", () => {
+    for (const status of ["completed", "missed", "race"] as const) {
+      const d = days([
+        { mins: [90], workouts: [w({ durationMins: 90 })] },
+        { mins: [180], status },
+      ]);
+
+      const r = fillWeek(d, opts);
+
+      expect(r.days[1].workouts).toEqual([]);
+    }
+  });
+
+  it("adds nothing when the room is below the purpose floor", () => {
+    // 25 minutes cannot hold an aerobic_base session (floor 40).
+    const d = days([
+      { mins: [90], workouts: [w({ durationMins: 90 })] },
+      { mins: [25] },
+    ]);
+
+    const r = fillWeek(d, opts);
+
+    expect(r.days[1].workouts).toEqual([]);
+  });
+
+  it("adds nothing to a week with no endurance evidence", () => {
+    const d = days([
+      { mins: [90], workouts: [w({ durationMins: 90, sport: "Swim" })] },
+      { mins: [180] },
+    ]);
+
+    const r = fillWeek(d, opts);
+
+    expect(r.days[1].workouts).toEqual([]);
+  });
+
+  it("never gives a running plan a long run", () => {
+    const d = days([
+      { mins: [60], workouts: [w({ durationMins: 60, sport: "Run" })] },
+      { mins: [300] },
+    ]);
+
+    const r = fillWeek(d, opts);
+
+    // Bounded by EASY_RUN_CAP_MINS, and never purpose "long".
+    expect(r.days[1].workouts[0].durationMins).toBeLessThanOrEqual(
+      EASY_RUN_CAP_MINS
+    );
+    expect(r.days[1].workouts[0].purpose).toBe("aerobic_base");
+  });
+
+  it("respects a block that excludes the fill sport", () => {
+    const d = days([
+      { mins: [90], workouts: [w({ durationMins: 90 })] },
+      { mins: [] },
+    ]);
+    d[1] = {
+      ...d[1],
+      availableBlocks: [
+        { start: null, end: null, mins: 180, energy: "full", sports: ["Swim"] },
+      ],
+      availableMins: 180,
+    };
+
+    const r = fillWeek(d, opts);
+
+    expect(r.days[1].workouts).toEqual([]);
+  });
+
+  it("is idempotent once the target is met", () => {
+    const d = days([
+      { mins: [90], workouts: [w({ durationMins: 90 })] },
+      { mins: [180] },
+    ]);
+    const tight = { ...opts, targetMins: 200 };
+
+    const once = fillWeek(d, tight);
+    const twice = fillWeek(once.days, tight);
+
+    expect(twice.days).toEqual(once.days);
+    expect(twice.adjustments).toEqual([]);
+  });
+});
