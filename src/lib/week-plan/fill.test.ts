@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { fillCeilingMins, fillSport, plannedMins } from "./fill";
+import { fillCeilingMins, fillSport, fillWeek, plannedMins } from "./fill";
 import type { DaySlot, ScheduledWorkout } from "./types";
 import type { AvailabilityBlock } from "@/lib/availability/types";
 import {
   EASY_RUN_CAP_MINS,
+  longRideBoundMins,
   NO_DEMAND_LONG_BOUND_MINS,
 } from "@/lib/training-plan";
 
@@ -181,5 +182,108 @@ describe("fillSport", () => {
     ]);
 
     expect(fillSport(d, 4)).toBe("Bike");
+  });
+});
+
+describe("fillWeek — 1a grow in place", () => {
+  it("grows an endurance session into the room its own block gained", () => {
+    // 60min session in a block that now holds 120. Target 300min, planned 60.
+    const d = days([{ mins: [120], workouts: [w({ durationMins: 60 })] }]);
+
+    const r = fillWeek(d, {
+      targetMins: 300,
+      queenStageHours: 4,
+      today: "2026-08-03",
+    });
+
+    expect(r.days[0].workouts[0].durationMins).toBe(120);
+    expect(r.adjustments).toHaveLength(1);
+    expect(r.adjustments[0].action).toBe("added");
+  });
+
+  it("never grows past the session's ceiling", () => {
+    // queenStageHours 2 → longRideBoundMins clamps to MIN_LONG_BOUND_MINS 120.
+    const d = days([{ mins: [600], workouts: [w({ durationMins: 60 })] }]);
+
+    const r = fillWeek(d, {
+      targetMins: 600,
+      queenStageHours: 2,
+      today: "2026-08-03",
+    });
+
+    expect(r.days[0].workouts[0].durationMins).toBe(longRideBoundMins(2));
+  });
+
+  it("never grows past the target", () => {
+    // Planned 60, target 90 — 30 minutes of room, not the block's full 120.
+    const d = days([{ mins: [120], workouts: [w({ durationMins: 60 })] }]);
+
+    const r = fillWeek(d, {
+      targetMins: 90,
+      queenStageHours: 4,
+      today: "2026-08-03",
+    });
+
+    expect(r.days[0].workouts[0].durationMins).toBe(90);
+  });
+
+  it("never grows intensity", () => {
+    const d = days([
+      {
+        mins: [180],
+        workouts: [
+          w({ durationMins: 60, type: "Intervals", purpose: "vo2max" }),
+        ],
+      },
+    ]);
+
+    const r = fillWeek(d, {
+      targetMins: 600,
+      queenStageHours: 4,
+      today: "2026-08-03",
+    });
+
+    expect(r.days[0].workouts[0].durationMins).toBe(60);
+    expect(r.adjustments).toEqual([]);
+  });
+
+  it("never grows a session on a locked day", () => {
+    for (const status of ["completed", "missed", "race"] as const) {
+      const d = days([
+        { mins: [180], workouts: [w({ durationMins: 60 })], status },
+      ]);
+
+      const r = fillWeek(d, {
+        targetMins: 600,
+        queenStageHours: 4,
+        today: "2026-08-03",
+      });
+
+      expect(r.days[0].workouts[0].durationMins).toBe(60);
+    }
+  });
+
+  it("does nothing when the week already meets its target", () => {
+    const d = days([{ mins: [180], workouts: [w({ durationMins: 60 })] }]);
+
+    const r = fillWeek(d, {
+      targetMins: 60,
+      queenStageHours: 4,
+      today: "2026-08-03",
+    });
+
+    expect(r.days).toEqual(d);
+    expect(r.adjustments).toEqual([]);
+  });
+
+  it("is idempotent — a second identical pass changes nothing", () => {
+    const d = days([{ mins: [120], workouts: [w({ durationMins: 60 })] }]);
+    const opts = { targetMins: 300, queenStageHours: 4, today: "2026-08-03" };
+
+    const once = fillWeek(d, opts);
+    const twice = fillWeek(once.days, opts);
+
+    expect(twice.days).toEqual(once.days);
+    expect(twice.adjustments).toEqual([]);
   });
 });

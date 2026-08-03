@@ -5,8 +5,9 @@
 // Pure — no I/O, no clock. The target and the event's queen stage are
 // resolved by the caller and passed in.
 import type { Purpose } from "@/lib/availability/types";
+import { blockMins } from "@/lib/availability/types";
 import { EASY_RUN_CAP_MINS, longRideBoundMins } from "@/lib/training-plan";
-import type { DaySlot } from "./types";
+import type { AdjustmentRecord, DaySlot } from "./types";
 
 /**
  * How long fill may make a session of this purpose, in this sport — or null
@@ -98,4 +99,83 @@ export function fillSport(
     }
   }
   return best;
+}
+
+export interface FillOptions {
+  /** The live target, in MINUTES — assembleWeeklyTarget's target.hours × 60. */
+  targetMins: number;
+  /** The hardest single day the athlete's event demands. Null when unknown. */
+  queenStageHours: number | null;
+  /** The athlete's local calendar day (YYYY-MM-DD). */
+  today: string;
+}
+
+/** Completed, missed and race days are never touched, exactly as in replan.ts. */
+function locked(d: DaySlot): boolean {
+  return (
+    d.status === "completed" || d.status === "missed" || d.status === "race"
+  );
+}
+
+/**
+ * The fill rung. Grows sessions into room their own blocks gained, then (in
+ * the next task) places at most one new session. Stops the moment the week
+ * reaches `targetMins`.
+ *
+ * Returns a NEW days array; the input is never mutated.
+ */
+export function fillWeek(
+  days: DaySlot[],
+  opts: FillOptions
+): { days: DaySlot[]; adjustments: AdjustmentRecord[] } {
+  const adjustments: AdjustmentRecord[] = [];
+  // `const` — the array is never reassigned, only its entries replaced.
+  // `let` here trips the repo's prefer-const lint rule.
+  const out = days.map((d) => ({ ...d, workouts: [...d.workouts] }));
+  let planned = plannedMins(out);
+
+  // ── 1a. Grow in place ────────────────────────────────────────────────
+  // Each session is judged against THE BLOCK IT OCCUPIES, never a roomier
+  // sibling — the rule the whole ladder enforces, and whose violation is the
+  // defect replanWeek was written to replace.
+  for (let i = 0; i < out.length && planned < opts.targetMins; i++) {
+    const day = out[i];
+    if (locked(day)) continue;
+
+    for (let j = 0; j < day.workouts.length && planned < opts.targetMins; j++) {
+      const workout = day.workouts[j];
+      const ceiling = fillCeilingMins(
+        workout.purpose,
+        workout.sport,
+        opts.queenStageHours
+      );
+      if (ceiling == null) continue;
+
+      const block = day.availableBlocks[workout.blockIdx];
+      if (!block) continue;
+
+      const grown = Math.min(
+        blockMins(block),
+        ceiling,
+        workout.durationMins + (opts.targetMins - planned)
+      );
+      if (grown <= workout.durationMins) continue;
+
+      const before = { ...day, workouts: day.workouts.map((x) => ({ ...x })) };
+      day.workouts[j] = { ...workout, durationMins: grown };
+      out[i] = { ...day, workouts: day.workouts };
+      planned += grown - workout.durationMins;
+
+      adjustments.push({
+        date: day.date,
+        trigger: "availability_change",
+        action: "added",
+        before: [before],
+        after: [{ ...out[i] }],
+        reason: `more time on ${day.date} — ${workout.type} extended from ${workout.durationMins} to ${grown}min`,
+      });
+    }
+  }
+
+  return { days: out, adjustments };
 }
