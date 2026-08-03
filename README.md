@@ -171,7 +171,7 @@ fills a demo account with 90 days of plausible training history (see
 
 ## Status & roadmap
 
-**Current release: v0.25.8 (released 2026-07-24).** Since v0.20.0, six more
+**Current release: v0.37.0 (released 2026-08-03).** Since v0.20.0, six more
 releases landed: **v0.21.0 Design Consistency** extended the dark-glass
 visual language to every remaining screen (concentric readiness rings,
 hairline-list settings, glass-tile dedup). **v0.23.0 IA & Navigation
