@@ -978,7 +978,7 @@ export const planAdjustments = pgTable(
       ],
     }).notNull(),
     action: text("action", {
-      enum: ["scaled", "moved", "swapped", "dropped", "redistributed"],
+      enum: ["scaled", "moved", "swapped", "dropped", "redistributed", "added"],
     }).notNull(),
     before: jsonb("before"),
     after: jsonb("after"),

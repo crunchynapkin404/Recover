@@ -15,8 +15,10 @@ import { findBlockFor } from "./slots";
 import { providerSportAliases } from "@/lib/canonical-sport";
 import type { AvailabilityBlock } from "@/lib/availability/types";
 import { periodize } from "@/lib/training-plan";
-import { assembleVolumeInputs } from "./volume-inputs";
+import { assembleVolumeInputs, assembleWeeklyTarget } from "./volume-inputs";
 import { hoursForMaterialize, weeklyTargetHours } from "./volume";
+import { resolveFillOptions } from "./fill";
+import { taperFractionForWeek } from "@/lib/race/taper";
 
 export type AdjustmentRow = typeof schema.planAdjustments.$inferSelect;
 
@@ -610,6 +612,57 @@ export async function applyAvailability(
   const week = await getOpenWeekPlan(userId);
   if (!week || blocksPerDay.length !== 7) return "no_open_week";
 
+  const now = new Date();
+
+  // The LIVE target, not the stored `effectiveTarget`. A week built while
+  // booked load read zero carries a stale figure forever; fill must not be
+  // misled by it. assembleWeeklyTarget is the same producer the dashboard's
+  // WeekRow and /train's WeekRationale already read, so fill cannot disagree
+  // with the number the athlete is shown.
+  //
+  // MINUTES. `target.hours` is hours and `effectiveTarget` is a load — a
+  // confusion this repo has already shipped once.
+  //
+  // The actual enable/disable DECISION (no plan → decline; taper/race week
+  // → decline) is made by the pure `resolveFillOptions`, not here — this
+  // block only resolves the I/O its inputs need. `taperFraction` is computed
+  // the same way `materializeWeek` picks its primary race (first of
+  // `racesForWeek`'s already-sorted priority-A→C, date-asc order; only an
+  // A-priority race taper-shapes a week), so fill's notion of "taper week"
+  // and the engine's cannot disagree.
+  const plan = await getActivePlan(userId);
+  let taperFraction: number | null = null;
+  let targetHours = 0;
+  let queenStageHours: number | null = null;
+  if (plan) {
+    const availabilityHours =
+      blocksPerDay.reduce(
+        (s, blocks) => s + dayMins({ availableBlocks: blocks }),
+        0
+      ) / 60;
+    const [{ target, demand }, races] = await Promise.all([
+      assembleWeeklyTarget(userId, now, {
+        availabilityHours,
+        planHoursPerWeek: planConstraints(plan.constraints).hoursPerWeek,
+      }),
+      racesForWeek(userId, week.weekStart),
+    ]);
+    const primary = races[0] ?? null;
+    taperFraction =
+      primary && primary.priority === "A"
+        ? taperFractionForWeek(week.weekStart, primary)
+        : null;
+    targetHours = target.hours;
+    queenStageHours = demand?.queenStageHours ?? null;
+  }
+  const fill = resolveFillOptions({
+    hasActivePlan: plan != null,
+    taperFraction,
+    targetHours,
+    queenStageHours,
+    today: localYmd(now),
+  });
+
   // replanWeek keeps completed/missed days exactly as they are — no need to
   // zero their incoming availability here.
   const resolved = new Map(week.days.map((d, i) => [d.date, blocksPerDay[i]]));
@@ -620,12 +673,12 @@ export async function applyAvailability(
       days: week.days,
     },
     resolved,
-    localYmd(new Date())
+    localYmd(now),
+    fill
   );
 
   const oldTotal = week.days.reduce((s, d) => s + dayMins(d), 0);
   const newTotal = r.week.days.reduce((s, d) => s + dayMins(d), 0);
-  const now = new Date();
 
   await db
     .update(schema.weekPlans)

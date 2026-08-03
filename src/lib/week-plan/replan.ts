@@ -5,6 +5,7 @@
 import { blockMins, type AvailabilityBlock } from "@/lib/availability/types";
 import type { PlannedWorkout } from "@/lib/training-plan";
 import { admits, buildSlots, fitToBlock, slotKey, type Slot } from "./slots";
+import { fillWeek, type FillOptions } from "./fill";
 import type {
   AdjustmentRecord,
   DaySlot,
@@ -27,7 +28,21 @@ export function replanWeek(
    * RECEIVE a moved session — required rather than optional so a caller
    * cannot silently reintroduce the defect described at rung 1.
    */
-  today: string
+  today: string,
+  /**
+   * The fill rung's inputs, or null to disable it.
+   *
+   * Required rather than optional-defaulting-null, for the same reason
+   * `today` above is required: a caller must not be able to change this
+   * function's behaviour by omission. `FillOptions | null` rather than a
+   * boolean because the target travels with it — a boolean would admit an
+   * "enabled but no target" state that has no meaning.
+   *
+   * Exactly one caller passes a non-null value: `applyAvailability`, which
+   * `applyResolvedAvailability` also routes through. Fill must never run on
+   * a readiness or wellness path.
+   */
+  fill: FillOptions | null
 ): { week: WeekState; adjustments: AdjustmentRecord[] } {
   const adjustments: AdjustmentRecord[] = [];
 
@@ -105,7 +120,7 @@ export function replanWeek(
     }
   });
 
-  if (displaced.length === 0) return { week: { ...week, days }, adjustments };
+  if (displaced.length === 0) return finish(week, days, adjustments, fill);
 
   // 3. Walk each displaced session down the ladder, in day order, so a
   // later day's search always sees the final outcome of every earlier
@@ -245,5 +260,23 @@ export function replanWeek(
     });
   }
 
-  return { week: { ...week, days }, adjustments };
+  return finish(week, days, adjustments, fill);
+}
+
+/**
+ * Rung 5. Runs on the settled result of rungs 1-4, so fill sees where every
+ * displaced session actually landed rather than the layout it started from.
+ */
+function finish(
+  week: WeekState,
+  days: DaySlot[],
+  adjustments: AdjustmentRecord[],
+  fill: FillOptions | null
+): { week: WeekState; adjustments: AdjustmentRecord[] } {
+  if (!fill) return { week: { ...week, days }, adjustments };
+  const filled = fillWeek(days, fill);
+  return {
+    week: { ...week, days: filled.days },
+    adjustments: [...adjustments, ...filled.adjustments],
+  };
 }

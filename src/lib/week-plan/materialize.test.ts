@@ -895,3 +895,45 @@ describe("materializeWeek availability scaling (Task 9 regression)", () => {
     ).toBe(false);
   });
 });
+
+describe("restIntent", () => {
+  it("marks the day before the primary race as a deliberate rest", () => {
+    // Same BASE_INPUT/A_RACE fixture the neighbouring "B race" test uses,
+    // just with priority swapped to B. This is the STRIP path: a B race
+    // takes the normal weekly-generation route, so Saturday (raceIdx-1, one
+    // day before A_RACE's Sunday) really does get a session first, which
+    // the A/B protection then has to remove — and the removal is logged as
+    // a "dropped" adjustment. An A race reaches the same producer without
+    // ever holding a session there; that case is covered separately below.
+    const bRace: RaceContext = { ...A_RACE, priority: "B", name: "Tune-up" };
+    const { week } = materializeWeek({ ...BASE_INPUT, races: [bRace] });
+
+    expect(week.days[5].workouts).toEqual([]);
+    expect(week.days[5].restIntent).toBe("pre_race");
+  });
+
+  it("leaves an ordinary empty day unmarked", () => {
+    const { week } = materializeWeek(BASE_INPUT);
+
+    const empty = week.days.filter((d) => d.workouts.length === 0);
+    expect(empty.length).toBeGreaterThan(0);
+    for (const d of empty) expect(d.restIntent).toBeUndefined();
+  });
+
+  it("marks the day before an A-priority race too, even though raceWeekWorkouts never leaves anything there to strip", () => {
+    // A_RACE (priority "A") reshapes via raceWeekWorkouts, which never
+    // schedules anything on raceIdx-1 in the first place — so this day is
+    // naturally empty, not stripped. It still must carry restIntent, since
+    // that field (not "did a workout get removed") is the fill rung's only
+    // race signal. And because nothing was actually dropped here, no
+    // adjustment record should claim otherwise.
+    const r = materializeWeek({ ...BASE_INPUT, races: [A_RACE] });
+
+    expect(r.week.days[5].restIntent).toBe("pre_race");
+    expect(
+      r.adjustments.some(
+        (a) => a.date === r.week.days[5].date && a.action === "dropped"
+      )
+    ).toBe(false);
+  });
+});

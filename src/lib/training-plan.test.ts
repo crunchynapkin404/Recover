@@ -10,6 +10,7 @@ import {
   longRideBoundMins,
   distributeRemainder,
   periodize,
+  EASY_RUN_CAP_MINS,
 } from "./training-plan";
 
 // requires Postgres; skips without DATABASE_URL.
@@ -286,6 +287,23 @@ describe("periodize passes event demand to the cycling generator", () => {
     // 240 no-demand fallback does not.
     expect(longOf(withDemand)).toBe(294);
     expect(longOf(withoutDemand)).toBe(240);
+  });
+});
+
+describe("EASY_RUN_CAP_MINS", () => {
+  it("bounds the generator's easy runs", () => {
+    // 20 hours across 6 sessions is far more than the easy-run cap can hold,
+    // so every easy run the fill loop places must be pinned at the cap.
+    // Filtered by description, not by type: the Thursday session is also
+    // typed "Endurance" outside build/peak and is deliberately NOT capped —
+    // it is sized as a fraction of the week, not by the easy-run rule.
+    const workouts = generateWorkouts(6, 20, "base", "marathon", ["Run"], null);
+    const easy = workouts.filter((w) => w.description === "Easy aerobic run");
+
+    expect(easy.length).toBeGreaterThan(0);
+    for (const w of easy) {
+      expect(w.durationMins).toBe(EASY_RUN_CAP_MINS);
+    }
   });
 });
 

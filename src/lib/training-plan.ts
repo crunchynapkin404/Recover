@@ -60,6 +60,14 @@ export const ABSOLUTE_LONG_BOUND_MINS = 360;
 export const MIN_EFFECTIVE_EASY_MINS = 30;
 
 /**
+ * Today's cap for an easy run, named rather than inline so the fill rung can
+ * bound a run by exactly what the generator already does. Its VALUE makes no
+ * new claim and is deliberately unchanged — running's real single-session
+ * rule is athlete-relative and is separately scoped work.
+ */
+export const EASY_RUN_CAP_MINS = 60;
+
+/**
  * Today's cap, retained DELIBERATELY for the no-demand path. Where the
  * athlete's event gives us evidence we use it; where there is none we keep
  * today's behaviour rather than inventing a bound. `weeklyTargetHours`
@@ -466,7 +474,7 @@ function generateRunningWorkouts(
         day: easyDays[i],
         sport: "Run",
         type: phase === "recovery" ? "Recovery" : "Endurance",
-        durationMins: Math.max(20, Math.min(easyMins, 60)),
+        durationMins: Math.max(20, Math.min(easyMins, EASY_RUN_CAP_MINS)),
         intensity: phase === "recovery" ? "Recovery" : "Z1-Z2",
         description:
           phase === "recovery" ? "Easy recovery run" : "Easy aerobic run",

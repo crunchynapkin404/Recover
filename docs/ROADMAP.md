@@ -764,6 +764,32 @@ runners) rather than event-relative, so reusing this release's fix across
 sports would repeat the mistake that produced the original bug. See
 `docs/plans/2026-07-29-HANDOFF-next-week-preview.md`.
 
+## ✅ v0.37 — The Week Can Grow
+
+Every rung of `replanWeek`'s ladder could only shrink a week — an athlete who
+freed up time mid-week got nothing back for it.
+
+- [x] **A fifth rung, fill**, runs last on the settled result of the other
+      four: it grows an endurance session into the room its own block
+      gained, then adds at most one new endurance session into a free
+      admitting block. One availability edit yields at most one new
+      session.
+- [x] **Bounded by the live `assembleWeeklyTarget` figure** — the same number
+      already shown on the dashboard and `/train` — not the stored
+      `effectiveTarget`, which goes stale.
+- [x] **Endurance only**: intensity is never added or grown. Running never
+      gets a long run and swimming is untouched, both because no defensible
+      duration bound exists for them yet.
+- [x] **Pre-race rest day marked** with `restIntent: "pre_race"` so fill
+      leaves it alone — fixing, along the way, a latent gap where the mark
+      was never set for A-priority races.
+
+**Done when:** an athlete who clears a block mid-week sees the week grow to
+fill it, bounded by the same target figure the app already shows, with
+intensity sessions and the taper untouched.
+
+No migrations.
+
 ## Ongoing — operations track
 
 All items scheduled into **v0.17 — Good Self-Hosted Citizen** by the v0.9.6

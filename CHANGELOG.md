@@ -1,5 +1,60 @@
 # Changelog
 
+## v0.37.0 — 2026-08-03 — The Week Can Grow
+
+Every rung of `replanWeek`'s ladder — move, compress, substitute, drop — could
+only shrink a week. An athlete who freed up time mid-week, clearing a
+Saturday or extending a Wednesday, got nothing back for it: the plan could
+shed load when time disappeared but never reclaim it when time reappeared.
+
+- **A fifth rung, fill, now runs last** in the ladder, on the settled result
+  of the other four, so it sees where displaced sessions actually landed
+  before deciding what room is really free. It does two things, in order.
+  First it grows an existing endurance session into the room **its own
+  block** gained — never a roomier sibling block elsewhere on the day, the
+  same rule the rest of the ladder already enforces. Then, if the week is
+  still short, it adds **at most one** new endurance session into a free,
+  admitting block. One availability edit yields at most one new session;
+  an athlete making three edits gets at most three — rather than one edit
+  conjuring an entire week's worth of training.
+- **Fill is bounded by the live target**, the same `assembleWeeklyTarget`
+  figure the dashboard's WeekRow and `/train`'s WeekRationale already show
+  the athlete — not the stored `effectiveTarget`, which goes stale the
+  moment conditions change. That figure already carries the ACWR ceiling, so
+  fill cannot outrun safe progression; it has no ceiling of its own to get
+  wrong.
+- **Intensity is never added or grown.** Stretching a VO2max or tempo block
+  changes what the session is, not just its length — v0.30.0 settled that
+  for the generator, and fill honors the same rule. Only `aerobic_base` and
+  `long` sessions are ever placed or extended.
+- **Running never receives a long run, and swimming is untouched by fill
+  entirely** — in both cases because this codebase has no defensible bound
+  for them yet, not because they were judged unimportant. Running's real
+  single-session rule is athlete-relative (exceeding your own recent longest
+  run by 10–30% raises injury risk) rather than a flat figure, and no swim
+  duration bound exists anywhere in this codebase. Fill invents no constant
+  of its own; every ceiling it applies is one the generator already uses for
+  that sport and purpose.
+- **The pre-race rest day is now marked** (`restIntent: "pre_race"`) so fill
+  knows to leave it alone. Building this surfaced a latent gap in the mark
+  itself: it had only ever been set for B-priority races, never A — exactly
+  the races the pre-race taper protection exists for. Fixed alongside fill
+  rather than left for a separate release, since fill would otherwise have
+  filled the one day A-race protection most needs untouched.
+- **Fill declines entirely on a taper or race week — not a smaller bound for
+  those weeks, no fill at all.** `materializeWeek` deliberately shrinks a
+  taper or race week's target (`taperFractionForWeek`), but neither fill's
+  own ceiling nor the live target it fills toward has any notion of phase or
+  race proximity to shrink back to — `restIntent` only ever protected the
+  single day immediately before the race, leaving the rest of that week
+  fillable against a target that still reads close to peak. Rather than
+  invent a taper bound it cannot defend, fill refuses the whole week — the
+  same "decline outright" reasoning that already keeps it off long runs and
+  out of swimming, applied here to the week as a unit instead of a session.
+
+No migrations. The one new `DaySlot` field, `restIntent`, lives inside the
+existing `week_plans.days` jsonb.
+
 ## v0.36.0 — 2026-08-02 — Wellness History Backfill
 
 Two independent losses in how Recover syncs intervals.icu wellness, neither
