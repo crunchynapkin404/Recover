@@ -1,5 +1,28 @@
 # Changelog
 
+## v0.37.1 — 2026-08-03 — Legacy blocks can be given times
+
+An availability block migrated from the pre-block model carries its duration
+in `mins` alone, with its start and end both empty. There was no way to give
+such a block real clock times through the block editor at all — the edit was
+always rejected and the field reverted, and the only way forward was to delete
+the block and add a new one, losing whatever duration it held.
+
+The block editor validates that a block's start and end are either both times
+or both empty, and it commits after every single field edit. Setting just the
+start therefore landed on the half-set shape the validator refuses, so the
+change never committed. Editing one field of a two-field value could not
+succeed.
+
+Setting either end of such a block now fills in the other, derived from the
+duration the block already carries: a 90-minute block given a start of 18:00
+becomes 18:00–19:30, keeping the athlete's stored minutes rather than
+replacing them with the default. A window that would run past midnight ends
+at 23:59 and its duration follows, rather than the edit being refused.
+
+Found by the release verification for v0.37.0; the defect predates it and is
+unrelated to the fill rung. No migrations.
+
 ## v0.37.0 — 2026-08-03 — The Week Can Grow
 
 Every rung of `replanWeek`'s ladder — move, compress, substitute, drop — could
