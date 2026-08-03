@@ -3,14 +3,22 @@ import { fillCeilingMins } from "./fill";
 import {
   EASY_RUN_CAP_MINS,
   NO_DEMAND_LONG_BOUND_MINS,
-  longRideBoundMins,
 } from "@/lib/training-plan";
 
 describe("fillCeilingMins", () => {
+  // queenStageHours of 5, not 4: longRideBoundMins(4) collides with
+  // NO_DEMAND_LONG_BOUND_MINS (both 240), so at 4 hours these assertions
+  // could not tell a branch that genuinely calls longRideBoundMins apart
+  // from one that ignores the argument and hardcodes 240. At 5 hours the
+  // derived bound (300) is distinct from the fallback.
   it("bounds a bike session by the event's queen stage", () => {
-    expect(fillCeilingMins("long", "Bike", 4)).toBe(longRideBoundMins(4));
-    expect(fillCeilingMins("aerobic_base", "Bike", 4)).toBe(
-      longRideBoundMins(4)
+    expect(fillCeilingMins("long", "Bike", 5)).toBe(300);
+    expect(fillCeilingMins("aerobic_base", "Bike", 5)).toBe(300);
+  });
+
+  it("derives a queen-stage bound distinct from the no-demand fallback", () => {
+    expect(fillCeilingMins("long", "Bike", 5)).not.toBe(
+      fillCeilingMins("long", "Bike", null)
     );
   });
 
