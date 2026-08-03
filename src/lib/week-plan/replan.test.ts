@@ -109,7 +109,8 @@ describe("replanWeek — rung 1, move", () => {
     const r = replanWeek(
       before,
       resolve([[0], [60], [], [90], [60], [180], [90]]),
-      WEEK_START
+      WEEK_START,
+      null
     );
 
     expect(r.week.days[2].workouts).toEqual([]);
@@ -125,7 +126,7 @@ describe("replanWeek — rung 1, move", () => {
 describe("replanWeek — rung 2, compress", () => {
   it("shortens within the same purpose when nowhere else fits", () => {
     const before = week([{ mins: [90], workouts: [w()] }]);
-    const r = replanWeek(before, resolve([[60]]), WEEK_START);
+    const r = replanWeek(before, resolve([[60]]), WEEK_START, null);
     const out = r.week.days[0].workouts[0];
     expect(out.purpose).toBe("vo2max");
     expect(out.durationMins).toBe(60);
@@ -136,7 +137,7 @@ describe("replanWeek — rung 2, compress", () => {
 describe("replanWeek — rung 3, substitute", () => {
   it("swaps purpose when the block is below the session's floor", () => {
     const before = week([{ mins: [90], workouts: [w()] }]);
-    const r = replanWeek(before, resolve([[30]]), WEEK_START); // vo2max floor is 40
+    const r = replanWeek(before, resolve([[30]]), WEEK_START, null); // vo2max floor is 40
     const out = r.week.days[0].workouts[0];
     expect(out.purpose).toBe("recovery"); // vo2max→threshold(45)→aerobic(40)→recovery(20)
     expect(out.durationMins).toBe(30);
@@ -147,7 +148,7 @@ describe("replanWeek — rung 3, substitute", () => {
 describe("replanWeek — rung 4, drop", () => {
   it("drops the session when the day goes to zero and nothing else fits", () => {
     const before = week([{ mins: [90], workouts: [w()] }]);
-    const r = replanWeek(before, resolve([[]]), WEEK_START);
+    const r = replanWeek(before, resolve([[]]), WEEK_START, null);
     expect(r.week.days[0].workouts).toEqual([]);
     expect(r.adjustments[0].action).toBe("dropped");
   });
@@ -162,7 +163,7 @@ describe("replanWeek — look-ahead", () => {
       { mins: [0] },
       { mins: [0] },
     ]);
-    const r = replanWeek(before, resolve([[60], [], []]), WEEK_START);
+    const r = replanWeek(before, resolve([[60], [], []]), WEEK_START, null);
     expect(r.week.days[0].workouts[0].durationMins).toBe(60);
     expect(r.week.days[1].workouts).toEqual([]);
     expect(r.week.days[2].workouts).toEqual([]);
@@ -173,7 +174,7 @@ describe("replanWeek — locked days", () => {
   it("never touches a completed or missed day", () => {
     const done = week([{ mins: [90], workouts: [w()] }]);
     done.days[0].status = "completed";
-    const r = replanWeek(done, resolve([[]]), WEEK_START);
+    const r = replanWeek(done, resolve([[]]), WEEK_START, null);
     expect(r.week.days[0].workouts.length).toBe(1);
     expect(r.adjustments).toEqual([]);
   });
@@ -182,7 +183,7 @@ describe("replanWeek — locked days", () => {
 describe("replanWeek — stability", () => {
   it("is a no-op when availability is unchanged", () => {
     const before = week([{ mins: [90], workouts: [w()] }]);
-    const r = replanWeek(before, resolve([[90]]), WEEK_START);
+    const r = replanWeek(before, resolve([[90]]), WEEK_START, null);
     expect(r.week.days).toEqual(before.days);
     expect(r.adjustments).toEqual([]);
   });
@@ -222,7 +223,7 @@ describe("replanWeek — fitted placements are validated with admits, not energy
         ],
       }, // Day 2
     ]);
-    const r = replanWeek(before, resolve([[0], [60], [50]]), WEEK_START);
+    const r = replanWeek(before, resolve([[0], [60], [50]]), WEEK_START, null);
 
     // Day 0's session had nowhere to compress to at home (room 0) but Day 1
     // admits it whole, so it moves there — becoming Day 1's quality session.
@@ -288,7 +289,7 @@ describe("replanWeek — multi-block days", () => {
         ],
       },
     ]);
-    const r = replanWeek(before, resolve([[90], []]), WEEK_START);
+    const r = replanWeek(before, resolve([[90], []]), WEEK_START, null);
 
     const day0 = r.week.days[0];
     const used = day0.workouts.map((w) => w.blockIdx);
@@ -321,7 +322,7 @@ describe("replanWeek — multi-block days", () => {
         ],
       },
     ]);
-    const r = replanWeek(before, resolve([[90, 5]]), WEEK_START);
+    const r = replanWeek(before, resolve([[90, 5]]), WEEK_START, null);
 
     expect(r.adjustments.length).toBeGreaterThan(0);
     const survivors = r.week.days[0].workouts;
@@ -351,7 +352,7 @@ describe("replanWeek — multi-block days", () => {
         ],
       },
     ]);
-    const r = replanWeek(before, resolve([[90, 30]]), WEEK_START);
+    const r = replanWeek(before, resolve([[90, 30]]), WEEK_START, null);
     expect(r.week.days).toEqual(before.days);
     expect(r.adjustments).toEqual([]);
   });
@@ -376,7 +377,7 @@ describe("replanWeek — multi-block days", () => {
         ],
       },
     ]);
-    const r = replanWeek(before, resolve([[5, 90]]), WEEK_START);
+    const r = replanWeek(before, resolve([[5, 90]]), WEEK_START, null);
 
     const survivors = r.week.days[0].workouts;
     const recovery = survivors.find((s) => s.type === "Recovery");
@@ -407,7 +408,7 @@ describe("replanWeek — multi-block days", () => {
         ],
       },
     ]);
-    const r = replanWeek(before, resolve([[30, 90]]), WEEK_START);
+    const r = replanWeek(before, resolve([[30, 90]]), WEEK_START, null);
     expect(r.week.days).toEqual(before.days);
     expect(r.adjustments).toEqual([]);
   });
@@ -450,7 +451,7 @@ describe("replanWeek — C1: displacement checks admits(), not just size", () =>
         ],
       ],
     ]);
-    const r = replanWeek(before, resolved, WEEK_START);
+    const r = replanWeek(before, resolved, WEEK_START, null);
 
     // Same size block, only the energy tier dropped — the session must
     // still be recognised as displaced, not left resident on Monday.
@@ -502,7 +503,7 @@ describe("replanWeek — C1: displacement checks admits(), not just size", () =>
         ],
       ],
     ]);
-    const r = replanWeek(before, resolved, WEEK_START);
+    const r = replanWeek(before, resolved, WEEK_START, null);
 
     // Same size, same energy — only the sport list narrowed to exclude Run.
     expect(r.week.days[0].workouts).toEqual([]);
@@ -563,7 +564,8 @@ describe("replanWeek — C2: never places a displaced session on a race day", ()
     const r = replanWeek(
       before,
       resolve([[], [60], [60], [60], [60], [300], [60]]),
-      WEEK_START
+      WEEK_START,
+      null
     );
 
     // The race day must survive completely untouched.
@@ -604,7 +606,7 @@ describe("replanWeek — Minor: a move must not clobber the target day's own sta
     ]);
     // Every other day of the week is unavailable, so Tuesday's free
     // sibling block is the only legal destination for Monday's session.
-    const r = replanWeek(before, resolve([[], [90, 60]]), WEEK_START);
+    const r = replanWeek(before, resolve([[], [90, 60]]), WEEK_START, null);
 
     const tuesday = r.week.days[1];
     expect(tuesday.workouts.some((x) => x.type === "Long")).toBe(true);
@@ -641,7 +643,8 @@ describe("replanWeek — never moves a session into a day that has passed", () =
     const r = replanWeek(
       before,
       resolve([[180], [180], [], [180], [], [], []]),
-      "2026-08-05" // Wednesday
+      "2026-08-05", // Wednesday
+      null
     );
 
     expect(r.week.days[2].workouts).toEqual([]); // today freed
@@ -667,12 +670,60 @@ describe("replanWeek — never moves a session into a day that has passed", () =
     const r = replanWeek(
       before,
       resolve([[180], [180], [], [], [], [], []]),
-      "2026-08-05"
+      "2026-08-05",
+      null
     );
 
     expect(r.week.days[2].workouts).toEqual([]);
     expect(r.week.days[0].workouts).toEqual([]);
     expect(r.week.days[1].workouts).toEqual([]);
     expect(r.adjustments.some((a) => a.action === "dropped")).toBe(true);
+  });
+});
+
+describe("rung 5 — fill", () => {
+  it("does nothing at all when fill is null", () => {
+    const before = week([{ mins: [180], workouts: [] }, { mins: [180] }]);
+    const withFill = week([{ mins: [180], workouts: [] }, { mins: [180] }]);
+
+    const off = replanWeek(before, resolve([[180], [180]]), WEEK_START, null);
+    const on = replanWeek(withFill, resolve([[180], [180]]), WEEK_START, {
+      targetMins: 600,
+      queenStageHours: 4,
+      today: WEEK_START,
+    });
+
+    // Nothing to fill from (no endurance evidence), so both are identical —
+    // this pins that enabling fill is not itself a behaviour change.
+    expect(off.week.days).toEqual(on.week.days);
+  });
+
+  it("runs after the existing rungs, on their result", () => {
+    // Day 0's block shrinks below its session, displacing it to day 1; fill
+    // then grows what landed there. Proves ordering: fill sees the moved
+    // session, not the original layout.
+    const start = week([
+      {
+        mins: [90],
+        workouts: [
+          w({
+            durationMins: 90,
+            type: "Endurance",
+            purpose: "aerobic_base",
+            minEffectiveMins: 40,
+          }),
+        ],
+      },
+      { mins: [180] },
+    ]);
+
+    const r = replanWeek(start, resolve([[30], [180]]), WEEK_START, {
+      targetMins: 600,
+      queenStageHours: 4,
+      today: WEEK_START,
+    });
+
+    expect(r.week.days[1].workouts).toHaveLength(1);
+    expect(r.week.days[1].workouts[0].durationMins).toBeGreaterThan(90);
   });
 });

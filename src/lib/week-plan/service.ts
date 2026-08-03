@@ -620,7 +620,8 @@ export async function applyAvailability(
       days: week.days,
     },
     resolved,
-    localYmd(new Date())
+    localYmd(new Date()),
+    null // TODO(Task 8): resolve the real fill target
   );
 
   const oldTotal = week.days.reduce((s, d) => s + dayMins(d), 0);
