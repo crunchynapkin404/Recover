@@ -480,4 +480,56 @@ describe("fillWeek — 1b add one", () => {
     expect(twice.days).toEqual(once.days);
     expect(twice.adjustments).toEqual([]);
   });
+
+  it("keeps the taken-set key in lockstep with slotKey — an occupied block at a non-palindromic coordinate is never double-booked", () => {
+    // The occupied session sits at day index 1, block index 0 — key "1:0",
+    // not a palindrome. (Every other fixture in this file occupies "0:0",
+    // whose transpose is itself, so a taken-set key built as
+    // `${blockIdx}:${dayIdx}` instead of `${dayIdx}:${blockIdx}` would be
+    // indistinguishable from the correct one there.) Block 0 (60min)
+    // already holds the day's only session; block 1 (200min) is free.
+    // buildSlots' tiebreak sorts same-day blocks by blockIdx ascending, so
+    // block 0's slot — the OCCUPIED one — is tried first. Under a
+    // correctly keyed taken set it is rejected there (60min is also below
+    // the "long" floor of 90, so only "aerobic_base" even reaches the
+    // taken check, and taken.has("1:0") must be true to reject it), and
+    // the algorithm falls through to the free block 1. Under a transposed
+    // key, taken would hold "0:1" instead — which never matches "1:0" —
+    // so the occupied slot would wrongly admit a second session on TOP of
+    // the existing one instead of being skipped.
+    const d = days([
+      { mins: [] },
+      { mins: [60, 200], workouts: [w({ durationMins: 60, blockIdx: 0 })] },
+    ]);
+
+    const r = fillWeek(d, opts);
+
+    expect(r.days[1].workouts).toHaveLength(2);
+    expect(r.days[1].workouts.map((x) => x.blockIdx).sort()).toEqual([0, 1]);
+    expect(r.days[1].workouts.find((x) => x.blockIdx === 0)?.durationMins).toBe(
+      60
+    );
+    expect(r.days[1].workouts.find((x) => x.blockIdx === 1)).toBeDefined();
+  });
+
+  it("preserves a day's existing status when a second session is added to it", () => {
+    // "adapted": non-locked (so 1b still considers the day) and distinct
+    // from "planned" — the value a mutant that hardcoded
+    // `status: "planned"` (collapsing the ternary that preserves
+    // day.status when the day already had a workout) would produce
+    // undetected by every other test in this file, since they only ever
+    // add a session to a day that STARTED with zero workouts.
+    const d = days([
+      {
+        mins: [60, 200],
+        workouts: [w({ durationMins: 60, blockIdx: 0 })],
+        status: "adapted",
+      },
+    ]);
+
+    const r = fillWeek(d, opts);
+
+    expect(r.days[0].workouts).toHaveLength(2);
+    expect(r.days[0].status).toBe("adapted");
+  });
 });
