@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  currentTargetLoad,
   hoursForMaterialize,
+  weekLoadPerMin,
   weeklyDisplayTarget,
   weeklyTargetHours,
 } from "./volume";
@@ -254,5 +256,91 @@ describe("weeklyDisplayTarget", () => {
     // number to a race.
     expect(r.source).toBe("fallback");
     expect(r.shortfall).toEqual({ wantedHours: 8, offeredHours: 3 });
+  });
+});
+
+describe("weekLoadPerMin", () => {
+  it("is the materialized load spread over the materialized minutes", () => {
+    expect(
+      weekLoadPerMin({ effectiveTarget: 400, materializedMins: 800 })
+    ).toBe(0.5);
+  });
+
+  // A second, different rate: a hardcoded 0.5 would pass the case above.
+  it("is not a fixed rate", () => {
+    expect(
+      weekLoadPerMin({ effectiveTarget: 300, materializedMins: 1200 })
+    ).toBe(0.25);
+  });
+
+  it("is null with no stored target", () => {
+    expect(
+      weekLoadPerMin({ effectiveTarget: null, materializedMins: 800 })
+    ).toBeNull();
+  });
+
+  it("is null on a row written before materialized_mins existed", () => {
+    expect(
+      weekLoadPerMin({ effectiveTarget: 400, materializedMins: null })
+    ).toBeNull();
+  });
+
+  it("is null rather than dividing by zero", () => {
+    expect(
+      weekLoadPerMin({ effectiveTarget: 400, materializedMins: 0 })
+    ).toBeNull();
+  });
+});
+
+describe("currentTargetLoad", () => {
+  it("rises as the week gains minutes", () => {
+    // 400 load over 800min = 0.5/min; a week now holding 650min carries 325.
+    expect(
+      currentTargetLoad({
+        effectiveTarget: 400,
+        materializedMins: 800,
+        currentMins: 650,
+      })
+    ).toBe(325);
+  });
+
+  it("falls as the week sheds minutes", () => {
+    expect(
+      currentTargetLoad({
+        effectiveTarget: 400,
+        materializedMins: 800,
+        currentMins: 300,
+      })
+    ).toBe(150);
+  });
+
+  it("is zero when every session has gone", () => {
+    expect(
+      currentTargetLoad({
+        effectiveTarget: 400,
+        materializedMins: 800,
+        currentMins: 0,
+      })
+    ).toBe(0);
+  });
+
+  it("keeps today's behaviour when the rate is unknown", () => {
+    expect(
+      currentTargetLoad({
+        effectiveTarget: 400,
+        materializedMins: null,
+        currentMins: 650,
+      })
+    ).toBe(400);
+  });
+
+  it("is null with no stored target", () => {
+    expect(
+      currentTargetLoad({
+        effectiveTarget: null,
+        materializedMins: 800,
+        currentMins: 650,
+      })
+    ).toBeNull();
   });
 });

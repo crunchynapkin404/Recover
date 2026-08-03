@@ -168,3 +168,47 @@ export function weeklyDisplayTarget(
 export function hoursForMaterialize(target: VolumeResult): number {
   return target.shortfall?.wantedHours ?? target.hours;
 }
+
+/**
+ * The load one planned minute of this week carries, fixed when the week was
+ * materialized.
+ *
+ * Null whenever the rate cannot be known: a week with no stored target, or a
+ * row written before `materialized_mins` existed. Callers fall back to their
+ * own existing path rather than projecting nothing.
+ *
+ * This is a rate, not a total, so a day's projected load depends only on that
+ * day. Distributing a week total across the week's remaining minutes — what
+ * the race forecast used to do — makes every day's figure move whenever any
+ * other day changes.
+ */
+export function weekLoadPerMin(input: {
+  effectiveTarget: number | null;
+  materializedMins: number | null;
+}): number | null {
+  const { effectiveTarget, materializedMins } = input;
+  if (effectiveTarget == null) return null;
+  if (materializedMins == null || materializedMins <= 0) return null;
+  return effectiveTarget / materializedMins;
+}
+
+/**
+ * The week's target load as it stands now: the materialization-time rate
+ * applied to the minutes the week currently holds.
+ *
+ * Falls back to the stored target when the rate is unknown, so a
+ * pre-migration row behaves exactly as it does today.
+ *
+ * NOT for adherence. Adherence asks "what did you set out to do?" and must
+ * keep reading the frozen `effective_target` — it gates the low-adherence
+ * safety rail in materialize.ts.
+ */
+export function currentTargetLoad(input: {
+  effectiveTarget: number | null;
+  materializedMins: number | null;
+  currentMins: number;
+}): number | null {
+  const perMin = weekLoadPerMin(input);
+  if (perMin == null) return input.effectiveTarget;
+  return perMin * input.currentMins;
+}
