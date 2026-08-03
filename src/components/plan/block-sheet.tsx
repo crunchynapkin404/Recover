@@ -32,10 +32,23 @@ const NEW_BLOCK: AvailabilityBlock = {
   sports: null,
 };
 
+/** Latest time TIME_RE admits. A block cannot run past the end of its day. */
+const LAST_MINUTE_OF_DAY = 23 * 60 + 59;
+
+function toMins(clock: string): number {
+  const [h, m] = clock.split(":").map(Number);
+  return h * 60 + m;
+}
+
+/** Minutes back to "HH:MM", clamped into the day TIME_RE accepts. */
+function toClock(mins: number): string {
+  const clamped = Math.max(0, Math.min(LAST_MINUTE_OF_DAY, mins));
+  const h = Math.floor(clamped / 60);
+  return `${String(h).padStart(2, "0")}:${String(clamped % 60).padStart(2, "0")}`;
+}
+
 function minutesBetween(start: string, end: string): number {
-  const [sh, sm] = start.split(":").map(Number);
-  const [eh, em] = end.split(":").map(Number);
-  return eh * 60 + em - (sh * 60 + sm);
+  return toMins(end) - toMins(start);
 }
 
 /**
@@ -77,6 +90,28 @@ export function BlockSheet({
     const next = blocks.map((b, j) => {
       if (j !== i) return b;
       const merged = { ...b, ...patchBlock };
+      // Fill in whichever end is still missing, deriving it from the
+      // duration the block already carries.
+      //
+      // In practice this only ever fires for a legacy duration-only block
+      // (start and end both null, duration in `mins` alone), which had no
+      // path through this UI to a clock range at all: `validateBlocks`
+      // admits only both-null or both-set, and every edit commits
+      // immediately, so setting one field landed on the half-set shape, was
+      // rejected, and the input reverted. Deriving the other end in the same
+      // edit means the athlete's stored minutes survive the conversion
+      // rather than being replaced by an arbitrary default.
+      //
+      // A `type="time"` input reports a partially entered or cleared value
+      // as `""`, which parses to NaN and derives a nonsense "NaN:NaN" — but
+      // `commit` runs `validateBlocks` before calling `onChange`, and a `""`
+      // start fails the clock-shape check, so the whole edit is rejected and
+      // neither value ever escapes this function.
+      if (merged.start != null && merged.end == null) {
+        merged.end = toClock(toMins(merged.start) + b.mins);
+      } else if (merged.end != null && merged.start == null) {
+        merged.start = toClock(toMins(merged.end) - b.mins);
+      }
       if (merged.start != null && merged.end != null) {
         merged.mins = minutesBetween(merged.start, merged.end);
       }

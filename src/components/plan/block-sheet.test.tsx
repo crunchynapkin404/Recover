@@ -188,6 +188,139 @@ describe("BlockSheet interactions", () => {
     expect(container.textContent).toContain("Rest — no time set for this day.");
   });
 
+  function setTime(el: Element | null | undefined, value: string) {
+    expect(el).toBeTruthy();
+    const setter = Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      "value"
+    )!.set!;
+    act(() => {
+      setter.call(el, value);
+      el!.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+  }
+
+  // A legacy "duration-only" block — start/end null, duration carried by
+  // `mins` alone. Rows migrated from the pre-block model look like this.
+  //
+  // 90 minutes, deliberately NOT 60: the "Add a block" default is 60, so a
+  // fixture of 60 cannot tell a genuine read of the block's stored duration
+  // apart from a hardcoded default. Verified by mutation — swapping `b.mins`
+  // for a literal 60 passes against a 60-minute fixture and fails against
+  // this one.
+  const legacyBlock: AvailabilityBlock[] = [
+    { start: null, end: null, mins: 90, energy: "normal", sports: null },
+  ];
+
+  it("giving a legacy duration-only block a start time keeps its duration", () => {
+    // The bug this pins: validateBlocks legally admits only both-null or
+    // both-set, and every edit commits immediately — so setting just the
+    // start of a null/null block lands on the illegal half-set shape, the
+    // commit is rejected, and the input reverts. There was no path at all
+    // from a legacy block to a clock range through this UI.
+    // The stored 90 minutes is what decides the other end: 18:00 -> 19:30.
+    mount(<Harness initial={legacyBlock} sports={["Bike"]} />);
+
+    setTime(
+      container.querySelector('[aria-label="Block 1 start time"]'),
+      "18:00"
+    );
+
+    expect(container.querySelector('[role="alert"]')).toBeFalsy();
+    expect(
+      container.querySelector<HTMLInputElement>(
+        '[aria-label="Block 1 start time"]'
+      )!.value
+    ).toBe("18:00");
+    expect(
+      container.querySelector<HTMLInputElement>(
+        '[aria-label="Block 1 end time"]'
+      )!.value
+    ).toBe("19:30");
+  });
+
+  it("giving a legacy duration-only block an end time keeps its duration", () => {
+    // The mirror case: the end field must work the same way, deriving the
+    // start backwards from the stored duration. 19:00 - 90min -> 17:30.
+    mount(<Harness initial={legacyBlock} sports={["Bike"]} />);
+
+    setTime(
+      container.querySelector('[aria-label="Block 1 end time"]'),
+      "19:00"
+    );
+
+    expect(container.querySelector('[role="alert"]')).toBeFalsy();
+    expect(
+      container.querySelector<HTMLInputElement>(
+        '[aria-label="Block 1 start time"]'
+      )!.value
+    ).toBe("17:30");
+    expect(
+      container.querySelector<HTMLInputElement>(
+        '[aria-label="Block 1 end time"]'
+      )!.value
+    ).toBe("19:00");
+  });
+
+  it("clamps a derived end to the last minute of the day", () => {
+    // 23:30 + 90min would run past midnight, which TIME_RE rejects and which
+    // a single day's block cannot express. The derived end clamps to 23:59
+    // and the duration follows it down to 29min, rather than the edit being
+    // refused outright.
+    mount(<Harness initial={legacyBlock} sports={["Bike"]} />);
+
+    setTime(
+      container.querySelector('[aria-label="Block 1 start time"]'),
+      "23:30"
+    );
+
+    expect(container.querySelector('[role="alert"]')).toBeFalsy();
+    expect(
+      container.querySelector<HTMLInputElement>(
+        '[aria-label="Block 1 end time"]'
+      )!.value
+    ).toBe("23:59");
+    expect(container.textContent).toContain("29m");
+  });
+
+  it("does not derive anything from a cleared time field", () => {
+    // A type="time" input reports a partially entered or cleared value as
+    // "", which parses to NaN. Deriving from it would write a literal
+    // "NaN:NaN" into the block; instead nothing is derived and the existing
+    // shape validation says what is wrong.
+    mount(<Harness initial={legacyBlock} sports={["Bike"]} />);
+
+    setTime(container.querySelector('[aria-label="Block 1 start time"]'), "");
+
+    expect(container.textContent).not.toContain("NaN");
+    expect(
+      container.querySelector<HTMLInputElement>(
+        '[aria-label="Block 1 end time"]'
+      )!.value
+    ).toBe("");
+  });
+
+  it("editing one end of an already-timed block does not re-derive the other", () => {
+    // Guards the fix from overreaching: derivation is ONLY for the legacy
+    // null/null case. On a normal 18:00-19:30 block, moving the end to 20:00
+    // must leave the start alone and let mins follow, not drag the start
+    // forward to preserve 90 minutes.
+    mount(<Harness initial={blocks} sports={["Bike"]} />);
+
+    setTime(
+      container.querySelector('[aria-label="Block 1 end time"]'),
+      "20:00"
+    );
+
+    expect(container.querySelector('[role="alert"]')).toBeFalsy();
+    expect(
+      container.querySelector<HTMLInputElement>(
+        '[aria-label="Block 1 start time"]'
+      )!.value
+    ).toBe("18:00");
+    expect(container.textContent).toContain("2h");
+  });
+
   it("selecting an energy level updates aria-pressed on the chips", () => {
     mount(<Harness initial={blocks} sports={["Bike"]} />);
 
