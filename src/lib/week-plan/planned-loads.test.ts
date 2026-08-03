@@ -101,6 +101,37 @@ describe("openWeekPlannedLoads", () => {
     ]);
   });
 
+  it("counts a forecastable day already in the past toward the fallback divisor", () => {
+    // The blind spot the case above cannot see: in `week`, Monday is
+    // "completed", so it is not forecastable and the divisor (all
+    // forecastable days) happens to equal `future` (the two days after
+    // today) by coincidence, not by construction. Swapping the divisor for
+    // `future` alone would still pass every other test in this file.
+    //
+    // Here Monday is "planned" instead — never completed, still forecastable
+    // even though it is now in the past — so it must still count toward the
+    // total even though it is not itself projected.
+    const weekWithPastPlanned = [
+      day("2026-08-03", "planned", [100]),
+      day("2026-08-05", "planned", [100]),
+      day("2026-08-07", "planned", [300]),
+    ];
+
+    const r = openWeekPlannedLoads({
+      days: weekWithPastPlanned,
+      perMin: null,
+      fallbackTarget: 400,
+      today: "2026-08-04",
+    });
+
+    // Forecastable total is 500 (all three days), not 400 (the two future
+    // days alone): 400 × (100/500) = 80, 400 × (300/500) = 240.
+    expect(r).toEqual([
+      { date: "2026-08-05", load: 80 },
+      { date: "2026-08-07", load: 240 },
+    ]);
+  });
+
   it("projects nothing from a week with no future sessions", () => {
     expect(
       openWeekPlannedLoads({

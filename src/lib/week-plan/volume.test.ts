@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   currentTargetLoad,
   hoursForMaterialize,
+  weekAdherencePct,
   weekLoadPerMin,
   weeklyDisplayTarget,
   weeklyTargetHours,
@@ -352,20 +353,38 @@ describe("adherence is not scaled", () => {
     // in materialize.ts. If a future change routes adherence through
     // currentTargetLoad, a week that adapted downward would score ~100%, the
     // rail would stop firing, and a sick athlete would be handed a full week.
+    //
+    // This calls the actual production functions — weekAdherencePct is the
+    // same function service.ts calls to close out a week — rather than
+    // re-deriving the expected numbers from local arithmetic, so a future
+    // change that routes adherence through a rate cannot pass this test
+    // unchanged.
     const frozen = 400;
+
+    const adherencePct = weekAdherencePct({
+      effectiveTarget: frozen,
+      blockTarget: null,
+      actualLoad: 300,
+    });
+
+    // The same week, asked the other question: what does it ask for right
+    // now, at its current (grown) minute count?
     const scaled = currentTargetLoad({
       effectiveTarget: frozen,
       materializedMins: 800,
       currentMins: 1200,
     });
 
-    // The two must be genuinely different, or this test proves nothing.
+    // Adherence reads the frozen target: 300 actual against 400 is 75%.
+    expect(adherencePct).toBe(75);
+
+    // currentTargetLoad answers a genuinely different question and gets a
+    // genuinely different number (600, not 400) — if the two ever collapsed
+    // to the same quantity, the split this test exists to guard would
+    // already be gone. Against the scaled figure, adherence would instead
+    // read 50% and wrongly cross the 70% low-adherence rail.
     expect(scaled).toBe(600);
     expect(scaled).not.toBe(frozen);
-
-    // Adherence uses the frozen figure: 300 actual against 400 is 75%.
-    expect(Math.round((300 / frozen) * 100)).toBe(75);
-    // Against the scaled figure it would read 50% and cross the 70% rail.
-    expect(Math.round((300 / scaled!) * 100)).toBe(50);
+    expect(adherencePct).not.toBe(Math.round((300 / scaled!) * 100));
   });
 });

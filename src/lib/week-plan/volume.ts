@@ -212,3 +212,35 @@ export function currentTargetLoad(input: {
   if (perMin == null) return input.effectiveTarget;
   return perMin * input.currentMins;
 }
+
+/**
+ * Adherence: "of the load actually set for this week, how much landed?"
+ * `actualLoad` is scored against the week's frozen target — never a rate
+ * applied to today's minutes — because this number gates the low-adherence
+ * safety rail in materialize.ts. Route it through a rate instead and a week
+ * that shrank mid-week would be scored against its own shrunken target,
+ * read back as ~100%, the rail would stop firing, and a sick athlete would
+ * be handed a full training week.
+ *
+ * That is why this function deliberately takes no `materializedMins`,
+ * `currentMins`, or rate: unlike `currentTargetLoad`, which exists for the
+ * opposite question ("what does the week ask for right now?") and is NOT
+ * for this one, there is nothing here for a future edit to route through
+ * `currentTargetLoad` by accident. The absence is the design.
+ *
+ * `effectiveTarget` wins over `blockTarget` because it is the week's
+ * persisted post-taper, post-hours-budget figure — a taper week closed out
+ * at 100% of its actual (small) target must not score ~45% just because the
+ * skeleton block still holds the pre-taper number. `blockTarget` is only
+ * the fallback for a row written before `effectiveTarget` existed.
+ * `target ? ... : 0` also treats a genuinely-zero target the same as a
+ * missing one — there is no meaningful percentage to divide by zero into.
+ */
+export function weekAdherencePct(input: {
+  effectiveTarget: number | null;
+  blockTarget: number | null;
+  actualLoad: number;
+}): number {
+  const target = input.effectiveTarget ?? input.blockTarget ?? null;
+  return target ? Math.round((input.actualLoad / target) * 100) : 0;
+}
