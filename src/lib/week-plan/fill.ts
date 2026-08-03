@@ -171,7 +171,9 @@ export function fillWeek(
         trigger: "availability_change",
         action: "added",
         before: [before],
-        after: [{ ...out[i] }],
+        after: [
+          { ...out[i], workouts: out[i].workouts.map((x) => ({ ...x })) },
+        ],
         reason: `more time on ${day.date} — ${workout.type} extended from ${workout.durationMins} to ${grown}min`,
       });
     }

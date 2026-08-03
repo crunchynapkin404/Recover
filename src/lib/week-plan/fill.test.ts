@@ -286,4 +286,59 @@ describe("fillWeek — 1a grow in place", () => {
     expect(twice.days).toEqual(once.days);
     expect(twice.adjustments).toEqual([]);
   });
+
+  it("snapshots the day at push time — an earlier adjustment's `after` is not retroactively mutated by a later grow", () => {
+    // Two growable sessions on the same day, each in its own block:
+    //  - session 0: 60min in a 130min block (blockIdx 0)
+    //  - session 1: 80min in a 220min block (blockIdx 1)
+    // queenStageHours 4 → ceiling 240, non-binding for either. targetMins
+    // 350 == 130 + 220, exactly enough for BOTH sessions to fill their own
+    // block completely, so both grow within this single fillWeek call —
+    // session 0 first (day order), session 1 second.
+    const d = days([
+      {
+        mins: [130, 220],
+        workouts: [
+          w({ durationMins: 60, blockIdx: 0 }),
+          w({ durationMins: 80, blockIdx: 1 }),
+        ],
+      },
+    ]);
+
+    const r = fillWeek(d, {
+      targetMins: 350,
+      queenStageHours: 4,
+      today: "2026-08-03",
+    });
+
+    // Both sessions did grow, to their own block's full size.
+    expect(r.days[0].workouts[0].durationMins).toBe(130);
+    expect(r.days[0].workouts[1].durationMins).toBe(220);
+    expect(r.adjustments).toHaveLength(2);
+
+    // The FIRST adjustment was pushed before session 1 grew. Its `after`
+    // snapshot must still show session 1 at its ORIGINAL 80 minutes — not
+    // the 220 it becomes one iteration later.
+    expect(r.adjustments[0].after[0].workouts[1].durationMins).toBe(80);
+  });
+
+  it("grows a session only into the block it occupies, never a roomier sibling block", () => {
+    // blockIdx 0 (70min) is deliberately the SMALLER of the day's two
+    // blocks; blockIdx 1 (400min) is a big sibling the session must never
+    // reach into. queenStageHours 4 → ceiling 240 (non-binding). targetMins
+    // 600 leaves far more room than the OCCUPIED block can ever supply, so
+    // if growth were ever judged against the day's biggest block instead of
+    // the block the session actually occupies, this would grow past 70.
+    const d = days([
+      { mins: [70, 400], workouts: [w({ durationMins: 60, blockIdx: 0 })] },
+    ]);
+
+    const r = fillWeek(d, {
+      targetMins: 600,
+      queenStageHours: 4,
+      today: "2026-08-03",
+    });
+
+    expect(r.days[0].workouts[0].durationMins).toBe(70);
+  });
 });
