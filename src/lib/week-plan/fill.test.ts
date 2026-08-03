@@ -613,32 +613,56 @@ describe("fillWeek — 1a and 1b in the same call", () => {
   // block, making 1a a guaranteed no-op. Neither exercises 1a and 1b BOTH
   // mutating `planned` within one `fillWeek` call — the exact seam a
   // per-sub-step diff review cannot see.
-  it("grows day 0's session to its block cap, then adds a new session to day 1, honouring one shared target", () => {
-    // Day 0: 60min session in a 120min block — 1a grows it to the block's
-    // full 120 (queenStageHours 4 → ceiling 240, non-binding). Day 1: a free
-    // 180min block — after 1a, planned (120) is still short of target (400),
-    // so 1b places one new session there.
+  //
+  // targetMins is 250, not a rounder number like 400. At 400 there is so
+  // much headroom that BOTH sub-steps are bound by their own block/ceiling
+  // caps — day 0's 120min block, day 1's 180min block — and the shared
+  // target term never binds anywhere. Mutation-tested: double-counting
+  // `planned` in 1a, dropping 1a's own target-clamp term, and having 1b
+  // read its budget from the PRE-1a total instead of the running one all
+  // survived undetected at 400, because 1b's own 180min block cap produces
+  // the same 180min result no matter what `planned` actually holds when
+  // there's that much slack left.
+  //
+  // At 250, day 0's OWN growth (1a) is STILL bound by its 120min block, not
+  // by the target (60 + (250 - 60) = 250, well above the block's 120) — so
+  // this fixture cannot see a bug confined entirely inside 1a's own clamp
+  // (confirmed: dropping 1a's target-clamp term alone leaves this test
+  // green; 1a's own clamps have dedicated single-sub-step tests above).
+  // What DOES change at 250 is 1b's bound: the remaining budget after 1a
+  // (250 - 120 = 130) is now TIGHTER than both day 1's 180min block and its
+  // 240min ceiling, so 130 — not 180 — is what a correct implementation
+  // must place, and that number is a direct readout of whatever `planned`
+  // holds when 1b runs. A stale pre-1a budget (130 → 190) changes the
+  // actual minutes placed (130 → 180) and the week's total (250 → 300),
+  // which is what this test now pins.
+  it("grows day 0's session to its block cap, then adds a new session to day 1 sized by the REMAINING budget, honouring one shared target", () => {
     const d = days([
       { mins: [120], workouts: [w({ durationMins: 60 })] },
       { mins: [180] },
     ]);
 
     const r = fillWeek(d, {
-      targetMins: 400,
+      targetMins: 250,
       queenStageHours: 4,
       today: "2026-08-03",
     });
 
-    // 1a fired: day 0 grew to its block cap.
+    // 1a fired: day 0 grew to its block cap (bound by the 120min block, not
+    // by the 250 target — see comment above).
     expect(r.days[0].workouts[0].durationMins).toBe(120);
-    // 1b fired too: day 1 received a new session.
+    // 1b fired too: day 1 received a new session sized to the REMAINING
+    // budget (250 - 120 = 130) — smaller than its own 180min block, so 130
+    // can only come from the running total, not the block cap.
     expect(r.days[1].workouts).toHaveLength(1);
     expect(r.days[1].workouts[0].sport).toBe("Bike");
+    expect(r.days[1].workouts[0].durationMins).toBe(130);
 
-    // No double-counting: total planned time never exceeds the shared
-    // target, even though both sub-steps added to it in the same call.
-    expect(plannedMins(r.days)).toBeLessThanOrEqual(400);
-    expect(plannedMins(r.days)).toBe(120 + 180);
+    // No double-counting and no stale pre-1a snapshot: total planned time
+    // lands exactly on the shared target — not under it (a double-count
+    // bug) and not over it (300 is what a stale pre-1a budget produces on
+    // this exact fixture).
+    expect(plannedMins(r.days)).toBe(250);
 
     // Both adjustments logged, each describing the day it actually touched.
     expect(r.adjustments).toHaveLength(2);
