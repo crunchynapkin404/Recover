@@ -154,8 +154,51 @@ Deliberately **untouched**:
   exactly as today.
 - **`materializeWeek`'s progression**, which consumes that `adherencePct`.
 - **`fill.ts`** — it works in minutes and never sees a load.
-- **`/train`'s WeekRationale** "planned vs target" — that is
-  `assembleWeeklyTarget` in _hours_, a different quantity.
+
+## What the athlete sees on `/train`
+
+`WeekRationale` renders one sentence: `"13.0h planned against a 16.0h target."`
+Both halves are already current — `targetHours` comes from
+`assembleWeeklyTarget` (live), and `plannedHours` is derived from the week's
+days on every render. Nothing here is stale, so **the sentence keeps its
+present meaning and the athlete-facing target stays the live hours figure.**
+
+That is deliberate, not an omission. Hours is the unit the athlete offered
+their availability in; load is an internal quantity they never entered and
+cannot check. Restating an internal load on this surface would add a number
+nobody can act on.
+
+### But the minutes behind it must be the same minutes
+
+`plannedHours` is computed by an **inline reduce over the week's days**, and
+again separately for the next-week preview (`train/page.tsx:377-381` and
+`486-489`). Both duplicate exactly what `plannedMins` already does.
+
+That directly undermines this release's central invariant. If
+`materialized_mins` and `currentMins` come from `plannedMins` while the
+athlete's own "planned" figure comes from a hand-rolled sum, the number the
+athlete reads and the number the forecast reasons from can drift apart — the
+precise failure this release exists to remove, reintroduced on the surface
+where it would be most confusing.
+
+**Both inline reduces become `plannedMins(days) / 60`.** The two are currently
+identical in behaviour — each sums every workout on every day — so this is a
+behaviour-preserving substitution, and a test should pin that it stays one.
+
+### The three targets, stated once
+
+Three distinct quantities now coexist. Naming them here so a later change does
+not "helpfully" unify them:
+
+| Quantity                       | Unit  | Basis                       | Read by                                  |
+| ------------------------------ | ----- | --------------------------- | ---------------------------------------- |
+| `assembleWeeklyTarget().hours` | hours | live, recomputed per render | `/train` and the dashboard — the athlete |
+| `effective_target`             | load  | frozen at materialization   | adherence, and through it progression    |
+| `currentTargetLoad()`          | load  | frozen, scaled by minutes   | forecast, CTL projection, taper stat     |
+
+They are allowed to disagree, because they answer different questions. What
+they must never do is disagree about **how many minutes the week contains** —
+hence the single `plannedMins`.
 
 ### An expected, honest change in output
 
@@ -191,9 +234,16 @@ one seems necessary.
    from its materialized minutes must produce an unchanged `adherencePct`. This
    is the guard on the split-by-consumer decision: if a future refactor
    unifies the two targets, this must go red.
-4. **Same-function invariant** — a source-level guard that both minute counts
-   come from `plannedMins`, in the manner of v0.37.0's `fill-wiring` test. A
-   second minutes definition would reintroduce the drift silently.
+4. **Same-function invariant** — a source-level guard that every count of "the
+   week's minutes" comes from `plannedMins`, in the manner of v0.37.0's
+   `fill-wiring` test. This must cover `train/page.tsx`'s two former inline
+   reduces as well as the write and read of `materialized_mins`; a second
+   minutes definition anywhere would reintroduce the drift silently, and two
+   already existed before this release.
+5. **`/train` substitution is behaviour-preserving** — the existing
+   `week-rationale` tests must pass unchanged, and a test should pin that
+   `plannedMins(days) / 60` equals what the inline reduce produced for a week
+   containing completed, missed and planned days alike.
 
 Mutation-test each of these: break the implementation, confirm a test fails,
 revert. On this repo, green has repeatedly proven nothing on its own.
