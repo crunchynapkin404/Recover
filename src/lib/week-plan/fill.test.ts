@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { fillCeilingMins } from "./fill";
+import { fillCeilingMins, fillSport, plannedMins } from "./fill";
+import type { DaySlot, ScheduledWorkout } from "./types";
+import type { AvailabilityBlock } from "@/lib/availability/types";
 import {
   EASY_RUN_CAP_MINS,
   NO_DEMAND_LONG_BOUND_MINS,
@@ -45,5 +47,113 @@ describe("fillCeilingMins", () => {
     for (const p of ["vo2max", "threshold", "brick", "recovery"] as const) {
       expect(fillCeilingMins(p, "Bike", 4)).toBeNull();
     }
+  });
+});
+
+const blk = (mins: number): AvailabilityBlock => ({
+  start: null,
+  end: null,
+  mins,
+  energy: "full",
+  sports: null,
+});
+
+const w = (o: Partial<ScheduledWorkout> = {}): ScheduledWorkout => ({
+  day: 0,
+  sport: "Bike",
+  type: "Endurance",
+  durationMins: 60,
+  intensity: "Z1-Z2",
+  description: "Aerobic endurance ride",
+  purpose: "aerobic_base",
+  minEffectiveMins: 40,
+  blockIdx: 0,
+  ...o,
+});
+
+/** Seven days from Mon 2026-08-03, each with the given blocks and sessions. */
+function days(
+  spec: {
+    mins?: number[];
+    workouts?: ScheduledWorkout[];
+    status?: DaySlot["status"];
+  }[]
+): DaySlot[] {
+  return spec.map((s, i) => {
+    const availableBlocks = (s.mins ?? []).map(blk);
+    return {
+      date: `2026-08-${String(3 + i).padStart(2, "0")}`,
+      availableBlocks,
+      workouts: s.workouts ?? [],
+      availableMins: availableBlocks.reduce((a, b) => a + b.mins, 0),
+      status: s.status ?? ((s.workouts?.length ?? 0) > 0 ? "planned" : "rest"),
+    };
+  });
+}
+
+describe("plannedMins", () => {
+  it("sums every session in the week, including locked days", () => {
+    const d = days([
+      { workouts: [w({ durationMins: 60 })], status: "completed" },
+      { workouts: [w({ durationMins: 90 })] },
+      {},
+      {
+        workouts: [
+          w({ durationMins: 45 }),
+          w({ durationMins: 30, blockIdx: 1 }),
+        ],
+      },
+    ]);
+
+    expect(plannedMins(d)).toBe(225);
+  });
+
+  it("is zero for an empty week", () => {
+    expect(plannedMins(days([{}, {}, {}]))).toBe(0);
+  });
+});
+
+describe("fillSport", () => {
+  it("picks the sport holding the most endurance minutes", () => {
+    const d = days([
+      { workouts: [w({ sport: "Run", durationMins: 60 })] },
+      { workouts: [w({ sport: "Bike", durationMins: 120 })] },
+    ]);
+
+    expect(fillSport(d, 4)).toBe("Bike");
+  });
+
+  it("ignores sports it cannot bound", () => {
+    const d = days([
+      { workouts: [w({ sport: "Swim", durationMins: 300 })] },
+      { workouts: [w({ sport: "Run", durationMins: 40 })] },
+    ]);
+
+    expect(fillSport(d, 4)).toBe("Run");
+  });
+
+  it("ignores intensity when counting", () => {
+    const d = days([
+      {
+        workouts: [
+          w({
+            sport: "Run",
+            durationMins: 45,
+            type: "Intervals",
+            purpose: "vo2max",
+          }),
+        ],
+      },
+      { workouts: [w({ sport: "Bike", durationMins: 30 })] },
+    ]);
+
+    expect(fillSport(d, 4)).toBe("Bike");
+  });
+
+  it("returns null when the week offers no evidence at all", () => {
+    expect(fillSport(days([{}, {}]), 4)).toBeNull();
+    expect(
+      fillSport(days([{ workouts: [w({ sport: "Swim" })] }]), 4)
+    ).toBeNull();
   });
 });

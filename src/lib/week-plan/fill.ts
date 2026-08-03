@@ -6,6 +6,7 @@
 // resolved by the caller and passed in.
 import type { Purpose } from "@/lib/availability/types";
 import { EASY_RUN_CAP_MINS, longRideBoundMins } from "@/lib/training-plan";
+import type { DaySlot } from "./types";
 
 /**
  * How long fill may make a session of this purpose, in this sport — or null
@@ -44,4 +45,57 @@ export function fillCeilingMins(
   // Swim, and anything else. There is no swim duration bound anywhere in
   // this codebase, and borrowing the cycling figure would be inventing one.
   return null;
+}
+
+/**
+ * Every planned minute in the week, locked days included.
+ *
+ * A completed Monday is training the week actually contains; excluding it
+ * would make fill re-add what the athlete has already done.
+ */
+export function plannedMins(days: DaySlot[]): number {
+  return days.reduce(
+    (total, d) => total + d.workouts.reduce((s, x) => s + x.durationMins, 0),
+    0
+  );
+}
+
+/**
+ * The sport a new session should be in: the one holding the most endurance
+ * minutes this week, among sports fill can actually bound.
+ *
+ * `inferSports` returns an unranked array — three entries for a triathlon —
+ * so "the plan's primary sport" is not a well-defined thing to reach for.
+ * The week itself is the evidence. When it holds no bounded endurance
+ * session at all there is no evidence, and fill adds nothing rather than
+ * guessing.
+ *
+ * Ties break toward the first sport encountered in day order, which is
+ * deterministic for a given week.
+ */
+export function fillSport(
+  days: DaySlot[],
+  queenStageHours: number | null
+): string | null {
+  const minsBySport = new Map<string, number>();
+  for (const d of days) {
+    for (const x of d.workouts) {
+      if (fillCeilingMins(x.purpose, x.sport, queenStageHours) == null)
+        continue;
+      minsBySport.set(
+        x.sport,
+        (minsBySport.get(x.sport) ?? 0) + x.durationMins
+      );
+    }
+  }
+
+  let best: string | null = null;
+  let bestMins = 0;
+  for (const [sport, mins] of minsBySport) {
+    if (mins > bestMins) {
+      best = sport;
+      bestMins = mins;
+    }
+  }
+  return best;
 }
