@@ -15,8 +15,9 @@ import { findBlockFor } from "./slots";
 import { providerSportAliases } from "@/lib/canonical-sport";
 import type { AvailabilityBlock } from "@/lib/availability/types";
 import { periodize } from "@/lib/training-plan";
-import { assembleVolumeInputs } from "./volume-inputs";
+import { assembleVolumeInputs, assembleWeeklyTarget } from "./volume-inputs";
 import { hoursForMaterialize, weeklyTargetHours } from "./volume";
+import type { FillOptions } from "./fill";
 
 export type AdjustmentRow = typeof schema.planAdjustments.$inferSelect;
 
@@ -610,6 +611,35 @@ export async function applyAvailability(
   const week = await getOpenWeekPlan(userId);
   if (!week || blocksPerDay.length !== 7) return "no_open_week";
 
+  const now = new Date();
+
+  // The LIVE target, not the stored `effectiveTarget`. A week built while
+  // booked load read zero carries a stale figure forever; fill must not be
+  // misled by it. assembleWeeklyTarget is the same producer the dashboard's
+  // WeekRow and /train's WeekRationale already read, so fill cannot disagree
+  // with the number the athlete is shown.
+  //
+  // MINUTES. `target.hours` is hours and `effectiveTarget` is a load — a
+  // confusion this repo has already shipped once.
+  const plan = await getActivePlan(userId);
+  let fill: FillOptions | null = null;
+  if (plan) {
+    const availabilityHours =
+      blocksPerDay.reduce(
+        (s, blocks) => s + dayMins({ availableBlocks: blocks }),
+        0
+      ) / 60;
+    const { target, demand } = await assembleWeeklyTarget(userId, now, {
+      availabilityHours,
+      planHoursPerWeek: planConstraints(plan.constraints).hoursPerWeek,
+    });
+    fill = {
+      targetMins: Math.round(target.hours * 60),
+      queenStageHours: demand?.queenStageHours ?? null,
+      today: localYmd(now),
+    };
+  }
+
   // replanWeek keeps completed/missed days exactly as they are — no need to
   // zero their incoming availability here.
   const resolved = new Map(week.days.map((d, i) => [d.date, blocksPerDay[i]]));
@@ -620,13 +650,12 @@ export async function applyAvailability(
       days: week.days,
     },
     resolved,
-    localYmd(new Date()),
-    null // TODO(Task 8): resolve the real fill target
+    localYmd(now),
+    fill
   );
 
   const oldTotal = week.days.reduce((s, d) => s + dayMins(d), 0);
   const newTotal = r.week.days.reduce((s, d) => s + dayMins(d), 0);
-  const now = new Date();
 
   await db
     .update(schema.weekPlans)
