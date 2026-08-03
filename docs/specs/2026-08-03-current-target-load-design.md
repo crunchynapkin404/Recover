@@ -92,9 +92,18 @@ materialization.
 
 ### The derivation
 
-A pure helper — the only new logic in this release:
+The primitive is a **rate**: the load one planned minute of this week carries,
+pinned at materialization. Two pure helpers, the only new logic in this
+release:
 
 ```ts
+/** Load per planned minute for this week, fixed when the week was built. */
+export function weekLoadPerMin(input: {
+  effectiveTarget: number | null;
+  materializedMins: number | null;
+}): number | null;
+
+/** The week's target load as it stands now. */
 export function currentTargetLoad(input: {
   effectiveTarget: number | null;
   materializedMins: number | null;
@@ -102,22 +111,49 @@ export function currentTargetLoad(input: {
 }): number | null;
 ```
 
-`effectiveTarget * (currentMins / materializedMins)`, with the fallbacks in
-Failure modes below.
+`weekLoadPerMin` is `effectiveTarget / materializedMins`.
+`currentTargetLoad` is `weekLoadPerMin * currentMins`, falling back to
+`effectiveTarget` when the rate is unavailable. Full fallbacks in Failure
+modes below.
 
-The result is **not** rounded. Every call site already rounds for its own
-purpose — the forecast to one decimal place, the debrief stat to whole load —
-and rounding here would compound with theirs.
+Neither result is rounded. Every call site already rounds for its own purpose
+— the forecast to one decimal place, the debrief stat to whole load — and
+rounding here would compound with theirs.
 
-Substituted into the forecast this collapses to:
+A day's projected load is then simply:
 
 ```
-dayLoad = effective_target * dayMins / materialized_mins
+dayLoad = weekLoadPerMin * dayMins
 ```
 
-Per-minute load is pinned at what it was when the week was materialized.
-Adding a session adds load; dropping one removes load; neither disturbs the
-others.
+Per-minute load is pinned at materialization, so a day's projected load
+depends only on that day. Adding a session adds load; dropping one removes
+load; neither disturbs the others.
+
+#### This removes an existing redistribution
+
+The forecast currently computes `weekTarget * (dayMins / totalMins)`, where
+`totalMins` counts only planned/moved/adapted days — completed days are
+excluded from the divisor but their share of the week's target is not removed
+from the numerator. Future days therefore inherit the load share of days
+already completed.
+
+Scaling the target alone does not fix the dilution, because the two ratios
+differ. Worked example — week materialized at 500 min for 400 load, 100 min
+already completed, one 100-minute planned day:
+
+|                         | today                   | after scaling the target only | rate-based               |
+| ----------------------- | ----------------------- | ----------------------------- | ------------------------ |
+| before fill             | `400 × 100/400` = 100.0 | 100.0                         | `(400/500) × 100` = 80.0 |
+| after fill adds 150 min | —                       | `520 × 100/550` = 94.5        | 80.0                     |
+
+Scaling alone still dilutes (100 → 94.5). The rate does not move at all,
+which is the point.
+
+**So the `totalMins` divisor goes.** A week with completed days will project
+less future load than it does today, because future days stop inheriting
+what earlier days already absorbed. That is a deliberate correction, and the
+most user-visible change in this release.
 
 Deriving on read rather than maintaining a second stored load is deliberate.
 A maintained column must be updated by every writer forever, and a future
@@ -137,11 +173,14 @@ plannedMins(days)` on read.
 
 ## Consumers
 
-Switching to `currentTargetLoad`:
-
-- `src/lib/race/service.ts:244` — the race-day forecast.
-- `src/app/train/page.tsx:545` — the CTL projection / availability verdict.
-- `src/lib/race/debrief.ts:286` — the taper-execution stat.
+- `src/lib/race/service.ts:244` — the race-day forecast, via
+  **`weekLoadPerMin`**: `dayLoad = perMin * dayMins`, dropping the `totalMins`
+  divisor entirely. Falls back to today's `weekTarget * dayMins / totalMins`
+  when the rate is null, so pre-migration rows are unaffected.
+- `src/app/train/page.tsx:545` — the CTL projection / availability verdict, via
+  **`currentTargetLoad`**.
+- `src/lib/race/debrief.ts:286` — the taper-execution stat, via
+  **`currentTargetLoad`**.
 
 Each call site needs the week's `days` in scope to compute `currentMins`. The
 forecast and debrief queries already return full rows; `train/page.tsx` must be
@@ -190,11 +229,12 @@ behaviour-preserving substitution, and a test should pin that it stays one.
 Three distinct quantities now coexist. Naming them here so a later change does
 not "helpfully" unify them:
 
-| Quantity                       | Unit  | Basis                       | Read by                                  |
-| ------------------------------ | ----- | --------------------------- | ---------------------------------------- |
-| `assembleWeeklyTarget().hours` | hours | live, recomputed per render | `/train` and the dashboard — the athlete |
-| `effective_target`             | load  | frozen at materialization   | adherence, and through it progression    |
-| `currentTargetLoad()`          | load  | frozen, scaled by minutes   | forecast, CTL projection, taper stat     |
+| Quantity                       | Unit     | Basis                       | Read by                                  |
+| ------------------------------ | -------- | --------------------------- | ---------------------------------------- |
+| `assembleWeeklyTarget().hours` | hours    | live, recomputed per render | `/train` and the dashboard — the athlete |
+| `effective_target`             | load     | frozen at materialization   | adherence, and through it progression    |
+| `weekLoadPerMin()`             | load/min | frozen at materialization   | the forecast, per day                    |
+| `currentTargetLoad()`          | load     | rate × current minutes      | CTL projection, taper stat               |
 
 They are allowed to disagree, because they answer different questions. What
 they must never do is disagree about **how many minutes the week contains** —
@@ -208,12 +248,25 @@ that should always have been shown.
 
 ## Failure modes
 
-| Input                   | Behaviour                | Why                                                                        |
-| ----------------------- | ------------------------ | -------------------------------------------------------------------------- |
-| `materializedMins` null | return `effectiveTarget` | every pre-migration row — today's behaviour exactly                        |
-| `materializedMins <= 0` | return `effectiveTarget` | a week materialized with no sessions; never divide by zero                 |
-| `effectiveTarget` null  | return `null`            | preserves each call site's existing `?? block?.targetLoadTotal ?? 0` chain |
-| `currentMins == 0`      | return `0`               | every session dropped: the week genuinely holds no training                |
+`weekLoadPerMin`:
+
+| Input                   | Behaviour     | Why                                                            |
+| ----------------------- | ------------- | -------------------------------------------------------------- |
+| `effectiveTarget` null  | return `null` | no target to spread; caller falls back to its existing path    |
+| `materializedMins` null | return `null` | every pre-migration row — caller keeps today's exact behaviour |
+| `materializedMins <= 0` | return `null` | a week materialized with no sessions; never divide by zero     |
+
+`currentTargetLoad`:
+
+| Input              | Behaviour                | Why                                                                                                                    |
+| ------------------ | ------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| rate is `null`     | return `effectiveTarget` | unchanged from today, including the `null` case that preserves each call site's `?? block?.targetLoadTotal ?? 0` chain |
+| `currentMins == 0` | return `0`               | every session dropped: the week genuinely holds no training                                                            |
+
+The forecast must fall back to its **current** formula
+(`weekTarget * dayMins / totalMins`) whenever `weekLoadPerMin` is null, so a
+pre-migration row behaves exactly as it does today rather than projecting
+nothing.
 
 ## Testing
 
@@ -230,6 +283,16 @@ one seems necessary.
 2. **The anti-dilution property, stated directly** — given a week, adding a
    session must not lower any _other_ day's projected load. This is the actual
    defect, so it gets its own test rather than being implied by arithmetic.
+   It must be exercised on a week that **already contains a completed day**,
+   since that is the case where scaling the target alone still diluted, and a
+   fixture of only-planned days would pass either way.
+
+   This requires the forecast's day-load distribution to be a **pure
+   function**, not inline inside the DB-reading forecast builder. Extract it
+   — `openWeekPlannedLoads(days, perMin, fallbackTarget, today)` or similar —
+   so the property can be tested without a database. An inline version could
+   only be covered by a DB-gated test, which skips in CI and enforces nothing.
+
 3. **Adherence regression guard** — a week whose current minutes differ sharply
    from its materialized minutes must produce an unchanged `adherencePct`. This
    is the guard on the split-by-consumer decision: if a future refactor
