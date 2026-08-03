@@ -17,7 +17,8 @@ import type { AvailabilityBlock } from "@/lib/availability/types";
 import { periodize } from "@/lib/training-plan";
 import { assembleVolumeInputs, assembleWeeklyTarget } from "./volume-inputs";
 import { hoursForMaterialize, weeklyTargetHours } from "./volume";
-import type { FillOptions } from "./fill";
+import { resolveFillOptions } from "./fill";
+import { taperFractionForWeek } from "@/lib/race/taper";
 
 export type AdjustmentRow = typeof schema.planAdjustments.$inferSelect;
 
@@ -621,24 +622,46 @@ export async function applyAvailability(
   //
   // MINUTES. `target.hours` is hours and `effectiveTarget` is a load — a
   // confusion this repo has already shipped once.
+  //
+  // The actual enable/disable DECISION (no plan → decline; taper/race week
+  // → decline) is made by the pure `resolveFillOptions`, not here — this
+  // block only resolves the I/O its inputs need. `taperFraction` is computed
+  // the same way `materializeWeek` picks its primary race (first of
+  // `racesForWeek`'s already-sorted priority-A→C, date-asc order; only an
+  // A-priority race taper-shapes a week), so fill's notion of "taper week"
+  // and the engine's cannot disagree.
   const plan = await getActivePlan(userId);
-  let fill: FillOptions | null = null;
+  let taperFraction: number | null = null;
+  let targetHours = 0;
+  let queenStageHours: number | null = null;
   if (plan) {
     const availabilityHours =
       blocksPerDay.reduce(
         (s, blocks) => s + dayMins({ availableBlocks: blocks }),
         0
       ) / 60;
-    const { target, demand } = await assembleWeeklyTarget(userId, now, {
-      availabilityHours,
-      planHoursPerWeek: planConstraints(plan.constraints).hoursPerWeek,
-    });
-    fill = {
-      targetMins: Math.round(target.hours * 60),
-      queenStageHours: demand?.queenStageHours ?? null,
-      today: localYmd(now),
-    };
+    const [{ target, demand }, races] = await Promise.all([
+      assembleWeeklyTarget(userId, now, {
+        availabilityHours,
+        planHoursPerWeek: planConstraints(plan.constraints).hoursPerWeek,
+      }),
+      racesForWeek(userId, week.weekStart),
+    ]);
+    const primary = races[0] ?? null;
+    taperFraction =
+      primary && primary.priority === "A"
+        ? taperFractionForWeek(week.weekStart, primary)
+        : null;
+    targetHours = target.hours;
+    queenStageHours = demand?.queenStageHours ?? null;
   }
+  const fill = resolveFillOptions({
+    hasActivePlan: plan != null,
+    taperFraction,
+    targetHours,
+    queenStageHours,
+    today: localYmd(now),
+  });
 
   // replanWeek keeps completed/missed days exactly as they are — no need to
   // zero their incoming availability here.

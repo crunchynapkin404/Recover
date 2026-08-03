@@ -21,10 +21,14 @@ import { describe, expect, it } from "vitest";
  * this guard missed.
  *
  * SECONDARY ("targetMins: appears only in..."), kept for defense in depth:
- * no non-test source file other than fill.ts/service.ts mentions
- * `targetMins:` at all. Weaker alone — it is a file-level grep, blind to
- * *how many* call sites a file has or what they pass — but still an
- * independent signal if a brand-new file starts constructing FillOptions.
+ * no non-test source file other than fill.ts mentions `targetMins:` at all.
+ * `resolveFillOptions` (fill.ts) is the one place a `FillOptions` value is
+ * ever constructed — service.ts calls it rather than building the object
+ * literal itself, so `targetMins:` does not appear there any more. Weaker
+ * alone — it is a file-level grep, blind to *how many* call sites a file has
+ * or what they pass — but still an independent signal if a brand-new file
+ * starts constructing FillOptions by hand instead of going through
+ * `resolveFillOptions`.
  *
  * REAL remaining blind spots of the PRIMARY guard, stated plainly:
  * - It is a lexical scan, not an execution or type check. A call routed
@@ -289,14 +293,13 @@ describe("fill wiring", () => {
     expect(sawTheAllowedCallSite).toBe(true);
   });
 
-  it("targetMins: appears only in fill.ts and service.ts (secondary, weaker signal)", () => {
+  it("targetMins: appears only in fill.ts (secondary, weaker signal)", () => {
     const enabling = productionSourceFiles().filter((f) =>
       /\btargetMins\s*:/.test(readFileSync(f, "utf8"))
     );
 
     expect(enabling.sort()).toEqual([
       join("src", "lib", "week-plan", "fill.ts"),
-      join("src", "lib", "week-plan", "service.ts"),
     ]);
   });
 });

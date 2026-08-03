@@ -118,6 +118,46 @@ export interface FillOptions {
   today: string;
 }
 
+/**
+ * Whether fill may run this week at all, decided from inputs the caller has
+ * already resolved (plan lookup, live target, taper fraction) — kept
+ * separate from that I/O so the DECISION itself is pure and directly
+ * testable, rather than only reachable through a DB-backed integration test
+ * that skips in CI.
+ *
+ * Declines outright (returns null), never a phase-aware ceiling, in two
+ * cases:
+ *  - `hasActivePlan` is false — there is nothing to grow toward.
+ *  - `taperFraction` is non-null — this week is a taper or race week.
+ *    `materializeWeek` deliberately shrinks such a week
+ *    (`taperFractionForWeek`), but neither `fillCeilingMins` nor the live
+ *    target it fills toward has any notion of phase or race proximity.
+ *    Freeing up time during a taper must not undo it. This is the same
+ *    "decline rather than invent an unjustified bound" reasoning fill
+ *    already applies to swimming and to long runs — fill has no defensible
+ *    taper bound of its own, so refusing the whole week is the honest
+ *    answer, not a partial one.
+ *
+ * Otherwise returns the `FillOptions` fill should use, converting the live
+ * target from HOURS to MINUTES (the only unit conversion this function
+ * does — never through `loadPerHour`, which does not apply here).
+ */
+export function resolveFillOptions(input: {
+  hasActivePlan: boolean;
+  taperFraction: number | null;
+  targetHours: number;
+  queenStageHours: number | null;
+  today: string;
+}): FillOptions | null {
+  if (!input.hasActivePlan) return null;
+  if (input.taperFraction != null) return null;
+  return {
+    targetMins: Math.round(input.targetHours * 60),
+    queenStageHours: input.queenStageHours,
+    today: input.today,
+  };
+}
+
 /** Completed, missed and race days are never touched, exactly as in replan.ts. */
 function locked(d: DaySlot): boolean {
   return (

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { fillCeilingMins, fillSport, fillWeek, plannedMins } from "./fill";
+import {
+  fillCeilingMins,
+  fillSport,
+  fillWeek,
+  plannedMins,
+  resolveFillOptions,
+} from "./fill";
 import type { DaySlot, ScheduledWorkout } from "./types";
 import type { AvailabilityBlock } from "@/lib/availability/types";
 import {
@@ -48,6 +54,72 @@ describe("fillCeilingMins", () => {
     for (const p of ["vo2max", "threshold", "brick", "recovery"] as const) {
       expect(fillCeilingMins(p, "Bike", 4)).toBeNull();
     }
+  });
+});
+
+describe("resolveFillOptions", () => {
+  const base = {
+    hasActivePlan: true,
+    taperFraction: null as number | null,
+    targetHours: 10,
+    queenStageHours: 4 as number | null,
+    today: "2026-08-03",
+  };
+
+  it("declines when there is no active plan", () => {
+    expect(resolveFillOptions({ ...base, hasActivePlan: false })).toBeNull();
+  });
+
+  it("declines when there is no active plan, even with a taper fraction set too", () => {
+    // Both reasons to decline present at once — the no-plan check must not
+    // depend on taperFraction having already been read.
+    expect(
+      resolveFillOptions({ ...base, hasActivePlan: false, taperFraction: 0.45 })
+    ).toBeNull();
+  });
+
+  it("declines a taper week", () => {
+    expect(resolveFillOptions({ ...base, taperFraction: 0.65 })).toBeNull();
+  });
+
+  it("declines a race week", () => {
+    expect(resolveFillOptions({ ...base, taperFraction: 0.45 })).toBeNull();
+  });
+
+  it("declines when taperFraction is zero — non-null, not falsy, is the test", () => {
+    // 0 is a legitimate (if extreme) taper fraction. A `!input.taperFraction`
+    // check would wrongly let a week with taperFraction 0 through; only
+    // `!= null` may gate this.
+    expect(resolveFillOptions({ ...base, taperFraction: 0 })).toBeNull();
+  });
+
+  it("returns FillOptions with an active plan and no taper", () => {
+    const r = resolveFillOptions({ ...base, targetHours: 10 });
+    expect(r).toEqual({
+      targetMins: 600,
+      queenStageHours: 4,
+      today: "2026-08-03",
+    });
+  });
+
+  it("converts targetHours to targetMins by rounding, not truncating or ceiling", () => {
+    // 5.51h × 60 = 330.6min → rounds to 331; floor/truncate would give 330.
+    expect(resolveFillOptions({ ...base, targetHours: 5.51 })?.targetMins).toBe(
+      331
+    );
+    // 5.49h × 60 = 329.4min → rounds DOWN to 329; ceil would give 330.
+    expect(resolveFillOptions({ ...base, targetHours: 5.49 })?.targetMins).toBe(
+      329
+    );
+  });
+
+  it("passes queenStageHours and today through unchanged, including null", () => {
+    expect(
+      resolveFillOptions({ ...base, queenStageHours: null })?.queenStageHours
+    ).toBeNull();
+    expect(resolveFillOptions({ ...base, today: "2026-12-25" })?.today).toBe(
+      "2026-12-25"
+    );
   });
 });
 
@@ -531,5 +603,52 @@ describe("fillWeek — 1b add one", () => {
 
     expect(r.days[0].workouts).toHaveLength(2);
     expect(r.days[0].status).toBe("adapted");
+  });
+});
+
+describe("fillWeek — 1a and 1b in the same call", () => {
+  // The seam between the two sub-steps: every 1a-only test above is sized so
+  // the loop's `planned < opts.targetMins` guard goes false before 1b could
+  // ever run, and every 1b-only test's existing session already fills its
+  // block, making 1a a guaranteed no-op. Neither exercises 1a and 1b BOTH
+  // mutating `planned` within one `fillWeek` call — the exact seam a
+  // per-sub-step diff review cannot see.
+  it("grows day 0's session to its block cap, then adds a new session to day 1, honouring one shared target", () => {
+    // Day 0: 60min session in a 120min block — 1a grows it to the block's
+    // full 120 (queenStageHours 4 → ceiling 240, non-binding). Day 1: a free
+    // 180min block — after 1a, planned (120) is still short of target (400),
+    // so 1b places one new session there.
+    const d = days([
+      { mins: [120], workouts: [w({ durationMins: 60 })] },
+      { mins: [180] },
+    ]);
+
+    const r = fillWeek(d, {
+      targetMins: 400,
+      queenStageHours: 4,
+      today: "2026-08-03",
+    });
+
+    // 1a fired: day 0 grew to its block cap.
+    expect(r.days[0].workouts[0].durationMins).toBe(120);
+    // 1b fired too: day 1 received a new session.
+    expect(r.days[1].workouts).toHaveLength(1);
+    expect(r.days[1].workouts[0].sport).toBe("Bike");
+
+    // No double-counting: total planned time never exceeds the shared
+    // target, even though both sub-steps added to it in the same call.
+    expect(plannedMins(r.days)).toBeLessThanOrEqual(400);
+    expect(plannedMins(r.days)).toBe(120 + 180);
+
+    // Both adjustments logged, each describing the day it actually touched.
+    expect(r.adjustments).toHaveLength(2);
+    expect(r.adjustments[0].date).toBe(d[0].date);
+    expect(r.adjustments[0].action).toBe("added");
+    expect(r.adjustments[1].date).toBe(d[1].date);
+    expect(r.adjustments[1].action).toBe("added");
+
+    // The first adjustment's `after` snapshot (day 0, post-grow) is not
+    // retroactively touched by the second sub-step's edit to day 1.
+    expect(r.adjustments[0].after[0].workouts[0].durationMins).toBe(120);
   });
 });
