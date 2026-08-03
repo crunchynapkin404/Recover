@@ -156,4 +156,30 @@ describe("fillSport", () => {
       fillSport(days([{ workouts: [w({ sport: "Swim" })] }]), 4)
     ).toBeNull();
   });
+
+  // Pins that exclusion is per-workout-purpose, not per-sport: a sport can
+  // hold more raw minutes and still lose, because fillCeilingMins is asked
+  // about each workout's own purpose. Run here totals 150 minutes across two
+  // "long" sessions — a long run has no bound yet (athlete-relative, does
+  // not exist in this codebase) — against Bike's single 30-minute
+  // "aerobic_base" ride, which IS bounded. If fillSport asked about a fixed
+  // canary purpose (or the sport in general) instead of x.purpose, Run's 150
+  // minutes would win; Bike must win instead.
+  it("excludes a sport's minutes by each session's own purpose, not the sport as a whole", () => {
+    const d = days([
+      {
+        workouts: [
+          w({ sport: "Run", type: "Long", purpose: "long", durationMins: 90 }),
+        ],
+      },
+      {
+        workouts: [
+          w({ sport: "Run", type: "Long", purpose: "long", durationMins: 60 }),
+        ],
+      },
+      { workouts: [w({ sport: "Bike", durationMins: 30 })] },
+    ]);
+
+    expect(fillSport(d, 4)).toBe("Bike");
+  });
 });
