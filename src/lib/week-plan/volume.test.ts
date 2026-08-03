@@ -344,3 +344,28 @@ describe("currentTargetLoad", () => {
     ).toBeNull();
   });
 });
+
+describe("adherence is not scaled", () => {
+  it("keeps using the frozen target even when the week has grown", () => {
+    // The guard on this release's central decision. Adherence asks "what did
+    // you set out to do?", and its answer gates the low-adherence safety rail
+    // in materialize.ts. If a future change routes adherence through
+    // currentTargetLoad, a week that adapted downward would score ~100%, the
+    // rail would stop firing, and a sick athlete would be handed a full week.
+    const frozen = 400;
+    const scaled = currentTargetLoad({
+      effectiveTarget: frozen,
+      materializedMins: 800,
+      currentMins: 1200,
+    });
+
+    // The two must be genuinely different, or this test proves nothing.
+    expect(scaled).toBe(600);
+    expect(scaled).not.toBe(frozen);
+
+    // Adherence uses the frozen figure: 300 actual against 400 is 75%.
+    expect(Math.round((300 / frozen) * 100)).toBe(75);
+    // Against the scaled figure it would read 50% and cross the 70% rail.
+    expect(Math.round((300 / scaled!) * 100)).toBe(50);
+  });
+});
