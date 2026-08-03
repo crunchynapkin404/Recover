@@ -24,6 +24,9 @@ import { fetchAthleteContext } from "@/lib/coach-context";
 import { inferSports } from "@/lib/training-plan";
 import { findOrCreateMorningThread } from "@/lib/morning-insight";
 import { describeActivityOnStravaForUser } from "@/lib/strava-describer";
+import { currentTargetLoad } from "@/lib/week-plan/volume";
+import { plannedMins } from "@/lib/week-plan/fill";
+import type { DaySlot } from "@/lib/week-plan/types";
 
 export const DEBRIEF_NO_DATA_HOURS = 48;
 
@@ -264,11 +267,12 @@ export async function runRaceDebriefs(
         .sort((a, b) => b.weekNumber - a.weekNumber)
         .slice(0, 2);
       if (closed.length > 0) {
-        // "Planned" must be the week's persisted effective target (post-
-        // taper, post-hours-budget), not the block's un-tapered skeleton
-        // value — otherwise a perfectly-executed taper reports as if the
-        // athlete fell far short. Rows written before the column existed
-        // fall back to the block's skeleton target.
+        // "Planned" must be the week's target as it finally stood (post-
+        // taper, post-hours-budget — see currentTargetLoad below), not the
+        // block's un-tapered skeleton value — otherwise a perfectly-executed
+        // taper reports as if the athlete fell far short. Rows written
+        // before the column existed fall back to the block's skeleton
+        // target.
         const weekRows = await db.query.weekPlans.findMany({
           where: and(
             eq(schema.weekPlans.planId, planId),
@@ -282,8 +286,19 @@ export async function runRaceDebriefs(
         });
         // Later weekStart wins per skeleton week — the plan-regeneration
         // edge case can leave more than one closed row per skeleton week.
+        // The week's target as it finally stood, not as first materialized: a taper
+        // week that shed or gained sessions should be reported as what it actually
+        // asked for. Weeks written before `materialized_mins` existed fall back to
+        // the stored target, unchanged.
         const effectiveByWeek = new Map(
-          weekRows.map((w) => [w.skeletonWeek, w.effectiveTarget])
+          weekRows.map((w) => [
+            w.skeletonWeek,
+            currentTargetLoad({
+              effectiveTarget: w.effectiveTarget,
+              materializedMins: w.materializedMins,
+              currentMins: plannedMins(w.days as DaySlot[]),
+            }),
+          ])
         );
         const planned = closed.reduce(
           (s, b) =>
