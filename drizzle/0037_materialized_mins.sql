@@ -1,0 +1,11 @@
+-- A week's effective_target load is written once at materialization, but
+-- the replan ladder keeps changing that week's actual sessions all week
+-- long, so the stored target quietly stops describing the week it belongs
+-- to. This column is the missing half: the week's planned minutes at that
+-- same materialization moment, so effective_target / materialized_mins is
+-- a load-per-minute rate fixed to what the week was actually built at
+-- (see weekLoadPerMin / currentTargetLoad in src/lib/week-plan/volume.ts).
+--
+-- Additive and idempotent: existing rows get NULL, and every reader falls
+-- back to its prior behaviour when it sees NULL.
+ALTER TABLE "week_plans" ADD COLUMN IF NOT EXISTS "materialized_mins" integer;

@@ -877,6 +877,11 @@ export const weekPlans = pgTable(
     // which stays the un-tapered skeleton value. null on rows written before
     // this column existed and on rows the adaptive engines never touch.
     effectiveTarget: real("effective_target"),
+    // The week's total planned minutes as materialized, from plannedMins().
+    // Written once and never updated, so `effective_target / materialized_mins`
+    // is the load-per-minute rate the week was built at. null on rows written
+    // before this column existed; readers fall back to their prior behaviour.
+    materializedMins: integer("materialized_mins"),
     // Set when the athlete confirms the week's availability — even without
     // changing anything. The weekly prompt fires only while this is null,
     // so confirming an unchanged week silences it.

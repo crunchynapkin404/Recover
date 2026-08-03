@@ -17,7 +17,7 @@ import type { AvailabilityBlock } from "@/lib/availability/types";
 import { periodize } from "@/lib/training-plan";
 import { assembleVolumeInputs, assembleWeeklyTarget } from "./volume-inputs";
 import { hoursForMaterialize, weeklyTargetHours } from "./volume";
-import { resolveFillOptions } from "./fill";
+import { plannedMins, resolveFillOptions } from "./fill";
 import { taperFractionForWeek } from "@/lib/race/taper";
 
 export type AdjustmentRow = typeof schema.planAdjustments.$inferSelect;
@@ -30,6 +30,8 @@ export interface OpenWeekPlan {
   days: DaySlot[];
   /** materializeWeek's effectiveLoad for this week — null on pre-fix rows. */
   effectiveTarget: number | null;
+  /** The week's planned minutes as materialized — null on pre-fix rows. */
+  materializedMins: number | null;
   /** Set once the athlete (or the coach, on their behalf) confirms this week's availability. */
   availabilityConfirmedAt: Date | null;
   /** Set once this week's availability nudge has actually been pushed. */
@@ -155,6 +157,7 @@ export async function getOpenWeekPlan(
     skeletonWeek: row.skeletonWeek,
     days: row.days as DaySlot[],
     effectiveTarget: row.effectiveTarget,
+    materializedMins: row.materializedMins,
     availabilityConfirmedAt: row.availabilityConfirmedAt,
     availabilityPromptedAt: row.availabilityPromptedAt,
   };
@@ -332,6 +335,7 @@ export async function rolloverWeekPlan(
       days: r.week.days,
       status: "open",
       effectiveTarget: r.effectiveLoad,
+      materializedMins: plannedMins(r.week.days),
     })
     .returning();
   if (supersededPlan) {
