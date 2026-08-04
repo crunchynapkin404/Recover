@@ -58,9 +58,11 @@ type ArmIsSuspect<Row, Exempt extends string> = Row extends unknown
   : never;
 
 /**
- * Resolves to `true` only when every member of the (possibly-union) `Row`
- * type is a closed, literal-keyed object shape that provably lacks
- * `Exempt` as a key. Resolves to `never` — failing the assertions below —
+ * Resolves to `true` when every member of the (possibly-union) `Row` type
+ * is a closed, literal-keyed object shape that provably lacks `Exempt` as
+ * a key — and also, vacuously, for a `Row` with no statically known keys
+ * at all, which is the one case this guard does not prove (see below).
+ * Resolves to `never` — failing the assertions below —
  * for the four ways a type can *claim* the key is absent without proving
  * it: `Row` is `any`; `Row` carries a `string` index signature (e.g.
  * `Record<string, unknown>`, whose `keyof` is `string` and so is never
@@ -74,8 +76,8 @@ type ArmIsSuspect<Row, Exempt extends string> = Row extends unknown
  * guard vacuously (`keyof` gives `never`, so no key, including `Exempt`,
  * can be shown present). That is not a gap in practice: `export-user.ts`
  * builds every exempted row from `Omit<schema.X.$inferSelect, ...>`, and
- * a `Row` that vague couldn't be read anywhere else in this file either
- * (no property access on `unknown`/`object` would typecheck) — so it
+ * a `Row` that vague couldn't be read in `import-user.ts` either (no
+ * property access on `unknown`/`object` would typecheck) — so it
  * can't arise from a real refactor without failing loudly elsewhere
  * first. The four holes this guard closes are exactly the four in the
  * review that motivated it: `any`, an index signature, a union with the
