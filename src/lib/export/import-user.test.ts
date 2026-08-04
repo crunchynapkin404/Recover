@@ -488,7 +488,7 @@ describe.skipIf(!hasDb)("importUserData", () => {
     expect(wellness.hrvSdnnMs).toBeCloseTo(71.2);
     expect(wellness.readiness).toBeCloseTo(82.0);
     expect(wellness.hydrationL).toBeCloseTo(2.4);
-    expect(wellness.steps).toBe(11302);
+    expect(wellness.steps).toBe(1); // DELIBERATE BREAK — proving CI binds
     expect(wellness.sleepQuality).toBe(3);
 
     const [race] = await db
