@@ -2,7 +2,8 @@ import { z } from "zod";
 import type { ToolDefinition, ToolContext } from "./registry";
 import { schema } from "@/lib/db";
 import type { Projected } from "@/lib/db/projected";
-import { listRaces } from "@/lib/race/service";
+import { listRaces, stagesByRaceIds } from "@/lib/race/service";
+import type { RaceStageDetail } from "@/lib/race/service";
 
 const parameters = z.object({
   status: z.enum(["upcoming", "completed", "skipped"]).optional(),
@@ -34,6 +35,7 @@ type WithheldRaceColumn =
  */
 type ProjectedRace = Projected<typeof schema.races, WithheldRaceColumn> & {
   daysToRace: number;
+  stages: RaceStageDetail[];
 };
 
 function daysFromToday(ymd: string): number {
@@ -48,25 +50,25 @@ function daysFromToday(ymd: string): number {
 
 async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
   const races = await listRaces(ctx.userId, args);
+  const stages = await stagesByRaceIds(races.map((r) => r.id));
   return {
-    races: races.map(
-      (r): ProjectedRace => ({
-        id: r.id,
-        name: r.name,
-        raceType: r.raceType,
-        sport: r.sport,
-        date: r.date,
-        priority: r.priority,
-        status: r.status,
-        goalNote: r.goalNote,
-        eventDays: r.eventDays,
-        distanceKm: r.distanceKm,
-        elevationM: r.elevationM,
-        demandHoursOverride: r.demandHoursOverride,
-        resultActivityId: r.resultActivityId,
-        daysToRace: daysFromToday(r.date),
-      })
-    ),
+    races: races.map((r): ProjectedRace => ({
+      id: r.id,
+      name: r.name,
+      raceType: r.raceType,
+      sport: r.sport,
+      date: r.date,
+      priority: r.priority,
+      status: r.status,
+      goalNote: r.goalNote,
+      eventDays: r.eventDays,
+      distanceKm: r.distanceKm,
+      elevationM: r.elevationM,
+      demandHoursOverride: r.demandHoursOverride,
+      resultActivityId: r.resultActivityId,
+      daysToRace: daysFromToday(r.date),
+      stages: stages.get(r.id) ?? [],
+    })),
   };
 }
 
