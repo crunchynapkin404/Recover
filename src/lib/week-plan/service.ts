@@ -16,8 +16,12 @@ import { providerSportAliases } from "@/lib/canonical-sport";
 import type { AvailabilityBlock } from "@/lib/availability/types";
 import { periodize } from "@/lib/training-plan";
 import { assembleVolumeInputs, assembleWeeklyTarget } from "./volume-inputs";
-import { hoursForMaterialize, weeklyTargetHours } from "./volume";
-import { resolveFillOptions } from "./fill";
+import {
+  hoursForMaterialize,
+  weeklyTargetHours,
+  weekAdherencePct,
+} from "./volume";
+import { plannedMins, resolveFillOptions } from "./fill";
 import { taperFractionForWeek } from "@/lib/race/taper";
 
 export type AdjustmentRow = typeof schema.planAdjustments.$inferSelect;
@@ -30,6 +34,8 @@ export interface OpenWeekPlan {
   days: DaySlot[];
   /** materializeWeek's effectiveLoad for this week — null on pre-fix rows. */
   effectiveTarget: number | null;
+  /** The week's planned minutes as materialized — null on pre-fix rows. */
+  materializedMins: number | null;
   /** Set once the athlete (or the coach, on their behalf) confirms this week's availability. */
   availabilityConfirmedAt: Date | null;
   /** Set once this week's availability nudge has actually been pushed. */
@@ -155,6 +161,7 @@ export async function getOpenWeekPlan(
     skeletonWeek: row.skeletonWeek,
     days: row.days as DaySlot[],
     effectiveTarget: row.effectiveTarget,
+    materializedMins: row.materializedMins,
     availabilityConfirmedAt: row.availabilityConfirmedAt,
     availabilityPromptedAt: row.availabilityPromptedAt,
   };
@@ -214,13 +221,15 @@ export async function rolloverWeekPlan(
         eq(schema.trainingBlocks.weekNumber, row.skeletonWeek)
       ),
     });
-    // The week's persisted effective target (post-taper, post-hours-budget)
-    // wins over the block's un-tapered skeleton value — a taper week closed
-    // out at 100% of its actual (small) target must not score ~45% just
-    // because the skeleton block still holds the pre-taper number. Rows
-    // written before this column existed fall back to the block value.
-    const target = row.effectiveTarget ?? block?.targetLoadTotal ?? null;
-    const adherencePct = target ? Math.round((actualLoad / target) * 100) : 0;
+    // Feeds `prevWeek.adherencePct`, which gates the low-adherence safety
+    // rail in materialize.ts. See weekAdherencePct's doc in volume.ts for why
+    // this must read the week's frozen target rather than a rate, and for
+    // the effectiveTarget-over-blockTarget fallback reasoning.
+    const adherencePct = weekAdherencePct({
+      effectiveTarget: row.effectiveTarget,
+      blockTarget: block?.targetLoadTotal ?? null,
+      actualLoad,
+    });
     if (block) {
       await db
         .update(schema.trainingBlocks)
@@ -332,6 +341,7 @@ export async function rolloverWeekPlan(
       days: r.week.days,
       status: "open",
       effectiveTarget: r.effectiveLoad,
+      materializedMins: plannedMins(r.week.days),
     })
     .returning();
   if (supersededPlan) {

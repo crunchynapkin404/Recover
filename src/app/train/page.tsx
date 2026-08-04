@@ -51,6 +51,8 @@ import {
   planConstraints,
 } from "@/lib/week-plan/service";
 import { assembleWeeklyTarget } from "@/lib/week-plan/volume-inputs";
+import { currentTargetLoad } from "@/lib/week-plan/volume";
+import { plannedMins } from "@/lib/week-plan/fill";
 import { assessFeasibility, type Feasibility } from "@/lib/race/feasibility";
 import type { EventDemand } from "@/lib/race/demand";
 import {
@@ -374,11 +376,11 @@ async function WeekTab({
       new Date(),
       { availabilityHours, planHoursPerWeek: constraints.hoursPerWeek }
     );
-    const plannedHours =
-      week.days.reduce(
-        (s, d) => s + d.workouts.reduce((t, w) => t + w.durationMins, 0),
-        0
-      ) / 60;
+    // plannedMins is the one definition of "the week's minutes" in this
+    // codebase — the same function that produced `materialized_mins`. A
+    // second hand-rolled sum here would let the figure the athlete reads
+    // drift from the one the forecast reasons about.
+    const plannedHours = plannedMins(week.days) / 60;
 
     rationale = {
       reasons,
@@ -482,11 +484,7 @@ async function WeekTab({
   // projected week has no rationale panel of its own (v0.29.0 kept those
   // panels weekly). Guarded independently of `nextWeekPreview` so a future
   // change to that derivation can't leave these reading `NaN`.
-  const nextWeekPlannedHours =
-    (projected?.days.reduce(
-      (s, d) => s + d.workouts.reduce((t, w) => t + w.durationMins, 0),
-      0
-    ) ?? 0) / 60;
+  const nextWeekPlannedHours = projected ? plannedMins(projected.days) / 60 : 0;
   const nextWeekTargetHours = projected?.target.hours ?? 0;
 
   // Availability intake. This week's half only applies while the week
@@ -542,7 +540,12 @@ async function WeekTab({
           currentCtl: latestMetric?.ctl ?? null,
           loadPerHour,
           historyDays,
-          effectiveTarget: week.effectiveTarget ?? 0,
+          effectiveTarget:
+            currentTargetLoad({
+              effectiveTarget: week.effectiveTarget,
+              materializedMins: week.materializedMins,
+              currentMins: plannedMins(week.days),
+            }) ?? 0,
         });
 
     // Next week's OWN data — not this week's, copied. This is the second

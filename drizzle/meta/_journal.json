@@ -260,6 +260,13 @@
       "when": 1785648668699,
       "tag": "0036_wellness_poll_interval",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1785785777987,
+      "tag": "0037_materialized_mins",
+      "breakpoints": true
     }
   ]
 }

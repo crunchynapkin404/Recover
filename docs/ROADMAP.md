@@ -790,6 +790,35 @@ intensity sessions and the taper untouched.
 
 No migrations.
 
+## ✅ v0.38 — The Week's Target Follows the Week
+
+A week's target load was written once, at materialization, and never
+updated — but the replan ladder kept reshaping that week all week long, so
+the stored number drifted away from the week it described. Three readers
+were still trusting it as current: the race-day forecast, the CTL
+projection on `/train`, and the taper stat in the race debrief.
+
+- [x] **A new column, `materialized_mins`**, records the week's planned
+      minutes alongside the target load already captured at
+      materialization, so `effective_target / materialized_mins` is a
+      load-per-minute rate fixed to what the week was actually built at.
+- [x] **The forecast, the CTL projection, and the taper stat** now derive
+      from that rate applied to the week as it stands, so a day's projected
+      load depends only on that day's own minutes — not on a frozen total
+      redistributed across whatever days happen to remain.
+- [x] **Adherence and next week's progression still read the frozen
+      target**, deliberately: that number gates the low-adherence safety
+      rail, and scoring it against a rate would let a week that shrank
+      mid-week read back as fully met.
+- [x] **Account import carries the column through** as well, so an
+      imported account's weeks are not stranded on the fallback path.
+
+**Done when:** a week containing completed days projects less future load
+than before, because future days no longer inherit the load share of days
+already completed.
+
+One additive migration, `materialized_mins`, nullable, no backfill.
+
 ## Ongoing — operations track
 
 All items scheduled into **v0.17 — Good Self-Hosted Citizen** by the v0.9.6
