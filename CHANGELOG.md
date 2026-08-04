@@ -11,11 +11,12 @@ what the event demands — and `race_stages`, the per-day detail, was never
 queried at all. The planner read all of it. The coach discussing that plan read
 none of it.
 
-Nothing failed, which is why it lasted eighteen releases. A projection that
-stops mirroring its table does not throw; the coach simply answers with less,
-fluently, and the omission is invisible unless you already know what it should
-have said. That is the same defect v0.39 found in the importer, where four of
-six commits to one file had been fixes for the same silent drift.
+Nothing failed, which is why it lasted nineteen tagged releases, v0.28.0
+through v0.40.1. A projection that stops mirroring its table does not throw;
+the coach simply answers with less, fluently, and the omission is invisible
+unless you already know what it should have said. That is the same defect
+v0.39 found in the importer, where four of six commits to one file had been
+fixes for the same silent drift.
 
 So the fix is a type rather than a longer list. `Projected<>` is the read-side
 twin of v0.39's `Carried<>`: it requires every column of a table except an

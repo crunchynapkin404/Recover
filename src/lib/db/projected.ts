@@ -9,7 +9,8 @@
  * `distance_km`, `elevation_m` and `demand_hours_override` to `races` so the
  * planner could size the week from what the event demands. The planner read
  * them; `get_races` — the tool the coach uses to discuss that very plan —
- * kept projecting the nine fields it was born with, for thirteen releases.
+ * kept projecting the nine fields it was born with, for nineteen tagged
+ * releases, v0.28.0 through v0.40.1.
  *
  * Unlike `Carried`, optionality is not the hazard: `$inferSelect` marks every
  * column required already, so `Required<>` would be a no-op and is omitted.

@@ -75,7 +75,7 @@ async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
 export const getRacesTool: ToolDefinition<typeof parameters> = {
   name: "get_races",
   description:
-    "List the athlete's races with everything on file for each: A/B/C priority, date, countdown in days, goal note, status, and what the event demands — the number of event days, total distance and elevation, the athlete's own weekly-hours override, and a `stages` array giving per-day name, distance and elevation. `stages` is empty BOTH for a one-day race AND for a multi-day event whose per-day detail has not been entered, so an empty array means no per-day detail is on file — never that the days are flat or easy. Check `eventDays` to tell the two apart. The races table is the source of truth for races — prefer it over memory.",
+    "List the athlete's races with everything on file for each: A/B/C priority, date, countdown in days, goal note, status, and what the event demands — the number of event days, total distance and elevation, the athlete's own weekly-hours override, and a `stages` array giving per-day number, name, distance and elevation. `stages` is empty BOTH for a one-day race AND for a multi-day event whose per-day detail has not been entered, so an empty array means no per-day detail is on file — never that the days are flat or easy. Check `eventDays` to tell the two apart. The races table is the source of truth for races — prefer it over memory.",
   parameters,
   execute,
 };

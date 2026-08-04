@@ -343,9 +343,10 @@ async function writeRaceDemand(
         distanceKm: input.distanceKm,
         elevationM: roundElevation(input.elevationM),
         // Omitted means "leave it alone", not "clear it". addRace has already
-        // written the goal through createRace, and this is reachable as a
-        // "use server" export by a caller that never had a goal field — a
-        // demand-only correction must not erase one.
+        // written the goal through createRace, and updateRaceDemand — the
+        // exported "use server" action that calls this helper — is reachable
+        // by a caller other than our own form, one that may not send a goal
+        // field at all; a demand-only correction must not erase one.
         ...(input.goalNote !== undefined ? { goalNote: input.goalNote } : {}),
         updatedAt: new Date(),
       })

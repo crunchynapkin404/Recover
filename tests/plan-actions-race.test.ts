@@ -501,6 +501,20 @@ describe.skipIf(!hasDb)("plan race actions", () => {
         (await db.query.races.findFirst({ where: eq(schema.races.id, raceId) }))
           ?.goalNote
       ).toBeNull();
+
+      // Null — set a goal again first, so this proves literal null actually
+      // clears a previously-set goal rather than confirming an already-null
+      // column.
+      expect(
+        await updateRaceDemand(raceId, { ...demand, goalNote: "sub 4h again" })
+      ).toEqual({ ok: true });
+      expect(
+        await updateRaceDemand(raceId, { ...demand, goalNote: null })
+      ).toEqual({ ok: true });
+      expect(
+        (await db.query.races.findFirst({ where: eq(schema.races.id, raceId) }))
+          ?.goalNote
+      ).toBeNull();
     });
   });
 });
