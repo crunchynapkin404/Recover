@@ -17,8 +17,9 @@ once without:
 
 **405 tests — 23% of the suite — have never run on a pull request.** They are
 not incidental: they cover the importer, the scheduler, the week planner, the
-sync connectors, and the export round trip. Every release that claimed a green
-CI was claiming it over three quarters of its tests.
+sync connectors, and the export round trip. A green CI on this project has never
+meant more than 77% of the suite — and the missing 23% is the database-backed
+part, which is where this project's defects have actually lived.
 
 ## What the investigation actually found
 
