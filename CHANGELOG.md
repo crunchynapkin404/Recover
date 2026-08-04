@@ -1,5 +1,46 @@
 # Changelog
 
+## v0.39.0 — 2026-08-04 — The Importer Carries Everything
+
+Importing an exported account silently discarded fourteen columns across
+five tables. Six wellness fields — sleeping heart rate, HRV SDNN, readiness,
+hydration, steps and sleep quality — were dropped, which is the entire yield
+of the Apple Health route. So were the four race fields that weekly training
+volume is derived from, meaning an imported account's plan was built from a
+different event than the athlete had entered; a manual athlete-level
+override; the inbox's read state; and the two availability timestamps
+v0.38.0 had already identified and deferred. Every one of these is
+documented by the export side as carried verbatim.
+
+The importer lists each table's columns in a hand-written object literal,
+and Drizzle marks a column optional in its insert type whenever the column
+is nullable or has a default — which is nearly all of them. Omitting one
+therefore compiled cleanly and lost data at runtime. This was not a rare
+slip: four of the six commits that file has ever received were fixes for
+exactly this, and the wellness table lost columns twice.
+
+So this release changes the mechanism rather than the list. Every insert now
+carries a type requiring each column the export emits, with a small explicit
+exemption list — regenerated row ids, and the two fields the export
+deliberately strips because they are a bulky provider payload and a
+credential. Leaving a column out is now a compile error naming the missing
+field, caught before a pull request can merge, and adding a column to the
+schema without carrying it through cannot pass the build. The exemptions
+carry their own guard: if the export ever starts emitting one of them, the
+exemption stops compiling. The export → wipe → import drill
+(`scripts/export-import-drill.ts`) was also extended to content-compare all
+eighteen of its importable tables, not six — week_plans, home to two of this
+release's fourteen columns, was among the twelve the drill had never
+actually compared, so nothing had verified those columns' survival through a
+real round trip until now.
+
+There is no repair path for accounts imported before this release. The data
+was discarded at insert time and nothing holds a copy. An operator who still
+has the original export file can import it into a fresh account; importing
+it again into the same account would duplicate every row, since import is
+additive rather than a replace. No migration, and no change to what the
+export emits.
+
 ## v0.38.0 — 2026-08-04 — The Week's Target Follows the Week
 
 A week's target load, `week_plans.effective_target`, is written once, at the
