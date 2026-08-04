@@ -312,6 +312,65 @@ describe.skipIf(!hasDb)("push pipeline", () => {
     expect(JSON.stringify(sentLine)).not.toContain('"body"');
   });
 
+  it("writes a durable push_sent row, so the record outlives the container", async () => {
+    // The log line above is erased by every deploy: Watchtower recreates the
+    // container, `docker logs` restarts empty, and the only reason the July
+    // double-push question could be answered at all was that the host happened
+    // to use journald and someone had sudo. A push that mattered five days ago
+    // should be answerable from the database, not from log-retention luck.
+    const { db, schema } = await import("@/lib/db");
+    const { sendToUser } = await import("@/lib/push");
+    const { and, eq: eqOp } = await import("drizzle-orm");
+
+    await db
+      .delete(schema.auditLog)
+      .where(eqOp(schema.auditLog.userId, USER_A));
+    await db
+      .delete(schema.pushSubscriptions)
+      .where(eq(schema.pushSubscriptions.userId, USER_A));
+    await db.insert(schema.pushSubscriptions).values({
+      userId: USER_A,
+      endpoint: "https://push.example/audit-live",
+      p256dh: "k",
+      auth: "a",
+    });
+    sendNotification.mockResolvedValue({});
+
+    await sendToUser(
+      USER_A,
+      { title: "t", body: "b", tag: "ride-debrief", url: "/" },
+      { activityId: "act-audit-1" }
+    );
+
+    const rows = await db.query.auditLog.findMany({
+      where: and(
+        eqOp(schema.auditLog.userId, USER_A),
+        eqOp(schema.auditLog.event, "push_sent")
+      ),
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0].metadata).toMatchObject({
+      tag: "ride-debrief",
+      subscriptions: 1,
+      sent: 1,
+      pruned: 0,
+      activityId: "act-audit-1",
+    });
+    // Same rule as the log line: the payload is personal data and must not be
+    // persisted here either.
+    expect(JSON.stringify(rows[0].metadata)).not.toContain('"body"');
+  });
+
+  it("keeps push_sent out of the owner-facing security view", async () => {
+    // audit_log is a security artifact — it feeds /admin's "Recent security
+    // events" list, which takes the most recent 50 rows. At two or three
+    // pushes per user per day, an unfiltered list would show nothing but
+    // pushes within a day and bury the logins and token grants it exists for.
+    const { SECURITY_EVENTS } = await import("@/lib/audit");
+    expect(SECURITY_EVENTS).not.toContain("push_sent");
+    expect(SECURITY_EVENTS).toContain("login_fail");
+  });
+
   it("logs a warning naming the reason whenever it prunes a subscription", async () => {
     // A silently deleted subscription is how push died unnoticed twice in
     // v0.25 — the athlete keeps riding, nothing arrives, nothing says why.

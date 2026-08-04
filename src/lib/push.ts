@@ -8,6 +8,7 @@ import { db, schema } from "@/lib/db";
 import { decrypt, encrypt } from "@/lib/crypto";
 import { vapidRecoveryAction } from "@/lib/vapid-recovery";
 import { logger } from "@/lib/logger";
+import { recordAuditEvent } from "@/lib/audit";
 import { getLatestMorningInsight } from "@/lib/morning-insight";
 
 export interface PushPayload {
@@ -197,17 +198,24 @@ export async function sendToUser(
   });
   // Logged even at zero subscriptions: "nothing to send to" is the shape
   // silent push death takes, and it used to leave no trace at all.
-  const record = (sent: number, pruned: number) =>
-    logger.info("push sent", {
-      userId,
+  const record = async (sent: number, pruned: number) => {
+    const detail = {
       tag: payload.tag,
       subscriptions: subs.length,
       sent,
       pruned,
       ...context,
-    });
+    };
+    logger.info("push sent", { userId, ...detail });
+    // The log line above dies with the container — Watchtower recreates it on
+    // every deploy and `docker logs` restarts empty, which is why a reported
+    // double push went five days without anyone being able to check it. The
+    // row outlives the deploy. Payload title/body are personal data and stay
+    // out of both, as does anything a caller puts in `context` beyond ids.
+    await recordAuditEvent({ event: "push_sent", userId, metadata: detail });
+  };
   if (subs.length === 0) {
-    record(0, 0);
+    await record(0, 0);
     return { sent: 0, pruned: 0 };
   }
 
@@ -258,7 +266,7 @@ export async function sendToUser(
       }
     }
   }
-  record(sent, pruned);
+  await record(sent, pruned);
   return { sent, pruned };
 }
 

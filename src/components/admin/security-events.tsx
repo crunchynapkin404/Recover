@@ -1,5 +1,6 @@
-import { desc } from "drizzle-orm";
+import { desc, inArray } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
+import { SECURITY_EVENTS } from "@/lib/audit";
 
 const EVENT_LABEL: Record<string, string> = {
   login_success: "Login",
@@ -15,7 +16,11 @@ const EVENT_LABEL: Record<string, string> = {
 };
 
 export async function SecurityEvents() {
+  // Security kinds only. audit_log also carries operational rows (push_sent),
+  // which at a few per user per day would fill these 50 slots within a day and
+  // bury the logins and token grants this view exists to surface.
   const events = await db.query.auditLog.findMany({
+    where: inArray(schema.auditLog.event, SECURITY_EVENTS),
     orderBy: desc(schema.auditLog.createdAt),
     limit: 50,
   });
