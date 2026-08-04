@@ -1,5 +1,48 @@
 # Changelog
 
+## v0.40.1 — 2026-08-04 — Pushes Leave a Record
+
+A push left a line on stdout and nothing else. Watchtower recreates the
+container on every deploy, so `docker logs` restarts empty each release, and
+the evidence for anything that happened before the last deploy is simply gone.
+That is why a double ride-debrief notification reported on 30 July went five
+days without an answer: the only surviving copy was in the host's journald,
+and reading it needed root. A question about a push five days ago should be
+answerable from the database.
+
+Every push now writes a `push_sent` row carrying the tag, the subscription
+count, and how many were sent and pruned — the same figures the log line
+already had, and no more. The notification's title and body are personal data
+and stay out of both.
+
+Those rows live in `audit_log`, which until now held only security events. A
+push is operational rather than security-relevant, so the owner's "Recent
+security events" view is now filtered to security kinds. It shows the fifty
+most recent rows, and at a few pushes per user per day an unfiltered list
+would have been nothing but pushes within a day, burying the logins and token
+grants it exists to surface.
+
+The split between the two kinds is a type witness rather than a hand-written
+list, so adding a new audited event without deciding which side it falls on is
+a compile error instead of a silent omission from the view. Writing it that
+way immediately surfaced a latent bug: `audit_log.event` carries its own enum
+in the schema that has to mirror the event type, and it did not include the new
+kind — an insert that worked at runtime and failed the build, because that
+constraint is type-level only. No migration; the column is plain text.
+
+On the double push that prompted this: it is not reproducing. Seven days of
+retained logs contain two ride-debrief pushes, for different rides, each one
+send to one subscription with nothing pruned — no activity notified twice — and
+the athlete confirms receiving a single notification for the most recent ride.
+The app is not sending twice.
+
+What caused the original report on 30 July is now undetermined and likely to
+stay that way: it predates the retained logs, so there is nothing left to read.
+Either the compare-and-swap that v0.30.1 added to the debrief claim closed a
+real race, or the phone displayed one notification twice. The honest answer is
+that we cannot tell, and the reason we cannot tell is the gap this release
+closes.
+
 ## v0.40.0 — 2026-08-04 — Tests That Bind in CI
 
 `npm test` ran in CI with no database. The environment block that supplied

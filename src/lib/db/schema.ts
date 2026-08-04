@@ -1013,6 +1013,9 @@ export const auditLog = pgTable("audit_log", {
       "webhook_revoked",
       "session_revoked",
       "session_revoked_others",
+      // Operational, not security — kept out of the owner's security view.
+      // See AuditEvent in src/lib/audit.ts, which this list must mirror.
+      "push_sent",
     ],
   }).notNull(),
   ip: text("ip"),
