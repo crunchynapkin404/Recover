@@ -46,9 +46,11 @@ connection and then runs tick passes over it.
 
 What prevents the outbound call is incidental: the seeded row carries
 `encryptedAccessToken: "x"`, `decrypt()` is called _before_ any HTTP request
-(`src/lib/sync/intervals-sync.ts:147`, `src/lib/sync/activity-poll.ts:101`), it
-throws under CI's all-zeros `ENCRYPTION_KEY`, and the tick's catch blocks log and
-continue. The moment a test seeds a properly-encrypted token, GitHub runners
+(`src/lib/sync/intervals-sync.ts:147`, `src/lib/sync/activity-poll.ts:101`), and
+it throws on the `iv:authTag:ciphertext` format check at
+`src/lib/crypto.ts:65` — before the key is applied at all, so this holds under
+any key rather than specifically CI's all-zeros one. The tick's catch blocks
+then log and continue. The moment a test seeds a properly-encrypted token, GitHub runners
 begin calling intervals.icu for real — flaky for us, and rude to a third party
 whose API this project depends on.
 
@@ -65,8 +67,10 @@ rather than racing it.
 
 The dummy env block currently scoped to the `npm run build` step moves to job
 level, so `npm test` sees the same values. They stay dummies — an all-zeros
-`ENCRYPTION_KEY` and a literal `ci-only-secret` — which is deliberate: the
-decrypt failures they cause are part of why no test can reach a real provider.
+`ENCRYPTION_KEY` and a literal `ci-only-secret` — for the ordinary reason that a
+public repository's workflow file must never carry a real secret, not because
+they provide any safety of their own. They do not: what stops a seeded token
+from decrypting is its format, independent of the key.
 
 ### 2. Migrations via the production runner
 

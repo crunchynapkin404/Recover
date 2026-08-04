@@ -4,12 +4,13 @@
  * Nothing enforced this before. `tests/scheduler.test.ts` seeds an *active*
  * intervals_icu connection and runs tick passes over it, and the only reason
  * no HTTP request left the machine is incidental: the seeded row carries a
- * placeholder `encryptedAccessToken`, `decrypt()` runs before the request is
- * built (src/lib/sync/intervals-sync.ts, src/lib/sync/activity-poll.ts), and
- * it throws under the all-zeros ENCRYPTION_KEY that CI and the tests use. The
- * day a test seeds a properly-encrypted token, CI runners would start calling
- * intervals.icu for real — flaky for us, and rude to a third party this
- * project depends on.
+ * placeholder `encryptedAccessToken` of `"x"`, `decrypt()` runs before the
+ * request is built (src/lib/sync/intervals-sync.ts, src/lib/sync/activity-poll.ts),
+ * and it throws on the `iv:authTag:ciphertext` format check in
+ * src/lib/crypto.ts before the key is ever applied — so this holds under any
+ * key, not just the all-zeros one CI uses. The day a test seeds a
+ * properly-encrypted token, CI runners would start calling intervals.icu for
+ * real — flaky for us, and rude to a third party this project depends on.
  *
  * This replaces that coincidence with a property. Code under test should take
  * an injected fetcher (see src/lib/webhooks/dispatch.test.ts, which passes
