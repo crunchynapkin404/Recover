@@ -37,10 +37,12 @@
 import assert from "node:assert/strict";
 // Relative imports, not "@/" — matches scripts/seed-owner.ts and
 // scripts/seed-demo.ts: tsx run standalone doesn't resolve the tsconfig
-// path alias.
+// path alias. `Carried` is a type-only import, erased before tsx ever sees
+// it, but kept relative anyway for consistency with the rest of this file.
 import { db, schema } from "../src/lib/db";
 import { exportUserData, type UserExport } from "../src/lib/export/export-user";
 import { importUserData } from "../src/lib/export/import-user";
+import type { Carried } from "../src/lib/export/carried";
 import { eq } from "drizzle-orm";
 
 const DRILL_USER = "drill-user-1";
@@ -108,133 +110,325 @@ async function seed() {
     email: "drill-user@example.invalid",
   });
 
-  await db.insert(schema.wellnessDaily).values({
+  // `Carried<..., "id">` forces this literal to populate every column
+  // wellness_daily has except `id` (regenerated on import) — the same
+  // exemption import-user.ts uses for this table. Every value below is
+  // chosen to be distinctive/non-default so a dropped column at any import
+  // site would show up as a real mismatch in compare(), not a null==null
+  // false-negative.
+  const wellnessSeed: Carried<typeof schema.wellnessDaily, "id"> = {
     userId: DRILL_USER,
     date: "2026-01-02",
     hrvMs: 55,
-    notes: "drill wellness note",
-    // vo2max is one of nine wellness_daily columns importUserData's
-    // explicit insert column list previously omitted; a real (non-null)
-    // value here means compare()'s full-row deepEqual below actually
-    // exercises the fix instead of comparing null against null.
+    restingHr: 47,
+    sleepSecs: 26400,
+    sleepScore: 88,
+    sleepDeepSecs: 5400,
+    sleepRemSecs: 4800,
+    sleepLightSecs: 14400,
+    sleepAwakeSecs: 1800,
+    bedStart: new Date("2026-01-01T22:15:00Z"),
+    bedEnd: new Date("2026-01-02T06:05:00Z"),
+    tempDeviationC: 0.3,
+    respiratoryRate: 14.2,
+    bloodOxygenPct: 97.5,
+    wristTempC: 33.1,
+    systolic: 118,
+    diastolic: 76,
+    bodyFatPct: 14.8,
+    ctl: 62.5,
+    atl: 58.2,
+    eftp: 275,
     vo2max: 48.2,
-  });
-  await db.insert(schema.dailyMetrics).values({
+    sleepingHr: 49,
+    hrvSdnnMs: 61.4,
+    readiness: 81,
+    hydrationL: 2.4,
+    steps: 8342,
+    sleepQuality: 4,
+    rampRate: 3.1,
+    pMax: 1050,
+    wPrime: 21500,
+    weightKg: 71.2,
+    bmi: 22.1,
+    leanMassKg: 60.5,
+    waistCm: 81,
+    energy1_10: 7,
+    soreness1_10: 3,
+    stress1_10: 2,
+    mood: "focused",
+    tags: ["drill-tag"],
+    dayFlags: ["travel"],
+    notes: "drill wellness note",
+    // `search` is GENERATED ALWAYS AS from `notes` — never set explicitly;
+    // Carried excludes it automatically (Drizzle drops generated columns
+    // from `$inferInsert`).
+    source: "whoop",
+    fieldSources: { hrvMs: "whoop" },
+    raw: { drillMarker: "wellness-raw" },
+    updatedAt: new Date("2026-01-02T07:00:00Z"),
+  };
+  await db.insert(schema.wellnessDaily).values(wellnessSeed);
+
+  const dailyMetricsSeed: Carried<typeof schema.dailyMetrics, "id"> = {
     userId: DRILL_USER,
     date: "2026-01-02",
     readiness: 72,
     band: "green",
-  });
-  await db.insert(schema.bodyPrefs).values({ userId: DRILL_USER, maxHr: 190 });
-  await db.insert(schema.notificationPrefs).values({ userId: DRILL_USER });
-  await db
-    .insert(schema.journalPrefs)
-    .values({ userId: DRILL_USER, usualBehaviorTags: ["caffeine"] });
-  await db.insert(schema.llmSettings).values({
+    componentScores: { hrv: 80, sleep: 75, rhr: 90 },
+    hrvBaselineMean: 4.02,
+    hrvBaselineSd: 0.18,
+    rhrBaselineMean: 48.5,
+    rhrBaselineSd: 2.3,
+    tsb: 5.4,
+    ctl: 63.1,
+    atl: 57.9,
+    loadSource: "computed",
+    computedAt: new Date("2026-01-02T09:00:00Z"),
+  };
+  await db.insert(schema.dailyMetrics).values(dailyMetricsSeed);
+
+  const bodyPrefsSeed: Carried<typeof schema.bodyPrefs, "id"> = {
+    userId: DRILL_USER,
+    wakeTime: "06:45",
+    sleepNeedSecs: 27000,
+    maxHr: 190,
+    ftpWatts: 285,
+    birthYear: 1990,
+    levelOverride: "advanced",
+  };
+  await db.insert(schema.bodyPrefs).values(bodyPrefsSeed);
+
+  const notificationPrefsSeed: Carried<typeof schema.notificationPrefs, "id"> =
+    {
+      userId: DRILL_USER,
+      morningPushEnabled: false,
+      lastMorningPushDate: "2026-01-01",
+      weeklyReviewDay: 3,
+      weeklyReviewHour: 19,
+      autoDescribeStrava: true,
+      stravaDescriptionFields: { load: true, ctl: false },
+      rideDebriefsEnabled: false,
+      debriefPushEnabled: true,
+    };
+  await db.insert(schema.notificationPrefs).values(notificationPrefsSeed);
+
+  const journalPrefsSeed: Carried<typeof schema.journalPrefs, "id"> = {
+    userId: DRILL_USER,
+    usualBehaviorTags: ["caffeine"],
+  };
+  await db.insert(schema.journalPrefs).values(journalPrefsSeed);
+
+  const llmSettingsSeed: Carried<
+    typeof schema.llmSettings,
+    "id" | "encryptedApiKey"
+  > = {
     userId: DRILL_USER,
     providerType: "anthropic",
+    baseUrl: "https://drill.example.invalid/v1",
     model: "claude-sonnet",
+    modelQuick: "claude-haiku-drill",
+    modelDeep: "claude-opus-drill",
+    defaultMode: "quick",
+    coachPersonality: "direct",
+    coachLanguage: "nl",
+    updatedAt: new Date("2026-01-02T10:00:00Z"),
     encryptedApiKey: "SECRET-SHOULD-NOT-SURVIVE-ROUNDTRIP",
-  });
-  await db.insert(schema.biomarkers).values({
+  };
+  await db.insert(schema.llmSettings).values(llmSettingsSeed);
+
+  const biomarkersSeed: Carried<typeof schema.biomarkers, "id"> = {
     userId: DRILL_USER,
     name: "ldl_cholesterol",
     displayName: "LDL Cholesterol",
+    category: "lipids",
     value: 95,
+    unit: "mg/dL",
     measuredAt: "2026-01-01",
     source: "manual",
-  });
-  await db.insert(schema.llmUsage).values({
+    confidence: 0.92,
+    rawLabel: "LDL Chol",
+    createdAt: new Date("2026-01-01T12:00:00Z"),
+  };
+  await db.insert(schema.biomarkers).values(biomarkersSeed);
+
+  const llmUsageSeed: Carried<typeof schema.llmUsage, "id"> = {
     userId: DRILL_USER,
     model: "claude-sonnet",
     slot: "deep",
     purpose: "chat",
     inputTokens: 100,
     outputTokens: 50,
-  });
-  await db.insert(schema.coachMemories).values({
+    createdAt: new Date("2026-01-02T11:00:00Z"),
+  };
+  await db.insert(schema.llmUsage).values(llmUsageSeed);
+
+  const coachMemoriesSeed: Carried<typeof schema.coachMemories, "id"> = {
     userId: DRILL_USER,
     category: "goal",
     content: "sub-3 marathon",
-  });
+    createdAt: new Date("2026-01-01T08:00:00Z"),
+    updatedAt: new Date("2026-01-02T08:00:00Z"),
+  };
+  await db.insert(schema.coachMemories).values(coachMemoriesSeed);
 
+  const chatThreadsSeed: Carried<typeof schema.chatThreads, "id"> = {
+    userId: DRILL_USER,
+    title: MARKER_THREAD,
+    kind: "debrief",
+    ephemeral: true,
+    createdAt: new Date("2026-01-01T07:00:00Z"),
+    updatedAt: new Date("2026-01-02T07:30:00Z"),
+  };
   const [thread] = await db
     .insert(schema.chatThreads)
-    .values({ userId: DRILL_USER, title: MARKER_THREAD })
+    .values(chatThreadsSeed)
     .returning();
-  await db.insert(schema.chatMessages).values([
-    { threadId: thread.id, role: "user", content: "hello from the drill" },
-    { threadId: thread.id, role: "assistant", content: "hi there" },
-  ]);
 
+  const chatMessagesSeed: Carried<typeof schema.chatMessages, "id">[] = [
+    {
+      threadId: thread.id,
+      role: "user",
+      content: "hello from the drill",
+      toolCalls: null,
+      readAt: null,
+      createdAt: new Date("2026-01-02T08:00:00Z"),
+      // `search` is GENERATED ALWAYS AS from `content` — never set explicitly.
+    },
+    {
+      threadId: thread.id,
+      role: "assistant",
+      content: "hi there",
+      toolCalls: [{ name: "drill_tool", args: { foo: 1 } }],
+      readAt: new Date("2026-01-02T08:10:00Z"),
+      createdAt: new Date("2026-01-02T08:01:00Z"),
+    },
+  ];
+  await db.insert(schema.chatMessages).values(chatMessagesSeed);
+
+  const activitiesSeed: Carried<typeof schema.activities, "id" | "raw"> = {
+    userId: DRILL_USER,
+    provider: "manual",
+    externalId: "drill-ext-1",
+    startDate: new Date("2026-01-02T08:00:00Z"),
+    startDateLocal: new Date("2026-01-02T09:00:00Z"),
+    sport: "Ride",
+    name: MARKER_ACTIVITY,
+    durationS: 5400,
+    distanceM: 42000,
+    load: 85.4,
+    avgHr: 148,
+    avgPower: 210,
+    elevationM: 620,
+    perceivedExertion: 6.5,
+    feel: "strong",
+    debriefNotes: "Drill debrief notes",
+    debriefState: "answered",
+    debriefThreadId: thread.id,
+    reviewedAt: new Date("2026-01-02T10:00:00Z"),
+    reviewAttempts: 2,
+    reviewSummary: "Solid steady effort with strong back half.",
+    createdAt: new Date("2026-01-02T08:05:00Z"),
+    raw: { drillMarker: "activity-raw" },
+  };
   const [activity] = await db
     .insert(schema.activities)
-    .values({
-      userId: DRILL_USER,
-      provider: "manual",
-      externalId: "drill-ext-1",
-      startDate: new Date("2026-01-02T08:00:00Z"),
-      sport: "Ride",
-      name: MARKER_ACTIVITY,
-      debriefThreadId: thread.id,
-      debriefState: "answered",
-    })
+    .values(activitiesSeed)
     .returning();
-  await db.insert(schema.activityStreams).values({
+
+  const activityStreamsSeed: Carried<typeof schema.activityStreams, "id"> = {
     activityId: activity.id,
     type: "heartrate",
     data: { series: [120, 125, 130] },
-  });
+    createdAt: new Date("2026-01-02T08:06:00Z"),
+  };
+  await db.insert(schema.activityStreams).values(activityStreamsSeed);
 
-  const [race] = await db
-    .insert(schema.races)
-    .values({
-      userId: DRILL_USER,
-      name: MARKER_RACE,
-      raceType: "10k",
-      date: "2026-06-01",
-      priority: "A",
-      status: "completed",
-      resultActivityId: activity.id,
-    })
-    .returning();
+  const racesSeed: Carried<typeof schema.races, "id"> = {
+    userId: DRILL_USER,
+    name: MARKER_RACE,
+    raceType: "10k",
+    sport: "Run",
+    date: "2026-06-01",
+    priority: "A",
+    status: "completed",
+    goalNote: "Break 40 minutes",
+    eventDays: 2,
+    distanceKm: 10.4,
+    elevationM: 85,
+    demandHoursOverride: 6.5,
+    resultActivityId: activity.id,
+    debriefedAt: new Date("2026-01-02T12:00:00Z"),
+    createdAt: new Date("2025-12-01T08:00:00Z"),
+    updatedAt: new Date("2026-01-02T12:05:00Z"),
+  };
+  const [race] = await db.insert(schema.races).values(racesSeed).returning();
 
+  const trainingPlansSeed: Carried<typeof schema.trainingPlans, "id"> = {
+    userId: DRILL_USER,
+    title: MARKER_PLAN,
+    raceType: "10k",
+    raceDate: "2026-06-01",
+    startDate: "2026-01-01",
+    weeksTotal: 12,
+    currentWeek: 4,
+    targetCtl: 75.0,
+    startingCtl: 45.0,
+    status: "completed",
+    constraints: { maxWeeklyHours: 10 },
+    raceId: race.id,
+    createdAt: new Date("2025-12-01T07:00:00Z"),
+    updatedAt: new Date("2026-01-02T13:00:00Z"),
+  };
   const [plan] = await db
     .insert(schema.trainingPlans)
-    .values({
-      userId: DRILL_USER,
-      title: MARKER_PLAN,
-      raceType: "10k",
-      raceDate: "2026-06-01",
-      startDate: "2026-01-01",
-      weeksTotal: 12,
-      raceId: race.id,
-    })
+    .values(trainingPlansSeed)
     .returning();
-  await db.insert(schema.trainingBlocks).values({
+
+  const trainingBlocksSeed: Carried<typeof schema.trainingBlocks, "id"> = {
     planId: plan.id,
     weekNumber: 1,
     phase: "base",
+    targetLoadTotal: 320.5,
+    targetSessions: 5,
     workouts: [{ day: "mon", kind: "easy" }],
-  });
+    actualLoad: 298.2,
+    actualSessions: 4,
+    adherencePct: 87.5,
+    notes: "Drill training block note",
+  };
+  await db.insert(schema.trainingBlocks).values(trainingBlocksSeed);
 
+  const weekPlansSeed: Carried<typeof schema.weekPlans, "id"> = {
+    userId: DRILL_USER,
+    planId: plan.id,
+    weekStart: "2026-01-01",
+    skeletonWeek: 1,
+    days: [{ day: "mon", kind: "easy" }],
+    status: "closed",
+    effectiveTarget: 410.75,
+    materializedMins: 360,
+    availabilityConfirmedAt: new Date("2026-01-01T18:00:00Z"),
+    availabilityPromptedAt: new Date("2025-12-30T09:00:00Z"),
+    createdAt: new Date("2025-12-29T07:00:00Z"),
+    updatedAt: new Date("2026-01-03T07:00:00Z"),
+  };
   const [weekPlan] = await db
     .insert(schema.weekPlans)
-    .values({
-      userId: DRILL_USER,
-      planId: plan.id,
-      weekStart: "2026-01-01",
-      skeletonWeek: 1,
-      days: [{ day: "mon", kind: "easy" }],
-    })
+    .values(weekPlansSeed)
     .returning();
-  await db.insert(schema.planAdjustments).values({
+
+  const planAdjustmentsSeed: Carried<typeof schema.planAdjustments, "id"> = {
     weekPlanId: weekPlan.id,
     date: "2026-01-03",
     trigger: "low_readiness",
     action: "scaled",
+    before: { load: 400 },
+    after: { load: 350 },
     reason: "readiness dropped",
-  });
+    createdAt: new Date("2026-01-03T07:05:00Z"),
+  };
+  await db.insert(schema.planAdjustments).values(planAdjustmentsSeed);
 
   // Secret-bearing tables — must survive the export (metadata only) but
   // must NOT come back on import.
