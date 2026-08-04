@@ -41,20 +41,20 @@ broken promise. A cheap fix exists: a `Record<ImportedTable, true>` witness in
 ### 2. v0.40 — Tests That Bind in CI
 
 `.github/workflows/ci.yml` runs `npm test` with no `DATABASE_URL`; the env block
-at lines 23–28 is scoped to the `npm run build` step alone, and the workflow
-declares no Postgres service. **89 of 245 test files are gated behind
-`describe.skipIf(!hasDb)`** — 36% of the suite skips on every pull request, and
-has done for the project's whole history.
+is scoped to the `npm run build` step alone, and the workflow declares no
+Postgres service. Design: `docs/specs/2026-08-04-ci-database-service-design.md`.
 
-This is the highest structural leverage on the list: until it lands, any
-DB-backed test a future release writes proves nothing on a PR. It is second
-rather than first only because its blast radius is genuinely unknown — some
-suites reach the real network, and enabling the database in CI may surface
-failures that have been hidden for months. That is a discovery exercise, and
-release 1 should not queue behind it.
+Measured by running the suite both ways: **71 test files and 405 tests — 23% of
+the suite — skip on every pull request** (243 files / 1725 tests total; 88 files
+carry a `describe.skipIf(!hasDb)` guard).
 
-Scope: a `services: postgres` block, a migrate step, and whatever triage the
-newly-running suites demand. Expect the triage, not the config, to be the work.
+**The "expect triage, not config" prediction below was wrong, and is corrected
+here.** Run against a fresh migrated Postgres the suite passes completely — 243
+files, 1725 tests, zero failures, +18 seconds. There is no hidden breakage. The
+one real hazard is different from the predicted one: nothing _enforces_ that
+tests stay off the network. `tests/scheduler.test.ts` seeds an active
+`intervals_icu` connection and only an incidental decrypt failure stops a real
+outbound call, so the design adds a guard.
 
 ### 3. v0.40.x — The Double Push, Settled
 
