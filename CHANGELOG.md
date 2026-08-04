@@ -1,5 +1,36 @@
 # Changelog
 
+## v0.40.0 — 2026-08-04 — Tests That Bind in CI
+
+`npm test` ran in CI with no database. The environment block that supplied
+one was attached to the build step alone, and the workflow declared no
+Postgres service, so every suite behind a `skipIf(!hasDb)` guard skipped on
+every pull request — and had done for the project's entire history. That is
+**71 test files and 405 tests, 23% of the suite**, covering the importer, the
+scheduler, the week planner, the sync connectors and the export round trip. A
+green check has never meant more than 77% of the tests, and the missing
+quarter was the database-backed part, which is where this project's defects
+have actually lived.
+
+The test job now runs a Postgres service, and migrations are applied by
+`scripts/migrate.mjs` — the same runner the container executes on every real
+deploy, so a migration that would fail on deploy now fails the pull request
+first. Nothing else had to change: the suite passes against a fresh, empty,
+migrated database exactly as it stands, because the tests seed everything
+they need. The whole run costs eighteen seconds more than before. A new
+test, `tests/ci-has-database.test.ts`, guards this from regressing silently
+a second time: the `hasDb` check is presence-based, not connectivity-based,
+so a future edit that re-scoped the env block back down to a single step
+would put the suite back to skipping while the job stayed green, and this
+test fails CI loudly if that ever happens.
+
+Separately, tests can no longer reach the real network. Nothing had enforced
+that. One suite seeds an active intervals.icu connection and runs scheduler
+passes over it, and the only thing preventing a real outbound call was that
+the placeholder token fails to decrypt before the request is built — a
+coincidence doing a guarantee's job. A global guard now fails any test that
+calls `fetch`, naming the URL it tried to reach.
+
 ## v0.39.0 — 2026-08-04 — The Importer Carries Everything
 
 Importing an exported account silently discarded fourteen columns across
