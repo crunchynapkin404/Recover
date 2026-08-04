@@ -518,6 +518,25 @@ function byMarker<T extends Record<string, unknown>>(
   return row;
 }
 
+/** chat_messages has no single marker column (no title/name field) and the
+ * drill deliberately seeds two rows with different value-profiles — so
+ * matching must not rely on array position (import order is not guaranteed
+ * to mirror export order). (role, content) together are a stable, unique
+ * pair for this drill's fixtures. */
+function byRoleContent<T extends { role: unknown; content: unknown }>(
+  rows: T[],
+  role: string,
+  content: string
+): T {
+  const matches = rows.filter((r) => r.role === role && r.content === content);
+  assert.equal(
+    matches.length,
+    1,
+    `chat_messages: expected exactly 1 row with role=${role} content=${JSON.stringify(content)}, found ${matches.length}`
+  );
+  return matches[0];
+}
+
 /** Deep-compare two rows for content equality, ignoring `id` and any
  * caller-specified FK-id fields (those are expected to change — a fresh
  * id was generated on import, and children were remapped to point at it).
@@ -543,7 +562,13 @@ function assertContentEqual(
 }
 
 async function compare(export1: UserExport, export2: UserExport) {
-  // ── Plain tables: same count, same content (id aside). ─────────────────
+  // ── Plain tables: same count, same content (id aside). Every table here
+  // has only a direct userId FK, and that FK is expected to be EQUAL (not
+  // just present) on both sides — importUserData writes
+  // `userId: targetUserId`, which is the same DRILL_USER the seed used — so
+  // it is deliberately not in any ignore list below. The seed produces
+  // exactly one row per table, so indexing [0] (no marker matching needed)
+  // is safe. ────────────────────────────────────────────────────────────
   const plainTables: (keyof UserExport)[] = [
     "wellness_daily",
     "daily_metrics",
@@ -562,14 +587,22 @@ async function compare(export1: UserExport, export2: UserExport) {
       arr1.length,
       `${t}: row count changed after round trip`
     );
+    assert.equal(
+      arr1.length,
+      1,
+      `${t}: sanity — seed should produce exactly 1 row`
+    );
+    assertContentEqual(
+      t,
+      arr1[0],
+      arr2[0],
+      // wellness_daily.search is a GENERATED ALWAYS AS tsvector column —
+      // Postgres computes it from `notes`, it's never assigned explicitly,
+      // and it isn't meaningfully comparable as data anyway. Every other
+      // table in this list has no such column, hence the empty list.
+      t === "wellness_daily" ? ["search"] : []
+    );
   }
-  assert.equal(export2.wellness_daily.length, 1);
-  assertContentEqual(
-    "wellness_daily",
-    export1.wellness_daily[0] as unknown as Record<string, unknown>,
-    export2.wellness_daily[0] as unknown as Record<string, unknown>,
-    ["search"] // generated column; not meaningfully comparable/settable
-  );
 
   // llm_settings: imports normally, but the (already-stripped-at-export)
   // encryptedApiKey stays absent — both exports omit the field entirely
@@ -600,6 +633,18 @@ async function compare(export1: UserExport, export2: UserExport) {
     export1.chat_messages.length,
     "chat_messages: not all remapped to the new thread id"
   );
+  // Content compare, matched by (role, content) rather than array position —
+  // the seed's two rows deliberately carry different value-profiles (the
+  // user row has null toolCalls/readAt; the assistant row has both set).
+  // `threadId` is excluded: it's a remapped FK, verified separately above.
+  for (const [role, content] of [
+    ["user", "hello from the drill"],
+    ["assistant", "hi there"],
+  ] as const) {
+    const msg1 = byRoleContent(export1.chat_messages, role, content);
+    const msg2 = byRoleContent(msgs2, role, content);
+    assertContentEqual(`chat_messages(${role})`, msg1, msg2, ["threadId"]);
+  }
 
   const activity1 = byMarker(export1.activities, "name", MARKER_ACTIVITY);
   const activity2 = byMarker(export2.activities, "name", MARKER_ACTIVITY);
@@ -633,6 +678,17 @@ async function compare(export1: UserExport, export2: UserExport) {
     export1.activity_streams.length,
     "activity_streams: not all remapped to the new activity id"
   );
+  // Only 1 activity_streams row is seeded, so matching by its `type` marker
+  // (within streams2, already filtered to the new activity id) is
+  // unambiguous. `activityId` is excluded: remapped FK, verified above.
+  assert.equal(
+    export1.activity_streams.length,
+    1,
+    "activity_streams: sanity — seed should produce exactly 1 row"
+  );
+  const stream1 = export1.activity_streams[0];
+  const stream2 = byMarker(streams2, "type", stream1.type);
+  assertContentEqual("activity_streams", stream1, stream2, ["activityId"]);
 
   const race1 = byMarker(export1.races, "name", MARKER_RACE);
   const race2 = byMarker(export2.races, "name", MARKER_RACE);
@@ -671,10 +727,31 @@ async function compare(export1: UserExport, export2: UserExport) {
     export1.training_blocks.length,
     "training_blocks: not all remapped to the new plan id"
   );
+  // Only 1 training_blocks row is seeded, so matching by its `phase` marker
+  // (within blocks2, already filtered to the new plan id) is unambiguous.
+  // `planId` is excluded: remapped FK, verified above.
+  assert.equal(
+    export1.training_blocks.length,
+    1,
+    "training_blocks: sanity — seed should produce exactly 1 row"
+  );
+  const block1 = export1.training_blocks[0];
+  const block2 = byMarker(blocks2, "phase", block1.phase);
+  assertContentEqual("training_blocks", block1, block2, ["planId"]);
 
   assert.equal(export2.week_plans.length, export1.week_plans.length);
   const weekPlan2 = export2.week_plans.find((w) => w.planId === plan2.id);
   assert.ok(weekPlan2, "week_plans: no row remapped to the new plan id");
+  // Content compare — this is the table this whole release exists for:
+  // `effectiveTarget`/`materializedMins` were the two columns silently
+  // dropped by the pre-fix importUserData, and until now nothing here
+  // actually asserted their values. `planId` is excluded: remapped FK,
+  // verified above via the `.find` on the new plan id (unique per user by
+  // weekStart, and only 1 row is seeded, so that find is already the
+  // marker match — no separate byMarker call needed).
+  const weekPlan1 = export1.week_plans.find((w) => w.planId === plan1.id);
+  assert.ok(weekPlan1, "week_plans: no export1 row found for the seeded plan");
+  assertContentEqual("week_plans", weekPlan1!, weekPlan2!, ["planId"]);
 
   assert.equal(
     export2.plan_adjustments.length,
@@ -688,6 +765,19 @@ async function compare(export1: UserExport, export2: UserExport) {
     export1.plan_adjustments.length,
     "plan_adjustments: not all remapped to the new week_plan id"
   );
+  // Only 1 plan_adjustments row is seeded, so matching by its `trigger`
+  // marker (within adjustments2, already filtered to the new week_plan id)
+  // is unambiguous. `weekPlanId` is excluded: remapped FK, verified above.
+  assert.equal(
+    export1.plan_adjustments.length,
+    1,
+    "plan_adjustments: sanity — seed should produce exactly 1 row"
+  );
+  const adjustment1 = export1.plan_adjustments[0];
+  const adjustment2 = byMarker(adjustments2, "trigger", adjustment1.trigger);
+  assertContentEqual("plan_adjustments", adjustment1, adjustment2, [
+    "weekPlanId",
+  ]);
 
   // ── Secret-bearing tables: present before, gone after (by design). ─────
   assert.ok(
