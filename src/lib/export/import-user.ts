@@ -502,6 +502,7 @@ export async function importUserData(
           days: r.days,
           status: r.status,
           effectiveTarget: r.effectiveTarget,
+          materializedMins: r.materializedMins,
           createdAt: toDate(r.createdAt),
           updatedAt: toDate(r.updatedAt),
         })
