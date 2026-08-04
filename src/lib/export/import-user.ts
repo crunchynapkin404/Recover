@@ -198,22 +198,25 @@ export async function importUserData(
 
     if (data.daily_metrics.length) {
       await tx.insert(schema.dailyMetrics).values(
-        data.daily_metrics.map((r) => ({
-          userId: targetUserId,
-          date: r.date,
-          readiness: r.readiness,
-          band: r.band,
-          componentScores: r.componentScores,
-          hrvBaselineMean: r.hrvBaselineMean,
-          hrvBaselineSd: r.hrvBaselineSd,
-          rhrBaselineMean: r.rhrBaselineMean,
-          rhrBaselineSd: r.rhrBaselineSd,
-          tsb: r.tsb,
-          ctl: r.ctl,
-          atl: r.atl,
-          loadSource: r.loadSource,
-          computedAt: toDate(r.computedAt),
-        }))
+        data.daily_metrics.map(
+          // `id`: importUserData regenerates every row id (see header).
+          (r): Carried<typeof schema.dailyMetrics, "id"> => ({
+            userId: targetUserId,
+            date: r.date,
+            readiness: r.readiness,
+            band: r.band,
+            componentScores: r.componentScores,
+            hrvBaselineMean: r.hrvBaselineMean,
+            hrvBaselineSd: r.hrvBaselineSd,
+            rhrBaselineMean: r.rhrBaselineMean,
+            rhrBaselineSd: r.rhrBaselineSd,
+            tsb: r.tsb,
+            ctl: r.ctl,
+            atl: r.atl,
+            loadSource: r.loadSource,
+            computedAt: toDate(r.computedAt),
+          })
+        )
       );
     }
 
@@ -234,91 +237,112 @@ export async function importUserData(
 
     if (data.notification_prefs.length) {
       await tx.insert(schema.notificationPrefs).values(
-        data.notification_prefs.map((r) => ({
-          userId: targetUserId,
-          morningPushEnabled: r.morningPushEnabled,
-          lastMorningPushDate: r.lastMorningPushDate,
-          weeklyReviewDay: r.weeklyReviewDay,
-          weeklyReviewHour: r.weeklyReviewHour,
-          autoDescribeStrava: r.autoDescribeStrava,
-          stravaDescriptionFields: r.stravaDescriptionFields,
-          rideDebriefsEnabled: r.rideDebriefsEnabled,
-          debriefPushEnabled: r.debriefPushEnabled,
-        }))
+        data.notification_prefs.map(
+          // `id`: importUserData regenerates every row id (see header).
+          (r): Carried<typeof schema.notificationPrefs, "id"> => ({
+            userId: targetUserId,
+            morningPushEnabled: r.morningPushEnabled,
+            lastMorningPushDate: r.lastMorningPushDate,
+            weeklyReviewDay: r.weeklyReviewDay,
+            weeklyReviewHour: r.weeklyReviewHour,
+            autoDescribeStrava: r.autoDescribeStrava,
+            stravaDescriptionFields: r.stravaDescriptionFields,
+            rideDebriefsEnabled: r.rideDebriefsEnabled,
+            debriefPushEnabled: r.debriefPushEnabled,
+          })
+        )
       );
     }
 
     if (data.journal_prefs.length) {
       await tx.insert(schema.journalPrefs).values(
-        data.journal_prefs.map((r) => ({
-          userId: targetUserId,
-          usualBehaviorTags: r.usualBehaviorTags,
-        }))
+        data.journal_prefs.map(
+          // `id`: importUserData regenerates every row id (see header).
+          (r): Carried<typeof schema.journalPrefs, "id"> => ({
+            userId: targetUserId,
+            usualBehaviorTags: r.usualBehaviorTags,
+          })
+        )
       );
     }
 
     if (data.llm_settings.length) {
       await tx.insert(schema.llmSettings).values(
-        data.llm_settings.map((r) => ({
-          userId: targetUserId,
-          providerType: r.providerType,
-          baseUrl: r.baseUrl,
-          // encryptedApiKey intentionally omitted (-> column default null).
-          // Nullable in schema.ts, so unlike connections/api_tokens/
-          // webhook_subscriptions this table can still be imported — the
-          // user just has to re-enter their API key afterward.
-          model: r.model,
-          modelQuick: r.modelQuick,
-          modelDeep: r.modelDeep,
-          defaultMode: r.defaultMode,
-          coachPersonality: r.coachPersonality,
-          coachLanguage: r.coachLanguage,
-          updatedAt: toDate(r.updatedAt),
-        }))
+        data.llm_settings.map(
+          // `id`: regenerated (see header). `encryptedApiKey`: a credential,
+          // dropped deliberately by export-user.ts — there is nothing to carry.
+          (
+            r
+          ): Carried<typeof schema.llmSettings, "id" | "encryptedApiKey"> => ({
+            userId: targetUserId,
+            providerType: r.providerType,
+            baseUrl: r.baseUrl,
+            // encryptedApiKey intentionally omitted (-> column default null).
+            // Nullable in schema.ts, so unlike connections/api_tokens/
+            // webhook_subscriptions this table can still be imported — the
+            // user just has to re-enter their API key afterward.
+            model: r.model,
+            modelQuick: r.modelQuick,
+            modelDeep: r.modelDeep,
+            defaultMode: r.defaultMode,
+            coachPersonality: r.coachPersonality,
+            coachLanguage: r.coachLanguage,
+            updatedAt: toDate(r.updatedAt),
+          })
+        )
       );
     }
 
     if (data.biomarkers.length) {
       await tx.insert(schema.biomarkers).values(
-        data.biomarkers.map((r) => ({
-          userId: targetUserId,
-          name: r.name,
-          displayName: r.displayName,
-          category: r.category,
-          value: r.value,
-          unit: r.unit,
-          measuredAt: r.measuredAt,
-          source: r.source,
-          confidence: r.confidence,
-          rawLabel: r.rawLabel,
-          createdAt: toDate(r.createdAt),
-        }))
+        data.biomarkers.map(
+          // `id`: importUserData regenerates every row id (see header).
+          (r): Carried<typeof schema.biomarkers, "id"> => ({
+            userId: targetUserId,
+            name: r.name,
+            displayName: r.displayName,
+            category: r.category,
+            value: r.value,
+            unit: r.unit,
+            measuredAt: r.measuredAt,
+            source: r.source,
+            confidence: r.confidence,
+            rawLabel: r.rawLabel,
+            createdAt: toDate(r.createdAt),
+          })
+        )
       );
     }
 
     if (data.llm_usage.length) {
       await tx.insert(schema.llmUsage).values(
-        data.llm_usage.map((r) => ({
-          userId: targetUserId,
-          model: r.model,
-          slot: r.slot,
-          purpose: r.purpose,
-          inputTokens: r.inputTokens,
-          outputTokens: r.outputTokens,
-          createdAt: toDate(r.createdAt),
-        }))
+        data.llm_usage.map(
+          // `id`: importUserData regenerates every row id (see header).
+          (r): Carried<typeof schema.llmUsage, "id"> => ({
+            userId: targetUserId,
+            model: r.model,
+            slot: r.slot,
+            purpose: r.purpose,
+            inputTokens: r.inputTokens,
+            outputTokens: r.outputTokens,
+            createdAt: toDate(r.createdAt),
+          })
+        )
       );
     }
 
     if (data.coach_memories.length) {
       await tx.insert(schema.coachMemories).values(
-        data.coach_memories.map((r) => ({
-          userId: targetUserId,
-          category: r.category,
-          content: r.content,
-          createdAt: toDate(r.createdAt),
-          updatedAt: toDate(r.updatedAt),
-        }))
+        data.coach_memories.map(
+          // `id`: importUserData regenerates every row id (see header).
+          (r): Carried<typeof schema.coachMemories, "id"> => ({
+            userId: targetUserId,
+            category: r.category,
+            content: r.content,
+            createdAt: toDate(r.createdAt),
+            updatedAt: toDate(r.updatedAt),
+          })
+        )
       );
     }
 
@@ -329,76 +353,83 @@ export async function importUserData(
 
     const threadIdMap = new Map<string, string>();
     for (const r of data.chat_threads) {
+      // `id`: importUserData regenerates every row id (see header).
+      const row: Carried<typeof schema.chatThreads, "id"> = {
+        userId: targetUserId,
+        title: r.title,
+        kind: r.kind,
+        ephemeral: r.ephemeral,
+        createdAt: toDate(r.createdAt),
+        updatedAt: toDate(r.updatedAt),
+      };
       const [inserted] = await tx
         .insert(schema.chatThreads)
-        .values({
-          userId: targetUserId,
-          title: r.title,
-          kind: r.kind,
-          ephemeral: r.ephemeral,
-          createdAt: toDate(r.createdAt),
-          updatedAt: toDate(r.updatedAt),
-        })
+        .values(row)
         .returning();
       threadIdMap.set(r.id, inserted.id);
     }
 
     const activityIdMap = new Map<string, string>();
     for (const r of data.activities) {
+      // `id`: regenerated (see header). `raw`: the bulky provider payload,
+      // dropped deliberately by export-user.ts — there is nothing to carry.
+      const row: Carried<typeof schema.activities, "id" | "raw"> = {
+        userId: targetUserId,
+        provider: r.provider,
+        externalId: r.externalId,
+        startDate: toDate(r.startDate),
+        startDateLocal: toDateOrNull(r.startDateLocal),
+        sport: r.sport,
+        name: r.name,
+        durationS: r.durationS,
+        distanceM: r.distanceM,
+        load: r.load,
+        avgHr: r.avgHr,
+        avgPower: r.avgPower,
+        elevationM: r.elevationM,
+        perceivedExertion: r.perceivedExertion,
+        feel: r.feel,
+        debriefNotes: r.debriefNotes,
+        debriefState: r.debriefState,
+        debriefThreadId: r.debriefThreadId
+          ? (threadIdMap.get(r.debriefThreadId) ?? null)
+          : null,
+        reviewedAt: toDateOrNull(r.reviewedAt),
+        reviewAttempts: r.reviewAttempts,
+        reviewSummary: r.reviewSummary,
+        createdAt: toDate(r.createdAt),
+      };
       const [inserted] = await tx
         .insert(schema.activities)
-        .values({
-          userId: targetUserId,
-          provider: r.provider,
-          externalId: r.externalId,
-          startDate: toDate(r.startDate),
-          startDateLocal: toDateOrNull(r.startDateLocal),
-          sport: r.sport,
-          name: r.name,
-          durationS: r.durationS,
-          distanceM: r.distanceM,
-          load: r.load,
-          avgHr: r.avgHr,
-          avgPower: r.avgPower,
-          elevationM: r.elevationM,
-          // `raw` was stripped at export time; left unset (-> null).
-          perceivedExertion: r.perceivedExertion,
-          feel: r.feel,
-          debriefNotes: r.debriefNotes,
-          debriefState: r.debriefState,
-          debriefThreadId: r.debriefThreadId
-            ? (threadIdMap.get(r.debriefThreadId) ?? null)
-            : null,
-          reviewedAt: toDateOrNull(r.reviewedAt),
-          reviewAttempts: r.reviewAttempts,
-          reviewSummary: r.reviewSummary,
-          createdAt: toDate(r.createdAt),
-        })
+        .values(row)
         .returning();
       activityIdMap.set(r.id, inserted.id);
     }
 
     if (data.activity_streams.length) {
       await tx.insert(schema.activityStreams).values(
-        data.activity_streams.map((r) => {
-          const newActivityId = activityIdMap.get(r.activityId);
-          if (!newActivityId) {
-            // The export is FK-consistent by construction (activity_streams
-            // is queried via the same activity ids just exported), so this
-            // only fires if the export itself was tampered with or is from
-            // an incompatible version — fail loudly rather than orphan a
-            // stream row.
-            throw new Error(
-              `importUserData: activity_streams row ${r.id} references unknown activity ${r.activityId}`
-            );
+        data.activity_streams.map(
+          // `id`: importUserData regenerates every row id (see header).
+          (r): Carried<typeof schema.activityStreams, "id"> => {
+            const newActivityId = activityIdMap.get(r.activityId);
+            if (!newActivityId) {
+              // The export is FK-consistent by construction (activity_streams
+              // is queried via the same activity ids just exported), so this
+              // only fires if the export itself was tampered with or is from
+              // an incompatible version — fail loudly rather than orphan a
+              // stream row.
+              throw new Error(
+                `importUserData: activity_streams row ${r.id} references unknown activity ${r.activityId}`
+              );
+            }
+            return {
+              activityId: newActivityId,
+              type: r.type,
+              data: r.data,
+              createdAt: toDate(r.createdAt),
+            };
           }
-          return {
-            activityId: newActivityId,
-            type: r.type,
-            data: r.data,
-            createdAt: toDate(r.createdAt),
-          };
-        })
+        )
       );
     }
 
@@ -456,50 +487,55 @@ export async function importUserData(
 
     const planIdMap = new Map<string, string>();
     for (const r of data.training_plans) {
+      // `id`: importUserData regenerates every row id (see header).
+      const row: Carried<typeof schema.trainingPlans, "id"> = {
+        userId: targetUserId,
+        title: r.title,
+        raceType: r.raceType,
+        raceDate: r.raceDate,
+        startDate: r.startDate,
+        weeksTotal: r.weeksTotal,
+        currentWeek: r.currentWeek,
+        targetCtl: r.targetCtl,
+        startingCtl: r.startingCtl,
+        status: r.status,
+        constraints: r.constraints,
+        raceId: r.raceId ? (raceIdMap.get(r.raceId) ?? null) : null,
+        createdAt: toDate(r.createdAt),
+        updatedAt: toDate(r.updatedAt),
+      };
       const [inserted] = await tx
         .insert(schema.trainingPlans)
-        .values({
-          userId: targetUserId,
-          title: r.title,
-          raceType: r.raceType,
-          raceDate: r.raceDate,
-          startDate: r.startDate,
-          weeksTotal: r.weeksTotal,
-          currentWeek: r.currentWeek,
-          targetCtl: r.targetCtl,
-          startingCtl: r.startingCtl,
-          status: r.status,
-          constraints: r.constraints,
-          raceId: r.raceId ? (raceIdMap.get(r.raceId) ?? null) : null,
-          createdAt: toDate(r.createdAt),
-          updatedAt: toDate(r.updatedAt),
-        })
+        .values(row)
         .returning();
       planIdMap.set(r.id, inserted.id);
     }
 
     if (data.training_blocks.length) {
       await tx.insert(schema.trainingBlocks).values(
-        data.training_blocks.map((r) => {
-          const newPlanId = planIdMap.get(r.planId);
-          if (!newPlanId) {
-            throw new Error(
-              `importUserData: training_blocks row ${r.id} references unknown plan ${r.planId}`
-            );
+        data.training_blocks.map(
+          // `id`: importUserData regenerates every row id (see header).
+          (r): Carried<typeof schema.trainingBlocks, "id"> => {
+            const newPlanId = planIdMap.get(r.planId);
+            if (!newPlanId) {
+              throw new Error(
+                `importUserData: training_blocks row ${r.id} references unknown plan ${r.planId}`
+              );
+            }
+            return {
+              planId: newPlanId,
+              weekNumber: r.weekNumber,
+              phase: r.phase,
+              targetLoadTotal: r.targetLoadTotal,
+              targetSessions: r.targetSessions,
+              workouts: r.workouts,
+              actualLoad: r.actualLoad,
+              actualSessions: r.actualSessions,
+              adherencePct: r.adherencePct,
+              notes: r.notes,
+            };
           }
-          return {
-            planId: newPlanId,
-            weekNumber: r.weekNumber,
-            phase: r.phase,
-            targetLoadTotal: r.targetLoadTotal,
-            targetSessions: r.targetSessions,
-            workouts: r.workouts,
-            actualLoad: r.actualLoad,
-            actualSessions: r.actualSessions,
-            adherencePct: r.adherencePct,
-            notes: r.notes,
-          };
-        })
+        )
       );
     }
 
@@ -535,24 +571,27 @@ export async function importUserData(
 
     if (data.plan_adjustments.length) {
       await tx.insert(schema.planAdjustments).values(
-        data.plan_adjustments.map((r) => {
-          const newWeekPlanId = weekPlanIdMap.get(r.weekPlanId);
-          if (!newWeekPlanId) {
-            throw new Error(
-              `importUserData: plan_adjustments row ${r.id} references unknown week_plan ${r.weekPlanId}`
-            );
+        data.plan_adjustments.map(
+          // `id`: importUserData regenerates every row id (see header).
+          (r): Carried<typeof schema.planAdjustments, "id"> => {
+            const newWeekPlanId = weekPlanIdMap.get(r.weekPlanId);
+            if (!newWeekPlanId) {
+              throw new Error(
+                `importUserData: plan_adjustments row ${r.id} references unknown week_plan ${r.weekPlanId}`
+              );
+            }
+            return {
+              weekPlanId: newWeekPlanId,
+              date: r.date,
+              trigger: r.trigger,
+              action: r.action,
+              before: r.before,
+              after: r.after,
+              reason: r.reason,
+              createdAt: toDate(r.createdAt),
+            };
           }
-          return {
-            weekPlanId: newWeekPlanId,
-            date: r.date,
-            trigger: r.trigger,
-            action: r.action,
-            before: r.before,
-            after: r.after,
-            reason: r.reason,
-            createdAt: toDate(r.createdAt),
-          };
-        })
+        )
       );
     }
 

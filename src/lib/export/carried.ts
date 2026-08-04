@@ -28,3 +28,25 @@ export type Carried<
   Exempt extends keyof T["$inferInsert"],
 > = Required<Omit<T["$inferInsert"], Exempt>> &
   Partial<Pick<T["$inferInsert"], Exempt>>;
+
+import type { UserExport } from "./export-user";
+
+/**
+ * Resolves to `true` only while `Exempt` is genuinely absent from the
+ * export's row type. If the export ever starts emitting an exempted
+ * column, this resolves to `never`, the assertions below stop compiling,
+ * and the exemption has to be removed rather than silently kept.
+ */
+type ExemptionStillJustified<Row, Exempt extends string> =
+  Extract<keyof Row, Exempt> extends never ? true : never;
+
+const _rawStillStripped: ExemptionStillJustified<
+  UserExport["activities"][number],
+  "raw"
+> = true;
+const _apiKeyStillStripped: ExemptionStillJustified<
+  UserExport["llm_settings"][number],
+  "encryptedApiKey"
+> = true;
+void _rawStillStripped;
+void _apiKeyStillStripped;
