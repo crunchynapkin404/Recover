@@ -79,12 +79,23 @@ has read the logs since. One command decides the release's entire shape:
 docker logs recover-app-1 --since 12h | grep -E 'push sent|push subscription pruned'
 ```
 
-Two `push sent` lines with the same `activityId` means two real sends and an app
-bug. One line means the app sent once and iOS displayed it twice, which is not
-ours to fix — in that case this closes as a documented finding and ships
-nothing. Sized as a patch on that basis. It is the only defect on this list
-reported by a human rather than found by reading code, which is why it precedes
-the two larger engineering items.
+**CLOSED 2026-08-04 — not reproducing, no lifecycle fix shipped.** The logs were
+finally read. Seven days of retention held two ride-debrief pushes, for
+different rides, each `subscriptions:1, sent:1, pruned:0` — no activity notified
+twice — and the athlete confirmed a single notification for the most recent
+ride. The app is not sending twice.
+
+The original 30 July report predates the retained logs, so its cause is
+undetermined and will stay that way. Either v0.30.1's compare-and-swap on the
+debrief claim closed a real race, or the phone displayed one notification twice.
+
+Two things came out of it. The evidence very nearly did not exist: `sendToUser`
+wrote only to stdout, Watchtower recreates the container on every deploy, and
+the only surviving copy was in the host's journald behind `sudo` — which is why
+this sat unanswered for five days. **v0.40.1 makes every push write a durable
+`push_sent` row**, so the next such question is a database query. And reading
+the logs at all needed the operator to be in the `adm` group; that has now been
+granted, so a future session can do this without asking.
 
 ### 4. v0.41 — One Ride, One Pass
 

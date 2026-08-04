@@ -30,9 +30,18 @@ in the schema that has to mirror the event type, and it did not include the new
 kind — an insert that worked at runtime and failed the build, because that
 constraint is type-level only. No migration; the column is plain text.
 
-This does not resolve the double push itself. What the logs do show, for every
-ride in the retained window, is one send per ride: one subscription, one
-notification, no repeated activity. The app is not sending twice.
+On the double push that prompted this: it is not reproducing. Seven days of
+retained logs contain two ride-debrief pushes, for different rides, each one
+send to one subscription with nothing pruned — no activity notified twice — and
+the athlete confirms receiving a single notification for the most recent ride.
+The app is not sending twice.
+
+What caused the original report on 30 July is now undetermined and likely to
+stay that way: it predates the retained logs, so there is nothing left to read.
+Either the compare-and-swap that v0.30.1 added to the debrief claim closed a
+real race, or the phone displayed one notification twice. The honest answer is
+that we cannot tell, and the reason we cannot tell is the gap this release
+closes.
 
 ## v0.40.0 — 2026-08-04 — Tests That Bind in CI
 
