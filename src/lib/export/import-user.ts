@@ -1,6 +1,7 @@
 import type { Database } from "@/lib/db";
 import { schema } from "@/lib/db";
 import { EXPORT_VERSION, type UserExport } from "./export-user";
+import type { Carried } from "./carried";
 
 // `UserExport`'s timestamp fields are typed as `Date` (they come straight
 // off exportUserData's drizzle `$inferSelect` reads), but the real caller
@@ -209,13 +210,15 @@ export async function importUserData(
 
     if (data.body_prefs.length) {
       await tx.insert(schema.bodyPrefs).values(
-        data.body_prefs.map((r) => ({
+        // `id`: importUserData regenerates every row id (see header).
+        data.body_prefs.map((r): Carried<typeof schema.bodyPrefs, "id"> => ({
           userId: targetUserId,
           wakeTime: r.wakeTime,
           sleepNeedSecs: r.sleepNeedSecs,
           maxHr: r.maxHr,
           ftpWatts: r.ftpWatts,
           birthYear: r.birthYear,
+          levelOverride: r.levelOverride,
         }))
       );
     }
@@ -492,20 +495,24 @@ export async function importUserData(
           `importUserData: week_plans row ${r.id} references unknown plan ${r.planId}`
         );
       }
+      // `id`: importUserData regenerates every row id (see header).
+      const row: Carried<typeof schema.weekPlans, "id"> = {
+        userId: targetUserId,
+        planId: newPlanId,
+        weekStart: r.weekStart,
+        skeletonWeek: r.skeletonWeek,
+        days: r.days,
+        status: r.status,
+        effectiveTarget: r.effectiveTarget,
+        materializedMins: r.materializedMins,
+        availabilityConfirmedAt: toDateOrNull(r.availabilityConfirmedAt),
+        availabilityPromptedAt: toDateOrNull(r.availabilityPromptedAt),
+        createdAt: toDate(r.createdAt),
+        updatedAt: toDate(r.updatedAt),
+      };
       const [inserted] = await tx
         .insert(schema.weekPlans)
-        .values({
-          userId: targetUserId,
-          planId: newPlanId,
-          weekStart: r.weekStart,
-          skeletonWeek: r.skeletonWeek,
-          days: r.days,
-          status: r.status,
-          effectiveTarget: r.effectiveTarget,
-          materializedMins: r.materializedMins,
-          createdAt: toDate(r.createdAt),
-          updatedAt: toDate(r.updatedAt),
-        })
+        .values(row)
         .returning();
       weekPlanIdMap.set(r.id, inserted.id);
     }
