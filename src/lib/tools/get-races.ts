@@ -1,11 +1,40 @@
 import { z } from "zod";
 import type { ToolDefinition, ToolContext } from "./registry";
+import { schema } from "@/lib/db";
+import type { Projected } from "@/lib/db/projected";
 import { listRaces } from "@/lib/race/service";
 
 const parameters = z.object({
   status: z.enum(["upcoming", "completed", "skipped"]).optional(),
   priority: z.enum(["A", "B", "C"]).optional(),
 });
+
+/**
+ * Columns of `races` deliberately withheld from the coach. Every entry needs
+ * a reason about coaching relevance — see `Projected`.
+ */
+type WithheldRaceColumn =
+  // Server-side ownership key. Every row the coach sees already belongs to
+  // the athlete it is talking to, and `upsert_race` addresses rows by `id`.
+  | "userId"
+  // Debrief-scheduler bookkeeping: whether the post-race writeup has been
+  // posted yet. Says nothing about the event or the athlete's preparation.
+  | "debriefedAt"
+  // Row lifecycle. `date` is when the race happens; these are when the row
+  // was typed in, which no coaching answer depends on.
+  | "createdAt"
+  | "updatedAt";
+
+/**
+ * `resultActivityId` is deliberately NOT withheld, against the spec's
+ * provisional list. It is the athlete's actual ride/run for a completed
+ * race, and it is the coach's only route from "how did Alpine Tour go?" to
+ * `get_activity` — which is precisely the kind of question this release
+ * exists to stop answering with less than we hold.
+ */
+type ProjectedRace = Projected<typeof schema.races, WithheldRaceColumn> & {
+  daysToRace: number;
+};
 
 function daysFromToday(ymd: string): number {
   const now = new Date();
@@ -20,17 +49,24 @@ function daysFromToday(ymd: string): number {
 async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
   const races = await listRaces(ctx.userId, args);
   return {
-    races: races.map((r) => ({
-      id: r.id,
-      name: r.name,
-      raceType: r.raceType,
-      sport: r.sport,
-      date: r.date,
-      priority: r.priority,
-      status: r.status,
-      goalNote: r.goalNote,
-      daysToRace: daysFromToday(r.date),
-    })),
+    races: races.map(
+      (r): ProjectedRace => ({
+        id: r.id,
+        name: r.name,
+        raceType: r.raceType,
+        sport: r.sport,
+        date: r.date,
+        priority: r.priority,
+        status: r.status,
+        goalNote: r.goalNote,
+        eventDays: r.eventDays,
+        distanceKm: r.distanceKm,
+        elevationM: r.elevationM,
+        demandHoursOverride: r.demandHoursOverride,
+        resultActivityId: r.resultActivityId,
+        daysToRace: daysFromToday(r.date),
+      })
+    ),
   };
 }
 
