@@ -1,5 +1,43 @@
 # Changelog
 
+## v0.40.0 — 2026-08-04 — Tests That Bind in CI
+
+`npm test` ran in CI with no database. The environment block that supplied
+one was attached to the build step alone, and the workflow declared no
+Postgres service, so every suite behind a `skipIf(!hasDb)` guard skipped on
+every pull request — and had done for the project's entire history. That is
+**71 test files and 405 tests, 23% of the suite**, covering the importer, the
+scheduler, the week planner, the sync connectors and the export round trip. A
+green check has never meant more than 77% of the tests, and the missing
+quarter was the database-backed part, which is where this project's defects
+have actually lived.
+
+The test job now runs a Postgres service, and migrations are applied by
+`scripts/migrate.mjs` — the same runner the container executes on every real
+deploy, so a migration that would fail on deploy now fails the pull request
+first. Nothing else had to change: the suite passes against a fresh, empty,
+migrated database exactly as it stands, because the tests seed everything
+they need. The whole run costs eighteen seconds more than before. A new
+test, `tests/ci-has-database.test.ts`, guards this from regressing silently
+a second time: the `hasDb` check is presence-based, not connectivity-based,
+so a future edit that re-scoped the env block back down to a single step
+would put the suite back to skipping while the job stayed green, and this
+test fails CI loudly if that ever happens.
+
+Separately, tests can no longer reach the real network. Nothing had enforced
+that, though nothing currently depends on it being enforced: the tick's
+provider passes are already switched off under vitest, and every test that
+drives the scheduler tick hands it a stub processor rather than the real
+one, so the one suite that seeds an active intervals.icu connection never
+actually runs a tick over that user. The real exposure sits downstream of
+that guard, in the tick's post-job hooks — weekly review, race debriefs,
+auto-describe — which run with real imports inside `try/catch` and are not
+gated the same way; this project has already had one of those hooks bill a
+real LLM call into the owner's own coaching thread. A global guard now
+blocks any outbound `fetch` and rejects, naming the URL it tried to reach —
+no bytes leave the machine either way, though a caller whose `catch`
+swallows the rejection will not itself go red.
+
 ## v0.39.0 — 2026-08-04 — The Importer Carries Everything
 
 Importing an exported account silently discarded fourteen columns across
