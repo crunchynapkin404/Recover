@@ -139,51 +139,60 @@ export async function importUserData(
 
     if (data.wellness_daily.length) {
       await tx.insert(schema.wellnessDaily).values(
-        data.wellness_daily.map((r) => ({
-          userId: targetUserId,
-          date: r.date,
-          hrvMs: r.hrvMs,
-          restingHr: r.restingHr,
-          sleepSecs: r.sleepSecs,
-          sleepScore: r.sleepScore,
-          sleepDeepSecs: r.sleepDeepSecs,
-          sleepRemSecs: r.sleepRemSecs,
-          sleepLightSecs: r.sleepLightSecs,
-          sleepAwakeSecs: r.sleepAwakeSecs,
-          bedStart: toDateOrNull(r.bedStart),
-          bedEnd: toDateOrNull(r.bedEnd),
-          tempDeviationC: r.tempDeviationC,
-          respiratoryRate: r.respiratoryRate,
-          bloodOxygenPct: r.bloodOxygenPct,
-          wristTempC: r.wristTempC,
-          systolic: r.systolic,
-          diastolic: r.diastolic,
-          bodyFatPct: r.bodyFatPct,
-          ctl: r.ctl,
-          atl: r.atl,
-          eftp: r.eftp,
-          vo2max: r.vo2max,
-          rampRate: r.rampRate,
-          pMax: r.pMax,
-          wPrime: r.wPrime,
-          weightKg: r.weightKg,
-          bmi: r.bmi,
-          leanMassKg: r.leanMassKg,
-          waistCm: r.waistCm,
-          energy1_10: r.energy1_10,
-          soreness1_10: r.soreness1_10,
-          stress1_10: r.stress1_10,
-          mood: r.mood,
-          tags: r.tags,
-          dayFlags: r.dayFlags,
-          notes: r.notes,
-          // `search` is a GENERATED ALWAYS AS column — Postgres computes it
-          // from `notes`; it must never be assigned explicitly.
-          source: r.source,
-          fieldSources: r.fieldSources,
-          raw: r.raw,
-          updatedAt: toDate(r.updatedAt),
-        }))
+        data.wellness_daily.map(
+          // `id`: importUserData regenerates every row id (see header).
+          (r): Carried<typeof schema.wellnessDaily, "id"> => ({
+            userId: targetUserId,
+            date: r.date,
+            hrvMs: r.hrvMs,
+            restingHr: r.restingHr,
+            sleepSecs: r.sleepSecs,
+            sleepScore: r.sleepScore,
+            sleepDeepSecs: r.sleepDeepSecs,
+            sleepRemSecs: r.sleepRemSecs,
+            sleepLightSecs: r.sleepLightSecs,
+            sleepAwakeSecs: r.sleepAwakeSecs,
+            bedStart: toDateOrNull(r.bedStart),
+            bedEnd: toDateOrNull(r.bedEnd),
+            tempDeviationC: r.tempDeviationC,
+            respiratoryRate: r.respiratoryRate,
+            bloodOxygenPct: r.bloodOxygenPct,
+            wristTempC: r.wristTempC,
+            systolic: r.systolic,
+            diastolic: r.diastolic,
+            bodyFatPct: r.bodyFatPct,
+            sleepingHr: r.sleepingHr,
+            hrvSdnnMs: r.hrvSdnnMs,
+            readiness: r.readiness,
+            hydrationL: r.hydrationL,
+            steps: r.steps,
+            sleepQuality: r.sleepQuality,
+            ctl: r.ctl,
+            atl: r.atl,
+            eftp: r.eftp,
+            vo2max: r.vo2max,
+            rampRate: r.rampRate,
+            pMax: r.pMax,
+            wPrime: r.wPrime,
+            weightKg: r.weightKg,
+            bmi: r.bmi,
+            leanMassKg: r.leanMassKg,
+            waistCm: r.waistCm,
+            energy1_10: r.energy1_10,
+            soreness1_10: r.soreness1_10,
+            stress1_10: r.stress1_10,
+            mood: r.mood,
+            tags: r.tags,
+            dayFlags: r.dayFlags,
+            notes: r.notes,
+            // `search` is a GENERATED ALWAYS AS column — Postgres computes it
+            // from `notes`; it must never be assigned explicitly.
+            source: r.source,
+            fieldSources: r.fieldSources,
+            raw: r.raw,
+            updatedAt: toDate(r.updatedAt),
+          })
+        )
       );
     }
 
@@ -395,46 +404,53 @@ export async function importUserData(
 
     if (data.chat_messages.length) {
       await tx.insert(schema.chatMessages).values(
-        data.chat_messages.map((r) => {
-          const newThreadId = threadIdMap.get(r.threadId);
-          if (!newThreadId) {
-            throw new Error(
-              `importUserData: chat_messages row ${r.id} references unknown thread ${r.threadId}`
-            );
+        data.chat_messages.map(
+          // `id`: importUserData regenerates every row id (see header).
+          (r): Carried<typeof schema.chatMessages, "id"> => {
+            const newThreadId = threadIdMap.get(r.threadId);
+            if (!newThreadId) {
+              throw new Error(
+                `importUserData: chat_messages row ${r.id} references unknown thread ${r.threadId}`
+              );
+            }
+            return {
+              threadId: newThreadId,
+              role: r.role,
+              content: r.content,
+              toolCalls: r.toolCalls,
+              readAt: toDateOrNull(r.readAt),
+              createdAt: toDate(r.createdAt),
+              // `search` is GENERATED ALWAYS AS from `content` — never set.
+            };
           }
-          return {
-            threadId: newThreadId,
-            role: r.role,
-            content: r.content,
-            toolCalls: r.toolCalls,
-            createdAt: toDate(r.createdAt),
-            // `search` is GENERATED ALWAYS AS from `content` — never set.
-          };
-        })
+        )
       );
     }
 
     const raceIdMap = new Map<string, string>();
     for (const r of data.races) {
-      const [inserted] = await tx
-        .insert(schema.races)
-        .values({
-          userId: targetUserId,
-          name: r.name,
-          raceType: r.raceType,
-          sport: r.sport,
-          date: r.date,
-          priority: r.priority,
-          status: r.status,
-          goalNote: r.goalNote,
-          resultActivityId: r.resultActivityId
-            ? (activityIdMap.get(r.resultActivityId) ?? null)
-            : null,
-          debriefedAt: toDateOrNull(r.debriefedAt),
-          createdAt: toDate(r.createdAt),
-          updatedAt: toDate(r.updatedAt),
-        })
-        .returning();
+      // `id`: importUserData regenerates every row id (see header).
+      const row: Carried<typeof schema.races, "id"> = {
+        userId: targetUserId,
+        name: r.name,
+        raceType: r.raceType,
+        sport: r.sport,
+        date: r.date,
+        priority: r.priority,
+        status: r.status,
+        goalNote: r.goalNote,
+        eventDays: r.eventDays,
+        distanceKm: r.distanceKm,
+        elevationM: r.elevationM,
+        demandHoursOverride: r.demandHoursOverride,
+        resultActivityId: r.resultActivityId
+          ? (activityIdMap.get(r.resultActivityId) ?? null)
+          : null,
+        debriefedAt: toDateOrNull(r.debriefedAt),
+        createdAt: toDate(r.createdAt),
+        updatedAt: toDate(r.updatedAt),
+      };
+      const [inserted] = await tx.insert(schema.races).values(row).returning();
       raceIdMap.set(r.id, inserted.id);
     }
 

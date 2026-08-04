@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 // Matches export-user.test.ts: no separate test DB, so every row here is
 // test-* scoped and cleaned up via FK cascade off the seeded users rows.
@@ -361,5 +361,118 @@ describe.skipIf(!hasDb)("importUserData", () => {
     await expect(
       importUserData(db, TARGET_USER, { ...sample, version: 999 })
     ).rejects.toThrow(/unsupported export version/);
+  });
+
+  it("carries every wellness_daily and races column through a round trip", async () => {
+    const { db, schema } = await import("@/lib/db");
+    const { exportUserData } = await import("./export-user");
+    const { importUserData } = await import("./import-user");
+
+    await db.insert(schema.wellnessDaily).values({
+      userId: SOURCE_USER,
+      date: "2026-01-15",
+      sleepingHr: 48.5,
+      hrvSdnnMs: 71.2,
+      readiness: 82.0,
+      hydrationL: 2.4,
+      steps: 11302,
+      sleepQuality: 3,
+    });
+    await db.insert(schema.races).values({
+      userId: SOURCE_USER,
+      name: "Round Trip Classic",
+      raceType: "gran_fondo",
+      sport: "Ride",
+      date: "2026-06-01",
+      // `priority` is NOT NULL with no default — omitting it fails the
+      // insert on a constraint violation rather than on an assertion.
+      priority: "A",
+      eventDays: 3,
+      distanceKm: 212.5,
+      elevationM: 3400,
+      demandHoursOverride: 14.5,
+    });
+
+    // A real import receives its payload from req.json(), which turns every
+    // Date into an ISO string. Round-tripping through JSON here exercises
+    // the same path rather than the friendlier in-memory shape.
+    const fullExport = JSON.parse(
+      JSON.stringify(await exportUserData(db, SOURCE_USER))
+    );
+    // SOURCE_USER already carries the beforeAll fixture's own wellness_daily
+    // row (2026-01-02) and race ("IMPORT-TEST-RACE"), and the earlier test
+    // in this file has already imported those into TARGET_USER. Importing
+    // the full export a second time would re-insert that same fixture data
+    // into TARGET_USER — a duplicate-key violation on wellness_daily's
+    // (user_id, date) constraint and on every userId-unique singleton table
+    // (body_prefs, notification_prefs, journal_prefs, llm_settings), not a
+    // hypothetical: reproduced via `npx vitest run
+    // src/lib/export/import-user.test.ts` (whole file). Trimming the export
+    // to just this test's own two new rows keeps this test using the real
+    // exportUserData/importUserData path and the JSON round trip, while
+    // staying independent of whether the earlier test ran first.
+    const exported = {
+      ...fullExport,
+      wellness_daily: fullExport.wellness_daily.filter(
+        (w: { date: string }) => w.date === "2026-01-15"
+      ),
+      races: fullExport.races.filter(
+        (r: { name: string }) => r.name === "Round Trip Classic"
+      ),
+      daily_metrics: [],
+      chat_threads: [],
+      chat_messages: [],
+      coach_memories: [],
+      biomarkers: [],
+      body_prefs: [],
+      notification_prefs: [],
+      journal_prefs: [],
+      llm_settings: [],
+      training_plans: [],
+      training_blocks: [],
+      week_plans: [],
+      plan_adjustments: [],
+      activities: [],
+      activity_streams: [],
+      api_tokens: [],
+      connections: [],
+      webhook_subscriptions: [],
+      llm_usage: [],
+    };
+    await importUserData(db, TARGET_USER, exported);
+
+    // Filtered on date, not just userId: TARGET_USER may already carry the
+    // fixture's own wellness_daily/races rows from the earlier test in this
+    // file (imported before this test's trimmed, single-row import runs),
+    // so a bare userId match would be ambiguous about which row comes back.
+    const [wellness] = await db
+      .select()
+      .from(schema.wellnessDaily)
+      .where(
+        and(
+          eq(schema.wellnessDaily.userId, TARGET_USER),
+          eq(schema.wellnessDaily.date, "2026-01-15")
+        )
+      );
+    expect(wellness.sleepingHr).toBeCloseTo(48.5);
+    expect(wellness.hrvSdnnMs).toBeCloseTo(71.2);
+    expect(wellness.readiness).toBeCloseTo(82.0);
+    expect(wellness.hydrationL).toBeCloseTo(2.4);
+    expect(wellness.steps).toBe(11302);
+    expect(wellness.sleepQuality).toBe(3);
+
+    const [race] = await db
+      .select()
+      .from(schema.races)
+      .where(
+        and(
+          eq(schema.races.userId, TARGET_USER),
+          eq(schema.races.name, "Round Trip Classic")
+        )
+      );
+    expect(race.eventDays).toBe(3);
+    expect(race.distanceKm).toBeCloseTo(212.5);
+    expect(race.elevationM).toBe(3400);
+    expect(race.demandHoursOverride).toBeCloseTo(14.5);
   });
 });
