@@ -126,9 +126,14 @@ Three claims, each demonstrated rather than asserted:
 
 1. **The suite passes against a fresh migrated Postgres.** Already demonstrated
    during design: 243 files, 1725 tests, 0 failures. Re-run on the branch.
-2. **The guard is not vacuous.** A throwaway test calling `fetch("https://example.com")`
-   must fail with the guard's error, naming that URL. Watched failing, then
-   deleted — a guard never seen failing is decoration.
+2. **The guard is not vacuous.** This shipped stronger than first designed: rather
+   than a throwaway probe watched failing once and deleted, `tests/no-network-guard.test.ts`
+   is permanent and asserts the rejection names the URL, for both a string and a
+   `URL` object. It was still watched failing before the guard existed — and the
+   failure was real, the call reaching `example.com` and returning a 404, which
+   also established that this sandbox has genuine outbound network. If the guard
+   were ever removed the call would resolve again and the assertion would fail, so
+   the test binds in both directions rather than only at the moment it was written.
 3. **The gate genuinely binds.** Deliberately break one DB-gated test, push, and
    confirm the pull request goes **red**. Then revert. The entire premise of this
    release is that a green check has been meaningless for 405 tests; shipping it
