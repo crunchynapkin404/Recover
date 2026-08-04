@@ -1,5 +1,45 @@
 # Changelog
 
+## v0.38.0 — 2026-08-04 — The Week's Target Follows the Week
+
+A week's target load, `week_plans.effective_target`, is written once, at the
+moment the week is materialized, and never updated again. But the replan
+ladder keeps reshaping that same week all week long — shrinking it when
+readiness drops, growing it when the athlete frees up time — so the stored
+number drifts away from the week it actually describes, in both directions.
+Three readers were treating that stale figure as if it still described the
+current week: the race-day forecast, the CTL projection on `/train`, and the
+taper-execution stat in the race debrief.
+
+A new column, `week_plans.materialized_mins`, records the week's planned
+minutes at that same materialization moment, alongside the target load
+already captured there. `effective_target / materialized_mins` is therefore
+a load-per-minute rate fixed to what the week was actually built at, and the
+forecast, the CTL projection, and the taper stat now derive their numbers
+from that rate applied to the week as it currently stands, rather than from
+the frozen total. A day's projected load now depends only on that day's own
+minutes — the old forecast formula divided the frozen week total by the
+remaining days' minutes, so completing a day inflated every remaining day's
+projected load. That redistribution is gone.
+
+Adherence and next week's progression deliberately keep reading the frozen
+`effective_target`, unchanged. That number gates the low-adherence safety
+rail that stops the planner handing a full week to an athlete who has just
+had a bad one, and scoring it against a rate would let a week that shrank
+mid-week read back as if it had been fully met. This is a split by design,
+not a leftover inconsistency.
+
+The user-visible change: a week containing completed days now projects
+_less_ future load than before, because future days no longer inherit the
+load share of days already completed. That is the correction this release
+makes, not a regression.
+
+One additive migration, `materialized_mins`, nullable, with no backfill —
+existing rows read NULL and every consumer falls back to its prior
+behaviour exactly. Account import now carries the column through as well,
+so an imported account's weeks are not stranded on the fallback path
+forever.
+
 ## v0.37.1 — 2026-08-03 — Legacy blocks can be given times
 
 An availability block migrated from the pre-block model carries its duration
