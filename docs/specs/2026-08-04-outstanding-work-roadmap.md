@@ -28,6 +28,16 @@ its own release, plus four further tables that had never been noticed at all.
 Its guard is a compile-time mechanism, so it binds in CI without depending on
 item 2.
 
+**The follow-up it leaves, deliberately.** A new _column_ is now compile-enforced
+end to end. A new _table_ is not: adding one to `UserExport` forces
+`exportUserData` to populate it, but nothing forces `import-user.ts` to read it,
+so it would be dropped silently with a green typecheck. The guarantee there is
+still prose, in the header comments of both files — in a file whose whole thesis
+is that prose guarantees do not hold. The spec was scoped to columns and neither
+it nor the changelog claims table parity, so this is a genuine gap rather than a
+broken promise. A cheap fix exists: a `Record<ImportedTable, true>` witness in
+`import-user.ts`. Worth folding into whichever release next touches that file.
+
 ### 2. v0.40 — Tests That Bind in CI
 
 `.github/workflows/ci.yml` runs `npm test` with no `DATABASE_URL`; the env block

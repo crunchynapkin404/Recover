@@ -24,10 +24,11 @@ carries a type requiring each column the export emits, with a small explicit
 exemption list — regenerated row ids, and the two fields the export
 deliberately strips because they are a bulky provider payload and a
 credential. Leaving a column out is now a compile error naming the missing
-field, caught before a pull request can merge, and adding a column to the
-schema without carrying it through cannot pass the build. The exemptions
-carry their own guard: if the export ever starts emitting one of them, the
-exemption stops compiling. The export → wipe → import drill
+field, caught by CI on every pull request, and adding a column to the
+schema without carrying it through cannot pass the build. The two
+export-stripped exemptions carry their own guard: if the export ever starts
+emitting one of them, the exemption stops compiling. The export → wipe →
+import drill
 (`scripts/export-import-drill.ts`) was also extended to content-compare all
 eighteen of its importable tables, not six — week_plans, home to two of this
 release's fourteen columns, was among the twelve the drill had never

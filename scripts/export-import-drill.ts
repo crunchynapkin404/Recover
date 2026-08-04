@@ -77,10 +77,17 @@ function assertScratchTarget() {
   if (parsed.hostname !== "127.0.0.1" && parsed.hostname !== "localhost") {
     fail(`refusing to run against non-local host "${parsed.hostname}"`);
   }
+  // This drill wipes whatever it points at, so it must only ever target the
+  // scratch container it starts itself (a Docker-assigned random port).
+  // 5434 = the LIVE DB (recover-db-1). 5435 = the dev copy (recover-devdb),
+  // which is what `.env` points at, so it is the one a careless run would
+  // actually hit. 5433 = the old retired dev DB. `assertEmptyDatabase` below
+  // is the real backstop; this check exists to fail earlier and louder.
   if (parsed.port === "5434") {
-    fail(
-      "DATABASE_URL port 5434 is the real dev DB (recover-db-1) — refusing to run"
-    );
+    fail("DATABASE_URL port 5434 is the LIVE DB — refusing to run");
+  }
+  if (parsed.port === "5435") {
+    fail("DATABASE_URL port 5435 is the dev DB (.env's target) — refusing");
   }
   if (parsed.port === "5433") {
     fail("DATABASE_URL port 5433 is the old retired dev DB — refusing to run");
