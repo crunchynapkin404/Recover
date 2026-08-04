@@ -8,6 +8,30 @@ on:
 jobs:
   checks:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    # Dummy values only — a public repository's workflow file must never carry
+    # a real secret. They provide no safety of their own: what stops a seeded
+    # token from decrypting is its format, not the key (src/lib/crypto.ts).
+    # Tests are kept off the network by tests/setup/no-network.ts.
+    env:
+      DATABASE_URL: postgres://ci:ci@localhost:5432/ci
+      DATABASE_DRIVER: pg
+      ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
+      BETTER_AUTH_SECRET: ci-only-secret
+      BETTER_AUTH_URL: http://localhost:3000
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -17,16 +41,13 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
+      # The production migration runner — Dockerfile:42 -> docker-entrypoint.sh
+      # runs this exact file on every deploy, so a migration that would break
+      # on deploy breaks the pull request first.
+      - run: node scripts/migrate.mjs
       - run: npm test
       - run: npm run format:check
       - run: npm run build
-        env:
-          # Build needs syntactically valid env values only; nothing real.
-          DATABASE_URL: postgres://ci:ci@localhost:5432/ci
-          DATABASE_DRIVER: pg
-          ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
-          BETTER_AUTH_SECRET: ci-only-secret
-          BETTER_AUTH_URL: http://localhost:3000
 
   docker:
     runs-on: ubuntu-latest
