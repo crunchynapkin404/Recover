@@ -37,10 +37,12 @@
 import assert from "node:assert/strict";
 // Relative imports, not "@/" — matches scripts/seed-owner.ts and
 // scripts/seed-demo.ts: tsx run standalone doesn't resolve the tsconfig
-// path alias.
+// path alias. `Carried` is a type-only import, erased before tsx ever sees
+// it, but kept relative anyway for consistency with the rest of this file.
 import { db, schema } from "../src/lib/db";
 import { exportUserData, type UserExport } from "../src/lib/export/export-user";
 import { importUserData } from "../src/lib/export/import-user";
+import type { Carried } from "../src/lib/export/carried";
 import { eq } from "drizzle-orm";
 
 const DRILL_USER = "drill-user-1";
@@ -75,10 +77,17 @@ function assertScratchTarget() {
   if (parsed.hostname !== "127.0.0.1" && parsed.hostname !== "localhost") {
     fail(`refusing to run against non-local host "${parsed.hostname}"`);
   }
+  // This drill wipes whatever it points at, so it must only ever target the
+  // scratch container it starts itself (a Docker-assigned random port).
+  // 5434 = the LIVE DB (recover-db-1). 5435 = the dev copy (recover-devdb),
+  // which is what `.env` points at, so it is the one a careless run would
+  // actually hit. 5433 = the old retired dev DB. `assertEmptyDatabase` below
+  // is the real backstop; this check exists to fail earlier and louder.
   if (parsed.port === "5434") {
-    fail(
-      "DATABASE_URL port 5434 is the real dev DB (recover-db-1) — refusing to run"
-    );
+    fail("DATABASE_URL port 5434 is the LIVE DB — refusing to run");
+  }
+  if (parsed.port === "5435") {
+    fail("DATABASE_URL port 5435 is the dev DB (.env's target) — refusing");
   }
   if (parsed.port === "5433") {
     fail("DATABASE_URL port 5433 is the old retired dev DB — refusing to run");
@@ -108,133 +117,325 @@ async function seed() {
     email: "drill-user@example.invalid",
   });
 
-  await db.insert(schema.wellnessDaily).values({
+  // `Carried<..., "id">` forces this literal to populate every column
+  // wellness_daily has except `id` (regenerated on import) — the same
+  // exemption import-user.ts uses for this table. Every value below is
+  // chosen to be distinctive/non-default so a dropped column at any import
+  // site would show up as a real mismatch in compare(), not a null==null
+  // false-negative.
+  const wellnessSeed: Carried<typeof schema.wellnessDaily, "id"> = {
     userId: DRILL_USER,
     date: "2026-01-02",
     hrvMs: 55,
-    notes: "drill wellness note",
-    // vo2max is one of nine wellness_daily columns importUserData's
-    // explicit insert column list previously omitted; a real (non-null)
-    // value here means compare()'s full-row deepEqual below actually
-    // exercises the fix instead of comparing null against null.
+    restingHr: 47,
+    sleepSecs: 26400,
+    sleepScore: 88,
+    sleepDeepSecs: 5400,
+    sleepRemSecs: 4800,
+    sleepLightSecs: 14400,
+    sleepAwakeSecs: 1800,
+    bedStart: new Date("2026-01-01T22:15:00Z"),
+    bedEnd: new Date("2026-01-02T06:05:00Z"),
+    tempDeviationC: 0.3,
+    respiratoryRate: 14.2,
+    bloodOxygenPct: 97.5,
+    wristTempC: 33.1,
+    systolic: 118,
+    diastolic: 76,
+    bodyFatPct: 14.8,
+    ctl: 62.5,
+    atl: 58.2,
+    eftp: 275,
     vo2max: 48.2,
-  });
-  await db.insert(schema.dailyMetrics).values({
+    sleepingHr: 49,
+    hrvSdnnMs: 61.4,
+    readiness: 81,
+    hydrationL: 2.4,
+    steps: 8342,
+    sleepQuality: 4,
+    rampRate: 3.1,
+    pMax: 1050,
+    wPrime: 21500,
+    weightKg: 71.2,
+    bmi: 22.1,
+    leanMassKg: 60.5,
+    waistCm: 81,
+    energy1_10: 7,
+    soreness1_10: 3,
+    stress1_10: 2,
+    mood: "focused",
+    tags: ["drill-tag"],
+    dayFlags: ["travel"],
+    notes: "drill wellness note",
+    // `search` is GENERATED ALWAYS AS from `notes` — never set explicitly;
+    // Carried excludes it automatically (Drizzle drops generated columns
+    // from `$inferInsert`).
+    source: "whoop",
+    fieldSources: { hrvMs: "whoop" },
+    raw: { drillMarker: "wellness-raw" },
+    updatedAt: new Date("2026-01-02T07:00:00Z"),
+  };
+  await db.insert(schema.wellnessDaily).values(wellnessSeed);
+
+  const dailyMetricsSeed: Carried<typeof schema.dailyMetrics, "id"> = {
     userId: DRILL_USER,
     date: "2026-01-02",
     readiness: 72,
     band: "green",
-  });
-  await db.insert(schema.bodyPrefs).values({ userId: DRILL_USER, maxHr: 190 });
-  await db.insert(schema.notificationPrefs).values({ userId: DRILL_USER });
-  await db
-    .insert(schema.journalPrefs)
-    .values({ userId: DRILL_USER, usualBehaviorTags: ["caffeine"] });
-  await db.insert(schema.llmSettings).values({
+    componentScores: { hrv: 80, sleep: 75, rhr: 90 },
+    hrvBaselineMean: 4.02,
+    hrvBaselineSd: 0.18,
+    rhrBaselineMean: 48.5,
+    rhrBaselineSd: 2.3,
+    tsb: 5.4,
+    ctl: 63.1,
+    atl: 57.9,
+    loadSource: "computed",
+    computedAt: new Date("2026-01-02T09:00:00Z"),
+  };
+  await db.insert(schema.dailyMetrics).values(dailyMetricsSeed);
+
+  const bodyPrefsSeed: Carried<typeof schema.bodyPrefs, "id"> = {
+    userId: DRILL_USER,
+    wakeTime: "06:45",
+    sleepNeedSecs: 27000,
+    maxHr: 190,
+    ftpWatts: 285,
+    birthYear: 1990,
+    levelOverride: "advanced",
+  };
+  await db.insert(schema.bodyPrefs).values(bodyPrefsSeed);
+
+  const notificationPrefsSeed: Carried<typeof schema.notificationPrefs, "id"> =
+    {
+      userId: DRILL_USER,
+      morningPushEnabled: false,
+      lastMorningPushDate: "2026-01-01",
+      weeklyReviewDay: 3,
+      weeklyReviewHour: 19,
+      autoDescribeStrava: true,
+      stravaDescriptionFields: { load: true, ctl: false },
+      rideDebriefsEnabled: false,
+      debriefPushEnabled: true,
+    };
+  await db.insert(schema.notificationPrefs).values(notificationPrefsSeed);
+
+  const journalPrefsSeed: Carried<typeof schema.journalPrefs, "id"> = {
+    userId: DRILL_USER,
+    usualBehaviorTags: ["caffeine"],
+  };
+  await db.insert(schema.journalPrefs).values(journalPrefsSeed);
+
+  const llmSettingsSeed: Carried<
+    typeof schema.llmSettings,
+    "id" | "encryptedApiKey"
+  > = {
     userId: DRILL_USER,
     providerType: "anthropic",
+    baseUrl: "https://drill.example.invalid/v1",
     model: "claude-sonnet",
+    modelQuick: "claude-haiku-drill",
+    modelDeep: "claude-opus-drill",
+    defaultMode: "quick",
+    coachPersonality: "direct",
+    coachLanguage: "nl",
+    updatedAt: new Date("2026-01-02T10:00:00Z"),
     encryptedApiKey: "SECRET-SHOULD-NOT-SURVIVE-ROUNDTRIP",
-  });
-  await db.insert(schema.biomarkers).values({
+  };
+  await db.insert(schema.llmSettings).values(llmSettingsSeed);
+
+  const biomarkersSeed: Carried<typeof schema.biomarkers, "id"> = {
     userId: DRILL_USER,
     name: "ldl_cholesterol",
     displayName: "LDL Cholesterol",
+    category: "lipids",
     value: 95,
+    unit: "mg/dL",
     measuredAt: "2026-01-01",
     source: "manual",
-  });
-  await db.insert(schema.llmUsage).values({
+    confidence: 0.92,
+    rawLabel: "LDL Chol",
+    createdAt: new Date("2026-01-01T12:00:00Z"),
+  };
+  await db.insert(schema.biomarkers).values(biomarkersSeed);
+
+  const llmUsageSeed: Carried<typeof schema.llmUsage, "id"> = {
     userId: DRILL_USER,
     model: "claude-sonnet",
     slot: "deep",
     purpose: "chat",
     inputTokens: 100,
     outputTokens: 50,
-  });
-  await db.insert(schema.coachMemories).values({
+    createdAt: new Date("2026-01-02T11:00:00Z"),
+  };
+  await db.insert(schema.llmUsage).values(llmUsageSeed);
+
+  const coachMemoriesSeed: Carried<typeof schema.coachMemories, "id"> = {
     userId: DRILL_USER,
     category: "goal",
     content: "sub-3 marathon",
-  });
+    createdAt: new Date("2026-01-01T08:00:00Z"),
+    updatedAt: new Date("2026-01-02T08:00:00Z"),
+  };
+  await db.insert(schema.coachMemories).values(coachMemoriesSeed);
 
+  const chatThreadsSeed: Carried<typeof schema.chatThreads, "id"> = {
+    userId: DRILL_USER,
+    title: MARKER_THREAD,
+    kind: "debrief",
+    ephemeral: true,
+    createdAt: new Date("2026-01-01T07:00:00Z"),
+    updatedAt: new Date("2026-01-02T07:30:00Z"),
+  };
   const [thread] = await db
     .insert(schema.chatThreads)
-    .values({ userId: DRILL_USER, title: MARKER_THREAD })
+    .values(chatThreadsSeed)
     .returning();
-  await db.insert(schema.chatMessages).values([
-    { threadId: thread.id, role: "user", content: "hello from the drill" },
-    { threadId: thread.id, role: "assistant", content: "hi there" },
-  ]);
 
+  const chatMessagesSeed: Carried<typeof schema.chatMessages, "id">[] = [
+    {
+      threadId: thread.id,
+      role: "user",
+      content: "hello from the drill",
+      toolCalls: null,
+      readAt: null,
+      createdAt: new Date("2026-01-02T08:00:00Z"),
+      // `search` is GENERATED ALWAYS AS from `content` — never set explicitly.
+    },
+    {
+      threadId: thread.id,
+      role: "assistant",
+      content: "hi there",
+      toolCalls: [{ name: "drill_tool", args: { foo: 1 } }],
+      readAt: new Date("2026-01-02T08:10:00Z"),
+      createdAt: new Date("2026-01-02T08:01:00Z"),
+    },
+  ];
+  await db.insert(schema.chatMessages).values(chatMessagesSeed);
+
+  const activitiesSeed: Carried<typeof schema.activities, "id" | "raw"> = {
+    userId: DRILL_USER,
+    provider: "manual",
+    externalId: "drill-ext-1",
+    startDate: new Date("2026-01-02T08:00:00Z"),
+    startDateLocal: new Date("2026-01-02T09:00:00Z"),
+    sport: "Ride",
+    name: MARKER_ACTIVITY,
+    durationS: 5400,
+    distanceM: 42000,
+    load: 85.4,
+    avgHr: 148,
+    avgPower: 210,
+    elevationM: 620,
+    perceivedExertion: 6.5,
+    feel: "strong",
+    debriefNotes: "Drill debrief notes",
+    debriefState: "answered",
+    debriefThreadId: thread.id,
+    reviewedAt: new Date("2026-01-02T10:00:00Z"),
+    reviewAttempts: 2,
+    reviewSummary: "Solid steady effort with strong back half.",
+    createdAt: new Date("2026-01-02T08:05:00Z"),
+    raw: { drillMarker: "activity-raw" },
+  };
   const [activity] = await db
     .insert(schema.activities)
-    .values({
-      userId: DRILL_USER,
-      provider: "manual",
-      externalId: "drill-ext-1",
-      startDate: new Date("2026-01-02T08:00:00Z"),
-      sport: "Ride",
-      name: MARKER_ACTIVITY,
-      debriefThreadId: thread.id,
-      debriefState: "answered",
-    })
+    .values(activitiesSeed)
     .returning();
-  await db.insert(schema.activityStreams).values({
+
+  const activityStreamsSeed: Carried<typeof schema.activityStreams, "id"> = {
     activityId: activity.id,
     type: "heartrate",
     data: { series: [120, 125, 130] },
-  });
+    createdAt: new Date("2026-01-02T08:06:00Z"),
+  };
+  await db.insert(schema.activityStreams).values(activityStreamsSeed);
 
-  const [race] = await db
-    .insert(schema.races)
-    .values({
-      userId: DRILL_USER,
-      name: MARKER_RACE,
-      raceType: "10k",
-      date: "2026-06-01",
-      priority: "A",
-      status: "completed",
-      resultActivityId: activity.id,
-    })
-    .returning();
+  const racesSeed: Carried<typeof schema.races, "id"> = {
+    userId: DRILL_USER,
+    name: MARKER_RACE,
+    raceType: "10k",
+    sport: "Run",
+    date: "2026-06-01",
+    priority: "A",
+    status: "completed",
+    goalNote: "Break 40 minutes",
+    eventDays: 2,
+    distanceKm: 10.4,
+    elevationM: 85,
+    demandHoursOverride: 6.5,
+    resultActivityId: activity.id,
+    debriefedAt: new Date("2026-01-02T12:00:00Z"),
+    createdAt: new Date("2025-12-01T08:00:00Z"),
+    updatedAt: new Date("2026-01-02T12:05:00Z"),
+  };
+  const [race] = await db.insert(schema.races).values(racesSeed).returning();
 
+  const trainingPlansSeed: Carried<typeof schema.trainingPlans, "id"> = {
+    userId: DRILL_USER,
+    title: MARKER_PLAN,
+    raceType: "10k",
+    raceDate: "2026-06-01",
+    startDate: "2026-01-01",
+    weeksTotal: 12,
+    currentWeek: 4,
+    targetCtl: 75.0,
+    startingCtl: 45.0,
+    status: "completed",
+    constraints: { maxWeeklyHours: 10 },
+    raceId: race.id,
+    createdAt: new Date("2025-12-01T07:00:00Z"),
+    updatedAt: new Date("2026-01-02T13:00:00Z"),
+  };
   const [plan] = await db
     .insert(schema.trainingPlans)
-    .values({
-      userId: DRILL_USER,
-      title: MARKER_PLAN,
-      raceType: "10k",
-      raceDate: "2026-06-01",
-      startDate: "2026-01-01",
-      weeksTotal: 12,
-      raceId: race.id,
-    })
+    .values(trainingPlansSeed)
     .returning();
-  await db.insert(schema.trainingBlocks).values({
+
+  const trainingBlocksSeed: Carried<typeof schema.trainingBlocks, "id"> = {
     planId: plan.id,
     weekNumber: 1,
     phase: "base",
+    targetLoadTotal: 320.5,
+    targetSessions: 5,
     workouts: [{ day: "mon", kind: "easy" }],
-  });
+    actualLoad: 298.2,
+    actualSessions: 4,
+    adherencePct: 87.5,
+    notes: "Drill training block note",
+  };
+  await db.insert(schema.trainingBlocks).values(trainingBlocksSeed);
 
+  const weekPlansSeed: Carried<typeof schema.weekPlans, "id"> = {
+    userId: DRILL_USER,
+    planId: plan.id,
+    weekStart: "2026-01-01",
+    skeletonWeek: 1,
+    days: [{ day: "mon", kind: "easy" }],
+    status: "closed",
+    effectiveTarget: 410.75,
+    materializedMins: 360,
+    availabilityConfirmedAt: new Date("2026-01-01T18:00:00Z"),
+    availabilityPromptedAt: new Date("2025-12-30T09:00:00Z"),
+    createdAt: new Date("2025-12-29T07:00:00Z"),
+    updatedAt: new Date("2026-01-03T07:00:00Z"),
+  };
   const [weekPlan] = await db
     .insert(schema.weekPlans)
-    .values({
-      userId: DRILL_USER,
-      planId: plan.id,
-      weekStart: "2026-01-01",
-      skeletonWeek: 1,
-      days: [{ day: "mon", kind: "easy" }],
-    })
+    .values(weekPlansSeed)
     .returning();
-  await db.insert(schema.planAdjustments).values({
+
+  const planAdjustmentsSeed: Carried<typeof schema.planAdjustments, "id"> = {
     weekPlanId: weekPlan.id,
     date: "2026-01-03",
     trigger: "low_readiness",
     action: "scaled",
+    before: { load: 400 },
+    after: { load: 350 },
     reason: "readiness dropped",
-  });
+    createdAt: new Date("2026-01-03T07:05:00Z"),
+  };
+  await db.insert(schema.planAdjustments).values(planAdjustmentsSeed);
 
   // Secret-bearing tables — must survive the export (metadata only) but
   // must NOT come back on import.
@@ -324,6 +525,25 @@ function byMarker<T extends Record<string, unknown>>(
   return row;
 }
 
+/** chat_messages has no single marker column (no title/name field) and the
+ * drill deliberately seeds two rows with different value-profiles — so
+ * matching must not rely on array position (import order is not guaranteed
+ * to mirror export order). (role, content) together are a stable, unique
+ * pair for this drill's fixtures. */
+function byRoleContent<T extends { role: unknown; content: unknown }>(
+  rows: T[],
+  role: string,
+  content: string
+): T {
+  const matches = rows.filter((r) => r.role === role && r.content === content);
+  assert.equal(
+    matches.length,
+    1,
+    `chat_messages: expected exactly 1 row with role=${role} content=${JSON.stringify(content)}, found ${matches.length}`
+  );
+  return matches[0];
+}
+
 /** Deep-compare two rows for content equality, ignoring `id` and any
  * caller-specified FK-id fields (those are expected to change — a fresh
  * id was generated on import, and children were remapped to point at it).
@@ -349,7 +569,13 @@ function assertContentEqual(
 }
 
 async function compare(export1: UserExport, export2: UserExport) {
-  // ── Plain tables: same count, same content (id aside). ─────────────────
+  // ── Plain tables: same count, same content (id aside). Every table here
+  // has only a direct userId FK, and that FK is expected to be EQUAL (not
+  // just present) on both sides — importUserData writes
+  // `userId: targetUserId`, which is the same DRILL_USER the seed used — so
+  // it is deliberately not in any ignore list below. The seed produces
+  // exactly one row per table, so indexing [0] (no marker matching needed)
+  // is safe. ────────────────────────────────────────────────────────────
   const plainTables: (keyof UserExport)[] = [
     "wellness_daily",
     "daily_metrics",
@@ -368,14 +594,22 @@ async function compare(export1: UserExport, export2: UserExport) {
       arr1.length,
       `${t}: row count changed after round trip`
     );
+    assert.equal(
+      arr1.length,
+      1,
+      `${t}: sanity — seed should produce exactly 1 row`
+    );
+    assertContentEqual(
+      t,
+      arr1[0],
+      arr2[0],
+      // wellness_daily.search is a GENERATED ALWAYS AS tsvector column —
+      // Postgres computes it from `notes`, it's never assigned explicitly,
+      // and it isn't meaningfully comparable as data anyway. Every other
+      // table in this list has no such column, hence the empty list.
+      t === "wellness_daily" ? ["search"] : []
+    );
   }
-  assert.equal(export2.wellness_daily.length, 1);
-  assertContentEqual(
-    "wellness_daily",
-    export1.wellness_daily[0] as unknown as Record<string, unknown>,
-    export2.wellness_daily[0] as unknown as Record<string, unknown>,
-    ["search"] // generated column; not meaningfully comparable/settable
-  );
 
   // llm_settings: imports normally, but the (already-stripped-at-export)
   // encryptedApiKey stays absent — both exports omit the field entirely
@@ -406,6 +640,18 @@ async function compare(export1: UserExport, export2: UserExport) {
     export1.chat_messages.length,
     "chat_messages: not all remapped to the new thread id"
   );
+  // Content compare, matched by (role, content) rather than array position —
+  // the seed's two rows deliberately carry different value-profiles (the
+  // user row has null toolCalls/readAt; the assistant row has both set).
+  // `threadId` is excluded: it's a remapped FK, verified separately above.
+  for (const [role, content] of [
+    ["user", "hello from the drill"],
+    ["assistant", "hi there"],
+  ] as const) {
+    const msg1 = byRoleContent(export1.chat_messages, role, content);
+    const msg2 = byRoleContent(msgs2, role, content);
+    assertContentEqual(`chat_messages(${role})`, msg1, msg2, ["threadId"]);
+  }
 
   const activity1 = byMarker(export1.activities, "name", MARKER_ACTIVITY);
   const activity2 = byMarker(export2.activities, "name", MARKER_ACTIVITY);
@@ -439,6 +685,17 @@ async function compare(export1: UserExport, export2: UserExport) {
     export1.activity_streams.length,
     "activity_streams: not all remapped to the new activity id"
   );
+  // Only 1 activity_streams row is seeded, so matching by its `type` marker
+  // (within streams2, already filtered to the new activity id) is
+  // unambiguous. `activityId` is excluded: remapped FK, verified above.
+  assert.equal(
+    export1.activity_streams.length,
+    1,
+    "activity_streams: sanity — seed should produce exactly 1 row"
+  );
+  const stream1 = export1.activity_streams[0];
+  const stream2 = byMarker(streams2, "type", stream1.type);
+  assertContentEqual("activity_streams", stream1, stream2, ["activityId"]);
 
   const race1 = byMarker(export1.races, "name", MARKER_RACE);
   const race2 = byMarker(export2.races, "name", MARKER_RACE);
@@ -477,10 +734,31 @@ async function compare(export1: UserExport, export2: UserExport) {
     export1.training_blocks.length,
     "training_blocks: not all remapped to the new plan id"
   );
+  // Only 1 training_blocks row is seeded, so matching by its `phase` marker
+  // (within blocks2, already filtered to the new plan id) is unambiguous.
+  // `planId` is excluded: remapped FK, verified above.
+  assert.equal(
+    export1.training_blocks.length,
+    1,
+    "training_blocks: sanity — seed should produce exactly 1 row"
+  );
+  const block1 = export1.training_blocks[0];
+  const block2 = byMarker(blocks2, "phase", block1.phase);
+  assertContentEqual("training_blocks", block1, block2, ["planId"]);
 
   assert.equal(export2.week_plans.length, export1.week_plans.length);
   const weekPlan2 = export2.week_plans.find((w) => w.planId === plan2.id);
   assert.ok(weekPlan2, "week_plans: no row remapped to the new plan id");
+  // Content compare — this is the table this whole release exists for:
+  // `effectiveTarget`/`materializedMins` were the two columns silently
+  // dropped by the pre-fix importUserData, and until now nothing here
+  // actually asserted their values. `planId` is excluded: remapped FK,
+  // verified above via the `.find` on the new plan id (unique per user by
+  // weekStart, and only 1 row is seeded, so that find is already the
+  // marker match — no separate byMarker call needed).
+  const weekPlan1 = export1.week_plans.find((w) => w.planId === plan1.id);
+  assert.ok(weekPlan1, "week_plans: no export1 row found for the seeded plan");
+  assertContentEqual("week_plans", weekPlan1!, weekPlan2!, ["planId"]);
 
   assert.equal(
     export2.plan_adjustments.length,
@@ -494,6 +772,19 @@ async function compare(export1: UserExport, export2: UserExport) {
     export1.plan_adjustments.length,
     "plan_adjustments: not all remapped to the new week_plan id"
   );
+  // Only 1 plan_adjustments row is seeded, so matching by its `trigger`
+  // marker (within adjustments2, already filtered to the new week_plan id)
+  // is unambiguous. `weekPlanId` is excluded: remapped FK, verified above.
+  assert.equal(
+    export1.plan_adjustments.length,
+    1,
+    "plan_adjustments: sanity — seed should produce exactly 1 row"
+  );
+  const adjustment1 = export1.plan_adjustments[0];
+  const adjustment2 = byMarker(adjustments2, "trigger", adjustment1.trigger);
+  assertContentEqual("plan_adjustments", adjustment1, adjustment2, [
+    "weekPlanId",
+  ]);
 
   // ── Secret-bearing tables: present before, gone after (by design). ─────
   assert.ok(

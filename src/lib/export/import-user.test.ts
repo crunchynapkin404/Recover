@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 // Matches export-user.test.ts: no separate test DB, so every row here is
 // test-* scoped and cleaned up via FK cascade off the seeded users rows.
@@ -361,5 +361,181 @@ describe.skipIf(!hasDb)("importUserData", () => {
     await expect(
       importUserData(db, TARGET_USER, { ...sample, version: 999 })
     ).rejects.toThrow(/unsupported export version/);
+  });
+
+  it("carries every wellness_daily and races column through a round trip", async () => {
+    const { db, schema } = await import("@/lib/db");
+    const { exportUserData } = await import("./export-user");
+    const { importUserData } = await import("./import-user");
+
+    await db.insert(schema.wellnessDaily).values({
+      userId: SOURCE_USER,
+      date: "2026-01-15",
+      sleepingHr: 48.5,
+      hrvSdnnMs: 71.2,
+      readiness: 82.0,
+      hydrationL: 2.4,
+      steps: 11302,
+      sleepQuality: 3,
+    });
+    await db.insert(schema.races).values({
+      userId: SOURCE_USER,
+      name: "Round Trip Classic",
+      raceType: "gran_fondo",
+      sport: "Ride",
+      date: "2026-06-01",
+      // `priority` is NOT NULL with no default — omitting it fails the
+      // insert on a constraint violation rather than on an assertion.
+      priority: "A",
+      eventDays: 3,
+      distanceKm: 212.5,
+      elevationM: 3400,
+      demandHoursOverride: 14.5,
+    });
+
+    // chat_messages.readAt is the one nullable *timestamp* column among the
+    // 11 this round-trip test covers — every other new column is a plain
+    // scalar. importUserData routes it through toDateOrNull (see that
+    // file's header comment) specifically because a real import's payload
+    // comes from req.json(), where a Date has already become an ISO
+    // string. beforeAll's own chat_threads/chat_messages fixture never sets
+    // readAt (both seeded messages are unread, i.e. null), so a distinct,
+    // non-null thread+message pair is seeded here to actually exercise the
+    // toDateOrNull(string) path end to end.
+    const READ_AT_ISO = "2026-01-15T09:30:00.000Z";
+    const [readAtThread] = await db
+      .insert(schema.chatThreads)
+      .values({ userId: SOURCE_USER, title: "ROUND-TRIP-READAT-THREAD" })
+      .returning();
+    await db.insert(schema.chatMessages).values({
+      threadId: readAtThread.id,
+      role: "assistant",
+      content: "ROUND-TRIP-READAT-MESSAGE",
+      readAt: new Date(READ_AT_ISO),
+    });
+
+    // A real import receives its payload from req.json(), which turns every
+    // Date into an ISO string. Round-tripping through JSON here exercises
+    // the same path rather than the friendlier in-memory shape.
+    const fullExport = JSON.parse(
+      JSON.stringify(await exportUserData(db, SOURCE_USER))
+    );
+    // SOURCE_USER already carries the beforeAll fixture's own wellness_daily
+    // row (2026-01-02) and race ("IMPORT-TEST-RACE"), and the earlier test
+    // in this file has already imported those into TARGET_USER. Importing
+    // the full export a second time would re-insert that same fixture data
+    // into TARGET_USER — a duplicate-key violation on wellness_daily's
+    // (user_id, date) constraint and on every userId-unique singleton table
+    // (body_prefs, notification_prefs, journal_prefs, llm_settings), not a
+    // hypothetical: reproduced via `npx vitest run
+    // src/lib/export/import-user.test.ts` (whole file). Trimming the export
+    // to just this test's own two new rows keeps this test using the real
+    // exportUserData/importUserData path and the JSON round trip, while
+    // staying independent of whether the earlier test ran first.
+    const exported = {
+      ...fullExport,
+      wellness_daily: fullExport.wellness_daily.filter(
+        (w: { date: string }) => w.date === "2026-01-15"
+      ),
+      races: fullExport.races.filter(
+        (r: { name: string }) => r.name === "Round Trip Classic"
+      ),
+      daily_metrics: [],
+      // Trimmed to just this test's own thread/message (same reasoning as
+      // wellness_daily/races above): importUserData remaps chat_messages'
+      // threadId through an old->new id map built while inserting
+      // chat_threads, so the thread row must ride along or the message
+      // insert throws "references unknown thread" by design.
+      chat_threads: fullExport.chat_threads.filter(
+        (t: { title: string | null }) => t.title === "ROUND-TRIP-READAT-THREAD"
+      ),
+      chat_messages: fullExport.chat_messages.filter(
+        (m: { content: string }) => m.content === "ROUND-TRIP-READAT-MESSAGE"
+      ),
+      coach_memories: [],
+      biomarkers: [],
+      body_prefs: [],
+      notification_prefs: [],
+      journal_prefs: [],
+      llm_settings: [],
+      training_plans: [],
+      training_blocks: [],
+      week_plans: [],
+      plan_adjustments: [],
+      activities: [],
+      activity_streams: [],
+      api_tokens: [],
+      connections: [],
+      webhook_subscriptions: [],
+      llm_usage: [],
+    };
+    await importUserData(db, TARGET_USER, exported);
+
+    // Filtered on date, not just userId: TARGET_USER may already carry the
+    // fixture's own wellness_daily/races rows from the earlier test in this
+    // file (imported before this test's trimmed, single-row import runs),
+    // so a bare userId match would be ambiguous about which row comes back.
+    const [wellness] = await db
+      .select()
+      .from(schema.wellnessDaily)
+      .where(
+        and(
+          eq(schema.wellnessDaily.userId, TARGET_USER),
+          eq(schema.wellnessDaily.date, "2026-01-15")
+        )
+      );
+    expect(wellness.sleepingHr).toBeCloseTo(48.5);
+    expect(wellness.hrvSdnnMs).toBeCloseTo(71.2);
+    expect(wellness.readiness).toBeCloseTo(82.0);
+    expect(wellness.hydrationL).toBeCloseTo(2.4);
+    expect(wellness.steps).toBe(11302);
+    expect(wellness.sleepQuality).toBe(3);
+
+    const [race] = await db
+      .select()
+      .from(schema.races)
+      .where(
+        and(
+          eq(schema.races.userId, TARGET_USER),
+          eq(schema.races.name, "Round Trip Classic")
+        )
+      );
+    expect(race.eventDays).toBe(3);
+    expect(race.distanceKm).toBeCloseTo(212.5);
+    expect(race.elevationM).toBe(3400);
+    expect(race.demandHoursOverride).toBeCloseTo(14.5);
+
+    // Filtered on content, not just threadId/userId: TARGET_USER may already
+    // carry the beforeAll fixture's own chat_messages rows (imported by the
+    // earlier test in this file), so a bare "messages in this thread" query
+    // would still be unambiguous here (fresh thread), but matching by
+    // content keeps this assertion self-contained and obviously correct.
+    const [importedThread] = await db
+      .select()
+      .from(schema.chatThreads)
+      .where(
+        and(
+          eq(schema.chatThreads.userId, TARGET_USER),
+          eq(schema.chatThreads.title, "ROUND-TRIP-READAT-THREAD")
+        )
+      );
+    const [importedMessage] = await db
+      .select()
+      .from(schema.chatMessages)
+      .where(
+        and(
+          eq(schema.chatMessages.threadId, importedThread.id),
+          eq(schema.chatMessages.content, "ROUND-TRIP-READAT-MESSAGE")
+        )
+      );
+    // Compare via new Date(...).toISOString() rather than direct equality:
+    // robust to whether the driver hands back a Date or (as in a real
+    // req.json()-sourced import) an ISO string survived unconverted — the
+    // whole point of this assertion is proving the toDateOrNull(string)
+    // path in import-user.ts actually ran and produced the right instant.
+    expect(importedMessage.readAt).not.toBeNull();
+    expect(new Date(importedMessage.readAt as Date).toISOString()).toBe(
+      READ_AT_ISO
+    );
   });
 });
