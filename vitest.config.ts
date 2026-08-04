@@ -11,6 +11,8 @@ export default defineConfig({
     // Default node; component tests opt in per-file via
     // `// @vitest-environment jsdom`, so the DB suites keep a fast node env.
     environment: "node",
+    // Fails any test that reaches the real network. See the file's header.
+    setupFiles: ["./tests/setup/no-network.ts"],
     include: ["src/**/*.test.{ts,tsx}", "tests/**/*.test.{ts,tsx}"],
     // Integration tests share one Postgres and several (scheduler.test.ts,
     // morning-hook.test.ts) tick the same sync_jobs queue — parallel files
