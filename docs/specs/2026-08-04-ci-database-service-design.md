@@ -39,23 +39,34 @@ passing test may be leaning on data it did not create.
 
 ### The one real hazard, which is not the one that was predicted
 
-No test makes a real outbound HTTP call today — but nothing enforces that.
-`vitest.config.ts` has no `setupFiles`. There is no `vi.mock` of the network, no
-`nock`, no `msw`. `tests/scheduler.test.ts` seeds an **active** `intervals_icu`
-connection and then runs tick passes over it.
+No test makes a real outbound HTTP call today — and that isn't incidental.
+`runActivityPolls` (`src/lib/sync/activity-poll.ts`) only runs when
+`providerPassesEnabled()` is true, and that predicate is
+`!process.env.VITEST` (`src/lib/sync/scheduler.ts:37-39`) — a deliberate
+guard added after a prior release let an unbounded tick pass bill a real LLM
+ride review into the owner's own thread. `runIntervalsSync`
+(`src/lib/sync/intervals-sync.ts`) is reachable only through the tick's
+`defaultProcessor`, and every test caller of `runSchedulerTick` passes a
+stub processor instead — `tests/scheduler.test.ts`,
+`tests/scheduler-housekeeping-guard.test.ts`, `tests/describe-hook.test.ts`,
+`tests/morning-hook.test.ts`. `tests/scheduler.test.ts` does seed an
+**active** `intervals_icu` connection, but the tick block it runs never
+touches that user — the connection lives under a different seeded user than
+the one whose jobs the tick claims.
 
-What prevents the outbound call is incidental: the seeded row carries
-`encryptedAccessToken: "x"`, `decrypt()` is called _before_ any HTTP request
-(`src/lib/sync/intervals-sync.ts:147`, `src/lib/sync/activity-poll.ts:101`), and
-it throws on the `iv:authTag:ciphertext` format check at
-`src/lib/crypto.ts:65` — before the key is applied at all, so this holds under
-any key rather than specifically CI's all-zeros one. The tick's catch blocks
-then log and continue. The moment a test seeds a properly-encrypted token, GitHub runners
-begin calling intervals.icu for real — flaky for us, and rude to a third party
-whose API this project depends on.
+The real hazard sits one level further in: the tick's post-job hooks —
+`runAutoDescribeStrava`, `generateWeeklyReview`, `runRaceDebriefs`,
+`runDebriefLifecycle` (`src/lib/sync/scheduler.ts:345-420`) — are **not**
+behind `providerPassesEnabled()`. They run with real imports inside
+`try/catch`, which is exactly the shape of the incident above: nothing stops
+one of them reaching a real provider except that no test currently exercises
+a branch that would call out. `vitest.config.ts` has no `setupFiles`, no
+`vi.mock` of the network, no `nock`, no `msw` — those hooks have no guard of
+their own to fall back on.
 
-That is a coincidence holding a property in place. This release replaces it with
-the property.
+That is a guarantee for the paths a prior release deliberately closed, and no
+guarantee at all for the paths it left open. This release adds the missing
+one.
 
 ## Design
 
@@ -92,11 +103,19 @@ A new vitest `setupFiles` entry replaces `globalThis.fetch` with a function that
 throws, naming the URL that was requested. `vitest.config.ts` has no `setupFiles`
 today, so this is purely additive.
 
-It should pass on its first run without changing a single test: the only two test
-files that mention fetch (`src/lib/webhooks/dispatch.test.ts`,
-`tests/audit-v0122-fixes.test.ts`) inject `vi.fn()` fetchers as parameters and
-never touch the global. If the guard does trip a test, that test was reaching the
-network and the finding is the point.
+It should pass on its first run without changing a single test: 17 test files
+mention `fetch`, but only six replace the global themselves with
+`vi.stubGlobal("fetch", …)` — `src/lib/connectors/strava.test.ts`,
+`src/lib/connectors/intervals.test.ts`,
+`src/lib/connectors/intervals-request.test.ts`,
+`src/lib/connectors/google-calendar.test.ts`, `tests/strava.test.ts`,
+`tests/strava-describer.test.ts`. In those six the guard is silently inert —
+harmless, since they are deliberately mocking the network on purpose — but it
+means the guard's real coverage is 239 files, not all of them. Everywhere
+else, fetch only ever reaches code under test through an injected parameter
+(e.g. `src/lib/webhooks/dispatch.test.ts`, which passes `fetcher` as an
+argument), so the global stays the guard's to enforce. If the guard does trip
+a test, that test was reaching the network and the finding is the point.
 
 The guard must name the offending URL in its error. A bare "network disabled"
 sends the next person hunting through 243 files.

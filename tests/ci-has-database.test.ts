@@ -2,7 +2,9 @@
  * Guards against the release this test ships with silently regressing.
  *
  * Every DB-backed suite in this repo (see tests/db-driver.test.ts,
- * src/lib/training-plan.test.ts, and 69 others) decides whether to run with:
+ * src/lib/training-plan.test.ts, and 86 others — 88 files define `hasDb` in
+ * total, 71 of which skip *entirely* without a database; the rest mix
+ * gated and ungated tests in one file) decides whether to run with:
  *
  *   const hasDb = !!process.env.DATABASE_URL && process.env.DATABASE_DRIVER === "pg";
  *   describe.skipIf(!hasDb)(...)

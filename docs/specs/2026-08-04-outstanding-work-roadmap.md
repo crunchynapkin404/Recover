@@ -48,13 +48,26 @@ Measured by running the suite both ways: **71 test files and 405 tests — 23% o
 the suite — skip on every pull request** (243 files / 1725 tests total; 88 files
 carry a `describe.skipIf(!hasDb)` guard).
 
-**The "expect triage, not config" prediction below was wrong, and is corrected
+**The "expect triage, not config" prediction was wrong, and is corrected
 here.** Run against a fresh migrated Postgres the suite passes completely — 243
 files, 1725 tests, zero failures, +18 seconds. There is no hidden breakage. The
-one real hazard is different from the predicted one: nothing _enforces_ that
-tests stay off the network. `tests/scheduler.test.ts` seeds an active
-`intervals_icu` connection and only an incidental decrypt failure stops a real
-outbound call, so the design adds a guard.
+one real hazard is different from the predicted one: the tick's post-job
+hooks (weekly review, race debriefs, auto-describe) run with real imports
+inside `try/catch` and sit outside the guard that already keeps the tick's
+provider passes off the network under vitest, so the design adds one.
+
+**The follow-up it leaves, deliberately.** `tests/ci-has-database.test.ts`
+gates itself on `process.env.CI === "true"`, which is presence-based one
+level up: if `CI` is ever not exactly `"true"`, the anti-skipping guard
+skips silently instead of catching the regression it exists for. The
+realistic threat is still covered, since `CI` is set by the runner rather
+than by anything this workflow file controls. But a strictly stronger and
+equally cheap design exists: an _ungated_ test that reads
+`.github/workflows/ci.yml` directly and asserts `DATABASE_URL` and
+`DATABASE_DRIVER: pg` appear at job level, above `steps:`. That would run on
+every machine, in and out of CI, with no environment variable able to
+defeat it. Worth folding into whichever release next touches CI; not built
+now.
 
 ### 3. v0.40.x — The Double Push, Settled
 

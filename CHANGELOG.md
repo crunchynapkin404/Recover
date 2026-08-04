@@ -25,11 +25,18 @@ would put the suite back to skipping while the job stayed green, and this
 test fails CI loudly if that ever happens.
 
 Separately, tests can no longer reach the real network. Nothing had enforced
-that. One suite seeds an active intervals.icu connection and runs scheduler
-passes over it, and the only thing preventing a real outbound call was that
-the placeholder token fails to decrypt before the request is built — a
-coincidence doing a guarantee's job. A global guard now fails any test that
-calls `fetch`, naming the URL it tried to reach.
+that, though nothing currently depends on it being enforced: the tick's
+provider passes are already switched off under vitest, and every test that
+drives the scheduler tick hands it a stub processor rather than the real
+one, so the one suite that seeds an active intervals.icu connection never
+actually runs a tick over that user. The real exposure sits downstream of
+that guard, in the tick's post-job hooks — weekly review, race debriefs,
+auto-describe — which run with real imports inside `try/catch` and are not
+gated the same way; this project has already had one of those hooks bill a
+real LLM call into the owner's own coaching thread. A global guard now
+blocks any outbound `fetch` and rejects, naming the URL it tried to reach —
+no bytes leave the machine either way, though a caller whose `catch`
+swallows the rejection will not itself go red.
 
 ## v0.39.0 — 2026-08-04 — The Importer Carries Everything
 
