@@ -476,8 +476,9 @@ describe.skipIf(!hasDb)("plan race actions", () => {
 
       // Set it — the case the athlete was blocked on: the add form is the only
       // place goalNote has ever had an input.
-      expect(await updateRaceDemand(raceId, { ...demand, goalNote: "sub 4h" }))
-        .toEqual({ ok: true });
+      expect(
+        await updateRaceDemand(raceId, { ...demand, goalNote: "sub 4h" })
+      ).toEqual({ ok: true });
       expect(
         (await db.query.races.findFirst({ where: eq(schema.races.id, raceId) }))
           ?.goalNote
@@ -493,8 +494,9 @@ describe.skipIf(!hasDb)("plan race actions", () => {
       // Blanked — an athlete clearing the field means clear it, and whitespace
       // is blank. Stored as null, not "", so `race.goalNote && ...` renders
       // nothing rather than an empty line.
-      expect(await updateRaceDemand(raceId, { ...demand, goalNote: "   " }))
-        .toEqual({ ok: true });
+      expect(
+        await updateRaceDemand(raceId, { ...demand, goalNote: "   " })
+      ).toEqual({ ok: true });
       expect(
         (await db.query.races.findFirst({ where: eq(schema.races.id, raceId) }))
           ?.goalNote
