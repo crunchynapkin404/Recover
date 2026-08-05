@@ -25,6 +25,7 @@ import {
 import { buildSlots, admits, slotKey, fitToBlock, findBlockFor } from "./slots";
 import type { AvailabilityBlock } from "@/lib/availability/types";
 import { MAX_SESSIONS_PER_DAY } from "@/lib/availability/types";
+import type { PlanSport } from "@/lib/plan-sport";
 
 export interface EffectiveLoadInput {
   skeletonTarget: number;
@@ -112,7 +113,8 @@ export interface MaterializeInput {
   prevWeek: { actualLoad: number; adherencePct: number } | null;
   recentBands: Band[];
   raceType: string;
-  sports: string[];
+  /** The plan's sport. Single value — the race decides it (v0.42). */
+  sport: PlanSport;
   hoursPerWeek: number;
   /** Upcoming races, sorted priority A→C then date asc (service does the sort). */
   races?: RaceContext[];
@@ -240,7 +242,7 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
 
   if (isRaceWeek) {
     const taken = new Set<string>();
-    for (const w of raceWeekWorkouts(input.sports[0] ?? "Run", raceIdx)) {
+    for (const w of raceWeekWorkouts(input.sport, raceIdx)) {
       // Which block on this day actually admits the session — never a
       // hardcoded blockIdx 0, and never dayMins' summed-across-blocks
       // question of whether the day has room at all.
@@ -323,8 +325,7 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
       sessions,
       effectiveHours,
       skeleton.phase,
-      input.raceType,
-      input.sports,
+      input.sport,
       input.queenStageHours ?? null
     )
       .sort((a, b) => b.durationMins - a.durationMins)

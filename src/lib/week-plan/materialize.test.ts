@@ -162,7 +162,7 @@ const baseInput = {
   prevWeek: { actualLoad: 390, adherencePct: 95 },
   recentBands: Array(7).fill("green") as import("./types").Band[],
   raceType: "marathon",
-  sports: ["Run"],
+  sport: "Run" as const,
   hoursPerWeek: 8,
 };
 
@@ -260,7 +260,7 @@ describe("materializeWeek layout", () => {
       ...baseInput,
       skeleton: { ...baseInput.skeleton, phase: "build", targetSessions: 5 },
       raceType: "ironman",
-      sports: ["Swim", "Bike", "Run"],
+      sport: "Triathlon",
       availableBlocksPerDay: blocksPerDay([90, 90, 90, 90, 90, 0, 0]),
     });
     for (let i = 1; i < 7; i++) {
@@ -302,7 +302,7 @@ describe("materializeWeek — generator cap explained (final-review Finding 2)",
     prevWeek: null,
     recentBands: [] as import("./types").Band[],
     raceType: "gran fondo",
-    sports: ["Bike"],
+    sport: "Bike" as const,
   };
 
   it("logs an adjustment explaining the cap when the target exceeds what the generator can express", () => {
@@ -395,7 +395,7 @@ describe("materializeWeek — event demand reaches the materialized week (Task 3
     prevWeek: null,
     recentBands: [] as import("./types").Band[],
     raceType: "century",
-    sports: ["Bike"],
+    sport: "Bike" as const,
     hoursPerWeek: 13,
     // Generous, uniform availability: block-fitting is never the limiter.
     availableBlocksPerDay: blocksPerDay([400, 400, 400, 400, 400, 400, 400]),
@@ -467,7 +467,7 @@ const BASE_INPUT = {
   prevWeek: { actualLoad: 380, adherencePct: 95 },
   recentBands: [] as import("./types").Band[],
   raceType: "marathon",
-  sports: ["Run"],
+  sport: "Run" as const,
   hoursPerWeek: 8,
 };
 const A_RACE: RaceContext = {
@@ -583,7 +583,7 @@ describe("materializeWeek race handling", () => {
     const r = materializeWeek({
       ...BASE_INPUT,
       skeleton: { ...SKELETON, targetSessions: 2 },
-      sports: ["Bike"],
+      sport: "Bike",
       raceType: "Gran Fondo",
       hoursPerWeek: 6,
       prevWeek: null,
@@ -663,7 +663,7 @@ describe("materializeWeek — block fitting", () => {
     prevWeek: null,
     recentBands: [],
     raceType: "Gran Fondo",
-    sports: ["Bike"],
+    sport: "Bike" as const,
     hoursPerWeek: 8,
   };
 
@@ -785,7 +785,7 @@ describe("materializeWeek — block fitting", () => {
         ...base,
         skeleton: { ...base.skeleton, targetSessions: 3 },
         raceType: "Ironman 70.3",
-        sports: ["Swim", "Bike", "Run"],
+        sport: "Triathlon",
         hoursPerWeek: 20,
         availableBlocksPerDay: blocksPerDay([1100, 100, 90, 90, 90, 90, 90]),
       });
@@ -805,7 +805,7 @@ describe("materializeWeek — block fitting", () => {
         ...base,
         skeleton: { ...base.skeleton, targetSessions: 3 },
         raceType: "Ironman 70.3",
-        sports: ["Swim", "Bike", "Run"],
+        sport: "Triathlon",
         hoursPerWeek: 20,
         availableBlocksPerDay: [
           blocks([1100, 100]),
@@ -833,7 +833,7 @@ describe("materializeWeek — block fitting", () => {
         ...base,
         skeleton: { ...base.skeleton, targetSessions: 4 },
         raceType: "Marathon",
-        sports: ["Run"],
+        sport: "Run",
         hoursPerWeek: 20,
         availableBlocksPerDay: [
           blocks([60]), // Mon
