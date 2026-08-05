@@ -1,6 +1,6 @@
 // src/lib/race/service.ts — race CRUD. Pure race math lives in taper.ts /
 // forecast.ts; this layer only touches the DB.
-import { and, asc, desc, eq, gte, inArray, lte } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, lte, ne } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import type { Projected } from "@/lib/db/projected";
 import type { PlanSport } from "@/lib/plan-sport";
@@ -264,8 +264,15 @@ export async function assembleForecastInputs(
       ? preloadedWeek
       : await (await import("@/lib/week-plan/service")).getOpenWeekPlan(userId);
   if (!week) return null;
+  // Excludes only `draft` (v0.43): looked up by primary key from an
+  // existing week_plans row, so an `archived` plan legitimately backs an
+  // older open week and must still resolve; only a `draft` was never
+  // supposed to be projectable.
   const plan = await db.query.trainingPlans.findFirst({
-    where: eq(schema.trainingPlans.id, week.planId),
+    where: and(
+      eq(schema.trainingPlans.id, week.planId),
+      ne(schema.trainingPlans.status, "draft")
+    ),
   });
   if (!plan) return null;
 
