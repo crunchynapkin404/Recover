@@ -15,6 +15,7 @@ import { findBlockFor } from "./slots";
 import { providerSportAliases } from "@/lib/canonical-sport";
 import type { AvailabilityBlock } from "@/lib/availability/types";
 import { periodize } from "@/lib/training-plan";
+import { requirePlanSport } from "@/lib/plan-sport";
 import { assembleVolumeInputs, assembleWeeklyTarget } from "./volume-inputs";
 import {
   hoursForMaterialize,
@@ -97,7 +98,13 @@ export function planConstraints(constraints: unknown): PlanConstraints {
   return {
     daysPerWeek: c.daysPerWeek ?? 5,
     hoursPerWeek: c.hoursPerWeek ?? 8,
-    sports: c.sports?.length ? c.sports : ["Run"],
+    // F13: this used to fall back to ["Run"] when sports was absent or
+    // empty — a fourth silent running fallback, quieter than the other
+    // three because it lived in the constraints reader rather than the
+    // generator. An absent/empty list now flows through untouched, and
+    // requirePlanSport(constraints.sports?.[0]) at the call sites below
+    // throws a named error instead of building a running week.
+    sports: c.sports ?? [],
   };
 }
 
@@ -291,6 +298,13 @@ export async function rolloverWeekPlan(
   // `materializeWeek` below so they can't drift onto different values.
   const queenStageHours = volumeInputs.demand?.queenStageHours ?? null;
 
+  // A sport word (canonicalised via requirePlanSport), never plan.raceType —
+  // raceType is free text with no closed vocabulary, and inferring a sport
+  // from it here would mean this live, recurring rollover throws for any
+  // historical or unusual spelling. constraints.sports[0] is what
+  // generateTrainingPlan actually decided the plan's sport was.
+  const sport = requirePlanSport(constraints.sports?.[0]);
+
   // Recomputed fresh, never read as authority — a stored target is exactly
   // how `hoursPerWeek` went stale in the first place.
   const derivedBlocks = periodize(
@@ -298,8 +312,7 @@ export async function rolloverWeekPlan(
     plan.startingCtl ?? 0,
     constraints.daysPerWeek,
     target.hours,
-    plan.raceType,
-    constraints.sports,
+    sport,
     queenStageHours
   );
   const derived =
@@ -323,7 +336,7 @@ export async function rolloverWeekPlan(
     prevWeek,
     recentBands: await recentBands(userId),
     raceType: plan.raceType,
-    sports: constraints.sports,
+    sport,
     hoursPerWeek: hoursForMaterialize(target),
     races,
     currentCtl: ctlNow,

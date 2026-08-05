@@ -3,8 +3,8 @@ import { periodize } from "@/lib/training-plan";
 
 describe("periodize under a derived hours target", () => {
   it("is deterministic for identical inputs", () => {
-    const a = periodize(9, 76.7, 4, 10, "century", ["Bike"]);
-    const b = periodize(9, 76.7, 4, 10, "century", ["Bike"]);
+    const a = periodize(9, 76.7, 4, 10, "Bike");
+    const b = periodize(9, 76.7, 4, 10, "Bike");
     expect(JSON.stringify(a)).toBe(JSON.stringify(b));
   });
 
@@ -26,8 +26,8 @@ describe("periodize under a derived hours target", () => {
   // responds to its `weekHours` argument at all — a precondition that path
   // relies on — not to cover the periodized skeleton.
   it("generateWorkouts scales week-5 workout minutes with the hours figure (not the skeleton — see sibling test)", () => {
-    const small = periodize(9, 76.7, 4, 6, "century", ["Bike"]);
-    const large = periodize(9, 76.7, 4, 12, "century", ["Bike"]);
+    const small = periodize(9, 76.7, 4, 6, "Bike");
+    const large = periodize(9, 76.7, 4, 12, "Bike");
     const w5s = small.find((b) => b.weekNumber === 5)!;
     const w5l = large.find((b) => b.weekNumber === 5)!;
     const mins = (b: typeof w5s) =>
@@ -45,8 +45,8 @@ describe("periodize under a derived hours target", () => {
   // startingCtl and fixed phase multipliers, targetSessions by
   // daysPerWeek, and phase by week index alone.
   it("keeps targetLoad, phase and targetSessions identical across a 20x hours spread", () => {
-    const small = periodize(9, 76.7, 4, 2, "century", ["Bike"]);
-    const large = periodize(9, 76.7, 4, 40, "century", ["Bike"]);
+    const small = periodize(9, 76.7, 4, 2, "Bike");
+    const large = periodize(9, 76.7, 4, 40, "Bike");
     const strip = (blocks: typeof small) =>
       blocks.map(({ weekNumber, phase, targetLoad, targetSessions }) => ({
         weekNumber,
@@ -59,7 +59,7 @@ describe("periodize under a derived hours target", () => {
 
   it("still marks week 4 of a 9-week plan a recovery week", () => {
     // Guards the existing periodisation while the hours input changes.
-    const blocks = periodize(9, 76.7, 4, 10, "century", ["Bike"]);
+    const blocks = periodize(9, 76.7, 4, 10, "Bike");
     expect(blocks.find((b) => b.weekNumber === 4)!.phase).toBe("recovery");
   });
 });
