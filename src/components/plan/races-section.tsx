@@ -214,6 +214,7 @@ function RaceDemandEditor({
   const [eventDays, setEventDays] = useState(race.eventDays);
   const [distanceKm, setDistanceKm] = useState<number | null>(race.distanceKm);
   const [elevationM, setElevationM] = useState<number | null>(race.elevationM);
+  const [goalNote, setGoalNote] = useState(race.goalNote ?? "");
   const [stages, setStages] = useState<
     { distanceKm: number | null; elevationM: number | null }[]
   >(
@@ -266,6 +267,7 @@ function RaceDemandEditor({
           distanceKm,
           elevationM,
           stages: stagesForSubmit(),
+          goalNote,
         });
         if (!result.ok) {
           setError(result.error);
@@ -299,6 +301,23 @@ function RaceDemandEditor({
         onElevationChange={setElevationM}
         onStageChange={setStageField}
       />
+
+      {/* Free text on purpose. The coach reads prose, and goalNote already
+          flows to it, to the morning insight and to the race debrief — a
+          structured target schema would be guessing at what an athlete
+          types before anyone has typed one. */}
+      <label className="label-micro" htmlFor={`edit-${race.id}-goal`}>
+        Goal
+      </label>
+      <input
+        id={`edit-${race.id}-goal`}
+        aria-label={`Goal for ${race.name}`}
+        value={goalNote}
+        onChange={(e) => setGoalNote(e.target.value)}
+        placeholder="What would make this a good day?"
+        className="w-full rounded-xl bg-white/[0.06] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none"
+      />
+
       <div className="flex gap-2">
         <button
           type="submit"

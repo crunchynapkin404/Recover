@@ -226,4 +226,35 @@ describe("RacesSection demand edit", () => {
     expect(byId("edit-r1-event-days")).toBeTruthy();
     expect(byId("event-days")).not.toBe(byId("edit-r1-event-days"));
   });
+
+  it("saves a goal for a race that already exists", async () => {
+    await render([{ ...RACE, goalNote: null }]);
+    await clickButtonByLabel("Edit demand for Alpine Tour");
+
+    const goal = byLabel("Goal for Alpine Tour");
+    expect(goal).not.toBeNull();
+
+    await set(goal!, "podium in my age group");
+
+    const form = container.querySelector<HTMLFormElement>(
+      '[aria-label="Demand form for Alpine Tour"]'
+    )!;
+    await act(async () => {
+      form.dispatchEvent(
+        new Event("submit", { bubbles: true, cancelable: true })
+      );
+    });
+
+    expect(updateRaceDemandMock).toHaveBeenCalledWith(
+      "r1",
+      expect.objectContaining({ goalNote: "podium in my age group" })
+    );
+  });
+
+  it("prefills the goal a race already has", async () => {
+    await render([{ ...RACE, goalNote: "finish upright" }]);
+    await clickButtonByLabel("Edit demand for Alpine Tour");
+    const goal = byLabel("Goal for Alpine Tour");
+    expect(goal?.value).toBe("finish upright");
+  });
 });

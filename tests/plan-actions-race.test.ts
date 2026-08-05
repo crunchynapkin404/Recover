@@ -454,5 +454,67 @@ describe.skipIf(!hasDb)("plan race actions", () => {
       expect(untouched!.distanceKm).toBeCloseTo(100);
       expect(untouched!.elevationM).toBe(1000);
     });
+
+    it("updateRaceDemand sets, clears, and preserves the goal", async () => {
+      const { db, schema } = await import("@/lib/db");
+      const { updateRaceDemand } = await import("@/app/plan/actions");
+      const { createRace } = await import("@/lib/race/service");
+
+      const created = await createRace(USER, {
+        name: "Goal Edit Race",
+        raceType: "gran fondo",
+        date: ymd(50),
+        priority: "A",
+      });
+      const raceId = (created as { race: { id: string } }).race.id;
+      const demand = {
+        eventDays: 1,
+        distanceKm: 120,
+        elevationM: 2000,
+        stages: [],
+      };
+
+      // Set it — the case the athlete was blocked on: the add form is the only
+      // place goalNote has ever had an input.
+      expect(
+        await updateRaceDemand(raceId, { ...demand, goalNote: "sub 4h" })
+      ).toEqual({ ok: true });
+      expect(
+        (await db.query.races.findFirst({ where: eq(schema.races.id, raceId) }))
+          ?.goalNote
+      ).toBe("sub 4h");
+
+      // Omitted — a demand-only correction must not erase a goal already set.
+      expect(await updateRaceDemand(raceId, demand)).toEqual({ ok: true });
+      expect(
+        (await db.query.races.findFirst({ where: eq(schema.races.id, raceId) }))
+          ?.goalNote
+      ).toBe("sub 4h");
+
+      // Blanked — an athlete clearing the field means clear it, and whitespace
+      // is blank. Stored as null, not "", so `race.goalNote && ...` renders
+      // nothing rather than an empty line.
+      expect(
+        await updateRaceDemand(raceId, { ...demand, goalNote: "   " })
+      ).toEqual({ ok: true });
+      expect(
+        (await db.query.races.findFirst({ where: eq(schema.races.id, raceId) }))
+          ?.goalNote
+      ).toBeNull();
+
+      // Null — set a goal again first, so this proves literal null actually
+      // clears a previously-set goal rather than confirming an already-null
+      // column.
+      expect(
+        await updateRaceDemand(raceId, { ...demand, goalNote: "sub 4h again" })
+      ).toEqual({ ok: true });
+      expect(
+        await updateRaceDemand(raceId, { ...demand, goalNote: null })
+      ).toEqual({ ok: true });
+      expect(
+        (await db.query.races.findFirst({ where: eq(schema.races.id, raceId) }))
+          ?.goalNote
+      ).toBeNull();
+    });
   });
 });

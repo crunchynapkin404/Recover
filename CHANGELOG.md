@@ -1,5 +1,45 @@
 # Changelog
 
+## v0.41.0 — 2026-08-04 — The Coach Can See The Race
+
+An athlete could file a four-day stage race with the distance and climbing of
+every day, ask the coach how to train for it, and get an answer formed without
+any of it. `get_races` projected a hand-written list of nine fields, and the
+race table had grown past it: v0.28 added event days, total distance, total
+elevation and a weekly-hours override so the planner could size the week from
+what the event demands — and `race_stages`, the per-day detail, was never
+queried at all. The planner read all of it. The coach discussing that plan read
+none of it.
+
+Nothing failed, which is why it lasted nineteen tagged releases, v0.28.0
+through v0.40.1. A projection that stops mirroring its table does not throw;
+the coach simply answers with less, fluently, and the omission is invisible
+unless you already know what it should have said. That is the same defect
+v0.39 found in the importer, where four of six commits to one file had been
+fixes for the same silent drift.
+
+So the fix is a type rather than a longer list. `Projected<>` is the read-side
+twin of v0.39's `Carried<>`: it requires every column of a table except an
+explicit exemption union, each exemption carrying a reason about what the coach
+needs. A column added to `races` from now on either reaches the coach or fails
+to compile. Four columns are withheld — the ownership key, the debrief
+scheduler's bookkeeping, and the two row timestamps. `resultActivityId` is not:
+it is the coach's only route from "how did the race go?" to the ride itself.
+
+Stages are returned inline rather than behind a new tool. A second call is one
+the model may simply not make, which would reproduce the bug with extra steps.
+An empty stage list is ambiguous by nature — a one-day race and a four-day
+event nobody detailed both produce one — so the tool description now says so
+outright, because a coach reading "no stages" as "no climbing" would be worse
+than the gap this closes.
+
+Second, a race's goal could only ever be set while creating it. The edit form
+covered distance, elevation and stages but not `goalNote`, so when the coach
+asked what the goal was, there was nowhere to put the answer. The field now
+sits on the form that already existed. It stays free text: the coach reads
+prose, and a schema for goals would be guessing at what an athlete types before
+anyone has typed one.
+
 ## v0.40.1 — 2026-08-04 — Pushes Leave a Record
 
 A push left a line on stdout and nothing else. Watchtower recreates the

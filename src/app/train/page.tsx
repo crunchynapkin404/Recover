@@ -59,6 +59,7 @@ import {
   listRaces,
   nextUpcomingRace,
   assembleForecastInputs,
+  stagesByRaceIds,
 } from "@/lib/race/service";
 import { forecastForm } from "@/lib/race/forecast";
 import { localYmd, weeklyLoads } from "@/lib/charts";
@@ -300,31 +301,18 @@ async function WeekTab({
   // Per-day stage detail per race — a separate table, so one batched query
   // rather than N+1. Final-review Finding I6: the races list must show
   // (and, part 2, let the athlete correct) what's actually driving each
-  // race's demand, not just accept it silently on the add form.
-  const stageRows =
-    races.length > 0
-      ? await db.query.raceStages.findMany({
-          where: inArray(
-            schema.raceStages.raceId,
-            races.map((r) => r.id)
-          ),
-        })
-      : [];
-  const stagesByRace = new Map<string, RaceListItem["stages"]>();
-  for (const s of stageRows) {
-    const arr = stagesByRace.get(s.raceId) ?? [];
-    arr.push({
+  // race's demand, not just accept it silently on the add form. Shared with
+  // the coach's get_races since v0.41, so the two cannot drift.
+  const stagesByRace = await stagesByRaceIds(races.map((r) => r.id));
+  const raceListItems: RaceListItem[] = races.map((r) => ({
+    ...r,
+    // Narrowed to what the list renders: RaceListItem is a client-component
+    // prop and has no use for the stage name.
+    stages: (stagesByRace.get(r.id) ?? []).map((s) => ({
       dayNumber: s.dayNumber,
       distanceKm: s.distanceKm,
       elevationM: s.elevationM,
-    });
-    stagesByRace.set(s.raceId, arr);
-  }
-  const raceListItems: RaceListItem[] = races.map((r) => ({
-    ...r,
-    stages: (stagesByRace.get(r.id) ?? []).sort(
-      (a, b) => a.dayNumber - b.dayNumber
-    ),
+    })),
   }));
   const constraints = planConstraints(plan.constraints);
 

@@ -333,7 +333,7 @@ function validateDemandInput(input: DemandInput): string | null {
  */
 async function writeRaceDemand(
   raceId: string,
-  input: DemandInput
+  input: DemandInput & { goalNote?: string | null }
 ): Promise<void> {
   await db.transaction(async (tx) => {
     await tx
@@ -342,6 +342,12 @@ async function writeRaceDemand(
         eventDays: input.eventDays,
         distanceKm: input.distanceKm,
         elevationM: roundElevation(input.elevationM),
+        // Omitted means "leave it alone", not "clear it". addRace has already
+        // written the goal through createRace, and updateRaceDemand — the
+        // exported "use server" action that calls this helper — is reachable
+        // by a caller other than our own form, one that may not send a goal
+        // field at all; a demand-only correction must not erase one.
+        ...(input.goalNote !== undefined ? { goalNote: input.goalNote } : {}),
         updatedAt: new Date(),
       })
       .where(eq(schema.races.id, raceId));
@@ -421,6 +427,8 @@ export async function updateRaceDemand(
       distanceKm: number | null;
       elevationM: number | null;
     }[];
+    /** Omit to leave the stored goal alone; null or blank clears it. */
+    goalNote?: string | null;
   }
 ): Promise<Result> {
   const user = await requireUser();
@@ -433,7 +441,18 @@ export async function updateRaceDemand(
   });
   if (!existing) return { ok: false, error: "Race not found." };
 
-  await writeRaceDemand(id, input);
+  // Trim server-side rather than trusting the form: this is a directly
+  // reachable "use server" export. A blank or whitespace-only goal is stored
+  // as null so readers can keep using `race.goalNote && …` — morning-insight,
+  // the race debrief and the dashboard countdown all do.
+  const goalNote =
+    input.goalNote === undefined
+      ? undefined
+      : input.goalNote === null || input.goalNote.trim() === ""
+        ? null
+        : input.goalNote.trim();
+
+  await writeRaceDemand(id, { ...input, goalNote });
 
   revalidatePath("/train");
   revalidatePath("/");

@@ -1,7 +1,8 @@
 // src/lib/race/service.ts — race CRUD. Pure race math lives in taper.ts /
 // forecast.ts; this layer only touches the DB.
-import { and, asc, desc, eq, gte, lte } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, lte } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
+import type { Projected } from "@/lib/db/projected";
 import type { RaceContext } from "./taper";
 import type { ForecastInputs } from "./forecast";
 import { taperFractionForWeek } from "./taper";
@@ -13,6 +14,57 @@ import { openWeekPlannedLoads } from "@/lib/week-plan/planned-loads";
 export type RaceRow = typeof schema.races.$inferSelect;
 export type RacePriority = "A" | "B" | "C";
 export type RaceStatus = "upcoming" | "completed" | "skipped";
+
+/**
+ * A stage as consumers see it. Guarded by `Projected<>` for the same reason
+ * `races` is: `race_stages` is a small table today, and a column added to it
+ * would otherwise stop at this boundary in silence.
+ */
+export type RaceStageDetail = Projected<
+  typeof schema.raceStages,
+  // Surrogate key. Nothing addresses a stage directly — stages are written
+  // wholesale per race by `writeRaceDemand`.
+  | "id"
+  // The parent race. Consumers already have it: this map is keyed by it.
+  | "raceId"
+  // Row lifecycle, not event detail.
+  | "createdAt"
+>;
+
+/**
+ * Per-day stage detail for many races in ONE query, grouped by race id and
+ * sorted day-ascending. Both `/train`'s race list and the coach's `get_races`
+ * need this for every race on screen, and N+1 across a season of races is
+ * the obvious wrong answer.
+ *
+ * A race with no stage rows is simply absent from the map. Callers use
+ * `?? []`, and an empty list means "no per-day detail on file" — NOT "a
+ * one-day event" and NOT "flat". A four-day event with only totals entered
+ * lands here too.
+ */
+export async function stagesByRaceIds(
+  raceIds: string[]
+): Promise<Map<string, RaceStageDetail[]>> {
+  const byRace = new Map<string, RaceStageDetail[]>();
+  if (raceIds.length === 0) return byRace;
+  const rows = await db.query.raceStages.findMany({
+    where: inArray(schema.raceStages.raceId, raceIds),
+  });
+  for (const s of rows) {
+    const arr = byRace.get(s.raceId) ?? [];
+    arr.push({
+      dayNumber: s.dayNumber,
+      name: s.name,
+      distanceKm: s.distanceKm,
+      elevationM: s.elevationM,
+    });
+    byRace.set(s.raceId, arr);
+  }
+  for (const arr of byRace.values()) {
+    arr.sort((a, b) => a.dayNumber - b.dayNumber);
+  }
+  return byRace;
+}
 
 export interface RaceInput {
   name: string;
