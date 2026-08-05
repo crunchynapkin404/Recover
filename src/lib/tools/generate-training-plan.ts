@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { ToolDefinition, ToolContext } from "./registry";
-import { generateTrainingPlan } from "@/lib/training-plan";
+import { previewTrainingPlan } from "@/lib/training-plan";
+import { REFUSAL_TEXT } from "@/lib/plan-preview";
 
 const parameters = z.object({
   raceType: z
@@ -46,29 +47,25 @@ const parameters = z.object({
 });
 
 async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
-  try {
-    const result = await generateTrainingPlan({
-      userId: ctx.userId,
-      ...args,
-    });
-    return {
-      success: true,
-      planId: result.planId,
-      summary: result.summary,
-    };
-  } catch (err) {
+  const result = await previewTrainingPlan({ userId: ctx.userId, ...args });
+  if (!result.ok) {
     return {
       success: false,
-      error: err instanceof Error ? err.message : "Plan generation failed",
+      reason: result.reason,
+      error: REFUSAL_TEXT[result.reason],
     };
   }
+  return { success: true, preview: result.preview };
 }
 
 export const generateTrainingPlanTool: ToolDefinition<typeof parameters> = {
   name: "generate_training_plan",
   description:
-    "Generate a periodized multi-week training plan targeting a race or fitness goal. " +
-    "Uses current fitness (CTL), available time, and sport-science periodization rules.",
+    "Propose a periodized multi-week training plan targeting a race or fitness goal, " +
+    "using current fitness (CTL), available time, and sport-science periodization rules. " +
+    "This only DRAFTS a plan for the athlete to review — it does not activate anything, " +
+    "archive their existing plan, or touch their calendar. Show the athlete the returned " +
+    "preview and ask them to confirm before calling confirm_training_plan.",
   parameters,
   scope: "write:plan",
   execute,

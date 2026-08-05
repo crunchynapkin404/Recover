@@ -745,7 +745,9 @@ export const trainingPlans = pgTable(
     currentWeek: smallint("current_week").notNull().default(1),
     targetCtl: real("target_ctl"),
     startingCtl: real("starting_ctl"),
-    status: text("status", { enum: ["active", "completed", "archived"] })
+    status: text("status", {
+      enum: ["draft", "active", "completed", "archived"],
+    })
       .notNull()
       .default("active"),
     constraints: jsonb("constraints"),

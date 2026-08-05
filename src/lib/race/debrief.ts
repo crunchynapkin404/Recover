@@ -12,6 +12,7 @@ import {
   isNotNull,
   isNull,
   lt,
+  ne,
   sql,
 } from "drizzle-orm";
 import { generateText } from "ai";
@@ -46,15 +47,25 @@ function localYmd(d: Date): string {
  * flight. Returns null when the race has no linked plan (e.g. a race added
  * without going through plan generation); callers must treat that as an early
  * guard and skip taper-adherence lines rather than querying with a placeholder id.
+ *
+ * Excludes only `draft` (v0.43): a debrief runs after the race, by which
+ * point the plan that carried the athlete there may already be `archived`
+ * (the athlete started a new plan for their next race within the debrief's
+ * data-wait window) or, once plan completion lands, `completed`. Either way
+ * it is still the real plan whose taper this debrief is comparing against
+ * execution, so `eq(status, "active")` would wrongly go quiet on exactly the
+ * plans debriefs most need. A draft, by contrast, was never the athlete's
+ * plan for this race and must never win here.
  */
-async function planIdForRace(
+export async function planIdForRace(
   userId: string,
   raceId: string
 ): Promise<string | null> {
   const plan = await db.query.trainingPlans.findFirst({
     where: and(
       eq(schema.trainingPlans.userId, userId),
-      eq(schema.trainingPlans.raceId, raceId)
+      eq(schema.trainingPlans.raceId, raceId),
+      ne(schema.trainingPlans.status, "draft")
     ),
     columns: { id: true },
   });

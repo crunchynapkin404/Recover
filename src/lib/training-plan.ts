@@ -3,7 +3,7 @@
  * training plan generator. No LLM dependency; uses template-based
  * periodization with sport-specific workout prescriptions.
  */
-import { desc, eq, and } from "drizzle-orm";
+import { asc, desc, eq, and } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { createRace } from "@/lib/race/service";
 import type { Purpose } from "@/lib/availability/types";
@@ -11,8 +11,29 @@ import { PURPOSE_FLOORS } from "@/lib/availability/types";
 import {
   requirePlanSport,
   inferPlanSport,
+  toPlanSport,
   type PlanSport,
 } from "@/lib/plan-sport";
+import {
+  buildPhases,
+  collectWarnings,
+  type PlanPhase,
+  type PlanPreview,
+  type PreviewResult,
+  type PreviewWeek,
+} from "@/lib/plan-preview";
+import { assembleWeeklyTarget } from "@/lib/week-plan/volume-inputs";
+import { assessFeasibility } from "@/lib/race/feasibility";
+
+/**
+ * The transaction handle `db.transaction()`'s callback receives. `Database`
+ * (the type of `db` itself) is a union of the two *database* wrapper types,
+ * not their transaction counterparts, so a real transaction object does not
+ * satisfy `typeof db` — `seedAvailabilityDefaults`'s `tx` parameter has to
+ * accept both, matching the `Tx` convention already used in
+ * `@/lib/race/debrief.ts`.
+ */
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -707,7 +728,8 @@ function generateTriathlonWorkouts(
 async function seedAvailabilityDefaults(
   userId: string,
   daysPerWeek: number,
-  hoursPerWeek: number
+  hoursPerWeek: number,
+  tx: typeof db | Tx = db
 ): Promise<void> {
   const perDayMins =
     daysPerWeek > 0
@@ -729,7 +751,7 @@ async function seedAvailabilityDefaults(
           ]
         : [],
   }));
-  await db
+  await tx
     .insert(schema.availabilityDefaults)
     .values(rows)
     .onConflictDoNothing({
@@ -738,6 +760,489 @@ async function seedAvailabilityDefaults(
         schema.availabilityDefaults.weekday,
       ],
     });
+}
+
+// ── v0.43: preview (writes a draft, nothing else) ──────────────────────────
+
+/**
+ * Writes an inert `draft` training plan and returns a `PlanPreview` for the
+ * athlete to check before committing to anything. Unlike
+ * `generateTrainingPlan`, this never archives an existing active plan,
+ * never creates a race, never seeds availability defaults, and never
+ * materializes a week — a draft is safe to throw away, which is the whole
+ * point of previewing before Task 6's confirmation step activates it.
+ *
+ * Refusals are returned, not thrown: a thrown Error reaches the athlete as
+ * whatever the coach model says about a failed tool call, which is worse
+ * than a typed reason the caller can render honestly.
+ */
+export async function previewTrainingPlan(
+  params: GeneratePlanParams
+): Promise<PreviewResult> {
+  const { userId, daysPerWeek = 5, hoursPerWeek = 8 } = params;
+
+  // 1. The race decides the sport (v0.42). Refusals are returned, not thrown:
+  //    a thrown Error reaches the athlete as whatever the coach model says
+  //    about a failed tool call.
+  const raceId = params.raceId ?? null;
+  let raceType = params.raceType;
+  let raceDate = params.raceDate;
+  let raceNameFromRow: string | null = null;
+  let racePriority: "A" | "B" | "C" = "A";
+  let sport: PlanSport;
+
+  if (raceId) {
+    const race = await db.query.races.findFirst({
+      where: and(eq(schema.races.id, raceId), eq(schema.races.userId, userId)),
+    });
+    if (!race) return { ok: false, reason: "race_not_found" };
+    raceType = race.raceType;
+    raceDate = race.date;
+    raceNameFromRow = race.name;
+    racePriority = race.priority as "A" | "B" | "C";
+    const resolved = toPlanSport(race.sport);
+    if (!resolved) return { ok: false, reason: "unknown_sport" };
+    sport = resolved;
+  } else {
+    const resolved = inferPlanSport(raceType);
+    if (!resolved) return { ok: false, reason: "unknown_sport" };
+    sport = resolved;
+  }
+
+  // Single source of truth for "what do we call this plan when nobody named
+  // it". Finding 2 (v0.43 final review): the coach's tool response
+  // (`preview.race.name`, in memory) and /train's card (`previewFromDraft`
+  // reading the stored `title`) used to compute this independently —
+  // `params.title ?? raceType` here vs `params.title ?? \`${raceType}
+  // training plan\`` at the insert below — so an untitled, race-less plan
+  // showed as "gran_fondo" to the coach and "gran_fondo training plan" on
+  // screen for the exact same draft. Both now read this one expression.
+  const defaultTitle = params.title ?? `${raceType} training plan`;
+  const raceName = raceNameFromRow ?? defaultTitle;
+
+  // 2. Horizon. A close race is SCALED, not refused — refusing to plan is
+  //    worse than planning honestly. A date beyond a year is a typo, and the
+  //    athlete can act on being told so. `periodize` does not special-case a
+  //    short horizon into a taper-only plan — it collapses into whatever
+  //    phases fit inside the week count (base only, for 1-2 weeks) — so the
+  //    `short_horizon` warning below is what carries the honesty, not a
+  //    reshaped phase list.
+  const today = new Date();
+  const race = new Date(raceDate + "T00:00:00");
+  const weeksTotal = Math.ceil(daysBetween(today, race) / 7);
+  if (weeksTotal > 52) return { ok: false, reason: "horizon_too_long" };
+  const planWeeks = Math.max(1, weeksTotal);
+  const shortHorizon = weeksTotal < 4;
+
+  // 3. Fitness. `?? 30` cannot be told apart from a measured CTL of 30 once
+  //    stored, so the source travels with the value. Fixing the default is
+  //    a later release; naming it is this release's job.
+  const wellness = await db.query.wellnessDaily.findFirst({
+    where: eq(schema.wellnessDaily.userId, userId),
+    orderBy: desc(schema.wellnessDaily.date),
+  });
+  const startingCtl = wellness?.ctl ?? 30;
+  const ctlSource: "wellness" | "default" =
+    wellness?.ctl != null ? "wellness" : "default";
+
+  const blocks = periodize(
+    planWeeks,
+    startingCtl,
+    daysPerWeek,
+    hoursPerWeek,
+    sport
+  );
+
+  // 4. One draft per athlete. Cascade removes the old blocks with the row.
+  await db
+    .delete(schema.trainingPlans)
+    .where(
+      and(
+        eq(schema.trainingPlans.userId, userId),
+        eq(schema.trainingPlans.status, "draft")
+      )
+    );
+
+  const startDate = localYmd(today);
+  const [draft] = await db
+    .insert(schema.trainingPlans)
+    .values({
+      userId,
+      title: defaultTitle,
+      raceType,
+      raceDate,
+      startDate,
+      weeksTotal: planWeeks,
+      startingCtl,
+      raceId,
+      status: "draft",
+      constraints: { daysPerWeek, hoursPerWeek, sports: [sport] },
+    })
+    .returning();
+
+  for (const block of blocks) {
+    await db.insert(schema.trainingBlocks).values({
+      planId: draft.id,
+      weekNumber: block.weekNumber,
+      phase: block.phase,
+      targetLoadTotal: block.targetLoad,
+      targetSessions: block.targetSessions,
+      workouts: block.workouts,
+    });
+  }
+
+  // 5. Reuse the engine's own numbers rather than inventing display ones.
+  const { target, demand, level, longestRideHours } =
+    await assembleWeeklyTarget(userId, today, {
+      availabilityHours: hoursPerWeek,
+      planHoursPerWeek: hoursPerWeek,
+    });
+
+  const existingAvailability = await db.query.availabilityDefaults.findMany({
+    where: eq(schema.availabilityDefaults.userId, userId),
+  });
+
+  const weeks: PreviewWeek[] = blocks.map((b) => {
+    // The engine's own scheduled minutes, not a ratio pinned to week 1 —
+    // `targetLoad` compounds through `periodize`'s progression while
+    // scheduled hours follow a differently-shaped `loadMultiplier`, so a
+    // single load-per-hour figure drifts hard by the back half of a plan
+    // (a 20-week Bike plan: week 15 read 15.7h for 8.8h actually scheduled).
+    // Summing what `generateWorkouts` already decided cannot drift from the
+    // sessions the athlete is shown.
+    const workouts = b.workouts;
+    const scheduledMins = workouts.reduce((sum, w) => sum + w.durationMins, 0);
+    return {
+      weekNumber: b.weekNumber,
+      phase: b.phase as PlanPhase,
+      targetLoad: b.targetLoad,
+      targetHours: Math.round((scheduledMins / 60) * 10) / 10,
+      raceName: b.weekNumber === planWeeks ? raceName : null,
+    };
+  });
+
+  // 6. Feasibility, assembled the same way `/train` assembles it
+  // (src/app/train/page.tsx) — `demand` is the athlete's currently tracked
+  // race (highest priority, nearest date among their upcoming races), which
+  // may or may not be the race this preview is for when raceId is null and
+  // nothing has been created yet. That mirrors the rest of the app: there is
+  // one "current target race" concept, not a second one invented for
+  // previews. No demand (no tracked upcoming race with computable weekly
+  // hours) is silence, not a guess: `assessFeasibility` itself also returns
+  // null without a measured current-hours and longest-ride figure.
+  const feasibility =
+    demand == null
+      ? null
+      : assessFeasibility({
+          requiredWeeklyHours: demand.weeklyHours,
+          currentWeeklyHours: level.peakHours,
+          queenStageHours: demand.queenStageHours,
+          queenStageKnown: demand.queenStageKnown,
+          longestRideHours,
+          weeksUntilEvent: weeksTotal,
+        });
+
+  const preview: PlanPreview = {
+    planId: draft.id,
+    sport,
+    race: {
+      id: raceId,
+      name: raceName,
+      date: raceDate,
+      priority: racePriority,
+    },
+    startDate,
+    weeksTotal: planWeeks,
+    daysPerWeek,
+    hoursPerWeek,
+    phases: buildPhases(
+      weeks.map((w) => ({ weekNumber: w.weekNumber, phase: w.phase }))
+    ),
+    weeks,
+    startingCtl: { value: startingCtl, source: ctlSource },
+    feasibility,
+    volume: { source: target.source, shortfall: target.shortfall },
+    warnings: collectWarnings({
+      startingCtlSource: ctlSource,
+      volumeSource: target.source,
+      hasShortfall: target.shortfall != null,
+      feasibilityVerdict: feasibility?.verdict ?? null,
+      raceCreated: raceId == null,
+      availabilitySeeded: existingAvailability.length === 0,
+      shortHorizon,
+    }),
+  };
+
+  return { ok: true, preview };
+}
+
+/** The row shape `db.query.trainingPlans.findFirst` returns. */
+type TrainingPlanRow = NonNullable<
+  Awaited<ReturnType<typeof db.query.trainingPlans.findFirst>>
+>;
+
+/**
+ * Rebuilds a `PlanPreview` from a stored draft row and its already-written
+ * `training_blocks`, for an athlete who left `/train` and came back before
+ * confirming. Periodization itself is NOT rerun here — `blocks` are read
+ * verbatim, exactly as `previewTrainingPlan` wrote them, so this can never
+ * disagree with the draft the athlete is about to confirm. What IS
+ * recomputed (starting-CTL source, volume, feasibility, warnings) is
+ * everything that legitimately depends on "now" rather than on "when the
+ * draft was created" — a wellness sync or a demand edit that landed after
+ * the draft was written should be reflected the next time the athlete
+ * looks, the same way the rest of `/train` always reads live.
+ *
+ * `previewTrainingPlan`'s own body is intentionally left untouched rather
+ * than refactored to share this block: it is one of the two things this
+ * release depends on for its safety property, and Task 8 does not touch
+ * `previewTrainingPlan`, `confirmTrainingPlan`, or any periodization
+ * constant. This function calls the same pure/query helpers
+ * (`buildPhases`, `collectWarnings`, `assembleWeeklyTarget`,
+ * `assessFeasibility`) that `previewTrainingPlan` calls, rather than
+ * duplicating their logic — only the row-shaped assembly around them is
+ * necessarily separate, because a draft's blocks live in the database and
+ * a fresh preview's blocks live in memory.
+ */
+export async function previewFromDraft(
+  draft: TrainingPlanRow
+): Promise<PlanPreview> {
+  const constraints = (draft.constraints ?? {}) as {
+    daysPerWeek?: number;
+    hoursPerWeek?: number;
+    sports?: string[];
+  };
+  const daysPerWeek = constraints.daysPerWeek ?? 5;
+  const hoursPerWeek = constraints.hoursPerWeek ?? 8;
+  const sport = requirePlanSport(constraints.sports?.[0]);
+
+  // Race identity: a stored raceId names a real race to read the current
+  // name/priority from; otherwise the draft's own fields ARE what
+  // confirming will create — same contract as previewTrainingPlan.
+  let raceName = draft.title;
+  let racePriority: "A" | "B" | "C" = "A";
+  if (draft.raceId) {
+    const race = await db.query.races.findFirst({
+      where: and(
+        eq(schema.races.id, draft.raceId),
+        eq(schema.races.userId, draft.userId)
+      ),
+    });
+    if (race) {
+      raceName = race.name;
+      racePriority = race.priority as "A" | "B" | "C";
+    }
+  }
+
+  const blocks = await db.query.trainingBlocks.findMany({
+    where: eq(schema.trainingBlocks.planId, draft.id),
+    orderBy: [asc(schema.trainingBlocks.weekNumber)],
+  });
+
+  const weeks: PreviewWeek[] = blocks.map((b) => {
+    const workouts = (b.workouts ?? []) as PlannedWorkout[];
+    const scheduledMins = workouts.reduce((sum, w) => sum + w.durationMins, 0);
+    return {
+      weekNumber: b.weekNumber,
+      phase: b.phase as PlanPhase,
+      targetLoad: b.targetLoadTotal != null ? Math.round(b.targetLoadTotal) : 0,
+      targetHours: Math.round((scheduledMins / 60) * 10) / 10,
+      raceName: b.weekNumber === draft.weeksTotal ? raceName : null,
+    };
+  });
+
+  const today = new Date();
+  const wellness = await db.query.wellnessDaily.findFirst({
+    where: eq(schema.wellnessDaily.userId, draft.userId),
+    orderBy: desc(schema.wellnessDaily.date),
+  });
+  const ctlSource: "wellness" | "default" =
+    wellness?.ctl != null ? "wellness" : "default";
+
+  const existingAvailability = await db.query.availabilityDefaults.findMany({
+    where: eq(schema.availabilityDefaults.userId, draft.userId),
+  });
+
+  const { target, demand, level, longestRideHours } =
+    await assembleWeeklyTarget(draft.userId, today, {
+      availabilityHours: hoursPerWeek,
+      planHoursPerWeek: hoursPerWeek,
+    });
+
+  const weeksUntilRace = Math.ceil(
+    daysBetween(today, new Date(draft.raceDate + "T00:00:00")) / 7
+  );
+
+  const feasibility =
+    demand == null
+      ? null
+      : assessFeasibility({
+          requiredWeeklyHours: demand.weeklyHours,
+          currentWeeklyHours: level.peakHours,
+          queenStageHours: demand.queenStageHours,
+          queenStageKnown: demand.queenStageKnown,
+          longestRideHours,
+          weeksUntilEvent: weeksUntilRace,
+        });
+
+  return {
+    planId: draft.id,
+    sport,
+    race: {
+      id: draft.raceId,
+      name: raceName,
+      date: draft.raceDate,
+      priority: racePriority,
+    },
+    startDate: draft.startDate,
+    weeksTotal: draft.weeksTotal,
+    daysPerWeek,
+    hoursPerWeek,
+    phases: buildPhases(
+      weeks.map((w) => ({ weekNumber: w.weekNumber, phase: w.phase }))
+    ),
+    weeks,
+    startingCtl: { value: draft.startingCtl ?? 30, source: ctlSource },
+    feasibility,
+    volume: { source: target.source, shortfall: target.shortfall },
+    warnings: collectWarnings({
+      startingCtlSource: ctlSource,
+      volumeSource: target.source,
+      hasShortfall: target.shortfall != null,
+      feasibilityVerdict: feasibility?.verdict ?? null,
+      raceCreated: draft.raceId == null,
+      availabilitySeeded: existingAvailability.length === 0,
+      shortHorizon: weeksUntilRace < 4,
+    }),
+  };
+}
+
+/**
+ * Turn a draft into the athlete's plan.
+ *
+ * Archive and activate happen in ONE transaction. The pre-v0.43 generator
+ * archived first and inserted afterwards, so any error between the two left
+ * the athlete with no active plan at all. That window does not exist here.
+ */
+export async function confirmTrainingPlan(
+  userId: string,
+  planId: string
+): Promise<
+  | { ok: true; planId: string }
+  | { ok: false; reason: "not_found" | "sport_changed" }
+> {
+  const draft = await db.query.trainingPlans.findFirst({
+    where: and(
+      eq(schema.trainingPlans.id, planId),
+      eq(schema.trainingPlans.userId, userId),
+      eq(schema.trainingPlans.status, "draft")
+    ),
+  });
+  if (!draft) return { ok: false, reason: "not_found" };
+
+  const constraints = (draft.constraints ?? {}) as {
+    daysPerWeek?: number;
+    hoursPerWeek?: number;
+  };
+
+  const sport = requirePlanSport(
+    (draft.constraints as { sports?: string[] } | null)?.sports?.[0]
+  );
+
+  // Finding 1 (v0.43 final review): a draft's sport is frozen into
+  // `constraints.sports` when the draft is written and never re-checked.
+  // `upsert_race` — untouched by this release — lets the coach change an
+  // existing race's sport at any time, so a draft previewed against race R
+  // while R was Bike survives a later correction of R to Run, and this
+  // would otherwise activate a Bike plan against a now-Run race. v0.42 made
+  // `races.sport` the sport authority precisely so this could not happen;
+  // this closes the one door that reached it without going through that
+  // authority. Refuse rather than silently re-deriving a new plan: the
+  // athlete reviewed and agreed to a SPECIFIC plan, and quietly swapping its
+  // sport under them would be the same class of defect in a new place.
+  // Checked before the transaction, so a refusal here activates nothing and
+  // archives nothing.
+  if (draft.raceId) {
+    const race = await db.query.races.findFirst({
+      where: and(
+        eq(schema.races.id, draft.raceId),
+        eq(schema.races.userId, userId)
+      ),
+      columns: { sport: true },
+    });
+    // A race that no longer exists is a different, pre-existing edge case
+    // (not this finding) — leave that behavior alone and only compare when
+    // there is a live sport to compare against.
+    if (race && toPlanSport(race.sport) !== sport) {
+      return { ok: false, reason: "sport_changed" };
+    }
+  }
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(schema.trainingPlans)
+      .set({ status: "archived" })
+      .where(
+        and(
+          eq(schema.trainingPlans.userId, userId),
+          eq(schema.trainingPlans.status, "active")
+        )
+      );
+
+    // The race the preview PROMISED to create. previewTrainingPlan writes no
+    // race — that is what makes a draft inert — so a draft carrying no raceId
+    // still needs one here. v0.42 made races.sport the sport authority and the
+    // taper, feasibility and debrief paths all read the race, so activating a
+    // plan without one would ship a plan that half the engine cannot see.
+    // Inlined rather than calling createRace so it joins this transaction; the
+    // date is already known to be in the future, which is createRace's only
+    // extra check.
+    let raceId = draft.raceId;
+    if (!raceId) {
+      const [created] = await tx
+        .insert(schema.races)
+        .values({
+          userId,
+          name: draft.title,
+          raceType: draft.raceType,
+          sport,
+          date: draft.raceDate,
+          priority: "A",
+        })
+        .returning();
+      raceId = created.id;
+    }
+
+    await tx
+      .update(schema.trainingPlans)
+      .set({ status: "active", raceId, updatedAt: new Date() })
+      .where(eq(schema.trainingPlans.id, planId));
+
+    // onConflictDoNothing per weekday already leaves an existing standard
+    // week alone; it moves inside the transaction so it cannot land for a
+    // plan that then fails to activate.
+    await seedAvailabilityDefaults(
+      userId,
+      constraints.daysPerWeek ?? 5,
+      constraints.hoursPerWeek ?? 8,
+      tx
+    );
+  });
+
+  // Outside the transaction, and still best-effort: a rollover failure must
+  // not roll back a good plan.
+  try {
+    const { rolloverWeekPlan } = await import("@/lib/week-plan/service");
+    await rolloverWeekPlan(userId);
+  } catch (err) {
+    const { logger } = await import("@/lib/logger");
+    logger.warn("week materialization after plan confirmation failed", {
+      userId,
+      message: err instanceof Error ? err.message : String(err),
+    });
+  }
+
+  return { ok: true, planId };
 }
 
 // ── Main entry point ────────────────────────────────────────────────────────

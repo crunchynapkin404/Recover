@@ -1,0 +1,251 @@
+// @vitest-environment jsdom
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { act } from "react";
+import { createRoot, type Root } from "react-dom/client";
+import { PlanPreviewCard } from "./plan-preview-card";
+import { WARNING_TEXT, type PlanPreview } from "@/lib/plan-preview";
+
+declare global {
+  var IS_REACT_ACT_ENVIRONMENT: boolean;
+}
+globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+
+// "use server" is a genuine module boundary, not the logic under test —
+// same stubbing convention as races-section-demand.test.tsx. Default to
+// success so the tests that never touch the buttons aren't affected;
+// individual tests override with mockResolvedValueOnce/mockRejectedValueOnce.
+vi.mock("@/app/plan/actions", () => ({
+  confirmPlanAction: vi.fn(async () => ({ ok: true, planId: "plan-1" })),
+  regeneratePreviewAction: vi.fn(async () => ({ ok: true, preview: {} })),
+}));
+
+import { confirmPlanAction, regeneratePreviewAction } from "@/app/plan/actions";
+
+const confirmPlanActionMock = vi.mocked(confirmPlanAction);
+const regeneratePreviewActionMock = vi.mocked(regeneratePreviewAction);
+
+// `build`'s `weeks` (2) deliberately disagrees with its own
+// `weekNumbers.length` (3), and both disagree with `weeksTotal` (6). That
+// makes the three candidate implementations of the total cell land on three
+// different numbers instead of one:
+//   - sum(phases[].weeks)            -> 3 + 2 + 1 + 1 = 7  (correct)
+//   - sum(phases[].weekNumbers.length) -> 3 + 3 + 1 + 1 = 8  (wrong field)
+//   - echo weeksTotal                -> 6                   (ignores phases)
+// A fixture where all three agreed (as the original one did, at 6/6/6) could
+// not tell a correct component from either mutant.
+const preview: PlanPreview = {
+  planId: "11111111-1111-1111-1111-111111111111",
+  sport: "Bike",
+  race: {
+    id: null,
+    name: "Dolomites Gran Fondo",
+    date: "2026-09-13",
+    priority: "A",
+  },
+  startDate: "2026-08-05",
+  weeksTotal: 6,
+  // Deliberately NOT 5/8 (the old hardcoded `useState` defaults) — Finding 3
+  // (final review): the Rebuild inputs must start from what actually
+  // produced this draft, not a guess that silently overrides an athlete who
+  // asked for 6 days and 10 hours.
+  daysPerWeek: 6,
+  hoursPerWeek: 10,
+  phases: [
+    { phase: "base", weeks: 3, weekNumbers: [1, 2, 4] },
+    { phase: "build", weeks: 2, weekNumbers: [5, 7, 9] },
+    { phase: "taper", weeks: 1, weekNumbers: [6] },
+    { phase: "recovery", weeks: 1, weekNumbers: [3] },
+  ],
+  weeks: Array.from({ length: 6 }, (_, i) => ({
+    weekNumber: i + 1,
+    phase: "base" as const,
+    targetLoad: 400 + i * 10,
+    targetHours: 8,
+    raceName: i === 5 ? "Dolomites Gran Fondo" : null,
+  })),
+  startingCtl: { value: 30, source: "default" },
+  feasibility: null,
+  volume: { source: "fallback", shortfall: null },
+  warnings: ["no_ctl_history", "volume_fallback", "race_created"],
+};
+
+let root: Root | null = null;
+let container: HTMLDivElement;
+
+function mount() {
+  container = document.createElement("div");
+  document.body.appendChild(container);
+  root = createRoot(container);
+  act(() => {
+    root!.render(<PlanPreviewCard preview={preview} />);
+  });
+}
+
+afterEach(() => {
+  if (root) act(() => root!.unmount());
+  root = null;
+  container?.remove();
+  vi.clearAllMocks();
+});
+
+async function clickButton(matcher: RegExp) {
+  const btn = Array.from(container.querySelectorAll("button")).find((b) =>
+    matcher.test(b.textContent ?? "")
+  );
+  if (!btn) throw new Error(`no button matching ${matcher}`);
+  await act(async () => {
+    btn.click();
+  });
+}
+
+describe("PlanPreviewCard", () => {
+  it("names the sport and the race", () => {
+    mount();
+    expect(container.textContent).toContain("Dolomites Gran Fondo");
+    expect(container.textContent).toMatch(/Cycling|Bike/);
+  });
+
+  // The release's headline requirement: the athlete can check the sum. The
+  // fixture's `build` row makes `weeks` (2), `weekNumbers.length` (3), and
+  // `weeksTotal` (6) three different numbers, so only a component that
+  // actually sums `phases[].weeks` lands on the expected 7 here — summing
+  // `weekNumbers.length` would show 8, and echoing `weeksTotal` would show 6.
+  it("shows every phase row and a total equal to the sum of phase weeks", () => {
+    mount();
+    for (const row of preview.phases) {
+      const el = container.querySelector(`[data-testid="phase-${row.phase}"]`);
+      expect(el).toBeTruthy();
+      expect(el!.textContent).toContain(String(row.weeks));
+    }
+    const expectedTotal = preview.phases.reduce(
+      (sum, row) => sum + row.weeks,
+      0
+    );
+    expect(expectedTotal).toBe(7); // sanity: pins the fixture's own arithmetic
+    expect(
+      container.querySelector('[data-testid="phase-total"]')!.textContent
+    ).toBe(String(expectedTotal));
+  });
+
+  it("renders one sentence per warning", () => {
+    mount();
+    for (const w of preview.warnings) {
+      expect(container.textContent).toContain(WARNING_TEXT[w]);
+    }
+  });
+
+  // Finding 3 (final review): the inputs used to hardcode useState(5)/
+  // useState(8) regardless of what actually produced the shown draft, so
+  // Rebuild would silently discard an athlete's stated 6-days/10-hours
+  // preference. They must start from the draft's own constraints.
+  it("initialises the Rebuild inputs from the draft's own constraints, not a hardcoded guess", () => {
+    mount();
+    const daysInput = container.querySelector(
+      '[aria-label="Days per week"]'
+    ) as HTMLInputElement;
+    const hoursInput = container.querySelector(
+      '[aria-label="Hours per week"]'
+    ) as HTMLInputElement;
+    expect(daysInput.value).toBe(String(preview.daysPerWeek));
+    expect(hoursInput.value).toBe(String(preview.hoursPerWeek));
+  });
+
+  it("offers the three decisions by name, and nothing to tune periodization with", () => {
+    mount();
+
+    const startButton = Array.from(container.querySelectorAll("button")).find(
+      (b) => /start this plan/i.test(b.textContent ?? "")
+    );
+    expect(startButton).toBeTruthy();
+
+    const daysInput = container.querySelector('[aria-label="Days per week"]');
+    expect(daysInput).toBeTruthy();
+
+    const hoursInput = container.querySelector('[aria-label="Hours per week"]');
+    expect(hoursInput).toBeTruthy();
+
+    // Nothing else is editable — periodization (phase lengths, where
+    // recovery weeks land) gets the table above, not a control.
+    const periodizationControl = Array.from(
+      container.querySelectorAll("input, select, textarea")
+    ).find((el) =>
+      /progression|recovery/i.test(el.getAttribute("aria-label") ?? "")
+    );
+    expect(periodizationControl).toBeUndefined();
+  });
+
+  // Finding 1: both buttons used to discard the result of their action,
+  // so an athlete pressing "Start this plan" against a stale draft (replaced
+  // from another tab, or by a new coach proposal) saw nothing — no plan
+  // change, no explanation. These pin that a non-ok result now renders.
+  describe("when an action reports the draft is no longer current", () => {
+    it("tells the athlete after Start this plan fails", async () => {
+      confirmPlanActionMock.mockResolvedValueOnce({
+        ok: false,
+        reason: "not_found",
+      });
+      mount();
+      await clickButton(/start this plan/i);
+      expect(container.textContent).toContain(
+        "This proposal is no longer current, so ask your coach for a fresh one."
+      );
+    });
+
+    it("tells the athlete after Rebuild fails", async () => {
+      regeneratePreviewActionMock.mockResolvedValueOnce({
+        ok: false,
+        reason: "not_found",
+      });
+      mount();
+      await clickButton(/^rebuild$/i);
+      expect(container.textContent).toContain(
+        "This proposal is no longer current, so ask your coach for a fresh one."
+      );
+    });
+  });
+
+  // Final-review Finding 1: confirmTrainingPlan refuses when the race this
+  // draft targets has since changed sport. That gets its own sentence, not
+  // the generic "no longer current" one — the athlete needs to know WHY.
+  it("tells the athlete the race changed sport when Start this plan refuses for that reason", async () => {
+    confirmPlanActionMock.mockResolvedValueOnce({
+      ok: false,
+      reason: "sport_changed",
+    });
+    mount();
+    await clickButton(/start this plan/i);
+    expect(container.textContent).toContain(
+      "The race this plan targets has since changed sport, so this plan no longer matches it. Ask your coach for a fresh plan."
+    );
+  });
+
+  it("tells the athlete when the request itself fails", async () => {
+    confirmPlanActionMock.mockRejectedValueOnce(new Error("network error"));
+    mount();
+    await clickButton(/start this plan/i);
+    expect(container.textContent).toContain(
+      "That didn't go through and nothing has changed, so try again in a moment."
+    );
+  });
+
+  it("clears a previous failure once the same action succeeds", async () => {
+    confirmPlanActionMock.mockResolvedValueOnce({
+      ok: false,
+      reason: "not_found",
+    });
+    mount();
+    await clickButton(/start this plan/i);
+    expect(
+      container.querySelector('[data-testid="plan-preview-error"]')
+    ).not.toBeNull();
+
+    confirmPlanActionMock.mockResolvedValueOnce({
+      ok: true,
+      planId: preview.planId,
+    });
+    await clickButton(/start this plan/i);
+    expect(
+      container.querySelector('[data-testid="plan-preview-error"]')
+    ).toBeNull();
+  });
+});

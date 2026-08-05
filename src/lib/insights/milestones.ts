@@ -1,4 +1,4 @@
-import { and, eq, gte, isNotNull, or, sql } from "drizzle-orm";
+import { and, eq, gte, isNotNull, ne, or, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { addDaysYmd, localYmd } from "./auto-tags";
 
@@ -68,7 +68,12 @@ export async function getMilestones(
       .where(
         and(
           eq(schema.trainingPlans.userId, userId),
-          gte(schema.trainingBlocks.adherencePct, ADHERENCE_COMPLETE_PCT)
+          gte(schema.trainingBlocks.adherencePct, ADHERENCE_COMPLETE_PCT),
+          // Excludes only `draft` (v0.43): a finished plan's completed
+          // weeks stay completed, so `archived`/`completed` plans must
+          // keep counting here — only a draft's blocks (never real
+          // training) must not be credited.
+          ne(schema.trainingPlans.status, "draft")
         )
       ),
     db

@@ -33,6 +33,8 @@ import {
   type AvailabilityBlock,
 } from "@/lib/availability/types";
 import type { IntakeState } from "@/components/plan/intake-form";
+import { confirmTrainingPlan, previewTrainingPlan } from "@/lib/training-plan";
+import type { PreviewResult } from "@/lib/plan-preview";
 
 type Result = { ok: true } | { ok: false; error: string };
 
@@ -576,4 +578,57 @@ export async function markSessionDone(
     return { ok: true };
   }
   return { ok: false, error: result };
+}
+
+// ── v0.43: plan preview → confirm (Task 8) ─────────────────────────────────
+
+/**
+ * Turns a previewed draft into the athlete's real plan. The only action
+ * that activates a draft — `PlanPreviewCard`'s "Start this plan" button.
+ */
+export async function confirmPlanAction(
+  planId: string
+): Promise<
+  | { ok: true; planId: string }
+  | { ok: false; reason: "not_found" | "sport_changed" }
+> {
+  const user = await requireUser();
+  const result = await confirmTrainingPlan(user.id, planId);
+  revalidatePath("/train");
+  return result;
+}
+
+/**
+ * Rebuilds the athlete's own pending draft under new days/hours constraints
+ * — `PlanPreviewCard`'s "Rebuild" button. Ownership and draft status are
+ * checked here rather than trusted from the id alone: this is a directly
+ * reachable "use server" export, not only whatever the card's own button
+ * sends.
+ */
+export async function regeneratePreviewAction(
+  planId: string,
+  daysPerWeek: number,
+  hoursPerWeek: number
+): Promise<{ ok: false; reason: "not_found" } | PreviewResult> {
+  const user = await requireUser();
+  const draft = await db.query.trainingPlans.findFirst({
+    where: and(
+      eq(schema.trainingPlans.id, planId),
+      eq(schema.trainingPlans.userId, user.id),
+      eq(schema.trainingPlans.status, "draft")
+    ),
+  });
+  if (!draft) return { ok: false, reason: "not_found" };
+
+  const result = await previewTrainingPlan({
+    userId: user.id,
+    raceType: draft.raceType,
+    raceDate: draft.raceDate,
+    raceId: draft.raceId ?? undefined,
+    title: draft.title,
+    daysPerWeek,
+    hoursPerWeek,
+  });
+  revalidatePath("/train");
+  return result;
 }

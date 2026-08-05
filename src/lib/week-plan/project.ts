@@ -19,7 +19,7 @@
  * adaptation, no replan, no cache mutation. It is exactly the function a
  * page render calls to show next week before it exists.
  */
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, ne } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { racesForWeek, currentCtl } from "@/lib/race/service";
 import { periodize } from "@/lib/training-plan";
@@ -175,8 +175,16 @@ export async function projectWeek(
     prevWeek = null;
   }
 
+  // Excludes only `draft` (v0.43): this plan is looked up by the primary
+  // key a stored week_plans row already points at, so an `archived` plan
+  // legitimately backs an older week and must still resolve. A `draft`
+  // never should have a week projected onto it — treat it the same as a
+  // deleted plan.
   const plan = await db.query.trainingPlans.findFirst({
-    where: eq(schema.trainingPlans.id, planId),
+    where: and(
+      eq(schema.trainingPlans.id, planId),
+      ne(schema.trainingPlans.status, "draft")
+    ),
   });
   if (!plan) {
     throw new Error(

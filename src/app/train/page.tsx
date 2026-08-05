@@ -13,6 +13,7 @@ import {
 import { IntakeForm } from "@/components/plan/intake-form";
 import { StandardWeek } from "@/components/plan/standard-week";
 import { PlanEmpty } from "@/components/plan/plan-empty";
+import { PlanPreviewCard } from "@/components/plan/plan-preview-card";
 import { PmcChart } from "@/components/log/pmc-chart";
 import { WeeklyLoadBars } from "@/components/log/weekly-load-bars";
 import {
@@ -51,6 +52,7 @@ import {
   planConstraints,
 } from "@/lib/week-plan/service";
 import { disciplinesOf, requirePlanSport } from "@/lib/plan-sport";
+import { previewFromDraft } from "@/lib/training-plan";
 import { assembleWeeklyTarget } from "@/lib/week-plan/volume-inputs";
 import { currentTargetLoad } from "@/lib/week-plan/volume";
 import { plannedMins } from "@/lib/week-plan/fill";
@@ -250,6 +252,37 @@ async function WeekTab({
 }) {
   const plan = await getActivePlan(userId);
 
+  // A plan the coach proposed but the athlete hasn't confirmed yet (v0.43).
+  // At most one per athlete — previewTrainingPlan deletes any prior draft
+  // before writing a new one — and independent of whether an active plan
+  // also exists, so a draft for NEXT season still surfaces while this
+  // season's plan keeps running.
+  const draft = await db.query.trainingPlans.findFirst({
+    where: and(
+      eq(schema.trainingPlans.userId, userId),
+      eq(schema.trainingPlans.status, "draft")
+    ),
+  });
+  // `previewFromDraft` calls the throwing `requirePlanSport` plus several
+  // queries. `/train` is force-dynamic and has no `error.tsx`, so an
+  // uncaught throw here would break the whole page — including the
+  // athlete's real active plan — over a draft that is meant to be harmless
+  // to ignore. Same degraded-path pattern as the `projectWeek` call below:
+  // take no preview rather than no page, but log it so a corrupted draft is
+  // diagnosable.
+  let draftPreview: Awaited<ReturnType<typeof previewFromDraft>> | null = null;
+  if (draft) {
+    try {
+      draftPreview = await previewFromDraft(draft);
+    } catch (err) {
+      logger.error("draft plan preview failed; showing no preview", {
+        userId,
+        draftId: draft.id,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
   // The readiness chip reads the same daily_metrics row Today's hero does,
   // so the two screens can never disagree about the athlete's band.
   const latestMetric = await db.query.dailyMetrics.findFirst({
@@ -291,7 +324,11 @@ async function WeekTab({
     return (
       <>
         <TrainHeader tab="week" href={href} action={chip} />
-        <PlanEmpty />
+        {draftPreview ? (
+          <PlanPreviewCard preview={draftPreview} />
+        ) : (
+          <PlanEmpty />
+        )}
       </>
     );
   }
@@ -685,6 +722,8 @@ async function WeekTab({
   return (
     <>
       <TrainHeader tab="week" href={href} subtitle={subtitle} action={chip} />
+
+      {draftPreview && <PlanPreviewCard preview={draftPreview} />}
 
       {week ? (
         <>
