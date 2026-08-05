@@ -800,6 +800,7 @@ describe.skipIf(!hasDb)("morning insight — race day (Task 12)", () => {
     await createRace(RACE_USER, {
       name: "Test Marathon",
       raceType: "marathon",
+      sport: "Run",
       date: today,
       priority: "A",
       goalNote: "start easy",
@@ -830,6 +831,7 @@ describe.skipIf(!hasDb)("morning insight — race day (Task 12)", () => {
     await createRace(RACE_USER_2, {
       name: "Second City 10K",
       raceType: "10k",
+      sport: "Run",
       date: today,
       priority: "B",
       goalNote: null,
@@ -858,6 +860,7 @@ describe.skipIf(!hasDb)("morning insight — race day (Task 12)", () => {
     await createRace(RACE_USER_4, {
       name: "Fourth Race 5K",
       raceType: "5k",
+      sport: "Run",
       date: today,
       priority: "B",
       goalNote: null,
@@ -891,6 +894,7 @@ describe.skipIf(!hasDb)("morning insight — race day (Task 12)", () => {
     await createRace(RACE_USER_3, {
       name: "Projection 5K",
       raceType: "5k",
+      sport: "Run",
       date: today,
       priority: "C",
       goalNote: null,

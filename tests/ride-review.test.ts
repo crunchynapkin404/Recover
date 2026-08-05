@@ -130,6 +130,7 @@ describe.skipIf(!hasDb)("generateRideReview", () => {
       userId: USER,
       name: "Same-day race",
       raceType: "10k",
+      sport: "Run",
       date: today,
       priority: "A",
       status: "upcoming",

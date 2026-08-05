@@ -127,13 +127,6 @@ exports[`MCP tool surface is frozen (names + scopes + schemas) 1`] = `
           ],
           "type": "string",
         },
-        "sports": {
-          "description": "Override sports list. Defaults to athlete profile.",
-          "items": {
-            "type": "string",
-          },
-          "type": "array",
-        },
         "title": {
           "description": "Plan name, e.g. 'Berlin Marathon 2026'.",
           "type": "string",

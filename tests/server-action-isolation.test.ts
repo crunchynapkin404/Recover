@@ -67,6 +67,7 @@ describe.skipIf(!hasDb)("removeRace server action — cross-user denial", () => 
         userId: OWNER,
         name: "Owner's Goal Marathon",
         raceType: "marathon",
+        sport: "Run",
         date: ymd(60),
         priority: "A",
       })

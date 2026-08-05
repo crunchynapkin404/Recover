@@ -200,6 +200,7 @@ describe.skipIf(!hasDb)("runDebriefLifecycle", () => {
         userId: USER,
         name: "Claim test race",
         raceType: "10k",
+        sport: "Run",
         date: raceDate,
         priority: "B",
       })

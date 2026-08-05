@@ -433,6 +433,7 @@ describe.skipIf(!hasDb)("plan race actions", () => {
           userId: OTHER_USER,
           name: "Not Yours",
           raceType: "cycling",
+          sport: "Bike",
           date: ymd(45),
           priority: "B",
           distanceKm: 100,
@@ -463,6 +464,7 @@ describe.skipIf(!hasDb)("plan race actions", () => {
       const created = await createRace(USER, {
         name: "Goal Edit Race",
         raceType: "gran fondo",
+        sport: "Bike",
         date: ymd(50),
         priority: "A",
       });

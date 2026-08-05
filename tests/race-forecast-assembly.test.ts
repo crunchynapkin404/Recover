@@ -68,6 +68,7 @@ describe.skipIf(!hasDb)("assembleForecastInputs", () => {
     const created = await createRace(USER, {
       name: "Goal 10k",
       raceType: "10k",
+      sport: "Run",
       date: ymd(56),
       priority: "A",
     });
@@ -107,6 +108,7 @@ describe.skipIf(!hasDb)("assembleForecastInputs", () => {
     const created = await createRace(USER, {
       name: "Tune-up 10k",
       raceType: "10k",
+      sport: "Run",
       date: ymd(20),
       priority: "B",
     });
@@ -154,6 +156,7 @@ describe.skipIf(!hasDb)("assembleForecastInputs", () => {
     const created = await createRace(USER, {
       name: "Reshape 10k",
       raceType: "10k",
+      sport: "Run",
       date: raceDate,
       priority: "A",
     });

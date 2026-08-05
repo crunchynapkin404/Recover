@@ -50,6 +50,7 @@ describe.skipIf(!hasDb)("post-race debrief", () => {
         userId: USER,
         name: "Yesterday 10k",
         raceType: "10k",
+        sport: "Run",
         date: raceDate,
         priority: "A",
       })
@@ -98,6 +99,7 @@ describe.skipIf(!hasDb)("post-race debrief", () => {
       userId: USER,
       name: "Ghost race",
       raceType: "5k",
+      sport: "Run",
       date: raceDate,
       priority: "C",
     });
@@ -141,6 +143,7 @@ describe.skipIf(!hasDb)("post-race debrief", () => {
       userId: USER,
       name: "Strava race",
       raceType: "10k",
+      sport: "Run",
       date: raceDate,
       priority: "B",
     });
@@ -174,6 +177,7 @@ describe.skipIf(!hasDb)("post-race debrief", () => {
       userId: USER,
       name: "Boundary 10k",
       raceType: "10k",
+      sport: "Run",
       date: raceDate,
       priority: "B",
     });

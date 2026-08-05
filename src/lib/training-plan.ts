@@ -180,7 +180,6 @@ export interface GeneratePlanParams {
   title?: string;
   daysPerWeek?: number; // default 5
   hoursPerWeek?: number; // default 8
-  sports?: string[];
   raceId?: string;
 }
 
@@ -747,6 +746,10 @@ export async function generateTrainingPlan(
   let raceId = params.raceId ?? null;
   let raceType = params.raceType;
   let raceDate = params.raceDate;
+  // The race is the authority (v0.42). When one is given, its sport wins
+  // outright; when we are about to create one, the race type must name a
+  // sport or there is nothing to build.
+  let sport: PlanSport;
   if (raceId) {
     const race = await db.query.races.findFirst({
       where: and(eq(schema.races.id, raceId), eq(schema.races.userId, userId)),
@@ -754,6 +757,9 @@ export async function generateTrainingPlan(
     if (!race) throw new Error("race_not_found");
     raceType = race.raceType;
     raceDate = race.date;
+    sport = requirePlanSport(race.sport);
+  } else {
+    sport = requirePlanSport(inferPlanSport(raceType));
   }
 
   // 1. Calculate plan duration
@@ -781,10 +787,6 @@ export async function generateTrainingPlan(
     where: eq(schema.users.id, userId),
   });
 
-  // Plan creation is a one-shot call: a race type this table cannot place
-  // must fail loudly here rather than build a running plan for someone who
-  // asked for something else.
-  const sport = requirePlanSport(inferPlanSport(raceType));
   const title = params.title ?? `${raceType} training plan`;
   const startDate = localYmd(today);
 
@@ -816,6 +818,7 @@ export async function generateTrainingPlan(
       raceType,
       date: raceDate,
       priority: "A",
+      sport,
     });
     if ("race" in created) raceId = created.race.id;
     // past_date is unreachable here: weeksTotal >= 4 already guarantees a future date

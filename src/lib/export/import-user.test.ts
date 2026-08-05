@@ -133,6 +133,7 @@ describe.skipIf(!hasDb)("importUserData", () => {
         userId: SOURCE_USER,
         name: "IMPORT-TEST-RACE",
         raceType: "10k",
+        sport: "Run",
         date: "2026-06-01",
         priority: "A",
         status: "completed",
@@ -382,7 +383,14 @@ describe.skipIf(!hasDb)("importUserData", () => {
       userId: SOURCE_USER,
       name: "Round Trip Classic",
       raceType: "gran_fondo",
-      sport: "Ride",
+      // Deliberately a provider word, not a plan sport: this fixture
+      // predates the v0.42 closed-set migration and its round trip through
+      // exportUserData -> JSON -> importUserData below is what exercises
+      // import-user.ts's toPlanSport/inferPlanSport fallback (canonicalises
+      // to "Bike"). The cast is only to satisfy the column's now-strict
+      // TS type — races.sport has no DB-level CHECK, so the raw insert
+      // still succeeds.
+      sport: "Ride" as unknown as "Bike" | "Run" | "Triathlon",
       date: "2026-06-01",
       // `priority` is NOT NULL with no default — omitting it fails the
       // insert on a constraint violation rather than on an assertion.

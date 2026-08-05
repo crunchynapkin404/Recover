@@ -38,10 +38,6 @@ const parameters = z.object({
     .max(25)
     .default(8)
     .describe("Available training hours per week."),
-  sports: z
-    .array(z.string())
-    .optional()
-    .describe("Override sports list. Defaults to athlete profile."),
   raceId: z
     .string()
     .uuid()

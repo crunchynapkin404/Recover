@@ -647,6 +647,7 @@ describe.skipIf(!hasDb)("week-plan service", () => {
         userId: VOLUME_USER,
         name: "Integration Gran Fondo",
         raceType: "gran fondo",
+        sport: "Bike",
         date: addDaysYmd(weekStart, 70),
         priority: "B",
         status: "upcoming",

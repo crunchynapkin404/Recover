@@ -57,6 +57,7 @@ describe.skipIf(!hasDb)("race threading into the living week", () => {
     const cRace = await createRace(USER, {
       name: "Weekend parkrun",
       raceType: "5k",
+      sport: "Run",
       date: ymd(raceDay),
       priority: "C",
     });
@@ -109,12 +110,14 @@ describe.skipIf(!hasDb)("race threading into the living week", () => {
     const b = await createRace(USER, {
       name: "Threading Tiebreak B",
       raceType: "half-marathon",
+      sport: "Run",
       date: tieDate,
       priority: "A",
     });
     const a = await createRace(USER, {
       name: "Threading Tiebreak A",
       raceType: "half-marathon",
+      sport: "Run",
       date: tieDate,
       priority: "A",
     });
@@ -315,6 +318,7 @@ describe.skipIf(!hasDb)(
       const raceResult = await createRace(TAPER_USER, {
         name: "Taper Target 10K",
         raceType: "10k",
+        sport: "Run",
         date: raceDate,
         priority: "A",
       });
