@@ -880,20 +880,24 @@ export async function previewTrainingPlan(
     where: eq(schema.availabilityDefaults.userId, userId),
   });
 
-  const loadPerHour = blocks[0]
-    ? blocks[0].targetLoad / Math.max(1, hoursPerWeek)
-    : 0;
-
-  const weeks: PreviewWeek[] = blocks.map((b) => ({
-    weekNumber: b.weekNumber,
-    phase: b.phase as PlanPhase,
-    targetLoad: b.targetLoad,
-    targetHours:
-      loadPerHour > 0
-        ? Math.round((b.targetLoad / loadPerHour) * 10) / 10
-        : hoursPerWeek,
-    raceName: b.weekNumber === planWeeks ? raceName : null,
-  }));
+  const weeks: PreviewWeek[] = blocks.map((b) => {
+    // The engine's own scheduled minutes, not a ratio pinned to week 1 —
+    // `targetLoad` compounds through `periodize`'s progression while
+    // scheduled hours follow a differently-shaped `loadMultiplier`, so a
+    // single load-per-hour figure drifts hard by the back half of a plan
+    // (a 20-week Bike plan: week 15 read 15.7h for 8.8h actually scheduled).
+    // Summing what `generateWorkouts` already decided cannot drift from the
+    // sessions the athlete is shown.
+    const workouts = b.workouts;
+    const scheduledMins = workouts.reduce((sum, w) => sum + w.durationMins, 0);
+    return {
+      weekNumber: b.weekNumber,
+      phase: b.phase as PlanPhase,
+      targetLoad: b.targetLoad,
+      targetHours: Math.round((scheduledMins / 60) * 10) / 10,
+      raceName: b.weekNumber === planWeeks ? raceName : null,
+    };
+  });
 
   // 6. Feasibility, assembled the same way `/train` assembles it
   // (src/app/train/page.tsx) — `demand` is the athlete's currently tracked

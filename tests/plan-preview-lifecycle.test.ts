@@ -1,5 +1,6 @@
 import { describe, expect, it, beforeAll, afterAll } from "vitest";
 import { eq } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
 import { eventDemand } from "@/lib/race/demand";
 
 const hasDb =
@@ -10,6 +11,7 @@ describe.skipIf(!hasDb)("previewTrainingPlan (v0.43)", () => {
   let schema: typeof import("@/lib/db").schema;
   let previewTrainingPlan: typeof import("@/lib/training-plan").previewTrainingPlan;
   const userId = `preview-${Date.now()}`;
+  const otherUserId = `preview-other-${Date.now()}`;
 
   /** 20 weeks out, so the plan is a normal length. */
   function raceDate(): string {
@@ -21,15 +23,21 @@ describe.skipIf(!hasDb)("previewTrainingPlan (v0.43)", () => {
   beforeAll(async () => {
     ({ db, schema } = await import("@/lib/db"));
     ({ previewTrainingPlan } = await import("@/lib/training-plan"));
-    await db.insert(schema.users).values({
-      id: userId,
-      name: "Preview Test",
-      email: `${userId}@example.invalid`,
-    });
+    await db.insert(schema.users).values([
+      { id: userId, name: "Preview Test", email: `${userId}@example.invalid` },
+      {
+        id: otherUserId,
+        name: "Someone Else",
+        email: `${otherUserId}@example.invalid`,
+      },
+    ]);
   });
 
   afterAll(async () => {
+    // Cascades to each user's own races (races.userId references users with
+    // onDelete: "cascade").
     await db.delete(schema.users).where(eq(schema.users.id, userId));
+    await db.delete(schema.users).where(eq(schema.users.id, otherUserId));
   });
 
   it("writes a draft and touches nothing else", async () => {
@@ -240,5 +248,134 @@ describe.skipIf(!hasDb)("previewTrainingPlan (v0.43)", () => {
     expect(result.preview.feasibility?.verdict).toBe("ready");
     expect(result.preview.warnings).not.toContain("feasibility_tight");
     expect(result.preview.warnings).not.toContain("feasibility_not_realistic");
+  });
+
+  // Finding 1 (review): targetHours used to be back-calculated from a ratio
+  // pinned to week 1 (`blocks[0].targetLoad / hoursPerWeek`), which drifted
+  // hard from what was actually scheduled by the back half of a plan —
+  // `targetLoad` compounds through `periodize`'s own progression while
+  // scheduled minutes follow a differently-shaped `loadMultiplier`. A test
+  // that only checked week 1 would have passed the broken code (week 1's
+  // ratio is exact by construction), so this checks every week — including
+  // asserting a peak and a taper week are actually present in the sample —
+  // against the ONE ground truth: the minutes the stored blocks actually
+  // schedule.
+  it("targetHours equals that week's summed workout durations, not a week-1 ratio", async () => {
+    const result = await previewTrainingPlan({
+      userId,
+      raceType: "gran_fondo",
+      raceDate: raceDate(),
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const blocks = await db.query.trainingBlocks.findMany({
+      where: eq(schema.trainingBlocks.planId, result.preview.planId),
+    });
+    expect(blocks.length).toBe(result.preview.weeksTotal);
+
+    const blocksByWeek = new Map(blocks.map((b) => [b.weekNumber, b]));
+    for (const week of result.preview.weeks) {
+      const block = blocksByWeek.get(week.weekNumber);
+      expect(block).toBeTruthy();
+      const workouts = (block?.workouts ?? []) as { durationMins: number }[];
+      const summedHours =
+        Math.round(
+          (workouts.reduce((s, w) => s + w.durationMins, 0) / 60) * 10
+        ) / 10;
+      expect(week.targetHours).toBe(summedHours);
+    }
+
+    // Guard the test itself against vacuity: if periodize's shape ever
+    // changed such that this horizon produced only base/build weeks, the
+    // loop above would still pass without ever having exercised the
+    // compounding phases where the old ratio drifted worst.
+    const phasesSeen = new Set(result.preview.weeks.map((w) => w.phase));
+    expect(phasesSeen.has("peak")).toBe(true);
+    expect(phasesSeen.has("taper")).toBe(true);
+  });
+
+  // Finding 2 (review): race_not_found via a raceId that simply does not
+  // exist.
+  it("refuses a raceId that does not exist", async () => {
+    const result = await previewTrainingPlan({
+      userId,
+      raceType: "gran_fondo",
+      raceDate: raceDate(),
+      raceId: randomUUID(),
+    });
+    expect(result).toEqual({ ok: false, reason: "race_not_found" });
+  });
+
+  // Finding 2 (review): the security-relevant case — a raceId that exists
+  // but belongs to a different user. The lookup is scoped by
+  // `and(eq(races.id, raceId), eq(races.userId, userId))`, so this must come
+  // back exactly like "does not exist", not leak the other athlete's race.
+  it("refuses a raceId that belongs to another user", async () => {
+    const [othersRace] = await db
+      .insert(schema.races)
+      .values({
+        userId: otherUserId,
+        name: "Someone Else's Race",
+        raceType: "marathon",
+        sport: "Run",
+        date: raceDate(),
+        priority: "A",
+      })
+      .returning();
+
+    const result = await previewTrainingPlan({
+      userId,
+      raceType: "gran_fondo",
+      raceDate: raceDate(),
+      raceId: othersRace.id,
+    });
+    expect(result).toEqual({ ok: false, reason: "race_not_found" });
+  });
+
+  // Finding 2 (review): horizon_too_long.
+  it("refuses a race date more than 52 weeks out", async () => {
+    const farAway = new Date();
+    farAway.setDate(farAway.getDate() + 53 * 7);
+    const result = await previewTrainingPlan({
+      userId,
+      raceType: "gran_fondo",
+      raceDate: farAway.toISOString().slice(0, 10),
+    });
+    expect(result).toEqual({ ok: false, reason: "horizon_too_long" });
+  });
+
+  // Finding 2 (review): the raceId-provided branch generally — no test
+  // exercised it at all before. `raceType` and `raceDate` are set to values
+  // that would be WRONG if the race row's own fields weren't the ones that
+  // actually won ("gran_fondo" infers Bike; the race's real sport is Run),
+  // so a regression that fell back to param-inference here would be caught,
+  // not silently agree by coincidence.
+  it("drives the plan from the race row when raceId is given, not from raceType inference", async () => {
+    const [race] = await db
+      .insert(schema.races)
+      .values({
+        userId,
+        name: "Race-Driven Plan Race",
+        raceType: "gran_fondo", // would infer "Bike" if this were used
+        sport: "Run", // the race's actual sport — this must win
+        date: raceDate(),
+        priority: "B",
+      })
+      .returning();
+
+    const result = await previewTrainingPlan({
+      userId,
+      raceId: race.id,
+      raceType: "irrelevant_placeholder",
+      raceDate: "2000-01-01",
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.preview.sport).toBe("Run");
+    expect(result.preview.race.id).toBe(race.id);
+    expect(result.preview.race.name).toBe("Race-Driven Plan Race");
+    expect(result.preview.warnings).not.toContain("race_created");
   });
 });
