@@ -1,27 +1,36 @@
-# v0.44 — The plan you can see before you get it
+# v0.43 — The plan you can see before you get it
 
 Adds a preview-and-confirm step to plan generation, and makes the commit
 transactional.
 
-Assumes **v0.42** has landed: `races.sport` is the sport authority and
-`inferSports` is gone.
+**Verified against v0.42.0** (tag cut, PR #49 merged): `races.sport` is the
+sport authority, `inferSports` is gone, and the `sports` tool parameter (F6)
+was removed. Line references below are `main` at `65e0ab0`.
+
+**Sequencing note.** This was drafted as v0.44, behind F2. It moved ahead
+because v0.42 shrank F2 from "every ride by every cyclist fails to match, so
+every week closes at zero" to "a cross-training day books nowhere" — the
+vocabulary half is fixed (`service.ts:496-499` now matches through
+`providerSportAliases`) and only the missing third branch remains. F2 becomes
+v0.44.
 
 ## The gap
 
-`generateTrainingPlan` (`training-plan.ts:765-901`) is destructive before it is
+`generateTrainingPlan` (`training-plan.ts:745-891`) is destructive before it is
 verified. In order, from a single LLM tool call:
 
-1. computes the skeleton
-2. **archives every existing `active` plan** (`:824-832`)
-3. creates a race if none was given, at a hardcoded `priority: "A"` (`:834-843`)
-4. inserts the plan row
-5. **writes the athlete's standard week** via `seedAvailabilityDefaults`
-   (`:860`) from an LLM-supplied `hoursPerWeek` that defaults to 8. Not
+1. resolves the sport, **throwing** if the race type names none (`:753-767`)
+2. computes the skeleton
+3. **archives every existing `active` plan** (`:809-817`)
+4. creates a race if none was given, at a hardcoded `priority: "A"` (`:819-829`)
+5. inserts the plan row
+6. **writes the athlete's standard week** via `seedAvailabilityDefaults`
+   (`:850`) from an LLM-supplied `hoursPerWeek` that defaults to 8. Not
    destructive — it is `onConflictDoNothing` per weekday, so existing rows
    survive — but a brand-new athlete acquires a standard week they never
    agreed to, derived from a number nobody measured
-6. inserts every training block
-7. rolls the live week over
+7. inserts every training block
+8. rolls the live week over
 
 There is no dry run, and no point at which a human sees the result before it is
 the athlete's plan. Two consequences:
@@ -31,8 +40,8 @@ running sessions — sat in the database, internally consistent, until the
 athlete went for a ride. A rendered skeleton showing `sport: Run` would have
 been obvious in seconds to someone who knows nothing about `canonicalSport`.
 
-**A failure leaves the athlete with nothing.** The archive at step 2 precedes
-the inserts at steps 4 and 6. Any error between them leaves zero active plans.
+**A failure leaves the athlete with nothing.** The archive at step 3 precedes
+the inserts at steps 5 and 7. Any error between them leaves zero active plans.
 
 This is not a hypothetical class of problem. In the intervals.icu Annual
 Training Plan Builder thread, orphaned plan targets left behind by a deletion
@@ -134,7 +143,7 @@ interface PlanPreview {
 ```
 
 `startingCtl.source` exists because `wellness?.ctl ?? 30`
-(`training-plan.ts:800`) currently cannot be told apart from a real CTL of 30 —
+(`training-plan.ts:787`) currently cannot be told apart from a real CTL of 30 —
 the same silent-default pattern as F1, in the fitness input. Fixing it is
 v0.47; naming it is free here.
 
@@ -167,6 +176,31 @@ are unrealistic).
 
 `weeksTotal > 52` keeps throwing. That is a different failure — a mistyped date
 — and the existing message is actionable.
+
+### Refusals are rendered, not thrown
+
+v0.42 added a second pre-flight refusal, and it fires **before** the week-count
+checks: `requirePlanSport(inferPlanSport(raceType))` (`:753-767`) throws when
+the race type names no sport. That is the correct behaviour — an explicit
+refusal is exactly what replaced the silent `→ Run` — but a thrown `Error`
+reaches the athlete as whatever the coach model decides to say about a failed
+tool call.
+
+`previewTrainingPlan` therefore returns a discriminated result rather than
+throwing:
+
+```ts
+type PreviewResult =
+  | { ok: true; preview: PlanPreview }
+  | {
+      ok: false;
+      reason: "unknown_sport" | "race_not_found" | "horizon_too_long";
+    };
+```
+
+Each reason renders one sentence naming the input at fault and what would fix
+it. `generateTrainingPlan` keeps throwing on the same conditions — the
+refusals stay real, they just stop being exceptions on the path a human reads.
 
 ### The surface is three decisions
 

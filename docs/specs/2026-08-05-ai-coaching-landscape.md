@@ -21,7 +21,7 @@ cited defaults.
 
 ---
 
-## 1. Every competitor is subsidising tokens. recover already isn't.
+## 1. Every competitor is subsidising tokens — recover already isn't
 
 | Product       | Price                        | The tell                                                                 |
 | ------------- | ---------------------------- | ------------------------------------------------------------------------ |
@@ -210,9 +210,9 @@ arithmetic, not coverage.
 
 | Release                                  | Content                                                                                                                                                             |
 | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **v0.42 — One sport, decided once**      | F1, F4, F6, F8, F12 _(in flight)_                                                                                                                                   |
-| **v0.43 — No training is lost**          | F2                                                                                                                                                                  |
-| **v0.44 — The plan you can see first**   | Preview before commit; transactional generation. `docs/specs/2026-08-05-plan-preview-design.md`                                                                     |
+| **v0.42 — One sport, decided once**      | F1, F4, F6, F8, F12 — **SHIPPED 2026-08-05**, tag `v0.42.0`, PR #49                                                                                                 |
+| **v0.43 — The plan you can see first**   | Preview before commit; transactional generation. `docs/specs/2026-08-05-plan-preview-design.md`                                                                     |
+| **v0.44 — No training is lost**          | F2 — the missing third booking branch                                                                                                                               |
 | **v0.45 — Every number has a source**    | Evidence doc for `periodize()`; delete the dead skeleton taper; fix the recovery-cadence phase-boundary reset; downgrade the ACWR claims; add a CTL ramp-rate bound |
 | **v0.46 — Demand knows its sport**       | F3, F7, with a confidence flag on the demand figure                                                                                                                 |
 | **v0.47 — The plan knows how you start** | Fix `startingCtl` defaulting; read ATL/TSB; open with recovery when form is deeply negative; B/C mini-tapers; illness comeback                                      |
@@ -221,6 +221,16 @@ arithmetic, not coverage.
 
 Fuelling leads the breadth phase because MacroBurn proves it can be done free,
 and it is the largest genuine hole in recover's coverage.
+
+**v0.43 and v0.44 were swapped after v0.42 shipped (2026-08-05).** F2's
+vocabulary half went with it — `service.ts:496-499` now matches provider sports
+through `providerSportAliases` rather than a raw `eq()`, so a cyclist's rides
+book against their planned rides again. What remains is the missing third
+branch: a day with a planned session completed as a _different_ sport still
+matches neither branch and books nowhere. That is a real silent defect, but it
+went from "every ride, every cyclist, compounding weekly" to "a cross-training
+day", which no longer outranks a guard that catches whole classes of wrong
+plan before they reach the athlete.
 
 ---
 
