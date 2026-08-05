@@ -1,5 +1,100 @@
 # Changelog
 
+## v0.43.0 — 2026-08-05 — The Plan You Can See Before You Get It
+
+v0.42 fixed why that gran fondo plan was full of running workouts. This one
+fixes why nobody found out until the athlete went for a ride.
+
+`generateTrainingPlan` committed as it went. From a single tool call it
+archived every existing active plan, then created a race, inserted the plan
+row, seeded the athlete's standard week and inserted twenty-four sessions.
+There was no point in that sequence where a human saw the result before it was
+already their plan. The archive also came _first_, so any failure in the
+inserts behind it left the athlete with no active plan at all — a window that
+had been open since the function was written.
+
+A plan is now proposed before it is given. `previewTrainingPlan` writes a
+`draft` and nothing else: no race, no availability defaults, no week plan, and
+no status change to any plan the athlete already has. That is what makes a
+draft safe to walk away from. `confirmTrainingPlan` turns it into their plan
+inside one `db.transaction` — archive, create the race if the draft has none,
+activate, seed availability — so the window between archiving the old plan and
+having a new one no longer exists. `rolloverWeekPlan` stays outside that
+transaction and keeps its `try`/`catch`, because a materialisation failure must
+not roll back a good plan.
+
+`training_plans.status` gains `draft`, which needed no migration: the column is
+plain `text` with no check constraint. Adding a lifecycle state means every
+query that reads training plans has to be asked whether it meant to include
+one, and four had never been asked. `planIdForRace` returned a draft as a
+race's plan. `projectWeek` projected a week onto one. `assembleForecastInputs`
+built a forecast from one. `getMilestones` counted a draft's blocks as
+completed training weeks. All four now exclude `draft` and only `draft` —
+`ne(status, "draft")` rather than `eq(status, "active")`, because an archived
+plan legitimately backs an older week and a finished plan's completed weeks are
+still completed. Export and import stay deliberately unfiltered, so a backup
+carries a draft like anything else.
+
+The preview leads with arithmetic, because that is what athletes cannot
+reconcile. `periodize` substitutes recovery weeks _inside_ a phase's span, so
+"base, eight weeks" and "eight base weeks" are different numbers; on the
+equivalent feature elsewhere this produced six separate threads of people
+unable to work out why a date range gave them sixteen weeks instead of
+twenty-three. `buildPhases` gives recovery its own row and the rows sum to the
+plan's own week count, with the total on screen next to them.
+
+Eight warnings say the things the preview would otherwise go quiet about: that
+starting fitness was assumed rather than measured, that the weekly-hours figure
+fell back to something typed in, that availability is capping the target, that
+the event is tight or not realistic in the time left, that confirming will also
+create the race or a standard week, that a race under four weeks out gets a
+shortened plan rather than a progression. Each is one sentence naming the input
+at fault. The feasibility verdict is deliberately silent on `ready` and
+`on_track` — those are confirmations, not warnings — and silent again when it
+cannot be assessed at all, which is a different thing from reassurance. That
+three-way silence is an exhaustive `switch` with a `never` guard, so a fifth
+verdict is a compile error rather than a fall-through into quiet.
+
+The coach can now only propose. `generate_training_plan` returns the preview and
+activates nothing; a new `confirm_training_plan` activates a reviewed draft and
+archives the previous plan. Refusals come back as sentences rather than enum
+values, so a failed call is not narrated by whatever the model improvises. The
+system prompt was saying the old thing — that `generate_training_plan` creates
+a plan, with no mention of confirming — which is the two-authorities pattern
+v0.42 existed to cure, so it now describes both steps. Because that guarantee
+lives entirely in prose, and the frozen-tools snapshot deliberately excludes
+descriptions, the wording itself is now pinned by test.
+
+One gap only the split could open: a draft freezes the sport it was built for,
+and `upsert_race` can change a race's sport afterwards. A plan proposed for a
+Bike race could have been confirmed against a race since corrected to Run —
+v0.42's defect reached through a door neither release owned. Confirmation now
+compares the race's live sport against the draft's and refuses, rather than
+quietly swapping the sport of a plan the athlete already agreed to.
+
+On `/train` the athlete gets the phase table with its total, the week list,
+the warnings, and three decisions: start it, or change days and hours and
+rebuild. Nothing about the periodization is editable. It gets an explanation
+instead, because the one athlete who left a comparable product in the survey
+behind this work left over configuration burden, not missing features.
+
+Two things worth recording because review caught them rather than tests.
+The per-week hours figure was back-calculated from a week-one load-per-hour
+ratio, which assumes load per hour is constant across a plan; it is not, and
+the preview was reporting 15.7 hours at peak against 8.8 actually scheduled,
+and 9.2 on race week against 4.0. A fabricated headline number is the same
+class of defect as an unseen plan, so it now sums the sessions themselves. The
+Rebuild inputs also showed 5 days and 8 hours whatever the draft was built
+from, silently discarding a stated preference; they now carry the draft's real
+values.
+
+`generateTrainingPlan` is still present and still commits directly, but nothing
+calls it any more. Retiring it belongs to a later release. `previewFromDraft`
+also duplicates the per-week mapping rather than sharing a helper with
+`previewTrainingPlan`, whose "writes nothing but the draft" guarantee was held
+untouched for the duration of this release; the two cannot drift today, and the
+extraction is owed.
+
 ## v0.42.0 — 2026-08-05 — One Sport, Decided Once
 
 An athlete entered a six-day Dolomites gran fondo and got a training plan made
