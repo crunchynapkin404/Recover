@@ -662,7 +662,7 @@ describe.skipIf(!hasDb)("week-plan service", () => {
       expect(week).not.toBeNull();
 
       // The freshly-periodized week-1 skeleton. Deterministic off
-      // startingCtl(0)/weeksTotal/daysPerWeek/raceType/sports alone — the
+      // startingCtl(0)/weeksTotal/daysPerWeek/sport alone — the
       // hours argument here is arbitrary and does not affect targetLoad
       // (see rollover-volume.test.ts's 20x-spread test), so this
       // independently reproduces what rolloverWeekPlan computed internally

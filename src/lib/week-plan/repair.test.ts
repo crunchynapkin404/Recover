@@ -145,7 +145,6 @@ async function expectedFreshWeek(planId: string, days: DaySlot[]) {
     availableBlocksPerDay,
     prevWeek: null,
     recentBands: [],
-    raceType: plan!.raceType,
     sport,
     hoursPerWeek: hoursForMaterialize(target),
     races: [],

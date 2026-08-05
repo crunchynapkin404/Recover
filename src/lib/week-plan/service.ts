@@ -335,7 +335,6 @@ export async function rolloverWeekPlan(
     availableBlocksPerDay,
     prevWeek,
     recentBands: await recentBands(userId),
-    raceType: plan.raceType,
     sport,
     hoursPerWeek: hoursForMaterialize(target),
     races,

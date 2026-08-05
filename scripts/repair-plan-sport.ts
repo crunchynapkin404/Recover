@@ -36,12 +36,20 @@ async function main() {
         (b.workouts as { sport: string }[]).map((w) => w.sport)
       )
     );
-    // A triathlon plan legitimately holds three sports; only flag a plan
-    // whose workouts contain a sport the race's own discipline cannot
-    // produce.
+    // F4: flagging a triathlon plan only for a sport OUTSIDE {Swim,Bike,Run}
+    // cannot catch this release's own headline bug — a triathlon race whose
+    // plan was wrongly built pure-Run has sports = {"Run"}, a *subset* of
+    // {Swim,Bike,Run}, which passed that check silently. generateTriathlonWorkouts
+    // unconditionally emits a Bike, a Run and a Swim session every single
+    // week regardless of phase or session count (see training-plan.ts) — so
+    // a correctly-generated triathlon plan's blocks always contain all
+    // three disciplines somewhere. A plan missing any one of them cannot be
+    // a real triathlon plan, so "wrong" now means: an out-of-set sport
+    // appears, OR the plan does not span all three disciplines.
     const wrong =
       want === "Triathlon"
-        ? [...sports].some((s) => !["Swim", "Bike", "Run"].includes(s))
+        ? [...sports].some((s) => !["Swim", "Bike", "Run"].includes(s)) ||
+          !["Swim", "Bike", "Run"].every((s) => sports.has(s))
         : [...sports].some((s) => s !== want);
     if (!wrong) {
       console.log(`plan ${plan.id.slice(0, 8)}: already ${want} — no change`);

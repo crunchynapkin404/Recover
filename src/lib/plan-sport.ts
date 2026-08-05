@@ -78,7 +78,7 @@ function normaliseRaceType(raceType: string): string {
  * a plan sport, and the whole point of this table is to stop guessing one
  * for it.
  */
-const RACE_TYPE_SPORT: Record<string, PlanSport> = {
+export const RACE_TYPE_SPORT: Record<string, PlanSport> = {
   // --- closed enum: Run ---
   marathon: "Run",
   halfmarathon: "Run",

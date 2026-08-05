@@ -2,11 +2,7 @@ import type { Database } from "@/lib/db";
 import { schema } from "@/lib/db";
 import { EXPORT_VERSION, type UserExport } from "./export-user";
 import type { Carried } from "./carried";
-import {
-  inferPlanSport,
-  requirePlanSport,
-  toPlanSport,
-} from "@/lib/plan-sport";
+import { inferPlanSport, toPlanSport, type PlanSport } from "@/lib/plan-sport";
 
 // `UserExport`'s timestamp fields are typed as `Date` (they come straight
 // off exportUserData's drizzle `$inferSelect` reads), but the real caller
@@ -26,6 +22,24 @@ function toDate(v: Date | string): Date {
 }
 function toDateOrNull(v: Date | string | null): Date | null {
   return v == null ? null : toDate(v);
+}
+
+/**
+ * Best-effort read of a `training_plans.constraints` blob's sport, without
+ * pulling in week-plan/service.ts's `planConstraints` (DB-coupled) for one
+ * field. Pre-v0.42 plans stored every discipline the plan touches
+ * (`["Swim","Bike","Run"]` for a triathlon plan, a single-element array for
+ * Bike/Run); post-v0.42 plans store exactly the one `PlanSport`. Either
+ * way, more than one stored value can only mean Triathlon —
+ * `inferSports`/`generateTrainingPlan` never produced any other
+ * multi-element list — so that case is decided directly rather than
+ * handed to `toPlanSport`, which only ever resolves a single value.
+ */
+function sportFromPlanConstraints(constraints: unknown): PlanSport | null {
+  const sports = (constraints as { sports?: unknown } | null)?.sports;
+  if (!Array.isArray(sports) || sports.length === 0) return null;
+  if (sports.length > 1) return "Triathlon";
+  return toPlanSport(typeof sports[0] === "string" ? sports[0] : null);
 }
 
 /**
@@ -465,20 +479,47 @@ export async function importUserData(
 
     const raceIdMap = new Map<string, string>();
     for (const r of data.races) {
+      // An export taken before v0.42 carries no `sport`, and the column is
+      // now NOT NULL — this is the one place "refuse loudly" would break a
+      // legitimate restore of the athlete's own data, so this tries every
+      // avenue that can name a real sport before it gives up:
+      //   1. the stored value itself, if it is already a plan sport or a
+      //      recognisable provider word (toPlanSport)
+      //   2. the race's `raceType` (inferPlanSport) — the plan tool's own
+      //      13-value enum, an exact lookup
+      //   3. the race's free-text `name` (inferPlanSport again) — athletes
+      //      often type the discipline into the name itself ("City
+      //      Marathon", "Olympic Tri")
+      //   4. the plan that targets this race, if the export carries one:
+      //      `generateTrainingPlan` recorded a sport into
+      //      `constraints.sports` at the moment this race was created,
+      //      using whatever sport-inference logic was live *then* — a
+      //      genuine extra signal, not a repeat of steps 1-3
+      // Only when every one of those misses does this throw — naming the
+      // race so the operator can fix that one row and re-run the import,
+      // rather than rolling back the athlete's entire restore over one
+      // ambiguous legacy row (this loop runs inside importUserData's single
+      // wrapping transaction).
+      const sport =
+        toPlanSport(r.sport) ??
+        inferPlanSport(r.raceType) ??
+        inferPlanSport(r.name) ??
+        sportFromPlanConstraints(
+          data.training_plans.find((p) => p.raceId === r.id)?.constraints
+        );
+      if (sport == null) {
+        throw new Error(
+          `importUserData: cannot determine a sport for race ${r.id} ` +
+            `(name ${JSON.stringify(r.name)}, raceType ${JSON.stringify(r.raceType)}) — ` +
+            `every fallback missed. Fix this row's sport, raceType or name in the export and re-run the import.`
+        );
+      }
       // `id`: importUserData regenerates every row id (see header).
       const row: Carried<typeof schema.races, "id"> = {
         userId: targetUserId,
         name: r.name,
         raceType: r.raceType,
-        // An export taken before v0.42 carries no sport, and the column is
-        // now NOT NULL. This is the one place "refuse loudly" would break a
-        // legitimate restore of the athlete's own data, so infer instead —
-        // and fall back to the race type when the stored value is a provider
-        // word rather than a plan sport.
-        sport:
-          toPlanSport(r.sport) ??
-          inferPlanSport(r.raceType) ??
-          requirePlanSport(r.sport),
+        sport,
         date: r.date,
         priority: r.priority,
         status: r.status,

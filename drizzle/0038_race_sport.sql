@@ -27,6 +27,8 @@ UPDATE races SET sport = CASE regexp_replace(lower(race_type), '[^a-z0-9.]', '',
   WHEN '70.3'          THEN 'Triathlon'
   WHEN 'olympictri'    THEN 'Triathlon'
   WHEN 'sprinttri'     THEN 'Triathlon'
+  WHEN 'olympictriathlon' THEN 'Triathlon'
+  WHEN 'sprinttriathlon'  THEN 'Triathlon'
   WHEN 'halfironman'   THEN 'Triathlon'
   WHEN 'triathlon'     THEN 'Triathlon'
   WHEN 'granfondo'     THEN 'Bike'

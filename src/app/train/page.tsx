@@ -50,6 +50,7 @@ import {
   listAdjustments,
   planConstraints,
 } from "@/lib/week-plan/service";
+import { disciplinesOf, requirePlanSport } from "@/lib/plan-sport";
 import { assembleWeeklyTarget } from "@/lib/week-plan/volume-inputs";
 import { currentTargetLoad } from "@/lib/week-plan/volume";
 import { plannedMins } from "@/lib/week-plan/fill";
@@ -315,6 +316,24 @@ async function WeekTab({
     })),
   }));
   const constraints = planConstraints(plan.constraints);
+  // BlockSheet's per-block sport chips need the plan's real disciplines,
+  // not `constraints.sports` verbatim: since v0.42 that field stores the
+  // plan's single PlanSport (e.g. a triathlon plan holds ["Triathlon"]),
+  // so passing it straight through collapsed every triathlete's chips to
+  // one non-discipline value and BlockSheet's `sports.length > 1` gate hid
+  // them entirely. `constraints.sports` stays the single stored authority
+  // (the weekly rollover calls `requirePlanSport(constraints.sports?.[0])`
+  // and would throw on anything else) — only this derived, UI-only view
+  // expands it to disciplines. Rows written before v0.42 already stored
+  // the disciplines directly (e.g. ["Swim","Bike","Run"]); those pass
+  // through unchanged rather than through `requirePlanSport`, which
+  // deliberately throws on a bare "Swim".
+  const rawPlanSports =
+    constraints.sports.length > 0 ? constraints.sports : ["Bike"];
+  const blockSheetSports: string[] =
+    rawPlanSports.length === 1
+      ? [...disciplinesOf(requirePlanSport(rawPlanSports[0]))]
+      : rawPlanSports;
 
   // Why this week looks the way it does — the same figures the rollover
   // derived, recomputed for display. Reading them off the stored week
@@ -777,7 +796,7 @@ async function WeekTab({
                   thisWeek={intake.thisWeek}
                   nextWeek={intake.nextWeek}
                   initialMode={initialAvailabilityMode}
-                  sports={constraints.sports ?? ["Bike"]}
+                  sports={blockSheetSports}
                   action={submitAvailability}
                 />
               ) : intake.nextWeek ? (
@@ -794,7 +813,7 @@ async function WeekTab({
                   dates={intake.nextWeek.dates}
                   overrideDates={intake.nextWeek.overrideDates}
                   verdict={intake.nextWeek.verdict}
-                  sports={constraints.sports ?? ["Bike"]}
+                  sports={blockSheetSports}
                   action={submitAvailability}
                   weekStart={intake.nextWeek.weekStart}
                 />
@@ -804,7 +823,7 @@ async function WeekTab({
                   dates={intake.thisWeek.dates}
                   overrideDates={intake.thisWeek.overrideDates}
                   verdict={intake.thisWeek.verdict}
-                  sports={constraints.sports ?? ["Bike"]}
+                  sports={blockSheetSports}
                   action={submitAvailability}
                 />
               ) : null}
@@ -822,7 +841,7 @@ async function WeekTab({
                 <div className="px-1 pb-1 pt-3">
                   <StandardWeek
                     defaults={standardWeek}
-                    sports={constraints.sports ?? ["Bike"]}
+                    sports={blockSheetSports}
                   />
                 </div>
               </CollapsiblePanel>

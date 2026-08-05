@@ -250,7 +250,6 @@ export async function projectWeek(
     availableBlocksPerDay,
     prevWeek,
     recentBands,
-    raceType: plan.raceType,
     sport,
     hoursPerWeek: hoursForMaterialize(target),
     races,

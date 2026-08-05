@@ -56,9 +56,15 @@ parameter entirely — it is how `Ride` got in, and its documented default
 ("the athlete profile") describes something that has never existed in this
 schema.
 
-The throw should be unreachable: the set is closed and the column is `NOT
-NULL`. It is there so that if it is ever reached, it is loud. A plan for the
-wrong sport should fail, not ship.
+The throw should be unreachable through this app's own code paths: every
+writer runs the value through `requirePlanSport`/`toPlanSport` first, and the
+column is `NOT NULL`. That guarantee is TypeScript/Zod-level, not
+database-enforced — `races.sport` has no `CHECK` constraint, so a raw insert
+(a script, a hand-run migration, a future service) could still write a string
+this app never validated. This release's own premise is that an overclaimed
+guarantee is itself a defect, so the throw stays as the backstop for that gap,
+not as evidence the gap is closed. It is there so that if it is ever reached,
+it is loud. A plan for the wrong sport should fail, not ship.
 
 ## v0.41.0 — 2026-08-04 — The Coach Can See The Race
 
