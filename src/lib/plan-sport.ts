@@ -68,18 +68,42 @@ export function toPlanSport(raw: string | null | undefined): PlanSport | null {
  * silently stop matching the moment the "tri" needle switched to
  * word-boundary form without this normalisation step.
  *
- * Short, collision-prone needles (`tri`, `run`, `crit`, `bike`, `half`,
- * `ultra`) are matched at word boundaries, not as bare substrings — a bare
+ * Short, collision-prone needles (`tri`, `run`, `crit`, `half`, `ultra`) are
+ * matched at word boundaries, not as bare substrings — a bare
  * `.includes("tri")` reads "time trial" (a cycling format) as a triathlon
  * because "tri" sits inside "trial". "time trial" is genuinely ambiguous
  * (running time trials exist too), so it correctly falls through to null:
- * refusing beats guessing. `crit` only gets a leading boundary
- * (`/\bcrit/`, no trailing `\b`) rather than `/\bcrit\b/`, because a full
- * word boundary would stop "criterium" from matching — "criterium" starts
- * with "crit" but doesn't end there. Long, distinctive needles
- * (`triathlon`, `ironman`, `70.3`, `fondo`, `century`, `cycling`,
- * `marathon`) keep plain substring matching; they are not short enough to
- * collide with anything.
+ * refusing beats guessing.
+ *
+ * Only `tri` gets a FULL word boundary (`/\btri\b/`). It is the only one of
+ * these needles whose real-world collision *appends* letters onto the
+ * needle ("trial" = "tri" + "al"), so it is the only one a trailing anchor
+ * protects. `run`, `crit`, `half` and `ultra` get a LEADING boundary only
+ * (`/\brun/`, `/\bcrit/`, `/\bhalf/`, `/\bultra/`) — no trailing `\b` —
+ * because compound race names routinely *append* letters onto them
+ * legitimately ("running", "criterium", "ultratrail") and a trailing anchor
+ * would silently stop matching every one of those. `run` still needs its
+ * leading anchor: without it, `.includes("run")` would also match inside
+ * "swimrun", which names no plan sport this app builds and must return
+ * null rather than being read as a running race — "swimrun" has no
+ * boundary before "run" either (fused, no separator), so the leading
+ * anchor excludes it while still matching "running" and "trail running"
+ * (both have "run" at the start of a word).
+ *
+ * `bike` is deliberately NOT anchored at all, even though it is short. A
+ * leading-only boundary (the pattern above) requires the boundary to sit
+ * immediately before "bike", which holds for "bikepacking" (bike starts
+ * the word) but NOT for "mountainbike" (bike ends a fused word with no
+ * separator before it — "n" and "b" are both word characters, so `\b`
+ * does not fire there). Anchoring `bike` on either side breaks one of
+ * these two real compounds; anchoring on neither breaks neither, and
+ * nothing in this codebase's vocabulary contains "bike" as an unwanted
+ * substring, so plain substring matching is the correct — not merely
+ * convenient — choice here, same as the long needles below.
+ *
+ * Long, distinctive needles (`triathlon`, `ironman`, `70.3`, `fondo`,
+ * `century`, `cycling`, `marathon`) also keep plain substring matching;
+ * they are not short enough to collide with anything.
  *
  * Triathlon is tested FIRST: "half ironman" contains "half", which the
  * running branch would match on its own — testing running first would
@@ -103,8 +127,8 @@ export function inferPlanSport(raceType: string): PlanSport | null {
     rt.includes("fondo") ||
     rt.includes("century") ||
     rt.includes("cycling") ||
-    /\bcrit/.test(rt) ||
-    /\bbike\b/.test(rt)
+    rt.includes("bike") ||
+    /\bcrit/.test(rt)
   ) {
     return "Bike";
   }
@@ -116,12 +140,13 @@ export function inferPlanSport(raceType: string): PlanSport | null {
     // contain "run" as a separate word, so it needs its own needle
     // alongside the word-boundary form below.
     rt.includes("parkrun") ||
-    /\bhalf\b/.test(rt) ||
-    /\bultra\b/.test(rt) ||
-    // Word-boundary, not a bare substring: `.includes("run")` also matches
-    // inside "swimrun", which names no plan sport this app builds and must
-    // return null rather than being read as a running race.
-    /\brun\b/.test(rt)
+    /\bhalf/.test(rt) ||
+    /\bultra/.test(rt) ||
+    // Leading word-boundary, not a bare substring: `.includes("run")` also
+    // matches inside "swimrun", which names no plan sport this app builds
+    // and must return null rather than being read as a running race. No
+    // trailing boundary, so "running" and "trail running" still match.
+    /\brun/.test(rt)
   ) {
     return "Run";
   }

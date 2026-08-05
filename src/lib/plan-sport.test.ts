@@ -116,6 +116,28 @@ describe("inferPlanSport", () => {
     expect(inferPlanSport("crit")).toBe("Bike");
     expect(inferPlanSport("criterium")).toBe("Bike");
   });
+
+  it("still places fused compound words after the word-boundary fix", () => {
+    // Regression class: 971ffbd's word-boundary fix for "tri" (needed,
+    // because "trial" appends letters onto "tri") was over-generalised to
+    // run/bike/half/ultra with a TRAILING boundary too, which silently
+    // broke every compound where letters are legitimately appended onto
+    // those needles. "bike" needs no boundary at all — it can be either
+    // half of a fused compound ("bikepacking" prefixes it, "mountainbike"
+    // suffixes it), and a leading-only boundary still fails the suffix
+    // case.
+    expect(inferPlanSport("bikepacking")).toBe("Bike");
+    expect(inferPlanSport("mountainbike")).toBe("Bike");
+    expect(inferPlanSport("ultratrail")).toBe("Run");
+    expect(inferPlanSport("ultrarunning")).toBe("Run");
+    expect(inferPlanSport("trail running")).toBe("Run");
+    expect(inferPlanSport("running")).toBe("Run");
+    // These must keep their current (correct) answers: "swimrun" has no
+    // boundary before "run" either, and stays null; "criterium" is the
+    // needle this treatment was modelled on.
+    expect(inferPlanSport("swimrun")).toBeNull();
+    expect(inferPlanSport("criterium")).toBe("Bike");
+  });
 });
 
 describe("requirePlanSport", () => {
