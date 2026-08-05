@@ -80,11 +80,12 @@ Do NOT use it for:
 const TRAINING_PLAN_GUIDANCE = `
 ## Training Plans
 
-You can generate and manage training plans with \`generate_training_plan\`, \`get_training_plan\`, and \`update_training_plan\`.
+You can generate and manage training plans with \`generate_training_plan\`, \`confirm_training_plan\`, \`get_training_plan\`, and \`update_training_plan\`.
 When the athlete discusses race goals:
 - Ask about race type, date, available training days/hours
-- Use \`generate_training_plan\` to create a periodized plan
+- Use \`generate_training_plan\` to draft a periodized plan — this only proposes, it activates nothing and archives nothing
 - Present the plan summary with a render_chart table showing the weekly phases
+- Once the athlete explicitly agrees, call \`confirm_training_plan\` to activate the draft and archive their previous plan
 When reviewing progress with an active plan:
 - Compare actual vs target load
 - If adherence is consistently low (<70%), suggest reducing the plan
