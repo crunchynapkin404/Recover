@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { buildPhases, type PlanPhase } from "./plan-preview";
+import {
+  buildPhases,
+  collectWarnings,
+  type PlanPhase,
+  type WarningInput,
+} from "./plan-preview";
 import { periodize } from "./training-plan";
 
 describe("buildPhases", () => {
@@ -45,4 +50,62 @@ describe("buildPhases", () => {
       expect(seen).toEqual(Array.from({ length: weeksTotal }, (_, i) => i + 1));
     }
   );
+});
+
+const clean: WarningInput = {
+  startingCtlSource: "wellness",
+  volumeSource: "race",
+  hasShortfall: false,
+  feasibilityVerdict: "on_track",
+  raceCreated: false,
+  availabilitySeeded: false,
+  shortHorizon: false,
+};
+
+describe("collectWarnings", () => {
+  it("says nothing when nothing is wrong", () => {
+    expect(collectWarnings(clean)).toEqual([]);
+  });
+
+  it.each([
+    [{ startingCtlSource: "default" as const }, "no_ctl_history"],
+    [{ volumeSource: "fallback" as const }, "volume_fallback"],
+    [{ hasShortfall: true }, "availability_binds"],
+    [{ feasibilityVerdict: "tight" as const }, "feasibility_tight"],
+    [
+      { feasibilityVerdict: "not_realistic" as const },
+      "feasibility_not_realistic",
+    ],
+    [{ raceCreated: true }, "race_created"],
+    [{ availabilitySeeded: true }, "availability_seeded"],
+    [{ shortHorizon: true }, "short_horizon"],
+  ])("%o raises %s and nothing else", (patch, expected) => {
+    expect(collectWarnings({ ...clean, ...patch })).toEqual([expected]);
+  });
+
+  it("reports every warning at once, in table order", () => {
+    expect(
+      collectWarnings({
+        startingCtlSource: "default",
+        volumeSource: "fallback",
+        hasShortfall: true,
+        feasibilityVerdict: "not_realistic",
+        raceCreated: true,
+        availabilitySeeded: true,
+        shortHorizon: true,
+      })
+    ).toEqual([
+      "no_ctl_history",
+      "volume_fallback",
+      "availability_binds",
+      "feasibility_not_realistic",
+      "race_created",
+      "availability_seeded",
+      "short_horizon",
+    ]);
+  });
+
+  it("a null feasibility verdict is silent, not a warning", () => {
+    expect(collectWarnings({ ...clean, feasibilityVerdict: null })).toEqual([]);
+  });
 });
