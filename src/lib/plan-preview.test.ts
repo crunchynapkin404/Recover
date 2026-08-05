@@ -108,4 +108,10 @@ describe("collectWarnings", () => {
   it("a null feasibility verdict is silent, not a warning", () => {
     expect(collectWarnings({ ...clean, feasibilityVerdict: null })).toEqual([]);
   });
+
+  it("a ready feasibility verdict is silent, not a warning", () => {
+    expect(collectWarnings({ ...clean, feasibilityVerdict: "ready" })).toEqual(
+      []
+    );
+  });
 });

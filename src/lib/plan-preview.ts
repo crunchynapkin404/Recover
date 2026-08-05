@@ -78,12 +78,28 @@ export function collectWarnings(input: WarningInput): PreviewWarning[] {
   if (input.volumeSource === "fallback") out.push("volume_fallback");
   if (input.hasShortfall) out.push("availability_binds");
 
-  // feasibilityVerdict is null ("not assessed"), "ready", or "on_track" —
-  // all three are deliberately silent. Only the two adverse rungs speak.
-  if (input.feasibilityVerdict === "tight") {
-    out.push("feasibility_tight");
-  } else if (input.feasibilityVerdict === "not_realistic") {
-    out.push("feasibility_not_realistic");
+  // null ("not assessed") is handled before the switch because it is not a
+  // `Verdict` member. The switch below is exhaustive over what remains so
+  // that a fifth `Verdict` literal is a compile error here, not a silent
+  // fall-through — the exact "goes quiet about a number" failure this
+  // module exists to close. See `_exhaustive` in the `default` arm.
+  if (input.feasibilityVerdict !== null) {
+    switch (input.feasibilityVerdict) {
+      case "ready":
+      case "on_track":
+        // Both are deliberately silent: confirmations, not warnings.
+        break;
+      case "tight":
+        out.push("feasibility_tight");
+        break;
+      case "not_realistic":
+        out.push("feasibility_not_realistic");
+        break;
+      default: {
+        const _exhaustive: never = input.feasibilityVerdict;
+        throw new Error(`Unhandled feasibility verdict: ${_exhaustive}`);
+      }
+    }
   }
 
   if (input.raceCreated) out.push("race_created");
