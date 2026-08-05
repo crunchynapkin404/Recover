@@ -145,6 +145,7 @@ describe.skipIf(!hasDb)("exportUserData", () => {
       userId: USER,
       name: "Test 10k",
       raceType: "10k",
+      sport: "Run",
       date: "2026-06-01",
       priority: "A",
     });

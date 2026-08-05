@@ -3,6 +3,7 @@
 import { and, asc, desc, eq, gte, inArray, lte } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import type { Projected } from "@/lib/db/projected";
+import type { PlanSport } from "@/lib/plan-sport";
 import type { RaceContext } from "./taper";
 import type { ForecastInputs } from "./forecast";
 import { taperFractionForWeek } from "./taper";
@@ -71,7 +72,11 @@ export interface RaceInput {
   raceType: string;
   date: string; // YYYY-MM-DD
   priority: RacePriority;
-  sport?: string | null;
+  /**
+   * Required. The race is the single authority for a plan's sport, so a
+   * race that does not name one cannot exist — see plan-sport.ts.
+   */
+  sport: PlanSport;
   goalNote?: string | null;
   /** Defaults to "upcoming" on create; left untouched on conflict when omitted. */
   status?: RaceStatus;
@@ -93,7 +98,7 @@ export async function createRace(
       userId,
       name: input.name,
       raceType: input.raceType,
-      sport: input.sport ?? null,
+      sport: input.sport,
       date: input.date,
       priority: input.priority,
       goalNote: input.goalNote ?? null,
@@ -104,7 +109,7 @@ export async function createRace(
       target: [schema.races.userId, schema.races.date, schema.races.name],
       set: {
         raceType: input.raceType,
-        sport: input.sport ?? null,
+        sport: input.sport,
         priority: input.priority,
         goalNote: input.goalNote ?? null,
         updatedAt: now,

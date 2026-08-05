@@ -133,6 +133,7 @@ describe.skipIf(!hasDb)("importUserData", () => {
         userId: SOURCE_USER,
         name: "IMPORT-TEST-RACE",
         raceType: "10k",
+        sport: "Run",
         date: "2026-06-01",
         priority: "A",
         status: "completed",
@@ -382,7 +383,14 @@ describe.skipIf(!hasDb)("importUserData", () => {
       userId: SOURCE_USER,
       name: "Round Trip Classic",
       raceType: "gran_fondo",
-      sport: "Ride",
+      // Deliberately a provider word, not a plan sport: this fixture
+      // predates the v0.42 closed-set migration and its round trip through
+      // exportUserData -> JSON -> importUserData below is what exercises
+      // import-user.ts's toPlanSport/inferPlanSport fallback (canonicalises
+      // to "Bike"). The cast is only to satisfy the column's now-strict
+      // TS type — races.sport has no DB-level CHECK, so the raw insert
+      // still succeeds.
+      sport: "Ride" as unknown as "Bike" | "Run" | "Triathlon",
       date: "2026-06-01",
       // `priority` is NOT NULL with no default — omitting it fails the
       // insert on a constraint violation rather than on an assertion.
@@ -537,5 +545,151 @@ describe.skipIf(!hasDb)("importUserData", () => {
     expect(new Date(importedMessage.readAt as Date).toISOString()).toBe(
       READ_AT_ISO
     );
+  });
+
+  // Both tests below build a hand-fabricated race row from a real exported
+  // one rather than inserting through `db`: `races.sport` is NOT NULL in
+  // the live schema, so a genuine pre-v0.42 export (no `sport` column at
+  // all) can only be simulated as a plain JS/JSON object, exactly like a
+  // real legacy export file would look once parsed off disk.
+  it("a pre-v0.42 row (sport null, raceType unrecognised, no matching plan) throws naming the race, not a silent Run", async () => {
+    const { db, schema } = await import("@/lib/db");
+    const { exportUserData } = await import("./export-user");
+    const { importUserData } = await import("./import-user");
+
+    const fullExport = JSON.parse(
+      JSON.stringify(await exportUserData(db, SOURCE_USER))
+    );
+    // Not fullExport.races[0]: exportUserData has no ORDER BY on races, and
+    // by this point in the file SOURCE_USER carries more than one race
+    // fixture — find() rather than index into an unspecified order.
+    const templateRace = fullExport.races.find(
+      (r: { name: string }) => r.name === "IMPORT-TEST-RACE"
+    );
+    const legacyRace = {
+      ...templateRace,
+      id: "legacy-race-null-sport-no-plan",
+      name: "Bikepacking Epic",
+      raceType: "gravel_epic", // not in RACE_TYPE_SPORT
+      sport: null, // simulates an export taken before the column existed
+      resultActivityId: null,
+    };
+    const exported = {
+      ...fullExport,
+      races: [legacyRace],
+      wellness_daily: [],
+      daily_metrics: [],
+      chat_threads: [],
+      chat_messages: [],
+      coach_memories: [],
+      biomarkers: [],
+      body_prefs: [],
+      notification_prefs: [],
+      journal_prefs: [],
+      llm_settings: [],
+      training_plans: [],
+      training_blocks: [],
+      week_plans: [],
+      plan_adjustments: [],
+      activities: [],
+      activity_streams: [],
+      api_tokens: [],
+      connections: [],
+      webhook_subscriptions: [],
+      llm_usage: [],
+    };
+
+    // Every fallback misses (sport null, raceType and name both
+    // unrecognised, no plan targets this race) — this must throw, naming
+    // the offending row, rather than defaulting to "Run" the way a fourth
+    // silent fallback would.
+    await expect(importUserData(db, TARGET_USER, exported)).rejects.toThrow(
+      /legacy-race-null-sport-no-plan/
+    );
+    await expect(importUserData(db, TARGET_USER, exported)).rejects.toThrow(
+      /gravel_epic/
+    );
+
+    // And the throw actually rolled back — nothing from this row landed.
+    const stray = await db.query.races.findFirst({
+      where: and(
+        eq(schema.races.userId, TARGET_USER),
+        eq(schema.races.name, "Bikepacking Epic")
+      ),
+    });
+    expect(stray).toBeUndefined();
+  });
+
+  it("a pre-v0.42 row falls back to the plan that targets it when sport, raceType and name all miss", async () => {
+    const { db, schema } = await import("@/lib/db");
+    const { exportUserData } = await import("./export-user");
+    const { importUserData } = await import("./import-user");
+
+    const fullExport = JSON.parse(
+      JSON.stringify(await exportUserData(db, SOURCE_USER))
+    );
+    const templateRace = fullExport.races.find(
+      (r: { name: string }) => r.name === "IMPORT-TEST-RACE"
+    );
+    const legacyRace = {
+      ...templateRace,
+      id: "legacy-race-with-plan",
+      name: "Bikepacking Epic",
+      raceType: "gravel_epic",
+      sport: null,
+      resultActivityId: null,
+    };
+    // SOURCE_USER's only training_plans row (beforeAll's IMPORT-TEST-PLAN),
+    // so [0] is unambiguous here, unlike races above.
+    const legacyPlan = {
+      ...fullExport.training_plans[0],
+      id: "legacy-plan-for-bikepacking-epic",
+      raceId: "legacy-race-with-plan",
+      // Pre-v0.42 shape: every discipline the plan touches, not one
+      // PlanSport — this exercises sportFromPlanConstraints' "more than
+      // one value can only mean Triathlon" branch.
+      constraints: {
+        daysPerWeek: 6,
+        hoursPerWeek: 12,
+        sports: ["Swim", "Bike", "Run"],
+      },
+    };
+    const exported = {
+      ...fullExport,
+      races: [legacyRace],
+      training_plans: [legacyPlan],
+      wellness_daily: [],
+      daily_metrics: [],
+      chat_threads: [],
+      chat_messages: [],
+      coach_memories: [],
+      biomarkers: [],
+      body_prefs: [],
+      notification_prefs: [],
+      journal_prefs: [],
+      llm_settings: [],
+      training_blocks: [],
+      week_plans: [],
+      plan_adjustments: [],
+      activities: [],
+      activity_streams: [],
+      api_tokens: [],
+      connections: [],
+      webhook_subscriptions: [],
+      llm_usage: [],
+    };
+
+    await importUserData(db, TARGET_USER, exported);
+
+    const [race] = await db
+      .select()
+      .from(schema.races)
+      .where(
+        and(
+          eq(schema.races.userId, TARGET_USER),
+          eq(schema.races.name, "Bikepacking Epic")
+        )
+      );
+    expect(race.sport).toBe("Triathlon");
   });
 });

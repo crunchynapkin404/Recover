@@ -56,7 +56,7 @@ describe("workout purpose", () => {
   });
 
   it("gives every generated workout a purpose and a floor", () => {
-    const ws = generateWorkouts(4, 8, "build", "Gran Fondo", ["Bike"]);
+    const ws = generateWorkouts(4, 8, "build", "Bike");
     expect(ws.length).toBeGreaterThan(0);
     for (const w of ws) {
       expect(w.purpose).toBeDefined();
@@ -267,16 +267,8 @@ describe("generateCyclingWorkouts distributes the target", () => {
 
 describe("periodize passes event demand to the cycling generator", () => {
   it("bounds the long ride by the event's hardest day", () => {
-    const withDemand = periodize(
-      9,
-      76.7,
-      4,
-      12.5,
-      "century",
-      ["Bike"],
-      4.897963084361944
-    );
-    const withoutDemand = periodize(9, 76.7, 4, 12.5, "century", ["Bike"]);
+    const withDemand = periodize(9, 76.7, 4, 12.5, "Bike", 4.897963084361944);
+    const withoutDemand = periodize(9, 76.7, 4, 12.5, "Bike");
 
     const longOf = (blocks: ReturnType<typeof periodize>) =>
       blocks
@@ -297,7 +289,7 @@ describe("EASY_RUN_CAP_MINS", () => {
     // Filtered by description, not by type: the Thursday session is also
     // typed "Endurance" outside build/peak and is deliberately NOT capped —
     // it is sized as a fraction of the week, not by the easy-run rule.
-    const workouts = generateWorkouts(6, 20, "base", "marathon", ["Run"], null);
+    const workouts = generateWorkouts(6, 20, "base", "Run");
     const easy = workouts.filter((w) => w.description === "Easy aerobic run");
 
     expect(easy.length).toBeGreaterThan(0);
@@ -407,5 +399,44 @@ describe.skipIf(!hasDb)("generateTrainingPlan — availability seeding", () => {
       ),
     });
     expect(row?.blocks).toEqual([customBlock]);
+  });
+});
+
+describe("generateWorkouts dispatches on sport alone", () => {
+  it("builds cycling for Bike", () => {
+    const w = generateWorkouts(4, 10, "base", "Bike");
+    expect(w.length).toBeGreaterThan(0);
+    expect(w.every((x) => x.sport === "Bike")).toBe(true);
+  });
+
+  it("builds running for Run", () => {
+    const w = generateWorkouts(4, 10, "base", "Run");
+    expect(w.every((x) => x.sport === "Run")).toBe(true);
+  });
+
+  it("builds triathlon — including swim — for Triathlon", () => {
+    const w = generateWorkouts(5, 10, "base", "Triathlon");
+    const sports = new Set(w.map((x) => x.sport));
+    expect(sports.has("Swim")).toBe(true);
+    expect(sports.has("Bike")).toBe(true);
+    expect(sports.has("Run")).toBe(true);
+  });
+
+  it("throws on a sport it cannot build, instead of producing running", () => {
+    // The v0.42 defect in one assertion: every one of these used to return
+    // a running plan. `as never` because the type now forbids them — the
+    // cast proves the RUNTIME guard, for callers reaching this from JSON.
+    //
+    // "Ride" is deliberately NOT in this list: requirePlanSport canonicalises
+    // provider words, so requirePlanSport("Ride") === "Bike" by design (see
+    // plan-sport.test.ts). That is load-bearing — the live rollover calls
+    // requirePlanSport(constraints.sports?.[0]), and a real production plan
+    // stores constraints.sports as ["Ride"]. "Completing" this list by adding
+    // "Ride" back would make that plan's weekly rollover throw.
+    for (const bad of ["Swim", "Tennis", "", null]) {
+      expect(() => generateWorkouts(4, 10, "base", bad as never)).toThrow(
+        /unsupported plan sport/
+      );
+    }
   });
 });

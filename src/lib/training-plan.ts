@@ -8,6 +8,11 @@ import { db, schema } from "@/lib/db";
 import { createRace } from "@/lib/race/service";
 import type { Purpose } from "@/lib/availability/types";
 import { PURPOSE_FLOORS } from "@/lib/availability/types";
+import {
+  requirePlanSport,
+  inferPlanSport,
+  type PlanSport,
+} from "@/lib/plan-sport";
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -179,7 +184,6 @@ export interface GeneratePlanParams {
   title?: string;
   daysPerWeek?: number; // default 5
   hoursPerWeek?: number; // default 8
-  sports?: string[];
   raceId?: string;
 }
 
@@ -196,36 +200,6 @@ function daysBetween(a: Date, b: Date): number {
 
 function localYmd(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-/** Infer primary sport from race type */
-export function inferSports(raceType: string, explicit?: string[]): string[] {
-  if (explicit?.length) return explicit;
-  const rt = raceType.toLowerCase();
-  if (rt.includes("triathlon") || rt.includes("ironman") || rt.includes("70.3"))
-    return ["Swim", "Bike", "Run"];
-  if (
-    rt.includes("marathon") ||
-    rt.includes("half") ||
-    rt.includes("10k") ||
-    rt.includes("5k")
-  )
-    return ["Run"];
-  if (
-    rt.includes("fondo") ||
-    rt.includes("century") ||
-    rt.includes("crit") ||
-    rt.includes("cycling")
-  )
-    return ["Bike"];
-  return ["Run"]; // default
-}
-
-function isTriathlon(raceType: string): boolean {
-  const rt = raceType.toLowerCase();
-  return (
-    rt.includes("triathlon") || rt.includes("ironman") || rt.includes("70.3")
-  );
 }
 
 // ── Periodization engine ────────────────────────────────────────────────────
@@ -257,8 +231,7 @@ export function periodize(
   startingCtl: number,
   daysPerWeek: number,
   hoursPerWeek: number,
-  raceType: string,
-  sports: string[],
+  sport: PlanSport,
   queenStageHours: number | null = null
 ): Block[] {
   // Phase distribution
@@ -308,8 +281,7 @@ export function periodize(
           daysPerWeek - 1,
           hoursPerWeek * 0.6,
           "recovery",
-          raceType,
-          sports,
+          sport,
           queenStageHours
         ),
       });
@@ -324,8 +296,7 @@ export function periodize(
           daysPerWeek,
           hoursPerWeek * loadMultiplier(phase, weekInPhase),
           phase,
-          raceType,
-          sports,
+          sport,
           queenStageHours
         ),
       });
@@ -371,28 +342,41 @@ function loadMultiplier(phase: Block["phase"], weekInPhase: number): number {
 
 // ── Workout generation ──────────────────────────────────────────────────────
 
+/**
+ * The week's sessions for a plan of `sport`.
+ *
+ * Dispatch is on sport ALONE. It used to route triathlon off `raceType` and
+ * cycling off a sports list — two authorities for one decision, so a race
+ * whose sport said Triathlon but whose race type was not in the substring
+ * list produced running. The trailing catch-all that made that possible is
+ * gone: an unbuildable sport throws.
+ */
 export function generateWorkouts(
   sessions: number,
   weekHours: number,
   phase: Block["phase"],
-  raceType: string,
-  sports: string[],
+  sport: PlanSport,
   queenStageHours: number | null = null
 ): PlannedWorkout[] {
-  if (isTriathlon(raceType)) {
-    return generateTriathlonWorkouts(sessions, weekHours, phase);
+  switch (requirePlanSport(sport)) {
+    case "Triathlon":
+      return generateTriathlonWorkouts(sessions, weekHours, phase);
+    case "Bike":
+      return generateCyclingWorkouts(
+        sessions,
+        weekHours,
+        phase,
+        queenStageHours
+      );
+    case "Run":
+      return generateRunningWorkouts(sessions, weekHours, phase);
   }
-  if (sports[0] === "Bike") {
-    return generateCyclingWorkouts(sessions, weekHours, phase, queenStageHours);
-  }
-  return generateRunningWorkouts(sessions, weekHours, phase, raceType);
 }
 
 function generateRunningWorkouts(
   sessions: number,
   weekHours: number,
-  phase: Block["phase"],
-  raceType: string
+  phase: Block["phase"]
 ): PlannedWorkout[] {
   const totalMins = weekHours * 60;
   const workouts: PlannedWorkout[] = [];
@@ -422,11 +406,7 @@ function generateRunningWorkouts(
         type: "Intervals",
         durationMins: Math.round(totalMins * 0.15),
         intensity: "Z4-Z5",
-        description: raceType.includes("5k")
-          ? "5×1000m at 5K pace, 90s jog recovery"
-          : raceType.includes("10k")
-            ? "4×1600m at 10K pace, 2min jog recovery"
-            : "6×800m at 5K-10K pace, 90s jog recovery",
+        description: "6×800m at 5K-10K pace, 90s jog recovery",
       })
     );
   } else if (phase !== "recovery") {
@@ -770,6 +750,10 @@ export async function generateTrainingPlan(
   let raceId = params.raceId ?? null;
   let raceType = params.raceType;
   let raceDate = params.raceDate;
+  // The race is the authority (v0.42). When one is given, its sport wins
+  // outright; when we are about to create one, the race type must name a
+  // sport or there is nothing to build.
+  let sport: PlanSport;
   if (raceId) {
     const race = await db.query.races.findFirst({
       where: and(eq(schema.races.id, raceId), eq(schema.races.userId, userId)),
@@ -777,6 +761,9 @@ export async function generateTrainingPlan(
     if (!race) throw new Error("race_not_found");
     raceType = race.raceType;
     raceDate = race.date;
+    sport = requirePlanSport(race.sport);
+  } else {
+    sport = requirePlanSport(inferPlanSport(raceType));
   }
 
   // 1. Calculate plan duration
@@ -804,7 +791,6 @@ export async function generateTrainingPlan(
     where: eq(schema.users.id, userId),
   });
 
-  const sports = inferSports(raceType, params.sports);
   const title = params.title ?? `${raceType} training plan`;
   const startDate = localYmd(today);
 
@@ -814,8 +800,7 @@ export async function generateTrainingPlan(
     startingCtl,
     daysPerWeek,
     hoursPerWeek,
-    raceType,
-    sports
+    sport
   );
 
   // 4. Store in DB — archive any existing active plan first so there is
@@ -837,6 +822,7 @@ export async function generateTrainingPlan(
       raceType,
       date: raceDate,
       priority: "A",
+      sport,
     });
     if ("race" in created) raceId = created.race.id;
     // past_date is unreachable here: weeksTotal >= 4 already guarantees a future date
@@ -853,7 +839,11 @@ export async function generateTrainingPlan(
       weeksTotal,
       startingCtl,
       raceId,
-      constraints: { daysPerWeek, hoursPerWeek, sports },
+      // Single-element array, not a bare field: service.ts/project.ts read
+      // `constraints.sports?.[0]` — kept as an array so a plan created today
+      // is shaped exactly like the pre-v0.42 rows already living in
+      // production (`constraints.sports: ["Ride"]`, `["Bike"]`, ...).
+      constraints: { daysPerWeek, hoursPerWeek, sports: [sport] },
     })
     .returning();
 

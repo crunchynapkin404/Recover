@@ -185,6 +185,7 @@ describe.skipIf(!hasDb)("assembleWeeklyTarget", () => {
       userId: USER,
       name: "Weekly Target Test Race",
       raceType: "gran fondo",
+      sport: "Bike",
       date: raceDate.toISOString().slice(0, 10),
       priority: "A",
       status: "upcoming",

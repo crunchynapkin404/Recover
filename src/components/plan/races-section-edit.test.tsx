@@ -34,6 +34,7 @@ const RACE: RaceListItem = {
   priority: "A",
   status: "upcoming",
   goalNote: null,
+  sport: "Bike",
   eventDays: 2,
   distanceKm: 220,
   elevationM: 5000,

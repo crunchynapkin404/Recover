@@ -25,6 +25,7 @@ import {
 import { buildSlots, admits, slotKey, fitToBlock, findBlockFor } from "./slots";
 import type { AvailabilityBlock } from "@/lib/availability/types";
 import { MAX_SESSIONS_PER_DAY } from "@/lib/availability/types";
+import { disciplinesOf, type PlanSport } from "@/lib/plan-sport";
 
 export interface EffectiveLoadInput {
   skeletonTarget: number;
@@ -111,8 +112,8 @@ export interface MaterializeInput {
   availableBlocksPerDay: AvailabilityBlock[][];
   prevWeek: { actualLoad: number; adherencePct: number } | null;
   recentBands: Band[];
-  raceType: string;
-  sports: string[];
+  /** The plan's sport. Single value — the race decides it (v0.42). */
+  sport: PlanSport;
   hoursPerWeek: number;
   /** Upcoming races, sorted priority A→C then date asc (service does the sort). */
   races?: RaceContext[];
@@ -240,7 +241,19 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
 
   if (isRaceWeek) {
     const taken = new Set<string>();
-    for (const w of raceWeekWorkouts(input.sports[0] ?? "Run", raceIdx)) {
+    // raceWeekWorkouts stamps its argument onto each workout's `.sport`,
+    // which `admits()` then matches against a block's `sports` restriction
+    // list — so this MUST be a real PlanDiscipline, never the PlanSport
+    // itself. "Triathlon" is not a discipline; a block restricted to e.g.
+    // Swim would never admit a workout stamped "Triathlon", silently
+    // dropping the triathlete's pre-race session and openers. Using the
+    // sport's first discipline (Swim for Triathlon) exactly reproduces the
+    // pre-v0.42 behaviour, where this argument was `input.sports[0]`. That
+    // is not a considered answer to "which discipline should race-week
+    // openers be" — it's just what shipped before; revisit if that product
+    // question ever gets a real answer.
+    const raceWeekDiscipline = disciplinesOf(input.sport)[0];
+    for (const w of raceWeekWorkouts(raceWeekDiscipline, raceIdx)) {
       // Which block on this day actually admits the session — never a
       // hardcoded blockIdx 0, and never dayMins' summed-across-blocks
       // question of whether the day has room at all.
@@ -323,8 +336,7 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
       sessions,
       effectiveHours,
       skeleton.phase,
-      input.raceType,
-      input.sports,
+      input.sport,
       input.queenStageHours ?? null
     )
       .sort((a, b) => b.durationMins - a.durationMins)

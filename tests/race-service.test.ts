@@ -36,6 +36,7 @@ describe.skipIf(!hasDb)("race service CRUD", () => {
     const r = await createRace(USER, {
       name: "City Marathon",
       raceType: "marathon",
+      sport: "Run",
       date: ymd(56),
       priority: "A",
       goalNote: "sub 3:30",
@@ -51,6 +52,7 @@ describe.skipIf(!hasDb)("race service CRUD", () => {
     const r = await createRace(USER, {
       name: "Yesterday 5k",
       raceType: "5k",
+      sport: "Run",
       date: ymd(-1),
       priority: "C",
     });
@@ -62,6 +64,7 @@ describe.skipIf(!hasDb)("race service CRUD", () => {
     const again = await createRace(USER, {
       name: "City Marathon",
       raceType: "marathon",
+      sport: "Run",
       date: ymd(56),
       priority: "B",
     });
@@ -74,6 +77,7 @@ describe.skipIf(!hasDb)("race service CRUD", () => {
     await createRace(USER, {
       name: "Tune-up 10k",
       raceType: "10k",
+      sport: "Run",
       date: ymd(14),
       priority: "C",
     });
@@ -108,12 +112,14 @@ describe.skipIf(!hasDb)("race service CRUD", () => {
     const b = await createRace(USER, {
       name: "Tiebreak Marathon B",
       raceType: "marathon",
+      sport: "Run",
       date: tieDate,
       priority: "A",
     });
     const a = await createRace(USER, {
       name: "Tiebreak Marathon A",
       raceType: "marathon",
+      sport: "Run",
       date: tieDate,
       priority: "A",
     });

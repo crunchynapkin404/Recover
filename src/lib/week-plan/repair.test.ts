@@ -2,6 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { periodize, withPurpose } from "@/lib/training-plan";
+import { requirePlanSport } from "@/lib/plan-sport";
 import type { AvailabilityBlock } from "@/lib/availability/types";
 import { applyWeekRepair, computeWeekRepair } from "./repair";
 import { materializeWeek } from "./materialize";
@@ -121,13 +122,13 @@ async function expectedFreshWeek(planId: string, days: DaySlot[]) {
     availabilityHours,
     fallbackHours: constraints.hoursPerWeek,
   });
+  const sport = requirePlanSport(constraints.sports?.[0]);
   const derivedBlocks = periodize(
     plan!.weeksTotal,
     plan!.startingCtl ?? 0,
     constraints.daysPerWeek,
     target.hours,
-    plan!.raceType,
-    constraints.sports
+    sport
   );
   const derived =
     derivedBlocks.find((b) => b.weekNumber === SKELETON_WEEK) ??
@@ -144,8 +145,7 @@ async function expectedFreshWeek(planId: string, days: DaySlot[]) {
     availableBlocksPerDay,
     prevWeek: null,
     recentBands: [],
-    raceType: plan!.raceType,
-    sports: constraints.sports,
+    sport,
     hoursPerWeek: hoursForMaterialize(target),
     races: [],
     currentCtl: null,

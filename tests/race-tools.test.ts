@@ -48,6 +48,7 @@ describe.skipIf(!hasDb)("race coach tools", () => {
         raceType: "half marathon",
         date: ymd(42),
         priority: "A",
+        sport: "Run",
         goalNote: "negative split",
       },
       ctx
@@ -65,7 +66,13 @@ describe.skipIf(!hasDb)("race coach tools", () => {
     const { db } = await import("@/lib/db");
     const { upsertRaceTool } = await import("@/lib/tools/upsert-race");
     const r = (await upsertRaceTool.execute(
-      { name: "Old", raceType: "5k", date: ymd(-3), priority: "C" },
+      {
+        name: "Old",
+        raceType: "5k",
+        date: ymd(-3),
+        priority: "C",
+        sport: "Run",
+      },
       { userId: USER, db }
     )) as { success: boolean; error?: string };
     expect(r).toEqual({ success: false, error: "past_date" });
@@ -81,6 +88,7 @@ describe.skipIf(!hasDb)("race coach tools", () => {
         raceType: "5k",
         date: ymd(15),
         priority: "C",
+        sport: "Run",
         status: "completed",
       },
       ctx
@@ -98,7 +106,13 @@ describe.skipIf(!hasDb)("race coach tools", () => {
     const ctx = { userId: USER, db };
     const date = ymd(16);
     const first = (await upsertRaceTool.execute(
-      { name: "Conflict Status Race", raceType: "10k", date, priority: "B" },
+      {
+        name: "Conflict Status Race",
+        raceType: "10k",
+        date,
+        priority: "B",
+        sport: "Run",
+      },
       ctx
     )) as { success: boolean; race: { id: string } };
     expect(first.success).toBe(true);
@@ -113,6 +127,7 @@ describe.skipIf(!hasDb)("race coach tools", () => {
         raceType: "10k",
         date,
         priority: "B",
+        sport: "Run",
         status: "skipped",
       },
       ctx

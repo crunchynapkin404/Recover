@@ -23,6 +23,7 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { racesForWeek, currentCtl } from "@/lib/race/service";
 import { periodize } from "@/lib/training-plan";
+import { requirePlanSport } from "@/lib/plan-sport";
 import { resolveWeek } from "@/lib/availability/resolve";
 import type { AvailabilityBlock } from "@/lib/availability/types";
 import { assembleVolumeInputs } from "./volume-inputs";
@@ -204,13 +205,18 @@ export async function projectWeek(
   // `materializeWeek` below so they can't drift onto different values.
   const queenStageHours = volumeInputs.demand?.queenStageHours ?? null;
 
+  // Same reasoning as service.ts's rolloverWeekPlan: a sport word from the
+  // plan's own stored constraints, never an inference from plan.raceType's
+  // free text, since this recurring pipeline must not throw on an unusual
+  // historical spelling.
+  const sport = requirePlanSport(constraints.sports?.[0]);
+
   const derivedBlocks = periodize(
     plan.weeksTotal,
     plan.startingCtl ?? 0,
     constraints.daysPerWeek,
     target.hours,
-    plan.raceType,
-    constraints.sports,
+    sport,
     queenStageHours
   );
   // Matched by the requested skeleton week number — the stored week's own
@@ -244,8 +250,7 @@ export async function projectWeek(
     availableBlocksPerDay,
     prevWeek,
     recentBands,
-    raceType: plan.raceType,
-    sports: constraints.sports,
+    sport,
     hoursPerWeek: hoursForMaterialize(target),
     races,
     currentCtl: ctlNow,

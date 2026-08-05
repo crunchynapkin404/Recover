@@ -20,8 +20,8 @@
  * is out of scope here too.
  *
  * `periodize` (inside `projectWeek`) is a pure function of the plan's own
- * stable fields (`startingCtl`, `weeksTotal`, `daysPerWeek`, `raceType`,
- * `sports`) — none of which this repair touches — so the SAME skeleton block
+ * stable fields (`startingCtl`, `weeksTotal`, `daysPerWeek`, `hoursPerWeek`,
+ * `sport`) — none of which this repair touches — so the SAME skeleton block
  * that governed the corrupted week is reproduced exactly. That determinism
  * is what makes recovery possible at all: there is no need to
  * reverse-engineer which scaling ran when, only to recompute the answer from

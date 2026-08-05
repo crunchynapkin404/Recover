@@ -161,8 +161,7 @@ const baseInput = {
   },
   prevWeek: { actualLoad: 390, adherencePct: 95 },
   recentBands: Array(7).fill("green") as import("./types").Band[],
-  raceType: "marathon",
-  sports: ["Run"],
+  sport: "Run" as const,
   hoursPerWeek: 8,
 };
 
@@ -259,8 +258,7 @@ describe("materializeWeek layout", () => {
     const r = materializeWeek({
       ...baseInput,
       skeleton: { ...baseInput.skeleton, phase: "build", targetSessions: 5 },
-      raceType: "ironman",
-      sports: ["Swim", "Bike", "Run"],
+      sport: "Triathlon",
       availableBlocksPerDay: blocksPerDay([90, 90, 90, 90, 90, 0, 0]),
     });
     for (let i = 1; i < 7; i++) {
@@ -301,8 +299,7 @@ describe("materializeWeek — generator cap explained (final-review Finding 2)",
     },
     prevWeek: null,
     recentBands: [] as import("./types").Band[],
-    raceType: "gran fondo",
-    sports: ["Bike"],
+    sport: "Bike" as const,
   };
 
   it("logs an adjustment explaining the cap when the target exceeds what the generator can express", () => {
@@ -394,8 +391,7 @@ describe("materializeWeek — event demand reaches the materialized week (Task 3
     },
     prevWeek: null,
     recentBands: [] as import("./types").Band[],
-    raceType: "century",
-    sports: ["Bike"],
+    sport: "Bike" as const,
     hoursPerWeek: 13,
     // Generous, uniform availability: block-fitting is never the limiter.
     availableBlocksPerDay: blocksPerDay([400, 400, 400, 400, 400, 400, 400]),
@@ -466,8 +462,7 @@ const BASE_INPUT = {
   availableBlocksPerDay: blocksPerDay(AVAIL),
   prevWeek: { actualLoad: 380, adherencePct: 95 },
   recentBands: [] as import("./types").Band[],
-  raceType: "marathon",
-  sports: ["Run"],
+  sport: "Run" as const,
   hoursPerWeek: 8,
 };
 const A_RACE: RaceContext = {
@@ -490,6 +485,56 @@ describe("materializeWeek race handling", () => {
     // Taper target: 0.45 × 380 = 171
     expect(r.effectiveLoad).toBe(171);
     expect(r.adjustments.some((a) => a.reason.startsWith("taper:"))).toBe(true);
+  });
+
+  it('triathlon race week: pre-race sessions carry a real discipline, never the pseudo-sport "Triathlon", and are admitted by a Swim-restricted block', () => {
+    // Thursday (raceIdx-3) and Friday (raceIdx-2) — exactly where
+    // raceWeekWorkouts places the pre-race easy session and the openers —
+    // are restricted to Swim only, as an availability block built around a
+    // swim squad session would be. Before the F1 fix, raceWeekWorkouts was
+    // called with the plan's PlanSport ("Triathlon") rather than a real
+    // PlanDiscipline, so admits() rejected both sessions against this
+    // block and they were silently dropped in the athlete's race week.
+    const availableBlocksPerDay = blocksPerDay(AVAIL);
+    availableBlocksPerDay[3] = [
+      {
+        start: null,
+        end: null,
+        mins: 60,
+        energy: "full" as const,
+        sports: ["Swim"],
+      },
+    ];
+    availableBlocksPerDay[4] = [
+      {
+        start: null,
+        end: null,
+        mins: 90,
+        energy: "full" as const,
+        sports: ["Swim"],
+      },
+    ];
+    const triRace: RaceContext = { ...A_RACE, raceType: "triathlon" };
+    const r = materializeWeek({
+      ...BASE_INPUT,
+      sport: "Triathlon",
+      availableBlocksPerDay,
+      races: [triRace],
+    });
+    const allWorkouts = r.week.days.flatMap((d) => d.workouts);
+    expect(allWorkouts.length).toBeGreaterThan(0);
+    expect(allWorkouts.every((w) => w.sport !== "Triathlon")).toBe(true);
+    expect(
+      allWorkouts.every((w) =>
+        (["Swim", "Bike", "Run"] as string[]).includes(w.sport)
+      )
+    ).toBe(true);
+    // Both pre-race sessions actually landed on their intended day, proving
+    // the Swim-restricted block admitted them rather than dropping them.
+    expect(r.week.days[3].workouts).toHaveLength(1);
+    expect(r.week.days[3].workouts[0]?.sport).toBe("Swim");
+    expect(r.week.days[4].workouts).toHaveLength(1);
+    expect(r.week.days[4].workouts[0]?.sport).toBe("Swim");
   });
 
   it("never drops a race-week session without logging why — energy tier mismatch", () => {
@@ -583,8 +628,7 @@ describe("materializeWeek race handling", () => {
     const r = materializeWeek({
       ...BASE_INPUT,
       skeleton: { ...SKELETON, targetSessions: 2 },
-      sports: ["Bike"],
-      raceType: "Gran Fondo",
+      sport: "Bike",
       hoursPerWeek: 6,
       prevWeek: null,
       availableBlocksPerDay: [
@@ -662,8 +706,7 @@ describe("materializeWeek — block fitting", () => {
     },
     prevWeek: null,
     recentBands: [],
-    raceType: "Gran Fondo",
-    sports: ["Bike"],
+    sport: "Bike" as const,
     hoursPerWeek: 8,
   };
 
@@ -784,8 +827,7 @@ describe("materializeWeek — block fitting", () => {
       const r = materializeWeek({
         ...base,
         skeleton: { ...base.skeleton, targetSessions: 3 },
-        raceType: "Ironman 70.3",
-        sports: ["Swim", "Bike", "Run"],
+        sport: "Triathlon",
         hoursPerWeek: 20,
         availableBlocksPerDay: blocksPerDay([1100, 100, 90, 90, 90, 90, 90]),
       });
@@ -804,8 +846,7 @@ describe("materializeWeek — block fitting", () => {
       const r = materializeWeek({
         ...base,
         skeleton: { ...base.skeleton, targetSessions: 3 },
-        raceType: "Ironman 70.3",
-        sports: ["Swim", "Bike", "Run"],
+        sport: "Triathlon",
         hoursPerWeek: 20,
         availableBlocksPerDay: [
           blocks([1100, 100]),
@@ -832,8 +873,7 @@ describe("materializeWeek — block fitting", () => {
       const r = materializeWeek({
         ...base,
         skeleton: { ...base.skeleton, targetSessions: 4 },
-        raceType: "Marathon",
-        sports: ["Run"],
+        sport: "Run",
         hoursPerWeek: 20,
         availableBlocksPerDay: [
           blocks([60]), // Mon

@@ -14,7 +14,12 @@ const parameters = z.object({
     .describe(
       "A = full taper target; B = short pre-race ease-off; C = train through."
     ),
-  sport: z.string().optional(),
+  sport: z
+    .enum(["Bike", "Run", "Triathlon"])
+    .optional()
+    .describe(
+      "Required when creating a race; omit on update to leave it unchanged. Decides what the training plan builds."
+    ),
   goalNote: z.string().optional(),
   status: z.enum(["upcoming", "completed", "skipped"]).optional(),
 });
@@ -26,7 +31,14 @@ async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
     if ("error" in r) return { success: false, error: r.error };
     return { success: true, race: { id: r.id, name: r.name, date: r.date } };
   }
-  const r = await createRace(ctx.userId, args);
+  if (!args.sport) {
+    return {
+      success: false,
+      error:
+        "sport is required when creating a race — one of Bike, Run, Triathlon",
+    };
+  }
+  const r = await createRace(ctx.userId, { ...args, sport: args.sport });
   if ("error" in r) return { success: false, error: r.error };
   return {
     success: true,

@@ -1,5 +1,71 @@
 # Changelog
 
+## v0.42.0 — 2026-08-05 — One Sport, Decided Once
+
+An athlete entered a six-day Dolomites gran fondo and got a training plan made
+entirely of running workouts. All six blocks, twenty-four sessions. Nothing
+failed: the plan was internally consistent, the database was happy, and every
+test passed.
+
+Four separate code paths fell back to running when they could not tell what
+sport a plan was for. `inferSports` returned an explicit override verbatim, so
+a sports list holding the provider's word — `Ride`, not `Bike` — sailed past
+the race-type inference that would have been right. `generateWorkouts` then
+tested that value with a raw equality against `"Bike"`, failed, and fell
+through to a catch-all that built running. The weekly rollover had a third,
+`raceWeekWorkouts(sports[0] ?? "Run", …)`, so the wrong plan rebuilt itself
+every week. A fourth, quieter than the other three because it lived in the
+constraints reader rather than the generator, turned up while threading the
+plan's sport through that rollover: `planConstraints` turned an absent or
+empty sports list into `["Run"]` before anything downstream even ran.
+
+`canonicalSport("Ride") → "Bike"` has existed since v0.27.0. It was wired into
+activity matching — deciding whether a synced ride completed a planned session
+— and never into the planner's own input. Half the translation was done.
+
+The same untranslated comparison surfaced a second place, found in pre-flight
+review rather than by riding: `race/debrief.ts` and `debrief/ride-review.ts`
+both matched a race's activity by testing
+`inferSports(race.raceType).includes(a.sport)` — the planner's word against
+the provider's, exactly what `canonicalSport` exists to translate away.
+`["Bike"].includes("Ride")` is false for every cyclist who has used this app,
+so a race debrief never found the athlete's own race activity, and the
+ride-review's race-day skip guard never fired for one. Both now compare
+`disciplinesOf(requirePlanSport(race.sport))` against
+`canonicalSport(activity.sport)` — both sides in the planner's vocabulary.
+
+The race now decides. `races.sport` is a required closed set of `Bike`, `Run`
+and `Triathlon` with no database default, because a default is a silent
+decision and silent decisions are the entire defect. Every plan
+`generateTrainingPlan` builds has a race behind it — it creates one when given
+none — so the authority is there to read at the moment a plan is made. (Not
+every plan already in the database can say the same; the repair script below
+skips one with no race rather than guessing.) The athlete picks the sport on
+the race form, pre-selected from the race type but visible and changeable.
+
+Swim is deliberately not on that list. There is no swim-only branch in the
+generator, so offering it would have produced running workouts under a
+different label. Triathlon plans do include swim sessions.
+
+`generateWorkouts` now dispatches on sport alone and throws on anything it
+cannot build. Both fallbacks are deleted, and so is the second authority:
+triathlon used to be routed by race type while cycling was routed by the sports
+list, which meant a race whose sport said Triathlon but whose type was spelled
+unusually produced running. `generate_training_plan` loses its `sports`
+parameter entirely — it is how `Ride` got in, and its documented default
+("the athlete profile") describes something that has never existed in this
+schema.
+
+The throw should be unreachable through this app's own code paths: every
+writer runs the value through `requirePlanSport`/`toPlanSport` first, and the
+column is `NOT NULL`. That guarantee is TypeScript/Zod-level, not
+database-enforced — `races.sport` has no `CHECK` constraint, so a raw insert
+(a script, a hand-run migration, a future service) could still write a string
+this app never validated. This release's own premise is that an overclaimed
+guarantee is itself a defect, so the throw stays as the backstop for that gap,
+not as evidence the gap is closed. It is there so that if it is ever reached,
+it is loud. A plan for the wrong sport should fail, not ship.
+
 ## v0.41.0 — 2026-08-04 — The Coach Can See The Race
 
 An athlete could file a four-day stage race with the distance and climbing of

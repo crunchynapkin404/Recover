@@ -21,7 +21,8 @@ import { resolveProvider } from "@/lib/llm-provider";
 import { recordLlmUsage } from "@/lib/llm-usage";
 import { buildSystemPrompt, languageDirective } from "@/lib/coach-persona";
 import { fetchAthleteContext } from "@/lib/coach-context";
-import { inferSports } from "@/lib/training-plan";
+import { canonicalSport } from "@/lib/canonical-sport";
+import { disciplinesOf, requirePlanSport } from "@/lib/plan-sport";
 import { findOrCreateMorningThread } from "@/lib/morning-insight";
 import { describeActivityOnStravaForUser } from "@/lib/strava-describer";
 import { currentTargetLoad } from "@/lib/week-plan/volume";
@@ -177,7 +178,7 @@ export async function runRaceDebriefs(
 
   let posted = false;
   for (const race of due) {
-    const sports = inferSports(race.raceType);
+    const disciplines = disciplinesOf(requirePlanSport(race.sport));
     const dayStart = new Date(race.date + "T00:00:00");
     const dayEnd = new Date(dayStart.getTime() + 86_400_000);
     // COALESCE at the SQL level, not just in JS: a plain
@@ -201,7 +202,10 @@ export async function runRaceDebriefs(
     });
     const match =
       candidates.find(
-        (a) => sports.includes(a.sport) && !claimedIds.has(a.id)
+        (a) =>
+          (disciplines as readonly string[]).includes(
+            canonicalSport(a.sport)
+          ) && !claimedIds.has(a.id)
       ) ?? null;
 
     if (!match) {

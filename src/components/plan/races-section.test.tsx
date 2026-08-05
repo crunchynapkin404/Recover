@@ -11,6 +11,7 @@ const races: RaceListItem[] = [
     priority: "A" as const,
     status: "upcoming" as const,
     goalNote: "sub 3:30",
+    sport: "Bike" as const,
     eventDays: 1,
     distanceKm: 42.2,
     elevationM: 250,

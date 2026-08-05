@@ -647,6 +647,7 @@ describe.skipIf(!hasDb)("week-plan service", () => {
         userId: VOLUME_USER,
         name: "Integration Gran Fondo",
         raceType: "gran fondo",
+        sport: "Bike",
         date: addDaysYmd(weekStart, 70),
         priority: "B",
         status: "upcoming",
@@ -661,12 +662,12 @@ describe.skipIf(!hasDb)("week-plan service", () => {
       expect(week).not.toBeNull();
 
       // The freshly-periodized week-1 skeleton. Deterministic off
-      // startingCtl(0)/weeksTotal/daysPerWeek/raceType/sports alone — the
+      // startingCtl(0)/weeksTotal/daysPerWeek/sport alone — the
       // hours argument here is arbitrary and does not affect targetLoad
       // (see rollover-volume.test.ts's 20x-spread test), so this
       // independently reproduces what rolloverWeekPlan computed internally
       // without needing to replicate the volume-derivation pipeline.
-      const derived = periodize(12, 0, 5, 999, "gran fondo", ["Bike"]).find(
+      const derived = periodize(12, 0, 5, 999, "Bike").find(
         (b) => b.weekNumber === 1
       )!;
 
