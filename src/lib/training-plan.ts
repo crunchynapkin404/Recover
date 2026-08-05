@@ -3,7 +3,7 @@
  * training plan generator. No LLM dependency; uses template-based
  * periodization with sport-specific workout prescriptions.
  */
-import { desc, eq, and } from "drizzle-orm";
+import { asc, desc, eq, and } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { createRace } from "@/lib/race/service";
 import type { Purpose } from "@/lib/availability/types";
@@ -961,6 +961,140 @@ export async function previewTrainingPlan(
   };
 
   return { ok: true, preview };
+}
+
+/** The row shape `db.query.trainingPlans.findFirst` returns. */
+type TrainingPlanRow = NonNullable<
+  Awaited<ReturnType<typeof db.query.trainingPlans.findFirst>>
+>;
+
+/**
+ * Rebuilds a `PlanPreview` from a stored draft row and its already-written
+ * `training_blocks`, for an athlete who left `/train` and came back before
+ * confirming. Periodization itself is NOT rerun here — `blocks` are read
+ * verbatim, exactly as `previewTrainingPlan` wrote them, so this can never
+ * disagree with the draft the athlete is about to confirm. What IS
+ * recomputed (starting-CTL source, volume, feasibility, warnings) is
+ * everything that legitimately depends on "now" rather than on "when the
+ * draft was created" — a wellness sync or a demand edit that landed after
+ * the draft was written should be reflected the next time the athlete
+ * looks, the same way the rest of `/train` always reads live.
+ *
+ * `previewTrainingPlan`'s own body is intentionally left untouched rather
+ * than refactored to share this block: it is one of the two things this
+ * release depends on for its safety property, and Task 8 does not touch
+ * `previewTrainingPlan`, `confirmTrainingPlan`, or any periodization
+ * constant. This function calls the same pure/query helpers
+ * (`buildPhases`, `collectWarnings`, `assembleWeeklyTarget`,
+ * `assessFeasibility`) that `previewTrainingPlan` calls, rather than
+ * duplicating their logic — only the row-shaped assembly around them is
+ * necessarily separate, because a draft's blocks live in the database and
+ * a fresh preview's blocks live in memory.
+ */
+export async function previewFromDraft(
+  draft: TrainingPlanRow
+): Promise<PlanPreview> {
+  const constraints = (draft.constraints ?? {}) as {
+    hoursPerWeek?: number;
+    sports?: string[];
+  };
+  const hoursPerWeek = constraints.hoursPerWeek ?? 8;
+  const sport = requirePlanSport(constraints.sports?.[0]);
+
+  // Race identity: a stored raceId names a real race to read the current
+  // name/priority from; otherwise the draft's own fields ARE what
+  // confirming will create — same contract as previewTrainingPlan.
+  let raceName = draft.title;
+  let racePriority: "A" | "B" | "C" = "A";
+  if (draft.raceId) {
+    const race = await db.query.races.findFirst({
+      where: eq(schema.races.id, draft.raceId),
+    });
+    if (race) {
+      raceName = race.name;
+      racePriority = race.priority as "A" | "B" | "C";
+    }
+  }
+
+  const blocks = await db.query.trainingBlocks.findMany({
+    where: eq(schema.trainingBlocks.planId, draft.id),
+    orderBy: [asc(schema.trainingBlocks.weekNumber)],
+  });
+
+  const weeks: PreviewWeek[] = blocks.map((b) => {
+    const workouts = (b.workouts ?? []) as PlannedWorkout[];
+    const scheduledMins = workouts.reduce((sum, w) => sum + w.durationMins, 0);
+    return {
+      weekNumber: b.weekNumber,
+      phase: b.phase as PlanPhase,
+      targetLoad: b.targetLoadTotal != null ? Math.round(b.targetLoadTotal) : 0,
+      targetHours: Math.round((scheduledMins / 60) * 10) / 10,
+      raceName: b.weekNumber === draft.weeksTotal ? raceName : null,
+    };
+  });
+
+  const today = new Date();
+  const wellness = await db.query.wellnessDaily.findFirst({
+    where: eq(schema.wellnessDaily.userId, draft.userId),
+    orderBy: desc(schema.wellnessDaily.date),
+  });
+  const ctlSource: "wellness" | "default" =
+    wellness?.ctl != null ? "wellness" : "default";
+
+  const existingAvailability = await db.query.availabilityDefaults.findMany({
+    where: eq(schema.availabilityDefaults.userId, draft.userId),
+  });
+
+  const { target, demand, level, longestRideHours } =
+    await assembleWeeklyTarget(draft.userId, today, {
+      availabilityHours: hoursPerWeek,
+      planHoursPerWeek: hoursPerWeek,
+    });
+
+  const weeksUntilRace = Math.ceil(
+    daysBetween(today, new Date(draft.raceDate + "T00:00:00")) / 7
+  );
+
+  const feasibility =
+    demand == null
+      ? null
+      : assessFeasibility({
+          requiredWeeklyHours: demand.weeklyHours,
+          currentWeeklyHours: level.peakHours,
+          queenStageHours: demand.queenStageHours,
+          queenStageKnown: demand.queenStageKnown,
+          longestRideHours,
+          weeksUntilEvent: weeksUntilRace,
+        });
+
+  return {
+    planId: draft.id,
+    sport,
+    race: {
+      id: draft.raceId,
+      name: raceName,
+      date: draft.raceDate,
+      priority: racePriority,
+    },
+    startDate: draft.startDate,
+    weeksTotal: draft.weeksTotal,
+    phases: buildPhases(
+      weeks.map((w) => ({ weekNumber: w.weekNumber, phase: w.phase }))
+    ),
+    weeks,
+    startingCtl: { value: draft.startingCtl ?? 30, source: ctlSource },
+    feasibility,
+    volume: { source: target.source, shortfall: target.shortfall },
+    warnings: collectWarnings({
+      startingCtlSource: ctlSource,
+      volumeSource: target.source,
+      hasShortfall: target.shortfall != null,
+      feasibilityVerdict: feasibility?.verdict ?? null,
+      raceCreated: draft.raceId == null,
+      availabilitySeeded: existingAvailability.length === 0,
+      shortHorizon: weeksUntilRace < 4,
+    }),
+  };
 }
 
 /**
