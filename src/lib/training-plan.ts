@@ -787,7 +787,7 @@ export async function previewTrainingPlan(
   const raceId = params.raceId ?? null;
   let raceType = params.raceType;
   let raceDate = params.raceDate;
-  let raceName = params.title ?? raceType;
+  let raceNameFromRow: string | null = null;
   let racePriority: "A" | "B" | "C" = "A";
   let sport: PlanSport;
 
@@ -798,7 +798,7 @@ export async function previewTrainingPlan(
     if (!race) return { ok: false, reason: "race_not_found" };
     raceType = race.raceType;
     raceDate = race.date;
-    raceName = race.name;
+    raceNameFromRow = race.name;
     racePriority = race.priority as "A" | "B" | "C";
     const resolved = toPlanSport(race.sport);
     if (!resolved) return { ok: false, reason: "unknown_sport" };
@@ -808,6 +808,17 @@ export async function previewTrainingPlan(
     if (!resolved) return { ok: false, reason: "unknown_sport" };
     sport = resolved;
   }
+
+  // Single source of truth for "what do we call this plan when nobody named
+  // it". Finding 2 (v0.43 final review): the coach's tool response
+  // (`preview.race.name`, in memory) and /train's card (`previewFromDraft`
+  // reading the stored `title`) used to compute this independently —
+  // `params.title ?? raceType` here vs `params.title ?? \`${raceType}
+  // training plan\`` at the insert below — so an untitled, race-less plan
+  // showed as "gran_fondo" to the coach and "gran_fondo training plan" on
+  // screen for the exact same draft. Both now read this one expression.
+  const defaultTitle = params.title ?? `${raceType} training plan`;
+  const raceName = raceNameFromRow ?? defaultTitle;
 
   // 2. Horizon. A close race is SCALED, not refused — refusing to plan is
   //    worse than planning honestly. A date beyond a year is a typo, and the
@@ -857,7 +868,7 @@ export async function previewTrainingPlan(
     .insert(schema.trainingPlans)
     .values({
       userId,
-      title: params.title ?? `${raceType} training plan`,
+      title: defaultTitle,
       raceType,
       raceDate,
       startDate,
@@ -942,6 +953,8 @@ export async function previewTrainingPlan(
     },
     startDate,
     weeksTotal: planWeeks,
+    daysPerWeek,
+    hoursPerWeek,
     phases: buildPhases(
       weeks.map((w) => ({ weekNumber: w.weekNumber, phase: w.phase }))
     ),
@@ -995,9 +1008,11 @@ export async function previewFromDraft(
   draft: TrainingPlanRow
 ): Promise<PlanPreview> {
   const constraints = (draft.constraints ?? {}) as {
+    daysPerWeek?: number;
     hoursPerWeek?: number;
     sports?: string[];
   };
+  const daysPerWeek = constraints.daysPerWeek ?? 5;
   const hoursPerWeek = constraints.hoursPerWeek ?? 8;
   const sport = requirePlanSport(constraints.sports?.[0]);
 
@@ -1081,6 +1096,8 @@ export async function previewFromDraft(
     },
     startDate: draft.startDate,
     weeksTotal: draft.weeksTotal,
+    daysPerWeek,
+    hoursPerWeek,
     phases: buildPhases(
       weeks.map((w) => ({ weekNumber: w.weekNumber, phase: w.phase }))
     ),
@@ -1110,7 +1127,10 @@ export async function previewFromDraft(
 export async function confirmTrainingPlan(
   userId: string,
   planId: string
-): Promise<{ ok: true; planId: string } | { ok: false; reason: "not_found" }> {
+): Promise<
+  | { ok: true; planId: string }
+  | { ok: false; reason: "not_found" | "sport_changed" }
+> {
   const draft = await db.query.trainingPlans.findFirst({
     where: and(
       eq(schema.trainingPlans.id, planId),
@@ -1128,6 +1148,35 @@ export async function confirmTrainingPlan(
   const sport = requirePlanSport(
     (draft.constraints as { sports?: string[] } | null)?.sports?.[0]
   );
+
+  // Finding 1 (v0.43 final review): a draft's sport is frozen into
+  // `constraints.sports` when the draft is written and never re-checked.
+  // `upsert_race` — untouched by this release — lets the coach change an
+  // existing race's sport at any time, so a draft previewed against race R
+  // while R was Bike survives a later correction of R to Run, and this
+  // would otherwise activate a Bike plan against a now-Run race. v0.42 made
+  // `races.sport` the sport authority precisely so this could not happen;
+  // this closes the one door that reached it without going through that
+  // authority. Refuse rather than silently re-deriving a new plan: the
+  // athlete reviewed and agreed to a SPECIFIC plan, and quietly swapping its
+  // sport under them would be the same class of defect in a new place.
+  // Checked before the transaction, so a refusal here activates nothing and
+  // archives nothing.
+  if (draft.raceId) {
+    const race = await db.query.races.findFirst({
+      where: and(
+        eq(schema.races.id, draft.raceId),
+        eq(schema.races.userId, userId)
+      ),
+      columns: { sport: true },
+    });
+    // A race that no longer exists is a different, pre-existing edge case
+    // (not this finding) — leave that behavior alone and only compare when
+    // there is a live sport to compare against.
+    if (race && toPlanSport(race.sport) !== sport) {
+      return { ok: false, reason: "sport_changed" };
+    }
+  }
 
   await db.transaction(async (tx) => {
     await tx

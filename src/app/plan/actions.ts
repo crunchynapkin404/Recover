@@ -588,7 +588,10 @@ export async function markSessionDone(
  */
 export async function confirmPlanAction(
   planId: string
-): Promise<{ ok: true; planId: string } | { ok: false; reason: "not_found" }> {
+): Promise<
+  | { ok: true; planId: string }
+  | { ok: false; reason: "not_found" | "sport_changed" }
+> {
   const user = await requireUser();
   const result = await confirmTrainingPlan(user.id, planId);
   revalidatePath("/train");

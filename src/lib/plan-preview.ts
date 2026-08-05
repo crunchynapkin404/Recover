@@ -152,6 +152,11 @@ export interface PlanPreview {
   };
   startDate: string;
   weeksTotal: number;
+  /** The constraints this specific draft was built from — Rebuild's inputs
+   *  must start from what actually produced the shown plan, not a hardcoded
+   *  guess (Finding 3, v0.43 final review). */
+  daysPerWeek: number;
+  hoursPerWeek: number;
   phases: PhaseRow[];
   weeks: PreviewWeek[];
   /** "default" means no CTL was found and 30 was assumed — indistinguishable

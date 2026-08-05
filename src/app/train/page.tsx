@@ -263,7 +263,25 @@ async function WeekTab({
       eq(schema.trainingPlans.status, "draft")
     ),
   });
-  const draftPreview = draft ? await previewFromDraft(draft) : null;
+  // `previewFromDraft` calls the throwing `requirePlanSport` plus several
+  // queries. `/train` is force-dynamic and has no `error.tsx`, so an
+  // uncaught throw here would break the whole page — including the
+  // athlete's real active plan — over a draft that is meant to be harmless
+  // to ignore. Same degraded-path pattern as the `projectWeek` call below:
+  // take no preview rather than no page, but log it so a corrupted draft is
+  // diagnosable.
+  let draftPreview: Awaited<ReturnType<typeof previewFromDraft>> | null = null;
+  if (draft) {
+    try {
+      draftPreview = await previewFromDraft(draft);
+    } catch (err) {
+      logger.error("draft plan preview failed; showing no preview", {
+        userId,
+        draftId: draft.id,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
 
   // The readiness chip reads the same daily_metrics row Today's hero does,
   // so the two screens can never disagree about the athlete's band.

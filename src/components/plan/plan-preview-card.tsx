@@ -40,10 +40,15 @@ const DRAFT_STALE_TEXT =
   "This proposal is no longer current, so ask your coach for a fresh one.";
 const ACTION_FAILED_TEXT =
   "That didn't go through and nothing has changed, so try again in a moment.";
+// Finding 1 (final review): the race this draft targets has since changed
+// sport (via upsert_race), so the plan the athlete reviewed no longer
+// matches it. confirmTrainingPlan refuses rather than activating it.
+const SPORT_CHANGED_TEXT =
+  "The race this plan targets has since changed sport, so this plan no longer matches it. Ask your coach for a fresh plan.";
 
 export function PlanPreviewCard({ preview }: { preview: PlanPreview }) {
-  const [days, setDays] = useState(5);
-  const [hours, setHours] = useState(8);
+  const [days, setDays] = useState(preview.daysPerWeek);
+  const [hours, setHours] = useState(preview.hoursPerWeek);
   const [pending, startTransition] = useTransition();
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -82,7 +87,13 @@ export function PlanPreviewCard({ preview }: { preview: PlanPreview }) {
     startTransition(async () => {
       try {
         const result = await confirmPlanAction(preview.planId);
-        setActionError(result.ok ? null : DRAFT_STALE_TEXT);
+        if (result.ok) {
+          setActionError(null);
+        } else if (result.reason === "sport_changed") {
+          setActionError(SPORT_CHANGED_TEXT);
+        } else {
+          setActionError(DRAFT_STALE_TEXT);
+        }
       } catch {
         setActionError(ACTION_FAILED_TEXT);
       }

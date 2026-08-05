@@ -44,6 +44,12 @@ const preview: PlanPreview = {
   },
   startDate: "2026-08-05",
   weeksTotal: 6,
+  // Deliberately NOT 5/8 (the old hardcoded `useState` defaults) — Finding 3
+  // (final review): the Rebuild inputs must start from what actually
+  // produced this draft, not a guess that silently overrides an athlete who
+  // asked for 6 days and 10 hours.
+  daysPerWeek: 6,
+  hoursPerWeek: 10,
   phases: [
     { phase: "base", weeks: 3, weekNumbers: [1, 2, 4] },
     { phase: "build", weeks: 2, weekNumbers: [5, 7, 9] },
@@ -128,6 +134,22 @@ describe("PlanPreviewCard", () => {
     }
   });
 
+  // Finding 3 (final review): the inputs used to hardcode useState(5)/
+  // useState(8) regardless of what actually produced the shown draft, so
+  // Rebuild would silently discard an athlete's stated 6-days/10-hours
+  // preference. They must start from the draft's own constraints.
+  it("initialises the Rebuild inputs from the draft's own constraints, not a hardcoded guess", () => {
+    mount();
+    const daysInput = container.querySelector(
+      '[aria-label="Days per week"]'
+    ) as HTMLInputElement;
+    const hoursInput = container.querySelector(
+      '[aria-label="Hours per week"]'
+    ) as HTMLInputElement;
+    expect(daysInput.value).toBe(String(preview.daysPerWeek));
+    expect(hoursInput.value).toBe(String(preview.hoursPerWeek));
+  });
+
   it("offers the three decisions by name, and nothing to tune periodization with", () => {
     mount();
 
@@ -180,6 +202,21 @@ describe("PlanPreviewCard", () => {
         "This proposal is no longer current, so ask your coach for a fresh one."
       );
     });
+  });
+
+  // Final-review Finding 1: confirmTrainingPlan refuses when the race this
+  // draft targets has since changed sport. That gets its own sentence, not
+  // the generic "no longer current" one — the athlete needs to know WHY.
+  it("tells the athlete the race changed sport when Start this plan refuses for that reason", async () => {
+    confirmPlanActionMock.mockResolvedValueOnce({
+      ok: false,
+      reason: "sport_changed",
+    });
+    mount();
+    await clickButton(/start this plan/i);
+    expect(container.textContent).toContain(
+      "The race this plan targets has since changed sport, so this plan no longer matches it. Ask your coach for a fresh plan."
+    );
   });
 
   it("tells the athlete when the request itself fails", async () => {

@@ -10,6 +10,7 @@ describe.skipIf(!hasDb)("previewTrainingPlan (v0.43)", () => {
   let db: typeof import("@/lib/db").db;
   let schema: typeof import("@/lib/db").schema;
   let previewTrainingPlan: typeof import("@/lib/training-plan").previewTrainingPlan;
+  let previewFromDraft: typeof import("@/lib/training-plan").previewFromDraft;
   const userId = `preview-${Date.now()}`;
   const otherUserId = `preview-other-${Date.now()}`;
 
@@ -22,7 +23,8 @@ describe.skipIf(!hasDb)("previewTrainingPlan (v0.43)", () => {
 
   beforeAll(async () => {
     ({ db, schema } = await import("@/lib/db"));
-    ({ previewTrainingPlan } = await import("@/lib/training-plan"));
+    ({ previewTrainingPlan, previewFromDraft } =
+      await import("@/lib/training-plan"));
     await db.insert(schema.users).values([
       { id: userId, name: "Preview Test", email: `${userId}@example.invalid` },
       {
@@ -378,6 +380,35 @@ describe.skipIf(!hasDb)("previewTrainingPlan (v0.43)", () => {
     expect(result.preview.race.name).toBe("Race-Driven Plan Race");
     expect(result.preview.warnings).not.toContain("race_created");
   });
+
+  // Finding 2 (v0.43 final review): with no title and no raceId — the
+  // common first-generation path — the in-memory race name
+  // `previewTrainingPlan` returns to the coach used to default independently
+  // from the stored `title` that `previewFromDraft` reads for /train, so the
+  // same draft was called "gran_fondo" in one place and "gran_fondo training
+  // plan" in the other. Rehydrating the very draft this call just wrote and
+  // comparing the two callers' race names is what would catch that
+  // divergence again; the exact-string assertion guards against both sides
+  // having simply moved to agree on a DIFFERENT wrong value.
+  it("names an untitled, race-less draft the same way to the coach and on /train", async () => {
+    const result = await previewTrainingPlan({
+      userId,
+      raceType: "gran_fondo",
+      raceDate: raceDate(),
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const draftRow = await db.query.trainingPlans.findFirst({
+      where: eq(schema.trainingPlans.id, result.preview.planId),
+    });
+    expect(draftRow).toBeTruthy();
+    if (!draftRow) return;
+
+    const rehydrated = await previewFromDraft(draftRow);
+    expect(rehydrated.race.name).toBe(result.preview.race.name);
+    expect(result.preview.race.name).toBe("gran_fondo training plan");
+  });
 });
 
 describe.skipIf(!hasDb)("confirmTrainingPlan (v0.43)", () => {
@@ -597,5 +628,74 @@ describe.skipIf(!hasDb)("confirmTrainingPlan (v0.43)", () => {
     expect(monday?.blocks).toEqual([
       { start: "06:00", end: "07:00", sports: null },
     ]);
+  });
+
+  // Finding 1 (v0.43 final review): a draft's sport is frozen into
+  // `constraints.sports` when the draft is written and never re-checked.
+  // `upsert_race` — untouched by this release — lets the coach change an
+  // existing race's sport at any time, so previewing against a Bike race
+  // and then correcting that race to Run must not let confirmation activate
+  // the (now sport-mismatched) Bike plan.
+  it("refuses when the race's sport changed after the draft was made, activating and archiving nothing", async () => {
+    // This test's own active plan, distinctly titled so it cannot collide
+    // with a leftover row from an earlier test in this shared-user describe
+    // block, and checked directly by id below rather than via
+    // getActivePlan — this user may already carry other active/draft rows
+    // left behind by earlier tests here.
+    const [survivor] = await db
+      .insert(schema.trainingPlans)
+      .values({
+        userId,
+        title: "must survive a sport change",
+        raceType: "gran_fondo",
+        raceDate: raceDate(),
+        startDate: "2026-08-05",
+        weeksTotal: 12,
+        status: "active",
+      })
+      .returning();
+
+    const [race] = await db
+      .insert(schema.races)
+      .values({
+        userId,
+        name: "Sport Change Check Race",
+        raceType: "gran_fondo",
+        sport: "Bike",
+        date: raceDate(),
+        priority: "A",
+      })
+      .returning();
+
+    const preview = await previewTrainingPlan({
+      userId,
+      raceId: race.id,
+      raceType: "irrelevant_placeholder",
+      raceDate: "2000-01-01",
+    });
+    if (!preview.ok) throw new Error("preview failed");
+    expect(preview.preview.sport).toBe("Bike");
+
+    // The coach corrects the race's sport — exactly the door Finding 1
+    // closes: upsert_race is untouched by this release.
+    await db
+      .update(schema.races)
+      .set({ sport: "Run" })
+      .where(eq(schema.races.id, race.id));
+
+    const confirmed = await confirmTrainingPlan(userId, preview.preview.planId);
+    expect(confirmed).toEqual({ ok: false, reason: "sport_changed" });
+
+    // No plan was activated: the draft is still exactly a draft.
+    const draftAfter = await db.query.trainingPlans.findFirst({
+      where: eq(schema.trainingPlans.id, preview.preview.planId),
+    });
+    expect(draftAfter?.status).toBe("draft");
+
+    // The previous plan was not archived.
+    const survivorAfter = await db.query.trainingPlans.findFirst({
+      where: eq(schema.trainingPlans.id, survivor.id),
+    });
+    expect(survivorAfter?.status).toBe("active");
   });
 });
