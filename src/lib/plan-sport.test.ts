@@ -51,8 +51,10 @@ describe("toPlanSport", () => {
 });
 
 describe("inferPlanSport", () => {
-  it("places every raceType the plan tool can emit", () => {
-    const cases: Record<string, "Bike" | "Run" | "Triathlon"> = {
+  it("places every value of the closed 13-value raceType enum", () => {
+    // This is the completeness guarantee an exact lookup gives that a
+    // heuristic never could: every enum value is asserted, not sampled.
+    const cases: Record<string, "Bike" | "Run" | "Triathlon" | null> = {
       marathon: "Run",
       half_marathon: "Run",
       "10k": "Run",
@@ -65,78 +67,66 @@ describe("inferPlanSport", () => {
       gran_fondo: "Bike",
       century: "Bike",
       crit: "Bike",
+      // Names no sport — must NOT be guessed at.
+      general_fitness: null,
     };
     for (const [raceType, expected] of Object.entries(cases)) {
       expect(inferPlanSport(raceType)).toBe(expected);
     }
   });
 
-  it("places the free-text spellings the race form accepts", () => {
+  it("places the live free-text spelling and its separator variants", () => {
     // races.race_type is free text; the live row reads "GranFondo".
     expect(inferPlanSport("GranFondo")).toBe("Bike");
     expect(inferPlanSport("gran fondo")).toBe("Bike");
-    expect(inferPlanSport("Half Marathon")).toBe("Run");
+    expect(inferPlanSport("gran_fondo")).toBe("Bike");
   });
 
-  it("returns null for a race type it cannot place", () => {
-    // general_fitness names no sport, and neither does a typo.
-    expect(inferPlanSport("general_fitness")).toBeNull();
-    expect(inferPlanSport("swimrun")).toBeNull();
-    expect(inferPlanSport("")).toBeNull();
-  });
-
-  it("does not read 'tri' inside 'trial' as a triathlon", () => {
-    // "time trial" is a cycling format, but it is genuinely ambiguous
-    // (running time trials exist too) — refusing beats guessing.
-    expect(inferPlanSport("time trial")).toBeNull();
-    expect(inferPlanSport("hill climb time trial")).toBeNull();
-  });
-
-  it("still recognises 'tri' as a whole word, any separator", () => {
-    expect(inferPlanSport("olympic_tri")).toBe("Triathlon");
-    expect(inferPlanSport("sprint_tri")).toBe("Triathlon");
-    expect(inferPlanSport("olympic tri")).toBe("Triathlon");
+  it("places a modest set of additional real-world spellings", () => {
+    expect(inferPlanSport("criterium")).toBe("Bike");
+    expect(inferPlanSport("ultramarathon")).toBe("Run");
     expect(inferPlanSport("half ironman")).toBe("Triathlon");
-    expect(inferPlanSport("ironman 70.3")).toBe("Triathlon");
-  });
-
-  it("places run-branch collisions correctly", () => {
+    expect(inferPlanSport("triathlon")).toBe("Triathlon");
     expect(inferPlanSport("parkrun")).toBe("Run");
-    expect(inferPlanSport("trail run")).toBe("Run");
-    expect(inferPlanSport("10k run")).toBe("Run");
-    expect(inferPlanSport("half marathon")).toBe("Run");
   });
 
-  it("keeps multi-sport disciplines this app cannot plan for at null", () => {
-    expect(inferPlanSport("swimrun")).toBeNull();
-    expect(inferPlanSport("aquathlon")).toBeNull();
+  it("returns null for unrecognised free text", () => {
+    expect(inferPlanSport("")).toBeNull();
+    expect(inferPlanSport("Tennis")).toBeNull();
   });
 
-  it("matches 'crit' as a word start without breaking 'criterium'", () => {
-    expect(inferPlanSport("crit")).toBe("Bike");
-    expect(inferPlanSport("criterium")).toBe("Bike");
+  describe("the three historical defects, as regression tests", () => {
+    it('does not read "tri" inside "trial" as a triathlon (round 1)', () => {
+      expect(inferPlanSport("time trial")).toBeNull();
+    });
+
+    it("does not read a swim event as Run or Bike from a distance/format needle (round 3)", () => {
+      // "10k open water swim" is the exact defect this release exists to
+      // remove: the "10k" needle matched and returned Run. An exact
+      // lookup never sees the substring, so it cannot happen again.
+      // "10k marathon swim" is a real Olympic event — Swim is deliberately
+      // not a plan sport, so the honest answer for all of these is null.
+      expect(inferPlanSport("10k open water swim")).toBeNull();
+      expect(inferPlanSport("5k swim")).toBeNull();
+      expect(inferPlanSport("half mile open water swim")).toBeNull();
+      expect(inferPlanSport("ultra distance swim")).toBeNull();
+      expect(inferPlanSport("swimrun")).toBeNull();
+      expect(inferPlanSport("aquathlon")).toBeNull();
+    });
   });
 
-  it("still places fused compound words after the word-boundary fix", () => {
-    // Regression class: 971ffbd's word-boundary fix for "tri" (needed,
-    // because "trial" appends letters onto "tri") was over-generalised to
-    // run/bike/half/ultra with a TRAILING boundary too, which silently
-    // broke every compound where letters are legitimately appended onto
-    // those needles. "bike" needs no boundary at all — it can be either
-    // half of a fused compound ("bikepacking" prefixes it, "mountainbike"
-    // suffixes it), and a leading-only boundary still fails the suffix
-    // case.
-    expect(inferPlanSport("bikepacking")).toBe("Bike");
-    expect(inferPlanSport("mountainbike")).toBe("Bike");
-    expect(inferPlanSport("ultratrail")).toBe("Run");
-    expect(inferPlanSport("ultrarunning")).toBe("Run");
-    expect(inferPlanSport("trail running")).toBe("Run");
-    expect(inferPlanSport("running")).toBe("Run");
-    // These must keep their current (correct) answers: "swimrun" has no
-    // boundary before "run" either, and stays null; "criterium" is the
-    // needle this treatment was modelled on.
-    expect(inferPlanSport("swimrun")).toBeNull();
-    expect(inferPlanSport("criterium")).toBe("Bike");
+  it("returns null for the round-2 compound words — a deliberate behaviour change", () => {
+    // Round 2 added word-boundary regexes so these fused compounds would
+    // match Bike/Run. An exact lookup does not do substring matching at
+    // all, so none of these are recognised any more. That is intended:
+    // they are unrecognised free text, the athlete picks in the dropdown,
+    // and null is a safe answer there. Do NOT "fix" this by restoring
+    // substring/regex matching — that is the exact machinery this release
+    // removed, and it is what produced all three historical defects above.
+    expect(inferPlanSport("bikepacking")).toBeNull();
+    expect(inferPlanSport("mountainbike")).toBeNull();
+    expect(inferPlanSport("ultratrail")).toBeNull();
+    expect(inferPlanSport("trail running")).toBeNull();
   });
 });
 

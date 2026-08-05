@@ -57,100 +57,81 @@ export function toPlanSport(raw: string | null | undefined): PlanSport | null {
 }
 
 /**
+ * Strips everything but letters, digits and dots, and lower-cases.
+ *
+ * This collapses every separator variant of the same race name onto one
+ * key — `"gran_fondo"`, `"GranFondo"` and `"gran fondo"` all normalise to
+ * `"granfondo"` — while keeping `"70.3"` intact (the dot is meaningful:
+ * it is part of the race's actual name, not a separator).
+ */
+function normaliseRaceType(raceType: string): string {
+  return raceType.toLowerCase().replace(/[^a-z0-9.]/g, "");
+}
+
+/**
+ * Exact lookup table, keyed by `normaliseRaceType` output.
+ *
+ * Covers every value of the plan tool's closed 13-value raceType enum that
+ * names a sport (all but `general_fitness`, which names none), plus a
+ * conservative set of additional real-world spellings seen in free text.
+ * Nothing containing "swim" is in here as a Run or Bike entry — Swim is not
+ * a plan sport, and the whole point of this table is to stop guessing one
+ * for it.
+ */
+const RACE_TYPE_SPORT: Record<string, PlanSport> = {
+  // --- closed enum: Run ---
+  marathon: "Run",
+  halfmarathon: "Run",
+  "10k": "Run",
+  "5k": "Run",
+  ultra: "Run",
+  // --- closed enum: Triathlon ---
+  ironman: "Triathlon",
+  "70.3": "Triathlon",
+  olympictri: "Triathlon",
+  sprinttri: "Triathlon",
+  // --- closed enum: Bike ---
+  granfondo: "Bike",
+  century: "Bike",
+  crit: "Bike",
+
+  // --- additional real spellings, conservative ---
+  criterium: "Bike",
+  ultramarathon: "Run",
+  halfironman: "Triathlon",
+  triathlon: "Triathlon",
+  parkrun: "Run",
+};
+
+/**
  * The sport a race type implies, or null when it implies none.
  *
- * Matching on a lower-cased string, because `races.race_type` is free text
- * ("GranFondo") while the plan tool's is a closed enum ("gran_fondo") — the
- * same value reaches this function spelled both ways. `_` and `-` are
- * normalised to spaces first, so a needle can be matched as a whole word
- * regardless of which separator the caller used: `\b` does NOT fire between
- * `_` and a letter (`_` counts as a word character), so "olympic_tri" would
- * silently stop matching the moment the "tri" needle switched to
- * word-boundary form without this normalisation step.
+ * This is an exact lookup against `RACE_TYPE_SPORT`, not inference: the
+ * input is normalised with `normaliseRaceType` and looked up directly. A
+ * miss returns null. There is no substring or regex matching left, on
+ * purpose — three separate review rounds each found a race type that a
+ * heuristic matcher placed confidently and wrongly:
  *
- * Short, collision-prone needles (`tri`, `run`, `crit`, `half`, `ultra`) are
- * matched at word boundaries, not as bare substrings — a bare
- * `.includes("tri")` reads "time trial" (a cycling format) as a triathlon
- * because "tri" sits inside "trial". "time trial" is genuinely ambiguous
- * (running time trials exist too), so it correctly falls through to null:
- * refusing beats guessing.
+ *   - "time trial" matched inside " tri" and returned Triathlon.
+ *   - "bikepacking", "running" and "ultratrail" tripped word-boundary
+ *     anchors added to fix the above, and returned null.
+ *   - "10k open water swim" matched the "10k" needle and returned Run —
+ *     while Swim is deliberately not a plan sport, and "10k marathon swim"
+ *     is a real Olympic event. Each fix moved the collision; none removed
+ *     it.
  *
- * Only `tri` gets a FULL word boundary (`/\btri\b/`). It is the only one of
- * these needles whose real-world collision *appends* letters onto the
- * needle ("trial" = "tri" + "al"), so it is the only one a trailing anchor
- * protects. `run`, `crit`, `half` and `ultra` get a LEADING boundary only
- * (`/\brun/`, `/\bcrit/`, `/\bhalf/`, `/\bultra/`) — no trailing `\b` —
- * because compound race names routinely *append* letters onto them
- * legitimately ("running", "criterium", "ultratrail") and a trailing anchor
- * would silently stop matching every one of those. `run` still needs its
- * leading anchor: without it, `.includes("run")` would also match inside
- * "swimrun", which names no plan sport this app builds and must return
- * null rather than being read as a running race — "swimrun" has no
- * boundary before "run" either (fused, no separator), so the leading
- * anchor excludes it while still matching "running" and "trail running"
- * (both have "run" at the start of a word).
- *
- * `bike` is deliberately NOT anchored at all, even though it is short. A
- * leading-only boundary (the pattern above) requires the boundary to sit
- * immediately before "bike", which holds for "bikepacking" (bike starts
- * the word) but NOT for "mountainbike" (bike ends a fused word with no
- * separator before it — "n" and "b" are both word characters, so `\b`
- * does not fire there). Anchoring `bike` on either side breaks one of
- * these two real compounds; anchoring on neither breaks neither, and
- * nothing in this codebase's vocabulary contains "bike" as an unwanted
- * substring, so plain substring matching is the correct — not merely
- * convenient — choice here, same as the long needles below.
- *
- * Long, distinctive needles (`triathlon`, `ironman`, `70.3`, `fondo`,
- * `century`, `cycling`, `marathon`) also keep plain substring matching;
- * they are not short enough to collide with anything.
- *
- * Triathlon is tested FIRST: "half ironman" contains "half", which the
- * running branch would match on its own — testing running first would
- * misread a half-iron triathlon as a running race. Testing triathlon first
- * catches "ironman" before the running branch ever sees the string.
- *
- * `general_fitness` deliberately returns null — it names no sport, and
- * inventing one is exactly what this release removes.
+ * A lookup table cannot have that failure mode: it either contains the
+ * normalised string or it does not. The plan tool's raceType is a closed
+ * 13-value enum at the tool boundary, and this table contains every value
+ * of it that names a sport, so that caller always gets a real answer. Free
+ * text (the race form's pre-fill) is best-effort by design — an
+ * unrecognised spelling returns null, which there means "leave the
+ * dropdown alone", a safe outcome because the athlete sees and can correct
+ * it.
  */
 export function inferPlanSport(raceType: string): PlanSport | null {
-  const rt = raceType.toLowerCase().replace(/[_-]+/g, " ");
-  if (
-    rt.includes("triathlon") ||
-    rt.includes("ironman") ||
-    rt.includes("70.3") ||
-    /\btri\b/.test(rt)
-  ) {
-    return "Triathlon";
-  }
-  if (
-    rt.includes("fondo") ||
-    rt.includes("century") ||
-    rt.includes("cycling") ||
-    rt.includes("bike") ||
-    /\bcrit/.test(rt)
-  ) {
-    return "Bike";
-  }
-  if (
-    rt.includes("marathon") ||
-    rt.includes("10k") ||
-    rt.includes("5k") ||
-    // "parkrun" is a common race name in its own right and does not
-    // contain "run" as a separate word, so it needs its own needle
-    // alongside the word-boundary form below.
-    rt.includes("parkrun") ||
-    /\bhalf/.test(rt) ||
-    /\bultra/.test(rt) ||
-    // Leading word-boundary, not a bare substring: `.includes("run")` also
-    // matches inside "swimrun", which names no plan sport this app builds
-    // and must return null rather than being read as a running race. No
-    // trailing boundary, so "running" and "trail running" still match.
-    /\brun/.test(rt)
-  ) {
-    return "Run";
-  }
-  return null;
+  const key = normaliseRaceType(raceType);
+  return RACE_TYPE_SPORT[key] ?? null;
 }
 
 /**
