@@ -47,6 +47,7 @@ import { rememberFact } from "./remember";
 import { forgetFact } from "./forget";
 import { renderChart } from "./render-chart";
 import { generateTrainingPlanTool } from "./generate-training-plan";
+import { confirmTrainingPlanTool } from "./confirm-training-plan";
 import { getTrainingPlanTool } from "./get-training-plan";
 import { updateTrainingPlanTool } from "./update-training-plan";
 import { describeStravaActivityTool } from "./describe-strava-activity";
@@ -86,7 +87,7 @@ import { deleteRaceTool } from "./delete-race";
 import { simulatePlanChangeTool } from "./simulate-plan-change";
 import { recallHistoryTool } from "./recall-history";
 
-/** All registered tools (56 — docs/PLAN.md MCP design + v0.4a memory + v0.4c depth + v0.5a artifacts + v0.5c calendar + v0.5d training plans + v0.6 strava describe + v0.9.2 living week + v0.9.6 absorbed icu_* tools + v0.9.6 workout-syntax reference tool + v0.13 get_biomarkers + v0.14 races/what-if + v0.15 recall + v0.20 standard week / clear override). */
+/** All registered tools (57 — docs/PLAN.md MCP design + v0.4a memory + v0.4c depth + v0.5a artifacts + v0.5c calendar + v0.5d training plans + v0.6 strava describe + v0.9.2 living week + v0.9.6 absorbed icu_* tools + v0.9.6 workout-syntax reference tool + v0.13 get_biomarkers + v0.14 races/what-if + v0.15 recall + v0.20 standard week / clear override + v0.43 confirm_training_plan). */
 export const allTools: ToolDefinition[] = [
   getReadiness,
   getReadinessHistory,
@@ -106,6 +107,7 @@ export const allTools: ToolDefinition[] = [
   forgetFact,
   renderChart,
   generateTrainingPlanTool,
+  confirmTrainingPlanTool,
   getTrainingPlanTool,
   updateTrainingPlanTool,
   describeStravaActivityTool,
