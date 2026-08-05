@@ -2,6 +2,7 @@ import type { Database } from "@/lib/db";
 import { schema } from "@/lib/db";
 import { EXPORT_VERSION, type UserExport } from "./export-user";
 import type { Carried } from "./carried";
+import { inferPlanSport, requirePlanSport, toPlanSport } from "@/lib/plan-sport";
 
 // `UserExport`'s timestamp fields are typed as `Date` (they come straight
 // off exportUserData's drizzle `$inferSelect` reads), but the real caller
@@ -465,7 +466,15 @@ export async function importUserData(
         userId: targetUserId,
         name: r.name,
         raceType: r.raceType,
-        sport: r.sport,
+        // An export taken before v0.42 carries no sport, and the column is
+        // now NOT NULL. This is the one place "refuse loudly" would break a
+        // legitimate restore of the athlete's own data, so infer instead —
+        // and fall back to the race type when the stored value is a provider
+        // word rather than a plan sport.
+        sport:
+          toPlanSport(r.sport) ??
+          inferPlanSport(r.raceType) ??
+          requirePlanSport(r.sport),
         date: r.date,
         priority: r.priority,
         status: r.status,

@@ -797,7 +797,7 @@ export const races = pgTable(
       .references(() => users.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     raceType: text("race_type").notNull(),
-    sport: text("sport"),
+    sport: text("sport", { enum: ["Bike", "Run", "Triathlon"] }).notNull(),
     date: date("date").notNull(),
     priority: text("priority", { enum: ["A", "B", "C"] }).notNull(),
     status: text("status", { enum: ["upcoming", "completed", "skipped"] })
