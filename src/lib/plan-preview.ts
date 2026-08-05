@@ -10,8 +10,9 @@
  * Pure — no I/O, no clock.
  */
 
-import type { Verdict } from "@/lib/race/feasibility";
+import type { Verdict, Feasibility } from "@/lib/race/feasibility";
 import type { VolumeResult } from "@/lib/week-plan/volume";
+import type { PlanSport } from "@/lib/plan-sport";
 
 export type PlanPhase = "base" | "build" | "peak" | "taper" | "recovery";
 
@@ -126,4 +127,59 @@ export const WARNING_TEXT: Record<PreviewWarning, string> = {
     "You have no standard week yet; confirming will create one from the hours above.",
   short_horizon:
     "There are fewer than four weeks until race day, so this is a shortened plan rather than a full progression.",
+};
+
+// ── v0.43: the preview itself ──────────────────────────────────────────────
+
+export interface PreviewWeek {
+  weekNumber: number;
+  phase: PlanPhase;
+  targetLoad: number;
+  targetHours: number;
+  raceName: string | null;
+}
+
+export interface PlanPreview {
+  /** The draft row. Confirming this id is what activates the plan. */
+  planId: string;
+  sport: PlanSport;
+  race: {
+    /** null = confirming will create it. */
+    id: string | null;
+    name: string;
+    date: string;
+    priority: "A" | "B" | "C";
+  };
+  startDate: string;
+  weeksTotal: number;
+  phases: PhaseRow[];
+  weeks: PreviewWeek[];
+  /** "default" means no CTL was found and 30 was assumed — indistinguishable
+   *  from a real CTL of 30 in the stored row, so it is carried here. */
+  startingCtl: { value: number; source: "wellness" | "default" };
+  feasibility: Feasibility | null;
+  volume: {
+    source: VolumeResult["source"];
+    shortfall: VolumeResult["shortfall"];
+  };
+  warnings: PreviewWarning[];
+}
+
+export type PreviewResult =
+  | { ok: true; preview: PlanPreview }
+  | {
+      ok: false;
+      reason: "unknown_sport" | "race_not_found" | "horizon_too_long";
+    };
+
+/** One sentence per refusal, naming the input at fault and its fix. */
+export const REFUSAL_TEXT: Record<
+  Extract<PreviewResult, { ok: false }>["reason"],
+  string
+> = {
+  unknown_sport:
+    "That race type does not name a sport, so there is nothing to build. Pick a race from your calendar, or use a race type this app plans for.",
+  race_not_found: "That race is not on your calendar any more.",
+  horizon_too_long:
+    "Race day is more than 52 weeks away — check the date, or plan a nearer event first.",
 };
