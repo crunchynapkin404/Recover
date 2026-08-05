@@ -211,9 +211,8 @@ describe.skipIf(!hasDb)("post-race debrief", () => {
 
   it("matches a Ride activity to a Bike race — F12", async () => {
     const { canonicalSport } = await import("@/lib/canonical-sport");
-    const { disciplinesOf, requirePlanSport } = await import(
-      "@/lib/plan-sport"
-    );
+    const { disciplinesOf, requirePlanSport } =
+      await import("@/lib/plan-sport");
     // The comparison the debrief now makes. Before v0.42 it compared the
     // planner word to the provider word and was false for every cyclist.
     const disciplines = disciplinesOf(

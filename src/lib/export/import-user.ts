@@ -2,7 +2,11 @@ import type { Database } from "@/lib/db";
 import { schema } from "@/lib/db";
 import { EXPORT_VERSION, type UserExport } from "./export-user";
 import type { Carried } from "./carried";
-import { inferPlanSport, requirePlanSport, toPlanSport } from "@/lib/plan-sport";
+import {
+  inferPlanSport,
+  requirePlanSport,
+  toPlanSport,
+} from "@/lib/plan-sport";
 
 // `UserExport`'s timestamp fields are typed as `Date` (they come straight
 // off exportUserData's drizzle `$inferSelect` reads), but the real caller

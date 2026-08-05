@@ -11,10 +11,21 @@ import { inferPlanSport, type PlanSport } from "@/lib/plan-sport";
 const SQL = readFileSync("drizzle/0038_race_sport.sql", "utf8");
 
 const RACE_TYPES = [
-  "marathon", "half_marathon", "10k", "5k", "ultra",
-  "ironman", "70.3", "olympic_tri", "sprint_tri",
-  "gran_fondo", "century", "crit",
-  "GranFondo", "gran fondo", "Half Marathon",
+  "marathon",
+  "half_marathon",
+  "10k",
+  "5k",
+  "ultra",
+  "ironman",
+  "70.3",
+  "olympic_tri",
+  "sprint_tri",
+  "gran_fondo",
+  "century",
+  "crit",
+  "GranFondo",
+  "gran fondo",
+  "Half Marathon",
 ];
 
 /**
@@ -75,9 +86,23 @@ describe("0038_race_sport", () => {
     // Guards the mirror itself: a key added to the SQL but not to
     // sqlWouldAssign would make the agreement test vacuous.
     for (const key of [
-      "marathon", "halfmarathon", "10k", "5k", "ultra", "ultramarathon",
-      "parkrun", "ironman", "70.3", "olympictri", "sprinttri", "halfironman",
-      "triathlon", "granfondo", "century", "crit", "criterium",
+      "marathon",
+      "halfmarathon",
+      "10k",
+      "5k",
+      "ultra",
+      "ultramarathon",
+      "parkrun",
+      "ironman",
+      "70.3",
+      "olympictri",
+      "sprinttri",
+      "halfironman",
+      "triathlon",
+      "granfondo",
+      "century",
+      "crit",
+      "criterium",
     ]) {
       expect(SQL).toContain(`'${key}'`);
     }
@@ -92,7 +117,10 @@ describe("0038_race_sport", () => {
 
   it("refuses a race type nobody enumerated", () => {
     for (const unknown of [
-      "time trial", "10k open water swim", "general_fitness", "swimrun",
+      "time trial",
+      "10k open water swim",
+      "general_fitness",
+      "swimrun",
     ]) {
       expect(sqlWouldAssign(unknown)).toBeNull();
       expect(inferPlanSport(unknown)).toBeNull();

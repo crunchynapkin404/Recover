@@ -203,8 +203,9 @@ export async function runRaceDebriefs(
     const match =
       candidates.find(
         (a) =>
-          (disciplines as readonly string[]).includes(canonicalSport(a.sport)) &&
-          !claimedIds.has(a.id)
+          (disciplines as readonly string[]).includes(
+            canonicalSport(a.sport)
+          ) && !claimedIds.has(a.id)
       ) ?? null;
 
     if (!match) {

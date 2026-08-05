@@ -8,7 +8,11 @@ import { db, schema } from "@/lib/db";
 import { createRace } from "@/lib/race/service";
 import type { Purpose } from "@/lib/availability/types";
 import { PURPOSE_FLOORS } from "@/lib/availability/types";
-import { requirePlanSport, inferPlanSport, type PlanSport } from "@/lib/plan-sport";
+import {
+  requirePlanSport,
+  inferPlanSport,
+  type PlanSport,
+} from "@/lib/plan-sport";
 
 // ── Types ───────────────────────────────────────────────────────────────────
 

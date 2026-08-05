@@ -267,14 +267,7 @@ describe("generateCyclingWorkouts distributes the target", () => {
 
 describe("periodize passes event demand to the cycling generator", () => {
   it("bounds the long ride by the event's hardest day", () => {
-    const withDemand = periodize(
-      9,
-      76.7,
-      4,
-      12.5,
-      "Bike",
-      4.897963084361944
-    );
+    const withDemand = periodize(9, 76.7, 4, 12.5, "Bike", 4.897963084361944);
     const withoutDemand = periodize(9, 76.7, 4, 12.5, "Bike");
 
     const longOf = (blocks: ReturnType<typeof periodize>) =>
