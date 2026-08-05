@@ -201,3 +201,25 @@ actuals that silently read zero (F2).
 v0.42 can ship: the open week closes at zero and cuts week 2 to 378 regardless
 of what lands afterwards. The data repair — book the lost ride, regenerate the
 plan as cycling — is independent of the release work and should happen first.
+
+---
+
+## F12 — added 2026-08-05, found during pre-flight review of the v0.42 plan
+
+`race/debrief.ts:180,204` and `debrief/ride-review.ts:150` both compare the
+**planner's** vocabulary against a **raw provider** sport:
+
+```ts
+inferSports(race.raceType).includes(a.sport); // ["Bike"].includes("Ride")
+```
+
+That is false for every cyclist who has ever used this app. Consequences: a
+race debrief never finds the athlete's own race activity and posts its
+no-data path instead, and `ride-review`'s race-day skip guard never fires, so
+a race ride gets an ordinary auto-review rather than being left for the
+debrief.
+
+The fourth instance of the v0.27.0 vocabulary defect, in a path that release
+did not touch. Folded into **v0.42** rather than given its own release,
+because v0.42 deletes `inferSports` and these are its only other callers —
+the fix is compelled by the refactor, not optional alongside it.
