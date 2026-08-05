@@ -9,6 +9,12 @@ import {
   updateRaceDemand,
 } from "@/app/plan/actions";
 import type { RacePriority, RaceStatus } from "@/lib/race/service";
+import {
+  PLAN_SPORTS,
+  SPORT_LABEL,
+  inferPlanSport,
+  type PlanSport,
+} from "@/lib/plan-sport";
 
 export interface RaceStageItem {
   dayNumber: number;
@@ -24,6 +30,7 @@ export interface RaceListItem {
   priority: RacePriority;
   status: RaceStatus;
   goalNote: string | null;
+  sport: PlanSport;
   /** Days the event runs over. 1 = a normal single-day race. */
   eventDays: number;
   /** TOTAL distance across all days, km. null = demand not computable. */
@@ -75,6 +82,46 @@ function demandSummary(race: RaceListItem): string {
   if (race.elevationM != null) parts.push(`${Math.round(race.elevationM)}m`);
   if (race.stages.length > 0) parts.push("per-day detail");
   return parts.length > 0 ? parts.join(" · ") : "No distance/elevation set";
+}
+
+/**
+ * Sport select, shared by the add form and the per-race edit form so the
+ * two can never drift on the set of choices or their labels. `required`
+ * plus a controlled value means there is no empty/unselected state to
+ * account for downstream.
+ */
+function SportSelect({
+  id,
+  ariaLabel,
+  value,
+  onChange,
+}: {
+  id: string;
+  ariaLabel: string;
+  value: PlanSport;
+  onChange: (s: PlanSport) => void;
+}) {
+  return (
+    <>
+      <label className="label-micro" htmlFor={id}>
+        Sport
+      </label>
+      <select
+        id={id}
+        aria-label={ariaLabel}
+        required
+        value={value}
+        onChange={(e) => onChange(e.target.value as PlanSport)}
+        className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-white/30 focus:outline-none"
+      >
+        {PLAN_SPORTS.map((s) => (
+          <option key={s} value={s}>
+            {SPORT_LABEL[s]}
+          </option>
+        ))}
+      </select>
+    </>
+  );
 }
 
 /**
@@ -211,6 +258,7 @@ function RaceDemandEditor({
 }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [sport, setSport] = useState<PlanSport>(race.sport);
   const [eventDays, setEventDays] = useState(race.eventDays);
   const [distanceKm, setDistanceKm] = useState<number | null>(race.distanceKm);
   const [elevationM, setElevationM] = useState<number | null>(race.elevationM);
@@ -263,6 +311,7 @@ function RaceDemandEditor({
     startTransition(async () => {
       try {
         const result = await updateRaceDemand(race.id, {
+          sport,
           eventDays,
           distanceKm,
           elevationM,
@@ -289,6 +338,13 @@ function RaceDemandEditor({
       aria-label={`Demand form for ${race.name}`}
       className="space-y-3 border-t border-white/5 bg-white/[0.02] px-5 py-4"
     >
+      <SportSelect
+        id={`edit-${race.id}-sport`}
+        ariaLabel={`Sport for ${race.name}`}
+        value={sport}
+        onChange={setSport}
+      />
+
       <DemandFields
         idPrefix={`edit-${race.id}-`}
         ariaPrefix={`Edit ${race.name}: `}
@@ -358,6 +414,17 @@ export function RacesSection({ races, hideHeading = false }: Props) {
     { distanceKm: number | null; elevationM: number | null }[]
   >([]);
 
+  const [sport, setSport] = useState<PlanSport>("Bike");
+  // Pre-fill from what the athlete typed, but never overrule a deliberate
+  // choice: the inference only moves the select while it still holds the
+  // value the previous inference put there.
+  const [sportTouched, setSportTouched] = useState(false);
+  function handleRaceTypeChange(raceType: string) {
+    if (sportTouched) return;
+    const inferred = inferPlanSport(raceType);
+    if (inferred) setSport(inferred);
+  }
+
   function setStageField(
     index: number,
     field: "distanceKm" | "elevationM",
@@ -397,6 +464,8 @@ export function RacesSection({ races, hideHeading = false }: Props) {
     setDistanceKm(null);
     setElevationM(null);
     setStages([]);
+    setSport("Bike");
+    setSportTouched(false);
   }
 
   function handleAdd(e: React.FormEvent<HTMLFormElement>) {
@@ -417,6 +486,7 @@ export function RacesSection({ races, hideHeading = false }: Props) {
           raceType,
           date,
           priority,
+          sport,
           goalNote: goalNote.length > 0 ? goalNote : undefined,
           eventDays,
           distanceKm,
@@ -561,6 +631,7 @@ export function RacesSection({ races, hideHeading = false }: Props) {
               name="raceType"
               required
               placeholder="Type (e.g. marathon)"
+              onChange={(e) => handleRaceTypeChange(e.target.value)}
               className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-white/30 focus:outline-none"
             />
             <select
@@ -580,6 +651,16 @@ export function RacesSection({ races, hideHeading = false }: Props) {
             type="date"
             required
             className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-white/30 focus:outline-none"
+          />
+
+          <SportSelect
+            id="race-sport"
+            ariaLabel="Sport"
+            value={sport}
+            onChange={(s) => {
+              setSport(s);
+              setSportTouched(true);
+            }}
           />
 
           <DemandFields

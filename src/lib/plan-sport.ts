@@ -90,6 +90,8 @@ const RACE_TYPE_SPORT: Record<string, PlanSport> = {
   "70.3": "Triathlon",
   olympictri: "Triathlon",
   sprinttri: "Triathlon",
+  olympictriathlon: "Triathlon",
+  sprinttriathlon: "Triathlon",
   // --- closed enum: Bike ---
   granfondo: "Bike",
   century: "Bike",

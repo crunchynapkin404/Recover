@@ -95,6 +95,16 @@ describe("inferPlanSport", () => {
     expect(inferPlanSport("Tennis")).toBeNull();
   });
 
+  // v0.42 Task 5 gap: "Olympic Triathlon" normalises to "olympictriathlon",
+  // which the table didn't hold (only the enum's "olympictri" did) — so a
+  // natural spelling of a supported race type returned null and plan
+  // creation threw. Same story for "Sprint Triathlon".
+  it("places the natural 'Olympic/Sprint Triathlon' spelling, not just the enum's abbreviation", () => {
+    expect(inferPlanSport("Olympic Triathlon")).toBe("Triathlon");
+    expect(inferPlanSport("olympic triathlon")).toBe("Triathlon");
+    expect(inferPlanSport("Sprint Triathlon")).toBe("Triathlon");
+  });
+
   describe("the three historical defects, as regression tests", () => {
     it('does not read "tri" inside "trial" as a triathlon (round 1)', () => {
       expect(inferPlanSport("time trial")).toBeNull();

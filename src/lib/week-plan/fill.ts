@@ -73,11 +73,11 @@ export function plannedMins(days: DaySlot[]): number {
  * The sport a new session should be in: the one holding the most endurance
  * minutes this week, among sports fill can actually bound.
  *
- * `inferSports` returns an unranked array — three entries for a triathlon —
- * so "the plan's primary sport" is not a well-defined thing to reach for.
- * The week itself is the evidence. When it holds no bounded endurance
- * session at all there is no evidence, and fill adds nothing rather than
- * guessing.
+ * A race's `PlanSport` doesn't settle this either: `disciplinesOf("Triathlon")`
+ * (plan-sport.ts) returns three disciplines, unranked, so "the plan's
+ * primary sport" is not a well-defined thing to reach for. The week itself
+ * is the evidence. When it holds no bounded endurance session at all there
+ * is no evidence, and fill adds nothing rather than guessing.
  *
  * Ties break toward the first sport encountered in day order, which is
  * deterministic for a given week.

@@ -93,6 +93,7 @@ describe.skipIf(!hasDb)("plan race actions", () => {
       raceType: "5k",
       date: ymd(-2),
       priority: "C",
+      sport: "Run",
       eventDays: 1,
       distanceKm: null,
       elevationM: null,
@@ -121,6 +122,7 @@ describe.skipIf(!hasDb)("plan race actions", () => {
       raceType: "cycling",
       date,
       priority: "A",
+      sport: "Bike",
       eventDays: 3,
       distanceKm: 300.5,
       elevationM: 4500.6,
@@ -165,6 +167,7 @@ describe.skipIf(!hasDb)("plan race actions", () => {
       raceType: "cycling",
       date,
       priority: "B",
+      sport: "Bike",
       eventDays: 3,
       distanceKm: 300,
       elevationM: 3000,
@@ -182,6 +185,7 @@ describe.skipIf(!hasDb)("plan race actions", () => {
       raceType: "cycling",
       date,
       priority: "B",
+      sport: "Bike",
       eventDays: 2,
       distanceKm: 200,
       elevationM: 2000,
@@ -302,6 +306,7 @@ describe.skipIf(!hasDb)("plan race actions", () => {
         raceType: "cycling",
         date,
         priority: "C",
+        sport: "Bike",
         eventDays: c.eventDays,
         distanceKm: c.distanceKm,
         elevationM: c.elevationM,
@@ -335,6 +340,7 @@ describe.skipIf(!hasDb)("plan race actions", () => {
         raceType: "cycling",
         date,
         priority: "B",
+        sport: "Bike",
         eventDays: 1,
         distanceKm: 100,
         // The exact defect Finding I6 exists to fix: a 20,000m typo for
@@ -387,6 +393,7 @@ describe.skipIf(!hasDb)("plan race actions", () => {
         raceType: "cycling",
         date,
         priority: "C",
+        sport: "Bike",
         eventDays: 1,
         distanceKm: 50,
         elevationM: 500,
@@ -517,6 +524,41 @@ describe.skipIf(!hasDb)("plan race actions", () => {
         (await db.query.races.findFirst({ where: eq(schema.races.id, raceId) }))
           ?.goalNote
       ).toBeNull();
+    });
+
+    it("updateRaceDemand changes the sport, and omitting it leaves it alone", async () => {
+      const { db, schema } = await import("@/lib/db");
+      const { updateRaceDemand } = await import("@/app/plan/actions");
+      const { createRace } = await import("@/lib/race/service");
+
+      const created = await createRace(USER, {
+        name: "Sport Edit Race",
+        raceType: "gran fondo",
+        date: ymd(55),
+        priority: "A",
+        sport: "Bike",
+      });
+      const raceId = (created as { race: { id: string } }).race.id;
+      const demand = {
+        eventDays: 1,
+        distanceKm: 100,
+        elevationM: 1000,
+        stages: [],
+      };
+
+      expect(
+        await updateRaceDemand(raceId, { ...demand, sport: "Triathlon" })
+      ).toEqual({ ok: true });
+      expect(
+        (await db.query.races.findFirst({ where: eq(schema.races.id, raceId) }))
+          ?.sport
+      ).toBe("Triathlon");
+
+      expect(await updateRaceDemand(raceId, demand)).toEqual({ ok: true });
+      expect(
+        (await db.query.races.findFirst({ where: eq(schema.races.id, raceId) }))
+          ?.sport
+      ).toBe("Triathlon");
     });
   });
 });

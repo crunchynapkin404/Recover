@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
 import { requireUser } from "@/lib/session";
 import { db, schema } from "@/lib/db";
+import type { PlanSport } from "@/lib/plan-sport";
 import {
   applyAvailability,
   applyResolvedAvailability,
@@ -333,7 +334,7 @@ function validateDemandInput(input: DemandInput): string | null {
  */
 async function writeRaceDemand(
   raceId: string,
-  input: DemandInput & { goalNote?: string | null }
+  input: DemandInput & { goalNote?: string | null; sport?: PlanSport }
 ): Promise<void> {
   await db.transaction(async (tx) => {
     await tx
@@ -348,6 +349,8 @@ async function writeRaceDemand(
         // by a caller other than our own form, one that may not send a goal
         // field at all; a demand-only correction must not erase one.
         ...(input.goalNote !== undefined ? { goalNote: input.goalNote } : {}),
+        // Same contract as goalNote: omitted means unchanged.
+        ...(input.sport !== undefined ? { sport: input.sport } : {}),
         updatedAt: new Date(),
       })
       .where(eq(schema.races.id, raceId));
@@ -377,6 +380,7 @@ export async function addRace(input: {
   raceType: string;
   date: string;
   priority: "A" | "B" | "C";
+  sport: PlanSport;
   goalNote?: string;
   eventDays: number;
   distanceKm: number | null;
@@ -396,6 +400,7 @@ export async function addRace(input: {
     raceType: input.raceType,
     date: input.date,
     priority: input.priority,
+    sport: input.sport,
     goalNote: input.goalNote ?? null,
   });
   if ("error" in result) return { ok: false, error: result.error };
@@ -429,6 +434,8 @@ export async function updateRaceDemand(
     }[];
     /** Omit to leave the stored goal alone; null or blank clears it. */
     goalNote?: string | null;
+    /** Omit to leave the stored sport alone — same contract as goalNote. */
+    sport?: PlanSport;
   }
 ): Promise<Result> {
   const user = await requireUser();

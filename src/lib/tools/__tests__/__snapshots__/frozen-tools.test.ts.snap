@@ -1968,6 +1968,12 @@ exports[`MCP tool surface is frozen (names + scopes + schemas) 1`] = `
           "type": "string",
         },
         "sport": {
+          "description": "Required when creating a race; omit on update to leave it unchanged. Decides what the training plan builds.",
+          "enum": [
+            "Bike",
+            "Run",
+            "Triathlon",
+          ],
           "type": "string",
         },
         "status": {
