@@ -204,4 +204,19 @@ describe.skipIf(!hasDb)("post-race debrief", () => {
     expect(updated?.status).toBe("completed");
     expect(updated?.resultActivityId).toBeTruthy();
   });
+
+  it("matches a Ride activity to a Bike race — F12", async () => {
+    const { canonicalSport } = await import("@/lib/canonical-sport");
+    const { disciplinesOf, requirePlanSport } = await import(
+      "@/lib/plan-sport"
+    );
+    // The comparison the debrief now makes. Before v0.42 it compared the
+    // planner word to the provider word and was false for every cyclist.
+    const disciplines = disciplinesOf(
+      requirePlanSport("Bike")
+    ) as readonly string[];
+    expect(disciplines.includes(canonicalSport("Ride"))).toBe(true);
+    expect(disciplines.includes(canonicalSport("VirtualRide"))).toBe(true);
+    expect(disciplines.includes(canonicalSport("Run"))).toBe(false);
+  });
 });

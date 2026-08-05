@@ -18,7 +18,8 @@ import { buildSystemPrompt, languageDirective } from "@/lib/coach-persona";
 import { fetchAthleteContext } from "@/lib/coach-context";
 import { buildAiSdkTools } from "@/lib/tools/registry";
 import { recordLlmUsage } from "@/lib/llm-usage";
-import { inferSports } from "@/lib/training-plan";
+import { canonicalSport } from "@/lib/canonical-sport";
+import { disciplinesOf, requirePlanSport } from "@/lib/plan-sport";
 import { describeActivityOnStravaForUser } from "@/lib/strava-describer";
 
 /**
@@ -147,7 +148,12 @@ export async function generateRideReview(
       eq(schema.races.date, activityYmd)
     ),
   });
-  if (raceMatch && inferSports(raceMatch.raceType).includes(a.sport))
+  if (
+    raceMatch &&
+    (
+      disciplinesOf(requirePlanSport(raceMatch.sport)) as readonly string[]
+    ).includes(canonicalSport(a.sport))
+  )
     return "skipped";
 
   const thread = await findOrCreateDebriefThread(a);
