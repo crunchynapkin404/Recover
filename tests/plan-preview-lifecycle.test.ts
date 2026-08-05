@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeAll, afterAll } from "vitest";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { eventDemand } from "@/lib/race/demand";
 
@@ -377,5 +377,225 @@ describe.skipIf(!hasDb)("previewTrainingPlan (v0.43)", () => {
     expect(result.preview.race.id).toBe(race.id);
     expect(result.preview.race.name).toBe("Race-Driven Plan Race");
     expect(result.preview.warnings).not.toContain("race_created");
+  });
+});
+
+describe.skipIf(!hasDb)("confirmTrainingPlan (v0.43)", () => {
+  let db: typeof import("@/lib/db").db;
+  let schema: typeof import("@/lib/db").schema;
+  let previewTrainingPlan: typeof import("@/lib/training-plan").previewTrainingPlan;
+  let confirmTrainingPlan: typeof import("@/lib/training-plan").confirmTrainingPlan;
+  let getActivePlan: typeof import("@/lib/active-plan").getActivePlan;
+  const userId = `confirm-${Date.now()}`;
+
+  function raceDate(): string {
+    const d = new Date();
+    d.setDate(d.getDate() + 20 * 7);
+    return d.toISOString().slice(0, 10);
+  }
+
+  beforeAll(async () => {
+    ({ db, schema } = await import("@/lib/db"));
+    ({ previewTrainingPlan, confirmTrainingPlan } =
+      await import("@/lib/training-plan"));
+    ({ getActivePlan } = await import("@/lib/active-plan"));
+    await db.insert(schema.users).values({
+      id: userId,
+      name: "Confirm Test",
+      email: `${userId}@example.invalid`,
+    });
+  });
+
+  afterAll(async () => {
+    await db.delete(schema.users).where(eq(schema.users.id, userId));
+  });
+
+  it("archives the old plan and activates the draft", async () => {
+    const [old] = await db
+      .insert(schema.trainingPlans)
+      .values({
+        userId,
+        title: "old",
+        raceType: "gran_fondo",
+        raceDate: raceDate(),
+        startDate: "2026-08-05",
+        weeksTotal: 12,
+        status: "active",
+      })
+      .returning();
+
+    const preview = await previewTrainingPlan({
+      userId,
+      raceType: "gran_fondo",
+      raceDate: raceDate(),
+    });
+    expect(preview.ok).toBe(true);
+    if (!preview.ok) return;
+
+    const confirmed = await confirmTrainingPlan(userId, preview.preview.planId);
+    expect(confirmed).toEqual({ ok: true, planId: preview.preview.planId });
+
+    const oldAfter = await db.query.trainingPlans.findFirst({
+      where: eq(schema.trainingPlans.id, old.id),
+    });
+    expect(oldAfter?.status).toBe("archived");
+
+    const active = await getActivePlan(userId);
+    expect(active?.id).toBe(preview.preview.planId);
+  });
+
+  it("refuses a plan that is not this athlete's draft", async () => {
+    const active = await getActivePlan(userId);
+    expect(active).not.toBeNull();
+    // Already active, so no longer confirmable.
+    expect(await confirmTrainingPlan(userId, active!.id)).toEqual({
+      ok: false,
+      reason: "not_found",
+    });
+  });
+
+  it("creates the race the preview promised", async () => {
+    // A title distinct from the earlier test's: previewTrainingPlan defaults
+    // the title to `${raceType} training plan` and raceDate() is the same
+    // calendar day for every test in this file, so without this the race
+    // this test's own confirm creates would collide with the one "archives
+    // the old plan and activates the draft" already left behind for this
+    // same user on `races_user_date_name_uq` (user_id, date, name) — a
+    // fixture collision, not anything confirmTrainingPlan gets wrong.
+    const preview = await previewTrainingPlan({
+      userId,
+      raceType: "gran_fondo",
+      raceDate: raceDate(),
+      title: "confirm-race-created-check",
+    });
+    if (!preview.ok) throw new Error("preview failed");
+    expect(preview.preview.race.id).toBeNull();
+    expect(preview.preview.warnings).toContain("race_created");
+
+    await confirmTrainingPlan(userId, preview.preview.planId);
+
+    // Scoped by this test's own unique title, not just userId: the earlier
+    // "archives the old plan and activates the draft" test's own confirm
+    // already left one race behind for this same shared user, so a bare
+    // userId filter would count that one too.
+    const races = await db.query.races.findMany({
+      where: and(
+        eq(schema.races.userId, userId),
+        eq(schema.races.name, "confirm-race-created-check")
+      ),
+    });
+    expect(races).toHaveLength(1);
+    expect(races[0].sport).toBe("Bike");
+    expect(races[0].priority).toBe("A");
+
+    const plan = await db.query.trainingPlans.findFirst({
+      where: eq(schema.trainingPlans.id, preview.preview.planId),
+    });
+    expect(plan?.raceId).toBe(races[0].id);
+  });
+
+  it("leaves the previous plan active when the transaction fails", async () => {
+    const [survivor] = await db
+      .insert(schema.trainingPlans)
+      .values({
+        userId,
+        title: "must survive",
+        raceType: "gran_fondo",
+        raceDate: raceDate(),
+        startDate: "2026-08-05",
+        weeksTotal: 12,
+        status: "active",
+      })
+      .returning();
+
+    // Distinct title so this test's own draft race doesn't collide with an
+    // earlier test's leftover race for this user (see the comment on
+    // "creates the race the preview promised") before we get to the
+    // collision this test is actually planting on purpose, below.
+    const preview = await previewTrainingPlan({
+      userId,
+      raceType: "gran_fondo",
+      raceDate: raceDate(),
+      title: "confirm-atomicity-check",
+    });
+    if (!preview.ok) throw new Error("preview failed");
+
+    // Make the race insert fail for real, with no mocking: races carry a
+    // unique index on (user_id, date, name) — `races_user_date_name_uq` in
+    // schema.ts — so planting a race with the draft's own title and date
+    // makes confirmation's insert collide. The archive has already run by
+    // then, so without a transaction `survivor` ends up archived and the
+    // athlete has no active plan: the exact failure this release closes.
+    const draftRow = await db.query.trainingPlans.findFirst({
+      where: eq(schema.trainingPlans.id, preview.preview.planId),
+    });
+    await db.insert(schema.races).values({
+      userId,
+      name: draftRow!.title,
+      raceType: draftRow!.raceType,
+      sport: "Bike",
+      date: draftRow!.raceDate,
+      priority: "B",
+    });
+
+    await expect(
+      confirmTrainingPlan(userId, preview.preview.planId)
+    ).rejects.toThrow();
+
+    const after = await db.query.trainingPlans.findFirst({
+      where: eq(schema.trainingPlans.id, survivor.id),
+    });
+    expect(after?.status).toBe("active");
+
+    const draftAfter = await db.query.trainingPlans.findFirst({
+      where: eq(schema.trainingPlans.id, preview.preview.planId),
+    });
+    expect(draftAfter?.status).toBe("draft");
+  });
+
+  it("does not overwrite an existing standard week", async () => {
+    // onConflictDoUpdate rather than a bare insert: the earlier tests in
+    // this describe block already confirmed drafts for this same user, and
+    // confirmTrainingPlan's own seedAvailabilityDefaults call fills every
+    // weekday with onConflictDoNothing on its first run — so a weekday-0 row
+    // already exists by the time this test runs. Updating it to exactly the
+    // custom blocks this test is about, rather than assuming no row exists
+    // yet, sets up the real scenario this test asserts on (an athlete's own
+    // schedule already sitting there) regardless of that fixture history.
+    await db
+      .insert(schema.availabilityDefaults)
+      .values({
+        userId,
+        weekday: 0,
+        blocks: [{ start: "06:00", end: "07:00", sports: null }],
+      })
+      .onConflictDoUpdate({
+        target: [
+          schema.availabilityDefaults.userId,
+          schema.availabilityDefaults.weekday,
+        ],
+        set: { blocks: [{ start: "06:00", end: "07:00", sports: null }] },
+      });
+
+    // Distinct title, same reason as the earlier tests above: avoids
+    // colliding with a leftover race from this same shared user.
+    const preview = await previewTrainingPlan({
+      userId,
+      raceType: "gran_fondo",
+      raceDate: raceDate(),
+      title: "confirm-avail-check",
+    });
+    if (!preview.ok) throw new Error("preview failed");
+    await confirmTrainingPlan(userId, preview.preview.planId);
+
+    const monday = await db.query.availabilityDefaults.findFirst({
+      where: and(
+        eq(schema.availabilityDefaults.userId, userId),
+        eq(schema.availabilityDefaults.weekday, 0)
+      ),
+    });
+    expect(monday?.blocks).toEqual([
+      { start: "06:00", end: "07:00", sports: null },
+    ]);
   });
 });

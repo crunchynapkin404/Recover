@@ -25,6 +25,16 @@ import {
 import { assembleWeeklyTarget } from "@/lib/week-plan/volume-inputs";
 import { assessFeasibility } from "@/lib/race/feasibility";
 
+/**
+ * The transaction handle `db.transaction()`'s callback receives. `Database`
+ * (the type of `db` itself) is a union of the two *database* wrapper types,
+ * not their transaction counterparts, so a real transaction object does not
+ * satisfy `typeof db` — `seedAvailabilityDefaults`'s `tx` parameter has to
+ * accept both, matching the `Tx` convention already used in
+ * `@/lib/race/debrief.ts`.
+ */
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
 // ── Types ───────────────────────────────────────────────────────────────────
 
 export interface PlannedWorkout {
@@ -718,7 +728,8 @@ function generateTriathlonWorkouts(
 async function seedAvailabilityDefaults(
   userId: string,
   daysPerWeek: number,
-  hoursPerWeek: number
+  hoursPerWeek: number,
+  tx: typeof db | Tx = db
 ): Promise<void> {
   const perDayMins =
     daysPerWeek > 0
@@ -740,7 +751,7 @@ async function seedAvailabilityDefaults(
           ]
         : [],
   }));
-  await db
+  await tx
     .insert(schema.availabilityDefaults)
     .values(rows)
     .onConflictDoNothing({
@@ -950,6 +961,102 @@ export async function previewTrainingPlan(
   };
 
   return { ok: true, preview };
+}
+
+/**
+ * Turn a draft into the athlete's plan.
+ *
+ * Archive and activate happen in ONE transaction. The pre-v0.43 generator
+ * archived first and inserted afterwards, so any error between the two left
+ * the athlete with no active plan at all. That window does not exist here.
+ */
+export async function confirmTrainingPlan(
+  userId: string,
+  planId: string
+): Promise<{ ok: true; planId: string } | { ok: false; reason: "not_found" }> {
+  const draft = await db.query.trainingPlans.findFirst({
+    where: and(
+      eq(schema.trainingPlans.id, planId),
+      eq(schema.trainingPlans.userId, userId),
+      eq(schema.trainingPlans.status, "draft")
+    ),
+  });
+  if (!draft) return { ok: false, reason: "not_found" };
+
+  const constraints = (draft.constraints ?? {}) as {
+    daysPerWeek?: number;
+    hoursPerWeek?: number;
+  };
+
+  const sport = requirePlanSport(
+    (draft.constraints as { sports?: string[] } | null)?.sports?.[0]
+  );
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(schema.trainingPlans)
+      .set({ status: "archived" })
+      .where(
+        and(
+          eq(schema.trainingPlans.userId, userId),
+          eq(schema.trainingPlans.status, "active")
+        )
+      );
+
+    // The race the preview PROMISED to create. previewTrainingPlan writes no
+    // race — that is what makes a draft inert — so a draft carrying no raceId
+    // still needs one here. v0.42 made races.sport the sport authority and the
+    // taper, feasibility and debrief paths all read the race, so activating a
+    // plan without one would ship a plan that half the engine cannot see.
+    // Inlined rather than calling createRace so it joins this transaction; the
+    // date is already known to be in the future, which is createRace's only
+    // extra check.
+    let raceId = draft.raceId;
+    if (!raceId) {
+      const [created] = await tx
+        .insert(schema.races)
+        .values({
+          userId,
+          name: draft.title,
+          raceType: draft.raceType,
+          sport,
+          date: draft.raceDate,
+          priority: "A",
+        })
+        .returning();
+      raceId = created.id;
+    }
+
+    await tx
+      .update(schema.trainingPlans)
+      .set({ status: "active", raceId, updatedAt: new Date() })
+      .where(eq(schema.trainingPlans.id, planId));
+
+    // onConflictDoNothing per weekday already leaves an existing standard
+    // week alone; it moves inside the transaction so it cannot land for a
+    // plan that then fails to activate.
+    await seedAvailabilityDefaults(
+      userId,
+      constraints.daysPerWeek ?? 5,
+      constraints.hoursPerWeek ?? 8,
+      tx
+    );
+  });
+
+  // Outside the transaction, and still best-effort: a rollover failure must
+  // not roll back a good plan.
+  try {
+    const { rolloverWeekPlan } = await import("@/lib/week-plan/service");
+    await rolloverWeekPlan(userId);
+  } catch (err) {
+    const { logger } = await import("@/lib/logger");
+    logger.warn("week materialization after plan confirmation failed", {
+      userId,
+      message: err instanceof Error ? err.message : String(err),
+    });
+  }
+
+  return { ok: true, planId };
 }
 
 // ── Main entry point ────────────────────────────────────────────────────────
