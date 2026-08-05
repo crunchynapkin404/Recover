@@ -1008,7 +1008,10 @@ export async function previewFromDraft(
   let racePriority: "A" | "B" | "C" = "A";
   if (draft.raceId) {
     const race = await db.query.races.findFirst({
-      where: eq(schema.races.id, draft.raceId),
+      where: and(
+        eq(schema.races.id, draft.raceId),
+        eq(schema.races.userId, draft.userId)
+      ),
     });
     if (race) {
       raceName = race.name;

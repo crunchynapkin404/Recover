@@ -11,12 +11,28 @@ declare global {
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 // "use server" is a genuine module boundary, not the logic under test —
-// same stubbing convention as races-section-demand.test.tsx.
+// same stubbing convention as races-section-demand.test.tsx. Default to
+// success so the tests that never touch the buttons aren't affected;
+// individual tests override with mockResolvedValueOnce/mockRejectedValueOnce.
 vi.mock("@/app/plan/actions", () => ({
-  confirmPlanAction: vi.fn(),
-  regeneratePreviewAction: vi.fn(),
+  confirmPlanAction: vi.fn(async () => ({ ok: true, planId: "plan-1" })),
+  regeneratePreviewAction: vi.fn(async () => ({ ok: true, preview: {} })),
 }));
 
+import { confirmPlanAction, regeneratePreviewAction } from "@/app/plan/actions";
+
+const confirmPlanActionMock = vi.mocked(confirmPlanAction);
+const regeneratePreviewActionMock = vi.mocked(regeneratePreviewAction);
+
+// `build`'s `weeks` (2) deliberately disagrees with its own
+// `weekNumbers.length` (3), and both disagree with `weeksTotal` (6). That
+// makes the three candidate implementations of the total cell land on three
+// different numbers instead of one:
+//   - sum(phases[].weeks)            -> 3 + 2 + 1 + 1 = 7  (correct)
+//   - sum(phases[].weekNumbers.length) -> 3 + 3 + 1 + 1 = 8  (wrong field)
+//   - echo weeksTotal                -> 6                   (ignores phases)
+// A fixture where all three agreed (as the original one did, at 6/6/6) could
+// not tell a correct component from either mutant.
 const preview: PlanPreview = {
   planId: "11111111-1111-1111-1111-111111111111",
   sport: "Bike",
@@ -30,7 +46,7 @@ const preview: PlanPreview = {
   weeksTotal: 6,
   phases: [
     { phase: "base", weeks: 3, weekNumbers: [1, 2, 4] },
-    { phase: "build", weeks: 1, weekNumbers: [5] },
+    { phase: "build", weeks: 2, weekNumbers: [5, 7, 9] },
     { phase: "taper", weeks: 1, weekNumbers: [6] },
     { phase: "recovery", weeks: 1, weekNumbers: [3] },
   ],
@@ -63,7 +79,18 @@ afterEach(() => {
   if (root) act(() => root!.unmount());
   root = null;
   container?.remove();
+  vi.clearAllMocks();
 });
+
+async function clickButton(matcher: RegExp) {
+  const btn = Array.from(container.querySelectorAll("button")).find((b) =>
+    matcher.test(b.textContent ?? "")
+  );
+  if (!btn) throw new Error(`no button matching ${matcher}`);
+  await act(async () => {
+    btn.click();
+  });
+}
 
 describe("PlanPreviewCard", () => {
   it("names the sport and the race", () => {
@@ -72,17 +99,26 @@ describe("PlanPreviewCard", () => {
     expect(container.textContent).toMatch(/Cycling|Bike/);
   });
 
-  // The release's headline requirement: the athlete can check the sum.
-  it("shows every phase row and a total equal to weeksTotal", () => {
+  // The release's headline requirement: the athlete can check the sum. The
+  // fixture's `build` row makes `weeks` (2), `weekNumbers.length` (3), and
+  // `weeksTotal` (6) three different numbers, so only a component that
+  // actually sums `phases[].weeks` lands on the expected 7 here — summing
+  // `weekNumbers.length` would show 8, and echoing `weeksTotal` would show 6.
+  it("shows every phase row and a total equal to the sum of phase weeks", () => {
     mount();
     for (const row of preview.phases) {
       const el = container.querySelector(`[data-testid="phase-${row.phase}"]`);
       expect(el).toBeTruthy();
       expect(el!.textContent).toContain(String(row.weeks));
     }
+    const expectedTotal = preview.phases.reduce(
+      (sum, row) => sum + row.weeks,
+      0
+    );
+    expect(expectedTotal).toBe(7); // sanity: pins the fixture's own arithmetic
     expect(
       container.querySelector('[data-testid="phase-total"]')!.textContent
-    ).toContain("6");
+    ).toBe(String(expectedTotal));
   });
 
   it("renders one sentence per warning", () => {
@@ -114,5 +150,65 @@ describe("PlanPreviewCard", () => {
       /progression|recovery/i.test(el.getAttribute("aria-label") ?? "")
     );
     expect(periodizationControl).toBeUndefined();
+  });
+
+  // Finding 1: both buttons used to discard the result of their action,
+  // so an athlete pressing "Start this plan" against a stale draft (replaced
+  // from another tab, or by a new coach proposal) saw nothing — no plan
+  // change, no explanation. These pin that a non-ok result now renders.
+  describe("when an action reports the draft is no longer current", () => {
+    it("tells the athlete after Start this plan fails", async () => {
+      confirmPlanActionMock.mockResolvedValueOnce({
+        ok: false,
+        reason: "not_found",
+      });
+      mount();
+      await clickButton(/start this plan/i);
+      expect(container.textContent).toContain(
+        "This proposal is no longer current, so ask your coach for a fresh one."
+      );
+    });
+
+    it("tells the athlete after Rebuild fails", async () => {
+      regeneratePreviewActionMock.mockResolvedValueOnce({
+        ok: false,
+        reason: "not_found",
+      });
+      mount();
+      await clickButton(/^rebuild$/i);
+      expect(container.textContent).toContain(
+        "This proposal is no longer current, so ask your coach for a fresh one."
+      );
+    });
+  });
+
+  it("tells the athlete when the request itself fails", async () => {
+    confirmPlanActionMock.mockRejectedValueOnce(new Error("network error"));
+    mount();
+    await clickButton(/start this plan/i);
+    expect(container.textContent).toContain(
+      "That didn't go through and nothing has changed, so try again in a moment."
+    );
+  });
+
+  it("clears a previous failure once the same action succeeds", async () => {
+    confirmPlanActionMock.mockResolvedValueOnce({
+      ok: false,
+      reason: "not_found",
+    });
+    mount();
+    await clickButton(/start this plan/i);
+    expect(
+      container.querySelector('[data-testid="plan-preview-error"]')
+    ).not.toBeNull();
+
+    confirmPlanActionMock.mockResolvedValueOnce({
+      ok: true,
+      planId: preview.planId,
+    });
+    await clickButton(/start this plan/i);
+    expect(
+      container.querySelector('[data-testid="plan-preview-error"]')
+    ).toBeNull();
   });
 });

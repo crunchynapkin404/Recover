@@ -15,6 +15,7 @@
 import { useState, useTransition } from "react";
 import { SPORT_LABEL } from "@/lib/plan-sport";
 import {
+  REFUSAL_TEXT,
   WARNING_TEXT,
   type PlanPhase,
   type PlanPreview,
@@ -29,14 +30,64 @@ const PHASE_LABEL: Record<PlanPhase, string> = {
   recovery: "Recovery",
 };
 
+// One sentence each, in the register of `WARNING_TEXT`: state the fact, then
+// what to do about it. Both buttons discard nothing silently — a stale draft
+// (replaced from another tab, or by a new coach proposal) and a failed
+// request are the two ways these actions come back without having done what
+// the athlete asked, and each gets its own honest sentence rather than a
+// swallowed promise.
+const DRAFT_STALE_TEXT =
+  "This proposal is no longer current, so ask your coach for a fresh one.";
+const ACTION_FAILED_TEXT =
+  "That didn't go through and nothing has changed, so try again in a moment.";
+
 export function PlanPreviewCard({ preview }: { preview: PlanPreview }) {
   const [days, setDays] = useState(5);
   const [hours, setHours] = useState(8);
   const [pending, startTransition] = useTransition();
+  const [actionError, setActionError] = useState<string | null>(null);
 
   // Recomputed on screen, not trusted from `weeksTotal` alone — the release's
   // headline requirement is that this number and `weeksTotal` visibly agree.
   const total = preview.phases.reduce((sum, row) => sum + row.weeks, 0);
+
+  // Both handlers capture what the action actually returned. A discarded
+  // `{ ok: false }` is this release's own premise violated in a new place:
+  // the athlete presses a button, nothing visibly changes, and they have no
+  // idea whether it worked. On success the existing `revalidatePath("/train")`
+  // inside the action re-renders the page with fresh props; on failure (or a
+  // thrown rejection) this state is what tells the athlete so on screen.
+  function handleRebuild() {
+    startTransition(async () => {
+      try {
+        const result = await regeneratePreviewAction(
+          preview.planId,
+          days,
+          hours
+        );
+        if (result.ok) {
+          setActionError(null);
+        } else if (result.reason === "not_found") {
+          setActionError(DRAFT_STALE_TEXT);
+        } else {
+          setActionError(REFUSAL_TEXT[result.reason]);
+        }
+      } catch {
+        setActionError(ACTION_FAILED_TEXT);
+      }
+    });
+  }
+
+  function handleConfirm() {
+    startTransition(async () => {
+      try {
+        const result = await confirmPlanAction(preview.planId);
+        setActionError(result.ok ? null : DRAFT_STALE_TEXT);
+      } catch {
+        setActionError(ACTION_FAILED_TEXT);
+      }
+    });
+  }
 
   return (
     <section className="glass mb-4 rounded-[1.5rem] p-5">
@@ -119,6 +170,15 @@ export function PlanPreviewCard({ preview }: { preview: PlanPreview }) {
         </ul>
       )}
 
+      {actionError && (
+        <p
+          data-testid="plan-preview-error"
+          className="mb-4 text-[11px] leading-relaxed text-rose-300/90"
+        >
+          {actionError}
+        </p>
+      )}
+
       <div className="flex flex-wrap items-end gap-3 border-t border-white/[0.08] pt-4">
         <div>
           <label className="label-micro mb-1 block" htmlFor="plan-preview-days">
@@ -156,11 +216,7 @@ export function PlanPreviewCard({ preview }: { preview: PlanPreview }) {
         <button
           type="button"
           disabled={pending}
-          onClick={() =>
-            startTransition(async () => {
-              await regeneratePreviewAction(preview.planId, days, hours);
-            })
-          }
+          onClick={handleRebuild}
           className="rounded-full border border-white/[0.12] px-3.5 py-2 text-[11px] font-bold text-white/80 transition-colors hover:bg-white/[0.06] disabled:opacity-50"
         >
           Rebuild
@@ -168,11 +224,7 @@ export function PlanPreviewCard({ preview }: { preview: PlanPreview }) {
         <button
           type="button"
           disabled={pending}
-          onClick={() =>
-            startTransition(async () => {
-              await confirmPlanAction(preview.planId);
-            })
-          }
+          onClick={handleConfirm}
           className="rounded-full bg-emerald-500/90 px-4 py-2 text-[11px] font-bold text-neutral-950 transition-opacity hover:opacity-90 disabled:opacity-50"
         >
           Start this plan
