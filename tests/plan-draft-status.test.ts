@@ -131,54 +131,57 @@ describe.skipIf(!hasDb)("planIdForRace ignores draft plans (v0.43)", () => {
   });
 });
 
-describe.skipIf(!hasDb)("projectWeek refuses a draft-backed week (v0.43)", () => {
-  let db: typeof import("@/lib/db").db;
-  let schema: typeof import("@/lib/db").schema;
-  const userId = `draft-project-${Date.now()}`;
+describe.skipIf(!hasDb)(
+  "projectWeek refuses a draft-backed week (v0.43)",
+  () => {
+    let db: typeof import("@/lib/db").db;
+    let schema: typeof import("@/lib/db").schema;
+    const userId = `draft-project-${Date.now()}`;
 
-  afterAll(async () => {
-    await db.delete(schema.users).where(eq(schema.users.id, userId));
-  });
-
-  it("throws rather than project a week onto a draft plan", async () => {
-    ({ db, schema } = await import("@/lib/db"));
-    await db.insert(schema.users).values({
-      id: userId,
-      name: "Draft Project Test",
-      email: `${userId}@example.invalid`,
+    afterAll(async () => {
+      await db.delete(schema.users).where(eq(schema.users.id, userId));
     });
 
-    const [draft] = await db
-      .insert(schema.trainingPlans)
-      .values({
+    it("throws rather than project a week onto a draft plan", async () => {
+      ({ db, schema } = await import("@/lib/db"));
+      await db.insert(schema.users).values({
+        id: userId,
+        name: "Draft Project Test",
+        email: `${userId}@example.invalid`,
+      });
+
+      const [draft] = await db
+        .insert(schema.trainingPlans)
+        .values({
+          userId,
+          title: "draft plan",
+          raceType: "gran_fondo",
+          raceDate: "2026-12-01",
+          startDate: "2026-08-05",
+          weeksTotal: 12,
+          status: "draft",
+        })
+        .returning();
+
+      // A stored week_plans row pointing at the draft — the shape a future
+      // consumer could produce, independent of how rolloverWeekPlan behaves
+      // today.
+      await db.insert(schema.weekPlans).values({
         userId,
-        title: "draft plan",
-        raceType: "gran_fondo",
-        raceDate: "2026-12-01",
-        startDate: "2026-08-05",
-        weeksTotal: 12,
-        status: "draft",
-      })
-      .returning();
+        planId: draft.id,
+        weekStart: "2026-08-03",
+        skeletonWeek: 1,
+        days: [],
+        status: "open",
+      });
 
-    // A stored week_plans row pointing at the draft — the shape a future
-    // consumer could produce, independent of how rolloverWeekPlan behaves
-    // today.
-    await db.insert(schema.weekPlans).values({
-      userId,
-      planId: draft.id,
-      weekStart: "2026-08-03",
-      skeletonWeek: 1,
-      days: [],
-      status: "open",
+      const { projectWeek } = await import("@/lib/week-plan/project");
+      await expect(
+        projectWeek(userId, "2026-08-03", new Date("2026-08-04T12:00:00Z"))
+      ).rejects.toThrow(/no longer exists/);
     });
-
-    const { projectWeek } = await import("@/lib/week-plan/project");
-    await expect(
-      projectWeek(userId, "2026-08-03", new Date("2026-08-04T12:00:00Z"))
-    ).rejects.toThrow(/no longer exists/);
-  });
-});
+  }
+);
 
 describe.skipIf(!hasDb)(
   "assembleForecastInputs refuses a draft-backed week (v0.43)",
