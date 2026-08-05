@@ -59,43 +59,65 @@ export function toPlanSport(raw: string | null | undefined): PlanSport | null {
 /**
  * The sport a race type implies, or null when it implies none.
  *
- * Substring matching on a lower-cased string, because `races.race_type` is
- * free text ("GranFondo") while the plan tool's is a closed enum
- * ("gran_fondo") — the same value reaches this function spelled both ways.
+ * Matching on a lower-cased string, because `races.race_type` is free text
+ * ("GranFondo") while the plan tool's is a closed enum ("gran_fondo") — the
+ * same value reaches this function spelled both ways. `_` and `-` are
+ * normalised to spaces first, so a needle can be matched as a whole word
+ * regardless of which separator the caller used: `\b` does NOT fire between
+ * `_` and a letter (`_` counts as a word character), so "olympic_tri" would
+ * silently stop matching the moment the "tri" needle switched to
+ * word-boundary form without this normalisation step.
  *
- * Triathlon is tested FIRST: "ironman 70.3" contains neither "marathon" nor
- * a cycling word, but "olympic_tri" must not be read as anything else, and
- * an ordering that tested running first would place "aquathlon" wrongly.
+ * Short, collision-prone needles (`tri`, `run`, `crit`, `bike`, `half`,
+ * `ultra`) are matched at word boundaries, not as bare substrings — a bare
+ * `.includes("tri")` reads "time trial" (a cycling format) as a triathlon
+ * because "tri" sits inside "trial". "time trial" is genuinely ambiguous
+ * (running time trials exist too), so it correctly falls through to null:
+ * refusing beats guessing. `crit` only gets a leading boundary
+ * (`/\bcrit/`, no trailing `\b`) rather than `/\bcrit\b/`, because a full
+ * word boundary would stop "criterium" from matching — "criterium" starts
+ * with "crit" but doesn't end there. Long, distinctive needles
+ * (`triathlon`, `ironman`, `70.3`, `fondo`, `century`, `cycling`,
+ * `marathon`) keep plain substring matching; they are not short enough to
+ * collide with anything.
+ *
+ * Triathlon is tested FIRST: "half ironman" contains "half", which the
+ * running branch would match on its own — testing running first would
+ * misread a half-iron triathlon as a running race. Testing triathlon first
+ * catches "ironman" before the running branch ever sees the string.
  *
  * `general_fitness` deliberately returns null — it names no sport, and
  * inventing one is exactly what this release removes.
  */
 export function inferPlanSport(raceType: string): PlanSport | null {
-  const rt = raceType.toLowerCase();
+  const rt = raceType.toLowerCase().replace(/[_-]+/g, " ");
   if (
     rt.includes("triathlon") ||
     rt.includes("ironman") ||
     rt.includes("70.3") ||
-    rt.includes("_tri") ||
-    rt.includes(" tri")
+    /\btri\b/.test(rt)
   ) {
     return "Triathlon";
   }
   if (
     rt.includes("fondo") ||
     rt.includes("century") ||
-    rt.includes("crit") ||
     rt.includes("cycling") ||
-    rt.includes("bike")
+    /\bcrit/.test(rt) ||
+    /\bbike\b/.test(rt)
   ) {
     return "Bike";
   }
   if (
     rt.includes("marathon") ||
-    rt.includes("half") ||
-    rt.includes("ultra") ||
     rt.includes("10k") ||
     rt.includes("5k") ||
+    // "parkrun" is a common race name in its own right and does not
+    // contain "run" as a separate word, so it needs its own needle
+    // alongside the word-boundary form below.
+    rt.includes("parkrun") ||
+    /\bhalf\b/.test(rt) ||
+    /\bultra\b/.test(rt) ||
     // Word-boundary, not a bare substring: `.includes("run")` also matches
     // inside "swimrun", which names no plan sport this app builds and must
     // return null rather than being read as a running race.

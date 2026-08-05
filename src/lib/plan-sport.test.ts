@@ -18,7 +18,13 @@ describe("toPlanSport", () => {
   it("canonicalises every provider word for cycling", () => {
     // The exact bug: the coach wrote the provider's word and the planner
     // silently produced running.
-    for (const raw of ["Ride", "VirtualRide", "GravelRide", "cycling", "ride"]) {
+    for (const raw of [
+      "Ride",
+      "VirtualRide",
+      "GravelRide",
+      "cycling",
+      "ride",
+    ]) {
       expect(toPlanSport(raw)).toBe("Bike");
     }
   });
@@ -77,6 +83,38 @@ describe("inferPlanSport", () => {
     expect(inferPlanSport("general_fitness")).toBeNull();
     expect(inferPlanSport("swimrun")).toBeNull();
     expect(inferPlanSport("")).toBeNull();
+  });
+
+  it("does not read 'tri' inside 'trial' as a triathlon", () => {
+    // "time trial" is a cycling format, but it is genuinely ambiguous
+    // (running time trials exist too) — refusing beats guessing.
+    expect(inferPlanSport("time trial")).toBeNull();
+    expect(inferPlanSport("hill climb time trial")).toBeNull();
+  });
+
+  it("still recognises 'tri' as a whole word, any separator", () => {
+    expect(inferPlanSport("olympic_tri")).toBe("Triathlon");
+    expect(inferPlanSport("sprint_tri")).toBe("Triathlon");
+    expect(inferPlanSport("olympic tri")).toBe("Triathlon");
+    expect(inferPlanSport("half ironman")).toBe("Triathlon");
+    expect(inferPlanSport("ironman 70.3")).toBe("Triathlon");
+  });
+
+  it("places run-branch collisions correctly", () => {
+    expect(inferPlanSport("parkrun")).toBe("Run");
+    expect(inferPlanSport("trail run")).toBe("Run");
+    expect(inferPlanSport("10k run")).toBe("Run");
+    expect(inferPlanSport("half marathon")).toBe("Run");
+  });
+
+  it("keeps multi-sport disciplines this app cannot plan for at null", () => {
+    expect(inferPlanSport("swimrun")).toBeNull();
+    expect(inferPlanSport("aquathlon")).toBeNull();
+  });
+
+  it("matches 'crit' as a word start without breaking 'criterium'", () => {
+    expect(inferPlanSport("crit")).toBe("Bike");
+    expect(inferPlanSport("criterium")).toBe("Bike");
   });
 });
 
