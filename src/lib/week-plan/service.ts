@@ -198,7 +198,14 @@ export async function rolloverWeekPlan(
     orderBy: asc(schema.weekPlans.weekStart),
   });
   for (const row of openRows) {
-    const days = row.days as DaySlot[];
+    // Close from the activities table, not from whatever the day slots
+    // happen to hold. runDailyAdaptation books through YESTERDAY and is
+    // triggered by onWellnessDataChanged; this is triggered by the weekly
+    // review. Nothing orders the two, so the week's final day would close at
+    // zero whenever no pass ran between that day and the rollover.
+    const weekEnd = addDaysYmd(row.weekStart, 6);
+    const actuals = await deriveDayActuals(userId, row.weekStart, weekEnd);
+    const days = bookWeekActuals(row.days as DaySlot[], actuals, weekEnd);
     const { actualLoad, actualSessions } = weekActuals(days);
     const block = await db.query.trainingBlocks.findFirst({
       where: and(
@@ -223,7 +230,7 @@ export async function rolloverWeekPlan(
     }
     await db
       .update(schema.weekPlans)
-      .set({ status: "closed", updatedAt: now })
+      .set({ days, status: "closed", updatedAt: now })
       .where(eq(schema.weekPlans.id, row.id));
     prevWeek = { actualLoad, adherencePct }; // rows are ascending: latest wins
   }

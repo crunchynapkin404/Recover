@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeAll, afterAll, beforeEach } from "vitest";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { getOpenWeekPlan, runDailyAdaptation } from "@/lib/week-plan/service";
 import { weekActuals } from "@/lib/week-plan/actuals";
@@ -235,3 +235,109 @@ describe.skipIf(!hasDb)("runDailyAdaptation books every past day", () => {
     expect(wed.unplannedLoad).toBeUndefined();
   });
 });
+
+describe.skipIf(!hasDb)(
+  "rolloverWeekPlan closes from the activities table",
+  () => {
+    let planId: string;
+
+    beforeAll(async () => {
+      await db
+        .insert(schema.users)
+        .values({
+          id: TEST_USER,
+          name: "Test Week Actuals Booking User",
+          email: `${TEST_USER}@example.invalid`,
+        })
+        .onConflictDoNothing();
+
+      const [plan] = await db
+        .insert(schema.trainingPlans)
+        .values({
+          userId: TEST_USER,
+          title: "Rollover Plan",
+          raceType: "gran_fondo",
+          raceDate: "2026-09-13",
+          startDate: "2026-07-27",
+          weeksTotal: 8,
+          currentWeek: 1,
+          status: "active",
+          // rolloverWeekPlan reads constraints.sports itself (never
+          // raceType) once it moves past the close loop to materialize next
+          // week — omitting it throws requirePlanSport's "unsupported plan
+          // sport: undefined" before the function returns, which the brief's
+          // fixture omitted. Matches the shape week-plans.test.ts uses for
+          // its own real-rollover fixtures.
+          constraints: { daysPerWeek: 3, hoursPerWeek: 6, sports: ["Bike"] },
+        })
+        .returning();
+      planId = plan.id;
+
+      await db.insert(schema.trainingBlocks).values([
+        {
+          planId,
+          weekNumber: 1,
+          phase: "base",
+          targetLoadTotal: 244,
+          targetSessions: 3,
+          workouts: [],
+        },
+        {
+          planId,
+          weekNumber: 2,
+          phase: "base",
+          targetLoadTotal: 260,
+          targetSessions: 3,
+          workouts: [],
+        },
+      ]);
+    });
+
+    afterAll(async () => {
+      await db
+        .delete(schema.activities)
+        .where(eq(schema.activities.userId, TEST_USER));
+      await db
+        .delete(schema.weekPlans)
+        .where(eq(schema.weekPlans.userId, TEST_USER));
+      await db
+        .delete(schema.trainingPlans)
+        .where(eq(schema.trainingPlans.userId, TEST_USER));
+      await db.delete(schema.users).where(eq(schema.users.id, TEST_USER));
+    });
+
+    it("books the week's final day even when no adaptation pass ran", async () => {
+      const days = DATES.map(emptyDay);
+      days[6] = { ...days[6], status: "completed", workouts: [sw()] };
+      await seedWeek(days, planId);
+      await addRide("2026-08-02", 200, "sunday-ride");
+
+      // Deliberately no runDailyAdaptation call: this is the ordering hole.
+      // The weekly review fires rolloverWeekPlan while onWellnessDataChanged
+      // fires the adaptation pass, and nothing sequences the two.
+      const { rolloverWeekPlan } = await import("@/lib/week-plan/service");
+      await rolloverWeekPlan(TEST_USER, new Date("2026-08-03T04:00:00"));
+
+      // Scoped by user: WEEK_START is a real Monday and the dev database is
+      // shared, so matching on the date alone can pick up another fixture's
+      // week and assert against the wrong row.
+      const closed = await db.query.weekPlans.findFirst({
+        where: and(
+          eq(schema.weekPlans.userId, TEST_USER),
+          eq(schema.weekPlans.weekStart, WEEK_START)
+        ),
+      });
+      expect(closed!.status).toBe("closed");
+
+      // Qualified on weekNumber: the plan has two blocks, and an unqualified
+      // findFirst returns whichever Postgres hands back first.
+      const block = await db.query.trainingBlocks.findFirst({
+        where: and(
+          eq(schema.trainingBlocks.planId, planId),
+          eq(schema.trainingBlocks.weekNumber, 1)
+        ),
+      });
+      expect(block!.actualLoad).toBe(200);
+    });
+  }
+);

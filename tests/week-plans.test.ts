@@ -38,6 +38,26 @@ function addDaysYmd(ymd: string, n: number): string {
 
 const weekStart = mondayOf(new Date());
 const lastWeekStart = addDaysYmd(weekStart, -7);
+
+/**
+ * An activity row backing a day's load. Since v0.44 `rolloverWeekPlan`
+ * re-derives every day from the activities table instead of summing whatever
+ * the day slots hold, so a fixture that writes `actualLoad` into a day slot
+ * without a matching row now closes at zero — correctly, since an unbacked
+ * number is exactly what the release exists to stop trusting.
+ */
+function rideOn(ymd: string, load: number, externalId: string) {
+  return {
+    userId: USER,
+    provider: "intervals_icu" as const,
+    externalId,
+    startDate: new Date(ymd + "T09:00:00"),
+    startDateLocal: new Date(ymd + "T09:00:00"),
+    sport: "Run",
+    durationS: 2700,
+    load,
+  };
+}
 const todayYmd = localYmd(new Date());
 
 let planId: string;
@@ -245,6 +265,11 @@ describe.skipIf(!hasDb)("week-plan service", () => {
       }
       return restDay(date);
     });
+    // Since v0.44 the close re-derives from the activities table rather than
+    // trusting the day slot's stored actualLoad, so it needs a real row.
+    await db
+      .insert(schema.activities)
+      .values([rideOn(lastWeekStart, 50, "rollover-adherence")]);
     await db.insert(schema.weekPlans).values({
       userId: USER,
       planId,
@@ -312,6 +337,15 @@ describe.skipIf(!hasDb)("week-plan service", () => {
       }
       return restDay(date);
     });
+    // Since v0.44 the close re-derives every day from the activities table
+    // rather than trusting the stored fields, so the load has to be backed by
+    // real rows: 50 on the completed Monday, 30 on the Wednesday rest day.
+    await db
+      .insert(schema.activities)
+      .values([
+        rideOn(lastWeekStart, 50, "rollover-unplanned-planned"),
+        rideOn(addDaysYmd(lastWeekStart, 2), 30, "rollover-unplanned-bonus"),
+      ]);
     await db.insert(schema.weekPlans).values({
       userId: USER,
       planId,
