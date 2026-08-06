@@ -1,12 +1,7 @@
 import { describe, expect, it, beforeAll, afterAll } from "vitest";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
-import {
-  bookDayLoad,
-  bookWeekActuals,
-  deriveDayActuals,
-  weekActuals,
-} from "./actuals";
+import { bookWeekActuals, deriveDayActuals, weekActuals } from "./actuals";
 import type { DaySlot, ScheduledWorkout } from "./types";
 import { withPurpose } from "@/lib/training-plan";
 
