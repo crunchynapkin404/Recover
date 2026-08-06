@@ -13,7 +13,11 @@ import {
   EASY_RUN_CAP_MINS,
 } from "./training-plan";
 import { PLAN_CONSTANTS } from "./plan-constants";
-import { TAPER_FRACTION_RACE_WEEK, TAPER_FRACTION_WEEK_1 } from "./race/taper";
+import {
+  TAPER_FRACTION_RACE_WEEK,
+  TAPER_FRACTION_WEEK_1,
+  TAPER_FRACTION_WEEK_2,
+} from "./race/taper";
 
 // requires Postgres; skips without DATABASE_URL.
 const hasDb =
@@ -480,6 +484,35 @@ describe("the skeleton taper has one authority", () => {
     const loadRatio = taper[1].targetLoad / taper[0].targetLoad;
     const hoursRatio = mins(taper[1]) / mins(taper[0]);
     expect(hoursRatio).toBeCloseTo(loadRatio, 1);
+  });
+
+  // Review finding (Task 4 re-review): every test above uses a 12- or
+  // 16-week plan, which always yields exactly a 2-week taper —
+  // `taperFractionFromEnd`'s default branch (TAPER_FRACTION_WEEK_2, the
+  // "2+ weeks from the race" rung) is reachable in production
+  // (round(weeksTotal * 0.15) >= 3 for weeksTotal >= 17, and weeksTotal
+  // goes to 52) but was never exercised by any test. A 17-week plan is the
+  // shortest that reaches it: round(17 * 0.15) = 3, clearing
+  // MIN_TAPER_WEEKS (2).
+  it("the third rung (2+ weeks from the race) is reached and reads the ladder correctly", () => {
+    const blocks = periodize(17, 50, 5, 8, "Bike");
+    const taper = blocks.filter((b) => b.phase === "taper");
+    expect(taper.length).toBe(3);
+
+    // Same technique as the 2-week case above, extended to all three
+    // rungs: each week's targetLoad divided back out by ITS OWN ladder
+    // fraction should recover the same shared anchor. If the third rung
+    // read the wrong fraction — the default branch returning, say,
+    // TAPER_FRACTION_WEEK_1 by mistake, or a swapped constant — the anchor
+    // implied by the first taper week would disagree with the other two.
+    const [twoOut, oneOut, raceWeek] = taper;
+    const impliedFromTwoOut = twoOut.targetLoad / TAPER_FRACTION_WEEK_2;
+    const impliedFromOneOut = oneOut.targetLoad / TAPER_FRACTION_WEEK_1;
+    const impliedFromRace = raceWeek.targetLoad / TAPER_FRACTION_RACE_WEEK;
+
+    expect(Math.abs(impliedFromTwoOut - impliedFromOneOut)).toBeLessThan(3);
+    expect(Math.abs(impliedFromOneOut - impliedFromRace)).toBeLessThan(3);
+    expect(Math.abs(impliedFromTwoOut - impliedFromRace)).toBeLessThan(3);
   });
 });
 

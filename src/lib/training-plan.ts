@@ -231,16 +231,33 @@ function localYmd(d: Date): string {
 
 /**
  * The taper ladder, counting back from the last week of the plan, taken
- * from race/taper.ts so the skeleton and materializeWeek cannot disagree.
+ * from race/taper.ts — the same three fractions `materializeWeek` reads via
+ * `taperFractionForWeek`, so there is exactly one set of ladder VALUES,
+ * never a second independently-invented rate.
  *
  * Before v0.45 the skeleton decayed load 25 %/week and hours
  * 0.7 -> 0.6 -> 0.5 — two independent rates for one taper, so load and
  * hours diverged every taper week and the implied intensity drifted as an
  * artefact of two numbers nobody reconciled.
  *
- * `materializeWeek` still overrides this from the real race calendar. This
- * exists so `previewTrainingPlan` shows an honest taper before the athlete
- * commits, on the same fractions the engine will use.
+ * This does NOT guarantee the skeleton and `materializeWeek` always compute
+ * the SAME final number for a given week — that stronger claim is false.
+ * They key off different things: this function off position in the plan
+ * (`weeksTotal - w`), `materializeWeek` off the real race date
+ * (`taperFractionForWeek`), and those can disagree when the plan's assumed
+ * geometry drifts from the real calendar. `materializeWeek`'s own
+ * real-date fraction overrides this one whenever it has a genuine load
+ * anchor to apply it to (an actual previous week, or a measured CTL). The
+ * one exception — no actual load AND no CTL — is exactly the case that
+ * used to double-apply the ladder (v0.45 Task 4 review, Finding 2):
+ * `materializeWeek` now keeps this function's already-computed number as
+ * final there instead of re-scaling it, specifically so the ladder is
+ * applied exactly once. See `materializeWeek`'s `alreadyLadderScaled` for
+ * the reasoning.
+ *
+ * What this exists for: `previewTrainingPlan` shows an honest taper before
+ * the athlete commits, on the same fractions the engine will use, rather
+ * than no taper at all or a second contradicting rate.
  */
 function taperFractionFromEnd(weeksFromEnd: number): number {
   if (weeksFromEnd === 0) return TAPER_FRACTION_RACE_WEEK;

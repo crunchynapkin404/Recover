@@ -596,6 +596,33 @@ describe("materializeWeek race handling", () => {
     expect(r.effectiveLoad).toBe(Math.round(50 * 7 * 0.45)); // 158
   });
 
+  // Review finding (Task 4 re-review), Finding 2: when the skeleton itself
+  // already fell inside periodize()'s taper phase (v0.45 Task 4:
+  // targetLoadTotal is then `round(preTaperLoad * ladderFraction)`, already
+  // ladder-scaled once), the fallback tier above (no prevWeek.actualLoad,
+  // no currentCtl) used to multiply that already-scaled number by
+  // taperFraction a SECOND time. Trigger: an athlete with no training
+  // history and no synced CTL whose very first materialized week already
+  // falls inside an A-race taper window.
+  it("does not double-apply the ladder when the skeleton is already a taper week and there is no prev week or CTL (cold start)", () => {
+    const r = materializeWeek({
+      ...BASE_INPUT,
+      prevWeek: null,
+      currentCtl: null,
+      // 266 stands in for periodize()'s real race-week output — see
+      // training-plan.test.ts's characterization fixture, where a 12-week
+      // plan's own race week is exactly round(590.8 * 0.45) = 266 — i.e.
+      // already one full ladder application away from the true anchor.
+      skeleton: { ...SKELETON, phase: "taper" as const, targetLoadTotal: 266 },
+      races: [A_RACE],
+    });
+    // Before the fix: round(266 * 0.45) = 120 — a second 0.45 stacked on
+    // top of periodize()'s own 0.45, landing at ~0.20 of the real anchor
+    // (590.8) instead of ~0.45. After the fix: the already-scaled 266 is
+    // accepted as final.
+    expect(r.effectiveLoad).toBe(266);
+  });
+
   it("B race: race slot, day before rest, quality 2 days out stepped down", () => {
     const bRace: RaceContext = { ...A_RACE, priority: "B", name: "Tune-up" };
     const r = materializeWeek({ ...BASE_INPUT, races: [bRace] });
