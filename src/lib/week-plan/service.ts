@@ -489,8 +489,16 @@ export async function runDailyAdaptation(
   // to unplannedLoad rather than reading as the planned session's actual.
   //
   // Today is deliberately not booked: its load is still accumulating, and
-  // /train already renders today live from the same derivation. The week's
-  // final day is covered by rolloverWeekPlan, which re-derives at close.
+  // /train renders today live from the activities table anyway (through its
+  // own parallel copy of this query until Task 5 unifies them).
+  //
+  // That leaves the week's FINAL day permanently unbookable here, and not
+  // merely as a matter of ordering: booking it would need a call where today
+  // is the day after the week's last, and by then rolloverWeekPlan has closed
+  // this week — getOpenWeekPlan returns the new one, and the guard at the top
+  // of this function returns "skipped" before reaching this point. Only the
+  // close itself can book that day, which is why rolloverWeekPlan has to
+  // re-derive rather than sum whatever these fields happen to hold.
   if (yesterdayYmd >= week.weekStart) {
     const actuals = await deriveDayActuals(
       userId,
