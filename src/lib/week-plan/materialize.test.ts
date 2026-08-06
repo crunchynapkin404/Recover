@@ -717,13 +717,22 @@ describe("materializeWeek race handling", () => {
     const r = materializeWeek({ ...BASE_INPUT, races: [cRace] });
     const days = r.week.days;
     expect(days[6].status).toBe("race");
-    // Saturday untouched by protection (may or may not hold a workout,
-    // but no race-trigger adjustment references it):
+    // Saturday untouched by protection (may or may not hold a workout, but
+    // no pre-race-day protection adjustment references it). The week's own
+    // missing-taper note (v0.45 Task 6 — a C race gets no taper either) is
+    // the one legitimate "race"-trigger adjustment NOT dated on race day,
+    // since it describes the whole week, not a specific day — excluded
+    // here rather than folded into "no protection touched Saturday".
     expect(
       r.adjustments
-        .filter((a) => a.trigger === "race")
+        .filter((a) => a.trigger === "race" && !a.reason.includes("no taper"))
         .every((a) => a.date === "2026-08-30")
     ).toBe(true);
+    const note = r.adjustments.find((a) => a.reason.includes("no taper"));
+    expect(note).toBeDefined();
+    expect(note!.date).toBe(BASE_INPUT.weekStart);
+    expect(note!.reason).toContain("Parkrun");
+    expect(note!.reason).toContain("priority C");
   });
 
   it("two races: primary (first) reshapes, both get slots", () => {
@@ -1029,5 +1038,90 @@ describe("restIntent", () => {
         (a) => a.date === r.week.days[5].date && a.action === "dropped"
       )
     ).toBe(false);
+  });
+});
+
+describe("a B/C race's missing taper is recorded", () => {
+  const base = {
+    weekStart: "2026-08-24",
+    skeleton: {
+      weekNumber: 5,
+      phase: "build" as const,
+      targetLoadTotal: 500,
+      targetSessions: 5,
+    },
+    availableBlocksPerDay: Array.from({ length: 7 }, () => []),
+    prevWeek: null,
+    recentBands: [],
+    sport: "Bike" as const,
+    hoursPerWeek: 8,
+    currentCtl: 50,
+    queenStageHours: null,
+  };
+
+  it("records a reason when the primary race is priority B", () => {
+    const r = materializeWeek({
+      ...base,
+      races: [
+        {
+          date: "2026-08-29",
+          priority: "B",
+          raceType: "Criterium",
+          name: "Club crit",
+        },
+      ],
+    });
+    const note = r.adjustments.find((a) => a.reason.includes("no taper"));
+    expect(note).toBeDefined();
+    expect(note!.trigger).toBe("race");
+    // Dated at the week start, not race day — this note describes the
+    // whole week's load, not a single day. A regression that dated it on
+    // race day would still pass a substring check on `reason`; only this
+    // assertion on `date` catches it directly.
+    expect(note!.date).toBe(base.weekStart);
+    expect(note!.reason).toContain("Club crit");
+    expect(note!.reason).toContain("priority B");
+  });
+
+  it("records nothing for a week with no races at all", () => {
+    const r = materializeWeek({ ...base, races: [] });
+    expect(
+      r.adjustments.find((a) => a.reason.includes("no taper"))
+    ).toBeUndefined();
+  });
+
+  it("records nothing when the primary race is priority A", () => {
+    const r = materializeWeek({
+      ...base,
+      races: [
+        {
+          date: "2026-08-29",
+          priority: "A",
+          raceType: "Criterium",
+          name: "Big crit",
+        },
+      ],
+    });
+    expect(
+      r.adjustments.find((a) => a.reason.includes("no taper"))
+    ).toBeUndefined();
+  });
+
+  it("records nothing for a B race outside its taper window", () => {
+    const r = materializeWeek({
+      ...base,
+      weekStart: "2026-06-01", // months out
+      races: [
+        {
+          date: "2026-08-29",
+          priority: "B",
+          raceType: "Criterium",
+          name: "Club crit",
+        },
+      ],
+    });
+    expect(
+      r.adjustments.find((a) => a.reason.includes("no taper"))
+    ).toBeUndefined();
   });
 });

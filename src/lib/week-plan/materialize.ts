@@ -148,10 +148,19 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
 
   const races = input.races ?? [];
   const primary = races[0] ?? null;
+  // Priority-agnostic: whether this week sits inside primary's OWN taper
+  // window at all, per taper.ts's single ladder authority (Task 4).
+  // taperFractionForWeek never reads `priority` — it answers a calendar
+  // question, not a decision one — so it's safe to compute unconditionally
+  // and only gate its use to A-priority below. The B/C "no taper" note
+  // further down reuses this SAME calendar answer, rather than
+  // reimplementing the day-count math against a different constant, so the
+  // two blocks can never disagree about what "inside the window" means.
+  const primaryTaperFraction = primary
+    ? taperFractionForWeek(input.weekStart, primary)
+    : null;
   const taperFraction =
-    primary && primary.priority === "A"
-      ? taperFractionForWeek(input.weekStart, primary)
-      : null;
+    primary && primary.priority === "A" ? primaryTaperFraction : null;
   const hasActualLoad = !!input.prevWeek && input.prevWeek.actualLoad > 0;
   const hasCtl = input.currentCtl != null;
   const taperBase = hasActualLoad
@@ -235,6 +244,28 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
         : `taper: ${primary!.name} on ${primary!.date} — week target set to ${Math.round(
             taperFraction * 100
           )}% of current load (${skeleton.targetLoadTotal})`,
+    });
+  }
+
+  // The mirror image of the block above. Only a priority-A race
+  // taper-shapes a week; a B or C race sitting inside what would be its
+  // own taper window gets no volume reduction at all — before v0.45,
+  // periodize()'s own taper phase supplied an accidental fallback here;
+  // Task 4 removed that, so the gap is now real and must be visible
+  // rather than silent. This records the gap; it does not fill it — a
+  // real B/C mini-taper is v0.47. No load, target, or session count
+  // changes as a result of this block: it only pushes an AdjustmentRecord.
+  if (primary && primary.priority !== "A" && primaryTaperFraction != null) {
+    adjustments.push({
+      date: input.weekStart,
+      trigger: "race",
+      action: "scaled",
+      before: [],
+      after: [],
+      reason:
+        `no taper: ${primary.name} on ${primary.date} is priority ` +
+        `${primary.priority} — only an A race reshapes a week's volume, ` +
+        `so this week is planned at full load`,
     });
   }
 
