@@ -601,9 +601,14 @@ describe("materializeWeek race handling", () => {
   // targetLoadTotal is then `round(preTaperLoad * ladderFraction)`, already
   // ladder-scaled once), the fallback tier above (no prevWeek.actualLoad,
   // no currentCtl) used to multiply that already-scaled number by
-  // taperFraction a SECOND time. Trigger: an athlete with no training
-  // history and no synced CTL whose very first materialized week already
-  // falls inside an A-race taper window.
+  // taperFraction a SECOND time. Reachability is broader than "brand-new
+  // athlete's first week": `hasActualLoad` is also false after a fully
+  // missed week (prevWeek.actualLoad === 0), so this fixture — no prev
+  // week, no CTL — stands in for any no-synced-CTL athlete hitting this
+  // path mid-plan too (a missed week, a rollover, or a race reschedule),
+  // not only a cold start. On this path the plan-position fraction
+  // (periodize's targetLoadTotal) wins outright over the real-date
+  // fraction (taperFraction here) rather than the latter rescaling it.
   it("does not double-apply the ladder when the skeleton is already a taper week and there is no prev week or CTL (cold start)", () => {
     const r = materializeWeek({
       ...BASE_INPUT,
@@ -621,6 +626,28 @@ describe("materializeWeek race handling", () => {
     // (590.8) instead of ~0.45. After the fix: the already-scaled 266 is
     // accepted as final.
     expect(r.effectiveLoad).toBe(266);
+  });
+
+  // v0.45 Task 4 re-review, Finding 3: nothing asserted on `reason` before
+  // this, so the athlete/coach-facing adjustment text could drift silently
+  // from what the code actually did. On the cold-start path the raw
+  // "X% of current load" phrasing would be a lie — 266 is NOT 45% of
+  // anything computed here, it is periodize()'s own already-scaled number
+  // passed through unchanged. Pin the honest text so this cannot drift back.
+  it("cold-start reason text says the ladder was kept as-is, not that a percentage was applied", () => {
+    const r = materializeWeek({
+      ...BASE_INPUT,
+      prevWeek: null,
+      currentCtl: null,
+      skeleton: { ...SKELETON, phase: "taper" as const, targetLoadTotal: 266 },
+      races: [A_RACE],
+    });
+    const adj = r.adjustments.find((a) => a.trigger === "race");
+    expect(adj?.reason).toBe(
+      `taper: ${A_RACE.name} on ${A_RACE.date} — no actual load or synced CTL to rescale, so the plan's own taper ladder stands unscaled: week target 266`
+    );
+    // Must NOT claim a percentage was applied to produce 266 — it wasn't.
+    expect(adj?.reason).not.toMatch(/% of current load/);
   });
 
   it("B race: race slot, day before rest, quality 2 days out stepped down", () => {

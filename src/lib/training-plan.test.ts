@@ -503,8 +503,17 @@ describe("the skeleton taper has one authority", () => {
     // rungs: each week's targetLoad divided back out by ITS OWN ladder
     // fraction should recover the same shared anchor. If the third rung
     // read the wrong fraction — the default branch returning, say,
-    // TAPER_FRACTION_WEEK_1 by mistake, or a swapped constant — the anchor
-    // implied by the first taper week would disagree with the other two.
+    // TAPER_FRACTION_WEEK_1 by mistake — the anchor implied by the first
+    // taper week would disagree with the other two.
+    //
+    // What this does NOT catch (Task 4 re-review, Finding 1): a swapped
+    // VALUE of TAPER_FRACTION_WEEK_2 itself. Production multiplies by the
+    // imported constant and this test divides back out by that SAME
+    // imported constant, so if the constant's value changed, both sides
+    // move together and the round-trip still recovers the same anchor —
+    // the test would stay green. That is pinned separately, by literal, in
+    // `race/taper.test.ts` ("TAPER_FRACTION_* ladder — pinned to literal
+    // values"), the only place a swapped constant is actually caught.
     const [twoOut, oneOut, raceWeek] = taper;
     const impliedFromTwoOut = twoOut.targetLoad / TAPER_FRACTION_WEEK_2;
     const impliedFromOneOut = oneOut.targetLoad / TAPER_FRACTION_WEEK_1;

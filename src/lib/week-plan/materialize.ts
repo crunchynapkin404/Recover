@@ -168,9 +168,21 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
   // in the plan). Multiplying it by `taperFraction` below (keyed on the
   // REAL race date, via `taperFractionForWeek`) would apply the ladder a
   // SECOND time and compound it — race week landing at ~0.45×0.45 ≈ 0.20 of
-  // the athlete's real load instead of 0.45. Reachable only for a brand-new
-  // athlete whose very first materialized week already falls inside an
-  // A-race taper window (no training history, no synced CTL).
+  // the athlete's real load instead of 0.45.
+  //
+  // Reachability (corrected, Task 4 re-review, Finding 2): this is NOT
+  // limited to a brand-new athlete's very first materialized week.
+  // `hasActualLoad` is false whenever `prevWeek` is null OR
+  // `prevWeek.actualLoad === 0` — i.e. a fully missed week counts as "no
+  // actual load" too — and `hasCtl` is false whenever no CTL has ever
+  // synced. So this path recurs mid-plan for any athlete with no synced
+  // CTL, after a missed week, a rollover, or a race reschedule that moves
+  // an A-race's taper window over a week already in flight — exactly the
+  // situations where the plan's assumed geometry (`taperFractionFromEnd`)
+  // and the real calendar (`taperFractionForWeek`) are most likely to have
+  // drifted apart. On this path the plan-position fraction wins outright:
+  // periodize()'s already-scaled `targetLoadTotal` is kept as final, and
+  // the real-date fraction is NOT reapplied to rescale it.
   //
   // In every OTHER fallback tier this concern does not apply:
   // `prevWeek.actualLoad` and `currentCtl * 7` are both genuine,
@@ -205,15 +217,24 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
       : input.skeleton;
 
   if (taperFraction != null) {
+    // v0.45 Task 4 re-review, Finding 3: on the `alreadyLadderScaled` path,
+    // `skeleton.targetLoadTotal` is `taperBase` passed through UNSCALED —
+    // it is not `round(taperBase * taperFraction)`. Saying "set to X% of
+    // current load" there would name a percentage that was never applied
+    // to produce the number in parentheses. Word that path in terms of
+    // what actually happened: periodize()'s own already-scaled ladder
+    // output was kept as-is, not rescaled.
     adjustments.push({
       date: input.weekStart,
       trigger: "race",
       action: "scaled",
       before: [],
       after: [],
-      reason: `taper: ${primary!.name} on ${primary!.date} — week target set to ${Math.round(
-        taperFraction * 100
-      )}% of current load (${skeleton.targetLoadTotal})`,
+      reason: alreadyLadderScaled
+        ? `taper: ${primary!.name} on ${primary!.date} — no actual load or synced CTL to rescale, so the plan's own taper ladder stands unscaled: week target ${skeleton.targetLoadTotal}`
+        : `taper: ${primary!.name} on ${primary!.date} — week target set to ${Math.round(
+            taperFraction * 100
+          )}% of current load (${skeleton.targetLoadTotal})`,
     });
   }
 
