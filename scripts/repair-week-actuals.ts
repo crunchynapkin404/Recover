@@ -85,6 +85,28 @@ async function main() {
       orderBy: asc(schema.weekPlans.weekStart),
     });
 
+    // Nothing in the schema enforces "at most one open week per user" — only
+    // a unique index on (userId, weekStart) — and getOpenWeekPlan reads the
+    // MOST RECENT open row, so an older one is orphaned from the app's read
+    // path entirely: runDailyAdaptation will never touch it, and this script
+    // skips it as not-closed. That row is stuck, and nobody is coming for it.
+    // Surface it rather than making the operator remember to look.
+    const openRows = await db.query.weekPlans.findMany({
+      where: and(
+        eq(schema.weekPlans.userId, user.id),
+        eq(schema.weekPlans.status, "open")
+      ),
+      orderBy: asc(schema.weekPlans.weekStart),
+    });
+    if (openRows.length > 1) {
+      console.log(
+        `WARNING  ${user.email} has ${openRows.length} open weeks (${openRows
+          .map((r) => r.weekStart)
+          .join(", ")}). This script repairs closed weeks only; all but the` +
+          ` last are unreachable by the app and need handling out of band.`
+      );
+    }
+
     // Printed lazily, right before the first line that actually belongs to
     // this user, so a --all run isn't a wall of headers for users with
     // nothing to change — but every printed week/day line is still

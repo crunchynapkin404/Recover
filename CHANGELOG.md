@@ -1,5 +1,97 @@
 # Changelog
 
+## v0.44.0 — 2026-08-06 — No Training Is Lost
+
+The week of 2026-07-27 closed with a training load of 314. The athlete had
+really done 783. Nothing failed, nothing errored, and no sync was missing —
+469 units of real training were simply written nowhere.
+
+`runDailyAdaptation` booked a day's load in two branches, and only ever for
+yesterday: a day whose status was `planned`, `moved` or `adapted` got the load
+of an activity whose sport matched the planned session, and a day whose status
+was `rest` or `race` got the sum of everything on it. `DayStatus` has seven
+members. Those branches cover five. `completed` and `missed` were covered by
+neither, so a day in either state booked nothing at all — and `completed` is
+what the app's own "Mark done" button sets. Pressing the button the interface
+offers deleted that day's load from the week.
+
+`markDayDone` promised otherwise in its own doc comment: "if the ride later
+syncs, adaptDay attaches the real load." No branch would ever look at that day
+again. The guarantee had never been true.
+
+Four more holes shared the same shape. Work done after a day was written off
+as missed booked nowhere. A planned day trained as a different sport booked
+nowhere, because the only path to booking it was gated behind the same
+sport-matched query that decided whether the session had happened. A second
+session on a planned day was dropped, because that branch took the first
+matching activity while the other summed. And an activity that synced two days
+late was lost for good, because a day was considered exactly once, on the one
+morning it was yesterday.
+
+The cause of all five was one query answering two unrelated questions. "Did
+yesterday's planned session happen?" needs the sport match, the settled-sync
+guard, and yesterday alone, because it feeds the missed-workout handling.
+"What work happened?" needs no sport test and no status gate, and applies to
+every past day of the week. Separating them is the fix; the rest is
+consequence.
+
+The stored actuals are now a pure function of the `activities` table. One
+derivation answers what happened on each local day; one rule decides which
+field receives it — work the plan asked for lands in `actualLoad`, work it did
+not lands in `unplannedLoad`, and both are rewritten together on every pass so
+a day that changes which way it routes can never count twice. Days with no
+activity have their fields cleared rather than zeroed, so a deleted activity
+stops counting and re-running the pass is a no-op.
+
+The week's close had a hole of its own, and it was worse than a race. It
+summed whatever the day slots already held, so the numbers depended on whether
+an adaptation pass had run first — and nothing sequences the two. But the
+week's _final_ day was not merely racy, it was unbookable: booking it would
+need a call where today is the day after the week's last day, and by then the
+rollover has closed the week, the open-week lookup returns its successor, and
+the adaptation pass skips out before it reaches its booking step. Every week
+closed with its last day at zero. The close now re-derives the whole week.
+
+`/train` had carried its own copy of this aggregation all along, and was the
+one place showing the athlete the truth — its own comment said so, and said it
+existed because the stored numbers could not be trusted. It now reads the same
+derivation the plan books from, so the screen and the stored week agree by
+construction rather than by coincidence.
+
+The two copies had drifted in one respect: the local one filtered on
+`start_date` where the shared one filters on
+`coalesce(start_date_local, start_date)`, and had no upper bound at all. Tested
+directly rather than assumed, that difference is inert for current data — the
+connector writes both columns at the same instant, so the two filters select
+identically, and the unbounded query's extra rows were bucketed to dates the
+week never displayed. It is not inert for rows written either side of the
+container's move from UTC to Europe/Amsterdam on 2026-07-27, where the two
+columns genuinely disagree. Those rows are a connector-level problem, recorded
+and not fixed here.
+
+`scripts/repair-week-actuals.ts` replays the derivation over already-stored
+weeks. It is a dry run unless given `--apply`, refuses to run without an
+explicit `--user` or `--all`, never touches the `activities` table, and never
+re-materialises or re-targets a week. Both of its writes go in one
+transaction, because its own skip-if-unchanged check reads only the day data —
+a half-finished run would otherwise leave the block totals stale in a way
+re-running could not detect.
+
+Expect it to correct in both directions. Weeks that lost load recover it, and
+weeks carrying inflated figures come down — from `unplannedLoad` compounding
+across repeated passes, which v0.28.1 first guarded and v0.31.0 replaced with
+recomputation, and from stale `actualLoad` left behind on a day that later
+became `missed` and was never revisited.
+
+No migration: `actualLoad` and `unplannedLoad` already existed on the day slot.
+
+Still one-shot, and deliberately left for v0.45: whether the planned session
+happened is judged once, on the morning that day is yesterday. If the activity
+sync has not settled by then, no later pass asks again. The day's load books
+correctly, so no training is lost, but a cross-sport day whose sync was late
+records against the planned session rather than beside it, and the week's
+session count under-reports.
+
 ## v0.43.0 — 2026-08-05 — The Plan You Can See Before You Get It
 
 v0.42 fixed why that gran fondo plan was full of running workouts. This one
