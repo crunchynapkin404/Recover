@@ -38,21 +38,23 @@ const ALL = process.argv.includes("--all");
 const userArgIdx = process.argv.indexOf("--user");
 const USER_ARG = userArgIdx === -1 ? null : process.argv[userArgIdx + 1];
 
-async function resolveUserIds(): Promise<string[]> {
+type UserRef = { id: string; email: string };
+
+async function resolveUsers(): Promise<UserRef[]> {
   if (USER_ARG) {
     const byId = await db.query.users.findFirst({
       where: eq(schema.users.id, USER_ARG),
     });
-    if (byId) return [byId.id];
+    if (byId) return [{ id: byId.id, email: byId.email }];
     const byEmail = await db.query.users.findFirst({
       where: eq(schema.users.email, USER_ARG),
     });
-    if (byEmail) return [byEmail.id];
+    if (byEmail) return [{ id: byEmail.id, email: byEmail.email }];
     throw new Error(`no user matches ${USER_ARG}`);
   }
   if (ALL) {
     const rows = await db.query.users.findMany();
-    return rows.map((u) => u.id);
+    return rows.map((u) => ({ id: u.id, email: u.email }));
   }
   throw new Error(
     "scope required: --user <id|email>, or --all to mean every user"
@@ -60,29 +62,41 @@ async function resolveUserIds(): Promise<string[]> {
 }
 
 async function main() {
-  const userIds = await resolveUserIds();
+  // One timestamp for the whole run, threaded through every write — same
+  // pattern as rolloverWeekPlan's `now` parameter, rather than a fresh
+  // `new Date()` per row.
+  const now = new Date();
+  const users = await resolveUsers();
   console.log(
-    `${APPLY ? "APPLYING" : "DRY RUN"} over ${userIds.length} user(s)\n`
+    `${APPLY ? "APPLYING" : "DRY RUN"} over ${users.length} user(s)\n`
   );
 
   let weeksChanged = 0;
   let totalDelta = 0;
 
-  for (const userId of userIds) {
+  for (const user of users) {
     const weeks = await db.query.weekPlans.findMany({
       // Closed weeks only — see the module doc for why the open week is
       // out of scope.
       where: and(
-        eq(schema.weekPlans.userId, userId),
+        eq(schema.weekPlans.userId, user.id),
         eq(schema.weekPlans.status, "closed")
       ),
       orderBy: asc(schema.weekPlans.weekStart),
     });
 
+    // Printed lazily, right before the first line that actually belongs to
+    // this user, so a --all run isn't a wall of headers for users with
+    // nothing to change — but every printed week/day line is still
+    // unambiguously attributed to an account. See the module doc: a
+    // DB-wide pass writing into the wrong athlete's account is exactly the
+    // failure mode this guards against.
+    let headerPrinted = false;
+
     for (const row of weeks) {
       const stored = row.days as DaySlot[];
       const weekEnd = addDaysYmd(row.weekStart, 6);
-      const actuals = await deriveDayActuals(userId, row.weekStart, weekEnd);
+      const actuals = await deriveDayActuals(user.id, row.weekStart, weekEnd);
       const booked = bookWeekActuals(stored, actuals, weekEnd);
 
       if (JSON.stringify(booked) === JSON.stringify(stored)) continue;
@@ -92,6 +106,10 @@ async function main() {
       weeksChanged += 1;
       totalDelta += after.actualLoad - before.actualLoad;
 
+      if (!headerPrinted) {
+        console.log(`user ${user.email} (${user.id})`);
+        headerPrinted = true;
+      }
       console.log(
         `${row.weekStart} (${row.status})  load ${before.actualLoad} → ${after.actualLoad}`
       );
@@ -134,20 +152,39 @@ async function main() {
       console.log(`    adherence → ${adherencePct}%`);
 
       if (APPLY) {
-        await db
-          .update(schema.weekPlans)
-          .set({ days: booked, updatedAt: new Date() })
-          .where(eq(schema.weekPlans.id, row.id));
-        if (block) {
-          await db
-            .update(schema.trainingBlocks)
-            .set({
-              actualLoad: after.actualLoad,
-              actualSessions: after.actualSessions,
-              adherencePct,
-            })
-            .where(eq(schema.trainingBlocks.id, block.id));
-        }
+        // One transaction for both writes. Without it, a process death
+        // between the two leaves `training_blocks` stale while `days`
+        // already matches the re-derived booking — the change gate above
+        // compares only `days`, so a re-run would see nothing to do and
+        // that staleness would never self-heal. See src/lib/sync/*-sync.ts,
+        // src/lib/race/debrief.ts and src/lib/debrief/ride-review.ts for the
+        // same `db.transaction` idiom elsewhere in this codebase.
+        //
+        // This relies on `db.transaction()` being available, which in turn
+        // requires DATABASE_DRIVER=pg. That is not optional in any real
+        // deployment of this app (see docs/DEPLOY-VERCEL.md's "mandatory,
+        // not optional" and docs/SELF-HOSTING.md) — the scheduler already
+        // depends on it for advisory locks. Under the Neon HTTP driver
+        // (DATABASE_DRIVER unset) `db.transaction()` throws synchronously
+        // ("No transactions support in neon-http driver") rather than
+        // silently falling back to unwrapped writes, so a misconfigured run
+        // fails loud on the first write instead of corrupting data quietly.
+        await db.transaction(async (tx) => {
+          await tx
+            .update(schema.weekPlans)
+            .set({ days: booked, updatedAt: now })
+            .where(eq(schema.weekPlans.id, row.id));
+          if (block) {
+            await tx
+              .update(schema.trainingBlocks)
+              .set({
+                actualLoad: after.actualLoad,
+                actualSessions: after.actualSessions,
+                adherencePct,
+              })
+              .where(eq(schema.trainingBlocks.id, block.id));
+          }
+        });
       }
     }
   }
