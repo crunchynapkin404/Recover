@@ -176,8 +176,9 @@ export const STEP_DOWN: Record<string, string> = {
 /**
  * What the athlete actually did on a date, summed across its activities.
  *
- * Lives here rather than in `actuals.ts` so a client component can import the
- * type without pulling a module that imports `db` into the browser bundle.
+ * Lives here rather than in `actuals.ts` to keep the shape next to `DaySlot`,
+ * which it describes the realised half of, and so the component layer imports
+ * it from the same module it already takes `DaySlot` from.
  */
 export interface DayActuals {
   count: number;

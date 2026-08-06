@@ -86,11 +86,13 @@ async function main() {
     });
 
     // Nothing in the schema enforces "at most one open week per user" — only
-    // a unique index on (userId, weekStart) — and getOpenWeekPlan reads the
-    // MOST RECENT open row, so an older one is orphaned from the app's read
-    // path entirely: runDailyAdaptation will never touch it, and this script
-    // skips it as not-closed. That row is stuck, and nobody is coming for it.
-    // Surface it rather than making the operator remember to look.
+    // a unique index on (userId, weekStart). `getOpenWeekPlan` reads just the
+    // MOST RECENT open row, so an older one is invisible to everything that
+    // goes through it, `runDailyAdaptation` included, and this script skips it
+    // as not-closed. `rolloverWeekPlan` is the one thing that would still
+    // sweep it up: its closing loop takes every open row, not just the latest.
+    // Whether that has actually happened is a question about live data, not
+    // one this script can answer — so surface the row rather than predict it.
     const openRows = await db.query.weekPlans.findMany({
       where: and(
         eq(schema.weekPlans.userId, user.id),
@@ -102,8 +104,9 @@ async function main() {
       console.log(
         `WARNING  ${user.email} has ${openRows.length} open weeks (${openRows
           .map((r) => r.weekStart)
-          .join(", ")}). This script repairs closed weeks only; all but the` +
-          ` last are unreachable by the app and need handling out of band.`
+          .join(", ")}). This script repairs closed weeks only, and every` +
+          ` reader but rolloverWeekPlan's closing loop sees just the last.` +
+          ` Check whether the older ones still close on their own.`
       );
     }
 
