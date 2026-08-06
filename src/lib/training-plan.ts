@@ -347,6 +347,39 @@ export function periodize(
   // never of the previous taper week, so the ladder cannot compound.
   let preTaperLoad: number | null = null;
 
+  // The bound effectiveWeekLoad cannot supply. Its ramp guard clamps to
+  // +/-RAMP_CLAMP_PCT (0.2) of last week's ACTUAL load, but the skeleton
+  // progresses at 8 %/week and 8 < 20 — so that clamp never fires against
+  // it and the error compounds (1.08^20 = 4.7x). Reachability, precisely:
+  // PROGRESSION_STEP_CAP's rate (baseLoad*0.1/week) exceeds this bound's
+  // fixed rate (CTL_RAMP_PER_WEEK*CTL_TO_WEEKLY_LOAD = 35/week) whenever
+  // startingCtl > 50 (0.7*startingCtl > 35) — that is the exact algebraic
+  // crossover. But a plan only has up to 52 weeks (weeksTotal's own cap
+  // below) to let a small rate edge compound into a visible breach, so an
+  // exhaustive sweep (every integer startingCtl and every weeksTotal 4-52,
+  // diffed against the same run with the bound disabled) finds the first
+  // startingCtl where the bound actually changes output is 68 (removes up
+  // to 9 TSS, 6 plan lengths) — see training-plan.test.ts's "CTL ramp
+  // bound" describe block, which uses startingCtl=80 for comfortable
+  // margin above that line. Bound it where the compounding happens: against
+  // the CTL the plan is entitled to reach.
+  //
+  // Floored at MIN_WEEKLY_LOAD: this task's job is to stop compounding at
+  // the TOP end, not to lower the floor at the bottom. Without the floor, a
+  // low startingCtl produces a bound below MIN_WEEKLY_LOAD's own 100 (e.g.
+  // CTL 0: (0 + 5*1)*7 = 35), quietly cutting a beginner's opening week
+  // under the minimum the floor exists to guarantee. `startingCtl ?? 0`
+  // (week-plan/service.ts, week-plan/project.ts) is itself a known defect
+  // already scheduled for v0.47, so the zero-CTL case is largely an
+  // artifact of that upstream default — Task 5 should not quietly change a
+  // beginner's opening week on the way past fixing the compounding at the
+  // top.
+  const maxLoadForWeek = (w: number) =>
+    Math.max(
+      PC.MIN_WEEKLY_LOAD,
+      (startingCtl + PC.CTL_RAMP_PER_WEEK * w) * PC.CTL_TO_WEEKLY_LOAD
+    );
+
   for (let w = 1; w <= weeksTotal; w++) {
     let phase: Block["phase"];
     if (w <= baseWeeks) phase = "base";
@@ -413,7 +446,7 @@ export function periodize(
       blocks.push({
         weekNumber: w,
         phase,
-        targetLoad: Math.round(currentLoad),
+        targetLoad: Math.round(Math.min(currentLoad, maxLoadForWeek(w))),
         targetSessions: daysPerWeek,
         workouts: generateWorkouts(
           daysPerWeek,
@@ -441,6 +474,17 @@ export function periodize(
         // Maintain or slight increase
         currentLoad *= PC.PROGRESSION_PEAK;
       }
+      // Clamp currentLoad itself, not just the displayed targetLoad — a
+      // masked target whose underlying variable keeps growing unclamped
+      // would just resurface the runaway one week later, once maxLoadForWeek
+      // catches up and currentLoad + baseLoad*STEP_CAP no longer covers the
+      // gap. w+1 because this is the bound for the week about to be entered.
+      // Guarded specifically by the "pins a recovery week to a literal"
+      // test above — the recovery/taper branches read raw currentLoad with
+      // no push-site bound check of their own, so they are the only place
+      // this clamp's absence is observable (confirmed by mutation: deleting
+      // this line leaves every other test in this file green).
+      currentLoad = Math.min(currentLoad, maxLoadForWeek(w + 1));
     }
   }
 

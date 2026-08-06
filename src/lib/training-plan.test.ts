@@ -348,6 +348,119 @@ describe("recovery cadence", () => {
   });
 });
 
+describe("CTL ramp bound", () => {
+  // The brief's own draft used startingCtl=50 here. Verified empirically
+  // (against the pre-fix code) that it does NOT reproduce the defect: base
+  // and build already carry PROGRESSION_STEP_CAP (a pre-existing constant,
+  // not new to this task), which caps their growth to
+  // +baseLoad*0.1/week once currentLoad passes ~1.25x baseLoad. At
+  // startingCtl=50, baseLoad*0.1 (350*0.1=35) is EXACTLY the CTL bound's own
+  // rate (CTL_RAMP_PER_WEEK*CTL_TO_WEEKLY_LOAD = 5*7 = 35) — the two
+  // trajectories run parallel forever and never diverge, at any plan length
+  // up to 52 weeks (checked).
+  //
+  // The exact algebraic crossover (baseLoad*0.1 > 35, i.e. startingCtl > 50)
+  // is only a NECESSARY condition — it says the rates cross, not that a
+  // bounded-length plan lives long enough to see the gap become a full-TSS
+  // violation. An exhaustive sweep (every integer startingCtl, every
+  // weeksTotal from 4-52 — this app refuses anything longer — diffed against
+  // the same run with the bound disabled) found the bound first changes
+  // output at startingCtl=68. 80 is used below for comfortable margin above
+  // that empirically-found line, not the algebraic one — a future reader
+  // must not "simplify" this back toward 50 on the algebra alone, since
+  // 51-67 never actually reproduces the defect within a real plan length.
+  const startingCtl = 80;
+
+  it("bounds a long plan against the CTL trajectory", () => {
+    const blocks = periodize(30, startingCtl, 5, 8, "Bike");
+    for (const b of blocks) {
+      if (b.phase === "recovery" || b.phase === "taper") continue;
+      const maxLoad =
+        (startingCtl + PLAN_CONSTANTS.CTL_RAMP_PER_WEEK * b.weekNumber) *
+        PLAN_CONSTANTS.CTL_TO_WEEKLY_LOAD;
+      expect(
+        b.targetLoad,
+        `week ${b.weekNumber} exceeds the CTL ramp bound`
+      ).toBeLessThanOrEqual(Math.round(maxLoad));
+    }
+  });
+
+  // The test above reads CTL_RAMP_PER_WEEK and CTL_TO_WEEKLY_LOAD from
+  // PLAN_CONSTANTS on both sides — its own expectation and the code under
+  // test — so it cannot catch either constant being swapped for a wrong
+  // value; it only catches a missing or broken clamp. Pinned to a literal
+  // here instead, the same fix applied to the taper ladder in Task 4
+  // (race/taper.test.ts, "pinned to literal values").
+  it("pins one clamped week to a literal, not the constants it guards", () => {
+    const blocks = periodize(30, startingCtl, 5, 8, "Bike");
+    const week7 = blocks.find((b) => b.weekNumber === 7)!;
+    expect(week7.phase).toBe("base");
+    // (80 + 5*7) * 7 = 805 — 5 and 7 are literal here (CTL_RAMP_PER_WEEK and
+    // CTL_TO_WEEKLY_LOAD), deliberately not read from PLAN_CONSTANTS. If
+    // either constant's value changed, this stops matching and the test
+    // fails loudly instead of moving in step with the code.
+    expect(week7.targetLoad).toBe(805);
+  });
+
+  // Review finding: the week-7 pin above only exercises the PUSH-SITE clamp
+  // (`Math.min(currentLoad, maxLoadForWeek(w))` at the block push) — it
+  // says nothing about whether `currentLoad` itself is ALSO clamped after
+  // the progression step. Deleting that second clamp still leaves every
+  // base/build/peak week's pushed value correct, because the push-site
+  // clamp re-applies the same bound on every loading week regardless of
+  // what `currentLoad` drifted to underneath — the bound is linear and the
+  // gap only widens, so the push site masks a missing second clamp forever
+  // for loading weeks. The only place raw, unclamped `currentLoad` is ever
+  // read is the RECOVERY branch (`Math.round(currentLoad *
+  // RECOVERY_FRACTION)`) and `preTaperLoad` at taper entry — neither has a
+  // push-site bound check of its own. Week 8 (recovery, immediately after
+  // week 7's clamp) is where this is observable: it reads whatever
+  // `currentLoad` was left at after week 7's progression AND its
+  // currentLoad-clamp, with no bound check of its own.
+  it("pins a recovery week to a literal, guarding the currentLoad clamp specifically", () => {
+    const blocks = periodize(30, startingCtl, 5, 8, "Bike");
+    const week8 = blocks.find((b) => b.weekNumber === 8)!;
+    expect(week8.phase).toBe("recovery");
+    // Without the currentLoad clamp, week 7 leaves currentLoad at
+    // min(817*1.08, 817+56) = 873 (the pre-fix, unbounded value — see the
+    // before/after table for weeks=30,ctl=80 in the report), and week 8
+    // would read round(873*0.6)=524. WITH the clamp, week 7's currentLoad
+    // is pulled down to maxLoadForWeek(8)=840 first, so week 8 reads
+    // round(840*0.6)=504 instead. 504, not 524, is the value that can only
+    // be produced by the second clamp.
+    expect(week8.targetLoad).toBe(504);
+  });
+
+  it("leaves a short plan the bound should not reach untouched", () => {
+    // 6 weeks at 8%/week from CTL 50 stays well inside the trajectory,
+    // so the bound must not quietly reshape a plan it was never meant to.
+    const blocks = periodize(6, 50, 5, 8, "Bike");
+    const loading = blocks.filter((b) => b.phase === "base");
+    expect(loading.length).toBeGreaterThan(1);
+    expect(loading[1].targetLoad).toBeGreaterThan(loading[0].targetLoad);
+  });
+
+  // Found in review: without a floor, maxLoadForWeek(1) for a low CTL falls
+  // BELOW MIN_WEEKLY_LOAD (e.g. CTL 0: (0 + 5*1)*7 = 35), so the ramp bound
+  // would quietly cut a beginner's opening week under the minimum
+  // MIN_WEEKLY_LOAD exists to guarantee — the opposite of this task's job,
+  // which is to stop compounding at the top, not lower the floor at the
+  // bottom. Pinned to a literal (100), not PLAN_CONSTANTS.MIN_WEEKLY_LOAD:
+  // Task 4 on this branch shipped a test that divided by the same constant
+  // the code multiplied by and was blind to a swapped value for exactly
+  // that reason — reading the same constant on both sides of an assertion
+  // proves nothing about whether the constant itself is right.
+  it("never lets the ramp bound cut below MIN_WEEKLY_LOAD", () => {
+    const ctl0 = periodize(12, 0, 5, 8, "Bike");
+    const ctl5 = periodize(12, 5, 5, 8, "Bike");
+    // Both would sit BELOW the floor from the ramp bound alone (35 and 70
+    // respectively) if the floor were not applied — the whole point of
+    // this test.
+    expect(ctl0.find((b) => b.weekNumber === 1)!.targetLoad).toBe(100);
+    expect(ctl5.find((b) => b.weekNumber === 1)!.targetLoad).toBe(100);
+  });
+});
+
 describe("periodize is unchanged by the constants refactor", () => {
   it("produces a stable skeleton for a known input", () => {
     const blocks = periodize(12, 50, 5, 8, "Bike");
