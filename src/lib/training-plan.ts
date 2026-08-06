@@ -24,6 +24,7 @@ import {
 } from "@/lib/plan-preview";
 import { assembleWeeklyTarget } from "@/lib/week-plan/volume-inputs";
 import { assessFeasibility } from "@/lib/race/feasibility";
+import { PLAN_CONSTANTS as PC } from "@/lib/plan-constants";
 
 /**
  * The transaction handle `db.transaction()`'s callback receives. `Database`
@@ -256,16 +257,28 @@ export function periodize(
   queenStageHours: number | null = null
 ): Block[] {
   // Phase distribution
-  const baseWeeks = Math.max(2, Math.round(weeksTotal * 0.4));
-  const buildWeeks = Math.max(1, Math.round(weeksTotal * 0.3));
-  const taperWeeks = Math.max(2, Math.round(weeksTotal * 0.15));
+  const baseWeeks = Math.max(
+    PC.MIN_BASE_WEEKS,
+    Math.round(weeksTotal * PC.PHASE_SHARE_BASE)
+  );
+  const buildWeeks = Math.max(
+    PC.MIN_BUILD_WEEKS,
+    Math.round(weeksTotal * PC.PHASE_SHARE_BUILD)
+  );
+  const taperWeeks = Math.max(
+    PC.MIN_TAPER_WEEKS,
+    Math.round(weeksTotal * PC.PHASE_SHARE_TAPER)
+  );
   const peakWeeks = Math.max(
-    1,
+    PC.MIN_PEAK_WEEKS,
     weeksTotal - baseWeeks - buildWeeks - taperWeeks
   );
 
   // Starting weekly load from CTL (rough TSS = CTL * 7)
-  const baseLoad = Math.max(100, startingCtl * 7);
+  const baseLoad = Math.max(
+    PC.MIN_WEEKLY_LOAD,
+    startingCtl * PC.CTL_TO_WEEKLY_LOAD
+  );
 
   const blocks: Block[] = [];
   let currentLoad = baseLoad;
@@ -278,7 +291,10 @@ export function periodize(
     else phase = "taper";
 
     // Recovery week every 3rd or 4th week (use 4th in base, 3rd in build/peak)
-    const recoveryInterval = phase === "base" ? 4 : 3;
+    const recoveryInterval =
+      phase === "base"
+        ? PC.RECOVERY_INTERVAL_BASE
+        : PC.RECOVERY_INTERVAL_DEFAULT;
     const weekInPhase =
       phase === "base"
         ? w
@@ -296,11 +312,11 @@ export function periodize(
       blocks.push({
         weekNumber: w,
         phase: "recovery",
-        targetLoad: Math.round(currentLoad * 0.6),
+        targetLoad: Math.round(currentLoad * PC.RECOVERY_FRACTION),
         targetSessions: Math.max(3, daysPerWeek - 1),
         workouts: generateWorkouts(
           daysPerWeek - 1,
-          hoursPerWeek * 0.6,
+          hoursPerWeek * PC.RECOVERY_FRACTION,
           "recovery",
           sport,
           queenStageHours
@@ -325,19 +341,19 @@ export function periodize(
       // Load progression: +5-8% in base, +5-7% in build, flat/slight in peak, decrease in taper
       if (phase === "base") {
         currentLoad = Math.min(
-          currentLoad * 1.08,
-          currentLoad + baseLoad * 0.1
+          currentLoad * PC.PROGRESSION_BASE,
+          currentLoad + baseLoad * PC.PROGRESSION_STEP_CAP
         );
       } else if (phase === "build") {
         currentLoad = Math.min(
-          currentLoad * 1.07,
-          currentLoad + baseLoad * 0.1
+          currentLoad * PC.PROGRESSION_BUILD,
+          currentLoad + baseLoad * PC.PROGRESSION_STEP_CAP
         );
       } else if (phase === "peak") {
         // Maintain or slight increase
-        currentLoad *= 1.02;
+        currentLoad *= PC.PROGRESSION_PEAK;
       } else {
-        // Taper: decrease 20-30% per week
+        // Taper: two contradicting rates, removed in Task 4.
         currentLoad *= 0.75;
       }
     }
@@ -349,15 +365,16 @@ export function periodize(
 function loadMultiplier(phase: Block["phase"], weekInPhase: number): number {
   switch (phase) {
     case "base":
-      return 0.85 + weekInPhase * 0.05;
+      return PC.HOURS_BASE_INTERCEPT + weekInPhase * PC.HOURS_BASE_SLOPE;
     case "build":
-      return 1.0 + weekInPhase * 0.03;
+      return PC.HOURS_BUILD_INTERCEPT + weekInPhase * PC.HOURS_BUILD_SLOPE;
     case "peak":
-      return 1.1;
+      return PC.HOURS_PEAK;
     case "taper":
+      // Second contradicting rate, removed in Task 4.
       return 0.7 - (weekInPhase - 1) * 0.1;
     case "recovery":
-      return 0.6;
+      return PC.RECOVERY_FRACTION;
   }
 }
 

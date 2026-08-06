@@ -282,6 +282,26 @@ describe("periodize passes event demand to the cycling generator", () => {
   });
 });
 
+describe("periodize is unchanged by the constants refactor", () => {
+  it("produces a stable skeleton for a known input", () => {
+    const blocks = periodize(12, 50, 5, 8, "Bike");
+    expect(blocks.map((b) => [b.weekNumber, b.phase, b.targetLoad])).toEqual([
+      [1, "base", 350],
+      [2, "base", 378],
+      [3, "base", 408],
+      [4, "recovery", 265],
+      [5, "base", 441],
+      [6, "build", 476],
+      [7, "build", 509],
+      [8, "recovery", 327],
+      [9, "build", 544],
+      [10, "peak", 579],
+      [11, "taper", 591],
+      [12, "taper", 443],
+    ]);
+  });
+});
+
 describe("EASY_RUN_CAP_MINS", () => {
   it("bounds the generator's easy runs", () => {
     // 20 hours across 6 sessions is far more than the easy-run cap can hold,
