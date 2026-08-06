@@ -75,8 +75,10 @@ fractions 0.45/0.65/0.80 of current actual load — and is applied by
   `userId`, **not** by the plan's `raceId`. So a plan with `race_id = null`
   still tapers — the null-`race_id` case that `8bbb761` had to handle
   elsewhere does not break the taper.
-- But `week-plan/service.ts:578-581` applies a taper fraction only when
-  `primary.priority === "A"` and the race is still `status = 'upcoming'`.
+- But `materializeWeek` (`week-plan/materialize.ts:150-154`) takes
+  `primary = races[0]` and applies a taper fraction only when
+  `primary.priority === "A"`; `racesForWeek` has already filtered to
+  `status = 'upcoming'`.
 
 So for a plan built against a **B or C race**, the skeleton taper is currently
 the only taper that exists. Deleting it outright would send an athlete into a B
