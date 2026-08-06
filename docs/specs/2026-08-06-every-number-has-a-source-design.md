@@ -169,15 +169,23 @@ happen to fall.
 branch — the two contradicting rates. The race calendar becomes the single taper
 authority.
 
-`periodize()` itself has no `reasons` channel and does not gain one — it is a
+`periodize()` itself has no reasons channel and does not gain one — it is a
 pure skeleton generator. The explicit reason is recorded where every other taper
-reason already is: `week-plan/service.ts:578-581`, which currently computes
-`taperFraction` only for a priority-A race and otherwise falls through in
-silence. When the primary race of a week inside its own taper window is
-priority B or C, it pushes a reason through the existing `reasons` channel that
-`materializeWeek` already persists as a `plan_adjustments` row — the same idiom
-`effectiveWeekLoad` uses. Making the gap loud is this release's job; filling it
-is v0.47's.
+reason already is: `materializeWeek` (`week-plan/materialize.ts:146-181`), which
+picks `primary = races[0]`, computes a taper fraction only when
+`primary.priority === "A"`, and otherwise falls through in silence. It already
+pushes an `AdjustmentRecord` with `trigger: "race"` when a taper _does_ apply.
+The new branch pushes the mirror-image record when the primary race of a week
+that falls inside its own taper window is priority **B or C** — same channel,
+same persistence as a `plan_adjustments` row. Making the gap loud is this
+release's job; filling it is v0.47's.
+
+Note for the implementer: `fillWeek` (`week-plan/service.ts:571-581`) carries a
+**second copy** of the same priority-A test, deliberately, so that fill's notion
+of "taper week" cannot disagree with the engine's. It decides whether to offer
+fill, not what the week's target is, so it needs no reason record — but it must
+not be left behind if the priority test itself is ever changed. This release
+does not change that test; it only adds a branch for what happens when it fails.
 
 **CTL ramp bound (F1).** Cap each week against a CTL trajectory instead of
 letting the percentage compound:
