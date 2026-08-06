@@ -7,6 +7,7 @@ import { getActivePlan } from "@/lib/active-plan";
 import { racesForWeek, currentCtl } from "@/lib/race/service";
 import { materializeWeek } from "./materialize";
 import { adaptDay } from "./adapt-day";
+import { bookWeekActuals, deriveDayActuals, weekActuals } from "./actuals";
 import { replanWeek } from "./replan";
 import { resolveWeek } from "@/lib/availability/resolve";
 import { dayMins } from "./types";
@@ -127,29 +128,6 @@ async function saveAdjustments(
   }
 }
 
-function weekActuals(days: DaySlot[]): {
-  actualLoad: number;
-  actualSessions: number;
-} {
-  return {
-    // unplannedLoad is real training stress too (a rest-day bonus ride still
-    // shows up in the athlete's legs) — it must count toward the week's
-    // total exactly as actualLoad does. The two fields only differ in
-    // whether they're allowed to trigger a replan; they're equal for
-    // adherence and for next week's ramp-clamp target.
-    actualLoad: days.reduce(
-      (s, d) => s + (d.actualLoad ?? 0) + (d.unplannedLoad ?? 0),
-      0
-    ),
-    // Sessions, not days: a completed day can hold two of them. markDayDone
-    // refuses a day with no workouts and preserves the ones it has, so
-    // summing is exact rather than an estimate.
-    actualSessions: days
-      .filter((d) => d.status === "completed")
-      .reduce((s, d) => s + d.workouts.length, 0),
-  };
-}
-
 export async function getOpenWeekPlan(
   userId: string
 ): Promise<OpenWeekPlan | null> {
@@ -220,7 +198,14 @@ export async function rolloverWeekPlan(
     orderBy: asc(schema.weekPlans.weekStart),
   });
   for (const row of openRows) {
-    const days = row.days as DaySlot[];
+    // Close from the activities table, not from whatever the day slots
+    // happen to hold. runDailyAdaptation books through YESTERDAY and is
+    // triggered by onWellnessDataChanged; this is triggered by the weekly
+    // review. Nothing orders the two, so the week's final day would close at
+    // zero whenever no pass ran between that day and the rollover.
+    const weekEnd = addDaysYmd(row.weekStart, 6);
+    const actuals = await deriveDayActuals(userId, row.weekStart, weekEnd);
+    const days = bookWeekActuals(row.days as DaySlot[], actuals, weekEnd);
     const { actualLoad, actualSessions } = weekActuals(days);
     const block = await db.query.trainingBlocks.findFirst({
       where: and(
@@ -245,7 +230,7 @@ export async function rolloverWeekPlan(
     }
     await db
       .update(schema.weekPlans)
-      .set({ status: "closed", updatedAt: now })
+      .set({ days, status: "closed", updatedAt: now })
       .where(eq(schema.weekPlans.id, row.id));
     prevWeek = { actualLoad, adherencePct }; // rows are ascending: latest wins
   }
@@ -370,39 +355,6 @@ export async function rolloverWeekPlan(
   return "rolled";
 }
 
-/**
- * Books an activity's load onto a day. Work the plan did not ask for goes
- * to `unplannedLoad`, which counts toward the week's actuals but never
- * triggers a replan — an extra easy hour on a rest day must not cost you a
- * session later in the week.
- *
- * A day that DID have a planned session books the whole activity's load as
- * that session's `actualLoad`, even when the activity ran long (e.g. a
- * planned 60min ride that turned into a 3hr group ride): there is no
- * expected-load figure on a `PlannedWorkout` to diff against (only duration
- * + a free-text intensity band), so splitting "the planned part" from "the
- * excess" would mean inventing an unspecified estimate rather than reading
- * one. The invariant this function exists to protect — no session is ever
- * removed for running over on load — holds either way: nothing here (or in
- * adaptDay) removes a session because of accumulated load.
- *
- * `load` is the day's TOTAL, not an increment — both fields are SET, so
- * calling this twice with the same figure is a no-op rather than a doubling.
- * The caller recomputes that total from the activities table on every pass,
- * which is what makes repeated runs idempotent; an accumulating version had
- * to be defended with a "have I seen this activity id?" guard, and that guard
- * is precisely what stopped a second ride on the same day from ever counting.
- *
- * Pure, and exported for its tests: the only thing it decides is which
- * field the load lands in.
- */
-export function recordUnplannedLoad(day: DaySlot, load: number): DaySlot {
-  if (day.workouts.length === 0) {
-    return { ...day, unplannedLoad: load };
-  }
-  return { ...day, actualLoad: load };
-}
-
 export async function runDailyAdaptation(
   userId: string,
   now = new Date()
@@ -412,17 +364,16 @@ export async function runDailyAdaptation(
   const today = localYmd(now);
   if (!week.days.some((d) => d.date === today)) return "skipped";
 
-  // Yesterday completion: match a synced activity to whatever yesterday
-  // held. A planned/moved/adapted day matches on ITS OWN sport (below) —
-  // that constraint makes sense there because the plan named an expected
-  // sport for that slot. `yesterdayCompleted` is meaningful only for that
-  // case: it feeds adaptDay's missed/completed handling, which needs to
-  // know whether a *planned* session did or didn't happen.
+  // Did YESTERDAY's planned session happen? This is a different question
+  // from "what work happened", which bookWeekActuals below answers for every
+  // past day with no sport test and no status gate. Only this one needs the
+  // sport match and the settled-sync bound, because only this one feeds
+  // adaptDay's missed-workout handling. Tangling the two is what made a
+  // completed, missed or cross-sport day book its load nowhere at all.
   const yesterdayYmd = addDaysYmd(today, -1);
   const ySlot = week.days.find((d) => d.date === yesterdayYmd);
   const ySlotWorkout = ySlot?.workouts[0] ?? null;
   let yesterdayCompleted: boolean | null = null;
-  let matched: { id: string; load: number | null } | null = null;
 
   // A session may only be written off as missed once the ride has had a
   // chance to arrive. onWellnessDataChanged re-runs this on every wellness
@@ -510,61 +461,11 @@ export async function runDailyAdaptation(
     });
     if (activity) {
       yesterdayCompleted = true;
-      matched = { id: activity.id, load: activity.load };
     } else if (activitiesSettled) {
       yesterdayCompleted = false;
     }
     // else: leave null — nothing to judge yet, so adaptDay's missed-workout
     // handling does not run and the session stays put.
-  } else if (
-    ySlot != null &&
-    (ySlot.status === "rest" || ySlot.status === "race")
-  ) {
-    // No planned session yesterday — a rest day never had a sport to match
-    // against, and a race day's "session" isn't represented in `workouts`
-    // either (materializeWeek clears it there in favour of `raceName`), so
-    // the sport-equality constraint above simply doesn't apply: there is no
-    // expected sport to compare to. Match ANY activity on the local date
-    // instead. Whatever comes back — a bonus ride on the rest day, or the
-    // race performance itself — is booked purely through
-    // recordUnplannedLoad below, which routes a day with no workouts to
-    // unplannedLoad without touching status: a race day keeps
-    // "race"/raceName, a rest day keeps "rest". Covering race days here
-    // (not just rest) follows the design directly — "an activity landing on
-    // a day with no planned session ... is recorded as unplannedLoad"
-    // describes both equally; a race day has no `workouts` entry any more
-    // than a rest day does, and letting its activity book as unplanned load
-    // is strictly additive information (nothing is fabricated or removed).
-    // yesterdayCompleted is deliberately left null: there was nothing
-    // planned to mark completed or missed, so adaptDay's missed-workout
-    // handling must not run for this day.
-    // EVERY activity of that day, not just the most recent one. This used to
-    // be a findFirst ordered by startDate desc, which silently dropped the
-    // earlier rides of a multi-ride day: runDailyAdaptation books onto
-    // YESTERDAY, so by the time it runs they have all long since synced and
-    // only the last one was ever seen. Live evidence 2026-07-30 — two rides,
-    // loads 63 and 67, of which only 67 would have counted.
-    const dayActivities = await db.query.activities.findMany({
-      where: and(
-        eq(schema.activities.userId, userId),
-        ne(schema.activities.provider, "strava"), // see the firewall note above
-        gte(
-          sql`coalesce(${schema.activities.startDateLocal}, ${schema.activities.startDate})`,
-          new Date(yesterdayYmd + "T00:00:00")
-        ),
-        lt(
-          sql`coalesce(${schema.activities.startDateLocal}, ${schema.activities.startDate})`,
-          new Date(today + "T00:00:00")
-        )
-      ),
-      orderBy: desc(schema.activities.startDate),
-    });
-    if (dayActivities.length > 0) {
-      matched = {
-        id: dayActivities[0].id,
-        load: dayActivities.reduce((s, a) => s + (a.load ?? 0), 0),
-      };
-    }
   }
 
   const metric = await db.query.dailyMetrics.findFirst({
@@ -589,24 +490,29 @@ export async function runDailyAdaptation(
     yesterdayCompleted,
   });
 
-  if (matched) {
-    const idx = result.week.days.findIndex((d) => d.date === yesterdayYmd);
-    // Idempotent by construction: `matched.load` is the day's total, recomputed
-    // from the activities table on every run, and recordUnplannedLoad SETS the
-    // field rather than adding to it. Re-running therefore writes the same
-    // number, the JSON comparison below sees no change, and the pass reports
-    // "skipped" — which is what stops the hourly Apple Health push from
-    // rewriting week_plans. This replaces an `activityId !== matched.id`
-    // guard that was doing that job before: it stopped the compounding
-    // (a real run reached unplannedLoad 600 across six invocations) but only
-    // by refusing to look again, which is also why a second ride on the same
-    // day could never be added once the first had claimed the slot.
-    if (idx !== -1) {
-      result.week.days[idx] = {
-        ...recordUnplannedLoad(result.week.days[idx], matched.load ?? 0),
-        activityId: matched.id,
-      };
-    }
+  // Book what actually happened onto every past day of the week, from the
+  // activities table. Runs AFTER adaptDay because adaptDay may empty a
+  // missed day's workouts, and that is what routes a cross-sport day's load
+  // to unplannedLoad rather than reading as the planned session's actual.
+  //
+  // Today is deliberately not booked: its load is still accumulating, and
+  // /train renders today live off deriveDayActuals anyway — the same
+  // derivation this books from.
+  //
+  // That leaves the week's FINAL day permanently unbookable here, and not
+  // merely as a matter of ordering: booking it would need a call where today
+  // is the day after the week's last, and by then rolloverWeekPlan has closed
+  // this week — getOpenWeekPlan returns the new one, and the guard at the top
+  // of this function returns "skipped" before reaching this point. Only the
+  // close itself can book that day, which is why rolloverWeekPlan has to
+  // re-derive rather than sum whatever these fields happen to hold.
+  if (yesterdayYmd >= week.weekStart) {
+    const actuals = await deriveDayActuals(
+      userId,
+      week.weekStart,
+      yesterdayYmd
+    );
+    result.week.days = bookWeekActuals(result.week.days, actuals, yesterdayYmd);
   }
 
   const changed =
@@ -927,9 +833,13 @@ export async function swapWorkouts(
  * Athlete-initiated "Mark done" (2a). Flips a planned day to completed
  * without inventing anything: no actualLoad, no activityId, no synthetic
  * activity row. Adherence is load-based (actualLoad / target), so a manual
- * tick moves the week's session count and nothing else — if the ride later
- * syncs, adaptDay attaches the real load and the day is already where it
- * belongs.
+ * tick moves the week's session count and nothing else — when the ride
+ * syncs, runDailyAdaptation's booking pass attaches the real load, and the
+ * day is already where it belongs.
+ *
+ * Before v0.44 that last clause was simply untrue: no booking branch covered
+ * status "completed", so pressing this button meant the day's load was never
+ * recorded at all. The live week of 2026-07-27 lost 469 of 783 that way.
  *
  * Refuses days that have no workout (nothing to complete), days already
  * completed or missed, and race days, which the race flow owns.

@@ -819,6 +819,42 @@ already completed.
 
 One additive migration, `materialized_mins`, nullable, no backfill.
 
+> **v0.39 through v0.43 have no section here.** They shipped and are recorded
+> in `CHANGELOG.md`; the roadmap simply never caught up. Closing that gap is
+> its own item — see `docs/specs/2026-08-04-outstanding-work-roadmap.md`.
+
+## ✅ v0.44 — No Training Is Lost
+
+The week of 2026-07-27 closed at a training load of 314 against a real 783.
+Load was booked only for yesterday, only for five of `DayStatus`'s seven
+members, and only when the activity's sport matched the plan's — so a day
+marked done through the app's own "Mark done" button booked nothing at all.
+
+- [x] **One derivation of what happened per local day**, shared by the daily
+      adaptation pass, the week close, `/train`, and the repair script,
+      replacing two divergent copies of the same query.
+- [x] **Booking is status-blind and sport-blind**, and covers every past day
+      of the week rather than yesterday alone, so a completed day, a missed
+      day, a cross-sport day, a second session and a late-syncing activity all
+      book. Whether the planned session happened is now a separate question,
+      asked only where it is needed.
+- [x] **The close re-derives the week** instead of summing what the day slots
+      already held. The final day was not merely racy but unbookable by the
+      daily pass, so every week closed with its last day at zero.
+- [x] **`scripts/repair-week-actuals.ts`** replays the derivation over stored
+      weeks — dry run by default, mandatory user scope, both writes in one
+      transaction.
+
+**Done when:** a week the athlete marked done by hand closes at the load they
+actually trained, and re-running the pass changes nothing.
+
+No migration; `actual_load` and `unplanned_load` already existed on the day
+slot.
+
+**Deliberately still open, carried to v0.45:** whether the planned session
+happened is judged once, on the morning that day is yesterday. If the sync has
+not settled by then, no later pass asks again.
+
 ## Ongoing — operations track
 
 All items scheduled into **v0.17 — Good Self-Hosted Citizen** by the v0.9.6

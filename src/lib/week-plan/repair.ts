@@ -37,7 +37,8 @@
  * always born without them), so carrying them forward is never in tension
  * with "restore the intended session" — it only matters because a day can
  * hold a REAL synced activity's load without being `completed`/`missed`/
- * `race`: `recordUnplannedLoad` (service.ts) books a rest-day bonus ride as
+ * `race`: `bookDayLoad` (actuals.ts, called `recordUnplannedLoad` in
+ * service.ts before v0.44) books a rest-day bonus ride as
  * `unplannedLoad` while leaving `status: "rest"` untouched. Confirmed live:
  * the actual corrupted week (2026-07-27, the athlete from the hotfix
  * evidence) has a `rest`-status day carrying `unplannedLoad: 620` from a

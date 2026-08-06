@@ -208,16 +208,16 @@ Correctness first, then the cockpit, then breadth. Full breadth is in scope as
 a goal; it is sequenced last because the market's own complaints are all about
 arithmetic, not coverage.
 
-| Release                                  | Content                                                                                                                                                             |
-| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **v0.42 — One sport, decided once**      | F1, F4, F6, F8, F12 — **SHIPPED 2026-08-05**, tag `v0.42.0`, PR #49                                                                                                 |
-| **v0.43 — The plan you can see first**   | Preview before commit; transactional generation. `docs/specs/2026-08-05-plan-preview-design.md`                                                                     |
-| **v0.44 — No training is lost**          | F2 — the missing third booking branch                                                                                                                               |
-| **v0.45 — Every number has a source**    | Evidence doc for `periodize()`; delete the dead skeleton taper; fix the recovery-cadence phase-boundary reset; downgrade the ACWR claims; add a CTL ramp-rate bound |
-| **v0.46 — Demand knows its sport**       | F3, F7, with a confidence flag on the demand figure                                                                                                                 |
-| **v0.47 — The plan knows how you start** | Fix `startingCtl` defaulting; read ATL/TSB; open with recovery when form is deeply negative; B/C mini-tapers; illness comeback                                      |
-| **v0.48 — The season on one screen**     | Plan timeline, target and actual overlaid, mobile-first                                                                                                             |
-| **Then breadth**                         | Fuelling → workout file export → block periodization and plan styles → off-season mode → multi-A-race seasons → race pacing → strength → deep analytics             |
+| Release                                  | Content                                                                                                                                                                     |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **v0.42 — One sport, decided once**      | F1, F4, F6, F8, F12 — **SHIPPED 2026-08-05**, tag `v0.42.0`, PR #49                                                                                                         |
+| **v0.43 — The plan you can see first**   | Preview before commit; transactional generation. `docs/specs/2026-08-05-plan-preview-design.md` — **SHIPPED 2026-08-05**, tag `v0.43.0`                                     |
+| **v0.44 — No training is lost**          | F2 — **SHIPPED 2026-08-06**. Not one missing branch: booking became status-blind and sport-blind over every past day. `docs/specs/2026-08-06-no-training-is-lost-design.md` |
+| **v0.45 — Every number has a source**    | Evidence doc for `periodize()`; delete the dead skeleton taper; fix the recovery-cadence phase-boundary reset; downgrade the ACWR claims; add a CTL ramp-rate bound         |
+| **v0.46 — Demand knows its sport**       | F3, F7, with a confidence flag on the demand figure                                                                                                                         |
+| **v0.47 — The plan knows how you start** | Fix `startingCtl` defaulting; read ATL/TSB; open with recovery when form is deeply negative; B/C mini-tapers; illness comeback                                              |
+| **v0.48 — The season on one screen**     | Plan timeline, target and actual overlaid, mobile-first                                                                                                                     |
+| **Then breadth**                         | Fuelling → workout file export → block periodization and plan styles → off-season mode → multi-A-race seasons → race pacing → strength → deep analytics                     |
 
 Fuelling leads the breadth phase because MacroBurn proves it can be done free,
 and it is the largest genuine hole in recover's coverage.

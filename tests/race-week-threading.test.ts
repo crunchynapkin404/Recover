@@ -306,6 +306,19 @@ describe.skipIf(!hasDb)(
           status: "rest" as const,
         };
       });
+      // Since v0.44 the close re-derives every day from the activities table
+      // rather than trusting the day slot's stored actualLoad, so the taper
+      // base has to be backed by a real row or it closes at zero.
+      await db.insert(schema.activities).values({
+        userId: TAPER_USER,
+        provider: "intervals_icu",
+        externalId: "taper-base-long-run",
+        startDate: new Date(week1Start + "T09:00:00"),
+        startDateLocal: new Date(week1Start + "T09:00:00"),
+        sport: "Run",
+        durationS: 5400,
+        load: PREV_ACTUAL,
+      });
       await db.insert(schema.weekPlans).values({
         userId: TAPER_USER,
         planId: plan.id,
@@ -366,6 +379,20 @@ describe.skipIf(!hasDb)(
           workouts: [],
           status: "rest" as const,
         };
+      });
+      // Backed by a real row, for the same reason as week1's: the close
+      // re-derives rather than trusting the stored actualLoad. The day has no
+      // workouts, so this books as unplannedLoad — weekActuals sums both, so
+      // the week's total, and therefore the adherence under test, is the same.
+      await db.insert(schema.activities).values({
+        userId: TAPER_USER,
+        provider: "intervals_icu",
+        externalId: "taper-week-executed",
+        startDate: new Date(week2Start + "T09:00:00"),
+        startDateLocal: new Date(week2Start + "T09:00:00"),
+        sport: "Run",
+        durationS: 3600,
+        load: expectedTaperTarget,
       });
       await db
         .update(schema.weekPlans)

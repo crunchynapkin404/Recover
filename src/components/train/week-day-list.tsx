@@ -1,4 +1,4 @@
-import type { DaySlot } from "@/lib/week-plan/types";
+import type { DayActuals, DaySlot } from "@/lib/week-plan/types";
 import {
   DayActions,
   type DayActionsOtherDay,
@@ -28,13 +28,6 @@ function weekdayOf(ymd: string): string {
  * the day's availableBlocks are real, athlete-set facts, not a projection.
  */
 type RowBadge = "provisional" | "pinned" | null;
-
-/** What the athlete actually did on a date, summed across its activities. */
-export interface DayActuals {
-  count: number;
-  secs: number;
-  load: number;
-}
 
 /** "1:37" — the same compact clock the debrief sheet and activity list use. */
 function clock(secs: number): string {
