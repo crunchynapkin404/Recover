@@ -172,3 +172,21 @@ export const STEP_DOWN: Record<string, string> = {
   Tempo: "Endurance",
   Brick: "Endurance",
 };
+
+/**
+ * What the athlete actually did on a date, summed across its activities.
+ *
+ * Lives here rather than in `actuals.ts` so a client component can import the
+ * type without pulling a module that imports `db` into the browser bundle.
+ */
+export interface DayActuals {
+  count: number;
+  secs: number;
+  load: number;
+  /**
+   * That day's most recent activity. A day can hold several; nothing
+   * downstream reads more than one, and this is the one the rest/race
+   * branch already stored before v0.44.
+   */
+  activityId: string;
+}

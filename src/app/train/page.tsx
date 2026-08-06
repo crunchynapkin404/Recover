@@ -647,9 +647,18 @@ async function WeekTab({
   // slot's own `unplannedLoad`: runDailyAdaptation books that onto YESTERDAY,
   // so a ride done today would not reach its own row until tomorrow — which
   // is exactly the gap this closes.
+  // This is the duplicate copy `deriveDayActuals` (src/lib/week-plan/actuals.ts)
+  // exists to retire — same aggregation, but windowed on bare start_date
+  // instead of coalesce(start_date_local, start_date), so it silently drops
+  // rows predating the start_date_local backfill. Left as-is here; rewiring
+  // this call site is later work. `activityId` is populated (matching
+  // DayActuals, now that the shared type requires it) but unused below —
+  // DayRow never reads it, this local aggregation isn't ordered by recency
+  // the way deriveDayActuals's is, so it's not yet the meaningful "most
+  // recent activity" the field promises.
   const dayActuals: Record<
     string,
-    { count: number; secs: number; load: number }
+    { count: number; secs: number; load: number; activityId: string }
   > = {};
   if (week) {
     const weekActivities = await db.query.activities.findMany({
@@ -661,7 +670,12 @@ async function WeekTab({
     });
     for (const a of weekActivities) {
       const ymd = localYmd(a.startDateLocal ?? a.startDate);
-      const acc = (dayActuals[ymd] ??= { count: 0, secs: 0, load: 0 });
+      const acc = (dayActuals[ymd] ??= {
+        count: 0,
+        secs: 0,
+        load: 0,
+        activityId: a.id,
+      });
       acc.count += 1;
       acc.secs += a.durationS ?? 0;
       acc.load += a.load ?? 0;

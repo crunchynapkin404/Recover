@@ -105,7 +105,9 @@ describe("WeekDayList", () => {
       <WeekDayList
         today={TODAY}
         days={[slot(TODAY, "rest")]}
-        actuals={{ [TODAY]: { count: 2, secs: 5823, load: 130 } }}
+        actuals={{
+          [TODAY]: { count: 2, secs: 5823, load: 130, activityId: "act-1" },
+        }}
       />
     );
     expect(html).toContain("Rest");
@@ -119,7 +121,9 @@ describe("WeekDayList", () => {
       <WeekDayList
         today={TODAY}
         days={[slot(TODAY, "rest")]}
-        actuals={{ [TODAY]: { count: 1, secs: 3039, load: 63 } }}
+        actuals={{
+          [TODAY]: { count: 1, secs: 3039, load: 63, activityId: "act-1" },
+        }}
       />
     );
     expect(html).toContain("1 session");
@@ -134,7 +138,9 @@ describe("WeekDayList", () => {
       <WeekDayList
         today={TODAY}
         days={[slot(TODAY, "completed", tempo)]}
-        actuals={{ [TODAY]: { count: 1, secs: 3039, load: 63 } }}
+        actuals={{
+          [TODAY]: { count: 1, secs: 3039, load: 63, activityId: "act-1" },
+        }}
       />
     );
     expect(html).not.toContain("1 session");
