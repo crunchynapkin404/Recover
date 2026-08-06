@@ -13,7 +13,7 @@
  * day late, every cycle. Exact-hour matching would silently never fire,
  * because syncs run at SYNC_HOUR, not at the user's review hour.
  */
-import { and, desc, eq, gte, lte, ne, count, avg, sum } from "drizzle-orm";
+import { and, desc, eq, gte, lte, ne, count, avg } from "drizzle-orm";
 import { generateText } from "ai";
 import { db, schema } from "@/lib/db";
 import { getActivePlan } from "@/lib/active-plan";
@@ -21,6 +21,8 @@ import { logger } from "@/lib/logger";
 import { resolveProvider } from "@/lib/llm-provider";
 import { recordLlmUsage } from "@/lib/llm-usage";
 import { buildSystemPrompt, languageDirective } from "@/lib/coach-persona";
+import { deriveDayActuals } from "@/lib/week-plan/actuals";
+import { mondayOf, addDaysYmd } from "@/lib/week-plan/service";
 
 export const WEEKLY_THREAD_TITLE = "Weekly Review";
 /**
@@ -129,10 +131,11 @@ export async function generateWeeklyReview(userId: string): Promise<void> {
   }
 
   // ── Skip if insufficient data ──────────────────────────────────────────
+  // This gate is deliberately still a rolling 7-day window off raw
+  // start_date — a "did anything happen recently" check, not a reported
+  // number, so it does not need calendar-week or local-day bucketing.
   const sevenDaysAgo = new Date(now);
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-  const fourteenDaysAgo = new Date(now);
-  fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
 
   const sevenAgoYmd = localYmd(sevenDaysAgo);
   const todayYmd = localYmd(now);
@@ -158,6 +161,33 @@ export async function generateWeeklyReview(userId: string): Promise<void> {
     return;
   }
 
+  // The calendar week that just closed — the same window rolloverWeekPlan
+  // uses, so the review's number and the stored number agree BY
+  // CONSTRUCTION rather than by coincidence.
+  //
+  // This replaced a rolling 7-day window over raw start_date. That window
+  // was neither a calendar week nor local-day bucketed, and it skipped the
+  // coalesce(start_date_local, start_date) every other surface uses — so
+  // the athlete was told a number no other screen agreed with, and the
+  // message is stored verbatim and never rewritten.
+  //
+  // deriveDayActuals already excludes Strava (Nov 2024 API agreement) and
+  // already coalesces the local timestamp, so routing through it closes all
+  // three problems at once.
+  const reviewWeekStart = addDaysYmd(mondayOf(now), -7);
+  const reviewWeekEnd = addDaysYmd(reviewWeekStart, 6);
+  const prevWeekStart = addDaysYmd(reviewWeekStart, -7);
+
+  const [thisWeekDays, prevWeekDays] = await Promise.all([
+    deriveDayActuals(userId, reviewWeekStart, reviewWeekEnd),
+    deriveDayActuals(userId, prevWeekStart, addDaysYmd(prevWeekStart, 6)),
+  ]);
+
+  const sumLoad = (days: Awaited<ReturnType<typeof deriveDayActuals>>) =>
+    Object.values(days).reduce((s, d) => s + d.load, 0);
+  const sumCount = (days: Awaited<ReturnType<typeof deriveDayActuals>>) =>
+    Object.values(days).reduce((s, d) => s + d.count, 0);
+
   // ── Gather this week's data ────────────────────────────────────────────
   const [thisWeekMetrics] = await db
     .select({
@@ -167,38 +197,8 @@ export async function generateWeeklyReview(userId: string): Promise<void> {
     .where(
       and(
         eq(schema.dailyMetrics.userId, userId),
-        gte(schema.dailyMetrics.date, sevenAgoYmd),
-        lte(schema.dailyMetrics.date, todayYmd)
-      )
-    );
-
-  const [thisWeekLoad] = await db
-    .select({
-      totalLoad: sum(schema.activities.load).mapWith(Number),
-      sessions: count(),
-    })
-    .from(schema.activities)
-    .where(
-      and(
-        eq(schema.activities.userId, userId),
-        ne(schema.activities.provider, "strava"),
-        gte(schema.activities.startDate, sevenDaysAgo)
-      )
-    );
-
-  // ── Gather prior week's data ───────────────────────────────────────────
-  const [prevWeekLoad] = await db
-    .select({
-      totalLoad: sum(schema.activities.load).mapWith(Number),
-      sessions: count(),
-    })
-    .from(schema.activities)
-    .where(
-      and(
-        eq(schema.activities.userId, userId),
-        ne(schema.activities.provider, "strava"),
-        gte(schema.activities.startDate, fourteenDaysAgo),
-        lte(schema.activities.startDate, sevenDaysAgo)
+        gte(schema.dailyMetrics.date, reviewWeekStart),
+        lte(schema.dailyMetrics.date, reviewWeekEnd)
       )
     );
 
@@ -208,10 +208,10 @@ export async function generateWeeklyReview(userId: string): Promise<void> {
     orderBy: desc(schema.wellnessDaily.date),
   });
 
-  const weekLoad = thisWeekLoad?.totalLoad ?? 0;
-  const prevLoad = prevWeekLoad?.totalLoad ?? 0;
-  const sessions = thisWeekLoad?.sessions ?? 0;
-  const prevSessions = prevWeekLoad?.sessions ?? 0;
+  const weekLoad = sumLoad(thisWeekDays);
+  const prevLoad = sumLoad(prevWeekDays);
+  const sessions = sumCount(thisWeekDays);
+  const prevSessions = sumCount(prevWeekDays);
   const avgReadiness = Math.round(thisWeekMetrics?.avgReadiness ?? 0);
   const ctl = Math.round(latestWellness?.ctl ?? 0);
   const atl = Math.round(latestWellness?.atl ?? 0);
@@ -351,17 +351,16 @@ export async function generateWeeklyReview(userId: string): Promise<void> {
     .set({ updatedAt: now })
     .where(eq(schema.chatThreads.id, thread.id));
 
-  // ── Plan side-effects LAST: the stored review is the idempotency marker,
-  //    so a retry after a crash here can at worst redo these writes once ──
+  // Plan side-effects LAST: the stored review is the idempotency marker, so
+  // a retry after a crash here can at worst redo these writes once.
+  //
+  // training_blocks actuals are deliberately NOT written here. rolloverWeekPlan
+  // writes them below from bookWeekActuals/weekActuals — the plan-shaped
+  // count of sessions completed, which is a different question from the
+  // activity count this message reports. Two writers meant the review's
+  // figure landed first and was silently overwritten; one writer means there
+  // is nothing to diverge.
   if (activePlan && currentBlock && planAdherence) {
-    await db
-      .update(schema.trainingBlocks)
-      .set({
-        actualLoad: weekLoad,
-        actualSessions: sessions,
-        adherencePct: planAdherence.adherencePct,
-      })
-      .where(eq(schema.trainingBlocks.id, currentBlock.id));
     await db
       .update(schema.trainingPlans)
       .set({ currentWeek: activePlan.currentWeek + 1 })

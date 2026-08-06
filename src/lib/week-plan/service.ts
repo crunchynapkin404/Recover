@@ -48,7 +48,8 @@ function localYmd(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-function mondayOf(d: Date): string {
+/** Exported for weekly-review, which must bucket on the same week boundary. */
+export function mondayOf(d: Date): string {
   const day = (d.getDay() + 6) % 7; // Mon=0
   const m = new Date(d);
   m.setDate(d.getDate() - day);
