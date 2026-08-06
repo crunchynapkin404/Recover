@@ -496,8 +496,8 @@ export async function runDailyAdaptation(
   // to unplannedLoad rather than reading as the planned session's actual.
   //
   // Today is deliberately not booked: its load is still accumulating, and
-  // /train renders today live from the activities table anyway (through its
-  // own parallel copy of this query until Task 5 unifies them).
+  // /train renders today live off deriveDayActuals anyway — the same
+  // derivation this books from.
   //
   // That leaves the week's FINAL day permanently unbookable here, and not
   // merely as a matter of ordering: booking it would need a call where today
