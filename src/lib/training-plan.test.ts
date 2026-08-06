@@ -12,6 +12,7 @@ import {
   periodize,
   EASY_RUN_CAP_MINS,
 } from "./training-plan";
+import { PLAN_CONSTANTS } from "./plan-constants";
 
 // requires Postgres; skips without DATABASE_URL.
 const hasDb =
@@ -272,7 +273,7 @@ describe("periodize passes event demand to the cycling generator", () => {
 
     const longOf = (blocks: ReturnType<typeof periodize>) =>
       blocks
-        .find((b) => b.weekNumber === 5)!
+        .find((b) => b.weekNumber === 6)!
         .workouts.find((w) => w.type === "Long")!.durationMins;
 
     // 12.5h x 1.03 = 773 min; 38% = 294, which the event allows and the
@@ -282,19 +283,60 @@ describe("periodize passes event demand to the cycling generator", () => {
   });
 });
 
+describe("recovery cadence", () => {
+  /** Longest run of consecutive non-recovery weeks in a skeleton. */
+  function longestLoadingRun(blocks: ReturnType<typeof periodize>): number {
+    let run = 0;
+    let worst = 0;
+    for (const b of blocks) {
+      if (b.phase === "recovery" || b.phase === "taper") run = 0;
+      else {
+        run += 1;
+        worst = Math.max(worst, run);
+      }
+    }
+    return worst;
+  }
+
+  it("never exceeds the base interval, at any plan length", () => {
+    for (let weeks = 4; weeks <= 52; weeks++) {
+      const blocks = periodize(weeks, 50, 5, 8, "Bike");
+      expect(
+        longestLoadingRun(blocks),
+        `${weeks}-week plan ran too long without recovery`
+      ).toBeLessThanOrEqual(PLAN_CONSTANTS.RECOVERY_INTERVAL_BASE);
+    }
+  });
+
+  it("does not restart the count at a phase boundary", () => {
+    // An 8-week plan gives a 3-week base: 3 % 4 !== 0 produced no recovery
+    // week at all, and build's counter restarted, pushing recovery to week 6.
+    const blocks = periodize(8, 50, 5, 8, "Bike");
+    const firstRecovery = blocks.findIndex((b) => b.phase === "recovery");
+    expect(firstRecovery).toBeGreaterThanOrEqual(0);
+    expect(firstRecovery + 1).toBeLessThanOrEqual(
+      PLAN_CONSTANTS.RECOVERY_INTERVAL_BASE
+    );
+  });
+});
+
 describe("periodize is unchanged by the constants refactor", () => {
   it("produces a stable skeleton for a known input", () => {
     const blocks = periodize(12, 50, 5, 8, "Bike");
+    // Updated in v0.45 Task 3: the recovery cadence no longer resets at
+    // phase boundaries. For this 12-week fixture the running counter
+    // reaches the base interval of 4 before build's own 3-week interval
+    // would have fired, so recovery weeks move later: 4 -> 5 and 8 -> 9.
     expect(blocks.map((b) => [b.weekNumber, b.phase, b.targetLoad])).toEqual([
       [1, "base", 350],
       [2, "base", 378],
       [3, "base", 408],
-      [4, "recovery", 265],
-      [5, "base", 441],
+      [4, "base", 441],
+      [5, "recovery", 286],
       [6, "build", 476],
       [7, "build", 509],
-      [8, "recovery", 327],
-      [9, "build", 544],
+      [8, "build", 544],
+      [9, "recovery", 348],
       [10, "peak", 579],
       [11, "taper", 591],
       [12, "taper", 443],

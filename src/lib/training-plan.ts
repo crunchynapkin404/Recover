@@ -282,6 +282,11 @@ export function periodize(
 
   const blocks: Block[] = [];
   let currentLoad = baseLoad;
+  // Weeks since the last recovery week, carried ACROSS phase boundaries.
+  // Resetting it per phase made cadence a property of where the boundaries
+  // fell: a 3-week base produced no recovery week (3 % 4 !== 0) and build
+  // started counting again, giving six consecutive loading weeks.
+  let weeksSinceRecovery = 0;
 
   for (let w = 1; w <= weeksTotal; w++) {
     let phase: Block["phase"];
@@ -290,11 +295,7 @@ export function periodize(
     else if (w <= baseWeeks + buildWeeks + peakWeeks) phase = "peak";
     else phase = "taper";
 
-    // Recovery week every 3rd or 4th week (use 4th in base, 3rd in build/peak)
-    const recoveryInterval =
-      phase === "base"
-        ? PC.RECOVERY_INTERVAL_BASE
-        : PC.RECOVERY_INTERVAL_DEFAULT;
+    // Still needed by loadMultiplier, which shapes hours WITHIN a phase.
     const weekInPhase =
       phase === "base"
         ? w
@@ -303,10 +304,13 @@ export function periodize(
           : phase === "peak"
             ? w - baseWeeks - buildWeeks
             : w - baseWeeks - buildWeeks - peakWeeks;
+
+    const recoveryInterval =
+      phase === "base"
+        ? PC.RECOVERY_INTERVAL_BASE
+        : PC.RECOVERY_INTERVAL_DEFAULT;
     const isRecovery =
-      weekInPhase > 1 &&
-      weekInPhase % recoveryInterval === 0 &&
-      phase !== "taper";
+      w > 1 && weeksSinceRecovery >= recoveryInterval && phase !== "taper";
 
     if (isRecovery) {
       blocks.push({
@@ -322,8 +326,10 @@ export function periodize(
           queenStageHours
         ),
       });
+      weeksSinceRecovery = 0;
       // Don't increase load after recovery
     } else {
+      weeksSinceRecovery += 1;
       blocks.push({
         weekNumber: w,
         phase,

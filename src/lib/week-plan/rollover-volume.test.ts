@@ -57,9 +57,16 @@ describe("periodize under a derived hours target", () => {
     expect(strip(large)).toEqual(strip(small));
   });
 
-  it("still marks week 4 of a 9-week plan a recovery week", () => {
+  it("still marks week 5 of a 9-week plan a recovery week", () => {
     // Guards the existing periodisation while the hours input changes.
+    // Anchor moved 4 -> 5 in v0.45 Task 3: the recovery cadence no longer
+    // resets at phase boundaries, which relocates which week is recovery
+    // for this plan. Week 4 was never a claim that recovery belongs there
+    // specifically — the hours-invariance intent this test guards is
+    // covered directly by the sibling test above ("keeps targetLoad, phase
+    // and targetSessions identical across a 20x hours spread"), which is
+    // untouched by the cadence change.
     const blocks = periodize(9, 76.7, 4, 10, "Bike");
-    expect(blocks.find((b) => b.weekNumber === 4)!.phase).toBe("recovery");
+    expect(blocks.find((b) => b.weekNumber === 5)!.phase).toBe("recovery");
   });
 });
