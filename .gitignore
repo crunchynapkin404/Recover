@@ -51,3 +51,8 @@ docs/superpowers/
 .claude/
 .superpowers/
 .env.live-restore
+
+# Deployment-specific operational wrappers (container names, live ports).
+# The repair scripts they call ARE tracked; these thin wrappers are not, so a
+# public clone never carries this instance's topology.
+scripts/live-*.sh
