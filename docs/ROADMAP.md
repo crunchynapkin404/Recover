@@ -855,6 +855,74 @@ slot.
 happened is judged once, on the morning that day is yesterday. If the sync has
 not settled by then, no later pass asks again.
 
+## ✅ v0.45 — Every number has a source
+
+`periodize()` was the last unsourced engine in the plan pipeline — a 40/30/15
+phase split, 8%/7%/2% progression rates, a 60% recovery fraction, and a taper
+that decayed two contradicting ways at once, all picked by feel and never
+written down. This release does not make the generator smarter; it makes it
+honest, fixes three real defects it was hiding, and gives the one
+athlete-facing figure that still had no source — the weekly review's load —
+the same provenance as the rest of the app.
+
+- [x] **Every constant sourced and CI-enforced**: `src/lib/plan-constants.ts`
+      plus `docs/specs/2026-08-06-periodize-evidence.md`, one summary-table
+      row and one confidence rating per constant. `plan-constants.test.ts`
+      fails CI on an undocumented constant and is deliberately not
+      database-gated, so it actually runs on every PR. It proves a constant
+      is **named**, not that its value or confidence rating is honest.
+- [x] **Recovery cadence survives phase boundaries**: the loading-week
+      counter used to reset to zero at every phase change, so a 3-week base
+      phase produced six straight loading weeks with no recovery between
+      them. Fixed without changing how hard anyone trains — an earlier draft
+      also lengthened every mesocycle by a week; caught in review and
+      reverted before it shipped.
+- [x] **One taper ladder instead of two**: the skeleton's own contradicting
+      25%/week load decay (against a separate 0.7→0.6→0.5 hours decay) is
+      gone; `periodize()` now reads the same three fractions
+      `race/taper.ts` already owns. Closes a double-apply gap along the way,
+      in the fallback case with no previous week's actual load and no synced
+      CTL.
+- [x] **A B or C race's missing taper is recorded, not silent**: a logged
+      adjustment names the gap. **Not fixed** — a real B/C mini-taper is
+      v0.47's scope.
+- [x] **A CTL ramp bound** on the skeleton's week-over-week compounding
+      (`CTL_RAMP_PER_WEEK`, floored at `MIN_WEEKLY_LOAD`), measurably
+      reachable only from `startingCtl ≈ 68` upward in a real plan length —
+      not the algebraic crossover at 50.
+- [x] **The weekly review's load figure reads the same calendar-week
+      derivation** `rolloverWeekPlan` uses, replacing an ungated rolling
+      7-day window. Its CTL delta still compares against the old rolling
+      window — one message, two window definitions, not fixed here.
+      `actualSessions` keeps two different meanings (activity count in the
+      message, plan sessions completed in `training_blocks`) by design; the
+      review's own write to `training_blocks` is deleted so there is exactly
+      one writer left.
+- [x] **The ACWR anchor is downgraded, not the numbers**: `HEADROOM` and
+      `RAMP_CLAMP_PCT` keep their values; their confidence drops High → Low
+      because the acute:chronic workload ratio they cited doesn't hold up in
+      the literature, and `HEADROOM` was never actually an ACWR to begin
+      with.
+- [x] **`scripts/repair-plan-blocks.ts`** recomputes an active plan's
+      not-yet-started weeks against the fixed generator — dry run by
+      default, mandatory `--user`/`--all` scope. Weeks already started or
+      completed are untouched by design; they back adherence numbers already
+      recorded against the old skeleton.
+
+**Done when:** every constant `periodize()` uses carries a source and a
+confidence, the recovery cadence and taper no longer contradict themselves,
+a runaway skeleton is bounded against the athlete's own CTL trajectory, and
+the weekly review's load figure has the same provenance as the number
+`/train` already shows.
+
+No migrations.
+
+**Deliberately still open:** the B/C taper gap (recorded, not filled) and
+`startingCtl`'s `?? 30` default are both carried to **v0.47**, per the
+sequenced roadmap in `docs/specs/2026-08-05-ai-coaching-landscape.md` §9,
+which this release does not change. The weekly review's CTL delta reading a
+different window than its own load figure is carried to **v0.46**.
+
 ## Ongoing — operations track
 
 All items scheduled into **v0.17 — Good Self-Hosted Citizen** by the v0.9.6
