@@ -51,6 +51,7 @@ import {
   listAdjustments,
   planConstraints,
 } from "@/lib/week-plan/service";
+import { deriveDayActuals } from "@/lib/week-plan/actuals";
 import { disciplinesOf, requirePlanSport } from "@/lib/plan-sport";
 import { previewFromDraft } from "@/lib/training-plan";
 import { assembleWeeklyTarget } from "@/lib/week-plan/volume-inputs";
@@ -642,45 +643,17 @@ async function WeekTab({
     };
   }
 
-  // What the athlete actually trained, per local day, for the days the week
-  // list still shows. Read from the activities table rather than the day
-  // slot's own `unplannedLoad`: runDailyAdaptation books that onto YESTERDAY,
-  // so a ride done today would not reach its own row until tomorrow — which
-  // is exactly the gap this closes.
-  // This is the duplicate copy `deriveDayActuals` (src/lib/week-plan/actuals.ts)
-  // exists to retire — same aggregation, but windowed on bare start_date
-  // instead of coalesce(start_date_local, start_date), so it silently drops
-  // rows predating the start_date_local backfill. Left as-is here; rewiring
-  // this call site is later work. `activityId` is populated (matching
-  // DayActuals, now that the shared type requires it) but unused below —
-  // DayRow never reads it, this local aggregation isn't ordered by recency
-  // the way deriveDayActuals's is, so it's not yet the meaningful "most
-  // recent activity" the field promises.
-  const dayActuals: Record<
-    string,
-    { count: number; secs: number; load: number; activityId: string }
-  > = {};
-  if (week) {
-    const weekActivities = await db.query.activities.findMany({
-      where: and(
-        eq(schema.activities.userId, userId),
-        ne(schema.activities.provider, "strava"),
-        gte(schema.activities.startDate, new Date(week.weekStart + "T00:00:00"))
-      ),
-    });
-    for (const a of weekActivities) {
-      const ymd = localYmd(a.startDateLocal ?? a.startDate);
-      const acc = (dayActuals[ymd] ??= {
-        count: 0,
-        secs: 0,
-        load: 0,
-        activityId: a.id,
-      });
-      acc.count += 1;
-      acc.secs += a.durationS ?? 0;
-      acc.load += a.load ?? 0;
-    }
-  }
+  // What the athlete actually trained, per local day, from the same
+  // derivation the week plan books from — so the screen and the stored
+  // numbers cannot disagree. They did before v0.44: this view was right and
+  // the stored actuals were missing up to 60% of the week.
+  const dayActuals = week
+    ? await deriveDayActuals(
+        userId,
+        week.weekStart,
+        addDaysYmd(week.weekStart, 6)
+      )
+    : {};
 
   // Next race as the compact row under the week; the full list stays in the
   // races section below.
