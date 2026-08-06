@@ -27,8 +27,8 @@ stated per constant so future tuning knows what it is overriding.
 | `PROGRESSION_PEAK`          | 1.02  | As above                                               | **Low**    |
 | `PROGRESSION_STEP_CAP`      | 0.1   | Arbitrary cap on one week's absolute rise              | **Low**    |
 | `RECOVERY_FRACTION`         | 0.6   | Inside the 50-75 % volume band that maintains VO₂max   | **Medium** |
-| `RECOVERY_INTERVAL_BASE`    | 4     | 4:1 step loading — convention, no comparative evidence | **Low**    |
-| `RECOVERY_INTERVAL_DEFAULT` | 3     | 3:1 step loading — convention, no comparative evidence | **Low**    |
+| `RECOVERY_INTERVAL_BASE`    | 4     | 3:1 step loading — convention, no comparative evidence | **Low**    |
+| `RECOVERY_INTERVAL_DEFAULT` | 3     | 2:1 step loading — convention, no comparative evidence | **Low**    |
 | `HOURS_BASE_INTERCEPT`      | 0.85  | Convention                                             | **Low**    |
 | `HOURS_BASE_SLOPE`          | 0.05  | Convention                                             | **Low**    |
 | `HOURS_BUILD_INTERCEPT`     | 1.0   | Convention                                             | **Low**    |
@@ -72,8 +72,10 @@ a detraining one. **Confidence: Medium.**
 
 ## 4. The step-loading cadence is convention with no comparative evidence
 
-`RECOVERY_INTERVAL_BASE = 4` and `RECOVERY_INTERVAL_DEFAULT = 3` implement 4:1
-and 3:1 step loading. A targeted search for a head-to-head comparison of 3:1
+`RECOVERY_INTERVAL_BASE = 4` and `RECOVERY_INTERVAL_DEFAULT = 3` implement 3:1
+and 2:1 step loading — each value names "every Nth week is recovery", so 4
+means 3 loading weeks then 1 recovery week, and 3 means 2 loading weeks then
+1 recovery week. A targeted search for a head-to-head comparison of 3:1
 versus 2:1 in endurance athletes returns nothing.
 
 **Do not cite Issurin 2010 for this.** Issurin is _block_ periodization —

@@ -63,10 +63,12 @@ export const PLAN_CONSTANTS = {
   RECOVERY_FRACTION: 0.6,
 
   /**
-   * Loading weeks between recovery weeks. 3:1 and 4:1 are coaching
-   * convention with NO comparative evidence in endurance athletes. Do not
-   * cite Issurin 2010 for this — that is block periodization, a different
-   * model. Confidence: Low.
+   * The recovery cadence, expressed as "every Nth week is recovery" — so a
+   * value of 4 means 3 loading weeks followed by 1 recovery week (3:1), and
+   * 3 means 2 loading weeks followed by 1 recovery week (2:1). 3:1 and 2:1
+   * are coaching convention with NO comparative evidence in endurance
+   * athletes. Do not cite Issurin 2010 for this — that is block
+   * periodization, a different model. Confidence: Low.
    */
   RECOVERY_INTERVAL_BASE: 4,
   RECOVERY_INTERVAL_DEFAULT: 3,

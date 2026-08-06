@@ -273,7 +273,7 @@ describe("periodize passes event demand to the cycling generator", () => {
 
     const longOf = (blocks: ReturnType<typeof periodize>) =>
       blocks
-        .find((b) => b.weekNumber === 6)!
+        .find((b) => b.weekNumber === 5)!
         .workouts.find((w) => w.type === "Long")!.durationMins;
 
     // 12.5h x 1.03 = 773 min; 38% = 294, which the event allows and the
@@ -323,23 +323,46 @@ describe("recovery cadence", () => {
 describe("periodize is unchanged by the constants refactor", () => {
   it("produces a stable skeleton for a known input", () => {
     const blocks = periodize(12, 50, 5, 8, "Bike");
-    // Updated in v0.45 Task 3: the recovery cadence no longer resets at
-    // phase boundaries. For this 12-week fixture the running counter
-    // reaches the base interval of 4 before build's own 3-week interval
-    // would have fired, so recovery weeks move later: 4 -> 5 and 8 -> 9.
+    // Updated in v0.45 Task 3, then corrected by the density fix that
+    // followed it: the recovery cadence no longer resets at phase
+    // boundaries, but the firing threshold is `recoveryInterval - 1`
+    // loading weeks (not `recoveryInterval`), so the SPACING is exactly
+    // what it was pre-Task-3 — 3 loading weeks then recovery in base
+    // (interval 4), 2 loading weeks then recovery elsewhere (interval 3).
+    // Only WHERE a cycle starts is free to move, because the counter is
+    // now global instead of per-phase:
+    //
+    //   - Week 4 recovery is unchanged (base's first 3 loading weeks are
+    //     entirely inside base, so the boundary carry has nothing to do
+    //     yet).
+    //   - The second recovery moves from week 8 (pre-Task-3, and also
+    //     Task-3-as-shipped's week 9) to week 7. After week 4's reset,
+    //     week 5 (base, still loading) already counts 1 loading week
+    //     toward whatever comes next; week 6 (build) counts the 2nd. Build's
+    //     interval is the shorter one (3, i.e. 2 loading weeks), so the
+    //     threshold is reached one week sooner than resetting at the
+    //     boundary would give — the counter does not "know" week 5's
+    //     loading week belonged to base's own cycle.
+    //   - A third recovery appears at week 10, which was a loading "peak"
+    //     week pre-Task-3. After week 7's reset, weeks 8-9 (build) are the
+    //     2 loading weeks build's interval calls for, so week 10 — now
+    //     peak, whose interval is also the non-base default (3) — opens as
+    //     a recovery week rather than peak getting 2 fresh loading weeks of
+    //     its own. This is the carry working as intended: peak inherits the
+    //     cycle already in progress instead of restarting it.
     expect(blocks.map((b) => [b.weekNumber, b.phase, b.targetLoad])).toEqual([
       [1, "base", 350],
       [2, "base", 378],
       [3, "base", 408],
-      [4, "base", 441],
-      [5, "recovery", 286],
+      [4, "recovery", 265],
+      [5, "base", 441],
       [6, "build", 476],
-      [7, "build", 509],
-      [8, "build", 544],
-      [9, "recovery", 348],
-      [10, "peak", 579],
-      [11, "taper", 591],
-      [12, "taper", 443],
+      [7, "recovery", 306],
+      [8, "build", 509],
+      [9, "build", 544],
+      [10, "recovery", 348],
+      [11, "taper", 579],
+      [12, "taper", 434],
     ]);
   });
 });
