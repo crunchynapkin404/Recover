@@ -38,7 +38,7 @@ import { and, asc, desc, eq, gte, lt, sql } from "drizzle-orm";
 import { db, schema } from "../src/lib/db";
 import { dedupeActivities, type LoadActivity } from "../src/lib/training-load";
 import { canonicalSport, sportMatches } from "../src/lib/canonical-sport";
-import { recordUnplannedLoad } from "../src/lib/week-plan/service";
+import { bookDayLoad } from "../src/lib/week-plan/actuals";
 import type { DaySlot } from "../src/lib/week-plan/types";
 
 interface Change {
@@ -162,7 +162,7 @@ async function backfill(opts: {
             from: `${match.provider}/${canonicalSport(match.sport)}`,
           });
           next.push({
-            ...recordUnplannedLoad(day, load),
+            ...bookDayLoad(day, load),
             activityId: match.id,
           });
           touched = true;
@@ -182,7 +182,7 @@ async function backfill(opts: {
           load,
           from: unique.map((a) => a.provider).join("+"),
         });
-        next.push(recordUnplannedLoad(day, load));
+        next.push(bookDayLoad(day, load));
         touched = true;
       }
 

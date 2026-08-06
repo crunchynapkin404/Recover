@@ -1,7 +1,14 @@
 import { describe, expect, it, beforeAll, afterAll } from "vitest";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
-import { deriveDayActuals } from "./actuals";
+import {
+  bookDayLoad,
+  bookWeekActuals,
+  deriveDayActuals,
+  weekActuals,
+} from "./actuals";
+import type { DaySlot, ScheduledWorkout } from "./types";
+import { withPurpose } from "@/lib/training-plan";
 
 // requires Postgres; skips without DATABASE_URL.
 const hasDb =
@@ -147,5 +154,138 @@ describe.skipIf(!hasDb)("deriveDayActuals", () => {
     const out = await deriveDayActuals(TEST_USER, "2026-07-30", "2026-08-01");
     expect(out["2026-07-30"]).toBeDefined();
     expect(Object.keys(out)).not.toContain("2026-07-29");
+  });
+});
+
+function sw(o: Partial<ScheduledWorkout> = {}): ScheduledWorkout {
+  return withPurpose({
+    day: 0,
+    sport: "Bike",
+    type: "Endurance",
+    durationMins: 60,
+    intensity: "Z1-Z2",
+    description: "Easy ride",
+    blockIdx: 0,
+    ...o,
+  });
+}
+
+function day(date: string, o: Partial<DaySlot> = {}): DaySlot {
+  return {
+    date,
+    availableBlocks: [
+      { start: null, end: null, mins: 90, energy: "full", sports: null },
+    ],
+    availableMins: 90,
+    workouts: [],
+    status: "rest",
+    ...o,
+  };
+}
+
+function actual(load: number, id = "act-1") {
+  return { count: 1, secs: 3600, load, activityId: id };
+}
+
+describe("bookWeekActuals", () => {
+  it("books a day that has workouts as the session's actual", () => {
+    const days = [day("2026-07-28", { status: "completed", workouts: [sw()] })];
+    const out = bookWeekActuals(
+      days,
+      { "2026-07-28": actual(155) },
+      "2026-07-28"
+    );
+    expect(out[0].actualLoad).toBe(155);
+    expect(out[0].unplannedLoad).toBeUndefined();
+    expect(out[0].activityId).toBe("act-1");
+  });
+
+  it("books a day with no workouts as unplanned", () => {
+    const days = [day("2026-07-30")];
+    const out = bookWeekActuals(
+      days,
+      { "2026-07-30": actual(130) },
+      "2026-07-30"
+    );
+    expect(out[0].unplannedLoad).toBe(130);
+    expect(out[0].actualLoad).toBeUndefined();
+  });
+
+  it("never leaves both fields set when a day's workouts go away", () => {
+    // handleMissedYesterday empties a missed day's workouts, so the same day
+    // can route to actualLoad on one pass and unplannedLoad on the next.
+    // weekActuals SUMS the two fields, so a stale one double-counts.
+    const days = [day("2026-07-28", { status: "missed", actualLoad: 136 })];
+    const out = bookWeekActuals(
+      days,
+      { "2026-07-28": actual(136) },
+      "2026-07-28"
+    );
+    expect(out[0].unplannedLoad).toBe(136);
+    expect(out[0].actualLoad).toBeUndefined();
+    expect(weekActuals(out).actualLoad).toBe(136);
+  });
+
+  it("clears the booking fields on a day whose activity is gone", () => {
+    const days = [day("2026-07-28", { actualLoad: 155, activityId: "act-1" })];
+    const out = bookWeekActuals(days, {}, "2026-07-28");
+    expect(out[0].actualLoad).toBeUndefined();
+    expect(out[0].unplannedLoad).toBeUndefined();
+    expect(out[0].activityId).toBeUndefined();
+  });
+
+  it("leaves days after throughYmd untouched", () => {
+    const days = [day("2026-08-06"), day("2026-08-07")];
+    const out = bookWeekActuals(
+      days,
+      { "2026-08-06": actual(50), "2026-08-07": actual(90) },
+      "2026-08-06"
+    );
+    expect(out[0].unplannedLoad).toBe(50);
+    expect(out[1].unplannedLoad).toBeUndefined();
+  });
+
+  it("is a byte-identical no-op on a day that is already right", () => {
+    // The repair script's safety and runDailyAdaptation's change detection
+    // both rest on this: re-running must produce the same JSON, key order
+    // included, or every pass rewrites week_plans.
+    const days = [
+      day("2026-07-27", {
+        status: "completed",
+        workouts: [sw()],
+        actualLoad: 184,
+        activityId: "act-9",
+      }),
+      day("2026-07-29"),
+    ];
+    const out = bookWeekActuals(
+      days,
+      { "2026-07-27": actual(184, "act-9") },
+      "2026-07-29"
+    );
+    expect(JSON.stringify(out)).toBe(JSON.stringify(days));
+  });
+
+  it("reproduces the live week of 2026-07-27 at 783, not 314", () => {
+    const days = [
+      day("2026-07-27", { status: "completed", workouts: [sw()] }),
+      day("2026-07-28", { status: "completed", workouts: [sw()] }),
+      day("2026-07-29"),
+      day("2026-07-30"),
+      day("2026-07-31"),
+      day("2026-08-01", { status: "completed", workouts: [sw()] }),
+      day("2026-08-02"),
+    ];
+    const out = bookWeekActuals(
+      days,
+      {
+        "2026-07-27": actual(184, "a1"),
+        "2026-07-28": actual(155, "a2"),
+        "2026-07-30": { count: 2, secs: 5760, load: 130, activityId: "a3" },
+        "2026-08-01": actual(314, "a4"),
+      },
+      "2026-08-02"
+    );
+    expect(weekActuals(out).actualLoad).toBe(783);
   });
 });

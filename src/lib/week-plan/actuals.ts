@@ -8,7 +8,7 @@
 import { and, desc, eq, gte, lt, ne, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { localYmd } from "@/lib/charts";
-import type { DayActuals } from "./types";
+import type { DayActuals, DaySlot } from "./types";
 
 /**
  * Sums the user's activities by local calendar day over [fromYmd, toYmd],
@@ -80,4 +80,113 @@ function nextYmd(ymd: string): string {
   const d = new Date(ymd + "T00:00:00");
   d.setDate(d.getDate() + 1);
   return localYmd(d);
+}
+
+export function weekActuals(days: DaySlot[]): {
+  actualLoad: number;
+  actualSessions: number;
+} {
+  return {
+    // unplannedLoad is real training stress too (a rest-day bonus ride still
+    // shows up in the athlete's legs) — it must count toward the week's
+    // total exactly as actualLoad does. The two fields only differ in
+    // whether they're allowed to trigger a replan; they're equal for
+    // adherence and for next week's ramp-clamp target.
+    actualLoad: days.reduce(
+      (s, d) => s + (d.actualLoad ?? 0) + (d.unplannedLoad ?? 0),
+      0
+    ),
+    // Sessions, not days: a completed day can hold two of them. markDayDone
+    // refuses a day with no workouts and preserves the ones it has, so
+    // summing is exact rather than an estimate.
+    actualSessions: days
+      .filter((d) => d.status === "completed")
+      .reduce((s, d) => s + d.workouts.length, 0),
+  };
+}
+
+/**
+ * Books a day's load onto the field that fits it. Work the plan did not ask
+ * for goes to `unplannedLoad`, which counts toward the week's actuals but
+ * never triggers a replan — an extra easy hour on a rest day must not cost
+ * you a session later in the week.
+ *
+ * A day that DID have a planned session books the whole activity's load as
+ * that session's `actualLoad`, even when the activity ran long (e.g. a
+ * planned 60min ride that turned into a 3hr group ride): there is no
+ * expected-load figure on a `PlannedWorkout` to diff against (only duration
+ * + a free-text intensity band), so splitting "the planned part" from "the
+ * excess" would mean inventing an unspecified estimate rather than reading
+ * one. The invariant this function exists to protect — no session is ever
+ * removed for running over on load — holds either way: nothing here (or in
+ * adaptDay) removes a session because of accumulated load.
+ *
+ * `load` is the day's TOTAL, not an increment. Callers reach this through
+ * `bookWeekActuals`, which recomputes that total from the activities table
+ * on every pass; that is what makes repeated runs idempotent.
+ *
+ * Was `recordUnplannedLoad` before v0.44, which named half of what it does.
+ */
+export function bookDayLoad(day: DaySlot, load: number): DaySlot {
+  return booksUnplanned(day)
+    ? { ...day, unplannedLoad: load }
+    : { ...day, actualLoad: load };
+}
+
+/**
+ * Which field a day's load belongs in. A day with no planned session books
+ * to `unplannedLoad`; a day that has one books to `actualLoad`.
+ *
+ * Extracted so `bookWeekActuals` can ask the same question without repeating
+ * the rule — it needs the answer twice over, to set one field and clear the
+ * other in a single object literal.
+ */
+export function booksUnplanned(day: DaySlot): boolean {
+  return day.workouts.length === 0;
+}
+
+/**
+ * Rewrites the booking fields on every day at or before `throughYmd` from
+ * the derivation, and leaves later days alone.
+ *
+ * The stored fields become a pure function of the activities table. That is
+ * the whole point of v0.44: before it, load was booked once, for yesterday
+ * only, and only when yesterday's status happened to fall in one of two
+ * branches — so a `completed` day (the app's own "Mark done" button), a
+ * `missed` day, a cross-sport day, a second session, and any activity that
+ * synced late all booked nowhere. The live week of 2026-07-27 closed at 314
+ * against a real 783.
+ *
+ * Both fields are always rewritten together, never one of them. `bookDayLoad`
+ * routes by whether the day still has workouts, and a day can change that
+ * answer between passes — `handleMissedYesterday` empties a missed day. Since
+ * `weekActuals` SUMS `actualLoad + unplannedLoad`, a leftover value from the
+ * previous routing would double-count.
+ *
+ * A day with no activity has all three fields cleared rather than zeroed, so
+ * a deleted activity stops counting and the JSON matches a day that never had
+ * one. Setting to `undefined` rather than `delete`-ing is deliberate:
+ * `JSON.stringify` omits undefined values, and spreading preserves key order,
+ * so an unchanged day serialises byte-identically. `runDailyAdaptation`
+ * compares stringified days to decide whether to write at all, so anything
+ * that perturbs key order turns every pass into a database write.
+ */
+export function bookWeekActuals(
+  days: DaySlot[],
+  actuals: Record<string, DayActuals>,
+  throughYmd: string
+): DaySlot[] {
+  return days.map((day) => {
+    // Ymd strings compare lexicographically the same as chronologically —
+    // the convention already used in replan.ts and service.ts.
+    if (day.date > throughYmd) return day;
+    const a = actuals[day.date];
+    const unplanned = booksUnplanned(day);
+    return {
+      ...day,
+      actualLoad: a && !unplanned ? a.load : undefined,
+      unplannedLoad: a && unplanned ? a.load : undefined,
+      activityId: a?.activityId,
+    };
+  });
 }

@@ -5,10 +5,10 @@ import {
   applyResolvedAvailability,
   getOpenWeekPlan,
   moveWorkout,
-  recordUnplannedLoad,
   runDailyAdaptation,
   swapWorkouts,
 } from "./service";
+import { bookDayLoad } from "./actuals";
 import { blockFits } from "./types";
 import type { DaySlot, ScheduledWorkout } from "./types";
 import { withPurpose } from "@/lib/training-plan";
@@ -77,9 +77,9 @@ const DATES = weekDates();
  * ever reading as "this session's actual" and without ever triggering a
  * replan. Pure — no database involved, so this isn't gated on `hasDb`.
  */
-describe("recordUnplannedLoad", () => {
+describe("bookDayLoad", () => {
   it("books load on a day with no planned session as unplanned", () => {
-    const d = recordUnplannedLoad(emptyDay(DATES[0]), 55);
+    const d = bookDayLoad(emptyDay(DATES[0]), 55);
     expect(d.unplannedLoad).toBe(55);
     expect(d.actualLoad).toBeUndefined();
     expect(d.status).toBe("rest");
@@ -92,7 +92,7 @@ describe("recordUnplannedLoad", () => {
       status: "planned",
       workouts: [sw({ sport: "Bike", durationMins: 60 })],
     };
-    const d = recordUnplannedLoad(planned, 55);
+    const d = bookDayLoad(planned, 55);
     expect(d.actualLoad).toBe(55);
     expect(d.unplannedLoad).toBeUndefined();
   });
@@ -103,7 +103,7 @@ describe("recordUnplannedLoad", () => {
       status: "planned",
       workouts: [sw({ sport: "Bike", type: "Intervals", durationMins: 90 })],
     };
-    const d = recordUnplannedLoad(planned, 400);
+    const d = bookDayLoad(planned, 400);
     expect(d.workouts).toHaveLength(1);
     expect(d.workouts[0].durationMins).toBe(90);
     expect(d.actualLoad).toBe(400);
@@ -114,8 +114,8 @@ describe("recordUnplannedLoad", () => {
     // accumulating version needed an "already seen this activity" guard to
     // stay idempotent, and that guard is what stopped a second ride on the
     // same day from ever being counted.
-    const once = recordUnplannedLoad(emptyDay(DATES[0]), 30);
-    const twice = recordUnplannedLoad(once, 30);
+    const once = bookDayLoad(emptyDay(DATES[0]), 30);
+    const twice = bookDayLoad(once, 30);
     expect(twice.unplannedLoad).toBe(30);
   });
 });

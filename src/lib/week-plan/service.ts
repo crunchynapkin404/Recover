@@ -7,6 +7,7 @@ import { getActivePlan } from "@/lib/active-plan";
 import { racesForWeek, currentCtl } from "@/lib/race/service";
 import { materializeWeek } from "./materialize";
 import { adaptDay } from "./adapt-day";
+import { bookDayLoad, weekActuals } from "./actuals";
 import { replanWeek } from "./replan";
 import { resolveWeek } from "@/lib/availability/resolve";
 import { dayMins } from "./types";
@@ -125,29 +126,6 @@ async function saveAdjustments(
   for (const a of adjustments) {
     await db.insert(schema.planAdjustments).values({ weekPlanId, ...a });
   }
-}
-
-function weekActuals(days: DaySlot[]): {
-  actualLoad: number;
-  actualSessions: number;
-} {
-  return {
-    // unplannedLoad is real training stress too (a rest-day bonus ride still
-    // shows up in the athlete's legs) — it must count toward the week's
-    // total exactly as actualLoad does. The two fields only differ in
-    // whether they're allowed to trigger a replan; they're equal for
-    // adherence and for next week's ramp-clamp target.
-    actualLoad: days.reduce(
-      (s, d) => s + (d.actualLoad ?? 0) + (d.unplannedLoad ?? 0),
-      0
-    ),
-    // Sessions, not days: a completed day can hold two of them. markDayDone
-    // refuses a day with no workouts and preserves the ones it has, so
-    // summing is exact rather than an estimate.
-    actualSessions: days
-      .filter((d) => d.status === "completed")
-      .reduce((s, d) => s + d.workouts.length, 0),
-  };
 }
 
 export async function getOpenWeekPlan(
@@ -370,39 +348,6 @@ export async function rolloverWeekPlan(
   return "rolled";
 }
 
-/**
- * Books an activity's load onto a day. Work the plan did not ask for goes
- * to `unplannedLoad`, which counts toward the week's actuals but never
- * triggers a replan — an extra easy hour on a rest day must not cost you a
- * session later in the week.
- *
- * A day that DID have a planned session books the whole activity's load as
- * that session's `actualLoad`, even when the activity ran long (e.g. a
- * planned 60min ride that turned into a 3hr group ride): there is no
- * expected-load figure on a `PlannedWorkout` to diff against (only duration
- * + a free-text intensity band), so splitting "the planned part" from "the
- * excess" would mean inventing an unspecified estimate rather than reading
- * one. The invariant this function exists to protect — no session is ever
- * removed for running over on load — holds either way: nothing here (or in
- * adaptDay) removes a session because of accumulated load.
- *
- * `load` is the day's TOTAL, not an increment — both fields are SET, so
- * calling this twice with the same figure is a no-op rather than a doubling.
- * The caller recomputes that total from the activities table on every pass,
- * which is what makes repeated runs idempotent; an accumulating version had
- * to be defended with a "have I seen this activity id?" guard, and that guard
- * is precisely what stopped a second ride on the same day from ever counting.
- *
- * Pure, and exported for its tests: the only thing it decides is which
- * field the load lands in.
- */
-export function recordUnplannedLoad(day: DaySlot, load: number): DaySlot {
-  if (day.workouts.length === 0) {
-    return { ...day, unplannedLoad: load };
-  }
-  return { ...day, actualLoad: load };
-}
-
 export async function runDailyAdaptation(
   userId: string,
   now = new Date()
@@ -527,7 +472,7 @@ export async function runDailyAdaptation(
     // expected sport to compare to. Match ANY activity on the local date
     // instead. Whatever comes back — a bonus ride on the rest day, or the
     // race performance itself — is booked purely through
-    // recordUnplannedLoad below, which routes a day with no workouts to
+    // bookDayLoad below, which routes a day with no workouts to
     // unplannedLoad without touching status: a race day keeps
     // "race"/raceName, a rest day keeps "rest". Covering race days here
     // (not just rest) follows the design directly — "an activity landing on
@@ -592,7 +537,7 @@ export async function runDailyAdaptation(
   if (matched) {
     const idx = result.week.days.findIndex((d) => d.date === yesterdayYmd);
     // Idempotent by construction: `matched.load` is the day's total, recomputed
-    // from the activities table on every run, and recordUnplannedLoad SETS the
+    // from the activities table on every run, and bookDayLoad SETS the
     // field rather than adding to it. Re-running therefore writes the same
     // number, the JSON comparison below sees no change, and the pass reports
     // "skipped" — which is what stops the hourly Apple Health push from
@@ -603,7 +548,7 @@ export async function runDailyAdaptation(
     // day could never be added once the first had claimed the slot.
     if (idx !== -1) {
       result.week.days[idx] = {
-        ...recordUnplannedLoad(result.week.days[idx], matched.load ?? 0),
+        ...bookDayLoad(result.week.days[idx], matched.load ?? 0),
         activityId: matched.id,
       };
     }
