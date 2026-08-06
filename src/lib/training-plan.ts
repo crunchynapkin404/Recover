@@ -25,6 +25,11 @@ import {
 import { assembleWeeklyTarget } from "@/lib/week-plan/volume-inputs";
 import { assessFeasibility } from "@/lib/race/feasibility";
 import { PLAN_CONSTANTS as PC } from "@/lib/plan-constants";
+import {
+  TAPER_FRACTION_RACE_WEEK,
+  TAPER_FRACTION_WEEK_1,
+  TAPER_FRACTION_WEEK_2,
+} from "@/lib/race/taper";
 
 /**
  * The transaction handle `db.transaction()`'s callback receives. `Database`
@@ -224,6 +229,25 @@ function localYmd(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+/**
+ * The taper ladder, counting back from the last week of the plan, taken
+ * from race/taper.ts so the skeleton and materializeWeek cannot disagree.
+ *
+ * Before v0.45 the skeleton decayed load 25 %/week and hours
+ * 0.7 -> 0.6 -> 0.5 — two independent rates for one taper, so load and
+ * hours diverged every taper week and the implied intensity drifted as an
+ * artefact of two numbers nobody reconciled.
+ *
+ * `materializeWeek` still overrides this from the real race calendar. This
+ * exists so `previewTrainingPlan` shows an honest taper before the athlete
+ * commits, on the same fractions the engine will use.
+ */
+function taperFractionFromEnd(weeksFromEnd: number): number {
+  if (weeksFromEnd === 0) return TAPER_FRACTION_RACE_WEEK;
+  if (weeksFromEnd === 1) return TAPER_FRACTION_WEEK_1;
+  return TAPER_FRACTION_WEEK_2;
+}
+
 // ── Periodization engine ────────────────────────────────────────────────────
 
 /**
@@ -302,6 +326,9 @@ export function periodize(
   //     recovery), which is not what "peak" is for. The guard is what
   //     stops a phase boundary from being able to consume a phase whole.
   let weeksSinceRecovery = 0;
+  // The load entering the taper — every taper week is a fraction of this,
+  // never of the previous taper week, so the ladder cannot compound.
+  let preTaperLoad: number | null = null;
 
   for (let w = 1; w <= weeksTotal; w++) {
     let phase: Block["phase"];
@@ -346,6 +373,24 @@ export function periodize(
       });
       weeksSinceRecovery = 0;
       // Don't increase load after recovery
+    } else if (phase === "taper") {
+      preTaperLoad ??= currentLoad;
+      const fraction = taperFractionFromEnd(weeksTotal - w);
+      const taperLoad = Math.round(preTaperLoad * fraction);
+      blocks.push({
+        weekNumber: w,
+        phase,
+        targetLoad: taperLoad,
+        targetSessions: daysPerWeek,
+        workouts: generateWorkouts(
+          daysPerWeek,
+          hoursPerWeek * fraction,
+          phase,
+          sport,
+          queenStageHours
+        ),
+      });
+      weeksSinceRecovery += 1;
     } else {
       weeksSinceRecovery += 1;
       blocks.push({
@@ -362,7 +407,9 @@ export function periodize(
         ),
       });
 
-      // Load progression: +5-8% in base, +5-7% in build, flat/slight in peak, decrease in taper
+      // Load progression: +5-8% in base, +5-7% in build, flat/slight in
+      // peak. Taper is handled entirely by the branch above — it never
+      // reaches this block, so there is no trailing taper arm here.
       if (phase === "base") {
         currentLoad = Math.min(
           currentLoad * PC.PROGRESSION_BASE,
@@ -376,9 +423,6 @@ export function periodize(
       } else if (phase === "peak") {
         // Maintain or slight increase
         currentLoad *= PC.PROGRESSION_PEAK;
-      } else {
-        // Taper: two contradicting rates, removed in Task 4.
-        currentLoad *= 0.75;
       }
     }
   }
@@ -395,8 +439,9 @@ function loadMultiplier(phase: Block["phase"], weekInPhase: number): number {
     case "peak":
       return PC.HOURS_PEAK;
     case "taper":
-      // Second contradicting rate, removed in Task 4.
-      return 0.7 - (weekInPhase - 1) * 0.1;
+      // Unreachable: the taper branch scales hours by the ladder fraction
+      // directly, so loadMultiplier is never called with this phase.
+      throw new Error("loadMultiplier: taper is scaled by the ladder");
     case "recovery":
       return PC.RECOVERY_FRACTION;
   }

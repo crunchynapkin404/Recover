@@ -13,6 +13,7 @@ import {
   EASY_RUN_CAP_MINS,
 } from "./training-plan";
 import { PLAN_CONSTANTS } from "./plan-constants";
+import { TAPER_FRACTION_RACE_WEEK, TAPER_FRACTION_WEEK_1 } from "./race/taper";
 
 // requires Postgres; skips without DATABASE_URL.
 const hasDb =
@@ -380,6 +381,31 @@ describe("periodize is unchanged by the constants refactor", () => {
     //     unchanged (recovery weeks never advance `currentLoad`, so moving
     //     WHICH week is recovery between weeks 4-9 does not change the
     //     load trajectory from week 10 onward).
+    //
+    // Updated again in v0.45 Task 4: the taper reads race/taper.ts's ladder.
+    // Weeks 1-10 are byte-identical to pre-Task-4 (verified by diffing this
+    // fixture against the prior implementation directly) — Task 4 only
+    // replaces the taper branch, so nothing upstream of it can move. Weeks
+    // 11-12 change because the rate itself changed:
+    //   - Week 11 (first taper week, one week from the race): pre-Task-4
+    //     this was `Math.round(currentLoad)` where currentLoad was whatever
+    //     peak's ×1.02 progression left it at (≈590.8, displaying as 591) —
+    //     the SAME variable base/build/peak progress every week, taper
+    //     included. Task 4 instead fixes the taper's anchor once, entering
+    //     the phase (`preTaperLoad`, also ≈590.8 here — peak's last
+    //     progression step still runs before taper begins, so the anchor
+    //     itself is unchanged), and every taper week is now a fraction of
+    //     THAT fixed anchor rather than of a running `currentLoad`. Week 11
+    //     is one week out from the race, so it reads TAPER_FRACTION_WEEK_1
+    //     (0.65): round(590.8 * 0.65) = 384, not 591.
+    //   - Week 12 (race week) pre-Task-4 was `Math.round(590.8 * 0.75)` =
+    //     443 (currentLoad after ONE ×0.75 compounding step from week 11).
+    //     Now it reads TAPER_FRACTION_RACE_WEEK (0.45) off the SAME fixed
+    //     anchor (590.8, not the already-decayed 591): round(590.8 * 0.45)
+    //     = 266. It is no longer a fraction of week 11's own value, which
+    //     is the whole point — a 2-week taper's race-week load is a step
+    //     down from the load entering the taper, not a second compounding
+    //     step off an already-reduced week.
     expect(blocks.map((b) => [b.weekNumber, b.phase, b.targetLoad])).toEqual([
       [1, "base", 350],
       [2, "base", 378],
@@ -391,9 +417,69 @@ describe("periodize is unchanged by the constants refactor", () => {
       [8, "build", 509],
       [9, "build", 544],
       [10, "peak", 579],
-      [11, "taper", 591],
-      [12, "taper", 443],
+      [11, "taper", 384],
+      [12, "taper", 266],
     ]);
+  });
+});
+
+describe("the skeleton taper has one authority", () => {
+  // The task brief's draft for this describe block asserted
+  // `last.targetLoad === Math.round(preTaper.targetLoad * TAPER_FRACTION_RACE_WEEK)`
+  // where `preTaper` was "the block immediately before taper starts". That
+  // does not follow from the rule being implemented, for two independent
+  // reasons visible in this exact 16-week fixture:
+  //   1. The block immediately before taper is week 14 — a RECOVERY week.
+  //      Its displayed targetLoad (384) is already reduced by
+  //      RECOVERY_FRACTION; it is not the load entering the taper.
+  //   2. Even when the preceding block is a genuine loading week (e.g. the
+  //      12-week fixture, where it's week 10, "peak"), that block's
+  //      displayed targetLoad is `currentLoad` BEFORE that week's own
+  //      progression step, while the taper's anchor (`preTaperLoad`) is
+  //      captured AFTER it. The two are never the same number by
+  //      construction (peak week 10: displayed 579 vs actual anchor
+  //      ≈590.8).
+  // Confirmed empirically: running the draft assertion against the
+  // finished implementation (not the old one) still failed —
+  // "expected 288 to be 173" — proving the mismatch is in the test, not
+  // the code. Rewritten below to test the actual rule: both taper weeks
+  // derive from ONE shared anchor load, recoverable from either week.
+  it("both taper weeks derive from one shared anchor load, not two independent rates", () => {
+    const blocks = periodize(16, 50, 5, 8, "Bike");
+    const taper = blocks.filter((b) => b.phase === "taper");
+    expect(taper.length).toBe(2);
+
+    // If both weeks are `Math.round(anchor * fraction)` for the SAME
+    // anchor, dividing each back out by its own ladder fraction recovers
+    // that same anchor (modulo the rounding each division re-introduces).
+    // Under the old rate — currentLoad compounding at a flat 0.75/week,
+    // unrelated to these fractions — the two recovered "anchors" would
+    // have nothing to do with each other and diverge by hundreds of TSS.
+    const [week1, raceWeek] = taper;
+    const impliedFromWeek1 = week1.targetLoad / TAPER_FRACTION_WEEK_1;
+    const impliedFromRace = raceWeek.targetLoad / TAPER_FRACTION_RACE_WEEK;
+    expect(Math.abs(impliedFromWeek1 - impliedFromRace)).toBeLessThan(3);
+  });
+
+  // The brief's draft for this test asserted only `mins > 0` — true under
+  // both the old code and the new code, so it could never fail and never
+  // actually checked what its own title promised. Rewritten to compare the
+  // week-over-week RATIO of load against the week-over-week ratio of
+  // scheduled minutes: pre-Task-4 these were governed by two unrelated
+  // rates (load ×0.75, hours 0.7→0.6→0.5) and diverged — confirmed
+  // empirically against the pre-Task-4 code: loadRatio ≈0.750 vs
+  // hoursRatio ≈0.860, an 0.11 gap. Now both read the same ladder fraction,
+  // so the ratios agree (≈0.691 vs ≈0.696 here).
+  it("scales hours on the same fraction as load, so the two no longer diverge", () => {
+    const blocks = periodize(16, 50, 5, 8, "Bike");
+    const taper = blocks.filter((b) => b.phase === "taper");
+    expect(taper.length).toBe(2);
+    const mins = (b: (typeof taper)[number]) =>
+      b.workouts.reduce((s, w) => s + w.durationMins, 0);
+
+    const loadRatio = taper[1].targetLoad / taper[0].targetLoad;
+    const hoursRatio = mins(taper[1]) / mins(taper[0]);
+    expect(hoursRatio).toBeCloseTo(loadRatio, 1);
   });
 });
 
