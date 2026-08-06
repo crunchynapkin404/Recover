@@ -97,15 +97,8 @@ describe.skipIf(!hasDb)("training plan generation", () => {
     expect(buildCt).toBeGreaterThanOrEqual(1);
     // Taper should be at least 2 weeks
     expect(taperCt).toBeGreaterThanOrEqual(2);
-    // v0.45: peak is NOT guaranteed a loading week of its own. The recovery
-    // counter now carries across phase boundaries (the cadence-reset bug fix)
-    // instead of restarting at 1 in each phase, so a single-week peak can
-    // open exactly on the week the carried count reaches its threshold —
-    // the same mechanism that lets a short phase's tail count toward the
-    // NEXT phase's recovery, here landing on peak's only week. For this
-    // plan (CTL 55, 12 weeks from today) peak's sole week (week 10) is that
-    // week, so peakCt is legitimately 0 and recoveryCt covers it instead.
-    expect(peakCt).toBeGreaterThanOrEqual(0);
+    // Peak should be at least 1
+    expect(peakCt).toBeGreaterThanOrEqual(1);
     // Recovery weeks should exist
     expect(recoveryCt).toBeGreaterThanOrEqual(1);
   });

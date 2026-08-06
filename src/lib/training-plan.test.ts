@@ -309,47 +309,77 @@ describe("recovery cadence", () => {
   });
 
   it("does not restart the count at a phase boundary", () => {
-    // An 8-week plan gives a 3-week base: 3 % 4 !== 0 produced no recovery
-    // week at all, and build's counter restarted, pushing recovery to week 6.
+    // An 8-week plan gives a 3-week base — one week short of
+    // RECOVERY_INTERVAL_BASE's own 4-week cycle, so base ends without ever
+    // firing a recovery of its own (the original defect: "3-week base
+    // produced no recovery week at all"). The count it accumulated (3
+    // loading weeks) carries into build rather than resetting to 0.
+    //
+    // The `weekInPhase > 1` guard (restored alongside the density fix)
+    // still forces a phase's own first week to be a loading week no matter
+    // how large the carried count is — recovery can never fire before a
+    // phase's 2nd week — so build's 1st week (plan week baseWeeks + 1) is
+    // guaranteed loading, and by build's 2nd week (baseWeeks + 2) the
+    // carried count is baseWeeks + 1, already past build's own threshold
+    // (RECOVERY_INTERVAL_DEFAULT - 1 = 2) for any baseWeeks >= MIN_BASE_WEEKS
+    // (2) — so build's 2nd week is where recovery fires. That is the bound,
+    // derived from the rule rather than read off the output.
     const blocks = periodize(8, 50, 5, 8, "Bike");
-    const firstRecovery = blocks.findIndex((b) => b.phase === "recovery");
-    expect(firstRecovery).toBeGreaterThanOrEqual(0);
-    expect(firstRecovery + 1).toBeLessThanOrEqual(
-      PLAN_CONSTANTS.RECOVERY_INTERVAL_BASE
+    const baseWeeks = Math.max(
+      PLAN_CONSTANTS.MIN_BASE_WEEKS,
+      Math.round(8 * PLAN_CONSTANTS.PHASE_SHARE_BASE)
     );
+    const firstRecovery = blocks.findIndex((b) => b.phase === "recovery");
+
+    // The defect this test guards against: a 3-week base yielding ZERO
+    // recovery weeks at all.
+    expect(firstRecovery).toBeGreaterThanOrEqual(0);
+    // The defect's other symptom: six (or more) consecutive loading weeks
+    // before the first recovery. This run is 4 weeks (1..baseWeeks+1),
+    // well under six.
+    expect(firstRecovery).toBeLessThan(6);
+    // The exact, rule-derived bound: recovery fires on build's 2nd week.
+    expect(firstRecovery + 1).toBe(baseWeeks + 2);
   });
 });
 
 describe("periodize is unchanged by the constants refactor", () => {
   it("produces a stable skeleton for a known input", () => {
     const blocks = periodize(12, 50, 5, 8, "Bike");
-    // Updated in v0.45 Task 3, then corrected by the density fix that
-    // followed it: the recovery cadence no longer resets at phase
-    // boundaries, but the firing threshold is `recoveryInterval - 1`
-    // loading weeks (not `recoveryInterval`), so the SPACING is exactly
-    // what it was pre-Task-3 — 3 loading weeks then recovery in base
-    // (interval 4), 2 loading weeks then recovery elsewhere (interval 3).
-    // Only WHERE a cycle starts is free to move, because the counter is
-    // now global instead of per-phase:
+    // v0.45 Task 3 carried the recovery counter across phase boundaries
+    // (fixing a real defect: resetting per-phase could skip recovery
+    // entirely, or restart a fresh interval right after a boundary). Two
+    // corrections followed: the firing threshold is `recoveryInterval - 1`
+    // loading weeks, not `recoveryInterval` (restores the original 3:1
+    // base / 2:1 build-peak density), and `weekInPhase > 1` still guards a
+    // phase's own first week from ever firing (restores the original rule
+    // that a carried-in count cannot consume a phase whole). With both
+    // restored, only ONE week in this 12-week fixture actually differs from
+    // pre-Task-3:
     //
-    //   - Week 4 recovery is unchanged (base's first 3 loading weeks are
-    //     entirely inside base, so the boundary carry has nothing to do
-    //     yet).
-    //   - The second recovery moves from week 8 (pre-Task-3, and also
-    //     Task-3-as-shipped's week 9) to week 7. After week 4's reset,
-    //     week 5 (base, still loading) already counts 1 loading week
-    //     toward whatever comes next; week 6 (build) counts the 2nd. Build's
-    //     interval is the shorter one (3, i.e. 2 loading weeks), so the
-    //     threshold is reached one week sooner than resetting at the
-    //     boundary would give — the counter does not "know" week 5's
-    //     loading week belonged to base's own cycle.
-    //   - A third recovery appears at week 10, which was a loading "peak"
-    //     week pre-Task-3. After week 7's reset, weeks 8-9 (build) are the
-    //     2 loading weeks build's interval calls for, so week 10 — now
-    //     peak, whose interval is also the non-base default (3) — opens as
-    //     a recovery week rather than peak getting 2 fresh loading weeks of
-    //     its own. This is the carry working as intended: peak inherits the
-    //     cycle already in progress instead of restarting it.
+    //   - Week 4 recovery is unchanged: base's first 3 loading weeks are
+    //     entirely inside base, so the boundary carry has nothing to do yet.
+    //   - The second recovery moves from week 8 (pre-Task-3) to week 7.
+    //     After week 4 resets the counter, week 5 (base, still loading)
+    //     already counts 1 loading week toward whatever comes next; week 6
+    //     (build) counts the 2nd. The guard still blocks build's OWN first
+    //     week (week 6) regardless of the carried count, so recovery cannot
+    //     fire there — but by build's SECOND week (week 7) the guard no
+    //     longer applies, and the carried count (2) already meets build's
+    //     threshold (`RECOVERY_INTERVAL_DEFAULT - 1` = 2), so week 7 fires.
+    //     One week earlier than pre-Task-3's week 8, because the carry
+    //     credits week 5's loading week toward build's shorter interval
+    //     instead of discarding it at the boundary — but never earlier than
+    //     build's own 2nd week, because of the guard.
+    //   - Weeks 8-12 (build/peak/taper) match pre-Task-3 exactly: after week
+    //     7 resets the counter, weeks 8-9 are build's 2 loading weeks
+    //     (matching 2:1) and peak's single week (10) is protected by the
+    //     guard from ever becoming a carried-in recovery week, so it stays
+    //     a loading "peak" week exactly as before — the same 579 targetLoad,
+    //     because the total count of progression steps by week 10 is
+    //     unchanged (recovery weeks never advance `currentLoad`, so moving
+    //     WHICH week is recovery between weeks 4-9 does not change the
+    //     load trajectory from week 10 onward).
     expect(blocks.map((b) => [b.weekNumber, b.phase, b.targetLoad])).toEqual([
       [1, "base", 350],
       [2, "base", 378],
@@ -360,9 +390,9 @@ describe("periodize is unchanged by the constants refactor", () => {
       [7, "recovery", 306],
       [8, "build", 509],
       [9, "build", 544],
-      [10, "recovery", 348],
-      [11, "taper", 579],
-      [12, "taper", 434],
+      [10, "peak", 579],
+      [11, "taper", 591],
+      [12, "taper", 443],
     ]);
   });
 });

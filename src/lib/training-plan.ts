@@ -285,14 +285,22 @@ export function periodize(
   // Weeks since the last recovery week, carried ACROSS phase boundaries.
   // Resetting it per phase made cadence a property of where the boundaries
   // fell: a 3-week base produced no recovery week (3 % 4 !== 0) and build
-  // started counting again, giving six consecutive loading weeks. The
-  // threshold below fires on `recoveryInterval - 1` loading weeks (not
-  // `recoveryInterval`) so the cadence itself stays what it was before this
-  // counter existed: `RECOVERY_INTERVAL_BASE = 4` means 3 loading weeks then
-  // recovery (3:1), `RECOVERY_INTERVAL_DEFAULT = 3` means 2 loading weeks
-  // then recovery (2:1). Only the reset-at-boundary bug is fixed here —
-  // firing on the full interval would additionally insert an extra loading
-  // week into every mesocycle, which was never part of this fix.
+  // started counting again, giving six consecutive loading weeks. That
+  // reset was the only bug. Everything else about the original rule is
+  // preserved:
+  //   - The threshold fires on `recoveryInterval - 1` loading weeks (not
+  //     `recoveryInterval`), so the cadence itself is unchanged from before
+  //     this counter existed: `RECOVERY_INTERVAL_BASE = 4` means 3 loading
+  //     weeks then recovery (3:1), `RECOVERY_INTERVAL_DEFAULT = 3` means 2
+  //     loading weeks then recovery (2:1).
+  //   - `weekInPhase > 1` still exempts a phase's first week from becoming
+  //     a recovery week, exactly as the pre-carry `weekInPhase > 1 &&
+  //     weekInPhase % recoveryInterval === 0` rule did. Without this, a
+  //     carried-in count from the previous phase can reach its threshold on
+  //     the very first week of the new phase — for a one-week peak phase
+  //     that means peak is entirely erased (0 loading weeks, 100%
+  //     recovery), which is not what "peak" is for. The guard is what
+  //     stops a phase boundary from being able to consume a phase whole.
   let weeksSinceRecovery = 0;
 
   for (let w = 1; w <= weeksTotal; w++) {
@@ -317,7 +325,10 @@ export function periodize(
         ? PC.RECOVERY_INTERVAL_BASE
         : PC.RECOVERY_INTERVAL_DEFAULT;
     const isRecovery =
-      w > 1 && weeksSinceRecovery >= recoveryInterval - 1 && phase !== "taper";
+      w > 1 &&
+      weekInPhase > 1 &&
+      weeksSinceRecovery >= recoveryInterval - 1 &&
+      phase !== "taper";
 
     if (isRecovery) {
       blocks.push({
