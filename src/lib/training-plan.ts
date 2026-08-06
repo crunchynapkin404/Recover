@@ -122,10 +122,11 @@ export const NO_DEMAND_LONG_BOUND_MINS = 240;
  * 5,200+ runners — but that is impact loading, and a bike is not a
  * treadmill. In cycling, overuse injury follows CUMULATIVE load outrunning
  * tissue repair, which is bounded upstream by two separate guards:
- * `weeklyTargetHours`'s own ACWR ceiling, and the week-over-week ramp clamp
- * (`RAMP_CLAMP_PCT`, applied in `materializeWeek`, not inside
- * `weeklyTargetHours`). The weekly number handed to this generator is
- * therefore already the safe one.
+ * `weeklyTargetHours`'s own `HEADROOM` ceiling (1.3× the athlete's own
+ * 12-week rolling peak — an empirical guard-rail, not an ACWR), and the
+ * week-over-week ramp clamp (`RAMP_CLAMP_PCT`, applied in `materializeWeek`,
+ * not inside `weeklyTargetHours`). The weekly number handed to this
+ * generator is therefore already the safe one.
  *
  * What remains is: how long should ONE ride be? The evidence is
  * event-relative — "for events lasting 4-5 hours, a 4-hour long ride each

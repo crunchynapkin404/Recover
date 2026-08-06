@@ -13,10 +13,12 @@
  *
  * Floor vs. ceiling ordering: the floor is applied first (never prescribe
  * less than maintenance), but the ceiling always wins a direct conflict — it
- * is the acute:chronic workload safe-zone bound, and prescribing above it is
- * the one outcome in this module that can injure someone. A floor that lands
- * above the ceiling means the athlete's own recent peak is the binding
- * constraint, not the floor.
+ * is 1.3× the athlete's own 12-week rolling peak (`HEADROOM`, an empirical
+ * guard-rail, NOT an acute:chronic workload ratio — see
+ * docs/specs/2026-07-28-training-volume-evidence.md §1), and prescribing
+ * above it is the one outcome in this module that can injure someone. A
+ * floor that lands above the ceiling means the athlete's own recent peak is
+ * the binding constraint, not the floor.
  *
  * Pure — no I/O, no clock.
  */
@@ -95,7 +97,7 @@ export function weeklyTargetHours(input: VolumeInput): VolumeResult {
 
     // ...but the ceiling wins any conflict that leaves. A floor pulled above
     // the ceiling is the athlete's own recent peak overriding the floor
-    // heuristic, not license to exceed the safe-zone bound.
+    // heuristic, not license to exceed the HEADROOM ceiling.
     if (target > input.ceilingHours) {
       target = input.ceilingHours;
       source = "ceiling";

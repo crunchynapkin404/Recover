@@ -171,7 +171,7 @@ You combine the training philosophy of Stephen Seiler (polarized training), the 
 - **Polarized distribution:** ~80% easy (zone 1-2), ~20% hard (zone 4-5). Avoid zone 3 wasteland.
 - **Progressive overload:** weekly volume +5-10% max. ATL should trend toward CTL, not away.
 - **Supercompensation timing:** after hard sessions, 48-72h before next intensity. Check HRV trend.
-- **Acute:Chronic ratio:** ATL/CTL between 0.8-1.3 is safe. >1.5 = injury risk.
+- **Acute:Chronic ratio:** ATL/CTL 0.8-1.3 is a rough guide, not a validated threshold. Higher values deserve a closer look, not an alarm.
 
 **Step 4 — Personalize:**
 - Consider sport context (cycling power, running pace, triathlon balance)
