@@ -221,6 +221,27 @@ describe("bookWeekActuals", () => {
     expect(weekActuals(out).actualLoad).toBe(136);
   });
 
+  it("never leaves both fields set when a day gains workouts", () => {
+    // The mirror of the case above. A day can route the other way too — a
+    // session moved onto a day that had booked unplanned load — and the
+    // clearing has to be symmetric or that day double-counts instead.
+    const days = [
+      day("2026-07-28", {
+        status: "planned",
+        workouts: [sw()],
+        unplannedLoad: 136,
+      }),
+    ];
+    const out = bookWeekActuals(
+      days,
+      { "2026-07-28": actual(136) },
+      "2026-07-28"
+    );
+    expect(out[0].actualLoad).toBe(136);
+    expect(out[0].unplannedLoad).toBeUndefined();
+    expect(weekActuals(out).actualLoad).toBe(136);
+  });
+
   it("clears the booking fields on a day whose activity is gone", () => {
     const days = [day("2026-07-28", { actualLoad: 155, activityId: "act-1" })];
     const out = bookWeekActuals(days, {}, "2026-07-28");

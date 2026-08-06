@@ -121,9 +121,16 @@ export function weekActuals(days: DaySlot[]): {
  * removed for running over on load — holds either way: nothing here (or in
  * adaptDay) removes a session because of accumulated load.
  *
- * `load` is the day's TOTAL, not an increment. Callers reach this through
- * `bookWeekActuals`, which recomputes that total from the activities table
- * on every pass; that is what makes repeated runs idempotent.
+ * `load` is the day's TOTAL, not an increment — both fields are SET, so
+ * calling this twice with the same figure is a no-op rather than a doubling.
+ *
+ * This books ONE field and leaves the other untouched, which is safe only
+ * while a day's routing cannot change underneath it. `bookWeekActuals` is
+ * the caller for which that does not hold — `adaptDay` empties a missed
+ * day's `workouts` and flips its routing — so it does not call this; it
+ * writes both fields itself, through the same `booksUnplanned` rule. The two
+ * direct callers left are `runDailyAdaptation`'s legacy matched-activity
+ * path and `scripts/backfill-day-load.ts`.
  *
  * Was `recordUnplannedLoad` before v0.44, which named half of what it does.
  */
