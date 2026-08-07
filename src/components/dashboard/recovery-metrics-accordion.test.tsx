@@ -54,7 +54,7 @@ describe("RecoveryMetricsAccordion", () => {
         sleep={null}
         stages={null}
         quality={null}
-        battery={{ current: null, points: [] }}
+        battery={{ current: null, points: [], tags: [], checkpoints: [] }}
       />
     );
     expect(html).not.toContain("data-panel-open");
@@ -69,7 +69,7 @@ describe("RecoveryMetricsAccordion", () => {
         sleep={null}
         stages={null}
         quality={null}
-        battery={{ current: null, points: [] }}
+        battery={{ current: null, points: [], tags: [], checkpoints: [] }}
       />
     );
     expect(container.innerHTML).toContain("No recovery data yet");
@@ -82,7 +82,7 @@ describe("RecoveryMetricsAccordion", () => {
         sleep={null}
         stages={null}
         quality={null}
-        battery={{ current: null, points: [] }}
+        battery={{ current: null, points: [], tags: [], checkpoints: [] }}
       />
     );
     expect(container.innerHTML).not.toContain("No recovery data yet");
@@ -111,7 +111,7 @@ describe("RecoveryMetricsAccordion", () => {
           consistency: { score: 88, sampleNights: 14 },
           chronotype: null,
         }}
-        battery={{ current: null, points: [] }}
+        battery={{ current: null, points: [], tags: [], checkpoints: [] }}
       />
     );
     expect(container.innerHTML).toContain("Last Night");
@@ -126,7 +126,7 @@ describe("RecoveryMetricsAccordion", () => {
         sleep={null}
         stages={null}
         quality={null}
-        battery={{ current: null, points: [] }}
+        battery={{ current: null, points: [], tags: [], checkpoints: [] }}
       />
     );
     expect(container.innerHTML).not.toContain("Last Night");
@@ -141,7 +141,7 @@ describe("RecoveryMetricsAccordion", () => {
         sleep={null}
         stages={null}
         quality={null}
-        battery={{ current: null, points: [] }}
+        battery={{ current: null, points: [], tags: [], checkpoints: [] }}
       />
     );
     expect(container.innerHTML).toContain("Estimated Energy");

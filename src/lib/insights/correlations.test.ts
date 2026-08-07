@@ -41,6 +41,7 @@ describe("correlateTags", () => {
     expect(row.events).toBe(10);
     expect(row.impactPct).toBeLessThan(-20); // ≈ (60.5−80.5)/80.5 ≈ −25%
     expect(row.conclusive).toBe(true);
+    expect(row.evidence).toBe("strong");
     expect(row.ciHalfWidthPct).toBeLessThan(Math.abs(row.impactPct));
   });
 
@@ -63,6 +64,7 @@ describe("correlateTags", () => {
     expect(out.find((r) => r.behavior === "Rare")).toBeUndefined();
     const noisy = out.find((r) => r.behavior === "Noisy")!;
     expect(noisy.conclusive).toBe(false);
+    expect(noisy.evidence).toBe("limited");
   });
 
   it("auto flag: set for engine tags, cleared when also used manually", () => {

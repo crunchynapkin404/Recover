@@ -40,6 +40,8 @@ export interface BatteryActivity {
 export interface BodyBatteryInput {
   /** Morning readiness. null → calibrating; the model returns nothing. */
   readiness: number | null;
+  /** Optional sleep debt drain that lowers the day's starting charge. */
+  sleepDebtSecs?: number | null;
   wakeMinutes: number;
   bedMinutes: number;
   activities: BatteryActivity[];
@@ -47,11 +49,21 @@ export interface BodyBatteryInput {
   nowMinutes: number;
 }
 
+export interface BodyBatteryCheckpoint {
+  label: "Morning" | "Midday" | "Evening";
+  minutes: number;
+  charge: number;
+}
+
 export interface BodyBatteryResult {
   /** null = not enough data. Never a default. */
   current: number | null;
   /** Empty when current is null. */
   points: BatteryPoint[];
+  /** Deterministic labels for the athlete's day shape. */
+  tags: string[];
+  /** Morning/midday/evening readouts derived from the curve. */
+  checkpoints: BodyBatteryCheckpoint[];
 }
 
 function clamp(v: number, lo: number, hi: number): number {
@@ -104,9 +116,12 @@ function activityDrainAt(t: number, activities: BatteryActivity[]): number {
 }
 
 export function computeBodyBattery(input: BodyBatteryInput): BodyBatteryResult {
-  if (input.readiness == null) return { current: null, points: [] };
+  if (input.readiness == null) {
+    return { current: null, points: [], tags: [], checkpoints: [] };
+  }
 
-  const start = clamp(input.readiness, 0, 100);
+  const sleepDebtPenalty = clamp((input.sleepDebtSecs ?? 0) / 3600 * 2, 0, 20);
+  const start = clamp(input.readiness - sleepDebtPenalty, 0, 100);
   const end = clamp(input.nowMinutes, 0, MINUTES_PER_DAY);
   const points: BatteryPoint[] = [];
 
@@ -120,5 +135,24 @@ export function computeBodyBattery(input: BodyBatteryInput): BodyBatteryResult {
     });
   }
 
-  return { current: points.at(-1)?.charge ?? null, points };
+  const checkpoints = ([
+    { label: "Morning" as const, minutes: input.wakeMinutes },
+    { label: "Midday" as const, minutes: input.wakeMinutes + 6 * 60 },
+    { label: "Evening" as const, minutes: input.wakeMinutes + 12 * 60 },
+  ] as const)
+    .filter((p) => p.minutes <= end)
+    .map((p) => ({
+      ...p,
+      charge: points.find((pt) => pt.minutes === p.minutes)?.charge ?? points.at(-1)?.charge ?? 0,
+    }));
+
+  const tags = new Set<string>();
+  if (input.activities.length === 0) tags.add("rest day");
+  if (input.activities.length > 1) tags.add("double day");
+  if (input.activities.some((a) => a.load >= 100) || input.activities.reduce((s, a) => s + a.load, 0) >= 100)
+    tags.add("hard day");
+  if (input.activities.some((a) => a.startMinutes >= 18 * 60)) tags.add("late session");
+  if ((input.sleepDebtSecs ?? 0) >= 3600) tags.add("sleep debt");
+
+  return { current: points.at(-1)?.charge ?? null, points, tags: [...tags], checkpoints };
 }

@@ -26,7 +26,8 @@ function SplitRow({
         </span>
       ) : (
         <span className="text-white/40">
-          inconclusive · {split.events} events
+          {split.evidence === "limited" ? "limited evidence" : "inconclusive"}
+          · {split.events} events
         </span>
       )}
     </div>
@@ -69,7 +70,9 @@ export function CorrelationInsights({ insights }: { insights: TagInsight[] }) {
                       {impactLabel(c.impactPct, c.ciHalfWidthPct)}
                     </span>
                   ) : (
-                    <span className="text-xs text-white/40">inconclusive</span>
+                    <span className="text-xs text-white/40">
+                      {c.evidence === "limited" ? "limited evidence" : "inconclusive"}
+                    </span>
                   )}
                 </div>
                 <span className="text-[9px] uppercase text-white/50">

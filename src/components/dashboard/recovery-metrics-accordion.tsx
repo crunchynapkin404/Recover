@@ -10,7 +10,7 @@ import { SleepCard } from "@/components/dashboard/sleep-card";
 import { SleepStagesCard } from "@/components/dashboard/sleep-stages-card";
 import { SleepQualityCard } from "@/components/dashboard/sleep-quality-card";
 import { BodyBatteryCurve } from "@/components/dashboard/body-battery";
-import type { BatteryPoint } from "@/lib/body-battery";
+import type { BatteryPoint, BodyBatteryCheckpoint } from "@/lib/body-battery";
 
 interface VitalTile {
   label: string;
@@ -44,7 +44,12 @@ interface Props {
     consistency: { score: number; sampleNights: number } | null;
     chronotype: { midpointHhMm: string; socialJetlagMins: number } | null;
   } | null;
-  battery: { current: number | null; points: BatteryPoint[] };
+  battery: {
+    current: number | null;
+    points: BatteryPoint[];
+    tags: string[];
+    checkpoints: BodyBatteryCheckpoint[];
+  };
 }
 
 export function RecoveryMetricsAccordion({
@@ -85,7 +90,12 @@ export function RecoveryMetricsAccordion({
           {quality && (quality.consistency || quality.chronotype) && (
             <SleepQualityCard {...quality} />
           )}
-          <BodyBatteryCurve current={battery.current} points={battery.points} />
+          <BodyBatteryCurve
+            current={battery.current}
+            points={battery.points}
+            tags={battery.tags}
+            checkpoints={battery.checkpoints}
+          />
         </div>
       </CollapsiblePanel>
     </Collapsible>
