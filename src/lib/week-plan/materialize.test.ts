@@ -290,7 +290,15 @@ describe("materializeWeek illness comeback", () => {
         targetLoadTotal: 500,
       },
       availableBlocksPerDay: blocksPerDay([180, 180, 180, 180, 180, 180, 180]),
-      recentBands: ["green", "green", "green", "green", "green", "green", "amber"],
+      recentBands: [
+        "green",
+        "green",
+        "green",
+        "green",
+        "green",
+        "green",
+        "amber",
+      ],
       recentIllFlags: [false, false, true, false, false, false, false],
       sport: "Bike",
     });
@@ -305,7 +313,15 @@ describe("materializeWeek illness comeback", () => {
     const r = materializeWeek({
       ...baseInput,
       availableBlocksPerDay: blocksPerDay([180, 180, 180, 180, 180, 180, 180]),
-      recentBands: ["green", "green", "green", "green", "green", "green", "amber"],
+      recentBands: [
+        "green",
+        "green",
+        "green",
+        "green",
+        "green",
+        "green",
+        "amber",
+      ],
       recentIllFlags: [false, false, true, false, false, false, false],
       sport: "Bike",
     });
@@ -318,7 +334,15 @@ describe("materializeWeek illness comeback", () => {
     const r = materializeWeek({
       ...baseInput,
       availableBlocksPerDay: blocksPerDay([120, 120, 120, 120, 120, 120, 120]),
-      recentBands: ["green", "green", "green", "green", "green", "green", "green"],
+      recentBands: [
+        "green",
+        "green",
+        "green",
+        "green",
+        "green",
+        "green",
+        "green",
+      ],
       recentIllFlags: [false, false, false, false, false, false, true],
       sport: "Bike",
     });
@@ -778,8 +802,7 @@ describe("materializeWeek race handling", () => {
     expect(friday.workouts.some((w) => w.type === "Intervals")).toBe(false);
     expect(
       r.adjustments.some(
-        (a) =>
-          a.date === friday.date && a.reason.includes("lowered intensity")
+        (a) => a.date === friday.date && a.reason.includes("lowered intensity")
       )
     ).toBe(true);
   });

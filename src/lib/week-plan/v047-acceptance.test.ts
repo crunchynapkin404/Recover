@@ -36,9 +36,9 @@ describe("v0.47 acceptance matrix", () => {
     const blocks = periodize(12, 50, 5, 8, "Bike", null, -21);
     const week1 = blocks[0];
     expect(week1.targetLoad).toBe(280);
-    expect(week1.workouts.some((w) => w.day < 3 && w.type === "Intervals")).toBe(
-      false
-    );
+    expect(
+      week1.workouts.some((w) => w.day < 3 && w.type === "Intervals")
+    ).toBe(false);
   });
 
   it("3) neutral form + recent illness still enters comeback", () => {
@@ -52,7 +52,15 @@ describe("v0.47 acceptance matrix", () => {
       },
       availableBlocksPerDay: blocksPerDay([120, 120, 120, 120, 120, 120, 120]),
       prevWeek: { actualLoad: 390, adherencePct: 95 },
-      recentBands: ["green", "green", "green", "green", "green", "green", "green"],
+      recentBands: [
+        "green",
+        "green",
+        "green",
+        "green",
+        "green",
+        "green",
+        "green",
+      ],
       recentIllFlags: [false, false, false, false, false, false, true],
       sport: "Bike",
       hoursPerWeek: 8,
@@ -76,7 +84,15 @@ describe("v0.47 acceptance matrix", () => {
       },
       availableBlocksPerDay: blocksPerDay([120, 120, 120, 120, 120, 120, 120]),
       prevWeek: { actualLoad: 390, adherencePct: 95 },
-      recentBands: ["green", "green", "green", "green", "green", "green", "green"],
+      recentBands: [
+        "green",
+        "green",
+        "green",
+        "green",
+        "green",
+        "green",
+        "green",
+      ],
       sport: "Run",
       hoursPerWeek: 8,
       races: [
@@ -104,7 +120,15 @@ describe("v0.47 acceptance matrix", () => {
       },
       availableBlocksPerDay: blocksPerDay([120, 120, 120, 120, 120, 120, 120]),
       prevWeek: { actualLoad: 390, adherencePct: 95 },
-      recentBands: ["green", "green", "green", "green", "green", "green", "amber"],
+      recentBands: [
+        "green",
+        "green",
+        "green",
+        "green",
+        "green",
+        "green",
+        "amber",
+      ],
       recentIllFlags: [false, false, true, false, false, false, false],
       sport: "Run",
       hoursPerWeek: 8,
@@ -132,7 +156,15 @@ describe("v0.47 acceptance matrix", () => {
       },
       availableBlocksPerDay: blocksPerDay([120, 120, 120, 120, 120, 120, 120]),
       prevWeek: { actualLoad: 390, adherencePct: 95 },
-      recentBands: ["green", "green", "green", "green", "green", "green", "green"],
+      recentBands: [
+        "green",
+        "green",
+        "green",
+        "green",
+        "green",
+        "green",
+        "green",
+      ],
       recentIllFlags: [false, false, false, false, false, false, true],
       sport: "Bike",
       hoursPerWeek: 8,
@@ -156,7 +188,15 @@ describe("v0.47 acceptance matrix", () => {
       },
       availableBlocksPerDay: blocksPerDay([60, 60, 60, 60, 60, 60, 60]),
       prevWeek: { actualLoad: 390, adherencePct: 95 },
-      recentBands: ["green", "green", "green", "green", "green", "green", "green"],
+      recentBands: [
+        "green",
+        "green",
+        "green",
+        "green",
+        "green",
+        "green",
+        "green",
+      ],
       sport: "Swim" as unknown as "Run",
       hoursPerWeek: 8,
     });

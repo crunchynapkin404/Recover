@@ -299,7 +299,9 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
   if (miniTaperMultiplier < 1) {
     skeleton = {
       ...skeleton,
-      targetLoadTotal: Math.round(skeleton.targetLoadTotal * miniTaperMultiplier),
+      targetLoadTotal: Math.round(
+        skeleton.targetLoadTotal * miniTaperMultiplier
+      ),
     };
     adjustments.push({
       date: input.weekStart,
@@ -376,7 +378,9 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
   }
 
   if (comeback.mode !== "none") {
-    const cap = Math.round(skeleton.targetLoadTotal * comeback.loadCapMultiplier);
+    const cap = Math.round(
+      skeleton.targetLoadTotal * comeback.loadCapMultiplier
+    );
     if (effectiveLoad > cap) {
       effectiveLoad = cap;
       if (comeback.reason) {
@@ -783,7 +787,11 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
         });
       }
     }
-    if (!isRaceWeek && idx >= 2 && days[idx - 2].workouts.some((w) => isQuality(w))) {
+    if (
+      !isRaceWeek &&
+      idx >= 2 &&
+      days[idx - 2].workouts.some((w) => isQuality(w))
+    ) {
       const before = {
         ...days[idx - 2],
         workouts: days[idx - 2].workouts.map((w) => ({ ...w })),

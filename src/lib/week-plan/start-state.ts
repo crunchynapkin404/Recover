@@ -10,10 +10,7 @@ import {
 } from "@/lib/training-load";
 
 export type StartStateSource =
-  | "persisted"
-  | "wellness"
-  | "sport_rolling"
-  | "global_fallback";
+  "persisted" | "wellness" | "sport_rolling" | "global_fallback";
 
 export interface StartStateSnapshot {
   startingCtl: number;
@@ -212,7 +209,11 @@ export async function resolveStartStateForUser(args: {
     restingHr: null,
   };
 
-  const metrics = nativeLoadMetrics(toLoadActivity(sportRows), thresholds, todayYmd);
+  const metrics = nativeLoadMetrics(
+    toLoadActivity(sportRows),
+    thresholds,
+    todayYmd
+  );
   const sportRolling = metrics.get(todayYmd) ?? null;
 
   return resolveStartStateFromInputs({ persisted, wellness, sportRolling });

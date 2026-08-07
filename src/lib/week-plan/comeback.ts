@@ -33,7 +33,9 @@ export function resolveComebackDecision(input: {
   recentLoadDisruption: boolean;
 }): ComebackDecision {
   const illInLast7 = input.recentIllFlags.some(Boolean);
-  const suppressedNow = isSuppressed(input.recentBands[input.recentBands.length - 1]);
+  const suppressedNow = isSuppressed(
+    input.recentBands[input.recentBands.length - 1]
+  );
   const entry = illInLast7 || (suppressedNow && input.recentLoadDisruption);
 
   if (!entry) {

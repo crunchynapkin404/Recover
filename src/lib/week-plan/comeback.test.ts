@@ -24,7 +24,15 @@ describe("resolveComebackDecision", () => {
 
   it("enters strict mode when illness appears in trailing week", () => {
     const out = resolveComebackDecision({
-      recentBands: ["green", "green", "green", "green", "green", "green", "amber"],
+      recentBands: [
+        "green",
+        "green",
+        "green",
+        "green",
+        "green",
+        "green",
+        "amber",
+      ],
       recentIllFlags: [false, false, true, false, false, false, false],
       recentLoadDisruption: false,
     });
@@ -35,7 +43,15 @@ describe("resolveComebackDecision", () => {
 
   it("uses suppressed+load disruption as comeback entry", () => {
     const out = resolveComebackDecision({
-      recentBands: ["green", "green", "green", "green", "green", "green", "red"],
+      recentBands: [
+        "green",
+        "green",
+        "green",
+        "green",
+        "green",
+        "green",
+        "red",
+      ],
       recentIllFlags: Array(7).fill(false),
       recentLoadDisruption: true,
     });
@@ -44,7 +60,15 @@ describe("resolveComebackDecision", () => {
 
   it("steps up to 85% after two stable days", () => {
     const out = resolveComebackDecision({
-      recentBands: ["red", "amber", "green", "green", "green", "green", "green"],
+      recentBands: [
+        "red",
+        "amber",
+        "green",
+        "green",
+        "green",
+        "green",
+        "green",
+      ],
       recentIllFlags: [true, false, false, false, false, false, false],
       recentLoadDisruption: false,
     });

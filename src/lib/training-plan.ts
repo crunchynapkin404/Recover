@@ -460,7 +460,9 @@ export function periodize(
         ? openingDecision.weekHoursMultiplier
         : 1;
       const weekHours =
-        hoursPerWeek * loadMultiplier(phase, weekInPhase) * openingHoursMultiplier;
+        hoursPerWeek *
+        loadMultiplier(phase, weekInPhase) *
+        openingHoursMultiplier;
       const generated = generateWorkouts(
         daysPerWeek,
         weekHours,
@@ -1151,7 +1153,10 @@ export async function previewTrainingPlan(
       weeks.map((w) => ({ weekNumber: w.weekNumber, phase: w.phase }))
     ),
     weeks,
-    startingCtl: { value: startState.startingCtl, source: startState.ctlSource },
+    startingCtl: {
+      value: startState.startingCtl,
+      source: startState.ctlSource,
+    },
     feasibility,
     volume: { source: target.source, shortfall: target.shortfall },
     warnings: collectWarnings({
@@ -1294,7 +1299,10 @@ export async function previewFromDraft(
       weeks.map((w) => ({ weekNumber: w.weekNumber, phase: w.phase }))
     ),
     weeks,
-    startingCtl: { value: startState.startingCtl, source: startState.ctlSource },
+    startingCtl: {
+      value: startState.startingCtl,
+      source: startState.ctlSource,
+    },
     feasibility,
     volume: { source: target.source, shortfall: target.shortfall },
     warnings: collectWarnings({

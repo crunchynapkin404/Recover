@@ -1,7 +1,5 @@
 export type FormBucket =
-  | "deep_negative"
-  | "moderate_negative"
-  | "neutral_positive";
+  "deep_negative" | "moderate_negative" | "neutral_positive";
 
 export type OpeningBranch = "recovery_first" | "reduced_build" | "normal_build";
 
