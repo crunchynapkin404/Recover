@@ -1218,6 +1218,8 @@ deterministic effects.
 Design: `docs/specs/2026-08-08-v0.60-week-action-legend-design.md`.
 Plan: `docs/plans/2026-08-08-v0.60-week-action-legend.md`.
 
+Released as tag `v0.60.0` from merged PR #76.
+
 ## Ongoing — operations track
 
 All items scheduled into **v0.17 — Good Self-Hosted Citizen** by the v0.9.6
