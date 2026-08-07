@@ -59,7 +59,9 @@ export function SeasonTimelineCard({ data }: { data: SeasonTimelinePoint[] }) {
         <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] px-2.5 py-2">
           <p className="text-white/50">Latest target</p>
           <p className="mt-1 font-mono text-white">
-            {latest.targetLoad != null ? formatChartValue(latest.targetLoad) : "—"}
+            {latest.targetLoad != null
+              ? formatChartValue(latest.targetLoad)
+              : "—"}
           </p>
         </div>
         <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] px-2.5 py-2">
@@ -85,7 +87,10 @@ export function SeasonTimelineCard({ data }: { data: SeasonTimelinePoint[] }) {
           {data.map((point) => {
             const targetHeight =
               point.targetLoad != null
-                ? Math.max((point.targetLoad / max) * 96, point.targetLoad > 0 ? 3 : 1)
+                ? Math.max(
+                    (point.targetLoad / max) * 96,
+                    point.targetLoad > 0 ? 3 : 1
+                  )
                 : 0;
             const actualHeight = Math.max(
               (point.actualLoad / max) * 96,
@@ -106,7 +111,9 @@ export function SeasonTimelineCard({ data }: { data: SeasonTimelinePoint[] }) {
                     title={`Actual ${point.weekStart}: ${formatChartValue(point.actualLoad)}`}
                   />
                 </div>
-                <p className="text-center text-[9px] text-white/55">{weekLabel(point.weekStart)}</p>
+                <p className="text-center text-[9px] text-white/55">
+                  {weekLabel(point.weekStart)}
+                </p>
                 <p className="text-center text-[8px] text-white/40">
                   {point.sessions > 0 ? `${point.sessions}s` : "no"}
                 </p>
@@ -121,7 +128,8 @@ export function SeasonTimelineCard({ data }: { data: SeasonTimelinePoint[] }) {
           ? "Latest week is upcoming."
           : isCurrentWeek
             ? "Latest week is in progress."
-            : "Latest week is complete."} Target stays unknown when that week has no effective target.
+            : "Latest week is complete."}{" "}
+        Target stays unknown when that week has no effective target.
       </p>
     </section>
   );

@@ -1205,8 +1205,9 @@ async function SeasonTab({
   const spanWeeks =
     Math.max(
       1,
-      Math.floor((thisMonday.getTime() - firstWeekDate.getTime()) / 604_800_000) +
-        1
+      Math.floor(
+        (thisMonday.getTime() - firstWeekDate.getTime()) / 604_800_000
+      ) + 1
     ) || 1;
 
   const activities = await db.query.activities.findMany({

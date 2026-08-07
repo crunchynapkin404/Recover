@@ -19,7 +19,9 @@ describe("SeasonTimelineCard", () => {
     );
 
     expect(html).toContain("Season progress");
-    expect(html).toContain("aria-label=\"Season timeline chart showing weekly target and actual load\"");
+    expect(html).toContain(
+      'aria-label="Season timeline chart showing weekly target and actual load"'
+    );
     expect(html).toContain("Latest target");
     expect(html).toContain("Latest actual");
   });
