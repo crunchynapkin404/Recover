@@ -461,7 +461,7 @@ async function WeekTab({
             currentWeeklyHours: volumeInputs.level.peakHours,
             queenStageHours: volumeInputs.demand.queenStageHours,
             queenStageKnown: volumeInputs.demand.queenStageKnown,
-            longestRideHours: volumeInputs.longestSessionHours,
+            longestSessionHours: volumeInputs.longestSessionHours,
             weeksUntilEvent,
           });
 

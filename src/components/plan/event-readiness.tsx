@@ -37,10 +37,10 @@ function weeks(n: number): string {
 }
 
 export function EventReadiness({ raceName, feasibility, demand }: Props) {
-  const { verdict, weeksUntilEvent, requiredLongestRideHours } = feasibility;
+  const { verdict, weeksUntilEvent, requiredLongestSessionHours } = feasibility;
   const weeksNeeded = Math.max(
     feasibility.volumeWeeksNeeded,
-    feasibility.longestRideWeeksNeeded
+    feasibility.longestSessionWeeksNeeded
   );
 
   return (
@@ -50,7 +50,7 @@ export function EventReadiness({ raceName, feasibility, demand }: Props) {
         {VERDICT_COPY[verdict]}
       </p>
       <p className="text-[11.5px] leading-relaxed text-white/60">
-        {`Asks about ${fmt(demand.weeklyHours)} a week, and a longest ride of about ${fmt(requiredLongestRideHours)}. ${weeks(weeksUntilEvent)} to go.`}
+        {`Asks about ${fmt(demand.weeklyHours)} a week, and a longest ride of about ${fmt(requiredLongestSessionHours)}. ${weeks(weeksUntilEvent)} to go.`}
       </p>
       {verdict === "not_realistic" && (
         <p className="mt-2 text-[11.5px] leading-relaxed text-white/60">

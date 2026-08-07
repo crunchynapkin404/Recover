@@ -1086,7 +1086,7 @@ export async function previewTrainingPlan(
           currentWeeklyHours: level.peakHours,
           queenStageHours: demand.queenStageHours,
           queenStageKnown: demand.queenStageKnown,
-          longestRideHours: longestSessionHours,
+          longestSessionHours,
           weeksUntilEvent: weeksTotal,
         });
 
@@ -1229,7 +1229,7 @@ export async function previewFromDraft(
           currentWeeklyHours: level.peakHours,
           queenStageHours: demand.queenStageHours,
           queenStageKnown: demand.queenStageKnown,
-          longestRideHours: longestSessionHours,
+          longestSessionHours,
           weeksUntilEvent: weeksUntilRace,
         });
 

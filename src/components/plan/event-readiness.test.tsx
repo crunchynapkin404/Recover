@@ -16,9 +16,9 @@ const demand = {
 const feasibility = {
   verdict: "on_track" as const,
   volumeWeeksNeeded: 2,
-  longestRideWeeksNeeded: 3,
+  longestSessionWeeksNeeded: 3,
   weeksUntilEvent: 8,
-  requiredLongestRideHours: 5.6,
+  requiredLongestSessionHours: 5.6,
   fromAverageDay: false,
 };
 
@@ -85,7 +85,7 @@ describe("EventReadiness", () => {
           ...feasibility,
           verdict: "not_realistic",
           volumeWeeksNeeded: Infinity,
-          longestRideWeeksNeeded: Infinity,
+          longestSessionWeeksNeeded: Infinity,
         }}
         demand={demand}
       />
