@@ -81,9 +81,7 @@ describe.skipIf(!hasDb)("get_races demand provenance", () => {
     await db
       .delete(schema.races)
       .where(eq(schema.races.userId, USER_NO_HISTORY));
-    await db
-      .delete(schema.users)
-      .where(eq(schema.users.id, USER_NO_HISTORY));
+    await db.delete(schema.users).where(eq(schema.users.id, USER_NO_HISTORY));
   });
 
   it("hands the coach the same sentence the athlete's screen shows", async () => {

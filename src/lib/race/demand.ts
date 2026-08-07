@@ -331,7 +331,9 @@ export function eventDemand(input: EventDemandInput): EventDemandResult {
   // Without stage detail the hardest day is unknown; the average is the
   // honest stand-in, and `queenStageKnown` tells consumers not to trust it
   // as a longest-ride target.
-  const queen = priced.queenStageKnown ? priced.queenStageHours! : dailyRateHours;
+  const queen = priced.queenStageKnown
+    ? priced.queenStageHours!
+    : dailyRateHours;
 
   if (confidence == null) {
     confidence = priced.allAnchorsAthleteSet ? "medium" : "low";

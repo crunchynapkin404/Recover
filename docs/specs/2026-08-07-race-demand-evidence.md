@@ -19,16 +19,18 @@ it is overriding.
 
 ## Summary
 
-| Constant | Value | Evidence | Confidence |
-| --- | --- | --- | --- |
-| `RIEGEL_EXPONENT` | 1.06 | Riegel 1981, _Athletic Records and Human Endurance_ | **Medium** |
-| `VERTICAL_METRES_PER_FLAT_KM` | 100 | ITRA km-effort convention | **Low** |
-| Swim leg race-pace adjustment | _none — no constant_ | No published magnitude found for the net open-water/race-day effect | **N/A — deliberate absence** |
-| `ANCHOR_CONSTANTS.WINDOW_DAYS` | 180 | Judgement: wider than the 12-week volume-peak window because threshold moves slowly | **Low** |
-| `ANCHOR_CONSTANTS.MIN_RUN_KM` | 5 | Judgement: Riegel needs a reference within a few multiples of the target | **Low** |
-| `ANCHOR_CONSTANTS.MIN_SWIM_M` | 400 | Judgement: below this, warm-up dominates pace | **Low** |
-| `TRIATHLON_LEGS` distances | 3.8/180/42.2 km, etc. | Governing-body course definitions (Ironman / World Triathlon) | **High** — definitional |
-| `LONGEST_RIDE_FRACTION` | 0.8 | Cycling coaching guidance, itself contested — now applied to running/triathlon with no evidence in either sport | **Low, unvalidated outside cycling** |
+| Constant                       | Value                 | Evidence                                                                                                        | Confidence                           |
+| ------------------------------ | --------------------- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| `RIEGEL_EXPONENT`              | 1.06                  | Riegel 1981, _Athletic Records and Human Endurance_                                                             | **Medium**                           |
+| `VERTICAL_METRES_PER_FLAT_KM`  | 100                   | ITRA km-effort convention                                                                                       | **Low**                              |
+| Swim leg race-pace adjustment  | _none — no constant_  | No published magnitude found for the net open-water/race-day effect                                             | **N/A — deliberate absence**         |
+| `ANCHOR_CONSTANTS.WINDOW_DAYS` | 180                   | Judgement: wider than the 12-week volume-peak window because threshold moves slowly                             | **Low**                              |
+| `ANCHOR_CONSTANTS.MIN_RUN_KM`  | 5                     | Judgement: Riegel needs a reference within a few multiples of the target                                        | **Low**                              |
+| `ANCHOR_CONSTANTS.MIN_SWIM_M`  | 400                   | Judgement: below this, warm-up dominates pace                                                                   | **Low**                              |
+| `TRIATHLON_LEGS` distances     | 3.8/180/42.2 km, etc. | Governing-body course definitions (Ironman / World Triathlon)                                                   | **High** — definitional              |
+| `LONGEST_RIDE_FRACTION`        | 0.8                   | Cycling coaching guidance, itself contested — now applied to running/triathlon with no evidence in either sport | **Low, unvalidated outside cycling** |
+| `EVENT_TO_WEEKLY_1DAY`         | 0.6                   | Calibrated against a long cycling sportive — now converts a marathon and an Ironman to weekly hours too         | **Low, unvalidated outside cycling** |
+| `MULTI_DAY_EXPONENT`           | 0.686                 | Fitted to two cycling anchors (0.60 at one day, 2.50 at eight)                                                  | **Low, unvalidated outside cycling** |
 
 ## 1. `RIEGEL_EXPONENT = 1.06` is published, and its own error is characterised rather than hidden
 
@@ -102,7 +104,7 @@ pace, full stop.**
 
 The reason is stated rather than assumed: open-water conditions (wetsuit
 buoyancy, drafting, current, sighting overhead) and race-day effort pull in
-opposite directions, and no published magnitude for the *net* effect —
+opposite directions, and no published magnitude for the _net_ effect —
 after those two forces are combined — was found during this pass. Rather
 than invent a number to fill the gap, the model prices the swim leg at what
 is actually known: the athlete's own measured pace. This is recorded as
@@ -205,7 +207,57 @@ two other sports. The mechanism happens to be the right shape for both
 failure modes, but that is fortunate design, not evidence that the fraction
 itself is right for a runner.
 
-## 7. Rejected alternative: a default swim pace
+## 7. `EVENT_TO_WEEKLY_1DAY` and `MULTI_DAY_EXPONENT`: the second cycling constant now applied to three sports
+
+Found by reading the demand sweep's output rather than by reviewing a diff,
+and recorded here because it is the exact twin of §6 and is otherwise
+undocumented for this release.
+
+`eventDemand` converts an event's total duration into a weekly training
+target by dividing by a ratio:
+
+```text
+ratio(days) = EVENT_TO_WEEKLY_1DAY × days ^ MULTI_DAY_EXPONENT
+weeklyHours = totalEventHours / ratio(days)
+```
+
+**Both constants are cycling-calibrated.** `demand-constants.ts` justifies
+`EVENT_TO_WEEKLY_1DAY = 0.6` explicitly against a bike race — _"A long
+sportive is 200-350 TSS against ~630 sustainable weekly TSS at CTL 90 — about
+half a training week"_ — and `MULTI_DAY_EXPONENT = 0.686` is fitted to two
+cycling anchors (0.60 at one day, 2.50 at eight days, the latter from CTS on
+multi-day cycling tours). Before v0.46 that was unremarkable, because every
+event reaching this line was priced as a bike ride. **This release routes
+marathons and Ironmans through the same divisor.**
+
+What that produces, from `scripts/demand-sweep.ts`:
+
+| Event                                 | Modelled duration | Weekly target |
+| ------------------------------------- | ----------------- | ------------- |
+| Marathon, 5:00/km threshold           | 3.79 h            | 6.3 h/week    |
+| Ironman, 3 W/kg + 5:00/km + 2:00/100m | 11.06 h           | 18.5 h/week   |
+
+Both land inside defensible ranges — 18.5 h/week is high but real for a
+serious Ironman age-grouper, and 6.3 h/week is plausible for a recreational
+marathoner — which is why this is recorded as a **confidence** problem rather
+than a defect. But an 11-hour Ironman is not "about half a training week" in
+the sense the constant's own comment describes, and no evidence was sought or
+found that a single ratio should govern all three sports.
+
+**Confidence: Low, unvalidated outside cycling.** The same wording as §6, for
+the same reason. Two mitigations limit the damage: the figure is an upper
+bound that `weeklyTargetHours` then clamps against the athlete's own measured
+ceiling (`athleteLevel`'s 12-week rolling peak) and their stated availability,
+so an overstated demand cannot by itself prescribe a week the athlete has
+never come close to training; and `races.demand_hours_override` lets an
+athlete or coach set the weekly figure directly.
+
+**Not changed in this release, deliberately.** Re-deriving the ratio per sport
+would mean inventing two more numbers with no better evidence than the one
+being replaced — trading a documented weak assumption for an undocumented one.
+The honest move is to name it here.
+
+## 8. Rejected alternative: a default swim pace
 
 Considered and rejected: shipping a documented default swim pace (for
 example, a plausible club-swimmer figure like 2:00/100m) so a triathlete with

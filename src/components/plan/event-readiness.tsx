@@ -56,7 +56,12 @@ function weeks(n: number): string {
   return n === 1 ? "1 week" : `${n} weeks`;
 }
 
-export function EventReadiness({ raceName, sport, feasibility, demand }: Props) {
+export function EventReadiness({
+  raceName,
+  sport,
+  feasibility,
+  demand,
+}: Props) {
   if (!demand.available) {
     return (
       <div className="glass mt-4 rounded-[1.5rem] p-5">
@@ -100,7 +105,9 @@ export function EventReadiness({ raceName, sport, feasibility, demand }: Props) 
           this event for a sharper longest-ride target.
         </p>
       )}
-      <p className="mt-2 text-[11px] text-white/40">{demand.confidenceReason}</p>
+      <p className="mt-2 text-[11px] text-white/40">
+        {demand.confidenceReason}
+      </p>
     </div>
   );
 }

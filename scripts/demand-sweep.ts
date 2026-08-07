@@ -14,8 +14,14 @@ import { estimateRunningHours } from "../src/lib/race/running-time";
 import { estimateSwimHours } from "../src/lib/race/swim-time";
 import { triathlonLegsFor } from "../src/lib/race/triathlon-legs";
 
-const hhmm = (h: number) =>
-  `${Math.floor(h)}:${String(Math.round((h % 1) * 60)).padStart(2, "0")}`;
+// Round to whole minutes FIRST, then split. Rounding the remainder alone
+// prints "2:60" for 2.9938 h — floor gives 2, and 0.9938 × 60 rounds to 60.
+// The whole point of this script is that a human reads the numbers, so a
+// figure that cannot occur on a clock is worse than a wrong one.
+const hhmm = (h: number) => {
+  const mins = Math.round(h * 60);
+  return `${Math.floor(mins / 60)}:${String(mins % 60).padStart(2, "0")}`;
+};
 
 console.log("\n=== MARATHON, by threshold pace and climbing ===");
 console.log("pace(s/km)  flat    +500m   +1000m  +2000m");

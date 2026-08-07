@@ -5,7 +5,10 @@ import type { Projected } from "@/lib/db/projected";
 import { listRaces, stagesByRaceIds } from "@/lib/race/service";
 import type { RaceStageDetail } from "@/lib/race/service";
 import { assembleVolumeInputs } from "@/lib/week-plan/volume-inputs";
-import { DEMAND_UNAVAILABLE_COPY, type DemandConfidence } from "@/lib/race/demand";
+import {
+  DEMAND_UNAVAILABLE_COPY,
+  type DemandConfidence,
+} from "@/lib/race/demand";
 
 const parameters = z.object({
   status: z.enum(["upcoming", "completed", "skipped"]).optional(),

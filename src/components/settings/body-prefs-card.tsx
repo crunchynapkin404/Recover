@@ -81,12 +81,12 @@ export function BodyPrefsCard({
       <div>
         <h2 className="text-sm font-bold">Training thresholds</h2>
         <p className="mt-1 text-[12px] text-white/50">
-          Max HR and FTP compute training load from heart rate or power when
-          an activity has no provider load. Threshold pace does something
-          different — it anchors race-demand estimates for running. Leave
-          any of these blank and you still get a result: unlabeled sessions
-          count as easy time, and running demand estimates fall back to a
-          less confident figure built from your history.
+          Max HR and FTP compute training load from heart rate or power when an
+          activity has no provider load. Threshold pace does something different
+          — it anchors race-demand estimates for running. Leave any of these
+          blank and you still get a result: unlabeled sessions count as easy
+          time, and running demand estimates fall back to a less confident
+          figure built from your history.
         </p>
       </div>
 
@@ -116,7 +116,9 @@ export function BodyPrefsCard({
           />
         </label>
         <label className="block">
-          <span className="label-micro mb-1 block">Threshold pace (sec/km)</span>
+          <span className="label-micro mb-1 block">
+            Threshold pace (sec/km)
+          </span>
           <input
             type="number"
             min={150}

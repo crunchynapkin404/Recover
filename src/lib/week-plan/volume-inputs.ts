@@ -131,7 +131,12 @@ export interface VolumeInputsResult {
   demand: EventDemandResult | null;
   level: LevelResult;
   longestSessionHours: number | null;
-  targetRace: { id: string; name: string; date: string; sport: PlanSport } | null;
+  targetRace: {
+    id: string;
+    name: string;
+    date: string;
+    sport: PlanSport;
+  } | null;
 }
 
 export async function assembleVolumeInputs(

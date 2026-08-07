@@ -68,12 +68,12 @@ already enforces for the hours number itself.
 fallback the way it did before. The longest-session check that feeds
 feasibility now filters by the race's own sport too
 (`longestSessionHoursOf`, replacing a `longestRideHoursOf` that returned the
-longest activity of *any* kind): a triathlete's readiness is no longer
+longest activity of _any_ kind): a triathlete's readiness is no longer
 judged against a long walk that happened to outlast every ride they own.
 `/train` now says "longest run" to a runner and "longest ride" to a cyclist
 instead of hardcoding "ride" for everyone.
 
-**One limit does not get fixed here, and is named rather than implied
+**Two limits do not get fixed here, and are named rather than implied
 away.** `FEASIBILITY_CONSTANTS.LONGEST_RIDE_FRACTION` (0.8) is sourced
 entirely from cycling coaching literature that is itself contested — gran
 fondo coaching calls the long ride the single biggest predictor of
@@ -91,6 +91,24 @@ Minetti-derived elevation model (needs a grade distribution the race form
 does not collect) and a default swim pace (would put an unsourced number
 into a training target for exactly the athletes who most need an honest
 refusal instead).
+
+The second limit is the same shape, and was found by reading the demand
+sweep's printed output rather than by reviewing code. `eventDemand` turns an
+event's duration into a weekly target by dividing by `EVENT_TO_WEEKLY_1DAY`
+(0.6), a constant whose own justification is a **bike race** — "a long
+sportive is about half a training week" — together with a multi-day exponent
+fitted to two cycling anchors. Until this release every event reaching that
+line was a bike ride, so it did not matter. **It now converts marathons and
+Ironmans as well**, on no evidence that one ratio should govern three sports:
+an 11-hour Ironman is not "about half a training week" in the sense that
+comment describes. The resulting figures do land in defensible ranges (6.3
+h/week for a recreational marathon, 18.5 h/week for an Ironman), and the
+number is an upper bound that is then clamped against the athlete's own
+12-week measured peak and their stated availability — so it cannot by itself
+prescribe a week they have never approached. It is recorded as Low
+confidence, unvalidated outside cycling, rather than re-derived, because
+inventing two more numbers with no better evidence than the one being
+replaced would trade a documented weak assumption for an undocumented one.
 
 One smaller rider, carried from v0.45: the weekly review's CTL-delta
 sentence compared `latestWellness.ctl` against a rolling 7-day lookback

@@ -228,8 +228,7 @@ describe("eventDemand", () => {
     });
     expect(withElevationOnlyStage.available).toBe(true);
     expect(singleStageOnly.available).toBe(true);
-    if (!withElevationOnlyStage.available || !singleStageOnly.available)
-      return;
+    if (!withElevationOnlyStage.available || !singleStageOnly.available) return;
     // The elevation-only day must not contribute anything — totalHours (and
     // therefore weeklyHours) must come from day 1 alone, exactly as if day
     // 2 had never been submitted at all.
@@ -388,7 +387,8 @@ describe("eventDemand dispatches on sport", () => {
     if (!fasterSwim.available || !slowerSwim.available) return;
 
     const expectedDiff =
-      estimateSwimHours(legs.swimKm, 150)! - estimateSwimHours(legs.swimKm, 90)!;
+      estimateSwimHours(legs.swimKm, 150)! -
+      estimateSwimHours(legs.swimKm, 90)!;
     expect(slowerSwim.totalHours - fasterSwim.totalHours).toBeCloseTo(
       expectedDiff,
       10

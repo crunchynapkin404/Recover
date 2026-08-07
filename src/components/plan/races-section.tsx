@@ -446,9 +446,9 @@ export function RacesSection({ races, hideHeading = false }: Props) {
   const [eventDays, setEventDays] = useState(1);
   const [distanceKm, setDistanceKm] = useState<number | null>(null);
   const [elevationM, setElevationM] = useState<number | null>(null);
-  const [expectedFinishHours, setExpectedFinishHours] = useState<
-    number | null
-  >(null);
+  const [expectedFinishHours, setExpectedFinishHours] = useState<number | null>(
+    null
+  );
   const [stages, setStages] = useState<
     { distanceKm: number | null; elevationM: number | null }[]
   >([]);
