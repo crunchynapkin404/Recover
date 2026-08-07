@@ -533,6 +533,9 @@ describe.skipIf(!hasDb)("server actions", () => {
     beforeEach(async () => {
       const { db, schema } = await import("@/lib/db");
       await db
+        .delete(schema.weekPlans)
+        .where(eq(schema.weekPlans.userId, USER));
+      await db
         .delete(schema.trainingBlocks)
         .where(eq(schema.trainingBlocks.notes, "week adjustment test"));
       await db
@@ -564,6 +567,21 @@ describe.skipIf(!hasDb)("server actions", () => {
         targetSessions: 4,
         workouts: [],
         notes: "week adjustment test",
+      });
+      await db.insert(schema.weekPlans).values({
+        userId: USER,
+        planId: plan.id,
+        weekStart: "2026-09-07",
+        skeletonWeek: 2,
+        days: Array.from({ length: 7 }, (_, i) => ({
+          date: `2026-09-${String(7 + i).padStart(2, "0")}`,
+          availableBlocks: [],
+          availableMins: 0,
+          workouts: [],
+          status: "rest",
+        })),
+        status: "open",
+        effectiveTarget: 300,
       });
     });
 
