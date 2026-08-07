@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { and, asc, desc, eq, gte, inArray, ne } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, lte, ne } from "drizzle-orm";
 import { Bike, ClipboardList, LineChart, Plus } from "lucide-react";
 import { db, schema } from "@/lib/db";
 import { requireUser } from "@/lib/session";
@@ -30,6 +30,7 @@ import {
 import { EmptyState } from "@/components/ui/empty-state";
 import { TrainTabs } from "@/components/train/train-tabs";
 import { WeekDayList } from "@/components/train/week-day-list";
+import { SeasonTimelineCard } from "@/components/train/season-timeline-card";
 import { WeekRationale, fmt, article } from "@/components/plan/week-rationale";
 import { EventReadiness } from "@/components/plan/event-readiness";
 import {
@@ -70,7 +71,12 @@ import {
   stagesByRaceIds,
 } from "@/lib/race/service";
 import { forecastForm } from "@/lib/race/forecast";
-import { localYmd, weeklyLoads } from "@/lib/charts";
+import {
+  localYmd,
+  seasonTimelinePoints,
+  weeklyActivitySummaries,
+  weeklyLoads,
+} from "@/lib/charts";
 import {
   buildTrainHref,
   TRAIN_TABS,
@@ -207,6 +213,8 @@ export default async function TrainPage({
           month={month}
           sportFilter={sportFilter}
         />
+      ) : tab === "season" ? (
+        <SeasonTab userId={user.id} href={href} />
       ) : (
         <FitnessTab userId={user.id} href={href} range={range} />
       )}
@@ -1139,6 +1147,101 @@ async function HistoryTab({
             }
           />
         )}
+      </div>
+    </>
+  );
+}
+
+// ── Season (v0.48) ───────────────────────────────────────────────────────
+
+async function SeasonTab({
+  userId,
+  href,
+}: {
+  userId: string;
+  href: TrainHref;
+}) {
+  const plan = await getActivePlan(userId);
+  const thisMonday = new Date();
+  thisMonday.setHours(0, 0, 0, 0);
+  thisMonday.setDate(thisMonday.getDate() - ((thisMonday.getDay() + 6) % 7));
+  const thisMondayYmd = localYmd(thisMonday);
+
+  if (!plan) {
+    return (
+      <>
+        <TrainHeader tab="season" href={href} />
+        <EmptyState
+          icon={LineChart}
+          message="No active plan yet. Build a plan to unlock season target vs actual tracking."
+        />
+      </>
+    );
+  }
+
+  const weeks = await db.query.weekPlans.findMany({
+    where: and(
+      eq(schema.weekPlans.userId, userId),
+      eq(schema.weekPlans.planId, plan.id),
+      lte(schema.weekPlans.weekStart, thisMondayYmd)
+    ),
+    orderBy: asc(schema.weekPlans.weekStart),
+  });
+
+  if (weeks.length === 0) {
+    return (
+      <>
+        <TrainHeader tab="season" href={href} />
+        <EmptyState
+          icon={LineChart}
+          message="No season weeks to compare yet. Season progress appears once the first week starts."
+        />
+      </>
+    );
+  }
+
+  const firstWeek = weeks[0].weekStart;
+  const firstWeekDate = new Date(`${firstWeek}T00:00:00`);
+  const spanWeeks =
+    Math.max(
+      1,
+      Math.floor((thisMonday.getTime() - firstWeekDate.getTime()) / 604_800_000) +
+        1
+    ) || 1;
+
+  const activities = await db.query.activities.findMany({
+    where: and(
+      eq(schema.activities.userId, userId),
+      ne(schema.activities.provider, "strava"),
+      gte(schema.activities.startDate, firstWeekDate)
+    ),
+    orderBy: desc(schema.activities.startDate),
+    limit: 1000,
+  });
+
+  const actualSummaries = weeklyActivitySummaries(
+    activities.map((a) => ({
+      startDate: a.startDateLocal ?? a.startDate,
+      load: a.load,
+      durationS: a.durationS,
+      distanceM: a.distanceM,
+    })),
+    spanWeeks
+  );
+
+  const points = seasonTimelinePoints(
+    weeks.map((w) => ({
+      weekStart: w.weekStart,
+      targetLoad: w.effectiveTarget,
+    })),
+    actualSummaries
+  );
+
+  return (
+    <>
+      <TrainHeader tab="season" href={href} />
+      <div className="pb-10">
+        <SeasonTimelineCard data={points} />
       </div>
     </>
   );

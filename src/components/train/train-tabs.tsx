@@ -4,6 +4,7 @@ import { TRAIN_TABS, type TrainHref, type TrainTab } from "@/lib/log-href";
 const LABEL: Record<TrainTab, string> = {
   week: "Week",
   history: "History",
+  season: "Season",
   fitness: "Fitness",
 };
 

@@ -8,6 +8,7 @@ import {
   rollingAvg,
   weeklyLoads,
   weeklyActivitySummaries,
+  seasonTimelinePoints,
   CHART_TOKENS,
   formatChartValue,
 } from "./charts";
@@ -143,6 +144,57 @@ describe("weeklyActivitySummaries", () => {
     expect(loads).toEqual(
       summaries.map((s) => ({ weekStart: s.weekStart, load: s.load }))
     );
+  });
+});
+
+describe("seasonTimelinePoints", () => {
+  it("aligns target and actual by weekStart", () => {
+    const out = seasonTimelinePoints(
+      [
+        { weekStart: "2026-07-06", targetLoad: 420 },
+        { weekStart: "2026-07-13", targetLoad: 460 },
+      ],
+      [
+        {
+          weekStart: "2026-07-13",
+          load: 380,
+          durationS: 10_800,
+          distanceM: 90_000,
+          sessions: 4,
+        },
+      ]
+    );
+
+    expect(out).toEqual([
+      {
+        weekStart: "2026-07-06",
+        targetLoad: 420,
+        actualLoad: 0,
+        sessions: 0,
+      },
+      {
+        weekStart: "2026-07-13",
+        targetLoad: 460,
+        actualLoad: 380,
+        sessions: 4,
+      },
+    ]);
+  });
+
+  it("preserves null target rather than coercing to zero", () => {
+    const out = seasonTimelinePoints(
+      [{ weekStart: "2026-07-20", targetLoad: null }],
+      [
+        {
+          weekStart: "2026-07-20",
+          load: 220,
+          durationS: 7200,
+          distanceM: 50000,
+          sessions: 2,
+        },
+      ]
+    );
+    expect(out[0]).toMatchObject({ targetLoad: null, actualLoad: 220 });
   });
 });
 

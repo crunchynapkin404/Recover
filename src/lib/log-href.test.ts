@@ -106,6 +106,16 @@ describe("buildTrainHref", () => {
     expect(href).not.toContain("view=");
   });
 
+  it("supports the season tab while preserving sibling state", () => {
+    const href = buildTrainHref(
+      { ...TRAIN_BASE, tab: "history", range: 180, sport: "Ride" },
+      { tab: "season" }
+    );
+    expect(href).toContain("tab=season");
+    expect(href).toContain("range=180");
+    expect(href).toContain("sport=Ride");
+  });
+
   it("omits month unless the view is month", () => {
     const href = buildTrainHref(
       { ...TRAIN_BASE, view: "month", month: "2026-07" },
