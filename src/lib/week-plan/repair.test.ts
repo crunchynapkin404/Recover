@@ -116,7 +116,9 @@ async function expectedFreshWeek(planId: string, days: DaySlot[]) {
 
   const volumeInputs = await assembleVolumeInputs(TEST_USER, NOW);
   const target = weeklyTargetHours({
-    raceDemandHours: volumeInputs.demand?.weeklyHours ?? null,
+    raceDemandHours: volumeInputs.demand?.available
+      ? volumeInputs.demand.weeklyHours
+      : null,
     ceilingHours: volumeInputs.level.ceilingHours,
     floorHours: volumeInputs.level.floorHours,
     availabilityHours,

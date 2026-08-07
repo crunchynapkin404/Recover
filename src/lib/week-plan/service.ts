@@ -272,7 +272,9 @@ export async function rolloverWeekPlan(
       0
     ) / 60;
   const target = weeklyTargetHours({
-    raceDemandHours: volumeInputs.demand?.weeklyHours ?? null,
+    raceDemandHours: volumeInputs.demand?.available
+      ? volumeInputs.demand.weeklyHours
+      : null,
     ceilingHours: volumeInputs.level.ceilingHours,
     floorHours: volumeInputs.level.floorHours,
     availabilityHours,
@@ -282,7 +284,9 @@ export async function rolloverWeekPlan(
   // should build toward. Null when there is no race or no FTP, which keeps
   // the pre-existing 240-minute bound. Shared by both `periodize` and
   // `materializeWeek` below so they can't drift onto different values.
-  const queenStageHours = volumeInputs.demand?.queenStageHours ?? null;
+  const queenStageHours = volumeInputs.demand?.available
+    ? volumeInputs.demand.queenStageHours
+    : null;
 
   // A sport word (canonicalised via requirePlanSport), never plan.raceType —
   // raceType is free text with no closed vocabulary, and inferring a sport
@@ -582,7 +586,7 @@ export async function applyAvailability(
         ? taperFractionForWeek(week.weekStart, primary)
         : null;
     targetHours = target.hours;
-    queenStageHours = demand?.queenStageHours ?? null;
+    queenStageHours = demand?.available ? demand.queenStageHours : null;
   }
   const fill = resolveFillOptions({
     hasActivePlan: plan != null,

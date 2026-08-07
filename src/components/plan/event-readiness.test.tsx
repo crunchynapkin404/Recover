@@ -3,20 +3,23 @@ import { renderToString } from "react-dom/server";
 import { EventReadiness } from "./event-readiness";
 
 const demand = {
+  available: true as const,
   totalHours: 50,
   dailyRateHours: 6.3,
   queenStageHours: 7,
   queenStageKnown: true,
   weeklyHours: 11,
   source: "computed" as const,
+  confidence: "medium" as const,
+  confidenceReason: "Modelled from your FTP and the course profile.",
 };
 
 const feasibility = {
   verdict: "on_track" as const,
   volumeWeeksNeeded: 2,
-  longestRideWeeksNeeded: 3,
+  longestSessionWeeksNeeded: 3,
   weeksUntilEvent: 8,
-  requiredLongestRideHours: 5.6,
+  requiredLongestSessionHours: 5.6,
   fromAverageDay: false,
 };
 
@@ -25,6 +28,7 @@ describe("EventReadiness", () => {
     const html = renderToString(
       <EventReadiness
         raceName="Dolomites"
+        sport="Bike"
         feasibility={feasibility}
         demand={demand}
       />
@@ -37,6 +41,7 @@ describe("EventReadiness", () => {
     const html = renderToString(
       <EventReadiness
         raceName="Dolomites"
+        sport="Bike"
         feasibility={feasibility}
         demand={demand}
       />
@@ -48,6 +53,7 @@ describe("EventReadiness", () => {
     const html = renderToString(
       <EventReadiness
         raceName="Dolomites"
+        sport="Bike"
         feasibility={{
           ...feasibility,
           verdict: "not_realistic",
@@ -63,6 +69,7 @@ describe("EventReadiness", () => {
     const html = renderToString(
       <EventReadiness
         raceName="Dolomites"
+        sport="Bike"
         feasibility={{ ...feasibility, fromAverageDay: true }}
         demand={{ ...demand, queenStageKnown: false }}
       />
@@ -79,11 +86,12 @@ describe("EventReadiness", () => {
     const html = renderToString(
       <EventReadiness
         raceName="Dolomites"
+        sport="Bike"
         feasibility={{
           ...feasibility,
           verdict: "not_realistic",
           volumeWeeksNeeded: Infinity,
-          longestRideWeeksNeeded: Infinity,
+          longestSessionWeeksNeeded: Infinity,
         }}
         demand={demand}
       />
@@ -96,11 +104,67 @@ describe("EventReadiness", () => {
     const html = renderToString(
       <EventReadiness
         raceName="Dolomites"
+        sport="Bike"
         feasibility={{ ...feasibility, weeksUntilEvent: 1 }}
         demand={demand}
       />
     );
     expect(html).toContain("1 week to go");
     expect(html).not.toContain("1 weeks");
+  });
+
+  it("says 'longest run' to a runner", () => {
+    const html = renderToString(
+      <EventReadiness
+        raceName="Rotterdam Marathon"
+        sport="Run"
+        feasibility={feasibility}
+        demand={demand}
+      />
+    );
+    expect(html.toLowerCase()).toContain("longest run");
+    expect(html.toLowerCase()).not.toContain("longest ride");
+  });
+
+  it("says 'longest bike leg' to a triathlete", () => {
+    const html = renderToString(
+      <EventReadiness
+        raceName="Ironman Hamburg"
+        sport="Triathlon"
+        feasibility={feasibility}
+        demand={demand}
+      />
+    );
+    expect(html.toLowerCase()).toContain("longest bike leg");
+  });
+
+  it("shows the confidence reason for every available figure", () => {
+    const html = renderToString(
+      <EventReadiness
+        raceName="Rotterdam Marathon"
+        sport="Run"
+        feasibility={feasibility}
+        demand={{
+          ...demand,
+          confidence: "low",
+          confidenceReason: "Estimated from your recent runs.",
+        }}
+      />
+    );
+    expect(html).toContain("Estimated from your recent runs");
+  });
+
+  it("says WHY there is no figure instead of rendering nothing", () => {
+    // The whole point of v0.46: before this, an unpriceable race produced a
+    // silent fallback and an empty screen.
+    const html = renderToString(
+      <EventReadiness
+        raceName="Ironman Hamburg"
+        sport="Triathlon"
+        feasibility={null}
+        demand={{ available: false, reason: "no_swim_anchor" }}
+      />
+    );
+    expect(html.toLowerCase()).toContain("no recent swims");
   });
 });

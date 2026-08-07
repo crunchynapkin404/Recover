@@ -1040,7 +1040,7 @@ export async function previewTrainingPlan(
   }
 
   // 5. Reuse the engine's own numbers rather than inventing display ones.
-  const { target, demand, level, longestRideHours } =
+  const { target, demand, level, longestSessionHours } =
     await assembleWeeklyTarget(userId, today, {
       availabilityHours: hoursPerWeek,
       planHoursPerWeek: hoursPerWeek,
@@ -1079,14 +1079,14 @@ export async function previewTrainingPlan(
   // hours) is silence, not a guess: `assessFeasibility` itself also returns
   // null without a measured current-hours and longest-ride figure.
   const feasibility =
-    demand == null
+    demand == null || !demand.available
       ? null
       : assessFeasibility({
           requiredWeeklyHours: demand.weeklyHours,
           currentWeeklyHours: level.peakHours,
           queenStageHours: demand.queenStageHours,
           queenStageKnown: demand.queenStageKnown,
-          longestRideHours,
+          longestSessionHours,
           weeksUntilEvent: weeksTotal,
         });
 
@@ -1211,7 +1211,7 @@ export async function previewFromDraft(
     where: eq(schema.availabilityDefaults.userId, draft.userId),
   });
 
-  const { target, demand, level, longestRideHours } =
+  const { target, demand, level, longestSessionHours } =
     await assembleWeeklyTarget(draft.userId, today, {
       availabilityHours: hoursPerWeek,
       planHoursPerWeek: hoursPerWeek,
@@ -1222,14 +1222,14 @@ export async function previewFromDraft(
   );
 
   const feasibility =
-    demand == null
+    demand == null || !demand.available
       ? null
       : assessFeasibility({
           requiredWeeklyHours: demand.weeklyHours,
           currentWeeklyHours: level.peakHours,
           queenStageHours: demand.queenStageHours,
           queenStageKnown: demand.queenStageKnown,
-          longestRideHours,
+          longestSessionHours,
           weeksUntilEvent: weeksUntilRace,
         });
 

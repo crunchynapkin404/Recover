@@ -6,7 +6,7 @@ const base = {
   currentWeeklyHours: 8.9,
   queenStageHours: 7,
   queenStageKnown: true,
-  longestRideHours: 5,
+  longestSessionHours: 5,
   weeksUntilEvent: 8,
 };
 
@@ -15,7 +15,7 @@ describe("assessFeasibility", () => {
     const r = assessFeasibility({
       ...base,
       currentWeeklyHours: 12,
-      longestRideHours: 7,
+      longestSessionHours: 7,
     })!;
     expect(r.verdict).toBe("ready");
   });
@@ -30,7 +30,7 @@ describe("assessFeasibility", () => {
     const r = assessFeasibility({
       ...base,
       currentWeeklyHours: 2,
-      longestRideHours: 1,
+      longestSessionHours: 1,
       weeksUntilEvent: 3,
     })!;
     expect(r.verdict).toBe("not_realistic");
@@ -41,7 +41,7 @@ describe("assessFeasibility", () => {
     const r = assessFeasibility({
       ...base,
       currentWeeklyHours: 6,
-      longestRideHours: 3.6,
+      longestSessionHours: 3.6,
       weeksUntilEvent: 4,
     })!;
     expect(["tight", "not_realistic"]).toContain(r.verdict);
@@ -57,16 +57,16 @@ describe("assessFeasibility", () => {
     const r = assessFeasibility({
       ...base,
       currentWeeklyHours: 14,
-      longestRideHours: 1.5,
+      longestSessionHours: 1.5,
       weeksUntilEvent: 2,
     })!;
     expect(r.verdict).toBe("on_track");
-    expect(r.longestRideWeeksNeeded).toBeGreaterThan(r.weeksUntilEvent);
+    expect(r.longestSessionWeeksNeeded).toBeGreaterThan(r.weeksUntilEvent);
   });
 
   it("requires only a fraction of the queen stage, not all of it", () => {
     const r = assessFeasibility(base)!;
-    expect(r.requiredLongestRideHours).toBeCloseTo(
+    expect(r.requiredLongestSessionHours).toBeCloseTo(
       7 * FEASIBILITY_CONSTANTS.LONGEST_RIDE_FRACTION,
       5
     );
@@ -82,7 +82,7 @@ describe("assessFeasibility", () => {
       assessFeasibility({
         ...base,
         currentWeeklyHours: null,
-        longestRideHours: null,
+        longestSessionHours: null,
       })
     ).toBeNull();
   });
@@ -101,11 +101,11 @@ describe("assessFeasibility", () => {
     const f = assessFeasibility({
       ...base,
       currentWeeklyHours: 6,
-      longestRideHours: 0.1,
+      longestSessionHours: 0.1,
       weeksUntilEvent: 4,
     })!;
     expect(f.verdict).toBe("tight");
-    expect(f.longestRideWeeksNeeded).toBeGreaterThan(f.weeksUntilEvent);
+    expect(f.longestSessionWeeksNeeded).toBeGreaterThan(f.weeksUntilEvent);
   });
 
   it("never lets a longest-ride gap alone condemn an event", () => {
@@ -117,7 +117,7 @@ describe("assessFeasibility", () => {
       currentWeeklyHours: 20,
       queenStageHours: 9,
       queenStageKnown: true,
-      longestRideHours: 0.5,
+      longestSessionHours: 0.5,
       weeksUntilEvent: 1,
     })!;
     expect(r.verdict).not.toBe("not_realistic");

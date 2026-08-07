@@ -4,6 +4,11 @@ import { schema } from "@/lib/db";
 import type { Projected } from "@/lib/db/projected";
 import { listRaces, stagesByRaceIds } from "@/lib/race/service";
 import type { RaceStageDetail } from "@/lib/race/service";
+import { assembleVolumeInputs } from "@/lib/week-plan/volume-inputs";
+import {
+  DEMAND_UNAVAILABLE_COPY,
+  type DemandConfidence,
+} from "@/lib/race/demand";
 
 const parameters = z.object({
   status: z.enum(["upcoming", "completed", "skipped"]).optional(),
@@ -36,6 +41,18 @@ type WithheldRaceColumn =
 type ProjectedRace = Projected<typeof schema.races, WithheldRaceColumn> & {
   daysToRace: number;
   stages: RaceStageDetail[];
+  /**
+   * Set only on the race the volume model is currently targeting — the
+   * highest priority, then nearest date. Null on every other race, and null
+   * when no figure could be produced; `demandNote` then says why.
+   */
+  demandConfidence: DemandConfidence | null;
+  /**
+   * One sentence: where the number came from, or what to add so it can be
+   * produced. Read straight off `assembleVolumeInputs` and never re-derived,
+   * so the coach and the athlete's screen cannot disagree.
+   */
+  demandNote: string | null;
 };
 
 function daysFromToday(ymd: string): number {
@@ -51,6 +68,8 @@ function daysFromToday(ymd: string): number {
 async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
   const races = await listRaces(ctx.userId, args);
   const stages = await stagesByRaceIds(races.map((r) => r.id));
+  const volume = await assembleVolumeInputs(ctx.userId, new Date());
+  const targetId = volume.targetRace?.id ?? null;
   return {
     races: races.map((r): ProjectedRace => ({
       id: r.id,
@@ -65,9 +84,20 @@ async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
       distanceKm: r.distanceKm,
       elevationM: r.elevationM,
       demandHoursOverride: r.demandHoursOverride,
+      expectedFinishHours: r.expectedFinishHours,
       resultActivityId: r.resultActivityId,
       daysToRace: daysFromToday(r.date),
       stages: stages.get(r.id) ?? [],
+      demandConfidence:
+        r.id === targetId && volume.demand?.available
+          ? volume.demand.confidence
+          : null,
+      demandNote:
+        r.id !== targetId || volume.demand == null
+          ? null
+          : volume.demand.available
+            ? volume.demand.confidenceReason
+            : DEMAND_UNAVAILABLE_COPY[volume.demand.reason],
     })),
   };
 }
@@ -75,7 +105,7 @@ async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
 export const getRacesTool: ToolDefinition<typeof parameters> = {
   name: "get_races",
   description:
-    "List the athlete's races with everything on file for each: A/B/C priority, date, countdown in days, goal note, status, and what the event demands — the number of event days, total distance and elevation, the athlete's own weekly-hours override, and a `stages` array giving per-day number, name, distance and elevation. `stages` is empty BOTH for a one-day race AND for a multi-day event whose per-day detail has not been entered, so an empty array means no per-day detail is on file — never that the days are flat or easy. Check `eventDays` to tell the two apart. The races table is the source of truth for races — prefer it over memory.",
+    "List the athlete's races with everything on file for each: A/B/C priority, date, countdown in days, goal note, status, and what the event demands — the number of event days, total distance and elevation, the athlete's own weekly-hours override, and a `stages` array giving per-day number, name, distance and elevation. `stages` is empty BOTH for a one-day race AND for a multi-day event whose per-day detail has not been entered, so an empty array means no per-day detail is on file — never that the days are flat or easy. Check `eventDays` to tell the two apart. `demandConfidence` (high/medium/low, or null) and `demandNote` (one sentence explaining the figure, or why none exists) are set ONLY on the race the volume model is currently training the athlete for — the highest priority, then nearest date — and are null on every other race, so read them off THIS race rather than assuming they describe the athlete's A-race. A null `demandConfidence` therefore means one of two different things: either this is not the targeted race, or it IS the targeted race but no demand figure could be produced for it. Those are distinguished by `demandNote` — on the targeted race it always carries a sentence, and when the figure is missing that sentence names what the athlete must add (an expected finish time, a threshold pace, a recent tracked swim). The races table is the source of truth for races — prefer it over memory.",
   parameters,
   execute,
 };

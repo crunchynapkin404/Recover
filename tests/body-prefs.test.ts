@@ -55,8 +55,14 @@ function prefs(overrides: {
   sleepNeedSecs: number;
   maxHr?: number | null;
   ftpWatts?: number | null;
+  thresholdPaceSecPerKm?: number | null;
 }) {
-  return { maxHr: null, ftpWatts: null, ...overrides };
+  return {
+    maxHr: null,
+    ftpWatts: null,
+    thresholdPaceSecPerKm: null,
+    ...overrides,
+  };
 }
 
 async function row() {

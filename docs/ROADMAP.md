@@ -923,6 +923,47 @@ sequenced roadmap in `docs/specs/2026-08-05-ai-coaching-landscape.md` §9,
 which this release does not change. The weekly review's CTL delta reading a
 different window than its own load figure is carried to **v0.46**.
 
+## ✅ v0.46 — Demand knows its sport
+
+`eventDemand` priced every event with `estimateRidingHours` — the cycling drag
+equation — regardless of what sport the race was, even though `races.sport`
+has been a stored, validated enum since v0.42 and nothing on the demand path
+read it. A runner with an FTP had their marathon priced as ~1.2 h of cycling
+against a real 3–4 h run; a runner without one got `null`, and the whole
+race-driven volume feature reverted to a stored constant with no word on any
+screen. Closes **F3** and **F7** from the v0.42 audit, plus **F3b**, found
+while writing the spec: `longestRideHoursOf` returned the longest activity of
+_any_ kind, so a triathlete's marathon readiness was answered by their longest
+bike ride.
+
+Demand now dispatches on `races.sport`: cycling unchanged, running through
+Riegel's endurance formula against a threshold-pace anchor (set in Settings or
+derived from the athlete's own runs), triathlon as swim + bike + run summed
+from standard leg distances. An athlete-stated `expected_finish_hours` wins
+over all three and needs no anchor. `eventDemand` returns a discriminated
+result instead of `null`, so a refusal reaches the screen and the coach as a
+sentence naming the fix rather than disappearing into a fallback. Every figure
+carries a confidence (high / medium / low) and its reason, from one source, so
+`/train` and the coach cannot describe the same number differently.
+
+Migration **0039** adds `body_prefs.threshold_pace_sec_per_km` and
+`races.expected_finish_hours`, both nullable and additive-only.
+
+**Named, not fixed:** `LONGEST_RIDE_FRACTION` (0.8) and
+`EVENT_TO_WEEKLY_1DAY` (0.6) are both cycling-calibrated and are now applied
+to running and triathlon without validation in either sport — recorded at Low
+confidence in `docs/specs/2026-08-07-race-demand-evidence.md` rather than
+re-derived, because inventing replacements with no better evidence would trade
+a documented weak assumption for an undocumented one. A triathlete with no
+swim history and no stated finish time gets no figure at all, by design.
+
+Also carried from v0.45: the weekly review's CTL delta now reads the same
+calendar week as the load figure beside it in the same sentence.
+
+**Deliberately still open, carried to v0.47:** the B/C taper gap and
+`startingCtl`'s `?? 30` default, per
+`docs/specs/2026-08-05-ai-coaching-landscape.md` §9.
+
 ## Ongoing — operations track
 
 All items scheduled into **v0.17 — Good Self-Hosted Citizen** by the v0.9.6

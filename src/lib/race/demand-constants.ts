@@ -58,4 +58,37 @@ export const DEMAND_CONSTANTS = {
   MULTI_DAY_EXPONENT: 0.686,
   /** Default total mass (kg) when the athlete's weight is unknown. */
   DEFAULT_MASS_KG: 83,
+  /**
+   * Riegel's endurance exponent: T2 = T1 * (D2/D1)^k.
+   *
+   * Riegel 1981, "Athletic Records and Human Endurance", American Scientist
+   * 69(3):285-290. The running counterpart of FTP_FRACTION_ANCHORS — the same
+   * job (how sustainable pace decays with duration), from a published source.
+   *
+   * CONFIDENCE: MEDIUM. Vickers & Vertosick 2016 (BMC Sports Sci Med Rehabil,
+   * "An empirical study of race times in recreational endurance runners")
+   * found the exponent varies with training volume and runs ABOVE 1.06 for
+   * recreational runners — meaning this value UNDERSTATES a recreational
+   * athlete's marathon time. The magnitude is not characterised here and
+   * should not be described as small: secondary summaries of that work put
+   * the standard-Riegel marathon underestimate at roughly ten minutes for
+   * half of recreational runners, and the primary paper has not been checked
+   * against that figure. What IS known is the DIRECTION, and it is the safe
+   * one: a shorter predicted race understates demand rather than prescribing
+   * training nobody can absorb.
+   */
+  RIEGEL_EXPONENT: 1.06,
+  /**
+   * Metres of ascent priced as one kilometre of flat running (ITRA
+   * "km-effort": km_effort = distance_km + elevation_m / 100).
+   *
+   * CONFIDENCE: LOW, and this is a CONVENTION, not physiology — the same
+   * status v0.45 assigned the 3:1 mesocycle. A Minetti-derived metabolic
+   * model (Minetti et al. 2002, J Appl Physiol, "Energy cost of walking and
+   * running at extreme uphill and downhill slopes") is the rigorous
+   * alternative and is deliberately NOT used: it needs a grade distribution
+   * the race form does not collect, and the honest error bar on the pace
+   * anchor is wider than the gap between the two models.
+   */
+  VERTICAL_METRES_PER_FLAT_KM: 100,
 } as const;

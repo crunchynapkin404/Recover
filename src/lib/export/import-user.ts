@@ -248,6 +248,7 @@ export async function importUserData(
           sleepNeedSecs: r.sleepNeedSecs,
           maxHr: r.maxHr,
           ftpWatts: r.ftpWatts,
+          thresholdPaceSecPerKm: r.thresholdPaceSecPerKm,
           birthYear: r.birthYear,
           levelOverride: r.levelOverride,
         }))
@@ -528,6 +529,7 @@ export async function importUserData(
         distanceKm: r.distanceKm,
         elevationM: r.elevationM,
         demandHoursOverride: r.demandHoursOverride,
+        expectedFinishHours: r.expectedFinishHours,
         resultActivityId: r.resultActivityId
           ? (activityIdMap.get(r.resultActivityId) ?? null)
           : null,

@@ -508,6 +508,9 @@ export default async function SettingsPage({
                 }
                 maxHr={bodyPrefsRow?.maxHr ?? null}
                 ftpWatts={bodyPrefsRow?.ftpWatts ?? null}
+                thresholdPaceSecPerKm={
+                  bodyPrefsRow?.thresholdPaceSecPerKm ?? null
+                }
               />
             </div>
           </CollapsiblePanel>

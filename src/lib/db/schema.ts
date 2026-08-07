@@ -573,6 +573,13 @@ export const bodyPrefs = pgTable("body_prefs", {
   // null = not set; the engine degrades to its duration fallback.
   maxHr: integer("max_hr"),
   ftpWatts: integer("ftp_watts"),
+  /**
+   * v0.46: the running anchor, the exact analogue of ftpWatts. Seconds per
+   * kilometre at threshold — roughly one-hour race pace by definition, which
+   * is what makes it a Riegel reference performance with no second input.
+   * null = derive from history (Low confidence), then refuse.
+   */
+  thresholdPaceSecPerKm: integer("threshold_pace_sec_per_km"),
   // v0.13 Deep Biology: enables the biological-age estimate. null = not set
   // (bio-age reports "insufficient inputs" listing this among what's missing).
   birthYear: integer("birth_year"),
@@ -814,6 +821,14 @@ export const races = pgTable(
     elevationM: integer("elevation_m"),
     /** Athlete's own weekly-hours figure; wins over the computed one. */
     demandHoursOverride: real("demand_hours_override"),
+    /**
+     * v0.46: the athlete's own figure for how long THE EVENT takes them.
+     * Distinct from demandHoursOverride, which is how long a training WEEK
+     * should be. This one enters the model where a computed totalHours would,
+     * so it flows through the event-to-weekly ratio; that one is applied after
+     * the ratio. Set → no anchor is needed and no leg pricing is attempted.
+     */
+    expectedFinishHours: real("expected_finish_hours"),
     resultActivityId: uuid("result_activity_id").references(
       () => activities.id,
       { onDelete: "set null" }

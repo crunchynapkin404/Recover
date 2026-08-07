@@ -17,8 +17,12 @@
  *
  * Pure — no I/O, no clock.
  */
+import type { PlanSport } from "@/lib/plan-sport";
 import { DEMAND_CONSTANTS as C } from "./demand-constants";
 import { estimateRidingHours } from "./riding-time";
+import { estimateRunningHours } from "./running-time";
+import { estimateSwimHours } from "./swim-time";
+import { triathlonLegsFor } from "./triathlon-legs";
 
 export interface EventStage {
   dayNumber: number;
@@ -27,14 +31,25 @@ export interface EventStage {
 }
 
 export interface EventDemandInput {
+  /** The dispatch key. Stored on every race since v0.42. */
+  sport: PlanSport;
+  /** Free text or the plan tool's enum; normalised before use. */
+  raceType: string;
   eventDays: number;
   /** TOTAL across all days. Ignored when `stages` are supplied. */
   distanceKm: number | null;
   elevationM: number | null;
   stages: EventStage[];
   overrideWeeklyHours: number | null;
-  ftpWatts: number | null;
+  /**
+   * The athlete's own figure for how long THE EVENT takes. Wins over every
+   * model, needs no anchor, and skips leg pricing entirely.
+   */
+  expectedFinishHours: number | null;
+  ftp: { watts: number; athleteSet: boolean } | null;
   massKg: number | null;
+  runPace: { secPerKm: number; athleteSet: boolean } | null;
+  swimPace: { secPer100m: number; athleteSet: boolean } | null;
 }
 
 export interface EventDemand {
@@ -48,82 +63,284 @@ export interface EventDemand {
   queenStageKnown: boolean;
   weeklyHours: number;
   source: "computed" | "override";
+  confidence: DemandConfidence;
+  /** One sentence saying where the number came from. Athlete-facing. */
+  confidenceReason: string;
 }
 
-export function eventDemand(input: EventDemandInput): EventDemand | null {
-  const ftpWatts = input.ftpWatts;
-  if (ftpWatts == null || ftpWatts <= 0) return null;
-  const massKg = input.massKg ?? C.DEFAULT_MASS_KG;
+/**
+ * How much to trust the figure. The Domestique pattern: cap the confidence
+ * and say so, rather than reporting a derived number flat.
+ *
+ *   high   — the athlete stated their finish time
+ *   medium — modelled from an anchor the athlete set themselves
+ *   low    — modelled from a synced or history-derived anchor, or from an
+ *            average day rather than known stages
+ */
+export type DemandConfidence = "high" | "medium" | "low";
 
+/**
+ * Why no figure could be produced. A closed union, so a new refusal path
+ * cannot be added without deciding what the athlete is told about it.
+ */
+export type DemandUnavailableReason =
+  | "no_cycling_anchor"
+  | "no_running_anchor"
+  | "no_swim_anchor"
+  | "unknown_triathlon_format"
+  | "no_distance";
+
+/**
+ * One sentence per refusal, each naming the fix.
+ *
+ * These reach the athlete AND the coach from this one place, so the two
+ * surfaces cannot say different things — the discipline assembleWeeklyTarget
+ * already enforces for the hours number, applied to its provenance.
+ */
+export const DEMAND_UNAVAILABLE_COPY: Record<DemandUnavailableReason, string> =
+  {
+    no_cycling_anchor:
+      "No FTP yet — set one in Settings, or add your expected finish time to this race.",
+    no_running_anchor:
+      "No threshold pace and not enough recent runs to derive one — set a threshold pace in Settings, or add your expected finish time to this race.",
+    no_swim_anchor:
+      "No recent swims to price the swim leg from — add your expected finish time to this race.",
+    unknown_triathlon_format:
+      "Unrecognised triathlon format, so the leg distances are unknown — add your expected finish time to this race.",
+    no_distance:
+      "No distance on this race yet — add one, or add your expected finish time.",
+  };
+
+/**
+ * Confidence copy when every anchor the duration step used was set by the
+ * athlete themselves (an FTP, threshold pace or swim pace typed into
+ * Settings, or a race form) rather than derived from history. Per sport,
+ * because "FTP" means nothing to a runner and vice versa.
+ */
+const ANCHOR_SET_COPY: Record<PlanSport, string> = {
+  Bike: "Modelled from your FTP and the course profile.",
+  Run: "Modelled from your threshold pace and the course profile.",
+  Triathlon: "Modelled from your own thresholds and the standard distances.",
+};
+
+/**
+ * Confidence copy when at least one anchor used was derived rather than
+ * athlete-set — a synced FTP or a pace inferred from recent history. Same
+ * per-sport shape as ANCHOR_SET_COPY, naming the fix.
+ */
+const ANCHOR_DERIVED_COPY: Record<PlanSport, string> = {
+  Bike: "Estimated from your synced FTP — set one in Settings for a sharper figure.",
+  Run: "Estimated from your recent runs — set a threshold pace in Settings for a sharper figure.",
+  Triathlon:
+    "Estimated partly from your recent sessions — set your thresholds in Settings for a sharper figure.",
+};
+
+/**
+ * Confidence copy when the athlete's own stated finish time won outright —
+ * the "high" branch, set before the sport dispatch even runs. A single
+ * sentence rather than a per-sport record like ANCHOR_SET_COPY: the athlete
+ * typed one number, not a sport-specific anchor, so there is nothing to key
+ * a record on.
+ */
+const STATED_FINISH_TIME_COPY = "Your expected finish time.";
+
+/**
+ * A discriminated result rather than `EventDemand | null`.
+ *
+ * The null return is what let F3 hide for four releases: `volume.ts` took its
+ * `raceDemandHours == null` branch and reverted the entire race-driven volume
+ * feature to `constraints.hoursPerWeek` without a word on any screen. A caller
+ * cannot consume this type without handling the unavailable branch, which is
+ * the same mechanism v0.39's `Carried<>` and v0.40's `Record<SecurityEvent,
+ * true>` witness use: put the guarantee in the compiler, not in a reviewer.
+ */
+export type EventDemandResult =
+  | ({ available: true } & EventDemand)
+  | { available: false; reason: DemandUnavailableReason };
+
+/** What the duration step produced, plus the provenance of what it used. */
+interface Priced {
+  totalHours: number;
+  queenStageHours: number | null;
+  queenStageKnown: boolean;
+  /** False as soon as any anchor used was derived rather than athlete-set. */
+  allAnchorsAthleteSet: boolean;
+}
+
+/** Prices one distance/elevation pair for one sport, or says why it cannot. */
+function priceLeg(
+  sport: "Bike" | "Run",
+  distanceKm: number,
+  elevationM: number,
+  input: EventDemandInput
+): { hours: number } | { reason: DemandUnavailableReason } {
+  if (sport === "Bike") {
+    if (input.ftp == null || input.ftp.watts <= 0) {
+      return { reason: "no_cycling_anchor" };
+    }
+    const hours = estimateRidingHours({
+      distanceKm,
+      elevationM,
+      ftpWatts: input.ftp.watts,
+      massKg: input.massKg ?? C.DEFAULT_MASS_KG,
+    });
+    return hours == null ? { reason: "no_distance" } : { hours };
+  }
+  if (input.runPace == null || input.runPace.secPerKm <= 0) {
+    return { reason: "no_running_anchor" };
+  }
+  const hours = estimateRunningHours({
+    distanceKm,
+    elevationM,
+    thresholdPaceSecPerKm: input.runPace.secPerKm,
+  });
+  return hours == null ? { reason: "no_distance" } : { hours };
+}
+
+export function eventDemand(input: EventDemandInput): EventDemandResult {
   // A zero or negative day count is data corruption, not a rest event.
   const days = Math.max(1, Math.floor(input.eventDays || 1));
+  let priced: Priced;
+  let confidence: DemandConfidence | null = null;
+  let confidenceReason = "";
 
-  // estimateRidingHours requires distanceKm > 0 and returns null otherwise —
-  // an elevation-only stage would silently `continue` past the loop below,
-  // shrinking the sum's day-count without shrinking `days` (the ratio()
-  // divisor), understating demand. Require distance here, at the same
-  // boundary, so a stage is either fully usable or fully excluded — never
-  // admitted here and dropped two lines later.
-  const usable = input.stages.filter((s) => (s.distanceKm ?? 0) > 0);
-
-  let totalHours: number | null = null;
-  let queenStageHours: number | null = null;
-  let queenStageKnown = false;
-
-  if (usable.length > 0) {
-    let sum = 0;
-    let hardest = 0;
-    for (const stage of usable) {
-      const h = estimateRidingHours({
-        distanceKm: stage.distanceKm ?? 0,
-        elevationM: stage.elevationM ?? 0,
-        ftpWatts,
-        massKg,
-      });
-      if (h == null) continue;
-      sum += h;
-      hardest = Math.max(hardest, h);
+  // 1. A stated finish time wins outright and needs no anchor. This is what
+  //    rescues every refusal below: an unrecognised triathlon format, a
+  //    missing swim history and a runner with no threshold pace are all
+  //    answered by one number the athlete already knows.
+  if (input.expectedFinishHours != null && input.expectedFinishHours > 0) {
+    priced = {
+      totalHours: input.expectedFinishHours,
+      queenStageHours: null,
+      queenStageKnown: false,
+      allAnchorsAthleteSet: true,
+    };
+    confidence = "high";
+    confidenceReason = STATED_FINISH_TIME_COPY;
+  } else if (input.sport === "Triathlon") {
+    // 2. Legs come from the format, not from distanceKm — a triathlon's
+    //    226 km total does not decompose into 3.8 / 180 / 42.2.
+    const legs = triathlonLegsFor(input.raceType);
+    if (legs == null) {
+      return { available: false, reason: "unknown_triathlon_format" };
     }
-    if (sum > 0) {
-      totalHours = sum;
-      queenStageHours = hardest;
-      // Only claim the hardest day is truly KNOWN — and let EventReadiness
-      // drop its "reasoning from an average day" caveat — when every event
-      // day contributed a usable stage. A race form lets an athlete fill in
-      // elevation for all `days` but distance for only some of them
-      // (stagesForSubmit emits a row whenever either field is set); with
-      // fewer usable stages than event days, the unpriced days are simply
-      // missing from `sum`, not zero-cost, so the total still understates
-      // demand and the caveat must stay on.
-      queenStageKnown = usable.length >= days;
+    if (input.swimPace == null || input.swimPace.secPer100m <= 0) {
+      return { available: false, reason: "no_swim_anchor" };
     }
+    const swimHours = estimateSwimHours(legs.swimKm, input.swimPace.secPer100m);
+    if (swimHours == null) {
+      return { available: false, reason: "no_swim_anchor" };
+    }
+    // A triathlon's climbing is overwhelmingly on the bike. Documented
+    // approximation, not a measurement.
+    const bike = priceLeg("Bike", legs.bikeKm, input.elevationM ?? 0, input);
+    if ("reason" in bike) return { available: false, reason: bike.reason };
+    const run = priceLeg("Run", legs.runKm, 0, input);
+    if ("reason" in run) return { available: false, reason: run.reason };
+
+    priced = {
+      totalHours: swimHours + bike.hours + run.hours,
+      queenStageHours: null,
+      queenStageKnown: false,
+      allAnchorsAthleteSet:
+        input.swimPace.athleteSet &&
+        (input.ftp?.athleteSet ?? false) &&
+        (input.runPace?.athleteSet ?? false),
+    };
+  } else {
+    // 3. Bike and Run share the stage / average-day structure. This is the
+    //    pre-v0.46 body with estimateRidingHours swapped for priceLeg, and
+    //    it must stay structurally identical — the Task 4 freeze test is the
+    //    proof that it did.
+    const sport = input.sport; // narrowed to "Bike" | "Run" by the branch above
+
+    // priceLeg requires distanceKm > 0 and refuses otherwise — an
+    // elevation-only stage would silently `continue` past the loop below,
+    // shrinking the sum's day-count without shrinking `days` (the ratio
+    // divisor), understating demand. Require distance here, at the same
+    // boundary, so a stage is either fully usable or fully excluded.
+    const usable = input.stages.filter((s) => (s.distanceKm ?? 0) > 0);
+
+    let totalHours: number | null = null;
+    let queenStageHours: number | null = null;
+    let queenStageKnown = false;
+
+    if (usable.length > 0) {
+      let sum = 0;
+      let hardest = 0;
+      for (const stage of usable) {
+        const leg = priceLeg(
+          sport,
+          stage.distanceKm ?? 0,
+          stage.elevationM ?? 0,
+          input
+        );
+        // A MISSING ANCHOR refuses the whole event; only an unusable
+        // DISTANCE skips a stage. Collapsing the two would let a runner with
+        // no pace anchor fall through to the average-day path and refuse
+        // there by luck rather than by design — and a stage race would then
+        // report a total built from however many stages happened to price.
+        if ("reason" in leg) {
+          if (leg.reason !== "no_distance") {
+            return { available: false, reason: leg.reason };
+          }
+          continue;
+        }
+        sum += leg.hours;
+        hardest = Math.max(hardest, leg.hours);
+      }
+      if (sum > 0) {
+        totalHours = sum;
+        queenStageHours = hardest;
+        // Only claim the hardest day is truly KNOWN when every event day
+        // contributed a usable stage — unchanged from pre-v0.46, including
+        // the reasoning in the comment there.
+        queenStageKnown = usable.length >= days;
+      }
+    }
+
+    if (totalHours == null) {
+      // Without stage data, estimate the AVERAGE DAY and multiply. Pricing
+      // the whole event as one continuous effort would charge an 8-day tour
+      // the deep-fatigue fraction a rider earns only by riding 42 hours
+      // without sleeping.
+      const perDay = priceLeg(
+        sport,
+        (input.distanceKm ?? 0) / days,
+        (input.elevationM ?? 0) / days,
+        input
+      );
+      if ("reason" in perDay) {
+        return { available: false, reason: perDay.reason };
+      }
+      totalHours = perDay.hours * days;
+    }
+
+    priced = {
+      totalHours,
+      queenStageHours,
+      queenStageKnown,
+      allAnchorsAthleteSet:
+        sport === "Bike"
+          ? (input.ftp?.athleteSet ?? false)
+          : (input.runPace?.athleteSet ?? false),
+    };
   }
 
-  if (totalHours == null) {
-    // Without stage data, estimate the AVERAGE DAY and multiply. Pricing the
-    // whole event as one continuous ride would charge an 8-day tour the
-    // deep-fatigue fraction a rider earns only by riding 42 hours without
-    // sleeping. The FTP ladder models within-ride fatigue; riders sleep
-    // between stages.
-    //
-    // Cumulative fatigue across consecutive days is real and is NOT modelled
-    // here — there is no published magnitude for it in the evidence base, and
-    // inventing one by mispricing the duration is worse than omitting it.
-    const perDay = estimateRidingHours({
-      distanceKm: (input.distanceKm ?? 0) / days,
-      elevationM: (input.elevationM ?? 0) / days,
-      ftpWatts,
-      massKg,
-    });
-    totalHours = perDay == null ? null : perDay * days;
-  }
-  if (totalHours == null) return null;
-
-  const dailyRateHours = totalHours / days;
+  const dailyRateHours = priced.totalHours / days;
   // Without stage detail the hardest day is unknown; the average is the
   // honest stand-in, and `queenStageKnown` tells consumers not to trust it
   // as a longest-ride target.
-  const queen = queenStageKnown ? queenStageHours! : dailyRateHours;
+  const queen = priced.queenStageKnown
+    ? priced.queenStageHours!
+    : dailyRateHours;
+
+  if (confidence == null) {
+    confidence = priced.allAnchorsAthleteSet ? "medium" : "low";
+    confidenceReason = priced.allAnchorsAthleteSet
+      ? ANCHOR_SET_COPY[input.sport]
+      : ANCHOR_DERIVED_COPY[input.sport];
+  }
 
   // The event's total load as a multiple of a weekly training load, with the
   // multiple growing as the event lengthens. An earlier draft averaged over
@@ -131,16 +348,19 @@ export function eventDemand(input: EventDemandInput): EventDemand | null {
   // total event load entirely, so a 42h 8-day tour asked for LESS weekly
   // training than a 6.8h one-day fondo. Eight consecutive days are cumulative.
   const ratio = C.EVENT_TO_WEEKLY_1DAY * Math.pow(days, C.MULTI_DAY_EXPONENT);
-  const computedWeekly = totalHours / ratio;
+  const computedWeekly = priced.totalHours / ratio;
   const override = input.overrideWeeklyHours;
   const useOverride = override != null && override > 0;
 
   return {
-    totalHours,
+    available: true,
+    totalHours: priced.totalHours,
     dailyRateHours,
     queenStageHours: queen,
-    queenStageKnown,
+    queenStageKnown: priced.queenStageKnown,
     weeklyHours: useOverride ? override : computedWeekly,
     source: useOverride ? "override" : "computed",
+    confidence,
+    confidenceReason,
   };
 }

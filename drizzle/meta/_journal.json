@@ -274,6 +274,13 @@
       "when": 1785872177000,
       "tag": "0038_race_sport",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1786081112543,
+      "tag": "0039_demand_knows_its_sport",
+      "breakpoints": true
     }
   ]
 }

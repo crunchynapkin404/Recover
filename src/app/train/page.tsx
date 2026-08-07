@@ -52,13 +52,17 @@ import {
   planConstraints,
 } from "@/lib/week-plan/service";
 import { deriveDayActuals } from "@/lib/week-plan/actuals";
-import { disciplinesOf, requirePlanSport } from "@/lib/plan-sport";
+import {
+  disciplinesOf,
+  requirePlanSport,
+  type PlanSport,
+} from "@/lib/plan-sport";
 import { previewFromDraft } from "@/lib/training-plan";
 import { assembleWeeklyTarget } from "@/lib/week-plan/volume-inputs";
 import { currentTargetLoad } from "@/lib/week-plan/volume";
 import { plannedMins } from "@/lib/week-plan/fill";
 import { assessFeasibility, type Feasibility } from "@/lib/race/feasibility";
-import type { EventDemand } from "@/lib/race/demand";
+import type { EventDemandResult } from "@/lib/race/demand";
 import {
   listRaces,
   nextUpcomingRace,
@@ -391,8 +395,9 @@ async function WeekTab({
   // section further down.
   let eventReadiness: {
     raceName: string;
-    feasibility: Feasibility;
-    demand: EventDemand;
+    sport: PlanSport;
+    feasibility: Feasibility | null;
+    demand: EventDemandResult;
   } | null = null;
   if (week) {
     // `adjustments` above already holds every plan_adjustments row for this
@@ -452,20 +457,27 @@ async function WeekTab({
           );
 
     const feasibility =
-      volumeInputs.demand == null || weeksUntilEvent == null
+      volumeInputs.demand == null ||
+      !volumeInputs.demand.available ||
+      weeksUntilEvent == null
         ? null
         : assessFeasibility({
             requiredWeeklyHours: volumeInputs.demand.weeklyHours,
             currentWeeklyHours: volumeInputs.level.peakHours,
             queenStageHours: volumeInputs.demand.queenStageHours,
             queenStageKnown: volumeInputs.demand.queenStageKnown,
-            longestRideHours: volumeInputs.longestRideHours,
+            longestSessionHours: volumeInputs.longestSessionHours,
             weeksUntilEvent,
           });
 
-    if (volumeInputs.targetRace && volumeInputs.demand && feasibility) {
+    // Populated whenever there is a target race with a priced (or refused)
+    // demand result — not only the "available" case. Before this, an
+    // unpriceable race fell through this condition entirely and the athlete
+    // saw nothing at all; now EventReadiness itself renders the refusal.
+    if (volumeInputs.targetRace && volumeInputs.demand) {
       eventReadiness = {
         raceName: volumeInputs.targetRace.name,
+        sport: volumeInputs.targetRace.sport,
         feasibility,
         demand: volumeInputs.demand,
       };
@@ -751,6 +763,7 @@ async function WeekTab({
           {eventReadiness && (
             <EventReadiness
               raceName={eventReadiness.raceName}
+              sport={eventReadiness.sport}
               feasibility={eventReadiness.feasibility}
               demand={eventReadiness.demand}
             />

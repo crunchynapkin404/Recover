@@ -212,21 +212,26 @@ describe.skipIf(!hasDb)("previewTrainingPlan (v0.43)", () => {
     // default), computed here independently to derive an activity duration
     // that is comfortably feasible — never a guessed constant.
     const demand = eventDemand({
+      sport: "Bike",
+      raceType: "gran_fondo",
       eventDays: 1,
       distanceKm,
       elevationM,
       stages: [],
       overrideWeeklyHours: null,
-      ftpWatts,
+      expectedFinishHours: null,
+      ftp: { watts: ftpWatts, athleteSet: true },
       massKg: null,
+      runPace: null,
+      swimPace: null,
     });
-    expect(demand).not.toBeNull();
-    if (!demand) return;
+    expect(demand.available).toBe(true);
+    if (!demand.available) return;
 
     // One ride, comfortably above both what the event's weekly demand asks
-    // for and 80% of its queen-stage hours (the longest-ride requirement) —
-    // it is simultaneously the peak week and the longest ride on file, so it
-    // drives both `level.peakHours` and `longestRideHours` to the same
+    // for and 80% of its queen-stage hours (the longest-session requirement) —
+    // it is simultaneously the peak week and the longest session on file, so
+    // it drives both `level.peakHours` and `longestSessionHours` to the same
     // value.
     const activityHours = demand.weeklyHours * 1.5;
     await db.insert(schema.activities).values({

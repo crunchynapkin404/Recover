@@ -31,6 +31,11 @@ export interface RaceListItem {
   status: RaceStatus;
   goalNote: string | null;
   sport: PlanSport;
+  /**
+   * The athlete's own figure for how long the event takes them. Wins over
+   * every model — the only way a first-time triathlete gets a figure at all.
+   */
+  expectedFinishHours: number | null;
   /** Days the event runs over. 1 = a normal single-day race. */
   eventDays: number;
   /** TOTAL distance across all days, km. null = demand not computable. */
@@ -138,10 +143,12 @@ function DemandFields({
   distanceKm,
   elevationM,
   stages,
+  expectedFinishHours,
   onEventDaysChange,
   onDistanceChange,
   onElevationChange,
   onStageChange,
+  onExpectedFinishChange,
 }: {
   idPrefix: string;
   ariaPrefix: string;
@@ -149,6 +156,7 @@ function DemandFields({
   distanceKm: number | null;
   elevationM: number | null;
   stages: { distanceKm: number | null; elevationM: number | null }[];
+  expectedFinishHours: number | null;
   onEventDaysChange: (n: number) => void;
   onDistanceChange: (n: number | null) => void;
   onElevationChange: (n: number | null) => void;
@@ -157,6 +165,7 @@ function DemandFields({
     field: "distanceKm" | "elevationM",
     raw: string
   ) => void;
+  onExpectedFinishChange: (n: number | null) => void;
 }) {
   return (
     <>
@@ -205,6 +214,27 @@ function DemandFields({
         }
         className="w-full rounded-xl bg-white/[0.06] px-3 py-2 text-sm"
       />
+
+      <label className="label-micro" htmlFor={`${idPrefix}expected-finish`}>
+        Expected finish time (hours, optional)
+      </label>
+      <input
+        id={`${idPrefix}expected-finish`}
+        type="number"
+        min={0}
+        step={0.25}
+        value={expectedFinishHours ?? ""}
+        onChange={(e) =>
+          onExpectedFinishChange(
+            e.target.value === "" ? null : Number(e.target.value)
+          )
+        }
+        className="w-full rounded-xl bg-white/[0.06] px-3 py-2 text-sm"
+      />
+      <p className="mt-1 text-[11px] text-white/50">
+        If you know roughly how long this takes you, this beats every estimate
+        we can make.
+      </p>
 
       {eventDays > 1 && (
         <details className="mt-3">
@@ -262,6 +292,9 @@ function RaceDemandEditor({
   const [eventDays, setEventDays] = useState(race.eventDays);
   const [distanceKm, setDistanceKm] = useState<number | null>(race.distanceKm);
   const [elevationM, setElevationM] = useState<number | null>(race.elevationM);
+  const [expectedFinishHours, setExpectedFinishHours] = useState<number | null>(
+    race.expectedFinishHours
+  );
   const [goalNote, setGoalNote] = useState(race.goalNote ?? "");
   const [stages, setStages] = useState<
     { distanceKm: number | null; elevationM: number | null }[]
@@ -315,6 +348,7 @@ function RaceDemandEditor({
           eventDays,
           distanceKm,
           elevationM,
+          expectedFinishHours,
           stages: stagesForSubmit(),
           goalNote,
         });
@@ -352,10 +386,12 @@ function RaceDemandEditor({
         distanceKm={distanceKm}
         elevationM={elevationM}
         stages={stages}
+        expectedFinishHours={expectedFinishHours}
         onEventDaysChange={setEventDays}
         onDistanceChange={setDistanceKm}
         onElevationChange={setElevationM}
         onStageChange={setStageField}
+        onExpectedFinishChange={setExpectedFinishHours}
       />
 
       {/* Free text on purpose. The coach reads prose, and goalNote already
@@ -410,6 +446,9 @@ export function RacesSection({ races, hideHeading = false }: Props) {
   const [eventDays, setEventDays] = useState(1);
   const [distanceKm, setDistanceKm] = useState<number | null>(null);
   const [elevationM, setElevationM] = useState<number | null>(null);
+  const [expectedFinishHours, setExpectedFinishHours] = useState<number | null>(
+    null
+  );
   const [stages, setStages] = useState<
     { distanceKm: number | null; elevationM: number | null }[]
   >([]);
@@ -463,6 +502,7 @@ export function RacesSection({ races, hideHeading = false }: Props) {
     setEventDays(1);
     setDistanceKm(null);
     setElevationM(null);
+    setExpectedFinishHours(null);
     setStages([]);
     setSport("Bike");
     setSportTouched(false);
@@ -491,6 +531,7 @@ export function RacesSection({ races, hideHeading = false }: Props) {
           eventDays,
           distanceKm,
           elevationM,
+          expectedFinishHours,
           stages: stagesForSubmit(),
         });
         if (!result.ok) {
@@ -670,10 +711,12 @@ export function RacesSection({ races, hideHeading = false }: Props) {
             distanceKm={distanceKm}
             elevationM={elevationM}
             stages={stages}
+            expectedFinishHours={expectedFinishHours}
             onEventDaysChange={setEventDays}
             onDistanceChange={setDistanceKm}
             onElevationChange={setElevationM}
             onStageChange={setStageField}
+            onExpectedFinishChange={setExpectedFinishHours}
           />
 
           <input

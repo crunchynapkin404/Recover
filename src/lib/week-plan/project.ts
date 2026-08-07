@@ -201,7 +201,9 @@ export async function projectWeek(
 
   const volumeInputs = await assembleVolumeInputs(userId, now);
   const target = weeklyTargetHours({
-    raceDemandHours: volumeInputs.demand?.weeklyHours ?? null,
+    raceDemandHours: volumeInputs.demand?.available
+      ? volumeInputs.demand.weeklyHours
+      : null,
     ceilingHours: volumeInputs.level.ceilingHours,
     floorHours: volumeInputs.level.floorHours,
     availabilityHours,
@@ -211,7 +213,9 @@ export async function projectWeek(
   // should build toward. Null when there is no race or no FTP, which keeps
   // the pre-existing 240-minute bound. Shared by both `periodize` and
   // `materializeWeek` below so they can't drift onto different values.
-  const queenStageHours = volumeInputs.demand?.queenStageHours ?? null;
+  const queenStageHours = volumeInputs.demand?.available
+    ? volumeInputs.demand.queenStageHours
+    : null;
 
   // Same reasoning as service.ts's rolloverWeekPlan: a sport word from the
   // plan's own stored constraints, never an inference from plan.raceType's

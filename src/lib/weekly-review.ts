@@ -23,6 +23,7 @@ import { recordLlmUsage } from "@/lib/llm-usage";
 import { buildSystemPrompt, languageDirective } from "@/lib/coach-persona";
 import { deriveDayActuals } from "@/lib/week-plan/actuals";
 import { mondayOf, addDaysYmd } from "@/lib/week-plan/service";
+import { ctlBaselineYmd } from "@/lib/weekly-review-window";
 
 export const WEEKLY_THREAD_TITLE = "Weekly Review";
 /**
@@ -137,7 +138,6 @@ export async function generateWeeklyReview(userId: string): Promise<void> {
   const sevenDaysAgo = new Date(now);
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-  const sevenAgoYmd = localYmd(sevenDaysAgo);
   const todayYmd = localYmd(now);
 
   // Strava-sourced rows are excluded from every aggregate below: these
@@ -219,11 +219,12 @@ export async function generateWeeklyReview(userId: string): Promise<void> {
   const delta =
     prevLoad > 0 ? Math.round(((weekLoad - prevLoad) / prevLoad) * 100) : 0;
 
-  // CTL delta: compare to what it was 7 days ago
+  // CTL delta over the SAME calendar week as load, sessions and readiness —
+  // all four are rendered in one sentence below and must mean one thing.
   const prevWellness = await db.query.wellnessDaily.findFirst({
     where: and(
       eq(schema.wellnessDaily.userId, userId),
-      lte(schema.wellnessDaily.date, sevenAgoYmd)
+      lte(schema.wellnessDaily.date, ctlBaselineYmd(reviewWeekStart))
     ),
     orderBy: desc(schema.wellnessDaily.date),
   });

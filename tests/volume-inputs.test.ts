@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
 import {
-  longestRideHoursOf,
+  longestSessionHoursOf,
   weeklyHoursByWeek,
 } from "@/lib/week-plan/volume-inputs";
 import { athleteLevel } from "@/lib/athlete-level";
@@ -18,9 +18,24 @@ describe("weeklyHoursByWeek", () => {
   it("buckets activities into Monday-first weeks, oldest first", () => {
     const out = weeklyHoursByWeek(
       [
-        { provider: "strava", startDate: iso("2026-07-20"), durationS: 3600 },
-        { provider: "strava", startDate: iso("2026-07-21"), durationS: 3600 },
-        { provider: "strava", startDate: iso("2026-07-27"), durationS: 7200 },
+        {
+          provider: "strava",
+          sport: "Ride",
+          startDate: iso("2026-07-20"),
+          durationS: 3600,
+        },
+        {
+          provider: "strava",
+          sport: "Ride",
+          startDate: iso("2026-07-21"),
+          durationS: 3600,
+        },
+        {
+          provider: "strava",
+          sport: "Ride",
+          startDate: iso("2026-07-27"),
+          durationS: 7200,
+        },
       ],
       new Date("2026-08-02T10:00:00Z"),
       2
@@ -33,10 +48,16 @@ describe("weeklyHoursByWeek", () => {
       [
         {
           provider: "intervals_icu",
+          sport: "Ride",
           startDate: iso("2026-07-27"),
           durationS: 7200,
         },
-        { provider: "strava", startDate: iso("2026-07-27"), durationS: 7200 },
+        {
+          provider: "strava",
+          sport: "Ride",
+          startDate: iso("2026-07-27"),
+          durationS: 7200,
+        },
       ],
       new Date("2026-08-02T10:00:00Z"),
       1
@@ -46,7 +67,14 @@ describe("weeklyHoursByWeek", () => {
 
   it("emits a zero for a week with no activity, never a gap", () => {
     const out = weeklyHoursByWeek(
-      [{ provider: "strava", startDate: iso("2026-07-27"), durationS: 3600 }],
+      [
+        {
+          provider: "strava",
+          sport: "Ride",
+          startDate: iso("2026-07-27"),
+          durationS: 3600,
+        },
+      ],
       new Date("2026-08-02T10:00:00Z"),
       3
     );
@@ -94,23 +122,43 @@ describe("weeklyHoursByWeek", () => {
   });
 });
 
-// longestRideHoursOf is the other half of the pure, DB-free surface — same
+// longestSessionHoursOf is the other half of the pure, DB-free surface — same
 // dedup contract as weeklyHoursByWeek, but reducing to a max instead of a
-// per-week sum.
-describe("longestRideHoursOf", () => {
+// per-week sum. These exercise its dedup behaviour with a single-discipline
+// (["Bike"]) filter; the sport-filter behaviour itself is covered by
+// src/lib/week-plan/volume-inputs.test.ts.
+describe("longestSessionHoursOf", () => {
   const iso = (d: string) => new Date(d + "T10:00:00Z");
 
   it("the longest ride wins", () => {
-    const out = longestRideHoursOf([
-      { provider: "strava", startDate: iso("2026-07-01"), durationS: 3600 },
-      { provider: "strava", startDate: iso("2026-07-15"), durationS: 10800 },
-      { provider: "strava", startDate: iso("2026-07-20"), durationS: 7200 },
-    ]);
+    const out = longestSessionHoursOf(
+      [
+        {
+          provider: "strava",
+          sport: "Ride",
+          startDate: iso("2026-07-01"),
+          durationS: 3600,
+        },
+        {
+          provider: "strava",
+          sport: "Ride",
+          startDate: iso("2026-07-15"),
+          durationS: 10800,
+        },
+        {
+          provider: "strava",
+          sport: "Ride",
+          startDate: iso("2026-07-20"),
+          durationS: 7200,
+        },
+      ],
+      ["Bike"]
+    );
     expect(out).toBe(3);
   });
 
   it("returns null for an empty history", () => {
-    expect(longestRideHoursOf([])).toBeNull();
+    expect(longestSessionHoursOf([], ["Bike"])).toBeNull();
   });
 
   it("does not let a cross-provider duplicate be mistaken for a second, longer ride", () => {
@@ -124,13 +172,31 @@ describe("longestRideHoursOf", () => {
     // ride," silently treating the duplicate sync as an independent, longer
     // ride than the one that actually happened.
     const dupStart = iso("2026-07-20");
-    const out = longestRideHoursOf([
-      { provider: "intervals_icu", startDate: dupStart, durationS: 7100 },
-      { provider: "strava", startDate: dupStart, durationS: 7200 },
-      // Genuinely distinct, shorter ride — confirms the duplicate pair, not
-      // this one, drives the result.
-      { provider: "strava", startDate: iso("2026-06-01"), durationS: 3600 },
-    ]);
+    const out = longestSessionHoursOf(
+      [
+        {
+          provider: "intervals_icu",
+          sport: "Ride",
+          startDate: dupStart,
+          durationS: 7100,
+        },
+        {
+          provider: "strava",
+          sport: "Ride",
+          startDate: dupStart,
+          durationS: 7200,
+        },
+        // Genuinely distinct, shorter ride — confirms the duplicate pair, not
+        // this one, drives the result.
+        {
+          provider: "strava",
+          sport: "Ride",
+          startDate: iso("2026-06-01"),
+          durationS: 3600,
+        },
+      ],
+      ["Bike"]
+    );
     expect(out).toBe(7100 / 3600);
   });
 });

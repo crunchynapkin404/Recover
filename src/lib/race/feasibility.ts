@@ -36,7 +36,18 @@ import { RAMP_CLAMP_PCT } from "@/lib/week-plan/types";
 export type Verdict = "ready" | "on_track" | "tight" | "not_realistic";
 
 export const FEASIBILITY_CONSTANTS = {
-  /** Longest training ride needed, as a share of the hardest event day. */
+  /**
+   * Longest training session needed, as a share of the hardest event day.
+   *
+   * Named for a ride because the evidence behind it IS cycling evidence: gran
+   * fondo coaching calls the long ride the biggest predictor of finishing
+   * (70-80% of event distance), CTS disputes it. v0.46 applies the same
+   * fraction to running and triathlon because no better number was found —
+   * NOT because it was validated there. Recorded as UNVALIDATED OUTSIDE
+   * CYCLING in docs/specs/2026-08-07-race-demand-evidence.md. This is why the
+   * rule can only ever soften a verdict by one step and can never, by itself,
+   * reach "not_realistic".
+   */
   LONGEST_RIDE_FRACTION: 0.8,
   /** Spare weeks below which "on track" becomes "tight". */
   TIGHT_MARGIN_WEEKS: 2,
@@ -48,17 +59,17 @@ export interface FeasibilityInput {
   currentWeeklyHours: number | null;
   queenStageHours: number;
   queenStageKnown: boolean;
-  /** Longest single ride in the recent window, in hours. */
-  longestRideHours: number | null;
+  /** Longest single session in the recent window, in hours. */
+  longestSessionHours: number | null;
   weeksUntilEvent: number;
 }
 
 export interface Feasibility {
   verdict: Verdict;
   volumeWeeksNeeded: number;
-  longestRideWeeksNeeded: number;
+  longestSessionWeeksNeeded: number;
   weeksUntilEvent: number;
-  requiredLongestRideHours: number;
+  requiredLongestSessionHours: number;
   /** True when queenStageHours is an average, not a known hardest day. */
   fromAverageDay: boolean;
 }
@@ -92,44 +103,44 @@ function volumeOnlyVerdict(
 export function assessFeasibility(input: FeasibilityInput): Feasibility | null {
   // No measured history means no honest verdict. Same rule as the ceiling:
   // absent evidence, say nothing rather than guess.
-  if (input.currentWeeklyHours == null || input.longestRideHours == null) {
+  if (input.currentWeeklyHours == null || input.longestSessionHours == null) {
     return null;
   }
 
-  const requiredLongestRideHours =
+  const requiredLongestSessionHours =
     input.queenStageHours * FEASIBILITY_CONSTANTS.LONGEST_RIDE_FRACTION;
 
   const volumeWeeksNeeded = weeksToGrow(
     input.currentWeeklyHours,
     input.requiredWeeklyHours
   );
-  const longestRideWeeksNeeded = weeksToGrow(
-    input.longestRideHours,
-    requiredLongestRideHours
+  const longestSessionWeeksNeeded = weeksToGrow(
+    input.longestSessionHours,
+    requiredLongestSessionHours
   );
   const weeksUntilEvent = Math.max(0, input.weeksUntilEvent);
 
   // Volume alone can reach any rung, including the worst.
   const volumeVerdict = volumeOnlyVerdict(volumeWeeksNeeded, weeksUntilEvent);
 
-  // A longest-ride shortfall softens by ONE step and can never, by itself,
+  // A longest-session shortfall softens by ONE step and can never, by itself,
   // reach "not_realistic" -- see the file header on why that rule is
   // deliberately weaker than the volume ladder.
-  const rideGap = longestRideWeeksNeeded > weeksUntilEvent;
+  const sessionGap = longestSessionWeeksNeeded > weeksUntilEvent;
   const volumeIndex = RUNGS.indexOf(volumeVerdict);
   const softenedIndex = Math.min(volumeIndex + 1, RUNGS.indexOf("tight"));
-  // Math.max against the volume index means a ride gap can only ever make
+  // Math.max against the volume index means a session gap can only ever make
   // the verdict worse (or leave it unchanged), never better.
-  const verdict = rideGap
+  const verdict = sessionGap
     ? RUNGS[Math.max(volumeIndex, softenedIndex)]
     : volumeVerdict;
 
   return {
     verdict,
     volumeWeeksNeeded,
-    longestRideWeeksNeeded,
+    longestSessionWeeksNeeded,
     weeksUntilEvent,
-    requiredLongestRideHours,
+    requiredLongestSessionHours,
     fromAverageDay: !input.queenStageKnown,
   };
 }
