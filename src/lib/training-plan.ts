@@ -23,6 +23,11 @@ import {
   type PreviewWeek,
 } from "@/lib/plan-preview";
 import { assembleWeeklyTarget } from "@/lib/week-plan/volume-inputs";
+import { resolveStartStateForUser } from "@/lib/week-plan/start-state";
+import {
+  applyOpeningWorkoutRules,
+  resolveOpeningDecision,
+} from "@/lib/week-plan/start-branching";
 import { assessFeasibility } from "@/lib/race/feasibility";
 import { PLAN_CONSTANTS as PC } from "@/lib/plan-constants";
 import {
@@ -296,7 +301,8 @@ export function periodize(
   daysPerWeek: number,
   hoursPerWeek: number,
   sport: PlanSport,
-  queenStageHours: number | null = null
+  queenStageHours: number | null = null,
+  startingTsb: number | null = null
 ): Block[] {
   // Phase distribution
   const baseWeeks = Math.max(
@@ -381,6 +387,8 @@ export function periodize(
       (startingCtl + PC.CTL_RAMP_PER_WEEK * w) * PC.CTL_TO_WEEKLY_LOAD
     );
 
+  const openingDecision = resolveOpeningDecision(startingTsb);
+
   for (let w = 1; w <= weeksTotal; w++) {
     let phase: Block["phase"];
     if (w <= baseWeeks) phase = "base";
@@ -444,19 +452,47 @@ export function periodize(
       weeksSinceRecovery += 1;
     } else {
       weeksSinceRecovery += 1;
+      const isOpeningWeek = w === 1;
+      const openingLoadMultiplier = isOpeningWeek
+        ? openingDecision.loadMultiplier
+        : 1;
+      const openingHoursMultiplier = isOpeningWeek
+        ? openingDecision.weekHoursMultiplier
+        : 1;
+      const weekHours =
+        hoursPerWeek *
+        loadMultiplier(phase, weekInPhase) *
+        openingHoursMultiplier;
+      const generated = generateWorkouts(
+        daysPerWeek,
+        weekHours,
+        phase,
+        sport,
+        queenStageHours
+      );
+      const workouts = isOpeningWeek
+        ? applyOpeningWorkoutRules(generated, openingDecision.branch).map((w) =>
+            withPurpose(w)
+          )
+        : generated;
+      const targetLoad = Math.round(
+        Math.min(currentLoad, maxLoadForWeek(w)) * openingLoadMultiplier
+      );
       blocks.push({
         weekNumber: w,
         phase,
-        targetLoad: Math.round(Math.min(currentLoad, maxLoadForWeek(w))),
+        targetLoad,
         targetSessions: daysPerWeek,
-        workouts: generateWorkouts(
-          daysPerWeek,
-          hoursPerWeek * loadMultiplier(phase, weekInPhase),
-          phase,
-          sport,
-          queenStageHours
-        ),
+        workouts,
       });
+
+      // When opening form is negative, week 1 is intentionally downscaled.
+      // Progression for week 2 should advance from that emitted target, not
+      // from the pre-downscaled internal load, otherwise week 2 can rebound
+      // by ~20% and violate the week-to-week ramp guard.
+      if (isOpeningWeek && openingLoadMultiplier < 1) {
+        currentLoad = targetLoad;
+      }
 
       // Load progression: +5-8% in base, +5-7% in build, flat/slight in
       // peak. Taper is handled entirely by the branch above — it never
@@ -982,23 +1018,22 @@ export async function previewTrainingPlan(
   const planWeeks = Math.max(1, weeksTotal);
   const shortHorizon = weeksTotal < 4;
 
-  // 3. Fitness. `?? 30` cannot be told apart from a measured CTL of 30 once
-  //    stored, so the source travels with the value. Fixing the default is
-  //    a later release; naming it is this release's job.
-  const wellness = await db.query.wellnessDaily.findFirst({
-    where: eq(schema.wellnessDaily.userId, userId),
-    orderBy: desc(schema.wellnessDaily.date),
+  // 3. Fitness. Resolve one start-state snapshot with explicit provenance.
+  const startState = await resolveStartStateForUser({
+    userId,
+    sport,
+    asOf: today,
   });
-  const startingCtl = wellness?.ctl ?? 30;
-  const ctlSource: "wellness" | "default" =
-    wellness?.ctl != null ? "wellness" : "default";
+  const startingCtl = startState.startingCtl;
 
   const blocks = periodize(
     planWeeks,
     startingCtl,
     daysPerWeek,
     hoursPerWeek,
-    sport
+    sport,
+    null,
+    startState.startingTsb
   );
 
   // 4. One draft per athlete. Cascade removes the old blocks with the row.
@@ -1024,7 +1059,18 @@ export async function previewTrainingPlan(
       startingCtl,
       raceId,
       status: "draft",
-      constraints: { daysPerWeek, hoursPerWeek, sports: [sport] },
+      constraints: {
+        daysPerWeek,
+        hoursPerWeek,
+        sports: [sport],
+        startState: {
+          startingCtl: startState.startingCtl,
+          startingAtl: startState.startingAtl,
+          startingTsb: startState.startingTsb,
+          ctlSource: startState.ctlSource,
+          atlSource: startState.atlSource,
+        },
+      },
     })
     .returning();
 
@@ -1107,11 +1153,14 @@ export async function previewTrainingPlan(
       weeks.map((w) => ({ weekNumber: w.weekNumber, phase: w.phase }))
     ),
     weeks,
-    startingCtl: { value: startingCtl, source: ctlSource },
+    startingCtl: {
+      value: startState.startingCtl,
+      source: startState.ctlSource,
+    },
     feasibility,
     volume: { source: target.source, shortfall: target.shortfall },
     warnings: collectWarnings({
-      startingCtlSource: ctlSource,
+      startingCtlSource: startState.ctlSource,
       volumeSource: target.source,
       hasShortfall: target.shortfall != null,
       feasibilityVerdict: feasibility?.verdict ?? null,
@@ -1200,12 +1249,12 @@ export async function previewFromDraft(
   });
 
   const today = new Date();
-  const wellness = await db.query.wellnessDaily.findFirst({
-    where: eq(schema.wellnessDaily.userId, draft.userId),
-    orderBy: desc(schema.wellnessDaily.date),
+  const startState = await resolveStartStateForUser({
+    userId: draft.userId,
+    sport,
+    constraints: draft.constraints,
+    asOf: today,
   });
-  const ctlSource: "wellness" | "default" =
-    wellness?.ctl != null ? "wellness" : "default";
 
   const existingAvailability = await db.query.availabilityDefaults.findMany({
     where: eq(schema.availabilityDefaults.userId, draft.userId),
@@ -1250,11 +1299,14 @@ export async function previewFromDraft(
       weeks.map((w) => ({ weekNumber: w.weekNumber, phase: w.phase }))
     ),
     weeks,
-    startingCtl: { value: draft.startingCtl ?? 30, source: ctlSource },
+    startingCtl: {
+      value: startState.startingCtl,
+      source: startState.ctlSource,
+    },
     feasibility,
     volume: { source: target.source, shortfall: target.shortfall },
     warnings: collectWarnings({
-      startingCtlSource: ctlSource,
+      startingCtlSource: startState.ctlSource,
       volumeSource: target.source,
       hasShortfall: target.shortfall != null,
       feasibilityVerdict: feasibility?.verdict ?? null,
@@ -1432,12 +1484,13 @@ export async function generateTrainingPlan(
     throw new Error("Race date too far out — maximum 52 weeks");
   }
 
-  // 2. Gather current fitness
-  const wellness = await db.query.wellnessDaily.findFirst({
-    where: eq(schema.wellnessDaily.userId, userId),
-    orderBy: desc(schema.wellnessDaily.date),
+  // 2. Gather current fitness with one source-tagged snapshot.
+  const startState = await resolveStartStateForUser({
+    userId,
+    sport,
+    asOf: today,
   });
-  const startingCtl = wellness?.ctl ?? 30; // conservative default
+  const startingCtl = startState.startingCtl;
 
   // Get athlete name
   const user = await db.query.users.findFirst({
@@ -1453,7 +1506,9 @@ export async function generateTrainingPlan(
     startingCtl,
     daysPerWeek,
     hoursPerWeek,
-    sport
+    sport,
+    null,
+    startState.startingTsb
   );
 
   // 4. Store in DB — archive any existing active plan first so there is
@@ -1496,7 +1551,18 @@ export async function generateTrainingPlan(
       // `constraints.sports?.[0]` — kept as an array so a plan created today
       // is shaped exactly like the pre-v0.42 rows already living in
       // production (`constraints.sports: ["Ride"]`, `["Bike"]`, ...).
-      constraints: { daysPerWeek, hoursPerWeek, sports: [sport] },
+      constraints: {
+        daysPerWeek,
+        hoursPerWeek,
+        sports: [sport],
+        startState: {
+          startingCtl: startState.startingCtl,
+          startingAtl: startState.startingAtl,
+          startingTsb: startState.startingTsb,
+          ctlSource: startState.ctlSource,
+          atlSource: startState.atlSource,
+        },
+      },
     })
     .returning();
 

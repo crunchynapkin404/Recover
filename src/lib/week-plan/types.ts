@@ -123,6 +123,10 @@ export interface AdjustmentRecord {
   before: DaySlot[];
   after: DaySlot[];
   reason: string; // deterministic, human-readable
+  /** Stable code for machines; optional for legacy rows. */
+  reasonCode?: string;
+  /** Structured context so coach text and logs can share one payload shape. */
+  context?: Record<string, string | number | boolean | null>;
 }
 
 export type { Band };

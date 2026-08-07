@@ -68,7 +68,7 @@ describe("collectWarnings", () => {
   });
 
   it.each([
-    [{ startingCtlSource: "default" as const }, "no_ctl_history"],
+    [{ startingCtlSource: "global_fallback" as const }, "no_ctl_history"],
     [{ volumeSource: "fallback" as const }, "volume_fallback"],
     [{ hasShortfall: true }, "availability_binds"],
     [{ feasibilityVerdict: "tight" as const }, "feasibility_tight"],
@@ -86,7 +86,7 @@ describe("collectWarnings", () => {
   it("reports every warning at once, in table order", () => {
     expect(
       collectWarnings({
-        startingCtlSource: "default",
+        startingCtlSource: "global_fallback",
         volumeSource: "fallback",
         hasShortfall: true,
         feasibilityVerdict: "not_realistic",

@@ -13,6 +13,7 @@
 import type { Verdict, Feasibility } from "@/lib/race/feasibility";
 import type { VolumeResult } from "@/lib/week-plan/volume";
 import type { PlanSport } from "@/lib/plan-sport";
+import type { StartStateSource } from "@/lib/week-plan/start-state";
 
 export type PlanPhase = "base" | "build" | "peak" | "taper" | "recovery";
 
@@ -58,7 +59,7 @@ export type PreviewWarning =
   | "short_horizon";
 
 export interface WarningInput {
-  startingCtlSource: "wellness" | "default";
+  startingCtlSource: StartStateSource;
   volumeSource: VolumeResult["source"];
   hasShortfall: boolean;
   /**
@@ -75,7 +76,9 @@ export interface WarningInput {
 
 export function collectWarnings(input: WarningInput): PreviewWarning[] {
   const out: PreviewWarning[] = [];
-  if (input.startingCtlSource === "default") out.push("no_ctl_history");
+  if (input.startingCtlSource === "global_fallback") {
+    out.push("no_ctl_history");
+  }
   if (input.volumeSource === "fallback") out.push("volume_fallback");
   if (input.hasShortfall) out.push("availability_binds");
 
@@ -159,9 +162,11 @@ export interface PlanPreview {
   hoursPerWeek: number;
   phases: PhaseRow[];
   weeks: PreviewWeek[];
-  /** "default" means no CTL was found and 30 was assumed — indistinguishable
-   *  from a real CTL of 30 in the stored row, so it is carried here. */
-  startingCtl: { value: number; source: "wellness" | "default" };
+  /**
+   * Provenance for the start-state fitness anchor used to build the plan.
+   * Global fallback means no measured or computed pair was available.
+   */
+  startingCtl: { value: number; source: StartStateSource };
   feasibility: Feasibility | null;
   volume: {
     source: VolumeResult["source"];

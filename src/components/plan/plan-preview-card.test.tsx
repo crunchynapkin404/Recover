@@ -63,7 +63,7 @@ const preview: PlanPreview = {
     targetHours: 8,
     raceName: i === 5 ? "Dolomites Gran Fondo" : null,
   })),
-  startingCtl: { value: 30, source: "default" },
+  startingCtl: { value: 30, source: "global_fallback" },
   feasibility: null,
   volume: { source: "fallback", shortfall: null },
   warnings: ["no_ctl_history", "volume_fallback", "race_created"],

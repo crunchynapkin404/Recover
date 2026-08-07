@@ -17,6 +17,7 @@ import { providerSportAliases } from "@/lib/canonical-sport";
 import type { AvailabilityBlock } from "@/lib/availability/types";
 import { periodize } from "@/lib/training-plan";
 import { requirePlanSport } from "@/lib/plan-sport";
+import { sanitizeDayFlags } from "@/lib/day-flags";
 import { assembleVolumeInputs, assembleWeeklyTarget } from "./volume-inputs";
 import {
   hoursForMaterialize,
@@ -118,6 +119,19 @@ async function recentBands(userId: string): Promise<Band[]> {
     limit: 7,
   });
   return rows.reverse().map((r) => (r.band ?? "calibrating") as Band);
+}
+
+/** Last 7 illness flags, oldest first; missing rows are false. */
+async function recentIllFlags(userId: string): Promise<boolean[]> {
+  const rows = await db.query.wellnessDaily.findMany({
+    where: eq(schema.wellnessDaily.userId, userId),
+    orderBy: desc(schema.wellnessDaily.date),
+    limit: 7,
+    columns: { dayFlags: true },
+  });
+  return rows
+    .reverse()
+    .map((r) => sanitizeDayFlags(r.dayFlags ?? []).includes("ill"));
 }
 
 async function saveAdjustments(
@@ -310,9 +324,11 @@ export async function rolloverWeekPlan(
     derivedBlocks[derivedBlocks.length - 1];
 
   // 3. Materialize.
-  const [races, ctlNow] = await Promise.all([
+  const [races, ctlNow, bands, illnessFlags] = await Promise.all([
     racesForWeek(userId, weekStart),
     currentCtl(userId),
+    recentBands(userId),
+    recentIllFlags(userId),
   ]);
   const r = materializeWeek({
     weekStart,
@@ -324,7 +340,8 @@ export async function rolloverWeekPlan(
     },
     availableBlocksPerDay,
     prevWeek,
-    recentBands: await recentBands(userId),
+    recentBands: bands,
+    recentIllFlags: illnessFlags,
     sport,
     hoursPerWeek: hoursForMaterialize(target),
     races,

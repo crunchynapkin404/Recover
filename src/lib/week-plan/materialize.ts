@@ -22,6 +22,7 @@ import {
   QUALITY_TYPES,
   STEP_DOWN,
 } from "./types";
+import { resolveComebackDecision } from "./comeback";
 import { buildSlots, admits, slotKey, fitToBlock, findBlockFor } from "./slots";
 import type { AvailabilityBlock } from "@/lib/availability/types";
 import { MAX_SESSIONS_PER_DAY } from "@/lib/availability/types";
@@ -31,6 +32,8 @@ export interface EffectiveLoadInput {
   skeletonTarget: number;
   prevWeek: { actualLoad: number; adherencePct: number } | null;
   recentBands: Band[];
+  /** Last 7 illness flags, oldest first. */
+  recentIllFlags?: boolean[];
   /** Taper weeks skip restart/adherence logic and the downward ramp clamp. */
   taperWeek?: boolean;
 }
@@ -112,6 +115,8 @@ export interface MaterializeInput {
   availableBlocksPerDay: AvailabilityBlock[][];
   prevWeek: { actualLoad: number; adherencePct: number } | null;
   recentBands: Band[];
+  /** Last 7 illness flags, oldest first. */
+  recentIllFlags?: boolean[];
   /** The plan's sport. Single value — the race decides it (v0.42). */
   sport: PlanSport;
   hoursPerWeek: number;
@@ -214,7 +219,7 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
   // generation, and the ramp-guard bypass below.
   const alreadyLadderScaled =
     !hasActualLoad && !hasCtl && input.skeleton.phase === "taper";
-  const skeleton =
+  let skeleton =
     taperFraction != null
       ? {
           ...input.skeleton,
@@ -278,6 +283,39 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
     });
   }
 
+  const suppressedDays = input.recentBands.filter(
+    (b) => b === "amber" || b === "red"
+  ).length;
+  const fatigueHigh = suppressedDays >= SUPPRESSED_READINESS_DAYS;
+  const miniTaperMultiplier =
+    primary?.priority === "B"
+      ? fatigueHigh
+        ? 0.85
+        : 0.9
+      : primary?.priority === "C" && fatigueHigh
+        ? 0.95
+        : 1;
+
+  if (miniTaperMultiplier < 1) {
+    skeleton = {
+      ...skeleton,
+      targetLoadTotal: Math.round(
+        skeleton.targetLoadTotal * miniTaperMultiplier
+      ),
+    };
+    adjustments.push({
+      date: input.weekStart,
+      trigger: "race",
+      action: "scaled",
+      before: [],
+      after: [],
+      reason:
+        primary?.priority === "B"
+          ? `mini taper: ${primary.name} (${primary.priority}) — week target reduced to ${Math.round(miniTaperMultiplier * 100)}%`
+          : `mini taper: ${primary?.name ?? "race"} (${primary?.priority ?? "C"}) with suppressed form — week target reduced to ${Math.round(miniTaperMultiplier * 100)}%`,
+    });
+  }
+
   const { load, reasons } = effectiveWeekLoad({
     skeletonTarget: skeleton.targetLoadTotal,
     prevWeek: input.prevWeek,
@@ -309,6 +347,60 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
   const neededHours =
     input.hoursPerWeek * (load / Math.max(1, skeleton.targetLoadTotal));
   let effectiveLoad = load;
+
+  const comeback = resolveComebackDecision({
+    recentBands: input.recentBands,
+    recentIllFlags: input.recentIllFlags ?? [],
+    recentLoadDisruption:
+      (input.prevWeek?.actualLoad ?? 0) === 0 ||
+      (input.prevWeek?.adherencePct ?? 100) < LOW_ADHERENCE_PCT,
+  });
+
+  if (
+    comeback.mode !== "none" &&
+    suppressedDays === 0 &&
+    (input.recentIllFlags ?? []).some(Boolean)
+  ) {
+    adjustments.push({
+      date: input.weekStart,
+      trigger: "weekly_rollover",
+      action: "scaled",
+      before: [],
+      after: [],
+      reason:
+        "contradictory signals: form looked stable, but illness was present — safety-first comeback mode applied",
+      reasonCode: "safety_precedence_illness_over_form",
+      context: {
+        suppressedDays,
+        illDays: (input.recentIllFlags ?? []).filter(Boolean).length,
+      },
+    });
+  }
+
+  if (comeback.mode !== "none") {
+    const cap = Math.round(
+      skeleton.targetLoadTotal * comeback.loadCapMultiplier
+    );
+    if (effectiveLoad > cap) {
+      effectiveLoad = cap;
+      if (comeback.reason) {
+        adjustments.push({
+          date: input.weekStart,
+          trigger: "weekly_rollover",
+          action: "scaled",
+          before: [],
+          after: [],
+          reason: `${comeback.reason}; week load capped at ${effectiveLoad}`,
+          reasonCode: "comeback_load_cap",
+          context: {
+            comebackMode: comeback.mode,
+            capMultiplier: comeback.loadCapMultiplier,
+            effectiveLoad,
+          },
+        });
+      }
+    }
+  }
 
   if (neededHours > 0 && hoursBudget < neededHours) {
     effectiveLoad = Math.round(load * (hoursBudget / neededHours));
@@ -430,15 +522,80 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
     }
   } else if (sessions > 0) {
     const effectiveHours = Math.min(hoursBudget, neededHours);
-    const workouts = generateWorkouts(
-      sessions,
-      effectiveHours,
-      skeleton.phase,
-      input.sport,
-      input.queenStageHours ?? null
-    )
-      .sort((a, b) => b.durationMins - a.durationMins)
-      .slice(0, sessions);
+    let workouts: ReturnType<typeof generateWorkouts> = [];
+    try {
+      workouts = generateWorkouts(
+        sessions,
+        effectiveHours,
+        skeleton.phase,
+        input.sport,
+        input.queenStageHours ?? null
+      )
+        .sort((a, b) => b.durationMins - a.durationMins)
+        .slice(0, sessions);
+    } catch (_err) {
+      // Failure-safe: on generation errors, land a recovery-biased week rather
+      // than an aggressive or empty one.
+      const fallbackSport =
+        input.sport === "Run"
+          ? "Run"
+          : input.sport === "Triathlon"
+            ? "Swim"
+            : "Bike";
+      const fallbackDays = days
+        .map((d, i) => ({ i, mins: d.availableMins }))
+        .filter((x) => x.mins > 0)
+        .slice(0, Math.max(1, sessions));
+      workouts = fallbackDays.map((x) =>
+        withPurpose({
+          day: x.i,
+          sport: fallbackSport,
+          type: "Recovery",
+          durationMins: Math.min(30, x.mins),
+          intensity: "Recovery",
+          description: "Fallback recovery session",
+        })
+      );
+      adjustments.push({
+        date: input.weekStart,
+        trigger: "weekly_rollover",
+        action: "scaled",
+        before: [],
+        after: [],
+        reason:
+          "generation fallback: dependencies failed, so a recovery-biased safe week was materialized",
+        reasonCode: "safe_fallback_generation_error",
+        context: {
+          fallbackSessions: workouts.length,
+          targetSessions: sessions,
+        },
+      });
+    }
+
+    if (comeback.mode !== "none") {
+      const downgraded = workouts.map((w) => {
+        if (w.type !== "Intervals") return w;
+        return withPurpose({
+          ...w,
+          type: "Tempo",
+          intensity: "Z3",
+          description: `Illness comeback cap: ${w.description}`,
+        });
+      });
+      if (downgraded.some((w, i) => w.type !== workouts[i].type)) {
+        adjustments.push({
+          date: input.weekStart,
+          trigger: "weekly_rollover",
+          action: "scaled",
+          before: [],
+          after: [],
+          reason: "illness comeback: intensity above tempo removed",
+          reasonCode: "comeback_intensity_cap",
+          context: { comebackMode: comeback.mode },
+        });
+      }
+      workouts = downgraded;
+    }
 
     // For cycling, the long ride and every Endurance filler are capped at
     // longRideBoundMins(queenStageHours) — event-derived when the athlete's
@@ -591,9 +748,8 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
     };
   }
 
-  // A/B protection: rest the day before, no quality 2 days out. C races
-  // train through. The primary race decides (first in sorted input).
-  if (primary && primary.priority !== "C") {
+  // A/B protection around the primary race.
+  if (primary && primary.priority === "A") {
     const idx = dates.indexOf(primary.date);
     // Guard against clobbering a day that the race loop above already
     // turned into its OWN race day (e.g. a C-priority shakeout race that
@@ -659,6 +815,103 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
         before: [before],
         after: [{ ...days[idx - 2] }],
         reason: `no quality 2 days before ${primary.name} — stepped down to Endurance`,
+      });
+    }
+  } else if (primary && primary.priority === "B") {
+    const idx = dates.indexOf(primary.date);
+
+    if (idx >= 1 && days[idx - 1].status !== "race") {
+      const before = {
+        ...days[idx - 1],
+        workouts: days[idx - 1].workouts.map((w) => ({ ...w })),
+      };
+
+      if (fatigueHigh || days[idx - 1].availableMins < 20) {
+        days[idx - 1] = {
+          ...days[idx - 1],
+          workouts: [],
+          status: "rest",
+          restIntent: "pre_race",
+        };
+        adjustments.push({
+          date: before.date,
+          trigger: "race",
+          action: "dropped",
+          before: [before],
+          after: [{ ...days[idx - 1] }],
+          reason: `B-race pre-day set to rest before ${primary.name}`,
+        });
+      } else {
+        const opener = withPurpose({
+          day: idx - 1,
+          sport: disciplinesOf(input.sport)[0],
+          type: "Endurance",
+          durationMins: Math.min(30, days[idx - 1].availableMins),
+          intensity: "Z1-Z2",
+          description: `Pre-race opener for ${primary.name}`,
+        });
+        const openerBlockIdx = findBlockFor(days, idx - 1, opener, new Set());
+        if (openerBlockIdx == null) {
+          days[idx - 1] = {
+            ...days[idx - 1],
+            workouts: [],
+            status: "rest",
+            restIntent: "pre_race",
+          };
+          adjustments.push({
+            date: before.date,
+            trigger: "race",
+            action: "dropped",
+            before: [before],
+            after: [{ ...days[idx - 1] }],
+            reason: `B-race pre-day set to rest before ${primary.name}`,
+          });
+        } else {
+          days[idx - 1] = {
+            ...days[idx - 1],
+            workouts: [{ ...opener, blockIdx: openerBlockIdx }],
+            status: "planned",
+            restIntent: undefined,
+          };
+          adjustments.push({
+            date: before.date,
+            trigger: "race",
+            action: "scaled",
+            before: [before],
+            after: [{ ...days[idx - 1] }],
+            reason: `B-race pre-day opener placed before ${primary.name}`,
+          });
+        }
+      }
+    }
+
+    if (idx >= 2 && days[idx - 2].workouts.some((w) => isQuality(w))) {
+      const before = {
+        ...days[idx - 2],
+        workouts: days[idx - 2].workouts.map((w) => ({ ...w })),
+      };
+
+      days[idx - 2] = {
+        ...days[idx - 2],
+        workouts: days[idx - 2].workouts.map((w) => {
+          if (w.type === "Intervals") {
+            return withPurpose({ ...w, type: "Tempo", intensity: "Z3" });
+          }
+          if (w.type === "Tempo" || w.type === "Brick") {
+            return withPurpose({ ...w, type: "Endurance", intensity: "Z1-Z2" });
+          }
+          return w;
+        }),
+        status: "planned",
+      };
+
+      adjustments.push({
+        date: before.date,
+        trigger: "race",
+        action: "scaled",
+        before: [before],
+        after: [{ ...days[idx - 2] }],
+        reason: `B-race tune: lowered intensity 2 days before ${primary.name}`,
       });
     }
   }
