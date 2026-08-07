@@ -1018,15 +1018,15 @@ sessions.
 
 Released as tag `v0.50.0` from merged PR #57.
 
-## 🚧 v0.51 — Plan styles and blocks
+## ✅ v0.51 — Plan styles and blocks
 
 Next breadth release introduces selectable planning style (balanced vs
 block-lite) while preserving deterministic safety constraints.
 
-- [ ] **Style selector** persisted in plan constraints.
-- [ ] **Deterministic style-aware week materialization**.
-- [ ] **No regression in readiness safety precedence**.
-- [ ] **Verification gate**: lint, typecheck, tests, build.
+- [x] **Style selector** persisted in plan constraints.
+- [x] **Deterministic style-aware week materialization**.
+- [x] **No regression in readiness safety precedence**.
+- [x] **Verification gate**: lint, typecheck, tests, build.
 
 Design: pending (to be authored for v0.51).
 Plan: pending (to be authored for v0.51).

@@ -118,6 +118,14 @@ exports[`MCP tool surface is frozen (names + scopes + schemas) 1`] = `
           "minimum": 3,
           "type": "number",
         },
+        "planStyle": {
+          "description": "Optional planning style preference.",
+          "enum": [
+            "balanced",
+            "block_lite",
+          ],
+          "type": "string",
+        },
         "raceDate": {
           "description": "Target race date (YYYY-MM-DD).",
           "type": "string",
@@ -1919,6 +1927,7 @@ exports[`MCP tool surface is frozen (names + scopes + schemas) 1`] = `
             "reduce_load",
             "increase_load",
             "skip_week",
+            "set_style",
             "move_workout",
             "swap_workout",
           ],
@@ -1926,6 +1935,14 @@ exports[`MCP tool surface is frozen (names + scopes + schemas) 1`] = `
         },
         "fromDate": {
           "description": "YYYY-MM-DD — source day (day-level actions).",
+          "type": "string",
+        },
+        "planStyle": {
+          "description": "Required when action=set_style.",
+          "enum": [
+            "balanced",
+            "block_lite",
+          ],
           "type": "string",
         },
         "reason": {

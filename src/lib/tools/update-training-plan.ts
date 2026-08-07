@@ -4,8 +4,14 @@ import { db, schema } from "@/lib/db";
 import { and, eq } from "drizzle-orm";
 import { moveWorkout, swapWorkouts } from "@/lib/week-plan/service";
 import { getActivePlan } from "@/lib/active-plan";
+import { resolvePlanStyle } from "@/lib/plan-style/resolve";
 
-const WEEK_ACTIONS = ["reduce_load", "increase_load", "skip_week"] as const;
+const WEEK_ACTIONS = [
+  "reduce_load",
+  "increase_load",
+  "skip_week",
+  "set_style",
+] as const;
 const DAY_ACTIONS = ["move_workout", "swap_workout"] as const;
 
 const parameters = z
@@ -29,10 +35,15 @@ const parameters = z
       .string()
       .optional()
       .describe("YYYY-MM-DD — target day (day-level actions)."),
+    planStyle: z
+      .enum(["balanced", "block_lite"])
+      .optional()
+      .describe("Required when action=set_style."),
   })
   .superRefine((v, ctx) => {
     if (
       (WEEK_ACTIONS as readonly string[]).includes(v.action) &&
+      v.action !== "set_style" &&
       v.weekNumber == null
     ) {
       ctx.addIssue({
@@ -49,6 +60,13 @@ const parameters = z
         code: z.ZodIssueCode.custom,
         path: ["fromDate"],
         message: "fromDate and toDate are required for day-level actions",
+      });
+    }
+    if (v.action === "set_style" && !v.planStyle) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["planStyle"],
+        message: "planStyle is required when action is set_style",
       });
     }
   });
@@ -73,6 +91,21 @@ async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
 
   const plan = await getActivePlan(ctx.userId);
   if (!plan) return { success: false, error: "no_active_plan" };
+
+  if (args.action === "set_style") {
+    const current = (plan.constraints as Record<string, unknown> | null) ?? {};
+    const effectiveStyle = resolvePlanStyle(args.planStyle);
+    await db
+      .update(schema.trainingPlans)
+      .set({ constraints: { ...current, planStyle: effectiveStyle } })
+      .where(eq(schema.trainingPlans.id, plan.id));
+    return {
+      success: true,
+      action: args.action,
+      effectiveStyle,
+      reason: args.reason,
+    };
+  }
 
   const block = await db.query.trainingBlocks.findFirst({
     where: and(

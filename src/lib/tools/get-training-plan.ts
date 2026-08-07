@@ -3,6 +3,7 @@ import type { ToolDefinition, ToolContext } from "./registry";
 import { db, schema } from "@/lib/db";
 import { and, eq, asc } from "drizzle-orm";
 import { getActivePlan } from "@/lib/active-plan";
+import { resolvePlanStyle } from "@/lib/plan-style/resolve";
 
 const parameters = z.object({
   weekNumber: z
@@ -33,6 +34,9 @@ async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
         raceDate: plan.raceDate,
         weeksTotal: plan.weeksTotal,
         currentWeek: plan.currentWeek,
+        effectiveStyle: resolvePlanStyle(
+          (plan.constraints as { planStyle?: unknown } | null)?.planStyle
+        ),
       },
       week: block,
     };
@@ -55,6 +59,9 @@ async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
       targetCtl: plan.targetCtl,
       startingCtl: plan.startingCtl,
       status: plan.status,
+      effectiveStyle: resolvePlanStyle(
+        (plan.constraints as { planStyle?: unknown } | null)?.planStyle
+      ),
     },
     weeks: blocks.map((b) => ({
       week: b.weekNumber,

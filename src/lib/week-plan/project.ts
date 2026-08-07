@@ -267,6 +267,7 @@ export async function projectWeek(
     races,
     currentCtl: ctlNow,
     queenStageHours,
+    planStyle: constraints.planStyle,
   });
 
   const overrides = await db.query.availabilityOverrides.findMany({

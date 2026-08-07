@@ -1,7 +1,12 @@
 import type { PlannedWorkout } from "@/lib/training-plan";
 import type { Band } from "@/lib/readiness";
 import type { AvailabilityBlock } from "@/lib/availability/types";
+import type { PlanStyle } from "@/lib/plan-style/types";
 import { blockMins } from "@/lib/availability/types";
+
+export interface MaterializationStyleMeta {
+  effectiveStyle: PlanStyle;
+}
 
 export type DayStatus =
   "planned" | "completed" | "adapted" | "moved" | "missed" | "rest" | "race";

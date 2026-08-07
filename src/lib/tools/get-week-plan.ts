@@ -5,6 +5,7 @@ import { schema } from "@/lib/db";
 import { getOpenWeekPlan, listAdjustments } from "@/lib/week-plan/service";
 import { fuellingFromSession } from "@/lib/fuelling/from-session";
 import type { DaySlot } from "@/lib/week-plan/types";
+import { resolvePlanStyle } from "@/lib/plan-style/resolve";
 
 const parameters = z.object({});
 
@@ -35,10 +36,18 @@ async function execute(_args: z.infer<typeof parameters>, ctx: ToolContext) {
   const bodyMassKg =
     recentWellness.find((w) => w.weightKg != null)?.weightKg ?? null;
   const adjustments = await listAdjustments(week.id);
+  const plan = await ctx.db.query.trainingPlans.findFirst({
+    where: eq(schema.trainingPlans.id, week.planId),
+    columns: { constraints: true },
+  });
+  const effectiveStyle = resolvePlanStyle(
+    (plan?.constraints as { planStyle?: unknown } | null)?.planStyle
+  );
   return {
     active: true,
     weekStart: week.weekStart,
     skeletonWeek: week.skeletonWeek,
+    effectiveStyle,
     fuellingBodyMassKg: bodyMassKg,
     days: mapDaysWithFuelling(week.days, bodyMassKg),
     adjustments: adjustments.map((a) => ({ date: a.date, reason: a.reason })),
