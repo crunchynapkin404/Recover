@@ -473,15 +473,24 @@ export function periodize(
             withPurpose(w)
           )
         : generated;
+      const targetLoad = Math.round(
+        Math.min(currentLoad, maxLoadForWeek(w)) * openingLoadMultiplier
+      );
       blocks.push({
         weekNumber: w,
         phase,
-        targetLoad: Math.round(
-          Math.min(currentLoad, maxLoadForWeek(w)) * openingLoadMultiplier
-        ),
+        targetLoad,
         targetSessions: daysPerWeek,
         workouts,
       });
+
+      // When opening form is negative, week 1 is intentionally downscaled.
+      // Progression for week 2 should advance from that emitted target, not
+      // from the pre-downscaled internal load, otherwise week 2 can rebound
+      // by ~20% and violate the week-to-week ramp guard.
+      if (isOpeningWeek && openingLoadMultiplier < 1) {
+        currentLoad = targetLoad;
+      }
 
       // Load progression: +5-8% in base, +5-7% in build, flat/slight in
       // peak. Taper is handled entirely by the branch above — it never

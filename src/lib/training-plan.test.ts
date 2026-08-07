@@ -312,6 +312,16 @@ describe("opening-week branching", () => {
     expect(day2?.type).toBe("Endurance");
     expect(day2?.purpose).toBe("aerobic_base");
   });
+
+  it("caps week-2 rebound after opening downscale to <= 11%", () => {
+    const blocks = periodize(12, 55, 5, 8, "Bike", null, -10);
+    const w1 = blocks[0];
+    const w2 = blocks[1];
+    expect(w1.phase).not.toBe("recovery");
+    expect(w2.phase).not.toBe("recovery");
+    const increase = (w2.targetLoad - w1.targetLoad) / w1.targetLoad;
+    expect(increase).toBeLessThanOrEqual(0.11);
+  });
 });
 
 describe("recovery cadence", () => {
