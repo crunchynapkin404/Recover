@@ -1079,7 +1079,7 @@ export async function previewTrainingPlan(
   // hours) is silence, not a guess: `assessFeasibility` itself also returns
   // null without a measured current-hours and longest-ride figure.
   const feasibility =
-    demand == null
+    demand == null || !demand.available
       ? null
       : assessFeasibility({
           requiredWeeklyHours: demand.weeklyHours,
@@ -1222,7 +1222,7 @@ export async function previewFromDraft(
   );
 
   const feasibility =
-    demand == null
+    demand == null || !demand.available
       ? null
       : assessFeasibility({
           requiredWeeklyHours: demand.weeklyHours,

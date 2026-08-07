@@ -22,7 +22,9 @@ describe("eventDemand", () => {
       eventDays: 8,
       distanceKm: 900,
       elevationM: 20000,
-    })!;
+    });
+    expect(d.available).toBe(true);
+    if (!d.available) return;
     expect(d.weeklyHours).toBeGreaterThan(15);
     expect(d.weeklyHours).toBeLessThan(19);
     expect(d.dailyRateHours).toBeGreaterThan(4.5);
@@ -38,7 +40,9 @@ describe("eventDemand", () => {
       eventDays: 1,
       distanceKm: 130,
       elevationM: 4000,
-    })!;
+    });
+    expect(d.available).toBe(true);
+    if (!d.available) return;
     expect(d.weeklyHours).toBeGreaterThan(8);
     expect(d.weeklyHours).toBeLessThan(13);
   });
@@ -51,13 +55,16 @@ describe("eventDemand", () => {
       eventDays: 1,
       distanceKm: 120,
       elevationM: 2500,
-    })!;
+    });
     const sixDays = eventDemand({
       ...base,
       eventDays: 6,
       distanceKm: 720,
       elevationM: 15000,
-    })!;
+    });
+    expect(oneDay.available).toBe(true);
+    expect(sixDays.available).toBe(true);
+    if (!oneDay.available || !sixDays.available) return;
     expect(sixDays.weeklyHours).toBeGreaterThan(oneDay.weeklyHours);
   });
 
@@ -69,14 +76,17 @@ describe("eventDemand", () => {
       eventDays: 1,
       distanceKm: 130,
       elevationM: 4000,
-    })!;
+    });
     const asStage = eventDemand({
       ...base,
       eventDays: 1,
       distanceKm: null,
       elevationM: null,
       stages: [{ dayNumber: 1, distanceKm: 130, elevationM: 4000 }],
-    })!;
+    });
+    expect(oneDay.available).toBe(true);
+    expect(asStage.available).toBe(true);
+    if (!oneDay.available || !asStage.available) return;
     expect(asStage.weeklyHours).toBeCloseTo(oneDay.weeklyHours, 5);
   });
 
@@ -90,13 +100,16 @@ describe("eventDemand", () => {
         { dayNumber: 1, distanceKm: 100, elevationM: 2000 },
         { dayNumber: 2, distanceKm: 120, elevationM: 3000 },
       ],
-    })!;
+    });
     const fromTotals = eventDemand({
       ...base,
       eventDays: 2,
       distanceKm: 220,
       elevationM: 5000,
-    })!;
+    });
+    expect(d.available).toBe(true);
+    expect(fromTotals.available).toBe(true);
+    if (!d.available || !fromTotals.available) return;
 
     // Both paths now price per DAY — the stage loop uses the real stages, the
     // totals path uses the average day — so they agree closely. They are not
@@ -119,7 +132,9 @@ describe("eventDemand", () => {
         { dayNumber: 1, distanceKm: 60, elevationM: 400 },
         { dayNumber: 2, distanceKm: 160, elevationM: 4200 },
       ],
-    })!;
+    });
+    expect(d.available).toBe(true);
+    if (!d.available) return;
     expect(d.queenStageKnown).toBe(true);
     expect(d.queenStageHours).toBeGreaterThan(d.dailyRateHours);
   });
@@ -130,7 +145,9 @@ describe("eventDemand", () => {
       eventDays: 8,
       distanceKm: 900,
       elevationM: 20000,
-    })!;
+    });
+    expect(d.available).toBe(true);
+    if (!d.available) return;
     expect(d.queenStageKnown).toBe(false);
     expect(d.queenStageHours).toBeCloseTo(d.dailyRateHours, 5);
   });
@@ -142,21 +159,28 @@ describe("eventDemand", () => {
       distanceKm: 900,
       elevationM: 20000,
       overrideWeeklyHours: 14,
-    })!;
+    });
+    expect(d.available).toBe(true);
+    if (!d.available) return;
     expect(d.weeklyHours).toBe(14);
     expect(d.source).toBe("override");
   });
 
-  it("returns null when there is nothing to compute from", () => {
-    expect(eventDemand(base)).toBeNull();
-    expect(
-      eventDemand({
-        ...base,
-        distanceKm: 130,
-        elevationM: 4000,
-        ftpWatts: null,
-      })
-    ).toBeNull();
+  it("refuses when there is nothing to compute from", () => {
+    const noDistance = eventDemand(base);
+    expect(noDistance.available).toBe(false);
+    if (noDistance.available) return;
+    expect(noDistance.reason).toBe("no_distance");
+
+    const noFtp = eventDemand({
+      ...base,
+      distanceKm: 130,
+      elevationM: 4000,
+      ftpWatts: null,
+    });
+    expect(noFtp.available).toBe(false);
+    if (noFtp.available) return;
+    expect(noFtp.reason).toBe("no_cycling_anchor");
   });
 
   it("defaults mass rather than refusing when weight is unknown", () => {
@@ -166,7 +190,7 @@ describe("eventDemand", () => {
       elevationM: 4000,
       massKg: null,
     });
-    expect(d).not.toBeNull();
+    expect(d.available).toBe(true);
   });
 
   // Final-review Finding 4: the `usable` filter used to admit a stage with
@@ -187,14 +211,18 @@ describe("eventDemand", () => {
         // filled.
         { dayNumber: 2, distanceKm: null, elevationM: 1500 },
       ],
-    })!;
+    });
     const singleStageOnly = eventDemand({
       ...base,
       eventDays: 2,
       distanceKm: null,
       elevationM: null,
       stages: [{ dayNumber: 1, distanceKm: 100, elevationM: 1500 }],
-    })!;
+    });
+    expect(withElevationOnlyStage.available).toBe(true);
+    expect(singleStageOnly.available).toBe(true);
+    if (!withElevationOnlyStage.available || !singleStageOnly.available)
+      return;
     // The elevation-only day must not contribute anything — totalHours (and
     // therefore weeklyHours) must come from day 1 alone, exactly as if day
     // 2 had never been submitted at all.
@@ -223,7 +251,9 @@ describe("eventDemand", () => {
       distanceKm: null,
       elevationM: null,
       stages: [...knownDays, ...elevationOnlyDays],
-    })!;
+    });
+    expect(d.available).toBe(true);
+    if (!d.available) return;
     // Partial coverage must not claim EventReadiness's "known hardest day"
     // confidence — the 2 unpriced days mean the total (and therefore
     // dailyRateHours) already understates demand, so the "reasoning from an
@@ -246,7 +276,9 @@ describe("eventDemand", () => {
         { dayNumber: 2, distanceKm: 90, elevationM: 1200 },
         { dayNumber: 3, distanceKm: 100, elevationM: 1400 },
       ],
-    })!;
+    });
+    expect(d.available).toBe(true);
+    if (!d.available) return;
     expect(d.queenStageKnown).toBe(true);
   });
 
@@ -256,8 +288,45 @@ describe("eventDemand", () => {
       eventDays: 0,
       distanceKm: 130,
       elevationM: 4000,
-    })!;
+    });
+    expect(d.available).toBe(true);
+    if (!d.available) return;
     expect(Number.isFinite(d.weeklyHours)).toBe(true);
     expect(d.dailyRateHours).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * v0.46 freeze. This release must not move one decimal of the cycling path —
+ * the reporting athlete is a cyclist, and every figure they see today is
+ * correct. These are the pre-v0.46 outputs, recorded before the refactor.
+ *
+ * If one of these fails, the refactor changed cycling behaviour. Do NOT
+ * update the expected numbers: find what moved.
+ */
+describe("cycling demand is unchanged by v0.46", () => {
+  const GRAN_FONDO = {
+    eventDays: 1,
+    distanceKm: 130,
+    elevationM: 4000,
+    stages: [],
+    overrideWeeklyHours: null,
+    ftpWatts: 310,
+    massKg: 83,
+  };
+
+  it("prices a 130km/4000m fondo exactly as it did before", () => {
+    const result = eventDemand({ ...GRAN_FONDO });
+    expect(result.available).toBe(true);
+    if (!result.available) return;
+    // Recorded from main@cca6707 before the refactor — see Step 2.
+    const EXPECTED_TOTAL_HOURS = 6.337242282842961;
+    const EXPECTED_WEEKLY_HOURS = 10.562070471404937;
+    const EXPECTED_QUEEN_HOURS = 6.337242282842961;
+    expect(result.totalHours).toBeCloseTo(EXPECTED_TOTAL_HOURS, 10);
+    expect(result.weeklyHours).toBeCloseTo(EXPECTED_WEEKLY_HOURS, 10);
+    expect(result.queenStageHours).toBeCloseTo(EXPECTED_QUEEN_HOURS, 10);
+    expect(result.queenStageKnown).toBe(false);
+    expect(result.source).toBe("computed");
   });
 });

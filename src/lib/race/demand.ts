@@ -48,11 +48,73 @@ export interface EventDemand {
   queenStageKnown: boolean;
   weeklyHours: number;
   source: "computed" | "override";
+  confidence: DemandConfidence;
+  /** One sentence saying where the number came from. Athlete-facing. */
+  confidenceReason: string;
 }
 
-export function eventDemand(input: EventDemandInput): EventDemand | null {
+/**
+ * How much to trust the figure. The Domestique pattern: cap the confidence
+ * and say so, rather than reporting a derived number flat.
+ *
+ *   high   — the athlete stated their finish time
+ *   medium — modelled from an anchor the athlete set themselves
+ *   low    — modelled from a synced or history-derived anchor, or from an
+ *            average day rather than known stages
+ */
+export type DemandConfidence = "high" | "medium" | "low";
+
+/**
+ * Why no figure could be produced. A closed union, so a new refusal path
+ * cannot be added without deciding what the athlete is told about it.
+ */
+export type DemandUnavailableReason =
+  | "no_cycling_anchor"
+  | "no_running_anchor"
+  | "no_swim_anchor"
+  | "unknown_triathlon_format"
+  | "no_distance";
+
+/**
+ * One sentence per refusal, each naming the fix.
+ *
+ * These reach the athlete AND the coach from this one place, so the two
+ * surfaces cannot say different things — the discipline assembleWeeklyTarget
+ * already enforces for the hours number, applied to its provenance.
+ */
+export const DEMAND_UNAVAILABLE_COPY: Record<DemandUnavailableReason, string> =
+  {
+    no_cycling_anchor:
+      "No FTP yet — set one in Settings, or add your expected finish time to this race.",
+    no_running_anchor:
+      "No threshold pace and not enough recent runs to derive one — set a threshold pace in Settings, or add your expected finish time to this race.",
+    no_swim_anchor:
+      "No recent swims to price the swim leg from — add your expected finish time to this race.",
+    unknown_triathlon_format:
+      "Unrecognised triathlon format, so the leg distances are unknown — add your expected finish time to this race.",
+    no_distance:
+      "No distance on this race yet — add one, or add your expected finish time.",
+  };
+
+/**
+ * A discriminated result rather than `EventDemand | null`.
+ *
+ * The null return is what let F3 hide for four releases: `volume.ts` took its
+ * `raceDemandHours == null` branch and reverted the entire race-driven volume
+ * feature to `constraints.hoursPerWeek` without a word on any screen. A caller
+ * cannot consume this type without handling the unavailable branch, which is
+ * the same mechanism v0.39's `Carried<>` and v0.40's `Record<SecurityEvent,
+ * true>` witness use: put the guarantee in the compiler, not in a reviewer.
+ */
+export type EventDemandResult =
+  | ({ available: true } & EventDemand)
+  | { available: false; reason: DemandUnavailableReason };
+
+export function eventDemand(input: EventDemandInput): EventDemandResult {
   const ftpWatts = input.ftpWatts;
-  if (ftpWatts == null || ftpWatts <= 0) return null;
+  if (ftpWatts == null || ftpWatts <= 0) {
+    return { available: false, reason: "no_cycling_anchor" };
+  }
   const massKg = input.massKg ?? C.DEFAULT_MASS_KG;
 
   // A zero or negative day count is data corruption, not a rest event.
@@ -117,7 +179,9 @@ export function eventDemand(input: EventDemandInput): EventDemand | null {
     });
     totalHours = perDay == null ? null : perDay * days;
   }
-  if (totalHours == null) return null;
+  if (totalHours == null) {
+    return { available: false, reason: "no_distance" };
+  }
 
   const dailyRateHours = totalHours / days;
   // Without stage detail the hardest day is unknown; the average is the
@@ -136,11 +200,16 @@ export function eventDemand(input: EventDemandInput): EventDemand | null {
   const useOverride = override != null && override > 0;
 
   return {
+    available: true,
     totalHours,
     dailyRateHours,
     queenStageHours: queen,
     queenStageKnown,
     weeklyHours: useOverride ? override : computedWeekly,
     source: useOverride ? "override" : "computed",
+    // Task 5 replaces this with real sport-aware provenance. Until then the
+    // cycling path reports what it has always been: a modelled figure.
+    confidence: "medium",
+    confidenceReason: "Modelled from your FTP and the course profile.",
   };
 }

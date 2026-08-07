@@ -9,6 +9,8 @@ const demand = {
   queenStageKnown: true,
   weeklyHours: 11,
   source: "computed" as const,
+  confidence: "medium" as const,
+  confidenceReason: "Modelled from your FTP and the course profile.",
 };
 
 const feasibility = {

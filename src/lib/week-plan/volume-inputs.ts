@@ -6,7 +6,7 @@
 import { and, desc, eq, gte } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { dedupeActivities } from "@/lib/training-load";
-import { eventDemand, type EventDemand } from "@/lib/race/demand";
+import { eventDemand, type EventDemandResult } from "@/lib/race/demand";
 import {
   athleteLevel,
   LEVEL_CONSTANTS,
@@ -105,7 +105,9 @@ export function longestRideHoursOf(
 }
 
 export interface VolumeInputsResult {
-  demand: EventDemand | null;
+  // null here means "no target race at all", which is a different thing
+  // from "a race we could not price" — that is `{ available: false }`.
+  demand: EventDemandResult | null;
   level: LevelResult;
   longestRideHours: number | null;
   targetRace: { id: string; name: string; date: string } | null;
@@ -188,7 +190,7 @@ export async function assembleVolumeInputs(
         order[a.priority] - order[b.priority] || a.date.localeCompare(b.date)
     )[0] ?? null;
 
-  let demand: EventDemand | null = null;
+  let demand: EventDemandResult | null = null;
   if (target) {
     const stages = await db.query.raceStages.findMany({
       where: eq(schema.raceStages.raceId, target.id),
@@ -249,7 +251,9 @@ export async function assembleWeeklyTarget(
 ): Promise<WeeklyTargetResult> {
   const volumeInputs = await assembleVolumeInputs(userId, now);
   const target = weeklyDisplayTarget({
-    raceDemandHours: volumeInputs.demand?.weeklyHours ?? null,
+    raceDemandHours: volumeInputs.demand?.available
+      ? volumeInputs.demand.weeklyHours
+      : null,
     ceilingHours: volumeInputs.level.ceilingHours,
     floorHours: volumeInputs.level.floorHours,
     availabilityHours: input.availabilityHours,

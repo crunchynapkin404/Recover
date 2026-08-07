@@ -452,7 +452,9 @@ async function WeekTab({
           );
 
     const feasibility =
-      volumeInputs.demand == null || weeksUntilEvent == null
+      volumeInputs.demand == null ||
+      !volumeInputs.demand.available ||
+      weeksUntilEvent == null
         ? null
         : assessFeasibility({
             requiredWeeklyHours: volumeInputs.demand.weeklyHours,
@@ -463,7 +465,7 @@ async function WeekTab({
             weeksUntilEvent,
           });
 
-    if (volumeInputs.targetRace && volumeInputs.demand && feasibility) {
+    if (volumeInputs.targetRace && volumeInputs.demand?.available && feasibility) {
       eventReadiness = {
         raceName: volumeInputs.targetRace.name,
         feasibility,

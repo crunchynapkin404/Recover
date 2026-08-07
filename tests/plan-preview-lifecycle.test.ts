@@ -220,8 +220,8 @@ describe.skipIf(!hasDb)("previewTrainingPlan (v0.43)", () => {
       ftpWatts,
       massKg: null,
     });
-    expect(demand).not.toBeNull();
-    if (!demand) return;
+    expect(demand.available).toBe(true);
+    if (!demand.available) return;
 
     // One ride, comfortably above both what the event's weekly demand asks
     // for and 80% of its queen-stage hours (the longest-ride requirement) —
