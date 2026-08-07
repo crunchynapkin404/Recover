@@ -23,6 +23,7 @@ import {
   type PreviewWeek,
 } from "@/lib/plan-preview";
 import { assembleWeeklyTarget } from "@/lib/week-plan/volume-inputs";
+import { resolveStartStateForUser } from "@/lib/week-plan/start-state";
 import { assessFeasibility } from "@/lib/race/feasibility";
 import { PLAN_CONSTANTS as PC } from "@/lib/plan-constants";
 import {
@@ -982,16 +983,13 @@ export async function previewTrainingPlan(
   const planWeeks = Math.max(1, weeksTotal);
   const shortHorizon = weeksTotal < 4;
 
-  // 3. Fitness. `?? 30` cannot be told apart from a measured CTL of 30 once
-  //    stored, so the source travels with the value. Fixing the default is
-  //    a later release; naming it is this release's job.
-  const wellness = await db.query.wellnessDaily.findFirst({
-    where: eq(schema.wellnessDaily.userId, userId),
-    orderBy: desc(schema.wellnessDaily.date),
+  // 3. Fitness. Resolve one start-state snapshot with explicit provenance.
+  const startState = await resolveStartStateForUser({
+    userId,
+    sport,
+    asOf: today,
   });
-  const startingCtl = wellness?.ctl ?? 30;
-  const ctlSource: "wellness" | "default" =
-    wellness?.ctl != null ? "wellness" : "default";
+  const startingCtl = startState.startingCtl;
 
   const blocks = periodize(
     planWeeks,
@@ -1024,7 +1022,18 @@ export async function previewTrainingPlan(
       startingCtl,
       raceId,
       status: "draft",
-      constraints: { daysPerWeek, hoursPerWeek, sports: [sport] },
+      constraints: {
+        daysPerWeek,
+        hoursPerWeek,
+        sports: [sport],
+        startState: {
+          startingCtl: startState.startingCtl,
+          startingAtl: startState.startingAtl,
+          startingTsb: startState.startingTsb,
+          ctlSource: startState.ctlSource,
+          atlSource: startState.atlSource,
+        },
+      },
     })
     .returning();
 
@@ -1107,11 +1116,11 @@ export async function previewTrainingPlan(
       weeks.map((w) => ({ weekNumber: w.weekNumber, phase: w.phase }))
     ),
     weeks,
-    startingCtl: { value: startingCtl, source: ctlSource },
+    startingCtl: { value: startState.startingCtl, source: startState.ctlSource },
     feasibility,
     volume: { source: target.source, shortfall: target.shortfall },
     warnings: collectWarnings({
-      startingCtlSource: ctlSource,
+      startingCtlSource: startState.ctlSource,
       volumeSource: target.source,
       hasShortfall: target.shortfall != null,
       feasibilityVerdict: feasibility?.verdict ?? null,
@@ -1200,12 +1209,12 @@ export async function previewFromDraft(
   });
 
   const today = new Date();
-  const wellness = await db.query.wellnessDaily.findFirst({
-    where: eq(schema.wellnessDaily.userId, draft.userId),
-    orderBy: desc(schema.wellnessDaily.date),
+  const startState = await resolveStartStateForUser({
+    userId: draft.userId,
+    sport,
+    constraints: draft.constraints,
+    asOf: today,
   });
-  const ctlSource: "wellness" | "default" =
-    wellness?.ctl != null ? "wellness" : "default";
 
   const existingAvailability = await db.query.availabilityDefaults.findMany({
     where: eq(schema.availabilityDefaults.userId, draft.userId),
@@ -1250,11 +1259,11 @@ export async function previewFromDraft(
       weeks.map((w) => ({ weekNumber: w.weekNumber, phase: w.phase }))
     ),
     weeks,
-    startingCtl: { value: draft.startingCtl ?? 30, source: ctlSource },
+    startingCtl: { value: startState.startingCtl, source: startState.ctlSource },
     feasibility,
     volume: { source: target.source, shortfall: target.shortfall },
     warnings: collectWarnings({
-      startingCtlSource: ctlSource,
+      startingCtlSource: startState.ctlSource,
       volumeSource: target.source,
       hasShortfall: target.shortfall != null,
       feasibilityVerdict: feasibility?.verdict ?? null,
@@ -1432,12 +1441,13 @@ export async function generateTrainingPlan(
     throw new Error("Race date too far out — maximum 52 weeks");
   }
 
-  // 2. Gather current fitness
-  const wellness = await db.query.wellnessDaily.findFirst({
-    where: eq(schema.wellnessDaily.userId, userId),
-    orderBy: desc(schema.wellnessDaily.date),
+  // 2. Gather current fitness with one source-tagged snapshot.
+  const startState = await resolveStartStateForUser({
+    userId,
+    sport,
+    asOf: today,
   });
-  const startingCtl = wellness?.ctl ?? 30; // conservative default
+  const startingCtl = startState.startingCtl;
 
   // Get athlete name
   const user = await db.query.users.findFirst({
@@ -1496,7 +1506,18 @@ export async function generateTrainingPlan(
       // `constraints.sports?.[0]` — kept as an array so a plan created today
       // is shaped exactly like the pre-v0.42 rows already living in
       // production (`constraints.sports: ["Ride"]`, `["Bike"]`, ...).
-      constraints: { daysPerWeek, hoursPerWeek, sports: [sport] },
+      constraints: {
+        daysPerWeek,
+        hoursPerWeek,
+        sports: [sport],
+        startState: {
+          startingCtl: startState.startingCtl,
+          startingAtl: startState.startingAtl,
+          startingTsb: startState.startingTsb,
+          ctlSource: startState.ctlSource,
+          atlSource: startState.atlSource,
+        },
+      },
     })
     .returning();
 
