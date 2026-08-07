@@ -1,5 +1,6 @@
 const ACTIONS = [
   { value: "reduce_load", label: "Ease week" },
+  { value: "deload_week", label: "Deload week" },
   { value: "increase_load", label: "Boost week" },
   { value: "skip_week", label: "Skip week" },
 ] as const;

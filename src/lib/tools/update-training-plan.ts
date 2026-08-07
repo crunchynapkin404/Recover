@@ -8,6 +8,7 @@ import { resolvePlanningSurfaceState } from "@/lib/planning-surface/effective-st
 
 const WEEK_ACTIONS = [
   "reduce_load",
+  "deload_week",
   "increase_load",
   "skip_week",
   "set_style",
@@ -184,6 +185,9 @@ async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
     case "reduce_load":
       newLoad *= 0.7;
       break;
+    case "deload_week":
+      newLoad *= 0.5;
+      break;
     case "increase_load":
       newLoad *= 1.1;
       break;
@@ -209,7 +213,7 @@ async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
 export const updateTrainingPlanTool: ToolDefinition<typeof parameters> = {
   name: "update_training_plan",
   description:
-    "Adjust the training plan — week-level: reduce/increase load or skip a week; day-level: move or swap workouts within the current week.",
+    "Adjust the training plan — week-level: reduce/deload/increase load or skip a week; day-level: move or swap workouts within the current week.",
   parameters,
   scope: "write:plan",
   execute,

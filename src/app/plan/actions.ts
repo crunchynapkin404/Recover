@@ -48,7 +48,8 @@ type SeasonQuickAction =
   | { action: "set_season_mode"; seasonMode: SeasonMode }
   | { action: "begin_reentry" };
 
-type WeekQuickAction = "reduce_load" | "increase_load" | "skip_week";
+type WeekQuickAction =
+  "reduce_load" | "deload_week" | "increase_load" | "skip_week";
 
 function asSeasonQuickAction(
   value: FormDataEntryValue | null
@@ -66,6 +67,7 @@ function asWeekQuickAction(
   value: FormDataEntryValue | null
 ): WeekQuickAction | null {
   return value === "reduce_load" ||
+    value === "deload_week" ||
     value === "increase_load" ||
     value === "skip_week"
     ? value
@@ -161,9 +163,11 @@ export async function setWeekAdjustmentQuick(
   const reason =
     weekAction === "reduce_load"
       ? "train quick week ease"
-      : weekAction === "increase_load"
-        ? "train quick week boost"
-        : "train quick week skip";
+      : weekAction === "deload_week"
+        ? "train quick week deload"
+        : weekAction === "increase_load"
+          ? "train quick week boost"
+          : "train quick week skip";
   const result = (await updateTrainingPlanTool.execute(
     {
       weekNumber,

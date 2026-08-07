@@ -594,6 +594,23 @@ describe.skipIf(!hasDb)("server actions", () => {
       expect(block?.targetLoadTotal).toBe(210);
     });
 
+    it("can deload the open week", async () => {
+      const form = new FormData();
+      form.set("weekAction", "deload_week");
+      form.set("weekNumber", "2");
+
+      await expect(setWeekAdjustmentQuick(form)).resolves.toEqual({ ok: true });
+
+      const { db, schema } = await import("@/lib/db");
+      const block = await db.query.trainingBlocks.findFirst({
+        where: eq(
+          schema.trainingBlocks.notes,
+          "deload_week: train quick week deload"
+        ),
+      });
+      expect(block?.targetLoadTotal).toBe(150);
+    });
+
     it("can skip the open week", async () => {
       const form = new FormData();
       form.set("weekAction", "skip_week");

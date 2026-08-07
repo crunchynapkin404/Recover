@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.57.0 — 2026-08-07 — Deload week quick action
+
+This release extends Train week quick actions with a deterministic deload
+control.
+
+- Added a new Train week quick action, Deload week, alongside ease, boost,
+  and skip.
+- Added server-action handling and MCP tool support for `deload_week`.
+- Added deterministic deload behavior that halves the selected open week's
+  target load and records an explicit adjustment note.
+- Added focused tests for Train UI wiring, server action parsing, and
+  `update_training_plan` action-schema coverage.
+
 ## v0.51.0 — 2026-08-07 — Plan styles and blocks
 
 This release adds selectable planning styles while preserving safety and

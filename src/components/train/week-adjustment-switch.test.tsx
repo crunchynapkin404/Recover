@@ -8,6 +8,7 @@ describe("WeekAdjustmentSwitch", () => {
       <WeekAdjustmentSwitch weekNumber={4} action={async () => {}} />
     );
     expect(html).toContain("Ease week");
+    expect(html).toContain("Deload week");
     expect(html).toContain("Boost week");
     expect(html).toContain("Skip week");
   });
@@ -16,8 +17,9 @@ describe("WeekAdjustmentSwitch", () => {
     const html = renderToString(
       <WeekAdjustmentSwitch weekNumber={4} action={async () => {}} />
     );
-    expect(html.match(/name="weekNumber" value="4"/g) ?? []).toHaveLength(3);
+    expect(html.match(/name="weekNumber" value="4"/g) ?? []).toHaveLength(4);
     expect(html).toContain('name="weekAction" value="reduce_load"');
+    expect(html).toContain('name="weekAction" value="deload_week"');
     expect(html).toContain('name="weekAction" value="increase_load"');
     expect(html).toContain('name="weekAction" value="skip_week"');
   });
