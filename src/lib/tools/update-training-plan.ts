@@ -5,12 +5,15 @@ import { and, eq } from "drizzle-orm";
 import { moveWorkout, swapWorkouts } from "@/lib/week-plan/service";
 import { getActivePlan } from "@/lib/active-plan";
 import { resolvePlanStyle } from "@/lib/plan-style/resolve";
+import { resolveSeasonMode } from "@/lib/season-mode/resolve";
 
 const WEEK_ACTIONS = [
   "reduce_load",
   "increase_load",
   "skip_week",
   "set_style",
+  "set_season_mode",
+  "begin_reentry",
 ] as const;
 const DAY_ACTIONS = ["move_workout", "swap_workout"] as const;
 
@@ -39,11 +42,17 @@ const parameters = z
       .enum(["balanced", "block_lite"])
       .optional()
       .describe("Required when action=set_style."),
+    seasonMode: z
+      .enum(["normal", "off_season"])
+      .optional()
+      .describe("Required when action=set_season_mode."),
   })
   .superRefine((v, ctx) => {
     if (
       (WEEK_ACTIONS as readonly string[]).includes(v.action) &&
       v.action !== "set_style" &&
+      v.action !== "set_season_mode" &&
+      v.action !== "begin_reentry" &&
       v.weekNumber == null
     ) {
       ctx.addIssue({
@@ -67,6 +76,13 @@ const parameters = z
         code: z.ZodIssueCode.custom,
         path: ["planStyle"],
         message: "planStyle is required when action is set_style",
+      });
+    }
+    if (v.action === "set_season_mode" && !v.seasonMode) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["seasonMode"],
+        message: "seasonMode is required when action is set_season_mode",
       });
     }
   });
@@ -103,6 +119,49 @@ async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
       success: true,
       action: args.action,
       effectiveStyle,
+      reason: args.reason,
+    };
+  }
+
+  if (args.action === "set_season_mode") {
+    const current = (plan.constraints as Record<string, unknown> | null) ?? {};
+    const effectiveSeasonMode = resolveSeasonMode(args.seasonMode);
+    await db
+      .update(schema.trainingPlans)
+      .set({
+        constraints: {
+          ...current,
+          seasonMode: effectiveSeasonMode,
+          reentryStage: "none",
+        },
+      })
+      .where(eq(schema.trainingPlans.id, plan.id));
+    return {
+      success: true,
+      action: args.action,
+      effectiveSeasonMode,
+      reentryStage: "none",
+      reason: args.reason,
+    };
+  }
+
+  if (args.action === "begin_reentry") {
+    const current = (plan.constraints as Record<string, unknown> | null) ?? {};
+    await db
+      .update(schema.trainingPlans)
+      .set({
+        constraints: {
+          ...current,
+          seasonMode: "off_season",
+          reentryStage: "week_1",
+        },
+      })
+      .where(eq(schema.trainingPlans.id, plan.id));
+    return {
+      success: true,
+      action: args.action,
+      effectiveSeasonMode: "off_season",
+      reentryStage: "week_1",
       reason: args.reason,
     };
   }

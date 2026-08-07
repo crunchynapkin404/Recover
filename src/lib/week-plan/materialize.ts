@@ -33,6 +33,9 @@ import { MAX_SESSIONS_PER_DAY } from "@/lib/availability/types";
 import { disciplinesOf, type PlanSport } from "@/lib/plan-sport";
 import { type PlanStyle } from "@/lib/plan-style/types";
 import { resolvePlanStyle } from "@/lib/plan-style/resolve";
+import type { ReentryStage, SeasonMode } from "@/lib/season-mode/types";
+import { normalizeSeasonState } from "@/lib/season-mode/resolve";
+import { applyOffSeasonShaping } from "./off-season";
 
 export interface EffectiveLoadInput {
   skeletonTarget: number;
@@ -140,6 +143,10 @@ export interface MaterializeInput {
   queenStageHours?: number | null;
   /** Optional style preference; defaults to balanced. */
   planStyle?: PlanStyle;
+  /** Optional season mode; defaults to normal. */
+  seasonMode?: SeasonMode;
+  /** Optional explicit re-entry stage. */
+  reentryStage?: ReentryStage;
 }
 
 export interface MaterializeResult {
@@ -199,6 +206,10 @@ function orderByStylePreference<T extends { dayIdx: number }>(
 export function materializeWeek(input: MaterializeInput): MaterializeResult {
   const adjustments: AdjustmentRecord[] = [];
   const planStyle = resolvePlanStyle(input.planStyle);
+  const seasonState = normalizeSeasonState({
+    seasonMode: input.seasonMode,
+    reentryStage: input.reentryStage,
+  });
 
   const races = input.races ?? [];
   const primary = races[0] ?? null;
@@ -645,6 +656,17 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
       }
       workouts = downgraded;
     }
+
+    const shaped = applyOffSeasonShaping({
+      workouts,
+      seasonMode: seasonState.seasonMode,
+      reentryStage: seasonState.reentryStage,
+      targetSessions: sessions,
+    });
+    workouts = shaped.workouts.slice(
+      0,
+      Math.min(shaped.targetSessions, shaped.workouts.length)
+    );
 
     // For cycling, the long ride and every Endurance filler are capped at
     // longRideBoundMins(queenStageHours) — event-derived when the athlete's

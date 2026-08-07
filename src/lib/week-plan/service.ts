@@ -28,6 +28,8 @@ import { plannedMins, resolveFillOptions } from "./fill";
 import { taperFractionForWeek } from "@/lib/race/taper";
 import { resolvePlanStyle } from "@/lib/plan-style/resolve";
 import type { PlanStyle } from "@/lib/plan-style/types";
+import { normalizeSeasonState } from "@/lib/season-mode/resolve";
+import type { ReentryStage, SeasonMode } from "@/lib/season-mode/types";
 
 export type AdjustmentRow = typeof schema.planAdjustments.$inferSelect;
 
@@ -93,6 +95,8 @@ interface PlanConstraints {
   hoursPerWeek: number;
   sports: string[];
   planStyle: PlanStyle;
+  seasonMode: SeasonMode;
+  reentryStage: ReentryStage;
 }
 
 export function planConstraints(constraints: unknown): PlanConstraints {
@@ -101,7 +105,13 @@ export function planConstraints(constraints: unknown): PlanConstraints {
     hoursPerWeek?: number;
     sports?: string[];
     planStyle?: unknown;
+    seasonMode?: unknown;
+    reentryStage?: unknown;
   };
+  const seasonState = normalizeSeasonState({
+    seasonMode: c.seasonMode,
+    reentryStage: c.reentryStage,
+  });
   return {
     daysPerWeek: c.daysPerWeek ?? 5,
     hoursPerWeek: c.hoursPerWeek ?? 8,
@@ -113,7 +123,15 @@ export function planConstraints(constraints: unknown): PlanConstraints {
     // throws a named error instead of building a running week.
     sports: c.sports ?? [],
     planStyle: resolvePlanStyle(c.planStyle),
+    seasonMode: seasonState.seasonMode,
+    reentryStage: seasonState.reentryStage,
   };
+}
+
+export function nextReentryStage(stage: ReentryStage): ReentryStage {
+  if (stage === "week_1") return "week_2";
+  if (stage === "week_2") return "none";
+  return "none";
 }
 
 /** Last 7 readiness bands, oldest first; missing rows count as calibrating. */
@@ -271,6 +289,14 @@ export async function rolloverWeekPlan(
   if (!skeleton) return "skipped";
 
   const constraints = planConstraints(plan.constraints);
+  const nextStage = nextReentryStage(constraints.reentryStage);
+  if (nextStage !== constraints.reentryStage) {
+    const current = (plan.constraints as Record<string, unknown> | null) ?? {};
+    await db
+      .update(schema.trainingPlans)
+      .set({ constraints: { ...current, reentryStage: nextStage } })
+      .where(eq(schema.trainingPlans.id, plan.id));
+  }
   const today = localYmd(now);
   const dates = Array.from({ length: 7 }, (_, i) => addDaysYmd(weekStart, i));
   const resolved = await resolveWeek(userId, dates);
@@ -353,6 +379,8 @@ export async function rolloverWeekPlan(
     currentCtl: ctlNow,
     queenStageHours,
     planStyle: constraints.planStyle,
+    seasonMode: constraints.seasonMode,
+    reentryStage: constraints.reentryStage,
   });
 
   // 4. Persist.

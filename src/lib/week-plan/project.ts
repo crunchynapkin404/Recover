@@ -268,6 +268,8 @@ export async function projectWeek(
     currentCtl: ctlNow,
     queenStageHours,
     planStyle: constraints.planStyle,
+    seasonMode: constraints.seasonMode,
+    reentryStage: constraints.reentryStage,
   });
 
   const overrides = await db.query.availabilityOverrides.findMany({

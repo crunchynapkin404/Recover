@@ -341,6 +341,7 @@ describe("tool registry", () => {
         raceDate: "2027-06-01",
         daysPerWeek: 6,
         planStyle: "block_lite",
+        seasonMode: "off_season",
       }).success
     ).toBe(true);
     // Invalid race type
@@ -403,6 +404,19 @@ describe("tool registry", () => {
         planStyle: "block_lite",
       }).success
     ).toBe(true);
+    expect(
+      tool.parameters.safeParse({
+        action: "set_season_mode",
+        reason: "post-race maintenance",
+        seasonMode: "off_season",
+      }).success
+    ).toBe(true);
+    expect(
+      tool.parameters.safeParse({
+        action: "begin_reentry",
+        reason: "starting structured rebuild",
+      }).success
+    ).toBe(true);
     // Invalid action
     expect(
       tool.parameters.safeParse({
@@ -424,6 +438,11 @@ describe("tool registry", () => {
     // Missing planStyle for style action
     expect(
       tool.parameters.safeParse({ action: "set_style", reason: "test" }).success
+    ).toBe(false);
+    // Missing seasonMode for season action
+    expect(
+      tool.parameters.safeParse({ action: "set_season_mode", reason: "test" })
+        .success
     ).toBe(false);
   });
 
