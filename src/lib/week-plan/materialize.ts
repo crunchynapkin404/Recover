@@ -219,7 +219,7 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
   // generation, and the ramp-guard bypass below.
   const alreadyLadderScaled =
     !hasActualLoad && !hasCtl && input.skeleton.phase === "taper";
-  const skeleton =
+  let skeleton =
     taperFraction != null
       ? {
           ...input.skeleton,
@@ -280,6 +280,37 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
         `so no race taper is applied; the plan's own end-of-plan taper ` +
         `still reduces this week, but only as a partial reduction, not ` +
         `a purpose-built race taper`,
+    });
+  }
+
+  const suppressedDays = input.recentBands.filter(
+    (b) => b === "amber" || b === "red"
+  ).length;
+  const fatigueHigh = suppressedDays >= SUPPRESSED_READINESS_DAYS;
+  const miniTaperMultiplier =
+    primary?.priority === "B"
+      ? fatigueHigh
+        ? 0.85
+        : 0.9
+      : primary?.priority === "C" && fatigueHigh
+        ? 0.95
+        : 1;
+
+  if (miniTaperMultiplier < 1) {
+    skeleton = {
+      ...skeleton,
+      targetLoadTotal: Math.round(skeleton.targetLoadTotal * miniTaperMultiplier),
+    };
+    adjustments.push({
+      date: input.weekStart,
+      trigger: "race",
+      action: "scaled",
+      before: [],
+      after: [],
+      reason:
+        primary?.priority === "B"
+          ? `mini taper: ${primary.name} (${primary.priority}) — week target reduced to ${Math.round(miniTaperMultiplier * 100)}%`
+          : `mini taper: ${primary?.name ?? "race"} (${primary?.priority ?? "C"}) with suppressed form — week target reduced to ${Math.round(miniTaperMultiplier * 100)}%`,
     });
   }
 
@@ -644,9 +675,8 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
     };
   }
 
-  // A/B protection: rest the day before, no quality 2 days out. C races
-  // train through. The primary race decides (first in sorted input).
-  if (primary && primary.priority !== "C") {
+  // A/B protection around the primary race.
+  if (primary && primary.priority === "A") {
     const idx = dates.indexOf(primary.date);
     // Guard against clobbering a day that the race loop above already
     // turned into its OWN race day (e.g. a C-priority shakeout race that
@@ -684,11 +714,7 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
         });
       }
     }
-    if (
-      !isRaceWeek &&
-      idx >= 2 &&
-      days[idx - 2].workouts.some((w) => isQuality(w))
-    ) {
+    if (!isRaceWeek && idx >= 2 && days[idx - 2].workouts.some((w) => isQuality(w))) {
       const before = {
         ...days[idx - 2],
         workouts: days[idx - 2].workouts.map((w) => ({ ...w })),
@@ -712,6 +738,103 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
         before: [before],
         after: [{ ...days[idx - 2] }],
         reason: `no quality 2 days before ${primary.name} — stepped down to Endurance`,
+      });
+    }
+  } else if (primary && primary.priority === "B") {
+    const idx = dates.indexOf(primary.date);
+
+    if (idx >= 1 && days[idx - 1].status !== "race") {
+      const before = {
+        ...days[idx - 1],
+        workouts: days[idx - 1].workouts.map((w) => ({ ...w })),
+      };
+
+      if (fatigueHigh || days[idx - 1].availableMins < 20) {
+        days[idx - 1] = {
+          ...days[idx - 1],
+          workouts: [],
+          status: "rest",
+          restIntent: "pre_race",
+        };
+        adjustments.push({
+          date: before.date,
+          trigger: "race",
+          action: "dropped",
+          before: [before],
+          after: [{ ...days[idx - 1] }],
+          reason: `B-race pre-day set to rest before ${primary.name}`,
+        });
+      } else {
+        const opener = withPurpose({
+          day: idx - 1,
+          sport: disciplinesOf(input.sport)[0],
+          type: "Endurance",
+          durationMins: Math.min(30, days[idx - 1].availableMins),
+          intensity: "Z1-Z2",
+          description: `Pre-race opener for ${primary.name}`,
+        });
+        const openerBlockIdx = findBlockFor(days, idx - 1, opener, new Set());
+        if (openerBlockIdx == null) {
+          days[idx - 1] = {
+            ...days[idx - 1],
+            workouts: [],
+            status: "rest",
+            restIntent: "pre_race",
+          };
+          adjustments.push({
+            date: before.date,
+            trigger: "race",
+            action: "dropped",
+            before: [before],
+            after: [{ ...days[idx - 1] }],
+            reason: `B-race pre-day set to rest before ${primary.name}`,
+          });
+        } else {
+          days[idx - 1] = {
+            ...days[idx - 1],
+            workouts: [{ ...opener, blockIdx: openerBlockIdx }],
+            status: "planned",
+            restIntent: undefined,
+          };
+          adjustments.push({
+            date: before.date,
+            trigger: "race",
+            action: "scaled",
+            before: [before],
+            after: [{ ...days[idx - 1] }],
+            reason: `B-race pre-day opener placed before ${primary.name}`,
+          });
+        }
+      }
+    }
+
+    if (idx >= 2 && days[idx - 2].workouts.some((w) => isQuality(w))) {
+      const before = {
+        ...days[idx - 2],
+        workouts: days[idx - 2].workouts.map((w) => ({ ...w })),
+      };
+
+      days[idx - 2] = {
+        ...days[idx - 2],
+        workouts: days[idx - 2].workouts.map((w) => {
+          if (w.type === "Intervals") {
+            return withPurpose({ ...w, type: "Tempo", intensity: "Z3" });
+          }
+          if (w.type === "Tempo" || w.type === "Brick") {
+            return withPurpose({ ...w, type: "Endurance", intensity: "Z1-Z2" });
+          }
+          return w;
+        }),
+        status: "planned",
+      };
+
+      adjustments.push({
+        date: before.date,
+        trigger: "race",
+        action: "scaled",
+        before: [before],
+        after: [{ ...days[idx - 2] }],
+        reason: `B-race tune: lowered intensity 2 days before ${primary.name}`,
       });
     }
   }

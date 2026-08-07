@@ -684,15 +684,18 @@ describe("materializeWeek race handling", () => {
     expect(adj?.reason).not.toMatch(/% of current load/);
   });
 
-  it("B race: race slot, day before rest, quality 2 days out stepped down", () => {
+  it("B race: race slot, pre-day opener or rest, and 2-day intensity reduction", () => {
     const bRace: RaceContext = { ...A_RACE, priority: "B", name: "Tune-up" };
     const r = materializeWeek({ ...BASE_INPUT, races: [bRace] });
     const days = r.week.days;
     expect(days[6].status).toBe("race");
-    expect(days[5].workouts).toHaveLength(0);
-    if (days[4].workouts[0]) expect(isQuality(days[4].workouts[0])).toBe(false);
-    // No taper reshaping for B: load is the normal effective load.
-    expect(r.effectiveLoad).not.toBe(171);
+    // Low-fatigue B race gets an opener; high fatigue keeps rest.
+    expect(["planned", "rest"]).toContain(days[5].status);
+    if (days[4].workouts[0]) {
+      expect(days[4].workouts[0].type === "Intervals").toBe(false);
+    }
+    // B mini taper applies a week-level reduction.
+    expect(r.effectiveLoad).toBeLessThan(400);
     expect(r.adjustments.some((a) => a.trigger === "race")).toBe(true);
   });
 
@@ -736,12 +739,13 @@ describe("materializeWeek race handling", () => {
     // one-element array, silently dropping whichever wasn't workouts[0].
     expect(friday.workouts).toHaveLength(2);
     expect(friday.workouts.some((w) => w.type === "Long")).toBe(true);
-    // No quality session may remain 2 days before a non-C race, regardless
-    // of which index it was generated into.
-    expect(friday.workouts.every((w) => !isQuality(w))).toBe(true);
+    // B-race tune drops each quality session by one rung.
+    expect(friday.workouts.some((w) => w.type === "Tempo")).toBe(true);
+    expect(friday.workouts.some((w) => w.type === "Intervals")).toBe(false);
     expect(
       r.adjustments.some(
-        (a) => a.date === friday.date && a.reason.includes("stepped down")
+        (a) =>
+          a.date === friday.date && a.reason.includes("lowered intensity")
       )
     ).toBe(true);
   });
@@ -1039,7 +1043,7 @@ describe("materializeWeek availability scaling (Task 9 regression)", () => {
 });
 
 describe("restIntent", () => {
-  it("marks the day before the primary race as a deliberate rest", () => {
+  it("uses a B-race opener on the day before when fatigue is not high", () => {
     // Same BASE_INPUT/A_RACE fixture the neighbouring "B race" test uses,
     // just with priority swapped to B. This is the STRIP path: a B race
     // takes the normal weekly-generation route, so Saturday (raceIdx-1, one
@@ -1050,8 +1054,9 @@ describe("restIntent", () => {
     const bRace: RaceContext = { ...A_RACE, priority: "B", name: "Tune-up" };
     const { week } = materializeWeek({ ...BASE_INPUT, races: [bRace] });
 
-    expect(week.days[5].workouts).toEqual([]);
-    expect(week.days[5].restIntent).toBe("pre_race");
+    expect(week.days[5].status).toBe("planned");
+    expect(week.days[5].workouts[0]?.description).toContain("Pre-race opener");
+    expect(week.days[5].restIntent).toBeUndefined();
   });
 
   it("leaves an ordinary empty day unmarked", () => {
