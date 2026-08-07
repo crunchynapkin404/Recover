@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.51.0 — 2026-08-07 — Plan styles and blocks
+
+This release adds selectable planning styles while preserving safety and
+deterministic behavior.
+
+- Added plan style contract with `balanced` default and `block_lite` option.
+- Added deterministic style-aware week materialization tie-breaks that apply
+  only after legality and safety admission checks.
+- Added effective style threading through plan constraints and week planning
+  orchestration paths.
+- Added tool/API parity for style controls and visibility:
+  `generate_training_plan` accepts optional `planStyle`,
+  `update_training_plan` adds `set_style`, and plan/week reads expose
+  `effectiveStyle`.
+- Added focused tests and updated frozen tool-surface snapshots for the new
+  schema fields.
+
+Released as tag `v0.51.0` from merged PR #58.
+
 ## v0.50.0 — 2026-08-07 — Workout export v1 (.zwo deterministic)
 
 This release adds deterministic workout export primitives for cycling sessions.
