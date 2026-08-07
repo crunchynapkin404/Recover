@@ -6,6 +6,8 @@ interface Props {
   duration: string;
   /** Cumulative deficit over the debt window; null = not enough data. */
   debtSecs: number | null;
+  /** Data confidence for the debt estimate, when available. */
+  confidence?: "none" | "low" | "medium" | "high";
   /** Computed bedtime target, or null when no wake time is set. */
   bedtimeAdvice: string | null;
   wakeTimeSet: boolean;
@@ -21,6 +23,7 @@ export function SleepCard({
   score,
   duration,
   debtSecs,
+  confidence,
   bedtimeAdvice,
   wakeTimeSet,
 }: Props) {
@@ -43,6 +46,11 @@ export function SleepCard({
           <p className="text-xl font-bold text-white">
             {debtSecs != null ? formatDebt(debtSecs) : "—"}
           </p>
+          {debtSecs != null && confidence && confidence !== "none" && (
+            <p className="mt-1 text-[11px] text-white/50">
+              Confidence: {confidence}
+            </p>
+          )}
           {debtSecs == null && (
             <p className="mt-1 text-[11px] text-white/40">
               Not enough sleep data yet

@@ -43,6 +43,8 @@ export interface SleepDebtResult {
   /** null = not enough data. */
   debtSecs: number | null;
   nightsCounted: number;
+  /** Data quality confidence for the debt estimate. */
+  confidence: "none" | "low" | "medium" | "high";
   /** "HH:MM", or null when wakeTime is unset or malformed. */
   bedtime: string | null;
 }
@@ -74,7 +76,12 @@ export function computeSleepDebt(input: SleepDebtInput): SleepDebtResult {
     .filter((n): n is { sleepSecs: number } => n.sleepSecs != null);
 
   if (recorded.length < MIN_DEBT_DAYS) {
-    return { debtSecs: null, nightsCounted: recorded.length, bedtime: null };
+    return {
+      debtSecs: null,
+      nightsCounted: recorded.length,
+      confidence: "none",
+      bedtime: null,
+    };
   }
 
   const debtSecs = recorded.reduce(
@@ -83,6 +90,8 @@ export function computeSleepDebt(input: SleepDebtInput): SleepDebtResult {
   );
 
   const payback = Math.min(debtSecs, MAX_NIGHTLY_PAYBACK_SECS);
+  const confidence =
+    recorded.length <= 9 ? "low" : recorded.length <= 12 ? "medium" : "high";
 
   // v0.12: with enough real bedtimes, anchor on the athlete's habitual
   // bedtime and nudge it earlier by any outstanding debt — a target built
@@ -92,13 +101,19 @@ export function computeSleepDebt(input: SleepDebtInput): SleepDebtResult {
     return {
       debtSecs,
       nightsCounted: recorded.length,
+      confidence,
       bedtime: formatHhMm(median - payback / 60),
     };
   }
 
   const wakeMinutes = input.wakeTime != null ? parseHhMm(input.wakeTime) : null;
   if (wakeMinutes == null) {
-    return { debtSecs, nightsCounted: recorded.length, bedtime: null };
+    return {
+      debtSecs,
+      nightsCounted: recorded.length,
+      confidence,
+      bedtime: null,
+    };
   }
 
   const needMinutes = (input.sleepNeedSecs + payback) / 60;
@@ -106,6 +121,7 @@ export function computeSleepDebt(input: SleepDebtInput): SleepDebtResult {
   return {
     debtSecs,
     nightsCounted: recorded.length,
+    confidence,
     bedtime: formatHhMm(wakeMinutes - needMinutes),
   };
 }
