@@ -416,7 +416,12 @@ export default async function DashboardPage({
       value: sleepHours != null ? hoursToClock(sleepHours) : "—",
       delta:
         sleepDebt.debtSecs != null && sleepDebt.debtSecs > 0
-          ? { text: fmtSleepDebt(sleepDebt.debtSecs), tone: "warn" }
+          ? {
+              text:
+                fmtSleepDebt(sleepDebt.debtSecs) +
+                (sleepDebt.confidence === "low" ? " · limited data" : ""),
+              tone: "warn",
+            }
           : null,
       sparkPath: sleepSparkPath,
       sparkColor: "#3b82f6",

@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.62.0 — 2026-08-08 — Sleep debt confidence guidance
+
+This release improves sleep guidance clarity by showing how trustworthy the
+sleep debt estimate is for the current window.
+
+- Added confidence levels to sleep debt computation output:
+  `none`, `low`, `medium`, and `high` based on counted nights.
+- Kept sleep debt and bedtime recommendation math unchanged while improving
+  explainability of sparse-window estimates.
+- Added confidence display in the Sleep card when debt is available.
+- Added low-confidence "limited data" labeling to the Today sleep vital delta.
+- Added focused tests for confidence level calculation and rendering.
+
 ## v0.61.0 — 2026-08-08 — Adaptive week autopilot (MVP)
 
 This release introduces deterministic weekly autopilot load adjustment based on

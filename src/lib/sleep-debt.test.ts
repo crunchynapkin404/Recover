@@ -15,7 +15,35 @@ describe("sleep debt (hand-computed fixtures)", () => {
     });
     expect(r.debtSecs).toBeNull();
     expect(r.nightsCounted).toBe(6);
+    expect(r.confidence).toBe("none");
     expect(r.bedtime).toBeNull();
+  });
+
+  it("reports low confidence when only 7-9 nights are counted", () => {
+    const r = computeSleepDebt({
+      nights: nights(8, 9),
+      sleepNeedSecs: DEFAULT_SLEEP_NEED_SECS,
+      wakeTime: "07:00",
+    });
+    expect(r.confidence).toBe("low");
+  });
+
+  it("reports medium confidence when 10-12 nights are counted", () => {
+    const r = computeSleepDebt({
+      nights: nights(8, 11),
+      sleepNeedSecs: DEFAULT_SLEEP_NEED_SECS,
+      wakeTime: "07:00",
+    });
+    expect(r.confidence).toBe("medium");
+  });
+
+  it("reports high confidence when 13-14 nights are counted", () => {
+    const r = computeSleepDebt({
+      nights: nights(8, 14),
+      sleepNeedSecs: DEFAULT_SLEEP_NEED_SECS,
+      wakeTime: "07:00",
+    });
+    expect(r.confidence).toBe("high");
   });
 
   it("skips missing nights instead of counting them as perfect sleep", () => {

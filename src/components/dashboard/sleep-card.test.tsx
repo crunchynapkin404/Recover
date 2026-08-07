@@ -60,6 +60,14 @@ describe("sleep card", () => {
     expect(html).toContain("3h 20m");
   });
 
+  it("shows confidence when a debt estimate is available", () => {
+    const html = renderToString(
+      <SleepCard {...base} debtSecs={12000} confidence="medium" />
+    );
+    expect(html).toContain("Confidence:");
+    expect(html).toContain("medium");
+  });
+
   it("says so plainly when there is not enough sleep data", () => {
     const html = renderToString(<SleepCard {...base} debtSecs={null} />);
     expect(html).toContain("Not enough");
