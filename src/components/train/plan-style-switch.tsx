@@ -10,12 +10,8 @@ export function PlanStyleSwitch({
   action,
 }: {
   effectiveStyle: PlanStyle;
-  action: (formData: FormData) => unknown | Promise<unknown>;
+  action: (formData: FormData) => void | Promise<void>;
 }) {
-  const submitStyle = async (formData: FormData): Promise<void> => {
-    await action(formData);
-  };
-
   return (
     <div className="flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] p-1">
       <span className="px-2 text-[10px] font-semibold text-white/60">
@@ -24,7 +20,7 @@ export function PlanStyleSwitch({
       {(["balanced", "block_lite"] as const).map((style) => {
         const active = style === effectiveStyle;
         return (
-          <form key={style} action={submitStyle}>
+          <form key={style} action={action}>
             <input type="hidden" name="style" value={style} />
             <button
               type="submit"
