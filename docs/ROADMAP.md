@@ -1184,6 +1184,8 @@ apply to a week that is no longer open after rollover.
 Design: `docs/specs/2026-08-07-v0.58-week-action-freshness-guardrails-design.md`.
 Plan: `docs/plans/2026-08-07-v0.58-week-action-freshness-guardrails.md`.
 
+Released as tag `v0.58.0` from merged PR #70.
+
 ## Ongoing — operations track
 
 All items scheduled into **v0.17 — Good Self-Hosted Citizen** by the v0.9.6
