@@ -12,12 +12,8 @@ export function SeasonModeSwitch({
 }: {
   effectiveSeasonMode: SeasonMode;
   reentryStage: ReentryStage;
-  action: (formData: FormData) => unknown | Promise<unknown>;
+  action: (formData: FormData) => void | Promise<void>;
 }) {
-  const submitAction = async (formData: FormData): Promise<void> => {
-    await action(formData);
-  };
-
   return (
     <div className="flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] p-1">
       <span className="px-2 text-[10px] font-semibold text-white/60">
@@ -26,7 +22,7 @@ export function SeasonModeSwitch({
       {(["normal", "off_season"] as const).map((seasonMode) => {
         const active = seasonMode === effectiveSeasonMode;
         return (
-          <form key={seasonMode} action={submitAction}>
+          <form key={seasonMode} action={action}>
             <input type="hidden" name="seasonAction" value={seasonMode} />
             <button
               type="submit"
@@ -44,7 +40,7 @@ export function SeasonModeSwitch({
         );
       })}
       {effectiveSeasonMode === "off_season" && reentryStage === "none" && (
-        <form action={submitAction}>
+        <form action={action}>
           <input type="hidden" name="seasonAction" value="begin_reentry" />
           <button
             type="submit"

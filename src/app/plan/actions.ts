@@ -107,6 +107,10 @@ export async function setPlanStyleQuick(formData: FormData): Promise<Result> {
   return { ok: true };
 }
 
+export async function submitPlanStyleQuick(formData: FormData): Promise<void> {
+  await setPlanStyleQuick(formData);
+}
+
 export async function setSeasonModeQuick(formData: FormData): Promise<Result> {
   const user = await requireUser();
   const next = asSeasonQuickAction(formData.get("seasonAction"));
@@ -136,6 +140,10 @@ export async function setSeasonModeQuick(formData: FormData): Promise<Result> {
 
   revalidatePlan();
   return { ok: true };
+}
+
+export async function submitSeasonModeQuick(formData: FormData): Promise<void> {
+  await setSeasonModeQuick(formData);
 }
 
 export async function setWeekAdjustmentQuick(
@@ -171,6 +179,12 @@ export async function setWeekAdjustmentQuick(
 
   revalidatePlan();
   return { ok: true };
+}
+
+export async function submitWeekAdjustmentQuick(
+  formData: FormData
+): Promise<void> {
+  await setWeekAdjustmentQuick(formData);
 }
 
 /**

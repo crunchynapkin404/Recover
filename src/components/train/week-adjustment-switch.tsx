@@ -9,17 +9,13 @@ export function WeekAdjustmentSwitch({
   action,
 }: {
   weekNumber: number;
-  action: (formData: FormData) => unknown | Promise<unknown>;
+  action: (formData: FormData) => void | Promise<void>;
 }) {
-  const submitAction = async (formData: FormData): Promise<void> => {
-    await action(formData);
-  };
-
   return (
     <div className="flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] p-1">
       <span className="px-2 text-[10px] font-semibold text-white/60">Week</span>
       {ACTIONS.map((item) => (
-        <form key={item.value} action={submitAction}>
+        <form key={item.value} action={action}>
           <input type="hidden" name="weekAction" value={item.value} />
           <input type="hidden" name="weekNumber" value={String(weekNumber)} />
           <button

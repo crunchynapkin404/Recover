@@ -88,9 +88,9 @@ import {
   type TrainTab,
 } from "@/lib/log-href";
 import {
-  setPlanStyleQuick,
-  setSeasonModeQuick,
-  setWeekAdjustmentQuick,
+  submitPlanStyleQuick,
+  submitSeasonModeQuick,
+  submitWeekAdjustmentQuick,
   startWeek,
   submitAvailability,
 } from "@/app/plan/actions";
@@ -757,17 +757,17 @@ async function WeekTab({
             {chip}
             <PlanStyleSwitch
               effectiveStyle={constraints.planStyle}
-              action={setPlanStyleQuick}
+              action={submitPlanStyleQuick}
             />
             <SeasonModeSwitch
               effectiveSeasonMode={constraints.seasonMode}
               reentryStage={constraints.reentryStage}
-              action={setSeasonModeQuick}
+              action={submitSeasonModeQuick}
             />
             {week && (
               <WeekAdjustmentSwitch
                 weekNumber={week.skeletonWeek}
-                action={setWeekAdjustmentQuick}
+                action={submitWeekAdjustmentQuick}
               />
             )}
           </div>
