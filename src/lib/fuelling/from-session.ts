@@ -18,5 +18,7 @@ export function fuellingFromSession(
   workout: Pick<ScheduledWorkout, "durationMins" | "intensity" | "type">,
   bodyMassKg: number | null
 ): FuellingGuidance {
-  return calculateFuellingGuidance(fuellingInputFromSession(workout, bodyMassKg));
+  return calculateFuellingGuidance(
+    fuellingInputFromSession(workout, bodyMassKg)
+  );
 }

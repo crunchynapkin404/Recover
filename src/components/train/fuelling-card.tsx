@@ -7,8 +7,7 @@ function range(r: { min: number; max: number }, unit: string): string {
 
 function confidenceTone(confidence: "high" | "medium" | "low"): string {
   if (confidence === "high") return "text-emerald-300 border-emerald-400/30";
-  if (confidence === "medium")
-    return "text-amber-300 border-amber-400/30";
+  if (confidence === "medium") return "text-amber-300 border-amber-400/30";
   return "text-white/65 border-white/20";
 }
 
@@ -56,7 +55,8 @@ export function FuellingCard({
               <div className="space-y-1.5 text-[11px] text-white/75">
                 <p>
                   <span className="font-semibold text-white/85">Before:</span>{" "}
-                  {range(guidance.before.carbsG, "g carbs")} · {guidance.before.note}
+                  {range(guidance.before.carbsG, "g carbs")} ·{" "}
+                  {guidance.before.note}
                 </p>
                 <p>
                   <span className="font-semibold text-white/85">During:</span>{" "}
@@ -66,7 +66,8 @@ export function FuellingCard({
                 <p>
                   <span className="font-semibold text-white/85">After:</span>{" "}
                   {range(guidance.after.carbsG, "g carbs")} and{" "}
-                  {range(guidance.after.proteinG, "g protein")} · {guidance.after.note}
+                  {range(guidance.after.proteinG, "g protein")} ·{" "}
+                  {guidance.after.note}
                 </p>
               </div>
 

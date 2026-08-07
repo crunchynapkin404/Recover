@@ -40,13 +40,19 @@ function durationBand(durationMins: number): "short" | "medium" | "long" {
   return "long";
 }
 
-function confidenceOf(input: FuellingInput, band: FuellingIntensityBand): FuellingConfidence {
+function confidenceOf(
+  input: FuellingInput,
+  band: FuellingIntensityBand
+): FuellingConfidence {
   if ((input.durationMins ?? 0) <= 0 || band === "unknown") return "low";
   if (input.bodyMassKg == null) return "medium";
   return "high";
 }
 
-function adjustForHighIntensity(range: Range, band: FuellingIntensityBand): Range {
+function adjustForHighIntensity(
+  range: Range,
+  band: FuellingIntensityBand
+): Range {
   if (band !== "high") return range;
   return {
     min: clamp(range.min + 5, 0, 300),
@@ -54,7 +60,10 @@ function adjustForHighIntensity(range: Range, band: FuellingIntensityBand): Rang
   };
 }
 
-function beforeCarbs(duration: "short" | "medium" | "long", intensity: FuellingIntensityBand): Range {
+function beforeCarbs(
+  duration: "short" | "medium" | "long",
+  intensity: FuellingIntensityBand
+): Range {
   const base: Record<typeof duration, Range> = {
     short: { min: 20, max: 30 },
     medium: { min: 30, max: 50 },
@@ -63,7 +72,10 @@ function beforeCarbs(duration: "short" | "medium" | "long", intensity: FuellingI
   return adjustForHighIntensity(base[duration], intensity);
 }
 
-function duringCarbs(duration: "short" | "medium" | "long", intensity: FuellingIntensityBand): Range {
+function duringCarbs(
+  duration: "short" | "medium" | "long",
+  intensity: FuellingIntensityBand
+): Range {
   const base: Record<typeof duration, Range> = {
     short: { min: 0, max: 20 },
     medium: { min: 30, max: 45 },
@@ -76,7 +88,10 @@ function duringCarbs(duration: "short" | "medium" | "long", intensity: FuellingI
   };
 }
 
-function duringFluid(duration: "short" | "medium" | "long", intensity: FuellingIntensityBand): Range {
+function duringFluid(
+  duration: "short" | "medium" | "long",
+  intensity: FuellingIntensityBand
+): Range {
   const base: Record<typeof duration, Range> = {
     short: { min: 400, max: 600 },
     medium: { min: 500, max: 700 },
@@ -89,7 +104,10 @@ function duringFluid(duration: "short" | "medium" | "long", intensity: FuellingI
   };
 }
 
-function afterCarbs(duration: "short" | "medium" | "long", bodyMassKg: number | null): Range {
+function afterCarbs(
+  duration: "short" | "medium" | "long",
+  bodyMassKg: number | null
+): Range {
   if (bodyMassKg == null) {
     const generic: Record<typeof duration, Range> = {
       short: { min: 30, max: 45 },
@@ -118,7 +136,9 @@ function afterProtein(bodyMassKg: number | null): Range {
   };
 }
 
-export function calculateFuellingGuidance(input: FuellingInput): FuellingGuidance {
+export function calculateFuellingGuidance(
+  input: FuellingInput
+): FuellingGuidance {
   const durationMins = input.durationMins ?? 0;
   const intensityBand = classifyIntensity(input);
   const confidence = confidenceOf(input, intensityBand);
