@@ -1031,7 +1031,7 @@ block-lite) while preserving deterministic safety constraints.
 Design: `docs/specs/2026-08-07-v0.51-plan-styles-and-blocks-design.md`.
 Plan: `docs/plans/2026-08-07-v0.51-plan-styles-and-blocks.md`.
 
-## 🚧 v0.52 — Off-season mode
+## ✅ v0.52 — Off-season mode
 
 Maintenance mode introduces reduced intensity density with explicit staged
 re-entry, while preserving deterministic safety precedence.
@@ -1049,6 +1049,26 @@ re-entry, while preserving deterministic safety precedence.
 
 Design: `docs/specs/2026-08-07-v0.52-off-season-mode-design.md`.
 Plan: `docs/plans/2026-08-07-v0.52-off-season-mode.md`.
+
+Released as tag `v0.52.0` from merged PR #59.
+
+## 🚧 v0.53 — Planning surface parity lock
+
+Stabilization release that locks one shared effective planning-state contract
+across tools and UI surfaces, without changing planning algorithms.
+
+- [ ] **Shared effective-state resolver** for `effectiveStyle`,
+      `effectiveSeasonMode`, and `reentryStage`.
+- [ ] **Tool parity lock**: `get_week_plan`, `get_training_plan`, and
+      `update_training_plan` return consistent effective-state fields.
+- [ ] **UI parity lock**: Train planning surface consumes the shared resolver
+      instead of deriving state independently.
+- [ ] **No regression in planning behavior**: materialization/adaptation logic
+      unchanged; parity only.
+- [ ] **Verification gate**: format, typecheck, tests, build.
+
+Design: `docs/specs/2026-08-07-v0.53-planning-surface-parity-lock-design.md`.
+Plan: `docs/plans/2026-08-07-v0.53-planning-surface-parity-lock.md`.
 
 ## Ongoing — operations track
 
