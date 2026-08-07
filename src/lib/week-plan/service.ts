@@ -223,7 +223,11 @@ export async function rolloverWeekPlan(
 
   // 1. Close every still-open week and write its actuals back to the
   //    skeleton block (same formula as the weekly review's adherence).
-  let prevWeek: { actualLoad: number; adherencePct: number } | null = null;
+  let prevWeek: {
+    actualLoad: number;
+    adherencePct: number;
+    completionPct: number;
+  } | null = null;
   const openRows = await db.query.weekPlans.findMany({
     where: and(
       eq(schema.weekPlans.userId, userId),
@@ -256,6 +260,10 @@ export async function rolloverWeekPlan(
       blockTarget: block?.targetLoadTotal ?? null,
       actualLoad,
     });
+    const completionPct =
+      (block?.targetSessions ?? 0) > 0
+        ? Math.round((actualSessions / (block?.targetSessions ?? 1)) * 100)
+        : 0;
     if (block) {
       await db
         .update(schema.trainingBlocks)
@@ -266,7 +274,7 @@ export async function rolloverWeekPlan(
       .update(schema.weekPlans)
       .set({ days, status: "closed", updatedAt: now })
       .where(eq(schema.weekPlans.id, row.id));
-    prevWeek = { actualLoad, adherencePct }; // rows are ascending: latest wins
+    prevWeek = { actualLoad, adherencePct, completionPct }; // rows are ascending: latest wins
   }
 
   // 2. Gather inputs for the new week.

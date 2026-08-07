@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.61.0 — 2026-08-08 — Adaptive week autopilot (MVP)
+
+This release introduces deterministic weekly autopilot load adjustment based on
+prior-week adherence and completion signals.
+
+- Added bounded weekly autopilot behavior in week materialization:
+  - high adherence: `+10%`
+  - low adherence: `-15%`
+  - neutral: no baseline change
+- Added explicit autopilot rationale code prefixes in adjustment reasoning:
+  `AUTO_HIGH_ADHERENCE`, `AUTO_LOW_ADHERENCE`, `AUTO_NEUTRAL`.
+- Threaded previous-week completion percentage through rollover input so
+  autopilot decisions combine adherence and completion deterministically.
+- Updated focused week-plan tests to assert new bounded behavior and reason
+  outputs.
+
 ## v0.60.0 — 2026-08-08 — Week action legend
 
 This release adds an always-visible legend for Train week quick actions so
