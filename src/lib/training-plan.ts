@@ -24,6 +24,10 @@ import {
 } from "@/lib/plan-preview";
 import { assembleWeeklyTarget } from "@/lib/week-plan/volume-inputs";
 import { resolveStartStateForUser } from "@/lib/week-plan/start-state";
+import {
+  applyOpeningWorkoutRules,
+  resolveOpeningDecision,
+} from "@/lib/week-plan/start-branching";
 import { assessFeasibility } from "@/lib/race/feasibility";
 import { PLAN_CONSTANTS as PC } from "@/lib/plan-constants";
 import {
@@ -297,7 +301,8 @@ export function periodize(
   daysPerWeek: number,
   hoursPerWeek: number,
   sport: PlanSport,
-  queenStageHours: number | null = null
+  queenStageHours: number | null = null,
+  startingTsb: number | null = null
 ): Block[] {
   // Phase distribution
   const baseWeeks = Math.max(
@@ -382,6 +387,8 @@ export function periodize(
       (startingCtl + PC.CTL_RAMP_PER_WEEK * w) * PC.CTL_TO_WEEKLY_LOAD
     );
 
+  const openingDecision = resolveOpeningDecision(startingTsb);
+
   for (let w = 1; w <= weeksTotal; w++) {
     let phase: Block["phase"];
     if (w <= baseWeeks) phase = "base";
@@ -445,18 +452,35 @@ export function periodize(
       weeksSinceRecovery += 1;
     } else {
       weeksSinceRecovery += 1;
+      const isOpeningWeek = w === 1;
+      const openingLoadMultiplier = isOpeningWeek
+        ? openingDecision.loadMultiplier
+        : 1;
+      const openingHoursMultiplier = isOpeningWeek
+        ? openingDecision.weekHoursMultiplier
+        : 1;
+      const weekHours =
+        hoursPerWeek * loadMultiplier(phase, weekInPhase) * openingHoursMultiplier;
+      const generated = generateWorkouts(
+        daysPerWeek,
+        weekHours,
+        phase,
+        sport,
+        queenStageHours
+      );
+      const workouts = isOpeningWeek
+        ? applyOpeningWorkoutRules(generated, openingDecision.branch).map((w) =>
+            withPurpose(w)
+          )
+        : generated;
       blocks.push({
         weekNumber: w,
         phase,
-        targetLoad: Math.round(Math.min(currentLoad, maxLoadForWeek(w))),
-        targetSessions: daysPerWeek,
-        workouts: generateWorkouts(
-          daysPerWeek,
-          hoursPerWeek * loadMultiplier(phase, weekInPhase),
-          phase,
-          sport,
-          queenStageHours
+        targetLoad: Math.round(
+          Math.min(currentLoad, maxLoadForWeek(w)) * openingLoadMultiplier
         ),
+        targetSessions: daysPerWeek,
+        workouts,
       });
 
       // Load progression: +5-8% in base, +5-7% in build, flat/slight in
@@ -996,7 +1020,9 @@ export async function previewTrainingPlan(
     startingCtl,
     daysPerWeek,
     hoursPerWeek,
-    sport
+    sport,
+    null,
+    startState.startingTsb
   );
 
   // 4. One draft per athlete. Cascade removes the old blocks with the row.
@@ -1463,7 +1489,9 @@ export async function generateTrainingPlan(
     startingCtl,
     daysPerWeek,
     hoursPerWeek,
-    sport
+    sport,
+    null,
+    startState.startingTsb
   );
 
   // 4. Store in DB — archive any existing active plan first so there is

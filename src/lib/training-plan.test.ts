@@ -288,6 +288,32 @@ describe("periodize passes event demand to the cycling generator", () => {
   });
 });
 
+describe("opening-week branching", () => {
+  it("deep negative form reduces opening target load by 20%", () => {
+    const neutral = periodize(12, 50, 5, 8, "Bike", null, 0);
+    const deep = periodize(12, 50, 5, 8, "Bike", null, -20);
+    expect(deep[0].targetLoad).toBe(Math.round(neutral[0].targetLoad * 0.8));
+  });
+
+  it("deep negative form removes threshold/VO2 work in first 72h", () => {
+    const deep = periodize(12, 50, 5, 8, "Bike", null, -21);
+    const firstWeek = deep[0].workouts;
+    for (const w of firstWeek.filter((x) => x.day < 3)) {
+      expect(w.type === "Intervals" || w.type === "Tempo").toBe(false);
+    }
+    const day2 = firstWeek.find((x) => x.day === 2);
+    expect(day2?.type).toBe("Recovery");
+    expect(day2?.purpose).toBe("recovery");
+  });
+
+  it("moderate negative keeps opening branch and downgrades day-2 intensity", () => {
+    const moderate = periodize(12, 50, 5, 8, "Bike", null, -10);
+    const day2 = moderate[0].workouts.find((x) => x.day === 2);
+    expect(day2?.type).toBe("Endurance");
+    expect(day2?.purpose).toBe("aerobic_base");
+  });
+});
+
 describe("recovery cadence", () => {
   /** Longest run of consecutive non-recovery weeks in a skeleton. */
   function longestLoadingRun(blocks: ReturnType<typeof periodize>): number {
