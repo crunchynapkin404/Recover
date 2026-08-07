@@ -1114,22 +1114,55 @@ Plan: `docs/plans/2026-08-07-v0.55-season-mode-quick-switch.md`.
 
 Released as tag `v0.55.0` from merged PR #64.
 
-## 🚧 v0.56 — Week adjustment quick actions
+## ✅ v0.56 — Week adjustment quick actions
 
 Expose existing week-level adjustment controls directly in Train so athletes
 can ease, boost, or skip the current materialized week without a coach/tool
 round-trip.
 
-- [ ] **Week action control** in Train for `ease`, `boost`, and `skip`.
-- [ ] **Open-week targeting** using the current `skeletonWeek` only.
-- [ ] **Immediate week refresh path** so load adjustments are visible without
+- [x] **Week action control** in Train for `ease`, `boost`, and `skip`.
+- [x] **Open-week targeting** using the current `skeletonWeek` only.
+- [x] **Immediate week refresh path** so load adjustments are visible without
       a manual reload.
-- [ ] **No planning algorithm change**: this only exposes existing
+- [x] **No planning algorithm change**: this only exposes existing
       `update_training_plan` week actions.
-- [ ] **Verification gate**: format, typecheck, tests, build.
+- [x] **Verification gate**: format, typecheck, tests, build.
 
 Design: `docs/specs/2026-08-07-v0.56-week-adjustment-quick-actions-design.md`.
 Plan: `docs/plans/2026-08-07-v0.56-week-adjustment-quick-actions.md`.
+
+Released as tag `v0.56.0` from merged PR #65.
+
+## ✅ v0.56.1 — Train server-action render hotfix
+
+Patch release restoring production-safe direct server-action wiring in Train
+week controls.
+
+- [x] Removed local non-exported async wrappers around form actions in the
+      Train server component path.
+- [x] Restored direct exported server action usage with void-return submit
+      wrappers.
+- [x] Revalidated `/train` server render via build and focused control tests.
+
+Released as tag `v0.56.1` from merged PR #67.
+
+## 🚧 v0.57 — Deload week quick action
+
+Extend Train week controls with a deterministic deload option that lets
+athletes halve current-week load without leaving the week surface.
+
+- [ ] **Week action control** adds `deload` alongside existing `ease`,
+      `boost`, and `skip`.
+- [ ] **Open-week targeting** remains constrained to the current
+      `skeletonWeek`.
+- [ ] **Deterministic load rule** sets selected week target load to 50% of
+      the current value and records a deload note.
+- [ ] **Tool/API parity** adds `deload_week` support to
+      `update_training_plan` surface and validation.
+- [ ] **Verification gate**: format, typecheck, tests, build.
+
+Design: `docs/specs/2026-08-07-v0.57-deload-week-quick-action-design.md`.
+Plan: `docs/plans/2026-08-07-v0.57-deload-week-quick-action.md`.
 
 ## Ongoing — operations track
 

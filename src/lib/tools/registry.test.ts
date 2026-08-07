@@ -393,6 +393,13 @@ describe("tool registry", () => {
     expect(
       tool.parameters.safeParse({
         weekNumber: 4,
+        action: "deload_week",
+        reason: "planned lighter week",
+      }).success
+    ).toBe(true);
+    expect(
+      tool.parameters.safeParse({
+        weekNumber: 4,
         action: "skip_week",
         reason: "vacation",
       }).success

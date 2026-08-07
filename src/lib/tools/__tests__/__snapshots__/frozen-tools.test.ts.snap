@@ -1933,6 +1933,7 @@ exports[`MCP tool surface is frozen (names + scopes + schemas) 1`] = `
           "description": "Week-level: adjusts the week's target load. Day-level (move_workout/swap_workout): rearranges the current week's days.",
           "enum": [
             "reduce_load",
+            "deload_week",
             "increase_load",
             "skip_week",
             "set_style",
