@@ -3,8 +3,7 @@ import type { ToolDefinition, ToolContext } from "./registry";
 import { db, schema } from "@/lib/db";
 import { and, eq, asc } from "drizzle-orm";
 import { getActivePlan } from "@/lib/active-plan";
-import { resolvePlanStyle } from "@/lib/plan-style/resolve";
-import { normalizeSeasonState } from "@/lib/season-mode/resolve";
+import { resolvePlanningSurfaceState } from "@/lib/planning-surface/effective-state";
 
 const parameters = z.object({
   weekNumber: z
@@ -17,12 +16,9 @@ const parameters = z.object({
 async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
   const plan = await getActivePlan(ctx.userId);
   if (!plan) return { available: false, reason: "no_active_plan" };
-  const seasonState = normalizeSeasonState({
-    seasonMode: (plan.constraints as { seasonMode?: unknown } | null)
-      ?.seasonMode,
-    reentryStage: (plan.constraints as { reentryStage?: unknown } | null)
-      ?.reentryStage,
-  });
+  const state = resolvePlanningSurfaceState(
+    (plan.constraints as Record<string, unknown> | null) ?? null
+  );
 
   if (args.weekNumber != null) {
     const block = await db.query.trainingBlocks.findFirst({
@@ -41,11 +37,9 @@ async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
         raceDate: plan.raceDate,
         weeksTotal: plan.weeksTotal,
         currentWeek: plan.currentWeek,
-        effectiveStyle: resolvePlanStyle(
-          (plan.constraints as { planStyle?: unknown } | null)?.planStyle
-        ),
-        effectiveSeasonMode: seasonState.seasonMode,
-        reentryStage: seasonState.reentryStage,
+        effectiveStyle: state.effectiveStyle,
+        effectiveSeasonMode: state.effectiveSeasonMode,
+        reentryStage: state.reentryStage,
       },
       week: block,
     };
@@ -68,11 +62,9 @@ async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
       targetCtl: plan.targetCtl,
       startingCtl: plan.startingCtl,
       status: plan.status,
-      effectiveStyle: resolvePlanStyle(
-        (plan.constraints as { planStyle?: unknown } | null)?.planStyle
-      ),
-      effectiveSeasonMode: seasonState.seasonMode,
-      reentryStage: seasonState.reentryStage,
+      effectiveStyle: state.effectiveStyle,
+      effectiveSeasonMode: state.effectiveSeasonMode,
+      reentryStage: state.reentryStage,
     },
     weeks: blocks.map((b) => ({
       week: b.weekNumber,

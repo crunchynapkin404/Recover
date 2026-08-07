@@ -144,4 +144,33 @@ describe.skipIf(!hasDb)("get_week_plan day shape", () => {
     // A rest day is an empty list, never null or a missing key.
     expect(result.days[1].workouts).toEqual([]);
   });
+
+  it("normalizes effective season state from plan constraints", async () => {
+    const { db, schema } = await import("@/lib/db");
+    await db
+      .update(schema.trainingPlans)
+      .set({
+        constraints: {
+          planStyle: "block_lite",
+          seasonMode: "normal",
+          reentryStage: "week_1",
+        },
+      })
+      .where(eq(schema.trainingPlans.id, planId));
+
+    const result = (await getWeekPlanTool.execute(
+      {},
+      { userId: USER, db }
+    )) as {
+      active: boolean;
+      effectiveStyle: string;
+      effectiveSeasonMode: string;
+      reentryStage: string;
+    };
+
+    expect(result.active).toBe(true);
+    expect(result.effectiveStyle).toBe("block_lite");
+    expect(result.effectiveSeasonMode).toBe("normal");
+    expect(result.reentryStage).toBe("none");
+  });
 });

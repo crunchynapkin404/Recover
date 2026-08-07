@@ -26,10 +26,9 @@ import {
 } from "./volume";
 import { plannedMins, resolveFillOptions } from "./fill";
 import { taperFractionForWeek } from "@/lib/race/taper";
-import { resolvePlanStyle } from "@/lib/plan-style/resolve";
 import type { PlanStyle } from "@/lib/plan-style/types";
-import { normalizeSeasonState } from "@/lib/season-mode/resolve";
 import type { ReentryStage, SeasonMode } from "@/lib/season-mode/types";
+import { resolvePlanningSurfaceState } from "@/lib/planning-surface/effective-state";
 
 export type AdjustmentRow = typeof schema.planAdjustments.$inferSelect;
 
@@ -108,10 +107,7 @@ export function planConstraints(constraints: unknown): PlanConstraints {
     seasonMode?: unknown;
     reentryStage?: unknown;
   };
-  const seasonState = normalizeSeasonState({
-    seasonMode: c.seasonMode,
-    reentryStage: c.reentryStage,
-  });
+  const state = resolvePlanningSurfaceState(c);
   return {
     daysPerWeek: c.daysPerWeek ?? 5,
     hoursPerWeek: c.hoursPerWeek ?? 8,
@@ -122,9 +118,9 @@ export function planConstraints(constraints: unknown): PlanConstraints {
     // requirePlanSport(constraints.sports?.[0]) at the call sites below
     // throws a named error instead of building a running week.
     sports: c.sports ?? [],
-    planStyle: resolvePlanStyle(c.planStyle),
-    seasonMode: seasonState.seasonMode,
-    reentryStage: seasonState.reentryStage,
+    planStyle: state.effectiveStyle,
+    seasonMode: state.effectiveSeasonMode,
+    reentryStage: state.reentryStage,
   };
 }
 
