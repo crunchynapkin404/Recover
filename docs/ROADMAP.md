@@ -1146,23 +1146,25 @@ week controls.
 
 Released as tag `v0.56.1` from merged PR #67.
 
-## 🚧 v0.57 — Deload week quick action
+## ✅ v0.57 — Deload week quick action
 
 Extend Train week controls with a deterministic deload option that lets
 athletes halve current-week load without leaving the week surface.
 
-- [ ] **Week action control** adds `deload` alongside existing `ease`,
+- [x] **Week action control** adds `deload` alongside existing `ease`,
       `boost`, and `skip`.
-- [ ] **Open-week targeting** remains constrained to the current
+- [x] **Open-week targeting** remains constrained to the current
       `skeletonWeek`.
-- [ ] **Deterministic load rule** sets selected week target load to 50% of
+- [x] **Deterministic load rule** sets selected week target load to 50% of
       the current value and records a deload note.
-- [ ] **Tool/API parity** adds `deload_week` support to
+- [x] **Tool/API parity** adds `deload_week` support to
       `update_training_plan` surface and validation.
-- [ ] **Verification gate**: format, typecheck, tests, build.
+- [x] **Verification gate**: format, typecheck, tests, build.
 
 Design: `docs/specs/2026-08-07-v0.57-deload-week-quick-action-design.md`.
 Plan: `docs/plans/2026-08-07-v0.57-deload-week-quick-action.md`.
+
+Released as tag `v0.57.0` from merged PR #68.
 
 ## Ongoing — operations track
 
