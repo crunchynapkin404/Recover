@@ -33,6 +33,7 @@ import { WeekDayList } from "@/components/train/week-day-list";
 import { SeasonTimelineCard } from "@/components/train/season-timeline-card";
 import { FuellingCard } from "@/components/train/fuelling-card";
 import { PlanStyleSwitch } from "@/components/train/plan-style-switch";
+import { SeasonModeSwitch } from "@/components/train/season-mode-switch";
 import { WeekRationale, fmt, article } from "@/components/plan/week-rationale";
 import { EventReadiness } from "@/components/plan/event-readiness";
 import {
@@ -87,6 +88,7 @@ import {
 } from "@/lib/log-href";
 import {
   setPlanStyleQuick,
+  setSeasonModeQuick,
   startWeek,
   submitAvailability,
 } from "@/app/plan/actions";
@@ -754,6 +756,11 @@ async function WeekTab({
             <PlanStyleSwitch
               effectiveStyle={constraints.planStyle}
               action={setPlanStyleQuick}
+            />
+            <SeasonModeSwitch
+              effectiveSeasonMode={constraints.seasonMode}
+              reentryStage={constraints.reentryStage}
+              action={setSeasonModeQuick}
             />
           </div>
         }

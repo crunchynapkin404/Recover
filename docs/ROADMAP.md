@@ -1072,22 +1072,45 @@ Plan: `docs/plans/2026-08-07-v0.53-planning-surface-parity-lock.md`.
 
 Released as tag `v0.53.0` from merged PR #61.
 
-## 🚧 v0.54 — Plan style quick switch
+## ✅ v0.54 — Plan style quick switch
 
 Expose the existing planning style system directly in Train so athletes can
 switch between balanced and block-lite without a coach/tool round-trip.
 
-- [ ] **Week surface style chip** in Train showing current effective style.
-- [ ] **One-tap style switch** from Train with explicit confirmation and
+- [x] **Week surface style chip** in Train showing current effective style.
+- [x] **One-tap style switch** from Train with explicit confirmation and
       deterministic response messaging.
-- [ ] **Immediate week refresh path** so style changes are visible without
+- [x] **Immediate week refresh path** so style changes are visible without
       requiring a manual page reload.
-- [ ] **No planning algorithm change**: materialization rules remain exactly
+- [x] **No planning algorithm change**: materialization rules remain exactly
       the same; this is an access and UX release.
-- [ ] **Verification gate**: format, typecheck, tests, build.
+- [x] **Verification gate**: format, typecheck, tests, build.
 
 Design: `docs/specs/2026-08-07-v0.54-plan-style-quick-switch-design.md`.
 Plan: `docs/plans/2026-08-07-v0.54-plan-style-quick-switch.md`.
+
+Released as tag `v0.54.0` from merged PR #63.
+
+## 🚧 v0.55 — Season mode quick switch
+
+Expose season mode controls directly in Train so athletes can move between
+normal training, off-season, and explicit re-entry without leaving the week
+surface.
+
+- [ ] **Week surface season chip** showing current effective season mode and
+      re-entry stage.
+- [ ] **One-tap season mode switch** in Train using the existing planning
+      update path.
+- [ ] **Explicit re-entry starter** that moves an athlete from off-season
+      into `week_1` re-entry.
+- [ ] **Immediate week refresh path** so season-mode changes are visible
+      without a manual reload.
+- [ ] **No planning algorithm change**: off-season and re-entry shaping stay
+      exactly as shipped; this is a Train access release.
+- [ ] **Verification gate**: format, typecheck, tests, build.
+
+Design: `docs/specs/2026-08-07-v0.55-season-mode-quick-switch-design.md`.
+Plan: `docs/plans/2026-08-07-v0.55-season-mode-quick-switch.md`.
 
 ## Ongoing — operations track
 

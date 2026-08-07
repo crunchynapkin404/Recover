@@ -12,6 +12,7 @@ import {
   clearDayOverride,
   setDayOverride,
   setPlanStyleQuick,
+  setSeasonModeQuick,
   setStandardWeekDay,
   submitAvailability,
   zeroDay,
@@ -433,6 +434,97 @@ describe.skipIf(!hasDb)("server actions", () => {
       expect(
         (plan?.constraints as { planStyle?: unknown } | null)?.planStyle
       ).toBe("block_lite");
+    });
+  });
+
+  describe("setSeasonModeQuick", () => {
+    beforeEach(async () => {
+      const { db, schema } = await import("@/lib/db");
+      await db
+        .delete(schema.trainingPlans)
+        .where(eq(schema.trainingPlans.userId, USER));
+      await db.insert(schema.trainingPlans).values({
+        userId: USER,
+        title: "Season Mode Switch Test",
+        raceType: "marathon",
+        raceDate: "2027-01-01",
+        startDate: "2026-01-01",
+        weeksTotal: 12,
+        currentWeek: 2,
+        status: "active",
+        constraints: {
+          daysPerWeek: 5,
+          hoursPerWeek: 8,
+          sports: ["Run"],
+          seasonMode: "normal",
+          reentryStage: "none",
+        },
+      });
+    });
+
+    it("rejects an invalid season action", async () => {
+      const form = new FormData();
+      form.set("seasonAction", "strange");
+      await expect(setSeasonModeQuick(form)).resolves.toEqual({
+        ok: false,
+        error: "invalid_season_action",
+      });
+    });
+
+    it("switches the active plan into off-season", async () => {
+      const form = new FormData();
+      form.set("seasonAction", "off_season");
+
+      await expect(setSeasonModeQuick(form)).resolves.toEqual({ ok: true });
+
+      const { db, schema } = await import("@/lib/db");
+      const plan = await db.query.trainingPlans.findFirst({
+        where: and(
+          eq(schema.trainingPlans.userId, USER),
+          eq(schema.trainingPlans.status, "active")
+        ),
+      });
+
+      expect(
+        (plan?.constraints as { seasonMode?: unknown } | null)?.seasonMode
+      ).toBe("off_season");
+      expect(
+        (plan?.constraints as { reentryStage?: unknown } | null)?.reentryStage
+      ).toBe("none");
+    });
+
+    it("starts re-entry from the existing active plan", async () => {
+      const { db, schema } = await import("@/lib/db");
+      await db
+        .update(schema.trainingPlans)
+        .set({
+          constraints: { seasonMode: "off_season", reentryStage: "none" },
+        })
+        .where(
+          and(
+            eq(schema.trainingPlans.userId, USER),
+            eq(schema.trainingPlans.status, "active")
+          )
+        );
+
+      const form = new FormData();
+      form.set("seasonAction", "begin_reentry");
+
+      await expect(setSeasonModeQuick(form)).resolves.toEqual({ ok: true });
+
+      const plan = await db.query.trainingPlans.findFirst({
+        where: and(
+          eq(schema.trainingPlans.userId, USER),
+          eq(schema.trainingPlans.status, "active")
+        ),
+      });
+
+      expect(
+        (plan?.constraints as { seasonMode?: unknown } | null)?.seasonMode
+      ).toBe("off_season");
+      expect(
+        (plan?.constraints as { reentryStage?: unknown } | null)?.reentryStage
+      ).toBe("week_1");
     });
   });
 
