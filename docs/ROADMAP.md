@@ -1239,6 +1239,7 @@ training decisions first, then deepen insight quality and operational safety.
 | v0.70   | Evidence and audit trail                      | Every meaningful coaching change is traceable and reviewable.                         | 1) Add immutable recommendation/audit timeline events. 2) Add per-week "why this changed" panel with linked reasons. 3) Add exportable decision log for self-hosted operators. 4) Add redaction controls for sensitive notes in exports. 5) Add tests for timeline completeness and export integrity.                                                                                           |
 
 Released as tag `v0.61.0` from merged PR #79.
+Released as tag `v0.62.0` from merged PR #81.
 
 ### Release lane definition of done (template)
 
