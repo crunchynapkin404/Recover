@@ -158,6 +158,11 @@ export async function setWeekAdjustmentQuick(
     return { ok: false, error: "invalid_week_adjustment" };
   }
 
+  const openWeek = await getOpenWeekPlan(user.id);
+  if (!openWeek || weekNumber !== openWeek.skeletonWeek) {
+    return { ok: false, error: "stale_week_adjustment" };
+  }
+
   const { updateTrainingPlanTool } =
     await import("@/lib/tools/update-training-plan");
   const reason =

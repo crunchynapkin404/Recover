@@ -577,6 +577,23 @@ describe.skipIf(!hasDb)("server actions", () => {
       });
     });
 
+    it("rejects stale week submissions", async () => {
+      const form = new FormData();
+      form.set("weekAction", "reduce_load");
+      form.set("weekNumber", "3");
+
+      await expect(setWeekAdjustmentQuick(form)).resolves.toEqual({
+        ok: false,
+        error: "stale_week_adjustment",
+      });
+
+      const { db, schema } = await import("@/lib/db");
+      const block = await db.query.trainingBlocks.findFirst({
+        where: eq(schema.trainingBlocks.notes, "week adjustment test"),
+      });
+      expect(block?.targetLoadTotal).toBe(300);
+    });
+
     it("reduces the open skeleton week's target load", async () => {
       const form = new FormData();
       form.set("weekAction", "reduce_load");

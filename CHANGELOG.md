@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.58.0 — 2026-08-07 — Week action freshness guardrails
+
+This release prevents stale Train week-action submissions from mutating the
+wrong week after a rollover.
+
+- Added an open-week guard in `setWeekAdjustmentQuick` so week actions only
+  execute when the submitted `weekNumber` matches the current open
+  `skeletonWeek`.
+- Added a deterministic stale-submission refusal path,
+  `stale_week_adjustment`, for mismatched week posts.
+- Added focused action-layer tests proving stale submissions are rejected and
+  leave existing week targets unchanged.
+
 ## v0.57.0 — 2026-08-07 — Deload week quick action
 
 This release extends Train week quick actions with a deterministic deload
