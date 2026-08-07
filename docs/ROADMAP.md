@@ -1201,6 +1201,8 @@ effects directly on each action button.
 Design: `docs/specs/2026-08-08-v0.59-week-action-effect-hints-design.md`.
 Plan: `docs/plans/2026-08-08-v0.59-week-action-effect-hints.md`.
 
+Released as tag `v0.59.0` from merged PR #74.
+
 ## Ongoing — operations track
 
 All items scheduled into **v0.17 — Good Self-Hosted Citizen** by the v0.9.6
