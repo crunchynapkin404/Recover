@@ -65,6 +65,7 @@ async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
       distanceKm: r.distanceKm,
       elevationM: r.elevationM,
       demandHoursOverride: r.demandHoursOverride,
+      expectedFinishHours: r.expectedFinishHours,
       resultActivityId: r.resultActivityId,
       daysToRace: daysFromToday(r.date),
       stages: stages.get(r.id) ?? [],

@@ -201,6 +201,7 @@ async function seed() {
     sleepNeedSecs: 27000,
     maxHr: 190,
     ftpWatts: 285,
+    thresholdPaceSecPerKm: 258,
     birthYear: 1990,
     levelOverride: "advanced",
   };
@@ -364,6 +365,7 @@ async function seed() {
     distanceKm: 10.4,
     elevationM: 85,
     demandHoursOverride: 6.5,
+    expectedFinishHours: 0.67,
     resultActivityId: activity.id,
     debriefedAt: new Date("2026-01-02T12:00:00Z"),
     createdAt: new Date("2025-12-01T08:00:00Z"),
