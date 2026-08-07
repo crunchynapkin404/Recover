@@ -68,10 +68,14 @@ export const DEMAND_CONSTANTS = {
    * CONFIDENCE: MEDIUM. Vickers & Vertosick 2016 (BMC Sports Sci Med Rehabil,
    * "An empirical study of race times in recreational endurance runners")
    * found the exponent varies with training volume and runs ABOVE 1.06 for
-   * recreational runners — meaning this value slightly UNDERSTATES a
-   * recreational athlete's marathon time. The direction of the error is known
-   * and it is the safe direction: a shorter predicted race understates demand
-   * rather than prescribing training nobody can absorb.
+   * recreational runners — meaning this value UNDERSTATES a recreational
+   * athlete's marathon time. The magnitude is not characterised here and
+   * should not be described as small: secondary summaries of that work put
+   * the standard-Riegel marathon underestimate at roughly ten minutes for
+   * half of recreational runners, and the primary paper has not been checked
+   * against that figure. What IS known is the DIRECTION, and it is the safe
+   * one: a shorter predicted race understates demand rather than prescribing
+   * training nobody can absorb.
    */
   RIEGEL_EXPONENT: 1.06,
   /**

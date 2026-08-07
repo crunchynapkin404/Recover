@@ -10,12 +10,21 @@ on the demand path read it. A runner with an FTP set had their marathon
 priced as roughly 1.2 h of cycling against a real 3–4 h run, silently wrong by
 a factor of three. A runner with no FTP got `null`, and the entire
 race-driven volume feature quietly reverted to the athlete's flat weekly
-availability with no word on any screen. **Cyclists' numbers do not move at
-all** — `src/lib/race/demand.test.ts` pins the reporting athlete's 130 km /
-4000 m gran fondo to the exact pre-release figures
+availability with no word on any screen. **Cyclists' demand figures do not
+move at all** — `src/lib/race/demand.test.ts` pins the reporting athlete's
+130 km / 4000 m gran fondo to the exact pre-release figures
 (`totalHours = 6.337242282842961`), and the demand sweep
 (`scripts/demand-sweep.ts`, `npx tsx scripts/demand-sweep.ts`) confirms it by
 printing the live number, not just asserting it.
+
+**One cycling-visible change does follow from the longest-session fix, and it
+is named here rather than covered by that guarantee**, which pins the demand
+figure only. A cyclist whose longest logged activity was not a ride — a hike,
+a long walk, anything the sport map does not recognise — was previously
+credited with it toward their longest-ride readiness, and no longer is. Their
+`/train` verdict can therefore soften by one rung. That is the point of the
+fix rather than a side effect of it, but it is a number moving for a cyclist,
+and the freeze test does not cover it.
 
 Runners now get a real model. `estimateRunningHours`
 (`src/lib/race/running-time.ts`) prices distance and elevation against a
@@ -65,7 +74,13 @@ already enforces for the hours number itself.
 `{ available: false, reason }` branch — closed to `no_cycling_anchor`,
 `no_running_anchor`, `no_swim_anchor`, `unknown_triathlon_format`, and
 `no_distance` — so a missing anchor cannot silently fall through to a
-fallback the way it did before. The longest-session check that feeds
+fallback the way it did before. To be precise about what changed: the
+weekly target still falls back to the plan's stored hours when no figure can
+be produced. What no longer happens is the _silence_ — `/train` now renders
+the reason beside it, and the coach receives the same sentence. The
+discriminated type is what makes that unavoidable: a caller cannot reach the
+fallback without having handled the branch that explains it. The
+longest-session check that feeds
 feasibility now filters by the race's own sport too
 (`longestSessionHoursOf`, replacing a `longestRideHoursOf` that returned the
 longest activity of _any_ kind): a triathlete's readiness is no longer

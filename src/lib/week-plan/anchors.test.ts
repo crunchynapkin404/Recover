@@ -65,6 +65,22 @@ describe("swimPaceFromHistory", () => {
     expect(pace).toBeCloseTo(150, 6);
   });
 
+  it("averages the two middle values on an even-length history", () => {
+    // The odd-length case above exercises the `paces[mid]` branch only. Without
+    // this, deleting the even branch's averaging and returning `paces[mid]`
+    // outright would leave the suite green — the same shape as the untested
+    // clamp v0.45 had to delete four tests over.
+    const pace = swimPaceFromHistory([
+      swim(1000, 1200), // 2:00/100m
+      swim(1000, 1500), // 2:30/100m
+      swim(1000, 1800), // 3:00/100m
+      swim(1000, 2100), // 3:30/100m
+    ]);
+    // Middle two are 150 and 180; their mean is 165. Picking either one
+    // instead (150 or 180) fails this assertion.
+    expect(pace).toBeCloseTo(165, 6);
+  });
+
   it("ignores swims below the qualifying distance", () => {
     expect(swimPaceFromHistory([swim(200, 240)])).toBeNull();
   });
