@@ -1238,6 +1238,8 @@ training decisions first, then deepen insight quality and operational safety.
 | v0.69   | Multi-sport adaptation pass                   | Running/cycling/triathlon athletes get sport-aware adaptation logic.                  | 1) Normalize sport load vocabulary for adaptation logic. 2) Add sport-specific adjustment caps where needed. 3) Add mixed-week handling (multi-sport planned vs actual). 4) Add confidence downgrade when cross-sport data is sparse. 5) Add regression tests for mixed-sport edge cases.                                                                                                       |
 | v0.70   | Evidence and audit trail                      | Every meaningful coaching change is traceable and reviewable.                         | 1) Add immutable recommendation/audit timeline events. 2) Add per-week "why this changed" panel with linked reasons. 3) Add exportable decision log for self-hosted operators. 4) Add redaction controls for sensitive notes in exports. 5) Add tests for timeline completeness and export integrity.                                                                                           |
 
+Released as tag `v0.61.0` from merged PR #79.
+
 ### Release lane definition of done (template)
 
 For each lane, do not merge until all boxes are checked:
