@@ -1040,7 +1040,7 @@ export async function previewTrainingPlan(
   }
 
   // 5. Reuse the engine's own numbers rather than inventing display ones.
-  const { target, demand, level, longestRideHours } =
+  const { target, demand, level, longestSessionHours } =
     await assembleWeeklyTarget(userId, today, {
       availabilityHours: hoursPerWeek,
       planHoursPerWeek: hoursPerWeek,
@@ -1086,7 +1086,7 @@ export async function previewTrainingPlan(
           currentWeeklyHours: level.peakHours,
           queenStageHours: demand.queenStageHours,
           queenStageKnown: demand.queenStageKnown,
-          longestRideHours,
+          longestRideHours: longestSessionHours,
           weeksUntilEvent: weeksTotal,
         });
 
@@ -1211,7 +1211,7 @@ export async function previewFromDraft(
     where: eq(schema.availabilityDefaults.userId, draft.userId),
   });
 
-  const { target, demand, level, longestRideHours } =
+  const { target, demand, level, longestSessionHours } =
     await assembleWeeklyTarget(draft.userId, today, {
       availabilityHours: hoursPerWeek,
       planHoursPerWeek: hoursPerWeek,
@@ -1229,7 +1229,7 @@ export async function previewFromDraft(
           currentWeeklyHours: level.peakHours,
           queenStageHours: demand.queenStageHours,
           queenStageKnown: demand.queenStageKnown,
-          longestRideHours,
+          longestRideHours: longestSessionHours,
           weeksUntilEvent: weeksUntilRace,
         });
 

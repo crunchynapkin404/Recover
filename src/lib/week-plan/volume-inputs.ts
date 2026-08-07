@@ -1,18 +1,25 @@
 /**
  * Gathers everything the volume model needs, in one place, so the pure
  * modules stay pure: event demand, the athlete's rolling peak, and their
- * longest recent ride.
+ * longest recent session in the race's own sport.
  */
 import { and, desc, eq, gte } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { dedupeActivities } from "@/lib/training-load";
 import { eventDemand, type EventDemandResult } from "@/lib/race/demand";
+import { canonicalSport } from "@/lib/canonical-sport";
+import { disciplinesOf } from "@/lib/plan-sport";
 import {
   athleteLevel,
   LEVEL_CONSTANTS,
   type AthleteLevel,
   type LevelResult,
 } from "@/lib/athlete-level";
+import {
+  ANCHOR_CONSTANTS,
+  swimPaceFromHistory,
+  thresholdPaceFromHistory,
+} from "./anchors";
 import { weeklyDisplayTarget, type VolumeResult } from "./volume";
 
 /** Monday of the week containing `d`, at local midnight. */
@@ -47,6 +54,7 @@ function localYmd(d: Date): string {
 
 export interface HistoryActivity {
   provider: string;
+  sport: string;
   startDate: Date;
   durationS: number | null;
 }
@@ -84,19 +92,32 @@ export function weeklyHoursByWeek(
   return buckets;
 }
 
-/** Longest single de-duplicated ride in the window, in hours. */
-export function longestRideHoursOf(
-  activities: HistoryActivity[]
+/**
+ * Longest single de-duplicated session in the window that counts as one of
+ * `disciplines`, in hours.
+ *
+ * The sport filter is the whole point. Before v0.46 this took the longest
+ * activity of ANY kind — it was named for a ride and computed the longest
+ * anything — so a triathlete's marathon readiness was answered by their
+ * longest bike ride, and a cyclist who hikes could have a long walk outrank
+ * every ride they own.
+ */
+export function longestSessionHoursOf(
+  activities: HistoryActivity[],
+  disciplines: readonly string[]
 ): number | null {
+  const wanted = new Set(disciplines);
   const unique = dedupeActivities(
-    activities.map((a) => ({
-      provider: a.provider,
-      startDate: a.startDate,
-      durationS: a.durationS,
-      load: null,
-      avgHr: null,
-      avgPower: null,
-    }))
+    activities
+      .filter((a) => wanted.has(canonicalSport(a.sport)))
+      .map((a) => ({
+        provider: a.provider,
+        startDate: a.startDate,
+        durationS: a.durationS,
+        load: null,
+        avgHr: null,
+        avgPower: null,
+      }))
   );
   let longest = 0;
   for (const a of unique)
@@ -109,7 +130,7 @@ export interface VolumeInputsResult {
   // from "a race we could not price" — that is `{ available: false }`.
   demand: EventDemandResult | null;
   level: LevelResult;
-  longestRideHours: number | null;
+  longestSessionHours: number | null;
   targetRace: { id: string; name: string; date: string } | null;
 }
 
@@ -121,7 +142,15 @@ export async function assembleVolumeInputs(
   const floor = new Date(now);
   floor.setDate(floor.getDate() - weeks * 7);
 
-  const [rows, wellness, prefs, races] = await Promise.all([
+  // The pace anchor needs a wider window than the rolling peak
+  // (ANCHOR_CONSTANTS.WINDOW_DAYS = 180 vs. the 12-week/84-day floor above),
+  // so it gets its own query rather than widening `rows` — widening `rows`
+  // would move athleteLevel's rolling peak, and this release must not move
+  // the reporting cyclist's numbers.
+  const anchorFloor = new Date(now);
+  anchorFloor.setDate(anchorFloor.getDate() - ANCHOR_CONSTANTS.WINDOW_DAYS);
+
+  const [rows, wellness, prefs, races, anchorRows] = await Promise.all([
     db.query.activities.findMany({
       where: and(
         eq(schema.activities.userId, userId),
@@ -151,10 +180,18 @@ export async function assembleVolumeInputs(
         gte(schema.races.date, localYmd(now))
       ),
     }),
+    db.query.activities.findMany({
+      where: and(
+        eq(schema.activities.userId, userId),
+        gte(schema.activities.startDate, anchorFloor)
+      ),
+      columns: { sport: true, distanceM: true, durationS: true },
+    }),
   ]);
 
   const history: HistoryActivity[] = rows.map((r) => ({
     provider: r.provider,
+    sport: r.sport,
     startDate: r.startDateLocal ?? r.startDate,
     durationS: r.durationS,
   }));
@@ -197,6 +234,13 @@ export async function assembleVolumeInputs(
     });
     const latestWeight = wellness.find((w) => w.weightKg != null)?.weightKg;
     const latestEftp = wellness.find((w) => w.eftp != null)?.eftp;
+    const runPaceSet = prefs?.thresholdPaceSecPerKm ?? null;
+    const runPaceDerived =
+      runPaceSet == null ? thresholdPaceFromHistory(anchorRows) : null;
+    const swimDerived = swimPaceFromHistory(anchorRows);
+    const ftpSet = prefs?.ftpWatts ?? null;
+    const ftpSynced = latestEftp != null ? Math.round(latestEftp) : null;
+
     demand = eventDemand({
       sport: target.sport,
       raceType: target.raceType,
@@ -211,28 +255,32 @@ export async function assembleVolumeInputs(
       overrideWeeklyHours: target.demandHoursOverride,
       expectedFinishHours: target.expectedFinishHours,
       ftp:
-        prefs?.ftpWatts != null
-          ? { watts: prefs.ftpWatts, athleteSet: true }
-          : latestEftp != null
-            ? { watts: Math.round(latestEftp), athleteSet: false }
+        ftpSet != null
+          ? { watts: ftpSet, athleteSet: true }
+          : ftpSynced != null
+            ? { watts: ftpSynced, athleteSet: false }
             : null,
       // Rider weight plus an allowance for bike and kit.
       massKg: latestWeight != null ? latestWeight + 8 : null,
       runPace:
-        prefs?.thresholdPaceSecPerKm != null
-          ? { secPerKm: prefs.thresholdPaceSecPerKm, athleteSet: true }
+        runPaceSet != null
+          ? { secPerKm: runPaceSet, athleteSet: true }
+          : runPaceDerived != null
+            ? { secPerKm: runPaceDerived, athleteSet: false }
+            : null,
+      swimPace:
+        swimDerived != null
+          ? { secPer100m: swimDerived, athleteSet: false }
           : null,
-      // No history-derived swim pace exists yet — a swim leg is priced only
-      // when the athlete has set one, or refused (no_swim_anchor) with
-      // `expectedFinishHours` offered as the way through.
-      swimPace: null,
     });
   }
 
   return {
     demand,
     level,
-    longestRideHours: longestRideHoursOf(history),
+    longestSessionHours: target
+      ? longestSessionHoursOf(history, disciplinesOf(target.sport))
+      : null,
     targetRace: target
       ? { id: target.id, name: target.name, date: String(target.date) }
       : null,
