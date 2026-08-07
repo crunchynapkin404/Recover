@@ -1052,23 +1052,42 @@ Plan: `docs/plans/2026-08-07-v0.52-off-season-mode.md`.
 
 Released as tag `v0.52.0` from merged PR #59.
 
-## 🚧 v0.53 — Planning surface parity lock
+## ✅ v0.53 — Planning surface parity lock
 
 Stabilization release that locks one shared effective planning-state contract
 across tools and UI surfaces, without changing planning algorithms.
 
-- [ ] **Shared effective-state resolver** for `effectiveStyle`,
+- [x] **Shared effective-state resolver** for `effectiveStyle`,
       `effectiveSeasonMode`, and `reentryStage`.
-- [ ] **Tool parity lock**: `get_week_plan`, `get_training_plan`, and
+- [x] **Tool parity lock**: `get_week_plan`, `get_training_plan`, and
       `update_training_plan` return consistent effective-state fields.
-- [ ] **UI parity lock**: Train planning surface consumes the shared resolver
+- [x] **UI parity lock**: Train planning surface consumes the shared resolver
       instead of deriving state independently.
-- [ ] **No regression in planning behavior**: materialization/adaptation logic
+- [x] **No regression in planning behavior**: materialization/adaptation logic
       unchanged; parity only.
-- [ ] **Verification gate**: format, typecheck, tests, build.
+- [x] **Verification gate**: format, typecheck, tests, build.
 
 Design: `docs/specs/2026-08-07-v0.53-planning-surface-parity-lock-design.md`.
 Plan: `docs/plans/2026-08-07-v0.53-planning-surface-parity-lock.md`.
+
+Released as tag `v0.53.0` from merged PR #61.
+
+## 🚧 v0.54 — Plan style quick switch
+
+Expose the existing planning style system directly in Train so athletes can
+switch between balanced and block-lite without a coach/tool round-trip.
+
+- [ ] **Week surface style chip** in Train showing current effective style.
+- [ ] **One-tap style switch** from Train with explicit confirmation and
+      deterministic response messaging.
+- [ ] **Immediate week refresh path** so style changes are visible without
+      requiring a manual page reload.
+- [ ] **No planning algorithm change**: materialization rules remain exactly
+      the same; this is an access and UX release.
+- [ ] **Verification gate**: format, typecheck, tests, build.
+
+Design: `docs/specs/2026-08-07-v0.54-plan-style-quick-switch-design.md`.
+Plan: `docs/plans/2026-08-07-v0.54-plan-style-quick-switch.md`.
 
 ## Ongoing — operations track
 
