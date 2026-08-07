@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { eventDemand, type EventDemandInput } from "./demand";
+import { estimateSwimHours } from "./swim-time";
+import { triathlonLegsFor } from "./triathlon-legs";
 
 const ATHLETE = { ftp: { watts: 310, athleteSet: true }, massKg: 87 };
 const base: EventDemandInput = {
@@ -344,10 +346,53 @@ describe("eventDemand dispatches on sport", () => {
     });
     expect(result.available).toBe(true);
     if (!result.available) return;
-    // 1.27 h swim + a 180 km ride + a 42.2 km run. A sub-9 or over-17 total
-    // would mean a leg was dropped or double-counted.
-    expect(result.totalHours).toBeGreaterThan(9);
-    expect(result.totalHours).toBeLessThan(17);
+    // 1.2667 h swim + 5.5912 h bike + 3.7923 h run = 10.6502 h total (these
+    // legs at this athlete's anchors). The (9, 17) range this test used to
+    // assert was wide enough that dropping the swim leg entirely (9.38h)
+    // still passed it. This range is tight around the true total and clears
+    // every wrong-implementation total below by at least half an hour:
+    //   swim dropped   ~9.38h (below 10.3)
+    //   bike dropped   ~5.06h (below 10.3)
+    //   run dropped    ~6.86h (below 10.3)
+    //   swim doubled  ~11.92h (above 11.0)
+    expect(result.totalHours).toBeGreaterThan(10.3);
+    expect(result.totalHours).toBeLessThan(11.0);
+  });
+
+  it("moves the total by exactly what the swim leg's pace implies", () => {
+    // Behavioural pin for the same finding: an implementation that silently
+    // ignores swimPace (e.g. drops swimHours from the sum) would produce the
+    // SAME total for two races that differ only in swimPace, since neither
+    // the bike nor the run leg reads it. Pricing the identical Ironman twice
+    // with different swimPace values and requiring the totals to differ by
+    // exactly the swim leg's own delta cannot be satisfied by such a bug.
+    const legs = triathlonLegsFor("ironman");
+    if (legs == null) throw new Error("ironman legs missing from fixture");
+
+    const fasterSwim = eventDemand({
+      ...RUNNER,
+      sport: "Triathlon",
+      raceType: "ironman",
+      distanceKm: 226,
+      swimPace: { secPer100m: 90, athleteSet: true },
+    });
+    const slowerSwim = eventDemand({
+      ...RUNNER,
+      sport: "Triathlon",
+      raceType: "ironman",
+      distanceKm: 226,
+      swimPace: { secPer100m: 150, athleteSet: true },
+    });
+    expect(fasterSwim.available).toBe(true);
+    expect(slowerSwim.available).toBe(true);
+    if (!fasterSwim.available || !slowerSwim.available) return;
+
+    const expectedDiff =
+      estimateSwimHours(legs.swimKm, 150)! - estimateSwimHours(legs.swimKm, 90)!;
+    expect(slowerSwim.totalHours - fasterSwim.totalHours).toBeCloseTo(
+      expectedDiff,
+      10
+    );
   });
 
   it("refuses a triathlon whose format has no known leg distances", () => {

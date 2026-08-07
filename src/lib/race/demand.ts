@@ -136,6 +136,15 @@ const ANCHOR_DERIVED_COPY: Record<PlanSport, string> = {
 };
 
 /**
+ * Confidence copy when the athlete's own stated finish time won outright —
+ * the "high" branch, set before the sport dispatch even runs. A single
+ * sentence rather than a per-sport record like ANCHOR_SET_COPY: the athlete
+ * typed one number, not a sport-specific anchor, so there is nothing to key
+ * a record on.
+ */
+const STATED_FINISH_TIME_COPY = "Your expected finish time.";
+
+/**
  * A discriminated result rather than `EventDemand | null`.
  *
  * The null return is what let F3 hide for four releases: `volume.ts` took its
@@ -207,7 +216,7 @@ export function eventDemand(input: EventDemandInput): EventDemandResult {
       allAnchorsAthleteSet: true,
     };
     confidence = "high";
-    confidenceReason = "Your expected finish time.";
+    confidenceReason = STATED_FINISH_TIME_COPY;
   } else if (input.sport === "Triathlon") {
     // 2. Legs come from the format, not from distanceKm — a triathlon's
     //    226 km total does not decompose into 3.8 / 180 / 42.2.
