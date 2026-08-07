@@ -229,9 +229,9 @@ describe.skipIf(!hasDb)("previewTrainingPlan (v0.43)", () => {
     if (!demand.available) return;
 
     // One ride, comfortably above both what the event's weekly demand asks
-    // for and 80% of its queen-stage hours (the longest-ride requirement) —
-    // it is simultaneously the peak week and the longest ride on file, so it
-    // drives both `level.peakHours` and `longestRideHours` to the same
+    // for and 80% of its queen-stage hours (the longest-session requirement) —
+    // it is simultaneously the peak week and the longest session on file, so
+    // it drives both `level.peakHours` and `longestSessionHours` to the same
     // value.
     const activityHours = demand.weeklyHours * 1.5;
     await db.insert(schema.activities).values({

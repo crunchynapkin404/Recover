@@ -123,15 +123,15 @@ export function assessFeasibility(input: FeasibilityInput): Feasibility | null {
   // Volume alone can reach any rung, including the worst.
   const volumeVerdict = volumeOnlyVerdict(volumeWeeksNeeded, weeksUntilEvent);
 
-  // A longest-ride shortfall softens by ONE step and can never, by itself,
+  // A longest-session shortfall softens by ONE step and can never, by itself,
   // reach "not_realistic" -- see the file header on why that rule is
   // deliberately weaker than the volume ladder.
-  const rideGap = longestSessionWeeksNeeded > weeksUntilEvent;
+  const sessionGap = longestSessionWeeksNeeded > weeksUntilEvent;
   const volumeIndex = RUNGS.indexOf(volumeVerdict);
   const softenedIndex = Math.min(volumeIndex + 1, RUNGS.indexOf("tight"));
-  // Math.max against the volume index means a ride gap can only ever make
+  // Math.max against the volume index means a session gap can only ever make
   // the verdict worse (or leave it unchanged), never better.
-  const verdict = rideGap
+  const verdict = sessionGap
     ? RUNGS[Math.max(volumeIndex, softenedIndex)]
     : volumeVerdict;
 
