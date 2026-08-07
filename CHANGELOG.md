@@ -1,5 +1,108 @@
 # Changelog
 
+## v0.46.0 — 2026-08-07 — Demand knows its sport
+
+`eventDemand`, the function every race-driven training target is built on,
+priced every event with `estimateRidingHours` — the cycling drag equation —
+regardless of what sport the race actually was. `races.sport` has been a
+stored, validated `["Bike","Run","Triathlon"]` enum since v0.42, and nothing
+on the demand path read it. A runner with an FTP set had their marathon
+priced as roughly 1.2 h of cycling against a real 3–4 h run, silently wrong by
+a factor of three. A runner with no FTP got `null`, and the entire
+race-driven volume feature quietly reverted to the athlete's flat weekly
+availability with no word on any screen. **Cyclists' numbers do not move at
+all** — `src/lib/race/demand.test.ts` pins the reporting athlete's 130 km /
+4000 m gran fondo to the exact pre-release figures
+(`totalHours = 6.337242282842961`), and the demand sweep
+(`scripts/demand-sweep.ts`, `npx tsx scripts/demand-sweep.ts`) confirms it by
+printing the live number, not just asserting it.
+
+Runners now get a real model. `estimateRunningHours`
+(`src/lib/race/running-time.ts`) prices distance and elevation against a
+threshold pace using Riegel's endurance formula (`T₂ = T₁ × (D₂/D₁)^1.06`,
+Riegel 1981) and the ITRA km-effort convention for climbing (100 m of ascent
+priced as one flat km). The threshold pace comes from `body_prefs` when the
+athlete has set one, or — new in this release — from their own run history:
+the fastest pace held over at least 5 km in the trailing 180 days. **That
+derived anchor is a floor on the athlete's ability, not a measurement of
+it** — nothing in the activity history distinguishes a genuine hard effort
+from an easy long run recorded at a similar pace, so an athlete who has not
+raced or pushed recently will be under-anchored. The error runs in the safe
+direction (demand comes out understated, never overstated), but it is still
+an assumption, not a fact, and is recorded as Low confidence on every screen
+that shows it.
+
+Triathletes get three legs summed, not one. The bike and run legs reuse the
+cycling and running models unchanged; the swim leg is priced from the
+athlete's own swim pace — the median across swims of at least 400 m in the
+trailing 180 days — with **no race-day adjustment of any kind**. That is
+deliberate, not an oversight: open-water conditions and race-day effort pull
+in opposite directions, and no published magnitude for the net effect was
+found, so the honest choice was to price the leg at the athlete's own
+training pace and say so in prose, rather than multiply by an invented
+constant dressed up as a correction. Leg distances (Ironman 3.8/180/42.2 km,
+70.3 1.9/90/21.1 km, Olympic, Sprint) come from a fixed lookup keyed to the
+race's format, because those distances are definitional — "Ironman" fixes a
+course length the way "marathon" does. **A triathlete with no swim history
+and no stated finish time gets no figure at all** — the model refuses rather
+than guessing a swim pace, naming the fix (add an expected finish time or a
+recent tracked swim) in the same sentence.
+
+A new `races.expected_finish_hours` lets the athlete's own stated time win
+outright over every model, needing no anchor at all. This is what rescues
+every refusal case above: an unrecognised triathlon format, missing swim
+history, or no threshold pace are all answered by one number the athlete
+already knows. A figure produced this way is marked **high** confidence; one
+built entirely from athlete-set anchors (a typed FTP or threshold pace) is
+**medium**; one that leaned on any derived or synced anchor is **low**. Every
+demand figure shown to the athlete, and the same figure handed to the coach,
+now carries a one-sentence reason for its confidence — the two surfaces
+cannot say different things, by the same discipline `assembleWeeklyTarget`
+already enforces for the hours number itself.
+
+`eventDemand` no longer returns a bare `null` on failure. A discriminated
+`EventDemandResult` forces every caller to handle an explicit
+`{ available: false, reason }` branch — closed to `no_cycling_anchor`,
+`no_running_anchor`, `no_swim_anchor`, `unknown_triathlon_format`, and
+`no_distance` — so a missing anchor cannot silently fall through to a
+fallback the way it did before. The longest-session check that feeds
+feasibility now filters by the race's own sport too
+(`longestSessionHoursOf`, replacing a `longestRideHoursOf` that returned the
+longest activity of *any* kind): a triathlete's readiness is no longer
+judged against a long walk that happened to outlast every ride they own.
+`/train` now says "longest run" to a runner and "longest ride" to a cyclist
+instead of hardcoding "ride" for everyone.
+
+**One limit does not get fixed here, and is named rather than implied
+away.** `FEASIBILITY_CONSTANTS.LONGEST_RIDE_FRACTION` (0.8) is sourced
+entirely from cycling coaching literature that is itself contested — gran
+fondo coaching calls the long ride the single biggest predictor of
+finishing, CTS disputes it directly. This release routes running and
+triathlon feasibility through the same function, and **the identical
+fraction is now applied to a runner's longest run and a triathlete's longest
+brick session with no supporting evidence in either sport** — not because it
+was validated there, but because no better number was found. The rule's
+existing guard rail (it can soften a verdict by at most one rung and can
+never by itself produce "not_realistic") limits the damage a wrong fraction
+can do, but it does not make the fraction right. Recorded in
+`docs/specs/2026-08-07-race-demand-evidence.md`, alongside every other new
+constant's source and confidence, and the two rejected alternatives: a
+Minetti-derived elevation model (needs a grade distribution the race form
+does not collect) and a default swim pace (would put an unsourced number
+into a training target for exactly the athletes who most need an honest
+refusal instead).
+
+One smaller rider, carried from v0.45: the weekly review's CTL-delta
+sentence compared `latestWellness.ctl` against a rolling 7-day lookback
+while the load figure next to it in the same sentence used the calendar
+week. Both now read from the same calendar-week window, so "CTL 62 (+3)"
+sits next to a load number computed on its own boundary rather than a
+different one.
+
+Migration 0039 (`drizzle/0039_demand_knows_its_sport.sql`) adds
+`body_prefs.threshold_pace_sec_per_km` and `races.expected_finish_hours`,
+both nullable and additive-only.
+
 ## v0.45.0 — 2026-08-06 — Every number has a source
 
 `periodize()`, the skeleton generator behind every training plan, runs on
