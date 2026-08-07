@@ -41,6 +41,13 @@ const LONGEST_NOUN: Record<PlanSport, string> = {
   Triathlon: "longest bike leg",
 };
 
+/** The verb for taking on this sport's event — used in "You can still ___ it." */
+const EVENT_VERB: Record<PlanSport, string> = {
+  Bike: "ride",
+  Run: "run",
+  Triathlon: "race",
+};
+
 function fmt(hours: number): string {
   return Number.isInteger(hours) ? `${hours}h` : `${hours.toFixed(1)}h`;
 }
@@ -83,8 +90,8 @@ export function EventReadiness({ raceName, sport, feasibility, demand }: Props) 
       {verdict === "not_realistic" && (
         <p className="mt-2 text-[11.5px] leading-relaxed text-white/60">
           {Number.isFinite(weeksNeeded)
-            ? `Closing the gap needs ${weeks(weeksNeeded)} of steady building, and there are ${weeks(weeksUntilEvent)}. You can still ${sport === "Bike" ? "ride" : "do"} it — go in knowing what it asks.`
-            : `There is no recent training here to build from, so there is no honest estimate of how long closing the gap would take. You can still ${sport === "Bike" ? "ride" : "do"} it — go in knowing what it asks.`}
+            ? `Closing the gap needs ${weeks(weeksNeeded)} of steady building, and there are ${weeks(weeksUntilEvent)}. You can still ${EVENT_VERB[sport]} it — go in knowing what it asks.`
+            : `There is no recent training here to build from, so there is no honest estimate of how long closing the gap would take. You can still ${EVENT_VERB[sport]} it — go in knowing what it asks.`}
         </p>
       )}
       {feasibility.fromAverageDay && (
