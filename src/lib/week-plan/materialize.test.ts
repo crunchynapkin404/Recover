@@ -733,6 +733,11 @@ describe("materializeWeek race handling", () => {
     expect(note!.date).toBe(BASE_INPUT.weekStart);
     expect(note!.reason).toContain("Parkrun");
     expect(note!.reason).toContain("priority C");
+    // The note must not claim the week is untouched: periodize()'s own
+    // end-of-plan taper still reduces it, just not by the race ladder.
+    expect(note!.reason).toContain("end-of-plan taper");
+    expect(note!.reason).toContain("partial reduction");
+    expect(note!.reason).not.toContain("full load");
   });
 
   it("two races: primary (first) reshapes, both get slots", () => {
@@ -1081,6 +1086,11 @@ describe("a B/C race's missing taper is recorded", () => {
     expect(note!.date).toBe(base.weekStart);
     expect(note!.reason).toContain("Club crit");
     expect(note!.reason).toContain("priority B");
+    // The note must not claim the week is untouched: periodize()'s own
+    // end-of-plan taper still reduces it, just not by the race ladder.
+    expect(note!.reason).toContain("end-of-plan taper");
+    expect(note!.reason).toContain("partial reduction");
+    expect(note!.reason).not.toContain("full load");
   });
 
   it("records nothing for a week with no races at all", () => {

@@ -39,9 +39,10 @@ reasons.
 _Acute:Chronic Workload Ratio: Conceptual Issues and Fundamental Pitfalls_,
 finds no evidence supporting ACWR for load management. The ratio is
 mathematically coupled — the acute week sits inside the chronic window, which
-produces spurious correlation — and its time windows are arbitrary. The 2025
-literature remains contested, with recent work arguing the model should be
-discarded as a framework altogether.
+produces spurious correlation — and its time windows are arbitrary. The
+debate continues, with some practitioners arguing the model should be
+abandoned as a framework altogether — a narrower claim than "the 2025
+literature," since no specific 2025 source is cited here.
 
 **`HEADROOM` was never an ACWR anyway.** An ACWR is acute 7-day load divided by
 chronic 28-day rolling load. `HEADROOM` is this week's hours divided by a

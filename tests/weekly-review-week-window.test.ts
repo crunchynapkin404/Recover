@@ -15,11 +15,20 @@ describe("the review's week window", () => {
     expect(weekEnd).toBe("2026-08-02");
   });
 
-  it("is seven days long from any day of the week", () => {
+  it("spans exactly 6 days start-to-end (7 days inclusive), from any day of the week", () => {
     for (let i = 0; i < 7; i++) {
       const now = new Date(`2026-08-0${3 + i}T04:00:00`);
       const weekStart = addDaysYmd(mondayOf(now), -7);
-      expect(addDaysYmd(weekStart, 6) > weekStart).toBe(true);
+      const weekEnd = addDaysYmd(weekStart, 6);
+      // A string comparison (weekEnd > weekStart) would pass for ANY
+      // positive offset, not specifically 6 — measure the actual span in
+      // milliseconds instead, so a quietly-shortened or -lengthened
+      // window (e.g. 1 or 3 days) fails this assertion.
+      const spanDays =
+        (new Date(weekEnd + "T00:00:00").getTime() -
+          new Date(weekStart + "T00:00:00").getTime()) /
+        (24 * 60 * 60 * 1000);
+      expect(spanDays).toBe(6);
       expect(new Date(weekStart + "T00:00:00").getDay()).toBe(1); // Monday
     }
   });

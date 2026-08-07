@@ -76,13 +76,23 @@ is also floored at `MIN_WEEKLY_LOAD`, so it can only cap a runaway, never cut
 below the plan's existing minimum — a low-CTL athlete's opening week is
 unchanged.
 
-A B or C priority race still gets no taper at all. `materializeWeek` only
-ever reshapes a week for a priority-A race, and now that the skeleton's own
-decay is gone there is no accidental fallback covering B or C either. What
-changed is that the gap is now recorded instead of silent: a week that falls
-inside a B/C race's own taper window logs an adjustment saying so, in words a
-coach or athlete can read. **The taper itself is not built here — only made
-visible.** A real B/C mini-taper is scheduled for v0.47.
+A B or C priority race still gets no _race-driven_ taper. `materializeWeek`
+only ever reshapes a week for a priority-A race, and that part is unchanged
+by this release. It is not true that B/C gets no reduction at all, though:
+periodize()'s own end-of-plan taper phase still reduces those weeks — Task 4
+replaced its decay rate, not its existence — and `effectiveWeekLoad`'s
+pre-existing ramp guard then clamps that reduction upward toward last week's
+actual load, so what an athlete actually sees is a partial reduction, not
+the ladder's intended race-week number. **This interaction is unchanged from
+before v0.45**: the old skeleton decay hit the identical clamp and produced
+the identical number on the project's pinned 12-week fixture (463/370 either
+way) — this release changed the rate feeding the clamp, not the clamp
+itself, so no athlete's outcome moved. What changed is that the gap is now
+recorded instead of silent: a week that falls inside a B/C race's own taper
+window logs an adjustment describing the shortfall, in words a coach or
+athlete can read. **This release makes the gap visible; it does not close
+it.** A real B/C mini-taper — one that survives the ramp guard — is
+scheduled for v0.47.
 
 The weekly review's headline load figure now comes from the same derivation
 the week's own rollover uses — `deriveDayActuals`, bucketed to the calendar

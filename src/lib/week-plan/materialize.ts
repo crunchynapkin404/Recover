@@ -249,12 +249,19 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
 
   // The mirror image of the block above. Only a priority-A race
   // taper-shapes a week; a B or C race sitting inside what would be its
-  // own taper window gets no volume reduction at all — before v0.45,
-  // periodize()'s own taper phase supplied an accidental fallback here;
-  // Task 4 removed that, so the gap is now real and must be visible
-  // rather than silent. This records the gap; it does not fill it — a
-  // real B/C mini-taper is v0.47. No load, target, or session count
-  // changes as a result of this block: it only pushes an AdjustmentRecord.
+  // own taper window gets no RACE-DRIVEN reduction. That is not the same
+  // as "no reduction at all": periodize()'s own end-of-plan taper phase
+  // (Task 4's shared ladder) still reduces these weeks, same as before
+  // v0.45 — only the decay RATE it uses changed, not whether it runs.
+  // What effectiveWeekLoad's pre-existing ramp guard then does to that
+  // reduction (clamping it toward last week's actual load) is unchanged
+  // by this release too: the old skeleton decay hit the same clamp and
+  // landed on the identical number on the project's pinned fixture
+  // (463/370 either way). So the athlete gets a partial reduction, not
+  // the ladder's intended race-week number, and not "full load" either.
+  // This records that gap; it does not fill it — a real B/C mini-taper
+  // is v0.47. No load, target, or session count changes as a result of
+  // this block: it only pushes an AdjustmentRecord.
   if (primary && primary.priority !== "A" && primaryTaperFraction != null) {
     adjustments.push({
       date: input.weekStart,
@@ -265,7 +272,9 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
       reason:
         `no taper: ${primary.name} on ${primary.date} is priority ` +
         `${primary.priority} — only an A race reshapes a week's volume, ` +
-        `so this week is planned at full load`,
+        `so no race taper is applied; the plan's own end-of-plan taper ` +
+        `still reduces this week, but only as a partial reduction, not ` +
+        `a purpose-built race taper`,
     });
   }
 
