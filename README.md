@@ -171,8 +171,20 @@ fills a demo account with 90 days of plausible training history (see
 
 ## Status & roadmap
 
-**Current release: v0.40.1 (released 2026-08-04).** Since v0.20.0, six more
-releases landed: **v0.21.0 Design Consistency** extended the dark-glass
+**Current release: v0.47.0 (released 2026-08-07).**
+
+Latest highlights:
+
+- Start-state provenance for opening CTL/ATL/TSB, so first-week decisions are
+  explainable and traceable.
+- Opening-week form branching (red/amber/green) with conservative early-week
+  workout downgrades when form is negative.
+- Illness comeback mode with explicit load and intensity constraints.
+- B/C race mini-taper behavior, safety-precedence logging, and recovery-biased
+  generation fallback when dependencies fail.
+
+Recent release trail: **v0.46.0 Demand knows its sport** and before that
+**v0.21.0 Design Consistency** extended the dark-glass
 visual language to every remaining screen (concentric readiness rings,
 hairline-list settings, glass-tile dedup). **v0.23.0 IA & Navigation
 Redesign** replaced the old five-tab layout with **Today / Train / Coach /

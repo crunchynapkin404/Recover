@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.47.0 — 2026-08-07 — Plan knows how you start
+
+This release makes opening-week planning state-aware and conservative when the
+recent signal says caution is warranted.
+
+- Added a start-state provenance resolver for opening CTL/ATL/TSB so week one
+  can explain where its inputs came from.
+- Added opening-week form branching (red/amber/green) with safer first-72h
+  workout rules under negative form.
+- Added conservative illness comeback mode with load and intensity caps when
+  recent illness or disruption is detected.
+- Added B/C race mini-taper behavior that eases race week without applying
+  full A-race taper logic.
+- Added safety-precedence observability and a generation fallback that
+  materializes recovery-biased sessions if workout generation fails.
+- Added an explicit v0.47 acceptance matrix test suite and follow-up ramp
+  regression coverage.
+
+Released as tag `v0.47.0` from merged PR #53.
+
 ## v0.46.0 — 2026-08-07 — Demand knows its sport
 
 `eventDemand`, the function every race-driven training target is built on,
