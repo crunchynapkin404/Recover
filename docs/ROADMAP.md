@@ -1300,6 +1300,50 @@ Roadmap impact on v0.61-v0.66:
 - **Future candidate lane (post-v0.66)**: messaging automation and
       coach-proactive nudges, only after confidence-gated adaptation is stable.
 
+### Deep wishlist analysis: what to adopt from ecosystem demand
+
+Engagement-weighted signals from category JSON (`/c/ai-tools/17.json`) show
+where attention concentrates:
+
+- **Adaptive coaching**: 15 topics, 82,270 views, 1,604 replies, 1,549 likes.
+- **Connector/MCP interoperability**: 12 topics, 49,374 views, 562 replies,
+                  654 likes.
+- **LLM assistant workflows**: 8 topics, 50,642 views, 586 replies, 649 likes.
+- **Nutrition adjacency**: 3 topics, 296 views, 8 replies, 4 likes.
+
+Interpretation:
+
+- Demand is strongest where users get **daily adaptation + clear automation**,
+      not static dashboards.
+- Connector quality is the adoption gate: many projects lead with setup and
+      interoperability before differentiated coaching logic.
+- Generic LLM chat alone is table stakes; users reward systems that can
+      take action safely against training data.
+- Nutrition appears real but early-stage in this category and should not
+      preempt core adaptation reliability work.
+
+Recover feature intake matrix (build/use/defer):
+
+| Candidate feature | Ecosystem pull | Recover fit | Decision | Target window |
+| --- | --- | --- | --- | --- |
+| Weekly adherence autopilot with bounded load changes | Very high | Very high | Build now | v0.61 |
+| Sleep debt + bedtime recommendation with confidence gate | High | Very high | Build now | v0.62 |
+| Daily energy curve + automatic day tags | High | High | Build now | v0.63 |
+| Confidence-aware correlations with minimum sample guard | Medium-high | Very high | Build now | v0.64 |
+| MCP contract hardening + migration map | Very high | Very high | Build now | v0.65 |
+| Proactive coach messaging (messages first) | Medium-high | High | Build behind flag | post-v0.66 |
+| Agentic workout posting/manipulation | Medium | Medium | Defer until guardrails mature | post-v0.66 |
+| Hosted/no-setup distribution mode | Medium | Low (self-hosted strategy) | Do not prioritize | not planned |
+| Nutrition/fueling recommendations | Emerging | Medium | Explore as optional add-on only | post-v0.66 |
+
+Guardrails for adopting "hot" features:
+
+- No new automation ships without **explainability text** and user override.
+- No insight claim ships without **confidence and sample-size thresholds**.
+- No connector expansion ships without **contract tests** and failure-mode docs.
+- No proactive messaging ships before quiet hours, throttling, and opt-out are
+      implemented.
+
 ## Ongoing — operations track
 
 All items scheduled into **v0.17 — Good Self-Hosted Citizen** by the v0.9.6
