@@ -1,8 +1,8 @@
 const ACTIONS = [
-  { value: "reduce_load", label: "Ease week" },
-  { value: "deload_week", label: "Deload week" },
-  { value: "increase_load", label: "Boost week" },
-  { value: "skip_week", label: "Skip week" },
+  { value: "reduce_load", label: "Ease week", hint: "-30%" },
+  { value: "deload_week", label: "Deload week", hint: "-50%" },
+  { value: "increase_load", label: "Boost week", hint: "+10%" },
+  { value: "skip_week", label: "Skip week", hint: "set to 0" },
 ] as const;
 
 export function WeekAdjustmentSwitch({
@@ -21,6 +21,8 @@ export function WeekAdjustmentSwitch({
           <input type="hidden" name="weekNumber" value={String(weekNumber)} />
           <button
             type="submit"
+            title={`${item.label} (${item.hint})`}
+            aria-label={`${item.label} (${item.hint})`}
             className="rounded-full px-2.5 py-1 text-[10px] font-bold text-white/70 transition-colors hover:bg-white/[0.08] hover:text-white"
           >
             {item.label}

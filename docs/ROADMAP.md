@@ -1186,6 +1186,21 @@ Plan: `docs/plans/2026-08-07-v0.58-week-action-freshness-guardrails.md`.
 
 Released as tag `v0.58.0` from merged PR #70.
 
+## ✅ v0.59 — Week action effect hints
+
+Improve Train week quick-action discoverability by exposing deterministic load
+effects directly on each action button.
+
+- [x] **Action effect hints** shown for all week quick actions:
+      ease `-30%`, deload `-50%`, boost `+10%`, skip `set to 0`.
+- [x] **Accessible action metadata** via button `title` and `aria-label`
+      that includes the same deterministic hint text.
+- [x] **No behavior change**: week action execution logic stays unchanged.
+- [x] **Verification gate**: format, typecheck, tests, build.
+
+Design: `docs/specs/2026-08-08-v0.59-week-action-effect-hints-design.md`.
+Plan: `docs/plans/2026-08-08-v0.59-week-action-effect-hints.md`.
+
 ## Ongoing — operations track
 
 All items scheduled into **v0.17 — Good Self-Hosted Citizen** by the v0.9.6
