@@ -50,6 +50,20 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    # Compose normally derives the `app` DNS alias from the service name, but
+    # that alias is not part of the container's own config — a recreate
+    # performed outside compose (an image auto-updater, a manual `docker run`
+    # from a copied config) brings the container back with NO aliases, and
+    # `app` stops resolving on the network. That happened on 2026-08-07: the
+    # app was healthy on its IP while the Cloudflare tunnel served 502s, and
+    # `docker-compose.yml`'s own BACKUP_NOTIFY_URL below points at the same
+    # name, so backup notifications would have failed silently too. Declaring
+    # the alias explicitly makes it part of the service definition, so any
+    # compose-driven recreate restores it.
+    networks:
+      default:
+        aliases:
+          - app
 
   # Nightly pg_dump to the recover-backups volume, 14-dump rotation.
   # Deliberately default-on (no profile): forgetting a profile flag must
