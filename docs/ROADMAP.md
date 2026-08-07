@@ -992,19 +992,44 @@ mobile-first timeline.
 
 Released as tag `v0.48.0` from merged PR #55.
 
-## 🚧 v0.49 — Fuelling Lite
+## ✅ v0.49 — Fuelling Lite
 
 Breadth starts with deterministic, session-aware fuelling guidance that is
 advisory only.
 
-- [ ] **Shared fuelling engine** (duration + intensity + optional body mass,
+- [x] **Shared fuelling engine** (duration + intensity + optional body mass,
       confidence-labeled output).
-- [ ] **Train session fuelling card** for today's planned sessions.
-- [ ] **Coach parity**: same engine output exposed in tool responses.
+- [x] **Train session fuelling card** for today's planned sessions.
+- [x] **Coach parity**: same engine output exposed in tool responses.
+- [x] **Verification gate**: lint, typecheck, tests, build.
+
+Released as tag `v0.49.0` from merged PR #56.
+
+## ✅ v0.50 — Workout export v1
+
+Export breadth now includes deterministic `.zwo` generation for planned bike
+sessions.
+
+- [x] **Pure exporter core** for planned bike sessions.
+- [x] **Deterministic output contract** (same inputs, byte-identical output).
+- [x] **Explicit unsupported-sport refusal path**.
+- [x] **Weekly batch helper** with deterministic naming and ordering.
+- [x] **Verification gate**: lint, typecheck, tests, build.
+
+Released as tag `v0.50.0` from merged PR #57.
+
+## 🚧 v0.51 — Plan styles and blocks
+
+Next breadth release introduces selectable planning style (balanced vs
+block-lite) while preserving deterministic safety constraints.
+
+- [ ] **Style selector** persisted in plan constraints.
+- [ ] **Deterministic style-aware week materialization**.
+- [ ] **No regression in readiness safety precedence**.
 - [ ] **Verification gate**: lint, typecheck, tests, build.
 
-Design: `docs/specs/2026-08-07-v0.49-fuelling-lite-design.md`.
-Plan: `docs/plans/2026-08-07-v0.49-fuelling-lite.md`.
+Design: pending (to be authored for v0.51).
+Plan: pending (to be authored for v0.51).
 
 ## Ongoing — operations track
 

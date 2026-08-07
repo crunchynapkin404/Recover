@@ -1,5 +1,33 @@
 # Changelog
 
+## v0.50.0 — 2026-08-07 — Workout export v1 (.zwo deterministic)
+
+This release adds deterministic workout export primitives for cycling sessions.
+
+- Added a pure `.zwo` exporter that produces byte-identical output for
+  identical session inputs.
+- Added explicit refusal responses for unsupported sports instead of producing
+  malformed or misleading exports.
+- Added deterministic weekly batch export helper with stable ordering and
+  predictable file naming.
+- Added focused tests for XML shape contracts, determinism, and refusal cases.
+
+Released as tag `v0.50.0` from merged PR #57.
+
+## v0.49.0 — 2026-08-07 — Fuelling Lite
+
+This release starts breadth with deterministic, session-aware fuelling guidance.
+
+- Added a shared fuelling engine based on session duration, intensity, and
+  optional body mass.
+- Added Train fuelling cards with confidence labels and explicit assumptions.
+- Added parity output in `get_week_plan` so coach/tool responses and UI use the
+  same guidance source.
+- Added targeted tests across fuelling calculator, session mapping, Train card,
+  and week-plan tool wiring.
+
+Released as tag `v0.49.0` from merged PR #56.
+
 ## v0.48.0 — 2026-08-07 — Season target vs actual timeline
 
 This release adds a Season view in Train to compare plan intent against
