@@ -281,6 +281,40 @@ describe("materializeWeek layout", () => {
   });
 });
 
+describe("materializeWeek illness comeback", () => {
+  it("caps week load at 70% in strict comeback mode", () => {
+    const r = materializeWeek({
+      ...baseInput,
+      skeleton: {
+        ...baseInput.skeleton,
+        targetLoadTotal: 500,
+      },
+      availableBlocksPerDay: blocksPerDay([180, 180, 180, 180, 180, 180, 180]),
+      recentBands: ["green", "green", "green", "green", "green", "green", "amber"],
+      recentIllFlags: [false, false, true, false, false, false, false],
+      sport: "Bike",
+    });
+
+    expect(r.effectiveLoad).toBeLessThanOrEqual(350);
+    expect(
+      r.adjustments.some((a) => a.reason.includes("illness comeback"))
+    ).toBe(true);
+  });
+
+  it("removes intervals while comeback is active", () => {
+    const r = materializeWeek({
+      ...baseInput,
+      availableBlocksPerDay: blocksPerDay([180, 180, 180, 180, 180, 180, 180]),
+      recentBands: ["green", "green", "green", "green", "green", "green", "amber"],
+      recentIllFlags: [false, false, true, false, false, false, false],
+      sport: "Bike",
+    });
+
+    const types = r.week.days.flatMap((d) => d.workouts.map((w) => w.type));
+    expect(types.includes("Intervals")).toBe(false);
+  });
+});
+
 describe("materializeWeek — generator cap explained (final-review Finding 2)", () => {
   // generateWorkouts hard-caps the long ride/run and every filler session
   // regardless of the target it is asked for, so a large-enough target

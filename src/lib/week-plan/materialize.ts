@@ -22,6 +22,7 @@ import {
   QUALITY_TYPES,
   STEP_DOWN,
 } from "./types";
+import { resolveComebackDecision } from "./comeback";
 import { buildSlots, admits, slotKey, fitToBlock, findBlockFor } from "./slots";
 import type { AvailabilityBlock } from "@/lib/availability/types";
 import { MAX_SESSIONS_PER_DAY } from "@/lib/availability/types";
@@ -31,6 +32,8 @@ export interface EffectiveLoadInput {
   skeletonTarget: number;
   prevWeek: { actualLoad: number; adherencePct: number } | null;
   recentBands: Band[];
+  /** Last 7 illness flags, oldest first. */
+  recentIllFlags?: boolean[];
   /** Taper weeks skip restart/adherence logic and the downward ramp clamp. */
   taperWeek?: boolean;
 }
@@ -112,6 +115,8 @@ export interface MaterializeInput {
   availableBlocksPerDay: AvailabilityBlock[][];
   prevWeek: { actualLoad: number; adherencePct: number } | null;
   recentBands: Band[];
+  /** Last 7 illness flags, oldest first. */
+  recentIllFlags?: boolean[];
   /** The plan's sport. Single value — the race decides it (v0.42). */
   sport: PlanSport;
   hoursPerWeek: number;
@@ -310,6 +315,31 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
     input.hoursPerWeek * (load / Math.max(1, skeleton.targetLoadTotal));
   let effectiveLoad = load;
 
+  const comeback = resolveComebackDecision({
+    recentBands: input.recentBands,
+    recentIllFlags: input.recentIllFlags ?? [],
+    recentLoadDisruption:
+      (input.prevWeek?.actualLoad ?? 0) === 0 ||
+      (input.prevWeek?.adherencePct ?? 100) < LOW_ADHERENCE_PCT,
+  });
+
+  if (comeback.mode !== "none") {
+    const cap = Math.round(skeleton.targetLoadTotal * comeback.loadCapMultiplier);
+    if (effectiveLoad > cap) {
+      effectiveLoad = cap;
+      if (comeback.reason) {
+        adjustments.push({
+          date: input.weekStart,
+          trigger: "weekly_rollover",
+          action: "scaled",
+          before: [],
+          after: [],
+          reason: `${comeback.reason}; week load capped at ${effectiveLoad}`,
+        });
+      }
+    }
+  }
+
   if (neededHours > 0 && hoursBudget < neededHours) {
     effectiveLoad = Math.round(load * (hoursBudget / neededHours));
     adjustments.push({
@@ -430,7 +460,7 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
     }
   } else if (sessions > 0) {
     const effectiveHours = Math.min(hoursBudget, neededHours);
-    const workouts = generateWorkouts(
+    let workouts = generateWorkouts(
       sessions,
       effectiveHours,
       skeleton.phase,
@@ -439,6 +469,29 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
     )
       .sort((a, b) => b.durationMins - a.durationMins)
       .slice(0, sessions);
+
+    if (comeback.mode !== "none") {
+      const downgraded = workouts.map((w) => {
+        if (w.type !== "Intervals") return w;
+        return withPurpose({
+          ...w,
+          type: "Tempo",
+          intensity: "Z3",
+          description: `Illness comeback cap: ${w.description}`,
+        });
+      });
+      if (downgraded.some((w, i) => w.type !== workouts[i].type)) {
+        adjustments.push({
+          date: input.weekStart,
+          trigger: "weekly_rollover",
+          action: "scaled",
+          before: [],
+          after: [],
+          reason: "illness comeback: intensity above tempo removed",
+        });
+      }
+      workouts = downgraded;
+    }
 
     // For cycling, the long ride and every Endurance filler are capped at
     // longRideBoundMins(queenStageHours) — event-derived when the athlete's
