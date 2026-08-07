@@ -6,6 +6,7 @@ import { getOpenWeekPlan, listAdjustments } from "@/lib/week-plan/service";
 import { fuellingFromSession } from "@/lib/fuelling/from-session";
 import type { DaySlot } from "@/lib/week-plan/types";
 import { resolvePlanStyle } from "@/lib/plan-style/resolve";
+import { normalizeSeasonState } from "@/lib/season-mode/resolve";
 
 const parameters = z.object({});
 
@@ -43,11 +44,19 @@ async function execute(_args: z.infer<typeof parameters>, ctx: ToolContext) {
   const effectiveStyle = resolvePlanStyle(
     (plan?.constraints as { planStyle?: unknown } | null)?.planStyle
   );
+  const seasonState = normalizeSeasonState({
+    seasonMode: (plan?.constraints as { seasonMode?: unknown } | null)
+      ?.seasonMode,
+    reentryStage: (plan?.constraints as { reentryStage?: unknown } | null)
+      ?.reentryStage,
+  });
   return {
     active: true,
     weekStart: week.weekStart,
     skeletonWeek: week.skeletonWeek,
     effectiveStyle,
+    effectiveSeasonMode: seasonState.seasonMode,
+    reentryStage: seasonState.reentryStage,
     fuellingBodyMassKg: bodyMassKg,
     days: mapDaysWithFuelling(week.days, bodyMassKg),
     adjustments: adjustments.map((a) => ({ date: a.date, reason: a.reason })),

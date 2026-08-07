@@ -37,6 +37,8 @@ import {
 } from "@/lib/race/taper";
 import { resolvePlanStyle } from "@/lib/plan-style/resolve";
 import type { PlanStyle } from "@/lib/plan-style/types";
+import { resolveSeasonMode } from "@/lib/season-mode/resolve";
+import type { SeasonMode } from "@/lib/season-mode/types";
 
 /**
  * The transaction handle `db.transaction()`'s callback receives. `Database`
@@ -220,6 +222,7 @@ export interface GeneratePlanParams {
   daysPerWeek?: number; // default 5
   hoursPerWeek?: number; // default 8
   planStyle?: PlanStyle;
+  seasonMode?: SeasonMode;
   raceId?: string;
 }
 
@@ -1067,6 +1070,8 @@ export async function previewTrainingPlan(
         hoursPerWeek,
         sports: [sport],
         planStyle: resolvePlanStyle(params.planStyle),
+        seasonMode: resolveSeasonMode(params.seasonMode),
+        reentryStage: "none",
         startState: {
           startingCtl: startState.startingCtl,
           startingAtl: startState.startingAtl,
@@ -1560,6 +1565,8 @@ export async function generateTrainingPlan(
         hoursPerWeek,
         sports: [sport],
         planStyle: resolvePlanStyle(params.planStyle),
+        seasonMode: resolveSeasonMode(params.seasonMode),
+        reentryStage: "none",
         startState: {
           startingCtl: startState.startingCtl,
           startingAtl: startState.startingAtl,

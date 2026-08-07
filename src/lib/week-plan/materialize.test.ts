@@ -424,6 +424,59 @@ describe("materializeWeek plan styles", () => {
   });
 });
 
+describe("materializeWeek off-season mode", () => {
+  it("off-season reduces quality density without bypassing legality", () => {
+    const r = materializeWeek({
+      ...baseInput,
+      sport: "Bike",
+      availableBlocksPerDay: blocksPerDay([90, 90, 90, 120, 120, 120, 120]),
+      seasonMode: "off_season",
+      reentryStage: "none",
+    });
+    const qualityCount = r.week.days
+      .flatMap((d) => d.workouts)
+      .filter((w) => ["Intervals", "Tempo", "Brick"].includes(w.type)).length;
+    expect(qualityCount).toBeLessThanOrEqual(1);
+  });
+
+  it("reentry week_1 has no intervals", () => {
+    const r = materializeWeek({
+      ...baseInput,
+      sport: "Bike",
+      availableBlocksPerDay: blocksPerDay([90, 90, 90, 120, 120, 120, 120]),
+      seasonMode: "off_season",
+      reentryStage: "week_1",
+    });
+    expect(
+      r.week.days.flatMap((d) => d.workouts).some((w) => w.type === "Intervals")
+    ).toBe(false);
+  });
+
+  it("off-season shaping does not bypass race-day replacement", () => {
+    const raceDate = "2026-07-24";
+    const r = materializeWeek({
+      ...baseInput,
+      sport: "Bike",
+      availableBlocksPerDay: blocksPerDay([90, 90, 90, 120, 120, 120, 120]),
+      seasonMode: "off_season",
+      reentryStage: "none",
+      races: [
+        {
+          date: raceDate,
+          name: "Test A Race",
+          priority: "A",
+          raceType: "gran_fondo",
+        },
+      ],
+    });
+
+    const raceDay = r.week.days.find((d) => d.date === raceDate);
+    expect(raceDay).toBeDefined();
+    expect(raceDay!.status).toBe("race");
+    expect(raceDay!.workouts).toHaveLength(0);
+  });
+});
+
 describe("materializeWeek — generator cap explained (final-review Finding 2)", () => {
   // generateWorkouts hard-caps the long ride/run and every filler session
   // regardless of the target it is asked for, so a large-enough target

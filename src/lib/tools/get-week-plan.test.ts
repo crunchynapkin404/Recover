@@ -112,11 +112,15 @@ describe.skipIf(!hasDb)("get_week_plan day shape", () => {
     )) as {
       active: boolean;
       effectiveStyle: string;
+      effectiveSeasonMode: string;
+      reentryStage: string;
       days: Array<Record<string, unknown>>;
     };
 
     expect(result.active).toBe(true);
     expect(result.effectiveStyle).toBe("balanced");
+    expect(result.effectiveSeasonMode).toBe("normal");
+    expect(result.reentryStage).toBe("none");
     expect(result.days).toHaveLength(7);
 
     const monday = result.days[0];

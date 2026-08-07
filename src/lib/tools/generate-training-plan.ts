@@ -43,6 +43,10 @@ const parameters = z.object({
     .enum(["balanced", "block_lite"])
     .optional()
     .describe("Optional planning style preference."),
+  seasonMode: z
+    .enum(["normal", "off_season"])
+    .optional()
+    .describe("Optional season mode (normal or off-season maintenance)."),
   raceId: z
     .string()
     .uuid()

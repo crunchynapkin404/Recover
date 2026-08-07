@@ -1028,8 +1028,27 @@ block-lite) while preserving deterministic safety constraints.
 - [x] **No regression in readiness safety precedence**.
 - [x] **Verification gate**: lint, typecheck, tests, build.
 
-Design: pending (to be authored for v0.51).
-Plan: pending (to be authored for v0.51).
+Design: `docs/specs/2026-08-07-v0.51-plan-styles-and-blocks-design.md`.
+Plan: `docs/plans/2026-08-07-v0.51-plan-styles-and-blocks.md`.
+
+## 🚧 v0.52 — Off-season mode
+
+Maintenance mode introduces reduced intensity density with explicit staged
+re-entry, while preserving deterministic safety precedence.
+
+- [x] **Season mode contract** (`normal` / `off_season`) with explicit
+      `reentryStage` state.
+- [x] **Deterministic off-season shaping** (quality density caps + session
+      count reduction).
+- [x] **Explicit re-entry progression** (`week_1` -> `week_2` -> `none`) on
+      rollover.
+- [x] **Tool/API parity** for setting and reading season mode and re-entry.
+- [x] **No regression in safety precedence** (race-day and legality behavior
+      preserved).
+- [x] **Verification gate**: lint, typecheck, tests, build.
+
+Design: `docs/specs/2026-08-07-v0.52-off-season-mode-design.md`.
+Plan: `docs/plans/2026-08-07-v0.52-off-season-mode.md`.
 
 ## Ongoing — operations track
 

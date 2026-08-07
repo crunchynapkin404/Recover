@@ -4,6 +4,7 @@ import { db, schema } from "@/lib/db";
 import { and, eq, asc } from "drizzle-orm";
 import { getActivePlan } from "@/lib/active-plan";
 import { resolvePlanStyle } from "@/lib/plan-style/resolve";
+import { normalizeSeasonState } from "@/lib/season-mode/resolve";
 
 const parameters = z.object({
   weekNumber: z
@@ -16,6 +17,12 @@ const parameters = z.object({
 async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
   const plan = await getActivePlan(ctx.userId);
   if (!plan) return { available: false, reason: "no_active_plan" };
+  const seasonState = normalizeSeasonState({
+    seasonMode: (plan.constraints as { seasonMode?: unknown } | null)
+      ?.seasonMode,
+    reentryStage: (plan.constraints as { reentryStage?: unknown } | null)
+      ?.reentryStage,
+  });
 
   if (args.weekNumber != null) {
     const block = await db.query.trainingBlocks.findFirst({
@@ -37,6 +44,8 @@ async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
         effectiveStyle: resolvePlanStyle(
           (plan.constraints as { planStyle?: unknown } | null)?.planStyle
         ),
+        effectiveSeasonMode: seasonState.seasonMode,
+        reentryStage: seasonState.reentryStage,
       },
       week: block,
     };
@@ -62,6 +71,8 @@ async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
       effectiveStyle: resolvePlanStyle(
         (plan.constraints as { planStyle?: unknown } | null)?.planStyle
       ),
+      effectiveSeasonMode: seasonState.seasonMode,
+      reentryStage: seasonState.reentryStage,
     },
     weeks: blocks.map((b) => ({
       week: b.weekNumber,

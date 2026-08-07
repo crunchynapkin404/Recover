@@ -5,6 +5,7 @@ import {
   applyResolvedAvailability,
   getOpenWeekPlan,
   moveWorkout,
+  nextReentryStage,
   runDailyAdaptation,
   swapWorkouts,
 } from "./service";
@@ -68,6 +69,20 @@ function weekDates(): string[] {
   return out;
 }
 const DATES = weekDates();
+
+describe("nextReentryStage", () => {
+  it("advances week_1 to week_2", () => {
+    expect(nextReentryStage("week_1")).toBe("week_2");
+  });
+
+  it("advances week_2 to none", () => {
+    expect(nextReentryStage("week_2")).toBe("none");
+  });
+
+  it("keeps none at none", () => {
+    expect(nextReentryStage("none")).toBe("none");
+  });
+});
 
 /**
  * Task 10: an activity's load always lands somewhere, but only a day WITH a
