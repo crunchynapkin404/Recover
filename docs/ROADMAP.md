@@ -1272,6 +1272,34 @@ For each lane, do not merge until all boxes are checked:
        shipped, so reliability work hardens a richer baseline instead of freezing
        innovation too early.
 
+### External signal analysis: intervals.icu AI Tools (2026-08-08)
+
+Source: https://forum.intervals.icu/c/ai-tools/17
+
+Observed patterns from active threads:
+
+- **Connector-first demand is dominant**: many projects lead with MCP/API
+      connectors and low-friction setup before deeper coaching logic.
+- **Adaptive daily/weekly coaching is crowded but active**: multiple tools
+      position on recovery-aware adaptation, suggesting strong sustained demand.
+- **Operator simplicity matters**: recurring value props include hosted or
+      "no local setup" deployment, signed binaries, and reduced configuration load.
+- **Reliability gaps remain visible**: issues such as API auth/403 failures
+      indicate integration robustness is still a practical differentiator.
+- **Cross-domain expansion appears early**: nutrition and messaging automation
+      are frequent adjacent experiments around training guidance.
+
+Roadmap impact on v0.61-v0.66:
+
+- **v0.61-v0.63 remain product-first** to meet adaptive coaching expectations
+      visible in the forum.
+- **v0.65 prioritizes MCP contract hardening** because connector quality is a
+      clear adoption gate in this ecosystem.
+- **v0.66 backup/recovery hardening** supports self-hosted trust where hosted
+      competitors position on convenience.
+- **Future candidate lane (post-v0.66)**: messaging automation and
+      coach-proactive nudges, only after confidence-gated adaptation is stable.
+
 ## Ongoing — operations track
 
 All items scheduled into **v0.17 — Good Self-Hosted Citizen** by the v0.9.6
