@@ -4,8 +4,7 @@ import { db, schema } from "@/lib/db";
 import { and, eq } from "drizzle-orm";
 import { moveWorkout, swapWorkouts } from "@/lib/week-plan/service";
 import { getActivePlan } from "@/lib/active-plan";
-import { resolvePlanStyle } from "@/lib/plan-style/resolve";
-import { resolveSeasonMode } from "@/lib/season-mode/resolve";
+import { resolvePlanningSurfaceState } from "@/lib/planning-surface/effective-state";
 
 const WEEK_ACTIONS = [
   "reduce_load",
@@ -110,58 +109,62 @@ async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
 
   if (args.action === "set_style") {
     const current = (plan.constraints as Record<string, unknown> | null) ?? {};
-    const effectiveStyle = resolvePlanStyle(args.planStyle);
+    const nextConstraints = { ...current, planStyle: args.planStyle };
+    const state = resolvePlanningSurfaceState(nextConstraints);
     await db
       .update(schema.trainingPlans)
-      .set({ constraints: { ...current, planStyle: effectiveStyle } })
+      .set({ constraints: nextConstraints })
       .where(eq(schema.trainingPlans.id, plan.id));
     return {
       success: true,
       action: args.action,
-      effectiveStyle,
+      effectiveStyle: state.effectiveStyle,
+      effectiveSeasonMode: state.effectiveSeasonMode,
+      reentryStage: state.reentryStage,
       reason: args.reason,
     };
   }
 
   if (args.action === "set_season_mode") {
     const current = (plan.constraints as Record<string, unknown> | null) ?? {};
-    const effectiveSeasonMode = resolveSeasonMode(args.seasonMode);
+    const nextConstraints = {
+      ...current,
+      seasonMode: args.seasonMode,
+      reentryStage: "none",
+    };
+    const state = resolvePlanningSurfaceState(nextConstraints);
     await db
       .update(schema.trainingPlans)
-      .set({
-        constraints: {
-          ...current,
-          seasonMode: effectiveSeasonMode,
-          reentryStage: "none",
-        },
-      })
+      .set({ constraints: nextConstraints })
       .where(eq(schema.trainingPlans.id, plan.id));
     return {
       success: true,
       action: args.action,
-      effectiveSeasonMode,
-      reentryStage: "none",
+      effectiveStyle: state.effectiveStyle,
+      effectiveSeasonMode: state.effectiveSeasonMode,
+      reentryStage: state.reentryStage,
       reason: args.reason,
     };
   }
 
   if (args.action === "begin_reentry") {
     const current = (plan.constraints as Record<string, unknown> | null) ?? {};
+    const nextConstraints = {
+      ...current,
+      seasonMode: "off_season",
+      reentryStage: "week_1",
+    };
+    const state = resolvePlanningSurfaceState(nextConstraints);
     await db
       .update(schema.trainingPlans)
-      .set({
-        constraints: {
-          ...current,
-          seasonMode: "off_season",
-          reentryStage: "week_1",
-        },
-      })
+      .set({ constraints: nextConstraints })
       .where(eq(schema.trainingPlans.id, plan.id));
     return {
       success: true,
       action: args.action,
-      effectiveSeasonMode: "off_season",
-      reentryStage: "week_1",
+      effectiveStyle: state.effectiveStyle,
+      effectiveSeasonMode: state.effectiveSeasonMode,
+      reentryStage: state.reentryStage,
       reason: args.reason,
     };
   }

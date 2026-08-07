@@ -53,6 +53,9 @@ describe.skipIf(!hasDb)("every consumer resolves the same active plan", () => {
             daysPerWeek: 4,
             hoursPerWeek: p.hoursPerWeek,
             sports: ["Bike"],
+            planStyle: "block_lite",
+            seasonMode: "normal",
+            reentryStage: "week_1",
           },
           createdAt: new Date(p.createdAt),
         })
@@ -112,10 +115,22 @@ describe.skipIf(!hasDb)("every consumer resolves the same active plan", () => {
     const result = (await getTrainingPlanTool.execute(
       {},
       { userId: USER, db }
-    )) as { available: boolean; plan: { id: string; currentWeek: number } };
+    )) as {
+      available: boolean;
+      plan: {
+        id: string;
+        currentWeek: number;
+        effectiveStyle: string;
+        effectiveSeasonMode: string;
+        reentryStage: string;
+      };
+    };
     expect(result.available).toBe(true);
     expect(result.plan.id).toBe(newestId);
     expect(result.plan.currentWeek).toBe(4);
+    expect(result.plan.effectiveStyle).toBe("block_lite");
+    expect(result.plan.effectiveSeasonMode).toBe("normal");
+    expect(result.plan.reentryStage).toBe("none");
   });
 
   it("get_plan_drift reads the resolver's plan blocks", async () => {
@@ -160,5 +175,50 @@ describe.skipIf(!hasDb)("every consumer resolves the same active plan", () => {
       ),
     });
     expect(block?.targetLoadTotal).toBe(210);
+  });
+
+  it("update_training_plan set_style returns full effective-state parity", async () => {
+    const { updateTrainingPlanTool } =
+      await import("@/lib/tools/update-training-plan");
+    const result = (await updateTrainingPlanTool.execute(
+      {
+        action: "set_style",
+        planStyle: "balanced",
+        reason: "plan identity style parity",
+      },
+      { userId: USER, db }
+    )) as {
+      success: boolean;
+      effectiveStyle?: string;
+      effectiveSeasonMode?: string;
+      reentryStage?: string;
+    };
+
+    expect(result.success).toBe(true);
+    expect(result.effectiveStyle).toBe("balanced");
+    expect(result.effectiveSeasonMode).toBe("normal");
+    expect(result.reentryStage).toBe("none");
+  });
+
+  it("update_training_plan begin_reentry returns full effective-state parity", async () => {
+    const { updateTrainingPlanTool } =
+      await import("@/lib/tools/update-training-plan");
+    const result = (await updateTrainingPlanTool.execute(
+      {
+        action: "begin_reentry",
+        reason: "plan identity reentry parity",
+      },
+      { userId: USER, db }
+    )) as {
+      success: boolean;
+      effectiveStyle?: string;
+      effectiveSeasonMode?: string;
+      reentryStage?: string;
+    };
+
+    expect(result.success).toBe(true);
+    expect(result.effectiveStyle).toBe("balanced");
+    expect(result.effectiveSeasonMode).toBe("off_season");
+    expect(result.reentryStage).toBe("week_1");
   });
 });

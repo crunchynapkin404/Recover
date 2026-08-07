@@ -6,6 +6,7 @@ import {
   getOpenWeekPlan,
   moveWorkout,
   nextReentryStage,
+  planConstraints,
   runDailyAdaptation,
   swapWorkouts,
 } from "./service";
@@ -81,6 +82,44 @@ describe("nextReentryStage", () => {
 
   it("keeps none at none", () => {
     expect(nextReentryStage("none")).toBe("none");
+  });
+});
+
+describe("planConstraints", () => {
+  it("defaults to balanced/normal/none", () => {
+    expect(planConstraints(null)).toMatchObject({
+      planStyle: "balanced",
+      seasonMode: "normal",
+      reentryStage: "none",
+    });
+  });
+
+  it("normal season mode forces reentry none", () => {
+    expect(
+      planConstraints({
+        planStyle: "block_lite",
+        seasonMode: "normal",
+        reentryStage: "week_1",
+      })
+    ).toMatchObject({
+      planStyle: "block_lite",
+      seasonMode: "normal",
+      reentryStage: "none",
+    });
+  });
+
+  it("keeps off-season reentry stage when valid", () => {
+    expect(
+      planConstraints({
+        planStyle: "block_lite",
+        seasonMode: "off_season",
+        reentryStage: "week_2",
+      })
+    ).toMatchObject({
+      planStyle: "block_lite",
+      seasonMode: "off_season",
+      reentryStage: "week_2",
+    });
   });
 });
 
