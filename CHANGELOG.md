@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.60.0 — 2026-08-08 — Week action legend
+
+This release adds an always-visible legend for Train week quick actions so
+their deterministic effects are readable without hover.
+
+- Added a compact legend row below week action controls:
+  `Ease -30% · Deload -50% · Boost +10% · Skip 0`.
+- Kept per-button `title` and `aria-label` effect hints from v0.59.
+- Added focused UI test coverage for visible legend text.
+
 ## v0.59.0 — 2026-08-08 — Week action effect hints
 
 This release improves week-action clarity in Train with deterministic effect

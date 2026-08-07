@@ -15,6 +15,10 @@ describe("WeekAdjustmentSwitch", () => {
     expect(html).toContain('title="Deload week (-50%)"');
     expect(html).toContain('title="Boost week (+10%)"');
     expect(html).toContain('title="Skip week (set to 0)"');
+    expect(html).toContain("Ease -30%");
+    expect(html).toContain("Deload -50%");
+    expect(html).toContain("Boost +10%");
+    expect(html).toContain("Skip 0");
   });
 
   it("posts the open skeleton week with each action", () => {
