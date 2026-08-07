@@ -122,6 +122,13 @@ describe.skipIf(!hasDb)("get_week_plan day shape", () => {
     expect(monday.availableBlocks).toEqual([block]);
     expect(Array.isArray(monday.workouts)).toBe(true);
     expect(monday.workouts).toHaveLength(1);
+    const mondayWorkout = (
+      monday.workouts as Array<Record<string, unknown>>
+    )[0];
+    expect(mondayWorkout).toHaveProperty("fuelling");
+    expect(mondayWorkout.fuelling).toHaveProperty("before");
+    expect(mondayWorkout.fuelling).toHaveProperty("during");
+    expect(mondayWorkout.fuelling).toHaveProperty("after");
 
     // The fields this release removed must be gone, not merely unused —
     // a client reading them should fail loudly rather than see undefined.

@@ -964,6 +964,48 @@ calendar week as the load figure beside it in the same sentence.
 `startingCtl`'s `?? 30` default, per
 `docs/specs/2026-08-05-ai-coaching-landscape.md` §9.
 
+## ✅ v0.47 — The plan knows how you start
+
+Opening-week planning now reads real starting state and applies explicit safety
+branching when form is negative.
+
+- [x] **Start-state provenance** for opening CTL/ATL/TSB.
+- [x] **Opening-week form branching** (red/amber/green) with safer first-72h
+      workout rules under negative form.
+- [x] **Illness comeback mode** with conservative load and intensity caps.
+- [x] **B/C race mini-taper behavior** so non-A races no longer rely on silent
+      partial reductions.
+- [x] **Acceptance matrix suite** and follow-up regression coverage.
+
+Released as tag `v0.47.0` from merged PR #53.
+
+## ✅ v0.48 — The season on one screen
+
+Train gained a Season view that overlays weekly target and actual on one
+mobile-first timeline.
+
+- [x] **Season tab** in Train navigation.
+- [x] **Target vs actual weekly timeline** using existing week-plans and
+      activity-load derivations.
+- [x] **Season adherence stat strip** with explicit empty states.
+- [x] **Coverage tests** for timeline rendering and chart helpers.
+
+Released as tag `v0.48.0` from merged PR #55.
+
+## 🚧 v0.49 — Fuelling Lite
+
+Breadth starts with deterministic, session-aware fuelling guidance that is
+advisory only.
+
+- [ ] **Shared fuelling engine** (duration + intensity + optional body mass,
+      confidence-labeled output).
+- [ ] **Train session fuelling card** for today's planned sessions.
+- [ ] **Coach parity**: same engine output exposed in tool responses.
+- [ ] **Verification gate**: lint, typecheck, tests, build.
+
+Design: `docs/specs/2026-08-07-v0.49-fuelling-lite-design.md`.
+Plan: `docs/plans/2026-08-07-v0.49-fuelling-lite.md`.
+
 ## Ongoing — operations track
 
 All items scheduled into **v0.17 — Good Self-Hosted Citizen** by the v0.9.6
