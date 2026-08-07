@@ -14,25 +14,24 @@ const suppressed = [
 ] as import("./types").Band[]; // 4 amber-or-worse
 
 describe("effectiveWeekLoad (hand-computed fixtures)", () => {
-  it("returns the skeleton target when last week went to plan", () => {
+  it("nudges +10% on strong adherence and completion", () => {
     const r = effectiveWeekLoad({
       skeletonTarget: 400,
       prevWeek: { actualLoad: 390, adherencePct: 98 },
       recentBands: greens,
     });
-    expect(r.load).toBe(400);
-    expect(r.reasons).toEqual([]);
+    expect(r.load).toBe(440);
+    expect(r.reasons.join(" ")).toContain("AUTO_HIGH_ADHERENCE");
   });
 
-  it("builds on actual load, not the skeleton, below 70% adherence", () => {
-    // actual 200 × 1.10 = 220; skeleton 400 ignored
+  it("reduces 15% from skeleton on weak adherence", () => {
     const r = effectiveWeekLoad({
       skeletonTarget: 400,
       prevWeek: { actualLoad: 200, adherencePct: 50 },
       recentBands: greens,
     });
-    expect(r.load).toBe(220);
-    expect(r.reasons.join(" ")).toContain("adherence");
+    expect(r.load).toBe(340);
+    expect(r.reasons.join(" ")).toContain("AUTO_LOW_ADHERENCE");
   });
 
   it("does not fire the adherence rule at exactly 70%", () => {
@@ -43,6 +42,7 @@ describe("effectiveWeekLoad (hand-computed fixtures)", () => {
     });
     // only the ramp clamp applies: 250 × 1.2 = 300
     expect(r.load).toBe(300);
+    expect(r.reasons.join(" ")).toContain("AUTO_NEUTRAL");
   });
 
   it("reduces 15% when ≥4 of the last 7 days were amber or worse", () => {
@@ -122,7 +122,8 @@ describe("effectiveWeekLoad (hand-computed fixtures)", () => {
       prevWeek: { actualLoad: 400, adherencePct: 100 },
       recentBands: bands,
     });
-    expect(r.load).toBe(400);
+    expect(r.load).toBe(440);
+    expect(r.reasons.join(" ")).toContain("AUTO_HIGH_ADHERENCE");
   });
 });
 
