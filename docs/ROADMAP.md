@@ -1220,6 +1220,58 @@ Plan: `docs/plans/2026-08-08-v0.60-week-action-legend.md`.
 
 Released as tag `v0.60.0` from merged PR #76.
 
+## Upcoming release train (v0.61-v0.66)
+
+Near-term plan: ship small, deterministic slices that improve day-to-day
+training decisions first, then deepen insight quality and operational safety.
+
+| Version | Title | Primary user value | Scoped deliverables |
+| --- | --- | --- | --- |
+| v0.61 | Adaptive week autopilot (MVP) | Weekly plan adjusts to what actually happened, not just what was planned. | 1) Compute weekly adherence signal from planned vs actual load and completion. 2) Apply bounded next-week adjustment (for example -15% to +10%) with explicit reason codes. 3) Add coach-facing rationale text for every auto-adjust decision. 4) Add manual override so athletes can accept or reject adjustment. 5) Add deterministic tests for high/low adherence paths. |
+| v0.62 | Sleep debt and bedtime guidance | Athletes get actionable recovery guidance tied to sleep consistency. | 1) Add rolling sleep-debt metric from recent sleep duration vs target. 2) Add bedtime window recommendation based on wake time and debt trend. 3) Gate recommendations when data quality is low (manual-only or sparse windows). 4) Add UI summary card with plain-language recommendation and confidence. 5) Add tests for debt math and no-data honesty behavior. |
+| v0.63 | Body battery daily energy curve | Daily energy expectations become predictable and easier to plan around. | 1) Add day energy curve model combining readiness, recent strain, and sleep debt. 2) Expose morning/afternoon/evening energy checkpoints. 3) Add automatic day tags (hard day, double day, rest day, late session). 4) Add calibration mode behavior for new users (<14 days). 5) Add snapshot tests for curve classification and tag generation. |
+| v0.64 | Correlation engine v2 (confidence-aware) | Insights become more trustworthy by showing strength and confidence, not just claims. | 1) Add correlation output with effect size + confidence band. 2) Add minimum sample guardrails before rendering claims. 3) Add time-of-day lens for workout timing vs next-day readiness. 4) Add "insufficient evidence" state as first-class UI. 5) Add regression tests with synthetic datasets for known outcomes. |
+| v0.65 | MCP consolidation and tool contract hardening | Operations get simpler and safer as tool surface consolidates with strong contracts. | 1) Fold remaining intervals-icu-mcp capabilities into built-in Recover MCP where planned. 2) Reduce duplicate tool paths and normalize input/output schemas. 3) Add contract tests for each tool including error-path snapshots. 4) Add migration notes for any renamed or removed tools. 5) Update docs and examples used by local operators. |
+| v0.66 | Backup and recovery hardening | Self-hosted operators can recover quickly and verify backup integrity. | 1) Add nightly pg_dump workflow with retention policy. 2) Add restore drill script and operator runbook with expected timings. 3) Add post-restore health checks for critical tables and auth flows. 4) Add alerting for backup failures and stale backups. 5) Add release gate that validates backup artifact creation in staging. |
+
+### Release lane definition of done (template)
+
+For each lane, do not merge until all boxes are checked:
+
+- [ ] Scope locked to 3-5 deliverables listed in roadmap lane.
+- [ ] Design/spec note created in `docs/specs/` for the lane.
+- [ ] Execution plan created in `docs/plans/` with explicit non-goals.
+- [ ] Unit/integration tests added for new behavior and edge guards.
+- [ ] Full verification gate passes: format, lint, typecheck, tests, build.
+- [ ] Changelog, roadmap, and version bump are consistent.
+- [ ] PR merged, tag published, and GitHub release created.
+- [ ] Post-release roadmap marker line added (release tag + merged PR).
+
+### Lane risks and mitigations
+
+- v0.61 risk: auto-adjustment feels "magical" or unpredictable.
+      Mitigation: bounded adjustment range, explicit reason codes, manual accept/reject.
+- v0.62 risk: poor sleep data quality produces noisy guidance.
+      Mitigation: confidence gating and "insufficient data" fallback state.
+- v0.63 risk: energy curve can look authoritative while still calibrating.
+      Mitigation: visible calibration label and conservative default outputs.
+- v0.64 risk: correlations overfit small samples.
+      Mitigation: sample-size thresholds, confidence bands, and withheld claims.
+- v0.65 risk: MCP consolidation causes compatibility regressions.
+      Mitigation: contract tests, migration map, and staged deprecations.
+- v0.66 risk: backups exist but are not restorable under pressure.
+      Mitigation: scheduled restore drills and automated post-restore checks.
+
+### Why this sequence
+
+1. v0.61-v0.63 deliver immediate athlete-facing value (better weekly adaptation,
+       sleep guidance, and daily energy planning).
+2. v0.64 upgrades trustworthiness by adding confidence-aware insight logic after
+       core behavior signals are in place.
+3. v0.65-v0.66 reduce operational risk only after the new product logic is
+       shipped, so reliability work hardens a richer baseline instead of freezing
+       innovation too early.
+
 ## Ongoing — operations track
 
 All items scheduled into **v0.17 — Good Self-Hosted Citizen** by the v0.9.6
