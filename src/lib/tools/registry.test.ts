@@ -340,6 +340,7 @@ describe("tool registry", () => {
         raceType: "ironman",
         raceDate: "2027-06-01",
         daysPerWeek: 6,
+        planStyle: "block_lite",
       }).success
     ).toBe(true);
     // Invalid race type
@@ -395,6 +396,13 @@ describe("tool registry", () => {
         reason: "vacation",
       }).success
     ).toBe(true);
+    expect(
+      tool.parameters.safeParse({
+        action: "set_style",
+        reason: "prefer concentrated quality",
+        planStyle: "block_lite",
+      }).success
+    ).toBe(true);
     // Invalid action
     expect(
       tool.parameters.safeParse({
@@ -412,6 +420,10 @@ describe("tool registry", () => {
     expect(
       tool.parameters.safeParse({ action: "reduce_load", reason: "test" })
         .success
+    ).toBe(false);
+    // Missing planStyle for style action
+    expect(
+      tool.parameters.safeParse({ action: "set_style", reason: "test" }).success
     ).toBe(false);
   });
 

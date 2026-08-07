@@ -35,6 +35,8 @@ import {
   TAPER_FRACTION_WEEK_1,
   TAPER_FRACTION_WEEK_2,
 } from "@/lib/race/taper";
+import { resolvePlanStyle } from "@/lib/plan-style/resolve";
+import type { PlanStyle } from "@/lib/plan-style/types";
 
 /**
  * The transaction handle `db.transaction()`'s callback receives. `Database`
@@ -217,6 +219,7 @@ export interface GeneratePlanParams {
   title?: string;
   daysPerWeek?: number; // default 5
   hoursPerWeek?: number; // default 8
+  planStyle?: PlanStyle;
   raceId?: string;
 }
 
@@ -1063,6 +1066,7 @@ export async function previewTrainingPlan(
         daysPerWeek,
         hoursPerWeek,
         sports: [sport],
+        planStyle: resolvePlanStyle(params.planStyle),
         startState: {
           startingCtl: startState.startingCtl,
           startingAtl: startState.startingAtl,
@@ -1555,6 +1559,7 @@ export async function generateTrainingPlan(
         daysPerWeek,
         hoursPerWeek,
         sports: [sport],
+        planStyle: resolvePlanStyle(params.planStyle),
         startState: {
           startingCtl: startState.startingCtl,
           startingAtl: startState.startingAtl,

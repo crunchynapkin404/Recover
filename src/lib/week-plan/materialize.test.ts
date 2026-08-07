@@ -373,6 +373,57 @@ describe("materializeWeek illness comeback", () => {
   });
 });
 
+describe("materializeWeek plan styles", () => {
+  it("balanced is deterministic for identical inputs", () => {
+    const input = {
+      ...baseInput,
+      skeleton: {
+        ...baseInput.skeleton,
+        weekNumber: 6,
+        phase: "build" as const,
+      },
+      sport: "Bike" as const,
+      availableBlocksPerDay: blocksPerDay([90, 90, 90, 120, 120, 120, 120]),
+      planStyle: "balanced" as const,
+    };
+
+    const a = materializeWeek(input);
+    const b = materializeWeek(input);
+
+    const project = (r: ReturnType<typeof materializeWeek>) =>
+      r.week.days.map((d) =>
+        d.workouts.map((w) => ({
+          type: w.type,
+          purpose: w.purpose,
+          mins: w.durationMins,
+        }))
+      );
+
+    expect(project(a)).toEqual(project(b));
+  });
+
+  it("block_lite prefers front-half placement for build focus sessions when legal", () => {
+    const r = materializeWeek({
+      ...baseInput,
+      skeleton: {
+        ...baseInput.skeleton,
+        weekNumber: 6,
+        phase: "build" as const,
+      },
+      sport: "Bike",
+      availableBlocksPerDay: blocksPerDay([90, 90, 90, 120, 120, 120, 120]),
+      planStyle: "block_lite",
+    });
+
+    const focusDayIdx = r.week.days.findIndex((d) =>
+      d.workouts.some((w) => w.purpose === "vo2max")
+    );
+
+    expect(focusDayIdx).toBeGreaterThanOrEqual(0);
+    expect(focusDayIdx).toBeLessThanOrEqual(3);
+  });
+});
+
 describe("materializeWeek — generator cap explained (final-review Finding 2)", () => {
   // generateWorkouts hard-caps the long ride/run and every filler session
   // regardless of the target it is asked for, so a large-enough target

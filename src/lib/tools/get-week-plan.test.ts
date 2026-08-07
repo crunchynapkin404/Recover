@@ -111,10 +111,12 @@ describe.skipIf(!hasDb)("get_week_plan day shape", () => {
       { userId: USER, db }
     )) as {
       active: boolean;
+      effectiveStyle: string;
       days: Array<Record<string, unknown>>;
     };
 
     expect(result.active).toBe(true);
+    expect(result.effectiveStyle).toBe("balanced");
     expect(result.days).toHaveLength(7);
 
     const monday = result.days[0];

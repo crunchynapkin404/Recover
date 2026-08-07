@@ -39,6 +39,10 @@ const parameters = z.object({
     .max(25)
     .default(8)
     .describe("Available training hours per week."),
+  planStyle: z
+    .enum(["balanced", "block_lite"])
+    .optional()
+    .describe("Optional planning style preference."),
   raceId: z
     .string()
     .uuid()

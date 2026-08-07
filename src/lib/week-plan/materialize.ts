@@ -1,4 +1,8 @@
-import { generateWorkouts, withPurpose } from "@/lib/training-plan";
+import {
+  generateWorkouts,
+  withPurpose,
+  type PlannedWorkout,
+} from "@/lib/training-plan";
 import {
   raceWeekWorkouts,
   taperFractionForWeek,
@@ -27,6 +31,8 @@ import { buildSlots, admits, slotKey, fitToBlock, findBlockFor } from "./slots";
 import type { AvailabilityBlock } from "@/lib/availability/types";
 import { MAX_SESSIONS_PER_DAY } from "@/lib/availability/types";
 import { disciplinesOf, type PlanSport } from "@/lib/plan-sport";
+import { type PlanStyle } from "@/lib/plan-style/types";
+import { resolvePlanStyle } from "@/lib/plan-style/resolve";
 
 export interface EffectiveLoadInput {
   skeletonTarget: number;
@@ -132,6 +138,8 @@ export interface MaterializeInput {
    * fixtures compile unchanged.
    */
   queenStageHours?: number | null;
+  /** Optional style preference; defaults to balanced. */
+  planStyle?: PlanStyle;
 }
 
 export interface MaterializeResult {
@@ -148,8 +156,49 @@ function addDays(ymd: string, n: number): string {
   ).padStart(2, "0")}`;
 }
 
+type PlanPhase = MaterializeInput["skeleton"]["phase"];
+
+function focusPurposesFor(
+  phase: PlanPhase,
+  weekNumber: number
+): Set<PlannedWorkout["purpose"]> {
+  if (phase === "base") return new Set(["aerobic_base", "long"]);
+  if (phase === "build") {
+    return new Set([weekNumber % 2 === 0 ? "vo2max" : "threshold"]);
+  }
+  if (phase === "peak") {
+    return new Set(["threshold", "vo2max", "brick"]);
+  }
+  return new Set();
+}
+
+function orderByStylePreference<T extends { dayIdx: number }>(
+  slots: T[],
+  workout: PlannedWorkout,
+  style: PlanStyle,
+  phase: PlanPhase,
+  weekNumber: number
+): T[] {
+  if (style !== "block_lite") return slots;
+  if (phase === "recovery" || phase === "taper") return slots;
+
+  const focusPurposes = focusPurposesFor(phase, weekNumber);
+  const isFocus = focusPurposes.has(workout.purpose);
+  const preferred = slots.filter((s) =>
+    isFocus ? s.dayIdx <= 3 : s.dayIdx >= 4
+  );
+  if (preferred.length === 0) return slots;
+
+  const preferredKeys = new Set(preferred.map((s) => String(s.dayIdx)));
+  const nonPreferred = slots.filter(
+    (s) => !preferredKeys.has(String(s.dayIdx))
+  );
+  return [...preferred, ...nonPreferred];
+}
+
 export function materializeWeek(input: MaterializeInput): MaterializeResult {
   const adjustments: AdjustmentRecord[] = [];
+  const planStyle = resolvePlanStyle(input.planStyle);
 
   const races = input.races ?? [];
   const primary = races[0] ?? null;
@@ -630,7 +679,14 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
 
     for (const w of workouts) {
       const slots = buildSlots(days); // rebuilt: earlier placements change admission
-      let slot = slots.find((s) => admits(s, w, days, taken));
+      const admittingSlots = slots.filter((s) => admits(s, w, days, taken));
+      let slot = orderByStylePreference(
+        admittingSlots,
+        w,
+        planStyle,
+        skeleton.phase,
+        skeleton.weekNumber
+      )[0];
       let workout = w;
 
       if (!slot && isQuality(w)) {
@@ -645,9 +701,16 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
           type: steppedType,
           intensity: "Z1-Z2",
         });
-        const steppedSlot = buildSlots(days).find((s) =>
+        const steppedAdmitting = buildSlots(days).filter((s) =>
           admits(s, stepped, days, taken)
         );
+        const steppedSlot = orderByStylePreference(
+          steppedAdmitting,
+          stepped,
+          planStyle,
+          skeleton.phase,
+          skeleton.weekNumber
+        )[0];
         if (steppedSlot) {
           slot = steppedSlot;
           workout = stepped;
@@ -674,8 +737,15 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
             days[s.dayIdx].workouts.length < MAX_SESSIONS_PER_DAY &&
             (s.sports === null || s.sports.includes(workout.sport))
         );
+        const orderedCandidates = orderByStylePreference(
+          candidates,
+          workout,
+          planStyle,
+          skeleton.phase,
+          skeleton.weekNumber
+        );
         let placed = false;
-        for (const candidate of candidates) {
+        for (const candidate of orderedCandidates) {
           const fitted = fitToBlock(workout, candidate.mins);
           if (!fitted) continue;
           if (!admits(candidate, fitted.workout, days, taken)) continue;

@@ -26,6 +26,8 @@ import {
 } from "./volume";
 import { plannedMins, resolveFillOptions } from "./fill";
 import { taperFractionForWeek } from "@/lib/race/taper";
+import { resolvePlanStyle } from "@/lib/plan-style/resolve";
+import type { PlanStyle } from "@/lib/plan-style/types";
 
 export type AdjustmentRow = typeof schema.planAdjustments.$inferSelect;
 
@@ -90,6 +92,7 @@ interface PlanConstraints {
   daysPerWeek: number;
   hoursPerWeek: number;
   sports: string[];
+  planStyle: PlanStyle;
 }
 
 export function planConstraints(constraints: unknown): PlanConstraints {
@@ -97,6 +100,7 @@ export function planConstraints(constraints: unknown): PlanConstraints {
     daysPerWeek?: number;
     hoursPerWeek?: number;
     sports?: string[];
+    planStyle?: unknown;
   };
   return {
     daysPerWeek: c.daysPerWeek ?? 5,
@@ -108,6 +112,7 @@ export function planConstraints(constraints: unknown): PlanConstraints {
     // requirePlanSport(constraints.sports?.[0]) at the call sites below
     // throws a named error instead of building a running week.
     sports: c.sports ?? [],
+    planStyle: resolvePlanStyle(c.planStyle),
   };
 }
 
@@ -347,6 +352,7 @@ export async function rolloverWeekPlan(
     races,
     currentCtl: ctlNow,
     queenStageHours,
+    planStyle: constraints.planStyle,
   });
 
   // 4. Persist.
