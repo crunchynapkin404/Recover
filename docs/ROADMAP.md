@@ -1203,6 +1203,21 @@ Plan: `docs/plans/2026-08-08-v0.59-week-action-effect-hints.md`.
 
 Released as tag `v0.59.0` from merged PR #74.
 
+## ✅ v0.60 — Week action legend
+
+Improve Train week quick-action clarity with a persistent, inline legend of
+deterministic effects.
+
+- [x] **Visible legend row** under week actions showing:
+      ease `-30%`, deload `-50%`, boost `+10%`, skip `0`.
+- [x] **Discoverability without hover** so mobile and keyboard users can read
+      effect guidance directly.
+- [x] **No behavior change**: action execution logic remains unchanged.
+- [x] **Verification gate**: format, typecheck, tests, build.
+
+Design: `docs/specs/2026-08-08-v0.60-week-action-legend-design.md`.
+Plan: `docs/plans/2026-08-08-v0.60-week-action-legend.md`.
+
 ## Ongoing — operations track
 
 All items scheduled into **v0.17 — Good Self-Hosted Citizen** by the v0.9.6
