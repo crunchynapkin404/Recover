@@ -231,18 +231,17 @@ In `src/lib/race/demand-constants.ts`, before the closing `} as const;`:
    * anchor is wider than the gap between the two models.
    */
   VERTICAL_METRES_PER_FLAT_KM: 100,
-  /**
-   * Sustainable pace over a triathlon swim leg, as a share of the athlete's
-   * median training swim pace. Triathlon swim legs are 0.75-3.8 km, short
-   * enough that within-swim decay sits inside the anchor's own error.
-   *
-   * CONFIDENCE: LOW. A modelling choice, not a measurement. 1.0 means "raced
-   * at the same pace as trained" — chosen because open-water conditions and
-   * race adrenaline pull in opposite directions and no published magnitude
-   * for the net effect was found.
-   */
-  SWIM_RACE_PACE_FACTOR: 1.0,
 ```
+
+**No swim race-pace factor.** An earlier draft of this plan added
+`SWIM_RACE_PACE_FACTOR: 1.0` here as a "tuning point". A constant whose only
+use is a multiply-by-one is a no-op dressed as a decision, and the code-quality
+rubric is right to flag it. The honest form is to price the swim leg at the
+athlete's own median pace with **no** race-day adjustment, and to record in the
+evidence document _why_: open-water conditions and race-day effort pull in
+opposite directions, and no published magnitude for the net effect was found.
+The assumption belongs in prose that a reader can challenge, not in a
+multiplier that hides it.
 
 - [ ] **Step 2: Write the failing tests**
 
@@ -495,7 +494,7 @@ git commit -m "feat(race): a running event is priced by a running model"
 
 **Interfaces:**
 
-- Consumes: `DEMAND_CONSTANTS.SWIM_RACE_PACE_FACTOR` (Task 2), `normaliseRaceType` (this task).
+- Consumes: `normaliseRaceType` (this task). No constant from Task 2 — the swim leg deliberately has none.
 - Produces:
   - `estimateSwimHours(distanceKm: number, paceSecPer100m: number): number | null`
   - `interface TriathlonLegs { swimKm: number; bikeKm: number; runKm: number }`
@@ -598,7 +597,9 @@ export function estimateSwimHours(
 ): number | null {
   if (!(distanceKm > 0) || !(paceSecPer100m > 0)) return null;
   const hundreds = (distanceKm * 1000) / 100;
-  const seconds = hundreds * paceSecPer100m * C.SWIM_RACE_PACE_FACTOR;
+  // No race-day adjustment: priced at the athlete's own median pace. See the
+  // evidence document for why that assumption is stated rather than tuned.
+  const seconds = hundreds * paceSecPer100m;
   return seconds / 3600;
 }
 ```
@@ -2258,6 +2259,7 @@ const hasDb =
   !!process.env.DATABASE_URL && process.env.DATABASE_DRIVER === "pg";
 
 const USER = "test-get-races-demand-user";
+const USER_NO_HISTORY = "test-get-races-no-anchor-user";
 
 describe.skipIf(!hasDb)("get_races demand provenance", () => {
   beforeAll(async () => {
@@ -2284,10 +2286,13 @@ describe.skipIf(!hasDb)("get_races demand provenance", () => {
   });
 
   it("tells the coach WHY there is no figure, rather than going quiet", async () => {
-    // Remove the running history so no anchor can be derived.
+    // A SECOND user with the same race and NO running history at all, so the
+    // two cases differ by their seed rather than by call order. Seeding one
+    // user and asserting two different outcomes from the same call cannot
+    // work — both `it` blocks would run against identical state.
     const result = await getRacesTool.execute(
       { status: "upcoming" },
-      { userId: USER }
+      { userId: USER_NO_HISTORY }
     );
     const race = result.races[0];
     expect(race.demandConfidence).toBeNull();
@@ -2518,7 +2523,8 @@ git commit -m "fix(weekly-review): one definition of this week, not two"
 
 - [ ] **Step 1: Write the evidence document**
 
-Mirror `docs/specs/2026-08-06-periodize-evidence.md`'s structure. One row per new constant: value, source, confidence, and what would change it. Cover `RIEGEL_EXPONENT` (Medium), `VERTICAL_METRES_PER_FLAT_KM` (Low, convention), `SWIM_RACE_PACE_FACTOR` (Low, modelling choice), `ANCHOR_CONSTANTS.WINDOW_DAYS` / `MIN_RUN_KM` / `MIN_SWIM_M` (Low, judgement), the `TRIATHLON_LEGS` distances (High — definitional), and `LONGEST_RIDE_FRACTION` re-rated as **unvalidated outside cycling**.
+Mirror `docs/specs/2026-08-06-periodize-evidence.md`'s structure. One row per new constant: value, source, confidence, and what would change it. Cover `RIEGEL_EXPONENT` (Medium), `VERTICAL_METRES_PER_FLAT_KM` (Low, convention), the swim leg's **absence** of a race-pace adjustment (state the assumption and
+why no magnitude was adopted), `ANCHOR_CONSTANTS.WINDOW_DAYS` / `MIN_RUN_KM` / `MIN_SWIM_M` (Low, judgement), the `TRIATHLON_LEGS` distances (High — definitional), and `LONGEST_RIDE_FRACTION` re-rated as **unvalidated outside cycling**.
 
 Record the two rejected alternatives and why: the Minetti gradient model, and a default swim pace.
 
