@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.59.0 — 2026-08-08 — Week action effect hints
+
+This release improves week-action clarity in Train with deterministic effect
+hints on each quick-action button.
+
+- Added per-action hint text in Train week controls:
+  - Ease week: `-30%`
+  - Deload week: `-50%`
+  - Boost week: `+10%`
+  - Skip week: `set to 0`
+- Added button `title` and `aria-label` metadata so action outcomes are
+  discoverable and accessible before submit.
+- Added focused UI test coverage for rendered effect hints.
+
 ## v0.58.0 — 2026-08-07 — Week action freshness guardrails
 
 This release prevents stale Train week-action submissions from mutating the
