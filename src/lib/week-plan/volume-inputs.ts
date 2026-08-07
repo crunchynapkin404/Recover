@@ -198,6 +198,8 @@ export async function assembleVolumeInputs(
     const latestWeight = wellness.find((w) => w.weightKg != null)?.weightKg;
     const latestEftp = wellness.find((w) => w.eftp != null)?.eftp;
     demand = eventDemand({
+      sport: target.sport,
+      raceType: target.raceType,
       eventDays: target.eventDays ?? 1,
       distanceKm: target.distanceKm,
       elevationM: target.elevationM,
@@ -207,10 +209,23 @@ export async function assembleVolumeInputs(
         elevationM: s.elevationM,
       })),
       overrideWeeklyHours: target.demandHoursOverride,
-      ftpWatts:
-        prefs?.ftpWatts ?? (latestEftp != null ? Math.round(latestEftp) : null),
+      expectedFinishHours: target.expectedFinishHours,
+      ftp:
+        prefs?.ftpWatts != null
+          ? { watts: prefs.ftpWatts, athleteSet: true }
+          : latestEftp != null
+            ? { watts: Math.round(latestEftp), athleteSet: false }
+            : null,
       // Rider weight plus an allowance for bike and kit.
       massKg: latestWeight != null ? latestWeight + 8 : null,
+      runPace:
+        prefs?.thresholdPaceSecPerKm != null
+          ? { secPerKm: prefs.thresholdPaceSecPerKm, athleteSet: true }
+          : null,
+      // No history-derived swim pace exists yet — a swim leg is priced only
+      // when the athlete has set one, or refused (no_swim_anchor) with
+      // `expectedFinishHours` offered as the way through.
+      swimPace: null,
     });
   }
 

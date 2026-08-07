@@ -1,13 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { eventDemand, type EventDemandInput } from "./demand";
 
-const ATHLETE = { ftpWatts: 310, massKg: 87 };
+const ATHLETE = { ftp: { watts: 310, athleteSet: true }, massKg: 87 };
 const base: EventDemandInput = {
+  sport: "Bike",
+  raceType: "gran_fondo",
   eventDays: 1,
   distanceKm: null,
   elevationM: null,
   stages: [],
   overrideWeeklyHours: null,
+  expectedFinishHours: null,
+  runPace: null,
+  swimPace: null,
   ...ATHLETE,
 };
 
@@ -176,7 +181,7 @@ describe("eventDemand", () => {
       ...base,
       distanceKm: 130,
       elevationM: 4000,
-      ftpWatts: null,
+      ftp: null,
     });
     expect(noFtp.available).toBe(false);
     if (noFtp.available) return;
@@ -296,6 +301,188 @@ describe("eventDemand", () => {
   });
 });
 
+describe("eventDemand dispatches on sport", () => {
+  const RUNNER = {
+    sport: "Run" as const,
+    raceType: "marathon",
+    eventDays: 1,
+    distanceKm: 42.2,
+    elevationM: 0,
+    stages: [],
+    overrideWeeklyHours: null,
+    expectedFinishHours: null,
+    ftp: { watts: 310, athleteSet: true },
+    massKg: 83,
+    runPace: { secPerKm: 300, athleteSet: true },
+    swimPace: null,
+  };
+
+  it("prices a marathon as a run even when the athlete has an FTP", () => {
+    // This is F3. Before v0.46 this returned ~1.2 h of CYCLING against a real
+    // 3-4 h run — understated by a factor of three, silently.
+    const result = eventDemand(RUNNER);
+    expect(result.available).toBe(true);
+    if (!result.available) return;
+    expect(result.totalHours).toBeGreaterThan(3.5);
+    expect(result.totalHours).toBeLessThan(4.0);
+  });
+
+  it("refuses a run with no pace anchor instead of falling back to the FTP", () => {
+    const result = eventDemand({ ...RUNNER, runPace: null });
+    expect(result.available).toBe(false);
+    if (result.available) return;
+    expect(result.reason).toBe("no_running_anchor");
+  });
+
+  it("sums three legs for a triathlon", () => {
+    const result = eventDemand({
+      ...RUNNER,
+      sport: "Triathlon",
+      raceType: "ironman",
+      distanceKm: 226,
+      swimPace: { secPer100m: 120, athleteSet: true },
+    });
+    expect(result.available).toBe(true);
+    if (!result.available) return;
+    // 1.27 h swim + a 180 km ride + a 42.2 km run. A sub-9 or over-17 total
+    // would mean a leg was dropped or double-counted.
+    expect(result.totalHours).toBeGreaterThan(9);
+    expect(result.totalHours).toBeLessThan(17);
+  });
+
+  it("refuses a triathlon whose format has no known leg distances", () => {
+    const result = eventDemand({
+      ...RUNNER,
+      sport: "Triathlon",
+      raceType: "club champs relay",
+      distanceKm: 100,
+      swimPace: { secPer100m: 120, athleteSet: true },
+    });
+    expect(result.available).toBe(false);
+    if (result.available) return;
+    expect(result.reason).toBe("unknown_triathlon_format");
+  });
+
+  it("refuses a triathlon it cannot price the swim leg of", () => {
+    // No partial pricing: a dropped leg would understate the whole event.
+    const result = eventDemand({
+      ...RUNNER,
+      sport: "Triathlon",
+      raceType: "ironman",
+      distanceKm: 226,
+      swimPace: null,
+    });
+    expect(result.available).toBe(false);
+    if (result.available) return;
+    expect(result.reason).toBe("no_swim_anchor");
+  });
+
+  it("attributes a triathlon's stated elevation to the bike leg", () => {
+    const flat = eventDemand({
+      ...RUNNER,
+      sport: "Triathlon",
+      raceType: "ironman",
+      distanceKm: 226,
+      elevationM: 0,
+      swimPace: { secPer100m: 120, athleteSet: true },
+    });
+    const hilly = eventDemand({
+      ...RUNNER,
+      sport: "Triathlon",
+      raceType: "ironman",
+      distanceKm: 226,
+      elevationM: 2000,
+      swimPace: { secPer100m: 120, athleteSet: true },
+    });
+    expect(flat.available && hilly.available).toBe(true);
+    if (!flat.available || !hilly.available) return;
+    expect(hilly.totalHours).toBeGreaterThan(flat.totalHours);
+  });
+});
+
+describe("eventDemand reports its confidence", () => {
+  const BASE = {
+    sport: "Run" as const,
+    raceType: "marathon",
+    eventDays: 1,
+    distanceKm: 42.2,
+    elevationM: 0,
+    stages: [],
+    overrideWeeklyHours: null,
+    expectedFinishHours: null,
+    ftp: null,
+    massKg: 83,
+    runPace: { secPerKm: 300, athleteSet: true },
+    swimPace: null,
+  };
+
+  it("is high when the athlete stated their finish time", () => {
+    const result = eventDemand({ ...BASE, expectedFinishHours: 3.75 });
+    expect(result.available).toBe(true);
+    if (!result.available) return;
+    expect(result.confidence).toBe("high");
+    expect(result.totalHours).toBe(3.75);
+  });
+
+  it("uses the stated time even with no anchor at all", () => {
+    // This is the cold-start path: a first-time athlete has no history, but
+    // does know what they are targeting.
+    const result = eventDemand({
+      ...BASE,
+      runPace: null,
+      expectedFinishHours: 4.5,
+    });
+    expect(result.available).toBe(true);
+    if (!result.available) return;
+    expect(result.totalHours).toBe(4.5);
+  });
+
+  it("is medium when every anchor used was set by the athlete", () => {
+    const result = eventDemand(BASE);
+    expect(result.available).toBe(true);
+    if (!result.available) return;
+    expect(result.confidence).toBe("medium");
+  });
+
+  it("is low when any anchor used was derived rather than set", () => {
+    const result = eventDemand({
+      ...BASE,
+      runPace: { secPerKm: 300, athleteSet: false },
+    });
+    expect(result.available).toBe(true);
+    if (!result.available) return;
+    expect(result.confidence).toBe("low");
+  });
+
+  it("takes the weakest anchor across a triathlon's three legs", () => {
+    const result = eventDemand({
+      ...BASE,
+      sport: "Triathlon",
+      raceType: "ironman",
+      distanceKm: 226,
+      ftp: { watts: 310, athleteSet: true },
+      runPace: { secPerKm: 300, athleteSet: true },
+      swimPace: { secPer100m: 120, athleteSet: false },
+    });
+    expect(result.available).toBe(true);
+    if (!result.available) return;
+    expect(result.confidence).toBe("low");
+  });
+
+  it("always carries a non-empty reason sentence", () => {
+    for (const input of [
+      BASE,
+      { ...BASE, expectedFinishHours: 3.75 },
+      { ...BASE, runPace: { secPerKm: 300, athleteSet: false } },
+    ]) {
+      const result = eventDemand(input);
+      expect(result.available).toBe(true);
+      if (!result.available) continue;
+      expect(result.confidenceReason.length).toBeGreaterThan(0);
+    }
+  });
+});
+
 /**
  * v0.46 freeze. This release must not move one decimal of the cycling path —
  * the reporting athlete is a cyclist, and every figure they see today is
@@ -306,13 +493,18 @@ describe("eventDemand", () => {
  */
 describe("cycling demand is unchanged by v0.46", () => {
   const GRAN_FONDO = {
+    sport: "Bike" as const,
+    raceType: "gran_fondo",
     eventDays: 1,
     distanceKm: 130,
     elevationM: 4000,
     stages: [],
     overrideWeeklyHours: null,
-    ftpWatts: 310,
+    expectedFinishHours: null,
+    ftp: { watts: 310, athleteSet: true },
     massKg: 83,
+    runPace: null,
+    swimPace: null,
   };
 
   it("prices a 130km/4000m fondo exactly as it did before", () => {

@@ -212,13 +212,18 @@ describe.skipIf(!hasDb)("previewTrainingPlan (v0.43)", () => {
     // default), computed here independently to derive an activity duration
     // that is comfortably feasible — never a guessed constant.
     const demand = eventDemand({
+      sport: "Bike",
+      raceType: "gran_fondo",
       eventDays: 1,
       distanceKm,
       elevationM,
       stages: [],
       overrideWeeklyHours: null,
-      ftpWatts,
+      expectedFinishHours: null,
+      ftp: { watts: ftpWatts, athleteSet: true },
       massKg: null,
+      runPace: null,
+      swimPace: null,
     });
     expect(demand.available).toBe(true);
     if (!demand.available) return;
