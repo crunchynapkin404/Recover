@@ -63,8 +63,14 @@ export function toPlanSport(raw: string | null | undefined): PlanSport | null {
  * key — `"gran_fondo"`, `"GranFondo"` and `"gran fondo"` all normalise to
  * `"granfondo"` — while keeping `"70.3"` intact (the dot is meaningful:
  * it is part of the race's actual name, not a separator).
+ *
+ * Exported since v0.46: the triathlon leg table is keyed by this function's
+ * output too, so free-text `races.race_type` and the plan tool's closed enum
+ * must collapse onto one key or a triathlon prices as nothing at all. That is
+ * what finally gives the audit's F7 real weight — before this, two spellings
+ * produced only an odd plan title.
  */
-function normaliseRaceType(raceType: string): string {
+export function normaliseRaceType(raceType: string): string {
   return raceType.toLowerCase().replace(/[^a-z0-9.]/g, "");
 }
 
