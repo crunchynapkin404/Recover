@@ -7,7 +7,13 @@ function day(date: string, workouts: DaySlot["workouts"]): DaySlot {
   return {
     date,
     availableBlocks: [
-      { start: "18:00", end: "19:00", mins: 60, energy: "normal", sports: null },
+      {
+        start: "18:00",
+        end: "19:00",
+        mins: 60,
+        energy: "normal",
+        sports: null,
+      },
     ],
     workouts,
     availableMins: 60,

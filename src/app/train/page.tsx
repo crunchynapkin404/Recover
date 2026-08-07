@@ -308,7 +308,8 @@ async function WeekTab({
     orderBy: desc(schema.wellnessDaily.date),
     limit: 30,
   });
-  const bodyMassKg = recentWellness.find((w) => w.weightKg != null)?.weightKg ?? null;
+  const bodyMassKg =
+    recentWellness.find((w) => w.weightKg != null)?.weightKg ?? null;
   const readinessMetric =
     latestMetric?.readiness != null
       ? latestMetric

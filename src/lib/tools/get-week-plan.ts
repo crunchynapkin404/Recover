@@ -8,7 +8,10 @@ import type { DaySlot } from "@/lib/week-plan/types";
 
 const parameters = z.object({});
 
-export function mapDaysWithFuelling(days: DaySlot[], bodyMassKg: number | null) {
+export function mapDaysWithFuelling(
+  days: DaySlot[],
+  bodyMassKg: number | null
+) {
   return days.map((d) => ({
     date: d.date,
     availableBlocks: d.availableBlocks,

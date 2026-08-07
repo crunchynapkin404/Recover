@@ -1,10 +1,6 @@
 export type FuellingConfidence = "high" | "medium" | "low";
 
-export type FuellingIntensityBand =
-  | "low"
-  | "moderate"
-  | "high"
-  | "unknown";
+export type FuellingIntensityBand = "low" | "moderate" | "high" | "unknown";
 
 export interface FuellingInput {
   durationMins: number | null;
