@@ -14,6 +14,7 @@ import {
   setPlanStyleQuick,
   setSeasonModeQuick,
   setStandardWeekDay,
+  setWeekAdjustmentQuick,
   submitAvailability,
   zeroDay,
 } from "./actions";
@@ -525,6 +526,89 @@ describe.skipIf(!hasDb)("server actions", () => {
       expect(
         (plan?.constraints as { reentryStage?: unknown } | null)?.reentryStage
       ).toBe("week_1");
+    });
+  });
+
+  describe("setWeekAdjustmentQuick", () => {
+    beforeEach(async () => {
+      const { db, schema } = await import("@/lib/db");
+      await db
+        .delete(schema.trainingBlocks)
+        .where(eq(schema.trainingBlocks.notes, "week adjustment test"));
+      await db
+        .delete(schema.trainingPlans)
+        .where(eq(schema.trainingPlans.userId, USER));
+      const [plan] = await db
+        .insert(schema.trainingPlans)
+        .values({
+          userId: USER,
+          title: "Week Adjustment Test",
+          raceType: "marathon",
+          raceDate: "2027-01-01",
+          startDate: "2026-01-01",
+          weeksTotal: 12,
+          currentWeek: 2,
+          status: "active",
+          constraints: {
+            daysPerWeek: 5,
+            hoursPerWeek: 8,
+            sports: ["Run"],
+          },
+        })
+        .returning();
+      await db.insert(schema.trainingBlocks).values({
+        planId: plan.id,
+        weekNumber: 2,
+        phase: "build",
+        targetLoadTotal: 300,
+        targetSessions: 4,
+        workouts: [],
+        notes: "week adjustment test",
+      });
+    });
+
+    it("rejects an invalid quick action payload", async () => {
+      const form = new FormData();
+      form.set("weekAction", "strange");
+      form.set("weekNumber", "2");
+      await expect(setWeekAdjustmentQuick(form)).resolves.toEqual({
+        ok: false,
+        error: "invalid_week_adjustment",
+      });
+    });
+
+    it("reduces the open skeleton week's target load", async () => {
+      const form = new FormData();
+      form.set("weekAction", "reduce_load");
+      form.set("weekNumber", "2");
+
+      await expect(setWeekAdjustmentQuick(form)).resolves.toEqual({ ok: true });
+
+      const { db, schema } = await import("@/lib/db");
+      const block = await db.query.trainingBlocks.findFirst({
+        where: eq(
+          schema.trainingBlocks.notes,
+          "reduce_load: train quick week ease"
+        ),
+      });
+      expect(block?.targetLoadTotal).toBe(210);
+    });
+
+    it("can skip the open week", async () => {
+      const form = new FormData();
+      form.set("weekAction", "skip_week");
+      form.set("weekNumber", "2");
+
+      await expect(setWeekAdjustmentQuick(form)).resolves.toEqual({ ok: true });
+
+      const { db, schema } = await import("@/lib/db");
+      const block = await db.query.trainingBlocks.findFirst({
+        where: eq(
+          schema.trainingBlocks.notes,
+          "skip_week: train quick week skip"
+        ),
+      });
+      expect(block?.targetLoadTotal).toBe(0);
     });
   });
 

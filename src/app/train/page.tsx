@@ -34,6 +34,7 @@ import { SeasonTimelineCard } from "@/components/train/season-timeline-card";
 import { FuellingCard } from "@/components/train/fuelling-card";
 import { PlanStyleSwitch } from "@/components/train/plan-style-switch";
 import { SeasonModeSwitch } from "@/components/train/season-mode-switch";
+import { WeekAdjustmentSwitch } from "@/components/train/week-adjustment-switch";
 import { WeekRationale, fmt, article } from "@/components/plan/week-rationale";
 import { EventReadiness } from "@/components/plan/event-readiness";
 import {
@@ -89,6 +90,7 @@ import {
 import {
   setPlanStyleQuick,
   setSeasonModeQuick,
+  setWeekAdjustmentQuick,
   startWeek,
   submitAvailability,
 } from "@/app/plan/actions";
@@ -762,6 +764,12 @@ async function WeekTab({
               reentryStage={constraints.reentryStage}
               action={setSeasonModeQuick}
             />
+            {week && (
+              <WeekAdjustmentSwitch
+                weekNumber={week.skeletonWeek}
+                action={setWeekAdjustmentQuick}
+              />
+            )}
           </div>
         }
       />
