@@ -1220,7 +1220,7 @@ Plan: `docs/plans/2026-08-08-v0.60-week-action-legend.md`.
 
 Released as tag `v0.60.0` from merged PR #76.
 
-## Upcoming release train (v0.61-v0.66)
+## Upcoming release train (v0.61-v0.70)
 
 Near-term plan: ship small, deterministic slices that improve day-to-day
 training decisions first, then deepen insight quality and operational safety.
@@ -1233,6 +1233,10 @@ training decisions first, then deepen insight quality and operational safety.
 | v0.64 | Correlation engine v2 (confidence-aware) | Insights become more trustworthy by showing strength and confidence, not just claims. | 1) Add correlation output with effect size + confidence band. 2) Add minimum sample guardrails before rendering claims. 3) Add time-of-day lens for workout timing vs next-day readiness. 4) Add "insufficient evidence" state as first-class UI. 5) Add regression tests with synthetic datasets for known outcomes. |
 | v0.65 | MCP consolidation and tool contract hardening | Operations get simpler and safer as tool surface consolidates with strong contracts. | 1) Fold remaining intervals-icu-mcp capabilities into built-in Recover MCP where planned. 2) Reduce duplicate tool paths and normalize input/output schemas. 3) Add contract tests for each tool including error-path snapshots. 4) Add migration notes for any renamed or removed tools. 5) Update docs and examples used by local operators. |
 | v0.66 | Backup and recovery hardening | Self-hosted operators can recover quickly and verify backup integrity. | 1) Add nightly pg_dump workflow with retention policy. 2) Add restore drill script and operator runbook with expected timings. 3) Add post-restore health checks for critical tables and auth flows. 4) Add alerting for backup failures and stale backups. 5) Add release gate that validates backup artifact creation in staging. |
+| v0.67 | Coach proactive nudges (opt-in beta) | Athletes get timely, explainable prompts without alert fatigue. | 1) Add opt-in proactive coach channel with strict quiet hours. 2) Add nudge throttling and duplicate suppression. 3) Require each nudge to include reason code + confidence. 4) Add one-click mute/snooze controls per nudge type. 5) Add tests for throttling, quiet hours, and opt-out behavior. |
+| v0.68 | Recommendation quality scorecard | Coaching guidance quality becomes measurable and improvable. | 1) Add recommendation outcome tracking (accepted/rejected/followed/ignored). 2) Add weekly quality metrics dashboard (precision-like acceptance and stability). 3) Add recommendation drift alerts when behavior changes abruptly. 4) Add offline replay harness for recommendation evaluation. 5) Add tests covering score calculation and drift detection thresholds. |
+| v0.69 | Multi-sport adaptation pass | Running/cycling/triathlon athletes get sport-aware adaptation logic. | 1) Normalize sport load vocabulary for adaptation logic. 2) Add sport-specific adjustment caps where needed. 3) Add mixed-week handling (multi-sport planned vs actual). 4) Add confidence downgrade when cross-sport data is sparse. 5) Add regression tests for mixed-sport edge cases. |
+| v0.70 | Evidence and audit trail | Every meaningful coaching change is traceable and reviewable. | 1) Add immutable recommendation/audit timeline events. 2) Add per-week "why this changed" panel with linked reasons. 3) Add exportable decision log for self-hosted operators. 4) Add redaction controls for sensitive notes in exports. 5) Add tests for timeline completeness and export integrity. |
 
 ### Release lane definition of done (template)
 
@@ -1300,6 +1304,17 @@ Roadmap impact on v0.61-v0.66:
 - **Future candidate lane (post-v0.66)**: messaging automation and
       coach-proactive nudges, only after confidence-gated adaptation is stable.
 
+Roadmap impact extension for v0.67-v0.70:
+
+- **v0.67** turns messaging demand into a controlled, opt-in beta instead of
+      always-on automation.
+- **v0.68** adds quality instrumentation so recommendation quality can be tuned
+      using evidence, not anecdotes.
+- **v0.69** addresses multi-sport adaptation where connector-heavy users often
+      have mixed training weeks.
+- **v0.70** finishes with auditability to support self-hosted trust and
+      operator review workflows.
+
 ### Deep wishlist analysis: what to adopt from ecosystem demand
 
 Engagement-weighted signals from category JSON (`/c/ai-tools/17.json`) show
@@ -1343,6 +1358,25 @@ Guardrails for adopting "hot" features:
 - No connector expansion ships without **contract tests** and failure-mode docs.
 - No proactive messaging ships before quiet hours, throttling, and opt-out are
       implemented.
+
+### Execution control (using-superpowers workflow)
+
+The next 10 releases execute in five controlled batches with mandatory
+verification and review checkpoints:
+
+1. Batch A: v0.61-v0.62
+2. Batch B: v0.63-v0.64
+3. Batch C: v0.65-v0.66
+4. Batch D: v0.67-v0.68
+5. Batch E: v0.69-v0.70
+
+For each release in each batch:
+
+- Enforce: brainstorm -> written plan -> isolated worktree -> TDD -> review ->
+      verification-before-completion -> merge/tag/release.
+- Hard stop if: verification fails 3 consecutive attempts, unresolved critical
+      review findings, or rollback path is unclear.
+- Human checkpoint after each batch before advancing to the next batch.
 
 ## Ongoing — operations track
 
