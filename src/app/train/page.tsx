@@ -31,6 +31,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { TrainTabs } from "@/components/train/train-tabs";
 import { WeekDayList } from "@/components/train/week-day-list";
 import { SeasonTimelineCard } from "@/components/train/season-timeline-card";
+import { FuellingCard } from "@/components/train/fuelling-card";
 import { WeekRationale, fmt, article } from "@/components/plan/week-rationale";
 import { EventReadiness } from "@/components/plan/event-readiness";
 import {
@@ -302,6 +303,12 @@ async function WeekTab({
     where: eq(schema.dailyMetrics.userId, userId),
     orderBy: desc(schema.dailyMetrics.date),
   });
+  const recentWellness = await db.query.wellnessDaily.findMany({
+    where: eq(schema.wellnessDaily.userId, userId),
+    orderBy: desc(schema.wellnessDaily.date),
+    limit: 30,
+  });
+  const bodyMassKg = recentWellness.find((w) => w.weightKg != null)?.weightKg ?? null;
   const readinessMetric =
     latestMetric?.readiness != null
       ? latestMetric
@@ -492,6 +499,10 @@ async function WeekTab({
     }
   }
 
+  const today = new Date();
+  const todayYmd = localYmd(today);
+  const todaySlot = week?.days.find((d) => d.date === todayYmd) ?? null;
+
   const defaultRows = await db.query.availabilityDefaults.findMany({
     where: eq(schema.availabilityDefaults.userId, userId),
   });
@@ -677,7 +688,6 @@ async function WeekTab({
 
   // Next race as the compact row under the week; the full list stays in the
   // races section below.
-  const today = new Date();
   const race = await nextUpcomingRace(userId, today);
   let raceCard: RaceCountdownProps = {
     race: null,
@@ -740,10 +750,18 @@ async function WeekTab({
 
           <WeekDayList
             days={week.days}
-            today={localYmd(today)}
+            today={todayYmd}
             nextWeek={nextWeekPreview}
             actuals={dayActuals}
           />
+
+          {todaySlot && todaySlot.workouts.length > 0 && (
+            <FuellingCard
+              date={todayYmd}
+              workouts={todaySlot.workouts}
+              bodyMassKg={bodyMassKg}
+            />
+          )}
 
           {nextWeekPreview && (
             <p className="-mt-3 mb-5 px-1 text-[11px] text-white/40">
