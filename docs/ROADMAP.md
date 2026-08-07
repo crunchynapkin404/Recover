@@ -1220,6 +1220,164 @@ Plan: `docs/plans/2026-08-08-v0.60-week-action-legend.md`.
 
 Released as tag `v0.60.0` from merged PR #76.
 
+## Upcoming release train (v0.61-v0.70)
+
+Near-term plan: ship small, deterministic slices that improve day-to-day
+training decisions first, then deepen insight quality and operational safety.
+
+| Version | Title | Primary user value | Scoped deliverables |
+| --- | --- | --- | --- |
+| v0.61 | Adaptive week autopilot (MVP) | Weekly plan adjusts to what actually happened, not just what was planned. | 1) Compute weekly adherence signal from planned vs actual load and completion. 2) Apply bounded next-week adjustment (for example -15% to +10%) with explicit reason codes. 3) Add coach-facing rationale text for every auto-adjust decision. 4) Add manual override so athletes can accept or reject adjustment. 5) Add deterministic tests for high/low adherence paths. |
+| v0.62 | Sleep debt and bedtime guidance | Athletes get actionable recovery guidance tied to sleep consistency. | 1) Add rolling sleep-debt metric from recent sleep duration vs target. 2) Add bedtime window recommendation based on wake time and debt trend. 3) Gate recommendations when data quality is low (manual-only or sparse windows). 4) Add UI summary card with plain-language recommendation and confidence. 5) Add tests for debt math and no-data honesty behavior. |
+| v0.63 | Body battery daily energy curve | Daily energy expectations become predictable and easier to plan around. | 1) Add day energy curve model combining readiness, recent strain, and sleep debt. 2) Expose morning/afternoon/evening energy checkpoints. 3) Add automatic day tags (hard day, double day, rest day, late session). 4) Add calibration mode behavior for new users (<14 days). 5) Add snapshot tests for curve classification and tag generation. |
+| v0.64 | Correlation engine v2 (confidence-aware) | Insights become more trustworthy by showing strength and confidence, not just claims. | 1) Add correlation output with effect size + confidence band. 2) Add minimum sample guardrails before rendering claims. 3) Add time-of-day lens for workout timing vs next-day readiness. 4) Add "insufficient evidence" state as first-class UI. 5) Add regression tests with synthetic datasets for known outcomes. |
+| v0.65 | MCP consolidation and tool contract hardening | Operations get simpler and safer as tool surface consolidates with strong contracts. | 1) Fold remaining intervals-icu-mcp capabilities into built-in Recover MCP where planned. 2) Reduce duplicate tool paths and normalize input/output schemas. 3) Add contract tests for each tool including error-path snapshots. 4) Add migration notes for any renamed or removed tools. 5) Update docs and examples used by local operators. |
+| v0.66 | Backup and recovery hardening | Self-hosted operators can recover quickly and verify backup integrity. | 1) Add nightly pg_dump workflow with retention policy. 2) Add restore drill script and operator runbook with expected timings. 3) Add post-restore health checks for critical tables and auth flows. 4) Add alerting for backup failures and stale backups. 5) Add release gate that validates backup artifact creation in staging. |
+| v0.67 | Coach proactive nudges (opt-in beta) | Athletes get timely, explainable prompts without alert fatigue. | 1) Add opt-in proactive coach channel with strict quiet hours. 2) Add nudge throttling and duplicate suppression. 3) Require each nudge to include reason code + confidence. 4) Add one-click mute/snooze controls per nudge type. 5) Add tests for throttling, quiet hours, and opt-out behavior. |
+| v0.68 | Recommendation quality scorecard | Coaching guidance quality becomes measurable and improvable. | 1) Add recommendation outcome tracking (accepted/rejected/followed/ignored). 2) Add weekly quality metrics dashboard (precision-like acceptance and stability). 3) Add recommendation drift alerts when behavior changes abruptly. 4) Add offline replay harness for recommendation evaluation. 5) Add tests covering score calculation and drift detection thresholds. |
+| v0.69 | Multi-sport adaptation pass | Running/cycling/triathlon athletes get sport-aware adaptation logic. | 1) Normalize sport load vocabulary for adaptation logic. 2) Add sport-specific adjustment caps where needed. 3) Add mixed-week handling (multi-sport planned vs actual). 4) Add confidence downgrade when cross-sport data is sparse. 5) Add regression tests for mixed-sport edge cases. |
+| v0.70 | Evidence and audit trail | Every meaningful coaching change is traceable and reviewable. | 1) Add immutable recommendation/audit timeline events. 2) Add per-week "why this changed" panel with linked reasons. 3) Add exportable decision log for self-hosted operators. 4) Add redaction controls for sensitive notes in exports. 5) Add tests for timeline completeness and export integrity. |
+
+### Release lane definition of done (template)
+
+For each lane, do not merge until all boxes are checked:
+
+- [ ] Scope locked to 3-5 deliverables listed in roadmap lane.
+- [ ] Design/spec note created in `docs/specs/` for the lane.
+- [ ] Execution plan created in `docs/plans/` with explicit non-goals.
+- [ ] Unit/integration tests added for new behavior and edge guards.
+- [ ] Full verification gate passes: format, lint, typecheck, tests, build.
+- [ ] Changelog, roadmap, and version bump are consistent.
+- [ ] PR merged, tag published, and GitHub release created.
+- [ ] Post-release roadmap marker line added (release tag + merged PR).
+
+### Lane risks and mitigations
+
+- v0.61 risk: auto-adjustment feels "magical" or unpredictable.
+      Mitigation: bounded adjustment range, explicit reason codes, manual accept/reject.
+- v0.62 risk: poor sleep data quality produces noisy guidance.
+      Mitigation: confidence gating and "insufficient data" fallback state.
+- v0.63 risk: energy curve can look authoritative while still calibrating.
+      Mitigation: visible calibration label and conservative default outputs.
+- v0.64 risk: correlations overfit small samples.
+      Mitigation: sample-size thresholds, confidence bands, and withheld claims.
+- v0.65 risk: MCP consolidation causes compatibility regressions.
+      Mitigation: contract tests, migration map, and staged deprecations.
+- v0.66 risk: backups exist but are not restorable under pressure.
+      Mitigation: scheduled restore drills and automated post-restore checks.
+
+### Why this sequence
+
+1. v0.61-v0.63 deliver immediate athlete-facing value (better weekly adaptation,
+       sleep guidance, and daily energy planning).
+2. v0.64 upgrades trustworthiness by adding confidence-aware insight logic after
+       core behavior signals are in place.
+3. v0.65-v0.66 reduce operational risk only after the new product logic is
+       shipped, so reliability work hardens a richer baseline instead of freezing
+       innovation too early.
+
+### External signal analysis: intervals.icu AI Tools (2026-08-08)
+
+Source: https://forum.intervals.icu/c/ai-tools/17
+
+Observed patterns from active threads:
+
+- **Connector-first demand is dominant**: many projects lead with MCP/API
+      connectors and low-friction setup before deeper coaching logic.
+- **Adaptive daily/weekly coaching is crowded but active**: multiple tools
+      position on recovery-aware adaptation, suggesting strong sustained demand.
+- **Operator simplicity matters**: recurring value props include hosted or
+      "no local setup" deployment, signed binaries, and reduced configuration load.
+- **Reliability gaps remain visible**: issues such as API auth/403 failures
+      indicate integration robustness is still a practical differentiator.
+- **Cross-domain expansion appears early**: nutrition and messaging automation
+      are frequent adjacent experiments around training guidance.
+
+Roadmap impact on v0.61-v0.66:
+
+- **v0.61-v0.63 remain product-first** to meet adaptive coaching expectations
+      visible in the forum.
+- **v0.65 prioritizes MCP contract hardening** because connector quality is a
+      clear adoption gate in this ecosystem.
+- **v0.66 backup/recovery hardening** supports self-hosted trust where hosted
+      competitors position on convenience.
+- **Future candidate lane (post-v0.66)**: messaging automation and
+      coach-proactive nudges, only after confidence-gated adaptation is stable.
+
+Roadmap impact extension for v0.67-v0.70:
+
+- **v0.67** turns messaging demand into a controlled, opt-in beta instead of
+      always-on automation.
+- **v0.68** adds quality instrumentation so recommendation quality can be tuned
+      using evidence, not anecdotes.
+- **v0.69** addresses multi-sport adaptation where connector-heavy users often
+      have mixed training weeks.
+- **v0.70** finishes with auditability to support self-hosted trust and
+      operator review workflows.
+
+### Deep wishlist analysis: what to adopt from ecosystem demand
+
+Engagement-weighted signals from category JSON (`/c/ai-tools/17.json`) show
+where attention concentrates:
+
+- **Adaptive coaching**: 15 topics, 82,270 views, 1,604 replies, 1,549 likes.
+- **Connector/MCP interoperability**: 12 topics, 49,374 views, 562 replies,
+                  654 likes.
+- **LLM assistant workflows**: 8 topics, 50,642 views, 586 replies, 649 likes.
+- **Nutrition adjacency**: 3 topics, 296 views, 8 replies, 4 likes.
+
+Interpretation:
+
+- Demand is strongest where users get **daily adaptation + clear automation**,
+      not static dashboards.
+- Connector quality is the adoption gate: many projects lead with setup and
+      interoperability before differentiated coaching logic.
+- Generic LLM chat alone is table stakes; users reward systems that can
+      take action safely against training data.
+- Nutrition appears real but early-stage in this category and should not
+      preempt core adaptation reliability work.
+
+Recover feature intake matrix (build/use/defer):
+
+| Candidate feature | Ecosystem pull | Recover fit | Decision | Target window |
+| --- | --- | --- | --- | --- |
+| Weekly adherence autopilot with bounded load changes | Very high | Very high | Build now | v0.61 |
+| Sleep debt + bedtime recommendation with confidence gate | High | Very high | Build now | v0.62 |
+| Daily energy curve + automatic day tags | High | High | Build now | v0.63 |
+| Confidence-aware correlations with minimum sample guard | Medium-high | Very high | Build now | v0.64 |
+| MCP contract hardening + migration map | Very high | Very high | Build now | v0.65 |
+| Proactive coach messaging (messages first) | Medium-high | High | Build behind flag | post-v0.66 |
+| Agentic workout posting/manipulation | Medium | Medium | Defer until guardrails mature | post-v0.66 |
+| Hosted/no-setup distribution mode | Medium | Low (self-hosted strategy) | Do not prioritize | not planned |
+| Nutrition/fueling recommendations | Emerging | Medium | Explore as optional add-on only | post-v0.66 |
+
+Guardrails for adopting "hot" features:
+
+- No new automation ships without **explainability text** and user override.
+- No insight claim ships without **confidence and sample-size thresholds**.
+- No connector expansion ships without **contract tests** and failure-mode docs.
+- No proactive messaging ships before quiet hours, throttling, and opt-out are
+      implemented.
+
+### Execution control (using-superpowers workflow)
+
+The next 10 releases execute in five controlled batches with mandatory
+verification and review checkpoints:
+
+1. Batch A: v0.61-v0.62
+2. Batch B: v0.63-v0.64
+3. Batch C: v0.65-v0.66
+4. Batch D: v0.67-v0.68
+5. Batch E: v0.69-v0.70
+
+For each release in each batch:
+
+- Enforce: brainstorm -> written plan -> isolated worktree -> TDD -> review ->
+      verification-before-completion -> merge/tag/release.
+- Hard stop if: verification fails 3 consecutive attempts, unresolved critical
+      review findings, or rollback path is unclear.
+- Human checkpoint after each batch before advancing to the next batch.
+
 ## Ongoing — operations track
 
 All items scheduled into **v0.17 — Good Self-Hosted Citizen** by the v0.9.6
