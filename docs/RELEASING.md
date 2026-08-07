@@ -19,6 +19,10 @@ notes promised.
          shipped while `package.json` still said `0.8.0`)
    - [ ] add the `CHANGELOG.md` entry (`## vX.Y.Z — date — Name`)
    - [ ] update `docs/ROADMAP.md` (tick what shipped, renumber if needed)
+   - [ ] complete the feature's UI/UX pass where applicable:
+         labels and discoverability, empty/loading/error states, focus and
+         contrast, and a quick shipped-surface sanity check in the page where
+         the feature actually lives
 4. **Everything green locally:** `npm test`, `npm run lint`,
    `npm run typecheck`, `npm run build`. A red or incomplete branch is not
    taggable — there is no "placeholder" release.
