@@ -826,6 +826,14 @@ describe.skipIf(!hasDb)("server actions", () => {
 
   describe("submitAvailability", () => {
     it("returns the no-open-week message when there's no active plan", async () => {
+      const { db, schema } = await import("@/lib/db");
+      await db
+        .delete(schema.weekPlans)
+        .where(eq(schema.weekPlans.userId, USER));
+      await db
+        .delete(schema.trainingPlans)
+        .where(eq(schema.trainingPlans.userId, USER));
+
       const fd = new FormData();
       fd.set("blocks-0", one);
       const result = await submitAvailability({ message: "" }, fd);
