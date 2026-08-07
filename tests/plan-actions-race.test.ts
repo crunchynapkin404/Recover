@@ -97,6 +97,7 @@ describe.skipIf(!hasDb)("plan race actions", () => {
       eventDays: 1,
       distanceKm: null,
       elevationM: null,
+      expectedFinishHours: null,
       stages: [],
     });
     expect(r).toEqual({ ok: false, error: "past_date" });
@@ -126,6 +127,7 @@ describe.skipIf(!hasDb)("plan race actions", () => {
       eventDays: 3,
       distanceKm: 300.5,
       elevationM: 4500.6,
+      expectedFinishHours: 12.5,
       stages: [
         { dayNumber: 1, distanceKm: 100, elevationM: 1500.4 },
         { dayNumber: 2, distanceKm: 100.25, elevationM: 1500 },
@@ -142,6 +144,7 @@ describe.skipIf(!hasDb)("plan race actions", () => {
     expect(race!.distanceKm).toBeCloseTo(300.5);
     // elevation_m is an integer column: 4500.6 must round, not truncate or throw.
     expect(race!.elevationM).toBe(4501);
+    expect(race!.expectedFinishHours).toBeCloseTo(12.5);
 
     const stages = (
       await db.query.raceStages.findMany({
@@ -171,6 +174,7 @@ describe.skipIf(!hasDb)("plan race actions", () => {
       eventDays: 3,
       distanceKm: 300,
       elevationM: 3000,
+      expectedFinishHours: null,
       stages: [
         { dayNumber: 1, distanceKm: 100, elevationM: 1000 },
         { dayNumber: 2, distanceKm: 100, elevationM: 1000 },
@@ -189,6 +193,7 @@ describe.skipIf(!hasDb)("plan race actions", () => {
       eventDays: 2,
       distanceKm: 200,
       elevationM: 2000,
+      expectedFinishHours: null,
       stages: [
         { dayNumber: 1, distanceKm: 100, elevationM: 1000 },
         { dayNumber: 2, distanceKm: 100, elevationM: 1000 },
@@ -219,6 +224,7 @@ describe.skipIf(!hasDb)("plan race actions", () => {
       eventDays: number;
       distanceKm: number | null;
       elevationM: number | null;
+      expectedFinishHours?: number | null;
       stages: {
         dayNumber: number;
         distanceKm: number | null;
@@ -244,6 +250,14 @@ describe.skipIf(!hasDb)("plan race actions", () => {
         eventDays: 1,
         distanceKm: null,
         elevationM: Infinity,
+        stages: [],
+      },
+      {
+        name: "Bad Expected Finish Race",
+        eventDays: 1,
+        distanceKm: null,
+        elevationM: null,
+        expectedFinishHours: -3,
         stages: [],
       },
       {
@@ -310,6 +324,7 @@ describe.skipIf(!hasDb)("plan race actions", () => {
         eventDays: c.eventDays,
         distanceKm: c.distanceKm,
         elevationM: c.elevationM,
+        expectedFinishHours: c.expectedFinishHours ?? null,
         stages: c.stages,
       });
       expect(r.ok, `case ${c.name} should be rejected`).toBe(false);
@@ -346,6 +361,7 @@ describe.skipIf(!hasDb)("plan race actions", () => {
         // The exact defect Finding I6 exists to fix: a 20,000m typo for
         // 2,000m, with no prior way to see or correct it in place.
         elevationM: 20000,
+        expectedFinishHours: null,
         stages: [],
       });
       expect(created).toEqual({ ok: true });
@@ -360,6 +376,7 @@ describe.skipIf(!hasDb)("plan race actions", () => {
         eventDays: 2,
         distanceKm: 100,
         elevationM: 2000,
+        expectedFinishHours: 6.5,
         stages: [
           { dayNumber: 1, distanceKm: 50, elevationM: 1000 },
           { dayNumber: 2, distanceKm: 50, elevationM: 1000 },
@@ -372,6 +389,7 @@ describe.skipIf(!hasDb)("plan race actions", () => {
       });
       expect(corrected!.elevationM).toBe(2000);
       expect(corrected!.eventDays).toBe(2);
+      expect(corrected!.expectedFinishHours).toBeCloseTo(6.5);
 
       const stages = (
         await db.query.raceStages.findMany({
@@ -397,6 +415,7 @@ describe.skipIf(!hasDb)("plan race actions", () => {
         eventDays: 1,
         distanceKm: 50,
         elevationM: 500,
+        expectedFinishHours: null,
         stages: [],
       });
       expect(created).toEqual({ ok: true });
@@ -408,6 +427,7 @@ describe.skipIf(!hasDb)("plan race actions", () => {
         eventDays: 1,
         distanceKm: -10,
         elevationM: null,
+        expectedFinishHours: null,
         stages: [],
       });
       expect(result).toEqual({
@@ -452,6 +472,7 @@ describe.skipIf(!hasDb)("plan race actions", () => {
         eventDays: 1,
         distanceKm: 999,
         elevationM: 9999,
+        expectedFinishHours: null,
         stages: [],
       });
       expect(result.ok).toBe(false);
@@ -480,6 +501,7 @@ describe.skipIf(!hasDb)("plan race actions", () => {
         eventDays: 1,
         distanceKm: 120,
         elevationM: 2000,
+        expectedFinishHours: null,
         stages: [],
       };
 
@@ -543,6 +565,7 @@ describe.skipIf(!hasDb)("plan race actions", () => {
         eventDays: 1,
         distanceKm: 100,
         elevationM: 1000,
+        expectedFinishHours: null,
         stages: [],
       };
 

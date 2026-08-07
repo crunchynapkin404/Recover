@@ -15,6 +15,7 @@ const races: RaceListItem[] = [
     eventDays: 1,
     distanceKm: 42.2,
     elevationM: 250,
+    expectedFinishHours: null,
     stages: [],
   },
 ];

@@ -8,6 +8,7 @@ interface Props {
   sleepNeedSecs: number;
   maxHr: number | null;
   ftpWatts: number | null;
+  thresholdPaceSecPerKm: number | null;
 }
 
 export function BodyPrefsCard({
@@ -15,11 +16,15 @@ export function BodyPrefsCard({
   sleepNeedSecs,
   maxHr,
   ftpWatts,
+  thresholdPaceSecPerKm,
 }: Props) {
   const [wake, setWake] = useState(wakeTime ?? "");
   const [hours, setHours] = useState((sleepNeedSecs / 3600).toString());
   const [hrMax, setHrMax] = useState(maxHr?.toString() ?? "");
   const [ftp, setFtp] = useState(ftpWatts?.toString() ?? "");
+  const [thresholdPace, setThresholdPace] = useState(
+    thresholdPaceSecPerKm?.toString() ?? ""
+  );
   const [message, setMessage] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -30,6 +35,9 @@ export function BodyPrefsCard({
         sleepNeedSecs: Math.round(Number(hours) * 3600),
         maxHr: hrMax.trim() ? Number(hrMax) : null,
         ftpWatts: ftp.trim() ? Number(ftp) : null,
+        thresholdPaceSecPerKm: thresholdPace.trim()
+          ? Number(thresholdPace)
+          : null,
       });
       setMessage(result.ok ? "Saved." : (result.message ?? "Failed."));
     });
@@ -101,6 +109,18 @@ export function BodyPrefsCard({
             value={ftp}
             onChange={(e) => setFtp(e.target.value)}
             placeholder="e.g. 250"
+            className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
+          />
+        </label>
+        <label className="block">
+          <span className="label-micro mb-1 block">Threshold pace (sec/km)</span>
+          <input
+            type="number"
+            min={150}
+            max={600}
+            value={thresholdPace}
+            onChange={(e) => setThresholdPace(e.target.value)}
+            placeholder="e.g. 285"
             className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
           />
         </label>

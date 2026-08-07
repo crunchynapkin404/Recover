@@ -269,6 +269,8 @@ interface DemandInput {
   eventDays: number;
   distanceKm: number | null;
   elevationM: number | null;
+  /** The athlete's own figure for how long the event takes them. */
+  expectedFinishHours: number | null;
   stages: {
     dayNumber: number;
     distanceKm: number | null;
@@ -293,6 +295,11 @@ function validateDemandInput(input: DemandInput): string | null {
   if (distanceError) return distanceError;
   const elevationError = validateElevation(input.elevationM, "Elevation");
   if (elevationError) return elevationError;
+  const expectedFinishError = validateDistance(
+    input.expectedFinishHours,
+    "Expected finish time"
+  );
+  if (expectedFinishError) return expectedFinishError;
 
   for (const stage of input.stages) {
     const stageDistanceError = validateDistance(
@@ -345,6 +352,7 @@ async function writeRaceDemand(
         eventDays: input.eventDays,
         distanceKm: input.distanceKm,
         elevationM: roundElevation(input.elevationM),
+        expectedFinishHours: input.expectedFinishHours,
         // Omitted means "leave it alone", not "clear it". addRace has already
         // written the goal through createRace, and updateRaceDemand — the
         // exported "use server" action that calls this helper — is reachable
@@ -387,6 +395,7 @@ export async function addRace(input: {
   eventDays: number;
   distanceKm: number | null;
   elevationM: number | null;
+  expectedFinishHours: number | null;
   stages: {
     dayNumber: number;
     distanceKm: number | null;
@@ -429,6 +438,7 @@ export async function updateRaceDemand(
     eventDays: number;
     distanceKm: number | null;
     elevationM: number | null;
+    expectedFinishHours: number | null;
     stages: {
       dayNumber: number;
       distanceKm: number | null;

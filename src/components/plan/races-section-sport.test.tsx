@@ -36,6 +36,7 @@ const RACE: RaceListItem = {
   eventDays: 2,
   distanceKm: 220,
   elevationM: 5000,
+  expectedFinishHours: null,
   stages: [],
 };
 

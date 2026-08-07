@@ -13,6 +13,9 @@ const MIN_MAX_HR = 100;
 const MAX_MAX_HR = 230;
 const MIN_FTP = 50;
 const MAX_FTP = 600;
+/** v0.46: the running anchor, the exact analogue of ftpWatts. */
+const MIN_THRESHOLD_PACE = 150;
+const MAX_THRESHOLD_PACE = 600;
 /** Threshold changes re-shape computed load this far back. */
 const RECOMPUTE_WINDOW_DAYS = 90;
 
@@ -21,6 +24,7 @@ export async function setBodyPrefs(input: {
   sleepNeedSecs: number;
   maxHr: number | null;
   ftpWatts: number | null;
+  thresholdPaceSecPerKm: number | null;
 }): Promise<{ ok: boolean; message?: string }> {
   const user = await requireUser();
 
@@ -55,6 +59,17 @@ export async function setBodyPrefs(input: {
   ) {
     return { ok: false, message: "FTP must be between 50 and 600 watts." };
   }
+  if (
+    input.thresholdPaceSecPerKm != null &&
+    (!Number.isInteger(input.thresholdPaceSecPerKm) ||
+      input.thresholdPaceSecPerKm < MIN_THRESHOLD_PACE ||
+      input.thresholdPaceSecPerKm > MAX_THRESHOLD_PACE)
+  ) {
+    return {
+      ok: false,
+      message: "Threshold pace must be between 150 and 600 seconds per km.",
+    };
+  }
 
   const before = await db.query.bodyPrefs.findFirst({
     where: (t, { eq }) => eq(t.userId, user.id),
@@ -65,6 +80,7 @@ export async function setBodyPrefs(input: {
     sleepNeedSecs: input.sleepNeedSecs,
     maxHr: input.maxHr,
     ftpWatts: input.ftpWatts,
+    thresholdPaceSecPerKm: input.thresholdPaceSecPerKm,
   };
   await db
     .insert(schema.bodyPrefs)

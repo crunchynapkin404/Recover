@@ -8,7 +8,7 @@ import { db, schema } from "@/lib/db";
 import { dedupeActivities } from "@/lib/training-load";
 import { eventDemand, type EventDemandResult } from "@/lib/race/demand";
 import { canonicalSport } from "@/lib/canonical-sport";
-import { disciplinesOf } from "@/lib/plan-sport";
+import { disciplinesOf, type PlanSport } from "@/lib/plan-sport";
 import {
   athleteLevel,
   LEVEL_CONSTANTS,
@@ -131,7 +131,7 @@ export interface VolumeInputsResult {
   demand: EventDemandResult | null;
   level: LevelResult;
   longestSessionHours: number | null;
-  targetRace: { id: string; name: string; date: string } | null;
+  targetRace: { id: string; name: string; date: string; sport: PlanSport } | null;
 }
 
 export async function assembleVolumeInputs(
@@ -282,7 +282,12 @@ export async function assembleVolumeInputs(
       ? longestSessionHoursOf(history, disciplinesOf(target.sport))
       : null,
     targetRace: target
-      ? { id: target.id, name: target.name, date: String(target.date) }
+      ? {
+          id: target.id,
+          name: target.name,
+          date: String(target.date),
+          sport: target.sport,
+        }
       : null,
   };
 }
