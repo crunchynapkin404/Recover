@@ -313,6 +313,40 @@ describe("materializeWeek illness comeback", () => {
     const types = r.week.days.flatMap((d) => d.workouts.map((w) => w.type));
     expect(types.includes("Intervals")).toBe(false);
   });
+
+  it("logs safety precedence when illness overrides otherwise stable form", () => {
+    const r = materializeWeek({
+      ...baseInput,
+      availableBlocksPerDay: blocksPerDay([120, 120, 120, 120, 120, 120, 120]),
+      recentBands: ["green", "green", "green", "green", "green", "green", "green"],
+      recentIllFlags: [false, false, false, false, false, false, true],
+      sport: "Bike",
+    });
+
+    expect(
+      r.adjustments.some(
+        (a) => a.reasonCode === "safety_precedence_illness_over_form"
+      )
+    ).toBe(true);
+  });
+
+  it("falls back to recovery-biased sessions when generation fails", () => {
+    const r = materializeWeek({
+      ...baseInput,
+      // Cast a non-plan sport to force generateWorkouts to throw.
+      sport: "Swim" as unknown as "Run",
+      availableBlocksPerDay: blocksPerDay([60, 60, 60, 60, 60, 60, 60]),
+    });
+
+    const all = r.week.days.flatMap((d) => d.workouts);
+    expect(all.length).toBeGreaterThan(0);
+    expect(all.every((w) => w.type === "Recovery")).toBe(true);
+    expect(
+      r.adjustments.some(
+        (a) => a.reasonCode === "safe_fallback_generation_error"
+      )
+    ).toBe(true);
+  });
 });
 
 describe("materializeWeek — generator cap explained (final-review Finding 2)", () => {

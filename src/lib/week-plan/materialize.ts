@@ -354,6 +354,27 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
       (input.prevWeek?.adherencePct ?? 100) < LOW_ADHERENCE_PCT,
   });
 
+  if (
+    comeback.mode !== "none" &&
+    suppressedDays === 0 &&
+    (input.recentIllFlags ?? []).some(Boolean)
+  ) {
+    adjustments.push({
+      date: input.weekStart,
+      trigger: "weekly_rollover",
+      action: "scaled",
+      before: [],
+      after: [],
+      reason:
+        "contradictory signals: form looked stable, but illness was present — safety-first comeback mode applied",
+      reasonCode: "safety_precedence_illness_over_form",
+      context: {
+        suppressedDays,
+        illDays: (input.recentIllFlags ?? []).filter(Boolean).length,
+      },
+    });
+  }
+
   if (comeback.mode !== "none") {
     const cap = Math.round(skeleton.targetLoadTotal * comeback.loadCapMultiplier);
     if (effectiveLoad > cap) {
@@ -366,6 +387,12 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
           before: [],
           after: [],
           reason: `${comeback.reason}; week load capped at ${effectiveLoad}`,
+          reasonCode: "comeback_load_cap",
+          context: {
+            comebackMode: comeback.mode,
+            capMultiplier: comeback.loadCapMultiplier,
+            effectiveLoad,
+          },
         });
       }
     }
@@ -491,15 +518,55 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
     }
   } else if (sessions > 0) {
     const effectiveHours = Math.min(hoursBudget, neededHours);
-    let workouts = generateWorkouts(
-      sessions,
-      effectiveHours,
-      skeleton.phase,
-      input.sport,
-      input.queenStageHours ?? null
-    )
-      .sort((a, b) => b.durationMins - a.durationMins)
-      .slice(0, sessions);
+    let workouts: ReturnType<typeof generateWorkouts> = [];
+    try {
+      workouts = generateWorkouts(
+        sessions,
+        effectiveHours,
+        skeleton.phase,
+        input.sport,
+        input.queenStageHours ?? null
+      )
+        .sort((a, b) => b.durationMins - a.durationMins)
+        .slice(0, sessions);
+    } catch (_err) {
+      // Failure-safe: on generation errors, land a recovery-biased week rather
+      // than an aggressive or empty one.
+      const fallbackSport =
+        input.sport === "Run"
+          ? "Run"
+          : input.sport === "Triathlon"
+            ? "Swim"
+            : "Bike";
+      const fallbackDays = days
+        .map((d, i) => ({ i, mins: d.availableMins }))
+        .filter((x) => x.mins > 0)
+        .slice(0, Math.max(1, sessions));
+      workouts = fallbackDays.map((x) =>
+        withPurpose({
+          day: x.i,
+          sport: fallbackSport,
+          type: "Recovery",
+          durationMins: Math.min(30, x.mins),
+          intensity: "Recovery",
+          description: "Fallback recovery session",
+        })
+      );
+      adjustments.push({
+        date: input.weekStart,
+        trigger: "weekly_rollover",
+        action: "scaled",
+        before: [],
+        after: [],
+        reason:
+          "generation fallback: dependencies failed, so a recovery-biased safe week was materialized",
+        reasonCode: "safe_fallback_generation_error",
+        context: {
+          fallbackSessions: workouts.length,
+          targetSessions: sessions,
+        },
+      });
+    }
 
     if (comeback.mode !== "none") {
       const downgraded = workouts.map((w) => {
@@ -519,6 +586,8 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
           before: [],
           after: [],
           reason: "illness comeback: intensity above tempo removed",
+          reasonCode: "comeback_intensity_cap",
+          context: { comebackMode: comeback.mode },
         });
       }
       workouts = downgraded;
