@@ -1240,6 +1240,8 @@ training decisions first, then deepen insight quality and operational safety.
 
 Released as tag `v0.61.0` from merged PR #79.
 Released as tag `v0.62.0` from merged PR #81.
+Released as tag `v0.63.0` from merged PR #83.
+Released as tag `v0.64.0` from merged PR #83.
 
 ### Release lane definition of done (template)
 
