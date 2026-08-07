@@ -71,6 +71,45 @@ describe("body battery (hand-computed fixtures)", () => {
     expect(r.points.every((p) => p.minutes <= 600)).toBe(true);
   });
 
+  it("returns no tags or checkpoints when readiness is missing", () => {
+    const r = computeBodyBattery({ ...base, readiness: null });
+    expect(r.tags).toEqual([]);
+    expect(r.checkpoints).toEqual([]);
+  });
+
+  it("adds a lower starting charge when sleep debt is present", () => {
+    const rested = computeBodyBattery({
+      ...base,
+      sleepDebtSecs: 0,
+      nowMinutes: 420,
+    });
+    const tired = computeBodyBattery({
+      ...base,
+      sleepDebtSecs: 7200,
+      nowMinutes: 420,
+    });
+
+    expect(tired.current).toBeLessThan(rested.current ?? 0);
+  });
+
+  it("surfaces day-shape tags and checkpoints", () => {
+    const r = computeBodyBattery({
+      ...base,
+      sleepDebtSecs: 3600,
+      activities: [
+        { startMinutes: 480, durationMin: 60, load: 60 },
+        { startMinutes: 1140, durationMin: 30, load: 40 },
+      ],
+      nowMinutes: 1140,
+    });
+
+    expect(r.tags).toEqual(
+      expect.arrayContaining(["double day", "late session", "sleep debt"])
+    );
+    expect(r.checkpoints.map((c) => c.label)).toContain("Morning");
+    expect(r.checkpoints).toHaveLength(3);
+  });
+
   it("ignores an activity that has not started yet", () => {
     const withFuture = computeBodyBattery({
       ...base,

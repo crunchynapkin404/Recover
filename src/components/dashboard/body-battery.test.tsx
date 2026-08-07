@@ -10,7 +10,7 @@ import { BodyBatteryCurve } from "./body-battery";
 describe("body battery card", () => {
   it("renders an empty state instead of a placeholder curve when null", () => {
     const html = renderToString(
-      <BodyBatteryCurve current={null} points={[]} />
+      <BodyBatteryCurve current={null} points={[]} tags={[]} checkpoints={[]} />
     );
     expect(html).toContain("Not enough data");
     expect(html).not.toContain("<path");
@@ -25,6 +25,8 @@ describe("body battery card", () => {
           { minutes: 720, charge: 80 },
           { minutes: 1440, charge: 70 },
         ]}
+        tags={[]}
+        checkpoints={[]}
       />
     );
     expect(html).not.toContain("M0 40 Q50 30 80 45");
@@ -32,7 +34,12 @@ describe("body battery card", () => {
 
   it("labels itself an estimate rather than a measurement", () => {
     const html = renderToString(
-      <BodyBatteryCurve current={70} points={[{ minutes: 0, charge: 70 }]} />
+      <BodyBatteryCurve
+        current={70}
+        points={[{ minutes: 0, charge: 70 }]}
+        tags={[]}
+        checkpoints={[]}
+      />
     );
     expect(html).toContain("Estimated Energy");
   });
@@ -45,9 +52,30 @@ describe("body battery card", () => {
           { minutes: 0, charge: 100 },
           { minutes: 720, charge: 50 },
         ]}
+        tags={["rest day"]}
+        checkpoints={[]}
       />
     );
     // 0min → x=0, charge 100 → y=0; 720min → x=200, charge 50 → y=90.
     expect(html).toContain("M0.0 0.0 L200.0 90.0");
+  });
+
+  it("renders day tags and checkpoints", () => {
+    const html = renderToString(
+      <BodyBatteryCurve
+        current={45}
+        points={[{ minutes: 0, charge: 45 }]}
+        tags={["hard day", "sleep debt"]}
+        checkpoints={[
+          { label: "Morning", minutes: 420, charge: 45 },
+          { label: "Midday", minutes: 780, charge: 30 },
+          { label: "Evening", minutes: 1140, charge: 20 },
+        ]}
+      />
+    );
+
+    expect(html).toContain("hard day");
+    expect(html).toContain("Morning");
+    expect(html).toContain("30<!-- -->%");
   });
 });

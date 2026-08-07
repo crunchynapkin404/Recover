@@ -11,6 +11,7 @@ export interface SplitInsight {
   ciHalfWidthPct: number;
   conclusive: boolean;
   events: number;
+  evidence: "limited" | "strong";
 }
 
 export interface TagInsight {
@@ -21,6 +22,7 @@ export interface TagInsight {
   ciHalfWidthPct: number; // 95% CI half-width, rounded pp
   conclusive: boolean; // CI does not cross zero
   events: number;
+  evidence: "limited" | "strong";
   splits: { weekday: SplitInsight | null; weekend: SplitInsight | null };
 }
 
@@ -64,11 +66,17 @@ function compare(
   if (!w) return null;
   const base = mean(untagged);
   if (base <= 0) return null;
+  const impactPct = Math.round((w.diff / base) * 100);
+  const ciHalfWidthPct = Math.round((w.halfWidth / base) * 100);
   return {
-    impactPct: Math.round((w.diff / base) * 100),
-    ciHalfWidthPct: Math.round((w.halfWidth / base) * 100),
+    impactPct,
+    ciHalfWidthPct,
     conclusive: w.conclusive,
     events: tagged.length,
+    evidence:
+      tagged.length < 10 || ciHalfWidthPct >= Math.abs(impactPct)
+        ? "limited"
+        : "strong",
   };
 }
 

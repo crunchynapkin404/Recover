@@ -1,5 +1,33 @@
 # Changelog
 
+## v0.64.0 — 2026-08-08 — Correlation engine v2 (confidence-aware)
+
+This release makes readiness correlations safer to trust by surfacing sample
+strength and low-evidence states instead of implying certainty from sparse
+data.
+
+- Added evidence levels to correlation outputs so rows and split views can say
+  when a result is limited versus strong.
+- Kept the core effect-size and confidence-band math intact while adding
+  minimum-sample guardrails to the rendered claim state.
+- Updated correlation UI surfaces to show "limited evidence" instead of a
+  generic inconclusive label when sample strength is still thin.
+- Added regression coverage for evidence-tier output and the updated UI copy.
+
+## v0.63.0 — 2026-08-08 — Body battery daily energy curve
+
+This release adds an explicit daily energy model so the app can show a
+readable day shape instead of implying a hidden measurement.
+
+- Added day-shape annotations to the body battery model: morning, midday, and
+  evening checkpoints plus deterministic day tags.
+- Threaded sleep debt into the modeled starting charge so sparse recovery days
+  are represented more conservatively.
+- Updated the body battery card and recovery accordion to render the new day
+  tags and checkpoint readouts.
+- Added focused tests for curve classification, day-shape labeling, and the
+  updated UI rendering.
+
 ## v0.62.0 — 2026-08-08 — Sleep debt confidence guidance
 
 This release improves sleep guidance clarity by showing how trustworthy the

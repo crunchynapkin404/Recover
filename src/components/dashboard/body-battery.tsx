@@ -1,12 +1,16 @@
 "use client";
 
-import type { BatteryPoint } from "@/lib/body-battery";
+import type { BatteryPoint, BodyBatteryCheckpoint } from "@/lib/body-battery";
 
 interface Props {
   /** Current charge 0-100, or null when there is not enough data. */
   current: number | null;
   /** The modelled curve. Empty when current is null. */
   points: BatteryPoint[];
+  /** Deterministic labels derived from the day shape. */
+  tags: string[];
+  /** Morning/midday/evening readouts derived from the curve. */
+  checkpoints: BodyBatteryCheckpoint[];
 }
 
 const VIEW_W = 400;
@@ -27,7 +31,7 @@ function toPath(points: BatteryPoint[]): string {
  * Estimated energy through the day — a labelled model, not a measurement.
  * Renders nothing rather than inventing a curve when readiness is unavailable.
  */
-export function BodyBatteryCurve({ current, points }: Props) {
+export function BodyBatteryCurve({ current, points, tags, checkpoints }: Props) {
   if (current == null || points.length === 0) {
     return (
       <div className="glass rounded-[2rem] p-7">
@@ -36,6 +40,18 @@ export function BodyBatteryCurve({ current, points }: Props) {
           Not enough data yet — your readiness score needs more history before
           energy can be estimated.
         </p>
+        {tags.length > 0 && (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {tags.map((tag) => (
+              <span
+                key={tag}
+                className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.18em] text-white/55"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
@@ -53,6 +69,16 @@ export function BodyBatteryCurve({ current, points }: Props) {
       <p className="mb-6 text-[11px] text-white/40">
         Modelled from readiness and training load
       </p>
+      <div className="mb-4 flex flex-wrap gap-2">
+        {tags.map((tag) => (
+          <span
+            key={tag}
+            className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.18em] text-white/55"
+          >
+            {tag}
+          </span>
+        ))}
+      </div>
       <div className="relative h-[180px] w-full">
         <svg
           viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
@@ -75,6 +101,23 @@ export function BodyBatteryCurve({ current, points }: Props) {
           <path d={fillPath} fill="url(#energy-grad)" />
         </svg>
       </div>
+      {checkpoints.length > 0 && (
+        <div className="mt-4 grid grid-cols-3 gap-2 text-[10px]">
+          {checkpoints.map((checkpoint) => (
+            <div
+              key={checkpoint.label}
+              className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2"
+            >
+              <div className="uppercase tracking-[0.16em] text-white/35">
+                {checkpoint.label}
+              </div>
+              <div className="mt-1 text-sm font-bold text-white/85">
+                {checkpoint.charge}%
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
       <div className="mt-4 flex justify-between text-[10px] font-bold uppercase tracking-widest text-white/50">
         <span>12 AM</span>
         <span>6 AM</span>

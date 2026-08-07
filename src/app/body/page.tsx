@@ -633,7 +633,12 @@ async function SleepTab({
       )}
 
       {battery.current != null && (
-        <BodyBatteryCurve current={battery.current} points={battery.points} />
+        <BodyBatteryCurve
+          current={battery.current}
+          points={battery.points}
+          tags={battery.tags}
+          checkpoints={battery.checkpoints}
+        />
       )}
 
       {wellness.every((w) => w.sleepSecs == null) && (

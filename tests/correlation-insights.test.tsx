@@ -34,12 +34,14 @@ const conclusiveRow: TagInsight = {
   ciHalfWidthPct: 6,
   conclusive: true,
   events: 8,
+  evidence: "strong",
   splits: {
     weekday: {
       impactPct: -13,
       ciHalfWidthPct: 7,
       conclusive: true,
       events: 6,
+      evidence: "limited",
     },
     weekend: null,
   },
@@ -53,6 +55,7 @@ const inconclusiveAutoRow: TagInsight = {
   ciHalfWidthPct: 9,
   conclusive: false,
   events: 12,
+  evidence: "limited",
   splits: { weekday: null, weekend: null },
 };
 
