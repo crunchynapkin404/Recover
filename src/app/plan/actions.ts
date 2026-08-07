@@ -6,6 +6,7 @@ import { requireUser } from "@/lib/session";
 import { db, schema } from "@/lib/db";
 import type { PlanSport } from "@/lib/plan-sport";
 import type { PlanStyle } from "@/lib/plan-style/types";
+import type { SeasonMode } from "@/lib/season-mode/types";
 import {
   applyAvailability,
   applyResolvedAvailability,
@@ -43,6 +44,22 @@ function asPlanStyle(value: FormDataEntryValue | null): PlanStyle | null {
   return value === "balanced" || value === "block_lite" ? value : null;
 }
 
+type SeasonQuickAction =
+  | { action: "set_season_mode"; seasonMode: SeasonMode }
+  | { action: "begin_reentry" };
+
+function asSeasonQuickAction(
+  value: FormDataEntryValue | null
+): SeasonQuickAction | null {
+  if (value === "normal" || value === "off_season") {
+    return { action: "set_season_mode", seasonMode: value };
+  }
+  if (value === "begin_reentry") {
+    return { action: "begin_reentry" };
+  }
+  return null;
+}
+
 function revalidatePlan(): void {
   revalidatePath("/train");
   revalidatePath("/");
@@ -66,6 +83,37 @@ export async function setPlanStyleQuick(formData: FormData): Promise<Result> {
 
   if (!result.success) {
     return { ok: false, error: result.error ?? "style_update_failed" };
+  }
+
+  revalidatePlan();
+  return { ok: true };
+}
+
+export async function setSeasonModeQuick(formData: FormData): Promise<Result> {
+  const user = await requireUser();
+  const next = asSeasonQuickAction(formData.get("seasonAction"));
+  if (!next) return { ok: false, error: "invalid_season_action" };
+
+  const { updateTrainingPlanTool } =
+    await import("@/lib/tools/update-training-plan");
+  const payload =
+    next.action === "set_season_mode"
+      ? {
+          action: next.action,
+          seasonMode: next.seasonMode,
+          reason: "train quick season switch",
+        }
+      : {
+          action: next.action,
+          reason: "train quick reentry start",
+        };
+  const result = (await updateTrainingPlanTool.execute(payload, {
+    userId: user.id,
+    db,
+  })) as { success?: boolean; error?: string };
+
+  if (!result.success) {
+    return { ok: false, error: result.error ?? "season_update_failed" };
   }
 
   revalidatePlan();
