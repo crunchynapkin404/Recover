@@ -1,5 +1,148 @@
 # Changelog
 
+## v0.45.0 — 2026-08-06 — Every number has a source
+
+`periodize()`, the skeleton generator behind every training plan, runs on
+twenty-two numeric constants — phase splits, progression rates, a recovery
+cadence, hours multipliers. None of them had ever been written down anywhere.
+A phase share of 0.4, a progression rate of 1.08, a recovery fraction of 0.6:
+each looked deliberate, and none were sourced. This release gives every one
+of them a name, a value, a source and a confidence rating, in
+`src/lib/plan-constants.ts` and its companion evidence document,
+`docs/specs/2026-08-06-periodize-evidence.md`. Most are rated Low confidence
+— coaching convention with no comparative evidence — and the two Mediums
+(`CTL_TO_WEEKLY_LOAD`, `RECOVERY_FRACTION`) rest on arithmetic and a
+detraining-literature band, not on findings about this app's own athletes.
+`src/lib/plan-constants.test.ts` fails CI if a constant is missing a doc row
+or a confidence rating, and it is deliberately not database-gated, so it
+actually runs on every PR rather than joining the 89 of 245 test files a
+DATABASE_URL-less CI run already skips. What it proves is narrower than it
+sounds, though: it checks that a constant is **named and has a summary-table
+row**. It does **not** check that the documented value is correct or that the
+confidence rating is honest — a constant could carry a fabricated citation
+and this test would still pass.
+
+While sourcing the recovery cadence we found a bug in it. "Recovery every
+Nth week" — three loading weeks then one recovery in base phase (3:1), two
+loading weeks then one recovery elsewhere (2:1) — was counted from zero at
+every phase boundary, so a 3-week base phase produced no recovery week at all
+(3 % 4 ≠ 0) and build started counting from scratch: six straight loading
+weeks with no recovery between them, purely because of where a phase line
+happened to fall. The counter now carries across phase boundaries, so cadence
+depends on how many loading weeks have actually passed, not on the nearest
+phase boundary. **This does not change how hard anyone trains.** An earlier
+draft of the fix also lengthened every mesocycle by a week (3:1 → 4:1 in
+base, 2:1 → 3:1 in build/peak); that was caught in review and reverted. The
+prescription an athlete receives is unchanged in density — only the position
+of misplaced recovery weeks moves.
+
+The taper had the opposite problem: two authorities computing two different
+numbers for the same week. `periodize()` used to decay load 25%/week and
+hours 0.7→0.6→0.5 in its own taper weeks, independently of
+`materializeWeek`, which separately applied the real ladder from
+`src/lib/race/taper.ts` (0.45/0.65/0.80, by proximity to race day) whenever
+it had a genuine load anchor to scale. The two rates diverged every taper
+week. The skeleton's own decay is gone; `periodize()` now reads the same
+three fractions `race/taper.ts` already owns, so there is one set of ladder
+values instead of two independently invented rates. This does not guarantee
+the skeleton and `materializeWeek` always land on the identical number for a
+given week — they still key off different things, plan position versus the
+real race date — but they now share the same ladder to do it with. One case
+needed a fix of its own on top: when a week has neither a previous week's
+actual load nor a synced CTL, `materializeWeek` used to multiply the
+skeleton's already-laddered number by the real-date fraction a second time —
+race week landing near 0.20 of true load instead of 0.45. It now keeps
+`periodize()`'s number as final in that case instead of rescaling it. That
+path is **not limited to a brand-new athlete's first week**: `hasActualLoad`
+is false whenever the previous week is missing _or_ its actual load is
+zero, so any athlete with no synced CTL hits it again after a missed week.
+
+Nothing bounded the skeleton's week-over-week compounding against what the
+athlete's own fitness could plausibly support. `effectiveWeekLoad`'s existing
+ramp guard clamps to ±20% of last week's _actual_ load, but the skeleton
+progresses at up to 8%/week, and 8 < 20 — so that clamp never fired against
+it, and the error compounded: `1.08^20` is 4.7×. A new bound,
+`CTL_RAMP_PER_WEEK = 5` TSS/week (the Coggan/Friel ramp-rate guidance —
+defensible coaching practice, **not** a validated injury threshold), now caps
+each week's load at `(startingCtl + 5 × weekNumber) × 7`. The bound is real
+but narrow, and its two figures are not the same figure: the algebraic
+crossover, where the plan's own step cap would start to outrun the bound's
+fixed rate, is `startingCtl > 50` — necessary but not sufficient, because a
+plan runs at most 52 weeks and needs that long for the gap to compound into
+a visible breach. An exhaustive sweep of every integer starting CTL against
+every plan length found the bound first actually changes a plan's output at
+`startingCtl = 68`, removing at most 9 TSS; at CTL 67 it removes 0. The bound
+is also floored at `MIN_WEEKLY_LOAD`, so it can only cap a runaway, never cut
+below the plan's existing minimum — a low-CTL athlete's opening week is
+unchanged.
+
+A B or C priority race still gets no _race-driven_ taper. `materializeWeek`
+only ever reshapes a week for a priority-A race, and that part is unchanged
+by this release. It is not true that B/C gets no reduction at all, though:
+periodize()'s own end-of-plan taper phase still reduces those weeks — Task 4
+replaced its decay rate, not its existence — and `effectiveWeekLoad`'s
+pre-existing ramp guard then clamps that reduction upward toward last week's
+actual load, so what an athlete actually sees is a partial reduction, not
+the ladder's intended race-week number. **This interaction is unchanged from
+before v0.45**: the old skeleton decay hit the identical clamp and produced
+the identical number on the project's pinned 12-week fixture (463/370 either
+way) — this release changed the rate feeding the clamp, not the clamp
+itself, so no athlete's outcome moved. What changed is that the gap is now
+recorded instead of silent: a week that falls inside a B/C race's own taper
+window logs an adjustment describing the shortfall, in words a coach or
+athlete can read. **This release makes the gap visible; it does not close
+it.** A real B/C mini-taper — one that survives the ramp guard — is
+scheduled for v0.47.
+
+The weekly review's headline load figure now comes from the same derivation
+the week's own rollover uses — `deriveDayActuals`, bucketed to the calendar
+week (Monday through Sunday) — rather than a rolling 7-day window measured
+off raw `activities.start_date` that also skipped the
+`coalesce(start_date_local, start_date)` every other surface already reads.
+The two numbers describing the same week no longer disagree by construction.
+Two things in the same message were deliberately **not** touched. The CTL
+delta still compares today's CTL to CTL from 7 days ago on the old rolling
+window, not the calendar week the load figure now uses — so "CTL 62 (+3)"
+sits next to a load number computed on a different boundary than its own
+delta. That is a known gap, not fixed here; see v0.46. And `actualSessions`
+still means two different things in two different places — an activity count
+in this message, plan-sessions-completed in `training_blocks` — deliberately:
+forcing them equal would have been the wrong fix. Instead the weekly review's
+write to `training_blocks.actualLoad`/`actualSessions` is deleted outright,
+so `rolloverWeekPlan` is now the only writer and there is nothing left to
+diverge.
+
+`docs/specs/2026-07-28-training-volume-evidence.md` previously rated
+`HEADROOM` (the 1.3× volume ceiling) and `RAMP_CLAMP_PCT` (the 0.2
+week-over-week ramp clamp) **High** confidence, anchored to the acute:chronic
+workload ratio's published 0.8–1.3 "safe zone." That anchor does not hold.
+Impellizzeri et al. 2020 (IJSPP) finds no evidence supporting ACWR for load
+management at all — the ratio is mathematically coupled, since the acute
+window sits inside the chronic one, producing spurious correlation on its
+own. Separately, `HEADROOM` was never actually an ACWR to begin with: an
+ACWR is acute 7-day load over chronic 28-day load, while `HEADROOM` is this
+week's hours over a 12-week rolling _peak_ — a different ratio that reused
+the number without inheriting the definition. **The values themselves did
+not move** — `HEADROOM` stays 1.3, `RAMP_CLAMP_PCT` stays 0.2 — only their
+confidence (High → Low) and their justification, now stated honestly as
+empirical guard-rails calibrated by feel, not validated thresholds. The
+coach's system prompt was softened to match: "ATL/CTL 0.8-1.3 is a rough
+guide, not a validated threshold" replaces language that called anything
+above 1.5 an injury risk.
+
+`scripts/repair-plan-blocks.ts` recomputes an active plan's stale training
+blocks against the fixed `periodize()` — dry run by default, `--apply` to
+write, mandatory `--user`/`--all` scope, one transaction per plan. It only
+ever touches weeks strictly **after** `plan.currentWeek`: the current week
+and every earlier one back a frozen `effectiveTarget` that gates the
+low-adherence safety rail, and rewriting either would corrupt an athlete's
+already-recorded adherence to fix a forecast. **A week the athlete has
+already started or completed is not re-scored by this script** — "repairs
+your plan" should not be read to mean otherwise. The live run is the
+operator's own to make, dry run first.
+
+No migrations in this release.
+
 ## v0.44.0 — 2026-08-06 — No Training Is Lost
 
 The week of 2026-07-27 closed with a training load of 314. The athlete had

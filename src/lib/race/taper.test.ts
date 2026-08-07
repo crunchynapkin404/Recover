@@ -15,6 +15,23 @@ const race = (date: string, raceType: string) => ({
   name: "Test race",
 });
 
+// v0.45 Task 4 re-review, Finding 1: every OTHER test that touches these
+// constants imports them and checks production output against that SAME
+// import — e.g. `targetLoad / TAPER_FRACTION_WEEK_2` in
+// training-plan.test.ts, or `toBe(TAPER_FRACTION_WEEK_2)` in the
+// `taperFractionForWeek` describe block below. If the exported VALUE of a
+// constant changes (not which branch reads it), production and the
+// assertion move together and the test still passes — a swapped constant
+// is invisible to all of them. This is the one place that pins the actual
+// numbers, so a swap fails loudly here even though it fails nowhere else.
+describe("TAPER_FRACTION_* ladder — pinned to literal values", () => {
+  it("pins the taper ladder", () => {
+    expect(TAPER_FRACTION_RACE_WEEK).toBe(0.45);
+    expect(TAPER_FRACTION_WEEK_1).toBe(0.65);
+    expect(TAPER_FRACTION_WEEK_2).toBe(0.8);
+  });
+});
+
 describe("taperWindowDays", () => {
   it("maps distance to window", () => {
     expect(taperWindowDays("marathon")).toBe(21);

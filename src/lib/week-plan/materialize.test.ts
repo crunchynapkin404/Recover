@@ -596,6 +596,60 @@ describe("materializeWeek race handling", () => {
     expect(r.effectiveLoad).toBe(Math.round(50 * 7 * 0.45)); // 158
   });
 
+  // Review finding (Task 4 re-review), Finding 2: when the skeleton itself
+  // already fell inside periodize()'s taper phase (v0.45 Task 4:
+  // targetLoadTotal is then `round(preTaperLoad * ladderFraction)`, already
+  // ladder-scaled once), the fallback tier above (no prevWeek.actualLoad,
+  // no currentCtl) used to multiply that already-scaled number by
+  // taperFraction a SECOND time. Reachability is broader than "brand-new
+  // athlete's first week": `hasActualLoad` is also false after a fully
+  // missed week (prevWeek.actualLoad === 0), so this fixture — no prev
+  // week, no CTL — stands in for any no-synced-CTL athlete hitting this
+  // path mid-plan too (a missed week, a rollover, or a race reschedule),
+  // not only a cold start. On this path the plan-position fraction
+  // (periodize's targetLoadTotal) wins outright over the real-date
+  // fraction (taperFraction here) rather than the latter rescaling it.
+  it("does not double-apply the ladder when the skeleton is already a taper week and there is no prev week or CTL (cold start)", () => {
+    const r = materializeWeek({
+      ...BASE_INPUT,
+      prevWeek: null,
+      currentCtl: null,
+      // 266 stands in for periodize()'s real race-week output — see
+      // training-plan.test.ts's characterization fixture, where a 12-week
+      // plan's own race week is exactly round(590.8 * 0.45) = 266 — i.e.
+      // already one full ladder application away from the true anchor.
+      skeleton: { ...SKELETON, phase: "taper" as const, targetLoadTotal: 266 },
+      races: [A_RACE],
+    });
+    // Before the fix: round(266 * 0.45) = 120 — a second 0.45 stacked on
+    // top of periodize()'s own 0.45, landing at ~0.20 of the real anchor
+    // (590.8) instead of ~0.45. After the fix: the already-scaled 266 is
+    // accepted as final.
+    expect(r.effectiveLoad).toBe(266);
+  });
+
+  // v0.45 Task 4 re-review, Finding 3: nothing asserted on `reason` before
+  // this, so the athlete/coach-facing adjustment text could drift silently
+  // from what the code actually did. On the cold-start path the raw
+  // "X% of current load" phrasing would be a lie — 266 is NOT 45% of
+  // anything computed here, it is periodize()'s own already-scaled number
+  // passed through unchanged. Pin the honest text so this cannot drift back.
+  it("cold-start reason text says the ladder was kept as-is, not that a percentage was applied", () => {
+    const r = materializeWeek({
+      ...BASE_INPUT,
+      prevWeek: null,
+      currentCtl: null,
+      skeleton: { ...SKELETON, phase: "taper" as const, targetLoadTotal: 266 },
+      races: [A_RACE],
+    });
+    const adj = r.adjustments.find((a) => a.trigger === "race");
+    expect(adj?.reason).toBe(
+      `taper: ${A_RACE.name} on ${A_RACE.date} — no actual load or synced CTL to rescale, so the plan's own taper ladder stands unscaled: week target 266`
+    );
+    // Must NOT claim a percentage was applied to produce 266 — it wasn't.
+    expect(adj?.reason).not.toMatch(/% of current load/);
+  });
+
   it("B race: race slot, day before rest, quality 2 days out stepped down", () => {
     const bRace: RaceContext = { ...A_RACE, priority: "B", name: "Tune-up" };
     const r = materializeWeek({ ...BASE_INPUT, races: [bRace] });
@@ -663,13 +717,27 @@ describe("materializeWeek race handling", () => {
     const r = materializeWeek({ ...BASE_INPUT, races: [cRace] });
     const days = r.week.days;
     expect(days[6].status).toBe("race");
-    // Saturday untouched by protection (may or may not hold a workout,
-    // but no race-trigger adjustment references it):
+    // Saturday untouched by protection (may or may not hold a workout, but
+    // no pre-race-day protection adjustment references it). The week's own
+    // missing-taper note (v0.45 Task 6 — a C race gets no taper either) is
+    // the one legitimate "race"-trigger adjustment NOT dated on race day,
+    // since it describes the whole week, not a specific day — excluded
+    // here rather than folded into "no protection touched Saturday".
     expect(
       r.adjustments
-        .filter((a) => a.trigger === "race")
+        .filter((a) => a.trigger === "race" && !a.reason.includes("no taper"))
         .every((a) => a.date === "2026-08-30")
     ).toBe(true);
+    const note = r.adjustments.find((a) => a.reason.includes("no taper"));
+    expect(note).toBeDefined();
+    expect(note!.date).toBe(BASE_INPUT.weekStart);
+    expect(note!.reason).toContain("Parkrun");
+    expect(note!.reason).toContain("priority C");
+    // The note must not claim the week is untouched: periodize()'s own
+    // end-of-plan taper still reduces it, just not by the race ladder.
+    expect(note!.reason).toContain("end-of-plan taper");
+    expect(note!.reason).toContain("partial reduction");
+    expect(note!.reason).not.toContain("full load");
   });
 
   it("two races: primary (first) reshapes, both get slots", () => {
@@ -975,5 +1043,95 @@ describe("restIntent", () => {
         (a) => a.date === r.week.days[5].date && a.action === "dropped"
       )
     ).toBe(false);
+  });
+});
+
+describe("a B/C race's missing taper is recorded", () => {
+  const base = {
+    weekStart: "2026-08-24",
+    skeleton: {
+      weekNumber: 5,
+      phase: "build" as const,
+      targetLoadTotal: 500,
+      targetSessions: 5,
+    },
+    availableBlocksPerDay: Array.from({ length: 7 }, () => []),
+    prevWeek: null,
+    recentBands: [],
+    sport: "Bike" as const,
+    hoursPerWeek: 8,
+    currentCtl: 50,
+    queenStageHours: null,
+  };
+
+  it("records a reason when the primary race is priority B", () => {
+    const r = materializeWeek({
+      ...base,
+      races: [
+        {
+          date: "2026-08-29",
+          priority: "B",
+          raceType: "Criterium",
+          name: "Club crit",
+        },
+      ],
+    });
+    const note = r.adjustments.find((a) => a.reason.includes("no taper"));
+    expect(note).toBeDefined();
+    expect(note!.trigger).toBe("race");
+    // Dated at the week start, not race day — this note describes the
+    // whole week's load, not a single day. A regression that dated it on
+    // race day would still pass a substring check on `reason`; only this
+    // assertion on `date` catches it directly.
+    expect(note!.date).toBe(base.weekStart);
+    expect(note!.reason).toContain("Club crit");
+    expect(note!.reason).toContain("priority B");
+    // The note must not claim the week is untouched: periodize()'s own
+    // end-of-plan taper still reduces it, just not by the race ladder.
+    expect(note!.reason).toContain("end-of-plan taper");
+    expect(note!.reason).toContain("partial reduction");
+    expect(note!.reason).not.toContain("full load");
+  });
+
+  it("records nothing for a week with no races at all", () => {
+    const r = materializeWeek({ ...base, races: [] });
+    expect(
+      r.adjustments.find((a) => a.reason.includes("no taper"))
+    ).toBeUndefined();
+  });
+
+  it("records nothing when the primary race is priority A", () => {
+    const r = materializeWeek({
+      ...base,
+      races: [
+        {
+          date: "2026-08-29",
+          priority: "A",
+          raceType: "Criterium",
+          name: "Big crit",
+        },
+      ],
+    });
+    expect(
+      r.adjustments.find((a) => a.reason.includes("no taper"))
+    ).toBeUndefined();
+  });
+
+  it("records nothing for a B race outside its taper window", () => {
+    const r = materializeWeek({
+      ...base,
+      weekStart: "2026-06-01", // months out
+      races: [
+        {
+          date: "2026-08-29",
+          priority: "B",
+          raceType: "Criterium",
+          name: "Club crit",
+        },
+      ],
+    });
+    expect(
+      r.adjustments.find((a) => a.reason.includes("no taper"))
+    ).toBeUndefined();
   });
 });

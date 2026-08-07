@@ -148,35 +148,133 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
 
   const races = input.races ?? [];
   const primary = races[0] ?? null;
+  // Priority-agnostic: whether this week sits inside primary's OWN taper
+  // window at all, per taper.ts's single ladder authority (Task 4).
+  // taperFractionForWeek never reads `priority` — it answers a calendar
+  // question, not a decision one — so it's safe to compute unconditionally
+  // and only gate its use to A-priority below. The B/C "no taper" note
+  // further down reuses this SAME calendar answer, rather than
+  // reimplementing the day-count math against a different constant, so the
+  // two blocks can never disagree about what "inside the window" means.
+  const primaryTaperFraction = primary
+    ? taperFractionForWeek(input.weekStart, primary)
+    : null;
   const taperFraction =
-    primary && primary.priority === "A"
-      ? taperFractionForWeek(input.weekStart, primary)
-      : null;
-  const taperBase =
-    input.prevWeek && input.prevWeek.actualLoad > 0
-      ? input.prevWeek.actualLoad
-      : input.currentCtl != null
-        ? input.currentCtl * 7
-        : input.skeleton.targetLoadTotal;
+    primary && primary.priority === "A" ? primaryTaperFraction : null;
+  const hasActualLoad = !!input.prevWeek && input.prevWeek.actualLoad > 0;
+  const hasCtl = input.currentCtl != null;
+  const taperBase = hasActualLoad
+    ? input.prevWeek!.actualLoad
+    : hasCtl
+      ? input.currentCtl! * 7
+      : input.skeleton.targetLoadTotal;
+  // v0.45 Task 4 review, Finding 2: when NEITHER an actual previous week NOR
+  // a measured CTL is available, `taperBase` above falls all the way back to
+  // `input.skeleton.targetLoadTotal` — periodize()'s own number for this
+  // week. If periodize() itself already placed this week inside its taper
+  // phase (`input.skeleton.phase === "taper"`), that number already went
+  // through ONE ladder fraction (`taperFractionFromEnd`, keyed on position
+  // in the plan). Multiplying it by `taperFraction` below (keyed on the
+  // REAL race date, via `taperFractionForWeek`) would apply the ladder a
+  // SECOND time and compound it — race week landing at ~0.45×0.45 ≈ 0.20 of
+  // the athlete's real load instead of 0.45.
+  //
+  // Reachability (corrected, Task 4 re-review, Finding 2): this is NOT
+  // limited to a brand-new athlete's very first materialized week.
+  // `hasActualLoad` is false whenever `prevWeek` is null OR
+  // `prevWeek.actualLoad === 0` — i.e. a fully missed week counts as "no
+  // actual load" too — and `hasCtl` is false whenever no CTL has ever
+  // synced. So this path recurs mid-plan for any athlete with no synced
+  // CTL, after a missed week, a rollover, or a race reschedule that moves
+  // an A-race's taper window over a week already in flight — exactly the
+  // situations where the plan's assumed geometry (`taperFractionFromEnd`)
+  // and the real calendar (`taperFractionForWeek`) are most likely to have
+  // drifted apart. On this path the plan-position fraction wins outright:
+  // periodize()'s already-scaled `targetLoadTotal` is kept as final, and
+  // the real-date fraction is NOT reapplied to rescale it.
+  //
+  // In every OTHER fallback tier this concern does not apply:
+  // `prevWeek.actualLoad` and `currentCtl * 7` are both genuine,
+  // non-taper-scaled load estimates, so multiplying by `taperFraction`
+  // there is the intended, correct behaviour (unchanged by this fix) — as
+  // is the common case where the skeleton falls back to
+  // `targetLoadTotal` but periodize's OWN phase for this week is NOT
+  // "taper" (e.g. the real race date is closer than the plan's geometry
+  // assumed): that number is a genuine unscaled estimate too.
+  //
+  // Which fraction "wins" when only the double-scaled case remains:
+  // `taperFractionForWeek` is the more trustworthy number in general — it
+  // reads the real race calendar, while `taperFractionFromEnd` only knows
+  // the plan's assumed phase geometry — but there is no clean, unscaled
+  // anchor left to apply it to (no CTL, no history). Rather than fabricate
+  // one, periodize()'s already-computed number is accepted as this week's
+  // final load, and `taperFractionForWeek` continues to govern everything
+  // ELSE about the week unchanged: whether it counts as a taper week at
+  // all, whether it's specifically race week, race-week workout
+  // generation, and the ramp-guard bypass below.
+  const alreadyLadderScaled =
+    !hasActualLoad && !hasCtl && input.skeleton.phase === "taper";
   const skeleton =
     taperFraction != null
       ? {
           ...input.skeleton,
           phase: "taper" as const,
-          targetLoadTotal: Math.round(taperBase * taperFraction),
+          targetLoadTotal: alreadyLadderScaled
+            ? taperBase
+            : Math.round(taperBase * taperFraction),
         }
       : input.skeleton;
 
   if (taperFraction != null) {
+    // v0.45 Task 4 re-review, Finding 3: on the `alreadyLadderScaled` path,
+    // `skeleton.targetLoadTotal` is `taperBase` passed through UNSCALED —
+    // it is not `round(taperBase * taperFraction)`. Saying "set to X% of
+    // current load" there would name a percentage that was never applied
+    // to produce the number in parentheses. Word that path in terms of
+    // what actually happened: periodize()'s own already-scaled ladder
+    // output was kept as-is, not rescaled.
     adjustments.push({
       date: input.weekStart,
       trigger: "race",
       action: "scaled",
       before: [],
       after: [],
-      reason: `taper: ${primary!.name} on ${primary!.date} — week target set to ${Math.round(
-        taperFraction * 100
-      )}% of current load (${skeleton.targetLoadTotal})`,
+      reason: alreadyLadderScaled
+        ? `taper: ${primary!.name} on ${primary!.date} — no actual load or synced CTL to rescale, so the plan's own taper ladder stands unscaled: week target ${skeleton.targetLoadTotal}`
+        : `taper: ${primary!.name} on ${primary!.date} — week target set to ${Math.round(
+            taperFraction * 100
+          )}% of current load (${skeleton.targetLoadTotal})`,
+    });
+  }
+
+  // The mirror image of the block above. Only a priority-A race
+  // taper-shapes a week; a B or C race sitting inside what would be its
+  // own taper window gets no RACE-DRIVEN reduction. That is not the same
+  // as "no reduction at all": periodize()'s own end-of-plan taper phase
+  // (Task 4's shared ladder) still reduces these weeks, same as before
+  // v0.45 — only the decay RATE it uses changed, not whether it runs.
+  // What effectiveWeekLoad's pre-existing ramp guard then does to that
+  // reduction (clamping it toward last week's actual load) is unchanged
+  // by this release too: the old skeleton decay hit the same clamp and
+  // landed on the identical number on the project's pinned fixture
+  // (463/370 either way). So the athlete gets a partial reduction, not
+  // the ladder's intended race-week number, and not "full load" either.
+  // This records that gap; it does not fill it — a real B/C mini-taper
+  // is v0.47. No load, target, or session count changes as a result of
+  // this block: it only pushes an AdjustmentRecord.
+  if (primary && primary.priority !== "A" && primaryTaperFraction != null) {
+    adjustments.push({
+      date: input.weekStart,
+      trigger: "race",
+      action: "scaled",
+      before: [],
+      after: [],
+      reason:
+        `no taper: ${primary.name} on ${primary.date} is priority ` +
+        `${primary.priority} — only an A race reshapes a week's volume, ` +
+        `so no race taper is applied; the plan's own end-of-plan taper ` +
+        `still reduces this week, but only as a partial reduction, not ` +
+        `a purpose-built race taper`,
     });
   }
 

@@ -24,6 +24,12 @@ import {
 } from "@/lib/plan-preview";
 import { assembleWeeklyTarget } from "@/lib/week-plan/volume-inputs";
 import { assessFeasibility } from "@/lib/race/feasibility";
+import { PLAN_CONSTANTS as PC } from "@/lib/plan-constants";
+import {
+  TAPER_FRACTION_RACE_WEEK,
+  TAPER_FRACTION_WEEK_1,
+  TAPER_FRACTION_WEEK_2,
+} from "@/lib/race/taper";
 
 /**
  * The transaction handle `db.transaction()`'s callback receives. `Database`
@@ -116,10 +122,11 @@ export const NO_DEMAND_LONG_BOUND_MINS = 240;
  * 5,200+ runners — but that is impact loading, and a bike is not a
  * treadmill. In cycling, overuse injury follows CUMULATIVE load outrunning
  * tissue repair, which is bounded upstream by two separate guards:
- * `weeklyTargetHours`'s own ACWR ceiling, and the week-over-week ramp clamp
- * (`RAMP_CLAMP_PCT`, applied in `materializeWeek`, not inside
- * `weeklyTargetHours`). The weekly number handed to this generator is
- * therefore already the safe one.
+ * `weeklyTargetHours`'s own `HEADROOM` ceiling (1.3× the athlete's own
+ * 12-week rolling peak — an empirical guard-rail, not an ACWR), and the
+ * week-over-week ramp clamp (`RAMP_CLAMP_PCT`, applied in `materializeWeek`,
+ * not inside `weeklyTargetHours`). The weekly number handed to this
+ * generator is therefore already the safe one.
  *
  * What remains is: how long should ONE ride be? The evidence is
  * event-relative — "for events lasting 4-5 hours, a 4-hour long ride each
@@ -223,6 +230,42 @@ function localYmd(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+/**
+ * The taper ladder, counting back from the last week of the plan, taken
+ * from race/taper.ts — the same three fractions `materializeWeek` reads via
+ * `taperFractionForWeek`, so there is exactly one set of ladder VALUES,
+ * never a second independently-invented rate.
+ *
+ * Before v0.45 the skeleton decayed load 25 %/week and hours
+ * 0.7 -> 0.6 -> 0.5 — two independent rates for one taper, so load and
+ * hours diverged every taper week and the implied intensity drifted as an
+ * artefact of two numbers nobody reconciled.
+ *
+ * This does NOT guarantee the skeleton and `materializeWeek` always compute
+ * the SAME final number for a given week — that stronger claim is false.
+ * They key off different things: this function off position in the plan
+ * (`weeksTotal - w`), `materializeWeek` off the real race date
+ * (`taperFractionForWeek`), and those can disagree when the plan's assumed
+ * geometry drifts from the real calendar. `materializeWeek`'s own
+ * real-date fraction overrides this one whenever it has a genuine load
+ * anchor to apply it to (an actual previous week, or a measured CTL). The
+ * one exception — no actual load AND no CTL — is exactly the case that
+ * used to double-apply the ladder (v0.45 Task 4 review, Finding 2):
+ * `materializeWeek` now keeps this function's already-computed number as
+ * final there instead of re-scaling it, specifically so the ladder is
+ * applied exactly once. See `materializeWeek`'s `alreadyLadderScaled` for
+ * the reasoning.
+ *
+ * What this exists for: `previewTrainingPlan` shows an honest taper before
+ * the athlete commits, on the same fractions the engine will use, rather
+ * than no taper at all or a second contradicting rate.
+ */
+function taperFractionFromEnd(weeksFromEnd: number): number {
+  if (weeksFromEnd === 0) return TAPER_FRACTION_RACE_WEEK;
+  if (weeksFromEnd === 1) return TAPER_FRACTION_WEEK_1;
+  return TAPER_FRACTION_WEEK_2;
+}
+
 // ── Periodization engine ────────────────────────────────────────────────────
 
 /**
@@ -256,19 +299,87 @@ export function periodize(
   queenStageHours: number | null = null
 ): Block[] {
   // Phase distribution
-  const baseWeeks = Math.max(2, Math.round(weeksTotal * 0.4));
-  const buildWeeks = Math.max(1, Math.round(weeksTotal * 0.3));
-  const taperWeeks = Math.max(2, Math.round(weeksTotal * 0.15));
+  const baseWeeks = Math.max(
+    PC.MIN_BASE_WEEKS,
+    Math.round(weeksTotal * PC.PHASE_SHARE_BASE)
+  );
+  const buildWeeks = Math.max(
+    PC.MIN_BUILD_WEEKS,
+    Math.round(weeksTotal * PC.PHASE_SHARE_BUILD)
+  );
+  const taperWeeks = Math.max(
+    PC.MIN_TAPER_WEEKS,
+    Math.round(weeksTotal * PC.PHASE_SHARE_TAPER)
+  );
   const peakWeeks = Math.max(
-    1,
+    PC.MIN_PEAK_WEEKS,
     weeksTotal - baseWeeks - buildWeeks - taperWeeks
   );
 
   // Starting weekly load from CTL (rough TSS = CTL * 7)
-  const baseLoad = Math.max(100, startingCtl * 7);
+  const baseLoad = Math.max(
+    PC.MIN_WEEKLY_LOAD,
+    startingCtl * PC.CTL_TO_WEEKLY_LOAD
+  );
 
   const blocks: Block[] = [];
   let currentLoad = baseLoad;
+  // Weeks since the last recovery week, carried ACROSS phase boundaries.
+  // Resetting it per phase made cadence a property of where the boundaries
+  // fell: a 3-week base produced no recovery week (3 % 4 !== 0) and build
+  // started counting again, giving six consecutive loading weeks. That
+  // reset was the only bug. Everything else about the original rule is
+  // preserved:
+  //   - The threshold fires on `recoveryInterval - 1` loading weeks (not
+  //     `recoveryInterval`), so the cadence itself is unchanged from before
+  //     this counter existed: `RECOVERY_INTERVAL_BASE = 4` means 3 loading
+  //     weeks then recovery (3:1), `RECOVERY_INTERVAL_DEFAULT = 3` means 2
+  //     loading weeks then recovery (2:1).
+  //   - `weekInPhase > 1` still exempts a phase's first week from becoming
+  //     a recovery week, exactly as the pre-carry `weekInPhase > 1 &&
+  //     weekInPhase % recoveryInterval === 0` rule did. Without this, a
+  //     carried-in count from the previous phase can reach its threshold on
+  //     the very first week of the new phase — for a one-week peak phase
+  //     that means peak is entirely erased (0 loading weeks, 100%
+  //     recovery), which is not what "peak" is for. The guard is what
+  //     stops a phase boundary from being able to consume a phase whole.
+  let weeksSinceRecovery = 0;
+  // The load entering the taper — every taper week is a fraction of this,
+  // never of the previous taper week, so the ladder cannot compound.
+  let preTaperLoad: number | null = null;
+
+  // The bound effectiveWeekLoad cannot supply. Its ramp guard clamps to
+  // +/-RAMP_CLAMP_PCT (0.2) of last week's ACTUAL load, but the skeleton
+  // progresses at 8 %/week and 8 < 20 — so that clamp never fires against
+  // it and the error compounds (1.08^20 = 4.7x). Reachability, precisely:
+  // PROGRESSION_STEP_CAP's rate (baseLoad*0.1/week) exceeds this bound's
+  // fixed rate (CTL_RAMP_PER_WEEK*CTL_TO_WEEKLY_LOAD = 35/week) whenever
+  // startingCtl > 50 (0.7*startingCtl > 35) — that is the exact algebraic
+  // crossover. But a plan only has up to 52 weeks (weeksTotal's own cap
+  // below) to let a small rate edge compound into a visible breach, so an
+  // exhaustive sweep (every integer startingCtl and every weeksTotal 4-52,
+  // diffed against the same run with the bound disabled) finds the first
+  // startingCtl where the bound actually changes output is 68 (removes up
+  // to 9 TSS, 6 plan lengths) — see training-plan.test.ts's "CTL ramp
+  // bound" describe block, which uses startingCtl=80 for comfortable
+  // margin above that line. Bound it where the compounding happens: against
+  // the CTL the plan is entitled to reach.
+  //
+  // Floored at MIN_WEEKLY_LOAD: this task's job is to stop compounding at
+  // the TOP end, not to lower the floor at the bottom. Without the floor, a
+  // low startingCtl produces a bound below MIN_WEEKLY_LOAD's own 100 (e.g.
+  // CTL 0: (0 + 5*1)*7 = 35), quietly cutting a beginner's opening week
+  // under the minimum the floor exists to guarantee. `startingCtl ?? 0`
+  // (week-plan/service.ts, week-plan/project.ts) is itself a known defect
+  // already scheduled for v0.47, so the zero-CTL case is largely an
+  // artifact of that upstream default — Task 5 should not quietly change a
+  // beginner's opening week on the way past fixing the compounding at the
+  // top.
+  const maxLoadForWeek = (w: number) =>
+    Math.max(
+      PC.MIN_WEEKLY_LOAD,
+      (startingCtl + PC.CTL_RAMP_PER_WEEK * w) * PC.CTL_TO_WEEKLY_LOAD
+    );
 
   for (let w = 1; w <= weeksTotal; w++) {
     let phase: Block["phase"];
@@ -277,8 +388,7 @@ export function periodize(
     else if (w <= baseWeeks + buildWeeks + peakWeeks) phase = "peak";
     else phase = "taper";
 
-    // Recovery week every 3rd or 4th week (use 4th in base, 3rd in build/peak)
-    const recoveryInterval = phase === "base" ? 4 : 3;
+    // Still needed by loadMultiplier, which shapes hours WITHIN a phase.
     const weekInPhase =
       phase === "base"
         ? w
@@ -287,31 +397,57 @@ export function periodize(
           : phase === "peak"
             ? w - baseWeeks - buildWeeks
             : w - baseWeeks - buildWeeks - peakWeeks;
+
+    const recoveryInterval =
+      phase === "base"
+        ? PC.RECOVERY_INTERVAL_BASE
+        : PC.RECOVERY_INTERVAL_DEFAULT;
     const isRecovery =
+      w > 1 &&
       weekInPhase > 1 &&
-      weekInPhase % recoveryInterval === 0 &&
+      weeksSinceRecovery >= recoveryInterval - 1 &&
       phase !== "taper";
 
     if (isRecovery) {
       blocks.push({
         weekNumber: w,
         phase: "recovery",
-        targetLoad: Math.round(currentLoad * 0.6),
+        targetLoad: Math.round(currentLoad * PC.RECOVERY_FRACTION),
         targetSessions: Math.max(3, daysPerWeek - 1),
         workouts: generateWorkouts(
           daysPerWeek - 1,
-          hoursPerWeek * 0.6,
+          hoursPerWeek * PC.RECOVERY_FRACTION,
           "recovery",
           sport,
           queenStageHours
         ),
       });
+      weeksSinceRecovery = 0;
       // Don't increase load after recovery
-    } else {
+    } else if (phase === "taper") {
+      preTaperLoad ??= currentLoad;
+      const fraction = taperFractionFromEnd(weeksTotal - w);
+      const taperLoad = Math.round(preTaperLoad * fraction);
       blocks.push({
         weekNumber: w,
         phase,
-        targetLoad: Math.round(currentLoad),
+        targetLoad: taperLoad,
+        targetSessions: daysPerWeek,
+        workouts: generateWorkouts(
+          daysPerWeek,
+          hoursPerWeek * fraction,
+          phase,
+          sport,
+          queenStageHours
+        ),
+      });
+      weeksSinceRecovery += 1;
+    } else {
+      weeksSinceRecovery += 1;
+      blocks.push({
+        weekNumber: w,
+        phase,
+        targetLoad: Math.round(Math.min(currentLoad, maxLoadForWeek(w))),
         targetSessions: daysPerWeek,
         workouts: generateWorkouts(
           daysPerWeek,
@@ -322,24 +458,34 @@ export function periodize(
         ),
       });
 
-      // Load progression: +5-8% in base, +5-7% in build, flat/slight in peak, decrease in taper
+      // Load progression: +5-8% in base, +5-7% in build, flat/slight in
+      // peak. Taper is handled entirely by the branch above — it never
+      // reaches this block, so there is no trailing taper arm here.
       if (phase === "base") {
         currentLoad = Math.min(
-          currentLoad * 1.08,
-          currentLoad + baseLoad * 0.1
+          currentLoad * PC.PROGRESSION_BASE,
+          currentLoad + baseLoad * PC.PROGRESSION_STEP_CAP
         );
       } else if (phase === "build") {
         currentLoad = Math.min(
-          currentLoad * 1.07,
-          currentLoad + baseLoad * 0.1
+          currentLoad * PC.PROGRESSION_BUILD,
+          currentLoad + baseLoad * PC.PROGRESSION_STEP_CAP
         );
       } else if (phase === "peak") {
         // Maintain or slight increase
-        currentLoad *= 1.02;
-      } else {
-        // Taper: decrease 20-30% per week
-        currentLoad *= 0.75;
+        currentLoad *= PC.PROGRESSION_PEAK;
       }
+      // Clamp currentLoad itself, not just the displayed targetLoad — a
+      // masked target whose underlying variable keeps growing unclamped
+      // would just resurface the runaway one week later, once maxLoadForWeek
+      // catches up and currentLoad + baseLoad*STEP_CAP no longer covers the
+      // gap. w+1 because this is the bound for the week about to be entered.
+      // Guarded specifically by the "pins a recovery week to a literal"
+      // test above — the recovery/taper branches read raw currentLoad with
+      // no push-site bound check of their own, so they are the only place
+      // this clamp's absence is observable (confirmed by mutation: deleting
+      // this line leaves every other test in this file green).
+      currentLoad = Math.min(currentLoad, maxLoadForWeek(w + 1));
     }
   }
 
@@ -349,15 +495,17 @@ export function periodize(
 function loadMultiplier(phase: Block["phase"], weekInPhase: number): number {
   switch (phase) {
     case "base":
-      return 0.85 + weekInPhase * 0.05;
+      return PC.HOURS_BASE_INTERCEPT + weekInPhase * PC.HOURS_BASE_SLOPE;
     case "build":
-      return 1.0 + weekInPhase * 0.03;
+      return PC.HOURS_BUILD_INTERCEPT + weekInPhase * PC.HOURS_BUILD_SLOPE;
     case "peak":
-      return 1.1;
+      return PC.HOURS_PEAK;
     case "taper":
-      return 0.7 - (weekInPhase - 1) * 0.1;
+      // Unreachable: the taper branch scales hours by the ladder fraction
+      // directly, so loadMultiplier is never called with this phase.
+      throw new Error("loadMultiplier: taper is scaled by the ladder");
     case "recovery":
-      return 0.6;
+      return PC.RECOVERY_FRACTION;
   }
 }
 

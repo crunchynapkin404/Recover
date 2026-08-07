@@ -12,6 +12,12 @@ import {
   periodize,
   EASY_RUN_CAP_MINS,
 } from "./training-plan";
+import { PLAN_CONSTANTS } from "./plan-constants";
+import {
+  TAPER_FRACTION_RACE_WEEK,
+  TAPER_FRACTION_WEEK_1,
+  TAPER_FRACTION_WEEK_2,
+} from "./race/taper";
 
 // requires Postgres; skips without DATABASE_URL.
 const hasDb =
@@ -279,6 +285,356 @@ describe("periodize passes event demand to the cycling generator", () => {
     // 240 no-demand fallback does not.
     expect(longOf(withDemand)).toBe(294);
     expect(longOf(withoutDemand)).toBe(240);
+  });
+});
+
+describe("recovery cadence", () => {
+  /** Longest run of consecutive non-recovery weeks in a skeleton. */
+  function longestLoadingRun(blocks: ReturnType<typeof periodize>): number {
+    let run = 0;
+    let worst = 0;
+    for (const b of blocks) {
+      if (b.phase === "recovery" || b.phase === "taper") run = 0;
+      else {
+        run += 1;
+        worst = Math.max(worst, run);
+      }
+    }
+    return worst;
+  }
+
+  it("never exceeds the base interval, at any plan length", () => {
+    for (let weeks = 4; weeks <= 52; weeks++) {
+      const blocks = periodize(weeks, 50, 5, 8, "Bike");
+      expect(
+        longestLoadingRun(blocks),
+        `${weeks}-week plan ran too long without recovery`
+      ).toBeLessThanOrEqual(PLAN_CONSTANTS.RECOVERY_INTERVAL_BASE);
+    }
+  });
+
+  it("does not restart the count at a phase boundary", () => {
+    // An 8-week plan gives a 3-week base — one week short of
+    // RECOVERY_INTERVAL_BASE's own 4-week cycle, so base ends without ever
+    // firing a recovery of its own (the original defect: "3-week base
+    // produced no recovery week at all"). The count it accumulated (3
+    // loading weeks) carries into build rather than resetting to 0.
+    //
+    // The `weekInPhase > 1` guard (restored alongside the density fix)
+    // still forces a phase's own first week to be a loading week no matter
+    // how large the carried count is — recovery can never fire before a
+    // phase's 2nd week — so build's 1st week (plan week baseWeeks + 1) is
+    // guaranteed loading, and by build's 2nd week (baseWeeks + 2) the
+    // carried count is baseWeeks + 1, already past build's own threshold
+    // (RECOVERY_INTERVAL_DEFAULT - 1 = 2) for any baseWeeks >= MIN_BASE_WEEKS
+    // (2) — so build's 2nd week is where recovery fires. That is the bound,
+    // derived from the rule rather than read off the output.
+    const blocks = periodize(8, 50, 5, 8, "Bike");
+    const baseWeeks = Math.max(
+      PLAN_CONSTANTS.MIN_BASE_WEEKS,
+      Math.round(8 * PLAN_CONSTANTS.PHASE_SHARE_BASE)
+    );
+    const firstRecovery = blocks.findIndex((b) => b.phase === "recovery");
+
+    // The defect this test guards against: a 3-week base yielding ZERO
+    // recovery weeks at all.
+    expect(firstRecovery).toBeGreaterThanOrEqual(0);
+    // The defect's other symptom: six (or more) consecutive loading weeks
+    // before the first recovery. This run is 4 weeks (1..baseWeeks+1),
+    // well under six.
+    expect(firstRecovery).toBeLessThan(6);
+    // The exact, rule-derived bound: recovery fires on build's 2nd week.
+    expect(firstRecovery + 1).toBe(baseWeeks + 2);
+  });
+});
+
+describe("CTL ramp bound", () => {
+  // The brief's own draft used startingCtl=50 here. Verified empirically
+  // (against the pre-fix code) that it does NOT reproduce the defect: base
+  // and build already carry PROGRESSION_STEP_CAP (a pre-existing constant,
+  // not new to this task), which caps their growth to
+  // +baseLoad*0.1/week once currentLoad passes ~1.25x baseLoad. At
+  // startingCtl=50, baseLoad*0.1 (350*0.1=35) is EXACTLY the CTL bound's own
+  // rate (CTL_RAMP_PER_WEEK*CTL_TO_WEEKLY_LOAD = 5*7 = 35) — the two
+  // trajectories run parallel forever and never diverge, at any plan length
+  // up to 52 weeks (checked).
+  //
+  // The exact algebraic crossover (baseLoad*0.1 > 35, i.e. startingCtl > 50)
+  // is only a NECESSARY condition — it says the rates cross, not that a
+  // bounded-length plan lives long enough to see the gap become a full-TSS
+  // violation. An exhaustive sweep (every integer startingCtl, every
+  // weeksTotal from 4-52 — this app refuses anything longer — diffed against
+  // the same run with the bound disabled) found the bound first changes
+  // output at startingCtl=68. 80 is used below for comfortable margin above
+  // that empirically-found line, not the algebraic one — a future reader
+  // must not "simplify" this back toward 50 on the algebra alone, since
+  // 51-67 never actually reproduces the defect within a real plan length.
+  const startingCtl = 80;
+
+  it("bounds a long plan against the CTL trajectory", () => {
+    const blocks = periodize(30, startingCtl, 5, 8, "Bike");
+    for (const b of blocks) {
+      if (b.phase === "recovery" || b.phase === "taper") continue;
+      const maxLoad =
+        (startingCtl + PLAN_CONSTANTS.CTL_RAMP_PER_WEEK * b.weekNumber) *
+        PLAN_CONSTANTS.CTL_TO_WEEKLY_LOAD;
+      expect(
+        b.targetLoad,
+        `week ${b.weekNumber} exceeds the CTL ramp bound`
+      ).toBeLessThanOrEqual(Math.round(maxLoad));
+    }
+  });
+
+  // The test above reads CTL_RAMP_PER_WEEK and CTL_TO_WEEKLY_LOAD from
+  // PLAN_CONSTANTS on both sides — its own expectation and the code under
+  // test — so it cannot catch either constant being swapped for a wrong
+  // value; it only catches a missing or broken clamp. Pinned to a literal
+  // here instead, the same fix applied to the taper ladder in Task 4
+  // (race/taper.test.ts, "pinned to literal values").
+  it("pins one clamped week to a literal, not the constants it guards", () => {
+    const blocks = periodize(30, startingCtl, 5, 8, "Bike");
+    const week7 = blocks.find((b) => b.weekNumber === 7)!;
+    expect(week7.phase).toBe("base");
+    // (80 + 5*7) * 7 = 805 — 5 and 7 are literal here (CTL_RAMP_PER_WEEK and
+    // CTL_TO_WEEKLY_LOAD), deliberately not read from PLAN_CONSTANTS. If
+    // either constant's value changed, this stops matching and the test
+    // fails loudly instead of moving in step with the code.
+    expect(week7.targetLoad).toBe(805);
+  });
+
+  // Review finding: the week-7 pin above only exercises the PUSH-SITE clamp
+  // (`Math.min(currentLoad, maxLoadForWeek(w))` at the block push) — it
+  // says nothing about whether `currentLoad` itself is ALSO clamped after
+  // the progression step. Deleting that second clamp still leaves every
+  // base/build/peak week's pushed value correct, because the push-site
+  // clamp re-applies the same bound on every loading week regardless of
+  // what `currentLoad` drifted to underneath — the bound is linear and the
+  // gap only widens, so the push site masks a missing second clamp forever
+  // for loading weeks. The only place raw, unclamped `currentLoad` is ever
+  // read is the RECOVERY branch (`Math.round(currentLoad *
+  // RECOVERY_FRACTION)`) and `preTaperLoad` at taper entry — neither has a
+  // push-site bound check of its own. Week 8 (recovery, immediately after
+  // week 7's clamp) is where this is observable: it reads whatever
+  // `currentLoad` was left at after week 7's progression AND its
+  // currentLoad-clamp, with no bound check of its own.
+  it("pins a recovery week to a literal, guarding the currentLoad clamp specifically", () => {
+    const blocks = periodize(30, startingCtl, 5, 8, "Bike");
+    const week8 = blocks.find((b) => b.weekNumber === 8)!;
+    expect(week8.phase).toBe("recovery");
+    // Without the currentLoad clamp, week 7 leaves currentLoad at
+    // min(817*1.08, 817+56) = 873 (the pre-fix, unbounded value — see the
+    // before/after table for weeks=30,ctl=80 in the report), and week 8
+    // would read round(873*0.6)=524. WITH the clamp, week 7's currentLoad
+    // is pulled down to maxLoadForWeek(8)=840 first, so week 8 reads
+    // round(840*0.6)=504 instead. 504, not 524, is the value that can only
+    // be produced by the second clamp.
+    expect(week8.targetLoad).toBe(504);
+  });
+
+  it("leaves a short plan the bound should not reach untouched", () => {
+    // 6 weeks at 8%/week from CTL 50 stays well inside the trajectory,
+    // so the bound must not quietly reshape a plan it was never meant to.
+    const blocks = periodize(6, 50, 5, 8, "Bike");
+    const loading = blocks.filter((b) => b.phase === "base");
+    expect(loading.length).toBeGreaterThan(1);
+    expect(loading[1].targetLoad).toBeGreaterThan(loading[0].targetLoad);
+  });
+
+  // Found in review: without a floor, maxLoadForWeek(1) for a low CTL falls
+  // BELOW MIN_WEEKLY_LOAD (e.g. CTL 0: (0 + 5*1)*7 = 35), so the ramp bound
+  // would quietly cut a beginner's opening week under the minimum
+  // MIN_WEEKLY_LOAD exists to guarantee — the opposite of this task's job,
+  // which is to stop compounding at the top, not lower the floor at the
+  // bottom. Pinned to a literal (100), not PLAN_CONSTANTS.MIN_WEEKLY_LOAD:
+  // Task 4 on this branch shipped a test that divided by the same constant
+  // the code multiplied by and was blind to a swapped value for exactly
+  // that reason — reading the same constant on both sides of an assertion
+  // proves nothing about whether the constant itself is right.
+  it("never lets the ramp bound cut below MIN_WEEKLY_LOAD", () => {
+    const ctl0 = periodize(12, 0, 5, 8, "Bike");
+    const ctl5 = periodize(12, 5, 5, 8, "Bike");
+    // Both would sit BELOW the floor from the ramp bound alone (35 and 70
+    // respectively) if the floor were not applied — the whole point of
+    // this test.
+    expect(ctl0.find((b) => b.weekNumber === 1)!.targetLoad).toBe(100);
+    expect(ctl5.find((b) => b.weekNumber === 1)!.targetLoad).toBe(100);
+  });
+});
+
+describe("periodize is unchanged by the constants refactor", () => {
+  it("produces a stable skeleton for a known input", () => {
+    const blocks = periodize(12, 50, 5, 8, "Bike");
+    // v0.45 Task 3 carried the recovery counter across phase boundaries
+    // (fixing a real defect: resetting per-phase could skip recovery
+    // entirely, or restart a fresh interval right after a boundary). Two
+    // corrections followed: the firing threshold is `recoveryInterval - 1`
+    // loading weeks, not `recoveryInterval` (restores the original 3:1
+    // base / 2:1 build-peak density), and `weekInPhase > 1` still guards a
+    // phase's own first week from ever firing (restores the original rule
+    // that a carried-in count cannot consume a phase whole). With both
+    // restored, only ONE week in this 12-week fixture actually differs from
+    // pre-Task-3:
+    //
+    //   - Week 4 recovery is unchanged: base's first 3 loading weeks are
+    //     entirely inside base, so the boundary carry has nothing to do yet.
+    //   - The second recovery moves from week 8 (pre-Task-3) to week 7.
+    //     After week 4 resets the counter, week 5 (base, still loading)
+    //     already counts 1 loading week toward whatever comes next; week 6
+    //     (build) counts the 2nd. The guard still blocks build's OWN first
+    //     week (week 6) regardless of the carried count, so recovery cannot
+    //     fire there — but by build's SECOND week (week 7) the guard no
+    //     longer applies, and the carried count (2) already meets build's
+    //     threshold (`RECOVERY_INTERVAL_DEFAULT - 1` = 2), so week 7 fires.
+    //     One week earlier than pre-Task-3's week 8, because the carry
+    //     credits week 5's loading week toward build's shorter interval
+    //     instead of discarding it at the boundary — but never earlier than
+    //     build's own 2nd week, because of the guard.
+    //   - Weeks 8-12 (build/peak/taper) match pre-Task-3 exactly: after week
+    //     7 resets the counter, weeks 8-9 are build's 2 loading weeks
+    //     (matching 2:1) and peak's single week (10) is protected by the
+    //     guard from ever becoming a carried-in recovery week, so it stays
+    //     a loading "peak" week exactly as before — the same 579 targetLoad,
+    //     because the total count of progression steps by week 10 is
+    //     unchanged (recovery weeks never advance `currentLoad`, so moving
+    //     WHICH week is recovery between weeks 4-9 does not change the
+    //     load trajectory from week 10 onward).
+    //
+    // Updated again in v0.45 Task 4: the taper reads race/taper.ts's ladder.
+    // Weeks 1-10 are byte-identical to pre-Task-4 (verified by diffing this
+    // fixture against the prior implementation directly) — Task 4 only
+    // replaces the taper branch, so nothing upstream of it can move. Weeks
+    // 11-12 change because the rate itself changed:
+    //   - Week 11 (first taper week, one week from the race): pre-Task-4
+    //     this was `Math.round(currentLoad)` where currentLoad was whatever
+    //     peak's ×1.02 progression left it at (≈590.8, displaying as 591) —
+    //     the SAME variable base/build/peak progress every week, taper
+    //     included. Task 4 instead fixes the taper's anchor once, entering
+    //     the phase (`preTaperLoad`, also ≈590.8 here — peak's last
+    //     progression step still runs before taper begins, so the anchor
+    //     itself is unchanged), and every taper week is now a fraction of
+    //     THAT fixed anchor rather than of a running `currentLoad`. Week 11
+    //     is one week out from the race, so it reads TAPER_FRACTION_WEEK_1
+    //     (0.65): round(590.8 * 0.65) = 384, not 591.
+    //   - Week 12 (race week) pre-Task-4 was `Math.round(590.8 * 0.75)` =
+    //     443 (currentLoad after ONE ×0.75 compounding step from week 11).
+    //     Now it reads TAPER_FRACTION_RACE_WEEK (0.45) off the SAME fixed
+    //     anchor (590.8, not the already-decayed 591): round(590.8 * 0.45)
+    //     = 266. It is no longer a fraction of week 11's own value, which
+    //     is the whole point — a 2-week taper's race-week load is a step
+    //     down from the load entering the taper, not a second compounding
+    //     step off an already-reduced week.
+    expect(blocks.map((b) => [b.weekNumber, b.phase, b.targetLoad])).toEqual([
+      [1, "base", 350],
+      [2, "base", 378],
+      [3, "base", 408],
+      [4, "recovery", 265],
+      [5, "base", 441],
+      [6, "build", 476],
+      [7, "recovery", 306],
+      [8, "build", 509],
+      [9, "build", 544],
+      [10, "peak", 579],
+      [11, "taper", 384],
+      [12, "taper", 266],
+    ]);
+  });
+});
+
+describe("the skeleton taper has one authority", () => {
+  // The task brief's draft for this describe block asserted
+  // `last.targetLoad === Math.round(preTaper.targetLoad * TAPER_FRACTION_RACE_WEEK)`
+  // where `preTaper` was "the block immediately before taper starts". That
+  // does not follow from the rule being implemented, for two independent
+  // reasons visible in this exact 16-week fixture:
+  //   1. The block immediately before taper is week 14 — a RECOVERY week.
+  //      Its displayed targetLoad (384) is already reduced by
+  //      RECOVERY_FRACTION; it is not the load entering the taper.
+  //   2. Even when the preceding block is a genuine loading week (e.g. the
+  //      12-week fixture, where it's week 10, "peak"), that block's
+  //      displayed targetLoad is `currentLoad` BEFORE that week's own
+  //      progression step, while the taper's anchor (`preTaperLoad`) is
+  //      captured AFTER it. The two are never the same number by
+  //      construction (peak week 10: displayed 579 vs actual anchor
+  //      ≈590.8).
+  // Confirmed empirically: running the draft assertion against the
+  // finished implementation (not the old one) still failed —
+  // "expected 288 to be 173" — proving the mismatch is in the test, not
+  // the code. Rewritten below to test the actual rule: both taper weeks
+  // derive from ONE shared anchor load, recoverable from either week.
+  it("both taper weeks derive from one shared anchor load, not two independent rates", () => {
+    const blocks = periodize(16, 50, 5, 8, "Bike");
+    const taper = blocks.filter((b) => b.phase === "taper");
+    expect(taper.length).toBe(2);
+
+    // If both weeks are `Math.round(anchor * fraction)` for the SAME
+    // anchor, dividing each back out by its own ladder fraction recovers
+    // that same anchor (modulo the rounding each division re-introduces).
+    // Under the old rate — currentLoad compounding at a flat 0.75/week,
+    // unrelated to these fractions — the two recovered "anchors" would
+    // have nothing to do with each other and diverge by hundreds of TSS.
+    const [week1, raceWeek] = taper;
+    const impliedFromWeek1 = week1.targetLoad / TAPER_FRACTION_WEEK_1;
+    const impliedFromRace = raceWeek.targetLoad / TAPER_FRACTION_RACE_WEEK;
+    expect(Math.abs(impliedFromWeek1 - impliedFromRace)).toBeLessThan(3);
+  });
+
+  // The brief's draft for this test asserted only `mins > 0` — true under
+  // both the old code and the new code, so it could never fail and never
+  // actually checked what its own title promised. Rewritten to compare the
+  // week-over-week RATIO of load against the week-over-week ratio of
+  // scheduled minutes: pre-Task-4 these were governed by two unrelated
+  // rates (load ×0.75, hours 0.7→0.6→0.5) and diverged — confirmed
+  // empirically against the pre-Task-4 code: loadRatio ≈0.750 vs
+  // hoursRatio ≈0.860, an 0.11 gap. Now both read the same ladder fraction,
+  // so the ratios agree (≈0.691 vs ≈0.696 here).
+  it("scales hours on the same fraction as load, so the two no longer diverge", () => {
+    const blocks = periodize(16, 50, 5, 8, "Bike");
+    const taper = blocks.filter((b) => b.phase === "taper");
+    expect(taper.length).toBe(2);
+    const mins = (b: (typeof taper)[number]) =>
+      b.workouts.reduce((s, w) => s + w.durationMins, 0);
+
+    const loadRatio = taper[1].targetLoad / taper[0].targetLoad;
+    const hoursRatio = mins(taper[1]) / mins(taper[0]);
+    expect(hoursRatio).toBeCloseTo(loadRatio, 1);
+  });
+
+  // Review finding (Task 4 re-review): every test above uses a 12- or
+  // 16-week plan, which always yields exactly a 2-week taper —
+  // `taperFractionFromEnd`'s default branch (TAPER_FRACTION_WEEK_2, the
+  // "2+ weeks from the race" rung) is reachable in production
+  // (round(weeksTotal * 0.15) >= 3 for weeksTotal >= 17, and weeksTotal
+  // goes to 52) but was never exercised by any test. A 17-week plan is the
+  // shortest that reaches it: round(17 * 0.15) = 3, clearing
+  // MIN_TAPER_WEEKS (2).
+  it("the third rung (2+ weeks from the race) is reached and reads the ladder correctly", () => {
+    const blocks = periodize(17, 50, 5, 8, "Bike");
+    const taper = blocks.filter((b) => b.phase === "taper");
+    expect(taper.length).toBe(3);
+
+    // Same technique as the 2-week case above, extended to all three
+    // rungs: each week's targetLoad divided back out by ITS OWN ladder
+    // fraction should recover the same shared anchor. If the third rung
+    // read the wrong fraction — the default branch returning, say,
+    // TAPER_FRACTION_WEEK_1 by mistake — the anchor implied by the first
+    // taper week would disagree with the other two.
+    //
+    // What this does NOT catch (Task 4 re-review, Finding 1): a swapped
+    // VALUE of TAPER_FRACTION_WEEK_2 itself. Production multiplies by the
+    // imported constant and this test divides back out by that SAME
+    // imported constant, so if the constant's value changed, both sides
+    // move together and the round-trip still recovers the same anchor —
+    // the test would stay green. That is pinned separately, by literal, in
+    // `race/taper.test.ts` ("TAPER_FRACTION_* ladder — pinned to literal
+    // values"), the only place a swapped constant is actually caught.
+    const [twoOut, oneOut, raceWeek] = taper;
+    const impliedFromTwoOut = twoOut.targetLoad / TAPER_FRACTION_WEEK_2;
+    const impliedFromOneOut = oneOut.targetLoad / TAPER_FRACTION_WEEK_1;
+    const impliedFromRace = raceWeek.targetLoad / TAPER_FRACTION_RACE_WEEK;
+
+    expect(Math.abs(impliedFromTwoOut - impliedFromOneOut)).toBeLessThan(3);
+    expect(Math.abs(impliedFromOneOut - impliedFromRace)).toBeLessThan(3);
+    expect(Math.abs(impliedFromTwoOut - impliedFromRace)).toBeLessThan(3);
   });
 });
 
