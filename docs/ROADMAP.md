@@ -1091,26 +1091,45 @@ Plan: `docs/plans/2026-08-07-v0.54-plan-style-quick-switch.md`.
 
 Released as tag `v0.54.0` from merged PR #63.
 
-## 🚧 v0.55 — Season mode quick switch
+## ✅ v0.55 — Season mode quick switch
 
 Expose season mode controls directly in Train so athletes can move between
 normal training, off-season, and explicit re-entry without leaving the week
 surface.
 
-- [ ] **Week surface season chip** showing current effective season mode and
+- [x] **Week surface season chip** showing current effective season mode and
       re-entry stage.
-- [ ] **One-tap season mode switch** in Train using the existing planning
+- [x] **One-tap season mode switch** in Train using the existing planning
       update path.
-- [ ] **Explicit re-entry starter** that moves an athlete from off-season
+- [x] **Explicit re-entry starter** that moves an athlete from off-season
       into `week_1` re-entry.
-- [ ] **Immediate week refresh path** so season-mode changes are visible
+- [x] **Immediate week refresh path** so season-mode changes are visible
       without a manual reload.
-- [ ] **No planning algorithm change**: off-season and re-entry shaping stay
+- [x] **No planning algorithm change**: off-season and re-entry shaping stay
       exactly as shipped; this is a Train access release.
-- [ ] **Verification gate**: format, typecheck, tests, build.
+- [x] **Verification gate**: format, typecheck, tests, build.
 
 Design: `docs/specs/2026-08-07-v0.55-season-mode-quick-switch-design.md`.
 Plan: `docs/plans/2026-08-07-v0.55-season-mode-quick-switch.md`.
+
+Released as tag `v0.55.0` from merged PR #64.
+
+## 🚧 v0.56 — Week adjustment quick actions
+
+Expose existing week-level adjustment controls directly in Train so athletes
+can ease, boost, or skip the current materialized week without a coach/tool
+round-trip.
+
+- [ ] **Week action control** in Train for `ease`, `boost`, and `skip`.
+- [ ] **Open-week targeting** using the current `skeletonWeek` only.
+- [ ] **Immediate week refresh path** so load adjustments are visible without
+      a manual reload.
+- [ ] **No planning algorithm change**: this only exposes existing
+      `update_training_plan` week actions.
+- [ ] **Verification gate**: format, typecheck, tests, build.
+
+Design: `docs/specs/2026-08-07-v0.56-week-adjustment-quick-actions-design.md`.
+Plan: `docs/plans/2026-08-07-v0.56-week-adjustment-quick-actions.md`.
 
 ## Ongoing — operations track
 

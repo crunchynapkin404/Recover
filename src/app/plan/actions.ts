@@ -48,6 +48,8 @@ type SeasonQuickAction =
   | { action: "set_season_mode"; seasonMode: SeasonMode }
   | { action: "begin_reentry" };
 
+type WeekQuickAction = "reduce_load" | "increase_load" | "skip_week";
+
 function asSeasonQuickAction(
   value: FormDataEntryValue | null
 ): SeasonQuickAction | null {
@@ -58,6 +60,22 @@ function asSeasonQuickAction(
     return { action: "begin_reentry" };
   }
   return null;
+}
+
+function asWeekQuickAction(
+  value: FormDataEntryValue | null
+): WeekQuickAction | null {
+  return value === "reduce_load" ||
+    value === "increase_load" ||
+    value === "skip_week"
+    ? value
+    : null;
+}
+
+function asWeekNumber(value: FormDataEntryValue | null): number | null {
+  if (typeof value !== "string") return null;
+  const num = Number(value);
+  return Number.isInteger(num) && num > 0 ? num : null;
 }
 
 function revalidatePlan(): void {
@@ -114,6 +132,41 @@ export async function setSeasonModeQuick(formData: FormData): Promise<Result> {
 
   if (!result.success) {
     return { ok: false, error: result.error ?? "season_update_failed" };
+  }
+
+  revalidatePlan();
+  return { ok: true };
+}
+
+export async function setWeekAdjustmentQuick(
+  formData: FormData
+): Promise<Result> {
+  const user = await requireUser();
+  const weekAction = asWeekQuickAction(formData.get("weekAction"));
+  const weekNumber = asWeekNumber(formData.get("weekNumber"));
+  if (!weekAction || !weekNumber) {
+    return { ok: false, error: "invalid_week_adjustment" };
+  }
+
+  const { updateTrainingPlanTool } =
+    await import("@/lib/tools/update-training-plan");
+  const reason =
+    weekAction === "reduce_load"
+      ? "train quick week ease"
+      : weekAction === "increase_load"
+        ? "train quick week boost"
+        : "train quick week skip";
+  const result = (await updateTrainingPlanTool.execute(
+    {
+      weekNumber,
+      action: weekAction,
+      reason,
+    },
+    { userId: user.id, db }
+  )) as { success?: boolean; error?: string };
+
+  if (!result.success) {
+    return { ok: false, error: result.error ?? "week_adjustment_failed" };
   }
 
   revalidatePlan();
