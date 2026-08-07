@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.48.0 — 2026-08-07 — Season target vs actual timeline
+
+This release adds a Season view in Train to compare plan intent against
+executed work week by week.
+
+- Added a new Train tab, Season, with preserved URL state across tab switches.
+- Added a mobile-first season timeline card with weekly target vs actual load,
+  latest-week stats, and adherence summary.
+- Added pure chart helper logic to align weekly targets and actual activity
+  summaries by Monday week starts.
+- Added focused tests for season href behavior, target/actual merge logic, and
+  season timeline rendering states.
+
 ## v0.47.0 — 2026-08-07 — Plan knows how you start
 
 This release makes opening-week planning state-aware and conservative when the

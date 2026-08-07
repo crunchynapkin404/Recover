@@ -66,9 +66,9 @@ export function buildBodyHref(
   return `/body?${q.toString()}`;
 }
 
-export type TrainTab = "week" | "history" | "fitness";
+export type TrainTab = "week" | "history" | "season" | "fitness";
 
-export const TRAIN_TABS: TrainTab[] = ["week", "history", "fitness"];
+export const TRAIN_TABS: TrainTab[] = ["week", "history", "season", "fitness"];
 
 export type TrainFilterState = LogFilterState & {
   tab: TrainTab;

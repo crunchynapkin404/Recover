@@ -162,6 +162,13 @@ export interface WeeklyActivitySummary {
   sessions: number;
 }
 
+export interface SeasonTimelinePoint {
+  weekStart: string;
+  targetLoad: number | null;
+  actualLoad: number;
+  sessions: number;
+}
+
 /** Monday-based weekly totals for the trailing `weeks`, zero-filled. */
 export function weeklyActivitySummaries(
   activities: {
@@ -207,4 +214,24 @@ export function weeklyLoads(
     activities.map((a) => ({ ...a, durationS: null, distanceM: null })),
     weeks
   ).map((s) => ({ weekStart: s.weekStart, load: s.load }));
+}
+
+/**
+ * Aligns plan targets to actual weekly summaries by weekStart.
+ * Missing actual weeks become 0 load / 0 sessions, while null targets stay null.
+ */
+export function seasonTimelinePoints(
+  targets: { weekStart: string; targetLoad: number | null }[],
+  actuals: WeeklyActivitySummary[]
+): SeasonTimelinePoint[] {
+  const byWeek = new Map(actuals.map((a) => [a.weekStart, a]));
+  return targets.map((t) => {
+    const actual = byWeek.get(t.weekStart);
+    return {
+      weekStart: t.weekStart,
+      targetLoad: t.targetLoad,
+      actualLoad: actual?.load ?? 0,
+      sessions: actual?.sessions ?? 0,
+    };
+  });
 }
