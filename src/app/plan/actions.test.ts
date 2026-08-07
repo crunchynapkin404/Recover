@@ -11,6 +11,7 @@ import { and, eq } from "drizzle-orm";
 import {
   clearDayOverride,
   setDayOverride,
+  setPlanStyleQuick,
   setStandardWeekDay,
   submitAvailability,
   zeroDay,
@@ -379,6 +380,59 @@ describe.skipIf(!hasDb)("server actions", () => {
         ),
       });
       expect(row2?.blocks).toEqual(blocks2);
+    });
+  });
+
+  describe("setPlanStyleQuick", () => {
+    beforeEach(async () => {
+      const { db, schema } = await import("@/lib/db");
+      await db
+        .delete(schema.trainingPlans)
+        .where(eq(schema.trainingPlans.userId, USER));
+      await db.insert(schema.trainingPlans).values({
+        userId: USER,
+        title: "Plan Style Switch Test",
+        raceType: "marathon",
+        raceDate: "2027-01-01",
+        startDate: "2026-01-01",
+        weeksTotal: 12,
+        currentWeek: 2,
+        status: "active",
+        constraints: {
+          daysPerWeek: 5,
+          hoursPerWeek: 8,
+          sports: ["Run"],
+          planStyle: "balanced",
+        },
+      });
+    });
+
+    it("rejects an invalid style payload", async () => {
+      const form = new FormData();
+      form.set("style", "weird_style");
+      await expect(setPlanStyleQuick(form)).resolves.toEqual({
+        ok: false,
+        error: "invalid_plan_style",
+      });
+    });
+
+    it("updates the active plan style via existing set_style path", async () => {
+      const form = new FormData();
+      form.set("style", "block_lite");
+
+      await expect(setPlanStyleQuick(form)).resolves.toEqual({ ok: true });
+
+      const { db, schema } = await import("@/lib/db");
+      const plan = await db.query.trainingPlans.findFirst({
+        where: and(
+          eq(schema.trainingPlans.userId, USER),
+          eq(schema.trainingPlans.status, "active")
+        ),
+      });
+
+      expect(
+        (plan?.constraints as { planStyle?: unknown } | null)?.planStyle
+      ).toBe("block_lite");
     });
   });
 

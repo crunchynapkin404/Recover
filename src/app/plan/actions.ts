@@ -5,6 +5,7 @@ import { and, eq } from "drizzle-orm";
 import { requireUser } from "@/lib/session";
 import { db, schema } from "@/lib/db";
 import type { PlanSport } from "@/lib/plan-sport";
+import type { PlanStyle } from "@/lib/plan-style/types";
 import {
   applyAvailability,
   applyResolvedAvailability,
@@ -38,9 +39,37 @@ import type { PreviewResult } from "@/lib/plan-preview";
 
 type Result = { ok: true } | { ok: false; error: string };
 
+function asPlanStyle(value: FormDataEntryValue | null): PlanStyle | null {
+  return value === "balanced" || value === "block_lite" ? value : null;
+}
+
 function revalidatePlan(): void {
   revalidatePath("/train");
   revalidatePath("/");
+}
+
+export async function setPlanStyleQuick(formData: FormData): Promise<Result> {
+  const user = await requireUser();
+  const planStyle = asPlanStyle(formData.get("style"));
+  if (!planStyle) return { ok: false, error: "invalid_plan_style" };
+
+  const { updateTrainingPlanTool } =
+    await import("@/lib/tools/update-training-plan");
+  const result = (await updateTrainingPlanTool.execute(
+    {
+      action: "set_style",
+      planStyle,
+      reason: "train quick style switch",
+    },
+    { userId: user.id, db }
+  )) as { success?: boolean; error?: string };
+
+  if (!result.success) {
+    return { ok: false, error: result.error ?? "style_update_failed" };
+  }
+
+  revalidatePlan();
+  return { ok: true };
 }
 
 /**

@@ -32,6 +32,7 @@ import { TrainTabs } from "@/components/train/train-tabs";
 import { WeekDayList } from "@/components/train/week-day-list";
 import { SeasonTimelineCard } from "@/components/train/season-timeline-card";
 import { FuellingCard } from "@/components/train/fuelling-card";
+import { PlanStyleSwitch } from "@/components/train/plan-style-switch";
 import { WeekRationale, fmt, article } from "@/components/plan/week-rationale";
 import { EventReadiness } from "@/components/plan/event-readiness";
 import {
@@ -84,7 +85,11 @@ import {
   type TrainHref,
   type TrainTab,
 } from "@/lib/log-href";
-import { startWeek, submitAvailability } from "@/app/plan/actions";
+import {
+  setPlanStyleQuick,
+  startWeek,
+  submitAvailability,
+} from "@/app/plan/actions";
 import {
   AvailabilityWeekSwitcher,
   type AvailabilityWeekMode,
@@ -739,7 +744,20 @@ async function WeekTab({
 
   return (
     <>
-      <TrainHeader tab="week" href={href} subtitle={subtitle} action={chip} />
+      <TrainHeader
+        tab="week"
+        href={href}
+        subtitle={subtitle}
+        action={
+          <div className="flex items-center gap-2">
+            {chip}
+            <PlanStyleSwitch
+              effectiveStyle={constraints.planStyle}
+              action={setPlanStyleQuick}
+            />
+          </div>
+        }
+      />
 
       {draftPreview && <PlanPreviewCard preview={draftPreview} />}
 
