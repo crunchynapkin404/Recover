@@ -99,6 +99,11 @@ into coach context, or returned by an MCP tool. If the athlete can read it or
 the coach can quote it, it is in scope. Internal intermediates are not, unless
 one of those three surfaces exposes them.
 
+**Order matters here.** 2b lands before 2c's number slices, because slice
+condition #5 — "its 'I do not know' state is explicit and rendered" — is a
+design decision. Made six times independently, it produces six more dialects on
+top of the six the app already speaks.
+
 ### 2a — Provenance
 
 - [ ] Source, confidence and scope for all 77 exported engine constants across
@@ -109,7 +114,41 @@ one of those three surfaces exposes them.
       `RAMP_CLAMP_PCT = 0.2` are rated High confidence on an ACWR anchor the
       2025 systematic review undermines
 
-### 2b — One source of truth per number
+### 2b — Design language and IA
+
+A brainstorm → spec → plan cycle in its own right, not direct implementation.
+It exists because the goal's third sentence — "when it does not know, it says
+so" — is currently spoken in six dialects: `—` (47 uses), `calibrating` (39),
+`insufficient` (14), `unknown` (13), `limited evidence` (3), `inconclusive`
+(3), `no data` (2), plus v0.62's ad-hoc `· limited data`.
+
+- [ ] **2b.1 — Document what exists.** A descriptive `docs/design-system.md`:
+      the 83 tokens in `src/app/globals.css`, the `src/components/ui/`
+      primitive inventory, the Today/Train/Coach/Body/Menu IA, and the six
+      dialects. This is the artifact v0.21 and v0.23 were each supposed to
+      leave behind and neither did — `.superdesign/` is empty and the only
+      design spec predates the v0.23 IA.
+- [ ] **2b.2 — Settle the IA.** Decide what the IA now is, remove the 12
+      orphaned components, and make the directory tree match. Six of the twelve
+      sit in `dashboard/`, the rest in `plan/`, `log/`, `journal/` — all
+      superseded by `today/`, `body/`, `train/`. With PR #86's seven
+      sleep-cards that is 19 orphans from one unfinished migration.
+      **Trap:** `dashboard/race-countdown.tsx` still exports a
+      `RaceCountdownProps` type that `app/train/page.tsx` imports; it cannot be
+      deleted wholesale.
+- [ ] **2b.3 — Uncertainty and confidence language.** One vocabulary replacing
+      six, distinguishing at least: _calibrating_ (not enough history yet),
+      _insufficient_ (a required input is missing), _low confidence_ (wide
+      interval), and _no figure plus the reason_ (the pattern v0.46 set for
+      event demand). A token and a treatment for each. **2c consumes this.**
+- [ ] **2b.4 — Visual redesign.** All 12 pages, against the settled IA using
+      the settled vocabulary. The largest item on this roadmap: it splits into
+      its own releases with per-page gates, and needs real-browser verification
+      — the v0.23 redesign shipped three bugs that only a real browser caught.
+- [ ] On every page touched: scan for and remove duplicated data — the same
+      value shown twice. A standing finding from prior redesigns here.
+
+### 2c — One source of truth per number
 
 A **number slice** is done when all six hold:
 
@@ -131,7 +170,7 @@ A **number slice** is done when all six hold:
 - [ ] Event demand
 - [ ] Display-derived figures (sleep debt, body battery, correlations, bio-age)
 
-### 2c — Guardrails
+### 2d — Guardrails
 
 - [ ] A test failing on any component with zero non-test render sites. Would
       have caught the 7 sleep-card files and the 12 found after them.
@@ -155,7 +194,7 @@ Demand order, science-constrained.
 ## Phase 4 — Breadth
 
 - [ ] Review `feat/v0.65-mcp-contract-hardening` — unreviewed work (push quiet
-      hours + migration 0040, two new MCP tools). **Must not merge before 2c.**
+      hours + migration 0040, two new MCP tools). **Must not merge before 2d.**
 - [ ] MCP contract freeze — after the numbers underneath are stable, not before
 - [ ] Dead-component sweep (12 identified; `race-countdown.tsx` still exports a
       type `train/page.tsx` imports)
@@ -167,8 +206,10 @@ Demand order, science-constrained.
 ## Non-goals
 
 - **No feature removal.** All four zero/low-usage features were explicitly kept.
-- **No new athlete-facing features during Phase 2.**
-- **No visual redesign.**
+- **No new athlete-facing capability during Phase 2 — presentation may change,
+  claims may not.** 2b deliberately changes how the app looks and what it says
+  when it doesn't know. What it must not do is add a new figure, or make an
+  existing one claim more than 2a can source.
 - **v1.0 is not a milestone.** It has been "nearly there" for months; the label
   is doing no work.
 - **No autopilot revival** until it composes with the safety rails instead of

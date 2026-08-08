@@ -141,7 +141,27 @@ silence. Settles the correction `ai-coaching-landscape.md` §8 records as owed:
 `HEADROOM = 1.3` and `RAMP_CLAMP_PCT = 0.2` are rated High on an ACWR anchor
 the 2025 systematic review undermines.
 
-**2b. One source of truth per number.** A _number slice_ is done when all six
+**2b. Design language and IA.** A brainstorm → spec → plan cycle in its own
+right. The goal's third sentence — "when it does not know, it says so" — is
+currently spoken in six dialects: `—` (47 uses), `calibrating` (39),
+`insufficient` (14), `unknown` (13), `limited evidence` (3), `inconclusive`
+(3), `no data` (2), plus v0.62's ad-hoc `· limited data`.
+
+Four pieces in dependency order: (1) a descriptive `docs/design-system.md`
+covering the 83 tokens in `globals.css`, the `components/ui/` primitives and
+the current IA — the artifact v0.21 and v0.23 were each supposed to leave and
+neither did, since `.superdesign/` is empty and the only design spec predates
+the v0.23 IA; (2) settle the IA and remove the 12 orphaned components, six of
+them in `dashboard/` and the rest in `plan/`, `log/`, `journal/`, all
+superseded by `today/`, `body/`, `train/` — 19 orphans counting PR #86's
+sleep-cards, from one unfinished migration; (3) one uncertainty vocabulary
+replacing six, distinguishing calibrating, insufficient, low confidence, and
+no-figure-plus-reason; (4) the visual redesign across all 12 pages.
+
+**This precedes 2c deliberately.** Slice condition #5 below is a design
+decision, and made six times independently it yields six more dialects.
+
+**2c. One source of truth per number.** A _number slice_ is done when all six
 hold:
 
 1. One function owns computing it, inputs named in its signature.
@@ -158,7 +178,7 @@ CTL/ATL/TSB and readiness → event demand → display-derived figures. Week tar
 load is first because it caused four shipped bugs and because settling
 ownership is what makes the hidden week quick actions decidable.
 
-**2c. Guardrails.** A test that fails on any component with zero non-test
+**2d. Guardrails.** A test that fails on any component with zero non-test
 render sites — it would have caught the seven sleep-card files and the twelve
 found after them. A source-of-truth guard pinning approved read sites so a new
 one fails the build. Into `RELEASING.md`: mutation-check any test guarding a
@@ -192,8 +212,10 @@ merge before Phase 2's guardrails exist.
 
 - **No feature removal.** All four zero/low-usage features were explicitly
   kept.
-- **No new athlete-facing features during Phase 2.**
-- **No visual redesign.**
+- **No new athlete-facing capability during Phase 2 — presentation may change,
+  claims may not.** 2b deliberately changes how the app looks and what it says
+  when it does not know. What it must not do is add a new figure, or let an
+  existing one claim more than 2a can source.
 - **v1.0 is not a milestone here.** It has been "nearly there" for months; the
   label is doing no work.
 - **No autopilot revival** until it composes with the safety rails rather than
@@ -203,8 +225,24 @@ merge before Phase 2's guardrails exist.
 
 **Phase 2 is large and unglamorous.** 77 constants and ~2,000 tests whose
 reliability the audit called into question. The honest estimate is weeks. The
-mitigation is that 2b ships one number at a time, each independently
+mitigation is that 2c ships one number at a time, each independently
 verifiable — progress stays visible.
+
+**2b.4 is the largest single item on this roadmap** and will dwarf 2a and 2d if
+left unbounded. An app-wide visual redesign splits into its own releases with
+per-page gates, or it becomes the thing the phase is actually about.
+
+**Redesigning before the numbers are proven** locks presentation for semantics
+that may still shift. The mitigation is the ordering inside 2b: 2b.3 settles
+the _semantics_ of uncertainty before 2b.4 styles them, and
+`docs/design-system.md` is treated as living — expect small presentation deltas
+back from each number slice in 2c.
+
+**A redesign can regress what curl cannot see.** The v0.23 redesign shipped
+three bugs only a real browser caught: a sheet backdrop trapped under a
+stacking context, a 500 on a malformed activity id, and navs styled active
+without `aria-current`. 2b.4 is not done on a green suite alone, and
+`docs/a11y-sweep-2026-07.md` is the accessibility baseline it must not undo.
 
 **Provenance can become theatre.** A citation that does not constrain the value
 is worse than none, because it manufactures confidence. Where a source only
