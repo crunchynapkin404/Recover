@@ -125,7 +125,7 @@ so" — is currently spoken in six dialects: `—` (47 uses), `calibrating` (39)
 `insufficient` (14), `unknown` (13), `limited evidence` (3), `inconclusive`
 (3), `no data` (2), plus v0.62's ad-hoc `· limited data`.
 
-      - [x] **2b.1 — Document what exists (v0.67.0).** A descriptive `docs/design-system.md`:
+- [x] **2b.1 — Document what exists (v0.67.0).** A descriptive `docs/design-system.md`:
       the 83 tokens in `src/app/globals.css`, the `src/components/ui/`
       primitive inventory, the Today/Train/Coach/Body/Menu IA, and the six
       dialects. This is the artifact v0.21 and v0.23 were each supposed to
