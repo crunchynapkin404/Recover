@@ -77,7 +77,8 @@ function compare(
     conclusive: w.conclusive,
     events: tagged.length,
     evidence:
-      tagged.length < MIN_EVENTS_FOR_EVIDENCE || ciHalfWidthPct >= Math.abs(impactPct)
+      tagged.length < MIN_EVENTS_FOR_EVIDENCE ||
+      ciHalfWidthPct >= Math.abs(impactPct)
         ? "limited"
         : "strong",
   };

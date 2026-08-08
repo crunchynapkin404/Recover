@@ -13,15 +13,15 @@ did (`.superdesign/` is empty).
 `grep -cE '^\s*--[a-zA-Z0-9-]+:' src/app/globals.css`), one dark theme (no
 light mode — "Dark-first: the only theme"). Grouped:
 
-| Group | Tokens | Example |
-| --- | --- | --- |
-| Core surface | `--background`, `--foreground`, `--card`, `--popover` | `--background: #0a0a0a` |
-| Semantic | `--primary`, `--secondary`, `--muted`, `--accent`, `--destructive` (+ their `-foreground` pairs) | `--primary: #10b981` |
-| Border/ring | `--border`, `--input`, `--ring` | `--border: rgba(255,255,255,0.1)` |
-| Charts | `--chart-1` … `--chart-5` | `--chart-2: #10b981` |
-| Sidebar | `--sidebar`, `--sidebar-foreground`, `--sidebar-primary`, `--sidebar-accent`, `--sidebar-border`, `--sidebar-ring` (+ `-foreground` pairs) | `--sidebar: #121212` |
-| Radius | `--radius` + 6 derived scales (`sm` → `4xl`) | `--radius: 1rem` |
-| Viz (charts, line ~358) | `--viz-series-1/2/3/5`, `--viz-grid`, `--viz-axis`, `--viz-muted-ink`, `--viz-status-good/warning/critical` | `--viz-status-critical: #ef4444` |
+| Group                   | Tokens                                                                                                                                     | Example                           |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------- |
+| Core surface            | `--background`, `--foreground`, `--card`, `--popover`                                                                                      | `--background: #0a0a0a`           |
+| Semantic                | `--primary`, `--secondary`, `--muted`, `--accent`, `--destructive` (+ their `-foreground` pairs)                                           | `--primary: #10b981`              |
+| Border/ring             | `--border`, `--input`, `--ring`                                                                                                            | `--border: rgba(255,255,255,0.1)` |
+| Charts                  | `--chart-1` … `--chart-5`                                                                                                                  | `--chart-2: #10b981`              |
+| Sidebar                 | `--sidebar`, `--sidebar-foreground`, `--sidebar-primary`, `--sidebar-accent`, `--sidebar-border`, `--sidebar-ring` (+ `-foreground` pairs) | `--sidebar: #121212`              |
+| Radius                  | `--radius` + 6 derived scales (`sm` → `4xl`)                                                                                               | `--radius: 1rem`                  |
+| Viz (charts, line ~358) | `--viz-series-1/2/3/5`, `--viz-grid`, `--viz-axis`, `--viz-muted-ink`, `--viz-status-good/warning/critical`                                | `--viz-status-critical: #ef4444`  |
 
 `@theme inline` remaps most of these to Tailwind's `--color-*`/`--radius-*`
 namespace for utility classes; the glassmorphic look layers translucent
@@ -40,13 +40,13 @@ two are the uncertainty-vocabulary primitives added alongside this doc
 Two navs, same 5 routes, never both visible (`SidebarNav` is `lg:` only,
 `BottomNav` is `lg:hidden`):
 
-| Route | Label | Icon |
-| --- | --- | --- |
-| `/` | Today | Clock |
-| `/train` | Train | CalendarRange |
-| `/coach` | Coach | Sparkles |
-| `/body` | Body | Activity |
-| `/settings` | Menu | Settings2 |
+| Route       | Label | Icon          |
+| ----------- | ----- | ------------- |
+| `/`         | Today | Clock         |
+| `/train`    | Train | CalendarRange |
+| `/coach`    | Coach | Sparkles      |
+| `/body`     | Body  | Activity      |
+| `/settings` | Menu  | Settings2     |
 
 `src/lib/telemetry.ts`'s `SURFACES` — the full closed set of authenticated
 pages, including ones reached by drilling in rather than from the nav —

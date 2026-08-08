@@ -5,14 +5,19 @@ import { Unavailable, unavailableMessage } from "./unavailable";
 describe("unavailableMessage", () => {
   it("phrases calibrating as day N of M", () => {
     expect(
-      unavailableMessage({ kind: "calibrating", have: 4, need: 14, unit: "days" })
+      unavailableMessage({
+        kind: "calibrating",
+        have: 4,
+        need: 14,
+        unit: "days",
+      })
     ).toBe("Calibrating — day 4 of 14 days");
   });
 
   it("phrases missing_input as a need", () => {
-    expect(
-      unavailableMessage({ kind: "missing_input", needs: "an FTP" })
-    ).toBe("Needs an FTP");
+    expect(unavailableMessage({ kind: "missing_input", needs: "an FTP" })).toBe(
+      "Needs an FTP"
+    );
   });
 
   it("phrases not_applicable as its reason verbatim", () => {
@@ -25,7 +30,9 @@ describe("unavailableMessage", () => {
 describe("Unavailable", () => {
   it("renders inline by default", () => {
     const html = renderToString(
-      <Unavailable state={{ kind: "calibrating", have: 4, need: 14, unit: "days" }} />
+      <Unavailable
+        state={{ kind: "calibrating", have: 4, need: 14, unit: "days" }}
+      />
     );
     expect(html).toContain("day 4 of 14 days");
     expect(html).not.toContain("empty-state");
@@ -48,9 +55,12 @@ describe("Unavailable", () => {
 
   it("renders the full empty-state treatment when full is set", () => {
     const html = renderToString(
-      <Unavailable state={{ kind: "not_applicable", why: "no race scheduled" }} full />
+      <Unavailable
+        state={{ kind: "not_applicable", why: "no race scheduled" }}
+        full
+      />
     );
     expect(html).toContain("no race scheduled");
-    expect(html).toContain("data-slot=\"empty-state\"");
+    expect(html).toContain('data-slot="empty-state"');
   });
 });

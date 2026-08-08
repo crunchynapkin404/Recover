@@ -21,7 +21,9 @@ function insight(overrides: Partial<TagInsight>): TagInsight {
 describe("CorrelationRows", () => {
   it("renders a conclusive effect in color", () => {
     const html = renderToString(
-      <CorrelationRows insights={[insight({ conclusive: true, impactPct: -25 })]} />
+      <CorrelationRows
+        insights={[insight({ conclusive: true, impactPct: -25 })]}
+      />
     );
     expect(html).toContain("25% ± 5 next-day");
     expect(html).toContain("text-red-400");
@@ -30,7 +32,9 @@ describe("CorrelationRows", () => {
   it("renders strong evidence with no effect as a finding, not as unavailable", () => {
     const html = renderToString(
       <CorrelationRows
-        insights={[insight({ conclusive: false, evidence: "strong", events: 30 })]}
+        insights={[
+          insight({ conclusive: false, evidence: "strong", events: 30 }),
+        ]}
       />
     );
     expect(html).toContain("No detectable effect");
@@ -39,7 +43,9 @@ describe("CorrelationRows", () => {
   it("renders limited evidence as calibrating, not as a finding", () => {
     const html = renderToString(
       <CorrelationRows
-        insights={[insight({ conclusive: false, evidence: "limited", events: 3 })]}
+        insights={[
+          insight({ conclusive: false, evidence: "limited", events: 3 }),
+        ]}
       />
     );
     expect(html).toContain("Calibrating");
@@ -49,12 +55,16 @@ describe("CorrelationRows", () => {
   it("the two non-conclusive cases must not read alike", () => {
     const noEffect = renderToString(
       <CorrelationRows
-        insights={[insight({ conclusive: false, evidence: "strong", events: 30 })]}
+        insights={[
+          insight({ conclusive: false, evidence: "strong", events: 30 }),
+        ]}
       />
     );
     const calibrating = renderToString(
       <CorrelationRows
-        insights={[insight({ conclusive: false, evidence: "limited", events: 3 })]}
+        insights={[
+          insight({ conclusive: false, evidence: "limited", events: 3 }),
+        ]}
       />
     );
     // Check the badge styling specifically, not the shared header

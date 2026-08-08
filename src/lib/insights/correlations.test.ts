@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { correlateTags, correlationFigure, MIN_EVENTS_FOR_EVIDENCE } from "./correlations";
+import {
+  correlateTags,
+  correlationFigure,
+  MIN_EVENTS_FOR_EVIDENCE,
+} from "./correlations";
 import { AUTO_TAG_REST, AUTO_TAG_DOUBLE } from "./auto-tags";
 
 // 2026-08-03 is a Monday. Builder: n consecutive days from a start date.

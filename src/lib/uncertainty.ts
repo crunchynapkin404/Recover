@@ -25,7 +25,7 @@ export type Figure<T> =
   | ({ available: false } & Unavailable);
 
 export const Figure = {
-  available: <T,>(
+  available: <T>(
     value: T,
     confidence: Confidence,
     why?: string
@@ -35,7 +35,13 @@ export const Figure = {
     have: number,
     need: number,
     unit: CalibratingUnit
-  ): Figure<never> => ({ available: false, kind: "calibrating", have, need, unit }),
+  ): Figure<never> => ({
+    available: false,
+    kind: "calibrating",
+    have,
+    need,
+    unit,
+  }),
 
   missingInput: (
     needs: string,

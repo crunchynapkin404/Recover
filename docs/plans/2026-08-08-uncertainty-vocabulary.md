@@ -28,7 +28,7 @@ until on/after 2026-09-05 per that spec.
   metastasise").
 - **Retired dialect words stay as internal state names where they already are
   one.** E.g. `readiness.ts`'s `Band` union keeps the literal `"calibrating"` —
-  only the athlete-facing *sentences* built from these states are retired.
+  only the athlete-facing _sentences_ built from these states are retired.
 - **Test convention:** co-locate `<name>.test.ts(x)` beside its source file;
   render component tests with `renderToString` from `react-dom/server` (see
   `src/components/dashboard/readiness-rings.test.tsx`) — this repo's
@@ -168,7 +168,7 @@ export type Figure<T> =
   | ({ available: false } & Unavailable);
 
 export const Figure = {
-  available: <T,>(
+  available: <T>(
     value: T,
     confidence: Confidence,
     why?: string
@@ -178,7 +178,13 @@ export const Figure = {
     have: number,
     need: number,
     unit: CalibratingUnit
-  ): Figure<never> => ({ available: false, kind: "calibrating", have, need, unit }),
+  ): Figure<never> => ({
+    available: false,
+    kind: "calibrating",
+    have,
+    need,
+    unit,
+  }),
 
   missingInput: (
     needs: string,
@@ -268,14 +274,19 @@ import { Unavailable, unavailableMessage } from "./unavailable";
 describe("unavailableMessage", () => {
   it("phrases calibrating as day N of M", () => {
     expect(
-      unavailableMessage({ kind: "calibrating", have: 4, need: 14, unit: "days" })
+      unavailableMessage({
+        kind: "calibrating",
+        have: 4,
+        need: 14,
+        unit: "days",
+      })
     ).toBe("Calibrating — day 4 of 14 days");
   });
 
   it("phrases missing_input as a need", () => {
-    expect(
-      unavailableMessage({ kind: "missing_input", needs: "an FTP" })
-    ).toBe("Needs an FTP");
+    expect(unavailableMessage({ kind: "missing_input", needs: "an FTP" })).toBe(
+      "Needs an FTP"
+    );
   });
 
   it("phrases not_applicable as its reason verbatim", () => {
@@ -288,7 +299,9 @@ describe("unavailableMessage", () => {
 describe("Unavailable", () => {
   it("renders inline by default", () => {
     const html = renderToString(
-      <Unavailable state={{ kind: "calibrating", have: 4, need: 14, unit: "days" }} />
+      <Unavailable
+        state={{ kind: "calibrating", have: 4, need: 14, unit: "days" }}
+      />
     );
     expect(html).toContain("day 4 of 14 days");
     expect(html).not.toContain("empty-state");
@@ -311,10 +324,13 @@ describe("Unavailable", () => {
 
   it("renders the full empty-state treatment when full is set", () => {
     const html = renderToString(
-      <Unavailable state={{ kind: "not_applicable", why: "no race scheduled" }} full />
+      <Unavailable
+        state={{ kind: "not_applicable", why: "no race scheduled" }}
+        full
+      />
     );
     expect(html).toContain("no race scheduled");
-    expect(html).toContain("data-slot=\"empty-state\"");
+    expect(html).toContain('data-slot="empty-state"');
   });
 });
 ```
@@ -447,7 +463,11 @@ alongside the existing `correlateTags` one). The file already has
 `import { correlateTags } from "./correlations";` — change that line to:
 
 ```ts
-import { correlateTags, correlationFigure, MIN_EVENTS_FOR_EVIDENCE } from "./correlations";
+import {
+  correlateTags,
+  correlationFigure,
+  MIN_EVENTS_FOR_EVIDENCE,
+} from "./correlations";
 ```
 
 Then add the new block below the existing `describe("correlateTags", ...)`:
@@ -526,7 +546,9 @@ function insight(overrides: Partial<TagInsight>): TagInsight {
 describe("CorrelationRows", () => {
   it("renders a conclusive effect in color", () => {
     const html = renderToString(
-      <CorrelationRows insights={[insight({ conclusive: true, impactPct: -25 })]} />
+      <CorrelationRows
+        insights={[insight({ conclusive: true, impactPct: -25 })]}
+      />
     );
     expect(html).toContain("25% ± 5 next-day");
     expect(html).toContain("text-red-400");
@@ -535,7 +557,9 @@ describe("CorrelationRows", () => {
   it("renders strong evidence with no effect as a finding, not as unavailable", () => {
     const html = renderToString(
       <CorrelationRows
-        insights={[insight({ conclusive: false, evidence: "strong", events: 30 })]}
+        insights={[
+          insight({ conclusive: false, evidence: "strong", events: 30 }),
+        ]}
       />
     );
     expect(html).toContain("No detectable effect");
@@ -544,7 +568,9 @@ describe("CorrelationRows", () => {
   it("renders limited evidence as calibrating, not as a finding", () => {
     const html = renderToString(
       <CorrelationRows
-        insights={[insight({ conclusive: false, evidence: "limited", events: 3 })]}
+        insights={[
+          insight({ conclusive: false, evidence: "limited", events: 3 }),
+        ]}
       />
     );
     expect(html).toContain("Calibrating");
@@ -554,12 +580,16 @@ describe("CorrelationRows", () => {
   it("the two non-conclusive cases must not read alike", () => {
     const noEffect = renderToString(
       <CorrelationRows
-        insights={[insight({ conclusive: false, evidence: "strong", events: 30 })]}
+        insights={[
+          insight({ conclusive: false, evidence: "strong", events: 30 }),
+        ]}
       />
     );
     const calibrating = renderToString(
       <CorrelationRows
-        insights={[insight({ conclusive: false, evidence: "limited", events: 3 })]}
+        insights={[
+          insight({ conclusive: false, evidence: "limited", events: 3 }),
+        ]}
       />
     );
     expect(noEffect).not.toContain("text-white/40");
@@ -738,7 +768,8 @@ function CorrelationBadge({ insight: c }: { insight: TagInsight }) {
       }`}
     >
       {figure.value.impactPct > 0 ? "+" : "−"}
-      {Math.abs(figure.value.impactPct)}% ± {figure.value.ciHalfWidthPct} next-day
+      {Math.abs(figure.value.impactPct)}% ± {figure.value.ciHalfWidthPct}{" "}
+      next-day
     </span>
   );
 }
@@ -910,14 +941,14 @@ did (`.superdesign/` is empty).
 83 CSS custom properties in `src/app/globals.css`, one dark theme (no light
 mode — "Dark-first: the only theme"). Grouped:
 
-| Group | Tokens | Example |
-| --- | --- | --- |
-| Core surface | `--background`, `--foreground`, `--card`, `--popover` | `--background: #0a0a0a` |
-| Semantic | `--primary`, `--secondary`, `--muted`, `--accent`, `--destructive` (+ their `-foreground` pairs) | `--primary: #10b981` |
-| Border/ring | `--border`, `--input`, `--ring` | `--border: rgba(255,255,255,0.1)` |
-| Charts | `--chart-1` … `--chart-5` | `--chart-2: #10b981` |
-| Sidebar | `--sidebar`, `--sidebar-foreground`, `--sidebar-primary`, `--sidebar-accent`, `--sidebar-border`, `--sidebar-ring` (+ `-foreground` pairs) | `--sidebar: #121212` |
-| Radius | `--radius` + 6 derived scales (`sm` → `4xl`) | `--radius: 1rem` |
+| Group        | Tokens                                                                                                                                     | Example                           |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------- |
+| Core surface | `--background`, `--foreground`, `--card`, `--popover`                                                                                      | `--background: #0a0a0a`           |
+| Semantic     | `--primary`, `--secondary`, `--muted`, `--accent`, `--destructive` (+ their `-foreground` pairs)                                           | `--primary: #10b981`              |
+| Border/ring  | `--border`, `--input`, `--ring`                                                                                                            | `--border: rgba(255,255,255,0.1)` |
+| Charts       | `--chart-1` … `--chart-5`                                                                                                                  | `--chart-2: #10b981`              |
+| Sidebar      | `--sidebar`, `--sidebar-foreground`, `--sidebar-primary`, `--sidebar-accent`, `--sidebar-border`, `--sidebar-ring` (+ `-foreground` pairs) | `--sidebar: #121212`              |
+| Radius       | `--radius` + 6 derived scales (`sm` → `4xl`)                                                                                               | `--radius: 1rem`                  |
 
 `@theme inline` remaps most of these to Tailwind's `--color-*`/`--radius-*`
 namespace for utility classes; the glassmorphic look layers translucent
@@ -936,13 +967,13 @@ two are the uncertainty-vocabulary primitives added alongside this doc
 Two navs, same 5 routes, never both visible (`SidebarNav` is `lg:` only,
 `BottomNav` is `lg:hidden`):
 
-| Route | Label | Icon |
-| --- | --- | --- |
-| `/` | Today | Clock |
-| `/train` | Train | CalendarRange |
-| `/coach` | Coach | Sparkles |
-| `/body` | Body | Activity |
-| `/settings` | Menu | Settings2 |
+| Route       | Label | Icon          |
+| ----------- | ----- | ------------- |
+| `/`         | Today | Clock         |
+| `/train`    | Train | CalendarRange |
+| `/coach`    | Coach | Sparkles      |
+| `/body`     | Body  | Activity      |
+| `/settings` | Menu  | Settings2     |
 
 `src/lib/telemetry.ts`'s `SURFACES` — the full closed set of authenticated
 pages, including ones reached by drilling in rather than from the nav —
