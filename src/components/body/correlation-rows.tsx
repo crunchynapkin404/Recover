@@ -1,9 +1,12 @@
 import type { TagInsight } from "@/lib/insights/correlations";
+import { correlationFigure } from "@/lib/insights/correlations";
+import { unavailableMessage } from "@/components/ui/unavailable";
 
 /**
  * Behaviour correlations as plain rows (1g) — the same numbers the v0.9.4
- * card carried, without the nested glass. An inconclusive result says so
- * and shows its sample size instead of being dressed up as a finding.
+ * card carried, without the nested glass. A thin sample renders as
+ * calibrating; a strong sample with no effect renders as a real finding —
+ * they must not read alike (docs/specs/2026-08-08-uncertainty-vocabulary-design.md).
  */
 export function CorrelationRows({ insights }: { insights: TagInsight[] }) {
   if (insights.length === 0) return null;
@@ -27,24 +30,40 @@ export function CorrelationRows({ insights }: { insights: TagInsight[] }) {
                 </span>
               )}
             </span>
-            {c.conclusive ? (
-              <span
-                className={`shrink-0 text-[11.5px] font-bold ${
-                  c.impactPct > 0 ? "text-emerald-400" : "text-red-400"
-                }`}
-              >
-                {c.impactPct > 0 ? "+" : "−"}
-                {Math.abs(c.impactPct)}% ± {c.ciHalfWidthPct} next-day
-              </span>
-            ) : (
-              <span className="shrink-0 text-[11px] text-white/40">
-                {c.evidence === "limited" ? "limited evidence" : "inconclusive"}{" "}
-                · {c.events} events
-              </span>
-            )}
+            <CorrelationBadge insight={c} />
           </li>
         ))}
       </ul>
     </section>
+  );
+}
+
+function CorrelationBadge({ insight: c }: { insight: TagInsight }) {
+  const figure = correlationFigure(c);
+
+  if (!figure.available) {
+    return (
+      <span className="shrink-0 text-[11px] text-white/40">
+        {unavailableMessage(figure)} · {c.events} events
+      </span>
+    );
+  }
+
+  if (figure.value.noEffect) {
+    return (
+      <span className="shrink-0 text-[11.5px] font-medium text-white/70">
+        No detectable effect · {c.events} events
+      </span>
+    );
+  }
+
+  return (
+    <span
+      className={`shrink-0 text-[11.5px] font-bold ${
+        figure.value.impactPct > 0 ? "text-emerald-400" : "text-red-400"
+      }`}
+    >
+      {`${figure.value.impactPct > 0 ? "+" : "−"}${Math.abs(figure.value.impactPct)}% ± ${figure.value.ciHalfWidthPct} next-day`}
+    </span>
   );
 }

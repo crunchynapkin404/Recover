@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { correlateTags } from "./correlations";
+import { correlateTags, correlationFigure, MIN_EVENTS_FOR_EVIDENCE } from "./correlations";
 import { AUTO_TAG_REST, AUTO_TAG_DOUBLE } from "./auto-tags";
 
 // 2026-08-03 is a Monday. Builder: n consecutive days from a start date.
@@ -163,5 +163,50 @@ describe("correlateTags", () => {
     expect(out[0].emoji).toBe("2️⃣");
     expect(out[0].behavior).toBe("Double day");
     expect(out[0].auto).toBe(true);
+  });
+});
+
+describe("correlationFigure", () => {
+  const base = { impactPct: 2, ciHalfWidthPct: 8 };
+
+  it("is an available, high-confidence finding when evidence is strong", () => {
+    const f = correlationFigure({
+      ...base,
+      conclusive: false,
+      evidence: "strong",
+      events: 30,
+    });
+    expect(f.available).toBe(true);
+    if (f.available) {
+      expect(f.value.noEffect).toBe(true);
+      expect(f.confidence).toBe("high");
+    }
+  });
+
+  it("carries the effect through when evidence is strong and conclusive", () => {
+    const f = correlationFigure({
+      impactPct: -25,
+      ciHalfWidthPct: 5,
+      conclusive: true,
+      evidence: "strong",
+      events: 12,
+    });
+    expect(f.available && f.value.noEffect).toBe(false);
+    expect(f.available && f.value.impactPct).toBe(-25);
+  });
+
+  it("is calibrating, not a finding, when evidence is limited", () => {
+    const f = correlationFigure({
+      ...base,
+      conclusive: false,
+      evidence: "limited",
+      events: 3,
+    });
+    expect(f.available).toBe(false);
+    if (!f.available && f.kind === "calibrating") {
+      expect(f.have).toBe(3);
+      expect(f.need).toBe(MIN_EVENTS_FOR_EVIDENCE);
+      expect(f.unit).toBe("days");
+    }
   });
 });
