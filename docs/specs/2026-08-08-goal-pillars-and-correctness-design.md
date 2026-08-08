@@ -124,8 +124,10 @@ pillars, the demand map and the phase sequence. The 1,469-line roadmap is
 archived rather than extended: 256 of its checkboxes are historical record, and
 its forward half is the sequence that diverged.
 
-Refreshes `ai-coaching-landscape.md` for the ~11 forum threads that appeared
-since it was written.
+Refreshes `ai-coaching-landscape.md` (its §10). Only two topics were created
+since 2026-08-05, so the refresh's substance is the MCP connector cluster its
+sixteen deep reads skipped — including the category's highest-viewed thread —
+which bears on Recover's own 57-tool surface and on Phase 4's contract freeze.
 
 **Ships no code.**
 
