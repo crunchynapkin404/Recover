@@ -1,6 +1,7 @@
 import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { requireSession } from "@/lib/session";
+import { recordSurfaceView } from "@/lib/telemetry";
 import { getMySessions } from "@/lib/sessions";
 import { AppShell, shellUser } from "@/components/app-shell";
 import { IntervalsCard } from "@/components/settings/intervals-card";
@@ -51,6 +52,7 @@ export default async function SettingsPage({
 }) {
   const session = await requireSession();
   const user = session.user;
+  await recordSurfaceView(user.id, "settings");
   const { strava_error, whoop_error, withings_error } = await searchParams;
 
   const { sessions: activeSessions } = await getMySessions(

@@ -3,6 +3,7 @@ import { and, asc, desc, eq, gte, inArray, lte, ne } from "drizzle-orm";
 import { Bike, ClipboardList, LineChart, Plus } from "lucide-react";
 import { db, schema } from "@/lib/db";
 import { requireUser } from "@/lib/session";
+import { recordSurfaceView } from "@/lib/telemetry";
 import { getActivePlan } from "@/lib/active-plan";
 import { AppShell, shellUser } from "@/components/app-shell";
 import { WeekStrip } from "@/components/plan/week-strip";
@@ -185,6 +186,7 @@ export default async function TrainPage({
   }>;
 }) {
   const user = await requireUser();
+  await recordSurfaceView(user.id, "train");
   const sp = await searchParams;
 
   const tab: TrainTab = TRAIN_TABS.find((t) => t === sp.tab) ?? "week";

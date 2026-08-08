@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { desc, inArray, isNull, and, gte } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { requireUser } from "@/lib/session";
+import { recordSurfaceView } from "@/lib/telemetry";
 import { AppShell } from "@/components/app-shell";
 import { InviteManager } from "@/components/admin/invite-manager";
 import { SecurityEvents } from "@/components/admin/security-events";
@@ -10,6 +11,7 @@ import { SyncJobsPanel } from "@/components/admin/sync-jobs-panel";
 export default async function AdminPage() {
   const user = await requireUser();
   if (user.role !== "owner") redirect("/");
+  await recordSurfaceView(user.id, "admin");
 
   const users = await db.query.users.findMany({
     orderBy: desc(schema.users.createdAt),

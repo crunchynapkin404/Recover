@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { and, eq, desc } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { requireUser } from "@/lib/session";
+import { recordSurfaceView } from "@/lib/telemetry";
 import { AppShell, shellUser } from "@/components/app-shell";
 import { ChatInterface } from "@/components/coach/chat-interface";
 import { HistorySheet } from "@/components/coach/history-panel";
@@ -13,6 +14,7 @@ export default async function CoachPage({
   searchParams: Promise<{ thread?: string; tab?: string; history?: string }>;
 }) {
   const user = await requireUser();
+  await recordSurfaceView(user.id, "coach");
   const { thread: initialThreadId, tab, history } = await searchParams;
 
   // The merged History panel covers what the old Inbox tab did.

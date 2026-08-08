@@ -3,6 +3,7 @@ import { and, eq, gte, ne } from "drizzle-orm";
 import { Sparkles, User } from "lucide-react";
 import { db, schema } from "@/lib/db";
 import { requireUser } from "@/lib/session";
+import { recordSurfaceView } from "@/lib/telemetry";
 import { getActivePlan } from "@/lib/active-plan";
 import { AppShell, shellUser } from "@/components/app-shell";
 import { PullToRefresh } from "@/components/dashboard/pull-to-refresh";
@@ -80,6 +81,7 @@ export default async function DashboardPage({
   searchParams: Promise<{ sheet?: string; activity?: string }>;
 }) {
   const user = await requireUser();
+  await recordSurfaceView(user.id, "today");
   // Sheet state lives in the URL so the morning and post-ride pushes can
   // deep-link straight into an open sheet, and Back closes it.
   const { sheet, activity: sheetActivity } = await searchParams;
