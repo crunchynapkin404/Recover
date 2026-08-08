@@ -26,7 +26,7 @@ function SplitRow({
         </span>
       ) : (
         <span className="text-white/40">
-          {split.evidence === "limited" ? "limited evidence" : "inconclusive"}
+          {split.evidence === "limited" ? "limited evidence" : "inconclusive"}{" "}
           · {split.events} events
         </span>
       )}

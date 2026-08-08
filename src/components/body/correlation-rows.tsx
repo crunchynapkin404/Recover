@@ -38,7 +38,7 @@ export function CorrelationRows({ insights }: { insights: TagInsight[] }) {
               </span>
             ) : (
               <span className="shrink-0 text-[11px] text-white/40">
-                {c.evidence === "limited" ? "limited evidence" : "inconclusive"}
+                {c.evidence === "limited" ? "limited evidence" : "inconclusive"}{" "}
                 · {c.events} events
               </span>
             )}
