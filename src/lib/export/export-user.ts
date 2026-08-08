@@ -126,6 +126,7 @@ export interface UserExport {
   body_prefs: (typeof schema.bodyPrefs.$inferSelect)[];
   notification_prefs: (typeof schema.notificationPrefs.$inferSelect)[];
   journal_prefs: (typeof schema.journalPrefs.$inferSelect)[];
+  surface_views: (typeof schema.surfaceViews.$inferSelect)[];
   llm_settings: Omit<
     typeof schema.llmSettings.$inferSelect,
     "encryptedApiKey"
@@ -181,6 +182,7 @@ export async function exportUserData(
     bodyPrefs,
     notificationPrefs,
     journalPrefs,
+    surfaceViews,
     llmSettingsRaw,
     races,
     trainingPlans,
@@ -220,6 +222,9 @@ export async function exportUserData(
     }),
     db.query.journalPrefs.findMany({
       where: eq(schema.journalPrefs.userId, userId),
+    }),
+    db.query.surfaceViews.findMany({
+      where: eq(schema.surfaceViews.userId, userId),
     }),
     db.query.llmSettings.findMany({
       where: eq(schema.llmSettings.userId, userId),
@@ -317,6 +322,7 @@ export async function exportUserData(
     body_prefs: bodyPrefs,
     notification_prefs: notificationPrefs,
     journal_prefs: journalPrefs,
+    surface_views: surfaceViews,
     llm_settings: llmSettingsRaw.map((s) => ({
       id: s.id,
       userId: s.userId,

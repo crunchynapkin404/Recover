@@ -320,4 +320,13 @@ describe.skipIf(!hasDb)("exportUserData", () => {
     expect(json).toContain(STREAM_MARKER_OWNED);
     expect(json).not.toContain(STREAM_MARKER_OTHER);
   });
+
+  it("includes surface_views in the export payload", async () => {
+    const { db } = await import("@/lib/db");
+    const { exportUserData } = await import("./export-user");
+
+    const data = await exportUserData(db, USER);
+    expect(data).toHaveProperty("surface_views");
+    expect(Array.isArray(data.surface_views)).toBe(true);
+  });
 });
