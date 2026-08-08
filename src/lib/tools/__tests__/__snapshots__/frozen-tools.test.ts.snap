@@ -209,6 +209,16 @@ exports[`MCP tool surface is frozen (names + scopes + schemas) 1`] = `
     "scope": "read",
   },
   {
+    "name": "get_backup_status",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object",
+    },
+    "scope": "read",
+  },
+  {
     "name": "get_best_efforts",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -434,6 +444,16 @@ exports[`MCP tool surface is frozen (names + scopes + schemas) 1`] = `
       "required": [
         "days",
       ],
+      "type": "object",
+    },
+    "scope": "read",
+  },
+  {
+    "name": "get_recommendation_scorecard",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {},
       "type": "object",
     },
     "scope": "read",

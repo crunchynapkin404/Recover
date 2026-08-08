@@ -17,6 +17,21 @@ export async function setMorningPush(enabled: boolean): Promise<void> {
   revalidatePath("/settings");
 }
 
+export async function setQuietHours(
+  startHour: number | null,
+  endHour: number | null
+): Promise<void> {
+  const user = await requireUser();
+  await db
+    .insert(schema.notificationPrefs)
+    .values({ userId: user.id, quietHoursStart: startHour, quietHoursEnd: endHour })
+    .onConflictDoUpdate({
+      target: schema.notificationPrefs.userId,
+      set: { quietHoursStart: startHour, quietHoursEnd: endHour },
+    });
+  revalidatePath("/settings");
+}
+
 export async function sendTestNotification(): Promise<{
   ok: boolean;
   message: string;

@@ -13,7 +13,7 @@
  */
 import { z } from "zod";
 import { icuRequest } from "@/lib/connectors/intervals";
-import { activeIcuConnection } from "./icu-connection";
+import { executeIcuTool } from "./icu-connection";
 import type { ToolDefinition, ToolContext } from "./registry";
 
 const parameters = z.object({
@@ -206,18 +206,18 @@ function shapeWellness(w: Record<string, unknown>, date: string) {
 }
 
 async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
-  const conn = await activeIcuConnection(ctx);
-  if (!conn) return { error: "No active intervals.icu connection" };
-  const { date, ...fields } = args;
-  const body = buildBody(fields);
-  if (Object.keys(body).length === 0) {
-    return { error: "No fields provided to update." };
-  }
-  const raw = (await icuRequest(conn, `/athlete/{id}/wellness/${date}`, {
-    method: "PUT",
-    body,
-  })) as Record<string, unknown>;
-  return { wellness: shapeWellness(raw, date) };
+  return executeIcuTool(ctx, async (conn) => {
+    const { date, ...fields } = args;
+    const body = buildBody(fields);
+    if (Object.keys(body).length === 0) {
+      return { error: "No fields provided to update." };
+    }
+    const raw = (await icuRequest(conn, `/athlete/{id}/wellness/${date}`, {
+      method: "PUT",
+      body,
+    })) as Record<string, unknown>;
+    return { wellness: shapeWellness(raw, date) };
+  });
 }
 
 export const icuUpdateWellness: ToolDefinition<typeof parameters> = {

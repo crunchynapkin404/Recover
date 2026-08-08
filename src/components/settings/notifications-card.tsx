@@ -4,12 +4,15 @@ import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 import {
   sendTestNotification,
+  setQuietHours,
   setMorningPush,
 } from "@/app/settings/push-actions";
 
 interface Props {
   vapidPublicKey: string;
   morningPushEnabled: boolean;
+  quietHoursStart: number | null;
+  quietHoursEnd: number | null;
   subscriptionCount: number;
 }
 
@@ -25,6 +28,8 @@ function urlBase64ToUint8Array(base64: string): Uint8Array<ArrayBuffer> {
 export function NotificationsCard({
   vapidPublicKey,
   morningPushEnabled,
+  quietHoursStart,
+  quietHoursEnd,
   subscriptionCount,
 }: Props) {
   const [supported, setSupported] = useState(true);
@@ -32,6 +37,12 @@ export function NotificationsCard({
   const [iosNotInstalled, setIosNotInstalled] = useState(false);
   const [subscribedHere, setSubscribedHere] = useState(false);
   const [morning, setMorning] = useState(morningPushEnabled);
+  const [quietStart, setQuietStart] = useState(
+    quietHoursStart == null ? "" : String(quietHoursStart)
+  );
+  const [quietEnd, setQuietEnd] = useState(
+    quietHoursEnd == null ? "" : String(quietHoursEnd)
+  );
   const [pending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -112,6 +123,11 @@ export function NotificationsCard({
       toast.error("Disabling failed — try again.");
     }
   }
+  function parseHour(value: string): number | null {
+    if (!value.trim()) return null;
+    const hour = Number(value);
+    return Number.isInteger(hour) && hour >= 0 && hour <= 23 ? hour : null;
+  }
 
   return (
     <section className="glass rounded-[2rem] p-6">
@@ -183,6 +199,58 @@ export function NotificationsCard({
         >
           Send test notification
         </button>
+
+        <div className="rounded-2xl border border-white/5 bg-white/3 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <span className="flex flex-col">
+              <span className="text-sm font-medium">Quiet hours</span>
+              <span className="text-[10px] font-bold uppercase text-white/50">
+                Morning pushes stay silent inside this window
+              </span>
+            </span>
+            <button
+              onClick={() =>
+                startTransition(async () => {
+                  await setQuietHours(
+                    parseHour(quietStart),
+                    parseHour(quietEnd)
+                  );
+                  toast.success("Quiet hours saved.");
+                })
+              }
+              className="rounded-full border border-white/10 px-3 py-1.5 text-xs font-bold text-white/70 transition-colors hover:bg-white/5"
+            >
+              Save
+            </button>
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+            <label className="flex flex-col gap-2">
+              <span className="text-white/50">Start hour</span>
+              <input
+                type="number"
+                min={0}
+                max={23}
+                value={quietStart}
+                onChange={(e) => setQuietStart(e.target.value)}
+                className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-white outline-none"
+              />
+            </label>
+            <label className="flex flex-col gap-2">
+              <span className="text-white/50">End hour</span>
+              <input
+                type="number"
+                min={0}
+                max={23}
+                value={quietEnd}
+                onChange={(e) => setQuietEnd(e.target.value)}
+                className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-white outline-none"
+              />
+            </label>
+          </div>
+          <p className="mt-2 text-[11px] text-white/40">
+            Leave both blank to disable quiet hours.
+          </p>
+        </div>
       </div>
     </section>
   );

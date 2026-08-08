@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { ConnectorError } from "@/lib/connectors/intervals";
 import { icuUpdateWellness } from "./icu-update-wellness";
 import type { ToolContext } from "./registry";
 
@@ -97,6 +98,26 @@ describe("icu_update_wellness", () => {
         body: { kcalConsumed: 2200, hydrationVolume: 2.5 },
       }
     );
+    vi.restoreAllMocks();
+  });
+
+  it("returns a shaped connector error when intervals.icu rejects the request", async () => {
+    const conn = {
+      status: "active",
+      encryptedAccessToken: "x",
+      externalAthleteId: "i1",
+    };
+    const mod = await import("@/lib/connectors/intervals");
+    vi.spyOn(mod, "icuRequest").mockRejectedValue(
+      new ConnectorError("rate_limited", "intervals.icu: rate limited")
+    );
+
+    const out = await icuUpdateWellness.execute(
+      { date: "2026-02-01", hrv: 55 },
+      ctx(conn)
+    );
+
+    expect(out).toEqual({ error: "intervals.icu: rate limited" });
     vi.restoreAllMocks();
   });
 });

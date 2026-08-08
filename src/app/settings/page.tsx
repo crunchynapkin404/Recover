@@ -494,6 +494,8 @@ export default async function SettingsPage({
                 morningPushEnabled={
                   notificationPrefs?.morningPushEnabled ?? true
                 }
+                quietHoursStart={notificationPrefs?.quietHoursStart ?? null}
+                quietHoursEnd={notificationPrefs?.quietHoursEnd ?? null}
                 subscriptionCount={pushSubs.length}
               />
 

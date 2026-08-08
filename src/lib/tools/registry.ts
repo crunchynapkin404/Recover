@@ -31,6 +31,7 @@ export interface ToolContext {
 
 import { getReadiness } from "./get-readiness";
 import { getReadinessHistory } from "./get-readiness-history";
+import { getRecommendationScorecard } from "./get-recommendation-scorecard";
 import { getWellness } from "./get-wellness";
 import { getFitnessSummary } from "./get-fitness-summary";
 import { listActivities } from "./list-activities";
@@ -56,6 +57,7 @@ import { setWeekAvailabilityTool } from "./set-week-availability";
 import { setStandardWeekTool } from "./set-standard-week";
 import { clearAvailabilityOverrideTool } from "./clear-availability-override";
 import { getPlanDriftTool } from "./get-plan-drift";
+import { getBackupStatus } from "./get-backup-status";
 import { icuGetCalendarEvents } from "./icu-get-calendar-events";
 import { icuGetEvent } from "./icu-get-event";
 import { icuCreateEvent } from "./icu-create-event";
@@ -90,7 +92,9 @@ import { recallHistoryTool } from "./recall-history";
 /** All registered tools (57 — docs/PLAN.md MCP design + v0.4a memory + v0.4c depth + v0.5a artifacts + v0.5c calendar + v0.5d training plans + v0.6 strava describe + v0.9.2 living week + v0.9.6 absorbed icu_* tools + v0.9.6 workout-syntax reference tool + v0.13 get_biomarkers + v0.14 races/what-if + v0.15 recall + v0.20 standard week / clear override + v0.43 confirm_training_plan). */
 export const allTools: ToolDefinition[] = [
   getReadiness,
+  getBackupStatus,
   getReadinessHistory,
+  getRecommendationScorecard,
   getWellness,
   getFitnessSummary,
   listActivities,

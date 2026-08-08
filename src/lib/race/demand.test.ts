@@ -499,6 +499,22 @@ describe("eventDemand reports its confidence", () => {
     expect(result.confidence).toBe("low");
   });
 
+  it("downgrades a fully anchored triathlon to low confidence", () => {
+    const result = eventDemand({
+      ...BASE,
+      sport: "Triathlon",
+      raceType: "ironman",
+      distanceKm: 226,
+      ftp: { watts: 310, athleteSet: true },
+      runPace: { secPerKm: 300, athleteSet: true },
+      swimPace: { secPer100m: 120, athleteSet: true },
+    });
+    expect(result.available).toBe(true);
+    if (!result.available) return;
+    expect(result.confidence).toBe("low");
+    expect(result.confidenceReason).toContain("downgraded");
+  });
+
   it("takes the weakest anchor across a triathlon's three legs", () => {
     const result = eventDemand({
       ...BASE,

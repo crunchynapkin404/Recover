@@ -212,6 +212,8 @@ async function seed() {
       userId: DRILL_USER,
       morningPushEnabled: false,
       lastMorningPushDate: "2026-01-01",
+      quietHoursStart: 22,
+      quietHoursEnd: 6,
       weeklyReviewDay: 3,
       weeklyReviewHour: 19,
       autoDescribeStrava: true,

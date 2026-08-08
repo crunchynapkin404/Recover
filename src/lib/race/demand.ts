@@ -342,6 +342,11 @@ export function eventDemand(input: EventDemandInput): EventDemandResult {
       : ANCHOR_DERIVED_COPY[input.sport];
   }
 
+  if (input.sport === "Triathlon" && confidence === "medium") {
+    confidence = "low";
+    confidenceReason = `${confidenceReason} Multi-sport estimates are downgraded because swim, bike, and run anchors interact.`;
+  }
+
   // The event's total load as a multiple of a weekly training load, with the
   // multiple growing as the event lengthens. An earlier draft averaged over
   // days and trained at a fixed share of that daily rate — which discarded

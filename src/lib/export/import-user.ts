@@ -263,6 +263,8 @@ export async function importUserData(
             userId: targetUserId,
             morningPushEnabled: r.morningPushEnabled,
             lastMorningPushDate: r.lastMorningPushDate,
+            quietHoursStart: r.quietHoursStart,
+            quietHoursEnd: r.quietHoursEnd,
             weeklyReviewDay: r.weeklyReviewDay,
             weeklyReviewHour: r.weeklyReviewHour,
             autoDescribeStrava: r.autoDescribeStrava,

@@ -540,6 +540,8 @@ export const notificationPrefs = pgTable("notification_prefs", {
     .references(() => users.id, { onDelete: "cascade" }),
   morningPushEnabled: boolean("morning_push_enabled").notNull().default(true),
   lastMorningPushDate: date("last_morning_push_date"),
+  quietHoursStart: smallint("quiet_hours_start"),
+  quietHoursEnd: smallint("quiet_hours_end"),
   weeklyReviewDay: smallint("weekly_review_day").notNull().default(1), // 0=Sun..6=Sat, default Monday
   weeklyReviewHour: smallint("weekly_review_hour").notNull().default(7), // 0-23, default 7am
   // v0.6: opt-in Strava auto-describe (write-back of intervals.icu metrics).

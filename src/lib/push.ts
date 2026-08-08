@@ -286,6 +286,17 @@ async function getOrCreatePrefs(userId: string) {
   return prefs;
 }
 
+export function isWithinQuietHours(
+  hour: number,
+  startHour: number | null,
+  endHour: number | null
+): boolean {
+  if (startHour == null || endHour == null) return false;
+  if (startHour === endHour) return true;
+  if (startHour < endHour) return hour >= startHour && hour < endHour;
+  return hour >= startHour || hour < endHour;
+}
+
 /**
  * Morning readiness push, at most once per day, only when today's score
  * exists. Server-local time (matches the scheduler's SYNC_HOUR reference).
@@ -301,6 +312,8 @@ export async function maybeSendMorningReadinessPush(
 
   const prefs = await getOrCreatePrefs(userId);
   if (!prefs.morningPushEnabled) return false;
+  if (isWithinQuietHours(hour, prefs.quietHoursStart, prefs.quietHoursEnd))
+    return false;
 
   const today = localYmd(now);
   if (prefs.lastMorningPushDate === today) return false;
