@@ -125,12 +125,13 @@ so" — is currently spoken in six dialects: `—` (47 uses), `calibrating` (39)
 `insufficient` (14), `unknown` (13), `limited evidence` (3), `inconclusive`
 (3), `no data` (2), plus v0.62's ad-hoc `· limited data`.
 
-- [ ] **2b.1 — Document what exists.** A descriptive `docs/design-system.md`:
+      - [x] **2b.1 — Document what exists (v0.67.0).** A descriptive `docs/design-system.md`:
       the 83 tokens in `src/app/globals.css`, the `src/components/ui/`
       primitive inventory, the Today/Train/Coach/Body/Menu IA, and the six
       dialects. This is the artifact v0.21 and v0.23 were each supposed to
       leave behind and neither did — `.superdesign/` is empty and the only
       design spec predates the v0.23 IA.
+
 - [ ] **2b.2 — Settle the IA.** Decide what the IA now is, remove the 12
       orphaned components, and make the directory tree match. Six of the twelve
       sit in `dashboard/`, the rest in `plan/`, `log/`, `journal/` — all
@@ -151,6 +152,10 @@ so" — is currently spoken in six dialects: `—` (47 uses), `calibrating` (39)
       _insufficient_ (a required input is missing), _low confidence_ (wide
       interval), and _no figure plus the reason_ (the pattern v0.46 set for
       event demand). A token and a treatment for each. **2c consumes this.**
+      **v0.67.0** shipped `src/lib/uncertainty.ts`, its rendering primitives,
+      and migrated the first surface (90-day correlations). Five dialects
+      and roughly 20 other call sites remain — backlog in
+      `docs/plans/2026-08-08-uncertainty-vocabulary.md`.
 - [ ] **2b.4 — Visual redesign.** All 12 pages, against the settled IA using
       the settled vocabulary. The largest item on this roadmap: it splits into
       its own releases with per-page gates, and needs real-browser verification

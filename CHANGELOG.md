@@ -1,5 +1,30 @@
 # Changelog
 
+## v0.67.0 — 2026-08-08 — Uncertainty vocabulary (phase one)
+
+Phase 2b.1, and the first slice of 2b.3: a shared type for "the app doesn't
+know" states, and the first surface migrated to it.
+
+- Added `src/lib/uncertainty.ts`: `Figure<T>`, `Unavailable` and
+  `Confidence`, with `Figure.available/.calibrating/.missingInput/.notApplicable`
+  constructors — the discriminated-union shape `src/lib/race/demand.ts`
+  already proved for one number, promoted to house style.
+- Added two rendering primitives on top of existing `src/components/ui/`
+  pieces: `<ConfidenceChip>` (a badge for below-high confidence) and
+  `<Unavailable>` (inline or full-panel empty state).
+- Fixed the 90-day correlation rows' conflation the goal forbids: "limited
+  evidence" (not enough tagged days) and "inconclusive" (a real,
+  high-confidence finding of no effect) rendered identically. They now
+  render as calibrating and as a real finding respectively, and a guard
+  test fails if either retired string returns.
+- Added `docs/design-system.md`: a descriptive catalog of the 83 tokens in
+  `globals.css`, the 16 `src/components/ui/` primitives, and the IA as
+  built.
+- No new figures, no IA changes — Phase 2's constraint holds. The remaining
+  five dialects and roughly 20 other call sites are unmigrated; tracked as a
+  backlog in `docs/plans/2026-08-08-uncertainty-vocabulary.md`, not this
+  release.
+
 ## v0.66.0 — 2026-08-08 — Surface view telemetry
 
 The app's information architecture is up for a decision (Phase 2b.2), and the
