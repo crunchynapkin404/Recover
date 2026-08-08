@@ -132,6 +132,12 @@ describe.skipIf(!hasDb)("exportUserData", () => {
     await db
       .insert(schema.journalPrefs)
       .values({ userId: USER, usualBehaviorTags: ["caffeine"] });
+    await db.insert(schema.surfaceViews).values({
+      userId: USER,
+      surface: "today",
+      day: "2026-01-02",
+      count: 3,
+    });
 
     await db.insert(schema.llmSettings).values({
       userId: USER,
@@ -250,6 +256,7 @@ describe.skipIf(!hasDb)("exportUserData", () => {
         "body_prefs",
         "notification_prefs",
         "journal_prefs",
+        "surface_views",
         "llm_settings",
         "races",
         "training_plans",
@@ -280,6 +287,13 @@ describe.skipIf(!hasDb)("exportUserData", () => {
     expect(out.webhook_subscriptions.length).toBeGreaterThanOrEqual(1);
     expect(out.llm_usage.length).toBeGreaterThanOrEqual(1);
     expect(out.journal_prefs.length).toBeGreaterThanOrEqual(1);
+    expect(out.surface_views.length).toBeGreaterThanOrEqual(1);
+    // Value-level, not just presence: a positional swap between
+    // surfaceViews and a neighboring query (e.g. llmSettings) in
+    // export-user.ts's parallel query block would still produce a non-empty
+    // array here — only checking the actual field values catches that.
+    expect(out.surface_views[0].surface).toBe("today");
+    expect(out.surface_views[0].count).toBe(3);
 
     // Scoping: the other user's decoy row must never appear.
     expect(
