@@ -125,26 +125,38 @@ export function computeBodyBattery(input: BodyBatteryInput): BodyBatteryResult {
   const end = clamp(input.nowMinutes, 0, MINUTES_PER_DAY);
   const points: BatteryPoint[] = [];
 
+  // One formula for both the sampled curve and the checkpoints, so the tiles
+  // can never disagree with the line they annotate.
+  const chargeAt = (t: number) =>
+    Math.round(
+      clamp(
+        start -
+          (awakeDrainAt(t, input.wakeMinutes, input.bedMinutes) +
+            activityDrainAt(t, input.activities)),
+        0,
+        100
+      )
+    );
+
   for (let t = 0; t <= end; t += SAMPLE_INTERVAL_MIN) {
-    const drain =
-      awakeDrainAt(t, input.wakeMinutes, input.bedMinutes) +
-      activityDrainAt(t, input.activities);
-    points.push({
-      minutes: t,
-      charge: Math.round(clamp(start - drain, 0, 100)),
-    });
+    points.push({ minutes: t, charge: chargeAt(t) });
   }
 
-  const checkpoints = ([
-    { label: "Morning" as const, minutes: input.wakeMinutes },
-    { label: "Midday" as const, minutes: input.wakeMinutes + 6 * 60 },
-    { label: "Evening" as const, minutes: input.wakeMinutes + 12 * 60 },
-  ] as const)
+  // Evaluated at the real minute, not looked up in the sample grid. v0.63
+  // matched `points.find(pt => pt.minutes === p.minutes)` against a
+  // 15-minute grid, so any wake time off :00/:15/:30/:45 missed on all
+  // three checkpoints at once (they share the same offset) and every tile
+  // fell through to the last sampled point — three identical numbers
+  // labelled Morning, Midday and Evening.
+  const checkpoints = (
+    [
+      { label: "Morning" as const, minutes: input.wakeMinutes },
+      { label: "Midday" as const, minutes: input.wakeMinutes + 6 * 60 },
+      { label: "Evening" as const, minutes: input.wakeMinutes + 12 * 60 },
+    ] as const
+  )
     .filter((p) => p.minutes <= end)
-    .map((p) => ({
-      ...p,
-      charge: points.find((pt) => pt.minutes === p.minutes)?.charge ?? points.at(-1)?.charge ?? 0,
-    }));
+    .map((p) => ({ ...p, charge: chargeAt(p.minutes) }));
 
   const tags = new Set<string>();
   if (input.activities.length === 0) tags.add("rest day");

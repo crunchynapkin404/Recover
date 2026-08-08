@@ -110,6 +110,29 @@ describe("body battery (hand-computed fixtures)", () => {
     expect(r.checkpoints).toHaveLength(3);
   });
 
+  // v0.63 read checkpoint charges out of the 15-minute sample grid with an
+  // exact-minute `find`. A wake time of 06:50 is not on that grid, and
+  // Midday/Evening are wake+6h/wake+12h so they carry the same offset — all
+  // three missed together and fell back to the last sampled point, printing
+  // one number three times under three different labels. Asserting the
+  // labels and the length (as the original test did) cannot see that.
+  it("gives each checkpoint its own charge when wake time is off the sample grid", () => {
+    const r = computeBodyBattery({
+      ...base,
+      wakeMinutes: 410, // 06:50 — deliberately not a multiple of 15
+      nowMinutes: 1439,
+    });
+
+    expect(r.checkpoints).toHaveLength(3);
+    const charges = r.checkpoints.map((c) => c.charge);
+    expect(new Set(charges).size).toBe(3);
+    // Charge only falls across the waking day, so the labels must descend.
+    expect(charges[0]).toBeGreaterThan(charges[1]);
+    expect(charges[1]).toBeGreaterThan(charges[2]);
+    // And none of them may be the trailing sample the old lookup fell back to.
+    expect(charges).not.toContain(r.points.at(-1)!.charge);
+  });
+
   it("ignores an activity that has not started yet", () => {
     const withFuture = computeBodyBattery({
       ...base,
