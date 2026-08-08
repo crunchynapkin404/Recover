@@ -81,10 +81,13 @@ The #1 request is a known gap and the feature the sequence skipped.
 - [x] Baseline the project (`docs/BASELINE.md`)
 - [x] Design spec for goal, pillars and correctness
 - [x] This roadmap; archive the 1,469-line predecessor
-- [ ] Refresh `ai-coaching-landscape.md` for the ~11 forum threads added since
-      2026-08-05
+- [x] Refresh `ai-coaching-landscape.md` — §10. Only **two** topics were
+      created since 2026-08-05 (VeloForge, Lora, both 7 Aug); a category that
+      added fifty products in nine months added two in three days. The refresh's
+      real content is the MCP connector cluster the original's sixteen deep
+      reads skipped, which bears directly on Recover's own 57-tool surface.
 
-Ships no code.
+Ships no code. **Phase 1 complete.**
 
 ## Phase 2 — Prove the current features correct
 
@@ -195,7 +198,11 @@ Demand order, science-constrained.
 
 - [ ] Review `feat/v0.65-mcp-contract-hardening` — unreviewed work (push quiet
       hours + migration 0040, two new MCP tools). **Must not merge before 2d.**
-- [ ] MCP contract freeze — after the numbers underneath are stable, not before
+- [ ] MCP contract freeze — after the numbers underneath are stable, not before.
+      Freeze a **measured** surface: competitors now sell on being "token
+      cheap" (`ai-coaching-landscape.md` §10) and Recover has never measured
+      what its 57 tools cost as context. Freezing an unmeasured surface locks
+      in whatever that cost happens to be.
 - [ ] Dead-component sweep (12 identified; `race-countdown.tsx` still exports a
       type `train/page.tsx` imports)
 - [ ] On-ramps for the three dormant-but-kept features: Deep Biology, outbound

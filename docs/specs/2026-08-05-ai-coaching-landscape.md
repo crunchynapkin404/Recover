@@ -277,3 +277,64 @@ Science: [Gabbett 2016, BJSM](https://efsma.org/images/pdf/publications/Br-J-Spo
 [ACWR systematic review 2025](https://pmc.ncbi.nlm.nih.gov/articles/PMC12487117/) ·
 [TrainingPeaks ramp rate](https://www.trainingpeaks.com/learn/articles/why-ramp-rate-is-an-important-training-metric/) ·
 [Couzens, CTL ramp rates](https://www.alancouzens.com/blog/CTLramp.html)
+
+---
+
+## 10. Refresh — 2026-08-08
+
+Re-read of the category three days on, closing Phase 1 of
+`docs/ROADMAP.md`. **§9 above is superseded** by that roadmap; §1–§8 stand.
+
+### Almost nothing changed, and that is the finding
+
+Two topics have been created since this document was written, both on
+7 August: **VeloForge** ("adaptive coaching that connects training, recovery
+and fueling", 12 replies / 132 views) and **Lora** ("AI running coach for iOS,
+built on your Intervals.icu data", 1 reply / 60 views). Neither has enough
+engagement yet to read in depth, and neither changes §5's inventory or §7's
+claims.
+
+A category that added fifty products in nine months added two in three days.
+The land-grab phase this document caught mid-flight has slowed, which makes
+§9's original instinct — correctness before breadth — cheaper to act on than it
+looked at the time.
+
+### The gap this refresh does close: the MCP cluster
+
+The sixteen deep reads were all coaching _products_. They skipped a cluster of
+connector threads that is directly strategic for recover, which ships 57 MCP
+tools of its own:
+
+- [MCP Server for Connecting Claude with Intervals.icu API](https://forum.intervals.icu/t/mcp-server-for-connecting-claude-with-intervals-icu-api/95999)
+  — the original, nine pages of replies, ~22 200 views. Among the highest-viewed
+  topics in the entire category.
+- [Hosted MCP Server](https://forum.intervals.icu/t/hosted-mcp-server-for-connecting-claude-with-intervals-icu/126554)
+  — built on athletedata's infrastructure, reaching beyond intervals.icu to
+  Strava, Garmin, Whoop, Hevy and Oura.
+- [IcuSync](https://forum.intervals.icu/t/icusync-claude-ai-mcp-connector-for-intervals-icu-no-technical-setup-required/126632)
+  — 295 replies / 10 700 views, positioned explicitly as **"no technical setup
+  required"**.
+- [Token-optimized Claude MCP](https://forum.intervals.icu/t/token-optimized-claude-mcp-for-intervals-icu/130708)
+  — sold on being _token cheap_.
+
+Three consequences for recover:
+
+1. **Token cost is a competitive axis, and recover has never measured its
+   own.** A 57-tool surface is a large context payload before a single question
+   is asked. Phase 4's MCP contract freeze should freeze a _measured_ surface,
+   not just a stable one — otherwise it locks in whatever the cost happens to be.
+2. **"No technical setup" is the axis where self-hosting structurally loses.**
+   IcuSync's positioning is the direct answer to recover's biggest friction.
+   This is not a feature gap to close by building more; it is a reason to keep
+   the setup path short and honestly documented.
+3. **The multi-source hosted MCP is the same convergence §2 already
+   identified**, now arriving through the connector layer rather than the
+   coaching layer.
+
+### Correction to this document's own reception
+
+Working notes on 2026-08-08 twice described this survey as covering "19
+threads", inferred from its Sources list. That is wrong and the error is worth
+recording: §Method states fifty topics enumerated and sixteen read in depth.
+The Sources list is what was _cited_, not what was _surveyed_ — a distinction
+this document should have made explicit, and now does.
