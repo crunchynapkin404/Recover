@@ -11,15 +11,14 @@ export type Confidence = "low" | "medium" | "high";
 
 export type CalibratingUnit = "days" | "nights" | "sessions";
 
-export type Unavailable = {
-  kind: "calibrating" | "missing_input" | "not_applicable";
-  have?: number;
-  need?: number;
-  unit?: CalibratingUnit;
-  needs?: string;
-  fix?: { label: string; href: string };
-  why?: string;
-};
+export type Unavailable =
+  | { kind: "calibrating"; have: number; need: number; unit: CalibratingUnit }
+  | {
+      kind: "missing_input";
+      needs: string;
+      fix?: { label: string; href: string };
+    }
+  | { kind: "not_applicable"; why: string };
 
 export type Figure<T> =
   | { available: true; value: T; confidence: Confidence; why?: string }

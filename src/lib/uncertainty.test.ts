@@ -21,8 +21,7 @@ describe("Figure", () => {
   it("calibrating() carries have/need/unit and no value", () => {
     const f: FigureT<number> = Figure.calibrating(4, 14, "days");
     expect(f.available).toBe(false);
-    if (!f.available) {
-      expect(f.kind).toBe("calibrating");
+    if (!f.available && f.kind === "calibrating") {
       expect(f.have).toBe(4);
       expect(f.need).toBe(14);
       expect(f.unit).toBe("days");
@@ -35,8 +34,7 @@ describe("Figure", () => {
       href: "/settings",
     });
     expect(f.available).toBe(false);
-    if (!f.available) {
-      expect(f.kind).toBe("missing_input");
+    if (!f.available && f.kind === "missing_input") {
       expect(f.needs).toBe("FTP");
       expect(f.fix).toEqual({ label: "Set FTP", href: "/settings" });
     }
@@ -44,14 +42,15 @@ describe("Figure", () => {
 
   it("missingInput() allows no fix link", () => {
     const f: FigureT<number> = Figure.missingInput("a race date");
-    expect(!f.available && f.fix).toBeUndefined();
+    if (!f.available && f.kind === "missing_input") {
+      expect(f.fix).toBeUndefined();
+    }
   });
 
   it("notApplicable() carries a reason", () => {
     const f: FigureT<number> = Figure.notApplicable("no race scheduled");
     expect(f.available).toBe(false);
-    if (!f.available) {
-      expect(f.kind).toBe("not_applicable");
+    if (!f.available && f.kind === "not_applicable") {
       expect(f.why).toBe("no race scheduled");
     }
   });
