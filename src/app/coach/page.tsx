@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { and, eq, desc } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { requireUser } from "@/lib/session";
+import { recordSurfaceView } from "@/lib/telemetry";
 import { AppShell, shellUser } from "@/components/app-shell";
 import { ChatInterface } from "@/components/coach/chat-interface";
 import { HistorySheet } from "@/components/coach/history-panel";
@@ -17,6 +18,8 @@ export default async function CoachPage({
 
   // The merged History panel covers what the old Inbox tab did.
   if (tab === "inbox") redirect("/coach");
+
+  await recordSurfaceView(user.id, "coach");
 
   // Opening a coach thread is what marks its items read — the athlete has
   // the whole conversation in front of them at that point.

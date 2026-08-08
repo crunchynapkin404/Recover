@@ -1,5 +1,27 @@
 # Changelog
 
+## v0.66.0 — 2026-08-08 — Surface view telemetry
+
+The app's information architecture is up for a decision (Phase 2b.2), and the
+call was to make it from real usage rather than recall — but until now there
+was no usage data to make it from. This release adds that data source. It
+does not change the IA, and it adds nothing an athlete sees.
+
+- Added a `surface_views` table and a guarded `recordSurfaceView` helper:
+  one counter per user, per surface, per local day. The write never throws —
+  a failed count is preferred over a broken page render.
+- Instrumented all nine authenticated pages (Today, Train, Coach, Body,
+  Settings, Admin, Import, Activity, Activity Log) behind a closed set of
+  surface keys, never raw pathnames, so the table can't grow unbounded.
+- Old counts are pruned on a retention window in the existing scheduler
+  tick, and the counts ride through the existing GDPR export/import
+  pipeline like every other user-owned table.
+- Added an owner-only aggregate card on `/admin` showing total views per
+  surface across all users — nothing scoped to, or visible to, any one
+  athlete.
+- The data never leaves the instance: no external calls, no timings, no
+  event streams, just counts.
+
 ## v0.65.0 — 2026-08-08 — Audit remediation (v0.55–v0.64)
 
 An audit of the ten releases shipped on the night of 7 August found one

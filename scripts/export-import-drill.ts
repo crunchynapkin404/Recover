@@ -227,6 +227,14 @@ async function seed() {
   };
   await db.insert(schema.journalPrefs).values(journalPrefsSeed);
 
+  const surfaceViewsSeed: Carried<typeof schema.surfaceViews, "id"> = {
+    userId: DRILL_USER,
+    surface: "today",
+    day: "2026-01-02",
+    count: 3,
+  };
+  await db.insert(schema.surfaceViews).values(surfaceViewsSeed);
+
   const llmSettingsSeed: Carried<
     typeof schema.llmSettings,
     "id" | "encryptedApiKey"
@@ -476,6 +484,7 @@ async function wipe() {
     schema.bodyPrefs,
     schema.notificationPrefs,
     schema.journalPrefs,
+    schema.surfaceViews,
     schema.llmSettings,
     schema.biomarkers,
     schema.llmUsage,
@@ -584,6 +593,7 @@ async function compare(export1: UserExport, export2: UserExport) {
     "body_prefs",
     "notification_prefs",
     "journal_prefs",
+    "surface_views",
     "biomarkers",
     "llm_usage",
     "coach_memories",

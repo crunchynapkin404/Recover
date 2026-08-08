@@ -60,6 +60,12 @@ describe.skipIf(!hasDb)("importUserData", () => {
     await db
       .insert(schema.journalPrefs)
       .values({ userId: SOURCE_USER, usualBehaviorTags: ["caffeine"] });
+    await db.insert(schema.surfaceViews).values({
+      userId: SOURCE_USER,
+      surface: "train",
+      day: "2026-01-10",
+      count: 5,
+    });
     await db.insert(schema.llmSettings).values({
       userId: SOURCE_USER,
       providerType: "anthropic",
@@ -348,6 +354,13 @@ describe.skipIf(!hasDb)("importUserData", () => {
     expect(llmSettings[0].encryptedApiKey).toBeNull();
     expect(llmSettings[0].coachLanguage).toBe("nl");
 
+    const surfaceViews = await db.query.surfaceViews.findMany({
+      where: eq(schema.surfaceViews.userId, TARGET_USER),
+    });
+    expect(surfaceViews.length).toBe(sample.surface_views.length);
+    expect(surfaceViews[0]?.surface).toBe("train");
+    expect(surfaceViews[0]?.count).toBe(5);
+
     // No row anywhere carries the source user's id.
     expect(activities.every((a) => a.userId === TARGET_USER)).toBe(true);
     expect(races.every((r) => r.userId === TARGET_USER)).toBe(true);
@@ -465,6 +478,7 @@ describe.skipIf(!hasDb)("importUserData", () => {
       body_prefs: [],
       notification_prefs: [],
       journal_prefs: [],
+      surface_views: [],
       llm_settings: [],
       training_plans: [],
       training_blocks: [],
@@ -586,6 +600,7 @@ describe.skipIf(!hasDb)("importUserData", () => {
       body_prefs: [],
       notification_prefs: [],
       journal_prefs: [],
+      surface_views: [],
       llm_settings: [],
       training_plans: [],
       training_blocks: [],
@@ -667,6 +682,7 @@ describe.skipIf(!hasDb)("importUserData", () => {
       body_prefs: [],
       notification_prefs: [],
       journal_prefs: [],
+      surface_views: [],
       llm_settings: [],
       training_blocks: [],
       week_plans: [],

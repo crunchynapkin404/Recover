@@ -286,6 +286,20 @@ export async function importUserData(
       );
     }
 
+    if (data.surface_views.length) {
+      await tx.insert(schema.surfaceViews).values(
+        data.surface_views.map(
+          // `id`: importUserData regenerates every row id (see header).
+          (r): Carried<typeof schema.surfaceViews, "id"> => ({
+            userId: targetUserId,
+            surface: r.surface,
+            day: r.day,
+            count: r.count,
+          })
+        )
+      );
+    }
+
     if (data.llm_settings.length) {
       await tx.insert(schema.llmSettings).values(
         data.llm_settings.map(

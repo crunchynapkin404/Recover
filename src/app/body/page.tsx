@@ -2,6 +2,7 @@ import Link from "next/link";
 import { and, desc, eq, gte, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { requireUser } from "@/lib/session";
+import { recordSurfaceView } from "@/lib/telemetry";
 import { AppShell, shellUser } from "@/components/app-shell";
 import { BaselineTrendCard } from "@/components/body/baseline-trend-card";
 import { SleepNightCard } from "@/components/body/sleep-night-card";
@@ -132,6 +133,7 @@ export default async function BodyPage({
   searchParams: Promise<{ tab?: string; range?: string; night?: string }>;
 }) {
   const user = await requireUser();
+  await recordSurfaceView(user.id, "body");
   const sp = await searchParams;
   const tab: BodyTab = BODY_TABS.find((t) => t === sp.tab) ?? "trends";
   const range = RANGES.includes(Number(sp.range)) ? Number(sp.range) : 90;

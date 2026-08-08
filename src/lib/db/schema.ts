@@ -614,6 +614,30 @@ export const journalPrefs = pgTable("journal_prefs", {
   usualBehaviorTags: jsonb("usual_behavior_tags").$type<string[]>(),
 });
 
+// v0.66 Phase 2b: local-only record of which surfaces get opened, so the IA
+// decision rests on evidence rather than recall. Counts only — no timings, no
+// event stream. `surface` is a closed union from src/lib/telemetry.ts, never a
+// raw pathname: dynamic segments like /activity/[id] would make it unbounded.
+export const surfaceViews = pgTable(
+  "surface_views",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    surface: text("surface").notNull(),
+    day: text("day").notNull(), // local calendar day, "YYYY-MM-DD"
+    count: integer("count").notNull().default(0),
+  },
+  (t) => [
+    uniqueIndex("surface_views_user_surface_day_uq").on(
+      t.userId,
+      t.surface,
+      t.day
+    ),
+  ]
+);
+
 /**
  * v0.13 Deep Biology — extracted/entered blood biomarkers. Nothing lands
  * here unconfirmed: LLM-extracted rows carry a per-value `confidence` and

@@ -139,6 +139,11 @@ so" — is currently spoken in six dialects: `—` (47 uses), `calibrating` (39)
       **Trap:** `dashboard/race-countdown.tsx` still exports a
       `RaceCountdownProps` type that `app/train/page.tsx` imports; it cannot be
       deleted wholesale.
+      **v0.66.0** shipped the local-only `surface_views` telemetry this
+      decision depends on (owner-only, closed-set surface keys, counts only,
+      never leaves the instance). The four-week trigger starts at deploy, not
+      at merge — deploy date to be recorded here once Watchtower has deployed
+      it to the live instance.
 - [ ] **2b.3 — Uncertainty and confidence language.** One vocabulary replacing
       six, distinguishing at least: _calibrating_ (not enough history yet),
       _insufficient_ (a required input is missing), _low confidence_ (wide

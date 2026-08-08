@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { requireUser } from "@/lib/session";
+import { recordSurfaceView } from "@/lib/telemetry";
 import { getOrFetchActivityDetail } from "@/lib/activity-streams";
 import { AppShell, shellUser } from "@/components/app-shell";
 import { StreamChart } from "@/components/activity/stream-chart";
@@ -30,6 +31,7 @@ export default async function ActivityPage({
   params: Promise<{ id: string }>;
 }) {
   const user = await requireUser();
+  await recordSurfaceView(user.id, "activity");
   const { id } = await params;
   const detail = await getOrFetchActivityDetail(user.id, id);
   if (!detail) notFound();
