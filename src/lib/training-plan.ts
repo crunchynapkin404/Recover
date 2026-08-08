@@ -3,7 +3,7 @@
  * training plan generator. No LLM dependency; uses template-based
  * periodization with sport-specific workout prescriptions.
  */
-import { asc, desc, eq, and } from "drizzle-orm";
+import { asc, eq, and } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { createRace } from "@/lib/race/service";
 import type { Purpose } from "@/lib/availability/types";

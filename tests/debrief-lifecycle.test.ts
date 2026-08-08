@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 const hasDb =
   !!process.env.DATABASE_URL && process.env.DATABASE_DRIVER === "pg";

@@ -15,6 +15,23 @@ const eslintConfig = defineConfig([
     // Local tooling state: git worktrees with their own built .next output.
     ".claude/**",
   ]),
+  {
+    rules: {
+      // A leading underscore is this repo's existing "deliberately unused"
+      // marker — pure MCP tools that take a ctx they never read, catch
+      // blocks that discard the error. Without these patterns each one
+      // raises a warning, and eight standing warnings train you to stop
+      // reading lint output at all.
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+        },
+      ],
+    },
+  },
 ]);
 
 export default eslintConfig;
