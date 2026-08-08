@@ -2,9 +2,12 @@ import { and, eq, gte, isNotNull, ne, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { AUTO_TAGS, addDaysYmd, deriveAutoTags, localYmd } from "./auto-tags";
 import { mean, welchCompare } from "./stats";
+import { Figure } from "@/lib/uncertainty";
 
 export const MIN_EVENTS = 5;
 export const WINDOW_DAYS = 90;
+/** Events below this still get a headline row, but as calibrating, not a finding. */
+export const MIN_EVENTS_FOR_EVIDENCE = 10;
 
 export interface SplitInsight {
   impactPct: number;
@@ -74,7 +77,8 @@ function compare(
     conclusive: w.conclusive,
     events: tagged.length,
     evidence:
-      tagged.length < 10 || ciHalfWidthPct >= Math.abs(impactPct)
+      tagged.length < MIN_EVENTS_FOR_EVIDENCE ||
+      ciHalfWidthPct >= Math.abs(impactPct)
         ? "limited"
         : "strong",
   };
@@ -134,6 +138,43 @@ export function correlateTags(input: CorrelateInput): TagInsight[] {
       ? Math.abs(b.impactPct) - Math.abs(a.impactPct)
       : b.events - a.events;
   });
+}
+
+export interface CorrelationFinding {
+  impactPct: number;
+  ciHalfWidthPct: number;
+  /** True when the CI includes zero: a real finding of no effect, not a missing one. */
+  noEffect: boolean;
+}
+
+interface EvidenceFields {
+  impactPct: number;
+  ciHalfWidthPct: number;
+  conclusive: boolean;
+  events: number;
+  evidence: "limited" | "strong";
+}
+
+/**
+ * Maps the conclusive/evidence fields to the shared uncertainty vocabulary:
+ * a thin sample is `calibrating` (more tagged days will resolve it); a
+ * strong-but-null sample is an `available`, high-confidence finding of no
+ * effect — the distinction correlation-rows.tsx used to render identically.
+ */
+export function correlationFigure(
+  insight: EvidenceFields
+): Figure<CorrelationFinding> {
+  if (insight.evidence === "limited") {
+    return Figure.calibrating(insight.events, MIN_EVENTS_FOR_EVIDENCE, "days");
+  }
+  return Figure.available(
+    {
+      impactPct: insight.impactPct,
+      ciHalfWidthPct: insight.ciHalfWidthPct,
+      noEffect: !insight.conclusive,
+    },
+    "high"
+  );
 }
 
 /** The one DB wrapper: window queries + auto-tag derivation + pure core. */
