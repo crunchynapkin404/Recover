@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { effectiveWeekLoad } from "./materialize";
-import { dayMins } from "./types";
+import { dayMins, RAMP_CLAMP_PCT } from "./types";
 
 const greens = Array(7).fill("green") as import("./types").Band[];
 const suppressed = [
@@ -14,24 +14,25 @@ const suppressed = [
 ] as import("./types").Band[]; // 4 amber-or-worse
 
 describe("effectiveWeekLoad (hand-computed fixtures)", () => {
-  it("nudges +10% on strong adherence and completion", () => {
+  it("returns the skeleton target when last week went to plan", () => {
     const r = effectiveWeekLoad({
       skeletonTarget: 400,
       prevWeek: { actualLoad: 390, adherencePct: 98 },
       recentBands: greens,
     });
-    expect(r.load).toBe(440);
-    expect(r.reasons.join(" ")).toContain("AUTO_HIGH_ADHERENCE");
+    expect(r.load).toBe(400);
+    expect(r.reasons).toEqual([]);
   });
 
-  it("reduces 15% from skeleton on weak adherence", () => {
+  it("builds on actual load, not the skeleton, below 70% adherence", () => {
+    // actual 200 × 1.10 = 220; skeleton 400 ignored
     const r = effectiveWeekLoad({
       skeletonTarget: 400,
       prevWeek: { actualLoad: 200, adherencePct: 50 },
       recentBands: greens,
     });
-    expect(r.load).toBe(340);
-    expect(r.reasons.join(" ")).toContain("AUTO_LOW_ADHERENCE");
+    expect(r.load).toBe(220);
+    expect(r.reasons.join(" ")).toContain("adherence");
   });
 
   it("does not fire the adherence rule at exactly 70%", () => {
@@ -42,7 +43,6 @@ describe("effectiveWeekLoad (hand-computed fixtures)", () => {
     });
     // only the ramp clamp applies: 250 × 1.2 = 300
     expect(r.load).toBe(300);
-    expect(r.reasons.join(" ")).toContain("AUTO_NEUTRAL");
   });
 
   it("reduces 15% when ≥4 of the last 7 days were amber or worse", () => {
@@ -122,8 +122,40 @@ describe("effectiveWeekLoad (hand-computed fixtures)", () => {
       prevWeek: { actualLoad: 400, adherencePct: 100 },
       recentBands: bands,
     });
-    expect(r.load).toBe(440);
-    expect(r.reasons.join(" ")).toContain("AUTO_HIGH_ADHERENCE");
+    expect(r.load).toBe(400);
+  });
+
+  // The ramp clamp is an UNCONDITIONAL bound, not one rule among several.
+  // Whatever any upstream rule decides the target should be, the athlete
+  // never receives a week more than RAMP_CLAMP_PCT away from what they
+  // actually did last week. Only two documented exits skip it: a fully
+  // missed week (actualLoad === 0, which restarts from the skeleton) and a
+  // taper's downward bypass.
+  //
+  // v0.61 added an autopilot that set a flag to skip this block entirely,
+  // then rewrote the fixture above so the suite stayed green — a
+  // 50%-adherence week was handed 340 instead of 240. Reverted in v0.65.
+  // This sweep exists so the next attempt fails loudly instead.
+  it("clamps to ±20% of last week's actual load under every rule combination", () => {
+    const cases = [
+      { skeletonTarget: 400, prevWeek: { actualLoad: 200, adherencePct: 50 } },
+      { skeletonTarget: 400, prevWeek: { actualLoad: 200, adherencePct: 100 } },
+      { skeletonTarget: 100, prevWeek: { actualLoad: 400, adherencePct: 100 } },
+      { skeletonTarget: 900, prevWeek: { actualLoad: 300, adherencePct: 20 } },
+      { skeletonTarget: 50, prevWeek: { actualLoad: 300, adherencePct: 60 } },
+    ];
+    for (const c of cases) {
+      for (const bands of [greens, suppressed]) {
+        const r = effectiveWeekLoad({ ...c, recentBands: bands });
+        const lo = c.prevWeek.actualLoad * (1 - RAMP_CLAMP_PCT);
+        const hi = c.prevWeek.actualLoad * (1 + RAMP_CLAMP_PCT);
+        expect(
+          r.load,
+          `skeleton ${c.skeletonTarget}, actual ${c.prevWeek.actualLoad}, adherence ${c.prevWeek.adherencePct}%`
+        ).toBeGreaterThanOrEqual(Math.round(lo));
+        expect(r.load).toBeLessThanOrEqual(Math.round(hi));
+      }
+    }
   });
 });
 

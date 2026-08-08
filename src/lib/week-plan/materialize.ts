@@ -12,6 +12,7 @@ import {
 import {
   type Band,
   GENERATOR_CAP_SHORTFALL_PCT,
+  LOW_ADHERENCE_BUMP,
   LOW_ADHERENCE_PCT,
   MISSED_WEEK_RESTART,
   RAMP_CLAMP_PCT,
@@ -38,11 +39,7 @@ import { applyOffSeasonShaping } from "./off-season";
 
 export interface EffectiveLoadInput {
   skeletonTarget: number;
-  prevWeek: {
-    actualLoad: number;
-    adherencePct: number;
-    completionPct?: number;
-  } | null;
+  prevWeek: { actualLoad: number; adherencePct: number } | null;
   recentBands: Band[];
   /** Last 7 illness flags, oldest first. */
   recentIllFlags?: boolean[];
@@ -56,7 +53,6 @@ export function effectiveWeekLoad(input: EffectiveLoadInput): {
 } {
   const { skeletonTarget, prevWeek, recentBands, taperWeek } = input;
   const reasons: string[] = [];
-  let autopilotApplied = false;
 
   if (!taperWeek && prevWeek && prevWeek.actualLoad === 0) {
     const load = Math.round(skeletonTarget * MISSED_WEEK_RESTART);
@@ -70,36 +66,11 @@ export function effectiveWeekLoad(input: EffectiveLoadInput): {
 
   let target = skeletonTarget;
 
-  if (!taperWeek && prevWeek) {
-    const completionPct = prevWeek.completionPct ?? prevWeek.adherencePct;
-    const adherenceScore =
-      0.7 * (prevWeek.adherencePct / 100) + 0.3 * (completionPct / 100);
-    const desiredDelta =
-      adherenceScore > 0.95 ? 0.1 : adherenceScore < 0.7 ? -0.15 : 0;
-
-    if (desiredDelta > 0) {
-      autopilotApplied = true;
-      target = skeletonTarget * (1 + desiredDelta);
-      reasons.push(
-        `AUTO_HIGH_ADHERENCE: adherence ${Math.round(
-          prevWeek.adherencePct
-        )}% and completion ${Math.round(completionPct)}% — nudged +10%`
-      );
-    } else if (desiredDelta < 0) {
-      autopilotApplied = true;
-      target = skeletonTarget * (1 + desiredDelta);
-      reasons.push(
-        `AUTO_LOW_ADHERENCE: adherence ${Math.round(
-          prevWeek.adherencePct
-        )}% and completion ${Math.round(completionPct)}% — reduced 15%`
-      );
-    } else {
-      reasons.push(
-        `AUTO_NEUTRAL: adherence ${Math.round(
-          prevWeek.adherencePct
-        )}% and completion ${Math.round(completionPct)}% — kept baseline`
-      );
-    }
+  if (!taperWeek && prevWeek && prevWeek.adherencePct < LOW_ADHERENCE_PCT) {
+    target = prevWeek.actualLoad * LOW_ADHERENCE_BUMP;
+    reasons.push(
+      `adherence was ${Math.round(prevWeek.adherencePct)}% — building on last week's actual load instead of the skeleton`
+    );
   }
 
   const badDays = recentBands.filter(
@@ -114,7 +85,7 @@ export function effectiveWeekLoad(input: EffectiveLoadInput): {
     );
   }
 
-  if (prevWeek && !autopilotApplied) {
+  if (prevWeek) {
     const lo = prevWeek.actualLoad * (1 - RAMP_CLAMP_PCT);
     const hi = prevWeek.actualLoad * (1 + RAMP_CLAMP_PCT);
     if (target > hi) {
@@ -151,11 +122,7 @@ export interface MaterializeInput {
   };
   /** One entry per day (Mon..Sun); each is that day's list of blocks. */
   availableBlocksPerDay: AvailabilityBlock[][];
-  prevWeek: {
-    actualLoad: number;
-    adherencePct: number;
-    completionPct?: number;
-  } | null;
+  prevWeek: { actualLoad: number; adherencePct: number } | null;
   recentBands: Band[];
   /** Last 7 illness flags, oldest first. */
   recentIllFlags?: boolean[];
