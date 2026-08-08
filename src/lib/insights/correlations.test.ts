@@ -213,4 +213,21 @@ describe("correlationFigure", () => {
       expect(f.unit).toBe("days");
     }
   });
+
+  it("stays calibrating even when a thin sample is statistically conclusive", () => {
+    // welchCompare only needs n>=2 per side, independent of
+    // MIN_EVENTS_FOR_EVIDENCE — a sample this thin can land conclusive: true
+    // by chance. Evidence must still win: a thin sample isn't a finding.
+    const f = correlationFigure({
+      ...base,
+      conclusive: true,
+      evidence: "limited",
+      events: 3,
+    });
+    expect(f.available).toBe(false);
+    if (!f.available && f.kind === "calibrating") {
+      expect(f.have).toBe(3);
+      expect(f.need).toBe(MIN_EVENTS_FOR_EVIDENCE);
+    }
+  });
 });
