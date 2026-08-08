@@ -70,3 +70,28 @@ export async function pruneSurfaceViews(
     .returning();
   return deleted.length;
 }
+
+/**
+ * Owner-only, cross-user aggregate: total views per surface across every
+ * user, sorted descending. Not scoped to any one user — this powers the
+ * instance-wide `/admin` card, not a per-athlete figure.
+ *
+ * Note: counts observed while running `npm run dev` locally may look
+ * inflated relative to actual clicks — Next.js `<Link>` prefetching can
+ * complete real requests against sibling routes under `next dev`, each one
+ * recording a view. Verified absent under a production build (`next build`
+ * + `next start`): there, prefetch requests to routes not actually visited
+ * are cancelled before the page executes.
+ */
+export async function surfaceViewTotals(): Promise<
+  { surface: string; total: number }[]
+> {
+  return db
+    .select({
+      surface: schema.surfaceViews.surface,
+      total: sql<number>`sum(${schema.surfaceViews.count})::int`,
+    })
+    .from(schema.surfaceViews)
+    .groupBy(schema.surfaceViews.surface)
+    .orderBy(sql`sum(${schema.surfaceViews.count}) desc`);
+}

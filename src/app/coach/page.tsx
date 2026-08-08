@@ -14,11 +14,12 @@ export default async function CoachPage({
   searchParams: Promise<{ thread?: string; tab?: string; history?: string }>;
 }) {
   const user = await requireUser();
-  await recordSurfaceView(user.id, "coach");
   const { thread: initialThreadId, tab, history } = await searchParams;
 
   // The merged History panel covers what the old Inbox tab did.
   if (tab === "inbox") redirect("/coach");
+
+  await recordSurfaceView(user.id, "coach");
 
   // Opening a coach thread is what marks its items read — the athlete has
   // the whole conversation in front of them at that point.

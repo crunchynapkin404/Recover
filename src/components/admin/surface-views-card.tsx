@@ -8,10 +8,10 @@ export function SurfaceViewsCard({
   rows: { surface: string; total: number }[];
 }) {
   return (
-    <section className="glass rounded-2xl p-5">
-      <h2 className="label-micro mb-3">Surface views</h2>
+    <section className="glass rounded-[2rem] p-6">
+      <h3 className="label-micro mb-4">Surface views</h3>
       {rows.length === 0 ? (
-        <p className="text-xs text-white/50">No views recorded yet.</p>
+        <p className="text-sm text-white/50">No views recorded yet.</p>
       ) : (
         <ul className="space-y-1.5">
           {rows.map((r) => (

@@ -19,7 +19,7 @@ import { schema } from "@/lib/db";
  * or user-entered content):
  *   wellness_daily, daily_metrics, chat_threads, coach_memories,
  *   biomarkers, body_prefs, notification_prefs, journal_prefs, races,
- *   training_plans, week_plans, llm_usage
+ *   training_plans, week_plans, llm_usage, surface_views
  *
  * INCLUDED, field-stripped (direct `userId` column, but the row itself
  * carries a secret/credential that must never leave the server):

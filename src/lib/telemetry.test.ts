@@ -2,9 +2,14 @@ import { describe, expect, it, beforeAll, beforeEach, afterAll } from "vitest";
 import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { localYmd } from "@/lib/charts";
-import { recordSurfaceView, pruneSurfaceViews } from "./telemetry";
+import {
+  recordSurfaceView,
+  pruneSurfaceViews,
+  surfaceViewTotals,
+} from "./telemetry";
 
 const TEST_USER = "test-telemetry-user";
+const OTHER_USER = "test-telemetry-other-user"; // proves the aggregate sums across users, not just one
 
 // requires Postgres; skips without DATABASE_URL.
 const hasDb =
@@ -23,6 +28,14 @@ describe.skipIf(!hasDb)("recordSurfaceView", () => {
         email: `${TEST_USER}@example.invalid`,
       })
       .onConflictDoNothing();
+    await db
+      .insert(schema.users)
+      .values({
+        id: OTHER_USER,
+        name: "Test Telemetry Other User",
+        email: `${OTHER_USER}@example.invalid`,
+      })
+      .onConflictDoNothing();
   });
 
   afterAll(async () => {
@@ -30,6 +43,10 @@ describe.skipIf(!hasDb)("recordSurfaceView", () => {
       .delete(schema.surfaceViews)
       .where(eq(schema.surfaceViews.userId, TEST_USER));
     await db.delete(schema.users).where(eq(schema.users.id, TEST_USER));
+    await db
+      .delete(schema.surfaceViews)
+      .where(eq(schema.surfaceViews.userId, OTHER_USER));
+    await db.delete(schema.users).where(eq(schema.users.id, OTHER_USER));
   });
 
   beforeEach(async () => {
@@ -102,5 +119,28 @@ describe.skipIf(!hasDb)("recordSurfaceView", () => {
     });
     expect(rows.map((r) => r.day)).not.toContain(old);
     expect(rows.map((r) => r.surface)).toContain("train");
+  });
+
+  it("surfaceViewTotals aggregates across all users, grouped by surface, sorted descending", async () => {
+    // Distinctive, made-up surface strings (not from the real SURFACES
+    // tuple) inserted directly via db.insert, bypassing recordSurfaceView's
+    // type restriction — this guarantees the totals this test reads can't
+    // collide with real data or any other test's rows in the same shared
+    // table, without needing to wipe/scope the whole table.
+    const today = localYmd(new Date());
+    await db.insert(schema.surfaceViews).values([
+      { userId: TEST_USER, surface: "test-agg-a", day: today, count: 5 },
+      { userId: OTHER_USER, surface: "test-agg-a", day: today, count: 3 },
+      { userId: TEST_USER, surface: "test-agg-b", day: today, count: 1 },
+    ]);
+
+    const totals = await surfaceViewTotals();
+    const a = totals.find((t) => t.surface === "test-agg-a");
+    const b = totals.find((t) => t.surface === "test-agg-b");
+
+    expect(a?.total).toBe(8); // 5 + 3 — summed across BOTH users
+    expect(b?.total).toBe(1);
+    // Descending order: the higher total must sort first.
+    expect(totals.indexOf(a!)).toBeLessThan(totals.indexOf(b!));
   });
 });

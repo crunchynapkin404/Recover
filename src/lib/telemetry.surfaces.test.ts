@@ -37,4 +37,10 @@ describe("surface instrumentation", () => {
     const declared = new Set<string>(SURFACES);
     expect([...used].filter((s) => !declared.has(s))).toEqual([]);
   });
+
+  it("mounts SurfaceViewsCard on /admin, reading from surfaceViewTotals", () => {
+    const src = readFileSync("src/app/admin/page.tsx", "utf8");
+    expect(src).toContain("surfaceViewTotals(");
+    expect(src).toContain("<SurfaceViewsCard");
+  });
 });

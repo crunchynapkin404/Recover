@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
-import { desc, inArray, isNull, and, gte, sql } from "drizzle-orm";
+import { desc, inArray, isNull, and, gte } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { requireUser } from "@/lib/session";
-import { recordSurfaceView } from "@/lib/telemetry";
+import { recordSurfaceView, surfaceViewTotals } from "@/lib/telemetry";
 import { AppShell } from "@/components/app-shell";
 import { InviteManager } from "@/components/admin/invite-manager";
 import { SecurityEvents } from "@/components/admin/security-events";
@@ -59,16 +59,7 @@ export default async function AdminPage() {
     updatedAt: j.updatedAt.toISOString(),
   }));
 
-  // Owner-only, cross-user aggregate (like syncJobRows above) — not scoped
-  // to the calling owner's own views.
-  const surfaceRows = await db
-    .select({
-      surface: schema.surfaceViews.surface,
-      total: sql<number>`sum(${schema.surfaceViews.count})::int`,
-    })
-    .from(schema.surfaceViews)
-    .groupBy(schema.surfaceViews.surface)
-    .orderBy(sql`sum(${schema.surfaceViews.count}) desc`);
+  const surfaceRows = await surfaceViewTotals();
 
   return (
     <AppShell>
