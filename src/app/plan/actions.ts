@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
 import { requireUser } from "@/lib/session";
+import { logger } from "@/lib/logger";
 import { db, schema } from "@/lib/db";
 import type { PlanSport } from "@/lib/plan-sport";
 import type { PlanStyle } from "@/lib/plan-style/types";
@@ -39,6 +40,24 @@ import { confirmTrainingPlan, previewTrainingPlan } from "@/lib/training-plan";
 import type { PreviewResult } from "@/lib/plan-preview";
 
 type Result = { ok: true } | { ok: false; error: string };
+
+/**
+ * Next form actions must resolve to void, so the `Result` these quick
+ * switches return had nowhere to go and every failure — a stale week, an
+ * invalid value, no active plan — presented to the athlete as a successful
+ * press. Logging is the floor, not the fix: surfacing them in the UI needs
+ * `useActionState`, which is a client-component change these switches do
+ * not have yet.
+ */
+async function runQuick(
+  name: string,
+  run: () => Promise<Result>
+): Promise<void> {
+  const result = await run();
+  if (!result.ok) {
+    logger.warn("quick action failed", { action: name, error: result.error });
+  }
+}
 
 function asPlanStyle(value: FormDataEntryValue | null): PlanStyle | null {
   return value === "balanced" || value === "block_lite" ? value : null;
@@ -110,7 +129,7 @@ export async function setPlanStyleQuick(formData: FormData): Promise<Result> {
 }
 
 export async function submitPlanStyleQuick(formData: FormData): Promise<void> {
-  await setPlanStyleQuick(formData);
+  await runQuick("submitPlanStyleQuick", () => setPlanStyleQuick(formData));
 }
 
 export async function setSeasonModeQuick(formData: FormData): Promise<Result> {
@@ -145,7 +164,7 @@ export async function setSeasonModeQuick(formData: FormData): Promise<Result> {
 }
 
 export async function submitSeasonModeQuick(formData: FormData): Promise<void> {
-  await setSeasonModeQuick(formData);
+  await runQuick("submitSeasonModeQuick", () => setSeasonModeQuick(formData));
 }
 
 export async function setWeekAdjustmentQuick(
@@ -193,7 +212,9 @@ export async function setWeekAdjustmentQuick(
 export async function submitWeekAdjustmentQuick(
   formData: FormData
 ): Promise<void> {
-  await setWeekAdjustmentQuick(formData);
+  await runQuick("submitWeekAdjustmentQuick", () =>
+    setWeekAdjustmentQuick(formData)
+  );
 }
 
 /**

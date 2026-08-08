@@ -26,8 +26,8 @@ function SplitRow({
         </span>
       ) : (
         <span className="text-white/40">
-          {split.evidence === "limited" ? "limited evidence" : "inconclusive"}
-          · {split.events} events
+          {split.evidence === "limited" ? "limited evidence" : "inconclusive"} ·{" "}
+          {split.events} events
         </span>
       )}
     </div>
@@ -71,7 +71,9 @@ export function CorrelationInsights({ insights }: { insights: TagInsight[] }) {
                     </span>
                   ) : (
                     <span className="text-xs text-white/40">
-                      {c.evidence === "limited" ? "limited evidence" : "inconclusive"}
+                      {c.evidence === "limited"
+                        ? "limited evidence"
+                        : "inconclusive"}
                     </span>
                   )}
                 </div>

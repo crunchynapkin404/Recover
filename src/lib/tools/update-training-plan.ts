@@ -178,6 +178,16 @@ async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
   });
   if (!block) return { success: false, error: "week_not_found" };
 
+  // A proportional action against a block with no stored target used to
+  // resolve as `(null ?? 0) * 0.5 === 0` and report success — a "deload"
+  // silently became a full skip. Only skip_week may legitimately land on 0.
+  if (
+    args.action !== "skip_week" &&
+    (block.targetLoadTotal == null || block.targetLoadTotal === 0)
+  ) {
+    return { success: false, error: "week_has_no_target_load" };
+  }
+
   let newLoad = block.targetLoadTotal ?? 0;
   const notes = `${args.action}: ${args.reason}`;
 

@@ -12,11 +12,64 @@ permissions:
   packages: write
 
 jobs:
+  # The tag is the release: whatever it points at is what watchtower-equipped
+  # servers will run. RELEASING.md has always required a green `main` before
+  # tagging, but nothing enforced it — v0.63.0 and v0.64.0 were both tagged
+  # from a commit whose CI had already failed, and release.yml published the
+  # image regardless because it never looks at test results. This job makes
+  # the written rule mechanical.
+  verify:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Require a green CI run for this exact commit
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SHA: ${{ github.sha }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # CI may still be in flight when the tag lands, so wait rather than
+          # racing it. 30 × 30s = 15 minutes, comfortably past a ~4min run.
+          for attempt in $(seq 1 30); do
+            run=$(gh api "repos/$REPO/actions/workflows/ci.yml/runs?head_sha=$SHA&per_page=1" \
+              --jq '.workflow_runs[0] | "\(.status) \(.conclusion // "pending") \(.html_url)"' 2>/dev/null || true)
+
+            if [ -z "$run" ] || [ "$run" = "null pending null" ]; then
+              echo "::error::No CI run found for $SHA. The tag must point at a commit CI has actually tested."
+              exit 1
+            fi
+
+            status=${run%% *}
+            rest=${run#* }
+            conclusion=${rest%% *}
+            url=${rest#* }
+
+            if [ "$status" = "completed" ]; then
+              if [ "$conclusion" = "success" ]; then
+                echo "CI green for $SHA — $url"
+                exit 0
+              fi
+              echo "::error::CI concluded '$conclusion' for $SHA — refusing to publish. $url"
+              echo "::error::Fix main, then move the tag deliberately (see docs/RELEASING.md)."
+              exit 1
+            fi
+
+            echo "CI is $status for $SHA (attempt $attempt/30) — waiting 30s. $url"
+            sleep 30
+          done
+
+          echo "::error::Timed out waiting for CI to finish on $SHA. Not publishing."
+          exit 1
+
   # Build each architecture natively (no QEMU) and push it to GHCR by
   # digest only (untagged). Matrix instead of two hand-duplicated jobs so
   # the build steps stay a single source of truth across archs; the only
   # per-leg difference is which native runner and platform is used.
   build:
+    needs: [verify]
     strategy:
       fail-fast: false
       matrix:

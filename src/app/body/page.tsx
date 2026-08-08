@@ -541,6 +541,10 @@ async function SleepTab({
       load: a.load ?? 0,
     })),
     nowMinutes: now.getHours() * 60 + now.getMinutes(),
+    // v0.63 gave computeBodyBattery a sleep-debt penalty and a "sleep debt"
+    // tag, then never passed the value — both were dead in production while
+    // `debt` sat computed 40 lines above.
+    sleepDebtSecs: debt.debtSecs,
   });
 
   return (

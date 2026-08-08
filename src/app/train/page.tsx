@@ -34,7 +34,6 @@ import { SeasonTimelineCard } from "@/components/train/season-timeline-card";
 import { FuellingCard } from "@/components/train/fuelling-card";
 import { PlanStyleSwitch } from "@/components/train/plan-style-switch";
 import { SeasonModeSwitch } from "@/components/train/season-mode-switch";
-import { WeekAdjustmentSwitch } from "@/components/train/week-adjustment-switch";
 import { WeekRationale, fmt, article } from "@/components/plan/week-rationale";
 import { EventReadiness } from "@/components/plan/event-readiness";
 import {
@@ -90,7 +89,6 @@ import {
 import {
   submitPlanStyleQuick,
   submitSeasonModeQuick,
-  submitWeekAdjustmentQuick,
   startWeek,
   submitAvailability,
 } from "@/app/plan/actions";
@@ -764,12 +762,26 @@ async function WeekTab({
               reentryStage={constraints.reentryStage}
               action={submitSeasonModeQuick}
             />
-            {week && (
-              <WeekAdjustmentSwitch
-                weekNumber={week.skeletonWeek}
-                action={submitWeekAdjustmentQuick}
-              />
-            )}
+            {/*
+              WeekAdjustmentSwitch (v0.56–v0.60) is deliberately not rendered.
+              Its action writes trainingBlocks.targetLoadTotal, but the open
+              week the athlete actually trains is materialized from a target
+              periodize() recomputes on the spot — service.ts says so outright:
+              "Recomputed fresh, never read as authority". The persisted
+              weekPlans row is not recomputed either, so pressing "Skip week"
+              left this week's sessions untouched.
+
+              That made the buttons worse than inert: targetLoadTotal IS read
+              by the blocks table below, get_training_plan, get_plan_drift and
+              race forecasting, so the number moved everywhere the plan is
+              reported and nowhere it is executed. A live press had already
+              left one athlete's block at 0 against a real week of 259.
+
+              Re-enabling this needs a decision, not a patch: either the action
+              re-materializes the open week, or the copy describes the skeleton
+              it actually edits. Until then the controls stay off rather than
+              promising "Ease -30% · Deload -50%" and doing none of it.
+            */}
           </div>
         }
       />

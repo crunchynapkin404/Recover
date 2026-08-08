@@ -1,5 +1,59 @@
 # Changelog
 
+## v0.65.0 — 2026-08-08 — Audit remediation (v0.55–v0.64)
+
+An audit of the ten releases shipped on the night of 7 August found one
+safety regression, several features wired to nothing, and a release that was
+tagged from a red build. This release repairs them and puts a gate in front
+of the process that let them through. No new features.
+
+**Safety**
+
+- Reverted the v0.61 "bounded adaptive week autopilot" in full. It set a flag
+  that skipped the ±20% ramp clamp, so an athlete who completed 200 of a
+  planned 400 was handed 340 instead of the clamped 240 — in the branch meant
+  to back off. It survived review because v0.61 rewrote the test that
+  protected the clamp rather than adding one. The clamp is unconditional
+  again, and a sweep now asserts it binds under every rule combination.
+- Reverting also removed the hard `completionPct: 0` written at rollover when
+  a block was missing, which `?? adherencePct` could not catch and which
+  scored a 99%-adherence week at 0.693 — a 15% cut for a week nearly nailed.
+
+**Features that were not connected**
+
+- The body battery's sleep-debt penalty and "sleep debt" tag were dead:
+  `computeBodyBattery` accepts `sleepDebtSecs` and `/body` never passed it,
+  though the value sat computed 40 lines above the call. Now passed.
+- Body battery checkpoints were read out of the 15-minute sample grid by
+  exact minute, so any wake time off :00/:15/:30/:45 made Morning, Midday and
+  Evening show one identical number. They are now evaluated at their real
+  minute through the same function that draws the curve.
+- The Train week quick actions (Ease/Deload/Boost/Skip) wrote only
+  `trainingBlocks.targetLoadTotal`, which the open week never reads — it is
+  recomputed from `periodize()` on the spot. The buttons moved the number
+  everywhere the plan is _reported_ (blocks table, `get_training_plan`,
+  `get_plan_drift`, race forecasting) and nowhere it is _executed_. The
+  switch is no longer rendered pending a real design; `update_training_plan`
+  now refuses a proportional action against a block with no target instead of
+  silently writing 0, and the quick-action wrappers log their failures rather
+  than presenting them as success.
+
+**Correctness**
+
+- v0.64 renamed the thin-evidence correlation label but left the test
+  asserting the old string, which is why `main` was red. Fixed, and the
+  strong-but-inconclusive branch — the only one that renders the word
+  "inconclusive" — now has coverage for the first time.
+- Both correlation surfaces rendered "limited evidence· 12 events": the label
+  and count sit on separate JSX lines and the newline collapsed away.
+
+**Process**
+
+- `release.yml` now refuses to publish when the tagged commit's CI is not
+  green. v0.63.0 and v0.64.0 were tagged from a commit whose test suite had
+  already failed, and both point at that same commit, so `git diff
+v0.63.0..v0.64.0` is empty.
+
 ## v0.64.0 — 2026-08-08 — Correlation engine v2 (confidence-aware)
 
 This release makes readiness correlations safer to trust by surfacing sample

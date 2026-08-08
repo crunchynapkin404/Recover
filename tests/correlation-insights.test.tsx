@@ -47,7 +47,7 @@ const conclusiveRow: TagInsight = {
   },
 };
 
-const inconclusiveAutoRow: TagInsight = {
+const limitedAutoRow: TagInsight = {
   emoji: "🌙",
   behavior: "Late training",
   auto: true,
@@ -56,7 +56,41 @@ const inconclusiveAutoRow: TagInsight = {
   conclusive: false,
   events: 12,
   evidence: "limited",
-  splits: { weekday: null, weekend: null },
+  splits: {
+    weekday: {
+      impactPct: -2,
+      ciHalfWidthPct: 9,
+      conclusive: false,
+      events: 7,
+      evidence: "limited",
+    },
+    weekend: null,
+  },
+};
+
+// `evidence: "strong"` with `conclusive: false` is the OTHER unconclusive
+// state: enough samples, but the interval still straddles zero. It is the
+// only branch that renders the word "inconclusive", and v0.64 renamed the
+// label around it without ever covering it.
+const strongInconclusiveRow: TagInsight = {
+  emoji: "🌅",
+  behavior: "Early training",
+  auto: false,
+  impactPct: 1,
+  ciHalfWidthPct: 4,
+  conclusive: false,
+  events: 40,
+  evidence: "strong",
+  splits: {
+    weekday: {
+      impactPct: 1,
+      ciHalfWidthPct: 4,
+      conclusive: false,
+      events: 20,
+      evidence: "strong",
+    },
+    weekend: null,
+  },
 };
 
 describe("CorrelationInsights v2", () => {
@@ -69,11 +103,23 @@ describe("CorrelationInsights v2", () => {
     expect(container.textContent).not.toContain("auto");
   });
 
-  it("greys inconclusive rows and chips auto tags", () => {
-    render([inconclusiveAutoRow]);
-    expect(container.textContent).toContain("inconclusive");
+  it("greys thin-evidence rows and chips auto tags", () => {
+    render([limitedAutoRow]);
+    expect(container.textContent).toContain("limited evidence");
     expect(container.textContent).not.toContain("-2% ±");
     expect(container.textContent).toContain("auto");
+    // Spaces around the split separator are asserted literally: the label and
+    // the event count sit on separate JSX lines, and a bare newline between
+    // them is collapsed away rather than rendered as a space.
+    expect(container.textContent).toContain("limited evidence · 7 events");
+  });
+
+  it("says inconclusive when evidence is strong but the interval straddles zero", () => {
+    render([strongInconclusiveRow]);
+    expect(container.textContent).toContain("inconclusive");
+    expect(container.textContent).not.toContain("limited evidence");
+    expect(container.textContent).not.toContain("+1% ±");
+    expect(container.textContent).toContain("inconclusive · 20 events");
   });
 
   it("renders nothing without insights", () => {
