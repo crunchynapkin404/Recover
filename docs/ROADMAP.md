@@ -141,9 +141,11 @@ so" — is currently spoken in six dialects: `—` (47 uses), `calibrating` (39)
       deleted wholesale.
       **v0.66.0** shipped the local-only `surface_views` telemetry this
       decision depends on (owner-only, closed-set surface keys, counts only,
-      never leaves the instance). The four-week trigger starts at deploy, not
-      at merge — deploy date to be recorded here once Watchtower has deployed
-      it to the live instance.
+      never leaves the instance). **Deployed to the live instance:
+      2026-08-08.** Four-week trigger: do not settle this item before
+      **2026-09-05**. Per the spec, record at that point that the counts are
+      developer-biased — the sole user is also the developer and tester, so
+      the data shows what was being built, not what an athlete would open.
 - [ ] **2b.3 — Uncertainty and confidence language.** One vocabulary replacing
       six, distinguishing at least: _calibrating_ (not enough history yet),
       _insufficient_ (a required input is missing), _low confidence_ (wide
