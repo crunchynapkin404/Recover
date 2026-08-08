@@ -31,7 +31,12 @@ function toPath(points: BatteryPoint[]): string {
  * Estimated energy through the day — a labelled model, not a measurement.
  * Renders nothing rather than inventing a curve when readiness is unavailable.
  */
-export function BodyBatteryCurve({ current, points, tags, checkpoints }: Props) {
+export function BodyBatteryCurve({
+  current,
+  points,
+  tags,
+  checkpoints,
+}: Props) {
   if (current == null || points.length === 0) {
     return (
       <div className="glass rounded-[2rem] p-7">

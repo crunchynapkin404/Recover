@@ -120,7 +120,11 @@ export function computeBodyBattery(input: BodyBatteryInput): BodyBatteryResult {
     return { current: null, points: [], tags: [], checkpoints: [] };
   }
 
-  const sleepDebtPenalty = clamp((input.sleepDebtSecs ?? 0) / 3600 * 2, 0, 20);
+  const sleepDebtPenalty = clamp(
+    ((input.sleepDebtSecs ?? 0) / 3600) * 2,
+    0,
+    20
+  );
   const start = clamp(input.readiness - sleepDebtPenalty, 0, 100);
   const end = clamp(input.nowMinutes, 0, MINUTES_PER_DAY);
   const points: BatteryPoint[] = [];
@@ -161,10 +165,19 @@ export function computeBodyBattery(input: BodyBatteryInput): BodyBatteryResult {
   const tags = new Set<string>();
   if (input.activities.length === 0) tags.add("rest day");
   if (input.activities.length > 1) tags.add("double day");
-  if (input.activities.some((a) => a.load >= 100) || input.activities.reduce((s, a) => s + a.load, 0) >= 100)
+  if (
+    input.activities.some((a) => a.load >= 100) ||
+    input.activities.reduce((s, a) => s + a.load, 0) >= 100
+  )
     tags.add("hard day");
-  if (input.activities.some((a) => a.startMinutes >= 18 * 60)) tags.add("late session");
+  if (input.activities.some((a) => a.startMinutes >= 18 * 60))
+    tags.add("late session");
   if ((input.sleepDebtSecs ?? 0) >= 3600) tags.add("sleep debt");
 
-  return { current: points.at(-1)?.charge ?? null, points, tags: [...tags], checkpoints };
+  return {
+    current: points.at(-1)?.charge ?? null,
+    points,
+    tags: [...tags],
+    checkpoints,
+  };
 }

@@ -1243,6 +1243,14 @@ Released as tag `v0.62.0` from merged PR #81.
 Released as tag `v0.63.0` from merged PR #83.
 Released as tag `v0.64.0` from merged PR #83.
 
+Both of those tags point at the same commit, and that commit's CI had
+already failed when it was tagged. `git diff v0.63.0..v0.64.0` is empty:
+one of the two version numbers describes no artifact of its own. Audited
+and remediated in v0.65.0 — see the CHANGELOG entry for what was reverted
+and what was repaired. The v0.61 autopilot listed above is **not** shipped;
+it was withdrawn for removing the ramp clamp it claimed to respect, and
+needs a design that composes with the safety rails before it returns.
+
 ### Release lane definition of done (template)
 
 For each lane, do not merge until all boxes are checked:
