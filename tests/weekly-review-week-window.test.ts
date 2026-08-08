@@ -55,7 +55,6 @@ describe.skipIf(!hasDb)("review and rollover agree on the week", () => {
   // The exact window generateWeeklyReview computes for "now" — same
   // functions, same inputs, so this cannot drift from the code under test.
   const weekStart = addDaysYmd(mondayOf(now), -7);
-  const weekEnd = addDaysYmd(weekStart, 6);
   const dates = Array.from({ length: 7 }, (_, i) => addDaysYmd(weekStart, i));
 
   function emptyDay(date: string) {

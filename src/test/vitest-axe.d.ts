@@ -12,5 +12,5 @@ declare module "@vitest/expect" {
   // `Matchers<T>` is deliberately declared empty upstream specifically so
   // packages can merge matchers into it this way.
   // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-  interface Matchers<T = unknown> extends AxeMatchers {}
+  interface Matchers<_T = unknown> extends AxeMatchers {}
 }
