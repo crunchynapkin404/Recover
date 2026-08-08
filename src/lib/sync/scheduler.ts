@@ -1,6 +1,7 @@
 import { and, eq, inArray, lt, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { logger } from "@/lib/logger";
+import { pruneSurfaceViews } from "@/lib/telemetry";
 
 /** Arbitrary app-wide advisory lock key for the scheduler tick. */
 const TICK_LOCK_KEY = 727_001;
@@ -443,6 +444,16 @@ export async function runSchedulerTick(
     if (purged > 0) logger.info("ghost threads purged", { purged });
   } catch (err) {
     logger.error("ghost purge failed", {
+      message: err instanceof Error ? err.message : String(err),
+    });
+  }
+
+  // Surface-view retention — guarded like the ghost purge above.
+  try {
+    const pruned = await pruneSurfaceViews(180);
+    if (pruned > 0) logger.info("surface views pruned", { pruned });
+  } catch (err) {
+    logger.error("surface view prune failed", {
       message: err instanceof Error ? err.message : String(err),
     });
   }

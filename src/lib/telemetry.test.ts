@@ -2,7 +2,7 @@ import { describe, expect, it, beforeAll, beforeEach, afterAll } from "vitest";
 import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { localYmd } from "@/lib/charts";
-import { recordSurfaceView } from "./telemetry";
+import { recordSurfaceView, pruneSurfaceViews } from "./telemetry";
 
 const TEST_USER = "test-telemetry-user";
 
@@ -82,5 +82,25 @@ describe.skipIf(!hasDb)("recordSurfaceView", () => {
     await expect(
       recordSurfaceView("test-telemetry-nonexistent", "today")
     ).resolves.toBeUndefined();
+  });
+
+  it("prunes rows older than the retention window and leaves recent ones", async () => {
+    const old = "2020-01-01";
+    await db.insert(schema.surfaceViews).values({
+      userId: TEST_USER,
+      surface: "today",
+      day: old,
+      count: 5,
+    });
+    await recordSurfaceView(TEST_USER, "train");
+
+    const deleted = await pruneSurfaceViews(180);
+    expect(deleted).toBeGreaterThanOrEqual(1);
+
+    const rows = await db.query.surfaceViews.findMany({
+      where: eq(schema.surfaceViews.userId, TEST_USER),
+    });
+    expect(rows.map((r) => r.day)).not.toContain(old);
+    expect(rows.map((r) => r.surface)).toContain("train");
   });
 });

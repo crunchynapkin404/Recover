@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { lt, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { localYmd } from "@/lib/charts";
 import { logger } from "@/lib/logger";
@@ -52,4 +52,21 @@ export async function recordSurfaceView(
       message: err instanceof Error ? err.message : String(err),
     });
   }
+}
+
+/**
+ * Drop counts older than the retention window. Bounded growth matters here
+ * because the table gains a row per surface per day per user forever
+ * otherwise. Returns the number of rows removed.
+ */
+export async function pruneSurfaceViews(
+  olderThanDays: number
+): Promise<number> {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - olderThanDays);
+  const deleted = await db
+    .delete(schema.surfaceViews)
+    .where(lt(schema.surfaceViews.day, localYmd(cutoff)))
+    .returning();
+  return deleted.length;
 }
