@@ -155,7 +155,15 @@ top of the six the app already speaks.
       `event-driven-sync-triggers-design.md`,
       `wellness-history-backfill-design.md`) for reasoning, not external
       research. ~20 constants across ~14 other files remain — the long tail
-      in the same Findings doc.
+      in the same Findings doc. **v0.79.0** shipped a sixth slice, the
+      first into the long tail: the health-metrics domain —
+      `src/lib/biological-age.ts` (2), `src/lib/blood-pressure.ts` (1),
+      `src/lib/body-battery.ts` (4), `src/lib/overtraining.ts` (1). All 8
+      are Invented, Low. `body-battery.ts`'s `AWAKE_DRAIN_TOTAL` and
+      `DRAIN_PER_LOAD` are explicitly called "first-pass calibrations" by
+      their own design doc, headed for revisiting in a future
+      correlation-engine pass. ~12 constants across ~10 other files
+      remain.
 
 ### 2b — Design language and IA
 

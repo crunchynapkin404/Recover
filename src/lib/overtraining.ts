@@ -23,6 +23,14 @@ export type OvertrainingSignal =
   | { kind: "hrv_suppression"; sinceDays: number }
   | { kind: "rhr_spike"; sinceDays: number };
 
+/**
+ * Minimum days of history (and a non-calibrating baseline) required before
+ * detection runs. Source:
+ * `docs/specs/2026-07-15-v0.4b-proactive-engine-design.md` — the umbrella
+ * minimum covering both internal windows (≥7-day HRV suppression run,
+ * 3-day RHR-spike mean) plus a stable baseline; not an external citation.
+ * Confidence: Low.
+ */
 export const MIN_HISTORY_DAYS = 21;
 const HRV_SUPPRESSION_DAYS = 7;
 const RHR_SPIKE_BPM = 10;
