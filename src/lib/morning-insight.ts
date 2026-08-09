@@ -12,6 +12,8 @@ import { resolveProvider } from "@/lib/llm-provider";
 import { recordLlmUsage } from "@/lib/llm-usage";
 import { buildSystemPrompt, languageDirective } from "@/lib/coach-persona";
 import { fetchAthleteContext } from "@/lib/coach-context";
+import { calibrationProgress } from "@/lib/calibration";
+import { unavailableMessage } from "@/components/ui/unavailable";
 import {
   getOvertrainingStatus,
   type OvertrainingSignal,
@@ -285,21 +287,58 @@ export async function generateMorningInsight(
   // rendered text. Woven in here (rather than prepended outside, as the
   // non-race branch does below) so it lands right after "Race day: <name>
   // (<priority> race)." and before the physiological-state line.
+  // Readiness null covers two different situations: genuine first-run
+  // calibration, or an already-calibrated athlete with no HRV/RHR reading
+  // today (same distinction the Estimated Energy card's v0.70.0 fix made).
+  // 90 days, not just the 14-day target, matching Today hero's and Body
+  // Battery's own calibrationProgress() callers (page.tsx, body/page.tsx) —
+  // a narrower window would undercount an already-calibrated athlete who
+  // has an ordinary gap somewhere in the trailing two weeks. Fail closed on
+  // a query error, same reasoning as wellnessToday above: a forced backstop
+  // brief must still post rather than throw.
+  let readinessWindow: (typeof schema.wellnessDaily.$inferSelect)[] = [];
+  try {
+    readinessWindow = await db.query.wellnessDaily.findMany({
+      where: and(
+        eq(schema.wellnessDaily.userId, userId),
+        gte(schema.wellnessDaily.date, addDaysYmd(today, -90))
+      ),
+    });
+  } catch (err) {
+    logger.error("readiness-calibration read failed", {
+      userId,
+      message: err instanceof Error ? err.message : String(err),
+    });
+  }
+  const readinessCalibration = calibrationProgress(
+    readinessWindow.map((w) => ({ hrvMs: w.hrvMs, restingHr: w.restingHr }))
+  );
+  const readinessGap = unavailableMessage(
+    readinessCalibration.remaining > 0
+      ? {
+          kind: "calibrating",
+          have: readinessCalibration.daysWithSignal,
+          need: readinessCalibration.target,
+          unit: "days",
+        }
+      : { kind: "missing_input", needs: "a readiness score today" }
+  );
+
   const raceTemplate = raceToday
     ? `Race day: ${raceToday.name} (${raceToday.priority} race). ` +
       (caveat ? `${caveat} ` : "") +
       (metric?.readiness != null
         ? `Readiness ${Math.round(metric.readiness)} (${metric.band}). `
-        : `Readiness still calibrating — trust your taper. `) +
+        : `Readiness: ${readinessGap} — trust your taper. `) +
       projectedLine +
       (raceToday.goalNote ? `Goal: ${raceToday.goalNote}.` : "")
     : null;
 
   // Fix (redundant caveat): when there's no race and readiness itself is
-  // null, the template body already says "Still calibrating — not enough
-  // data yet..." — the completeness caveat would just repeat that same fact
-  // in different words. The race branch's "trust your taper" line doesn't
-  // duplicate the caveat the same way, so it's untouched above.
+  // null, the template body already names the gap — the completeness
+  // caveat would just repeat that same fact in different words. The race
+  // branch's "trust your taper" line doesn't duplicate the caveat the same
+  // way, so it's untouched above.
   const calibratingNoRace = !raceToday && metric?.readiness == null;
 
   const templateBody =
@@ -308,7 +347,7 @@ export async function generateMorningInsight(
       metric?.readiness != null
         ? `Readiness ${Math.round(metric.readiness)} (${metric.band}).` +
           (metric.tsb != null ? ` TSB ${Math.round(metric.tsb)}.` : "")
-        : `Still calibrating — not enough data yet for a readiness score today.`,
+        : `${readinessGap}.`,
       warning
         ? warningSentence(warning)
         : (BAND_LINES[metric?.band ?? ""] ?? ""),

@@ -182,9 +182,28 @@ so" — is currently spoken in six dialects: `—` (47 uses), `calibrating` (39)
       `docs/plans/2026-08-09-uncertainty-vocabulary-body-health.md` (no dead
       components found), and
       `docs/plans/2026-08-09-uncertainty-vocabulary-log-activity.md` (1 more
+      confirmed-dead component; 2 sites investigated and excluded).
+      **v0.72.0** migrated the coach's own "calibrating" text
+      (`morning-insight.ts`'s deterministic template,
+      `coach-context.ts`'s LLM data snapshot) — the first slice to touch
+      the AI coach rather than a UI component, and the second and third
+      instances of the calibrating-vs-same-day-gap conflation the v0.70.0
+      final review first caught in `BodyBatteryCurve` (see
+      `docs/plans/2026-08-09-uncertainty-vocabulary-coach-journal.md`).
+      Only Admin/misc remains — backlog in
+      `docs/plans/2026-08-08-uncertainty-vocabulary.md`, with corrections
+      in `docs/plans/2026-08-09-uncertainty-vocabulary-vitals.md` (5 more
+      confirmed-dead components found; 3 sites investigated and excluded),
+      `docs/plans/2026-08-09-uncertainty-vocabulary-train.md` (2 sites left
+      to Phase 2c's first number slice: one reads
+      `trainingBlocks.targetLoadTotal` directly, the other reads
+      `weekPlans.effectiveTarget`, a per-week snapshot derived from it),
+      `docs/plans/2026-08-09-uncertainty-vocabulary-body-health.md` (no dead
+      components found), and
+      `docs/plans/2026-08-09-uncertainty-vocabulary-log-activity.md` (1 more
       confirmed-dead component; 2 sites investigated and excluded). Same
-      re-verification discipline needed before trusting these surfaces'
-      file lists, per the last four slices.
+      re-verification discipline needed before trusting that surface's file
+      list, per the last five slices.
 - [ ] **2b.4 — Visual redesign.** All 12 pages, against the settled IA using
       the settled vocabulary. The largest item on this roadmap: it splits into
       its own releases with per-page gates, and needs real-browser verification

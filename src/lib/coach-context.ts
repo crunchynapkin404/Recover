@@ -7,6 +7,9 @@
 import { and, desc, eq, gte, ne } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
+import { calibrationProgress } from "@/lib/calibration";
+import { unavailableMessage } from "@/components/ui/unavailable";
+import { logger } from "@/lib/logger";
 
 function daysAgo(n: number): string {
   const d = new Date();
@@ -71,7 +74,44 @@ export async function fetchAthleteContext(
       );
     }
   } else {
-    lines.push("**Readiness:** Calibrating (needs 14+ days of data)");
+    // Fail closed on a query error: the most conservative reading
+    // (calibrating, zero days) rather than throwing into a coach reply.
+    // 90 days, matching Today hero's and Body Battery's own
+    // calibrationProgress() callers (page.tsx, body/page.tsx) — not
+    // wellness7 above (a 7-day window used for unrelated trend lines) and
+    // not just the 14-day target, which would undercount an
+    // already-calibrated athlete with an ordinary gap in the last two weeks.
+    let calibrationWindow: Awaited<
+      ReturnType<typeof db.query.wellnessDaily.findMany>
+    > = [];
+    try {
+      calibrationWindow = await db.query.wellnessDaily.findMany({
+        where: and(
+          eq(schema.wellnessDaily.userId, userId),
+          gte(schema.wellnessDaily.date, daysAgo(90))
+        ),
+      });
+    } catch (err) {
+      logger.error("readiness-calibration read failed", {
+        userId,
+        message: err instanceof Error ? err.message : String(err),
+      });
+    }
+    const calibration = calibrationProgress(
+      calibrationWindow.map((w) => ({ hrvMs: w.hrvMs, restingHr: w.restingHr }))
+    );
+    lines.push(
+      `**Readiness:** ${unavailableMessage(
+        calibration.remaining > 0
+          ? {
+              kind: "calibrating",
+              have: calibration.daysWithSignal,
+              need: calibration.target,
+              unit: "days",
+            }
+          : { kind: "missing_input", needs: "a readiness score today" }
+      )}`
+    );
   }
 
   if (latestWellness) {

@@ -115,7 +115,7 @@ describe.skipIf(!hasDb)("runMorningBriefBackstop", () => {
     const msg = await db.query.chatMessages.findFirst({
       where: eq(schema.chatMessages.threadId, thread!.id),
     });
-    expect(msg?.content).toContain("Still calibrating");
+    expect(msg?.content).toContain("Calibrating — day 0 of 14 days");
     expect(msg?.toolCalls).toMatchObject({ forced: true });
   });
 
