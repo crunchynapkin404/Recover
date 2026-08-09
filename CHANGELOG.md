@@ -1,5 +1,28 @@
 # Changelog
 
+## v0.69.0 — 2026-08-09 — Uncertainty vocabulary (Train)
+
+The third slice of Phase 2b.3: the Train page's CTL/ATL/TSB fitness tiles,
+and `DayActions`' preview, migrated to the `Figure<T>` vocabulary.
+
+- `FitnessTile.value` is now `Figure<string>`, matching the vitals grid's
+  v0.68.0 shape exactly, including its accessibility pattern (`title` +
+  `sr-only` span, built in from the start this time rather than added in a
+  follow-up).
+- `DayActions`' preview now says "Needs more training history to project
+  form." instead of the bare "No projection — calibrating." — the same
+  underlying `forecastForm` signal the vitals grid's Form · TSB tile and the
+  live `RaceChip` already treat as `missing_input`.
+- Investigated `season-timeline-card.tsx`'s `"unknown"`/`"—"` and
+  `train/page.tsx`'s remaining-weeks skeleton `"—"` and left both alone:
+  both read `trainingBlocks.targetLoadTotal`, the value `docs/ROADMAP.md`
+  names as Phase 2c's first number slice ("3 producers... caused four
+  shipped bugs"). Touching its rendering before 2c assigns it one owner
+  risks becoming the fifth instance of `docs/BASELINE.md`'s layer-confusion
+  lesson. Also left alone: the Train page's readiness header chip, a terse
+  band-verdict label like `today-hero.tsx`'s, not a value placeholder.
+- No dead components found on this surface (unlike the last two slices).
+
 ## v0.68.0 — 2026-08-09 — Uncertainty vocabulary (vitals grid)
 
 The second slice of Phase 2b.3: Today's vitals grid (HRV, RHR, Sleep,
