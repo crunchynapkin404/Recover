@@ -1,5 +1,27 @@
 # Changelog
 
+## v0.77.0 — 2026-08-09 — Provenance: race/taper domain constants
+
+Fourth slice of Phase 2a (`docs/ROADMAP.md`): source, confidence, and scope
+for 11 exported constants across `race/taper.ts`, `race/forecast.ts`, and
+`race/feasibility.ts`, plus one gap found while scanning the directory
+(`race/triathlon-legs.ts`). No values changed — documentation only.
+
+- All 11 domain constants (taper windows/fractions/opener cap, adherence
+  forecast clamp, feasibility margin) are labelled **Invented**,
+  Confidence: Low — each traces to the design doc that decided it
+  (`docs/specs/2026-07-19-v0.14-race-ready-design.md`), not to external
+  taper-physiology research.
+- `LONGEST_RIDE_FRACTION` already carried extensive in-code and
+  evidence-doc documentation; this slice added the explicit confidence
+  sentence its evidence doc already rates it at: "Low, unvalidated
+  outside cycling."
+- `TRIATHLON_LEGS` (governing-body course distances) was missed by the
+  original 91-constant survey. Rated **High — definitional**, not an
+  estimate.
+
+Remaining Phase 2a backlog: ~31 constants across ~18 other files.
+
 ## v0.76.0 — 2026-08-09 — Provenance: sleep & readiness window constants
 
 Third slice of Phase 2a (`docs/ROADMAP.md`): source, confidence, and scope
