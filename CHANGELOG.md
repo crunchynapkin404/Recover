@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.79.0 — 2026-08-09 — Provenance: health-metrics domain constants
+
+Sixth slice of Phase 2a (`docs/ROADMAP.md`), the first into the long tail
+(all previously-named domain groups are done as of v0.78.0): source,
+confidence, and scope for 8 exported constants across
+`biological-age.ts`, `blood-pressure.ts`, `body-battery.ts`, and
+`overtraining.ts`. No values changed — documentation only.
+
+- All 8 constants are labelled **Invented**, Confidence: Low, each traced
+  to an existing design doc for its reasoning, not external research.
+- `body-battery.ts`'s `AWAKE_DRAIN_TOTAL` and `DRAIN_PER_LOAD` are
+  explicitly called "first-pass calibrations" by their own design doc,
+  headed for revisiting once compared against real activity/readiness
+  data (a future correlation-engine question).
+- `blood-pressure.ts`'s `BP_LABELS` (display copy) was deliberately
+  excluded — not a numeric behavioral claim.
+
+Remaining Phase 2a backlog: ~12 constants across ~10 other files.
+
 ## v0.78.0 — 2026-08-09 — Provenance: sync/polling domain constants
 
 Fifth slice of Phase 2a (`docs/ROADMAP.md`): source, confidence, and scope
