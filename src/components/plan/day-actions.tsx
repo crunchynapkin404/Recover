@@ -6,6 +6,7 @@ import {
   previewPlanChange,
   zeroDay,
 } from "@/app/plan/actions";
+import { unavailableMessage } from "@/components/ui/unavailable";
 
 export interface DayActionsDay {
   date: string;
@@ -148,7 +149,10 @@ export function DayActions({ day, otherDays, bare = false }: Props) {
         <div className="space-y-2">
           {preview.insufficient ? (
             <p className="text-[11px] text-white/50">
-              No projection — calibrating.
+              {unavailableMessage({
+                kind: "missing_input",
+                needs: "more training history to project form",
+              })}
             </p>
           ) : (
             <p className="text-[11px] text-white/70">
