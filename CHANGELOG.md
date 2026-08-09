@@ -15,12 +15,15 @@ and `DayActions`' preview, migrated to the `Figure<T>` vocabulary.
   live `RaceChip` already treat as `missing_input`.
 - Investigated `season-timeline-card.tsx`'s `"unknown"`/`"—"` and
   `train/page.tsx`'s remaining-weeks skeleton `"—"` and left both alone:
-  both read `trainingBlocks.targetLoadTotal`, the value `docs/ROADMAP.md`
+  the first reads `weekPlans.effectiveTarget`, a per-week snapshot derived
+  from `trainingBlocks.targetLoadTotal` at materialization; the second
+  reads that column directly. Same family, the value `docs/ROADMAP.md`
   names as Phase 2c's first number slice ("3 producers... caused four
-  shipped bugs"). Touching its rendering before 2c assigns it one owner
-  risks becoming the fifth instance of `docs/BASELINE.md`'s layer-confusion
-  lesson. Also left alone: the Train page's readiness header chip, a terse
-  band-verdict label like `today-hero.tsx`'s, not a value placeholder.
+  shipped bugs"). Touching either rendering before 2c assigns the family
+  one owner risks becoming the fifth instance of `docs/BASELINE.md`'s
+  layer-confusion lesson. Also left alone: the Train page's readiness
+  header chip, a terse band-verdict label like `today-hero.tsx`'s, not a
+  value placeholder.
 - No dead components found on this surface (unlike the last two slices).
 
 ## v0.68.0 — 2026-08-09 — Uncertainty vocabulary (vitals grid)

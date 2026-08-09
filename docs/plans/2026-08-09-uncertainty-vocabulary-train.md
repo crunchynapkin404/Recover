@@ -21,17 +21,23 @@ three are live** — no dead components found here. But two of the three
 dialect strings in the backlog turned out to be entangled with a value the
 roadmap already has separate, dedicated plans for:
 
-- **`season-timeline-card.tsx`'s `"unknown"`/`"—"` (target load, target vs.
-  actual chart) and `src/app/train/page.tsx`'s remaining-weeks skeleton
-  `"—"` (line ~1042, `b.targetLoadTotal`)** both read
-  `trainingBlocks.targetLoadTotal` — the exact column `docs/ROADMAP.md`
-  names as Phase 2c's **first** number slice: "3 producers, 43 + 36 + 8 read
-  sites. First because it caused four shipped bugs, and because settling
-  ownership is what makes the hidden week quick actions decidable."
-  `docs/BASELINE.md`'s structural lesson #5 ("layer confusion... the week
-  quick actions are the fourth instance") is about this exact value. Touching
-  its rendering now, before 2c assigns it one owner, risks becoming the
-  fifth instance. **Left alone — deferred to Phase 2c**, not this plan.
+- **`src/app/train/page.tsx`'s remaining-weeks skeleton `"—"`** (line
+  ~1042, `b.targetLoadTotal`) reads `trainingBlocks.targetLoadTotal`
+  directly. **`season-timeline-card.tsx`'s `"unknown"`/`"—"`** (target load,
+  target vs. actual chart) reads `weekPlans.effectiveTarget` instead — a
+  per-week snapshot computed from `trainingBlocks.targetLoadTotal` at
+  materialization (taper/comeback/hours-budget reshaping), stored in its own
+  column, and able to diverge from it afterward (`schema.ts`'s own comment:
+  "distinct from `trainingBlocks.targetLoadTotal`, which stays the un-tapered
+  skeleton value"). Different columns, same family — both are read sites for
+  the value `docs/ROADMAP.md` names as Phase 2c's **first** number slice:
+  "3 producers, 43 + 36 + 8 read sites. First because it caused four shipped
+  bugs, and because settling ownership is what makes the hidden week quick
+  actions decidable." `docs/BASELINE.md`'s structural lesson #5 ("layer
+  confusion... the week quick actions are the fourth instance") is about
+  exactly this stored-vs-recomputed pattern. Touching either rendering now,
+  before 2c assigns the family one owner, risks becoming the fifth instance.
+  **Both left alone — deferred to Phase 2c**, not this plan.
   `season-timeline-card.tsx`'s "Season adherence" `"—"` is also derived from
   `targetLoad` (`latestAdherencePct`) and is excluded for the same reason.
 - **`src/app/train/page.tsx`'s readiness header chip** (`{readiness != null

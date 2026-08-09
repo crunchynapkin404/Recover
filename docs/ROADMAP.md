@@ -167,8 +167,9 @@ so" — is currently spoken in six dialects: `—` (47 uses), `calibrating` (39)
       `docs/plans/2026-08-09-uncertainty-vocabulary-vitals.md` (5 more
       confirmed-dead components found; 3 sites investigated and excluded) and
       `docs/plans/2026-08-09-uncertainty-vocabulary-train.md` (2 sites left
-      to Phase 2c: both read `trainingBlocks.targetLoadTotal`, its first
-      number slice).
+      to Phase 2c's first number slice: one reads
+      `trainingBlocks.targetLoadTotal` directly, the other reads
+      `weekPlans.effectiveTarget`, a per-week snapshot derived from it).
 - [ ] **2b.4 — Visual redesign.** All 12 pages, against the settled IA using
       the settled vocabulary. The largest item on this roadmap: it splits into
       its own releases with per-page gates, and needs real-browser verification
