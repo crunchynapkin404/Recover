@@ -18,13 +18,13 @@ The original backlog entry named 7 files. Verifying which are actually live
 (the same check that found `correlation-insights.tsx` dead last time) found
 **5 more confirmed-dead components** in this one group alone:
 
-| File | Status | Evidence |
-| --- | --- | --- |
-| `src/components/dashboard/hero-readiness.tsx` | Dead | Zero non-test imports |
-| `src/components/dashboard/readiness-rings.tsx` | Dead | Only consumed by the dead `hero-readiness.tsx` |
-| `src/components/dashboard/race-countdown.tsx` | Component dead, type alive | `RaceCountdownCard` has zero non-test imports; its exported type `RaceCountdownProps` is imported by `src/app/train/page.tsx:50` and `src/components/today/race-chip.tsx:2` — the roadmap's own "Trap" note about this file |
-| `src/components/dashboard/recent-sessions-accordion.tsx` | Dead | Zero non-test imports |
-| `src/components/dashboard/vitals-grid.tsx` | Dead | Zero non-test imports — superseded by `src/components/today/vitals-grid.tsx`, the file this plan actually touches |
+| File                                                     | Status                     | Evidence                                                                                                                                                                                                                    |
+| -------------------------------------------------------- | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/components/dashboard/hero-readiness.tsx`            | Dead                       | Zero non-test imports                                                                                                                                                                                                       |
+| `src/components/dashboard/readiness-rings.tsx`           | Dead                       | Only consumed by the dead `hero-readiness.tsx`                                                                                                                                                                              |
+| `src/components/dashboard/race-countdown.tsx`            | Component dead, type alive | `RaceCountdownCard` has zero non-test imports; its exported type `RaceCountdownProps` is imported by `src/app/train/page.tsx:50` and `src/components/today/race-chip.tsx:2` — the roadmap's own "Trap" note about this file |
+| `src/components/dashboard/recent-sessions-accordion.tsx` | Dead                       | Zero non-test imports                                                                                                                                                                                                       |
+| `src/components/dashboard/vitals-grid.tsx`               | Dead                       | Zero non-test imports — superseded by `src/components/today/vitals-grid.tsx`, the file this plan actually touches                                                                                                           |
 
 None of these five are touched by this plan. Their disposal belongs to Phase
 2b.2's orphan cleanup (`docs/ROADMAP.md`), same as `correlation-insights.tsx`.
@@ -132,7 +132,9 @@ describe("VitalsGrid", () => {
 
   it("renders a dash and a reason for a missing reading", () => {
     const html = renderToString(
-      <VitalsGrid tiles={[tile({ value: Figure.missingInput("an HRV reading") })]} />
+      <VitalsGrid
+        tiles={[tile({ value: Figure.missingInput("an HRV reading") })]}
+      />
     );
     expect(html).toContain("—");
     expect(html).toContain("Needs an HRV reading");
@@ -141,7 +143,9 @@ describe("VitalsGrid", () => {
   it("still shows the unit next to a missing reading", () => {
     const html = renderToString(
       <VitalsGrid
-        tiles={[tile({ value: Figure.missingInput("an HRV reading"), unit: "ms" })]}
+        tiles={[
+          tile({ value: Figure.missingInput("an HRV reading"), unit: "ms" }),
+        ]}
       />
     );
     expect(html).toContain("ms");
@@ -163,7 +167,9 @@ describe("VitalsGrid", () => {
 
   it("omits the confidence chip when the delta has no confidence set", () => {
     const html = renderToString(
-      <VitalsGrid tiles={[tile({ delta: { text: "▲ 7d 58", tone: "good" } })]} />
+      <VitalsGrid
+        tiles={[tile({ delta: { text: "▲ 7d 58", tone: "good" } })]}
+      />
     );
     expect(html).toContain("▲ 7d 58");
     expect(html).not.toContain("confidence");
@@ -232,7 +238,9 @@ export function VitalsGrid({ tiles }: { tiles: VitalTile[] }) {
             </div>
             <div
               className="mt-0.5 font-mono text-[19px] font-bold leading-none text-white"
-              title={!t.value.available ? unavailableMessage(t.value) : undefined}
+              title={
+                !t.value.available ? unavailableMessage(t.value) : undefined
+              }
             >
               {t.value.available ? t.value.value : "—"}
               {t.unit && (
@@ -293,76 +301,76 @@ import { Figure } from "@/lib/uncertainty";
 Replace the `vitals` array (currently four objects with `value: latest?.X != null ? ... : "—"`) with:
 
 ```tsx
-  const vitals: VitalTile[] = [
-    {
-      label: "HRV",
-      value:
-        latest?.hrvMs != null
-          ? Figure.available(String(Math.round(latest.hrvMs)), "high")
-          : Figure.missingInput("an HRV reading"),
-      unit: "ms",
-      delta:
-        latest?.hrvMs != null && avg7hrv > 0
-          ? {
-              text: `${hrvGood ? "▲" : "▼"} 7d ${Math.round(avg7hrv)}`,
-              tone: hrvGood ? "good" : "muted",
-            }
-          : null,
-      sparkPath: hrvSparkPath,
-      sparkColor: "#10b981",
-      href: "/body?tab=trends",
-    },
-    {
-      label: "RHR",
-      value:
-        latest?.restingHr != null
-          ? Figure.available(String(Math.round(latest.restingHr)), "high")
-          : Figure.missingInput("a resting-heart-rate reading"),
-      unit: "bpm",
-      delta:
-        latest?.restingHr != null && avg7rhr > 0
-          ? {
-              text: `${rhrGood ? "▼" : "▲"} 7d ${Math.round(avg7rhr)}`,
-              tone: rhrGood ? "good" : "muted",
-            }
-          : null,
-      sparkPath: rhrSparkPath,
-      sparkColor: "#10b981",
-      href: "/body?tab=trends",
-    },
-    {
-      label: "Sleep",
-      value:
-        sleepHours != null
-          ? Figure.available(hoursToClock(sleepHours), "high")
-          : Figure.missingInput("a sleep reading"),
-      delta:
-        sleepDebt.debtSecs != null && sleepDebt.debtSecs > 0
-          ? {
-              text: fmtSleepDebt(sleepDebt.debtSecs),
-              tone: "warn",
-              confidence: sleepDebt.confidence === "low" ? "low" : undefined,
-            }
-          : null,
-      sparkPath: sleepSparkPath,
-      sparkColor: "#3b82f6",
-      href: "/body?tab=sleep",
-    },
-    {
-      label: "Form · TSB",
-      value:
-        tsb != null
-          ? Figure.available(fmtTsb(tsb), "high")
-          : Figure.missingInput("training-load history"),
-      delta:
-        todayCtl != null
-          ? { text: `CTL ${Math.round(todayCtl)}`, tone: "muted" }
-          : null,
-      sparkPath: formSparkPath,
-      sparkColor: "#8b5cf6",
-      href: "/body?tab=trends",
-    },
-  ];
+const vitals: VitalTile[] = [
+  {
+    label: "HRV",
+    value:
+      latest?.hrvMs != null
+        ? Figure.available(String(Math.round(latest.hrvMs)), "high")
+        : Figure.missingInput("an HRV reading"),
+    unit: "ms",
+    delta:
+      latest?.hrvMs != null && avg7hrv > 0
+        ? {
+            text: `${hrvGood ? "▲" : "▼"} 7d ${Math.round(avg7hrv)}`,
+            tone: hrvGood ? "good" : "muted",
+          }
+        : null,
+    sparkPath: hrvSparkPath,
+    sparkColor: "#10b981",
+    href: "/body?tab=trends",
+  },
+  {
+    label: "RHR",
+    value:
+      latest?.restingHr != null
+        ? Figure.available(String(Math.round(latest.restingHr)), "high")
+        : Figure.missingInput("a resting-heart-rate reading"),
+    unit: "bpm",
+    delta:
+      latest?.restingHr != null && avg7rhr > 0
+        ? {
+            text: `${rhrGood ? "▼" : "▲"} 7d ${Math.round(avg7rhr)}`,
+            tone: rhrGood ? "good" : "muted",
+          }
+        : null,
+    sparkPath: rhrSparkPath,
+    sparkColor: "#10b981",
+    href: "/body?tab=trends",
+  },
+  {
+    label: "Sleep",
+    value:
+      sleepHours != null
+        ? Figure.available(hoursToClock(sleepHours), "high")
+        : Figure.missingInput("a sleep reading"),
+    delta:
+      sleepDebt.debtSecs != null && sleepDebt.debtSecs > 0
+        ? {
+            text: fmtSleepDebt(sleepDebt.debtSecs),
+            tone: "warn",
+            confidence: sleepDebt.confidence === "low" ? "low" : undefined,
+          }
+        : null,
+    sparkPath: sleepSparkPath,
+    sparkColor: "#3b82f6",
+    href: "/body?tab=sleep",
+  },
+  {
+    label: "Form · TSB",
+    value:
+      tsb != null
+        ? Figure.available(fmtTsb(tsb), "high")
+        : Figure.missingInput("training-load history"),
+    delta:
+      todayCtl != null
+        ? { text: `CTL ${Math.round(todayCtl)}`, tone: "muted" }
+        : null,
+    sparkPath: formSparkPath,
+    sparkColor: "#8b5cf6",
+    href: "/body?tab=trends",
+  },
+];
 ```
 
 Note what did **not** change: `hrvSparkPath`/`avg7hrv`/`hrvGood`/`sleepDebt`/
