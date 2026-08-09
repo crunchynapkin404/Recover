@@ -33,9 +33,11 @@ export const ANCHOR_CONSTANTS = {
    * target"). Confidence: Low.
    */
   MIN_RUN_KM: 5,
-  /** Shortest swim that anchors a pace — below this, warm-up dominates.
-   *  Source: same evidence doc ("Judgement: below this, warm-up dominates
-   *  pace"). Confidence: Low. */
+  /**
+   * Shortest swim that anchors a pace — below this, warm-up dominates.
+   * Source: same evidence doc ("Judgement: below this, warm-up dominates
+   * pace"). Confidence: Low.
+   */
   MIN_SWIM_M: 400,
 } as const;
 

@@ -45,8 +45,10 @@ numeric behavioral claim. Same exclusion category as `blood-pressure.ts`'s
   into the explicit `Confidence: Low.` sentence the roadmap's contract
   requires, changing no wording of the existing accurate prose.
 - **`week-plan/ctl-projection.ts`** (1): `MIN_HISTORY_DAYS` (28). No
-  design doc found citing this specific file or value (a repo-wide search
-  for "MIN_HISTORY_DAYS" + "28" + "ctl-projection" turned up nothing). The
+  `docs/specs/` design doc found citing this specific constant.
+  `docs/plans/2026-07-27-availability-scheduling-redesign.md` is this
+  file's own origin implementation plan (same-day commit) and adds no
+  justification beyond the in-code comment already reproduced here. The
   file's own comment is the only reasoning available ("Below this much
   load history no verdict is honest enough to show") — a data-sufficiency
   gate in the same family as `readiness.ts`'s `MIN_BASELINE_DAYS` (14) and

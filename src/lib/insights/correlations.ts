@@ -17,10 +17,12 @@ export const MIN_EVENTS = 5;
  * Confidence: Low.
  */
 export const WINDOW_DAYS = 90;
-/** Events below this still get a headline row, but as calibrating, not a
- *  finding. Source: no design doc found citing this specific threshold —
- *  a stricter data-sufficiency bar than `MIN_EVENTS`, invented for the
- *  Figure<T> uncertainty-vocabulary work. Confidence: Low. */
+/**
+ * Events below this still get a headline row, but as calibrating, not a
+ * finding. Source: no design doc found citing this specific threshold —
+ * a stricter data-sufficiency bar than `MIN_EVENTS`, invented for the
+ * Figure<T> uncertainty-vocabulary work. Confidence: Low.
+ */
 export const MIN_EVENTS_FOR_EVIDENCE = 10;
 
 export interface SplitInsight {

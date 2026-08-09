@@ -98,15 +98,18 @@ export function withPurpose<
  */
 export const MIN_LONG_BOUND_MINS = 120;
 
-/** Ceiling: "shorter than six hours", regardless of how long the event is.
- *  Source: same design doc, the upper end of the same uncited coaching
- *  guidance. Confidence: Low. */
+/**
+ * Ceiling: "shorter than six hours", regardless of how long the event is.
+ * Source: same design doc, the upper end of the same uncited coaching
+ * guidance. Confidence: Low.
+ */
 export const ABSOLUTE_LONG_BOUND_MINS = 360;
 
-/** Today's floor for easy rides, retained — it makes no new claim.
- *  Source: same design doc ("A minimum effective Zone 2 duration is real;
- *  this value is unchanged so it introduces no new claim"). Confidence:
- *  Low. */
+/**
+ * Today's floor for easy rides, retained — it makes no new claim. Source:
+ * same design doc ("A minimum effective Zone 2 duration is real; this
+ * value is unchanged so it introduces no new claim"). Confidence: Low.
+ */
 export const MIN_EFFECTIVE_EASY_MINS = 30;
 
 /**
