@@ -1,3 +1,5 @@
+import { unavailableMessage } from "@/components/ui/unavailable";
+
 interface Day {
   date: string;
   ctl: number | null;
@@ -43,7 +45,12 @@ export function PmcChart({
   if (nums.length < 2) {
     return (
       <p className="py-8 text-center text-sm text-white/40">
-        Not enough data yet for this range.
+        {unavailableMessage({
+          kind: "calibrating",
+          have: nums.length,
+          need: 2,
+          unit: "days",
+        })}
       </p>
     );
   }
