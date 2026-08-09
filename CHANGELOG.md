@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.72.0 — 2026-08-09 — Uncertainty vocabulary (Coach / Journal)
+
+The sixth slice of Phase 2b.3 — the first to touch the AI coach itself
+rather than a UI component.
+
+- `morning-insight.ts`'s deterministic template (shown when no LLM is
+  configured, or the LLM call fails/returns empty) and `coach-context.ts`'s
+  LLM data snapshot both said "calibrating" (or a static, never-updating
+  "needs 14+ days of data") any time readiness was null — conflating a
+  genuinely new athlete with an already-calibrated athlete who simply
+  didn't sync today. Same class of bug the v0.70.0 final review caught in
+  `BodyBatteryCurve`, found here in two more places while migrating this
+  surface. Both now gate on a real `calibrationProgress()` count, naming
+  the actual reason via `unavailableMessage()`.
+- Investigated and left alone: `journal-form.tsx`'s slider dash (live
+  interactive input state, same exclusion as the vitals slice's
+  `checkin-sheet.tsx`) and `coach-context.ts`'s per-field dashes (dense
+  LLM-context data placeholders, same reasoning that excluded
+  `laps-table.tsx` in the Log/Activity slice).
+- No dead components found on this surface.
+
 ## v0.71.0 — 2026-08-09 — Uncertainty vocabulary (Log / Activity)
 
 The fifth slice of Phase 2b.3 — small by design, per verification (see the
