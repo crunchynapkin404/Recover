@@ -1,5 +1,29 @@
 # Changelog
 
+## v0.74.0 — 2026-08-09 — Provenance: athlete level & week-plan constants
+
+First slice of Phase 2a (`docs/ROADMAP.md`): source, confidence, and scope
+for `athlete-level.ts`'s `LEVEL_CONSTANTS` and `week-plan/types.ts`'s 11
+exported constants. No values changed — documentation only.
+
+- Settles the correction owed since 2026-08-05: `HEADROOM` and
+  `RAMP_CLAMP_PCT` now read Confidence: Low in the code itself, not just in
+  prose docs — the ACWR anchor that previously justified High confidence
+  doesn't hold (not supported by the literature, and never actually an ACWR
+  calculation to begin with).
+- `MAINTENANCE_FLOOR`, `HOURS_BANDS`, and `CTL_BANDS` transcribed from
+  already-existing research in
+  `docs/specs/2026-07-28-training-volume-evidence.md` — Confidence:
+  High/Medium/Medium respectively.
+- The other 10 week-plan constants (adaptive-week tuning thresholds) have
+  no research backing and are labelled **Invented**, Confidence: Low, per
+  the roadmap's own instruction that this is "an acceptable answer, and far
+  better than silence."
+
+Remaining Phase 2a backlog: ~61 constants across ~26 other files — see
+`docs/plans/2026-08-09-provenance-athlete-level-week-plan.md`'s Findings for
+the grouped list.
+
 ## v0.73.0 — 2026-08-09 — Uncertainty vocabulary (Admin / misc), Phase 2b.3 complete
 
 The seventh and final slice of Phase 2b.3 — investigation-only, no code
