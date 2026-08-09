@@ -12,10 +12,7 @@ import { resolveProvider } from "@/lib/llm-provider";
 import { recordLlmUsage } from "@/lib/llm-usage";
 import { buildSystemPrompt, languageDirective } from "@/lib/coach-persona";
 import { fetchAthleteContext } from "@/lib/coach-context";
-import {
-  calibrationProgress,
-  CALIBRATION_TARGET_DAYS,
-} from "@/lib/calibration";
+import { calibrationProgress } from "@/lib/calibration";
 import { unavailableMessage } from "@/components/ui/unavailable";
 import {
   getOvertrainingStatus,
@@ -293,17 +290,18 @@ export async function generateMorningInsight(
   // Readiness null covers two different situations: genuine first-run
   // calibration, or an already-calibrated athlete with no HRV/RHR reading
   // today (same distinction the Estimated Energy card's v0.70.0 fix made).
-  // Fail closed on a query error, same reasoning as wellnessToday above: a
-  // forced backstop brief must still post rather than throw.
+  // 90 days, not just the 14-day target, matching Today hero's and Body
+  // Battery's own calibrationProgress() callers (page.tsx, body/page.tsx) —
+  // a narrower window would undercount an already-calibrated athlete who
+  // has an ordinary gap somewhere in the trailing two weeks. Fail closed on
+  // a query error, same reasoning as wellnessToday above: a forced backstop
+  // brief must still post rather than throw.
   let readinessWindow: (typeof schema.wellnessDaily.$inferSelect)[] = [];
   try {
     readinessWindow = await db.query.wellnessDaily.findMany({
       where: and(
         eq(schema.wellnessDaily.userId, userId),
-        gte(
-          schema.wellnessDaily.date,
-          addDaysYmd(today, -CALIBRATION_TARGET_DAYS)
-        )
+        gte(schema.wellnessDaily.date, addDaysYmd(today, -90))
       ),
     });
   } catch (err) {

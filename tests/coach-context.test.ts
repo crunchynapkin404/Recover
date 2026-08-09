@@ -68,4 +68,24 @@ describe.skipIf(!hasDb)("fetchAthleteContext", () => {
     const context = await fetchAthleteContext(USER, db);
     expect(context).toContain("Calibrating — day 0 of 14 days");
   });
+
+  it("still recognizes an already-calibrated athlete when their history sits outside the trailing 14 days", async () => {
+    const { db, schema } = await import("@/lib/db");
+    const { fetchAthleteContext } = await import("@/lib/coach-context");
+    const today = new Date();
+    // 20 real HRV/RHR days, all 31–50 days ago — well clear of the 14-day
+    // target, but also well outside a naive 14-day lookback window.
+    await db.insert(schema.wellnessDaily).values(
+      Array.from({ length: 20 }, (_, i) => {
+        const d = new Date(today);
+        d.setDate(d.getDate() - (50 - i));
+        return { userId: USER, date: localYmd(d), hrvMs: 60, restingHr: 50 };
+      })
+    );
+    // No daily_metrics row at all → no readiness computed today.
+
+    const context = await fetchAthleteContext(USER, db);
+    expect(context).toContain("Needs a readiness score today");
+    expect(context).not.toContain("Calibrating");
+  });
 });

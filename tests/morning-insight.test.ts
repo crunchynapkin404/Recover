@@ -769,7 +769,14 @@ describe.skipIf(!hasDb)("morning insight — race day (Task 12)", () => {
   const RACE_USER_2 = "test-morning-insight-race-user-2";
   const RACE_USER_3 = "test-morning-insight-race-user-3";
   const RACE_USER_4 = "test-morning-insight-race-user-4";
-  const RACE_USERS = [RACE_USER, RACE_USER_2, RACE_USER_3, RACE_USER_4];
+  const RACE_USER_5 = "test-morning-insight-race-user-5";
+  const RACE_USERS = [
+    RACE_USER,
+    RACE_USER_2,
+    RACE_USER_3,
+    RACE_USER_4,
+    RACE_USER_5,
+  ];
 
   async function cleanupRaceUser(id: string) {
     const { db, schema } = await import("@/lib/db");
@@ -788,6 +795,9 @@ describe.skipIf(!hasDb)("morning insight — race day (Task 12)", () => {
     await db
       .delete(schema.dailyMetrics)
       .where(eq(schema.dailyMetrics.userId, id));
+    await db
+      .delete(schema.wellnessDaily)
+      .where(eq(schema.wellnessDaily.userId, id));
     await db.delete(schema.weekPlans).where(eq(schema.weekPlans.userId, id));
     await db
       .delete(schema.trainingPlans)
@@ -843,6 +853,45 @@ describe.skipIf(!hasDb)("morning insight — race day (Task 12)", () => {
     expect(seenInstruction).toContain("calibrating");
     // No yesterday daily_metrics row → projected/actual TSB lines omitted.
     expect(seenInstruction).not.toContain("Projected TSB");
+  });
+
+  it("race-day template names a same-day reading gap, not calibrating, for an already-calibrated athlete", async () => {
+    const { db, schema } = await import("@/lib/db");
+    const { createRace } = await import("@/lib/race/service");
+    const { generateMorningInsight } = await import("@/lib/morning-insight");
+    const today = localYmd(new Date());
+    // 20 real HRV/RHR days, all 31–50 days ago — well clear of the 14-day
+    // target, but also well outside a naive 14-day lookback window.
+    const now = new Date();
+    await db.insert(schema.wellnessDaily).values(
+      Array.from({ length: 20 }, (_, i) => {
+        const d = new Date(now);
+        d.setDate(d.getDate() - (50 - i));
+        return {
+          userId: RACE_USER_5,
+          date: localYmd(d),
+          hrvMs: 60,
+          restingHr: 50,
+        };
+      })
+    );
+    await createRace(RACE_USER_5, {
+      name: "Fifth Race 10K",
+      raceType: "10k",
+      sport: "Run",
+      date: today,
+      priority: "B",
+      goalNote: null,
+    });
+    // No daily_metrics row at all → no readiness computed today.
+
+    const r = await generateMorningInsight(RACE_USER_5, {
+      llm: async () => "", // empty LLM output → template fallback
+    });
+    expect(r).not.toBe("skipped");
+    if (r === "skipped") throw new Error("expected a brief");
+    expect(r.text).toContain("Needs a readiness score today");
+    expect(r.text).not.toContain("Calibrating");
   });
 
   it("race-day template fallback names the race", async () => {
