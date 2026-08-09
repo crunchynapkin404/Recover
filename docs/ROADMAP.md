@@ -137,6 +137,12 @@ so" — is currently spoken in six dialects: `—` (47 uses), `calibrating` (39)
       sit in `dashboard/`, the rest in `plan/`, `log/`, `journal/` — all
       superseded by `today/`, `body/`, `train/`. With PR #86's seven
       sleep-cards that is 19 orphans from one unfinished migration.
+      **Independently reconfirmed dead** while migrating other surfaces (not
+      necessarily additional to the 19 — overlap unverified):
+      `journal/correlation-insights.tsx`, `dashboard/hero-readiness.tsx`,
+      `dashboard/readiness-rings.tsx`, `dashboard/race-countdown.tsx`
+      (component body only — its `RaceCountdownProps` type stays live),
+      `dashboard/recent-sessions-accordion.tsx`, `dashboard/vitals-grid.tsx`.
       **Trap:** `dashboard/race-countdown.tsx` still exports a
       `RaceCountdownProps` type that `app/train/page.tsx` imports; it cannot be
       deleted wholesale.
@@ -147,15 +153,18 @@ so" — is currently spoken in six dialects: `—` (47 uses), `calibrating` (39)
       **2026-09-05**. Per the spec, record at that point that the counts are
       developer-biased — the sole user is also the developer and tester, so
       the data shows what was being built, not what an athlete would open.
-- [ ] **2b.3 — Uncertainty and confidence language.** One vocabulary replacing
+      [ ] **2b.3 — Uncertainty and confidence language.** One vocabulary replacing
       six, distinguishing at least: _calibrating_ (not enough history yet),
       _insufficient_ (a required input is missing), _low confidence_ (wide
       interval), and _no figure plus the reason_ (the pattern v0.46 set for
       event demand). A token and a treatment for each. **2c consumes this.**
       **v0.67.0** shipped `src/lib/uncertainty.ts`, its rendering primitives,
-      and migrated the first surface (90-day correlations). Five dialects
-      and roughly 20 other call sites remain — backlog in
-      `docs/plans/2026-08-08-uncertainty-vocabulary.md`.
+      and migrated the first surface (90-day correlations). **v0.68.0**
+      migrated the Today vitals grid. Four dialects and roughly 15 other
+      call sites remain — backlog in
+      `docs/plans/2026-08-08-uncertainty-vocabulary.md`, with corrections in
+      `docs/plans/2026-08-09-uncertainty-vocabulary-vitals.md` (5 more
+      confirmed-dead components found; 3 sites investigated and excluded).
 - [ ] **2b.4 — Visual redesign.** All 12 pages, against the settled IA using
       the settled vocabulary. The largest item on this roadmap: it splits into
       its own releases with per-page gates, and needs real-browser verification
