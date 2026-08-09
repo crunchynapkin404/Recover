@@ -555,14 +555,22 @@ async function SleepTab({
   const batteryCalibration = calibrationProgress(
     wellness.map((w) => ({ hrvMs: w.hrvMs, restingHr: w.restingHr }))
   );
+  // remaining > 0 mirrors Today hero's own gate (band === "calibrating" &&
+  // calibration.remaining > 0): readiness is null both during genuine
+  // first-run calibration AND for an already-calibrated athlete who simply
+  // has no HRV/RHR reading today. Only the first is "calibrating" — the
+  // second is a same-vocabulary missing-input gap, not a false "day 14 of
+  // 14" claim to a veteran athlete.
   const batteryFigure: Figure<number> =
     battery.current != null
       ? Figure.available(battery.current, "high")
-      : Figure.calibrating(
-          batteryCalibration.daysWithSignal,
-          batteryCalibration.target,
-          "days"
-        );
+      : batteryCalibration.remaining > 0
+        ? Figure.calibrating(
+            batteryCalibration.daysWithSignal,
+            batteryCalibration.target,
+            "days"
+          )
+        : Figure.missingInput("an HRV or resting-heart-rate reading for today");
 
   return (
     <div className="pb-10">

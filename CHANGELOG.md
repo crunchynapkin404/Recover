@@ -12,7 +12,12 @@ The fourth slice of Phase 2b.3: biological age and the Estimated Energy
 - `BodyBatteryCurve.current` is now `Figure<number>`, using
   `calibrationProgress()` (the same "day N of 14" helper Today's hero uses)
   for its `have`/`need` — the first use of `Figure.calibrating` outside the
-  90-day correlations surface.
+  90-day correlations surface. It only claims `calibrating` while
+  `calibration.remaining > 0`, the same second gate Today's hero applies —
+  a null readiness reading also happens on any single day an already-
+  calibrated athlete has no HRV/RHR sync, which is a `missing_input` gap,
+  not a false "day 14 of 14" claim to a veteran athlete. (Caught in final
+  review, fixed before merge.)
 - Fixed: the Estimated Energy card no longer disappears entirely while
   readiness calibrates. `SleepTab` guarded its render with
   `battery.current != null`, so the component's own "not enough data"
