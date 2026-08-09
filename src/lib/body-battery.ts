@@ -21,9 +21,11 @@
  * Low.
  */
 export const AWAKE_DRAIN_TOTAL = 25;
-/** Battery points per unit of training load: a 100-load session costs 35.
- *  Source: same design doc, same "first-pass calibration" caveat.
- *  Confidence: Low. */
+/**
+ * Battery points per unit of training load: a 100-load session costs 35.
+ * Source: same design doc, same "first-pass calibrations" caveat.
+ * Confidence: Low.
+ */
 export const DRAIN_PER_LOAD = 0.35;
 /**
  * Waking-window shape used when the athlete has set no wake time. Source:
@@ -31,8 +33,10 @@ export const DRAIN_PER_LOAD = 0.35;
  * design doc. Confidence: Low.
  */
 export const DEFAULT_WAKE_MINUTES = 420; // 07:00
-/** Fallback bedtime (23:00) when unset. Same rationale as
- *  DEFAULT_WAKE_MINUTES. Confidence: Low. */
+/**
+ * Fallback bedtime (23:00) when unset. Same rationale as
+ * DEFAULT_WAKE_MINUTES. Confidence: Low.
+ */
 export const DEFAULT_BED_MINUTES = 1380; // 23:00
 
 /** Curve resolution: 15 min → 97 points across a full day. */
