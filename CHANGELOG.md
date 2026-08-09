@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.78.0 — 2026-08-09 — Provenance: sync/polling domain constants
+
+Fifth slice of Phase 2a (`docs/ROADMAP.md`): source, confidence, and scope
+for 11 exported constants across `sync/activity-poll.ts`,
+`sync/wellness-refresh.ts`, `sync/strava-webhook.ts`, and
+`sync/intervals-backfill.ts`. No values changed — documentation only.
+
+- All 11 constants are labelled **Invented**, Confidence: Low — operational
+  judgement calls for polling a free, single-developer API (intervals.icu),
+  each traced to an existing design doc for its reasoning, not external
+  research: `wellness-sync-interval-design.md`,
+  `intervals-wellness-expansion-design.md`,
+  `event-driven-sync-triggers-design.md`, and
+  `wellness-history-backfill-design.md`.
+- `MAX_BACKFILL_YEARS` (20) is a safety ceiling a production dry run
+  confirmed necessary — real accounts carry pre-2019 CTL/ATL-only filler
+  data (3,111 rows found) this cap must outlast.
+
+Remaining Phase 2a backlog: ~20 constants across ~14 other files.
+
 ## v0.77.0 — 2026-08-09 — Provenance: race/taper domain constants
 
 Fourth slice of Phase 2a (`docs/ROADMAP.md`): source, confidence, and scope

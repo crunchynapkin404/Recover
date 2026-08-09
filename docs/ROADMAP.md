@@ -144,7 +144,18 @@ top of the six the app already speaks.
       definitional. ~31 constants across ~18 other files remain — grouped by
       domain in
       `docs/plans/2026-08-09-provenance-athlete-level-week-plan.md`'s
-      Findings.
+      Findings. **v0.78.0** shipped a fifth slice: the sync/polling
+      domain — `src/lib/sync/activity-poll.ts` (4),
+      `src/lib/sync/wellness-refresh.ts` (5),
+      `src/lib/sync/strava-webhook.ts` (1), and
+      `src/lib/sync/intervals-backfill.ts` (1). All 11 are Invented, Low —
+      operational judgement calls for polling a free, single-developer API,
+      each traced to an existing design doc (`wellness-sync-interval-design.md`,
+      `intervals-wellness-expansion-design.md`,
+      `event-driven-sync-triggers-design.md`,
+      `wellness-history-backfill-design.md`) for reasoning, not external
+      research. ~20 constants across ~14 other files remain — the long tail
+      in the same Findings doc.
 
 ### 2b — Design language and IA
 
