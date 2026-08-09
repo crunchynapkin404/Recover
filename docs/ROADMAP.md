@@ -163,7 +163,18 @@ top of the six the app already speaks.
       `DRAIN_PER_LOAD` are explicitly called "first-pass calibrations" by
       their own design doc, headed for revisiting in a future
       correlation-engine pass. ~12 constants across ~10 other files
-      remain.
+      remain. **v0.80.0** shipped a seventh slice, the second into the
+      long tail: plan/prediction engine constants —
+      `src/lib/insights/correlations.ts` (3),
+      `src/lib/week-plan/anchors.ts` (`ANCHOR_CONSTANTS`, 3),
+      `src/lib/week-plan/ctl-projection.ts` (1), `src/lib/training-plan.ts`
+      (5). All 12 are Invented, Low. A precise re-survey (not carried
+      forward as an approximation) puts the remaining backlog at ~10
+      constants across ~10 files, closing out Phase 2a once shipped:
+      `coach-memory.ts`, `recall.ts`, `debrief/lifecycle.ts`,
+      `debrief/ride-review.ts`, `race/debrief.ts`, `weekly-review.ts`,
+      `athlete-curves.ts`, `availability/types.ts`, `export/export-user.ts`,
+      `components/plan/wheel-column.tsx`.
 
 ### 2b — Design language and IA
 

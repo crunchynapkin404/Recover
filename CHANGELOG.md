@@ -1,5 +1,29 @@
 # Changelog
 
+## v0.80.0 — 2026-08-09 — Provenance: plan/prediction engine constants
+
+Seventh slice of Phase 2a (`docs/ROADMAP.md`), the second into the long
+tail: source, confidence, and scope for 12 exported constants across
+`insights/correlations.ts`, `week-plan/anchors.ts`,
+`week-plan/ctl-projection.ts`, and `training-plan.ts` — grouped as
+"how much data (or session length) before this number can be trusted"
+gates inside the plan/prediction engine. No values changed —
+documentation only.
+
+- All 12 constants are labelled **Invented**, Confidence: Low.
+  `insights/correlations.ts`'s `MIN_EVENTS`/`WINDOW_DAYS` are retained
+  conventions from an earlier version, not freshly derived.
+  `week-plan/anchors.ts`'s `ANCHOR_CONSTANTS` transcribes ratings already
+  published in an earlier evidence doc. `training-plan.ts`'s bound
+  constants trace to an uncited cycling-coaching convention; the rest are
+  explicitly retained legacy values that introduce no new claim.
+- `training-plan.ts`'s `PURPOSE_BY_TYPE` (categorical mapping) was
+  deliberately excluded — not a numeric behavioral claim.
+
+A precise re-survey (not carried forward as an approximation) puts the
+remaining Phase 2a backlog at ~10 constants across ~10 files, closing out
+the phase once shipped.
+
 ## v0.79.0 — 2026-08-09 — Provenance: health-metrics domain constants
 
 Sixth slice of Phase 2a (`docs/ROADMAP.md`), the first into the long tail
