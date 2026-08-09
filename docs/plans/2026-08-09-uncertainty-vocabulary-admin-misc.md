@@ -56,8 +56,9 @@ read, not a bulk replace" standard:
   narrower claim than what the shared vocabulary's `missing_input` names.
   The existing bespoke treatment is already honest (never invents a
   confidence number) and already surfaced via the adjacent
-  `"Parsed without a model — double-check the values."` banner one line
-  above. Left alone.
+  `"Parsed without a model — double-check the values."` banner, the
+  element immediately preceding the review table in the rendered output.
+  Left alone.
 
 All three exclusions match the same category of judgment call the vitals
 slice made for `milestones-card.tsx`/`checkin-sheet.tsx` and the
