@@ -30,7 +30,7 @@ import {
 import { BASELINE_WINDOW_DAYS } from "@/lib/readiness";
 import { computeTagInsights } from "@/lib/insights/correlations";
 import { getMilestones } from "@/lib/insights/milestones";
-import { biologicalAge } from "@/lib/biological-age";
+import { biologicalAge, type BioAgeResult } from "@/lib/biological-age";
 import { bpTrend } from "@/lib/blood-pressure";
 import {
   chronotype,
@@ -48,6 +48,7 @@ import { computeSleepDebt, DEFAULT_SLEEP_NEED_SECS } from "@/lib/sleep-debt";
 import { buildBodyHref, BODY_TABS, type BodyTab } from "@/lib/log-href";
 import type { BiomarkerCategory } from "@/lib/health-records";
 import { isBaselineExcluded, type DayFlag } from "@/lib/day-flags";
+import { Figure } from "@/lib/uncertainty";
 import { HeartPulse, Moon } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -813,7 +814,7 @@ async function LabsTab({ userId }: { userId: string }) {
     }));
   const consistency = sleepConsistency(nights);
 
-  const bioAge = biologicalAge({
+  const bioAgeResult = biologicalAge({
     chronologicalAge:
       prefs?.birthYear != null
         ? new Date().getFullYear() - prefs.birthYear
@@ -827,6 +828,13 @@ async function LabsTab({ userId }: { userId: string }) {
       [...wellness].reverse().find((w) => w.bodyFatPct != null)?.bodyFatPct ??
       null,
   });
+  // A deterministic formula over already-known signals, same reasoning
+  // correlationFigure and the CTL/ATL/TSB tiles already use — never a
+  // modelled interval, so "high" throughout.
+  const bioAge: Figure<BioAgeResult> =
+    "insufficient" in bioAgeResult
+      ? Figure.missingInput(bioAgeResult.missing.join(", "))
+      : Figure.available(bioAgeResult, "high");
 
   return (
     <div className="space-y-4 pb-10">
