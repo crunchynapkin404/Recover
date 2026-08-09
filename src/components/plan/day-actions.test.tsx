@@ -178,6 +178,40 @@ describe("DayActions error rendering (interaction)", () => {
     expect(container.textContent).not.toContain("invalid");
     expect(container.textContent).toContain("That move isn't allowed");
   });
+
+  it("shows a typed reason, not a bare 'calibrating' sentence, when the preview lacks enough load history", async () => {
+    previewMock.mockResolvedValue({
+      ok: true,
+      insufficient: true,
+      anchorDate: "2026-08-30",
+      anchorRace: null,
+      beforeTsb: null,
+      afterTsb: null,
+      beforeBand: null,
+      afterBand: null,
+      loadDelta: 0,
+    });
+    renderComponent();
+
+    const targetSelect = container.querySelector(
+      'select[aria-label="Target day"]'
+    ) as HTMLSelectElement;
+    await act(async () => {
+      targetSelect.value = "2026-08-26";
+      targetSelect.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+
+    await act(async () => {
+      click(findButtonByText("What if?"));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(container.textContent).toContain(
+      "Needs more training history to project form"
+    );
+    expect(container.textContent).not.toContain("No projection — calibrating.");
+  });
 });
 
 describe("DayActions — zero the day", () => {

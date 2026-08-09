@@ -1,8 +1,11 @@
+import type { Figure } from "@/lib/uncertainty";
+import { unavailableMessage } from "@/components/ui/unavailable";
+
 export interface FitnessTile {
   /** "Fitness · CTL" */
   label: string;
-  /** Mono value, already rounded — or "—" while load calibrates. */
-  value: string;
+  /** The reading, or why it isn't available yet. */
+  value: Figure<string>;
   color: string;
   /** One line of context under the value; null when there's nothing honest to say. */
   context: string | null;
@@ -28,8 +31,12 @@ export function FitnessTiles({ tiles }: { tiles: FitnessTile[] }) {
           <p
             className="mt-1 font-mono text-[20px] font-bold leading-none"
             style={{ color: t.color }}
+            title={!t.value.available ? unavailableMessage(t.value) : undefined}
           >
-            {t.value}
+            {t.value.available ? t.value.value : "—"}
+            {!t.value.available && (
+              <span className="sr-only">{unavailableMessage(t.value)}</span>
+            )}
           </p>
           {t.context && (
             <p
