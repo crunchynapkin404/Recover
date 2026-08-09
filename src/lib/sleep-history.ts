@@ -12,7 +12,11 @@
  * rather than something to eyeball in a browser.
  */
 
-/** How many nights the history strip offers. */
+/**
+ * How many nights the history strip offers.
+ * Source: Invented — a UI display-amount choice, not cited research.
+ * Confidence: Low.
+ */
 export const SLEEP_HISTORY_NIGHTS = 14;
 
 export interface SelectedNights<T> {
