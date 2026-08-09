@@ -40,30 +40,70 @@ const ORDER: AthleteLevel[] = [
 ];
 
 export const LEVEL_CONSTANTS = {
-  /** How far back the rolling peak looks. Long enough that illness or a
-   *  holiday cannot reclassify an athlete; short enough that real detraining
-   *  eventually does. */
+  /**
+   * How far back the rolling peak looks, in weeks. Long enough that illness
+   * or a holiday cannot reclassify an athlete; short enough that real
+   * detraining eventually does. A hysteresis design choice — no external
+   * source pins 12 weeks specifically over, say, 10 or 16.
+   * Source: Invented. Confidence: Low.
+   */
   PEAK_WINDOW_WEEKS: 12,
-  /** Weekly-hours ceiling as a multiple of the rolling peak. */
+  /**
+   * Weekly-hours ceiling as a multiple of the rolling peak: 30% above this
+   * athlete's own 12-week peak. Previously justified as sitting inside the
+   * acute:chronic workload ratio's 0.8-1.3 "safe zone" and rated High —
+   * that anchor does not hold. Impellizzeri et al. 2020 (IJSPP), _Acute:
+   * Chronic Workload Ratio: Conceptual Issues and Fundamental Pitfalls_,
+   * finds no evidence supporting ACWR for load management (the ratio is
+   * mathematically coupled — the acute week sits inside the chronic
+   * window — which produces spurious correlation). Separately, HEADROOM
+   * was never an ACWR to begin with: an ACWR is acute 7-day load over
+   * chronic 28-day rolling load, while this is this week's hours over a
+   * 12-week rolling PEAK — a different ratio that never inherited the ACWR
+   * definition it was described against.
+   * Source: Empirical guard-rail, calibrated against one athlete — a
+   * useful brake, not a validated injury threshold.
+   * Confidence: Low (downgraded from High — see
+   * docs/specs/2026-07-28-training-volume-evidence.md §1, corrected
+   * 2026-08-06).
+   */
   HEADROOM: 1.3,
-  /** Weekly-hours floor as a fraction of the rolling peak. Detraining
-   *  research: a 70% volume reduction with intensity maintained preserves
-   *  VO2max, and 50-75% of normal volume shows no aerobic loss. 0.6 sits
-   *  inside that band, so the floor never prescribes less than holding
-   *  fitness. */
+  /**
+   * Weekly-hours floor as a fraction of the rolling peak. Detraining
+   * research: a 70% volume reduction with intensity maintained preserves
+   * VO2max, and 50-75% of normal volume shows no aerobic loss. 0.6 sits
+   * inside that band, so the floor never prescribes less than holding
+   * fitness.
+   * Source: Detraining literature (see
+   * docs/specs/2026-07-28-training-volume-evidence.md §2).
+   * Confidence: High.
+   */
   MAINTENANCE_FLOOR: 0.6,
-  /** Upper bound of each band, in trailing weekly hours. `max` is exclusive
-   *  (bandFor uses value < max), so a value exactly at a boundary — e.g.
-   *  9 hours — falls into the next-higher band, not this one. */
+  /**
+   * Upper bound of each band, in trailing weekly hours. `max` is exclusive
+   * (bandFor uses value < max), so a value exactly at a boundary — e.g.
+   * 9 hours — falls into the next-higher band, not this one.
+   * Source: Elite riders 14.7-19.7 h/wk; competitive amateurs ~9.8 h/wk;
+   * elite junior/masters competitive at 6-12 h/wk (see
+   * docs/specs/2026-07-28-training-volume-evidence.md, "Level hours
+   * bands").
+   * Confidence: Medium.
+   */
   HOURS_BANDS: [
     { max: 3, level: "recreational" as AthleteLevel },
     { max: 5, level: "amateur" as AthleteLevel },
     { max: 9, level: "intermediate" as AthleteLevel },
     { max: Infinity, level: "advanced" as AthleteLevel },
   ],
-  /** Upper bound of each band, in CTL. `max` is exclusive, same as
-   *  HOURS_BANDS above — a value exactly at a boundary belongs to the
-   *  next-higher band. */
+  /**
+   * Upper bound of each band, in CTL. `max` is exclusive, same as
+   * HOURS_BANDS above — a value exactly at a boundary belongs to the
+   * next-higher band.
+   * Source: CTS coaching data — fondo riders 40-100 CTL, competitors
+   * 70-120 CTL (see docs/specs/2026-07-28-training-volume-evidence.md,
+   * "Level CTL bands").
+   * Confidence: Medium.
+   */
   CTL_BANDS: [
     { max: 35, level: "recreational" as AthleteLevel },
     { max: 55, level: "amateur" as AthleteLevel },
