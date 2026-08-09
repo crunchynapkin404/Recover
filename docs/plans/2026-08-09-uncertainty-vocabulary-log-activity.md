@@ -36,7 +36,7 @@ The original backlog named 3 files: `pmc-chart.tsx`, `wellness-trends.tsx`,
   here.
 - **`src/components/activity/laps-table.tsx`'s em-dash fallbacks are live,
   but not a proportionate fit for the full `Figure<T>` treatment.** Each of
-  its four nullable columns (label, duration, distance, HR, power) is a
+  its five nullable columns (label, duration, distance, HR, power) is a
   per-lap sensor field on a _historical_ activity — there is nothing an
   athlete can do to "fix" a ride that was recorded without a power meter
   (unlike `missing_input`'s `fix` link, or a vitals reading the athlete can
