@@ -42,7 +42,7 @@ export const WELLNESS_POLL_INTERVAL_CHOICES = [0, 15, 30, 60] as const;
  * the athlete is asleep, the Companion has not written the night yet, and
  * the 05:00 daily sync covers the boundary"). Starts at the scheduler's
  * SYNC_HOUR so v0.33's original 05:00–06:00 coverage is not a regression.
- * Confidence: Low.
+ * Both Confidence: Low.
  */
 export const WELLNESS_REFRESH_START_HOUR = 5; // == scheduler SYNC_HOUR
 export const WELLNESS_REFRESH_END_HOUR = 23;

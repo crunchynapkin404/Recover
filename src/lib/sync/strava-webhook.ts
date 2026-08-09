@@ -22,8 +22,8 @@ import { scheduleIntervalsSync } from "@/lib/sync/scheduler";
  * head start before we pull, or the sync will just miss the new ride.
  * Source: this reasoning plus the "+90s" figure referenced as established
  * context in `docs/specs/2026-07-26-event-driven-sync-triggers-design.md`
- * (three mentions) — no document derives or measures why 90s specifically
- * rather than 60 or 120. Confidence: Low.
+ * (twice) — no document derives or measures why 90s specifically rather
+ * than 60 or 120. Confidence: Low.
  */
 export const INTERVALS_CATCHUP_DELAY_S = 90;
 

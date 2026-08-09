@@ -81,10 +81,10 @@ export async function remapStoredWellness(
  * before that never reaches an empty chunk. When the loop exhausts this
  * cap instead of hitting a stop condition, `BackfillResult.truncated` is
  * set so that case is distinguishable from "genuinely ran out of history".
- * Source: this reasoning is restated identically in
+ * Source: this reasoning is echoed in
  * `docs/specs/2026-08-02-wellness-history-backfill-design.md`, which also
  * confirms via a production dry run that accounts DO carry pre-real-history
- * filler (3,111 rows, 2010-2018) this cap must outlast. An engineering
+ * filler (3,111 rows, 2010-2018) that this cap must outlast. An engineering
  * safety ceiling, not an external estimate — same category as
  * `ADHERENCE_CEIL` (race/forecast.ts). Confidence: Low.
  */
