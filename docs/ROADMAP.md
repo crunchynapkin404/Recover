@@ -153,7 +153,7 @@ so" — is currently spoken in six dialects: `—` (47 uses), `calibrating` (39)
       **2026-09-05**. Per the spec, record at that point that the counts are
       developer-biased — the sole user is also the developer and tester, so
       the data shows what was being built, not what an athlete would open.
-- [ ] **2b.3 — Uncertainty and confidence language.** One vocabulary replacing
+- [x] **2b.3 — Uncertainty and confidence language.** One vocabulary replacing
       six, distinguishing at least: _calibrating_ (not enough history yet),
       _insufficient_ (a required input is missing), _low confidence_ (wide
       interval), and _no figure plus the reason_ (the pattern v0.46 set for
@@ -171,18 +171,6 @@ so" — is currently spoken in six dialects: `—` (47 uses), `calibrating` (39)
       `wellness-trends.tsx` was confirmed dead and `laps-table.tsx`'s
       per-cell em-dashes were investigated and found disproportionate to
       wrap (see `docs/plans/2026-08-09-uncertainty-vocabulary-log-activity.md`).
-      Coach/Journal and Admin/misc surfaces remain — backlog in
-      `docs/plans/2026-08-08-uncertainty-vocabulary.md`, with corrections
-      in `docs/plans/2026-08-09-uncertainty-vocabulary-vitals.md` (5 more
-      confirmed-dead components found; 3 sites investigated and excluded),
-      `docs/plans/2026-08-09-uncertainty-vocabulary-train.md` (2 sites left
-      to Phase 2c's first number slice: one reads
-      `trainingBlocks.targetLoadTotal` directly, the other reads
-      `weekPlans.effectiveTarget`, a per-week snapshot derived from it),
-      `docs/plans/2026-08-09-uncertainty-vocabulary-body-health.md` (no dead
-      components found), and
-      `docs/plans/2026-08-09-uncertainty-vocabulary-log-activity.md` (1 more
-      confirmed-dead component; 2 sites investigated and excluded).
       **v0.72.0** migrated the coach's own "calibrating" text
       (`morning-insight.ts`'s deterministic template,
       `coach-context.ts`'s LLM data snapshot) — the first slice to touch
@@ -190,20 +178,27 @@ so" — is currently spoken in six dialects: `—` (47 uses), `calibrating` (39)
       instances of the calibrating-vs-same-day-gap conflation the v0.70.0
       final review first caught in `BodyBatteryCurve` (see
       `docs/plans/2026-08-09-uncertainty-vocabulary-coach-journal.md`).
-      Only Admin/misc remains — backlog in
-      `docs/plans/2026-08-08-uncertainty-vocabulary.md`, with corrections
-      in `docs/plans/2026-08-09-uncertainty-vocabulary-vitals.md` (5 more
+      **v0.73.0** investigated the last surface, Admin/misc, and found no
+      code change warranted — `security-events.tsx`, `artifact-card.tsx`,
+      and `health-upload.tsx`'s dashes are all dense per-row/per-cell
+      placeholders already honest or out of this vocabulary's scope, the
+      same judgment call that excluded `milestones-card.tsx`,
+      `checkin-sheet.tsx`, and `laps-table.tsx` in earlier slices (see
+      `docs/plans/2026-08-09-uncertainty-vocabulary-admin-misc.md`). **Phase
+      2b.3 is complete.** Full backlog and correction history:
+      `docs/plans/2026-08-08-uncertainty-vocabulary.md` (original backlog),
+      `docs/plans/2026-08-09-uncertainty-vocabulary-vitals.md` (5 more
       confirmed-dead components found; 3 sites investigated and excluded),
       `docs/plans/2026-08-09-uncertainty-vocabulary-train.md` (2 sites left
       to Phase 2c's first number slice: one reads
       `trainingBlocks.targetLoadTotal` directly, the other reads
       `weekPlans.effectiveTarget`, a per-week snapshot derived from it),
       `docs/plans/2026-08-09-uncertainty-vocabulary-body-health.md` (no dead
-      components found), and
+      components found),
       `docs/plans/2026-08-09-uncertainty-vocabulary-log-activity.md` (1 more
-      confirmed-dead component; 2 sites investigated and excluded). Same
-      re-verification discipline needed before trusting that surface's file
-      list, per the last five slices.
+      confirmed-dead component; 2 sites investigated and excluded), and
+      `docs/plans/2026-08-09-uncertainty-vocabulary-admin-misc.md` (no code
+      change needed).
 - [ ] **2b.4 — Visual redesign.** All 12 pages, against the settled IA using
       the settled vocabulary. The largest item on this roadmap: it splits into
       its own releases with per-page gates, and needs real-browser verification
