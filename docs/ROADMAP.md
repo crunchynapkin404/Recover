@@ -133,8 +133,16 @@ top of the six the app already speaks.
       are design trade-offs or data-sufficiency gates with no cited
       research, labelled Invented, Low; `DEFAULT_SLEEP_NEED_SECS` (8h) is
       Medium (sits inside the commonly-cited 7-9h/night adult range, but an
-      editable default, not a personalized claim). ~42 constants across
-      ~21 other files remain — grouped by domain in
+      editable default, not a personalized claim). **v0.77.0** shipped a
+      fourth slice: the race/taper domain — `src/lib/race/taper.ts` (7),
+      `src/lib/race/forecast.ts` (2), `src/lib/race/feasibility.ts` (2, one
+      of which — `LONGEST_RIDE_FRACTION` — already had extensive in-code and
+      evidence-doc documentation and only needed the explicit Confidence
+      sentence added). All 11 are Invented, Low. Also closed a gap the
+      original survey missed: `src/lib/race/triathlon-legs.ts`'s
+      `TRIATHLON_LEGS` (governing-body course distances) rated High —
+      definitional. ~31 constants across ~18 other files remain — grouped by
+      domain in
       `docs/plans/2026-08-09-provenance-athlete-level-week-plan.md`'s
       Findings.
 

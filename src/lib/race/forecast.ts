@@ -6,6 +6,16 @@ import { ATL_DAYS, CTL_DAYS } from "@/lib/training-load";
 
 export type FormBand = "green" | "amber" | "red";
 
+/**
+ * Clamp on the trailing adherence fraction the "recent adherence" scenario
+ * scales planned loads by. Source:
+ * `docs/specs/2026-07-19-v0.14-race-ready-design.md` states the floor
+ * explicitly ("recent adherence... floored at 0.5") to stop a
+ * near-zero-adherence week collapsing the forecast; the same doc never
+ * mentions a ceiling — `ADHERENCE_CEIL` is an uncited, symmetric engineering
+ * bound stopping an overachieving athlete's ratio from projecting an
+ * implausibly steep climb. Both Confidence: Low.
+ */
 export const ADHERENCE_FLOOR = 0.5;
 export const ADHERENCE_CEIL = 1.5;
 
