@@ -30,7 +30,7 @@ import {
 import { BASELINE_WINDOW_DAYS } from "@/lib/readiness";
 import { computeTagInsights } from "@/lib/insights/correlations";
 import { getMilestones } from "@/lib/insights/milestones";
-import { biologicalAge } from "@/lib/biological-age";
+import { biologicalAge, type BioAgeResult } from "@/lib/biological-age";
 import { bpTrend } from "@/lib/blood-pressure";
 import {
   chronotype,
@@ -48,6 +48,8 @@ import { computeSleepDebt, DEFAULT_SLEEP_NEED_SECS } from "@/lib/sleep-debt";
 import { buildBodyHref, BODY_TABS, type BodyTab } from "@/lib/log-href";
 import type { BiomarkerCategory } from "@/lib/health-records";
 import { isBaselineExcluded, type DayFlag } from "@/lib/day-flags";
+import { calibrationProgress } from "@/lib/calibration";
+import { Figure } from "@/lib/uncertainty";
 import { HeartPulse, Moon } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -548,6 +550,27 @@ async function SleepTab({
     // `debt` sat computed 40 lines above.
     sleepDebtSecs: debt.debtSecs,
   });
+  // Same "day N of 14" count Today's hero uses (calibrationProgress reads
+  // the readiness baseline signal, not the battery model itself).
+  const batteryCalibration = calibrationProgress(
+    wellness.map((w) => ({ hrvMs: w.hrvMs, restingHr: w.restingHr }))
+  );
+  // remaining > 0 mirrors Today hero's own gate (band === "calibrating" &&
+  // calibration.remaining > 0): readiness is null both during genuine
+  // first-run calibration AND for an already-calibrated athlete who simply
+  // has no HRV/RHR reading today. Only the first is "calibrating" — the
+  // second is a same-vocabulary missing-input gap, not a false "day 14 of
+  // 14" claim to a veteran athlete.
+  const batteryFigure: Figure<number> =
+    battery.current != null
+      ? Figure.available(battery.current, "high")
+      : batteryCalibration.remaining > 0
+        ? Figure.calibrating(
+            batteryCalibration.daysWithSignal,
+            batteryCalibration.target,
+            "days"
+          )
+        : Figure.missingInput("an HRV or resting-heart-rate reading for today");
 
   return (
     <div className="pb-10">
@@ -638,14 +661,12 @@ async function SleepTab({
         />
       )}
 
-      {battery.current != null && (
-        <BodyBatteryCurve
-          current={battery.current}
-          points={battery.points}
-          tags={battery.tags}
-          checkpoints={battery.checkpoints}
-        />
-      )}
+      <BodyBatteryCurve
+        current={batteryFigure}
+        points={battery.points}
+        tags={battery.tags}
+        checkpoints={battery.checkpoints}
+      />
 
       {wellness.every((w) => w.sleepSecs == null) && (
         <EmptyState icon={Moon} message="No sleep data recorded yet." />
@@ -813,7 +834,7 @@ async function LabsTab({ userId }: { userId: string }) {
     }));
   const consistency = sleepConsistency(nights);
 
-  const bioAge = biologicalAge({
+  const bioAgeResult = biologicalAge({
     chronologicalAge:
       prefs?.birthYear != null
         ? new Date().getFullYear() - prefs.birthYear
@@ -827,6 +848,13 @@ async function LabsTab({ userId }: { userId: string }) {
       [...wellness].reverse().find((w) => w.bodyFatPct != null)?.bodyFatPct ??
       null,
   });
+  // A deterministic formula over already-known signals, same reasoning
+  // correlationFigure and the CTL/ATL/TSB tiles already use — never a
+  // modelled interval, so "high" throughout.
+  const bioAge: Figure<BioAgeResult> =
+    "insufficient" in bioAgeResult
+      ? Figure.missingInput(bioAgeResult.missing.join(", "))
+      : Figure.available(bioAgeResult, "high");
 
   return (
     <div className="space-y-4 pb-10">

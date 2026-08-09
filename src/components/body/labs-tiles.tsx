@@ -1,7 +1,9 @@
-import type { BioAgeResult, BioAgeInsufficient } from "@/lib/biological-age";
+import type { BioAgeResult } from "@/lib/biological-age";
+import type { Figure } from "@/lib/uncertainty";
+import { unavailableMessage } from "@/components/ui/unavailable";
 
 interface Props {
-  bioAge: BioAgeResult | BioAgeInsufficient;
+  bioAge: Figure<BioAgeResult>;
   biomarkerCount: number;
   /** ISO date of the most recent draw, or null when there's been none. */
   lastDraw: string | null;
@@ -16,12 +18,11 @@ function drawLabel(iso: string): string {
 
 /**
  * The two Labs headline tiles (1g). Biological age keeps its honest
- * insufficient state — an estimate that can't be made says so rather than
+ * missing-input state — an estimate that can't be made says so rather than
  * printing a number, and the full breakdown stays in BioAgeCard below.
  */
 export function LabsTiles({ bioAge, biomarkerCount, lastDraw }: Props) {
-  const insufficient = "insufficient" in bioAge;
-  const delta = insufficient ? null : bioAge.deltaYears;
+  const delta = bioAge.available ? bioAge.value.deltaYears : null;
 
   return (
     <div className="mb-3 grid grid-cols-2 gap-2">
@@ -29,14 +30,14 @@ export function LabsTiles({ bioAge, biomarkerCount, lastDraw }: Props) {
         <p className="text-[8.5px] font-bold uppercase tracking-[0.15em] text-white/40">
           Biological age
         </p>
-        {insufficient ? (
+        {!bioAge.available ? (
           <p className="mt-2 text-[11px] text-white/50">
-            Not enough inputs yet
+            {unavailableMessage(bioAge)}
           </p>
         ) : (
           <p className="mt-1.5 flex items-baseline gap-2">
             <span className="font-mono text-[22px] font-bold leading-none text-white">
-              {Math.round(bioAge.bioAge)}
+              {Math.round(bioAge.value.bioAge)}
             </span>
             {delta != null && (
               <span
@@ -56,7 +57,7 @@ export function LabsTiles({ bioAge, biomarkerCount, lastDraw }: Props) {
           Labs
         </p>
         <p className="mt-1.5 text-[12.5px] font-semibold text-white">
-          {biomarkerCount} biomarker{biomarkerCount === 1 ? "" : "s"}
+          {`${biomarkerCount} biomarker${biomarkerCount === 1 ? "" : "s"}`}
         </p>
         <p className="mt-0.5 text-[10.5px] text-white/45">
           {lastDraw ? `last draw ${drawLabel(lastDraw)}` : "no draw recorded"}

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { renderToString } from "react-dom/server";
+import { Figure } from "@/lib/uncertainty";
 import { BodyBatteryCurve } from "./body-battery";
 
 /**
@@ -8,18 +9,23 @@ import { BodyBatteryCurve } from "./body-battery";
  * tests pin the contract: no data means no curve.
  */
 describe("body battery card", () => {
-  it("renders an empty state instead of a placeholder curve when null", () => {
+  it("renders a typed calibrating reason instead of a placeholder curve", () => {
     const html = renderToString(
-      <BodyBatteryCurve current={null} points={[]} tags={[]} checkpoints={[]} />
+      <BodyBatteryCurve
+        current={Figure.calibrating(4, 14, "days")}
+        points={[]}
+        tags={[]}
+        checkpoints={[]}
+      />
     );
-    expect(html).toContain("Not enough data");
+    expect(html).toContain("Calibrating — day 4 of 14 days");
     expect(html).not.toContain("<path");
   });
 
   it("never contains the old hardcoded placeholder path", () => {
     const html = renderToString(
       <BodyBatteryCurve
-        current={70}
+        current={Figure.available(70, "high")}
         points={[
           { minutes: 0, charge: 90 },
           { minutes: 720, charge: 80 },
@@ -35,7 +41,7 @@ describe("body battery card", () => {
   it("labels itself an estimate rather than a measurement", () => {
     const html = renderToString(
       <BodyBatteryCurve
-        current={70}
+        current={Figure.available(70, "high")}
         points={[{ minutes: 0, charge: 70 }]}
         tags={[]}
         checkpoints={[]}
@@ -47,7 +53,7 @@ describe("body battery card", () => {
   it("plots the real points it is given", () => {
     const html = renderToString(
       <BodyBatteryCurve
-        current={50}
+        current={Figure.available(50, "high")}
         points={[
           { minutes: 0, charge: 100 },
           { minutes: 720, charge: 50 },
@@ -63,7 +69,7 @@ describe("body battery card", () => {
   it("renders day tags and checkpoints", () => {
     const html = renderToString(
       <BodyBatteryCurve
-        current={45}
+        current={Figure.available(45, "high")}
         points={[{ minutes: 0, charge: 45 }]}
         tags={["hard day", "sleep debt"]}
         checkpoints={[

@@ -162,14 +162,21 @@ so" — is currently spoken in six dialects: `—` (47 uses), `calibrating` (39)
       and migrated the first surface (90-day correlations). **v0.68.0**
       migrated the Today vitals grid. **v0.69.0** migrated the Train page's
       CTL/ATL/TSB fitness tiles and `DayActions` preview (4 call sites).
-      Four dialects and roughly 11 other call sites remain — backlog in
-      `docs/plans/2026-08-08-uncertainty-vocabulary.md`, with corrections in
-      `docs/plans/2026-08-09-uncertainty-vocabulary-vitals.md` (5 more
-      confirmed-dead components found; 3 sites investigated and excluded) and
+      **v0.70.0** migrated biological age and the Estimated Energy (body
+      battery) card (`LabsTiles`, `BioAgeCard`, `BodyBatteryCurve`) and
+      investigated `src/lib/race/forecast.ts`'s `insufficient` kind, finding
+      it already fully resolved — nothing to migrate. Log/Activity,
+      Coach/Journal, and Admin/misc surfaces remain — backlog in
+      `docs/plans/2026-08-08-uncertainty-vocabulary.md`, with corrections
+      in `docs/plans/2026-08-09-uncertainty-vocabulary-vitals.md` (5 more
+      confirmed-dead components found; 3 sites investigated and excluded),
       `docs/plans/2026-08-09-uncertainty-vocabulary-train.md` (2 sites left
       to Phase 2c's first number slice: one reads
       `trainingBlocks.targetLoadTotal` directly, the other reads
-      `weekPlans.effectiveTarget`, a per-week snapshot derived from it).
+      `weekPlans.effectiveTarget`, a per-week snapshot derived from it), and
+      `docs/plans/2026-08-09-uncertainty-vocabulary-body-health.md` (no dead
+      components found). Same re-verification discipline needed before
+      trusting these surfaces' file lists, per the last three slices.
 - [ ] **2b.4 — Visual redesign.** All 12 pages, against the settled IA using
       the settled vocabulary. The largest item on this roadmap: it splits into
       its own releases with per-page gates, and needs real-browser verification
