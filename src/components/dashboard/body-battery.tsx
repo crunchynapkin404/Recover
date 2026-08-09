@@ -72,7 +72,9 @@ export function BodyBatteryCurve({
     <div className="glass rounded-[2rem] p-7 overflow-hidden">
       <div className="mb-1 flex items-center justify-between">
         <span className="label-micro">Estimated Energy</span>
-        <span className="text-xs font-bold text-white/80">{current.value}% now</span>
+        <span className="text-xs font-bold text-white/80">
+          {current.value}% now
+        </span>
       </div>
       <p className="mb-6 text-[11px] text-white/40">
         Modelled from readiness and training load
