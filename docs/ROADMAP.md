@@ -153,7 +153,7 @@ so" — is currently spoken in six dialects: `—` (47 uses), `calibrating` (39)
       **2026-09-05**. Per the spec, record at that point that the counts are
       developer-biased — the sole user is also the developer and tester, so
       the data shows what was being built, not what an athlete would open.
-      [ ] **2b.3 — Uncertainty and confidence language.** One vocabulary replacing
+- [ ] **2b.3 — Uncertainty and confidence language.** One vocabulary replacing
       six, distinguishing at least: _calibrating_ (not enough history yet),
       _insufficient_ (a required input is missing), _low confidence_ (wide
       interval), and _no figure plus the reason_ (the pattern v0.46 set for
