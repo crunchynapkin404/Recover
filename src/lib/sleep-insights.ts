@@ -6,10 +6,25 @@
  * estimate — the same discipline as readiness's `calibrating`.
  */
 
+/**
+ * Consistency score needs at least this many real bed/wake nights, else
+ * returns null.
+ * Source: Invented — a data-sufficiency gate.
+ * Confidence: Low.
+ */
 export const MIN_CONSISTENCY_NIGHTS = 5;
-/** Midpoint scatter at or beyond this (minutes SD) scores 0 consistency. */
+/**
+ * Midpoint scatter at or beyond this (minutes SD) scores 0 consistency.
+ * Source: Invented — a design choice for the scoring floor, not cited
+ * research.
+ * Confidence: Low.
+ */
 export const MAX_SD_MINUTES = 120;
-/** Chronotype needs at least this many nights on each of weekday/free-day. */
+/**
+ * Chronotype needs at least this many nights on each of weekday/free-day.
+ * Source: Invented — a data-sufficiency gate.
+ * Confidence: Low.
+ */
 export const MIN_CHRONOTYPE_SIDE = 2;
 
 const MINUTES_PER_DAY = 1440;

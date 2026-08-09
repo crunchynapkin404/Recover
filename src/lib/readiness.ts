@@ -14,7 +14,30 @@
  * Fewer than MIN_BASELINE_DAYS of HRV *and* of RHR history → "calibrating".
  */
 
+/**
+ * Fewer than this many days of HRV *and* of RHR baseline history →
+ * "calibrating" (see the file's top-of-file comment). A design trade-off
+ * between requiring enough data to trust a baseline and not gatekeeping a
+ * new athlete too long — see
+ * docs/specs/2026-07-15-v0.7-score-integrity-design.md, where flagging
+ * enough bad days to drop the surviving baseline below this floor is the
+ * intended, honest degrade path (a confident wrong number is worse than
+ * "calibrating").
+ * Source: Invented — a design trade-off, not cited research.
+ * Confidence: Low.
+ */
 export const MIN_BASELINE_DAYS = 14;
+/**
+ * How far back each athlete's own HRV/RHR baseline mean and SD are
+ * computed from. A design trade-off between baseline stability and
+ * adaptability: docs/specs/2026-07-15-v0.7-score-integrity-design.md notes
+ * the cost directly — "five days of flu put five crushed HRV values into
+ * the trailing baseline for the next two months" — long enough to smooth
+ * day-to-day noise, long enough that contamination from illness or travel
+ * lingers, which is what that release's day-flagging feature exists to fix.
+ * Source: Invented — a design trade-off, not cited research.
+ * Confidence: Low.
+ */
 export const BASELINE_WINDOW_DAYS = 60;
 
 const WEIGHTS = { hrv: 0.4, rhr: 0.25, sleep: 0.2, form: 0.15 } as const;

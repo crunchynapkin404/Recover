@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.76.0 — 2026-08-09 — Provenance: sleep & readiness window constants
+
+Third slice of Phase 2a (`docs/ROADMAP.md`): source, confidence, and scope
+for 11 exported constants across `readiness.ts`, `sleep-debt.ts`,
+`sleep-insights.ts`, and `sleep-history.ts`. No values changed —
+documentation only.
+
+- 10 of 11 constants are design trade-offs or data-sufficiency gates with
+  no cited external research — labelled **Invented**, Confidence: Low,
+  including `readiness.ts`'s `MIN_BASELINE_DAYS`/`BASELINE_WINDOW_DAYS`
+  (both have real documented design reasoning in
+  `docs/specs/2026-07-15-v0.7-score-integrity-design.md`, just not an
+  external citation).
+- `DEFAULT_SLEEP_NEED_SECS` (8h) is the exception: 8 hours sits inside the
+  commonly-cited 7-9h/night range recommended for adults, though the
+  origin spec is explicit it's an editable default, not a personalized
+  claim. Confidence: Medium.
+
+Remaining Phase 2a backlog: ~42 constants across ~21 other files.
+
 ## v0.75.0 — 2026-08-09 — Provenance: training-load constants
 
 Second slice of Phase 2a (`docs/ROADMAP.md`): source, confidence, and scope

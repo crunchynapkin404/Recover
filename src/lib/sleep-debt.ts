@@ -13,12 +13,38 @@
  * Pure: no db, no I/O.
  */
 
+/**
+ * How many trailing nights the debt accounting window covers.
+ * Source: Invented — a design choice, not cited research.
+ * Confidence: Low.
+ */
 export const DEBT_WINDOW_DAYS = 14;
-/** Below this many recorded nights, report nothing rather than a thin number. */
+/**
+ * Below this many recorded nights, report nothing rather than a thin number.
+ * Source: Invented — a data-sufficiency gate.
+ * Confidence: Low.
+ */
 export const MIN_DEBT_DAYS = 7;
-/** One night cannot repay a week. Cap the recommendation at something doable. */
+/**
+ * One night cannot repay a week. Cap the recommendation at something
+ * doable: six hours of debt cannot be repaid tonight, and recommending a
+ * 01:00 bedtime shift would be advice no one follows (see
+ * docs/specs/2026-07-16-v0.9.0-honest-body-intelligence-design.md Part 2).
+ * Source: Invented — an actionability design choice, not a physiological
+ * claim.
+ * Confidence: Low.
+ */
 export const MAX_NIGHTLY_PAYBACK_SECS = 3600;
-/** A target the athlete can change — not a claim about them. */
+/**
+ * A target the athlete can change — not a claim about them (see
+ * docs/specs/2026-07-16-v0.9.0-honest-body-intelligence-design.md Part 2:
+ * "sleepNeedSecs defaults to 8h legitimately... not a claim about them").
+ * 8h sits inside the commonly-cited 7-9h/night range recommended for
+ * adults.
+ * Source: Sleep-health guidance (7-9h/night adult range), as an editable
+ * default rather than a personalized measurement.
+ * Confidence: Medium.
+ */
 export const DEFAULT_SLEEP_NEED_SECS = 28800; // 8h
 
 export interface SleepDebtInput {
@@ -36,7 +62,11 @@ export interface SleepDebtInput {
   bedtimes?: number[];
 }
 
-/** Below this many real bedtimes, fall back to the wake-time anchor. */
+/**
+ * Below this many real bedtimes, fall back to the wake-time anchor.
+ * Source: Invented — a data-sufficiency gate.
+ * Confidence: Low.
+ */
 export const MIN_BEDTIME_SAMPLES = 5;
 
 export interface SleepDebtResult {
