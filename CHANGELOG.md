@@ -8,7 +8,7 @@ Form · TSB) migrated to the `Figure<T>` vocabulary v0.67.0 shipped.
 - `VitalTile.value` is now `Figure<string>` instead of a pre-formatted
   string; each tile still shows the same `"—"` it always has when a reading
   is missing, now backed by a typed reason surfaced as a `title` attribute
-  instead of just a bare glyph.
+  and an `sr-only` span — not just a bare glyph, and not sighted-mouse-only.
 - The sleep tile's low-confidence suffix (`"· limited data"`) is now a
   `<ConfidenceChip>` in the delta row instead of a string concatenation.
 - No visual regression: same glyph, same layout, same conditions for when
