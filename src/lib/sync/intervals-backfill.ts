@@ -73,13 +73,21 @@ export async function remapStoredWellness(
   return { remapped, earliestDate };
 }
 
-/** Safety stop. No athlete has 20 years of intervals.icu history, and an
- *  endless walk against a free service is worse than a truncated backfill.
- *  Real accounts DO hit this in practice now that the walk also stops on
- *  load-only years below — an athlete with a decade of pure CTL/ATL filler
- *  before that never reaches an empty chunk. When the loop exhausts this
- *  cap instead of hitting a stop condition, `BackfillResult.truncated` is
- *  set so that case is distinguishable from "genuinely ran out of history". */
+/**
+ * Safety stop. No athlete has 20 years of intervals.icu history, and an
+ * endless walk against a free service is worse than a truncated backfill.
+ * Real accounts DO hit this in practice now that the walk also stops on
+ * load-only years below — an athlete with a decade of pure CTL/ATL filler
+ * before that never reaches an empty chunk. When the loop exhausts this
+ * cap instead of hitting a stop condition, `BackfillResult.truncated` is
+ * set so that case is distinguishable from "genuinely ran out of history".
+ * Source: this reasoning is restated identically in
+ * `docs/specs/2026-08-02-wellness-history-backfill-design.md`, which also
+ * confirms via a production dry run that accounts DO carry pre-real-history
+ * filler (3,111 rows, 2010-2018) this cap must outlast. An engineering
+ * safety ceiling, not an external estimate — same category as
+ * `ADHERENCE_CEIL` (race/forecast.ts). Confidence: Low.
+ */
 export const MAX_BACKFILL_YEARS = 20;
 
 /** Pause between year chunks. intervals.icu is free and run by one developer;
