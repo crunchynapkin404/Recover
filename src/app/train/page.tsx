@@ -50,6 +50,7 @@ import { RaceChip } from "@/components/today/race-chip";
 import type { RaceCountdownProps } from "@/components/dashboard/race-countdown";
 import { BAND_COLOR } from "@/lib/band-color";
 import type { Band } from "@/lib/readiness";
+import { Figure } from "@/lib/uncertainty";
 import {
   addDaysYmd,
   getOpenWeekPlan,
@@ -1372,7 +1373,10 @@ async function FitnessTab({
   const tiles: FitnessTile[] = [
     {
       label: "Fitness · CTL",
-      value: ctl != null ? String(Math.round(ctl)) : "—",
+      value:
+        ctl != null
+          ? Figure.available(String(Math.round(ctl)), "high")
+          : Figure.missingInput("training-load history"),
       color: "#60a5fa",
       // A flat block is flat — no arrow, no colour, no implied progress.
       context:
@@ -1386,14 +1390,22 @@ async function FitnessTab({
     },
     {
       label: "Fatigue · ATL",
-      value: atl != null ? String(Math.round(atl)) : "—",
+      value:
+        atl != null
+          ? Figure.available(String(Math.round(atl)), "high")
+          : Figure.missingInput("training-load history"),
       color: "#f87171",
       context: weekLoad > 0 ? `7d load ${Math.round(weekLoad)}` : null,
     },
     {
       label: "Form · TSB",
       value:
-        tsb != null ? `${tsb < 0 ? "−" : ""}${Math.abs(tsb).toFixed(1)}` : "—",
+        tsb != null
+          ? Figure.available(
+              `${tsb < 0 ? "−" : ""}${Math.abs(tsb).toFixed(1)}`,
+              "high"
+            )
+          : Figure.missingInput("training-load history"),
       color: "#34d399",
       context:
         tsb == null
