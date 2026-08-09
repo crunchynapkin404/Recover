@@ -127,8 +127,14 @@ top of the six the app already speaks.
       industry-standard Coggan/Banister EMA time constants — Confidence:
       Medium. `LTHR_HRR_FRACTION` (0.85) is an uncited coaching convention
       per the origin design spec — Confidence: Low. The other 5 are
-      engineering thresholds, labelled Invented, Low. ~53 constants across
-      ~25 other files remain — grouped by domain in
+      engineering thresholds, labelled Invented, Low. **v0.76.0** shipped a
+      third slice: 11 exported constants across `readiness.ts`,
+      `sleep-debt.ts`, `sleep-insights.ts`, and `sleep-history.ts`. 10 of 11
+      are design trade-offs or data-sufficiency gates with no cited
+      research, labelled Invented, Low; `DEFAULT_SLEEP_NEED_SECS` (8h) is
+      Medium (sits inside the commonly-cited 7-9h/night adult range, but an
+      editable default, not a personalized claim). ~42 constants across
+      ~21 other files remain — grouped by domain in
       `docs/plans/2026-08-09-provenance-athlete-level-week-plan.md`'s
       Findings.
 
