@@ -11,8 +11,10 @@ export interface RaceContext {
 /**
  * Taper window length by race distance class, in days out from race day.
  * Source: `docs/specs/2026-07-19-v0.14-race-ready-design.md`'s "Taper"
- * section, which decided these windows directly (no external taper-physiology
- * citation appears anywhere in this repo). Confidence: Low.
+ * section, which decided these windows directly. Bosquet et al. 2007 (the
+ * taper-effects meta-analysis) is cited elsewhere in this repo's literature
+ * survey (`docs/specs/2026-08-08-goal-pillars-and-correctness-design.md`)
+ * but has never been connected to these specific windows. Confidence: Low.
  */
 export const TAPER_WINDOW_LONG = 21; // marathon / full ironman
 export const TAPER_WINDOW_MID = 14; // half / 70.3 / fondo / century

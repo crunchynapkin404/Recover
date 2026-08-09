@@ -37,10 +37,13 @@ fresh research.
   `docs/specs/2026-07-19-v0.14-race-ready-design.md`'s "Taper" section
   (21/14/10-day windows, ≈45/65/80% load fractions, ≤30 min opener cap) —
   that document is where the design was decided, but it states the numbers
-  as a design choice, not a citation of taper physiology literature (e.g.
-  no Mujika/Padilla or Bosquet-style meta-analysis reference appears
-  anywhere in this repo). Labelled **Invented**, Confidence: Low, citing
-  the design doc for the decision record, not as external research.
+  as a design choice, not a citation of taper physiology literature.
+  Bosquet et al. 2007 (the taper-effects meta-analysis) is cited elsewhere
+  in this repo's literature survey
+  (`docs/specs/2026-08-08-goal-pillars-and-correctness-design.md`), but has
+  never been connected to derive or validate these specific windows or
+  fractions. Labelled **Invented**, Confidence: Low, citing the design doc
+  for the decision record, not as external research.
 - **`forecast.ts`** (`ADHERENCE_FLOOR = 0.5`, `ADHERENCE_CEIL = 1.5`). The
   same design doc states the floor explicitly ("recent adherence...
   floored at 0.5") but never mentions a ceiling. `ADHERENCE_CEIL` is an
