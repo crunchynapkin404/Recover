@@ -13,7 +13,11 @@
  */
 
 /**
- * How many nights the history strip offers.
+ * How many nights the history strip offers — nights *with sleep data*, not
+ * calendar nights (see this file's top-of-file comment), a deliberate
+ * choice so the strip and prev/next arrows can never disagree (see
+ * docs/specs/2026-08-02-sleep-history-navigation-design.md). No rationale
+ * is given for 14 specifically over some other count.
  * Source: Invented — a UI display-amount choice, not cited research.
  * Confidence: Low.
  */
