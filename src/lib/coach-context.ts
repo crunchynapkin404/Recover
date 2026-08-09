@@ -7,6 +7,8 @@
 import { and, desc, eq, gte, ne } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
+import { calibrationProgress, CALIBRATION_TARGET_DAYS } from "@/lib/calibration";
+import { unavailableMessage } from "@/components/ui/unavailable";
 
 function daysAgo(n: number): string {
   const d = new Date();
@@ -71,7 +73,36 @@ export async function fetchAthleteContext(
       );
     }
   } else {
-    lines.push("**Readiness:** Calibrating (needs 14+ days of data)");
+    // Fail closed on a query error: the most conservative reading
+    // (calibrating, zero days) rather than throwing into a coach reply.
+    let calibrationWindow: Awaited<
+      ReturnType<typeof db.query.wellnessDaily.findMany>
+    > = [];
+    try {
+      calibrationWindow = await db.query.wellnessDaily.findMany({
+        where: and(
+          eq(schema.wellnessDaily.userId, userId),
+          gte(schema.wellnessDaily.date, daysAgo(CALIBRATION_TARGET_DAYS))
+        ),
+      });
+    } catch {
+      // calibrationWindow stays [] — see comment above.
+    }
+    const calibration = calibrationProgress(
+      calibrationWindow.map((w) => ({ hrvMs: w.hrvMs, restingHr: w.restingHr }))
+    );
+    lines.push(
+      `**Readiness:** ${unavailableMessage(
+        calibration.remaining > 0
+          ? {
+              kind: "calibrating",
+              have: calibration.daysWithSignal,
+              need: calibration.target,
+              unit: "days",
+            }
+          : { kind: "missing_input", needs: "a readiness score today" }
+      )}`
+    );
   }
 
   if (latestWellness) {
