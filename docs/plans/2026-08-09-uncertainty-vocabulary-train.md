@@ -35,7 +35,7 @@ roadmap already has separate, dedicated plans for:
   `season-timeline-card.tsx`'s "Season adherence" `"—"` is also derived from
   `targetLoad` (`latestAdherencePct`) and is excluded for the same reason.
 - **`src/app/train/page.tsx`'s readiness header chip** (`{readiness != null
-  ? ... : "calibrating"}`, line ~349) is a terse band-verdict label — the
+? ... : "calibrating"}`, line ~349) is a terse band-verdict label — the
   same category as `today-hero.tsx`'s `BAND_VERDICT.calibrating` that the
   previous plan (v0.68.0) already excluded for the same reason: a compact
   state indicator, not a value placeholder. No adjacent duplication risk
@@ -205,9 +205,7 @@ export function FitnessTiles({ tiles }: { tiles: FitnessTile[] }) {
           <p
             className="mt-1 font-mono text-[20px] font-bold leading-none"
             style={{ color: t.color }}
-            title={
-              !t.value.available ? unavailableMessage(t.value) : undefined
-            }
+            title={!t.value.available ? unavailableMessage(t.value) : undefined}
           >
             {t.value.available ? t.value.value : "—"}
             {!t.value.available && (
@@ -243,53 +241,53 @@ Replace the `tiles` array (currently three objects with
 `value: ctl != null ? String(Math.round(ctl)) : "—"` etc.) with:
 
 ```tsx
-  const tiles: FitnessTile[] = [
-    {
-      label: "Fitness · CTL",
-      value:
-        ctl != null
-          ? Figure.available(String(Math.round(ctl)), "high")
-          : Figure.missingInput("training-load history"),
-      color: "#60a5fa",
-      // A flat block is flat — no arrow, no colour, no implied progress.
-      context:
-        ctlDelta == null
-          ? null
-          : ctlDelta === 0
-            ? "level over 28d"
-            : `${ctlDelta > 0 ? "▲ +" : "▼ −"}${Math.abs(ctlDelta)} in 28d`,
-      contextColor:
-        ctlDelta != null && ctlDelta > 0 ? "#34d399" : "rgba(255,255,255,0.4)",
-    },
-    {
-      label: "Fatigue · ATL",
-      value:
-        atl != null
-          ? Figure.available(String(Math.round(atl)), "high")
-          : Figure.missingInput("training-load history"),
-      color: "#f87171",
-      context: weekLoad > 0 ? `7d load ${Math.round(weekLoad)}` : null,
-    },
-    {
-      label: "Form · TSB",
-      value:
-        tsb != null
-          ? Figure.available(
-              `${tsb < 0 ? "−" : ""}${Math.abs(tsb).toFixed(1)}`,
-              "high"
-            )
-          : Figure.missingInput("training-load history"),
-      color: "#34d399",
-      context:
-        tsb == null
-          ? null
-          : tsb > 5
-            ? "fresh"
-            : tsb < -10
-              ? "deep fatigue"
-              : "neutral zone",
-    },
-  ];
+const tiles: FitnessTile[] = [
+  {
+    label: "Fitness · CTL",
+    value:
+      ctl != null
+        ? Figure.available(String(Math.round(ctl)), "high")
+        : Figure.missingInput("training-load history"),
+    color: "#60a5fa",
+    // A flat block is flat — no arrow, no colour, no implied progress.
+    context:
+      ctlDelta == null
+        ? null
+        : ctlDelta === 0
+          ? "level over 28d"
+          : `${ctlDelta > 0 ? "▲ +" : "▼ −"}${Math.abs(ctlDelta)} in 28d`,
+    contextColor:
+      ctlDelta != null && ctlDelta > 0 ? "#34d399" : "rgba(255,255,255,0.4)",
+  },
+  {
+    label: "Fatigue · ATL",
+    value:
+      atl != null
+        ? Figure.available(String(Math.round(atl)), "high")
+        : Figure.missingInput("training-load history"),
+    color: "#f87171",
+    context: weekLoad > 0 ? `7d load ${Math.round(weekLoad)}` : null,
+  },
+  {
+    label: "Form · TSB",
+    value:
+      tsb != null
+        ? Figure.available(
+            `${tsb < 0 ? "−" : ""}${Math.abs(tsb).toFixed(1)}`,
+            "high"
+          )
+        : Figure.missingInput("training-load history"),
+    color: "#34d399",
+    context:
+      tsb == null
+        ? null
+        : tsb > 5
+          ? "fresh"
+          : tsb < -10
+            ? "deep fatigue"
+            : "neutral zone",
+  },
+];
 ```
 
 Note what did **not** change: `ctl`/`atl`/`tsb`/`ctlDelta`/`weekLoad` are
@@ -354,41 +352,39 @@ before editing). Add this test inside that `describe` block, after its last
 existing `it(...)`:
 
 ```tsx
-  it("shows a typed reason, not a bare 'calibrating' sentence, when the preview lacks enough load history", async () => {
-    previewMock.mockResolvedValue({
-      ok: true,
-      insufficient: true,
-      anchorDate: "2026-08-30",
-      anchorRace: null,
-      beforeTsb: null,
-      afterTsb: null,
-      beforeBand: null,
-      afterBand: null,
-      loadDelta: 0,
-    });
-    renderComponent();
-
-    const targetSelect = container.querySelector(
-      'select[aria-label="Target day"]'
-    ) as HTMLSelectElement;
-    await act(async () => {
-      targetSelect.value = "2026-08-26";
-      targetSelect.dispatchEvent(new Event("change", { bubbles: true }));
-    });
-
-    await act(async () => {
-      click(findButtonByText("What if?"));
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    expect(container.textContent).toContain(
-      "Needs more training history to project form"
-    );
-    expect(container.textContent).not.toContain(
-      "No projection — calibrating."
-    );
+it("shows a typed reason, not a bare 'calibrating' sentence, when the preview lacks enough load history", async () => {
+  previewMock.mockResolvedValue({
+    ok: true,
+    insufficient: true,
+    anchorDate: "2026-08-30",
+    anchorRace: null,
+    beforeTsb: null,
+    afterTsb: null,
+    beforeBand: null,
+    afterBand: null,
+    loadDelta: 0,
   });
+  renderComponent();
+
+  const targetSelect = container.querySelector(
+    'select[aria-label="Target day"]'
+  ) as HTMLSelectElement;
+  await act(async () => {
+    targetSelect.value = "2026-08-26";
+    targetSelect.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+
+  await act(async () => {
+    click(findButtonByText("What if?"));
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+
+  expect(container.textContent).toContain(
+    "Needs more training history to project form"
+  );
+  expect(container.textContent).not.toContain("No projection — calibrating.");
+});
 ```
 
 - [ ] **Step 2: Run the test to verify it fails**
