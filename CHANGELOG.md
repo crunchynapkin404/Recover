@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.75.0 — 2026-08-09 — Provenance: training-load constants
+
+Second slice of Phase 2a (`docs/ROADMAP.md`): source, confidence, and scope
+for `src/lib/training-load.ts`'s 8 exported constants. No values changed —
+documentation only.
+
+- `CTL_DAYS = 42` and `ATL_DAYS = 7` — the industry-standard Coggan/Banister
+  EMA time constants every mainstream training-load tool uses. Confidence:
+  Medium (widely-adopted convention, not head-to-head validated as optimal).
+- `LTHR_HRR_FRACTION = 0.85` — the origin design spec states this without
+  citing a source; labelled a coaching convention rather than attaching an
+  invented citation. Confidence: Low.
+- The remaining 5 constants (`MIN_LOAD_DAYS`, `MAX_HR_IF`,
+  `DURATION_TSS_PER_HOUR`, `DEDUP_START_WINDOW_MS`,
+  `DEDUP_DURATION_TOLERANCE`) are engineering thresholds with no
+  physiological claim — labelled **Invented**, Confidence: Low.
+
+Remaining Phase 2a backlog: ~53 constants across ~25 other files.
+
 ## v0.74.0 — 2026-08-09 — Provenance: athlete level & week-plan constants
 
 First slice of Phase 2a (`docs/ROADMAP.md`): source, confidence, and scope

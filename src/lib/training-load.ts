@@ -10,19 +10,66 @@
  * defect class v0.10 removes.
  */
 
+/**
+ * The exponentially-weighted moving-average time constants that define
+ * "CTL" and "ATL" as those terms are used throughout this codebase and the
+ * training-load field generally (TrainingPeaks, WKO, intervals.icu all use
+ * these same defaults). Trace to Dr. Andy Coggan's adaptation of Banister's
+ * original impulse-response ("TRIMP") model. Changing either value would
+ * mean computing a different metric, not a differently-tuned CTL/ATL.
+ * Source: Coggan/Banister exponentially-weighted training-load model,
+ * industry-standard time constants.
+ * Confidence: Medium (widely-adopted convention; no head-to-head study
+ * validates 42/7 as optimal over other time constants).
+ */
 export const CTL_DAYS = 42;
 export const ATL_DAYS = 7;
-/** Fewer distinct activity days than this in the trailing CTL window → calibrating. */
+/**
+ * Fewer distinct activity days than this in the trailing CTL window →
+ * calibrating.
+ * Source: Invented — a design threshold for "enough recent data to trust
+ * the number," not evidence-based.
+ * Confidence: Low.
+ */
 export const MIN_LOAD_DAYS = 7;
-/** LTHR assumed at this fraction of heart-rate reserve for the HR rung. */
+/**
+ * LTHR assumed at this fraction of heart-rate reserve for the HR rung.
+ * The origin design spec (docs/specs/2026-07-18-v0.10-honest-load-design.md)
+ * states "LTHR ≈ 85% of HRR" as a design assumption, without citing an
+ * external source — a recognized coaching convention, not a validated
+ * study.
+ * Source: Coaching convention (uncited).
+ * Confidence: Low.
+ */
 export const LTHR_HRR_FRACTION = 0.85;
-/** Intensity-factor cap — bad HR data must not mint a 200-TSS easy jog. */
+/**
+ * Intensity-factor cap — bad HR data must not mint a 200-TSS easy jog.
+ * Source: Invented — a data-quality sanity cap, not a physiological claim.
+ * Confidence: Low.
+ */
 export const MAX_HR_IF = 1.15;
-/** TSS per hour for the duration rung: an unlabeled hour counts as easy zone-2. */
+/**
+ * TSS per hour for the duration rung: an unlabeled hour counts as easy
+ * zone-2. A deliberately conservative default (implies IF ≈ 0.63) — the
+ * fallback rungs in this file err low on purpose (see the file's opening
+ * doc comment); fabricating intensity upward is the defect class this
+ * engine exists to remove.
+ * Source: Invented — deliberately conservative default, not evidence-based.
+ * Confidence: Low.
+ */
 export const DURATION_TSS_PER_HOUR = 40;
-/** Different-provider activities starting within this window may be the same workout. */
+/**
+ * Different-provider activities starting within this window may be the
+ * same workout.
+ * Source: Invented — a cross-provider deduplication heuristic.
+ * Confidence: Low.
+ */
 export const DEDUP_START_WINDOW_MS = 30 * 60 * 1000;
-/** ...when their durations also agree within this fraction. */
+/**
+ * ...when their durations also agree within this fraction.
+ * Source: Invented — a cross-provider deduplication heuristic.
+ * Confidence: Low.
+ */
 export const DEDUP_DURATION_TOLERANCE = 0.1;
 
 export type LoadSource = "provider" | "power" | "hr" | "duration";

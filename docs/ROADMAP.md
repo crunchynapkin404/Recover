@@ -122,7 +122,13 @@ top of the six the app already speaks.
       confidence and scope, following `plan-constants.ts`. `HEADROOM` and
       `RAMP_CLAMP_PCT` now read Confidence: Low in-code; 10 of the 11
       week-plan constants had no research to cite and are labelled Invented,
-      Low. ~61 constants across ~26 other files remain — grouped by domain in
+      Low. **v0.75.0** shipped a second slice: `src/lib/training-load.ts`'s
+      8 exported constants. `CTL_DAYS`/`ATL_DAYS` (42/7) are the
+      industry-standard Coggan/Banister EMA time constants — Confidence:
+      Medium. `LTHR_HRR_FRACTION` (0.85) is an uncited coaching convention
+      per the origin design spec — Confidence: Low. The other 5 are
+      engineering thresholds, labelled Invented, Low. ~53 constants across
+      ~25 other files remain — grouped by domain in
       `docs/plans/2026-08-09-provenance-athlete-level-week-plan.md`'s
       Findings.
 
