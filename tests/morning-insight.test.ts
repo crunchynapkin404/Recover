@@ -147,10 +147,32 @@ describe.skipIf(!hasDb)("morning insight", () => {
     const forced = await generateMorningInsight(USER, { force: true });
     expect(forced).not.toBe("skipped");
     if (forced === "skipped") throw new Error("unreachable");
-    expect(forced.text).toContain("Still calibrating");
+    expect(forced.text).toContain("Calibrating — day 0 of 14 days");
 
     // Same-day guard still applies even when forced twice.
     expect(await generateMorningInsight(USER, { force: true })).toBe("skipped");
+  });
+
+  it("force:true names a same-day reading gap, not calibrating, for an already-calibrated athlete", async () => {
+    const { db, schema } = await import("@/lib/db");
+    const { generateMorningInsight } = await import("@/lib/morning-insight");
+    // 14 days of real HRV/RHR history, ending yesterday — genuinely
+    // calibrated — but no row at all for today.
+    const today = new Date();
+    await db.insert(schema.wellnessDaily).values(
+      Array.from({ length: 14 }, (_, i) => {
+        const d = new Date(today);
+        d.setDate(d.getDate() - (14 - i));
+        return { userId: USER, date: localYmd(d), hrvMs: 60, restingHr: 50 };
+      })
+    );
+    // No seedMetric() call and no today wellness row → readiness null today.
+
+    const forced = await generateMorningInsight(USER, { force: true });
+    expect(forced).not.toBe("skipped");
+    if (forced === "skipped") throw new Error("unreachable");
+    expect(forced.text).toContain("Needs a readiness score today");
+    expect(forced.text).not.toContain("Calibrating");
   });
 
   it("force:true posts a degraded brief when there is no daily_metrics row at all", async () => {
@@ -159,19 +181,19 @@ describe.skipIf(!hasDb)("morning insight", () => {
     const forced = await generateMorningInsight(USER, { force: true });
     expect(forced).not.toBe("skipped");
     if (forced === "skipped") throw new Error("unreachable");
-    expect(forced.text).toContain("Still calibrating");
+    expect(forced.text).toContain("Calibrating — day 0 of 14 days");
   });
 
-  // Fix: the template's "Still calibrating" sentence already says the
-  // picture is incomplete — the completeness caveat must not repeat that
-  // same fact in different words.
+  // Fix: the template's "Calibrating" sentence already says the picture is
+  // incomplete — the completeness caveat must not repeat that same fact in
+  // different words.
   it("suppresses the redundant caveat when the brief is already the calibrating line", async () => {
     const { generateMorningInsight } = await import("@/lib/morning-insight");
     // No seedMetric() and no wellness row → both "calibrating" (no
     // daily_metrics row) and "incomplete" (no wellness_daily row) are true.
     const forced = await generateMorningInsight(USER, { force: true });
     if (forced === "skipped") throw new Error("expected a brief");
-    expect(forced.text).toContain("Still calibrating");
+    expect(forced.text).toContain("Calibrating — day 0 of 14 days");
     expect(forced.text).not.toContain("Incomplete picture");
   });
 
