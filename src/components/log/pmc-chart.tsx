@@ -1,3 +1,8 @@
+import { unavailableMessage } from "@/components/ui/unavailable";
+
+/** Fewer than this many real points can't draw a meaningful line. */
+const MIN_POINTS = 2;
+
 interface Day {
   date: string;
   ctl: number | null;
@@ -40,10 +45,15 @@ export function PmcChart({
     w.ctl != null && w.atl != null ? w.ctl - w.atl : null
   );
   const nums = [...ctl, ...atl, ...tsb].filter((v): v is number => v != null);
-  if (nums.length < 2) {
+  if (nums.length < MIN_POINTS) {
     return (
       <p className="py-8 text-center text-sm text-white/40">
-        Not enough data yet for this range.
+        {unavailableMessage({
+          kind: "calibrating",
+          have: nums.length,
+          need: MIN_POINTS,
+          unit: "days",
+        })}
       </p>
     );
   }

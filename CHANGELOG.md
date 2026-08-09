@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.71.0 — 2026-08-09 — Uncertainty vocabulary (Log / Activity)
+
+The fifth slice of Phase 2b.3 — small by design, per verification (see the
+plan's Findings).
+
+- `PmcChart`'s "Not enough data yet for this range." is now
+  `unavailableMessage()`'s `calibrating` phrasing ("Calibrating — day N of 2
+  days"), the same treatment `correlationFigure` already gives a thin
+  sample.
+- Investigated and left alone: `laps-table.tsx`'s per-cell em-dashes (a
+  historical sensor absence with no "fix," and disproportionate to wrap at
+  table-cell density — see the plan's Findings) and `PmcChart`'s dead
+  `showStats` prop (inert, not a wrong message — general-cleanup territory,
+  not 2b.3).
+- Confirmed dead: `wellness-trends.tsx` (zero import sites, superseded by
+  `BaselineTrendCard`) — belongs to Phase 2b.2's orphan cleanup.
+
 ## v0.70.0 — 2026-08-09 — Uncertainty vocabulary (Body / Health)
 
 The fourth slice of Phase 2b.3: biological age and the Estimated Energy
