@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.73.0 — 2026-08-09 — Uncertainty vocabulary (Admin / misc), Phase 2b.3 complete
+
+The seventh and final slice of Phase 2b.3 — investigation-only, no code
+change. `security-events.tsx`, `artifact-card.tsx`, and `health-upload.tsx`
+were the last three files in the backlog; none contained any of the six
+retired dialect words. Each dash was read individually and found to be
+either "not applicable" (an audit event with no client IP to record), an
+internal chart-rendering robustness fallback (unrelated series lengths in
+an AI-generated `ChartSpec` table), or a raw continuous confidence
+percentage that doesn't map cleanly onto the vocabulary's 3-tier
+`Confidence` without inventing a threshold — the same category of judgment
+call that already excluded `milestones-card.tsx`, `checkin-sheet.tsx`, and
+`laps-table.tsx` in earlier slices. See
+`docs/plans/2026-08-09-uncertainty-vocabulary-admin-misc.md` for the full
+reasoning.
+
+Phase 2b.3 (`docs/ROADMAP.md`) is now complete: six slices (v0.67.0–v0.72.0)
+migrated every real call site across seven surfaces, and all four
+distinctions the phase named — calibrating, insufficient, low confidence,
+and no-figure-plus-reason — have real, shipped call sites.
+
 ## v0.72.0 — 2026-08-09 — Uncertainty vocabulary (Coach / Journal)
 
 The sixth slice of Phase 2b.3 — the first to touch the AI coach itself
