@@ -1,5 +1,31 @@
 # Changelog
 
+## v0.70.0 — 2026-08-09 — Uncertainty vocabulary (Body / Health)
+
+The fourth slice of Phase 2b.3: biological age and the Estimated Energy
+(body battery) card migrated to the `Figure<T>` vocabulary.
+
+- `LabsTiles.bioAge` and `BioAgeCard.result` are now `Figure<BioAgeResult>`;
+  the hand-written "Add: X, Y." sentence is now `unavailableMessage()`'s
+  `missing_input` phrasing, computed once in `LabsTab` and shared by both
+  components.
+- `BodyBatteryCurve.current` is now `Figure<number>`, using
+  `calibrationProgress()` (the same "day N of 14" helper Today's hero uses)
+  for its `have`/`need` — the first use of `Figure.calibrating` outside the
+  90-day correlations surface.
+- Fixed: the Estimated Energy card no longer disappears entirely while
+  readiness calibrates. `SleepTab` guarded its render with
+  `battery.current != null`, so the component's own "not enough data"
+  message — already written, already tested — was unreachable. Removed the
+  guard; the card now always renders, honestly, per the goal's "when it does
+  not know, it says so."
+- Investigated `src/lib/race/forecast.ts`'s "insufficient" kind (named in
+  the original backlog) and found nothing left to migrate: its one
+  rendering path, `RaceChip`, already omits the form clause silently rather
+  than showing a placeholder — the same honest-by-omission design the last
+  two slices found in `today-hero.tsx` and `milestones-card.tsx`.
+- No dead components found on this surface (unlike the first two slices).
+
 ## v0.69.0 — 2026-08-09 — Uncertainty vocabulary (Train)
 
 The third slice of Phase 2b.3: the Train page's CTL/ATL/TSB fitness tiles,
