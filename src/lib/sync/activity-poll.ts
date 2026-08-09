@@ -18,8 +18,26 @@ import {
 } from "@/lib/connectors/intervals";
 import { upsertIntervalsActivities } from "@/lib/sync/intervals-sync";
 
+/**
+ * Poll cadence for near-real-time ride detection, and how far back each poll
+ * looks. Source: this file's own header comment plus
+ * `docs/specs/2026-08-02-wellness-sync-interval-design.md`, which
+ * independently corroborates the 15-minute cadence as an established,
+ * deliberately-untouched precedent. Engineering judgement balancing
+ * near-real-time detection against being a considerate client of a free,
+ * single-developer service — not externally sourced. Both Confidence: Low.
+ */
 export const POLL_INTERVAL_MIN = 15;
 export const POLL_LOOKBACK_HOURS = 24;
+
+/**
+ * Quiet window (23:00–06:00 server-local): the 05:00 full sync covers the
+ * night, so polling through it buys nothing. Source: this file's own header
+ * comment; corroborated as an established, deliberately-untouched precedent
+ * by `docs/specs/2026-08-02-wellness-sync-interval-design.md`
+ * ("Activity poll: Untouched. Its 15-minute cadence and 23:00–06:00 quiet
+ * window stay as they are"). Both Confidence: Low.
+ */
 export const POLL_QUIET_START_HOUR = 23;
 export const POLL_QUIET_END_HOUR = 6;
 

@@ -19,18 +19,40 @@ import {
 import { applyWellnessPatch } from "@/lib/wellness-merge";
 import { wellnessDayToPatch } from "@/lib/sync/intervals-sync";
 
-/** Minutes between wellness re-pulls when the athlete hasn't chosen. Kept at
- *  v0.33's cadence so upgrading never silently increases load on
- *  intervals.icu, which is free and run by one developer. */
+/**
+ * Minutes between wellness re-pulls when the athlete hasn't chosen. Kept at
+ * v0.33's cadence so upgrading never silently increases load on
+ * intervals.icu, which is free and run by one developer. Source:
+ * `docs/specs/2026-08-02-wellness-sync-interval-design.md` ("Default: 30 —
+ * preserves roughly v0.33's cadence"). Product/operational judgement, not
+ * external research. Confidence: Low.
+ */
 export const DEFAULT_WELLNESS_POLL_INTERVAL_MIN = 30;
-/** What the settings UI offers. 0 = daily sync only. */
+/**
+ * What the settings UI offers. 0 = daily sync only. Source: same design
+ * doc's Decisions table ("Values: Daily only (off) / 60 / 30 / 15
+ * minutes"), a deliberately closed, tested set rather than an open range.
+ * Confidence: Low.
+ */
 export const WELLNESS_POLL_INTERVAL_CHOICES = [0, 15, 30, 60] as const;
 
+/**
+ * Window the refresh pass is active in (05:00–23:00 server-local; quiet
+ * 23:00–05:00). Source: same design doc ("Polling overnight buys nothing:
+ * the athlete is asleep, the Companion has not written the night yet, and
+ * the 05:00 daily sync covers the boundary"). Starts at the scheduler's
+ * SYNC_HOUR so v0.33's original 05:00–06:00 coverage is not a regression.
+ * Both Confidence: Low.
+ */
 export const WELLNESS_REFRESH_START_HOUR = 5; // == scheduler SYNC_HOUR
-/** Quiet 23:00–05:00: the athlete is asleep, the Companion hasn't written the
- *  night yet, and the 05:00 daily sync covers the boundary. */
 export const WELLNESS_REFRESH_END_HOUR = 23;
-/** Sleep is attributed to the bed date, so yesterday must be in range. */
+/**
+ * Sleep is attributed to the bed date, so yesterday must be in range.
+ * Source: `docs/specs/2026-08-02-intervals-wellness-expansion-design.md`
+ * (v0.33's original design): "Range: last 3 days — covers the bed-date
+ * attribution and any late Companion backfill without depending on
+ * resolving attribution precisely." Confidence: Low.
+ */
 export const WELLNESS_REFRESH_DAYS = 3;
 
 export function effectivePollIntervalMin(
