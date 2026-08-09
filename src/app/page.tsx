@@ -5,6 +5,7 @@ import { db, schema } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { recordSurfaceView } from "@/lib/telemetry";
 import { getActivePlan } from "@/lib/active-plan";
+import { Figure } from "@/lib/uncertainty";
 import { AppShell, shellUser } from "@/components/app-shell";
 import { PullToRefresh } from "@/components/dashboard/pull-to-refresh";
 import { SyncChip } from "@/components/dashboard/sync-chip";
@@ -384,7 +385,10 @@ export default async function DashboardPage({
   const vitals: VitalTile[] = [
     {
       label: "HRV",
-      value: latest?.hrvMs != null ? String(Math.round(latest.hrvMs)) : "—",
+      value:
+        latest?.hrvMs != null
+          ? Figure.available(String(Math.round(latest.hrvMs)), "high")
+          : Figure.missingInput("an HRV reading"),
       unit: "ms",
       delta:
         latest?.hrvMs != null && avg7hrv > 0
@@ -400,7 +404,9 @@ export default async function DashboardPage({
     {
       label: "RHR",
       value:
-        latest?.restingHr != null ? String(Math.round(latest.restingHr)) : "—",
+        latest?.restingHr != null
+          ? Figure.available(String(Math.round(latest.restingHr)), "high")
+          : Figure.missingInput("a resting-heart-rate reading"),
       unit: "bpm",
       delta:
         latest?.restingHr != null && avg7rhr > 0
@@ -415,14 +421,16 @@ export default async function DashboardPage({
     },
     {
       label: "Sleep",
-      value: sleepHours != null ? hoursToClock(sleepHours) : "—",
+      value:
+        sleepHours != null
+          ? Figure.available(hoursToClock(sleepHours), "high")
+          : Figure.missingInput("a sleep reading"),
       delta:
         sleepDebt.debtSecs != null && sleepDebt.debtSecs > 0
           ? {
-              text:
-                fmtSleepDebt(sleepDebt.debtSecs) +
-                (sleepDebt.confidence === "low" ? " · limited data" : ""),
+              text: fmtSleepDebt(sleepDebt.debtSecs),
               tone: "warn",
+              confidence: sleepDebt.confidence === "low" ? "low" : undefined,
             }
           : null,
       sparkPath: sleepSparkPath,
@@ -431,7 +439,10 @@ export default async function DashboardPage({
     },
     {
       label: "Form · TSB",
-      value: tsb != null ? fmtTsb(tsb) : "—",
+      value:
+        tsb != null
+          ? Figure.available(fmtTsb(tsb), "high")
+          : Figure.missingInput("training-load history"),
       delta:
         todayCtl != null
           ? { text: `CTL ${Math.round(todayCtl)}`, tone: "muted" }
