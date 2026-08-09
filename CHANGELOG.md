@@ -1,5 +1,29 @@
 # Changelog
 
+## v0.68.0 — 2026-08-09 — Uncertainty vocabulary (vitals grid)
+
+The second slice of Phase 2b.3: Today's vitals grid (HRV, RHR, Sleep,
+Form · TSB) migrated to the `Figure<T>` vocabulary v0.67.0 shipped.
+
+- `VitalTile.value` is now `Figure<string>` instead of a pre-formatted
+  string; each tile still shows the same `"—"` it always has when a reading
+  is missing, now backed by a typed reason surfaced as a `title` attribute
+  instead of just a bare glyph.
+- The sleep tile's low-confidence suffix (`"· limited data"`) is now a
+  `<ConfidenceChip>` in the delta row instead of a string concatenation.
+- No visual regression: same glyph, same layout, same conditions for when
+  the confidence chip appears.
+- Investigated three more sites in the same surface and left them alone,
+  each for a documented reason (see
+  `docs/plans/2026-08-09-uncertainty-vocabulary-vitals.md`): a milestones
+  count where `"—"` means zero, not unknown; a form slider's own input
+  state; and the Today hero's calibrating state, which already avoids
+  duplicating the adjacent calibration-progress card.
+- Found 5 more confirmed-dead components while verifying this surface
+  (`hero-readiness.tsx`, `readiness-rings.tsx`, `race-countdown.tsx`'s
+  component body, `recent-sessions-accordion.tsx`, dashboard's
+  `vitals-grid.tsx`) — not touched here; tracked for Phase 2b.2's cleanup.
+
 ## v0.67.0 — 2026-08-08 — Uncertainty vocabulary (phase one)
 
 Phase 2b.1, and the first slice of 2b.3: a shared type for "the app doesn't

@@ -1,11 +1,19 @@
 import Link from "next/link";
+import type { Confidence, Figure } from "@/lib/uncertainty";
+import { ConfidenceChip } from "@/components/ui/confidence-chip";
+import { unavailableMessage } from "@/components/ui/unavailable";
 
 export interface VitalTile {
   label: string;
-  /** Pre-formatted display value, or "—" when there is no honest reading. */
-  value: string;
+  /** The reading, or why it isn't available yet. */
+  value: Figure<string>;
   unit?: string;
-  delta?: { text: string; tone: "good" | "warn" | "muted" } | null;
+  delta?: {
+    text: string;
+    tone: "good" | "warn" | "muted";
+    /** Set only when the delta itself carries below-high confidence. */
+    confidence?: Confidence;
+  } | null;
   /** "" → no line drawn (fewer than two real points). */
   sparkPath: string;
   sparkColor: string;
@@ -37,21 +45,32 @@ export function VitalsGrid({ tiles }: { tiles: VitalTile[] }) {
             <div className="text-[9px] font-bold uppercase tracking-wider text-white/40">
               {t.label}
             </div>
-            <div className="mt-0.5 font-mono text-[19px] font-bold leading-none text-white">
-              {t.value}
+            <div
+              className="mt-0.5 font-mono text-[19px] font-bold leading-none text-white"
+              title={
+                !t.value.available ? unavailableMessage(t.value) : undefined
+              }
+            >
+              {t.value.available ? t.value.value : "—"}
               {t.unit && (
                 <span className="ml-0.5 text-[10px] font-normal text-white/40">
                   {t.unit}
                 </span>
+              )}
+              {!t.value.available && (
+                <span className="sr-only">{unavailableMessage(t.value)}</span>
               )}
             </div>
           </div>
           <div className="flex flex-col items-end gap-1">
             {t.delta && (
               <span
-                className={`text-[9.5px] font-semibold ${TONE[t.delta.tone]}`}
+                className={`flex items-center gap-1 text-[9.5px] font-semibold ${TONE[t.delta.tone]}`}
               >
                 {t.delta.text}
+                {t.delta.confidence && (
+                  <ConfidenceChip level={t.delta.confidence} />
+                )}
               </span>
             )}
             {t.sparkPath && (
