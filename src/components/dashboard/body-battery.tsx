@@ -1,10 +1,12 @@
 "use client";
 
 import type { BatteryPoint, BodyBatteryCheckpoint } from "@/lib/body-battery";
+import type { Figure } from "@/lib/uncertainty";
+import { unavailableMessage } from "@/components/ui/unavailable";
 
 interface Props {
-  /** Current charge 0-100, or null when there is not enough data. */
-  current: number | null;
+  /** Current charge 0-100, or why the model can't run yet. */
+  current: Figure<number>;
   /** The modelled curve. Empty when current is null. */
   points: BatteryPoint[];
   /** Deterministic labels derived from the day shape. */
@@ -37,13 +39,14 @@ export function BodyBatteryCurve({
   tags,
   checkpoints,
 }: Props) {
-  if (current == null || points.length === 0) {
+  if (!current.available || points.length === 0) {
     return (
       <div className="glass rounded-[2rem] p-7">
         <span className="label-micro">Estimated Energy</span>
         <p className="mt-4 text-sm text-white/50">
-          Not enough data yet — your readiness score needs more history before
-          energy can be estimated.
+          {current.available
+            ? "Not enough data yet."
+            : unavailableMessage(current)}
         </p>
         {tags.length > 0 && (
           <div className="mt-4 flex flex-wrap gap-2">
@@ -69,7 +72,7 @@ export function BodyBatteryCurve({
     <div className="glass rounded-[2rem] p-7 overflow-hidden">
       <div className="mb-1 flex items-center justify-between">
         <span className="label-micro">Estimated Energy</span>
-        <span className="text-xs font-bold text-white/80">{current}% now</span>
+        <span className="text-xs font-bold text-white/80">{current.value}% now</span>
       </div>
       <p className="mb-6 text-[11px] text-white/40">
         Modelled from readiness and training load

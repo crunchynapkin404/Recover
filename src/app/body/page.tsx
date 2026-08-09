@@ -48,6 +48,7 @@ import { computeSleepDebt, DEFAULT_SLEEP_NEED_SECS } from "@/lib/sleep-debt";
 import { buildBodyHref, BODY_TABS, type BodyTab } from "@/lib/log-href";
 import type { BiomarkerCategory } from "@/lib/health-records";
 import { isBaselineExcluded, type DayFlag } from "@/lib/day-flags";
+import { calibrationProgress } from "@/lib/calibration";
 import { Figure } from "@/lib/uncertainty";
 import { HeartPulse, Moon } from "lucide-react";
 
@@ -549,6 +550,19 @@ async function SleepTab({
     // `debt` sat computed 40 lines above.
     sleepDebtSecs: debt.debtSecs,
   });
+  // Same "day N of 14" count Today's hero uses (calibrationProgress reads
+  // the readiness baseline signal, not the battery model itself).
+  const batteryCalibration = calibrationProgress(
+    wellness.map((w) => ({ hrvMs: w.hrvMs, restingHr: w.restingHr }))
+  );
+  const batteryFigure: Figure<number> =
+    battery.current != null
+      ? Figure.available(battery.current, "high")
+      : Figure.calibrating(
+          batteryCalibration.daysWithSignal,
+          batteryCalibration.target,
+          "days"
+        );
 
   return (
     <div className="pb-10">
@@ -639,14 +653,12 @@ async function SleepTab({
         />
       )}
 
-      {battery.current != null && (
-        <BodyBatteryCurve
-          current={battery.current}
-          points={battery.points}
-          tags={battery.tags}
-          checkpoints={battery.checkpoints}
-        />
-      )}
+      <BodyBatteryCurve
+        current={batteryFigure}
+        points={battery.points}
+        tags={battery.tags}
+        checkpoints={battery.checkpoints}
+      />
 
       {wellness.every((w) => w.sleepSecs == null) && (
         <EmptyState icon={Moon} message="No sleep data recorded yet." />
