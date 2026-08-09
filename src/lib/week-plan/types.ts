@@ -143,17 +143,55 @@ export function isQuality(w: PlannedWorkout | null | undefined): boolean {
 }
 
 // ── materializeWeek constants ───────────────────────────────────────────
-/** Week-over-week load may move at most this fraction vs previous actual. */
+/**
+ * Week-over-week load may move at most this fraction vs previous actual.
+ * Previously justified as the acute:chronic workload ratio's week-over-week
+ * brake and rated High — that anchor does not hold (see HEADROOM's comment
+ * in athlete-level.ts for the full correction; the same ACWR critique
+ * applies here, and this was never an ACWR calculation either).
+ * Source: Empirical brake on week-over-week change, calibrated against one
+ * athlete — not a validated injury threshold.
+ * Confidence: Low (downgraded from High — see
+ * docs/specs/2026-07-28-training-volume-evidence.md §1, corrected
+ * 2026-08-06).
+ */
 export const RAMP_CLAMP_PCT = 0.2;
-/** Below this adherence, next week builds on actual load, not the skeleton. */
+/**
+ * Below this adherence, next week builds on actual load, not the skeleton.
+ * Source: Invented — a design threshold for "meaningfully off-plan," not
+ * evidence-based.
+ * Confidence: Low.
+ */
 export const LOW_ADHERENCE_PCT = 70;
-/** Multiplier on previous actual load when adherence was low. */
+/**
+ * Multiplier on previous actual load when adherence was low.
+ * Source: Invented.
+ * Confidence: Low.
+ */
 export const LOW_ADHERENCE_BUMP = 1.1;
-/** ≥ this many amber-or-worse days in the last 7 = suppressed trend. */
+/**
+ * ≥ this many amber-or-worse days in the last 7 = suppressed trend.
+ * Source: Invented — a majority-of-week heuristic (4 of 7 days), not
+ * evidence-based.
+ * Confidence: Low.
+ */
 export const SUPPRESSED_READINESS_DAYS = 4;
-/** Target reduction when the readiness trend is suppressed. */
+/**
+ * Target reduction when the readiness trend is suppressed.
+ * Source: Invented.
+ * Confidence: Low.
+ */
 export const SUPPRESSED_REDUCTION = 0.85;
-/** A fully missed week (actual 0) restarts at this fraction of skeleton. */
+/**
+ * A fully missed week (actual 0) restarts at this fraction of skeleton.
+ * Exists to avoid a degenerate case: the ±20% ramp clamp (RAMP_CLAMP_PCT)
+ * divides by the previous week's actual load, which is undefined at zero
+ * (see docs/plans/2026-07-17-v0.9.2-adaptive-week.md's spec-deviation
+ * note). 0.6 matches MAINTENANCE_FLOOR's value (athlete-level.ts) for
+ * consistency, not because the same research backs both.
+ * Source: Invented (design workaround for a zero-load edge case).
+ * Confidence: Low.
+ */
 export const MISSED_WEEK_RESTART = 0.6;
 /**
  * How far generateWorkouts' own duration caps (long session 240min/180min
@@ -163,17 +201,35 @@ export const MISSED_WEEK_RESTART = 0.6;
  * every existing user's prescribed workouts as a side effect of a legibility
  * branch, and the generator rewrite is separately scoped Phase 2 work. This
  * threshold exists so the deficit is at least explained, not silent.
+ * Source: Invented — a reporting threshold, not a claim about the athlete.
+ * Confidence: Low.
  */
 export const GENERATOR_CAP_SHORTFALL_PCT = 0.1;
 
 // ── adaptDay constants ──────────────────────────────────────────────────
-/** Redistribution may add at most this fraction to a day's load. */
+/**
+ * Redistribution may add at most this fraction to a day's load.
+ * Source: Invented.
+ * Confidence: Low.
+ */
 export const DAY_REDISTRIBUTE_CAP_PCT = 0.25;
-/** Red readiness: endurance duration multiplier. */
+/**
+ * Red readiness: endurance duration multiplier.
+ * Source: Invented.
+ * Confidence: Low.
+ */
 export const RED_ENDURANCE_SCALE = 0.7;
-/** Amber readiness: duration multiplier (with one intensity step down). */
+/**
+ * Amber readiness: duration multiplier (with one intensity step down).
+ * Source: Invented.
+ * Confidence: Low.
+ */
 export const AMBER_SCALE = 0.85;
-/** Red readiness replacement session duration (mins); less room = rest. */
+/**
+ * Red readiness replacement session duration (mins); less room = rest.
+ * Source: Invented — a round, convenient number, not evidence-based.
+ * Confidence: Low.
+ */
 export const RED_RECOVERY_MINS = 30;
 /** One intensity step down. Endurance stays endurance (duration handles it). */
 export const STEP_DOWN: Record<string, string> = {
