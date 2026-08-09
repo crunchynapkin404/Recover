@@ -51,8 +51,8 @@ export const MAX_HR_IF = 1.15;
 /**
  * TSS per hour for the duration rung: an unlabeled hour counts as easy
  * zone-2. A deliberately conservative default (implies IF ≈ 0.63) — the
- * fallback rungs in this file err low on purpose (see the file's top-of
- * -file comment); fabricating intensity upward is the defect class this
+ * fallback rungs in this file err low on purpose (see the file's opening
+ * doc comment); fabricating intensity upward is the defect class this
  * engine exists to remove.
  * Source: Invented — deliberately conservative default, not evidence-based.
  * Confidence: Low.
