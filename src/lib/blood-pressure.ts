@@ -61,6 +61,11 @@ export function classifyBp(
   return { category, label: BP_LABELS[category], systolic, diastolic };
 }
 
+/**
+ * Minimum reading count before `bpTrend` reports a direction. Source:
+ * `docs/specs/2026-07-18-v0.13-deep-biology-design.md` ("gated on a
+ * minimum count") — does not derive why 3 specifically. Confidence: Low.
+ */
 export const MIN_BP_READINGS = 3;
 
 export interface BpReading {

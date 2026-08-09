@@ -8,9 +8,19 @@
  * insufficient-inputs state that names what's missing rather than guessing.
  */
 
-/** Need at least this many component signals (plus a birth year) to estimate. */
+/**
+ * Need at least this many component signals (plus a birth year) to
+ * estimate. Source: `docs/specs/2026-07-18-v0.13-deep-biology-design.md`
+ * describes the mechanism (5 possible signals — RHR, HRV, sleep
+ * consistency, VO2max, body-fat% — each mapping to a small offset) but
+ * does not derive why 3-of-5 specifically. Confidence: Low.
+ */
 export const MIN_BIOAGE_COMPONENTS = 3;
-/** The estimate is clamped to ± this many years from chronological age. */
+/**
+ * The estimate is clamped to ± this many years from chronological age.
+ * Source: same design doc ("clamped to a sane range") — a sanity bound,
+ * not a derived figure. Confidence: Low.
+ */
 export const MAX_OFFSET_YEARS = 12;
 
 export interface BioAgeInputs {
