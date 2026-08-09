@@ -34,6 +34,22 @@ describe("VitalsGrid", () => {
     expect(html).toContain("Needs an HRV reading");
   });
 
+  it("makes the missing-reading reason available to screen readers, not only via title", () => {
+    const html = renderToString(
+      <VitalsGrid
+        tiles={[tile({ value: Figure.missingInput("an HRV reading") })]}
+      />
+    );
+    expect(html).toContain('class="sr-only"');
+  });
+
+  it("renders no sr-only reason when the value is available", () => {
+    const html = renderToString(
+      <VitalsGrid tiles={[tile({ value: Figure.available("62", "high") })]} />
+    );
+    expect(html).not.toContain("sr-only");
+  });
+
   it("still shows the unit next to a missing reading", () => {
     const html = renderToString(
       <VitalsGrid

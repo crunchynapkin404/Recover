@@ -57,6 +57,9 @@ export function VitalsGrid({ tiles }: { tiles: VitalTile[] }) {
                   {t.unit}
                 </span>
               )}
+              {!t.value.available && (
+                <span className="sr-only">{unavailableMessage(t.value)}</span>
+              )}
             </div>
           </div>
           <div className="flex flex-col items-end gap-1">
