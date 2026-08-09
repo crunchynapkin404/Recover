@@ -90,21 +90,30 @@ export function withPurpose<
 
 /**
  * Floor. A criterium's queen stage is under an hour; without this the long
- * ride would collapse below a useful endurance stimulus.
+ * ride would collapse below a useful endurance stimulus. Source:
+ * `docs/specs/2026-07-29-cycling-session-distribution-design.md` ("Cycling
+ * guidance puts effective endurance rides 'longer than two hours' for a
+ * moderately experienced rider") — a coaching convention, not a named,
+ * citable study. Confidence: Low.
  */
 export const MIN_LONG_BOUND_MINS = 120;
 
-/** Ceiling: "shorter than six hours", regardless of how long the event is. */
+/** Ceiling: "shorter than six hours", regardless of how long the event is.
+ *  Source: same design doc, the upper end of the same uncited coaching
+ *  guidance. Confidence: Low. */
 export const ABSOLUTE_LONG_BOUND_MINS = 360;
 
-/** Today's floor for easy rides, retained — it makes no new claim. */
+/** Today's floor for easy rides, retained — it makes no new claim.
+ *  Source: same design doc ("A minimum effective Zone 2 duration is real;
+ *  this value is unchanged so it introduces no new claim"). Confidence:
+ *  Low. */
 export const MIN_EFFECTIVE_EASY_MINS = 30;
 
 /**
  * Today's cap for an easy run, named rather than inline so the fill rung can
  * bound a run by exactly what the generator already does. Its VALUE makes no
  * new claim and is deliberately unchanged — running's real single-session
- * rule is athlete-relative and is separately scoped work.
+ * rule is athlete-relative and is separately scoped work. Confidence: Low.
  */
 export const EASY_RUN_CAP_MINS = 60;
 
@@ -114,7 +123,7 @@ export const EASY_RUN_CAP_MINS = 60;
  * today's behaviour rather than inventing a bound. `weeklyTargetHours`
  * makes the same choice for its own null ceiling, on the grounds that
  * `min(demand, ceiling ?? Infinity)` "would hand a brand-new athlete
- * ~11h/week on no evidence at all".
+ * ~11h/week on no evidence at all". Confidence: Low.
  */
 export const NO_DEMAND_LONG_BOUND_MINS = 240;
 

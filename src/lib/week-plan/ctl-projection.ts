@@ -3,7 +3,14 @@
 
 /** Standard CTL time constant, in days. */
 const CTL_TAU = 42;
-/** Below this much load history no verdict is honest enough to show. */
+/**
+ * Below this much load history no verdict is honest enough to show.
+ * Source: no design doc found citing this specific file/value — the
+ * file's own reasoning is the only source. A data-sufficiency gate in the
+ * same family as `readiness.ts`'s `MIN_BASELINE_DAYS` (14) and
+ * `overtraining.ts`'s same-named-but-different-value `MIN_HISTORY_DAYS`
+ * (21, a different domain). Confidence: Low.
+ */
 export const MIN_HISTORY_DAYS = 28;
 
 /**
