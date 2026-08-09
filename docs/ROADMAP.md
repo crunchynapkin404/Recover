@@ -115,7 +115,16 @@ top of the six the app already speaks.
       better than silence
 - [ ] Settle the correction owed since 2026-08-05: `HEADROOM = 1.3` and
       `RAMP_CLAMP_PCT = 0.2` are rated High confidence on an ACWR anchor the
-      2025 systematic review undermines
+      2025 systematic review undermines. **v0.74.0** settled this in the code
+      itself (not just prose docs) and shipped Phase 2a's first slice more
+      broadly: `src/lib/athlete-level.ts`'s `LEVEL_CONSTANTS` (5) and
+      `src/lib/week-plan/types.ts`'s 11 exported constants now carry source,
+      confidence and scope, following `plan-constants.ts`. `HEADROOM` and
+      `RAMP_CLAMP_PCT` now read Confidence: Low in-code; 10 of the 11
+      week-plan constants had no research to cite and are labelled Invented,
+      Low. ~61 constants across ~26 other files remain — grouped by domain in
+      `docs/plans/2026-08-09-provenance-athlete-level-week-plan.md`'s
+      Findings.
 
 ### 2b — Design language and IA
 
