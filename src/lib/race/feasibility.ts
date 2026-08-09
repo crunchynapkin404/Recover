@@ -46,10 +46,15 @@ export const FEASIBILITY_CONSTANTS = {
    * NOT because it was validated there. Recorded as UNVALIDATED OUTSIDE
    * CYCLING in docs/specs/2026-08-07-race-demand-evidence.md. This is why the
    * rule can only ever soften a verdict by one step and can never, by itself,
-   * reach "not_realistic".
+   * reach "not_realistic". Confidence: Low, unvalidated outside cycling —
+   * the exact rating that evidence doc's own summary table gives this value.
    */
   LONGEST_RIDE_FRACTION: 0.8,
-  /** Spare weeks below which "on track" becomes "tight". */
+  /**
+   * Spare weeks below which "on track" becomes "tight". No evidence doc pins
+   * this exact buffer; it is an engineering judgement call with no cited
+   * source. Confidence: Low.
+   */
   TIGHT_MARGIN_WEEKS: 2,
 } as const;
 

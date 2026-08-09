@@ -29,6 +29,10 @@ export interface TriathlonLegs {
  * The bare key `triathlon` is deliberately ABSENT: it names a sport, not a
  * distance, and guessing a distance from it would put an unsourced number
  * into a training target.
+ *
+ * Source: governing-body course definitions (Ironman / World Triathlon),
+ * per `docs/specs/2026-08-07-race-demand-evidence.md`'s summary table.
+ * Confidence: High — definitional, not an estimate.
  */
 export const TRIATHLON_LEGS: Record<string, TriathlonLegs> = {
   ironman: { swimKm: 3.8, bikeKm: 180, runKm: 42.2 },

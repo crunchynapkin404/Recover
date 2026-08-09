@@ -8,17 +8,31 @@ export interface RaceContext {
   name: string;
 }
 
-/** Taper window length by race distance class. */
+/**
+ * Taper window length by race distance class, in days out from race day.
+ * Source: `docs/specs/2026-07-19-v0.14-race-ready-design.md`'s "Taper"
+ * section, which decided these windows directly (no external taper-physiology
+ * citation appears anywhere in this repo). Confidence: Low.
+ */
 export const TAPER_WINDOW_LONG = 21; // marathon / full ironman
 export const TAPER_WINDOW_MID = 14; // half / 70.3 / fondo / century
 export const TAPER_WINDOW_SHORT = 10; // short course
 
-/** Weekly load as a fraction of the athlete's current actual load. */
+/**
+ * Weekly load as a fraction of the athlete's current actual load. Source:
+ * same v0.14 design doc, which states these figures (race week ≈ 45%,
+ * week−1 ≈ 65%, week−2 ≈ 80%) as the design decision, not a literature
+ * citation. Confidence: Low.
+ */
 export const TAPER_FRACTION_RACE_WEEK = 0.45;
 export const TAPER_FRACTION_WEEK_1 = 0.65;
 export const TAPER_FRACTION_WEEK_2 = 0.8;
 
-/** Longest session allowed the day before a race (the "opener"). */
+/**
+ * Longest session allowed the day before a race (the "opener"). Source: same
+ * v0.14 design doc ("the day before is forced rest or a ≤ 30 min opener").
+ * Confidence: Low.
+ */
 export const OPENER_MAX_MINS = 30;
 
 export function taperWindowDays(raceType: string): number {
