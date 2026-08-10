@@ -66,7 +66,7 @@ import {
 import { previewFromDraft } from "@/lib/training-plan";
 import { assembleWeeklyTarget } from "@/lib/week-plan/volume-inputs";
 import { currentTargetLoad, weekTargetLoad } from "@/lib/week-plan/volume";
-import { plannedMins } from "@/lib/week-plan/fill";
+import { plannedMins, availableMins } from "@/lib/week-plan/fill";
 import { assessFeasibility, type Feasibility } from "@/lib/race/feasibility";
 import type { EventDemandResult } from "@/lib/race/demand";
 import {
@@ -436,8 +436,7 @@ async function WeekTab({
       )
       .map((a) => a.reason);
 
-    const availabilityHours =
-      week.days.reduce((s, d) => s + d.availableMins, 0) / 60;
+    const availabilityHours = availableMins(week.days) / 60;
     // fallbackHours must be the active plan's own hoursPerWeek — exactly what
     // rolloverWeekPlan passes — never this week's own availability. A
     // fallback equal to availability makes `availability < target`

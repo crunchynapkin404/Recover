@@ -70,6 +70,17 @@ export function plannedMins(days: DaySlot[]): number {
 }
 
 /**
+ * Every available minute in the week, from the days' own resolved
+ * availability. The one definition of "the week's availability" — see
+ * docs/specs/2026-08-10-volume-and-hours-ownership-design.md, written to
+ * stop a second hand-rolled sum (the same drift risk `plannedMins` exists
+ * to prevent) from reaching a third call site.
+ */
+export function availableMins(days: DaySlot[]): number {
+  return days.reduce((total, d) => total + d.availableMins, 0);
+}
+
+/**
  * The sport a new session should be in: the one holding the most endurance
  * minutes this week, among sports fill can actually bound.
  *

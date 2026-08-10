@@ -311,7 +311,17 @@ A **number slice** is done when all six hold:
       values, not a resolved derivative). Settling ownership makes the week
       quick actions re-enable decision answerable — still deferred, a
       product choice, not made here.
-- [ ] Volume and hours
+- [x] Volume and hours — investigated broadly
+      (`docs/specs/2026-08-10-volume-and-hours-ownership-design.md`): planned
+      minutes and target hours were already single-owner (v0.38.0,
+      `plannedMins()`/`assembleWeeklyTarget()`). **v0.84.0** fixed the one
+      real duplication found: `page.tsx` and `train/page.tsx` both
+      independently summed `days[].availableMins` into hours instead of
+      sharing a function — the same drift risk `plannedMins` exists to
+      prevent, recurring for availability. New `availableMins(days)` in
+      `week-plan/fill.ts`, both call sites migrated.
+      `constraints.hoursPerWeek`'s ~60 reads audited and left alone — a
+      genuinely different question (plan configuration, not this week).
 - [ ] Adherence and completion
 - [ ] CTL / ATL / TSB and readiness — closes the standing dashboard honesty debt
 - [ ] Event demand

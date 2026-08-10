@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.84.0 — 2026-08-10 — One source of truth: volume and hours
+
+Second number slice of Phase 2c (`docs/ROADMAP.md`). Investigated broadly
+first (`docs/specs/2026-08-10-volume-and-hours-ownership-design.md`):
+planned minutes (`plannedMins()`) and target hours
+(`weeklyTargetHours()`/`assembleWeeklyTarget()`) were already single-owner
+since v0.38.0. `constraints.hoursPerWeek`'s ~60 read sites were audited and
+left alone — a genuinely different question (the plan's own configuration,
+not what a given week holds).
+
+- Found and fixed the one real duplication: `src/app/page.tsx` and
+  `src/app/train/page.tsx` both independently summed
+  `days[].availableMins` into hours as the `availabilityHours` input to
+  `assembleWeeklyTarget` — the same drift risk `plannedMins()` was created
+  to prevent in v0.38.0, recurring for availability instead of planned
+  minutes.
+- New `availableMins(days)` in `week-plan/fill.ts`, alongside
+  `plannedMins()`. Both call sites migrated. No behavior change — verified
+  mathematically identical and via a same-environment before/after test run
+  (1619 → 1622 passed, +3 new tests, zero regressions).
+
 ## v0.83.0 — 2026-08-10 — One source of truth: week target load (slices 2-4)
 
 Closes Phase 2c's first number slice (`docs/ROADMAP.md`) — slices 2, 3, and
