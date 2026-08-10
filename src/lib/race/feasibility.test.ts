@@ -473,9 +473,13 @@ describe("feasibilityFor agrees with the inline guards it replaced", () => {
   // just argued: temporarily swapping `requiredWeeklyHours:
   // input.demand.weeklyHours` and `currentWeeklyHours:
   // input.currentWeeklyHours` inside feasibilityFor (src/lib/race/feasibility.ts)
-  // made this exact assertion fail, then the swap was reverted -- see the
-  // v0.87 fix report (.superpowers/sdd/v087/task-7-report.md) for the
-  // transcript. This is the test that would actually catch that mistake;
+  // made this exact assertion fail, then the swap was reverted. Reproduced
+  // twice, independently: the swap fails five of the nine equivalence cases
+  // added here -- this one plus all four verdict-rung cases. (It also trips
+  // one older test in this file, "distinguishes missing training history",
+  // for a different reason: its null lands in the swapped slot and defeats
+  // assessFeasibility's own null check. That one is not evidence for this
+  // guard.) This is the test that would actually catch a swap;
   // tests/race-card-surfaces.test.ts's source-text check would not.
   it("would fail if feasibilityFor ever swapped requiredWeeklyHours and currentWeeklyHours", () => {
     const viaFeasibilityFor = toNullable(feasibilityFor(ON_TRACK_CASE));
