@@ -322,7 +322,16 @@ A **number slice** is done when all six hold:
       `week-plan/fill.ts`, both call sites migrated.
       `constraints.hoursPerWeek`'s ~60 reads audited and left alone — a
       genuinely different question (plan configuration, not this week).
-- [ ] Adherence and completion
+- [x] Adherence and completion — investigated broadly
+      (`docs/specs/2026-08-10-adherence-and-completion-ownership-design.md`):
+      `weekAdherencePct()`, `weekActuals()`/`deriveDayActuals()`/
+      `bookWeekActuals()`, and the cache-only
+      `trainingBlocks.actualLoad`/`actualSessions`/`adherencePct` columns
+      were already single-owner, no duplication found. **v0.85.0** fixed
+      a real bug found along the way: the season timeline's season-to-date
+      adherence figure zero-filled a week's unknown target while still
+      counting its real actual load, silently inflating the percentage —
+      fixed to exclude such weeks from both sums (pairwise), not one side.
 - [ ] CTL / ATL / TSB and readiness — closes the standing dashboard honesty debt
 - [ ] Event demand
 - [ ] Display-derived figures (sleep debt, body battery, correlations, bio-age)
