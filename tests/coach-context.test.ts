@@ -69,6 +69,31 @@ describe.skipIf(!hasDb)("fetchAthleteContext", () => {
     expect(context).toContain("Calibrating — day 0 of 14 days");
   });
 
+  it("reports Training Load from daily_metrics with no wellness_daily row at all (manual-only athlete)", async () => {
+    const { db, schema } = await import("@/lib/db");
+    const { fetchAthleteContext } = await import("@/lib/coach-context");
+    const today = new Date();
+    // The bug this fixes: the old code read ctl/atl from latestWellness,
+    // picked from wellness_daily for HRV/RHR/sleep presence — a
+    // manual-only athlete has no such row, so Training Load was silently
+    // omitted even on a day daily_metrics resolved a real number.
+    await db.insert(schema.dailyMetrics).values({
+      userId: USER,
+      date: localYmd(today),
+      ctl: 45,
+      atl: 40,
+      tsb: 5,
+      readiness: 70,
+      band: "green",
+    });
+
+    const context = await fetchAthleteContext(USER, db);
+    expect(context).toContain("Training Load:");
+    expect(context).toContain("CTL=45");
+    expect(context).toContain("ATL=40");
+    expect(context).toContain("TSB=5");
+  });
+
   it("still recognizes an already-calibrated athlete when their history sits outside the trailing 14 days", async () => {
     const { db, schema } = await import("@/lib/db");
     const { fetchAthleteContext } = await import("@/lib/coach-context");

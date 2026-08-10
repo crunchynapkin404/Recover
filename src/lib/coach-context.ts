@@ -121,19 +121,27 @@ export async function fetchAthleteContext(
         `RHR ${latestWellness.restingHr != null ? Math.round(latestWellness.restingHr) + "bpm" : "—"}, ` +
         `Sleep ${latestWellness.sleepSecs != null ? (latestWellness.sleepSecs / 3600).toFixed(1) + "h" : "—"}`
     );
-    const ctl = latestWellness.ctl;
-    const atl = latestWellness.atl;
-    if (ctl != null && atl != null) {
-      const tsb = ctl - atl;
-      lines.push(
-        `**Training Load:** CTL=${ctl.toFixed(0)} (fitness), ATL=${atl.toFixed(0)} (fatigue), ` +
-          `TSB=${tsb.toFixed(0)} (form: ${tsb > 5 ? "fresh" : tsb > -10 ? "neutral" : tsb > -25 ? "fatigued — reduce load" : "overtrained — rest now"})`
-      );
-      lines.push(
-        `**NOTE: TSB is ${tsb.toFixed(0)}, NOT a percentage. Negative = accumulated fatigue. ` +
-          `Do NOT confuse TSB with component scores (which are 0-100).**`
-      );
-    }
+  }
+
+  // The resolved figure (provider value, or the native engine's honest
+  // computation when there's no intervals.icu sync) — not
+  // latestWellness.ctl/atl, which is picked above for HRV/RHR/sleep
+  // presence and would be null for a manual-only or Strava-only athlete
+  // even on a day `metrics` has a real resolved number. See
+  // docs/specs/2026-08-10-ctl-atl-tsb-readiness-ownership-design.md.
+  const latestLoad = metrics.find((m) => m.ctl != null && m.atl != null);
+  if (latestLoad?.ctl != null && latestLoad.atl != null) {
+    const ctl = latestLoad.ctl;
+    const atl = latestLoad.atl;
+    const tsb = ctl - atl;
+    lines.push(
+      `**Training Load:** CTL=${ctl.toFixed(0)} (fitness), ATL=${atl.toFixed(0)} (fatigue), ` +
+        `TSB=${tsb.toFixed(0)} (form: ${tsb > 5 ? "fresh" : tsb > -10 ? "neutral" : tsb > -25 ? "fatigued — reduce load" : "overtrained — rest now"})`
+    );
+    lines.push(
+      `**NOTE: TSB is ${tsb.toFixed(0)}, NOT a percentage. Negative = accumulated fatigue. ` +
+        `Do NOT confuse TSB with component scores (which are 0-100).**`
+    );
   }
 
   if (wellness7.length > 1) {

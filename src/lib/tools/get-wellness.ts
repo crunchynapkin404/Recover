@@ -26,6 +26,18 @@ async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
     orderBy: desc(schema.wellnessDaily.date),
   });
 
+  // ctl/atl come from daily_metrics, not this table directly — the
+  // resolved figure (provider value, or the native engine's honest
+  // computation when there's no intervals.icu sync), matched per day. See
+  // docs/specs/2026-08-10-ctl-atl-tsb-readiness-ownership-design.md.
+  const metrics = await ctx.db.query.dailyMetrics.findMany({
+    where: and(
+      eq(schema.dailyMetrics.userId, ctx.userId),
+      gte(schema.dailyMetrics.date, sinceStr)
+    ),
+  });
+  const metricsByDate = new Map(metrics.map((m) => [m.date, m]));
+
   return {
     days: rows.map((r) => ({
       date: r.date,
@@ -34,8 +46,8 @@ async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
       sleep_hours:
         r.sleepSecs != null ? +(r.sleepSecs / 3600).toFixed(1) : null,
       sleep_score: r.sleepScore,
-      ctl: r.ctl,
-      atl: r.atl,
+      ctl: metricsByDate.get(r.date)?.ctl ?? null,
+      atl: metricsByDate.get(r.date)?.atl ?? null,
       weight_kg: r.weightKg,
       energy: r.energy1_10,
       soreness: r.soreness1_10,
