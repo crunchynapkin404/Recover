@@ -181,11 +181,45 @@ describe("DayActions error rendering (interaction)", () => {
     expect(container.textContent).toContain("That move isn't allowed");
   });
 
+  it("renders the caveat when the projection is capped at plan end", async () => {
+    previewMock.mockResolvedValue({
+      ok: true,
+      available: true,
+      anchorDate: "2026-08-30",
+      anchorRace: "Alpe Sportive",
+      beforeTsb: 5,
+      afterTsb: 8,
+      beforeBand: "green",
+      afterBand: "green",
+      loadDelta: -50,
+      capped: true,
+      why: "Projection ends at plan end, before race day — it is not a race-day figure.",
+    });
+    renderComponent();
+
+    const targetSelect = container.querySelector(
+      'select[aria-label="Target day"]'
+    ) as HTMLSelectElement;
+    await act(async () => {
+      targetSelect.value = "2026-08-26";
+      targetSelect.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+
+    await act(async () => {
+      click(findButtonByText("What if?"));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(container.textContent).toContain("plan end");
+  });
+
   it("shows a typed reason, not a bare 'calibrating' sentence, when the preview lacks enough load history", async () => {
     previewMock.mockResolvedValue({
       ok: true,
       available: false,
       needs: "training-load history",
+      loadDelta: null,
     });
     renderComponent();
 

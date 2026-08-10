@@ -1,7 +1,9 @@
 // src/lib/race/outlook.ts — what the athlete is told about their next race.
-// The projection math lives in forecast.ts; this layer owns the single
-// decision of what to show, including when there is nothing to show.
-import { Figure } from "@/lib/uncertainty";
+// The projection math lives in forecast.ts, the pure ForecastResult →
+// RaceOutlook mapping in outlook-figure.ts; this layer owns DB assembly and
+// the single decision of what to show, including when there is nothing to
+// show.
+import { Figure, type Confidence, type Unavailable } from "@/lib/uncertainty";
 import type { OpenWeekPlan } from "@/lib/week-plan/service";
 import { assembleForecastInputs, nextUpcomingRace } from "./service";
 import {
@@ -10,13 +12,15 @@ import {
   type PlanChange,
   type ScenarioEnd,
 } from "./forecast";
+import {
+  raceOutlook,
+  CAPPED_WHY,
+  FULL_WHY,
+  type RaceOutlook,
+} from "./outlook-figure";
 import { localYmd } from "@/lib/insights/auto-tags";
 
-export type RaceOutlook = Figure<{
-  full: ScenarioEnd;
-  adherence: ScenarioEnd | null;
-  capped: boolean;
-}>;
+export type { RaceOutlook };
 
 export interface RaceCard {
   race: {
@@ -28,11 +32,6 @@ export interface RaceCard {
   daysOut: number | null;
   outlook: RaceOutlook | null;
 }
-
-const CAPPED_WHY =
-  "Projection ends at plan end, before race day — it is not a race-day figure.";
-
-const FULL_WHY = "Form outlook only: TSB from planned load, not readiness.";
 
 /**
  * The one read path for the race card on Today and Train.
@@ -56,22 +55,12 @@ export async function raceCard(
     preloadedWeek
   );
 
-  let outlook: RaceOutlook;
-  if (!assembled) {
-    outlook = Figure.missingInput("an active training plan", {
-      label: "Plan it",
-      href: "/train?tab=week",
-    });
-  } else {
-    const f = forecastForm(assembled.inputs);
-    outlook = f.insufficient
-      ? Figure.missingInput("training-load history")
-      : Figure.available(
-          { full: f.full, adherence: f.adherence, capped: f.capped },
-          "low",
-          f.capped ? CAPPED_WHY : FULL_WHY
-        );
-  }
+  const outlook: RaceOutlook = !assembled
+    ? Figure.missingInput("an active training plan", {
+        label: "Plan it",
+        href: "/train?tab=week",
+      })
+    : raceOutlook(forecastForm(assembled.inputs));
 
   return {
     race: {
@@ -92,14 +81,30 @@ export async function raceCard(
   };
 }
 
-export type SimulatedRaceForm = Figure<{
-  anchor: { race: string | null; date: string };
-  before: ScenarioEnd;
-  after: ScenarioEnd;
-  deltaTsb: number;
-  loadDelta: number;
-  capped: boolean;
-}>;
+export type SimulatedRaceForm =
+  | {
+      available: true;
+      value: {
+        anchor: { race: string | null; date: string };
+        before: ScenarioEnd;
+        after: ScenarioEnd;
+        deltaTsb: number;
+        loadDelta: number;
+        capped: boolean;
+      };
+      confidence: Confidence;
+      why?: string;
+    }
+  | ({ available: false } & Unavailable & {
+        /**
+         * Independent of CTL/ATL: `simulatePlanChange` computes it from
+         * planned loads alone, so it survives even when the projection
+         * itself is unavailable for missing training-load history. Absent
+         * when there is no plan at all to diff against — nothing planned,
+         * nothing to know.
+         */
+        loadDelta?: number;
+      });
 
 /**
  * The one read path for "what would this change do to race-day form".
@@ -110,10 +115,11 @@ export type SimulatedRaceForm = Figure<{
  */
 export async function simulateRaceForm(
   userId: string,
-  change: PlanChange
+  change: PlanChange,
+  now = new Date()
 ): Promise<SimulatedRaceForm> {
-  const race = await nextUpcomingRace(userId);
-  const assembled = await assembleForecastInputs(userId, race);
+  const race = await nextUpcomingRace(userId, now);
+  const assembled = await assembleForecastInputs(userId, race, now);
   if (!assembled) {
     return Figure.missingInput("an active training plan", {
       label: "Plan it",
@@ -121,8 +127,18 @@ export async function simulateRaceForm(
     });
   }
   const r = simulatePlanChange(assembled.inputs, change);
-  if (r.before.insufficient || r.after.insufficient) {
-    return Figure.missingInput("training-load history");
+  if (r.deltaTsb == null || r.before.insufficient || r.after.insufficient) {
+    // Not built through the Figure.missingInput() factory: its declared
+    // return type is the full Figure<never> union, and spreading a union
+    // into a fresh object literal defeats excess-property checking on the
+    // extra `loadDelta` field. A plain literal here checks directly against
+    // SimulatedRaceForm's unavailable arm instead.
+    return {
+      available: false,
+      kind: "missing_input",
+      needs: "training-load history",
+      loadDelta: r.loadDelta,
+    };
   }
   return Figure.available(
     {
@@ -132,10 +148,7 @@ export async function simulateRaceForm(
       },
       before: r.before.full,
       after: r.after.full,
-      // Non-null: the insufficient check above guarantees both sides
-      // produced a full scenario, and deltaTsb is only null when either
-      // side is insufficient (see SimulationResult in forecast.ts).
-      deltaTsb: r.deltaTsb!,
+      deltaTsb: r.deltaTsb,
       loadDelta: r.loadDelta,
       capped: r.before.capped,
     },

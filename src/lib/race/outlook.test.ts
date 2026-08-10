@@ -17,7 +17,7 @@ const ALL_USERS = [NO_RACE, NO_PLAN, NO_LOAD, CAPPED];
 const WEEK_START = "2026-07-20"; // Monday
 const NOW = new Date("2026-07-22T09:00:00"); // Wednesday of that week
 
-// Copied verbatim from service.test.ts lines 16-40.
+// Copied verbatim from service.test.ts lines 15-32.
 function emptyWeek(weekStart: string): DaySlot[] {
   const days: DaySlot[] = [];
   const d = new Date(weekStart + "T00:00:00");

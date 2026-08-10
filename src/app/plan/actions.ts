@@ -675,7 +675,12 @@ export async function previewPlanChange(input: {
   toDate?: string;
 }): Promise<
   | { ok: false; error: string }
-  | { ok: true; available: false; needs: string | null }
+  | {
+      ok: true;
+      available: false;
+      needs: string | null;
+      loadDelta: number | null;
+    }
   | {
       ok: true;
       available: true;
@@ -706,6 +711,9 @@ export async function previewPlanChange(input: {
       ok: true as const,
       available: false as const,
       needs: r.kind === "missing_input" ? r.needs : null,
+      // Independent of CTL/ATL: perfectly knowable from planned loads alone
+      // even when the projection itself is unavailable (see SimulatedRaceForm).
+      loadDelta: r.loadDelta ?? null,
     };
   }
   return {

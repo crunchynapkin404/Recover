@@ -55,7 +55,7 @@ function dayName(ymd: string): string {
 }
 
 type Preview =
-  | { available: false; needs: string | null }
+  | { available: false; needs: string | null; loadDelta: number | null }
   | {
       available: true;
       anchorRace: string | null;
@@ -66,6 +66,13 @@ type Preview =
       capped: boolean;
       why?: string;
     };
+
+// Fallback for the rare case `why` is absent on a capped projection (Figure's
+// `why` is optional at the type level, even though raceCard()/simulateRaceForm()
+// always supply one today) — the caveat must never silently vanish because a
+// second field happened to be absent. That was this release's own headline bug.
+const CAPPED_FALLBACK_WHY =
+  "Projection ends at plan end, before race day — it is not a race-day figure.";
 
 /**
  * Move/swap/skip a day's workout with a projected-form preview before
@@ -127,7 +134,11 @@ export function DayActions({ day, otherDays, bare = false }: Props) {
               capped: result.capped,
               why: result.why,
             }
-          : { available: false, needs: result.needs }
+          : {
+              available: false,
+              needs: result.needs,
+              loadDelta: result.loadDelta,
+            }
       );
     });
   }
@@ -169,13 +180,15 @@ export function DayActions({ day, otherDays, bare = false }: Props) {
               <p className="text-[11px] text-white/70">
                 {`${preview.anchorRace ? "Race-day form" : "Week-end form"}: ${preview.beforeTsb} → ${preview.afterTsb} TSB (${preview.afterBand})`}
               </p>
-              {preview.capped && preview.why && (
-                <p className="text-[10px] text-white/40">{preview.why}</p>
+              {preview.capped && (
+                <p className="text-[10px] text-white/40">
+                  {preview.why ?? CAPPED_FALLBACK_WHY}
+                </p>
               )}
             </>
           )}
           {action === "skip" &&
-            preview.available &&
+            preview.loadDelta !== null &&
             preview.loadDelta !== 0 && (
               <p className="text-[10px] text-white/40">
                 {`Load change: ${preview.loadDelta}`}
