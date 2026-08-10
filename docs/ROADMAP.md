@@ -370,6 +370,14 @@ excluded, is recorded here so that closing 2c means something:
       `DEMAND_UNAVAILABLE_COPY`, which `uncertainty.ts` cites as the pattern
       it copied. Conditions 1, 2 and 5 already hold; the work is condition 4
       (assert at each surface) and condition 6 (mutation-check).
+      **Fold in while the file is open:** the triathlon confidence downgrade
+      salvaged from `feat/v0.65-mcp-contract-hardening` — a fully anchored
+      multi-sport event drops medium to low, because swim, bike and run
+      anchors interact. It _lowers_ a claim, which is what 2a favours. Code
+      and test are preserved verbatim in
+      `docs/specs/2026-08-10-v065-branch-disposition.md`; neither is adopted
+      without review, and the downgrade needs mutation-checking like any
+      other bound.
 - [ ] Display-derived figures (sleep debt, body battery, correlations,
       bio-age). **Surveyed 2026-08-10 — two real defects, both the shape
       v0.86 just fixed.** `computeSleepDebt` runs independently in
@@ -430,25 +438,32 @@ either idle time or an improvised item.
 guardrails.
 
 **When those run out and the date has not arrived**, these are the designated
-fill. All three are measurement or hygiene, so none of them trips the
-Non-goal against new athlete-facing capability during Phase 2:
+fill. All four are hardening, measurement or hygiene, so none of them trips
+the Non-goal against new athlete-facing capability during Phase 2:
 
-1. **Measure the MCP tool surface.** Phase 4 already requires this before any
+1. **Finish `executeIcuTool()` across the icu\_ tool cluster.** The one piece
+   worth keeping from `feat/v0.65-mcp-contract-hardening`, which applied it to
+   a single tool. Measured on `main` 2026-08-10: **24** icu tools call
+   `activeIcuConnection`, **23** hand-write the identical
+   `"No active intervals.icu connection"` string, and **0** catch
+   `ConnectorError`. So when intervals.icu is down, rate-limits, or the token
+   goes stale, the error propagates as an unhandled throw out of every one of
+   them. The duplicated guard is the easy half; the error path nobody wrote is
+   the one that matters. This is the goal sentence's third clause — saying so
+   when it does not know — on 23 surfaces 2b.3 never reached. Ranked first in
+   this list because it is a real defect, where the other three are
+   measurement. Detail and the helper itself:
+   `docs/specs/2026-08-10-v065-branch-disposition.md`.
+2. **Measure the MCP tool surface.** Phase 4 already requires this before any
    freeze — "freezing an unmeasured surface locks in whatever that cost
    happens to be" — and measuring is not freezing. It is the prerequisite,
    and it can be done now.
-2. **The dead-component sweep**, which is 2d's first guardrail's payload
+3. **The dead-component sweep**, which is 2d's first guardrail's payload
    anyway: the guard is what keeps them from coming back, the sweep is what
    removes the 19 already identified.
-3. **Re-measure `docs/BASELINE.md`.** It is pinned at v0.65.0, and Phase 2's
+4. **Re-measure `docs/BASELINE.md`.** It is pinned at v0.65.0, and Phase 2's
    own claim to be done is a claim against that baseline. A stale baseline
    cannot settle it.
-
-**Not in the window:** reviewing `feat/v0.65-mcp-contract-hardening`. Phase 4
-already forbids merging it before 2d, and reviewing work you cannot land
-invites landing it. It is pushed to `origin` as of 2026-08-10 — it previously
-existed only on the developer's machine — so it is safe to leave until 2d
-closes.
 
 ## Phase 3 — Close the highest-ranked gaps
 
@@ -462,12 +477,29 @@ Demand order, science-constrained.
 
 ## Phase 4 — Breadth
 
-- [ ] Review `feat/v0.65-mcp-contract-hardening` — unreviewed work (push quiet
-      hours + migration 0040, two new MCP tools). **Must not merge before 2d.**
-      Until 2026-08-10 this branch existed **only on the developer's machine**
-      — `origin` carried just `main`, so a disk failure lost it. Now pushed to
-      `origin` as a backup; it is one WIP commit and 138 behind `main`, so it
-      will need rebasing, not just reviewing.
+- [x] `feat/v0.65-mcp-contract-hardening` — **evaluated and dispositioned
+      2026-08-10; nothing in it survives that is not recorded here or in the
+      spec, so the branch can be deleted.** It held unreviewed work: push quiet
+      hours, two new MCP tools, and an icu refactor. Until that date it existed
+      only on the developer's machine, so it was first pushed to `origin` as a
+      backup, then read piece by piece rather than reviewed as a unit. It could
+      not have merged regardless — its `0040_quiet_hours.sql` collides with
+      `main`'s `0040_surface_views.sql`. Outcome, with reasoning per piece, in
+      `docs/specs/2026-08-10-v065-branch-disposition.md`:
+      `executeIcuTool()` **salvaged** (now item 1 of the gate-window list
+      above); the triathlon confidence downgrade **salvaged** into 2c's Event
+      demand slice; `get_recommendation_scorecard` **declined** — it read the
+      `trainingBlocks.adherencePct` cache directly, bypassing
+      `weekAdherencePct()`, and invented three unsourced figures;
+      `get_backup_status` **deferred** until the surface is measured; push
+      quiet hours **deferred** past Phase 2 as new capability, renumbering to
+      0041 when it lands.
+- [ ] The two deferrals from that disposition, kept here so deleting the branch
+      does not drop them: **push quiet hours** (quiet-hours columns on
+      `notification_prefs`, a settings card, gating in `push.ts` — rebuild
+      rather than restore, and take migration 0041) and **`get_backup_status`**
+      (blocked on the measurement below, not on its own merit). Both are
+      reproduced in the disposition spec.
 - [ ] MCP contract freeze — after the numbers underneath are stable, not before.
       Freeze a **measured** surface: competitors now sell on being "token
       cheap" (`ai-coaching-landscape.md` §10) and Recover has never measured
