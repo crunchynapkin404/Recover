@@ -542,8 +542,30 @@ excluded, is recorded here so that closing 2c means something:
 
 ### 2d — Guardrails
 
-- [ ] A test failing on any component with zero non-test render sites. Would
+- [x] A test failing on any component with zero non-test render sites. Would
       have caught the 7 sleep-card files and the 12 found after them.
+      **v0.91.0** shipped `tests/dead-component-guard.test.ts`: one test
+      failing on any unreferenced component, and a second — the ratchet —
+      asserting every `KNOWN_ORPHANS` entry is still genuinely orphaned, so
+      an allowlisted component that gains a render site or is deleted fails
+      the build until its entry goes. The list can only shrink, which is what
+      separates an allowlist from a dumping ground. It ships with **15**
+      entries, scanned fresh rather than carried over; the 19 in earlier
+      notes predates v0.87.0's deletion of `RaceCountdownCard` and other
+      removals since. **They are superseded predecessors, not lost features**
+      — spot-checked rather than assumed: debriefs still render via
+      `today/debrief-chip.tsx` and `activity-debrief-section.tsx`, so
+      `pending-debrief-card.tsx` is a leftover, not something that silently
+      stopped appearing. No athlete is missing anything. The cost is real
+      regardless, and `plan/today-card.tsx` is the proof: it was edited on
+      2026-07-27 by _"refactor(week-plan): a day carries blocks and a list of
+      workouts"_ — read, reasoned about and updated, for a component that
+      renders nowhere. Dead components do not sit quietly; they get
+      maintained. `src/components/ui/` is in scope rather than exempt.
+      **Deleting the 15 is deliberately not part of it** — disposal is 2b.2's
+      call, which cannot settle before 2026-09-05, and some may be worth
+      reviving rather than deleting. Design:
+      `docs/specs/2026-08-11-dead-component-guard-design.md`.
 - [ ] A source-of-truth guard pinning approved read sites, so a new one fails
       the build
 - [ ] Into `RELEASING.md`: mutation-check any test guarding a bound; assert
