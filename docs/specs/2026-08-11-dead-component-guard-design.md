@@ -10,21 +10,21 @@ Run 2026-08-11 across all 122 non-test files under `src/components`.
 **15 have no reference from any non-test source file** — not 19; that figure
 predates v0.87.0's deletion of `RaceCountdownCard` and other removals since.
 
-| Component                                       | Note                                                       |
-| ----------------------------------------------- | ---------------------------------------------------------- |
-| `dashboard/behavior-tags.tsx`                    |                                                            |
-| `dashboard/coach-insight.tsx`                    | last touched 2026-07-15                                     |
-| `dashboard/hero-readiness.tsx`                   | its own last commit removed the headline it rendered        |
-| `dashboard/morning-brief.tsx`                    | last touched 2026-07-14                                     |
-| `dashboard/recent-sessions-accordion.tsx`        |                                                            |
-| `debrief/pending-debrief-card.tsx`               | superseded by `today/debrief-chip.tsx`                      |
-| `journal/correlation-insights.tsx`               | already allowlisted in `uncertainty-dialects-guard.test.ts` |
-| `log/wellness-trends.tsx`                        |                                                            |
-| `plan/availability-sheet.tsx`                    |                                                            |
-| `plan/today-card.tsx`                            | **maintained on 2026-07-27** in a refactor, while dead      |
-| `scroll-reveal.tsx`                              |                                                            |
-| `train/week-adjustment-switch.tsx`               |                                                            |
-| `ui/separator.tsx`, `ui/sonner.tsx`, `ui/tabs.tsx` | vendored primitives, see below                            |
+| Component                                          | Note                                                        |
+| -------------------------------------------------- | ----------------------------------------------------------- |
+| `dashboard/behavior-tags.tsx`                      |                                                             |
+| `dashboard/coach-insight.tsx`                      | last touched 2026-07-15                                     |
+| `dashboard/hero-readiness.tsx`                     | its own last commit removed the headline it rendered        |
+| `dashboard/morning-brief.tsx`                      | last touched 2026-07-14                                     |
+| `dashboard/recent-sessions-accordion.tsx`          |                                                             |
+| `debrief/pending-debrief-card.tsx`                 | superseded by `today/debrief-chip.tsx`                      |
+| `journal/correlation-insights.tsx`                 | already allowlisted in `uncertainty-dialects-guard.test.ts` |
+| `log/wellness-trends.tsx`                          |                                                             |
+| `plan/availability-sheet.tsx`                      |                                                             |
+| `plan/today-card.tsx`                              | **maintained on 2026-07-27** in a refactor, while dead      |
+| `scroll-reveal.tsx`                                |                                                             |
+| `train/week-adjustment-switch.tsx`                 |                                                             |
+| `ui/separator.tsx`, `ui/sonner.tsx`, `ui/tabs.tsx` | vendored primitives, see below                              |
 
 **These are superseded predecessors, not lost features.** Spot-checked rather
 than assumed: debriefs still render, through `DebriefChip` on Today and
