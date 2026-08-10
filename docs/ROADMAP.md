@@ -637,17 +637,24 @@ before that date. Written down because the shape of the problem is not
 visible from the checkbox list, and rediscovering it in September means
 either idle time or an improvised item.
 
-**Order until the gate opens:** **2a, 2c and 2d are all closed** — 2c as of
-v0.90.0, 2d as of v0.93.0. Every item on this roadmap that can be done before
-the gate has been done. What remains of Phase 2 is 2b.2 and 2b.4, and both
-are blocked on the **2026-09-05** telemetry date, not on effort.
+**Order until the gate opens:** **2c is closed** as of v0.90.0 and **2d as of
+v0.93.0.** One ungated item remains: **2a's inline numeric literals sweep**
+(above), which is not blocked on anything and should be taken next. After
+that the queue is empty until the date, and the designated fill below applies.
 
-**So the queue is empty and the date has not arrived.** Take the designated
-fill below rather than improvising, and do not start 2b.4 early — the whole
-point of the gate is that 2b.4 redesigns against an IA 2b.2 has not settled
-yet. (This line read "four remaining slices" until v0.88.0, when the count
-had gone three releases without being updated; keep it current as items
-close.)
+Everything else left in Phase 2 is 2b.2 and 2b.4, both blocked on the
+**2026-09-05** telemetry date rather than on effort. Do not start 2b.4 early
+— the whole point of the gate is that it redesigns against an IA 2b.2 has not
+settled yet.
+
+**A correction worth keeping, because it is the second time this line has
+been wrong.** v0.93.0 first wrote here that "2a, 2c and 2d are all closed",
+which was false: 2a's exported-constant sweep closed, but the inline-literals
+item it deliberately left open is still open — the very item recorded above
+precisely so this would not happen. The line before that read "four remaining
+slices" for three releases after the count changed. **Keep this section
+current as items close, and re-read the checkboxes before summarising them
+rather than summarising from memory of the last release.**
 
 **When those run out and the date has not arrived**, these are the designated
 fill. All four are hardening, measurement or hygiene, so none of them trips

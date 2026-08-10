@@ -1,12 +1,48 @@
 # Changelog
 
+## v0.93.1 — 2026-08-11 — Correcting v0.93.0's completeness claim
+
+Docs only. No code, no behaviour, no numbers.
+
+v0.93.0 said Phase 2's pre-gate work was finished, and that "2a, 2c and 2d
+are all closed". 2c and 2d are. **2a is not.**
+
+2a's sweep of all 77 exported engine constants closed, and the roadmap
+records — deliberately, in its own item — that the sweep never reached
+numbers written **inline**, which carry the same claims. `clamp(50 + 2.5 ·
+tsb, 10, 90)` and the `>= 67` / `>= 34` band thresholds decide whether an
+athlete sees green, amber or red, and they carry no source and no confidence
+while every exported constant does. That item is open, and it is **not**
+gated on the 2026-09-05 telemetry date. It is the next thing to take.
+
+The failure is worth more than the fix: an item written down expressly so
+this would not happen was skipped anyway, because the summary line was
+composed from memory of the last release rather than by re-reading the
+checkboxes. The same line had already been stale for three releases when
+v0.88.0 corrected it from "four remaining slices". Both corrections are kept
+in place in `docs/ROADMAP.md`, and the instruction to re-read before
+summarising is now written into that section.
+
 ## v0.93.0 — 2026-08-11 — Phase 2's pre-gate work closes
 
-The last two items in 2d, and with them **every part of Phase 2 that can be
-done before the 2026-09-05 gate**. 2a, 2c and 2d are closed; what remains is
-2b.2 and 2b.4, both blocked on a telemetry date rather than on effort.
+The last two items in 2d, which closes 2d.
 
 Ships no application code.
+
+**Correction to this entry as first written**, made the same day and left
+here rather than edited away, because the mistake is the one the roadmap
+exists to prevent. It claimed Phase 2's pre-gate work was finished and that
+"2a, 2c and 2d are closed". 2c and 2d are. **2a is not:** its
+exported-constant sweep closed, but the inline numeric literals item it
+deliberately left open — the one recording that
+`clamp(50 + 2.5 · tsb, 10, 90)` and the green/amber/red band thresholds
+carry no source while all 77 exported constants do — is still open, and is
+not gated on the telemetry date. It is the next thing to take.
+
+The roadmap's sequencing line has now been wrong twice in six releases, both
+times by summarising the checkbox list from memory of the last release
+instead of re-reading it. That instruction is now written into the section
+itself.
 
 ### Into `RELEASING.md`
 
