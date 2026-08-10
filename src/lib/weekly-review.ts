@@ -24,6 +24,7 @@ import { buildSystemPrompt, languageDirective } from "@/lib/coach-persona";
 import { deriveDayActuals } from "@/lib/week-plan/actuals";
 import { mondayOf, addDaysYmd } from "@/lib/week-plan/service";
 import { ctlBaselineYmd } from "@/lib/weekly-review-window";
+import { weekAdherencePct, weekTargetLoad } from "@/lib/week-plan/volume";
 
 export const WEEKLY_THREAD_TITLE = "Weekly Review";
 /**
@@ -246,14 +247,35 @@ export async function generateWeeklyReview(userId: string): Promise<void> {
       })
     : null;
 
+  // The just-reviewed week's own materialized row, if it has one — read
+  // BEFORE rolloverWeekPlan runs below, so `activePlan.currentWeek` still
+  // names the week this review is about, not the one it rolls into.
+  const currentWeekPlan = activePlan
+    ? await db.query.weekPlans.findFirst({
+        where: and(
+          eq(schema.weekPlans.planId, activePlan.id),
+          eq(schema.weekPlans.skeletonWeek, activePlan.currentWeek)
+        ),
+        orderBy: desc(schema.weekPlans.weekStart),
+      })
+    : null;
+
   const planAdherence = currentBlock
     ? {
         weekNumber: currentBlock.weekNumber,
-        targetLoad: currentBlock.targetLoadTotal ?? 0,
+        targetLoad: (() => {
+          const resolved = weekTargetLoad({
+            effectiveTarget: currentWeekPlan?.effectiveTarget ?? null,
+            blockTarget: currentBlock.targetLoadTotal,
+          });
+          return resolved.available ? resolved.value : 0;
+        })(),
         actualLoad: weekLoad,
-        adherencePct: currentBlock.targetLoadTotal
-          ? Math.round((weekLoad / currentBlock.targetLoadTotal) * 100)
-          : 0,
+        adherencePct: weekAdherencePct({
+          effectiveTarget: currentWeekPlan?.effectiveTarget ?? null,
+          blockTarget: currentBlock.targetLoadTotal,
+          actualLoad: weekLoad,
+        }),
       }
     : null;
 

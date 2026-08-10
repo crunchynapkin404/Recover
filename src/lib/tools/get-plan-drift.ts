@@ -4,6 +4,7 @@ import { db, schema } from "@/lib/db";
 import { asc, eq } from "drizzle-orm";
 import { getOpenWeekPlan, listAdjustments } from "@/lib/week-plan/service";
 import { getActivePlan } from "@/lib/active-plan";
+import { weekTargetLoad } from "@/lib/week-plan/volume";
 
 const parameters = z.object({});
 
@@ -26,25 +27,35 @@ async function execute(_args: z.infer<typeof parameters>, ctx: ToolContext) {
     adherencePct: b.adherencePct,
   }));
 
-  // Open week: effective vs skeleton target, sourced from its
-  // weekly_rollover adjustments (deterministic reasons, never re-derived).
+  // Open week: its own effective target (post-taper, post-hours-budget)
+  // once materialized, falling back to the block's skeleton value — the
+  // "effective target" this tool's description promises, via the one
+  // shared read path (week-plan/volume.ts's weekTargetLoad()). Deliberately
+  // different from `past`/`totalTarget` below, which compare against the
+  // ORIGINAL skeleton on purpose: this tool measures drift FROM the
+  // skeleton, so using the already-adjusted figure there would hide
+  // exactly the drift it exists to report.
   const open = await getOpenWeekPlan(ctx.userId);
   let openWeek: {
     weekStart: string;
     skeletonWeek: number;
-    skeletonTarget: number | null;
+    effectiveTarget: number | null;
     rolloverReasons: string[];
   } | null = null;
   if (open) {
     const rollover = (await listAdjustments(open.id)).filter(
       (a) => a.trigger === "weekly_rollover"
     );
+    const resolved = weekTargetLoad({
+      effectiveTarget: open.effectiveTarget,
+      blockTarget:
+        blocks.find((b) => b.weekNumber === open.skeletonWeek)
+          ?.targetLoadTotal ?? null,
+    });
     openWeek = {
       weekStart: open.weekStart,
       skeletonWeek: open.skeletonWeek,
-      skeletonTarget:
-        blocks.find((b) => b.weekNumber === open.skeletonWeek)
-          ?.targetLoadTotal ?? null,
+      effectiveTarget: resolved.available ? resolved.value : null,
       rolloverReasons: rollover.map((a) => a.reason),
     };
   }

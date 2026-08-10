@@ -65,7 +65,7 @@ import {
 } from "@/lib/plan-sport";
 import { previewFromDraft } from "@/lib/training-plan";
 import { assembleWeeklyTarget } from "@/lib/week-plan/volume-inputs";
-import { currentTargetLoad } from "@/lib/week-plan/volume";
+import { currentTargetLoad, weekTargetLoad } from "@/lib/week-plan/volume";
 import { plannedMins } from "@/lib/week-plan/fill";
 import { assessFeasibility, type Feasibility } from "@/lib/race/feasibility";
 import type { EventDemandResult } from "@/lib/race/demand";
@@ -1026,24 +1026,41 @@ async function WeekTab({
                   </tr>
                 </thead>
                 <tbody>
-                  {remaining.map((b) => (
-                    <tr
-                      key={b.weekNumber}
-                      className="border-t border-white/[0.06]"
-                    >
-                      <td className="px-4 py-2 font-mono text-[11px] text-white/80">
-                        {b.weekNumber}
-                      </td>
-                      <td className="px-4 py-2 text-[11px] capitalize text-white/60">
-                        {b.phase}
-                      </td>
-                      <td className="px-4 py-2 text-right font-mono text-[11px] text-white/60">
-                        {b.targetLoadTotal != null
-                          ? Math.round(b.targetLoadTotal)
-                          : "—"}
-                      </td>
-                    </tr>
-                  ))}
+                  {remaining.map((b) => {
+                    // The open week (week?.skeletonWeek) has a materialized
+                    // effective target that supersedes the block's un-tapered
+                    // skeleton value — every other row here is a future week
+                    // with no weekPlans row yet, so its skeleton value is all
+                    // there is. See week-plan/volume.ts's weekTargetLoad().
+                    const resolved =
+                      b.weekNumber === (week?.skeletonWeek ?? -1)
+                        ? weekTargetLoad({
+                            effectiveTarget: week?.effectiveTarget ?? null,
+                            blockTarget: b.targetLoadTotal,
+                          })
+                        : null;
+                    const targetLoad = resolved
+                      ? resolved.available
+                        ? resolved.value
+                        : null
+                      : b.targetLoadTotal;
+                    return (
+                      <tr
+                        key={b.weekNumber}
+                        className="border-t border-white/[0.06]"
+                      >
+                        <td className="px-4 py-2 font-mono text-[11px] text-white/80">
+                          {b.weekNumber}
+                        </td>
+                        <td className="px-4 py-2 text-[11px] capitalize text-white/60">
+                          {b.phase}
+                        </td>
+                        <td className="px-4 py-2 text-right font-mono text-[11px] text-white/60">
+                          {targetLoad != null ? Math.round(targetLoad) : "—"}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </CollapsiblePanel>

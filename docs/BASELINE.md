@@ -72,7 +72,13 @@ Boost / Skip, v0.56–v0.60) are built but not rendered. They wrote
 `trainingBlocks.targetLoadTotal`, which the open week never reads — it is
 recomputed from `periodize()` on the spot. Re-enabling requires choosing:
 either the action re-materializes the open week, or the copy stops promising
-percentages it does not deliver.
+percentages it does not deliver. Phase 2c's week-target-load number slice
+(v0.82.0–v0.83.0, `docs/specs/2026-08-10-week-target-load-ownership-design.md`)
+settled which of `targetLoadTotal`/`effectiveTarget` is authoritative and
+migrated every display/MCP/coach read site onto the one shared
+`weekTargetLoad()` path — the decision above is now cleanly answerable
+whenever it's picked up, but picking it up is still a deliberate follow-up,
+not done here.
 
 **Long-standing conditionals**, unchanged for months: Fitbit / Google Health
 direct integration, Cycle-Aware Readiness, and the whole "Stronger Together"
