@@ -1,5 +1,38 @@
 # Changelog
 
+## v0.87.2 — 2026-08-10 — Correcting v0.87.0's CI claim
+
+Docs only. No code, no behaviour, no numbers.
+
+**v0.87.0's release notes, its PR, `docs/ROADMAP.md` and `docs/RELEASING.md`
+all asserted something false:** that `raceCard()` and `simulateRaceForm()`
+had zero executing coverage in CI "because their only tests are DB-gated and
+CI runs without a database". CI has a `postgres:16-alpine` service and runs
+all 2163 tests with **zero skipped** — and has since 2026-08-04, commit
+`62c3ab2`, _"ci: give the test job a database"_. Both owners were guarded the
+whole time.
+
+The error came from a reviewer running the suite locally with `DATABASE_URL`
+unset, calling that "the CI condition", and nobody opening `ci.yml`. It was
+checked against a note about the CI config written 2026-08-02 — two days
+before the database was added — rather than against the file. The reviewer
+even recorded that the mutation _fails_ when a database is present, which is
+exactly CI, and that reading was missed.
+
+Withdrawn with it: the generalisation that every earlier slice behind a DB
+gate has the same hole. It does not. That claim was about to scope a release
+of guard work against a problem that does not exist.
+
+`src/lib/race/outlook-figure.ts` — the pure `ForecastResult → Figure` mapping
+extracted in response — is kept. Separating the mapping from DB assembly is
+defensible on its own merits. It fixed nothing, and the record now says so.
+
+`RELEASING.md` gains what should have been there instead: what CI actually
+is, that a `skipIf(!hasDb)` block **is** a real guard there, and that a local
+run with `DATABASE_URL` unset is the weaker run rather than the authoritative
+one. The v0.87.0 roadmap entry keeps its false finding, marked as corrected,
+because how it survived a whole-branch review is more useful than the claim.
+
 ## v0.87.1 — 2026-08-10 — The Train header fits a phone
 
 The planning switches outgrew the slot they were in. `TrainHeader` lays the

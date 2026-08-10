@@ -411,15 +411,26 @@ excluded, is recorded here so that closing 2c means something:
       inputs is missing instead of returning a silent `null` for any of them,
       and `formScore()` in `readiness.ts` is the one owner of the TSB→score
       transform. `RaceCountdownCard` is deleted. The `capped` qualification
-      is rendered again on every surface. **What the whole-branch review
-      caught that the per-task reviews could not:** both new owners had zero
-      _executing_ coverage in CI, because their only tests are DB-gated and
-      CI runs without a database — hard-coding `capped: false` left the suite
-      byte-identically green. The pure `ForecastResult → Figure` mapping now
-      lives in `race/outlook-figure.ts`, which reaches no database and is
-      tested un-gated. Worth generalising: **a DB-gated test is not a CI
-      guard**, and every slice that put its owner behind one has the same
-      hole. 2d's guardrails should assume it.
+      is rendered again on every surface.
+      **Correction, 2026-08-10 — this entry originally carried a false
+      finding, and it is left here rather than quietly deleted because the
+      way it was reached matters more than the claim.** It said the whole-
+      branch review had found both new owners with zero _executing_ CI
+      coverage, on the reasoning that their tests are DB-gated and "CI runs
+      without a database". **CI has a Postgres service** (`ci.yml`, added
+      2026-08-04 in `62c3ab2`, "ci: give the test job a database") and runs
+      all 2163 tests with **zero skipped**. The owners were guarded the whole
+      time. The reviewer had run the suite locally with `DATABASE_URL` unset
+      and called that "the CI condition"; it is not, and nobody opened
+      `ci.yml` to check. The generalisation drawn from it — that every slice
+      behind a DB gate has the same hole — was false and is withdrawn.
+      `race/outlook-figure.ts` (the pure `ForecastResult → Figure` mapping,
+      extracted in response) is kept: separating the mapping from DB assembly
+      stands on its own merits, but it fixed nothing. **The transferable
+      lesson is about how the error survived review:** it was checked against
+      a memory of the CI config written 2026-08-02, two days before the
+      database was added, instead of against the file. A remembered fact
+      about infrastructure has a shelf life; the file does not.
       The projection is a headline athlete-facing figure (race-day TSB and
       its green/amber/red band), and its unknown state is encoded **four**
       separate times: `app/page.tsx` and `app/train/page.tsx` each map
