@@ -23,9 +23,24 @@ notes promised.
          labels and discoverability, empty/loading/error states, focus and
          contrast, and a quick shipped-surface sanity check in the page where
          the feature actually lives
-4. **Everything green locally:** `npm test`, `npm run lint`,
-   `npm run typecheck`, `npm run build`. A red or incomplete branch is not
-   taggable — there is no "placeholder" release.
+4. **Everything green locally — all five, and this is the whole list:**
+   `npm test`, `npm run lint`, `npm run typecheck`, `npm run build`,
+   `npm run format:check`. A red or incomplete branch is not taggable —
+   there is no "placeholder" release.
+
+   Do not reconstruct this list from memory; CI runs all five and a release
+   is only as green as the check nobody ran. Two have been learned the hard
+   way: **`build`** is the only one that catches a sync export added to a
+   `"use server"` file, and **`format:check`** runs prettier over the whole
+   repo — v0.87.0's CI failed on one reflowed JSX line because the branch had
+   only ever run prettier against the files it edited. Two further traps that
+   no local run will catch for you: a Vitest file importing `@/lib/db`
+   without `describe.skipIf(!hasDb)` **crashes** CI rather than skipping, and
+   a DB-gated test is not a CI guard at all — CI runs without a database, so
+   anything only covered behind that gate is unguarded there. Run the suite
+   once with `DATABASE_URL` unset before pushing; that is the condition CI
+   actually runs in.
+
 5. **Merge to `main`** (PR or fast-forward) and verify `main` is green.
 6. **Only now, tag the merge commit** — annotated, on `main`:
    `git tag -a vX.Y.Z -m "vX.Y.Z — Name" && git push origin vX.Y.Z`
