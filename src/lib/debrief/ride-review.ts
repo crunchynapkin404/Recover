@@ -43,6 +43,12 @@ async function describeOnStravaBestEffort(
   }
 }
 
+/**
+ * Retry budget for ride-review generation before the thread falls back to
+ * a plain failure message instead of silence. Source:
+ * `docs/specs/2026-07-19-v0.15-coach-remembers-design.md` ("capped at 3
+ * attempts"). Confidence: Low.
+ */
 export const REVIEW_MAX_ATTEMPTS = 3;
 
 const SUMMARY_MAX_CHARS = 140;

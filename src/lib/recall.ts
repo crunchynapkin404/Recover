@@ -11,7 +11,16 @@
 import { sql } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 
+/**
+ * Default `recall_history` hit count when the coach omits `limit`.
+ * Source: `docs/specs/2026-07-19-v0.15-coach-remembers-design.md`
+ * ("default 5, max 10"). Confidence: Low.
+ */
 export const RECALL_DEFAULT_LIMIT = 5;
+/**
+ * Upper bound on `recall_history`'s `limit` argument, regardless of what
+ * the coach requests. Source: same v0.15 design doc. Confidence: Low.
+ */
 export const RECALL_MAX_LIMIT = 10;
 
 export type RecallSource =

@@ -18,6 +18,12 @@ import {
   type IntervalsBestEffort,
 } from "@/lib/connectors/intervals";
 
+/**
+ * Cache freshness window for fetched power/pace curves and best efforts.
+ * Source: `docs/specs/2026-07-15-v0.4c-mcp-depth-design.md` ("curves
+ * change slowly; a TTL cache keeps MCP snappy and respects intervals.icu
+ * rate limits"). Confidence: Low.
+ */
 export const CURVES_TTL_MS = 6 * 60 * 60 * 1000;
 
 export type CurveDays = 30 | 90 | 365;

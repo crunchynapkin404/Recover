@@ -9,7 +9,17 @@ export type MemoryCategory = "goal" | "injury" | "race" | "preference" | "fact";
 export type SaveMemoryResult =
   { ok: true; id: string } | { ok: false; reason: "too_long" | "memory_full" };
 
+/**
+ * Hard cap on memory rows per athlete — `remember` refuses once reached.
+ * Source: `docs/specs/2026-07-15-v0.4a-coach-core-design.md`, the original
+ * decision bounding the system-prompt injection size. Confidence: Low.
+ */
 export const MEMORY_MAX_ENTRIES = 50;
+/**
+ * Per-entry character cap, enforced on `remember`/`update`. Source: same
+ * v0.4a design doc's prompt-budget framing for the injected memory block.
+ * Confidence: Low.
+ */
 export const MEMORY_MAX_CONTENT_CHARS = 280;
 const BLOCK_MAX_CHARS = 2000;
 // Importance order for the prompt block; later categories truncate first.

@@ -30,6 +30,12 @@ import { currentTargetLoad } from "@/lib/week-plan/volume";
 import { plannedMins } from "@/lib/week-plan/fill";
 import type { DaySlot } from "@/lib/week-plan/types";
 
+/**
+ * Hours after race day with no matching activity before the debrief runs
+ * anyway as a "no data landed" once-only fallback. Source:
+ * `docs/specs/2026-07-19-v0.14-race-ready-design.md` ("after 48 h without
+ * one — the debrief runs exactly once"). Confidence: Low.
+ */
 export const DEBRIEF_NO_DATA_HOURS = 48;
 
 /** The transaction handle `db.transaction()`'s callback receives — used so
