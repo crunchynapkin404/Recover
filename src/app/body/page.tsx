@@ -30,7 +30,7 @@ import {
 import { BASELINE_WINDOW_DAYS } from "@/lib/readiness";
 import { computeTagInsights } from "@/lib/insights/correlations";
 import { getMilestones } from "@/lib/insights/milestones";
-import { biologicalAge, type BioAgeResult } from "@/lib/biological-age";
+import { bioAgeFrom, type BioAgeResult } from "@/lib/biological-age";
 import { bpTrend } from "@/lib/blood-pressure";
 import {
   chronotype,
@@ -809,37 +809,7 @@ async function LabsTab({ userId }: { userId: string }) {
     }))
   );
 
-  const latestWellness = [...wellness]
-    .reverse()
-    .find((w) => w.restingHr != null || w.hrvMs != null);
-  const nights: SleepNight[] = wellness
-    .filter((w) => w.date >= daysAgo(30))
-    .map((w) => ({
-      date: w.date,
-      sleepSecs: w.sleepSecs,
-      sleepDeepSecs: w.sleepDeepSecs,
-      sleepRemSecs: w.sleepRemSecs,
-      sleepLightSecs: w.sleepLightSecs,
-      sleepAwakeSecs: w.sleepAwakeSecs,
-      bedStart: w.bedStart,
-      bedEnd: w.bedEnd,
-    }));
-  const consistency = sleepConsistency(nights);
-
-  const bioAgeResult = biologicalAge({
-    chronologicalAge:
-      prefs?.birthYear != null
-        ? new Date().getFullYear() - prefs.birthYear
-        : null,
-    restingHr: latestWellness?.restingHr ?? null,
-    hrvMs: latestWellness?.hrvMs ?? null,
-    sleepConsistency: consistency?.score ?? null,
-    vo2max:
-      [...wellness].reverse().find((w) => w.vo2max != null)?.vo2max ?? null,
-    bodyFatPct:
-      [...wellness].reverse().find((w) => w.bodyFatPct != null)?.bodyFatPct ??
-      null,
-  });
+  const bioAgeResult = bioAgeFrom(wellness, prefs ?? null, daysAgo(0));
   // A deterministic formula over already-known signals, same reasoning
   // correlationFigure and the CTL/ATL/TSB tiles already use — never a
   // modelled interval, so "high" throughout.

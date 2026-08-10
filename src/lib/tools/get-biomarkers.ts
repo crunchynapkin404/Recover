@@ -1,9 +1,8 @@
 import { z } from "zod";
 import { and, eq, gte, desc } from "drizzle-orm";
 import * as schema from "@/lib/db/schema";
-import { biologicalAge } from "@/lib/biological-age";
+import { bioAgeFrom } from "@/lib/biological-age";
 import { bpTrend } from "@/lib/blood-pressure";
-import { sleepConsistency, type SleepNight } from "@/lib/sleep-insights";
 import type { ToolDefinition, ToolContext } from "./registry";
 
 const parameters = z.object({});
@@ -70,38 +69,7 @@ async function execute(_args: z.infer<typeof parameters>, ctx: ToolContext) {
     }))
   );
 
-  const latestWellness = [...wellness]
-    .reverse()
-    .find((w) => w.restingHr != null || w.hrvMs != null);
-  const nights: SleepNight[] = wellness
-    .filter((w) => w.date >= daysAgo(30))
-    .map((w) => ({
-      date: w.date,
-      sleepSecs: w.sleepSecs,
-      sleepDeepSecs: w.sleepDeepSecs,
-      sleepRemSecs: w.sleepRemSecs,
-      sleepLightSecs: w.sleepLightSecs,
-      sleepAwakeSecs: w.sleepAwakeSecs,
-      bedStart: w.bedStart,
-      bedEnd: w.bedEnd,
-    }));
-  const consistency = sleepConsistency(nights);
-  const latestBodyFat = [...wellness]
-    .reverse()
-    .find((w) => w.bodyFatPct != null)?.bodyFatPct;
-
-  const bioAge = biologicalAge({
-    chronologicalAge:
-      prefs?.birthYear != null
-        ? new Date().getFullYear() - prefs.birthYear
-        : null,
-    restingHr: latestWellness?.restingHr ?? null,
-    hrvMs: latestWellness?.hrvMs ?? null,
-    sleepConsistency: consistency?.score ?? null,
-    vo2max:
-      [...wellness].reverse().find((w) => w.vo2max != null)?.vo2max ?? null,
-    bodyFatPct: latestBodyFat ?? null,
-  });
+  const bioAge = bioAgeFrom(wellness, prefs ?? null, daysAgo(0));
 
   return {
     biomarkers,
