@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { assessFeasibility, FEASIBILITY_CONSTANTS } from "./feasibility";
+import {
+  assessFeasibility,
+  FEASIBILITY_CONSTANTS,
+  feasibilityFor,
+} from "./feasibility";
 
 const base = {
   requiredWeeklyHours: 11,
@@ -121,5 +125,74 @@ describe("assessFeasibility", () => {
       weeksUntilEvent: 1,
     })!;
     expect(r.verdict).not.toBe("not_realistic");
+  });
+});
+
+const OK_DEMAND = {
+  available: true as const,
+  weeklyHours: 10,
+  queenStageHours: 5,
+  queenStageKnown: true,
+  totalHours: 8,
+  dailyRateHours: 5,
+  source: "computed" as const,
+  confidence: "medium" as const,
+  confidenceReason: "modelled",
+};
+
+describe("feasibilityFor", () => {
+  it("says which input is missing when there is no usable demand", () => {
+    const f = feasibilityFor({
+      demand: null,
+      currentWeeklyHours: 8,
+      longestSessionHours: 3,
+      weeksUntilEvent: 12,
+    });
+    expect(f.available).toBe(false);
+    if (f.available) return;
+    expect(f.kind).toBe("missing_input");
+    if (f.kind !== "missing_input") return;
+    expect(f.needs).toContain("demand");
+  });
+
+  it("distinguishes a missing race date from missing demand", () => {
+    const f = feasibilityFor({
+      demand: OK_DEMAND,
+      currentWeeklyHours: 8,
+      longestSessionHours: 3,
+      weeksUntilEvent: null,
+    });
+    expect(f.available).toBe(false);
+    if (f.available) return;
+    expect(f.kind).toBe("missing_input");
+    if (f.kind !== "missing_input") return;
+    expect(f.needs).toContain("race date");
+  });
+
+  it("distinguishes missing training history from both of the above", () => {
+    const f = feasibilityFor({
+      demand: OK_DEMAND,
+      currentWeeklyHours: null,
+      longestSessionHours: 3,
+      weeksUntilEvent: 12,
+    });
+    expect(f.available).toBe(false);
+    if (f.available) return;
+    expect(f.kind).toBe("missing_input");
+    if (f.kind !== "missing_input") return;
+    expect(f.needs).toContain("training history");
+  });
+
+  it("returns the verdict with low confidence when everything is present", () => {
+    const f = feasibilityFor({
+      demand: OK_DEMAND,
+      currentWeeklyHours: 8,
+      longestSessionHours: 3,
+      weeksUntilEvent: 12,
+    });
+    expect(f.available).toBe(true);
+    if (!f.available) return;
+    expect(f.confidence).toBe("low");
+    expect(f.value.weeksUntilEvent).toBe(12);
   });
 });
