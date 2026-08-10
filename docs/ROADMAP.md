@@ -566,8 +566,33 @@ excluded, is recorded here so that closing 2c means something:
       call, which cannot settle before 2026-09-05, and some may be worth
       reviving rather than deleting. Design:
       `docs/specs/2026-08-11-dead-component-guard-design.md`.
-- [ ] A source-of-truth guard pinning approved read sites, so a new one fails
-      the build
+- [x] A source-of-truth guard pinning approved read sites, so a new one fails
+      the build. **v0.92.0** shipped `tests/read-site-guard.test.ts`, pinning
+      who may read the provider-only `wellness_daily.ctl`/`.atl` when the
+      authority is the resolved `daily_metrics`. Pinned to that one column
+      pair on purpose — it has a proven defect history (v0.10 for the
+      dashboard, v0.86.0 for five coach/MCP surfaces) and a guard that starts
+      narrow and true beats one that starts broad and gets disabled; the same
+      reasoning `uncertainty-dialects-guard.test.ts` gives for listing two
+      retired phrases rather than six. **The guard's real value showed up
+      before it shipped: it found a fourth violation the survey for it
+      missed.** `week-plan/start-state.ts` restricted its query
+      (`columns: { ctl: true, atl: true }`) rather than reading `.ctl`, so a
+      grep for read sites could not see it — and it was the most
+      consequential of the four. For an athlete with no intervals.icu
+      connection that row is always null, so a plan's **starting CTL/ATL**
+      fell through to `sport_rolling` or the hardcoded 30/40 global fallback,
+      a guess standing in for a figure Recover had already computed. The
+      other three sites only displayed a blank; this one fed plan generation.
+      Detection is binding-aware rather than a substring match, because a
+      bare `.ctl` scan flags the _correct_ `daily_metrics` code and a
+      "queries wellnessDaily and mentions .ctl" heuristic flags
+      `train/page.tsx` and `volume-inputs.ts`, which legitimately read both
+      tables. Mutation-checked, and one mutation **survived** before the
+      detector was fixed: `metrics.ts`'s `byDate.get(date)?.ctl` Map
+      indirection was invisible to it, a shape reintroducible anywhere
+      undetected. Design:
+      `docs/specs/2026-08-11-source-of-truth-read-site-guard-design.md`.
 - [ ] Into `RELEASING.md`: mutation-check any test guarding a bound; assert
       wiring at the surface; write release notes from the diff
 - [ ] Live-DB hygiene: two `*.invalid` test users in production, demo's

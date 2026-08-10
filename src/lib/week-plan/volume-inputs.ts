@@ -155,44 +155,57 @@ export async function assembleVolumeInputs(
   const anchorFloor = new Date(now);
   anchorFloor.setDate(anchorFloor.getDate() - ANCHOR_CONSTANTS.WINDOW_DAYS);
 
-  const [rows, wellness, prefs, races, anchorRows] = await Promise.all([
-    db.query.activities.findMany({
-      where: and(
-        eq(schema.activities.userId, userId),
-        gte(schema.activities.startDate, floor)
-      ),
-    }),
-    db.query.wellnessDaily.findMany({
-      where: and(
-        eq(schema.wellnessDaily.userId, userId),
-        gte(schema.wellnessDaily.date, localYmd(floor))
-      ),
-      orderBy: desc(schema.wellnessDaily.date),
-    }),
-    db.query.bodyPrefs.findFirst({
-      where: eq(schema.bodyPrefs.userId, userId),
-    }),
-    db.query.races.findMany({
-      where: and(
-        eq(schema.races.userId, userId),
-        eq(schema.races.status, "upcoming"),
-        // A past-due race with no synced result activity stays "upcoming"
-        // forever (see runRaceDebriefs in race/debrief.ts — only
-        // debriefedAt is set on the no-data path, never status). Without
-        // this guard, sorted-by-date-ascending would let that stale race
-        // outrank the real next race. Same convention as nextUpcomingRace
-        // in race/service.ts.
-        gte(schema.races.date, localYmd(now))
-      ),
-    }),
-    db.query.activities.findMany({
-      where: and(
-        eq(schema.activities.userId, userId),
-        gte(schema.activities.startDate, anchorFloor)
-      ),
-      columns: { sport: true, distanceM: true, durationS: true },
-    }),
-  ]);
+  const [rows, wellness, dailyMetrics, prefs, races, anchorRows] =
+    await Promise.all([
+      db.query.activities.findMany({
+        where: and(
+          eq(schema.activities.userId, userId),
+          gte(schema.activities.startDate, floor)
+        ),
+      }),
+      db.query.wellnessDaily.findMany({
+        where: and(
+          eq(schema.wellnessDaily.userId, userId),
+          gte(schema.wellnessDaily.date, localYmd(floor))
+        ),
+        orderBy: desc(schema.wellnessDaily.date),
+      }),
+      // The resolved authority for ctl/atl — the provider's value wins when
+      // present, and Recover's native engine fills the gap when it isn't
+      // (metrics.ts:43-45). wellness_daily.ctl is provider-only and stays
+      // empty for an athlete with no intervals.icu connection, even though
+      // Recover has computed their CTL all along.
+      db.query.dailyMetrics.findMany({
+        where: and(
+          eq(schema.dailyMetrics.userId, userId),
+          gte(schema.dailyMetrics.date, localYmd(floor))
+        ),
+        orderBy: desc(schema.dailyMetrics.date),
+      }),
+      db.query.bodyPrefs.findFirst({
+        where: eq(schema.bodyPrefs.userId, userId),
+      }),
+      db.query.races.findMany({
+        where: and(
+          eq(schema.races.userId, userId),
+          eq(schema.races.status, "upcoming"),
+          // A past-due race with no synced result activity stays "upcoming"
+          // forever (see runRaceDebriefs in race/debrief.ts — only
+          // debriefedAt is set on the no-data path, never status). Without
+          // this guard, sorted-by-date-ascending would let that stale race
+          // outrank the real next race. Same convention as nextUpcomingRace
+          // in race/service.ts.
+          gte(schema.races.date, localYmd(now))
+        ),
+      }),
+      db.query.activities.findMany({
+        where: and(
+          eq(schema.activities.userId, userId),
+          gte(schema.activities.startDate, anchorFloor)
+        ),
+        columns: { sport: true, distanceM: true, durationS: true },
+      }),
+    ]);
 
   const history: HistoryActivity[] = rows.map((r) => ({
     provider: r.provider,
@@ -202,10 +215,14 @@ export async function assembleVolumeInputs(
   }));
 
   // CTL per week: the highest value seen in each week is what the rolling
-  // peak wants, and wellness rows are daily.
+  // peak wants, and daily_metrics rows are daily. Read the resolved
+  // daily_metrics.ctl, not wellness_daily.ctl — the latter is provider-only
+  // and stays empty for an athlete with no intervals.icu connection even
+  // though Recover's native engine has computed a real CTL for them all
+  // along (metrics.ts:43-45).
   const ctlBuckets = new Array<number>(weeks).fill(0);
   const thisWeek = weekStartOf(now);
-  for (const w of wellness) {
+  for (const w of dailyMetrics) {
     if (w.ctl == null) continue;
     // w.date is a YYYY-MM-DD string; bare `new Date()` parses it as UTC
     // midnight, which lands in the wrong local week behind UTC. Same fix as
