@@ -1,5 +1,27 @@
 # Changelog
 
+## v0.85.0 — 2026-08-10 — One source of truth: adherence and completion
+
+Third number slice of Phase 2c (`docs/ROADMAP.md`). Investigated broadly
+first (`docs/specs/2026-08-10-adherence-and-completion-ownership-design.md`):
+`weekAdherencePct()`, `weekActuals()`/`deriveDayActuals()`/
+`bookWeekActuals()`, and the cache-only
+`trainingBlocks.actualLoad`/`actualSessions`/`adherencePct` columns were
+already single-owner since v0.44.0/earlier work — no duplication found.
+
+- Found and fixed a real bug: the Train page's season timeline computed a
+  season-to-date adherence percentage by summing every week's target and
+  actual load, but a week with an unknown target contributed 0 to the
+  target sum while its real actual load still landed in the actual sum
+  unconditionally — silently inflating the figure for any week trained
+  without a materialized plan target.
+- Fixed to exclude such weeks from both sums (pairwise), not zero-fill
+  one side. Verified the new test genuinely catches the bug: reverting
+  the fix reproduces the old (wrong) 125% instead of the correct 75% on
+  the same fixture.
+- 2 new tests. Zero regressions: same-environment before/after 1622 →
+  1624 passed, 495 skipped unchanged.
+
 ## v0.84.0 — 2026-08-10 — One source of truth: volume and hours
 
 Second number slice of Phase 2c (`docs/ROADMAP.md`). Investigated broadly
