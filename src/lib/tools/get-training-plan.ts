@@ -32,9 +32,9 @@ async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
     // Reports the week's target through the one shared read path: its
     // materialized effective target once one exists, not the un-tapered
     // skeleton value alone — see week-plan/volume.ts's weekTargetLoad().
-    const resolved = (
-      await resolveBlockTargets(plan.id, [block])
-    ).get(block.weekNumber);
+    const resolved = (await resolveBlockTargets(plan.id, [block])).get(
+      block.weekNumber
+    );
     return {
       available: true,
       plan: {
