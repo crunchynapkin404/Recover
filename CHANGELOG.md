@@ -1,5 +1,55 @@
 # Changelog
 
+## v0.93.0 — 2026-08-11 — Phase 2's pre-gate work closes
+
+The last two items in 2d, and with them **every part of Phase 2 that can be
+done before the 2026-09-05 gate**. 2a, 2c and 2d are closed; what remains is
+2b.2 and 2b.4, both blocked on a telemetry date rather than on effort.
+
+Ships no application code.
+
+### Into `RELEASING.md`
+
+Three steps, each carrying the evidence from v0.87–v0.92 rather than stated as
+principle.
+
+**Mutation-check every test that guards a bound.** It caught something reading
+the test could not **three times in six releases**: a fixture whose value
+equalled the default it existed to beat (v0.89.0); a hardcoded `stale: false`
+that passed because the tested path genuinely was fresh (v0.90.0); and a
+`Map.get(k)?.ctl` indirection invisible to a guard's detector (v0.92.0). The
+recurring cause is now named — a fixture that cannot distinguish the two
+things the test exists to tell apart — and a surviving mutation is framed as
+a finding worth the release notes, not a nuisance.
+
+**Assert wiring at the surface, not at the component.** A component test
+proves the component renders what it is handed; it cannot prove the page or
+the MCP tool hands it the right thing. Points at `tests/curve-tools.test.ts`
+as the pattern for running the real path, and requires an untestable surface
+to be **said out loud** in the notes rather than implied covered.
+
+**Write release notes from the diff, not the plan.** Every release in that run
+had a headline its plan did not contain.
+
+### Live-DB hygiene
+
+Both flagged items were confirmed against the live database, read-only:
+
+- `test-coach-inbox-user` and `test-coach-inbox-other-user` were created in
+  **production** on 2026-07-27, carrying one chat thread and one message. Every
+  FK to `users` involved is `ON DELETE CASCADE`, so removal is contained.
+- The demo account's `2026-07-13` week is the only `open` week older than the
+  current one. The owner's July weeks all closed on cadence.
+
+`scripts/live-db-hygiene.sh` does both. It **defaults to a dry run**, printing
+exactly what it would change and writing nothing without `--apply`, and its
+`UPDATE` is scoped by date so it can never close a current week for anyone.
+
+**It was deliberately not executed.** Writing to the live database is the
+owner's call, not a release step — and the instance still reports
+`backupAgeS` as `null`, meaning no successful backup has ever been recorded.
+Worth fixing before running any destructive script, this one included.
+
 ## v0.92.0 — 2026-08-11 — The read-site guard, and a plan's starting load
 
 Phase 2d's second guardrail, plus the four read sites building it uncovered.

@@ -66,20 +66,81 @@ notes promised.
    cannot be killed by a test that never ran. Port 5435 is the dev database
    and is safe. Port 5434 is live production — never point tests at it.
 
-5. **Merge to `main`** (PR or fast-forward) and verify `main` is green.
-6. **Only now, tag the merge commit** — annotated, on `main`:
+5. **Mutation-check every test that guards a bound.** Break the thing the
+   test names, confirm a test fails, revert. A test that has never been seen
+   to fail is not evidence — it is a claim.
+
+   This is not ceremony. Across v0.87–v0.92 it caught something reading the
+   test could not, **three times**, and each was invisible to review:
+
+   - **v0.89.0** — a `sleepDebtFrom` fixture set the athlete's sleep need to
+     a value that happened to equal `DEFAULT_SLEEP_NEED_SECS`, so an owner
+     ignoring the preference **entirely** passed every test.
+   - **v0.90.0** — hardcoding `stale: false` in `get_power_curve` passed
+     every assertion, because on a fresh-cache hit `stale` genuinely is
+     `false`. The flag could have been dead and no test would have known.
+   - **v0.92.0** — removing `metrics.ts` from a guard's allowlist passed,
+     because the detector could not see a `Map.get(k)?.ctl` indirection.
+
+   The recurring cause is a fixture that **cannot distinguish** the two
+   things the test exists to tell apart. When the point is "X is used rather
+   than Y", X and Y must differ in the fixture, and the assertion must land
+   on a value only X produces.
+
+   **A surviving mutation is a finding, not a nuisance.** Fix the test, and
+   say so in the release notes — that sentence is worth more than the feature
+   description around it.
+
+6. **Assert wiring at the surface, not at the component.** A component test
+   proves the component renders what it is handed. It cannot prove the page,
+   the coach context or the MCP tool hands it the right thing.
+
+   v0.88.0 found a branch nothing had ever exercised — an athlete-set FTP
+   reaching `medium` confidence — because every existing test seeded athletes
+   with no set anchors. It was found _by mutation_, not by reading:
+   retargeting a rule to `"Bike"` killed one test where it should have killed
+   two.
+
+   Prefer a test that runs the real path end to end. `tests/curve-tools.test.ts`
+   is the pattern: seed the database so the real cache short-circuits, then
+   call the tool. Mocking the owner module would have proved nothing about
+   the read path.
+
+   Where a surface genuinely cannot be tested — the Train page has no test
+   file and this repo has no page-level render harness — **say so in the
+   release notes** rather than implying coverage. v0.92.0 shipped two
+   unguarded Train-page migrations and stated it plainly.
+
+7. **Write release notes from the diff, not from the plan.** The plan says
+   what was intended; the diff says what shipped, and they diverge — usually
+   because the work found something the plan did not predict.
+
+   Every release from v0.87 to v0.92 had a headline the plan did not contain.
+   v0.88.0 set out to add surface assertions and instead found a triathlete
+   being told to fix something with no fix. v0.92.0 set out to build a guard
+   and found a plan's starting load was a hardcoded guess for manual-only
+   athletes.
+
+   State plainly what an athlete will and will not notice. "No athlete sees a
+   different number after this release" (v0.89.0) is a real and useful
+   sentence; implying a fix where there was only a drift guard is not.
+
+8. **Merge to `main`** (PR or fast-forward) and verify `main` is green.
+9. **Only now, tag the merge commit** — annotated, on `main`:
    `git tag -a vX.Y.Z -m "vX.Y.Z — Name" && git push origin vX.Y.Z`
-7. **Watch the release build** (`gh run watch`) — the image publish is part
-   of the release, not an afterthought. `release.yml` runs three jobs: amd64
-   and arm64 build natively in parallel (`ubuntu-24.04` /
-   `ubuntu-24.04-arm`, no QEMU), then a `merge` job combines both digests
-   into one multi-arch manifest under the real tags. The version/`latest`
-   tags don't exist until `merge` finishes — a green `build` matrix alone
-   isn't a shipped release yet.
-8. **Release notes = the CHANGELOG section**, not the auto-generated PR
-   list: `gh release edit vX.Y.Z --notes-file <extract>`.
-9. **Refresh the server** (watchtower profile pulls automatically;
-   otherwise pull + restart) and spot-check the shipped fix in the app.
+10. **Watch the release build** (`gh run watch`) — the image publish is part
+    of the release, not an afterthought. `release.yml` runs three jobs: amd64
+    and arm64 build natively in parallel (`ubuntu-24.04` /
+    `ubuntu-24.04-arm`, no QEMU), then a `merge` job combines both digests
+    into one multi-arch manifest under the real tags. The version/`latest`
+    tags don't exist until `merge` finishes — a green `build` matrix alone
+    isn't a shipped release yet.
+11. **Release notes = the CHANGELOG section**, not the auto-generated PR
+    list. `./scripts/release-object.sh <version>` extracts the section and
+    creates the release object; the tag alone does not make one, and release
+    pages lagged tags for the whole v0.28–v0.30 run because of it.
+12. **Refresh the server** (watchtower profile pulls automatically;
+    otherwise pull + restart) and spot-check the shipped fix in the app.
 
 ## Never
 

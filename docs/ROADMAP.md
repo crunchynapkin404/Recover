@@ -593,10 +593,38 @@ excluded, is recorded here so that closing 2c means something:
       indirection was invisible to it, a shape reintroducible anywhere
       undetected. Design:
       `docs/specs/2026-08-11-source-of-truth-read-site-guard-design.md`.
-- [ ] Into `RELEASING.md`: mutation-check any test guarding a bound; assert
-      wiring at the surface; write release notes from the diff
-- [ ] Live-DB hygiene: two `*.invalid` test users in production, demo's
-      never-closed July week
+- [x] Into `RELEASING.md`: mutation-check any test guarding a bound; assert
+      wiring at the surface; write release notes from the diff. **v0.93.0**
+      added all three as numbered steps, each carrying the evidence from
+      v0.87–v0.92 rather than stated as principle. Mutation-checking caught
+      something reading could not **three times** in six releases (v0.89.0's
+      fixture equal to the default it had to beat; v0.90.0's hardcoded
+      `stale: false`; v0.92.0's invisible `Map.get()?.ctl` hop), and the
+      recurring cause is named: a fixture that cannot distinguish the two
+      things the test exists to tell apart. The surface step records that a
+      component test cannot prove what the page hands it, points at
+      `tests/curve-tools.test.ts` as the pattern for running the real path,
+      and requires an untestable surface to be **stated in the release
+      notes** rather than implied covered. The release-notes step records
+      that every release in that run had a headline its plan did not contain.
+- [x] Live-DB hygiene: two `*.invalid` test users in production, demo's
+      never-closed July week. **v0.93.0** investigated both read-only against
+      the live database and shipped `scripts/live-db-hygiene.sh`, which
+      **defaults to a dry run** and writes nothing without `--apply`. Both
+      confirmed: `test-coach-inbox-user` and `test-coach-inbox-other-user`
+      were created in production on 2026-07-27, carrying one chat thread and
+      one message between them, and every FK to `users` involved
+      (`accounts`, `sessions`, `chat_threads` → `chat_messages`) is
+      `ON DELETE CASCADE`, so the removal is contained. The demo account's
+      `2026-07-13` week is the only `open` week older than the current one —
+      the owner's July weeks all closed on cadence — and the script's
+      `UPDATE` is scoped by date so it can never close a current week for
+      anyone. **Deliberately not executed here:** writing to the live
+      database is the owner's call, not a release step, and the instance
+      still reports `backupAgeS` as `null`, meaning no successful backup has
+      ever been recorded. That is worth fixing before running any destructive
+      script — it is an ops finding this item surfaced, and it belongs to
+      Phase 4's measurement work rather than to 2d.
 
 ### Sequencing — the gate at 2026-09-05
 
@@ -609,11 +637,17 @@ before that date. Written down because the shape of the problem is not
 visible from the checkbox list, and rediscovering it in September means
 either idle time or an improvised item.
 
-**Order until the gate opens:** **2c is closed** as of v0.90.0 — every slice
-on the enumerated list is ticked. What remains before the gate is 2d's four
-guardrails. (This line read "four remaining slices" until v0.88.0, when the
-count had gone three releases without being updated; keep it current as
-items close.)
+**Order until the gate opens:** **2a, 2c and 2d are all closed** — 2c as of
+v0.90.0, 2d as of v0.93.0. Every item on this roadmap that can be done before
+the gate has been done. What remains of Phase 2 is 2b.2 and 2b.4, and both
+are blocked on the **2026-09-05** telemetry date, not on effort.
+
+**So the queue is empty and the date has not arrived.** Take the designated
+fill below rather than improvising, and do not start 2b.4 early — the whole
+point of the gate is that 2b.4 redesigns against an IA 2b.2 has not settled
+yet. (This line read "four remaining slices" until v0.88.0, when the count
+had gone three releases without being updated; keep it current as items
+close.)
 
 **When those run out and the date has not arrived**, these are the designated
 fill. All four are hardening, measurement or hygiene, so none of them trips
