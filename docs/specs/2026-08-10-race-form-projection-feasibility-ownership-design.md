@@ -70,6 +70,42 @@ apart:
 Both render as silence. That is a fifth dialect, and a conflation of two
 reasons the athlete would act on differently.
 
+### `capped` reaches no athlete-facing surface
+
+`horizonEnd` is the end of the last block in the plan (`service.ts` lines
+355-358). When the race falls beyond it, `forecastForm()` sets `capped: true`
+and `full.tsb` is the projection at **plan end, not at the race**.
+
+The deleted-in-this-slice `RaceCountdownCard` rendered that caveat —
+`"(projection ends at plan end)"`, `race-countdown.tsx` lines 82-87. The
+`RaceChip` that superseded it drops `capped` entirely: it renders
+`🏁 Race · 45 days · form +5` with nothing indicating the +5 stops short of the
+race. `plan/actions.ts` also drops it. Only `simulate_plan_change` still passes
+it through.
+
+So an athlete-facing qualification existed, and was lost when the component was
+replaced. That is the goal sentence's second clause failing on the same figure
+this slice owns, and it is a regression rather than an omission.
+
+### The form score is duplicated; the band scale is shared
+
+Two different things, and conflating them would produce the wrong fix.
+
+**Duplicated.** `clamp(50 + 2.5 · tsb, 10, 90)` appears in `readiness.ts` line
+167 and `forecast.ts` line 65. Same input, same output, same meaning — the form
+component score. One computation, two copies.
+
+**Shared scale, not duplicated.** The `>= 67 green / >= 34 amber` thresholds
+appear in both, but `readiness.ts` line 189 applies them to the **composite
+readiness** score (weighted across HRV, RHR, sleep and form) while
+`forecast.ts` applies them to the **form score alone**. That is one 0-100 → band
+scale used on two different scores, which is legitimate — but it means a green
+form outlook and a green readiness are different claims wearing the same
+colour. Documented here; not changed, because changing it would be a new claim.
+
+Both are inline numeric literals, which is why Phase 2a's sweep never reached
+them: 2a swept _exported constants_. See `docs/ROADMAP.md`'s 2a note.
+
 ### The live type lives inside a dead component
 
 `RaceCountdownProps` is exported from
@@ -133,26 +169,62 @@ which also restores `FormBand` where the old type widened it.
 | `{ kind: "no_plan" }`      | `Figure.missingInput("an active training plan", { … })` |
 | `{ kind: "projection" }`   | `Figure.available(value, "low", why)`                   |
 
-**Confidence: Low**, sourced in-code to `forecast.ts`'s own hedging — it
-forecasts the form component only and its header states that calling it a
-projected readiness score would be fabrication; its `ADHERENCE_FLOOR` and
-`ADHERENCE_CEIL` are already rated Low by 2a. Low is an honest answer under 2a,
-and asserting anything higher would be a new claim, which Phase 2's non-goals
-forbid.
+### `capped` becomes a rendered qualification
+
+`capped` stops being a boolean the surfaces may ignore. The `Figure`'s `why`
+carries the qualification, and every surface renders it: `RaceChip` regains the
+caveat it lost, `plan/actions.ts` stops dropping it, and
+`simulate_plan_change` keeps passing it. Asserted at each surface per condition
+4 — the regression happened because nothing tested that the caveat reached the
+athlete.
+
+### One owner for the form score
+
+`formScore(tsb)` moves to `src/lib/readiness.ts` — where the composite already
+lives — carrying source and confidence in the 2a format. `forecast.ts`'s
+`formOutlook()` calls it instead of repeating the arithmetic. The band
+thresholds get one exported owner alongside it, documented as a scale applied
+to two different scores rather than a single figure computed twice.
+
+This is deliberately the smaller of the two possible fixes: it removes the
+duplicated computation without altering either number. No band changes value.
+
+### Confidence
+
+**Confidence: Low**, and the two findings above make that better sourced rather
+than weaker. The chain behind a band label is:
+
+| Step              | Provenance                                                               |
+| ----------------- | ------------------------------------------------------------------------ |
+| CTL/ATL EMA       | Medium — Coggan/Banister time constants (2a, v0.75)                      |
+| TSB = CTL − ATL   | Definitional                                                             |
+| `50 + 2.5 · tsb`  | Unsourced inline literal, never swept by 2a                              |
+| `67` / `34` bands | Unsourced inline literals, and a scale borrowed from the composite score |
+| Planned loads     | May not be executed — hence the adherence scenario                       |
+| `capped`          | May not reach the race date at all                                       |
+
+`forecast.ts`'s own header states that calling this a projected readiness score
+would be fabrication, and `ADHERENCE_FLOOR`/`ADHERENCE_CEIL` are already Low
+under 2a. Low is the honest ceiling; asserting higher would be exactly the
+claim Phase 2's non-goals forbid.
 
 ## Verification
 
 Per 2c's six conditions:
 
-1. **Owner** — `raceCard()`, `simulateRaceForm()`, `feasibilityFor()`, inputs
-   named in their signatures.
-2. **One read path** — no page or tool recomputes the mapping.
+1. **Owner** — `raceCard()`, `simulateRaceForm()`, `feasibilityFor()` and
+   `formScore()`, inputs named in their signatures.
+2. **One read path** — no page or tool recomputes the mapping, and the form
+   score exists once.
 3. **Persistence** — none of these are persisted; condition 3 does not apply.
 4. **Asserted at the surface** — tests assert at the page and MCP-tool level,
-   not at `RaceChip`.
-5. **Unknown state** — every branch is a `Figure` kind, rendered.
-6. **Mutation-checked** — break the outlook mapping and each feasibility guard
-   in turn; confirm a test fails for each.
+   not at `RaceChip`. This includes the `capped` qualification: the regression
+   happened precisely because nothing asserted that it reached the athlete.
+5. **Unknown state** — every branch is a `Figure` kind, rendered, `capped`
+   included.
+6. **Mutation-checked** — break each of these in turn and confirm a test
+   fails: the outlook mapping, each of `feasibilityFor()`'s three guards, the
+   `capped` qualification, and `formScore()`.
 
 Two project-specific traps to design around:
 

@@ -187,6 +187,20 @@ top of the six the app already speaks.
       engine constant surveyed since v0.74.0 now carries source,
       confidence and scope, or an explicit documented exclusion.
 
+- [ ] **Inline numeric literals — the gap 2a's own framing left open.** 2a
+      swept _exported constants_, and closed on that basis. It never reached
+      numbers written inline, which can carry exactly the same claims. Found
+      2026-08-10 while sourcing the race-day form projection:
+      `clamp(50 + 2.5 · tsb, 10, 90)` is written out in both
+      `readiness.ts` (line 167) and `race/forecast.ts` (line 65), and the
+      `>= 67` / `>= 34` band thresholds in both — so the numbers deciding
+      whether an athlete sees green, amber or red carried no source and no
+      confidence while all 77 exported constants did. v0.87 gives the form
+      score one owner as part of its slice; this item is the sweep for the
+      rest. **2a's completeness claim above is true as written and narrower
+      than it reads** — that is the point of recording this rather than
+      quietly widening it.
+
 ### 2b — Design language and IA
 
 A brainstorm → spec → plan cycle in its own right, not direct implementation.
@@ -406,7 +420,16 @@ excluded, is recorded here so that closing 2c means something:
       `preloadedWeek` and both pages pass `getOpenWeekPlan(userId)`, exactly
       what the function fetches itself when it is omitted — a duplicate-query
       optimization, not a divergence. Duplication is the drift mechanism
-      here, not argument mismatch. Feasibility is the condition 1 half:
+      here, not argument mismatch. **Two more found while sourcing the
+      confidence rating:** `forecastForm()`'s `capped` flag — the projection
+      stopped at plan end rather than reaching the race — is rendered by no
+      athlete-facing surface. The `RaceCountdownCard` this slice deletes did
+      render it ("projection ends at plan end"); the `RaceChip` that
+      superseded it drops it, so Today and Train show a race-day form figure
+      that may not be a race-day figure at all. A lost qualification, not a
+      missing one. And the form score `clamp(50 + 2.5 · tsb, 10, 90)` is
+      written out in both `readiness.ts` and `forecast.ts` — see the inline
+      literals item under 2a. Feasibility is the condition 1 half:
       `assessFeasibility()` is called from three sites (`training-plan.ts`
       twice, `train/page.tsx` once), each assembling its input object inline,
       and its `null` conflates two different reasons for silence. Design:
