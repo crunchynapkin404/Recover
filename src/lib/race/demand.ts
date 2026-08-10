@@ -113,9 +113,19 @@ export const DEMAND_UNAVAILABLE_COPY: Record<DemandUnavailableReason, string> =
 
 /**
  * Confidence copy when every anchor the duration step used was set by the
- * athlete themselves (an FTP, threshold pace or swim pace typed into
- * Settings, or a race form) rather than derived from history. Per sport,
- * because "FTP" means nothing to a runner and vice versa.
+ * athlete themselves (an FTP or threshold pace typed into Settings, or a race
+ * form) rather than derived from history. Per sport, because "FTP" means
+ * nothing to a runner and vice versa.
+ *
+ * The `Triathlon` entry is currently UNREACHABLE, and is kept rather than
+ * deleted because the day it becomes reachable is a known one. A triathlon's
+ * `allAnchorsAthleteSet` requires `swimPace.athleteSet`, and there is no
+ * athlete-set swim pace anywhere in this codebase: no `body_prefs` column
+ * beside `ftpWatts` and `thresholdPaceSecPerKm`, no Settings control, and
+ * `volume-inputs.ts` supplies swim pace only from `swimPaceFromHistory()`
+ * with `athleteSet: false`. So a triathlon is pinned at "low" however much
+ * the athlete configures. An earlier version of this comment claimed a swim
+ * pace could be "typed into Settings"; it never could.
  */
 const ANCHOR_SET_COPY: Record<PlanSport, string> = {
   Bike: "Modelled from your FTP and the course profile.",
@@ -127,12 +137,21 @@ const ANCHOR_SET_COPY: Record<PlanSport, string> = {
  * Confidence copy when at least one anchor used was derived rather than
  * athlete-set — a synced FTP or a pace inferred from recent history. Same
  * per-sport shape as ANCHOR_SET_COPY, naming the fix.
+ *
+ * The `Triathlon` line names the swim explicitly because of the pin described
+ * above. It previously read "set your thresholds in Settings for a sharper
+ * figure", which a triathlete who had already set both their FTP and their
+ * threshold pace would read as advice to do something they had done — and
+ * which could not have lifted the rating anyway, since the anchor holding it
+ * down is the one with no setting to reach. The nudge is kept, because
+ * setting an FTP and a threshold pace genuinely does sharpen the bike and run
+ * legs; only the false promise about the rating is gone.
  */
 const ANCHOR_DERIVED_COPY: Record<PlanSport, string> = {
   Bike: "Estimated from your synced FTP — set one in Settings for a sharper figure.",
   Run: "Estimated from your recent runs — set a threshold pace in Settings for a sharper figure.",
   Triathlon:
-    "Estimated partly from your recent sessions — set your thresholds in Settings for a sharper figure.",
+    "Estimated partly from your recent sessions. Setting your FTP and threshold pace in Settings sharpens the bike and run legs; the swim is always paced from your recent swims.",
 };
 
 /**
@@ -351,6 +370,17 @@ export function eventDemand(input: EventDemandInput): EventDemandResult {
   // entirely (the athlete told us the number; leg interaction is baked in),
   // and an already-derived anchor is already "low" with nothing lower to
   // fall to. This lowers a claim, it never raises one.
+  //
+  // LATENT, deliberately. As ANCHOR_SET_COPY explains, a triathlon cannot
+  // currently reach "medium" at all — there is no athlete-set swim pace in
+  // this codebase, so `allAnchorsAthleteSet` is structurally false for the
+  // sport and this block never executes in production. It is kept as a
+  // pre-placed guard rather than deleted: the moment a swim anchor is added,
+  // triathlon would jump from "low" straight to "medium" as a side effect of
+  // an unrelated feature, and this is what stops that silent promotion. Its
+  // tests exercise `eventDemand()` directly, which is honest for a rule on a
+  // pure function — but nothing at any surface guards it, and nothing can
+  // until the pin is gone.
   if (input.sport === "Triathlon" && confidence === "medium") {
     confidence = "low";
     confidenceReason = `${confidenceReason} Multi-sport estimates are downgraded because swim, bike, and run anchors interact.`;
