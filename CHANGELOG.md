@@ -1,5 +1,52 @@
 # Changelog
 
+## v0.83.0 — 2026-08-10 — One source of truth: week target load (slices 2-4)
+
+Closes Phase 2c's first number slice (`docs/ROADMAP.md`) — slices 2, 3, and
+4 shipped together in one release. Every display, MCP tool, and coach-facing
+read site for "what does this week target" now resolves through
+`weekTargetLoad()` (slice 1, v0.82.0) instead of reading
+`trainingBlocks.targetLoadTotal` or `weekPlans.effectiveTarget` directly.
+
+Real bugs fixed — a materialized week's more accurate effective target was
+being shadowed by its un-tapered skeleton value:
+
+- `get_training_plan` (MCP tool): both the week-detail and plan-overview
+  responses now report the resolved target.
+- `get_plan_drift` (MCP tool): the open week's reported target was named
+  `skeletonTarget` but the tool's own description promised "effective
+  target" — it now actually resolves and reports that figure, renamed to
+  match. Previously had zero test coverage; now has two tests.
+- Weekly review's plan-adherence percentage no longer computes from the
+  block's skeleton target alone — it can now reflect a taper or
+  low-adherence adjustment the skeleton value doesn't carry.
+- The Train page's "remaining weeks" table showed the open week's skeleton
+  value even after it materialized with a different effective target.
+
+New `resolveBlockTargets()` in `week-plan/service.ts` batches the
+resolution across a plan's blocks in one query, shared by both MCP tools.
+
+Deliberately unchanged, with reasoning documented at each site:
+`race/debrief.ts`'s taper-execution stat (uses the week's final
+post-adjustment figure, a different and already-correct question),
+`get_plan_drift`'s past-week drift comparison (measures drift FROM the
+original skeleton on purpose), `update-training-plan.ts`'s block-target
+write path (the week quick actions' underlying mechanism — its re-enable
+decision stays deferred), and the export/import round-trip (a backup
+should restore raw values, not a resolved derivative).
+
+`docs/BASELINE.md` updated: the quick-actions decision is now cleanly
+answerable, but picking it up is still a deliberate follow-up.
+
+Full design: `docs/specs/2026-08-10-week-target-load-ownership-design.md`.
+Verified against a real isolated Postgres (matching CI's own service
+config), not just typecheck: full suite 2113 passed / 1 skipped (2114
+total), zero regressions. Independent review re-derived every claim from
+the diffs and source files directly, including the two highest-risk
+correctness questions (the weekly-review timing of `activePlan.currentWeek`,
+and the plan-drift tool's deliberately-unchanged skeleton comparison) — no
+issues found.
+
 ## v0.82.0 — 2026-08-10 — One source of truth: week target load (slice 1)
 
 First number slice of Phase 2c (`docs/ROADMAP.md`): `weekTargetLoad()`, a

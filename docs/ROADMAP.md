@@ -289,17 +289,28 @@ A **number slice** is done when all six hold:
 5. Its "I do not know" state is explicit and rendered.
 6. Mutation-checked: break the owner, confirm a test fails.
 
-- [ ] Week target load — 3 producers, 43 + 36 + 8 read sites. First because it
-      caused four shipped bugs, and because settling ownership is what makes
-      the hidden week quick actions decidable. **v0.82.0** shipped slice 1 of
-      4 (`docs/specs/2026-08-10-week-target-load-ownership-design.md`):
-      `weekTargetLoad()` in `week-plan/volume.ts`, the one read path outside
-      adherence (`effectiveTarget` once materialized, else the block's
-      `targetLoadTotal`), returning `Figure<number>`. `weekAdherencePct`
-      shares its resolution via a private helper — zero behavior change.
-      Both columns documented cache/authority in `schema.ts`. Read-site
-      migration (race domain, MCP tools/weekly-review, UI/export) is
-      slices 2-4; the week quick actions re-enable decision stays deferred.
+- [x] Week target load — 3 producers, 43 + 36 + 8 read sites. Caused four
+      shipped bugs before this closed it
+      (`docs/specs/2026-08-10-week-target-load-ownership-design.md`).
+      **v0.82.0** (slice 1): `weekTargetLoad()` in `week-plan/volume.ts`, the
+      one read path outside adherence (`effectiveTarget` once materialized,
+      else the block's `targetLoadTotal`), returning `Figure<number>`.
+      `weekAdherencePct` shares its resolution via a private helper — zero
+      behavior change. Both columns documented cache/authority in
+      `schema.ts`. **v0.83.0** (slices 2-4, shipped together): migrated
+      every remaining read site — `race/service.ts`, the `get_training_plan`
+      and `get_plan_drift` MCP tools, the weekly review's adherence
+      calculation, and the Train page's remaining-weeks table — fixing real
+      cases where a materialized week's more accurate effective target was
+      shadowed by its un-tapered skeleton value. Deliberately unchanged,
+      each with documented reasoning: `race/debrief.ts`'s taper stat (a
+      different, already-correct question), `get_plan_drift`'s past-week
+      drift comparison (measures drift FROM the skeleton on purpose),
+      `update-training-plan.ts`'s block-target write (the week quick
+      actions' own mechanism), and the export/import round-trip (raw
+      values, not a resolved derivative). Settling ownership makes the week
+      quick actions re-enable decision answerable — still deferred, a
+      product choice, not made here.
 - [ ] Volume and hours
 - [ ] Adherence and completion
 - [ ] CTL / ATL / TSB and readiness — closes the standing dashboard honesty debt
