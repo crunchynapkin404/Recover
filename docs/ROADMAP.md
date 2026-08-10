@@ -291,7 +291,15 @@ A **number slice** is done when all six hold:
 
 - [ ] Week target load — 3 producers, 43 + 36 + 8 read sites. First because it
       caused four shipped bugs, and because settling ownership is what makes
-      the hidden week quick actions decidable.
+      the hidden week quick actions decidable. **v0.82.0** shipped slice 1 of
+      4 (`docs/specs/2026-08-10-week-target-load-ownership-design.md`):
+      `weekTargetLoad()` in `week-plan/volume.ts`, the one read path outside
+      adherence (`effectiveTarget` once materialized, else the block's
+      `targetLoadTotal`), returning `Figure<number>`. `weekAdherencePct`
+      shares its resolution via a private helper — zero behavior change.
+      Both columns documented cache/authority in `schema.ts`. Read-site
+      migration (race domain, MCP tools/weekly-review, UI/export) is
+      slices 2-4; the week quick actions re-enable decision stays deferred.
 - [ ] Volume and hours
 - [ ] Adherence and completion
 - [ ] CTL / ATL / TSB and readiness — closes the standing dashboard honesty debt
