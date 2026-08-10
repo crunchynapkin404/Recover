@@ -17,7 +17,7 @@ import {
 } from "@/lib/week-plan/service";
 import { assembleWeeklyTarget } from "@/lib/week-plan/volume-inputs";
 import { availableMins } from "@/lib/week-plan/fill";
-import { raceCard, type RaceCard } from "@/lib/race/outlook";
+import { raceCard } from "@/lib/race/outlook";
 import type { Band } from "@/lib/readiness";
 import { computeSleepDebt, DEFAULT_SLEEP_NEED_SECS } from "@/lib/sleep-debt";
 import { sparkPath } from "@/lib/sparkline";

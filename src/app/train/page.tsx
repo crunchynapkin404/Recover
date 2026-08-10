@@ -47,7 +47,7 @@ import {
   type FitnessTile,
 } from "@/components/train/fitness-tiles";
 import { RaceChip } from "@/components/today/race-chip";
-import { raceCard, type RaceCard } from "@/lib/race/outlook";
+import { raceCard } from "@/lib/race/outlook";
 import { BAND_COLOR } from "@/lib/band-color";
 import type { Band } from "@/lib/readiness";
 import { Figure } from "@/lib/uncertainty";
