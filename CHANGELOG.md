@@ -1,5 +1,46 @@
 # Changelog
 
+## v0.90.0 — 2026-08-11 — Athlete curves, and 2c closes
+
+The last slice on Phase 2c's enumerated list. **Every number slice is now
+ticked**, which means the sweep that produced that list on 2026-08-10 — all
+57 registry tools plus the UI and coach-context surfaces — has been worked
+through end to end.
+
+The sweep expected this slice to be verification-only, and was nearly right.
+`athlete-curves.ts` is one owner, the cache is documented in `schema.ts`, and
+`available`/`stale`/`fetched_at` were already an explicit unknown state.
+`tests/athlete-curves.test.ts` already covered cache miss, fresh hit, TTL
+expiry and stale-on-error.
+
+**What was missing was condition 4.** The three MCP tools exposing these
+figures — `get_power_curve`, `get_pace_curve`, `get_best_efforts` — had no
+tests at all. Nothing asserted the shape the coach actually receives: the
+rounding each tool applies, the passthrough of `stale` and `fetched_at`, or
+`get_best_efforts`' case-insensitive sport filter and its `count`.
+
+The new tests run the **real** read path rather than mocking the owner. A
+seeded connection plus a fresh `athlete_curves` row makes `cachedFetch()`
+short-circuit before any fetch, so the tool, the owner and the database all
+execute with no network. Mocking `@/lib/athlete-curves` would have proved
+nothing about the read path, which is exactly what condition 4 exists to
+test.
+
+**One mutation survived, and it was worth the slice on its own.** Hardcoding
+`stale: false` in `get_power_curve` passed every assertion — on a fresh-cache
+hit `stale` is genuinely `false`, so the test could not tell a wired flag
+from a constant. A coach reading a curve has no way to know it is hours or
+days old if that flag is dead.
+
+Seeding a row past the TTL fixes it: the real fetcher runs and fails under
+the test suite's network block — which is the production shape of
+intervals.icu being unreachable — and the owner serves the expired row with
+`stale: true`. The data still comes through, because a stale PR curve beats
+silence. That mutation now fails.
+
+This is the third release in four where mutation-checking found something
+reading the test could not.
+
 ## v0.89.0 — 2026-08-11 — Display-derived figures
 
 Phase 2c's second-to-last number slice. **No athlete sees a different number

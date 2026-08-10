@@ -512,13 +512,33 @@ excluded, is recorded here so that closing 2c means something:
       twice, `train/page.tsx` once), each assembling its input object inline,
       and its `null` conflates two different reasons for silence. Design:
       `docs/specs/2026-08-10-race-form-projection-feasibility-ownership-design.md`.
-- [ ] **Athlete curves and best efforts** — `get_power_curve`,
+- [x] **Athlete curves and best efforts** — `get_power_curve`,
       `get_pace_curve`, `get_best_efforts`. Added by the 2026-08-10 sweep for
-      completeness: in scope by the definition (returned by an MCP tool), but
-      expected to be verification-only. One owner (`athlete-curves.ts`), the
-      cache is already documented in `schema.ts`, and `available`/`stale`/
-      `fetched_at` already give an explicit unknown state. No UI surface
-      reads them; the only other consumer is `strava-describer.ts`.
+      completeness; closed by **v0.90.0**, which **closes 2c**. The sweep's
+      expectation of "verification-only" was nearly right: one owner
+      (`athlete-curves.ts`), the cache documented in `schema.ts`, and
+      `available`/`stale`/`fetched_at` already an explicit unknown state — so
+      conditions 1, 2, 3 and 5 held, and `tests/athlete-curves.test.ts`
+      already covered the owner's cache miss, fresh hit, TTL expiry and
+      stale-on-error. **What was missing was condition 4: the three MCP tools
+      that expose these figures had no tests at all**, so nothing asserted
+      the shape the coach actually receives — the rounding, the passthrough
+      of `stale`/`fetched_at`, or `get_best_efforts`' sport filter. The new
+      `tests/curve-tools.test.ts` runs the real read path rather than mocking
+      the owner: a seeded connection plus a fresh `athlete_curves` row makes
+      `cachedFetch()` short-circuit before any fetch, so tool, owner and DB
+      all execute with no network. Mocking `@/lib/athlete-curves` would have
+      proved nothing about the read path, which is what condition 4 exists to
+      test. **Condition 6 produced the release's one real finding.**
+      Hardcoding `stale: false` in `get_power_curve` **survived** every
+      fresh-cache assertion — `stale` is genuinely `false` on that path, so
+      the assertion could not tell a wired flag from a constant. Seeding a
+      row past the TTL fixes it: the real fetcher runs, fails under
+      `no-network` (the production shape of intervals.icu being unreachable),
+      and the owner serves the expired row with `stale: true`. The coach is
+      told the number is hours old instead of being handed it as current.
+      That mutation now fails. No UI surface reads these; the only other
+      consumer is `strava-describer.ts`.
 
 ### 2d — Guardrails
 
@@ -542,11 +562,11 @@ before that date. Written down because the shape of the problem is not
 visible from the checkbox list, and rediscovering it in September means
 either idle time or an improvised item.
 
-**Order until the gate opens:** 2c's **one** remaining slice — athlete curves
-and best efforts, expected to be verification-only — then 2d's four
-guardrails. (This read "four remaining slices" until v0.88.0, when the count
-had gone three releases without being updated; keep it current as slices
-close.)
+**Order until the gate opens:** **2c is closed** as of v0.90.0 — every slice
+on the enumerated list is ticked. What remains before the gate is 2d's four
+guardrails. (This line read "four remaining slices" until v0.88.0, when the
+count had gone three releases without being updated; keep it current as
+items close.)
 
 **When those run out and the date has not arrived**, these are the designated
 fill. All four are hardening, measurement or hygiene, so none of them trips
