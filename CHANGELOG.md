@@ -1,5 +1,83 @@
 # Changelog
 
+## v0.87.0 — 2026-08-10 — One source of truth: race-day form and feasibility
+
+Fifth number slice of Phase 2c (`docs/ROADMAP.md`). Design:
+`docs/specs/2026-08-10-race-form-projection-feasibility-ownership-design.md`.
+
+This slice was not in 2c's original six entries. The 2026-08-10 sweep of all
+57 registry tools against 2c's own definition of an athlete-facing number
+found it missing, and it turned out to hold the largest remaining defect.
+
+**The projection was computed once and rendered four ways.** `forecastForm()`
+was already pure and single-owner; every problem sat above it. `page.tsx` and
+`train/page.tsx` each built the race card inline — the same ~35 lines,
+character-identical apart from variable names — while `plan/actions.ts`
+flattened "no projection" to a boolean with nulled fields and the
+`simulate_plan_change` tool wrote its own prose for it. Four encodings of one
+unknown state. New `raceCard()` and `simulateRaceForm()` in
+`src/lib/race/outlook.ts` own both paths; the two pages and the two what-if
+callers are now thin.
+
+**A qualification that had been lost is back.** `forecastForm()` sets
+`capped` when the plan ends before race day, which means the figure is the
+projection at plan end, not at the race. `RaceCountdownCard` used to say so;
+the `RaceChip` that superseded it dropped the caveat, so Today and Train
+showed a plan-end TSB labelled as race-day form. It is rendered again, on
+every surface — the chip, the day-actions preview, and the MCP tool — and
+this time a test fails if it disappears. `RaceCountdownCard` itself is
+deleted: zero non-test render sites, kept alive only by its own test suite,
+and the last thing blocking the dead-component sweep from touching it.
+
+**Feasibility says which input is missing.** `assessFeasibility()` returned
+`null` both when there was no tracked race and when there was no measured
+training history, and three call sites wrote the same guard inline. New
+`feasibilityFor()` returns `Figure<Feasibility>` naming the actual reason —
+a tracked race with computable demand, a race date to count back from, or
+measured training history — and the Train surface states it instead of
+rendering nothing. `assessFeasibility()` itself is unchanged.
+
+**One owner for the form score.** `clamp(50 + 2.5 · tsb, 10, 90)` was written
+out in both `readiness.ts` and `race/forecast.ts`. Both now call
+`formScore()`. The band cutoffs get one owner too, documented as a scale
+applied to two different scores — the composite readiness and the form score
+alone — rather than one figure computed twice: a green form outlook and a
+green readiness are different claims wearing the same colour. Both were
+inline numeric literals, which is why Phase 2a's sweep of _exported_
+constants never reached them; both now carry source and confidence, and the
+gap is recorded as an open 2a item.
+
+The projection is rated **Confidence: Low**, and the release writes down why:
+Medium-confidence EMA constants, a definitional TSB, then two unsourced
+transforms, planned loads that may not be executed, and a horizon that may
+not reach the race. Low is the honest ceiling.
+
+**Athlete-visible changes are limited to two additions and one restoration.**
+The capped qualification, the split feasibility reasons, and `loadDelta` —
+which is computed from planned loads alone and so is knowable without
+CTL/ATL, but had been lost from the preview's unavailable state. No band,
+TSB or verdict changes value.
+
+### Verification
+
+- Equivalence pinned, not assumed: a permanent un-gated test reconstructs the
+  three pre-migration feasibility guards from the pre-migration commit and
+  asserts they agree with `feasibilityFor()` across every missing-input branch
+  and every verdict rung. Swapping two arguments inside the owner fails it.
+- Mutation-checked throughout: breaking `formScore`'s slope fails tests in both
+  files that now share it; deleting any of `feasibilityFor()`'s three guards
+  fails a different named test; removing the capped caveat fails at both the
+  mapping and the component.
+- The whole-branch review caught what the per-task reviews structurally could
+  not: `raceCard()` and `simulateRaceForm()` had **zero executing coverage in
+  CI**, because their only tests are DB-gated and CI runs without a database —
+  hard-coding `capped: false` left the suite byte-identically green. The pure
+  `ForecastResult → Figure` mapping now lives in `race/outlook-figure.ts`,
+  which reaches no database and is therefore tested un-gated. The mutation now
+  fails without a database, which is the condition that matters.
+- Full suite with `DATABASE_URL` unset: 1652 passed, 511 skipped, no crash.
+  With a database: 2162 passed, 1 skipped.
+
 ## v0.86.0 — 2026-08-10 — One source of truth: CTL/ATL/TSB and readiness
 
 Fourth number slice of Phase 2c (`docs/ROADMAP.md`). Investigated broadly

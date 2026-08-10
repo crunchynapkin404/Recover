@@ -224,12 +224,15 @@ so" — is currently spoken in six dialects: `—` (47 uses), `calibrating` (39)
       **Independently reconfirmed dead** while migrating other surfaces (not
       necessarily additional to the 19 — overlap unverified):
       `journal/correlation-insights.tsx`, `dashboard/hero-readiness.tsx`,
-      `dashboard/readiness-rings.tsx`, `dashboard/race-countdown.tsx`
-      (component body only — its `RaceCountdownProps` type stays live),
+      `dashboard/readiness-rings.tsx`,
       `dashboard/recent-sessions-accordion.tsx`, `dashboard/vitals-grid.tsx`.
-      **Trap:** `dashboard/race-countdown.tsx` still exports a
-      `RaceCountdownProps` type that `app/train/page.tsx` imports; it cannot be
-      deleted wholesale.
+      `dashboard/race-countdown.tsx` was on this list, and the **trap** that
+      kept it here — it exported the `RaceCountdownProps` type
+      `app/train/page.tsx` imported, so it could not be deleted wholesale —
+      is gone: **v0.87.0** moved that type to `race/outlook.ts` as `RaceCard`
+      and deleted the component with its test. One down without waiting for
+      this item, because the slice that owned the type had to touch it
+      anyway.
       **v0.66.0** shipped the local-only `surface_views` telemetry this
       decision depends on (owner-only, closed-set surface keys, counts only,
       never leaves the instance). **Deployed to the live instance:
@@ -400,8 +403,23 @@ excluded, is recorded here so that closing 2c means something:
       the same UI-vs-MCP divergence. Body battery and correlations were
       checked and are already single-owner — this slice is two fixes, not
       four.
-- [ ] **Race-day form projection and feasibility.** Added by the 2026-08-10
-      sweep; it was missing, and it is the largest remaining defect in 2c.
+- [x] **Race-day form projection and feasibility.** Added by the 2026-08-10
+      sweep; it was missing, and it was the largest remaining defect in 2c.
+      **v0.87.0** closed it: `raceCard()` and `simulateRaceForm()` in
+      `race/outlook.ts` own the two paths, the four encodings of the unknown
+      state became one `Figure`, `feasibilityFor()` names which of three
+      inputs is missing instead of returning a silent `null` for any of them,
+      and `formScore()` in `readiness.ts` is the one owner of the TSB→score
+      transform. `RaceCountdownCard` is deleted. The `capped` qualification
+      is rendered again on every surface. **What the whole-branch review
+      caught that the per-task reviews could not:** both new owners had zero
+      _executing_ coverage in CI, because their only tests are DB-gated and
+      CI runs without a database — hard-coding `capped: false` left the suite
+      byte-identically green. The pure `ForecastResult → Figure` mapping now
+      lives in `race/outlook-figure.ts`, which reaches no database and is
+      tested un-gated. Worth generalising: **a DB-gated test is not a CI
+      guard**, and every slice that put its owner behind one has the same
+      hole. 2d's guardrails should assume it.
       The projection is a headline athlete-facing figure (race-day TSB and
       its green/amber/red band), and its unknown state is encoded **four**
       separate times: `app/page.tsx` and `app/train/page.tsx` each map
@@ -535,8 +553,8 @@ Demand order, science-constrained.
       cheap" (`ai-coaching-landscape.md` §10) and Recover has never measured
       what its 57 tools cost as context. Freezing an unmeasured surface locks
       in whatever that cost happens to be.
-- [ ] Dead-component sweep (12 identified; `race-countdown.tsx` still exports a
-      type `train/page.tsx` imports)
+- [ ] Dead-component sweep (11 remaining; `race-countdown.tsx` was the twelfth
+      and v0.87.0 deleted it, along with the type export that had blocked it)
 - [ ] On-ramps for the three dormant-but-kept features: Deep Biology, outbound
       webhooks, coach long-term memory — **or** document them as dormant
 - [ ] Long-standing conditionals: Fitbit / Google Health direct, Cycle-Aware
