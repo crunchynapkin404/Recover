@@ -8,14 +8,14 @@ confidence downgrade salvaged from `feat/v0.65-mcp-contract-hardening`
 
 Verified against the code on 2026-08-11, not assumed:
 
-| Condition                        | Status before this release                                                                                                                       |
-| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 1. One owner                     | **Holds.** `eventDemand()` in `src/lib/race/demand.ts`, inputs fully named in `EventDemandInput`.                                                  |
-| 2. One read path                 | **Holds.** Exactly one non-test call site: `week-plan/volume-inputs.ts:249`. `get_races` reads `assembleVolumeInputs()`; the Train page reads `assembleWeeklyTarget()`, which wraps the same call. Nobody recomputes. |
-| 3. Persisted row                 | **N/A.** Demand is computed per request; no column caches it.                                                                                      |
-| 4. Asserted at the surface       | **Partial — this release's main work.** See below.                                                                                                 |
-| 5. Explicit rendered unknown     | **Holds.** `EventDemandResult` is a discriminated union with `DEMAND_UNAVAILABLE_COPY`; `uncertainty.ts` names it as the pattern `Figure<T>` copied. Rendered by `event-readiness.tsx:69-77` and mapped by `get-races.ts:95-100`. |
-| 6. Mutation-checked              | **Does not hold.** No bound in this slice has been mutation-checked.                                                                               |
+| Condition                    | Status before this release                                                                                                                                                                                                        |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1. One owner                 | **Holds.** `eventDemand()` in `src/lib/race/demand.ts`, inputs fully named in `EventDemandInput`.                                                                                                                                 |
+| 2. One read path             | **Holds.** Exactly one non-test call site: `week-plan/volume-inputs.ts:249`. `get_races` reads `assembleVolumeInputs()`; the Train page reads `assembleWeeklyTarget()`, which wraps the same call. Nobody recomputes.             |
+| 3. Persisted row             | **N/A.** Demand is computed per request; no column caches it.                                                                                                                                                                     |
+| 4. Asserted at the surface   | **Partial — this release's main work.** See below.                                                                                                                                                                                |
+| 5. Explicit rendered unknown | **Holds.** `EventDemandResult` is a discriminated union with `DEMAND_UNAVAILABLE_COPY`; `uncertainty.ts` names it as the pattern `Figure<T>` copied. Rendered by `event-readiness.tsx:69-77` and mapped by `get-races.ts:95-100`. |
+| 6. Mutation-checked          | **Does not hold.** No bound in this slice has been mutation-checked.                                                                                                                                                              |
 
 ### The condition-4 gap, precisely
 
@@ -28,7 +28,7 @@ from your synced FTP" (low).
 
 **`volume-inputs.test.ts` is 40 lines and tests only `longestSessionHoursOf`.**
 Nothing asserts that mapping anywhere. The two tests that do reach it —
-`get-races.test.ts:87` and `:99` — both seed athletes with *no* set anchors,
+`get-races.test.ts:87` and `:99` — both seed athletes with _no_ set anchors,
 so they cover `low` and `null` and leave the entire `athleteSet: true` branch
 untested. An inverted flag there would silently relabel every athlete's
 confidence and no test would notice.
@@ -120,7 +120,7 @@ after v0.87 closed the projection slice.
   is the JSX prop passing at `train/page.tsx:826-831`. Stated rather than
   papered over.
 - **`week-plan/project.ts`, `service.ts`, `volume-inputs.ts:328`** read
-  `demand.weeklyHours` / `.queenStageHours` to *generate* plans. They consume
+  `demand.weeklyHours` / `.queenStageHours` to _generate_ plans. They consume
   the owner's output; they are not surfaces showing the figure.
 - **The 23 `icu_*` tools** — out of 2c's scope by the sweep's recorded
   reasoning; they pass a provider's number through and own none.
