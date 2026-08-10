@@ -19,7 +19,7 @@ import { assembleWeeklyTarget } from "@/lib/week-plan/volume-inputs";
 import { availableMins } from "@/lib/week-plan/fill";
 import { raceCard } from "@/lib/race/outlook";
 import type { Band } from "@/lib/readiness";
-import { computeSleepDebt, DEFAULT_SLEEP_NEED_SECS } from "@/lib/sleep-debt";
+import { sleepDebtFrom } from "@/lib/sleep-debt";
 import { sparkPath } from "@/lib/sparkline";
 import {
   calibrationProgress,
@@ -313,17 +313,7 @@ export default async function DashboardPage({
 
   // sleepDebt is a recommendation for tonight (the sleep vital's delta). Its
   // waking-window inputs come from the athlete's own schedule.
-  const bedtimes = wellness
-    .filter((w) => w.date >= daysAgo(14) && w.bedStart != null)
-    .map((w) => w.bedStart!.getHours() * 60 + w.bedStart!.getMinutes());
-  const sleepDebt = computeSleepDebt({
-    nights: wellness
-      .filter((w) => w.date >= daysAgo(14))
-      .map((w) => ({ sleepSecs: w.sleepSecs })),
-    sleepNeedSecs: bodyPrefsRow?.sleepNeedSecs ?? DEFAULT_SLEEP_NEED_SECS,
-    wakeTime: bodyPrefsRow?.wakeTime ?? null,
-    bedtimes,
-  });
+  const sleepDebt = sleepDebtFrom(wellness, bodyPrefsRow ?? null, daysAgo(0));
 
   // ── Vitals sparklines (7d) — "" when fewer than two real points ─────────
   const hrvSparkPath = sparkPath(window7.map((w) => w.hrvMs));

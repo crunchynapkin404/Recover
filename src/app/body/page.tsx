@@ -30,7 +30,7 @@ import {
 import { BASELINE_WINDOW_DAYS } from "@/lib/readiness";
 import { computeTagInsights } from "@/lib/insights/correlations";
 import { getMilestones } from "@/lib/insights/milestones";
-import { biologicalAge, type BioAgeResult } from "@/lib/biological-age";
+import { bioAgeFrom, type BioAgeResult } from "@/lib/biological-age";
 import { bpTrend } from "@/lib/blood-pressure";
 import {
   chronotype,
@@ -44,7 +44,7 @@ import {
   DEFAULT_WAKE_MINUTES,
   DEFAULT_BED_MINUTES,
 } from "@/lib/body-battery";
-import { computeSleepDebt, DEFAULT_SLEEP_NEED_SECS } from "@/lib/sleep-debt";
+import { sleepDebtFrom, DEFAULT_SLEEP_NEED_SECS } from "@/lib/sleep-debt";
 import { buildBodyHref, BODY_TABS, type BodyTab } from "@/lib/log-href";
 import type { BiomarkerCategory } from "@/lib/health-records";
 import { isBaselineExcluded, type DayFlag } from "@/lib/day-flags";
@@ -484,19 +484,11 @@ async function SleepTab({
         }
       : null;
 
-  // Recommended bedtime tonight — the same computation the sleep vital's
-  // debt delta uses on Today, so the two can't disagree.
-  const bedtimes = wellness
-    .filter((w) => w.date >= daysAgo(14) && w.bedStart != null)
-    .map((w) => w.bedStart!.getHours() * 60 + w.bedStart!.getMinutes());
-  const debt = computeSleepDebt({
-    nights: wellness
-      .filter((w) => w.date >= daysAgo(14))
-      .map((w) => ({ sleepSecs: w.sleepSecs })),
-    sleepNeedSecs: prefs?.sleepNeedSecs ?? DEFAULT_SLEEP_NEED_SECS,
-    wakeTime: prefs?.wakeTime ?? null,
-    bedtimes,
-  });
+  // Recommended bedtime tonight — calls the same owner, sleepDebtFrom(), as
+  // the sleep vital's debt delta on Today. The two can't disagree by
+  // construction now: there is one function that owns this computation,
+  // not two call sites that happen to agree today.
+  const debt = sleepDebtFrom(wellness, prefs ?? null, daysAgo(0));
 
   // Body battery — modelled, and labelled as such by the component itself.
   const todayYmd = daysAgo(0);
@@ -817,37 +809,7 @@ async function LabsTab({ userId }: { userId: string }) {
     }))
   );
 
-  const latestWellness = [...wellness]
-    .reverse()
-    .find((w) => w.restingHr != null || w.hrvMs != null);
-  const nights: SleepNight[] = wellness
-    .filter((w) => w.date >= daysAgo(30))
-    .map((w) => ({
-      date: w.date,
-      sleepSecs: w.sleepSecs,
-      sleepDeepSecs: w.sleepDeepSecs,
-      sleepRemSecs: w.sleepRemSecs,
-      sleepLightSecs: w.sleepLightSecs,
-      sleepAwakeSecs: w.sleepAwakeSecs,
-      bedStart: w.bedStart,
-      bedEnd: w.bedEnd,
-    }));
-  const consistency = sleepConsistency(nights);
-
-  const bioAgeResult = biologicalAge({
-    chronologicalAge:
-      prefs?.birthYear != null
-        ? new Date().getFullYear() - prefs.birthYear
-        : null,
-    restingHr: latestWellness?.restingHr ?? null,
-    hrvMs: latestWellness?.hrvMs ?? null,
-    sleepConsistency: consistency?.score ?? null,
-    vo2max:
-      [...wellness].reverse().find((w) => w.vo2max != null)?.vo2max ?? null,
-    bodyFatPct:
-      [...wellness].reverse().find((w) => w.bodyFatPct != null)?.bodyFatPct ??
-      null,
-  });
+  const bioAgeResult = bioAgeFrom(wellness, prefs ?? null, daysAgo(0));
   // A deterministic formula over already-known signals, same reasoning
   // correlationFigure and the CTL/ATL/TSB tiles already use — never a
   // modelled interval, so "high" throughout.

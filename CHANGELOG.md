@@ -1,5 +1,52 @@
 # Changelog
 
+## v0.89.0 — 2026-08-11 — Display-derived figures
+
+Phase 2c's second-to-last number slice. **No athlete sees a different number
+after this release** — both duplications were checked for divergence and
+neither had produced one. This is a drift guard, and saying otherwise would
+overclaim.
+
+Two of the four figures in this slice were already sound, re-verified and
+recorded so they are not swept a third time: **body battery** has one
+consumer, and **correlations** has one producer. The other two were the same
+assembly written twice.
+
+**Sleep debt** was built independently by `app/page.tsx` and
+`app/body/page.tsx` — character-identical apart from variable names.
+`body/page.tsx` carried a comment asserting the two "can't disagree", which
+was true by coincidence rather than by construction. `sleepDebtFrom()` makes
+it structural.
+
+That consolidation surfaced a genuine trap. `computeSleepDebt()` truncates
+its input with `slice(-DEBT_WINDOW_DAYS)` — the last 14 **elements** — while
+both call sites filtered on **date**. Those agree only when wellness rows are
+dense; with gaps (a provider outage, a new athlete, anyone who does not sync
+daily) fourteen rows can span months, and a caller who reasonably assumed the
+function owned its own window would get a quietly wrong figure. The date
+filter now lives in the owner; the slice stays as a safety net rather than
+the definition.
+
+**Bio-age** was built independently by `app/body/page.tsx` and the
+`get_biomarkers` MCP tool — the same ~20 lines, including the
+`reverse().find()` latest-non-null searches and the 30-day sleep-consistency
+window. This is the UI-vs-MCP divergence shape v0.86 removed from five
+surfaces, caught this time before it produced a discrepancy. Both were
+checked for the difference that would have made it a live bug — an unequal
+query window — and both fetch 90 days and filter nights to 30.
+
+Each surface keeps its own presentation: `Figure<BioAgeResult>` on the page,
+`{ status: "insufficient" }` on the tool. Collapsing those would be a surface
+change, which Phase 2's non-goals rule out.
+
+**Mutation-checked**, and one mutation **survived on the first attempt**: a
+fixture's custom sleep need happened to equal `DEFAULT_SLEEP_NEED_SECS`, so
+an owner that ignored the athlete's preference entirely was invisible to the
+test. The fixture now uses a distinct value chosen to produce a different
+outcome. A test whose fixture coincides with the default it is meant to
+distinguish is not a test — worth recording, because reading it would never
+have shown that.
+
 ## v0.88.0 — 2026-08-11 — Event demand
 
 Phase 2c's **Event demand** number slice. The survey expected it to be short,

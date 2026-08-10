@@ -8,6 +8,8 @@
  * insufficient-inputs state that names what's missing rather than guessing.
  */
 
+import { sleepConsistency } from "./sleep-insights";
+
 /**
  * Need at least this many component signals (plus a birth year) to
  * estimate. Source: `docs/specs/2026-07-18-v0.13-deep-biology-design.md`
@@ -103,6 +105,108 @@ const SIGNALS = [
 
 function clamp(v: number, cap: number): number {
   return Math.max(-cap, Math.min(cap, v));
+}
+
+/**
+ * How many trailing nights the sleep-consistency signal (fed into
+ * `bioAgeFrom`) looks back over.
+ * Source: `docs/specs/2026-07-18-v0.13-deep-biology-design.md` and both
+ * former call sites used 30 days; not independently derived here.
+ * Confidence: Low.
+ */
+export const BIO_AGE_NIGHTS_WINDOW_DAYS = 30;
+
+/**
+ * `ymd` minus `days`, as a YYYY-MM-DD string. Built from the given date
+ * only — never the system clock — so `bioAgeFrom` below stays pure.
+ *
+ * Duplicated from the identically-named helper in sleep-debt.ts rather than
+ * imported from it: the two modules own unrelated figures (sleep debt vs
+ * bio-age) that each independently need "N days before a YMD string", and
+ * importing one pure lib into the other for a three-line date helper would
+ * wire them together for no real reason — a worse dependency than the
+ * duplication it would remove.
+ */
+function subtractDaysYmd(ymd: string, days: number): string {
+  const d = new Date(`${ymd}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - days);
+  return d.toISOString().slice(0, 10);
+}
+
+/** The wellness-row fields `bioAgeFrom` reads. A structural subset — both
+ * call sites' `wellnessDaily` rows satisfy this without a cast. */
+export interface BioAgeWellnessRow {
+  date: string;
+  restingHr: number | null;
+  hrvMs: number | null;
+  vo2max: number | null;
+  bodyFatPct: number | null;
+  sleepSecs: number | null;
+  sleepDeepSecs: number | null;
+  sleepRemSecs: number | null;
+  sleepLightSecs: number | null;
+  sleepAwakeSecs: number | null;
+  bedStart: Date | null;
+  bedEnd: Date | null;
+}
+
+/**
+ * The one owner of bio-age's inputs. `app/body/page.tsx` and
+ * `lib/tools/get-biomarkers.ts` built this ~20-line assembly independently
+ * (same birthYear arithmetic, same `[...wellness].reverse().find(...)`
+ * "latest non-null" searches for resting HR/HRV, VO2max and body-fat%, same
+ * 30-day nights window feeding `sleepConsistency()`) — see
+ * docs/specs/2026-08-11-display-derived-figures-ownership-design.md
+ * section 2. This is now the single place that definition lives.
+ *
+ * The two presentations (`Figure<BioAgeResult>` on the page, `{ status:
+ * "insufficient" }` on the MCP tool) are NOT this function's job — it
+ * returns `biologicalAge()`'s raw result and each caller keeps presenting
+ * it exactly as it already does.
+ *
+ * Pure: `today` is a parameter rather than `new Date()`, so this stays
+ * testable without mocking the clock.
+ */
+export function bioAgeFrom(
+  wellness: BioAgeWellnessRow[],
+  prefs: { birthYear: number | null } | null,
+  today: string
+): BioAgeResult | BioAgeInsufficient {
+  const chronologicalAge =
+    prefs?.birthYear != null
+      ? Number(today.slice(0, 4)) - prefs.birthYear
+      : null;
+
+  const latestWellness = [...wellness]
+    .reverse()
+    .find((w) => w.restingHr != null || w.hrvMs != null);
+
+  const cutoff = subtractDaysYmd(today, BIO_AGE_NIGHTS_WINDOW_DAYS);
+  const nights = wellness
+    .filter((w) => w.date >= cutoff)
+    .map((w) => ({
+      date: w.date,
+      sleepSecs: w.sleepSecs,
+      sleepDeepSecs: w.sleepDeepSecs,
+      sleepRemSecs: w.sleepRemSecs,
+      sleepLightSecs: w.sleepLightSecs,
+      sleepAwakeSecs: w.sleepAwakeSecs,
+      bedStart: w.bedStart,
+      bedEnd: w.bedEnd,
+    }));
+  const consistency = sleepConsistency(nights);
+
+  return biologicalAge({
+    chronologicalAge,
+    restingHr: latestWellness?.restingHr ?? null,
+    hrvMs: latestWellness?.hrvMs ?? null,
+    sleepConsistency: consistency?.score ?? null,
+    vo2max:
+      [...wellness].reverse().find((w) => w.vo2max != null)?.vo2max ?? null,
+    bodyFatPct:
+      [...wellness].reverse().find((w) => w.bodyFatPct != null)?.bodyFatPct ??
+      null,
+  });
 }
 
 export function biologicalAge(

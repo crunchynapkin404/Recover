@@ -424,14 +424,34 @@ excluded, is recorded here so that closing 2c means something:
       path is covered and `event-readiness.test.tsx` covers the rendering, but
       the wiring between them is not. That is 2d's read-site guard; building it
       here would have been that guard arriving early and under-designed.
-- [ ] Display-derived figures (sleep debt, body battery, correlations,
-      bio-age). **Surveyed 2026-08-10 — two real defects, both the shape
-      v0.86 just fixed.** `computeSleepDebt` runs independently in
-      `app/page.tsx` and `app/body/page.tsx`; `biologicalAge` runs
-      independently in `app/body/page.tsx` and the `get_biomarkers` MCP tool,
-      the same UI-vs-MCP divergence. Body battery and correlations were
-      checked and are already single-owner — this slice is two fixes, not
-      four.
+- [x] Display-derived figures (sleep debt, body battery, correlations,
+      bio-age). Surveyed 2026-08-10, re-verified 2026-08-11, closed by
+      **v0.89.0**. The survey's claims all held: `computeSleepDebt` ran
+      independently in `app/page.tsx` and `app/body/page.tsx`;
+      `biologicalAge` ran independently in `app/body/page.tsx` and the
+      `get_biomarkers` MCP tool, the same UI-vs-MCP shape v0.86 removed from
+      five surfaces; body battery and correlations were already single-owner.
+      Two fixes, not four. **Both duplications were checked for divergence
+      and neither had produced one** — the release notes say so plainly
+      rather than implying athletes had been shown wrong numbers. It is a
+      drift guard. `sleepDebtFrom()` and `bioAgeFrom()` now own the two
+      assemblies, both pure and taking a `today` string so they stay
+      testable, matching `raceCard(userId, now)` from v0.87.0. Each surface
+      keeps its own presentation — `Figure<BioAgeResult>` on the page,
+      `{ status: "insufficient" }` on the tool — since collapsing those would
+      be a surface change the non-goals forbid. **Two findings worth the
+      slice on their own.** First, `computeSleepDebt()` truncates with
+      `slice(-DEBT_WINDOW_DAYS)`, the last 14 _elements_, while both call
+      sites filtered on _date_; with sparse wellness those are different
+      sets, and fourteen rows can span months, so a caller who assumed the
+      function owned its own window would get a quietly wrong figure. The
+      date filter now lives in the owner. Second, a mutation **survived** —
+      a fixture's custom sleep need happened to equal
+      `DEFAULT_SLEEP_NEED_SECS`, making an owner that ignored the athlete's
+      preference entirely invisible to the test. Fixed with a value chosen to
+      produce a different outcome. Reading the test would never have shown
+      that.
+      Design: `docs/specs/2026-08-11-display-derived-figures-ownership-design.md`.
 - [x] **Race-day form projection and feasibility.** Added by the 2026-08-10
       sweep; it was missing, and it was the largest remaining defect in 2c.
       **v0.87.0** closed it: `raceCard()` and `simulateRaceForm()` in
@@ -522,11 +542,11 @@ before that date. Written down because the shape of the problem is not
 visible from the checkbox list, and rediscovering it in September means
 either idle time or an improvised item.
 
-**Order until the gate opens:** 2c's **two** remaining slices — display-derived
-figures, then athlete curves and best efforts — followed by 2d's four
-guardrails. (This read "four remaining slices" until v0.88.0; the race-day form
-projection closed in v0.87.0 and Event demand in v0.88.0, and the count was not
-kept up.)
+**Order until the gate opens:** 2c's **one** remaining slice — athlete curves
+and best efforts, expected to be verification-only — then 2d's four
+guardrails. (This read "four remaining slices" until v0.88.0, when the count
+had gone three releases without being updated; keep it current as slices
+close.)
 
 **When those run out and the date has not arrived**, these are the designated
 fill. All four are hardening, measurement or hygiene, so none of them trips

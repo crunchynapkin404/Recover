@@ -1,10 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { computeSleepDebt, DEFAULT_SLEEP_NEED_SECS } from "./sleep-debt";
+import {
+  computeSleepDebt,
+  sleepDebtFrom,
+  DEFAULT_SLEEP_NEED_SECS,
+} from "./sleep-debt";
 
 const H = 3600;
 /** n nights of exactly `hours` sleep. */
 const nights = (hours: number, n: number) =>
   Array.from({ length: n }, () => ({ sleepSecs: hours * H }));
+
+/** `base` minus `n` days, as a YYYY-MM-DD string. Test-only helper. */
+function ymdOffset(base: string, n: number): string {
+  const d = new Date(`${base}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - n);
+  return d.toISOString().slice(0, 10);
+}
 
 describe("sleep debt (hand-computed fixtures)", () => {
   it("reports null below MIN_DEBT_DAYS of real data", () => {
@@ -213,5 +224,118 @@ describe("sleep debt (hand-computed fixtures)", () => {
     });
     // Falls back: 07:00 − 8h = 23:00.
     expect(r.bedtime).toBe("23:00");
+  });
+});
+
+describe("sleepDebtFrom (the owner: date-window + bedtimes mapping)", () => {
+  const TODAY = "2026-08-10";
+
+  it("matches a hand-built computeSleepDebt call over a dense 14-day history", () => {
+    // 14 dense daily rows, oldest first (most recent last), each with a real
+    // bedStart so the median-anchor path is exercised too.
+    const wellness = Array.from({ length: 14 }, (_, i) => {
+      const offset = 13 - i; // 13 days ago ... today
+      return {
+        date: ymdOffset(TODAY, offset),
+        sleepSecs: 7 * H, // 1h short every night → real, non-zero debt
+        bedStart: new Date(2026, 0, 1, 23, 10), // 23:10 local, every night
+      };
+    });
+    // Deliberately NOT DEFAULT_SLEEP_NEED_SECS: 6h vs the 7h actually slept
+    // means zero deficit under this custom need, but a real deficit under
+    // the 8h default — so a mutation that ignores prefs.sleepNeedSecs and
+    // hardcodes the default would change debtSecs and get caught here.
+    const prefs = { sleepNeedSecs: 6 * H, wakeTime: "07:00" };
+
+    const expected = computeSleepDebt({
+      nights: wellness.map((w) => ({ sleepSecs: w.sleepSecs })),
+      sleepNeedSecs: prefs.sleepNeedSecs,
+      wakeTime: prefs.wakeTime,
+      bedtimes: wellness.map(
+        (w) => w.bedStart.getHours() * 60 + w.bedStart.getMinutes()
+      ),
+    });
+
+    expect(sleepDebtFrom(wellness, prefs, TODAY)).toEqual(expected);
+  });
+
+  it("excludes rows outside the 14-day window", () => {
+    // 20 dense daily rows. The oldest 6 (offsets 14-19) are catastrophic
+    // (0 sleep) and must not be counted; the recent 14 are debt-free.
+    const oldRows = Array.from({ length: 6 }, (_, i) => ({
+      date: ymdOffset(TODAY, 19 - i),
+      sleepSecs: 0,
+      bedStart: null,
+    }));
+    const recentRows = Array.from({ length: 14 }, (_, i) => ({
+      date: ymdOffset(TODAY, 13 - i),
+      sleepSecs: DEFAULT_SLEEP_NEED_SECS,
+      bedStart: null,
+    }));
+    const wellness = [...oldRows, ...recentRows];
+
+    const r = sleepDebtFrom(wellness, null, TODAY);
+    expect(r.nightsCounted).toBe(14);
+    expect(r.debtSecs).toBe(0);
+  });
+
+  it("prefs null falls back to DEFAULT_SLEEP_NEED_SECS and a null wakeTime", () => {
+    const wellness = Array.from({ length: 8 }, (_, i) => ({
+      date: ymdOffset(TODAY, 7 - i),
+      sleepSecs: 6 * H, // short of the 8h default → real deficit
+      bedStart: null,
+    }));
+
+    const r = sleepDebtFrom(wellness, null, TODAY);
+    const expected = computeSleepDebt({
+      nights: wellness.map((w) => ({ sleepSecs: w.sleepSecs })),
+      sleepNeedSecs: DEFAULT_SLEEP_NEED_SECS,
+      wakeTime: null,
+      bedtimes: [],
+    });
+    expect(r).toEqual(expected);
+    expect(r.bedtime).toBeNull(); // no wakeTime, no bedtimes → no guess
+  });
+
+  it("drops null-bedStart rows from bedtimes but still counts them as nights", () => {
+    // 10 dense, debt-free nights. Only the first 6 carry a real bedStart
+    // (all identical, so the median is unambiguous); the last 4 have none.
+    const wellness = Array.from({ length: 10 }, (_, i) => ({
+      date: ymdOffset(TODAY, 9 - i),
+      sleepSecs: DEFAULT_SLEEP_NEED_SECS,
+      bedStart: i < 6 ? new Date(2026, 0, 1, 23, 0) : null,
+    }));
+
+    const r = sleepDebtFrom(wellness, null, TODAY);
+    expect(r.nightsCounted).toBe(10); // all 10 nights count
+    // 6 real bedtimes ≥ MIN_BEDTIME_SAMPLES(5) → median-anchor path, and
+    // with no debt the target is exactly the habitual bedtime.
+    expect(r.bedtime).toBe("23:00");
+  });
+
+  // The window is enforced in two places today: computeSleepDebt's own
+  // `slice(-DEBT_WINDOW_DAYS)` (the last 14 *elements*) and, until now, a
+  // date filter duplicated at each call site (the last 14 *days*). Those
+  // agree only when wellness is dense. This fixture is sparse: 4 rows sit
+  // months in the past, so together with the recent rows the array has
+  // fewer than 14 elements total — slice(-14) alone would happily reach
+  // back and include the old catastrophic nights. sleepDebtFrom must filter
+  // by real calendar date first, so the old rows never enter the count.
+  it("counts only nights within 14 real days, not the last 14 elements (sparse history)", () => {
+    const oldRows = [90, 60, 40, 20].map((offset) => ({
+      date: ymdOffset(TODAY, offset),
+      sleepSecs: 0, // catastrophic — must not be counted
+      bedStart: null,
+    }));
+    const recentRows = Array.from({ length: 8 }, (_, i) => ({
+      date: ymdOffset(TODAY, 7 - i),
+      sleepSecs: DEFAULT_SLEEP_NEED_SECS, // debt-free
+      bedStart: null,
+    }));
+    const wellness = [...oldRows, ...recentRows]; // 12 elements total, < 14
+
+    const r = sleepDebtFrom(wellness, null, TODAY);
+    expect(r.nightsCounted).toBe(8); // only the recent, in-window nights
+    expect(r.debtSecs).toBe(0); // none of the old zero-sleep nights leak in
   });
 });
