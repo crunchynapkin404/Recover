@@ -1,5 +1,66 @@
 # Changelog
 
+## v0.92.0 — 2026-08-11 — The read-site guard, and a plan's starting load
+
+Phase 2d's second guardrail, plus the four read sites building it uncovered.
+
+`daily_metrics.ctl` is the resolved authority: the provider's value wins when
+present, and Recover's native engine fills the gap from activities.
+`wellness_daily.ctl` arrives from intervals.icu and nowhere else. So an
+athlete with **no intervals.icu connection** has a real, computed
+`daily_metrics.ctl` and an empty `wellness_daily.ctl`.
+
+v0.86.0 migrated five coach- and MCP-facing surfaces off `wellness_daily`. It
+migrated no UI surface, and four sites were left.
+
+**A plan's starting load was a guess for these athletes.** The most
+consequential of the four, `week-plan/start-state.ts`, read `wellness_daily`
+for a plan's starting CTL/ATL. Null for a manual-only athlete, so the tier
+cascade fell through to a rolling estimate or — failing that — the hardcoded
+`GLOBAL_FALLBACK` pair of **30/40**, a constant standing in for a figure
+Recover had already computed. The other three sites only showed a blank; this
+one fed plan generation.
+
+The other three: the Train page's CTL/ATL/TSB tiles and 28-day delta, the PMC
+chart fed by the same array, and `volume-inputs.ts`'s `ctlBuckets`, which
+feeds `athleteLevel()`. That last one degraded honestly rather than wrongly —
+`peakOf()` treats an all-zero window as `null`, so the athlete read
+"calibrating" rather than a wrongly-low level — but they stayed calibrating
+**forever**, and never earned a computed volume ceiling.
+
+**An athlete with intervals.icu connected sees no change**, since the
+provider's value already wins inside `daily_metrics`.
+
+### The guard found the fourth site itself
+
+The survey that preceded it found three. `start-state.ts` restricted its
+query — `columns: { ctl: true, atl: true }` — rather than reading `.ctl`, so
+a grep for read sites had nothing to match. The guard's binding-aware
+detector saw it at once.
+
+That detector is deliberately not a substring match. A bare `.ctl` scan flags
+`daily_metrics` rows, which is the _correct_ code; a "queries wellnessDaily
+and mentions `.ctl`" heuristic flags `train/page.tsx` and `volume-inputs.ts`,
+which legitimately read both tables, sometimes through a loop variable of the
+same name. So it tracks which locals are bound to a `wellnessDaily` result
+and checks only scopes derived from that binding, plus two unambiguous forms.
+
+`strava-describer.ts` is allowlisted rather than migrated, with the reason in
+the file: its path is gated twice on `provider === "intervals_icu"`, so an
+athlete reaching it necessarily has the connection.
+
+### One mutation survived
+
+Removing `metrics.ts` from the allowlist initially passed — its
+`byDate.get(date)?.ctl` Map indirection was invisible to the detector, a
+shape that could have been reintroduced anywhere undetected. The detector now
+traces that hop, re-verified across every non-test file in `src/` with no new
+false positives.
+
+`tests/training-plan.test.ts` seeded only `wellness_daily` and asserted a
+starting CTL of 55; without a `daily_metrics` row it now returns the 30
+fallback. That is the defect stated as a test, and the fixture seeds both.
+
 ## v0.91.0 — 2026-08-11 — The dead-component guard
 
 Phase 2d's first guardrail. Two tests, and the second is what keeps the first
