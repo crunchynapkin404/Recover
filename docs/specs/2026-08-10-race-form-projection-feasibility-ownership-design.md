@@ -165,9 +165,20 @@ which also restores `FormBand` where the old type widened it.
 
 | Old                        | New                                                     |
 | -------------------------- | ------------------------------------------------------- |
-| `{ kind: "insufficient" }` | `Figure.calibrating(have, need, "days")`                |
+| `{ kind: "insufficient" }` | `Figure.missingInput("training-load history")`          |
 | `{ kind: "no_plan" }`      | `Figure.missingInput("an active training plan", { … })` |
 | `{ kind: "projection" }`   | `Figure.available(value, "low", why)`                   |
+
+`insufficient` maps to `missing_input`, **not** `calibrating`. An earlier draft
+of this spec said `calibrating`; the codebase says otherwise. `insufficient`
+fires when `forecastForm()` gets no CTL/ATL at all, and the four surfaces
+already migrated for that exact condition — the Today TSB tile and Train's CTL,
+ATL and TSB tiles — all say `Figure.missingInput("training-load history")`.
+`Figure.calibrating` is used only where a real count exists to report
+(`correlations.ts` has events versus a minimum; body battery has days). There
+is no such count here, and inventing one would make the race outlook describe
+the same condition differently from the tiles directly above it — the dialect
+problem this slice exists to remove.
 
 ### `capped` becomes a rendered qualification
 
