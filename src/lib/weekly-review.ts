@@ -13,7 +13,17 @@
  * day late, every cycle. Exact-hour matching would silently never fire,
  * because syncs run at SYNC_HOUR, not at the user's review hour.
  */
-import { and, desc, eq, gte, lte, ne, count, avg } from "drizzle-orm";
+import {
+  and,
+  desc,
+  eq,
+  gte,
+  isNotNull,
+  lte,
+  ne,
+  count,
+  avg,
+} from "drizzle-orm";
 import { generateText } from "ai";
 import { db, schema } from "@/lib/db";
 import { getActivePlan } from "@/lib/active-plan";
@@ -204,10 +214,17 @@ export async function generateWeeklyReview(userId: string): Promise<void> {
       )
     );
 
-  // ── Current CTL/ATL/TSB from latest wellness ───────────────────────────
-  const latestWellness = await db.query.wellnessDaily.findFirst({
-    where: eq(schema.wellnessDaily.userId, userId),
-    orderBy: desc(schema.wellnessDaily.date),
+  // ── Current CTL/ATL/TSB from the resolved daily_metrics figure ─────────
+  // Not wellness_daily directly — that's the raw provider input only,
+  // null for a manual-only or Strava-only athlete even when the native
+  // engine resolved real numbers. See
+  // docs/specs/2026-08-10-ctl-atl-tsb-readiness-ownership-design.md.
+  const latestMetrics = await db.query.dailyMetrics.findFirst({
+    where: and(
+      eq(schema.dailyMetrics.userId, userId),
+      isNotNull(schema.dailyMetrics.ctl)
+    ),
+    orderBy: desc(schema.dailyMetrics.date),
   });
 
   const weekLoad = sumLoad(thisWeekDays);
@@ -215,23 +232,24 @@ export async function generateWeeklyReview(userId: string): Promise<void> {
   const sessions = sumCount(thisWeekDays);
   const prevSessions = sumCount(prevWeekDays);
   const avgReadiness = Math.round(thisWeekMetrics?.avgReadiness ?? 0);
-  const ctl = Math.round(latestWellness?.ctl ?? 0);
-  const atl = Math.round(latestWellness?.atl ?? 0);
+  const ctl = Math.round(latestMetrics?.ctl ?? 0);
+  const atl = Math.round(latestMetrics?.atl ?? 0);
   const tsb = ctl - atl;
   const delta =
     prevLoad > 0 ? Math.round(((weekLoad - prevLoad) / prevLoad) * 100) : 0;
 
   // CTL delta over the SAME calendar week as load, sessions and readiness —
   // all four are rendered in one sentence below and must mean one thing.
-  const prevWellness = await db.query.wellnessDaily.findFirst({
+  const prevMetrics = await db.query.dailyMetrics.findFirst({
     where: and(
-      eq(schema.wellnessDaily.userId, userId),
-      lte(schema.wellnessDaily.date, ctlBaselineYmd(reviewWeekStart))
+      eq(schema.dailyMetrics.userId, userId),
+      isNotNull(schema.dailyMetrics.ctl),
+      lte(schema.dailyMetrics.date, ctlBaselineYmd(reviewWeekStart))
     ),
-    orderBy: desc(schema.wellnessDaily.date),
+    orderBy: desc(schema.dailyMetrics.date),
   });
   const ctlDelta = Math.round(
-    (latestWellness?.ctl ?? 0) - (prevWellness?.ctl ?? 0)
+    (latestMetrics?.ctl ?? 0) - (prevMetrics?.ctl ?? 0)
   );
 
   // ── Plan adherence (read-only here; writes happen after the review is

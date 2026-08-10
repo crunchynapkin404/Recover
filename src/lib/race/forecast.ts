@@ -2,7 +2,7 @@
 // FORM component only (TSB): HRV and RHR cannot be forecast, and calling
 // this a projected readiness score would be fabrication (spec, Principle).
 // Reuses the exact EMA recurrence of the honest load engine.
-import { ATL_DAYS, CTL_DAYS } from "@/lib/training-load";
+import { advanceLoadEma } from "@/lib/training-load";
 
 export type FormBand = "green" | "amber" | "red";
 
@@ -79,8 +79,7 @@ function walk(
   let atl = start.atl;
   for (let day = addDays(from, 1); day <= to; day = addDays(day, 1)) {
     const load = (loads.get(day) ?? 0) * scale;
-    ctl = ctl + (load - ctl) / CTL_DAYS;
-    atl = atl + (load - atl) / ATL_DAYS;
+    ({ ctl, atl } = advanceLoadEma({ ctl, atl }, load));
     days.push({
       date: day,
       ctl: round1(ctl),

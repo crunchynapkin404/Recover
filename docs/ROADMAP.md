@@ -332,7 +332,18 @@ A **number slice** is done when all six hold:
       adherence figure zero-filled a week's unknown target while still
       counting its real actual load, silently inflating the percentage —
       fixed to exclude such weeks from both sums (pairwise), not one side.
-- [ ] CTL / ATL / TSB and readiness — closes the standing dashboard honesty debt
+- [x] CTL / ATL / TSB and readiness — investigated broadly
+      (`docs/specs/2026-08-10-ctl-atl-tsb-readiness-ownership-design.md`):
+      readiness (`computeReadiness()`) was already single-owner. **v0.86.0**
+      fixed two real issues in CTL/ATL/TSB: the EMA recurrence itself was
+      duplicated three times (`training-load.ts`, `race/forecast.ts`,
+      `morning-insight.ts`) — consolidated into one `advanceLoadEma()`.
+      Five surfaces (`get_fitness_summary`, `get_training_load_summary`,
+      `weekly-review.ts`, `coach-context.ts`, `get_wellness`) read
+      `wellness_daily.ctl`/`.atl` directly instead of the resolved
+      `daily_metrics` figure — the same "manual-only athlete gets
+      nothing" defect class v0.10 fixed for the dashboard, recurring in
+      coach- and MCP-facing surfaces. All five now read `daily_metrics`.
 - [ ] Event demand
 - [ ] Display-derived figures (sleep debt, body battery, correlations, bio-age)
 

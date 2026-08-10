@@ -11,8 +11,8 @@ async function cleanup() {
   const { db, schema } = await import("@/lib/db");
   await db.delete(schema.activities).where(eq(schema.activities.userId, USER));
   await db
-    .delete(schema.wellnessDaily)
-    .where(eq(schema.wellnessDaily.userId, USER));
+    .delete(schema.dailyMetrics)
+    .where(eq(schema.dailyMetrics.userId, USER));
   await db.delete(schema.users).where(eq(schema.users.id, USER));
 }
 
@@ -47,12 +47,16 @@ describe.skipIf(!hasDb)("get_training_load_summary weekly buckets", () => {
         distanceM: 60000,
       },
     ]);
-    await db.insert(schema.wellnessDaily).values({
+    // v0.86.0: get_training_load_summary reads the resolved daily_metrics
+    // figure, not wellness_daily directly — see
+    // docs/specs/2026-08-10-ctl-atl-tsb-readiness-ownership-design.md.
+    await db.insert(schema.dailyMetrics).values({
       userId: USER,
       date: now.toISOString().slice(0, 10),
       ctl: 60,
       atl: 45,
-      source: "intervals_icu",
+      tsb: 15,
+      loadSource: "provider",
     });
   });
 

@@ -1,5 +1,53 @@
 # Changelog
 
+## v0.86.0 — 2026-08-10 — One source of truth: CTL/ATL/TSB and readiness
+
+Fourth number slice of Phase 2c (`docs/ROADMAP.md`). Investigated broadly
+first (`docs/specs/2026-08-10-ctl-atl-tsb-readiness-ownership-design.md`):
+readiness (`computeReadiness()`) was already single-owner — no change
+needed there.
+
+Two real issues found and fixed in CTL/ATL/TSB:
+
+- The EMA recurrence itself (`x = x + (load - x) / days`) was duplicated
+  three times: `training-load.ts`'s historical fill, `race/forecast.ts`'s
+  future projection, and `morning-insight.ts`'s single decay step.
+  Consolidated into one `advanceLoadEma()` function all three call.
+  Behavior-preserving — verified against existing test suites, including
+  the DB-backed morning-insight integration test.
+- Five surfaces read `wellness_daily.ctl`/`.atl` directly instead of the
+  resolved `daily_metrics` figure (provider value, or the native engine's
+  honest computation when there's no intervals.icu sync) — the same
+  "manual-only athlete gets nothing" defect class v0.10 (Honest Load)
+  fixed for the dashboard, recurring in coach- and MCP-facing surfaces
+  that were never migrated:
+  - `get_fitness_summary` and `get_training_load_summary` (MCP tools):
+    returned `null` for a manual-only or Strava-only athlete.
+  - `weekly-review.ts`: worse — `?? 0` fallbacks meant a **fabricated
+    zero** CTL/ATL/TSB in the weekly review message.
+  - `coach-context.ts`: the coach's own system-prompt Training Load
+    section was omitted whenever the athlete's most recent HRV/RHR/sleep
+    row happened to lack ctl/atl, even on a day the native engine had
+    resolved a real number.
+  - `get_wellness` (MCP tool): returned the raw per-day provider figure
+    instead of the resolved one.
+
+  All five now read `daily_metrics`. `eftp` (intervals.icu-only, no
+  native equivalent) still reads from `wellness_daily`.
+
+Two new MCP tool test files and a new coach-context test (previously
+zero coverage of this code path) — proved via git-stash mutation testing
+that reverting the fixes reproduces the exact old bugs with clean,
+isolated test failures. A pre-existing test (`tests/load-summary.test.ts`)
+updated to seed `daily_metrics` instead of `wellness_daily`, matching the
+new read path.
+
+Verified against a real isolated Postgres (matching CI's service config):
+full suite 2130 passed / 1 skipped (2131 total). Independent review —
+including an exhaustive final sweep of every remaining `wellness_daily`
+read in the codebase — found zero remaining instances of this defect
+class and no issues with the fix.
+
 ## v0.85.0 — 2026-08-10 — One source of truth: adherence and completion
 
 Third number slice of Phase 2c (`docs/ROADMAP.md`). Investigated broadly

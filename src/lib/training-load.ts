@@ -246,6 +246,24 @@ export interface NativeDayMetrics {
  * day carries its own trailing activity-day count so the MIN_LOAD_DAYS
  * calibrating gate is honest for historical recomputes too.
  */
+/**
+ * One day's EMA step for both CTL and ATL, given that day's load. The one
+ * definition of the recurrence itself — `nativeLoadMetrics` below,
+ * `race/forecast.ts`'s multi-day projection, and `morning-insight.ts`'s
+ * single decay step (load: 0) all call this instead of re-deriving
+ * `x + (load - x) / days` by hand. See
+ * docs/specs/2026-08-10-ctl-atl-tsb-readiness-ownership-design.md.
+ */
+export function advanceLoadEma(
+  prev: { ctl: number; atl: number },
+  load: number
+): { ctl: number; atl: number } {
+  return {
+    ctl: prev.ctl + (load - prev.ctl) / CTL_DAYS,
+    atl: prev.atl + (load - prev.atl) / ATL_DAYS,
+  };
+}
+
 export function nativeLoadMetrics(
   activities: LoadActivity[],
   athlete: AthleteThresholds,
@@ -261,8 +279,7 @@ export function nativeLoadMetrics(
   const window: string[] = []; // activity days inside the trailing CTL_DAYS
   for (let day = dates[0]; day <= upToDate; day = addDays(day, 1)) {
     const load = daily.get(day)?.load ?? 0;
-    ctl = ctl + (load - ctl) / CTL_DAYS;
-    atl = atl + (load - atl) / ATL_DAYS;
+    ({ ctl, atl } = advanceLoadEma({ ctl, atl }, load));
     if (load > 0) window.push(day);
     const floor = addDays(day, -(CTL_DAYS - 1));
     while (window.length > 0 && window[0] < floor) window.shift();

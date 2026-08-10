@@ -13,6 +13,7 @@ import { recordLlmUsage } from "@/lib/llm-usage";
 import { buildSystemPrompt, languageDirective } from "@/lib/coach-persona";
 import { fetchAthleteContext } from "@/lib/coach-context";
 import { calibrationProgress } from "@/lib/calibration";
+import { advanceLoadEma } from "@/lib/training-load";
 import { unavailableMessage } from "@/components/ui/unavailable";
 import {
   getOvertrainingStatus,
@@ -270,9 +271,10 @@ export async function generateMorningInsight(
       ),
     });
     if (yRow?.ctl != null && yRow.atl != null) {
-      const { CTL_DAYS, ATL_DAYS } = await import("@/lib/training-load");
-      const pCtl = yRow.ctl * (1 - 1 / CTL_DAYS);
-      const pAtl = yRow.atl * (1 - 1 / ATL_DAYS);
+      const { ctl: pCtl, atl: pAtl } = advanceLoadEma(
+        { ctl: yRow.ctl, atl: yRow.atl },
+        0
+      );
       const projected = Math.round((pCtl - pAtl) * 10) / 10;
       projectedLine =
         metric?.tsb != null
