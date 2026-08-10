@@ -3,6 +3,7 @@
 // this a projected readiness score would be fabrication (spec, Principle).
 // Reuses the exact EMA recurrence of the honest load engine.
 import { advanceLoadEma } from "@/lib/training-load";
+import { formScore, FORM_BAND_THRESHOLDS } from "@/lib/readiness";
 
 export type FormBand = "green" | "amber" | "red";
 
@@ -63,8 +64,12 @@ function addDays(ymd: string, n: number): string {
 
 /** TSB → the readiness engine's form component → its band thresholds. */
 export function formOutlook(tsb: number): FormBand {
-  const score = Math.min(90, Math.max(10, 50 + 2.5 * tsb));
-  return score >= 67 ? "green" : score >= 34 ? "amber" : "red";
+  const score = formScore(tsb);
+  return score >= FORM_BAND_THRESHOLDS.green
+    ? "green"
+    : score >= FORM_BAND_THRESHOLDS.amber
+      ? "amber"
+      : "red";
 }
 
 function walk(

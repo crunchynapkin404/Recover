@@ -32,6 +32,8 @@
  * Pure — no I/O, no clock.
  */
 import { RAMP_CLAMP_PCT } from "@/lib/week-plan/types";
+import { Figure } from "@/lib/uncertainty";
+import type { EventDemandResult } from "@/lib/race/demand";
 
 export type Verdict = "ready" | "on_track" | "tight" | "not_realistic";
 
@@ -148,4 +150,41 @@ export function assessFeasibility(input: FeasibilityInput): Feasibility | null {
     requiredLongestSessionHours,
     fromAverageDay: !input.queenStageKnown,
   };
+}
+
+/**
+ * The one way a surface asks "is this event feasible".
+ *
+ * Before v0.87 three call sites wrote the same guard inline and collapsed
+ * every failure to `null`, so no surface could tell "no tracked race" from
+ * "no measured history". Each guard now states its own reason.
+ *
+ * Confidence is Low for every verdict: FEASIBILITY_CONSTANTS' longest-session
+ * fraction is Low and unvalidated outside cycling, and the verdict is only as
+ * good as the demand figure feeding it.
+ */
+export function feasibilityFor(input: {
+  demand: EventDemandResult | null;
+  currentWeeklyHours: number | null;
+  longestSessionHours: number | null;
+  weeksUntilEvent: number | null;
+}): Figure<Feasibility> {
+  if (input.demand == null || !input.demand.available) {
+    return Figure.missingInput("a tracked race with computable demand");
+  }
+  if (input.weeksUntilEvent == null) {
+    return Figure.missingInput("a race date to count back from");
+  }
+  const verdict = assessFeasibility({
+    requiredWeeklyHours: input.demand.weeklyHours,
+    currentWeeklyHours: input.currentWeeklyHours,
+    queenStageHours: input.demand.queenStageHours,
+    queenStageKnown: input.demand.queenStageKnown,
+    longestSessionHours: input.longestSessionHours,
+    weeksUntilEvent: input.weeksUntilEvent,
+  });
+  if (verdict == null) {
+    return Figure.missingInput("measured training history");
+  }
+  return Figure.available(verdict, "low");
 }

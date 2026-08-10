@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { ToolDefinition, ToolContext } from "./registry";
-import { simulatePlanChange, type PlanChange } from "@/lib/race/forecast";
-import { assembleForecastInputs, nextUpcomingRace } from "@/lib/race/service";
+import type { PlanChange } from "@/lib/race/forecast";
+import { simulateRaceForm } from "@/lib/race/outlook";
 import { getOpenWeekPlan } from "@/lib/week-plan/service";
 
 const parameters = z
@@ -30,32 +30,26 @@ async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
   if (!from || from.workouts.length === 0)
     return { success: false, error: "no_workout_on_from" };
 
-  const race = await nextUpcomingRace(ctx.userId);
-  const assembled = await assembleForecastInputs(ctx.userId, race);
-  if (!assembled) return { success: false, error: "no_active_plan" };
-
   const change: PlanChange =
     args.action === "skip"
       ? { kind: "skip", fromDate: args.fromDate }
       : { kind: args.action, fromDate: args.fromDate, toDate: args.toDate! };
-  const r = simulatePlanChange(assembled.inputs, change);
-  if (r.before.insufficient || r.after.insufficient) {
+
+  const r = await simulateRaceForm(ctx.userId, change);
+  if (!r.available) {
     return {
       success: true,
-      insufficient: true,
-      note: "CTL/ATL not calibrated yet — no projection to compare. This is a preview only; nothing was saved.",
+      available: false,
+      needs: r.kind === "missing_input" ? r.needs : null,
+      note: "This is a preview only; nothing was saved.",
     };
   }
   return {
     success: true,
-    anchor: assembled.race
-      ? { race: assembled.race.name, date: assembled.race.date }
-      : { race: null, date: assembled.inputs.targetDate },
-    capped: r.before.capped,
-    before: r.before.full,
-    after: r.after.full,
-    deltaTsb: r.deltaTsb,
-    loadDelta: r.loadDelta,
+    available: true,
+    ...r.value,
+    confidence: r.confidence,
+    why: r.why,
     note: "Projection (form outlook from TSB only). This tool never saves — use update_training_plan to apply the change.",
   };
 }

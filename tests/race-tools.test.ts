@@ -142,6 +142,15 @@ describe.skipIf(!hasDb)("race coach tools", () => {
 
   it("simulate_plan_change reports a delta without saving", async () => {
     const { db, schema } = await import("@/lib/db");
+    // The upsert_race its above this one leave "Spring Half" (priority A,
+    // status "upcoming", ymd(42)) sitting in the table — cleanup only runs
+    // in afterAll. simulateRaceForm() resolves its target via
+    // nextUpcomingRace(), which would pick that leftover race (it's closer
+    // than the ymd(56) race this test is about) over the one this test's
+    // own training plan targets, silently changing whether the projection
+    // comes out capped depending on what ran before it. Clear the slate so
+    // this test's outcome depends only on what it itself sets up.
+    await db.delete(schema.races).where(eq(schema.races.userId, USER));
     const { generateTrainingPlan } = await import("@/lib/training-plan");
     await generateTrainingPlan({
       userId: USER,
@@ -149,7 +158,8 @@ describe.skipIf(!hasDb)("race coach tools", () => {
       raceDate: ymd(56),
     });
     // Calibrated CTL/ATL: without it assembleForecastInputs' `start` is null
-    // and the tool honestly reports {insufficient: true} instead of a delta.
+    // and the tool honestly reports {available: false, needs: ...} instead
+    // of a delta.
     await db.insert(schema.dailyMetrics).values({
       userId: USER,
       date: ymd(0),
@@ -168,9 +178,25 @@ describe.skipIf(!hasDb)("race coach tools", () => {
     const r = (await simulatePlanChangeTool.execute(
       { action: "skip", fromDate: from.date },
       { userId: USER, db }
-    )) as { success: boolean; loadDelta?: number };
+    )) as {
+      success: boolean;
+      loadDelta?: number;
+      capped?: boolean;
+      why?: string;
+      confidence?: string;
+    };
     expect(r.success).toBe(true);
     expect(r.loadDelta).toBeLessThanOrEqual(0);
+    // The MCP surface must carry the same caveat as the UI (day-actions.tsx)
+    // and the pure mapping (outlook-figure.ts) — a coach reading this tool's
+    // output should never see a bare number with no idea it's capped at plan
+    // end rather than race day. The race here is deliberately set 56 days
+    // out (ymd(56)) against a training plan whose generated horizon is
+    // shorter, so this projection is reliably capped — that's what makes
+    // `why` worth asserting exactly, not just "truthy".
+    expect(r.capped).toBe(true);
+    expect(r.why).toContain("plan end");
+    expect(r.confidence).toBe("low");
     // and nothing was saved:
     const after = await getOpenWeekPlan(USER);
     expect(

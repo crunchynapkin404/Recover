@@ -23,14 +23,9 @@ import {
   isMondayYmd,
   resolveWeekStartTarget,
 } from "@/lib/availability/validate-week-start";
-import {
-  assembleForecastInputs,
-  createRace,
-  deleteRace,
-  nextUpcomingRace,
-  updateRace,
-} from "@/lib/race/service";
-import { simulatePlanChange, type PlanChange } from "@/lib/race/forecast";
+import { createRace, deleteRace, updateRace } from "@/lib/race/service";
+import type { PlanChange } from "@/lib/race/forecast";
+import { simulateRaceForm } from "@/lib/race/outlook";
 import {
   validateBlocks,
   type AvailabilityBlock,
@@ -682,14 +677,22 @@ export async function previewPlanChange(input: {
   | { ok: false; error: string }
   | {
       ok: true;
-      insufficient: boolean;
+      available: false;
+      needs: string | null;
+      loadDelta: number | null;
+    }
+  | {
+      ok: true;
+      available: true;
       anchorDate: string;
       anchorRace: string | null;
-      beforeTsb: number | null;
-      afterTsb: number | null;
-      beforeBand: string | null;
-      afterBand: string | null;
+      beforeTsb: number;
+      afterTsb: number;
+      beforeBand: string;
+      afterBand: string;
       loadDelta: number;
+      capped: boolean;
+      why?: string;
     }
 > {
   const user = await requireUser();
@@ -697,32 +700,34 @@ export async function previewPlanChange(input: {
     return { ok: false, error: "missing_target" };
   }
 
-  const race = await nextUpcomingRace(user.id);
-  const assembled = await assembleForecastInputs(user.id, race);
-  if (!assembled) return { ok: false, error: "no_open_week" };
-
   const change: PlanChange =
     input.action === "skip"
       ? { kind: "skip", fromDate: input.fromDate }
-      : {
-          kind: input.action,
-          fromDate: input.fromDate,
-          toDate: input.toDate!,
-        };
+      : { kind: input.action, fromDate: input.fromDate, toDate: input.toDate! };
 
-  const sim = simulatePlanChange(assembled.inputs, change);
-  const insufficient = sim.before.insufficient || sim.after.insufficient;
-
+  const r = await simulateRaceForm(user.id, change);
+  if (!r.available) {
+    return {
+      ok: true as const,
+      available: false as const,
+      needs: r.kind === "missing_input" ? r.needs : null,
+      // Independent of CTL/ATL: perfectly knowable from planned loads alone
+      // even when the projection itself is unavailable (see SimulatedRaceForm).
+      loadDelta: r.loadDelta ?? null,
+    };
+  }
   return {
-    ok: true,
-    insufficient,
-    anchorDate: assembled.inputs.targetDate,
-    anchorRace: assembled.race?.name ?? null,
-    beforeTsb: sim.before.insufficient ? null : sim.before.full.tsb,
-    afterTsb: sim.after.insufficient ? null : sim.after.full.tsb,
-    beforeBand: sim.before.insufficient ? null : sim.before.full.band,
-    afterBand: sim.after.insufficient ? null : sim.after.full.band,
-    loadDelta: sim.loadDelta,
+    ok: true as const,
+    available: true as const,
+    anchorDate: r.value.anchor.date,
+    anchorRace: r.value.anchor.race,
+    beforeTsb: r.value.before.tsb,
+    afterTsb: r.value.after.tsb,
+    beforeBand: r.value.before.band,
+    afterBand: r.value.after.band,
+    loadDelta: r.value.loadDelta,
+    capped: r.value.capped,
+    why: r.why,
   };
 }
 
