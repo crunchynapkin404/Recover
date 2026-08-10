@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   computeReadiness,
+  formScore,
+  FORM_BAND_THRESHOLDS,
   sleepDurationScore,
   type ReadinessInput,
 } from "./readiness";
@@ -21,6 +23,24 @@ const base: ReadinessInput = {
   hrvBaseline: [],
   rhrBaseline: [],
 };
+
+describe("formScore", () => {
+  it("maps TSB to the 10-90 form component score", () => {
+    expect(formScore(0)).toBe(50);
+    expect(formScore(10)).toBe(75);
+    expect(formScore(-10)).toBe(25);
+  });
+
+  it("clamps at both ends", () => {
+    expect(formScore(100)).toBe(90);
+    expect(formScore(-100)).toBe(10);
+  });
+
+  it("exposes the band thresholds it is scored against", () => {
+    expect(FORM_BAND_THRESHOLDS.green).toBe(67);
+    expect(FORM_BAND_THRESHOLDS.amber).toBe(34);
+  });
+});
 
 describe("readiness engine (hand-computed fixtures)", () => {
   it("scores 50 per component on a perfectly flat baseline (z = 0)", () => {

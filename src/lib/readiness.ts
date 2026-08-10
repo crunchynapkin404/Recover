@@ -81,6 +81,36 @@ function clamp(v: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, v));
 }
 
+/**
+ * TSB → the form component score, 10-90.
+ *
+ * Source: Invented. The 50-midpoint, the 2.5 slope and the 10/90 clamp are
+ * an uncited design choice — a linear rescaling of TSB onto the same 0-100
+ * scale the other readiness components use, so they can be weighted
+ * together. No literature sets these values.
+ * Confidence: Low.
+ *
+ * Owner: this function. `race/forecast.ts`'s `formOutlook()` calls it rather
+ * than repeating the arithmetic — before v0.87 the expression was written
+ * out in both files.
+ */
+export function formScore(tsb: number): number {
+  return clamp(50 + 2.5 * tsb, 10, 90);
+}
+
+/**
+ * Band cutoffs on a 0-100 score.
+ *
+ * Applied to two *different* scores: the composite readiness
+ * (`computeReadiness`) and the form component alone
+ * (`race/forecast.ts`'s `formOutlook`). That is one scale reused, not one
+ * figure computed twice — a green form outlook and a green readiness are
+ * different claims wearing the same colour.
+ *
+ * Source: Invented — uncited thresholds. Confidence: Low.
+ */
+export const FORM_BAND_THRESHOLDS = { green: 67, amber: 34 } as const;
+
 function mean(xs: number[]): number {
   return xs.reduce((a, b) => a + b, 0) / xs.length;
 }
@@ -164,7 +194,7 @@ export function computeReadiness(input: ReadinessInput): ReadinessResult {
   let tsb: number | null = null;
   if (input.ctl != null && input.atl != null) {
     tsb = round1(input.ctl - input.atl);
-    components.form = round1(clamp(50 + 2.5 * tsb, 10, 90));
+    components.form = round1(formScore(tsb));
   }
 
   // Recovery signals are the point of the score: without at least one
@@ -186,7 +216,11 @@ export function computeReadiness(input: ReadinessInput): ReadinessResult {
 
   const readiness = Math.round(scoreSum / weightSum);
   const band: Band =
-    readiness >= 67 ? "green" : readiness >= 34 ? "amber" : "red";
+    readiness >= FORM_BAND_THRESHOLDS.green
+      ? "green"
+      : readiness >= FORM_BAND_THRESHOLDS.amber
+        ? "amber"
+        : "red";
 
   return { readiness, band, components, tsb, baselines };
 }
