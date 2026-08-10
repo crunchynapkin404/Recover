@@ -23,12 +23,14 @@ import {
   hoursForMaterialize,
   weeklyTargetHours,
   weekAdherencePct,
+  weekTargetLoad,
 } from "./volume";
 import { plannedMins, resolveFillOptions } from "./fill";
 import { taperFractionForWeek } from "@/lib/race/taper";
 import type { PlanStyle } from "@/lib/plan-style/types";
 import type { ReentryStage, SeasonMode } from "@/lib/season-mode/types";
 import { resolvePlanningSurfaceState } from "@/lib/planning-surface/effective-state";
+import type { Figure } from "@/lib/uncertainty";
 
 export type AdjustmentRow = typeof schema.planAdjustments.$inferSelect;
 
@@ -193,6 +195,48 @@ export async function listAdjustments(
     where: eq(schema.planAdjustments.weekPlanId, weekPlanId),
     orderBy: asc(schema.planAdjustments.createdAt),
   });
+}
+
+/**
+ * `weekTargetLoad()` for every block in one batched query, for MCP tools
+ * that list several weeks at once (`get_training_plan`, `get_plan_drift`)
+ * instead of each reading `targetLoadTotal` directly and reporting the
+ * un-tapered skeleton value for a week that has already materialized. Any
+ * status (open or closed) counts, since the open week's own effective
+ * target is exactly the case this exists to surface. Later `weekStart`
+ * wins per skeleton week — plan regeneration can leave more than one row
+ * per skeleton week, same precedent as race/debrief.ts.
+ */
+export async function resolveBlockTargets(
+  planId: string,
+  blocks: { weekNumber: number; targetLoadTotal: number | null }[]
+): Promise<Map<number, Figure<number>>> {
+  const weekNumbers = blocks.map((b) => b.weekNumber);
+  const rows =
+    weekNumbers.length > 0
+      ? await db.query.weekPlans.findMany({
+          where: and(
+            eq(schema.weekPlans.planId, planId),
+            inArray(schema.weekPlans.skeletonWeek, weekNumbers)
+          ),
+          orderBy: asc(schema.weekPlans.weekStart),
+        })
+      : [];
+  const effectiveByWeek = new Map<number, number | null>();
+  for (const row of rows) {
+    effectiveByWeek.set(row.skeletonWeek, row.effectiveTarget);
+  }
+  const result = new Map<number, Figure<number>>();
+  for (const b of blocks) {
+    result.set(
+      b.weekNumber,
+      weekTargetLoad({
+        effectiveTarget: effectiveByWeek.get(b.weekNumber) ?? null,
+        blockTarget: b.targetLoadTotal,
+      })
+    );
+  }
+  return result;
 }
 
 export async function rolloverWeekPlan(

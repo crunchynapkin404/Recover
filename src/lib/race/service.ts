@@ -9,7 +9,7 @@ import type { ForecastInputs } from "./forecast";
 import { taperFractionForWeek } from "./taper";
 import type { DaySlot } from "@/lib/week-plan/types";
 import type { OpenWeekPlan } from "@/lib/week-plan/service";
-import { weekLoadPerMin } from "@/lib/week-plan/volume";
+import { weekLoadPerMin, weekTargetLoad } from "@/lib/week-plan/volume";
 import { openWeekPlannedLoads } from "@/lib/week-plan/planned-loads";
 
 export type RaceRow = typeof schema.races.$inferSelect;
@@ -299,17 +299,22 @@ export async function assembleForecastInputs(
     effectiveTarget: week.effectiveTarget,
     materializedMins: week.materializedMins,
   });
-  // The open week's persisted effective target (post-taper, post-hours-
-  // budget) wins over the block's un-tapered skeleton value — in race week
-  // the block still holds the pre-taper number, which would otherwise
-  // overstate the load distributed across the tiny opener sessions and
-  // understate race-day freshness. Falls back to the block target on rows
-  // written before this column existed.
+  // The open week's target load, via the one shared read path: its
+  // persisted effective target (post-taper, post-hours-budget) wins over
+  // the block's un-tapered skeleton value — in race week the block still
+  // holds the pre-taper number, which would otherwise overstate the load
+  // distributed across the tiny opener sessions and understate race-day
+  // freshness. Falls back to the block target on rows written before this
+  // column existed.
+  const weekTarget = weekTargetLoad({
+    effectiveTarget: week.effectiveTarget,
+    blockTarget: openBlock?.targetLoadTotal ?? null,
+  });
   plannedLoads.push(
     ...openWeekPlannedLoads({
       days: week.days,
       perMin,
-      fallbackTarget: week.effectiveTarget ?? openBlock?.targetLoadTotal ?? 0,
+      fallbackTarget: weekTarget.available ? weekTarget.value : 0,
       today,
     })
   );
