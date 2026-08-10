@@ -79,7 +79,7 @@ describe.skipIf(!hasDb)("plan race actions", () => {
     if (!from) return; // nothing future to preview this late in the week
     const r = await previewPlanChange({ action: "skip", fromDate: from.date });
     expect(r.ok).toBe(true);
-    if (r.ok) expect(r.loadDelta).toBeLessThanOrEqual(0);
+    if (r.ok && r.available) expect(r.loadDelta).toBeLessThanOrEqual(0);
     const after = await getOpenWeekPlan(USER);
     expect(
       after!.days.find((d) => d.date === from.date)?.workouts[0]

@@ -54,14 +54,18 @@ function dayName(ymd: string): string {
   });
 }
 
-interface Preview {
-  insufficient: boolean;
-  anchorRace: string | null;
-  beforeTsb: number | null;
-  afterTsb: number | null;
-  afterBand: string | null;
-  loadDelta: number;
-}
+type Preview =
+  | { available: false; needs: string | null }
+  | {
+      available: true;
+      anchorRace: string | null;
+      beforeTsb: number;
+      afterTsb: number;
+      afterBand: string;
+      loadDelta: number;
+      capped: boolean;
+      why?: string;
+    };
 
 /**
  * Move/swap/skip a day's workout with a projected-form preview before
@@ -111,14 +115,20 @@ export function DayActions({ day, otherDays, bare = false }: Props) {
         setError(friendlyPlanError(result.error));
         return;
       }
-      setPreview({
-        insufficient: result.insufficient,
-        anchorRace: result.anchorRace,
-        beforeTsb: result.beforeTsb,
-        afterTsb: result.afterTsb,
-        afterBand: result.afterBand,
-        loadDelta: result.loadDelta,
-      });
+      setPreview(
+        result.available
+          ? {
+              available: true,
+              anchorRace: result.anchorRace,
+              beforeTsb: result.beforeTsb,
+              afterTsb: result.afterTsb,
+              afterBand: result.afterBand,
+              loadDelta: result.loadDelta,
+              capped: result.capped,
+              why: result.why,
+            }
+          : { available: false, needs: result.needs }
+      );
     });
   }
 
@@ -147,23 +157,30 @@ export function DayActions({ day, otherDays, bare = false }: Props) {
         </p>
       ) : preview ? (
         <div className="space-y-2">
-          {preview.insufficient ? (
+          {!preview.available ? (
             <p className="text-[11px] text-white/50">
               {unavailableMessage({
                 kind: "missing_input",
-                needs: "more training history to project form",
+                needs: preview.needs ?? "more training history to project form",
               })}
             </p>
           ) : (
-            <p className="text-[11px] text-white/70">
-              {`${preview.anchorRace ? "Race-day form" : "Week-end form"}: ${preview.beforeTsb} → ${preview.afterTsb} TSB (${preview.afterBand})`}
-            </p>
+            <>
+              <p className="text-[11px] text-white/70">
+                {`${preview.anchorRace ? "Race-day form" : "Week-end form"}: ${preview.beforeTsb} → ${preview.afterTsb} TSB (${preview.afterBand})`}
+              </p>
+              {preview.capped && preview.why && (
+                <p className="text-[10px] text-white/40">{preview.why}</p>
+              )}
+            </>
           )}
-          {action === "skip" && preview.loadDelta !== 0 && (
-            <p className="text-[10px] text-white/40">
-              {`Load change: ${preview.loadDelta}`}
-            </p>
-          )}
+          {action === "skip" &&
+            preview.available &&
+            preview.loadDelta !== 0 && (
+              <p className="text-[10px] text-white/40">
+                {`Load change: ${preview.loadDelta}`}
+              </p>
+            )}
           <div className="flex gap-2">
             {action !== "skip" && (
               <button

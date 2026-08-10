@@ -2,7 +2,7 @@ import { describe, expect, it, beforeAll, afterAll } from "vitest";
 import { inArray } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import type { DaySlot } from "@/lib/week-plan/types";
-import { raceCard } from "./outlook";
+import { raceCard, simulateRaceForm } from "./outlook";
 
 // requires Postgres; skips without DATABASE_URL.
 const hasDb =
@@ -173,5 +173,29 @@ describe.skipIf(!hasDb)("raceCard", () => {
     const card = await raceCard(NO_LOAD, NOW);
     // 2026-07-22 → 2026-08-15
     expect(card.daysOut).toBe(24);
+  });
+
+  describe("simulateRaceForm", () => {
+    it("reports missing load history rather than a fabricated comparison", async () => {
+      const r = await simulateRaceForm(NO_LOAD, {
+        kind: "skip",
+        fromDate: "2026-07-22",
+      });
+      expect(r.available).toBe(false);
+      if (r.available) return;
+      expect(r.kind).toBe("missing_input");
+      if (r.kind !== "missing_input") return;
+      expect(r.needs).toBe("training-load history");
+    });
+
+    it("carries capped through to the caller", async () => {
+      const r = await simulateRaceForm(CAPPED, {
+        kind: "skip",
+        fromDate: "2026-07-22",
+      });
+      expect(r.available).toBe(true);
+      if (!r.available) return;
+      expect(r.value.capped).toBe(true);
+    });
   });
 });

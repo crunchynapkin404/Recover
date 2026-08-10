@@ -149,7 +149,8 @@ describe.skipIf(!hasDb)("race coach tools", () => {
       raceDate: ymd(56),
     });
     // Calibrated CTL/ATL: without it assembleForecastInputs' `start` is null
-    // and the tool honestly reports {insufficient: true} instead of a delta.
+    // and the tool honestly reports {available: false, needs: ...} instead
+    // of a delta.
     await db.insert(schema.dailyMetrics).values({
       userId: USER,
       date: ymd(0),

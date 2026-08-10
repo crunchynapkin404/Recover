@@ -4,7 +4,12 @@
 import { Figure } from "@/lib/uncertainty";
 import type { OpenWeekPlan } from "@/lib/week-plan/service";
 import { assembleForecastInputs, nextUpcomingRace } from "./service";
-import { forecastForm, type ScenarioEnd } from "./forecast";
+import {
+  forecastForm,
+  simulatePlanChange,
+  type PlanChange,
+  type ScenarioEnd,
+} from "./forecast";
 import { localYmd } from "@/lib/insights/auto-tags";
 
 export type RaceOutlook = Figure<{
@@ -85,4 +90,56 @@ export async function raceCard(
     ),
     outlook,
   };
+}
+
+export type SimulatedRaceForm = Figure<{
+  anchor: { race: string | null; date: string };
+  before: ScenarioEnd;
+  after: ScenarioEnd;
+  deltaTsb: number;
+  loadDelta: number;
+  capped: boolean;
+}>;
+
+/**
+ * The one read path for "what would this change do to race-day form".
+ *
+ * Before v0.87 `plan/actions.ts` and the `simulate_plan_change` tool each ran
+ * this chain and encoded the no-projection case their own way — a boolean
+ * with nulled fields in one, prose in the other.
+ */
+export async function simulateRaceForm(
+  userId: string,
+  change: PlanChange
+): Promise<SimulatedRaceForm> {
+  const race = await nextUpcomingRace(userId);
+  const assembled = await assembleForecastInputs(userId, race);
+  if (!assembled) {
+    return Figure.missingInput("an active training plan", {
+      label: "Plan it",
+      href: "/train?tab=week",
+    });
+  }
+  const r = simulatePlanChange(assembled.inputs, change);
+  if (r.before.insufficient || r.after.insufficient) {
+    return Figure.missingInput("training-load history");
+  }
+  return Figure.available(
+    {
+      anchor: {
+        race: assembled.race?.name ?? null,
+        date: assembled.inputs.targetDate,
+      },
+      before: r.before.full,
+      after: r.after.full,
+      // Non-null: the insufficient check above guarantees both sides
+      // produced a full scenario, and deltaTsb is only null when either
+      // side is insufficient (see SimulationResult in forecast.ts).
+      deltaTsb: r.deltaTsb!,
+      loadDelta: r.loadDelta,
+      capped: r.before.capped,
+    },
+    "low",
+    r.before.capped ? CAPPED_WHY : FULL_WHY
+  );
 }
