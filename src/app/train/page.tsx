@@ -1338,6 +1338,21 @@ async function FitnessTab({
     orderBy: schema.wellnessDaily.date,
   });
 
+  // The resolved authority for ctl/atl/tsb — the provider's value wins when
+  // present, and Recover's native engine fills the gap when it isn't
+  // (metrics.ts:43-45). wellness_daily.ctl/.atl is provider-only and stays
+  // empty for an athlete with no intervals.icu connection, even though
+  // Recover has computed a real fitness trend for them all along. `wellness`
+  // above still supplies HRV, resting HR, sleep, weight, eFTP, pMax, W',
+  // ramp rate — those genuinely live on wellness_daily and are unaffected.
+  const dailyMetrics = await db.query.dailyMetrics.findMany({
+    where: and(
+      eq(schema.dailyMetrics.userId, userId),
+      gte(schema.dailyMetrics.date, daysAgo(range))
+    ),
+    orderBy: schema.dailyMetrics.date,
+  });
+
   const activities = await db.query.activities.findMany({
     where: and(
       eq(schema.activities.userId, userId),
@@ -1355,15 +1370,16 @@ async function FitnessTab({
     12
   );
 
-  // ctl/atl come from the wellness series; null means calibrating, never 0.
-  const latest = [...wellness].reverse().find((w) => w.ctl != null);
+  // ctl/atl come from the resolved daily_metrics series, not the
+  // provider-only wellness_daily one; null means calibrating, never 0.
+  const latest = [...dailyMetrics].reverse().find((w) => w.ctl != null);
   const ctl = latest?.ctl ?? null;
   const atl = latest?.atl ?? null;
   const tsb = ctl != null && atl != null ? ctl - atl : null;
 
   // "▲ +4 in 28d" — CTL against itself four weeks back, only when both ends
   // are real values inside the loaded range.
-  const priorCtl = wellness.find(
+  const priorCtl = dailyMetrics.find(
     (w) => w.date >= daysAgo(28) && w.ctl != null
   )?.ctl;
   const ctlDelta =
@@ -1447,7 +1463,7 @@ async function FitnessTab({
     fitnessStats.push({ label: "Ramp", value: rampLabel });
   }
 
-  const hasLoadSeries = wellness.some((w) => w.ctl != null);
+  const hasLoadSeries = dailyMetrics.some((w) => w.ctl != null);
 
   return (
     <>
@@ -1465,7 +1481,7 @@ async function FitnessTab({
             {/* showStats off: the tiles above already carry CTL/ATL/TSB. */}
             <PmcChart
               showStats={false}
-              wellness={wellness.map((w) => ({
+              wellness={dailyMetrics.map((w) => ({
                 date: w.date,
                 ctl: w.ctl,
                 atl: w.atl,
