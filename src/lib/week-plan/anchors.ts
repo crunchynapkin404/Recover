@@ -20,16 +20,24 @@ export const ANCHOR_CONSTANTS = {
    * How far back to look. Wider than LEVEL_CONSTANTS.PEAK_WINDOW_WEEKS (12
    * weeks) on purpose: a rolling volume peak should be recent, but a
    * threshold is a slower-moving property and a 12-week window would miss a
-   * whole off-season.
+   * whole off-season. Source: `docs/specs/2026-08-07-race-demand-evidence.md`'s
+   * summary table ("Judgement: wider than the 12-week volume-peak window
+   * because threshold moves slowly"). Confidence: Low.
    */
   WINDOW_DAYS: 180,
   /**
    * Shortest run that anchors a threshold. Riegel is most accurate when the
    * reference is within a few multiples of the target, and a 3 km parkrun
-   * extrapolated to a marathon is not.
+   * extrapolated to a marathon is not. Source: same evidence doc
+   * ("Judgement: Riegel needs a reference within a few multiples of the
+   * target"). Confidence: Low.
    */
   MIN_RUN_KM: 5,
-  /** Shortest swim that anchors a pace — below this, warm-up dominates. */
+  /**
+   * Shortest swim that anchors a pace — below this, warm-up dominates.
+   * Source: same evidence doc ("Judgement: below this, warm-up dominates
+   * pace"). Confidence: Low.
+   */
   MIN_SWIM_M: 400,
 } as const;
 

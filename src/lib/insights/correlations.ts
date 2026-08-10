@@ -4,9 +4,25 @@ import { AUTO_TAGS, addDaysYmd, deriveAutoTags, localYmd } from "./auto-tags";
 import { mean, welchCompare } from "./stats";
 import { Figure } from "@/lib/uncertainty";
 
+/**
+ * A tag needs at least this many events to appear at all. Source:
+ * `docs/specs/2026-07-17-v0.9.4-deeper-insights-design.md` ("a tag needs
+ * ≥5 events to appear at all (unchanged)") — retained from v1, not
+ * freshly derived. Confidence: Low.
+ */
 export const MIN_EVENTS = 5;
+/**
+ * Lookback window for tag/readiness correlation. Source: same design doc
+ * ("90-day window kept from v1") — a retained convention, not re-derived.
+ * Confidence: Low.
+ */
 export const WINDOW_DAYS = 90;
-/** Events below this still get a headline row, but as calibrating, not a finding. */
+/**
+ * Events below this still get a headline row, but as calibrating, not a
+ * finding. Source: no design doc found citing this specific threshold —
+ * a stricter data-sufficiency bar than `MIN_EVENTS`, invented for the
+ * Figure<T> uncertainty-vocabulary work. Confidence: Low.
+ */
 export const MIN_EVENTS_FOR_EVIDENCE = 10;
 
 export interface SplitInsight {
