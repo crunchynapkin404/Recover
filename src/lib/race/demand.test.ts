@@ -514,6 +514,67 @@ describe("eventDemand reports its confidence", () => {
     expect(result.confidence).toBe("low");
   });
 
+  // The sentence a real triathlete actually reads, which until v0.88.0 had no
+  // test at all and was wrong: it told them to "set your thresholds in
+  // Settings for a sharper figure". There is no athlete-set swim pace in this
+  // codebase, so a triathlon's confidence is pinned at "low" no matter what
+  // they set — the advice named a fix that could not work. This pins the
+  // corrected claim: it may still nudge toward FTP and threshold pace, which
+  // genuinely sharpen the bike and run legs, but it must name the swim as the
+  // anchor that is always derived rather than promise a better rating.
+  it("tells a triathlete the swim is always the derived anchor", () => {
+    const result = eventDemand({
+      ...BASE,
+      sport: "Triathlon",
+      raceType: "ironman",
+      distanceKm: 226,
+      ftp: { watts: 310, athleteSet: true },
+      runPace: { secPerKm: 300, athleteSet: true },
+      swimPace: { secPer100m: 120, athleteSet: false },
+    });
+    expect(result.available).toBe(true);
+    if (!result.available) return;
+    expect(result.confidenceReason).toMatch(/swim/i);
+    expect(result.confidenceReason).not.toMatch(/sharper figure/i);
+  });
+
+  it("downgrades a fully anchored triathlon to low confidence", () => {
+    const result = eventDemand({
+      ...BASE,
+      sport: "Triathlon",
+      raceType: "ironman",
+      distanceKm: 226,
+      ftp: { watts: 310, athleteSet: true },
+      runPace: { secPerKm: 300, athleteSet: true },
+      swimPace: { secPer100m: 120, athleteSet: true },
+    });
+    expect(result.available).toBe(true);
+    if (!result.available) return;
+    expect(result.confidence).toBe("low");
+    expect(result.confidenceReason).toContain("downgraded");
+  });
+
+  // Pins the boundary of the downgrade, not just its effect: a stated finish
+  // time must stay "high" even for a fully anchored triathlon. The downgrade
+  // only applies when confidence would otherwise be "medium" (all anchors
+  // athlete-set); once the athlete has told us the time, anchor interaction
+  // between legs is irrelevant.
+  it("does not downgrade a triathlon when the athlete stated their finish time", () => {
+    const result = eventDemand({
+      ...BASE,
+      sport: "Triathlon",
+      raceType: "ironman",
+      distanceKm: 226,
+      expectedFinishHours: 11,
+      ftp: { watts: 310, athleteSet: true },
+      runPace: { secPerKm: 300, athleteSet: true },
+      swimPace: { secPer100m: 120, athleteSet: true },
+    });
+    expect(result.available).toBe(true);
+    if (!result.available) return;
+    expect(result.confidence).toBe("high");
+  });
+
   it("always carries a non-empty reason sentence", () => {
     for (const input of [
       BASE,

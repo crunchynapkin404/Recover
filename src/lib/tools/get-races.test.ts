@@ -9,6 +9,8 @@ const hasDb =
 
 const USER = "test-get-races-demand-user";
 const USER_NO_HISTORY = "test-get-races-no-anchor-user";
+const USER_BIKE_SET = "test-get-races-bike-athlete-set-user";
+const USER_TRI_SET = "test-get-races-tri-athlete-set-user";
 
 describe.skipIf(!hasDb)("get_races demand provenance", () => {
   beforeAll(async () => {
@@ -69,6 +71,87 @@ describe.skipIf(!hasDb)("get_races demand provenance", () => {
       status: "upcoming",
       distanceKm: 42.2,
     });
+
+    // A THIRD user with a Bike race and an athlete-SET FTP (body_prefs, not
+    // synced/derived) — the "medium confidence" path. Its own user because
+    // asserting a third outcome against USER or USER_NO_HISTORY's seed would
+    // hit the same one-seed-two-assertions trap the comment above names.
+    await db
+      .insert(schema.users)
+      .values({
+        id: USER_BIKE_SET,
+        name: "Get Races Bike Athlete-Set Test",
+        email: `${USER_BIKE_SET}@example.test`,
+      })
+      .onConflictDoNothing();
+
+    await db.insert(schema.races).values({
+      userId: USER_BIKE_SET,
+      name: "Get Races Gran Fondo",
+      raceType: "granfondo",
+      sport: "Bike",
+      date: raceDateYmd,
+      priority: "A",
+      status: "upcoming",
+      distanceKm: 160,
+    });
+
+    await db.insert(schema.bodyPrefs).values({
+      userId: USER_BIKE_SET,
+      ftpWatts: 250,
+    });
+
+    await db.insert(schema.wellnessDaily).values({
+      userId: USER_BIKE_SET,
+      date: new Date().toISOString().slice(0, 10),
+      weightKg: 72,
+    });
+
+    // A FOURTH user: a triathlete who has configured every athlete-set anchor
+    // this codebase has — FTP, threshold pace, weight, AND enough recent swim
+    // history to derive a swim pace. See the comment on the test below for
+    // why this still reads "low".
+    await db
+      .insert(schema.users)
+      .values({
+        id: USER_TRI_SET,
+        name: "Get Races Triathlon Athlete-Set Test",
+        email: `${USER_TRI_SET}@example.test`,
+      })
+      .onConflictDoNothing();
+
+    await db.insert(schema.races).values({
+      userId: USER_TRI_SET,
+      name: "Get Races Ironman",
+      raceType: "ironman",
+      sport: "Triathlon",
+      date: raceDateYmd,
+      priority: "A",
+      status: "upcoming",
+      distanceKm: 226,
+    });
+
+    await db.insert(schema.bodyPrefs).values({
+      userId: USER_TRI_SET,
+      ftpWatts: 250,
+      thresholdPaceSecPerKm: 240,
+    });
+
+    await db.insert(schema.wellnessDaily).values({
+      userId: USER_TRI_SET,
+      date: new Date().toISOString().slice(0, 10),
+      weightKg: 68,
+    });
+
+    await db.insert(schema.activities).values({
+      userId: USER_TRI_SET,
+      provider: "manual",
+      externalId: `get-races-tri-swim-anchor-${Date.now()}`,
+      sport: "Swim",
+      startDate: new Date(Date.now() - 14 * 24 * 3600 * 1000),
+      distanceM: 2000,
+      durationS: 2400, // 40:00 for 2000 m — a usable swim-pace reference.
+    });
   });
 
   afterAll(async () => {
@@ -82,6 +165,27 @@ describe.skipIf(!hasDb)("get_races demand provenance", () => {
       .delete(schema.races)
       .where(eq(schema.races.userId, USER_NO_HISTORY));
     await db.delete(schema.users).where(eq(schema.users.id, USER_NO_HISTORY));
+
+    await db.delete(schema.races).where(eq(schema.races.userId, USER_BIKE_SET));
+    await db
+      .delete(schema.bodyPrefs)
+      .where(eq(schema.bodyPrefs.userId, USER_BIKE_SET));
+    await db
+      .delete(schema.wellnessDaily)
+      .where(eq(schema.wellnessDaily.userId, USER_BIKE_SET));
+    await db.delete(schema.users).where(eq(schema.users.id, USER_BIKE_SET));
+
+    await db.delete(schema.races).where(eq(schema.races.userId, USER_TRI_SET));
+    await db
+      .delete(schema.bodyPrefs)
+      .where(eq(schema.bodyPrefs.userId, USER_TRI_SET));
+    await db
+      .delete(schema.wellnessDaily)
+      .where(eq(schema.wellnessDaily.userId, USER_TRI_SET));
+    await db
+      .delete(schema.activities)
+      .where(eq(schema.activities.userId, USER_TRI_SET));
+    await db.delete(schema.users).where(eq(schema.users.id, USER_TRI_SET));
   });
 
   it("hands the coach the same sentence the athlete's screen shows", async () => {
@@ -109,5 +213,45 @@ describe.skipIf(!hasDb)("get_races demand provenance", () => {
     const race = result.races[0];
     expect(race.demandConfidence).toBeNull();
     expect(race.demandNote).toMatch(/threshold pace/i);
+  });
+
+  it("credits an athlete-set FTP with medium confidence, not just low", async () => {
+    // A THIRD user whose FTP came from body_prefs, not a synced eftp — the
+    // `athleteSet: true` branch volume-inputs.ts's FTP mapping takes. Nothing
+    // before this test exercised it: both USER and USER_NO_HISTORY have no
+    // set anchors at all, so a regression that always mapped FTP to
+    // `athleteSet: false` (or dropped athleteSet from the mapping entirely)
+    // would still pass every other test in this file.
+    const result = (await getRacesTool.execute(
+      { status: "upcoming" },
+      { userId: USER_BIKE_SET, db }
+    )) as { races: Array<{ demandConfidence: unknown; demandNote: unknown }> };
+    const race = result.races[0];
+    expect(race.demandConfidence).toBe("medium");
+    expect(race.demandNote).toMatch(/your FTP/i);
+  });
+
+  it("pins a triathlon at low confidence even when the athlete has set everything settable", async () => {
+    // This FOURTH user has done everything the app lets a triathlete do: an
+    // athlete-set FTP, an athlete-set threshold pace, a logged weight, and
+    // enough recent swim history for swimPaceFromHistory() to derive a pace.
+    // It still reads "low", by design — allAnchorsAthleteSet for a triathlon
+    // requires swimPace.athleteSet, and there is no athlete-set swim pace
+    // anywhere in this codebase: no body_prefs column beside ftpWatts and
+    // thresholdPaceSecPerKm, no Settings control, and volume-inputs.ts
+    // supplies swim pace only from swimPaceFromHistory() with
+    // `athleteSet: false`. See the comment on ANCHOR_SET_COPY in
+    // src/lib/race/demand.ts for the full account of why "medium" is
+    // currently unreachable for this sport. This test exists so that if a
+    // swim anchor is ever added, the confidence consequence is a deliberate
+    // decision made at that time, rather than a silent side effect nobody
+    // noticed.
+    const result = (await getRacesTool.execute(
+      { status: "upcoming" },
+      { userId: USER_TRI_SET, db }
+    )) as { races: Array<{ demandConfidence: unknown; demandNote: unknown }> };
+    const race = result.races[0];
+    expect(race.demandConfidence).toBe("low");
+    expect(race.demandNote).toMatch(/swim/i);
   });
 });
