@@ -342,6 +342,20 @@ export function eventDemand(input: EventDemandInput): EventDemandResult {
       : ANCHOR_DERIVED_COPY[input.sport];
   }
 
+  // Three individually sound anchors do not compose into a sound triathlon
+  // estimate: swim, bike and run interact — the fatigue an athlete carries
+  // out of the water changes their bike, and the bike changes the run — in a
+  // way a single-sport pace or FTP anchor never has to account for. "medium"
+  // only ever means every anchor used was athlete-set, so this only fires
+  // there: a stated finish time is already "high" and bypasses this block
+  // entirely (the athlete told us the number; leg interaction is baked in),
+  // and an already-derived anchor is already "low" with nothing lower to
+  // fall to. This lowers a claim, it never raises one.
+  if (input.sport === "Triathlon" && confidence === "medium") {
+    confidence = "low";
+    confidenceReason = `${confidenceReason} Multi-sport estimates are downgraded because swim, bike, and run anchors interact.`;
+  }
+
   // The event's total load as a multiple of a weekly training load, with the
   // multiple growing as the event lengthens. An earlier draft averaged over
   // days and trained at a fixed share of that daily rate — which discarded
