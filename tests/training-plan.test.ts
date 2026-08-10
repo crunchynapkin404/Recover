@@ -33,6 +33,9 @@ async function cleanup() {
   await db
     .delete(schema.wellnessDaily)
     .where(eq(schema.wellnessDaily.userId, USER));
+  await db
+    .delete(schema.dailyMetrics)
+    .where(eq(schema.dailyMetrics.userId, USER));
   await db.delete(schema.users).where(eq(schema.users.id, USER));
 }
 
@@ -50,13 +53,30 @@ describe.skipIf(!hasDb)("training plan generation", () => {
       })
       .onConflictDoNothing();
 
-    // Seed wellness with CTL data
+    // The provider's raw row. Kept because it is what a connected athlete
+    // really has, and because metrics.ts resolves FROM it — but since
+    // v0.92.0 it is no longer what start-state reads.
     await db.insert(schema.wellnessDaily).values({
       userId: USER,
       date: localYmd(new Date()),
       ctl: 55,
       atl: 65,
       source: "intervals_icu",
+    });
+
+    // The resolved authority, which is what resolveStartStateForUser reads
+    // since v0.92.0. Before that it read wellness_daily directly, so this
+    // fixture passed without a daily_metrics row at all — and a manual-only
+    // athlete, who has one of these and never the other, silently fell
+    // through to the hardcoded 30/40 global fallback for their plan's
+    // starting load. Same values as the provider row, because for a
+    // connected athlete metrics.ts resolves to exactly that.
+    await db.insert(schema.dailyMetrics).values({
+      userId: USER,
+      date: localYmd(new Date()),
+      ctl: 55,
+      atl: 65,
+      tsb: -10,
     });
   });
 

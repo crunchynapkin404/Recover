@@ -9,6 +9,16 @@ import {
   type LoadActivity,
 } from "@/lib/training-load";
 
+/**
+ * Where a plan's starting CTL/ATL came from.
+ *
+ * `"wellness"` is a legacy name kept for its wire and stored value: since
+ * v0.92.0 that tier reads the **resolved `daily_metrics` figure**, not
+ * `wellness_daily`. It is carried in plan previews and persisted plan rows
+ * (`training-plan.ts`), so renaming the member would be a data-shape change
+ * rather than a rename — deliberately not done here. Read it as "the
+ * athlete's own recorded load state" rather than as a table name.
+ */
 export type StartStateSource =
   "persisted" | "wellness" | "sport_rolling" | "global_fallback";
 
@@ -170,12 +180,22 @@ export async function resolveStartStateForUser(args: {
 
   const persisted = pickPersisted(args.constraints ?? null);
 
-  const wellnessRow = await db.query.wellnessDaily.findFirst({
-    where: eq(schema.wellnessDaily.userId, args.userId),
-    orderBy: desc(schema.wellnessDaily.date),
+  // The resolved authority for ctl/atl — the provider's value wins when
+  // present, and Recover's native engine fills the gap from activities
+  // (metrics.ts:43-45). This read was `wellness_daily` until v0.92.0, which
+  // is provider-only: for an athlete with no intervals.icu connection it is
+  // always null, so a plan's starting load silently fell through to the
+  // sport-rolling estimate or, failing that, the hardcoded GLOBAL_FALLBACK
+  // pair below — a guessed 30/40 standing in for a figure Recover had
+  // already computed. That made it the most consequential of the four sites
+  // v0.92.0 migrated: the other three only displayed a blank, this one fed
+  // plan generation.
+  const loadRow = await db.query.dailyMetrics.findFirst({
+    where: eq(schema.dailyMetrics.userId, args.userId),
+    orderBy: desc(schema.dailyMetrics.date),
     columns: { ctl: true, atl: true },
   });
-  const wellness = wellnessRow ?? null;
+  const wellness = loadRow ?? null;
 
   const since = new Date(asOf);
   since.setDate(since.getDate() - SPORT_ROLLING_WINDOW_DAYS);
