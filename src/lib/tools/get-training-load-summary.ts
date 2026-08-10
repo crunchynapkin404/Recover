@@ -34,12 +34,16 @@ async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
     },
   });
 
-  const latest = await ctx.db.query.wellnessDaily.findFirst({
+  // dailyMetrics is the resolved figure (provider value, or the native
+  // engine's honest computation when there's no intervals.icu sync) —
+  // wellnessDaily alone would read null for a manual-only or Strava-only
+  // athlete even though the dashboard shows real numbers for them.
+  const latest = await ctx.db.query.dailyMetrics.findFirst({
     where: and(
-      eq(schema.wellnessDaily.userId, ctx.userId),
-      isNotNull(schema.wellnessDaily.ctl)
+      eq(schema.dailyMetrics.userId, ctx.userId),
+      isNotNull(schema.dailyMetrics.ctl)
     ),
-    orderBy: desc(schema.wellnessDaily.date),
+    orderBy: desc(schema.dailyMetrics.date),
   });
 
   const ctl = latest?.ctl ?? null;
@@ -60,7 +64,7 @@ async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
       as_of: latest?.date ?? null,
       ctl_fitness: ctl,
       atl_fatigue: atl,
-      tsb_form: ctl != null && atl != null ? +(ctl - atl).toFixed(1) : null,
+      tsb_form: latest?.tsb ?? null,
     },
   };
 }

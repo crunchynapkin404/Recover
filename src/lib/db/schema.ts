@@ -260,6 +260,11 @@ export const wellnessDaily = pgTable(
     systolic: real("systolic"),
     diastolic: real("diastolic"),
     bodyFatPct: real("body_fat_pct"),
+    // Raw provider (intervals.icu) values only — null for any day it hasn't
+    // synced, including every day for a manual-only or Strava-only athlete.
+    // Read through resolveEffectiveLoad() (training-load.ts) via
+    // daily_metrics.ctl/atl below, never directly — see
+    // docs/specs/2026-08-10-ctl-atl-tsb-readiness-ownership-design.md.
     ctl: real("ctl"),
     atl: real("atl"),
     eftp: real("eftp"),
@@ -336,6 +341,11 @@ export const dailyMetrics = pgTable(
     tsb: real("tsb"), // CTL − ATL (conventional sign)
     // v0.10 Honest Load: effective training-load state for the day.
     // Provider (intervals.icu) values win; the native engine fills gaps.
+    // Authoritative — the one source every consumer should read (dashboard,
+    // get_fitness_summary, get_training_load_summary, coach context); never
+    // wellness_daily.ctl/atl directly, which is only the raw provider input
+    // this resolution consumes. See
+    // docs/specs/2026-08-10-ctl-atl-tsb-readiness-ownership-design.md.
     ctl: real("ctl"),
     atl: real("atl"),
     loadSource: text("load_source", { enum: ["provider", "computed"] }),

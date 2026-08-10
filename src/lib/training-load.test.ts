@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   activityLoad,
+  advanceLoadEma,
   dailyLoadSeries,
   dedupeActivities,
   nativeLoadMetrics,
@@ -196,6 +197,31 @@ describe("dailyLoadSeries local-day bucketing", () => {
       load: 50,
       sources: ["provider"],
     });
+  });
+});
+
+describe("advanceLoadEma", () => {
+  it("steps ctl and atl toward the day's load, at their own time constants", () => {
+    // 100 load from a standing start of 0: ctl moves 1/42 of the way,
+    // atl moves 1/7 of the way — different distances from the same load,
+    // proving each uses its own constant, not a shared one.
+    const r = advanceLoadEma({ ctl: 0, atl: 0 }, 100);
+    expect(r.ctl).toBeCloseTo(100 / CTL_DAYS, 10);
+    expect(r.atl).toBeCloseTo(100 / ATL_DAYS, 10);
+  });
+
+  it("decays toward zero on a rest day (load: 0)", () => {
+    // The exact expression morning-insight.ts's projected-TSB line now
+    // calls this with, instead of hand-deriving `prev * (1 - 1/days)`.
+    const r = advanceLoadEma({ ctl: 40, atl: 40 }, 0);
+    expect(r.ctl).toBeCloseTo(40 * (1 - 1 / CTL_DAYS), 10);
+    expect(r.atl).toBeCloseTo(40 * (1 - 1 / ATL_DAYS), 10);
+  });
+
+  it("is a no-op when already at the day's load", () => {
+    const r = advanceLoadEma({ ctl: 50, atl: 50 }, 50);
+    expect(r.ctl).toBeCloseTo(50, 10);
+    expect(r.atl).toBeCloseTo(50, 10);
   });
 });
 

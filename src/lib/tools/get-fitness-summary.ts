@@ -10,14 +10,30 @@ async function execute(_args: z.infer<typeof parameters>, ctx: ToolContext) {
   since.setDate(since.getDate() - 42); // 6 weeks for meaningful fitness summary
   const sinceStr = since.toISOString().slice(0, 10);
 
-  const wellness = await ctx.db.query.wellnessDaily.findMany({
-    where: and(
-      eq(schema.wellnessDaily.userId, ctx.userId),
-      gte(schema.wellnessDaily.date, sinceStr)
-    ),
-  });
+  // dailyMetrics is the resolved ctl/atl/tsb (provider value, or the native
+  // engine's honest computation when there's no intervals.icu sync) — the
+  // one read path get_training_load_summary and the dashboard also use.
+  // wellnessDaily alone would read null for a manual-only or Strava-only
+  // athlete even though real numbers exist for them elsewhere in the app.
+  // eftp has no native equivalent — intervals.icu-only, so that field
+  // still comes from wellnessDaily.
+  const [metrics, wellness] = await Promise.all([
+    ctx.db.query.dailyMetrics.findMany({
+      where: and(
+        eq(schema.dailyMetrics.userId, ctx.userId),
+        gte(schema.dailyMetrics.date, sinceStr)
+      ),
+    }),
+    ctx.db.query.wellnessDaily.findMany({
+      where: and(
+        eq(schema.wellnessDaily.userId, ctx.userId),
+        gte(schema.wellnessDaily.date, sinceStr)
+      ),
+    }),
+  ]);
 
-  const latest = wellness.at(-1);
+  const latest = metrics.at(-1);
+  const latestEftp = wellness.at(-1)?.eftp ?? null;
   const activities = await ctx.db.query.activities.findMany({
     where: and(
       eq(schema.activities.userId, ctx.userId),
@@ -31,11 +47,8 @@ async function execute(_args: z.infer<typeof parameters>, ctx: ToolContext) {
   return {
     ctl: latest?.ctl ?? null,
     atl: latest?.atl ?? null,
-    tsb:
-      latest?.ctl != null && latest?.atl != null
-        ? +(latest.ctl - latest.atl).toFixed(1)
-        : null,
-    eftp: latest?.eftp ?? null,
+    tsb: latest?.tsb ?? null,
+    eftp: latestEftp,
     period_days: 42,
     activity_count: activities.length,
     total_load: +totalLoad.toFixed(0),
