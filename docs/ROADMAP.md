@@ -397,13 +397,20 @@ excluded, is recorded here so that closing 2c means something:
       and the `simulate_plan_change` MCP tool writes its own prose for it
       ("CTL/ATL not calibrated yet"). That is condition 5 in four dialects —
       exactly what 2b.3 exists to prevent, in a figure 2b.3 never reached.
-      Sharper still: all four call the shared `assembleForecastInputs()`, but
-      the two pages pass four arguments (user, race, today, week) while the
-      two what-if paths pass two — the same assembler given different
-      context, so the previewed projection and the displayed one need not
-      agree. Feasibility is the condition 1 half: `assessFeasibility()` is
-      called from three sites (`training-plan.ts` twice, `train/page.tsx`
-      once), each assembling its input object inline.
+      Bigger than the mapping: the whole ~35-line race-card assembly —
+      outlook, `race` object and `daysOut` arithmetic — is written out twice,
+      character-identical apart from variable names. **Correction to this
+      entry as first written:** it claimed the four paths could disagree
+      because the pages pass four arguments to `assembleForecastInputs()`
+      while the what-if paths pass two. They cannot. The fourth argument is
+      `preloadedWeek` and both pages pass `getOpenWeekPlan(userId)`, exactly
+      what the function fetches itself when it is omitted — a duplicate-query
+      optimization, not a divergence. Duplication is the drift mechanism
+      here, not argument mismatch. Feasibility is the condition 1 half:
+      `assessFeasibility()` is called from three sites (`training-plan.ts`
+      twice, `train/page.tsx` once), each assembling its input object inline,
+      and its `null` conflates two different reasons for silence. Design:
+      `docs/specs/2026-08-10-race-form-projection-feasibility-ownership-design.md`.
 - [ ] **Athlete curves and best efforts** — `get_power_curve`,
       `get_pace_curve`, `get_best_efforts`. Added by the 2026-08-10 sweep for
       completeness: in scope by the definition (returned by an MCP tool), but
