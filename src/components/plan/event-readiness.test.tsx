@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { renderToString } from "react-dom/server";
 import { EventReadiness } from "./event-readiness";
+import { Figure } from "@/lib/uncertainty";
+import type { Feasibility } from "@/lib/race/feasibility";
 
 const demand = {
   available: true as const,
@@ -14,14 +16,19 @@ const demand = {
   confidenceReason: "Modelled from your FTP and the course profile.",
 };
 
-const feasibility = {
-  verdict: "on_track" as const,
+const feasibilityValue: Feasibility = {
+  verdict: "on_track",
   volumeWeeksNeeded: 2,
   longestSessionWeeksNeeded: 3,
   weeksUntilEvent: 8,
   requiredLongestSessionHours: 5.6,
   fromAverageDay: false,
 };
+
+const feasibility: Figure<Feasibility> = Figure.available(
+  feasibilityValue,
+  "low"
+);
 
 describe("EventReadiness", () => {
   it("names the event and what it asks per week", () => {
@@ -54,11 +61,14 @@ describe("EventReadiness", () => {
       <EventReadiness
         raceName="Dolomites"
         sport="Bike"
-        feasibility={{
-          ...feasibility,
-          verdict: "not_realistic",
-          weeksUntilEvent: 3,
-        }}
+        feasibility={Figure.available(
+          {
+            ...feasibilityValue,
+            verdict: "not_realistic",
+            weeksUntilEvent: 3,
+          },
+          "low"
+        )}
         demand={demand}
       />
     );
@@ -70,7 +80,10 @@ describe("EventReadiness", () => {
       <EventReadiness
         raceName="Dolomites"
         sport="Bike"
-        feasibility={{ ...feasibility, fromAverageDay: true }}
+        feasibility={Figure.available(
+          { ...feasibilityValue, fromAverageDay: true },
+          "low"
+        )}
         demand={{ ...demand, queenStageKnown: false }}
       />
     );
@@ -87,12 +100,15 @@ describe("EventReadiness", () => {
       <EventReadiness
         raceName="Dolomites"
         sport="Bike"
-        feasibility={{
-          ...feasibility,
-          verdict: "not_realistic",
-          volumeWeeksNeeded: Infinity,
-          longestSessionWeeksNeeded: Infinity,
-        }}
+        feasibility={Figure.available(
+          {
+            ...feasibilityValue,
+            verdict: "not_realistic",
+            volumeWeeksNeeded: Infinity,
+            longestSessionWeeksNeeded: Infinity,
+          },
+          "low"
+        )}
         demand={demand}
       />
     );
@@ -105,7 +121,10 @@ describe("EventReadiness", () => {
       <EventReadiness
         raceName="Dolomites"
         sport="Bike"
-        feasibility={{ ...feasibility, weeksUntilEvent: 1 }}
+        feasibility={Figure.available(
+          { ...feasibilityValue, weeksUntilEvent: 1 },
+          "low"
+        )}
         demand={demand}
       />
     );
@@ -161,10 +180,29 @@ describe("EventReadiness", () => {
       <EventReadiness
         raceName="Ironman Hamburg"
         sport="Triathlon"
-        feasibility={null}
+        feasibility={Figure.missingInput(
+          "a tracked race with computable demand"
+        )}
         demand={{ available: false, reason: "no_swim_anchor" }}
       />
     );
     expect(html.toLowerCase()).toContain("no recent swims");
+  });
+
+  it("says WHY there is no verdict when demand is available but feasibility is not", () => {
+    // v0.87 Task 7: before this, demand.available === true and a null
+    // feasibility silently rendered nothing at all, even though demand
+    // itself has a stated refusal reason for exactly this case. Now the
+    // Figure feasibilityFor() returns states its own reason.
+    const html = renderToString(
+      <EventReadiness
+        raceName="Dolomites"
+        sport="Bike"
+        feasibility={Figure.missingInput("measured training history")}
+        demand={demand}
+      />
+    );
+    expect(html).toContain("Dolomites");
+    expect(html.toLowerCase()).toContain("measured training history");
   });
 });

@@ -2,11 +2,14 @@
  * Is this event reachable from here?
  *
  * The question anyone entering a hard event actually has, and the one
- * nothing in the app answers today. `assessFeasibility` (Task 7) already
- * did the arithmetic; this just says it plainly.
+ * nothing in the app answers today. `feasibilityFor` (Task 7) already did
+ * the arithmetic and named which input is missing when it can't; this just
+ * renders whichever one comes back.
  */
 import type { Feasibility } from "@/lib/race/feasibility";
 import type { PlanSport } from "@/lib/plan-sport";
+import type { Figure } from "@/lib/uncertainty";
+import { unavailableMessage } from "@/components/ui/unavailable";
 import {
   DEMAND_UNAVAILABLE_COPY,
   type EventDemandResult,
@@ -15,8 +18,9 @@ import {
 interface Props {
   raceName: string;
   sport: PlanSport;
-  /** Null when demand is unavailable — there is no verdict without a figure. */
-  feasibility: Feasibility | null;
+  /** States its own reason (via feasibilityFor) when there is no verdict —
+   *  no tracked demand, no race date, or no measured training history. */
+  feasibility: Figure<Feasibility>;
   demand: EventDemandResult;
 }
 
@@ -75,12 +79,25 @@ export function EventReadiness({
       </div>
     );
   }
-  if (feasibility == null) return null;
+  if (!feasibility.available) {
+    return (
+      <div className="glass mt-4 rounded-[1.5rem] p-5">
+        <p className="label-micro mb-1">{raceName}</p>
+        <p className="mb-2 text-[13px] font-bold text-amber-300">
+          No verdict yet.
+        </p>
+        <p className="text-[11.5px] leading-relaxed text-white/60">
+          {unavailableMessage(feasibility)}
+        </p>
+      </div>
+    );
+  }
 
-  const { verdict, weeksUntilEvent, requiredLongestSessionHours } = feasibility;
+  const { verdict, weeksUntilEvent, requiredLongestSessionHours } =
+    feasibility.value;
   const weeksNeeded = Math.max(
-    feasibility.volumeWeeksNeeded,
-    feasibility.longestSessionWeeksNeeded
+    feasibility.value.volumeWeeksNeeded,
+    feasibility.value.longestSessionWeeksNeeded
   );
 
   return (
@@ -99,7 +116,7 @@ export function EventReadiness({
             : `There is no recent training here to build from, so there is no honest estimate of how long closing the gap would take. You can still ${EVENT_VERB[sport]} it — go in knowing what it asks.`}
         </p>
       )}
-      {feasibility.fromAverageDay && (
+      {feasibility.value.fromAverageDay && (
         <p className="mt-2 text-[11px] text-white/40">
           Reasoning from an average day — add per-day distance and climbing to
           this event for a sharper longest-ride target.

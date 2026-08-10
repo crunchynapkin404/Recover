@@ -28,7 +28,7 @@ import {
   applyOpeningWorkoutRules,
   resolveOpeningDecision,
 } from "@/lib/week-plan/start-branching";
-import { assessFeasibility } from "@/lib/race/feasibility";
+import { feasibilityFor } from "@/lib/race/feasibility";
 import { PLAN_CONSTANTS as PC } from "@/lib/plan-constants";
 import {
   TAPER_FRACTION_RACE_WEEK,
@@ -1142,20 +1142,19 @@ export async function previewTrainingPlan(
   // may or may not be the race this preview is for when raceId is null and
   // nothing has been created yet. That mirrors the rest of the app: there is
   // one "current target race" concept, not a second one invented for
-  // previews. No demand (no tracked upcoming race with computable weekly
-  // hours) is silence, not a guess: `assessFeasibility` itself also returns
-  // null without a measured current-hours and longest-ride figure.
-  const feasibility =
-    demand == null || !demand.available
-      ? null
-      : assessFeasibility({
-          requiredWeeklyHours: demand.weeklyHours,
-          currentWeeklyHours: level.peakHours,
-          queenStageHours: demand.queenStageHours,
-          queenStageKnown: demand.queenStageKnown,
-          longestSessionHours,
-          weeksUntilEvent: weeksTotal,
-        });
+  // previews. `feasibilityFor` decides what "no verdict" means (no demand,
+  // no race date, or no measured current-hours/longest-ride history) and
+  // names which one; `PlanPreview.feasibility` still collapses that to
+  // `null` here — only the Train surface renders the reason.
+  const feasibilityFigure = feasibilityFor({
+    demand,
+    currentWeeklyHours: level.peakHours,
+    longestSessionHours,
+    weeksUntilEvent: weeksTotal,
+  });
+  const feasibility = feasibilityFigure.available
+    ? feasibilityFigure.value
+    : null;
 
   const preview: PlanPreview = {
     planId: draft.id,
@@ -1217,7 +1216,7 @@ type TrainingPlanRow = NonNullable<
  * `previewTrainingPlan`, `confirmTrainingPlan`, or any periodization
  * constant. This function calls the same pure/query helpers
  * (`buildPhases`, `collectWarnings`, `assembleWeeklyTarget`,
- * `assessFeasibility`) that `previewTrainingPlan` calls, rather than
+ * `feasibilityFor`) that `previewTrainingPlan` calls, rather than
  * duplicating their logic — only the row-shaped assembly around them is
  * necessarily separate, because a draft's blocks live in the database and
  * a fresh preview's blocks live in memory.
@@ -1291,17 +1290,15 @@ export async function previewFromDraft(
     daysBetween(today, new Date(draft.raceDate + "T00:00:00")) / 7
   );
 
-  const feasibility =
-    demand == null || !demand.available
-      ? null
-      : assessFeasibility({
-          requiredWeeklyHours: demand.weeklyHours,
-          currentWeeklyHours: level.peakHours,
-          queenStageHours: demand.queenStageHours,
-          queenStageKnown: demand.queenStageKnown,
-          longestSessionHours,
-          weeksUntilEvent: weeksUntilRace,
-        });
+  const feasibilityFigure = feasibilityFor({
+    demand,
+    currentWeeklyHours: level.peakHours,
+    longestSessionHours,
+    weeksUntilEvent: weeksUntilRace,
+  });
+  const feasibility = feasibilityFigure.available
+    ? feasibilityFigure.value
+    : null;
 
   return {
     planId: draft.id,

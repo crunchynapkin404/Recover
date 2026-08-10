@@ -67,7 +67,7 @@ import { previewFromDraft } from "@/lib/training-plan";
 import { assembleWeeklyTarget } from "@/lib/week-plan/volume-inputs";
 import { currentTargetLoad, weekTargetLoad } from "@/lib/week-plan/volume";
 import { plannedMins, availableMins } from "@/lib/week-plan/fill";
-import { assessFeasibility, type Feasibility } from "@/lib/race/feasibility";
+import { feasibilityFor, type Feasibility } from "@/lib/race/feasibility";
 import type { EventDemandResult } from "@/lib/race/demand";
 import { listRaces, stagesByRaceIds } from "@/lib/race/service";
 import {
@@ -416,7 +416,7 @@ async function WeekTab({
   let eventReadiness: {
     raceName: string;
     sport: PlanSport;
-    feasibility: Feasibility | null;
+    feasibility: Figure<Feasibility>;
     demand: EventDemandResult;
   } | null = null;
   if (week) {
@@ -475,29 +475,27 @@ async function WeekTab({
             )
           );
 
-    const feasibility =
-      volumeInputs.demand == null ||
-      !volumeInputs.demand.available ||
-      weeksUntilEvent == null
-        ? null
-        : assessFeasibility({
-            requiredWeeklyHours: volumeInputs.demand.weeklyHours,
-            currentWeeklyHours: volumeInputs.level.peakHours,
-            queenStageHours: volumeInputs.demand.queenStageHours,
-            queenStageKnown: volumeInputs.demand.queenStageKnown,
-            longestSessionHours: volumeInputs.longestSessionHours,
-            weeksUntilEvent,
-          });
+    // weeksUntilEvent may be null (no target race date) — feasibilityFor
+    // handles that itself and states that exact reason, so no separate
+    // null check is needed here.
+    const feasibilityFigure = feasibilityFor({
+      demand: volumeInputs.demand,
+      currentWeeklyHours: volumeInputs.level.peakHours,
+      longestSessionHours: volumeInputs.longestSessionHours,
+      weeksUntilEvent,
+    });
 
     // Populated whenever there is a target race with a priced (or refused)
     // demand result — not only the "available" case. Before this, an
     // unpriceable race fell through this condition entirely and the athlete
-    // saw nothing at all; now EventReadiness itself renders the refusal.
+    // saw nothing at all; now EventReadiness itself renders the refusal —
+    // and, since Task 7, the Figure it's handed states the reason for any
+    // missing verdict, not only a missing demand figure.
     if (volumeInputs.targetRace && volumeInputs.demand) {
       eventReadiness = {
         raceName: volumeInputs.targetRace.name,
         sport: volumeInputs.targetRace.sport,
-        feasibility,
+        feasibility: feasibilityFigure,
         demand: volumeInputs.demand,
       };
     }
