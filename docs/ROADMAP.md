@@ -109,11 +109,11 @@ top of the six the app already speaks.
 
 ### 2a — Provenance
 
-- [ ] Source, confidence and scope for all 77 exported engine constants across
+- [x] Source, confidence and scope for all 77 exported engine constants across
       28 files, following `src/lib/plan-constants.ts`
-- [ ] Label the unsourceable ones **invented** — an acceptable answer, and far
+- [x] Label the unsourceable ones **invented** — an acceptable answer, and far
       better than silence
-- [ ] Settle the correction owed since 2026-08-05: `HEADROOM = 1.3` and
+- [x] Settle the correction owed since 2026-08-05: `HEADROOM = 1.3` and
       `RAMP_CLAMP_PCT = 0.2` are rated High confidence on an ACWR anchor the
       2025 systematic review undermines. **v0.74.0** settled this in the code
       itself (not just prose docs) and shipped Phase 2a's first slice more
@@ -174,7 +174,18 @@ top of the six the app already speaks.
       `coach-memory.ts`, `recall.ts`, `debrief/lifecycle.ts`,
       `debrief/ride-review.ts`, `race/debrief.ts`, `weekly-review.ts`,
       `athlete-curves.ts`, `availability/types.ts`, `export/export-user.ts`,
-      `components/plan/wheel-column.tsx`.
+      `components/plan/wheel-column.tsx`. **v0.81.0** shipped the eighth
+      and final slice, closing Phase 2a entirely: `coach-memory.ts` (2),
+      `recall.ts` (2), `debrief/lifecycle.ts` (2),
+      `debrief/ride-review.ts` (1), `race/debrief.ts` (1),
+      `weekly-review.ts` (1), `athlete-curves.ts` (1),
+      `availability/types.ts` (2). All 12 are Invented, Low.
+      `export/export-user.ts`'s `EXPORT_VERSION` and `wheel-column.tsx`'s
+      `ITEM_HEIGHT` — both "to be confirmed" in v0.80.0's estimate —
+      resolved to zero in-scope constants (a format-version identifier and
+      a UI layout pixel value, neither a behavioral claim). Every exported
+      engine constant surveyed since v0.74.0 now carries source,
+      confidence and scope, or an explicit documented exclusion.
 
 ### 2b — Design language and IA
 

@@ -1,5 +1,31 @@
 # Changelog
 
+## v0.81.0 — 2026-08-10 — Provenance: closing Phase 2a
+
+Eighth and final slice of Phase 2a (`docs/ROADMAP.md`): source, confidence,
+and scope for 12 exported constants across `coach-memory.ts`, `recall.ts`,
+`debrief/lifecycle.ts`, `debrief/ride-review.ts`, `race/debrief.ts`,
+`weekly-review.ts`, `athlete-curves.ts`, and `availability/types.ts` — the
+remaining scattered long-tail files named in v0.80.0's forward estimate.
+No values changed — documentation only.
+
+- All 12 constants are labelled **Invented**, Confidence: Low, each traced
+  to the design doc that originally set it (v0.4a coach-core, v0.4c MCP
+  depth, v0.14 race-ready, v0.15 coach-remembers, or the availability
+  scheduling redesign) rather than external research.
+- `export/export-user.ts`'s `EXPORT_VERSION` and
+  `components/plan/wheel-column.tsx`'s `ITEM_HEIGHT` — both "to be
+  confirmed" in v0.80.0's forward estimate — resolved to zero in-scope
+  constants: a schema/format-version identifier and a UI layout pixel
+  value, neither a numeric behavioral claim.
+- `weekly-review.ts`'s `WEEKLY_THREAD_TITLE` and `availability/types.ts`'s
+  `ENERGY_CEILING`/`SUBSTITUTE_TO` were deliberately excluded — categorical
+  mappings and a display identifier, not numeric claims.
+
+Every exported engine constant surveyed since v0.74.0 now carries source,
+confidence and scope, or an explicit documented exclusion. Phase 2a is
+closed.
+
 ## v0.80.0 — 2026-08-09 — Provenance: plan/prediction engine constants
 
 Seventh slice of Phase 2a (`docs/ROADMAP.md`), the second into the long
