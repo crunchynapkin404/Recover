@@ -10,9 +10,18 @@ function weekLabel(weekStart: string): string {
 }
 
 function latestAdherencePct(points: SeasonTimelinePoint[]): number | null {
-  const targetTotal = points.reduce((sum, p) => sum + (p.targetLoad ?? 0), 0);
+  // Pairwise, not zero-fill: a week with no known target contributes to
+  // neither sum, so real training done during it never inflates the
+  // ratio without a matching denominator — see
+  // docs/specs/2026-08-10-adherence-and-completion-ownership-design.md.
+  let targetTotal = 0;
+  let actualTotal = 0;
+  for (const p of points) {
+    if (p.targetLoad == null) continue;
+    targetTotal += p.targetLoad;
+    actualTotal += p.actualLoad;
+  }
   if (targetTotal <= 0) return null;
-  const actualTotal = points.reduce((sum, p) => sum + p.actualLoad, 0);
   return Math.round((actualTotal / targetTotal) * 100);
 }
 
