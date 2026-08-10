@@ -1,5 +1,29 @@
 # Changelog
 
+## v0.82.0 — 2026-08-10 — One source of truth: week target load (slice 1)
+
+First number slice of Phase 2c (`docs/ROADMAP.md`): `weekTargetLoad()`, a
+new shared read path in `week-plan/volume.ts` for "what does this week
+target" outside adherence. Prefers `weekPlans.effectiveTarget` once a week
+has materialized, falls back to `trainingBlocks.targetLoadTotal` for weeks
+that haven't — the same fallback `weekAdherencePct` already used, now
+shared via one private helper instead of duplicated. Returns
+`Figure<number>` (the Phase 2b.3 uncertainty vocabulary) so "neither
+resolves" is explicit rather than a silent null.
+
+- `weekAdherencePct` refactored to call the same shared resolver — zero
+  behavior change, its existing tests pass unchanged.
+- `trainingBlocks.targetLoadTotal` and `weekPlans.effectiveTarget` documented
+  in `schema.ts` as cache/authority: the block target is authoritative only
+  until a week materializes, after which the week's own frozen figure wins.
+- This slice does not yet migrate any of the 87 existing read sites (race
+  domain, MCP tools, weekly review, UI, export) — that is slices 2-4. The
+  week quick actions (Ease/Deload/Boost/Skip) re-enable decision stays
+  deferred, a product choice this work unblocks but doesn't make.
+
+Full design: `docs/specs/2026-08-10-week-target-load-ownership-design.md`.
+No regressions: full suite 1619 passed / 493 skipped (2112 total), +4 tests.
+
 ## v0.81.0 — 2026-08-10 — Provenance: closing Phase 2a
 
 Eighth and final slice of Phase 2a (`docs/ROADMAP.md`): source, confidence,

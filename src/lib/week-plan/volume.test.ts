@@ -4,6 +4,7 @@ import {
   hoursForMaterialize,
   weekAdherencePct,
   weekLoadPerMin,
+  weekTargetLoad,
   weeklyDisplayTarget,
   weeklyTargetHours,
 } from "./volume";
@@ -343,6 +344,36 @@ describe("currentTargetLoad", () => {
         currentMins: 650,
       })
     ).toBeNull();
+  });
+});
+
+describe("weekTargetLoad", () => {
+  it("resolves to the materialized figure when present", () => {
+    const r = weekTargetLoad({ effectiveTarget: 400, blockTarget: 500 });
+    expect(r).toEqual({ available: true, value: 400, confidence: "high" });
+  });
+
+  // The ownership rule, not just a truthy check: a week that has
+  // materialized keeps reading its own frozen figure even when the block's
+  // (possibly since-edited) skeleton value disagrees — this is exactly the
+  // read path the week quick actions bug class violated by writing
+  // blockTarget and expecting it to reach an already-open week.
+  it("prefers the materialized figure over the block's even when both are present and differ", () => {
+    const r = weekTargetLoad({ effectiveTarget: 400, blockTarget: 999 });
+    expect(r).toEqual({ available: true, value: 400, confidence: "high" });
+  });
+
+  it("falls back to the block target for a week that hasn't materialized yet", () => {
+    const r = weekTargetLoad({ effectiveTarget: null, blockTarget: 500 });
+    expect(r).toEqual({ available: true, value: 500, confidence: "high" });
+  });
+
+  it("is explicitly unavailable, not a silent zero or null, when neither resolves", () => {
+    const r = weekTargetLoad({ effectiveTarget: null, blockTarget: null });
+    expect(r.available).toBe(false);
+    if (!r.available) {
+      expect(r.kind).toBe("missing_input");
+    }
   });
 });
 

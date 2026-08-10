@@ -806,6 +806,13 @@ export const trainingBlocks = pgTable(
     phase: text("phase", {
       enum: ["base", "build", "peak", "taper", "recovery"],
     }).notNull(),
+    // Authority ONLY until this week number materializes (a weekPlans row
+    // exists for it) — periodize() recomputes it fresh on every rollover
+    // and never reads a stored value back, so editing this row does not
+    // reshape an already-open week. Once materialized, weekPlans.
+    // effectiveTarget below is authoritative instead. Read either through
+    // weekTargetLoad() (week-plan/volume.ts), never directly — see
+    // docs/specs/2026-08-10-week-target-load-ownership-design.md.
     targetLoadTotal: real("target_load_total"),
     targetSessions: smallint("target_sessions"),
     workouts: jsonb("workouts").notNull(),
@@ -917,6 +924,9 @@ export const weekPlans = pgTable(
     // and availability clamp it, distinct from trainingBlocks.targetLoadTotal
     // which stays the un-tapered skeleton value. null on rows written before
     // this column existed and on rows the adaptive engines never touch.
+    // Authoritative once set — the cache/authority split and the shared
+    // weekTargetLoad() read path are documented in
+    // docs/specs/2026-08-10-week-target-load-ownership-design.md.
     effectiveTarget: real("effective_target"),
     // The week's total planned minutes as materialized, from plannedMins().
     // Written once and never updated, so `effective_target / materialized_mins`

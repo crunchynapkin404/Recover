@@ -1,3 +1,5 @@
+import { Figure } from "@/lib/uncertainty";
+
 /**
  * This week's training-hours target.
  *
@@ -216,6 +218,45 @@ export function currentTargetLoad(input: {
 }
 
 /**
+ * `effectiveTarget` wins over `blockTarget` because it is the week's
+ * persisted post-taper, post-hours-budget figure — a taper week closed out
+ * at 100% of its actual (small) target must not score ~45% just because the
+ * skeleton block still holds the pre-taper number. `blockTarget` is only
+ * the fallback for a week that hasn't materialized yet, or a row written
+ * before `effectiveTarget` existed. Shared by `weekTargetLoad` and
+ * `weekAdherencePct` below so this resolution order lives in exactly one
+ * place — see `docs/specs/2026-08-10-week-target-load-ownership-design.md`.
+ */
+function resolveWeekTarget(input: {
+  effectiveTarget: number | null;
+  blockTarget: number | null;
+}): number | null {
+  return input.effectiveTarget ?? input.blockTarget ?? null;
+}
+
+/**
+ * The week's target load for any purpose that isn't adherence: the one read
+ * path every display, MCP tool, and forecast site should use instead of
+ * reading `trainingBlocks.targetLoadTotal` or `weekPlans.effectiveTarget`
+ * directly, or re-deriving this same fallback ad hoc.
+ *
+ * `Figure.missingInput` when neither resolves — a week that hasn't
+ * materialized and has no skeleton entry either. Otherwise `"high"`
+ * confidence: once resolved this is an exact stored figure, not an
+ * estimate.
+ */
+export function weekTargetLoad(input: {
+  effectiveTarget: number | null;
+  blockTarget: number | null;
+}): Figure<number> {
+  const value = resolveWeekTarget(input);
+  if (value == null) {
+    return Figure.missingInput("a materialized week or block target");
+  }
+  return Figure.available(value, "high");
+}
+
+/**
  * Adherence: "of the load actually set for this week, how much landed?"
  * `actualLoad` is scored against the week's frozen target — never a rate
  * applied to today's minutes — because this number gates the low-adherence
@@ -230,19 +271,14 @@ export function currentTargetLoad(input: {
  * for this one, there is nothing here for a future edit to route through
  * `currentTargetLoad` by accident. The absence is the design.
  *
- * `effectiveTarget` wins over `blockTarget` because it is the week's
- * persisted post-taper, post-hours-budget figure — a taper week closed out
- * at 100% of its actual (small) target must not score ~45% just because the
- * skeleton block still holds the pre-taper number. `blockTarget` is only
- * the fallback for a row written before `effectiveTarget` existed.
- * `target ? ... : 0` also treats a genuinely-zero target the same as a
- * missing one — there is no meaningful percentage to divide by zero into.
+ * `target ? ... : 0` treats a genuinely-zero target the same as a missing
+ * one — there is no meaningful percentage to divide by zero into.
  */
 export function weekAdherencePct(input: {
   effectiveTarget: number | null;
   blockTarget: number | null;
   actualLoad: number;
 }): number {
-  const target = input.effectiveTarget ?? input.blockTarget ?? null;
+  const target = resolveWeekTarget(input);
   return target ? Math.round((input.actualLoad / target) * 100) : 0;
 }
