@@ -2,8 +2,8 @@
  * Is this event reachable from here?
  *
  * The question anyone entering a hard event actually has, and the one
- * nothing in the app answers today. `feasibilityFor` (Task 7) already did
- * the arithmetic and named which input is missing when it can't; this just
+ * nothing in the app answers today. `feasibilityFor` already did the
+ * arithmetic and named which input is missing when it can't; this just
  * renders whichever one comes back.
  */
 import type { Feasibility } from "@/lib/race/feasibility";
