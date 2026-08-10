@@ -516,9 +516,9 @@ export default async function DashboardPage({
               <DebriefChip userId={user.id} />
 
               {/* ── Race chip (next race ≤ 21 days) ─────────────────────── */}
-              {card.race &&
-                card.daysOut != null &&
-                card.daysOut <= 21 && <RaceChip {...card} />}
+              {card.race && card.daysOut != null && card.daysOut <= 21 && (
+                <RaceChip {...card} />
+              )}
 
               {/* ── Coach brief ─────────────────────────────────────────── */}
               {insight && (
