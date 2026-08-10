@@ -17,9 +17,7 @@ import {
 } from "@/lib/week-plan/service";
 import { assembleWeeklyTarget } from "@/lib/week-plan/volume-inputs";
 import { availableMins } from "@/lib/week-plan/fill";
-import { nextUpcomingRace, assembleForecastInputs } from "@/lib/race/service";
-import { forecastForm } from "@/lib/race/forecast";
-import type { RaceCountdownProps } from "@/components/dashboard/race-countdown";
+import { raceCard, type RaceCard } from "@/lib/race/outlook";
 import type { Band } from "@/lib/readiness";
 import { computeSleepDebt, DEFAULT_SLEEP_NEED_SECS } from "@/lib/sleep-debt";
 import { sparkPath } from "@/lib/sparkline";
@@ -138,51 +136,9 @@ export default async function DashboardPage({
 
   // ── Next race (v0.14) ──────────────────────────────────────────────────
   // Form-only projection, never called "readiness" — HRV/RHR can't be
-  // forecast, so band range is an honest form outlook, not a score.
-  const race = await nextUpcomingRace(user.id, todayDate);
-  let raceCard: RaceCountdownProps = {
-    race: null,
-    daysOut: null,
-    outlook: null,
-  };
-  if (race) {
-    const assembled = await assembleForecastInputs(
-      user.id,
-      race,
-      todayDate,
-      weekPlan
-    );
-    const outlook = !assembled
-      ? ({ kind: "no_plan" } as const)
-      : (() => {
-          const f = forecastForm(assembled.inputs);
-          return f.insufficient
-            ? ({ kind: "insufficient" } as const)
-            : ({
-                kind: "projection",
-                full: f.full,
-                adherence: f.adherence,
-                capped: f.capped,
-              } as const);
-        })();
-    raceCard = {
-      race: {
-        name: race.name,
-        date: race.date,
-        priority: race.priority,
-        goalNote: race.goalNote,
-      },
-      daysOut: Math.max(
-        0,
-        Math.round(
-          (new Date(race.date + "T00:00:00").getTime() -
-            new Date(todayYmd + "T00:00:00").getTime()) /
-            86_400_000
-        )
-      ),
-      outlook,
-    };
-  }
+  // forecast, so the band is an honest form outlook, not a score.
+  // Owner: src/lib/race/outlook.ts (v0.87).
+  const card = await raceCard(user.id, todayDate, weekPlan);
 
   const metrics = await db.query.dailyMetrics.findMany({
     where: and(
@@ -560,9 +516,9 @@ export default async function DashboardPage({
               <DebriefChip userId={user.id} />
 
               {/* ── Race chip (next race ≤ 21 days) ─────────────────────── */}
-              {raceCard.race &&
-                raceCard.daysOut != null &&
-                raceCard.daysOut <= 21 && <RaceChip {...raceCard} />}
+              {card.race &&
+                card.daysOut != null &&
+                card.daysOut <= 21 && <RaceChip {...card} />}
 
               {/* ── Coach brief ─────────────────────────────────────────── */}
               {insight && (

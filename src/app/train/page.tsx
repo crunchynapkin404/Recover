@@ -47,7 +47,7 @@ import {
   type FitnessTile,
 } from "@/components/train/fitness-tiles";
 import { RaceChip } from "@/components/today/race-chip";
-import type { RaceCountdownProps } from "@/components/dashboard/race-countdown";
+import { raceCard, type RaceCard } from "@/lib/race/outlook";
 import { BAND_COLOR } from "@/lib/band-color";
 import type { Band } from "@/lib/readiness";
 import { Figure } from "@/lib/uncertainty";
@@ -69,13 +69,7 @@ import { currentTargetLoad, weekTargetLoad } from "@/lib/week-plan/volume";
 import { plannedMins, availableMins } from "@/lib/week-plan/fill";
 import { assessFeasibility, type Feasibility } from "@/lib/race/feasibility";
 import type { EventDemandResult } from "@/lib/race/demand";
-import {
-  listRaces,
-  nextUpcomingRace,
-  assembleForecastInputs,
-  stagesByRaceIds,
-} from "@/lib/race/service";
-import { forecastForm } from "@/lib/race/forecast";
+import { listRaces, stagesByRaceIds } from "@/lib/race/service";
 import {
   localYmd,
   seasonTimelinePoints,
@@ -697,46 +691,8 @@ async function WeekTab({
     : {};
 
   // Next race as the compact row under the week; the full list stays in the
-  // races section below.
-  const race = await nextUpcomingRace(userId, today);
-  let raceCard: RaceCountdownProps = {
-    race: null,
-    daysOut: null,
-    outlook: null,
-  };
-  if (race) {
-    const assembled = await assembleForecastInputs(userId, race, today, week);
-    const outlook = !assembled
-      ? ({ kind: "no_plan" } as const)
-      : (() => {
-          const f = forecastForm(assembled.inputs);
-          return f.insufficient
-            ? ({ kind: "insufficient" } as const)
-            : ({
-                kind: "projection",
-                full: f.full,
-                adherence: f.adherence,
-                capped: f.capped,
-              } as const);
-        })();
-    raceCard = {
-      race: {
-        name: race.name,
-        date: race.date,
-        priority: race.priority,
-        goalNote: race.goalNote,
-      },
-      daysOut: Math.max(
-        0,
-        Math.round(
-          (new Date(race.date + "T00:00:00").getTime() -
-            new Date(localYmd(today) + "T00:00:00").getTime()) /
-            86_400_000
-        )
-      ),
-      outlook,
-    };
-  }
+  // races section below. Owner: src/lib/race/outlook.ts (v0.87).
+  const card = await raceCard(userId, today, week);
 
   const subtitle = [
     plan.title,
@@ -843,12 +799,12 @@ async function WeekTab({
             />
           )}
 
-          {raceCard.race && (
+          {card.race && (
             <>
-              <RaceChip {...raceCard} />
-              {raceCard.race.goalNote && (
+              <RaceChip {...card} />
+              {card.race.goalNote && (
                 <p className="-mt-5 mb-6 px-1 text-[10.5px] text-white/40">
-                  {raceCard.race.goalNote}
+                  {card.race.goalNote}
                 </p>
               )}
             </>
