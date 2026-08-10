@@ -231,11 +231,27 @@ export default async function TrainPage({
 function TrainHeader({
   subtitle,
   action,
+  controls,
+  controlsNote,
   tab,
   href,
 }: {
   subtitle?: string;
+  /**
+   * Sits on the title row, right-aligned. Room for ONE compact element —
+   * a chip or a small tab group. Anything more belongs in `controls`: this
+   * row cannot wrap without colliding with the title.
+   */
   action?: React.ReactNode;
+  /**
+   * Full-width row beneath the title, above the tabs. Wraps. This exists
+   * because the planning switches outgrew `action`: chip + Style + Season
+   * is ~300px of unshrinkable pills in a slot sized for one, so on a phone
+   * it ran off the viewport and overlapped the heading.
+   */
+  controls?: React.ReactNode;
+  /** One quiet line under `controls`, for saying what they affect. */
+  controlsNote?: string;
   tab: TrainTab;
   href: TrainHref;
 }) {
@@ -250,8 +266,18 @@ function TrainHeader({
             </p>
           )}
         </div>
-        {action}
+        {action && <div className="shrink-0">{action}</div>}
       </div>
+      {controls && (
+        <div className="mb-4">
+          <div className="flex flex-wrap items-center gap-2">{controls}</div>
+          {controlsNote && (
+            <p className="mt-1.5 text-[10px] font-medium text-white/40">
+              {controlsNote}
+            </p>
+          )}
+        </div>
+      )}
       <TrainTabs active={tab} href={href} />
     </header>
   );
@@ -706,9 +732,17 @@ async function WeekTab({
         tab="week"
         href={href}
         subtitle={subtitle}
-        action={
-          <div className="flex items-center gap-2">
-            {chip}
+        action={chip}
+        // Both switches write plan constraints and stop there — the open
+        // week is already materialized in week_plans and nothing recomputes
+        // it, so this week keeps the sessions it has. The next-week preview
+        // below DOES re-read constraints (projectWeek), so the athlete can
+        // see the effect immediately; it just isn't where they might look
+        // first. Saying so is cheaper than the alternative reading, which is
+        // that the control is broken.
+        controlsNote="Applies from next week — this week is already planned."
+        controls={
+          <>
             <PlanStyleSwitch
               effectiveStyle={constraints.planStyle}
               action={submitPlanStyleQuick}
@@ -738,7 +772,7 @@ async function WeekTab({
               it actually edits. Until then the controls stay off rather than
               promising "Ease -30% · Deload -50%" and doing none of it.
             */}
-          </div>
+          </>
         }
       />
 

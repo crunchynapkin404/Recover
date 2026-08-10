@@ -1,5 +1,30 @@
 # Changelog
 
+## v0.87.1 — 2026-08-10 — The Train header fits a phone
+
+The planning switches outgrew the slot they were in. `TrainHeader` lays the
+title row out as `justify-between` with a single right-aligned `action`, and
+that slot had accumulated three controls: the week chip, Style and Season —
+roughly 300px of pills that cannot shrink or wrap. On a 390px phone they ran
+off the right edge, collided with the "Train" heading, and "Block-lite"
+wrapped inside its own pill.
+
+`action` now takes one compact element and is marked `shrink-0`. A new
+`controls` slot renders a full-width wrapping row beneath the title, above
+the tabs, and both switches moved there. Verified in a real headless browser
+at 390px against the app's own compiled stylesheet — the layout is the kind
+of thing this project has shipped bugs in twice by reasoning about CSS
+instead of looking at it.
+
+Also says what the switches do, which they never have. Both write plan
+constraints and stop; the open week is already materialized in `week_plans`
+and nothing recomputes it, so this week keeps the sessions it has. The
+next-week preview lower down the page _does_ re-read constraints, so the
+effect is visible immediately — just not where an athlete would look first.
+The controls now carry one line saying so: **"Applies from next week — this
+week is already planned."** Presentation only; no behaviour and no number
+changes.
+
 ## v0.87.0 — 2026-08-10 — One source of truth: race-day form and feasibility
 
 Fifth number slice of Phase 2c (`docs/ROADMAP.md`). Design:
