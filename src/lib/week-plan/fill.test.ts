@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  availableMins,
   fillCeilingMins,
   fillSport,
   fillWeek,
@@ -183,6 +184,25 @@ describe("plannedMins", () => {
 
   it("is zero for an empty week", () => {
     expect(plannedMins(days([{}, {}, {}]))).toBe(0);
+  });
+});
+
+describe("availableMins", () => {
+  it("sums every day's resolved availability", () => {
+    const d = days([{ mins: [60, 30] }, { mins: [90] }, {}, { mins: [45] }]);
+    expect(availableMins(d)).toBe(225);
+  });
+
+  it("is zero for a week with no availability", () => {
+    expect(availableMins(days([{}, {}, {}]))).toBe(0);
+  });
+
+  it("counts availability independently of whether the day has sessions", () => {
+    // A day can be fully available and still unplanned, or fully booked —
+    // this must not accidentally read from `workouts` the way `plannedMins`
+    // does.
+    const d = days([{ mins: [60], workouts: [w({ durationMins: 30 })] }]);
+    expect(availableMins(d)).toBe(60);
   });
 });
 

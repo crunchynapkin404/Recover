@@ -16,6 +16,7 @@ import {
   planConstraints,
 } from "@/lib/week-plan/service";
 import { assembleWeeklyTarget } from "@/lib/week-plan/volume-inputs";
+import { availableMins } from "@/lib/week-plan/fill";
 import { nextUpcomingRace, assembleForecastInputs } from "@/lib/race/service";
 import { forecastForm } from "@/lib/race/forecast";
 import type { RaceCountdownProps } from "@/components/dashboard/race-countdown";
@@ -224,8 +225,7 @@ export default async function DashboardPage({
   let hoursTarget: number | null = null;
   if (activePlan && weekPlan) {
     const constraints = planConstraints(activePlan.constraints);
-    const availabilityHours =
-      weekPlan.days.reduce((s, d) => s + d.availableMins, 0) / 60;
+    const availabilityHours = availableMins(weekPlan.days) / 60;
     const { target } = await assembleWeeklyTarget(user.id, todayDate, {
       availabilityHours,
       planHoursPerWeek: constraints.hoursPerWeek,
