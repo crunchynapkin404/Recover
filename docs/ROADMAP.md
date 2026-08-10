@@ -289,6 +289,24 @@ A **number slice** is done when all six hold:
 5. Its "I do not know" state is explicit and rendered.
 6. Mutation-checked: break the owner, confirm a test fails.
 
+**The slice list below is enumerated, not guessed.** It originally held six
+entries chosen by intuition, which is how v0.86's first commit came to fix 2 of
+5 affected surfaces — nobody had listed them. The list was swept against 2c's
+own definition on **2026-08-10**, walking all 57 registry tools plus the UI and
+coach-context surfaces. What that sweep changed, and the reasoning for what it
+excluded, is recorded here so that closing 2c means something:
+
+- **Out of scope, with reason:** the 23 `icu_*` tools return intervals.icu's
+  own data, not a Recover-computed figure. They pass a provider's number
+  through; they do not own one.
+- **Checked and already sound — recorded so they are not re-swept:**
+  per-activity load (`activityLoad` → `dailyLoadSeries` →
+  `resolveEffectiveLoad`, a single path), plan drift (migrated to
+  `weekTargetLoad()` in v0.83), and threshold pace
+  (`thresholdPaceFromHistory` layers on `thresholdPaceFromPerformance` — one
+  producer, not two).
+- **Two slices were missing** and are now listed below.
+
 - [x] Week target load — 3 producers, 43 + 36 + 8 read sites. Caused four
       shipped bugs before this closed it
       (`docs/specs/2026-08-10-week-target-load-ownership-design.md`).
@@ -344,8 +362,47 @@ A **number slice** is done when all six hold:
       `daily_metrics` figure — the same "manual-only athlete gets
       nothing" defect class v0.10 fixed for the dashboard, recurring in
       coach- and MCP-facing surfaces. All five now read `daily_metrics`.
-- [ ] Event demand
-- [ ] Display-derived figures (sleep debt, body battery, correlations, bio-age)
+- [ ] Event demand. **Surveyed 2026-08-10 — expected to be short.**
+      `eventDemand()` has exactly one call site
+      (`week-plan/volume-inputs.ts`); `get_races`, `event-readiness.tsx` and
+      `train/page.tsx` all consume its result rather than recompute. Its
+      unavailable states are already a discriminated union with
+      `DEMAND_UNAVAILABLE_COPY`, which `uncertainty.ts` cites as the pattern
+      it copied. Conditions 1, 2 and 5 already hold; the work is condition 4
+      (assert at each surface) and condition 6 (mutation-check).
+- [ ] Display-derived figures (sleep debt, body battery, correlations,
+      bio-age). **Surveyed 2026-08-10 — two real defects, both the shape
+      v0.86 just fixed.** `computeSleepDebt` runs independently in
+      `app/page.tsx` and `app/body/page.tsx`; `biologicalAge` runs
+      independently in `app/body/page.tsx` and the `get_biomarkers` MCP tool,
+      the same UI-vs-MCP divergence. Body battery and correlations were
+      checked and are already single-owner — this slice is two fixes, not
+      four.
+- [ ] **Race-day form projection and feasibility.** Added by the 2026-08-10
+      sweep; it was missing, and it is the largest remaining defect in 2c.
+      The projection is a headline athlete-facing figure (race-day TSB and
+      its green/amber/red band), and its unknown state is encoded **four**
+      separate times: `app/page.tsx` and `app/train/page.tsx` each map
+      `forecastForm()` into a `no_plan`/`insufficient`/`projection` outlook
+      with near-identical duplicated code; `app/plan/actions.ts` flattens the
+      same condition into an `insufficient` boolean plus nulled TSB fields;
+      and the `simulate_plan_change` MCP tool writes its own prose for it
+      ("CTL/ATL not calibrated yet"). That is condition 5 in four dialects —
+      exactly what 2b.3 exists to prevent, in a figure 2b.3 never reached.
+      Sharper still: all four call the shared `assembleForecastInputs()`, but
+      the two pages pass four arguments (user, race, today, week) while the
+      two what-if paths pass two — the same assembler given different
+      context, so the previewed projection and the displayed one need not
+      agree. Feasibility is the condition 1 half: `assessFeasibility()` is
+      called from three sites (`training-plan.ts` twice, `train/page.tsx`
+      once), each assembling its input object inline.
+- [ ] **Athlete curves and best efforts** — `get_power_curve`,
+      `get_pace_curve`, `get_best_efforts`. Added by the 2026-08-10 sweep for
+      completeness: in scope by the definition (returned by an MCP tool), but
+      expected to be verification-only. One owner (`athlete-curves.ts`), the
+      cache is already documented in `schema.ts`, and `available`/`stale`/
+      `fetched_at` already give an explicit unknown state. No UI surface
+      reads them; the only other consumer is `strava-describer.ts`.
 
 ### 2d — Guardrails
 
@@ -357,6 +414,41 @@ A **number slice** is done when all six hold:
       wiring at the surface; write release notes from the diff
 - [ ] Live-DB hygiene: two `*.invalid` test users in production, demo's
       never-closed July week
+
+### Sequencing — the gate at 2026-09-05
+
+Phase 2 is not a single queue, and it has a hard date in the middle of it.
+2b.2 cannot be settled before **2026-09-05** (a four-week telemetry window
+that opened when `surface_views` was deployed on 2026-08-08), and 2b.4 — the
+largest item on this roadmap — cannot start until 2b.2 has settled the IA it
+would redesign against. Everything else in Phase 2 is expected to finish well
+before that date. Written down because the shape of the problem is not
+visible from the checkbox list, and rediscovering it in September means
+either idle time or an improvised item.
+
+**Order until the gate opens:** 2c's four remaining slices, then 2d's four
+guardrails.
+
+**When those run out and the date has not arrived**, these are the designated
+fill. All three are measurement or hygiene, so none of them trips the
+Non-goal against new athlete-facing capability during Phase 2:
+
+1. **Measure the MCP tool surface.** Phase 4 already requires this before any
+   freeze — "freezing an unmeasured surface locks in whatever that cost
+   happens to be" — and measuring is not freezing. It is the prerequisite,
+   and it can be done now.
+2. **The dead-component sweep**, which is 2d's first guardrail's payload
+   anyway: the guard is what keeps them from coming back, the sweep is what
+   removes the 19 already identified.
+3. **Re-measure `docs/BASELINE.md`.** It is pinned at v0.65.0, and Phase 2's
+   own claim to be done is a claim against that baseline. A stale baseline
+   cannot settle it.
+
+**Not in the window:** reviewing `feat/v0.65-mcp-contract-hardening`. Phase 4
+already forbids merging it before 2d, and reviewing work you cannot land
+invites landing it. It is pushed to `origin` as of 2026-08-10 — it previously
+existed only on the developer's machine — so it is safe to leave until 2d
+closes.
 
 ## Phase 3 — Close the highest-ranked gaps
 
@@ -372,6 +464,10 @@ Demand order, science-constrained.
 
 - [ ] Review `feat/v0.65-mcp-contract-hardening` — unreviewed work (push quiet
       hours + migration 0040, two new MCP tools). **Must not merge before 2d.**
+      Until 2026-08-10 this branch existed **only on the developer's machine**
+      — `origin` carried just `main`, so a disk failure lost it. Now pushed to
+      `origin` as a backup; it is one WIP commit and 138 behind `main`, so it
+      will need rebasing, not just reviewing.
 - [ ] MCP contract freeze — after the numbers underneath are stable, not before.
       Freeze a **measured** surface: competitors now sell on being "token
       cheap" (`ai-coaching-landscape.md` §10) and Recover has never measured
