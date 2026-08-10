@@ -1,5 +1,54 @@
 # Changelog
 
+## v0.91.0 — 2026-08-11 — The dead-component guard
+
+Phase 2d's first guardrail. Two tests, and the second is what keeps the first
+honest.
+
+The first walks every non-test `.tsx` under `src/components` and fails when
+nothing else under `src/` references it. The second is a **ratchet**: every
+entry in the allowlist must still _be_ orphaned, so an allowlisted component
+that gains a render site — or gets deleted — fails the build until its entry
+goes. The list can only shrink. That is the difference between an allowlist
+and a dumping ground.
+
+It ships with **15** entries, because a guard that fails on day one is a
+guard someone deletes. That count was scanned fresh rather than carried
+over: earlier notes said 19, which predates v0.87.0 deleting
+`RaceCountdownCard` and other removals since.
+
+**These are superseded predecessors, not lost features.** Spot-checked rather
+than assumed — debriefs still render through `today/debrief-chip.tsx` and
+`activity-debrief-section.tsx`, so `pending-debrief-card.tsx` is a leftover
+rather than a feature that silently stopped appearing. No athlete is missing
+anything because of this list.
+
+**The cost is real anyway, and `plan/today-card.tsx` is the proof.** It was
+edited on 2026-07-27 by _"refactor(week-plan): a day carries blocks and a
+list of workouts"_ — someone read it, reasoned about it and updated it, for a
+component that renders nowhere. Dead components do not sit quietly; they get
+maintained.
+
+`src/components/ui/` is in scope rather than exempt. An unused vendored
+primitive is still code that is typechecked, linted and read by people.
+
+**Deleting the 15 is deliberately not in this release.** Disposal is Phase
+2b.2's decision, which cannot settle before 2026-09-05 — it depends on the
+four-week `surface_views` telemetry window that opened on 2026-08-08. Some
+may be worth reviving rather than deleting, and that is a product call made
+with usage data, not a cleanup decided by a guard test. The guard's job is to
+stop the list growing.
+
+Mutation-checked, all four caught: a new unreferenced component; removing a
+genuinely-orphaned entry from the allowlist; allowlisting a component that is
+referenced (the ratchet names the referencing file); and allowlisting a path
+that does not exist.
+
+Its limitation is stated in the file rather than implied, as the uncertainty
+guard states its own: reference detection is a text match, so it misses a
+component reached only through a dynamically-built import. A pass is evidence
+against the common case, not proof of liveness.
+
 ## v0.90.0 — 2026-08-11 — Athlete curves, and 2c closes
 
 The last slice on Phase 2c's enumerated list. **Every number slice is now
