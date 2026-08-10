@@ -100,6 +100,57 @@ function formatHhMm(minutes: number): string {
   return `${String(h).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 }
 
+/**
+ * `ymd` minus `days`, as a YYYY-MM-DD string. Built from the given date
+ * only — never the system clock — so the owner below stays pure.
+ */
+function subtractDaysYmd(ymd: string, days: number): string {
+  const d = new Date(`${ymd}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - days);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * The one owner of sleep debt's inputs. Both `app/page.tsx` and
+ * `app/body/page.tsx` built this assembly independently (same 14-day date
+ * filter, same bedStart → clock-minutes mapping, same prefs fallbacks) —
+ * see docs/specs/2026-08-11-display-derived-figures-ownership-design.md
+ * section 1. This is now the single place that definition lives.
+ *
+ * The date window is enforced HERE, not left to computeSleepDebt's internal
+ * `slice(-DEBT_WINDOW_DAYS)`. That slice takes the last 14 *elements*; with
+ * sparse wellness (gaps, a new athlete, a provider outage) the last 14 real
+ * *days* and the last 14 rows are different sets, and only the date filter
+ * gives the true 14-day figure. The slice stays as a safety net, not the
+ * definition — see the design doc for the full argument.
+ *
+ * Pure: `today` is a parameter rather than `new Date()`, so this stays
+ * testable without mocking the clock.
+ */
+export function sleepDebtFrom(
+  wellness: Array<{
+    date: string;
+    sleepSecs: number | null;
+    bedStart: Date | null;
+  }>,
+  prefs: { sleepNeedSecs: number | null; wakeTime: string | null } | null,
+  today: string
+): SleepDebtResult {
+  const cutoff = subtractDaysYmd(today, DEBT_WINDOW_DAYS);
+  const inWindow = wellness.filter((w) => w.date >= cutoff);
+
+  const bedtimes = inWindow
+    .filter((w): w is typeof w & { bedStart: Date } => w.bedStart != null)
+    .map((w) => w.bedStart.getHours() * 60 + w.bedStart.getMinutes());
+
+  return computeSleepDebt({
+    nights: inWindow.map((w) => ({ sleepSecs: w.sleepSecs })),
+    sleepNeedSecs: prefs?.sleepNeedSecs ?? DEFAULT_SLEEP_NEED_SECS,
+    wakeTime: prefs?.wakeTime ?? null,
+    bedtimes,
+  });
+}
+
 export function computeSleepDebt(input: SleepDebtInput): SleepDebtResult {
   const recorded = input.nights
     .slice(-DEBT_WINDOW_DAYS)
