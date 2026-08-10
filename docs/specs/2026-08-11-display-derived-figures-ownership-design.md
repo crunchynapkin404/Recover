@@ -37,6 +37,21 @@ claim is asserted in a comment rather than established by construction —
 which is the precise failure mode 2c exists to remove, and the same one
 v0.87.0 found in the race-card assembly written out twice.
 
+**The window is enforced in two places, by two different rules.**
+`computeSleepDebt()` already truncates internally with
+`input.nights.slice(-DEBT_WINDOW_DAYS)` — the last 14 **elements**. The call
+sites additionally filter `w.date >= daysAgo(14)` — the last 14 **days**.
+Those are the same thing only when wellness rows are dense. With gaps —
+a provider outage, a new athlete, anyone who does not sync daily —
+`slice(-14)` reaches back as far as it needs to find 14 rows, which can span
+months. The date filter at the call site is what makes the figure a genuine
+14-day debt.
+
+So the two filters are not redundant, and a caller who reasonably assumed the
+owner owned its own window would get a quietly wrong number. The new owner
+must do the **date** filtering itself; the existing `slice()` stays as a
+safety net rather than the definition.
+
 ### 2. Bio-age — the same ~20 lines on a page and an MCP tool
 
 `biologicalAge()` is called from `app/body/page.tsx:837` and
@@ -62,7 +77,11 @@ on its own merits.
 ```ts
 // src/lib/sleep-debt.ts
 export function sleepDebtFrom(
-  wellness: Array<{ date: string; sleepSecs: number | null; bedStart: Date | null }>,
+  wellness: Array<{
+    date: string;
+    sleepSecs: number | null;
+    bedStart: Date | null;
+  }>,
   prefs: { sleepNeedSecs: number | null; wakeTime: string | null } | null,
   today: string
 ): SleepDebtResult;
@@ -91,14 +110,14 @@ raw result; each surface presents it as it already does.
 
 ## Conditions
 
-| # | How it is met                                                                              |
-| - | ------------------------------------------------------------------------------------------ |
-| 1 | `sleepDebtFrom()` and `bioAgeFrom()`, inputs named in the signature.                        |
-| 2 | Both duplicated assemblies deleted; three call sites migrated (two pages, one MCP tool).     |
-| 3 | N/A — neither figure is persisted.                                                           |
-| 4 | Asserted at the surface: `get_biomarkers` via its own test; the pages via the owners' tests plus the existing component tests. The page-wiring gap is the same one v0.88.0 left open and 2d closes. |
-| 5 | Already explicit — `Figure.missingInput` on the page, `{ status: "insufficient", missing }` on the tool. Both preserved. |
-| 6 | Mutation-checked: change each owner's window (14 → 7, 30 → 60) and confirm a test fails at both the owner and the surface. |
+| #   | How it is met                                                                                                                                                                                       |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `sleepDebtFrom()` and `bioAgeFrom()`, inputs named in the signature.                                                                                                                                |
+| 2   | Both duplicated assemblies deleted; three call sites migrated (two pages, one MCP tool).                                                                                                            |
+| 3   | N/A — neither figure is persisted.                                                                                                                                                                  |
+| 4   | Asserted at the surface: `get_biomarkers` via its own test; the pages via the owners' tests plus the existing component tests. The page-wiring gap is the same one v0.88.0 left open and 2d closes. |
+| 5   | Already explicit — `Figure.missingInput` on the page, `{ status: "insufficient", missing }` on the tool. Both preserved.                                                                            |
+| 6   | Mutation-checked: change each owner's window (14 → 7, 30 → 60) and confirm a test fails at both the owner and the surface.                                                                          |
 
 ## Gate
 
