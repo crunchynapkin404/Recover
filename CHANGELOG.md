@@ -1,5 +1,62 @@
 # Changelog
 
+## v0.88.0 — 2026-08-11 — Event demand
+
+Phase 2c's **Event demand** number slice. The survey expected it to be short,
+and the ownership half of it was: `eventDemand()` already had one owner, one
+call site (`week-plan/volume-inputs.ts`), and an explicit rendered unknown
+state — conditions 1, 2 and 5 held before this release began. What the slice
+found instead was a claim nobody had ever tested.
+
+**A triathlete was being told to fix something that has no fix.** When a
+triathlon's demand figure came back at low confidence, the sentence shipped
+with it read _"set your thresholds in Settings for a sharper figure"_. An
+athlete who had already set their FTP and their threshold pace would read
+that as advice to redo what they had done — and it could not have raised the
+rating anyway. A triathlon's confidence requires `swimPace.athleteSet`, and
+there is **no athlete-set swim pace anywhere in this codebase**: no
+`body_prefs` column beside `ftpWatts` and `thresholdPaceSecPerKm`, no
+Settings control, and `volume-inputs.ts` supplies swim pace only from
+`swimPaceFromHistory()`. The sport is structurally pinned at low.
+
+The sentence now names the swim as the anchor that is always derived, and
+keeps the nudge toward FTP and threshold pace — which genuinely do sharpen
+the bike and run legs — without promising a better rating. It had no test,
+which is how it stayed wrong.
+
+**The salvaged triathlon downgrade is unreachable, and is kept as a latent
+guard rather than shipped as live behaviour.** The rule rescued from
+`feat/v0.65-mcp-contract-hardening` before that branch was deleted drops a
+fully anchored triathlon from medium to low, because swim, bike and run
+anchors interact. It fires only on medium — which, per the pin above, a
+triathlon cannot currently reach. The disposition doc said neither the code
+nor its test would be adopted without review; this is that review finding
+something. It is kept, and documented as latent, because the day a swim
+anchor is added the sport would jump from low straight to medium as a side
+effect of an unrelated feature, and this is what stops that silent
+promotion.
+
+**Condition 4 — asserted at the surface.** `get_races` gained two seeded
+athletes, one per outcome, both running the real path through Postgres:
+
+- A Bike athlete with an athlete-set FTP reads `medium`. **Nothing had ever
+  exercised that branch.** Both existing users have no set anchors, so a
+  regression mapping every FTP to `athleteSet: false` would have passed the
+  entire file. This was not found by reading — it was found by mutation:
+  retargeting the downgrade from `"Triathlon"` to `"Bike"` killed one test
+  where it should have killed two.
+- A triathlete who has set everything settable still reads `low`, and the
+  note names the swim.
+
+**Condition 6 — mutation-checked**, six mutations, all killed: removing the
+downgrade; inverting `allAnchorsAthleteSet`; retargeting the downgrade's
+sport; mapping an athlete-set FTP to `athleteSet: false`; rewriting
+`ANCHOR_SET_COPY.Bike`; and restoring the old triathlon sentence.
+
+Also in `docs/RELEASING.md`: vitest does not load `.env`, so a bare local
+`npm test` silently skips every DB-gated suite. That is the mechanism behind
+v0.87.0's false CI finding, and it was not written down anywhere.
+
 ## v0.87.2 — 2026-08-10 — Correcting v0.87.0's CI claim
 
 Docs only. No code, no behaviour, no numbers.

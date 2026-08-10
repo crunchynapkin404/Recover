@@ -51,6 +51,21 @@ notes promised.
      that survives it has not been proven unguarded. Check `ci.yml`, not
      your memory of it.
 
+   **Locally, `npm test` skips the DB suites — and says so quietly.**
+   `vitest.config.ts` loads no dotenv, so `.env` does not reach the test
+   process and every `describe.skipIf(!hasDb)` block sits out. The run still
+   ends green; the skip count is the only tell. To run what CI runs:
+
+   ```bash
+   set -a; . ./.env; set +a; npx vitest run
+   ```
+
+   This is the mechanism behind v0.87.0's false finding — the reviewer's
+   local run looked normal and was missing whole suites. **When a mutation
+   survives, check the skip count before concluding anything**; a mutation
+   cannot be killed by a test that never ran. Port 5435 is the dev database
+   and is safe. Port 5434 is live production — never point tests at it.
+
 5. **Merge to `main`** (PR or fast-forward) and verify `main` is green.
 6. **Only now, tag the merge commit** — annotated, on `main`:
    `git tag -a vX.Y.Z -m "vX.Y.Z — Name" && git push origin vX.Y.Z`

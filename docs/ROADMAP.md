@@ -379,22 +379,51 @@ excluded, is recorded here so that closing 2c means something:
       `daily_metrics` figure — the same "manual-only athlete gets
       nothing" defect class v0.10 fixed for the dashboard, recurring in
       coach- and MCP-facing surfaces. All five now read `daily_metrics`.
-- [ ] Event demand. **Surveyed 2026-08-10 — expected to be short.**
-      `eventDemand()` has exactly one call site
-      (`week-plan/volume-inputs.ts`); `get_races`, `event-readiness.tsx` and
-      `train/page.tsx` all consume its result rather than recompute. Its
-      unavailable states are already a discriminated union with
-      `DEMAND_UNAVAILABLE_COPY`, which `uncertainty.ts` cites as the pattern
-      it copied. Conditions 1, 2 and 5 already hold; the work is condition 4
-      (assert at each surface) and condition 6 (mutation-check).
-      **Fold in while the file is open:** the triathlon confidence downgrade
-      salvaged from `feat/v0.65-mcp-contract-hardening` — a fully anchored
-      multi-sport event drops medium to low, because swim, bike and run
-      anchors interact. It _lowers_ a claim, which is what 2a favours. Code
-      and test are preserved verbatim in
-      `docs/specs/2026-08-10-v065-branch-disposition.md`; neither is adopted
-      without review, and the downgrade needs mutation-checking like any
-      other bound.
+- [x] Event demand. Surveyed 2026-08-10, closed by **v0.88.0**. The survey was
+      right that the ownership half was short — `eventDemand()` has exactly one
+      call site (`week-plan/volume-inputs.ts`); `get_races`,
+      `event-readiness.tsx` and `train/page.tsx` all consume its result rather
+      than recompute; and its unavailable states were already a discriminated
+      union with `DEMAND_UNAVAILABLE_COPY`, the pattern `uncertainty.ts` cites
+      as its source. Conditions 1, 2 and 5 held before the release began.
+      **What the slice found instead was an untested athlete-facing claim.** A
+      triathlon's confidence is _structurally pinned at low_:
+      `allAnchorsAthleteSet` requires `swimPace.athleteSet`, and there is no
+      athlete-set swim pace in this codebase — no `body_prefs` column beside
+      `ftpWatts` and `thresholdPaceSecPerKm`, no Settings control, and
+      `volume-inputs.ts` only ever derives it from history. The sentence
+      shipped alongside that pin told the athlete to _"set your thresholds in
+      Settings for a sharper figure"_ — advice a triathlete who had set both of
+      theirs had already followed, for a rating it could never lift. It is now
+      fixed to name the swim as the always-derived anchor while keeping the
+      nudge that genuinely does sharpen the bike and run legs. It had no test
+      at all, which is how it stayed wrong; the corrected claim is pinned at
+      both the function and the surface. **The salvaged downgrade is
+      unreachable, and is kept as a latent guard rather than shipped as live
+      behaviour.** It fires only on `medium`, which the pin makes impossible
+      for the sport, so it never executes in production. The disposition doc
+      (`docs/specs/2026-08-10-v065-branch-disposition.md`) said neither the
+      code nor its test would be adopted without review — this is that review
+      finding something, and the reason the caveat was worth writing. Kept
+      rather than deleted because adding a swim anchor later would otherwise
+      promote triathlon from low to medium as a silent side effect of an
+      unrelated feature. Its tests exercise the pure function, which is honest
+      for a rule on a pure function; nothing at any surface guards it, and
+      nothing can until the pin is gone. **Condition 4** added two seeded
+      athletes to `get-races.test.ts`, both running the real Postgres path: a
+      Bike athlete with an athlete-set FTP reads `medium` — a branch **nothing
+      had ever exercised**, since both pre-existing users have no set anchors —
+      and a triathlete who has set everything settable still reads `low` with
+      the swim named. **Condition 6:** six mutations, all killed. The `medium`
+      gap was found _by_ mutation rather than by reading: retargeting the
+      downgrade's sport to `"Bike"` killed one test where it should have killed
+      two. **Left open, stated rather than papered over:** the Train page has
+      no test file and the repo has no page-level render harness, so the JSX
+      prop passing at `train/page.tsx:826-831` is unguarded. The page and
+      `get_races` read the same `assembleVolumeInputs()` result, so the shared
+      path is covered and `event-readiness.test.tsx` covers the rendering, but
+      the wiring between them is not. That is 2d's read-site guard; building it
+      here would have been that guard arriving early and under-designed.
 - [ ] Display-derived figures (sleep debt, body battery, correlations,
       bio-age). **Surveyed 2026-08-10 — two real defects, both the shape
       v0.86 just fixed.** `computeSleepDebt` runs independently in
@@ -493,8 +522,11 @@ before that date. Written down because the shape of the problem is not
 visible from the checkbox list, and rediscovering it in September means
 either idle time or an improvised item.
 
-**Order until the gate opens:** 2c's four remaining slices, then 2d's four
-guardrails.
+**Order until the gate opens:** 2c's **two** remaining slices — display-derived
+figures, then athlete curves and best efforts — followed by 2d's four
+guardrails. (This read "four remaining slices" until v0.88.0; the race-day form
+projection closed in v0.87.0 and Event demand in v0.88.0, and the count was not
+kept up.)
 
 **When those run out and the date has not arrived**, these are the designated
 fill. All four are hardening, measurement or hygiene, so none of them trips
