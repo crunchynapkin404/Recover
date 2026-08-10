@@ -33,13 +33,23 @@ notes promised.
    way: **`build`** is the only one that catches a sync export added to a
    `"use server"` file, and **`format:check`** runs prettier over the whole
    repo — v0.87.0's CI failed on one reflowed JSX line because the branch had
-   only ever run prettier against the files it edited. Two further traps that
-   no local run will catch for you: a Vitest file importing `@/lib/db`
-   without `describe.skipIf(!hasDb)` **crashes** CI rather than skipping, and
-   a DB-gated test is not a CI guard at all — CI runs without a database, so
-   anything only covered behind that gate is unguarded there. Run the suite
-   once with `DATABASE_URL` unset before pushing; that is the condition CI
-   actually runs in.
+   only ever run prettier against the files it edited.
+
+   **What CI actually is, because guessing at it has now cost more than one
+   release.** `.github/workflows/ci.yml` runs a `postgres:16-alpine` service
+   and sets `DATABASE_URL` and `DATABASE_DRIVER=pg`, so **every DB-gated
+   test runs in CI** — 2163 tests, zero skipped, as of 2026-08-10. This has
+   been true since 2026-08-04 (`62c3ab2`). Two consequences worth stating,
+   because the opposite was believed and written down for six days:
+
+   - A `describe.skipIf(!hasDb)` block is **not** dead weight in CI, and a
+     test behind one **is** a real guard there. It exists so the suite still
+     runs on a machine without a database.
+   - A local run with `DATABASE_URL` unset is **not** "the CI condition". It
+     is a useful second run — it proves the suite survives without a
+     database, which is how a contributor first meets it — but a mutation
+     that survives it has not been proven unguarded. Check `ci.yml`, not
+     your memory of it.
 
 5. **Merge to `main`** (PR or fast-forward) and verify `main` is green.
 6. **Only now, tag the merge commit** — annotated, on `main`:
