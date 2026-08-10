@@ -13,7 +13,19 @@ import { db, schema } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { generateRideReview } from "@/lib/debrief/ride-review";
 
+/**
+ * Minimum activity duration to become debrief-eligible — shorter sessions
+ * never reach `debriefState = 'pending'`. Source:
+ * `docs/specs/2026-07-19-v0.15-coach-remembers-design.md` ("duration ≥ 15
+ * min becomes pending"). Confidence: Low.
+ */
 export const DEBRIEF_MIN_DURATION_S = 15 * 60;
+/**
+ * Activities older than this get no debrief prompt — historical imports
+ * are excluded, not just late ones. Source: same v0.15 design doc
+ * ("started within the last 24 h — no debrief prompts for historical
+ * imports"). Confidence: Low.
+ */
 export const DEBRIEF_FRESH_HOURS = 24;
 
 export function debriefEligible(

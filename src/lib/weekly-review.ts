@@ -34,7 +34,8 @@ export const WEEKLY_THREAD_TITLE = "Weekly Review";
  * constant is never consulted; the operative default is the column's own 7,
  * not this value. Kept distinct from BACKSTOP_HOUR (scheduler.ts, 9): that's
  * the hour past which the scheduler re-checks a due review, not the review's
- * own configured slot.
+ * own configured slot. No design doc found — a defensive default for a
+ * structurally near-unreachable code path. Confidence: Low.
  */
 export const FALLBACK_REVIEW_HOUR = 9;
 

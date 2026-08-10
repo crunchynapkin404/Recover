@@ -16,7 +16,12 @@ export interface AvailabilityBlock {
   sports: string[] | null;
 }
 
-/** At most this many sessions land on one calendar day. */
+/**
+ * At most this many sessions land on one calendar day. Source:
+ * `docs/specs/2026-07-27-availability-scheduling-redesign-design.md`
+ * ("at most two sessions per day"), a scheduling design decision.
+ * Confidence: Low.
+ */
 export const MAX_SESSIONS_PER_DAY = 2;
 
 /** Which purposes an expected energy level admits. */
@@ -26,7 +31,12 @@ export const ENERGY_CEILING: Record<Energy, Purpose[]> = {
   full: ["recovery", "aerobic_base", "long", "threshold", "vo2max", "brick"],
 };
 
-/** Below its floor a session no longer delivers its stimulus. */
+/**
+ * Below its floor a session no longer delivers its stimulus. Source: same
+ * availability-scheduling-redesign design doc's per-purpose floor table
+ * (recovery 20, aerobic_base 40, threshold 45, vo2max 40, brick 60, long
+ * 90) — a coaching judgment call, not literature-cited. Confidence: Low.
+ */
 export const PURPOSE_FLOORS: Record<Purpose, number> = {
   recovery: 20,
   aerobic_base: 40,
