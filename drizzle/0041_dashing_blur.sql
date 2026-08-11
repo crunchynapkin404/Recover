@@ -1,0 +1,1 @@
+ALTER TABLE "daily_metrics" ADD COLUMN "hrv_metric" text;

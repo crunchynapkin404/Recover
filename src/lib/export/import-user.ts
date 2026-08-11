@@ -233,6 +233,7 @@ export async function importUserData(
             ctl: r.ctl,
             atl: r.atl,
             loadSource: r.loadSource,
+            hrvMetric: r.hrvMetric,
             computedAt: toDate(r.computedAt),
           })
         )

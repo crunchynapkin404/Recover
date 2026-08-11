@@ -1,6 +1,7 @@
 import { and, asc, eq, gte, ne } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { logger } from "@/lib/logger";
+import { resolveEffectiveHrv } from "@/lib/hrv-source";
 import { BASELINE_WINDOW_DAYS, computeReadiness } from "@/lib/readiness";
 import { isBaselineExcluded } from "@/lib/day-flags";
 import {
@@ -148,16 +149,27 @@ export async function computeDailyMetrics(
       native.get(date)
     );
 
+    const rmssdBaseline = baseline
+      .map((r) => r.hrvMs)
+      .filter((v): v is number => v != null);
+    const sdnnBaseline = baseline
+      .map((r) => r.hrvSdnnMs)
+      .filter((v): v is number => v != null);
+
+    // One value, one baseline, never mixed across metrics — see hrv-source.ts.
+    const hrv = resolveEffectiveHrv(
+      { value: day?.hrvMs ?? null, baseline: rmssdBaseline },
+      { value: day?.hrvSdnnMs ?? null, baseline: sdnnBaseline }
+    );
+
     const result = computeReadiness({
-      hrv: day?.hrvMs ?? null,
+      hrv: hrv.value,
       restingHr: day?.restingHr ?? null,
       sleepScore: day?.sleepScore ?? null,
       sleepSecs: day?.sleepSecs ?? null,
       ctl: effective.ctl,
       atl: effective.atl,
-      hrvBaseline: baseline
-        .map((r) => r.hrvMs)
-        .filter((v): v is number => v != null),
+      hrvBaseline: hrv.baseline,
       rhrBaseline: baseline
         .map((r) => r.restingHr)
         .filter((v): v is number => v != null),
@@ -175,6 +187,7 @@ export async function computeDailyMetrics(
       ctl: effective.ctl,
       atl: effective.atl,
       loadSource: effective.source,
+      hrvMetric: hrv.metric,
       computedAt: new Date(),
     };
 
