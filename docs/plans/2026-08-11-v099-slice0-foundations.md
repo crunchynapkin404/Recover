@@ -55,6 +55,19 @@ Copied verbatim from `docs/specs/2026-08-11-2b4-visual-redesign-design.md`:
 - **Mutation-check anything guarding a bound** (`docs/RELEASING.md`): break the
   owner, confirm a test fails, restore.
 - **Branch:** `v0.99-the-app-you-can-read`. Do not merge to main.
+- **NEVER drive a browser or a script at `localhost:3000`.** On this machine
+  port 3000 is the **live production container** (`recover-app-1`, fronted by
+  cloudflared), not a dev server. An earlier draft of this plan said
+  `localhost:3000` throughout Tasks 5-7; following it literally would have
+  pointed screenshot and axe runs — which create real data, including API
+  tokens — at production. Run the dev server on **3100**:
+  ```bash
+  BETTER_AUTH_URL=http://localhost:3100 TRUSTED_ORIGINS=http://localhost:3100 \
+    npx next dev -p 3100
+  ```
+  Likewise the database: dev is **5435** and is what `.env` points at. **5434
+  is live.** Something pointed a test run at production on 2026-07-27 and the
+  cause was never found; do not add a second instance.
 
 ## Token values
 
@@ -1017,7 +1030,7 @@ with "Executable doesn't exist at …chromium_headless_shell-1232".
 //
 // Requires, per docs/plans/2026-08-11-v099-slice0-foundations.md Task 6:
 //   CHROME_PATH, LD_LIBRARY_PATH (cached sysdeps), and a dev server started
-//   with BETTER_AUTH_URL=http://localhost:3000 — without it, secure-cookie
+//   with BETTER_AUTH_URL=http://localhost:3100 — without it, secure-cookie
 //   mode drops the session and every authenticated capture is a login page.
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
@@ -1073,7 +1086,7 @@ async function main() {
   // login page in every capture, which looks like a styling bug.
   const signIn = await browser.newContext({ viewport: VIEWPORTS.phone });
   const page = await signIn.newPage();
-  await page.goto("http://localhost:3000/login");
+  await page.goto("http://localhost:3100/login");
   await page.fill('input[type="email"]', process.env.SMOKE_EMAIL!);
   await page.fill('input[type="password"]', process.env.SMOKE_PASSWORD!);
   // Clicking before hydration silently posts nothing and waitForURL times
@@ -1081,7 +1094,7 @@ async function main() {
   await page.waitForSelector('button[type="submit"]:not([disabled])');
   await page.waitForTimeout(500);
   await page.click('button[type="submit"]');
-  await page.waitForURL("http://localhost:3000/", { timeout: 15_000 });
+  await page.waitForURL("http://localhost:3100/", { timeout: 15_000 });
   const storageState = await signIn.storageState();
   await signIn.close();
 
@@ -1097,7 +1110,7 @@ async function main() {
       `);
       const p = await ctx.newPage();
       for (const [name, path] of Object.entries(SURFACES)) {
-        await p.goto(`http://localhost:3000${path}`, {
+        await p.goto(`http://localhost:3100${path}`, {
           waitUntil: "networkidle",
         });
         await p.screenshot({
@@ -1121,7 +1134,7 @@ main();
 - [ ] **Step 3: Capture and actually look at the output**
 
 ```bash
-npm run dev &   # with BETTER_AUTH_URL=http://localhost:3000
+npm run dev &   # with BETTER_AUTH_URL=http://localhost:3100
 sleep 10
 npx tsx scripts/screenshot.ts slice-0
 ```
