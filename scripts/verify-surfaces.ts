@@ -124,7 +124,33 @@ try {
 // Default matches the brief; override when port 3000 is unavailable (see
 // header comment) via SCREENSHOT_BASE_URL, and point the dev server's own
 // BETTER_AUTH_URL at the same origin.
-const BASE_URL = process.env.SCREENSHOT_BASE_URL ?? "http://localhost:3000";
+// FAILS CLOSED, DELIBERATELY. There is no default. This script signs in as
+// the owner, walks every surface, and creates a real API token through the
+// real UI — and on this machine port 3000 is the LIVE PRODUCTION container.
+// An earlier version defaulted to exactly that, so running it with no env var
+// would have driven all of the above against production and, if revocation
+// failed, left a live API token behind. The plan document was corrected and
+// this line was not; the final whole-branch review caught it. Nine more
+// slices will run this script, so it must refuse rather than guess.
+const BASE_URL = (() => {
+  const url = process.env.SCREENSHOT_BASE_URL;
+  if (!url) {
+    throw new Error(
+      "SCREENSHOT_BASE_URL is required — this script has no default on purpose.\n" +
+        "Point it at a DEV server, never production:\n" +
+        "  BETTER_AUTH_URL=http://localhost:3100 TRUSTED_ORIGINS=http://localhost:3100 npx next dev -p 3100\n" +
+        "  SCREENSHOT_BASE_URL=http://localhost:3100 npx tsx scripts/verify-surfaces.ts <slice>\n" +
+        "Port 3000 is the live production container on this machine."
+    );
+  }
+  if (/localhost:3000|127\.0\.0\.1:3000/.test(url)) {
+    throw new Error(
+      `Refusing to run against ${url} — port 3000 is the live production ` +
+        `container. This script creates real data. Use a dev server (3100).`
+    );
+  }
+  return url;
+})();
 
 const SURFACES: Record<string, string> = {
   today: "/",
