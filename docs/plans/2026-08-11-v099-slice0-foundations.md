@@ -19,7 +19,8 @@ the athlete while surfaces are half-migrated.
 
 **Tech Stack:** Next.js 16 (App Router), React 19, Tailwind CSS v4
 (`@theme` tokens), `next-themes@^0.4.6` (already a dependency, currently
-unused), Vitest 4, `vitest-axe`.
+unused), Vitest 4, and `axe-core` driven through Playwright's cached
+`chrome-headless-shell` — **not** `vitest-axe`, for the reason in Task 7.
 
 ## Global Constraints
 
