@@ -1,5 +1,77 @@
 # Changelog
 
+## v0.96.0 — 2026-08-11 — The guard was counting dead code as alive
+
+Tests, CI config and docs. No product code, no behaviour, no numbers.
+
+**Phase 2d's dead-component guard was under-reporting by seven.** It shipped in
+v0.91.0 asking "does any non-test file under `src/` reference this component?"
+That question has two holes, both of which hide dead code rather than invent
+it, and both were live in the tree:
+
+1. **A reference from a file that is itself dead counted as liveness.** Six of
+   the seven. They form chains, not pairs, so one hop would not have been
+   enough — `dashboard/animated-counter.tsx` was dead at depth three, behind
+   `readiness-rings.tsx` behind `hero-readiness.tsx`. Five of the six were
+   imported by a component **already sitting in the guard's own allowlist**,
+   so the guard was reading its known-dead entries as evidence of life.
+2. **The basename fallback matched a same-named sibling in another
+   directory.** `dashboard/vitals-grid.tsx` looked referenced because
+   `src/app/page.tsx` imports `@/components/today/vitals-grid`. The guard
+   documented an "unrelated string" hazard; this is not that. It is the
+   predictable consequence of the unfinished v0.23 migration, which duplicated
+   `dashboard/` names into `today/`.
+
+**The fix is a different question, not a patched regex.** The guard now asks
+whether a component is _reachable_ from a real entry point — anything under
+`src/app` plus the root-level runtime files — resolving specifiers to actual
+files on disk and following them transitively. A sibling of the same name can
+never stand in, and a chain of dead components cannot hold itself up.
+`KNOWN_ORPHANS` goes **15 → 22**.
+
+Neither hole was cosmetic. Had 2b.2 deleted the 15, these 7 would have turned
+from invisible into a red build.
+
+**Mutation-tested, because a passing guard proves nothing.** Three mutations,
+each confirmed to fail: dropping `vitals-grid` from the allowlist (the
+basename-collision case), dropping `animated-counter` (dead at depth three),
+and wiring an allowlisted orphan into a live page (the ratchet direction,
+which correctly reported it "now reachable from an entry point").
+
+**The counts in `ROADMAP.md` were wrong in both directions** and are now
+replaced by a pointer to the mechanism. The item claimed 12 orphans, or 19
+counting "PR #86's seven sleep-cards" — five of those seven no longer exist
+and the two that remain are live and never were orphans, while the real number
+was higher than anything written down. A count summarised into prose goes
+stale silently; the guard recomputes its list on every run.
+
+**The bigger finding, for 2b.2 rather than for this release:** 22 components
+are dead, but **27 _live_ ones sit in directories the v0.23 IA retired** —
+`dashboard/` 5, `plan/` 11, `log/` 5, `journal/` 1, `health/` 5. `health/` has
+no dead components at all; the whole directory is live code at an address the
+IA no longer has. "Remove the orphans" is the smaller half of 2b.2.
+
+**`docs/specs/2026-08-11-2b2-inputs.md`** collects what that cycle starts
+from: the telemetry reading with its three binding caveats, the IA as built,
+both lists, the traps (an orphan can still own a type something live imports —
+v0.87.0 hit exactly that), and six open questions it deliberately does not
+answer. It is an evidence pack, not a design spec.
+
+**CI actions unpinned from Node 20.** `actions/checkout` and
+`actions/setup-node` v4 → v7; GitHub was already force-running them on Node 24
+and warning on every job. `actions/upload-artifact` and
+`download-artifact` deliberately stay at v4 with a comment saying why: they
+carry the digest hand-off between the two matrix build legs and the manifest
+merge, and the only way to verify a major bump there is a real tag push — a
+green PR proves nothing about it.
+
+**Also recorded, not fixed:** three non-component files are unreachable from
+any entry point and live only for their own tests — `lib/week-plan/repair.ts`,
+`lib/workout-export/week.ts`, `lib/workout-export/zwo.ts`. The last two form a
+cluster whose only non-test consumer is each other, which reads as an
+unshipped feature rather than debris. The guard covers `src/components/**`
+only, so nothing watches this today. Phase 4.
+
 ## v0.95.0 — 2026-08-11 — The telemetry gate, lifted at day 4
 
 Docs only. No code, no behaviour, no numbers. A minor rather than a patch

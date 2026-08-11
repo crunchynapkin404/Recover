@@ -247,23 +247,32 @@ so" — is currently spoken in six dialects: `—` (47 uses), `calibrating` (39)
       leave behind and neither did — `.superdesign/` is empty and the only
       design spec predates the v0.23 IA.
 
-- [ ] **2b.2 — Settle the IA.** Decide what the IA now is, remove the 12
-      orphaned components, and make the directory tree match. Six of the twelve
-      sit in `dashboard/`, the rest in `plan/`, `log/`, `journal/` — all
-      superseded by `today/`, `body/`, `train/`. With PR #86's seven
-      sleep-cards that is 19 orphans from one unfinished migration.
-      **Independently reconfirmed dead** while migrating other surfaces (not
-      necessarily additional to the 19 — overlap unverified):
-      `journal/correlation-insights.tsx`, `dashboard/hero-readiness.tsx`,
-      `dashboard/readiness-rings.tsx`,
-      `dashboard/recent-sessions-accordion.tsx`, `dashboard/vitals-grid.tsx`.
-      `dashboard/race-countdown.tsx` was on this list, and the **trap** that
-      kept it here — it exported the `RaceCountdownProps` type
-      `app/train/page.tsx` imported, so it could not be deleted wholesale —
-      is gone: **v0.87.0** moved that type to `race/outlook.ts` as `RaceCard`
-      and deleted the component with its test. One down without waiting for
-      this item, because the slice that owned the type had to touch it
-      anyway.
+- [ ] **2b.2 — Settle the IA.** Decide what the IA now is, dispose of the
+      orphaned components, and make the directory tree match.
+      **The count is 22, verified 2026-08-11 (v0.96.0), and the authoritative
+      list is `KNOWN_ORPHANS` in `tests/dead-component-guard.test.ts` — not
+      this file.** Do not re-derive it by hand; the guard recomputes it on
+      every run and fails if it drifts.
+      **Every earlier figure here was wrong, in both directions.** This item
+      said 12, and 19 counting "PR #86's seven sleep-cards". Five of those
+      seven no longer exist and the two that do
+      (`body/sleep-night-card.tsx`, `body/sleep-history-strip.tsx`) are live
+      and never were orphans. Meanwhile the real number was _higher_ than any
+      figure written here: v0.96.0 rebuilt the guard on reachability from
+      entry points and found **7 more** the reference-based scan structurally
+      could not see — six alive only because a _dead_ component imported them
+      (a chain up to three deep), and `dashboard/vitals-grid.tsx`, which
+      looked referenced because `today/vitals-grid.tsx` shares its basename.
+      The lesson is the one this roadmap keeps relearning: a count summarised
+      into prose goes stale silently, so point at the mechanism that
+      recomputes it.
+      A **trap worth keeping** from the old list: `dashboard/race-countdown.tsx`
+      could not be deleted wholesale because it exported the
+      `RaceCountdownProps` type `app/train/page.tsx` imported. **v0.87.0**
+      moved that type to `race/outlook.ts` as `RaceCard` and deleted the
+      component with its test. Expect more of these — an orphan may still own
+      a type, a constant or a style that something live imports, and
+      reachability marks the _file_ dead, not every symbol in it.
       **v0.66.0** shipped the local-only `surface_views` telemetry this
       decision depends on (owner-only, closed-set surface keys, counts only,
       never leaves the instance). **Deployed to the live instance:
@@ -625,10 +634,14 @@ excluded, is recorded here so that closing 2c means something:
       workouts"_ — read, reasoned about and updated, for a component that
       renders nowhere. Dead components do not sit quietly; they get
       maintained. `src/components/ui/` is in scope rather than exempt.
-      **Deleting the 15 is deliberately not part of it** — disposal is 2b.2's
+      **Deleting them is deliberately not part of it** — disposal is 2b.2's
       call, and some may be worth reviving rather than deleting. That call was
       date-gated to 2026-09-05 when this shipped; the gate was lifted on
-      2026-08-11 (v0.95.0), so 2b.2 can now take the list whenever it runs.
+      2026-08-11 (v0.95.0), so 2b.2 can take the list whenever it runs.
+      **v0.96.0 rebuilt this guard on reachability** after the original
+      "is anything referencing it" question was found to count references
+      from _dead_ files as liveness, and to confuse a component with a
+      same-named sibling in another directory. The allowlist went 15 → 22.
       Design:
       `docs/specs/2026-08-11-dead-component-guard-design.md`.
 - [x] A source-of-truth guard pinning approved read sites, so a new one fails
