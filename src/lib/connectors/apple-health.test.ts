@@ -25,7 +25,29 @@ describe("mapAppleHealth", () => {
       },
     });
     const day = days.get("2026-07-15");
-    expect(day).toEqual({ hrvMs: 62.3, restingHr: 48, respiratoryRate: 14.4 });
+    expect(day).toEqual({
+      hrvSdnnMs: 62.3,
+      restingHr: 48,
+      respiratoryRate: 14.4,
+    });
+  });
+
+  it("maps HealthKit HRV to the SDNN column, not rMSSD", () => {
+    // HealthKit defines exactly one HRV quantity type, SDNN. Mapping it to
+    // hrvMs put SDNN values into the rMSSD baseline they were then z-scored
+    // against — four live rows on the owner account.
+    const days = mapAppleHealth({
+      data: {
+        metrics: [
+          {
+            name: "heart_rate_variability",
+            units: "ms",
+            data: [{ date: "2026-07-25 08:00:00 +0000", qty: 107.54 }],
+          },
+        ],
+      },
+    });
+    expect(days.get("2026-07-25")).toEqual({ hrvSdnnMs: 107.54 });
   });
 
   it("maps staged sleep to the wake date", () => {

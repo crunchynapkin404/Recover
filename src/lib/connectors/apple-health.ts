@@ -131,7 +131,10 @@ export function mapAppleHealth(
       if (!day || qty == null) continue;
       switch (name) {
         case "heart_rate_variability":
-          set(out, day, "hrvMs", qty);
+          // HealthKit's only HRV quantity type is SDNN. This wrote into
+          // hrvMs (rMSSD) until 2026-08-11, putting SDNN values into the
+          // rMSSD baseline — see scripts/repair-apple-health-hrv.ts.
+          set(out, day, "hrvSdnnMs", qty);
           break;
         case "resting_heart_rate":
           set(out, day, "restingHr", qty);
