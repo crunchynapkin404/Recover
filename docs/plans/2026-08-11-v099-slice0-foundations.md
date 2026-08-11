@@ -927,15 +927,36 @@ run it explicitly.
 
 - [ ] **Step 4: Confirm the class is applied**
 
-```bash
-npm run dev &
-sleep 8
-curl -s http://localhost:3000/login | grep -o 'class="[^"]*dark[^"]*"' | head -1
-kill %1
+**`curl` cannot answer this — do not try.** With `attribute="class"`,
+next-themes applies `.dark` from an inline script, so it is absent from the
+SSR markup on _any_ correct setup. A `curl | grep` returning empty proves
+nothing, and reading it as failure would send you chasing a working
+configuration.
+
+Two checks that do answer it. First, structural — confirm the served HTML
+contains next-themes' inline `<script>` with no `src`, `async` or `defer`,
+positioned before the first visible content node. A parser-blocking inline
+script runs before anything after it can paint.
+
+Second, empirical — in the headless browser from Task 6, assert the class
+lands before first paint:
+
+```js
+// Instrument on `document`, not documentElement — the latter does not exist
+// yet when an init script runs.
+new MutationObserver(() => {
+  if (document.documentElement.classList.contains("dark")) {
+    window.__darkAt = performance.now();
+  }
+}).observe(document, { attributes: true, subtree: true });
+// Then compare window.__darkAt against
+// performance.getEntriesByName("first-contentful-paint")[0].startTime
 ```
 
-Expected: a match containing `dark`. If empty, `forcedTheme` is not reaching
-the html element and the tokens will resolve to the light set.
+Expected: the class lands before first paint. Measured on 2026-08-11 across
+five runs: class at 43-63ms, FCP at 52-144ms — no flash of light. If the
+class lands _after_ first paint, the athlete sees a white flash on every load
+and the task is not done.
 
 - [ ] **Step 5: Commit**
 
