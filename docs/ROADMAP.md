@@ -102,6 +102,19 @@ into coach context, or returned by an MCP tool. If the athlete can read it or
 the coach can quote it, it is in scope. Internal intermediates are not, unless
 one of those three surfaces exposes them.
 
+**Interposed: v0.97.0 — score whichever HRV metric arrived (2026-08-11).** Not
+one of 2a–2d, and taken ahead of 2b.2 because it is a live correctness defect
+against the goal's third sentence rather than a planned slice. HRV reaches this
+instance by two paths from one watch — rMSSD via intervals.icu direct (lands
+next morning) and SDNN via the Companion (lands ~06:14) — and Recover read only
+rMSSD. The Today tile therefore blanked every morning _because_ of the sync, and
+readiness silently renormalized over its heaviest input (weight `0.40`) without
+saying so. The two metrics correlate at only **r = 0.67**, so each is now scored
+against a baseline built from itself; `daily_metrics.hrv_metric` records which
+won. **Does not trip the Non-goal below:** no new figure is added, and nothing
+claims more than before — an existing number stops lying about what it knows.
+Design: `docs/specs/2026-08-11-hrv-source-fallback-design.md`.
+
 **Order matters here.** 2b lands before 2c's number slices, because slice
 condition #5 — "its 'I do not know' state is explicit and rendered" — is a
 design decision. Made six times independently, it produces six more dialects on
