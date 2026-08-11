@@ -95,7 +95,7 @@ import { join } from "node:path";
 import type { Page } from "playwright-core";
 import type Axe from "axe-core";
 import { hexToRgb } from "../src/lib/design/contrast";
-import { readTokenSets } from "../src/lib/design/tokens";
+import { resolvedThemeTokens } from "../src/lib/design/tokens";
 import {
   splitFindings,
   computeTotals,
@@ -258,14 +258,14 @@ function sleep(ms: number) {
  * ever change.
  */
 const EXPECTED_BODY_BACKGROUND: Record<"light" | "dark", string> = (() => {
-  const sets = readTokenSets();
+  const tokens = resolvedThemeTokens();
   const rgb = (hex: string) => {
     const [r, g, b] = hexToRgb(hex);
     return `rgb(${r}, ${g}, ${b})`;
   };
   return {
-    light: rgb(sets.light["surface-base"]),
-    dark: rgb(sets.dark["surface-base"]),
+    light: rgb(tokens.light["surface-base"]),
+    dark: rgb(tokens.dark["surface-base"]),
   };
 })();
 

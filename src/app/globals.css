@@ -85,10 +85,13 @@
 }
 
 /* ── Two themes. :root is light; .dark is dark. ───────────────────────────
-   Governed by tests/contrast-guard.test.ts — every ink×surface pair here is
-   asserted against its worst-case surface in both themes. Do not add an
-   --ink-* or --surface-* token without adding it to GOVERNED in
-   src/lib/design/tokens.ts, or it ships unchecked. */
+   Governed by tests/contrast-guard.test.ts, which reads EVERY :root/.dark
+   block in this file (there are six) and requires every declaration in them
+   to be checked, aliased or waived by name. A token's NAME is what governs
+   it: `--*-ink` carries the 4.5:1 text floor on every surface,
+   `--surface-*` must be an opaque ground, `--*-hairline|-divider|-grid|-axis`
+   is non-text. Add a token that claims none of those and the guard fails
+   telling you so — there is no list to remember to update. */
 :root {
   --surface-base: #f6f6f6;
   --surface-raised: #ffffff;
@@ -389,8 +392,14 @@
   width: 4px;
   height: 4px;
   border-radius: 50%;
-  background: white;
-  box-shadow: 0 0 12px white;
+  /* Was the bare keyword `white`, which the first version of the globals.css
+     scan could not see at all (C1: it enumerated two rgba() spellings and the
+     token hexes). Theme-blind: a white dot on a light surface is an invisible
+     active-nav indicator. --ink-primary is the strongest ink in each theme,
+     so dark moves #ffffff → #f5f5f5 on a 4px dot and its glow — a real,
+     disclosed change, like .label-micro above. */
+  background: var(--ink-primary);
+  box-shadow: 0 0 12px var(--ink-primary);
   animation: breathe 3s ease-in-out infinite;
 }
 @keyframes breathe {

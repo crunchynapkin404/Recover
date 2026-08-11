@@ -12,7 +12,8 @@
 import { describe, it, expect } from "vitest";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
-import { CSS_PATH, GOVERNED, readTokenSets } from "../src/lib/design/tokens";
+import { CSS_PATH } from "../src/lib/design/tokens";
+import { findColorLiterals, isNeutral } from "../src/lib/design/color-literals";
 
 const SRC = join(process.cwd(), "src");
 
@@ -65,47 +66,44 @@ function offenders(pattern: RegExp): string[] {
  * `color: rgba(255,255,255,0.4)` inside globals.css's component classes was
  * invisible to it: a light-mode capture run found the "Welcome to Recover"
  * heading unreadable, caused by exactly this class of hardcoded dark-only
- * value living outside the token blocks. This assertion scans
- * globals.css itself for the two shapes those values took — translucent
- * white/black `rgba()` and literal ink/surface token hex — everywhere in the
- * file EXCEPT inside `:root { … }` / `.dark { … }` blocks, which is where
- * literal colour belongs and where tests/contrast-guard.test.ts already
- * governs it.
+ * value living outside the token blocks.
  *
- * Deliberately scoped to ink/surface, not accent: excluding "accent" from
- * GOVERNED means a hardcoded brand-green hex (there is one today, in
- * `.tag-active`, pre-existing and out of this task's scope) does not trip
- * this guard. That is a real, different, smaller bug — not this one.
+ * ── AND THE HOLE IN THAT CLOSURE (C1, whole-branch review 2026-08-11) ─────
+ * The first version of the scan enumerated two `rgba()` spellings plus the
+ * literal hex values of the ink/surface tokens. `rgb(255 255 255 / 40%)`,
+ * `#ffffff66`, `hsl(0 0% 100%)`, `color-mix(in srgb, white 40%, transparent)`
+ * and the bare keyword `white` — which was live in `.nav-active-dot` the
+ * whole time — all walked through it. The scan is now syntax-agnostic:
+ * src/lib/design/color-literals.ts recognises *that a colour literal is
+ * present* from CSS's own closed grammar (any-length hex, colour functions by
+ * NAME so every argument spelling is covered, neutral colour keywords) and
+ * then judges what it MEANS rather than how it was spelled. See that file's
+ * header for why the shape is inverted.
+ *
+ * Still deliberately scoped to ink/surface, not brand: a literal that reduces
+ * to a chromatic colour (there are five today — the two 8%-alpha mesh blooms
+ * and `.tag-active`/`.login-input:focus`'s emerald, all pre-existing and out
+ * of this task's scope) does not trip this guard. That scope is now derived
+ * from the colour itself — achromatic within NEUTRAL_TOLERANCE — instead of
+ * from a hand-copied hex list, so it holds for syntaxes nobody has written
+ * yet. It is a real, different, smaller bug — not this one.
+ *
+ * Masking the `:root`/`.dark` blocks is legitimate now that it was not
+ * before: tests/contrast-guard.test.ts reads every one of the six blocks and
+ * requires every declaration in them to be checked, aliased or waived by
+ * name. When this comment was first written that claim was false for four of
+ * the six.
  */
 const GLOBALS_CSS = readFileSync(CSS_PATH, "utf8");
 
-const NEUTRAL_HEXES = (() => {
-  const { light, dark } = readTokenSets();
-  const hexes = new Set<string>();
-  for (const token of GOVERNED) {
-    if (token === "accent") continue; // brand colour, not ink/surface
-    hexes.add(light[token].toLowerCase());
-    hexes.add(dark[token].toLowerCase());
-  }
-  return [...hexes];
-})();
-
-const RGBA_WHITE = /rgba\(\s*255\s*,\s*255\s*,\s*255\s*,\s*[\d.]+\s*\)/;
-const RGBA_BLACK = /rgba\(\s*0\s*,\s*0\s*,\s*0\s*,\s*[\d.]+\s*\)/;
-const HARDCODED_INK_SURFACE_PATTERNS = [
-  RGBA_WHITE,
-  RGBA_BLACK,
-  ...NEUTRAL_HEXES.map((hex) => new RegExp(hex.replace("#", "#"))),
-];
-
 /**
- * Blanks out every top-level `:root { … }` / `.dark { … }` block, and every
- * `/* … *\/` comment, character by character (newlines preserved) so line
- * numbers in the remaining text still match the real file. Comments must be
- * masked too — this guard's own doc comments quote the historical rgba()
- * values they replaced, which would otherwise self-trigger. A raw colour
- * anywhere left standing after both maskings is a live declaration outside
- * the token blocks, by construction.
+ * Blanks out every `:root { … }` / `.dark { … }` block, and every `/* … *\/`
+ * comment, character by character (newlines preserved) so line numbers in
+ * the remaining text still match the real file. Comments must be masked too
+ * — this guard's own doc comments quote the historical rgba() values they
+ * replaced, which would otherwise self-trigger. A raw colour anywhere left
+ * standing after both maskings is a live declaration outside the token
+ * blocks, by construction.
  */
 function maskTokenBlocksAndComments(css: string): string {
   const noComments = css.replace(/\/\*[\s\S]*?\*\//g, (c) =>
@@ -116,17 +114,32 @@ function maskTokenBlocksAndComments(css: string): string {
   );
 }
 
+/**
+ * A CSS declaration, anchored to the `{` or `;` that must precede one. This
+ * is what separates a *value* from a selector, so `.glass:hover {` and
+ * `@media (hover: hover)` are not mistaken for declarations and — the part a
+ * line-by-line scan got wrong — the continuation lines of a multi-line value
+ * (`.mesh-gradient`'s three stacked gradients) are still read.
+ */
+const CSS_DECLARATION = /(?:^|[;{}])\s*((?:--)?[-a-zA-Z]+)\s*:\s*([^;{}]*)/g;
+
 function globalsCssOffenders(): string[] {
   const masked = maskTokenBlocksAndComments(GLOBALS_CSS);
   const found: string[] = [];
-  masked.split("\n").forEach((line, i) => {
-    for (const pattern of HARDCODED_INK_SURFACE_PATTERNS) {
-      const matches = line.match(new RegExp(pattern.source, "gi"));
-      if (matches) {
-        found.push(`src/app/globals.css:${i + 1} — ${matches.join(", ")}`);
-      }
+  for (const m of masked.matchAll(CSS_DECLARATION)) {
+    const [property, value] = [m[1], m[2]];
+    const valueStart = m.index + m[0].length - value.length;
+    for (const literal of findColorLiterals(value)) {
+      // Chromatic literals are brand colour, out of this guard's scope. An
+      // unparseable one (`oklch()`, `color-mix()`) is an offender: a raw
+      // colour nobody can evaluate is exactly what belongs behind a token.
+      if (literal.rgba && !isNeutral(literal.rgba)) continue;
+      const line = masked
+        .slice(0, valueStart + literal.index)
+        .split("\n").length;
+      found.push(`src/app/globals.css:${line} — ${property}: ${literal.text}`);
     }
-  });
+  }
   return found;
 }
 
@@ -181,8 +194,9 @@ describe("type-scale guard", () => {
   it("has no hardcoded ink or surface colour in globals.css outside :root/.dark", () => {
     expect(
       globalsCssOffenders(),
-      "raw rgba(255,255,255,*), rgba(0,0,0,*), or a literal ink/surface " +
-        "token hex belongs only inside :root/.dark — reference the token " +
+      "a raw neutral colour — in ANY syntax: hex of any length, any colour " +
+        "function, a keyword like `white` — belongs only inside :root/.dark, " +
+        "where tests/contrast-guard.test.ts governs it. Reference the token " +
         "with var(--…) from the component class instead"
     ).toEqual([]);
   });
