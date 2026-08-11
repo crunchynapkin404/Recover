@@ -33,6 +33,23 @@ SEED_DEMO=1 npm run db:seed-demo
 # login: demo@recover.local / recover-demo
 ```
 
+### Design verification screenshots
+
+Every redesign slice is checked visually with `scripts/screenshot.ts`, which
+captures each surface in both themes and two viewports. It needs a headless
+Chromium (see the script's header comment for the sandbox-specific
+`CHROME_PATH`/`LD_LIBRARY_PATH` setup), a dev server on a port that is not
+production's, and the `OWNER_EMAIL`/`OWNER_PASSWORD` pair from `npm run
+db:seed` above (it must be an owner — `/admin` is one of the captured
+surfaces and redirects any other role):
+
+```bash
+SCREENSHOT_BASE_URL=http://localhost:3100 \
+  OWNER_EMAIL=... OWNER_PASSWORD=... \
+  npx tsx scripts/screenshot.ts <slice-name>
+# → .screenshots/<slice-name>/*.png (gitignored)
+```
+
 ## Quality gates
 
 CI runs all of these; run them locally before pushing:
