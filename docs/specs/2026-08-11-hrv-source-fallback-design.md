@@ -154,6 +154,11 @@ the stored decision makes tile-versus-ring divergence structurally impossible.
   and no resting HR still selects.
 - Displayed value, 7-day delta and sparkline all read the column named by
   `hrv_metric`.
+- The hero's "why" line takes its HRV reading from the same column, and its
+  baseline from `exp(daily_metrics.hrv_baseline_mean)` — the stats of whichever
+  baseline actually scored the day. It currently uses a raw 7-day mean of the
+  rMSSD column, which next to an SDNN reading would print "HRV 91 vs 97
+  baseline" and invent a deficit.
 - When no metric row exists for `latest.date`, or its `hrv_metric` is null, the
   tile shows the existing `Figure.missingInput` state. A day that was not
   scored must not display a number the ring does not reflect.
