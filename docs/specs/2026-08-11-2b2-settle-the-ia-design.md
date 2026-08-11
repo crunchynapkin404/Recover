@@ -83,6 +83,22 @@ exactly one possible cause.
 | `scroll-reveal`                                                                                       | unused animation helper, no successor needed                                         |
 | `ui/separator`, `ui/sonner`, `ui/tabs`                                                                | never wired up; re-vendor on demand                                                  |
 
+### No feature is removed by any of this
+
+Every deletion is a superseded predecessor, not a capability. The one worth
+stating outright, because the directory name invites the opposite reading:
+
+**The post-ride debrief popup stays exactly as it is.** `debrief-sheet.tsx` is
+the popup, `activity-debrief-section.tsx` mounts it on `/activity/[id]`, and
+`today/sheet-host.tsx` mounts it from `?sheet=debrief&activity=` — the push
+notification's deep link. All four of those files are live and untouched, and
+`debrief/` is not a retired directory.
+
+What goes is the pair v0.25.2 already replaced: `debrief-form.tsx`, the inline
+form buried on the activity page that "most users would never scroll to", and
+`pending-debrief-card.tsx`, the dashboard card the Today chip superseded.
+Neither has rendered anywhere since that release.
+
 **Four dead chains must come out together**, or the guard correctly reports the
 remainder as newly orphaned:
 
