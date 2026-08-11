@@ -54,6 +54,29 @@
   --color-ink-muted: var(--ink-muted);
   --color-hairline: var(--hairline);
   --color-accent: var(--accent);
+
+  /* Type scale — 12px floor, seven steps. Phase 2b.4. */
+  --text-2xs: 0.75rem; /* 12 — the floor. Nothing smaller exists. */
+  --text-xs: 0.875rem; /* 14 */
+  --text-sm: 1rem; /* 16 — body */
+  --text-base: 1.25rem; /* 20 */
+  --text-lg: 1.5rem; /* 24 */
+  --text-xl: 1.875rem; /* 30 */
+  --text-3xl: 2.75rem; /* 44 — the primary figure */
+
+  /* Numeric type — mono figures for scores, HR, power. Phase 2b.4. Reuses
+     the already-loaded Geist Mono font; named separately from --font-mono
+     so numeric-display call sites read as intent, not as "code font". */
+  --font-numeric: var(--font-geist-mono);
+
+  /* Spacing scale — 4px base. */
+  --spacing-1: 0.25rem;
+  --spacing-2: 0.5rem;
+  --spacing-3: 0.75rem;
+  --spacing-4: 1rem;
+  --spacing-6: 1.5rem;
+  --spacing-8: 2rem;
+  --spacing-12: 3rem;
 }
 
 /* ── Two themes. :root is light; .dark is dark. ───────────────────────────
@@ -153,7 +176,7 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-size: 15px;
+    font-size: 1rem;
     -webkit-font-smoothing: antialiased;
     letter-spacing: -0.01em;
     overflow-x: hidden;
