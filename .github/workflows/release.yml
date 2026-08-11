@@ -80,7 +80,7 @@ jobs:
             runner: ubuntu-24.04-arm
     runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set platform pair for artifact naming
         run: |
@@ -119,6 +119,11 @@ jobs:
           digest="${{ steps.build.outputs.digest }}"
           touch "${{ runner.temp }}/digests/${digest#sha256:}"
 
+      # Deliberately still v4 while checkout/setup-node moved to v7 (v0.96.0).
+      # This pair carries the digest hand-off between the two matrix build
+      # legs and the manifest merge below, and the only way to verify a major
+      # bump is a real tag push — a green PR proves nothing about it. Bump it
+      # on its own, in a release where a broken image is expected and watched.
       - name: Upload digest
         uses: actions/upload-artifact@v4
         with:
