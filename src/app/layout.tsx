@@ -46,6 +46,14 @@ export default function RootLayout({
       // which replaces this with the library's class management. Without
       // it, :root now resolves to the LIGHT token set (Task 2) and nothing
       // else applies `.dark`, so the app would silently render light.
+      //
+      // SIDE EFFECT, ACCEPTED DELIBERATELY: this is the first time `.dark`
+      // has ever been applied, so 11 `dark:` utilities that were dead code
+      // become live — api-tokens-card's success box, the outline Button's
+      // border/background, destructive Button and Badge, and several
+      // hover/focus/aria-invalid variants. They were authored for a dark
+      // app and had never rendered as intended. Verified in Task 6/7's
+      // screenshot and axe pass; see the plan's Global Constraints.
       className={`dark ${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">

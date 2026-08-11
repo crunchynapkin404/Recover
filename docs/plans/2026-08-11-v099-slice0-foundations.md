@@ -33,8 +33,18 @@ Copied verbatim from `docs/specs/2026-08-11-2b4-visual-redesign-design.md`:
 - **No athlete-visible _visual_ change in this slice.** Dark mode must render
   the same intent as before; light mode is unreachable until slice 9. **One
   deliberate behavioural exception:** Task 4 restores pinch-zoom, a WCAG 1.4.4
-  fix that ships here because the plumbing it touches is here. It is the only
-  behaviour change permitted in slice 0.
+  fix that ships here because the plumbing it touches is here.
+- **Second deliberate exception, found during Task 2.** Applying `.dark` for
+  the first time activates **11 `dark:` utilities that were dead code** —
+  nothing had ever applied that class. Affected: `api-tokens-card.tsx`'s
+  success box (`green-50`→`green-950`, `bg-white`→`bg-black`), the outline
+  `Button`'s `dark:border-input dark:bg-input/30`, destructive `Button` and
+  `Badge` (`destructive/10`→`/20`), and several `dark:hover:`,
+  `dark:focus-visible:` and `dark:aria-invalid:` state variants. These were
+  authored for a dark app and had never rendered as intended. **Every one of
+  the 11 must be confirmed in Task 6's screenshots and Task 7's axe run** —
+  the exception is granted on the condition that they are looked at, not
+  assumed benign.
 - **Type floor is 12px.** Nothing below 12px exists as a token.
 - **Type scale:** `12 · 14 · 16 · 20 · 24 · 30 · 44`, plus a mono numeric variant.
 - **Spacing scale:** `4 · 8 · 12 · 16 · 24 · 32 · 48`.
