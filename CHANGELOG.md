@@ -48,6 +48,27 @@ fallback the tile is labelled **HRV · SDNN**, confidence drops to medium, and
 it says why. `calibrationProgress` counts SDNN too — an SDNN-only athlete was
 being told "day 0 of 14" while readiness was already scoring them.
 
+**Two defects this branch created and independent review caught**, both worth
+recording because neither could fail a test:
+
+- **The tile blanked a real reading while calibrating.** `hrv_metric` is null
+  in two different situations — no reading at all, and a real reading whose
+  baseline is still short — and treating both as `missing_input` told an
+  athlete who measured 88 ms that morning "needs an HRV reading". False, a
+  regression on the old tile, and inconsistent with the RHR tile beside it.
+  `Figure.calibrating()` was considered and rejected: it is `available: false`
+  and would still hide a real measurement. The tile shows a **measurement**,
+  not a score — so the value is shown at low confidence with the reason, and
+  `missing_input` now means genuinely no reading in either column.
+- **`calibrationProgress` has four callers and only one was updated.** The
+  widened field was written `hrvSdnnMs?` — optional — so the three stale
+  callers compiled clean. An SDNN-only athlete would have seen Today report a
+  scored readiness while `/body`, the coach context and the morning brief all
+  said "still calibrating", on the same morning. The field is now **required**,
+  which turns that silent divergence into a build error; the compiler found all
+  four. Same blind spot as the nullable-column trap v0.39 fixed: an optional
+  field means omission compiles.
+
 **A pre-existing mislabel, fixed at the source.** HealthKit defines exactly one
 HRV quantity type — SDNN — and `apple-health.ts` mapped it into `hrvMs`. An
 existing test asserted the bug and had locked it in; it was corrected rather

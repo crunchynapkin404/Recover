@@ -24,7 +24,15 @@ export function calibrationProgress(
   days: Array<{
     hrvMs: number | null;
     restingHr: number | null;
-    hrvSdnnMs?: number | null;
+    /**
+     * REQUIRED, deliberately. An optional field here compiles at every call
+     * site that forgets it — which is how v0.97 first shipped with only one
+     * of four callers passing it, so Today said "scored" while /body and the
+     * coach both said "day N of 14" to the same SDNN-only athlete on the same
+     * morning. Required turns that silent divergence into a build error.
+     * Pass `null` when the column genuinely isn't loaded.
+     */
+    hrvSdnnMs: number | null;
   }>
 ): CalibrationProgress {
   const withSignal = days.filter(

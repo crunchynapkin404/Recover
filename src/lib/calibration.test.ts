@@ -5,16 +5,17 @@ function days(n: number, signal = true) {
   return Array.from({ length: n }, () => ({
     hrvMs: signal ? 60 : null,
     restingHr: null,
+    hrvSdnnMs: null,
   }));
 }
 
 describe("calibrationProgress", () => {
   it("counts only days with a usable signal", () => {
     const mixed = [
-      { hrvMs: 60, restingHr: null },
-      { hrvMs: null, restingHr: 48 },
-      { hrvMs: null, restingHr: null }, // no signal — doesn't count
-      { hrvMs: 0, restingHr: 0 }, // zeros aren't signal
+      { hrvMs: 60, restingHr: null, hrvSdnnMs: null },
+      { hrvMs: null, restingHr: 48, hrvSdnnMs: null },
+      { hrvMs: null, restingHr: null, hrvSdnnMs: null }, // no signal
+      { hrvMs: 0, restingHr: 0, hrvSdnnMs: 0 }, // zeros aren't signal
     ];
     const p = calibrationProgress(mixed);
     expect(p.daysWithSignal).toBe(2);

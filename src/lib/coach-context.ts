@@ -98,7 +98,11 @@ export async function fetchAthleteContext(
       });
     }
     const calibration = calibrationProgress(
-      calibrationWindow.map((w) => ({ hrvMs: w.hrvMs, restingHr: w.restingHr }))
+      calibrationWindow.map((w) => ({
+        hrvMs: w.hrvMs,
+        restingHr: w.restingHr,
+        hrvSdnnMs: w.hrvSdnnMs,
+      }))
     );
     lines.push(
       `**Readiness:** ${unavailableMessage(

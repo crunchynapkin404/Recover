@@ -96,6 +96,29 @@ async function main() {
     process.exit(1);
   }
 
+  // --expect N closes the window between the operator reading a dry run and
+  // authorizing the write: if the data moved in between, the counts disagree
+  // and nothing is written. Optional, because refusing to run without it
+  // would just train people to pass whatever number the dry run printed.
+  const e = process.argv.indexOf("--expect");
+  const expected = e === -1 ? null : Number(process.argv[e + 1]);
+  if (expected !== null && !Number.isInteger(expected)) {
+    console.error("--expect takes an integer row count.");
+    process.exit(1);
+  }
+
+  if (expected !== null) {
+    const preview = await repairAppleHealthHrv(user.id, { apply: false });
+    if (preview.length !== expected) {
+      console.table(preview);
+      console.error(
+        `Refusing to run: expected ${expected} row(s), found ${preview.length}. ` +
+          `The data changed since the dry run — re-read it before authorizing.`
+      );
+      process.exit(1);
+    }
+  }
+
   const plan = await repairAppleHealthHrv(user.id, { apply });
   console.table(plan);
   console.log(
@@ -113,4 +136,13 @@ async function main() {
   process.exit(0);
 }
 
-if (process.argv[1]?.includes("repair-apple-health-hrv")) void main();
+// Guarded on the test runner too, not just the filename. This script writes
+// to whatever DATABASE_URL is set, and the suite imports it — a runner that
+// ever put this path in argv[1] would execute the repair and process.exit(0)
+// mid-suite. Costs one condition; the failure it prevents is silent writes.
+if (
+  !process.env.VITEST &&
+  process.argv[1]?.includes("repair-apple-health-hrv")
+) {
+  void main();
+}
