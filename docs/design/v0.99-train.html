@@ -65,11 +65,7 @@
         background: var(--surface-base);
         color: var(--ink-primary);
         font-family:
-          -apple-system,
-          BlinkMacSystemFont,
-          "Segoe UI",
-          Inter,
-          Roboto,
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto,
           sans-serif;
         font-size: var(--text-body);
         line-height: 1.45;
@@ -77,11 +73,7 @@
       }
       .mono {
         font-family:
-          "SF Mono",
-          "Cascadia Code",
-          Consolas,
-          "Liberation Mono",
-          monospace;
+          "SF Mono", "Cascadia Code", Consolas, "Liberation Mono", monospace;
       }
       a {
         color: inherit;
@@ -265,11 +257,7 @@
       .measure-tile .n {
         font-size: var(--text-heading);
         font-weight: 800;
-        font-family:
-          "SF Mono",
-          "Cascadia Code",
-          Consolas,
-          monospace;
+        font-family: "SF Mono", "Cascadia Code", Consolas, monospace;
         color: var(--chart-5);
       }
       .measure-tile .l {
@@ -635,11 +623,7 @@
         font-size: var(--text-label);
         color: var(--ink-muted);
         margin: -6px 0 12px;
-        font-family:
-          "SF Mono",
-          "Cascadia Code",
-          Consolas,
-          monospace;
+        font-family: "SF Mono", "Cascadia Code", Consolas, monospace;
       }
       .eyebrow {
         font-size: var(--text-label);
@@ -712,11 +696,7 @@
       table.skeleton td {
         padding: 8px 10px;
         border-top: 1px solid var(--hairline);
-        font-family:
-          "SF Mono",
-          "Cascadia Code",
-          Consolas,
-          monospace;
+        font-family: "SF Mono", "Cascadia Code", Consolas, monospace;
         color: var(--ink-secondary);
       }
 
@@ -736,11 +716,7 @@
         color: var(--ink-muted);
       }
       .stat-strip .stat b {
-        font-family:
-          "SF Mono",
-          "Cascadia Code",
-          Consolas,
-          monospace;
+        font-family: "SF Mono", "Cascadia Code", Consolas, monospace;
         color: var(--ink-primary);
         font-weight: 800;
       }
@@ -836,11 +812,7 @@
         flex-shrink: 0;
         font-size: var(--text-label);
         color: var(--ink-secondary);
-        font-family:
-          "SF Mono",
-          "Cascadia Code",
-          Consolas,
-          monospace;
+        font-family: "SF Mono", "Cascadia Code", Consolas, monospace;
         text-align: right;
       }
 
@@ -906,11 +878,7 @@
       }
       .season-detail b {
         color: var(--ink-primary);
-        font-family:
-          "SF Mono",
-          "Cascadia Code",
-          Consolas,
-          monospace;
+        font-family: "SF Mono", "Cascadia Code", Consolas, monospace;
       }
       .season-hint {
         font-size: var(--text-label);
@@ -940,11 +908,7 @@
       .tile .v {
         font-size: var(--text-figure);
         font-weight: 800;
-        font-family:
-          "SF Mono",
-          "Cascadia Code",
-          Consolas,
-          monospace;
+        font-family: "SF Mono", "Cascadia Code", Consolas, monospace;
         margin-top: 2px;
       }
       .tile .ctx {
@@ -1097,9 +1061,9 @@
           <code class="mono">src/app/train/page.tsx</code>, four tabs (Week,
           History, Season, Fitness), and the densest surface in the app.
           <b>This is the mockup that matters:</b> the 12px floor does not fit
-          Train's current content as shipped. This file shows what actually
-          gets cut, stacked, truncated or moved to a drill-in to make it fit
-          — and says plainly where nothing survives without restructuring.
+          Train's current content as shipped. This file shows what actually gets
+          cut, stacked, truncated or moved to a drill-in to make it fit — and
+          says plainly where nothing survives without restructuring.
         </p>
       </section>
 
@@ -1152,8 +1116,7 @@
                 >Base build · week 6 of 16</span
               >
               <span class="meta"
-                ><span class="token">--text-caption</span>0.875rem /
-                14px</span
+                ><span class="token">--text-caption</span>0.875rem / 14px</span
               >
             </div>
             <div class="type-row">
@@ -1172,16 +1135,14 @@
       <section class="doc" id="ink">
         <h2>Ink ramp — four steps, measured contrast</h2>
         <p class="lede">
-          Ratios are computed against each token's worst-case surface pairing
-          in each theme, the same methodology
+          Ratios are computed against each token's worst-case surface pairing in
+          each theme, the same methodology
           <code class="mono">tests/contrast-guard.test.ts</code> enforces.
         </p>
         <div class="card">
           <div class="ink-ramp">
             <div class="ink-swatch">
-              <p class="demo" style="color: var(--ink-primary)">
-                Ink primary
-              </p>
+              <p class="demo" style="color: var(--ink-primary)">Ink primary</p>
               <p class="name">--ink-primary</p>
               <p class="ratio">
                 Light <b>16.6:1</b> on base · Dark <b>15.1:1</b> on overlay
@@ -1213,9 +1174,9 @@
           </div>
           <hr class="hairline-demo" />
           <p class="hairline-note">
-            Every divider in the rebuilt Week/History/Season/Fitness tabs
-            below is drawn with <code class="mono">--hairline</code>. No
-            status word, timestamp or caption uses it — those are all
+            Every divider in the rebuilt Week/History/Season/Fitness tabs below
+            is drawn with <code class="mono">--hairline</code>. No status word,
+            timestamp or caption uses it — those are all
             <code class="mono">--ink-muted</code> or brighter.
           </p>
         </div>
@@ -1228,21 +1189,30 @@
           Train's current type ranges from 8px to 22px across
           <code class="mono">src/app/train/page.tsx</code> and
           <code class="mono">src/components/train/*</code> +
-          <code class="mono">src/components/week/*</code>. A fresh grep
-          against this checkout, for this task:
+          <code class="mono">src/components/week/*</code>. A fresh grep against
+          this checkout, for this task:
         </p>
         <div class="measure-grid">
           <div class="measure-tile">
             <div class="n">135</div>
-            <div class="l">arbitrary <code class="mono">text-[Npx]</code> call sites under 13px</div>
+            <div class="l">
+              arbitrary <code class="mono">text-[Npx]</code> call sites under
+              13px
+            </div>
           </div>
           <div class="measure-tile">
             <div class="n">8px</div>
-            <div class="l">smallest literal size found (Season timeline's per-bar session count)</div>
+            <div class="l">
+              smallest literal size found (Season timeline's per-bar session
+              count)
+            </div>
           </div>
           <div class="measure-tile">
             <div class="n">261</div>
-            <div class="l">ad-hoc <code class="mono">*-white/[alpha]</code> colour utilities (ink done as opacity, not tokens)</div>
+            <div class="l">
+              ad-hoc <code class="mono">*-white/[alpha]</code> colour utilities
+              (ink done as opacity, not tokens)
+            </div>
           </div>
           <div class="measure-tile">
             <div class="n">4</div>
@@ -1254,9 +1224,9 @@
           single words just get a few more pixels of padding. Four spots
           genuinely collide with the floor because they pack fixed-width or
           fixed-height containers with as much text as the current tiny sizes
-          allowed. Below is the full decision list; the four hardest ones —
-          the week day row, the history row, the season timeline, and the
-          fitness tiles — get their own worked examples afterward.
+          allowed. Below is the full decision list; the four hardest ones — the
+          week day row, the history row, the season timeline, and the fitness
+          tiles — get their own worked examples afterward.
         </p>
 
         <h3 class="sub">Every editorial decision</h3>
@@ -1282,8 +1252,8 @@
                 </td>
                 <td>
                   Drop the spelled-out pill. Reuse the colour-dot convention
-                  <code class="mono">week-strip.tsx</code> already uses for
-                  this exact vocabulary — dot + <code class="mono">sr-only</code>
+                  <code class="mono">week-strip.tsx</code> already uses for this
+                  exact vocabulary — dot + <code class="mono">sr-only</code>
                   text — instead of re-spelling status as a text pill.
                 </td>
                 <td><span class="tag-pill cut">Cut</span></td>
@@ -1296,25 +1266,24 @@
                   but was tuned for 9–12.5px content.
                 </td>
                 <td>
-                  Let the row grow (≈48px → ≈60–64px). Disclosed cost: a
-                  7-day week runs ~90px taller; the rolling next-week preview
-                  is what actually gets cut back (see below), which mostly
-                  offsets it.
+                  Let the row grow (≈48px → ≈60–64px). Disclosed cost: a 7-day
+                  week runs ~90px taller; the rolling next-week preview is what
+                  actually gets cut back (see below), which mostly offsets it.
                 </td>
                 <td><span class="tag-pill stack">Stack</span></td>
               </tr>
               <tr>
                 <td class="what">Next-week preview — per-day rows</td>
                 <td>
-                  Showing 7 more full rows (each provisional, each carrying
-                  its own "provisional"/"pinned" badge) roughly doubles the
-                  single most-visited tab's scroll length for data that is a
-                  forecast, not a commitment.
+                  Showing 7 more full rows (each provisional, each carrying its
+                  own "provisional"/"pinned" badge) roughly doubles the single
+                  most-visited tab's scroll length for data that is a forecast,
+                  not a commitment.
                 </td>
                 <td>
                   Collapse to one summary row ("3 sessions planned, 2 open ·
-                  6.5h of 9h target") that expands into the full per-day list
-                  on demand. Committed (this week) data stays fully expanded;
+                  6.5h of 9h target") that expands into the full per-day list on
+                  demand. Committed (this week) data stays fully expanded;
                   provisional data is the right thing to demote.
                 </td>
                 <td><span class="tag-pill drillin">Drill-in</span></td>
@@ -1323,29 +1292,28 @@
                 <td class="what">History row — fixed height</td>
                 <td>
                   The row is a hardcoded 56px (<code class="mono">h-14</code>)
-                  tuned for a 12.5px name + 9.5px subline. Two lines of
-                  12–14px text plus padding need more than 56px, so the fixed
-                  height either clips or forces vertical-centering to fight
-                  the text.
+                  tuned for a 12.5px name + 9.5px subline. Two lines of 12–14px
+                  text plus padding need more than 56px, so the fixed height
+                  either clips or forces vertical-centering to fight the text.
                 </td>
                 <td>
                   Drop the fixed height in favour of a minimum height; the row
-                  sizes to its two lines of content (≈64–68px). No text or
-                  data is removed.
+                  sizes to its two lines of content (≈64–68px). No text or data
+                  is removed.
                 </td>
                 <td><span class="tag-pill stack">Stack</span></td>
               </tr>
               <tr>
                 <td class="what">History row — name / subline</td>
                 <td>
-                  <code class="mono">truncate</code> was already doing real
-                  work at 12.5px; at 14–16px the same pixel width holds fewer
+                  <code class="mono">truncate</code> was already doing real work
+                  at 12.5px; at 14–16px the same pixel width holds fewer
                   characters before the ellipsis.
                 </td>
                 <td>
-                  Keep truncation as-is — it is the correct, existing
-                  behaviour. Disclosed cost: long activity names truncate a
-                  little sooner on narrow phones.
+                  Keep truncation as-is — it is the correct, existing behaviour.
+                  Disclosed cost: long activity names truncate a little sooner
+                  on narrow phones.
                 </td>
                 <td><span class="tag-pill stack">Stack</span></td>
               </tr>
@@ -1353,9 +1321,11 @@
                 <td class="what">History — sport filter / view tabs</td>
                 <td>Pills grow ~20–30% wider at the floor.</td>
                 <td>
-                  No cut needed — the row already scrolls horizontally
-                  (<code class="mono">overflow-x-auto</code> is in the
-                  source). Token promotion only.
+                  No cut needed — the row already scrolls horizontally (<code
+                    class="mono"
+                    >overflow-x-auto</code
+                  >
+                  is in the source). Token promotion only.
                 </td>
                 <td><span class="tag-pill scroll">Already scrolls</span></td>
               </tr>
@@ -1369,20 +1339,18 @@
                   stop.
                 </td>
                 <td>
-                  <b>Cannot fit as shipped.</b> Restructured: no per-bar
-                  labels; an axis tick only every 3rd week; a single "selected
-                  week" detail line below the chart replaces 24 always-on
-                  micro-labels with one always-legible readout. See the worked
-                  example below.
+                  <b>Cannot fit as shipped.</b> Restructured: no per-bar labels;
+                  an axis tick only every 3rd week; a single "selected week"
+                  detail line below the chart replaces 24 always-on micro-labels
+                  with one always-legible readout. See the worked example below.
                 </td>
                 <td><span class="tag-pill cannotfit">Cannot fit</span></td>
               </tr>
               <tr>
                 <td class="what">Season timeline — bar strip width</td>
                 <td>
-                  Even without labels, 12 columns at a legible minimum bar
-                  width (~28–34px) plus gaps can exceed a narrow phone's
-                  viewport.
+                  Even without labels, 12 columns at a legible minimum bar width
+                  (~28–34px) plus gaps can exceed a narrow phone's viewport.
                 </td>
                 <td>
                   The strip scrolls horizontally rather than compressing bar
@@ -1402,9 +1370,9 @@
                   Drop the redundant category word. Show "CTL" / "ATL" / "TSB"
                   only — which is already exactly how
                   <code class="mono">pmc-chart.tsx</code>'s own inline legend
-                  labels these three values one panel below. The full name
-                  moves to an <code class="mono">sr-only</code> label; the
-                  chart's shared legend states it once instead of three times.
+                  labels these three values one panel below. The full name moves
+                  to an <code class="mono">sr-only</code> label; the chart's
+                  shared legend states it once instead of three times.
                 </td>
                 <td><span class="tag-pill cut">Cut</span></td>
               </tr>
@@ -1416,11 +1384,10 @@
                   columns' padding, can exceed 380px on the narrowest phones.
                 </td>
                 <td>
-                  The table gets its own horizontal-scroll container rather
-                  than shrinking columns below the floor. It stays a real
-                  table — the content (short numbers, one word) survives fine
-                  at 12–14px; only the container needs to scroll on the
-                  narrowest screens.
+                  The table gets its own horizontal-scroll container rather than
+                  shrinking columns below the floor. It stays a real table — the
+                  content (short numbers, one word) survives fine at 12–14px;
+                  only the container needs to scroll on the narrowest screens.
                 </td>
                 <td><span class="tag-pill scroll">Scroll</span></td>
               </tr>
@@ -1428,10 +1395,13 @@
                 <td class="what">Bottom nav labels</td>
                 <td>
                   Shipped at 8px (<code class="mono">text-[8px]</code> in
-                  <code class="mono">bottom-nav.tsx</code>) — the same fix
-                  Today needed.
+                  <code class="mono">bottom-nav.tsx</code>) — the same fix Today
+                  needed.
                 </td>
-                <td>Promoted to <code class="mono">--text-label</code> (12px). Icons keep their size; labels get more room beneath them.</td>
+                <td>
+                  Promoted to <code class="mono">--text-label</code> (12px).
+                  Icons keep their size; labels get more room beneath them.
+                </td>
                 <td><span class="tag-pill stack">Promote</span></td>
               </tr>
               <tr>
@@ -1439,37 +1409,35 @@
                   <code class="mono">.label-micro</code> global class
                 </td>
                 <td>
-                  A shared CSS class in <code class="mono">globals.css</code>
-                  hardcodes <code class="mono">font-size: 10px</code>. It
-                  backs several Train captions ("Why this week", "Last N
-                  weeks", form field labels) that this mockup promotes
-                  visually — but the class itself lives in
-                  <code class="mono">src/</code>, which this task does not
-                  touch.
+                  A shared CSS class in
+                  <code class="mono">globals.css</code> hardcodes
+                  <code class="mono">font-size: 10px</code>. It backs several
+                  Train captions ("Why this week", "Last N weeks", form field
+                  labels) that this mockup promotes visually — but the class
+                  itself lives in <code class="mono">src/</code>, which this
+                  task does not touch.
                 </td>
                 <td>
                   Flagged, not fixed here. Whoever implements the slice that
                   first touches a
                   <code class="mono">.label-micro</code> call site should
                   retarget it to <code class="mono">--text-label</code> rather
-                  than leave a second, uncoordinated 10px floor in the
-                  codebase.
+                  than leave a second, uncoordinated 10px floor in the codebase.
                 </td>
                 <td><span class="tag-pill scroll">Flagged</span></td>
               </tr>
               <tr>
                 <td class="what">~261 ad-hoc opacity colours</td>
                 <td>
-                  Ink done as <code class="mono">white/NN</code> alpha
-                  utilities rather than tokens — the exact class of low-
-                  contrast value the axe baseline (Task 7) measured across the
-                  app.
+                  Ink done as <code class="mono">white/NN</code> alpha utilities
+                  rather than tokens — the exact class of low- contrast value
+                  the axe baseline (Task 7) measured across the app.
                 </td>
                 <td>
                   Replaced by the 3-step ink ramp for every prose/label role,
-                  and <code class="mono">--hairline</code> for
-                  dividers/borders only. Status colour (emerald/amber/red/
-                  violet) stays as accent, now sourced from the shipped
+                  and <code class="mono">--hairline</code> for dividers/borders
+                  only. Status colour (emerald/amber/red/ violet) stays as
+                  accent, now sourced from the shipped
                   <code class="mono">--chart-*</code> tokens.
                 </td>
                 <td><span class="tag-pill cut">Cut</span></td>
@@ -1478,14 +1446,16 @@
                 <td class="what">Race-day fuchsia</td>
                 <td>
                   Race rows use a literal
-                  <code class="mono">text-fuchsia-300</code> — no fuchsia
-                  token exists in <code class="mono">globals.css</code>.
+                  <code class="mono">text-fuchsia-300</code> — no fuchsia token
+                  exists in <code class="mono">globals.css</code>.
                 </td>
                 <td>
-                  This mockup substitutes the nearest shipped token
-                  (<code class="mono">--chart-4</code>, violet). If slice 2
-                  wants race day visually distinct from every other build/
-                  taper state, it needs its own token — not fixed here.
+                  This mockup substitutes the nearest shipped token (<code
+                    class="mono"
+                    >--chart-4</code
+                  >, violet). If slice 2 wants race day visually distinct from
+                  every other build/ taper state, it needs its own token — not
+                  fixed here.
                 </td>
                 <td><span class="tag-pill scroll">Flagged</span></td>
               </tr>
@@ -1494,17 +1464,17 @@
         </div>
 
         <div class="flag-box">
-          <b>Colour, not just size.</b> This task's brief is the type floor,
-          but the two are entangled: most of Train's ~261 opacity utilities
+          <b>Colour, not just size.</b> This task's brief is the type floor, but
+          the two are entangled: most of Train's ~261 opacity utilities
           <em>are</em> the sub-12px captions above, so fixing size and fixing
           contrast happen in the same edit at almost every call site. Chart
           accent colours (<code class="mono">--chart-1..5</code>) were spot-
           checked against <code class="mono">--surface-base</code> and
-          <code class="mono">--surface-raised</code> (4.4–9.2:1 in both
-          themes) but two of the five dip to 3.9–4.4:1 against
-          <code class="mono">--surface-overlay</code> in dark mode — avoided
-          in this mockup for small text on that surface, not solved as a
-          general rule. A full semantic-colour audit is out of scope here.
+          <code class="mono">--surface-raised</code> (4.4–9.2:1 in both themes)
+          but two of the five dip to 3.9–4.4:1 against
+          <code class="mono">--surface-overlay</code> in dark mode — avoided in
+          this mockup for small text on that surface, not solved as a general
+          rule. A full semantic-colour audit is out of scope here.
         </div>
       </section>
 
@@ -1516,8 +1486,8 @@
         </div>
         <p class="state-desc">
           Same blocks as today's Week tab, same figures, rebuilt at the floor.
-          The rolling day list is the row that had to change structurally —
-          see the decision table above for why.
+          The rolling day list is the row that had to change structurally — see
+          the decision table above for why.
         </p>
 
         <div class="phone">
@@ -1669,7 +1639,10 @@
                 title="Rest"
               ></span>
               <div class="main">
-                <p class="workout" style="font-weight: 500; color: var(--ink-muted)">
+                <p
+                  class="workout"
+                  style="font-weight: 500; color: var(--ink-muted)"
+                >
                   Rest <span class="intensity">90 min free</span>
                 </p>
               </div>
@@ -1704,21 +1677,18 @@
 
             <div class="next-week-divider">Next week</div>
             <div class="next-week-summary">
-              <span class="provisional-mark">~</span> 3 sessions planned, 2
-              open · 6.5h of 9h target
+              <span class="provisional-mark">~</span> 3 sessions planned, 2 open
+              · 6.5h of 9h target
               <a class="expand" href="#">Show all 7 days (provisional) →</a>
             </div>
           </div>
 
-          <p class="source">
-            source: week-rationale.tsx + event-readiness.tsx
-          </p>
+          <p class="source">source: week-rationale.tsx + event-readiness.tsx</p>
           <div class="block">
             <p class="eyebrow" style="margin-bottom: 6px">Why this week</p>
             <p class="prose">
-              5.8h planned against a 9h target. Gran Fondo Alpe asks about 15h
-              a week; your calendar offers 9h — enough to ride it, not race
-              it.
+              5.8h planned against a 9h target. Gran Fondo Alpe asks about 15h a
+              week; your calendar offers 9h — enough to ride it, not race it.
             </p>
           </div>
           <div class="block">
@@ -1740,15 +1710,15 @@
             <div style="margin-top: 10px">
               <div class="adj-row">
                 <span
-                  >↻ Wednesday shortened to 45min — Tuesday ran long
-                  (1:32 vs 1:30 planned)</span
+                  >↻ Wednesday shortened to 45min — Tuesday ran long (1:32 vs
+                  1:30 planned)</span
                 >
                 <span class="when">Aug 11, 06:02</span>
               </div>
               <div class="adj-row">
                 <span
-                  >↻ Week target trimmed to 9h — calendar offered less than
-                  the race asks</span
+                  >↻ Week target trimmed to 9h — calendar offered less than the
+                  race asks</span
                 >
                 <span class="when">Aug 10, 22:14</span>
               </div>
@@ -1822,8 +1792,8 @@
           <span class="state-tag">Fixed-height rows, unfixed</span>
         </div>
         <p class="state-desc">
-          Same day-grouped rows, same trio of mono figures on the right —
-          the fixed 56px row height is what had to go, not the content.
+          Same day-grouped rows, same trio of mono figures on the right — the
+          fixed 56px row height is what had to go, not the content.
         </p>
 
         <div class="phone">
@@ -1865,7 +1835,10 @@
           <div class="day-group">
             <h4>TUE AUG 11</h4>
             <div class="history-list">
-              <a class="history-row" style="text-decoration: none; color: inherit">
+              <a
+                class="history-row"
+                style="text-decoration: none; color: inherit"
+              >
                 <span class="rail" style="background: var(--chart-1)"></span>
                 <span class="main">
                   <span class="name">Endurance Spin</span>
@@ -1878,7 +1851,10 @@
           <div class="day-group">
             <h4>MON AUG 10</h4>
             <div class="history-list">
-              <a class="history-row" style="text-decoration: none; color: inherit">
+              <a
+                class="history-row"
+                style="text-decoration: none; color: inherit"
+              >
                 <span class="rail" style="background: var(--chart-2)"></span>
                 <span class="main">
                   <span class="name">Easy Shakeout</span>
@@ -1886,7 +1862,10 @@
                 </span>
                 <span class="metrics">0:38 · 31 · 6.1km</span>
               </a>
-              <a class="history-row" style="text-decoration: none; color: inherit">
+              <a
+                class="history-row"
+                style="text-decoration: none; color: inherit"
+              >
                 <span class="rail" style="background: var(--chart-1)"></span>
                 <span class="main">
                   <span class="name">Sweet Spot 3×15min</span>
@@ -1925,10 +1904,10 @@
         </div>
         <p class="state-desc">
           12 weekly bar-pairs used to carry two lines of per-bar text (week
-          label + session count) at 8–9px. At the floor those 24 labels do
-          not fit a phone viewport — full stop. Below: no per-bar labels, an
-          axis tick every 3rd week, and a tap/hover detail line that replaces
-          them with one always-legible readout.
+          label + session count) at 8–9px. At the floor those 24 labels do not
+          fit a phone viewport — full stop. Below: no per-bar labels, an axis
+          tick every 3rd week, and a tap/hover detail line that replaces them
+          with one always-legible readout.
         </p>
 
         <div class="phone">
@@ -1951,51 +1930,123 @@
               Target vs actual · 12 weeks
             </p>
             <div class="season-bars" id="season-bars">
-              <div class="season-col" data-week="Wk 1" data-target="480" data-actual="460" data-sessions="5">
+              <div
+                class="season-col"
+                data-week="Wk 1"
+                data-target="480"
+                data-actual="460"
+                data-sessions="5"
+              >
                 <div class="bar target" style="height: 78%"></div>
                 <div class="bar actual" style="height: 74%"></div>
               </div>
-              <div class="season-col" data-week="Wk 2" data-target="520" data-actual="510" data-sessions="6">
+              <div
+                class="season-col"
+                data-week="Wk 2"
+                data-target="520"
+                data-actual="510"
+                data-sessions="6"
+              >
                 <div class="bar target" style="height: 84%"></div>
                 <div class="bar actual" style="height: 82%"></div>
               </div>
-              <div class="season-col" data-week="Wk 3" data-target="560" data-actual="340" data-sessions="4">
+              <div
+                class="season-col"
+                data-week="Wk 3"
+                data-target="560"
+                data-actual="340"
+                data-sessions="4"
+              >
                 <div class="bar target" style="height: 90%"></div>
                 <div class="bar actual" style="height: 55%"></div>
               </div>
-              <div class="season-col" data-week="Wk 4" data-target="380" data-actual="400" data-sessions="4">
+              <div
+                class="season-col"
+                data-week="Wk 4"
+                data-target="380"
+                data-actual="400"
+                data-sessions="4"
+              >
                 <div class="bar target" style="height: 61%"></div>
                 <div class="bar actual" style="height: 64%"></div>
               </div>
-              <div class="season-col" data-week="Wk 5" data-target="600" data-actual="590" data-sessions="6">
+              <div
+                class="season-col"
+                data-week="Wk 5"
+                data-target="600"
+                data-actual="590"
+                data-sessions="6"
+              >
                 <div class="bar target" style="height: 97%"></div>
                 <div class="bar actual" style="height: 95%"></div>
               </div>
-              <div class="season-col" data-week="Wk 6" data-target="610" data-actual="480" data-sessions="5">
+              <div
+                class="season-col"
+                data-week="Wk 6"
+                data-target="610"
+                data-actual="480"
+                data-sessions="5"
+              >
                 <div class="bar target" style="height: 98%"></div>
                 <div class="bar actual" style="height: 77%"></div>
               </div>
-              <div class="season-col" data-week="Wk 7" data-target="560" data-actual="560" data-sessions="6">
+              <div
+                class="season-col"
+                data-week="Wk 7"
+                data-target="560"
+                data-actual="560"
+                data-sessions="6"
+              >
                 <div class="bar target" style="height: 90%"></div>
                 <div class="bar actual" style="height: 90%"></div>
               </div>
-              <div class="season-col" data-week="Wk 8" data-target="380" data-actual="350" data-sessions="3">
+              <div
+                class="season-col"
+                data-week="Wk 8"
+                data-target="380"
+                data-actual="350"
+                data-sessions="3"
+              >
                 <div class="bar target" style="height: 61%"></div>
                 <div class="bar actual" style="height: 56%"></div>
               </div>
-              <div class="season-col" data-week="Wk 9" data-target="650" data-actual="600" data-sessions="6">
+              <div
+                class="season-col"
+                data-week="Wk 9"
+                data-target="650"
+                data-actual="600"
+                data-sessions="6"
+              >
                 <div class="bar target" style="height: 100%"></div>
                 <div class="bar actual" style="height: 92%"></div>
               </div>
-              <div class="season-col" data-week="Wk 10" data-target="600" data-actual="0" data-sessions="0">
+              <div
+                class="season-col"
+                data-week="Wk 10"
+                data-target="600"
+                data-actual="0"
+                data-sessions="0"
+              >
                 <div class="bar target" style="height: 97%"></div>
                 <div class="bar actual" style="height: 1%"></div>
               </div>
-              <div class="season-col" data-week="Wk 11" data-target="620" data-actual="410" data-sessions="4">
+              <div
+                class="season-col"
+                data-week="Wk 11"
+                data-target="620"
+                data-actual="410"
+                data-sessions="4"
+              >
                 <div class="bar target" style="height: 100%"></div>
                 <div class="bar actual" style="height: 66%"></div>
               </div>
-              <div class="season-col selected" data-week="Wk 12 (this week)" data-target="580" data-actual="412" data-sessions="5">
+              <div
+                class="season-col selected"
+                data-week="Wk 12 (this week)"
+                data-target="580"
+                data-actual="412"
+                data-sessions="5"
+              >
                 <div class="bar target" style="height: 94%"></div>
                 <div class="bar actual" style="height: 66%"></div>
               </div>
@@ -2018,9 +2069,9 @@
               <b>Wk 12 (this week)</b> — target 580, actual 412 · 5 sessions
             </div>
             <p class="season-hint">
-              Tap or hover a bar for its week, target, actual and session
-              count. On phones narrower than this frame, the bar strip
-              scrolls horizontally rather than compressing further.
+              Tap or hover a bar for its week, target, actual and session count.
+              On phones narrower than this frame, the bar strip scrolls
+              horizontally rather than compressing further.
             </p>
           </div>
 
@@ -2051,8 +2102,8 @@
           <span class="state-tag">One redundant word, cut</span>
         </div>
         <p class="state-desc">
-          CTL / ATL / TSB tiles drop their repeated category prefix at the
-          floor — the chart's own legend one panel down already says it once.
+          CTL / ATL / TSB tiles drop their repeated category prefix at the floor
+          — the chart's own legend one panel down already says it once.
         </p>
 
         <div class="phone">
@@ -2071,8 +2122,8 @@
           </div>
 
           <p class="source">
-            source: fitness-tiles.tsx — label cut to match pmc-chart.tsx's
-            own legend
+            source: fitness-tiles.tsx — label cut to match pmc-chart.tsx's own
+            legend
           </p>
           <div class="tiles-3">
             <div class="tile">
@@ -2090,19 +2141,35 @@
             <div class="tile">
               <div class="l" style="color: var(--chart-2)">TSB</div>
               <div class="v" style="color: var(--chart-2)">−1.9</div>
-              <div class="ctx" style="color: var(--ink-muted)">neutral zone</div>
+              <div class="ctx" style="color: var(--ink-muted)">
+                neutral zone
+              </div>
             </div>
           </div>
 
           <p class="source">source: pmc-chart.tsx</p>
           <div class="pmc-card">
-            <svg viewBox="0 0 100 40" preserveAspectRatio="none" style="width: 100%; height: 120px" role="img" aria-label="Performance management chart">
+            <svg
+              viewBox="0 0 100 40"
+              preserveAspectRatio="none"
+              style="width: 100%; height: 120px"
+              role="img"
+              aria-label="Performance management chart"
+            >
               <path
                 d="M0,20 L8,19 L16,21 L24,18 L32,17 L40,15 L48,16 L56,14 L64,13 L72,15 L80,12 L88,14 L100,13 L100,26 L0,26 Z"
                 fill="var(--chart-2)"
                 opacity="0.12"
               />
-              <line x1="0" y1="26" x2="100" y2="26" stroke="var(--hairline)" stroke-width="0.3" stroke-dasharray="1 1" />
+              <line
+                x1="0"
+                y1="26"
+                x2="100"
+                y2="26"
+                stroke="var(--hairline)"
+                stroke-width="0.3"
+                stroke-dasharray="1 1"
+              />
               <polyline
                 points="0,10 8,10 16,9 24,9 32,8 40,8 48,7 56,7 64,6 72,6 80,6 88,5 100,5"
                 fill="none"
@@ -2135,9 +2202,21 @@
 
           <p class="source">source: weekly-load-bars.tsx</p>
           <div class="load-bars-card">
-            <div class="row-flex" style="display: flex; justify-content: space-between; align-items: baseline">
-              <span style="font-size: var(--text-caption); font-weight: 800">Weekly load</span>
-              <span style="font-size: var(--text-label); color: var(--ink-muted)">Last 12 weeks</span>
+            <div
+              class="row-flex"
+              style="
+                display: flex;
+                justify-content: space-between;
+                align-items: baseline;
+              "
+            >
+              <span style="font-size: var(--text-caption); font-weight: 800"
+                >Weekly load</span
+              >
+              <span
+                style="font-size: var(--text-label); color: var(--ink-muted)"
+                >Last 12 weeks</span
+              >
             </div>
             <div class="load-bars">
               <div class="b" style="height: 74%"></div>
@@ -2195,10 +2274,9 @@
 
       <footer class="doc-footer">
         Tokens copied from <code class="mono">src/app/globals.css</code> at
-        commit <code class="mono">84280ae</code> (2026-08-11). That file is
-        the source of truth; this page is a static reference for slice 2+ and
-        does not import it. See
-        <a href="./README.md">docs/design/README.md</a>.
+        commit <code class="mono">84280ae</code> (2026-08-11). That file is the
+        source of truth; this page is a static reference for slice 2+ and does
+        not import it. See <a href="./README.md">docs/design/README.md</a>.
       </footer>
     </div>
 
