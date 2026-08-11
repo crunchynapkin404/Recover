@@ -16,7 +16,9 @@ not deep... each `—` needs its call site read, not a bulk replace"; this
 plan reads and fixes one surface for real, and lists the rest as a tracked
 backlog (see Appendix) rather than pretending to script ~20 more file edits
 blind. Phase 2b.2 (settle the IA) is explicitly out of scope — deferred
-until on/after 2026-09-05 per that spec.
+until on/after 2026-09-05 per that spec. (That date gate was later lifted on
+2026-08-11, v0.95.0; it does not pull 2b.2 into this plan's scope, which was
+always a separate cycle. See `docs/ROADMAP.md`.)
 
 ## Global Constraints
 
@@ -982,7 +984,8 @@ is wider: `today`, `train`, `coach`, `body`, `settings`, `admin`, `import`,
 have no nav entry of their own.
 
 Whether this is the right shape is Phase 2b.2's question, deferred until
-four weeks of `surface_views` data exists (on or after 2026-09-05).
+four weeks of `surface_views` data exists (on or after 2026-09-05). That gate
+was lifted at day 4 on 2026-08-11 (v0.95.0) — see `docs/ROADMAP.md`.
 
 ## Uncertainty vocabulary
 

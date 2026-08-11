@@ -83,6 +83,12 @@ than deleting, and that is a product decision made with usage data, not a
 cleanup decided by a guard test. The guard's job is to stop the list
 growing; shrinking it is scheduled work with a date attached.
 
+> **The date is gone, the boundary is not (2026-08-11, v0.95.0).** The
+> 2026-09-05 gate was lifted at day 4 of the window; see `docs/ROADMAP.md`.
+> Nothing else in this paragraph changes: disposal is still 2b.2's call and
+> still not this guard's, and the guard is still shrink-only. What was
+> "scheduled work with a date attached" is now simply scheduled work.
+
 ### Known limitation, stated rather than implied
 
 Reference detection is a text match on module specifier and basename. It will

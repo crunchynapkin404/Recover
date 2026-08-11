@@ -150,10 +150,23 @@ call was to question the IA against real usage; the app has no usage telemetry,
 so deciding now would be recall dressed as evidence.
 
 Trigger: **four weeks of `surface_views` data**, i.e. on or after 2026-09-05.
+
 The resulting spec must record that the counts are **developer-biased** — the
 sole user is also the developer and tester, so the data shows what was being
 built, not what an athlete would open. It is better evidence than recall and it
 is not clean evidence.
+
+> **Superseded 2026-08-11 (v0.95.0).** The owner lifted the four-week trigger
+> at day 4 of the 28, on the grounds that a one-user instance is a census
+> rather than a sample and therefore does not converge with more days. The
+> trigger is left in place above rather than edited away, because the reason
+> it was set is still the right reason — deciding without telemetry would have
+> been recall dressed as evidence, and that hazard has not changed. What
+> changed is the reading of how much telemetry this particular question needs.
+> The resulting reading, and the full argument for ending the window, are in
+> `docs/ROADMAP.md`. **The developer-bias requirement stated immediately above
+> still binds in full** and is not affected by the lift — it was never
+> something more days would have fixed.
 
 The 12 orphaned components and the `/wellness` stub go with that cycle, since
 where a component belongs depends on what the IA turns out to be.

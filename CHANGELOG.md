@@ -1,5 +1,73 @@
 # Changelog
 
+## v0.95.0 — 2026-08-11 — The telemetry gate, lifted at day 4
+
+Docs only. No code, no behaviour, no numbers. A minor rather than a patch
+because it changes the roadmap's sequencing: the largest remaining item in
+Phase 2 stops being date-blocked.
+
+**The 2026-09-05 gate is gone.** Phase 2b.2 — settle the IA — was held until
+four weeks of `surface_views` telemetry had accumulated, a window that opened
+on 2026-08-08. The owner lifted that gate at **day 4 of the planned 28**.
+This release removes it from every place it was still binding and records why,
+because the reasoning for ending a gate deserves to be as legible as the
+reasoning for setting one.
+
+**Final reading, 2026-08-11.** 177 views over four days: today 69, train 53,
+body 31, coach 13, settings 8, admin 3. Every surface appears on all four days
+except settings (3) and admin (2), and the ranking is stable day over day —
+today, train and body are the top three on each of the four. Three
+instrumented surfaces recorded **zero**: `activity`, `activity-log`, `import`.
+
+**Why four days settle what twenty-eight were budgeted for.** Three arguments:
+
+1. **n=1 does not converge.** The instance has exactly one user. More days add
+   observations of the same person, not more people. The window was budgeted
+   as though it were a sample; it is a census, and a census is complete on the
+   day it is taken.
+2. **The zeros were tested, not merely absent.** Four activities landed inside
+   the window — two on 2026-08-08, two on 2026-08-09. The athlete trained and
+   still never opened `activity` or `activity-log`. That is behaviour, not the
+   artefact of a quiet week, and it is exactly the distinction the window
+   existed to establish.
+3. **The window already spans the weekly cadence.** 2026-08-08 was a Saturday,
+   so four days cover a weekend and a Sunday, the weekly review's own beat. No
+   surface has a monthly-only cadence — the monthly report lands in the coach
+   inbox, counted as `coach`.
+
+**What the lift does not buy, stated so it is not quietly assumed later.**
+`import` read zero and that is **not** evidence it is unused: it is a
+once-ever surface and would read zero at 28 days too. 2b.2 may not conclude
+otherwise from it. The developer-bias caveat the spec demanded still binds in
+full — the sole user is also the developer, so the counts show what was being
+built — and was never something more days would have fixed. Nothing here
+supports a claim about athletes in general; this telemetry could not carry one
+at any window length. **If a second user ever joins this instance the census
+argument expires**, the counts become a sample of one, and the question should
+be reopened rather than settled by citing this reading.
+
+**The gate was documentary, not executing.** Verified before removing it:
+nothing in code enforced the date. The reference in
+`tests/dead-component-guard.test.ts` is a comment, and that guard remains
+shrink-only either way. Removed or annotated in `docs/ROADMAP.md` (the 2b.2
+item, the 2d guard entry and the Sequencing section),
+`docs/design-system.md`, both affected specs, both uncertainty-vocabulary
+plan docs, and that test comment. The two specs are **annotated rather than
+rewritten** — the reason the trigger was set is still the right reason, and
+deciding without any telemetry would still have been recall dressed as
+evidence. What changed is the reading of how much telemetry this particular
+question needs. Prior CHANGELOG entries are left untouched as history.
+
+**2b.2 is now the head of the Phase 2 queue**, and per the roadmap it is a
+brainstorm → spec → plan cycle in its own right rather than direct
+implementation. 2b.4 remains behind it, but on a dependency now instead of a
+date: it still redesigns against an IA 2b.2 has to settle first. The four
+items previously listed as designated fill stop being fill — the queue is no
+longer empty, so they go back to being ranked on their own merits, and the
+first of them (`executeIcuTool()` across the icu\_ cluster) is a real defect
+that does not become less real for having been listed as something to do
+while waiting.
+
 ## v0.94.1 — 2026-08-11 — The telemetry window, checked at day 4
 
 Docs only. No code, no behaviour, no numbers.
