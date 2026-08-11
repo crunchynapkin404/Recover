@@ -8,7 +8,7 @@
 // asked for this said the previous throwaway version "was thrown away and
 // could not be verified" — this one is committed instead).
 //
-// Three synthetic pages, chosen because they reproduce the exact real
+// Five synthetic pages, chosen because they reproduce the exact real
 // failure modes this app hits (verified empirically — see each HTML_*
 // constant's comment):
 //   A — opaque white-on-white text. Confirmed defect, but notably filed by
@@ -19,6 +19,17 @@
 //       app's today/train/coach/body pattern. axe cannot compute a ratio at
 //       all (messageKey "bgGradient", contrastRatio 0) — indeterminate,
 //       must NOT gate the exit code.
+//   C — ONE CHARACTER on an opaque background at 3.45:1 (C3, whole-branch
+//       review 2026-08-11). axe resolves both colours, computes the ratio,
+//       and STILL files it as "incomplete" with messageKey
+//       "shortTextContent" purely because the text is one character long.
+//       Confirmed defect: `%`, `·`, lone digits and single-letter axis and
+//       weekday labels are the densest content on this app's Train and Body
+//       surfaces. Before the fix this page exited 0.
+//   D — the SAME one character over a gradient. Same messageKey as C, but
+//       `contrastRatio: 0`, because axe never resolved the background.
+//       Indeterminate — which is why the split is drawn at "is there a
+//       number", not at a messageKey.
 //   E — opaque, low-but-nonzero contrast. A plain axe-certain violation —
 //       confirmed via the ordinary "violations" bucket path.
 //
@@ -50,6 +61,21 @@ const HTML_B_INDETERMINATE_GRADIENT = `<!doctype html><html lang="en"><head><tit
 <main><h1>Proof B</h1>
 <div style="min-height:50vh;background:linear-gradient(135deg,#111,#333);">
   <p style="color:#e5e5e5;">gray text on a dark gradient — this app's exact today/train/coach/body pattern</p>
+</div>
+</main></body></html>`;
+
+// #8a8a8a is this app's own --hairline (light) / --ink-muted (dark) value;
+// on white it measures 3.45:1, and one character is all it takes for axe to
+// downgrade a computed failure to "incomplete".
+const HTML_C_CONFIRMED_VIA_SHORT_TEXT = `<!doctype html><html lang="en"><head><title>Proof C</title></head><body>
+<main><h1>Proof C</h1>
+<p style="color:#8a8a8a;background:#ffffff;">7</p>
+</main></body></html>`;
+
+const HTML_D_INDETERMINATE_SHORT_TEXT_ON_GRADIENT = `<!doctype html><html lang="en"><head><title>Proof D</title></head><body>
+<main><h1>Proof D</h1>
+<div style="min-height:50vh;background:linear-gradient(135deg,#111,#333);">
+  <p style="color:#e5e5e5;">7</p>
 </div>
 </main></body></html>`;
 
@@ -91,6 +117,69 @@ function wouldExitNonZero(
   return computeTotals(entries).confirmedNodes > 0;
 }
 
+/** The five cases, and what each one must do to the exit code. */
+const CASES: {
+  label: string;
+  html: string;
+  /** true = this page's defect MUST gate the exit code non-zero. */
+  gates: boolean;
+}[] = [
+  {
+    label:
+      '[A] white-on-white, opaque (axe files it under "incomplete"/equalRatio)',
+    html: HTML_A_CONFIRMED_VIA_EQUAL_RATIO,
+    gates: true,
+  },
+  {
+    label:
+      '[E] low-contrast opaque text (axe-certain, ordinary "violations" bucket)',
+    html: HTML_E_CONFIRMED_VIA_VIOLATION,
+    gates: true,
+  },
+  {
+    label:
+      '[C] ONE CHARACTER, opaque, computed 3.45:1 ("incomplete"/shortTextContent) — C3',
+    html: HTML_C_CONFIRMED_VIA_SHORT_TEXT,
+    gates: true,
+  },
+  {
+    label:
+      "[B] gradient background, plausible text (axe cannot compute a ratio at all)",
+    html: HTML_B_INDETERMINATE_GRADIENT,
+    gates: false,
+  },
+  {
+    label:
+      "[D] the same ONE CHARACTER over a gradient (same messageKey as C, no ratio)",
+    html: HTML_D_INDETERMINATE_SHORT_TEXT_ON_GRADIENT,
+    gates: false,
+  },
+];
+
+/** The colour-contrast `data` axe attached, so the output evidences itself. */
+function contrastData(
+  findings: ReturnType<typeof splitFindings>["confirmed"]
+): string {
+  const parts: string[] = [];
+  for (const f of findings) {
+    if (f.id !== "color-contrast") continue;
+    for (const n of f.nodes) {
+      for (const check of n.any) {
+        const d = check.data as {
+          contrastRatio?: number;
+          messageKey?: string | null;
+          expectedContrastRatio?: string;
+        } | null;
+        if (!d) continue;
+        parts.push(
+          `${d.contrastRatio ?? "—"}:1 vs ${d.expectedContrastRatio ?? "—"} (${d.messageKey ?? "no messageKey"})`
+        );
+      }
+    }
+  }
+  return parts.join("; ") || "—";
+}
+
 async function main() {
   const browser = await chromium.launch({
     executablePath: process.env.CHROME_PATH,
@@ -98,84 +187,35 @@ async function main() {
 
   let ok = true;
 
-  // --- FAIL half #1: confirmed defect filed under axe's "incomplete" bucket (equalRatio/1) ---
-  {
-    const { violations, incomplete } = await runAxe(
-      browser,
-      HTML_A_CONFIRMED_VIA_EQUAL_RATIO
-    );
+  for (const c of CASES) {
+    const { violations, incomplete } = await runAxe(browser, c.html);
     const split = splitFindings(violations, incomplete);
     const exitNonZero = wouldExitNonZero([split]);
+    const totals = computeTotals([split]);
     console.log(
-      `\n[A] white-on-white (opaque, axe files under "incomplete"/equalRatio):\n` +
-        `  confirmed: ${split.confirmed.length} rule row(s), ${split.confirmed.reduce((s, f) => s + f.nodes.length, 0)} node(s)\n` +
-        `  indeterminate: ${split.indeterminate.length} rule row(s)\n` +
-        `  would exit non-zero: ${exitNonZero}`
+      `\n${c.label}:\n` +
+        `  confirmed: ${split.confirmed.length} rule row(s), ${totals.confirmedNodes} node(s) — ${contrastData(split.confirmed)}\n` +
+        `  indeterminate: ${split.indeterminate.length} rule row(s), ${totals.indeterminateNodes} node(s) — ${contrastData(split.indeterminate)}\n` +
+        `  would exit non-zero: ${exitNonZero} (must be ${c.gates})`
     );
-    if (!exitNonZero || split.confirmed.length === 0) {
+    const passed = c.gates
+      ? exitNonZero && split.confirmed.length > 0
+      : !exitNonZero &&
+        split.confirmed.length === 0 &&
+        split.indeterminate.length > 0;
+    if (passed) {
+      console.log(
+        c.gates
+          ? "  PASS: confirmed defect correctly gates the exit code non-zero."
+          : "  PASS: indeterminate-only result correctly does NOT gate the exit code."
+      );
+    } else {
       console.error(
-        "  FAIL: expected a confirmed defect to gate the exit code non-zero."
+        c.gates
+          ? "  FAIL: expected this defect to gate the exit code non-zero."
+          : "  FAIL: expected an indeterminate-only result to leave the exit code at zero."
       );
       ok = false;
-    } else {
-      console.log(
-        "  PASS: confirmed defect correctly gates the exit code non-zero."
-      );
-    }
-  }
-
-  // --- FAIL half #2: confirmed defect via the ordinary "violations" bucket ---
-  {
-    const { violations, incomplete } = await runAxe(
-      browser,
-      HTML_E_CONFIRMED_VIA_VIOLATION
-    );
-    const split = splitFindings(violations, incomplete);
-    const exitNonZero = wouldExitNonZero([split]);
-    console.log(
-      `\n[E] low-contrast opaque text (axe-certain "violations" bucket):\n` +
-        `  confirmed: ${split.confirmed.length} rule row(s)\n` +
-        `  would exit non-zero: ${exitNonZero}`
-    );
-    if (!exitNonZero || split.confirmed.length === 0) {
-      console.error(
-        "  FAIL: expected a plain violation to gate the exit code non-zero."
-      );
-      ok = false;
-    } else {
-      console.log(
-        "  PASS: plain violation correctly gates the exit code non-zero."
-      );
-    }
-  }
-
-  // --- PASS half: indeterminate-only result must NOT gate the exit code ---
-  {
-    const { violations, incomplete } = await runAxe(
-      browser,
-      HTML_B_INDETERMINATE_GRADIENT
-    );
-    const split = splitFindings(violations, incomplete);
-    const exitNonZero = wouldExitNonZero([split]);
-    console.log(
-      `\n[B] gradient background, plausible text (axe cannot compute a ratio at all):\n` +
-        `  confirmed: ${split.confirmed.length} rule row(s)\n` +
-        `  indeterminate: ${split.indeterminate.length} rule row(s), ${split.indeterminate.reduce((s, f) => s + f.nodes.length, 0)} node(s)\n` +
-        `  would exit non-zero: ${exitNonZero}`
-    );
-    if (
-      exitNonZero ||
-      split.confirmed.length !== 0 ||
-      split.indeterminate.length === 0
-    ) {
-      console.error(
-        "  FAIL: expected an indeterminate-only result to leave the exit code at zero."
-      );
-      ok = false;
-    } else {
-      console.log(
-        "  PASS: indeterminate-only result correctly does NOT gate the exit code."
-      );
     }
   }
 

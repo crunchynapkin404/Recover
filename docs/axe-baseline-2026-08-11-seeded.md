@@ -10,9 +10,10 @@
 > failure in `captureTokenCreated` could drop that surface from the report
 > entirely while the run still exited 0. Both are fixed
 > (`scripts/lib/axe-report.ts`'s `splitFindings`; see that file and
-> `scripts/verify-surfaces.ts`'s header for the full rationale). **§9 below
-> has the corrected, current baseline — read that section, not the "44"
-> figure below, when comparing a future slice's numbers against this one.**
+> `scripts/verify-surfaces.ts`'s header for the full rationale). **§10 below
+> has the current baseline — read that section, not the "44" figure below and
+> not §9's now-superseded numbers, when comparing a future slice's numbers
+> against this one.**
 > The rest of this document is preserved for its account-selection and
 > methodology reasoning, which is still accurate — only the metric
 > definition changed.
@@ -162,7 +163,12 @@ $ echo $?
 1
 ```
 
-**This is the baseline slices 1–8 should be measured against — lead with the
+> **SUPERSEDED by §10.** The classification this section's numbers were
+> produced with excluded a whole class of real, axe-computed failures (C3).
+> §10 re-derives the same measurement with the corrected rule. Its confirmed
+> counts turn out identical, for a reason worth understanding — read §10.
+
+**The baseline slices 1–8 should be measured against — lead with the
 node counts:**
 
 | Metric                     |    Value | Gates exit code? |
@@ -213,3 +219,120 @@ fixtures matching axe-core's real output shapes) and
 end-to-end version of the same proof — run it directly to see the exit code
 go non-zero for a confirmed defect and stay zero for an indeterminate-only
 result).
+
+## 10. Re-derived after the C3 fix (whole-branch review) — the current numbers
+
+§9's `confirmed` bucket required `messageKey === "equalRatio" &&
+contrastRatio === 1`: only _perfectly invisible_ text. axe's incomplete branch
+also fires on `shortTextContent`, where axe resolved both colours and computed
+a failing ratio and the only reason it says "incomplete" is that the text is
+one character long. Proven in a real browser before the fix: a page whose sole
+defect was a single digit at **3.45:1 exited 0**
+(`scripts/axe-split-proof.ts`, case C). `isComputedFailure` now asks the only
+question that separates the two situations — **did axe compute a number, and
+does that number fail the threshold axe itself reports** — so the same
+messageKey can land on either side of the line depending on whether there is a
+ratio at all.
+
+Re-run against the same account and methodology as §1–§9
+(`demo@recover.local`, seeded, owner role), same nine surfaces, same two
+themes, same two viewports:
+
+```text
+$ SCREENSHOT_BASE_URL=http://localhost:3100 OWNER_EMAIL=demo@recover.local OWNER_PASSWORD=recover-demo \
+    npx tsx scripts/verify-surfaces.ts c3-fix-baseline
+captured 40 images → .screenshots/c3-fix-baseline
+axe report (40 entries) → .screenshots/c3-fix-baseline/axe-report.json
+
+CONFIRMED DEFECTS (gates the exit code): 398 node(s) across 23 rule finding(s), in 19/40 combinations.
+INDETERMINATE (does NOT gate the exit code): 1357 node(s) across 40 rule finding(s), in 40/40 combinations.
+$ echo $?
+1
+```
+
+| Metric                     |    Value | Gates exit code? |           vs §9 |
+| -------------------------- | -------: | :--------------: | --------------: |
+| Confirmed defect nodes     |  **398** |       Yes        |   0 (see below) |
+| Confirmed defect rule rows |       23 |       Yes        |               0 |
+| Indeterminate nodes        | **1357** |        No        | +50 (see below) |
+| Indeterminate rule rows    |       40 |        No        |               0 |
+
+**Why `confirmed` did not move, stated plainly rather than implied away.** The
+widened rule catches nothing on this app _today_. Every one of the 398
+confirmed nodes is either an `equalRatio`/1:1 incomplete node (390) or an
+ordinary `violations`-bucket node (8, ratios 1.68 and 1.93) — the old rule and
+the new rule classify all 398 identically. The app currently has **12
+`shortTextContent` nodes and every one of them carries `contrastRatio: 0`**:
+they are the one-character avatar initial (`text-white/80`) on the `.glass`
+bubble and the header avatars, all sitting on this app's gradient/translucent
+backgrounds, which axe cannot resolve. There is nothing yet for the wider rule
+to promote.
+
+**Which is exactly why the hole mattered.** Making card backgrounds opaque
+`--surface-*` tokens is what slices 1–8 _are_, and an opaque background is
+precisely what turns `contrastRatio: 0` into a real number. Every
+single-character label the redesign lands on a real surface — `%`, `·`, lone
+digits, single-letter weekday and axis labels, the densest content on Train
+and Body — becomes an axe-computed ratio at that moment. Under §9's rule those
+would all have been filed as "axe could not tell" and the gate would have
+stayed green while the app got less readable. The trap was set to spring as
+the release did its work.
+
+**Where the +50 indeterminate nodes came from, and it is not the rule.**
+Per-surface, this run is identical to §9's table on **18 of 20**
+surface/theme rows. The two that moved are `settings-token-created`:
+light 80 → 105 and dark 104 → 129, +25 each. That surface's node count scales
+with how many rows the account's API-token list renders, and every run of this
+script creates four more. Same artifact §1–§8 already recorded in the opposite
+direction (−148, "different account's stale token history, not a data
+effect"). Nothing else on any surface changed — including Train, whose
+`fitness-tiles` context labels changed colour in this same review (C2): they
+sit on the gradient, so they were `bgGradient`-indeterminate before and after.
+
+Per surface/theme (summed across both viewports; dark still carries zero
+confirmed defects on every surface):
+
+| Surface                | Theme | Confirmed nodes (rows) | Indeterminate nodes (rows) |
+| ---------------------- | ----- | ---------------------: | -------------------------: |
+| today                  | light |                 10 (2) |                     58 (2) |
+| today                  | dark  |                  0 (0) |                     68 (2) |
+| train                  | light |                 62 (4) |                    110 (2) |
+| train                  | dark  |                  0 (0) |                    178 (2) |
+| coach                  | light |                  9 (2) |                     14 (2) |
+| coach                  | dark  |                  0 (0) |                     24 (2) |
+| body                   | light |                  1 (1) |                     52 (2) |
+| body                   | dark  |                  0 (0) |                     53 (2) |
+| settings               | light |                 22 (2) |                     21 (2) |
+| settings               | dark  |                  0 (0) |                     43 (2) |
+| admin                  | light |                212 (4) |                     10 (2) |
+| admin                  | dark  |                  0 (0) |                    364 (2) |
+| import                 | light |                 10 (2) |                     12 (2) |
+| import                 | dark  |                  0 (0) |                     22 (2) |
+| activity-log           | light |                 46 (2) |                     10 (2) |
+| activity-log           | dark  |                  0 (0) |                     60 (2) |
+| login                  | light |                  4 (2) |                      8 (2) |
+| login                  | dark  |                  0 (0) |                     16 (2) |
+| settings-token-created | light |                 22 (2) |                    105 (2) |
+| settings-token-created | dark  |                  0 (0) |                    129 (2) |
+
+Full breakdown of the classification, straight out of this run's
+`axe-report.json` — the numbers the two rules disagree about are the
+`shortTextContent` row, and it is currently all zeros:
+
+| Bucket        | messageKey            | contrastRatio |  Nodes |
+| ------------- | --------------------- | ------------- | -----: |
+| confirmed     | equalRatio            | 1             |    390 |
+| confirmed     | (none — violation)    | 1.68 / 1.93   |      8 |
+| indeterminate | bgGradient            | 0             |   1248 |
+| indeterminate | elmPartiallyObscured  | 0             |     55 |
+| indeterminate | elmPartiallyObscuring | 0             |     34 |
+| indeterminate | **shortTextContent**  | **0**         | **12** |
+| indeterminate | imgNode               | 0             |      8 |
+
+**Both directions of the widened rule are proven, in a real browser and in
+unit tests:** `scripts/axe-split-proof.ts` now runs five cases, including
+**C** (one character, opaque, computed 3.45:1 → confirmed, gates the exit
+code) and **D** (the same one character over a gradient, same messageKey,
+`contrastRatio: 0` → indeterminate, does not gate). Restoring the old
+`equalRatio`-only rule makes case C print `would exit non-zero: false (must be
+true)` and the script exit 1.

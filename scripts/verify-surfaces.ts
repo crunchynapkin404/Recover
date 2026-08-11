@@ -29,13 +29,21 @@
 //         classification lives in scripts/lib/axe-report.ts):
 //
 //           CONFIRMED — axe actually computed a failure: every
-//           "violations"-bucket result, plus the "incomplete"-bucket nodes
-//           axe nonetheless computed as a definite 1:1 (messageKey
-//           "equalRatio"). This is what process.exitCode gates on.
+//           "violations"-bucket result, plus every "incomplete"-bucket node
+//           for which axe resolved both colours, computed a ratio, and that
+//           ratio fails the threshold axe itself reports alongside it. That
+//           covers messageKey "equalRatio" (1:1, invisible text) AND
+//           "shortTextContent" (one-character text — `%`, `·`, lone digits,
+//           single-letter axis labels — which axe files as incomplete purely
+//           because of its length). Requiring "equalRatio" alone was C3 in
+//           the whole-branch review: a page whose sole defect was a single
+//           digit at 3.45:1 exited 0. This is what process.exitCode gates on.
 //
 //           INDETERMINATE — "incomplete"-bucket nodes axe could not compute
 //           an answer for at all (composited gradient backgrounds, partial
-//           obscuring, short text — see auditPage's doc comment). Reported
+//           obscuring, non-BMP glyphs such as this app's ▲/▼ trend arrows,
+//           and short text over a background axe could not resolve — see
+//           auditPage's doc comment). Reported
 //           prominently, in the JSON and the console summary, but NEVER
 //           gates the exit code — on this app's four gradient-background
 //           surfaces (today/train/coach/body) axe's color-contrast rule can
