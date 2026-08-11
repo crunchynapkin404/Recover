@@ -1,5 +1,77 @@
 # Changelog
 
+## v0.98.0 — 2026-08-11 — The tree tells the truth about the IA
+
+Phase **2b.2**, the last item blocking 2b.4 (the visual redesign). No
+athlete-visible change: same nav, same routes, same tabs, same pixels.
+Design: `docs/specs/2026-08-11-2b2-settle-the-ia-design.md`.
+
+`src/components/` described an information architecture the app stopped having
+in **v0.23**. Five directories — `dashboard/`, `plan/`, `log/`, `journal/`,
+`health/` — were named for routes that no longer exist and held **41 files: 14
+dead and 27 live**. The live ones were the larger problem: dead code is inert,
+but **live code at the wrong address is read, reasoned about and maintained**.
+`plan/today-card.tsx` proved it — edited on 2026-07-27 by a week-plan refactor
+while rendering nowhere at all.
+
+**22 dead components deleted.** Every one had a named live successor, verified
+to exist on disk, and four were dead _chains_ removed as units. **No feature
+went with them** — the post-ride debrief popup is untouched
+(`debrief-sheet.tsx`, `activity-debrief-section.tsx`, `today/sheet-host.tsx`
+are all live); the two deleted debrief files were the pre-v0.25.2 inline form
+and dashboard card that release had already replaced. Correlations still
+render through `body/correlation-rows.tsx`.
+
+`KNOWN_ORPHANS` is now **empty** in both guards. The dead-component guard
+stops being a record of 22 tolerated exceptions and becomes a zero-tolerance
+ratchet: a new orphan fails with no precedent to point at.
+
+**27 live components relocated.** The rule: a component reached by exactly one
+surface lives in that surface's directory; one reached by two or more lives in
+a directory named for its domain. Ownership was computed by **transitive
+reachability from each `page.tsx`, not by filename** — 22 had one owner, 5 had
+two. Those five are week-plan UI drawn by both Today and Train, and they went
+to a new `week/`, which carries a README explaining why it is the one
+directory not named for a surface. `health/` contained **zero** dead
+components: five live files at an address the IA removed, the sharpest single
+illustration of the problem.
+
+Every relocation was `git mv`, so history follows and the review question is
+sharp: any content change in that diff is a defect. Three relocated files did
+change one line each — `availability-week-switcher`, its test, and
+`standard-week`, whose relative `./intake-form` and `./block-sheet` imports
+became cross-directory when their siblings moved to `week/`.
+
+**A structural guard** (`tests/ia-directory-guard.test.ts`) now fails the build
+if any of the five retired directories returns. The tree drifted from the IA in
+v0.21 and again in v0.23, both times because nothing prevented it;
+documentation did not hold. Its first assertion checks a component tree exists
+at all, so moving `src/components/` cannot make it pass vacuously.
+Mutation-checked twice, including against an **empty** leftover directory —
+`git mv` does not remove the directory it empties, which bit this release
+during execution.
+
+**The plan's test inventory was wrong, twice.** It globbed `<name>.test.tsx`
+under `src/components/` only. That missed a non-colocated test in `tests/`, an
+`.axe.test.tsx`, and a `.test.ts` — three orphaned files that survived the
+first deletion pass and were caught by `typecheck`, not by the inventory. The
+same blind spot would have stranded `journal-form.axe.test.tsx` and three of
+`races-section`'s **four** test files during relocation; the fix was to move
+with a prefix glob, verified not to over-match. 12 test files were deleted, not
+the 9 planned, and the total suite fell by 50 tests — all of which covered
+deleted code.
+
+**Shipped as one release rather than the planned two.** The split existed to
+keep deletion and relocation attributable, and that is preserved by five
+separate, independently-gated commits. Two tags for two zero-behaviour
+refactors would have meant two image builds and two live deploys for nothing.
+
+**Recorded, not fixed:** `today/today-hero`, `today/week-row` and
+`today/session-card` have no tests. Five of the nine deleted tests belonged to
+their dead predecessors, so removing them cost no effective coverage — but it
+made visible that the component rendering the readiness ring, the app's primary
+number, is untested. Noted against 2b.4, which redesigns all three.
+
 ## v0.97.0 — 2026-08-11 — Score whichever HRV metric arrived
 
 The athlete's HRV reaches Recover by **two independent paths from the same

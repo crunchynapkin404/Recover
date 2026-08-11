@@ -260,8 +260,23 @@ so" — is currently spoken in six dialects: `—` (47 uses), `calibrating` (39)
       leave behind and neither did — `.superdesign/` is empty and the only
       design spec predates the v0.23 IA.
 
-- [ ] **2b.2 — Settle the IA.** Decide what the IA now is, dispose of the
-      orphaned components, and make the directory tree match.
+- [x] **2b.2 — Settle the IA (v0.98.0).** Scope was cleanup, not
+      re-examination: the nav, routes and tabs stayed exactly as shipped, and
+      the tree stopped describing an IA the app lost in v0.23. **22 dead
+      components deleted** (each with a named live successor; no feature
+      removed — the post-ride debrief popup is untouched) and **27 live ones
+      relocated** out of `dashboard/`, `plan/`, `log/`, `journal/` and
+      `health/`, which no longer exist. Ownership came from transitive
+      reachability per `page.tsx`, not filenames; the 5 shared by Today and
+      Train went to a new `week/`. `KNOWN_ORPHANS` is now empty, and
+      `tests/ia-directory-guard.test.ts` fails the build if a retired
+      directory returns. Design:
+      `docs/specs/2026-08-11-2b2-settle-the-ia-design.md`.
+      **Whether the IA is _right_ was deliberately left to 2b.4** — including
+      `activity` and `activity-log`, which recorded zero views across four
+      days containing four activities.
+      _Original scope, kept for the record:_ decide what the IA now is,
+      dispose of the orphaned components, and make the directory tree match.
       **The count is 22, verified 2026-08-11 (v0.96.0), and the authoritative
       list is `KNOWN_ORPHANS` in `tests/dead-component-guard.test.ts` — not
       this file.** Do not re-derive it by hand; the guard recomputes it on
@@ -377,6 +392,16 @@ so" — is currently spoken in six dialects: `—` (47 uses), `calibrating` (39)
       — the v0.23 redesign shipped three bugs that only a real browser caught.
 - [ ] On every page touched: scan for and remove duplicated data — the same
       value shown twice. A standing finding from prior redesigns here.
+- [ ] **Three Today components have no tests** — `today/today-hero`,
+      `today/week-row`, `today/session-card`. Surfaced by v0.98.0: five of the
+      nine deleted tests belonged to their dead predecessors, so deleting them
+      cost no effective coverage but made the gap visible. `today-hero`
+      renders the readiness ring — the app's primary number. 2b.4 redesigns
+      all three and should not do so untested.
+- [ ] **Decide a tab pattern.** `/body` and `/train` hand-roll their own tab
+      bars while v0.98.0 deleted an unused vendored `ui/tabs.tsx`. The
+      duplication is real; the answer is to choose a pattern deliberately, not
+      to re-vendor a file because it once existed.
 
 ### 2c — One source of truth per number
 
@@ -767,11 +792,12 @@ one — reopen the question then rather than citing this reading.
 **Order now:** **2a, 2c and 2d are all closed** — 2c at v0.90.0, 2d at
 v0.93.2, and 2a's last item (inline numeric literals) at v0.94.0. Check that
 against the checkbox list before repeating it; that is how it was wrong in
-v0.93.0. What remains in Phase 2 is **2b.2, then 2b.4**, and neither is
-date-blocked any longer — only 2b.4's dependency on 2b.2 remains, because it
-still redesigns against an IA 2b.2 has to settle first. **2b.2 is the head of
-the queue.** Per §2b it is a brainstorm → spec → plan cycle in its own right,
-not direct implementation.
+v0.93.0. **2b.2 closed at v0.98.0**, so **2b.4 — the visual redesign — is the only
+open item in Phase 2 and nothing blocks it.** It inherits a tree where a
+page's components are findable, no dead code to redesign by accident, and two
+guards holding both properties while it works. Per §2b.4 it splits into its
+own sequence of releases with per-page gates, and needs real-browser
+verification: v0.23 shipped three bugs that only a real browser caught.
 
 **A correction worth keeping, because it is the second time this line has
 been wrong.** v0.93.0 first wrote here that "2a, 2c and 2d are all closed",
