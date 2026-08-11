@@ -22,9 +22,26 @@ describe("pinch-zoom is not blocked", () => {
     expect(layout).not.toMatch(/userScalable/);
   });
 
-  it("html does not restrict touch-action to pan gestures", () => {
-    const htmlRule = css.match(/\bhtml\s*\{([\s\S]*?)\}/);
-    expect(htmlRule, "no html rule found in globals.css").not.toBeNull();
-    expect(htmlRule![1]).not.toMatch(/touch-action\s*:\s*pan/);
+  // Sanity check first, so the assertion below cannot pass vacuously against
+  // a file that has been moved or emptied.
+  it("globals.css still declares an html rule", () => {
+    expect(css).toMatch(/\bhtml\s*\{/);
+  });
+
+  // DELIBERATELY SCANS THE WHOLE FILE, not just the first `html {}` block.
+  // An earlier version extracted that one block by regex, which passes green
+  // if the rule is reintroduced inside a SECOND html block — a `@media`
+  // block, say, which is exactly where the pull-to-refresh CSS already
+  // lives, two rules below. That is a silent pass, the worst failure mode a
+  // guard can have. `touch-action: pan*` anywhere in this stylesheet blocks
+  // pinch-zoom on some element, so anywhere is what we check.
+  it("nothing restricts touch-action to pan gestures", () => {
+    const offenders = [...css.matchAll(/touch-action\s*:\s*pan[^;]*/g)].map(
+      (m) => m[0]
+    );
+    expect(
+      offenders,
+      "touch-action: pan* blocks pinch-zoom (WCAG 1.4.4)"
+    ).toEqual([]);
   });
 });
