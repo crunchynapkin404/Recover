@@ -42,45 +42,32 @@
 // instruction to delete. The same honest caveat
 // tests/uncertainty-dialects-guard.test.ts carries.
 //
-// THE ALLOWLIST IS A RATCHET, NOT A DUMPING GROUND. KNOWN_ORPHANS below
-// holds the 22 components unreachable from any entry point on 2026-08-11.
-// That is the 15 the reference-based scan found, plus the 7 it structurally
-// could not see (above). Earlier figures of 12 and 19 in docs/ROADMAP.md were
-// stale on both ends — v0.87.0 had already deleted RaceCountdownCard, and
-// five of PR #86's "seven sleep-cards" no longer exist either; the two that
-// remain (body/sleep-night-card.tsx, body/sleep-history-strip.tsx) are live
-// and were never orphans. These are superseded predecessors,
-// not lost features: debriefs still render today, through
-// src/components/today/debrief-chip.tsx on Today and
-// src/components/debrief/activity-debrief-section.tsx on the activity page,
-// so debrief/pending-debrief-card.tsx is a leftover, not a silently-broken
-// surface. plan/today-card.tsx is the sharpest argument for this guard: it
-// was *edited* on 2026-07-27 by a week-plan refactor commit while rendering
-// nowhere — someone read a dead component, reasoned about it, and updated
-// it. Dead components do not sit quietly; they get maintained.
+// THE ALLOWLIST IS A RATCHET, AND AS OF v0.98.0 IT IS EMPTY. It was seeded
+// with the 22 components unreachable from any entry point on 2026-08-11 — the
+// 15 the old reference-based scan found, plus the 7 it structurally could not
+// see (above). Phase 2b.2 deleted all 22; each had a named live successor,
+// verified to exist, and the four dead chains came out as units.
 //
-// Disposing of any of the 15 is Phase 2b.2's decision (docs/ROADMAP.md), not
-// this guard's. 2b.2 was date-gated to 2026-09-05 on a four-week
-// surface_views telemetry window; that gate was lifted on 2026-08-11 at day
-// 4 (v0.95.0), so the decision is available whenever 2b.2 runs. Some may be
-// worth reviving with usage data rather than deleting outright. Nothing here
-// changes either way: this guard stays shrink-only and never deletes.
+// They were superseded predecessors, not lost features. The post-ride debrief
+// still works exactly as before, through today/debrief-chip.tsx,
+// debrief/debrief-sheet.tsx and debrief/activity-debrief-section.tsx — the two
+// deleted debrief files were the pre-v0.25.2 inline form and dashboard card
+// that release had already replaced.
 //
-// journal/correlation-insights.tsx is allowlisted for the same underlying
-// reason in tests/uncertainty-dialects-guard.test.ts (see that file's KNOWN
-// EXCEPTION comment) — same component, same root cause, cross-referenced
-// here rather than duplicated.
+// plan/today-card.tsx was the sharpest argument for this guard: it was
+// *edited* on 2026-07-27 by a week-plan refactor commit while rendering
+// nowhere. Dead components do not sit quietly; they get maintained.
 //
-// src/components/ui/ is IN SCOPE, not exempt. separator.tsx, sonner.tsx and
-// tabs.tsx are vendored primitives that a future feature might reach for,
-// which is the standard argument for exempting the ui/ directory wholesale.
-// That argument is declined here: an unused primitive is still code that is
-// typechecked, linted, bundled if imported, and read by people. It goes in
-// this list on the same terms as everything else — shrink-only, and gone
-// once Phase 2b.2 decides.
+// src/components/ui/ was IN SCOPE, not exempt. separator, sonner and tabs
+// were vendored primitives a future feature might have reached for, which is
+// the standard argument for exempting ui/ wholesale. That argument was
+// declined and they were deleted: re-vendoring is a one-line add, and the
+// version added then will be current rather than a year stale.
 //
-// Nothing may be added to KNOWN_ORPHANS without a comment here naming why. A
-// new orphan showing up is the exact defect this guard exists to catch.
+// AN EMPTY LIST IS THE POINT. A new orphan now fails with no precedent to
+// point at. Nothing may be added without a comment naming why that component
+// should exist with no render site — and "we might want it later" is the
+// reasoning that produced the original 22.
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, extname, join, relative, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -90,33 +77,14 @@ const SRC_ROOT = join(REPO_ROOT, "src");
 const COMPONENTS_ROOT = join(SRC_ROOT, "components");
 
 // Paths relative to SRC_ROOT, e.g. "components/dashboard/behavior-tags.tsx".
-const KNOWN_ORPHANS = new Set([
-  // --- Unreachable, and the old reference-based scan saw them too (15). ---
-  "components/dashboard/behavior-tags.tsx",
-  "components/dashboard/coach-insight.tsx", // last touched 2026-07-15
-  "components/dashboard/hero-readiness.tsx", // its own last commit removed the headline it rendered
-  "components/dashboard/morning-brief.tsx", // last touched 2026-07-14
-  "components/dashboard/recent-sessions-accordion.tsx",
-  "components/debrief/pending-debrief-card.tsx", // superseded by today/debrief-chip.tsx
-  "components/journal/correlation-insights.tsx", // also allowlisted in uncertainty-dialects-guard.test.ts
-  "components/log/wellness-trends.tsx",
-  "components/plan/availability-sheet.tsx",
-  "components/plan/today-card.tsx", // maintained 2026-07-27 while dead — the guard's actual argument
-  "components/scroll-reveal.tsx",
-  "components/train/week-adjustment-switch.tsx",
-  "components/ui/separator.tsx", // vendored primitive, in scope, not exempt
-  "components/ui/sonner.tsx", // vendored primitive, in scope, not exempt
-  "components/ui/tabs.tsx", // vendored primitive, in scope, not exempt
-
-  // --- Only reachability finds these (7). Each names what kept it hidden. ---
-  "components/dashboard/animated-counter.tsx", // dead at depth 3: <- readiness-rings <- hero-readiness
-  "components/dashboard/readiness-rings.tsx", // imported only by hero-readiness.tsx, itself dead
-  "components/dashboard/vitals-grid.tsx", // basename collision: today/vitals-grid.tsx is the live one
-  "components/dashboard/weekly-summary.tsx", // imported only by recent-sessions-accordion.tsx, itself dead
-  "components/debrief/debrief-form.tsx", // imported only by pending-debrief-card.tsx, itself dead
-  "components/plan/wheel-column.tsx", // imported only by availability-sheet.tsx, itself dead
-  "components/ui/hero-card.tsx", // imported only by hero-readiness.tsx, itself dead
-]);
+// EMPTY, AND IT SHOULD STAY THAT WAY. v0.98.0 deleted all 22 entries this
+// list was seeded with; each had a named live successor, and the four dead
+// chains came out as units. An empty allowlist is what makes this guard a
+// real ratchet rather than a record of 22 tolerated exceptions — there is now
+// no precedent for a new orphan to point at. Adding an entry means arguing
+// that a component with no render site should exist, which is a claim that
+// needs its reason written here.
+const KNOWN_ORPHANS = new Set<string>([]);
 
 function isTestFile(name: string): boolean {
   return name.endsWith(".test.ts") || name.endsWith(".test.tsx");

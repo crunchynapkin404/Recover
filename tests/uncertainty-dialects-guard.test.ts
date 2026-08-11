@@ -15,11 +15,11 @@
 // migrated surface at a time; do not add an unmigrated phrase here, or this
 // guard fails permanently until that surface's own fix lands.
 //
-// KNOWN EXCEPTION: src/components/journal/correlation-insights.tsx has no
-// render site anywhere in src/ (confirmed 2026-08-08) and duplicates the
-// same retired strings. It is excluded here rather than fixed — which cycle
-// disposes of the app's 12 orphaned components is Phase 2b.2's decision
-// (docs/ROADMAP.md), not this plan's.
+// The KNOWN EXCEPTION that used to sit here — journal/correlation-insights.tsx,
+// excluded because it had no render site and duplicated the retired strings —
+// is gone. Phase 2b.2 deleted that component in v0.98.0, so the exception is
+// no longer needed and the exclusion set is empty. Correlations still render,
+// through body/correlation-rows.tsx.
 //
 // KNOWN LIMITATION: this is a literal substring match. It catches the
 // realistic reintroduction (a copy-pasted ternary) but not one built through
@@ -34,9 +34,7 @@ const SRC_ROOT = join(REPO_ROOT, "src");
 
 const RETIRED_PHRASES = ["limited evidence", "inconclusive"];
 
-const KNOWN_ORPHANS = new Set([
-  join(SRC_ROOT, "components/journal/correlation-insights.tsx"),
-]);
+const KNOWN_ORPHANS = new Set<string>([]);
 
 function walkSourceFiles(dir: string, out: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {
