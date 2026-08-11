@@ -45,6 +45,17 @@ Copied verbatim from `docs/specs/2026-08-11-2b4-visual-redesign-design.md`:
   the 11 must be confirmed in Task 6's screenshots and Task 7's axe run** —
   the exception is granted on the condition that they are looked at, not
   assumed benign.
+- **Third deliberate exception, found during Task 6b.** Tokenising the 17
+  hardcoded values in `globals.css` revealed two that were **sub-AA in dark
+  too**: `.label-micro`'s text at ~3.8:1 and `--viz-muted-ink` at ~2.7:1. Both
+  now resolve to `--ink-muted`, so **dark changes as well** — micro-labels and
+  muted chart ink get lighter. This is the defect the release exists to fix
+  rather than a regression, but it is a visible change and is recorded as one.
+  Confirmed by pixel-diff: 6 of 20 dark captures differ, and only in those two.
+- **Known, out of scope, recorded not fixed:** `.tag-active` hardcodes the dark
+  accent `#10b981`, so it does not follow the theme. A real but separate and
+  smaller bug; the contrast guard deliberately excludes `accent` from the
+  ink/surface scan, so nothing catches it. Belongs to a later slice.
 - **Type floor is 12px.** Nothing below 12px exists as a token.
 - **Type scale:** `12 · 14 · 16 · 20 · 24 · 30 · 44`, plus a mono numeric variant.
 - **Spacing scale:** `4 · 8 · 12 · 16 · 24 · 32 · 48`.
