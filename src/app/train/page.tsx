@@ -15,14 +15,14 @@ import { IntakeForm } from "@/components/plan/intake-form";
 import { StandardWeek } from "@/components/plan/standard-week";
 import { PlanEmpty } from "@/components/plan/plan-empty";
 import { PlanPreviewCard } from "@/components/plan/plan-preview-card";
-import { PmcChart } from "@/components/log/pmc-chart";
-import { WeeklyLoadBars } from "@/components/log/weekly-load-bars";
+import { PmcChart } from "@/components/train/pmc-chart";
+import { WeeklyLoadBars } from "@/components/train/weekly-load-bars";
 import {
   FitnessStatsRow,
   rampTrendLabel,
-} from "@/components/log/fitness-stats-row";
-import { RangeTabs } from "@/components/log/range-tabs";
-import { ViewTabs, currentYm } from "@/components/log/view-tabs";
+} from "@/components/train/fitness-stats-row";
+import { RangeTabs } from "@/components/train/range-tabs";
+import { ViewTabs, currentYm } from "@/components/train/view-tabs";
 import {
   Collapsible,
   CollapsibleTrigger,
