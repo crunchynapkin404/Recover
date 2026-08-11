@@ -8,7 +8,7 @@ declare global {
 }
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
-import { MilestonesCard } from "@/components/dashboard/milestones-card";
+import { MilestonesCard } from "@/components/body/milestones-card";
 import type { Milestones } from "@/lib/insights/milestones";
 
 let container: HTMLDivElement;
