@@ -39,6 +39,18 @@ import { resolvePlanStyle } from "@/lib/plan-style/resolve";
 import type { PlanStyle } from "@/lib/plan-style/types";
 import { resolveSeasonMode } from "@/lib/season-mode/resolve";
 import type { SeasonMode } from "@/lib/season-mode/types";
+import {
+  BIKE_EASY_FRACTION,
+  BIKE_LONG_FRACTION,
+  RUN_EASY_FRACTION,
+  RUN_LONG_CAP_MINS,
+  RUN_LONG_CAP_TAPER_MINS,
+  RUN_LONG_FRACTION,
+  TRI_KEY_SWIM_FRACTION,
+  TRI_LONG_RUN_FRACTION,
+  TRI_SECONDARY_FRACTION,
+  TRI_SPLIT,
+} from "@/lib/plan-distribution-constants";
 
 /**
  * The transaction handle `db.transaction()`'s callback receives. `Database`
@@ -605,13 +617,16 @@ function generateRunningWorkouts(
   const workouts: PlannedWorkout[] = [];
 
   // Sunday: long run (30-35% of volume)
-  const longRunMins = Math.round(totalMins * 0.32);
+  const longRunMins = Math.round(totalMins * RUN_LONG_FRACTION);
   workouts.push(
     withPurpose({
       day: 6, // Sunday
       sport: "Run",
       type: "Long",
-      durationMins: Math.min(longRunMins, phase === "taper" ? 60 : 180),
+      durationMins: Math.min(
+        longRunMins,
+        phase === "taper" ? RUN_LONG_CAP_TAPER_MINS : RUN_LONG_CAP_MINS
+      ),
       intensity: "Z1-Z2",
       description:
         phase === "taper"
@@ -627,7 +642,7 @@ function generateRunningWorkouts(
         day: 1,
         sport: "Run",
         type: "Intervals",
-        durationMins: Math.round(totalMins * 0.15),
+        durationMins: Math.round(totalMins * RUN_EASY_FRACTION),
         intensity: "Z4-Z5",
         description: "6×800m at 5K-10K pace, 90s jog recovery",
       })
@@ -638,7 +653,7 @@ function generateRunningWorkouts(
         day: 1,
         sport: "Run",
         type: "Tempo",
-        durationMins: Math.round(totalMins * 0.15),
+        durationMins: Math.round(totalMins * RUN_EASY_FRACTION),
         intensity: "Z3",
         description: "Tempo run at half-marathon effort",
       })
@@ -652,7 +667,7 @@ function generateRunningWorkouts(
         day: 3,
         sport: "Run",
         type: phase === "build" || phase === "peak" ? "Tempo" : "Endurance",
-        durationMins: Math.round(totalMins * 0.15),
+        durationMins: Math.round(totalMins * RUN_EASY_FRACTION),
         intensity: phase === "build" || phase === "peak" ? "Z3" : "Z1-Z2",
         description:
           phase === "build" || phase === "peak"
@@ -709,7 +724,10 @@ export function generateCyclingWorkouts(
       day: 5,
       sport: "Bike",
       type: "Long",
-      durationMins: Math.min(Math.round(totalMins * 0.38), longBound),
+      durationMins: Math.min(
+        Math.round(totalMins * BIKE_LONG_FRACTION),
+        longBound
+      ),
       intensity: "Z1-Z2",
       description:
         phase === "taper"
@@ -726,7 +744,7 @@ export function generateCyclingWorkouts(
         day: 2,
         sport: "Bike",
         type: "Intervals",
-        durationMins: Math.round(totalMins * 0.18),
+        durationMins: Math.round(totalMins * BIKE_EASY_FRACTION),
         intensity: "Z4-Z5",
         description: "VO2max intervals: 5×4min at threshold+, 3min recovery",
       })
@@ -737,7 +755,7 @@ export function generateCyclingWorkouts(
         day: 2,
         sport: "Bike",
         type: "Tempo",
-        durationMins: Math.round(totalMins * 0.18),
+        durationMins: Math.round(totalMins * BIKE_EASY_FRACTION),
         intensity: "Z3",
         description: "Tempo ride — steady sweetspot effort",
       })
@@ -808,9 +826,9 @@ function generateTriathlonWorkouts(
   const workouts: PlannedWorkout[] = [];
 
   // Split: Swim ~20%, Bike ~40%, Run ~40%
-  const swimMins = totalMins * 0.2;
-  const bikeMins = totalMins * 0.4;
-  const runMins = totalMins * 0.4;
+  const swimMins = totalMins * TRI_SPLIT.swim;
+  const bikeMins = totalMins * TRI_SPLIT.bike;
+  const runMins = totalMins * TRI_SPLIT.run;
 
   // Sunday: long bike or brick
   const isBrickWeek = phase === "build" || phase === "peak";
@@ -847,7 +865,7 @@ function generateTriathlonWorkouts(
       sport: "Run",
       type: "Long",
       durationMins: Math.min(
-        Math.round(runMins * 0.45),
+        Math.round(runMins * TRI_LONG_RUN_FRACTION),
         phase === "taper" ? 45 : 120
       ),
       intensity: "Z1-Z2",
@@ -861,7 +879,7 @@ function generateTriathlonWorkouts(
       day: 1,
       sport: "Swim",
       type: phase === "build" || phase === "peak" ? "Intervals" : "Endurance",
-      durationMins: Math.round(swimMins * 0.55),
+      durationMins: Math.round(swimMins * TRI_KEY_SWIM_FRACTION),
       intensity: phase === "build" || phase === "peak" ? "Z3" : "Z1-Z2",
       description:
         phase === "build" || phase === "peak"
@@ -877,7 +895,7 @@ function generateTriathlonWorkouts(
         day: 3,
         sport: "Bike",
         type: phase === "build" || phase === "peak" ? "Intervals" : "Endurance",
-        durationMins: Math.round(bikeMins * 0.3),
+        durationMins: Math.round(bikeMins * TRI_SECONDARY_FRACTION),
         intensity: phase === "build" || phase === "peak" ? "Z4-Z5" : "Z1-Z2",
         description:
           phase === "build" || phase === "peak"
@@ -902,7 +920,9 @@ function generateTriathlonWorkouts(
         type: phase === "recovery" ? "Recovery" : "Endurance",
         durationMins: Math.max(
           20,
-          Math.round((sport === "Swim" ? swimMins : runMins) * 0.3)
+          Math.round(
+            (sport === "Swim" ? swimMins : runMins) * TRI_SECONDARY_FRACTION
+          )
         ),
         intensity: phase === "recovery" ? "Recovery" : "Z1-Z2",
         description:
