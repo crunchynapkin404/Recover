@@ -40,4 +40,15 @@ describe("calibrationProgress", () => {
     expect(p.remaining).toBe(1);
     expect(p.prompt).toMatch(/1 more day\b/);
   });
+
+  it("counts an SDNN-only morning as a calibration signal", () => {
+    // Without this, an athlete whose watch only delivers SDNN would be told
+    // "day 0 of 14" while readiness was already scoring them.
+    const sdnnOnly = Array.from({ length: 5 }, () => ({
+      hrvMs: null,
+      restingHr: null,
+      hrvSdnnMs: 91,
+    }));
+    expect(calibrationProgress(sdnnOnly).daysWithSignal).toBe(5);
+  });
 });
