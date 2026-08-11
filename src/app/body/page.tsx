@@ -545,7 +545,11 @@ async function SleepTab({
   // Same "day N of 14" count Today's hero uses (calibrationProgress reads
   // the readiness baseline signal, not the battery model itself).
   const batteryCalibration = calibrationProgress(
-    wellness.map((w) => ({ hrvMs: w.hrvMs, restingHr: w.restingHr }))
+    wellness.map((w) => ({
+      hrvMs: w.hrvMs,
+      restingHr: w.restingHr,
+      hrvSdnnMs: w.hrvSdnnMs,
+    }))
   );
   // remaining > 0 mirrors Today hero's own gate (band === "calibrating" &&
   // calibration.remaining > 0): readiness is null both during genuine

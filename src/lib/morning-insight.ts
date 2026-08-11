@@ -313,7 +313,11 @@ export async function generateMorningInsight(
     });
   }
   const readinessCalibration = calibrationProgress(
-    readinessWindow.map((w) => ({ hrvMs: w.hrvMs, restingHr: w.restingHr }))
+    readinessWindow.map((w) => ({
+      hrvMs: w.hrvMs,
+      restingHr: w.restingHr,
+      hrvSdnnMs: w.hrvSdnnMs,
+    }))
   );
   const readinessGap = unavailableMessage(
     readinessCalibration.remaining > 0

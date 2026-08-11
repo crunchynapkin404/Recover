@@ -5,16 +5,17 @@ function days(n: number, signal = true) {
   return Array.from({ length: n }, () => ({
     hrvMs: signal ? 60 : null,
     restingHr: null,
+    hrvSdnnMs: null,
   }));
 }
 
 describe("calibrationProgress", () => {
   it("counts only days with a usable signal", () => {
     const mixed = [
-      { hrvMs: 60, restingHr: null },
-      { hrvMs: null, restingHr: 48 },
-      { hrvMs: null, restingHr: null }, // no signal — doesn't count
-      { hrvMs: 0, restingHr: 0 }, // zeros aren't signal
+      { hrvMs: 60, restingHr: null, hrvSdnnMs: null },
+      { hrvMs: null, restingHr: 48, hrvSdnnMs: null },
+      { hrvMs: null, restingHr: null, hrvSdnnMs: null }, // no signal
+      { hrvMs: 0, restingHr: 0, hrvSdnnMs: 0 }, // zeros aren't signal
     ];
     const p = calibrationProgress(mixed);
     expect(p.daysWithSignal).toBe(2);
@@ -39,5 +40,16 @@ describe("calibrationProgress", () => {
     const p = calibrationProgress(days(CALIBRATION_TARGET_DAYS - 1));
     expect(p.remaining).toBe(1);
     expect(p.prompt).toMatch(/1 more day\b/);
+  });
+
+  it("counts an SDNN-only morning as a calibration signal", () => {
+    // Without this, an athlete whose watch only delivers SDNN would be told
+    // "day 0 of 14" while readiness was already scoring them.
+    const sdnnOnly = Array.from({ length: 5 }, () => ({
+      hrvMs: null,
+      restingHr: null,
+      hrvSdnnMs: 91,
+    }));
+    expect(calibrationProgress(sdnnOnly).daysWithSignal).toBe(5);
   });
 });

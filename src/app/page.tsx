@@ -20,6 +20,7 @@ import { availableMins } from "@/lib/week-plan/fill";
 import { raceCard } from "@/lib/race/outlook";
 import type { Band } from "@/lib/readiness";
 import { sleepDebtFrom } from "@/lib/sleep-debt";
+import { buildHrvTile } from "@/lib/today/hrv-tile";
 import { sparkPath } from "@/lib/sparkline";
 import {
   calibrationProgress,
@@ -221,7 +222,11 @@ export default async function DashboardPage({
   // First-run calibrating progress ("day N of 14") — shown under the hero
   // while readiness learns the athlete's baseline.
   const calibration = calibrationProgress(
-    wellness.map((w) => ({ hrvMs: w.hrvMs, restingHr: w.restingHr }))
+    wellness.map((w) => ({
+      hrvMs: w.hrvMs,
+      restingHr: w.restingHr,
+      hrvSdnnMs: w.hrvSdnnMs,
+    }))
   );
 
   // ── Onboarding ──────────────────────────────────────────────────────────
@@ -285,13 +290,15 @@ export default async function DashboardPage({
   // ── Derived data ────────────────────────────────────────────────────────
   const latest = [...wellness]
     .reverse()
-    .find((w) => w.hrvMs != null || w.restingHr != null);
+    .find((w) => w.hrvMs != null || w.hrvSdnnMs != null || w.restingHr != null);
+
+  // The tile reads the decision computeDailyMetrics already made, rather than
+  // re-resolving it — the tile and the ring must never name different metrics.
+  const latestHrvMetric =
+    metrics.find((m) => m.date === latest?.date)?.hrvMetric ?? null;
 
   const window7 = wellness.filter((w) => w.date >= daysAgo(7));
 
-  const avg7hrv =
-    window7.reduce((s, w) => s + (w.hrvMs ?? 0), 0) /
-    (window7.filter((w) => w.hrvMs != null).length || 1);
   const avg7rhr =
     window7.reduce((s, w) => s + (w.restingHr ?? 0), 0) /
     (window7.filter((w) => w.restingHr != null).length || 1);
@@ -316,7 +323,6 @@ export default async function DashboardPage({
   const sleepDebt = sleepDebtFrom(wellness, bodyPrefsRow ?? null, daysAgo(0));
 
   // ── Vitals sparklines (7d) — "" when fewer than two real points ─────────
-  const hrvSparkPath = sparkPath(window7.map((w) => w.hrvMs));
   const rhrSparkPath = sparkPath(window7.map((w) => w.restingHr));
   const sleepSparkPath = sparkPath(window7.map((w) => w.sleepSecs));
   const formSparkPath = sparkPath(
@@ -325,28 +331,10 @@ export default async function DashboardPage({
       .map((m) => (m.ctl != null && m.atl != null ? m.ctl - m.atl : null))
   );
 
-  const hrvGood = latest?.hrvMs != null && latest.hrvMs >= avg7hrv;
   const rhrGood = latest?.restingHr != null && latest.restingHr <= avg7rhr;
 
   const vitals: VitalTile[] = [
-    {
-      label: "HRV",
-      value:
-        latest?.hrvMs != null
-          ? Figure.available(String(Math.round(latest.hrvMs)), "high")
-          : Figure.missingInput("an HRV reading"),
-      unit: "ms",
-      delta:
-        latest?.hrvMs != null && avg7hrv > 0
-          ? {
-              text: `${hrvGood ? "▲" : "▼"} 7d ${Math.round(avg7hrv)}`,
-              tone: hrvGood ? "good" : "muted",
-            }
-          : null,
-      sparkPath: hrvSparkPath,
-      sparkColor: "#10b981",
-      href: "/body?tab=trends",
-    },
+    buildHrvTile({ latest, metric: latestHrvMetric, window7 }),
     {
       label: "RHR",
       value:
@@ -464,8 +452,19 @@ export default async function DashboardPage({
                 recoveryScore={recoveryScore}
                 sleepScore={latest?.sleepScore ?? null}
                 why={{
-                  hrv: latest?.hrvMs ?? null,
-                  hrvBaseline: avg7hrv > 0 ? avg7hrv : null,
+                  // Same column the score used, and the baseline the score
+                  // actually ran against — exp() of the stored ln-mean. The
+                  // old raw 7-day rMSSD mean next to an SDNN reading printed
+                  // "HRV 91 vs 97 baseline" and invented a deficit.
+                  hrv: latestHrvMetric
+                    ? latestHrvMetric === "rmssd"
+                      ? (latest?.hrvMs ?? null)
+                      : (latest?.hrvSdnnMs ?? null)
+                    : null,
+                  hrvBaseline:
+                    todayMetric?.hrvBaselineMean != null
+                      ? Math.exp(todayMetric.hrvBaselineMean)
+                      : null,
                   rhr: latest?.restingHr ?? null,
                   sleepHours,
                   tsb,

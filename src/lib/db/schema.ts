@@ -349,6 +349,9 @@ export const dailyMetrics = pgTable(
     ctl: real("ctl"),
     atl: real("atl"),
     loadSource: text("load_source", { enum: ["provider", "computed"] }),
+    /** Which HRV metric scored this day — see src/lib/hrv-source.ts. Null
+     *  when neither metric had a calibrated baseline, i.e. no HRV component. */
+    hrvMetric: text("hrv_metric", { enum: ["rmssd", "sdnn"] }),
     computedAt: timestamp("computed_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

@@ -3,7 +3,8 @@
  * band into an honest "day N of 14" state. Readiness needs
  * MIN_BASELINE_DAYS of HRV *or* resting-HR history before it can score, so
  * progress is the count of days that actually carry one of those signals —
- * not merely days since signup, which would overcount empty days.
+ * either HRV metric (rMSSD or SDNN) or resting HR — not merely days since
+ * signup, which would overcount empty days.
  */
 import { MIN_BASELINE_DAYS } from "@/lib/readiness";
 
@@ -20,11 +21,24 @@ export interface CalibrationProgress {
 }
 
 export function calibrationProgress(
-  days: Array<{ hrvMs: number | null; restingHr: number | null }>
+  days: Array<{
+    hrvMs: number | null;
+    restingHr: number | null;
+    /**
+     * REQUIRED, deliberately. An optional field here compiles at every call
+     * site that forgets it — which is how v0.97 first shipped with only one
+     * of four callers passing it, so Today said "scored" while /body and the
+     * coach both said "day N of 14" to the same SDNN-only athlete on the same
+     * morning. Required turns that silent divergence into a build error.
+     * Pass `null` when the column genuinely isn't loaded.
+     */
+    hrvSdnnMs: number | null;
+  }>
 ): CalibrationProgress {
   const withSignal = days.filter(
     (d) =>
       (d.hrvMs != null && d.hrvMs > 0) ||
+      (d.hrvSdnnMs != null && d.hrvSdnnMs > 0) ||
       (d.restingHr != null && d.restingHr > 0)
   ).length;
   const daysWithSignal = Math.min(withSignal, CALIBRATION_TARGET_DAYS);

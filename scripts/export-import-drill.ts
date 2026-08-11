@@ -191,6 +191,7 @@ async function seed() {
     ctl: 63.1,
     atl: 57.9,
     loadSource: "computed",
+    hrvMetric: "rmssd",
     computedAt: new Date("2026-01-02T09:00:00Z"),
   };
   await db.insert(schema.dailyMetrics).values(dailyMetricsSeed);

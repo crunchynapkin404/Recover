@@ -48,7 +48,7 @@ export function VitalsGrid({ tiles }: { tiles: VitalTile[] }) {
             <div
               className="mt-0.5 font-mono text-[19px] font-bold leading-none text-white"
               title={
-                !t.value.available ? unavailableMessage(t.value) : undefined
+                t.value.available ? t.value.why : unavailableMessage(t.value)
               }
             >
               {t.value.available ? t.value.value : "—"}
@@ -59,6 +59,9 @@ export function VitalsGrid({ tiles }: { tiles: VitalTile[] }) {
               )}
               {!t.value.available && (
                 <span className="sr-only">{unavailableMessage(t.value)}</span>
+              )}
+              {t.value.available && t.value.why && (
+                <span className="sr-only">{t.value.why}</span>
               )}
             </div>
           </div>
