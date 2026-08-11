@@ -2,7 +2,7 @@ import type { DaySlot } from "@/lib/week-plan/types";
 import {
   DayActions,
   type DayActionsOtherDay,
-} from "@/components/plan/day-actions";
+} from "@/components/week/day-actions";
 import { MarkDoneButton } from "./mark-done-button";
 
 interface Props {

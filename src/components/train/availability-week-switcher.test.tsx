@@ -22,7 +22,7 @@ import {
   type AvailabilityWeekSwitcherProps,
   type WeekIntake,
 } from "./availability-week-switcher";
-import type { IntakeState } from "./intake-form";
+import type { IntakeState } from "@/components/week/intake-form";
 import { clearDayOverride } from "@/app/plan/actions";
 
 const clearDayOverrideMock = vi.mocked(clearDayOverride);

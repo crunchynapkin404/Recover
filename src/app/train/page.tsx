@@ -6,15 +6,15 @@ import { requireUser } from "@/lib/session";
 import { recordSurfaceView } from "@/lib/telemetry";
 import { getActivePlan } from "@/lib/active-plan";
 import { AppShell, shellUser } from "@/components/app-shell";
-import { WeekStrip } from "@/components/plan/week-strip";
+import { WeekStrip } from "@/components/week/week-strip";
 import {
   RacesSection,
   type RaceListItem,
-} from "@/components/plan/races-section";
-import { IntakeForm } from "@/components/plan/intake-form";
-import { StandardWeek } from "@/components/plan/standard-week";
-import { PlanEmpty } from "@/components/plan/plan-empty";
-import { PlanPreviewCard } from "@/components/plan/plan-preview-card";
+} from "@/components/train/races-section";
+import { IntakeForm } from "@/components/week/intake-form";
+import { StandardWeek } from "@/components/train/standard-week";
+import { PlanEmpty } from "@/components/train/plan-empty";
+import { PlanPreviewCard } from "@/components/train/plan-preview-card";
 import { PmcChart } from "@/components/train/pmc-chart";
 import { WeeklyLoadBars } from "@/components/train/weekly-load-bars";
 import {
@@ -35,8 +35,8 @@ import { SeasonTimelineCard } from "@/components/train/season-timeline-card";
 import { FuellingCard } from "@/components/train/fuelling-card";
 import { PlanStyleSwitch } from "@/components/train/plan-style-switch";
 import { SeasonModeSwitch } from "@/components/train/season-mode-switch";
-import { WeekRationale, fmt, article } from "@/components/plan/week-rationale";
-import { EventReadiness } from "@/components/plan/event-readiness";
+import { WeekRationale, fmt, article } from "@/components/week/week-rationale";
+import { EventReadiness } from "@/components/train/event-readiness";
 import {
   HistoryList,
   type HistoryGroup,
@@ -92,7 +92,7 @@ import {
   AvailabilityWeekSwitcher,
   type AvailabilityWeekMode,
   type WeekIntake,
-} from "@/components/plan/availability-week-switcher";
+} from "@/components/train/availability-week-switcher";
 import { blockMins, type AvailabilityBlock } from "@/lib/availability/types";
 import { resolveWeek } from "@/lib/availability/resolve";
 import { availabilityVerdict } from "@/lib/week-plan/ctl-projection";
@@ -584,7 +584,7 @@ async function WeekTab({
     ? { days: projected.days, pinned: projected.pinned }
     : null;
   // Same-shape figures as WeekRationale's "planned against target" line
-  // (src/components/plan/week-rationale.tsx), derived here because the
+  // (src/components/week/week-rationale.tsx), derived here because the
   // projected week has no rationale panel of its own (v0.29.0 kept those
   // panels weekly). Guarded independently of `nextWeekPreview` so a future
   // change to that derivation can't leave these reading `NaN`.

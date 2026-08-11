@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { AvailabilityBlock } from "@/lib/availability/types";
 import type { Verdict } from "@/lib/week-plan/ctl-projection";
-import { IntakeForm, type IntakeState } from "./intake-form";
+import { IntakeForm, type IntakeState } from "@/components/week/intake-form";
 
 export type AvailabilityWeekMode = "this" | "next";
 
