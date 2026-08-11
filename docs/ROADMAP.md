@@ -187,7 +187,7 @@ top of the six the app already speaks.
       engine constant surveyed since v0.74.0 now carries source,
       confidence and scope, or an explicit documented exclusion.
 
-- [ ] **Inline numeric literals — the gap 2a's own framing left open.** 2a
+- [x] **Inline numeric literals — the gap 2a's own framing left open.** 2a
       swept _exported constants_, and closed on that basis. It never reached
       numbers written inline, which can carry exactly the same claims. Found
       2026-08-10 while sourcing the race-day form projection:
@@ -200,6 +200,37 @@ top of the six the app already speaks.
       rest. **2a's completeness claim above is true as written and narrower
       than it reads** — that is the point of recording this rather than
       quietly widening it.
+      **Closed by v0.94.0.** The named example was already fixed — v0.87.0
+      gave `formScore()` one owner, named `FORM_BAND_THRESHOLDS` and sourced
+      both — and `blood-pressure.ts` already cites the 2017 ACC/AHA guideline;
+      both recorded so they are not swept again. The sweep for the rest found
+      two clusters with no provenance at all. **`src/lib/fuelling/`** had zero
+      `Source:` anywhere: ~20 nutrition figures rendered on Train and handed
+      to the coach via `get_week_plan`, in a directory with no exported
+      constants, which is exactly why 2a missed it. Most proved genuinely
+      sourceable when checked against the literature rather than asserted —
+      during-session carbohydrate sits on Jeukendrup's per-duration guidance
+      and the 90 g/h clamp is the published ceiling; fluid volumes are the
+      weak ones, Invented/Low, because requirement is sweat-rate driven and
+      Recover does not measure sweat rate. **`training-plan.ts`'s
+      session-distribution model** was the sharper find: the ratios deciding
+      how long the long run is and how a triathlete's hours divide, inline,
+      beside exported constants in the same file each carrying a full
+      `Source:` block. **Two findings reported rather than fixed**, since
+      changing a training prescription needs its own release: the triathlon
+      split (20/40/40) matches no published distribution — they put bike at
+      40-50% and run at 20-30%, so Recover's running share is roughly double
+      the cited figure — and `RUN_LONG_FRACTION` is **not the binding bound**
+      for most athletes, because a previously undocumented `Math.min` caps
+      the long run at 180 minutes, binding above 9.375 h/week, so for a
+      higher-volume runner the documented fraction has no effect at all.
+      **Mutation-checking earned the release three times**: nothing pinned
+      any of these (inverting the triathlon split entirely passed the whole
+      suite), the fuelling tests asserted floors rather than values (raising
+      the long-session carb recommendation from 60 to 75 g/h passed), and the
+      first fix's own tests could not fail because they asserted against the
+      constants under test. Design:
+      `docs/specs/2026-08-11-inline-numeric-literals-design.md`.
 
 ### 2b — Design language and IA
 
@@ -649,10 +680,11 @@ before that date. Written down because the shape of the problem is not
 visible from the checkbox list, and rediscovering it in September means
 either idle time or an improvised item.
 
-**Order until the gate opens:** **2c is closed** as of v0.90.0 and **2d as of
-v0.93.0.** One ungated item remains: **2a's inline numeric literals sweep**
-(above), which is not blocked on anything and should be taken next. After
-that the queue is empty until the date, and the designated fill below applies.
+**Order until the gate opens:** **2a, 2c and 2d are now all closed** — 2c at
+v0.90.0, 2d at v0.93.2, and 2a's last item (inline numeric literals) at
+v0.94.0. That claim was checked against the checkbox list before being
+written, which is how it was wrong in v0.93.0. **The pre-gate queue is
+empty**; take the designated fill below rather than improvising.
 
 Everything else left in Phase 2 is 2b.2 and 2b.4, both blocked on the
 **2026-09-05** telemetry date rather than on effort. Do not start 2b.4 early

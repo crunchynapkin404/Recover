@@ -1,5 +1,85 @@
 # Changelog
 
+## v0.94.0 — 2026-08-11 — Every number, not just the exported ones
+
+Phase 2a swept the repo's **77 exported constants** and closed on that basis.
+The roadmap recorded, in its own item, that the sweep never reached numbers
+written **inline** — which carry exactly the same claims. This is that sweep,
+and it closes 2a.
+
+**No number changed value.** Only provenance is new. Where the sourcing showed
+a number sits outside published guidance, that is reported below rather than
+quietly corrected.
+
+### The item's own example was already fixed
+
+It named `clamp(50 + 2.5 · tsb, 10, 90)` and the green/amber/red thresholds.
+v0.87.0 had already given `formScore()` one owner, named
+`FORM_BAND_THRESHOLDS`, and sourced both. `blood-pressure.ts` likewise already
+cites the 2017 ACC/AHA guideline. Both recorded so they are not swept a third
+time.
+
+### Fuelling had no provenance at all
+
+`src/lib/fuelling/` contained **zero `Source:` anywhere** — roughly 20
+nutrition figures rendered on the Train page and handed to the coach through
+`get_week_plan`. It had no exported constants, which is precisely why 2a
+missed it.
+
+Most turned out **genuinely sourceable**, checked against the literature
+rather than asserted: during-session carbohydrate sits on Jeukendrup's
+per-duration guidance, the 90 g/h clamp is the published ceiling for multiple
+transportable carbohydrates, and the post-session g/kg factors track the
+glycogen-resynthesis evidence. Fluid volumes are the weak ones and are
+labelled Invented/Low — requirement is sweat-rate driven, and Recover does not
+measure sweat rate.
+
+Worth recording: the model's **structure** matches the evidence too. It uses
+deliberately sub-optimal post-session carbohydrate for short sessions _and_
+always adds protein — exactly the case where co-ingestion is documented to
+help.
+
+### The session-distribution model, and two findings it produced
+
+The ratios deciding how long the long run is and how a triathlete's hours
+divide sat inline in `training-plan.ts`, **beside exported constants in the
+same file that each carried a full `Source:` block**. The clearest possible
+illustration of the gap.
+
+Two findings are reported, not fixed:
+
+- **The triathlon split matches no published distribution.** Recover uses
+  20/40/40; published splits put bike at 40–50% (most say 50) and run at
+  20–30%, so Recover's running share is roughly double the cited figure.
+- **`RUN_LONG_FRACTION` is not the binding bound for most athletes.** A
+  previously undocumented `Math.min` caps the long run at 180 minutes (60 in
+  taper), which binds above **9.375 h/week** — so for any higher-volume
+  runner the documented "32% of the week" has no effect whatsoever.
+
+Both are now named, documented and pinned. Changing a training prescription
+needs its own release, its own view on athletes already mid-plan, and a
+decision about varying by race distance.
+
+### Mutation-checking earned this release three times over
+
+- **Nothing pinned any of it.** Raising the long-run share from 32% to 50% of
+  the week passed the whole suite. **Inverting the triathlon split entirely**,
+  to 50/30/20, also passed.
+- **The fuelling tests asserted floors, not values.** Raising the
+  long-session carbohydrate recommendation from 60 to 75 g/h — real
+  athlete-facing nutrition advice — passed all five.
+- **The first fix's own tests could not fail.** They asserted
+  `toBe(RUN_LONG_CAP_MINS)` and `toBeCloseTo(TRI_SPLIT.swim)` — expectations
+  read from the constant under test, which move with the mutation. Both cap
+  mutations survived; the split mutation was caught only by rounding drift.
+  Now pinned to literals.
+
+One further note, kept because it is the same shape as v0.88.0's latent
+triathlon downgrade: the 90 g/h carbohydrate ceiling is **unreachable**. The
+model's maximum is 60 + 15 = 75, so the clamp never fires, and the obvious
+assertion (`<= 90`) was vacuous. The test pins the real bound at 75 and the
+constant is documented as a pre-placed guard.
+
 ## v0.93.2 — 2026-08-11 — Live-DB hygiene, executed
 
 Docs only. No code, no behaviour, no numbers.
