@@ -37,7 +37,7 @@ vi.mock("@/app/journal/actions", () => ({
   setUsualBehaviorTags: vi.fn(async () => ({ ok: true })),
 }));
 
-import { JournalForm } from "@/components/journal/journal-form";
+import { JournalForm } from "@/components/body/journal-form";
 import { setUsualBehaviorTags } from "@/app/journal/actions";
 
 const setUsualBehaviorTagsMock = vi.mocked(setUsualBehaviorTags);
