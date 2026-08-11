@@ -1,5 +1,38 @@
 # Changelog
 
+## v0.93.2 — 2026-08-11 — Live-DB hygiene, executed
+
+Docs only. No code, no behaviour, no numbers.
+
+v0.93.0 shipped `scripts/live-db-hygiene.sh` and deliberately did not run it,
+because writing to the live database is the owner's call rather than a
+release step. **The owner ran it with `--apply` on 2026-08-11.** The roadmap
+said "deliberately not executed", which is no longer true, so it now records
+what actually happened.
+
+`DELETE 2`, `UPDATE 1`, one transaction. Verified independently afterwards
+rather than read off the script's own output:
+
+- zero `*.invalid` users remain; three real users
+- **zero orphaned `chat_threads` or `chat_messages`** — the `ON DELETE
+CASCADE` chain worked as the dry run predicted
+- zero stale open weeks, and exactly one open week left: the owner's current
+  one, which the date-scoping correctly did not touch
+
+That scoping was the only part of the script able to do real harm — a
+mis-scoped `UPDATE` would have closed a live athlete's current week — and it
+behaved.
+
+**Two findings this item surfaced that it does not close**, both Phase 4's
+measurement and ops work rather than 2d's:
+
+- The instance reports `backupAgeS` as `null`. No successful backup has ever
+  been recorded, so there was nothing to restore from had this gone wrong.
+- The `*.invalid` rows were a **symptom, not the defect**. Something pointed
+  a test run at production on 2026-07-27; deleting the rows removed the
+  evidence without removing the cause. This machine's `.env` points at 5435,
+  so it was not a plain local `npm test`.
+
 ## v0.93.1 — 2026-08-11 — Correcting v0.93.0's completeness claim
 
 Docs only. No code, no behaviour, no numbers.

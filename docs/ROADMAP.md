@@ -619,12 +619,24 @@ excluded, is recorded here so that closing 2c means something:
       `2026-07-13` week is the only `open` week older than the current one —
       the owner's July weeks all closed on cadence — and the script's
       `UPDATE` is scoped by date so it can never close a current week for
-      anyone. **Deliberately not executed here:** writing to the live
-      database is the owner's call, not a release step, and the instance
-      still reports `backupAgeS` as `null`, meaning no successful backup has
-      ever been recorded. That is worth fixing before running any destructive
-      script — it is an ops finding this item surfaced, and it belongs to
-      Phase 4's measurement work rather than to 2d.
+      anyone. The release deliberately stopped there — writing to the live
+      database is the owner's call, not a release step. **The owner ran it
+      with `--apply` on 2026-08-11, and it is done.** `DELETE 2`, `UPDATE 1`,
+      one transaction. Verified independently afterwards rather than taken
+      from the script's own output: zero `*.invalid` users remain, three real
+      users, **zero orphaned `chat_threads` or `chat_messages`** (the cascade
+      worked), zero stale open weeks, and exactly one open week left — the
+      owner's current one, which the date-scoping correctly did not touch.
+      That scoping was the only part able to do real harm, and it behaved.
+      **Two things this item surfaced that are not closed by it.** First, the
+      instance reports `backupAgeS` as `null` — no successful backup has ever
+      been recorded, so there was nothing to restore from had this gone
+      wrong. Second, and the more useful of the two: the `*.invalid` rows
+      were a **symptom**, not the defect. Something pointed a test run at
+      production on 2026-07-27, and deleting the rows removed the evidence
+      without removing the cause. This machine's `.env` points at 5435, so it
+      was not a plain local `npm test`. Both belong to Phase 4's measurement
+      and ops work rather than to 2d.
 
 ### Sequencing — the gate at 2026-09-05
 
