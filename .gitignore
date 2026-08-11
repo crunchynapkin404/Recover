@@ -47,6 +47,9 @@ docs/flow-export-*/
 cookies.txt
 docs/superpowers/
 
+# visual verification captures (evidence for a PR, not repo content)
+.screenshots/
+
 # Claude Code worktrees/config (never commit local tooling state)
 .claude/
 .superpowers/
