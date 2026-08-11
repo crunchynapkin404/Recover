@@ -271,6 +271,29 @@ so" — is currently spoken in six dialects: `—` (47 uses), `calibrating` (39)
       **2026-09-05**. Per the spec, record at that point that the counts are
       developer-biased — the sole user is also the developer and tester, so
       the data shows what was being built, not what an athlete would open.
+      **Mid-window reading, 2026-08-11 (day 4 of 28).** 160 views:
+      today 67, train 50, body 25, coach 11, settings 6, admin 1 — each seen
+      on all four days except settings (3) and admin (1). Three instrumented
+      surfaces recorded **zero**: `activity`, `activity-log`, `import`. That
+      is signal rather than a blind spot — they are wired up and simply not
+      visited — and it is the distinction the window exists to establish, so
+      it should survive to the final reading rather than being re-derived.
+      **Instrumentation audited the same day and it is complete**: every
+      authenticated page calls `recordSurfaceView`. The only three that do not
+      are `login` and `join/[code]`, both pre-auth with no user to attribute,
+      and `src/app/wellness/page.tsx`, which is a seven-line redirect stub to
+      `/body?tab=journal` kept for old bookmarks — no auth lookup, renders
+      nothing, and the destination it forwards to already records. It was
+      briefly mistaken for an uninstrumented real page by matching the page
+      list against the instrumentation list without opening the file; noted
+      because the same list-matching would produce the same false gap again.
+      **n=1 is a census, not a sample.** The owner has confirmed they are the
+      only user of this instance, so the developer-bias caveat above stands
+      but the _sample-size_ worry does not: one user is 100% of the
+      population. The decision this item makes is "which surfaces does the
+      only athlete actually use", and the data answers exactly that. It will
+      not support a general claim about athletes, and should not be written
+      as one.
 - [x] **2b.3 — Uncertainty and confidence language.** One vocabulary replacing
       six, distinguishing at least: _calibrating_ (not enough history yet),
       _insufficient_ (a required input is missing), _low confidence_ (wide
