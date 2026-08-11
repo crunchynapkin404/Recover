@@ -1,10 +1,31 @@
-// scripts/screenshot.ts — Phase 2b.4 verification.
-// Captures each surface in both themes at two viewports. Light mode is
-// forced by setting the class directly, which is why ThemeProvider's
-// forcedTheme="dark" does not blind us to it — see forceThemeVerified below
-// for how that forcing is confirmed rather than assumed.
+// scripts/verify-surfaces.ts — Phase 2b.4 verification.
+// Captures each surface in both themes at two viewports, then audits the
+// same loaded page with axe-core (Task 7) before moving on. One browser
+// pass does both jobs because they need the same signed-in, correctly
+// themed, correctly-navigated page — building that twice would just be two
+// chances for the two copies to drift. Light mode is forced by setting the
+// class directly, which is why ThemeProvider's forcedTheme="dark" does not
+// blind us to it — see forceThemeVerified below for how that forcing is
+// confirmed rather than assumed.
 //
-// Usage: npx tsx scripts/screenshot.ts <slice-name>
+// Why axe runs here and not as a vitest-axe unit test (like the existing
+// src/components/body/journal-form.axe.test.tsx): nine of this app's
+// surfaces are async server components that read Postgres. They do not
+// render in jsdom at all, and jsdom computes no layout, so even a surface
+// that did render there would show no contrast or overlap violation —
+// component-level axe on these pages would be a test that passes without
+// checking anything. Axe therefore runs against the real rendered page in
+// the real headless browser this script already drives.
+//
+// Usage: npx tsx scripts/verify-surfaces.ts <slice-name>
+// Output: .screenshots/<slice-name>/*.png, plus
+//         .screenshots/<slice-name>/axe-report.json (Task 7) — one entry per
+//         surface/theme/viewport, with axe's "violations" and "incomplete"
+//         results filtered down to "serious"/"critical" impact (see
+//         auditPage's doc comment for why "incomplete" is included — the
+//         brief's literal resultTypes: ["violations"] silently misses real
+//         invisible-text bugs behind this app's gradient backgrounds).
+//         Exits non-zero if any entry has a non-empty blocking list.
 //
 // Required environment (task-6 review, Finding 5 — this header is the
 // canonical list; CONTRIBUTING.md's "Demo data" section points here):
@@ -33,9 +54,10 @@
 //                       renamed to match the repo's one convention). Must
 //                       be an owner: /admin redirects non-owner roles away,
 //                       and it is one of the required surfaces.
-import { mkdirSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Page } from "playwright-core";
+import type Axe from "axe-core";
 import { hexToRgb } from "../src/lib/design/contrast";
 import { readTokenSets } from "../src/lib/design/tokens";
 
@@ -95,10 +117,47 @@ const VIEWPORTS: Record<
 };
 
 const slice = process.argv[2];
-if (!slice) throw new Error("usage: tsx scripts/screenshot.ts <slice-name>");
+if (!slice)
+  throw new Error("usage: tsx scripts/verify-surfaces.ts <slice-name>");
 
 const outDir = join(process.cwd(), ".screenshots", slice);
 mkdirSync(outDir, { recursive: true });
+const axeReportPath = join(outDir, "axe-report.json");
+
+/**
+ * axe-core impact levels this audit treats as blocking (Task 7 brief).
+ * "minor"/"moderate" findings exist but are not what this release's guards
+ * (contrast-guard, type-scale-guard) target, and including them would drown
+ * slice 1-8's actual target list in noise unrelated to this release.
+ */
+const BLOCKING_IMPACTS: ReadonlySet<Axe.ImpactValue> = new Set([
+  "serious",
+  "critical",
+]);
+
+type BlockingViolation = Pick<
+  Axe.Result,
+  "id" | "impact" | "description" | "help" | "helpUrl" | "nodes"
+> & {
+  /**
+   * "incomplete" means axe could not fully automate the check and is
+   * asking for manual confirmation — see auditPage's doc comment for why
+   * that category is included here rather than dropped. Recorded so a
+   * human (or a later slice) can tell "axe is certain" from "axe flagged
+   * this as needing a look", without re-running axe to find out.
+   */
+  resultType: "violation" | "incomplete";
+};
+
+interface AxeReportEntry {
+  surface: string;
+  theme: "light" | "dark";
+  viewport: string;
+  blocking: BlockingViolation[];
+}
+
+/** Filled in across the whole run, written once at the end of main(). */
+const axeReport: AxeReportEntry[] = [];
 
 function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
@@ -269,6 +328,82 @@ async function forceThemeVerified(page: Page, dark: boolean): Promise<void> {
 }
 
 /**
+ * Runs axe-core against whatever `page` currently has loaded — after
+ * navigation, theme-forcing and (where relevant) any client-state setup —
+ * and appends one entry to the module-level `axeReport`. Injected fresh via
+ * `addScriptTag` on every call rather than once per page/context: axe-core
+ * does not persist across `page.goto()` navigations, and this function is
+ * always called immediately after the page has settled on the surface being
+ * audited, so re-injecting here is the simplest thing that is always
+ * correct rather than depending on caller discipline.
+ *
+ * See the header comment for why this runs against the real browser rather
+ * than as a vitest-axe unit test: jsdom cannot render nine of these
+ * surfaces at all, and computes no layout for the ones it can, so it cannot
+ * see a contrast or overlap violation regardless.
+ *
+ * DELIBERATE DEVIATION from the brief's sample code, recorded here rather
+ * than shipped quietly: the brief's snippet requests only
+ * `resultTypes: ["violations"]`. Four of the nine surfaces (today, train,
+ * coach, body) render every element inside a full-page decorative CSS
+ * gradient background. axe-core's color-contrast rule cannot algebraically
+ * resolve a composited background through a gradient, so on those surfaces
+ * it downgrades the check from "violation" to "incomplete" — a "needs a
+ * human to confirm" bucket — for nearly every text node on the page,
+ * regardless of whether the text is actually readable. A first pass with
+ * only `resultTypes: ["violations"]` returned 2 total findings across all
+ * 40 surface/theme/viewport combinations; manually inspecting the
+ * "incomplete" results it had discarded turned up axe-reported 1:1
+ * (invisible) contrast on `text-white/50` and `text-white/80` elements on
+ * the Today page in light mode — a real instance of exactly the defect
+ * this release exists to fix, silently dropped by the brief's literal
+ * filter. Requesting "incomplete" too, and treating serious/critical
+ * findings from *either* category as blocking, is what actually exercises
+ * these four surfaces. Each finding below is tagged with which bucket it
+ * came from so a human can still tell "axe is certain" from "axe is
+ * asking for a look" without re-running anything.
+ */
+async function auditPage(
+  page: Page,
+  surface: string,
+  theme: "light" | "dark",
+  vpName: string
+): Promise<void> {
+  await page.addScriptTag({
+    path: require.resolve("axe-core/axe.min.js"),
+  });
+  const result = await page.evaluate(async () => {
+    // @ts-expect-error — axe-core's browser build attaches itself to
+    // `window`; the package ships no ambient type declarations for that
+    // global, only the Node-facing ones used above to type this file's own
+    // report entries.
+    return await window.axe.run(document, {
+      resultTypes: ["violations", "incomplete"],
+    });
+  });
+  const violations = (result.violations as Axe.Result[]).map((v) => ({
+    ...v,
+    resultType: "violation" as const,
+  }));
+  const incomplete = (result.incomplete as Axe.Result[]).map((v) => ({
+    ...v,
+    resultType: "incomplete" as const,
+  }));
+  const blocking: BlockingViolation[] = [...violations, ...incomplete]
+    .filter((v) => BLOCKING_IMPACTS.has(v.impact ?? null))
+    .map(({ id, impact, description, help, helpUrl, nodes, resultType }) => ({
+      id,
+      impact,
+      description,
+      help,
+      helpUrl,
+      nodes,
+      resultType,
+    }));
+  axeReport.push({ surface, theme, viewport: vpName, blocking });
+}
+
+/**
  * A single patched Chromium hitting one local Next.js + Postgres process
  * back to back will occasionally produce one bad capture that is fine on a
  * retry (known flakiness, not the app's fault). Retry once before giving up.
@@ -278,7 +413,9 @@ async function captureWithRetry(
   surfaceName: string,
   routePath: string,
   filePath: string,
-  dark: boolean
+  dark: boolean,
+  theme: "light" | "dark",
+  vpName: string
 ) {
   const url = `${BASE_URL}${routePath}`;
   for (let attempt = 1; attempt <= 2; attempt++) {
@@ -287,6 +424,7 @@ async function captureWithRetry(
       assertOnSurface(page, routePath, surfaceName);
       await forceThemeVerified(page, dark);
       await page.screenshot({ path: filePath, fullPage: true });
+      await auditPage(page, surfaceName, theme, vpName);
       return;
     } catch (err) {
       if (attempt === 2) throw err;
@@ -321,10 +459,18 @@ const leakedTokenLabels: string[] = [];
  * logged loudly here and the label is collected so main() can summarize and
  * fail the run's exit code at the very end (after every other capture has
  * still been attempted).
+ *
+ * Also the only place axe ever sees the success box and its `<code>` block
+ * (the two of the slice's 11 newly-activated `dark:` utilities that live in
+ * `api-tokens-card.tsx`): the box is client-component state rendered right
+ * after a real token creation, never server-rendered, so the plain
+ * `/settings` capture in captureWithRetry never reaches it. Audited here,
+ * right after the screenshot, while the box is still on screen and before
+ * the `finally` block below revokes the token and removes it.
  */
 async function captureTokenCreated(
   page: Page,
-  theme: string,
+  theme: "light" | "dark",
   vpName: string,
   dark: boolean
 ): Promise<void> {
@@ -356,6 +502,7 @@ async function captureTokenCreated(
       path: join(outDir, `settings-token-created-${theme}-${vpName}.png`),
       fullPage: true,
     });
+    await auditPage(page, "settings-token-created", theme, vpName);
   } finally {
     if (tokenCreated) {
       try {
@@ -410,7 +557,9 @@ async function main() {
           name,
           path,
           join(outDir, `${name}-${theme}-${vpName}.png`),
-          dark
+          dark,
+          theme,
+          vpName
         );
         total++;
       }
@@ -436,6 +585,39 @@ async function main() {
 
   await browser.close();
   console.log(`captured ${total} images → ${outDir}`);
+
+  // Write the full report before deciding the exit code, so a failing run
+  // still leaves the evidence file behind — that file, not the console, is
+  // slice 1-8's target list.
+  writeFileSync(axeReportPath, JSON.stringify(axeReport, null, 2));
+  console.log(`axe report (${axeReport.length} entries) → ${axeReportPath}`);
+
+  const withViolations = axeReport.filter((e) => e.blocking.length > 0);
+  const totalViolations = withViolations.reduce(
+    (sum, e) => sum + e.blocking.length,
+    0
+  );
+
+  // Per-surface/theme/viewport summary — the baseline slices 1-8 are
+  // measured against. Printed even on a clean run, when the table is empty.
+  console.log(
+    `\naxe: ${totalViolations} serious/critical violation(s) across ` +
+      `${withViolations.length}/${axeReport.length} surface/theme/viewport ` +
+      `combinations:`
+  );
+  for (const entry of withViolations) {
+    const ruleIds = entry.blocking
+      .map((v) => (v.resultType === "incomplete" ? `${v.id}~` : v.id))
+      .join(", ");
+    console.log(
+      `  ${entry.surface} — ${entry.theme}/${entry.viewport}: ` +
+        `${entry.blocking.length} (${ruleIds}; ~ = incomplete, needs confirming)`
+    );
+  }
+
+  if (withViolations.length > 0) {
+    process.exitCode = 1;
+  }
 
   if (leakedTokenLabels.length > 0) {
     console.error(

@@ -33,10 +33,14 @@ SEED_DEMO=1 npm run db:seed-demo
 # login: demo@recover.local / recover-demo
 ```
 
-### Design verification screenshots
+### Design verification: screenshots + axe
 
-Every redesign slice is checked visually with `scripts/screenshot.ts`, which
-captures each surface in both themes and two viewports. It needs a headless
+Every redesign slice is checked visually and for accessibility violations
+with `scripts/verify-surfaces.ts`, which captures each surface in both
+themes and two viewports, then audits the same loaded page with `axe-core`
+in the real browser (not `vitest-axe`/jsdom — most surfaces are async server
+components that don't render there, and jsdom computes no layout regardless,
+so it can't see a contrast or overlap violation). It needs a headless
 Chromium (see the script's header comment for the sandbox-specific
 `CHROME_PATH`/`LD_LIBRARY_PATH` setup), a dev server on a port that is not
 production's, and the `OWNER_EMAIL`/`OWNER_PASSWORD` pair from `npm run
@@ -46,8 +50,11 @@ surfaces and redirects any other role):
 ```bash
 SCREENSHOT_BASE_URL=http://localhost:3100 \
   OWNER_EMAIL=... OWNER_PASSWORD=... \
-  npx tsx scripts/screenshot.ts <slice-name>
+  npx tsx scripts/verify-surfaces.ts <slice-name>
 # → .screenshots/<slice-name>/*.png (gitignored)
+# → .screenshots/<slice-name>/axe-report.json — violations per surface/theme/
+#   viewport, filtered to axe's "serious"/"critical" impact. Exits non-zero
+#   if any surface has one.
 ```
 
 ## Quality gates
