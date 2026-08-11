@@ -50,33 +50,33 @@ twelve routes.
 ### Non-goals
 
 - **No IA change.** Nav stays Today/Train/Coach/Body/Menu; every route keeps its
-  URL; no route is retired. Reflow happens *within* the shape. This was chosen
+  URL; no route is retired. Reflow happens _within_ the shape. This was chosen
   deliberately over full latitude: bookmarks, the PWA shell and one athlete's
   muscle memory all survive.
 - **Presentation may change, claims may not** — Phase 2's standing non-goal,
   unchanged. No new figure, and no existing figure claiming more than 2a can
   source. See "What is not guarded" below for how this is enforced, and how it
   is not.
-- **No visual-regression baseline.** Worth building *after* this lands. A
+- **No visual-regression baseline.** Worth building _after_ this lands. A
   redesign changes every pixel by definition, so a baseline committed now is
   worth nothing and noisy to maintain.
 - **No feature work.** Nothing new appears that an athlete could not do before.
 
 ## Decisions
 
-| Question | Decision | Why |
-| --- | --- | --- |
-| Driver | Ergonomics — the four moments | Chosen over craft, page-shape and legibility framings; the restyle rides along |
-| Moments | All four, one release | Ordering them by priority was rejected: all four are real |
-| Release shape | One release, ten gated slices | One athlete-visible change and one deploy; slices keep rollback at one `git revert` |
-| IA latitude | Reflow within the shape | Fixes the measured failure without retiring routes or relearning the nav |
-| Visual direction | Evolve the foundations, add light mode | Light mode is what forces every hardcoded value to become a token |
-| Type floor | 12px, 7 steps | Nothing below 12px exists as a token, so `text-[8px]` becomes unwriteable |
-| Ink | 4 semantic steps, per-theme values | Three of today's eight alphas fail AA; naming them by role stops the drift |
-| Theme control | System default, manual override | Tracks sunset and the OS schedule for free; the override is for when that is wrong |
-| Theme persistence | `next-themes`, localStorage | Already a dependency and unused; theme is device-local by nature |
-| Verification | Build-failing guards + real-browser screenshots | The measurable half mechanically, the judgement half by eye, before merge |
-| Design source | System first, two reference surfaces | Front-loads the decisions that are expensive to change late |
+| Question          | Decision                                        | Why                                                                                 |
+| ----------------- | ----------------------------------------------- | ----------------------------------------------------------------------------------- |
+| Driver            | Ergonomics — the four moments                   | Chosen over craft, page-shape and legibility framings; the restyle rides along      |
+| Moments           | All four, one release                           | Ordering them by priority was rejected: all four are real                           |
+| Release shape     | One release, ten gated slices                   | One athlete-visible change and one deploy; slices keep rollback at one `git revert` |
+| IA latitude       | Reflow within the shape                         | Fixes the measured failure without retiring routes or relearning the nav            |
+| Visual direction  | Evolve the foundations, add light mode          | Light mode is what forces every hardcoded value to become a token                   |
+| Type floor        | 12px, 7 steps                                   | Nothing below 12px exists as a token, so `text-[8px]` becomes unwriteable           |
+| Ink               | 4 semantic steps, per-theme values              | Three of today's eight alphas fail AA; naming them by role stops the drift          |
+| Theme control     | System default, manual override                 | Tracks sunset and the OS schedule for free; the override is for when that is wrong  |
+| Theme persistence | `next-themes`, localStorage                     | Already a dependency and unused; theme is device-local by nature                    |
+| Verification      | Build-failing guards + real-browser screenshots | The measurable half mechanically, the judgement half by eye, before merge           |
+| Design source     | System first, two reference surfaces            | Front-loads the decisions that are expensive to change late                         |
 
 ## The visual system
 
@@ -101,15 +101,19 @@ size below 12px.
 
 ### Ink — four steps, each with a job
 
-| Token | Dark | Light | Ratio (dark / light) | Allowed on |
-| --- | --- | --- | --- | --- |
-| `ink-primary` | `#f5f5f5` | `#171717` | 16.6 / 17.9 | anything |
-| `ink-secondary` | `#b4b4b4` | `#4a4a4a` | 8.7 / 8.9 | anything |
-| `ink-muted` | `#8a8a8a` | `#6e6e6e` | 5.2 / 5.1 | the floor for any text |
-| `hairline` | `#6b6b6b` | `#949494` | 3.4 / 3.0 | **never text** — dividers, borders, icon strokes |
+| Token           | Dark      | Light     | Ratio (dark / light) | Allowed on                                       |
+| --------------- | --------- | --------- | -------------------- | ------------------------------------------------ |
+| `ink-primary`   | `#f5f5f5` | `#171717` | 16.6 / 17.9          | anything                                         |
+| `ink-secondary` | `#b4b4b4` | `#4a4a4a` | 8.7 / 8.9            | anything                                         |
+| `ink-muted`     | `#8a8a8a` | `#6e6e6e` | 5.2 / 5.1            | the floor for any text                           |
+| `hairline`      | `#6b6b6b` | `#8a8a8a` | 3.1 / 3.2            | **never text** — dividers, borders, icon strokes |
 
-Ratios are against `#161616` (dark raised surface) and `#ffffff` (light raised
-surface) respectively.
+Ratios are against the **worst-case** surface each token must survive —
+`#1f1f1f` (dark overlay) and `#f6f6f6` (light base) — not against the most
+flattering one. The light `hairline` was `#949494` in the approved screen;
+recomputed against `surface-base` rather than white it measures 2.81:1 and
+fails its own floor, so it is `#8a8a8a` here. The tightest pair in the system
+is light `ink-muted` on `surface-base` at 4.72:1.
 
 `hairline` is deliberately named for its role rather than as an ink step, so
 that reaching for it as text colour reads as wrong at the call site. It clears
@@ -117,7 +121,7 @@ WCAG 1.4.11's 3:1 for non-text, which is what it is for.
 
 ### Surfaces — glass stops being the substrate
 
-70 uses of `bg-white/5` currently *are* the card. Translucent white over white
+70 uses of `bg-white/5` currently _are_ the card. Translucent white over white
 is invisible, so every one of them breaks in light mode. Surfaces become real
 per-theme tokens — `surface-base`, `surface-raised`, `surface-overlay` — and
 glass is reserved for elements genuinely floating over content: the nav pill,
@@ -155,7 +159,7 @@ and OS-change listening as library behaviour rather than code we maintain.
 **Persistence is localStorage, not Postgres.** Theme is device-local by nature —
 the phone in sunlight and the desktop indoors legitimately want different
 answers, and a synced preference would fight that. It also avoids a migration
-and a known trap: a new *table* is not covered by the `Carried<>` import/export
+and a known trap: a new _table_ is not covered by the `Carried<>` import/export
 guard (that gap is recorded and unbuilt), so a `display_prefs` table would drop
 silently on export until someone noticed. The counter-argument, recorded because
 it is real: `journalPrefs` set a house precedent that a new preference category
@@ -259,18 +263,18 @@ One branch, `v0.99-the-app-you-can-read`; one PR; one deploy. Each slice is its
 own commit with its own screenshots and axe pass, so a defect found after deploy
 costs one `git revert`, not the release.
 
-| # | Slice | Notes |
-| --- | --- | --- |
-| 0 | **Foundations** | Both token sets, type and spacing scales, `next-themes` wiring, pinch-zoom and `themeColor` fixes, all three guards including mutation checks. No surface changes. Ends with mockups of **Today and Train** — the smallest and largest surfaces — as proof the system survives both extremes before slice 1 begins. |
-| 1 | **Today** | Three states. Plus tests for `today-hero`, `week-row`, `session-card` — this slice rewrites all three, and they are the roadmap's three untested Today components. |
-| 2 | **Train** | 1,537 lines of `page.tsx`, the densest surface. The hard one. |
-| 3 | **Body** | 839 lines, four tabs. |
-| 4 | **Coach** | Three components, 1,031 lines — the chat surface is dense in a different way: long-form prose, not figures. |
-| 5 | **Settings / Menu** | Gains the theme control. |
-| 6 | **Activity detail + manual log** | The post-session destination the Today block now routes into. |
-| 7 | **Admin + Import** | Owner-only and once-ever respectively; lowest traffic, but both still need both themes. |
-| 8 | **Pre-auth** | `login`, `join/[code]`, the `/wellness` redirect stub — they need the themes too. |
-| 9 | **Sweep** | Duplicate-data scan on every page touched; the `/body` ÷ `/train` tab-pattern decision (both standing roadmap riders); `design-system.md` rewritten prescriptive; roadmap ticked. |
+| #   | Slice                            | Notes                                                                                                                                                                                                                                                                                                               |
+| --- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0   | **Foundations**                  | Both token sets, type and spacing scales, `next-themes` wiring, pinch-zoom and `themeColor` fixes, all three guards including mutation checks. No surface changes. Ends with mockups of **Today and Train** — the smallest and largest surfaces — as proof the system survives both extremes before slice 1 begins. |
+| 1   | **Today**                        | Three states. Plus tests for `today-hero`, `week-row`, `session-card` — this slice rewrites all three, and they are the roadmap's three untested Today components.                                                                                                                                                  |
+| 2   | **Train**                        | 1,537 lines of `page.tsx`, the densest surface. The hard one.                                                                                                                                                                                                                                                       |
+| 3   | **Body**                         | 839 lines, four tabs.                                                                                                                                                                                                                                                                                               |
+| 4   | **Coach**                        | Three components, 1,031 lines — the chat surface is dense in a different way: long-form prose, not figures.                                                                                                                                                                                                         |
+| 5   | **Settings / Menu**              | Gains the theme control.                                                                                                                                                                                                                                                                                            |
+| 6   | **Activity detail + manual log** | The post-session destination the Today block now routes into.                                                                                                                                                                                                                                                       |
+| 7   | **Admin + Import**               | Owner-only and once-ever respectively; lowest traffic, but both still need both themes.                                                                                                                                                                                                                             |
+| 8   | **Pre-auth**                     | `login`, `join/[code]`, the `/wellness` redirect stub — they need the themes too.                                                                                                                                                                                                                                   |
+| 9   | **Sweep**                        | Duplicate-data scan on every page touched; the `/body` ÷ `/train` tab-pattern decision (both standing roadmap riders); `design-system.md` rewritten prescriptive; roadmap ticked.                                                                                                                                   |
 
 Separately and **first**, as a docs-only commit: four corrections to
 `docs/ROADMAP.md` — the "only open item in Phase 2" line that omits 2b.4's three
@@ -280,14 +284,14 @@ lists a finished sweep as available work is how the v0.87.0 mistake happened.
 
 ## Risks
 
-| Risk | Mitigation |
-| --- | --- |
-| The 12px floor forces content cuts on dense surfaces | Editorial decisions are made per slice, in review, with screenshots — not deferred to the end |
-| A new figure appears to balance a layout | Per-slice review; screenshots; the non-goal is stated in the PR template for each slice |
-| Light mode ships half-done on a surface nobody re-checked | Every slice's screenshot set is both themes; axe runs in both |
+| Risk                                                               | Mitigation                                                                                             |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
+| The 12px floor forces content cuts on dense surfaces               | Editorial decisions are made per slice, in review, with screenshots — not deferred to the end          |
+| A new figure appears to balance a layout                           | Per-slice review; screenshots; the non-goal is stated in the PR template for each slice                |
+| Light mode ships half-done on a surface nobody re-checked          | Every slice's screenshot set is both themes; axe runs in both                                          |
 | Today's state logic is wrong at a boundary (midnight, a late ride) | Unit tests on the state selector, not just on the components; note the `mockClear` lesson from v0.36.1 |
-| One release means one deploy and no partial rollback | Per-slice commits; a bad surface is one revert |
-| Scope creep from ten surfaces into "while we're here" | Non-goals above; anything found gets a roadmap line, not a commit |
+| One release means one deploy and no partial rollback               | Per-slice commits; a bad surface is one revert                                                         |
+| Scope creep from ten surfaces into "while we're here"              | Non-goals above; anything found gets a roadmap line, not a commit                                      |
 
 ## What this unblocks
 
