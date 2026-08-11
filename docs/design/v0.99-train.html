@@ -1,0 +1,2240 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Recover — Train (v0.99 design reference)</title>
+    <style>
+      /* ==================================================================
+         DESIGN TOKENS — copied verbatim from src/app/globals.css
+         Commit 84280ae (2026-08-11). SOURCE OF TRUTH IS THAT FILE, NOT
+         THIS ONE. Re-copy these blocks if globals.css changes; do not
+         hand-edit the values below.
+         ================================================================== */
+      :root {
+        --surface-base: #f6f6f6;
+        --surface-raised: #ffffff;
+        --surface-overlay: #ffffff;
+        --ink-primary: #171717;
+        --ink-secondary: #4a4a4a;
+        --ink-muted: #6e6e6e;
+        --hairline: #8a8a8a;
+        --accent: #047857;
+        --chart-1: #2563eb;
+        --chart-2: #047857;
+        --chart-3: #b45309;
+        --chart-4: #6d28d9;
+        --chart-5: #b91c1c;
+
+        --text-label: 0.75rem; /* 12 — the floor. Nothing smaller exists. */
+        --text-caption: 0.875rem; /* 14 */
+        --text-body: 1rem; /* 16 */
+        --text-title: 1.25rem; /* 20 */
+        --text-heading: 1.5rem; /* 24 */
+        --text-figure: 1.875rem; /* 30 */
+        --text-hero: 2.75rem; /* 44 */
+      }
+      html.dark {
+        --surface-base: #0a0a0a;
+        --surface-raised: #161616;
+        --surface-overlay: #1f1f1f;
+        --ink-primary: #f5f5f5;
+        --ink-secondary: #b4b4b4;
+        --ink-muted: #8a8a8a;
+        --hairline: #6b6b6b;
+        --accent: #10b981;
+        --chart-1: #3b82f6;
+        --chart-2: #10b981;
+        --chart-3: #f59e0b;
+        --chart-4: #8b5cf6;
+        --chart-5: #ef4444;
+      }
+
+      /* ==================================================================
+         Presentation — this doc's own chrome, not shipped app CSS.
+         ================================================================== */
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        background: var(--surface-base);
+        color: var(--ink-primary);
+        font-family:
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          Inter,
+          Roboto,
+          sans-serif;
+        font-size: var(--text-body);
+        line-height: 1.45;
+        -webkit-font-smoothing: antialiased;
+      }
+      .mono {
+        font-family:
+          "SF Mono",
+          "Cascadia Code",
+          Consolas,
+          "Liberation Mono",
+          monospace;
+      }
+      a {
+        color: inherit;
+      }
+      code {
+        font-size: 0.94em;
+      }
+
+      .masthead {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 14px 24px;
+        background: var(--surface-overlay);
+        border-bottom: 1px solid var(--hairline);
+        flex-wrap: wrap;
+      }
+      .masthead h1 {
+        margin: 0;
+        font-size: var(--text-title);
+        font-weight: 800;
+        letter-spacing: -0.02em;
+      }
+      .masthead nav {
+        display: flex;
+        gap: 14px;
+        flex-wrap: wrap;
+        font-size: var(--text-caption);
+        font-weight: 600;
+        color: var(--ink-secondary);
+      }
+      .masthead nav a:hover {
+        color: var(--ink-primary);
+      }
+      .theme-toggle {
+        font: inherit;
+        font-size: var(--text-label);
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        cursor: pointer;
+        border: 1px solid var(--hairline);
+        background: var(--surface-raised);
+        color: var(--ink-primary);
+        border-radius: 999px;
+        padding: 8px 16px;
+      }
+      .theme-toggle:hover {
+        background: var(--surface-base);
+      }
+
+      .wrap {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 32px 24px 120px;
+      }
+
+      section.doc {
+        margin-bottom: 56px;
+      }
+      .doc h2 {
+        font-size: var(--text-heading);
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        margin: 0 0 8px;
+      }
+      .doc h3.sub {
+        font-size: var(--text-title);
+        font-weight: 800;
+        letter-spacing: -0.01em;
+        margin: 28px 0 10px;
+      }
+      .doc .lede {
+        font-size: var(--text-body);
+        color: var(--ink-secondary);
+        max-width: 78ch;
+        margin: 0 0 20px;
+      }
+      .card {
+        background: var(--surface-raised);
+        border: 1px solid var(--hairline);
+        border-radius: 18px;
+        padding: 24px;
+      }
+
+      /* ---- Type scale ladder (shared with Today) ---- */
+      .type-ladder {
+        display: flex;
+        flex-direction: column;
+      }
+      .type-row {
+        display: flex;
+        align-items: baseline;
+        gap: 20px;
+        padding: 16px 0;
+        border-bottom: 1px solid var(--hairline);
+      }
+      .type-row:last-child {
+        border-bottom: none;
+      }
+      .type-row .sample {
+        flex: 1;
+        min-width: 0;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .type-row .meta {
+        flex-shrink: 0;
+        text-align: right;
+        font-size: var(--text-label);
+        color: var(--ink-muted);
+      }
+      .type-row .meta .token {
+        display: block;
+        font-weight: 700;
+        color: var(--ink-secondary);
+      }
+
+      /* ---- Ink ramp (shared with Today) ---- */
+      .ink-ramp {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+        gap: 16px;
+      }
+      .ink-swatch {
+        border: 1px solid var(--hairline);
+        border-radius: 14px;
+        padding: 18px;
+        background: var(--surface-raised);
+      }
+      .ink-swatch .demo {
+        font-size: var(--text-title);
+        font-weight: 800;
+        margin: 0 0 10px;
+      }
+      .ink-swatch .name {
+        font-size: var(--text-label);
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--ink-muted);
+        margin: 0 0 4px;
+      }
+      .ink-swatch .ratio {
+        font-size: var(--text-caption);
+        color: var(--ink-secondary);
+      }
+      .ink-swatch .ratio b {
+        color: var(--ink-primary);
+      }
+      .hairline-demo {
+        border: 0;
+        border-top: 1px solid var(--hairline);
+        margin: 24px 0 12px;
+      }
+      .hairline-note {
+        font-size: var(--text-caption);
+        color: var(--ink-muted);
+      }
+
+      /* ---- Collision / measurement callouts ---- */
+      .measure-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 12px;
+        margin: 16px 0 4px;
+      }
+      .measure-tile {
+        border: 1px solid var(--hairline);
+        border-radius: 12px;
+        padding: 12px 14px;
+        background: var(--surface-overlay);
+      }
+      .measure-tile .n {
+        font-size: var(--text-heading);
+        font-weight: 800;
+        font-family:
+          "SF Mono",
+          "Cascadia Code",
+          Consolas,
+          monospace;
+        color: var(--chart-5);
+      }
+      .measure-tile .l {
+        font-size: var(--text-label);
+        color: var(--ink-secondary);
+        margin-top: 2px;
+      }
+
+      table.decisions {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: var(--text-caption);
+      }
+      table.decisions th {
+        text-align: left;
+        font-size: var(--text-label);
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--ink-muted);
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--hairline);
+      }
+      table.decisions td {
+        padding: 12px;
+        border-bottom: 1px solid var(--hairline);
+        color: var(--ink-secondary);
+        vertical-align: top;
+      }
+      table.decisions tr:last-child td {
+        border-bottom: none;
+      }
+      table.decisions td.what {
+        color: var(--ink-primary);
+        font-weight: 700;
+        width: 20%;
+      }
+      table.decisions td.tag {
+        width: 12%;
+      }
+      .tag-pill {
+        display: inline-block;
+        font-size: var(--text-label);
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        border-radius: 999px;
+        padding: 3px 10px;
+        border: 1px solid var(--hairline);
+        color: var(--ink-secondary);
+        white-space: nowrap;
+      }
+      .tag-pill.cut {
+        border-color: var(--chart-5);
+        color: var(--chart-5);
+      }
+      .tag-pill.stack {
+        border-color: var(--chart-1);
+        color: var(--chart-1);
+      }
+      .tag-pill.scroll {
+        border-color: var(--chart-4);
+        color: var(--chart-4);
+      }
+      .tag-pill.drillin {
+        border-color: var(--chart-3);
+        color: var(--chart-3);
+      }
+      .tag-pill.cannotfit {
+        background: var(--chart-5);
+        border-color: var(--chart-5);
+        color: #fff;
+      }
+      .table-scroll {
+        overflow-x: auto;
+      }
+
+      .flag-box {
+        border: 1px solid var(--hairline);
+        border-radius: 14px;
+        padding: 14px 16px;
+        margin-top: 16px;
+        font-size: var(--text-caption);
+        color: var(--ink-secondary);
+        background: var(--surface-overlay);
+      }
+      .flag-box b {
+        color: var(--ink-primary);
+      }
+
+      /* ---- Tab phone frame ---- */
+      .state-block {
+        margin-bottom: 56px;
+      }
+      .state-head {
+        display: flex;
+        align-items: baseline;
+        gap: 14px;
+        flex-wrap: wrap;
+        margin-bottom: 6px;
+      }
+      .state-head h3 {
+        font-size: var(--text-heading);
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        margin: 0;
+      }
+      .state-tag {
+        font-size: var(--text-label);
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--surface-raised);
+        background: var(--accent);
+        border-radius: 999px;
+        padding: 4px 12px;
+      }
+      .state-desc {
+        font-size: var(--text-body);
+        color: var(--ink-secondary);
+        max-width: 72ch;
+        margin: 0 0 22px;
+      }
+
+      .phone {
+        width: 412px;
+        max-width: 100%;
+        margin: 0 auto;
+        background: var(--surface-base);
+        border: 1px solid var(--hairline);
+        border-radius: 40px;
+        padding: 18px 16px 96px;
+        position: relative;
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.18);
+      }
+      .phone .status-time {
+        text-align: center;
+        font-size: var(--text-label);
+        font-weight: 700;
+        color: var(--ink-muted);
+        margin-bottom: 10px;
+      }
+
+      .train-header h1 {
+        font-size: var(--text-heading);
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        margin: 0;
+      }
+      .train-subtitle {
+        font-size: var(--text-caption);
+        color: var(--ink-secondary);
+        margin: 3px 0 0;
+      }
+      .readiness-chip {
+        font-size: var(--text-label);
+        font-weight: 700;
+        border-radius: 999px;
+        padding: 5px 12px;
+        border: 1px solid;
+        white-space: nowrap;
+      }
+      .header-row {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 14px;
+      }
+
+      .tab-bar {
+        display: flex;
+        gap: 4px;
+        background: var(--surface-raised);
+        border: 1px solid var(--hairline);
+        border-radius: 999px;
+        padding: 4px;
+        margin-bottom: 16px;
+      }
+      .tab-bar .t {
+        flex: 1;
+        text-align: center;
+        font-size: var(--text-label);
+        font-weight: 700;
+        padding: 8px 4px;
+        border-radius: 999px;
+        color: var(--ink-muted);
+      }
+      .tab-bar .t.active {
+        background: var(--accent);
+        color: #fff;
+      }
+
+      .control-pill {
+        font-size: var(--text-label);
+        font-weight: 700;
+        border: 1px solid var(--hairline);
+        border-radius: 999px;
+        padding: 6px 12px;
+        color: var(--ink-secondary);
+      }
+      .control-row {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 4px;
+      }
+      .control-note {
+        font-size: var(--text-label);
+        color: var(--ink-muted);
+        margin: 6px 0 14px;
+      }
+
+      .week-strip {
+        display: flex;
+        justify-content: space-between;
+        background: var(--surface-raised);
+        border: 1px solid var(--hairline);
+        border-radius: 999px;
+        padding: 12px 16px;
+        margin-bottom: 14px;
+      }
+      .week-strip .d {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+      }
+      .week-strip .d .day {
+        font-size: var(--text-label);
+        font-weight: 700;
+        color: var(--ink-muted);
+      }
+      .week-strip .d .pip {
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+      }
+
+      .day-list {
+        background: var(--surface-raised);
+        border: 1px solid var(--hairline);
+        border-radius: 18px;
+        overflow: hidden;
+        margin-bottom: 14px;
+      }
+      .day-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 14px;
+        border-bottom: 1px solid var(--hairline);
+      }
+      .day-row:last-child {
+        border-bottom: none;
+      }
+      .day-row.today {
+        background: var(--surface-overlay);
+      }
+      .day-row .wd {
+        width: 34px;
+        flex-shrink: 0;
+        font-size: var(--text-label);
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--ink-muted);
+        padding-top: 2px;
+      }
+      .day-row.today .wd {
+        color: var(--ink-primary);
+      }
+      .day-row .status-dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 999px;
+        flex-shrink: 0;
+        margin-top: 5px;
+      }
+      .day-row .main {
+        flex: 1;
+        min-width: 0;
+      }
+      .day-row .workout {
+        font-size: var(--text-body);
+        font-weight: 700;
+        color: var(--ink-primary);
+      }
+      .day-row.today .workout {
+        font-weight: 800;
+      }
+      .day-row .workout .intensity {
+        font-weight: 500;
+        color: var(--ink-muted);
+        font-size: var(--text-caption);
+      }
+      .day-row .sub {
+        font-size: var(--text-label);
+        color: var(--ink-muted);
+        margin-top: 3px;
+      }
+      .day-row .sub.credit {
+        color: var(--chart-2);
+      }
+      .day-row .sub.moved {
+        color: var(--chart-3);
+      }
+      .day-row .provisional-mark {
+        font-size: var(--text-label);
+        color: var(--ink-muted);
+      }
+      .next-week-divider {
+        text-align: center;
+        font-size: var(--text-label);
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        color: var(--ink-muted);
+        padding: 10px;
+        border-bottom: 1px solid var(--hairline);
+        background: var(--surface-overlay);
+      }
+      .next-week-summary {
+        padding: 14px;
+        font-size: var(--text-caption);
+        color: var(--ink-secondary);
+      }
+      .next-week-summary .expand {
+        display: block;
+        margin-top: 6px;
+        font-size: var(--text-label);
+        font-weight: 700;
+        color: var(--accent);
+      }
+      .day-actions-row {
+        display: flex;
+        gap: 6px;
+        margin-top: 10px;
+        flex-wrap: wrap;
+      }
+      .day-actions-row .action-pill {
+        font-size: var(--text-label);
+        font-weight: 700;
+        border: 1px solid var(--hairline);
+        border-radius: 999px;
+        padding: 5px 11px;
+        color: var(--ink-secondary);
+      }
+      .day-actions-row .action-pill.primary {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+      }
+
+      .block {
+        background: var(--surface-raised);
+        border: 1px solid var(--hairline);
+        border-radius: 18px;
+        padding: 16px;
+        margin-bottom: 14px;
+      }
+      .source {
+        font-size: var(--text-label);
+        color: var(--ink-muted);
+        margin: -6px 0 12px;
+        font-family:
+          "SF Mono",
+          "Cascadia Code",
+          Consolas,
+          monospace;
+      }
+      .eyebrow {
+        font-size: var(--text-label);
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--ink-muted);
+        margin: 0 0 8px;
+      }
+      .prose {
+        font-size: var(--text-caption);
+        color: var(--ink-secondary);
+        line-height: 1.6;
+        margin: 0 0 8px;
+      }
+      .verdict {
+        font-size: var(--text-title);
+        font-weight: 800;
+        margin: 0 0 8px;
+      }
+      .collapsible-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: var(--text-label);
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--ink-secondary);
+      }
+
+      .adj-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 10px 0;
+        border-bottom: 1px solid var(--hairline);
+        font-size: var(--text-caption);
+      }
+      .adj-row:last-child {
+        border-bottom: none;
+      }
+      .adj-row .when {
+        flex-shrink: 0;
+        font-size: var(--text-label);
+        color: var(--ink-muted);
+      }
+
+      .skeleton-table-wrap {
+        overflow-x: auto;
+        margin-top: 8px;
+      }
+      table.skeleton {
+        width: 100%;
+        min-width: 320px;
+        border-collapse: collapse;
+        font-size: var(--text-caption);
+      }
+      table.skeleton th {
+        text-align: left;
+        font-size: var(--text-label);
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--ink-muted);
+        padding: 8px 10px;
+        border-bottom: 1px solid var(--hairline);
+        white-space: nowrap;
+      }
+      table.skeleton td {
+        padding: 8px 10px;
+        border-top: 1px solid var(--hairline);
+        font-family:
+          "SF Mono",
+          "Cascadia Code",
+          Consolas,
+          monospace;
+        color: var(--ink-secondary);
+      }
+
+      .stat-strip {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 12px;
+        background: var(--surface-raised);
+        border: 1px solid var(--hairline);
+        border-radius: 14px;
+        padding: 12px 16px;
+        margin-bottom: 14px;
+        font-size: var(--text-caption);
+      }
+      .stat-strip .scope {
+        color: var(--ink-muted);
+      }
+      .stat-strip .stat b {
+        font-family:
+          "SF Mono",
+          "Cascadia Code",
+          Consolas,
+          monospace;
+        color: var(--ink-primary);
+        font-weight: 800;
+      }
+      .stat-strip .stat span.unit {
+        color: var(--ink-muted);
+        margin-left: 3px;
+      }
+
+      .pill-row {
+        display: flex;
+        gap: 6px;
+        overflow-x: auto;
+        margin-bottom: 12px;
+        padding-bottom: 2px;
+      }
+      .filter-pill {
+        flex-shrink: 0;
+        font-size: var(--text-label);
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        border-radius: 999px;
+        padding: 7px 14px;
+        white-space: nowrap;
+        color: var(--ink-secondary);
+        background: var(--surface-raised);
+        border: 1px solid var(--hairline);
+      }
+      .filter-pill.active {
+        background: var(--ink-primary);
+        color: var(--surface-base);
+        border-color: var(--ink-primary);
+      }
+
+      .day-group {
+        margin-bottom: 16px;
+      }
+      .day-group h4 {
+        font-size: var(--text-label);
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--ink-muted);
+        margin: 0 0 8px 2px;
+      }
+      .history-list {
+        background: var(--surface-raised);
+        border: 1px solid var(--hairline);
+        border-radius: 18px;
+        overflow: hidden;
+      }
+      .history-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 13px 14px;
+        border-bottom: 1px solid var(--hairline);
+        min-height: 64px;
+      }
+      .history-row:last-child {
+        border-bottom: none;
+      }
+      .history-row .rail {
+        width: 8px;
+        height: 30px;
+        border-radius: 999px;
+        flex-shrink: 0;
+      }
+      .history-row .main {
+        flex: 1;
+        min-width: 0;
+      }
+      .history-row .name {
+        font-size: var(--text-caption);
+        font-weight: 700;
+        color: var(--ink-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .history-row .subline {
+        font-size: var(--text-label);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        color: var(--ink-muted);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        margin-top: 2px;
+      }
+      .history-row .metrics {
+        flex-shrink: 0;
+        font-size: var(--text-label);
+        color: var(--ink-secondary);
+        font-family:
+          "SF Mono",
+          "Cascadia Code",
+          Consolas,
+          monospace;
+        text-align: right;
+      }
+
+      /* ---- Season timeline (the "cannot fit" case) ---- */
+      .season-chart {
+        background: var(--surface-raised);
+        border: 1px solid var(--hairline);
+        border-radius: 18px;
+        padding: 16px;
+      }
+      .season-bars {
+        display: flex;
+        align-items: flex-end;
+        gap: 4px;
+        height: 100px;
+        overflow-x: auto;
+        padding-bottom: 2px;
+      }
+      .season-col {
+        width: 28px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: flex-end;
+        gap: 2px;
+        height: 100%;
+        background: var(--surface-overlay);
+        border-radius: 6px;
+        padding: 3px;
+      }
+      .season-col .bar {
+        width: 45%;
+        border-radius: 3px;
+      }
+      .season-col .bar.target {
+        background: var(--hairline);
+        opacity: 0.5;
+      }
+      .season-col .bar.actual {
+        background: var(--chart-2);
+      }
+      .season-col.selected {
+        outline: 2px solid var(--chart-1);
+        outline-offset: 1px;
+      }
+      .season-axis {
+        display: flex;
+        gap: 4px;
+        margin-top: 6px;
+      }
+      .season-axis .tick {
+        width: 28px;
+        flex-shrink: 0;
+        text-align: center;
+        font-size: var(--text-label);
+        color: var(--ink-muted);
+      }
+      .season-detail {
+        margin-top: 14px;
+        padding-top: 12px;
+        border-top: 1px solid var(--hairline);
+        font-size: var(--text-caption);
+        color: var(--ink-secondary);
+      }
+      .season-detail b {
+        color: var(--ink-primary);
+        font-family:
+          "SF Mono",
+          "Cascadia Code",
+          Consolas,
+          monospace;
+      }
+      .season-hint {
+        font-size: var(--text-label);
+        color: var(--ink-muted);
+        margin-top: 8px;
+      }
+
+      .tiles-3 {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        margin-bottom: 14px;
+      }
+      .tile {
+        background: var(--surface-raised);
+        border: 1px solid var(--hairline);
+        border-radius: 14px;
+        padding: 12px;
+      }
+      .tile .l {
+        font-size: var(--text-label);
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--ink-muted);
+      }
+      .tile .v {
+        font-size: var(--text-figure);
+        font-weight: 800;
+        font-family:
+          "SF Mono",
+          "Cascadia Code",
+          Consolas,
+          monospace;
+        margin-top: 2px;
+      }
+      .tile .ctx {
+        font-size: var(--text-label);
+        margin-top: 4px;
+      }
+
+      .pmc-card {
+        background: var(--surface-raised);
+        border: 1px solid var(--hairline);
+        border-radius: 18px;
+        padding: 16px;
+        margin-bottom: 14px;
+      }
+      .pmc-legend {
+        display: flex;
+        gap: 16px;
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid var(--hairline);
+      }
+      .pmc-legend .li {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: var(--text-label);
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--ink-secondary);
+      }
+      .pmc-legend .sw {
+        width: 14px;
+        height: 3px;
+        border-radius: 2px;
+      }
+
+      .load-bars-card {
+        background: var(--surface-raised);
+        border: 1px solid var(--hairline);
+        border-radius: 18px;
+        padding: 16px;
+        margin-bottom: 14px;
+      }
+      .load-bars {
+        display: flex;
+        align-items: flex-end;
+        gap: 5px;
+        height: 70px;
+        margin-top: 12px;
+      }
+      .load-bars .b {
+        flex: 1;
+        background: var(--chart-2);
+        border-radius: 3px 3px 0 0;
+        opacity: 0.75;
+      }
+
+      .fitness-stats {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+      }
+      .fitness-stats .fs {
+        display: flex;
+        flex-direction: column;
+      }
+      .fitness-stats .l {
+        font-size: var(--text-label);
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--ink-muted);
+      }
+      .fitness-stats .v {
+        font-size: var(--text-caption);
+        font-weight: 800;
+        margin-top: 2px;
+      }
+
+      .bottom-nav {
+        position: absolute;
+        left: 16px;
+        right: 16px;
+        bottom: 18px;
+        background: var(--surface-overlay);
+        border: 1px solid var(--hairline);
+        border-radius: 999px;
+        display: flex;
+        justify-content: space-between;
+        padding: 10px 14px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+      }
+      .bottom-nav .item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 3px;
+        color: var(--ink-muted);
+        min-width: 44px;
+      }
+      .bottom-nav .item.active {
+        color: var(--ink-primary);
+      }
+      .bottom-nav .item .ic {
+        font-size: 18px;
+        line-height: 1;
+      }
+      .bottom-nav .item .lbl {
+        font-size: var(--text-label);
+        font-weight: 700;
+      }
+
+      footer.doc-footer {
+        border-top: 1px solid var(--hairline);
+        margin-top: 40px;
+        padding-top: 20px;
+        font-size: var(--text-caption);
+        color: var(--ink-muted);
+      }
+
+      @media (max-width: 600px) {
+        .fitness-stats {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="masthead">
+      <h1>Recover — Train, at the floor</h1>
+      <nav>
+        <a href="#tokens">Tokens</a>
+        <a href="#collision">The collision</a>
+        <a href="#week">Week</a>
+        <a href="#history">History</a>
+        <a href="#season">Season</a>
+        <a href="#fitness">Fitness</a>
+      </nav>
+      <button class="theme-toggle" id="theme-toggle" type="button">
+        Switch to dark
+      </button>
+    </div>
+
+    <div class="wrap">
+      <section class="doc" id="intro">
+        <h2>v0.99 design reference — Train (largest surface)</h2>
+        <p class="lede">
+          Slice 0, Task 8. Train is 1,537 lines of
+          <code class="mono">src/app/train/page.tsx</code>, four tabs (Week,
+          History, Season, Fitness), and the densest surface in the app.
+          <b>This is the mockup that matters:</b> the 12px floor does not fit
+          Train's current content as shipped. This file shows what actually
+          gets cut, stacked, truncated or moved to a drill-in to make it fit
+          — and says plainly where nothing survives without restructuring.
+        </p>
+      </section>
+
+      <section class="doc" id="tokens">
+        <h2>Type scale — seven steps, 12px floor</h2>
+        <div class="card">
+          <div class="type-ladder">
+            <div class="type-row">
+              <span class="sample" style="font-size: var(--text-hero)"
+                >Aa 62</span
+              >
+              <span class="meta"
+                ><span class="token">--text-hero</span>2.75rem / 44px</span
+              >
+            </div>
+            <div class="type-row">
+              <span class="sample" style="font-size: var(--text-figure)"
+                >Aa 62</span
+              >
+              <span class="meta"
+                ><span class="token">--text-figure</span>1.875rem / 30px</span
+              >
+            </div>
+            <div class="type-row">
+              <span class="sample" style="font-size: var(--text-heading)"
+                >Train</span
+              >
+              <span class="meta"
+                ><span class="token">--text-heading</span>1.5rem / 24px</span
+              >
+            </div>
+            <div class="type-row">
+              <span class="sample" style="font-size: var(--text-title)"
+                >Endurance Spin · 90 min</span
+              >
+              <span class="meta"
+                ><span class="token">--text-title</span>1.25rem / 20px</span
+              >
+            </div>
+            <div class="type-row">
+              <span class="sample" style="font-size: var(--text-body)"
+                >Asks about 15h a week, and a longest ride of 4.2h.</span
+              >
+              <span class="meta"
+                ><span class="token">--text-body</span>1rem / 16px</span
+              >
+            </div>
+            <div class="type-row">
+              <span class="sample" style="font-size: var(--text-caption)"
+                >Base build · week 6 of 16</span
+              >
+              <span class="meta"
+                ><span class="token">--text-caption</span>0.875rem /
+                14px</span
+              >
+            </div>
+            <div class="type-row">
+              <span class="sample" style="font-size: var(--text-label)"
+                >TARGET LOAD</span
+              >
+              <span class="meta"
+                ><span class="token">--text-label</span>0.75rem / 12px — the
+                floor</span
+              >
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="doc" id="ink">
+        <h2>Ink ramp — four steps, measured contrast</h2>
+        <p class="lede">
+          Ratios are computed against each token's worst-case surface pairing
+          in each theme, the same methodology
+          <code class="mono">tests/contrast-guard.test.ts</code> enforces.
+        </p>
+        <div class="card">
+          <div class="ink-ramp">
+            <div class="ink-swatch">
+              <p class="demo" style="color: var(--ink-primary)">
+                Ink primary
+              </p>
+              <p class="name">--ink-primary</p>
+              <p class="ratio">
+                Light <b>16.6:1</b> on base · Dark <b>15.1:1</b> on overlay
+              </p>
+            </div>
+            <div class="ink-swatch">
+              <p class="demo" style="color: var(--ink-secondary)">
+                Ink secondary
+              </p>
+              <p class="name">--ink-secondary</p>
+              <p class="ratio">
+                Light <b>8.2:1</b> on base · Dark <b>7.9:1</b> on overlay
+              </p>
+            </div>
+            <div class="ink-swatch">
+              <p class="demo" style="color: var(--ink-muted)">Ink muted</p>
+              <p class="name">--ink-muted — text floor</p>
+              <p class="ratio">
+                Light <b>4.72:1</b> on base · Dark <b>4.77:1</b> on overlay
+              </p>
+            </div>
+            <div class="ink-swatch">
+              <p class="demo" style="color: var(--hairline)">Hairline</p>
+              <p class="name">--hairline — never on text</p>
+              <p class="ratio">
+                Light <b>3.19:1</b> on base · Dark <b>3.09:1</b> on base
+              </p>
+            </div>
+          </div>
+          <hr class="hairline-demo" />
+          <p class="hairline-note">
+            Every divider in the rebuilt Week/History/Season/Fitness tabs
+            below is drawn with <code class="mono">--hairline</code>. No
+            status word, timestamp or caption uses it — those are all
+            <code class="mono">--ink-muted</code> or brighter.
+          </p>
+        </div>
+      </section>
+
+      <!-- ========================= THE COLLISION ========================= -->
+      <section class="doc" id="collision">
+        <h2>The collision, measured</h2>
+        <p class="lede">
+          Train's current type ranges from 8px to 22px across
+          <code class="mono">src/app/train/page.tsx</code> and
+          <code class="mono">src/components/train/*</code> +
+          <code class="mono">src/components/week/*</code>. A fresh grep
+          against this checkout, for this task:
+        </p>
+        <div class="measure-grid">
+          <div class="measure-tile">
+            <div class="n">135</div>
+            <div class="l">arbitrary <code class="mono">text-[Npx]</code> call sites under 13px</div>
+          </div>
+          <div class="measure-tile">
+            <div class="n">8px</div>
+            <div class="l">smallest literal size found (Season timeline's per-bar session count)</div>
+          </div>
+          <div class="measure-tile">
+            <div class="n">261</div>
+            <div class="l">ad-hoc <code class="mono">*-white/[alpha]</code> colour utilities (ink done as opacity, not tokens)</div>
+          </div>
+          <div class="measure-tile">
+            <div class="n">4</div>
+            <div class="l">tabs sharing one 1,537-line page component</div>
+          </div>
+        </div>
+        <p class="lede" style="margin-top: 16px">
+          Most of that type promotes to the floor for free — short pills and
+          single words just get a few more pixels of padding. Four spots
+          genuinely collide with the floor because they pack fixed-width or
+          fixed-height containers with as much text as the current tiny sizes
+          allowed. Below is the full decision list; the four hardest ones —
+          the week day row, the history row, the season timeline, and the
+          fitness tiles — get their own worked examples afterward.
+        </p>
+
+        <h3 class="sub">Every editorial decision</h3>
+        <div class="table-scroll">
+          <table class="decisions">
+            <thead>
+              <tr>
+                <th>What</th>
+                <th>Collides because</th>
+                <th>Resolution</th>
+                <th>Kind</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="what">Week day row — status pill</td>
+                <td>
+                  A spelled-out uppercase pill ("completed" / "planned" /
+                  "missed" / "race", 9px today) needs ~90–110px at 12px bold
+                  tracked type — on a 380px row that also carries a weekday
+                  label and the workout text, two such pills (status +
+                  next-week's provisional badge) can exceed the row's width.
+                </td>
+                <td>
+                  Drop the spelled-out pill. Reuse the colour-dot convention
+                  <code class="mono">week-strip.tsx</code> already uses for
+                  this exact vocabulary — dot + <code class="mono">sr-only</code>
+                  text — instead of re-spelling status as a text pill.
+                </td>
+                <td><span class="tag-pill cut">Cut</span></td>
+              </tr>
+              <tr>
+                <td class="what">Week day row — height</td>
+                <td>
+                  Weekday label, workout line and 1–2 sub-lines all need real
+                  line-height at 12–16px; the current row has no fixed height
+                  but was tuned for 9–12.5px content.
+                </td>
+                <td>
+                  Let the row grow (≈48px → ≈60–64px). Disclosed cost: a
+                  7-day week runs ~90px taller; the rolling next-week preview
+                  is what actually gets cut back (see below), which mostly
+                  offsets it.
+                </td>
+                <td><span class="tag-pill stack">Stack</span></td>
+              </tr>
+              <tr>
+                <td class="what">Next-week preview — per-day rows</td>
+                <td>
+                  Showing 7 more full rows (each provisional, each carrying
+                  its own "provisional"/"pinned" badge) roughly doubles the
+                  single most-visited tab's scroll length for data that is a
+                  forecast, not a commitment.
+                </td>
+                <td>
+                  Collapse to one summary row ("3 sessions planned, 2 open ·
+                  6.5h of 9h target") that expands into the full per-day list
+                  on demand. Committed (this week) data stays fully expanded;
+                  provisional data is the right thing to demote.
+                </td>
+                <td><span class="tag-pill drillin">Drill-in</span></td>
+              </tr>
+              <tr>
+                <td class="what">History row — fixed height</td>
+                <td>
+                  The row is a hardcoded 56px (<code class="mono">h-14</code>)
+                  tuned for a 12.5px name + 9.5px subline. Two lines of
+                  12–14px text plus padding need more than 56px, so the fixed
+                  height either clips or forces vertical-centering to fight
+                  the text.
+                </td>
+                <td>
+                  Drop the fixed height in favour of a minimum height; the row
+                  sizes to its two lines of content (≈64–68px). No text or
+                  data is removed.
+                </td>
+                <td><span class="tag-pill stack">Stack</span></td>
+              </tr>
+              <tr>
+                <td class="what">History row — name / subline</td>
+                <td>
+                  <code class="mono">truncate</code> was already doing real
+                  work at 12.5px; at 14–16px the same pixel width holds fewer
+                  characters before the ellipsis.
+                </td>
+                <td>
+                  Keep truncation as-is — it is the correct, existing
+                  behaviour. Disclosed cost: long activity names truncate a
+                  little sooner on narrow phones.
+                </td>
+                <td><span class="tag-pill stack">Stack</span></td>
+              </tr>
+              <tr>
+                <td class="what">History — sport filter / view tabs</td>
+                <td>Pills grow ~20–30% wider at the floor.</td>
+                <td>
+                  No cut needed — the row already scrolls horizontally
+                  (<code class="mono">overflow-x-auto</code> is in the
+                  source). Token promotion only.
+                </td>
+                <td><span class="tag-pill scroll">Already scrolls</span></td>
+              </tr>
+              <tr>
+                <td class="what">Season timeline — per-bar labels</td>
+                <td>
+                  12 weekly columns, each with its own week label (9px) and
+                  session-count label (8px, the smallest text on the surface)
+                  stacked underneath. 12 independent 12px labels need roughly
+                  500–540px of width — more than a phone viewport has, full
+                  stop.
+                </td>
+                <td>
+                  <b>Cannot fit as shipped.</b> Restructured: no per-bar
+                  labels; an axis tick only every 3rd week; a single "selected
+                  week" detail line below the chart replaces 24 always-on
+                  micro-labels with one always-legible readout. See the worked
+                  example below.
+                </td>
+                <td><span class="tag-pill cannotfit">Cannot fit</span></td>
+              </tr>
+              <tr>
+                <td class="what">Season timeline — bar strip width</td>
+                <td>
+                  Even without labels, 12 columns at a legible minimum bar
+                  width (~28–34px) plus gaps can exceed a narrow phone's
+                  viewport.
+                </td>
+                <td>
+                  The strip scrolls horizontally rather than compressing bar
+                  width below a legible minimum — same pattern as History's
+                  filter row.
+                </td>
+                <td><span class="tag-pill scroll">Scroll</span></td>
+              </tr>
+              <tr>
+                <td class="what">Fitness tiles — label</td>
+                <td>
+                  "Fitness · CTL" (13 characters) at 8.5px fits a ~110px tile
+                  column; the same string at 12px bold tracked type is as wide
+                  as the tile itself.
+                </td>
+                <td>
+                  Drop the redundant category word. Show "CTL" / "ATL" / "TSB"
+                  only — which is already exactly how
+                  <code class="mono">pmc-chart.tsx</code>'s own inline legend
+                  labels these three values one panel below. The full name
+                  moves to an <code class="mono">sr-only</code> label; the
+                  chart's shared legend states it once instead of three times.
+                </td>
+                <td><span class="tag-pill cut">Cut</span></td>
+              </tr>
+              <tr>
+                <td class="what">Remaining-skeleton table</td>
+                <td>
+                  Week / Phase / Target load at 9–11px fits a phone; "Target
+                  load" as a header word at 12px tracked uppercase, plus three
+                  columns' padding, can exceed 380px on the narrowest phones.
+                </td>
+                <td>
+                  The table gets its own horizontal-scroll container rather
+                  than shrinking columns below the floor. It stays a real
+                  table — the content (short numbers, one word) survives fine
+                  at 12–14px; only the container needs to scroll on the
+                  narrowest screens.
+                </td>
+                <td><span class="tag-pill scroll">Scroll</span></td>
+              </tr>
+              <tr>
+                <td class="what">Bottom nav labels</td>
+                <td>
+                  Shipped at 8px (<code class="mono">text-[8px]</code> in
+                  <code class="mono">bottom-nav.tsx</code>) — the same fix
+                  Today needed.
+                </td>
+                <td>Promoted to <code class="mono">--text-label</code> (12px). Icons keep their size; labels get more room beneath them.</td>
+                <td><span class="tag-pill stack">Promote</span></td>
+              </tr>
+              <tr>
+                <td class="what">
+                  <code class="mono">.label-micro</code> global class
+                </td>
+                <td>
+                  A shared CSS class in <code class="mono">globals.css</code>
+                  hardcodes <code class="mono">font-size: 10px</code>. It
+                  backs several Train captions ("Why this week", "Last N
+                  weeks", form field labels) that this mockup promotes
+                  visually — but the class itself lives in
+                  <code class="mono">src/</code>, which this task does not
+                  touch.
+                </td>
+                <td>
+                  Flagged, not fixed here. Whoever implements the slice that
+                  first touches a
+                  <code class="mono">.label-micro</code> call site should
+                  retarget it to <code class="mono">--text-label</code> rather
+                  than leave a second, uncoordinated 10px floor in the
+                  codebase.
+                </td>
+                <td><span class="tag-pill scroll">Flagged</span></td>
+              </tr>
+              <tr>
+                <td class="what">~261 ad-hoc opacity colours</td>
+                <td>
+                  Ink done as <code class="mono">white/NN</code> alpha
+                  utilities rather than tokens — the exact class of low-
+                  contrast value the axe baseline (Task 7) measured across the
+                  app.
+                </td>
+                <td>
+                  Replaced by the 3-step ink ramp for every prose/label role,
+                  and <code class="mono">--hairline</code> for
+                  dividers/borders only. Status colour (emerald/amber/red/
+                  violet) stays as accent, now sourced from the shipped
+                  <code class="mono">--chart-*</code> tokens.
+                </td>
+                <td><span class="tag-pill cut">Cut</span></td>
+              </tr>
+              <tr>
+                <td class="what">Race-day fuchsia</td>
+                <td>
+                  Race rows use a literal
+                  <code class="mono">text-fuchsia-300</code> — no fuchsia
+                  token exists in <code class="mono">globals.css</code>.
+                </td>
+                <td>
+                  This mockup substitutes the nearest shipped token
+                  (<code class="mono">--chart-4</code>, violet). If slice 2
+                  wants race day visually distinct from every other build/
+                  taper state, it needs its own token — not fixed here.
+                </td>
+                <td><span class="tag-pill scroll">Flagged</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="flag-box">
+          <b>Colour, not just size.</b> This task's brief is the type floor,
+          but the two are entangled: most of Train's ~261 opacity utilities
+          <em>are</em> the sub-12px captions above, so fixing size and fixing
+          contrast happen in the same edit at almost every call site. Chart
+          accent colours (<code class="mono">--chart-1..5</code>) were spot-
+          checked against <code class="mono">--surface-base</code> and
+          <code class="mono">--surface-raised</code> (4.4–9.2:1 in both
+          themes) but two of the five dip to 3.9–4.4:1 against
+          <code class="mono">--surface-overlay</code> in dark mode — avoided
+          in this mockup for small text on that surface, not solved as a
+          general rule. A full semantic-colour audit is out of scope here.
+        </div>
+      </section>
+
+      <!-- ============================== WEEK ============================== -->
+      <section class="state-block" id="week">
+        <div class="state-head">
+          <h3>Week</h3>
+          <span class="state-tag">The hardest row on the busiest tab</span>
+        </div>
+        <p class="state-desc">
+          Same blocks as today's Week tab, same figures, rebuilt at the floor.
+          The rolling day list is the row that had to change structurally —
+          see the decision table above for why.
+        </p>
+
+        <div class="phone">
+          <div class="status-time">Train</div>
+          <div class="train-header">
+            <div class="header-row">
+              <div>
+                <h1>Train</h1>
+                <p class="train-subtitle">
+                  Alpine Base Build · week 6 of 16 · build phase
+                </p>
+              </div>
+              <span
+                class="readiness-chip"
+                style="border-color: var(--chart-2); color: var(--chart-2)"
+                >78 · green</span
+              >
+            </div>
+          </div>
+
+          <div class="control-row">
+            <span class="control-pill">Style: Structured</span>
+            <span class="control-pill">Season: In season</span>
+          </div>
+          <p class="control-note">
+            Applies from next week — this week is already planned.
+          </p>
+
+          <div class="tab-bar">
+            <span class="t active">Week</span>
+            <span class="t">History</span>
+            <span class="t">Season</span>
+            <span class="t">Fitness</span>
+          </div>
+
+          <div class="week-strip">
+            <div class="d">
+              <span class="day">Mo</span
+              ><span class="pip" style="background: var(--chart-2)"></span>
+            </div>
+            <div class="d">
+              <span class="day">Tu</span
+              ><span class="pip" style="background: var(--chart-2)"></span>
+            </div>
+            <div class="d">
+              <span class="day">We</span
+              ><span class="pip" style="background: var(--chart-3)"></span>
+            </div>
+            <div class="d">
+              <span class="day">Th</span
+              ><span
+                class="pip"
+                style="
+                  background: var(--ink-muted);
+                  box-shadow: 0 0 0 2px var(--hairline);
+                "
+              ></span>
+            </div>
+            <div class="d">
+              <span class="day">Fr</span
+              ><span
+                class="pip"
+                style="background: var(--hairline); opacity: 0.4"
+              ></span>
+            </div>
+            <div class="d">
+              <span class="day">Sa</span
+              ><span
+                class="pip"
+                style="background: var(--ink-muted); opacity: 0.5"
+              ></span>
+            </div>
+            <div class="d">
+              <span class="day">Su</span><span style="font-size: 12px">🏁</span>
+            </div>
+          </div>
+
+          <p class="source">source: week-day-list.tsx — redesigned row</p>
+          <div class="day-list">
+            <div class="day-row">
+              <span class="wd">Mon</span>
+              <span
+                class="status-dot"
+                style="background: var(--chart-2)"
+                title="Completed"
+              ></span>
+              <div class="main">
+                <p class="workout">
+                  Sweet Spot 3×15min
+                  <span class="intensity">Threshold</span>
+                </p>
+              </div>
+            </div>
+            <div class="day-row">
+              <span class="wd">Tue</span>
+              <span
+                class="status-dot"
+                style="background: var(--chart-2)"
+                title="Completed"
+              ></span>
+              <div class="main">
+                <p class="workout">
+                  Endurance Spin 90min
+                  <span class="intensity">Zone 2</span>
+                </p>
+                <p class="sub credit">✓ 1 session · 1:32 · 78 load</p>
+              </div>
+            </div>
+            <div class="day-row">
+              <span class="wd">Wed</span>
+              <span
+                class="status-dot"
+                style="background: var(--chart-3)"
+                title="Adapted"
+              ></span>
+              <div class="main">
+                <p class="workout">
+                  Recovery Spin 45min
+                  <span class="intensity">Zone 1</span>
+                </p>
+                <p class="sub moved">shortened after Tuesday's long ride</p>
+              </div>
+            </div>
+            <div class="day-row today">
+              <span class="wd">Thu</span>
+              <span
+                class="status-dot"
+                style="background: var(--ink-muted)"
+                title="Planned"
+              ></span>
+              <div class="main">
+                <p class="workout">
+                  Threshold 4×8min
+                  <span class="intensity">High</span>
+                </p>
+                <div class="day-actions-row">
+                  <span class="action-pill primary">Mark done</span>
+                  <span class="action-pill">Move</span>
+                  <span class="action-pill">Swap</span>
+                  <span class="action-pill">Skip</span>
+                </div>
+              </div>
+            </div>
+            <div class="day-row">
+              <span class="wd">Fri</span>
+              <span
+                class="status-dot"
+                style="background: var(--hairline)"
+                title="Rest"
+              ></span>
+              <div class="main">
+                <p class="workout" style="font-weight: 500; color: var(--ink-muted)">
+                  Rest <span class="intensity">90 min free</span>
+                </p>
+              </div>
+            </div>
+            <div class="day-row">
+              <span class="wd">Sat</span>
+              <span
+                class="status-dot"
+                style="background: var(--ink-muted)"
+                title="Planned"
+              ></span>
+              <div class="main">
+                <p class="workout">
+                  Long Ride 3h30
+                  <span class="intensity">Zone 2</span>
+                </p>
+              </div>
+            </div>
+            <div class="day-row">
+              <span class="wd">Sun</span>
+              <span
+                class="status-dot"
+                style="background: var(--chart-4)"
+                title="Race day"
+              ></span>
+              <div class="main">
+                <p class="workout" style="color: var(--chart-4)">
+                  🏁 Gran Fondo Alpe
+                </p>
+              </div>
+            </div>
+
+            <div class="next-week-divider">Next week</div>
+            <div class="next-week-summary">
+              <span class="provisional-mark">~</span> 3 sessions planned, 2
+              open · 6.5h of 9h target
+              <a class="expand" href="#">Show all 7 days (provisional) →</a>
+            </div>
+          </div>
+
+          <p class="source">
+            source: week-rationale.tsx + event-readiness.tsx
+          </p>
+          <div class="block">
+            <p class="eyebrow" style="margin-bottom: 6px">Why this week</p>
+            <p class="prose">
+              5.8h planned against a 9h target. Gran Fondo Alpe asks about 15h
+              a week; your calendar offers 9h — enough to ride it, not race
+              it.
+            </p>
+          </div>
+          <div class="block">
+            <p class="eyebrow" style="margin-bottom: 6px">Gran Fondo Alpe</p>
+            <p class="verdict" style="color: var(--chart-3)">
+              Tight. One missed week and it slips.
+            </p>
+            <p class="prose">
+              Asks about 15h a week, and a longest ride of about 4.2h. 3 weeks
+              to go.
+            </p>
+          </div>
+
+          <div class="block">
+            <div class="collapsible-head">
+              <span>What changed &amp; why · 2</span>
+              <span>⌄</span>
+            </div>
+            <div style="margin-top: 10px">
+              <div class="adj-row">
+                <span
+                  >↻ Wednesday shortened to 45min — Tuesday ran long
+                  (1:32 vs 1:30 planned)</span
+                >
+                <span class="when">Aug 11, 06:02</span>
+              </div>
+              <div class="adj-row">
+                <span
+                  >↻ Week target trimmed to 9h — calendar offered less than
+                  the race asks</span
+                >
+                <span class="when">Aug 10, 22:14</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="block">
+            <div class="collapsible-head">
+              <span>Remaining skeleton · 10</span>
+              <span>⌄</span>
+            </div>
+            <div class="skeleton-table-wrap">
+              <table class="skeleton">
+                <thead>
+                  <tr>
+                    <th>Week</th>
+                    <th>Phase</th>
+                    <th style="text-align: right">Target load</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>7</td>
+                    <td>build</td>
+                    <td style="text-align: right">560</td>
+                  </tr>
+                  <tr>
+                    <td>8</td>
+                    <td>build</td>
+                    <td style="text-align: right">610</td>
+                  </tr>
+                  <tr>
+                    <td>9</td>
+                    <td>deload</td>
+                    <td style="text-align: right">380</td>
+                  </tr>
+                  <tr>
+                    <td>10</td>
+                    <td>peak</td>
+                    <td style="text-align: right">650</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="bottom-nav">
+            <div class="item">
+              <span class="ic">⏱</span><span class="lbl">Today</span>
+            </div>
+            <div class="item active">
+              <span class="ic">📅</span><span class="lbl">Train</span>
+            </div>
+            <div class="item">
+              <span class="ic">✨</span><span class="lbl">Coach</span>
+            </div>
+            <div class="item">
+              <span class="ic">📈</span><span class="lbl">Body</span>
+            </div>
+            <div class="item">
+              <span class="ic">⚙</span><span class="lbl">Menu</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================= HISTORY ============================= -->
+      <section class="state-block" id="history">
+        <div class="state-head">
+          <h3>History</h3>
+          <span class="state-tag">Fixed-height rows, unfixed</span>
+        </div>
+        <p class="state-desc">
+          Same day-grouped rows, same trio of mono figures on the right —
+          the fixed 56px row height is what had to go, not the content.
+        </p>
+
+        <div class="phone">
+          <div class="status-time">Train</div>
+          <div class="train-header">
+            <div class="header-row">
+              <div>
+                <h1>Train</h1>
+              </div>
+              <span class="control-pill">+ Log activity</span>
+            </div>
+          </div>
+          <div class="tab-bar">
+            <span class="t">Week</span>
+            <span class="t active">History</span>
+            <span class="t">Season</span>
+            <span class="t">Fitness</span>
+          </div>
+
+          <p class="source">source: history-stat-strip.tsx</p>
+          <div class="stat-strip">
+            <span class="scope">7 days</span>
+            <span class="stat"><b>8.4h</b><span class="unit"></span></span>
+            <span class="stat"><b>412</b><span class="unit">load</span></span>
+            <span class="stat"><b>5</b><span class="unit">sessions</span></span>
+            <span class="stat"><b>187</b><span class="unit">km</span></span>
+          </div>
+
+          <div class="pill-row">
+            <span class="filter-pill active">All</span>
+            <span class="filter-pill">Ride</span>
+            <span class="filter-pill">Run</span>
+            <span class="filter-pill">Swim</span>
+          </div>
+
+          <p class="source">
+            source: history-list.tsx — min-height, not fixed height
+          </p>
+          <div class="day-group">
+            <h4>TUE AUG 11</h4>
+            <div class="history-list">
+              <a class="history-row" style="text-decoration: none; color: inherit">
+                <span class="rail" style="background: var(--chart-1)"></span>
+                <span class="main">
+                  <span class="name">Endurance Spin</span>
+                  <span class="subline">Ride · RPE 6 · felt normal</span>
+                </span>
+                <span class="metrics">1:32 · 78 · 38.4km</span>
+              </a>
+            </div>
+          </div>
+          <div class="day-group">
+            <h4>MON AUG 10</h4>
+            <div class="history-list">
+              <a class="history-row" style="text-decoration: none; color: inherit">
+                <span class="rail" style="background: var(--chart-2)"></span>
+                <span class="main">
+                  <span class="name">Easy Shakeout</span>
+                  <span class="subline">Run · debrief pending</span>
+                </span>
+                <span class="metrics">0:38 · 31 · 6.1km</span>
+              </a>
+              <a class="history-row" style="text-decoration: none; color: inherit">
+                <span class="rail" style="background: var(--chart-1)"></span>
+                <span class="main">
+                  <span class="name">Sweet Spot 3×15min</span>
+                  <span class="subline">Ride · RPE 7 · felt strong</span>
+                </span>
+                <span class="metrics">1:15 · 95 · 32.0km</span>
+              </a>
+            </div>
+          </div>
+
+          <div class="bottom-nav">
+            <div class="item">
+              <span class="ic">⏱</span><span class="lbl">Today</span>
+            </div>
+            <div class="item active">
+              <span class="ic">📅</span><span class="lbl">Train</span>
+            </div>
+            <div class="item">
+              <span class="ic">✨</span><span class="lbl">Coach</span>
+            </div>
+            <div class="item">
+              <span class="ic">📈</span><span class="lbl">Body</span>
+            </div>
+            <div class="item">
+              <span class="ic">⚙</span><span class="lbl">Menu</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================== SEASON ============================== -->
+      <section class="state-block" id="season">
+        <div class="state-head">
+          <h3>Season</h3>
+          <span class="state-tag">The "cannot fit" case, resolved</span>
+        </div>
+        <p class="state-desc">
+          12 weekly bar-pairs used to carry two lines of per-bar text (week
+          label + session count) at 8–9px. At the floor those 24 labels do
+          not fit a phone viewport — full stop. Below: no per-bar labels, an
+          axis tick every 3rd week, and a tap/hover detail line that replaces
+          them with one always-legible readout.
+        </p>
+
+        <div class="phone">
+          <div class="status-time">Train</div>
+          <div class="train-header">
+            <div class="header-row">
+              <div><h1>Train</h1></div>
+            </div>
+          </div>
+          <div class="tab-bar">
+            <span class="t">Week</span>
+            <span class="t">History</span>
+            <span class="t active">Season</span>
+            <span class="t">Fitness</span>
+          </div>
+
+          <p class="source">source: season-timeline-card.tsx — restructured</p>
+          <div class="season-chart">
+            <p class="eyebrow" style="margin-bottom: 10px">
+              Target vs actual · 12 weeks
+            </p>
+            <div class="season-bars" id="season-bars">
+              <div class="season-col" data-week="Wk 1" data-target="480" data-actual="460" data-sessions="5">
+                <div class="bar target" style="height: 78%"></div>
+                <div class="bar actual" style="height: 74%"></div>
+              </div>
+              <div class="season-col" data-week="Wk 2" data-target="520" data-actual="510" data-sessions="6">
+                <div class="bar target" style="height: 84%"></div>
+                <div class="bar actual" style="height: 82%"></div>
+              </div>
+              <div class="season-col" data-week="Wk 3" data-target="560" data-actual="340" data-sessions="4">
+                <div class="bar target" style="height: 90%"></div>
+                <div class="bar actual" style="height: 55%"></div>
+              </div>
+              <div class="season-col" data-week="Wk 4" data-target="380" data-actual="400" data-sessions="4">
+                <div class="bar target" style="height: 61%"></div>
+                <div class="bar actual" style="height: 64%"></div>
+              </div>
+              <div class="season-col" data-week="Wk 5" data-target="600" data-actual="590" data-sessions="6">
+                <div class="bar target" style="height: 97%"></div>
+                <div class="bar actual" style="height: 95%"></div>
+              </div>
+              <div class="season-col" data-week="Wk 6" data-target="610" data-actual="480" data-sessions="5">
+                <div class="bar target" style="height: 98%"></div>
+                <div class="bar actual" style="height: 77%"></div>
+              </div>
+              <div class="season-col" data-week="Wk 7" data-target="560" data-actual="560" data-sessions="6">
+                <div class="bar target" style="height: 90%"></div>
+                <div class="bar actual" style="height: 90%"></div>
+              </div>
+              <div class="season-col" data-week="Wk 8" data-target="380" data-actual="350" data-sessions="3">
+                <div class="bar target" style="height: 61%"></div>
+                <div class="bar actual" style="height: 56%"></div>
+              </div>
+              <div class="season-col" data-week="Wk 9" data-target="650" data-actual="600" data-sessions="6">
+                <div class="bar target" style="height: 100%"></div>
+                <div class="bar actual" style="height: 92%"></div>
+              </div>
+              <div class="season-col" data-week="Wk 10" data-target="600" data-actual="0" data-sessions="0">
+                <div class="bar target" style="height: 97%"></div>
+                <div class="bar actual" style="height: 1%"></div>
+              </div>
+              <div class="season-col" data-week="Wk 11" data-target="620" data-actual="410" data-sessions="4">
+                <div class="bar target" style="height: 100%"></div>
+                <div class="bar actual" style="height: 66%"></div>
+              </div>
+              <div class="season-col selected" data-week="Wk 12 (this week)" data-target="580" data-actual="412" data-sessions="5">
+                <div class="bar target" style="height: 94%"></div>
+                <div class="bar actual" style="height: 66%"></div>
+              </div>
+            </div>
+            <div class="season-axis">
+              <span class="tick">Wk 1</span>
+              <span class="tick"></span>
+              <span class="tick"></span>
+              <span class="tick">Wk 4</span>
+              <span class="tick"></span>
+              <span class="tick"></span>
+              <span class="tick">Wk 7</span>
+              <span class="tick"></span>
+              <span class="tick"></span>
+              <span class="tick">Wk 10</span>
+              <span class="tick"></span>
+              <span class="tick">Wk 12</span>
+            </div>
+            <div class="season-detail" id="season-detail">
+              <b>Wk 12 (this week)</b> — target 580, actual 412 · 5 sessions
+            </div>
+            <p class="season-hint">
+              Tap or hover a bar for its week, target, actual and session
+              count. On phones narrower than this frame, the bar strip
+              scrolls horizontally rather than compressing further.
+            </p>
+          </div>
+
+          <div class="bottom-nav">
+            <div class="item">
+              <span class="ic">⏱</span><span class="lbl">Today</span>
+            </div>
+            <div class="item active">
+              <span class="ic">📅</span><span class="lbl">Train</span>
+            </div>
+            <div class="item">
+              <span class="ic">✨</span><span class="lbl">Coach</span>
+            </div>
+            <div class="item">
+              <span class="ic">📈</span><span class="lbl">Body</span>
+            </div>
+            <div class="item">
+              <span class="ic">⚙</span><span class="lbl">Menu</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================= FITNESS ============================= -->
+      <section class="state-block" id="fitness">
+        <div class="state-head">
+          <h3>Fitness</h3>
+          <span class="state-tag">One redundant word, cut</span>
+        </div>
+        <p class="state-desc">
+          CTL / ATL / TSB tiles drop their repeated category prefix at the
+          floor — the chart's own legend one panel down already says it once.
+        </p>
+
+        <div class="phone">
+          <div class="status-time">Train</div>
+          <div class="train-header">
+            <div class="header-row">
+              <div><h1>Train</h1></div>
+              <span class="control-pill">90d</span>
+            </div>
+          </div>
+          <div class="tab-bar">
+            <span class="t">Week</span>
+            <span class="t">History</span>
+            <span class="t">Season</span>
+            <span class="t active">Fitness</span>
+          </div>
+
+          <p class="source">
+            source: fitness-tiles.tsx — label cut to match pmc-chart.tsx's
+            own legend
+          </p>
+          <div class="tiles-3">
+            <div class="tile">
+              <div class="l" style="color: var(--chart-1)">
+                CTL<span class="sr-only-note"></span>
+              </div>
+              <div class="v" style="color: var(--chart-1)">62</div>
+              <div class="ctx" style="color: var(--chart-2)">▲ +4 in 28d</div>
+            </div>
+            <div class="tile">
+              <div class="l" style="color: var(--chart-5)">ATL</div>
+              <div class="v" style="color: var(--chart-5)">58</div>
+              <div class="ctx" style="color: var(--ink-muted)">7d load 412</div>
+            </div>
+            <div class="tile">
+              <div class="l" style="color: var(--chart-2)">TSB</div>
+              <div class="v" style="color: var(--chart-2)">−1.9</div>
+              <div class="ctx" style="color: var(--ink-muted)">neutral zone</div>
+            </div>
+          </div>
+
+          <p class="source">source: pmc-chart.tsx</p>
+          <div class="pmc-card">
+            <svg viewBox="0 0 100 40" preserveAspectRatio="none" style="width: 100%; height: 120px" role="img" aria-label="Performance management chart">
+              <path
+                d="M0,20 L8,19 L16,21 L24,18 L32,17 L40,15 L48,16 L56,14 L64,13 L72,15 L80,12 L88,14 L100,13 L100,26 L0,26 Z"
+                fill="var(--chart-2)"
+                opacity="0.12"
+              />
+              <line x1="0" y1="26" x2="100" y2="26" stroke="var(--hairline)" stroke-width="0.3" stroke-dasharray="1 1" />
+              <polyline
+                points="0,10 8,10 16,9 24,9 32,8 40,8 48,7 56,7 64,6 72,6 80,6 88,5 100,5"
+                fill="none"
+                stroke="var(--chart-1)"
+                stroke-width="0.8"
+              />
+              <polyline
+                points="0,16 8,14 16,20 24,12 32,18 40,10 48,22 56,11 64,19 72,9 80,17 88,8 100,15"
+                fill="none"
+                stroke="var(--chart-5)"
+                stroke-width="0.6"
+                stroke-dasharray="1.5 1"
+              />
+            </svg>
+            <div class="pmc-legend">
+              <span class="li"
+                ><span class="sw" style="background: var(--chart-1)"></span
+                >CTL</span
+              >
+              <span class="li"
+                ><span class="sw" style="background: var(--chart-5)"></span
+                >ATL</span
+              >
+              <span class="li"
+                ><span class="sw" style="background: var(--chart-2)"></span
+                >TSB</span
+              >
+            </div>
+          </div>
+
+          <p class="source">source: weekly-load-bars.tsx</p>
+          <div class="load-bars-card">
+            <div class="row-flex" style="display: flex; justify-content: space-between; align-items: baseline">
+              <span style="font-size: var(--text-caption); font-weight: 800">Weekly load</span>
+              <span style="font-size: var(--text-label); color: var(--ink-muted)">Last 12 weeks</span>
+            </div>
+            <div class="load-bars">
+              <div class="b" style="height: 74%"></div>
+              <div class="b" style="height: 82%"></div>
+              <div class="b" style="height: 55%"></div>
+              <div class="b" style="height: 64%"></div>
+              <div class="b" style="height: 95%"></div>
+              <div class="b" style="height: 77%"></div>
+              <div class="b" style="height: 90%"></div>
+              <div class="b" style="height: 56%"></div>
+              <div class="b" style="height: 92%"></div>
+              <div class="b" style="height: 4%"></div>
+              <div class="b" style="height: 66%"></div>
+              <div class="b" style="height: 66%"></div>
+            </div>
+          </div>
+
+          <p class="source">source: fitness-stats-row.tsx</p>
+          <div class="block">
+            <div class="fitness-stats">
+              <div class="fs">
+                <span class="l">eFTP</span><span class="v">268W</span>
+              </div>
+              <div class="fs">
+                <span class="l">Max Power</span><span class="v">742W</span>
+              </div>
+              <div class="fs">
+                <span class="l">W'</span><span class="v">18.4kJ</span>
+              </div>
+              <div class="fs">
+                <span class="l">Ramp</span><span class="v">Steady</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="bottom-nav">
+            <div class="item">
+              <span class="ic">⏱</span><span class="lbl">Today</span>
+            </div>
+            <div class="item active">
+              <span class="ic">📅</span><span class="lbl">Train</span>
+            </div>
+            <div class="item">
+              <span class="ic">✨</span><span class="lbl">Coach</span>
+            </div>
+            <div class="item">
+              <span class="ic">📈</span><span class="lbl">Body</span>
+            </div>
+            <div class="item">
+              <span class="ic">⚙</span><span class="lbl">Menu</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <footer class="doc-footer">
+        Tokens copied from <code class="mono">src/app/globals.css</code> at
+        commit <code class="mono">84280ae</code> (2026-08-11). That file is
+        the source of truth; this page is a static reference for slice 2+ and
+        does not import it. See
+        <a href="./README.md">docs/design/README.md</a>.
+      </footer>
+    </div>
+
+    <script>
+      var btn = document.getElementById("theme-toggle");
+      btn.addEventListener("click", function () {
+        var dark = document.documentElement.classList.toggle("dark");
+        btn.textContent = dark ? "Switch to light" : "Switch to dark";
+      });
+
+      // Season timeline drill-in: tap/hover a bar column to update the
+      // detail readout below the chart, demonstrating the interaction that
+      // replaces the 24 per-bar micro-labels this mockup removes.
+      var cols = document.querySelectorAll(".season-col");
+      var detail = document.getElementById("season-detail");
+      cols.forEach(function (col) {
+        function select() {
+          cols.forEach(function (c) {
+            c.classList.remove("selected");
+          });
+          col.classList.add("selected");
+          var d = col.dataset;
+          detail.innerHTML =
+            "<b>" +
+            d.week +
+            "</b> — target " +
+            d.target +
+            ", actual " +
+            d.actual +
+            " · " +
+            d.sessions +
+            " sessions";
+        }
+        col.addEventListener("mouseenter", select);
+        col.addEventListener("click", select);
+      });
+    </script>
+  </body>
+</html>
