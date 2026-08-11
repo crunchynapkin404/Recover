@@ -17,8 +17,16 @@ const SRC = join(process.cwd(), "src");
 
 /** Arbitrary type sizes: text-[10px], text-[0.75rem]. */
 const ARBITRARY_TYPE = /\btext-\[[^\]]*(?:px|rem|em)\]/g;
-/** Ad-hoc ink: text-white/40, bg-white/5, border-white/10. */
-const ADHOC_INK = /\b(?:text|bg|border|fill|stroke)-(?:white|black)\/\d+/g;
+/**
+ * Ad-hoc ink: text-white/40, bg-white/5, border-white/10, ring-white/50,
+ * divide-white/5, and Tailwind's bracket arbitrary-opacity syntax —
+ * bg-white/[0.06]. Both opacity syntaxes and both the ring/divide prefixes
+ * are live in src/ today (138 bracket-syntax and 9 ring/divide occurrences
+ * respectively as of v0.99.0) — a pattern that misses either would let real
+ * offenders through undetected.
+ */
+const ADHOC_INK =
+  /\b(?:text|bg|border|fill|stroke|ring|divide)-(?:white|black)\/(?:\d+|\[[^\]]+\])/g;
 /** hairline is a non-text token; using it as text colour is the one misuse. */
 const HAIRLINE_AS_TEXT = /\btext-hairline\b/g;
 
@@ -50,11 +58,24 @@ function offenders(pattern: RegExp): string[] {
 }
 
 describe("type-scale guard", () => {
+  // Not an `it.fails` — this pins that the scan actually walked a plausible
+  // source tree, rather than silently measuring nothing. `it.fails` cannot
+  // tell "scanned everything and found real offenders" apart from "walk() or
+  // readFileSync threw / src/ was renamed / SRC resolved to an empty dir" —
+  // both report as an expected failure either way. src/ has 392 non-test
+  // .ts/.tsx files today; 100 is comfortably below that so this cannot pass
+  // vacuously on a handful of files, while staying well clear of flaking on
+  // ordinary file-count drift as the app grows.
+  it("walks a real, non-trivial source tree", () => {
+    const files = walk(SRC);
+    expect(files.length).toBeGreaterThan(100);
+  });
+
   // TODO(slice-9): flip to `it(` once the last surface is migrated. Tracked
   // in docs/plans/2026-08-11-v099-slice0-foundations.md. Do NOT delete these
   // — a skipped guard that is deleted is a guard that never lands.
   it.fails("has no arbitrary type sizes — use the scale", () => {
-    expect(offenders(ARBITRARY_TYPE), "use text-2xs … text-3xl").toEqual([]);
+    expect(offenders(ARBITRARY_TYPE), "use text-label … text-hero").toEqual([]);
   });
 
   // TODO(slice-9): flip to `it(` once the last surface is migrated. Tracked

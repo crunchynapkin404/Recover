@@ -565,8 +565,12 @@ Mutation-checked: the design's original #949494 light hairline fails at
 **Interfaces:**
 
 - Consumes: nothing.
-- Produces: the utilities `text-2xs text-xs text-sm text-base text-lg text-xl
-text-3xl` and `font-numeric`. Every later slice uses these names.
+- Produces: the utilities `text-label text-caption text-body text-title
+text-heading text-figure text-hero` and `font-numeric`. Every later slice uses
+  these names. **Corrected from the original `text-2xs … text-3xl` naming**:
+  those collide with Tailwind v4's own default `--text-*` theme keys and would
+  silently resize ~230 existing call sites across unmigrated surfaces. See the
+  semantic names below.
 
 - [ ] **Step 1: Write the failing guard**
 
@@ -624,7 +628,7 @@ function offenders(pattern: RegExp): string[] {
 
 describe("type-scale guard", () => {
   it("has no arbitrary type sizes — use the scale", () => {
-    expect(offenders(ARBITRARY_TYPE), "use text-2xs … text-3xl").toEqual([]);
+    expect(offenders(ARBITRARY_TYPE), "use text-label … text-hero").toEqual([]);
   });
 
   it("has no ad-hoc white/black alpha utilities — use the tokens", () => {
@@ -655,14 +659,19 @@ The offenders are removed surface by surface in slices 1-8.
 Append inside the existing `@theme inline` block:
 
 ```css
-/* Type scale — 12px floor, seven steps. Phase 2b.4. */
---text-2xs: 0.75rem; /* 12 — the floor. Nothing smaller exists. */
---text-xs: 0.875rem; /* 14 */
---text-sm: 1rem; /* 16 — body */
---text-base: 1.25rem; /* 20 */
---text-lg: 1.5rem; /* 24 */
---text-xl: 1.875rem; /* 30 */
---text-3xl: 2.75rem; /* 44 — the primary figure */
+/* Type scale — 12px floor, seven steps. Phase 2b.4. Semantic names, not
+   Tailwind v4's default --text-* keys (xs/sm/base/xl/3xl/…): those keys are
+   Tailwind's own built-in theme values, and defining them here would
+   silently override every unmigrated call site still using the default
+   scale — exactly the cross-surface change this slice is not allowed to
+   make. */
+--text-label: 0.75rem; /* 12 — the floor. Nothing smaller exists. */
+--text-caption: 0.875rem; /* 14 */
+--text-body: 1rem; /* 16 — body */
+--text-title: 1.25rem; /* 20 */
+--text-heading: 1.5rem; /* 24 */
+--text-figure: 1.875rem; /* 30 */
+--text-hero: 2.75rem; /* 44 — the primary figure */
 
 /* Spacing scale — 4px base. */
 --spacing-1: 0.25rem;
@@ -674,14 +683,17 @@ Append inside the existing `@theme inline` block:
 --spacing-12: 3rem;
 ```
 
-Change `body`'s `font-size: 15px;` (line 93) to `font-size: 1rem;` so body text
-sits on the scale rather than one pixel below it.
+`body`'s `font-size` **stays at `15px`.** Sitting it on `--text-body` (1rem /
+16px) is deferred to slice 9, when the last surface migrates — doing it here
+would be a one-pixel, app-wide visible change, which this foundations-only
+slice is not permitted to make. Leave a comment on the rule saying so.
 
 - [ ] **Step 4: Mark the guard as expected-failing until slice 9**
 
-The three assertions cannot pass until every surface is migrated. Add
-`.fails` semantics explicitly rather than skipping, so the guard is visibly
-pending rather than silently absent — replace each `it(` with:
+The first two assertions (arbitrary type sizes, ad-hoc ink alphas) cannot
+pass until every surface is migrated. Add `.fails` semantics explicitly
+rather than skipping, so the guard is visibly pending rather than silently
+absent — replace each of those two `it(` with:
 
 ```ts
   // TODO(slice-9): flip to `it(` once the last surface is migrated. Tracked
@@ -690,12 +702,21 @@ pending rather than silently absent — replace each `it(` with:
   it.fails("has no arbitrary type sizes — use the scale", () => {
 ```
 
+The third assertion (`hairline` never used as text) has zero offenders today,
+so it stays a real `it(...)` rather than `it.fails` — an `it.fails` that
+unexpectedly passes is the signal to flip it, and this is that flip done at
+implementation time. A fourth, real `it(...)` also pins that `walk()` scanned
+a plausible source tree (non-empty, above a sane floor), so a crash before
+measuring can't be mistaken for a clean expected-failure.
+
 - [ ] **Step 5: Run the guard to verify it now passes as expected-failing**
 
 Run: `npx vitest run tests/type-scale-guard.test.ts`
-Expected: PASS — 3 tests, each reported as an expected failure. If any one
-_passes_ unexpectedly, `it.fails` turns that into a test failure, which is the
-signal that a surface finished early and the `it.fails` should be flipped.
+Expected: PASS — 4 tests: 2 expected failures (arbitrary type, ad-hoc ink) and
+2 real, currently-passing assertions (hairline-as-text, walk sanity). If
+either `it.fails` _passes_ unexpectedly, that turns into a test failure, which
+is the signal that a surface finished early and it should be flipped to
+`it(`.
 
 - [ ] **Step 6: Commit**
 
@@ -1216,7 +1237,9 @@ git commit -m "docs(design): Today and Train reference mockups, both themes"
 - [ ] `npm run typecheck && npm run build && npm test` all green
 - [ ] `tests/contrast-guard.test.ts` passes and its mutation check was recorded
 - [ ] `tests/viewport-zoom-guard.test.ts` passes
-- [ ] `tests/type-scale-guard.test.ts` passes as three expected failures
+- [ ] `tests/type-scale-guard.test.ts` passes: two expected failures
+      (arbitrary type sizes, ad-hoc ink alphas) plus two real assertions
+      (hairline-as-text, walk-sanity floor)
 - [ ] `KNOWN_ORPHANS` still empty; `ia-directory-guard` and `route-guard` green
 - [ ] Dark mode renders as before — no athlete-visible change
 - [ ] Screenshots captured in both themes, and **at least four were opened and

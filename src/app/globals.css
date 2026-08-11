@@ -55,14 +55,19 @@
   --color-hairline: var(--hairline);
   --color-accent: var(--accent);
 
-  /* Type scale — 12px floor, seven steps. Phase 2b.4. */
-  --text-2xs: 0.75rem; /* 12 — the floor. Nothing smaller exists. */
-  --text-xs: 0.875rem; /* 14 */
-  --text-sm: 1rem; /* 16 — body */
-  --text-base: 1.25rem; /* 20 */
-  --text-lg: 1.5rem; /* 24 */
-  --text-xl: 1.875rem; /* 30 */
-  --text-3xl: 2.75rem; /* 44 — the primary figure */
+  /* Type scale — 12px floor, seven steps. Phase 2b.4. Semantic names, not
+     Tailwind v4's default --text-* keys (xs/sm/base/xl/3xl/…): those keys
+     are Tailwind's own built-in theme values, and defining them here would
+     silently override every unmigrated call site still using the default
+     scale (.text-sm, .text-xs, etc.) — exactly the cross-surface change this
+     slice is not allowed to make. */
+  --text-label: 0.75rem; /* 12 — the floor. Nothing smaller exists. */
+  --text-caption: 0.875rem; /* 14 */
+  --text-body: 1rem; /* 16 — body */
+  --text-title: 1.25rem; /* 20 */
+  --text-heading: 1.5rem; /* 24 */
+  --text-figure: 1.875rem; /* 30 */
+  --text-hero: 2.75rem; /* 44 — the primary figure */
 
   /* Numeric type — mono figures for scores, HR, power. Phase 2b.4. Reuses
      the already-loaded Geist Mono font; named separately from --font-mono
@@ -176,7 +181,11 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-size: 1rem;
+    /* Stays at the pre-redesign 15px until the last surface migrates
+       (slice 9), when this moves to --text-body (16px). Sitting on the new
+       scale now would be a one-pixel, app-wide visible change this
+       foundations-only slice is not permitted to make. */
+    font-size: 15px;
     -webkit-font-smoothing: antialiased;
     letter-spacing: -0.01em;
     overflow-x: hidden;
