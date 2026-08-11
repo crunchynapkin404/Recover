@@ -52,9 +52,23 @@ SCREENSHOT_BASE_URL=http://localhost:3100 \
   OWNER_EMAIL=... OWNER_PASSWORD=... \
   npx tsx scripts/verify-surfaces.ts <slice-name>
 # → .screenshots/<slice-name>/*.png (gitignored)
-# → .screenshots/<slice-name>/axe-report.json — violations per surface/theme/
-#   viewport, filtered to axe's "serious"/"critical" impact. Exits non-zero
-#   if any surface has one.
+# → .screenshots/<slice-name>/axe-report.json — per surface/theme/viewport,
+#   axe's "violations" AND "incomplete" results (both requested; a literal
+#   "violations"-only filter silently misses real invisible-text bugs behind
+#   this app's gradient backgrounds — see the script's header comment),
+#   filtered to "serious"/"critical" impact and then split into TWO
+#   separate, clearly-labelled metrics (scripts/lib/axe-report.ts):
+#     confirmed      — axe actually computed a failure. Gates the exit code.
+#     indeterminate  — axe could not compute an answer at all (e.g. text
+#                      over a composited CSS gradient). Reported, but never
+#                      gates the exit code — on this app's four
+#                      gradient-background surfaces the check can never
+#                      resolve, so gating on it would make "drive the
+#                      number to zero" permanently unreachable.
+#   Node-level counts (DOM elements affected) are the number to trust; a
+#   rule-row count alone can hide a real regression — see
+#   docs/axe-baseline-2026-08-11-seeded.md. Exits non-zero if any surface has
+#   a confirmed finding.
 ```
 
 ## Quality gates

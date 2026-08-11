@@ -19,13 +19,49 @@
 //
 // Usage: npx tsx scripts/verify-surfaces.ts <slice-name>
 // Output: .screenshots/<slice-name>/*.png, plus
-//         .screenshots/<slice-name>/axe-report.json (Task 7) — one entry per
+//         .screenshots/<slice-name>/axe-report.json — one entry per
 //         surface/theme/viewport, with axe's "violations" and "incomplete"
-//         results filtered down to "serious"/"critical" impact (see
-//         auditPage's doc comment for why "incomplete" is included — the
-//         brief's literal resultTypes: ["violations"] silently misses real
-//         invisible-text bugs behind this app's gradient backgrounds).
-//         Exits non-zero if any entry has a non-empty blocking list.
+//         results (see auditPage's doc comment for why "incomplete" is
+//         requested at all — the brief's literal resultTypes: ["violations"]
+//         silently misses real invisible-text bugs behind this app's
+//         gradient backgrounds) filtered to "serious"/"critical" impact and
+//         then split into TWO separate metrics (task-7 review, Finding 1;
+//         classification lives in scripts/lib/axe-report.ts):
+//
+//           CONFIRMED — axe actually computed a failure: every
+//           "violations"-bucket result, plus the "incomplete"-bucket nodes
+//           axe nonetheless computed as a definite 1:1 (messageKey
+//           "equalRatio"). This is what process.exitCode gates on.
+//
+//           INDETERMINATE — "incomplete"-bucket nodes axe could not compute
+//           an answer for at all (composited gradient backgrounds, partial
+//           obscuring, short text — see auditPage's doc comment). Reported
+//           prominently, in the JSON and the console summary, but NEVER
+//           gates the exit code — on this app's four gradient-background
+//           surfaces (today/train/coach/body) axe's color-contrast rule can
+//           structurally never resolve, so gating on it would make "drive
+//           the number to zero" unfalsifiable regardless of what a slice
+//           fixes. It is still a real, trending-to-zero number: it counts
+//           text with no opaque backing, which is exactly what giving cards
+//           real surface tokens fixes — just via a different mechanism (the
+//           count shrinking) than the exit-code gate.
+//
+//           DO NOT re-merge these two counts. See scripts/lib/axe-report.ts's
+//           file header and isComputedFailure's doc comment for why that
+//           would silently reintroduce the unfalsifiable-exit-code bug, and
+//           tests/axe-report-split.test.ts / scripts/axe-split-proof.ts for
+//           committed, re-runnable proof the split discriminates correctly
+//           in both directions.
+//
+//         Report leads with NODE-level counts, not rule-row counts: a
+//         seeded-data re-measurement found the rule-row count move 46→44
+//         while the node count moved 1398→1687 (+20.7%, Train +600%, Today
+//         +240%) — rule-row counting hid a real regression. See
+//         docs/axe-baseline-2026-08-11-seeded.md.
+//
+//         Written incrementally after every audited surface, not just once
+//         at the end (task-7 review, Finding 4) — a crash partway through
+//         still leaves every finding collected so far on disk.
 //
 // Required environment (task-6 review, Finding 5 — this header is the
 // canonical list; CONTRIBUTING.md's "Demo data" section points here):
@@ -60,6 +96,11 @@ import type { Page } from "playwright-core";
 import type Axe from "axe-core";
 import { hexToRgb } from "../src/lib/design/contrast";
 import { readTokenSets } from "../src/lib/design/tokens";
+import {
+  splitFindings,
+  computeTotals,
+  type AxeFinding,
+} from "./lib/axe-report";
 
 // Playwright is not in node_modules — it lives only in the npx cache, at
 // several versions, and only one matches the installed chromium revision.
@@ -125,39 +166,57 @@ mkdirSync(outDir, { recursive: true });
 const axeReportPath = join(outDir, "axe-report.json");
 
 /**
- * axe-core impact levels this audit treats as blocking (Task 7 brief).
- * "minor"/"moderate" findings exist but are not what this release's guards
- * (contrast-guard, type-scale-guard) target, and including them would drown
- * slice 1-8's actual target list in noise unrelated to this release.
+ * See scripts/lib/axe-report.ts for the full split rationale (task-7
+ * review, Finding 1). `confirmed` gates `process.exitCode`; `indeterminate`
+ * never does. `skipped`/`error` are set instead of `confirmed`/
+ * `indeterminate` when this surface's audit never ran at all — see
+ * captureTokenCreated and main()'s handling of it (task-7 review, Finding 2)
+ * for why a surface's entry must always exist rather than silently vanish.
  */
-const BLOCKING_IMPACTS: ReadonlySet<Axe.ImpactValue> = new Set([
-  "serious",
-  "critical",
-]);
-
-type BlockingViolation = Pick<
-  Axe.Result,
-  "id" | "impact" | "description" | "help" | "helpUrl" | "nodes"
-> & {
-  /**
-   * "incomplete" means axe could not fully automate the check and is
-   * asking for manual confirmation — see auditPage's doc comment for why
-   * that category is included here rather than dropped. Recorded so a
-   * human (or a later slice) can tell "axe is certain" from "axe flagged
-   * this as needing a look", without re-running axe to find out.
-   */
-  resultType: "violation" | "incomplete";
-};
-
 interface AxeReportEntry {
   surface: string;
   theme: "light" | "dark";
   viewport: string;
-  blocking: BlockingViolation[];
+  confirmed: AxeFinding[];
+  indeterminate: AxeFinding[];
+  /**
+   * Set when this optional surface's state genuinely could not be reached
+   * (task-7 review, Finding 2) — e.g. the settings UI needed to create a
+   * token wasn't available. Acceptable: does NOT gate the exit code, but the
+   * surface is still recorded here instead of silently missing.
+   */
+  skipped?: true;
+  skipReason?: string;
+  /**
+   * Set when this surface WAS reached but the audit or capture step then
+   * failed (task-7 review, Finding 2) — not acceptable, DOES gate the exit
+   * code (see main()'s hardFailures handling). Recorded so the surface is
+   * visibly failed rather than silently absent from the report.
+   */
+  error?: string;
 }
 
-/** Filled in across the whole run, written once at the end of main(). */
+/**
+ * Filled in across the whole run and written to disk after every entry, not
+ * just once at the end (task-7 review, Finding 4) — see writeReport below.
+ */
 const axeReport: AxeReportEntry[] = [];
+
+/**
+ * Persists the report collected so far. Called after every audited surface
+ * (and every skip/error record) so a crash partway through a ~40-surface
+ * run still leaves everything captured up to that point on disk, instead of
+ * losing it all to whatever comes after the single end-of-main() write this
+ * used to be (task-7 review, Finding 4). Cheap enough to call this often —
+ * the report is at most a few hundred KB.
+ */
+function writeReport(): void {
+  const totals = computeTotals(axeReport);
+  writeFileSync(
+    axeReportPath,
+    JSON.stringify({ totals, entries: axeReport }, null, 2)
+  );
+}
 
 function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
@@ -357,11 +416,11 @@ async function forceThemeVerified(page: Page, dark: boolean): Promise<void> {
  * (invisible) contrast on `text-white/50` and `text-white/80` elements on
  * the Today page in light mode — a real instance of exactly the defect
  * this release exists to fix, silently dropped by the brief's literal
- * filter. Requesting "incomplete" too, and treating serious/critical
- * findings from *either* category as blocking, is what actually exercises
- * these four surfaces. Each finding below is tagged with which bucket it
- * came from so a human can still tell "axe is certain" from "axe is
- * asking for a look" without re-running anything.
+ * filter. Requesting "incomplete" too is what actually exercises these four
+ * surfaces; splitFindings() (scripts/lib/axe-report.ts) is what then tells
+ * apart the "incomplete" results axe actually computed a failure for from
+ * the ones it genuinely could not resolve — see that file's header for why
+ * that split matters and must not be re-collapsed.
  */
 async function auditPage(
   page: Page,
@@ -369,6 +428,24 @@ async function auditPage(
   theme: "light" | "dark",
   vpName: string
 ): Promise<void> {
+  // TEST HOOK (task-7 review, Finding 2 proof) — see
+  // docs/axe-baseline-2026-08-11-seeded.md for the reproducible demo this
+  // supports. Deliberately throws instead of running axe, but ONLY for the
+  // one surface and ONLY when explicitly asked, so this never fires in a
+  // real run. Proves that a failure reached *after* captureTokenCreated's
+  // optional state was successfully reached (as opposed to never being
+  // reached at all — see that function's own TEST HOOK) is NOT swallowed:
+  // main() must record it loudly and fail the run's exit code rather than
+  // silently continuing as if the surface were never audited.
+  if (
+    process.env.VERIFY_SURFACES_TEST_TOKEN_FAILURE_MODE === "hard" &&
+    surface === "settings-token-created"
+  ) {
+    throw new Error(
+      "TEST HOOK: simulated axe-audit failure after the token-created state was reached (Finding 2 proof)"
+    );
+  }
+
   await page.addScriptTag({
     path: require.resolve("axe-core/axe.min.js"),
   });
@@ -381,26 +458,18 @@ async function auditPage(
       resultTypes: ["violations", "incomplete"],
     });
   });
-  const violations = (result.violations as Axe.Result[]).map((v) => ({
-    ...v,
-    resultType: "violation" as const,
-  }));
-  const incomplete = (result.incomplete as Axe.Result[]).map((v) => ({
-    ...v,
-    resultType: "incomplete" as const,
-  }));
-  const blocking: BlockingViolation[] = [...violations, ...incomplete]
-    .filter((v) => BLOCKING_IMPACTS.has(v.impact ?? null))
-    .map(({ id, impact, description, help, helpUrl, nodes, resultType }) => ({
-      id,
-      impact,
-      description,
-      help,
-      helpUrl,
-      nodes,
-      resultType,
-    }));
-  axeReport.push({ surface, theme, viewport: vpName, blocking });
+  const { confirmed, indeterminate } = splitFindings(
+    result.violations as Axe.Result[],
+    result.incomplete as Axe.Result[]
+  );
+  axeReport.push({
+    surface,
+    theme,
+    viewport: vpName,
+    confirmed,
+    indeterminate,
+  });
+  writeReport();
 }
 
 /**
@@ -440,6 +509,22 @@ async function captureWithRetry(
 const leakedTokenLabels: string[] = [];
 
 /**
+ * Thrown by captureTokenCreated only when its optional "reach the
+ * token-created state" phase fails BEFORE a real token has been created
+ * (task-7 review, Finding 2). This is the one acceptable failure mode: no
+ * side effect happened, nothing to clean up, and main() records it as a
+ * skipped entry rather than failing the run. Any other error thrown by
+ * captureTokenCreated means the state WAS reached and something after that
+ * point broke — main() must treat that as a hard failure instead.
+ */
+class TokenStateUnreachableError extends Error {
+  constructor(message: string, options?: { cause?: unknown }) {
+    super(message, options);
+    this.name = "TokenStateUnreachableError";
+  }
+}
+
+/**
  * Settings-specific extra capture. Global constraint (Task 2 finding):
  * applying `.dark` for the first time activated 11 previously-dead
  * `dark:` utilities, including the "token created" success box in
@@ -467,6 +552,25 @@ const leakedTokenLabels: string[] = [];
  * `/settings` capture in captureWithRetry never reaches it. Audited here,
  * right after the screenshot, while the box is still on screen and before
  * the `finally` block below revokes the token and removes it.
+ *
+ * task-7 review, Finding 2: this surface is the ONLY place axe ever sees two
+ * of the eleven `dark:` utilities this slice newly activated, and it now
+ * carries a real accessibility check, not just a bonus screenshot — the
+ * previous "log and continue" posture (still what main() does, but see the
+ * distinction below) let a flaky axe injection here drop this surface from
+ * the report entirely while the run kept exiting 0. Fixed by distinguishing
+ * two failure shapes, thrown differently so main() can tell them apart:
+ *   - Could not REACH the state at all (anything up to and including
+ *     waiting for "Copy this token now" to appear) — no token exists, no
+ *     side effect, nothing to clean up. Acceptable: thrown as
+ *     TokenStateUnreachableError, and main() records it as `skipped` rather
+ *     than failing the run.
+ *   - REACHED the state and something after that then failed (theme
+ *     re-verification, the screenshot, or auditPage itself) — a real token
+ *     now exists and the `finally` block below must still run to revoke it,
+ *     but this is NOT acceptable: it propagates as an ordinary Error, and
+ *     main() must fail the run's exit code and record it as `error` rather
+ *     than silently continuing as if this surface were never audited.
  */
 async function captureTokenCreated(
   page: Page,
@@ -477,21 +581,45 @@ async function captureTokenCreated(
   const label = `screenshot-verify-${theme}-${vpName}-${Date.now()}`;
   let tokenCreated = false;
   try {
-    await page.goto(`${BASE_URL}/settings`, {
-      waitUntil: "networkidle",
-      timeout: 20_000,
-    });
-    assertOnSurface(page, "/settings", "settings-token-created");
-    await forceThemeVerified(page, dark);
-    // ApiTokensCard lives inside the collapsed-by-default "Advanced / API"
-    // section; open it before the form inside becomes actionable.
-    await page.locator('button:has-text("Advanced / API")').click();
-    await page.waitForSelector("#tokenLabel", { state: "visible" });
-    await page.fill("#tokenLabel", label);
-    await page.click('button[type="submit"]:has-text("Create token")');
-    await page.waitForSelector("text=Copy this token now", { timeout: 10_000 });
+    try {
+      // TEST HOOK (task-7 review, Finding 2 proof) — see
+      // docs/axe-baseline-2026-08-11-seeded.md. Deliberately fails the
+      // "reach" phase before any token exists, so this always resolves to
+      // TokenStateUnreachableError below and never fires outside an
+      // explicit proof run.
+      if (
+        process.env.VERIFY_SURFACES_TEST_TOKEN_FAILURE_MODE === "unreachable"
+      ) {
+        throw new Error(
+          "TEST HOOK: simulated failure to reach the token-created state (Finding 2 proof)"
+        );
+      }
+      await page.goto(`${BASE_URL}/settings`, {
+        waitUntil: "networkidle",
+        timeout: 20_000,
+      });
+      assertOnSurface(page, "/settings", "settings-token-created");
+      await forceThemeVerified(page, dark);
+      // ApiTokensCard lives inside the collapsed-by-default "Advanced / API"
+      // section; open it before the form inside becomes actionable.
+      await page.locator('button:has-text("Advanced / API")').click();
+      await page.waitForSelector("#tokenLabel", { state: "visible" });
+      await page.fill("#tokenLabel", label);
+      await page.click('button[type="submit"]:has-text("Create token")');
+      await page.waitForSelector("text=Copy this token now", {
+        timeout: 10_000,
+      });
+    } catch (err) {
+      throw new TokenStateUnreachableError(
+        `could not reach the "token created" state for ${theme}/${vpName}: ` +
+          `${err instanceof Error ? err.message : String(err)}`,
+        { cause: err }
+      );
+    }
     // From here on a real token exists on the account — the finally block
-    // below must run no matter what happens next.
+    // below must run no matter what happens next, and any failure from
+    // here on is NOT wrapped as TokenStateUnreachableError: the state WAS
+    // reached, so main() must treat it as a hard failure (see doc comment).
     tokenCreated = true;
     // Let the revalidated server data settle, then reassert+reverify the
     // theme — cheap insurance against the same forcedTheme re-render race
@@ -525,6 +653,14 @@ async function captureTokenCreated(
     }
   }
 }
+
+/**
+ * Messages describing surfaces that WERE reached but then failed (task-7
+ * review, Finding 2) — as opposed to leakedTokenLabels (cleanup-only
+ * failures) or a skipped-but-acceptable "could not reach" — any entry here
+ * fails the run's exit code.
+ */
+const hardFailures: string[] = [];
 
 async function main() {
   const browser = await chromium.launch({
@@ -566,17 +702,54 @@ async function main() {
 
       // Reach and capture the api-tokens-card "token created" state, once
       // per theme/viewport combination, then clean up via the real UI.
-      // Non-fatal: a failure here must not cost every other surface in the
-      // run (Finding 3) — logged loudly and the loop continues.
+      // task-7 review, Finding 2: this surface must never simply vanish
+      // from the report. Two distinguishable outcomes:
+      //   - TokenStateUnreachableError: the state itself could not be
+      //     reached — acceptable, recorded as `skipped`, does not fail the
+      //     run (this preserves the original task-6 posture: one flaky UI
+      //     interaction shouldn't cost every other surface).
+      //   - anything else: the state WAS reached and the audit/capture then
+      //     failed — NOT acceptable now that this is the only place axe
+      //     ever sees two of this slice's eleven newly-activated `dark:`
+      //     utilities. Recorded as `error` AND collected into
+      //     hardFailures so the run's exit code reflects it.
       try {
         await captureTokenCreated(p, theme, vpName, dark);
         total++;
       } catch (err) {
-        console.error(
-          `settings-token-created capture failed for ${theme}/${vpName} ` +
-            `(non-fatal, continuing with remaining surfaces): ` +
-            `${err instanceof Error ? err.message : String(err)}`
-        );
+        if (err instanceof TokenStateUnreachableError) {
+          console.warn(
+            `SKIPPED settings-token-created for ${theme}/${vpName}: ` +
+              `${err.message} — this optional state could not be reached; ` +
+              `recorded as skipped (not a failure), run continues.`
+          );
+          axeReport.push({
+            surface: "settings-token-created",
+            theme,
+            viewport: vpName,
+            confirmed: [],
+            indeterminate: [],
+            skipped: true,
+            skipReason: err.message,
+          });
+        } else {
+          const message =
+            `settings-token-created FAILED for ${theme}/${vpName} AFTER ` +
+            `reaching the state (the audit or capture step itself broke, ` +
+            `not merely "could not reach") — this WILL fail the run's ` +
+            `exit code: ${err instanceof Error ? err.message : String(err)}`;
+          console.error(message);
+          hardFailures.push(message);
+          axeReport.push({
+            surface: "settings-token-created",
+            theme,
+            viewport: vpName,
+            confirmed: [],
+            indeterminate: [],
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+        writeReport();
       }
 
       await ctx.close();
@@ -586,37 +759,84 @@ async function main() {
   await browser.close();
   console.log(`captured ${total} images → ${outDir}`);
 
-  // Write the full report before deciding the exit code, so a failing run
-  // still leaves the evidence file behind — that file, not the console, is
-  // slice 1-8's target list.
-  writeFileSync(axeReportPath, JSON.stringify(axeReport, null, 2));
+  // Final write is a formality — writeReport() already ran after every
+  // audited/skipped/errored surface (task-7 review, Finding 4) — but cheap
+  // insurance that the very last entry's totals are on disk too.
+  writeReport();
   console.log(`axe report (${axeReport.length} entries) → ${axeReportPath}`);
 
-  const withViolations = axeReport.filter((e) => e.blocking.length > 0);
-  const totalViolations = withViolations.reduce(
-    (sum, e) => sum + e.blocking.length,
-    0
+  const totals = computeTotals(axeReport);
+  const withConfirmed = axeReport.filter((e) => e.confirmed.length > 0);
+  const withIndeterminate = axeReport.filter((e) => e.indeterminate.length > 0);
+  const skippedEntries = axeReport.filter((e) => e.skipped);
+  const erroredEntries = axeReport.filter((e) => e.error);
+
+  // Node-level counts lead (task-7 review — a seeded-data re-measurement
+  // found the rule-row count move 46→44 while the node count moved
+  // 1398→1687, +20.7%, hiding a real regression; see
+  // docs/axe-baseline-2026-08-11-seeded.md). Both numbers are printed, both
+  // clearly labelled, so neither can be mistaken for the other.
+  console.log(
+    `\n=== axe summary (NODE-level counts lead; rule-row counts are the ` +
+      `secondary, more easily-gamed number) ===\n` +
+      `CONFIRMED DEFECTS (gates the exit code): ${totals.confirmedNodes} ` +
+      `node(s) across ${totals.confirmedRuleRows} rule finding(s), in ` +
+      `${withConfirmed.length}/${axeReport.length} surface/theme/viewport combinations.\n` +
+      `INDETERMINATE (axe could not compute a ratio; reported, does NOT ` +
+      `gate the exit code): ${totals.indeterminateNodes} node(s) across ` +
+      `${totals.indeterminateRuleRows} rule finding(s), in ` +
+      `${withIndeterminate.length}/${axeReport.length} combinations.`
   );
 
-  // Per-surface/theme/viewport summary — the baseline slices 1-8 are
-  // measured against. Printed even on a clean run, when the table is empty.
-  console.log(
-    `\naxe: ${totalViolations} serious/critical violation(s) across ` +
-      `${withViolations.length}/${axeReport.length} surface/theme/viewport ` +
-      `combinations:`
-  );
-  for (const entry of withViolations) {
-    const ruleIds = entry.blocking
-      .map((v) => (v.resultType === "incomplete" ? `${v.id}~` : v.id))
-      .join(", ");
+  for (const entry of axeReport) {
+    if (entry.skipped) {
+      console.log(
+        `  ${entry.surface} — ${entry.theme}/${entry.viewport}: SKIPPED (${entry.skipReason})`
+      );
+      continue;
+    }
+    if (entry.error) {
+      console.log(
+        `  ${entry.surface} — ${entry.theme}/${entry.viewport}: ERROR (${entry.error})`
+      );
+      continue;
+    }
+    if (entry.confirmed.length === 0 && entry.indeterminate.length === 0)
+      continue;
+    const confirmedIds = entry.confirmed.map((v) => v.id).join(", ") || "—";
+    const indeterminateIds =
+      entry.indeterminate.map((v) => v.id).join(", ") || "—";
     console.log(
       `  ${entry.surface} — ${entry.theme}/${entry.viewport}: ` +
-        `${entry.blocking.length} (${ruleIds}; ~ = incomplete, needs confirming)`
+        `confirmed ${entry.confirmed.reduce((s, f) => s + f.nodes.length, 0)} node(s) (${confirmedIds}); ` +
+        `indeterminate ${entry.indeterminate.reduce((s, f) => s + f.nodes.length, 0)} node(s) (${indeterminateIds})`
     );
   }
 
-  if (withViolations.length > 0) {
+  // Exit code gates ONLY on confirmed defects — never on indeterminate
+  // findings (see file header and scripts/lib/axe-report.ts for why: the
+  // four gradient-background surfaces can never resolve those, which would
+  // make the exit code unfalsifiable).
+  if (totals.confirmedNodes > 0) {
     process.exitCode = 1;
+  }
+
+  if (erroredEntries.length > 0 || hardFailures.length > 0) {
+    console.error(
+      `\n${hardFailures.length} surface(s) were reached but then failed ` +
+        `(not merely skipped) — this fails the run regardless of the axe ` +
+        `totals above:\n${hardFailures.map((m) => `  - ${m}`).join("\n")}`
+    );
+    process.exitCode = 1;
+  }
+
+  if (skippedEntries.length > 0) {
+    console.warn(
+      `\n${skippedEntries.length} optional surface(s) were skipped (state ` +
+        `could not be reached) — does not affect the exit code, but check ` +
+        `these were not supposed to be reachable: ` +
+        `${skippedEntries.map((e) => `${e.theme}/${e.viewport}`).join(", ")}`
+    );
   }
 
   if (leakedTokenLabels.length > 0) {
