@@ -1,5 +1,43 @@
 # Changelog
 
+## v0.94.1 — 2026-08-11 — The telemetry window, checked at day 4
+
+Docs only. No code, no behaviour, no numbers.
+
+2b.2 cannot settle before **2026-09-05**, when the four-week `surface_views`
+window closes. Reading it now, at day 4 of 28, found nothing wrong — which is
+worth recording, because the alternative was discovering a gap in September
+with no way to recover the lost weeks.
+
+**160 views so far:** today 67, train 50, body 25, coach 11, settings 6,
+admin 1. Three instrumented surfaces recorded **zero** — `activity`,
+`activity-log`, `import`. That is real signal rather than a blind spot: they
+are wired up and simply not visited, which is exactly the distinction the
+window exists to establish.
+
+**Instrumentation is complete.** Every authenticated page calls
+`recordSurfaceView`. The only three that do not are `login` and
+`join/[code]`, both pre-auth with no user to attribute, and
+`src/app/wellness/page.tsx` — a seven-line redirect stub to
+`/body?tab=journal` kept for old bookmarks, which has no auth lookup, renders
+nothing, and forwards to a page that already records.
+
+That last one was briefly reported as an uninstrumented real page and a
+three-line fix was proposed for it. It was not: the claim came from matching
+the page list against the instrumentation list without opening the file. The
+correction is recorded rather than quietly dropped, because the same
+list-matching would produce the same false gap again.
+
+**n=1 is a census, not a sample.** The owner has confirmed they are the only
+user of this instance. The existing developer-bias caveat stands — the sole
+user is also the developer, so the counts show what was being built — but the
+_sample-size_ worry does not apply: one user is 100% of the population. The
+question 2b.2 answers is "which surfaces does the only athlete actually use",
+and the data answers exactly that. It will not support a general claim about
+athletes and must not be written as one.
+
+Retention is 180 days, so nothing expires before the gate.
+
 ## v0.94.0 — 2026-08-11 — Every number, not just the exported ones
 
 Phase 2a swept the repo's **77 exported constants** and closed on that basis.
