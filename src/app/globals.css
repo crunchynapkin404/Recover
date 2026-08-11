@@ -192,7 +192,6 @@
   }
   html {
     @apply font-sans;
-    touch-action: pan-x pan-y;
   }
 }
 
