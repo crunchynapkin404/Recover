@@ -4,7 +4,7 @@ import { useRef, useState, useTransition } from "react";
 import { blockMins, type AvailabilityBlock } from "@/lib/availability/types";
 import { formatAvailability, formatBlocks } from "@/lib/availability/format";
 import { setStandardWeekDay } from "@/app/plan/actions";
-import { BlockSheet } from "./block-sheet";
+import { BlockSheet } from "@/components/week/block-sheet";
 
 const DAY_NAMES = [
   "Monday",

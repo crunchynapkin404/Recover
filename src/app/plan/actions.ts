@@ -30,7 +30,7 @@ import {
   validateBlocks,
   type AvailabilityBlock,
 } from "@/lib/availability/types";
-import type { IntakeState } from "@/components/plan/intake-form";
+import type { IntakeState } from "@/components/week/intake-form";
 import { confirmTrainingPlan, previewTrainingPlan } from "@/lib/training-plan";
 import type { PreviewResult } from "@/lib/plan-preview";
 

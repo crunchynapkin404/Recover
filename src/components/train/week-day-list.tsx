@@ -2,7 +2,7 @@ import type { DayActuals, DaySlot } from "@/lib/week-plan/types";
 import {
   DayActions,
   type DayActionsOtherDay,
-} from "@/components/plan/day-actions";
+} from "@/components/week/day-actions";
 
 // Same status palette the week strip and the v0.19 plan rows already use.
 const STATUS_CHIP: Record<DaySlot["status"], string> = {

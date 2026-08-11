@@ -10,17 +10,17 @@ import { SleepHistoryStrip } from "@/components/body/sleep-history-strip";
 import { selectNight } from "@/lib/sleep-history";
 import { CorrelationRows } from "@/components/body/correlation-rows";
 import { LabsTiles } from "@/components/body/labs-tiles";
-import { BodyBatteryCurve } from "@/components/dashboard/body-battery";
-import { MilestonesCard } from "@/components/dashboard/milestones-card";
-import { JournalForm } from "@/components/journal/journal-form";
-import { BioAgeCard } from "@/components/health/bio-age-card";
-import { BloodPressureCard } from "@/components/health/blood-pressure-card";
-import { HealthUpload } from "@/components/health/health-upload";
-import { HealthManualEntry } from "@/components/health/health-manual-entry";
+import { BodyBatteryCurve } from "@/components/body/body-battery";
+import { MilestonesCard } from "@/components/body/milestones-card";
+import { JournalForm } from "@/components/body/journal-form";
+import { BioAgeCard } from "@/components/body/bio-age-card";
+import { BloodPressureCard } from "@/components/body/blood-pressure-card";
+import { HealthUpload } from "@/components/body/health-upload";
+import { HealthManualEntry } from "@/components/body/health-manual-entry";
 import {
   BiomarkerList,
   type BiomarkerRow,
-} from "@/components/health/biomarker-list";
+} from "@/components/body/biomarker-list";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
   baselineBandFromSeries,

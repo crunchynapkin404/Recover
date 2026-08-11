@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { WeekStrip } from "@/components/plan/week-strip";
-import { fmt } from "@/components/plan/week-rationale";
+import { WeekStrip } from "@/components/week/week-strip";
+import { fmt } from "@/components/week/week-rationale";
 import type { DaySlot } from "@/lib/week-plan/types";
 
 /**

@@ -32,7 +32,7 @@ vi.mock("@/app/plan/actions", () => ({
   clearDayOverride: vi.fn(async () => ({ ok: true })),
 }));
 
-import { IntakeForm } from "@/components/plan/intake-form";
+import { IntakeForm } from "@/components/week/intake-form";
 import type { AvailabilityBlock } from "@/lib/availability/types";
 
 const blk = (mins: number): AvailabilityBlock => ({

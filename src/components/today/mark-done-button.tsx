@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { markSessionDone } from "@/app/plan/actions";
-import { friendlyPlanError } from "@/components/plan/day-actions";
+import { friendlyPlanError } from "@/components/week/day-actions";
 
 /**
  * "Mark done" on Today's session (2a). Records the athlete's own word that

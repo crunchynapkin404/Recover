@@ -7,8 +7,8 @@ import { recordSurfaceView } from "@/lib/telemetry";
 import { getActivePlan } from "@/lib/active-plan";
 import { Figure } from "@/lib/uncertainty";
 import { AppShell, shellUser } from "@/components/app-shell";
-import { PullToRefresh } from "@/components/dashboard/pull-to-refresh";
-import { SyncChip } from "@/components/dashboard/sync-chip";
+import { PullToRefresh } from "@/components/today/pull-to-refresh";
+import { SyncChip } from "@/components/today/sync-chip";
 import { getLatestMorningInsight } from "@/lib/morning-insight";
 import {
   getOpenWeekPlan,
@@ -26,7 +26,7 @@ import {
   calibrationProgress,
   CALIBRATION_TARGET_DAYS,
 } from "@/lib/calibration";
-import { CalibrationProgress } from "@/components/dashboard/calibration-progress";
+import { CalibrationProgress } from "@/components/today/calibration-progress";
 import { TodayHero, fmtTsb } from "@/components/today/today-hero";
 import { VitalsGrid, type VitalTile } from "@/components/today/vitals-grid";
 import { SessionCard } from "@/components/today/session-card";
