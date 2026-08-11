@@ -594,8 +594,18 @@ const SRC = join(process.cwd(), "src");
 
 /** Arbitrary type sizes: text-[10px], text-[0.75rem]. */
 const ARBITRARY_TYPE = /\btext-\[[^\]]*(?:px|rem|em)\]/g;
-/** Ad-hoc ink: text-white/40, bg-white/5, border-white/10. */
-const ADHOC_INK = /\b(?:text|bg|border|fill|stroke)-(?:white|black)\/\d+/g;
+/**
+ * Ad-hoc ink: text-white/40, bg-white/5, border-white/10, ring-white/50,
+ * divide-white/5, and Tailwind's bracket arbitrary-opacity syntax —
+ * bg-white/[0.06]. Both opacity syntaxes and both the ring/divide prefixes
+ * are live in src/ today (138 bracket-syntax and 8 ring/divide occurrences
+ * as of v0.99.0) — a pattern that misses either would let real offenders
+ * through undetected. An earlier draft of this guard matched only
+ * `\/\d+` with no ring/divide, which silently exempted ~17% of the
+ * offender surface; that is the defect this shape exists to avoid.
+ */
+const ADHOC_INK =
+  /\b(?:text|bg|border|fill|stroke|ring|divide)-(?:white|black)\/(?:\d+|\[[^\]]+\])/g;
 /** hairline is a non-text token; using it as text colour is the one misuse. */
 const HAIRLINE_AS_TEXT = /\btext-hairline\b/g;
 

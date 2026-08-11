@@ -21,7 +21,7 @@ const ARBITRARY_TYPE = /\btext-\[[^\]]*(?:px|rem|em)\]/g;
  * Ad-hoc ink: text-white/40, bg-white/5, border-white/10, ring-white/50,
  * divide-white/5, and Tailwind's bracket arbitrary-opacity syntax —
  * bg-white/[0.06]. Both opacity syntaxes and both the ring/divide prefixes
- * are live in src/ today (138 bracket-syntax and 9 ring/divide occurrences
+ * are live in src/ today (138 bracket-syntax and 8 ring/divide occurrences
  * respectively as of v0.99.0) — a pattern that misses either would let real
  * offenders through undetected.
  */
