@@ -52,6 +52,17 @@ Copied verbatim from `docs/specs/2026-08-11-2b4-visual-redesign-design.md`:
   muted chart ink get lighter. This is the defect the release exists to fix
   rather than a regression, but it is a visible change and is recorded as one.
   Confirmed by pixel-diff: 6 of 20 dark captures differ, and only in those two.
+- **Fourth deliberate exception, found by the whole-branch review (C2).** The
+  inline-`style` blind spot hid a fourth sub-AA-in-dark value: the CTL/ATL/TSB
+  context labels in `fitness-tiles.tsx` were painted `rgba(255,255,255,0.4)` =
+  **3.77:1**, the identical value `.label-micro` was fixed from, written in
+  **two** places (the component's fallback and `train/page.tsx`'s flat/negative
+  CTL branch). Both now take `--ink-muted`, so **those three labels get
+  lighter in dark**. Same character as the third exception: the defect the
+  release exists to fix, but visible, so recorded. The guard that would have
+  caught it is now in `tests/type-scale-guard.test.ts` (an AA floor on inline
+  text colour) — before this, `src/components/` inline styles were governed by
+  nothing at all.
 - **Known, out of scope, recorded not fixed:** `.tag-active` hardcodes the dark
   accent `#10b981`, so it does not follow the theme. A real but separate and
   smaller bug; the contrast guard deliberately excludes `accent` from the

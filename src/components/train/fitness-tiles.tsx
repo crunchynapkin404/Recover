@@ -9,7 +9,12 @@ export interface FitnessTile {
   color: string;
   /** One line of context under the value; null when there's nothing honest to say. */
   context: string | null;
-  /** Tints the context line (the CTL block delta reads as a gain). */
+  /**
+   * Tints the context line when the context MEANS something (the CTL block
+   * delta reads as a gain). Leave it unset otherwise: the default is the
+   * `--ink-muted` text floor, and passing a muted colour by hand is how the
+   * sub-AA `rgba(255,255,255,0.4)` came to be written in two places.
+   */
   contextColor?: string;
 }
 
@@ -41,7 +46,7 @@ export function FitnessTiles({ tiles }: { tiles: FitnessTile[] }) {
           {t.context && (
             <p
               className="mt-1.5 text-[9.5px] font-medium"
-              style={{ color: t.contextColor ?? "rgba(255,255,255,0.4)" }}
+              style={{ color: t.contextColor ?? "var(--ink-muted)" }}
             >
               {t.context}
             </p>

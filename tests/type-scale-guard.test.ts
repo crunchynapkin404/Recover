@@ -3,17 +3,79 @@
 // v0.99.0's premise: 300 hardcoded pixel sizes over 16 distinct values, 239
 // of them 11px or smaller, and 8 ad-hoc ink alphas of which three fail AA.
 //
-// WHY A SOURCE SCAN IS SOUND HERE, unlike the source-parsing guard v0.39
-// deleted: Tailwind v4 only compiles classes that appear as literal strings
-// in source. An arbitrary `text-[9px]` that is not a literal never renders.
-// So anything that can reach the screen is findable by scanning, and the
-// scan cannot be defeated by a class assembled at runtime — such a class
-// produces no CSS either.
+// WHY A SOURCE SCAN IS SOUND FOR TAILWIND UTILITIES, unlike the
+// source-parsing guard v0.39 deleted: Tailwind v4 only compiles classes that
+// appear as literal strings in source. An arbitrary `text-[9px]` that is not
+// a literal never renders, so a class assembled at runtime cannot defeat the
+// scan — such a class produces no CSS either.
+//
+// WHAT THAT ARGUMENT DOES *NOT* COVER, corrected (C2, whole-branch review
+// 2026-08-11). The version of this comment that shipped generalised the
+// sentence above into "anything that can reach the screen is findable by
+// scanning". That is false, and the falsification was live in three files
+// this guard already opened and read: an inline `style={{ color:
+// "rgba(255,255,255,0.4)" }}` reaches the screen with no Tailwind
+// involvement at all. `src/components/train/fitness-tiles.tsx` was painting
+// context labels at 3.77:1 — the exact value `.label-micro` was fixed from —
+// while every assertion in this file passed.
+//
+// What is actually covered, and by what:
+//   - Tailwind utility classes in src/**\/*.tsx — the three scans below.
+//   - Declarations in globals.css outside the token blocks — the raw-colour
+//     scan further down, syntax-agnostic since C1.
+//   - Declarations inside the token blocks — tests/contrast-guard.test.ts,
+//     which reads every one of the six blocks.
+//   - Inline `style={{ … }}` object literals — the two assertions added for
+//     C2, and nothing more than these two:
+//       (a) a hard AA floor on inline TEXT colour: every colour literal
+//           written out in a text-painting declaration, and every var()
+//           token it references, measured worst-case against every
+//           `--surface-*` of every theme `renderableThemes()` says the app
+//           can actually render. That is `dark` alone while
+//           theme-provider.tsx forces it, and BOTH themes the moment it does
+//           not — which is what makes the theme-blind literals in the
+//           inventory (2.28:1 and 2.52:1 in light) fail on the day light
+//           mode becomes reachable, with nobody having to remember.
+//       (b) an exact inventory that cannot grow, holding what no ratio can
+//           be computed for: values assembled at runtime (`t.color`,
+//           `rgb(${style.hue})`), non-text inline colour, and any `style=`
+//           prop that is not an object literal at all. Recorded, not
+//           checked — but it cannot change or grow silently.
+//
+// What is still NOT covered, so that this comment stops overclaiming: colour
+// literals living in ordinary TypeScript values outside a `style={{ … }}` —
+// constant maps like `BAND_COLOR` and `KIND_STYLE`, `color="#a78bfa"` props
+// passed into chart components, SVG `stroke`/`fill` presentation attributes.
+// 142 of them across 26 non-test files in src/ as of v0.99.0
+// (`grep -ohE '#[0-9a-fA-F]{3,8}\b|\b(rgba?|hsla?)\(' <non-test sources>`;
+// the inline-style subset above is included in that count). They reach the
+// screen and this file does not see them; slices 1–9 migrate them surface by
+// surface, and the axe pass — which reads the rendered DOM instead of the
+// source — is what looks at them until then.
 import { describe, it, expect } from "vitest";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
-import { CSS_PATH } from "../src/lib/design/tokens";
-import { findColorLiterals, isNeutral } from "../src/lib/design/color-literals";
+import {
+  CSS_PATH,
+  readThemeTokens,
+  renderableThemes,
+  resolveToken,
+  resolvedThemeTokens,
+  roleOfToken,
+  type ThemeName,
+} from "../src/lib/design/tokens";
+import {
+  compositeOver,
+  findColorLiterals,
+  isNeutral,
+  type Rgba,
+} from "../src/lib/design/color-literals";
+import {
+  findInlineStyleEntries,
+  propertyRole,
+  styleValueColors,
+} from "../src/lib/design/inline-styles";
+import { contrastRatio } from "../src/lib/design/contrast";
 
 const SRC = join(process.cwd(), "src");
 
@@ -143,6 +205,166 @@ function globalsCssOffenders(): string[] {
   return found;
 }
 
+/* ── INLINE `style={{ … }}` (C2) ────────────────────────────────────────────
+ * The third path to the screen, and the one that made this file's old
+ * soundness claim false. src/lib/design/inline-styles.ts finds the
+ * declarations; src/lib/design/color-literals.ts recognises the colours in
+ * them — the same module the globals.css scan uses, so both paths learn every
+ * syntax at once rather than one of them going stale.
+ *
+ * Two assertions, because a source scan can make exactly two honest claims
+ * about an inline colour:
+ *
+ *  1. A literal WRITTEN OUT in a text-painting declaration has a determinate
+ *     ratio on every declared surface, so it carries the AA floor — measured
+ *     worst-case, like every ratio in tests/contrast-guard.test.ts.
+ *  2. A value ASSEMBLED AT RUNTIME (`t.color`, `rgb(${style.hue})`) has none,
+ *     and no scan can give it one. Those are pinned in an exact inventory
+ *     instead, alongside every non-text inline colour and every style prop
+ *     this scan cannot read at all — so the set of inline colours cannot grow
+ *     without a deliberate edit here, and the ones nothing can check are
+ *     written down rather than merely unmentioned.
+ */
+const TEXT_FLOOR = 4.5; // WCAG 2.2 SC 1.4.3, normal text
+const OPAQUE_HEX = /^#[0-9a-fA-F]{6}$/;
+const RENDERABLE_THEMES = renderableThemes();
+const RESOLVED_TOKENS = resolvedThemeTokens(GLOBALS_CSS);
+const RAW_TOKENS = readThemeTokens(GLOBALS_CSS);
+
+/** Every opaque ground a theme declares — what a ratio is measured against. */
+function surfacesOf(theme: ThemeName): string[] {
+  const hexes = [
+    ...new Set(
+      Object.entries(RESOLVED_TOKENS[theme])
+        .filter(([token]) => roleOfToken(token) === "surface")
+        .map(([, value]) => value)
+        .filter((value) => OPAQUE_HEX.test(value))
+    ),
+  ];
+  if (hexes.length === 0) {
+    throw new Error(
+      `no opaque --surface-* token in the ${theme} theme — this guard would ` +
+        `measure nothing. tests/contrast-guard.test.ts asserts they exist.`
+    );
+  }
+  return hexes;
+}
+
+/** The lowest ratio a literal reaches on any surface of a theme. */
+function worstOn(rgba: Rgba, theme: ThemeName): { ratio: number; on: string } {
+  let worst = { ratio: Number.POSITIVE_INFINITY, on: "" };
+  for (const surface of surfacesOf(theme)) {
+    const ratio = contrastRatio(compositeOver(rgba, surface), surface);
+    if (ratio < worst.ratio) worst = { ratio, on: surface };
+  }
+  return worst;
+}
+
+/** True when a var() chain lands on a token whose NAME says it carries text. */
+function tokenCarriesText(token: string, theme: ThemeName): boolean {
+  const chain = resolveToken(RAW_TOKENS[theme], token)?.chain;
+  return chain != null && chain.some((t) => roleOfToken(t) === "text");
+}
+
+interface InlineSite {
+  file: string;
+  entry: ReturnType<typeof findInlineStyleEntries>[number];
+}
+
+const INLINE_SITES: InlineSite[] = walk(SRC).flatMap((file) =>
+  findInlineStyleEntries(readFileSync(file, "utf8")).map((entry) => ({
+    file: relative(process.cwd(), file),
+    entry,
+  }))
+);
+
+function inlineTextColorOffenders(): string[] {
+  const found: string[] = [];
+  for (const { file, entry } of INLINE_SITES) {
+    if (entry.kind !== "declaration") continue;
+    if (propertyRole(entry.property) !== "text") continue;
+    const where = `${file}:${entry.line} — ${entry.property}: ${entry.value}`;
+    const { literals, tokens } = styleValueColors(entry.value);
+    for (const literal of literals) {
+      if (!literal.rgba) {
+        found.push(`${where} — ${literal.text} cannot be evaluated`);
+        continue;
+      }
+      for (const theme of RENDERABLE_THEMES) {
+        const { ratio, on } = worstOn(literal.rgba, theme);
+        if (ratio < TEXT_FLOOR) {
+          found.push(
+            `${where} — ${literal.text} is ${ratio.toFixed(2)}:1 on ${on} (${theme})`
+          );
+        }
+      }
+    }
+    for (const token of tokens) {
+      for (const theme of RENDERABLE_THEMES) {
+        if (!tokenCarriesText(token, theme)) {
+          found.push(`${where} — --${token} is not a text token in ${theme}`);
+        }
+      }
+    }
+  }
+  return found;
+}
+
+/** Every colour-valued inline declaration, and every unreadable style prop. */
+function inlineColorInventory(): string[] {
+  const found: string[] = [];
+  for (const { file, entry } of INLINE_SITES) {
+    if (entry.kind === "opaque") {
+      found.push(`${file} — unreadable style value: ${entry.value}`);
+      continue;
+    }
+    if (propertyRole(entry.property) === null) continue;
+    found.push(`${file} — ${entry.property}: ${entry.value}`);
+  }
+  return found.sort();
+}
+
+/**
+ * THE RECORD, not a waiver list. Every inline colour in the app, deliberately
+ * without line numbers so ordinary edits above one do not churn it — the
+ * failure message carries file:line for whatever moved. An entry here is an
+ * item slices 1-9 migrate to a token; a NEW entry is a decision someone has
+ * to write down.
+ *
+ * Regenerate by copying the `actual` array out of this assertion's failure
+ * message — it is the scan's own output, sorted, so it cannot drift from what
+ * the guard reads.
+ */
+const INLINE_COLOR_INVENTORY: readonly string[] = [
+  "src/app/train/page.tsx — background: BAND_COLOR[band]",
+  "src/app/train/page.tsx — background: l.color",
+  'src/app/train/page.tsx — borderColor: band === "calibrating" ? "rgba(255,255,255,0.15)" : BAND_COLOR[band]',
+  "src/app/train/page.tsx — color: BAND_COLOR[band]",
+  "src/components/body/sleep-history-strip.tsx — background: s.color",
+  "src/components/body/sleep-night-card.tsx — background: s.color",
+  "src/components/body/sleep-night-card.tsx — background: s.color",
+  "src/components/coach/history-panel.tsx — background: `rgba(${style.hue},0.12)`",
+  "src/components/coach/history-panel.tsx — borderColor: `rgba(${style.hue},0.3)`",
+  "src/components/coach/history-panel.tsx — color: `rgb(${style.hue})`",
+  // Theme-blind: violet/fuchsia hardcoded for dark. ~2.4:1 and ~2.2:1 on the
+  // light surfaces, which no athlete can reach while forcedTheme="dark" — and
+  // which the floor above will fail the moment that goes, by construction.
+  'src/components/today/coach-brief.tsx — color: "#a78bfa"',
+  'src/components/today/race-chip.tsx — borderColor: "rgba(232,121,249,0.25)"',
+  'src/components/today/race-chip.tsx — color: "#e879f9"',
+  "src/components/today/today-hero.tsx — backgroundColor: m.color",
+  "src/components/today/today-hero.tsx — boxShadow: `0 0 60px -20px ${BAND_GLOW[band]}`",
+  'src/components/today/today-hero.tsx — color: calibrating ? "rgba(255,255,255,0.6)" : color',
+  "src/components/today/today-hero.tsx — color: color",
+  "src/components/train/fitness-tiles.tsx — color: t.color",
+  'src/components/train/fitness-tiles.tsx — color: t.contextColor ?? "var(--ink-muted)"',
+  "src/components/train/history-list.tsx — background: railColor(a.sport)",
+  'src/components/ui/bottom-sheet.tsx — boxShadow: "0 -20px 60px rgba(0,0,0,0.6)"',
+  'src/components/week/day-actions.tsx — background: "rgba(139,92,246,0.1)"',
+  'src/components/week/day-actions.tsx — borderColor: "rgba(139,92,246,0.3)"',
+  'src/components/week/day-actions.tsx — color: "#a78bfa"',
+];
+
 describe("type-scale guard", () => {
   // Not an `it.fails` — this pins that the scan actually walked a plausible
   // source tree, rather than silently measuring nothing. `it.fails` cannot
@@ -199,5 +421,32 @@ describe("type-scale guard", () => {
         "where tests/contrast-guard.test.ts governs it. Reference the token " +
         "with var(--…) from the component class instead"
     ).toEqual([]);
+  });
+
+  // A real assertion, not it.fails. The one live offender it found —
+  // fitness-tiles.tsx's `rgba(255,255,255,0.4)` context label, 3.77:1 at its
+  // worst — is fixed in the same commit that added this, so there is nothing
+  // left for it to grow into.
+  it(`every inline text colour clears ${TEXT_FLOOR}:1 on every surface it can render on`, () => {
+    expect(
+      inlineTextColorOffenders(),
+      `inline text is measured against every --surface-* token of every theme ` +
+        `the app can render (${RENDERABLE_THEMES.join(", ")} — see ` +
+        `renderableThemes()). Reference a text token instead: ` +
+        `style={{ color: "var(--ink-muted)" }} is the floor, and --hairline ` +
+        `is 3.0:1 — never legal on text`
+    ).toEqual([]);
+  });
+
+  // The other half: what no ratio can be computed for. Pinned exactly, so an
+  // inline colour cannot be ADDED without this list being edited on purpose.
+  it("has exactly the recorded inventory of inline colours — no more", () => {
+    expect(
+      inlineColorInventory(),
+      "an inline colour was added, changed or moved to another file. If it " +
+        "paints text, prefer var(--…) and the assertion above will check it; " +
+        "if it cannot be checked (a runtime value, a fill, a shadow), add it " +
+        "to INLINE_COLOR_INVENTORY so it is at least recorded"
+    ).toEqual(INLINE_COLOR_INVENTORY);
   });
 });

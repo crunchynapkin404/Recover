@@ -33,6 +33,10 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 export const CSS_PATH = join(process.cwd(), "src/app/globals.css");
+export const THEME_PROVIDER_PATH = join(
+  process.cwd(),
+  "src/components/theme-provider.tsx"
+);
 
 export type ThemeName = "light" | "dark";
 
@@ -74,6 +78,28 @@ export function extractThemeBlocks(css: string): ThemeBlock[] {
     }
   }
   return blocks;
+}
+
+/**
+ * The themes the athlete's app can actually render, read from the provider
+ * that decides it rather than from a comment. `forcedTheme="dark"` means the
+ * light palette ships but is unreachable outside the screenshot script (see
+ * src/components/theme-provider.tsx), so a hardcoded dark-only colour cannot
+ * yet be seen failing in light — and a guard that failed it today would be
+ * failing on a theme no athlete can open.
+ *
+ * FAILS CLOSED, DELIBERATELY: anything other than a literal `forcedTheme` of
+ * a known theme name — the attribute removed at slice 9, or made dynamic —
+ * returns BOTH themes, which is what makes the theme-blind literals in the
+ * inventory (race-chip, coach-brief, day-actions) start failing the inline
+ * AA floor the moment light mode becomes reachable. That is the correct
+ * moment for them to fail, and nobody has to remember to widen this.
+ */
+export function renderableThemes(
+  source = readFileSync(THEME_PROVIDER_PATH, "utf8")
+): ThemeName[] {
+  const forced = /forcedTheme\s*=\s*"(light|dark)"/.exec(source);
+  return forced ? [forced[1] as ThemeName] : ["light", "dark"];
 }
 
 export interface TokenDeclaration {
