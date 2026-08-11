@@ -5,6 +5,22 @@ import type {
   FuellingConfidence,
   Range,
 } from "./types";
+import {
+  AFTER_CARBS_G_NO_MASS,
+  ASSUMED_DURATION_MINS,
+  AFTER_CARBS_G_PER_KG,
+  AFTER_PROTEIN_G_NO_MASS,
+  AFTER_PROTEIN_G_PER_KG,
+  BEFORE_CARBS_G,
+  CARB_ADJUST_MAX_G,
+  DURATION_BAND_MINS,
+  DURING_CARBS_G_PER_HOUR,
+  DURING_CARBS_MAX_G_PER_HOUR,
+  DURING_FLUID_MAX_ML_PER_HOUR,
+  DURING_FLUID_ML_PER_HOUR,
+  HIGH_INTENSITY_CARB_BONUS_G,
+  HIGH_INTENSITY_FLUID_BONUS_ML,
+} from "./fuelling-constants";
 
 function clamp(n: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, n));
@@ -35,8 +51,8 @@ function classifyIntensity(input: FuellingInput): FuellingIntensityBand {
 }
 
 function durationBand(durationMins: number): "short" | "medium" | "long" {
-  if (durationMins <= 60) return "short";
-  if (durationMins <= 120) return "medium";
+  if (durationMins <= DURATION_BAND_MINS.short) return "short";
+  if (durationMins <= DURATION_BAND_MINS.medium) return "medium";
   return "long";
 }
 
@@ -55,8 +71,16 @@ function adjustForHighIntensity(
 ): Range {
   if (band !== "high") return range;
   return {
-    min: clamp(range.min + 5, 0, 300),
-    max: clamp(range.max + 15, 0, 300),
+    min: clamp(
+      range.min + HIGH_INTENSITY_CARB_BONUS_G.min,
+      0,
+      CARB_ADJUST_MAX_G
+    ),
+    max: clamp(
+      range.max + HIGH_INTENSITY_CARB_BONUS_G.max,
+      0,
+      CARB_ADJUST_MAX_G
+    ),
   };
 }
 
@@ -64,27 +88,20 @@ function beforeCarbs(
   duration: "short" | "medium" | "long",
   intensity: FuellingIntensityBand
 ): Range {
-  const base: Record<typeof duration, Range> = {
-    short: { min: 20, max: 30 },
-    medium: { min: 30, max: 50 },
-    long: { min: 50, max: 70 },
-  };
-  return adjustForHighIntensity(base[duration], intensity);
+  return adjustForHighIntensity(BEFORE_CARBS_G[duration], intensity);
 }
 
 function duringCarbs(
   duration: "short" | "medium" | "long",
   intensity: FuellingIntensityBand
 ): Range {
-  const base: Record<typeof duration, Range> = {
-    short: { min: 0, max: 20 },
-    medium: { min: 30, max: 45 },
-    long: { min: 45, max: 60 },
-  };
-  const adjusted = adjustForHighIntensity(base[duration], intensity);
+  const adjusted = adjustForHighIntensity(
+    DURING_CARBS_G_PER_HOUR[duration],
+    intensity
+  );
   return {
-    min: clamp(adjusted.min, 0, 90),
-    max: clamp(adjusted.max, 0, 90),
+    min: clamp(adjusted.min, 0, DURING_CARBS_MAX_G_PER_HOUR),
+    max: clamp(adjusted.max, 0, DURING_CARBS_MAX_G_PER_HOUR),
   };
 }
 
@@ -92,15 +109,19 @@ function duringFluid(
   duration: "short" | "medium" | "long",
   intensity: FuellingIntensityBand
 ): Range {
-  const base: Record<typeof duration, Range> = {
-    short: { min: 400, max: 600 },
-    medium: { min: 500, max: 700 },
-    long: { min: 600, max: 800 },
-  };
-  if (intensity !== "high") return base[duration];
+  const base = DURING_FLUID_ML_PER_HOUR[duration];
+  if (intensity !== "high") return base;
   return {
-    min: clamp(base[duration].min + 100, 0, 1200),
-    max: clamp(base[duration].max + 100, 0, 1200),
+    min: clamp(
+      base.min + HIGH_INTENSITY_FLUID_BONUS_ML,
+      0,
+      DURING_FLUID_MAX_ML_PER_HOUR
+    ),
+    max: clamp(
+      base.max + HIGH_INTENSITY_FLUID_BONUS_ML,
+      0,
+      DURING_FLUID_MAX_ML_PER_HOUR
+    ),
   };
 }
 
@@ -109,30 +130,21 @@ function afterCarbs(
   bodyMassKg: number | null
 ): Range {
   if (bodyMassKg == null) {
-    const generic: Record<typeof duration, Range> = {
-      short: { min: 30, max: 45 },
-      medium: { min: 45, max: 65 },
-      long: { min: 60, max: 85 },
-    };
-    return generic[duration];
+    return AFTER_CARBS_G_NO_MASS[duration];
   }
 
-  const factors: Record<typeof duration, Range> = {
-    short: { min: 0.6, max: 0.8 },
-    medium: { min: 0.8, max: 1.0 },
-    long: { min: 1.0, max: 1.2 },
-  };
+  const factors = AFTER_CARBS_G_PER_KG[duration];
   return {
-    min: round5(factors[duration].min * bodyMassKg),
-    max: round5(factors[duration].max * bodyMassKg),
+    min: round5(factors.min * bodyMassKg),
+    max: round5(factors.max * bodyMassKg),
   };
 }
 
 function afterProtein(bodyMassKg: number | null): Range {
-  if (bodyMassKg == null) return { min: 20, max: 35 };
+  if (bodyMassKg == null) return AFTER_PROTEIN_G_NO_MASS;
   return {
-    min: round5(bodyMassKg * 0.25),
-    max: round5(bodyMassKg * 0.35),
+    min: round5(bodyMassKg * AFTER_PROTEIN_G_PER_KG.min),
+    max: round5(bodyMassKg * AFTER_PROTEIN_G_PER_KG.max),
   };
 }
 
@@ -154,7 +166,9 @@ export function calculateFuellingGuidance(
     assumptions.push("body mass missing; generic recovery ranges used");
   }
 
-  const band = durationBand(durationMins > 0 ? durationMins : 60);
+  const band = durationBand(
+    durationMins > 0 ? durationMins : ASSUMED_DURATION_MINS
+  );
 
   return {
     confidence,
