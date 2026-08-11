@@ -46,28 +46,91 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+  --color-surface-base: var(--surface-base);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-overlay: var(--surface-overlay);
+  --color-ink-primary: var(--ink-primary);
+  --color-ink-secondary: var(--ink-secondary);
+  --color-ink-muted: var(--ink-muted);
+  --color-hairline: var(--hairline);
+  --color-accent: var(--accent);
 }
 
-/* ── Dark-first: the only theme ──────────────────────────────────────────── */
+/* ── Two themes. :root is light; .dark is dark. ───────────────────────────
+   Governed by tests/contrast-guard.test.ts — every ink×surface pair here is
+   asserted against its worst-case surface in both themes. Do not add an
+   --ink-* or --surface-* token without adding it to GOVERNED in
+   src/lib/design/tokens.ts, or it ships unchecked. */
 :root {
-  --background: #0a0a0a;
-  --foreground: #fafafa;
-  --card: rgba(255, 255, 255, 0.05);
-  --card-foreground: #fafafa;
-  --popover: #141414;
-  --popover-foreground: #fafafa;
-  --primary: #10b981;
-  --primary-foreground: #000000;
-  --secondary: rgba(255, 255, 255, 0.08);
-  --secondary-foreground: #fafafa;
-  --muted: rgba(255, 255, 255, 0.05);
-  --muted-foreground: rgba(255, 255, 255, 0.4);
+  --surface-base: #f6f6f6;
+  --surface-raised: #ffffff;
+  --surface-overlay: #ffffff;
+  --ink-primary: #171717;
+  --ink-secondary: #4a4a4a;
+  --ink-muted: #6e6e6e;
+  --hairline: #8a8a8a;
+  --accent: #047857;
+
+  --background: var(--surface-base);
+  --foreground: var(--ink-primary);
+  --card: var(--surface-raised);
+  --card-foreground: var(--ink-primary);
+  --popover: var(--surface-overlay);
+  --popover-foreground: var(--ink-primary);
+  --primary: var(--accent);
+  --primary-foreground: #ffffff;
+  --secondary: #ececec;
+  --secondary-foreground: var(--ink-primary);
+  --muted: #ececec;
+  --muted-foreground: var(--ink-muted);
+  --accent-foreground: #ffffff;
+  --destructive: #b91c1c;
+  --border: var(--hairline);
+  --input: var(--hairline);
+  --ring: var(--accent);
+  --chart-1: #2563eb;
+  --chart-2: #047857;
+  --chart-3: #b45309;
+  --chart-4: #6d28d9;
+  --chart-5: #b91c1c;
+  --radius: 1rem;
+  --sidebar: var(--surface-raised);
+  --sidebar-foreground: var(--ink-primary);
+  --sidebar-primary: var(--accent);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #ececec;
+  --sidebar-accent-foreground: var(--ink-primary);
+  --sidebar-border: var(--hairline);
+  --sidebar-ring: var(--accent);
+}
+
+.dark {
+  --surface-base: #0a0a0a;
+  --surface-raised: #161616;
+  --surface-overlay: #1f1f1f;
+  --ink-primary: #f5f5f5;
+  --ink-secondary: #b4b4b4;
+  --ink-muted: #8a8a8a;
+  --hairline: #6b6b6b;
   --accent: #10b981;
+
+  --background: var(--surface-base);
+  --foreground: var(--ink-primary);
+  --card: var(--surface-raised);
+  --card-foreground: var(--ink-primary);
+  --popover: var(--surface-overlay);
+  --popover-foreground: var(--ink-primary);
+  --primary: var(--accent);
+  --primary-foreground: #000000;
+  --secondary: #262626;
+  --secondary-foreground: var(--ink-primary);
+  --muted: #262626;
+  --muted-foreground: var(--ink-muted);
   --accent-foreground: #000000;
   --destructive: #ef4444;
-  --border: rgba(255, 255, 255, 0.1);
-  --input: rgba(255, 255, 255, 0.1);
-  --ring: #10b981;
+  --border: var(--hairline);
+  --input: var(--hairline);
+  --ring: var(--accent);
   --chart-1: #3b82f6;
   --chart-2: #10b981;
   --chart-3: #f59e0b;
@@ -75,13 +138,13 @@
   --chart-5: #ef4444;
   --radius: 1rem;
   --sidebar: #121212;
-  --sidebar-foreground: #fafafa;
-  --sidebar-primary: #10b981;
+  --sidebar-foreground: var(--ink-primary);
+  --sidebar-primary: var(--accent);
   --sidebar-primary-foreground: #000000;
-  --sidebar-accent: rgba(255, 255, 255, 0.08);
-  --sidebar-accent-foreground: #fafafa;
-  --sidebar-border: rgba(255, 255, 255, 0.06);
-  --sidebar-ring: #10b981;
+  --sidebar-accent: #262626;
+  --sidebar-accent-foreground: var(--ink-primary);
+  --sidebar-border: var(--hairline);
+  --sidebar-ring: var(--accent);
 }
 
 @layer base {

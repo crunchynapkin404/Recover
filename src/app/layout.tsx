@@ -42,7 +42,11 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      // Hardcoded pending Task 5's next-themes wiring (v0.99.0 slice 0),
+      // which replaces this with the library's class management. Without
+      // it, :root now resolves to the LIGHT token set (Task 2) and nothing
+      // else applies `.dark`, so the app would silently render light.
+      className={`dark ${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         <SwRegister />
