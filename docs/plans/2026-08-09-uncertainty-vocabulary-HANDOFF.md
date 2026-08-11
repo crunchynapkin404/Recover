@@ -197,9 +197,12 @@ highest-value step each time; don't skip it to save time.
   constants across 28 files, following `src/lib/plan-constants.ts`. Not
   started at all. Independent of 2b.3; could be picked up in parallel if
   the next session wants a change of pace.
-- **Phase 2b.2 (settle the IA)** — hard-gated until **2026-09-05** (four
-  weeks of `surface_views` telemetry from the v0.66.0 live deploy). Do not
-  start before that date.
+- **Phase 2b.2 (settle the IA)** — was hard-gated until **2026-09-05** (four
+  weeks of `surface_views` telemetry from the v0.66.0 live deploy). **That
+  gate was lifted on 2026-08-11 (v0.95.0)** at day 4 of the window; 2b.2 is
+  open and is the head of the Phase 2 queue. Read `docs/ROADMAP.md` for the
+  reading it settles against — this handoff is a point-in-time note and the
+  roadmap is the authority.
 - **Phase 2b.4 (visual redesign)** — blocked behind 2b.1–2b.3 finishing.
 - **feat/v0.65-mcp-contract-hardening** branch — still parked, unreviewed,
   explicitly "must not merge before 2d" per `docs/ROADMAP.md`. Not this

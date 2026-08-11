@@ -267,18 +267,26 @@ so" — is currently spoken in six dialects: `—` (47 uses), `calibrating` (39)
       **v0.66.0** shipped the local-only `surface_views` telemetry this
       decision depends on (owner-only, closed-set surface keys, counts only,
       never leaves the instance). **Deployed to the live instance:
-      2026-08-08.** Four-week trigger: do not settle this item before
-      **2026-09-05**. Per the spec, record at that point that the counts are
-      developer-biased — the sole user is also the developer and tester, so
-      the data shows what was being built, not what an athlete would open.
-      **Mid-window reading, 2026-08-11 (day 4 of 28).** 160 views:
-      today 67, train 50, body 25, coach 11, settings 6, admin 1 — each seen
-      on all four days except settings (3) and admin (1). Three instrumented
-      surfaces recorded **zero**: `activity`, `activity-log`, `import`. That
-      is signal rather than a blind spot — they are wired up and simply not
-      visited — and it is the distinction the window exists to establish, so
-      it should survive to the final reading rather than being re-derived.
-      **Instrumentation audited the same day and it is complete**: every
+      2026-08-08.** The original four-week trigger — do not settle before
+      **2026-09-05** — was **lifted on 2026-08-11 (v0.95.0)** by the owner's
+      call, on the reading below. The telemetry itself is unchanged; what
+      changed is the judgement that four more weeks of it would not move the
+      decision. See "Sequencing" below for the full argument.
+      **Final reading, 2026-08-11 (day 4 of a planned 28).** 177 views:
+      today 69, train 53, body 31, coach 13, settings 8, admin 3 — every
+      surface seen on all four days except settings (3) and admin (2). Three
+      instrumented surfaces recorded **zero**: `activity`, `activity-log`,
+      `import`. The ranking is stable day over day; today/train/body are the
+      top three on every one of the four days.
+      **The zeros for `activity` and `activity-log` are tested, not merely
+      absent.** Four activities landed inside the window (two on 2026-08-08,
+      two on 2026-08-09). The athlete trained and still never opened either
+      surface, so the zero is behaviour rather than an artefact of a quiet
+      week. **`import`'s zero is not evidence of anything** and must not be
+      read as such: it is a once-ever surface — connect a provider and never
+      return — so it would read zero at 28 days too. 2b.2 may not conclude
+      "import is unused" from this.
+      **Instrumentation audited 2026-08-11 and it is complete**: every
       authenticated page calls `recordSurfaceView`. The only three that do not
       are `login` and `join/[code]`, both pre-auth with no user to attribute,
       and `src/app/wellness/page.tsx`, which is a seven-line redirect stub to
@@ -288,12 +296,13 @@ so" — is currently spoken in six dialects: `—` (47 uses), `calibrating` (39)
       list against the instrumentation list without opening the file; noted
       because the same list-matching would produce the same false gap again.
       **n=1 is a census, not a sample.** The owner has confirmed they are the
-      only user of this instance, so the developer-bias caveat above stands
-      but the _sample-size_ worry does not: one user is 100% of the
-      population. The decision this item makes is "which surfaces does the
-      only athlete actually use", and the data answers exactly that. It will
-      not support a general claim about athletes, and should not be written
-      as one.
+      only user of this instance, so the developer-bias caveat stands — the
+      sole user is also the developer and tester, so the data shows what was
+      being built, not what an athlete would open — but the _sample-size_
+      worry does not: one user is 100% of the population. The decision this
+      item makes is "which surfaces does the only athlete actually use", and
+      the data answers exactly that. It will not support a general claim about
+      athletes, and must not be written as one.
 - [x] **2b.3 — Uncertainty and confidence language.** One vocabulary replacing
       six, distinguishing at least: _calibrating_ (not enough history yet),
       _insufficient_ (a required input is missing), _low confidence_ (wide
@@ -617,8 +626,10 @@ excluded, is recorded here so that closing 2c means something:
       renders nowhere. Dead components do not sit quietly; they get
       maintained. `src/components/ui/` is in scope rather than exempt.
       **Deleting the 15 is deliberately not part of it** — disposal is 2b.2's
-      call, which cannot settle before 2026-09-05, and some may be worth
-      reviving rather than deleting. Design:
+      call, and some may be worth reviving rather than deleting. That call was
+      date-gated to 2026-09-05 when this shipped; the gate was lifted on
+      2026-08-11 (v0.95.0), so 2b.2 can now take the list whenever it runs.
+      Design:
       `docs/specs/2026-08-11-dead-component-guard-design.md`.
 - [x] A source-of-truth guard pinning approved read sites, so a new one fails
       the build. **v0.92.0** shipped `tests/read-site-guard.test.ts`, pinning
@@ -692,27 +703,49 @@ excluded, is recorded here so that closing 2c means something:
       was not a plain local `npm test`. Both belong to Phase 4's measurement
       and ops work rather than to 2d.
 
-### Sequencing — the gate at 2026-09-05
+### Sequencing — the gate at 2026-09-05, lifted 2026-08-11
 
-Phase 2 is not a single queue, and it has a hard date in the middle of it.
-2b.2 cannot be settled before **2026-09-05** (a four-week telemetry window
-that opened when `surface_views` was deployed on 2026-08-08), and 2b.4 — the
-largest item on this roadmap — cannot start until 2b.2 has settled the IA it
-would redesign against. Everything else in Phase 2 is expected to finish well
-before that date. Written down because the shape of the problem is not
-visible from the checkbox list, and rediscovering it in September means
-either idle time or an improvised item.
+**The date gate is gone.** 2b.2 was held until **2026-09-05** so it would be
+settled against four weeks of `surface_views` rather than against recall. The
+owner lifted that gate on **2026-08-11 (v0.95.0)**, at day 4 of the planned
+28, on the reading recorded under 2b.2 above. This section is kept rather
+than deleted because the gate shaped three releases of sequencing and the
+reasoning for ending it should be as legible as the reasoning for starting
+it.
 
-**Order until the gate opens:** **2a, 2c and 2d are now all closed** — 2c at
-v0.90.0, 2d at v0.93.2, and 2a's last item (inline numeric literals) at
-v0.94.0. That claim was checked against the checkbox list before being
-written, which is how it was wrong in v0.93.0. **The pre-gate queue is
-empty**; take the designated fill below rather than improvising.
+**Why four days settled what twenty-eight were budgeted for.** Three
+arguments, none of which is "we got bored waiting":
 
-Everything else left in Phase 2 is 2b.2 and 2b.4, both blocked on the
-**2026-09-05** telemetry date rather than on effort. Do not start 2b.4 early
-— the whole point of the gate is that it redesigns against an IA 2b.2 has not
-settled yet.
+1. **n=1 does not converge.** The instance has exactly one user, confirmed by
+   the owner. More days add observations of the same person, not more people.
+   The window was budgeted as if it were a sample; it is a census, and a
+   census is complete on the day it is taken. The developer-bias caveat the
+   spec demands is untouched by this — it would have been just as biased on
+   2026-09-05.
+2. **The zeros were tested against real behaviour.** `activity` and
+   `activity-log` read zero across four days in which four activities were
+   recorded. The athlete trained and did not open them. That is the exact
+   distinction the window existed to establish, and it is established.
+3. **The window already spans the weekly cadence.** 2026-08-08 was a
+   Saturday, so the four days cover a weekend and a Sunday — the weekly
+   review's own beat. No surface on the roadmap has a monthly-only cadence;
+   the monthly report lands in the coach inbox, which is counted as `coach`.
+
+**What the window would still have bought, stated so it is not lost:**
+nothing for `import`, whose zero is structurally uninformative at any window
+length (see 2b.2), and nothing about athletes in general, which this
+telemetry was never able to support. If a second user ever joins this
+instance, the census argument above expires and the counts become a sample of
+one — reopen the question then rather than citing this reading.
+
+**Order now:** **2a, 2c and 2d are all closed** — 2c at v0.90.0, 2d at
+v0.93.2, and 2a's last item (inline numeric literals) at v0.94.0. Check that
+against the checkbox list before repeating it; that is how it was wrong in
+v0.93.0. What remains in Phase 2 is **2b.2, then 2b.4**, and neither is
+date-blocked any longer — only 2b.4's dependency on 2b.2 remains, because it
+still redesigns against an IA 2b.2 has to settle first. **2b.2 is the head of
+the queue.** Per §2b it is a brainstorm → spec → plan cycle in its own right,
+not direct implementation.
 
 **A correction worth keeping, because it is the second time this line has
 been wrong.** v0.93.0 first wrote here that "2a, 2c and 2d are all closed",
@@ -723,9 +756,14 @@ slices" for three releases after the count changed. **Keep this section
 current as items close, and re-read the checkboxes before summarising them
 rather than summarising from memory of the last release.**
 
-**When those run out and the date has not arrived**, these are the designated
-fill. All four are hardening, measurement or hygiene, so none of them trips
-the Non-goal against new athlete-facing capability during Phase 2:
+**The four below are no longer "fill."** They were written as work to take
+while the queue was empty and the date had not arrived. The queue is no
+longer empty, so they stop being filler and go back to being ranked on their
+own merits — item 1 in particular is a real defect and does not become less
+real for having been listed as something to do while waiting. Sequencing them
+against 2b.2 is the owner's call. All four are hardening, measurement or
+hygiene, so none of them trips the Non-goal against new athlete-facing
+capability during Phase 2:
 
 1. **Finish `executeIcuTool()` across the icu\_ tool cluster.** The one piece
    worth keeping from `feat/v0.65-mcp-contract-hardening`, which applied it to

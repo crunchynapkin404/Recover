@@ -53,8 +53,16 @@ pages, including ones reached by drilling in rather than from the nav —
 is: `today`, `train`, `coach`, `body`, `settings`, `admin`, `import`, `activity`, `activity-log`.
 `admin`, `import`, `activity` and `activity-log` have no nav entry of their own.
 
-Whether this is the right shape is Phase 2b.2's question, deferred until
-four weeks of `surface_views` data exists (on or after 2026-09-05).
+Whether this is the right shape is Phase 2b.2's question. That question was
+deferred until four weeks of `surface_views` data existed (on or after
+2026-09-05); the gate was lifted on 2026-08-11 at day 4, and 2b.2 is now
+open. The reading it will be settled against, and the reasoning for ending
+the window early, are in `docs/ROADMAP.md` under 2b.2 and "Sequencing".
+
+One caveat travels with that reading, because this section is where the
+surface list lives: `import` recorded zero views, and that is not evidence
+it is unused. It is a once-ever surface, so it would read zero at any window
+length.
 
 ## Uncertainty vocabulary
 

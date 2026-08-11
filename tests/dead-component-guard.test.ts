@@ -32,9 +32,11 @@
 // it. Dead components do not sit quietly; they get maintained.
 //
 // Disposing of any of the 15 is Phase 2b.2's decision (docs/ROADMAP.md), not
-// this guard's, and 2b.2 cannot settle before 2026-09-05 — it depends on the
-// four-week surface_views telemetry window that opened 2026-08-08. Some may
-// be worth reviving with usage data rather than deleting outright.
+// this guard's. 2b.2 was date-gated to 2026-09-05 on a four-week
+// surface_views telemetry window; that gate was lifted on 2026-08-11 at day
+// 4 (v0.95.0), so the decision is available whenever 2b.2 runs. Some may be
+// worth reviving with usage data rather than deleting outright. Nothing here
+// changes either way: this guard stays shrink-only and never deletes.
 //
 // journal/correlation-insights.tsx is allowlisted for the same underlying
 // reason in tests/uncertainty-dialects-guard.test.ts (see that file's KNOWN
