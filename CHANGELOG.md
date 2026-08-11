@@ -1,5 +1,80 @@
 # Changelog
 
+## v0.97.0 — 2026-08-11 — Score whichever HRV metric arrived
+
+The athlete's HRV reaches Recover by **two independent paths from the same
+watch**, at different speeds and in different units:
+
+```text
+Zepp → Apple Health → intervals.icu Companion → intervals.icu → Recover
+   hrvSDNN → wellness_daily.hrv_sdnn_ms      lands ~06:14 every morning
+Zepp → intervals.icu direct                → Recover
+   hrv (rMSSD) → wellness_daily.hrv_ms      lands the NEXT morning
+```
+
+Recover read only `hrv_ms`. Two consequences, both measured live:
+
+1. **The Today tile blanked every morning.** `latest` was the newest row
+   carrying HRV _or_ resting HR. Resting HR arrives on time and rMSSD does
+   not, so at ~06:14 `latest` flipped to today's row and the tile went from
+   yesterday's real number to "no HRV reading" — **the sync was what made HRV
+   disappear.**
+2. **Readiness silently dropped its heaviest input.** HRV carries weight
+   `0.40`. `computeReadiness` renormalized over the surviving components and
+   said nothing. On 2026-08-11 the day scored 68 without HRV and 77 once
+   rMSSD landed. Saying nothing is precisely what the goal sentence forbids.
+
+**The two metrics are not interchangeable.** Over the 17 days carrying both,
+log-correlation is **r = 0.67** — under half the variance explained — and the
+ratio ranges 0.96–1.67. On 2026-08-11, rMSSD 152 sat ~2.5σ above its own
+baseline and maxed the HRV component at 100 while SDNN 91 sat ~0.9σ above its
+own and scored ~68. **So each metric is scored against a baseline built from
+itself.** Substituting SDNN into an rMSSD baseline reads as a crash. Same rule
+`resolveEffectiveLoad` already enforces for CTL/ATL: pairs are never mixed.
+
+`resolveEffectiveHrv` (`src/lib/hrv-source.ts`) picks the pair; the winner is
+persisted as `daily_metrics.hrv_metric` (migration `0041`, additive) exactly as
+`load_source` records which load series won. **`computeReadiness` is
+unchanged** — it still takes one value and one baseline and never learns there
+are two metrics.
+
+**The Today tile and hero read the stored decision** rather than re-resolving,
+so tile and ring cannot name different metrics. Value, 7-day delta and
+sparkline all read the same column; the hero's baseline is now
+`exp(hrv_baseline_mean)` — the stats of whichever baseline scored the day —
+where it used to be a raw 7-day mean of the rMSSD column, which beside an SDNN
+reading printed "HRV 91 vs 97 baseline" and invented a deficit. On the SDNN
+fallback the tile is labelled **HRV · SDNN**, confidence drops to medium, and
+it says why. `calibrationProgress` counts SDNN too — an SDNN-only athlete was
+being told "day 0 of 14" while readiness was already scoring them.
+
+**A pre-existing mislabel, fixed at the source.** HealthKit defines exactly one
+HRV quantity type — SDNN — and `apple-health.ts` mapped it into `hrvMs`. An
+existing test asserted the bug and had locked it in; it was corrected rather
+than worked around. The connector is dormant (its feed died 2026-07-29), so
+this fixes it before anyone revives it.
+
+**Four live rows carry SDNN posing as rMSSD** and sit inside the active 60-day
+baseline window, skewing rMSSD z-scores today.
+`scripts/repair-apple-health-hrv.ts` relocates or clears them — dry-run by
+default, `--user` mandatory, no `--all`, `field_sources` written as a jsonb
+delta. **Not applied.** That is an operator step on real health data, after
+merge. The dry-run matches the measured table exactly: 07-25 relocate 107.54,
+then 07-26 / 07-28 / 07-29 clear.
+
+**Published readiness scores can move overnight.** A day scored on SDNN and
+recomputed when rMSSD lands will change after the athlete has seen it, and the
+coach may already have quoted the old number. Accepted deliberately — Recover
+has been bitten by the inverse, a corrected database behind a stale
+athlete-facing message — but coach surfaces are out of scope here and will
+still quote whatever was current when they wrote.
+
+Not in scope: the coach, MCP tools, `/body` trends, merging the two series, or
+reweighting readiness because SDNN is a weaker proxy. Measured against its own
+baseline a z-score is a z-score, and a discount would be another uncited
+constant. Upstream, the Zepp → intervals.icu pull not firing on its own is real
+and not fixable in this codebase.
+
 ## v0.96.0 — 2026-08-11 — The guard was counting dead code as alive
 
 Tests, CI config and docs. No product code, no behaviour, no numbers.

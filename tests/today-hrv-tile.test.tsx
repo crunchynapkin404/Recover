@@ -38,9 +38,39 @@ describe("buildHrvTile", () => {
     expect(t.delta?.text).not.toContain("85");
   });
 
-  it("shows the missing-input state when no metric scored the day", () => {
+  it("still shows a real reading while the baseline is calibrating", () => {
+    // hrv_metric is null both when there is no reading AND during the first
+    // 14 days, when the reading is real and only the baseline is short.
+    // Blanking the second case tells an athlete who measured 83 ms that
+    // morning "needs an HRV reading" — false, a regression on the pre-v0.97
+    // tile, and inconsistent with the RHR tile beside it, which shows its
+    // value while calibrating.
     const t = buildHrvTile({
       latest: { date: "2026-08-07", hrvMs: 83, hrvSdnnMs: 66 },
+      metric: null,
+      window7: week,
+    });
+    expect(t.value).toMatchObject({ available: true, value: "83" });
+    expect(t.value.available && t.value.confidence).toBe("low");
+    expect(t.value.available && t.value.why).toMatch(/still learning/i);
+    expect(t.delta?.text).toContain("85");
+  });
+
+  it("prefers rMSSD for display while calibrating, then SDNN", () => {
+    const t = buildHrvTile({
+      latest: { date: "2026-08-07", hrvMs: null, hrvSdnnMs: 66 },
+      metric: null,
+      window7: week,
+    });
+    expect(t.label).toBe("HRV · SDNN");
+    expect(t.value).toMatchObject({ available: true, value: "66" });
+    // Compared against the SDNN column, never the rMSSD one.
+    expect(t.delta?.text).toContain("69");
+  });
+
+  it("shows the missing-input state only when there is no reading at all", () => {
+    const t = buildHrvTile({
+      latest: { date: "2026-08-07", hrvMs: null, hrvSdnnMs: null },
       metric: null,
       window7: week,
     });

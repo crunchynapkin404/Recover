@@ -20,8 +20,29 @@ export interface HrvRow {
 const WHY_SDNN =
   "rMSSD hasn't arrived from your watch yet — scored against your SDNN baseline.";
 
+const WHY_NOT_SCORED =
+  "Readiness isn't scoring HRV yet — still learning your baseline.";
+
 function column(row: HrvRow, metric: HrvMetric): number | null {
   return metric === "rmssd" ? row.hrvMs : row.hrvSdnnMs;
+}
+
+/**
+ * Which column to DISPLAY when nothing scored the day — the same precedence
+ * as scoring, minus the baseline requirement.
+ *
+ * hrv_metric is null in two very different situations: no reading at all, and
+ * a real reading whose baseline is still short (the first 14 days). Blanking
+ * both says "needs an HRV reading" to an athlete who took one that morning,
+ * which is false, and it is the opposite of this release's point — the tile
+ * would be claiming ignorance it does not have. It also regressed the old
+ * behaviour and disagreed with the RHR tile beside it, which still shows its
+ * value while calibrating.
+ */
+function displayMetric(row: HrvRow): HrvMetric | null {
+  if (row.hrvMs != null && row.hrvMs > 0) return "rmssd";
+  if (row.hrvSdnnMs != null && row.hrvSdnnMs > 0) return "sdnn";
+  return null;
 }
 
 export function buildHrvTile(input: {
@@ -41,12 +62,13 @@ export function buildHrvTile(input: {
     href: "/body?tab=trends",
   };
 
-  const value = metric && latest ? column(latest, metric) : null;
+  // `metric` is what SCORED the day; `shown` is what the tile displays. They
+  // differ only while calibrating, and the `why` below says so out loud, so
+  // the tile still cannot imply a number fed a ring that never saw it.
+  const shown = metric ?? (latest ? displayMetric(latest) : null);
+  const value = shown && latest ? column(latest, shown) : null;
 
-  // A day the ring did not score must not display a number the ring does not
-  // reflect — so the tile blanks with a reason rather than reaching for a
-  // column nothing validated.
-  if (metric == null || value == null) {
+  if (shown == null || value == null) {
     return {
       ...base,
       value: Figure.missingInput("an HRV reading"),
@@ -55,7 +77,7 @@ export function buildHrvTile(input: {
     };
   }
 
-  const series = window7.map((w) => column(w, metric));
+  const series = window7.map((w) => column(w, shown));
   const present = series.filter((v): v is number => v != null);
   const avg7 =
     present.length > 0
@@ -65,11 +87,11 @@ export function buildHrvTile(input: {
 
   return {
     ...base,
-    label: metric === "sdnn" ? "HRV · SDNN" : "HRV",
+    label: shown === "sdnn" ? "HRV · SDNN" : "HRV",
     value: Figure.available(
       String(Math.round(value)),
-      metric === "sdnn" ? "medium" : "high",
-      metric === "sdnn" ? WHY_SDNN : undefined
+      metric == null ? "low" : shown === "sdnn" ? "medium" : "high",
+      metric == null ? WHY_NOT_SCORED : shown === "sdnn" ? WHY_SDNN : undefined
     ),
     delta:
       avg7 > 0
