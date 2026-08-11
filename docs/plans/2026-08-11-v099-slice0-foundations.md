@@ -30,9 +30,11 @@ Copied verbatim from `docs/specs/2026-08-11-2b4-visual-redesign-design.md`:
   figure claiming more than 2a can source.
 - **No IA change.** Nav stays Today/Train/Coach/Body/Menu; every route keeps its
   URL; no route is retired.
-- **No athlete-visible change in this slice.** Dark mode must render
-  byte-for-byte the same intent as before; light mode is unreachable until
-  slice 9.
+- **No athlete-visible _visual_ change in this slice.** Dark mode must render
+  the same intent as before; light mode is unreachable until slice 9. **One
+  deliberate behavioural exception:** Task 4 restores pinch-zoom, a WCAG 1.4.4
+  fix that ships here because the plumbing it touches is here. It is the only
+  behaviour change permitted in slice 0.
 - **Type floor is 12px.** Nothing below 12px exists as a token.
 - **Type scale:** `12 · 14 · 16 · 20 · 24 · 30 · 44`, plus a mono numeric variant.
 - **Spacing scale:** `4 · 8 · 12 · 16 · 24 · 32 · 48`.
@@ -957,10 +959,24 @@ with "Executable doesn't exist at …chromium_headless_shell-1232".
 //   mode drops the session and every authenticated capture is a login page.
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const {
-  chromium,
-} = require("/home/vscode/.npm/_npx/e41f203b7505f1fb/node_modules/playwright-core");
+// Playwright is not in node_modules — it lives only in the npx cache, at
+// several versions, and only one matches the installed chromium revision.
+// Resolve from the environment so no machine's home directory is baked into
+// the repo, with the verified path as the documented default.
+const PLAYWRIGHT_CORE =
+  process.env.PLAYWRIGHT_CORE ??
+  `${process.env.HOME}/.npm/_npx/e41f203b7505f1fb/node_modules/playwright-core`;
+let chromium: typeof import("playwright-core").chromium;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  ({ chromium } = require(PLAYWRIGHT_CORE));
+} catch {
+  throw new Error(
+    `Cannot load playwright-core from ${PLAYWRIGHT_CORE}. Set PLAYWRIGHT_CORE to ` +
+      `a copy whose playwright-core/browsers.json chromium revision matches a ` +
+      `directory in ~/.cache/ms-playwright. See Task 6 Step 1.`
+  );
+}
 
 const SURFACES: Record<string, string> = {
   today: "/",
