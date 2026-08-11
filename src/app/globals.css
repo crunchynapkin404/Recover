@@ -195,31 +195,78 @@
   }
 }
 
+/* ── Component effect tokens (glass, inputs, chat, row dividers) ──────────
+   Task 6b (2026-08-11). Every `.dark` value below is the ORIGINAL literal
+   these classes shipped with — unchanged on purpose, so dark mode's pixels
+   do not move. Only `:root` (light) is new.
+
+   `.mesh-gradient`, `.glass` and friends were dark-only: a translucent white
+   veil (`rgba(255,255,255,…)`) is invisible over a light surface, which is
+   the defect this task exists to fix. The design's decision is that glass
+   stops being the substrate — real surface tokens do that job — and glass is
+   reserved for things genuinely floating over content (nav pill, bottom
+   sheets). So in light mode these become an opaque surface with a hairline
+   border rather than a white veil; dark mode keeps the original frosted-glass
+   translucency untouched. */
+:root {
+  --glass-bg: var(--surface-raised);
+  --glass-border: var(--hairline);
+  --glass-hover-shadow: rgba(23, 23, 23, 0.15);
+  --login-input-bg: var(--surface-raised);
+  --login-input-border: var(--hairline);
+  --login-input-focus-bg: var(--surface-raised);
+  --chat-bubble-ai-bg: var(--surface-raised);
+  --chat-bubble-ai-border: var(--hairline);
+  --chat-bubble-user-bg: var(--secondary);
+  --chat-bubble-user-border: var(--hairline);
+  --row-divider: rgba(0, 0, 0, 0.08);
+}
+
+.dark {
+  --glass-bg: rgba(255, 255, 255, 0.05);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-hover-shadow: rgba(0, 0, 0, 0.5);
+  --login-input-bg: rgba(255, 255, 255, 0.02);
+  --login-input-border: rgba(255, 255, 255, 0.05);
+  --login-input-focus-bg: rgba(255, 255, 255, 0.05);
+  --chat-bubble-ai-bg: rgba(255, 255, 255, 0.07);
+  --chat-bubble-ai-border: rgba(255, 255, 255, 0.1);
+  --chat-bubble-user-bg: rgba(255, 255, 255, 0.05);
+  --chat-bubble-user-border: rgba(255, 255, 255, 0.05);
+  --row-divider: rgba(255, 255, 255, 0.06);
+}
+
 /* ── Mesh gradient background ────────────────────────────────────────────── */
 .mesh-gradient {
+  /* The two accent blooms stay identical in both themes: at 8% alpha they
+     shift the page's rendered luminance by well under 1%, so they cannot
+     threaten any text/surface contrast pair, and a faint blue/green wash
+     reads as intentional depth on a light surface exactly as it does on a
+     dark one. Only the base — the one hardcoded value in this rule — was
+     theme-blind; it now follows --surface-base. */
   background:
     radial-gradient(at 10% 10%, rgba(59, 130, 246, 0.08) 0%, transparent 40%),
     radial-gradient(at 90% 20%, rgba(16, 185, 129, 0.08) 0%, transparent 40%),
-    radial-gradient(at 50% 50%, #0a0a0a 100%);
+    radial-gradient(at 50% 50%, var(--surface-base) 100%);
 }
 
 /* ── Glassmorphic card effect ────────────────────────────────────────────── */
 .glass {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--glass-bg);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--glass-border);
   transition:
     transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
     box-shadow 0.3s ease;
 }
 .glass-border-strong {
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--glass-border);
 }
 @media (hover: hover) {
   .glass:hover {
     transform: translateY(-4px);
-    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 10px 30px -10px var(--glass-hover-shadow);
   }
   .glass-no-hover:hover {
     transform: none;
@@ -233,7 +280,13 @@
   text-transform: uppercase;
   letter-spacing: 0.2em;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.4);
+  /* Was rgba(255,255,255,0.4) — ~3.8:1 in dark, the exact class of sub-AA
+     value this release exists to eliminate. --ink-muted is the text floor
+     and clears 4.5:1 in both themes, so this changes dark mode's rendered
+     pixels on purpose (unlike the rest of this file's edits, which preserve
+     dark exactly) — it is a real, disclosed contrast fix, not a preserved
+     value with a new name. */
+  color: var(--ink-muted);
 }
 
 /* ── Animations ──────────────────────────────────────────────────────────── */
@@ -365,12 +418,12 @@
 
 /* ── Login input ─────────────────────────────────────────────────────────── */
 .login-input {
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: var(--login-input-bg);
+  border: 1px solid var(--login-input-border);
   transition: all 0.2s ease;
 }
 .login-input:focus {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--login-input-focus-bg);
   border-color: rgba(16, 185, 129, 0.5);
   outline: none;
   box-shadow: 0 0 20px rgba(16, 185, 129, 0.1);
@@ -378,13 +431,13 @@
 
 /* ── Coach chat bubbles ──────────────────────────────────────────────────── */
 .chat-bubble-ai {
-  background: rgba(255, 255, 255, 0.07);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--chat-bubble-ai-bg);
+  border: 1px solid var(--chat-bubble-ai-border);
   border-bottom-left-radius: 4px;
 }
 .chat-bubble-user {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: var(--chat-bubble-user-bg);
+  border: 1px solid var(--chat-bubble-user-border);
   border-bottom-right-radius: 4px;
 }
 
@@ -432,7 +485,7 @@
   padding: 1.25rem 0 !important;
 }
 .hairline-list > * + * {
-  border-top: 1px solid rgba(255, 255, 255, 0.06) !important;
+  border-top: 1px solid var(--row-divider) !important;
 }
 /* Shadcn Card insets its own header/content/footer; zero those so a Card row
    left-aligns with the plainer <section>/<div> rows beside it. */
@@ -448,17 +501,32 @@
 }
 
 /* ── Data-viz palette ────────────────────────────────────────────────────── */
+/* Series and status colours are theme-invariant brand/semantic colours, not
+   ink or surface — they stay in a single block. --viz-grid and --viz-axis
+   are non-text (dividers/strokes), split below with `.dark` preserving the
+   exact original translucent white so chart backgrounds render unchanged;
+   light gets an analogous dark-on-light translucency instead of an invisible
+   white-on-white one. --viz-muted-ink is chart *text* (axis labels, muted
+   figures) and was rgba(255,255,255,0.3) — ~2.7:1 in dark, sub-AA in both
+   themes. It now points at --ink-muted (4.5:1 floor) in both themes, the
+   same disclosed contrast fix as .label-micro above. */
 :root {
   --viz-series-1: #3b82f6;
   --viz-series-2: #10b981;
   --viz-series-3: #f59e0b;
   --viz-series-5: #8b5cf6;
-  --viz-grid: rgba(255, 255, 255, 0.02);
-  --viz-axis: rgba(255, 255, 255, 0.06);
-  --viz-muted-ink: rgba(255, 255, 255, 0.3);
+  --viz-grid: rgba(0, 0, 0, 0.06);
+  --viz-axis: rgba(0, 0, 0, 0.12);
+  --viz-muted-ink: var(--ink-muted);
   --viz-status-good: #10b981;
   --viz-status-warning: #f59e0b;
   --viz-status-critical: #ef4444;
+}
+
+.dark {
+  --viz-grid: rgba(255, 255, 255, 0.02);
+  --viz-axis: rgba(255, 255, 255, 0.06);
+  --viz-muted-ink: var(--ink-muted);
 }
 
 /* ── Bottom sheets (1h / 1i) ─────────────────────────────────────────────── */
