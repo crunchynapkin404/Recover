@@ -1,5 +1,87 @@
 # Changelog
 
+## v0.99.0 — 2026-08-12 — The app you can read (Phase 2b.4, slice 0 of 10)
+
+**This is the system, not the redesign. No surface was redesigned.** Phase 2b.4
+splits into ten slices; this is slice 0, the foundations every later slice is
+verified against. The nav, the routes, the tabs and the content of all twelve
+pages are untouched.
+
+**The measured finding that justifies it.** The app had no typographic system
+and no legibility floor: **395** hardcoded pixel sizes over **26** distinct
+values, **284** of them 11px or smaller, the bottom nav at `text-[8px]`. Ink was
+eighteen ad-hoc alpha levels on `text-white/N` alone across 447 occurrences,
+three of which — `/40`, `/35`, `/30` — compute to **3.77:1, 3.15:1 and 2.61:1**
+against `#0a0a0a`, all under the 4.5:1 AA floor. `docs/design-system.md`
+documented 83 colour and radius tokens and not one typographic token, because
+none existed.
+
+**A real bug this fixes, found by comparing against `main`.** The API-token
+success box rendered its _light_ styles, because `.dark` had never been applied
+anywhere: token text at **1.02:1**, independently confirmed at 1.04:1 as the
+only confirmed node in `main`'s own axe baseline. The box says "Copy this token
+now — it won't be shown again." There was nothing legible to copy.
+
+**Pinch-zoom is restored.** It was blocked in **two** places — `layout.tsx`'s
+`maximumScale: 1, userScalable: false` and `globals.css`'s
+`html { touch-action: pan-x pan-y }` — so removing either alone left zoom broken
+while looking finished. WCAG 1.4.4, shipping since v0.1, on an app whose labels
+are 10px.
+
+**What shipped:** two complete token sets (`:root` light, `.dark` dark) with
+`next-themes` wiring pinned to dark until the final slice; a seven-step type
+scale with a hard 12px floor (`12 · 14 · 16 · 20 · 24 · 30 · 44`); a four-step
+ink ramp where every text step clears AA in both themes and `hairline` is
+structurally barred from text; a 4px spacing scale; four guards; and the
+headless-browser capture-and-audit tooling (`npm run verify:surfaces`,
+`npm run verify:axe`) that the nine remaining slices are verified with.
+
+**Five deliberate visible changes, each recorded rather than absorbed.**
+Presentation may change, claims may not — no figure was added and none claims
+more than v0.94 can source.
+
+1. Pinch-zoom works (behavioural).
+2. Applying `.dark` for the first time activated **14 `dark:` utilities across
+   21 occurrences in 4 files** that had been dead code — including the token box
+   above, and `ui/input.tsx`'s `dark:bg-input/30`, which reaches 10 `<Input>`
+   uses in 5 settings files (79 raw `<input>` elements are untouched).
+3. `.label-micro` (~3.8:1) and `--viz-muted-ink` (~2.7:1) were sub-AA **in dark
+   too**; both now resolve to `--ink-muted`, so dark changes.
+4. `fitness-tiles` and `train/page.tsx` painted CTL context labels at
+   **3.77:1** — the identical value `.label-micro` was fixed from, written in
+   two places. Both now `--ink-muted`.
+5. `.nav-active-dot`'s `white` → `var(--ink-primary)`, on five phone surfaces.
+
+Dark mode also shifts on **15 token values**, measured exactly against `main`
+(`docs/dark-mode-delta-vs-main.md`). The two that matter: `--border` and
+`--input` were **1.26:1** against the page — failing WCAG 1.4.11's 3:1 for a UI
+component boundary — and are now 3.09:1 worst-case; and `--muted-foreground`
+lightens across 21 sites, which is the `.label-micro` fix on a far larger
+surface. The app's borders were invisible by the exact standard this release
+exists to enforce.
+
+**Verification.** 1730 tests, typecheck, eslint, prettier and `npm run build`
+all green. Every guard mutation-checked. A rendered surface-by-surface
+comparison against a `main` worktree found **no layout shift on any of 18
+comparable surfaces** — every difference is a recolour in place — and no
+unexpected change.
+
+**Four things this release knowingly does not cover**, stated because the
+alternative is implying otherwise: light mode is unreachable
+(`forcedTheme="dark"` until the last slice); the axe pass is a local pre-merge
+step, not CI, and its baseline is deliberately non-zero; ~142 colour literals
+living outside `style={{}}` are unguarded; and `/activity/[id]` — which the spec
+calls "the real finding" — is not audited.
+
+**The process finding, which is the most transferable thing here.** Twenty-four
+commits of per-task review, each with a fresh implementer and an independent
+reviewer, missed **all five Criticals** that a single whole-branch review then
+caught. Every one was a seam or a scope question — a guard that read only the
+first of six token blocks; a soundness argument true for Tailwind utilities and
+false for inline styles; an exit gate that excluded real failures; a script
+defaulting to the live production container; and a constraint nobody had ever
+tested against `main`. None was visible from inside a single task.
+
 ## v0.98.0 — 2026-08-11 — The tree tells the truth about the IA
 
 Phase **2b.2**, the last item blocking 2b.4 (the visual redesign). No
