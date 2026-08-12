@@ -59,12 +59,23 @@ import { ThemeProvider as NextThemes } from "next-themes";
  * The same slice restores `layout.tsx`'s per-theme `themeColor` (see I1).
  *
  * SIDE EFFECT, ACCEPTED DELIBERATELY: this is the first time `.dark` has
- * ever been applied, so 11 `dark:` utilities that were dead code become
- * live — api-tokens-card's success box, the outline Button's
- * border/background, destructive Button and Badge, and several
- * hover/focus/aria-invalid variants. They were authored for a dark app and
- * had never rendered as intended. Verified in Task 6/7's screenshot and axe
- * pass; see the plan's Global Constraints.
+ * ever been applied, so `dark:` utilities that were dead code become live.
+ * Measured (I3, corrected from "11"): **14 distinct utilities, 21
+ * occurrences, 4 files** — `ui/button.tsx`, `ui/input.tsx`, `ui/badge.tsx`
+ * and `settings/api-tokens-card.tsx`. `ui/input.tsx` was missing from the
+ * original list and is the consequential one: its `dark:bg-input/30` gives
+ * every text field in the app a grey fill it never had.
+ *
+ * 6 of the 14 are confirmed by eye in
+ * `.screenshots/branch-A2/settings-token-created-dark-phone.png` (the only
+ * capture that reaches an `<Input>`, an outline `Button` and the success box
+ * — the plain /settings capture is the collapsed Menu). The other 8 are not:
+ * five are hover/focus/disabled/aria-invalid state variants a static capture
+ * cannot reach, and three belong to the `destructive` variant, which has zero
+ * call sites in src/ and cannot render at all. Measured rather than assumed
+ * benign, which turned up two sub-AA states no capture would have shown.
+ * The full table, both lists, and the two findings are in the plan's Global
+ * Constraints.
  */
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   return (

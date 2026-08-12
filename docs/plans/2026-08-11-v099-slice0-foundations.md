@@ -34,17 +34,72 @@ Copied verbatim from `docs/specs/2026-08-11-2b4-visual-redesign-design.md`:
   the same intent as before; light mode is unreachable until slice 9. **One
   deliberate behavioural exception:** Task 4 restores pinch-zoom, a WCAG 1.4.4
   fix that ships here because the plumbing it touches is here.
-- **Second deliberate exception, found during Task 2.** Applying `.dark` for
-  the first time activates **11 `dark:` utilities that were dead code** —
-  nothing had ever applied that class. Affected: `api-tokens-card.tsx`'s
-  success box (`green-50`→`green-950`, `bg-white`→`bg-black`), the outline
-  `Button`'s `dark:border-input dark:bg-input/30`, destructive `Button` and
-  `Badge` (`destructive/10`→`/20`), and several `dark:hover:`,
-  `dark:focus-visible:` and `dark:aria-invalid:` state variants. These were
-  authored for a dark app and had never rendered as intended. **Every one of
-  the 11 must be confirmed in Task 6's screenshots and Task 7's axe run** —
-  the exception is granted on the condition that they are looked at, not
-  assumed benign.
+- **Second deliberate exception, found during Task 2 — COUNT AND FILE LIST
+  CORRECTED by the whole-branch review (I3).** Applying `.dark` for the first
+  time makes previously-dead `dark:` utilities live, because nothing had ever
+  applied that class. The number recorded here was **11**; measured, it is
+  **14 distinct utilities, 21 occurrences, across 4 files**
+  (`grep -onE 'dark:[a-zA-Z0-9_/:\[\]().,%-]+' <non-test sources in src/>`).
+  One of the four files, `ui/input.tsx`, **was not named at all** — and it is
+  the one that matters most, because it carries the `dark:bg-input/30` that
+  gives **every text field in the app a grey fill it never had**.
+
+  | File                                          | Occ. | Distinct utilities                                                                                                                                                                                                                                                                  |
+  | --------------------------------------------- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | `src/components/ui/button.tsx`                | 9    | `dark:border-input`, `dark:bg-input/30`, `dark:hover:bg-input/50`, `dark:hover:bg-muted/50`, `dark:bg-destructive/20`, `dark:hover:bg-destructive/30`, `dark:focus-visible:ring-destructive/40`, `dark:aria-invalid:border-destructive/50`, `dark:aria-invalid:ring-destructive/40` |
+  | `src/components/ui/input.tsx`                 | 4    | `dark:bg-input/30`, `dark:disabled:bg-input/80`, `dark:aria-invalid:border-destructive/50`, `dark:aria-invalid:ring-destructive/40`                                                                                                                                                 |
+  | `src/components/ui/badge.tsx`                 | 4    | `dark:hover:bg-muted/50`, `dark:bg-destructive/20`, `dark:focus-visible:ring-destructive/40`, `dark:aria-invalid:ring-destructive/40`                                                                                                                                               |
+  | `src/components/settings/api-tokens-card.tsx` | 4    | `dark:bg-green-950`, `dark:border-green-800`, `dark:text-green-200`, `dark:bg-black`                                                                                                                                                                                                |
+
+  **The condition attached to this exception — "looked at, not assumed
+  benign" — was not met, and is now met for 6 of the 14.** Stated plainly
+  rather than implied, because the earlier record said all of them were
+  confirmed in Task 6/7 and `progress.md` simultaneously recorded "Destructive
+  Button/Badge unreachable — no call sites".
+
+  **Looked at (6).** Confirmed by opening
+  `.screenshots/branch-A2/settings-token-created-dark-phone.png` and cropping
+  it, not by the run having produced a file:
+  `dark:bg-input/30` (both files — the Label and webhook URL fields render a
+  clearly lighter pill than the bare `<select>` beside them),
+  `dark:border-input` (the "Sign out everywhere else (11)" outline button now
+  has a visible border and fill where `main`'s rgb(34) border measured 1.24:1
+  against the page and was effectively invisible), and all four
+  `api-tokens-card.tsx` utilities (the green success box and its black
+  `<code>` block). Note this state is reachable **only** through
+  `verify-surfaces.ts`'s `captureTokenCreated` — the plain `/settings` capture
+  is the collapsed Menu, with no `<Input>` and no outline `Button` on screen
+  at all, so the nine ordinary surface captures never saw any of these.
+
+  **NOT looked at (8), and why.** Five are pointer/keyboard/validation state
+  variants that a static full-page capture cannot reach — there is no cursor,
+  no focus ring and no invalid field in a `page.screenshot()`:
+  `dark:hover:bg-input/50`, `dark:hover:bg-muted/50`,
+  `dark:disabled:bg-input/80`, `dark:aria-invalid:border-destructive/50`,
+  `dark:aria-invalid:ring-destructive/40`. Three belong to the `destructive`
+  variant of `Button`/`Badge`, which **has zero call sites in `src/`**
+  (`grep -rn 'variant="destructive"' src --include=*.tsx` is empty), so they
+  cannot render at all: `dark:bg-destructive/20`,
+  `dark:hover:bg-destructive/30`, `dark:focus-visible:ring-destructive/40`.
+
+  **Measured instead of eyeballed, and it turned up two real sub-AA states**
+  that no capture would have shown and that no guard here catches. Both are
+  **recorded, out of scope, and belong to slice 5 (Settings/Menu)**, which is
+  where `<Input>` migrates:
+
+  - `dark:bg-input/30` composites `--input` `#6b6b6b` at 30% over `#0a0a0a` to
+    **`#272727`**. The field's own `placeholder:text-muted-foreground`
+    (`--ink-muted` `#8a8a8a`) on that ground is **4.33:1** — under the 4.5:1
+    floor. It is still an improvement (`main`'s `--muted-foreground` rgb(108)
+    over the then-unfilled field was **3.77:1**), and without the fill the same
+    ink would be 5.73:1, so the fill is what costs the 1.4. This is invisible
+    to `tests/contrast-guard.test.ts` by construction: a composited `--input`
+    fill is not one of its three `--surface-*` grounds.
+  - `sessions-card.tsx`'s live outline `Button` adds
+    `className="text-destructive"`. `--destructive` `#ef4444` on that same
+    `#272727` is **3.97:1**, and on hover — `dark:hover:bg-input/50` → `#3b3b3b`
+    — **2.98:1**. Same blind spot, same slice.
+
 - **Third deliberate exception, found during Task 6b.** Tokenising the 17
   hardcoded values in `globals.css` revealed two that were **sub-AA in dark
   too**: `.label-micro`'s text at ~3.8:1 and `--viz-muted-ink` at ~2.7:1. Both

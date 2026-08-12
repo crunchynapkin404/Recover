@@ -92,10 +92,12 @@
 //   LD_LIBRARY_PATH     See above.
 //   PLAYWRIGHT_CORE     Optional. Overrides the default npx-cache path below
 //                       when the cached version drifts from what's here.
-//   SCREENSHOT_BASE_URL Optional, default http://localhost:3000. Override
-//                       whenever port 3000 is unavailable — on this machine
-//                       it is *permanently* the live production container
-//                       and must never be pointed at by this script. Start
+//   SCREENSHOT_BASE_URL REQUIRED, no default — this block used to say
+//                       "Optional, default http://localhost:3000", which the
+//                       code below stopped being true of when C4 made it fail
+//                       closed. On this machine port 3000 is *permanently* the
+//                       live production container and this script is refused
+//                       outright if pointed there. Start
 //                       the dev server on another port (3100 is verified)
 //                       with BETTER_AUTH_URL/TRUSTED_ORIGINS matching that
 //                       origin — without it, secure-cookie mode drops the
@@ -573,8 +575,9 @@ class TokenStateUnreachableError extends Error {
 
 /**
  * Settings-specific extra capture. Global constraint (Task 2 finding):
- * applying `.dark` for the first time activated 11 previously-dead
- * `dark:` utilities, including the "token created" success box in
+ * applying `.dark` for the first time activated 14 distinct previously-dead
+ * `dark:` utilities over 21 occurrences in 4 files (corrected from "11" by
+ * the whole-branch review, I3), including the "token created" success box in
  * api-tokens-card.tsx (green-50/white → green-950/black). That box only
  * renders as client component state right after a real creation — it is
  * never derived from the server-rendered token list — so it must be reached
@@ -593,15 +596,19 @@ class TokenStateUnreachableError extends Error {
  * still been attempted).
  *
  * Also the only place axe ever sees the success box and its `<code>` block
- * (the two of the slice's 11 newly-activated `dark:` utilities that live in
- * `api-tokens-card.tsx`): the box is client-component state rendered right
+ * (the four newly-activated `dark:` utilities that live in
+ * `api-tokens-card.tsx` — bg-green-950, border-green-800, text-green-200,
+ * bg-black): the box is client-component state rendered right
  * after a real token creation, never server-rendered, so the plain
  * `/settings` capture in captureWithRetry never reaches it. Audited here,
  * right after the screenshot, while the box is still on screen and before
  * the `finally` block below revokes the token and removes it.
  *
- * task-7 review, Finding 2: this surface is the ONLY place axe ever sees two
- * of the eleven `dark:` utilities this slice newly activated, and it now
+ * task-7 review, Finding 2: this surface is the ONLY place axe ever sees six
+ * of the 14 `dark:` utilities this slice newly activated — the four above
+ * plus `dark:bg-input/30` and `dark:border-input`, which need an <Input> and
+ * an outline <Button> on screen and the plain /settings capture (a collapsed
+ * Menu) has neither — and it now
  * carries a real accessibility check, not just a bonus screenshot — the
  * previous "log and continue" posture (still what main() does, but see the
  * distinction below) let a flaky axe injection here drop this surface from
@@ -757,7 +764,7 @@ async function main() {
       //     interaction shouldn't cost every other surface).
       //   - anything else: the state WAS reached and the audit/capture then
       //     failed — NOT acceptable now that this is the only place axe
-      //     ever sees two of this slice's eleven newly-activated `dark:`
+      //     ever sees six of this slice's 14 newly-activated `dark:`
       //     utilities. Recorded as `error` AND collected into
       //     hardFailures so the run's exit code reflects it.
       try {
