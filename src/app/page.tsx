@@ -765,6 +765,12 @@ export default async function DashboardPage({
                 "debriefChip",
                 "raceChip",
                 "coach",
+                // Tail, not lead: an athlete who logs at 14:00 is still in
+                // the morning state, and their own log must not be missing
+                // from Today until 18:00. Both cards render null when they
+                // have nothing, so this costs an unlogged morning nothing.
+                "dayLog",
+                "bedtime",
               ],
               "post-session": [
                 "justLanded",
@@ -776,6 +782,8 @@ export default async function DashboardPage({
                 "debriefChip",
                 "raceChip",
                 "coach",
+                "dayLog",
+                "bedtime",
               ],
               evening: [
                 "dayLog",
