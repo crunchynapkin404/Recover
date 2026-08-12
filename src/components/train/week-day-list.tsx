@@ -3,7 +3,10 @@ import {
   DayActions,
   type DayActionsOtherDay,
 } from "@/components/week/day-actions";
-import { NextWeekSummary } from "@/components/train/next-week-summary";
+import {
+  NextWeekDivider,
+  NextWeekSummary,
+} from "@/components/train/next-week-summary";
 
 // The same palette week-strip.tsx paints, deliberately: the strip and the
 // list render the same seven days one above the other, and a status that
@@ -255,9 +258,7 @@ export function WeekDayList({
           </NextWeekSummary>
         ) : (
           <>
-            <div className="border-b border-hairline px-4 py-2 text-center text-label font-bold uppercase tracking-[0.2em] text-ink-muted last:border-0">
-              Next week
-            </div>
+            <NextWeekDivider />
             <div className="px-4 py-3 text-caption text-ink-muted last:border-0">
               No availability set for next week
             </div>

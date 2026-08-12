@@ -2,6 +2,18 @@ import type { DaySlot } from "@/lib/week-plan/types";
 import { plannedMins } from "@/lib/week-plan/fill";
 
 /**
+ * The "Next week" label row — shared by the collapsed summary below and
+ * week-day-list.tsx's no-availability branch, so the two cannot drift.
+ */
+export function NextWeekDivider() {
+  return (
+    <div className="border-b border-hairline bg-surface-overlay px-4 py-2 text-center text-label font-bold uppercase tracking-[0.2em] text-ink-muted last:border-0">
+      Next week
+    </div>
+  );
+}
+
+/**
  * Next week, collapsed to one row (v0.99 slice 2).
  *
  * Seven more full day rows — each provisional, each with its own badge —
@@ -38,11 +50,9 @@ export function NextWeekSummary({
   const provisional = days.some((d) => !pinned[d.date]);
 
   return (
-    <div className="border-b border-hairline last:border-0">
-      <div className="px-4 py-2 text-center text-label font-bold uppercase tracking-[0.2em] text-ink-muted">
-        Next week
-      </div>
-      <details className="group">
+    <>
+      <NextWeekDivider />
+      <details>
         <summary className="cursor-pointer list-none px-4 py-3 text-caption text-ink-secondary">
           {provisional && (
             <span aria-hidden className="mr-1.5 text-ink-muted">
@@ -63,6 +73,6 @@ export function NextWeekSummary({
         </summary>
         {children}
       </details>
-    </div>
+    </>
   );
 }

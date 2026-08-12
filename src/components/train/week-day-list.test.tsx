@@ -218,7 +218,7 @@ describe("WeekDayList", () => {
       <WeekDayList
         days={CURRENT_WEEK_DAYS}
         today="2026-07-28"
-        nextWeek={{ days: NEXT_WEEK_DAYS, pinned: {}, targetHours: 9 }}
+        nextWeek={{ days: NEXT_WEEK_DAYS, pinned: {}, targetHours: 13 }}
       />
     );
     expect(html).toContain("Next week");
@@ -233,6 +233,12 @@ describe("WeekDayList", () => {
     for (const d of NEXT_WEEK_DAYS) {
       expect(html).toContain(`data-date="${d.date}"`);
     }
+    // End-to-end: the fixture's targetHours (13, chosen so it cannot
+    // collide with a date digit or another rendered count) must reach
+    // NextWeekSummary's rendered target clause through week-day-list.tsx's
+    // own plumbing, not just through NextWeekSummary's own unit test, which
+    // hardcodes its prop and so cannot catch a value-level wiring bug here.
+    expect(html).toContain("13h target");
   });
 
   it("does not mark a pinned day provisional", () => {
