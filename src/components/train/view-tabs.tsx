@@ -52,7 +52,7 @@ export function ViewTabs({
             className={`flex-1 rounded-full py-2 text-center text-label font-bold uppercase tracking-wider ${
               active === v
                 ? "bg-surface-overlay text-ink-primary"
-                : "text-ink-muted"
+                : "bg-surface-raised text-ink-muted hover:text-ink-secondary"
             }`}
           >
             {label}

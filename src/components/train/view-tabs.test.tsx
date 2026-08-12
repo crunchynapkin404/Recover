@@ -30,6 +30,19 @@ describe("ViewTabs", () => {
     expect((week.match(/aria-current="true"/g) ?? []).length).toBe(1);
   });
 
+  it("gives the inactive segment a background, matching TrainTabs' pill treatment", () => {
+    const html = renderToString(
+      <ViewTabs active="week" month={currentYm()} href={href} />
+    );
+    // Today and Month are inactive when "week" is active. Before this fix,
+    // the inactive segment carried only `text-ink-muted` — no background
+    // utility at all — so it read as bare floating text next to TrainTabs'
+    // bounded pills one screen above it. A test that only checks the old
+    // `glass`/opacity classes are gone cannot catch a missing new class, so
+    // assert the replacement is actually present.
+    expect(html).toMatch(/bg-surface-raised text-ink-muted/);
+  });
+
   it("uses the token type and ink scale, and dims nothing with bare opacity", () => {
     const html = renderToString(
       <ViewTabs active="month" month={currentYm()} href={href} />

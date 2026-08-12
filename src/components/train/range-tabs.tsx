@@ -27,11 +27,7 @@ export function RangeTabs({
             active === r ? "bg-accent/20 text-accent" : "text-ink-muted"
           }`}
         >
-          {/* One string child, not `{r}d`: React inserts a hydration
-              boundary comment between two adjacent expression/text
-              children, which would render "30<!-- -->d" and split the
-              range label across two text nodes for no visual reason. */}
-          {`${r}d`}
+          {r}d
         </Link>
       ))}
     </div>

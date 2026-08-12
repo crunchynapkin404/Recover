@@ -10,10 +10,17 @@ describe("RangeTabs", () => {
     const html = renderToString(
       <RangeTabs active={90} view="training" href={href} />
     );
-    expect(html).toContain("30d");
-    expect(html).toContain("90d");
-    expect(html).toContain("180d");
-    expect(html).toContain("365d");
+    // React 19 inserts <!-- --> between adjacent JSX expression children —
+    // `{r}d` renders as `30<!-- -->d`, not the literal substring "30d".
+    // src/components/today/week-row.test.tsx is the house convention for
+    // asserting through the marker; adapt the test to it rather than
+    // reshaping the component to dodge the artifact (see range-tabs.tsx).
+    // The optional group still requires the digits and the "d" on either
+    // side, so a missing range or a missing "d" still fails this.
+    expect(html).toMatch(/30(<!--\s*-->)?d/);
+    expect(html).toMatch(/90(<!--\s*-->)?d/);
+    expect(html).toMatch(/180(<!--\s*-->)?d/);
+    expect(html).toMatch(/365(<!--\s*-->)?d/);
     expect(html.match(/aria-current="true"/g)).toHaveLength(1);
   });
 
