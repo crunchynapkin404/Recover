@@ -1,4 +1,4 @@
-import type { SleepDebtResult } from "@/lib/sleep-debt";
+import { formatSleepDebt, type SleepDebtResult } from "@/lib/sleep-debt";
 import { ConfidenceChip } from "@/components/ui/confidence-chip";
 
 interface Props {
@@ -7,24 +7,6 @@ interface Props {
   debtSecs: number | null;
   /** Wider than Confidence: sleepDebtFrom can also say "none". */
   confidence: SleepDebtResult["confidence"];
-}
-
-/**
- * Sleep debt is a 14-night cumulative deficit, so it routinely runs to
- * hours. Minutes stay minutes while they read naturally; past 90 it
- * switches to hours rather than printing "debt 1359m".
- */
-function fmtDebt(debtSecs: number): string {
-  const mins = Math.round(debtSecs / 60);
-  if (mins < 90) return `debt ${mins}m`;
-  // Round to tenths-of-an-hour as an integer before dividing back to a
-  // decimal string. `(mins / 60).toFixed(1)` looks equivalent but isn't:
-  // for mins=1359, mins/60 is the double 22.649999999999998… (not exactly
-  // representable), so toFixed rounds it down to "22.6" instead of the
-  // mathematically correct "22.7". mins/6 lands exactly on the .5 boundary
-  // when it matters, so Math.round resolves it correctly every time.
-  const tenths = Math.round(mins / 6);
-  return `debt ${(tenths / 10).toFixed(1)}h · 14d`;
 }
 
 /**
@@ -37,7 +19,8 @@ function fmtDebt(debtSecs: number): string {
  */
 export function BedtimeCard({ bedtime, debtSecs, confidence }: Props) {
   if (!bedtime) return null;
-  const debt = debtSecs != null && debtSecs > 0 ? fmtDebt(debtSecs) : null;
+  const debt =
+    debtSecs != null && debtSecs > 0 ? formatSleepDebt(debtSecs) : null;
 
   return (
     <section className="flex items-center justify-between gap-4 rounded-[20px] border border-hairline bg-surface-raised p-4">

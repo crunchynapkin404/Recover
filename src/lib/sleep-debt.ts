@@ -101,6 +101,27 @@ function formatHhMm(minutes: number): string {
 }
 
 /**
+ * The one owner of the sleep-debt display string. `app/page.tsx`'s vitals
+ * grid and `BedtimeCard` both render this figure on the same screen, and a
+ * second copy previously drifted: it is a 14-night cumulative deficit, so
+ * it routinely runs to hours. Minutes stay minutes while they read
+ * naturally; past 90 it switches to hours rather than printing
+ * "debt 1359m".
+ */
+export function formatSleepDebt(debtSecs: number): string {
+  const mins = Math.round(debtSecs / 60);
+  if (mins < 90) return `debt ${mins}m`;
+  // Round to tenths-of-an-hour as an integer before dividing back to a
+  // decimal string. `(mins / 60).toFixed(1)` looks equivalent but isn't:
+  // for mins=1359, mins/60 is the double 22.649999999999998… (not exactly
+  // representable), so toFixed rounds it down to "22.6" instead of the
+  // mathematically correct "22.7". mins/6 lands exactly on the .5 boundary
+  // when it matters, so Math.round resolves it correctly every time.
+  const tenths = Math.round(mins / 6);
+  return `debt ${(tenths / 10).toFixed(1)}h · ${DEBT_WINDOW_DAYS}d`;
+}
+
+/**
  * `ymd` minus `days`, as a YYYY-MM-DD string. Built from the given date
  * only — never the system clock — so the owner below stays pure.
  */

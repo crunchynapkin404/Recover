@@ -19,7 +19,7 @@ import { assembleWeeklyTarget } from "@/lib/week-plan/volume-inputs";
 import { availableMins } from "@/lib/week-plan/fill";
 import { raceCard } from "@/lib/race/outlook";
 import type { Band } from "@/lib/readiness";
-import { sleepDebtFrom } from "@/lib/sleep-debt";
+import { formatSleepDebt, sleepDebtFrom } from "@/lib/sleep-debt";
 import { buildHrvTile } from "@/lib/today/hrv-tile";
 import { sparkPath } from "@/lib/sparkline";
 import {
@@ -63,17 +63,6 @@ function hoursToClock(hours: number): string {
   const h = Math.floor(hours);
   const m = Math.round((hours - h) * 60);
   return `${h}:${String(m).padStart(2, "0")}`;
-}
-
-/**
- * Sleep debt is a 14-night cumulative deficit, so it routinely runs to hours.
- * Minutes stay minutes while they read naturally; past 90 it switches to
- * hours rather than printing "debt 1359m" in a 9.5px slot.
- */
-function fmtSleepDebt(debtSecs: number): string {
-  const mins = Math.round(debtSecs / 60);
-  if (mins < 90) return `debt ${mins}m`;
-  return `debt ${(mins / 60).toFixed(1)}h · 14d`;
 }
 
 export default async function DashboardPage({
@@ -362,7 +351,7 @@ export default async function DashboardPage({
       delta:
         sleepDebt.debtSecs != null && sleepDebt.debtSecs > 0
           ? {
-              text: fmtSleepDebt(sleepDebt.debtSecs),
+              text: formatSleepDebt(sleepDebt.debtSecs),
               tone: "warn",
               confidence: sleepDebt.confidence === "low" ? "low" : undefined,
             }

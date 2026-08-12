@@ -35,6 +35,14 @@ describe("BedtimeCard", () => {
     expect(html).not.toContain("debt");
   });
 
+  it("still renders the target when debtSecs is null (no debt data)", () => {
+    const html = renderToString(
+      <BedtimeCard bedtime="22:45" debtSecs={null} confidence="high" />
+    );
+    expect(html).toContain("22:45");
+    expect(html).not.toContain("debt");
+  });
+
   it("marks a low-confidence figure", () => {
     const html = renderToString(
       <BedtimeCard bedtime="22:45" debtSecs={2520} confidence="low" />

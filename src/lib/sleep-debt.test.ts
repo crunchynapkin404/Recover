@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   computeSleepDebt,
   sleepDebtFrom,
+  formatSleepDebt,
   DEFAULT_SLEEP_NEED_SECS,
+  DEBT_WINDOW_DAYS,
 } from "./sleep-debt";
 
 const H = 3600;
@@ -337,5 +339,33 @@ describe("sleepDebtFrom (the owner: date-window + bedtimes mapping)", () => {
     const r = sleepDebtFrom(wellness, null, TODAY);
     expect(r.nightsCounted).toBe(8); // only the recent, in-window nights
     expect(r.debtSecs).toBe(0); // none of the old zero-sleep nights leak in
+  });
+});
+
+describe("formatSleepDebt (the one shared display string)", () => {
+  it("stays in minutes just below the 90-minute switchover", () => {
+    expect(formatSleepDebt(89 * 60)).toBe("debt 89m");
+  });
+
+  it("switches to hours exactly at the 90-minute boundary", () => {
+    expect(formatSleepDebt(90 * 60)).toBe(`debt 1.5h · ${DEBT_WINDOW_DAYS}d`);
+  });
+
+  it("stays in hours just above the switchover", () => {
+    expect(formatSleepDebt(91 * 60)).toBe(`debt 1.5h · ${DEBT_WINDOW_DAYS}d`);
+  });
+
+  it("rounds 1359 minutes of debt to 22.7h, not the floating-point-tainted 22.6h", () => {
+    // 1359 / 60 = 22.649999999999998… as a double, so a naive
+    // `(mins / 60).toFixed(1)` misrounds this down to "22.6". The correct,
+    // exact tenths-of-an-hour value is 22.65 -> rounds to 22.7.
+    expect(formatSleepDebt(1359 * 60)).toBe(
+      `debt 22.7h · ${DEBT_WINDOW_DAYS}d`
+    );
+    expect(formatSleepDebt(1359 * 60)).not.toContain("22.6h");
+  });
+
+  it("derives the window suffix from DEBT_WINDOW_DAYS rather than a hardcoded literal", () => {
+    expect(formatSleepDebt(1359 * 60)).toContain(`· ${DEBT_WINDOW_DAYS}d`);
   });
 });
