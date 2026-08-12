@@ -13,6 +13,18 @@ CSS arithmetic, not a rendering; **it establishes what changed, not how it
 looks.** A browser capture from a `main` worktree is still owed and would add
 confirmation on layout and on effects tokens cannot express.
 
+**A blind spot this method has, confirmed by that later browser capture.** The
+arithmetic here only ever looks for `var()` chains, `rgba()` spellings and
+hex literals — it has no way to notice a bare CSS colour keyword that isn't
+wired to a token at all. `.nav-active-dot` (`globals.css:389`) is exactly that
+case: its `background`/`box-shadow` move from the literal keyword `white` to
+`var(--ink-primary)`, `#ffffff → #f5f5f5` on a 4px dot plus its 12px glow. It
+is a real rendered change — confirmed on five phone surfaces by the rendered
+pass, `docs/v0.99-slice0-main-diff-verification.md` §6.4 — and it does not
+appear anywhere in this document's table, because nothing here was ever
+looking for a bare keyword. Recorded as the fifth exception in
+`docs/plans/2026-08-11-v099-slice0-foundations.md`.
+
 **Result: 21 token declarations differ; 6 are aliases that render identically;
 15 are real rendered changes. One of the 15 is disclosed.**
 
