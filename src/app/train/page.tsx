@@ -1405,8 +1405,12 @@ async function FitnessTab({
           : ctlDelta === 0
             ? "level over 28d"
             : `${ctlDelta > 0 ? "▲ +" : "▼ −"}${Math.abs(ctlDelta)} in 28d`,
-      contextColor:
-        ctlDelta != null && ctlDelta > 0 ? "#34d399" : "rgba(255,255,255,0.4)",
+      // Only a gain is tinted. The flat/negative case takes FitnessTiles'
+      // default, which is the --ink-muted text floor: the literal that used
+      // to be written here was the same 3.77:1 white-40% the component's own
+      // fallback was, so fixing one and not the other would have left the
+      // athlete looking at it.
+      contextColor: ctlDelta != null && ctlDelta > 0 ? "#34d399" : undefined,
     },
     {
       label: "Fatigue · ATL",

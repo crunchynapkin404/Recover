@@ -33,6 +33,91 @@ SEED_DEMO=1 npm run db:seed-demo
 # login: demo@recover.local / recover-demo
 ```
 
+### Design verification: screenshots + axe
+
+Every redesign slice is checked visually and for accessibility violations
+with `scripts/verify-surfaces.ts`, which captures each surface in both
+themes and two viewports, then audits the same loaded page with `axe-core`
+in the real browser (not `vitest-axe`/jsdom — most surfaces are async server
+components that don't render there, and jsdom computes no layout regardless,
+so it can't see a contrast or overlap violation). It needs a headless
+Chromium (see the script's header comment for the sandbox-specific
+`CHROME_PATH`/`LD_LIBRARY_PATH` setup), a dev server on a port that is not
+production's, and the `OWNER_EMAIL`/`OWNER_PASSWORD` pair from `npm run
+db:seed` above (it must be an owner — `/admin` is one of the captured
+surfaces and redirects any other role):
+
+```bash
+SCREENSHOT_BASE_URL=http://localhost:3100 \
+  OWNER_EMAIL=... OWNER_PASSWORD=... \
+  npm run verify:surfaces -- <slice-name>
+# → .screenshots/<slice-name>/*.png (gitignored)
+# → .screenshots/<slice-name>/axe-report.json — per surface/theme/viewport,
+#   axe's "violations" AND "incomplete" results (both requested; a literal
+#   "violations"-only filter silently misses real invisible-text bugs behind
+#   this app's gradient backgrounds — see the script's header comment),
+#   filtered to "serious"/"critical" impact and then split into TWO
+#   separate, clearly-labelled metrics (scripts/lib/axe-report.ts):
+#     confirmed      — axe actually computed a failure. Gates the exit code.
+#     indeterminate  — axe could not compute an answer at all (e.g. text
+#                      over a composited CSS gradient). Reported, but never
+#                      gates the exit code — on this app's four
+#                      gradient-background surfaces the check can never
+#                      resolve, so gating on it would make "drive the
+#                      number to zero" permanently unreachable.
+#   Node-level counts (DOM elements affected) are the number to trust; a
+#   rule-row count alone can hide a real regression — see
+#   docs/axe-baseline-2026-08-11-seeded.md. Exits non-zero if any surface has
+#   a confirmed finding.
+```
+
+There is also `npm run verify:axe-split-proof`, which re-runs the committed
+browser proof that the confirmed/indeterminate split discriminates correctly
+in both directions (`scripts/axe-split-proof.ts`). Same `CHROME_PATH` /
+`LD_LIBRARY_PATH` requirement; it needs no server and no database.
+
+#### Can this run in CI? Not as configured — and the spec was wrong to imply it
+
+`docs/specs/2026-08-11-2b4-visual-redesign-design.md` lists axe under "Guards
+that fail the build". **It is not one, and it should not become one yet.** Its
+own "Real-browser screenshots" section says the opposite and is the correct
+one. Four things stand between `npm run verify:surfaces` and
+`.github/workflows/ci.yml`, in ascending order of cost:
+
+1. **A zero-threshold gate would fail every pull request from slice 0 to
+   slice 8.** This is the decisive one. The recorded baseline is **398
+   confirmed defect nodes** (`docs/axe-baseline-2026-08-11-seeded.md` §10) and
+   it is _supposed_ to be non-zero until the surfaces are migrated — the script
+   exits 1 today, by design. Wiring it to CI as-is would mean a red suite for
+   eight slices, which is how a check gets disabled. It would first need a
+   **ratchet** against a committed baseline number (the shape
+   `tests/type-scale-guard.test.ts`'s `OFFENDER_CEILINGS` uses), failing on a
+   _rise_ rather than on non-zero.
+2. **A seeded database, not just a migrated one.** CI's Postgres service is
+   created empty and only migrated. That is not a cosmetic difference: seeding
+   alone moved the node count 1398 → 1687 (+20.7%, Train +600%) because the
+   charts, badges, week rows and tables where sub-AA colour actually lives are
+   simply not on screen for an empty account. A CI number measured against an
+   empty DB is not comparable to the recorded baseline. Cheapest of the four
+   to fix — `npm run db:seed` and `SEED_DEMO=1 npm run db:seed-demo` are both
+   deterministic and idempotent — and the run's real-API-token create/revoke
+   is _safer_ against CI's throwaway database than against a dev one.
+3. **A running server.** CI builds but never starts the app. Needs
+   `next start` on a non-production port with matching
+   `BETTER_AUTH_URL`/`TRUSTED_ORIGINS`, plus a readiness wait.
+4. **`playwright-core`, which this repo does not depend on at all.** It
+   resolves only from a local npx cache (see the script's `PLAYWRIGHT_CORE`
+   default), so after `npm ci` the script throws immediately. `ubuntu-latest`
+   _does_ ship Chrome, so `CHROME_PATH` is satisfiable — the browser is not
+   the blocker, the driver is. Fixing this means adding a dependency and
+   pinning it to a browser revision, which is a deliberate decision nobody has
+   made yet.
+
+**What IS already in CI:** `tests/axe-report-split.test.ts` runs under
+`npm test`, and pins the confirmed/indeterminate classification logic against
+verbatim real-browser result shapes. So the axe _reasoning_ is guarded on
+every pull request; only the axe _run_ is local.
+
 ## Quality gates
 
 CI runs all of these; run them locally before pushing:

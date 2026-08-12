@@ -46,28 +46,122 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+  --color-surface-base: var(--surface-base);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-overlay: var(--surface-overlay);
+  --color-ink-primary: var(--ink-primary);
+  --color-ink-secondary: var(--ink-secondary);
+  --color-ink-muted: var(--ink-muted);
+  --color-hairline: var(--hairline);
+  --color-accent: var(--accent);
+
+  /* Type scale — 12px floor, seven steps. Phase 2b.4. Semantic names, not
+     Tailwind v4's default --text-* keys (xs/sm/base/xl/3xl/…): those keys
+     are Tailwind's own built-in theme values, and defining them here would
+     silently override every unmigrated call site still using the default
+     scale (.text-sm, .text-xs, etc.) — exactly the cross-surface change this
+     slice is not allowed to make. */
+  --text-label: 0.75rem; /* 12 — the floor. Nothing smaller exists. */
+  --text-caption: 0.875rem; /* 14 */
+  --text-body: 1rem; /* 16 — body */
+  --text-title: 1.25rem; /* 20 */
+  --text-heading: 1.5rem; /* 24 */
+  --text-figure: 1.875rem; /* 30 */
+  --text-hero: 2.75rem; /* 44 — the primary figure */
+
+  /* Numeric type — mono figures for scores, HR, power. Phase 2b.4. Reuses
+     the already-loaded Geist Mono font; named separately from --font-mono
+     so numeric-display call sites read as intent, not as "code font". */
+  --font-numeric: var(--font-geist-mono);
+
+  /* Spacing scale — 4px base. */
+  --spacing-1: 0.25rem;
+  --spacing-2: 0.5rem;
+  --spacing-3: 0.75rem;
+  --spacing-4: 1rem;
+  --spacing-6: 1.5rem;
+  --spacing-8: 2rem;
+  --spacing-12: 3rem;
 }
 
-/* ── Dark-first: the only theme ──────────────────────────────────────────── */
+/* ── Two themes. :root is light; .dark is dark. ───────────────────────────
+   Governed by tests/contrast-guard.test.ts, which reads EVERY :root/.dark
+   block in this file (there are six) and requires every declaration in them
+   to be checked, aliased or waived by name. A token's NAME is what governs
+   it: `--*-ink` carries the 4.5:1 text floor on every surface,
+   `--surface-*` must be an opaque ground, `--*-hairline|-divider|-grid|-axis`
+   is non-text. Add a token that claims none of those and the guard fails
+   telling you so — there is no list to remember to update. */
 :root {
-  --background: #0a0a0a;
-  --foreground: #fafafa;
-  --card: rgba(255, 255, 255, 0.05);
-  --card-foreground: #fafafa;
-  --popover: #141414;
-  --popover-foreground: #fafafa;
-  --primary: #10b981;
-  --primary-foreground: #000000;
-  --secondary: rgba(255, 255, 255, 0.08);
-  --secondary-foreground: #fafafa;
-  --muted: rgba(255, 255, 255, 0.05);
-  --muted-foreground: rgba(255, 255, 255, 0.4);
+  --surface-base: #f6f6f6;
+  --surface-raised: #ffffff;
+  --surface-overlay: #ffffff;
+  --ink-primary: #171717;
+  --ink-secondary: #4a4a4a;
+  --ink-muted: #6e6e6e;
+  --hairline: #8a8a8a;
+  --accent: #047857;
+
+  --background: var(--surface-base);
+  --foreground: var(--ink-primary);
+  --card: var(--surface-raised);
+  --card-foreground: var(--ink-primary);
+  --popover: var(--surface-overlay);
+  --popover-foreground: var(--ink-primary);
+  --primary: var(--accent);
+  --primary-foreground: #ffffff;
+  --secondary: #ececec;
+  --secondary-foreground: var(--ink-primary);
+  --muted: #ececec;
+  --muted-foreground: var(--ink-muted);
+  --accent-foreground: #ffffff;
+  --destructive: #b91c1c;
+  --border: var(--hairline);
+  --input: var(--hairline);
+  --ring: var(--accent);
+  --chart-1: #2563eb;
+  --chart-2: #047857;
+  --chart-3: #b45309;
+  --chart-4: #6d28d9;
+  --chart-5: #b91c1c;
+  --radius: 1rem;
+  --sidebar: var(--surface-raised);
+  --sidebar-foreground: var(--ink-primary);
+  --sidebar-primary: var(--accent);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #ececec;
+  --sidebar-accent-foreground: var(--ink-primary);
+  --sidebar-border: var(--hairline);
+  --sidebar-ring: var(--accent);
+}
+
+.dark {
+  --surface-base: #0a0a0a;
+  --surface-raised: #161616;
+  --surface-overlay: #1f1f1f;
+  --ink-primary: #f5f5f5;
+  --ink-secondary: #b4b4b4;
+  --ink-muted: #8a8a8a;
+  --hairline: #6b6b6b;
   --accent: #10b981;
+
+  --background: var(--surface-base);
+  --foreground: var(--ink-primary);
+  --card: var(--surface-raised);
+  --card-foreground: var(--ink-primary);
+  --popover: var(--surface-overlay);
+  --popover-foreground: var(--ink-primary);
+  --primary: var(--accent);
+  --primary-foreground: #000000;
+  --secondary: #262626;
+  --secondary-foreground: var(--ink-primary);
+  --muted: #262626;
+  --muted-foreground: var(--ink-muted);
   --accent-foreground: #000000;
   --destructive: #ef4444;
-  --border: rgba(255, 255, 255, 0.1);
-  --input: rgba(255, 255, 255, 0.1);
-  --ring: #10b981;
+  --border: var(--hairline);
+  --input: var(--hairline);
+  --ring: var(--accent);
   --chart-1: #3b82f6;
   --chart-2: #10b981;
   --chart-3: #f59e0b;
@@ -75,13 +169,13 @@
   --chart-5: #ef4444;
   --radius: 1rem;
   --sidebar: #121212;
-  --sidebar-foreground: #fafafa;
-  --sidebar-primary: #10b981;
+  --sidebar-foreground: var(--ink-primary);
+  --sidebar-primary: var(--accent);
   --sidebar-primary-foreground: #000000;
-  --sidebar-accent: rgba(255, 255, 255, 0.08);
-  --sidebar-accent-foreground: #fafafa;
-  --sidebar-border: rgba(255, 255, 255, 0.06);
-  --sidebar-ring: #10b981;
+  --sidebar-accent: #262626;
+  --sidebar-accent-foreground: var(--ink-primary);
+  --sidebar-border: var(--hairline);
+  --sidebar-ring: var(--accent);
 }
 
 @layer base {
@@ -90,6 +184,10 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* Stays at the pre-redesign 15px until the last surface migrates
+       (slice 9), when this moves to --text-body (16px). Sitting on the new
+       scale now would be a one-pixel, app-wide visible change this
+       foundations-only slice is not permitted to make. */
     font-size: 15px;
     -webkit-font-smoothing: antialiased;
     letter-spacing: -0.01em;
@@ -97,35 +195,81 @@
   }
   html {
     @apply font-sans;
-    touch-action: pan-x pan-y;
   }
+}
+
+/* ── Component effect tokens (glass, inputs, chat, row dividers) ──────────
+   Task 6b (2026-08-11). Every `.dark` value below is the ORIGINAL literal
+   these classes shipped with — unchanged on purpose, so dark mode's pixels
+   do not move. Only `:root` (light) is new.
+
+   `.mesh-gradient`, `.glass` and friends were dark-only: a translucent white
+   veil (`rgba(255,255,255,…)`) is invisible over a light surface, which is
+   the defect this task exists to fix. The design's decision is that glass
+   stops being the substrate — real surface tokens do that job — and glass is
+   reserved for things genuinely floating over content (nav pill, bottom
+   sheets). So in light mode these become an opaque surface with a hairline
+   border rather than a white veil; dark mode keeps the original frosted-glass
+   translucency untouched. */
+:root {
+  --glass-bg: var(--surface-raised);
+  --glass-border: var(--hairline);
+  --glass-hover-shadow: rgba(23, 23, 23, 0.15);
+  --login-input-bg: var(--surface-raised);
+  --login-input-border: var(--hairline);
+  --login-input-focus-bg: var(--surface-raised);
+  --chat-bubble-ai-bg: var(--surface-raised);
+  --chat-bubble-ai-border: var(--hairline);
+  --chat-bubble-user-bg: var(--secondary);
+  --chat-bubble-user-border: var(--hairline);
+  --row-divider: rgba(0, 0, 0, 0.08);
+}
+
+.dark {
+  --glass-bg: rgba(255, 255, 255, 0.05);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-hover-shadow: rgba(0, 0, 0, 0.5);
+  --login-input-bg: rgba(255, 255, 255, 0.02);
+  --login-input-border: rgba(255, 255, 255, 0.05);
+  --login-input-focus-bg: rgba(255, 255, 255, 0.05);
+  --chat-bubble-ai-bg: rgba(255, 255, 255, 0.07);
+  --chat-bubble-ai-border: rgba(255, 255, 255, 0.1);
+  --chat-bubble-user-bg: rgba(255, 255, 255, 0.05);
+  --chat-bubble-user-border: rgba(255, 255, 255, 0.05);
+  --row-divider: rgba(255, 255, 255, 0.06);
 }
 
 /* ── Mesh gradient background ────────────────────────────────────────────── */
 .mesh-gradient {
+  /* The two accent blooms stay identical in both themes: at 8% alpha they
+     shift the page's rendered luminance by well under 1%, so they cannot
+     threaten any text/surface contrast pair, and a faint blue/green wash
+     reads as intentional depth on a light surface exactly as it does on a
+     dark one. Only the base — the one hardcoded value in this rule — was
+     theme-blind; it now follows --surface-base. */
   background:
     radial-gradient(at 10% 10%, rgba(59, 130, 246, 0.08) 0%, transparent 40%),
     radial-gradient(at 90% 20%, rgba(16, 185, 129, 0.08) 0%, transparent 40%),
-    radial-gradient(at 50% 50%, #0a0a0a 100%);
+    radial-gradient(at 50% 50%, var(--surface-base) 100%);
 }
 
 /* ── Glassmorphic card effect ────────────────────────────────────────────── */
 .glass {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--glass-bg);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--glass-border);
   transition:
     transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
     box-shadow 0.3s ease;
 }
 .glass-border-strong {
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--glass-border);
 }
 @media (hover: hover) {
   .glass:hover {
     transform: translateY(-4px);
-    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 10px 30px -10px var(--glass-hover-shadow);
   }
   .glass-no-hover:hover {
     transform: none;
@@ -139,7 +283,13 @@
   text-transform: uppercase;
   letter-spacing: 0.2em;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.4);
+  /* Was rgba(255,255,255,0.4) — ~3.8:1 in dark, the exact class of sub-AA
+     value this release exists to eliminate. --ink-muted is the text floor
+     and clears 4.5:1 in both themes, so this changes dark mode's rendered
+     pixels on purpose (unlike the rest of this file's edits, which preserve
+     dark exactly) — it is a real, disclosed contrast fix, not a preserved
+     value with a new name. */
+  color: var(--ink-muted);
 }
 
 /* ── Animations ──────────────────────────────────────────────────────────── */
@@ -242,8 +392,14 @@
   width: 4px;
   height: 4px;
   border-radius: 50%;
-  background: white;
-  box-shadow: 0 0 12px white;
+  /* Was the bare keyword `white`, which the first version of the globals.css
+     scan could not see at all (C1: it enumerated two rgba() spellings and the
+     token hexes). Theme-blind: a white dot on a light surface is an invisible
+     active-nav indicator. --ink-primary is the strongest ink in each theme,
+     so dark moves #ffffff → #f5f5f5 on a 4px dot and its glow — a real,
+     disclosed change, like .label-micro above. */
+  background: var(--ink-primary);
+  box-shadow: 0 0 12px var(--ink-primary);
   animation: breathe 3s ease-in-out infinite;
 }
 @keyframes breathe {
@@ -271,12 +427,12 @@
 
 /* ── Login input ─────────────────────────────────────────────────────────── */
 .login-input {
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: var(--login-input-bg);
+  border: 1px solid var(--login-input-border);
   transition: all 0.2s ease;
 }
 .login-input:focus {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--login-input-focus-bg);
   border-color: rgba(16, 185, 129, 0.5);
   outline: none;
   box-shadow: 0 0 20px rgba(16, 185, 129, 0.1);
@@ -284,13 +440,13 @@
 
 /* ── Coach chat bubbles ──────────────────────────────────────────────────── */
 .chat-bubble-ai {
-  background: rgba(255, 255, 255, 0.07);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--chat-bubble-ai-bg);
+  border: 1px solid var(--chat-bubble-ai-border);
   border-bottom-left-radius: 4px;
 }
 .chat-bubble-user {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: var(--chat-bubble-user-bg);
+  border: 1px solid var(--chat-bubble-user-border);
   border-bottom-right-radius: 4px;
 }
 
@@ -338,7 +494,7 @@
   padding: 1.25rem 0 !important;
 }
 .hairline-list > * + * {
-  border-top: 1px solid rgba(255, 255, 255, 0.06) !important;
+  border-top: 1px solid var(--row-divider) !important;
 }
 /* Shadcn Card insets its own header/content/footer; zero those so a Card row
    left-aligns with the plainer <section>/<div> rows beside it. */
@@ -354,17 +510,32 @@
 }
 
 /* ── Data-viz palette ────────────────────────────────────────────────────── */
+/* Series and status colours are theme-invariant brand/semantic colours, not
+   ink or surface — they stay in a single block. --viz-grid and --viz-axis
+   are non-text (dividers/strokes), split below with `.dark` preserving the
+   exact original translucent white so chart backgrounds render unchanged;
+   light gets an analogous dark-on-light translucency instead of an invisible
+   white-on-white one. --viz-muted-ink is chart *text* (axis labels, muted
+   figures) and was rgba(255,255,255,0.3) — ~2.7:1 in dark, sub-AA in both
+   themes. It now points at --ink-muted (4.5:1 floor) in both themes, the
+   same disclosed contrast fix as .label-micro above. */
 :root {
   --viz-series-1: #3b82f6;
   --viz-series-2: #10b981;
   --viz-series-3: #f59e0b;
   --viz-series-5: #8b5cf6;
-  --viz-grid: rgba(255, 255, 255, 0.02);
-  --viz-axis: rgba(255, 255, 255, 0.06);
-  --viz-muted-ink: rgba(255, 255, 255, 0.3);
+  --viz-grid: rgba(0, 0, 0, 0.06);
+  --viz-axis: rgba(0, 0, 0, 0.12);
+  --viz-muted-ink: var(--ink-muted);
   --viz-status-good: #10b981;
   --viz-status-warning: #f59e0b;
   --viz-status-critical: #ef4444;
+}
+
+.dark {
+  --viz-grid: rgba(255, 255, 255, 0.02);
+  --viz-axis: rgba(255, 255, 255, 0.06);
+  --viz-muted-ink: var(--ink-muted);
 }
 
 /* ── Bottom sheets (1h / 1i) ─────────────────────────────────────────────── */

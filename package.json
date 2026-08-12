@@ -1,6 +1,6 @@
 {
   "name": "recover",
-  "version": "0.98.0",
+  "version": "0.99.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -10,6 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "verify:surfaces": "tsx scripts/verify-surfaces.ts",
+    "verify:axe-split-proof": "tsx scripts/axe-split-proof.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
@@ -51,6 +53,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/web-push": "^3.6.4",
+    "axe-core": "^4.13.0",
     "drizzle-kit": "^0.31.10",
     "eslint": "^9",
     "eslint-config-next": "16.2.10",

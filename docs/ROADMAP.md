@@ -386,6 +386,17 @@ so" — is currently spoken in six dialects: `—` (47 uses), `calibrating` (39)
       confirmed-dead component; 2 sites investigated and excluded), and
       `docs/plans/2026-08-09-uncertainty-vocabulary-admin-misc.md` (no code
       change needed).
+- [ ] **2b.4 — Visual redesign. SLICE 0 OF 10 SHIPPED as v0.99.0 (2026-08-12);
+      the item stays open.** v0.99.0 built the foundations only — two token sets
+      with light and dark, a seven-step type scale on a hard 12px floor, a
+      four-step ink ramp, four guards, and the headless capture/axe tooling the
+      remaining slices are verified with. **No surface was redesigned.** The nine
+      surface slices (Today · Train · Body · Coach · Settings · Activity ·
+      Admin+Import · pre-auth · sweep) each take their own release number, a
+      revision of the original "one release of ten slices" decision — see
+      `docs/plans/2026-08-11-v099-slice0-foundations.md` and PR #132. The three
+      riders below remain open, and light mode stays unreachable
+      (`forcedTheme="dark"`) until the final slice.
 - [ ] **2b.4 — Visual redesign.** All 12 pages, against the settled IA using
       the settled vocabulary. The largest item on this roadmap: it splits into
       its own releases with per-page gates, and needs real-browser verification
@@ -834,7 +845,9 @@ capability during Phase 2:
    freeze — "freezing an unmeasured surface locks in whatever that cost
    happens to be" — and measuring is not freezing. It is the prerequisite,
    and it can be done now.
-3. **The dead-component sweep**, which is 2d's first guardrail's payload
+3. ~~**The dead-component sweep**~~ — **DONE in v0.98.0**: 22 deleted,
+   `KNOWN_ORPHANS` empty, `dead-component-guard` now a zero-tolerance ratchet.
+   Struck 2026-08-12; it was stale for four days. Original text: the sweep, which is 2d's first guardrail's payload
    anyway: the guard is what keeps them from coming back, the sweep is what
    removes the 19 already identified.
 4. **Re-measure `docs/BASELINE.md`.** It is pinned at v0.65.0, and Phase 2's
@@ -881,7 +894,8 @@ Demand order, science-constrained.
       cheap" (`ai-coaching-landscape.md` §10) and Recover has never measured
       what its 57 tools cost as context. Freezing an unmeasured surface locks
       in whatever that cost happens to be.
-- [ ] Dead-component sweep (11 remaining; `race-countdown.tsx` was the twelfth
+- [x] ~~Dead-component sweep~~ — **DONE in v0.98.0** (22 deleted, not 11;
+      `KNOWN_ORPHANS` is empty). Struck 2026-08-12. Original text: (11 remaining; `race-countdown.tsx` was the twelfth
       and v0.87.0 deleted it, along with the type export that had blocked it)
 - [ ] On-ramps for the three dormant-but-kept features: Deep Biology, outbound
       webhooks, coach long-term memory — **or** document them as dormant
