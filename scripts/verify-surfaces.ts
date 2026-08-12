@@ -122,7 +122,8 @@
 // counts (session/token lists) well past what a real account would show.
 // Clean them up periodically with a query scoped to that label prefix —
 // never touch a row that doesn't match it.
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { join } from "node:path";
 import type { Page } from "playwright-core";
 import type Axe from "axe-core";
@@ -186,6 +187,14 @@ const BASE_URL = (() => {
 
 const SURFACES: Record<string, string> = {
   today: "/",
+  // Today is state-aware from v0.99 slice 1. `?state=` only REORDERS blocks
+  // and is refused outright in production (previewStateFrom in
+  // src/lib/today/state.ts returns null when NODE_ENV === "production"), so
+  // these two capture the same real seeded athlete at two other moments —
+  // no data is faked. Their captures are checksum-compared at the end of
+  // main(); see assertTodayStatesDiffer for why that is not optional.
+  "today-post-session": "/?state=post-session",
+  "today-evening": "/?state=evening",
   train: "/train",
   coach: "/coach",
   body: "/body",
@@ -280,6 +289,63 @@ function writeReport(): void {
 
 function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
+}
+
+/**
+ * Today's three states must actually have produced three different images.
+ *
+ * WHY THIS IS NOT OPTIONAL POLISH. `assertOnSurface` compares **pathname
+ * only** — deliberately, so a query string cannot make a surface look like a
+ * navigation mismatch. But that means `/?state=evening` is checked against
+ * `/` and passes no matter what the query string did. If the `?state=`
+ * override ever stops taking effect (renamed param, a gate that starts
+ * refusing outside production too, a page that stops reading searchParams),
+ * this script would capture the morning state three times, write three files
+ * with three different names, and report a clean run. That is a silent pass
+ * on precisely the thing these two surfaces exist to prove.
+ *
+ * Checksums are the only thing that notices. Compared within a theme and
+ * viewport pair, never across — two themes SHOULD differ, which would make a
+ * cross-pair comparison pass for the wrong reason.
+ *
+ * Fails the run the way the rest of main() does (exit code + a named error)
+ * rather than throwing, so the remaining end-of-run diagnostics still print.
+ */
+function assertTodayStatesDiffer(): void {
+  const states = ["today", "today-post-session", "today-evening"];
+  for (const vpName of Object.keys(VIEWPORTS)) {
+    for (const theme of ["light", "dark"] as const) {
+      const digests = new Map<string, string>();
+      for (const name of states) {
+        const file = join(outDir, `${name}-${theme}-${vpName}.png`);
+        let bytes: Buffer;
+        try {
+          bytes = readFileSync(file);
+        } catch {
+          // A capture that never happened is already failed elsewhere in
+          // this run; don't turn a missing file into a confusing duplicate
+          // report on top of it.
+          continue;
+        }
+        digests.set(name, createHash("sha256").update(bytes).digest("hex"));
+      }
+      const seen = new Map<string, string>();
+      for (const [name, digest] of digests) {
+        const twin = seen.get(digest);
+        if (twin) {
+          console.error(
+            `\nToday's states "${twin}" and "${name}" produced BYTE-IDENTICAL ` +
+              `captures at ${theme}/${vpName}. The ?state= override is not ` +
+              `taking effect, so these are the same page saved twice under ` +
+              `different names. assertOnSurface cannot see this because it ` +
+              `compares pathname only. Refusing to report a pass.`
+          );
+          process.exitCode = 1;
+        }
+        seen.set(digest, name);
+      }
+    }
+  }
 }
 
 /**
@@ -829,6 +895,8 @@ async function main() {
   // insurance that the very last entry's totals are on disk too.
   writeReport();
   console.log(`axe report (${axeReport.length} entries) → ${axeReportPath}`);
+
+  assertTodayStatesDiffer();
 
   const totals = computeTotals(axeReport);
   const withConfirmed = axeReport.filter((e) => e.confirmed.length > 0);
