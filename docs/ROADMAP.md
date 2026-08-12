@@ -386,29 +386,36 @@ so" — is currently spoken in six dialects: `—` (47 uses), `calibrating` (39)
       confirmed-dead component; 2 sites investigated and excluded), and
       `docs/plans/2026-08-09-uncertainty-vocabulary-admin-misc.md` (no code
       change needed).
-- [ ] **2b.4 — Visual redesign. SLICE 0 OF 10 SHIPPED as v0.99.0 (2026-08-12);
-      the item stays open.** v0.99.0 built the foundations only — two token sets
+- [ ] **2b.4 — Visual redesign. SLICES 0 AND 1 OF 10 SHIPPED — v0.99.0 and
+      v0.100.0 (both 2026-08-12); the item stays open.** v0.99.0 built the foundations only — two token sets
       with light and dark, a seven-step type scale on a hard 12px floor, a
       four-step ink ramp, four guards, and the headless capture/axe tooling the
       remaining slices are verified with. **No surface was redesigned.** The nine
       surface slices (Today · Train · Body · Coach · Settings · Activity ·
       Admin+Import · pre-auth · sweep) each take their own release number, a
       revision of the original "one release of ten slices" decision — see
-      `docs/plans/2026-08-11-v099-slice0-foundations.md` and PR #132. The three
-      riders below remain open, and light mode stays unreachable
-      (`forcedTheme="dark"`) until the final slice.
+      `docs/plans/2026-08-11-v099-slice0-foundations.md` and PR #132.
+      **v0.100.0 shipped slice 1 (Today, three states)** — the first
+      redesigned surface, closing the untested-components rider below; see
+      `docs/plans/2026-08-12-v099-slice1-today.md`. Eight surface slices
+      remain, and light mode stays unreachable (`forcedTheme="dark"`) until
+      the final one. Two items that slice deliberately left, for whichever
+      slice owns them: `today/checkin-sheet.tsx` is still dark-only and below
+      the 12px floor, and `sidebar-nav.tsx`'s avatar is a live light-mode
+      contrast failure on eight surfaces.
 - [ ] **2b.4 — Visual redesign.** All 12 pages, against the settled IA using
       the settled vocabulary. The largest item on this roadmap: it splits into
       its own releases with per-page gates, and needs real-browser verification
       — the v0.23 redesign shipped three bugs that only a real browser caught.
 - [ ] On every page touched: scan for and remove duplicated data — the same
       value shown twice. A standing finding from prior redesigns here.
-- [ ] **Three Today components have no tests** — `today/today-hero`,
-      `today/week-row`, `today/session-card`. Surfaced by v0.98.0: five of the
-      nine deleted tests belonged to their dead predecessors, so deleting them
-      cost no effective coverage but made the gap visible. `today-hero`
-      renders the readiness ring — the app's primary number. 2b.4 redesigns
-      all three and should not do so untested.
+- [x] **Three Today components have no tests** — `today/today-hero`,
+      `today/week-row`, `today/session-card`. **CLOSED by v0.100.0**, which
+      redesigned all three and gave each its first tests (14, 8 and 12 cases
+      respectively). Surfaced by v0.98.0: five of the nine deleted tests
+      belonged to their dead predecessors, so deleting them cost no effective
+      coverage but made the gap visible. `today-hero` renders the readiness
+      ring — the app's primary number.
 - [ ] **Decide a tab pattern.** `/body` and `/train` hand-roll their own tab
       bars while v0.98.0 deleted an unused vendored `ui/tabs.tsx`. The
       duplication is real; the answer is to choose a pattern deliberately, not
