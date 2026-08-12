@@ -4,6 +4,18 @@
 **Status:** Design, approved
 **Phase:** 2b.4, the last open item in Phase 2
 **Release:** v0.99.0, one release, ten internally-gated slices
+
+> **SUPERSEDED 2026-08-12 — RELEASE SHAPE REVISED.** Slice 0 shipped alone as
+> **v0.99.0** (PR #132) and each of the nine surface slices takes its own release
+> number. The original decision below — one release of ten internally-gated
+> slices — is kept because this project's documents keep corrections auditable
+> rather than overwriting them. Reasons it changed: slice 0 alone came to ~49
+> commits and is one tenth of the work, so nine more on one branch meant
+> hundreds of commits before anything reached the athlete with every later slice
+> rebasing on a moving foundation; and the original justification — avoiding
+> partial rollback — was undercut by the whole-branch review's finding (I9) that
+> per-commit revert is not available inside a slice anyway.
+
 **Predecessor:** `docs/specs/2026-08-11-2b2-settle-the-ia-design.md` (v0.98.0) —
 settled the component tree this redesigns against
 
@@ -82,19 +94,19 @@ twelve routes.
 
 ## Decisions
 
-| Question          | Decision                                        | Why                                                                                  |
-| ----------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------ |
-| Driver            | Ergonomics — the four moments                   | Chosen over craft, page-shape and legibility framings; the restyle rides along       |
-| Moments           | All four, one release                           | Ordering them by priority was rejected: all four are real                            |
-| Release shape     | One release, ten gated slices                   | One athlete-visible change and one deploy; slices keep rollback at one `git revert`  |
-| IA latitude       | Reflow within the shape                         | Fixes the measured failure without retiring routes or relearning the nav             |
-| Visual direction  | Evolve the foundations, add light mode          | Light mode is what forces every hardcoded value to become a token                    |
-| Type floor        | 12px, 7 steps                                   | Nothing below 12px exists as a token, so `text-[8px]` becomes unwriteable            |
-| Ink               | 4 semantic steps, per-theme values              | Three of today's 18 `text-white` alphas fail AA; naming them by role stops the drift |
-| Theme control     | System default, manual override                 | Tracks sunset and the OS schedule for free; the override is for when that is wrong   |
-| Theme persistence | `next-themes`, localStorage                     | Already a dependency and unused; theme is device-local by nature                     |
-| Verification      | Build-failing guards + real-browser screenshots | The measurable half mechanically, the judgement half by eye, before merge            |
-| Design source     | System first, two reference surfaces            | Front-loads the decisions that are expensive to change late                          |
+| Question          | Decision                                                             | Why                                                                                                                                              |
+| ----------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Driver            | Ergonomics — the four moments                                        | Chosen over craft, page-shape and legibility framings; the restyle rides along                                                                   |
+| Moments           | All four, one release                                                | Ordering them by priority was rejected: all four are real                                                                                        |
+| Release shape     | ~~One release, ten gated slices~~ **REVISED: one release per slice** | Original reason: one athlete-visible change, one deploy. Revised 2026-08-12 — see the note under the header; the rollback premise was false (I9) |
+| IA latitude       | Reflow within the shape                                              | Fixes the measured failure without retiring routes or relearning the nav                                                                         |
+| Visual direction  | Evolve the foundations, add light mode                               | Light mode is what forces every hardcoded value to become a token                                                                                |
+| Type floor        | 12px, 7 steps                                                        | Nothing below 12px exists as a token, so `text-[8px]` becomes unwriteable                                                                        |
+| Ink               | 4 semantic steps, per-theme values                                   | Three of today's 18 `text-white` alphas fail AA; naming them by role stops the drift                                                             |
+| Theme control     | System default, manual override                                      | Tracks sunset and the OS schedule for free; the override is for when that is wrong                                                               |
+| Theme persistence | `next-themes`, localStorage                                          | Already a dependency and unused; theme is device-local by nature                                                                                 |
+| Verification      | Build-failing guards + real-browser screenshots                      | The measurable half mechanically, the judgement half by eye, before merge                                                                        |
+| Design source     | System first, two reference surfaces                                 | Front-loads the decisions that are expensive to change late                                                                                      |
 
 ## The visual system
 
