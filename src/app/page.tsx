@@ -708,14 +708,32 @@ export default async function DashboardPage({
                   otherDays={otherDays}
                 />
               ),
-              sessionDone: (
-                <SessionCard
-                  slot={todaySlot}
-                  adjustmentReason={todayAdjustment}
-                  otherDays={otherDays}
-                  variant="done"
-                />
-              ),
+              // "post-session" means only that some activity ended in the
+              // last few hours (see resolveTodayState) — it says nothing
+              // about whether TODAY'S PLANNED SESSION is the one that
+              // happened. Claiming "Done" from the state alone, regardless
+              // of slot.status, told an athlete who rode a 20-minute
+              // commute that their 90-minute threshold session was
+              // complete, and dropped Mark done / move / swap / skip along
+              // with it (C1, whole-branch review 2026-08-12). Only a slot
+              // the plan engine itself marked "completed" gets the compact
+              // done line; anything else — planned, missed, adapted, moved,
+              // rest — gets the ordinary full card with its real actions.
+              sessionDone:
+                todaySlot?.status === "completed" ? (
+                  <SessionCard
+                    slot={todaySlot}
+                    adjustmentReason={todayAdjustment}
+                    otherDays={otherDays}
+                    variant="done"
+                  />
+                ) : (
+                  <SessionCard
+                    slot={todaySlot}
+                    adjustmentReason={todayAdjustment}
+                    otherDays={otherDays}
+                  />
+                ),
               sessionTomorrow: (
                 <SessionCard
                   slot={tomorrowSlot}

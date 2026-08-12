@@ -122,6 +122,73 @@ describe("SessionCard", () => {
     expect(html).not.toContain("Mark done");
   });
 
+  // C1, whole-branch review 2026-08-12: page.tsx used to pick variant="done"
+  // from the athlete's TIME OF DAY alone ("post-session"), not from whether
+  // this slot actually finished — a 20-minute commute could make a
+  // 90-minute threshold session read as "✓ Done" with no way to correct it.
+  // page.tsx no longer does that (see its sessionDone block), but this
+  // component checks again rather than trusting every caller to get it
+  // right, since it is the one that would put the false claim on screen.
+  it("does not claim Done for a planned slot even when asked for the done variant, and still offers Mark done", () => {
+    const html = renderToString(
+      <SessionCard
+        slot={slot({ status: "planned" })}
+        adjustmentReason={null}
+        otherDays={[]}
+        variant="done"
+      />
+    );
+    expect(html).not.toContain("✓ Done");
+    expect(html).toContain("Mark done");
+    expect(html).toContain("Endurance · 90 min");
+  });
+
+  it("does not claim Done for a missed slot even when asked for the done variant", () => {
+    const html = renderToString(
+      <SessionCard
+        slot={slot({ status: "missed" })}
+        adjustmentReason={null}
+        otherDays={[]}
+        variant="done"
+      />
+    );
+    expect(html).not.toContain("✓ Done");
+  });
+
+  // I5, same review: the done variant used to render nothing at all for a
+  // Rest day (empty workouts), silently dropping the day from the page
+  // instead of saying anything honest about it.
+  it("says Rest, not nothing, for a Rest day asked for the done variant", () => {
+    const html = renderToString(
+      <SessionCard
+        slot={slot({ workouts: [], status: "rest" })}
+        adjustmentReason={null}
+        otherDays={[]}
+        variant="done"
+      />
+    );
+    expect(html).toContain("Rest");
+    expect(html).not.toContain("✓ Done");
+  });
+
+  // I5: the done variant used to silently drop the adjustment reason. A
+  // session that was shortened or moved before it happened is still part of
+  // what "done" means here, so it is now shown (compactly) rather than
+  // dropped.
+  it("carries the adjustment reason into the done one-liner instead of dropping it", () => {
+    const html = renderToString(
+      <SessionCard
+        slot={slot({ status: "completed" })}
+        adjustmentReason="Shortened after two poor nights"
+        otherDays={[]}
+        variant="done"
+      />
+    );
+    expect(html).toContain("Shortened after two poor nights");
+    expect(html).toContain("data-adjustment");
+    expect(html).toContain("✓ Done");
+  });
+
   it("shows an intensity pill per workout when a day carries two", () => {
     const two = slot({
       workouts: [

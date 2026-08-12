@@ -19,6 +19,16 @@ interface Props {
    * already ridden, kept on the page as confirmation rather than as a
    * thing to act on. The full variant already handles a completed slot by
    * replacing its action row — this is the caller asking for less again.
+   *
+   * Only takes effect when `slot.status === "completed"` AND the slot
+   * actually carries a workout. page.tsx is now the one place that decides
+   * whether "done" applies at all (C1, whole-branch review 2026-08-12) —
+   * but this component checks again rather than trusting that every caller
+   * gets it right, because it is the thing that would otherwise tell an
+   * athlete a session is finished when it is not. Asked for "done" on a
+   * slot that isn't actually completed (or is a Rest day), it falls
+   * through to the ordinary full card instead — never nothing, and never
+   * a false claim (I5, same review).
    */
   variant?: "full" | "done";
   /** Off for tomorrow: a session that has not happened cannot be done. */
@@ -48,14 +58,27 @@ export function SessionCard({
   if (!slot) return null;
   const workouts = slot.workouts;
 
-  if (variant === "done") {
-    if (workouts.length === 0) return null;
+  if (variant === "done" && slot.status === "completed" && workouts.length > 0) {
     const w = workouts[0];
     return (
       <section className="flex items-center justify-between gap-3 rounded-[20px] border border-hairline bg-surface-raised p-4">
-        <span className="min-w-0 truncate text-body font-bold text-ink-primary">
-          {`${w.type} · ${w.durationMins} min`}
-        </span>
+        <div className="min-w-0">
+          <span className="block truncate text-body font-bold text-ink-primary">
+            {`${w.type} · ${w.durationMins} min`}
+          </span>
+          {/* Shown, not dropped (I5): a session that was shortened or moved
+              before it happened is still information about what "done"
+              means here — hiding it would make the one-liner look like the
+              plan's original ask was met in full. */}
+          {adjustmentReason != null && (
+            <p
+              data-adjustment
+              className="mt-0.5 truncate text-caption text-chart-3"
+            >
+              ↻ {adjustmentReason}
+            </p>
+          )}
+        </div>
         <span className="shrink-0 text-label font-bold text-chart-2">
           ✓ Done
         </span>
