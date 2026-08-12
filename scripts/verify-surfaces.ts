@@ -111,6 +111,17 @@
 //                       renamed to match the repo's one convention). Must
 //                       be an owner: /admin redirects non-owner roles away,
 //                       and it is one of the required surfaces.
+//
+// Dev-DB debris, expected: every run through captureTokenCreated mints a
+// fresh api_tokens row labelled `screenshot-verify-<theme>-<viewport>-
+// <timestamp>` (see the label below) and revokes it before exiting. Revoked,
+// so not a leak — but the rows themselves are never deleted, and repeated
+// runs of this script accumulate them on whatever database
+// SCREENSHOT_BASE_URL points at. A 2026-08-12 pass found 76 such rows on the
+// dev database from earlier capture runs, inflating admin/settings surface
+// counts (session/token lists) well past what a real account would show.
+// Clean them up periodically with a query scoped to that label prefix —
+// never touch a row that doesn't match it.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Page } from "playwright-core";
