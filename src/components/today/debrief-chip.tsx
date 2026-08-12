@@ -20,7 +20,7 @@ export async function DebriefChip({ userId }: { userId: string }) {
   return (
     <Link
       href={`/?sheet=debrief&activity=${pending.id}`}
-      className="flex items-center justify-between rounded-[14px] border border-hairline bg-surface-raised px-3.5 py-2.5 transition-colors hover:bg-surface-overlay"
+      className="flex items-center justify-between rounded-[14px] glass px-3.5 py-2.5 transition-colors hover:bg-surface-overlay"
     >
       <span className="text-caption text-ink-secondary">
         How was <strong className="font-bold text-ink-primary">{name}</strong>?

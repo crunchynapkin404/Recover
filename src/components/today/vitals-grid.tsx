@@ -56,7 +56,7 @@ export function VitalsGrid({ tiles }: { tiles: VitalTile[] }) {
           <Link
             key={t.label}
             href={t.href}
-            className="flex items-center justify-between rounded-xl border border-hairline bg-surface-raised px-3 py-2.5 transition-colors hover:bg-surface-overlay"
+            className="glass flex items-center justify-between rounded-xl px-3 py-2.5"
           >
             <div className="min-w-0">
               <div className="text-label font-bold uppercase tracking-wider text-ink-muted">

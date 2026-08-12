@@ -108,13 +108,57 @@ export function TodayHero({
 
   if (variant === "compact") {
     return (
-      <section className="flex items-center gap-3 rounded-[20px] border border-hairline bg-surface-raised p-4">
-        <span
-          aria-hidden
-          className={`font-numeric text-title font-bold leading-none ${BAND_TEXT[band]}`}
-        >
-          {shown}
-        </span>
+      <section className="flex items-center gap-3.5 rounded-[20px] glass glass-no-hover p-4">
+        {/* The ring returns at roughly half scale (v0.100.1, owner feedback).
+            The demoted variant shipped as a bare numeral, and 51 sitting on
+            its own read as one stat among others rather than as the app's
+            headline signal. Halving it keeps the demotion — the ride still
+            leads this state — without the number losing its own identity.
+            Same geometry and same draw-in animation as the full ring; only
+            the rendered box is smaller. */}
+        <div className="relative aspect-square w-14 shrink-0">
+          <svg
+            aria-hidden
+            viewBox={`0 0 ${SIZE} ${SIZE}`}
+            className="h-full w-full -rotate-90"
+          >
+            <circle
+              cx={SIZE / 2}
+              cy={SIZE / 2}
+              r={R}
+              fill="none"
+              className="stroke-hairline opacity-35"
+              strokeWidth={STROKE}
+            />
+            {!calibrating && (
+              <circle
+                cx={SIZE / 2}
+                cy={SIZE / 2}
+                r={R}
+                fill="none"
+                className={`ring-fill ${BAND_STROKE[band]}`}
+                strokeWidth={STROKE}
+                strokeLinecap="round"
+                strokeDasharray={CIRC}
+                strokeDashoffset={targetOffset}
+                style={
+                  {
+                    "--ring-circ": CIRC,
+                    "--ring-offset": targetOffset,
+                  } as React.CSSProperties
+                }
+              />
+            )}
+          </svg>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span
+              aria-hidden
+              className={`font-numeric text-caption font-bold leading-none ${BAND_TEXT[band]}`}
+            >
+              {shown}
+            </span>
+          </div>
+        </div>
         <span className="sr-only">{srScore}</span>
         <div className="min-w-0">
           <p className="text-caption text-ink-secondary">
@@ -142,7 +186,7 @@ export function TodayHero({
 
   return (
     <section
-      className="flex items-center gap-4 rounded-[22px] border border-hairline bg-surface-raised p-4 lg:gap-6 lg:p-6"
+      className="flex items-center gap-4 rounded-[22px] glass glass-no-hover p-4 lg:gap-6 lg:p-6"
       style={{ boxShadow: `0 0 60px -20px ${BAND_GLOW[band]}` }}
     >
       <div className="relative aspect-square w-[104px] shrink-0 lg:w-[150px]">

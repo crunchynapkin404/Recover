@@ -92,7 +92,7 @@ export function JustLandedCard({
   lapCount,
 }: JustLandedProps) {
   return (
-    <section className="rounded-[20px] border border-hairline bg-surface-raised p-4">
+    <section className="rounded-[20px] glass glass-no-hover p-4">
       <p className="text-label font-bold uppercase tracking-[0.14em] text-ink-muted">
         Just landed
       </p>

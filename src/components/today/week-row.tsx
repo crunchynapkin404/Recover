@@ -29,7 +29,7 @@ export function WeekRow({
   const onTrack = hasTarget ? hoursDone >= hoursTarget * 0.9 : null;
 
   return (
-    <section className="hidden items-center gap-5 rounded-[20px] border border-hairline bg-surface-raised px-5 py-3 lg:flex">
+    <section className="hidden items-center gap-5 rounded-[20px] glass glass-no-hover px-5 py-3 lg:flex">
       <span className="shrink-0 text-label font-bold uppercase tracking-[0.14em] text-ink-muted">
         This week
       </span>

@@ -19,14 +19,23 @@ describe("CalibrationProgress", () => {
     expect(html).toContain("Log an HRV reading tomorrow morning.");
   });
 
+  // v0.100.1 REVERSED one clause of this test, on owner feedback. It used to
+  // require `bg-surface-raised` and forbid `glass`, encoding slice 0's rule
+  // that glass stops being a substrate. On the live dark app that left the
+  // page flat while the sheets stacked on it stayed frosted, so page-flow
+  // cards are back on `.glass` — the same material 44 component files across
+  // every other surface already use.
+  //
+  // Everything this test actually protects is unchanged: no ad-hoc white
+  // alphas, no ink outside the ramp, nothing below the floor. The glass fill
+  // itself is held to the 4.5:1 text floor by tests/glass-contrast-guard.ts,
+  // which composites it over each ground it can sit on.
   it("uses the token surface and ink scale, not ad-hoc white alphas", () => {
     const html = renderToString(<CalibrationProgress {...props} />);
-    expect(html).toContain("bg-surface-raised");
-    expect(html).toContain("border-hairline");
+    expect(html).toContain("glass");
     expect(html).toMatch(/text-ink-(primary|secondary|muted)/);
     expect(html).not.toMatch(/text-white\//);
     expect(html).not.toMatch(/bg-white\//);
-    expect(html).not.toContain("glass");
   });
 
   it("has no type below the 12px floor", () => {

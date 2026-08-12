@@ -65,7 +65,7 @@ export function SessionCard({
   ) {
     const w = workouts[0];
     return (
-      <section className="flex items-center justify-between gap-3 rounded-[20px] border border-hairline bg-surface-raised p-4">
+      <section className="flex items-center justify-between gap-3 rounded-[20px] glass glass-no-hover p-4">
         <div className="min-w-0">
           <span className="block truncate text-body font-bold text-ink-primary">
             {`${w.type} · ${w.durationMins} min`}
@@ -91,7 +91,7 @@ export function SessionCard({
   }
 
   return (
-    <section className="rounded-[20px] border border-hairline bg-surface-raised p-4">
+    <section className="rounded-[20px] glass glass-no-hover p-4">
       <div className="mb-3 flex items-center justify-between">
         <span className="text-label font-bold uppercase tracking-[0.14em] text-ink-muted">
           {heading}
