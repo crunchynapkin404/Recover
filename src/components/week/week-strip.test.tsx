@@ -64,4 +64,16 @@ describe("week strip", () => {
     // bg-amber-400 → bg-chart-3, same colour under a token name.
     expect(html).toContain("bg-chart-3");
   });
+
+  // I4, whole-branch review 2026-08-12: the strip's own comment says
+  // gap-x-2 is load-bearing — at 12px, the seven day labels ("Mo" … "Su")
+  // clear each other under justify-between alone only because of this gap;
+  // without it they collide into "MOTUWETHFRSASU" whenever the strip is
+  // squeezed (Today's desktop week row puts it in a flex-1 beside the
+  // volume summary). Every other test here was green with that gap
+  // deleted, so this is the only thing that would have caught it.
+  it("keeps the load-bearing gap between day columns", () => {
+    const html = renderToString(<WeekStrip days={days} />);
+    expect(html).toMatch(/class="[^"]*\bgap-x-2\b[^"]*"/);
+  });
 });
