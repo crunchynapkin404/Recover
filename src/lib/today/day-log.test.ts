@@ -62,15 +62,22 @@ describe("debriefLineFor", () => {
   it("falls back to startDate when startDateLocal is null", () => {
     expect(
       debriefLineFor(
-        activity({ startDateLocal: null, startDate: new Date("2026-08-12T06:00:00") }),
+        activity({
+          startDateLocal: null,
+          startDate: new Date("2026-08-12T06:00:00"),
+        }),
         "2026-08-12"
       )
     ).toBe("Endurance Spin — RPE 6 · felt normal");
   });
 
   it("returns null when the activity has not been debriefed", () => {
-    expect(debriefLineFor(activity({ debriefState: "pending" }), "2026-08-12")).toBeNull();
-    expect(debriefLineFor(activity({ debriefState: null }), "2026-08-12")).toBeNull();
+    expect(
+      debriefLineFor(activity({ debriefState: "pending" }), "2026-08-12")
+    ).toBeNull();
+    expect(
+      debriefLineFor(activity({ debriefState: null }), "2026-08-12")
+    ).toBeNull();
   });
 
   it("returns null for no activity at all", () => {

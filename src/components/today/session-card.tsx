@@ -58,7 +58,11 @@ export function SessionCard({
   if (!slot) return null;
   const workouts = slot.workouts;
 
-  if (variant === "done" && slot.status === "completed" && workouts.length > 0) {
+  if (
+    variant === "done" &&
+    slot.status === "completed" &&
+    workouts.length > 0
+  ) {
     const w = workouts[0];
     return (
       <section className="flex items-center justify-between gap-3 rounded-[20px] border border-hairline bg-surface-raised p-4">
