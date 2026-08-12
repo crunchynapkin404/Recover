@@ -10,6 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "verify:surfaces": "tsx scripts/verify-surfaces.ts",
+    "verify:axe-split-proof": "tsx scripts/axe-split-proof.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",

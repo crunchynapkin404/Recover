@@ -17,7 +17,18 @@
 // checking anything. Axe therefore runs against the real rendered page in
 // the real headless browser this script already drives.
 //
-// Usage: npx tsx scripts/verify-surfaces.ts <slice-name>
+// Usage: npm run verify:surfaces -- <slice-name>
+//        (equivalently: npx tsx scripts/verify-surfaces.ts <slice-name>)
+//
+// IT IS NOT A CI GATE, AND THE SPEC WAS WRONG TO CALL IT ONE (I8,
+// whole-branch review 2026-08-11). It is a named local pre-merge step, which
+// is what docs/specs/2026-08-11-2b4-visual-redesign-design.md's
+// "Real-browser screenshots" section always said and what its "Guards that
+// fail the build" section contradicted. CONTRIBUTING.md's "Can this run in
+// CI?" subsection has the four things that would have to change first —
+// including that a zero-threshold gate would fail every pull request from
+// slice 0 to slice 8, because the recorded baseline is deliberately non-zero.
+//
 // Output: .screenshots/<slice-name>/*.png, plus
 //         .screenshots/<slice-name>/axe-report.json — one entry per
 //         surface/theme/viewport, with axe's "violations" and "incomplete"
@@ -147,7 +158,7 @@ const BASE_URL = (() => {
       "SCREENSHOT_BASE_URL is required — this script has no default on purpose.\n" +
         "Point it at a DEV server, never production:\n" +
         "  BETTER_AUTH_URL=http://localhost:3100 TRUSTED_ORIGINS=http://localhost:3100 npx next dev -p 3100\n" +
-        "  SCREENSHOT_BASE_URL=http://localhost:3100 npx tsx scripts/verify-surfaces.ts <slice>\n" +
+        "  SCREENSHOT_BASE_URL=http://localhost:3100 npm run verify:surfaces -- <slice>\n" +
         "Port 3000 is the live production container on this machine."
     );
   }
@@ -193,7 +204,9 @@ const VIEWPORTS: Record<
 
 const slice = process.argv[2];
 if (!slice)
-  throw new Error("usage: tsx scripts/verify-surfaces.ts <slice-name>");
+  throw new Error(
+    "usage: npm run verify:surfaces -- <slice-name>  (or: npx tsx scripts/verify-surfaces.ts <slice-name>)"
+  );
 
 const outDir = join(process.cwd(), ".screenshots", slice);
 mkdirSync(outDir, { recursive: true });
