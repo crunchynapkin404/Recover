@@ -304,6 +304,11 @@ describe("WeekDayList — status as a dot, not a pill (v0.99 slice 2)", () => {
     // this assertion scoped to what WeekDayList itself renders, which is
     // this test's actual subject; every other row still exercises the
     // workout, rest and status-dot classes this task migrated.
+    //
+    // TODO(slice-2 Task 5): once day-actions.tsx is migrated, restore the
+    // unmodified CURRENT_WEEK_DAYS fixture here — the strip exists only
+    // because <DayActions> still renders pre-token classes, not because
+    // today's workout row is out of scope for the floor rule.
     const days = CURRENT_WEEK_DAYS.map((d) =>
       d.date === "2026-07-28" ? { ...d, workouts: [] } : d
     );
@@ -313,5 +318,45 @@ describe("WeekDayList — status as a dot, not a pill (v0.99 slice 2)", () => {
     expect(html).not.toMatch(/text-white\//);
     expect(html).not.toMatch(/bg-white\//);
     expect(html).not.toMatch(/border-white\//);
+  });
+
+  it("keeps today's own workout row on the ink scale, with DayActions mounted beside it", () => {
+    // The sibling test above strips today's workout out of its local copy of
+    // CURRENT_WEEK_DAYS so <DayActions> (still unmigrated pre-token markup —
+    // Task 5) doesn't mount and contaminate its negative regexes. That strip
+    // has a side effect: with the workout gone, today's row falls through to
+    // the "Rest" branch instead of the workout branch, so no test in this
+    // file exercises week-day-list.tsx's
+    //   isToday ? "font-bold text-ink-primary" : "text-ink-secondary"
+    // ternary on the isToday=true side together with a floor/ink assertion.
+    // A literal swapped onto just that branch (e.g. "font-bold text-white")
+    // would pass every test in this file.
+    //
+    // This test asserts POSITIVELY on the exact class string instead of
+    // negatively over the whole HTML: a positive match only cares what this
+    // one branch emits, so it is immune to DayActions' own pre-token classes
+    // and can render the full, unmodified fixture — today's workout intact.
+    // Do not "simplify" this back to a negative regex; that is what silently
+    // lost coverage the first time.
+    const html = renderToString(
+      <WeekDayList days={CURRENT_WEEK_DAYS} today="2026-07-28" />
+    );
+
+    // Isolate each row the same way the "pinned day" test above does, so a
+    // class on a sibling row can't make either assertion pass by accident.
+    const rowsByDate = html.split('data-date="').slice(1);
+    const todayRow = rowsByDate.find((r) => r.startsWith("2026-07-28"));
+    const wedRow = rowsByDate.find((r) => r.startsWith("2026-07-29"));
+    expect(todayRow).toBeDefined();
+    expect(wedRow).toBeDefined();
+
+    // isToday branch: bold, text-ink-primary.
+    expect(todayRow).toContain(
+      'class="truncate text-caption font-bold text-ink-primary"'
+    );
+    // Not-today branch (Wed, also has a workout): not bold, text-ink-secondary.
+    expect(wedRow).toContain(
+      'class="truncate text-caption text-ink-secondary"'
+    );
   });
 });
