@@ -16,14 +16,15 @@ export interface VitalTile {
   } | null;
   /** "" → no line drawn (fewer than two real points). */
   sparkPath: string;
-  sparkColor: string;
+  /** Tailwind stroke utility, e.g. "stroke-chart-2". */
+  sparkClass: string;
   href: string;
 }
 
 const TONE: Record<"good" | "warn" | "muted", string> = {
-  good: "text-emerald-400",
-  warn: "text-amber-400",
-  muted: "text-white/45",
+  good: "text-chart-2",
+  warn: "text-chart-3",
+  muted: "text-ink-muted",
 };
 
 /**
@@ -34,26 +35,26 @@ const TONE: Record<"good" | "warn" | "muted", string> = {
  */
 export function VitalsGrid({ tiles }: { tiles: VitalTile[] }) {
   return (
-    <div className="mb-6 grid grid-cols-2 gap-2 lg:grid-cols-4">
+    <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
       {tiles.map((t) => (
         <Link
           key={t.label}
           href={t.href}
-          className="flex items-center justify-between rounded-xl border border-white/[0.09] bg-white/[0.04] px-3 py-2.5 transition-colors hover:bg-white/[0.06]"
+          className="flex items-center justify-between rounded-xl border border-hairline bg-surface-raised px-3 py-2.5 transition-colors hover:bg-surface-overlay"
         >
           <div className="min-w-0">
-            <div className="text-[9px] font-bold uppercase tracking-wider text-white/40">
+            <div className="text-label font-bold uppercase tracking-wider text-ink-muted">
               {t.label}
             </div>
             <div
-              className="mt-0.5 font-mono text-[19px] font-bold leading-none text-white"
+              className="mt-0.5 font-numeric text-title font-bold leading-none text-ink-primary"
               title={
                 t.value.available ? t.value.why : unavailableMessage(t.value)
               }
             >
               {t.value.available ? t.value.value : "—"}
               {t.unit && (
-                <span className="ml-0.5 text-[10px] font-normal text-white/40">
+                <span className="ml-0.5 text-caption font-normal text-ink-muted">
                   {t.unit}
                 </span>
               )}
@@ -68,7 +69,7 @@ export function VitalsGrid({ tiles }: { tiles: VitalTile[] }) {
           <div className="flex flex-col items-end gap-1">
             {t.delta && (
               <span
-                className={`flex items-center gap-1 text-[9.5px] font-semibold ${TONE[t.delta.tone]}`}
+                className={`flex items-center gap-1 text-label font-bold ${TONE[t.delta.tone]}`}
               >
                 {t.delta.text}
                 {t.delta.confidence && (
@@ -88,7 +89,7 @@ export function VitalsGrid({ tiles }: { tiles: VitalTile[] }) {
                 <path
                   d={t.sparkPath}
                   fill="none"
-                  stroke={t.sparkColor}
+                  className={t.sparkClass}
                   strokeWidth={1.5}
                   strokeLinecap="round"
                   strokeLinejoin="round"

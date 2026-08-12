@@ -9,7 +9,7 @@ function tile(overrides: Partial<VitalTile>): VitalTile {
     value: Figure.available("62", "high"),
     unit: "ms",
     sparkPath: "",
-    sparkColor: "#10b981",
+    sparkClass: "stroke-chart-2",
     href: "/body?tab=trends",
     ...overrides,
   };
@@ -83,5 +83,38 @@ describe("VitalsGrid", () => {
     );
     expect(html).toContain("▲ 7d 58");
     expect(html).not.toContain("confidence");
+  });
+
+  it("uses the token type and ink scales", () => {
+    const html = renderToString(<VitalsGrid tiles={[tile({})]} />);
+    expect(html).toContain("text-label");
+    expect(html).toMatch(/text-ink-(primary|secondary|muted)/);
+    expect(html).not.toMatch(/text-white\//);
+    expect(html).not.toMatch(/bg-white\//);
+    expect(html).not.toMatch(/text-\[[\d.]+px\]/);
+  });
+
+  it("paints the sparkline with a token class, not a hex literal", () => {
+    const html = renderToString(
+      <VitalsGrid
+        tiles={[
+          tile({ sparkPath: "M0 10 L100 4", sparkClass: "stroke-chart-2" }),
+        ]}
+      />
+    );
+    expect(html).toContain("stroke-chart-2");
+    expect(html).not.toMatch(/stroke="#/);
+  });
+
+  it("draws no sparkline at all when there is no path", () => {
+    const html = renderToString(
+      <VitalsGrid tiles={[tile({ sparkPath: "" })]} />
+    );
+    expect(html).not.toContain("<svg");
+  });
+
+  it("renders the numeric value in the numeric font", () => {
+    const html = renderToString(<VitalsGrid tiles={[tile({})]} />);
+    expect(html).toContain("font-numeric");
   });
 });

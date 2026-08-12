@@ -350,7 +350,7 @@ export default async function DashboardPage({
             }
           : null,
       sparkPath: rhrSparkPath,
-      sparkColor: "#10b981",
+      sparkClass: "stroke-chart-2",
       href: "/body?tab=trends",
     },
     {
@@ -368,7 +368,7 @@ export default async function DashboardPage({
             }
           : null,
       sparkPath: sleepSparkPath,
-      sparkColor: "#3b82f6",
+      sparkClass: "stroke-chart-1",
       href: "/body?tab=sleep",
     },
     {
@@ -382,7 +382,7 @@ export default async function DashboardPage({
           ? { text: `CTL ${Math.round(todayCtl)}`, tone: "muted" }
           : null,
       sparkPath: formSparkPath,
-      sparkColor: "#8b5cf6",
+      sparkClass: "stroke-chart-4",
       href: "/body?tab=trends",
     },
   ];
