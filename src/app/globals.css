@@ -54,6 +54,7 @@
   --color-ink-muted: var(--ink-muted);
   --color-hairline: var(--hairline);
   --color-accent: var(--accent);
+  --color-coach-ink: var(--coach-ink);
 
   /* Type scale — 12px floor, seven steps. Phase 2b.4. Semantic names, not
      Tailwind v4's default --text-* keys (xs/sm/base/xl/3xl/…): those keys
@@ -101,6 +102,14 @@
   --ink-muted: #6e6e6e;
   --hairline: #8a8a8a;
   --accent: #047857;
+  /* Violet ink for coach-authored text and the race outlook — the app
+     speaking, as distinct from the app reporting a measurement. A separate
+     token because --chart-4 is a CHART colour: it is waived from the text
+     floor by name, and at #8b5cf6 it measures 4.16:1 on --surface-raised in
+     dark. These two values clear 4.5:1 on every surface in both themes, and
+     tests/contrast-guard.test.ts checks that automatically via the -ink
+     suffix. */
+  --coach-ink: #6d28d9;
 
   --background: var(--surface-base);
   --foreground: var(--ink-primary);
@@ -144,6 +153,7 @@
   --ink-muted: #8a8a8a;
   --hairline: #6b6b6b;
   --accent: #10b981;
+  --coach-ink: #a78bfa;
 
   --background: var(--surface-base);
   --foreground: var(--ink-primary);

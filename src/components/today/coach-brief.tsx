@@ -19,28 +19,22 @@ export function CoachBrief({
   return (
     <Link
       href={`/coach?thread=${threadId}`}
-      className="mb-6 block rounded-[20px] border border-white/10 bg-white/5 p-3.5 transition-colors hover:bg-white/[0.07]"
+      className="block rounded-[20px] border border-hairline bg-surface-raised p-4 transition-colors hover:bg-surface-overlay"
     >
       <div className="mb-2 flex items-center justify-between">
         <span className="flex items-center gap-1.5">
-          <Sparkles
-            aria-hidden
-            className="size-3.5"
-            style={{ color: "#a78bfa" }}
-          />
-          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">
+          <Sparkles aria-hidden className="size-3.5 text-coach-ink" />
+          <span className="text-label font-bold uppercase tracking-[0.14em] text-ink-muted">
             Coach
           </span>
         </span>
-        <span className="text-[10.5px] font-bold text-emerald-400">
-          Reply &rarr;
-        </span>
+        <span className="text-label font-bold text-accent">Reply &rarr;</span>
       </div>
-      <p className="line-clamp-3 text-[12.5px] leading-[1.55] text-white/75">
+      <p className="line-clamp-3 text-caption leading-[1.55] text-ink-secondary">
         <InlineMarkdown text={text} />
       </p>
       {inboxTeaser && (
-        <p className="mt-3 hidden border-t border-white/[0.06] pt-2.5 text-[10.5px] text-white/35 lg:block">
+        <p className="mt-3 hidden border-t border-hairline pt-2.5 text-label text-ink-muted lg:block">
           {inboxTeaser}
         </p>
       )}

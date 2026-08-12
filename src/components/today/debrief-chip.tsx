@@ -20,12 +20,12 @@ export async function DebriefChip({ userId }: { userId: string }) {
   return (
     <Link
       href={`/?sheet=debrief&activity=${pending.id}`}
-      className="mb-6 flex items-center justify-between rounded-[14px] border border-emerald-500/30 bg-emerald-500/[0.06] px-3.5 py-2.5 transition-colors hover:bg-emerald-500/[0.1]"
+      className="flex items-center justify-between rounded-[14px] border border-hairline bg-surface-raised px-3.5 py-2.5 transition-colors hover:bg-surface-overlay"
     >
-      <span className="text-[11.5px] text-white/85">
-        How was <strong className="font-bold text-white">{name}</strong>?
+      <span className="text-caption text-ink-secondary">
+        How was <strong className="font-bold text-ink-primary">{name}</strong>?
       </span>
-      <span className="shrink-0 text-[10.5px] font-bold text-emerald-400">
+      <span className="shrink-0 text-label font-bold text-accent">
         Debrief · 30s →
       </span>
     </Link>

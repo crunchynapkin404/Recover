@@ -161,9 +161,10 @@ function occurrences(pattern: RegExp): number {
  */
 const RATCHET_SLACK = 25;
 const OFFENDER_CEILINGS: Record<string, number> = {
-  // 395 occurrences over 392 lines in 77 files, measured 2026-08-12 at slice 0.
-  // 26 distinct sizes; 284 of the 395 are ≤11px and 36 are ≤9px.
-  "arbitrary type sizes": 395,
+  // 364 occurrences, measured 2026-08-12 after Task 7 (coach-brief.tsx,
+  // race-chip.tsx and debrief-chip.tsx moved off text-[10px]/[10.5px]/
+  // [11px]/[11.5px]/[12.5px] onto the type scale).
+  "arbitrary type sizes": 364,
   // 774 occurrences, measured 2026-08-12 after Task 5 (week-row.tsx,
   // week-strip.tsx and week-strip.test.tsx moved off text-white/40,
   // bg-white/[0.03], border-white/[0.08], ring-white/50 and bg-white/15).
@@ -413,12 +414,6 @@ const INLINE_COLOR_INVENTORY: readonly string[] = [
   "src/components/coach/history-panel.tsx — background: `rgba(${style.hue},0.12)`",
   "src/components/coach/history-panel.tsx — borderColor: `rgba(${style.hue},0.3)`",
   "src/components/coach/history-panel.tsx — color: `rgb(${style.hue})`",
-  // Theme-blind: violet/fuchsia hardcoded for dark. ~2.4:1 and ~2.2:1 on the
-  // light surfaces, which no athlete can reach while forcedTheme="dark" — and
-  // which the floor above will fail the moment that goes, by construction.
-  'src/components/today/coach-brief.tsx — color: "#a78bfa"',
-  'src/components/today/race-chip.tsx — borderColor: "rgba(232,121,249,0.25)"',
-  'src/components/today/race-chip.tsx — color: "#e879f9"',
   "src/components/today/today-hero.tsx — boxShadow: `0 0 60px -20px ${BAND_GLOW[band]}`",
   "src/components/train/fitness-tiles.tsx — color: t.color",
   'src/components/train/fitness-tiles.tsx — color: t.contextColor ?? "var(--ink-muted)"',
