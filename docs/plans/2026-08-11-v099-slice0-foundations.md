@@ -924,6 +924,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       defaultTheme="system"
       enableSystem
       forcedTheme="dark"
+      enableColorScheme={false}
       disableTransitionOnChange
     >
       {children}
@@ -931,6 +932,27 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   );
 }
 ```
+
+**`enableColorScheme={false}` is a decision, not boilerplate (I2, whole-branch
+review).** next-themes defaults it to `true` and then writes
+`document.documentElement.style.colorScheme`. `main` declared `color-scheme`
+nowhere, so the default made this branch the first thing in the app's history
+to set it — app-wide, repainting native scrollbars, 26 `type="number"`
+spinners, 4 `type="date"` and 6 `type="time"` picker popups, and 13 `<select>`
+dropdown lists, none of which any token in this slice touches.
+
+**Decided: disable it here, re-enable it in the slice that lifts
+`forcedTheme`.** While the theme is a constant there is nothing for native
+widgets to follow, so the flag buys nothing yet; disabling restores parity with
+`main` instead of adding another item to the exceptions list; and
+`chrome-headless-shell` renders no native scrollbar chrome and no picker popups
+(they are browser/OS surfaces outside the page), so
+`scripts/verify-surfaces.ts` cannot see this change in either direction —
+**it is not screenshot-verifiable in this repo and was not screenshot
+verified.** The counter-argument is real and recorded on the component: a dark
+app with light native controls looks unfinished, and `color-scheme: dark` is
+the right fix for that — it just needs to ship in a slice that can look at it.
+The same slice restores `layout.tsx`'s per-theme `themeColor` (I1).
 
 - [ ] **Step 2: Wire it into the layout**
 
