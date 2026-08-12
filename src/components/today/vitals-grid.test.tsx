@@ -117,4 +117,19 @@ describe("VitalsGrid", () => {
     const html = renderToString(<VitalsGrid tiles={[tile({})]} />);
     expect(html).toContain("font-numeric");
   });
+
+  // C2, whole-branch review 2026-08-12: `lg:grid-cols-4` fired on viewport
+  // width alone, but this grid sometimes sits in a much narrower container
+  // (the morning state's 7fr column) than the viewport breakpoint assumes,
+  // and four 12px tiles collided there. The fix is a container query, not a
+  // viewport one — pinned here so a future edit can't quietly swap it back
+  // for a `lg:`/`xl:` viewport breakpoint that would reintroduce the bug in
+  // whichever narrow placement isn't in front of whoever's editing.
+  it("switches to four columns by container width, not viewport width", () => {
+    const html = renderToString(<VitalsGrid tiles={[tile({})]} />);
+    expect(html).toContain("@container");
+    expect(html).toContain("@min-[700px]:grid-cols-4");
+    expect(html).not.toMatch(/\blg:grid-cols-4\b/);
+    expect(html).not.toMatch(/\bxl:grid-cols-4\b/);
+  });
 });
