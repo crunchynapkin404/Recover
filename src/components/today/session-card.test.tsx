@@ -162,4 +162,11 @@ describe("SessionCard", () => {
     expect(html).not.toMatch(/text-white\//);
     expect(html).not.toMatch(/text-\[[\d.]+px\]/);
   });
+
+  it("keeps the action row wrapper off legacy borders", () => {
+    const html = renderToString(
+      <SessionCard slot={slot()} adjustmentReason={null} otherDays={[]} />
+    );
+    expect(html).toContain("border-t border-hairline pt-3");
+  });
 });
