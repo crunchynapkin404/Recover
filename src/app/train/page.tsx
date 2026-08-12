@@ -833,7 +833,13 @@ async function WeekTab({
 
           {card.race && (
             <>
-              <RaceChip {...card} />
+              {/* The chip's own mb-6 moved to its call sites in v0.99 slice 1
+                  (Today's redesign owns block spacing there). Train is a later
+                  slice, and the goalNote below is tuned to collapse against
+                  this 24px — without it the note is pulled onto the chip. */}
+              <div className="mb-6">
+                <RaceChip {...card} />
+              </div>
               {card.race.goalNote && (
                 <p className="-mt-5 mb-6 px-1 text-[10.5px] text-white/40">
                   {card.race.goalNote}
