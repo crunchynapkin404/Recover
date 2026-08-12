@@ -215,13 +215,58 @@
 
    `.mesh-gradient`, `.glass` and friends were dark-only: a translucent white
    veil (`rgba(255,255,255,…)`) is invisible over a light surface, which is
-   the defect this task exists to fix. The design's decision is that glass
-   stops being the substrate — real surface tokens do that job — and glass is
-   reserved for things genuinely floating over content (nav pill, bottom
-   sheets). So in light mode these become an opaque surface with a hairline
-   border rather than a white veil; dark mode keeps the original frosted-glass
-   translucency untouched. */
+   the defect Task 6b existed to fix.
+
+   ── REVISED v0.100.1, on owner feedback. ────────────────────────────────
+   Task 6b's fix was heavier than the defect required. It concluded that glass
+   should stop being a substrate at all, so light mode got a flat opaque card
+   — and Today's slice-1 redesign then moved its blocks onto opaque surface
+   tokens to match. The result on the LIVE (dark) app was an inconsistency the
+   owner spotted immediately: the bottom sheets and the nav pill were still
+   frosted while the page behind them had gone flat.
+
+   The actual defect was never "glass", it was "5% white on white". Frosted
+   glass works fine on a light ground — it needs a HIGH-opacity white plus the
+   blur, not a veil you can see straight through.
+
+   BUT LIGHT STAYS OPAQUE FOR NOW, AND THE REASON IS MEASURED. Making this
+   value translucent was tried and reverted in the same session: it takes the
+   axe pass from 378 confirmed / 1559 indeterminate to 8 / 2372. Nothing was
+   fixed — 370 findings stopped being COMPUTABLE, because axe cannot resolve a
+   contrast ratio through a translucent background. Proof it is blindness and
+   not success: sidebar-nav's avatar is a real white-on-white failure on eight
+   light surfaces, and it moved from `confirmed` to `indeterminate` while
+   staying exactly as unreadable. `indeterminate` never gates the exit code, so
+   that change would have handed slices 2-8 a verification gate that reports
+   almost nothing.
+
+   Dark glass is translucent and always has been, so putting Today's cards back
+   on it costs +167 indeterminate and keeps all 378 confirmed findings
+   computable — the gate still works. That is the trade this file takes.
+
+   SLICE 9 OWNS THE REST. It lifts `forcedTheme="dark"`, which is the first
+   moment any athlete can see light mode, and it gets its own light pass. Make
+   this `rgba(255, 255, 255, 0.72)` there — the value is measured and clears
+   the text floor on every ground (see tests/glass-contrast-guard.test.ts) —
+   and re-baseline the axe numbers in the same commit, deliberately, rather
+   than discovering the drop as a mystery.
+
+   Contrast: a translucent surface has no single measurable colour, so it sits
+   outside tests/contrast-guard.test.ts, which governs opaque `--surface-*`
+   grounds only. tests/glass-contrast-guard.test.ts closes that hole — it
+   composites this fill over every surface it can sit on, in both themes, and
+   holds every text ink to the same 4.5:1 floor. The alpha below is chosen so
+   the composite lands near --surface-raised rather than drifting toward the
+   page, which is what keeps that test green.
+
+   The border stays `--hairline` rather than a soft translucent edge: slice 0
+   raised `--border`/`--input` from 1.26:1 to 3.09:1 for WCAG 1.4.11, and a
+   card boundary should not quietly opt out of the standard the same release
+   just enforced. */
 :root {
+  /* 0.72 white over --surface-base composites to ≈#fcfcfc — a frosted panel
+     that still reads as a distinct surface against the mesh gradient's blooms,
+     rather than Task 6b's flat opaque card. */
   --glass-bg: var(--surface-raised);
   --glass-border: var(--hairline);
   --glass-hover-shadow: rgba(23, 23, 23, 0.15);

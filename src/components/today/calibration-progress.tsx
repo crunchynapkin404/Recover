@@ -16,7 +16,7 @@ interface Props {
 export function CalibrationProgress({ daysWithSignal, target, prompt }: Props) {
   const pct = target > 0 ? Math.round((daysWithSignal / target) * 100) : 0;
   return (
-    <div className="rounded-[20px] border border-hairline bg-surface-raised p-4">
+    <div className="rounded-[20px] glass glass-no-hover p-4">
       <div className="mb-2 flex items-center justify-between">
         <span className="text-label font-bold uppercase tracking-[0.14em] text-ink-muted">
           Calibrating readiness

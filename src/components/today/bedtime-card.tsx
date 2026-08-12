@@ -26,7 +26,7 @@ export function BedtimeCard({ bedtime, confidence }: Props) {
   if (!bedtime) return null;
 
   return (
-    <section className="flex items-center justify-between gap-4 rounded-[20px] border border-hairline bg-surface-raised p-4">
+    <section className="flex items-center justify-between gap-4 rounded-[20px] glass glass-no-hover p-4">
       <span className="font-numeric text-figure font-bold leading-none text-chart-1">
         {bedtime}
       </span>

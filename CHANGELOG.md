@@ -1,5 +1,49 @@
 # Changelog
 
+## v0.100.1 — 2026-08-12 — The glass comes back
+
+A same-day patch on v0.100.0, on owner feedback after using the live app.
+
+**The page had stopped matching its own sheets.** Slice 0 decided glass would
+stop being a substrate, and slice 1's Today then moved its blocks onto opaque
+surface tokens. But the bottom sheets and the nav pill are still `.glass`, and
+so are 44 component files across every other surface — so on the live dark app
+the popup was frosted while the page behind it had gone flat. Today's blocks
+are back on `.glass`: the hero, the session card, the just-landed block, the
+day log, the bed-by card, the week row, the calibration bar, the vitals tiles,
+the coach brief, the race and debrief chips, the onboarding card and the header
+avatar. Static blocks use `glass-no-hover`; the tappable ones keep the lift
+every other page already has.
+
+**The readiness ring is back in the demoted states.** The compact hero shipped
+as a bare numeral, and `51` on its own read as one stat among others rather
+than as the app's headline signal. It returns at roughly half scale, so the
+post-session and evening states still demote it — the ride and the day's log
+still lead — without the number losing its identity.
+
+**Light mode's glass is deliberately NOT retuned, and the reason is measured.**
+Making it translucent was tried and reverted in the same session: it takes the
+axe pass from **378 confirmed / 1559 indeterminate to 8 / 2372**. Nothing was
+fixed — 370 findings simply stopped being computable, because axe cannot
+resolve a contrast ratio through a translucent background, and `indeterminate`
+never gates the exit code. The proof it is blindness rather than success:
+`sidebar-nav`'s avatar is a real white-on-white failure on eight light
+surfaces, and it moved from `confirmed` to `indeterminate` while staying
+exactly as unreadable. Slices 2-8 would have inherited a gate reporting almost
+nothing. Dark glass has always been translucent, so putting Today's cards back
+on it costs +167 indeterminate and keeps all 378 confirmed findings computable.
+Slice 9 lifts `forcedTheme="dark"` and owns light mode; it should set the
+retuned value there and re-baseline axe in the same commit.
+
+**A new guard for a hole that has now been opened deliberately.**
+`tests/glass-contrast-guard.test.ts` — `--glass-bg` is not a `--surface-*`
+token and is not opaque, so `contrast-guard` never read it, and it is once
+again the substrate most of Today's text sits on. The new guard composites the
+fill over each ground it can sit on and holds every text ink to the same 4.5:1
+floor. It also pins two things rather than hiding them: why glass may not sit
+on an overlay ground in dark (4.16:1 for muted ink), and the light-mode
+deferral above.
+
 ## v0.100.0 — 2026-08-12 — Today knows what time it is (Phase 2b.4, slice 1 of 10)
 
 **The first redesigned surface.** Today becomes state-aware: same route, same

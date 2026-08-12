@@ -19,7 +19,7 @@ export function CoachBrief({
   return (
     <Link
       href={`/coach?thread=${threadId}`}
-      className="block rounded-[20px] border border-hairline bg-surface-raised p-4 transition-colors hover:bg-surface-overlay"
+      className="block rounded-[20px] glass p-4 transition-colors hover:bg-surface-overlay"
     >
       <div className="mb-2 flex items-center justify-between">
         <span className="flex items-center gap-1.5">

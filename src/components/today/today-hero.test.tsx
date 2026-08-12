@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { renderToString } from "react-dom/server";
+import { compositeOver } from "@/lib/design/color-literals";
 import { contrastRatio } from "@/lib/design/contrast";
 import { resolvedThemeTokens } from "@/lib/design/tokens";
 import { TodayHero, fmtTsb } from "./today-hero";
@@ -93,12 +94,41 @@ describe("TodayHero", () => {
     expect(html).not.toMatch(/text-\[[\d.]+px\]/);
   });
 
-  it("drops the ring and the legend in the compact variant", () => {
+  // v0.100.1 REVERSED half of this, on owner feedback. The compact variant
+  // shipped as a bare numeral, which read as one stat among others rather
+  // than as the app's headline signal. The ring is back; the legend is still
+  // dropped, so the variant is still a demotion.
+  it("keeps the ring but drops the legend in the compact variant", () => {
     const html = renderToString(<TodayHero {...base} variant="compact" />);
     expect(html).toContain("78");
     expect(html).toContain("Strong");
-    expect(html).not.toContain("<svg");
+    expect(html).toContain("<svg");
+    expect(html).toContain("ring-fill");
     expect(html).not.toContain("Recovery<!-- --> <!-- -->82");
+  });
+
+  it("draws the compact ring smaller than the full one", () => {
+    // Not cosmetic: if the two rendered at the same size the variant would
+    // stop being a demotion, which is the whole reason it exists.
+    const compact = renderToString(<TodayHero {...base} variant="compact" />);
+    const full = renderToString(<TodayHero {...base} />);
+    expect(compact).toContain("w-14");
+    expect(compact).not.toContain("w-[104px]");
+    expect(full).toContain("w-[104px]");
+  });
+
+  it("shows the compact ring as an empty track while calibrating", () => {
+    const html = renderToString(
+      <TodayHero
+        {...base}
+        readiness={null}
+        band="calibrating"
+        variant="compact"
+      />
+    );
+    expect(html).toContain("<svg");
+    expect(html).not.toContain("ring-fill");
+    expect(html).toContain("—");
   });
 
   it("keeps the why line in the compact variant by default", () => {
@@ -152,19 +182,42 @@ describe("TodayHero", () => {
  * to what the code actually returns" case the task called out.
  */
 describe("band text contrast", () => {
-  const RAISED = "surface-raised";
+  /**
+   * v0.100.1: the hero's surface is `.glass`, not `--surface-raised`, so this
+   * measures against the COMPOSITED glass fill — what the band text is really
+   * drawn on. In dark the two happen to be identical (5% white over
+   * `--surface-base` composites to exactly #161616), but in light they differ,
+   * and a test that keeps naming a surface the component stopped using is the
+   * "document outliving the code" failure this project keeps re-learning.
+   */
+  function heroSurface(theme: "light" | "dark"): string {
+    const t = resolvedThemeTokens()[theme];
+    const m =
+      /rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:[,/\s]+([\d.]+))?\s*\)/.exec(
+        t["glass-bg"]
+      );
+    if (!m) return t["glass-bg"]; // an opaque glass fill needs no compositing
+    return compositeOver(
+      [
+        Number(m[1]),
+        Number(m[2]),
+        Number(m[3]),
+        m[4] === undefined ? 1 : Number(m[4]),
+      ],
+      t["surface-base"]
+    );
+  }
 
   it("clears 4.5:1 on the hero's surface in every renderable theme", () => {
     const tokens = resolvedThemeTokens();
     for (const theme of ["light", "dark"] as const) {
+      const RAISED = heroSurface(theme);
       for (const token of ["chart-2", "chart-3", "chart-5", "ink-muted"]) {
-        const ratio = contrastRatio(
-          tokens[theme][token],
-          tokens[theme][RAISED]
-        );
+        const ratio = contrastRatio(tokens[theme][token], RAISED);
         expect(
           ratio,
-          `${token} on ${RAISED} in ${theme} is ${ratio.toFixed(2)}:1 — a band ` +
+          `${token} on the hero's glass surface (${RAISED}) in ${theme} is ` +
+            `${ratio.toFixed(2)}:1 — a band ` +
             `verdict is text and needs 4.5:1. Either the token moved or the ` +
             `hero's surface did.`
         ).toBeGreaterThanOrEqual(4.5);

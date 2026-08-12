@@ -283,7 +283,7 @@ export default async function DashboardPage({
     return (
       <AppShell>
         <div className="flex min-h-[60svh] flex-col items-center justify-center text-center">
-          <div className="mx-auto max-w-md rounded-[2.5rem] border border-hairline bg-surface-raised p-8">
+          <div className="glass glass-no-hover mx-auto max-w-md rounded-[2.5rem] p-8">
             <h2 className="text-title font-bold tracking-tight text-ink-primary">
               Welcome to Recover
             </h2>
@@ -635,7 +635,7 @@ export default async function DashboardPage({
               <Link
                 href="/settings"
                 aria-label="Menu"
-                className="flex size-9 shrink-0 items-center justify-center rounded-full border border-hairline bg-surface-raised"
+                className="glass flex size-9 shrink-0 items-center justify-center rounded-full"
               >
                 {initial ? (
                   <span

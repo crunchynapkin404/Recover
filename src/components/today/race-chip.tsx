@@ -35,7 +35,7 @@ export function RaceChip({ race, daysOut, outlook }: RaceCard) {
   return (
     <Link
       href="/train?tab=week"
-      className="flex items-center justify-between rounded-[14px] border border-hairline bg-surface-raised px-3.5 py-2.5 transition-colors hover:bg-surface-overlay"
+      className="flex items-center justify-between rounded-[14px] glass px-3.5 py-2.5 transition-colors hover:bg-surface-overlay"
     >
       <span className="text-caption text-ink-secondary">
         <span aria-hidden>🏁 </span>
