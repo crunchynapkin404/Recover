@@ -31,6 +31,11 @@ import {
   previewStateFrom,
   resolveTodayState,
 } from "@/lib/today/state";
+import {
+  BLOCK_ORDER,
+  MORNING_LEFT_COLUMN,
+  type TodayBlockKey,
+} from "@/lib/today/block-order";
 import { getCachedActivityDetail } from "@/lib/activity-streams";
 import {
   JustLandedCard,
@@ -649,7 +654,7 @@ export default async function DashboardPage({
           </header>
 
           {(() => {
-            const blocks: Record<string, React.ReactNode> = {
+            const blocks: Record<TodayBlockKey, React.ReactNode> = {
               heroFull: (
                 <TodayHero
                   readiness={readinessOrNull}
@@ -752,55 +757,11 @@ export default async function DashboardPage({
               ) : null,
             };
 
-            // Reorder, never hide: every state lists every block. Only the
-            // sequence changes, so no moment can make content unreachable
-            // that another moment shows.
-            const ORDER: Record<typeof todayState, string[]> = {
-              morning: [
-                "heroFull",
-                "calibration",
-                "vitals",
-                "week",
-                "session",
-                "debriefChip",
-                "raceChip",
-                "coach",
-                // Tail, not lead: an athlete who logs at 14:00 is still in
-                // the morning state, and their own log must not be missing
-                // from Today until 18:00. Both cards render null when they
-                // have nothing, so this costs an unlogged morning nothing.
-                "dayLog",
-                "bedtime",
-              ],
-              "post-session": [
-                "justLanded",
-                "heroCompact",
-                "sessionDone",
-                "calibration",
-                "vitals",
-                "week",
-                "debriefChip",
-                "raceChip",
-                "coach",
-                "dayLog",
-                "bedtime",
-              ],
-              evening: [
-                "dayLog",
-                "heroRecap",
-                "sessionTomorrow",
-                "bedtime",
-                "coach",
-                "calibration",
-                "vitals",
-                "week",
-                "session",
-                "debriefChip",
-                "raceChip",
-              ],
-            };
-
-            const ordered = ORDER[todayState].map((key) => (
+            // Reorder, never hide. The sequence lives in
+            // src/lib/today/block-order.ts, which has its own tests
+            // asserting every state shows every block — see that file for
+            // why the rule is checked against concepts rather than keys.
+            const ordered = BLOCK_ORDER[todayState].map((key) => (
               <div key={key} className="mb-6 empty:mb-0">
                 {blocks[key]}
               </div>
@@ -814,17 +775,21 @@ export default async function DashboardPage({
             if (todayState !== "morning")
               return <div className="min-w-0">{ordered}</div>;
 
-            const left = new Set(["heroFull", "calibration", "vitals", "week"]);
             return (
               <div className="lg:grid lg:grid-cols-[7fr_5fr] lg:items-start lg:gap-5">
                 <div className="min-w-0">
                   {ordered.filter((n) =>
-                    left.has(String((n as React.ReactElement).key))
+                    MORNING_LEFT_COLUMN.has(
+                      String((n as React.ReactElement).key) as TodayBlockKey
+                    )
                   )}
                 </div>
                 <div className="min-w-0">
                   {ordered.filter(
-                    (n) => !left.has(String((n as React.ReactElement).key))
+                    (n) =>
+                      !MORNING_LEFT_COLUMN.has(
+                        String((n as React.ReactElement).key) as TodayBlockKey
+                      )
                   )}
                 </div>
               </div>
