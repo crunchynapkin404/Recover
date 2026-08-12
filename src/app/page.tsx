@@ -758,7 +758,6 @@ export default async function DashboardPage({
               bedtime: (
                 <BedtimeCard
                   bedtime={sleepDebt.bedtime}
-                  debtSecs={sleepDebt.debtSecs}
                   confidence={sleepDebt.confidence}
                 />
               ),
