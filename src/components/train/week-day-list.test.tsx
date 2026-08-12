@@ -74,8 +74,13 @@ describe("WeekDayList", () => {
     expect(html).toContain("Tempo");
     expect(html).toContain("75 min");
     expect(html).toContain("2×20");
-    expect(html).toContain("completed");
-    expect(html).toContain("planned");
+    // Status is a dot (data-status, matching week-strip.tsx) with an
+    // sr-only label, not a printed pill — see the v0.99 slice 2 describe
+    // block below for the dedicated coverage of that rendering.
+    expect(html).toContain('data-status="completed"');
+    expect(html).toContain('<span class="sr-only">Completed</span>');
+    expect(html).toContain('data-status="planned"');
+    expect(html).toContain('<span class="sr-only">Planned</span>');
   });
 
   it("marks only today's row", () => {
@@ -261,5 +266,52 @@ describe("WeekDayList", () => {
       />
     );
     expect(html).toContain("No availability set for next week");
+  });
+});
+
+describe("WeekDayList — status as a dot, not a pill (v0.99 slice 2)", () => {
+  it("names the status for assistive tech without printing it as a pill", () => {
+    const html = renderToString(
+      <WeekDayList days={CURRENT_WEEK_DAYS} today="2026-07-28" />
+    );
+    // The dot carries the status in the DOM the way week-strip does.
+    expect(html).toContain('data-status="completed"');
+    expect(html).toContain('data-status="planned"');
+    // …and names it for a screen reader.
+    expect(html).toMatch(/<span class="sr-only">Completed<\/span>/i);
+    // But the uppercase text pill is gone: no visible bare status word.
+    expect(html).not.toMatch(/uppercase[^"]*">\s*completed/i);
+  });
+
+  it("paints race day in the race ink token, not a fuchsia literal", () => {
+    const race = slot("2026-07-30", "race", null, {
+      raceName: "Gran Fondo Alpe",
+    });
+    const html = renderToString(
+      <WeekDayList days={[race]} today="2026-07-28" />
+    );
+    expect(html).toContain("Gran Fondo Alpe");
+    expect(html).toMatch(/text-ink-race/);
+    expect(html).not.toMatch(/fuchsia/);
+  });
+
+  it("has no type below the 12px floor and no ad-hoc white alphas", () => {
+    // Today (2026-07-28) has a workout in CURRENT_WEEK_DAYS, which mounts
+    // <DayActions> inline on its row (isToday && workouts.length > 0).
+    // DayActions (src/components/week/day-actions.tsx) is untouched here —
+    // the slice-2 plan assigns it to Task 5 — and still carries its own
+    // arbitrary sizes and ad-hoc alpha ink. Stripping today's workout keeps
+    // this assertion scoped to what WeekDayList itself renders, which is
+    // this test's actual subject; every other row still exercises the
+    // workout, rest and status-dot classes this task migrated.
+    const days = CURRENT_WEEK_DAYS.map((d) =>
+      d.date === "2026-07-28" ? { ...d, workouts: [] } : d
+    );
+    const html = renderToString(<WeekDayList days={days} today="2026-07-28" />);
+    expect(html).not.toMatch(/text-\[[\d.]+px\]/);
+    expect(html).not.toMatch(/\btext-xs\b/);
+    expect(html).not.toMatch(/text-white\//);
+    expect(html).not.toMatch(/bg-white\//);
+    expect(html).not.toMatch(/border-white\//);
   });
 });

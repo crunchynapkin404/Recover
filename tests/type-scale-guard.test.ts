@@ -161,18 +161,20 @@ function occurrences(pattern: RegExp): number {
  */
 const RATCHET_SLACK = 25;
 const OFFENDER_CEILINGS: Record<string, number> = {
-  // 343 occurrences, measured 2026-08-12 after task 2 (the page chrome —
-  // TrainHeader, TrainTabs, ViewTabs, RangeTabs, the bottom nav label and
-  // the readiness chip) migrated its 8 text-[Npx] sites.
-  // Was 351 after the whole-branch-review fixes, 355 right after slice 1,
-  // 395 at slice 0.
-  "arbitrary type sizes": 343,
-  // 729 occurrences, measured 2026-08-12 after task 2 migrated its 9
-  // text-white/N and bg-white/N sites (TrainHeader, TrainTabs, ViewTabs,
-  // RangeTabs, ui/collapsible.tsx's chevron).
-  // Was 738 after the whole-branch-review fixes, 749 right after slice 1,
-  // 806 at slice 0.
-  "ad-hoc white/black alpha utilities": 729,
+  // 333 occurrences, measured 2026-08-13 after task 3 (the week day row —
+  // WeekDayList's weekday label, workout/race/rest lines, credit and
+  // moved-from lines, and the provisional/pinned badge) migrated its 10
+  // text-[Npx]/w-[34px] sites.
+  // Was 343 after task 2, 351 after the whole-branch-review fixes, 355
+  // right after slice 1, 395 at slice 0.
+  "arbitrary type sizes": 333,
+  // 709 occurrences, measured 2026-08-13 after task 3 migrated its 20
+  // text-white/N, border-white/N and bg-white/N sites (the weekday label,
+  // workout, intensity, race, rest, credit, moved-from and badge lines, the
+  // row divider/highlight, the next-week divider and the section wrapper).
+  // Was 729 after task 2, 738 after the whole-branch-review fixes, 749
+  // right after slice 1, 806 at slice 0.
+  "ad-hoc white/black alpha utilities": 709,
 };
 
 function expectRatchet(name: string, pattern: RegExp): void {
