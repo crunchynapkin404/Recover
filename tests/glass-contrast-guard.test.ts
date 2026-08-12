@@ -43,18 +43,32 @@ function declaredTokenNames(): string[] {
  * Every text ink, DERIVED. This was a hand-written array through v0.100.1,
  * which meant adding an ink token silently skipped the glass check while
  * passing the surface check — the same shape as the guard that read only
- * the first of six token blocks. `--hairline` is excluded by name: it is
- * barred from text. `accent` is excluded because it is ink on a FILL, not
- * on glass, and carries its own waiver in the sibling guard.
+ * the first of six token blocks. Every token the shared classifier calls
+ * `"text"` is checked over glass here, with no hand-written exemptions: a
+ * hand-written exemption is exactly the failure mode this derivation exists
+ * to remove. That includes `accent` (used as text — badges, links, the
+ * "+ Add race" summary — and it does render on glass) and suffix-style ink
+ * names like `coach-ink`, not just prefix-style `ink-*`.
  */
 const TEXT_INKS = [...new Set(declaredTokenNames())]
-  .filter((t) => t.startsWith("ink-") && roleOfToken(t) === "text")
+  .filter((t) => roleOfToken(t) === "text")
   .sort();
 
 it("derives its ink list from the stylesheet, not from a hand-written array", () => {
-  expect(TEXT_INKS).toContain("ink-race");
-  expect(TEXT_INKS).toContain("ink-primary");
-  expect(TEXT_INKS.length).toBeGreaterThanOrEqual(4);
+  // Exact inventory, not a floor: a floor lets a new text token silently go
+  // unchecked, which is the bug this file exists to fix. If this fails
+  // because a token was added or removed, confirm the new/changed token
+  // clears the 4.5:1 glass floor above, then update this list — never
+  // loosen it back to a length check.
+  expect(TEXT_INKS).toEqual([
+    "accent",
+    "coach-ink",
+    "ink-muted",
+    "ink-primary",
+    "ink-race",
+    "ink-secondary",
+    "viz-muted-ink",
+  ]);
 });
 
 /**
