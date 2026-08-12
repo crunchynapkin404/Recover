@@ -69,6 +69,7 @@ describe("WeekRow", () => {
     const html = renderToString(
       <WeekRow days={week()} hoursDone={0} hoursTarget={0} />
     );
+    expect(html).not.toContain("target");
     expect(html).not.toContain("behind");
     expect(html).not.toContain("on track");
   });

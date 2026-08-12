@@ -25,10 +25,8 @@ export function WeekRow({
 }) {
   if (!days || days.length === 0) return null;
 
-  const onTrack =
-    hoursTarget != null && hoursTarget > 0
-      ? hoursDone >= hoursTarget * 0.9
-      : null;
+  const hasTarget = hoursTarget != null && hoursTarget > 0;
+  const onTrack = hasTarget ? hoursDone >= hoursTarget * 0.9 : null;
 
   return (
     <section className="hidden items-center gap-5 rounded-[20px] border border-hairline bg-surface-raised px-5 py-3 lg:flex">
@@ -44,7 +42,7 @@ export function WeekRow({
         <strong className="font-numeric font-bold text-ink-primary">
           {hoursDone.toFixed(1)}h
         </strong>
-        {hoursTarget != null && ` of ${fmt(hoursTarget)} target`}
+        {hasTarget && ` of ${fmt(hoursTarget)} target`}
         {onTrack != null && (
           <span
             className={`ml-1.5 font-bold ${onTrack ? "text-chart-2" : "text-chart-3"}`}
