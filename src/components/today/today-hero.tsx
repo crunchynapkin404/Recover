@@ -1,11 +1,19 @@
 import type { Band } from "@/lib/readiness";
-import { BAND_COLOR, BAND_GLOW } from "@/lib/band-color";
+import { BAND_GLOW, BAND_STROKE, BAND_TEXT } from "@/lib/band-color";
 
 const BAND_VERDICT: Record<Band, string> = {
   green: "✓ Strong · ready for intensity",
   amber: "⚡ Moderate · easy work",
   red: "⚠ Low · prioritize rest",
   calibrating: "Calibrating · learning baseline",
+};
+
+/** The verdict in one word, for the compact recap line. */
+const BAND_WORD: Record<Band, string> = {
+  green: "Strong",
+  amber: "Moderate",
+  red: "Low",
+  calibrating: "Calibrating",
 };
 
 export interface TodayHeroWhy {
@@ -23,6 +31,18 @@ interface Props {
   recoveryScore: number | null;
   sleepScore: number | null;
   why: TodayHeroWhy;
+  /**
+   * "full" is the morning lead: ring, verdict, why line, legend.
+   * "compact" is the recap the post-session and evening states carry below
+   * their own lead — the same number, no ring, no legend.
+   */
+  variant?: "full" | "compact";
+  /**
+   * Compact only. Set it ("Readiness this morning") and the recap says so
+   * and drops the why line, because by evening those inputs describe a
+   * reading the athlete already acted on.
+   */
+  staleLabel?: string | null;
 }
 
 // One geometry, scaled by CSS at lg+ (3a wants a 150px ring) so the ring's
@@ -61,10 +81,12 @@ function buildWhy(why: TodayHeroWhy): string {
 }
 
 /**
- * Today's hero — the single glass mega-card (2a). One readiness ring keyed to
- * the band, a verdict, a one-line numeric "why", and a Recovery/Sleep legend.
- * The ring draws in via the shared `.ring-fill` CSS animation; calibrating
- * shows only the empty track.
+ * Today's hero. One readiness ring keyed to the band, a verdict, a one-line
+ * numeric "why", and a Recovery/Sleep legend. The ring draws in via the
+ * shared `.ring-fill` CSS animation; calibrating shows only the empty track.
+ *
+ * v0.99 slice 1: on the token type/ink scale, and gains the compact recap
+ * the post-session and evening states carry below their own lead block.
  */
 export function TodayHero({
   readiness,
@@ -72,21 +94,55 @@ export function TodayHero({
   recoveryScore,
   sleepScore,
   why,
+  variant = "full",
+  staleLabel = null,
 }: Props) {
-  const color = BAND_COLOR[band];
   const calibrating = band === "calibrating" || readiness == null;
   const filled = calibrating ? 0 : Math.max(0, Math.min(100, readiness ?? 0));
   const targetOffset = CIRC - (CIRC * filled) / 100;
   const whyLine = buildWhy(why);
+  const shown = calibrating ? "—" : String(Math.round(readiness ?? 0));
+  const srScore = calibrating
+    ? "Readiness calibrating"
+    : `Readiness ${Math.round(readiness ?? 0)}`;
+
+  if (variant === "compact") {
+    return (
+      <section className="flex items-center gap-3 rounded-[20px] border border-hairline bg-surface-raised p-4">
+        <span
+          aria-hidden
+          className={`font-numeric text-title font-bold leading-none ${BAND_TEXT[band]}`}
+        >
+          {shown}
+        </span>
+        <span className="sr-only">{srScore}</span>
+        <div className="min-w-0">
+          <p className="text-caption text-ink-secondary">
+            {staleLabel ? (
+              <>
+                {staleLabel} ·{" "}
+                <span className="font-bold">{BAND_WORD[band]}</span>
+              </>
+            ) : (
+              BAND_VERDICT[band]
+            )}
+          </p>
+          {!staleLabel && whyLine && (
+            <p className="mt-1 text-caption text-ink-muted">{whyLine}</p>
+          )}
+        </div>
+      </section>
+    );
+  }
 
   const legend = [
-    { label: "Recovery", color: "#10b981", value: recoveryScore },
-    { label: "Sleep", color: "#3b82f6", value: sleepScore },
+    { label: "Recovery", tone: "bg-chart-2", value: recoveryScore },
+    { label: "Sleep", tone: "bg-chart-1", value: sleepScore },
   ];
 
   return (
     <section
-      className="mb-6 flex items-center gap-4 rounded-[22px] border border-white/10 bg-white/5 p-4 lg:gap-6 lg:p-6"
+      className="flex items-center gap-4 rounded-[22px] border border-hairline bg-surface-raised p-4 lg:gap-6 lg:p-6"
       style={{ boxShadow: `0 0 60px -20px ${BAND_GLOW[band]}` }}
     >
       <div className="relative aspect-square w-[104px] shrink-0 lg:w-[150px]">
@@ -100,7 +156,7 @@ export function TodayHero({
             cy={SIZE / 2}
             r={R}
             fill="none"
-            stroke="rgba(255,255,255,0.07)"
+            className="stroke-hairline opacity-35"
             strokeWidth={STROKE}
           />
           {!calibrating && (
@@ -109,12 +165,11 @@ export function TodayHero({
               cy={SIZE / 2}
               r={R}
               fill="none"
-              stroke={color}
+              className={`ring-fill ${BAND_STROKE[band]}`}
               strokeWidth={STROKE}
               strokeLinecap="round"
               strokeDasharray={CIRC}
               strokeDashoffset={targetOffset}
-              className="ring-fill"
               style={
                 {
                   "--ring-circ": CIRC,
@@ -127,31 +182,25 @@ export function TodayHero({
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <span
             aria-hidden
-            className="text-[30px] font-bold leading-none tracking-tighter lg:text-[44px]"
-            style={{ color }}
+            className={`font-numeric text-figure font-bold leading-none tracking-tighter lg:text-hero ${BAND_TEXT[band]}`}
           >
-            {calibrating ? "—" : Math.round(readiness ?? 0)}
+            {shown}
           </span>
-          <span className="mt-1 text-[7.5px] font-bold uppercase tracking-[0.2em] text-white/40">
+          <span className="mt-1 text-label font-bold uppercase tracking-[0.14em] text-ink-muted">
             Readiness
           </span>
-          <span className="sr-only">
-            {calibrating
-              ? "Readiness calibrating"
-              : `Readiness ${Math.round(readiness ?? 0)}`}
-          </span>
+          <span className="sr-only">{srScore}</span>
         </div>
       </div>
 
       <div className="min-w-0 flex-1">
-        <p
-          className="text-[12.5px] font-bold lg:text-[16px]"
-          style={{ color: calibrating ? "rgba(255,255,255,0.6)" : color }}
-        >
+        {/* BAND_TEXT already maps calibrating to --ink-muted, so the old
+            theme-blind rgba(255,255,255,0.6) ternary is simply gone. */}
+        <p className={`text-body font-bold ${BAND_TEXT[band]}`}>
           {BAND_VERDICT[band]}
         </p>
         {whyLine && (
-          <p className="mt-1.5 text-[11px] leading-snug text-white/55">
+          <p className="mt-1.5 text-caption leading-snug text-ink-secondary">
             {whyLine}
           </p>
         )}
@@ -159,13 +208,9 @@ export function TodayHero({
           {legend.map((m) => (
             <span
               key={m.label}
-              className="flex items-center gap-1.5 text-[10.5px] text-white/60"
+              className="flex items-center gap-1.5 text-caption text-ink-secondary"
             >
-              <span
-                aria-hidden
-                className="h-2 w-2 rounded-full"
-                style={{ backgroundColor: m.color }}
-              />
+              <span aria-hidden className={`h-2 w-2 rounded-full ${m.tone}`} />
               {m.label} {m.value != null ? Math.round(m.value) : "—"}
             </span>
           ))}
