@@ -30,10 +30,83 @@ Copied verbatim from `docs/specs/2026-08-11-2b4-visual-redesign-design.md`:
   figure claiming more than 2a can source.
 - **No IA change.** Nav stays Today/Train/Coach/Body/Menu; every route keeps its
   URL; no route is retired.
-- **No athlete-visible _visual_ change in this slice.** Dark mode must render
-  the same intent as before; light mode is unreachable until slice 9. **One
-  deliberate behavioural exception:** Task 4 restores pinch-zoom, a WCAG 1.4.4
-  fix that ships here because the plumbing it touches is here.
+- **CORRECTED, T1 (whole-branch review 2026-08-11). This constraint used to
+  read "No athlete-visible _visual_ change in this slice", with two named
+  exceptions. That sentence was false, and it was never tested against `main`
+  until C5 tested it.** Slice 0 changes what the athlete sees in dark mode, in
+  **15 token values**, and only 1 of the 15 was disclosed. The truthful
+  constraint is below, and it is deliberately phrased so a reader can check it
+  rather than trust it.
+
+  **What the constraint actually is:**
+
+  1. **No IA change, no layout change, no surface rebuilt.** Nav, routes and
+     component structure are untouched; migrating a surface's utilities to
+     tokens is slices 1-8's job, not this one's.
+  2. **Dark mode changes in exactly the 15 token values in the table below,
+     and nowhere else.** Light mode is unreachable to the athlete while
+     `forcedTheme="dark"` holds.
+  3. **Every one of the 15 either raises contrast or is below any plausible
+     perceptual threshold. None lowers it.** That is the checkable claim, and
+     the ratio column is how you check it.
+  4. **One deliberate behavioural exception:** Task 4 restores pinch-zoom, a
+     WCAG 1.4.4 fix that ships here because the plumbing it touches is here.
+
+  **The measured table.** Derived by resolving every `var()` chain and
+  compositing every translucent value over the page ground `#0a0a0a`, comparing
+  `main`'s single `:root` block — which **is** its dark theme, since no `.dark`
+  class exists there — against this branch's `.dark`. Re-derivable from
+  `git show 2da5f83:src/app/globals.css` against `src/app/globals.css`; method
+  and full working in `docs/dark-mode-delta-vs-main.md`. It is exact CSS
+  arithmetic, not a rendering.
+
+  | #     | Token                                                                                                                                        | `main` (composited)                 | branch                             | vs `#0a0a0a`    | Where it lands                                                                 |
+  | ----- | -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- | ---------------------------------- | --------------- | ------------------------------------------------------------------------------ |
+  | 1     | `--border`                                                                                                                                   | `rgba(255,255,255,.1)` → `#232323`  | `var(--hairline)` `#6b6b6b`        | **1.26 → 3.72** | **every bordered element**, via `@layer base { * { @apply border-border } }`   |
+  | 2     | `--input`                                                                                                                                    | `rgba(255,255,255,.1)` → `#232323`  | `var(--hairline)` `#6b6b6b`        | **1.26 → 3.72** | every `<Input>`, `<Select>`, `<Textarea>` border                               |
+  | 3     | `--sidebar-border`                                                                                                                           | `rgba(255,255,255,.06)` → `#191919` | `var(--hairline)` `#6b6b6b`        | **1.13 → 3.72** | sidebar dividers                                                               |
+  | 4     | `--muted-foreground`                                                                                                                         | `rgba(255,255,255,.4)` → `#6c6c6c`  | `var(--ink-muted)` `#8a8a8a`       | **3.77 → 5.73** | 21 `text-muted-foreground` sites, plus every shadcn placeholder                |
+  | 5     | `--viz-muted-ink`                                                                                                                            | `rgba(255,255,255,.3)` → `#545454`  | `var(--ink-muted)` `#8a8a8a`       | **2.61 → 5.73** | chart axis labels and muted chart text — **the one change that was disclosed** |
+  | 6     | `--popover`                                                                                                                                  | `#141414`                           | `var(--surface-overlay)` `#1f1f1f` | ground, n/a     | popover and bottom-sheet grounds                                               |
+  | 7     | `--muted`                                                                                                                                    | `rgba(255,255,255,.05)` → `#161616` | `#262626`                          | ground, n/a     | muted fills, `hover:bg-muted`                                                  |
+  | 8     | `--secondary`                                                                                                                                | `rgba(255,255,255,.08)` → `#1e1e1e` | `#262626`                          | ground, n/a     | secondary buttons                                                              |
+  | 9     | `--sidebar-accent`                                                                                                                           | `rgba(255,255,255,.08)` → `#1e1e1e` | `#262626`                          | ground, n/a     | sidebar hover fill                                                             |
+  | 10-15 | `--foreground`, `--card-foreground`, `--popover-foreground`, `--secondary-foreground`, `--sidebar-foreground`, `--sidebar-accent-foreground` | `#fafafa`                           | `var(--ink-primary)` `#f5f5f5`     | 18.97 → 18.16   | all primary text — 2/255, below any plausible perceptual threshold             |
+
+  Six further tokens changed **spelling only and render identically**, so they
+  are not changes: `--background`, `--card`, `--primary`, `--ring`,
+  `--sidebar-primary`, `--sidebar-ring`. Worth noticing that `--card`'s
+  `rgba(255,255,255,.05)` over `#0a0a0a` composites to **exactly** `#161616`,
+  the new `--surface-raised` — that was matched deliberately. Seven tokens are
+  genuinely new names (`--surface-*`, `--ink-*`, `--hairline`) rather than
+  changed values.
+
+  **Why the list becomes truthful instead of the code reverting.** Every one of
+  the 15 moves in the direction the release exists to move; nothing got worse.
+  Two of them are the release succeeding, loudly:
+
+  - **`--border` / `--input`, 1.26:1 → 3.72:1.** Against the page,
+    `rgba(255,255,255,.1)` over `#0a0a0a` is **1.26:1** — WCAG 1.4.11 requires
+    **3:1** for the boundary of a UI component, so the app's borders were
+    failing that standard **everywhere**, on `main`, before this branch existed.
+    They now clear it on every surface: 3.72:1 on `--surface-base`, 3.40:1 on
+    `--surface-raised`, 3.09:1 on `--surface-overlay` — worst case still
+    passing. Reverting to an invisible 1.26:1 to satisfy a sentence would put
+    the sentence above the goal it was written to serve.
+  - **`--muted-foreground`, 3.77:1 → 4.77:1 worst-case** (5.73:1 on the page,
+    5.24:1 on a card). This is precisely the `.label-micro` fix applied across
+    21 `text-muted-foreground` sites plus every placeholder in the app. Same
+    defect, same fix, far larger surface — and while `.label-micro` got its own
+    recorded exception, this did not.
+
+  **What this table cannot see, so nothing here overclaims.** It is token
+  arithmetic. It cannot see layout shifts; it cannot see `dark:bg-input/30`
+  giving every text field a fill it never had (that is the second exception
+  below, and I3's two sub-AA findings); it cannot see `color-scheme`'s effect on
+  native controls (now disabled — see Task 5's `enableColorScheme` note); and it
+  cannot see browser or PWA chrome (see `layout.tsx`'s `themeColor` comment).
+  **Still owed regardless: a rendered capture from a `main` worktree.**
+
 - **Second deliberate exception, found during Task 2 — COUNT AND FILE LIST
   CORRECTED by the whole-branch review (I3).** Applying `.dark` for the first
   time makes previously-dead `dark:` utilities live, because nothing had ever

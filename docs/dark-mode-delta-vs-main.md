@@ -36,7 +36,7 @@ deliberately and it is good work.
 | `--muted`                                 | rgb(22)  | rgb(38)  | 1.7×     | no                    |
 | `--secondary`                             | rgb(30)  | rgb(38)  | 1.3×     | no                    |
 | `--sidebar-accent`                        | rgb(30)  | rgb(38)  | 1.3×     | no                    |
-| `--foreground` + 4 `-foreground` siblings | rgb(250) | rgb(245) | 0.98×    | no                    |
+| `--foreground` + 5 `-foreground` siblings | rgb(250) | rgb(245) | 0.98×    | no                    |
 
 ## Verdict: violated as written
 
@@ -47,9 +47,13 @@ the exceptions list is incomplete rather than the code being wrong.
 
 - **`--border` / `--input`, 3.1×.** These land on _every bordered element_ via
   `@layer base { * { @apply border-border } }`, and on every `<Input>`,
-  `<Select>` and `<Textarea>`. Against the page, rgb(34) on rgb(10) is about
-  **1.2:1** — failing WCAG 1.4.11's 3:1 for the boundary of a UI component.
-  rgb(107) is about **3.4:1**, passing. So the app's borders were invisible by
+  `<Select>` and `<Textarea>`. Against the page, rgb(35) on rgb(10) is
+  **1.26:1** — failing WCAG 1.4.11's 3:1 for the boundary of a UI component.
+  rgb(107) passes on every surface: **3.72:1** on `--surface-base`, 3.40:1 on
+  `--surface-raised`, **3.09:1** on `--surface-overlay` — worst case still
+  above 3. (An earlier revision of this paragraph quoted only the 3.4:1
+  `--surface-raised` figure and rounded main's to 1.2:1.) So the app's borders
+  were invisible by
   the same standard the release exists to enforce, and they now are not. That is
   the goal being met, not a regression — but it is a large, app-wide visible
   change and it was never disclosed or looked at.
@@ -58,8 +62,12 @@ the exceptions list is incomplete rather than the code being wrong.
   shadcn placeholder. Same defect, same fix, far larger surface — and while
   `.label-micro` got its own recorded exception, this did not.
 
-The five `-foreground` tokens moving 250 → 245 are 2/255 and below any plausible
-perceptual threshold. Recorded for completeness, not as a concern.
+The six `-foreground` tokens moving 250 → 245 (`--foreground`,
+`--card-foreground`, `--popover-foreground`, `--secondary-foreground`,
+`--sidebar-foreground`, `--sidebar-accent-foreground`) are 2/255 and below any
+plausible perceptual threshold. Recorded for completeness, not as a concern.
+An earlier revision of this document said five; re-derived independently for
+T1, it is six, which is what makes the total 15 rather than 14.
 
 ## What must change
 
