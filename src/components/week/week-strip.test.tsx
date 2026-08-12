@@ -51,13 +51,17 @@ describe("week strip", () => {
 
   it("status classes differ: completed vs missed vs rest", () => {
     const html = renderToString(<WeekStrip days={days} />);
-    expect(html).toContain("bg-emerald-400");
-    expect(html).toContain("bg-red-400");
-    expect(html).toContain("bg-white/15");
+    // v0.99 slice 1 moved these onto theme tokens (same colour family, see
+    // week-strip.tsx's STATUS_DOT comment) — bg-emerald-400 → bg-chart-2,
+    // bg-red-400 → bg-chart-5, bg-white/15 → bg-hairline.
+    expect(html).toContain("bg-chart-2");
+    expect(html).toContain("bg-chart-5");
+    expect(html).toContain("bg-hairline");
   });
 
   it("an adapted day carries a visually distinct marker", () => {
     const html = renderToString(<WeekStrip days={days} />);
-    expect(html).toContain("bg-amber-400");
+    // bg-amber-400 → bg-chart-3, same colour under a token name.
+    expect(html).toContain("bg-chart-3");
   });
 });

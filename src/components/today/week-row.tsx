@@ -31,8 +31,8 @@ export function WeekRow({
       : null;
 
   return (
-    <section className="mb-6 hidden items-center gap-5 rounded-[20px] border border-white/[0.08] bg-white/[0.03] px-5 py-3 lg:flex">
-      <span className="shrink-0 text-[9.5px] font-bold uppercase tracking-[0.15em] text-white/40">
+    <section className="hidden items-center gap-5 rounded-[20px] border border-hairline bg-surface-raised px-5 py-3 lg:flex">
+      <span className="shrink-0 text-label font-bold uppercase tracking-[0.14em] text-ink-muted">
         This week
       </span>
 
@@ -40,21 +40,21 @@ export function WeekRow({
         <WeekStrip days={days} />
       </div>
 
-      <span className="shrink-0 text-[11px] text-white/50">
-        <strong className="font-bold text-white/85">
+      <span className="shrink-0 text-caption text-ink-secondary">
+        <strong className="font-numeric font-bold text-ink-primary">
           {hoursDone.toFixed(1)}h
         </strong>
         {hoursTarget != null && ` of ${fmt(hoursTarget)} target`}
         {onTrack != null && (
           <span
-            className={`ml-1.5 font-bold ${onTrack ? "text-emerald-400" : "text-amber-400"}`}
+            className={`ml-1.5 font-bold ${onTrack ? "text-chart-2" : "text-chart-3"}`}
           >
             · {onTrack ? "on track" : "behind"}
           </span>
         )}
         <Link
           href="/train?tab=week"
-          className="ml-2 font-bold text-white/60 hover:text-white"
+          className="ml-2 font-bold text-accent hover:text-ink-primary"
         >
           Train →
         </Link>

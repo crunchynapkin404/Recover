@@ -164,9 +164,10 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // 395 occurrences over 392 lines in 77 files, measured 2026-08-12 at slice 0.
   // 26 distinct sizes; 284 of the 395 are ≤11px and 36 are ≤9px.
   "arbitrary type sizes": 395,
-  // 806 occurrences over 583 lines in 86 files, measured 2026-08-12 at slice 0.
-  // 18 distinct alphas on `text-white` alone.
-  "ad-hoc white/black alpha utilities": 806,
+  // 774 occurrences, measured 2026-08-12 after Task 5 (week-row.tsx,
+  // week-strip.tsx and week-strip.test.tsx moved off text-white/40,
+  // bg-white/[0.03], border-white/[0.08], ring-white/50 and bg-white/15).
+  "ad-hoc white/black alpha utilities": 774,
 };
 
 function expectRatchet(name: string, pattern: RegExp): void {
