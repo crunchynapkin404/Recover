@@ -17,7 +17,7 @@ export function MarkDoneButton({ date }: { date: string }) {
 
   if (done) {
     return (
-      <span className="rounded-full bg-emerald-500/15 px-3.5 py-1.5 text-[11.5px] font-bold text-emerald-400">
+      <span className="rounded-full border border-hairline bg-surface-overlay px-3.5 py-1.5 text-label font-bold text-chart-2">
         ✓ Done
       </span>
     );
@@ -36,11 +36,11 @@ export function MarkDoneButton({ date }: { date: string }) {
             else setError(friendlyPlanError(result.error));
           });
         }}
-        className="rounded-full bg-emerald-500 px-3.5 py-1.5 text-[11.5px] font-bold text-black transition-opacity hover:opacity-90 disabled:opacity-50"
+        className="rounded-full bg-accent px-3.5 py-1.5 text-label font-bold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
       >
         Mark done
       </button>
-      {error && <span className="text-[11px] text-red-400">{error}</span>}
+      {error && <span className="text-label text-chart-5">{error}</span>}
     </>
   );
 }

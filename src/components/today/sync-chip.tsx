@@ -104,7 +104,7 @@ export function SyncChip({
         onClick={syncNow}
         disabled={busy}
         aria-label="Sync now"
-        className="text-left text-[10px] font-bold uppercase tracking-[0.2em] text-white/40 transition-colors hover:text-white/70"
+        className="text-left text-label font-bold uppercase tracking-[0.14em] text-ink-muted transition-colors hover:text-ink-secondary"
       >
         {datePrefix ? `${datePrefix} · ` : ""}
         {busy ? "SYNCING…" : `SYNCED ${mounted ? relativeCompact(last) : "…"}`}
@@ -117,7 +117,7 @@ export function SyncChip({
       onClick={syncNow}
       disabled={busy}
       aria-label="Sync now"
-      className="flex items-center gap-2 rounded-full border border-white/10 px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest text-white/50 transition-colors hover:text-white/80"
+      className="flex items-center gap-2 rounded-full border border-hairline px-3 py-1.5 text-label font-bold uppercase tracking-widest text-ink-muted transition-colors hover:text-ink-secondary"
     >
       <RefreshCw className={`size-3 ${busy ? "animate-spin" : ""}`} />
       <span>

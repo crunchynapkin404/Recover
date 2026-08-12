@@ -161,12 +161,12 @@ function occurrences(pattern: RegExp): number {
  */
 const RATCHET_SLACK = 25;
 const OFFENDER_CEILINGS: Record<string, number> = {
-  // 360 occurrences, measured 2026-08-12 at the end of slice 1 (Today).
-  // Was 395 at slice 0 — this slice removed 35.
-  "arbitrary type sizes": 360,
-  // 754 occurrences, measured 2026-08-12 at the end of slice 1 (Today).
-  // Was 806 at slice 0 — this slice removed 52.
-  "ad-hoc white/black alpha utilities": 754,
+  // 355 occurrences, measured 2026-08-12 at the end of slice 1 (Today).
+  // Was 395 at slice 0 — this slice removed 40.
+  "arbitrary type sizes": 355,
+  // 749 occurrences, measured 2026-08-12 at the end of slice 1 (Today).
+  // Was 806 at slice 0 — this slice removed 57.
+  "ad-hoc white/black alpha utilities": 749,
 };
 
 function expectRatchet(name: string, pattern: RegExp): void {
