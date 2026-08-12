@@ -1320,6 +1320,58 @@ git commit -m "docs(design): Today and Train reference mockups, both themes"
 
 ---
 
+## Rollback: the real revert unit (I9, whole-branch review)
+
+The spec's release shape says "slices keep rollback at one `git revert`" and
+its risk table answers "no partial rollback" with "a bad surface is one
+revert". **That is true for slices 1-8 and false for this slice.** Written down
+here because the moment it matters is an incident, which is the worst moment to
+discover it.
+
+**Inside slice 0 there is no revertible commit.** Two worked examples, both
+using real commits on this branch:
+
+- **Revert the token commit (`b33b3ca`) alone → the app has no colours.** It
+  declares `:root` and `.dark`. Four later commits build on it: the type and
+  spacing scales (`b5906a9`), the ad-hoc-ink closure (`e4f4be3`), the
+  globals.css component-class tokenisation (`84280ae`) and the inline-style fix
+  (`61c7546`) all reference `var(--ink-*)` / `var(--surface-*)`, and
+  `@theme inline` maps `--color-ink-*` onto them. Reverting the declarations
+  leaves every one of those references **undefined** — text and surfaces fall
+  back to inherited or transparent. It also breaks
+  `src/lib/design/tokens.ts`, so `tests/contrast-guard.test.ts` throws
+  `tokens: no ".dark" block in globals.css` rather than reporting a colour
+  problem. In practice the revert does not even apply cleanly, because
+  `84280ae` edited the same region.
+- **Revert the `ThemeProvider` commit (`369e72e`) alone → the athlete gets the
+  half-migrated LIGHT theme, app-wide.** Removing the provider removes the
+  `.dark` class from `<html>`, and `:root` **is** the light theme. Every
+  surface is still unmigrated: 70 `bg-white/5` cards go invisible on `#f6f6f6`
+  and 447 `text-white/N` texts go nearly so. That is strictly worse than
+  either the state before this branch or the state after it, and it is the
+  exact failure `forcedTheme="dark"` exists to prevent — so the revert
+  reintroduces the defect by removing its guard.
+
+**The safe unit for slice 0 is the whole slice**, reverted as one range, and
+operationally the release's rollback unit is **the previous release tag
+(`v0.98.0`)** — this is one deploy, so there is no in-between state to fall
+back to.
+
+Two commits inside the slice are individually revertible, and neither is one
+anybody would reach for in an incident: `41c4ede` (static `themeColor`) and
+`176361b` (`enableColorScheme={false}`) each undo one small change and put back
+one small defect. `b15751f` (pinch-zoom) is revertible but self-announcing —
+`tests/viewport-zoom-guard.test.ts` goes red immediately, which is the guard
+working.
+
+**And a rider for later slices.** Slices 1-8 are individually revertible only
+_while_ `forcedTheme="dark"` holds: reverting slice 3 restores Body's
+`text-white/N` classes, which is harmless in dark and invisible in light. Once
+slice 9 lifts `forcedTheme`, the revert unit for any earlier slice becomes
+**slice 9 plus that slice** — reverting a surface on its own after slice 9
+recreates the same half-migrated light theme described above, one surface at a
+time. Slice 9's plan must carry this forward.
+
 ## Slice 0 exit criteria
 
 - [ ] `npm run typecheck && npm run build && npm test` all green
