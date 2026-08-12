@@ -271,53 +271,62 @@ export default async function DashboardPage({
   );
 
   // ── Onboarding ──────────────────────────────────────────────────────────
+  // C3, whole-branch review 2026-08-12: this branch sat inside the file the
+  // rest of this slice rewrote, but no capture could reach it — every
+  // capture ran against an account with data — so it kept every pre-slice
+  // utility (text-[11px], .glass, text-white/…, bg-emerald-500) straight
+  // through. Migrated with the same mapping the rest of the slice used.
   if (!connection && wellness.length === 0) {
     return (
       <AppShell>
         <div className="flex min-h-[60svh] flex-col items-center justify-center text-center">
-          <div className="glass mx-auto max-w-md rounded-[2.5rem] p-8">
+          <div className="mx-auto max-w-md rounded-[2.5rem] border border-hairline bg-surface-raised p-8">
             <h2 className="text-xl font-bold tracking-tight">
               Welcome to Recover
             </h2>
-            <p className="mt-2 text-sm text-white/50">
+            <p className="mt-2 text-caption text-ink-secondary">
               Pick how your data gets in. You can add more sources anytime.
             </p>
 
             <div className="mt-8 space-y-3 text-left">
               <Link
                 href="/settings"
-                className="flex w-full flex-col rounded-2xl bg-emerald-500 px-5 py-3 text-black transition-all hover:bg-emerald-400"
+                className="flex w-full flex-col rounded-2xl bg-accent px-5 py-3 text-primary-foreground transition-opacity hover:opacity-90"
               >
                 <span className="flex items-center gap-2 font-bold">
                   <Sparkles className="h-4 w-4" />
                   Connect a device
                 </span>
-                <span className="text-[11px] font-medium text-black/70">
+                <span className="text-label font-medium text-primary-foreground">
                   intervals.icu, Whoop, Oura, Apple Health, or Withings — fully
                   automatic
                 </span>
               </Link>
               <Link
                 href="/body?tab=journal"
-                className="flex w-full flex-col rounded-2xl border border-white/10 px-5 py-3 transition-all hover:bg-white/5"
+                className="flex w-full flex-col rounded-2xl border border-hairline px-5 py-3 transition-all hover:bg-surface-overlay"
               >
-                <span className="font-bold text-white/80">Log manually</span>
-                <span className="text-[11px] font-medium text-white/50">
+                <span className="font-bold text-ink-secondary">
+                  Log manually
+                </span>
+                <span className="text-label font-medium text-ink-muted">
                   Two morning taps: HRV and resting heart rate
                 </span>
               </Link>
               <Link
                 href="/import"
-                className="flex w-full flex-col rounded-2xl border border-white/10 px-5 py-3 transition-all hover:bg-white/5"
+                className="flex w-full flex-col rounded-2xl border border-hairline px-5 py-3 transition-all hover:bg-surface-overlay"
               >
-                <span className="font-bold text-white/80">Import CSV</span>
-                <span className="text-[11px] font-medium text-white/50">
+                <span className="font-bold text-ink-secondary">
+                  Import CSV
+                </span>
+                <span className="text-label font-medium text-ink-muted">
                   Bring wellness or activity history from anywhere
                 </span>
               </Link>
             </div>
 
-            <p className="mt-6 text-[11px] text-white/50">
+            <p className="mt-6 text-label text-ink-muted">
               Recover needs {CALIBRATION_TARGET_DAYS} days of HRV &amp; resting
               HR to calibrate your readiness score — it&apos;ll show a
               day-by-day countdown while it learns your baseline.
