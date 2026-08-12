@@ -44,26 +44,33 @@ Copied verbatim from `docs/specs/2026-08-11-2b4-visual-redesign-design.md`:
      component structure are untouched; migrating a surface's utilities to
      tokens is slices 1-8's job, not this one's.
   2. **Dark mode changes in exactly the 15 token values in the table below,
-     and nowhere else.** Light mode is unreachable to the athlete while
-     `forcedTheme="dark"` holds.
+     plus the one non-token exception recorded as the fifth exception below
+     (`.nav-active-dot`), and nowhere else.** Light mode is unreachable to the
+     athlete while `forcedTheme="dark"` holds.
 
-     **STILL NOT TRUE AS WRITTEN — falsified a second time, by the rendered
-     pass (`docs/v0.99-slice0-main-diff-verification.md` §6.4).** "Nowhere
-     else" is wrong by one more item: `.nav-active-dot` (`globals.css:389`)
-     moves its background and 12px glow from the bare keyword `white` to
-     `var(--ink-primary)`, `#ffffff → #f5f5f5`, and that **renders** — confirmed
-     on five phone surfaces. It is not a token, so the arithmetic that produced
-     the 15 could not see it; it is in none of the four exceptions. Left
-     recorded rather than folded into the table, because deciding whether the
-     list becomes 16 or the dot reverts is the owner's call, not the measuring
-     pass's. The change moves the right way and is 10/255 on a 4px dot.
+     **CORRECTED, final pass on `v0.99-the-app-you-can-read` (2026-08-12), closing
+     what the rendered pass left open.** "Nowhere else" was wrong by one item:
+     `.nav-active-dot` (`globals.css:389`) moves its background and 12px glow
+     from the bare keyword `white` to `var(--ink-primary)`,
+     `#ffffff → #f5f5f5`, and that **renders** — confirmed on five phone
+     surfaces (`docs/v0.99-slice0-main-diff-verification.md` §6.4). It is not
+     a token — no `rgba()` spelling, no hex — so the arithmetic that produced
+     the 15 could not see it. The prior draft of this paragraph left the
+     decision of whether the list becomes 16 or the dot reverts open; it is
+     now decided below, as the fifth exception: folded into disclosure, not
+     reverted, since a source-code revert is out of scope for a documentation
+     pass and there is nothing here to revert away from — the change moves the
+     same direction as every other exception in this list.
 
-     Two scope claims below are also overstated in the _other_ direction — the
-     exception sounds broader than it is. See that report's §8.
+     The two scope claims mentioned in the prior draft of this paragraph
+     (`<Select>`/`<Textarea>`, and "every text field") were overstated in the
+     _other_ direction — the exception sounded broader than it is. Both are
+     now corrected in place below, in the table and in the second exception.
 
-  3. **Every one of the 15 either raises contrast or is below any plausible
-     perceptual threshold. None lowers it.** That is the checkable claim, and
-     the ratio column is how you check it.
+  3. **Every one of the 15 token values, plus the fifth exception below, either
+     raises contrast or is below any plausible perceptual threshold. None
+     lowers it.** That is the checkable claim, and the ratio column is how you
+     check it.
   4. **One deliberate behavioural exception:** Task 4 restores pinch-zoom, a
      WCAG 1.4.4 fix that ships here because the plumbing it touches is here.
 
@@ -75,18 +82,18 @@ Copied verbatim from `docs/specs/2026-08-11-2b4-visual-redesign-design.md`:
   and full working in `docs/dark-mode-delta-vs-main.md`. It is exact CSS
   arithmetic, not a rendering.
 
-  | #     | Token                                                                                                                                        | `main` (composited)                 | branch                             | vs `#0a0a0a`    | Where it lands                                                                 |
-  | ----- | -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- | ---------------------------------- | --------------- | ------------------------------------------------------------------------------ |
-  | 1     | `--border`                                                                                                                                   | `rgba(255,255,255,.1)` → `#232323`  | `var(--hairline)` `#6b6b6b`        | **1.26 → 3.72** | **every bordered element**, via `@layer base { * { @apply border-border } }`   |
-  | 2     | `--input`                                                                                                                                    | `rgba(255,255,255,.1)` → `#232323`  | `var(--hairline)` `#6b6b6b`        | **1.26 → 3.72** | every `<Input>`, `<Select>`, `<Textarea>` border                               |
-  | 3     | `--sidebar-border`                                                                                                                           | `rgba(255,255,255,.06)` → `#191919` | `var(--hairline)` `#6b6b6b`        | **1.13 → 3.72** | sidebar dividers                                                               |
-  | 4     | `--muted-foreground`                                                                                                                         | `rgba(255,255,255,.4)` → `#6c6c6c`  | `var(--ink-muted)` `#8a8a8a`       | **3.77 → 5.73** | 21 `text-muted-foreground` sites, plus every shadcn placeholder                |
-  | 5     | `--viz-muted-ink`                                                                                                                            | `rgba(255,255,255,.3)` → `#545454`  | `var(--ink-muted)` `#8a8a8a`       | **2.61 → 5.73** | chart axis labels and muted chart text — **the one change that was disclosed** |
-  | 6     | `--popover`                                                                                                                                  | `#141414`                           | `var(--surface-overlay)` `#1f1f1f` | ground, n/a     | popover and bottom-sheet grounds                                               |
-  | 7     | `--muted`                                                                                                                                    | `rgba(255,255,255,.05)` → `#161616` | `#262626`                          | ground, n/a     | muted fills, `hover:bg-muted`                                                  |
-  | 8     | `--secondary`                                                                                                                                | `rgba(255,255,255,.08)` → `#1e1e1e` | `#262626`                          | ground, n/a     | secondary buttons                                                              |
-  | 9     | `--sidebar-accent`                                                                                                                           | `rgba(255,255,255,.08)` → `#1e1e1e` | `#262626`                          | ground, n/a     | sidebar hover fill                                                             |
-  | 10-15 | `--foreground`, `--card-foreground`, `--popover-foreground`, `--secondary-foreground`, `--sidebar-foreground`, `--sidebar-accent-foreground` | `#fafafa`                           | `var(--ink-primary)` `#f5f5f5`     | 18.97 → 18.16   | all primary text — 2/255, below any plausible perceptual threshold             |
+  | #     | Token                                                                                                                                        | `main` (composited)                 | branch                             | vs `#0a0a0a`    | Where it lands                                                                                       |
+  | ----- | -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- | ---------------------------------- | --------------- | ---------------------------------------------------------------------------------------------------- |
+  | 1     | `--border`                                                                                                                                   | `rgba(255,255,255,.1)` → `#232323`  | `var(--hairline)` `#6b6b6b`        | **1.26 → 3.72** | **every bordered element**, via `@layer base { * { @apply border-border } }`                         |
+  | 2     | `--input`                                                                                                                                    | `rgba(255,255,255,.1)` → `#232323`  | `var(--hairline)` `#6b6b6b`        | **1.26 → 3.72** | every `<Input>` border — **not** `<Select>`/`<Textarea>`; `src/components/ui/` has neither component |
+  | 3     | `--sidebar-border`                                                                                                                           | `rgba(255,255,255,.06)` → `#191919` | `var(--hairline)` `#6b6b6b`        | **1.13 → 3.72** | sidebar dividers                                                                                     |
+  | 4     | `--muted-foreground`                                                                                                                         | `rgba(255,255,255,.4)` → `#6c6c6c`  | `var(--ink-muted)` `#8a8a8a`       | **3.77 → 5.73** | 21 `text-muted-foreground` sites, plus every shadcn placeholder                                      |
+  | 5     | `--viz-muted-ink`                                                                                                                            | `rgba(255,255,255,.3)` → `#545454`  | `var(--ink-muted)` `#8a8a8a`       | **2.61 → 5.73** | chart axis labels and muted chart text — **the one change that was disclosed**                       |
+  | 6     | `--popover`                                                                                                                                  | `#141414`                           | `var(--surface-overlay)` `#1f1f1f` | ground, n/a     | popover and bottom-sheet grounds                                                                     |
+  | 7     | `--muted`                                                                                                                                    | `rgba(255,255,255,.05)` → `#161616` | `#262626`                          | ground, n/a     | muted fills, `hover:bg-muted`                                                                        |
+  | 8     | `--secondary`                                                                                                                                | `rgba(255,255,255,.08)` → `#1e1e1e` | `#262626`                          | ground, n/a     | secondary buttons                                                                                    |
+  | 9     | `--sidebar-accent`                                                                                                                           | `rgba(255,255,255,.08)` → `#1e1e1e` | `#262626`                          | ground, n/a     | sidebar hover fill                                                                                   |
+  | 10-15 | `--foreground`, `--card-foreground`, `--popover-foreground`, `--secondary-foreground`, `--sidebar-foreground`, `--sidebar-accent-foreground` | `#fafafa`                           | `var(--ink-primary)` `#f5f5f5`     | 18.97 → 18.16   | all primary text — 2/255, below any plausible perceptual threshold                                   |
 
   Six further tokens changed **spelling only and render identically**, so they
   are not changes: `--background`, `--card`, `--primary`, `--ring`,
@@ -116,21 +123,33 @@ Copied verbatim from `docs/specs/2026-08-11-2b4-visual-redesign-design.md`:
 
   **What this table cannot see, so nothing here overclaims.** It is token
   arithmetic. It cannot see layout shifts; it cannot see `dark:bg-input/30`
-  giving every text field a fill it never had (that is the second exception
-  below, and I3's two sub-AA findings); it cannot see `color-scheme`'s effect on
-  native controls (now disabled — see Task 5's `enableColorScheme` note); and it
-  cannot see browser or PWA chrome (see `layout.tsx`'s `themeColor` comment).
-  **Still owed regardless: a rendered capture from a `main` worktree.**
+  giving 10 `<Input>` usages in `src/components/settings/` a fill they never
+  had (that is the second exception below, and I3's two sub-AA findings); it
+  cannot see `color-scheme`'s effect on native controls (now disabled — see
+  Task 5's `enableColorScheme` note); it cannot see bare-keyword (non-token)
+  CSS values, which is how `.nav-active-dot` (the fifth exception below) went
+  unnoticed by this method; and it cannot see browser or PWA chrome (see
+  `layout.tsx`'s `themeColor` comment).
 
 - **Second deliberate exception, found during Task 2 — COUNT AND FILE LIST
-  CORRECTED by the whole-branch review (I3).** Applying `.dark` for the first
-  time makes previously-dead `dark:` utilities live, because nothing had ever
-  applied that class. The number recorded here was **11**; measured, it is
-  **14 distinct utilities, 21 occurrences, across 4 files**
+  CORRECTED by the whole-branch review (I3); SCOPE CORRECTED by the rendered
+  pass (`docs/v0.99-slice0-main-diff-verification.md` §8, item 3) and by this
+  pass.** Applying `.dark` for the first time makes previously-dead `dark:`
+  utilities live, because nothing had ever applied that class. The number
+  recorded here was **11**; measured, it is **14 distinct utilities, 21
+  occurrences, across 4 files**
   (`grep -onE 'dark:[a-zA-Z0-9_/:\[\]().,%-]+' <non-test sources in src/>`).
   One of the four files, `ui/input.tsx`, **was not named at all** — and it is
   the one that matters most, because it carries the `dark:bg-input/30` that
-  gives **every text field in the app a grey fill it never had**.
+  gives a grey fill to **10 `<Input>` usages across 5 files, all under
+  `src/components/settings/`**, that they never had.
+
+  **CORRECTED — this was previously claimed as "every text field in the app",
+  which overstated it as much as the earlier count understated it.** Measured:
+  **79 raw `<input>` elements across 24 files, plus 3 `<textarea>`s, are
+  untouched** — the `/train` race fields compute an identical `bg`/`border` on
+  both sides of the branch. An exception that overstates its reach is as
+  untrue as one that understates it.
 
   | File                                          | Occ. | Distinct utilities                                                                                                                                                                                                                                                                  |
   | --------------------------------------------- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -158,6 +177,23 @@ Copied verbatim from `docs/specs/2026-08-11-2b4-visual-redesign-design.md`:
   `verify-surfaces.ts`'s `captureTokenCreated` — the plain `/settings` capture
   is the collapsed Menu, with no `<Input>` and no outline `Button` on screen
   at all, so the nine ordinary surface captures never saw any of these.
+
+  **The strongest single justification for this exception, stated plainly
+  rather than left implicit in a bullet about a green box changing colour.**
+  On `main`, `api-tokens-card.tsx`'s success box carries `bg-green-50`/
+  `bg-white` for light and `dark:bg-green-950`/`dark:bg-black` for dark — but
+  `main` never applies `.dark`, so the box renders its **light** styles while
+  the rest of the app is dark: token text `rgb(250,250,250)` on a
+  `rgb(255,255,255)` `<code>` block, **1.02:1** by direct computation and
+  **1.04:1** by axe — the sole `confirmed` node in `main`'s entire 20-capture
+  axe baseline, reproduced on both viewports
+  (`docs/v0.99-slice0-main-diff-verification.md` §6.3). The branch has **zero**
+  confirmed axe nodes across all 20 dark captures. The box's own copy reads
+  "Copy this token now — it won't be shown again", so on `main` there is
+  nothing legible to copy and no second chance. Activating these four
+  utilities — the only part of this exception that touches
+  `api-tokens-card.tsx` — is what fixes an athlete-blocking WCAG failure that
+  shipped on `main`, not merely a styling change.
 
   **NOT looked at (8), and why.** Five are pointer/keyboard/validation state
   variants that a static full-page capture cannot reach — there is no cursor,
@@ -206,6 +242,26 @@ Copied verbatim from `docs/specs/2026-08-11-2b4-visual-redesign-design.md`:
   caught it is now in `tests/type-scale-guard.test.ts` (an AA floor on inline
   text colour) — before this, `src/components/` inline styles were governed by
   nothing at all.
+- **Fifth deliberate exception, found by the rendered pass
+  (`docs/v0.99-slice0-main-diff-verification.md` §6.4) and folded in here by
+  this final pass rather than left as an open decision.** `.nav-active-dot`
+  (`globals.css:389`, applied by `bottom-nav.tsx:43`) moves `background` and
+  its 12px glow from the bare keyword `white` to `var(--ink-primary)`,
+  `#ffffff → #f5f5f5` on a 4px dot. It is **not a token** — no `rgba()`
+  spelling, no hex — which is why the CSS scan behind the 15-row table above
+  and behind `docs/dark-mode-delta-vs-main.md` could not find it: that scan
+  enumerated two `rgba()` spellings and the token hexes, not bare colour
+  keywords. Confirmed rendered on **five phone surfaces** — today, train,
+  coach, body and settings, since the dot follows the active route — cropped
+  and looked at on all five; dot core measured at coach 254→243, train
+  253→237, body 247→228, settings 245→234 (today: confirmed rendered in the
+  same pass, not separately numbered there), each visibly very slightly
+  dimmer, same size and position. 10/255 on a 4px dot is below any plausible
+  perceptual threshold, and it moves the same direction as every other
+  exception in this list — a white dot would be the less legible choice as
+  surfaces migrate toward these tokens. **Decided: folded into disclosure, not
+  reverted** — a source-code revert is out of scope for a documentation pass,
+  and there is no defect here to revert away from.
 - **Known, out of scope, recorded not fixed:** `.tag-active` hardcodes the dark
   accent `#10b981`, so it does not follow the theme. A real but separate and
   smaller bug; the contrast guard deliberately excludes `accent` from the
