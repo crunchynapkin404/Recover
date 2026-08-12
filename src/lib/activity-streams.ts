@@ -112,6 +112,40 @@ export async function getOrFetchActivityDetail(
   }
 }
 
+/**
+ * Read-only sibling of getOrFetchActivityDetail: returns whatever is
+ * already cached and NEVER calls intervals.icu.
+ *
+ * Today renders on every app open, and its post-session block exists
+ * precisely because the athlete has not opened /activity/[id] — so the
+ * cache is cold exactly when the block appears. Fetching here would put a
+ * third-party call and a write burst on the app's most-loaded surface. A
+ * cold cache simply means no stream minis; the block's CTA warms it on the
+ * destination page, where the wait is expected.
+ */
+export async function getCachedActivityDetail(
+  userId: string,
+  activityId: string
+): Promise<ActivityDetail | null> {
+  if (!UUID.test(activityId)) return null;
+
+  const activity = await db.query.activities.findFirst({
+    where: and(
+      eq(schema.activities.id, activityId),
+      eq(schema.activities.userId, userId)
+    ),
+  });
+  if (!activity) return null;
+
+  const cached = await db.query.activityStreams.findMany({
+    where: eq(schema.activityStreams.activityId, activity.id),
+  });
+  if (cached.length === 0)
+    return { activity, streams: null, laps: null, reason: "unavailable" };
+
+  return fromRows(activity, cached);
+}
+
 function fromRows(
   activity: typeof schema.activities.$inferSelect,
   rows: (typeof schema.activityStreams.$inferSelect)[]
