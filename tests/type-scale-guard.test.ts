@@ -161,6 +161,9 @@ function occurrences(pattern: RegExp): number {
  */
 const RATCHET_SLACK = 25;
 const OFFENDER_CEILINGS: Record<string, number> = {
+  // Still 333 after task 4 (the next-week preview collapse): the new
+  // next-week-summary.tsx and the wiring changes in week-day-list.tsx and
+  // page.tsx are all token utilities, so the count did not move.
   // 333 occurrences, measured 2026-08-13 after task 3 (the week day row —
   // WeekDayList's weekday label, workout/race/rest lines, credit and
   // moved-from lines, and the provisional/pinned badge) migrated its 10
@@ -168,6 +171,7 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // Was 343 after task 2, 351 after the whole-branch-review fixes, 355
   // right after slice 1, 395 at slice 0.
   "arbitrary type sizes": 333,
+  // Still 709 after task 4, for the same reason.
   // 709 occurrences, measured 2026-08-13 after task 3 migrated its 20
   // text-white/N, border-white/N and bg-white/N sites (the weekday label,
   // workout, intensity, race, rest, credit, moved-from and badge lines, the

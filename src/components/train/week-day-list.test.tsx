@@ -213,16 +213,26 @@ describe("WeekDayList", () => {
     expect(html).toContain("2026-07-28");
   });
 
-  it("shows next week under a boundary, marked provisional", () => {
+  it("shows next week under a boundary, collapsed into a summary that still holds the rows", () => {
     const html = renderToString(
       <WeekDayList
         days={CURRENT_WEEK_DAYS}
         today="2026-07-28"
-        nextWeek={{ days: NEXT_WEEK_DAYS, pinned: {} }}
+        nextWeek={{ days: NEXT_WEEK_DAYS, pinned: {}, targetHours: 9 }}
       />
     );
-    expect(html).toContain("next week");
+    expect(html).toContain("Next week");
+    // The summary line, not seven expanded rows, is what sits right after
+    // the boundary now — collapsed behind a closed <details> (Task 4).
+    expect(html).toContain("<details");
+    expect(html).not.toContain("<details open");
+    expect(html).toMatch(/Show all 7 days/);
+    // The seven day rows are still in the DOM, between the boundary and the
+    // end of the section — collapsing must never make them unreachable.
     expect(html).toContain("provisional");
+    for (const d of NEXT_WEEK_DAYS) {
+      expect(html).toContain(`data-date="${d.date}"`);
+    }
   });
 
   it("does not mark a pinned day provisional", () => {
@@ -230,7 +240,11 @@ describe("WeekDayList", () => {
       <WeekDayList
         days={CURRENT_WEEK_DAYS}
         today="2026-07-28"
-        nextWeek={{ days: NEXT_WEEK_DAYS, pinned: { "2026-08-04": true } }}
+        nextWeek={{
+          days: NEXT_WEEK_DAYS,
+          pinned: { "2026-08-04": true },
+          targetHours: 9,
+        }}
       />
     );
     // The pinned day's row must not carry the provisional marker.
@@ -262,10 +276,12 @@ describe("WeekDayList", () => {
       <WeekDayList
         days={CURRENT_WEEK_DAYS}
         today="2026-07-28"
-        nextWeek={{ days: allRest, pinned: {} }}
+        nextWeek={{ days: allRest, pinned: {}, targetHours: null }}
       />
     );
     expect(html).toContain("No availability set for next week");
+    // No summary and no disclosure when there's nothing to preview.
+    expect(html).not.toContain("<details");
   });
 });
 

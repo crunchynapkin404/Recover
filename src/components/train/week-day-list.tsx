@@ -3,6 +3,7 @@ import {
   DayActions,
   type DayActionsOtherDay,
 } from "@/components/week/day-actions";
+import { NextWeekSummary } from "@/components/train/next-week-summary";
 
 // The same palette week-strip.tsx paints, deliberately: the strip and the
 // list render the same seven days one above the other, and a status that
@@ -162,10 +163,13 @@ function DayRow({ day: d, isToday, badge, otherDays, actual }: DayRowProps) {
  * itself is never dropped even if it's already complete — an athlete
  * opening the app at 20:00 must still see what today asked of them. When
  * `nextWeek` is supplied (docs/plans/2026-07-29-next-week-preview.md, Task
- * 4), its days render after a visible boundary row, each marked
- * "provisional" with a `~` before its durations — a forecast, not yet
- * materialized — except where the athlete pinned that date's availability
- * with an override, which makes it a real fact rather than a projection.
+ * 4), its days no longer render as seven more full rows: `NextWeekSummary`
+ * (v0.99 slice 2 Task 4) collapses them to one summary row behind a closed
+ * `<details>` — a forecast, not a commitment, so it does not double the
+ * tab's scroll length the way seven expanded rows did. Each day is still
+ * marked "provisional" with a `~` before its durations once expanded,
+ * except where the athlete pinned that date's availability with an
+ * override, which makes it a real fact rather than a projection.
  *
  * NOTE: `WeekRationale`, adherence and the weekly review stay Monday–Sunday
  * accounting for the week that's closing; this component is schedule, not
@@ -185,7 +189,12 @@ export function WeekDayList({
 }: {
   days: DaySlot[];
   today: string;
-  nextWeek?: { days: DaySlot[]; pinned: Record<string, boolean> } | null;
+  nextWeek?: {
+    days: DaySlot[];
+    pinned: Record<string, boolean>;
+    /** Next week's target in hours, for the summary line; null when unknown. */
+    targetHours: number | null;
+  } | null;
   /**
    * What was actually trained, keyed by local Ymd. Read straight from the
    * activities table rather than from the day slot's own `unplannedLoad`,
@@ -227,27 +236,32 @@ export function WeekDayList({
         />
       ))}
 
-      {nextWeek && (
-        <div className="border-b border-hairline bg-surface-overlay px-4 py-2 text-center text-label font-bold uppercase tracking-[0.2em] text-ink-muted last:border-0">
-          next week
-        </div>
-      )}
-
       {nextWeek &&
         (nextWeekHasAvailability ? (
-          nextWeek.days.map((d) => (
-            <DayRow
-              key={d.date}
-              day={d}
-              isToday={false}
-              badge={nextWeek.pinned[d.date] ? "pinned" : "provisional"}
-              otherDays={otherDays}
-            />
-          ))
+          <NextWeekSummary
+            days={nextWeek.days}
+            pinned={nextWeek.pinned}
+            targetHours={nextWeek.targetHours}
+          >
+            {nextWeek.days.map((d) => (
+              <DayRow
+                key={d.date}
+                day={d}
+                isToday={false}
+                badge={nextWeek.pinned[d.date] ? "pinned" : "provisional"}
+                otherDays={otherDays}
+              />
+            ))}
+          </NextWeekSummary>
         ) : (
-          <div className="px-4 py-3 text-caption text-ink-muted last:border-0">
-            No availability set for next week
-          </div>
+          <>
+            <div className="border-b border-hairline px-4 py-2 text-center text-label font-bold uppercase tracking-[0.2em] text-ink-muted last:border-0">
+              Next week
+            </div>
+            <div className="px-4 py-3 text-caption text-ink-muted last:border-0">
+              No availability set for next week
+            </div>
+          </>
         ))}
     </section>
   );

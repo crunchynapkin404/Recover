@@ -575,7 +575,17 @@ async function WeekTab({
     }
   }
   const nextWeekPreview = projected
-    ? { days: projected.days, pinned: projected.pinned }
+    ? {
+        days: projected.days,
+        pinned: projected.pinned,
+        // `VolumeResult.hours` is a plain number, so this needs no fallback:
+        // inside this branch `projected` is non-null and the figure is real.
+        // Deliberately NOT `nextWeekTargetHours` below, which is
+        // `projected?.target.hours ?? 0` — that 0 is right for the prose
+        // note beneath the list and wrong here, because "of 0h target"
+        // reads as a claim about the plan rather than as a missing value.
+        targetHours: projected.target.hours,
+      }
     : null;
   // Same-shape figures as WeekRationale's "planned against target" line
   // (src/components/week/week-rationale.tsx), derived here because the
