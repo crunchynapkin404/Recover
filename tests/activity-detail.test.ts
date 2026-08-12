@@ -1,4 +1,12 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import { eq } from "drizzle-orm";
 
 const hasDb =
@@ -216,9 +224,7 @@ describe.skipIf(!hasDb)("getCachedActivityDetail", () => {
   });
 
   it("cold cache + live connection: no streams, connector never called", async () => {
-    const { getCachedActivityDetail } = await import(
-      "@/lib/activity-streams"
-    );
+    const { getCachedActivityDetail } = await import("@/lib/activity-streams");
     const out = await getCachedActivityDetail(OWNER, coldActivityId);
     // Connector-call assertions first: a regression that falls through to
     // the fetch path must fail here, not on a downstream shape assertion.
@@ -229,9 +235,7 @@ describe.skipIf(!hasDb)("getCachedActivityDetail", () => {
   });
 
   it("warm cache: returns cached rows, still without calling the connector", async () => {
-    const { getCachedActivityDetail } = await import(
-      "@/lib/activity-streams"
-    );
+    const { getCachedActivityDetail } = await import("@/lib/activity-streams");
     const out = await getCachedActivityDetail(OWNER, warmActivityId);
     expect(out?.streams?.heartrate).toEqual([111, 112]);
     expect(out?.streams?.watts).toEqual([199, 201]);
@@ -241,16 +245,12 @@ describe.skipIf(!hasDb)("getCachedActivityDetail", () => {
   });
 
   it("hides other users' activities", async () => {
-    const { getCachedActivityDetail } = await import(
-      "@/lib/activity-streams"
-    );
+    const { getCachedActivityDetail } = await import("@/lib/activity-streams");
     expect(await getCachedActivityDetail(OTHER, coldActivityId)).toBeNull();
   });
 
   it("returns null for a malformed id without reaching Postgres", async () => {
-    const { getCachedActivityDetail } = await import(
-      "@/lib/activity-streams"
-    );
+    const { getCachedActivityDetail } = await import("@/lib/activity-streams");
     // A real query with this string would 500 on invalid uuid input rather
     // than resolve — resolving to null here is itself evidence the UUID
     // guard short-circuited before any query ran.
