@@ -21,6 +21,7 @@ import { raceCard } from "@/lib/race/outlook";
 import type { Band } from "@/lib/readiness";
 import { formatSleepDebt, sleepDebtFrom } from "@/lib/sleep-debt";
 import { buildHrvTile } from "@/lib/today/hrv-tile";
+import { debriefLineFor } from "@/lib/today/day-log";
 import { sparkPath } from "@/lib/sparkline";
 import {
   calibrationProgress,
@@ -585,23 +586,14 @@ export default async function DashboardPage({
     .map(([label, value]) => ({ label, value }));
 
   // The day's debrief, folded into the log the way the evening mockup does.
-  const debriefedToday =
-    recentActivity?.debriefState === "answered" ? recentActivity : null;
-  const debriefLine = debriefedToday
-    ? [
-        debriefedToday.name ?? debriefedToday.sport,
-        [
-          debriefedToday.perceivedExertion != null
-            ? `RPE ${Math.round(debriefedToday.perceivedExertion)}`
-            : null,
-          debriefedToday.feel != null ? `felt ${debriefedToday.feel}` : null,
-        ]
-          .filter(Boolean)
-          .join(" · "),
-      ]
-        .filter((p) => p !== "")
-        .join(" — ")
-    : null;
+  // recentActivity's own window deliberately spans midnight ("post-session"
+  // must keep leading on a ride that ended at 23:30 when the athlete opens
+  // the app at 00:15), so it alone cannot tell "today" from "yesterday
+  // evening" — debriefLineFor applies that same-day filter on top (C4,
+  // whole-branch review 2026-08-12). Only the day-log's ATTRIBUTION needs
+  // it; recentActivity itself, and the post-session window it feeds, stay
+  // unnarrowed.
+  const debriefLine = debriefLineFor(recentActivity, todayYmd);
 
   // ── Render (2a Today) ────────────────────────────────────────────────────
   return (
