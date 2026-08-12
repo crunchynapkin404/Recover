@@ -11,16 +11,34 @@ settled the component tree this redesigns against
 
 The app has no typographic system and no legibility floor.
 
-**Type.** 300 hardcoded pixel sizes across `src/**/*.tsx`, spread over sixteen
-distinct values. **239 of them are 11px or smaller**; 31 are 9px or smaller;
-the bottom nav's labels are `text-[8px]`. `docs/design-system.md` documents 83
-colour and radius tokens and not one typographic token, because none exist.
+> **NUMBERS CORRECTED 2026-08-12 (T2, whole-branch review).** Every count in
+> this Premise was low, and the ink ratio table further down quoted best-case
+> ratios while its own prose claimed worst-case. Each figure below has been
+> re-measured against the tree rather than carried forward. The originals are
+> kept inline so the correction is auditable rather than a quiet overwrite, and
+> so nobody re-derives the old number and thinks the tree changed.
 
-**Ink.** Eight ad-hoc alpha levels on `text-white/N`. Three of them —
-`/40` (93 uses), `/35` (22) and `/30` (19) — compute to roughly **3.8:1, 3.1:1
-and 2.6:1** against `#0a0a0a`, all below the 4.5:1 AA floor for normal text.
-**134 usages**, and worse in practice: most sit on `bg-white/5` cards, which
-lifts the background and narrows the gap further.
+**Type.** **395** hardcoded pixel sizes across `src/**/*.tsx` (_stated as 300_),
+spread over **26** distinct values (_sixteen_). **284 of them are 11px or
+smaller** (_239_); **36** are 9px or smaller (_31_); the bottom nav's labels are
+`text-[8px]`. Measured with
+`grep -ohE '\btext-\[[0-9.]+(px|rem|em)\]' <non-test .tsx under src/>`, which is
+the same pattern `tests/type-scale-guard.test.ts` scans with, so the spec and
+the guard now count the same thing. `docs/design-system.md` documents 83 colour
+and radius tokens and not one typographic token, because none exist.
+
+**Ink.** **Eighteen** ad-hoc alpha levels on `text-white/N` alone (_stated as
+eight_), over 447 occurrences: `/50` (110), `/40` (92), `/60` (68), `/80` (45),
+`/70` (38), `/35` (22), `/30` (19), `/85` (16), `/45` (14), `/55` (6), `/90` (4),
+`/75` (3), `/20` (3), `/65` (2), `/15` (2), `/25`, `/10`, `/5`. The full
+offender surface the guard scans is wider still — `bg-`, `border-`, `fill-`,
+`stroke-`, `ring-` and `divide-` on `white`/`black`, both opacity syntaxes:
+**806 occurrences**. Three of the `text-white` alphas — `/40`, `/35` and `/30` —
+compute to **3.77:1, 3.15:1 and 2.61:1** against `#0a0a0a`, all below the 4.5:1
+AA floor for normal text. **133 usages** in non-test sources (_stated as 134_,
+which is the count including test files), and worse in practice: most sit on one
+of the 70 `bg-white/5` cards, which lifts the background and narrows the gap
+further.
 
 **Method, so this is not overclaimed.** Those ratios are computed analytically
 from WCAG 2.x relative luminance against the stated surface, not sampled from a
@@ -64,19 +82,19 @@ twelve routes.
 
 ## Decisions
 
-| Question          | Decision                                        | Why                                                                                 |
-| ----------------- | ----------------------------------------------- | ----------------------------------------------------------------------------------- |
-| Driver            | Ergonomics — the four moments                   | Chosen over craft, page-shape and legibility framings; the restyle rides along      |
-| Moments           | All four, one release                           | Ordering them by priority was rejected: all four are real                           |
-| Release shape     | One release, ten gated slices                   | One athlete-visible change and one deploy; slices keep rollback at one `git revert` |
-| IA latitude       | Reflow within the shape                         | Fixes the measured failure without retiring routes or relearning the nav            |
-| Visual direction  | Evolve the foundations, add light mode          | Light mode is what forces every hardcoded value to become a token                   |
-| Type floor        | 12px, 7 steps                                   | Nothing below 12px exists as a token, so `text-[8px]` becomes unwriteable           |
-| Ink               | 4 semantic steps, per-theme values              | Three of today's eight alphas fail AA; naming them by role stops the drift          |
-| Theme control     | System default, manual override                 | Tracks sunset and the OS schedule for free; the override is for when that is wrong  |
-| Theme persistence | `next-themes`, localStorage                     | Already a dependency and unused; theme is device-local by nature                    |
-| Verification      | Build-failing guards + real-browser screenshots | The measurable half mechanically, the judgement half by eye, before merge           |
-| Design source     | System first, two reference surfaces            | Front-loads the decisions that are expensive to change late                         |
+| Question          | Decision                                        | Why                                                                                  |
+| ----------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Driver            | Ergonomics — the four moments                   | Chosen over craft, page-shape and legibility framings; the restyle rides along       |
+| Moments           | All four, one release                           | Ordering them by priority was rejected: all four are real                            |
+| Release shape     | One release, ten gated slices                   | One athlete-visible change and one deploy; slices keep rollback at one `git revert`  |
+| IA latitude       | Reflow within the shape                         | Fixes the measured failure without retiring routes or relearning the nav             |
+| Visual direction  | Evolve the foundations, add light mode          | Light mode is what forces every hardcoded value to become a token                    |
+| Type floor        | 12px, 7 steps                                   | Nothing below 12px exists as a token, so `text-[8px]` becomes unwriteable            |
+| Ink               | 4 semantic steps, per-theme values              | Three of today's 18 `text-white` alphas fail AA; naming them by role stops the drift |
+| Theme control     | System default, manual override                 | Tracks sunset and the OS schedule for free; the override is for when that is wrong   |
+| Theme persistence | `next-themes`, localStorage                     | Already a dependency and unused; theme is device-local by nature                     |
+| Verification      | Build-failing guards + real-browser screenshots | The measurable half mechanically, the judgement half by eye, before merge            |
+| Design source     | System first, two reference surfaces            | Front-loads the decisions that are expensive to change late                          |
 
 ## The visual system
 
@@ -90,7 +108,7 @@ values become unnecessary.
 scale. The seventh is `24`, added here rather than quietly dropping the count —
 the dense surfaces need a step between `20` and `30`.)
 
-**The consequence, stated up front:** 239 usages get larger. Cards that fit
+**The consequence, stated up front:** 284 usages get larger (corrected from 239 — see the Premise). Cards that fit
 today will not fit tomorrow. Content gets cut, stacked or moved — the dense
 surfaces (Train's week rows, Body's Labs table) will need real editorial
 decisions, not reflow. That is the redesign doing its job, and it is the single
@@ -101,19 +119,30 @@ size below 12px.
 
 ### Ink — four steps, each with a job
 
-| Token           | Dark      | Light     | Ratio (dark / light) | Allowed on                                       |
-| --------------- | --------- | --------- | -------------------- | ------------------------------------------------ |
-| `ink-primary`   | `#f5f5f5` | `#171717` | 16.6 / 17.9          | anything                                         |
-| `ink-secondary` | `#b4b4b4` | `#4a4a4a` | 8.7 / 8.9            | anything                                         |
-| `ink-muted`     | `#8a8a8a` | `#6e6e6e` | 5.2 / 5.1            | the floor for any text                           |
-| `hairline`      | `#6b6b6b` | `#8a8a8a` | 3.1 / 3.2            | **never text** — dividers, borders, icon strokes |
+> **TABLE CORRECTED (T2).** The ratios below used to be measured against
+> `surface-raised` — `#161616` in dark, `#ffffff` in light — which is the
+> _best_-case ground in light and a middle one in dark, while the paragraph
+> underneath explicitly claimed worst-case. Three of the four rows were
+> therefore flattering by 0.4–1.5. The old values were 16.6 / 17.9, 8.7 / 8.9
+> and 5.2 / 5.1; `hairline` was already correct. The table in
+> `docs/plans/2026-08-11-v099-slice0-foundations.md` was right all along and
+> this now agrees with it.
+
+| Token           | Dark      | Light     | Worst-case ratio (dark / light) | Worst-case ground (dark / light) | Allowed on                                       |
+| --------------- | --------- | --------- | ------------------------------- | -------------------------------- | ------------------------------------------------ |
+| `ink-primary`   | `#f5f5f5` | `#171717` | 15.12 / 16.59                   | `#1f1f1f` / `#f6f6f6`            | anything                                         |
+| `ink-secondary` | `#b4b4b4` | `#4a4a4a` | 7.95 / 8.20                     | `#1f1f1f` / `#f6f6f6`            | anything                                         |
+| `ink-muted`     | `#8a8a8a` | `#6e6e6e` | 4.77 / **4.72**                 | `#1f1f1f` / `#f6f6f6`            | the floor for any text                           |
+| `hairline`      | `#6b6b6b` | `#8a8a8a` | 3.09 / 3.19                     | `#1f1f1f` / `#f6f6f6`            | **never text** — dividers, borders, icon strokes |
 
 Ratios are against the **worst-case** surface each token must survive —
 `#1f1f1f` (dark overlay) and `#f6f6f6` (light base) — not against the most
-flattering one. The light `hairline` was `#949494` in the approved screen;
-recomputed against `surface-base` rather than white it measures 2.81:1 and
-fails its own floor, so it is `#8a8a8a` here. The tightest pair in the system
-is light `ink-muted` on `surface-base` at 4.72:1.
+flattering one, and the ground is now named per row so the claim is checkable
+rather than assertable. The light `hairline` was `#949494` in the approved
+screen; recomputed against `surface-base` rather than white it measures 2.81:1
+and fails its own floor, so it is `#8a8a8a` here. The tightest pair in the
+system is light `ink-muted` on `surface-base` at **4.72:1** — which the old
+table's own 5.1 figure contradicted.
 
 `hairline` is deliberately named for its role rather than as an ink step, so
 that reaching for it as text colour reads as wrong at the call site. It clears
@@ -132,9 +161,12 @@ CSS, and why it is load-bearing rather than additive.
 
 ### The accent changes value between themes
 
-`--primary: #10b981` measures **7.1:1 on dark and 2.5:1 on white**. Light mode
-needs a darker emerald — `#047857`, 5.5:1. Same token name, different value per
-theme. This is the clearest single proof that light mode forces real tokens.
+`--primary: #10b981` measures **6.50:1 worst-case on dark** (`#1f1f1f`; 7.80:1
+on the page, and the 7.1:1 originally quoted here is the `#161616` card) **and
+2.54:1 on white**. Light mode needs a darker emerald — `#047857`, **5.07:1
+worst-case** on `#f6f6f6` (5.48:1 on white, which is the 5.5:1 originally
+quoted). Same token name, different value per theme. This is the clearest
+single proof that light mode forces real tokens.
 
 ### Spacing and radius
 
@@ -152,9 +184,23 @@ and OS-change listening as library behaviour rather than code we maintain.
 - `attribute="class"`, `defaultTheme="system"`.
 - Token sets declared on `:root` and `.dark`.
 - A Light / Dark / System control in Menu.
-- `themeColor` becomes two `media`-scoped entries; `appleWebApp.statusBarStyle`
-  follows.
-- `maximumScale` and `userScalable` are removed from the viewport export.
+- `themeColor` becomes two `media`-scoped entries **in the slice that lifts
+  `forcedTheme`, not before.** Corrected (I1): slice 0 shipped the media-scoped
+  pair while `ThemeProvider` still forces dark, which painted `#f6f6f6` browser
+  chrome above a `#0a0a0a` app on any light-preference device — something `main`
+  never did. It is a single static `#0a0a0a` until the forcing goes; see the
+  comment on the export in `src/app/layout.tsx`.
+- **`appleWebApp.statusBarStyle` cannot follow the theme. This spec was wrong to
+  say it would** (T2). Next types it as a single static string —
+  `statusBarStyle?: 'default' | 'black' | 'black-translucent'`
+  (`next/dist/lib/metadata/types/extra-types.d.ts`) — with no array form and no
+  `media` key, so there is no per-theme value to give it. It stays
+  `black-translucent`, which lets the page background show through the status
+  bar and is therefore the one value that _does_ follow the theme, by not
+  specifying a colour at all.
+- `maximumScale` and `userScalable` are removed from the viewport export, and
+  `tests/viewport-zoom-guard.test.ts` keeps them out of every layout, page and
+  template under `src/app` — not just the root (I7).
 
 **Persistence is localStorage, not Postgres.** Theme is device-local by nature —
 the phone in sunlight and the desktop indoors legitimately want different
@@ -230,8 +276,18 @@ easy one to make again.
    ink×surface pair legal for text clears 4.5:1 **in both themes**, and that
    `hairline` clears 3.0:1 and is excluded from text roles. Mutation-checked:
    change one hex, the test must fail.
-3. **Axe, nine surfaces × two themes** — 18 tests, up from the single
-   `journal-form.axe.test.tsx` that exists today.
+3. **Axe, nine surfaces × two themes.** **CORRECTED (T2): this is not a
+   build-failing guard and it is not 18 tests.** It is `npm run verify:axe`, a
+   manual CLI driving a real browser — because nine of these surfaces are async
+   server components that read Postgres, do not render in jsdom, and get no
+   layout there, so a `vitest-axe` test on them would pass while checking
+   nothing. It cannot join CI as configured: CI has no browser binary and no
+   seeded data. It also reports **two** metrics, not one violation count —
+   _confirmed_ (axe computed a failure; gates the exit code) and
+   _indeterminate_ (axe could not resolve a colour; reported, never gates),
+   because on the four gradient-background surfaces `color-contrast` can never
+   resolve and gating on it would make "drive the number to zero"
+   unfalsifiable. See `scripts/lib/axe-report.ts`.
 
 Existing guards that must still pass and must not be weakened:
 `uncertainty-dialects-guard`, `dead-component-guard` (`KNOWN_ORPHANS` stays
@@ -243,9 +299,16 @@ A local pre-merge step, not CI: headless Chromium against a dev server with
 seeded data, at a phone and a desktop viewport, reviewed and attached to the PR.
 CI has no browser, and seeding it realistically is its own project.
 
-**28 captures per viewport**, counted rather than estimated: nine authenticated
-surfaces × two themes (18), plus Today's two additional states × two themes (4),
-plus three pre-auth routes × two themes (6).
+**CORRECTED (T2): 20 captures per viewport, not 28.** The estimate assumed
+Today's two extra states (4) and three pre-auth routes (6) would be captured.
+Today's three states do not exist yet — they arrive with the slice that
+redesigns Today — and `scripts/verify-surfaces.ts`'s `SURFACES` map omits
+`join/[code]`, `/wellness` and `/activity/[id]`. The actual set is nine
+authenticated surfaces plus the token-created state, × two themes = **20**.
+
+`/activity/[id]` being absent is the one that matters: this spec singles it out
+as "the real finding", and it is not audited. Adding it needs a real activity id
+from the seeded data, so it belongs to the slice that redesigns that surface.
 
 The roadmap's reason for insisting: **the v0.23 redesign shipped three bugs that
 only a real browser caught.**
