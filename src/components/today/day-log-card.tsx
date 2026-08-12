@@ -23,11 +23,12 @@ export interface DayLogProps {
  * unconditionally and an unlogged evening simply leads with the next block.
  */
 export function DayLogCard({ scores, tags, notes, debriefLine }: DayLogProps) {
+  const hasDebrief = debriefLine != null && debriefLine.trim() !== "";
   const empty =
     scores.length === 0 &&
     tags.length === 0 &&
     (notes == null || notes.trim() === "") &&
-    debriefLine == null;
+    !hasDebrief;
   if (empty) return null;
 
   return (
@@ -66,7 +67,7 @@ export function DayLogCard({ scores, tags, notes, debriefLine }: DayLogProps) {
         </p>
       )}
 
-      {debriefLine && (
+      {hasDebrief && (
         <p className="mt-3 border-t border-hairline pt-3 text-label font-bold text-chart-2">
           {debriefLine}
         </p>

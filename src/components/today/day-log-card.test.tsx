@@ -50,6 +50,22 @@ describe("DayLogCard", () => {
     ).toBe("");
   });
 
+  it("renders nothing when the only content is a whitespace-only debrief line", () => {
+    expect(
+      renderToString(
+        <DayLogCard scores={[]} tags={[]} notes={null} debriefLine="   " />
+      )
+    ).toBe("");
+  });
+
+  it("renders nothing when the only content is whitespace-only notes", () => {
+    expect(
+      renderToString(
+        <DayLogCard scores={[]} tags={[]} notes="   " debriefLine={null} />
+      )
+    ).toBe("");
+  });
+
   it("renders on a debrief alone, with no self-report", () => {
     const html = renderToString(
       <DayLogCard
