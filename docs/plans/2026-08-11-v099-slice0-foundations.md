@@ -46,6 +46,21 @@ Copied verbatim from `docs/specs/2026-08-11-2b4-visual-redesign-design.md`:
   2. **Dark mode changes in exactly the 15 token values in the table below,
      and nowhere else.** Light mode is unreachable to the athlete while
      `forcedTheme="dark"` holds.
+
+     **STILL NOT TRUE AS WRITTEN — falsified a second time, by the rendered
+     pass (`docs/v0.99-slice0-main-diff-verification.md` §6.4).** "Nowhere
+     else" is wrong by one more item: `.nav-active-dot` (`globals.css:389`)
+     moves its background and 12px glow from the bare keyword `white` to
+     `var(--ink-primary)`, `#ffffff → #f5f5f5`, and that **renders** — confirmed
+     on five phone surfaces. It is not a token, so the arithmetic that produced
+     the 15 could not see it; it is in none of the four exceptions. Left
+     recorded rather than folded into the table, because deciding whether the
+     list becomes 16 or the dot reverts is the owner's call, not the measuring
+     pass's. The change moves the right way and is 10/255 on a 4px dot.
+
+     Two scope claims below are also overstated in the _other_ direction — the
+     exception sounds broader than it is. See that report's §8.
+
   3. **Every one of the 15 either raises contrast or is below any plausible
      perceptual threshold. None lowers it.** That is the checkable claim, and
      the ratio column is how you check it.
