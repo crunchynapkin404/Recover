@@ -164,7 +164,7 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // 352 occurrences, measured 2026-08-12 after the whole-branch-review
   // fixes (C3 migrated the onboarding branch's 4 text-[11px] instances).
   // Was 355 right after slice 1, 395 at slice 0.
-  "arbitrary type sizes": 352,
+  "arbitrary type sizes": 351,
   // 738 occurrences, measured 2026-08-12 after the whole-branch-review
   // fixes (C3 migrated the onboarding branch's text-white/* instances).
   // Was 749 right after slice 1, 806 at slice 0.

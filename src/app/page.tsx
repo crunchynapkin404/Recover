@@ -275,14 +275,16 @@ export default async function DashboardPage({
   // C3, whole-branch review 2026-08-12: this branch sat inside the file the
   // rest of this slice rewrote, but no capture could reach it — every
   // capture ran against an account with data — so it kept every pre-slice
-  // utility (text-[11px], .glass, text-white/…, bg-emerald-500) straight
-  // through. Migrated with the same mapping the rest of the slice used.
+  // utility — sub-floor pixel sizes, glass, white-alpha inks, a raw emerald
+  // accent — straight through. Migrated with the same mapping the rest of the
+  // slice used. Class names are described, not spelled: Tailwind compiles
+  // literals it finds in comments, and the offender scan counts them.
   if (!connection && wellness.length === 0) {
     return (
       <AppShell>
         <div className="flex min-h-[60svh] flex-col items-center justify-center text-center">
           <div className="mx-auto max-w-md rounded-[2.5rem] border border-hairline bg-surface-raised p-8">
-            <h2 className="text-xl font-bold tracking-tight">
+            <h2 className="text-title font-bold tracking-tight text-ink-primary">
               Welcome to Recover
             </h2>
             <p className="mt-2 text-caption text-ink-secondary">
@@ -318,9 +320,7 @@ export default async function DashboardPage({
                 href="/import"
                 className="flex w-full flex-col rounded-2xl border border-hairline px-5 py-3 transition-all hover:bg-surface-overlay"
               >
-                <span className="font-bold text-ink-secondary">
-                  Import CSV
-                </span>
+                <span className="font-bold text-ink-secondary">Import CSV</span>
                 <span className="text-label font-medium text-ink-muted">
                   Bring wellness or activity history from anywhere
                 </span>
