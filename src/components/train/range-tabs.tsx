@@ -23,13 +23,15 @@ export function RangeTabs({
           // threaded through the shared href builder's signature.
           href={`${href({ range: r })}&panel=${view}`}
           aria-current={active === r ? "true" : undefined}
-          className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${
-            active === r
-              ? "bg-emerald-500/20 text-emerald-400"
-              : "text-white/40"
+          className={`rounded-full px-2.5 py-1 text-label font-bold ${
+            active === r ? "bg-accent/20 text-accent" : "text-ink-muted"
           }`}
         >
-          {r}d
+          {/* One string child, not `{r}d`: React inserts a hydration
+              boundary comment between two adjacent expression/text
+              children, which would render "30<!-- -->d" and split the
+              range label across two text nodes for no visual reason. */}
+          {`${r}d`}
         </Link>
       ))}
     </div>

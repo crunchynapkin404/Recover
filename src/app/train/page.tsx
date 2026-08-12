@@ -48,7 +48,7 @@ import {
 } from "@/components/train/fitness-tiles";
 import { RaceChip } from "@/components/today/race-chip";
 import { raceCard } from "@/lib/race/outlook";
-import { BAND_COLOR } from "@/lib/band-color";
+import { BAND_TEXT, BAND_DOT } from "@/lib/band-color";
 import type { Band } from "@/lib/readiness";
 import { Figure } from "@/lib/uncertainty";
 import {
@@ -259,9 +259,9 @@ function TrainHeader({
     <header className="mb-5 pt-8">
       <div className="mb-4 flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-[22px] font-bold tracking-[-0.03em]">Train</h1>
+          <h1 className="text-title font-bold tracking-[-0.03em]">Train</h1>
           {subtitle && (
-            <p className="mt-0.5 truncate text-[10.5px] font-medium text-white/50">
+            <p className="mt-0.5 truncate text-label font-medium text-ink-muted">
               {subtitle}
             </p>
           )}
@@ -272,7 +272,7 @@ function TrainHeader({
         <div className="mb-4">
           <div className="flex flex-wrap items-center gap-2">{controls}</div>
           {controlsNote && (
-            <p className="mt-1.5 text-[10px] font-medium text-white/40">
+            <p className="mt-1.5 text-label font-medium text-ink-muted">
               {controlsNote}
             </p>
           )}
@@ -355,17 +355,11 @@ async function WeekTab({
 
   const chip = (
     <span
-      className="shrink-0 rounded-full border px-3 py-1 text-[10.5px] font-bold"
-      style={{
-        borderColor:
-          band === "calibrating" ? "rgba(255,255,255,0.15)" : BAND_COLOR[band],
-        color: BAND_COLOR[band],
-      }}
+      className={`shrink-0 rounded-full border border-current px-3 py-1 text-label font-bold ${BAND_TEXT[band]}`}
     >
       <span
         aria-hidden
-        className="mr-1.5 inline-block size-1.5 rounded-full align-middle"
-        style={{ background: BAND_COLOR[band] }}
+        className={`mr-1.5 inline-block size-1.5 rounded-full align-middle ${BAND_DOT[band]}`}
       />
       {readiness != null ? `${readiness} · ${band}` : "calibrating"}
     </span>

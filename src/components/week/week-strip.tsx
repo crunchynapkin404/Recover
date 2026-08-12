@@ -31,7 +31,7 @@ export function WeekStrip({ days }: Props) {
     // cleared each other under justify-between alone, at 12px they collide
     // into "MOTUWETHFRSASU" whenever the strip is squeezed (Today's desktop
     // week row puts it in a flex-1 beside the volume summary).
-    <div className="flex items-center justify-between gap-x-2 rounded-[2rem] border border-hairline bg-surface-raised px-5 py-4">
+    <div className="flex items-center justify-between gap-x-2 rounded-[2rem] glass px-5 py-4">
       {days.map((d, i) => (
         <div key={d.date} className="flex flex-col items-center gap-2">
           <span className="text-label font-bold uppercase text-ink-muted">

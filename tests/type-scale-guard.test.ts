@@ -161,14 +161,18 @@ function occurrences(pattern: RegExp): number {
  */
 const RATCHET_SLACK = 25;
 const OFFENDER_CEILINGS: Record<string, number> = {
-  // 352 occurrences, measured 2026-08-12 after the whole-branch-review
-  // fixes (C3 migrated the onboarding branch's 4 text-[11px] instances).
-  // Was 355 right after slice 1, 395 at slice 0.
-  "arbitrary type sizes": 351,
-  // 738 occurrences, measured 2026-08-12 after the whole-branch-review
-  // fixes (C3 migrated the onboarding branch's text-white/* instances).
-  // Was 749 right after slice 1, 806 at slice 0.
-  "ad-hoc white/black alpha utilities": 738,
+  // 343 occurrences, measured 2026-08-12 after task 2 (the page chrome —
+  // TrainHeader, TrainTabs, ViewTabs, RangeTabs, the bottom nav label and
+  // the readiness chip) migrated its 8 text-[Npx] sites.
+  // Was 351 after the whole-branch-review fixes, 355 right after slice 1,
+  // 395 at slice 0.
+  "arbitrary type sizes": 343,
+  // 729 occurrences, measured 2026-08-12 after task 2 migrated its 9
+  // text-white/N and bg-white/N sites (TrainHeader, TrainTabs, ViewTabs,
+  // RangeTabs, ui/collapsible.tsx's chevron).
+  // Was 738 after the whole-branch-review fixes, 749 right after slice 1,
+  // 806 at slice 0.
+  "ad-hoc white/black alpha utilities": 729,
 };
 
 function expectRatchet(name: string, pattern: RegExp): void {
@@ -404,10 +408,7 @@ function inlineColorInventory(): string[] {
  * the guard reads.
  */
 const INLINE_COLOR_INVENTORY: readonly string[] = [
-  "src/app/train/page.tsx — background: BAND_COLOR[band]",
   "src/app/train/page.tsx — background: l.color",
-  'src/app/train/page.tsx — borderColor: band === "calibrating" ? "rgba(255,255,255,0.15)" : BAND_COLOR[band]',
-  "src/app/train/page.tsx — color: BAND_COLOR[band]",
   "src/components/body/sleep-history-strip.tsx — background: s.color",
   "src/components/body/sleep-night-card.tsx — background: s.color",
   "src/components/body/sleep-night-card.tsx — background: s.color",

@@ -35,7 +35,7 @@ function CollapsibleTrigger({
           {badge}
           <ChevronDown
             aria-hidden
-            className="size-4 text-white/40 transition-transform duration-300 group-data-[panel-open]:rotate-180"
+            className="size-4 text-ink-muted transition-transform duration-300 group-data-[panel-open]:rotate-180"
           />
         </span>
       </CollapsiblePrimitive.Trigger>

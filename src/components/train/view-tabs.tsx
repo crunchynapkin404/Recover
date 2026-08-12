@@ -49,8 +49,10 @@ export function ViewTabs({
             key={v}
             href={href({ view: v })}
             aria-current={active === v ? "true" : undefined}
-            className={`flex-1 rounded-full py-2 text-center text-[10px] font-bold uppercase tracking-wider ${
-              active === v ? "glass bg-white/10" : "glass opacity-40"
+            className={`flex-1 rounded-full py-2 text-center text-label font-bold uppercase tracking-wider ${
+              active === v
+                ? "bg-surface-overlay text-ink-primary"
+                : "text-ink-muted"
             }`}
           >
             {label}
@@ -64,13 +66,13 @@ export function ViewTabs({
               key={ym}
               href={href({ view: "month", month: ym })}
               aria-current={month === ym ? "true" : undefined}
-              className={`relative whitespace-nowrap text-sm font-bold ${
-                month === ym ? "text-white" : "opacity-30"
+              className={`relative whitespace-nowrap text-caption font-bold ${
+                month === ym ? "text-ink-primary" : "text-ink-muted"
               }`}
             >
               {monthLabel(ym)}
               {month === ym && (
-                <span className="absolute -bottom-2 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-blue-400" />
+                <span className="absolute -bottom-2 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-accent" />
               )}
             </Link>
           ))}

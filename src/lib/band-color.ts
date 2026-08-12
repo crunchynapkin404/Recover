@@ -33,3 +33,11 @@ export const BAND_STROKE: Record<Band, string> = {
   red: "stroke-chart-5",
   calibrating: "stroke-hairline",
 };
+
+/** Band as a DOT fill. Non-text, so the 3:1 minimum applies, not 4.5:1. */
+export const BAND_DOT: Record<Band, string> = {
+  green: "bg-chart-2",
+  amber: "bg-chart-3",
+  red: "bg-chart-5",
+  calibrating: "bg-ink-muted",
+};

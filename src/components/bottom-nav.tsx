@@ -37,7 +37,7 @@ export function BottomNav() {
             }`}
           >
             <Icon className="size-6" strokeWidth={1.5} />
-            <span className="text-[8px] font-bold uppercase tracking-widest">
+            <span className="text-label font-bold uppercase tracking-widest">
               {label}
             </span>
             {active && <span className="nav-active-dot" />}
