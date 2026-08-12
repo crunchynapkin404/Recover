@@ -129,6 +129,8 @@ import type { Page } from "playwright-core";
 import type Axe from "axe-core";
 import { hexToRgb } from "../src/lib/design/contrast";
 import { resolvedThemeTokens } from "../src/lib/design/tokens";
+import { BLOCK_ORDER } from "../src/lib/today/block-order";
+import type { TodayState } from "../src/lib/today/state";
 import {
   splitFindings,
   computeTotals,
@@ -203,6 +205,19 @@ const SURFACES: Record<string, string> = {
   import: "/import",
   "activity-log": "/activity/log",
   login: "/login",
+};
+
+/**
+ * Which TodayState each Today surface is standing in for — the key
+ * assertBlockOrder needs to look up the right row of BLOCK_ORDER. Kept next
+ * to SURFACES rather than re-deriving it from the `?state=` query string, so
+ * adding a fourth Today surface later is a one-line addition here rather
+ * than a URL-parsing exercise.
+ */
+const TODAY_STATE_BY_SURFACE: Record<string, TodayState> = {
+  today: "morning",
+  "today-post-session": "post-session",
+  "today-evening": "evening",
 };
 
 // deviceScaleFactor lives here per-viewport (task-6 review, Finding 4) but is
@@ -452,6 +467,69 @@ function assertOnSurface(
 }
 
 /**
+ * Confirms the REAL RENDERED DOM of a captured Today state matches
+ * BLOCK_ORDER, in order (I1, whole-branch review 2026-08-12).
+ *
+ * WHY THIS EXISTS ON TOP OF block-order.test.ts. That file proved, by
+ * source inspection, that BLOCK_ORDER's object contains a property named
+ * `heroRecap:` (etc.) for each state — but the reviewer showed that
+ * replacing that property's VALUE with `null` (deleting the readiness
+ * recap from the evening state — exactly what "reorder, never hide" exists
+ * to prevent) left every existing test green. Nothing was checking what
+ * actually renders.
+ *
+ * page.tsx now stamps `data-block={key}` on the wrapper div for every
+ * BLOCK_ORDER entry, so this reads the real page's `[data-block]` elements
+ * and diffs their order against `BLOCK_ORDER[state]` — imported, not
+ * restated, so this can never drift from the list page.tsx itself claims
+ * to render from.
+ *
+ * This is a presence-and-order check, not a non-emptiness check: it would
+ * not by itself distinguish a wrapper that renders real content from one
+ * whose block happens to render nothing for this account's data (several
+ * blocks are legitimately null depending on account state — see
+ * block-order.ts's MOMENT_ONLY and the calibration/coach/raceChip guards
+ * in page.tsx). What it DOES catch is the DOM's structure drifting from
+ * BLOCK_ORDER at all — a dropped, duplicated, or reordered wrapper — which
+ * is the class of bug a source-only test cannot see. Complements, not
+ * replaces, assertTodayStatesDiffer's checksum: that catches "?state=
+ * stopped taking effect" (three identical renders); this catches "the DOM
+ * stopped matching BLOCK_ORDER" even when the three captures still differ
+ * from each other. Keep both — belt and braces.
+ *
+ * Fails the run the way assertTodayStatesDiffer does — console.error plus
+ * process.exitCode = 1 — rather than throwing, so a mismatch on one
+ * surface does not abort the rest of the run's diagnostics.
+ */
+async function assertBlockOrder(
+  page: Page,
+  surfaceName: string,
+  state: TodayState
+): Promise<void> {
+  const expected = BLOCK_ORDER[state];
+  const actual = await page.evaluate(() =>
+    Array.from(document.querySelectorAll("[data-block]")).map((el) =>
+      el.getAttribute("data-block")
+    )
+  );
+  const matches =
+    actual.length === expected.length &&
+    actual.every((key: string | null, i: number) => key === expected[i]);
+  if (!matches) {
+    console.error(
+      `\nBLOCK ORDER MISMATCH capturing "${surfaceName}": ` +
+        `BLOCK_ORDER.${state} names [${expected.join(", ")}], but the ` +
+        `rendered page's [data-block] wrappers were [${actual.join(", ")}]. ` +
+        `page.tsx's rendered DOM has drifted from ` +
+        `src/lib/today/block-order.ts's BLOCK_ORDER — a block was dropped, ` +
+        `duplicated, or reordered without BLOCK_ORDER changing to match, ` +
+        `or vice versa.`
+    );
+    process.exitCode = 1;
+  }
+}
+
+/**
  * ThemeProvider is forced to dark (`forcedTheme="dark"`, see
  * theme-provider.tsx) until slice 9. next-themes applies that forced class
  * TWICE: once synchronously during HTML parsing (the anti-flicker script,
@@ -620,6 +698,8 @@ async function captureWithRetry(
       await forceThemeVerified(page, dark);
       await page.screenshot({ path: filePath, fullPage: true });
       await auditPage(page, surfaceName, theme, vpName);
+      const todayState = TODAY_STATE_BY_SURFACE[surfaceName];
+      if (todayState) await assertBlockOrder(page, surfaceName, todayState);
       return;
     } catch (err) {
       if (attempt === 2) throw err;

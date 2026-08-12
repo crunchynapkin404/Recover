@@ -779,8 +779,14 @@ export default async function DashboardPage({
             // src/lib/today/block-order.ts, which has its own tests
             // asserting every state shows every block — see that file for
             // why the rule is checked against concepts rather than keys.
+            // data-block names which BLOCK_ORDER key rendered here (I1,
+            // whole-branch review 2026-08-12) — the one thing that lets a
+            // capture/verification script confirm the DOM actually reflects
+            // BLOCK_ORDER, in order, rather than trusting that whatever
+            // `blocks[key]` evaluates to is what a test believes it is. See
+            // scripts/verify-surfaces.ts's assertBlockOrder.
             const ordered = BLOCK_ORDER[todayState].map((key) => (
-              <div key={key} className="mb-6 empty:mb-0">
+              <div key={key} data-block={key} className="mb-6 empty:mb-0">
                 {blocks[key]}
               </div>
             ));
