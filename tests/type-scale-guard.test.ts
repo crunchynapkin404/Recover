@@ -525,4 +525,45 @@ describe("type-scale guard", () => {
         "to INLINE_COLOR_INVENTORY so it is at least recorded"
     ).toEqual(INLINE_COLOR_INVENTORY);
   });
+
+  /**
+   * The floor is a property of the app, not of Tailwind. `.label-micro`
+   * hardcoded `font-size: 10px` right through slices 0 and 1 — a second,
+   * uncoordinated floor that no utility scan could see, backing labels on
+   * seven surfaces. This reads every font-size declaration in the file,
+   * resolves the ones written as tokens, and holds them all to 12px.
+   */
+  it("declares no font-size below the 12px floor in globals.css", () => {
+    const css = readFileSync(CSS_PATH, "utf8");
+    const SCALE_PX: Record<string, number> = {
+      "--text-label": 12,
+      "--text-caption": 14,
+      "--text-body": 16,
+      "--text-title": 20,
+      "--text-heading": 24,
+      "--text-figure": 30,
+      "--text-hero": 44,
+    };
+    const found: string[] = [];
+    for (const m of css.matchAll(/^\s*font-size:\s*([^;]+);/gm)) {
+      const raw = m[1].trim();
+      const line = css.slice(0, m.index).split("\n").length;
+      const tokenMatch = /^var\((--text-[a-z]+)\)$/.exec(raw);
+      const px = tokenMatch
+        ? SCALE_PX[tokenMatch[1]]
+        : /^([\d.]+)px$/.test(raw)
+          ? Number(/^([\d.]+)px$/.exec(raw)![1])
+          : /^([\d.]+)rem$/.test(raw)
+            ? Number(/^([\d.]+)rem$/.exec(raw)![1]) * 16
+            : null;
+      if (px == null) {
+        found.push(`globals.css:${line} — unresolvable font-size: ${raw}`);
+      } else if (px < 12) {
+        found.push(
+          `globals.css:${line} — font-size: ${raw} (${px}px) is below the floor`
+        );
+      }
+    }
+    expect(found, found.join("\n")).toEqual([]);
+  });
 });

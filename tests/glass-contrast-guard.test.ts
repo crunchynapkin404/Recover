@@ -18,15 +18,44 @@
 // exempt from the rule — and v0.99.0 already shipped exactly that shape of
 // mistake twice (a guard reading only the first of six token blocks; an AA
 // argument true for utilities and false for inline styles).
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { compositeOver, type Rgba } from "../src/lib/design/color-literals";
 import { contrastRatio } from "../src/lib/design/contrast";
-import { resolvedThemeTokens, type ThemeName } from "../src/lib/design/tokens";
+import {
+  CSS_PATH,
+  readDeclarations,
+  resolvedThemeTokens,
+  roleOfToken,
+  type ThemeName,
+} from "../src/lib/design/tokens";
 
 const THEMES: ThemeName[] = ["light", "dark"];
 
-/** Every text ink. `--hairline` is excluded: it is barred from text by name. */
-const TEXT_INKS = ["ink-primary", "ink-secondary", "ink-muted"] as const;
+// `readCss` (the helper `resolvedThemeTokens` uses internally) is not
+// exported from tokens.ts, so this reads the file the same way
+// tests/contrast-guard.test.ts does: CSS_PATH + readFileSync.
+function declaredTokenNames(): string[] {
+  return readDeclarations(readFileSync(CSS_PATH, "utf8")).map((d) => d.token);
+}
+
+/**
+ * Every text ink, DERIVED. This was a hand-written array through v0.100.1,
+ * which meant adding an ink token silently skipped the glass check while
+ * passing the surface check — the same shape as the guard that read only
+ * the first of six token blocks. `--hairline` is excluded by name: it is
+ * barred from text. `accent` is excluded because it is ink on a FILL, not
+ * on glass, and carries its own waiver in the sibling guard.
+ */
+const TEXT_INKS = [...new Set(declaredTokenNames())]
+  .filter((t) => t.startsWith("ink-") && roleOfToken(t) === "text")
+  .sort();
+
+it("derives its ink list from the stylesheet, not from a hand-written array", () => {
+  expect(TEXT_INKS).toContain("ink-race");
+  expect(TEXT_INKS).toContain("ink-primary");
+  expect(TEXT_INKS.length).toBeGreaterThanOrEqual(4);
+});
 
 /**
  * The opaque grounds glass ACTUALLY sits on, verified against the tree rather
