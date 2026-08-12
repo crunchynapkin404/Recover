@@ -161,12 +161,14 @@ function occurrences(pattern: RegExp): number {
  */
 const RATCHET_SLACK = 25;
 const OFFENDER_CEILINGS: Record<string, number> = {
-  // 395 occurrences over 392 lines in 77 files, measured 2026-08-12 at slice 0.
-  // 26 distinct sizes; 284 of the 395 are ≤11px and 36 are ≤9px.
-  "arbitrary type sizes": 395,
-  // 806 occurrences over 583 lines in 86 files, measured 2026-08-12 at slice 0.
-  // 18 distinct alphas on `text-white` alone.
-  "ad-hoc white/black alpha utilities": 806,
+  // 352 occurrences, measured 2026-08-12 after the whole-branch-review
+  // fixes (C3 migrated the onboarding branch's 4 text-[11px] instances).
+  // Was 355 right after slice 1, 395 at slice 0.
+  "arbitrary type sizes": 351,
+  // 738 occurrences, measured 2026-08-12 after the whole-branch-review
+  // fixes (C3 migrated the onboarding branch's text-white/* instances).
+  // Was 749 right after slice 1, 806 at slice 0.
+  "ad-hoc white/black alpha utilities": 738,
 };
 
 function expectRatchet(name: string, pattern: RegExp): void {
@@ -412,16 +414,7 @@ const INLINE_COLOR_INVENTORY: readonly string[] = [
   "src/components/coach/history-panel.tsx — background: `rgba(${style.hue},0.12)`",
   "src/components/coach/history-panel.tsx — borderColor: `rgba(${style.hue},0.3)`",
   "src/components/coach/history-panel.tsx — color: `rgb(${style.hue})`",
-  // Theme-blind: violet/fuchsia hardcoded for dark. ~2.4:1 and ~2.2:1 on the
-  // light surfaces, which no athlete can reach while forcedTheme="dark" — and
-  // which the floor above will fail the moment that goes, by construction.
-  'src/components/today/coach-brief.tsx — color: "#a78bfa"',
-  'src/components/today/race-chip.tsx — borderColor: "rgba(232,121,249,0.25)"',
-  'src/components/today/race-chip.tsx — color: "#e879f9"',
-  "src/components/today/today-hero.tsx — backgroundColor: m.color",
   "src/components/today/today-hero.tsx — boxShadow: `0 0 60px -20px ${BAND_GLOW[band]}`",
-  'src/components/today/today-hero.tsx — color: calibrating ? "rgba(255,255,255,0.6)" : color',
-  "src/components/today/today-hero.tsx — color: color",
   "src/components/train/fitness-tiles.tsx — color: t.color",
   'src/components/train/fitness-tiles.tsx — color: t.contextColor ?? "var(--ink-muted)"',
   "src/components/train/history-list.tsx — background: railColor(a.sport)",

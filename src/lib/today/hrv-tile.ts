@@ -58,7 +58,7 @@ export function buildHrvTile(input: {
   const base = {
     label: "HRV",
     unit: "ms",
-    sparkColor: "#10b981",
+    sparkClass: "stroke-chart-2",
     href: "/body?tab=trends",
   };
 

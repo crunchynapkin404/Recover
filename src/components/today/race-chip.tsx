@@ -35,16 +35,15 @@ export function RaceChip({ race, daysOut, outlook }: RaceCard) {
   return (
     <Link
       href="/train?tab=week"
-      className="mb-6 flex items-center justify-between rounded-[14px] border bg-white/[0.03] px-3.5 py-2.5 transition-colors hover:bg-white/[0.05]"
-      style={{ borderColor: "rgba(232,121,249,0.25)" }}
+      className="flex items-center justify-between rounded-[14px] border border-hairline bg-surface-raised px-3.5 py-2.5 transition-colors hover:bg-surface-overlay"
     >
-      <span className="text-[11px] text-white/85">
+      <span className="text-caption text-ink-secondary">
         <span aria-hidden>🏁 </span>
-        <strong className="font-bold text-white">{race.name}</strong>
-        <span className="text-white/50"> · {race.priority} race</span>
+        <strong className="font-bold text-ink-primary">{race.name}</strong>
+        <span className="text-ink-muted"> · {race.priority} race</span>
       </span>
       {meta && (
-        <span className="text-[11px] font-bold" style={{ color: "#e879f9" }}>
+        <span className="shrink-0 text-caption font-bold text-coach-ink">
           {meta}
         </span>
       )}

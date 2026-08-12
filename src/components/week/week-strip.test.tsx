@@ -51,13 +51,29 @@ describe("week strip", () => {
 
   it("status classes differ: completed vs missed vs rest", () => {
     const html = renderToString(<WeekStrip days={days} />);
-    expect(html).toContain("bg-emerald-400");
-    expect(html).toContain("bg-red-400");
-    expect(html).toContain("bg-white/15");
+    // v0.99 slice 1 moved these onto theme tokens (same colour family, see
+    // week-strip.tsx's STATUS_DOT comment) — bg-emerald-400 → bg-chart-2,
+    // bg-red-400 → bg-chart-5, bg-white/15 → bg-hairline.
+    expect(html).toContain("bg-chart-2");
+    expect(html).toContain("bg-chart-5");
+    expect(html).toContain("bg-hairline");
   });
 
   it("an adapted day carries a visually distinct marker", () => {
     const html = renderToString(<WeekStrip days={days} />);
-    expect(html).toContain("bg-amber-400");
+    // bg-amber-400 → bg-chart-3, same colour under a token name.
+    expect(html).toContain("bg-chart-3");
+  });
+
+  // I4, whole-branch review 2026-08-12: the strip's own comment says
+  // gap-x-2 is load-bearing — at 12px, the seven day labels ("Mo" … "Su")
+  // clear each other under justify-between alone only because of this gap;
+  // without it they collide into "MOTUWETHFRSASU" whenever the strip is
+  // squeezed (Today's desktop week row puts it in a flex-1 beside the
+  // volume summary). Every other test here was green with that gap
+  // deleted, so this is the only thing that would have caught it.
+  it("keeps the load-bearing gap between day columns", () => {
+    const html = renderToString(<WeekStrip days={days} />);
+    expect(html).toMatch(/class="[^"]*\bgap-x-2\b[^"]*"/);
   });
 });

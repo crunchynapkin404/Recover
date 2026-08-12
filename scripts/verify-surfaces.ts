@@ -122,12 +122,15 @@
 // counts (session/token lists) well past what a real account would show.
 // Clean them up periodically with a query scoped to that label prefix —
 // never touch a row that doesn't match it.
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { join } from "node:path";
 import type { Page } from "playwright-core";
 import type Axe from "axe-core";
 import { hexToRgb } from "../src/lib/design/contrast";
 import { resolvedThemeTokens } from "../src/lib/design/tokens";
+import { BLOCK_ORDER } from "../src/lib/today/block-order";
+import type { TodayState } from "../src/lib/today/state";
 import {
   splitFindings,
   computeTotals,
@@ -186,6 +189,14 @@ const BASE_URL = (() => {
 
 const SURFACES: Record<string, string> = {
   today: "/",
+  // Today is state-aware from v0.99 slice 1. `?state=` only REORDERS blocks
+  // and is refused outright in production (previewStateFrom in
+  // src/lib/today/state.ts returns null when NODE_ENV === "production"), so
+  // these two capture the same real seeded athlete at two other moments —
+  // no data is faked. Their captures are checksum-compared at the end of
+  // main(); see assertTodayStatesDiffer for why that is not optional.
+  "today-post-session": "/?state=post-session",
+  "today-evening": "/?state=evening",
   train: "/train",
   coach: "/coach",
   body: "/body",
@@ -194,6 +205,19 @@ const SURFACES: Record<string, string> = {
   import: "/import",
   "activity-log": "/activity/log",
   login: "/login",
+};
+
+/**
+ * Which TodayState each Today surface is standing in for — the key
+ * assertBlockOrder needs to look up the right row of BLOCK_ORDER. Kept next
+ * to SURFACES rather than re-deriving it from the `?state=` query string, so
+ * adding a fourth Today surface later is a one-line addition here rather
+ * than a URL-parsing exercise.
+ */
+const TODAY_STATE_BY_SURFACE: Record<string, TodayState> = {
+  today: "morning",
+  "today-post-session": "post-session",
+  "today-evening": "evening",
 };
 
 // deviceScaleFactor lives here per-viewport (task-6 review, Finding 4) but is
@@ -280,6 +304,63 @@ function writeReport(): void {
 
 function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
+}
+
+/**
+ * Today's three states must actually have produced three different images.
+ *
+ * WHY THIS IS NOT OPTIONAL POLISH. `assertOnSurface` compares **pathname
+ * only** — deliberately, so a query string cannot make a surface look like a
+ * navigation mismatch. But that means `/?state=evening` is checked against
+ * `/` and passes no matter what the query string did. If the `?state=`
+ * override ever stops taking effect (renamed param, a gate that starts
+ * refusing outside production too, a page that stops reading searchParams),
+ * this script would capture the morning state three times, write three files
+ * with three different names, and report a clean run. That is a silent pass
+ * on precisely the thing these two surfaces exist to prove.
+ *
+ * Checksums are the only thing that notices. Compared within a theme and
+ * viewport pair, never across — two themes SHOULD differ, which would make a
+ * cross-pair comparison pass for the wrong reason.
+ *
+ * Fails the run the way the rest of main() does (exit code + a named error)
+ * rather than throwing, so the remaining end-of-run diagnostics still print.
+ */
+function assertTodayStatesDiffer(): void {
+  const states = ["today", "today-post-session", "today-evening"];
+  for (const vpName of Object.keys(VIEWPORTS)) {
+    for (const theme of ["light", "dark"] as const) {
+      const digests = new Map<string, string>();
+      for (const name of states) {
+        const file = join(outDir, `${name}-${theme}-${vpName}.png`);
+        let bytes: Buffer;
+        try {
+          bytes = readFileSync(file);
+        } catch {
+          // A capture that never happened is already failed elsewhere in
+          // this run; don't turn a missing file into a confusing duplicate
+          // report on top of it.
+          continue;
+        }
+        digests.set(name, createHash("sha256").update(bytes).digest("hex"));
+      }
+      const seen = new Map<string, string>();
+      for (const [name, digest] of digests) {
+        const twin = seen.get(digest);
+        if (twin) {
+          console.error(
+            `\nToday's states "${twin}" and "${name}" produced BYTE-IDENTICAL ` +
+              `captures at ${theme}/${vpName}. The ?state= override is not ` +
+              `taking effect, so these are the same page saved twice under ` +
+              `different names. assertOnSurface cannot see this because it ` +
+              `compares pathname only. Refusing to report a pass.`
+          );
+          process.exitCode = 1;
+        }
+        seen.set(digest, name);
+      }
+    }
+  }
 }
 
 /**
@@ -382,6 +463,69 @@ function assertOnSurface(
           : "") +
         " — refusing to capture."
     );
+  }
+}
+
+/**
+ * Confirms the REAL RENDERED DOM of a captured Today state matches
+ * BLOCK_ORDER, in order (I1, whole-branch review 2026-08-12).
+ *
+ * WHY THIS EXISTS ON TOP OF block-order.test.ts. That file proved, by
+ * source inspection, that BLOCK_ORDER's object contains a property named
+ * `heroRecap:` (etc.) for each state — but the reviewer showed that
+ * replacing that property's VALUE with `null` (deleting the readiness
+ * recap from the evening state — exactly what "reorder, never hide" exists
+ * to prevent) left every existing test green. Nothing was checking what
+ * actually renders.
+ *
+ * page.tsx now stamps `data-block={key}` on the wrapper div for every
+ * BLOCK_ORDER entry, so this reads the real page's `[data-block]` elements
+ * and diffs their order against `BLOCK_ORDER[state]` — imported, not
+ * restated, so this can never drift from the list page.tsx itself claims
+ * to render from.
+ *
+ * This is a presence-and-order check, not a non-emptiness check: it would
+ * not by itself distinguish a wrapper that renders real content from one
+ * whose block happens to render nothing for this account's data (several
+ * blocks are legitimately null depending on account state — see
+ * block-order.ts's MOMENT_ONLY and the calibration/coach/raceChip guards
+ * in page.tsx). What it DOES catch is the DOM's structure drifting from
+ * BLOCK_ORDER at all — a dropped, duplicated, or reordered wrapper — which
+ * is the class of bug a source-only test cannot see. Complements, not
+ * replaces, assertTodayStatesDiffer's checksum: that catches "?state=
+ * stopped taking effect" (three identical renders); this catches "the DOM
+ * stopped matching BLOCK_ORDER" even when the three captures still differ
+ * from each other. Keep both — belt and braces.
+ *
+ * Fails the run the way assertTodayStatesDiffer does — console.error plus
+ * process.exitCode = 1 — rather than throwing, so a mismatch on one
+ * surface does not abort the rest of the run's diagnostics.
+ */
+async function assertBlockOrder(
+  page: Page,
+  surfaceName: string,
+  state: TodayState
+): Promise<void> {
+  const expected = BLOCK_ORDER[state];
+  const actual = await page.evaluate(() =>
+    Array.from(document.querySelectorAll("[data-block]")).map((el) =>
+      el.getAttribute("data-block")
+    )
+  );
+  const matches =
+    actual.length === expected.length &&
+    actual.every((key: string | null, i: number) => key === expected[i]);
+  if (!matches) {
+    console.error(
+      `\nBLOCK ORDER MISMATCH capturing "${surfaceName}": ` +
+        `BLOCK_ORDER.${state} names [${expected.join(", ")}], but the ` +
+        `rendered page's [data-block] wrappers were [${actual.join(", ")}]. ` +
+        `page.tsx's rendered DOM has drifted from ` +
+        `src/lib/today/block-order.ts's BLOCK_ORDER — a block was dropped, ` +
+        `duplicated, or reordered without BLOCK_ORDER changing to match, ` +
+        `or vice versa.`
+    );
+    process.exitCode = 1;
   }
 }
 
@@ -554,6 +698,8 @@ async function captureWithRetry(
       await forceThemeVerified(page, dark);
       await page.screenshot({ path: filePath, fullPage: true });
       await auditPage(page, surfaceName, theme, vpName);
+      const todayState = TODAY_STATE_BY_SURFACE[surfaceName];
+      if (todayState) await assertBlockOrder(page, surfaceName, todayState);
       return;
     } catch (err) {
       if (attempt === 2) throw err;
@@ -829,6 +975,8 @@ async function main() {
   // insurance that the very last entry's totals are on disk too.
   writeReport();
   console.log(`axe report (${axeReport.length} entries) → ${axeReportPath}`);
+
+  assertTodayStatesDiffer();
 
   const totals = computeTotals(axeReport);
   const withConfirmed = axeReport.filter((e) => e.confirmed.length > 0);

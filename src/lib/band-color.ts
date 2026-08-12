@@ -17,3 +17,19 @@ export const BAND_GLOW: Record<Band, string> = {
   red: "rgba(239,68,68,0.2)",
   calibrating: "rgba(255,255,255,0.08)",
 };
+
+/** Band as TEXT. Governed by today-hero's contrast test — see that file. */
+export const BAND_TEXT: Record<Band, string> = {
+  green: "text-chart-2",
+  amber: "text-chart-3",
+  red: "text-chart-5",
+  calibrating: "text-ink-muted",
+};
+
+/** Band as an SVG stroke. Non-text, so the 3:1 minimum applies, not 4.5:1. */
+export const BAND_STROKE: Record<Band, string> = {
+  green: "stroke-chart-2",
+  amber: "stroke-chart-3",
+  red: "stroke-chart-5",
+  calibrating: "stroke-hairline",
+};

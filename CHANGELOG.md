@@ -1,5 +1,89 @@
 # Changelog
 
+## v0.100.0 — 2026-08-12 — Today knows what time it is (Phase 2b.4, slice 1 of 10)
+
+**The first redesigned surface.** Today becomes state-aware: same route, same
+blocks, same numbers — only the order and the emphasis change. Morning leads
+with readiness. After a session lands, the ride leads. In the evening, the
+day's log leads. Nothing is a new figure; every number here was already
+computed and displayed somewhere in the app.
+
+**The measured finding that justifies the post-session state.**
+`/activity/[id]` was reachable from exactly two places — a row inside Train →
+History, and the debrief sheet's close link. Seeing your own laps and streams
+after a ride cost Today → Train → History → find the row → tap. Four
+activities landed in the telemetry window and the athlete took that path
+**zero** times. Today's new "Just landed" block is the first direct route into
+that page that does not run through Train.
+
+**Today never fetches.** The block appears exactly when the stream cache is
+cold, so a naive implementation would have put a third-party intervals.icu
+call and a write burst on the app's most-loaded surface. `getCachedActivityDetail`
+is a read-only sibling that returns what is cached and never calls out; a cold
+cache simply means no stream sparklines, and the CTA warms it on the
+destination page where the wait is expected. That property now has its own
+DB-gated regression test, because it is the whole reason the function exists.
+
+**Reorder, never hide.** No state may make content unreachable that another
+state shows. `src/lib/today/block-order.ts` owns the sequence and is tested
+against _concepts_ rather than raw keys — `heroFull`/`heroCompact`/`heroRecap`
+are one block at three emphases. Writing that test immediately caught that
+tomorrow's session is a different **day**, not another emphasis of today's,
+which is why the evening legitimately renders both.
+
+**Three untested components now have tests** — `today-hero` (which renders the
+readiness ring, the app's primary number), `week-row` and `session-card`. That
+closes a standing 2b.4 rider from v0.98.0.
+
+**Four defects the whole-branch review caught, each proven by execution:**
+
+1. `variant="done"` announced "✓ Done" for **any** slot during the
+   post-session window — a 20-minute commute would have Today claim a planned
+   90-minute threshold session was complete, while removing the "Mark done"
+   and move/swap/skip controls that would let the athlete correct it.
+2. The 12px floor collided the four-across vitals grid inside the morning
+   desktop column. Fixed with a container query, not by shrinking type.
+3. Today's first-run onboarding branch was never migrated — invisible to every
+   capture, because they all ran against an account that has data.
+4. "Today's log" could describe a ride from up to 47 hours earlier: the
+   post-session window deliberately spans midnight, so it cannot also be
+   trusted to mean "today". The day log now carries its own local-day filter.
+
+**Two defects only a human eye could find.** The sync micro-label rendered
+near-invisible in light mode, and the week strip's day labels collided into
+"MOTUWETHFRSASU" once the floor widened them. Axe reports neither: over this
+app's gradient backgrounds `color-contrast` resolves as _indeterminate_, which
+never gates. Today measures **0 confirmed axe nodes in dark** across all three
+states and both viewports, and it measured that while both defects were live.
+
+**A shared formatter, because two copies had already diverged.** Sleep debt
+was formatted by one function in `page.tsx` and a corrected copy in the new
+bed-by card; they disagreed on 442 of 6631 minute-values (6.7%) through a
+floating-point rounding difference, and both render on the evening screen.
+`formatSleepDebt` now lives in `src/lib/sleep-debt.ts` and both call sites use
+it.
+
+**A new token, `--coach-ink`.** The mockup paints coach text and the race
+outlook with `--chart-4`, which is 4.16:1 on `--surface-raised` in dark —
+below the floor this release exists to enforce, and invisible to both guards
+(the contrast guard waives `--chart-*` by name; the type-scale guard's AA
+floor reads inline styles only). The `--*-ink` suffix puts the new token under
+the contrast guard automatically, with no list to maintain.
+
+**Offender counts, the per-slice evidence:** arbitrary type sizes **395 → 351**,
+ad-hoc `white`/`black` alpha utilities **806 → 738**.
+
+**Scope, stated plainly.** Two shared components changed because Today embeds
+them: `week-strip.tsx` (also on Train) and `race-chip.tsx`, whose block spacing
+moved to its call sites — Train's own call site was updated to keep its layout
+byte-identical. No route, nav, layout or middleware file was touched. Light
+mode stays unreachable (`forcedTheme="dark"`) until slice 9.
+
+**Known and deliberately not fixed here:** `today/checkin-sheet.tsx` is still
+dark-only and below the floor (it is an overlay, never captured), and
+`sidebar-nav.tsx`'s avatar is a live light-mode contrast failure on eight
+surfaces — pre-existing, shared chrome, and not this slice's to migrate.
+
 ## v0.99.0 — 2026-08-12 — The app you can read (Phase 2b.4, slice 0 of 10)
 
 **This is the system, not the redesign. No surface was redesigned.** Phase 2b.4
