@@ -121,6 +121,72 @@ function offenders(pattern: RegExp): string[] {
   return found;
 }
 
+/** Total individual matches, not offending lines — one line can hold several. */
+function occurrences(pattern: RegExp): number {
+  let total = 0;
+  for (const file of walk(SRC)) {
+    for (const content of readFileSync(file, "utf8").split("\n")) {
+      total += content.match(new RegExp(pattern.source, "g"))?.length ?? 0;
+    }
+  }
+  return total;
+}
+
+/* ── THE RATCHET (I5, whole-branch review 2026-08-11) ───────────────────────
+ * The two `it.fails` assertions below are deliberate and stay — the offenders
+ * cannot be gone until the last surface migrates. But `it.fails` passes on
+ * ANY failure, and `[…395 offenders]` fails a `toEqual([])` exactly as well
+ * as `[…600 offenders]` does. So between slice 0 and slice 9 an implementer
+ * could ADD arbitrary type sizes and ad-hoc ink alphas freely — for eight
+ * slices, on a release whose entire premise is that these counts are too
+ * high — and this file would stay green. The only signal `it.fails` gives
+ * fires at exactly zero: the moment before the goal is met, and never once on
+ * the way there.
+ *
+ * These ceilings are the missing signal. Measured, pinned, and asserted by
+ * real `it()`s so a rise is a red suite immediately.
+ *
+ * TWO-SIDED ON PURPOSE. A pure upper bound goes stale: a slice that removes
+ * 300 offenders and leaves the ceiling at 395 hands the next implementer 300
+ * free offenders back. So each ceiling must also stay CLOSE to the real count
+ * — within RATCHET_SLACK — which forces the slice that drives a number down
+ * to re-pin it here. That re-pinning is the per-slice evidence the plan asks
+ * for ("the number each slice must drive down"), recorded in the one place a
+ * later slice cannot avoid reading.
+ *
+ * TO UPDATE: run the suite, read the actual count out of the failure message,
+ * and put it here. Lowering a ceiling is routine and needs no ceremony.
+ * RAISING one is a decision that needs a reason in the commit message, and
+ * on this release there is unlikely to be a good one.
+ */
+const RATCHET_SLACK = 25;
+const OFFENDER_CEILINGS: Record<string, number> = {
+  // 395 occurrences over 392 lines in 77 files, measured 2026-08-12 at slice 0.
+  // 26 distinct sizes; 284 of the 395 are ≤11px and 36 are ≤9px.
+  "arbitrary type sizes": 395,
+  // 806 occurrences over 583 lines in 86 files, measured 2026-08-12 at slice 0.
+  // 18 distinct alphas on `text-white` alone.
+  "ad-hoc white/black alpha utilities": 806,
+};
+
+function expectRatchet(name: string, pattern: RegExp): void {
+  const ceiling = OFFENDER_CEILINGS[name];
+  const actual = occurrences(pattern);
+  expect(
+    actual,
+    `${name}: ${actual} occurrences, ceiling ${ceiling}. This count must ` +
+      `only ever go DOWN. If you added one, use the type/ink scale instead; ` +
+      `the sibling it.fails cannot catch you because it fails either way.`
+  ).toBeLessThanOrEqual(ceiling);
+  expect(
+    ceiling - actual,
+    `${name}: the ceiling (${ceiling}) is now ${ceiling - actual} above the ` +
+      `real count (${actual}), which is more than RATCHET_SLACK ` +
+      `(${RATCHET_SLACK}) — that headroom is free offenders for the next ` +
+      `slice. Re-pin OFFENDER_CEILINGS["${name}"] to ${actual}.`
+  ).toBeLessThanOrEqual(RATCHET_SLACK);
+}
+
 /**
  * This file's own blind spot, closed (Task 6b, 2026-08-11): everything above
  * scans src/**\/*.tsx because Tailwind only compiles classes that appear
@@ -382,18 +448,35 @@ describe("type-scale guard", () => {
   // TODO(slice-9): flip to `it(` once the last surface is migrated. Tracked
   // in docs/plans/2026-08-11-v099-slice0-foundations.md. Do NOT delete these
   // — a skipped guard that is deleted is a guard that never lands.
+  //
+  // This one is paired with a real ratcheted assertion below (I5). On its own
+  // it is satisfied by ANY non-empty offender list, so it cannot tell 395
+  // offenders from 600 and would stay green for eight slices while the count
+  // rose. The ceiling is what actually binds until this flips.
   it.fails("has no arbitrary type sizes — use the scale", () => {
     expect(offenders(ARBITRARY_TYPE), "use text-label … text-hero").toEqual([]);
+  });
+
+  it("arbitrary type sizes stay at or below the recorded ceiling", () => {
+    expectRatchet("arbitrary type sizes", ARBITRARY_TYPE);
   });
 
   // TODO(slice-9): flip to `it(` once the last surface is migrated. Tracked
   // in docs/plans/2026-08-11-v099-slice0-foundations.md. Do NOT delete these
   // — a skipped guard that is deleted is a guard that never lands.
+  //
+  // Same pairing as above: the it.fails proves the goal is not met yet, the
+  // ratchet below is the only thing that notices the count moving the wrong
+  // way in the meantime.
   it.fails("has no ad-hoc white/black alpha utilities — use the tokens", () => {
     expect(
       offenders(ADHOC_INK),
       "use ink-primary / ink-secondary / ink-muted / hairline / surface-*"
     ).toEqual([]);
+  });
+
+  it("ad-hoc ink alphas stay at or below the recorded ceiling", () => {
+    expectRatchet("ad-hoc white/black alpha utilities", ADHOC_INK);
   });
 
   // Unlike the two guards above, this one has zero offenders today — nothing
