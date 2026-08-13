@@ -154,7 +154,14 @@ function occurrences(pattern: RegExp): number {
  */
 const RATCHET_SLACK = 25;
 const OFFENDER_CEILINGS: Record<string, number> = {
-  // 190 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 4 —
+  // 185 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 5 —
+  // body-battery.tsx migrated 5 text-[Npx] sites: the modelled-from line
+  // (text-[11px] → text-label), both tag-pill branches' text-[9px], hoisted
+  // into one BatteryTags component and reduced to a single text-label
+  // occurrence, the checkpoint grid wrapper's text-[10px] (dropped, the
+  // token now lives on the tile's own label/value spans) and the axis row's
+  // text-[10px] → text-label.
+  // Was 190 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 4 —
   // the Sleep tab (sleep-night-card.tsx, sleep-history-strip.tsx and
   // page.tsx's consistency/chronotype rhythm row) migrated 14 text-[Npx]
   // sites: sleep-night-card.tsx's heading eyebrow (9.5px → label-micro), the
@@ -232,8 +239,21 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // week-day-list.tsx and page.tsx are all token utilities, so the count did
   // not move there), 343 after task 2, 351 after the whole-branch-review
   // fixes, 355 right after slice 1, 395 at slice 0.
-  "arbitrary type sizes": 190,
-  // 428 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 4 —
+  "arbitrary type sizes": 185,
+  // 414 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 5 —
+  // body-battery.tsx migrated 14 text-white/N, bg-white/N and border-white/N
+  // sites: the unavailable-state paragraph's text-white/50 (→
+  // text-ink-muted), both tag-pill branches' border-white/10 + bg-white/5 +
+  // text-white/55 trio (6 matches total), hoisted into the single
+  // BatteryTags component and reduced to zero — border-hairline,
+  // bg-surface-overlay and text-ink-secondary carry no ad-hoc alpha; the
+  // "% now" readout's text-white/80 (→ text-ink-secondary); the
+  // modelled-from line's text-white/40 (→ text-ink-muted); the checkpoint
+  // tile's border-white/10 + bg-white/5 (→ border-hairline +
+  // bg-surface-overlay), its label's text-white/35 and value's text-white/85
+  // (both → the ink scale); and the axis row's text-white/50 (→
+  // text-ink-muted).
+  // Was 428 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 4 —
   // the same three files migrated 27 text-white/N, bg-white/N and
   // border-white/N sites: sleep-night-card.tsx (13) — the card wrapper's
   // border-white/[0.08] + bg-white/[0.03] (→ `glass`), the heading ink, both
@@ -318,7 +338,7 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // fuelling tile that moved to `bg-surface-overlay`). 709 after task 4,
   // for the same reason task 4 didn't move it — 729 after task 2, 738 after
   // the whole-branch-review fixes, 749 right after slice 1, 806 at slice 0.
-  "ad-hoc white/black alpha utilities": 428,
+  "ad-hoc white/black alpha utilities": 414,
 };
 
 function expectRatchet(name: string, pattern: RegExp): void {
