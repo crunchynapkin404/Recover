@@ -4,6 +4,18 @@ import { renderToString } from "react-dom/server";
 import type { SeasonTimelinePoint } from "@/lib/charts";
 import { SeasonTimelineCard } from "./season-timeline-card";
 
+/**
+ * The component's own `weekLabel` is module-private, so this mirrors it
+ * rather than importing it. Deliberately a mirror and not a hardcoded
+ * "Mar 22": if the fixture's last week moves, the expectation moves with
+ * it, and if the component's date formatting changes this diverges and the
+ * test says so — which is the whole point of asserting on the last tick.
+ */
+function expectedWeekLabel(weekStart: string): string {
+  const d = new Date(`${weekStart}T00:00:00`);
+  return `${d.toLocaleDateString("en-US", { month: "short" })} ${d.getDate()}`;
+}
+
 // Mirrors docs/design/v0.99-train.html#season's fixture figures exactly
 // (Wk 1 480/460/5 through Wk 12 580/412/5) so the test fixture and the
 // design reference describe the same twelve weeks. weekStart values are
@@ -137,8 +149,16 @@ describe("SeasonTimelineCard — restructured for the floor (v0.99 slice 2)", ()
     // 12 bars, 4 ticks: weeks 1, 4, 7, 10 — plus the last week, which is
     // always labelled because the detail line names it.
     const ticks = html.match(/data-axis-tick/g) ?? [];
-    expect(ticks.length).toBeGreaterThanOrEqual(4);
-    expect(ticks.length).toBeLessThanOrEqual(5);
+    expect(ticks).toHaveLength(5);
+
+    // Pin the LAST week specifically. The count alone does not: dropping
+    // `|| i === data.length - 1` leaves ticks at 0/3/6/9 — still four, still
+    // inside any range bound, and the one label the detail readout names
+    // would be the one silently missing.
+    const lastLabel = expectedWeekLabel(
+      TWELVE_WEEKS[TWELVE_WEEKS.length - 1].weekStart
+    );
+    expect(html).toMatch(new RegExp(`data-axis-tick[^>]*>${lastLabel}<`));
   });
 
   it("carries no per-bar session-count label", () => {
