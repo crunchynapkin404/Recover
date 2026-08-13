@@ -154,6 +154,19 @@ function occurrences(pattern: RegExp): number {
  */
 const RATCHET_SLACK = 25;
 const OFFENDER_CEILINGS: Record<string, number> = {
+  // 137 occurrences, unchanged, measured 2026-08-13 after v0.102 (Body slice)
+  // task 11 (the sweep) — re-pinned, not moved. Task 11's own sweep grep,
+  // scoped to every file that renders on any of Body's four tabs (not just
+  // src/components/body/), found TOTAL 0 0 for both patterns across:
+  // src/app/body/page.tsx, src/components/body/*.tsx,
+  // src/components/app-shell.tsx, src/components/bottom-nav.tsx,
+  // src/components/sidebar-nav.tsx, src/components/ui/empty-state.tsx,
+  // src/components/ui/collapsible.tsx. journal-form.tsx's mood-picker emoji
+  // size (bare text-2xl, an un-tokenised Tailwind step this pattern's own
+  // regex — text-\[…px|rem|em\] — cannot see, since it only matches arbitrary
+  // bracket values) was migrated to text-heading, its exact 24px equivalent;
+  // that fix does not move this count either, for the same reason. See the
+  // sibling ceiling below for the ad-hoc-alpha half of this task's sweep.
   // 137 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 10 —
   // health-upload.tsx and health-manual-entry.tsx (both folded behind
   // Collapsible in the same task) migrated 13 text-[Npx] sites:
@@ -301,6 +314,25 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // not move there), 343 after task 2, 351 after the whole-branch-review
   // fixes, 355 right after slice 1, 395 at slice 0.
   "arbitrary type sizes": 137,
+  // 311 occurrences, unchanged, measured 2026-08-13 after v0.102 (Body slice)
+  // task 11 (the sweep) — re-pinned, not moved. Task 11's own sweep grep
+  // (same file list as the sibling ceiling above: src/app/body/page.tsx,
+  // src/components/body/*.tsx, src/components/app-shell.tsx,
+  // src/components/bottom-nav.tsx, src/components/sidebar-nav.tsx,
+  // src/components/ui/empty-state.tsx, src/components/ui/collapsible.tsx)
+  // found TOTAL 0 0 for both patterns. journal-form.tsx's CheckCircle badge
+  // on the "Subjective feeling" step (text-emerald-500 → text-chart-2) was
+  // migrated in the same commit — an unguarded colour literal this pattern's
+  // own regex cannot see, since it only matches white/black alpha utilities,
+  // not a bare Tailwind palette colour — so it does not move this count
+  // either. Two items checked and deliberately left: .tag-active on the
+  // journal's tag/day-flag pills (journal-form.tsx) hardcodes the dark accent
+  // as a recorded deferral to slice 9 (docs/v0.99-redesign-handoff.md), and
+  // ui/unavailable.tsx's one text-white/50 belongs to its <Unavailable>
+  // component, which no Body file renders — confirmed with
+  // `grep -rn "<Unavailable" src/`, which finds it only in
+  // unavailable.test.tsx — Body calls only the unavailableMessage() string
+  // helper. Neither is this task's to fix.
   // 311 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 10 —
   // health-upload.tsx and health-manual-entry.tsx migrated 35 text-white/N,
   // bg-white/N and border-white/N sites: health-upload.tsx (19) — the intro

@@ -270,7 +270,7 @@ export function JournalForm({
           <CollapsibleTrigger
             badge={
               selectedMood != null ? (
-                <CheckCircle aria-hidden className="size-4 text-emerald-500" />
+                <CheckCircle aria-hidden className="size-4 text-chart-2" />
               ) : undefined
             }
           >
@@ -293,7 +293,7 @@ export function JournalForm({
                     setSelectedMood(selectedMood === i ? null : i);
                     setActiveStep("sliders");
                   }}
-                  className={`text-2xl transition-all ${
+                  className={`text-heading transition-all ${
                     selectedMood === i
                       ? "rounded-full ring-2 ring-accent p-1"
                       : "grayscale hover:grayscale-0"
