@@ -57,6 +57,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import {
   CSS_PATH,
+  readScaleTokens,
   readThemeTokens,
   renderableThemes,
   resolveToken,
@@ -76,21 +77,13 @@ import {
   styleValueColors,
 } from "../src/lib/design/inline-styles";
 import { contrastRatio } from "../src/lib/design/contrast";
+import {
+  ARBITRARY_TYPE,
+  ADHOC_INK,
+} from "../src/lib/design/type-scale-patterns";
 
 const SRC = join(process.cwd(), "src");
 
-/** Arbitrary type sizes: text-[10px], text-[0.75rem]. */
-const ARBITRARY_TYPE = /\btext-\[[^\]]*(?:px|rem|em)\]/g;
-/**
- * Ad-hoc ink: text-white/40, bg-white/5, border-white/10, ring-white/50,
- * divide-white/5, and Tailwind's bracket arbitrary-opacity syntax —
- * bg-white/[0.06]. Both opacity syntaxes and both the ring/divide prefixes
- * are live in src/ today (138 bracket-syntax and 8 ring/divide occurrences
- * respectively as of v0.99.0) — a pattern that misses either would let real
- * offenders through undetected.
- */
-const ADHOC_INK =
-  /\b(?:text|bg|border|fill|stroke|ring|divide)-(?:white|black)\/(?:\d+|\[[^\]]+\])/g;
 /** hairline is a non-text token; using it as text colour is the one misuse. */
 const HAIRLINE_AS_TEXT = /\btext-hairline\b/g;
 
@@ -337,6 +330,19 @@ const RENDERABLE_THEMES = renderableThemes();
 const RESOLVED_TOKENS = resolvedThemeTokens(GLOBALS_CSS);
 const RAW_TOKENS = readThemeTokens(GLOBALS_CSS);
 
+/**
+ * C1, whole-branch review 2026-08-12: the floor token values themselves,
+ * not a copy of them. This used to be a hand-written `SCALE_PX` literal —
+ * changing `--text-label` in globals.css could not turn this file red,
+ * because nothing here read the CSS. Demonstrated: dropping `--text-label`
+ * to 0.625rem (10px) in globals.css and re-running the old literal table
+ * produced zero offenders. Parsed fresh out of the `@theme inline { … }`
+ * block on every run instead, so it cannot go stale relative to what ships.
+ * `readScaleTokens` itself throws on a `--text-*` it cannot resolve to px —
+ * see its doc comment in src/lib/design/tokens.ts.
+ */
+const SCALE_PX = readScaleTokens(GLOBALS_CSS);
+
 /** Every opaque ground a theme declares — what a ratio is measured against. */
 function surfacesOf(theme: ThemeName): string[] {
   const hexes = [
@@ -561,31 +567,38 @@ describe("type-scale guard", () => {
     ).toEqual(INLINE_COLOR_INVENTORY);
   });
 
+  // The assertion that did not exist before this fix: every parsed scale
+  // token held to the floor in its OWN right, independent of whether
+  // anything in globals.css currently references it via var(). Without
+  // this, a floor token could drop below 12px and nothing here would
+  // notice until (if ever) a font-size: var(--text-x) declaration happened
+  // to use it.
+  it("every --text-* scale token is at or above the 12px floor", () => {
+    const offenders = Object.entries(SCALE_PX)
+      .filter(([, px]) => px < 12)
+      .map(([token, px]) => `${token}: ${px}px`);
+    expect(offenders, offenders.join("\n")).toEqual([]);
+  });
+
   /**
    * The floor is a property of the app, not of Tailwind. `.label-micro`
    * hardcoded `font-size: 10px` right through slices 0 and 1 — a second,
    * uncoordinated floor that no utility scan could see, backing labels on
    * seven surfaces. This reads every font-size declaration in the file,
-   * resolves the ones written as tokens, and holds them all to 12px.
+   * resolves the ones written as tokens, and holds them all to 12px. An
+   * unknown `--text-*` token (typo, renamed, never declared) fails loudly
+   * as "unresolvable" rather than silently passing on `undefined < 12`
+   * being false.
    */
   it("declares no font-size below the 12px floor in globals.css", () => {
-    const css = readFileSync(CSS_PATH, "utf8");
-    const SCALE_PX: Record<string, number> = {
-      "--text-label": 12,
-      "--text-caption": 14,
-      "--text-body": 16,
-      "--text-title": 20,
-      "--text-heading": 24,
-      "--text-figure": 30,
-      "--text-hero": 44,
-    };
+    const css = GLOBALS_CSS;
     const found: string[] = [];
     for (const m of css.matchAll(/^\s*font-size:\s*([^;]+);/gm)) {
       const raw = m[1].trim();
       const line = css.slice(0, m.index).split("\n").length;
-      const tokenMatch = /^var\((--text-[a-z]+)\)$/.exec(raw);
+      const tokenMatch = /^var\((--text-[a-z-]+)\)$/.exec(raw);
       const px = tokenMatch
-        ? SCALE_PX[tokenMatch[1]]
+        ? (SCALE_PX[tokenMatch[1]] ?? null)
         : /^([\d.]+)px$/.test(raw)
           ? Number(/^([\d.]+)px$/.exec(raw)![1])
           : /^([\d.]+)rem$/.test(raw)
