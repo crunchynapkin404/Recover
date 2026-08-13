@@ -1,6 +1,7 @@
 import type { BioAgeResult } from "@/lib/biological-age";
 import type { Figure } from "@/lib/uncertainty";
 import { unavailableMessage } from "@/components/ui/unavailable";
+import { BioAgeCard } from "@/components/body/bio-age-card";
 
 interface Props {
   bioAge: Figure<BioAgeResult>;
@@ -60,5 +61,29 @@ export function LabsTiles({ bioAge, biomarkerCount, lastDraw }: Props) {
         </p>
       </div>
     </div>
+  );
+}
+
+/**
+ * The Labs headline (F2, v0.102 task 12, browser pass): the two summary
+ * tiles, plus the bio-age breakdown card — but only when there's an
+ * estimate to break down. `unavailableMessage(bioAge)` is a single string;
+ * calling it from both `LabsTiles` and `BioAgeCard` printed the identical
+ * sentence twice, adjacent, on the missing-input path (Task 11's duplicate
+ * scan checked the bio-age *figure* renders once and missed that the
+ * *sentence* does not). In the unavailable case `BioAgeCard` has nothing to
+ * add — no components to break down — so it's skipped rather than shown
+ * with hideHeadline; the tile above already names what's missing. In the
+ * available case both render, same as before: the tile carries the figure,
+ * the card (hideHeadline) carries the component offsets that drive it.
+ */
+export function LabsHeadline(props: Props) {
+  return (
+    <>
+      <LabsTiles {...props} />
+      {props.bioAge.available && (
+        <BioAgeCard result={props.bioAge} hideHeadline />
+      )}
+    </>
   );
 }

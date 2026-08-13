@@ -8,11 +8,10 @@ import { SleepNightCard } from "@/components/body/sleep-night-card";
 import { SleepHistoryStrip } from "@/components/body/sleep-history-strip";
 import { selectNight } from "@/lib/sleep-history";
 import { CorrelationRows } from "@/components/body/correlation-rows";
-import { LabsTiles } from "@/components/body/labs-tiles";
+import { LabsHeadline } from "@/components/body/labs-tiles";
 import { BodyBatteryCurve } from "@/components/body/body-battery";
 import { MilestonesCard } from "@/components/body/milestones-card";
 import { JournalForm } from "@/components/body/journal-form";
-import { BioAgeCard } from "@/components/body/bio-age-card";
 import { BloodPressureCard } from "@/components/body/blood-pressure-card";
 import { HealthUpload } from "@/components/body/health-upload";
 import { HealthManualEntry } from "@/components/body/health-manual-entry";
@@ -771,12 +770,11 @@ async function LabsTab({ userId }: { userId: string }) {
 
   return (
     <div className="space-y-4 pb-10">
-      <LabsTiles
+      <LabsHeadline
         bioAge={bioAge}
         biomarkerCount={latest.length}
         lastDraw={biomarkerRows[0]?.measuredAt ?? null}
       />
-      <BioAgeCard result={bioAge} hideHeadline />
       <BloodPressureCard trend={trend} />
       <BiomarkerList rows={latest} />
       {/* Entry, not reading — folded, and last. */}
