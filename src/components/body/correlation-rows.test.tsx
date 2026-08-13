@@ -26,7 +26,7 @@ describe("CorrelationRows", () => {
       />
     );
     expect(html).toContain("25% ± 5 next-day");
-    expect(html).toContain("text-red-400");
+    expect(html).toContain("text-chart-5");
   });
 
   it("renders strong evidence with no effect as a finding, not as unavailable", () => {
@@ -67,10 +67,13 @@ describe("CorrelationRows", () => {
         ]}
       />
     );
-    // Check the badge styling specifically, not the shared header
-    expect(noEffect).toContain("text-white/70");
+    // Check the badge styling specifically, not the shared header (both rows
+    // share a "text-ink-secondary" behaviour name) — the badges themselves
+    // sit on different ink steps and weights, as well as different wording.
+    expect(noEffect).toContain("font-medium text-ink-secondary");
     expect(noEffect).toContain("No detectable effect");
-    expect(calibrating).toContain("text-white/40");
+    expect(calibrating).toContain("shrink-0 text-label text-ink-muted");
+    expect(calibrating).not.toContain("font-medium");
     expect(calibrating).toContain("Calibrating");
   });
 
@@ -85,5 +88,17 @@ describe("CorrelationRows", () => {
     );
     expect(html).not.toContain("inconclusive");
     expect(html).not.toContain("limited evidence");
+  });
+
+  it("holds the floor, and keeps the three verdicts visually distinct", () => {
+    const html = renderToString(
+      <CorrelationRows
+        insights={[insight({ conclusive: true, impactPct: -25 })]}
+      />
+    );
+    expect(html).not.toMatch(/text-\[\d/);
+    expect(html).not.toContain("text-white/");
+    // A real positive finding is the good tone; a real negative is the bad one.
+    expect(html).toMatch(/text-chart-2|text-chart-5/);
   });
 });

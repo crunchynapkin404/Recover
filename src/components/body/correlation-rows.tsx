@@ -11,21 +11,19 @@ import { unavailableMessage } from "@/components/ui/unavailable";
 export function CorrelationRows({ insights }: { insights: TagInsight[] }) {
   if (insights.length === 0) return null;
   return (
-    <section className="mb-3 rounded-[18px] border border-white/[0.08] bg-white/[0.03] p-4">
-      <h3 className="mb-2 text-[9.5px] font-bold uppercase tracking-[0.15em] text-white/40">
-        90-day correlations
-      </h3>
+    <section className="glass mb-3 rounded-[18px] p-4">
+      <h3 className="label-micro mb-2">90-day correlations</h3>
       <ul>
         {insights.map((c) => (
           <li
             key={`${c.emoji}${c.behavior}`}
-            className="flex items-center justify-between gap-3 border-b border-white/[0.06] py-2.5 last:border-0"
+            className="flex items-center justify-between gap-3 border-b border-hairline py-2.5 last:border-0"
           >
-            <span className="flex min-w-0 items-center gap-2 text-[12px] text-white/85">
+            <span className="flex min-w-0 items-center gap-2 text-caption text-ink-secondary">
               <span aria-hidden>{c.emoji}</span>
               <span className="truncate capitalize">{c.behavior}</span>
               {c.auto && (
-                <span className="shrink-0 text-[9px] font-bold uppercase tracking-wider text-white/30">
+                <span className="shrink-0 text-label font-bold uppercase tracking-wider text-ink-muted">
                   auto
                 </span>
               )}
@@ -43,7 +41,7 @@ function CorrelationBadge({ insight: c }: { insight: TagInsight }) {
 
   if (!figure.available) {
     return (
-      <span className="shrink-0 text-[11px] text-white/40">
+      <span className="shrink-0 text-label text-ink-muted">
         {unavailableMessage(figure)} · {c.events} events
       </span>
     );
@@ -51,7 +49,7 @@ function CorrelationBadge({ insight: c }: { insight: TagInsight }) {
 
   if (figure.value.noEffect) {
     return (
-      <span className="shrink-0 text-[11.5px] font-medium text-white/70">
+      <span className="shrink-0 text-label font-medium text-ink-secondary">
         No detectable effect · {c.events} events
       </span>
     );
@@ -59,8 +57,8 @@ function CorrelationBadge({ insight: c }: { insight: TagInsight }) {
 
   return (
     <span
-      className={`shrink-0 text-[11.5px] font-bold ${
-        figure.value.impactPct > 0 ? "text-emerald-400" : "text-red-400"
+      className={`shrink-0 text-label font-bold ${
+        figure.value.impactPct > 0 ? "text-chart-2" : "text-chart-5"
       }`}
     >
       {`${figure.value.impactPct > 0 ? "+" : "−"}${Math.abs(figure.value.impactPct)}% ± ${figure.value.ciHalfWidthPct} next-day`}

@@ -154,7 +154,19 @@ function occurrences(pattern: RegExp): number {
  */
 const RATCHET_SLACK = 25;
 const OFFENDER_CEILINGS: Record<string, number> = {
-  // 169 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 7 —
+  // 163 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 8 —
+  // correlation-rows.tsx migrated its 6 text-[Npx] sites: the "90-day
+  // correlations" heading eyebrow (text-[9.5px] → label-micro), the
+  // behaviour-name row (text-[12px] → text-caption), the "auto" marker
+  // (text-[9px] → text-label) and the three badge states — unavailable
+  // (text-[11px]), no-effect (text-[11.5px]) and the signed finding
+  // (text-[11.5px]) — all three collapsed onto the one text-label size, the
+  // three states now told apart by wording and ink/weight alone
+  // (unavailable: text-ink-muted; no effect: font-medium text-ink-secondary;
+  // finding: font-bold text-chart-2/text-chart-5). milestones-card.tsx had
+  // no arbitrary sizes to begin with (it used text-xs), so it does not move
+  // this count.
+  // Was 169 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 7 —
   // journal-form.tsx migrated the rest of the file (the manual-vitals
   // panel, behavior tags, day flags, notes and the submit button) and
   // dropped 10 text-[Npx] sites: the vitals intro paragraph and its four
@@ -255,8 +267,25 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // week-day-list.tsx and page.tsx are all token utilities, so the count did
   // not move there), 343 after task 2, 351 after the whole-branch-review
   // fixes, 355 right after slice 1, 395 at slice 0.
-  "arbitrary type sizes": 169,
-  // 377 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 7 —
+  "arbitrary type sizes": 163,
+  // 366 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 8 —
+  // correlation-rows.tsx migrated 8 text-white/N, bg-white/N and
+  // border-white/N sites: the card wrapper's border-white/[0.08] +
+  // bg-white/[0.03] (→ `glass`), the row divider's border-white/[0.06] (→
+  // `border-hairline`), the behaviour-name ink (text-white/85 →
+  // text-ink-secondary), the "auto" marker (text-white/30 → text-ink-muted)
+  // and the heading eyebrow (text-white/40, dropped with the move to
+  // `label-micro`) plus the unavailable and no-effect badges' text-white/40
+  // and text-white/70 (→ text-ink-muted / text-ink-secondary). The signed
+  // finding badge's text-emerald-400/text-red-400 moved to
+  // text-chart-2/text-chart-5 but was never white/black alpha, so it does
+  // not move this count. milestones-card.tsx migrated 3 more: the row
+  // label's text-white/70 (→ text-ink-secondary), the em-dash placeholder's
+  // text-white/30 and the detail's text-white/40 (both → text-ink-muted —
+  // the per-pair override: the row label and its detail sat in different
+  // alpha buckets, and the quieter one takes ink-muted even though
+  // nearest-value would put it on ink-secondary).
+  // Was 377 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 7 —
   // journal-form.tsx migrated 26 text-white/N, bg-white/N and
   // border-white/N sites: the manual-vitals panel (17) — the intro
   // paragraph and four labels' text-white/50 (→ text-ink-muted), and each
@@ -387,7 +416,7 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // fuelling tile that moved to `bg-surface-overlay`). 709 after task 4,
   // for the same reason task 4 didn't move it — 729 after task 2, 738 after
   // the whole-branch-review fixes, 749 right after slice 1, 806 at slice 0.
-  "ad-hoc white/black alpha utilities": 377,
+  "ad-hoc white/black alpha utilities": 366,
 };
 
 function expectRatchet(name: string, pattern: RegExp): void {
