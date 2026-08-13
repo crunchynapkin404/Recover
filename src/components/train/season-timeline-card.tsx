@@ -67,7 +67,10 @@ export function SeasonTimelineCard({ data }: { data: SeasonTimelinePoint[] }) {
       <div className="mb-4 grid grid-cols-3 gap-2 text-label">
         <div className="rounded-xl border border-hairline bg-surface-overlay px-2.5 py-2">
           <p className="text-ink-muted">Latest target</p>
-          <p className="mt-1 font-numeric text-ink-primary">
+          <p
+            data-testid="latest-target-value"
+            className="mt-1 font-numeric text-ink-primary"
+          >
             {latest.targetLoad != null
               ? formatChartValue(latest.targetLoad)
               : "—"}
@@ -75,7 +78,10 @@ export function SeasonTimelineCard({ data }: { data: SeasonTimelinePoint[] }) {
         </div>
         <div className="rounded-xl border border-hairline bg-surface-overlay px-2.5 py-2">
           <p className="text-ink-muted">Latest actual</p>
-          <p className="mt-1 font-numeric text-ink-primary">
+          <p
+            data-testid="latest-actual-value"
+            className="mt-1 font-numeric text-ink-primary"
+          >
             {formatChartValue(latest.actualLoad)}
           </p>
         </div>
@@ -152,7 +158,10 @@ export function SeasonTimelineCard({ data }: { data: SeasonTimelinePoint[] }) {
         page has an explicit standing rule against showing one value twice.
         The tiles won that call because they also carry season adherence,
         which this line does not and could not without inventing a figure. */}
-      <p className="mt-3 text-caption text-ink-secondary">
+      <p
+        data-testid="latest-week-readout"
+        className="mt-3 text-caption text-ink-secondary"
+      >
         <span className="font-bold text-ink-primary">
           {weekLabel(latest.weekStart)}
         </span>

@@ -299,6 +299,12 @@ describe("WeekDayList", () => {
     expect(html).toContain("No availability set for next week");
     // No summary and no disclosure when there's nothing to preview.
     expect(html).not.toContain("<details");
+    // Finding 1 regression: this is the ONE state where the link matters
+    // most — the athlete has nothing set yet and needs a way to fix that.
+    // The sweep moved the link inside NextWeekSummary, which only renders
+    // in the OTHER (has-availability) branch, leaving this one a dead end.
+    expect(html).toContain('href="/train?availability=next"');
+    expect(html).toMatch(/Set next week/);
   });
 });
 

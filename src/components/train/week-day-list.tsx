@@ -4,6 +4,7 @@ import {
   type DayActionsOtherDay,
 } from "@/components/week/day-actions";
 import {
+  NextWeekAvailabilityNote,
   NextWeekDivider,
   NextWeekSummary,
 } from "@/components/train/next-week-summary";
@@ -262,9 +263,15 @@ export function WeekDayList({
         ) : (
           <>
             <NextWeekDivider />
-            <div className="px-4 py-3 text-caption text-ink-muted last:border-0">
+            <div className="px-4 py-3 text-caption text-ink-muted">
               No availability set for next week
             </div>
+            {/* This is the branch the link matters most in — the athlete
+                has nothing set yet, so this is the one dead end that would
+                actually strand them (Finding 1, Task 12 fix pass). */}
+            <NextWeekAvailabilityNote
+              availabilityHref={nextWeek.availabilityHref}
+            />
           </>
         ))}
     </section>

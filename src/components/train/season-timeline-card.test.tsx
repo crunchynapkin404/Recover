@@ -168,12 +168,41 @@ describe("SeasonTimelineCard — restructured for the floor (v0.99 slice 2)", ()
     expect(html).not.toMatch(/>no</);
   });
 
-  it("replaces them with one legible readout for the latest week", () => {
+  it("names the week and session count in the readout, without repeating the target/actual the tiles already show", () => {
+    // Part D deliberately dropped target/actual from the readout because
+    // the "Latest target" / "Latest actual" tiles above already render
+    // them — this test now protects THAT contract in both directions,
+    // rather than merely asserting the numbers appear somewhere in the
+    // whole document (which the per-bar chart `title` attributes alone
+    // would already satisfy, regardless of what the readout itself says).
     const html = renderToString(<SeasonTimelineCard data={TWELVE_WEEKS} />);
     const latest = TWELVE_WEEKS[TWELVE_WEEKS.length - 1];
-    expect(html).toContain(String(latest.actualLoad));
-    expect(html).toContain(String(latest.targetLoad));
-    expect(html).toMatch(/sessions?/);
+
+    const readout =
+      /<p data-testid="latest-week-readout"[^>]*>[\s\S]*?<\/p>/.exec(html);
+    expect(readout).not.toBeNull();
+    const readoutHtml = readout![0];
+
+    // The readout names the week and its session count…
+    expect(readoutHtml).toContain(expectedWeekLabel(latest.weekStart));
+    expect(readoutHtml).toMatch(
+      new RegExp(
+        `${latest.sessions} session${latest.sessions === 1 ? "" : "s"}`
+      )
+    );
+    // …and stops there — no target, no actual.
+    expect(readoutHtml).not.toContain(String(latest.targetLoad));
+    expect(readoutHtml).not.toContain(String(latest.actualLoad));
+
+    // The tiles still carry both figures — deduplicated, not deleted.
+    const targetTile =
+      /<p data-testid="latest-target-value"[^>]*>[\s\S]*?<\/p>/.exec(html);
+    const actualTile =
+      /<p data-testid="latest-actual-value"[^>]*>[\s\S]*?<\/p>/.exec(html);
+    expect(targetTile).not.toBeNull();
+    expect(actualTile).not.toBeNull();
+    expect(targetTile![0]).toContain(String(latest.targetLoad));
+    expect(actualTile![0]).toContain(String(latest.actualLoad));
   });
 
   it("keeps every week reachable on hover rather than dropping the data", () => {

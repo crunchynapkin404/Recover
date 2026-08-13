@@ -195,8 +195,10 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // fixes, 355 right after slice 1, 395 at slice 0.
   "arbitrary type sizes": 217,
   // 480 occurrences, measured 2026-08-13 after task 12 migrated 16
-  // text-white/N, bg-white/N and border-white/N sites across the two header
-  // switches, bottom-nav.tsx and block-sheet.tsx.
+  // text-white/N, bg-white/N and border-white/N sites: plan-style-switch.tsx
+  // (6) + season-mode-switch.tsx (8) + bottom-nav.tsx (2). block-sheet.tsx's
+  // diff that task was comment-only — its scrim is the one deliberate
+  // exclusion, not a migrated site.
   // Was 496 occurrences, measured 2026-08-13 after task 11 migrated 13
   // text-white/N, bg-white/N and border-white/N sites across
   // fitness-tiles.tsx (the tile card, which moved to `bg-surface-overlay`,

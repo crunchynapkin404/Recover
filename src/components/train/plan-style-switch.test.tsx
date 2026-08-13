@@ -18,11 +18,18 @@ describe("PlanStyleSwitch", () => {
     const html = renderToString(
       <PlanStyleSwitch effectiveStyle="block_lite" action={noop} />
     );
+    expect(html).toContain('name="style" value="balanced"');
+    expect(html).toContain('name="style" value="block_lite"');
     const balanced = /<button[^>]*>Balanced<\/button>/.exec(html);
     const blockLite = /<button[^>]*>Block-lite<\/button>/.exec(html);
     expect(balanced![0]).toContain('aria-pressed="false"');
     expect(blockLite![0]).toContain('aria-pressed="true"');
     expect(blockLite![0]).toContain("disabled");
+    // The load-bearing half: EXACTLY one of the two carries `disabled` — not
+    // both, not neither. A change that disabled both buttons (or neither)
+    // must fail this, which a check of only the active button cannot catch.
+    expect(balanced![0]).not.toContain("disabled");
+    expect(html.match(/disabled=""/g) ?? []).toHaveLength(1);
   });
 
   // The chip trap (Task 7 shipped it once): active and inactive must

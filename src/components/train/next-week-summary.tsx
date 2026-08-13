@@ -15,6 +15,30 @@ export function NextWeekDivider() {
 }
 
 /**
+ * The caveat-and-link line — shared by BOTH of week-day-list.tsx's next-week
+ * branches (with and without availability set), for the same "cannot drift
+ * apart" reason NextWeekDivider above exists. Deliberately rendered in both:
+ * an athlete who has NOT set next week's availability yet is the one who
+ * needs this link most, and a version reachable only from the has-summary
+ * branch would drop it in exactly that state (Finding 1, Task 12 fix pass).
+ */
+export function NextWeekAvailabilityNote({
+  availabilityHref,
+}: {
+  /** Where "Set next week's availability" goes. See NextWeekSummary. */
+  availabilityHref: string;
+}) {
+  return (
+    <p className="border-t border-hairline px-4 py-2.5 text-label text-ink-muted">
+      Assumes this week goes to plan. Firms up Monday.{" "}
+      <Link href={availabilityHref} className="text-accent underline">
+        Set next week&apos;s availability
+      </Link>
+    </p>
+  );
+}
+
+/**
  * Next week, collapsed to one row (v0.99 slice 2).
  *
  * Seven more full day rows — each provisional, each with its own badge —
@@ -41,11 +65,12 @@ export function NextWeekSummary({
   pinned: Record<string, boolean>;
   targetHours: number | null;
   /**
-   * Where "Set next week's availability" goes. Required, not optional:
-   * page.tsx used to render this link in a prose note beside the list, and
-   * that note is gone — it repeated this component's own two figures. An
-   * optional prop would let a caller drop the link silently and leave the
-   * athlete with no way to reach next week's availability from here.
+   * Where "Set next week's availability" goes, forwarded to
+   * NextWeekAvailabilityNote below. Required, not optional: page.tsx used
+   * to render this link in a prose note beside the list, and that note is
+   * gone — it repeated this component's own two figures. An optional prop
+   * would let a caller drop the link silently and leave the athlete with
+   * no way to reach next week's availability from here.
    */
   availabilityHref: string;
   children: React.ReactNode;
@@ -88,12 +113,7 @@ export function NextWeekSummary({
         the disclosure when clicked, and this has to stay reachable in both
         states. It carries what the deleted prose note said that this
         component does not: the forecast's caveat, and the way to act on it. */}
-      <p className="border-t border-hairline px-4 py-2.5 text-label text-ink-muted">
-        Assumes this week goes to plan. Firms up Monday.{" "}
-        <Link href={availabilityHref} className="text-accent underline">
-          Set next week&apos;s availability
-        </Link>
-      </p>
+      <NextWeekAvailabilityNote availabilityHref={availabilityHref} />
     </>
   );
 }
