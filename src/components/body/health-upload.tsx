@@ -69,10 +69,10 @@ export function HealthUpload() {
 
   return (
     <Collapsible
-      // An extraction in review keeps the panel open: the rows live in this
-      // component's state across a server action, and folding a half-reviewed
-      // table out of sight is how an athlete loses one.
-      defaultOpen={rows !== null}
+    // `rows` lives in this component's state, not in the panel's
+    // children, so it survives the panel unmounting its markup while
+    // closed. Folding hides a half-reviewed table rather than discarding
+    // it, and reopening rebuilds the same table from the same state.
     >
       <CollapsibleTrigger>
         <span className="label-micro">Add a blood test</span>
