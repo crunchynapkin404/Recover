@@ -24,10 +24,12 @@ export interface FitnessTile {
  * CTL / ATL / TSB as three tiles above the PMC chart (1e). The chart shows
  * the shape; these show today's number, which is what the athlete came for.
  *
- * The tile prints only the short label — "CTL", not "Fitness · CTL" — the
- * full name is announced via `srLabel`, not printed: the same three letters
- * as pmc-chart.tsx's own legend one panel below, which is where the full
- * name is stated once instead of three times.
+ * The tile prints only the short label — "CTL", not "Fitness · CTL" — which
+ * is the same three letters the chart's own legend one panel below already
+ * uses, so the abbreviation is never the only thing on screen naming this
+ * value. The full name ("Fitness") is announced via `srLabel` and is not
+ * printed anywhere: at the 12px floor "Fitness · CTL" is as wide as the
+ * tile itself.
  */
 export function FitnessTiles({ tiles }: { tiles: FitnessTile[] }) {
   return (

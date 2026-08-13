@@ -19,7 +19,12 @@ export function WeeklyLoadBars({ data }: { data: WeeklyLoad[] }) {
             className="group flex h-full flex-1 flex-col items-center gap-1"
           >
             <div
-              className="w-full rounded-t bg-emerald-500/60 transition-colors group-hover:bg-emerald-400"
+              // chart-2 is the "good" tone, the same token CTL and TSB use
+              // one panel up — this bar was the last raw Tailwind palette
+              // colour on the surface. No guard tracks this category:
+              // ADHOC_INK matches white/black alphas only, and the colour-
+              // literal ledger counts hex/rgb, not palette class names.
+              className="w-full rounded-t bg-chart-2/60 transition-colors group-hover:bg-chart-2"
               style={{
                 height: `${Math.max((w.load / max) * 100, w.load > 0 ? 4 : 1)}%`,
               }}
