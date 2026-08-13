@@ -5,7 +5,7 @@ export function WeeklyLoadBars({ data }: { data: WeeklyLoad[] }) {
   return (
     <div className="glass rounded-[2rem] p-6">
       <div className="mb-3 flex items-baseline justify-between">
-        <h3 className="text-sm font-bold">Weekly load</h3>
+        <h3 className="text-caption font-bold">Weekly load</h3>
         <span className="label-micro">Last {data.length} weeks</span>
       </div>
       <div

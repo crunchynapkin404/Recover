@@ -1406,12 +1406,13 @@ async function FitnessTab({
 
   const tiles: FitnessTile[] = [
     {
-      label: "Fitness · CTL",
+      label: "CTL",
+      srLabel: "Fitness",
       value:
         ctl != null
           ? Figure.available(String(Math.round(ctl)), "high")
           : Figure.missingInput("training-load history"),
-      color: "#60a5fa",
+      color: "var(--chart-1)",
       // A flat block is flat — no arrow, no colour, no implied progress.
       context:
         ctlDelta == null
@@ -1424,19 +1425,22 @@ async function FitnessTab({
       // to be written here was the same 3.77:1 white-40% the component's own
       // fallback was, so fixing one and not the other would have left the
       // athlete looking at it.
-      contextColor: ctlDelta != null && ctlDelta > 0 ? "#34d399" : undefined,
+      contextColor:
+        ctlDelta != null && ctlDelta > 0 ? "var(--chart-2)" : undefined,
     },
     {
-      label: "Fatigue · ATL",
+      label: "ATL",
+      srLabel: "Fatigue",
       value:
         atl != null
           ? Figure.available(String(Math.round(atl)), "high")
           : Figure.missingInput("training-load history"),
-      color: "#f87171",
+      color: "var(--chart-5)",
       context: weekLoad > 0 ? `7d load ${Math.round(weekLoad)}` : null,
     },
     {
-      label: "Form · TSB",
+      label: "TSB",
+      srLabel: "Form",
       value:
         tsb != null
           ? Figure.available(
@@ -1444,7 +1448,7 @@ async function FitnessTab({
               "high"
             )
           : Figure.missingInput("training-load history"),
-      color: "#34d399",
+      color: "var(--chart-2)",
       context:
         tsb == null
           ? null
@@ -1493,7 +1497,7 @@ async function FitnessTab({
 
       <FitnessTiles tiles={tiles} />
 
-      <section className="mb-4 rounded-[18px] border border-white/[0.08] bg-white/[0.03] p-4">
+      <section className="glass mb-4 rounded-[18px] p-4">
         {hasLoadSeries ? (
           <>
             {/* showStats off: the tiles above already carry CTL/ATL/TSB. */}
@@ -1505,20 +1509,19 @@ async function FitnessTab({
                 atl: w.atl,
               }))}
             />
-            <ul className="mt-3 flex items-center gap-4 border-t border-white/[0.06] pt-3">
+            <ul className="mt-3 flex items-center gap-4 border-t border-hairline pt-3">
               {[
-                { label: "CTL", color: "#60a5fa" },
-                { label: "ATL", color: "#f87171" },
-                { label: "TSB", color: "#34d399" },
+                { label: "CTL", dot: "bg-chart-1" },
+                { label: "ATL", dot: "bg-chart-5" },
+                { label: "TSB", dot: "bg-chart-2" },
               ].map((l) => (
                 <li
                   key={l.label}
-                  className="flex items-center gap-1.5 text-[9.5px] font-bold uppercase tracking-wider text-white/50"
+                  className="flex items-center gap-1.5 text-label font-bold uppercase tracking-wider text-ink-muted"
                 >
                   <span
                     aria-hidden
-                    className="h-0.5 w-4 rounded-full"
-                    style={{ background: l.color }}
+                    className={`h-0.5 w-4 rounded-full ${l.dot}`}
                   />
                   {l.label}
                 </li>
@@ -1537,7 +1540,7 @@ async function FitnessTab({
       )}
 
       {fitnessStats.length > 0 && (
-        <div className="mb-10 rounded-[18px] border border-white/[0.08] bg-white/[0.03] p-4">
+        <div className="glass mb-10 rounded-[18px] p-4">
           <FitnessStatsRow stats={fitnessStats} />
         </div>
       )}

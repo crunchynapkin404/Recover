@@ -54,7 +54,7 @@ describe("Remaining skeleton table", () => {
   // ring-white/N, divide-white/N, fill-white/N and every *-black/N pass
   // silently. Now imports the same two patterns the sibling guard uses, so
   // the two cannot drift apart again.
-  it.fails("keeps no type below the floor anywhere in the page", () => {
+  it("keeps no type below the floor anywhere in the page", () => {
     expect(SOURCE.match(new RegExp(ARBITRARY_TYPE.source, "g"))).toBeNull();
     expect(SOURCE.match(new RegExp(ADHOC_INK.source, "g"))).toBeNull();
   });

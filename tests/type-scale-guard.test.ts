@@ -154,7 +154,13 @@ function occurrences(pattern: RegExp): number {
  */
 const RATCHET_SLACK = 25;
 const OFFENDER_CEILINGS: Record<string, number> = {
-  // 229 occurrences, measured 2026-08-13 after task 10 (Season — the
+  // 223 occurrences, measured 2026-08-13 after task 11 (Fitness —
+  // fitness-tiles.tsx, pmc-chart.tsx, fitness-stats-row.tsx and page.tsx's
+  // Fitness half) migrated 6 text-[Npx] sites: the tile label, value and
+  // context in fitness-tiles.tsx, the Stat label in pmc-chart.tsx, the
+  // eFTP/Max Power/W'/Ramp label in fitness-stats-row.tsx, and the CTL/ATL/
+  // TSB legend row in page.tsx.
+  // Was 229 occurrences, measured 2026-08-13 after task 10 (Season — the
   // season-timeline-card.tsx restructure) migrated 6 text-[Npx] sites: the
   // eyebrow, the three stat tiles' shared text-[10px] wrapper, and the
   // closing note and empty state, one each. The per-bar week (9px) and
@@ -181,8 +187,16 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // week-day-list.tsx and page.tsx are all token utilities, so the count did
   // not move there), 343 after task 2, 351 after the whole-branch-review
   // fixes, 355 right after slice 1, 395 at slice 0.
-  "arbitrary type sizes": 229,
-  // 509 occurrences, measured 2026-08-13 after task 10 migrated 20
+  "arbitrary type sizes": 223,
+  // 496 occurrences, measured 2026-08-13 after task 11 migrated 13
+  // text-white/N, bg-white/N and border-white/N sites across
+  // fitness-tiles.tsx (the tile card, which moved to `bg-surface-overlay`,
+  // and the label ink), pmc-chart.tsx (the calibrating message, the Stat
+  // block's divider and label ink), fitness-stats-row.tsx (the label ink)
+  // and page.tsx's Fitness half (both cards, which moved to `glass`, the
+  // legend divider and its ink; the legend's swatch colour itself moved off
+  // inline style entirely, onto `bg-chart-1`/`bg-chart-5`/`bg-chart-2`).
+  // Was 509 occurrences, measured 2026-08-13 after task 10 migrated 20
   // text-white/N, bg-white/N and border-white/N sites in
   // season-timeline-card.tsx (including the card, which moved to `glass`,
   // and the three stat tiles plus the bar-pair wrapper, which moved to
@@ -211,7 +225,7 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // fuelling tile that moved to `bg-surface-overlay`). 709 after task 4,
   // for the same reason task 4 didn't move it — 729 after task 2, 738 after
   // the whole-branch-review fixes, 749 right after slice 1, 806 at slice 0.
-  "ad-hoc white/black alpha utilities": 509,
+  "ad-hoc white/black alpha utilities": 496,
 };
 
 function expectRatchet(name: string, pattern: RegExp): void {
@@ -460,7 +474,6 @@ function inlineColorInventory(): string[] {
  * the guard reads.
  */
 const INLINE_COLOR_INVENTORY: readonly string[] = [
-  "src/app/train/page.tsx — background: l.color",
   "src/components/body/sleep-history-strip.tsx — background: s.color",
   "src/components/body/sleep-night-card.tsx — background: s.color",
   "src/components/body/sleep-night-card.tsx — background: s.color",

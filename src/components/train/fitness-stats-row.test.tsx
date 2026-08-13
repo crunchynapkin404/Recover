@@ -41,4 +41,19 @@ describe("FitnessStatsRow", () => {
     expect(html).toContain("Max Power");
     expect(html).toContain("1509W");
   });
+
+  it("uses the token scale, not ad-hoc sizes or white alphas", () => {
+    const html = renderToString(
+      <FitnessStatsRow
+        stats={[
+          { label: "eFTP", value: "265W" },
+          { label: "Max Power", value: "1509W" },
+        ]}
+      />
+    );
+    expect(html).not.toMatch(/text-\[[\d.]+px\]/);
+    expect(html).not.toMatch(/text-white\//);
+    expect(html).not.toMatch(/bg-white\//);
+    expect(html).not.toMatch(/border-white\//);
+  });
 });

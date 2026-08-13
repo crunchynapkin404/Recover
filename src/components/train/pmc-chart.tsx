@@ -47,7 +47,7 @@ export function PmcChart({
   const nums = [...ctl, ...atl, ...tsb].filter((v): v is number => v != null);
   if (nums.length < MIN_POINTS) {
     return (
-      <p className="py-8 text-center text-sm text-white/40">
+      <p className="py-8 text-center text-caption text-ink-muted">
         {unavailableMessage({
           kind: "calibrating",
           have: nums.length,
@@ -119,10 +119,10 @@ export function PmcChart({
         />
       </svg>
       {showStats && (
-        <div className="mt-4 flex justify-around border-t border-white/5 pt-4 text-center">
-          <Stat color="text-blue-400" label="CTL" value={latest?.ctl} />
-          <Stat color="text-red-400" label="ATL" value={latest?.atl} />
-          <Stat color="text-emerald-400" label="TSB" value={latestTsb} />
+        <div className="mt-4 flex justify-around border-t border-hairline pt-4 text-center">
+          <Stat color="text-chart-1" label="CTL" value={latest?.ctl} />
+          <Stat color="text-chart-5" label="ATL" value={latest?.atl} />
+          <Stat color="text-chart-2" label="TSB" value={latestTsb} />
         </div>
       )}
     </div>
@@ -140,10 +140,10 @@ function Stat({
 }) {
   return (
     <div className="flex flex-col">
-      <span className={`text-xl font-bold ${color}`}>
+      <span className={`text-title font-bold ${color}`}>
         {value != null ? Math.round(value) : "—"}
       </span>
-      <span className="text-[10px] font-bold uppercase tracking-widest text-white/50">
+      <span className="text-label font-bold uppercase tracking-widest text-ink-muted">
         {label}
       </span>
     </div>
