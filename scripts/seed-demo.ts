@@ -11,9 +11,10 @@
  *   SEED_DEMO=1 npm run db:seed-demo
  *   SEED_DEMO=1 DEMO_EMAIL=demo@example.com DEMO_DAYS=120 npx tsx scripts/seed-demo.ts
  */
+import { fileURLToPath } from "node:url";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db, schema } from "../src/lib/db";
 import { computeDailyMetrics } from "../src/lib/metrics";
 
@@ -361,6 +362,7 @@ async function main() {
     .onConflictDoNothing();
 
   await seedDemoChat(userId);
+  await seedDemoInbox(userId);
 
   console.log(
     `Seeded ${days} wellness days + ${activityCount} activities; computed ${computed} daily metrics.`
@@ -442,9 +444,122 @@ async function seedDemoChat(userId: string) {
   console.log("Seeded demo coach thread.");
 }
 
-main()
-  .then(() => process.exit(0))
-  .catch((err) => {
-    console.error(err);
-    process.exit(1);
+/**
+ * Five inbox items, one per InboxKind the History panel styles. Without these
+ * the "From your coach" section renders its empty state and all five
+ * KIND_STYLE tiles are unreachable — including in the capture script, which
+ * is why the tiles' colours went unaudited until slice 4.
+ *
+ * `warning` is not a thread kind: it is a `morning` thread whose assistant
+ * message carries toolCalls.warning (see coach-inbox.ts:114-117).
+ */
+export async function seedDemoInbox(userId: string) {
+  const existing = await db.query.chatThreads.findFirst({
+    where: and(
+      eq(schema.chatThreads.userId, userId),
+      inArray(schema.chatThreads.kind, [
+        "morning",
+        "weekly",
+        "debrief",
+        "monthly",
+      ])
+    ),
   });
+  if (existing) return;
+
+  const day = 86_400_000;
+  const now = Date.now();
+
+  const specs: {
+    kind: "morning" | "weekly" | "debrief" | "monthly";
+    title: string | null;
+    content: string;
+    ageMs: number;
+    warning?: string;
+    unread?: boolean;
+  }[] = [
+    {
+      kind: "morning",
+      title: null,
+      content:
+        "**Readiness 71 (amber).** HRV 48 ms is a touch under your 30-day " +
+        "median, sleep was 7.1 h. Keep today's endurance ride, hold the low " +
+        "end of zone 2, and we'll reassess before Thursday's intervals.",
+      ageMs: 2 * 3600_000,
+      unread: true,
+    },
+    {
+      kind: "debrief",
+      title: "Ride debrief — Tempo along the Vecht",
+      content:
+        "92 minutes at 198 W normalised, 84 TSS. Your last 20 minutes held " +
+        "power with heart rate drifting 4 bpm — that is a clean aerobic " +
+        "signature, not a fade.",
+      ageMs: 1 * day,
+    },
+    {
+      kind: "weekly",
+      title: null,
+      content:
+        "Seven hours across five sessions, 412 TSS — 8% over the planned " +
+        "week and your third straight build. Next week steps down before it " +
+        "steps up again.",
+      ageMs: 3 * day,
+    },
+    {
+      kind: "morning",
+      title: null,
+      content:
+        "HRV has sat below your baseline for four consecutive mornings while " +
+        "load kept climbing. Treat today as easy or off; this is the pattern " +
+        "that precedes a stall.",
+      ageMs: 5 * day,
+      warning: "hrv_suppressed",
+    },
+    {
+      kind: "monthly",
+      title: null,
+      content:
+        "July: 28 hours, 1,640 TSS, CTL from 52 to 61. Threshold power up " +
+        "6 W. The consistency is doing more work than any single session.",
+      ageMs: 12 * day,
+    },
+  ];
+
+  for (const spec of specs) {
+    const createdAt = new Date(now - spec.ageMs);
+    const [thread] = await db
+      .insert(schema.chatThreads)
+      .values({
+        userId,
+        kind: spec.kind,
+        title: spec.title,
+        createdAt,
+        updatedAt: createdAt,
+      })
+      .returning();
+
+    await db.insert(schema.chatMessages).values({
+      threadId: thread.id,
+      role: "assistant",
+      content: spec.content,
+      createdAt,
+      // readAt null = unread. Only the newest item is left unread so the
+      // badge renders "· 1" rather than a number that changes per seed run.
+      readAt: spec.unread ? null : createdAt,
+      ...(spec.warning ? { toolCalls: { warning: spec.warning } } : {}),
+    });
+  }
+}
+
+// Guard main() behind a direct-execution check so importing this module for
+// its exports (e.g. seedDemoInbox in tests) never runs the whole seed flow
+// or calls process.exit — see backfill-day-load.ts for the same pattern.
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  main()
+    .then(() => process.exit(0))
+    .catch((err) => {
+      console.error(err);
+      process.exit(1);
+    });
+}
