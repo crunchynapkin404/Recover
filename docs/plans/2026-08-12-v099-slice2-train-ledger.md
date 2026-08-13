@@ -260,3 +260,47 @@ is ready for its own PR whenever the user wants it.
 - Release: version bump to `0.101.0`, CHANGELOG written **from the diff**, roadmap
   updated (do **not** tick 2b.4 — it closes at slice 9), then
   `./scripts/release.sh 0.101.0 <pr>`.
+
+## Whole-branch review — run 2026-08-13, findings fixed
+
+Full findings: `docs/plans/2026-08-12-v099-slice2-train-review.md` (tracked).
+3 Critical, 7 Important, 3 Minor. Run on a fresh agent with no inherited context.
+
+**All three Criticals and four Importants are fixed** in `404dd75`, `d04c17a`,
+`72db7a5`:
+
+- **C1** the 12px floor was asserted against a hand-copied `SCALE_PX` table; nothing
+  read the `@theme inline` block where the real values live. Demonstrated green at a
+  10px floor. **This branch caused it** — retargeting `.label-micro` from a literal
+  `10px` to `var(--text-label)` moved the primary floor off the checked branch.
+  Now derived via `readScaleTokens()`, which throws if the block is missing, plus a
+  new assertion that every `--text-*` clears 12px in its own right. Mutation
+  re-verified by the controller: `--text-label: 0.625rem` turns two assertions red.
+- **C2** `week-strip.tsx` had moved to `.glass`, which lifted the strip 4px on hover
+  inside Today's `glass-no-hover` card, contradicted the design reference, and created
+  glass-in-glass at 4.61:1 on a ground `glass-contrast-guard` claims to have
+  enumerated. Reverted to `border border-hairline bg-surface-raised`.
+- **C3** `bottom-nav.tsx` went 8px→12px keeping `uppercase tracking-widest`,
+  overflowing the global nav by 62px at 320pt and 22px at 360pt (measured in headless
+  Chromium). The design reference had already dropped uppercase and tracking at 12px;
+  the implementation kept them. Dropped.
+- **I1** `--ink-race`'s comment claimed four surfaces; it reaches three.
+- **I4** Task 12's checklist structurally could not find the 14 retro ink sites — they
+  already read `text-ink-secondary`, and its grep looks for `text-white/`. The
+  enumerated list is now in Task 12 Step 1, derived while the diff was addressable.
+- **I5** Task 12's zero-offender grep excluded `bottom-nav.tsx` and `ui/collapsible.tsx`,
+  which the slice deliberately changed and which still hold live offenders.
+- **I6** `skeleton-table.test.ts` re-spelled the offender regexes narrower than the
+  guard it inherits from. Now imported from `src/lib/design/type-scale-patterns.ts`,
+  and it asserts exactly one `<table>`.
+
+**Correction to the review, found while fixing:** it lists fuelling-card's
+Before/During/After flattening as one of the 14 I4 sites. It is not — those were
+`/85` and `/75`, outside the `/60`|`/65` filter. It is a real but separate unswept
+defect. Still owed.
+
+**Still open from the review:** I2 (RangeTabs is a third pill treatment), I3
+(`text-<tone>` on `bg-<tone>/N` is unguarded; 3 of 6 tone tokens fail AA in it, legal
+today only because two live sites are icons), I7 (**slice-9 blocker** — in light
+`surface-raised == surface-overlay`, so the active/inactive pill has no visible
+selected state; the ladder this slice rests on is undefined in one theme), M1–M3.
