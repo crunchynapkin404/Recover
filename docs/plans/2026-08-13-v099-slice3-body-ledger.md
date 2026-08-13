@@ -200,3 +200,78 @@ committed) for the literal command output.
 3. `ui/unavailable.tsx`'s `<Unavailable>` component's one `text-white/50` — not
    rendered by Body, so not migrated here; whichever slice first renders it owns
    the fix.
+
+## Task 12 — the browser pass, and what the pictures found
+
+Captured all four Body tabs × two themes × two viewports against the seeded
+owner on `localhost:3100`, then opened the images. Twice: once to find defects,
+once to confirm the fixes.
+
+### Axe
+
+| Surface        | Before (light / dark) | After (light / dark) |
+| -------------- | --------------------- | -------------------- |
+| `body` Trends  | 0 / 0                 | 0 / 0                |
+| `body-sleep`   | 1 / 0                 | **0 / 0**            |
+| `body-journal` | 12 / 0                | **0 / 0**            |
+| `body-labs`    | 13 / 1                | **0 / 0**            |
+
+Confirmed nodes only. Twenty-six confirmed findings on three tabs that no run
+had ever audited before Task 1 added them, down to zero. The one that mattered
+most was `body-labs`' `label` violation in **dark** — the only confirmed finding
+on this surface that was not a light-mode contrast failure, and therefore the
+only one the token migration would not have fixed as a side effect. Task 10
+fixed it deliberately.
+
+Indeterminate counts are unchanged and are expected to be: over the gradient
+background `color-contrast` cannot resolve, which is exactly why the images
+below had to be opened.
+
+### Three defects the pictures found, that nothing else could
+
+**F1 — the correlation row's behaviour name truncated to zero width.**
+_A regression this slice caused._ Task 8 moved the name from `text-[12px]` to
+`text-caption` (14px) and the badge from `text-[11px]`/`[11.5px]` to
+`text-label` (12px). The name sat in a `min-w-0` + `truncate` span beside a
+`shrink-0` badge, so the wider badge left the truncating span nowhere to go and
+it collapsed. On `/body?tab=journal` at 390px, three of four rows rendered with
+no behaviour name at all — the row's subject, gone. Fixed in `d781165` by
+dropping `truncate`/`min-w-0` and letting the row wrap. The names now read in
+full (`Morning Training`, `Rest Day`, `Hard Session`, `Feeling-Fresh`), which is
+better than the pre-slice state, where they were already truncated to `Mor…`,
+`R…`, `Hard …`.
+
+**F2 — Labs printed the same sentence twice, verbatim.**
+`Needs Sleep consistency, VO₂max, Body fat, Birth year` rendered in both the
+`BIOLOGICAL AGE` tile and the `WHAT'S MISSING` card directly beneath it, because
+both call `unavailableMessage()` on the same `Figure`. `BioAgeCard`'s own source
+comment says _"don't say it twice, just say what would fix it"_ — the intent was
+right and the implementation duplicated anyway. Task 11's duplicate-data scan
+checked that the bio-age **figure** appears once and missed that the
+**sentence** appears twice. Fixed in `f70945f`.
+
+**F3 — `BiomarkerList` nested `.glass` inside `.glass`** on its empty state, the
+same defect v0.101.1 patched on Train's Fitness empty state. Fixed in `bcb8113`,
+and removed from `KNOWN_PRE_EXISTING_GLASS_NESTING` rather than zeroed.
+`journal-form.tsx`'s two remaining nestings are still open and stay listed.
+
+### Two open questions closed by looking
+
+- **The bottom nav overlapping content in mobile captures is a screenshot
+  artifact, not a bug.** `AppShell` reserves `pb-32` (128px); the nav is
+  `fixed bottom-8` and ~60px tall, so it occupies ~92px — inside the reserved
+  space. A full-page screenshot paints fixed elements at their viewport
+  position, which is what produces the overlap. Task 1 guessed this; it is now
+  checked.
+- **The weekday initial fits.** It went 8px → 12px inside a fixed `w-9` cell,
+  the exact shape of the defect slice 1 shipped when the floor widened the week
+  strip's day labels into `MOTUWETHFRSASU`. It does not recur —
+  `body-sleep-dark-phone.png` shows `T 11 · M 10 · S 09 …` cleanly separated.
+
+### Found, not fixed, not this slice's
+
+The correlation badge reads **"Calibrating — day 54 of 10 days · 54 events"** —
+`have` exceeds `need`. Visible in the pre-slice capture too, so it is not a
+redesign defect; `correlationFigure` can produce a calibrating state whose
+elapsed count runs past its target. It reads as nonsense on screen and belongs
+on the roadmap, not in a presentation slice.
