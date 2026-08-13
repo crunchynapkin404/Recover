@@ -19,6 +19,23 @@ const VIEW_W = 400;
 const VIEW_H = 180;
 const MINUTES_PER_DAY = 1440;
 
+/** The day-shape tag pills. Was duplicated in both render branches. */
+function BatteryTags({ tags }: { tags: string[] }) {
+  if (tags.length === 0) return null;
+  return (
+    <div className="mt-4 flex flex-wrap gap-2">
+      {tags.map((tag) => (
+        <span
+          key={tag}
+          className="rounded-full border border-hairline bg-surface-overlay px-2.5 py-1 text-label font-bold uppercase tracking-[0.18em] text-ink-secondary"
+        >
+          {tag}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function toPath(points: BatteryPoint[]): string {
   return points
     .map((p, i) => {
@@ -43,23 +60,12 @@ export function BodyBatteryCurve({
     return (
       <div className="glass rounded-[2rem] p-7">
         <span className="label-micro">Estimated Energy</span>
-        <p className="mt-4 text-sm text-white/50">
+        <p className="mt-4 text-caption text-ink-muted">
           {current.available
             ? "Not enough data yet."
             : unavailableMessage(current)}
         </p>
-        {tags.length > 0 && (
-          <div className="mt-4 flex flex-wrap gap-2">
-            {tags.map((tag) => (
-              <span
-                key={tag}
-                className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.18em] text-white/55"
-              >
-                {tag}
-              </span>
-            ))}
-          </div>
-        )}
+        <BatteryTags tags={tags} />
       </div>
     );
   }
@@ -72,22 +78,15 @@ export function BodyBatteryCurve({
     <div className="glass rounded-[2rem] p-7 overflow-hidden">
       <div className="mb-1 flex items-center justify-between">
         <span className="label-micro">Estimated Energy</span>
-        <span className="text-xs font-bold text-white/80">
+        <span className="text-caption font-bold text-ink-secondary">
           {current.value}% now
         </span>
       </div>
-      <p className="mb-6 text-[11px] text-white/40">
+      <p className="mb-6 text-label text-ink-muted">
         Modelled from readiness and training load
       </p>
-      <div className="mb-4 flex flex-wrap gap-2">
-        {tags.map((tag) => (
-          <span
-            key={tag}
-            className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.18em] text-white/55"
-          >
-            {tag}
-          </span>
-        ))}
+      <div className="mb-4">
+        <BatteryTags tags={tags} />
       </div>
       <div className="relative h-[180px] w-full">
         <svg
@@ -97,14 +96,14 @@ export function BodyBatteryCurve({
         >
           <defs>
             <linearGradient id="energy-grad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.3" />
-              <stop offset="100%" stopColor="#f59e0b" stopOpacity="0" />
+              <stop offset="0%" stopColor="var(--chart-3)" stopOpacity="0.3" />
+              <stop offset="100%" stopColor="var(--chart-3)" stopOpacity="0" />
             </linearGradient>
           </defs>
           <path
             d={path}
             fill="none"
-            stroke="#f59e0b"
+            stroke="var(--chart-3)"
             strokeWidth="3"
             strokeLinecap="round"
           />
@@ -112,23 +111,23 @@ export function BodyBatteryCurve({
         </svg>
       </div>
       {checkpoints.length > 0 && (
-        <div className="mt-4 grid grid-cols-3 gap-2 text-[10px]">
+        <div className="mt-4 grid grid-cols-3 gap-2">
           {checkpoints.map((checkpoint) => (
             <div
               key={checkpoint.label}
-              className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2"
+              className="rounded-2xl border border-hairline bg-surface-overlay px-3 py-2"
             >
-              <div className="uppercase tracking-[0.16em] text-white/35">
+              <div className="text-label uppercase tracking-[0.16em] text-ink-muted">
                 {checkpoint.label}
               </div>
-              <div className="mt-1 text-sm font-bold text-white/85">
+              <div className="mt-1 text-caption font-bold text-ink-secondary">
                 {checkpoint.charge}%
               </div>
             </div>
           ))}
         </div>
       )}
-      <div className="mt-4 flex justify-between text-[10px] font-bold uppercase tracking-widest text-white/50">
+      <div className="mt-4 flex justify-between text-label font-bold uppercase tracking-widest text-ink-muted">
         <span>12 AM</span>
         <span>6 AM</span>
         <span>12 PM</span>

@@ -5,11 +5,11 @@ interface Props {
 }
 
 const BAND_COLOR: Record<BpCategory, string> = {
-  normal: "text-emerald-400",
-  elevated: "text-yellow-400",
-  stage1: "text-amber-400",
-  stage2: "text-orange-400",
-  crisis: "text-red-400",
+  normal: "text-chart-2",
+  elevated: "text-chart-3",
+  stage1: "text-chart-3",
+  stage2: "text-chart-5",
+  crisis: "text-chart-5",
 };
 
 const DIRECTION_LABEL = {
@@ -29,22 +29,22 @@ export function BloodPressureCard({ trend }: Props) {
     <div className="glass rounded-[2rem] p-6">
       <div className="flex items-center justify-between">
         <span className="label-micro">Blood Pressure</span>
-        <span className="text-[11px] text-white/40">
+        <span className="text-label text-ink-muted">
           {trend.readings} readings · {DIRECTION_LABEL[trend.direction]}
         </span>
       </div>
       <div className="mt-3 flex items-baseline gap-2">
-        <span className="text-3xl font-bold tabular-nums text-white">
+        <span className="text-figure font-bold font-numeric text-ink-primary">
           {trend.latest.systolic}/{trend.latest.diastolic}
         </span>
-        <span className="text-xs text-white/40">mmHg</span>
+        <span className="text-label text-ink-muted">mmHg</span>
       </div>
       <p
-        className={`mt-1 text-sm font-bold ${BAND_COLOR[trend.latest.category]}`}
+        className={`mt-1 text-caption font-bold ${BAND_COLOR[trend.latest.category]}`}
       >
         {trend.latest.label}
       </p>
-      <p className="mt-2 text-[11px] text-white/50">
+      <p className="mt-2 text-caption text-ink-muted">
         Recent average {trend.avgSystolic}/{trend.avgDiastolic} mmHg
       </p>
     </div>

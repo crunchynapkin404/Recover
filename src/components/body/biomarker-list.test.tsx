@@ -29,4 +29,11 @@ describe("BiomarkerList", () => {
     expect(html).toContain("LDL");
     expect(html).not.toContain("No biomarkers yet");
   });
+
+  it("holds the floor — no arbitrary sizes or ad-hoc white alphas", () => {
+    const html = renderToString(<BiomarkerList rows={rows} />);
+    expect(html).not.toMatch(/text-\[\d/);
+    expect(html).not.toContain("text-white/");
+    expect(html).not.toContain("bg-white/");
+  });
 });

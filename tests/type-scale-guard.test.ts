@@ -154,7 +154,125 @@ function occurrences(pattern: RegExp): number {
  */
 const RATCHET_SLACK = 25;
 const OFFENDER_CEILINGS: Record<string, number> = {
-  // 212 occurrences, measured 2026-08-13 in v0.101.1 (whole-branch review 2,
+  // 137 occurrences, unchanged, measured 2026-08-13 after v0.102 (Body slice)
+  // task 11 (the sweep) — re-pinned, not moved. Task 11's own sweep grep,
+  // scoped to every file that renders on any of Body's four tabs (not just
+  // src/components/body/), found TOTAL 0 0 for both patterns across:
+  // src/app/body/page.tsx, src/components/body/*.tsx,
+  // src/components/app-shell.tsx, src/components/bottom-nav.tsx,
+  // src/components/sidebar-nav.tsx, src/components/ui/empty-state.tsx,
+  // src/components/ui/collapsible.tsx. journal-form.tsx's mood-picker emoji
+  // size (bare text-2xl, an un-tokenised Tailwind step this pattern's own
+  // regex — text-\[…px|rem|em\] — cannot see, since it only matches arbitrary
+  // bracket values) was migrated to text-heading, its exact 24px equivalent;
+  // that fix does not move this count either, for the same reason. See the
+  // sibling ceiling below for the ad-hoc-alpha half of this task's sweep.
+  //
+  // SCOPE CORRECTION (I3, whole-branch review 2026-08-13). Task 11's sweep
+  // grep, above, was derived from src/app/body/page.tsx's own import list
+  // and never from the route's LAYOUT chain — every page under app/ is also
+  // wrapped by src/app/layout.tsx, which renders
+  // src/components/theme-provider.tsx. Re-run with both added: TOTAL 0 0,
+  // unchanged — src/app/layout.tsx and src/components/theme-provider.tsx
+  // carry zero arbitrary sizes and zero white/black alphas. Nothing was
+  // broken; the recorded scope was just incomplete, and an incomplete scope
+  // written down is what the next slice inherits and re-runs verbatim. Full
+  // corrected scope: src/app/body/page.tsx, src/app/layout.tsx,
+  // src/components/theme-provider.tsx, src/components/body/*.tsx,
+  // src/components/app-shell.tsx, src/components/bottom-nav.tsx,
+  // src/components/sidebar-nav.tsx, src/components/ui/empty-state.tsx,
+  // src/components/ui/collapsible.tsx.
+  // 137 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 10 —
+  // health-upload.tsx and health-manual-entry.tsx (both folded behind
+  // Collapsible in the same task) migrated 13 text-[Npx] sites:
+  // health-upload.tsx (7) — the intro paragraph (text-[12px] →
+  // text-label), the file input's own file:text-[10px] (→ file:text-label),
+  // the Extract button (text-[10px] → text-label), the
+  // parsed-without-a-model warning (text-[11px] → text-label), the review
+  // table's header row (text-[10px] → text-label), and the Save/Discard
+  // pair below the table (each its own text-[10px] → text-label);
+  // health-manual-entry.tsx (6) — the four field labels (Birth year, Date,
+  // Systolic, Diastolic; text-[11px] x4 → text-label) and the two Save
+  // buttons (each its own text-[10px] → text-label). text-sm stayed on the
+  // two headings (now text-caption, and h3 not h2 — the trigger's own h3
+  // wrapper must not sit under a higher heading level) and on the
+  // textarea/date/number inputs (now text-caption); text-xs stayed on the
+  // file input's base size, the error line, the confidence cell and the
+  // Measured/saveMsg text (now text-label or font-numeric text-label).
+  // Neither text-sm nor text-xs is arbitrary, so none of those move this
+  // count.
+  // Was 150 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 9 —
+  // the Labs tab's four reading blocks migrated 13 text-[Npx] sites:
+  // labs-tiles.tsx (7) — both tile eyebrows (text-[8.5px] x2 → label-micro),
+  // the age figure (text-[22px] → text-title), the delta (text-[11px] →
+  // text-label), the unavailable line (text-[11px] → text-caption), the
+  // biomarker count (text-[12.5px] → text-caption) and the draw date
+  // (text-[10.5px] → text-label); bio-age-card.tsx (2) — the unavailable
+  // line (text-[11px] → text-caption) and the component row (text-[11px] →
+  // text-label); blood-pressure-card.tsx (2) — the readings/direction line
+  // (text-[11px] → text-label) and the average (text-[11px] → text-caption);
+  // biomarker-list.tsx (2) — the category heading (text-[10px] →
+  // text-label) and the unit (text-[11px] → text-label). text-4xl, text-3xl,
+  // text-sm and text-xs are named Tailwind sizes, not arbitrary, so they
+  // don't move this count.
+  // Was 163 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 8 —
+  // correlation-rows.tsx migrated its 6 text-[Npx] sites: the "90-day
+  // correlations" heading eyebrow (text-[9.5px] → label-micro), the
+  // behaviour-name row (text-[12px] → text-caption), the "auto" marker
+  // (text-[9px] → text-label) and the three badge states — unavailable
+  // (text-[11px]), no-effect (text-[11.5px]) and the signed finding
+  // (text-[11.5px]) — all three collapsed onto the one text-label size, the
+  // three states now told apart by wording and ink/weight alone
+  // (unavailable: text-ink-muted; no effect: font-medium text-ink-secondary;
+  // finding: font-bold text-chart-2/text-chart-5). milestones-card.tsx had
+  // no arbitrary sizes to begin with (it used text-xs), so it does not move
+  // this count.
+  // Was 169 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 7 —
+  // journal-form.tsx migrated the rest of the file (the manual-vitals
+  // panel, behavior tags, day flags, notes and the submit button) and
+  // dropped 10 text-[Npx] sites: the vitals intro paragraph and its four
+  // input labels (text-[10px] x5 → text-label), the tag-group heading
+  // (text-[9px] → text-label), the tag pills and day-flag pills (each
+  // text-[10px] → text-label), the "remember these as usual" button
+  // (text-[10px] → text-label) and the day-flags footnote (text-[10px] →
+  // text-label).
+  // Was 179 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 6 —
+  // journal-form.tsx migrated 6 text-[Npx] sites: two went with the deleted
+  // header (the "Logging Streak" eyebrow's text-[10px] and the streak
+  // ring's text-[8px] fraction — the owner decision to drop the form's own
+  // duplicate header, since the page header's chip is the single streak on
+  // screen), the calendar strip's day label (text-[9px] → text-label), and
+  // the sliders' low/high end labels (text-[9px] x2 → text-label).
+  // Was 185 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 5 —
+  // body-battery.tsx migrated 5 text-[Npx] sites: the modelled-from line
+  // (text-[11px] → text-label), both tag-pill branches' text-[9px], hoisted
+  // into one BatteryTags component and reduced to a single text-label
+  // occurrence, the checkpoint grid wrapper's text-[10px] (dropped, the
+  // token now lives on the tile's own label/value spans) and the axis row's
+  // text-[10px] → text-label.
+  // Was 190 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 4 —
+  // the Sleep tab (sleep-night-card.tsx, sleep-history-strip.tsx and
+  // page.tsx's consistency/chronotype rhythm row) migrated 14 text-[Npx]
+  // sites: sleep-night-card.tsx's heading eyebrow (9.5px → label-micro), the
+  // four nav-arrow spans (13px → text-caption), the bed-window line (11px →
+  // text-label), the stage-legend li (9.5px → text-label), the fallback
+  // paragraph (11px → text-caption) and the bedtime line (11px →
+  // text-caption); sleep-history-strip.tsx's weekday initial (8px →
+  // text-label) and day-number (11px → text-label); and page.tsx's
+  // Consistency/Chronotype labels (11px x2) and the "last 30 nights"
+  // caption (10px), all three → text-label.
+  // Was 204 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 3 —
+  // baseline-trend-card.tsx migrated 4 text-[Npx] sites: the eyebrow
+  // (text-[9.5px] → label-micro, which already carries text-label) and the
+  // reading row (text-[11px] → text-label, text-[12px] → text-caption, and
+  // the empty-state text-[11px] → text-caption).
+  // Was 208 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 2 —
+  // page.tsx's header (the h1 and the streak chip) plus the two new
+  // components it now delegates to, body-tabs.tsx and range-tabs.tsx —
+  // migrated 4 text-[Npx] sites: text-[22px] (h1 → text-title), text-[10.5px]
+  // (streak chip → text-label), text-[11px] (Body's tab-row labels →
+  // text-label) and text-[10px] (Trends' range-pill labels → text-label).
+  // Was 212 occurrences, measured 2026-08-13 in v0.101.1 (whole-branch review 2,
   // C1). The "Train is now at ZERO offenders" line directly below, written
   // after task 12, was false: task 12's Step-1 sweep grep never covered
   // sidebar-nav.tsx (the desktop, lg-and-above nav — the exact complement of
@@ -210,8 +328,178 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // week-day-list.tsx and page.tsx are all token utilities, so the count did
   // not move there), 343 after task 2, 351 after the whole-branch-review
   // fixes, 355 right after slice 1, 395 at slice 0.
-  "arbitrary type sizes": 212,
-  // 469 occurrences, measured 2026-08-13 in v0.101.1 (whole-branch review 2,
+  "arbitrary type sizes": 137,
+  // 311 occurrences, unchanged, measured 2026-08-13 after v0.102 (Body slice)
+  // task 11 (the sweep) — re-pinned, not moved. Task 11's own sweep grep
+  // (same file list as the sibling ceiling above: src/app/body/page.tsx,
+  // src/components/body/*.tsx, src/components/app-shell.tsx,
+  // src/components/bottom-nav.tsx, src/components/sidebar-nav.tsx,
+  // src/components/ui/empty-state.tsx, src/components/ui/collapsible.tsx)
+  // found TOTAL 0 0 for both patterns.
+  //
+  // SCOPE CORRECTION (I3, whole-branch review 2026-08-13) — same correction
+  // as the sibling ceiling above: the recorded scope omitted the route's
+  // layout chain, src/app/layout.tsx and src/components/theme-provider.tsx.
+  // Re-run with both added: TOTAL 0 0, unchanged — neither file carries an
+  // ad-hoc white/black alpha. See the sibling ceiling for the full corrected
+  // scope. journal-form.tsx's CheckCircle badge
+  // on the "Subjective feeling" step (text-emerald-500 → text-chart-2) was
+  // migrated in the same commit — an unguarded colour literal this pattern's
+  // own regex cannot see, since it only matches white/black alpha utilities,
+  // not a bare Tailwind palette colour — so it does not move this count
+  // either. Two items checked and deliberately left: .tag-active on the
+  // journal's tag/day-flag pills (journal-form.tsx) hardcodes the dark accent
+  // as a recorded deferral to slice 9 (docs/v0.99-redesign-handoff.md), and
+  // ui/unavailable.tsx's one text-white/50 belongs to its <Unavailable>
+  // component, which no Body file renders — confirmed with
+  // `grep -rn "<Unavailable" src/`, which finds it only in
+  // unavailable.test.tsx — Body calls only the unavailableMessage() string
+  // helper. Neither is this task's to fix.
+  // 311 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 10 —
+  // health-upload.tsx and health-manual-entry.tsx migrated 35 text-white/N,
+  // bg-white/N and border-white/N sites: health-upload.tsx (19) — the intro
+  // paragraph's text-white/50, the textarea's border-white/10 + bg-white/5,
+  // the file input's own text-white/60 + file:bg-white/10 + file:text-white/80
+  // (3), the review table's header row text-white/40, the row divider's
+  // border-white/5, the three editable cells' shared bg-white/5 (displayName/
+  // value/unit, 3), the confidence cell's low-confidence-else text-white/50,
+  // the remove button's text-white/40, the "Measured" label's text-white/60,
+  // its date input's border-white/10 + bg-white/5, the Discard button's
+  // text-white/40 + hover:text-white/70 (2), and the save-message
+  // paragraph's text-white/60 — all → text-ink-muted / text-ink-secondary /
+  // border-hairline / bg-surface-overlay as the per-site ink weight called
+  // for; health-manual-entry.tsx (16) — the four field labels' shared
+  // text-white/50 (4), the four inputs' shared border-white/10 + bg-white/5
+  // (8), the birth-year Save button's border-white/10 + bg-white/5 (2), the
+  // section divider's border-white/5, and the message paragraph's
+  // text-white/60 — all → text-ink-muted / border-hairline /
+  // bg-surface-overlay. Neither file's Save/Extract buttons move this
+  // count: `bg-emerald-500`/`text-black` are opaque, not an alpha utility
+  // (the buttons move to `bg-accent`/`text-primary-foreground` as tokens,
+  // which this guard does not scan for — it only flags the ad-hoc
+  // white/black alpha this task is eliminating).
+  // Was 346 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 9 —
+  // the Labs tab's four reading blocks migrated 20 text-white/N and
+  // bg-white/N sites: labs-tiles.tsx (9) — both tiles' border-white/[0.09] +
+  // bg-white/[0.04] pairs (→ `glass`, 4), both eyebrows' text-white/40
+  // (dropped with the move to `label-micro`, 2), the unavailable line and
+  // the delta's non-younger branch (both text-white/50 → text-ink-muted, 2)
+  // and the draw date's text-white/45 (→ text-ink-muted, 1); bio-age-card.tsx
+  // (4) — the "Not enough inputs yet" line's text-white/70 (→
+  // text-ink-secondary), the unavailable detail and component label's
+  // text-white/50 (both → text-ink-muted) and the zero-offset branch's
+  // text-white/40 (→ text-ink-muted); blood-pressure-card.tsx (3) — the
+  // readings/direction line and unit's text-white/40 and the average's
+  // text-white/50 (all → text-ink-muted); biomarker-list.tsx (4) — the
+  // category heading's text-white/40, the divider's divide-white/5 (→
+  // divide-hairline), the marker name's text-white/80 (→ text-ink-secondary,
+  // the per-pair override: name and unit sat in different alpha buckets and
+  // the unit, the subordinate, takes text-ink-muted rather than the nearer
+  // text-ink-secondary) and the unit's text-white/40. The five BAND_COLOR
+  // values (text-emerald-400/text-yellow-400/text-amber-400/
+  // text-orange-400/text-red-400 → text-chart-2/text-chart-3/text-chart-5)
+  // and labs-tiles.tsx's/bio-age-card.tsx's text-emerald-400 (→
+  // text-chart-2) were never white/black alpha, so they don't move this
+  // count.
+  // Was 366 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 8 —
+  // correlation-rows.tsx migrated 8 text-white/N, bg-white/N and
+  // border-white/N sites: the card wrapper's border-white/[0.08] +
+  // bg-white/[0.03] (→ `glass`), the row divider's border-white/[0.06] (→
+  // `border-hairline`), the behaviour-name ink (text-white/85 →
+  // text-ink-secondary), the "auto" marker (text-white/30 → text-ink-muted)
+  // and the heading eyebrow (text-white/40, dropped with the move to
+  // `label-micro`) plus the unavailable and no-effect badges' text-white/40
+  // and text-white/70 (→ text-ink-muted / text-ink-secondary). The signed
+  // finding badge's text-emerald-400/text-red-400 moved to
+  // text-chart-2/text-chart-5 but was never white/black alpha, so it does
+  // not move this count. milestones-card.tsx migrated 3 more: the row
+  // label's text-white/70 (→ text-ink-secondary), the em-dash placeholder's
+  // text-white/30 and the detail's text-white/40 (both → text-ink-muted —
+  // the per-pair override: the row label and its detail sat in different
+  // alpha buckets, and the quieter one takes ink-muted even though
+  // nearest-value would put it on ink-secondary).
+  // Was 377 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 7 —
+  // journal-form.tsx migrated 26 text-white/N, bg-white/N and
+  // border-white/N sites: the manual-vitals panel (17) — the intro
+  // paragraph and four labels' text-white/50 (→ text-ink-muted), and each
+  // of the four inputs' border-white/10 + bg-white/5 +
+  // placeholder:text-white/30 trio (→ border-hairline + bg-surface-overlay
+  // + placeholder:text-ink-muted; the bare `text-white` on each input has
+  // no alpha, so it does not move this count — it moved to text-ink-primary
+  // in the same edit); the tag-group heading's text-white/50 (1); the tag
+  // pills' and day-flag pills' border-white/10 (2, one source occurrence
+  // each, both → border-hairline, both still `glass`); the "remember these
+  // as usual" button's bg-white/5 + text-white/60 + hover:bg-white/10 trio
+  // (3, → bg-surface-overlay / text-ink-secondary / hover:bg-surface-raised);
+  // the footnote's text-white/50 (1); and the notes textarea's
+  // text-white/80 + placeholder:text-white/40 pair (2, →
+  // text-ink-secondary / placeholder:text-ink-muted). `tag-active` on the
+  // tag/flag pills is untouched — it hardcodes the dark accent as a
+  // deliberate deferral to slice 9 (docs/v0.99-redesign-handoff.md).
+  // Was 403 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 6 —
+  // journal-form.tsx migrated 11 text-white/N, bg-white/N and border-white/N
+  // sites: three went with the deleted header (the eyebrow's text-white/50,
+  // the streak ring's border-white/10 and its track circle's text-white/5);
+  // the calendar strip's day label and day circle inactive states (both
+  // text-white/50 → text-ink-muted, active states moved to
+  // text-chart-2/text-ink-primary); the slider label (text-white/80 →
+  // text-ink-secondary) and value's unanswered state (text-white/40 →
+  // text-ink-muted); the Continue button's trio (bg-white/5 +
+  // hover:bg-white/10 → bg-surface-overlay/hover:bg-surface-raised,
+  // text-white/70 → text-ink-secondary); and the "intervals.icu synced"
+  // chip (text-white/40 → text-ink-muted). The low/high end labels'
+  // text-emerald-400/60 and text-red-400/60 moved to text-chart-2 /
+  // text-chart-5 (alphas dropped) but were never white/black, so they don't
+  // move this count.
+  // Was 414 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 5 —
+  // body-battery.tsx migrated 14 text-white/N, bg-white/N and border-white/N
+  // sites: the unavailable-state paragraph's text-white/50 (→
+  // text-ink-muted), both tag-pill branches' border-white/10 + bg-white/5 +
+  // text-white/55 trio (6 matches total), hoisted into the single
+  // BatteryTags component and reduced to zero — border-hairline,
+  // bg-surface-overlay and text-ink-secondary carry no ad-hoc alpha; the
+  // "% now" readout's text-white/80 (→ text-ink-secondary); the
+  // modelled-from line's text-white/40 (→ text-ink-muted); the checkpoint
+  // tile's border-white/10 + bg-white/5 (→ border-hairline +
+  // bg-surface-overlay), its label's text-white/35 and value's text-white/85
+  // (both → the ink scale); and the axis row's text-white/50 (→
+  // text-ink-muted).
+  // Was 428 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 4 —
+  // the same three files migrated 27 text-white/N, bg-white/N and
+  // border-white/N sites: sleep-night-card.tsx (13) — the card wrapper's
+  // border-white/[0.08] + bg-white/[0.03] (→ `glass`), the heading ink, both
+  // nav-arrow link/disabled pairs, the bed-window ink, the legend ink, the
+  // fallback-paragraph ink and the divider border (→ `border-hairline`);
+  // sleep-history-strip.tsx (7) — the cell's selected/unselected
+  // border+background trio (→ `border-ink-muted`/`bg-surface-overlay`), the
+  // weekday-initial ink, the day-number selected/unselected pair and the
+  // no-stages bar fill (→ `bg-surface-overlay`); and page.tsx's rhythm row
+  // (7) — the card wrapper's border + background (→ `glass`) and the
+  // text-white/50 (x2) + text-white/85 (x2) + text-white/30 ink sites (all →
+  // `text-ink-muted`/`text-ink-secondary`).
+  // Was 455 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 3 —
+  // baseline-trend-card.tsx migrated 6 text-white/N, bg-white/N and
+  // border-white/N sites: the card wrapper's border-white/[0.08] +
+  // bg-white/[0.03] (→ `glass`) and four text-white/N ink sites (the
+  // eyebrow, the reading row's font-mono wrapper, the unit and the empty
+  // state, all → text-ink-muted). All 16 call sites' hex `color`/`bandFill`
+  // props do not move this count — this guard only scans Tailwind utility
+  // classes, and those were props, not classes; they are the 32 raw colour
+  // literals tests/type-scale-guard.test.ts's own header comment already
+  // says it cannot see (`color="#a78bfa"` props passed into chart
+  // components), now replaced by the four chart tokens in trend-tone.ts.
+  // Was 461 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 2
+  // migrated 8 text-white/N, bg-white/N and border-white/N sites: 4 in
+  // page.tsx's own header markup before it was replaced (bg-white/[0.12] +
+  // text-white, and bg-white/[0.04] + text-white/50 + hover:text-white/80 —
+  // that one line alone is 3 matches) and the same 4-match shape again in the
+  // range-pill row, both now on body-tabs.tsx / range-tabs.tsx's
+  // bg-surface-overlay / bg-surface-raised / text-ink-primary /
+  // text-ink-muted instead. The streak chip's border-emerald-500/30 and
+  // bg-emerald-500/[0.08] moved to border-accent/30 / bg-accent/10 in the
+  // same diff but were never ad-hoc WHITE/BLACK alpha, so they don't move
+  // this count.
+  // Was 469 occurrences, measured 2026-08-13 in v0.101.1 (whole-branch review 2,
   // C1). sidebar-nav.tsx and empty-state.tsx were outside task 12's sweep
   // scope (see the matching correction on "arbitrary type sizes" above) and
   // together carried 10 ad-hoc white-alpha utilities that this patch
@@ -261,7 +549,7 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // fuelling tile that moved to `bg-surface-overlay`). 709 after task 4,
   // for the same reason task 4 didn't move it — 729 after task 2, 738 after
   // the whole-branch-review fixes, 749 right after slice 1, 806 at slice 0.
-  "ad-hoc white/black alpha utilities": 469,
+  "ad-hoc white/black alpha utilities": 311,
 };
 
 function expectRatchet(name: string, pattern: RegExp): void {

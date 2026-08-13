@@ -30,9 +30,9 @@ function weekdayLabel(date: string): string {
 }
 
 const SEGMENTS = [
-  { key: "sleepDeepSecs", color: "#3b82f6" },
-  { key: "sleepRemSecs", color: "#8b5cf6" },
-  { key: "sleepLightSecs", color: "rgba(59,130,246,0.35)" },
+  { key: "sleepDeepSecs", color: "var(--chart-1)" },
+  { key: "sleepRemSecs", color: "var(--chart-4)" },
+  { key: "sleepLightSecs", color: "var(--chart-1)", dim: true },
 ] as const;
 
 /**
@@ -79,16 +79,16 @@ export function SleepHistoryStrip({ nights, selectedDate, href }: Props) {
                 aria-label={`${n.date}${hasStages ? "" : ", no stage data"}`}
                 className={`flex w-9 flex-col items-center gap-1 rounded-[9px] border px-1 py-1.5 transition-colors ${
                   isSelected
-                    ? "border-white/25 bg-white/[0.07]"
-                    : "border-transparent hover:bg-white/[0.04]"
+                    ? "border-ink-muted bg-surface-overlay"
+                    : "border-transparent hover:bg-surface-overlay"
                 }`}
               >
-                <span className="text-[8px] font-bold uppercase tracking-wider text-white/35">
+                <span className="text-label font-bold uppercase tracking-wider text-ink-muted">
                   {weekdayLabel(n.date)}
                 </span>
                 <span
-                  className={`text-[11px] font-bold ${
-                    isSelected ? "text-white/90" : "text-white/55"
+                  className={`text-label font-bold ${
+                    isSelected ? "text-ink-primary" : "text-ink-secondary"
                   }`}
                 >
                   {dayLabel(n.date)}
@@ -101,9 +101,11 @@ export function SleepHistoryStrip({ nights, selectedDate, href }: Props) {
                     SEGMENTS.map((s) => {
                       const secs = n[s.key] ?? 0;
                       if (secs <= 0) return null;
+                      const dim = "dim" in s && s.dim;
                       return (
                         <span
                           key={s.key}
+                          className={dim ? "opacity-35" : undefined}
                           style={{
                             height: `${(secs / total) * 100}%`,
                             background: s.color,
@@ -112,7 +114,7 @@ export function SleepHistoryStrip({ nights, selectedDate, href }: Props) {
                       );
                     })
                   ) : (
-                    <span className="h-full bg-white/[0.12]" />
+                    <span className="h-full bg-surface-overlay" />
                   )}
                 </span>
               </Link>

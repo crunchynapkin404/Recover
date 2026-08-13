@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState, useTransition } from "react";
-import { Flame, CheckCircle, Star } from "lucide-react";
+import { CheckCircle, Star } from "lucide-react";
 import { logWellness, type ActionResult } from "@/app/wellness/actions";
 import { setUsualBehaviorTags } from "@/app/journal/actions";
 import { ALL_DAY_FLAGS, type DayFlag } from "@/lib/day-flags";
@@ -30,8 +30,6 @@ interface Props {
   syncedRhr: number | null;
   syncedWeight: number | null;
   syncedSleepHours: number | null;
-  /** Days in the last 7 with a journal entry (computed server-side). */
-  streakDays: number;
   /** Existing entries keyed by YYYY-MM-DD for the calendar strip days. */
   entriesByDate: Record<string, DayEntry>;
   /** True when user has an active intervals.icu / Strava connection. */
@@ -70,7 +68,6 @@ export function JournalForm({
   syncedRhr,
   syncedWeight,
   syncedSleepHours,
-  streakDays,
   entriesByDate,
   hasActiveConnection,
   usualTags,
@@ -200,56 +197,8 @@ export function JournalForm({
     };
   });
 
-  const streakClamped = Math.max(0, Math.min(7, streakDays));
-
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <header className="mb-6 flex items-end justify-between pt-8">
-        <div className="flex flex-col">
-          <div className="mb-1 flex items-center gap-2">
-            <Flame aria-hidden className="size-3.5 text-orange-500" />
-            <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/50">
-              Logging Streak
-            </span>
-          </div>
-          <h2 className="text-2xl font-bold tracking-tighter">
-            Behavior Journal
-          </h2>
-        </div>
-        <div
-          role="img"
-          aria-label={`Logging streak: ${streakDays} ${streakDays === 1 ? "day" : "days"}`}
-          className="relative flex h-8 w-8 items-center justify-center rounded-full border-2 border-white/10"
-        >
-          <svg className="-rotate-90 h-full w-full" viewBox="0 0 36 36">
-            <circle
-              cx="18"
-              cy="18"
-              r="16"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              className="text-white/5"
-            />
-            <circle
-              cx="18"
-              cy="18"
-              r="16"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeDasharray="100"
-              strokeDashoffset={100 - (streakClamped / 7) * 100}
-              className="text-emerald-500"
-            />
-          </svg>
-          <span className="absolute text-[8px] font-bold">
-            {streakClamped}/7
-          </span>
-        </div>
-      </header>
-
+    <div className="space-y-6 pt-2">
       {/* Calendar strip — selects which date the entry is for */}
       <section
         aria-label="Choose the day to log"
@@ -268,20 +217,20 @@ export function JournalForm({
               className="flex min-w-[48px] flex-col items-center gap-2"
             >
               <span
-                className={`text-[9px] font-bold uppercase ${active ? "text-emerald-400" : "text-white/50"}`}
+                className={`text-label font-bold uppercase ${active ? "text-chart-2" : "text-ink-muted"}`}
               >
                 {d.label}
               </span>
               <div
-                className={`glass relative flex h-10 w-10 items-center justify-center rounded-full text-xs font-bold ${
+                className={`glass relative flex h-10 w-10 items-center justify-center rounded-full text-label font-bold ${
                   active
-                    ? "text-white ring-2 ring-emerald-500 ring-offset-2 ring-offset-[#0a0a0a]"
-                    : "text-white/50"
+                    ? "text-ink-primary ring-2 ring-accent ring-offset-2 ring-offset-surface-base"
+                    : "text-ink-muted"
                 }`}
               >
                 {d.day}
                 {hasEntry && (
-                  <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-emerald-500" />
+                  <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-accent" />
                 )}
               </div>
             </button>
@@ -321,7 +270,7 @@ export function JournalForm({
           <CollapsibleTrigger
             badge={
               selectedMood != null ? (
-                <CheckCircle aria-hidden className="size-4 text-emerald-500" />
+                <CheckCircle aria-hidden className="size-4 text-chart-2" />
               ) : undefined
             }
           >
@@ -344,9 +293,9 @@ export function JournalForm({
                     setSelectedMood(selectedMood === i ? null : i);
                     setActiveStep("sliders");
                   }}
-                  className={`text-2xl transition-all ${
+                  className={`text-heading transition-all ${
                     selectedMood === i
-                      ? "rounded-full ring-2 ring-emerald-500 p-1"
+                      ? "rounded-full ring-2 ring-accent p-1"
                       : "grayscale hover:grayscale-0"
                   }`}
                 >
@@ -373,7 +322,7 @@ export function JournalForm({
                     "Energy",
                     energy,
                     setEnergy,
-                    "text-emerald-400",
+                    "text-chart-2",
                     "Drained",
                     "Energized",
                     true,
@@ -383,7 +332,7 @@ export function JournalForm({
                     "Muscle Soreness",
                     soreness,
                     setSoreness,
-                    "text-amber-400",
+                    "text-chart-3",
                     "None",
                     "Very sore",
                     false,
@@ -393,7 +342,7 @@ export function JournalForm({
                     "Stress",
                     stress,
                     setStress,
-                    "text-sky-400",
+                    "text-chart-1",
                     "Calm",
                     "Overwhelmed",
                     false,
@@ -413,11 +362,11 @@ export function JournalForm({
                 ]) => (
                   <div key={label} className="flex flex-col gap-2">
                     <div className="flex justify-between">
-                      <span className="text-xs font-bold text-white/80">
+                      <span className="text-label font-bold text-ink-secondary">
                         {label}
                       </span>
                       <span
-                        className={`text-xs font-bold ${value == null ? "text-white/40" : color}`}
+                        className={`text-label font-bold ${value == null ? "text-ink-muted" : color}`}
                       >
                         {value == null ? "—" : `${value}/10`}
                       </span>
@@ -445,12 +394,12 @@ export function JournalForm({
                     />
                     <div className="flex justify-between">
                       <span
-                        className={`text-[9px] font-medium ${!highIsGood ? "text-emerald-400/60" : "text-red-400/60"}`}
+                        className={`text-label font-medium ${!highIsGood ? "text-chart-2" : "text-chart-5"}`}
                       >
                         {lowLabel}
                       </span>
                       <span
-                        className={`text-[9px] font-medium ${highIsGood ? "text-emerald-400/60" : "text-red-400/60"}`}
+                        className={`text-label font-medium ${highIsGood ? "text-chart-2" : "text-chart-5"}`}
                       >
                         {highLabel}
                       </span>
@@ -461,7 +410,7 @@ export function JournalForm({
               <button
                 type="button"
                 onClick={() => setActiveStep("vitals")}
-                className="w-full rounded-2xl bg-white/5 py-3 text-xs font-bold text-white/70 transition-colors hover:bg-white/10"
+                className="w-full rounded-2xl bg-surface-overlay py-3 text-label font-bold text-ink-secondary transition-colors hover:bg-surface-raised"
               >
                 Continue
               </button>
@@ -477,7 +426,7 @@ export function JournalForm({
           <CollapsibleTrigger>
             <span className="label-micro">3. Vitals Check</span>
             {hasActiveConnection && (
-              <span className="text-[10px] font-bold uppercase text-white/40">
+              <span className="text-label font-bold uppercase text-ink-muted">
                 intervals.icu synced
               </span>
             )}
@@ -488,7 +437,7 @@ export function JournalForm({
               {!hasActiveConnection && (
                 <div className="glass rounded-[2rem] p-6">
                   <h3 className="label-micro mb-6">Today&apos;s Vitals</h3>
-                  <p className="mb-4 text-[10px] text-white/50">
+                  <p className="mb-4 text-label text-ink-muted">
                     Enter your morning readings. Log HRV &amp; resting HR daily
                     to unlock your readiness score after 14 days.
                   </p>
@@ -496,7 +445,7 @@ export function JournalForm({
                     <div>
                       <label
                         htmlFor="manual-hrv"
-                        className="mb-1 block text-[10px] font-bold uppercase text-white/50"
+                        className="mb-1 block text-label font-bold uppercase text-ink-muted"
                       >
                         HRV (ms)
                       </label>
@@ -510,13 +459,13 @@ export function JournalForm({
                         value={manualHrv}
                         onChange={(e) => setManualHrv(e.target.value)}
                         placeholder="e.g. 55"
-                        className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none placeholder:text-white/30 focus:border-emerald-400/50"
+                        className="w-full rounded-xl border border-hairline bg-surface-overlay px-3 py-2 text-caption text-ink-primary outline-none placeholder:text-ink-muted focus:border-accent"
                       />
                     </div>
                     <div>
                       <label
                         htmlFor="manual-rhr"
-                        className="mb-1 block text-[10px] font-bold uppercase text-white/50"
+                        className="mb-1 block text-label font-bold uppercase text-ink-muted"
                       >
                         Resting HR (bpm)
                       </label>
@@ -530,13 +479,13 @@ export function JournalForm({
                         value={manualRhr}
                         onChange={(e) => setManualRhr(e.target.value)}
                         placeholder="e.g. 58"
-                        className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none placeholder:text-white/30 focus:border-emerald-400/50"
+                        className="w-full rounded-xl border border-hairline bg-surface-overlay px-3 py-2 text-caption text-ink-primary outline-none placeholder:text-ink-muted focus:border-accent"
                       />
                     </div>
                     <div>
                       <label
                         htmlFor="manual-sleep"
-                        className="mb-1 block text-[10px] font-bold uppercase text-white/50"
+                        className="mb-1 block text-label font-bold uppercase text-ink-muted"
                       >
                         Sleep (hours)
                       </label>
@@ -550,13 +499,13 @@ export function JournalForm({
                         value={manualSleep}
                         onChange={(e) => setManualSleep(e.target.value)}
                         placeholder="e.g. 7.5"
-                        className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none placeholder:text-white/30 focus:border-emerald-400/50"
+                        className="w-full rounded-xl border border-hairline bg-surface-overlay px-3 py-2 text-caption text-ink-primary outline-none placeholder:text-ink-muted focus:border-accent"
                       />
                     </div>
                     <div>
                       <label
                         htmlFor="manual-weight"
-                        className="mb-1 block text-[10px] font-bold uppercase text-white/50"
+                        className="mb-1 block text-label font-bold uppercase text-ink-muted"
                       >
                         Weight (kg)
                       </label>
@@ -570,7 +519,7 @@ export function JournalForm({
                         value={manualWeight}
                         onChange={(e) => setManualWeight(e.target.value)}
                         placeholder="e.g. 72"
-                        className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none placeholder:text-white/30 focus:border-emerald-400/50"
+                        className="w-full rounded-xl border border-hairline bg-surface-overlay px-3 py-2 text-caption text-ink-primary outline-none placeholder:text-ink-muted focus:border-accent"
                       />
                     </div>
                   </div>
@@ -616,7 +565,7 @@ export function JournalForm({
           <div className="space-y-6">
             {BEHAVIOR_TAGS.map((group) => (
               <div key={group.group}>
-                <h4 className="mb-3 text-[9px] font-bold uppercase text-white/50">
+                <h4 className="mb-3 text-label font-bold uppercase text-ink-muted">
                   {group.group}
                 </h4>
                 <div className="flex flex-wrap gap-2">
@@ -626,7 +575,7 @@ export function JournalForm({
                       type="button"
                       aria-pressed={activeTags.has(tag)}
                       onClick={() => toggleTag(tag)}
-                      className={`glass flex items-center gap-1.5 rounded-full border-white/10 px-3 py-1.5 text-[10px] font-medium ${
+                      className={`glass flex items-center gap-1.5 rounded-full border-hairline px-3 py-1.5 text-label font-medium ${
                         activeTags.has(tag) ? "tag-active" : ""
                       }`}
                     >
@@ -645,7 +594,7 @@ export function JournalForm({
             type="button"
             onClick={rememberUsualTags}
             disabled={rememberPending}
-            className="mt-6 flex w-full items-center justify-center gap-1.5 rounded-2xl bg-white/5 py-2.5 text-[10px] font-bold uppercase tracking-wide text-white/60 transition-colors hover:bg-white/10 disabled:opacity-50"
+            className="mt-6 flex w-full items-center justify-center gap-1.5 rounded-2xl bg-surface-overlay py-2.5 text-label font-bold uppercase tracking-wide text-ink-secondary transition-colors hover:bg-surface-raised disabled:opacity-50"
           >
             <Star aria-hidden className="size-3" />
             {rememberPending
@@ -672,7 +621,7 @@ export function JournalForm({
                 type="button"
                 aria-pressed={dayFlags.has(key)}
                 onClick={() => toggleDayFlag(key)}
-                className={`glass flex items-center gap-1.5 rounded-full border-white/10 px-3 py-1.5 text-[10px] font-medium ${
+                className={`glass flex items-center gap-1.5 rounded-full border-hairline px-3 py-1.5 text-label font-medium ${
                   dayFlags.has(key) ? "tag-active" : ""
                 }`}
               >
@@ -680,7 +629,7 @@ export function JournalForm({
               </button>
             ))}
           </div>
-          <p className="mt-3 text-[10px] text-white/50">
+          <p className="mt-3 text-label text-ink-muted">
             Flagged days still get a score — they&apos;re just left out of your
             baselines.
           </p>
@@ -689,7 +638,7 @@ export function JournalForm({
         {/* 5. Notes */}
         <div className="glass rounded-[2rem] p-6">
           <div className="mb-4 flex items-center gap-2">
-            <span aria-hidden className="text-emerald-400">
+            <span aria-hidden className="text-chart-2">
               ✏️
             </span>
             <label htmlFor="journal-notes" className="label-micro">
@@ -702,7 +651,7 @@ export function JournalForm({
             maxLength={2000}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="h-32 w-full resize-none rounded-xl bg-transparent text-sm leading-relaxed text-white/80 outline-none placeholder:text-white/40 focus-visible:ring-2 focus-visible:ring-emerald-400/50"
+            className="h-32 w-full resize-none rounded-xl bg-transparent text-caption leading-relaxed text-ink-secondary outline-none placeholder:text-ink-muted focus-visible:ring-2 focus-visible:ring-accent"
             placeholder="Anything on your mind — training, recovery, life..."
           />
         </div>
@@ -711,7 +660,7 @@ export function JournalForm({
         {state && (
           <p
             role="status"
-            className={`text-center text-sm ${state.ok ? "text-emerald-400" : "text-red-400"}`}
+            className={`text-center text-caption ${state.ok ? "text-chart-2" : "text-chart-5"}`}
           >
             {state.message}
           </p>
@@ -719,7 +668,7 @@ export function JournalForm({
         <button
           type="submit"
           disabled={pending}
-          className="w-full rounded-2xl bg-emerald-500 py-4 font-bold text-black transition-all hover:bg-emerald-400 disabled:opacity-50"
+          className="w-full rounded-2xl bg-accent py-4 font-bold text-primary-foreground transition-all hover:opacity-90 disabled:opacity-50"
         >
           {pending ? "Saving…" : `Save check-in for ${selectedDate}`}
         </button>

@@ -9,8 +9,9 @@ export function MilestonesCard({
   plansCompleted,
   hideStreak = false,
 }: Milestones & {
-  /** Drop the logging-streak row where it is already shown (e.g. the journal
-   * form's streak ring) — avoids showing the same streak twice on a page. */
+  /** Drop the logging-streak row where it is already shown (the page
+   * header's streak chip) — avoids showing the same streak twice on a
+   * page. */
   hideStreak?: boolean;
 }) {
   const rows: { label: string; value: string | null; detail: string | null }[] =
@@ -42,17 +43,17 @@ export function MilestonesCard({
   return (
     <div className="glass rounded-[2rem] p-6">
       <div className="mb-4 flex items-center gap-2">
-        <Medal className="size-4 text-emerald-400" />
+        <Medal className="size-4 text-chart-2" />
         <h3 className="label-micro">Milestones</h3>
       </div>
       <div className="space-y-3">
         {rows.map((r) => (
           <div key={r.label} className="flex items-baseline justify-between">
-            <span className="text-xs text-white/70">{r.label}</span>
-            <span className="text-xs font-bold">
-              {r.value ?? <span className="font-normal text-white/30">—</span>}
+            <span className="text-caption text-ink-secondary">{r.label}</span>
+            <span className="text-caption font-bold">
+              {r.value ?? <span className="font-normal text-ink-muted">—</span>}
               {r.detail != null && (
-                <span className="ml-1.5 font-normal text-white/40">
+                <span className="ml-1.5 font-normal text-ink-muted">
                   · {r.detail}
                 </span>
               )}

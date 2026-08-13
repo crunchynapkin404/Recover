@@ -1,15 +1,15 @@
 import { downsample } from "@/lib/charts";
+import { TREND_STROKE, type TrendTone } from "./trend-tone";
 
 interface Props {
-  /** Micro label — "HRV vs baseline". */
+  /** Micro label — "HRV". Never carries a " vs baseline" suffix; see below. */
   title: string;
   /** Series, oldest first; nulls are gaps, never zeroes. */
   values: (number | null)[];
   /** The athlete's own band, or null while baselines are calibrating. */
   band: { low: number; high: number } | null;
-  color: string;
-  /** Translucent fill for the band rect. */
-  bandFill: string;
+  /** What the metric measures; resolves to a chart token. */
+  tone: TrendTone;
   unit: string;
   /** Decimals for the current reading; RHR and HRV are both whole numbers. */
   decimals?: number;
@@ -41,33 +41,38 @@ function polyline(
  *
  * Renders an honest empty state rather than a flat line when the range
  * holds fewer than two real readings.
+ *
+ * v0.99 slice 3 cut the visible " vs baseline" suffix four titles carried:
+ * at the 12px floor an uppercase "RESTING HR VS BASELINE" plus its reading
+ * overruns a phone's content width. The band rect and its centreline state
+ * the comparison on screen and the ± readout states it numerically, so the
+ * suffix was redundant for a sighted reader — and it moves into the SVG's
+ * accessible name, which is the one channel that could not see the band.
  */
 export function BaselineTrendCard({
   title,
   values,
   band,
-  color,
-  bandFill,
+  tone,
   unit,
   decimals = 0,
 }: Props) {
   const series = downsample(values, 120);
   const nums = series.filter((v): v is number => v != null);
   const current = [...values].reverse().find((v) => v != null) ?? null;
+  const stroke = TREND_STROKE[tone];
 
   return (
-    <section className="mb-3 rounded-[18px] border border-white/[0.08] bg-white/[0.03] p-4">
-      <div className="mb-3 flex items-baseline justify-between gap-3">
-        <h3 className="text-[9.5px] font-bold uppercase tracking-[0.15em] text-white/40">
-          {title}
-        </h3>
-        <p className="font-mono text-[11px] text-white/45">
+    <section className="glass mb-3 rounded-[18px] p-4">
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <h3 className="label-micro">{title}</h3>
+        <p className="font-numeric text-label text-ink-muted">
           {current != null && (
             <>
-              <span className="text-[12px] font-bold text-white">
+              <span className="text-caption font-bold text-ink-primary">
                 {current.toFixed(decimals)}
               </span>
-              <span className="text-white/40">{unit}</span>
+              <span className="text-ink-muted">{unit}</span>
             </>
           )}
           {band && (
@@ -81,7 +86,7 @@ export function BaselineTrendCard({
       </div>
 
       {nums.length < 2 ? (
-        <p className="py-6 text-center text-[11px] text-white/40">
+        <p className="py-6 text-center text-caption text-ink-muted">
           Not enough readings in this range yet.
         </p>
       ) : (
@@ -100,23 +105,26 @@ export function BaselineTrendCard({
               preserveAspectRatio="none"
               className="h-[90px] w-full"
               role="img"
-              aria-label={`${title}${current != null ? `, currently ${current.toFixed(decimals)}${unit}` : ""}`}
+              aria-label={`${title}${band ? " against your baseline" : ""}${current != null ? `, currently ${current.toFixed(decimals)}${unit}` : ""}`}
             >
               {band && (
                 <>
+                  {/* fill + fillOpacity rather than a second rgba() prop: one
+                      token, one number, and no colour literal to go stale. */}
                   <rect
                     x="0"
                     y={yOf(band.high)}
                     width={VIEW_W}
                     height={Math.max(1, yOf(band.low) - yOf(band.high))}
-                    fill={bandFill}
+                    fill={stroke}
+                    fillOpacity="0.08"
                   />
                   <line
                     x1="0"
                     y1={yOf((band.low + band.high) / 2)}
                     x2={VIEW_W}
                     y2={yOf((band.low + band.high) / 2)}
-                    stroke={color}
+                    stroke={stroke}
                     strokeOpacity="0.35"
                     strokeWidth="0.8"
                     strokeDasharray="3 3"
@@ -126,7 +134,7 @@ export function BaselineTrendCard({
               <polyline
                 points={polyline(series, min, range)}
                 fill="none"
-                stroke={color}
+                stroke={stroke}
                 strokeWidth="0.8"
                 vectorEffect="non-scaling-stroke"
               />

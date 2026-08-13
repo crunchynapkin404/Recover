@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { and, desc, eq, gte, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { requireUser } from "@/lib/session";
@@ -9,11 +8,10 @@ import { SleepNightCard } from "@/components/body/sleep-night-card";
 import { SleepHistoryStrip } from "@/components/body/sleep-history-strip";
 import { selectNight } from "@/lib/sleep-history";
 import { CorrelationRows } from "@/components/body/correlation-rows";
-import { LabsTiles } from "@/components/body/labs-tiles";
+import { LabsHeadline } from "@/components/body/labs-tiles";
 import { BodyBatteryCurve } from "@/components/body/body-battery";
 import { MilestonesCard } from "@/components/body/milestones-card";
 import { JournalForm } from "@/components/body/journal-form";
-import { BioAgeCard } from "@/components/body/bio-age-card";
 import { BloodPressureCard } from "@/components/body/blood-pressure-card";
 import { HealthUpload } from "@/components/body/health-upload";
 import { HealthManualEntry } from "@/components/body/health-manual-entry";
@@ -46,6 +44,8 @@ import {
 } from "@/lib/body-battery";
 import { sleepDebtFrom, DEFAULT_SLEEP_NEED_SECS } from "@/lib/sleep-debt";
 import { buildBodyHref, BODY_TABS, type BodyTab } from "@/lib/log-href";
+import { BodyTabs } from "@/components/body/body-tabs";
+import { RangeTabs, RANGES } from "@/components/body/range-tabs";
 import type { BiomarkerCategory } from "@/lib/health-records";
 import { isBaselineExcluded, type DayFlag } from "@/lib/day-flags";
 import { calibrationProgress } from "@/lib/calibration";
@@ -53,15 +53,6 @@ import { Figure } from "@/lib/uncertainty";
 import { HeartPulse, Moon } from "lucide-react";
 
 export const dynamic = "force-dynamic";
-
-const RANGES = [30, 90, 180, 365];
-
-const TAB_LABEL: Record<BodyTab, string> = {
-  trends: "Trends",
-  sleep: "Sleep",
-  journal: "Journal",
-  labs: "Labs",
-};
 
 function daysAgo(n: number): string {
   const d = new Date();
@@ -138,7 +129,9 @@ export default async function BodyPage({
   await recordSurfaceView(user.id, "body");
   const sp = await searchParams;
   const tab: BodyTab = BODY_TABS.find((t) => t === sp.tab) ?? "trends";
-  const range = RANGES.includes(Number(sp.range)) ? Number(sp.range) : 90;
+  const range = (RANGES as readonly number[]).includes(Number(sp.range))
+    ? Number(sp.range)
+    : 90;
   // Raw URL input — validated against the loaded nights inside SleepTab,
   // never used to build a query.
   const night = sp.night;
@@ -152,29 +145,14 @@ export default async function BodyPage({
     <AppShell user={shellUser(user)}>
       <header className="mb-5 pt-8">
         <div className="mb-4 flex items-start justify-between gap-3">
-          <h1 className="text-[22px] font-bold tracking-[-0.03em]">Body</h1>
+          <h1 className="text-title font-bold tracking-[-0.03em]">Body</h1>
           {milestones.currentStreak > 0 && (
-            <span className="shrink-0 rounded-full border border-emerald-500/30 bg-emerald-500/[0.08] px-3 py-1 text-[10.5px] font-bold text-emerald-400">
+            <span className="shrink-0 rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-label font-bold text-chart-2">
               Streak {milestones.currentStreak}d ✓
             </span>
           )}
         </div>
-        <nav aria-label="Body sections" className="flex flex-wrap gap-1.5">
-          {BODY_TABS.map((t) => (
-            <Link
-              key={t}
-              href={href({ tab: t })}
-              aria-current={t === tab ? "page" : undefined}
-              className={`rounded-full px-4 py-1.5 text-[11px] font-bold transition-colors ${
-                t === tab
-                  ? "bg-white/[0.12] text-white"
-                  : "bg-white/[0.04] text-white/50 hover:text-white/80"
-              }`}
-            >
-              {TAB_LABEL[t]}
-            </Link>
-          ))}
-        </nav>
+        <BodyTabs active={tab} href={href} />
       </header>
 
       {tab === "trends" ? (
@@ -240,45 +218,27 @@ async function TrendsTab({
 
   return (
     <div className="pb-10">
-      <div className="mb-3 flex justify-end gap-1">
-        {RANGES.map((r) => (
-          <Link
-            key={r}
-            href={href({ range: r })}
-            aria-current={r === range ? "true" : undefined}
-            className={`rounded-full px-2.5 py-1 text-[10px] font-bold transition-colors ${
-              r === range
-                ? "bg-white/[0.12] text-white"
-                : "bg-white/[0.04] text-white/45 hover:text-white/70"
-            }`}
-          >
-            {r}d
-          </Link>
-        ))}
-      </div>
+      <RangeTabs active={range} ranges={RANGES} href={href} />
 
       <BaselineTrendCard
-        title="HRV vs baseline"
+        title="HRV"
         values={fillDailyGaps(wellness, range, (w) => w.hrvMs)}
         band={hrvBand}
-        color="#10b981"
-        bandFill="rgba(16,185,129,0.08)"
+        tone="recovery"
         unit="ms"
       />
       <BaselineTrendCard
-        title="Resting HR vs baseline"
+        title="Resting HR"
         values={fillDailyGaps(wellness, range, (w) => w.restingHr)}
         band={rhrBand}
-        color="#3b82f6"
-        bandFill="rgba(59,130,246,0.08)"
+        tone="cardiac"
         unit="bpm"
       />
       <BaselineTrendCard
         title="Weight"
         values={fillDailyGaps(wellness, range, (w) => w.weightKg)}
         band={ownBaselineBand(wellness, (w) => w.weightKg)}
-        color="#a78bfa"
-        bandFill="rgba(167,139,250,0.08)"
+        tone="body"
         unit="kg"
         decimals={1}
       />
@@ -287,8 +247,7 @@ async function TrendsTab({
           title="VO2max"
           values={fillDailyGaps(wellness, range, (w) => w.vo2max)}
           band={ownBaselineBand(wellness, (w) => w.vo2max)}
-          color="#f59e0b"
-          bandFill="rgba(245,158,11,0.08)"
+          tone="output"
           unit="ml/kg/min"
           decimals={1}
         />
@@ -298,8 +257,7 @@ async function TrendsTab({
           title="Blood oxygen"
           values={fillDailyGaps(wellness, range, (w) => w.bloodOxygenPct)}
           band={ownBaselineBand(wellness, (w) => w.bloodOxygenPct)}
-          color="#06b6d4"
-          bandFill="rgba(6,182,212,0.08)"
+          tone="cardiac"
           unit="%"
         />
       )}
@@ -308,8 +266,7 @@ async function TrendsTab({
           title="Wrist temperature"
           values={fillDailyGaps(wellness, range, (w) => w.wristTempC)}
           band={ownBaselineBand(wellness, (w) => w.wristTempC)}
-          color="#f472b6"
-          bandFill="rgba(244,114,182,0.08)"
+          tone="body"
           unit="°C"
           decimals={1}
         />
@@ -319,8 +276,7 @@ async function TrendsTab({
           title="BMI"
           values={fillDailyGaps(wellness, range, (w) => w.bmi)}
           band={ownBaselineBand(wellness, (w) => w.bmi)}
-          color="#facc15"
-          bandFill="rgba(250,204,21,0.08)"
+          tone="body"
           unit=""
           decimals={1}
         />
@@ -330,8 +286,7 @@ async function TrendsTab({
           title="Lean body mass"
           values={fillDailyGaps(wellness, range, (w) => w.leanMassKg)}
           band={ownBaselineBand(wellness, (w) => w.leanMassKg)}
-          color="#34d399"
-          bandFill="rgba(52,211,153,0.08)"
+          tone="body"
           unit="kg"
           decimals={1}
         />
@@ -341,8 +296,7 @@ async function TrendsTab({
           title="Waist circumference"
           values={fillDailyGaps(wellness, range, (w) => w.waistCm)}
           band={ownBaselineBand(wellness, (w) => w.waistCm)}
-          color="#fb923c"
-          bandFill="rgba(251,146,60,0.08)"
+          tone="body"
           unit="cm"
           decimals={1}
         />
@@ -352,8 +306,7 @@ async function TrendsTab({
           title="Respiratory rate"
           values={fillDailyGaps(wellness, range, (w) => w.respiratoryRate)}
           band={ownBaselineBand(wellness, (w) => w.respiratoryRate)}
-          color="#38bdf8"
-          bandFill="rgba(56,189,248,0.08)"
+          tone="cardiac"
           unit="br/min"
           decimals={1}
         />
@@ -363,8 +316,7 @@ async function TrendsTab({
           title="Sleeping HR"
           values={fillDailyGaps(wellness, range, (w) => w.sleepingHr)}
           band={ownBaselineBand(wellness, (w) => w.sleepingHr)}
-          color="#818cf8"
-          bandFill="rgba(129,140,248,0.08)"
+          tone="cardiac"
           unit="bpm"
         />
       )}
@@ -373,8 +325,7 @@ async function TrendsTab({
           title="HRV (SDNN)"
           values={fillDailyGaps(wellness, range, (w) => w.hrvSdnnMs)}
           band={ownBaselineBand(wellness, (w) => w.hrvSdnnMs)}
-          color="#2dd4bf"
-          bandFill="rgba(45,212,191,0.08)"
+          tone="recovery"
           unit="ms"
         />
       )}
@@ -385,8 +336,7 @@ async function TrendsTab({
           title="Readiness score"
           values={fillDailyGaps(wellness, range, (w) => w.readiness)}
           band={ownBaselineBand(wellness, (w) => w.readiness)}
-          color="#fbbf24"
-          bandFill="rgba(251,191,36,0.08)"
+          tone="recovery"
           unit=""
         />
       )}
@@ -395,8 +345,7 @@ async function TrendsTab({
           title="Steps"
           values={fillDailyGaps(wellness, range, (w) => w.steps)}
           band={ownBaselineBand(wellness, (w) => w.steps)}
-          color="#c084fc"
-          bandFill="rgba(192,132,252,0.08)"
+          tone="output"
           unit=""
         />
       )}
@@ -405,8 +354,7 @@ async function TrendsTab({
           title="Hydration"
           values={fillDailyGaps(wellness, range, (w) => w.hydrationL)}
           band={ownBaselineBand(wellness, (w) => w.hydrationL)}
-          color="#22d3ee"
-          bandFill="rgba(34,211,238,0.08)"
+          tone="body"
           unit="L"
           decimals={1}
         />
@@ -609,50 +557,48 @@ async function SleepTab({
       />
 
       {(consistency != null || chrono) && (
-        <div className="mb-3 flex flex-wrap items-baseline gap-x-5 gap-y-1 rounded-[18px] border border-white/[0.08] bg-white/[0.03] px-4 py-3">
+        <div className="glass mb-3 flex flex-wrap items-baseline gap-x-5 gap-y-1 rounded-[18px] px-4 py-3">
           {/* 30-day aggregates: they describe the athlete's rhythm, not the
               night selected above, so they live outside that card. */}
           {consistency != null && (
-            <span className="text-[11px] text-white/50">
+            <span className="text-label text-ink-muted">
               Consistency{" "}
-              <strong className="font-bold text-white/85">
+              <strong className="font-bold text-ink-secondary">
                 {Math.round(consistency.score)}
               </strong>
             </span>
           )}
           {chrono && (
-            <span className="text-[11px] text-white/50">
+            <span className="text-label text-ink-muted">
               Chronotype{" "}
-              <strong className="font-bold text-white/85">
+              <strong className="font-bold text-ink-secondary">
                 midpoint {chrono.midpointHhMm}
               </strong>
             </span>
           )}
-          <span className="text-[10px] text-white/30">last 30 nights</span>
+          <span className="text-label text-ink-muted">last 30 nights</span>
         </div>
       )}
 
       <BaselineTrendCard
-        title="Sleep duration vs baseline"
+        title="Sleep duration"
         values={fillDailyGaps(wellness, 90, (w) =>
           w.sleepSecs != null ? w.sleepSecs / 3600 : null
         )}
         band={ownBaselineBand(wellness, (w) =>
           w.sleepSecs != null ? w.sleepSecs / 3600 : null
         )}
-        color="#3b82f6"
-        bandFill="rgba(59,130,246,0.08)"
+        tone="recovery"
         unit="h"
         decimals={1}
       />
 
       {wellness.some((w) => w.sleepScore != null) && (
         <BaselineTrendCard
-          title="Sleep score vs baseline"
+          title="Sleep score"
           values={fillDailyGaps(wellness, 90, (w) => w.sleepScore)}
           band={ownBaselineBand(wellness, (w) => w.sleepScore)}
-          color="#8b5cf6"
-          bandFill="rgba(139,92,246,0.08)"
+          tone="recovery"
           unit=""
         />
       )}
@@ -745,15 +691,15 @@ async function JournalTab({
         syncedSleepHours={
           latest?.sleepSecs != null ? latest.sleepSecs / 3600 : null
         }
-        streakDays={milestones.currentStreak}
         entriesByDate={entriesByDate}
         hasActiveConnection={!!activeConnection}
         usualTags={journalPrefsRow?.usualBehaviorTags ?? []}
       />
 
       <div className="mt-6">
-        {/* The header chip and the journal form's ring both already carry the
-            streak — this card shows the rest of the milestones only. */}
+        {/* The page header's chip already carries the streak (v0.102 task 6
+            removed the journal form's own duplicate) — this card shows the
+            rest of the milestones only. */}
         <MilestonesCard {...milestones} hideStreak />
       </div>
     </div>
@@ -824,16 +770,16 @@ async function LabsTab({ userId }: { userId: string }) {
 
   return (
     <div className="space-y-4 pb-10">
-      <LabsTiles
+      <LabsHeadline
         bioAge={bioAge}
         biomarkerCount={latest.length}
         lastDraw={biomarkerRows[0]?.measuredAt ?? null}
       />
-      <BioAgeCard result={bioAge} hideHeadline />
       <BloodPressureCard trend={trend} />
+      <BiomarkerList rows={latest} />
+      {/* Entry, not reading — folded, and last. */}
       <HealthUpload />
       <HealthManualEntry birthYear={prefs?.birthYear ?? null} />
-      <BiomarkerList rows={latest} />
     </div>
   );
 }

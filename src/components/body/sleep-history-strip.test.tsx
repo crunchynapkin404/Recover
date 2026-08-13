@@ -79,4 +79,25 @@ describe("SleepHistoryStrip", () => {
     expect(html).toContain("/body?tab=sleep&amp;night=2026-07-31");
     expect(html).toContain("/body?tab=sleep&amp;night=2026-08-01");
   });
+
+  it("holds the floor — the weekday initial was 8px, the app's smallest text", () => {
+    const html = renderToString(
+      <SleepHistoryStrip
+        nights={[
+          {
+            date: "2026-08-11",
+            sleepSecs: 27000,
+            sleepDeepSecs: 5400,
+            sleepRemSecs: 5400,
+            sleepLightSecs: 16200,
+          },
+        ]}
+        selectedDate="2026-08-11"
+        href={(d) => `/body?night=${d}`}
+      />
+    );
+    expect(html).not.toMatch(/text-\[\d/);
+    expect(html).not.toContain("text-white/");
+    expect(html).not.toMatch(/#[0-9a-fA-F]{6}/);
+  });
 });

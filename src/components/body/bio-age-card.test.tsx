@@ -27,11 +27,12 @@ describe("BioAgeCard", () => {
     expect(html).not.toContain("34.2");
   });
 
-  it("drops the headline but keeps the missing detail when hideHeadline is set", () => {
+  it("holds the floor — no arbitrary sizes or ad-hoc white alphas", () => {
     const html = renderToString(
-      <BioAgeCard result={Figure.missingInput("Birth year")} hideHeadline />
+      <BioAgeCard result={Figure.available(estimate, "high")} />
     );
-    expect(html).not.toContain("Not enough inputs yet");
-    expect(html).toContain("Needs Birth year");
+    expect(html).not.toMatch(/text-\[\d/);
+    expect(html).not.toContain("text-white/");
+    expect(html).not.toContain("bg-white/");
   });
 });

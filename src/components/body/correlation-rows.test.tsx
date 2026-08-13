@@ -26,7 +26,7 @@ describe("CorrelationRows", () => {
       />
     );
     expect(html).toContain("25% ± 5 next-day");
-    expect(html).toContain("text-red-400");
+    expect(html).toContain("text-chart-5");
   });
 
   it("renders strong evidence with no effect as a finding, not as unavailable", () => {
@@ -67,10 +67,13 @@ describe("CorrelationRows", () => {
         ]}
       />
     );
-    // Check the badge styling specifically, not the shared header
-    expect(noEffect).toContain("text-white/70");
+    // Check the badge styling specifically, not the shared header (both rows
+    // share a "text-ink-secondary" behaviour name) — the badges themselves
+    // sit on different ink steps and weights, as well as different wording.
+    expect(noEffect).toContain("font-medium text-ink-secondary");
     expect(noEffect).toContain("No detectable effect");
-    expect(calibrating).toContain("text-white/40");
+    expect(calibrating).toContain("shrink-0 text-label text-ink-muted");
+    expect(calibrating).not.toContain("font-medium");
     expect(calibrating).toContain("Calibrating");
   });
 
@@ -85,5 +88,62 @@ describe("CorrelationRows", () => {
     );
     expect(html).not.toContain("inconclusive");
     expect(html).not.toContain("limited evidence");
+  });
+
+  it("holds the floor, and keeps the three verdicts visually distinct", () => {
+    const html = renderToString(
+      <CorrelationRows
+        insights={[insight({ conclusive: true, impactPct: -25 })]}
+      />
+    );
+    expect(html).not.toMatch(/text-\[\d/);
+    expect(html).not.toContain("text-white/");
+    // A real positive finding is the good tone; a real negative is the bad one.
+    expect(html).toMatch(/text-chart-2|text-chart-5/);
+  });
+
+  // F1 (v0.102 task 12, browser pass). text-caption + the widened badge
+  // (task 8: text-[11px]/[11.5px] → text-label) left the row's own
+  // `min-w-0` + `truncate` name span with nowhere to go — on three of four
+  // real rows it rendered at zero width, and the AUTO marker sat flush
+  // against the badge on the fourth. The name is the row's subject and
+  // must stay legible at a 390px viewport.
+  it("F1: never truncates the behaviour name, at any auto/events combination", () => {
+    const html = renderToString(
+      <CorrelationRows
+        insights={[
+          insight({
+            behavior: "Morning training routine",
+            auto: true,
+            conclusive: false,
+            evidence: "limited",
+            events: 54,
+          }),
+        ]}
+      />
+    );
+    expect(html).toContain("Morning training routine");
+    // `truncate` (overflow:hidden text-overflow:ellipsis) combined with
+    // `min-w-0` on a flex child next to a `shrink-0` sibling is exactly the
+    // mechanism that let the name shrink to zero width — neither may
+    // reappear on this row.
+    expect(html).not.toContain("truncate");
+    expect(html).not.toContain("min-w-0");
+    // The row must be allowed to wrap so a wide badge drops to its own
+    // line rather than squeezing the name out again.
+    expect(html).toContain("flex-wrap");
+  });
+
+  it("F1: keeps the AUTO marker separated from the badge with a real margin, not a shrinking flex gap", () => {
+    const html = renderToString(
+      <CorrelationRows
+        insights={[insight({ auto: true, behavior: "Rest day" })]}
+      />
+    );
+    expect(html).toContain("Rest day");
+    // A margin utility on the AUTO span itself holds a gap even when the
+    // name span's own box shrinks — unlike the old `gap-2` on a flex
+    // container that could collapse to nothing along with its sibling.
+    expect(html).toMatch(/class="ml-1\.5[^"]*">\s*auto/);
   });
 });

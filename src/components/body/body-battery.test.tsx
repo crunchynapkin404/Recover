@@ -84,4 +84,48 @@ describe("body battery card", () => {
     expect(html).toContain("Morning");
     expect(html).toContain("30<!-- -->%");
   });
+
+  it("draws the curve and its gradient from a chart token", () => {
+    const html = renderToString(
+      <BodyBatteryCurve
+        current={Figure.available(72, "high")}
+        points={[
+          { minutes: 420, charge: 100 },
+          { minutes: 780, charge: 72 },
+        ]}
+        tags={["big session"]}
+        checkpoints={[{ label: "Morning", minutes: 420, charge: 100 }]}
+      />
+    );
+    expect(html).not.toMatch(/#[0-9a-fA-F]{6}/);
+    expect(html).toContain("var(--chart-3)");
+  });
+
+  it("holds the floor in both states — tags were 9px and the axis 10px", () => {
+    const shown = renderToString(
+      <BodyBatteryCurve
+        current={Figure.available(72, "high")}
+        points={[
+          { minutes: 420, charge: 100 },
+          { minutes: 780, charge: 72 },
+        ]}
+        tags={["big session"]}
+        checkpoints={[{ label: "Morning", minutes: 420, charge: 100 }]}
+      />
+    );
+    const empty = renderToString(
+      <BodyBatteryCurve
+        current={Figure.calibrating(4, 14, "days")}
+        points={[]}
+        tags={["big session"]}
+        checkpoints={[]}
+      />
+    );
+    for (const html of [shown, empty]) {
+      expect(html).not.toMatch(/text-\[\d/);
+      expect(html).not.toContain("text-white/");
+      expect(html).not.toContain("bg-white/");
+      expect(html).not.toContain("border-white/");
+    }
+  });
 });

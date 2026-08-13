@@ -386,9 +386,9 @@ so" — is currently spoken in six dialects: `—` (47 uses), `calibrating` (39)
       confirmed-dead component; 2 sites investigated and excluded), and
       `docs/plans/2026-08-09-uncertainty-vocabulary-admin-misc.md` (no code
       change needed).
-- [ ] **2b.4 — Visual redesign. SLICES 0, 1 AND 2 OF 10 SHIPPED — v0.99.0,
-      v0.100.0 (both 2026-08-12) and v0.101.0 (2026-08-13); the item stays
-      open and closes at slice 9, not before.** v0.99.0 built the foundations only — two token sets
+- [ ] **2b.4 — Visual redesign. SLICES 0-3 OF 10 SHIPPED — v0.99.0,
+      v0.100.0 (both 2026-08-12), v0.101.0 and v0.102.0 (2026-08-13); the item
+      stays open and closes at slice 9, not before.** v0.99.0 built the foundations only — two token sets
       with light and dark, a seven-step type scale on a hard 12px floor, a
       four-step ink ramp, four guards, and the headless capture/axe tooling the
       remaining slices are verified with. **No surface was redesigned.** The nine
@@ -422,6 +422,29 @@ so" — is currently spoken in six dialects: `—` (47 uses), `calibrating` (39)
       Also unguarded: `text-<tone>` on `bg-<tone>/N`, which no guard reads and
       in which three of six tone tokens fail AA — legal today only because the
       live sites are icons.
+      **v0.102.0 shipped slice 3 (Body)** — four tabs, and the first slice to
+      discover that three of them had never been captured or axe-audited at
+      all: `verify-surfaces.ts` mapped `body` to `/body`, which renders Trends
+      alone. Adding Sleep, Journal and Labs surfaced **26 confirmed axe
+      violations** on a surface previously reported clean; all four tabs are at
+      zero now. One of the 26 was theme-independent — an `<input type="file">`
+      with no accessible name — and would have survived the migration
+      untouched. Ratchets 212 → 137 and 469 → 311. See
+      `docs/plans/2026-08-13-v099-slice3-body.md` and its tracked ledger.
+      **Six surface slices remain** (Coach · Settings · Activity ·
+      Admin+Import · pre-auth · sweep).
+      **Carried out of slice 3, for a later slice:**
+      `journal-form.tsx` still nests `.glass` inside `.glass` at two chip
+      groups (pinned in `glass-contrast-guard`'s allowlist, not new).
+      `correlationFigure` can emit a calibrating state whose elapsed count
+      exceeds its target, so the Journal tab reads "Calibrating — day 54 of 10
+      days" — visible before this slice too, and a data-model bug rather than a
+      presentation one.
+      On the Sleep tab the selected night's duration is stated twice in one
+      viewport, once as `LAST NIGHT · 6:51` and once as the sleep-duration
+      trend's current reading `6.9h`. Same value, two formats and two frames
+      (a night, versus that night against its baseline). Left as-is for the
+      owner to call rather than resolved unilaterally at release time.
 - [ ] **2b.4 — Visual redesign.** All 12 pages, against the settled IA using
       the settled vocabulary. The largest item on this roadmap: it splits into
       its own releases with per-page gates, and needs real-browser verification

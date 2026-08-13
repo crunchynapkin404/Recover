@@ -4,8 +4,7 @@ import { BaselineTrendCard } from "./baseline-trend-card";
 
 const base = {
   title: "HRV vs baseline",
-  color: "#10b981",
-  bandFill: "rgba(16,185,129,0.08)",
+  tone: "recovery" as const,
   unit: "ms",
 };
 
@@ -77,5 +76,65 @@ describe("BaselineTrendCard", () => {
     const h = Number(/<rect[^>]*height="([\d.]+)"/.exec(html)?.[1]);
     expect(y).toBeGreaterThanOrEqual(0);
     expect(y + h).toBeLessThanOrEqual(90);
+  });
+
+  it("draws with a chart token, and the band with the same one at low opacity", () => {
+    const html = renderToString(
+      <BaselineTrendCard
+        title="Resting HR"
+        values={[48, 50, 49, 47]}
+        band={{ low: 46, high: 52 }}
+        tone="cardiac"
+        unit="bpm"
+      />
+    );
+    expect(html).toContain("var(--chart-1)");
+    expect(html).toContain('fill-opacity="0.08"');
+    // No raw colour survives anywhere in the output.
+    expect(html).not.toMatch(/#[0-9a-fA-F]{6}/);
+    expect(html).not.toContain("rgba(");
+  });
+
+  it("keeps 'against your baseline' in the accessible name once the visible suffix is cut", () => {
+    const html = renderToString(
+      <BaselineTrendCard
+        title="Resting HR"
+        values={[48, 50, 49, 47]}
+        band={{ low: 46, high: 52 }}
+        tone="cardiac"
+        unit="bpm"
+      />
+    );
+    expect(html).toContain("against your baseline");
+    expect(html).toContain("currently 47bpm");
+  });
+
+  it("does not claim a baseline in the accessible name when there is no band", () => {
+    const html = renderToString(
+      <BaselineTrendCard
+        title="Steps"
+        values={[8000, 9000, 10000]}
+        band={null}
+        tone="output"
+        unit=""
+      />
+    );
+    expect(html).not.toContain("against your baseline");
+  });
+
+  it("holds the floor — the eyebrow was 9.5px and the reading 11px", () => {
+    const html = renderToString(
+      <BaselineTrendCard
+        title="Weight"
+        values={[72.1, 72.4]}
+        band={null}
+        tone="body"
+        unit="kg"
+        decimals={1}
+      />
+    );
+    expect(html).toContain("label-micro");
+    expect(html).not.toMatch(/text-\[\d/);
+    expect(html).not.toContain("text-white/");
   });
 });

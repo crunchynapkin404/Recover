@@ -14,7 +14,6 @@ const baseProps = {
   syncedRhr: 48,
   syncedWeight: 72,
   syncedSleepHours: 7.5,
-  streakDays: 4,
   entriesByDate: {},
   hasActiveConnection: true,
   usualTags: ["💧 Hydration"],
