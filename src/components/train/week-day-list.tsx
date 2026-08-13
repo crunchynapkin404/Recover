@@ -3,16 +3,34 @@ import {
   DayActions,
   type DayActionsOtherDay,
 } from "@/components/week/day-actions";
+import {
+  NextWeekAvailabilityNote,
+  NextWeekDivider,
+  NextWeekSummary,
+} from "@/components/train/next-week-summary";
 
-// Same status palette the week strip and the v0.19 plan rows already use.
-const STATUS_CHIP: Record<DaySlot["status"], string> = {
-  completed: "border-emerald-400/30 text-emerald-400",
-  adapted: "border-amber-400/30 text-amber-400",
-  moved: "border-amber-400/30 text-amber-400",
-  missed: "border-red-400/30 text-red-400",
-  planned: "border-white/15 text-white/60",
-  rest: "border-white/10 text-white/35",
-  race: "border-fuchsia-400/30 text-fuchsia-300",
+// The same palette week-strip.tsx paints, deliberately: the strip and the
+// list render the same seven days one above the other, and a status that
+// changed colour between them would read as two different facts. Race is
+// the new --ink-race token rather than the literal fuchsia this row shipped.
+const STATUS_DOT: Record<DaySlot["status"], string> = {
+  completed: "bg-chart-2",
+  adapted: "bg-chart-3",
+  moved: "bg-chart-3",
+  missed: "bg-chart-5",
+  planned: "bg-ink-muted",
+  rest: "bg-hairline opacity-40",
+  race: "bg-ink-race",
+};
+
+const STATUS_LABEL: Record<DaySlot["status"], string> = {
+  completed: "Completed",
+  adapted: "Adapted",
+  moved: "Moved",
+  missed: "Missed",
+  planned: "Planned",
+  rest: "Rest",
+  race: "Race day",
 };
 
 const WEEKDAY = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -58,17 +76,25 @@ function DayRow({ day: d, isToday, badge, otherDays, actual }: DayRowProps) {
     <div
       data-date={d.date}
       data-today={isToday ? "" : undefined}
-      className={`border-b border-white/[0.06] px-4 py-3 last:border-0 ${
-        isToday ? "bg-white/[0.03]" : ""
+      className={`border-b border-hairline px-4 py-3.5 last:border-0 ${
+        isToday ? "bg-surface-overlay" : ""
       }`}
     >
       <div className="flex items-center gap-3">
         <span
-          className={`w-[34px] shrink-0 text-[9px] font-bold uppercase tracking-[0.15em] ${
-            isToday ? "text-white/80" : "text-white/40"
+          className={`w-10 shrink-0 text-label font-bold uppercase tracking-[0.15em] ${
+            isToday ? "text-ink-secondary" : "text-ink-muted"
           }`}
         >
           {weekdayOf(d.date)}
+        </span>
+
+        <span
+          data-status={d.status}
+          title={STATUS_LABEL[d.status]}
+          className={`size-2.5 shrink-0 rounded-full ${STATUS_DOT[d.status]}`}
+        >
+          <span className="sr-only">{STATUS_LABEL[d.status]}</span>
         </span>
 
         <div className="min-w-0 flex-1">
@@ -76,29 +102,29 @@ function DayRow({ day: d, isToday, badge, otherDays, actual }: DayRowProps) {
             d.workouts.map((w, i) => (
               <p
                 key={i}
-                className={`truncate text-[12.5px] ${isToday ? "font-bold text-white" : "text-white/85"}`}
+                className={`truncate text-caption ${isToday ? "font-bold text-ink-primary" : "text-ink-secondary"}`}
               >
                 {`${w.type} · ${provisional ? "~" : ""}${w.durationMins} min`}
-                <span className="ml-1.5 font-normal text-white/40">
+                <span className="ml-1.5 font-normal text-ink-muted">
                   {w.intensity}
                 </span>
               </p>
             ))
           ) : d.status === "race" ? (
-            <p className="truncate text-[12.5px] font-bold text-fuchsia-300">
+            <p className="truncate text-caption font-bold text-ink-race">
               <span aria-hidden>🏁 </span>
               {d.raceName ?? "Race day"}
             </p>
           ) : (
-            <p className="text-[12.5px] text-white/50">
+            <p className="text-caption text-ink-muted">
               Rest
-              <span className="ml-1.5 text-white/30">
+              <span className="ml-1.5 text-ink-muted">
                 {`${provisional ? "~" : ""}${d.availableMins} min free`}
               </span>
             </p>
           )}
           {credit && (
-            <p className="mt-0.5 text-[10.5px] text-emerald-400/80">
+            <p className="mt-0.5 text-label text-chart-2">
               <span aria-hidden>✓ </span>
               {`${credit.count} session${credit.count === 1 ? "" : "s"} · ${clock(
                 credit.secs
@@ -107,23 +133,17 @@ function DayRow({ day: d, isToday, badge, otherDays, actual }: DayRowProps) {
             </p>
           )}
           {d.movedFrom && (
-            <p className="mt-0.5 text-[10.5px] text-amber-400/80">
+            <p className="mt-0.5 text-label text-chart-3">
               {`moved from ${weekdayOf(d.movedFrom)}`}
             </p>
           )}
         </div>
 
         {badge && (
-          <span className="shrink-0 rounded-full border border-white/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white/40">
+          <span className="shrink-0 rounded-full border border-hairline px-2 py-0.5 text-label font-bold uppercase tracking-wider text-ink-muted">
             {badge}
           </span>
         )}
-
-        <span
-          className={`shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${STATUS_CHIP[d.status]}`}
-        >
-          {d.status}
-        </span>
       </div>
 
       {isToday && d.workouts.length > 0 && (
@@ -147,10 +167,13 @@ function DayRow({ day: d, isToday, badge, otherDays, actual }: DayRowProps) {
  * itself is never dropped even if it's already complete — an athlete
  * opening the app at 20:00 must still see what today asked of them. When
  * `nextWeek` is supplied (docs/plans/2026-07-29-next-week-preview.md, Task
- * 4), its days render after a visible boundary row, each marked
- * "provisional" with a `~` before its durations — a forecast, not yet
- * materialized — except where the athlete pinned that date's availability
- * with an override, which makes it a real fact rather than a projection.
+ * 4), its days no longer render as seven more full rows: `NextWeekSummary`
+ * (v0.99 slice 2 Task 4) collapses them to one summary row behind a closed
+ * `<details>` — a forecast, not a commitment, so it does not double the
+ * tab's scroll length the way seven expanded rows did. Each day is still
+ * marked "provisional" with a `~` before its durations once expanded,
+ * except where the athlete pinned that date's availability with an
+ * override, which makes it a real fact rather than a projection.
  *
  * NOTE: `WeekRationale`, adherence and the weekly review stay Monday–Sunday
  * accounting for the week that's closing; this component is schedule, not
@@ -170,7 +193,14 @@ export function WeekDayList({
 }: {
   days: DaySlot[];
   today: string;
-  nextWeek?: { days: DaySlot[]; pinned: Record<string, boolean> } | null;
+  nextWeek?: {
+    days: DaySlot[];
+    pinned: Record<string, boolean>;
+    /** Next week's target in hours, for the summary line; null when unknown. */
+    targetHours: number | null;
+    /** Where the summary's availability link points. Required — see NextWeekSummary. */
+    availabilityHref: string;
+  } | null;
   /**
    * What was actually trained, keyed by local Ymd. Read straight from the
    * activities table rather than from the day slot's own `unplannedLoad`,
@@ -200,7 +230,7 @@ export function WeekDayList({
     nextWeek.days.some((d) => d.workouts.length > 0 || d.availableMins > 0);
 
   return (
-    <section className="mb-5 overflow-hidden rounded-[18px] border border-white/[0.08] bg-white/[0.03]">
+    <section className="glass mb-5 overflow-hidden rounded-[18px]">
       {visibleDays.map((d) => (
         <DayRow
           key={d.date}
@@ -212,27 +242,37 @@ export function WeekDayList({
         />
       ))}
 
-      {nextWeek && (
-        <div className="border-b border-white/[0.06] bg-white/[0.02] px-4 py-2 text-center text-[9px] font-bold uppercase tracking-[0.2em] text-white/35 last:border-0">
-          next week
-        </div>
-      )}
-
       {nextWeek &&
         (nextWeekHasAvailability ? (
-          nextWeek.days.map((d) => (
-            <DayRow
-              key={d.date}
-              day={d}
-              isToday={false}
-              badge={nextWeek.pinned[d.date] ? "pinned" : "provisional"}
-              otherDays={otherDays}
-            />
-          ))
+          <NextWeekSummary
+            days={nextWeek.days}
+            pinned={nextWeek.pinned}
+            targetHours={nextWeek.targetHours}
+            availabilityHref={nextWeek.availabilityHref}
+          >
+            {nextWeek.days.map((d) => (
+              <DayRow
+                key={d.date}
+                day={d}
+                isToday={false}
+                badge={nextWeek.pinned[d.date] ? "pinned" : "provisional"}
+                otherDays={otherDays}
+              />
+            ))}
+          </NextWeekSummary>
         ) : (
-          <div className="px-4 py-3 text-[12.5px] text-white/40 last:border-0">
-            No availability set for next week
-          </div>
+          <>
+            <NextWeekDivider />
+            <div className="px-4 py-3 text-caption text-ink-muted">
+              No availability set for next week
+            </div>
+            {/* This is the branch the link matters most in — the athlete
+                has nothing set yet, so this is the one dead end that would
+                actually strand them (Finding 1, Task 12 fix pass). */}
+            <NextWeekAvailabilityNote
+              availabilityHref={nextWeek.availabilityHref}
+            />
+          </>
         ))}
     </section>
   );

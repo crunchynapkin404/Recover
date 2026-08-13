@@ -18,15 +18,58 @@
 // exempt from the rule — and v0.99.0 already shipped exactly that shape of
 // mistake twice (a guard reading only the first of six token blocks; an AA
 // argument true for utilities and false for inline styles).
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { compositeOver, type Rgba } from "../src/lib/design/color-literals";
 import { contrastRatio } from "../src/lib/design/contrast";
-import { resolvedThemeTokens, type ThemeName } from "../src/lib/design/tokens";
+import {
+  CSS_PATH,
+  readDeclarations,
+  resolvedThemeTokens,
+  roleOfToken,
+  type ThemeName,
+} from "../src/lib/design/tokens";
 
 const THEMES: ThemeName[] = ["light", "dark"];
 
-/** Every text ink. `--hairline` is excluded: it is barred from text by name. */
-const TEXT_INKS = ["ink-primary", "ink-secondary", "ink-muted"] as const;
+// `readCss` (the helper `resolvedThemeTokens` uses internally) is not
+// exported from tokens.ts, so this reads the file the same way
+// tests/contrast-guard.test.ts does: CSS_PATH + readFileSync.
+function declaredTokenNames(): string[] {
+  return readDeclarations(readFileSync(CSS_PATH, "utf8")).map((d) => d.token);
+}
+
+/**
+ * Every text ink, DERIVED. This was a hand-written array through v0.100.1,
+ * which meant adding an ink token silently skipped the glass check while
+ * passing the surface check — the same shape as the guard that read only
+ * the first of six token blocks. Every token the shared classifier calls
+ * `"text"` is checked over glass here, with no hand-written exemptions: a
+ * hand-written exemption is exactly the failure mode this derivation exists
+ * to remove. That includes `accent` (used as text — badges, links, the
+ * "+ Add race" summary — and it does render on glass) and suffix-style ink
+ * names like `coach-ink`, not just prefix-style `ink-*`.
+ */
+const TEXT_INKS = [...new Set(declaredTokenNames())]
+  .filter((t) => roleOfToken(t) === "text")
+  .sort();
+
+it("derives its ink list from the stylesheet, not from a hand-written array", () => {
+  // Exact inventory, not a floor: a floor lets a new text token silently go
+  // unchecked, which is the bug this file exists to fix. If this fails
+  // because a token was added or removed, confirm the new/changed token
+  // clears the 4.5:1 glass floor above, then update this list — never
+  // loosen it back to a length check.
+  expect(TEXT_INKS).toEqual([
+    "accent",
+    "coach-ink",
+    "ink-muted",
+    "ink-primary",
+    "ink-race",
+    "ink-secondary",
+    "viz-muted-ink",
+  ]);
+});
 
 /**
  * The opaque grounds glass ACTUALLY sits on, verified against the tree rather

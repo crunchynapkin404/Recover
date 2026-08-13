@@ -36,10 +36,10 @@ export function FitnessStatsRow({ stats }: Props) {
     <div className={`grid gap-2 ${GRID_COLS[stats.length]}`}>
       {stats.map((s) => (
         <div key={s.label} className="flex flex-col">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-white/50">
+          <span className="text-label font-bold uppercase tracking-wider text-ink-muted">
             {s.label}
           </span>
-          <span className="mt-1 text-sm font-bold tabular-nums text-white">
+          <span className="mt-1 font-numeric text-caption font-bold text-ink-primary">
             {s.value}
           </span>
         </div>

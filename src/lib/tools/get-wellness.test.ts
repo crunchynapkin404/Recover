@@ -9,6 +9,27 @@ const hasDb =
 
 const USER = "test-get-wellness-user";
 
+/**
+ * A date inside the tool's own lookback window, derived rather than written
+ * down.
+ *
+ * The fixtures below hardcoded "2026-08-05" against a `{ days: 7 }` query.
+ * That passed until 2026-08-12 and failed every run after it: the suite went
+ * red at midnight for a reason with nothing to do with the code under test,
+ * and a permanently-red gate is worse than the two tests it costs — it
+ * teaches everyone reading it that red is normal.
+ *
+ * Two days back leaves five days of slack in a seven-day window, so no
+ * timezone or run-time boundary can push it out.
+ */
+function daysAgoYmd(n: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+const RECENT = daysAgoYmd(2);
+
 describe.skipIf(!hasDb)("get_wellness", () => {
   beforeAll(async () => {
     await db
@@ -40,13 +61,13 @@ describe.skipIf(!hasDb)("get_wellness", () => {
     // into daily_metrics — wellness_daily.ctl/atl stay null for this day.
     await db.insert(schema.wellnessDaily).values({
       userId: USER,
-      date: "2026-08-05",
+      date: RECENT,
       hrvMs: 55,
       restingHr: 48,
     });
     await db.insert(schema.dailyMetrics).values({
       userId: USER,
-      date: "2026-08-05",
+      date: RECENT,
       ctl: 45,
       atl: 40,
       tsb: 5,
@@ -68,7 +89,7 @@ describe.skipIf(!hasDb)("get_wellness", () => {
   it("returns null ctl/atl for a day with wellness but no resolved daily_metrics row", async () => {
     await db.insert(schema.wellnessDaily).values({
       userId: USER,
-      date: "2026-08-05",
+      date: RECENT,
       hrvMs: 55,
       restingHr: 48,
     });

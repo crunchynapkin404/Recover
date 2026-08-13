@@ -234,4 +234,24 @@ describe("WeekRationale", () => {
     );
     expect(html).toBe("");
   });
+
+  it("uses the token scale, not ad-hoc sizes or white alphas", () => {
+    const html = renderToString(
+      <WeekRationale
+        reasons={[
+          "last week was fully missed — restarting at 60% of the skeleton target (244)",
+        ]}
+        targetHours={6}
+        plannedHours={4.9}
+        shortfall={{ wantedHours: 11, offeredHours: 7 }}
+        raceName="Dolomites"
+        source="race"
+      />
+    );
+    expect(html).not.toMatch(/text-\[[\d.]+px\]/);
+    expect(html).not.toMatch(/\btext-(xs|sm)\b/);
+    expect(html).not.toMatch(/text-white\//);
+    expect(html).not.toMatch(/bg-white\//);
+    expect(html).not.toMatch(/border-white\//);
+  });
 });

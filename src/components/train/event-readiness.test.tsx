@@ -205,4 +205,23 @@ describe("EventReadiness", () => {
     expect(html).toContain("Dolomites");
     expect(html.toLowerCase()).toContain("measured training history");
   });
+
+  it("uses the token scale, not ad-hoc sizes or white alphas", () => {
+    const html = renderToString(
+      <EventReadiness
+        raceName="Dolomites"
+        sport="Bike"
+        feasibility={Figure.available(
+          { ...feasibilityValue, verdict: "not_realistic" },
+          "low"
+        )}
+        demand={demand}
+      />
+    );
+    expect(html).not.toMatch(/text-\[[\d.]+px\]/);
+    expect(html).not.toMatch(/\btext-(xs|sm)\b/);
+    expect(html).not.toMatch(/text-white\//);
+    expect(html).not.toMatch(/bg-white\//);
+    expect(html).not.toMatch(/border-white\//);
+  });
 });

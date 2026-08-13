@@ -27,10 +27,10 @@ export function TrainTabs({
           key={t}
           href={href({ tab: t })}
           aria-current={t === active ? "page" : undefined}
-          className={`rounded-full px-4 py-1.5 text-[11px] font-bold transition-colors ${
+          className={`rounded-full px-4 py-1.5 text-label font-bold transition-colors ${
             t === active
-              ? "bg-white/[0.12] text-white"
-              : "bg-white/[0.04] text-white/50 hover:text-white/80"
+              ? "bg-surface-overlay text-ink-primary"
+              : "bg-surface-raised text-ink-muted hover:text-ink-secondary"
           }`}
         >
           {LABEL[t]}

@@ -386,8 +386,9 @@ so" — is currently spoken in six dialects: `—` (47 uses), `calibrating` (39)
       confirmed-dead component; 2 sites investigated and excluded), and
       `docs/plans/2026-08-09-uncertainty-vocabulary-admin-misc.md` (no code
       change needed).
-- [ ] **2b.4 — Visual redesign. SLICES 0 AND 1 OF 10 SHIPPED — v0.99.0 and
-      v0.100.0 (both 2026-08-12); the item stays open.** v0.99.0 built the foundations only — two token sets
+- [ ] **2b.4 — Visual redesign. SLICES 0, 1 AND 2 OF 10 SHIPPED — v0.99.0,
+      v0.100.0 (both 2026-08-12) and v0.101.0 (2026-08-13); the item stays
+      open and closes at slice 9, not before.** v0.99.0 built the foundations only — two token sets
       with light and dark, a seven-step type scale on a hard 12px floor, a
       four-step ink ramp, four guards, and the headless capture/axe tooling the
       remaining slices are verified with. **No surface was redesigned.** The nine
@@ -397,12 +398,30 @@ so" — is currently spoken in six dialects: `—` (47 uses), `calibrating` (39)
       `docs/plans/2026-08-11-v099-slice0-foundations.md` and PR #132.
       **v0.100.0 shipped slice 1 (Today, three states)** — the first
       redesigned surface, closing the untested-components rider below; see
-      `docs/plans/2026-08-12-v099-slice1-today.md`. Eight surface slices
-      remain, and light mode stays unreachable (`forcedTheme="dark"`) until
-      the final one. Two items that slice deliberately left, for whichever
-      slice owns them: `today/checkin-sheet.tsx` is still dark-only and below
-      the 12px floor, and `sidebar-nav.tsx`'s avatar is a live light-mode
-      contrast failure on eight surfaces.
+      `docs/plans/2026-08-12-v099-slice1-today.md`.
+      **v0.101.0 shipped slice 2 (Train)** — the largest surface in the app,
+      four tabs and 22 components, with three editorial cuts the 12px floor
+      forced: the week day row's status pill, next week's seven provisional
+      rows, and the season timeline's 24 per-bar micro-labels. See
+      `docs/plans/2026-08-12-v099-slice2-train.md`, its tracked execution
+      ledger and `-review.md` for the whole-branch findings. **Seven surface
+      slices remain** (Body · Coach · Settings · Activity · Admin+Import ·
+      pre-auth · sweep), and light mode stays unreachable
+      (`forcedTheme="dark"`) until the final one.
+      One item slice 1 deliberately left is still open:
+      `today/checkin-sheet.tsx` is dark-only and below the 12px floor.
+      **`sidebar-nav.tsx`'s avatar is FIXED** (v0.101.0) — it was a measured
+      1:1 contrast failure in light and below the floor, and it was the only
+      confirmed axe finding on Train, Today and Body; fixing it took all
+      eight surfaces to zero confirmed.
+      **Carried out of slice 2, for slice 9:** in light,
+      `--surface-raised` and `--surface-overlay` are both `#ffffff`, so the
+      surface ladder the pill treatments depend on has no light expression —
+      every active/inactive control loses its selected state the day
+      `forcedTheme` lifts. This needs a palette value, not a component fix.
+      Also unguarded: `text-<tone>` on `bg-<tone>/N`, which no guard reads and
+      in which three of six tone tokens fail AA — legal today only because the
+      live sites are icons.
 - [ ] **2b.4 — Visual redesign.** All 12 pages, against the settled IA using
       the settled vocabulary. The largest item on this roadmap: it splits into
       its own releases with per-page gates, and needs real-browser verification

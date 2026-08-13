@@ -2,8 +2,10 @@ import type { Figure } from "@/lib/uncertainty";
 import { unavailableMessage } from "@/components/ui/unavailable";
 
 export interface FitnessTile {
-  /** "Fitness · CTL" */
+  /** The short label the tile prints — "CTL", "ATL", "TSB". */
   label: string;
+  /** The full name, announced but not printed — "Fitness". Required. */
+  srLabel: string;
   /** The reading, or why it isn't available yet. */
   value: Figure<string>;
   color: string;
@@ -21,6 +23,13 @@ export interface FitnessTile {
 /**
  * CTL / ATL / TSB as three tiles above the PMC chart (1e). The chart shows
  * the shape; these show today's number, which is what the athlete came for.
+ *
+ * The tile prints only the short label — "CTL", not "Fitness · CTL" — which
+ * is the same three letters the chart's own legend one panel below already
+ * uses, so the abbreviation is never the only thing on screen naming this
+ * value. The full name ("Fitness") is announced via `srLabel` and is not
+ * printed anywhere: at the 12px floor "Fitness · CTL" is as wide as the
+ * tile itself.
  */
 export function FitnessTiles({ tiles }: { tiles: FitnessTile[] }) {
   return (
@@ -28,13 +37,14 @@ export function FitnessTiles({ tiles }: { tiles: FitnessTile[] }) {
       {tiles.map((t) => (
         <div
           key={t.label}
-          className="rounded-[14px] border border-white/[0.09] bg-white/[0.04] px-3 py-2.5"
+          className="rounded-[14px] border border-hairline bg-surface-overlay px-3 py-2.5"
         >
-          <p className="text-[8.5px] font-bold uppercase tracking-[0.15em] text-white/40">
+          <p className="text-label font-bold uppercase tracking-[0.15em] text-ink-muted">
             {t.label}
+            <span className="sr-only">{t.srLabel}</span>
           </p>
           <p
-            className="mt-1 font-mono text-[20px] font-bold leading-none"
+            className="mt-1 font-numeric text-title font-bold leading-none"
             style={{ color: t.color }}
             title={!t.value.available ? unavailableMessage(t.value) : undefined}
           >
@@ -45,7 +55,7 @@ export function FitnessTiles({ tiles }: { tiles: FitnessTile[] }) {
           </p>
           {t.context && (
             <p
-              className="mt-1.5 text-[9.5px] font-medium"
+              className="mt-1.5 text-label font-medium"
               style={{ color: t.contextColor ?? "var(--ink-muted)" }}
             >
               {t.context}

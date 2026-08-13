@@ -23,10 +23,8 @@ export function RangeTabs({
           // threaded through the shared href builder's signature.
           href={`${href({ range: r })}&panel=${view}`}
           aria-current={active === r ? "true" : undefined}
-          className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${
-            active === r
-              ? "bg-emerald-500/20 text-emerald-400"
-              : "text-white/40"
+          className={`rounded-full px-2.5 py-1 text-label font-bold ${
+            active === r ? "bg-accent/20 text-accent" : "text-ink-muted"
           }`}
         >
           {r}d

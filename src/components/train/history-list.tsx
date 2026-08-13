@@ -17,10 +17,11 @@ export interface HistoryGroup {
   items: HistoryRow[];
 }
 
-// Sport hue for the 8×28 rail. Anything that isn't a run reads as a ride —
-// the same two-colour split the v0.21 log rows used.
+// Sport hue for the rail. Anything that isn't a run reads as a ride — the
+// same two-colour split the v0.21 log rows used, now sourced from the
+// chart tokens so it follows the theme instead of being a dark-only rgba.
 function railColor(sport: string | null): string {
-  return sport === "Run" ? "rgba(16,185,129,0.8)" : "rgba(59,130,246,0.8)";
+  return sport === "Run" ? "var(--chart-2)" : "var(--chart-1)";
 }
 
 // The row's metric trio is mono and tight ("1:15 · 78 · 32km"), so it uses
@@ -49,25 +50,25 @@ function dayLabel(d: Date): string {
 }
 
 /**
- * History (1d) — day-grouped 56px rows on one grouped surface, replacing
- * the ~300px card per activity. Everything an athlete scans for (what,
- * how it felt, how long/hard/far) is on one line; the detail lives one tap
- * away on /activity/[id].
+ * History (1d) — day-grouped rows (≈64–68px, sized to their content) on one
+ * grouped surface, replacing the ~300px card per activity. Everything an
+ * athlete scans for (what, how it felt, how long/hard/far) is on one line;
+ * the detail lives one tap away on /activity/[id].
  */
 export function HistoryList({ groups }: { groups: HistoryGroup[] }) {
   return (
     <div className="space-y-5">
       {groups.map((g) => (
         <section key={g.day}>
-          <h3 className="mb-2 px-1 text-[9.5px] font-bold uppercase tracking-[0.15em] text-white/40">
+          <h3 className="mb-2 px-1 text-label font-bold uppercase tracking-[0.15em] text-ink-muted">
             {dayLabel(g.items[0].startDate)}
           </h3>
-          <div className="overflow-hidden rounded-[18px] border border-white/[0.08] bg-white/[0.03]">
+          <div className="glass overflow-hidden rounded-[18px]">
             {g.items.map((a) => (
               <Link
                 key={a.id}
                 href={`/activity/${a.id}`}
-                className="flex h-14 items-center gap-3 border-b border-white/[0.06] px-3 transition-colors last:border-0 hover:bg-white/[0.03]"
+                className="flex min-h-16 items-center gap-3 border-b border-hairline px-3 py-2.5 transition-colors last:border-0 hover:bg-surface-overlay"
               >
                 <span
                   aria-hidden
@@ -75,14 +76,14 @@ export function HistoryList({ groups }: { groups: HistoryGroup[] }) {
                   style={{ background: railColor(a.sport) }}
                 />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[12.5px] font-semibold text-white">
+                  <span className="block truncate text-caption font-semibold text-ink-primary">
                     {a.name}
                   </span>
-                  <span className="block truncate text-[9.5px] font-medium uppercase tracking-wider text-white/40">
+                  <span className="block truncate text-label font-medium uppercase tracking-wider text-ink-muted">
                     {[a.sport, a.feedback].filter(Boolean).join(" · ")}
                   </span>
                 </span>
-                <span className="shrink-0 font-mono text-[11px] text-white/70">
+                <span className="shrink-0 font-numeric text-label text-ink-secondary">
                   {[
                     clockDuration(a.durationS),
                     a.load != null ? String(Math.round(a.load)) : null,

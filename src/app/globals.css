@@ -55,6 +55,7 @@
   --color-hairline: var(--hairline);
   --color-accent: var(--accent);
   --color-coach-ink: var(--coach-ink);
+  --color-ink-race: var(--ink-race);
 
   /* Type scale — 12px floor, seven steps. Phase 2b.4. Semantic names, not
      Tailwind v4's default --text-* keys (xs/sm/base/xl/3xl/…): those keys
@@ -110,6 +111,17 @@
      tests/contrast-guard.test.ts checks that automatically via the -ink
      suffix. */
   --coach-ink: #6d28d9;
+  /* Race day, as TEXT. fuchsia-700: 5.85:1 worst-case across all three
+     surfaces and across glass on both grounds. Race day is its own
+     vocabulary item on three surfaces (the week strip, the day list, the
+     races list) and had no token — it shipped as a literal text-fuchsia-300,
+     which is a dark-only value. Named `ink-race` so roleOfToken() classifies
+     it as text and both contrast guards pick it up without being told.
+     NOT reached by today/race-chip.tsx (I1, whole-branch review
+     2026-08-12): that component renders the same race name on
+     /train?tab=week in ordinary text-ink-primary. It is a Today component,
+     out of this slice's scope — migrating it belongs to slice 3. */
+  --ink-race: #a21caf;
 
   --background: var(--surface-base);
   --foreground: var(--ink-primary);
@@ -154,6 +166,9 @@
   --hairline: #6b6b6b;
   --accent: #10b981;
   --coach-ink: #a78bfa;
+  /* fuchsia-300 — the exact hex the literal shipped, so dark's rendered
+     pixels do not move. 9.37:1 worst-case on surfaces, 9.04:1 on glass. */
+  --ink-race: #f0abfc;
 
   --background: var(--surface-base);
   --foreground: var(--ink-primary);
@@ -334,7 +349,13 @@
 
 /* ── Micro-typography labels ─────────────────────────────────────────────── */
 .label-micro {
-  font-size: 10px;
+  /* Was a hardcoded 10px — a second floor, uncoordinated with the type
+     scale, backing labels on seven surfaces. Retargeted in slice 2, the
+     first slice to touch one of its call sites, exactly as the design
+     reference's decision table asks. This makes 17 call sites outside
+     Train ~20% wider (uppercase at 0.2em tracking); those surfaces are
+     pre-floor anyway and their own slices will check them. */
+  font-size: var(--text-label);
   text-transform: uppercase;
   letter-spacing: 0.2em;
   font-weight: 700;

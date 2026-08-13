@@ -161,15 +161,15 @@ export function DayActions({ day, otherDays, bare = false }: Props) {
   }
 
   return (
-    <div className={bare ? "contents" : "mt-3 border-t border-white/5 pt-3"}>
+    <div className={bare ? "contents" : "mt-3 border-t border-hairline pt-3"}>
       {applied ? (
-        <p className="text-[11px] font-bold text-emerald-400">
+        <p className="text-label font-bold text-chart-2">
           {action === "move" ? "Moved." : "Swapped."}
         </p>
       ) : preview ? (
         <div className="space-y-2">
           {!preview.available ? (
-            <p className="text-[11px] text-white/50">
+            <p className="text-label text-ink-muted">
               {unavailableMessage({
                 kind: "missing_input",
                 needs: preview.needs ?? "more training history to project form",
@@ -177,11 +177,11 @@ export function DayActions({ day, otherDays, bare = false }: Props) {
             </p>
           ) : (
             <>
-              <p className="text-[11px] text-white/70">
+              <p className="text-label text-ink-secondary">
                 {`${preview.anchorRace ? "Race-day form" : "Week-end form"}: ${preview.beforeTsb} → ${preview.afterTsb} TSB (${preview.afterBand})`}
               </p>
               {preview.capped && (
-                <p className="text-[10px] text-white/40">
+                <p className="text-label text-ink-muted">
                   {preview.why ?? CAPPED_FALLBACK_WHY}
                 </p>
               )}
@@ -190,7 +190,7 @@ export function DayActions({ day, otherDays, bare = false }: Props) {
           {action === "skip" &&
             preview.loadDelta !== null &&
             preview.loadDelta !== 0 && (
-              <p className="text-[10px] text-white/40">
+              <p className="text-label text-ink-muted">
                 {`Load change: ${preview.loadDelta}`}
               </p>
             )}
@@ -200,7 +200,7 @@ export function DayActions({ day, otherDays, bare = false }: Props) {
                 type="button"
                 disabled={pending}
                 onClick={confirmApply}
-                className="rounded-lg bg-emerald-500/90 px-3 py-1 text-[11px] font-bold text-neutral-950 disabled:opacity-50"
+                className="rounded-lg bg-accent px-3 py-1 text-label font-bold text-primary-foreground disabled:opacity-50"
               >
                 Confirm
               </button>
@@ -208,12 +208,12 @@ export function DayActions({ day, otherDays, bare = false }: Props) {
             <button
               type="button"
               onClick={resetPreview}
-              className="rounded-lg bg-white/10 px-3 py-1 text-[11px] font-bold text-white/70"
+              className="rounded-lg border border-hairline px-3 py-1 text-label font-bold text-ink-secondary"
             >
               {action === "skip" ? "Close" : "Cancel"}
             </button>
           </div>
-          {error && <p className="text-[11px] text-red-400">{error}</p>}
+          {error && <p className="text-label text-chart-5">{error}</p>}
         </div>
       ) : (
         <div className="flex flex-wrap items-center gap-2">
@@ -221,7 +221,7 @@ export function DayActions({ day, otherDays, bare = false }: Props) {
             value={action}
             aria-label="Plan change"
             onChange={(e) => changeAction(e.target.value as Action)}
-            className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-[11px] font-bold text-white/80 focus:border-white/30 focus:outline-none"
+            className="rounded-full border border-hairline px-3 py-1 text-label font-bold text-ink-secondary focus:border-accent focus:outline-none"
           >
             <option value="move">Move</option>
             <option value="swap">Swap</option>
@@ -232,7 +232,7 @@ export function DayActions({ day, otherDays, bare = false }: Props) {
               value={target}
               aria-label="Target day"
               onChange={(e) => setTarget(e.target.value)}
-              className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-[11px] text-white/70 focus:border-white/30 focus:outline-none"
+              className="rounded-full border border-hairline px-3 py-1 text-label text-ink-secondary focus:border-accent focus:outline-none"
             >
               <option value="">Target day…</option>
               {targets.map((t) => (
@@ -248,7 +248,7 @@ export function DayActions({ day, otherDays, bare = false }: Props) {
             type="button"
             disabled={pending || (needsTarget && target === "")}
             onClick={runPreview}
-            className="rounded-full border px-3 py-1 text-[11px] font-bold disabled:opacity-40"
+            className="rounded-full border px-3 py-1 text-label font-bold disabled:opacity-40"
             style={{
               background: "rgba(139,92,246,0.1)",
               borderColor: "rgba(139,92,246,0.3)",
@@ -268,11 +268,11 @@ export function DayActions({ day, otherDays, bare = false }: Props) {
                 if (!r.ok) setError(friendlyPlanError(r.error));
               })
             }
-            className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[11px] font-bold text-white/60 disabled:opacity-40"
+            className="rounded-full border border-hairline px-3 py-1 text-label font-bold text-ink-secondary disabled:opacity-40"
           >
             No time today
           </button>
-          {error && <span className="text-[11px] text-red-400">{error}</span>}
+          {error && <span className="text-label text-chart-5">{error}</span>}
         </div>
       )}
     </div>

@@ -1,5 +1,97 @@
 # Changelog
 
+## v0.101.0 — 2026-08-13 — Train, at the floor
+
+Phase 2b.4 slice 2 of 10. The Train surface — four tabs, 22 components and a
+1,537-line page — moves onto the v0.99 token system at a hard 12px floor. It
+was the largest surface in the app by a wide margin: 133 arbitrary type sizes
+and 255 ad-hoc ink alphas when the slice opened, roughly a third of everything
+left in the codebase.
+
+**Three editorial cuts, because the floor genuinely did not fit.** The week day
+row's spelled-out status pill is gone — it needed ~90-110px at 12px bold tracked
+type on a 380px row that also carries a weekday and the workout text, and the
+week strip directly above it already renders the same vocabulary as a colour dot
+with `sr-only` text. Next week's seven provisional rows collapse to one summary
+line that opens on demand; committed data stays fully expanded, a forecast is
+the right thing to demote. And the season timeline's 24 per-bar micro-labels —
+9px week plus 8px session count, the smallest text in the app — could not fit a
+phone at any boundary; it is now an axis tick every third week, one always-legible
+readout, and a strip that scrolls rather than compressing bars below legibility.
+
+**Race day has a token.** `--ink-race` replaces the literal `text-fuchsia-300`
+that shipped in two files. Named `ink-race` deliberately: `roleOfToken()`
+classifies by name, so the token registers itself with both contrast guards with
+no guard edit. Dark resolves to the exact hex the literal already rendered, so
+dark's pixels do not move; light gains a value that clears 4.5:1.
+
+**The second 10px floor is retired.** `.label-micro` hardcoded `font-size: 10px`
+behind 53 call sites across seven surfaces. It now sits on `--text-label`.
+
+**History's rows size to their content** instead of clipping at a hardcoded 56px,
+and the fitness tiles drop the category word the chart's own legend states one
+panel below.
+
+### Guards
+
+**The 12px floor was not actually enforced, and this release is what exposed it.**
+The seven scale tokens live in `@theme inline`, which `extractThemeBlocks()` never
+matched — so the floor was checked against a hand-copied table of px values inside
+a test. Setting `--text-label: 0.625rem` left the entire suite green while 145
+`text-label` sites and every `.label-micro` rendered at 10px. It is now derived
+from the stylesheet, with a new assertion that each `--text-*` clears 12px in its
+own right, and the reader throws rather than returning nothing if the block moves.
+
+`tests/glass-contrast-guard.test.ts` derived its ink list from a hand-written
+array that silently excluded `coach-ink` and `accent` — both real text tokens
+rendered on glass. Now role-derived with an exact seven-member inventory.
+
+`src/app/train/skeleton-table.test.ts` held page.tsx to the floor with regexes
+narrower than the guard it inherits from, missing `rem`/`em` units and the
+`ring`/`divide`/`fill`/`stroke` prefixes. It now imports the shared patterns.
+
+Offender ceilings: **351 → 217** arbitrary type sizes, **738 → 480** ad-hoc ink
+alphas, each read from the guard's own count.
+
+### Fixed
+
+- The global bottom nav overflowed on common phones: 8px → 12px labels kept
+  `uppercase tracking-widest`, costing 62px at 320pt and 22px at 360pt, where
+  "MENU" rendered outside the pill and Settings became unreachable. The design
+  reference had already dropped the tracking at this size.
+- The next-week summary printed a raw quotient — `of 7.916666666666667h target`
+  — while the block below rendered the same figure as `7.9h`. Every test used
+  whole numbers.
+- The weekly load chart rendered upside-down: each bar sits in an `h-full`
+  column whose default `justify-start` pinned it to the top, so the parent's
+  `items-end` never reached it. Pre-existing.
+- `sidebar-nav`'s avatar was a measured 1:1 contrast failure in light and below
+  the floor. It renders on eight surfaces, so fixing it took Today's three
+  states and Body to zero confirmed findings alongside Train's four tabs.
+- `block-sheet`'s energy and sport chips lost their selected state: active and
+  inactive both resolved to their container's own fill, leaving text colour as
+  the only cue.
+- Train printed next week's planned-vs-target twice, and the season timeline
+  printed latest target and actual twice.
+
+### Verification
+
+`scripts/verify-surfaces.ts` mapped Train to `/train`, which is the Week tab
+alone — History, Season and Fitness were unreachable by the tool meant to check
+them. All four are now captured. **Axe reports 0 confirmed nodes on all four
+tabs, in both themes, at both viewports.**
+
+Light mode stays unreachable (`forcedTheme="dark"`) until slice 9, and 2b.4
+stays open — it closes at slice 9, not here.
+
+### Also in this release
+
+One unrelated commit: `src/lib/tools/get-wellness.test.ts` hardcoded three
+fixture dates against a 7-day query window and began failing every run on
+2026-08-13. A permanently red gate costs more than the two tests it fails, so it
+was fixed before the remaining tasks ran. It is isolated on
+`fix/get-wellness-date-rot` off main.
+
 ## v0.100.1 — 2026-08-12 — The glass comes back
 
 A same-day patch on v0.100.0, on owner feedback after using the live app.

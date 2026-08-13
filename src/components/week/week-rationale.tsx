@@ -106,14 +106,14 @@ export function WeekRationale({
     <div className="glass mt-4 rounded-[1.5rem] p-5">
       <p className="label-micro mb-2">Why this week</p>
       {plannedHours != null && targetHours != null && (
-        <p className="mb-2 text-[12.5px] text-white/70">
+        <p className="mb-2 text-caption text-ink-secondary">
           {`${fmt(plannedHours)} planned against ${article(targetHours)} ${fmt(
             targetHours
           )} target.`}
         </p>
       )}
       {shortfall && (
-        <p className="mb-2 text-[12.5px] text-white/70">
+        <p className="mb-2 text-caption text-ink-secondary">
           {shortfall.offeredHours < NO_AVAILABILITY_EPSILON
             ? `${shortfallLead(
                 source,
@@ -137,7 +137,7 @@ export function WeekRationale({
       )}
       <ul className="space-y-1">
         {reasons.map((reason, i) => (
-          <li key={i} className="text-[11.5px] leading-relaxed text-white/55">
+          <li key={i} className="text-label leading-relaxed text-ink-muted">
             {reason}
           </li>
         ))}

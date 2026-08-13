@@ -248,4 +248,14 @@ describe("PlanPreviewCard", () => {
       container.querySelector('[data-testid="plan-preview-error"]')
     ).toBeNull();
   });
+
+  it("uses the token scale, not ad-hoc sizes or white alphas", () => {
+    mount();
+    const html = container.innerHTML;
+    expect(html).not.toMatch(/text-\[[\d.]+px\]/);
+    expect(html).not.toMatch(/\btext-(xs|sm)\b/);
+    expect(html).not.toMatch(/text-white\//);
+    expect(html).not.toMatch(/bg-white\//);
+    expect(html).not.toMatch(/border-white\//);
+  });
 });

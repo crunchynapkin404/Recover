@@ -133,6 +133,61 @@ export function readDeclarations(css = readCss()): TokenDeclaration[] {
   return out;
 }
 
+/**
+ * The seven `--text-*` type-scale tokens, read out of the `@theme inline {
+ * … }` block and resolved to px — the C1 fix (whole-branch review
+ * 2026-08-12). `extractThemeBlocks` above deliberately matches only
+ * `:root`/`.dark`; `@theme inline` is Tailwind's own block and a different
+ * selector, so nothing upstream of this function ever saw it. Before this,
+ * `tests/type-scale-guard.test.ts` held a hand-copied `SCALE_PX` literal —
+ * changing `--text-label` in the CSS could not turn that test red, because
+ * nothing read the CSS. This reads it.
+ *
+ * FAILS LOUDLY on a `--text-*` declaration it cannot resolve to px (not a
+ * bare `px` or `rem` value) rather than omitting it — an unresolvable scale
+ * token is exactly the kind of drift this function exists to catch, so it
+ * must not silently vanish into an `undefined` a caller might not check.
+ */
+export function readScaleTokens(css: string): Record<string, number> {
+  const blockRe = /^@theme\s+inline\s*\{([\s\S]*?)^\}/m;
+  const block = blockRe.exec(css);
+  if (!block) {
+    throw new Error(
+      "tokens: no `@theme inline { … }` block in globals.css — the type " +
+        "scale lives there and this reader would find nothing"
+    );
+  }
+  const blockLine = css.slice(0, block.index).split("\n").length;
+  const body = block[1];
+  const out: Record<string, number> = {};
+  for (const m of body.matchAll(/^[ \t]*(--text-[\w-]+)\s*:\s*([^;]+);/gm)) {
+    const token = m[1];
+    const raw = m[2].trim();
+    const line = blockLine + body.slice(0, m.index).split("\n").length - 1;
+    const px = /^([\d.]+)px$/.test(raw)
+      ? Number(/^([\d.]+)px$/.exec(raw)![1])
+      : /^([\d.]+)rem$/.test(raw)
+        ? Number(/^([\d.]+)rem$/.exec(raw)![1]) * 16
+        : null;
+    if (px == null) {
+      throw new Error(
+        `tokens: ${token} at globals.css:${line} is "${raw}", which is ` +
+          `neither a bare px nor rem value — readScaleTokens cannot resolve ` +
+          `it to a pixel size, and a scale token this guard can't measure is ` +
+          `not a token the 12px floor is actually checking`
+      );
+    }
+    out[token] = px;
+  }
+  if (Object.keys(out).length === 0) {
+    throw new Error(
+      "tokens: no --text-* declarations found inside @theme inline { … } — " +
+        "the type scale moved or was renamed and this reader is now blind"
+    );
+  }
+  return out;
+}
+
 export type ThemeTokens = Record<string, string>;
 
 /**

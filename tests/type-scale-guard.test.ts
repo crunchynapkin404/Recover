@@ -57,6 +57,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import {
   CSS_PATH,
+  readScaleTokens,
   readThemeTokens,
   renderableThemes,
   resolveToken,
@@ -76,21 +77,13 @@ import {
   styleValueColors,
 } from "../src/lib/design/inline-styles";
 import { contrastRatio } from "../src/lib/design/contrast";
+import {
+  ARBITRARY_TYPE,
+  ADHOC_INK,
+} from "../src/lib/design/type-scale-patterns";
 
 const SRC = join(process.cwd(), "src");
 
-/** Arbitrary type sizes: text-[10px], text-[0.75rem]. */
-const ARBITRARY_TYPE = /\btext-\[[^\]]*(?:px|rem|em)\]/g;
-/**
- * Ad-hoc ink: text-white/40, bg-white/5, border-white/10, ring-white/50,
- * divide-white/5, and Tailwind's bracket arbitrary-opacity syntax —
- * bg-white/[0.06]. Both opacity syntaxes and both the ring/divide prefixes
- * are live in src/ today (138 bracket-syntax and 8 ring/divide occurrences
- * respectively as of v0.99.0) — a pattern that misses either would let real
- * offenders through undetected.
- */
-const ADHOC_INK =
-  /\b(?:text|bg|border|fill|stroke|ring|divide)-(?:white|black)\/(?:\d+|\[[^\]]+\])/g;
 /** hairline is a non-text token; using it as text colour is the one misuse. */
 const HAIRLINE_AS_TEXT = /\btext-hairline\b/g;
 
@@ -161,14 +154,89 @@ function occurrences(pattern: RegExp): number {
  */
 const RATCHET_SLACK = 25;
 const OFFENDER_CEILINGS: Record<string, number> = {
-  // 352 occurrences, measured 2026-08-12 after the whole-branch-review
-  // fixes (C3 migrated the onboarding branch's 4 text-[11px] instances).
-  // Was 355 right after slice 1, 395 at slice 0.
-  "arbitrary type sizes": 351,
-  // 738 occurrences, measured 2026-08-12 after the whole-branch-review
-  // fixes (C3 migrated the onboarding branch's text-white/* instances).
-  // Was 749 right after slice 1, 806 at slice 0.
-  "ad-hoc white/black alpha utilities": 738,
+  // 217 occurrences, measured 2026-08-13 after task 12 (the sweep — the two
+  // header control switches season-mode-switch.tsx and plan-style-switch.tsx,
+  // which no earlier task owned, plus bottom-nav.tsx and plan-empty.tsx)
+  // migrated 6 text-[Npx] sites. The Train surface is now at ZERO offenders
+  // with exactly one deliberate exclusion: block-sheet.tsx's modal scrim,
+  // which is neither ink nor surface and has no token.
+  // Was 223 occurrences, measured 2026-08-13 after task 11 (Fitness —
+  // fitness-tiles.tsx, pmc-chart.tsx, fitness-stats-row.tsx and page.tsx's
+  // Fitness half) migrated 6 text-[Npx] sites: the tile label, value and
+  // context in fitness-tiles.tsx, the Stat label in pmc-chart.tsx, the
+  // eFTP/Max Power/W'/Ramp label in fitness-stats-row.tsx, and the CTL/ATL/
+  // TSB legend row in page.tsx.
+  // Was 229 occurrences, measured 2026-08-13 after task 10 (Season — the
+  // season-timeline-card.tsx restructure) migrated 6 text-[Npx] sites: the
+  // eyebrow, the three stat tiles' shared text-[10px] wrapper, and the
+  // closing note and empty state, one each. The per-bar week (9px) and
+  // session-count (8px) labels were not migrated to a token — they were
+  // deleted outright, replaced by the axis ticks and the detail readout.
+  // Was 235 occurrences, measured 2026-08-13 after task 9 (History — the
+  // day-grouped rows in history-list.tsx, the summary strip in
+  // history-stat-strip.tsx, and the Log-activity link and sport filter
+  // pills in page.tsx's History half) migrated 9 text-[Npx] sites.
+  // Was 244 after task 8 (races-section.tsx and plan-preview-card.tsx —
+  // the A/B/C priority chips, the add-race and demand-edit forms, the
+  // phase table and week list) migrated 21 text-[Npx] sites.
+  // 265 after task 7 (the availability intake path — intake-form.tsx,
+  // block-sheet.tsx, standard-week.tsx and availability-week-switcher.tsx)
+  // migrated 23 text-[Npx] sites. 288 after task 6 (the week tab's
+  // page-level chrome in page.tsx itself — the adjustments panel, the
+  // remaining-skeleton table, the start-week form, the next-week note and
+  // the race chip's goal note) migrated 14 text-[Npx] sites. 302 after task
+  // 5 (the week tab's prose blocks — day-actions.tsx's pills and selects,
+  // fuelling-card.tsx's card and confidence chip, week-rationale.tsx's
+  // shortfall/reason prose, and event-readiness.tsx's verdict/demand prose)
+  // migrated 31 text-[Npx] sites. 333 after task 4 (the next-week preview
+  // collapse — the new next-week-summary.tsx and the wiring changes in
+  // week-day-list.tsx and page.tsx are all token utilities, so the count did
+  // not move there), 343 after task 2, 351 after the whole-branch-review
+  // fixes, 355 right after slice 1, 395 at slice 0.
+  "arbitrary type sizes": 217,
+  // 480 occurrences, measured 2026-08-13 after task 12 migrated 16
+  // text-white/N, bg-white/N and border-white/N sites: plan-style-switch.tsx
+  // (6) + season-mode-switch.tsx (8) + bottom-nav.tsx (2). block-sheet.tsx's
+  // diff that task was comment-only — its scrim is the one deliberate
+  // exclusion, not a migrated site.
+  // Was 496 occurrences, measured 2026-08-13 after task 11 migrated 13
+  // text-white/N, bg-white/N and border-white/N sites across
+  // fitness-tiles.tsx (the tile card, which moved to `bg-surface-overlay`,
+  // and the label ink), pmc-chart.tsx (the calibrating message, the Stat
+  // block's divider and label ink), fitness-stats-row.tsx (the label ink)
+  // and page.tsx's Fitness half (both cards, which moved to `glass`, the
+  // legend divider and its ink; the legend's swatch colour itself moved off
+  // inline style entirely, onto `bg-chart-1`/`bg-chart-5`/`bg-chart-2`).
+  // Was 509 occurrences, measured 2026-08-13 after task 10 migrated 20
+  // text-white/N, bg-white/N and border-white/N sites in
+  // season-timeline-card.tsx (including the card, which moved to `glass`,
+  // and the three stat tiles plus the bar-pair wrapper, which moved to
+  // `bg-surface-overlay`; the target/actual bar fills moved to the named
+  // `bg-ink-muted`/`bg-chart-2` tokens, not an alpha bucket).
+  // Was 529 occurrences, measured 2026-08-13 after task 9 migrated 19
+  // text-white/N, bg-white/N and border-white/N sites across
+  // history-list.tsx, history-stat-strip.tsx and page.tsx's History half
+  // (including both cards, which moved to `glass`, and the row's hover,
+  // which moved to `bg-surface-overlay`).
+  // Was 548 after task 8 migrated 65 text-white/N, bg-white/N and
+  // border-white/N sites across races-section.tsx and
+  // plan-preview-card.tsx (including the two cards that were already
+  // `glass` and needed no change, and the demand-edit form's tile, which
+  // moved to `bg-surface-overlay`).
+  // 613 after task 7 migrated 38 text-white/N, bg-white/N and
+  // border-white/N sites across the same four availability-intake
+  // components (including block-sheet.tsx's sheet panel, which moved to
+  // `glass`, and its nested block tile, which moved to `bg-surface-overlay`).
+  // 651 after task 6 migrated 18 text-white/N, bg-white/N and
+  // border-white/N sites in the same page.tsx chrome (including the
+  // skeleton table's own scroll wrapper and the start-week form's card,
+  // which moved to `glass`). 669 after task 5 migrated 40 text-white/N,
+  // bg-white/N and border-white/N sites across the same four components
+  // (including the card wrappers that moved to `glass` and the nested
+  // fuelling tile that moved to `bg-surface-overlay`). 709 after task 4,
+  // for the same reason task 4 didn't move it — 729 after task 2, 738 after
+  // the whole-branch-review fixes, 749 right after slice 1, 806 at slice 0.
+  "ad-hoc white/black alpha utilities": 480,
 };
 
 function expectRatchet(name: string, pattern: RegExp): void {
@@ -299,6 +367,19 @@ const RENDERABLE_THEMES = renderableThemes();
 const RESOLVED_TOKENS = resolvedThemeTokens(GLOBALS_CSS);
 const RAW_TOKENS = readThemeTokens(GLOBALS_CSS);
 
+/**
+ * C1, whole-branch review 2026-08-12: the floor token values themselves,
+ * not a copy of them. This used to be a hand-written `SCALE_PX` literal —
+ * changing `--text-label` in globals.css could not turn this file red,
+ * because nothing here read the CSS. Demonstrated: dropping `--text-label`
+ * to 0.625rem (10px) in globals.css and re-running the old literal table
+ * produced zero offenders. Parsed fresh out of the `@theme inline { … }`
+ * block on every run instead, so it cannot go stale relative to what ships.
+ * `readScaleTokens` itself throws on a `--text-*` it cannot resolve to px —
+ * see its doc comment in src/lib/design/tokens.ts.
+ */
+const SCALE_PX = readScaleTokens(GLOBALS_CSS);
+
 /** Every opaque ground a theme declares — what a ratio is measured against. */
 function surfacesOf(theme: ThemeName): string[] {
   const hexes = [
@@ -404,10 +485,6 @@ function inlineColorInventory(): string[] {
  * the guard reads.
  */
 const INLINE_COLOR_INVENTORY: readonly string[] = [
-  "src/app/train/page.tsx — background: BAND_COLOR[band]",
-  "src/app/train/page.tsx — background: l.color",
-  'src/app/train/page.tsx — borderColor: band === "calibrating" ? "rgba(255,255,255,0.15)" : BAND_COLOR[band]',
-  "src/app/train/page.tsx — color: BAND_COLOR[band]",
   "src/components/body/sleep-history-strip.tsx — background: s.color",
   "src/components/body/sleep-night-card.tsx — background: s.color",
   "src/components/body/sleep-night-card.tsx — background: s.color",
@@ -524,5 +601,53 @@ describe("type-scale guard", () => {
         "if it cannot be checked (a runtime value, a fill, a shadow), add it " +
         "to INLINE_COLOR_INVENTORY so it is at least recorded"
     ).toEqual(INLINE_COLOR_INVENTORY);
+  });
+
+  // The assertion that did not exist before this fix: every parsed scale
+  // token held to the floor in its OWN right, independent of whether
+  // anything in globals.css currently references it via var(). Without
+  // this, a floor token could drop below 12px and nothing here would
+  // notice until (if ever) a font-size: var(--text-x) declaration happened
+  // to use it.
+  it("every --text-* scale token is at or above the 12px floor", () => {
+    const offenders = Object.entries(SCALE_PX)
+      .filter(([, px]) => px < 12)
+      .map(([token, px]) => `${token}: ${px}px`);
+    expect(offenders, offenders.join("\n")).toEqual([]);
+  });
+
+  /**
+   * The floor is a property of the app, not of Tailwind. `.label-micro`
+   * hardcoded `font-size: 10px` right through slices 0 and 1 — a second,
+   * uncoordinated floor that no utility scan could see, backing labels on
+   * seven surfaces. This reads every font-size declaration in the file,
+   * resolves the ones written as tokens, and holds them all to 12px. An
+   * unknown `--text-*` token (typo, renamed, never declared) fails loudly
+   * as "unresolvable" rather than silently passing on `undefined < 12`
+   * being false.
+   */
+  it("declares no font-size below the 12px floor in globals.css", () => {
+    const css = GLOBALS_CSS;
+    const found: string[] = [];
+    for (const m of css.matchAll(/^\s*font-size:\s*([^;]+);/gm)) {
+      const raw = m[1].trim();
+      const line = css.slice(0, m.index).split("\n").length;
+      const tokenMatch = /^var\((--text-[a-z-]+)\)$/.exec(raw);
+      const px = tokenMatch
+        ? (SCALE_PX[tokenMatch[1]] ?? null)
+        : /^([\d.]+)px$/.test(raw)
+          ? Number(/^([\d.]+)px$/.exec(raw)![1])
+          : /^([\d.]+)rem$/.test(raw)
+            ? Number(/^([\d.]+)rem$/.exec(raw)![1]) * 16
+            : null;
+      if (px == null) {
+        found.push(`globals.css:${line} — unresolvable font-size: ${raw}`);
+      } else if (px < 12) {
+        found.push(
+          `globals.css:${line} — font-size: ${raw} (${px}px) is below the floor`
+        );
+      }
+    }
+    expect(found, found.join("\n")).toEqual([]);
   });
 });

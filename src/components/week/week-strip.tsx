@@ -14,7 +14,11 @@ const STATUS_DOT: Record<DayStatus, string> = {
   missed: "bg-chart-5",
   planned: "bg-ink-muted",
   rest: "bg-hairline opacity-40",
-  race: "bg-chart-4",
+  // Unreachable today — the race branch below renders a 🏁 emoji and never
+  // consults this map — but kept in sync with week-day-list.tsx's
+  // bg-ink-race so a stale bg-chart-4 here can't paint the wrong colour if
+  // that branch ever changes to fall back on the dot.
+  race: "bg-ink-race",
 };
 
 const DAY_LABELS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];

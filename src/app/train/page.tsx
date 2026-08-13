@@ -35,7 +35,7 @@ import { SeasonTimelineCard } from "@/components/train/season-timeline-card";
 import { FuellingCard } from "@/components/train/fuelling-card";
 import { PlanStyleSwitch } from "@/components/train/plan-style-switch";
 import { SeasonModeSwitch } from "@/components/train/season-mode-switch";
-import { WeekRationale, fmt, article } from "@/components/week/week-rationale";
+import { WeekRationale } from "@/components/week/week-rationale";
 import { EventReadiness } from "@/components/train/event-readiness";
 import {
   HistoryList,
@@ -48,7 +48,7 @@ import {
 } from "@/components/train/fitness-tiles";
 import { RaceChip } from "@/components/today/race-chip";
 import { raceCard } from "@/lib/race/outlook";
-import { BAND_COLOR } from "@/lib/band-color";
+import { BAND_TEXT, BAND_DOT } from "@/lib/band-color";
 import type { Band } from "@/lib/readiness";
 import { Figure } from "@/lib/uncertainty";
 import {
@@ -259,9 +259,9 @@ function TrainHeader({
     <header className="mb-5 pt-8">
       <div className="mb-4 flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-[22px] font-bold tracking-[-0.03em]">Train</h1>
+          <h1 className="text-title font-bold tracking-[-0.03em]">Train</h1>
           {subtitle && (
-            <p className="mt-0.5 truncate text-[10.5px] font-medium text-white/50">
+            <p className="mt-0.5 truncate text-label font-medium text-ink-muted">
               {subtitle}
             </p>
           )}
@@ -272,7 +272,7 @@ function TrainHeader({
         <div className="mb-4">
           <div className="flex flex-wrap items-center gap-2">{controls}</div>
           {controlsNote && (
-            <p className="mt-1.5 text-[10px] font-medium text-white/40">
+            <p className="mt-1.5 text-label font-medium text-ink-muted">
               {controlsNote}
             </p>
           )}
@@ -355,17 +355,11 @@ async function WeekTab({
 
   const chip = (
     <span
-      className="shrink-0 rounded-full border px-3 py-1 text-[10.5px] font-bold"
-      style={{
-        borderColor:
-          band === "calibrating" ? "rgba(255,255,255,0.15)" : BAND_COLOR[band],
-        color: BAND_COLOR[band],
-      }}
+      className={`shrink-0 rounded-full border border-current px-3 py-1 text-label font-bold ${BAND_TEXT[band]}`}
     >
       <span
         aria-hidden
-        className="mr-1.5 inline-block size-1.5 rounded-full align-middle"
-        style={{ background: BAND_COLOR[band] }}
+        className={`mr-1.5 inline-block size-1.5 rounded-full align-middle ${BAND_DOT[band]}`}
       />
       {readiness != null ? `${readiness} · ${band}` : "calibrating"}
     </span>
@@ -580,16 +574,21 @@ async function WeekTab({
       });
     }
   }
+  // Same link the deleted next-week prose note used to carry (Task 12,
+  // Part D dedupe) — computed once here and threaded into the summary
+  // below, so the "planned vs target" figures and the one action that
+  // follows from them live in one place instead of two.
+  const nextWeekAvailabilityHref = href({ availability: "next" });
   const nextWeekPreview = projected
-    ? { days: projected.days, pinned: projected.pinned }
+    ? {
+        days: projected.days,
+        pinned: projected.pinned,
+        // `VolumeResult.hours` is a plain number, so this needs no fallback:
+        // inside this branch `projected` is non-null and the figure is real.
+        targetHours: projected.target.hours,
+        availabilityHref: nextWeekAvailabilityHref,
+      }
     : null;
-  // Same-shape figures as WeekRationale's "planned against target" line
-  // (src/components/week/week-rationale.tsx), derived here because the
-  // projected week has no rationale panel of its own (v0.29.0 kept those
-  // panels weekly). Guarded independently of `nextWeekPreview` so a future
-  // change to that derivation can't leave these reading `NaN`.
-  const nextWeekPlannedHours = projected ? plannedMins(projected.days) / 60 : 0;
-  const nextWeekTargetHours = projected?.target.hours ?? 0;
 
   // Availability intake. This week's half only applies while the week
   // hasn't started completing — this week's availability is frozen once
@@ -799,18 +798,6 @@ async function WeekTab({
             />
           )}
 
-          {nextWeekPreview && (
-            <p className="-mt-3 mb-5 px-1 text-[11px] text-white/40">
-              {`${fmt(nextWeekPlannedHours)} planned against ${article(
-                nextWeekTargetHours
-              )} ${fmt(nextWeekTargetHours)} target. `}
-              Assumes this week goes to plan. Firms up Monday.{" "}
-              <Link href={href({ availability: "next" })} className="underline">
-                Set next week&apos;s availability
-              </Link>
-            </p>
-          )}
-
           {rationale && (
             <WeekRationale
               reasons={rationale.reasons}
@@ -841,7 +828,7 @@ async function WeekTab({
                 <RaceChip {...card} />
               </div>
               {card.race.goalNote && (
-                <p className="-mt-5 mb-6 px-1 text-[10.5px] text-white/40">
+                <p className="-mt-5 mb-6 px-1 text-label text-ink-muted">
                   {card.race.goalNote}
                 </p>
               )}
@@ -852,7 +839,7 @@ async function WeekTab({
             <div className="mb-5">
               <Collapsible>
                 <CollapsibleTrigger className="rounded-[18px] p-4">
-                  <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-white/60">
+                  <span className="text-label font-bold uppercase tracking-[0.15em] text-ink-secondary">
                     What changed &amp; why · {adjustments.length}
                   </span>
                 </CollapsibleTrigger>
@@ -861,15 +848,15 @@ async function WeekTab({
                     {adjustments.map((a) => (
                       <li
                         key={a.id}
-                        className="border-b border-white/[0.06] py-2.5 last:border-0"
+                        className="border-b border-hairline py-2.5 last:border-0"
                       >
-                        <p className="text-[12px] text-white/80">
-                          <span aria-hidden className="mr-1.5 text-white/30">
+                        <p className="text-caption text-ink-secondary">
+                          <span aria-hidden className="mr-1.5 text-ink-muted">
                             ↻
                           </span>
                           {a.reason}
                         </p>
-                        <p className="mt-0.5 pl-4 text-[10px] text-white/35">
+                        <p className="mt-0.5 pl-4 text-label text-ink-muted">
                           {a.createdAt.toLocaleString("en-US", {
                             month: "short",
                             day: "numeric",
@@ -940,7 +927,7 @@ async function WeekTab({
           <div className="mb-6">
             <Collapsible>
               <CollapsibleTrigger className="rounded-[18px] p-4">
-                <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-white/60">
+                <span className="text-label font-bold uppercase tracking-[0.15em] text-ink-secondary">
                   Standard week
                 </span>
               </CollapsibleTrigger>
@@ -957,18 +944,15 @@ async function WeekTab({
         </>
       ) : (
         <section className="mb-6">
-          <form
-            action={startWeek}
-            className="rounded-[18px] border border-white/[0.08] bg-white/[0.03] p-5"
-          >
-            <p className="text-[12.5px] leading-relaxed text-white/70">
+          <form action={startWeek} className="glass rounded-[18px] p-5">
+            <p className="text-caption leading-relaxed text-ink-secondary">
               This week hasn&apos;t been planned yet. Start it now and it
               materializes from your skeleton — you can adjust your availability
               right after.
             </p>
             <button
               type="submit"
-              className="mt-4 w-full rounded-full bg-emerald-500 py-2.5 text-[11.5px] font-bold text-black transition-opacity hover:opacity-90"
+              className="mt-4 w-full rounded-full bg-accent py-2.5 text-label font-bold text-primary-foreground transition-opacity hover:opacity-90"
             >
               Plan this week
             </button>
@@ -983,7 +967,7 @@ async function WeekTab({
         <div className="mb-5">
           <Collapsible>
             <CollapsibleTrigger className="rounded-[18px] p-4">
-              <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-white/60">
+              <span className="text-label font-bold uppercase tracking-[0.15em] text-ink-secondary">
                 Races · {races.length}
               </span>
             </CollapsibleTrigger>
@@ -1005,57 +989,67 @@ async function WeekTab({
         <div className="mb-10">
           <Collapsible>
             <CollapsibleTrigger className="rounded-[18px] p-4">
-              <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-white/60">
+              <span className="text-label font-bold uppercase tracking-[0.15em] text-ink-secondary">
                 Remaining skeleton · {remaining.length}
               </span>
             </CollapsibleTrigger>
             <CollapsiblePanel>
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="text-[9px] font-bold uppercase tracking-[0.15em] text-white/40">
-                    <th className="px-4 py-2">Week</th>
-                    <th className="px-4 py-2">Phase</th>
-                    <th className="px-4 py-2 text-right">Target load</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {remaining.map((b) => {
-                    // The open week (week?.skeletonWeek) has a materialized
-                    // effective target that supersedes the block's un-tapered
-                    // skeleton value — every other row here is a future week
-                    // with no weekPlans row yet, so its skeleton value is all
-                    // there is. See week-plan/volume.ts's weekTargetLoad().
-                    const resolved =
-                      b.weekNumber === (week?.skeletonWeek ?? -1)
-                        ? weekTargetLoad({
-                            effectiveTarget: week?.effectiveTarget ?? null,
-                            blockTarget: b.targetLoadTotal,
-                          })
-                        : null;
-                    const targetLoad = resolved
-                      ? resolved.available
-                        ? resolved.value
-                        : null
-                      : b.targetLoadTotal;
-                    return (
-                      <tr
-                        key={b.weekNumber}
-                        className="border-t border-white/[0.06]"
-                      >
-                        <td className="px-4 py-2 font-mono text-[11px] text-white/80">
-                          {b.weekNumber}
-                        </td>
-                        <td className="px-4 py-2 text-[11px] capitalize text-white/60">
-                          {b.phase}
-                        </td>
-                        <td className="px-4 py-2 text-right font-mono text-[11px] text-white/60">
-                          {targetLoad != null ? Math.round(targetLoad) : "—"}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+              <div className="hide-scrollbar overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="text-label font-bold uppercase tracking-[0.15em] text-ink-muted">
+                      <th className="whitespace-nowrap px-4 py-2">Week</th>
+                      <th className="whitespace-nowrap px-4 py-2">Phase</th>
+                      <th className="whitespace-nowrap px-4 py-2 text-right">
+                        Target load
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {remaining.map((b) => {
+                      // The open week (week?.skeletonWeek) has a materialized
+                      // effective target that supersedes the block's un-tapered
+                      // skeleton value — every other row here is a future week
+                      // with no weekPlans row yet, so its skeleton value is all
+                      // there is. See week-plan/volume.ts's weekTargetLoad().
+                      const resolved =
+                        b.weekNumber === (week?.skeletonWeek ?? -1)
+                          ? weekTargetLoad({
+                              effectiveTarget: week?.effectiveTarget ?? null,
+                              blockTarget: b.targetLoadTotal,
+                            })
+                          : null;
+                      const targetLoad = resolved
+                        ? resolved.available
+                          ? resolved.value
+                          : null
+                        : b.targetLoadTotal;
+                      return (
+                        <tr
+                          key={b.weekNumber}
+                          className="border-t border-hairline"
+                        >
+                          <td className="px-4 py-2 font-numeric text-label text-ink-secondary">
+                            {b.weekNumber}
+                          </td>
+                          {/* Task 12 per-pair override: pre-migration the
+                              week-number cell (above) was 80% white and
+                              phase/target were 60% — a genuine
+                              alpha pair that flattened onto one token in
+                              Task 6. Phase and target move to ink-muted;
+                              the week number keeps ink-secondary. */}
+                          <td className="px-4 py-2 text-label capitalize text-ink-muted">
+                            {b.phase}
+                          </td>
+                          <td className="px-4 py-2 text-right font-numeric text-label text-ink-muted">
+                            {targetLoad != null ? Math.round(targetLoad) : "—"}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </CollapsiblePanel>
           </Collapsible>
         </div>
@@ -1154,7 +1148,7 @@ async function HistoryTab({
         action={
           <Link
             href="/activity/log"
-            className="flex shrink-0 items-center gap-1 rounded-full bg-emerald-500/10 px-3 py-1.5 text-[10.5px] font-bold text-emerald-400 transition-colors hover:bg-emerald-500/20"
+            className="flex shrink-0 items-center gap-1 rounded-full bg-accent/10 px-3 py-1.5 text-label font-bold text-accent transition-colors hover:bg-accent/20"
           >
             <Plus aria-hidden className="size-3" />
             Log activity
@@ -1186,10 +1180,10 @@ async function HistoryTab({
           <Link
             href={href({ sport: "" })}
             aria-current={!sportFilter ? "true" : undefined}
-            className={`whitespace-nowrap rounded-full px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-colors ${
+            className={`whitespace-nowrap rounded-full px-3.5 py-1.5 text-label font-bold uppercase tracking-wider transition-colors ${
               !sportFilter
-                ? "bg-white/[0.12] text-white"
-                : "bg-white/[0.04] text-white/50 hover:text-white/80"
+                ? "bg-surface-overlay text-ink-primary"
+                : "bg-surface-raised text-ink-muted hover:text-ink-secondary"
             }`}
           >
             All
@@ -1199,10 +1193,10 @@ async function HistoryTab({
               key={s}
               href={href({ sport: s })}
               aria-current={sportFilter === s ? "true" : undefined}
-              className={`whitespace-nowrap rounded-full px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-colors ${
+              className={`whitespace-nowrap rounded-full px-3.5 py-1.5 text-label font-bold uppercase tracking-wider transition-colors ${
                 sportFilter === s
-                  ? "bg-white/[0.12] text-white"
-                  : "bg-white/[0.04] text-white/50 hover:text-white/80"
+                  ? "bg-surface-overlay text-ink-primary"
+                  : "bg-surface-raised text-ink-muted hover:text-ink-secondary"
               }`}
             >
               {s}
@@ -1398,12 +1392,13 @@ async function FitnessTab({
 
   const tiles: FitnessTile[] = [
     {
-      label: "Fitness · CTL",
+      label: "CTL",
+      srLabel: "Fitness",
       value:
         ctl != null
           ? Figure.available(String(Math.round(ctl)), "high")
           : Figure.missingInput("training-load history"),
-      color: "#60a5fa",
+      color: "var(--chart-1)",
       // A flat block is flat — no arrow, no colour, no implied progress.
       context:
         ctlDelta == null
@@ -1416,19 +1411,22 @@ async function FitnessTab({
       // to be written here was the same 3.77:1 white-40% the component's own
       // fallback was, so fixing one and not the other would have left the
       // athlete looking at it.
-      contextColor: ctlDelta != null && ctlDelta > 0 ? "#34d399" : undefined,
+      contextColor:
+        ctlDelta != null && ctlDelta > 0 ? "var(--chart-2)" : undefined,
     },
     {
-      label: "Fatigue · ATL",
+      label: "ATL",
+      srLabel: "Fatigue",
       value:
         atl != null
           ? Figure.available(String(Math.round(atl)), "high")
           : Figure.missingInput("training-load history"),
-      color: "#f87171",
+      color: "var(--chart-5)",
       context: weekLoad > 0 ? `7d load ${Math.round(weekLoad)}` : null,
     },
     {
-      label: "Form · TSB",
+      label: "TSB",
+      srLabel: "Form",
       value:
         tsb != null
           ? Figure.available(
@@ -1436,7 +1434,7 @@ async function FitnessTab({
               "high"
             )
           : Figure.missingInput("training-load history"),
-      color: "#34d399",
+      color: "var(--chart-2)",
       context:
         tsb == null
           ? null
@@ -1485,7 +1483,7 @@ async function FitnessTab({
 
       <FitnessTiles tiles={tiles} />
 
-      <section className="mb-4 rounded-[18px] border border-white/[0.08] bg-white/[0.03] p-4">
+      <section className="glass mb-4 rounded-[18px] p-4">
         {hasLoadSeries ? (
           <>
             {/* showStats off: the tiles above already carry CTL/ATL/TSB. */}
@@ -1497,20 +1495,19 @@ async function FitnessTab({
                 atl: w.atl,
               }))}
             />
-            <ul className="mt-3 flex items-center gap-4 border-t border-white/[0.06] pt-3">
+            <ul className="mt-3 flex items-center gap-4 border-t border-hairline pt-3">
               {[
-                { label: "CTL", color: "#60a5fa" },
-                { label: "ATL", color: "#f87171" },
-                { label: "TSB", color: "#34d399" },
+                { label: "CTL", dot: "bg-chart-1" },
+                { label: "ATL", dot: "bg-chart-5" },
+                { label: "TSB", dot: "bg-chart-2" },
               ].map((l) => (
                 <li
                   key={l.label}
-                  className="flex items-center gap-1.5 text-[9.5px] font-bold uppercase tracking-wider text-white/50"
+                  className="flex items-center gap-1.5 text-label font-bold uppercase tracking-wider text-ink-muted"
                 >
                   <span
                     aria-hidden
-                    className="h-0.5 w-4 rounded-full"
-                    style={{ background: l.color }}
+                    className={`h-0.5 w-4 rounded-full ${l.dot}`}
                   />
                   {l.label}
                 </li>
@@ -1529,7 +1526,7 @@ async function FitnessTab({
       )}
 
       {fitnessStats.length > 0 && (
-        <div className="mb-10 rounded-[18px] border border-white/[0.08] bg-white/[0.03] p-4">
+        <div className="glass mb-10 rounded-[18px] p-4">
           <FitnessStatsRow stats={fitnessStats} />
         </div>
       )}

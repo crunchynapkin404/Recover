@@ -1,7 +1,39 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
 import { renderToString } from "react-dom/server";
+import type { SeasonTimelinePoint } from "@/lib/charts";
 import { SeasonTimelineCard } from "./season-timeline-card";
+
+/**
+ * The component's own `weekLabel` is module-private, so this mirrors it
+ * rather than importing it. Deliberately a mirror and not a hardcoded
+ * "Mar 22": if the fixture's last week moves, the expectation moves with
+ * it, and if the component's date formatting changes this diverges and the
+ * test says so — which is the whole point of asserting on the last tick.
+ */
+function expectedWeekLabel(weekStart: string): string {
+  const d = new Date(`${weekStart}T00:00:00`);
+  return `${d.toLocaleDateString("en-US", { month: "short" })} ${d.getDate()}`;
+}
+
+// Mirrors docs/design/v0.99-train.html#season's fixture figures exactly
+// (Wk 1 480/460/5 through Wk 12 580/412/5) so the test fixture and the
+// design reference describe the same twelve weeks. weekStart values are
+// twelve consecutive real Mondays.
+const TWELVE_WEEKS: SeasonTimelinePoint[] = [
+  { weekStart: "2026-01-04", targetLoad: 480, actualLoad: 460, sessions: 5 },
+  { weekStart: "2026-01-11", targetLoad: 520, actualLoad: 510, sessions: 6 },
+  { weekStart: "2026-01-18", targetLoad: 560, actualLoad: 340, sessions: 4 },
+  { weekStart: "2026-01-25", targetLoad: 380, actualLoad: 400, sessions: 4 },
+  { weekStart: "2026-02-01", targetLoad: 600, actualLoad: 590, sessions: 6 },
+  { weekStart: "2026-02-08", targetLoad: 610, actualLoad: 480, sessions: 5 },
+  { weekStart: "2026-02-15", targetLoad: 560, actualLoad: 560, sessions: 6 },
+  { weekStart: "2026-02-22", targetLoad: 380, actualLoad: 350, sessions: 3 },
+  { weekStart: "2026-03-01", targetLoad: 650, actualLoad: 600, sessions: 6 },
+  { weekStart: "2026-03-08", targetLoad: 600, actualLoad: 0, sessions: 0 },
+  { weekStart: "2026-03-15", targetLoad: 620, actualLoad: 410, sessions: 4 },
+  { weekStart: "2026-03-22", targetLoad: 580, actualLoad: 412, sessions: 5 },
+];
 
 describe("SeasonTimelineCard", () => {
   it("renders a chart region with accessible label", () => {
@@ -108,5 +140,88 @@ describe("SeasonTimelineCard", () => {
     // The stat block renders "—" for both the unknown target and the
     // (now equally unknown) adherence percentage.
     expect(html).not.toMatch(/Season adherence[\s\S]{0,80}\d+%/);
+  });
+});
+
+describe("SeasonTimelineCard — restructured for the floor (v0.99 slice 2)", () => {
+  it("labels every third week on the axis, not every bar", () => {
+    const html = renderToString(<SeasonTimelineCard data={TWELVE_WEEKS} />);
+    // 12 bars, 4 ticks: weeks 1, 4, 7, 10 — plus the last week, which is
+    // always labelled because the detail line names it.
+    const ticks = html.match(/data-axis-tick/g) ?? [];
+    expect(ticks).toHaveLength(5);
+
+    // Pin the LAST week specifically. The count alone does not: dropping
+    // `|| i === data.length - 1` leaves ticks at 0/3/6/9 — still four, still
+    // inside any range bound, and the one label the detail readout names
+    // would be the one silently missing.
+    const lastLabel = expectedWeekLabel(
+      TWELVE_WEEKS[TWELVE_WEEKS.length - 1].weekStart
+    );
+    expect(html).toMatch(new RegExp(`data-axis-tick[^>]*>${lastLabel}<`));
+  });
+
+  it("carries no per-bar session-count label", () => {
+    const html = renderToString(<SeasonTimelineCard data={TWELVE_WEEKS} />);
+    // The 8px "5s" / "no" labels under each column are gone.
+    expect(html).not.toMatch(/>\d+s</);
+    expect(html).not.toMatch(/>no</);
+  });
+
+  it("names the week and session count in the readout, without repeating the target/actual the tiles already show", () => {
+    // Part D deliberately dropped target/actual from the readout because
+    // the "Latest target" / "Latest actual" tiles above already render
+    // them — this test now protects THAT contract in both directions,
+    // rather than merely asserting the numbers appear somewhere in the
+    // whole document (which the per-bar chart `title` attributes alone
+    // would already satisfy, regardless of what the readout itself says).
+    const html = renderToString(<SeasonTimelineCard data={TWELVE_WEEKS} />);
+    const latest = TWELVE_WEEKS[TWELVE_WEEKS.length - 1];
+
+    const readout =
+      /<p data-testid="latest-week-readout"[^>]*>[\s\S]*?<\/p>/.exec(html);
+    expect(readout).not.toBeNull();
+    const readoutHtml = readout![0];
+
+    // The readout names the week and its session count…
+    expect(readoutHtml).toContain(expectedWeekLabel(latest.weekStart));
+    expect(readoutHtml).toMatch(
+      new RegExp(
+        `${latest.sessions} session${latest.sessions === 1 ? "" : "s"}`
+      )
+    );
+    // …and stops there — no target, no actual.
+    expect(readoutHtml).not.toContain(String(latest.targetLoad));
+    expect(readoutHtml).not.toContain(String(latest.actualLoad));
+
+    // The tiles still carry both figures — deduplicated, not deleted.
+    const targetTile =
+      /<p data-testid="latest-target-value"[^>]*>[\s\S]*?<\/p>/.exec(html);
+    const actualTile =
+      /<p data-testid="latest-actual-value"[^>]*>[\s\S]*?<\/p>/.exec(html);
+    expect(targetTile).not.toBeNull();
+    expect(actualTile).not.toBeNull();
+    expect(targetTile![0]).toContain(String(latest.targetLoad));
+    expect(actualTile![0]).toContain(String(latest.actualLoad));
+  });
+
+  it("keeps every week reachable on hover rather than dropping the data", () => {
+    const html = renderToString(<SeasonTimelineCard data={TWELVE_WEEKS} />);
+    // One title per bar pair, still — the restructure removes labels, not data.
+    expect((html.match(/title="/g) ?? []).length).toBeGreaterThanOrEqual(12);
+  });
+
+  it("scrolls rather than compressing bars below a legible width", () => {
+    const html = renderToString(<SeasonTimelineCard data={TWELVE_WEEKS} />);
+    expect(html).toMatch(/overflow-x-auto/);
+    expect(html).toMatch(/min-w-max/);
+  });
+
+  it("uses the token scale, not ad-hoc sizes or white alphas", () => {
+    const html = renderToString(<SeasonTimelineCard data={TWELVE_WEEKS} />);
+    expect(html).not.toMatch(/text-\[[\d.]+px\]/);
+    expect(html).not.toMatch(/text-white\//);
+    expect(html).not.toMatch(/bg-white\//);
+    expect(html).not.toMatch(/border-white\//);
   });
 });

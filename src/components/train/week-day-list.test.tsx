@@ -74,8 +74,13 @@ describe("WeekDayList", () => {
     expect(html).toContain("Tempo");
     expect(html).toContain("75 min");
     expect(html).toContain("2×20");
-    expect(html).toContain("completed");
-    expect(html).toContain("planned");
+    // Status is a dot (data-status, matching week-strip.tsx) with an
+    // sr-only label, not a printed pill — see the v0.99 slice 2 describe
+    // block below for the dedicated coverage of that rendering.
+    expect(html).toContain('data-status="completed"');
+    expect(html).toContain('<span class="sr-only">Completed</span>');
+    expect(html).toContain('data-status="planned"');
+    expect(html).toContain('<span class="sr-only">Planned</span>');
   });
 
   it("marks only today's row", () => {
@@ -208,16 +213,37 @@ describe("WeekDayList", () => {
     expect(html).toContain("2026-07-28");
   });
 
-  it("shows next week under a boundary, marked provisional", () => {
+  it("shows next week under a boundary, collapsed into a summary that still holds the rows", () => {
     const html = renderToString(
       <WeekDayList
         days={CURRENT_WEEK_DAYS}
         today="2026-07-28"
-        nextWeek={{ days: NEXT_WEEK_DAYS, pinned: {} }}
+        nextWeek={{
+          days: NEXT_WEEK_DAYS,
+          pinned: {},
+          targetHours: 13,
+          availabilityHref: "/train?availability=next",
+        }}
       />
     );
-    expect(html).toContain("next week");
+    expect(html).toContain("Next week");
+    // The summary line, not seven expanded rows, is what sits right after
+    // the boundary now — collapsed behind a closed <details> (Task 4).
+    expect(html).toContain("<details");
+    expect(html).not.toContain("<details open");
+    expect(html).toMatch(/Show all 7 days/);
+    // The seven day rows are still in the DOM, between the boundary and the
+    // end of the section — collapsing must never make them unreachable.
     expect(html).toContain("provisional");
+    for (const d of NEXT_WEEK_DAYS) {
+      expect(html).toContain(`data-date="${d.date}"`);
+    }
+    // End-to-end: the fixture's targetHours (13, chosen so it cannot
+    // collide with a date digit or another rendered count) must reach
+    // NextWeekSummary's rendered target clause through week-day-list.tsx's
+    // own plumbing, not just through NextWeekSummary's own unit test, which
+    // hardcodes its prop and so cannot catch a value-level wiring bug here.
+    expect(html).toContain("13h target");
   });
 
   it("does not mark a pinned day provisional", () => {
@@ -225,7 +251,12 @@ describe("WeekDayList", () => {
       <WeekDayList
         days={CURRENT_WEEK_DAYS}
         today="2026-07-28"
-        nextWeek={{ days: NEXT_WEEK_DAYS, pinned: { "2026-08-04": true } }}
+        nextWeek={{
+          days: NEXT_WEEK_DAYS,
+          pinned: { "2026-08-04": true },
+          targetHours: 9,
+          availabilityHref: "/train?availability=next",
+        }}
       />
     );
     // The pinned day's row must not carry the provisional marker.
@@ -257,9 +288,105 @@ describe("WeekDayList", () => {
       <WeekDayList
         days={CURRENT_WEEK_DAYS}
         today="2026-07-28"
-        nextWeek={{ days: allRest, pinned: {} }}
+        nextWeek={{
+          days: allRest,
+          pinned: {},
+          targetHours: null,
+          availabilityHref: "/train?availability=next",
+        }}
       />
     );
     expect(html).toContain("No availability set for next week");
+    // No summary and no disclosure when there's nothing to preview.
+    expect(html).not.toContain("<details");
+    // Finding 1 regression: this is the ONE state where the link matters
+    // most — the athlete has nothing set yet and needs a way to fix that.
+    // The sweep moved the link inside NextWeekSummary, which only renders
+    // in the OTHER (has-availability) branch, leaving this one a dead end.
+    expect(html).toContain('href="/train?availability=next"');
+    expect(html).toMatch(/Set next week/);
+  });
+});
+
+describe("WeekDayList — status as a dot, not a pill (v0.99 slice 2)", () => {
+  it("names the status for assistive tech without printing it as a pill", () => {
+    const html = renderToString(
+      <WeekDayList days={CURRENT_WEEK_DAYS} today="2026-07-28" />
+    );
+    // The dot carries the status in the DOM the way week-strip does.
+    expect(html).toContain('data-status="completed"');
+    expect(html).toContain('data-status="planned"');
+    // …and names it for a screen reader.
+    expect(html).toMatch(/<span class="sr-only">Completed<\/span>/i);
+    // But the uppercase text pill is gone: no visible bare status word.
+    expect(html).not.toMatch(/uppercase[^"]*">\s*completed/i);
+  });
+
+  it("paints race day in the race ink token, not a fuchsia literal", () => {
+    const race = slot("2026-07-30", "race", null, {
+      raceName: "Gran Fondo Alpe",
+    });
+    const html = renderToString(
+      <WeekDayList days={[race]} today="2026-07-28" />
+    );
+    expect(html).toContain("Gran Fondo Alpe");
+    expect(html).toMatch(/text-ink-race/);
+    expect(html).not.toMatch(/fuchsia/);
+  });
+
+  it("has no type below the 12px floor and no ad-hoc white alphas", () => {
+    // Today (2026-07-28) has a workout in CURRENT_WEEK_DAYS, which mounts
+    // <DayActions> inline on its row (isToday && workouts.length > 0).
+    // DayActions (src/components/week/day-actions.tsx) is on the token
+    // scale as of slice-2 Task 5, so the unmodified fixture is safe here —
+    // every row, including today's with DayActions mounted, is covered.
+    const html = renderToString(
+      <WeekDayList days={CURRENT_WEEK_DAYS} today="2026-07-28" />
+    );
+    expect(html).not.toMatch(/text-\[[\d.]+px\]/);
+    expect(html).not.toMatch(/\btext-xs\b/);
+    expect(html).not.toMatch(/text-white\//);
+    expect(html).not.toMatch(/bg-white\//);
+    expect(html).not.toMatch(/border-white\//);
+  });
+
+  it("keeps today's own workout row on the ink scale, with DayActions mounted beside it", () => {
+    // The sibling test above now renders the unmodified CURRENT_WEEK_DAYS
+    // fixture too — DayActions (src/components/week/day-actions.tsx) is on
+    // the token scale as of slice-2 Task 5, so mounting it beside today's
+    // workout doesn't contaminate its negative regexes. Those checks are
+    // blanket regexes over the whole render, though, not a targeted
+    // assertion, so no test in this file pins week-day-list.tsx's
+    //   isToday ? "font-bold text-ink-primary" : "text-ink-secondary"
+    // ternary on the isToday=true side to an exact class string.
+    // A literal swapped onto just that branch (e.g. "font-bold text-white")
+    // would pass every test in this file.
+    //
+    // This test asserts POSITIVELY on the exact class string instead of
+    // negatively over the whole HTML: a positive match only cares what this
+    // one branch emits, so it is immune to DayActions' own pre-token classes
+    // and can render the full, unmodified fixture — today's workout intact.
+    // Do not "simplify" this back to a negative regex; that is what silently
+    // lost coverage the first time.
+    const html = renderToString(
+      <WeekDayList days={CURRENT_WEEK_DAYS} today="2026-07-28" />
+    );
+
+    // Isolate each row the same way the "pinned day" test above does, so a
+    // class on a sibling row can't make either assertion pass by accident.
+    const rowsByDate = html.split('data-date="').slice(1);
+    const todayRow = rowsByDate.find((r) => r.startsWith("2026-07-28"));
+    const wedRow = rowsByDate.find((r) => r.startsWith("2026-07-29"));
+    expect(todayRow).toBeDefined();
+    expect(wedRow).toBeDefined();
+
+    // isToday branch: bold, text-ink-primary.
+    expect(todayRow).toContain(
+      'class="truncate text-caption font-bold text-ink-primary"'
+    );
+    // Not-today branch (Wed, also has a workout): not bold, text-ink-secondary.
+    expect(wedRow).toContain(
+      'class="truncate text-caption text-ink-secondary"'
+    );
   });
 });
