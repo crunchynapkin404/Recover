@@ -804,12 +804,15 @@ async function WeekTab({
           )}
 
           {nextWeekPreview && (
-            <p className="-mt-3 mb-5 px-1 text-[11px] text-white/40">
+            <p className="-mt-3 mb-5 px-1 text-label text-ink-muted">
               {`${fmt(nextWeekPlannedHours)} planned against ${article(
                 nextWeekTargetHours
               )} ${fmt(nextWeekTargetHours)} target. `}
               Assumes this week goes to plan. Firms up Monday.{" "}
-              <Link href={href({ availability: "next" })} className="underline">
+              <Link
+                href={href({ availability: "next" })}
+                className="underline text-accent"
+              >
                 Set next week&apos;s availability
               </Link>
             </p>
@@ -845,7 +848,7 @@ async function WeekTab({
                 <RaceChip {...card} />
               </div>
               {card.race.goalNote && (
-                <p className="-mt-5 mb-6 px-1 text-[10.5px] text-white/40">
+                <p className="-mt-5 mb-6 px-1 text-label text-ink-muted">
                   {card.race.goalNote}
                 </p>
               )}
@@ -856,7 +859,7 @@ async function WeekTab({
             <div className="mb-5">
               <Collapsible>
                 <CollapsibleTrigger className="rounded-[18px] p-4">
-                  <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-white/60">
+                  <span className="text-label font-bold uppercase tracking-[0.15em] text-ink-secondary">
                     What changed &amp; why · {adjustments.length}
                   </span>
                 </CollapsibleTrigger>
@@ -865,15 +868,15 @@ async function WeekTab({
                     {adjustments.map((a) => (
                       <li
                         key={a.id}
-                        className="border-b border-white/[0.06] py-2.5 last:border-0"
+                        className="border-b border-hairline py-2.5 last:border-0"
                       >
-                        <p className="text-[12px] text-white/80">
-                          <span aria-hidden className="mr-1.5 text-white/30">
+                        <p className="text-caption text-ink-secondary">
+                          <span aria-hidden className="mr-1.5 text-ink-muted">
                             ↻
                           </span>
                           {a.reason}
                         </p>
-                        <p className="mt-0.5 pl-4 text-[10px] text-white/35">
+                        <p className="mt-0.5 pl-4 text-label text-ink-muted">
                           {a.createdAt.toLocaleString("en-US", {
                             month: "short",
                             day: "numeric",
@@ -944,7 +947,7 @@ async function WeekTab({
           <div className="mb-6">
             <Collapsible>
               <CollapsibleTrigger className="rounded-[18px] p-4">
-                <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-white/60">
+                <span className="text-label font-bold uppercase tracking-[0.15em] text-ink-secondary">
                   Standard week
                 </span>
               </CollapsibleTrigger>
@@ -961,18 +964,15 @@ async function WeekTab({
         </>
       ) : (
         <section className="mb-6">
-          <form
-            action={startWeek}
-            className="rounded-[18px] border border-white/[0.08] bg-white/[0.03] p-5"
-          >
-            <p className="text-[12.5px] leading-relaxed text-white/70">
+          <form action={startWeek} className="glass rounded-[18px] p-5">
+            <p className="text-caption leading-relaxed text-ink-secondary">
               This week hasn&apos;t been planned yet. Start it now and it
               materializes from your skeleton — you can adjust your availability
               right after.
             </p>
             <button
               type="submit"
-              className="mt-4 w-full rounded-full bg-emerald-500 py-2.5 text-[11.5px] font-bold text-black transition-opacity hover:opacity-90"
+              className="mt-4 w-full rounded-full bg-accent py-2.5 text-label font-bold text-primary-foreground transition-opacity hover:opacity-90"
             >
               Plan this week
             </button>
@@ -987,7 +987,7 @@ async function WeekTab({
         <div className="mb-5">
           <Collapsible>
             <CollapsibleTrigger className="rounded-[18px] p-4">
-              <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-white/60">
+              <span className="text-label font-bold uppercase tracking-[0.15em] text-ink-secondary">
                 Races · {races.length}
               </span>
             </CollapsibleTrigger>
@@ -1009,57 +1009,61 @@ async function WeekTab({
         <div className="mb-10">
           <Collapsible>
             <CollapsibleTrigger className="rounded-[18px] p-4">
-              <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-white/60">
+              <span className="text-label font-bold uppercase tracking-[0.15em] text-ink-secondary">
                 Remaining skeleton · {remaining.length}
               </span>
             </CollapsibleTrigger>
             <CollapsiblePanel>
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="text-[9px] font-bold uppercase tracking-[0.15em] text-white/40">
-                    <th className="px-4 py-2">Week</th>
-                    <th className="px-4 py-2">Phase</th>
-                    <th className="px-4 py-2 text-right">Target load</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {remaining.map((b) => {
-                    // The open week (week?.skeletonWeek) has a materialized
-                    // effective target that supersedes the block's un-tapered
-                    // skeleton value — every other row here is a future week
-                    // with no weekPlans row yet, so its skeleton value is all
-                    // there is. See week-plan/volume.ts's weekTargetLoad().
-                    const resolved =
-                      b.weekNumber === (week?.skeletonWeek ?? -1)
-                        ? weekTargetLoad({
-                            effectiveTarget: week?.effectiveTarget ?? null,
-                            blockTarget: b.targetLoadTotal,
-                          })
-                        : null;
-                    const targetLoad = resolved
-                      ? resolved.available
-                        ? resolved.value
-                        : null
-                      : b.targetLoadTotal;
-                    return (
-                      <tr
-                        key={b.weekNumber}
-                        className="border-t border-white/[0.06]"
-                      >
-                        <td className="px-4 py-2 font-mono text-[11px] text-white/80">
-                          {b.weekNumber}
-                        </td>
-                        <td className="px-4 py-2 text-[11px] capitalize text-white/60">
-                          {b.phase}
-                        </td>
-                        <td className="px-4 py-2 text-right font-mono text-[11px] text-white/60">
-                          {targetLoad != null ? Math.round(targetLoad) : "—"}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+              <div className="hide-scrollbar overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="text-label font-bold uppercase tracking-[0.15em] text-ink-muted">
+                      <th className="whitespace-nowrap px-4 py-2">Week</th>
+                      <th className="whitespace-nowrap px-4 py-2">Phase</th>
+                      <th className="whitespace-nowrap px-4 py-2 text-right">
+                        Target load
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {remaining.map((b) => {
+                      // The open week (week?.skeletonWeek) has a materialized
+                      // effective target that supersedes the block's un-tapered
+                      // skeleton value — every other row here is a future week
+                      // with no weekPlans row yet, so its skeleton value is all
+                      // there is. See week-plan/volume.ts's weekTargetLoad().
+                      const resolved =
+                        b.weekNumber === (week?.skeletonWeek ?? -1)
+                          ? weekTargetLoad({
+                              effectiveTarget: week?.effectiveTarget ?? null,
+                              blockTarget: b.targetLoadTotal,
+                            })
+                          : null;
+                      const targetLoad = resolved
+                        ? resolved.available
+                          ? resolved.value
+                          : null
+                        : b.targetLoadTotal;
+                      return (
+                        <tr
+                          key={b.weekNumber}
+                          className="border-t border-hairline"
+                        >
+                          <td className="px-4 py-2 font-numeric text-label text-ink-secondary">
+                            {b.weekNumber}
+                          </td>
+                          <td className="px-4 py-2 text-label capitalize text-ink-secondary">
+                            {b.phase}
+                          </td>
+                          <td className="px-4 py-2 text-right font-numeric text-label text-ink-secondary">
+                            {targetLoad != null ? Math.round(targetLoad) : "—"}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </CollapsiblePanel>
           </Collapsible>
         </div>
