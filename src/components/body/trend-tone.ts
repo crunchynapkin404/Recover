@@ -1,8 +1,8 @@
 /**
  * What a Body trend measures, and therefore which chart token draws it.
  *
- * Before v0.99 slice 3 each of the 16 call sites passed its own hex pair —
- * fourteen distinct hues, none of them a token, none of them theme-aware, all
+ * Before v0.99 slice 3 each of the 17 call sites passed its own hex pair —
+ * sixteen distinct hues, none of them a token, none of them theme-aware, all
  * of them invisible to every guard in tests/. Four tones on four chart tokens
  * replaces them. The tones are families, not a legend: no two cards are ever
  * read against each other, so a repeated hue costs nothing and a per-metric
