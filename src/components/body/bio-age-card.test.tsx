@@ -34,4 +34,13 @@ describe("BioAgeCard", () => {
     expect(html).not.toContain("Not enough inputs yet");
     expect(html).toContain("Needs Birth year");
   });
+
+  it("holds the floor — no arbitrary sizes or ad-hoc white alphas", () => {
+    const html = renderToString(
+      <BioAgeCard result={Figure.available(estimate, "high")} />
+    );
+    expect(html).not.toMatch(/text-\[\d/);
+    expect(html).not.toContain("text-white/");
+    expect(html).not.toContain("bg-white/");
+  });
 });

@@ -26,23 +26,21 @@ export function LabsTiles({ bioAge, biomarkerCount, lastDraw }: Props) {
 
   return (
     <div className="mb-3 grid grid-cols-2 gap-2">
-      <div className="rounded-[16px] border border-white/[0.09] bg-white/[0.04] px-3.5 py-3">
-        <p className="text-[8.5px] font-bold uppercase tracking-[0.15em] text-white/40">
-          Biological age
-        </p>
+      <div className="glass rounded-[16px] px-3.5 py-3">
+        <p className="label-micro">Biological age</p>
         {!bioAge.available ? (
-          <p className="mt-2 text-[11px] text-white/50">
+          <p className="mt-2 text-caption text-ink-muted">
             {unavailableMessage(bioAge)}
           </p>
         ) : (
           <p className="mt-1.5 flex items-baseline gap-2">
-            <span className="font-mono text-[22px] font-bold leading-none text-white">
+            <span className="font-numeric text-title font-bold leading-none text-ink-primary">
               {Math.round(bioAge.value.bioAge)}
             </span>
             {delta != null && (
               <span
-                className={`font-mono text-[11px] font-bold ${
-                  delta < 0 ? "text-emerald-400" : "text-white/50"
+                className={`font-numeric text-label font-bold ${
+                  delta < 0 ? "text-chart-2" : "text-ink-muted"
                 }`}
               >
                 {delta < 0 ? "▼" : "▲"} {Math.abs(delta).toFixed(1)} yr
@@ -52,14 +50,12 @@ export function LabsTiles({ bioAge, biomarkerCount, lastDraw }: Props) {
         )}
       </div>
 
-      <div className="rounded-[16px] border border-white/[0.09] bg-white/[0.04] px-3.5 py-3">
-        <p className="text-[8.5px] font-bold uppercase tracking-[0.15em] text-white/40">
-          Labs
-        </p>
-        <p className="mt-1.5 text-[12.5px] font-semibold text-white">
+      <div className="glass rounded-[16px] px-3.5 py-3">
+        <p className="label-micro">Labs</p>
+        <p className="mt-1.5 text-caption font-semibold text-ink-primary">
           {`${biomarkerCount} biomarker${biomarkerCount === 1 ? "" : "s"}`}
         </p>
-        <p className="mt-0.5 text-[10.5px] text-white/45">
+        <p className="mt-0.5 text-label text-ink-muted">
           {lastDraw ? `last draw ${drawLabel(lastDraw)}` : "no draw recorded"}
         </p>
       </div>

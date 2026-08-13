@@ -70,10 +70,10 @@ export function BiomarkerList({ rows }: { rows: BiomarkerRow[] }) {
       <div className="mt-4 space-y-5">
         {CATEGORY_ORDER.filter((c) => byCat.has(c)).map((cat) => (
           <div key={cat}>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-white/40">
+            <p className="text-label font-bold uppercase tracking-wider text-ink-muted">
               {CATEGORY_LABELS[cat]}
             </p>
-            <div className="mt-2 divide-y divide-white/5">
+            <div className="mt-2 divide-y divide-hairline">
               {byCat
                 .get(cat)!
                 .sort((a, b) => a.displayName.localeCompare(b.displayName))
@@ -82,13 +82,13 @@ export function BiomarkerList({ rows }: { rows: BiomarkerRow[] }) {
                     key={r.name}
                     className="flex items-baseline justify-between py-2"
                   >
-                    <span className="text-sm text-white/80">
+                    <span className="text-caption text-ink-secondary">
                       {r.displayName}
                     </span>
-                    <span className="text-sm font-bold tabular-nums text-white">
+                    <span className="text-caption font-bold font-numeric text-ink-primary">
                       {arrow(r.value, r.prevValue)} {r.value}
                       {r.unit && (
-                        <span className="ml-1 text-[11px] font-normal text-white/40">
+                        <span className="ml-1 text-label font-normal text-ink-muted">
                           {r.unit}
                         </span>
                       )}

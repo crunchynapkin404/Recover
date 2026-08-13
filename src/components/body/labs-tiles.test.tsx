@@ -45,4 +45,17 @@ describe("LabsTiles", () => {
     );
     expect(html).toContain("no draw recorded");
   });
+
+  it("holds the floor — the tile eyebrows were 8.5px, the smallest on Labs", () => {
+    const html = renderToString(
+      <LabsTiles
+        bioAge={Figure.available(estimate, "high")}
+        biomarkerCount={3}
+        lastDraw="2026-07-01"
+      />
+    );
+    expect(html).not.toMatch(/text-\[\d/);
+    expect(html).not.toContain("text-white/");
+    expect(html).not.toContain("bg-white/");
+  });
 });

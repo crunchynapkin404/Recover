@@ -154,7 +154,21 @@ function occurrences(pattern: RegExp): number {
  */
 const RATCHET_SLACK = 25;
 const OFFENDER_CEILINGS: Record<string, number> = {
-  // 163 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 8 —
+  // 150 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 9 —
+  // the Labs tab's four reading blocks migrated 13 text-[Npx] sites:
+  // labs-tiles.tsx (7) — both tile eyebrows (text-[8.5px] x2 → label-micro),
+  // the age figure (text-[22px] → text-title), the delta (text-[11px] →
+  // text-label), the unavailable line (text-[11px] → text-caption), the
+  // biomarker count (text-[12.5px] → text-caption) and the draw date
+  // (text-[10.5px] → text-label); bio-age-card.tsx (2) — the unavailable
+  // line (text-[11px] → text-caption) and the component row (text-[11px] →
+  // text-label); blood-pressure-card.tsx (2) — the readings/direction line
+  // (text-[11px] → text-label) and the average (text-[11px] → text-caption);
+  // biomarker-list.tsx (2) — the category heading (text-[10px] →
+  // text-label) and the unit (text-[11px] → text-label). text-4xl, text-3xl,
+  // text-sm and text-xs are named Tailwind sizes, not arbitrary, so they
+  // don't move this count.
+  // Was 163 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 8 —
   // correlation-rows.tsx migrated its 6 text-[Npx] sites: the "90-day
   // correlations" heading eyebrow (text-[9.5px] → label-micro), the
   // behaviour-name row (text-[12px] → text-caption), the "auto" marker
@@ -267,8 +281,31 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // week-day-list.tsx and page.tsx are all token utilities, so the count did
   // not move there), 343 after task 2, 351 after the whole-branch-review
   // fixes, 355 right after slice 1, 395 at slice 0.
-  "arbitrary type sizes": 163,
-  // 366 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 8 —
+  "arbitrary type sizes": 150,
+  // 346 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 9 —
+  // the Labs tab's four reading blocks migrated 20 text-white/N and
+  // bg-white/N sites: labs-tiles.tsx (9) — both tiles' border-white/[0.09] +
+  // bg-white/[0.04] pairs (→ `glass`, 4), both eyebrows' text-white/40
+  // (dropped with the move to `label-micro`, 2), the unavailable line and
+  // the delta's non-younger branch (both text-white/50 → text-ink-muted, 2)
+  // and the draw date's text-white/45 (→ text-ink-muted, 1); bio-age-card.tsx
+  // (4) — the "Not enough inputs yet" line's text-white/70 (→
+  // text-ink-secondary), the unavailable detail and component label's
+  // text-white/50 (both → text-ink-muted) and the zero-offset branch's
+  // text-white/40 (→ text-ink-muted); blood-pressure-card.tsx (3) — the
+  // readings/direction line and unit's text-white/40 and the average's
+  // text-white/50 (all → text-ink-muted); biomarker-list.tsx (4) — the
+  // category heading's text-white/40, the divider's divide-white/5 (→
+  // divide-hairline), the marker name's text-white/80 (→ text-ink-secondary,
+  // the per-pair override: name and unit sat in different alpha buckets and
+  // the unit, the subordinate, takes text-ink-muted rather than the nearer
+  // text-ink-secondary) and the unit's text-white/40. The five BAND_COLOR
+  // values (text-emerald-400/text-yellow-400/text-amber-400/
+  // text-orange-400/text-red-400 → text-chart-2/text-chart-3/text-chart-5)
+  // and labs-tiles.tsx's/bio-age-card.tsx's text-emerald-400 (→
+  // text-chart-2) were never white/black alpha, so they don't move this
+  // count.
+  // Was 366 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 8 —
   // correlation-rows.tsx migrated 8 text-white/N, bg-white/N and
   // border-white/N sites: the card wrapper's border-white/[0.08] +
   // bg-white/[0.03] (→ `glass`), the row divider's border-white/[0.06] (→
