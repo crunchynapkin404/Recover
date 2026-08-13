@@ -1,5 +1,53 @@
 # Changelog
 
+## v0.101.1 — 2026-08-13 — Zero means zero
+
+A same-day patch on v0.101.0. A second whole-branch review, covering the
+sixteen commits that landed after the first one ran, found two Criticals.
+Both were seams: neither was visible from inside any single task, and neither
+could have been caught by the test suite or by the browser pass.
+
+**The "zero offenders" claim was false, and the miss was in the desktop nav.**
+v0.101.0 stated the Train surface held no sub-floor type and no ad-hoc ink
+outside one documented exclusion. The sweep's grep covered `bottom-nav.tsx` —
+the `lg:hidden` half of Train's chrome — but never its complement
+`sidebar-nav.tsx` (`hidden … lg:flex`), nor `ui/empty-state.tsx`, which has
+five Train call sites. Eight offender lines were live in the sidebar,
+including a `10px` label at **3.77:1** — below the 12px floor and below AA —
+in the navigation that renders on Train at every desktop width.
+
+The axe pass could not have found it either: the sidebar's translucent ground
+makes `color-contrast` resolve as _indeterminate_, which never gates. That is
+the same blindness `globals.css` already documents for translucent light
+glass. Both files are now on the token scale, and the sweep's own grep names
+them so a later slice cannot repeat the omission.
+
+**`.glass` was nested inside `.glass` again, four commits after the same rule
+got another component reverted.** The Fitness tab's PMC wrapper is a glass
+section whose empty branch rendered `EmptyState`, whose own root is glass — so
+any install without training-load data composited glass on glass. That is an
+undeclared ground, measured at 4.61:1 with 0.11 of margin, and it falsified
+`glass-contrast-guard`'s own comment claiming its grounds were "verified
+against the tree". The section now renders only when there is a series, so the
+empty state falls outside it.
+
+**That rule is now a guard rather than a comment.** `glass-contrast-guard`
+gained an AST-based nesting check over `src/**/*.tsx` that resolves a
+component's root class, not just literal `className` strings — so
+`<EmptyState>` inside a glass wrapper is caught, not only a literal nested
+`div`. It ships with three self-tests proving it discriminates: it must catch
+native nesting, must catch component-root nesting, and must not flag siblings
+or `glass-no-hover`. Verified by re-introducing the exact defect and watching
+it fail with the right file:line.
+
+The guard immediately found **two more pre-existing sites** outside Train —
+`body/biomarker-list.tsx` and `body/journal-form.tsx`, both from July and
+untouched by this release. They are pinned in an exact allowlist rather than
+fixed, because they belong to the Body slice. The allowlist cannot grow.
+
+Offender ceilings: **217 → 212** arbitrary type sizes, **480 → 469** ad-hoc
+ink alphas.
+
 ## v0.101.0 — 2026-08-13 — Train, at the floor
 
 Phase 2b.4 slice 2 of 10. The Train surface — four tabs, 22 components and a
