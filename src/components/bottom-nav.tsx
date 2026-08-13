@@ -37,9 +37,11 @@ export function BottomNav() {
             }`}
           >
             <Icon className="size-6" strokeWidth={1.5} />
-            <span className="text-label font-bold uppercase tracking-widest">
-              {label}
-            </span>
+            {/* No uppercase/tracking here: the 12px floor (text-label) made
+                that combination overflow the nav at 320-375pt (review C3).
+                The design reference (v0.99-train.html:1020-1023) specifies
+                this size with neither transform applied. */}
+            <span className="text-label font-bold">{label}</span>
             {active && <span className="nav-active-dot" />}
           </Link>
         );
