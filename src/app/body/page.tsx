@@ -692,15 +692,15 @@ async function JournalTab({
         syncedSleepHours={
           latest?.sleepSecs != null ? latest.sleepSecs / 3600 : null
         }
-        streakDays={milestones.currentStreak}
         entriesByDate={entriesByDate}
         hasActiveConnection={!!activeConnection}
         usualTags={journalPrefsRow?.usualBehaviorTags ?? []}
       />
 
       <div className="mt-6">
-        {/* The header chip and the journal form's ring both already carry the
-            streak — this card shows the rest of the milestones only. */}
+        {/* The page header's chip already carries the streak (v0.102 task 6
+            removed the journal form's own duplicate) — this card shows the
+            rest of the milestones only. */}
         <MilestonesCard {...milestones} hideStreak />
       </div>
     </div>

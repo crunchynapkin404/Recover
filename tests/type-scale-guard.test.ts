@@ -154,7 +154,14 @@ function occurrences(pattern: RegExp): number {
  */
 const RATCHET_SLACK = 25;
 const OFFENDER_CEILINGS: Record<string, number> = {
-  // 185 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 5 —
+  // 179 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 6 —
+  // journal-form.tsx migrated 6 text-[Npx] sites: two went with the deleted
+  // header (the "Logging Streak" eyebrow's text-[10px] and the streak
+  // ring's text-[8px] fraction — the owner decision to drop the form's own
+  // duplicate header, since the page header's chip is the single streak on
+  // screen), the calendar strip's day label (text-[9px] → text-label), and
+  // the sliders' low/high end labels (text-[9px] x2 → text-label).
+  // Was 185 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 5 —
   // body-battery.tsx migrated 5 text-[Npx] sites: the modelled-from line
   // (text-[11px] → text-label), both tag-pill branches' text-[9px], hoisted
   // into one BatteryTags component and reduced to a single text-label
@@ -239,8 +246,23 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // week-day-list.tsx and page.tsx are all token utilities, so the count did
   // not move there), 343 after task 2, 351 after the whole-branch-review
   // fixes, 355 right after slice 1, 395 at slice 0.
-  "arbitrary type sizes": 185,
-  // 414 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 5 —
+  "arbitrary type sizes": 179,
+  // 403 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 6 —
+  // journal-form.tsx migrated 11 text-white/N, bg-white/N and border-white/N
+  // sites: three went with the deleted header (the eyebrow's text-white/50,
+  // the streak ring's border-white/10 and its track circle's text-white/5);
+  // the calendar strip's day label and day circle inactive states (both
+  // text-white/50 → text-ink-muted, active states moved to
+  // text-chart-2/text-ink-primary); the slider label (text-white/80 →
+  // text-ink-secondary) and value's unanswered state (text-white/40 →
+  // text-ink-muted); the Continue button's trio (bg-white/5 +
+  // hover:bg-white/10 → bg-surface-overlay/hover:bg-surface-raised,
+  // text-white/70 → text-ink-secondary); and the "intervals.icu synced"
+  // chip (text-white/40 → text-ink-muted). The low/high end labels'
+  // text-emerald-400/60 and text-red-400/60 moved to text-chart-2 /
+  // text-chart-5 (alphas dropped) but were never white/black, so they don't
+  // move this count.
+  // Was 414 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 5 —
   // body-battery.tsx migrated 14 text-white/N, bg-white/N and border-white/N
   // sites: the unavailable-state paragraph's text-white/50 (→
   // text-ink-muted), both tag-pill branches' border-white/10 + bg-white/5 +

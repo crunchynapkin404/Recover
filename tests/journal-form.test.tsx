@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { renderToString } from "react-dom/server";
 
 // Rendering by hand means opting into act() support ourselves — the flag a
 // framework like @testing-library/react would set. Without it React warns and
@@ -47,7 +48,6 @@ const baseProps = {
   syncedRhr: null,
   syncedWeight: null,
   syncedSleepHours: null,
-  streakDays: 0,
   entriesByDate: {},
   hasActiveConnection: false,
   usualTags: [] as string[],
@@ -353,5 +353,42 @@ describe("journal form — usual behaviour pre-toggle (v0.20)", () => {
     await click(button("☕ Caffeine"));
 
     expect(setUsualBehaviorTagsMock).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * v0.102 task 6 — owner decision 2026-08-13: the form's own header (flame
+ * icon, "Logging Streak" eyebrow, "Behavior Journal" h2, n/7 ring) is gone.
+ * It rendered inside /body under a page header that already carries an
+ * <h1>Body</h1> and a streak chip, so the tab printed the streak and the
+ * page title twice. The page header's chip is now the single streak on
+ * screen — see src/app/body/page.tsx.
+ */
+describe("journal form — no duplicate header (v0.102 task 6)", () => {
+  it("prints no streak of its own — the page header owns that number", () => {
+    const html = renderToString(<JournalForm {...baseProps} />);
+    expect(html).not.toContain("Logging Streak");
+    expect(html).not.toContain("/7");
+  });
+
+  it("does not open a second page title inside a page that has one", () => {
+    const html = renderToString(<JournalForm {...baseProps} />);
+    expect(html).not.toContain("Behavior Journal");
+    expect(html).not.toContain("<header");
+  });
+
+  it("holds the floor across the region this task owns", () => {
+    // The form is split across two tasks: this one owns the calendar strip
+    // and steps 1–2 (plus the "3. Vitals Check" trigger's intervals.icu
+    // chip); task 7 owns the vitals panel, behavior tags, day flags, notes
+    // and the submit button, all still on ad-hoc classes and unconditionally
+    // rendered below "Behavior Tags" in the default (step-1-open) render.
+    // Scoping to the boundary keeps this a real assertion about what this
+    // task migrated, rather than one that can only pass once task 7 lands.
+    const html = renderToString(<JournalForm {...baseProps} />);
+    expect(html).toContain("Behavior Tags");
+    const ownedRegion = html.slice(0, html.indexOf("Behavior Tags"));
+    expect(ownedRegion).not.toMatch(/text-\[\d/);
+    expect(ownedRegion).not.toContain("text-white/");
   });
 });
