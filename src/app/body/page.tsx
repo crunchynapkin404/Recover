@@ -222,27 +222,24 @@ async function TrendsTab({
       <RangeTabs active={range} ranges={RANGES} href={href} />
 
       <BaselineTrendCard
-        title="HRV vs baseline"
+        title="HRV"
         values={fillDailyGaps(wellness, range, (w) => w.hrvMs)}
         band={hrvBand}
-        color="#10b981"
-        bandFill="rgba(16,185,129,0.08)"
+        tone="recovery"
         unit="ms"
       />
       <BaselineTrendCard
-        title="Resting HR vs baseline"
+        title="Resting HR"
         values={fillDailyGaps(wellness, range, (w) => w.restingHr)}
         band={rhrBand}
-        color="#3b82f6"
-        bandFill="rgba(59,130,246,0.08)"
+        tone="cardiac"
         unit="bpm"
       />
       <BaselineTrendCard
         title="Weight"
         values={fillDailyGaps(wellness, range, (w) => w.weightKg)}
         band={ownBaselineBand(wellness, (w) => w.weightKg)}
-        color="#a78bfa"
-        bandFill="rgba(167,139,250,0.08)"
+        tone="body"
         unit="kg"
         decimals={1}
       />
@@ -251,8 +248,7 @@ async function TrendsTab({
           title="VO2max"
           values={fillDailyGaps(wellness, range, (w) => w.vo2max)}
           band={ownBaselineBand(wellness, (w) => w.vo2max)}
-          color="#f59e0b"
-          bandFill="rgba(245,158,11,0.08)"
+          tone="output"
           unit="ml/kg/min"
           decimals={1}
         />
@@ -262,8 +258,7 @@ async function TrendsTab({
           title="Blood oxygen"
           values={fillDailyGaps(wellness, range, (w) => w.bloodOxygenPct)}
           band={ownBaselineBand(wellness, (w) => w.bloodOxygenPct)}
-          color="#06b6d4"
-          bandFill="rgba(6,182,212,0.08)"
+          tone="cardiac"
           unit="%"
         />
       )}
@@ -272,8 +267,7 @@ async function TrendsTab({
           title="Wrist temperature"
           values={fillDailyGaps(wellness, range, (w) => w.wristTempC)}
           band={ownBaselineBand(wellness, (w) => w.wristTempC)}
-          color="#f472b6"
-          bandFill="rgba(244,114,182,0.08)"
+          tone="body"
           unit="°C"
           decimals={1}
         />
@@ -283,8 +277,7 @@ async function TrendsTab({
           title="BMI"
           values={fillDailyGaps(wellness, range, (w) => w.bmi)}
           band={ownBaselineBand(wellness, (w) => w.bmi)}
-          color="#facc15"
-          bandFill="rgba(250,204,21,0.08)"
+          tone="body"
           unit=""
           decimals={1}
         />
@@ -294,8 +287,7 @@ async function TrendsTab({
           title="Lean body mass"
           values={fillDailyGaps(wellness, range, (w) => w.leanMassKg)}
           band={ownBaselineBand(wellness, (w) => w.leanMassKg)}
-          color="#34d399"
-          bandFill="rgba(52,211,153,0.08)"
+          tone="body"
           unit="kg"
           decimals={1}
         />
@@ -305,8 +297,7 @@ async function TrendsTab({
           title="Waist circumference"
           values={fillDailyGaps(wellness, range, (w) => w.waistCm)}
           band={ownBaselineBand(wellness, (w) => w.waistCm)}
-          color="#fb923c"
-          bandFill="rgba(251,146,60,0.08)"
+          tone="body"
           unit="cm"
           decimals={1}
         />
@@ -316,8 +307,7 @@ async function TrendsTab({
           title="Respiratory rate"
           values={fillDailyGaps(wellness, range, (w) => w.respiratoryRate)}
           band={ownBaselineBand(wellness, (w) => w.respiratoryRate)}
-          color="#38bdf8"
-          bandFill="rgba(56,189,248,0.08)"
+          tone="cardiac"
           unit="br/min"
           decimals={1}
         />
@@ -327,8 +317,7 @@ async function TrendsTab({
           title="Sleeping HR"
           values={fillDailyGaps(wellness, range, (w) => w.sleepingHr)}
           band={ownBaselineBand(wellness, (w) => w.sleepingHr)}
-          color="#818cf8"
-          bandFill="rgba(129,140,248,0.08)"
+          tone="cardiac"
           unit="bpm"
         />
       )}
@@ -337,8 +326,7 @@ async function TrendsTab({
           title="HRV (SDNN)"
           values={fillDailyGaps(wellness, range, (w) => w.hrvSdnnMs)}
           band={ownBaselineBand(wellness, (w) => w.hrvSdnnMs)}
-          color="#2dd4bf"
-          bandFill="rgba(45,212,191,0.08)"
+          tone="recovery"
           unit="ms"
         />
       )}
@@ -349,8 +337,7 @@ async function TrendsTab({
           title="Readiness score"
           values={fillDailyGaps(wellness, range, (w) => w.readiness)}
           band={ownBaselineBand(wellness, (w) => w.readiness)}
-          color="#fbbf24"
-          bandFill="rgba(251,191,36,0.08)"
+          tone="recovery"
           unit=""
         />
       )}
@@ -359,8 +346,7 @@ async function TrendsTab({
           title="Steps"
           values={fillDailyGaps(wellness, range, (w) => w.steps)}
           band={ownBaselineBand(wellness, (w) => w.steps)}
-          color="#c084fc"
-          bandFill="rgba(192,132,252,0.08)"
+          tone="output"
           unit=""
         />
       )}
@@ -369,8 +355,7 @@ async function TrendsTab({
           title="Hydration"
           values={fillDailyGaps(wellness, range, (w) => w.hydrationL)}
           band={ownBaselineBand(wellness, (w) => w.hydrationL)}
-          color="#22d3ee"
-          bandFill="rgba(34,211,238,0.08)"
+          tone="body"
           unit="L"
           decimals={1}
         />
@@ -597,26 +582,24 @@ async function SleepTab({
       )}
 
       <BaselineTrendCard
-        title="Sleep duration vs baseline"
+        title="Sleep duration"
         values={fillDailyGaps(wellness, 90, (w) =>
           w.sleepSecs != null ? w.sleepSecs / 3600 : null
         )}
         band={ownBaselineBand(wellness, (w) =>
           w.sleepSecs != null ? w.sleepSecs / 3600 : null
         )}
-        color="#3b82f6"
-        bandFill="rgba(59,130,246,0.08)"
+        tone="recovery"
         unit="h"
         decimals={1}
       />
 
       {wellness.some((w) => w.sleepScore != null) && (
         <BaselineTrendCard
-          title="Sleep score vs baseline"
+          title="Sleep score"
           values={fillDailyGaps(wellness, 90, (w) => w.sleepScore)}
           band={ownBaselineBand(wellness, (w) => w.sleepScore)}
-          color="#8b5cf6"
-          bandFill="rgba(139,92,246,0.08)"
+          tone="recovery"
           unit=""
         />
       )}

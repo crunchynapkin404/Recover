@@ -154,7 +154,12 @@ function occurrences(pattern: RegExp): number {
  */
 const RATCHET_SLACK = 25;
 const OFFENDER_CEILINGS: Record<string, number> = {
-  // 208 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 2 —
+  // 204 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 3 —
+  // baseline-trend-card.tsx migrated 4 text-[Npx] sites: the eyebrow
+  // (text-[9.5px] → label-micro, which already carries text-label) and the
+  // reading row (text-[11px] → text-label, text-[12px] → text-caption, and
+  // the empty-state text-[11px] → text-caption).
+  // Was 208 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 2 —
   // page.tsx's header (the h1 and the streak chip) plus the two new
   // components it now delegates to, body-tabs.tsx and range-tabs.tsx —
   // migrated 4 text-[Npx] sites: text-[22px] (h1 → text-title), text-[10.5px]
@@ -216,8 +221,19 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // week-day-list.tsx and page.tsx are all token utilities, so the count did
   // not move there), 343 after task 2, 351 after the whole-branch-review
   // fixes, 355 right after slice 1, 395 at slice 0.
-  "arbitrary type sizes": 208,
-  // 461 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 2
+  "arbitrary type sizes": 204,
+  // 455 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 3 —
+  // baseline-trend-card.tsx migrated 6 text-white/N, bg-white/N and
+  // border-white/N sites: the card wrapper's border-white/[0.08] +
+  // bg-white/[0.03] (→ `glass`) and four text-white/N ink sites (the
+  // eyebrow, the reading row's font-mono wrapper, the unit and the empty
+  // state, all → text-ink-muted). All 16 call sites' hex `color`/`bandFill`
+  // props do not move this count — this guard only scans Tailwind utility
+  // classes, and those were props, not classes; they are the 32 raw colour
+  // literals tests/type-scale-guard.test.ts's own header comment already
+  // says it cannot see (`color="#a78bfa"` props passed into chart
+  // components), now replaced by the four chart tokens in trend-tone.ts.
+  // Was 461 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 2
   // migrated 8 text-white/N, bg-white/N and border-white/N sites: 4 in
   // page.tsx's own header markup before it was replaced (bg-white/[0.12] +
   // text-white, and bg-white/[0.04] + text-white/50 + hover:text-white/80 —
@@ -278,7 +294,7 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // fuelling tile that moved to `bg-surface-overlay`). 709 after task 4,
   // for the same reason task 4 didn't move it — 729 after task 2, 738 after
   // the whole-branch-review fixes, 749 right after slice 1, 806 at slice 0.
-  "ad-hoc white/black alpha utilities": 461,
+  "ad-hoc white/black alpha utilities": 455,
 };
 
 function expectRatchet(name: string, pattern: RegExp): void {
