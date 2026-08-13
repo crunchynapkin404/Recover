@@ -63,7 +63,7 @@ interface Props {
 const PRIORITY_CHIP: Record<RacePriority, string> = {
   A: "border-ink-race/30 text-ink-race",
   B: "border-hairline text-chart-3",
-  C: "border-hairline text-ink-muted",
+  C: "border-hairline text-ink-secondary",
 };
 
 const STATUS_LABEL: Record<RaceStatus, string> = {

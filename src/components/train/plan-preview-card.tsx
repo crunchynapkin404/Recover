@@ -126,7 +126,7 @@ export function PlanPreviewCard({ preview }: { preview: PlanPreview }) {
               <td className="py-1.5 text-ink-secondary">
                 {PHASE_LABEL[row.phase]}
               </td>
-              <td className="py-1.5 text-right font-numeric text-ink-secondary">
+              <td className="py-1.5 text-right font-numeric text-ink-muted">
                 {row.weeks}
               </td>
               <td className="py-1.5 pl-3 text-ink-muted">
