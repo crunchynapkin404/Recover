@@ -778,9 +778,10 @@ async function LabsTab({ userId }: { userId: string }) {
       />
       <BioAgeCard result={bioAge} hideHeadline />
       <BloodPressureCard trend={trend} />
+      <BiomarkerList rows={latest} />
+      {/* Entry, not reading — folded, and last. */}
       <HealthUpload />
       <HealthManualEntry birthYear={prefs?.birthYear ?? null} />
-      <BiomarkerList rows={latest} />
     </div>
   );
 }

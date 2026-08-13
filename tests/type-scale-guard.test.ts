@@ -154,7 +154,26 @@ function occurrences(pattern: RegExp): number {
  */
 const RATCHET_SLACK = 25;
 const OFFENDER_CEILINGS: Record<string, number> = {
-  // 150 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 9 —
+  // 137 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 10 —
+  // health-upload.tsx and health-manual-entry.tsx (both folded behind
+  // Collapsible in the same task) migrated 13 text-[Npx] sites:
+  // health-upload.tsx (7) — the intro paragraph (text-[12px] →
+  // text-label), the file input's own file:text-[10px] (→ file:text-label),
+  // the Extract button (text-[10px] → text-label), the
+  // parsed-without-a-model warning (text-[11px] → text-label), the review
+  // table's header row (text-[10px] → text-label), and the Save/Discard
+  // pair below the table (each its own text-[10px] → text-label);
+  // health-manual-entry.tsx (6) — the four field labels (Birth year, Date,
+  // Systolic, Diastolic; text-[11px] x4 → text-label) and the two Save
+  // buttons (each its own text-[10px] → text-label). text-sm stayed on the
+  // two headings (now text-caption, and h3 not h2 — the trigger's own h3
+  // wrapper must not sit under a higher heading level) and on the
+  // textarea/date/number inputs (now text-caption); text-xs stayed on the
+  // file input's base size, the error line, the confidence cell and the
+  // Measured/saveMsg text (now text-label or font-numeric text-label).
+  // Neither text-sm nor text-xs is arbitrary, so none of those move this
+  // count.
+  // Was 150 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 9 —
   // the Labs tab's four reading blocks migrated 13 text-[Npx] sites:
   // labs-tiles.tsx (7) — both tile eyebrows (text-[8.5px] x2 → label-micro),
   // the age figure (text-[22px] → text-title), the delta (text-[11px] →
@@ -281,8 +300,31 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // week-day-list.tsx and page.tsx are all token utilities, so the count did
   // not move there), 343 after task 2, 351 after the whole-branch-review
   // fixes, 355 right after slice 1, 395 at slice 0.
-  "arbitrary type sizes": 150,
-  // 346 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 9 —
+  "arbitrary type sizes": 137,
+  // 311 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 10 —
+  // health-upload.tsx and health-manual-entry.tsx migrated 35 text-white/N,
+  // bg-white/N and border-white/N sites: health-upload.tsx (19) — the intro
+  // paragraph's text-white/50, the textarea's border-white/10 + bg-white/5,
+  // the file input's own text-white/60 + file:bg-white/10 + file:text-white/80
+  // (3), the review table's header row text-white/40, the row divider's
+  // border-white/5, the three editable cells' shared bg-white/5 (displayName/
+  // value/unit, 3), the confidence cell's low-confidence-else text-white/50,
+  // the remove button's text-white/40, the "Measured" label's text-white/60,
+  // its date input's border-white/10 + bg-white/5, the Discard button's
+  // text-white/40 + hover:text-white/70 (2), and the save-message
+  // paragraph's text-white/60 — all → text-ink-muted / text-ink-secondary /
+  // border-hairline / bg-surface-overlay as the per-site ink weight called
+  // for; health-manual-entry.tsx (16) — the four field labels' shared
+  // text-white/50 (4), the four inputs' shared border-white/10 + bg-white/5
+  // (8), the birth-year Save button's border-white/10 + bg-white/5 (2), the
+  // section divider's border-white/5, and the message paragraph's
+  // text-white/60 — all → text-ink-muted / border-hairline /
+  // bg-surface-overlay. Neither file's Save/Extract buttons move this
+  // count: `bg-emerald-500`/`text-black` are opaque, not an alpha utility
+  // (the buttons move to `bg-accent`/`text-primary-foreground` as tokens,
+  // which this guard does not scan for — it only flags the ad-hoc
+  // white/black alpha this task is eliminating).
+  // Was 346 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 9 —
   // the Labs tab's four reading blocks migrated 20 text-white/N and
   // bg-white/N sites: labs-tiles.tsx (9) — both tiles' border-white/[0.09] +
   // bg-white/[0.04] pairs (→ `glass`, 4), both eyebrows' text-white/40
@@ -453,7 +495,7 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // fuelling tile that moved to `bg-surface-overlay`). 709 after task 4,
   // for the same reason task 4 didn't move it — 729 after task 2, 738 after
   // the whole-branch-review fixes, 749 right after slice 1, 806 at slice 0.
-  "ad-hoc white/black alpha utilities": 346,
+  "ad-hoc white/black alpha utilities": 311,
 };
 
 function expectRatchet(name: string, pattern: RegExp): void {
