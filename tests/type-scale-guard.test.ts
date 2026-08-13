@@ -360,7 +360,7 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // fuelling tile that moved to `bg-surface-overlay`). 709 after task 4,
   // for the same reason task 4 didn't move it — 729 after task 2, 738 after
   // the whole-branch-review fixes, 749 right after slice 1, 806 at slice 0.
-  "ad-hoc white/black alpha utilities": 414,
+  "ad-hoc white/black alpha utilities": 403,
 };
 
 function expectRatchet(name: string, pattern: RegExp): void {
