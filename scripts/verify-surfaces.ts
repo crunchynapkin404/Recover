@@ -208,7 +208,16 @@ const SURFACES: Record<string, string> = {
   "train-history": "/train?tab=history",
   "train-season": "/train?tab=season",
   "train-fitness": "/train?tab=fitness",
+  // Coach is a multi-state surface behind one URL, and `/coach` alone renders
+  // `messages.length === 0` — the empty state. Until slice 4, every message
+  // bubble, the timestamp, ArtifactCard, the typing indicator and the error
+  // banner had never been captured or axe-audited, and neither had the
+  // History panel. Same gap slice 2 closed for Train's tabs and slice 3 for
+  // Body's; found the same way, by asking which state a PNG was actually of.
+  // The thread surface cannot be a literal — its id is a uuid — so it is
+  // resolved through the UI in main(); see resolveCoachThreadPath.
   coach: "/coach",
+  "coach-history": "/coach?history=1",
   // Body is FOUR tabs behind one path and `/body` alone captures only the
   // first (Trends). Sleep, Journal and Labs had never been captured or
   // axe-audited by this script before v0.99 slice 3 — the same gap slice 2
@@ -884,6 +893,33 @@ async function captureTokenCreated(
 }
 
 /**
+ * The seeded chat thread's id is a uuid, so `/coach?thread=…` cannot live in
+ * SURFACES as a literal. Read it off the History panel's own first chat link.
+ *
+ * Throws rather than returning null: a missing thread link means the seed did
+ * not run, and silently dropping the surface would restore exactly the blind
+ * spot this slice exists to close.
+ */
+async function resolveCoachThreadPath(page: Page): Promise<string> {
+  await page.goto(`${BASE_URL}/coach?history=1`, {
+    waitUntil: "networkidle",
+    timeout: 20_000,
+  });
+  const href = await page
+    .locator('a[href^="/coach?thread="]')
+    .first()
+    .getAttribute("href", { timeout: 10_000 });
+  if (!href) {
+    throw new Error(
+      "no /coach?thread= link on /coach?history=1 — run scripts/seed-demo.ts " +
+        "against the dev DB (5435) first. Refusing to skip: an uncaptured " +
+        "thread is the blind spot slice 4 closes."
+    );
+  }
+  return href;
+}
+
+/**
  * Messages describing surfaces that WERE reached but then failed (task-7
  * review, Finding 2) — as opposed to leakedTokenLabels (cleanup-only
  * failures) or a skipped-but-acceptable "could not reach" — any entry here
@@ -927,6 +963,37 @@ async function main() {
           vpName
         );
         total++;
+      }
+
+      // Resolved per context: the storage state is fresh each time and the
+      // href is cheap to re-read. A failure here is hard — see the resolver.
+      try {
+        const threadPath = await resolveCoachThreadPath(p);
+        await captureWithRetry(
+          p,
+          "coach-thread",
+          threadPath,
+          join(outDir, `coach-thread-${theme}-${vpName}.png`),
+          dark,
+          theme,
+          vpName
+        );
+        total++;
+      } catch (err) {
+        const message =
+          `coach-thread FAILED for ${theme}/${vpName}: ` +
+          `${err instanceof Error ? err.message : String(err)}`;
+        console.error(message);
+        hardFailures.push(message);
+        axeReport.push({
+          surface: "coach-thread",
+          theme,
+          viewport: vpName,
+          confirmed: [],
+          indeterminate: [],
+          error: err instanceof Error ? err.message : String(err),
+        });
+        writeReport();
       }
 
       // Reach and capture the api-tokens-card "token created" state, once
