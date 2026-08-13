@@ -97,4 +97,19 @@ describe("RacesSection", () => {
     );
     expect(html).toContain("No distance/elevation set");
   });
+
+  it("paints A-priority races in the race ink token, not a fuchsia literal", () => {
+    const html = renderToString(<RacesSection races={races} />);
+    expect(html).toMatch(/text-ink-race/);
+    expect(html).not.toMatch(/fuchsia/);
+  });
+
+  it("uses the token scale, not ad-hoc sizes or white alphas", () => {
+    const html = renderToString(<RacesSection races={races} />);
+    expect(html).not.toMatch(/text-\[[\d.]+px\]/);
+    expect(html).not.toMatch(/\btext-(xs|sm)\b/);
+    expect(html).not.toMatch(/text-white\//);
+    expect(html).not.toMatch(/bg-white\//);
+    expect(html).not.toMatch(/border-white\//);
+  });
 });

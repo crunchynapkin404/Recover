@@ -103,10 +103,10 @@ export function PlanPreviewCard({ preview }: { preview: PlanPreview }) {
   return (
     <section className="glass mb-4 rounded-[1.5rem] p-5">
       <p className="label-micro mb-1">Plan preview</p>
-      <h2 className="mb-1 text-[15px] font-bold text-white/90">
+      <h2 className="mb-1 text-body font-bold text-ink-primary">
         {SPORT_LABEL[preview.sport]} plan for {preview.race.name}
       </h2>
-      <p className="mb-4 text-[11.5px] text-white/50">
+      <p className="mb-4 text-label text-ink-muted">
         {preview.weeksTotal} weeks · starting {preview.startDate} · race{" "}
         {preview.race.date}
       </p>
@@ -115,29 +115,31 @@ export function PlanPreviewCard({ preview }: { preview: PlanPreview }) {
           INSIDE a phase's span, so "base, 8 weeks" and "eight base weeks"
           are different numbers — recovery gets its own row and the total is
           shown so the two can be checked against each other on screen. */}
-      <table className="mb-4 w-full text-[11.5px]">
+      <table className="mb-4 w-full text-label">
         <tbody>
           {preview.phases.map((row) => (
             <tr
               key={row.phase}
               data-testid={`phase-${row.phase}`}
-              className="border-b border-white/[0.06]"
+              className="border-b border-hairline"
             >
-              <td className="py-1.5 text-white/80">{PHASE_LABEL[row.phase]}</td>
-              <td className="py-1.5 text-right font-mono tabular-nums text-white/60">
+              <td className="py-1.5 text-ink-secondary">
+                {PHASE_LABEL[row.phase]}
+              </td>
+              <td className="py-1.5 text-right font-numeric text-ink-secondary">
                 {row.weeks}
               </td>
-              <td className="py-1.5 pl-3 text-white/40">
+              <td className="py-1.5 pl-3 text-ink-muted">
                 weeks {row.weekNumbers.join(", ")}
               </td>
             </tr>
           ))}
           <tr>
-            <td className="pt-2 text-[11.5px] font-bold text-white/85">
+            <td className="pt-2 text-label font-bold text-ink-secondary">
               Total
             </td>
             <td
-              className="pt-2 text-right font-mono tabular-nums font-bold text-white/85"
+              className="pt-2 text-right font-numeric font-bold text-ink-secondary"
               data-testid="phase-total"
             >
               {total}
@@ -151,7 +153,7 @@ export function PlanPreviewCard({ preview }: { preview: PlanPreview }) {
         {preview.weeks.map((w) => (
           <li
             key={w.weekNumber}
-            className="flex justify-between text-[11px] text-white/60"
+            className="flex justify-between text-label text-ink-secondary"
           >
             <span>
               Week {w.weekNumber} · {PHASE_LABEL[w.phase]}
@@ -161,7 +163,7 @@ export function PlanPreviewCard({ preview }: { preview: PlanPreview }) {
                 week-1 ratio produced a fabricated 15.7h against 8.8h really
                 scheduled at peak; rendering `targetHours` as given is what
                 keeps that number honest. */}
-            <span className="font-mono tabular-nums">
+            <span className="font-numeric">
               {w.targetLoad} load · {w.targetHours}h
             </span>
           </li>
@@ -171,10 +173,7 @@ export function PlanPreviewCard({ preview }: { preview: PlanPreview }) {
       {preview.warnings.length > 0 && (
         <ul className="mb-4 space-y-1.5">
           {preview.warnings.map((w) => (
-            <li
-              key={w}
-              className="text-[11px] leading-relaxed text-amber-300/90"
-            >
+            <li key={w} className="text-label leading-relaxed text-chart-3">
               {WARNING_TEXT[w]}
             </li>
           ))}
@@ -184,13 +183,13 @@ export function PlanPreviewCard({ preview }: { preview: PlanPreview }) {
       {actionError && (
         <p
           data-testid="plan-preview-error"
-          className="mb-4 text-[11px] leading-relaxed text-rose-300/90"
+          className="mb-4 text-label leading-relaxed text-chart-5"
         >
           {actionError}
         </p>
       )}
 
-      <div className="flex flex-wrap items-end gap-3 border-t border-white/[0.08] pt-4">
+      <div className="flex flex-wrap items-end gap-3 border-t border-hairline pt-4">
         <div>
           <label className="label-micro mb-1 block" htmlFor="plan-preview-days">
             Days per week
@@ -203,7 +202,7 @@ export function PlanPreviewCard({ preview }: { preview: PlanPreview }) {
             max={7}
             value={days}
             onChange={(e) => setDays(Number(e.target.value))}
-            className="w-16 rounded-xl bg-white/[0.06] px-3 py-2 text-sm"
+            className="w-16 rounded-xl border border-hairline px-3 py-2 text-caption text-ink-primary"
           />
         </div>
         <div>
@@ -221,14 +220,14 @@ export function PlanPreviewCard({ preview }: { preview: PlanPreview }) {
             max={25}
             value={hours}
             onChange={(e) => setHours(Number(e.target.value))}
-            className="w-16 rounded-xl bg-white/[0.06] px-3 py-2 text-sm"
+            className="w-16 rounded-xl border border-hairline px-3 py-2 text-caption text-ink-primary"
           />
         </div>
         <button
           type="button"
           disabled={pending}
           onClick={handleRebuild}
-          className="rounded-full border border-white/[0.12] px-3.5 py-2 text-[11px] font-bold text-white/80 transition-colors hover:bg-white/[0.06] disabled:opacity-50"
+          className="rounded-full border border-hairline px-3.5 py-2 text-label font-bold text-ink-secondary transition-colors hover:bg-surface-overlay disabled:opacity-50"
         >
           Rebuild
         </button>
@@ -236,7 +235,7 @@ export function PlanPreviewCard({ preview }: { preview: PlanPreview }) {
           type="button"
           disabled={pending}
           onClick={handleConfirm}
-          className="rounded-full bg-emerald-500/90 px-4 py-2 text-[11px] font-bold text-neutral-950 transition-opacity hover:opacity-90 disabled:opacity-50"
+          className="rounded-full bg-accent px-4 py-2 text-label font-bold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
         >
           Start this plan
         </button>

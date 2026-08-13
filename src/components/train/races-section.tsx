@@ -58,12 +58,12 @@ interface Props {
   hideHeading?: boolean;
 }
 
-// Repo avoids blue/indigo for accents — A races get the same fuchsia the
-// week strip and STATUS_CHIP use for race days.
+// Repo avoids blue/indigo for accents — A races get the same --ink-race
+// token the week strip and STATUS_DOT use for race days.
 const PRIORITY_CHIP: Record<RacePriority, string> = {
-  A: "border-fuchsia-400/30 text-fuchsia-300",
-  B: "border-amber-400/30 text-amber-400",
-  C: "border-white/15 text-white/60",
+  A: "border-ink-race/30 text-ink-race",
+  B: "border-hairline text-chart-3",
+  C: "border-hairline text-ink-muted",
 };
 
 const STATUS_LABEL: Record<RaceStatus, string> = {
@@ -117,7 +117,7 @@ function SportSelect({
         required
         value={value}
         onChange={(e) => onChange(e.target.value as PlanSport)}
-        className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-white/30 focus:outline-none"
+        className="w-full rounded-xl border border-hairline px-3 py-2 text-caption text-ink-primary focus:border-accent focus:outline-none"
       >
         {PLAN_SPORTS.map((s) => (
           <option key={s} value={s}>
@@ -180,7 +180,7 @@ function DemandFields({
         onChange={(e) =>
           onEventDaysChange(Math.max(1, Number(e.target.value) || 1))
         }
-        className="w-full rounded-xl bg-white/[0.06] px-3 py-2 text-sm"
+        className="w-full rounded-xl border border-hairline px-3 py-2 text-caption text-ink-primary"
       />
 
       <label className="label-micro" htmlFor={`${idPrefix}event-distance`}>
@@ -196,7 +196,7 @@ function DemandFields({
             e.target.value === "" ? null : Number(e.target.value)
           )
         }
-        className="w-full rounded-xl bg-white/[0.06] px-3 py-2 text-sm"
+        className="w-full rounded-xl border border-hairline px-3 py-2 text-caption text-ink-primary"
       />
 
       <label className="label-micro" htmlFor={`${idPrefix}event-elevation`}>
@@ -212,7 +212,7 @@ function DemandFields({
             e.target.value === "" ? null : Number(e.target.value)
           )
         }
-        className="w-full rounded-xl bg-white/[0.06] px-3 py-2 text-sm"
+        className="w-full rounded-xl border border-hairline px-3 py-2 text-caption text-ink-primary"
       />
 
       <label className="label-micro" htmlFor={`${idPrefix}expected-finish`}>
@@ -229,9 +229,9 @@ function DemandFields({
             e.target.value === "" ? null : Number(e.target.value)
           )
         }
-        className="w-full rounded-xl bg-white/[0.06] px-3 py-2 text-sm"
+        className="w-full rounded-xl border border-hairline px-3 py-2 text-caption text-ink-primary"
       />
-      <p className="mt-1 text-[11px] text-white/50">
+      <p className="mt-1 text-label text-ink-muted">
         If you know roughly how long this takes you, this beats every estimate
         we can make.
       </p>
@@ -241,20 +241,20 @@ function DemandFields({
           <summary className="label-micro cursor-pointer">
             Per-day detail (optional)
           </summary>
-          <p className="mt-1 text-[11px] text-white/50">
+          <p className="mt-1 text-label text-ink-muted">
             Enter each day and we can tell you what your longest training ride
             needs to be. Without it we assume every day is the average.
           </p>
           {Array.from({ length: eventDays }, (_, i) => (
             <div key={i} className="mt-2 flex items-center gap-2">
-              <span className="w-12 text-[11px] text-white/50">{`Day ${i + 1}`}</span>
+              <span className="w-12 text-label text-ink-muted">{`Day ${i + 1}`}</span>
               <input
                 aria-label={`${ariaPrefix}Day ${i + 1} distance in km`}
                 type="number"
                 min={0}
                 value={stages[i]?.distanceKm ?? ""}
                 onChange={(e) => onStageChange(i, "distanceKm", e.target.value)}
-                className="w-24 rounded-lg bg-white/[0.06] px-2 py-1 text-[12px]"
+                className="w-24 rounded-lg border border-hairline px-2 py-1 text-label text-ink-primary"
               />
               <input
                 aria-label={`${ariaPrefix}Day ${i + 1} elevation in m`}
@@ -262,7 +262,7 @@ function DemandFields({
                 min={0}
                 value={stages[i]?.elevationM ?? ""}
                 onChange={(e) => onStageChange(i, "elevationM", e.target.value)}
-                className="w-24 rounded-lg bg-white/[0.06] px-2 py-1 text-[12px]"
+                className="w-24 rounded-lg border border-hairline px-2 py-1 text-label text-ink-primary"
               />
             </div>
           ))}
@@ -370,7 +370,7 @@ function RaceDemandEditor({
     <form
       onSubmit={handleSubmit}
       aria-label={`Demand form for ${race.name}`}
-      className="space-y-3 border-t border-white/5 bg-white/[0.02] px-5 py-4"
+      className="space-y-3 border-t border-hairline bg-surface-overlay px-5 py-4"
     >
       <SportSelect
         id={`edit-${race.id}-sport`}
@@ -407,14 +407,14 @@ function RaceDemandEditor({
         value={goalNote}
         onChange={(e) => setGoalNote(e.target.value)}
         placeholder="What would make this a good day?"
-        className="w-full rounded-xl bg-white/[0.06] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none"
+        className="w-full rounded-xl border border-hairline px-3 py-2 text-caption text-ink-primary placeholder:text-ink-muted focus:outline-none"
       />
 
       <div className="flex gap-2">
         <button
           type="submit"
           disabled={pending}
-          className="flex-1 rounded-2xl bg-emerald-500/90 py-2.5 text-sm font-bold text-neutral-950 transition-opacity disabled:opacity-50"
+          className="flex-1 rounded-2xl bg-accent py-2.5 text-caption font-bold text-primary-foreground transition-opacity disabled:opacity-50"
         >
           {pending ? "Saving…" : "Save"}
         </button>
@@ -422,13 +422,13 @@ function RaceDemandEditor({
           type="button"
           disabled={pending}
           onClick={onCancel}
-          className="flex-1 rounded-2xl border border-white/10 py-2.5 text-sm font-bold text-white/70 transition-colors hover:bg-white/5 disabled:opacity-50"
+          className="flex-1 rounded-2xl border border-hairline py-2.5 text-caption font-bold text-ink-secondary transition-colors hover:text-ink-primary disabled:opacity-50"
         >
           Cancel
         </button>
       </div>
       {error && (
-        <p role="status" className="text-center text-[12px] text-red-400">
+        <p role="status" className="text-center text-label text-chart-5">
           {error}
         </p>
       )}
@@ -560,32 +560,32 @@ export function RacesSection({ races, hideHeading = false }: Props) {
 
       {races.length === 0 ? (
         <div className="glass mb-4 rounded-2xl p-5">
-          <p className="text-sm text-white/50">
+          <p className="text-caption text-ink-muted">
             No races yet — add one so the plan can taper toward it.
           </p>
         </div>
       ) : (
         <div className="glass mb-4 overflow-hidden rounded-2xl">
-          <ul className="divide-y divide-white/5">
+          <ul className="divide-y divide-hairline">
             {races.map((race) => (
               <Fragment key={race.id}>
                 <li className="flex items-center justify-between gap-3 px-5 py-4">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <span
-                        className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${PRIORITY_CHIP[race.priority]}`}
+                        className={`rounded-full border px-2 py-0.5 text-label font-bold uppercase tracking-wider ${PRIORITY_CHIP[race.priority]}`}
                       >
                         {race.priority}
                       </span>
-                      <p className="truncate text-sm font-bold text-white">
+                      <p className="truncate text-caption font-bold text-ink-primary">
                         {race.name}
                       </p>
                     </div>
-                    <p className="mt-1 truncate text-[11px] text-white/50">
+                    <p className="mt-1 truncate text-label text-ink-muted">
                       {`${race.raceType} · ${race.date}`}
                       {race.goalNote && ` · ${race.goalNote}`}
                     </p>
-                    <p className="mt-0.5 truncate text-[10.5px] text-white/35">
+                    <p className="mt-0.5 truncate text-label text-ink-muted">
                       {demandSummary(race)}
                     </p>
                   </div>
@@ -600,7 +600,7 @@ export function RacesSection({ races, hideHeading = false }: Props) {
                           await setRaceStatus(race.id, status);
                         });
                       }}
-                      className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-[11px] text-white/70 focus:border-white/30 focus:outline-none disabled:opacity-50"
+                      className="rounded-lg border border-hairline px-2 py-1 text-label text-ink-secondary focus:border-accent focus:outline-none disabled:opacity-50"
                     >
                       {(Object.keys(STATUS_LABEL) as RaceStatus[]).map((s) => (
                         <option key={s} value={s}>
@@ -617,7 +617,7 @@ export function RacesSection({ races, hideHeading = false }: Props) {
                           cur === race.id ? null : race.id
                         )
                       }
-                      className="rounded-full p-2 text-white/60 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-50"
+                      className="rounded-full p-2 text-ink-secondary transition-colors hover:bg-surface-overlay hover:text-ink-primary disabled:opacity-50"
                     >
                       <Pencil aria-hidden className="size-4" />
                     </button>
@@ -634,7 +634,7 @@ export function RacesSection({ races, hideHeading = false }: Props) {
                           });
                         }
                       }}
-                      className="rounded-full p-2 text-white/60 transition-colors hover:bg-red-500/10 hover:text-red-400 disabled:opacity-50"
+                      className="rounded-full p-2 text-ink-secondary transition-colors hover:bg-chart-5/10 hover:text-chart-5 disabled:opacity-50"
                     >
                       <Trash2 aria-hidden className="size-4" />
                     </button>
@@ -656,7 +656,7 @@ export function RacesSection({ races, hideHeading = false }: Props) {
       )}
 
       <details ref={detailsRef} className="glass rounded-2xl">
-        <summary className="cursor-pointer list-none px-5 py-3 text-[11px] font-bold uppercase tracking-wider text-emerald-400">
+        <summary className="cursor-pointer list-none px-5 py-3 text-label font-bold uppercase tracking-wider text-chart-2">
           + Add race
         </summary>
         <form onSubmit={handleAdd} className="space-y-3 px-5 pb-5">
@@ -665,7 +665,7 @@ export function RacesSection({ races, hideHeading = false }: Props) {
             name="name"
             required
             placeholder="Race name"
-            className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-white/30 focus:outline-none"
+            className="w-full rounded-xl border border-hairline px-3 py-2 text-caption text-ink-primary placeholder:text-ink-muted focus:border-accent focus:outline-none"
           />
           <div className="grid grid-cols-2 gap-3">
             <input
@@ -673,13 +673,13 @@ export function RacesSection({ races, hideHeading = false }: Props) {
               required
               placeholder="Type (e.g. marathon)"
               onChange={(e) => handleRaceTypeChange(e.target.value)}
-              className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-white/30 focus:outline-none"
+              className="w-full rounded-xl border border-hairline px-3 py-2 text-caption text-ink-primary placeholder:text-ink-muted focus:border-accent focus:outline-none"
             />
             <select
               name="priority"
               defaultValue="B"
               aria-label="Priority"
-              className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-white/30 focus:outline-none"
+              className="w-full rounded-xl border border-hairline px-3 py-2 text-caption text-ink-primary focus:border-accent focus:outline-none"
             >
               <option value="A">A — season goal</option>
               <option value="B">B — tune-up</option>
@@ -691,7 +691,7 @@ export function RacesSection({ races, hideHeading = false }: Props) {
             name="date"
             type="date"
             required
-            className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-white/30 focus:outline-none"
+            className="w-full rounded-xl border border-hairline px-3 py-2 text-caption text-ink-primary focus:border-accent focus:outline-none"
           />
 
           <SportSelect
@@ -722,17 +722,17 @@ export function RacesSection({ races, hideHeading = false }: Props) {
           <input
             name="goalNote"
             placeholder="Goal note (optional)"
-            className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-white/30 focus:outline-none"
+            className="w-full rounded-xl border border-hairline px-3 py-2 text-caption text-ink-primary placeholder:text-ink-muted focus:border-accent focus:outline-none"
           />
           <button
             type="submit"
             disabled={pending}
-            className="w-full rounded-2xl bg-emerald-500/90 py-2.5 text-sm font-bold text-neutral-950 transition-opacity disabled:opacity-50"
+            className="w-full rounded-2xl bg-accent py-2.5 text-caption font-bold text-primary-foreground transition-opacity disabled:opacity-50"
           >
             {pending ? "Adding…" : "Add race"}
           </button>
           {error && (
-            <p role="status" className="text-center text-[12px] text-red-400">
+            <p role="status" className="text-center text-label text-chart-5">
               {error}
             </p>
           )}
