@@ -161,11 +161,14 @@ function occurrences(pattern: RegExp): number {
  */
 const RATCHET_SLACK = 25;
 const OFFENDER_CEILINGS: Record<string, number> = {
-  // 244 occurrences, measured 2026-08-13 after task 8 (races-section.tsx and
-  // plan-preview-card.tsx — the A/B/C priority chips, the add-race and
-  // demand-edit forms, the phase table and week list) migrated 21
-  // text-[Npx] sites.
-  // Was 265 after task 7 (the availability intake path — intake-form.tsx,
+  // 235 occurrences, measured 2026-08-13 after task 9 (History — the
+  // day-grouped rows in history-list.tsx, the summary strip in
+  // history-stat-strip.tsx, and the Log-activity link and sport filter
+  // pills in page.tsx's History half) migrated 9 text-[Npx] sites.
+  // Was 244 after task 8 (races-section.tsx and plan-preview-card.tsx —
+  // the A/B/C priority chips, the add-race and demand-edit forms, the
+  // phase table and week list) migrated 21 text-[Npx] sites.
+  // 265 after task 7 (the availability intake path — intake-form.tsx,
   // block-sheet.tsx, standard-week.tsx and availability-week-switcher.tsx)
   // migrated 23 text-[Npx] sites. 288 after task 6 (the week tab's
   // page-level chrome in page.tsx itself — the adjustments panel, the
@@ -180,12 +183,17 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // not move there), 343 after task 2, 351 after the whole-branch-review
   // fixes, 355 right after slice 1, 395 at slice 0.
   "arbitrary type sizes": 235,
-  // 548 occurrences, measured 2026-08-13 after task 8 migrated 65
+  // 529 occurrences, measured 2026-08-13 after task 9 migrated 19
   // text-white/N, bg-white/N and border-white/N sites across
-  // races-section.tsx and plan-preview-card.tsx (including the two cards
-  // that were already `glass` and needed no change, and the demand-edit
-  // form's tile, which moved to `bg-surface-overlay`).
-  // Was 613 after task 7 migrated 38 text-white/N, bg-white/N and
+  // history-list.tsx, history-stat-strip.tsx and page.tsx's History half
+  // (including both cards, which moved to `glass`, and the row's hover,
+  // which moved to `bg-surface-overlay`).
+  // Was 548 after task 8 migrated 65 text-white/N, bg-white/N and
+  // border-white/N sites across races-section.tsx and
+  // plan-preview-card.tsx (including the two cards that were already
+  // `glass` and needed no change, and the demand-edit form's tile, which
+  // moved to `bg-surface-overlay`).
+  // 613 after task 7 migrated 38 text-white/N, bg-white/N and
   // border-white/N sites across the same four availability-intake
   // components (including block-sheet.tsx's sheet panel, which moved to
   // `glass`, and its nested block tile, which moved to `bg-surface-overlay`).
