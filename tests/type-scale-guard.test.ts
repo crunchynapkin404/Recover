@@ -154,7 +154,18 @@ function occurrences(pattern: RegExp): number {
  */
 const RATCHET_SLACK = 25;
 const OFFENDER_CEILINGS: Record<string, number> = {
-  // 204 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 3 —
+  // 190 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 4 —
+  // the Sleep tab (sleep-night-card.tsx, sleep-history-strip.tsx and
+  // page.tsx's consistency/chronotype rhythm row) migrated 14 text-[Npx]
+  // sites: sleep-night-card.tsx's heading eyebrow (9.5px → label-micro), the
+  // four nav-arrow spans (13px → text-caption), the bed-window line (11px →
+  // text-label), the stage-legend li (9.5px → text-label), the fallback
+  // paragraph (11px → text-caption) and the bedtime line (11px →
+  // text-caption); sleep-history-strip.tsx's weekday initial (8px →
+  // text-label) and day-number (11px → text-label); and page.tsx's
+  // Consistency/Chronotype labels (11px x2) and the "last 30 nights"
+  // caption (10px), all three → text-label.
+  // Was 204 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 3 —
   // baseline-trend-card.tsx migrated 4 text-[Npx] sites: the eyebrow
   // (text-[9.5px] → label-micro, which already carries text-label) and the
   // reading row (text-[11px] → text-label, text-[12px] → text-caption, and
@@ -221,8 +232,21 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // week-day-list.tsx and page.tsx are all token utilities, so the count did
   // not move there), 343 after task 2, 351 after the whole-branch-review
   // fixes, 355 right after slice 1, 395 at slice 0.
-  "arbitrary type sizes": 204,
-  // 455 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 3 —
+  "arbitrary type sizes": 190,
+  // 428 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 4 —
+  // the same three files migrated 27 text-white/N, bg-white/N and
+  // border-white/N sites: sleep-night-card.tsx (13) — the card wrapper's
+  // border-white/[0.08] + bg-white/[0.03] (→ `glass`), the heading ink, both
+  // nav-arrow link/disabled pairs, the bed-window ink, the legend ink, the
+  // fallback-paragraph ink and the divider border (→ `border-hairline`);
+  // sleep-history-strip.tsx (7) — the cell's selected/unselected
+  // border+background trio (→ `border-ink-muted`/`bg-surface-overlay`), the
+  // weekday-initial ink, the day-number selected/unselected pair and the
+  // no-stages bar fill (→ `bg-surface-overlay`); and page.tsx's rhythm row
+  // (7) — the card wrapper's border + background (→ `glass`) and the
+  // text-white/50 (x2) + text-white/85 (x2) + text-white/30 ink sites (all →
+  // `text-ink-muted`/`text-ink-secondary`).
+  // Was 455 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 3 —
   // baseline-trend-card.tsx migrated 6 text-white/N, bg-white/N and
   // border-white/N sites: the card wrapper's border-white/[0.08] +
   // bg-white/[0.03] (→ `glass`) and four text-white/N ink sites (the
@@ -294,7 +318,7 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // fuelling tile that moved to `bg-surface-overlay`). 709 after task 4,
   // for the same reason task 4 didn't move it — 729 after task 2, 738 after
   // the whole-branch-review fixes, 749 right after slice 1, 806 at slice 0.
-  "ad-hoc white/black alpha utilities": 455,
+  "ad-hoc white/black alpha utilities": 428,
 };
 
 function expectRatchet(name: string, pattern: RegExp): void {

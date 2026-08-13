@@ -135,4 +135,40 @@ describe("SleepNightCard", () => {
     expect(html).not.toContain("Consistency");
     expect(html).not.toContain("Chronotype");
   });
+
+  it("paints every stage from a chart token, never a hex literal", () => {
+    const html = renderToString(
+      <SleepNightCard
+        totalSecs={27000}
+        stages={{
+          deepSecs: 5400,
+          remSecs: 5400,
+          lightSecs: 14400,
+          awakeSecs: 1800,
+        }}
+        bedWindow={{ start: "23:10", end: "07:00" }}
+        heading="Last night"
+        stagesUnsupported={false}
+        bedtimeTonight="23:10"
+      />
+    );
+    expect(html).not.toMatch(/#[0-9a-fA-F]{6}/);
+    expect(html).not.toContain("rgba(");
+    expect(html).toContain("var(--chart-");
+  });
+
+  it("holds the floor — the stage legend was 9.5px and the arrows 13px", () => {
+    const html = renderToString(
+      <SleepNightCard
+        totalSecs={27000}
+        stages={null}
+        bedWindow={null}
+        heading="Last night"
+        stagesUnsupported
+        bedtimeTonight={null}
+      />
+    );
+    expect(html).not.toMatch(/text-\[\d/);
+    expect(html).not.toContain("text-white/");
+  });
 });

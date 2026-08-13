@@ -35,10 +35,10 @@ interface Props {
 }
 
 const STAGES = [
-  { key: "deepSecs", label: "Deep", color: "#3b82f6" },
-  { key: "remSecs", label: "REM", color: "#8b5cf6" },
-  { key: "lightSecs", label: "Light", color: "rgba(59,130,246,0.35)" },
-  { key: "awakeSecs", label: "Awake", color: "rgba(255,255,255,0.25)" },
+  { key: "deepSecs", label: "Deep", color: "var(--chart-1)" },
+  { key: "remSecs", label: "REM", color: "var(--chart-4)" },
+  { key: "lightSecs", label: "Light", color: "var(--chart-1)", dim: true },
+  { key: "awakeSecs", label: "Awake", color: "var(--hairline)" },
 ] as const;
 
 /**
@@ -82,22 +82,19 @@ export function SleepNightCard({
     : 0;
 
   return (
-    <section className="mb-3 rounded-[18px] border border-white/[0.08] bg-white/[0.03] p-4">
+    <section className="glass mb-3 rounded-[18px] p-4">
       <div className="mb-3 flex items-baseline justify-between gap-3">
-        <h3 className="flex items-baseline gap-2 text-[9.5px] font-bold uppercase tracking-[0.15em] text-white/40">
+        <h3 className="label-micro flex items-baseline gap-2">
           {prevHref ? (
             <Link
               href={prevHref}
               aria-label="Previous night"
-              className="text-[13px] leading-none text-white/45 hover:text-white/80"
+              className="text-caption leading-none text-ink-muted hover:text-ink-secondary"
             >
               ‹
             </Link>
           ) : (
-            <span
-              aria-hidden
-              className="text-[13px] leading-none text-white/15"
-            >
+            <span aria-hidden className="invisible text-caption leading-none">
               ‹
             </span>
           )}
@@ -109,21 +106,18 @@ export function SleepNightCard({
             <Link
               href={nextHref}
               aria-label="Next night"
-              className="text-[13px] leading-none text-white/45 hover:text-white/80"
+              className="text-caption leading-none text-ink-muted hover:text-ink-secondary"
             >
               ›
             </Link>
           ) : (
-            <span
-              aria-hidden
-              className="text-[13px] leading-none text-white/15"
-            >
+            <span aria-hidden className="invisible text-caption leading-none">
               ›
             </span>
           )}
         </h3>
         {bedWindow && (
-          <p className="font-mono text-[11px] text-white/45">
+          <p className="font-numeric text-label text-ink-muted">
             {bedWindow.start} → {bedWindow.end}
           </p>
         )}
@@ -135,10 +129,12 @@ export function SleepNightCard({
             {STAGES.map((s) => {
               const secs = stages[s.key];
               if (secs <= 0) return null;
+              const dim = "dim" in s && s.dim;
               return (
                 <span
                   key={s.key}
                   aria-hidden
+                  className={dim ? "opacity-35" : undefined}
                   style={{
                     width: `${(secs / stageTotal) * 100}%`,
                     background: s.color,
@@ -151,14 +147,15 @@ export function SleepNightCard({
             {STAGES.map((s) => {
               const secs = stages[s.key];
               if (secs <= 0) return null;
+              const dim = "dim" in s && s.dim;
               return (
                 <li
                   key={s.key}
-                  className="flex items-center gap-1.5 text-[9.5px] text-white/60"
+                  className="text-label flex items-center gap-1.5 text-ink-secondary"
                 >
                   <span
                     aria-hidden
-                    className="size-2 rounded-full"
+                    className={`size-2 rounded-full ${dim ? "opacity-35" : ""}`}
                     style={{ background: s.color }}
                   />
                   {s.label} {clock(secs)}
@@ -168,7 +165,7 @@ export function SleepNightCard({
           </ul>
         </>
       ) : (
-        <p className="text-[11px] text-white/40">
+        <p className="text-caption text-ink-muted">
           {totalSecs == null
             ? "No sleep recorded for this night."
             : stagesUnsupported
@@ -178,8 +175,8 @@ export function SleepNightCard({
       )}
 
       {bedtimeTonight && (
-        <div className="mt-3 flex flex-wrap items-baseline gap-x-5 gap-y-1 border-t border-white/[0.06] pt-3">
-          <span className="text-[11px] font-medium text-amber-400/90">
+        <div className="mt-3 flex flex-wrap items-baseline gap-x-5 gap-y-1 border-t border-hairline pt-3">
+          <span className="text-caption font-medium text-chart-3">
             Tonight: bed by {bedtimeTonight}
           </span>
         </div>

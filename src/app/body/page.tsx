@@ -558,26 +558,26 @@ async function SleepTab({
       />
 
       {(consistency != null || chrono) && (
-        <div className="mb-3 flex flex-wrap items-baseline gap-x-5 gap-y-1 rounded-[18px] border border-white/[0.08] bg-white/[0.03] px-4 py-3">
+        <div className="glass mb-3 flex flex-wrap items-baseline gap-x-5 gap-y-1 rounded-[18px] px-4 py-3">
           {/* 30-day aggregates: they describe the athlete's rhythm, not the
               night selected above, so they live outside that card. */}
           {consistency != null && (
-            <span className="text-[11px] text-white/50">
+            <span className="text-label text-ink-muted">
               Consistency{" "}
-              <strong className="font-bold text-white/85">
+              <strong className="font-bold text-ink-secondary">
                 {Math.round(consistency.score)}
               </strong>
             </span>
           )}
           {chrono && (
-            <span className="text-[11px] text-white/50">
+            <span className="text-label text-ink-muted">
               Chronotype{" "}
-              <strong className="font-bold text-white/85">
+              <strong className="font-bold text-ink-secondary">
                 midpoint {chrono.midpointHhMm}
               </strong>
             </span>
           )}
-          <span className="text-[10px] text-white/30">last 30 nights</span>
+          <span className="text-label text-ink-muted">last 30 nights</span>
         </div>
       )}
 
