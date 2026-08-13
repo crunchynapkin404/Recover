@@ -209,7 +209,15 @@ const SURFACES: Record<string, string> = {
   "train-season": "/train?tab=season",
   "train-fitness": "/train?tab=fitness",
   coach: "/coach",
+  // Body is FOUR tabs behind one path and `/body` alone captures only the
+  // first (Trends). Sleep, Journal and Labs had never been captured or
+  // axe-audited by this script before v0.99 slice 3 — the same gap slice 2
+  // closed for Train's four tabs, found the same way: by asking which tab a
+  // PNG was actually of.
   body: "/body",
+  "body-sleep": "/body?tab=sleep",
+  "body-journal": "/body?tab=journal",
+  "body-labs": "/body?tab=labs",
   settings: "/settings",
   admin: "/admin",
   import: "/import",
