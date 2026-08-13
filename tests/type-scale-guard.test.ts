@@ -167,6 +167,21 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // bracket values) was migrated to text-heading, its exact 24px equivalent;
   // that fix does not move this count either, for the same reason. See the
   // sibling ceiling below for the ad-hoc-alpha half of this task's sweep.
+  //
+  // SCOPE CORRECTION (I3, whole-branch review 2026-08-13). Task 11's sweep
+  // grep, above, was derived from src/app/body/page.tsx's own import list
+  // and never from the route's LAYOUT chain — every page under app/ is also
+  // wrapped by src/app/layout.tsx, which renders
+  // src/components/theme-provider.tsx. Re-run with both added: TOTAL 0 0,
+  // unchanged — src/app/layout.tsx and src/components/theme-provider.tsx
+  // carry zero arbitrary sizes and zero white/black alphas. Nothing was
+  // broken; the recorded scope was just incomplete, and an incomplete scope
+  // written down is what the next slice inherits and re-runs verbatim. Full
+  // corrected scope: src/app/body/page.tsx, src/app/layout.tsx,
+  // src/components/theme-provider.tsx, src/components/body/*.tsx,
+  // src/components/app-shell.tsx, src/components/bottom-nav.tsx,
+  // src/components/sidebar-nav.tsx, src/components/ui/empty-state.tsx,
+  // src/components/ui/collapsible.tsx.
   // 137 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 10 —
   // health-upload.tsx and health-manual-entry.tsx (both folded behind
   // Collapsible in the same task) migrated 13 text-[Npx] sites:
@@ -320,7 +335,14 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // src/components/body/*.tsx, src/components/app-shell.tsx,
   // src/components/bottom-nav.tsx, src/components/sidebar-nav.tsx,
   // src/components/ui/empty-state.tsx, src/components/ui/collapsible.tsx)
-  // found TOTAL 0 0 for both patterns. journal-form.tsx's CheckCircle badge
+  // found TOTAL 0 0 for both patterns.
+  //
+  // SCOPE CORRECTION (I3, whole-branch review 2026-08-13) — same correction
+  // as the sibling ceiling above: the recorded scope omitted the route's
+  // layout chain, src/app/layout.tsx and src/components/theme-provider.tsx.
+  // Re-run with both added: TOTAL 0 0, unchanged — neither file carries an
+  // ad-hoc white/black alpha. See the sibling ceiling for the full corrected
+  // scope. journal-form.tsx's CheckCircle badge
   // on the "Subjective feeling" step (text-emerald-500 → text-chart-2) was
   // migrated in the same commit — an unguarded colour literal this pattern's
   // own regex cannot see, since it only matches white/black alpha utilities,
