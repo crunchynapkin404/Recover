@@ -101,4 +101,49 @@ describe("CorrelationRows", () => {
     // A real positive finding is the good tone; a real negative is the bad one.
     expect(html).toMatch(/text-chart-2|text-chart-5/);
   });
+
+  // F1 (v0.102 task 12, browser pass). text-caption + the widened badge
+  // (task 8: text-[11px]/[11.5px] → text-label) left the row's own
+  // `min-w-0` + `truncate` name span with nowhere to go — on three of four
+  // real rows it rendered at zero width, and the AUTO marker sat flush
+  // against the badge on the fourth. The name is the row's subject and
+  // must stay legible at a 390px viewport.
+  it("F1: never truncates the behaviour name, at any auto/events combination", () => {
+    const html = renderToString(
+      <CorrelationRows
+        insights={[
+          insight({
+            behavior: "Morning training routine",
+            auto: true,
+            conclusive: false,
+            evidence: "limited",
+            events: 54,
+          }),
+        ]}
+      />
+    );
+    expect(html).toContain("Morning training routine");
+    // `truncate` (overflow:hidden text-overflow:ellipsis) combined with
+    // `min-w-0` on a flex child next to a `shrink-0` sibling is exactly the
+    // mechanism that let the name shrink to zero width — neither may
+    // reappear on this row.
+    expect(html).not.toContain("truncate");
+    expect(html).not.toContain("min-w-0");
+    // The row must be allowed to wrap so a wide badge drops to its own
+    // line rather than squeezing the name out again.
+    expect(html).toContain("flex-wrap");
+  });
+
+  it("F1: keeps the AUTO marker separated from the badge with a real margin, not a shrinking flex gap", () => {
+    const html = renderToString(
+      <CorrelationRows
+        insights={[insight({ auto: true, behavior: "Rest day" })]}
+      />
+    );
+    expect(html).toContain("Rest day");
+    // A margin utility on the AUTO span itself holds a gap even when the
+    // name span's own box shrinks — unlike the old `gap-2` on a flex
+    // container that could collapse to nothing along with its sibling.
+    expect(html).toMatch(/class="ml-1\.5[^"]*">\s*auto/);
+  });
 });

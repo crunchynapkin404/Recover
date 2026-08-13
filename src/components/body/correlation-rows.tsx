@@ -17,13 +17,19 @@ export function CorrelationRows({ insights }: { insights: TagInsight[] }) {
         {insights.map((c) => (
           <li
             key={`${c.emoji}${c.behavior}`}
-            className="flex items-center justify-between gap-3 border-b border-hairline py-2.5 last:border-0"
+            className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-hairline py-2.5 last:border-0"
           >
-            <span className="flex min-w-0 items-center gap-2 text-caption text-ink-secondary">
-              <span aria-hidden>{c.emoji}</span>
-              <span className="truncate capitalize">{c.behavior}</span>
+            {/* No truncate/min-w-0 here on purpose — that combination let
+                this span shrink to zero width once the badge beside it
+                widened past 11px (v0.102 task 8), taking the behaviour
+                name with it. The name is the row's subject and must never
+                collapse; if the row is too narrow for both, `flex-wrap`
+                on the <li> drops the badge to its own line instead. */}
+            <span className="text-caption text-ink-secondary">
+              <span aria-hidden>{c.emoji}</span>{" "}
+              <span className="capitalize">{c.behavior}</span>
               {c.auto && (
-                <span className="shrink-0 text-label font-bold uppercase tracking-wider text-ink-muted">
+                <span className="ml-1.5 text-label font-bold uppercase tracking-wider text-ink-muted">
                   auto
                 </span>
               )}
