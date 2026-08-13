@@ -334,14 +334,14 @@ describe("WeekDayList — status as a dot, not a pill (v0.99 slice 2)", () => {
   });
 
   it("keeps today's own workout row on the ink scale, with DayActions mounted beside it", () => {
-    // The sibling test above strips today's workout out of its local copy of
-    // CURRENT_WEEK_DAYS so <DayActions> (still unmigrated pre-token markup —
-    // Task 5) doesn't mount and contaminate its negative regexes. That strip
-    // has a side effect: with the workout gone, today's row falls through to
-    // the "Rest" branch instead of the workout branch, so no test in this
-    // file exercises week-day-list.tsx's
+    // The sibling test above now renders the unmodified CURRENT_WEEK_DAYS
+    // fixture too — DayActions (src/components/week/day-actions.tsx) is on
+    // the token scale as of slice-2 Task 5, so mounting it beside today's
+    // workout doesn't contaminate its negative regexes. Those checks are
+    // blanket regexes over the whole render, though, not a targeted
+    // assertion, so no test in this file pins week-day-list.tsx's
     //   isToday ? "font-bold text-ink-primary" : "text-ink-secondary"
-    // ternary on the isToday=true side together with a floor/ink assertion.
+    // ternary on the isToday=true side to an exact class string.
     // A literal swapped onto just that branch (e.g. "font-bold text-white")
     // would pass every test in this file.
     //
