@@ -1,7 +1,27 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
 import { renderToString } from "react-dom/server";
+import type { SeasonTimelinePoint } from "@/lib/charts";
 import { SeasonTimelineCard } from "./season-timeline-card";
+
+// Mirrors docs/design/v0.99-train.html#season's fixture figures exactly
+// (Wk 1 480/460/5 through Wk 12 580/412/5) so the test fixture and the
+// design reference describe the same twelve weeks. weekStart values are
+// twelve consecutive real Mondays.
+const TWELVE_WEEKS: SeasonTimelinePoint[] = [
+  { weekStart: "2026-01-04", targetLoad: 480, actualLoad: 460, sessions: 5 },
+  { weekStart: "2026-01-11", targetLoad: 520, actualLoad: 510, sessions: 6 },
+  { weekStart: "2026-01-18", targetLoad: 560, actualLoad: 340, sessions: 4 },
+  { weekStart: "2026-01-25", targetLoad: 380, actualLoad: 400, sessions: 4 },
+  { weekStart: "2026-02-01", targetLoad: 600, actualLoad: 590, sessions: 6 },
+  { weekStart: "2026-02-08", targetLoad: 610, actualLoad: 480, sessions: 5 },
+  { weekStart: "2026-02-15", targetLoad: 560, actualLoad: 560, sessions: 6 },
+  { weekStart: "2026-02-22", targetLoad: 380, actualLoad: 350, sessions: 3 },
+  { weekStart: "2026-03-01", targetLoad: 650, actualLoad: 600, sessions: 6 },
+  { weekStart: "2026-03-08", targetLoad: 600, actualLoad: 0, sessions: 0 },
+  { weekStart: "2026-03-15", targetLoad: 620, actualLoad: 410, sessions: 4 },
+  { weekStart: "2026-03-22", targetLoad: 580, actualLoad: 412, sessions: 5 },
+];
 
 describe("SeasonTimelineCard", () => {
   it("renders a chart region with accessible label", () => {
@@ -108,5 +128,51 @@ describe("SeasonTimelineCard", () => {
     // The stat block renders "—" for both the unknown target and the
     // (now equally unknown) adherence percentage.
     expect(html).not.toMatch(/Season adherence[\s\S]{0,80}\d+%/);
+  });
+});
+
+describe("SeasonTimelineCard — restructured for the floor (v0.99 slice 2)", () => {
+  it("labels every third week on the axis, not every bar", () => {
+    const html = renderToString(<SeasonTimelineCard data={TWELVE_WEEKS} />);
+    // 12 bars, 4 ticks: weeks 1, 4, 7, 10 — plus the last week, which is
+    // always labelled because the detail line names it.
+    const ticks = html.match(/data-axis-tick/g) ?? [];
+    expect(ticks.length).toBeGreaterThanOrEqual(4);
+    expect(ticks.length).toBeLessThanOrEqual(5);
+  });
+
+  it("carries no per-bar session-count label", () => {
+    const html = renderToString(<SeasonTimelineCard data={TWELVE_WEEKS} />);
+    // The 8px "5s" / "no" labels under each column are gone.
+    expect(html).not.toMatch(/>\d+s</);
+    expect(html).not.toMatch(/>no</);
+  });
+
+  it("replaces them with one legible readout for the latest week", () => {
+    const html = renderToString(<SeasonTimelineCard data={TWELVE_WEEKS} />);
+    const latest = TWELVE_WEEKS[TWELVE_WEEKS.length - 1];
+    expect(html).toContain(String(latest.actualLoad));
+    expect(html).toContain(String(latest.targetLoad));
+    expect(html).toMatch(/sessions?/);
+  });
+
+  it("keeps every week reachable on hover rather than dropping the data", () => {
+    const html = renderToString(<SeasonTimelineCard data={TWELVE_WEEKS} />);
+    // One title per bar pair, still — the restructure removes labels, not data.
+    expect((html.match(/title="/g) ?? []).length).toBeGreaterThanOrEqual(12);
+  });
+
+  it("scrolls rather than compressing bars below a legible width", () => {
+    const html = renderToString(<SeasonTimelineCard data={TWELVE_WEEKS} />);
+    expect(html).toMatch(/overflow-x-auto/);
+    expect(html).toMatch(/min-w-max/);
+  });
+
+  it("uses the token scale, not ad-hoc sizes or white alphas", () => {
+    const html = renderToString(<SeasonTimelineCard data={TWELVE_WEEKS} />);
+    expect(html).not.toMatch(/text-\[[\d.]+px\]/);
+    expect(html).not.toMatch(/text-white\//);
+    expect(html).not.toMatch(/bg-white\//);
+    expect(html).not.toMatch(/border-white\//);
   });
 });

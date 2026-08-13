@@ -35,9 +35,9 @@ function mondayYmdNow(): string {
 export function SeasonTimelineCard({ data }: { data: SeasonTimelinePoint[] }) {
   if (data.length === 0) {
     return (
-      <section className="rounded-[18px] border border-white/[0.08] bg-white/[0.03] p-4">
-        <h3 className="text-sm font-bold">Season progress</h3>
-        <p className="mt-2 text-[11px] text-white/60">
+      <section className="glass rounded-[18px] p-4">
+        <h3 className="text-caption font-bold">Season progress</h3>
+        <p className="mt-2 text-caption text-ink-secondary">
           No week timeline yet. Materialize a plan week to start tracking target
           vs actual.
         </p>
@@ -56,32 +56,32 @@ export function SeasonTimelineCard({ data }: { data: SeasonTimelinePoint[] }) {
   const isFutureWeek = latest.weekStart > currentMonday;
 
   return (
-    <section className="rounded-[18px] border border-white/[0.08] bg-white/[0.03] p-4">
+    <section className="glass rounded-[18px] p-4">
       <div className="mb-3 flex items-baseline justify-between gap-3">
-        <h3 className="text-sm font-bold">Season progress</h3>
-        <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/50">
+        <h3 className="text-caption font-bold">Season progress</h3>
+        <span className="text-label font-semibold uppercase tracking-[0.14em] text-ink-muted">
           Weekly target vs actual
         </span>
       </div>
 
-      <div className="mb-4 grid grid-cols-3 gap-2 text-[10px]">
-        <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] px-2.5 py-2">
-          <p className="text-white/50">Latest target</p>
-          <p className="mt-1 font-mono text-white">
+      <div className="mb-4 grid grid-cols-3 gap-2 text-label">
+        <div className="rounded-xl border border-hairline bg-surface-overlay px-2.5 py-2">
+          <p className="text-ink-muted">Latest target</p>
+          <p className="mt-1 font-numeric text-ink-primary">
             {latest.targetLoad != null
               ? formatChartValue(latest.targetLoad)
               : "—"}
           </p>
         </div>
-        <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] px-2.5 py-2">
-          <p className="text-white/50">Latest actual</p>
-          <p className="mt-1 font-mono text-white">
+        <div className="rounded-xl border border-hairline bg-surface-overlay px-2.5 py-2">
+          <p className="text-ink-muted">Latest actual</p>
+          <p className="mt-1 font-numeric text-ink-primary">
             {formatChartValue(latest.actualLoad)}
           </p>
         </div>
-        <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] px-2.5 py-2">
-          <p className="text-white/50">Season adherence</p>
-          <p className="mt-1 font-mono text-white">
+        <div className="rounded-xl border border-hairline bg-surface-overlay px-2.5 py-2">
+          <p className="text-ink-muted">Season adherence</p>
+          <p className="mt-1 font-numeric text-ink-primary">
             {adherence != null ? `${adherence}%` : "—"}
           </p>
         </div>
@@ -107,32 +107,52 @@ export function SeasonTimelineCard({ data }: { data: SeasonTimelinePoint[] }) {
             );
 
             return (
-              <div key={point.weekStart} className="w-7">
-                <div className="mb-1.5 flex h-24 items-end gap-0.5 rounded-md bg-white/[0.02] px-1 py-1">
+              <div key={point.weekStart} className="w-8">
+                <div className="mb-1.5 flex h-24 items-end gap-0.5 rounded-md bg-surface-overlay px-1 py-1">
                   <div
-                    className="w-1.5 rounded-sm bg-white/30"
+                    className="w-1.5 rounded-sm bg-ink-muted"
                     style={{ height: `${targetHeight}px` }}
                     title={`Target ${point.weekStart}: ${point.targetLoad ?? "unknown"}`}
                   />
                   <div
-                    className="w-1.5 rounded-sm bg-emerald-400"
+                    className="w-1.5 rounded-sm bg-chart-2"
                     style={{ height: `${actualHeight}px` }}
                     title={`Actual ${point.weekStart}: ${formatChartValue(point.actualLoad)}`}
                   />
                 </div>
-                <p className="text-center text-[9px] text-white/55">
-                  {weekLabel(point.weekStart)}
-                </p>
-                <p className="text-center text-[8px] text-white/40">
-                  {point.sessions > 0 ? `${point.sessions}s` : "no"}
-                </p>
               </div>
             );
           })}
         </div>
+
+        {/* An axis tick every 3rd week, plus the last. Twelve independent 12px
+          labels need ~500-540px — more than a phone has — so the per-bar week
+          and session-count labels this replaced could not survive the floor.
+          See docs/design/v0.99-train.html#collision. */}
+        <div className="mt-1.5 flex min-w-max gap-2">
+          {data.map((point, i) => (
+            <div key={point.weekStart} className="w-8 text-center">
+              {(i % 3 === 0 || i === data.length - 1) && (
+                <span data-axis-tick className="text-label text-ink-muted">
+                  {weekLabel(point.weekStart)}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
 
-      <p className="mt-3 text-[10px] text-white/45">
+      {/* One always-legible readout replaces 24 always-on micro-labels. It
+        names the latest week — the one the athlete opened this tab for.
+        Every other week keeps the per-bar `title` it already had. */}
+      <p className="mt-3 text-caption text-ink-secondary">
+        <span className="font-bold text-ink-primary">
+          {weekLabel(latest.weekStart)}
+        </span>
+        {` — target ${latest.targetLoad != null ? formatChartValue(latest.targetLoad) : "unknown"}, actual ${formatChartValue(latest.actualLoad)} · ${latest.sessions} session${latest.sessions === 1 ? "" : "s"}`}
+      </p>
+
+      <p className="mt-3 text-label text-ink-muted">
         {isFutureWeek
           ? "Latest week is upcoming."
           : isCurrentWeek
