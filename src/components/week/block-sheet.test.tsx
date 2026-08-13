@@ -112,6 +112,36 @@ describe("BlockSheet", () => {
     expect(html).toMatch(/aria-pressed="false"[^>]*>Easy</);
     expect(html).toMatch(/aria-pressed="false"[^>]*>Full gas</);
   });
+
+  it("uses the token scale, not ad-hoc sizes or white alphas", () => {
+    const html = renderToString(
+      <BlockSheet
+        dayLabel="Wednesday"
+        blocks={blocks}
+        sports={["Bike", "Run"]}
+        onChange={vi.fn()}
+        onClose={vi.fn()}
+      />
+    );
+    expect(html).not.toMatch(/text-\[[\d.]+px\]/);
+    expect(html).not.toMatch(/\btext-(xs|sm)\b/);
+    expect(html).not.toMatch(/text-white\//);
+    expect(html).not.toMatch(/bg-white\//);
+    expect(html).not.toMatch(/border-white\//);
+  });
+
+  it("stays on glass — it is floating chrome, not page flow", () => {
+    const html = renderToString(
+      <BlockSheet
+        dayLabel="Wednesday"
+        blocks={blocks}
+        sports={["Bike"]}
+        onChange={vi.fn()}
+        onClose={vi.fn()}
+      />
+    );
+    expect(html).toContain("glass");
+  });
 });
 
 describe("BlockSheet interactions", () => {

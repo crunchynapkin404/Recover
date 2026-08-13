@@ -288,4 +288,15 @@ describe("AvailabilityWeekSwitcher", () => {
     const proof: NoStrayFunctions = true;
     expect(proof).toBe(true);
   });
+
+  it("uses the token scale, not ad-hoc sizes or white alphas", async () => {
+    await render();
+    await click("Next week");
+    const html = container.innerHTML;
+    expect(html).not.toMatch(/text-\[[\d.]+px\]/);
+    expect(html).not.toMatch(/\btext-(xs|sm)\b/);
+    expect(html).not.toMatch(/text-white\//);
+    expect(html).not.toMatch(/bg-white\//);
+    expect(html).not.toMatch(/border-white\//);
+  });
 });

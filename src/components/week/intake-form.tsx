@@ -126,7 +126,7 @@ export function IntakeForm({
     <form action={formAction} className="glass rounded-[2rem] p-7">
       <input type="hidden" name="weekStart" value={weekStart} />
       <p className="label-micro mb-1">{heading}</p>
-      <p className="mb-5 text-[12px] text-white/50">
+      <p className="mb-5 text-label text-ink-muted">
         When you can train — the week plans itself around these blocks.
       </p>
 
@@ -136,7 +136,7 @@ export function IntakeForm({
           return (
             <li
               key={DAY_LABELS[i]}
-              className="border-b border-white/[0.06] last:border-0"
+              className="border-b border-hairline last:border-0"
             >
               <div className="flex items-center gap-3 py-2.5">
                 <button
@@ -144,10 +144,10 @@ export function IntakeForm({
                   onClick={() => setOpenDay(i)}
                   className="flex flex-1 items-center justify-between text-left"
                 >
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-white/45">
+                  <span className="text-label font-bold uppercase tracking-wider text-ink-muted">
                     {DAY_LABELS[i]}
                   </span>
-                  <span className="text-[11.5px] text-white/70">
+                  <span className="text-label text-ink-secondary">
                     {formatBlocks(blocks)}
                   </span>
                 </button>
@@ -156,7 +156,7 @@ export function IntakeForm({
                     type="button"
                     onClick={() => unpin(i)}
                     title="Back to your standard week"
-                    className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[9.5px] font-bold text-amber-300"
+                    className="rounded-full border border-hairline bg-surface-overlay px-2 py-0.5 text-label font-bold text-chart-3"
                   >
                     Pinned ×
                   </button>
@@ -172,11 +172,11 @@ export function IntakeForm({
         })}
       </ul>
 
-      <p className="mb-2 text-center text-[11px] text-white/40">
+      <p className="mb-2 text-center text-label text-ink-muted">
         {`${formatAvailability(totalMins)} ${weekLabel}`}
       </p>
       {warning && (
-        <p className="mb-5 text-center text-[11px] leading-relaxed text-amber-300/80">
+        <p className="mb-5 text-center text-label leading-relaxed text-chart-3">
           {warning}
         </p>
       )}
@@ -184,12 +184,12 @@ export function IntakeForm({
       <button
         type="submit"
         disabled={pending}
-        className="w-full rounded-2xl bg-emerald-500/90 py-3 text-sm font-bold text-neutral-950 transition-opacity disabled:opacity-50"
+        className="w-full rounded-2xl bg-accent py-3 text-caption font-bold text-primary-foreground transition-opacity disabled:opacity-50"
       >
         Confirm week
       </button>
       {state.message !== "" && (
-        <p className="mt-3 text-center text-[12px] text-white/60">
+        <p className="mt-3 text-center text-label text-ink-secondary">
           {state.message}
         </p>
       )}

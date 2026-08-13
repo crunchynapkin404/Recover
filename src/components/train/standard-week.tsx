@@ -66,24 +66,24 @@ export function StandardWeek({ defaults, sports }: Props) {
   return (
     <div className="glass rounded-[2rem] p-6">
       <p className="label-micro mb-1">Your standard week</p>
-      <p className="mb-5 text-[12px] text-white/50">
+      <p className="mb-5 text-label text-ink-muted">
         The time you normally have. Any single day you change from the week view
         overrides this — and keeps overriding it.
       </p>
 
       <ul className="mb-4">
         {DAY_NAMES.map((name, i) => (
-          <li key={name} className="border-b border-white/[0.06] last:border-0">
+          <li key={name} className="border-b border-hairline last:border-0">
             <button
               type="button"
               onClick={() => setOpen(i)}
               disabled={pending}
               className="flex w-full items-center justify-between py-3 text-left disabled:opacity-50"
             >
-              <span className="text-[12.5px] font-bold text-white/85">
+              <span className="text-label font-bold text-ink-primary">
                 {name}
               </span>
-              <span className="text-[11.5px] text-white/50">
+              <span className="text-label text-ink-muted">
                 {formatBlocks(week[i])}
               </span>
             </button>
@@ -91,11 +91,11 @@ export function StandardWeek({ defaults, sports }: Props) {
         ))}
       </ul>
 
-      <p className="text-center text-[11px] text-white/40">
+      <p className="text-center text-label text-ink-muted">
         {formatAvailability(total)} in a standard week
       </p>
       {error && (
-        <p className="mt-2 text-center text-[11px] text-red-400">{error}</p>
+        <p className="mt-2 text-center text-label text-chart-5">{error}</p>
       )}
 
       {open !== null && (

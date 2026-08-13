@@ -133,36 +133,31 @@ export function BlockSheet({
         role="dialog"
         aria-modal="true"
         aria-label={`Availability for ${dayLabel}`}
-        className="relative max-h-[85svh] w-full max-w-lg overflow-y-auto rounded-t-[28px] border border-white/[0.12] bg-[#111113] px-6 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] pt-3"
+        className="glass relative max-h-[85svh] w-full max-w-lg overflow-y-auto rounded-t-[28px] px-6 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] pt-3"
       >
         <div
           aria-hidden
-          className="mx-auto mb-4 h-1 w-10 rounded-full bg-white/20"
+          className="mx-auto mb-4 h-1 w-10 rounded-full bg-hairline opacity-40"
         />
         <div className="mb-4 flex items-baseline justify-between gap-3">
-          <h2 className="text-[16px] font-bold tracking-[-0.02em]">
-            {dayLabel}
-          </h2>
+          <h2 className="text-body font-bold tracking-[-0.02em]">{dayLabel}</h2>
           <button
             type="button"
             onClick={onClose}
-            className="shrink-0 text-[12px] font-bold text-emerald-400"
+            className="shrink-0 text-label font-bold text-accent"
           >
             Done
           </button>
         </div>
 
         {blocks.length === 0 ? (
-          <p className="mb-4 text-[12px] text-white/50">
+          <p className="mb-4 text-label text-ink-muted">
             Rest — no time set for this day.
           </p>
         ) : (
           <ul className="mb-4 space-y-3">
             {blocks.map((b, i) => (
-              <li
-                key={i}
-                className="rounded-2xl border border-white/5 bg-white/5 p-3"
-              >
+              <li key={i} className="rounded-2xl bg-surface-overlay p-3">
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <input
@@ -170,9 +165,9 @@ export function BlockSheet({
                       value={b.start ?? ""}
                       aria-label={`Block ${i + 1} start time`}
                       onChange={(e) => patch(i, { start: e.target.value })}
-                      className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-[12px] text-white"
+                      className="rounded-lg border border-hairline px-2 py-1 text-label text-ink-primary"
                     />
-                    <span aria-hidden className="text-white/30">
+                    <span aria-hidden className="text-ink-muted">
                       –
                     </span>
                     <input
@@ -180,20 +175,20 @@ export function BlockSheet({
                       value={b.end ?? ""}
                       aria-label={`Block ${i + 1} end time`}
                       onChange={(e) => patch(i, { end: e.target.value })}
-                      className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-[12px] text-white"
+                      className="rounded-lg border border-hairline px-2 py-1 text-label text-ink-primary"
                     />
                   </div>
                   <button
                     type="button"
                     aria-label={`Remove block ${i + 1}`}
                     onClick={() => commit(blocks.filter((_, j) => j !== i))}
-                    className="rounded-full p-1.5 text-white/40 transition-colors hover:bg-red-500/10 hover:text-red-400"
+                    className="rounded-full p-1.5 text-ink-muted transition-colors hover:bg-chart-5/10 hover:text-chart-5"
                   >
                     <Trash2 aria-hidden className="size-3.5" />
                   </button>
                 </div>
 
-                <p className="mb-2 text-[11px] text-white/40">
+                <p className="mb-2 text-label text-ink-muted">
                   {formatBlock(b)}
                 </p>
 
@@ -208,10 +203,10 @@ export function BlockSheet({
                       type="button"
                       aria-pressed={b.energy === e.value}
                       onClick={() => patch(i, { energy: e.value })}
-                      className={`rounded-full border px-3 py-1.5 text-[11px] font-bold transition-colors ${
+                      className={`rounded-full border px-3 py-1.5 text-label font-bold transition-colors ${
                         b.energy === e.value
-                          ? "border-emerald-500/50 bg-emerald-500/15 text-emerald-400"
-                          : "border-white/10 bg-white/5 text-white/70"
+                          ? "border-hairline bg-surface-overlay text-ink-primary"
+                          : "border-hairline text-ink-muted"
                       }`}
                     >
                       {e.label}
@@ -242,10 +237,10 @@ export function BlockSheet({
                                 next.length === sports.length ? null : next,
                             });
                           }}
-                          className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold transition-colors ${
+                          className={`rounded-full border px-3 py-1.5 text-label font-semibold transition-colors ${
                             on
-                              ? "border-white/20 bg-white/[0.14] text-white"
-                              : "border-white/10 bg-white/[0.04] text-white/40"
+                              ? "border-hairline bg-surface-overlay text-ink-primary"
+                              : "border-hairline text-ink-muted"
                           }`}
                         >
                           {s}
@@ -260,7 +255,7 @@ export function BlockSheet({
         )}
 
         {error && (
-          <p role="alert" className="mb-3 text-[11px] text-red-400">
+          <p role="alert" className="mb-3 text-label text-chart-5">
             {error}
           </p>
         )}
@@ -268,7 +263,7 @@ export function BlockSheet({
         <button
           type="button"
           onClick={() => commit([...blocks, { ...NEW_BLOCK }])}
-          className="flex w-full items-center justify-center gap-1.5 rounded-2xl border border-white/10 bg-white/5 py-2.5 text-[12px] font-bold text-white/70"
+          className="flex w-full items-center justify-center gap-1.5 rounded-2xl border border-hairline bg-surface-overlay py-2.5 text-label font-bold text-ink-secondary"
         >
           <Plus aria-hidden className="size-3.5" />
           Add a block

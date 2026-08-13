@@ -97,4 +97,30 @@ describe("IntakeForm", () => {
     );
     expect(html).not.toContain("hold your fitness");
   });
+
+  it("uses the token scale, not ad-hoc sizes or white alphas", () => {
+    const html = renderToString(
+      <IntakeForm
+        resolved={resolved}
+        overrideDates={["2026-08-05"]}
+        dates={[
+          "2026-08-03",
+          "2026-08-04",
+          "2026-08-05",
+          "2026-08-06",
+          "2026-08-07",
+          "2026-08-08",
+          "2026-08-09",
+        ]}
+        verdict={{ kind: "losing", maintenanceHrs: 6, projectedCtl: 57 }}
+        sports={["Bike"]}
+        action={noop}
+      />
+    );
+    expect(html).not.toMatch(/text-\[[\d.]+px\]/);
+    expect(html).not.toMatch(/\btext-(xs|sm)\b/);
+    expect(html).not.toMatch(/text-white\//);
+    expect(html).not.toMatch(/bg-white\//);
+    expect(html).not.toMatch(/border-white\//);
+  });
 });

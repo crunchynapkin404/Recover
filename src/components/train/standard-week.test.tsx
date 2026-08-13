@@ -76,4 +76,28 @@ describe("StandardWeek", () => {
     );
     expect(html).toContain("3h");
   });
+
+  it("uses the token scale, not ad-hoc sizes or white alphas", () => {
+    const defaults = empty.map((d, i) =>
+      i === 2
+        ? [
+            {
+              start: "06:30",
+              end: "07:15",
+              mins: 45,
+              energy: "easy" as const,
+              sports: null,
+            },
+          ]
+        : d
+    );
+    const html = renderToString(
+      <StandardWeek defaults={defaults} sports={["Bike"]} />
+    );
+    expect(html).not.toMatch(/text-\[[\d.]+px\]/);
+    expect(html).not.toMatch(/\btext-(xs|sm)\b/);
+    expect(html).not.toMatch(/text-white\//);
+    expect(html).not.toMatch(/bg-white\//);
+    expect(html).not.toMatch(/border-white\//);
+  });
 });
