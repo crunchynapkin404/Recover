@@ -1,5 +1,86 @@
 # Changelog
 
+## v0.102.0 — 2026-08-13 — Body, at the floor
+
+Slice 3 of the ten-slice Phase 2b.4 redesign. It puts `/body` — four tabs,
+fourteen components and an 839-line page — on the v0.99 token system at the
+hard 12px type floor, and it is the first slice to find that most of the
+surface it was migrating had never been looked at.
+
+**Three of Body's four tabs had never been captured or audited, by anyone.**
+`scripts/verify-surfaces.ts` mapped `body` to `/body`, which renders Trends
+alone; Sleep, Journal and Labs were unreachable to the screenshot and axe
+passes for the whole life of the file. Adding them found **26 confirmed axe
+violations** on a surface previously reported as clean, because the one tab
+anyone had ever measured was the one tab that was fine.
+
+All four tabs are now at **zero confirmed** in both themes. Twenty-five of the
+twenty-six were light-mode contrast failures that the token migration fixed as
+a side effect. The twenty-sixth was not, and is the one worth naming: the
+blood-test upload's `<input type="file">` had no accessible name — no label, no
+`aria-label`, no `title` — and failed in **dark as well as light**, so no
+amount of re-tokenising would have touched it. It has a visible label now,
+verified with `computeAccessibleName()` rather than by grepping for an
+attribute.
+
+**Light mode on this surface was unreadable, and axe scored it zero.** Before
+this slice, `/body` in light rendered its tabs, range pills, card eyebrows and
+every current reading as white-on-white. The axe run reported **0 confirmed
+findings** for exactly that screenshot, because over the gradient ground
+`color-contrast` resolves as _indeterminate_, which never gates. The pictures
+were the only evidence that existed.
+
+**What the athlete sees change.** Three structural decisions, all taken before
+implementation:
+
+- The Journal tab printed the logging streak twice — the page header's chip and
+  `JournalForm`'s own header with a flame icon, a second `<h2>` page title and
+  an 8px `n/7` ring, the smallest text in the app. The form's header is gone;
+  the header chip is the single streak on screen.
+- Labs led with two large always-open entry forms on a tab people open to read
+  results. Reading content now comes first and both forms fold behind the
+  disclosure primitive the journal already used.
+- The Trends tab keeps one full-width card per metric, stacked. Folding the
+  optional metrics and laying them out two-up were both offered and both
+  declined; this slice moves Body onto the scale and does not restructure that
+  list.
+
+**`BaselineTrendCard` renders seventeen times and passed two raw colour strings
+at every one of them.** Those are replaced by a single `tone` prop resolving to
+four chart tokens, which removes 32 unguarded hex literals and makes the card
+theme-aware for the first time. The `" vs baseline"` suffix is cut from the
+four titles that carried it — at 12px it no longer fits beside its own readout,
+the band rect states the comparison visually, and the SVG's accessible name now
+states it for anyone who cannot see the band, and only when a band exists.
+
+**The ratchets moved further than any previous slice**: arbitrary type sizes
+212 → **137**, ad-hoc white/black ink 469 → **311**.
+
+**Three defects were found only by opening the images**, and none was visible
+to any test or guard. The 90-day correlation rows lost their behaviour name
+entirely at phone width — a regression this slice caused, by widening the name
+and the badge either side of a `truncate` that then had nowhere to go, leaving
+rows whose subject had vanished. The Labs tab printed `Needs Sleep consistency,
+VO₂max, Body fat, Birth year` twice in adjacent blocks, because the tile and
+the card below it call the same helper on the same value — a duplicate the
+sweep missed by checking that the _figure_ appeared once rather than the
+_sentence_. And `BiomarkerList` nested `.glass` inside `.glass` on its empty
+state, the same defect v0.101.1 had patched on Train four commits earlier.
+
+**The whole-branch review found a floor test that could not fail.** The one
+covering the blood-test form rendered a _closed_ disclosure panel, so its four
+assertions ran over 790 characters of trigger markup containing none of the 314
+migrated lines they claimed to check — reverting the entire panel to `10px`
+white-alpha type left it green. It is the third time on this branch that a
+closed panel produced a vacuous assertion, and the plan had asserted the
+opposite: that the primitive keeps closed children mounted, when it renders
+`null`. The test now opens the panel, carries a sanity assertion that it did,
+and was proved by reverting a real line and watching it fail.
+
+Two ratchet re-pins were also caught stale — the ceiling's comment updated to
+the new number while the value beside it was left alone, silent both times
+because the guard tolerates 25 of slack.
+
 ## v0.101.1 — 2026-08-13 — Zero means zero
 
 A same-day patch on v0.101.0. A second whole-branch review, covering the
