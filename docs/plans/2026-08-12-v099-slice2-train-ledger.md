@@ -103,14 +103,41 @@ Minor, and deliberately not fixed.
 15. `week-day-list.test.tsx:350` still says "DayActions' own pre-token classes",
     trivially stale now that it is migrated. The sentence's point still holds.
 
-## Open questions for the ruling authority
+## Closed questions
 
-- **Do ordered tone ramps get their own ink override?** Task 8's A/B/C priority
-  badges are a deliberate loud→quiet ramp, but they are not the "label + subordinate
-  detail" shape the sanctioned override names. C was implemented on `ink-muted`,
-  the review found that unlicensed, and it was reverted to `ink-secondary` to
-  conform to the written rule. If a tone-ramp override is formalised, `races-section.tsx:66`
-  is the one line to change back.
+**Do ordered tone ramps get their own ink override? — NO. Answered 2026-08-13 on the
+merits. `races-section.tsx:66` stays on `text-ink-secondary`.**
+
+Raised because Task 8's A/B/C priority badges look like a deliberate loud→quiet ramp;
+C was implemented on `ink-muted`, review found that unlicensed under the sanctioned
+override, and it was reverted to nearest-value. Three reasons it stays reverted:
+
+1. **There is no ink ramp among those three badges.** `A: text-ink-race`,
+   `B: text-chart-3`, `C: text-ink-secondary` — A and B are carried by _hue_ tokens,
+   and C is the only one of the three on the neutral ink scale at all. A one-member
+   ramp is not a ramp, so an ink-level override has nothing to preserve.
+2. **No collapse occurred.** The per-pair override exists for a demonstrated defect —
+   two alphas that _differed_ in the original landing on one token. C had a single
+   alpha (`/60`) with no second ink value to collapse against. Nothing flattened.
+3. **The priority is already encoded in text.** `races-section.tsx:578` renders
+   `race.priority`, so the badge literally reads "A" / "B" / "C". Colour is a
+   secondary cue reinforcing a letter that is already there — which is also why the
+   hue-vs-neutral split creates no accessibility gap for a reader who cannot separate
+   `ink-race` from `chart-3`.
+
+**The durable principle: an override requires a demonstrated collapse.** Nearest-value
+is the default precisely because it is mechanical and can be argued with using
+arithmetic. Every override is a hole in that, so each needs a specific defect it
+repairs. A second override covering cases where nothing flattened would start the
+drift from "override where hierarchy provably broke" to "override where it looks
+nicer" — and the second is unfalsifiable. One default, one exception, each with a
+stated trigger.
+
+**What would reopen it:** a ramp whose members are _all_ on the neutral ink scale and
+_did_ differ by alpha before migration, where nearest-value collapses two or more of
+them. That is the per-pair defect with three members instead of two, and the existing
+override arguably already covers it — which is a further reason not to write a second
+rule.
 
 ## Planted TODOs and which task discharges them
 
