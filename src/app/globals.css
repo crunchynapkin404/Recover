@@ -113,11 +113,14 @@
   --coach-ink: #6d28d9;
   /* Race day, as TEXT. fuchsia-700: 5.85:1 worst-case across all three
      surfaces and across glass on both grounds. Race day is its own
-     vocabulary item on four surfaces (the week strip, the day list, the
-     race chip, the races list) and had no token — it shipped as a literal
-     text-fuchsia-300, which is a dark-only value. Named `ink-race` so
-     roleOfToken() classifies it as text and both contrast guards pick it
-     up without being told. */
+     vocabulary item on three surfaces (the week strip, the day list, the
+     races list) and had no token — it shipped as a literal text-fuchsia-300,
+     which is a dark-only value. Named `ink-race` so roleOfToken() classifies
+     it as text and both contrast guards pick it up without being told.
+     NOT reached by today/race-chip.tsx (I1, whole-branch review
+     2026-08-12): that component renders the same race name on
+     /train?tab=week in ordinary text-ink-primary. It is a Today component,
+     out of this slice's scope — migrating it belongs to slice 3. */
   --ink-race: #a21caf;
 
   --background: var(--surface-base);
