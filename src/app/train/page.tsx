@@ -1162,7 +1162,7 @@ async function HistoryTab({
         action={
           <Link
             href="/activity/log"
-            className="flex shrink-0 items-center gap-1 rounded-full bg-emerald-500/10 px-3 py-1.5 text-[10.5px] font-bold text-emerald-400 transition-colors hover:bg-emerald-500/20"
+            className="flex shrink-0 items-center gap-1 rounded-full bg-accent/10 px-3 py-1.5 text-label font-bold text-accent transition-colors hover:bg-accent/20"
           >
             <Plus aria-hidden className="size-3" />
             Log activity
@@ -1194,10 +1194,10 @@ async function HistoryTab({
           <Link
             href={href({ sport: "" })}
             aria-current={!sportFilter ? "true" : undefined}
-            className={`whitespace-nowrap rounded-full px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-colors ${
+            className={`whitespace-nowrap rounded-full px-3.5 py-1.5 text-label font-bold uppercase tracking-wider transition-colors ${
               !sportFilter
-                ? "bg-white/[0.12] text-white"
-                : "bg-white/[0.04] text-white/50 hover:text-white/80"
+                ? "bg-surface-overlay text-ink-primary"
+                : "bg-surface-raised text-ink-muted hover:text-ink-secondary"
             }`}
           >
             All
@@ -1207,10 +1207,10 @@ async function HistoryTab({
               key={s}
               href={href({ sport: s })}
               aria-current={sportFilter === s ? "true" : undefined}
-              className={`whitespace-nowrap rounded-full px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-colors ${
+              className={`whitespace-nowrap rounded-full px-3.5 py-1.5 text-label font-bold uppercase tracking-wider transition-colors ${
                 sportFilter === s
-                  ? "bg-white/[0.12] text-white"
-                  : "bg-white/[0.04] text-white/50 hover:text-white/80"
+                  ? "bg-surface-overlay text-ink-primary"
+                  : "bg-surface-raised text-ink-muted hover:text-ink-secondary"
               }`}
             >
               {s}

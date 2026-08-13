@@ -41,7 +41,34 @@ describe("compactKm", () => {
   });
 });
 
+const GROUPS = [{ day: "2026-07-22", items: [row()] }];
+
 describe("HistoryList", () => {
+  it("sizes the row to its content instead of clipping at a fixed height", () => {
+    const html = renderToString(<HistoryList groups={GROUPS} />);
+    expect(html).not.toMatch(/\bh-14\b/);
+    expect(html).toMatch(/min-h-16/);
+  });
+
+  it("keeps truncation on both lines — the existing, correct behaviour", () => {
+    const html = renderToString(<HistoryList groups={GROUPS} />);
+    expect(html.match(/truncate/g)!.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("uses the token scale, not ad-hoc sizes or white alphas", () => {
+    const html = renderToString(<HistoryList groups={GROUPS} />);
+    expect(html).not.toMatch(/text-\[[\d.]+px\]/);
+    expect(html).not.toMatch(/text-white\//);
+    expect(html).not.toMatch(/bg-white\//);
+    expect(html).not.toMatch(/border-white\//);
+  });
+
+  it("paints the sport rail from tokens, not rgba literals", () => {
+    const html = renderToString(<HistoryList groups={GROUPS} />);
+    expect(html).not.toMatch(/rgba\(/);
+    expect(html).toMatch(/var\(--chart-/);
+  });
+
   it("puts name, sport and the metric trio on one row", () => {
     const html = renderToString(
       <HistoryList groups={[{ day: "2026-07-22", items: [row()] }]} />

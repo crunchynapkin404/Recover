@@ -179,7 +179,7 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // week-day-list.tsx and page.tsx are all token utilities, so the count did
   // not move there), 343 after task 2, 351 after the whole-branch-review
   // fixes, 355 right after slice 1, 395 at slice 0.
-  "arbitrary type sizes": 244,
+  "arbitrary type sizes": 235,
   // 548 occurrences, measured 2026-08-13 after task 8 migrated 65
   // text-white/N, bg-white/N and border-white/N sites across
   // races-section.tsx and plan-preview-card.tsx (including the two cards
@@ -198,7 +198,7 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // fuelling tile that moved to `bg-surface-overlay`). 709 after task 4,
   // for the same reason task 4 didn't move it — 729 after task 2, 738 after
   // the whole-branch-review fixes, 749 right after slice 1, 806 at slice 0.
-  "ad-hoc white/black alpha utilities": 548,
+  "ad-hoc white/black alpha utilities": 529,
 };
 
 function expectRatchet(name: string, pattern: RegExp): void {
