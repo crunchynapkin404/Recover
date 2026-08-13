@@ -29,7 +29,10 @@ the guard's own failure message, never hand-counted, and may only go **down**.
 | Task 6      | 288                  | 651               |
 | Task 7      | 265                  | 613               |
 | Task 8      | 244                  | 548               |
-| Task 9      | **235**              | **529**           |
+| Task 9      | 235                  | 529               |
+| Task 10     | 229                  | 509               |
+| Task 11     | 223                  | 496               |
+| Task 12     | **217**              | **480**           |
 
 Task 4 moving neither number is legitimate and was verified: it was a structural
 task (collapsing next week into a `<details>` summary) over rows Task 3 had already
@@ -48,7 +51,9 @@ migrated.
 | 7 — availability intake path                                 | `df00040..66e3775` | clean after 1 fix                             |
 | 8 — races-section + plan preview                             | `9e62253..89a623f` | clean after 2 fixes                           |
 | 9 — History, unfix the fixed-height row                      | `7001699..0e78437` | clean after 1 fix                             |
-| 10–12                                                        | not started        | —                                             |
+| 10 — Season timeline, the "cannot fit" case                  | `1ee0837..48a9477` | clean, no Critical/Important                  |
+| 11 — Fitness tile label cut + `it.fails` flip                | `48a9477..7c4497d` | clean after 1 fix                             |
+| 12 — the sweep (A–D)                                         | `7c4497d..6d8cb91` | clean after 4 fixes                           |
 
 Out-of-band commits: `d611e0d` (get-wellness fix, merged as `64c78a8`) and `9e62253`
 (the ink ruling written into the plan).
@@ -304,3 +309,61 @@ defect. Still owed.
 today only because two live sites are icons), I7 (**slice-9 blocker** — in light
 `surface-raised == surface-overlay`, so the active/inactive pill has no visible
 selected state; the ladder this slice rests on is undefined in one theme), M1–M3.
+
+## Tasks 10–12, and what the sweep found
+
+**Task 10 — Season timeline.** The design reference's only "cannot fit" case: 24 per-bar
+micro-labels (9px week + 8px session count, the app's smallest text) need ~500–540px at
+the floor. Replaced by an axis tick every 3rd week plus the last, one always-visible
+readout, and horizontal scroll. **No client component and no faked interaction** — the
+readout names the latest week and every bar keeps its existing `title`. That is a real
+loss of reach for the eleven older weeks and it is the disclosed cost.
+
+**Task 11 — Fitness.** Tiles print `CTL`/`ATL`/`TSB` only; the full name is `sr-only`.
+`FitnessTile.srLabel` is **required**, so the compiler named all three stale call sites.
+This task also **flipped `skeleton-table.test.ts`'s whole-file assertion from `it.fails`
+to a real `it`** — `page.tsx` is now clean under the widened shared regexes. The suite's
+expected-fail count went 3 → 2, which is the visible proof the flip was real.
+
+**Task 12 — the sweep. It found a planning gap, not a leftover.**
+`season-mode-switch.tsx` and `plan-style-switch.tsx` — the two control pills in the Week
+tab header — **were never assigned to any task**. Entirely unmigrated: 12 offender sites
+including text below the floor and an active/inactive pair each. Had the sweep's grep not
+been widened by the whole-branch review (finding I5), they would have shipped.
+
+### The surface is at zero, with exactly one recorded exclusion
+
+`block-sheet.tsx`'s modal scrim (`bg-black/60`) stays. It is neither ink nor surface —
+it composites over arbitrary page content rather than sitting as an opaque ground — and
+there is no scrim token. Inventing one for a single call site would be worse than the raw
+utility. `ui/bottom-sheet.tsx` uses the identical value for its own scrim, so this is
+repo convention, not a one-off excuse. **The exclusion is documented at the call site**,
+not only here.
+
+### A subtlety worth keeping: comments count
+
+The offender ratchet scans **source lines**, so a comment documenting an original
+`text-white/60` counts as an occurrence and makes a zero claim un-literal. Every comment
+in this slice that describes a pre-migration alpha writes it as a percentage instead.
+
+### What the sweep's own review caught
+
+- **The availability link vanished in the branch that needs it most.** Part D deleted a
+  prose note that duplicated `NextWeekSummary`'s figures — correct — but the note also
+  carried the "Set next week's availability" link and was gated only on there _being_ a
+  next week. Moving the link inside the summary dropped it from the
+  `nextWeekHasAvailability === false` branch: an athlete who has not set availability got
+  a dead end where the link used to be. Fixed by extracting `NextWeekAvailabilityNote`
+  and rendering it in **both** branches, mirroring `NextWeekDivider`.
+- **Two tests had gone vacuous.** `plan-style-switch.test.tsx` lost its "exactly one
+  button disabled" invariant while keeping a title claiming to check it;
+  `season-timeline-card.test.tsx` asserted target/actual against the whole document, so
+  it kept passing on the _tiles_ after Part D removed those figures from the readout —
+  protecting nothing in either direction. Both rewritten to discriminate.
+
+### Another stale-report trap, second occurrence
+
+`.superpowers/sdd/task-12-report.md` is from an unrelated **2026-08-07** release that
+reused the name — exactly like `task-9-report.md`. A reviewer handed it would have read
+about race-demand evidence docs. `.superpowers/sdd/` spans many releases; **a filename
+match there is not evidence**. Check mtimes.
