@@ -154,7 +154,16 @@ function occurrences(pattern: RegExp): number {
  */
 const RATCHET_SLACK = 25;
 const OFFENDER_CEILINGS: Record<string, number> = {
-  // 179 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 6 —
+  // 169 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 7 —
+  // journal-form.tsx migrated the rest of the file (the manual-vitals
+  // panel, behavior tags, day flags, notes and the submit button) and
+  // dropped 10 text-[Npx] sites: the vitals intro paragraph and its four
+  // input labels (text-[10px] x5 → text-label), the tag-group heading
+  // (text-[9px] → text-label), the tag pills and day-flag pills (each
+  // text-[10px] → text-label), the "remember these as usual" button
+  // (text-[10px] → text-label) and the day-flags footnote (text-[10px] →
+  // text-label).
+  // Was 179 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 6 —
   // journal-form.tsx migrated 6 text-[Npx] sites: two went with the deleted
   // header (the "Logging Streak" eyebrow's text-[10px] and the streak
   // ring's text-[8px] fraction — the owner decision to drop the form's own
@@ -246,8 +255,26 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // week-day-list.tsx and page.tsx are all token utilities, so the count did
   // not move there), 343 after task 2, 351 after the whole-branch-review
   // fixes, 355 right after slice 1, 395 at slice 0.
-  "arbitrary type sizes": 179,
-  // 403 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 6 —
+  "arbitrary type sizes": 169,
+  // 377 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 7 —
+  // journal-form.tsx migrated 26 text-white/N, bg-white/N and
+  // border-white/N sites: the manual-vitals panel (17) — the intro
+  // paragraph and four labels' text-white/50 (→ text-ink-muted), and each
+  // of the four inputs' border-white/10 + bg-white/5 +
+  // placeholder:text-white/30 trio (→ border-hairline + bg-surface-overlay
+  // + placeholder:text-ink-muted; the bare `text-white` on each input has
+  // no alpha, so it does not move this count — it moved to text-ink-primary
+  // in the same edit); the tag-group heading's text-white/50 (1); the tag
+  // pills' and day-flag pills' border-white/10 (2, one source occurrence
+  // each, both → border-hairline, both still `glass`); the "remember these
+  // as usual" button's bg-white/5 + text-white/60 + hover:bg-white/10 trio
+  // (3, → bg-surface-overlay / text-ink-secondary / hover:bg-surface-raised);
+  // the footnote's text-white/50 (1); and the notes textarea's
+  // text-white/80 + placeholder:text-white/40 pair (2, →
+  // text-ink-secondary / placeholder:text-ink-muted). `tag-active` on the
+  // tag/flag pills is untouched — it hardcodes the dark accent as a
+  // deliberate deferral to slice 9 (docs/v0.99-redesign-handoff.md).
+  // Was 403 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 6 —
   // journal-form.tsx migrated 11 text-white/N, bg-white/N and border-white/N
   // sites: three went with the deleted header (the eyebrow's text-white/50,
   // the streak ring's border-white/10 and its track circle's text-white/5);
@@ -360,7 +387,7 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // fuelling tile that moved to `bg-surface-overlay`). 709 after task 4,
   // for the same reason task 4 didn't move it — 729 after task 2, 738 after
   // the whole-branch-review fixes, 749 right after slice 1, 806 at slice 0.
-  "ad-hoc white/black alpha utilities": 403,
+  "ad-hoc white/black alpha utilities": 377,
 };
 
 function expectRatchet(name: string, pattern: RegExp): void {

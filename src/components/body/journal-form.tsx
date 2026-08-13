@@ -437,7 +437,7 @@ export function JournalForm({
               {!hasActiveConnection && (
                 <div className="glass rounded-[2rem] p-6">
                   <h3 className="label-micro mb-6">Today&apos;s Vitals</h3>
-                  <p className="mb-4 text-[10px] text-white/50">
+                  <p className="mb-4 text-label text-ink-muted">
                     Enter your morning readings. Log HRV &amp; resting HR daily
                     to unlock your readiness score after 14 days.
                   </p>
@@ -445,7 +445,7 @@ export function JournalForm({
                     <div>
                       <label
                         htmlFor="manual-hrv"
-                        className="mb-1 block text-[10px] font-bold uppercase text-white/50"
+                        className="mb-1 block text-label font-bold uppercase text-ink-muted"
                       >
                         HRV (ms)
                       </label>
@@ -459,13 +459,13 @@ export function JournalForm({
                         value={manualHrv}
                         onChange={(e) => setManualHrv(e.target.value)}
                         placeholder="e.g. 55"
-                        className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none placeholder:text-white/30 focus:border-emerald-400/50"
+                        className="w-full rounded-xl border border-hairline bg-surface-overlay px-3 py-2 text-caption text-ink-primary outline-none placeholder:text-ink-muted focus:border-accent"
                       />
                     </div>
                     <div>
                       <label
                         htmlFor="manual-rhr"
-                        className="mb-1 block text-[10px] font-bold uppercase text-white/50"
+                        className="mb-1 block text-label font-bold uppercase text-ink-muted"
                       >
                         Resting HR (bpm)
                       </label>
@@ -479,13 +479,13 @@ export function JournalForm({
                         value={manualRhr}
                         onChange={(e) => setManualRhr(e.target.value)}
                         placeholder="e.g. 58"
-                        className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none placeholder:text-white/30 focus:border-emerald-400/50"
+                        className="w-full rounded-xl border border-hairline bg-surface-overlay px-3 py-2 text-caption text-ink-primary outline-none placeholder:text-ink-muted focus:border-accent"
                       />
                     </div>
                     <div>
                       <label
                         htmlFor="manual-sleep"
-                        className="mb-1 block text-[10px] font-bold uppercase text-white/50"
+                        className="mb-1 block text-label font-bold uppercase text-ink-muted"
                       >
                         Sleep (hours)
                       </label>
@@ -499,13 +499,13 @@ export function JournalForm({
                         value={manualSleep}
                         onChange={(e) => setManualSleep(e.target.value)}
                         placeholder="e.g. 7.5"
-                        className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none placeholder:text-white/30 focus:border-emerald-400/50"
+                        className="w-full rounded-xl border border-hairline bg-surface-overlay px-3 py-2 text-caption text-ink-primary outline-none placeholder:text-ink-muted focus:border-accent"
                       />
                     </div>
                     <div>
                       <label
                         htmlFor="manual-weight"
-                        className="mb-1 block text-[10px] font-bold uppercase text-white/50"
+                        className="mb-1 block text-label font-bold uppercase text-ink-muted"
                       >
                         Weight (kg)
                       </label>
@@ -519,7 +519,7 @@ export function JournalForm({
                         value={manualWeight}
                         onChange={(e) => setManualWeight(e.target.value)}
                         placeholder="e.g. 72"
-                        className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none placeholder:text-white/30 focus:border-emerald-400/50"
+                        className="w-full rounded-xl border border-hairline bg-surface-overlay px-3 py-2 text-caption text-ink-primary outline-none placeholder:text-ink-muted focus:border-accent"
                       />
                     </div>
                   </div>
@@ -565,7 +565,7 @@ export function JournalForm({
           <div className="space-y-6">
             {BEHAVIOR_TAGS.map((group) => (
               <div key={group.group}>
-                <h4 className="mb-3 text-[9px] font-bold uppercase text-white/50">
+                <h4 className="mb-3 text-label font-bold uppercase text-ink-muted">
                   {group.group}
                 </h4>
                 <div className="flex flex-wrap gap-2">
@@ -575,7 +575,7 @@ export function JournalForm({
                       type="button"
                       aria-pressed={activeTags.has(tag)}
                       onClick={() => toggleTag(tag)}
-                      className={`glass flex items-center gap-1.5 rounded-full border-white/10 px-3 py-1.5 text-[10px] font-medium ${
+                      className={`glass flex items-center gap-1.5 rounded-full border-hairline px-3 py-1.5 text-label font-medium ${
                         activeTags.has(tag) ? "tag-active" : ""
                       }`}
                     >
@@ -594,7 +594,7 @@ export function JournalForm({
             type="button"
             onClick={rememberUsualTags}
             disabled={rememberPending}
-            className="mt-6 flex w-full items-center justify-center gap-1.5 rounded-2xl bg-white/5 py-2.5 text-[10px] font-bold uppercase tracking-wide text-white/60 transition-colors hover:bg-white/10 disabled:opacity-50"
+            className="mt-6 flex w-full items-center justify-center gap-1.5 rounded-2xl bg-surface-overlay py-2.5 text-label font-bold uppercase tracking-wide text-ink-secondary transition-colors hover:bg-surface-raised disabled:opacity-50"
           >
             <Star aria-hidden className="size-3" />
             {rememberPending
@@ -621,7 +621,7 @@ export function JournalForm({
                 type="button"
                 aria-pressed={dayFlags.has(key)}
                 onClick={() => toggleDayFlag(key)}
-                className={`glass flex items-center gap-1.5 rounded-full border-white/10 px-3 py-1.5 text-[10px] font-medium ${
+                className={`glass flex items-center gap-1.5 rounded-full border-hairline px-3 py-1.5 text-label font-medium ${
                   dayFlags.has(key) ? "tag-active" : ""
                 }`}
               >
@@ -629,7 +629,7 @@ export function JournalForm({
               </button>
             ))}
           </div>
-          <p className="mt-3 text-[10px] text-white/50">
+          <p className="mt-3 text-label text-ink-muted">
             Flagged days still get a score — they&apos;re just left out of your
             baselines.
           </p>
@@ -638,7 +638,7 @@ export function JournalForm({
         {/* 5. Notes */}
         <div className="glass rounded-[2rem] p-6">
           <div className="mb-4 flex items-center gap-2">
-            <span aria-hidden className="text-emerald-400">
+            <span aria-hidden className="text-chart-2">
               ✏️
             </span>
             <label htmlFor="journal-notes" className="label-micro">
@@ -651,7 +651,7 @@ export function JournalForm({
             maxLength={2000}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="h-32 w-full resize-none rounded-xl bg-transparent text-sm leading-relaxed text-white/80 outline-none placeholder:text-white/40 focus-visible:ring-2 focus-visible:ring-emerald-400/50"
+            className="h-32 w-full resize-none rounded-xl bg-transparent text-caption leading-relaxed text-ink-secondary outline-none placeholder:text-ink-muted focus-visible:ring-2 focus-visible:ring-accent"
             placeholder="Anything on your mind — training, recovery, life..."
           />
         </div>
@@ -660,7 +660,7 @@ export function JournalForm({
         {state && (
           <p
             role="status"
-            className={`text-center text-sm ${state.ok ? "text-emerald-400" : "text-red-400"}`}
+            className={`text-center text-caption ${state.ok ? "text-chart-2" : "text-chart-5"}`}
           >
             {state.message}
           </p>
@@ -668,7 +668,7 @@ export function JournalForm({
         <button
           type="submit"
           disabled={pending}
-          className="w-full rounded-2xl bg-emerald-500 py-4 font-bold text-black transition-all hover:bg-emerald-400 disabled:opacity-50"
+          className="w-full rounded-2xl bg-accent py-4 font-bold text-primary-foreground transition-all hover:opacity-90 disabled:opacity-50"
         >
           {pending ? "Saving…" : `Save check-in for ${selectedDate}`}
         </button>

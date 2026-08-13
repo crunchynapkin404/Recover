@@ -377,18 +377,48 @@ describe("journal form — no duplicate header (v0.102 task 6)", () => {
     expect(html).not.toContain("<header");
   });
 
-  it("holds the floor across the region this task owns", () => {
-    // The form is split across two tasks: this one owns the calendar strip
-    // and steps 1–2 (plus the "3. Vitals Check" trigger's intervals.icu
-    // chip); task 7 owns the vitals panel, behavior tags, day flags, notes
-    // and the submit button, all still on ad-hoc classes and unconditionally
-    // rendered below "Behavior Tags" in the default (step-1-open) render.
-    // Scoping to the boundary keeps this a real assertion about what this
-    // task migrated, rather than one that can only pass once task 7 lands.
+  it("holds the floor across the form", () => {
+    // v0.102 task 7 migrated the rest of the form (the vitals panel,
+    // behavior tags, day flags, notes and the submit button) that task 6
+    // deliberately left out of this assertion's scope. Now that both
+    // halves are on the token scale, this checks the whole render rather
+    // than the boundary between the two tasks.
     const html = renderToString(<JournalForm {...baseProps} />);
+    // Sanity guard, kept from task 6: this can never silently degrade to
+    // an empty string passing vacuously.
     expect(html).toContain("Behavior Tags");
-    const ownedRegion = html.slice(0, html.indexOf("Behavior Tags"));
-    expect(ownedRegion).not.toMatch(/text-\[\d/);
-    expect(ownedRegion).not.toContain("text-white/");
+    expect(html).not.toMatch(/text-\[\d/);
+    expect(html).not.toContain("text-white/");
+  });
+});
+
+/**
+ * v0.102 task 7 — the manual-vitals path is only reachable for an athlete
+ * with no active connection. The seeded demo athlete used for screenshots
+ * HAS a connection, so these four inputs never render in any capture —
+ * this test is the only check this path gets before the browser pass.
+ *
+ * The "3. Vitals Check" step is a controlled Collapsible whose panel is
+ * unmounted while closed (v0.19) — a plain renderToString() at the
+ * component's default (step-1-open) state never puts the four manual
+ * inputs in the markup at all, connection or no. Rendering with the
+ * client harness and opening the step for real is what actually exercises
+ * this path, the same way "announces an untouched slider as not answered"
+ * above exercises step 2.
+ */
+describe("journal form — floor holds on the manual-vitals path (v0.102 task 7)", () => {
+  it("holds the floor on the manual-vitals path too", async () => {
+    await renderForm({ hasActiveConnection: false });
+    await openStep("Vitals Check");
+
+    const html = container.innerHTML;
+    // Sanity: the panel actually opened and the manual inputs are present,
+    // so the assertions below are checking real markup, not an empty panel.
+    expect(html).toContain("HRV (ms)");
+    expect(html).not.toMatch(/text-\[\d/);
+    expect(html).not.toContain("text-white/");
+    expect(html).not.toContain("bg-white/");
+    expect(html).not.toContain("border-white/");
+    expect(html).not.toContain("placeholder:text-white/");
   });
 });
