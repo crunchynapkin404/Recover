@@ -367,3 +367,46 @@ in this slice that describes a pre-migration alpha writes it as a percentage ins
 reused the name — exactly like `task-9-report.md`. A reviewer handed it would have read
 about race-demand evidence docs. `.superpowers/sdd/` spans many releases; **a filename
 match there is not evidence**. Check mtimes.
+
+## Task 13 — the browser pass
+
+Captured with `scripts/verify-surfaces.ts` against a dev server on 3100 and the
+seeded owner. **Result after fixes: 0 confirmed axe nodes on all four Train tabs,
+both themes, both viewports.**
+
+**The tool could not see three quarters of this slice.** `SURFACES` mapped Train to
+`/train`, which is the Week tab only — History, Season and Fitness, including the two
+hardest cases in the whole slice, were unreachable by the script meant to verify them.
+Added `train-history`, `train-season`, `train-fitness`.
+
+**Three defects, none of which any test could catch:**
+
+1. **A raw float reached the athlete.** The next-week summary printed
+   `of 7.916666666666667h target` while `WeekRationale`, one block below, printed the
+   same figure as `7.9h`. `targetHours` arrives as `VolumeResult.hours`, a plain
+   quotient; the prose note this summary replaced ran it through `fmt()` and the
+   summary did not. **Every existing test used whole numbers**, so the suite was green.
+   Now formatted through the same `fmt()`, with a test pinning the fractional and the
+   whole-number case.
+2. **The weekly load chart had been rendering upside-down.** Each bar sits in an
+   `h-full flex-col` wrapper whose default `justify-start` pins it to the TOP, so the
+   parent's `items-end` never reaches it — the bars hung down from a shared ceiling
+   instead of rising from a baseline. Pre-existing, inherited, and obvious the instant
+   the PNG was opened.
+3. **The sidebar avatar was a measured 1:1 contrast failure in light**, and below the
+   12px floor. Known since slice 1 and left as a roadmap line. It was the **only**
+   confirmed axe finding on all four Train tabs — and because it renders on eight
+   surfaces, fixing it took Today (three states) and Body to zero confirmed too.
+
+Defects 1 and 2 were invisible to axe as well as to the suite: neither is a contrast
+question. They were found by looking at the image, which is the whole argument for
+this step.
+
+**Housekeeping done:** 24 revoked `screenshot-verify%` rows deleted from the dev DB
+(`api_tokens.label`, not `.name` — the column is `label`); dev server stopped; port
+3000 (live) untouched throughout.
+
+**Residual, for slice 9 rather than now:** `coach` still reports 4 confirmed nodes in
+light — its own slice. And the ladder's light-mode collapse (`surface-raised` ==
+`surface-overlay` == `#ffffff`) remains the recorded slice-9 blocker; nothing on Train
+depends on it visibly today because light is unreachable.
