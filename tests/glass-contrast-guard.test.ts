@@ -313,12 +313,15 @@ describe("glass nesting guard", () => {
    * reviewing v0.101.1 for Train would look for it. Flagged in the v0.101.1
    * report for a follow-up patch instead.
    *
-   *  - `src/components/body/biomarker-list.tsx` — the empty-rows branch
-   *    nests `EmptyState` (glass-rooted) inside the category card's own
-   *    `glass` wrapper. Same shape as the Train bug this patch fixes.
+   *  - `src/components/body/biomarker-list.tsx` — FIXED (F3, v0.102 task
+   *    12, browser pass): the empty-rows branch no longer wraps EmptyState
+   *    in the category card's own `glass` div; the "Biomarkers" label now
+   *    sits outside a bare wrapper instead, same treatment as the Fitness
+   *    fix below. Removed from this map entirely rather than left at 0 —
+   *    an unlisted file already defaults to a ceiling of 0 via `?? 0`.
    *  - `src/components/body/journal-form.tsx` — two chip groups (behaviour
    *    tags, day flags) render `glass` toggle chips inside a `glass`
-   *    section card.
+   *    section card. Still open; outside F3's scope.
    *
    * EXACT per-file counts, not a total ceiling, and checked in BOTH
    * directions like `OFFENDER_CEILINGS` in `tests/type-scale-guard.test.ts`:
@@ -327,7 +330,6 @@ describe("glass nesting guard", () => {
    * move. Any file not listed here — Train included — must be at zero.
    */
   const KNOWN_PRE_EXISTING_GLASS_NESTING: Record<string, number> = {
-    "src/components/body/biomarker-list.tsx": 1,
     "src/components/body/journal-form.tsx": 2,
   };
 
