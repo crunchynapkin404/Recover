@@ -67,6 +67,39 @@ describe("NextWeekSummary", () => {
     expect(html).toContain("9h target");
   });
 
+  it("rounds the target instead of printing the raw float it is given", () => {
+    // `targetHours` arrives as `VolumeResult.hours`, a plain quotient — the
+    // real seeded athlete's was 7.916666666666667. This shipped to a capture
+    // reading "of 7.916666666666667h target" while WeekRationale, one block
+    // below, rendered the SAME figure as "7.9h" through fmt(). Every test
+    // passed: they all used whole numbers.
+    const html = renderToString(
+      <NextWeekSummary
+        days={DAYS}
+        pinned={{}}
+        targetHours={7.916666666666667}
+        availabilityHref="/train?availability=next"
+      >
+        <div />
+      </NextWeekSummary>
+    );
+    expect(html).toContain("7.9h target");
+    expect(html).not.toContain("7.916");
+    // A whole number keeps its bare form — fmt()'s own rule, not a new one.
+    const whole = renderToString(
+      <NextWeekSummary
+        days={DAYS}
+        pinned={{}}
+        targetHours={9}
+        availabilityHref="/train?availability=next"
+      >
+        <div />
+      </NextWeekSummary>
+    );
+    expect(whole).toContain("9h target");
+    expect(whole).not.toContain("9.0h");
+  });
+
   it("keeps the day rows in the DOM but behind a closed disclosure", () => {
     const html = renderToString(
       <NextWeekSummary

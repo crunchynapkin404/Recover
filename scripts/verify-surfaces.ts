@@ -197,7 +197,17 @@ const SURFACES: Record<string, string> = {
   // main(); see assertTodayStatesDiffer for why that is not optional.
   "today-post-session": "/?state=post-session",
   "today-evening": "/?state=evening",
+  // Train is FOUR tabs behind one path, and `/train` alone captures only the
+  // first. v0.99 slice 2 redesigned all four — including the two hardest
+  // cases on the surface, History's fixed-height row and the Season
+  // timeline's "cannot fit" restructure — and neither was reachable by this
+  // script until they were named here. A tab that cannot be captured cannot
+  // be checked against its own axe run or looked at in a PNG, which is the
+  // only way two of slice 1's defects were ever found.
   train: "/train",
+  "train-history": "/train?tab=history",
+  "train-season": "/train?tab=season",
+  "train-fitness": "/train?tab=fitness",
   coach: "/coach",
   body: "/body",
   settings: "/settings",

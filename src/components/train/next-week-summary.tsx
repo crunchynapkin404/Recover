@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { DaySlot } from "@/lib/week-plan/types";
 import { plannedMins } from "@/lib/week-plan/fill";
+import { fmt } from "@/components/week/week-rationale";
 
 /**
  * The "Next week" label row — shared by the collapsed summary below and
@@ -101,7 +102,7 @@ export function NextWeekSummary({
               as a missing value. */}
           {targetHours != null &&
             targetHours > 0 &&
-            ` of ${targetHours}h target`}
+            ` of ${fmt(targetHours)} target`}
           <span className="mt-1 block text-label font-bold text-accent">
             {`Show all ${days.length} days${provisional ? " (provisional)" : ""} →`}
           </span>

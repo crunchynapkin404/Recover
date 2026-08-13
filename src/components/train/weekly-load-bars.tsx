@@ -16,7 +16,12 @@ export function WeeklyLoadBars({ data }: { data: WeeklyLoad[] }) {
         {data.map((w) => (
           <div
             key={w.weekStart}
-            className="group flex h-full flex-1 flex-col items-center gap-1"
+            // justify-end is load-bearing: the column is h-full, so the
+            // parent's items-end cannot reach the bar inside it. Without
+            // this the bars hang DOWNWARD from a shared top edge and the
+            // chart reads upside-down — found by opening the capture, not
+            // by any test.
+            className="group flex h-full flex-1 flex-col items-center justify-end gap-1"
           >
             <div
               // chart-2 is the "good" tone, the same token CTL and TSB use

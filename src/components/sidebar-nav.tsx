@@ -68,7 +68,7 @@ export function SidebarNav({
           href="/settings"
           className="mt-auto flex items-center gap-3 border-t border-white/5 px-3 pt-4 transition-colors hover:text-white"
         >
-          <span className="glass flex size-8 shrink-0 items-center justify-center rounded-full text-[12px] font-bold text-white/80">
+          <span className="glass flex size-8 shrink-0 items-center justify-center rounded-full text-label font-bold text-ink-primary">
             {initial || "?"}
           </span>
           <span className="min-w-0">
