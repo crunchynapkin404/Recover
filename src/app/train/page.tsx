@@ -1483,41 +1483,47 @@ async function FitnessTab({
 
       <FitnessTiles tiles={tiles} />
 
-      <section className="glass mb-4 rounded-[18px] p-4">
-        {hasLoadSeries ? (
-          <>
-            {/* showStats off: the tiles above already carry CTL/ATL/TSB. */}
-            <PmcChart
-              showStats={false}
-              wellness={dailyMetrics.map((w) => ({
-                date: w.date,
-                ctl: w.ctl,
-                atl: w.atl,
-              }))}
-            />
-            <ul className="mt-3 flex items-center gap-4 border-t border-hairline pt-3">
-              {[
-                { label: "CTL", dot: "bg-chart-1" },
-                { label: "ATL", dot: "bg-chart-5" },
-                { label: "TSB", dot: "bg-chart-2" },
-              ].map((l) => (
-                <li
-                  key={l.label}
-                  className="flex items-center gap-1.5 text-label font-bold uppercase tracking-wider text-ink-muted"
-                >
-                  <span
-                    aria-hidden
-                    className={`h-0.5 w-4 rounded-full ${l.dot}`}
-                  />
-                  {l.label}
-                </li>
-              ))}
-            </ul>
-          </>
-        ) : (
+      {hasLoadSeries ? (
+        <section className="glass mb-4 rounded-[18px] p-4">
+          {/* showStats off: the tiles above already carry CTL/ATL/TSB. */}
+          <PmcChart
+            showStats={false}
+            wellness={dailyMetrics.map((w) => ({
+              date: w.date,
+              ctl: w.ctl,
+              atl: w.atl,
+            }))}
+          />
+          <ul className="mt-3 flex items-center gap-4 border-t border-hairline pt-3">
+            {[
+              { label: "CTL", dot: "bg-chart-1" },
+              { label: "ATL", dot: "bg-chart-5" },
+              { label: "TSB", dot: "bg-chart-2" },
+            ].map((l) => (
+              <li
+                key={l.label}
+                className="flex items-center gap-1.5 text-label font-bold uppercase tracking-wider text-ink-muted"
+              >
+                <span
+                  aria-hidden
+                  className={`h-0.5 w-4 rounded-full ${l.dot}`}
+                />
+                {l.label}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : (
+        // Rendered bare, not inside the `.glass` section above: EmptyState's
+        // own root is `.glass` (C2, whole-branch review 2 2026-08-13), and
+        // nesting it inside another `.glass` wrapper stacks two translucent
+        // fills and two blurs into an undeclared compositing ground. Matches
+        // how the other four Train call sites of EmptyState already render —
+        // bare, in a plain div or a fragment.
+        <div className="mb-4">
           <EmptyState icon={LineChart} message="No training-load data yet." />
-        )}
-      </section>
+        </div>
+      )}
 
       {weekly.some((w) => w.load > 0) && (
         <div className="mb-4">

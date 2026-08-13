@@ -29,6 +29,11 @@ import {
   roleOfToken,
   type ThemeName,
 } from "../src/lib/design/tokens";
+import {
+  findGlassNestingViolations,
+  findGlassNestingViolationsInSrc,
+  type GlassNestingViolation,
+} from "../src/lib/design/jsx-glass";
 
 const THEMES: ThemeName[] = ["light", "dark"];
 
@@ -82,6 +87,16 @@ it("derives its ink list from the stylesheet, not from a hand-written array", ()
  * the reason. Overlay is used for tiles rendered INSIDE cards (stat tiles,
  * the cost line, the progress track), i.e. it stacks on top of glass, never
  * under it.
+ *
+ * "Verified against the tree" was prose, not code, until v0.101.1: this list
+ * assumes glass never sits on glass — a ground `.glass` would put atop
+ * ITSELF, not any surface token, and this file's own contrast maths would
+ * not catch it either way. C2 (whole-branch review 2, 2026-08-13) found
+ * exactly that on `/train?tab=fitness`: a `glass` `<section>` wrapping
+ * `EmptyState`, whose own root is also `glass`. `describe("glass nesting
+ * guard")` below is what makes "glass never sits on glass" a real,
+ * AST-based assertion (`src/lib/design/jsx-glass.ts`) instead of this
+ * paragraph.
  */
 const GROUNDS = ["surface-base", "surface-raised"] as const;
 
@@ -198,5 +213,159 @@ describe("glass contrast guard", () => {
         `are re-baselining deliberately, delete this test and say so in the ` +
         `commit message.`
     ).toBe(1);
+  });
+});
+
+/**
+ * describe("glass nesting guard") — C2, whole-branch review 2, 2026-08-13.
+ *
+ * Turns the GROUNDS comment's "glass never sits on glass" from prose into an
+ * AST-based assertion. See `src/lib/design/jsx-glass.ts` for the mechanism
+ * and why a regex/line scan cannot do this (nesting is a tree relationship,
+ * not a text pattern).
+ *
+ * PROVEN NOT VACUOUS FIRST. The three self-tests below feed the checker
+ * synthetic fixtures with a known answer — two that must be flagged, one
+ * that must not — before the real assertion trusts what it reports about
+ * the actual tree. A checker that only ever runs against source that is
+ * supposed to be clean can pass by being broken; these prove it can fail.
+ */
+describe("glass nesting guard", () => {
+  it("self-test: catches a native element nested inside a glass element", () => {
+    const src = `
+      export function Bad() {
+        return (
+          <section className="glass p-4">
+            <div className="glass rounded p-2">hi</div>
+          </section>
+        );
+      }
+    `;
+    const violations = findGlassNestingViolations([
+      { path: "fixture.tsx", text: src },
+    ]);
+    expect(
+      violations.length,
+      "the checker did not flag a native div.glass rendered inside a section.glass — it cannot be trusted"
+    ).toBeGreaterThanOrEqual(1);
+  });
+
+  it("self-test: catches a glass-rooted component (like EmptyState) rendered inside a glass wrapper", () => {
+    const src = `
+      function Inner({ className }: { className?: string }) {
+        return <div className={cn("glass rounded-2xl p-8", className)} />;
+      }
+      export function Bad() {
+        return (
+          <section className="glass p-4">
+            <Inner />
+          </section>
+        );
+      }
+    `;
+    const violations = findGlassNestingViolations([
+      { path: "fixture.tsx", text: src },
+    ]);
+    expect(
+      violations.length,
+      "the checker did not flag a glass-rooted component (Inner, the EmptyState shape) rendered inside a glass wrapper — the exact C2 bug shape — it cannot be trusted"
+    ).toBeGreaterThanOrEqual(1);
+  });
+
+  it("self-test: does not flag sibling glass elements or a glass-no-hover ancestor as glass", () => {
+    const src = `
+      export function Good() {
+        return (
+          <div className="p-4">
+            <section className="glass p-2" />
+            <section className="glass p-2" />
+          </div>
+        );
+      }
+      export function AlsoGood() {
+        return (
+          <nav className="glass-no-hover border p-2">
+            <div className="glass p-1" />
+          </nav>
+        );
+      }
+    `;
+    const violations = findGlassNestingViolations([
+      { path: "fixture.tsx", text: src },
+    ]);
+    expect(
+      violations,
+      "false positive: sibling glass elements, or a glass-no-hover ancestor " +
+        "(a different class — no fill, no blur of its own), got flagged as nesting"
+    ).toEqual([]);
+  });
+
+  /**
+   * Known, pre-existing glass-in-glass sites, OUTSIDE Train, that predate
+   * this patch and this guard — found by this guard's own first real run
+   * against the whole tree, not by the whole-branch review that scoped C2.
+   * `git blame` puts both in 2026-07-18/07-21, three weeks before the Train
+   * design-token slice this patch belongs to; neither file is touched by
+   * `65da0fd..b50261e` (the reviewed range) or by v0.101.1. Recorded rather
+   * than silently fixed here: fixing them is a Body-surface change this
+   * patch's mandate (C1 + C2 on Train) does not cover, and doing it inside
+   * a "Train patch" commit would bury an unrelated fix where nobody
+   * reviewing v0.101.1 for Train would look for it. Flagged in the v0.101.1
+   * report for a follow-up patch instead.
+   *
+   *  - `src/components/body/biomarker-list.tsx` — the empty-rows branch
+   *    nests `EmptyState` (glass-rooted) inside the category card's own
+   *    `glass` wrapper. Same shape as the Train bug this patch fixes.
+   *  - `src/components/body/journal-form.tsx` — two chip groups (behaviour
+   *    tags, day flags) render `glass` toggle chips inside a `glass`
+   *    section card.
+   *
+   * EXACT per-file counts, not a total ceiling, and checked in BOTH
+   * directions like `OFFENDER_CEILINGS` in `tests/type-scale-guard.test.ts`:
+   * a total ceiling would let one of these get fixed while a new, different
+   * violation appeared elsewhere in the same file and the sum would not
+   * move. Any file not listed here — Train included — must be at zero.
+   */
+  const KNOWN_PRE_EXISTING_GLASS_NESTING: Record<string, number> = {
+    "src/components/body/biomarker-list.tsx": 1,
+    "src/components/body/journal-form.tsx": 2,
+  };
+
+  function describeViolation(v: GlassNestingViolation): string {
+    return (
+      `${v.file}:${v.outerLine} (<${v.outerTag}>) contains ` +
+      `${v.file}:${v.innerLine} (<${v.innerTag}>) — both glass`
+    );
+  }
+
+  it("never renders `.glass` inside `.glass` anywhere, beyond the known pre-existing sites above — Train included, at zero", () => {
+    const violations = findGlassNestingViolationsInSrc();
+    const byFile = new Map<string, GlassNestingViolation[]>();
+    for (const v of violations) {
+      byFile.set(v.file, [...(byFile.get(v.file) ?? []), v]);
+    }
+
+    const unexpected: string[] = [];
+    for (const [file, vs] of byFile) {
+      const allowed = KNOWN_PRE_EXISTING_GLASS_NESTING[file] ?? 0;
+      if (vs.length > allowed) {
+        unexpected.push(
+          `${file}: ${vs.length} found, ${allowed} known — new site(s):\n` +
+            vs.map(describeViolation).join("\n")
+        );
+      }
+    }
+    expect(unexpected, unexpected.join("\n\n")).toEqual([]);
+
+    // Ceilings must stay pinned to the real count too, or a fixed site
+    // becomes a free, unattributed pass for a new one in the same file —
+    // the same discipline `OFFENDER_CEILINGS` enforces.
+    const stale = Object.entries(KNOWN_PRE_EXISTING_GLASS_NESTING)
+      .filter(([file, allowed]) => (byFile.get(file)?.length ?? 0) < allowed)
+      .map(
+        ([file, allowed]) =>
+          `${file}: ceiling ${allowed}, real ${byFile.get(file)?.length ?? 0} — re-pin it down`
+      );
+    expect(stale, stale.join("\n")).toEqual([]);
   });
 });

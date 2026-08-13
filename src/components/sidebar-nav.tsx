@@ -37,8 +37,8 @@ export function SidebarNav({
     .toUpperCase();
 
   return (
-    <nav className="fixed left-0 top-0 z-40 hidden h-svh w-[216px] flex-col border-r border-white/5 bg-neutral-950/40 px-4 py-8 backdrop-blur-xl lg:flex">
-      <span className="mb-8 px-3 text-[17px] font-extrabold tracking-[-0.04em] text-white/90">
+    <nav className="fixed left-0 top-0 z-40 hidden h-svh w-[216px] flex-col border-r border-hairline bg-surface-base px-4 py-8 backdrop-blur-xl lg:flex">
+      <span className="mb-8 px-3 text-title font-extrabold tracking-[-0.04em] text-ink-primary">
         Recover
       </span>
       <div className="flex flex-col gap-1">
@@ -50,10 +50,10 @@ export function SidebarNav({
               key={href}
               href={href}
               aria-current={active ? "page" : undefined}
-              className={`flex items-center gap-3 rounded-[14px] px-3 py-2.5 text-[13px] font-medium transition-colors ${
+              className={`flex items-center gap-3 rounded-[14px] px-3 py-2.5 text-caption font-medium transition-colors ${
                 active
-                  ? "bg-white/10 text-white"
-                  : "text-white/50 hover:bg-white/5 hover:text-white"
+                  ? "bg-surface-overlay text-ink-primary"
+                  : "bg-surface-raised text-ink-muted hover:text-ink-secondary"
               }`}
             >
               <Icon className="size-5" strokeWidth={1.5} />
@@ -66,16 +66,16 @@ export function SidebarNav({
       {user && (
         <Link
           href="/settings"
-          className="mt-auto flex items-center gap-3 border-t border-white/5 px-3 pt-4 transition-colors hover:text-white"
+          className="mt-auto flex items-center gap-3 border-t border-hairline px-3 pt-4 transition-colors hover:text-ink-primary"
         >
           <span className="glass flex size-8 shrink-0 items-center justify-center rounded-full text-label font-bold text-ink-primary">
             {initial || "?"}
           </span>
           <span className="min-w-0">
-            <span className="block truncate text-[12.5px] font-bold text-white/85">
+            <span className="block truncate text-caption font-bold text-ink-secondary">
               {user.name ?? "Athlete"}
             </span>
-            <span className="block truncate text-[10px] text-white/40">
+            <span className="block truncate text-label text-ink-muted">
               {user.role}
             </span>
           </span>
