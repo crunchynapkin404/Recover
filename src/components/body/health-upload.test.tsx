@@ -50,8 +50,20 @@ describe("HealthUpload", () => {
     expect(html).toContain("Add a blood test");
   });
 
-  it("holds the floor across the form", () => {
-    const html = renderToString(<HealthUpload />);
+  it("holds the floor across the form", async () => {
+    // The panel is closed by default and Base UI unmounts a closed panel's
+    // content, so a renderToString() of the closed component would assert
+    // over markup that contains none of what this test claims to check
+    // (whole-branch review 2026-08-13, C1). Open it first, and pin a sanity
+    // line naming something only the open panel renders — so this test can
+    // never again pass against an empty string.
+    await renderUpload();
+    const trigger = container.querySelector("button");
+    if (!trigger) throw new Error("collapsible trigger button not found");
+    await click(trigger);
+
+    const html = container.innerHTML;
+    expect(html).toContain("Extract");
     expect(html).not.toMatch(/text-\[\d/);
     expect(html).not.toContain("text-white/");
     expect(html).not.toContain("bg-white/");
