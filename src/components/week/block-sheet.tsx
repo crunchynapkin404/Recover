@@ -205,8 +205,8 @@ export function BlockSheet({
                       onClick={() => patch(i, { energy: e.value })}
                       className={`rounded-full border px-3 py-1.5 text-label font-bold transition-colors ${
                         b.energy === e.value
-                          ? "border-hairline bg-surface-overlay text-ink-primary"
-                          : "border-hairline text-ink-muted"
+                          ? "border-hairline bg-accent text-primary-foreground"
+                          : "border-hairline bg-surface-raised text-ink-secondary"
                       }`}
                     >
                       {e.label}
@@ -239,8 +239,8 @@ export function BlockSheet({
                           }}
                           className={`rounded-full border px-3 py-1.5 text-label font-semibold transition-colors ${
                             on
-                              ? "border-hairline bg-surface-overlay text-ink-primary"
-                              : "border-hairline text-ink-muted"
+                              ? "border-hairline bg-accent text-primary-foreground"
+                              : "border-hairline bg-surface-raised text-ink-secondary"
                           }`}
                         >
                           {s}

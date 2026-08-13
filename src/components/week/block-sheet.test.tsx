@@ -17,6 +17,27 @@ const blocks = [
   },
 ];
 
+/** The `class` attribute of the first `<tag>` in `html` whose sole text content is `label`. */
+function classFor(html: string, tag: string, label: string): string {
+  const match = html.match(
+    new RegExp(`<${tag}[^>]*class="([^"]*)"[^>]*>${label}<`)
+  );
+  if (!match) throw new Error(`no <${tag}> found containing "${label}"`);
+  return match[1];
+}
+
+/** The `class` attribute of the first `<li>` — the nested block tile. */
+function tileClass(html: string): string {
+  const match = html.match(/<li[^>]*class="([^"]*)"/);
+  if (!match) throw new Error("no <li> tile found");
+  return match[1];
+}
+
+/** The bg-* / border-* utilities in a class string, as a set — the fill and outline cues, not text colour. */
+function fillTokens(classAttr: string): Set<string> {
+  return new Set(classAttr.split(/\s+/).filter((c) => /^(bg|border)-/.test(c)));
+}
+
 describe("BlockSheet", () => {
   it("lists each block with its window and duration", () => {
     const html = renderToString(
@@ -111,6 +132,42 @@ describe("BlockSheet", () => {
     expect(html).toMatch(/aria-pressed="true"[^>]*>Normal</);
     expect(html).toMatch(/aria-pressed="false"[^>]*>Easy</);
     expect(html).toMatch(/aria-pressed="false"[^>]*>Full gas</);
+  });
+
+  it("gives the selected energy chip a fill that neither the unselected chip nor the tile behind it share", () => {
+    // Pins the actual defect, not just the presence of a style: a selected
+    // chip painted the same as the tile it sits on, or the same as its own
+    // unselected sibling, is invisible as "selected" no matter how many
+    // classes are attached to it.
+    const html = renderToString(
+      <BlockSheet
+        dayLabel="Wednesday"
+        blocks={blocks}
+        sports={["Bike"]}
+        onChange={vi.fn()}
+        onClose={vi.fn()}
+      />
+    );
+
+    const tileFill = [...fillTokens(tileClass(html))].filter((c) =>
+      c.startsWith("bg-")
+    );
+    const activeFill = fillTokens(classFor(html, "button", "Normal"));
+    const inactiveFill = fillTokens(classFor(html, "button", "Easy"));
+    const activeBg = [...activeFill].filter((c) => c.startsWith("bg-"));
+
+    // The unselected chip must declare its own background rather than
+    // leaving a transparent hole the tile's fill shows through.
+    expect(
+      inactiveFill.size > 0 &&
+        [...inactiveFill].some((c) => c.startsWith("bg-"))
+    ).toBe(true);
+    // The selected chip's own fill must not be the same token as the tile
+    // sitting behind it — that collision is exactly what erased the cue.
+    expect(activeBg.some((c) => tileFill.includes(c))).toBe(false);
+    // And, directly: selected and unselected must not present the same
+    // fill/border utilities as each other.
+    expect(activeFill).not.toEqual(inactiveFill);
   });
 
   it("uses the token scale, not ad-hoc sizes or white alphas", () => {
