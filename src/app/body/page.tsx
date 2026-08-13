@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { and, desc, eq, gte, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { requireUser } from "@/lib/session";
@@ -46,6 +45,8 @@ import {
 } from "@/lib/body-battery";
 import { sleepDebtFrom, DEFAULT_SLEEP_NEED_SECS } from "@/lib/sleep-debt";
 import { buildBodyHref, BODY_TABS, type BodyTab } from "@/lib/log-href";
+import { BodyTabs } from "@/components/body/body-tabs";
+import { RangeTabs, RANGES } from "@/components/body/range-tabs";
 import type { BiomarkerCategory } from "@/lib/health-records";
 import { isBaselineExcluded, type DayFlag } from "@/lib/day-flags";
 import { calibrationProgress } from "@/lib/calibration";
@@ -53,15 +54,6 @@ import { Figure } from "@/lib/uncertainty";
 import { HeartPulse, Moon } from "lucide-react";
 
 export const dynamic = "force-dynamic";
-
-const RANGES = [30, 90, 180, 365];
-
-const TAB_LABEL: Record<BodyTab, string> = {
-  trends: "Trends",
-  sleep: "Sleep",
-  journal: "Journal",
-  labs: "Labs",
-};
 
 function daysAgo(n: number): string {
   const d = new Date();
@@ -138,7 +130,9 @@ export default async function BodyPage({
   await recordSurfaceView(user.id, "body");
   const sp = await searchParams;
   const tab: BodyTab = BODY_TABS.find((t) => t === sp.tab) ?? "trends";
-  const range = RANGES.includes(Number(sp.range)) ? Number(sp.range) : 90;
+  const range = (RANGES as readonly number[]).includes(Number(sp.range))
+    ? Number(sp.range)
+    : 90;
   // Raw URL input — validated against the loaded nights inside SleepTab,
   // never used to build a query.
   const night = sp.night;
@@ -152,29 +146,14 @@ export default async function BodyPage({
     <AppShell user={shellUser(user)}>
       <header className="mb-5 pt-8">
         <div className="mb-4 flex items-start justify-between gap-3">
-          <h1 className="text-[22px] font-bold tracking-[-0.03em]">Body</h1>
+          <h1 className="text-title font-bold tracking-[-0.03em]">Body</h1>
           {milestones.currentStreak > 0 && (
-            <span className="shrink-0 rounded-full border border-emerald-500/30 bg-emerald-500/[0.08] px-3 py-1 text-[10.5px] font-bold text-emerald-400">
+            <span className="shrink-0 rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-label font-bold text-chart-2">
               Streak {milestones.currentStreak}d ✓
             </span>
           )}
         </div>
-        <nav aria-label="Body sections" className="flex flex-wrap gap-1.5">
-          {BODY_TABS.map((t) => (
-            <Link
-              key={t}
-              href={href({ tab: t })}
-              aria-current={t === tab ? "page" : undefined}
-              className={`rounded-full px-4 py-1.5 text-[11px] font-bold transition-colors ${
-                t === tab
-                  ? "bg-white/[0.12] text-white"
-                  : "bg-white/[0.04] text-white/50 hover:text-white/80"
-              }`}
-            >
-              {TAB_LABEL[t]}
-            </Link>
-          ))}
-        </nav>
+        <BodyTabs active={tab} href={href} />
       </header>
 
       {tab === "trends" ? (
@@ -240,22 +219,7 @@ async function TrendsTab({
 
   return (
     <div className="pb-10">
-      <div className="mb-3 flex justify-end gap-1">
-        {RANGES.map((r) => (
-          <Link
-            key={r}
-            href={href({ range: r })}
-            aria-current={r === range ? "true" : undefined}
-            className={`rounded-full px-2.5 py-1 text-[10px] font-bold transition-colors ${
-              r === range
-                ? "bg-white/[0.12] text-white"
-                : "bg-white/[0.04] text-white/45 hover:text-white/70"
-            }`}
-          >
-            {r}d
-          </Link>
-        ))}
-      </div>
+      <RangeTabs active={range} ranges={RANGES} href={href} />
 
       <BaselineTrendCard
         title="HRV vs baseline"

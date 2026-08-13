@@ -154,7 +154,13 @@ function occurrences(pattern: RegExp): number {
  */
 const RATCHET_SLACK = 25;
 const OFFENDER_CEILINGS: Record<string, number> = {
-  // 212 occurrences, measured 2026-08-13 in v0.101.1 (whole-branch review 2,
+  // 208 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 2 —
+  // page.tsx's header (the h1 and the streak chip) plus the two new
+  // components it now delegates to, body-tabs.tsx and range-tabs.tsx —
+  // migrated 4 text-[Npx] sites: text-[22px] (h1 → text-title), text-[10.5px]
+  // (streak chip → text-label), text-[11px] (Body's tab-row labels →
+  // text-label) and text-[10px] (Trends' range-pill labels → text-label).
+  // Was 212 occurrences, measured 2026-08-13 in v0.101.1 (whole-branch review 2,
   // C1). The "Train is now at ZERO offenders" line directly below, written
   // after task 12, was false: task 12's Step-1 sweep grep never covered
   // sidebar-nav.tsx (the desktop, lg-and-above nav — the exact complement of
@@ -210,8 +216,19 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // week-day-list.tsx and page.tsx are all token utilities, so the count did
   // not move there), 343 after task 2, 351 after the whole-branch-review
   // fixes, 355 right after slice 1, 395 at slice 0.
-  "arbitrary type sizes": 212,
-  // 469 occurrences, measured 2026-08-13 in v0.101.1 (whole-branch review 2,
+  "arbitrary type sizes": 208,
+  // 461 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 2
+  // migrated 8 text-white/N, bg-white/N and border-white/N sites: 4 in
+  // page.tsx's own header markup before it was replaced (bg-white/[0.12] +
+  // text-white, and bg-white/[0.04] + text-white/50 + hover:text-white/80 —
+  // that one line alone is 3 matches) and the same 4-match shape again in the
+  // range-pill row, both now on body-tabs.tsx / range-tabs.tsx's
+  // bg-surface-overlay / bg-surface-raised / text-ink-primary /
+  // text-ink-muted instead. The streak chip's border-emerald-500/30 and
+  // bg-emerald-500/[0.08] moved to border-accent/30 / bg-accent/10 in the
+  // same diff but were never ad-hoc WHITE/BLACK alpha, so they don't move
+  // this count.
+  // Was 469 occurrences, measured 2026-08-13 in v0.101.1 (whole-branch review 2,
   // C1). sidebar-nav.tsx and empty-state.tsx were outside task 12's sweep
   // scope (see the matching correction on "arbitrary type sizes" above) and
   // together carried 10 ad-hoc white-alpha utilities that this patch
@@ -261,7 +278,7 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // fuelling tile that moved to `bg-surface-overlay`). 709 after task 4,
   // for the same reason task 4 didn't move it — 729 after task 2, 738 after
   // the whole-branch-review fixes, 749 right after slice 1, 806 at slice 0.
-  "ad-hoc white/black alpha utilities": 469,
+  "ad-hoc white/black alpha utilities": 461,
 };
 
 function expectRatchet(name: string, pattern: RegExp): void {
