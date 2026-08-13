@@ -32,7 +32,15 @@ the guard's own failure message, never hand-counted, and may only go **down**.
 | Task 9      | 235                  | 529               |
 | Task 10     | 229                  | 509               |
 | Task 11     | 223                  | 496               |
-| Task 12     | **217**              | **480**           |
+| Task 12     | 217                  | 480               |
+| v0.101.1    | **212**              | **469**           |
+
+v0.101.1 is a post-release patch (whole-branch review 2, C1), not a slice-2 task: task
+12's sweep grep never reached `sidebar-nav.tsx` or `empty-state.tsx` (see below), so
+they carried live offenders through the v0.101.0 tag. 217 and 480 were already stale by
+one in each direction before this patch (M1, whole-branch review 2) — task 13 migrated
+one more `sidebar-nav.tsx` site without re-pinning — so the real pre-patch counts were
+216/479, and this patch's fix lowered them to 212/469.
 
 Task 4 moving neither number is legitimate and was verified: it was a structural
 task (collapsing next week into a `<details>` summary) over rows Task 3 had already
@@ -331,7 +339,30 @@ tab header — **were never assigned to any task**. Entirely unmigrated: 12 offe
 including text below the floor and an active/inactive pair each. Had the sweep's grep not
 been widened by the whole-branch review (finding I5), they would have shipped.
 
-### The surface is at zero, with exactly one recorded exclusion
+### The surface is at zero, with exactly one recorded exclusion — CORRECTED, v0.101.1
+
+**This claim was false as written.** Task 12's Step-1 sweep grep
+(`docs/plans/2026-08-12-v099-slice2-train.md`, Task 12 Step 1) enumerated its scope as
+`src/app/train`, `src/components/train`, `src/components/week`, `bottom-nav.tsx` and
+`ui/collapsible.tsx`. Two shared components that render on every Train tab via
+`AppShell` were never in that list:
+
+- **`src/components/sidebar-nav.tsx`** — the desktop, `lg:flex` nav rail. The first
+  whole-branch review (I5) had already caught `bottom-nav.tsx`, its `lg:hidden`
+  complement below the breakpoint, and widened the grep for it — but never added the
+  `lg:flex` half above the breakpoint, so it stayed missing through the tag.
+- **`src/components/ui/empty-state.tsx`** — rendered at five Train call sites
+  (`page.tsx`'s Week, History and Fitness tabs).
+
+At v0.101.0, `sidebar-nav.tsx` carried 4 arbitrary pixel sizes (one of them 10px — below
+the slice's own 12px floor) and 8 ad-hoc white-alpha utilities; `empty-state.tsx`
+carried 2 more. Ten live offender lines, on the surface this section claimed was at
+zero. Whole-branch review 2's C1 caught it after release; the fix shipped in v0.101.1,
+which also added both files to the sweep's own grep (Task 12 Step 1) so a later slice
+re-running it cannot repeat the miss.
+
+With the sweep's corrected scope, the surface is now actually at zero offenders, with
+exactly one recorded exclusion, described below.
 
 `block-sheet.tsx`'s modal scrim (`bg-black/60`) stays. It is neither ink nor surface —
 it composites over arbitrary page content rather than sitting as an opaque ground — and

@@ -154,12 +154,29 @@ function occurrences(pattern: RegExp): number {
  */
 const RATCHET_SLACK = 25;
 const OFFENDER_CEILINGS: Record<string, number> = {
+  // 212 occurrences, measured 2026-08-13 in v0.101.1 (whole-branch review 2,
+  // C1). The "Train is now at ZERO offenders" line directly below, written
+  // after task 12, was false: task 12's Step-1 sweep grep never covered
+  // sidebar-nav.tsx (the desktop, lg-and-above nav — the exact complement of
+  // bottom-nav.tsx's lg-and-below half, which the sweep DID add) or
+  // empty-state.tsx (rendered at five Train call sites). Both render on
+  // every Train tab via AppShell. sidebar-nav.tsx alone carried 4 arbitrary
+  // pixel sizes — including one site below the 12px floor — plus 8 ad-hoc
+  // white-alpha utilities; empty-state.tsx carried 2 more ad-hoc alphas.
+  // Ten live offender lines the sweep's scope never reached. Both files are
+  // migrated to the token scale now, and both are added to the sweep's own
+  // grep (docs/plans/2026-08-12-v099-slice2-train.md, Task 12 Step 1) so a
+  // later slice re-running it cannot repeat the miss. With the sweep's true
+  // scope, the Train surface is at zero offenders with exactly one
+  // deliberate exclusion: block-sheet.tsx's modal scrim, which is neither
+  // ink nor surface and has no token.
   // 217 occurrences, measured 2026-08-13 after task 12 (the sweep — the two
   // header control switches season-mode-switch.tsx and plan-style-switch.tsx,
   // which no earlier task owned, plus bottom-nav.tsx and plan-empty.tsx)
-  // migrated 6 text-[Npx] sites. The Train surface is now at ZERO offenders
-  // with exactly one deliberate exclusion: block-sheet.tsx's modal scrim,
-  // which is neither ink nor surface and has no token.
+  // migrated 6 text-[Npx] sites. CORRECTION (v0.101.1, above): the claim
+  // that followed here — that the Train surface was at zero offenders with
+  // one exclusion — was false; the sweep's grep never reached
+  // sidebar-nav.tsx or empty-state.tsx.
   // Was 223 occurrences, measured 2026-08-13 after task 11 (Fitness —
   // fitness-tiles.tsx, pmc-chart.tsx, fitness-stats-row.tsx and page.tsx's
   // Fitness half) migrated 6 text-[Npx] sites: the tile label, value and
@@ -193,12 +210,20 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // week-day-list.tsx and page.tsx are all token utilities, so the count did
   // not move there), 343 after task 2, 351 after the whole-branch-review
   // fixes, 355 right after slice 1, 395 at slice 0.
-  "arbitrary type sizes": 217,
-  // 480 occurrences, measured 2026-08-13 after task 12 migrated 16
-  // text-white/N, bg-white/N and border-white/N sites: plan-style-switch.tsx
-  // (6) + season-mode-switch.tsx (8) + bottom-nav.tsx (2). block-sheet.tsx's
-  // diff that task was comment-only — its scrim is the one deliberate
-  // exclusion, not a migrated site.
+  "arbitrary type sizes": 212,
+  // 469 occurrences, measured 2026-08-13 in v0.101.1 (whole-branch review 2,
+  // C1). sidebar-nav.tsx and empty-state.tsx were outside task 12's sweep
+  // scope (see the matching correction on "arbitrary type sizes" above) and
+  // together carried 10 ad-hoc white-alpha utilities that this patch
+  // migrated to the ink scale: 8 in sidebar-nav.tsx (the nav rail's border
+  // and fill, the wordmark, the active/inactive item pair, the settings
+  // row's border and hover state, and the pinned user row's name) plus 2 in
+  // empty-state.tsx (the icon and the message). Was 480 occurrences,
+  // measured 2026-08-13 after task 12 migrated 16 text-white/N, bg-white/N
+  // and border-white/N sites: plan-style-switch.tsx (6) +
+  // season-mode-switch.tsx (8) + bottom-nav.tsx (2). block-sheet.tsx's diff
+  // that task was comment-only — its scrim is the one deliberate exclusion,
+  // not a migrated site.
   // Was 496 occurrences, measured 2026-08-13 after task 11 migrated 13
   // text-white/N, bg-white/N and border-white/N sites across
   // fitness-tiles.tsx (the tile card, which moved to `bg-surface-overlay`,
@@ -236,7 +261,7 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // fuelling tile that moved to `bg-surface-overlay`). 709 after task 4,
   // for the same reason task 4 didn't move it — 729 after task 2, 738 after
   // the whole-branch-review fixes, 749 right after slice 1, 806 at slice 0.
-  "ad-hoc white/black alpha utilities": 480,
+  "ad-hoc white/black alpha utilities": 469,
 };
 
 function expectRatchet(name: string, pattern: RegExp): void {

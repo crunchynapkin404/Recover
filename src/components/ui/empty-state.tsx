@@ -21,8 +21,8 @@ function EmptyState({
       )}
       {...props}
     >
-      <Icon aria-hidden className="size-6 text-white/20" strokeWidth={1.5} />
-      <p className="text-sm text-white/50">{message}</p>
+      <Icon aria-hidden className="size-6 text-ink-muted" strokeWidth={1.5} />
+      <p className="text-caption text-ink-muted">{message}</p>
     </div>
   );
 }
