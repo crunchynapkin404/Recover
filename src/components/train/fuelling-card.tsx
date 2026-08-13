@@ -6,9 +6,9 @@ function range(r: { min: number; max: number }, unit: string): string {
 }
 
 function confidenceTone(confidence: "high" | "medium" | "low"): string {
-  if (confidence === "high") return "text-emerald-300 border-emerald-400/30";
-  if (confidence === "medium") return "text-amber-300 border-amber-400/30";
-  return "text-white/65 border-white/20";
+  if (confidence === "high") return "text-chart-2 border-hairline";
+  if (confidence === "medium") return "text-chart-3 border-hairline";
+  return "text-ink-muted border-hairline";
 }
 
 export function FuellingCard({
@@ -23,12 +23,12 @@ export function FuellingCard({
   if (workouts.length === 0) return null;
 
   return (
-    <section className="mb-5 overflow-hidden rounded-[18px] border border-white/[0.08] bg-white/[0.03] p-4">
+    <section className="glass mb-5 overflow-hidden rounded-[18px] p-4">
       <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 className="text-[12px] font-bold uppercase tracking-[0.12em] text-white/70">
+        <h2 className="text-label font-bold uppercase tracking-[0.12em] text-ink-secondary">
           Session fuelling
         </h2>
-        <span className="text-[10px] text-white/40">{date}</span>
+        <span className="text-label text-ink-muted">{date}</span>
       </div>
 
       <div className="space-y-3">
@@ -37,14 +37,14 @@ export function FuellingCard({
           return (
             <article
               key={`${w.type}-${idx}`}
-              className="rounded-[14px] border border-white/[0.08] bg-white/[0.02] p-3"
+              className="rounded-[14px] bg-surface-overlay p-3"
             >
               <div className="mb-2 flex items-center justify-between gap-2">
-                <p className="truncate text-[12.5px] font-semibold text-white">
+                <p className="truncate text-caption font-semibold text-ink-primary">
                   {w.type} · {w.durationMins} min
                 </p>
                 <span
-                  className={`rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${confidenceTone(
+                  className={`rounded-full border px-2 py-0.5 text-label font-bold uppercase tracking-wider ${confidenceTone(
                     guidance.confidence
                   )}`}
                 >
@@ -52,19 +52,25 @@ export function FuellingCard({
                 </span>
               </div>
 
-              <div className="space-y-1.5 text-[11px] text-white/75">
+              <div className="space-y-1.5 text-label text-ink-secondary">
                 <p>
-                  <span className="font-semibold text-white/85">Before:</span>{" "}
+                  <span className="font-semibold text-ink-secondary">
+                    Before:
+                  </span>{" "}
                   {range(guidance.before.carbsG, "g carbs")} ·{" "}
                   {guidance.before.note}
                 </p>
                 <p>
-                  <span className="font-semibold text-white/85">During:</span>{" "}
+                  <span className="font-semibold text-ink-secondary">
+                    During:
+                  </span>{" "}
                   {range(guidance.during.carbsPerHourG, "g carbs/h")} and{" "}
                   {range(guidance.during.fluidMlPerHour, "ml fluid/h")}
                 </p>
                 <p>
-                  <span className="font-semibold text-white/85">After:</span>{" "}
+                  <span className="font-semibold text-ink-secondary">
+                    After:
+                  </span>{" "}
                   {range(guidance.after.carbsG, "g carbs")} and{" "}
                   {range(guidance.after.proteinG, "g protein")} ·{" "}
                   {guidance.after.note}
@@ -72,7 +78,7 @@ export function FuellingCard({
               </div>
 
               {guidance.assumptions.length > 0 && (
-                <p className="mt-2 text-[10px] text-white/45">
+                <p className="mt-2 text-label text-ink-muted">
                   Assumptions: {guidance.assumptions.join("; ")}
                 </p>
               )}

@@ -320,21 +320,12 @@ describe("WeekDayList — status as a dot, not a pill (v0.99 slice 2)", () => {
   it("has no type below the 12px floor and no ad-hoc white alphas", () => {
     // Today (2026-07-28) has a workout in CURRENT_WEEK_DAYS, which mounts
     // <DayActions> inline on its row (isToday && workouts.length > 0).
-    // DayActions (src/components/week/day-actions.tsx) is untouched here —
-    // the slice-2 plan assigns it to Task 5 — and still carries its own
-    // arbitrary sizes and ad-hoc alpha ink. Stripping today's workout keeps
-    // this assertion scoped to what WeekDayList itself renders, which is
-    // this test's actual subject; every other row still exercises the
-    // workout, rest and status-dot classes this task migrated.
-    //
-    // TODO(slice-2 Task 5): once day-actions.tsx is migrated, restore the
-    // unmodified CURRENT_WEEK_DAYS fixture here — the strip exists only
-    // because <DayActions> still renders pre-token classes, not because
-    // today's workout row is out of scope for the floor rule.
-    const days = CURRENT_WEEK_DAYS.map((d) =>
-      d.date === "2026-07-28" ? { ...d, workouts: [] } : d
+    // DayActions (src/components/week/day-actions.tsx) is on the token
+    // scale as of slice-2 Task 5, so the unmodified fixture is safe here —
+    // every row, including today's with DayActions mounted, is covered.
+    const html = renderToString(
+      <WeekDayList days={CURRENT_WEEK_DAYS} today="2026-07-28" />
     );
-    const html = renderToString(<WeekDayList days={days} today="2026-07-28" />);
     expect(html).not.toMatch(/text-\[[\d.]+px\]/);
     expect(html).not.toMatch(/\btext-xs\b/);
     expect(html).not.toMatch(/text-white\//);

@@ -44,4 +44,24 @@ describe("FuellingCard", () => {
     expect(html).toContain("Assumptions:");
     expect(html).toContain("body mass missing");
   });
+
+  it("uses the token scale, not ad-hoc sizes or white alphas", () => {
+    const workout = withPurpose({
+      day: 0,
+      sport: "Bike",
+      type: "Intervals",
+      durationMins: 90,
+      intensity: "Z4-Z5",
+      description: "threshold reps",
+      blockIdx: 0,
+    });
+    const html = renderToString(
+      <FuellingCard date="2026-08-08" workouts={[workout]} bodyMassKg={72} />
+    );
+    expect(html).not.toMatch(/text-\[[\d.]+px\]/);
+    expect(html).not.toMatch(/\btext-(xs|sm)\b/);
+    expect(html).not.toMatch(/text-white\//);
+    expect(html).not.toMatch(/bg-white\//);
+    expect(html).not.toMatch(/border-white\//);
+  });
 });

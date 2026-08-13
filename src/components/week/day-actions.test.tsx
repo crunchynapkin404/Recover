@@ -242,6 +242,25 @@ describe("DayActions error rendering (interaction)", () => {
   });
 });
 
+describe("DayActions — token scale", () => {
+  it("uses the token scale, not ad-hoc sizes or white alphas", () => {
+    const html = renderToString(
+      <DayActions
+        day={{ date: "2026-08-25", workoutCount: 1 }}
+        otherDays={[
+          { date: "2026-08-26", workoutCount: 0, isRace: false },
+          { date: "2026-08-30", workoutCount: 0, isRace: true },
+        ]}
+      />
+    );
+    expect(html).not.toMatch(/text-\[[\d.]+px\]/);
+    expect(html).not.toMatch(/\btext-(xs|sm)\b/);
+    expect(html).not.toMatch(/text-white\//);
+    expect(html).not.toMatch(/bg-white\//);
+    expect(html).not.toMatch(/border-white\//);
+  });
+});
+
 describe("DayActions — zero the day", () => {
   it("offers the reset next to move, swap and skip", () => {
     const html = renderToString(

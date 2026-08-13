@@ -161,24 +161,24 @@ function occurrences(pattern: RegExp): number {
  */
 const RATCHET_SLACK = 25;
 const OFFENDER_CEILINGS: Record<string, number> = {
-  // Still 333 after task 4 (the next-week preview collapse): the new
+  // 302 occurrences, measured 2026-08-13 after task 5 (the week tab's prose
+  // blocks — day-actions.tsx's pills and selects, fuelling-card.tsx's card
+  // and confidence chip, week-rationale.tsx's shortfall/reason prose, and
+  // event-readiness.tsx's verdict/demand prose) migrated 31 text-[Npx] sites.
+  // Was 333 after task 4 (the next-week preview collapse — the new
   // next-week-summary.tsx and the wiring changes in week-day-list.tsx and
-  // page.tsx are all token utilities, so the count did not move.
-  // 333 occurrences, measured 2026-08-13 after task 3 (the week day row —
-  // WeekDayList's weekday label, workout/race/rest lines, credit and
-  // moved-from lines, and the provisional/pinned badge) migrated its 10
-  // text-[Npx]/w-[34px] sites.
-  // Was 343 after task 2, 351 after the whole-branch-review fixes, 355
-  // right after slice 1, 395 at slice 0.
-  "arbitrary type sizes": 333,
-  // Still 709 after task 4, for the same reason.
-  // 709 occurrences, measured 2026-08-13 after task 3 migrated its 20
-  // text-white/N, border-white/N and bg-white/N sites (the weekday label,
-  // workout, intensity, race, rest, credit, moved-from and badge lines, the
-  // row divider/highlight, the next-week divider and the section wrapper).
-  // Was 729 after task 2, 738 after the whole-branch-review fixes, 749
-  // right after slice 1, 806 at slice 0.
-  "ad-hoc white/black alpha utilities": 709,
+  // page.tsx are all token utilities, so the count did not move there), 343
+  // after task 2, 351 after the whole-branch-review fixes, 355 right after
+  // slice 1, 395 at slice 0.
+  "arbitrary type sizes": 302,
+  // 669 occurrences, measured 2026-08-13 after task 5 migrated 40
+  // text-white/N, bg-white/N and border-white/N sites across the same four
+  // components (including the card wrappers that moved to `glass` and the
+  // nested fuelling tile that moved to `bg-surface-overlay`).
+  // Was 709 after task 4, for the same reason task 4 didn't move it — 729
+  // after task 2, 738 after the whole-branch-review fixes, 749 right after
+  // slice 1, 806 at slice 0.
+  "ad-hoc white/black alpha utilities": 669,
 };
 
 function expectRatchet(name: string, pattern: RegExp): void {
