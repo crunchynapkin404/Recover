@@ -28,7 +28,8 @@ the guard's own failure message, never hand-counted, and may only go **down**.
 | Task 5      | 302                  | 669               |
 | Task 6      | 288                  | 651               |
 | Task 7      | 265                  | 613               |
-| Task 8      | **244**              | **548**           |
+| Task 8      | 244                  | 548               |
+| Task 9      | **235**              | **529**           |
 
 Task 4 moving neither number is legitimate and was verified: it was a structural
 task (collapsing next week into a `<details>` summary) over rows Task 3 had already
@@ -46,7 +47,8 @@ migrated.
 | 6 — Week tab page chrome, skeleton scroll                    | `324dd3c..df00040` | clean, no Critical/Important                  |
 | 7 — availability intake path                                 | `df00040..66e3775` | clean after 1 fix                             |
 | 8 — races-section + plan preview                             | `9e62253..89a623f` | clean after 2 fixes                           |
-| 9–12                                                         | not started        | —                                             |
+| 9 — History, unfix the fixed-height row                      | `7001699..0e78437` | clean after 1 fix                             |
+| 10–12                                                        | not started        | —                                             |
 
 Out-of-band commits: `d611e0d` (get-wellness fix, merged as `64c78a8`) and `9e62253`
 (the ink ruling written into the plan).
@@ -149,6 +151,36 @@ rule.
 - **14 sites** across the six files migrated in Tasks 3–7 carried `text-white/60` or
   `/65` and predate the per-pair override. **Task 12 sweeps them**; they were
   deliberately not fixed by reopening six commits.
+
+## The 2026-08-13 host crash — what it cost, and what it did not
+
+The host went down mid-Task-9. Nothing committed was lost: `origin` already had
+every commit, because pushing at each task boundary had just been adopted.
+
+What **was** lost: the peer session that had been coordinating this slice — it held
+the ink rulings, had taken ownership of the whole-branch review, and was to
+adjudicate Task 13's captures. Its context is unrecoverable. The only reason that
+cost little is that its rulings had been written into this ledger and the plan a few
+commits earlier. **That is the argument for this file existing.**
+
+Two traps the crash set, both survived:
+
+1. **The first full suite run afterwards reported 108 failed files / 92 failed tests
+   while `tsc` and `eslint` were clean.** That shape is infrastructure, not code:
+   `recover-devdb` had exited 255 when the host went down. `docker start recover-devdb`
+   and the suite returned 322 files passed, 0 failed. **After any crash, check the
+   container before reading a red suite as a regression.** The production containers
+   (`recover-app-1` on 3000, `recover-db-1` on 5434) restart themselves and were never
+   involved.
+2. **`.superpowers/sdd/task-9-report.md` exists and is from 2026-08-07** — a different
+   release that reused the filename. Task 9's own implementer was killed before
+   writing one. Handing that stale file to a reviewer would have fed it a report about
+   unrelated work. `.superpowers/sdd/` holds 314 files spanning many releases; a
+   filename match there is not evidence.
+
+Task 9's edits survived uncommitted in the working tree, were verified (focused tests,
+typecheck, lint, full suite), had their ceilings re-pinned from the guard's own count,
+and were committed and then review-gated normally.
 
 ## Test-suite facts a newcomer will otherwise misread
 
