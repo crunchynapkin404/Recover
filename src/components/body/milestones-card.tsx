@@ -9,8 +9,9 @@ export function MilestonesCard({
   plansCompleted,
   hideStreak = false,
 }: Milestones & {
-  /** Drop the logging-streak row where it is already shown (e.g. the journal
-   * form's streak ring) — avoids showing the same streak twice on a page. */
+  /** Drop the logging-streak row where it is already shown (the page
+   * header's streak chip) — avoids showing the same streak twice on a
+   * page. */
   hideStreak?: boolean;
 }) {
   const rows: { label: string; value: string | null; detail: string | null }[] =

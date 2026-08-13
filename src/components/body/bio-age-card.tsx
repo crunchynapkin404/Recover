@@ -18,19 +18,17 @@ interface Props {
  * an invented number.
  */
 export function BioAgeCard({ result, hideHeadline = false }: Props) {
+  // hideHeadline has no effect here: LabsHeadline (the only caller that
+  // passes it) mounts BioAgeCard only when bioAge.available, so this branch
+  // never runs with hideHeadline set. Always show the full unavailable
+  // state rather than a headline variant no caller can reach.
   if (!result.available) {
     return (
       <div className="glass rounded-[2rem] p-6">
-        <span className="label-micro">
-          {hideHeadline ? "What's missing" : "Biological Age"}
-        </span>
-        {/* The tile above already says the estimate can't be made — don't
-            say it twice, just say what would fix it. */}
-        {!hideHeadline && (
-          <p className="mt-3 text-caption text-ink-secondary">
-            Not enough inputs yet.
-          </p>
-        )}
+        <span className="label-micro">Biological Age</span>
+        <p className="mt-3 text-caption text-ink-secondary">
+          Not enough inputs yet.
+        </p>
         <p className="mt-2 text-caption text-ink-muted">
           {unavailableMessage(result)}
         </p>
