@@ -105,10 +105,19 @@ etc.) across the same file list. Zero of either remain after these two fixes.
 - **`ui/unavailable.tsx`'s `text-white/50`** belongs to its `<Unavailable>`
   component. Verified `grep -rn "<Unavailable" src/` returns only
   `src/components/ui/unavailable.test.tsx` — no source file renders it. Body's
-  four call sites (`labs-tiles.tsx`, `bio-age-card.tsx`, `blood-pressure-card.tsx`,
-  `correlation-rows.tsx`, `sleep-night-card.tsx`) all call `unavailableMessage()`,
-  the string helper, never the component. Left alone — belongs to whichever slice
-  first renders `<Unavailable>`.
+  four call sites are `labs-tiles.tsx`, `bio-age-card.tsx`, `body-battery.tsx`
+  and `correlation-rows.tsx`; all four call `unavailableMessage()`, the string
+  helper, never the component. Left alone — belongs to whichever slice first
+  renders `<Unavailable>`.
+
+  _Corrected after review._ This list first shipped naming five files, two of
+  which (`blood-pressure-card.tsx`, `sleep-night-card.tsx`) import nothing from
+  `unavailable.tsx` at all, while omitting `body-battery.tsx`, which does. The
+  conclusion was right and the audit trail behind it was not — on precisely the
+  axis this task exists to get right. Re-derived with
+  `grep -rln "unavailableMessage" src/components/body/`, which returns exactly
+  the four named above.
+
 - **`app-shell.tsx`'s two depth-layer blooms** (`bg-emerald-500/5`,
   `bg-blue-500/5`, lines 35–36) — chromatic ambient background decoration behind
   every page in the app, not ink or a card surface. Matches the same pattern
