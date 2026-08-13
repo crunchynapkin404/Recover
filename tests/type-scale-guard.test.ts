@@ -154,7 +154,13 @@ function occurrences(pattern: RegExp): number {
  */
 const RATCHET_SLACK = 25;
 const OFFENDER_CEILINGS: Record<string, number> = {
-  // 223 occurrences, measured 2026-08-13 after task 11 (Fitness —
+  // 217 occurrences, measured 2026-08-13 after task 12 (the sweep — the two
+  // header control switches season-mode-switch.tsx and plan-style-switch.tsx,
+  // which no earlier task owned, plus bottom-nav.tsx and plan-empty.tsx)
+  // migrated 6 text-[Npx] sites. The Train surface is now at ZERO offenders
+  // with exactly one deliberate exclusion: block-sheet.tsx's modal scrim,
+  // which is neither ink nor surface and has no token.
+  // Was 223 occurrences, measured 2026-08-13 after task 11 (Fitness —
   // fitness-tiles.tsx, pmc-chart.tsx, fitness-stats-row.tsx and page.tsx's
   // Fitness half) migrated 6 text-[Npx] sites: the tile label, value and
   // context in fitness-tiles.tsx, the Stat label in pmc-chart.tsx, the
@@ -187,8 +193,11 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // week-day-list.tsx and page.tsx are all token utilities, so the count did
   // not move there), 343 after task 2, 351 after the whole-branch-review
   // fixes, 355 right after slice 1, 395 at slice 0.
-  "arbitrary type sizes": 223,
-  // 496 occurrences, measured 2026-08-13 after task 11 migrated 13
+  "arbitrary type sizes": 217,
+  // 480 occurrences, measured 2026-08-13 after task 12 migrated 16
+  // text-white/N, bg-white/N and border-white/N sites across the two header
+  // switches, bottom-nav.tsx and block-sheet.tsx.
+  // Was 496 occurrences, measured 2026-08-13 after task 11 migrated 13
   // text-white/N, bg-white/N and border-white/N sites across
   // fitness-tiles.tsx (the tile card, which moved to `bg-surface-overlay`,
   // and the label ink), pmc-chart.tsx (the calibrating message, the Stat
@@ -225,7 +234,7 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // fuelling tile that moved to `bg-surface-overlay`). 709 after task 4,
   // for the same reason task 4 didn't move it — 729 after task 2, 738 after
   // the whole-branch-review fixes, 749 right after slice 1, 806 at slice 0.
-  "ad-hoc white/black alpha utilities": 496,
+  "ad-hoc white/black alpha utilities": 480,
 };
 
 function expectRatchet(name: string, pattern: RegExp): void {

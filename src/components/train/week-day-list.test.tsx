@@ -218,7 +218,12 @@ describe("WeekDayList", () => {
       <WeekDayList
         days={CURRENT_WEEK_DAYS}
         today="2026-07-28"
-        nextWeek={{ days: NEXT_WEEK_DAYS, pinned: {}, targetHours: 13 }}
+        nextWeek={{
+          days: NEXT_WEEK_DAYS,
+          pinned: {},
+          targetHours: 13,
+          availabilityHref: "/train?availability=next",
+        }}
       />
     );
     expect(html).toContain("Next week");
@@ -250,6 +255,7 @@ describe("WeekDayList", () => {
           days: NEXT_WEEK_DAYS,
           pinned: { "2026-08-04": true },
           targetHours: 9,
+          availabilityHref: "/train?availability=next",
         }}
       />
     );
@@ -282,7 +288,12 @@ describe("WeekDayList", () => {
       <WeekDayList
         days={CURRENT_WEEK_DAYS}
         today="2026-07-28"
-        nextWeek={{ days: allRest, pinned: {}, targetHours: null }}
+        nextWeek={{
+          days: allRest,
+          pinned: {},
+          targetHours: null,
+          availabilityHref: "/train?availability=next",
+        }}
       />
     );
     expect(html).toContain("No availability set for next week");

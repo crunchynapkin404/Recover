@@ -52,7 +52,15 @@ export function FuellingCard({
                 </span>
               </div>
 
-              <div className="space-y-1.5 text-label text-ink-secondary">
+              {/* Task 12 (Part C, "also separately owed"): the Before/
+                  During/After labels and this body copy pre-migration were
+                  85% and 75% white respectively — a genuine
+                  label/detail pair, both collapsed onto text-ink-secondary
+                  in v0.49's token migration. Per-pair override applied: the
+                  quieter half (body copy) moves to ink-muted; the labels
+                  below keep their own explicit text-ink-secondary, which is
+                  what restores the two-tier hierarchy. */}
+              <div className="space-y-1.5 text-label text-ink-muted">
                 <p>
                   <span className="font-semibold text-ink-secondary">
                     Before:

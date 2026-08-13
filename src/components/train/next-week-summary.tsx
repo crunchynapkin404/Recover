@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { DaySlot } from "@/lib/week-plan/types";
 import { plannedMins } from "@/lib/week-plan/fill";
 
@@ -33,11 +34,20 @@ export function NextWeekSummary({
   days,
   pinned,
   targetHours,
+  availabilityHref,
   children,
 }: {
   days: DaySlot[];
   pinned: Record<string, boolean>;
   targetHours: number | null;
+  /**
+   * Where "Set next week's availability" goes. Required, not optional:
+   * page.tsx used to render this link in a prose note beside the list, and
+   * that note is gone — it repeated this component's own two figures. An
+   * optional prop would let a caller drop the link silently and leave the
+   * athlete with no way to reach next week's availability from here.
+   */
+  availabilityHref: string;
   children: React.ReactNode;
 }) {
   const sessions = days.filter((d) => d.workouts.length > 0).length;
@@ -73,6 +83,17 @@ export function NextWeekSummary({
         </summary>
         {children}
       </details>
+
+      {/* Outside the <details>, deliberately. A link inside <summary> toggles
+        the disclosure when clicked, and this has to stay reachable in both
+        states. It carries what the deleted prose note said that this
+        component does not: the forecast's caveat, and the way to act on it. */}
+      <p className="border-t border-hairline px-4 py-2.5 text-label text-ink-muted">
+        Assumes this week goes to plan. Firms up Monday.{" "}
+        <Link href={availabilityHref} className="text-accent underline">
+          Set next week&apos;s availability
+        </Link>
+      </p>
     </>
   );
 }

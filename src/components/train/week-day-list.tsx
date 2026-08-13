@@ -197,6 +197,8 @@ export function WeekDayList({
     pinned: Record<string, boolean>;
     /** Next week's target in hours, for the summary line; null when unknown. */
     targetHours: number | null;
+    /** Where the summary's availability link points. Required — see NextWeekSummary. */
+    availabilityHref: string;
   } | null;
   /**
    * What was actually trained, keyed by local Ymd. Read straight from the
@@ -245,6 +247,7 @@ export function WeekDayList({
             days={nextWeek.days}
             pinned={nextWeek.pinned}
             targetHours={nextWeek.targetHours}
+            availabilityHref={nextWeek.availabilityHref}
           >
             {nextWeek.days.map((d) => (
               <DayRow

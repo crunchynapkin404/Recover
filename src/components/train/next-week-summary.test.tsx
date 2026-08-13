@@ -51,7 +51,12 @@ const DAYS: DaySlot[] = [
 describe("NextWeekSummary", () => {
   it("summarises the week in counts the page already computes", () => {
     const html = renderToString(
-      <NextWeekSummary days={DAYS} pinned={{}} targetHours={9}>
+      <NextWeekSummary
+        days={DAYS}
+        pinned={{}}
+        targetHours={9}
+        availabilityHref="/train?availability=next"
+      >
         <div data-testid="day-rows">seven rows</div>
       </NextWeekSummary>
     );
@@ -64,7 +69,12 @@ describe("NextWeekSummary", () => {
 
   it("keeps the day rows in the DOM but behind a closed disclosure", () => {
     const html = renderToString(
-      <NextWeekSummary days={DAYS} pinned={{}} targetHours={9}>
+      <NextWeekSummary
+        days={DAYS}
+        pinned={{}}
+        targetHours={9}
+        availabilityHref="/train?availability=next"
+      >
         <div data-testid="day-rows">seven rows</div>
       </NextWeekSummary>
     );
@@ -87,6 +97,7 @@ describe("NextWeekSummary", () => {
           days={DAYS}
           pinned={{}}
           targetHours={t as number | null}
+          availabilityHref="/train?availability=next"
         >
           <div />
         </NextWeekSummary>
@@ -101,12 +112,22 @@ describe("NextWeekSummary", () => {
   it("marks the week provisional unless every day is pinned", () => {
     const allPinned = Object.fromEntries(DAYS.map((d) => [d.date, true]));
     const loose = renderToString(
-      <NextWeekSummary days={DAYS} pinned={{}} targetHours={9}>
+      <NextWeekSummary
+        days={DAYS}
+        pinned={{}}
+        targetHours={9}
+        availabilityHref="/train?availability=next"
+      >
         <div />
       </NextWeekSummary>
     );
     const pinned = renderToString(
-      <NextWeekSummary days={DAYS} pinned={allPinned} targetHours={9}>
+      <NextWeekSummary
+        days={DAYS}
+        pinned={allPinned}
+        targetHours={9}
+        availabilityHref="/train?availability=next"
+      >
         <div />
       </NextWeekSummary>
     );
@@ -116,7 +137,12 @@ describe("NextWeekSummary", () => {
 
   it("has no type below the 12px floor and no ad-hoc white alphas", () => {
     const html = renderToString(
-      <NextWeekSummary days={DAYS} pinned={{}} targetHours={9}>
+      <NextWeekSummary
+        days={DAYS}
+        pinned={{}}
+        targetHours={9}
+        availabilityHref="/train?availability=next"
+      >
         <div />
       </NextWeekSummary>
     );

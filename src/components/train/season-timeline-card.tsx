@@ -144,12 +144,19 @@ export function SeasonTimelineCard({ data }: { data: SeasonTimelinePoint[] }) {
 
       {/* One always-legible readout replaces 24 always-on micro-labels. It
         names the latest week — the one the athlete opened this tab for.
-        Every other week keeps the per-bar `title` it already had. */}
+        Every other week keeps the per-bar `title` it already had.
+
+        It names the week and its session count and stops there. Target and
+        actual are NOT repeated here: the "Latest target" / "Latest actual"
+        tiles above render the same two figures a few inches up, and this
+        page has an explicit standing rule against showing one value twice.
+        The tiles won that call because they also carry season adherence,
+        which this line does not and could not without inventing a figure. */}
       <p className="mt-3 text-caption text-ink-secondary">
         <span className="font-bold text-ink-primary">
           {weekLabel(latest.weekStart)}
         </span>
-        {` — target ${latest.targetLoad != null ? formatChartValue(latest.targetLoad) : "unknown"}, actual ${formatChartValue(latest.actualLoad)} · ${latest.sessions} session${latest.sessions === 1 ? "" : "s"}`}
+        {` · ${latest.sessions} session${latest.sessions === 1 ? "" : "s"}`}
       </p>
 
       <p className="mt-3 text-label text-ink-muted">

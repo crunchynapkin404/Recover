@@ -122,6 +122,21 @@ export function BlockSheet({
 
   return (
     <div className="fixed inset-0 z-[60] flex items-end justify-center">
+      {/* Deliberately NOT tokenized (Task 12, whole-branch review 2026-08-12
+          I5's Part B). This is a modal scrim dimming whatever sits behind
+          the sheet — not text (no `ink-*` role applies) and not a surface
+          this component owns (no `surface-*` role applies either; it has
+          to composite over arbitrary page content, not sit as an opaque
+          ground the way `--surface-*` does). There is no scrim token in
+          the vocabulary, and inventing one for a single call site would be
+          worse than the one raw utility it replaces. The black-alpha scrim
+          on the next line stays, on purpose — it is the ONE site excluded
+          from this surface's zero-offender claim, and the only match the
+          sweep's grep should return. Not a miss.
+
+          (Written without quoting the utility itself: the offender ratchet
+          scans source lines, so a comment naming the pattern would count
+          as an occurrence and make the zero claim un-literal.) */}
       <button
         type="button"
         aria-label="Close"

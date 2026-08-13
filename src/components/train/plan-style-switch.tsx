@@ -5,6 +5,11 @@ const LABEL: Record<PlanStyle, string> = {
   block_lite: "Block-lite",
 };
 
+/**
+ * Same segmented-control shape and chip-trap reasoning as
+ * SeasonModeSwitch (its neighbour in TrainHeader's `controls` row) — see
+ * that file's header comment.
+ */
 export function PlanStyleSwitch({
   effectiveStyle,
   action,
@@ -13,8 +18,8 @@ export function PlanStyleSwitch({
   action: (formData: FormData) => void | Promise<void>;
 }) {
   return (
-    <div className="flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] p-1">
-      <span className="px-2 text-[10px] font-semibold text-white/60">
+    <div className="flex items-center gap-1 rounded-full border border-hairline bg-surface-raised p-1">
+      <span className="px-2 text-label font-semibold text-ink-secondary">
         Style
       </span>
       {(["balanced", "block_lite"] as const).map((style) => {
@@ -26,10 +31,10 @@ export function PlanStyleSwitch({
               type="submit"
               aria-pressed={active}
               disabled={active}
-              className={`rounded-full px-2.5 py-1 text-[10px] font-bold transition-colors ${
+              className={`rounded-full px-2.5 py-1 text-label font-bold transition-colors ${
                 active
-                  ? "bg-white/[0.16] text-white"
-                  : "text-white/70 hover:bg-white/[0.08] hover:text-white"
+                  ? "bg-surface-overlay text-ink-primary"
+                  : "text-ink-muted hover:text-ink-secondary"
               }`}
             >
               {LABEL[style]}

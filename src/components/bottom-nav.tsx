@@ -23,7 +23,7 @@ export function BottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="glass-no-hover fixed bottom-8 left-1/2 z-50 flex w-[calc(100%-48px)] max-w-sm -translate-x-1/2 items-center justify-between rounded-[2.5rem] border border-white/10 bg-neutral-950 px-4 py-3 shadow-2xl backdrop-blur-2xl lg:hidden">
+    <nav className="glass-no-hover fixed bottom-8 left-1/2 z-50 flex w-[calc(100%-48px)] max-w-sm -translate-x-1/2 items-center justify-between rounded-[2.5rem] border border-hairline bg-surface-base px-4 py-3 shadow-2xl backdrop-blur-2xl lg:hidden">
       {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
         const active =
           href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -33,7 +33,9 @@ export function BottomNav() {
             href={href}
             aria-current={active ? "page" : undefined}
             className={`relative flex flex-col items-center gap-1 px-2 transition-all active:scale-90 ${
-              active ? "text-white" : "text-white/50 hover:text-white"
+              active
+                ? "text-ink-primary"
+                : "text-ink-muted hover:text-ink-primary"
             }`}
           >
             <Icon className="size-6" strokeWidth={1.5} />

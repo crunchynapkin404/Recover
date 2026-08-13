@@ -12,7 +12,7 @@ export function PlanEmpty() {
       />
       <Link
         href="/coach"
-        className="block text-center text-sm font-bold text-emerald-400"
+        className="block text-center text-caption font-bold text-accent"
       >
         Talk to the coach
       </Link>

@@ -35,7 +35,7 @@ import { SeasonTimelineCard } from "@/components/train/season-timeline-card";
 import { FuellingCard } from "@/components/train/fuelling-card";
 import { PlanStyleSwitch } from "@/components/train/plan-style-switch";
 import { SeasonModeSwitch } from "@/components/train/season-mode-switch";
-import { WeekRationale, fmt, article } from "@/components/week/week-rationale";
+import { WeekRationale } from "@/components/week/week-rationale";
 import { EventReadiness } from "@/components/train/event-readiness";
 import {
   HistoryList,
@@ -574,26 +574,21 @@ async function WeekTab({
       });
     }
   }
+  // Same link the deleted next-week prose note used to carry (Task 12,
+  // Part D dedupe) — computed once here and threaded into the summary
+  // below, so the "planned vs target" figures and the one action that
+  // follows from them live in one place instead of two.
+  const nextWeekAvailabilityHref = href({ availability: "next" });
   const nextWeekPreview = projected
     ? {
         days: projected.days,
         pinned: projected.pinned,
         // `VolumeResult.hours` is a plain number, so this needs no fallback:
         // inside this branch `projected` is non-null and the figure is real.
-        // Deliberately NOT `nextWeekTargetHours` below, which is
-        // `projected?.target.hours ?? 0` — that 0 is right for the prose
-        // note beneath the list and wrong here, because "of 0h target"
-        // reads as a claim about the plan rather than as a missing value.
         targetHours: projected.target.hours,
+        availabilityHref: nextWeekAvailabilityHref,
       }
     : null;
-  // Same-shape figures as WeekRationale's "planned against target" line
-  // (src/components/week/week-rationale.tsx), derived here because the
-  // projected week has no rationale panel of its own (v0.29.0 kept those
-  // panels weekly). Guarded independently of `nextWeekPreview` so a future
-  // change to that derivation can't leave these reading `NaN`.
-  const nextWeekPlannedHours = projected ? plannedMins(projected.days) / 60 : 0;
-  const nextWeekTargetHours = projected?.target.hours ?? 0;
 
   // Availability intake. This week's half only applies while the week
   // hasn't started completing — this week's availability is frozen once
@@ -801,21 +796,6 @@ async function WeekTab({
               workouts={todaySlot.workouts}
               bodyMassKg={bodyMassKg}
             />
-          )}
-
-          {nextWeekPreview && (
-            <p className="-mt-3 mb-5 px-1 text-label text-ink-muted">
-              {`${fmt(nextWeekPlannedHours)} planned against ${article(
-                nextWeekTargetHours
-              )} ${fmt(nextWeekTargetHours)} target. `}
-              Assumes this week goes to plan. Firms up Monday.{" "}
-              <Link
-                href={href({ availability: "next" })}
-                className="underline text-accent"
-              >
-                Set next week&apos;s availability
-              </Link>
-            </p>
           )}
 
           {rationale && (
@@ -1052,10 +1032,16 @@ async function WeekTab({
                           <td className="px-4 py-2 font-numeric text-label text-ink-secondary">
                             {b.weekNumber}
                           </td>
-                          <td className="px-4 py-2 text-label capitalize text-ink-secondary">
+                          {/* Task 12 per-pair override: pre-migration the
+                              week-number cell (above) was 80% white and
+                              phase/target were 60% — a genuine
+                              alpha pair that flattened onto one token in
+                              Task 6. Phase and target move to ink-muted;
+                              the week number keeps ink-secondary. */}
+                          <td className="px-4 py-2 text-label capitalize text-ink-muted">
                             {b.phase}
                           </td>
-                          <td className="px-4 py-2 text-right font-numeric text-label text-ink-secondary">
+                          <td className="px-4 py-2 text-right font-numeric text-label text-ink-muted">
                             {targetLoad != null ? Math.round(targetLoad) : "—"}
                           </td>
                         </tr>
