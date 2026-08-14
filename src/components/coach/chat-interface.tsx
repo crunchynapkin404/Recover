@@ -449,14 +449,31 @@ export function ChatInterface({
         </div>
 
         {ghost && !activeThreadId && (
-          <p className="mt-2 text-center text-label font-bold uppercase tracking-widest text-ghost-ink">
+          // tracking-wide, not -widest: at the 12px text-label floor (Task 6
+          // lifted this off a sub-floor text-[9px]) the wider tracking pushed
+          // this string past 390px, the capture pipeline's real phone
+          // viewport (VIEWPORTS.phone in verify-surfaces.ts), wrapping to a
+          // second line. Confirmed one line at 390px by measurement
+          // (getClientRects() on the text node: 1 rect, 364px wide) — this
+          // state isn't reachable through the checked-in capture pipeline
+          // (client-only React state behind no URL param), so it was
+          // verified with a throwaway script instead. Copy is unchanged:
+          // still says it's a ghost chat and that it disappears in 24h.
+          <p className="mt-2 text-center text-label font-bold uppercase tracking-wide text-ghost-ink">
             Ghost chat — deletes in 24 h, no memories saved
           </p>
         )}
       </header>
 
       {/* ── Messages ────────────────────────────────────────────────── */}
-      <main ref={scrollRef} className="hide-scrollbar flex-1 overflow-y-auto">
+      {/* tabIndex so the scrollable transcript is keyboard-reachable (axe
+          scrollable-region-focusable) — its children are message text, not
+          controls, so nothing inside it is focusable on its own. */}
+      <main
+        ref={scrollRef}
+        tabIndex={0}
+        className="hide-scrollbar flex-1 overflow-y-auto"
+      >
         <div className="mx-auto w-full max-w-3xl px-5 pb-4 pt-2">
           {messages.length === 0 && (
             <div className="flex flex-col items-center gap-5 pt-[8vh] text-center">
@@ -572,7 +589,17 @@ export function ChatInterface({
                 aria-pressed={mode === m}
                 className={`rounded-full px-2.5 py-1.5 text-label font-bold uppercase tracking-wider transition-colors ${
                   mode === m
-                    ? "bg-accent/20 text-accent"
+                    ? // A translucent bg-accent/20 tint under solid text-accent
+                      // measured 4.1:1 here (desktop only — the label text is
+                      // hidden lg:inline, so phone never renders it): the same
+                      // own-hue-at-low-opacity trap Task 5 fixed for the inbox
+                      // kind tiles, just below the AA floor instead of well
+                      // under it. Solid fill + accent-foreground is the
+                      // established idiom for accent CTAs elsewhere in this
+                      // file (the send button, the configure-AI-coach button)
+                      // and clears 4.5:1 with real margin in both themes
+                      // (5.48:1 light, 8.28:1 dark) rather than riding the edge.
+                      "bg-accent text-accent-foreground"
                     : "text-ink-muted"
                 }`}
               >
