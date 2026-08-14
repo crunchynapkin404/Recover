@@ -961,24 +961,51 @@ async function resolveCoachThreadPath(page: Page): Promise<string> {
   // PROVE it, don't trust DOM order: navigate to the resolved thread and
   // check the real rendered page for both bubble classes before handing the
   // href back to main() for capture.
+  //
+  // `networkidle` below only proves the network went quiet — it tracks
+  // connections, not React hydration/commit timing. The message list is NOT
+  // server-rendered: chat-interface.tsx fetches it client-side
+  // (fetchThreadMessages) from a mount-only useEffect that reads the
+  // deep-link thread id from props
+  // (src/components/coach/chat-interface.tsx:209-239). That fetch can
+  // legitimately still be in flight, or its response still uncommitted to
+  // the DOM, at the instant `networkidle` resolves — so an immediate
+  // `.count()` right after goto() would be a race, not a real assertion.
+  // Wait (bounded, not a fixed sleep, not an unbounded one either) for at
+  // least one bubble of each class to attach before reading counts.
   await page.goto(`${BASE_URL}${href}`, {
     waitUntil: "networkidle",
     timeout: 20_000,
   });
+  await Promise.allSettled([
+    page
+      .locator(".chat-bubble-user")
+      .first()
+      .waitFor({ state: "attached", timeout: 10_000 }),
+    page
+      .locator(".chat-bubble-ai")
+      .first()
+      .waitFor({ state: "attached", timeout: 10_000 }),
+  ]);
   const [userBubbles, aiBubbles] = await Promise.all([
     page.locator(".chat-bubble-user").count(),
     page.locator(".chat-bubble-ai").count(),
   ]);
   if (userBubbles === 0 || aiBubbles === 0) {
     throw new Error(
-      `resolved coach thread ${href} is not multi-turn: found ` +
+      `resolved coach thread ${href} is not multi-turn: waited up to 10s ` +
+        "for both bubble classes to attach (chat-interface.tsx fetches " +
+        "messages client-side after mount, so they are not guaranteed to " +
+        "exist at first paint) and still found only " +
         `${userBubbles} .chat-bubble-user and ${aiBubbles} .chat-bubble-ai ` +
-        "node(s) on its rendered page. The coach-thread surface exists to " +
-        "capture a real conversation — a user bubble AND an assistant " +
-        "bubble, plus the message-list chrome around them — not a single " +
-        "message. `.first()` over data-chat-thread links picks whichever " +
-        "chat thread sorts first by updatedAt, which is not by itself proof " +
-        "it is the multi-turn seeded conversation (a stray one-message dev " +
+        "node(s) on its rendered page — either a genuine render stall past " +
+        "10s, or (far more likely) this thread really only has one " +
+        "message. The coach-thread surface exists to capture a real " +
+        "conversation — a user bubble AND an assistant bubble, plus the " +
+        "message-list chrome around them — not a single message. " +
+        "`.first()` over data-chat-thread links picks whichever chat " +
+        "thread sorts first by updatedAt, which is not by itself proof it " +
+        "is the multi-turn seeded conversation (a stray one-message dev " +
         "thread can and has outranked it). Capturing this thread anyway " +
         "would silently reduce the coach-thread surface to a single bubble " +
         "while the run still exits as though the surface were fully " +
