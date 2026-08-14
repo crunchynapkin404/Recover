@@ -470,7 +470,7 @@ export function ChatInterface({
                   <button
                     key={s}
                     onClick={() => sendText(s)}
-                    className="glass rounded-2xl border-white/8 px-4 py-3 text-[12.5px] font-medium text-white/70"
+                    className="glass rounded-2xl border-white/8 px-4 py-3 text-caption font-medium text-ink-secondary"
                   >
                     {s}
                   </button>
@@ -507,7 +507,7 @@ export function ChatInterface({
               >
                 {text && (
                   <div
-                    className={`rounded-2xl p-4 text-sm leading-relaxed text-white/90 ${
+                    className={`rounded-2xl p-4 text-body leading-relaxed text-ink-primary ${
                       isUser ? "chat-bubble-user" : "chat-bubble-ai"
                     }`}
                   >
@@ -528,12 +528,6 @@ export function ChatInterface({
                     />
                   );
                 })}
-                <span className="mt-2 text-[9px] font-bold uppercase text-white/50">
-                  {new Date().toLocaleTimeString([], {
-                    hour: "numeric",
-                    minute: "2-digit",
-                  })}
-                </span>
               </div>
             );
           })}
@@ -541,16 +535,16 @@ export function ChatInterface({
             <div className="mb-6 flex max-w-[85%] flex-col items-start">
               <div className="chat-bubble-ai rounded-2xl p-4 text-sm">
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
-                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400 [animation-delay:0.2s]" />
-                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400 [animation-delay:0.4s]" />
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent" />
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent [animation-delay:0.2s]" />
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent [animation-delay:0.4s]" />
                 </span>
               </div>
             </div>
           )}
           {chatError && (
             <div className="mb-6 flex max-w-[85%] flex-col items-start">
-              <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-400">
+              <div className="rounded-2xl border border-kind-warning-ink bg-kind-warning-tint p-4 text-sm text-kind-warning-ink">
                 Coach error:{" "}
                 {chatError.message || "Connection failed. Check LLM settings."}
               </div>
