@@ -19,7 +19,7 @@ confirmed** in both themes at both viewports.
 
 Getting there took three attempts, and the first two are the interesting part.
 The obvious selector — the first link matching `/coach?thread=` — resolves an
-*inbox* item, because those render above the athlete's own chats; that captured
+_inbox_ item, because those render above the athlete's own chats; that captured
 a single assistant bubble instead of a conversation, and marked the seed's one
 deliberately-unread item read as a side effect. Scoping to the chat section then
 still picked a stray one-message thread, because rows sort by `updatedAt`. The
@@ -38,7 +38,7 @@ five kinds, which needs two `morning` threads, since `warning` is not a thread
 kind but a `morning` thread carrying `toolCalls.warning`.
 
 **The per-message timestamp was never a timestamp.** It called `new Date()`
-inside `messages.map`, so it rendered the *current* time for every message —
+inside `messages.map`, so it rendered the _current_ time for every message —
 and because that map re-runs on every streamed token, even a just-sent message
 had its clock bumped on every render tick. `fetchThreadMessages` discards
 `createdAt`, so no correct value exists client-side. The 12px floor forced the
@@ -54,7 +54,7 @@ verifying at that width.
 
 **One defect was found only by reviewing the whole branch at once.** The active
 row in the History list had become invisible: `--surface-overlay` was the ground
-of the sheet, of the desktop dropdown, *and* of the selected row inside them, so
+of the sheet, of the desktop dropdown, _and_ of the selected row inside them, so
 the row painted `#1f1f1f` on `#1f1f1f`. For inbox rows that was the only
 resting-state differentiator, so "you are here" was lost outright. Three tasks
 each chose that token correctly in isolation and together they cancelled. No

@@ -952,7 +952,7 @@ async function resolveCoachThreadPath(page: Page): Promise<string> {
       "no a[data-chat-thread] link on /coach?history=1 — the seeded CHAT " +
         "thread ('Should I go hard today?') is missing. Run " +
         "scripts/seed-demo.ts against the dev DB (5435) first. Refusing to " +
-        "fall back to a[href^=\"/coach?thread=\"]: that would silently " +
+        'fall back to a[href^="/coach?thread="]: that would silently ' +
         "capture an inbox thread instead of the seeded chat thread, which " +
         "is the exact bug this resolver exists to avoid."
     );

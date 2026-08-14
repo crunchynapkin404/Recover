@@ -359,7 +359,9 @@ export function ChatInterface({
                   aria-pressed={ghost}
                   aria-label="Ghost chat — deletes after 24 hours"
                   className={`glass flex h-10 w-10 items-center justify-center rounded-full transition-transform active:scale-95 ${
-                    ghost ? "bg-ghost-tint text-ghost-ink" : "text-ink-secondary"
+                    ghost
+                      ? "bg-ghost-tint text-ghost-ink"
+                      : "text-ink-secondary"
                   }`}
                 >
                   <Ghost className="size-[18px]" />
@@ -372,9 +374,7 @@ export function ChatInterface({
               >
                 <History className="size-3.5" aria-hidden />
                 History
-                {unread > 0 && (
-                  <span className="text-accent">· {unread}</span>
-                )}
+                {unread > 0 && <span className="text-accent">· {unread}</span>}
               </Link>
               <button
                 onClick={startNewChat}
@@ -431,7 +431,9 @@ export function ChatInterface({
                   aria-pressed={ghost}
                   aria-label="Ghost chat — deletes after 24 hours"
                   className={`glass flex h-[38px] w-[38px] items-center justify-center rounded-full transition-transform active:scale-95 ${
-                    ghost ? "bg-ghost-tint text-ghost-ink" : "text-ink-secondary"
+                    ghost
+                      ? "bg-ghost-tint text-ghost-ink"
+                      : "text-ink-secondary"
                   }`}
                 >
                   <Ghost className="size-4" />

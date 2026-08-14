@@ -16,10 +16,18 @@ describe("HistoryPanel", () => {
   });
 
   it("renders a tile for every InboxKind", () => {
-    const kinds = ["morning", "debrief", "weekly", "warning", "monthly"] as const;
+    const kinds = [
+      "morning",
+      "debrief",
+      "weekly",
+      "warning",
+      "monthly",
+    ] as const;
     const html = renderToString(
       <HistoryPanel
-        inboxItems={kinds.map((k, i) => item({ id: `m${i}`, threadId: `th${i}`, kind: k }))}
+        inboxItems={kinds.map((k, i) =>
+          item({ id: `m${i}`, threadId: `th${i}`, kind: k })
+        )}
         threads={[]}
         activeThreadId={null}
         unread={0}
@@ -35,10 +43,20 @@ describe("HistoryPanel", () => {
 
   it("shows the unread dot only for unread items", () => {
     const read = renderToString(
-      <HistoryPanel inboxItems={[item({ unread: false })]} threads={[]} activeThreadId={null} unread={0} />
+      <HistoryPanel
+        inboxItems={[item({ unread: false })]}
+        threads={[]}
+        activeThreadId={null}
+        unread={0}
+      />
     );
     const unread = renderToString(
-      <HistoryPanel inboxItems={[item({ unread: true })]} threads={[]} activeThreadId={null} unread={1} />
+      <HistoryPanel
+        inboxItems={[item({ unread: true })]}
+        threads={[]}
+        activeThreadId={null}
+        unread={1}
+      />
     );
     // Sanity: both rendered the item at all.
     expect(read).toContain("Morning brief");
@@ -49,7 +67,12 @@ describe("HistoryPanel", () => {
 
   it("renders both empty states when there is nothing at all", () => {
     const html = renderToString(
-      <HistoryPanel inboxItems={[]} threads={[]} activeThreadId={null} unread={0} />
+      <HistoryPanel
+        inboxItems={[]}
+        threads={[]}
+        activeThreadId={null}
+        unread={0}
+      />
     );
     // Assert BOTH — one assertion passes vacuously if the other branch
     // silently disappeared.
@@ -62,8 +85,18 @@ describe("HistoryPanel", () => {
       <HistoryPanel
         inboxItems={[]}
         threads={[
-          { id: "c1", title: "Ordinary chat", updatedAt: new Date().toISOString(), ephemeral: false },
-          { id: "g1", title: "Ghost chat", updatedAt: new Date().toISOString(), ephemeral: true },
+          {
+            id: "c1",
+            title: "Ordinary chat",
+            updatedAt: new Date().toISOString(),
+            ephemeral: false,
+          },
+          {
+            id: "g1",
+            title: "Ghost chat",
+            updatedAt: new Date().toISOString(),
+            ephemeral: true,
+          },
         ]}
         activeThreadId={null}
         unread={0}
@@ -83,16 +116,33 @@ describe("HistoryPanel", () => {
     // Only the ephemeral one carries the ghost ink token.
     expect(ghostRow).toContain("text-ghost-ink");
     expect(ordinaryRow).not.toContain("text-ghost-ink");
-    expect(html.indexOf("Ordinary chat")).toBeLessThan(html.indexOf("Ghost chat"));
+    expect(html.indexOf("Ordinary chat")).toBeLessThan(
+      html.indexOf("Ghost chat")
+    );
   });
 
   it("marks the active thread", () => {
     const threads = [
-      { id: "c1", title: "First", updatedAt: new Date().toISOString(), ephemeral: false },
-      { id: "c2", title: "Second", updatedAt: new Date().toISOString(), ephemeral: false },
+      {
+        id: "c1",
+        title: "First",
+        updatedAt: new Date().toISOString(),
+        ephemeral: false,
+      },
+      {
+        id: "c2",
+        title: "Second",
+        updatedAt: new Date().toISOString(),
+        ephemeral: false,
+      },
     ];
     const html = renderToString(
-      <HistoryPanel inboxItems={[]} threads={threads} activeThreadId="c2" unread={0} />
+      <HistoryPanel
+        inboxItems={[]}
+        threads={threads}
+        activeThreadId="c2"
+        unread={0}
+      />
     );
     expect(html).toContain("First");
     expect(html).toContain("Second");

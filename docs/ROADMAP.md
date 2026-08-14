@@ -423,7 +423,7 @@ so" — is currently spoken in six dialects: `—` (47 uses), `calibrating` (39)
       **Carried out of slice 4, for later slices:** the desktop History
       dropdown is click-only and still uncaptured (`coach-history` at desktop
       is byte-identical to `coach`, since `HistorySheet` is `lg:hidden`); the
-      unconfigured-coach card needs an *absent* `llm_settings` row and so
+      unconfigured-coach card needs an _absent_ `llm_settings` row and so
       cannot share a capture run; and slice 4's active-row fix
       (`--surface-selected`) is proven at the markup and token level but not
       visually, because the capture loads `/coach?history=1` with no

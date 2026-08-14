@@ -47,7 +47,7 @@ message-list chrome around them. It took three attempts to actually do that:
    reads the real rendered DOM for `.chat-bubble-user` and `.chat-bubble-ai`
    (see `chat-interface.tsx`), throwing rather than proceeding if either is
    absent. This is what actually caught attempt 2's bug: DOM order picked a
-   thread that *looked* plausible (a real `kind: "chat"` row, correctly
+   thread that _looked_ plausible (a real `kind: "chat"` row, correctly
    excluding inbox items) but wasn't multi-turn, and only checking the
    rendered bubbles — not just the resolved href — would have caught it. The
    captures below are from this corrected run.
@@ -57,20 +57,20 @@ message-list chrome around them. It took three attempts to actually do that:
 `coach`, `coach-history`, `coach-thread` × {light, dark} × {phone, desktop} —
 all 12 appear in `axe-report.json`, none skipped, none errored.
 
-| surface       | theme | viewport | confirmed nodes (rule)                                  | indeterminate nodes (rule) |
-|---------------|-------|----------|-----------------------------------------------------------|------------------------------|
-| coach         | light | phone    | 5 (color-contrast ×2)                                      | 3 (color-contrast)           |
-| coach-history | light | phone    | 14 (color-contrast ×2)                                     | 6 (color-contrast)           |
-| coach-thread  | light | phone    | 7 (color-contrast, scrollable-region-focusable, color-contrast) | 6 (color-contrast)      |
-| coach         | dark  | phone    | 0                                                           | 8 (color-contrast)           |
-| coach-history | dark  | phone    | 8 (color-contrast)                                          | 11 (color-contrast)          |
-| coach-thread  | dark  | phone    | 1 (scrollable-region-focusable)                             | 12 (color-contrast)          |
-| coach         | light | desktop  | 4 (color-contrast ×2)                                       | 3 (color-contrast)           |
-| coach-history | light | desktop  | 4 (color-contrast ×2)                                       | 3 (color-contrast)           |
-| coach-thread  | light | desktop  | 3 (color-contrast)                                          | 9 (color-contrast)           |
-| coach         | dark  | desktop  | 0                                                           | 9 (color-contrast)           |
-| coach-history | dark  | desktop  | 0                                                           | 9 (color-contrast)           |
-| coach-thread  | dark  | desktop  | 0                                                           | 13 (color-contrast)          |
+| surface       | theme | viewport | confirmed nodes (rule)                                          | indeterminate nodes (rule) |
+| ------------- | ----- | -------- | --------------------------------------------------------------- | -------------------------- |
+| coach         | light | phone    | 5 (color-contrast ×2)                                           | 3 (color-contrast)         |
+| coach-history | light | phone    | 14 (color-contrast ×2)                                          | 6 (color-contrast)         |
+| coach-thread  | light | phone    | 7 (color-contrast, scrollable-region-focusable, color-contrast) | 6 (color-contrast)         |
+| coach         | dark  | phone    | 0                                                               | 8 (color-contrast)         |
+| coach-history | dark  | phone    | 8 (color-contrast)                                              | 11 (color-contrast)        |
+| coach-thread  | dark  | phone    | 1 (scrollable-region-focusable)                                 | 12 (color-contrast)        |
+| coach         | light | desktop  | 4 (color-contrast ×2)                                           | 3 (color-contrast)         |
+| coach-history | light | desktop  | 4 (color-contrast ×2)                                           | 3 (color-contrast)         |
+| coach-thread  | light | desktop  | 3 (color-contrast)                                              | 9 (color-contrast)         |
+| coach         | dark  | desktop  | 0                                                               | 9 (color-contrast)         |
+| coach-history | dark  | desktop  | 0                                                               | 9 (color-contrast)         |
+| coach-thread  | dark  | desktop  | 0                                                               | 13 (color-contrast)        |
 
 Coach subtotal: 46 confirmed nodes, 92 indeterminate nodes. Every confirmed
 and indeterminate rule fired is `color-contrast`, **except** `coach-thread`
@@ -83,6 +83,7 @@ multi-message conversation rather than the one-bubble page attempt 1 audited.
 ## What the PNGs showed (all four `coach-thread` PNGs opened with Read, by eye)
 
 ### `coach-thread` — now the seeded 4-message conversation, both bubble types confirmed
+
 All four captures (light/dark × phone/desktop) show the real seeded thread,
 header "Should I go hard today? · 1", with the actual 4-message exchange:
 user "I have threshold intervals planned. Should I go through with them?" →
@@ -110,12 +111,14 @@ like overall?" → assistant weekly-plan advice.
   phone capture project-wide, not Coach-specific.
 
 ### `coach` (empty state) — unchanged from attempt 1, not re-described in detail here
+
 Same defect as before: light theme's three quick-prompt pills render
 blank/white-on-white (axe: 5 nodes phone, 4 nodes desktop, two
 color-contrast rule rows each); dark theme renders correctly with only
 indeterminate findings.
 
 ### `coach-history` (`/coach?history=1`) — unchanged from attempt 1, not re-described in detail here
+
 Desktop remains pixel-identical to plain `coach` (the `HistorySheet` overlay
 is `lg:hidden`; desktop reads History from a header dropdown this baseline
 still does not reach). Phone shows the real panel; light/phone still carries
@@ -132,6 +135,7 @@ cluttered attempt 1 and 2's `coach-history` captures are gone.
 .screenshots/slice4-baseline/coach-history-{light,dark}-{phone,desktop}.png
 .screenshots/slice4-baseline/coach-thread-{light,dark}-{phone,desktop}.png
 ```
+
 All 12 present and opened (all four `coach-thread` PNGs opened and described
 by eye per this task; `coach`/`coach-history` carried forward from attempt
 1's already-verified observations, re-confirmed present in this run's axe
@@ -139,11 +143,11 @@ report).
 
 ## Corrected confirmed/indeterminate status, per surface
 
-| surface       | confirmed (this run) | indeterminate (this run) | status |
-|---------------|----------------------:|---------------------------:|--------|
-| coach         | 9 nodes (2 combos)     | 23 nodes (4 combos)         | Confirmed — light-theme quick-prompt pills invisible; dark clean of confirmed defects. |
-| coach-history | 26 nodes (3 combos)    | 29 nodes (4 combos)         | Confirmed — light-theme heading/search + shared pill bug; desktop still uncaptured (out of this task's scope). |
-| coach-thread  | 11 nodes (3 combos)    | 40 nodes (4 combos)         | Confirmed, and now against the RIGHT thread — both `.chat-bubble-user` and `.chat-bubble-ai` verified present and rendering in all 4 captures; light-theme assistant-bubble text is invisible, dark-theme is fully legible. |
+| surface       | confirmed (this run) | indeterminate (this run) | status                                                                                                                                                                                                                      |
+| ------------- | -------------------: | -----------------------: | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| coach         |   9 nodes (2 combos) |      23 nodes (4 combos) | Confirmed — light-theme quick-prompt pills invisible; dark clean of confirmed defects.                                                                                                                                      |
+| coach-history |  26 nodes (3 combos) |      29 nodes (4 combos) | Confirmed — light-theme heading/search + shared pill bug; desktop still uncaptured (out of this task's scope).                                                                                                              |
+| coach-thread  |  11 nodes (3 combos) |      40 nodes (4 combos) | Confirmed, and now against the RIGHT thread — both `.chat-bubble-user` and `.chat-bubble-ai` verified present and rendering in all 4 captures; light-theme assistant-bubble text is invisible, dark-theme is fully legible. |
 
 "Confirmed" here means: the resolver's own bubble-presence assertion passed
 for all four `coach-thread` captures (this is what makes the table above
@@ -183,7 +187,7 @@ history panel, the five inbox-kind colours, chat header/composer, the
 message list, artifact-card). This section records Task 11's job: re-run the
 capture, open every PNG, fix what only a PNG (not axe) can show, and check
 the one shared component this slice touched for a regression on surfaces
-that shipped in *earlier* slices.
+that shipped in _earlier_ slices.
 
 Command (dev server on `localhost:3100`, dev DB port 5435, same demo
 athlete): `SCREENSHOT_BASE_URL=http://localhost:3100
@@ -197,19 +201,19 @@ task's changes touched them).
 ### Confirmed-node count: 46 → 0, all 12 entries
 
 | surface       | theme | viewport | confirmed (baseline) | confirmed (this pass) | indeterminate (this pass) |
-|---------------|-------|----------|----------------------:|------------------------:|-----------------------------:|
-| coach         | light | phone    | 5                      | **0**                   | 2 (color-contrast)            |
-| coach-history | light | phone    | 14                     | **0**                   | 5 (color-contrast)            |
-| coach-thread  | light | phone    | 7                      | **0**                   | 1 (color-contrast)            |
-| coach         | dark  | phone    | 0                      | **0**                   | 7 (color-contrast)            |
-| coach-history | dark  | phone    | 8                      | **0**                   | 10 (color-contrast)           |
-| coach-thread  | dark  | phone    | 1                      | **0**                   | 7 (color-contrast)            |
-| coach         | light | desktop  | 4                      | **0**                   | 0                              |
-| coach-history | light | desktop  | 4                      | **0**                   | 0                              |
-| coach-thread  | light | desktop  | 3                      | **0**                   | 1 (color-contrast)            |
-| coach         | dark  | desktop  | 0                      | **0**                   | 6 (color-contrast)            |
-| coach-history | dark  | desktop  | 0                      | **0**                   | 6 (color-contrast)            |
-| coach-thread  | dark  | desktop  | 0                      | **0**                   | 6 (color-contrast)            |
+| ------------- | ----- | -------- | -------------------: | --------------------: | ------------------------: |
+| coach         | light | phone    |                    5 |                 **0** |        2 (color-contrast) |
+| coach-history | light | phone    |                   14 |                 **0** |        5 (color-contrast) |
+| coach-thread  | light | phone    |                    7 |                 **0** |        1 (color-contrast) |
+| coach         | dark  | phone    |                    0 |                 **0** |        7 (color-contrast) |
+| coach-history | dark  | phone    |                    8 |                 **0** |       10 (color-contrast) |
+| coach-thread  | dark  | phone    |                    1 |                 **0** |        7 (color-contrast) |
+| coach         | light | desktop  |                    4 |                 **0** |                         0 |
+| coach-history | light | desktop  |                    4 |                 **0** |                         0 |
+| coach-thread  | light | desktop  |                    3 |                 **0** |        1 (color-contrast) |
+| coach         | dark  | desktop  |                    0 |                 **0** |        6 (color-contrast) |
+| coach-history | dark  | desktop  |                    0 |                 **0** |        6 (color-contrast) |
+| coach-thread  | dark  | desktop  |                    0 |                 **0** |        6 (color-contrast) |
 
 **Coach subtotal: 46 confirmed nodes → 0.** All remaining findings are
 `color-contrast` in axe's own indeterminate bucket (computed over the
@@ -258,7 +262,7 @@ were used for this pass and deleted afterward — none are committed.
 3. **Ghost banner wraps to two lines at the pipeline's real phone width
    (390px).** Task 6 shortened the copy from "Ghost chat — deletes in 24 h,
    coach won't save memories" to "Ghost chat — deletes in 24 h, no memories
-   saved" *and* lifted it off a sub-floor `text-[9px]` onto the 12px
+   saved" _and_ lifted it off a sub-floor `text-[9px]` onto the 12px
    `text-label` floor — intended as a one-line fix, but the floor's larger
    type re-broke the one-line goal the shorter copy was going for. Verified
    two ways: visually (a manual capture at 390px showed "…NO MEMORIES" /
@@ -311,7 +315,7 @@ were used for this pass and deleted afterward — none are committed.
    as intended, not too heavy.** Traced to Task 5's commit
    (`70e9e35`): the old tile used one raw hue at 12% for the fill and 30%
    for the border; now an ink/tint token pair per kind, with the border
-   using the *same* full-opacity ink as the glyph. Close-cropped both
+   using the _same_ full-opacity ink as the glyph. Close-cropped both
    themes: the border reads as a deliberate, proportionate frame in the same
    hue family as the fill and glyph (a "badge" look, not a harsh outline),
    and is doing real work — several of the pale light-theme fills (cream,
