@@ -207,7 +207,7 @@ export function HistoryPanel({
                 className={`flex items-center gap-1.5 rounded-xl px-2 py-2 transition-colors ${
                   t.id === activeThreadId
                     ? "bg-ghost-tint text-ghost-ink"
-                    : "text-ghost-ink hover:bg-white/[0.04]"
+                    : "text-ghost-ink hover:bg-surface-raised"
                 }`}
               >
                 <Ghost className="size-3 shrink-0" aria-hidden />
