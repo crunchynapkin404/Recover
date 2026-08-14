@@ -470,7 +470,7 @@ export function ChatInterface({
                   <button
                     key={s}
                     onClick={() => sendText(s)}
-                    className="glass rounded-2xl border-white/8 px-4 py-3 text-caption font-medium text-ink-secondary"
+                    className="glass rounded-2xl px-4 py-3 text-caption font-medium text-ink-secondary"
                   >
                     {s}
                   </button>
@@ -544,7 +544,7 @@ export function ChatInterface({
           )}
           {chatError && (
             <div className="mb-6 flex max-w-[85%] flex-col items-start">
-              <div className="rounded-2xl border border-kind-warning-ink bg-kind-warning-tint p-4 text-sm text-kind-warning-ink">
+              <div className="rounded-2xl border border-destructive-ink bg-destructive-tint p-4 text-sm text-destructive-ink">
                 Coach error:{" "}
                 {chatError.message || "Connection failed. Check LLM settings."}
               </div>
@@ -604,7 +604,7 @@ export function ChatInterface({
               }
               className={`mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors ${
                 dictation.dictating
-                  ? "bg-kind-warning-tint text-kind-warning-ink"
+                  ? "bg-destructive-tint text-destructive-ink"
                   : "bg-surface-raised text-ink-muted"
               }`}
             >

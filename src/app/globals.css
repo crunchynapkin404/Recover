@@ -68,6 +68,8 @@
   --color-kind-monthly-tint: var(--kind-monthly-tint);
   --color-ghost-ink: var(--ghost-ink);
   --color-ghost-tint: var(--ghost-tint);
+  --color-destructive-ink: var(--destructive-ink);
+  --color-destructive-tint: var(--destructive-tint);
 
   /* Type scale — 12px floor, seven steps. Phase 2b.4. Semantic names, not
      Tailwind v4's default --text-* keys (xs/sm/base/xl/3xl/…): those keys
@@ -165,6 +167,21 @@
   --muted-foreground: var(--ink-muted);
   --accent-foreground: #ffffff;
   --destructive: #b91c1c;
+  /* Semantic error ink/tint — for a tinted banner or icon button that needs
+     readable ink on its own background (connection-error banners, an
+     active-recording indicator), as distinct from `--destructive` itself,
+     which is a fill/text colour with no opaque tint pair (waived below;
+     shadcn's own `bg-destructive/10 text-destructive` idiom is a translucent
+     overlay, not an opaque ground a WCAG ratio can be measured against).
+     Deliberately its OWN token, not an alias to a `--kind-*` inbox-taxonomy
+     colour: those five name coach-inbox item KINDS (morning/debrief/weekly/
+     warning="Overtraining watch"/monthly), not error severity, and happen to
+     render the same red today only by coincidence. Values mirror
+     `--kind-warning-ink`/`-tint` exactly (same red-800/red-100 step already
+     proven to clear 4.5:1 by contrast-guard), so this reads identically today
+     while being free to diverge the moment either taxonomy needs to. */
+  --destructive-ink: #991b1b;
+  --destructive-tint: #fee2e2;
   --border: var(--hairline);
   --input: var(--hairline);
   --ring: var(--accent);
@@ -225,6 +242,12 @@
   --muted-foreground: var(--ink-muted);
   --accent-foreground: #000000;
   --destructive: #ef4444;
+  /* Same rationale as :root above — mirrors `--kind-warning-ink`/`-tint`'s
+     dark values (red-300 ink on red-950, proven 8.51:1) rather than
+     `--destructive` itself, whose ef4444 only clears 4.29:1 on a red-950
+     tint — below the 4.5:1 floor this pair exists to guarantee. */
+  --destructive-ink: #fca5a5;
+  --destructive-tint: #450a0a;
   --border: var(--hairline);
   --input: var(--hairline);
   --ring: var(--accent);

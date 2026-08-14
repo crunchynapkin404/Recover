@@ -150,6 +150,10 @@ const WAIVED: Record<string, string> = {
     "this kind's own tile ground; checked directly against --kind-monthly-ink below",
   "ghost-tint":
     "this kind's own tile ground; checked directly against --ghost-ink below",
+
+  // ── Semantic error ink/tint (chat error banner, dictation-active mic) ──
+  "destructive-tint":
+    "this token's own tile ground; checked directly against --destructive-ink below",
 };
 
 const css = readFileSync(CSS_PATH, "utf8");
@@ -294,11 +298,15 @@ describe("contrast guard", () => {
   describe("kind ink/tint pairs", () => {
     const pairs = inkTintPairs();
 
-    it("finds the six kind/ghost pairs Task 5 added", () => {
+    it("finds the seven kind/ghost/destructive pairs declared so far", () => {
       // Not a floor: this is the C1/I6 lesson (see the file header) applied
       // to a second list — if this count doesn't move when a pair is added
-      // or removed, the derivation above is checking nothing.
+      // or removed, the derivation above is checking nothing. `destructive-
+      // ink`/`-tint` (the chat error banner / dictation-active mic) joined
+      // the original six Task 5 pairs without anyone editing the derivation
+      // itself — only this expectation, which is the point.
       expect(pairs.map(([ink]) => ink).sort()).toEqual([
+        "destructive-ink",
         "ghost-ink",
         "kind-debrief-ink",
         "kind-monthly-ink",

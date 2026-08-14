@@ -68,6 +68,7 @@ it("derives its ink list from the stylesheet, not from a hand-written array", ()
   expect(TEXT_INKS).toEqual([
     "accent",
     "coach-ink",
+    "destructive-ink",
     "ghost-ink",
     "ink-muted",
     "ink-primary",
