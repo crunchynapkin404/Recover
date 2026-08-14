@@ -208,7 +208,16 @@ const SURFACES: Record<string, string> = {
   "train-history": "/train?tab=history",
   "train-season": "/train?tab=season",
   "train-fitness": "/train?tab=fitness",
+  // Coach is a multi-state surface behind one URL, and `/coach` alone renders
+  // `messages.length === 0` — the empty state. Until slice 4, every message
+  // bubble, the timestamp, ArtifactCard, the typing indicator and the error
+  // banner had never been captured or axe-audited, and neither had the
+  // History panel. Same gap slice 2 closed for Train's tabs and slice 3 for
+  // Body's; found the same way, by asking which state a PNG was actually of.
+  // The thread surface cannot be a literal — its id is a uuid — so it is
+  // resolved through the UI in main(); see resolveCoachThreadPath.
   coach: "/coach",
+  "coach-history": "/coach?history=1",
   // Body is FOUR tabs behind one path and `/body` alone captures only the
   // first (Trends). Sleep, Journal and Labs had never been captured or
   // axe-audited by this script before v0.99 slice 3 — the same gap slice 2
@@ -884,6 +893,133 @@ async function captureTokenCreated(
 }
 
 /**
+ * The seeded chat thread's id is a uuid, so `/coach?thread=…` cannot live in
+ * SURFACES as a literal. Read it off the History panel's own chat-thread
+ * link.
+ *
+ * DELIBERATELY NOT `a[href^="/coach?thread="]`: HistoryPanel renders TWO
+ * kinds of link with that identical href shape — coach-inbox items under
+ * "From your coach" (rendered FIRST in DOM order, with the one seeded unread
+ * item on top) and the athlete's own chat threads under "Chats". A plain
+ * href-prefix selector's `.first()` always lands on the inbox item, capturing
+ * a single assistant bubble instead of the multi-turn conversation this
+ * surface exists to exercise — and, as a side effect, calls markThreadRead
+ * on that inbox thread and permanently flips the seed's one deliberately
+ * unread item to read. `data-chat-thread` (history-panel.tsx) is a bare
+ * marker present ONLY on the `chats.map(...)` links, so this always resolves
+ * a real `kind: "chat"` thread.
+ *
+ * Throws rather than returning null: a missing thread link means the seeded
+ * CHAT thread is missing (run scripts/seed-demo.ts), and silently falling
+ * back to an inbox thread would restore exactly the blind spot this slice
+ * exists to close — this run refuses to silently capture an inbox thread
+ * instead.
+ *
+ * NOT TRUSTED ON DOM ORDER ALONE. `.first()` picks whichever `kind: "chat"`
+ * thread HistoryPanel happens to render first — ordered by updatedAt
+ * descending — which is a fine selector for "some real chat thread" but no
+ * guarantee it is a MULTI-TURN one. A dev DB can (and did: two single-message
+ * "How should I train today?" rows outranked the seeded four-message thread
+ * by updatedAt before they were deleted) hold stray one-message chat threads
+ * that sort ahead of the real conversation this surface exists to capture.
+ * capturing one of those would produce a coach-thread screenshot showing a
+ * single bubble — passing every check in this file while silently defeating
+ * the surface's entire purpose.
+ *
+ * This project's standing lesson (see file header, "axe baseline" section,
+ * and the whole-branch reviews referenced throughout this file) is that a
+ * run which emits files is not evidence — a script that writes a PNG and
+ * exits 0 has proven nothing about what is IN the PNG. So this function does
+ * not stop at resolving an href: it navigates to the resolved thread and
+ * reads the real rendered DOM for both bubble classes chat-interface.tsx
+ * emits (`.chat-bubble-user` for the athlete's turn, `.chat-bubble-ai` for
+ * the coach's reply — confirmed against that file, not assumed). Only a
+ * thread that actually rendered both is accepted; anything else throws
+ * rather than letting main() screenshot and audit a single bubble under the
+ * "coach-thread" name.
+ */
+async function resolveCoachThreadPath(page: Page): Promise<string> {
+  await page.goto(`${BASE_URL}/coach?history=1`, {
+    waitUntil: "networkidle",
+    timeout: 20_000,
+  });
+  const href = await page
+    .locator("a[data-chat-thread]")
+    .first()
+    .getAttribute("href", { timeout: 10_000 });
+  if (!href) {
+    throw new Error(
+      "no a[data-chat-thread] link on /coach?history=1 — the seeded CHAT " +
+        "thread ('Should I go hard today?') is missing. Run " +
+        "scripts/seed-demo.ts against the dev DB (5435) first. Refusing to " +
+        'fall back to a[href^="/coach?thread="]: that would silently ' +
+        "capture an inbox thread instead of the seeded chat thread, which " +
+        "is the exact bug this resolver exists to avoid."
+    );
+  }
+
+  // PROVE it, don't trust DOM order: navigate to the resolved thread and
+  // check the real rendered page for both bubble classes before handing the
+  // href back to main() for capture.
+  //
+  // `networkidle` below only proves the network went quiet — it tracks
+  // connections, not React hydration/commit timing. The message list is NOT
+  // server-rendered: chat-interface.tsx fetches it client-side
+  // (fetchThreadMessages) from a mount-only useEffect that reads the
+  // deep-link thread id from props
+  // (src/components/coach/chat-interface.tsx:209-239). That fetch can
+  // legitimately still be in flight, or its response still uncommitted to
+  // the DOM, at the instant `networkidle` resolves — so an immediate
+  // `.count()` right after goto() would be a race, not a real assertion.
+  // Wait (bounded, not a fixed sleep, not an unbounded one either) for at
+  // least one bubble of each class to attach before reading counts.
+  await page.goto(`${BASE_URL}${href}`, {
+    waitUntil: "networkidle",
+    timeout: 20_000,
+  });
+  await Promise.allSettled([
+    page
+      .locator(".chat-bubble-user")
+      .first()
+      .waitFor({ state: "attached", timeout: 10_000 }),
+    page
+      .locator(".chat-bubble-ai")
+      .first()
+      .waitFor({ state: "attached", timeout: 10_000 }),
+  ]);
+  const [userBubbles, aiBubbles] = await Promise.all([
+    page.locator(".chat-bubble-user").count(),
+    page.locator(".chat-bubble-ai").count(),
+  ]);
+  if (userBubbles === 0 || aiBubbles === 0) {
+    throw new Error(
+      `resolved coach thread ${href} is not multi-turn: waited up to 10s ` +
+        "for both bubble classes to attach (chat-interface.tsx fetches " +
+        "messages client-side after mount, so they are not guaranteed to " +
+        "exist at first paint) and still found only " +
+        `${userBubbles} .chat-bubble-user and ${aiBubbles} .chat-bubble-ai ` +
+        "node(s) on its rendered page — either a genuine render stall past " +
+        "10s, or (far more likely) this thread really only has one " +
+        "message. The coach-thread surface exists to capture a real " +
+        "conversation — a user bubble AND an assistant bubble, plus the " +
+        "message-list chrome around them — not a single message. " +
+        "`.first()` over data-chat-thread links picks whichever chat " +
+        "thread sorts first by updatedAt, which is not by itself proof it " +
+        "is the multi-turn seeded conversation (a stray one-message dev " +
+        "thread can and has outranked it). Capturing this thread anyway " +
+        "would silently reduce the coach-thread surface to a single bubble " +
+        "while the run still exits as though the surface were fully " +
+        "covered — exactly the kind of run-emits-files-but-proves-nothing " +
+        "result this project has been burned by before. Refusing to " +
+        "capture. Fix: delete stray single-message chat threads for this " +
+        "account, or re-run scripts/seed-demo.ts."
+    );
+  }
+
+  return href;
+}
+
+/**
  * Messages describing surfaces that WERE reached but then failed (task-7
  * review, Finding 2) — as opposed to leakedTokenLabels (cleanup-only
  * failures) or a skipped-but-acceptable "could not reach" — any entry here
@@ -927,6 +1063,37 @@ async function main() {
           vpName
         );
         total++;
+      }
+
+      // Resolved per context: the storage state is fresh each time and the
+      // href is cheap to re-read. A failure here is hard — see the resolver.
+      try {
+        const threadPath = await resolveCoachThreadPath(p);
+        await captureWithRetry(
+          p,
+          "coach-thread",
+          threadPath,
+          join(outDir, `coach-thread-${theme}-${vpName}.png`),
+          dark,
+          theme,
+          vpName
+        );
+        total++;
+      } catch (err) {
+        const message =
+          `coach-thread FAILED for ${theme}/${vpName}: ` +
+          `${err instanceof Error ? err.message : String(err)}`;
+        console.error(message);
+        hardFailures.push(message);
+        axeReport.push({
+          surface: "coach-thread",
+          theme,
+          viewport: vpName,
+          confirmed: [],
+          indeterminate: [],
+          error: err instanceof Error ? err.message : String(err),
+        });
+        writeReport();
       }
 
       // Reach and capture the api-tokens-card "token created" state, once

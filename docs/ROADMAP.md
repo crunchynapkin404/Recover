@@ -386,8 +386,9 @@ so" — is currently spoken in six dialects: `—` (47 uses), `calibrating` (39)
       confirmed-dead component; 2 sites investigated and excluded), and
       `docs/plans/2026-08-09-uncertainty-vocabulary-admin-misc.md` (no code
       change needed).
-- [ ] **2b.4 — Visual redesign. SLICES 0-3 OF 10 SHIPPED — v0.99.0,
-      v0.100.0 (both 2026-08-12), v0.101.0 and v0.102.0 (2026-08-13); the item
+- [ ] **2b.4 — Visual redesign. SLICES 0-4 OF 10 SHIPPED — v0.99.0,
+      v0.100.0 (both 2026-08-12), v0.101.0 and v0.102.0 (2026-08-13),
+      v0.103.0 (2026-08-14); the item
       stays open and closes at slice 9, not before.** v0.99.0 built the foundations only — two token sets
       with light and dark, a seven-step type scale on a hard 12px floor, a
       four-step ink ramp, four guards, and the headless capture/axe tooling the
@@ -404,10 +405,30 @@ so" — is currently spoken in six dialects: `—` (47 uses), `calibrating` (39)
       forced: the week day row's status pill, next week's seven provisional
       rows, and the season timeline's 24 per-bar micro-labels. See
       `docs/plans/2026-08-12-v099-slice2-train.md`, its tracked execution
-      ledger and `-review.md` for the whole-branch findings. **Seven surface
-      slices remain** (Body · Coach · Settings · Activity · Admin+Import ·
+      ledger and `-review.md` for the whole-branch findings.
+      **v0.103.0 shipped slice 4 (Coach)** — 46 confirmed axe violations to
+      zero on a surface where only the empty state had ever been captured
+      (`coach` mapped to `/coach`, which renders `messages.length === 0`, so
+      every bubble, the artifact card and the whole History panel were
+      unreachable to the tooling). The five inbox-kind tiles gained a light
+      expression — the amber measured 1.93:1 on its own tile — and the
+      per-message timestamp was deleted rather than enlarged, because it
+      called `new Date()` inside `messages.map` and so rendered the render
+      time, not the message's. `chat-interface.tsx` and `history-panel.tsx`
+      went from zero tests to 22 across the three coach components. See
+      `docs/plans/2026-08-13-v099-slice4-coach.md` and its ledger.
+      **Five surface slices remain** (Settings · Activity · Admin+Import ·
       pre-auth · sweep), and light mode stays unreachable
       (`forcedTheme="dark"`) until the final one.
+      **Carried out of slice 4, for later slices:** the desktop History
+      dropdown is click-only and still uncaptured (`coach-history` at desktop
+      is byte-identical to `coach`, since `HistorySheet` is `lg:hidden`); the
+      unconfigured-coach card needs an _absent_ `llm_settings` row and so
+      cannot share a capture run; and slice 4's active-row fix
+      (`--surface-selected`) is proven at the markup and token level but not
+      visually, because the capture loads `/coach?history=1` with no
+      `thread=` and therefore no row is ever active in any PNG. Closing that
+      needs the capture to load `/coach?history=1&thread=<id>`.
       One item slice 1 deliberately left is still open:
       `today/checkin-sheet.tsx` is dark-only and below the 12px floor.
       **`sidebar-nav.tsx`'s avatar is FIXED** (v0.101.0) — it was a measured

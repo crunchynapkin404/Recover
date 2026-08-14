@@ -1,5 +1,88 @@
 # Changelog
 
+## v0.103.0 — 2026-08-14 — Coach, at the floor
+
+Slice 4 of the ten-slice Phase 2b.4 redesign. It puts `/coach` on the v0.99
+token system at the hard 12px type floor — and, like slice 3 before it, it
+found that most of the surface it was migrating had never been looked at.
+
+**Only Coach's empty state had ever been measured.** `scripts/verify-surfaces.ts`
+mapped `coach` to `/coach`, which renders `messages.length === 0`. Every message
+bubble, the artifact card, the typing indicator, the error banner and the entire
+History panel were unreachable to the screenshot and axe passes for the whole
+life of the file. Coach is a multi-state surface behind one URL, and one of its
+states is the one nobody had seen.
+
+Adding the thread and History surfaces found **46 confirmed axe violations** on
+a surface previously reported clean. All three coach surfaces are now at **zero
+confirmed** in both themes at both viewports.
+
+Getting there took three attempts, and the first two are the interesting part.
+The obvious selector — the first link matching `/coach?thread=` — resolves an
+_inbox_ item, because those render above the athlete's own chats; that captured
+a single assistant bubble instead of a conversation, and marked the seed's one
+deliberately-unread item read as a side effect. Scoping to the chat section then
+still picked a stray one-message thread, because rows sort by `updatedAt`. The
+resolver now **asserts** what it resolved: it navigates to the thread and
+requires both a user and an assistant bubble before handing the URL to the
+capture, and hard-fails the run otherwise. A run that emits files is not
+evidence.
+
+**The five coach-inbox tiles had no light expression.** Their colours were raw
+500-step hues applied as inline `style={{ color }}` over a 12%-alpha tint of
+themselves — the amber measured **1.93:1** against its own tile. Each kind now
+has a contrast-guarded `--kind-*-ink` / `--kind-*-tint` pair (light 6.0–7.6:1,
+dark 8.2–10.4:1). The tiles were also unreachable in every capture until this
+release, because the demo seed created no inbox threads at all; it now seeds all
+five kinds, which needs two `morning` threads, since `warning` is not a thread
+kind but a `morning` thread carrying `toolCalls.warning`.
+
+**The per-message timestamp was never a timestamp.** It called `new Date()`
+inside `messages.map`, so it rendered the _current_ time for every message —
+and because that map re-runs on every streamed token, even a just-sent message
+had its clock bumped on every render tick. `fetchThreadMessages` discards
+`createdAt`, so no correct value exists client-side. The 12px floor forced the
+question and the honest answer was deletion, not a larger fabricated number.
+
+**Three defects were found only by looking.** The scrollable transcript was not
+keyboard-reachable; the composer's thinking-mode toggle put solid accent text on
+a 20%-alpha tint of the same hue at **4.1:1**, the same trap the inbox tiles
+had, just below the floor rather than far under it; and the ghost-chat banner
+still wrapped to two lines at the capture pipeline's real 390px phone width,
+after an earlier task shortened its copy for exactly that reason without
+verifying at that width.
+
+**One defect was found only by reviewing the whole branch at once.** The active
+row in the History list had become invisible: `--surface-overlay` was the ground
+of the sheet, of the desktop dropdown, _and_ of the selected row inside them, so
+the row painted `#1f1f1f` on `#1f1f1f`. For inbox rows that was the only
+resting-state differentiator, so "you are here" was lost outright. Three tasks
+each chose that token correctly in isolation and together they cancelled. No
+guard catches it — contrast is measured ink-against-surface, never
+surface-against-surface — no capture reaches it, because the History URL carries
+no `thread=`, and the new test asserted the collision as correct. A dedicated
+`--surface-selected` fixes it; `roleOfToken` already classifies any `surface-*`
+token, so the contrast guard picked it up without being told.
+
+Also in this release:
+
+- `chat-interface.tsx` and `history-panel.tsx` had **zero tests**; they now have
+  22 across the three coach components, including a mutation-proven guard on the
+  `min-w-0`/`truncate` collapse that widening every History stamp to 12px would
+  otherwise have caused.
+- The shared `ui/bottom-sheet.tsx` shell is tokenised. Its border was an
+  effective ~1.1–1.3:1 against the panel — the near-invisible chrome this
+  redesign exists to remove.
+- Offender ratchets re-pinned from real measurements: **arbitrary type sizes
+  137 → 112**, **ad-hoc ink alphas 311 → 267**.
+
+**Known and deliberately carried forward:** the desktop History dropdown is
+click-only and still uncaptured (`coach-history` at desktop is byte-identical to
+`coach`, since the sheet is `lg:hidden`); the unconfigured-coach card needs an
+absent LLM-settings row and so cannot share a capture run; and the active-row
+fix is proven at the markup and token level but not visually, because no capture
+loads an active row. Light mode stays unreachable until slice 9.
+
 ## v0.102.0 — 2026-08-13 — Body, at the floor
 
 Slice 3 of the ten-slice Phase 2b.4 redesign. It puts `/body` — four tabs,

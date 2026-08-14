@@ -323,13 +323,13 @@ export function ChatInterface({
     return (
       <div className="flex min-h-[60svh] items-center justify-center px-6">
         <div className="glass mx-auto max-w-sm rounded-[2.5rem] p-8 text-center">
-          <p className="mb-4 text-sm text-white/60">
+          <p className="mb-4 text-caption text-ink-secondary">
             The AI coach needs an LLM key to work. Add your Anthropic API key or
             configure a local Ollama endpoint in Settings.
           </p>
           <Link
             href="/settings"
-            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-6 py-3 font-bold text-black transition-all hover:bg-emerald-400"
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-accent px-6 py-3 font-bold text-accent-foreground transition-all hover:bg-accent/90"
           >
             Configure AI Coach
           </Link>
@@ -351,7 +351,7 @@ export function ChatInterface({
         <div className="mx-auto w-full max-w-3xl px-5 pt-6 lg:pt-7">
           {/* Mobile */}
           <div className="flex items-center justify-between lg:hidden">
-            <h1 className="text-[22px] font-bold tracking-[-0.03em]">Coach</h1>
+            <h1 className="text-title font-bold tracking-[-0.03em]">Coach</h1>
             <div className="flex items-center gap-2">
               {!activeThreadId && (
                 <button
@@ -359,7 +359,9 @@ export function ChatInterface({
                   aria-pressed={ghost}
                   aria-label="Ghost chat — deletes after 24 hours"
                   className={`glass flex h-10 w-10 items-center justify-center rounded-full transition-transform active:scale-95 ${
-                    ghost ? "bg-purple-500/20 text-purple-300" : "text-white/60"
+                    ghost
+                      ? "bg-ghost-tint text-ghost-ink"
+                      : "text-ink-secondary"
                   }`}
                 >
                   <Ghost className="size-[18px]" />
@@ -368,13 +370,11 @@ export function ChatInterface({
               <Link
                 href={historyHref}
                 aria-label="History and inbox"
-                className="glass flex items-center gap-1.5 rounded-full px-3.5 py-2.5 text-[10px] font-bold uppercase tracking-wider text-white/60"
+                className="glass flex items-center gap-1.5 rounded-full px-3.5 py-2.5 text-label font-bold uppercase tracking-wider text-ink-secondary"
               >
                 <History className="size-3.5" aria-hidden />
                 History
-                {unread > 0 && (
-                  <span className="text-emerald-400">· {unread}</span>
-                )}
+                {unread > 0 && <span className="text-accent">· {unread}</span>}
               </Link>
               <button
                 onClick={startNewChat}
@@ -395,17 +395,17 @@ export function ChatInterface({
                 aria-haspopup="true"
                 className="glass flex max-w-[420px] items-center gap-2 rounded-2xl px-3.5 py-2.5"
               >
-                <span className="truncate text-[14px] font-bold tracking-[-0.02em]">
+                <span className="truncate text-caption font-bold tracking-[-0.02em]">
                   {activeTitle}
                 </span>
                 {unread > 0 && (
-                  <span className="shrink-0 text-[10px] font-bold text-emerald-400">
+                  <span className="shrink-0 text-label font-bold text-accent">
                     · {unread}
                   </span>
                 )}
                 <ChevronDown
                   aria-hidden
-                  className={`size-3.5 shrink-0 text-white/40 transition-transform ${
+                  className={`size-3.5 shrink-0 text-ink-muted transition-transform ${
                     showThreadMenu ? "rotate-180" : ""
                   }`}
                 />
@@ -413,7 +413,7 @@ export function ChatInterface({
               {showThreadMenu && (
                 <div
                   onClickCapture={() => setShowThreadMenu(false)}
-                  className="menu-pop absolute left-0 top-[calc(100%+8px)] z-30 max-h-[70vh] w-[400px] overflow-auto rounded-[18px] border border-white/[0.12] bg-neutral-950/98 p-3.5 shadow-2xl backdrop-blur-xl"
+                  className="menu-pop absolute left-0 top-[calc(100%+8px)] z-30 max-h-[70vh] w-[400px] overflow-auto rounded-[18px] border border-hairline bg-surface-overlay p-3.5 shadow-2xl backdrop-blur-xl"
                 >
                   <HistoryPanel
                     inboxItems={inboxItems}
@@ -431,7 +431,9 @@ export function ChatInterface({
                   aria-pressed={ghost}
                   aria-label="Ghost chat — deletes after 24 hours"
                   className={`glass flex h-[38px] w-[38px] items-center justify-center rounded-full transition-transform active:scale-95 ${
-                    ghost ? "bg-purple-500/20 text-purple-300" : "text-white/60"
+                    ghost
+                      ? "bg-ghost-tint text-ghost-ink"
+                      : "text-ink-secondary"
                   }`}
                 >
                   <Ghost className="size-4" />
@@ -449,14 +451,31 @@ export function ChatInterface({
         </div>
 
         {ghost && !activeThreadId && (
-          <p className="mt-2 text-center text-[9px] font-bold uppercase tracking-widest text-purple-300/70">
-            Ghost chat — deletes in 24 h, coach won&apos;t save memories
+          // tracking-wide, not -widest: at the 12px text-label floor (Task 6
+          // lifted this off a sub-floor 9px arbitrary size) the wider tracking pushed
+          // this string past 390px, the capture pipeline's real phone
+          // viewport (VIEWPORTS.phone in verify-surfaces.ts), wrapping to a
+          // second line. Confirmed one line at 390px by measurement
+          // (getClientRects() on the text node: 1 rect, 364px wide) — this
+          // state isn't reachable through the checked-in capture pipeline
+          // (client-only React state behind no URL param), so it was
+          // verified with a throwaway script instead. Copy is unchanged:
+          // still says it's a ghost chat and that it disappears in 24h.
+          <p className="mt-2 text-center text-label font-bold uppercase tracking-wide text-ghost-ink">
+            Ghost chat — deletes in 24 h, no memories saved
           </p>
         )}
       </header>
 
       {/* ── Messages ────────────────────────────────────────────────── */}
-      <main ref={scrollRef} className="hide-scrollbar flex-1 overflow-y-auto">
+      {/* tabIndex so the scrollable transcript is keyboard-reachable (axe
+          scrollable-region-focusable) — its children are message text, not
+          controls, so nothing inside it is focusable on its own. */}
+      <main
+        ref={scrollRef}
+        tabIndex={0}
+        className="hide-scrollbar flex-1 overflow-y-auto"
+      >
         <div className="mx-auto w-full max-w-3xl px-5 pb-4 pt-2">
           {messages.length === 0 && (
             <div className="flex flex-col items-center gap-5 pt-[8vh] text-center">
@@ -470,7 +489,7 @@ export function ChatInterface({
                   <button
                     key={s}
                     onClick={() => sendText(s)}
-                    className="glass rounded-2xl border-white/8 px-4 py-3 text-[12.5px] font-medium text-white/70"
+                    className="glass rounded-2xl px-4 py-3 text-caption font-medium text-ink-secondary"
                   >
                     {s}
                   </button>
@@ -507,7 +526,7 @@ export function ChatInterface({
               >
                 {text && (
                   <div
-                    className={`rounded-2xl p-4 text-sm leading-relaxed text-white/90 ${
+                    className={`rounded-2xl p-4 text-body leading-relaxed text-ink-primary ${
                       isUser ? "chat-bubble-user" : "chat-bubble-ai"
                     }`}
                   >
@@ -528,29 +547,23 @@ export function ChatInterface({
                     />
                   );
                 })}
-                <span className="mt-2 text-[9px] font-bold uppercase text-white/50">
-                  {new Date().toLocaleTimeString([], {
-                    hour: "numeric",
-                    minute: "2-digit",
-                  })}
-                </span>
               </div>
             );
           })}
           {isLoading && (
             <div className="mb-6 flex max-w-[85%] flex-col items-start">
-              <div className="chat-bubble-ai rounded-2xl p-4 text-sm">
+              <div className="chat-bubble-ai rounded-2xl p-4 text-caption">
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
-                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400 [animation-delay:0.2s]" />
-                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400 [animation-delay:0.4s]" />
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent" />
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent [animation-delay:0.2s]" />
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent [animation-delay:0.4s]" />
                 </span>
               </div>
             </div>
           )}
           {chatError && (
             <div className="mb-6 flex max-w-[85%] flex-col items-start">
-              <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-400">
+              <div className="rounded-2xl border border-destructive-ink bg-destructive-tint p-4 text-caption text-destructive-ink">
                 Coach error:{" "}
                 {chatError.message || "Connection failed. Check LLM settings."}
               </div>
@@ -563,12 +576,12 @@ export function ChatInterface({
       <div className="mx-auto w-full max-w-3xl px-4 pb-[calc(env(safe-area-inset-bottom)+96px)] lg:pb-6">
         <form
           onSubmit={handleSubmit}
-          className="flex items-end gap-2 rounded-[26px] border border-white/10 bg-neutral-900/85 p-2 shadow-2xl backdrop-blur-xl"
+          className="flex items-end gap-2 rounded-[26px] border border-hairline bg-surface-overlay p-2 shadow-2xl backdrop-blur-xl"
         >
           <div
             role="group"
             aria-label="Thinking mode"
-            className="mb-0.5 flex shrink-0 rounded-full bg-white/5 p-0.5"
+            className="mb-0.5 flex shrink-0 rounded-full bg-surface-raised p-0.5"
           >
             {(["quick", "deep"] as const).map((m) => (
               <button
@@ -576,10 +589,20 @@ export function ChatInterface({
                 type="button"
                 onClick={() => setMode(m)}
                 aria-pressed={mode === m}
-                className={`rounded-full px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-wider transition-colors ${
+                className={`rounded-full px-2.5 py-1.5 text-label font-bold uppercase tracking-wider transition-colors ${
                   mode === m
-                    ? "bg-emerald-500/20 text-emerald-400"
-                    : "text-white/40"
+                    ? // A translucent bg-accent/20 tint under solid text-accent
+                      // measured 4.1:1 here (desktop only — the label text is
+                      // hidden lg:inline, so phone never renders it): the same
+                      // own-hue-at-low-opacity trap Task 5 fixed for the inbox
+                      // kind tiles, just below the AA floor instead of well
+                      // under it. Solid fill + accent-foreground is the
+                      // established idiom for accent CTAs elsewhere in this
+                      // file (the send button, the configure-AI-coach button)
+                      // and clears 4.5:1 with real margin in both themes
+                      // (5.48:1 light, 8.28:1 dark) rather than riding the edge.
+                      "bg-accent text-accent-foreground"
+                    : "text-ink-muted"
                 }`}
               >
                 {m === "quick" ? "⚡" : "🧠"}
@@ -598,7 +621,7 @@ export function ChatInterface({
             onKeyDown={handleTextareaKeyDown}
             placeholder="Message your coach…"
             disabled={isLoading}
-            className="max-h-[120px] flex-1 resize-none bg-transparent px-2 py-2 text-sm leading-relaxed text-white outline-none placeholder:text-white/50"
+            className="max-h-[120px] flex-1 resize-none bg-transparent px-2 py-2 text-body leading-relaxed text-ink-primary outline-none placeholder:text-ink-muted"
           />
           {dictation.supported && (
             <button
@@ -610,8 +633,8 @@ export function ChatInterface({
               }
               className={`mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors ${
                 dictation.dictating
-                  ? "bg-red-500/20 text-red-400"
-                  : "bg-white/5 text-white/50"
+                  ? "bg-destructive-tint text-destructive-ink"
+                  : "bg-surface-raised text-ink-muted"
               }`}
             >
               {dictation.dictating ? (
@@ -625,13 +648,13 @@ export function ChatInterface({
             type="submit"
             disabled={isLoading || !input.trim()}
             aria-label="Send message"
-            className="mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-black shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-transform active:scale-90 disabled:opacity-40"
+            className="mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-transform active:scale-90 disabled:opacity-40"
           >
             <Send aria-hidden className="size-[18px]" />
           </button>
         </form>
         {showDictationHint && (
-          <p className="mt-2 px-2 text-center text-[10px] text-white/40">
+          <p className="mt-2 px-2 text-center text-label text-ink-muted">
             Speech is transcribed by your browser and may be processed on its
             vendor&apos;s servers. Recover never sees or stores audio.
           </p>

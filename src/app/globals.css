@@ -49,6 +49,7 @@
   --color-surface-base: var(--surface-base);
   --color-surface-raised: var(--surface-raised);
   --color-surface-overlay: var(--surface-overlay);
+  --color-surface-selected: var(--surface-selected);
   --color-ink-primary: var(--ink-primary);
   --color-ink-secondary: var(--ink-secondary);
   --color-ink-muted: var(--ink-muted);
@@ -56,6 +57,20 @@
   --color-accent: var(--accent);
   --color-coach-ink: var(--coach-ink);
   --color-ink-race: var(--ink-race);
+  --color-kind-morning-ink: var(--kind-morning-ink);
+  --color-kind-morning-tint: var(--kind-morning-tint);
+  --color-kind-debrief-ink: var(--kind-debrief-ink);
+  --color-kind-debrief-tint: var(--kind-debrief-tint);
+  --color-kind-weekly-ink: var(--kind-weekly-ink);
+  --color-kind-weekly-tint: var(--kind-weekly-tint);
+  --color-kind-warning-ink: var(--kind-warning-ink);
+  --color-kind-warning-tint: var(--kind-warning-tint);
+  --color-kind-monthly-ink: var(--kind-monthly-ink);
+  --color-kind-monthly-tint: var(--kind-monthly-tint);
+  --color-ghost-ink: var(--ghost-ink);
+  --color-ghost-tint: var(--ghost-tint);
+  --color-destructive-ink: var(--destructive-ink);
+  --color-destructive-tint: var(--destructive-tint);
 
   /* Type scale — 12px floor, seven steps. Phase 2b.4. Semantic names, not
      Tailwind v4's default --text-* keys (xs/sm/base/xl/3xl/…): those keys
@@ -98,6 +113,21 @@
   --surface-base: #f6f6f6;
   --surface-raised: #ffffff;
   --surface-overlay: #ffffff;
+  /* Active-row ground for a list that lives INSIDE a `--surface-overlay`
+     container (History's inbox/chat rows, both the mobile bottom-sheet and
+     the desktop dropdown) — needs its own value distinct from that
+     container in both themes (C2, whole-branch review 2026-08-14).
+     `--surface-raised` was tried first and rejected: it equals
+     `--surface-overlay` in light (both #ffffff), a no-op exactly where this
+     fix matters least urgently but still must not ship broken. Deliberately
+     set to the same value as `--surface-base` rather than a new invented
+     shade: base is already proven, by the surface loop this same file
+     drives in tests/contrast-guard.test.ts, to hold every text ink (4.5:1)
+     and hairline (3:1) against it in both themes — reusing it costs no new
+     contrast risk. A selected row reading at the page's base tone against
+     the elevated overlay panel around it is the intended look: grounded,
+     not floating. */
+  --surface-selected: #f6f6f6;
   --ink-primary: #171717;
   --ink-secondary: #4a4a4a;
   --ink-muted: #6e6e6e;
@@ -123,6 +153,22 @@
      out of this slice's scope — migrating it belongs to slice 3. */
   --ink-race: #a21caf;
 
+  /* Coach inbox kinds. Each tile is ink-on-tint; the ink must clear 4.5:1
+     against its own tint, which the raw Tailwind-500 hues do not in light.
+     Light uses the 700/800 step, dark keeps the luminous 300/400 step. */
+  --kind-morning-ink: #92400e;
+  --kind-morning-tint: #fef3c7;
+  --kind-debrief-ink: #065f46;
+  --kind-debrief-tint: #d1fae5;
+  --kind-weekly-ink: #5b21b6;
+  --kind-weekly-tint: #ede9fe;
+  --kind-warning-ink: #991b1b;
+  --kind-warning-tint: #fee2e2;
+  --kind-monthly-ink: #1e40af;
+  --kind-monthly-tint: #dbeafe;
+  --ghost-ink: #6d28d9;
+  --ghost-tint: #f3e8ff;
+
   --background: var(--surface-base);
   --foreground: var(--ink-primary);
   --card: var(--surface-raised);
@@ -137,6 +183,21 @@
   --muted-foreground: var(--ink-muted);
   --accent-foreground: #ffffff;
   --destructive: #b91c1c;
+  /* Semantic error ink/tint — for a tinted banner or icon button that needs
+     readable ink on its own background (connection-error banners, an
+     active-recording indicator), as distinct from `--destructive` itself,
+     which is a fill/text colour with no opaque tint pair (waived below;
+     shadcn's own `bg-destructive/10 text-destructive` idiom is a translucent
+     overlay, not an opaque ground a WCAG ratio can be measured against).
+     Deliberately its OWN token, not an alias to a `--kind-*` inbox-taxonomy
+     colour: those five name coach-inbox item KINDS (morning/debrief/weekly/
+     warning="Overtraining watch"/monthly), not error severity, and happen to
+     render the same red today only by coincidence. Values mirror
+     `--kind-warning-ink`/`-tint` exactly (same red-800/red-100 step already
+     proven to clear 4.5:1 by contrast-guard), so this reads identically today
+     while being free to diverge the moment either taxonomy needs to. */
+  --destructive-ink: #991b1b;
+  --destructive-tint: #fee2e2;
   --border: var(--hairline);
   --input: var(--hairline);
   --ring: var(--accent);
@@ -160,6 +221,12 @@
   --surface-base: #0a0a0a;
   --surface-raised: #161616;
   --surface-overlay: #1f1f1f;
+  /* See the light `:root` block above for the full rationale — same token,
+     same reasoning, matches `--surface-base` here too. This is the theme
+     users can actually reach today (`forcedTheme="dark"`), and #0a0a0a
+     against a #1f1f1f container reads unambiguously as a distinct ground,
+     not merely a passing contrast ratio. */
+  --surface-selected: #0a0a0a;
   --ink-primary: #f5f5f5;
   --ink-secondary: #b4b4b4;
   --ink-muted: #8a8a8a;
@@ -169,6 +236,19 @@
   /* fuchsia-300 — the exact hex the literal shipped, so dark's rendered
      pixels do not move. 9.37:1 worst-case on surfaces, 9.04:1 on glass. */
   --ink-race: #f0abfc;
+
+  --kind-morning-ink: #fcd34d;
+  --kind-morning-tint: #451a03;
+  --kind-debrief-ink: #6ee7b7;
+  --kind-debrief-tint: #022c22;
+  --kind-weekly-ink: #c4b5fd;
+  --kind-weekly-tint: #2e1065;
+  --kind-warning-ink: #fca5a5;
+  --kind-warning-tint: #450a0a;
+  --kind-monthly-ink: #93c5fd;
+  --kind-monthly-tint: #172554;
+  --ghost-ink: #c4b5fd;
+  --ghost-tint: #2e1065;
 
   --background: var(--surface-base);
   --foreground: var(--ink-primary);
@@ -184,6 +264,12 @@
   --muted-foreground: var(--ink-muted);
   --accent-foreground: #000000;
   --destructive: #ef4444;
+  /* Same rationale as :root above — mirrors `--kind-warning-ink`/`-tint`'s
+     dark values (red-300 ink on red-950, proven 8.51:1) rather than
+     `--destructive` itself, whose ef4444 only clears 4.29:1 on a red-950
+     tint — below the 4.5:1 floor this pair exists to guarantee. */
+  --destructive-ink: #fca5a5;
+  --destructive-tint: #450a0a;
   --border: var(--hairline);
   --input: var(--hairline);
   --ring: var(--accent);

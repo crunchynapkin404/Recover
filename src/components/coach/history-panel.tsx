@@ -5,17 +5,44 @@ import { Ghost, Search } from "lucide-react";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
 import type { InboxItem, InboxKind } from "@/lib/coach-inbox";
 
-// Each kind gets one hue, used at 12% for the tile and 30% for its border —
-// the same tinted-tile grammar the rest of the redesign uses.
+// Each kind gets one ink/tint token pair, defined in globals.css for BOTH
+// themes and contrast-checked by tests/contrast-guard.test.ts. Raw hues used
+// to live here and were applied as inline rgb() — unreadable in light, and
+// invisible to every guard because the tile was never captured.
 export const KIND_STYLE: Record<
   InboxKind,
-  { glyph: string; hue: string; label: string }
+  { glyph: string; ink: string; tint: string; label: string }
 > = {
-  morning: { glyph: "☀", hue: "245,158,11", label: "Morning brief" },
-  debrief: { glyph: "✓", hue: "16,185,129", label: "Ride debrief" },
-  weekly: { glyph: "▤", hue: "139,92,246", label: "Weekly review" },
-  warning: { glyph: "⚠", hue: "239,68,68", label: "Overtraining watch" },
-  monthly: { glyph: "◔", hue: "59,130,246", label: "Monthly report" },
+  morning: {
+    glyph: "☀",
+    ink: "var(--kind-morning-ink)",
+    tint: "var(--kind-morning-tint)",
+    label: "Morning brief",
+  },
+  debrief: {
+    glyph: "✓",
+    ink: "var(--kind-debrief-ink)",
+    tint: "var(--kind-debrief-tint)",
+    label: "Ride debrief",
+  },
+  weekly: {
+    glyph: "▤",
+    ink: "var(--kind-weekly-ink)",
+    tint: "var(--kind-weekly-tint)",
+    label: "Weekly review",
+  },
+  warning: {
+    glyph: "⚠",
+    ink: "var(--kind-warning-ink)",
+    tint: "var(--kind-warning-tint)",
+    label: "Overtraining watch",
+  },
+  monthly: {
+    glyph: "◔",
+    ink: "var(--kind-monthly-ink)",
+    tint: "var(--kind-monthly-tint)",
+    label: "Monthly report",
+  },
 };
 
 /** "07:02" today, "Mon" this week, "Jul 14" beyond it. */
@@ -67,24 +94,24 @@ export function HistoryPanel({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.04] px-3 py-2.5 text-white/35">
+      <div className="flex items-center gap-2 rounded-xl border border-hairline bg-surface-raised px-3 py-2.5 text-ink-muted">
         <Search className="size-3.5 shrink-0" aria-hidden />
         {/* Static for v1 — wires to recall search later. */}
         <input
           type="search"
           placeholder="Search chats & reviews"
           disabled
-          className="w-full bg-transparent text-[12px] text-white/60 outline-none placeholder:text-white/35"
+          className="w-full bg-transparent text-label text-ink-secondary outline-none placeholder:text-ink-muted"
         />
       </div>
 
       <div>
-        <p className="px-1 pb-2 text-[9.5px] font-bold uppercase tracking-[0.2em] text-white/35">
+        <p className="px-1 pb-2 text-label font-bold uppercase tracking-[0.2em] text-ink-muted">
           From your coach
-          {unread > 0 && <span className="text-emerald-400"> · {unread}</span>}
+          {unread > 0 && <span className="text-accent"> · {unread}</span>}
         </p>
         {inboxItems.length === 0 ? (
-          <p className="px-1 pb-3 text-[11px] text-white/40">
+          <p className="px-1 pb-3 text-label text-ink-muted">
             Nothing from the coach yet.
           </p>
         ) : (
@@ -97,37 +124,37 @@ export function HistoryPanel({
                   key={item.id}
                   href={`/coach?thread=${item.threadId}`}
                   className={`flex items-center gap-2.5 rounded-xl p-2 transition-colors ${
-                    active ? "bg-white/[0.08]" : "hover:bg-white/[0.04]"
+                    active ? "bg-surface-selected" : "hover:bg-surface-raised"
                   }`}
                 >
                   <span
                     aria-hidden
-                    className="flex size-7 shrink-0 items-center justify-center rounded-[9px] border text-[12px]"
+                    className="flex size-7 shrink-0 items-center justify-center rounded-[9px] border text-label"
                     style={{
-                      background: `rgba(${style.hue},0.12)`,
-                      borderColor: `rgba(${style.hue},0.3)`,
-                      color: `rgb(${style.hue})`,
+                      background: style.tint,
+                      borderColor: style.ink,
+                      color: style.ink,
                     }}
                   >
                     {style.glyph}
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-1.5">
-                      <span className="truncate text-[12px] font-bold text-white">
+                      <span className="truncate text-caption font-bold text-ink-primary">
                         {item.title}
                       </span>
                       {item.unread && (
                         <span
-                          className="size-1.5 shrink-0 rounded-full bg-emerald-400"
+                          className="size-1.5 shrink-0 rounded-full bg-accent"
                           aria-label="Unread"
                         />
                       )}
                     </span>
-                    <span className="block truncate text-[10.5px] text-white/45">
+                    <span className="block truncate text-label text-ink-muted">
                       {item.preview}
                     </span>
                   </span>
-                  <span className="shrink-0 text-[9.5px] text-white/35">
+                  <span className="shrink-0 text-label text-ink-muted">
                     {stamp(item.createdAt, now)}
                   </span>
                 </Link>
@@ -138,11 +165,11 @@ export function HistoryPanel({
       </div>
 
       <div>
-        <p className="px-1 pb-2 text-[9.5px] font-bold uppercase tracking-[0.2em] text-white/35">
+        <p className="px-1 pb-2 text-label font-bold uppercase tracking-[0.2em] text-ink-muted">
           Chats
         </p>
         {chats.length === 0 && ghosts.length === 0 ? (
-          <p className="px-1 text-[11px] text-white/40">
+          <p className="px-1 text-label text-ink-muted">
             No conversations yet.
           </p>
         ) : (
@@ -151,16 +178,24 @@ export function HistoryPanel({
               <Link
                 key={t.id}
                 href={`/coach?thread=${t.id}`}
+                // Marks the athlete's own chat-thread links specifically —
+                // inbox items above and the ghost threads below share this
+                // same `/coach?thread=` href shape, so
+                // scripts/verify-surfaces.ts's resolveCoachThreadPath
+                // targets `a[data-chat-thread]` to capture a real multi-turn
+                // conversation instead of a single-message inbox item. Do
+                // not remove this as unused markup.
+                data-chat-thread
                 className={`flex items-center justify-between gap-2 rounded-xl px-2 py-2 transition-colors ${
                   t.id === activeThreadId
-                    ? "bg-white/[0.08] text-white"
-                    : "text-white/65 hover:bg-white/[0.04]"
+                    ? "bg-surface-selected text-ink-primary"
+                    : "text-ink-secondary hover:bg-surface-raised"
                 }`}
               >
-                <span className="truncate text-[12.5px] font-medium">
+                <span className="min-w-0 flex-1 truncate text-caption font-medium">
                   {t.title}
                 </span>
-                <span className="shrink-0 text-[9.5px] text-white/35">
+                <span className="shrink-0 text-label text-ink-muted">
                   {stamp(new Date(t.updatedAt), now)}
                 </span>
               </Link>
@@ -171,15 +206,15 @@ export function HistoryPanel({
                 href={`/coach?thread=${t.id}`}
                 className={`flex items-center gap-1.5 rounded-xl px-2 py-2 transition-colors ${
                   t.id === activeThreadId
-                    ? "bg-purple-500/20 text-purple-200"
-                    : "text-purple-300/60 hover:bg-white/[0.04]"
+                    ? "bg-ghost-tint text-ghost-ink"
+                    : "text-ghost-ink hover:bg-surface-raised"
                 }`}
               >
                 <Ghost className="size-3 shrink-0" aria-hidden />
-                <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium">
+                <span className="min-w-0 flex-1 truncate text-caption font-medium">
                   {t.title}
                 </span>
-                <span className="shrink-0 text-[9.5px] text-white/35">
+                <span className="shrink-0 text-label text-ink-muted">
                   {stamp(new Date(t.updatedAt), now)}
                 </span>
               </Link>

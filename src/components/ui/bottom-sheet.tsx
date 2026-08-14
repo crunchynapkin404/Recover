@@ -69,6 +69,8 @@ export function BottomSheet({
         type="button"
         aria-label="Close"
         onClick={close}
+        // bg-black/60 is a modal scrim, not text or a surface — both themes
+        // want a dark scrim here, so it stays literal rather than tokenised.
         className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 motion-reduce:transition-none"
         style={{ opacity: closing ? 0 : 1 }}
       />
@@ -77,7 +79,7 @@ export function BottomSheet({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="sheet-panel relative w-full max-w-lg rounded-t-[28px] border border-white/[0.12] bg-[#111113] px-6 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] pt-3"
+        className="sheet-panel relative w-full max-w-lg rounded-t-[28px] border border-hairline bg-surface-overlay px-6 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] pt-3"
         style={{
           boxShadow: "0 -20px 60px rgba(0,0,0,0.6)",
           transform: `translateY(${translate})`,
@@ -102,13 +104,13 @@ export function BottomSheet({
       >
         <div
           aria-hidden
-          className="mx-auto mb-4 h-1 w-10 rounded-full bg-white/20"
+          className="mx-auto mb-4 h-1 w-10 rounded-full bg-hairline"
         />
 
         <div className="mb-4 flex items-baseline justify-between gap-3">
-          <h2 className="text-[16px] font-bold tracking-[-0.02em]">{title}</h2>
+          <h2 className="text-body font-bold tracking-[-0.02em]">{title}</h2>
           {subtitle && (
-            <span className="shrink-0 text-[11px] text-white/45">
+            <span className="shrink-0 text-label text-ink-muted">
               {subtitle}
             </span>
           )}

@@ -116,16 +116,16 @@ function BarChart({ spec }: { spec: ChartSpec }) {
 
 function TableChart({ spec }: { spec: ChartSpec }) {
   return (
-    <table className="w-full text-xs">
+    <table className="w-full text-label">
       <thead>
-        <tr className="border-b border-white/10">
-          <th className="px-2 py-1 text-left font-medium text-white/50">
+        <tr className="border-b border-hairline">
+          <th className="px-2 py-1 text-left font-medium text-ink-muted">
             {spec.xLabel ?? ""}
           </th>
           {spec.series.map((s) => (
             <th
               key={s.label}
-              className="px-2 py-1 text-right font-medium text-white/50"
+              className="px-2 py-1 text-right font-medium text-ink-muted"
             >
               {s.label}
             </th>
@@ -134,8 +134,8 @@ function TableChart({ spec }: { spec: ChartSpec }) {
       </thead>
       <tbody>
         {spec.series[0]?.data.map((d, i) => (
-          <tr key={i} className="border-b border-white/5">
-            <td className="px-2 py-1 text-white/70">{String(d.x)}</td>
+          <tr key={i} className="border-b border-hairline">
+            <td className="px-2 py-1 text-ink-secondary">{String(d.x)}</td>
             {spec.series.map((s) => (
               <td key={s.label} className="px-2 py-1 text-right tabular-nums">
                 {s.data[i]?.y ?? "—"}
@@ -160,8 +160,8 @@ export function ArtifactCard({ spec }: { spec: ChartSpec }) {
         onClick={() => setExpanded((e) => !e)}
         className="flex w-full items-center justify-between px-4 py-2"
       >
-        <span className="text-sm font-bold">{spec.title}</span>
-        <span className="text-[10px] text-white/40">
+        <span className="text-caption font-bold">{spec.title}</span>
+        <span className="text-label text-ink-muted">
           {expanded ? "collapse" : "expand"}
         </span>
       </button>
