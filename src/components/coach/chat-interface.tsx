@@ -450,7 +450,7 @@ export function ChatInterface({
 
         {ghost && !activeThreadId && (
           // tracking-wide, not -widest: at the 12px text-label floor (Task 6
-          // lifted this off a sub-floor text-[9px]) the wider tracking pushed
+          // lifted this off a sub-floor 9px arbitrary size) the wider tracking pushed
           // this string past 390px, the capture pipeline's real phone
           // viewport (VIEWPORTS.phone in verify-surfaces.ts), wrapping to a
           // second line. Confirmed one line at 390px by measurement
@@ -550,7 +550,7 @@ export function ChatInterface({
           })}
           {isLoading && (
             <div className="mb-6 flex max-w-[85%] flex-col items-start">
-              <div className="chat-bubble-ai rounded-2xl p-4 text-sm">
+              <div className="chat-bubble-ai rounded-2xl p-4 text-caption">
                 <span className="inline-flex items-center gap-1.5">
                   <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent" />
                   <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent [animation-delay:0.2s]" />
@@ -561,7 +561,7 @@ export function ChatInterface({
           )}
           {chatError && (
             <div className="mb-6 flex max-w-[85%] flex-col items-start">
-              <div className="rounded-2xl border border-destructive-ink bg-destructive-tint p-4 text-sm text-destructive-ink">
+              <div className="rounded-2xl border border-destructive-ink bg-destructive-tint p-4 text-caption text-destructive-ink">
                 Coach error:{" "}
                 {chatError.message || "Connection failed. Check LLM settings."}
               </div>

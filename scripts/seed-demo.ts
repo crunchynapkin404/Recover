@@ -376,8 +376,18 @@ async function main() {
  * conversation never contradicts the dashboard.
  */
 async function seedDemoChat(userId: string) {
+  // Scoped to kind:"chat" specifically (I1, whole-branch review 2026-08-14)
+  // — this function only ever seeds one, so an unscoped ANY-thread check
+  // made its own remedy a one-way door: seedDemoInbox (called right after,
+  // in main()) creates five kind!=="chat" rows, so once those exist a bare
+  // userId match here sees them and bails forever, even after the operator
+  // deletes the actual chat thread and re-runs this script exactly as
+  // scripts/verify-surfaces.ts's own failure message tells them to.
   const existing = await db.query.chatThreads.findFirst({
-    where: eq(schema.chatThreads.userId, userId),
+    where: and(
+      eq(schema.chatThreads.userId, userId),
+      eq(schema.chatThreads.kind, "chat")
+    ),
   });
   if (existing) return;
 

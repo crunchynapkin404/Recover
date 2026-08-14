@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
 import { listInboxItems } from "@/lib/coach-inbox";
+import { KIND_STYLE } from "@/components/coach/history-panel";
 import { seedDemoInbox } from "../scripts/seed-demo";
 
 /** DB suite; skips without Postgres (see [[recover-db-test-ci-guard]]). */
@@ -35,14 +36,15 @@ describe.skipIf(!hasDb)("seedDemoInbox", () => {
     // every set comparison below pass vacuously.
     expect(items.length).toBe(5);
     const kinds = new Set(items.map((i) => i.kind));
-    // KIND_STYLE in history-panel.tsx has exactly these five keys. If this
-    // set and that record diverge, a tile renders undefined styles. Note
-    // "warning" is NOT a thread kind — it is derived from toolCalls.warning
-    // on a `morning` thread (coach-inbox.ts:114-117), which is why the seed
-    // creates two morning threads.
-    expect(kinds).toEqual(
-      new Set(["morning", "debrief", "weekly", "warning", "monthly"])
-    );
+    // Bound to KIND_STYLE itself (M5, whole-branch review 2026-08-14), not a
+    // hand-copied set of its keys — the old literal made this test's own
+    // comment ("KIND_STYLE ... has exactly these five keys") a claim nobody
+    // checked: a sixth InboxKind would typecheck, style correctly, pass
+    // every test, and simply never be seeded. Note "warning" is NOT a thread
+    // kind — it is derived from toolCalls.warning on a `morning` thread
+    // (coach-inbox.ts:114-117), which is why the seed creates two morning
+    // threads.
+    expect(kinds).toEqual(new Set(Object.keys(KIND_STYLE)));
   });
 
   it("leaves exactly one item unread, so the badge renders non-zero", async () => {

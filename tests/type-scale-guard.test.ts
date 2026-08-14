@@ -178,12 +178,28 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // three surfaces this slice does not touch, and this task does not run
   // the Playwright capture that would show the result (that is task 11's
   // job). Left for whichever slice migrates that shared component next.
+  //
+  // SCOPE CORRECTION (whole-branch review 2026-08-14): "exactly one" above
+  // is wrong. src/components/ui/button.tsx:26 also carries an arbitrary
+  // size, `text-[0.8rem]` on the `sm` button-size variant — a second one
+  // living in the very directory (src/components/ui/) that three of the
+  // four files below are drawn from. It changes nothing this task must
+  // migrate: grep for every importer of "@/components/ui/button" in src/
+  // returns only src/components/sign-out-button.tsx and the five
+  // src/components/settings/*-card.tsx files, so Button has no path into
+  // Coach's render chain today. But the scope list was silently
+  // incomplete for the same reason the Body slice's was (see the sibling
+  // ceiling's I3 correction, below): a shared src/components/ui/ primitive
+  // was left off. Recorded here so the slice that first pulls Button into
+  // Coach does not inherit an invisible gap.
   // Full render-chain scope: src/app/coach/page.tsx,
   // src/app/coach/loading.tsx, src/app/layout.tsx,
   // src/components/theme-provider.tsx, src/components/app-shell.tsx,
   // src/components/bottom-nav.tsx, src/components/sidebar-nav.tsx,
   // src/components/coach/*.tsx, src/components/ui/bottom-sheet.tsx,
-  // src/components/ui/inline-markdown.tsx, src/components/ui/empty-state.tsx.
+  // src/components/ui/inline-markdown.tsx, src/components/ui/empty-state.tsx,
+  // src/components/ui/button.tsx (see scope correction above — not
+  // currently reachable from Coach; listed for completeness).
   //
   // 137 occurrences, unchanged, measured 2026-08-13 after v0.102 (Body slice)
   // task 11 (the sweep) — re-pinned, not moved. Task 11's own sweep grep,

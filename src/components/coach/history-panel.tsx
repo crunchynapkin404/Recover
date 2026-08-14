@@ -124,7 +124,7 @@ export function HistoryPanel({
                   key={item.id}
                   href={`/coach?thread=${item.threadId}`}
                   className={`flex items-center gap-2.5 rounded-xl p-2 transition-colors ${
-                    active ? "bg-surface-overlay" : "hover:bg-surface-raised"
+                    active ? "bg-surface-selected" : "hover:bg-surface-raised"
                   }`}
                 >
                   <span
@@ -188,7 +188,7 @@ export function HistoryPanel({
                 data-chat-thread
                 className={`flex items-center justify-between gap-2 rounded-xl px-2 py-2 transition-colors ${
                   t.id === activeThreadId
-                    ? "bg-surface-overlay text-ink-primary"
+                    ? "bg-surface-selected text-ink-primary"
                     : "text-ink-secondary hover:bg-surface-raised"
                 }`}
               >

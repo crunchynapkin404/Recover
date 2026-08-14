@@ -49,6 +49,7 @@
   --color-surface-base: var(--surface-base);
   --color-surface-raised: var(--surface-raised);
   --color-surface-overlay: var(--surface-overlay);
+  --color-surface-selected: var(--surface-selected);
   --color-ink-primary: var(--ink-primary);
   --color-ink-secondary: var(--ink-secondary);
   --color-ink-muted: var(--ink-muted);
@@ -112,6 +113,21 @@
   --surface-base: #f6f6f6;
   --surface-raised: #ffffff;
   --surface-overlay: #ffffff;
+  /* Active-row ground for a list that lives INSIDE a `--surface-overlay`
+     container (History's inbox/chat rows, both the mobile bottom-sheet and
+     the desktop dropdown) — needs its own value distinct from that
+     container in both themes (C2, whole-branch review 2026-08-14).
+     `--surface-raised` was tried first and rejected: it equals
+     `--surface-overlay` in light (both #ffffff), a no-op exactly where this
+     fix matters least urgently but still must not ship broken. Deliberately
+     set to the same value as `--surface-base` rather than a new invented
+     shade: base is already proven, by the surface loop this same file
+     drives in tests/contrast-guard.test.ts, to hold every text ink (4.5:1)
+     and hairline (3:1) against it in both themes — reusing it costs no new
+     contrast risk. A selected row reading at the page's base tone against
+     the elevated overlay panel around it is the intended look: grounded,
+     not floating. */
+  --surface-selected: #f6f6f6;
   --ink-primary: #171717;
   --ink-secondary: #4a4a4a;
   --ink-muted: #6e6e6e;
@@ -205,6 +221,12 @@
   --surface-base: #0a0a0a;
   --surface-raised: #161616;
   --surface-overlay: #1f1f1f;
+  /* See the light `:root` block above for the full rationale — same token,
+     same reasoning, matches `--surface-base` here too. This is the theme
+     users can actually reach today (`forcedTheme="dark"`), and #0a0a0a
+     against a #1f1f1f container reads unambiguously as a distinct ground,
+     not merely a passing contrast ratio. */
+  --surface-selected: #0a0a0a;
   --ink-primary: #f5f5f5;
   --ink-secondary: #b4b4b4;
   --ink-muted: #8a8a8a;

@@ -104,11 +104,44 @@ describe("HistoryPanel", () => {
     const secondRow = rows.find((r) => r.includes("Second"));
     expect(firstRow).toBeDefined();
     expect(secondRow).toBeDefined();
-    // The active row gets the raised-surface treatment; exactly one does,
+    // The active row gets the selected-surface treatment; exactly one does,
     // and it must be "Second" — the id actually passed as activeThreadId.
-    expect(html.match(/bg-surface-overlay/g) ?? []).toHaveLength(1);
-    expect(secondRow).toContain("bg-surface-overlay");
-    expect(firstRow).not.toContain("bg-surface-overlay");
+    // Binds to `bg-surface-selected`, NOT `bg-surface-overlay` (C2,
+    // whole-branch review 2026-08-14): the dropdown/sheet container around
+    // this list is itself `bg-surface-overlay`, so painting the active row
+    // with that same token makes it invisible against its own background.
+    expect(html.match(/bg-surface-selected/g) ?? []).toHaveLength(1);
+    expect(secondRow).toContain("bg-surface-selected");
+    expect(firstRow).not.toContain("bg-surface-selected");
+  });
+
+  it("marks the active inbox item, distinctly from its own bg-surface-overlay container", () => {
+    // The inbox branch has no resting "active" look of its own to fall back
+    // on — the inactive arm is `hover:bg-surface-raised`, not a base style —
+    // so if this token collides with the container's, the active state is
+    // not merely degraded, it is gone entirely (C2, whole-branch review
+    // 2026-08-14). No existing fixture set `activeThreadId` against an
+    // inbox item before this test, so this branch of the ternary had never
+    // been exercised.
+    const html = renderToString(
+      <HistoryPanel
+        inboxItems={[
+          item({ id: "m1", threadId: "th1", title: "First brief" }),
+          item({ id: "m2", threadId: "th2", title: "Second brief" }),
+        ]}
+        threads={[]}
+        activeThreadId="th2"
+        unread={0}
+      />
+    );
+    const rows = html.split("</a>");
+    const firstRow = rows.find((r) => r.includes("First brief"));
+    const secondRow = rows.find((r) => r.includes("Second brief"));
+    expect(firstRow).toBeDefined();
+    expect(secondRow).toBeDefined();
+    expect(secondRow).toContain("bg-surface-selected");
+    expect(secondRow).not.toContain("bg-surface-overlay");
+    expect(firstRow).not.toContain("bg-surface-selected");
   });
 });
 
