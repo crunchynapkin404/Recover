@@ -154,6 +154,37 @@ function occurrences(pattern: RegExp): number {
  */
 const RATCHET_SLACK = 25;
 const OFFENDER_CEILINGS: Record<string, number> = {
+  // 112 occurrences, measured 2026-08-14 after v0.99 slice 4 (Coach) task 10
+  // (the sweep). Not moved by task 10's own edit — that fix
+  // (history-panel.tsx's ghost-thread hover) is an ad-hoc-alpha site, not
+  // an arbitrary-size one. The ceiling had sat at 137, unchanged since
+  // v0.102 (Body slice) task 11, because tasks 3-9 of this slice — while
+  // migrating sites of this pattern too — never widened the gap past
+  // RATCHET_SLACK (25), so none were forced to re-pin. Verified via
+  // `git diff 7c8a4e4..HEAD` (7c8a4e4 = v0.102.0, this slice's branch
+  // point) counting text-\[…(px|rem|em)\] matches: 25 removed, 0 added,
+  // split across chat-interface.tsx (9), history-panel.tsx (13),
+  // bottom-sheet.tsx (2) and artifact-card.tsx (1). Task 10's own
+  // full-render-chain sweep (scope below) found exactly one arbitrary size
+  // left in scope: src/components/ui/inline-markdown.tsx:31's
+  // `text-[0.95em]` on inline `<code>`. Left deliberately: it is a
+  // relative em, scaled off whatever ambient text size wraps it, used
+  // identically across four call sites in three surfaces — Coach's
+  // chat-interface.tsx (text-body, 16px), Today's just-landed-card.tsx and
+  // coach-brief.tsx (text-caption, 14px), and Debrief's
+  // activity-debrief-section.tsx (its own unmigrated text-[11.5px]). No
+  // fixed-step token can replace a value whose whole job is staying
+  // proportional to a parent that differs by call site — two of those
+  // three surfaces this slice does not touch, and this task does not run
+  // the Playwright capture that would show the result (that is task 11's
+  // job). Left for whichever slice migrates that shared component next.
+  // Full render-chain scope: src/app/coach/page.tsx,
+  // src/app/coach/loading.tsx, src/app/layout.tsx,
+  // src/components/theme-provider.tsx, src/components/app-shell.tsx,
+  // src/components/bottom-nav.tsx, src/components/sidebar-nav.tsx,
+  // src/components/coach/*.tsx, src/components/ui/bottom-sheet.tsx,
+  // src/components/ui/inline-markdown.tsx, src/components/ui/empty-state.tsx.
+  //
   // 137 occurrences, unchanged, measured 2026-08-13 after v0.102 (Body slice)
   // task 11 (the sweep) — re-pinned, not moved. Task 11's own sweep grep,
   // scoped to every file that renders on any of Body's four tabs (not just
@@ -328,7 +359,42 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // week-day-list.tsx and page.tsx are all token utilities, so the count did
   // not move there), 343 after task 2, 351 after the whole-branch-review
   // fixes, 355 right after slice 1, 395 at slice 0.
-  "arbitrary type sizes": 137,
+  "arbitrary type sizes": 112,
+  // 267 occurrences, measured 2026-08-14 after v0.99 slice 4 (Coach) task 10
+  // (the sweep). Ceiling was still 311 — unchanged since v0.102 (Body
+  // slice) task 11 — going into this slice; by the time task 10 started,
+  // tasks 3-9 had already driven the real count to 268, 43 below ceiling,
+  // which had silently passed RATCHET_SLACK (25) with nobody forced to
+  // re-pin, since no earlier Coach task happened to re-run this suite
+  // after its own edit. Verified the same way as the sibling ceiling
+  // (`git diff 7c8a4e4..HEAD`, counting
+  // (text|bg|border|fill|stroke|ring|divide)-(white|black)/N matches):
+  // chat-interface.tsx (net 17), history-panel.tsx (net 18, of 19 removed
+  // / 1 added — see below), bottom-sheet.tsx (net 2, of 3 removed / 1
+  // added — see below) and artifact-card.tsx (net 6) = 43 net. Task 10
+  // itself fixed the one KNOWN LEFTOVER its own brief flagged:
+  // history-panel.tsx's ghost-thread row was still `text-ghost-ink
+  // hover:bg-white/[0.04]` while its sibling chat-thread row directly
+  // above it had already moved to `hover:bg-surface-raised` (task 4) —
+  // migrated to `hover:bg-surface-raised` to match, −1. 268 − 1 = 267.
+  // (The +1 on history-panel.tsx above is task 4's own rewrite of that
+  // same line, which kept the ad-hoc alpha it should have replaced — the
+  // very leftover task 10 just closed.) Task 10's own full-render-chain
+  // sweep (scope below) found no other Coach-owned ad-hoc alpha. The two
+  // remaining matches in scope both trace to bottom-sheet.tsx's single
+  // deliberate scrim: the literal `bg-black/60` class, plus this guard's
+  // plain-text line scan also counting the words "bg-black/60" inside the
+  // comment directly above it that explains why the class stays literal
+  // (the +1 on bottom-sheet.tsx above is that same comment, added by task
+  // 3). A modal scrim is neither text nor a surface, both themes want it
+  // dark, and it already carries that comment — deliberately left, not
+  // residue to chase. Full render-chain scope: src/app/coach/page.tsx,
+  // src/app/coach/loading.tsx, src/app/layout.tsx,
+  // src/components/theme-provider.tsx, src/components/app-shell.tsx,
+  // src/components/bottom-nav.tsx, src/components/sidebar-nav.tsx,
+  // src/components/coach/*.tsx, src/components/ui/bottom-sheet.tsx,
+  // src/components/ui/inline-markdown.tsx, src/components/ui/empty-state.tsx.
+  //
   // 311 occurrences, unchanged, measured 2026-08-13 after v0.102 (Body slice)
   // task 11 (the sweep) — re-pinned, not moved. Task 11's own sweep grep
   // (same file list as the sibling ceiling above: src/app/body/page.tsx,
@@ -549,7 +615,7 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // fuelling tile that moved to `bg-surface-overlay`). 709 after task 4,
   // for the same reason task 4 didn't move it — 729 after task 2, 738 after
   // the whole-branch-review fixes, 749 right after slice 1, 806 at slice 0.
-  "ad-hoc white/black alpha utilities": 311,
+  "ad-hoc white/black alpha utilities": 267,
 };
 
 function expectRatchet(name: string, pattern: RegExp): void {
