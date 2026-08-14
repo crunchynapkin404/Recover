@@ -129,6 +129,27 @@ const WAIVED: Record<string, string> = {
   "viz-status-good": "semantic status colour, not ink or surface",
   "viz-status-warning": "semantic status colour, not ink or surface",
   "viz-status-critical": "semantic status colour, not ink or surface",
+
+  // ── Coach inbox kind tiles (Task 5) ─────────────────────────────────────
+  // Each `--kind-*-tint`/`--ghost-tint` is that kind's own tile ground, not
+  // one of the app's three neutral --surface-* tokens, so the generic
+  // role="surface" loop above never picks it up and would leave it
+  // unaccounted. It is not unchecked, though: the "kind ink/tint pairs"
+  // describe block below asserts its paired `-ink` token at 4.5:1 against it
+  // directly, derived from the same declaredTokens list this file reads —
+  // not a hand-written ratio.
+  "kind-morning-tint":
+    "this kind's own tile ground; checked directly against --kind-morning-ink below",
+  "kind-debrief-tint":
+    "this kind's own tile ground; checked directly against --kind-debrief-ink below",
+  "kind-weekly-tint":
+    "this kind's own tile ground; checked directly against --kind-weekly-ink below",
+  "kind-warning-tint":
+    "this kind's own tile ground; checked directly against --kind-warning-ink below",
+  "kind-monthly-tint":
+    "this kind's own tile ground; checked directly against --kind-monthly-ink below",
+  "ghost-tint":
+    "this kind's own tile ground; checked directly against --ghost-ink below",
 };
 
 const css = readFileSync(CSS_PATH, "utf8");
@@ -249,6 +270,72 @@ describe("contrast guard", () => {
       }
     });
   }
+
+  /**
+   * ── Coach inbox kind tiles (Task 5) ──────────────────────────────────────
+   * `KIND_STYLE` renders each history-panel tile as ink-on-its-own-tint, not
+   * ink-on-an-app-surface — the tinted background IS the ground WCAG is
+   * measured against, so this pairs each `--kind-*-ink` (and `--ghost-ink`)
+   * with its same-prefixed `--*-tint` sibling directly, rather than relying
+   * on the generic text-vs-surface loop above (which only knows the app's
+   * three neutral surfaces; a kind tile never sits on one of those). The
+   * PAIRING itself is derived from the token names already read out of the
+   * CSS above — not a hand-written list — so a future `--kind-*-ink` /
+   * `--kind-*-tint` pair is picked up the same way without anyone editing
+   * this file.
+   */
+  function inkTintPairs(): [string, string][] {
+    return declaredTokens
+      .filter((t) => t.endsWith("-ink"))
+      .map((ink): [string, string] => [ink, ink.replace(/-ink$/, "-tint")])
+      .filter(([, tint]) => declaredTokens.includes(tint));
+  }
+
+  describe("kind ink/tint pairs", () => {
+    const pairs = inkTintPairs();
+
+    it("finds the six kind/ghost pairs Task 5 added", () => {
+      // Not a floor: this is the C1/I6 lesson (see the file header) applied
+      // to a second list — if this count doesn't move when a pair is added
+      // or removed, the derivation above is checking nothing.
+      expect(pairs.map(([ink]) => ink).sort()).toEqual([
+        "ghost-ink",
+        "kind-debrief-ink",
+        "kind-monthly-ink",
+        "kind-morning-ink",
+        "kind-warning-ink",
+        "kind-weekly-ink",
+      ]);
+    });
+
+    for (const theme of THEMES) {
+      describe(theme, () => {
+        for (const [ink, tint] of pairs) {
+          it(`${ink} on its own ${tint} clears ${TEXT_FLOOR}:1`, () => {
+            const ground = resolvedValue(theme, tint);
+            if (ground === null || !OPAQUE_HEX.test(ground)) {
+              throw new Error(
+                `${theme}: --${tint} is a kind tile's own ground, so it ` +
+                  `must resolve to an opaque six-digit hex. Got ` +
+                  `${String(ground)}.`
+              );
+            }
+            const composite = compositeOver(
+              inkColor(theme, ink, "a kind-tile ink"),
+              ground
+            );
+            const ratio = contrastRatio(composite, ground);
+            expect(
+              ratio,
+              `${theme}: --${ink} (${resolvedValue(theme, ink)} → ` +
+                `${composite}) on --${tint} (${ground}) is ` +
+                `${ratio.toFixed(2)}:1`
+            ).toBeGreaterThanOrEqual(TEXT_FLOOR);
+          });
+        }
+      });
+    }
+  });
 
   it("every token in every theme block is checked, aliased, or waived", () => {
     const unaccounted = declaredTokens.filter((token) => {

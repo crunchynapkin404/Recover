@@ -5,17 +5,44 @@ import { Ghost, Search } from "lucide-react";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
 import type { InboxItem, InboxKind } from "@/lib/coach-inbox";
 
-// Each kind gets one hue, used at 12% for the tile and 30% for its border —
-// the same tinted-tile grammar the rest of the redesign uses.
+// Each kind gets one ink/tint token pair, defined in globals.css for BOTH
+// themes and contrast-checked by tests/contrast-guard.test.ts. Raw hues used
+// to live here and were applied as inline rgb() — unreadable in light, and
+// invisible to every guard because the tile was never captured.
 export const KIND_STYLE: Record<
   InboxKind,
-  { glyph: string; hue: string; label: string }
+  { glyph: string; ink: string; tint: string; label: string }
 > = {
-  morning: { glyph: "☀", hue: "245,158,11", label: "Morning brief" },
-  debrief: { glyph: "✓", hue: "16,185,129", label: "Ride debrief" },
-  weekly: { glyph: "▤", hue: "139,92,246", label: "Weekly review" },
-  warning: { glyph: "⚠", hue: "239,68,68", label: "Overtraining watch" },
-  monthly: { glyph: "◔", hue: "59,130,246", label: "Monthly report" },
+  morning: {
+    glyph: "☀",
+    ink: "var(--kind-morning-ink)",
+    tint: "var(--kind-morning-tint)",
+    label: "Morning brief",
+  },
+  debrief: {
+    glyph: "✓",
+    ink: "var(--kind-debrief-ink)",
+    tint: "var(--kind-debrief-tint)",
+    label: "Ride debrief",
+  },
+  weekly: {
+    glyph: "▤",
+    ink: "var(--kind-weekly-ink)",
+    tint: "var(--kind-weekly-tint)",
+    label: "Weekly review",
+  },
+  warning: {
+    glyph: "⚠",
+    ink: "var(--kind-warning-ink)",
+    tint: "var(--kind-warning-tint)",
+    label: "Overtraining watch",
+  },
+  monthly: {
+    glyph: "◔",
+    ink: "var(--kind-monthly-ink)",
+    tint: "var(--kind-monthly-tint)",
+    label: "Monthly report",
+  },
 };
 
 /** "07:02" today, "Mon" this week, "Jul 14" beyond it. */
@@ -102,11 +129,11 @@ export function HistoryPanel({
                 >
                   <span
                     aria-hidden
-                    className="flex size-7 shrink-0 items-center justify-center rounded-[9px] border text-[12px]"
+                    className="flex size-7 shrink-0 items-center justify-center rounded-[9px] border text-label"
                     style={{
-                      background: `rgba(${style.hue},0.12)`,
-                      borderColor: `rgba(${style.hue},0.3)`,
-                      color: `rgb(${style.hue})`,
+                      background: style.tint,
+                      borderColor: style.ink,
+                      color: style.ink,
                     }}
                   >
                     {style.glyph}

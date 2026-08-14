@@ -68,10 +68,16 @@ it("derives its ink list from the stylesheet, not from a hand-written array", ()
   expect(TEXT_INKS).toEqual([
     "accent",
     "coach-ink",
+    "ghost-ink",
     "ink-muted",
     "ink-primary",
     "ink-race",
     "ink-secondary",
+    "kind-debrief-ink",
+    "kind-monthly-ink",
+    "kind-morning-ink",
+    "kind-warning-ink",
+    "kind-weekly-ink",
     "viz-muted-ink",
   ]);
 });

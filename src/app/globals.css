@@ -56,6 +56,18 @@
   --color-accent: var(--accent);
   --color-coach-ink: var(--coach-ink);
   --color-ink-race: var(--ink-race);
+  --color-kind-morning-ink: var(--kind-morning-ink);
+  --color-kind-morning-tint: var(--kind-morning-tint);
+  --color-kind-debrief-ink: var(--kind-debrief-ink);
+  --color-kind-debrief-tint: var(--kind-debrief-tint);
+  --color-kind-weekly-ink: var(--kind-weekly-ink);
+  --color-kind-weekly-tint: var(--kind-weekly-tint);
+  --color-kind-warning-ink: var(--kind-warning-ink);
+  --color-kind-warning-tint: var(--kind-warning-tint);
+  --color-kind-monthly-ink: var(--kind-monthly-ink);
+  --color-kind-monthly-tint: var(--kind-monthly-tint);
+  --color-ghost-ink: var(--ghost-ink);
+  --color-ghost-tint: var(--ghost-tint);
 
   /* Type scale — 12px floor, seven steps. Phase 2b.4. Semantic names, not
      Tailwind v4's default --text-* keys (xs/sm/base/xl/3xl/…): those keys
@@ -123,6 +135,22 @@
      out of this slice's scope — migrating it belongs to slice 3. */
   --ink-race: #a21caf;
 
+  /* Coach inbox kinds. Each tile is ink-on-tint; the ink must clear 4.5:1
+     against its own tint, which the raw Tailwind-500 hues do not in light.
+     Light uses the 700/800 step, dark keeps the luminous 300/400 step. */
+  --kind-morning-ink: #92400e;
+  --kind-morning-tint: #fef3c7;
+  --kind-debrief-ink: #065f46;
+  --kind-debrief-tint: #d1fae5;
+  --kind-weekly-ink: #5b21b6;
+  --kind-weekly-tint: #ede9fe;
+  --kind-warning-ink: #991b1b;
+  --kind-warning-tint: #fee2e2;
+  --kind-monthly-ink: #1e40af;
+  --kind-monthly-tint: #dbeafe;
+  --ghost-ink: #6d28d9;
+  --ghost-tint: #f3e8ff;
+
   --background: var(--surface-base);
   --foreground: var(--ink-primary);
   --card: var(--surface-raised);
@@ -169,6 +197,19 @@
   /* fuchsia-300 — the exact hex the literal shipped, so dark's rendered
      pixels do not move. 9.37:1 worst-case on surfaces, 9.04:1 on glass. */
   --ink-race: #f0abfc;
+
+  --kind-morning-ink: #fcd34d;
+  --kind-morning-tint: #451a03;
+  --kind-debrief-ink: #6ee7b7;
+  --kind-debrief-tint: #022c22;
+  --kind-weekly-ink: #c4b5fd;
+  --kind-weekly-tint: #2e1065;
+  --kind-warning-ink: #fca5a5;
+  --kind-warning-tint: #450a0a;
+  --kind-monthly-ink: #93c5fd;
+  --kind-monthly-tint: #172554;
+  --ghost-ink: #c4b5fd;
+  --ghost-tint: #2e1065;
 
   --background: var(--surface-base);
   --foreground: var(--ink-primary);
