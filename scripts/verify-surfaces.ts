@@ -894,11 +894,49 @@ async function captureTokenCreated(
 
 /**
  * The seeded chat thread's id is a uuid, so `/coach?thread=…` cannot live in
- * SURFACES as a literal. Read it off the History panel's own first chat link.
+ * SURFACES as a literal. Read it off the History panel's own chat-thread
+ * link.
  *
- * Throws rather than returning null: a missing thread link means the seed did
- * not run, and silently dropping the surface would restore exactly the blind
- * spot this slice exists to close.
+ * DELIBERATELY NOT `a[href^="/coach?thread="]`: HistoryPanel renders TWO
+ * kinds of link with that identical href shape — coach-inbox items under
+ * "From your coach" (rendered FIRST in DOM order, with the one seeded unread
+ * item on top) and the athlete's own chat threads under "Chats". A plain
+ * href-prefix selector's `.first()` always lands on the inbox item, capturing
+ * a single assistant bubble instead of the multi-turn conversation this
+ * surface exists to exercise — and, as a side effect, calls markThreadRead
+ * on that inbox thread and permanently flips the seed's one deliberately
+ * unread item to read. `data-chat-thread` (history-panel.tsx) is a bare
+ * marker present ONLY on the `chats.map(...)` links, so this always resolves
+ * a real `kind: "chat"` thread.
+ *
+ * Throws rather than returning null: a missing thread link means the seeded
+ * CHAT thread is missing (run scripts/seed-demo.ts), and silently falling
+ * back to an inbox thread would restore exactly the blind spot this slice
+ * exists to close — this run refuses to silently capture an inbox thread
+ * instead.
+ *
+ * NOT TRUSTED ON DOM ORDER ALONE. `.first()` picks whichever `kind: "chat"`
+ * thread HistoryPanel happens to render first — ordered by updatedAt
+ * descending — which is a fine selector for "some real chat thread" but no
+ * guarantee it is a MULTI-TURN one. A dev DB can (and did: two single-message
+ * "How should I train today?" rows outranked the seeded four-message thread
+ * by updatedAt before they were deleted) hold stray one-message chat threads
+ * that sort ahead of the real conversation this surface exists to capture.
+ * capturing one of those would produce a coach-thread screenshot showing a
+ * single bubble — passing every check in this file while silently defeating
+ * the surface's entire purpose.
+ *
+ * This project's standing lesson (see file header, "axe baseline" section,
+ * and the whole-branch reviews referenced throughout this file) is that a
+ * run which emits files is not evidence — a script that writes a PNG and
+ * exits 0 has proven nothing about what is IN the PNG. So this function does
+ * not stop at resolving an href: it navigates to the resolved thread and
+ * reads the real rendered DOM for both bubble classes chat-interface.tsx
+ * emits (`.chat-bubble-user` for the athlete's turn, `.chat-bubble-ai` for
+ * the coach's reply — confirmed against that file, not assumed). Only a
+ * thread that actually rendered both is accepted; anything else throws
+ * rather than letting main() screenshot and audit a single bubble under the
+ * "coach-thread" name.
  */
 async function resolveCoachThreadPath(page: Page): Promise<string> {
   await page.goto(`${BASE_URL}/coach?history=1`, {
@@ -906,16 +944,51 @@ async function resolveCoachThreadPath(page: Page): Promise<string> {
     timeout: 20_000,
   });
   const href = await page
-    .locator('a[href^="/coach?thread="]')
+    .locator("a[data-chat-thread]")
     .first()
     .getAttribute("href", { timeout: 10_000 });
   if (!href) {
     throw new Error(
-      "no /coach?thread= link on /coach?history=1 — run scripts/seed-demo.ts " +
-        "against the dev DB (5435) first. Refusing to skip: an uncaptured " +
-        "thread is the blind spot slice 4 closes."
+      "no a[data-chat-thread] link on /coach?history=1 — the seeded CHAT " +
+        "thread ('Should I go hard today?') is missing. Run " +
+        "scripts/seed-demo.ts against the dev DB (5435) first. Refusing to " +
+        "fall back to a[href^=\"/coach?thread=\"]: that would silently " +
+        "capture an inbox thread instead of the seeded chat thread, which " +
+        "is the exact bug this resolver exists to avoid."
     );
   }
+
+  // PROVE it, don't trust DOM order: navigate to the resolved thread and
+  // check the real rendered page for both bubble classes before handing the
+  // href back to main() for capture.
+  await page.goto(`${BASE_URL}${href}`, {
+    waitUntil: "networkidle",
+    timeout: 20_000,
+  });
+  const [userBubbles, aiBubbles] = await Promise.all([
+    page.locator(".chat-bubble-user").count(),
+    page.locator(".chat-bubble-ai").count(),
+  ]);
+  if (userBubbles === 0 || aiBubbles === 0) {
+    throw new Error(
+      `resolved coach thread ${href} is not multi-turn: found ` +
+        `${userBubbles} .chat-bubble-user and ${aiBubbles} .chat-bubble-ai ` +
+        "node(s) on its rendered page. The coach-thread surface exists to " +
+        "capture a real conversation — a user bubble AND an assistant " +
+        "bubble, plus the message-list chrome around them — not a single " +
+        "message. `.first()` over data-chat-thread links picks whichever " +
+        "chat thread sorts first by updatedAt, which is not by itself proof " +
+        "it is the multi-turn seeded conversation (a stray one-message dev " +
+        "thread can and has outranked it). Capturing this thread anyway " +
+        "would silently reduce the coach-thread surface to a single bubble " +
+        "while the run still exits as though the surface were fully " +
+        "covered — exactly the kind of run-emits-files-but-proves-nothing " +
+        "result this project has been burned by before. Refusing to " +
+        "capture. Fix: delete stray single-message chat threads for this " +
+        "account, or re-run scripts/seed-demo.ts."
+    );
+  }
+
   return href;
 }
 

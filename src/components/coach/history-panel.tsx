@@ -151,6 +151,14 @@ export function HistoryPanel({
               <Link
                 key={t.id}
                 href={`/coach?thread=${t.id}`}
+                // Marks the athlete's own chat-thread links specifically —
+                // inbox items above and the ghost threads below share this
+                // same `/coach?thread=` href shape, so
+                // scripts/verify-surfaces.ts's resolveCoachThreadPath
+                // targets `a[data-chat-thread]` to capture a real multi-turn
+                // conversation instead of a single-message inbox item. Do
+                // not remove this as unused markup.
+                data-chat-thread
                 className={`flex items-center justify-between gap-2 rounded-xl px-2 py-2 transition-colors ${
                   t.id === activeThreadId
                     ? "bg-white/[0.08] text-white"
