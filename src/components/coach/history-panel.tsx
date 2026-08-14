@@ -94,24 +94,24 @@ export function HistoryPanel({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.04] px-3 py-2.5 text-white/35">
+      <div className="flex items-center gap-2 rounded-xl border border-hairline bg-surface-raised px-3 py-2.5 text-ink-muted">
         <Search className="size-3.5 shrink-0" aria-hidden />
         {/* Static for v1 — wires to recall search later. */}
         <input
           type="search"
           placeholder="Search chats & reviews"
           disabled
-          className="w-full bg-transparent text-[12px] text-white/60 outline-none placeholder:text-white/35"
+          className="w-full bg-transparent text-label text-ink-secondary outline-none placeholder:text-ink-muted"
         />
       </div>
 
       <div>
-        <p className="px-1 pb-2 text-[9.5px] font-bold uppercase tracking-[0.2em] text-white/35">
+        <p className="px-1 pb-2 text-label font-bold uppercase tracking-[0.2em] text-ink-muted">
           From your coach
-          {unread > 0 && <span className="text-emerald-400"> · {unread}</span>}
+          {unread > 0 && <span className="text-accent"> · {unread}</span>}
         </p>
         {inboxItems.length === 0 ? (
-          <p className="px-1 pb-3 text-[11px] text-white/40">
+          <p className="px-1 pb-3 text-label text-ink-muted">
             Nothing from the coach yet.
           </p>
         ) : (
@@ -124,7 +124,7 @@ export function HistoryPanel({
                   key={item.id}
                   href={`/coach?thread=${item.threadId}`}
                   className={`flex items-center gap-2.5 rounded-xl p-2 transition-colors ${
-                    active ? "bg-white/[0.08]" : "hover:bg-white/[0.04]"
+                    active ? "bg-surface-overlay" : "hover:bg-surface-raised"
                   }`}
                 >
                   <span
@@ -140,21 +140,21 @@ export function HistoryPanel({
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-1.5">
-                      <span className="truncate text-[12px] font-bold text-white">
+                      <span className="truncate text-caption font-bold text-ink-primary">
                         {item.title}
                       </span>
                       {item.unread && (
                         <span
-                          className="size-1.5 shrink-0 rounded-full bg-emerald-400"
+                          className="size-1.5 shrink-0 rounded-full bg-accent"
                           aria-label="Unread"
                         />
                       )}
                     </span>
-                    <span className="block truncate text-[10.5px] text-white/45">
+                    <span className="block truncate text-label text-ink-muted">
                       {item.preview}
                     </span>
                   </span>
-                  <span className="shrink-0 text-[9.5px] text-white/35">
+                  <span className="shrink-0 text-label text-ink-muted">
                     {stamp(item.createdAt, now)}
                   </span>
                 </Link>
@@ -165,11 +165,11 @@ export function HistoryPanel({
       </div>
 
       <div>
-        <p className="px-1 pb-2 text-[9.5px] font-bold uppercase tracking-[0.2em] text-white/35">
+        <p className="px-1 pb-2 text-label font-bold uppercase tracking-[0.2em] text-ink-muted">
           Chats
         </p>
         {chats.length === 0 && ghosts.length === 0 ? (
-          <p className="px-1 text-[11px] text-white/40">
+          <p className="px-1 text-label text-ink-muted">
             No conversations yet.
           </p>
         ) : (
@@ -188,14 +188,14 @@ export function HistoryPanel({
                 data-chat-thread
                 className={`flex items-center justify-between gap-2 rounded-xl px-2 py-2 transition-colors ${
                   t.id === activeThreadId
-                    ? "bg-white/[0.08] text-white"
-                    : "text-white/65 hover:bg-white/[0.04]"
+                    ? "bg-surface-overlay text-ink-primary"
+                    : "text-ink-secondary hover:bg-surface-raised"
                 }`}
               >
-                <span className="truncate text-[12.5px] font-medium">
+                <span className="min-w-0 flex-1 truncate text-caption font-medium">
                   {t.title}
                 </span>
-                <span className="shrink-0 text-[9.5px] text-white/35">
+                <span className="shrink-0 text-label text-ink-muted">
                   {stamp(new Date(t.updatedAt), now)}
                 </span>
               </Link>
@@ -206,15 +206,15 @@ export function HistoryPanel({
                 href={`/coach?thread=${t.id}`}
                 className={`flex items-center gap-1.5 rounded-xl px-2 py-2 transition-colors ${
                   t.id === activeThreadId
-                    ? "bg-purple-500/20 text-purple-200"
-                    : "text-purple-300/60 hover:bg-white/[0.04]"
+                    ? "bg-ghost-tint text-ghost-ink"
+                    : "text-ghost-ink hover:bg-white/[0.04]"
                 }`}
               >
                 <Ghost className="size-3 shrink-0" aria-hidden />
-                <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium">
+                <span className="min-w-0 flex-1 truncate text-caption font-medium">
                   {t.title}
                 </span>
-                <span className="shrink-0 text-[9.5px] text-white/35">
+                <span className="shrink-0 text-label text-ink-muted">
                   {stamp(new Date(t.updatedAt), now)}
                 </span>
               </Link>
