@@ -71,8 +71,18 @@ describe("HistoryPanel", () => {
     );
     expect(html).toContain("Ordinary chat");
     expect(html).toContain("Ghost chat");
+    // Isolate each row's own markup (split on the anchor boundary) so this
+    // actually checks exclusivity instead of just presence somewhere in the
+    // document — `toContain` alone would still pass if BOTH rows carried
+    // the token.
+    const rows = html.split("</a>");
+    const ordinaryRow = rows.find((r) => r.includes("Ordinary chat"));
+    const ghostRow = rows.find((r) => r.includes("Ghost chat"));
+    expect(ordinaryRow).toBeDefined();
+    expect(ghostRow).toBeDefined();
     // Only the ephemeral one carries the ghost ink token.
-    expect(html).toContain("text-ghost-ink");
+    expect(ghostRow).toContain("text-ghost-ink");
+    expect(ordinaryRow).not.toContain("text-ghost-ink");
     expect(html.indexOf("Ordinary chat")).toBeLessThan(html.indexOf("Ghost chat"));
   });
 
@@ -86,20 +96,40 @@ describe("HistoryPanel", () => {
     );
     expect(html).toContain("First");
     expect(html).toContain("Second");
-    // The active row gets the raised-surface treatment; exactly one does.
+    // Isolate each row's own markup (split on the anchor boundary) so the
+    // class check binds to identity, not just count — a count-only
+    // assertion would still pass if the ternary picked the WRONG row.
+    const rows = html.split("</a>");
+    const firstRow = rows.find((r) => r.includes("First"));
+    const secondRow = rows.find((r) => r.includes("Second"));
+    expect(firstRow).toBeDefined();
+    expect(secondRow).toBeDefined();
+    // The active row gets the raised-surface treatment; exactly one does,
+    // and it must be "Second" — the id actually passed as activeThreadId.
     expect(html.match(/bg-surface-overlay/g) ?? []).toHaveLength(1);
+    expect(secondRow).toContain("bg-surface-overlay");
+    expect(firstRow).not.toContain("bg-surface-overlay");
   });
 });
 
 describe("stamp", () => {
   it("gives HH:MM today, a weekday within the week, and a date beyond it", () => {
-    const now = new Date("2026-08-13T10:00:00Z");
-    // The container runs TZ=Europe/Amsterdam (CEST, UTC+2 in August); an
-    // explicit +02:00 offset keeps the wall-clock unambiguous so this
-    // doesn't flake under a different host timezone.
-    expect(stamp(new Date("2026-08-13T07:02:00+02:00"), now)).toBe("07:02");
-    expect(stamp(new Date("2026-08-10T07:02:00Z"), now)).toBe("Mon");
-    expect(stamp(new Date("2026-07-14T07:02:00Z"), now)).toBe("Jul 14");
+    // stamp() calls toLocaleTimeString/toLocaleDateString with NO `timeZone`
+    // option, so it always renders in the HOST's local timezone. An ISO
+    // offset (e.g. "+02:00") only pins the UTC instant a Date represents —
+    // it does NOT control how that instant is displayed, so it is NOT
+    // portable across host timezones.
+    //
+    // The local-time constructor IS portable: `new Date(2026, 7, 13, 7, 2)`
+    // fixes the wall-clock in whatever timezone the process runs under, so
+    // both construction and rendering share the same implicit local TZ and
+    // the result is "07:02" on any host. (Month is 0-indexed: 7 = August,
+    // 6 = July.) Verified under TZ=UTC, TZ=Europe/Amsterdam, and
+    // TZ=Pacific/Auckland (across the date line from UTC).
+    const now = new Date(2026, 7, 13, 10, 0);
+    expect(stamp(new Date(2026, 7, 13, 7, 2), now)).toBe("07:02");
+    expect(stamp(new Date(2026, 7, 10, 7, 2), now)).toBe("Mon");
+    expect(stamp(new Date(2026, 6, 14, 7, 2), now)).toBe("Jul 14");
   });
 });
 
