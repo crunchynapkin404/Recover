@@ -41,11 +41,27 @@ themes and two viewports, then audits the same loaded page with `axe-core`
 in the real browser (not `vitest-axe`/jsdom — most surfaces are async server
 components that don't render there, and jsdom computes no layout regardless,
 so it can't see a contrast or overlap violation). It needs a headless
-Chromium (see the script's header comment for the sandbox-specific
-`CHROME_PATH`/`LD_LIBRARY_PATH` setup), a dev server on a port that is not
-production's, and the `OWNER_EMAIL`/`OWNER_PASSWORD` pair from `npm run
-db:seed` above (it must be an owner — `/admin` is one of the captured
-surfaces and redirects any other role):
+Chromium, a server on a port that is not production's, and the
+`OWNER_EMAIL`/`OWNER_PASSWORD` pair from `npm run db:seed` above (it must be an
+owner — `/admin` is one of the captured surfaces and redirects any other role).
+
+Install the browser once per machine. `playwright-core` is a pinned
+devDependency, so `npm ci` already provides the driver:
+
+```bash
+npm run dev:browser-setup
+# system libraries need root. node is under nvm here, so `sudo node` will not
+# find it — pass the absolute path:
+sudo "$(which node)" node_modules/playwright-core/cli.js install-deps chromium
+```
+
+**Point it at a production build, not `npm run dev`.** Lazy compilation makes
+first navigations slow enough to trip the script's `networkidle` waits, and the
+dev server's memory footprint next to a headless browser is enough to push a
+small box into swap — an out-of-memory dev server renders a page with none of
+its blocks, which the script correctly reports as a block-order mismatch. The
+release candidate stack in `docker-compose.dev-rc.yml` serves a real production
+image on 3100 and is what `docs/RELEASING.md` step 7 uses:
 
 ```bash
 SCREENSHOT_BASE_URL=http://localhost:3100 \
@@ -105,13 +121,18 @@ one. Four things stand between `npm run verify:surfaces` and
 3. **A running server.** CI builds but never starts the app. Needs
    `next start` on a non-production port with matching
    `BETTER_AUTH_URL`/`TRUSTED_ORIGINS`, plus a readiness wait.
-4. **`playwright-core`, which this repo does not depend on at all.** It
-   resolves only from a local npx cache (see the script's `PLAYWRIGHT_CORE`
-   default), so after `npm ci` the script throws immediately. `ubuntu-latest`
-   _does_ ship Chrome, so `CHROME_PATH` is satisfiable — the browser is not
-   the blocker, the driver is. Fixing this means adding a dependency and
-   pinning it to a browser revision, which is a deliberate decision nobody has
-   made yet.
+4. ~~**`playwright-core`, which this repo does not depend on at all.**~~
+   **CLOSED in v0.104.0.** It is now an exact-pinned devDependency, and
+   `npm run dev:browser-setup` fetches the matching Chromium, so `npm ci` is
+   enough to make the script resolvable. The deferred decision — "adding a
+   dependency and pinning it to a browser revision, which is a deliberate
+   decision nobody has made yet" — was made by events: the old npx-cache path
+   was hardcoded in the script, it did not survive the move to a new dev box
+   on 2026-08-14, and every redesign slice was unverifiable until it was
+   declared. Undeclared tooling stops existing when the machine changes.
+
+   **Three blockers remain, and they are still why this is not a CI gate:**
+   the ratchet, the seeded database and the running server.
 
 **What IS already in CI:** `tests/axe-report-split.test.ts` runs under
 `npm test`, and pins the confirmed/indeterminate classification logic against

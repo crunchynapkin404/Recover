@@ -137,36 +137,58 @@ import {
   type AxeFinding,
 } from "./lib/axe-report";
 
-// Playwright is not in node_modules — it lives only in the npx cache, at
-// several versions, and only one matches the installed chromium revision.
-// Resolve from the environment so no machine's home directory is baked into
-// the repo, with the verified path as the documented default.
-const PLAYWRIGHT_CORE =
-  process.env.PLAYWRIGHT_CORE ??
-  `${process.env.HOME}/.npm/_npx/e41f203b7505f1fb/node_modules/playwright-core`;
+// playwright-core is an exact-pinned devDependency as of v0.104.0. It used to
+// resolve ONLY from an npx cache path baked into this file
+// (~/.npm/_npx/<content-hash>/…), which did not survive moving to the new dev
+// box on 2026-08-14: no npx cache, no chromium, and every redesign slice
+// unverifiable until it was fixed. Undeclared tooling is tooling that stops
+// existing when the machine changes. See
+// docs/specs/2026-08-16-dev-prod-gate-design.md §2.
+//
+// Run `npm run dev:browser-setup` once per machine for the matching browser.
+// The pin is exact, not a caret range: playwright-core and its chromium
+// revision are a matched pair, and `npm ci` resolving a newer driver against
+// an older installed browser is the same class of breakage all over again.
+//
+// PLAYWRIGHT_CORE remains an escape hatch for a machine whose installed
+// revision differs from the pin.
+const PLAYWRIGHT_CORE = process.env.PLAYWRIGHT_CORE ?? "playwright-core";
 let chromium: typeof import("playwright-core").chromium;
 try {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   ({ chromium } = require(PLAYWRIGHT_CORE));
 } catch {
   throw new Error(
-    `Cannot load playwright-core from ${PLAYWRIGHT_CORE}. Set PLAYWRIGHT_CORE to ` +
-      `a copy whose playwright-core/browsers.json chromium revision matches a ` +
-      `directory in ~/.cache/ms-playwright. See Task 6 Step 1.`
+    `Cannot load playwright-core from ${PLAYWRIGHT_CORE}. Run ` +
+      `\`npm ci && npm run dev:browser-setup\`, or set PLAYWRIGHT_CORE to a ` +
+      `copy whose playwright-core/browsers.json chromium revision matches a ` +
+      `directory in ~/.cache/ms-playwright.`
   );
 }
 
-// Default matches the brief; override when port 3000 is unavailable (see
-// header comment) via SCREENSHOT_BASE_URL, and point the dev server's own
-// BETTER_AUTH_URL at the same origin.
 // FAILS CLOSED, DELIBERATELY. There is no default. This script signs in as
 // the owner, walks every surface, and creates a real API token through the
-// real UI — and on this machine port 3000 is the LIVE PRODUCTION container.
-// An earlier version defaulted to exactly that, so running it with no env var
-// would have driven all of the above against production and, if revocation
-// failed, left a live API token behind. The plan document was corrected and
-// this line was not; the final whole-branch review caught it. Nine more
-// slices will run this script, so it must refuse rather than guess.
+// real UI. An earlier version defaulted to port 3000, which on the old
+// single-box setup WAS the live production container — running it with no env
+// var would have driven all of the above against production and, if
+// revocation failed, left a live API token behind.
+//
+// TWO REFUSALS, AND THEY GUARD DIFFERENT THINGS (v0.104.0):
+//
+//   1. Port 3000. Kept, though on the current dev box nothing production runs
+//      there — because a self-hoster following docs/SELF-HOSTING.md serves
+//      their real instance on exactly that port, and this file is public. It
+//      costs nothing to obey: run the dev server on 3100.
+//
+//   2. The production HOST. Added when the project moved to a dev box and a
+//      prod box on 2026-08-14 (docs/ENVIRONMENTS.md). The port rule was a
+//      proxy for "is this production", and the move falsified it in the
+//      dangerous direction: http://10.0.10.100:3000 is the athlete's live
+//      instance and the port check let it through, because the port is not
+//      what makes it production any more. Refusing the host is the check
+//      that actually means what the original intended.
+const PRODUCTION_HOSTS = ["10.0.10.100", "prod"];
+
 const BASE_URL = (() => {
   const url = process.env.SCREENSHOT_BASE_URL;
   if (!url) {
@@ -175,15 +197,33 @@ const BASE_URL = (() => {
         "Point it at a DEV server, never production:\n" +
         "  BETTER_AUTH_URL=http://localhost:3100 TRUSTED_ORIGINS=http://localhost:3100 npx next dev -p 3100\n" +
         "  SCREENSHOT_BASE_URL=http://localhost:3100 npm run verify:surfaces -- <slice>\n" +
-        "Port 3000 is the live production container on this machine."
+        "See docs/ENVIRONMENTS.md for which box is which."
     );
   }
+
+  let host: string;
+  try {
+    host = new URL(url).hostname;
+  } catch {
+    throw new Error(`SCREENSHOT_BASE_URL is not a valid URL: ${url}`);
+  }
+
+  if (PRODUCTION_HOSTS.includes(host)) {
+    throw new Error(
+      `Refusing to run against ${url} — ${host} is the PRODUCTION box ` +
+        `(docs/ENVIRONMENTS.md). This script signs in as the owner and creates ` +
+        `a real API token. Run it against a dev server.`
+    );
+  }
+
   if (/localhost:3000|127\.0\.0\.1:3000/.test(url)) {
     throw new Error(
-      `Refusing to run against ${url} — port 3000 is the live production ` +
-        `container. This script creates real data. Use a dev server (3100).`
+      `Refusing to run against ${url} — port 3000 is where a self-hosted ` +
+        `production instance serves (docs/SELF-HOSTING.md). This script ` +
+        `creates real data. Use a dev server on 3100.`
     );
   }
+
   return url;
 })();
 
