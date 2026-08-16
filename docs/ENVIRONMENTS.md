@@ -31,6 +31,7 @@ Prod's running image digest, recorded whenever it changes:
 
 | Date       | Version  | Digest                                                                    |
 | ---------- | -------- | ------------------------------------------------------------------------- |
+| 2026-08-16 | v0.104.0 | `sha256:473fc46f763739d0c014a4eff869a0219c111de09c5ba4e240d49f5830c45413` |
 | 2026-08-14 | v0.103.0 | `sha256:8c0b451ad7f752ff72d304e2de394cedd9417dac13584d1aca970fa62c42fbb2` |
 
 To roll back, retag `:latest` to the previous row's digest — see
@@ -97,12 +98,39 @@ openssl rand -base64 32   # BETTER_AUTH_SECRET
 openssl rand -hex 32      # ENCRYPTION_KEY
 ```
 
-After first boot, seed it so axe numbers stay comparable to the baseline:
+After first boot it needs data, and **`npm run db:seed` is not enough** — it only
+creates the owner account, which the app has already done at boot, so it reports
+"already exists — nothing to do" and the owner has no training data at all. A
+soak seeded that way cannot run `verify:surfaces`, which signs in as the owner
+(it must: `/admin` is one of the captured surfaces and redirects every other
+role).
+
+Copy the dev box's seeded database instead. That gives the owner real data and
+keeps the axe numbers comparable to `docs/axe-baseline-2026-08-11-seeded.md`,
+which is the reason for seeding in the first place:
 
 ```bash
-export DATABASE_URL="postgres://recover:recover@127.0.0.1:5435/recover" DATABASE_DRIVER=pg
-SEED_DEMO=1 npm run db:seed-demo
+docker exec recover-db-1 pg_dump -U recover -Fc recover > /tmp/dev-seeded.dump
+docker exec -i recover-rc-db-1 psql -U recover -d recover \
+  -c "drop schema public cascade; create schema public;"
+docker exec -i recover-rc-db-1 pg_restore -U recover -d recover < /tmp/dev-seeded.dump
+docker restart recover-rc-app-1
 ```
+
+Sign in with **devbox's** `OWNER_PASSWORD` from `.env` afterwards, not the one in
+`.env.rc` — the restore replaces the account the RC app seeded:
+
+```bash
+set -a; . ./.env; set +a
+SCREENSHOT_BASE_URL=http://localhost:3100 npm run verify:surfaces -- <slice>
+```
+
+**Known gap, carried to a later slice:** `coach-thread` cannot be captured on a
+seeded database at all. `scripts/seed-demo.ts` gives its six chat threads to
+`demo@recover.local`, and the capture signs in as the owner, so
+`a[data-chat-thread]` never appears and those four captures fail. Slice 4 got
+coach captures because the old dev box's owner had real threads from actual use.
+Closing it needs the owner seeded with threads.
 
 ## Dumps and secrets on the dev box
 
