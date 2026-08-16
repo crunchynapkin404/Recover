@@ -65,6 +65,45 @@ moves. `:latest` is the only tag prod's watchtower follows.
 Re-verify this the first time it is relied on after any edit to `release.yml`;
 `tests/release-gate.test.ts` guards the static half.
 
+## The RC soak stack
+
+`docker-compose.dev-rc.yml` runs a published release candidate on devbox the way
+prod runs a release — same base compose file, same entrypoint, same
+`scripts/migrate.mjs` at boot.
+
+```bash
+docker compose -p recover-rc --env-file .env.rc \
+  -f docker-compose.yml -f docker-compose.dev-rc.yml up -d db app
+
+docker compose -p recover-rc --env-file .env.rc \
+  -f docker-compose.yml -f docker-compose.dev-rc.yml down -v   # incl. volumes
+```
+
+**The project name is not optional.** Without `-p recover-rc` these commands
+recreate `recover-db-1` — the seeded database
+`docs/axe-baseline-2026-08-11-seeded.md` is measured against — and the baseline
+quietly stops being comparable.
+
+It needs an untracked `.env.rc` beside it (`.env*` is gitignored), holding
+`POSTGRES_PASSWORD`, `ENCRYPTION_KEY` (a throwaway, **never** prod's),
+`BETTER_AUTH_SECRET`, `BETTER_AUTH_URL=http://localhost:3100`,
+`TRUSTED_ORIGINS`, `OWNER_EMAIL`, `OWNER_PASSWORD`, `TZ`. No connector
+credentials. Generate the two secrets rather than inventing them —
+`BETTER_AUTH_SECRET` must be ≥32 characters and `ENCRYPTION_KEY` exactly 64 hex,
+and the app's env-validation refuses to boot otherwise:
+
+```bash
+openssl rand -base64 32   # BETTER_AUTH_SECRET
+openssl rand -hex 32      # ENCRYPTION_KEY
+```
+
+After first boot, seed it so axe numbers stay comparable to the baseline:
+
+```bash
+export DATABASE_URL="postgres://recover:recover@127.0.0.1:5435/recover" DATABASE_DRIVER=pg
+SEED_DEMO=1 npm run db:seed-demo
+```
+
 ## Freezing deploys
 
 ```bash
@@ -74,3 +113,30 @@ ssh PROD 'docker start recover-watchtower-1'   # resume
 
 Do this before any experiment that pushes tags. Prod keeps serving while frozen;
 it simply stops picking up new images.
+
+## Running the test suite on a dev box
+
+`docs/RELEASING.md` gives this for running what CI runs:
+
+```bash
+set -a; . ./.env; set +a; npx vitest run
+```
+
+**It writes to whatever database `.env` names.** The DB-gated suites create real
+rows — on 2026-08-16 that run added seven `*@example.invalid` users to devbox's
+seeded database, among them `test-coach-inbox-user` and
+`test-coach-inbox-other-user`.
+
+Those two names are the pair that appeared **in production** on 2026-07-27,
+which `docs/ROADMAP.md` recorded as an unexplained defect: "Something pointed a
+test run at production… deleting the rows removed the evidence without removing
+the cause." The cause is this command, run on a box whose `.env` pointed at the
+live database. On the two-box setup it is safe, because devbox's `.env` can only
+reach devbox's Postgres — and that is now a property worth protecting rather
+than a coincidence.
+
+Clean the debris out afterwards; the seeded baseline should contain two users:
+
+```sql
+delete from users where email like '%@example.invalid';
+```
