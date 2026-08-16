@@ -143,6 +143,21 @@ Verified in both directions on 2026-08-16: PASS with the real key, and FAIL
 (exit 1) when the backed-up key was replaced with a random one. Re-run it
 whenever the pair's shape changes — a new encrypted column, a key rotation.
 
+## After a promotion
+
+```bash
+scripts/live-verify-deploy.sh sha256:<the digest promote.yml printed>
+```
+
+Untracked (`scripts/live-*.sh`). Exits non-zero unless prod is running exactly
+that digest, its container reports `healthy`, and `/api/health` says
+`status: ok`, `db: up` and a **non-null** `backupAgeS`.
+
+The workflow cannot do this itself: it runs on GitHub's runners, which cannot
+reach 10.0.10.100, so `promote.yml` can go green while prod sits on the old
+image. Checked in both directions on 2026-08-16 — it passes on the running
+digest and fails on a wrong one.
+
 ## Freezing deploys
 
 ```bash
