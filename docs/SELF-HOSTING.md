@@ -142,7 +142,7 @@ restoring the pre-upgrade backup) and the backup-compatibility matrix.
 
 ## Operations
 
-- **Health:** `GET /api/health` → `{status, db, lastSyncAgeS}` (200/503) — point your uptime monitor here.
+- **Health:** `GET /api/health` → `{status, db, lastSyncAgeS}` (200/503) — point your uptime monitor here. The `app` service also carries a Docker healthcheck against it, so `docker compose ps` reports `Up (healthy)` rather than a bare `Up`, and an auto-updater cannot report a successful deploy of an image that starts but cannot serve. It matches on `"db":"up"`, not merely on a 200, because `/api/health` answers 200 with `"db":"down"` when Postgres is unreachable.
 - **Metrics:** `GET /api/metrics` → Prometheus text exposition format, gated by `METRICS_TOKEN` (unset = 404, wrong/missing bearer = 401). Point Prometheus/Grafana at it for readiness, sync, and backup-freshness gauges.
 - **Migrations:** run automatically at container start (`scripts/migrate.mjs`).
 - **Backups:** nightly at 03:30 UTC to the `recover-backups` volume, 14 dumps kept — see [Backups & restore](#backups--restore).
