@@ -834,6 +834,29 @@ excluded, is recorded here so that closing 2c means something:
       without removing the cause. This machine's `.env` points at 5435, so it
       was not a plain local `npm test`. Both belong to Phase 4's measurement
       and ops work rather than to 2d.
+      **BOTH ARE CLOSED IN v0.104.0, and both readings above were wrong in
+      the same direction — they inferred a cause from an absence.**
+      _`backupAgeS: null` did not mean no backup had ever succeeded._ Prod
+      had 1.7M nightly dumps going back to the day the box came up, with the
+      14-dump rotation working. Two defects hid them: `src/proxy.ts`'s
+      matcher never excluded `/api/internal`, so the backup sidecar's
+      notification was **307'd to `/login`** before the route's own bearer
+      check could run — on every nightly run since the endpoint was written —
+      and `scripts/backup.sh` could not tell, because busybox `wget` follows
+      the redirect to the login page, receives a 200, and exits 0. It printed
+      `backup: notified` every night while the app was told nothing. The
+      instrument was blind; the data was never at risk.
+      _And the test run that reached production was `npm test`_ — specifically
+      `set -a; . ./.env; set +a; npx vitest run`, which `docs/RELEASING.md`
+      itself prescribes for running what CI runs, and which points the
+      DB-gated suites at whatever `.env` names. Running it on the dev box on
+      2026-08-16 created seven `*@example.invalid` users, among them
+      `test-coach-inbox-user` and `test-coach-inbox-other-user` — the exact
+      pair found in production. The "not a plain local `npm test`" inference
+      was drawn from the port in `.env` at the time of writing, not from the
+      port it held on 2026-07-27. What now prevents a recurrence is
+      structural rather than procedural: dev and prod are separate boxes, and
+      devbox's `.env` cannot reach prod's database (`docs/ENVIRONMENTS.md`).
 
 ### Sequencing — the gate at 2026-09-05, lifted 2026-08-11
 
@@ -935,6 +958,43 @@ Demand order, science-constrained.
 - [ ] Remainder of the demand map, by votes
 
 ## Phase 4 — Breadth
+
+- [x] **A release gate between the boxes — v0.104.0.** The project moved onto a
+      dev box (`devbox`, 10.0.10.50) and a prod box (`prod`, 10.0.10.100) on
+      2026-08-14, and the release path did not move with it: a `v*` tag
+      published `:latest`, prod's watchtower polled it every 300s, and nothing
+      stood between a tag and the athlete except CI — the one set of checks
+      that cannot see a redesigned surface, since `verify-surfaces.ts` is
+      deliberately not a CI gate. There was also no rollback story at all.
+      **The gate turned out to already exist, unused:** `docker/metadata-action`
+      leaves its `latest` flavor at `auto`, which excludes pre-releases, so a
+      `-rc.N` tag publishes a real production image and moves no floating tag.
+      Proven empirically before anything was built on it, because prod's safety
+      rested on it. The dev box now soaks that exact image
+      (`docker-compose.dev-rc.yml`, own compose project so it cannot touch the
+      seeded database the axe baseline needs), and `promote.yml` retags the
+      **soaked digest** rather than rebuilding.
+      **What the soak caught in its first hour**, none of which was in the
+      plan: the app container had no healthcheck, so `docker ps` read
+      `Up 2 minutes` for an app that had died at boot and answered nothing —
+      which is exactly what watchtower would have reported to prod as a
+      successful deploy; and the backup-freshness defect recorded under 2b.2
+      above, which had been silently broken since the endpoint was written.
+      **Also closed:** prod's secrets had no backup, making the nightly dumps
+      only half a restore (`ENCRYPTION_KEY` lives only in prod's `.env`, and
+      without it a restored dump is rows whose connector tokens nobody can
+      decrypt) — dumps and an encrypted `.env` now sync to devbox nightly, and
+      the pair is **proven** by restoring and decrypting a real token through
+      `src/lib/crypto.ts`, mutation-checked against a wrong key. `playwright-core`
+      is a pinned devDependency, because the browser tooling resolved from an
+      npx cache path hardcoded in the script and did not survive the move,
+      leaving every redesign slice unverifiable.
+      **Not covered, deliberately:** rollback is designed and documented but
+      never exercised against prod, and rolling an image back does not roll the
+      schema back — `docs/RELEASING.md` now makes every release classify its
+      migrations as additive or destructive and states that a destructive one
+      has no cheap rollback. See `docs/specs/2026-08-16-dev-prod-gate-design.md`,
+      `docs/plans/2026-08-16-v0104-the-gate.md` and `docs/ENVIRONMENTS.md`.
 
 - [x] `feat/v0.65-mcp-contract-hardening` — **evaluated and dispositioned
       2026-08-10; nothing in it survives that is not recorded here or in the

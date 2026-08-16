@@ -1,14 +1,27 @@
 # Releasing
 
 The tag is the last step, never the first. Pushing any `v*` tag builds and
-publishes the Docker image from exactly that commit (`release.yml`), and
-watchtower-equipped servers will run it — so whatever the tag points at _is_
-the release, regardless of what the changelog next to it claims.
+publishes the Docker image from exactly that commit (`release.yml`) — so
+whatever the tag points at _is_ the release, regardless of what the changelog
+next to it claims.
 
 Born from v0.9.1: a work-in-progress commit was tagged and released before
 the implementation landed. The release shipped its own tests without the
 code they tested, and the published image missed half the fixes the release
 notes promised.
+
+**What changed in v0.104.0: a tag no longer deploys.** The project runs on two
+boxes now (`docs/ENVIRONMENTS.md`), and prod follows exactly one tag —
+`:latest`. A `vX.Y.Z-rc.N` pre-release tag publishes a real, CI-verified,
+production-identical image **without** moving `:latest`, so it can be run and
+soaked on the dev box first. Promotion is a separate, deliberate act that
+retags the soaked digest. Nothing reaches the athlete until someone dispatches
+the **Promote** workflow.
+
+That matters most for what CI cannot see. `verify-surfaces.ts` is not a CI
+gate and is not going to be one soon (`CONTRIBUTING.md` has the four reasons),
+so a redesigned surface is only ever checked by a human driving a real browser
+— and before this, the first instance running the built image was production's.
 
 ## Checklist
 
@@ -126,21 +139,110 @@ notes promised.
    sentence; implying a fix where there was only a drift guard is not.
 
 8. **Merge to `main`** (PR or fast-forward) and verify `main` is green.
-9. **Only now, tag the merge commit** — annotated, on `main`:
-   `git tag -a vX.Y.Z -m "vX.Y.Z — Name" && git push origin vX.Y.Z`
-10. **Watch the release build** (`gh run watch`) — the image publish is part
-    of the release, not an afterthought. `release.yml` runs three jobs: amd64
-    and arm64 build natively in parallel (`ubuntu-24.04` /
-    `ubuntu-24.04-arm`, no QEMU), then a `merge` job combines both digests
-    into one multi-arch manifest under the real tags. The version/`latest`
-    tags don't exist until `merge` finishes — a green `build` matrix alone
-    isn't a shipped release yet.
-11. **Release notes = the CHANGELOG section**, not the auto-generated PR
+
+9. **Classify this release's migrations.** Look at every new file in
+   `drizzle/`:
+
+   - **Additive** — new table, new nullable column, new index. Old code
+     ignores what it does not know about, so an image rollback is safe.
+   - **Destructive** — a dropped or renamed column, a new `NOT NULL`, a type
+     change. Old code queries what is no longer there, so an image rollback
+     produces a broken instance and recovery means restoring the nightly
+     dump, losing everything since 03:30.
+
+   **State which, in the release notes.** A release carrying a destructive
+   migration has no cheap rollback, and that has to be known before it ships
+   rather than discovered during an incident.
+
+10. **Tag a release candidate — not a release:**
+
+    ```bash
+    git tag vX.Y.Z-rc.1 && git push origin vX.Y.Z-rc.1
+    gh run watch   # release.yml: verify → build (amd64 + arm64) → merge
+    ```
+
+    `release.yml` demands a green CI run for that exact SHA, builds both
+    architectures natively, then combines them into one multi-arch manifest.
+    Because `docker/metadata-action`'s `latest` flavor is left at `auto`,
+    which excludes pre-releases, this publishes
+    `ghcr.io/crunchynapkin404/recover:X.Y.Z-rc.1` and **does not move
+    `:latest`** — the only tag prod's watchtower follows. Nothing reaches the
+    athlete. `docs/ENVIRONMENTS.md` records the empirical proof of that, and
+    `tests/release-gate.test.ts` guards it.
+
+11. **Soak it on the dev box.** Pin the RC tag in
+    `docker-compose.dev-rc.yml`, then:
+
+    ```bash
+    docker compose -p recover-rc --env-file .env.rc \
+      -f docker-compose.yml -f docker-compose.dev-rc.yml up -d db app
+    ```
+
+    Then all of it — this is the list, and a skipped box is an unsoaked
+    release:
+
+    - [ ] `curl -s localhost:3100/api/health` → `status: ok`, `db: up`
+    - [ ] `docker inspect recover-rc-app-1 --format '{{.State.Health.Status}}'`
+          → `healthy`
+    - [ ] sign in as the seeded owner
+    - [ ] the release's surface renders in both themes, both viewports
+    - [ ] `SCREENSHOT_BASE_URL=http://localhost:3100 npm run verify:surfaces -- <slice>`
+          → zero **confirmed** findings
+    - [ ] `RECOVER_BACKUP_VOLUME=recover-dev_backups scripts/migration-drill.sh`
+    - [ ] `RECOVER_BACKUP_VOLUME=recover-dev_backups scripts/restore-drill.sh`
+
+12. **Promote the tested digest.** Actions → **Promote** → Run workflow, with
+    `rc_tag` = `X.Y.Z-rc.1` and `release_tag` = `X.Y.Z`. It retags that exact
+    digest to `:latest` — no rebuild, so prod runs the bytes that were soaked.
+    Copy the rollback digest it prints into `docs/ENVIRONMENTS.md`.
+
+13. **Verify it landed:**
+
+    ```bash
+    scripts/live-verify-deploy.sh sha256:<promoted digest>
+    ```
+
+    The workflow cannot do this itself — GitHub's runners cannot reach the
+    prod box, so a green promote does not prove a deployed prod.
+
+14. **Tag the release commit** so the repository and the registry agree:
+    `git tag -a vX.Y.Z -m "vX.Y.Z — Name" && git push origin vX.Y.Z`
+
+15. **Release notes = the CHANGELOG section**, not the auto-generated PR
     list. `./scripts/release-object.sh <version>` extracts the section and
     creates the release object; the tag alone does not make one, and release
     pages lagged tags for the whole v0.28–v0.30 run because of it.
-12. **Refresh the server** (watchtower profile pulls automatically;
-    otherwise pull + restart) and spot-check the shipped fix in the app.
+
+## Rolling back
+
+Dispatch **Promote** again with `rc_tag` set to a previous release's tag —
+digests and versions are in `docs/ENVIRONMENTS.md`. Watchtower picks it up
+within 300s; confirm with `scripts/live-verify-deploy.sh`.
+
+**This restores the code, not the schema.** `drizzle/` is forward-only and
+`scripts/migrate.mjs` runs on every container boot, so once a release with a
+migration has started on prod the database is permanently ahead of any older
+image. Check step 9's classification for the release you are rolling back
+_past_:
+
+- Only additive migrations since the target → retag and you are done.
+- Any destructive migration since the target → the image rollback alone leaves
+  a broken instance. Restore the newest dump into prod's database first,
+  accepting the loss back to 03:30, and only then retag.
+
+Rollback is **designed and documented but has never been exercised against
+prod**, because proving it means deliberately regressing the athlete's live
+instance. Treat the first real use as the test it is.
+
+## Freezing deploys
+
+```bash
+ssh PROD 'docker stop recover-watchtower-1'    # stop following :latest
+ssh PROD 'docker start recover-watchtower-1'   # resume
+```
+
+Do this before any experiment that pushes tags. Prod keeps serving while
+frozen; it simply stops picking up new images.
 
 ## Never
 
@@ -148,3 +250,9 @@ notes promised.
 - Move a published tag without deliberately re-triggering the image build
   and re-publishing the release (deleting a tag drafts its release).
 - Ship tests without their implementation "to be completed after".
+- Promote a digest that was not soaked. The soak is the only step that runs
+  the shipped bytes anywhere before the athlete does.
+- Write `:latest` by hand, from a workflow or a terminal. `promote.yml` is the
+  only thing that may, and `tests/release-gate.test.ts` fails if that stops
+  being true — otherwise the gate silently disappears and nobody finds out
+  until a release candidate is live.
