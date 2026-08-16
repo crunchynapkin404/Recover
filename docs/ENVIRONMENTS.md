@@ -104,6 +104,45 @@ export DATABASE_URL="postgres://recover:recover@127.0.0.1:5435/recover" DATABASE
 SEED_DEMO=1 npm run db:seed-demo
 ```
 
+## Dumps and secrets on the dev box
+
+`scripts/live-dump-sync.sh` (untracked, per `.gitignore`'s `scripts/live-*.sh`)
+pulls prod's newest dump into the `recover-dev_backups` volume and prod's `.env`
+into `~/recover-secrets/prod-env.gpg`, encrypted with the passphrase in
+`~/.recover-backup-passphrase`. Nightly at 04:15 via cron, after prod's 03:30
+rotate.
+
+**A restore needs both halves.** The dump holds the rows; `ENCRYPTION_KEY` from
+that `.env` is what makes the connector tokens inside them readable, and
+`BETTER_AUTH_SECRET` goes with it. Restore one without the other and you get an
+instance whose Strava/Whoop/intervals.icu credentials are permanently
+unreadable. **Keep the passphrase somewhere that is neither box** — it is the
+only thing that is not backed up by this process, by design.
+
+The passphrase file sits on the same machine as the ciphertext, so this protects
+the copy if it travels further, not devbox itself. That is a deliberate trade
+for a sync that has to run unattended.
+
+With the volume populated, both drills run here — this is what
+`migration-drill.sh` Phase A was built for and could never do on this box:
+
+```bash
+RECOVER_BACKUP_VOLUME=recover-dev_backups scripts/restore-drill.sh
+RECOVER_BACKUP_VOLUME=recover-dev_backups scripts/migration-drill.sh
+```
+
+### The restore is proven, not assumed
+
+`scripts/live-restore-proof.sh` restores the newest dump into a scratch
+Postgres, pulls one encrypted connector token out of it, and decrypts it with
+the key from the encrypted `.env` — using the app's own `src/lib/crypto.ts`, so
+it proves the real code path reads the real data. It prints PASS or FAIL and
+nothing else about the secrets.
+
+Verified in both directions on 2026-08-16: PASS with the real key, and FAIL
+(exit 1) when the backed-up key was replaced with a random one. Re-run it
+whenever the pair's shape changes — a new encrypted column, a key rotation.
+
 ## Freezing deploys
 
 ```bash
