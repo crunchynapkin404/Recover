@@ -45,6 +45,26 @@ resolved first.
 ssh PROD 'docker image inspect $(docker inspect recover-app-1 --format "{{.Image}}") --format "{{index .RepoDigests 0}}"'
 ```
 
+## The pre-release gate, proven 2026-08-16
+
+`release.yml` tags images through `docker/metadata-action` with the `latest`
+flavor left at its default `auto`, which excludes pre-releases. Verified
+empirically rather than assumed, because prod's safety rests on it:
+
+| Tag            | Digest after pushing `v0.104.0-rc.0` |
+| -------------- | ------------------------------------ |
+| `0.104.0-rc.0` | `sha256:51661bb9…` — newly published |
+| `latest`       | `sha256:8c0b451a…` — **unchanged**   |
+| `0.104`        | **does not exist**                   |
+
+Both the `latest` flavor **and** the `{{major}}.{{minor}}` pattern are skipped
+for a pre-release, so an RC publishes under exactly one tag and no floating tag
+moves. `:latest` is the only tag prod's watchtower follows.
+
+**Any `vX.Y.Z-rc.N` tag is therefore a staging build prod will not pick up.**
+Re-verify this the first time it is relied on after any edit to `release.yml`;
+`tests/release-gate.test.ts` guards the static half.
+
 ## Freezing deploys
 
 ```bash
