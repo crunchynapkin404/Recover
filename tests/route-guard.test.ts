@@ -26,6 +26,17 @@ describe("route guard matcher", () => {
     "/api/cron",
     "/api/health",
     "/api/auth/sign-in/email",
+    // Added v0.104.0. This one shipped broken and stayed broken: the backup
+    // sidecar POSTs here after every successful nightly rotate, with a bearer
+    // secret the route checks itself in constant time — but the matcher never
+    // excluded it, so every notification since the endpoint was written was
+    // 307'd to /login and the write never ran. That is the whole reason
+    // /api/health has always reported "backupAgeS": null, which the roadmap
+    // carried from v0.93.0 as evidence that no backup had ever succeeded. The
+    // backups were fine. The notification was redirected, and
+    // scripts/backup.sh could not tell, because wget follows the redirect to
+    // /login, gets a 200, and exits 0.
+    "/api/internal/backup-complete",
     "/login",
     "/join/abc123XYZ",
     "/manifest.webmanifest",

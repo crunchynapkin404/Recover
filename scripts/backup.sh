@@ -43,13 +43,20 @@ echo "backup: done, $(ls "$BACKUP_DIR"/recover-*.dump | wc -l) dump(s) retained 
 # blip) must not fail the backup job — it only logs.
 NOTIFY_URL="${BACKUP_NOTIFY_URL:-http://app:3000/api/internal/backup-complete}"
 if [ -n "${BACKUP_NOTIFY_SECRET:-}" ]; then
-  if wget -q -O /dev/null -T 5 \
+  # The RESPONSE BODY is checked, not just wget's exit status, and that is the
+  # whole point of this block's v0.104.0 rewrite. busybox wget follows
+  # redirects and has no --max-redirect, so when src/proxy.ts's matcher was
+  # 307'ing /api/internal to /login, wget dutifully fetched the login page,
+  # got a 200, and exited 0 — this script printed "notified" after every
+  # nightly run while the app was never told anything, for months. The
+  # endpoint answers {"ok":true}; the login page does not.
+  if body=$(wget -q -O - -T 5 \
       --header="Authorization: Bearer $BACKUP_NOTIFY_SECRET" \
       --post-data='' \
-      "$NOTIFY_URL"; then
+      "$NOTIFY_URL") && echo "$body" | grep -q '"ok"'; then
     echo "backup: notified $NOTIFY_URL"
   else
-    echo "backup: notify to $NOTIFY_URL failed (non-fatal)"
+    echo "backup: notify to $NOTIFY_URL failed (non-fatal) — response was not {\"ok\":true}"
   fi
 else
   echo "backup: BACKUP_NOTIFY_SECRET not set, skipping freshness notify"
