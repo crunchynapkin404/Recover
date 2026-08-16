@@ -357,6 +357,54 @@ comparable to the new ones.
 
 ---
 
+## Phase A result — measured 2026-08-16, and the scope decision
+
+**94 confirmed nodes on Settings**, against the 1 the collapsed capture
+reported this morning. By rule: **color-contrast 86 (serious), label 8
+(critical)**.
+
+| Surface                   | light/phone | light/desktop | dark/phone | dark/desktop |
+| ------------------------- | ----------: | ------------: | ---------: | -----------: |
+| `settings`                |          10 |            11 |          0 |            0 |
+| `settings-expanded`       |          12 |            12 |          1 |            1 |
+| `settings-connect-errors` |          12 |            12 |          1 |            1 |
+| `settings-token-created`  |          10 |            11 |          0 |            0 |
+
+Indeterminate rose from 7 to **106** on the expanded surface, and two rules
+appear that no Settings capture had ever produced: `label` and
+`duplicate-id-aria`.
+
+**SCOPE DECISION: phase A ships alone as v0.105.0; the redesign becomes
+v0.106.0.** The rule agreed before starting was ≥30 confirmed splits the
+release, and 94 is more than triple it — on a surface with 52 sub-floor
+literals across 18 components, four sections of which had never been audited.
+Precedent: slice 0 shipped foundations alone as v0.99.0.
+
+**The finding that matters more than the count.** One of the eight `label`
+nodes is **theme-independent and therefore live in production today**:
+
+```
+<input accept="application/json,.json" class="… file:text-[10px] …">
+```
+
+The Data section's Import control is a file input with **no accessible name**,
+axe impact **critical**, present in `dark` — the only theme
+`forcedTheme="dark"` lets the athlete see. It is not a light-mode problem
+waiting for slice 9; a screen-reader user cannot identify that control right
+now. It has been that way since the control was written, invisible because the
+section it lives in was never opened.
+
+This is the same defect shape slice 3 recorded — "one of the 26 was
+theme-independent — an `<input type="file">` with no accessible name — and
+would have survived the migration untouched" — in a different section of a
+different surface, found by the same act of opening something.
+
+**The other 86 are color-contrast and 85 of them are light-only**, so they
+behave exactly like every prior slice's debt: invisible until `forcedTheme`
+lifts at slice 9, and fixed by tokenising.
+
+---
+
 ## Phase B — the redesign
 
 **Scope confirmed by Task 4, not before.** The work itself, in the order slices
