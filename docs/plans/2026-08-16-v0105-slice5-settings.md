@@ -357,7 +357,65 @@ comparable to the new ones.
 
 ---
 
-## Phase A result — measured 2026-08-16, and the scope decision
+## Phase A result — FINAL, measured 2026-08-16 against a populated owner
+
+The numbers in the section below were taken before three things were
+understood, and are superseded by these. Kept because the corrections are the
+point.
+
+**Settings: 86 confirmed nodes, all `color-contrast`, all light-mode.** The
+`label` violations are **gone** — 0 nodes of that rule anywhere in the run,
+confirming the Import fix in a real browser rather than only in jsdom.
+
+| Surface                   | light/phone | light/desktop | dark |
+| ------------------------- | ----------: | ------------: | ---: |
+| `settings`                |          10 |            11 |    0 |
+| `settings-expanded`       |          11 |            11 |    0 |
+| `settings-connect-errors` |          11 |            11 |    0 |
+| `settings-token-created`  |          10 |            11 |    0 |
+
+**Whole-run totals, which reorder the remaining slices:**
+
+| Surface              | Confirmed | Slice                   |
+| -------------------- | --------: | ----------------------- |
+| `admin`              |   **147** | 7 (Admin+Import)        |
+| `settings` ×4        |    **86** | 5 (this one)            |
+| `activity-log`       |    **46** | 6 (Activity)            |
+| `import`             |         8 | 7                       |
+| `login`              |         4 | 8 (pre-auth)            |
+| `today` ×3           |         2 | 1 — **already shipped** |
+| train / body / coach |     **0** | 2, 3, 4 — hold up       |
+
+Two readings worth keeping:
+
+**Slices 2, 3 and 4 hold up against real data.** Train, Body and Coach are at
+zero confirmed with a fully populated owner, which is the first time any of
+them has been measured that way on this box.
+
+**Today is not.** Two nodes, light-only, at
+`<strong class="font-bold text-white">Readiness 71 (amber).</strong>` — raw
+`text-white` on a light surface. It appears only when there IS a readiness
+figure, so an empty account cannot show it, and slice 1 declared Today clean.
+Light mode stays unreachable until slice 9, so no athlete sees it; it belongs
+to the sweep, and is recorded here so the sweep does not have to rediscover it.
+
+**Three things had to be fixed before this number could be measured at all**,
+each of which invalidated every earlier reading:
+
+1. **The owner had no data.** `verify-surfaces` signs in as the owner but
+   `seed-demo.ts` seeds a separate demo user, so every capture was of an empty
+   account. Fixed by seeding onto the owner
+   (`DEMO_EMAIL=<owner> npm run db:seed-demo`), now in `docs/RELEASING.md`.
+2. **The Journal tab crashed**, taking the whole run down before it reached
+   Settings. Root cause in `journal-form.tsx`; see its commit.
+3. **The RC image cannot serve this measurement.** `?state=` is refused when
+   `NODE_ENV === "production"`, so the three Today surfaces cannot be captured
+   against the soak stack at all, and the image also predates the two fixes
+   above. This baseline was taken against a **production build from source**
+   (`next start -p 3100`) pointed at the soak database — which is the
+   arrangement `docs/RELEASING.md` now documents.
+
+## Phase A result — superseded first reading (empty owner, kept for the record)
 
 **94 confirmed nodes on Settings**, against the 1 the collapsed capture
 reported this morning. By rule: **color-contrast 86 (serious), label 8
