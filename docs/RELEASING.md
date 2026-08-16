@@ -76,8 +76,28 @@ so a redesigned surface is only ever checked by a human driving a real browser
    This is the mechanism behind v0.87.0's false finding — the reviewer's
    local run looked normal and was missing whole suites. **When a mutation
    survives, check the skip count before concluding anything**; a mutation
-   cannot be killed by a test that never ran. Port 5435 is the dev database
-   and is safe. Port 5434 is live production — never point tests at it.
+   cannot be killed by a test that never ran.
+
+   **This command writes real rows to whatever database `.env` names, and
+   the port advice that used to sit here is now false.** It read "Port 5435 is
+   the dev database and is safe. Port 5434 is live production — never point
+   tests at it", which described the old single-box setup. On the dev box
+   **5434 is the dev database**, 5435 is the RC soak stack, and production's
+   Postgres is on the prod box bound to its own loopback — unreachable from
+   here at any port (`docs/ENVIRONMENTS.md`).
+
+   That stale sentence is worth keeping visible because it names the real
+   hazard. This exact command is what put `test-coach-inbox-user` and
+   `test-coach-inbox-other-user` into **production** on 2026-07-27 — the
+   defect `docs/ROADMAP.md` recorded as "something pointed a test run at
+   production" and could not explain. Running it on the dev box on 2026-08-16
+   reproduced the same seven `*@example.invalid` users, which is how the cause
+   was finally identified. What protects you now is topology, not vigilance:
+   dev and prod are different machines. Clean up after a run anyway —
+
+   ```sql
+   delete from users where email like '%@example.invalid';
+   ```
 
 5. **Mutation-check every test that guards a bound.** Break the thing the
    test names, confirm a test fails, revert. A test that has never been seen
@@ -187,9 +207,33 @@ so a redesigned surface is only ever checked by a human driving a real browser
     - [ ] sign in as the seeded owner
     - [ ] the release's surface renders in both themes, both viewports
     - [ ] `SCREENSHOT_BASE_URL=http://localhost:3100 npm run verify:surfaces -- <slice>`
-          → zero **confirmed** findings
+          → zero **confirmed** findings (see the two caveats below)
     - [ ] `RECOVER_BACKUP_VOLUME=recover-dev_backups scripts/migration-drill.sh`
     - [ ] `RECOVER_BACKUP_VOLUME=recover-dev_backups scripts/restore-drill.sh`
+
+### Two caveats about running `verify:surfaces` against the soak stack
+
+Both learned the hard way in v0.105.0, and neither is obvious.
+
+**The Today preview states cannot be captured there.** `?state=` is refused
+outright when `NODE_ENV === "production"` (`previewStateFrom` in
+`src/lib/today/state.ts`), and the RC image _is_ production — so `today`,
+`today-post-session` and `today-evening` all render whichever state the real
+clock dictates, and `assertBlockOrder` fails on however many do not match.
+Capture those three against a dev server; everything else against the soak
+stack, which is the artifact actually shipping.
+
+**The owner must have data.** The script signs in as the owner, because
+`/admin` is a captured surface and redirects every other role — but
+`scripts/seed-demo.ts` seeds a _separate demo user_ by default, leaving the
+owner empty and every capture a picture of an empty account.
+`docs/axe-baseline-2026-08-11-seeded.md` measured seeding as +20.7% nodes
+overall and +600% on Train, so an empty-owner run is not comparable to the
+baseline or to any previous slice. Seed onto the owner itself:
+
+```bash
+SEED_DEMO=1 DEMO_EMAIL=<owner email> npm run db:seed-demo
+```
 
 12. **Promote the tested digest.** Actions → **Promote** → Run workflow, with
     `rc_tag` = `X.Y.Z-rc.1` and `release_tag` = `X.Y.Z`. It retags that exact
