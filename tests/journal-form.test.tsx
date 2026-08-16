@@ -422,3 +422,73 @@ describe("journal form — floor holds on the manual-vitals path (v0.102 task 7)
     expect(html).not.toContain("placeholder:text-white/");
   });
 });
+
+/**
+ * v0.99 slice 5 (v0.105.0) — a real crash, found while widening the Settings
+ * capture and hitting an unrelated page that would not load at all.
+ *
+ * `selectedMood` is initialised with `MOODS.findIndex(...)`, which returns
+ * **-1** for a stored mood the list does not contain. The hidden input then
+ * guards with `selectedMood != null` — and -1 is not null — so it evaluates
+ * `MOODS[-1].label` and throws "Cannot read properties of undefined (reading
+ * 'label')". React unwinds to the global error boundary, which renders its
+ * own document: the whole Body → Journal tab becomes "This page couldn't
+ * load", and because that boundary replaces <body> it also drops the layout's
+ * classes, which is how the capture tooling first noticed.
+ *
+ * Not hypothetical, and not only a seed problem. The production database
+ * holds `mood` values of `good, happy, injured, neutral, tired` while MOODS
+ * knows only `happy, neutral, exhausted, injured, tired` — `good` is a legacy
+ * value the current UI can no longer produce. It crashes whenever TODAY's
+ * entry carries one, which on the seeded demo database is every day.
+ *
+ * The fix is to treat "not found" as unanswered rather than as an index.
+ */
+describe("journal form — an unknown stored mood must not crash the page", () => {
+  const todayYmd = (() => {
+    const d = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  })();
+
+  it("renders when today's entry has a mood outside the MOODS list", async () => {
+    await renderForm({
+      entriesByDate: {
+        [todayYmd]: { mood: "good", energy: 7, soreness: 3, stress: 4 },
+      },
+    });
+    // Reaching this line at all is most of the assertion: the unfixed
+    // component throws during render and never returns markup.
+    expect(container.innerHTML).toContain("Mood");
+  });
+
+  it("treats the unknown mood as unanswered rather than submitting a wrong one", async () => {
+    await renderForm({
+      entriesByDate: {
+        [todayYmd]: { mood: "good", energy: 7, soreness: 3, stress: 4 },
+      },
+    });
+    const moodInput = container.querySelector(
+      'input[type="hidden"][name="mood"]'
+    ) as HTMLInputElement | null;
+    expect(moodInput).not.toBeNull();
+    // Empty, not the first mood in the list: silently promoting an
+    // unrecognised value to "happy" would write an answer the athlete never
+    // gave, which is the same defect this file's original tests exist for.
+    expect(moodInput!.value).toBe("");
+  });
+
+  it("still selects a known stored mood", async () => {
+    await renderForm({
+      entriesByDate: {
+        [todayYmd]: { mood: "tired", energy: 5, soreness: 3, stress: 4 },
+      },
+    });
+    const moodInput = container.querySelector(
+      'input[type="hidden"][name="mood"]'
+    ) as HTMLInputElement | null;
+    // The guard must not break the working path — this is the mutation check
+    // for the fix itself.
+    expect(moodInput!.value).toBe("tired");
+  });
+});

@@ -52,6 +52,20 @@ const MOODS = [
   { emoji: "😴", label: "tired" },
 ] as const;
 
+/**
+ * A MOODS index for a stored label, or null when the list does not contain
+ * it. The null matters: `Array.findIndex` returns -1, which every
+ * `!= null` guard in this component treats as a real selection, and
+ * `MOODS[-1].label` then throws and takes the whole page to the global error
+ * boundary. Shared by the initialiser and the day-switching handler so the
+ * two cannot drift — the second one was still raw when the first was fixed.
+ */
+function moodIndexOrNull(mood: string | null | undefined): number | null {
+  if (!mood) return null;
+  const i = MOODS.findIndex((m) => m.label === mood);
+  return i === -1 ? null : i;
+}
+
 const BEHAVIOR_TAGS = [
   {
     group: "Lifestyle & Nutrition",
@@ -82,7 +96,19 @@ export function JournalForm({
 
   const [selectedMood, setSelectedMood] = useState<number | null>(() => {
     if (!todayEntry?.mood) return null;
-    return MOODS.findIndex((m) => m.label === todayEntry.mood);
+    // findIndex returns -1 for a stored mood MOODS does not contain, and -1
+    // is NOT null — so the hidden input's `selectedMood != null` guard let it
+    // through and evaluated MOODS[-1].label, throwing "Cannot read properties
+    // of undefined". That unwound to the global error boundary and took the
+    // whole Journal tab down to "This page couldn't load".
+    //
+    // Legacy values make this reachable on real data: production holds
+    // mood='good', which the current UI can no longer produce but older rows
+    // still carry, and every seeded demo database writes it daily. Unknown
+    // means UNANSWERED, deliberately — promoting it to index 0 would submit
+    // "happy" on the athlete's behalf, which is the exact defect the hidden
+    // inputs in this component were written to prevent.
+    return moodIndexOrNull(todayEntry.mood);
   });
   // null = unanswered. Never default to a number: a submitted 7 the athlete
   // never gave is indistinguishable from a real 7 once it's in the database.
@@ -133,9 +159,10 @@ export function JournalForm({
       setEnergy(entry.energy ?? null);
       setSoreness(entry.soreness ?? null);
       setStress(entry.stress ?? null);
-      setSelectedMood(
-        entry.mood ? MOODS.findIndex((m) => m.label === entry.mood) : null
-      );
+      // Same -1 hazard as the initialiser above, on the day-switching path:
+      // selecting a past day whose stored mood is a legacy value would set
+      // selectedMood to -1 and crash the page on the next render.
+      setSelectedMood(moodIndexOrNull(entry.mood));
       setActiveTags(new Set(entry.tags ?? []));
       setDayFlags(new Set(entry.dayFlags ?? []));
       setNotes(entry.notes ?? "");
