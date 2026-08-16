@@ -25,6 +25,38 @@ services:
       - "com.centurylinklabs.watchtower.scope=recover"
     ports:
       - "${APP_PORT:-3000}:3000"
+    # Without this, "the container is up" is the only signal anyone has —
+    # including watchtower, which pulls a new image, restarts, and reports a
+    # successful deploy whether or not the app can serve a request. Observed
+    # while building v0.104.0: an app that died on a failed env-validation at
+    # boot still read `Up 2 minutes` in `docker ps` while answering nothing at
+    # all. Only db had a healthcheck before this.
+    #
+    # busybox wget ships in the node:22-alpine image. The grep is what makes
+    # this a readiness check rather than a liveness one: /api/health answers
+    # 200 with "db":"down" when Postgres is unreachable, so matching on the
+    # status code alone would call a database-less app healthy.
+    #
+    # It probes $$(hostname), NOT 127.0.0.1, and that is not a stylistic
+    # choice. Next's standalone server binds to process.env.HOSTNAME, which
+    # Docker sets to the container ID — so the app listens on the container's
+    # own IP and loopback is refused. A 127.0.0.1 probe reports every healthy
+    # container as unhealthy; this was caught on the RC soak stack, where the
+    # app answered fine through the published port while the check failed with
+    # "can't connect to remote host". The doubled $$ escapes compose's own
+    # interpolation so the shell expands it.
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          'wget -qO- http://$$(hostname):3000/api/health | grep -q ''"db":"up"''',
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      # Migrations run at boot (docker-entrypoint.sh), so a cold start with a
+      # long migration must not be reported unhealthy while it is working.
+      start_period: 60s
     environment:
       # The athlete's timezone. Recover has no per-user timezone field, so the
       # container's local time IS the athlete's wall clock: it decides how bed

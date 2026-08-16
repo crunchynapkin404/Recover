@@ -45,6 +45,10 @@ next-env.d.ts
 .superdesign/
 docs/flow-export-*/
 cookies.txt
+# Knowledge-graph output from the /graphify tool. 500+ generated files that
+# prettier would otherwise scan, failing `npm run format:check` locally while
+# CI (which never sees untracked files) passed.
+graphify-out/
 docs/superpowers/
 
 # visual verification captures (evidence for a PR, not repo content)

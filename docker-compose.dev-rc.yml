@@ -1,0 +1,43 @@
+# The RC soak overlay — v0.104.0.
+#
+# Runs a published release-candidate image on the dev box exactly as prod runs
+# it: same docker-compose.yml underneath, same entrypoint, same
+# scripts/migrate.mjs at boot. Only what MUST differ is overridden here, so the
+# soak exercises the real stack file rather than a parallel copy of it.
+#
+# ALWAYS run it under its own project name. `recover-db-1` on the dev box holds
+# the seeded database docs/axe-baseline-2026-08-11-seeded.md is measured
+# against; a compose command aimed at the RC while sharing the `recover` project
+# would recreate and migrate it, and the baseline would quietly stop being
+# comparable.
+#
+#   docker compose -p recover-rc --env-file .env.rc \
+#     -f docker-compose.yml -f docker-compose.dev-rc.yml up -d db app
+#
+# Naming only `db app` keeps the backup sidecar out of the soak — it has its own
+# volume and nothing to protect here.
+#
+# Tear down with its volumes when the soak is done:
+#   docker compose -p recover-rc --env-file .env.rc \
+#     -f docker-compose.yml -f docker-compose.dev-rc.yml down -v
+
+# `!override` on both `ports` lists is load-bearing, not decoration. Compose
+# MERGES sequences from override files rather than replacing them, so a plain
+# `ports:` here would have the RC db try to bind 5434 (inherited) *and* 5435,
+# and 5434 is the seeded dev database's port — the stack fails to start with
+# "port is already allocated". The same merge would republish the RC app on
+# 3000 alongside 3100. `!override` replaces the inherited list instead.
+
+services:
+  db:
+    # 5434 is the seeded dev database. This stack gets its own port, its own
+    # container and — because the project name differs — its own volume.
+    ports: !override
+      - "127.0.0.1:5435:5432"
+
+  app:
+    # Pinned to the exact published candidate. Never `:latest` here: the whole
+    # point of a soak is to run something prod is not running yet.
+    image: ghcr.io/crunchynapkin404/recover:0.104.0-rc.0
+    ports: !override
+      - "127.0.0.1:3100:3000"

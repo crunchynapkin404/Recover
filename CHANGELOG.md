@@ -1,5 +1,95 @@
 # Changelog
 
+## v0.104.0 — 2026-08-16 — The gate between the boxes
+
+The project moved onto a dev box and a prod box on 2026-08-14. The release path
+did not move with it: a `v*` tag published `:latest`, prod's watchtower polled
+it every 300s, and nothing stood between a tag and the athlete's instance except
+CI — the one set of checks that cannot see a redesigned surface. There was no
+rollback story either. This release puts a soak in between.
+
+**No athlete sees a different number after this release.** Nothing about
+training, readiness or any figure changed. What changed is how the code reaches
+them, and three things that were broken behind the scenes.
+
+### The gate
+
+- **`-rc.N` tags are a staging channel.** `docker/metadata-action`'s `latest`
+  flavor is left at `auto`, which excludes pre-releases — so a pre-release tag
+  publishes a real, CI-verified, multi-arch production image and moves neither
+  `:latest` nor `:MAJOR.MINOR`. This was already true and never used. It was
+  **proven empirically before anything was built on it**, since prod's safety
+  rests on it: pushing `v0.104.0-rc.0` left `:latest` byte-identical.
+- **`docker-compose.dev-rc.yml`** runs that exact image on devbox:3100 under its
+  own compose project and its own volume, so a command aimed at the soak cannot
+  recreate the seeded database the axe baseline is measured against.
+- **`promote.yml`** retags the soaked digest to `:latest`. It never builds:
+  prod runs the bytes that were tested, not a fresh build of the same source.
+- **`scripts/live-verify-deploy.sh`** confirms prod actually landed on that
+  digest — the workflow can't, because GitHub's runners cannot reach the box.
+- **`tests/release-gate.test.ts`** scans the workflows, because the gate is an
+  absence rather than a mechanism: it holds only while nothing forces the latest
+  flavor and nothing but `promote.yml` writes `:latest`.
+
+### Three things that were quietly broken
+
+- **Backup freshness never worked, and the backups were never missing.**
+  `/api/health` has reported `"backupAgeS": null` for as long as the endpoint
+  has existed, which the roadmap carried as evidence that no backup had ever
+  succeeded. Prod in fact had 1.7M nightly dumps going back to the day the box
+  came up. Two defects hid them: `src/proxy.ts`'s matcher never excluded
+  `/api/internal`, so the backup sidecar's notification was **307'd to `/login`**
+  before the route's bearer check could run; and `scripts/backup.sh` could not
+  tell, because busybox `wget` follows the redirect, gets the login page's 200
+  and exits 0 — it printed `backup: notified` every night while the app was told
+  nothing. The script now checks the response body.
+- **The app container had no healthcheck.** Only `db` did, so watchtower could
+  pull, restart and report a successful deploy of an image that cannot serve.
+  Observed while building this release: an app that died on a failed
+  env-validation still read `Up 2 minutes` in `docker ps`. It probes
+  `$(hostname)` rather than loopback, because Next's standalone server binds to
+  `process.env.HOSTNAME` — which Docker sets to the container ID — so a
+  `127.0.0.1` probe marks every healthy container unhealthy.
+- **Prod's secrets had no backup**, making the nightly dumps half a restore.
+  `ENCRYPTION_KEY` lives only in prod's `.env`, and without it a restored dump
+  is rows whose connector tokens nobody can ever decrypt. Dumps and an encrypted
+  `.env` now sync to devbox nightly, which also gives the dumps a second home on
+  a different LXC. **The pair is proven, not assumed**: a real connector token
+  from a real dump is decrypted through `src/lib/crypto.ts`, mutation-checked by
+  swapping in a wrong key and confirming it fails.
+
+### Tooling
+
+- **`playwright-core` is now an exact-pinned devDependency.** It previously
+  resolved from an npx cache path hardcoded in `verify-surfaces.ts`, which did
+  not survive the move — every redesign slice was unverifiable on the new box.
+  Closes blocker 4 of the four keeping axe out of CI; the ratchet, the seeded
+  database and the running server remain.
+- **`verify-surfaces.ts` now refuses the production _host_**, not just port 3000. The port rule was standing in for "is this production", and the move
+  falsified it in the dangerous direction: `http://10.0.10.100:3000` is the
+  athlete's live instance and the old check let it through, while blocking a
+  harmless dev server.
+- Both drills run on the dev box now, so `migration-drill.sh` Phase A finally
+  does what it was written for: 42 migrations applied to a real production dump,
+  where failing is free.
+
+### Not covered, deliberately
+
+- **Rollback is designed and documented but never exercised**, because proving
+  it means regressing the athlete's live instance. Treat its first real use as
+  the test it is.
+- **Rolling an image back does not roll the schema back.** `drizzle/` is
+  forward-only and migrations run on every boot. `docs/RELEASING.md` now makes
+  every release classify its migrations as additive or destructive, and states
+  that a destructive one has no cheap rollback.
+- Most of this release is operations, and only `tests/release-gate.test.ts` and
+  the proxy matcher tests are unit-testable. **Its real acceptance test is
+  v0.105.0 shipping through it.**
+
+### Migrations
+
+**None.** Image rollback past this release is safe.
+
 ## v0.103.0 — 2026-08-14 — Coach, at the floor
 
 Slice 4 of the ten-slice Phase 2b.4 redesign. It puts `/coach` on the v0.99
