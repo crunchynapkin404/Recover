@@ -127,10 +127,7 @@ export function StravaCard({
             </button>
           </div>
         ) : configured ? (
-          <a
-            href="/api/connections/strava"
-            className={`${connectorCtaClass} bg-orange-500 text-black hover:bg-orange-400`}
-          >
+          <a href="/api/connections/strava" className={connectorCtaClass}>
             Connect
           </a>
         ) : (
@@ -145,7 +142,7 @@ export function StravaCard({
           </p>
           <a
             href="/api/connections/strava"
-            className="shrink-0 rounded-full bg-orange-500 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-black transition-colors hover:bg-orange-400"
+            className="shrink-0 rounded-full bg-accent px-3 py-1.5 text-label font-bold uppercase tracking-wider text-accent-foreground transition-colors hover:opacity-90"
           >
             Reconnect
           </a>

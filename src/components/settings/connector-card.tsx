@@ -36,29 +36,31 @@ import type { ReactNode } from "react";
 export type ConnectorTone = "strava" | "whoop" | "withings" | "oura" | "apple";
 
 /**
- * Avatar chip colours, per brand. Migrated onto tokens in Task 5. Exported
- * so connector-card.test.tsx can pin the current values — test-visible
- * state, not part of the public component contract.
+ * Avatar chip colours, per brand — ink on its own tint, both themes.
+ * Migrated onto tokens in Task 5. Exported so connector-card.test.tsx can
+ * pin the current values — test-visible state, not part of the public
+ * component contract. No border: the tint is the chip now, and a
+ * border-hairline ring around a filled tint reads as a second box.
  */
 export const TONE_CHIP: Record<ConnectorTone, string> = {
-  strava: "border-orange-500/20 bg-orange-500/10 text-orange-400",
-  whoop: "border-white/20 bg-white/10",
-  withings: "border-teal-400/20 bg-teal-400/10 text-teal-300",
-  oura: "border-sky-400/20 bg-sky-400/10 text-sky-300",
-  apple: "border-red-400/20 bg-red-400/10 text-red-300",
+  strava: "bg-connector-strava-tint text-connector-strava-ink",
+  whoop: "bg-connector-whoop-tint text-connector-whoop-ink",
+  withings: "bg-connector-withings-tint text-connector-withings-ink",
+  oura: "bg-connector-oura-tint text-connector-oura-ink",
+  apple: "bg-connector-apple-tint text-connector-apple-ink",
 };
 
 export const connectorPillClass =
-  "rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-colors hover:bg-white/10 disabled:opacity-50";
+  "rounded-full border border-hairline bg-surface-overlay px-3 py-1.5 text-label font-bold uppercase tracking-wider transition-colors hover:bg-surface-selected disabled:opacity-50";
 
 export const connectorGhostClass =
-  "rounded-full border border-white/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-white/60 transition-colors hover:bg-red-500/10 hover:text-red-400 disabled:opacity-50";
+  "rounded-full border border-hairline px-3 py-1.5 text-label font-bold uppercase tracking-wider text-ink-muted transition-colors hover:bg-destructive-tint hover:text-destructive-ink disabled:opacity-50";
 
 export const connectorCtaClass =
-  "rounded-full px-4 py-2 text-[10px] font-bold uppercase tracking-wider transition-colors disabled:opacity-50";
+  "rounded-full bg-accent px-4 py-2 text-label font-bold uppercase tracking-wider text-accent-foreground transition-colors hover:opacity-90 disabled:opacity-50";
 
 export const connectorBadgeClass =
-  "rounded bg-white/5 px-2 py-1 text-[8px] font-bold uppercase tracking-widest text-white/50";
+  "rounded bg-surface-overlay px-2 py-1 text-label font-bold uppercase tracking-widest text-ink-muted";
 
 export interface ConnectorCardProps {
   name: string;
@@ -84,15 +86,15 @@ export function ConnectorCard({
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div
-            className={`flex h-10 w-10 items-center justify-center rounded-xl border ${TONE_CHIP[tone]}`}
+            className={`flex h-10 w-10 items-center justify-center rounded-xl ${TONE_CHIP[tone]}`}
           >
-            <span aria-hidden className="text-base">
+            <span aria-hidden className="text-body">
               {glyph}
             </span>
           </div>
           <div>
-            <p className="text-sm font-bold">{name}</p>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-white/50">
+            <p className="text-caption font-bold">{name}</p>
+            <span className="text-label font-bold uppercase tracking-wider text-ink-muted">
               {subtitle}
             </span>
           </div>
@@ -103,8 +105,8 @@ export function ConnectorCard({
       {status && (
         <p
           role="status"
-          className={`mt-3 text-xs ${
-            status.ok ? "text-white/60" : "text-red-400"
+          className={`mt-3 text-label ${
+            status.ok ? "text-ink-secondary" : "text-destructive-ink"
           }`}
         >
           {status.message}

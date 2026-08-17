@@ -83,10 +83,7 @@ export function WithingsCard({ configured, connection, errorParam }: Props) {
             </button>
           </div>
         ) : configured ? (
-          <a
-            href="/api/connections/withings"
-            className={`${connectorCtaClass} bg-teal-400 text-black hover:bg-teal-300`}
-          >
+          <a href="/api/connections/withings" className={connectorCtaClass}>
             Connect
           </a>
         ) : (

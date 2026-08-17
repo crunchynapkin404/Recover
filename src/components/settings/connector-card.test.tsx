@@ -118,35 +118,35 @@ describe("ConnectorCard", () => {
 describe("ConnectorCard class constants (pinned, see Task 5)", () => {
   it("connectorPillClass matches the Sync button's current class string", () => {
     expect(connectorPillClass).toBe(
-      "rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-colors hover:bg-white/10 disabled:opacity-50"
+      "rounded-full border border-hairline bg-surface-overlay px-3 py-1.5 text-label font-bold uppercase tracking-wider transition-colors hover:bg-surface-selected disabled:opacity-50"
     );
   });
 
   it("connectorGhostClass matches the Disconnect button's current class string", () => {
     expect(connectorGhostClass).toBe(
-      "rounded-full border border-white/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-white/60 transition-colors hover:bg-red-500/10 hover:text-red-400 disabled:opacity-50"
+      "rounded-full border border-hairline px-3 py-1.5 text-label font-bold uppercase tracking-wider text-ink-muted transition-colors hover:bg-destructive-tint hover:text-destructive-ink disabled:opacity-50"
     );
   });
 
   it("connectorCtaClass matches the Connect action's current class string", () => {
     expect(connectorCtaClass).toBe(
-      "rounded-full px-4 py-2 text-[10px] font-bold uppercase tracking-wider transition-colors disabled:opacity-50"
+      "rounded-full bg-accent px-4 py-2 text-label font-bold uppercase tracking-wider text-accent-foreground transition-colors hover:opacity-90 disabled:opacity-50"
     );
   });
 
   it('connectorBadgeClass matches the "Set X_CLIENT_ID" badge\'s current class string', () => {
     expect(connectorBadgeClass).toBe(
-      "rounded bg-white/5 px-2 py-1 text-[8px] font-bold uppercase tracking-widest text-white/50"
+      "rounded bg-surface-overlay px-2 py-1 text-label font-bold uppercase tracking-widest text-ink-muted"
     );
   });
 
   it("TONE_CHIP holds each brand's current avatar-chip classes", () => {
     expect(TONE_CHIP).toEqual({
-      strava: "border-orange-500/20 bg-orange-500/10 text-orange-400",
-      whoop: "border-white/20 bg-white/10",
-      withings: "border-teal-400/20 bg-teal-400/10 text-teal-300",
-      oura: "border-sky-400/20 bg-sky-400/10 text-sky-300",
-      apple: "border-red-400/20 bg-red-400/10 text-red-300",
+      strava: "bg-connector-strava-tint text-connector-strava-ink",
+      whoop: "bg-connector-whoop-tint text-connector-whoop-ink",
+      withings: "bg-connector-withings-tint text-connector-withings-ink",
+      oura: "bg-connector-oura-tint text-connector-oura-ink",
+      apple: "bg-connector-apple-tint text-connector-apple-ink",
     });
   });
 });

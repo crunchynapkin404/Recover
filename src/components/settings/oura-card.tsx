@@ -92,7 +92,7 @@ export function OuraCard({ connection }: Props) {
           <button
             type="submit"
             disabled={connecting}
-            className={`${connectorCtaClass} shrink-0 bg-sky-400 text-black hover:bg-sky-300`}
+            className={`${connectorCtaClass} shrink-0`}
           >
             {connecting ? "…" : "Connect"}
           </button>

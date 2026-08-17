@@ -83,10 +83,7 @@ export function WhoopCard({ configured, connection, errorParam }: Props) {
             </button>
           </div>
         ) : configured ? (
-          <a
-            href="/api/connections/whoop"
-            className={`${connectorCtaClass} bg-white text-black hover:bg-white/80`}
-          >
+          <a href="/api/connections/whoop" className={connectorCtaClass}>
             Connect
           </a>
         ) : (

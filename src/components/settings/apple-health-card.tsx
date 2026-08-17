@@ -113,7 +113,7 @@ export function AppleHealthCard({
             onClick={() =>
               startTransition(async () => setResult(await enableAppleHealth()))
             }
-            className={`${connectorCtaClass} bg-red-400 text-black hover:bg-red-300`}
+            className={connectorCtaClass}
           >
             Enable
           </button>
