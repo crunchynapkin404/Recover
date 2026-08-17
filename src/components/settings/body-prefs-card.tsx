@@ -11,6 +11,9 @@ interface Props {
   thresholdPaceSecPerKm: number | null;
 }
 
+const inputClass =
+  "w-full rounded-xl border border-hairline bg-surface-overlay px-3 py-2 text-caption text-ink-primary";
+
 export function BodyPrefsCard({
   wakeTime,
   sleepNeedSecs,
@@ -46,8 +49,8 @@ export function BodyPrefsCard({
   return (
     <section className="glass rounded-[2rem] p-6 space-y-4">
       <div>
-        <h2 className="text-sm font-bold">Sleep &amp; Energy</h2>
-        <p className="mt-1 text-[12px] text-white/50">
+        <h2 className="text-caption font-bold">Sleep &amp; Energy</h2>
+        <p className="mt-1 text-label text-ink-muted">
           Your wake time is the only way Recover can suggest a bedtime — it
           isn&apos;t in any connected data source. Leave it blank and no bedtime
           is shown.
@@ -61,7 +64,7 @@ export function BodyPrefsCard({
             type="time"
             value={wake}
             onChange={(e) => setWake(e.target.value)}
-            className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
+            className={inputClass}
           />
         </label>
         <label className="block">
@@ -73,14 +76,14 @@ export function BodyPrefsCard({
             step={0.5}
             value={hours}
             onChange={(e) => setHours(e.target.value)}
-            className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
+            className={inputClass}
           />
         </label>
       </div>
 
       <div>
-        <h2 className="text-sm font-bold">Training thresholds</h2>
-        <p className="mt-1 text-[12px] text-white/50">
+        <h2 className="text-caption font-bold">Training thresholds</h2>
+        <p className="mt-1 text-label text-ink-muted">
           Max HR and FTP compute training load from heart rate or power when an
           activity has no provider load. Threshold pace does something different
           — it anchors race-demand estimates for running. Leave any of these
@@ -100,7 +103,7 @@ export function BodyPrefsCard({
             value={hrMax}
             onChange={(e) => setHrMax(e.target.value)}
             placeholder="e.g. 185"
-            className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
+            className={inputClass}
           />
         </label>
         <label className="block">
@@ -112,7 +115,7 @@ export function BodyPrefsCard({
             value={ftp}
             onChange={(e) => setFtp(e.target.value)}
             placeholder="e.g. 250"
-            className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
+            className={inputClass}
           />
         </label>
         <label className="block">
@@ -126,7 +129,7 @@ export function BodyPrefsCard({
             value={thresholdPace}
             onChange={(e) => setThresholdPace(e.target.value)}
             placeholder="e.g. 285"
-            className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
+            className={inputClass}
           />
         </label>
       </div>
@@ -135,12 +138,12 @@ export function BodyPrefsCard({
         <button
           onClick={save}
           disabled={pending}
-          className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-bold text-black disabled:opacity-50"
+          className="rounded-xl bg-emerald-500 px-4 py-2 text-caption font-bold text-black disabled:opacity-50"
         >
           {pending ? "Saving…" : "Save"}
         </button>
         {message && (
-          <span className="text-[12px] text-white/60">{message}</span>
+          <span className="text-label text-ink-muted">{message}</span>
         )}
       </div>
     </section>

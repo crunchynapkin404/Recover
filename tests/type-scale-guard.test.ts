@@ -449,7 +449,28 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // week-day-list.tsx and page.tsx are all token utilities, so the count did
   // not move there), 343 after task 2, 351 after the whole-branch-review
   // fixes, 355 right after slice 1, 395 at slice 0.
-  "arbitrary type sizes": 74,
+  //
+  // 68 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
+  // redesign) tasks 7-8 — AI & Coach, Advanced / API and App
+  // (llm-usage-card.tsx, llm-settings-card.tsx, coach-card.tsx,
+  // api-tokens-card.tsx, webhooks-card.tsx, sessions-card.tsx,
+  // notifications-card.tsx, body-prefs-card.tsx, ride-debrief-toggles.tsx;
+  // ride-debrief-card.tsx was already at zero and untouched). Net −6 from the
+  // 74 task 6 left, all from three files: notifications-card.tsx's morning-
+  // push toggle detail (text-[10px] → text-label, 1), body-prefs-card.tsx's
+  // two section-intro paragraphs and the save-message span (text-[12px] x3
+  // → text-label, 3) and ride-debrief-toggles.tsx's two toggle-detail spans
+  // (text-[10px] x2 → text-label, 2). The other six files (all six of task 7)
+  // carried named Tailwind sizes (text-xs/text-sm/text-base/text-xl) only,
+  // never an arbitrary bracket size, so they move the ad-hoc-alpha ceiling
+  // below but not this one. The gap this left (74 − 68 = 6) was under
+  // RATCHET_SLACK (25), so the ratchet did not strictly demand re-pinning —
+  // re-pinned anyway per this file's own established practice of re-pinning
+  // on every drop regardless. Verified directly: running ARBITRARY_TYPE
+  // (src/lib/design/type-scale-patterns.ts) over every non-test file in
+  // src/**/*.{ts,tsx} reports 68 on the working tree after these two tasks'
+  // edits, down from 74 before them.
+  "arbitrary type sizes": 68,
   // 251 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
   // redesign) task 3 — repays the debt task 2 explicitly left for this task,
   // same three cards as the sibling ceiling above. Net −27 from the 278
@@ -800,7 +821,37 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // *.test.tsx, at the pre-task-6 commit reports 221; the same scan on the
   // working tree after this task's edit reports 189. This retires the
   // pattern from all five connector cards, same as the sibling ceiling.
-  "ad-hoc white/black alpha utilities": 189,
+  //
+  // 156 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
+  // redesign) tasks 7-8 — the same nine files as the sibling ceiling's
+  // task 7-8 entry. Net −33 from the 189 task 6 left, per file:
+  // llm-usage-card.tsx dropped 5 (the usage-intro paragraph, the
+  // no-usage-yet line, the this-month line, its last-month aside and the
+  // per-model row, all text-white/N → text-ink-muted/text-ink-secondary);
+  // webhooks-card.tsx dropped 2 (the revealed-secret `<code>`'s
+  // bg-black/40 + text-white/80 → bg-surface-base + text-ink-secondary, the
+  // pair the brief called out by name); notifications-card.tsx dropped 9
+  // (the intro paragraph's text-white/50, the disable/test buttons' shared
+  // border-white/10 + text-white/70 + hover:bg-white/5 trio ×2, the
+  // morning-push row's border-white/5 and its detail span's text-white/50);
+  // body-prefs-card.tsx dropped 13 (the five hoisted inputs' shared
+  // border-white/10 + bg-white/5 pair ×5 = 10, plus the two section-intro
+  // paragraphs' and the save-message span's text-white/N, 3 more); and
+  // ride-debrief-toggles.tsx dropped 4 (both toggles' detail-span
+  // text-white/50, the intro paragraph's text-white/50 and the second
+  // toggle's border-t border-white/5). llm-settings-card.tsx,
+  // coach-card.tsx, api-tokens-card.tsx and sessions-card.tsx carried no
+  // white/black alpha to begin with — only named type-scale utilities and
+  // shadcn's own semantic tokens — so they move the sibling ceiling but not
+  // this one; api-tokens-card.tsx's bare `bg-white`/`dark:bg-black` pair
+  // (→ `bg-surface-raised`) had no alpha slash either, so ADHOC_INK never
+  // counted it. 5 + 2 + 9 + 13 + 4 = 33. The gap this left (189 − 156 = 33)
+  // was OVER RATCHET_SLACK (25), so the ratchet failed and re-pinning here
+  // was mandatory, not discretionary. Verified directly: running ADHOC_INK
+  // (src/lib/design/type-scale-patterns.ts) over every non-test file in
+  // src/**/*.{ts,tsx} reports 156 on the working tree after these two
+  // tasks' edits, down from 189 before them.
+  "ad-hoc white/black alpha utilities": 156,
   // 234 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
   // redesign) task 4 — the same two cards as the sibling ceiling above,
   // strava-card.tsx and apple-health-card.tsx, moved onto connector-card.tsx's

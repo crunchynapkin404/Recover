@@ -20,15 +20,15 @@ export function RideDebriefToggles({
   return (
     <section className="glass rounded-[2rem] p-6">
       <h3 className="label-micro">Ride debriefs</h3>
-      <p className="mt-2 text-sm text-white/50">
+      <p className="mt-2 text-caption text-ink-muted">
         After a ride syncs, the coach asks how it went and writes a review.
       </p>
 
       <div className="mt-4 flex flex-col gap-3">
-        <label className="flex items-center justify-between py-3 text-sm font-medium">
+        <label className="flex items-center justify-between py-3 text-caption font-medium">
           <span className="flex flex-col">
             <span>Ride debriefs</span>
-            <span className="text-[10px] font-bold uppercase text-white/50">
+            <span className="text-label font-bold uppercase text-ink-muted">
               Ask how the ride went after it syncs
             </span>
           </span>
@@ -45,10 +45,10 @@ export function RideDebriefToggles({
           />
         </label>
 
-        <label className="flex items-center justify-between border-t border-white/5 py-3 text-sm font-medium has-[:disabled]:opacity-40">
+        <label className="flex items-center justify-between border-t border-hairline py-3 text-caption font-medium has-[:disabled]:opacity-40">
           <span className="flex flex-col">
             <span>Debrief push</span>
-            <span className="text-[10px] font-bold uppercase text-white/50">
+            <span className="text-label font-bold uppercase text-ink-muted">
               {loop
                 ? "Notify when a ride is ready to debrief"
                 : "Turn ride debriefs on first"}
