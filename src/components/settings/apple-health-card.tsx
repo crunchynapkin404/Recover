@@ -57,6 +57,18 @@ export function AppleHealthCard({
     FormData
   >(uploadAppleHealthFile, null);
 
+  // Suppressed while the webhook URL is showing (result.url), so the two
+  // never compete for the same line. Falls back to uploadState when there is
+  // no button-driven result yet — the upload form's own outcome still needs
+  // a status line, and it shares this one rather than duplicating it.
+  const status =
+    (result?.message || uploadState) && !result?.url
+      ? {
+          ok: result?.ok ?? uploadState?.ok ?? false,
+          message: result?.message ?? uploadState?.message,
+        }
+      : null;
+
   return (
     <ConnectorCard
       name="Apple Health"
@@ -65,6 +77,7 @@ export function AppleHealthCard({
       subtitle={
         connected ? "Push via Health Auto Export" : "Sleep, HRV, BP, body comp"
       }
+      status={status}
       actions={
         connected ? (
           <div className="flex gap-2">
@@ -121,17 +134,6 @@ export function AppleHealthCard({
             Shown once — copy it now. Generating a new URL invalidates the old.
           </p>
         </div>
-      )}
-
-      {(result?.message || uploadState) && !result?.url && (
-        <p
-          role="status"
-          className={`mt-3 text-xs ${
-            (result?.ok ?? uploadState?.ok) ? "text-white/60" : "text-red-400"
-          }`}
-        >
-          {result?.message ?? uploadState?.message}
-        </p>
       )}
 
       {connected && lastSyncAt && (

@@ -727,6 +727,32 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // for the same reason task 4 didn't move it — 729 after task 2, 738 after
   // the whole-branch-review fixes, 749 right after slice 1, 806 at slice 0.
   //
+  // 233 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
+  // redesign) task 4, review round 2. CORRECTS the entry directly below:
+  // review worked the case and showed Apple Health's status paragraph does
+  // fit the shell's `status` prop after all. The `!result?.url` guard folds
+  // into the computed value itself — `status = (result?.message ||
+  // uploadState) && !result?.url ? {...} : null` — the exact ternary shape
+  // already used for Strava earlier in this same file, and the ok-ness
+  // becomes `result?.ok ?? uploadState?.ok ?? false` to satisfy
+  // `status.ok: boolean`. Rendered DOM position is unchanged either way:
+  // when `result.url` is set, `status` is null (shell renders nothing) and
+  // children's `{result?.url && (...)}` block is first, exactly as before;
+  // when it is not set, that block renders nothing and the shell's status
+  // paragraph — now sitting directly under the header rather than after the
+  // (empty) url block — lands in the same visual position the manual
+  // paragraph held. `role="status"` is unchanged, now supplied by
+  // connector-card.tsx's own status paragraph instead of Apple Health's own.
+  // Net −1 from the 234 below: the status paragraph's ok-branch
+  // text-white/60 is now the shell's single copy; its class string
+  // (`mt-3 text-xs` / `text-white/60` / `text-red-400`) is byte-identical to
+  // what the shell already renders, so nothing new was added on the shell
+  // side. Verified: `git diff` on apple-health-card.tsx against ADHOC_INK
+  // shows exactly 1 removed line (the deleted inline status paragraph's
+  // ok-branch), 0 added. Both apple-health-card.test.tsx and
+  // apple-health-card.a11y.test.tsx pass unedited (`git diff --stat` empty)
+  // — the gate this move was conditioned on.
+  "ad-hoc white/black alpha utilities": 233,
   // 234 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
   // redesign) task 4 — the same two cards as the sibling ceiling above,
   // strava-card.tsx and apple-health-card.tsx, moved onto connector-card.tsx's
@@ -743,7 +769,13 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   //     stayed unmigrated `children` here (see below) so it still counts.
   //     Kept none: the Enable CTA is bg-red-400/hover:bg-red-300 with bare
   //     text-black, same shape as Strava's.
-  // 9 + 8 = 17. Apple Health's status paragraph did NOT move onto the shell's
+  // 9 + 8 = 17. CORRECTED ABOVE (see the 233 entry): the paragraph below
+  // claiming Apple Health's status paragraph "did NOT move onto the shell's
+  // `status` prop" because its shape didn't fit is WRONG — reviewed and
+  // reworked in the very next commit. Left as written at the time, not
+  // rewritten, so this stays an honest record of what task 4's first pass
+  // actually shipped; the 233 entry above is the corrected state.
+  // Apple Health's status paragraph did NOT move onto the shell's
   // `status` prop, unlike every other card so far: its condition is
   // `(result?.message || uploadState) && !result?.url`, guarding against the
   // webhook-URL block above it, and its ok-ness is `result?.ok ??
@@ -760,7 +792,6 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // connector-card.tsx onto the ink scale next; Apple Health's still-`children`
   // status paragraph is not this pattern's problem to solve, since it never
   // moved onto the shell in the first place.
-  "ad-hoc white/black alpha utilities": 234,
 };
 
 function expectRatchet(name: string, pattern: RegExp): void {

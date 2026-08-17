@@ -131,4 +131,17 @@ describe("StravaCard", () => {
     expect(el.textContent).toContain("Auto-describe new activities on Strava");
     expect(el.querySelector("input[type='checkbox']")).not.toBeNull();
   });
+
+  it("hides the auto-describe toggle when writes are not enabled", async () => {
+    const el = await render(
+      <StravaCard
+        configured
+        connection={connected(false)}
+        autoDescribe={false}
+        descriptionFields={{}}
+      />
+    );
+    expect(el.textContent).not.toContain("Auto-describe new activities");
+    expect(el.querySelector("input[type='checkbox']")).toBeNull();
+  });
 });
