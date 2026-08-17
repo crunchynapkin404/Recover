@@ -1,5 +1,88 @@
 # Changelog
 
+## v0.106.0 — 2026-08-17 — What flexbox and an error param were hiding
+
+2b.4 slice 5's phase B: the Settings redesign v0.105.0 deferred. All 16 files
+migrated onto the token scale — the seven-step type scale on a 12px floor, the
+four-step ink ramp, real per-theme surfaces — driving Settings' 86 confirmed
+axe nodes to zero.
+
+**What an athlete notices:** every Settings section reads at the same type
+scale and ink ramp as Today, Train, Body and Coach. The five connector cards'
+Connect action is now the same accent button everywhere, with the brand
+identity kept in the avatar chip. Nothing about what Settings does changed —
+no figure, no behaviour, no data.
+
+### Two defects the axe number could not have caught
+
+Both found by looking at the screenshots, not by the audit — `confirmed: 0`
+was already true when each shipped.
+
+- **The connector actions row clipped at phone width.** The token migration
+  moved the Sync/Disconnect pills off their old 10px arbitrary size and the
+  "Set X_CLIENT_ID" badge off 8px, both onto the shared 12px floor, without
+  changing padding. At 390px the row overflowed what was left after the
+  avatar and name, and without wrap it silently overflowed the viewport —
+  Strava's and Whoop's DISCONNECT pill clipped off-screen, unreachable
+  without horizontal scroll, behind a clean `confirmed: 0`. axe's
+  `color-contrast` rule has no opinion on layout overflow. Fixed with
+  `flex-wrap`, dropping the actions to their own line rather than shrinking
+  anything below the floor.
+- **`settings-connect-errors` had never once rendered an OAuth error.** The
+  surface has been sending `strava_error=access_denied` (and the Whoop and
+  Withings equivalents) since v0.105.0, but no card's `ERROR_MESSAGES` map
+  defines that key — the lookup returned `undefined` and every card fell
+  through to its `Last error: ${lastError}` fallback. The surface built
+  specifically to audit three OAuth error branches had been auditing that
+  fallback string instead, every time it ran, since it was created. Fixed to
+  send a real key (`denied`).
+
+### A defect in the plan's own class-mapping table
+
+The migration's own mapping table sent warning text to `text-kind-warning-ink`
+— a token byte-identical to `--destructive-ink` in both themes, since it names
+a coach-inbox item kind rather than a severity — so every warning migrated
+partway through the slice rendered indistinguishably from an error.
+Separately, raw Tailwind palette greens matched no guard pattern and survived
+untouched, measuring **3.05:1** (`text-green-600`) and **1.41:1**
+(`text-emerald-300`) against the light surfaces they sat on, both failing AA.
+Fixed with real `--warning-ink`/`--warning-tint` and
+`--success-ink`/`--success-tint` pairs, repointed across nine call sites.
+
+### The measurement
+
+**Settings: 0 confirmed axe nodes**, down from 86 at v0.105.0, across all four
+captured surfaces. `train*`, `body*`, `coach*` and `coach-thread` all confirm
+0 too — `coach-thread` resolving a carry-in open since v0.104.0.
+
+Both `tests/type-scale-guard.test.ts` ratchets re-pinned to their real counts:
+`arbitrary type sizes` 112 → **52**, `ad-hoc white/black alpha utilities`
+267 → **127**. Settings held over half the app's remaining debt of both kinds
+going in and holds none now.
+
+**An anomaly recorded rather than claimed.** The same run reads `admin` at 4
+confirmed against its v0.105.0 baseline of 147, and `activity-log`, `import`,
+`login` and `today` all lower too — though this branch touches no
+non-Settings component beyond `button.tsx`'s `sm` variant, whose ten call
+sites are all inside Settings, and `globals.css` only gained new tokens. A
+143-node drop on `admin` cannot plausibly be this release's doing. Recorded as
+an unexplained capture-condition difference for whoever plans slice 7 (Admin)
+to re-measure, not presented as this release's work.
+
+**One inconsistency left deliberately:** intervals.icu's actions inside
+INTEGRATIONS still use the base shadcn `Button` (accent-filled "Sync now")
+while the five connector cards use uppercase outline pills — both idioms
+predate this release, but the same action now reads as primary in one card and
+secondary in the next five. Unifying them is an information-architecture
+decision, not a token migration.
+
+Full detail: `docs/plans/2026-08-17-v0106-slice5-settings-redesign.md`'s
+Result section.
+
+### Migrations
+
+**None.**
+
 ## v0.105.1 — 2026-08-16 — The final tag was undoing the promotion
 
 A defect in v0.104.0's release gate, found the first time the gate carried a

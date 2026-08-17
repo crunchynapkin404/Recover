@@ -1750,6 +1750,118 @@ tagging an old commit resurrects the old trigger.
 
 ---
 
+## Result
+
+**Guard ceilings.** Both `OFFENDER_CEILINGS` entries in
+`tests/type-scale-guard.test.ts` were already re-pinned tight by the tasks
+that drove the counts down (each task re-pinning on its own drop, per this
+file's established practice, rather than deferring to this step) — this task's
+job was to confirm, not move them:
+
+| Ceiling                              | Before (v0.105.0) | After (this branch) |
+| ------------------------------------ | ----------------: | ------------------: |
+| `arbitrary type sizes`               |               112 |                  52 |
+| `ad-hoc white/black alpha utilities` |               267 |                 127 |
+
+Settings held 59 of the app's 112 arbitrary sizes and 140 of its 267 ad-hoc ink
+occurrences going in — over half of each — and holds none now. Re-run to
+confirm: `npx vitest run tests/type-scale-guard.test.ts tests/contrast-guard.test.ts`
+— 225 passed, 2 expected-fail (the `it.fails` ratchet floor assertions, which
+pass on any failure and stay until slice 9), zero unexpected failures. Both
+pinned ceilings equal the real counts measured on the working tree; left alone.
+
+**Confirmed axe nodes**, from `.screenshots/v0106-settings/axe-report.json` —
+88 entries, 22 surfaces, 4 theme/viewport combos each, every entry a real
+audit (zero `skipped`, zero `error`):
+
+| Surface                   | Confirmed | v0.105.0 baseline |
+| ------------------------- | --------: | ----------------: |
+| `settings`                |         0 |             10–11 |
+| `settings-expanded`       |         0 |                11 |
+| `settings-connect-errors` |         0 |                11 |
+| `settings-token-created`  |         0 |             10–11 |
+| **Settings total**        |     **0** |            **86** |
+
+Regression check across the rest of the run: `train*` (4 surfaces), `body*`
+(4), `coach*` and `coach-thread` are all confirmed 0.
+
+### Two defects the axe number could not have caught
+
+Both were found by looking at the screenshots (Task 11 Step 5), not by the
+audit — `confirmed: 0` was already true when each shipped.
+
+**(a) The actions row clipped at phone width (`20adc82`).** The token
+migration moved the connector pills off their old 10px arbitrary size and the
+"Set X_CLIENT_ID" badge off 8px, both onto the shared 12px floor, without
+changing padding. At 390px the actions row (SYNC/DISCONNECT, or the badge)
+overflowed what was left after the avatar+name column, and without wrap the
+row silently overflowed the viewport — Strava's and Whoop's DISCONNECT pill
+clipped off-screen, unreachable without horizontal scroll, behind a clean
+`confirmed: 0`. axe's `color-contrast` rule has no opinion on layout overflow.
+Fixed with `flex-wrap` on the header row, dropping `actions` to its own line
+rather than shrinking anything below the floor.
+
+**(b) `settings-connect-errors` had never once rendered an OAuth error
+(`05f77b4`).** The surface has been sending `strava_error=access_denied` (and
+the Whoop/Withings equivalents) since v0.105.0, but no card's `ERROR_MESSAGES`
+map defines `access_denied` — the real keys are `denied`, `state_mismatch`,
+`rejected` and `failed`. The lookup returned `undefined`, and every card fell
+through to its `Last error: ${lastError}` fallback — for the soak DB's
+already-connected demo accounts, the literal string `Last error: null`. The
+surface built specifically to audit three OAuth error branches had audited
+that fallback string instead, every time it ran, since it was created. Fixed
+to send `denied`, a real key in all three maps.
+
+### A defect in the plan's own class-mapping table
+
+Fixed in `9ac0af3` (Task 8b, inserted after Task 8). The mapping table above
+specified `text-kind-warning-ink` for warning text. That token is
+byte-identical to `--destructive-ink` in both themes — it names a coach-inbox
+item _kind_ ("Overtraining watch"), not a severity — so every warning migrated
+in Tasks 6–8 rendered indistinguishably from an error. Separately, the
+offender regex only ever matched ad-hoc white/black alpha, so raw Tailwind
+palette greens survived every task untouched and unflagged: `text-green-600`
+measured **3.05:1** and `text-emerald-300` **1.41:1** against the light
+surfaces they sat on, both failing AA text contrast. Task 8b added real
+`--warning-ink`/`--warning-tint` and `--success-ink`/`--success-tint` pairs
+(their own tokens, not aliases to the coach-inbox kind colours) and repointed
+nine call sites across six Settings cards.
+
+### `coach-thread` now captures
+
+Confirmed 0 in this run — resolving a carry-in open since v0.104.0, when
+`verify-surfaces.ts`'s owner sign-in and `seed-demo.ts`'s separate demo user
+first diverged. Phase A's `DEMO_EMAIL=<owner>` runbook change closed the gap;
+this run is the confirmation the plan's "Carried forward" section asked for.
+
+### An anomaly to record honestly, not to claim
+
+The whole-run totals moved on four surfaces this branch does not touch:
+`admin` read **4** confirmed against its v0.105.0 baseline of **147**,
+`activity-log` **2** against **46**, `import` **2** against **8**, `login`
+**2** against **4**, and `today` **0** against **2**. This branch touches no
+non-Settings component except `src/components/ui/button.tsx`'s `sm` variant
+(Task 10 — read directly, its ten call sites are all within Settings), and
+`globals.css` only gained new tokens (Tasks 1 and 8b) without changing any
+existing value. A 143-node drop on `admin` **cannot plausibly be this
+release's doing**. Recorded as unexplained and most likely a difference in the
+baseline's capture conditions — not as an achievement of this branch.
+**Whoever plans slice 7 (Admin) must re-measure rather than trust either
+number.**
+
+### One inconsistency left deliberately
+
+Inside the INTEGRATIONS panel, intervals.icu's actions use the base shadcn
+`Button` component (accent-filled "Sync now"), while the five connector cards
+(Strava, Whoop, Withings, Oura, Apple Health) use uppercase outline pills via
+`connectorPillClass`/`connectorGhostClass`. Not a regression — both idioms
+predate this release — but the same class of action (sync a provider) now
+reads as primary in one card and secondary in the next five. Unifying them is
+an information-architecture decision, not a token migration, and is left for
+whoever owns that question rather than decided here.
+
+---
+
 ## Carried forward
 
 - **Today's two light-only confirmed nodes** —

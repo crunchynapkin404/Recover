@@ -386,10 +386,10 @@ so" — is currently spoken in six dialects: `—` (47 uses), `calibrating` (39)
       confirmed-dead component; 2 sites investigated and excluded), and
       `docs/plans/2026-08-09-uncertainty-vocabulary-admin-misc.md` (no code
       change needed).
-- [ ] **2b.4 — Visual redesign. SLICES 0-4 OF 10 SHIPPED, PLUS SLICE 5's
-      PHASE A — v0.99.0, v0.100.0 (both 2026-08-12), v0.101.0 and v0.102.0
-      (2026-08-13), v0.103.0 (2026-08-14), v0.105.0 (2026-08-16, phase A
-      only — Settings' redesign is v0.106.0); the item
+- [ ] **2b.4 — Visual redesign. SLICES 0-5 OF 10 SHIPPED — v0.99.0, v0.100.0
+      (both 2026-08-12), v0.101.0 and v0.102.0 (2026-08-13), v0.103.0
+      (2026-08-14), v0.105.0 (2026-08-16, slice 5's phase A only) and v0.106.0
+      (2026-08-17, slice 5's phase B — the Settings redesign itself); the item
       stays open and closes at slice 9, not before.** v0.99.0 built the foundations only — two token sets
       with light and dark, a seven-step type scale on a hard 12px floor, a
       four-step ink ramp, four guards, and the headless capture/axe tooling the
@@ -418,9 +418,9 @@ so" — is currently spoken in six dialects: `—` (47 uses), `calibrating` (39)
       time, not the message's. `chat-interface.tsx` and `history-panel.tsx`
       went from zero tests to 22 across the three coach components. See
       `docs/plans/2026-08-13-v099-slice4-coach.md` and its ledger.
-      **Five surface slices remain** (Settings · Activity · Admin+Import ·
-      pre-auth · sweep), and light mode stays unreachable
-      (`forcedTheme="dark"`) until the final one.
+      **Four surface slices remain** (Activity · Admin+Import · pre-auth ·
+      sweep), and light mode stays unreachable (`forcedTheme="dark"`) until
+      the final one.
       **v0.105.0 shipped slice 5's PHASE A only — the redesign is v0.106.0.**
       Settings turned out to be five `<Collapsible>` sections behind one path,
       four of which no capture had ever opened: Integrations (six connector
@@ -454,6 +454,30 @@ so" — is currently spoken in six dialects: `—` (47 uses), `calibrating` (39)
       `docs/axe-baseline-2026-08-11-seeded.md` warns costs 20.7% of nodes
       overall and 600% on Train. Every reading taken before 2026-08-16 on this
       box is void. See `docs/plans/2026-08-16-v0105-slice5-settings.md`.
+      **v0.106.0 shipped slice 5's phase B — the Settings redesign itself
+      (2026-08-17)** — all 16 files onto the token scale, 86 confirmed axe
+      nodes to 0. Two defects the axe number could not have caught, both found
+      only by looking at the screenshots: the token migration moved the
+      connector pills and badge onto the 12px floor without changing padding,
+      overflowing the actions row at phone width and clipping Strava's and
+      Whoop's DISCONNECT pill off-screen behind a clean `confirmed: 0`; and
+      `settings-connect-errors` had been sending an OAuth error param no
+      card's `ERROR_MESSAGES` map defined since the surface was created in
+      v0.105.0, so it had audited its own fallback string, never once a real
+      error message. **The plan's own class-mapping table was wrong, too:** it
+      sent warning text to a token byte-identical to `--destructive-ink`,
+      rendering every migrated warning as an error, and raw Tailwind palette
+      greens matched no guard pattern and measured as low as 1.41:1 against
+      light surfaces — both fixed with real `--warning-ink`/`--success-ink`
+      pairs. `coach-thread` now captures clean, resolving a v0.104.0 carry-in.
+      Both `OFFENDER_CEILINGS` re-pinned, 112 → 52 and 267 → 127. **A result
+      to flag rather than trust:** the same capture run reads `admin` at 4
+      confirmed against its 147 baseline and three smaller surfaces similarly
+      down, though this branch touches nothing outside Settings — recorded as
+      an unexplained capture-condition difference, not an achievement; slice 7
+      must re-measure Admin rather than take either number. See
+      `docs/plans/2026-08-17-v0106-slice5-settings-redesign.md`'s Result
+      section.
       **Carried out of slice 4, for later slices:** the desktop History
       dropdown is click-only and still uncaptured (`coach-history` at desktop
       is byte-identical to `coach`, since `HistorySheet` is `lg:hidden`); the
