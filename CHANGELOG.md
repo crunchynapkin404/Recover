@@ -76,14 +76,34 @@ Both `tests/type-scale-guard.test.ts` ratchets re-pinned to their real counts:
 267 → **127**. Settings held over half the app's remaining debt of both kinds
 going in and holds none now.
 
-**An anomaly recorded rather than claimed.** The same run reads `admin` at 4
-confirmed against its v0.105.0 baseline of 147, and `activity-log`, `import`,
-`login` and `today` all lower too — though this branch touches no
-non-Settings component beyond `button.tsx`'s `sm` variant, whose ten call
-sites are all inside Settings, and `globals.css` only gained new tokens. A
-143-node drop on `admin` cannot plausibly be this release's doing. Recorded as
-an unexplained capture-condition difference for whoever plans slice 7 (Admin)
-to re-measure, not presented as this release's work.
+**CORRECTED after release, 2026-08-17.** This section first reported "an
+anomaly recorded rather than claimed": `admin` reading 4 confirmed against its
+147 baseline, with `activity-log`, `import`, `login` and `today` all down too,
+called an unexplained capture-condition difference. **That was a counting bug
+in the release process, not a finding.** `axe-report.json`'s `confirmed` is a
+list of _rule_ objects, each holding its own `nodes` array; the extraction
+script took `len(confirmed)`, counting rules rather than nodes. Re-derived
+correctly against the same report:
+
+| Surface        | Correct nodes | Baseline | Verdict                                                         |
+| -------------- | ------------: | -------: | --------------------------------------------------------------- |
+| `admin`        |       **208** |      147 | **worse than baseline, not better**                             |
+| `activity-log` |            46 |       46 | matches exactly                                                 |
+| `import`       |             8 |        8 | matches exactly                                                 |
+| `login`        |             4 |        4 | matches exactly                                                 |
+| `today`        |             0 |        2 | data-dependent; the readiness sentence needs a figure to render |
+
+The baseline was right; three of the four surfaces reproduce it to the node.
+`admin` is **208**, 41% above its recorded 147 — close to what the baseline
+document's own +20.7%-per-seeding note predicts for a fuller account
+(147 × 1.41 = 207), so the likeliest cause is that 147 was measured against
+less data. **Slice 7 should plan against 208, and re-measure before trusting
+either.**
+
+**This release's own claim is unaffected and is stronger than the bug allowed
+it to look.** All four Settings surfaces report **zero rule entries**, not
+merely zero counted nodes — an empty `confirmed` list cannot conceal nodes
+under any counting scheme. Settings genuinely went 86 → 0.
 
 **One inconsistency left deliberately:** intervals.icu's actions inside
 INTEGRATIONS still use the base shadcn `Button` (accent-filled "Sync now")

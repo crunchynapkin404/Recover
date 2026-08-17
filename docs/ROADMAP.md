@@ -470,12 +470,21 @@ so" — is currently spoken in six dialects: `—` (47 uses), `calibrating` (39)
       greens matched no guard pattern and measured as low as 1.41:1 against
       light surfaces — both fixed with real `--warning-ink`/`--success-ink`
       pairs. `coach-thread` now captures clean, resolving a v0.104.0 carry-in.
-      Both `OFFENDER_CEILINGS` re-pinned, 112 → 52 and 267 → 127. **A result
-      to flag rather than trust:** the same capture run reads `admin` at 4
-      confirmed against its 147 baseline and three smaller surfaces similarly
-      down, though this branch touches nothing outside Settings — recorded as
-      an unexplained capture-condition difference, not an achievement; slice 7
-      must re-measure Admin rather than take either number. See
+      Both `OFFENDER_CEILINGS` re-pinned, 112 → 52 and 267 → 127.
+      **CORRECTED 2026-08-17, and the correction reorders slice 7.** This entry
+      first reported the run reading `admin` at 4 against its 147 baseline and
+      called it an unexplained capture-condition difference. It was a counting
+      bug: `axe-report.json`'s `confirmed` is a list of _rule_ objects each
+      holding a `nodes` array, and the extraction took `len(confirmed)`, so it
+      counted rules. Re-derived correctly, `activity-log` (46), `import` (8) and
+      `login` (4) reproduce their baselines **exactly** — the baseline was
+      right — and **`admin` is 208, not 147**: 41% worse than recorded, and
+      close to what this document's own +20.7%-per-seeding figure predicts for a
+      fuller account (147 × 1.41 = 207). **Admin is therefore by a wide margin
+      the largest surface left — plan slice 7 against 208 and re-measure first.**
+      Settings' own zero is untouched by the bug: all four of its surfaces
+      report **zero rule entries**, which no counting scheme can hide nodes
+      beneath. See
       `docs/plans/2026-08-17-v0106-slice5-settings-redesign.md`'s Result
       section.
       **Carried out of slice 4, for later slices:** the desktop History
