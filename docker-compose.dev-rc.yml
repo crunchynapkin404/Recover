@@ -38,6 +38,6 @@ services:
   app:
     # Pinned to the exact published candidate. Never `:latest` here: the whole
     # point of a soak is to run something prod is not running yet.
-    image: ghcr.io/crunchynapkin404/recover:0.104.0-rc.1
+    image: ghcr.io/crunchynapkin404/recover:0.105.1-rc.1
     ports: !override
       - "127.0.0.1:3100:3000"
