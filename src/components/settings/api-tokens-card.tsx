@@ -69,12 +69,12 @@ export function ApiTokensCard({ tokens }: Props) {
                 className="flex items-center justify-between rounded-md border px-3 py-2"
               >
                 <div>
-                  <span className="text-sm font-medium">{t.label}</span>
-                  <span className="text-muted-foreground ml-2 text-xs">
+                  <span className="text-caption font-medium">{t.label}</span>
+                  <span className="text-muted-foreground ml-2 text-label">
                     {t.scopes}
                   </span>
                   {t.lastUsedAt && (
-                    <span className="text-muted-foreground ml-2 text-xs">
+                    <span className="text-muted-foreground ml-2 text-label">
                       · last used {new Date(t.lastUsedAt).toLocaleDateString()}
                     </span>
                   )}
@@ -93,13 +93,25 @@ export function ApiTokensCard({ tokens }: Props) {
           </div>
         )}
 
-        {/* Newly created token display */}
+        {/* Newly created token display. `bg-success-tint` + `border-hairline`
+            (whole-branch review fix wave, 2026-08-17): this was hand-rolling
+            its own per-theme green pair (`border-green-200 bg-green-50
+            dark:border-green-800 dark:bg-green-950`) right next to
+            `text-success-ink`, which Task 8b had already minted a real
+            token for — the exact anti-pattern that token's own comment in
+            globals.css argues against. `border-hairline` rather than
+            dropping the border: the box already carried one before this
+            fix, and the same idiom (border-hairline around a tinted/raised
+            block) is what the webhook-URL reveal in apple-health-card.tsx
+            and the secret reveal in webhooks-card.tsx use for the identical
+            "copy this now" case, so this now reads as one language across
+            all three instead of three bespoke treatments. */}
         {showToken && (
-          <div className="rounded-md border border-green-200 bg-green-50 p-3 dark:border-green-800 dark:bg-green-950">
-            <p className="mb-1 text-sm font-medium text-green-800 dark:text-green-200">
+          <div className="rounded-md border border-hairline bg-success-tint p-3">
+            <p className="mb-1 text-caption font-medium text-success-ink">
               Copy this token now — it won&apos;t be shown again:
             </p>
-            <code className="block break-all rounded bg-white px-2 py-1 text-xs dark:bg-black">
+            <code className="block break-all rounded bg-surface-raised px-2 py-1 text-label">
               {showToken}
             </code>
           </div>
@@ -122,7 +134,7 @@ export function ApiTokensCard({ tokens }: Props) {
             <select
               id="tokenScopes"
               name="scopes"
-              className="border-input bg-background flex h-9 w-full rounded-md border px-3 py-1 text-sm"
+              className="border-input bg-background flex h-9 w-full rounded-md border px-3 py-1 text-caption"
             >
               <option value="read">Read only</option>
               <option value="read|write:wellness">Read + write wellness</option>
@@ -144,10 +156,10 @@ export function ApiTokensCard({ tokens }: Props) {
 
         {/* Status messages */}
         {createState && !createState.ok && (
-          <p className="text-destructive text-sm">{createState.message}</p>
+          <p className="text-destructive text-caption">{createState.message}</p>
         )}
         {revokeResult && (
-          <p className="text-muted-foreground text-sm">{revokeResult}</p>
+          <p className="text-muted-foreground text-caption">{revokeResult}</p>
         )}
       </CardContent>
     </Card>

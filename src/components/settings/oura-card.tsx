@@ -7,6 +7,12 @@ import {
   ouraSyncNow,
   type ActionResult,
 } from "@/app/settings/oura-actions";
+import {
+  ConnectorCard,
+  connectorPillClass,
+  connectorGhostClass,
+  connectorCtaClass,
+} from "./connector-card";
 
 interface Props {
   connection: {
@@ -29,25 +35,54 @@ export function OuraCard({ connection }: Props) {
   const messageOk = result?.ok ?? connectState?.ok;
 
   return (
-    <div className="glass rounded-[2rem] p-5">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-sky-400/20 bg-sky-400/10">
-            <span aria-hidden className="text-base text-sky-300">
-              ◍
-            </span>
-          </div>
-          <div>
-            <p className="text-sm font-bold">Oura</p>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-white/50">
-              {connection
-                ? `Connected${connection.accountName ? ` · ${connection.accountName}` : ""}`
-                : "Staged sleep, HRV, temperature"}
-            </span>
-          </div>
-        </div>
-
-        {connection && (
+    <ConnectorCard
+      name="Oura"
+      tone="oura"
+      glyph="◍"
+      subtitle={
+        connection
+          ? `Connected${connection.accountName ? ` · ${connection.accountName}` : ""}`
+          : "Staged sleep, HRV, temperature"
+      }
+      // DOM POSITION (documentation gap closed, whole-branch review fix
+      // wave, 2026-08-17). Before this card moved onto the shared shell
+      // (df82880, "only the chrome moved… Still no class changes"), this
+      // card rendered its own `<p role="status">` LAST — after the token
+      // form and its help text (form → help <p> → status <p>). The shell
+      // renders `status` before `{children}` (connector-card.tsx), so this
+      // paragraph now lands FIRST: a failed token connect announces above
+      // the input it refers to, rather than below the help text that
+      // explains it. df82880's commit message never ruled on this move for
+      // Oura specifically — it only asserted no *class* changed, which is
+      // true and beside the point. Apple Health's identical question (does
+      // moving the status paragraph onto this prop change its DOM
+      // position?) got a full written ruling — reviewed, traced through
+      // both branches, confirmed neutral for that card — in task 4's fix
+      // round (commit f974324, recorded in tests/type-scale-guard.test.ts's
+      // "233 occurrences" entry). Oura's was never reviewed at all.
+      //
+      // KEPT, not reverted: `role="status"` survives the move — an
+      // assistive-technology live region still announces the message
+      // regardless of where it sits in the DOM — and the new position
+      // matches all four other connector cards (Strava, Whoop, Withings,
+      // Apple Health); Oura being the one holdout at the old position would
+      // be the actual inconsistency.
+      //
+      // oura-card.test.tsx had no case for this: none of its four tests
+      // rendered `connection: null` together with a message (the one test
+      // with a message, "renders a lastError as a live region", passes a
+      // non-null `connection`). Closed in this same fix wave — see "renders
+      // a connect-failure message ... when disconnected" in that file.
+      status={
+        message || connection?.lastError
+          ? {
+              ok: messageOk ?? false,
+              message: message ?? `Last error: ${connection?.lastError}`,
+            }
+          : null
+      }
+      actions={
+        connection ? (
           <div className="flex gap-2">
             <button
               type="button"
@@ -55,7 +90,7 @@ export function OuraCard({ connection }: Props) {
               onClick={() =>
                 startTransition(async () => setResult(await ouraSyncNow()))
               }
-              className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-colors hover:bg-white/10 disabled:opacity-50"
+              className={connectorPillClass}
             >
               {pending ? "…" : "Sync"}
             </button>
@@ -65,14 +100,14 @@ export function OuraCard({ connection }: Props) {
               onClick={() =>
                 startTransition(async () => setResult(await ouraDisconnect()))
               }
-              className="rounded-full border border-white/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-white/60 transition-colors hover:bg-red-500/10 hover:text-red-400 disabled:opacity-50"
+              className={connectorGhostClass}
             >
               Disconnect
             </button>
           </div>
-        )}
-      </div>
-
+        ) : null
+      }
+    >
       {!connection && (
         <form action={connectAction} className="mt-3 flex gap-2">
           <input
@@ -81,35 +116,23 @@ export function OuraCard({ connection }: Props) {
             placeholder="Personal access token"
             autoComplete="off"
             required
-            className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
+            className="min-w-0 flex-1 rounded-xl border border-hairline bg-surface-overlay px-3 py-2 text-caption text-ink-primary"
           />
           <button
             type="submit"
             disabled={connecting}
-            className="shrink-0 rounded-full bg-sky-400 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-black transition-colors hover:bg-sky-300 disabled:opacity-50"
+            className={`${connectorCtaClass} shrink-0`}
           >
             {connecting ? "…" : "Connect"}
           </button>
         </form>
       )}
-
       {!connection && (
-        <p className="mt-2 text-[10px] text-white/40">
+        <p className="mt-2 text-label text-ink-muted">
           Create a token at cloud.ouraring.com → Personal Access Tokens. Stored
           encrypted (AES-256-GCM).
         </p>
       )}
-
-      {(message || connection?.lastError) && (
-        <p
-          role="status"
-          className={`mt-3 text-xs ${
-            (messageOk ?? false) ? "text-white/60" : "text-red-400"
-          }`}
-        >
-          {message ?? `Last error: ${connection?.lastError}`}
-        </p>
-      )}
-    </div>
+    </ConnectorCard>
   );
 }

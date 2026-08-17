@@ -119,7 +119,7 @@ export function CoachCard({
                   e.target.value as "analytical" | "encouraging" | "direct"
                 )
               }
-              className="border-input bg-background flex h-9 w-full rounded-md border px-3 py-1 text-sm"
+              className="border-input bg-background flex h-9 w-full rounded-md border px-3 py-1 text-caption"
               disabled={!configured}
             >
               <option value="analytical">Analytical — numbers first</option>
@@ -131,7 +131,7 @@ export function CoachCard({
             </Button>
           </div>
           {!configured && (
-            <p className="text-muted-foreground text-xs">
+            <p className="text-muted-foreground text-label">
               Configure the AI coach above to enable personality and memory.
             </p>
           )}
@@ -142,7 +142,7 @@ export function CoachCard({
             name="language"
             value={languageValue}
             onChange={(e) => setLanguageValue(e.target.value)}
-            className="border-input bg-background flex h-9 w-full rounded-md border px-3 py-1 text-sm"
+            className="border-input bg-background flex h-9 w-full rounded-md border px-3 py-1 text-caption"
             disabled={!configured}
           >
             {SUPPORTED_COACH_LANGUAGES.map((l) => (
@@ -160,7 +160,7 @@ export function CoachCard({
               {rows.map((m) => (
                 <li
                   key={m.id}
-                  className="flex items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm"
+                  className="flex items-center justify-between gap-2 rounded-md border px-3 py-2 text-caption"
                 >
                   {editingId === m.id ? (
                     <>
@@ -190,7 +190,7 @@ export function CoachCard({
                   ) : (
                     <>
                       <span className="min-w-0 flex-1 truncate">
-                        <span className="text-muted-foreground mr-1 text-xs uppercase">
+                        <span className="text-muted-foreground mr-1 text-label uppercase">
                           {m.category}
                         </span>
                         {m.content}
@@ -224,7 +224,7 @@ export function CoachCard({
       {message && (
         <CardFooter>
           <p
-            className={`text-sm ${messageOk ? "text-green-600" : "text-destructive"}`}
+            className={`text-caption ${messageOk ? "text-success-ink" : "text-destructive"}`}
           >
             {message}
           </p>

@@ -69,8 +69,22 @@
   --color-kind-monthly-tint: var(--kind-monthly-tint);
   --color-ghost-ink: var(--ghost-ink);
   --color-ghost-tint: var(--ghost-tint);
+  --color-connector-strava-ink: var(--connector-strava-ink);
+  --color-connector-strava-tint: var(--connector-strava-tint);
+  --color-connector-whoop-ink: var(--connector-whoop-ink);
+  --color-connector-whoop-tint: var(--connector-whoop-tint);
+  --color-connector-withings-ink: var(--connector-withings-ink);
+  --color-connector-withings-tint: var(--connector-withings-tint);
+  --color-connector-oura-ink: var(--connector-oura-ink);
+  --color-connector-oura-tint: var(--connector-oura-tint);
+  --color-connector-apple-ink: var(--connector-apple-ink);
+  --color-connector-apple-tint: var(--connector-apple-tint);
   --color-destructive-ink: var(--destructive-ink);
   --color-destructive-tint: var(--destructive-tint);
+  --color-success-ink: var(--success-ink);
+  --color-success-tint: var(--success-tint);
+  --color-warning-ink: var(--warning-ink);
+  --color-warning-tint: var(--warning-tint);
 
   /* Type scale — 12px floor, seven steps. Phase 2b.4. Semantic names, not
      Tailwind v4's default --text-* keys (xs/sm/base/xl/3xl/…): those keys
@@ -169,6 +183,47 @@
   --ghost-ink: #6d28d9;
   --ghost-tint: #f3e8ff;
 
+  /* Connector brands, as the 40px avatar chip on each Settings connector
+     card. Ink-on-tint like the coach inbox kinds above, and for the same
+     reason: the raw brand hues are dark-only values — Whoop's is literally
+     #ffffff — and every one of them was painted as a solid button with
+     black ink that cannot survive a light ground. v0.106.0 moved the
+     Connect action itself onto --accent (one action, one token) and kept
+     the brand here, where it identifies rather than instructs. Light takes
+     the 800 step on a 100 tint; dark keeps the luminous 300/400 on a 950.
+     Ratios are ink on its own tint, measured by contrast-guard.test.ts. */
+  --connector-strava-ink: #9a3412; /* 6.38:1 on its tint */
+  --connector-strava-tint: #ffedd5;
+  --connector-whoop-ink: #262626; /* 13.88:1 */
+  --connector-whoop-tint: #f5f5f5;
+  --connector-withings-ink: #115e59; /* 6.73:1 */
+  --connector-withings-tint: #ccfbf1;
+  --connector-oura-ink: #075985; /* 6.59:1 */
+  --connector-oura-tint: #e0f2fe;
+  --connector-apple-ink: #991b1b; /* 6.80:1 */
+  --connector-apple-tint: #fee2e2;
+
+  /* Semantic warning/success ink-tint — for a tinted banner, badge or inline
+     status message that needs an amber "heads up" or a green "this worked",
+     as distinct from `--destructive` ("this failed"). Task 8b (2026-08-17).
+     Settings had been reaching for `--kind-warning-ink` for the amber case —
+     wrongly: that token names a coach-inbox item KIND ("Overtraining
+     watch"), not a severity, and it is byte-identical to `--destructive-ink`
+     in both themes, so every warning Settings rendered this way read as an
+     error. Deliberately its OWN pair, not an alias to `--kind-warning-ink`
+     or `--kind-debrief-ink`, for the same reason `--destructive-ink` above
+     is its own token rather than an alias to `--kind-warning-ink`: a
+     surface's severity vocabulary and the coach inbox's item-kind
+     vocabulary are different concerns that happen to share colours today
+     and must stay free to diverge. (The values below do coincide with
+     `--kind-morning-ink`/`-tint` and `--kind-debrief-ink`/`-tint` — the same
+     amber-800/amber-100 and emerald-800/emerald-100 steps already proven to
+     clear 4.5:1 — which is why those steps were reused here.) */
+  --warning-ink: #92400e; /* 6.37:1 on its tint, 6.56:1 on surface-base */
+  --warning-tint: #fef3c7;
+  --success-ink: #065f46; /* 6.78:1 on its tint, 7.11:1 on surface-base */
+  --success-tint: #d1fae5;
+
   --background: var(--surface-base);
   --foreground: var(--ink-primary);
   --card: var(--surface-raised);
@@ -249,6 +304,25 @@
   --kind-monthly-tint: #172554;
   --ghost-ink: #c4b5fd;
   --ghost-tint: #2e1065;
+
+  --connector-strava-ink: #fb923c; /* 6.92:1 on its tint */
+  --connector-strava-tint: #431407;
+  --connector-whoop-ink: #f5f5f5; /* 13.88:1 */
+  --connector-whoop-tint: #262626;
+  --connector-withings-ink: #5eead4; /* 9.78:1 */
+  --connector-withings-tint: #042f2e;
+  --connector-oura-ink: #7dd3fc; /* 8.32:1 */
+  --connector-oura-tint: #082f49;
+  --connector-apple-ink: #fca5a5; /* 8.51:1 */
+  --connector-apple-tint: #450a0a;
+
+  /* See the light `:root` block above for the full rationale. Same
+     coincidence holds here too: these match `--kind-morning-ink`/`-tint`
+     and `--kind-debrief-ink`/`-tint` exactly. */
+  --warning-ink: #fcd34d; /* 10.39:1 on its tint, 11.43:1 on surface-overlay */
+  --warning-tint: #451a03;
+  --success-ink: #6ee7b7; /* 9.94:1 on its tint, 10.81:1 on surface-overlay */
+  --success-tint: #022c22;
 
   --background: var(--surface-base);
   --foreground: var(--ink-primary);

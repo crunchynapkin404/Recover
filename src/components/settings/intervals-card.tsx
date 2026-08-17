@@ -121,12 +121,12 @@ export function IntervalsCard({ connection }: Props) {
                 : "Backfill full history"}
             </Button>
             <div className="flex items-center gap-2">
-              <Label htmlFor="wellness-interval" className="text-xs">
+              <Label htmlFor="wellness-interval" className="text-label">
                 Wellness sync
               </Label>
               <select
                 id="wellness-interval"
-                className="h-9 rounded-md border border-white/10 bg-transparent px-2 text-sm"
+                className="h-9 rounded-md border border-hairline bg-transparent px-2 text-caption"
                 defaultValue={String(connection.wellnessPollIntervalMin ?? 30)}
                 disabled={pending}
                 onChange={(e) => {
@@ -143,13 +143,13 @@ export function IntervalsCard({ connection }: Props) {
               </select>
             </div>
             {connection.lastWellnessPollAt && (
-              <span className="text-[10px] text-white/40">
+              <span className="text-label text-ink-muted">
                 Wellness checked:{" "}
                 {new Date(connection.lastWellnessPollAt).toLocaleTimeString()}
               </span>
             )}
             {connection.lastSyncAt && (
-              <span className="text-sm text-muted-foreground">
+              <span className="text-caption text-muted-foreground">
                 Last sync: {new Date(connection.lastSyncAt).toLocaleString()}
               </span>
             )}
@@ -157,25 +157,25 @@ export function IntervalsCard({ connection }: Props) {
         )}
 
         {connection?.lastError && (
-          <p className="text-sm text-destructive">
+          <p className="text-caption text-destructive">
             Last error: {connection.lastError}
           </p>
         )}
         {message && (
           <p
             role="status"
-            className={`text-sm ${messageOk ? "text-muted-foreground" : "text-destructive"}`}
+            className={`text-caption ${messageOk ? "text-muted-foreground" : "text-destructive"}`}
           >
             {message}
           </p>
         )}
       </CardContent>
       <CardFooter className="flex flex-col items-start gap-2">
-        <p className="text-xs text-muted-foreground">
+        <p className="text-label text-muted-foreground">
           Your API key is stored encrypted (AES-256-GCM) and only used to read
           wellness and activity data.
         </p>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-label text-muted-foreground">
           Backfilling fetches your full wellness history from intervals.icu, not
           just the last year — it skips years where intervals.icu has no real
           data of yours, just its own calculated fitness numbers. It runs in the

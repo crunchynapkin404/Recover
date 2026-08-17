@@ -116,17 +116,17 @@ export function NotificationsCard({
   return (
     <section className="glass rounded-[2rem] p-6">
       <h3 className="label-micro">Notifications</h3>
-      <p className="mt-2 text-sm text-white/50">
+      <p className="mt-2 text-caption text-ink-muted">
         Your readiness score, pushed to this device every morning.
       </p>
 
       {!secure && (
-        <p className="mt-3 text-sm text-amber-400" role="alert">
+        <p className="mt-3 text-caption text-warning-ink" role="alert">
           Push needs HTTPS — open Recover through your tunnel or domain.
         </p>
       )}
       {iosNotInstalled && (
-        <p className="mt-3 text-sm text-amber-400" role="alert">
+        <p className="mt-3 text-caption text-warning-ink" role="alert">
           On iPhone, install the app first: Share → Add to Home Screen (iOS
           16.4+), then enable notifications from inside the installed app.
         </p>
@@ -136,7 +136,7 @@ export function NotificationsCard({
         {subscribedHere ? (
           <button
             onClick={disable}
-            className="rounded-2xl border border-white/10 py-3 text-sm font-bold text-white/70 transition-colors hover:bg-white/5"
+            className="rounded-2xl border border-hairline py-3 text-caption font-bold text-ink-secondary transition-colors hover:bg-surface-selected"
           >
             Disable on this device
           </button>
@@ -144,16 +144,27 @@ export function NotificationsCard({
           <button
             onClick={enable}
             disabled={!supported || !secure}
-            className="rounded-2xl bg-emerald-500 py-3 text-sm font-bold text-black transition-colors hover:bg-emerald-400 disabled:opacity-40"
+            // bg-accent text-accent-foreground (whole-branch review fix
+            // wave, 2026-08-17): was `bg-emerald-500 ... text-black`, a raw
+            // palette fill neither guard sees — ADHOC_INK only matches an
+            // alpha-slashed white/black, and the per-task migration grep's
+            // bare-color clause only ever checked `white`, never `black` —
+            // so this survived every task's own check even though the
+            // CHANGELOG claims all 16 files are on the token scale. This is
+            // a primary action fill, exactly what --accent/--accent-foreground
+            // is for; dark's values (#10b981 / #000000) are byte-identical
+            // to the old emerald-500/black pair, so the reachable theme's
+            // pixels don't move.
+            className="rounded-2xl bg-accent py-3 text-caption font-bold text-accent-foreground transition-colors hover:opacity-90 disabled:opacity-40"
           >
             Enable notifications
           </button>
         )}
 
-        <label className="flex items-center justify-between border-t border-white/5 py-3 text-sm font-medium">
+        <label className="flex items-center justify-between border-t border-hairline py-3 text-caption font-medium">
           <span className="flex flex-col">
             <span>Morning readiness push</span>
-            <span className="text-[10px] font-bold uppercase text-white/50">
+            <span className="text-label font-bold uppercase text-ink-muted">
               Sent when your score is computed
             </span>
           </span>
@@ -179,7 +190,7 @@ export function NotificationsCard({
             })
           }
           disabled={pending || (subscriptionCount === 0 && !subscribedHere)}
-          className="rounded-2xl border border-white/10 py-3 text-sm font-bold text-white/70 transition-colors hover:bg-white/5 disabled:opacity-40"
+          className="rounded-2xl border border-hairline py-3 text-caption font-bold text-ink-secondary transition-colors hover:bg-surface-selected disabled:opacity-40"
         >
           Send test notification
         </button>
