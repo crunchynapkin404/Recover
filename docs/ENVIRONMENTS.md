@@ -29,10 +29,19 @@ account. Do not "fix" it by copying prod's key.
 
 Prod's running image digest, recorded whenever it changes:
 
-| Date       | Version  | Digest                                                                    |
-| ---------- | -------- | ------------------------------------------------------------------------- |
-| 2026-08-16 | v0.104.0 | `sha256:473fc46f763739d0c014a4eff869a0219c111de09c5ba4e240d49f5830c45413` |
-| 2026-08-14 | v0.103.0 | `sha256:8c0b451ad7f752ff72d304e2de394cedd9417dac13584d1aca970fa62c42fbb2` |
+| Date       | Version  | Digest                                                                    | Soaked?                             |
+| ---------- | -------- | ------------------------------------------------------------------------- | ----------------------------------- |
+| 2026-08-17 | v0.105.1 | `sha256:4f2abdc0124e139a776fe4710027fa1591763a6a6efa249b134bb1d4809661a2` | **yes**                             |
+| 2026-08-16 | v0.104.0 | `sha256:d7771b840f313a5ce0b2054983077712cf90ab6642cb85cf06c425082621cc6f` | **no** — see below                  |
+| 2026-08-16 | v0.104.0 | `sha256:473fc46f763739d0c014a4eff869a0219c111de09c5ba4e240d49f5830c45413` | yes, but superseded within the hour |
+| 2026-08-14 | v0.103.0 | `sha256:8c0b451ad7f752ff72d304e2de394cedd9417dac13584d1aca970fa62c42fbb2` | pre-gate                            |
+
+**Do not roll back to `d7771b84`.** It is a rebuild of v0.104.0's commit that
+the final `vX.Y.Z` tag produced _after_ `473fc46f` had been promoted,
+discarding it — the defect v0.105.1 closed. It ran in production for roughly
+twelve hours and nothing is known to be wrong with it, but nothing ever ran it
+anywhere else either. `473fc46f` is the soaked build of that same commit and is
+the correct v0.104.0 target.
 
 To roll back, retag `:latest` to the previous row's digest — see
 `docs/RELEASING.md`. **Read the migration caveat there first: rolling the image
