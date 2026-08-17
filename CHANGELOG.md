@@ -97,7 +97,7 @@ Result section.
 
 ### Migrations
 
-**None.**
+**None.** Image rollback past this release is safe.
 
 ## v0.105.1 — 2026-08-16 — The final tag was undoing the promotion
 
