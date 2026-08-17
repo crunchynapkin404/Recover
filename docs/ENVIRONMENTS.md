@@ -186,6 +186,47 @@ reach 10.0.10.100, so `promote.yml` can go green while prod sits on the old
 image. Checked in both directions on 2026-08-16 — it passes on the running
 digest and fails on a wrong one.
 
+## Deploy drift — the guard on the gate itself
+
+`scripts/live-drift-check.sh` (untracked, `scripts/live-*.sh`) runs every four
+hours via cron and checks the one invariant the whole release gate exists to
+protect: **prod runs a digest that was soaked on the dev box.**
+
+That invariant broke **twice within 48 hours** of the gate being built, and
+both times the only thing that noticed was a human comparing two digests by
+eye — the final `vX.Y.Z` tag rebuilding the image and discarding the promoted
+digest (v0.104.0), then a tag on an older commit resurrecting the old trigger
+because GitHub runs the workflow file from the tagged ref. Every other property
+in this project got a guard the moment it was understood; this one had none.
+
+**It deliberately does not compare prod against `:latest`.** It cannot: in both
+failures the rebuild moved `:latest` and prod _together_, so the two agreed
+with each other while agreeing on an image nothing had ever run. The
+expectation is instead an immutable record — `~/.recover-promoted`, written by
+`scripts/live-verify-deploy.sh` at the moment a human verifies a promotion.
+
+It also fails on a null `backupAgeS` (the freshness notify has stopped landing
+again) and on a backup older than 48 hours (the dump itself has stopped).
+
+```bash
+scripts/live-drift-check.sh          # exit 0 = healthy, 1 = drift
+cat ~/.recover-drift.log             # every run, appended
+cat ~/RECOVER-DRIFT-ALERT            # exists only while something is wrong
+```
+
+The marker file is removed automatically once the state is good again, so its
+presence always means "wrong right now" rather than "was wrong once".
+
+**Known limitation, stated rather than papered over:** this alerts by writing
+a file, a log line, and a non-zero exit. Nothing pushes to a phone. On a
+single-owner instance that is proportionate — but it is the same shape as the
+defect v0.105.0 fixed, an instrument nobody is looking at. Wire it to a real
+channel before relying on it for anything busier.
+
+Verified in both directions on 2026-08-17: OK against the real promoted digest,
+and DRIFT (exit 1, marker written, both digests named) when the record was
+replaced with the rebuilt digest from the v0.104.0 failure.
+
 ## Freezing deploys
 
 ```bash
