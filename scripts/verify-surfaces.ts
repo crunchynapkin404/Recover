@@ -305,6 +305,18 @@ const SURFACES: Record<string, string> = {
   // main() by resolveActivityDetailPath, the same shape as coach-thread.
   "activity-log": "/activity/log",
   login: "/login",
+  // The debrief sheet, which no capture has ever opened. It is a <Sheet>,
+  // closed on load, reached only by ?sheet=debrief — so slice 1 declared
+  // Today clean in v0.100.0 without it ever having been rendered, and
+  // slice 6 inherits it. debrief-sheet.tsx is the largest single offender
+  // in Activity's chain (11 arbitrary sizes, 17 ad-hoc alphas, 15 bare
+  // whites) and is shared between Today and /activity/[id].
+  //
+  // Deep-linked with an explicit activity id rather than bare
+  // ?sheet=debrief: SheetHost's no-id path looks for debriefState
+  // "pending", which is NULL on every seeded row. The id is not a literal
+  // either — it is wired in main() from resolveActivityDetailPath's
+  // return value, same as activity-detail.
 };
 
 /**
@@ -1272,11 +1284,15 @@ async function main() {
         writeReport();
       }
 
-      // Resolved per context: the storage state is fresh each time and the
-      // href is cheap to re-read. A failure here is hard — see
-      // resolveActivityDetailPath.
+      // Resolved per context, same reasoning as coach-thread above: the
+      // storage state is fresh each time and the href is cheap to re-read.
+      // A failure here is hard — see resolveActivityDetailPath. The
+      // resolved activity id is also reused below for debrief-sheet's deep
+      // link, so it is captured into a variable rather than only a path.
+      let activityId: string | undefined;
       try {
         const detailPath = await resolveActivityDetailPath(p);
+        activityId = detailPath.replace(/^\/activity\//, "");
         await captureWithRetry(
           p,
           "activity-detail",
@@ -1295,6 +1311,48 @@ async function main() {
         hardFailures.push(message);
         axeReport.push({
           surface: "activity-detail",
+          theme,
+          viewport: vpName,
+          confirmed: [],
+          indeterminate: [],
+          error: err instanceof Error ? err.message : String(err),
+        });
+        writeReport();
+      }
+
+      // debrief-sheet reuses activity-detail's resolved id (Task 2 brief) —
+      // deep-linked explicitly rather than bare ?sheet=debrief because
+      // SheetHost's no-id path looks for debriefState "pending", which is
+      // NULL on every seeded row. If activity-detail's resolver failed
+      // above, there is no id to link to, so this is recorded as a hard
+      // failure too rather than silently vanishing from the report.
+      try {
+        if (!activityId) {
+          throw new Error(
+            "no activity id available — resolveActivityDetailPath did not " +
+              "resolve one for this theme/viewport (see the activity-detail " +
+              "failure above)."
+          );
+        }
+        const sheetPath = `/?sheet=debrief&activity=${activityId}`;
+        await captureWithRetry(
+          p,
+          "debrief-sheet",
+          sheetPath,
+          join(outDir, `debrief-sheet-${theme}-${vpName}.png`),
+          dark,
+          theme,
+          vpName
+        );
+        total++;
+      } catch (err) {
+        const message =
+          `debrief-sheet FAILED for ${theme}/${vpName}: ` +
+          `${err instanceof Error ? err.message : String(err)}`;
+        console.error(message);
+        hardFailures.push(message);
+        axeReport.push({
+          surface: "debrief-sheet",
           theme,
           viewport: vpName,
           confirmed: [],
