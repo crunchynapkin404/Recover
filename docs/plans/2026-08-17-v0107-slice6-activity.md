@@ -42,16 +42,28 @@ design authority for every slice)
   `npm run build`, `npm run format:check`.
 - **Light mode stays unreachable** (`forcedTheme="dark"`) until slice 9. Light
   values are still written and still guarded.
-- **Capture command** (production build from source against the soak DB; the RC
-  image cannot serve `?state=` and the Today surfaces need it):
+- **Capture command** (production build from source; the RC image cannot serve
+  `?state=`, which the Today surfaces need):
+
   ```bash
   set -a; . ./.env; set +a
-  DATABASE_URL="postgres://recover:recover@127.0.0.1:5435/recover" DATABASE_DRIVER=pg \
-    TRUSTED_ORIGINS=http://localhost:3200 npx next start -p 3200
+  TRUSTED_ORIGINS=http://localhost:3200 npx next start -p 3200
   SCREENSHOT_BASE_URL=http://localhost:3200 npm run verify:surfaces -- v0107-activity
   ```
+
+  **Capture against the DEV database (port 5434), which is what `.env` already
+  names — do not override `DATABASE_URL` to 5435 here.** That was this plan's
+  first mistake: `set -a; . ./.env; set +a` re-sources `.env` and overwrites any
+  `DATABASE_URL` exported before it, so a command that _looks_ like it targets
+  the soak stack seeds and reads the dev box instead. `scripts/seed-demo.ts`
+  writes wherever `.env` points, so dev is where phase A's seeded streams live.
+  The soak stack (5435) is a separate, restore-only database
+  (`docs/ENVIRONMENTS.md`); it gets its own seeding run at release time, as
+  `docs/RELEASING.md` step 11 describes.
+
   `TRUSTED_ORIGINS` is required on any non-default port — Better Auth refuses
   sign-in otherwise. Learned in v0.106.0 and not yet in `docs/RELEASING.md`.
+
 - **The capture argument is the output directory, not a surface filter**
   (`scripts/verify-surfaces.ts:371`). Every run captures every surface, and a
   non-zero exit is expected while `admin` still carries its debt.
@@ -348,10 +360,10 @@ path becomes reachable. This is a one-column update on the same activity.
 - [ ] **Step 4: Re-seed and confirm the counts moved**
 
 ```bash
-export DATABASE_URL="postgres://recover:recover@127.0.0.1:5435/recover" DATABASE_DRIVER=pg
+# .env already names the dev database (5434); do not override it here.
 set -a; . ./.env; set +a
 SEED_DEMO=1 DEMO_EMAIL="$OWNER_EMAIL" npm run db:seed-demo
-docker exec recover-rc-db-1 psql -U recover -d recover -tAc "
+docker exec recover-db-1 psql -U recover -d recover -tAc "
 select 'streams', count(*) from activity_streams
 union all select 'pending_debrief', count(*) from activities where debrief_state='pending';"
 ```
