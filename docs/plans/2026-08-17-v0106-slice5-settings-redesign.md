@@ -220,7 +220,17 @@ micro-labels.
 | `bg-white/10`, `bg-white/5`, `bg-white/[0.03]`         | `bg-surface-overlay`        |
 | `bg-black/40`, `bg-black/30` (recessed `<pre>` blocks) | `bg-surface-base`           |
 | `hover:bg-white/10`, `hover:bg-white/5`                | `hover:bg-surface-selected` |
+| `bg-white` (no alpha)                                  | `bg-surface-raised`         |
 | `.glass` on a card wrapper                             | **unchanged**               |
+
+**Bare `text-white` and `bg-white` are in scope and no guard catches them.**
+`ADHOC_INK` requires a `/N` alpha, so these eight sites match no pattern in the
+build: `oura-card:84`, `api-tokens-card:102`, `whoop-card:77`, and
+`body-prefs-card:64,76,103,115,129`. Raw `text-white` on a light ground is the
+_exact_ defect still open on Today (`docs/axe-baseline-2026-08-11-seeded.md`),
+which is why the per-task check greps below all carry `\b(text|bg)-white\b` —
+the only reason Today's two nodes survived slice 1 is that nothing was looking
+for them.
 
 `.glass` stays. `--glass-border` is already `rgba(255,255,255,0.1)` in dark and
 `var(--hairline)` in light, and Coach (9 uses), Body (25) and Train (17) all
@@ -775,6 +785,15 @@ state; only the chrome moves. `connectorCtaClass` carries no colour, so each
 call site appends its own brand classes for now — Task 5 replaces those with
 `bg-accent text-accent-foreground`.
 
+**One exception, ruled before this task started: the shell owns the glyph's
+type.** Whoop's monogram is `text-sm font-black tracking-tight`; the shell
+renders every glyph at `text-base`, so Whoop's "W" gains 2px and loses its
+black weight and tight tracking. That is deliberate — a one-character monogram
+inside a 40px tinted chip does not need a third signal beyond size and the
+brand ink Task 5 gives it, and carrying a `glyphClass` prop through the shell
+to preserve a difference the redesign flattens anyway would be waste. Say so in
+the commit message, the way Task 4 says it for Strava's `text-xl`.
+
 - [ ] **Step 1: Write the failing test for Whoop's three action states**
 
 Create `src/components/settings/whoop-card.test.tsx`:
@@ -1222,7 +1241,7 @@ shape, so it is stated once here and referenced by each task:
 either guard pattern:
 
 ```bash
-grep -nE 'text-\[[^]]*(px|rem|em)\]|\b(text|bg|border|fill|stroke|ring|divide)-(white|black)/(([0-9]+)|\[[^]]+\])|\btext-(xs|sm|base|lg|xl|2xl|3xl)\b' <the files this task touched>
+grep -nE 'text-\[[^]]*(px|rem|em)\]|\b(text|bg|border|fill|stroke|ring|divide)-(white|black)/(([0-9]+)|\[[^]]+\])|\btext-(xs|sm|base|lg|xl|2xl|3xl)\b|\b(text|bg)-white\b' <the files this task touched>
 ```
 
 Expected: no output. Then `npx vitest run` and the five green checks.
@@ -1231,9 +1250,13 @@ Expected: no output. Then `npx vitest run` and the five green checks.
 
 **Files:**
 
-- Modify: `src/components/settings/connector-card.tsx`
+- Modify: `src/components/settings/connector-card.tsx` — the whole migration
+- Modify: `src/components/settings/{strava,whoop,withings,oura,apple-health}-card.tsx`
+  — **Step 4 only**, deleting the appended brand-CTA fragments. Nothing else in
+  those five files changes in this task; Tasks 6–8 own the rest.
 
-This is the task D2 exists for: one file, five cards fixed.
+This is the task D2 exists for: one file carries the migration, five cards get
+fixed by it.
 
 - [ ] **Step 1: Replace the tone chips with the Task 1 tokens**
 
@@ -1303,7 +1326,7 @@ not classes, which is why the migration does not touch them.
 - [ ] **Step 6: The per-task check, five green checks, commit**
 
 ```bash
-grep -nE 'text-\[[^]]*(px|rem|em)\]|\b(text|bg|border|fill|stroke|ring|divide)-(white|black)/(([0-9]+)|\[[^]]+\])|\btext-(xs|sm|base|lg|xl)\b' \
+grep -nE 'text-\[[^]]*(px|rem|em)\]|\b(text|bg|border|fill|stroke|ring|divide)-(white|black)/(([0-9]+)|\[[^]]+\])|\btext-(xs|sm|base|lg|xl)\b|\b(text|bg)-white\b' \
   src/components/settings/connector-card.tsx
 npm run lint && npm run typecheck && npm run build && npm run format:check
 npx vitest run
@@ -1323,7 +1346,10 @@ stays in the avatar chip where it identifies rather than instructs."
 - Modify: `src/components/settings/strava-card.tsx` (10 arb, 23 ink, 8 dflt)
 - Modify: `src/components/settings/apple-health-card.tsx` (12/22/5)
 - Modify: `src/components/settings/intervals-card.tsx` (1/2/7)
-- Modify: `src/components/settings/oura-card.tsx` (the token form's input)
+- Modify: `src/components/settings/oura-card.tsx` — **everything still
+  matching**, not only the token form: the help paragraph below it
+  (`text-[10px] text-white/40`) sits outside the form and is in scope too. The
+  per-task check grep is the contract; the file list is a hint.
 
 Apply the mapping table to every remaining match. Specific decisions:
 
@@ -1349,7 +1375,7 @@ bg-surface-overlay … text-caption text-ink-primary`.
 - [ ] **Step 5: The per-task check**
 
 ```bash
-grep -nE 'text-\[[^]]*(px|rem|em)\]|\b(text|bg|border|fill|stroke|ring|divide)-(white|black)/(([0-9]+)|\[[^]]+\])|\btext-(xs|sm|base|lg|xl)\b' \
+grep -nE 'text-\[[^]]*(px|rem|em)\]|\b(text|bg|border|fill|stroke|ring|divide)-(white|black)/(([0-9]+)|\[[^]]+\])|\btext-(xs|sm|base|lg|xl)\b|\b(text|bg)-white\b' \
   src/components/settings/{strava,apple-health,intervals,oura,whoop,withings}-card.tsx
 ```
 
@@ -1383,7 +1409,12 @@ text inherits the label's — restated rather than shrunk, the rule slice
 
 Six files, 44 edits, all straight mapping-table application. Four of these have
 zero guard offenders and only default-scale utilities — they are the cheapest
-files in the slice.
+files in the slice, with one trap: `api-tokens-card.tsx:102` carries a bare
+`bg-white` that the scope table's `0/0/8` does not count, because no guard
+pattern matches it. It goes to `bg-surface-raised` like any other. Read the
+line before changing it — if that white is a deliberate high-contrast ground
+for a freshly-created token, `bg-surface-raised` is still the right token for
+"the raised ground", and it carries both themes.
 
 `webhooks-card.tsx:165`'s `<code className="… bg-black/40 … text-xs
 text-white/80">` → `bg-surface-base … text-label text-ink-secondary`.
@@ -1402,7 +1433,7 @@ Expected: PASS, unedited.
 - [ ] **Step 4: The per-task check, five green checks, commit**
 
 ```bash
-grep -nE 'text-\[[^]]*(px|rem|em)\]|\b(text|bg|border|fill|stroke|ring|divide)-(white|black)/(([0-9]+)|\[[^]]+\])|\btext-(xs|sm|base|lg|xl)\b' \
+grep -nE 'text-\[[^]]*(px|rem|em)\]|\b(text|bg|border|fill|stroke|ring|divide)-(white|black)/(([0-9]+)|\[[^]]+\])|\btext-(xs|sm|base|lg|xl)\b|\b(text|bg)-white\b' \
   src/components/settings/{llm-usage,llm-settings,coach,api-tokens,webhooks,sessions}-card.tsx
 npm run lint && npm run typecheck && npm run build && npm run format:check
 npx vitest run
@@ -1436,7 +1467,7 @@ const inputClass =
 - [ ] **Step 3: The per-task check, five green checks, commit**
 
 ```bash
-grep -nE 'text-\[[^]]*(px|rem|em)\]|\b(text|bg|border|fill|stroke|ring|divide)-(white|black)/(([0-9]+)|\[[^]]+\])|\btext-(xs|sm|base|lg|xl)\b' \
+grep -nE 'text-\[[^]]*(px|rem|em)\]|\b(text|bg|border|fill|stroke|ring|divide)-(white|black)/(([0-9]+)|\[[^]]+\])|\btext-(xs|sm|base|lg|xl)\b|\b(text|bg)-white\b' \
   src/components/settings/{notifications-card,body-prefs-card,ride-debrief-toggles,ride-debrief-card}.tsx
 npm run lint && npm run typecheck && npm run build && npm run format:check
 npx vitest run
@@ -1486,7 +1517,7 @@ read them before editing rather than pattern-matching from the grep output.
 - [ ] **Step 4: The per-task check**
 
 ```bash
-grep -nE 'text-\[[^]]*(px|rem|em)\]|\b(text|bg|border|fill|stroke|ring|divide)-(white|black)/(([0-9]+)|\[[^]]+\])|\btext-(xs|sm|base|lg|xl)\b' \
+grep -nE 'text-\[[^]]*(px|rem|em)\]|\b(text|bg|border|fill|stroke|ring|divide)-(white|black)/(([0-9]+)|\[[^]]+\])|\btext-(xs|sm|base|lg|xl)\b|\b(text|bg)-white\b' \
   src/app/settings/page.tsx
 ```
 
@@ -1658,7 +1689,7 @@ npx vitest run tests/type-scale-guard.test.ts 2>&1 | grep -A3 "Re-pin OFFENDER_C
 ```
 
 Both ceilings will have failed the `RATCHET_SLACK` check — that is the ratchet
-working. Projected: `arbitrary type sizes` 112 → **53**,
+working. Projected: `arbitrary type sizes` 112 → **52**,
 `ad-hoc white/black alpha utilities` 267 → **127**. Use the numbers the suite
 prints, not these.
 
