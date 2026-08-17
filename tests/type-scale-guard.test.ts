@@ -292,10 +292,16 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // everywhere it renders. `xs`'s `text-xs` and the base `text-sm` on the
   // same file are untouched — Tailwind defaults, not ARBITRARY_TYPE
   // offenders, and their call sites are admin/import/login, slices 7 and 8's
-  // surfaces, not this one. This retires the pattern from
-  // src/components/ui/ entirely: the "arbitrary type sizes" ceiling below
-  // (this file's OFFENDER_CEILINGS) drops by exactly 1 as a result, from
-  // 53 to 52 — see that entry's own task-10 addendum for the count.
+  // surfaces, not this one. This resolves src/components/ui/button.tsx's own
+  // occurrence — not every occurrence in src/components/ui/.
+  // src/components/ui/inline-markdown.tsx:31's `text-[0.95em]`, described
+  // above in this same entry, remains: deliberately, for the same reason
+  // recorded there — a relative em whose whole job is staying proportional
+  // to whichever ambient text size wraps it, used across call sites at
+  // different sizes, so no fixed-step token can replace it. The
+  // "arbitrary type sizes" ceiling below (this file's OFFENDER_CEILINGS)
+  // still drops by exactly 1 as a result, from 53 to 52 — see that entry's
+  // own task-10 addendum for the count.
   //
   // 137 occurrences, unchanged, measured 2026-08-13 after v0.102 (Body slice)
   // task 11 (the sweep) — re-pinned, not moved. Task 11's own sweep grep,
@@ -532,8 +538,14 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // established practice of re-pinning on every drop regardless. Verified
   // directly: running ARBITRARY_TYPE (src/lib/design/type-scale-patterns.ts)
   // over every non-test file in src/**/*.{ts,tsx} reports 52 on the working
-  // tree after this task's edit, down from 53 before it. This retires the
-  // pattern from src/components/ui/ entirely.
+  // tree after this task's edit, down from 53 before it. This retires
+  // button.tsx's own occurrence of the pattern, not the pattern from
+  // src/components/ui/ as a whole — src/components/ui/inline-markdown.tsx:31's
+  // `text-[0.95em]` remains, deliberately: a relative em that stays
+  // proportional to whichever ambient text size wraps it, used across call
+  // sites at different sizes, so no fixed-step token can replace it (see the
+  // 112 entry above for the full reasoning, recorded when v0.99 slice 4
+  // Coach's task 10 left it in place).
   "arbitrary type sizes": 52,
   // 251 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
   // redesign) task 3 — repays the debt task 2 explicitly left for this task,
