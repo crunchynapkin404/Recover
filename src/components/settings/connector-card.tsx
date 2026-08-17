@@ -17,12 +17,30 @@ import type { ReactNode } from "react";
  * any class that appears as a literal string in source, so these compile —
  * and the source-scanning guards in tests/type-scale-guard.test.ts see them
  * exactly as they see inline ones.
+ *
+ * CORRECTION (Task 2 fix round 1, 2026-08-17): the extraction above is
+ * byte-identical for Withings, Oura and Apple Health, but NOT for the glyph
+ * span on Whoop and Strava. Whoop's span was `text-sm font-black
+ * tracking-tight` (14px, bold, tight); Strava's was `text-xl text-orange-400`
+ * (20px). Both are flattened to the single `text-base` (16px) below, with
+ * colour moved onto TONE_CHIP's parent chip instead of the span (which is
+ * genuinely byte-identical for the other three tones, whose spans were
+ * already `text-base text-{colour}`). This is deliberate, ruled on
+ * explicitly rather than an oversight this comment failed to catch: a
+ * one-character monogram sitting in its own 40px tinted chip does not need
+ * a third signal on top of size and brand ink, so the shell owns the
+ * glyph's type and renders all five at one size. Task 5 gives the chip
+ * itself — not the glyph — each brand's ink token.
  */
 
 export type ConnectorTone = "strava" | "whoop" | "withings" | "oura" | "apple";
 
-/** Avatar chip colours, per brand. Migrated onto tokens in Task 5. */
-const TONE_CHIP: Record<ConnectorTone, string> = {
+/**
+ * Avatar chip colours, per brand. Migrated onto tokens in Task 5. Exported
+ * so connector-card.test.tsx can pin the current values — test-visible
+ * state, not part of the public component contract.
+ */
+export const TONE_CHIP: Record<ConnectorTone, string> = {
   strava: "border-orange-500/20 bg-orange-500/10 text-orange-400",
   whoop: "border-white/20 bg-white/10",
   withings: "border-teal-400/20 bg-teal-400/10 text-teal-300",
