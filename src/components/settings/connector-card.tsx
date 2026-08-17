@@ -83,7 +83,23 @@ export function ConnectorCard({
 }: ConnectorCardProps) {
   return (
     <div className="glass rounded-[2rem] p-5">
-      <div className="flex items-center justify-between gap-3">
+      {/*
+       * flex-wrap (Task 11 fix): the token migration moved
+       * connectorPillClass/GhostClass/CtaClass off a 10-pixel arbitrary
+       * size and connectorBadgeClass off an 8-pixel one, both onto the
+       * shared text-label token (12px) — correctly, since 12px is the
+       * floor — but padding stayed the same. At 390px that grew `actions`
+       * (SYNC/DISCONNECT, or "Set X_CLIENT_ID") past what's left after the
+       * avatar+name column, and without wrap the row silently overflowed
+       * the viewport — DISCONNECT's pill clipped off-screen, unreachable
+       * without horizontal scroll. axe's color-contrast rule never sees
+       * layout overflow, so this shipped with a clean confirmed=0. Real
+       * capture: Strava and Whoop's DISCONNECT pill clipped at
+       * settings-expanded-dark-phone before this fix. flex-wrap drops
+       * `actions` to its own line instead of shrinking or clipping —
+       * "restated," not shrunk below the floor.
+       */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div
             className={`flex h-10 w-10 items-center justify-center rounded-xl ${TONE_CHIP[tone]}`}
