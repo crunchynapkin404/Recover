@@ -130,7 +130,7 @@ export function AppleHealthCard({
           <pre className="mt-1 overflow-x-auto whitespace-pre-wrap break-all rounded-2xl border border-hairline bg-surface-base p-3 text-label text-ink-secondary">
             {result.url}
           </pre>
-          <p className="mt-1 text-label text-kind-warning-ink">
+          <p className="mt-1 text-label text-warning-ink">
             Shown once — copy it now. Generating a new URL invalidates the old.
           </p>
         </div>
@@ -147,10 +147,7 @@ export function AppleHealthCard({
           Health Auto Export subscription, a revoked automation) keeps
           reading as healthy indefinitely. */}
       {connected && staleDays != null && (
-        <p
-          role="status"
-          className="mt-1 text-label font-bold text-kind-warning-ink"
-        >
+        <p role="status" className="mt-1 text-label font-bold text-warning-ink">
           Nothing received for {staleDays} days — check the Health Auto Export
           automation is still running.
         </p>

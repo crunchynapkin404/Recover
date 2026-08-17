@@ -84,7 +84,9 @@ it("derives its ink list from the stylesheet, not from a hand-written array", ()
     "kind-morning-ink",
     "kind-warning-ink",
     "kind-weekly-ink",
+    "success-ink",
     "viz-muted-ink",
+    "warning-ink",
   ]);
 });
 

@@ -81,6 +81,10 @@
   --color-connector-apple-tint: var(--connector-apple-tint);
   --color-destructive-ink: var(--destructive-ink);
   --color-destructive-tint: var(--destructive-tint);
+  --color-success-ink: var(--success-ink);
+  --color-success-tint: var(--success-tint);
+  --color-warning-ink: var(--warning-ink);
+  --color-warning-tint: var(--warning-tint);
 
   /* Type scale — 12px floor, seven steps. Phase 2b.4. Semantic names, not
      Tailwind v4's default --text-* keys (xs/sm/base/xl/3xl/…): those keys
@@ -199,6 +203,27 @@
   --connector-apple-ink: #991b1b; /* 6.80:1 */
   --connector-apple-tint: #fee2e2;
 
+  /* Semantic warning/success ink-tint — for a tinted banner, badge or inline
+     status message that needs an amber "heads up" or a green "this worked",
+     as distinct from `--destructive` ("this failed"). Task 8b (2026-08-17).
+     Settings had been reaching for `--kind-warning-ink` for the amber case —
+     wrongly: that token names a coach-inbox item KIND ("Overtraining
+     watch"), not a severity, and it is byte-identical to `--destructive-ink`
+     in both themes, so every warning Settings rendered this way read as an
+     error. Deliberately its OWN pair, not an alias to `--kind-warning-ink`
+     or `--kind-debrief-ink`, for the same reason `--destructive-ink` above
+     is its own token rather than an alias to `--kind-warning-ink`: a
+     surface's severity vocabulary and the coach inbox's item-kind
+     vocabulary are different concerns that happen to share colours today
+     and must stay free to diverge. (The values below do coincide with
+     `--kind-morning-ink`/`-tint` and `--kind-debrief-ink`/`-tint` — the same
+     amber-800/amber-100 and emerald-800/emerald-100 steps already proven to
+     clear 4.5:1 — which is why those steps were reused here.) */
+  --warning-ink: #92400e; /* 6.37:1 on its tint, 6.56:1 on surface-base */
+  --warning-tint: #fef3c7;
+  --success-ink: #065f46; /* 6.78:1 on its tint, 7.11:1 on surface-base */
+  --success-tint: #d1fae5;
+
   --background: var(--surface-base);
   --foreground: var(--ink-primary);
   --card: var(--surface-raised);
@@ -290,6 +315,14 @@
   --connector-oura-tint: #082f49;
   --connector-apple-ink: #fca5a5; /* 8.51:1 */
   --connector-apple-tint: #450a0a;
+
+  /* See the light `:root` block above for the full rationale. Same
+     coincidence holds here too: these match `--kind-morning-ink`/`-tint`
+     and `--kind-debrief-ink`/`-tint` exactly. */
+  --warning-ink: #fcd34d; /* 10.39:1 on its tint, 11.43:1 on surface-overlay */
+  --warning-tint: #451a03;
+  --success-ink: #6ee7b7; /* 9.94:1 on its tint, 10.81:1 on surface-overlay */
+  --success-tint: #022c22;
 
   --background: var(--surface-base);
   --foreground: var(--ink-primary);

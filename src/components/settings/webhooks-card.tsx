@@ -163,7 +163,7 @@ export function WebhooksCard({ webhooks }: Props) {
         {/* Newly created secret display */}
         {revealSecret && (
           <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3">
-            <p className="mb-1 text-caption font-medium text-emerald-300">
+            <p className="mb-1 text-caption font-medium text-success-ink">
               Copy this secret now — it won&apos;t be shown again:
             </p>
             <code className="block break-all rounded bg-surface-base px-2 py-1 text-label text-ink-secondary">

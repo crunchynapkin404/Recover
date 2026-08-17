@@ -184,7 +184,7 @@ export function LlmSettingsCard({ settings }: Props) {
         <CardFooter className="flex flex-col items-start gap-2">
           {message && (
             <p
-              className={`text-caption ${messageOk ? "text-green-600" : "text-destructive"}`}
+              className={`text-caption ${messageOk ? "text-success-ink" : "text-destructive"}`}
             >
               {message}
             </p>

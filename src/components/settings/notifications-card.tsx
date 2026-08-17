@@ -121,12 +121,12 @@ export function NotificationsCard({
       </p>
 
       {!secure && (
-        <p className="mt-3 text-caption text-kind-warning-ink" role="alert">
+        <p className="mt-3 text-caption text-warning-ink" role="alert">
           Push needs HTTPS — open Recover through your tunnel or domain.
         </p>
       )}
       {iosNotInstalled && (
-        <p className="mt-3 text-caption text-kind-warning-ink" role="alert">
+        <p className="mt-3 text-caption text-warning-ink" role="alert">
           On iPhone, install the app first: Share → Add to Home Screen (iOS
           16.4+), then enable notifications from inside the installed app.
         </p>

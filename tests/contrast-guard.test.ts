@@ -166,6 +166,12 @@ const WAIVED: Record<string, string> = {
     "this connector's own tile ground; checked directly against --connector-oura-ink below",
   "connector-apple-tint":
     "this connector's own tile ground; checked directly against --connector-apple-ink below",
+
+  // ── Semantic warning/success ink/tint (Task 8b) ─────────────────────────
+  "warning-tint":
+    "this token's own tile ground; checked directly against --warning-ink below",
+  "success-tint":
+    "this token's own tile ground; checked directly against --success-ink below",
 };
 
 const css = readFileSync(CSS_PATH, "utf8");
@@ -310,14 +316,19 @@ describe("contrast guard", () => {
   describe("kind ink/tint pairs", () => {
     const pairs = inkTintPairs();
 
-    it("finds the twelve kind/connector/ghost/destructive pairs declared so far", () => {
+    it("finds the fourteen kind/connector/ghost/destructive/success/warning pairs declared so far", () => {
       // Not a floor: this is the C1/I6 lesson (see the file header) applied
       // to a second list — if this count doesn't move when a pair is added
       // or removed, the derivation above is checking nothing. `destructive-
       // ink`/`-tint` (the chat error banner / dictation-active mic) joined
       // the original six Task 5 pairs without anyone editing the derivation
       // itself — only this expectation, which is the point. v0.106.0 added
-      // the five connector-*-ink/tint pairs the same way.
+      // the five connector-*-ink/tint pairs the same way, and Task 8b added
+      // `success-ink`/`-tint` and `warning-ink`/`-tint`: Settings had been
+      // borrowing `--kind-warning-ink`, a coach-inbox taxonomy colour that is
+      // byte-identical to `--destructive-ink` in both themes, so a warning
+      // rendered indistinguishably from an error. These are Settings' own
+      // amber/green pair, not aliases of the inbox tokens.
       expect(pairs.map(([ink]) => ink).sort()).toEqual([
         "connector-apple-ink",
         "connector-oura-ink",
@@ -331,6 +342,8 @@ describe("contrast guard", () => {
         "kind-morning-ink",
         "kind-warning-ink",
         "kind-weekly-ink",
+        "success-ink",
+        "warning-ink",
       ]);
     });
 

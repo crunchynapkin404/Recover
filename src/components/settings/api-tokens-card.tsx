@@ -96,7 +96,7 @@ export function ApiTokensCard({ tokens }: Props) {
         {/* Newly created token display */}
         {showToken && (
           <div className="rounded-md border border-green-200 bg-green-50 p-3 dark:border-green-800 dark:bg-green-950">
-            <p className="mb-1 text-caption font-medium text-green-800 dark:text-green-200">
+            <p className="mb-1 text-caption font-medium text-success-ink">
               Copy this token now — it won&apos;t be shown again:
             </p>
             <code className="block break-all rounded bg-surface-raised px-2 py-1 text-label">

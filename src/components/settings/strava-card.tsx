@@ -199,7 +199,7 @@ export function StravaCard({
           </div>
 
           {noneSelected ? (
-            <p role="status" className="mt-3 text-label text-kind-warning-ink">
+            <p role="status" className="mt-3 text-label text-warning-ink">
               No fields selected — nothing will be published to Strava.
             </p>
           ) : (

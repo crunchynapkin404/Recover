@@ -224,7 +224,7 @@ export function CoachCard({
       {message && (
         <CardFooter>
           <p
-            className={`text-caption ${messageOk ? "text-green-600" : "text-destructive"}`}
+            className={`text-caption ${messageOk ? "text-success-ink" : "text-destructive"}`}
           >
             {message}
           </p>
