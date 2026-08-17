@@ -386,9 +386,10 @@ so" — is currently spoken in six dialects: `—` (47 uses), `calibrating` (39)
       confirmed-dead component; 2 sites investigated and excluded), and
       `docs/plans/2026-08-09-uncertainty-vocabulary-admin-misc.md` (no code
       change needed).
-- [ ] **2b.4 — Visual redesign. SLICES 0-4 OF 10 SHIPPED — v0.99.0,
-      v0.100.0 (both 2026-08-12), v0.101.0 and v0.102.0 (2026-08-13),
-      v0.103.0 (2026-08-14); the item
+- [ ] **2b.4 — Visual redesign. SLICES 0-4 OF 10 SHIPPED, PLUS SLICE 5's
+      PHASE A — v0.99.0, v0.100.0 (both 2026-08-12), v0.101.0 and v0.102.0
+      (2026-08-13), v0.103.0 (2026-08-14), v0.105.0 (2026-08-16, phase A
+      only — Settings' redesign is v0.106.0); the item
       stays open and closes at slice 9, not before.** v0.99.0 built the foundations only — two token sets
       with light and dark, a seven-step type scale on a hard 12px floor, a
       four-step ink ramp, four guards, and the headless capture/axe tooling the
@@ -420,6 +421,39 @@ so" — is currently spoken in six dialects: `—` (47 uses), `calibrating` (39)
       **Five surface slices remain** (Settings · Activity · Admin+Import ·
       pre-auth · sweep), and light mode stays unreachable
       (`forcedTheme="dark"`) until the final one.
+      **v0.105.0 shipped slice 5's PHASE A only — the redesign is v0.106.0.**
+      Settings turned out to be five `<Collapsible>` sections behind one path,
+      four of which no capture had ever opened: Integrations (six connector
+      cards), AI & Coach, App and Data. Only Advanced / API was ever expanded,
+      and only as a side effect of the API-token capture. The same gap slice 2
+      closed for Train's tabs and slice 3 for Body's, at four times the size —
+      and the third release in a row to find it, which is now a pattern rather
+      than a coincidence: **ask what a surface hides before believing its
+      number.** Widening the capture took Settings from 1 confirmed node to
+      **86**, and the redesign was deferred because the agreed rule was that
+      anything past 30 splits the release.
+      **Two real defects came out of it, and neither was cosmetic.** The Body →
+      Journal tab could take itself down entirely — an unknown stored `mood`
+      reaching `MOODS[-1].label`, unwinding to the global error boundary, with
+      production holding a legacy `mood='good'` that the current UI can no
+      longer produce. It was not firing on the live instance but fires daily on
+      any seeded database. And the Apple Health upload control had no
+      accessible name at all: axe **critical**, theme-independent, therefore
+      live in the only theme the athlete can currently see. Same defect shape
+      slice 3 found on Body, in a section nobody had opened.
+      **The measurement reorders what is left.** `admin` is **147** confirmed
+      nodes — larger than Settings; `activity-log` is 46; `import` 8; `login` 4.
+      **Train, Body and Coach are at zero against real data**, measured that way
+      for the first time on the new dev box. **Today is not** — two light-only
+      nodes on a raw `text-white` readiness sentence, invisible on an empty
+      account, which is why slice 1 read clean. Carried to the slice 9 sweep.
+      **A methodological correction worth more than the numbers.**
+      `verify-surfaces.ts` signs in as the owner, while `seed-demo.ts` seeds a
+      _separate_ demo user — so after the 2026-08-14 move every capture was of
+      an empty account, the exact condition
+      `docs/axe-baseline-2026-08-11-seeded.md` warns costs 20.7% of nodes
+      overall and 600% on Train. Every reading taken before 2026-08-16 on this
+      box is void. See `docs/plans/2026-08-16-v0105-slice5-settings.md`.
       **Carried out of slice 4, for later slices:** the desktop History
       dropdown is click-only and still uncaptured (`coach-history` at desktop
       is byte-identical to `coach`, since `HistorySheet` is `lg:hidden`); the
