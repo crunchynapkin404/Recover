@@ -40,6 +40,20 @@ import {
   Download,
 } from "lucide-react";
 
+// The five Collapsible section triggers below share this pair of class
+// strings verbatim; hoisted so each token swap happens once instead of
+// five times (the same argument that drove connector-card.tsx's shell
+// extraction earlier in this release).
+const triggerBadgeClass = "text-label font-medium text-ink-muted";
+const triggerLabelClass =
+  "text-label font-bold uppercase tracking-widest text-ink-secondary";
+
+// The Data section's two export/import CTAs are identical to each other,
+// and their detail lines (directly below each row's title) are too.
+const dataButtonClass =
+  "rounded-full border border-hairline bg-surface-overlay px-4 py-2 text-label font-bold uppercase tracking-wider text-ink-secondary transition-colors hover:bg-surface-selected";
+const dataDetailClass = "text-label font-bold uppercase text-ink-muted";
+
 export default async function SettingsPage({
   searchParams,
 }: {
@@ -223,26 +237,29 @@ export default async function SettingsPage({
     <AppShell user={shellUser(user)}>
       {/* Header */}
       <header className="mb-5 pt-8">
-        <h1 className="text-[22px] font-bold tracking-[-0.03em]">Menu</h1>
+        <h1 className="text-heading font-bold tracking-[-0.03em]">Menu</h1>
       </header>
 
       <div className="space-y-3">
         {/* Profile — one slim row, not a card of its own */}
-        <section className="flex items-center gap-3 rounded-[18px] border border-white/[0.08] bg-white/[0.03] px-4 py-3">
+        <section className="flex items-center gap-3 rounded-[18px] border border-hairline bg-surface-overlay px-4 py-3">
           <span className="glass flex size-[38px] shrink-0 items-center justify-center rounded-full">
             {initial ? (
-              <span aria-hidden className="text-[14px] font-bold text-white/80">
+              <span
+                aria-hidden
+                className="text-caption font-bold text-ink-secondary"
+              >
                 {initial}
               </span>
             ) : (
-              <User aria-hidden className="size-5 text-white/60" />
+              <User aria-hidden className="size-5 text-ink-muted" />
             )}
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-[13.5px] font-bold">
+            <span className="block truncate text-caption font-bold">
               {user.name ?? "Athlete"}
             </span>
-            <span className="block truncate text-[10.5px] text-white/45">
+            <span className="block truncate text-label text-ink-muted">
               {user.email}
               {user.role === "owner" && " · owner"}
             </span>
@@ -250,7 +267,7 @@ export default async function SettingsPage({
           {user.role === "owner" && (
             <Link
               href="/admin"
-              className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-emerald-400 hover:underline"
+              className="shrink-0 text-label font-bold uppercase tracking-wider text-accent hover:underline"
             >
               Admin →
             </Link>
@@ -261,15 +278,11 @@ export default async function SettingsPage({
         <Collapsible>
           <CollapsibleTrigger
             badge={
-              <span className="text-[10px] font-medium text-white/35">
-                {integrationsSummary}
-              </span>
+              <span className={triggerBadgeClass}>{integrationsSummary}</span>
             }
           >
             <Layers aria-hidden className="size-[18px] text-blue-400" />
-            <span className="text-xs font-bold uppercase tracking-widest text-white/80">
-              Integrations
-            </span>
+            <span className={triggerLabelClass}>Integrations</span>
           </CollapsibleTrigger>
           <CollapsiblePanel>
             <div className="hairline-list px-5 pb-3">
@@ -378,16 +391,10 @@ export default async function SettingsPage({
         {/* AI & Tech */}
         <Collapsible>
           <CollapsibleTrigger
-            badge={
-              <span className="text-[10px] font-medium text-white/35">
-                {coachSummary}
-              </span>
-            }
+            badge={<span className={triggerBadgeClass}>{coachSummary}</span>}
           >
             <Sparkles aria-hidden className="size-[18px] text-emerald-400" />
-            <span className="text-xs font-bold uppercase tracking-widest text-white/80">
-              AI &amp; Coach
-            </span>
+            <span className={triggerLabelClass}>AI &amp; Coach</span>
           </CollapsibleTrigger>
           <CollapsiblePanel>
             <div className="hairline-list px-5 pb-3">
@@ -424,16 +431,10 @@ export default async function SettingsPage({
         {/* Advanced / API */}
         <Collapsible>
           <CollapsibleTrigger
-            badge={
-              <span className="text-[10px] font-medium text-white/35">
-                {advancedSummary}
-              </span>
-            }
+            badge={<span className={triggerBadgeClass}>{advancedSummary}</span>}
           >
-            <Terminal aria-hidden className="size-[18px] text-white/40" />
-            <span className="text-xs font-bold uppercase tracking-widest text-white/80">
-              Advanced / API
-            </span>
+            <Terminal aria-hidden className="size-[18px] text-ink-muted" />
+            <span className={triggerLabelClass}>Advanced / API</span>
           </CollapsibleTrigger>
           <CollapsiblePanel>
             <div className="hairline-list px-5 pb-3">
@@ -475,19 +476,13 @@ export default async function SettingsPage({
         {/* App */}
         <Collapsible>
           <CollapsibleTrigger
-            badge={
-              <span className="text-[10px] font-medium text-white/35">
-                {appSummary}
-              </span>
-            }
+            badge={<span className={triggerBadgeClass}>{appSummary}</span>}
           >
             <SlidersHorizontal
               aria-hidden
               className="size-[18px] text-orange-400"
             />
-            <span className="text-xs font-bold uppercase tracking-widest text-white/80">
-              App
-            </span>
+            <span className={triggerLabelClass}>App</span>
           </CollapsibleTrigger>
           <CollapsiblePanel>
             <div className="hairline-list px-5 pb-3">
@@ -522,22 +517,18 @@ export default async function SettingsPage({
         <Collapsible>
           <CollapsibleTrigger
             badge={
-              <span className="text-[10px] font-medium text-white/35">
-                Export · Import CSV
-              </span>
+              <span className={triggerBadgeClass}>Export · Import CSV</span>
             }
           >
-            <Download aria-hidden className="size-[18px] text-white/40" />
-            <span className="text-xs font-bold uppercase tracking-widest text-white/80">
-              Data
-            </span>
+            <Download aria-hidden className="size-[18px] text-ink-muted" />
+            <span className={triggerLabelClass}>Data</span>
           </CollapsibleTrigger>
           <CollapsiblePanel>
             <div className="hairline-list px-5 pb-3">
               <div className="flex items-center justify-between py-3">
                 <div className="flex flex-col">
-                  <span className="text-sm font-medium">Data export</span>
-                  <span className="text-[10px] font-bold uppercase text-white/50">
+                  <span className="text-caption font-medium">Data export</span>
+                  <span className={dataDetailClass}>
                     Download all your data as JSON
                   </span>
                 </div>
@@ -545,22 +536,19 @@ export default async function SettingsPage({
                   href="/api/export"
                   download
                   aria-label="Download all your data as JSON"
-                  className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-white/80 transition-colors hover:bg-white/10"
+                  className={dataButtonClass}
                 >
                   Export
                 </a>
               </div>
-              <div className="flex items-center justify-between border-t border-white/5 py-3">
+              <div className="flex items-center justify-between border-t border-hairline py-3">
                 <div className="flex flex-col">
-                  <span className="text-sm font-medium">Import CSV</span>
-                  <span className="text-[10px] font-bold uppercase text-white/50">
+                  <span className="text-caption font-medium">Import CSV</span>
+                  <span className={dataDetailClass}>
                     Wellness or activity data from any source
                   </span>
                 </div>
-                <Link
-                  href="/import"
-                  className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-white/80 transition-colors hover:bg-white/10"
-                >
+                <Link href="/import" className={dataButtonClass}>
                   Import
                 </Link>
               </div>
@@ -572,7 +560,7 @@ export default async function SettingsPage({
           <SignOutButton />
         </div>
 
-        <p className="pb-4 pt-2 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-white/25">
+        <p className="pb-4 pt-2 text-center text-label font-bold uppercase tracking-[0.2em] text-ink-muted">
           Recover · Self-hosted · AGPL-3.0
         </p>
       </div>

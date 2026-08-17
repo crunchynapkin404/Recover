@@ -470,7 +470,31 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // (src/lib/design/type-scale-patterns.ts) over every non-test file in
   // src/**/*.{ts,tsx} reports 68 on the working tree after these two tasks'
   // edits, down from 74 before them.
-  "arbitrary type sizes": 68,
+  //
+  // 53 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
+  // redesign) task 9 — src/app/settings/page.tsx, the page shell (the last
+  // code migration of the release; Task 11 is the axe audit). Net −15 from
+  // the 68 task 7-8 left, all in this one file: the header h1 (text-[22px] →
+  // text-heading, 1), the profile row's initial avatar (text-[14px] →
+  // text-caption, 1), the athlete name (text-[13.5px] → text-caption, 1),
+  // the athlete email (text-[10.5px] → text-label, 1), the Admin link
+  // (text-[10px] → text-label, 1), the five section-trigger badges — hoisted
+  // to one `triggerBadgeClass` const before migrating, since all five
+  // repeated the same string verbatim (text-[10px] → text-label, 5), the
+  // Data section's two row-detail spans — hoisted to `dataDetailClass`
+  // (text-[10px] → text-label, 2), the two Export/Import buttons — hoisted
+  // to `dataButtonClass`, identical to each other (text-[10px] → text-label,
+  // 2), and the footer (text-[10px] → text-label, 1). 1+1+1+1+1+5+2+2+1 = 15.
+  // The five section-trigger LABELS (text-xs, not arbitrary) and the two
+  // Data row titles (text-sm, not arbitrary) move the ad-hoc-alpha ceiling
+  // below but not this one. The gap this left (68 − 53 = 15) was under
+  // RATCHET_SLACK (25), so the ratchet did not strictly demand re-pinning —
+  // re-pinned anyway per this file's own established practice of re-pinning
+  // on every drop regardless. Verified directly: running ARBITRARY_TYPE
+  // (src/lib/design/type-scale-patterns.ts) over every non-test file in
+  // src/**/*.{ts,tsx} reports 53 on the working tree after this task's edit,
+  // down from 68 before it.
+  "arbitrary type sizes": 53,
   // 251 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
   // redesign) task 3 — repays the debt task 2 explicitly left for this task,
   // same three cards as the sibling ceiling above. Net −27 from the 278
@@ -822,6 +846,43 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // working tree after this task's edit reports 189. This retires the
   // pattern from all five connector cards, same as the sibling ceiling.
   //
+  // 127 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
+  // redesign) task 9 — the same file as the sibling ceiling's task 9 entry,
+  // src/app/settings/page.tsx. Net −29 from the 156 tasks 7-8 left, all in
+  // this one file: the profile row's wrapper border-white/[0.08] +
+  // bg-white/[0.03] (→ border-hairline + bg-surface-overlay, 2), its initial
+  // avatar's text-white/80 (→ text-ink-secondary, 1), its fallback User
+  // icon's text-white/60 (→ text-ink-muted, 1), the athlete email's
+  // text-white/45 (→ text-ink-muted, 1), the five section-trigger badges'
+  // shared text-white/35 — hoisted to `triggerBadgeClass` (→ text-ink-muted,
+  // 5), the five section-trigger labels' shared text-white/80 — hoisted to
+  // `triggerLabelClass` (→ text-ink-secondary, 5), the Terminal and Download
+  // icons' text-white/40 (→ text-ink-muted, 2 — the brief's decorative-icon
+  // exemption named only the three bare-palette icons, text-blue-400/
+  // text-emerald-400/text-orange-400; these two carry an ink alpha the
+  // general mapping already covers, so they migrate), the Data section's two
+  // row-detail spans' shared text-white/50 — hoisted to `dataDetailClass`
+  // (→ text-ink-muted, 2), the two Export/Import buttons' shared
+  // border-white/10 + bg-white/5 + text-white/80 + hover:bg-white/10 —
+  // hoisted to `dataButtonClass`, identical to each other (→ border-hairline
+  // + bg-surface-overlay + text-ink-secondary + hover:bg-surface-selected,
+  // 4 × 2 = 8), the Import row's own border-t border-white/5 (→
+  // border-hairline, 1), and the footer's text-white/25 (→ text-ink-muted,
+  // 1). 2+1+1+1+5+5+2+2+8+1+1 = 29. Three decorative section icons were
+  // deliberately left as raw palette values per the brief's own ruling —
+  // text-blue-400 (Integrations), text-emerald-400 (AI & Coach) and
+  // text-orange-400 (App) — since axe's color-contrast rule does not
+  // evaluate aria-hidden decoration and minting token pairs for them is
+  // scope this release does not want; they carry no ADHOC_INK match anyway
+  // (bare palette colours, no alpha slash), so they do not move this count
+  // either way. The gap this left (156 − 127 = 29) was OVER RATCHET_SLACK
+  // (25), so the ratchet failed and re-pinning here was mandatory, not
+  // discretionary — confirmed by this ceiling's own suite run. Verified
+  // directly: running ADHOC_INK (src/lib/design/type-scale-patterns.ts) over
+  // every non-test file in src/**/*.{ts,tsx} reports 127 on the working tree
+  // after this task's edit, down from 156 before it. This is the last code
+  // migration of the release; Task 11 is the real-browser axe audit.
+  //
   // 156 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
   // redesign) tasks 7-8 — the same nine files as the sibling ceiling's
   // task 7-8 entry. Net −33 from the 189 task 6 left, per file:
@@ -851,7 +912,7 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // (src/lib/design/type-scale-patterns.ts) over every non-test file in
   // src/**/*.{ts,tsx} reports 156 on the working tree after these two
   // tasks' edits, down from 189 before them.
-  "ad-hoc white/black alpha utilities": 156,
+  "ad-hoc white/black alpha utilities": 127,
   // 234 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
   // redesign) task 4 — the same two cards as the sibling ceiling above,
   // strava-card.tsx and apple-health-card.tsx, moved onto connector-card.tsx's
