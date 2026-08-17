@@ -774,6 +774,23 @@ markup that has not moved."
 - Modify: `src/components/settings/whoop-card.tsx`
 - Modify: `src/components/settings/withings-card.tsx`
 - Modify: `src/components/settings/oura-card.tsx`
+- Modify: `tests/type-scale-guard.test.ts` — **repay Task 2's ceiling raise**
+- Modify: `tests/dead-component-guard.test.ts` — remove the `KNOWN_ORPHANS` entry
+
+**A debt this task inherits and must repay.** Task 2 created the shell before
+anything consumed it, so for one commit the chrome exists in six places instead
+of five, and both `OFFENDER_CEILINGS` had to rise — `arbitrary type sizes`
+112 → 117, `ad-hoc white/black alpha utilities` 267 → 278. That raise was
+accepted as transient on the explicit condition that **this task pays it back**,
+because deleting three cards' duplicated chrome drops the real counts below the
+original 112 / 267. Measure and re-pin both downward in this task's commit; do
+not defer it to Task 12. `type-scale-guard.test.ts`'s own comment is the reason:
+a ceiling with slack is free offenders for whoever comes next, and the ratchet
+only signals if it stays tight.
+
+`connector-card.tsx` also leaves `KNOWN_ORPHANS` here — this task gives it its
+first real render site, and the dead-component guard's own "still genuinely
+orphaned" assertion will fail until the entry is removed.
 
 **Interfaces:**
 
