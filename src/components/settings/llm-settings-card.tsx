@@ -86,7 +86,7 @@ export function LlmSettingsCard({ settings }: Props) {
                   e.target.value as "anthropic" | "openai_compatible"
                 )
               }
-              className="border-input bg-background flex h-9 w-full rounded-md border px-3 py-1 text-sm"
+              className="border-input bg-background flex h-9 w-full rounded-md border px-3 py-1 text-caption"
             >
               <option value="anthropic">Anthropic (Claude)</option>
               <option value="openai_compatible">
@@ -133,7 +133,7 @@ export function LlmSettingsCard({ settings }: Props) {
               id="defaultMode"
               name="defaultMode"
               defaultValue={settings?.defaultMode ?? "deep"}
-              className="border-input bg-background flex h-9 w-full rounded-md border px-3 py-1 text-sm"
+              className="border-input bg-background flex h-9 w-full rounded-md border px-3 py-1 text-caption"
             >
               <option value="deep">Deep</option>
               <option value="quick">Quick</option>
@@ -144,7 +144,7 @@ export function LlmSettingsCard({ settings }: Props) {
             <Label htmlFor="apiKey">
               API Key{" "}
               {providerType === "openai_compatible" && (
-                <span className="text-muted-foreground text-xs">
+                <span className="text-muted-foreground text-label">
                   (optional for Ollama)
                 </span>
               )}
@@ -184,7 +184,7 @@ export function LlmSettingsCard({ settings }: Props) {
         <CardFooter className="flex flex-col items-start gap-2">
           {message && (
             <p
-              className={`text-sm ${messageOk ? "text-green-600" : "text-destructive"}`}
+              className={`text-caption ${messageOk ? "text-green-600" : "text-destructive"}`}
             >
               {message}
             </p>

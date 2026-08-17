@@ -77,13 +77,13 @@ export function SessionsCard({ sessions }: Props) {
               className="flex items-center justify-between rounded-md border px-3 py-2"
             >
               <div className="flex flex-col gap-1">
-                <span className="flex items-center gap-2 text-sm font-medium">
+                <span className="flex items-center gap-2 text-caption font-medium">
                   {s.device}
                   {s.isCurrent && (
                     <Badge variant="secondary">This device</Badge>
                   )}
                 </span>
-                <span className="text-muted-foreground text-xs">
+                <span className="text-muted-foreground text-label">
                   {s.ipAddress ? `${s.ipAddress} · ` : ""}
                   Last active {formatWhen(s.updatedAt)} · Signed in{" "}
                   {formatWhen(s.createdAt)}
@@ -103,7 +103,7 @@ export function SessionsCard({ sessions }: Props) {
             </div>
           ))}
           {sessions.length === 0 && (
-            <p className="text-muted-foreground text-sm">
+            <p className="text-muted-foreground text-caption">
               No active sessions found.
             </p>
           )}
@@ -122,13 +122,15 @@ export function SessionsCard({ sessions }: Props) {
                 ? "Signing out…"
                 : `Sign out everywhere else (${otherCount})`}
             </Button>
-            <p className="text-muted-foreground mt-1 text-xs">
+            <p className="text-muted-foreground mt-1 text-label">
               Ends every session except this one — this device stays signed in.
             </p>
           </div>
         )}
 
-        {result && <p className="text-muted-foreground text-sm">{result}</p>}
+        {result && (
+          <p className="text-muted-foreground text-caption">{result}</p>
+        )}
       </CardContent>
     </Card>
   );

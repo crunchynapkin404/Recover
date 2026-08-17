@@ -69,12 +69,12 @@ export function ApiTokensCard({ tokens }: Props) {
                 className="flex items-center justify-between rounded-md border px-3 py-2"
               >
                 <div>
-                  <span className="text-sm font-medium">{t.label}</span>
-                  <span className="text-muted-foreground ml-2 text-xs">
+                  <span className="text-caption font-medium">{t.label}</span>
+                  <span className="text-muted-foreground ml-2 text-label">
                     {t.scopes}
                   </span>
                   {t.lastUsedAt && (
-                    <span className="text-muted-foreground ml-2 text-xs">
+                    <span className="text-muted-foreground ml-2 text-label">
                       · last used {new Date(t.lastUsedAt).toLocaleDateString()}
                     </span>
                   )}
@@ -96,10 +96,10 @@ export function ApiTokensCard({ tokens }: Props) {
         {/* Newly created token display */}
         {showToken && (
           <div className="rounded-md border border-green-200 bg-green-50 p-3 dark:border-green-800 dark:bg-green-950">
-            <p className="mb-1 text-sm font-medium text-green-800 dark:text-green-200">
+            <p className="mb-1 text-caption font-medium text-green-800 dark:text-green-200">
               Copy this token now — it won&apos;t be shown again:
             </p>
-            <code className="block break-all rounded bg-white px-2 py-1 text-xs dark:bg-black">
+            <code className="block break-all rounded bg-surface-raised px-2 py-1 text-label">
               {showToken}
             </code>
           </div>
@@ -122,7 +122,7 @@ export function ApiTokensCard({ tokens }: Props) {
             <select
               id="tokenScopes"
               name="scopes"
-              className="border-input bg-background flex h-9 w-full rounded-md border px-3 py-1 text-sm"
+              className="border-input bg-background flex h-9 w-full rounded-md border px-3 py-1 text-caption"
             >
               <option value="read">Read only</option>
               <option value="read|write:wellness">Read + write wellness</option>
@@ -144,10 +144,10 @@ export function ApiTokensCard({ tokens }: Props) {
 
         {/* Status messages */}
         {createState && !createState.ok && (
-          <p className="text-destructive text-sm">{createState.message}</p>
+          <p className="text-destructive text-caption">{createState.message}</p>
         )}
         {revokeResult && (
-          <p className="text-muted-foreground text-sm">{revokeResult}</p>
+          <p className="text-muted-foreground text-caption">{revokeResult}</p>
         )}
       </CardContent>
     </Card>

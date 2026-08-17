@@ -19,20 +19,20 @@ export async function LlmUsageCard() {
   return (
     <section className="glass rounded-[2rem] p-6">
       <h3 className="label-micro">Coach usage</h3>
-      <p className="mt-2 text-sm text-white/50">
+      <p className="mt-2 text-caption text-ink-muted">
         Tokens your own LLM endpoints processed. Tokens, not cost — pricing
         depends on your provider. Calls whose provider reports no usage
         aren&apos;t counted.
       </p>
       {thisMonth.length === 0 && prevMonth.length === 0 ? (
-        <p className="mt-4 text-xs text-white/40">No usage recorded yet.</p>
+        <p className="mt-4 text-label text-ink-muted">No usage recorded yet.</p>
       ) : (
-        <div className="mt-4 space-y-3 text-xs">
-          <p className="text-white/70">
+        <div className="mt-4 space-y-3 text-label">
+          <p className="text-ink-secondary">
             This month: {t.in.toLocaleString()} in / {t.out.toLocaleString()}{" "}
             out
             {p.in + p.out > 0 && (
-              <span className="text-white/40">
+              <span className="text-ink-muted">
                 {" "}
                 · last month {p.in.toLocaleString()} / {p.out.toLocaleString()}
               </span>
@@ -44,7 +44,7 @@ export async function LlmUsageCard() {
               .map((r) => (
                 <div
                   key={`${r.model}-${r.purpose}`}
-                  className="flex justify-between text-white/50"
+                  className="flex justify-between text-ink-muted"
                 >
                   <span>
                     {r.model} · {r.purpose} ({r.calls}×)

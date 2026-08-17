@@ -62,13 +62,15 @@ function DeliveryStatus({
 }) {
   if (!lastDelivery) {
     return (
-      <span className="text-muted-foreground text-xs">No deliveries yet</span>
+      <span className="text-muted-foreground text-label">
+        No deliveries yet
+      </span>
     );
   }
 
   if (lastDelivery.status === "success") {
     return (
-      <span className="text-muted-foreground text-xs">
+      <span className="text-muted-foreground text-label">
         ✓ Delivered · {formatAgo(lastDelivery.at)}
       </span>
     );
@@ -76,13 +78,13 @@ function DeliveryStatus({
 
   return (
     <div className="flex flex-col gap-0.5">
-      <span className="text-destructive text-xs">
+      <span className="text-destructive text-label">
         Failed after {lastDelivery.attempts} attempt
         {lastDelivery.attempts === 1 ? "" : "s"} · {formatAgo(lastDelivery.at)}
       </span>
       {lastDelivery.lastError && (
         <span
-          className="text-destructive line-clamp-1 text-xs"
+          className="text-destructive line-clamp-1 text-label"
           title={lastDelivery.lastError}
         >
           {lastDelivery.lastError}
@@ -117,7 +119,7 @@ export function WebhooksCard({ webhooks }: Props) {
           Signed HTTP POSTs to a URL of your choice on readiness, band, and
           backup events — wire this into Home Assistant, ntfy, or anything else
           listening. Each request carries an{" "}
-          <code className="text-xs">x-recover-signature</code> header (HMAC-
+          <code className="text-label">x-recover-signature</code> header (HMAC-
           SHA256 of the body, using the secret shown once below) so your
           receiver can verify it came from this server.
         </CardDescription>
@@ -132,7 +134,9 @@ export function WebhooksCard({ webhooks }: Props) {
                 className="flex items-center justify-between rounded-md border px-3 py-2"
               >
                 <div className="flex flex-col gap-1">
-                  <span className="break-all text-sm font-medium">{w.url}</span>
+                  <span className="break-all text-caption font-medium">
+                    {w.url}
+                  </span>
                   <div className="flex flex-wrap gap-1">
                     {w.events.map((e) => (
                       <Badge key={e} variant="outline">
@@ -159,10 +163,10 @@ export function WebhooksCard({ webhooks }: Props) {
         {/* Newly created secret display */}
         {revealSecret && (
           <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3">
-            <p className="mb-1 text-sm font-medium text-emerald-300">
+            <p className="mb-1 text-caption font-medium text-emerald-300">
               Copy this secret now — it won&apos;t be shown again:
             </p>
-            <code className="block break-all rounded bg-black/40 px-2 py-1 text-xs text-white/80">
+            <code className="block break-all rounded bg-surface-base px-2 py-1 text-label text-ink-secondary">
               {revealSecret}
             </code>
           </div>
@@ -186,7 +190,7 @@ export function WebhooksCard({ webhooks }: Props) {
               {EVENT_OPTIONS.map((opt) => (
                 <label
                   key={opt.value}
-                  className="flex items-center gap-2 text-sm"
+                  className="flex items-center gap-2 text-caption"
                 >
                   <input
                     type="checkbox"
@@ -207,10 +211,10 @@ export function WebhooksCard({ webhooks }: Props) {
 
         {/* Status messages */}
         {createState && !createState.ok && (
-          <p className="text-destructive text-sm">{createState.message}</p>
+          <p className="text-destructive text-caption">{createState.message}</p>
         )}
         {revokeResult && (
-          <p className="text-muted-foreground text-sm">{revokeResult}</p>
+          <p className="text-muted-foreground text-caption">{revokeResult}</p>
         )}
       </CardContent>
     </Card>
