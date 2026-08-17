@@ -154,6 +154,27 @@ function occurrences(pattern: RegExp): number {
  */
 const RATCHET_SLACK = 25;
 const OFFENDER_CEILINGS: Record<string, number> = {
+  // 103 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
+  // redesign) task 3 — repays the debt task 2 explicitly left for this task.
+  // whoop-card.tsx, withings-card.tsx and oura-card.tsx moved onto
+  // connector-card.tsx's shell, deleting each card's own copy of the chrome
+  // the shell now renders once. Net −14 from the 117 task 2 left: each of
+  // whoop-card.tsx and withings-card.tsx dropped 5 text-[10px]/text-[8px]
+  // sites (the Sync/Disconnect pair, the Connect-or-badge branch and the
+  // subtitle span — all now rendered once by the shell instead of three
+  // times), and oura-card.tsx dropped 4 of its 5 (same shell sites; its
+  // fifth, the token-form help paragraph's text-[10px], is unmigrated
+  // `children` markup that did not move onto the shell and so still counts).
+  // 5 + 5 + 4 = 14. Verified directly: running ARBITRARY_TYPE
+  // (src/lib/design/type-scale-patterns.ts) over src/**/*.tsx, excluding
+  // *.test.tsx, at the pre-task-3 commit (86a64d6) reports 117; the same
+  // scan on the working tree after this task's edit reports 103 — 9 below
+  // the pre-task-2 baseline of 112, matching the brief's predicted ~9.
+  // Re-pinned to the real count per this file's own ratchet rule — a
+  // ceiling with slack is free offenders for whoever comes next. Task 4
+  // moves Strava and Apple Health the same way and re-pins again; Task 5
+  // then migrates connector-card.tsx itself onto the type/ink scale, which
+  // is what finally retires this pattern from the shared file too.
   // 117 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
   // redesign) task 2 — src/components/settings/connector-card.tsx, the new
   // shared shell the five connector cards (Strava, Whoop, Withings, Oura,
@@ -389,7 +410,38 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // week-day-list.tsx and page.tsx are all token utilities, so the count did
   // not move there), 343 after task 2, 351 after the whole-branch-review
   // fixes, 355 right after slice 1, 395 at slice 0.
-  "arbitrary type sizes": 117,
+  "arbitrary type sizes": 103,
+  // 251 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
+  // redesign) task 3 — repays the debt task 2 explicitly left for this task,
+  // same three cards as the sibling ceiling above. Net −27 from the 278
+  // task 2 left, broken down per card:
+  //   whoop-card.tsx: dropped 11, the exact 11 the sibling comment below
+  //     itemises as connector-card.tsx's net-new sites, since Whoop's
+  //     markup is what they were copied from verbatim — the chip's
+  //     border-white/20 + bg-white/10 (2), the pill's border-white/10 +
+  //     bg-white/5 + hover:bg-white/10 (3), the ghost's border-white/10 +
+  //     text-white/60 (2), the badge's bg-white/5 + text-white/50 (2), the
+  //     subtitle's text-white/50 (1) and the status paragraph's ok-branch
+  //     text-white/60 (1). Kept exactly one: the Connect CTA's
+  //     hover:bg-white/80, brand colour on the anchor tag, not chrome the
+  //     shell owns.
+  //   withings-card.tsx: dropped all 9 it had — the same pill/ghost/badge/
+  //     subtitle/status sites as Whoop (3 + 2 + 2 + 1 + 1), minus the chip,
+  //     which was never white/black (Withings' chip and CTA are both teal).
+  //     Kept none.
+  //   oura-card.tsx: dropped 7 of its 10 — the same pill/ghost/subtitle/
+  //     status sites (3 + 2 + 1 + 1; no chip or badge, Oura has neither).
+  //     Kept 3, all in the token-form/help-text `children` markup that
+  //     never moved onto the shell: the input's border-white/10 +
+  //     bg-white/5 and the help paragraph's text-white/40.
+  // 11 + 9 + 7 = 27. This ceiling's own suite run caught the debt directly —
+  // `ad-hoc ink alphas stay at or below the recorded ceiling` failed with
+  // "the ceiling (278) is now 27 above the real count (251), which is more
+  // than RATCHET_SLACK (25)" — confirming both the exact count and that it
+  // had silently passed slack. Re-pinned to 251 per this file's own ratchet
+  // rule. Task 4 moves Strava and Apple Health the same way and re-pins
+  // again; Task 5 then migrates connector-card.tsx itself onto the ink
+  // scale, retiring this pattern from the shared file too.
   // 278 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
   // redesign) task 2 — the same new file as the sibling ceiling above,
   // src/components/settings/connector-card.tsx. 11 net new ad-hoc-alpha
@@ -658,7 +710,7 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // fuelling tile that moved to `bg-surface-overlay`). 709 after task 4,
   // for the same reason task 4 didn't move it — 729 after task 2, 738 after
   // the whole-branch-review fixes, 749 right after slice 1, 806 at slice 0.
-  "ad-hoc white/black alpha utilities": 278,
+  "ad-hoc white/black alpha utilities": 251,
 };
 
 function expectRatchet(name: string, pattern: RegExp): void {

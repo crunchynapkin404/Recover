@@ -7,6 +7,12 @@ import {
   ouraSyncNow,
   type ActionResult,
 } from "@/app/settings/oura-actions";
+import {
+  ConnectorCard,
+  connectorPillClass,
+  connectorGhostClass,
+  connectorCtaClass,
+} from "./connector-card";
 
 interface Props {
   connection: {
@@ -29,25 +35,25 @@ export function OuraCard({ connection }: Props) {
   const messageOk = result?.ok ?? connectState?.ok;
 
   return (
-    <div className="glass rounded-[2rem] p-5">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-sky-400/20 bg-sky-400/10">
-            <span aria-hidden className="text-base text-sky-300">
-              ◍
-            </span>
-          </div>
-          <div>
-            <p className="text-sm font-bold">Oura</p>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-white/50">
-              {connection
-                ? `Connected${connection.accountName ? ` · ${connection.accountName}` : ""}`
-                : "Staged sleep, HRV, temperature"}
-            </span>
-          </div>
-        </div>
-
-        {connection && (
+    <ConnectorCard
+      name="Oura"
+      tone="oura"
+      glyph="◍"
+      subtitle={
+        connection
+          ? `Connected${connection.accountName ? ` · ${connection.accountName}` : ""}`
+          : "Staged sleep, HRV, temperature"
+      }
+      status={
+        message || connection?.lastError
+          ? {
+              ok: messageOk ?? false,
+              message: message ?? `Last error: ${connection?.lastError}`,
+            }
+          : null
+      }
+      actions={
+        connection ? (
           <div className="flex gap-2">
             <button
               type="button"
@@ -55,7 +61,7 @@ export function OuraCard({ connection }: Props) {
               onClick={() =>
                 startTransition(async () => setResult(await ouraSyncNow()))
               }
-              className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-colors hover:bg-white/10 disabled:opacity-50"
+              className={connectorPillClass}
             >
               {pending ? "…" : "Sync"}
             </button>
@@ -65,14 +71,14 @@ export function OuraCard({ connection }: Props) {
               onClick={() =>
                 startTransition(async () => setResult(await ouraDisconnect()))
               }
-              className="rounded-full border border-white/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-white/60 transition-colors hover:bg-red-500/10 hover:text-red-400 disabled:opacity-50"
+              className={connectorGhostClass}
             >
               Disconnect
             </button>
           </div>
-        )}
-      </div>
-
+        ) : null
+      }
+    >
       {!connection && (
         <form action={connectAction} className="mt-3 flex gap-2">
           <input
@@ -86,30 +92,18 @@ export function OuraCard({ connection }: Props) {
           <button
             type="submit"
             disabled={connecting}
-            className="shrink-0 rounded-full bg-sky-400 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-black transition-colors hover:bg-sky-300 disabled:opacity-50"
+            className={`${connectorCtaClass} shrink-0 bg-sky-400 text-black hover:bg-sky-300`}
           >
             {connecting ? "…" : "Connect"}
           </button>
         </form>
       )}
-
       {!connection && (
         <p className="mt-2 text-[10px] text-white/40">
           Create a token at cloud.ouraring.com → Personal Access Tokens. Stored
           encrypted (AES-256-GCM).
         </p>
       )}
-
-      {(message || connection?.lastError) && (
-        <p
-          role="status"
-          className={`mt-3 text-xs ${
-            (messageOk ?? false) ? "text-white/60" : "text-red-400"
-          }`}
-        >
-          {message ?? `Last error: ${connection?.lastError}`}
-        </p>
-      )}
-    </div>
+    </ConnectorCard>
   );
 }
