@@ -17,6 +17,11 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { and, eq, inArray } from "drizzle-orm";
 import { db, schema } from "../src/lib/db";
 import { computeDailyMetrics } from "../src/lib/metrics";
+// The app's own AES-256-GCM helper, used so seeded connector rows have an
+// honest SHAPE. The plaintext inside them is deliberately worthless — see
+// seedSettingsStates, and docs/ENVIRONMENTS.md's rule that the dev box never
+// holds a real connector credential.
+import { encrypt } from "../src/lib/crypto";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -363,6 +368,7 @@ async function main() {
 
   await seedDemoChat(userId);
   await seedDemoInbox(userId);
+  await seedSettingsStates(userId);
 
   console.log(
     `Seeded ${days} wellness days + ${activityCount} activities; computed ${computed} daily metrics.`
@@ -572,4 +578,136 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       console.error(err);
       process.exit(1);
     });
+}
+
+/**
+ * The states the Settings surface needs to render as anything but empty.
+ *
+ * v0.99 slice 5 opened the five <Collapsible> sections on /settings that no
+ * capture had ever opened, and found the six connector cards could still only
+ * render "Not connected" — `connections` was empty on every seeded database,
+ * as were webhook_subscriptions, push_subscriptions and llm_usage. A surface
+ * audit against cards that are all in their empty state measures the empty
+ * state, which is the same trap slice 4 hit when the coach inbox's five kinds
+ * were unreachable because seed-demo created only a `kind='chat'` thread.
+ *
+ * TOKENS ARE DELIBERATELY WORTHLESS. The cards key off a row's `status`, not
+ * off decrypting anything (see strava-card.tsx), so the plaintext never needs
+ * to be real — and `docs/ENVIRONMENTS.md` makes it a standing rule that the
+ * dev box holds no real connector credential. They go through the app's own
+ * encrypt() so the row SHAPE is honest: a card that ever did try to decrypt
+ * one would get a valid decryption of an obviously fake string, rather than a
+ * crash that only shows up on a real instance.
+ */
+async function seedSettingsStates(userId: string): Promise<void> {
+  // Every provider with a card on /settings. google_calendar is a valid
+  // enum member but has no card, so seeding it would add an invisible row.
+  const providers = [
+    { provider: "intervals_icu" as const, name: "Demo Athlete" },
+    { provider: "strava" as const, name: "Demo Athlete" },
+    { provider: "whoop" as const, name: "Demo Athlete" },
+    { provider: "oura" as const, name: "Demo Athlete" },
+    { provider: "withings" as const, name: "Demo Athlete" },
+    { provider: "apple_health" as const, name: null },
+  ];
+
+  for (const [i, p] of providers.entries()) {
+    const existing = await db.query.connections.findFirst({
+      where: and(
+        eq(schema.connections.userId, userId),
+        eq(schema.connections.provider, p.provider)
+      ),
+    });
+    if (existing) continue;
+    await db.insert(schema.connections).values({
+      userId,
+      provider: p.provider,
+      encryptedAccessToken: encrypt(`seed-not-a-real-token-${p.provider}`),
+      encryptedRefreshToken: encrypt(`seed-not-a-real-refresh-${p.provider}`),
+      externalAthleteId: `seed-${p.provider}-${i}`,
+      externalAthleteName: p.name,
+      status: "active",
+      // Staggered so the cards do not all read the same "synced Xm ago",
+      // which would hide a formatting bug that only shows at one magnitude.
+      lastSyncAt: new Date(Date.now() - (i + 1) * 37 * 60 * 1000),
+    });
+  }
+
+  // Two rows so the card renders both an enabled and a disabled subscription
+  // — the disabled treatment is a distinct visual state and had never been
+  // captured.
+  const webhookRows = [
+    {
+      url: "https://example.invalid/hooks/readiness",
+      events: ["readiness_computed", "band_changed"],
+      active: true,
+    },
+    {
+      url: "https://example.invalid/hooks/backups",
+      events: ["backup_completed"],
+      active: false,
+    },
+  ];
+  for (const w of webhookRows) {
+    const existing = await db.query.webhookSubscriptions.findFirst({
+      where: and(
+        eq(schema.webhookSubscriptions.userId, userId),
+        eq(schema.webhookSubscriptions.url, w.url)
+      ),
+    });
+    if (existing) continue;
+    await db.insert(schema.webhookSubscriptions).values({
+      userId,
+      url: w.url,
+      encryptedSecret: encrypt("seed-not-a-real-webhook-secret"),
+      events: w.events,
+      active: w.active,
+    });
+  }
+
+  // endpoint is UNIQUE, so onConflictDoNothing is the idempotency guard here
+  // rather than a findFirst.
+  await db
+    .insert(schema.pushSubscriptions)
+    .values({
+      userId,
+      endpoint: `https://example.invalid/push/seed-${userId}`,
+      p256dh: "seed-not-a-real-p256dh-key",
+      auth: "seed-not-a-real-auth-secret",
+      userAgent: "Seed/1.0 (demo data)",
+    })
+    .onConflictDoNothing();
+
+  // A handful of rows across two days and both slots, so llm-usage-card
+  // renders a real total and a per-model breakdown instead of a zero.
+  const usageRows = [
+    { model: "llama3.1", slot: "quick" as const, purpose: "chat" as const },
+    { model: "llama3.1", slot: "quick" as const, purpose: "morning" as const },
+    { model: "llama3.1", slot: "deep" as const, purpose: "weekly" as const },
+    {
+      model: "llama3.1",
+      slot: "deep" as const,
+      purpose: "ride_review" as const,
+    },
+  ];
+  const existingUsage = await db.query.llmUsage.findFirst({
+    where: eq(schema.llmUsage.userId, userId),
+  });
+  if (!existingUsage) {
+    for (const [i, u] of usageRows.entries()) {
+      await db.insert(schema.llmUsage).values({
+        userId,
+        model: u.model,
+        slot: u.slot,
+        purpose: u.purpose,
+        inputTokens: 1200 + i * 430,
+        outputTokens: 300 + i * 110,
+        createdAt: new Date(Date.now() - i * 11 * 60 * 60 * 1000),
+      });
+    }
+  }
+
+  console.log(
+    "Seeded Settings states: connections, webhooks, push, llm usage."
+  );
 }

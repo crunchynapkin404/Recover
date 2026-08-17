@@ -336,3 +336,43 @@ code) and **D** (the same one character over a gradient, same messageKey,
 `contrastRatio: 0` → indeterminate, does not gate). Restoring the old
 `equalRatio`-only rule makes case C print `would exit non-zero: false (must be
 true)` and the script exit 1.
+
+---
+
+## Correction, 2026-08-16 (v0.99 slice 5 / v0.105.0)
+
+**Every `settings` row in this document was measured against a page with four
+of its five sections collapsed, and is not comparable to any figure taken after
+2026-08-16.**
+
+`/settings` holds five `<Collapsible>` sections — Integrations (six connector
+cards), AI & Coach, Advanced / API, App and Data — all closed on load. The
+capture opened none of them; `captureTokenCreated` clicked `Advanced / API`,
+which is why `settings-token-created` differed from `settings` at all. So the
+numbers here describe the page's always-visible chrome plus one section.
+
+Slice 5 added `settings-expanded` (all five open) and `settings-connect-errors`
+(the three OAuth failure branches, which render only for `?strava_error=` and
+its siblings and had never been reached). It also seeded the states those cards
+need — `connections` was empty on every seeded database, so all six connector
+cards could only ever render "Not connected".
+
+**Two further facts that invalidate comparisons across this date**, both found
+while taking the new reading:
+
+- **The owner had no data.** `verify-surfaces.ts` signs in as the owner
+  (`/admin` redirects every other role), while `scripts/seed-demo.ts` seeds a
+  _separate_ demo user by default. On the dev box rebuilt after the 2026-08-14
+  move, the owner had 0 activities, 0 wellness days and 0 chat threads — so
+  captures were of an empty account, exactly the condition §"seeded vs
+  migrated" in this document warns costs 20.7% of nodes overall and 600% on
+  Train. Seed onto the owner itself with
+  `SEED_DEMO=1 DEMO_EMAIL=<owner email> npm run db:seed-demo`.
+- **The Journal tab crashed**, aborting any full run before it reached
+  Settings — an unknown stored `mood` reaching `MOODS[-1].label`. Fixed in the
+  same release.
+
+The post-correction reading, taken against a populated owner with all sections
+open: **Settings 86 confirmed nodes, all color-contrast, all light-mode**, and
+zero `label` nodes after the Import control's missing accessible name was
+fixed.

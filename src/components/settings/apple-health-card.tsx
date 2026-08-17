@@ -160,12 +160,36 @@ export function AppleHealthCard({
         action={uploadAction}
         className="mt-3 flex items-center gap-2 border-t border-white/5 pt-3"
       >
-        <input
-          type="file"
-          name="file"
-          accept="application/json,.json"
-          className="min-w-0 flex-1 text-xs text-white/60 file:mr-3 file:rounded-full file:border-0 file:bg-white/10 file:px-3 file:py-1.5 file:text-[10px] file:font-bold file:uppercase file:tracking-wider file:text-white/80"
-        />
+        {/* The visible "File" span is the accessible name, not decoration.
+            This input had none at all — no wrapping label, no aria-label, no
+            title — an axe `label` violation of critical impact that is
+            theme-independent and so was live in dark, the only theme the
+            athlete can currently see. It went unfound because it sits in the
+            Integrations section, one of five Collapsibles no capture had ever
+            opened (v0.99 slice 5). Same fix as
+            src/components/body/health-upload.tsx, which slice 3 corrected for
+            the same reason: a real <label htmlFor> rather than an aria-label,
+            so the control is clickable by its name as well as named. */}
+        {/* Ink/type tokens on the one line this fix adds, rather than the
+            ad-hoc alpha the input beside it still carries: the ratchet in
+            tests/type-scale-guard.test.ts counts those by scanning source and
+            only ever lets the number fall, so a bug fix that spent one would
+            have to be paid back by slice 5's redesign. Same pair
+            health-upload.tsx uses. (The scan reads comments too — naming the
+            utility here literally would itself raise the count.) */}
+        <label
+          htmlFor="apple-health-upload-file"
+          className="text-label text-ink-secondary flex min-w-0 flex-1 items-center gap-2"
+        >
+          <span className="shrink-0">File</span>
+          <input
+            id="apple-health-upload-file"
+            type="file"
+            name="file"
+            accept="application/json,.json"
+            className="min-w-0 flex-1 text-xs text-white/60 file:mr-3 file:rounded-full file:border-0 file:bg-white/10 file:px-3 file:py-1.5 file:text-[10px] file:font-bold file:uppercase file:tracking-wider file:text-white/80"
+          />
+        </label>
         <button
           type="submit"
           disabled={uploading}

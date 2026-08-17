@@ -267,7 +267,23 @@ const SURFACES: Record<string, string> = {
   "body-sleep": "/body?tab=sleep",
   "body-journal": "/body?tab=journal",
   "body-labs": "/body?tab=labs",
+  // Settings is FIVE <Collapsible> sections behind one path, all closed on
+  // load, and `/settings` alone captures none of their contents. Integrations
+  // (six connector cards), AI & Coach, App and Data had never been captured or
+  // axe-audited before v0.99 slice 5 — the fifth, Advanced / API, only ever
+  // opened inside captureTokenCreated's own click. The same gap slice 2 closed
+  // for Train's tabs and slice 3 for Body's, at four times the size.
+  // `settings` is kept as the collapsed landing state; `settings-expanded`
+  // opens all five (see SURFACE_PREPARE).
   settings: "/settings",
+  "settings-expanded": "/settings",
+  // The three OAuth failure branches. page.tsx reads strava_error, whoop_error
+  // and withings_error from searchParams and hands each to a card's errorParam
+  // prop; they render for nothing else, so no capture had ever reached them.
+  // One load sets all three — they are independent cards on one page, and
+  // three loads would audit the same DOM three times for one branch each.
+  "settings-connect-errors":
+    "/settings?strava_error=access_denied&whoop_error=access_denied&withings_error=access_denied",
   admin: "/admin",
   import: "/import",
   "activity-log": "/activity/log",
@@ -285,6 +301,52 @@ const TODAY_STATE_BY_SURFACE: Record<string, TodayState> = {
   today: "morning",
   "today-post-session": "post-session",
   "today-evening": "evening",
+};
+
+/**
+ * Per-surface DOM preparation, run after the theme is forced and BEFORE both
+ * the screenshot and the axe audit — so whatever it opens is photographed and
+ * audited, not just one of the two.
+ *
+ * Settings needs this because its content lives in five <Collapsible> sections
+ * that are closed on load. Integrations (six connector cards), AI & Coach, App
+ * and Data had therefore never been photographed or audited at all, and
+ * Advanced / API only ever inside captureTokenCreated. Same class of gap as
+ * Train's tabs (slice 2), Body's tabs (slice 3) and Coach's thread state
+ * (slice 4); found the same way, by asking which state a PNG was actually of.
+ *
+ * Both Settings surfaces that need content open share one opener: the error
+ * branches live on cards inside the Integrations section, so
+ * settings-connect-errors has to expand it too or it photographs a collapsed
+ * page with three invisible error messages.
+ */
+async function expandSettingsSections(page: Page): Promise<void> {
+  for (const label of [
+    "Integrations",
+    "AI & Coach",
+    "Advanced / API",
+    "App",
+    "Data",
+  ]) {
+    const trigger = page.locator("button", { hasText: label }).first();
+    await trigger.waitFor({ state: "visible", timeout: 10_000 });
+    // Clicking an already-open section would close it, which is how a
+    // "capture everything" step quietly captures less than the default one.
+    if ((await trigger.getAttribute("aria-expanded")) !== "true") {
+      await trigger.click();
+    }
+  }
+  // The panels animate open. Wait for content from the LAST section rather
+  // than a fixed sleep — Data holds the Export button.
+  await page
+    .getByRole("button", { name: "Export" })
+    .first()
+    .waitFor({ state: "visible", timeout: 10_000 });
+}
+
+const SURFACE_PREPARE: Record<string, (page: Page) => Promise<void>> = {
+  "settings-expanded": expandSettingsSections,
+  "settings-connect-errors": expandSettingsSections,
 };
 
 // deviceScaleFactor lives here per-viewport (task-6 review, Finding 4) but is
@@ -763,6 +825,8 @@ async function captureWithRetry(
       await page.goto(url, { waitUntil: "networkidle", timeout: 20_000 });
       assertOnSurface(page, routePath, surfaceName);
       await forceThemeVerified(page, dark);
+      const prepare = SURFACE_PREPARE[surfaceName];
+      if (prepare) await prepare(page);
       await page.screenshot({ path: filePath, fullPage: true });
       await auditPage(page, surfaceName, theme, vpName);
       const todayState = TODAY_STATE_BY_SURFACE[surfaceName];

@@ -1,5 +1,86 @@
 # Changelog
 
+## v0.105.0 — 2026-08-16 — What the closed sections were hiding
+
+2b.4 slice 5 set out to redesign Settings and found, before changing a single
+style, that four of the page's five sections had never been looked at by the
+audit tooling — and two real bugs behind them. **The redesign itself is
+deferred to v0.106.0**; shipping the fixes and the honest measurement first is
+worth its own release.
+
+**What an athlete notices:** the Body → Journal tab no longer breaks, and a
+screen reader can now identify the Apple Health file picker. Nothing else
+changes — no figure, no layout, no claim.
+
+### Two real defects
+
+- **The Journal tab could take itself down entirely**, rendering "This page
+  couldn't load" and nothing else. `MOODS.findIndex()` returns `-1` for a
+  stored mood the list does not contain, and the guard around it tested for
+  `null` — so `MOODS[-1].label` threw, React unwound to the global error
+  boundary, and the whole tab was gone. The production database holds
+  `mood='good'`, a value the current UI can no longer produce but older rows
+  still carry, so this fires whenever **today's** entry has one. It was not
+  firing on the live instance (its last mood entry predates the window), but it
+  fires every single day on a seeded database — which is the demo path
+  `CONTRIBUTING.md` documents. An unknown mood now reads as _unanswered_,
+  deliberately rather than as the first item in the list: silently promoting it
+  to "happy" would submit an answer the athlete never gave.
+- **The Apple Health upload control had no accessible name** — no label, no
+  `aria-label`, no title. Axe rates it **critical**, and unlike the other 86
+  findings on that surface it is theme-independent, so it was live in dark, the
+  only theme currently reachable. Fixed with a real `<label>`, verified through
+  the computed accessible name rather than a string match.
+
+### What the tooling could not see
+
+- **Four of five Settings sections had never been captured or audited.**
+  Integrations (six connector cards), AI & Coach, App and Data are
+  `<Collapsible>` sections closed on load; only Advanced / API was ever opened,
+  and only as a side effect of the API-token capture. Adds `settings-expanded`,
+  which opens all five.
+- **The three OAuth failure branches were unreachable.** They render only for
+  `?strava_error=` and its siblings, which no capture sent. Adds
+  `settings-connect-errors`.
+- **The connector cards could only ever render "Not connected"**, because
+  `connections` was empty on every seeded database. Seeds all six providers,
+  plus webhook, push and LLM-usage rows. Connector tokens are real ciphertext
+  over deliberately worthless plaintext — `docs/ENVIRONMENTS.md` forbids a real
+  credential on the dev box.
+- **The owner had no data at all.** `verify-surfaces.ts` signs in as the owner,
+  but `seed-demo.ts` seeds a _separate_ demo user — so on the dev box rebuilt
+  after the 2026-08-14 move, every capture was a picture of an empty account.
+  `docs/RELEASING.md` now says how to seed onto the owner.
+
+### The measurement
+
+**Settings: 86 confirmed axe nodes**, all color-contrast, all light-mode —
+against 1 for the collapsed page. Zero `label` nodes remain anywhere in the run.
+
+The whole-run totals reorder what is left of 2b.4: **`admin` is 147**, larger
+than Settings; `activity-log` is 46; `import` is 8. **Train, Body and Coach are
+at zero against real data**, measured that way for the first time on this box.
+**Today is not** — two light-only nodes on a raw `text-white` readiness
+sentence, invisible on an empty account, which is why slice 1 read clean.
+Recorded for the slice 9 sweep rather than fixed here.
+
+`docs/axe-baseline-2026-08-11-seeded.md` now states that its `settings` rows
+measured a mostly-collapsed page and are not comparable across this date.
+
+### The gate's first customer
+
+v0.104.0's RC → soak → promote path carried this release, and the soak earned
+its place immediately: it is where the Journal crash was found, because the
+capture run aborted on it. Two corrections to `docs/RELEASING.md` came out of
+that — the three Today preview states **cannot** be captured against the soak
+stack (`?state=` is refused when `NODE_ENV=production`, and the RC image is
+production), and its port guidance still described the old single-box setup,
+claiming 5434 was production when on the dev box it is the dev database.
+
+### Migrations
+
+**None.** Image rollback past this release is safe.
+
 ## v0.104.0 — 2026-08-16 — The gate between the boxes
 
 The project moved onto a dev box and a prod box on 2026-08-14. The release path
