@@ -87,7 +87,7 @@ export function OuraCard({ connection }: Props) {
             placeholder="Personal access token"
             autoComplete="off"
             required
-            className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
+            className="min-w-0 flex-1 rounded-xl border border-hairline bg-surface-overlay px-3 py-2 text-caption text-ink-primary"
           />
           <button
             type="submit"
@@ -99,7 +99,7 @@ export function OuraCard({ connection }: Props) {
         </form>
       )}
       {!connection && (
-        <p className="mt-2 text-[10px] text-white/40">
+        <p className="mt-2 text-label text-ink-muted">
           Create a token at cloud.ouraring.com → Personal Access Tokens. Stored
           encrypted (AES-256-GCM).
         </p>

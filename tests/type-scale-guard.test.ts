@@ -154,6 +154,29 @@ function occurrences(pattern: RegExp): number {
  */
 const RATCHET_SLACK = 25;
 const OFFENDER_CEILINGS: Record<string, number> = {
+  // 74 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
+  // redesign) task 6 — the last four Integrations card bodies the shell
+  // does not own: strava-card.tsx, apple-health-card.tsx,
+  // intervals-card.tsx and oura-card.tsx. Net −13 from the 87 task 5 left:
+  // strava-card.tsx dropped 4 (the auto-describe help line, the
+  // fields-to-include label, the preview label, and the powered-by-Strava
+  // note), apple-health-card.tsx dropped 7 (the webhook-URL label, the
+  // "shown once" warning, the last-received line, the stale-silence
+  // warning, the file input's file:text-[10px], the Upload button, and the
+  // one-off-upload note), intervals-card.tsx dropped 1 (the wellness-poll
+  // timestamp), and oura-card.tsx dropped 1 (the token-form help paragraph
+  // — the fifth site task 3's comment explicitly left as unmigrated
+  // `children` markup, still counting until now). 4 + 7 + 1 + 1 = 13. The
+  // gap this left (93 − 74 = 19) was under RATCHET_SLACK (25), so the
+  // ratchet did not strictly demand re-pinning — re-pinned anyway per this
+  // file's own established practice (tasks 3 and 4) of re-pinning on every
+  // drop regardless. Verified directly: running ARBITRARY_TYPE
+  // (src/lib/design/type-scale-patterns.ts) over src/**/*.tsx, excluding
+  // *.test.tsx, at the pre-task-6 commit reports 87; the same scan on the
+  // working tree after this task's edit reports 74. This retires the
+  // pattern from all five connector cards — none of the Integrations
+  // section's per-provider card bodies carry an arbitrary type size any
+  // longer.
   // 93 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
   // redesign) task 4 — strava-card.tsx and apple-health-card.tsx moved onto
   // connector-card.tsx's shell, the same way task 3 moved Whoop, Withings and
@@ -426,7 +449,7 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // week-day-list.tsx and page.tsx are all token utilities, so the count did
   // not move there), 343 after task 2, 351 after the whole-branch-review
   // fixes, 355 right after slice 1, 395 at slice 0.
-  "arbitrary type sizes": 93,
+  "arbitrary type sizes": 74,
   // 251 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
   // redesign) task 3 — repays the debt task 2 explicitly left for this task,
   // same three cards as the sibling ceiling above. Net −27 from the 278
@@ -752,7 +775,32 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // ok-branch), 0 added. Both apple-health-card.test.tsx and
   // apple-health-card.a11y.test.tsx pass unedited (`git diff --stat` empty)
   // — the gate this move was conditioned on.
-  "ad-hoc white/black alpha utilities": 233,
+  // 189 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
+  // redesign) task 6 — the same four Integrations card bodies as the
+  // sibling ceiling above: strava-card.tsx, apple-health-card.tsx,
+  // intervals-card.tsx and oura-card.tsx. Net −32 from the 221 task 5 left:
+  // strava-card.tsx dropped 14 (the upgrade-callout text, the auto-describe
+  // label's border and help line, the fields-to-include border and label,
+  // the field-checkbox row, the no-fields-selected warning, the preview
+  // label, the "(example data)" span deleted outright rather than
+  // migrated — see the editorial-cut note in the commit — the preview
+  // `<pre>`'s border, background and text, the powered-by-Strava border and
+  // text, and the "never sent" `<strong>`), apple-health-card.tsx dropped
+  // 13 (the webhook label, the webhook `<pre>`'s border/background/text,
+  // the "shown once" warning, the last-received line, the upload form's
+  // border, the file input's text and its file:-variant background and
+  // text, the Upload button's border and two backgrounds, and the one-off-
+  // upload note), intervals-card.tsx dropped 2 (the wellness-sync select's
+  // border and the wellness-poll timestamp), and oura-card.tsx dropped 3
+  // (the token input's border and background, and the token-form help
+  // paragraph). 14 + 13 + 2 + 3 = 32. The gap this left (233 − 189 = 44)
+  // was OVER RATCHET_SLACK (25), so the ratchet failed and re-pinning here
+  // was mandatory, not discretionary. Verified directly: running ADHOC_INK
+  // (src/lib/design/type-scale-patterns.ts) over src/**/*.tsx, excluding
+  // *.test.tsx, at the pre-task-6 commit reports 221; the same scan on the
+  // working tree after this task's edit reports 189. This retires the
+  // pattern from all five connector cards, same as the sibling ceiling.
+  "ad-hoc white/black alpha utilities": 189,
   // 234 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
   // redesign) task 4 — the same two cards as the sibling ceiling above,
   // strava-card.tsx and apple-health-card.tsx, moved onto connector-card.tsx's

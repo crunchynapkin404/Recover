@@ -124,20 +124,20 @@ export function AppleHealthCard({
     >
       {result?.url && (
         <div className="mt-3">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-white/50">
+          <p className="text-label font-bold uppercase tracking-wider text-ink-muted">
             Webhook URL — paste into Health Auto Export (REST API automation)
           </p>
-          <pre className="mt-1 overflow-x-auto whitespace-pre-wrap break-all rounded-2xl border border-white/5 bg-black/30 p-3 text-xs text-white/80">
+          <pre className="mt-1 overflow-x-auto whitespace-pre-wrap break-all rounded-2xl border border-hairline bg-surface-base p-3 text-label text-ink-secondary">
             {result.url}
           </pre>
-          <p className="mt-1 text-[10px] text-orange-400">
+          <p className="mt-1 text-label text-kind-warning-ink">
             Shown once — copy it now. Generating a new URL invalidates the old.
           </p>
         </div>
       )}
 
       {connected && lastSyncAt && (
-        <p className="mt-2 text-[10px] text-white/40">
+        <p className="mt-2 text-label text-ink-muted">
           Last received: {new Date(lastSyncAt).toLocaleString()}
         </p>
       )}
@@ -147,7 +147,10 @@ export function AppleHealthCard({
           Health Auto Export subscription, a revoked automation) keeps
           reading as healthy indefinitely. */}
       {connected && staleDays != null && (
-        <p role="status" className="mt-1 text-[10px] font-bold text-amber-300">
+        <p
+          role="status"
+          className="mt-1 text-label font-bold text-kind-warning-ink"
+        >
           Nothing received for {staleDays} days — check the Health Auto Export
           automation is still running.
         </p>
@@ -155,7 +158,7 @@ export function AppleHealthCard({
 
       <form
         action={uploadAction}
-        className="mt-3 flex items-center gap-2 border-t border-white/5 pt-3"
+        className="mt-3 flex items-center gap-2 border-t border-hairline pt-3"
       >
         {/* The visible "File" span is the accessible name, not decoration.
             This input had none at all — no wrapping label, no aria-label, no
@@ -184,18 +187,18 @@ export function AppleHealthCard({
             type="file"
             name="file"
             accept="application/json,.json"
-            className="min-w-0 flex-1 text-xs text-white/60 file:mr-3 file:rounded-full file:border-0 file:bg-white/10 file:px-3 file:py-1.5 file:text-[10px] file:font-bold file:uppercase file:tracking-wider file:text-white/80"
+            className="min-w-0 flex-1 text-label text-ink-muted file:mr-3 file:rounded-full file:border-0 file:bg-surface-overlay file:px-3 file:py-1.5 file:text-label file:font-bold file:uppercase file:tracking-wider file:text-ink-secondary"
           />
         </label>
         <button
           type="submit"
           disabled={uploading}
-          className="shrink-0 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-colors hover:bg-white/10 disabled:opacity-50"
+          className="shrink-0 rounded-full border border-hairline bg-surface-overlay px-3 py-1.5 text-label font-bold uppercase tracking-wider transition-colors hover:bg-surface-selected disabled:opacity-50"
         >
           {uploading ? "…" : "Upload"}
         </button>
       </form>
-      <p className="mt-1 text-[10px] text-white/40">
+      <p className="mt-1 text-label text-ink-muted">
         Or upload a one-off Health Auto Export JSON file.
       </p>
     </ConnectorCard>

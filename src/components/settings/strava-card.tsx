@@ -137,7 +137,7 @@ export function StravaCard({
     >
       {connection && !connection.writeEnabled && (
         <div className="mt-3 flex items-center justify-between gap-3 rounded-2xl border border-orange-500/20 bg-orange-500/10 p-3">
-          <p className="text-xs text-white/80">
+          <p className="text-label text-ink-secondary">
             Upgrade Strava connection for AI descriptions
           </p>
           <a
@@ -150,10 +150,10 @@ export function StravaCard({
       )}
 
       {connection?.writeEnabled && (
-        <label className="mt-3 flex items-center justify-between gap-3 border-t border-white/5 pt-3 text-sm font-medium">
+        <label className="mt-3 flex items-center justify-between gap-3 border-t border-hairline pt-3 text-caption font-medium">
           <span className="flex flex-col">
             <span>Auto-describe new activities on Strava</span>
-            <span className="text-[10px] font-bold uppercase text-white/50">
+            <span className="text-label font-bold uppercase text-ink-muted">
               Uses intervals.icu metrics — never reads your Strava data
             </span>
           </span>
@@ -172,8 +172,8 @@ export function StravaCard({
       )}
 
       {connection?.writeEnabled && auto && (
-        <div className="mt-3 border-t border-white/5 pt-3">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-white/50">
+        <div className="mt-3 border-t border-hairline pt-3">
+          <p className="text-label font-bold uppercase tracking-wider text-ink-muted">
             Fields to include
           </p>
 
@@ -181,7 +181,7 @@ export function StravaCard({
             {ALL_DESCRIPTION_FIELDS.map(({ key, label }) => (
               <label
                 key={key}
-                className="flex items-center gap-2 text-xs text-white/80"
+                className="flex items-center gap-2 text-label text-ink-secondary"
               >
                 <input
                   type="checkbox"
@@ -199,19 +199,16 @@ export function StravaCard({
           </div>
 
           {noneSelected ? (
-            <p role="status" className="mt-3 text-xs text-orange-400">
+            <p role="status" className="mt-3 text-label text-kind-warning-ink">
               No fields selected — nothing will be published to Strava.
             </p>
           ) : (
             preview && (
               <div className="mt-3">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-white/50">
-                  Preview{" "}
-                  {preview.sample && (
-                    <span className="text-white/40">(example data)</span>
-                  )}
+                <p className="text-label font-bold uppercase tracking-wider text-ink-muted">
+                  Preview {preview.sample && "(example data)"}
                 </p>
-                <pre className="mt-1 overflow-x-auto whitespace-pre-wrap rounded-2xl border border-white/5 bg-black/30 p-3 text-xs text-white/80">
+                <pre className="mt-1 overflow-x-auto whitespace-pre-wrap rounded-2xl border border-hairline bg-surface-base p-3 text-label text-ink-secondary">
                   {preview.text + "\n📊 Recover"}
                 </pre>
               </div>
@@ -220,10 +217,10 @@ export function StravaCard({
         </div>
       )}
 
-      <div className="mt-3 border-t border-white/5 pt-3">
-        <p className="text-[10px] text-white/50">
+      <div className="mt-3 border-t border-hairline pt-3">
+        <p className="text-label text-ink-muted">
           Powered by Strava. Strava data is shown here but{" "}
-          <strong className="text-white/70">
+          <strong className="text-ink-secondary">
             never sent to the AI coach or MCP clients
           </strong>{" "}
           (Strava API terms).
