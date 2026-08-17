@@ -14,6 +14,13 @@ import {
   type DescriptionField,
   type DescriptionFields,
 } from "@/lib/strava-description-fields";
+import {
+  ConnectorCard,
+  connectorPillClass,
+  connectorGhostClass,
+  connectorCtaClass,
+  connectorBadgeClass,
+} from "./connector-card";
 
 interface Props {
   configured: boolean; // STRAVA_CLIENT_ID present server-side
@@ -75,26 +82,28 @@ export function StravaCard({
     };
   }, [fields, auto]);
 
-  return (
-    <div className="glass rounded-[2rem] p-5">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-orange-500/20 bg-orange-500/10">
-            <span aria-hidden className="text-xl text-orange-400">
-              ↗
-            </span>
-          </div>
-          <div>
-            <p className="text-sm font-bold">Strava</p>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-white/50">
-              {connection
-                ? `Connected as ${connection.athleteName}`
-                : "Not connected"}
-            </span>
-          </div>
-        </div>
+  const status =
+    errorParam || result || connection?.lastError
+      ? {
+          ok: result?.ok ?? false,
+          message:
+            result?.message ??
+            (errorParam ? ERROR_MESSAGES[errorParam] : null) ??
+            `Last error: ${connection?.lastError}`,
+        }
+      : null;
 
-        {connection ? (
+  return (
+    <ConnectorCard
+      name="Strava"
+      tone="strava"
+      glyph="↗"
+      subtitle={
+        connection ? `Connected as ${connection.athleteName}` : "Not connected"
+      }
+      status={status}
+      actions={
+        connection ? (
           <div className="flex gap-2">
             <button
               type="button"
@@ -102,7 +111,7 @@ export function StravaCard({
               onClick={() =>
                 startTransition(async () => setResult(await stravaSyncNow()))
               }
-              className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-colors hover:bg-white/10 disabled:opacity-50"
+              className={connectorPillClass}
             >
               {pending ? "…" : "Sync"}
             </button>
@@ -112,7 +121,7 @@ export function StravaCard({
               onClick={() =>
                 startTransition(async () => setResult(await stravaDisconnect()))
               }
-              className="rounded-full border border-white/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-white/60 transition-colors hover:bg-red-500/10 hover:text-red-400 disabled:opacity-50"
+              className={connectorGhostClass}
             >
               Disconnect
             </button>
@@ -120,30 +129,15 @@ export function StravaCard({
         ) : configured ? (
           <a
             href="/api/connections/strava"
-            className="rounded-full bg-orange-500 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-black transition-colors hover:bg-orange-400"
+            className={`${connectorCtaClass} bg-orange-500 text-black hover:bg-orange-400`}
           >
             Connect
           </a>
         ) : (
-          <span className="rounded bg-white/5 px-2 py-1 text-[8px] font-bold uppercase tracking-widest text-white/50">
-            Set STRAVA_CLIENT_ID
-          </span>
-        )}
-      </div>
-
-      {(errorParam || result || connection?.lastError) && (
-        <p
-          role="status"
-          className={`mt-3 text-xs ${
-            result?.ok ? "text-white/60" : "text-red-400"
-          }`}
-        >
-          {result?.message ??
-            (errorParam ? ERROR_MESSAGES[errorParam] : null) ??
-            `Last error: ${connection?.lastError}`}
-        </p>
-      )}
-
+          <span className={connectorBadgeClass}>Set STRAVA_CLIENT_ID</span>
+        )
+      }
+    >
       {connection && !connection.writeEnabled && (
         <div className="mt-3 flex items-center justify-between gap-3 rounded-2xl border border-orange-500/20 bg-orange-500/10 p-3">
           <p className="text-xs text-white/80">
@@ -238,6 +232,6 @@ export function StravaCard({
           (Strava API terms).
         </p>
       </div>
-    </div>
+    </ConnectorCard>
   );
 }

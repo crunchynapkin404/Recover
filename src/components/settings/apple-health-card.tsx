@@ -7,6 +7,13 @@ import {
   uploadAppleHealthFile,
   type ActionResult,
 } from "@/app/settings/apple-health-actions";
+import {
+  ConnectorCard,
+  connectorPillClass,
+  connectorGhostClass,
+  connectorCtaClass,
+  connectorBadgeClass,
+} from "./connector-card";
 
 /** Health Auto Export pushes at least daily when healthy; 3 days of silence
  *  is well past any plausible gap. */
@@ -51,25 +58,15 @@ export function AppleHealthCard({
   >(uploadAppleHealthFile, null);
 
   return (
-    <div className="glass rounded-[2rem] p-5">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-red-400/20 bg-red-400/10">
-            <span aria-hidden className="text-base text-red-300">
-              ♥
-            </span>
-          </div>
-          <div>
-            <p className="text-sm font-bold">Apple Health</p>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-white/50">
-              {connected
-                ? "Push via Health Auto Export"
-                : "Sleep, HRV, BP, body comp"}
-            </span>
-          </div>
-        </div>
-
-        {connected ? (
+    <ConnectorCard
+      name="Apple Health"
+      tone="apple"
+      glyph="♥"
+      subtitle={
+        connected ? "Push via Health Auto Export" : "Sleep, HRV, BP, body comp"
+      }
+      actions={
+        connected ? (
           <div className="flex gap-2">
             <button
               type="button"
@@ -79,7 +76,7 @@ export function AppleHealthCard({
                   setResult(await enableAppleHealth())
                 )
               }
-              className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-colors hover:bg-white/10 disabled:opacity-50"
+              className={connectorPillClass}
             >
               New URL
             </button>
@@ -91,7 +88,7 @@ export function AppleHealthCard({
                   setResult(await disableAppleHealth())
                 )
               }
-              className="rounded-full border border-white/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-white/60 transition-colors hover:bg-red-500/10 hover:text-red-400 disabled:opacity-50"
+              className={connectorGhostClass}
             >
               Disable
             </button>
@@ -103,17 +100,15 @@ export function AppleHealthCard({
             onClick={() =>
               startTransition(async () => setResult(await enableAppleHealth()))
             }
-            className="rounded-full bg-red-400 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-black transition-colors hover:bg-red-300 disabled:opacity-50"
+            className={`${connectorCtaClass} bg-red-400 text-black hover:bg-red-300`}
           >
             Enable
           </button>
         ) : (
-          <span className="rounded bg-white/5 px-2 py-1 text-[8px] font-bold uppercase tracking-widest text-white/50">
-            Set BETTER_AUTH_URL
-          </span>
-        )}
-      </div>
-
+          <span className={connectorBadgeClass}>Set BETTER_AUTH_URL</span>
+        )
+      }
+    >
       {result?.url && (
         <div className="mt-3">
           <p className="text-[10px] font-bold uppercase tracking-wider text-white/50">
@@ -201,6 +196,6 @@ export function AppleHealthCard({
       <p className="mt-1 text-[10px] text-white/40">
         Or upload a one-off Health Auto Export JSON file.
       </p>
-    </div>
+    </ConnectorCard>
   );
 }

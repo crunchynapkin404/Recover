@@ -154,6 +154,22 @@ function occurrences(pattern: RegExp): number {
  */
 const RATCHET_SLACK = 25;
 const OFFENDER_CEILINGS: Record<string, number> = {
+  // 93 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
+  // redesign) task 4 — strava-card.tsx and apple-health-card.tsx moved onto
+  // connector-card.tsx's shell, the same way task 3 moved Whoop, Withings and
+  // Oura. Net −10 from the 103 task 3 left: each card dropped the same 5
+  // text-[10px]/text-[8px] sites the shell renders once instead of per-card —
+  // the subtitle span, the Sync pill, the Disconnect ghost, the Connect CTA
+  // and the "Set X" badge. 5 + 5 = 10. The gap this left (103 − 93 = 10) was
+  // under RATCHET_SLACK (25), so the ratchet did not fail — re-pinned anyway,
+  // matching task 3's own practice, since a ceiling with slack is free
+  // offenders for whoever comes next regardless of whether the suite forces
+  // the point. Verified directly: `git diff` on the two touched files against
+  // ARBITRARY_TYPE counts exactly 5 removed lines each, 0 added (the shell's
+  // own class constants are referenced by name, not spelled out again here).
+  // Task 5 migrates connector-card.tsx itself onto the type/ink scale next,
+  // which is what finally retires this pattern from the shared file too —
+  // there is no Task 6 for this pair of cards to repeat the move.
   // 103 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
   // redesign) task 3 — repays the debt task 2 explicitly left for this task.
   // whoop-card.tsx, withings-card.tsx and oura-card.tsx moved onto
@@ -410,7 +426,7 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // week-day-list.tsx and page.tsx are all token utilities, so the count did
   // not move there), 343 after task 2, 351 after the whole-branch-review
   // fixes, 355 right after slice 1, 395 at slice 0.
-  "arbitrary type sizes": 103,
+  "arbitrary type sizes": 93,
   // 251 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
   // redesign) task 3 — repays the debt task 2 explicitly left for this task,
   // same three cards as the sibling ceiling above. Net −27 from the 278
@@ -710,7 +726,41 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // fuelling tile that moved to `bg-surface-overlay`). 709 after task 4,
   // for the same reason task 4 didn't move it — 729 after task 2, 738 after
   // the whole-branch-review fixes, 749 right after slice 1, 806 at slice 0.
-  "ad-hoc white/black alpha utilities": 251,
+  //
+  // 234 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
+  // redesign) task 4 — the same two cards as the sibling ceiling above,
+  // strava-card.tsx and apple-health-card.tsx, moved onto connector-card.tsx's
+  // shell. Net −17 from the 251 task 3 left:
+  //   strava-card.tsx: dropped 9 — the subtitle's text-white/50 (1), the
+  //     pill's border-white/10 + bg-white/5 + hover:bg-white/10 (3), the
+  //     ghost's border-white/10 + text-white/60 (2), the badge's bg-white/5 +
+  //     text-white/50 (2) and the status paragraph's ok-branch text-white/60
+  //     (1), now the shell's single copy of each instead of Strava's own.
+  //     Kept none: the Connect CTA is bg-orange-500/hover:bg-orange-400 with
+  //     bare text-black, no alpha slash on any of the three.
+  //   apple-health-card.tsx: dropped 8 — the same subtitle/pill/ghost/badge
+  //     sites as Strava (1 + 3 + 2 + 2), minus the status paragraph, which
+  //     stayed unmigrated `children` here (see below) so it still counts.
+  //     Kept none: the Enable CTA is bg-red-400/hover:bg-red-300 with bare
+  //     text-black, same shape as Strava's.
+  // 9 + 8 = 17. Apple Health's status paragraph did NOT move onto the shell's
+  // `status` prop, unlike every other card so far: its condition is
+  // `(result?.message || uploadState) && !result?.url`, guarding against the
+  // webhook-URL block above it, and its ok-ness is `result?.ok ??
+  // uploadState?.ok` — neither shape fits ConnectorCardProps#status, which
+  // assumes a single message/ok pair with no sibling to suppress against. It
+  // stayed exactly where it was, still part of `children`, verbatim — the
+  // brief's "result <pre>, instructions become children" already implied
+  // everything below the header row does, this paragraph included. This
+  // ceiling's own suite run did not fail — the gap (251 − 234 = 17) stayed
+  // under RATCHET_SLACK (25) — re-pinned anyway per this file's own ratchet
+  // rule and task 3's precedent of re-pinning on every drop regardless.
+  // Verified directly: `git diff` on the two touched files against ADHOC_INK
+  // counts exactly 9 and 8 removed lines, 0 added. Task 5 migrates
+  // connector-card.tsx onto the ink scale next; Apple Health's still-`children`
+  // status paragraph is not this pattern's problem to solve, since it never
+  // moved onto the shell in the first place.
+  "ad-hoc white/black alpha utilities": 234,
 };
 
 function expectRatchet(name: string, pattern: RegExp): void {
