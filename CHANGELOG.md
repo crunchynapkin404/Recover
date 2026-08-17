@@ -1,5 +1,39 @@
 # Changelog
 
+## v0.105.1 — 2026-08-16 — The final tag was undoing the promotion
+
+A defect in v0.104.0's release gate, found the first time the gate carried a
+release — by noticing that `:latest` no longer pointed at the digest that had
+been promoted.
+
+`release.yml` triggered on `v*`, so the **final** `vX.Y.Z` tag — pushed after
+promotion purely to make the repository and the registry agree — re-entered the
+workflow, rebuilt the image from source, and moved `:latest` to a brand new
+digest. That discarded the digest `promote.yml` had just published: the one
+actually soaked on the dev box. Watchtower then deployed the rebuild.
+
+**Prod spent the night running an image nothing had ever run.** Same commit and
+green CI, so nothing was broken by it — but "prod runs the bytes the dev box
+tested" is the entire premise of the gate, and it was false from its first use.
+
+Nothing detected it because every signal was green: CI passed, the rebuild came
+from the same commit, and both the promote workflow and
+`scripts/live-verify-deploy.sh` had already run and passed _before_ the final
+tag was pushed.
+
+- `release.yml` now triggers on `v*-rc.*` only. The final tag marks the commit
+  and builds nothing; `promote.yml` already published `:X.Y.Z` by retagging the
+  soaked digest.
+- `tests/release-gate.test.ts` pins the trigger, mutation-checked by restoring
+  `["v*"]` and confirming it fails.
+- **Consequence, stated because it is a real cost:** a `vX.Y.Z` tag with no
+  preceding RC now publishes no image at all. The RC and soak are not optional,
+  even for a one-line fix.
+
+### Migrations
+
+**None.**
+
 ## v0.105.0 — 2026-08-16 — What the closed sections were hiding
 
 2b.4 slice 5 set out to redesign Settings and found, before changing a single

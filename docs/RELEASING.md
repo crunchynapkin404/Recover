@@ -252,6 +252,20 @@ SEED_DEMO=1 DEMO_EMAIL=<owner email> npm run db:seed-demo
 14. **Tag the release commit** so the repository and the registry agree:
     `git tag -a vX.Y.Z -m "vX.Y.Z — Name" && git push origin vX.Y.Z`
 
+    **This tag builds nothing, deliberately.** `release.yml` triggers on
+    `v*-rc.*` only. Until v0.105.1 it triggered on `v*`, so this final tag
+    rebuilt the image and moved `:latest` to a fresh digest — throwing away the
+    one that had just been soaked and promoted, and leaving prod running bytes
+    nothing had ever run. It happened on the gate's first release, and nothing
+    caught it: CI was green, the rebuild came from the same commit, and both
+    the promote workflow and `live-verify-deploy.sh` had already passed before
+    the tag was pushed. `tests/release-gate.test.ts` now pins the trigger.
+
+    A consequence worth knowing: **a `vX.Y.Z` tag with no preceding RC
+    publishes no image at all.** That is the intended trade — there is no path
+    to production that has not been soaked — but it means the RC step is not
+    optional even for a one-line fix.
+
 15. **Release notes = the CHANGELOG section**, not the auto-generated PR
     list. `./scripts/release-object.sh <version>` extracts the section and
     creates the release object; the tag alone does not make one, and release

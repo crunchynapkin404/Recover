@@ -1,8 +1,25 @@
 name: Release
 
+# ONLY pre-release tags build. This is the hole v0.105.1 closed, and it made
+# the whole v0.104.0 gate ineffective on its very first release.
+#
+# The old trigger was `["v*"]`, so the FINAL `vX.Y.Z` tag — pushed after
+# promotion purely to make the repository and the registry agree — re-entered
+# this workflow, rebuilt the image from source, and moved `:latest` to a brand
+# new digest. That discarded the digest promote.yml had just published: the one
+# that was actually soaked on the dev box. Watchtower then deployed the
+# rebuild. Prod spent the night running bytes nothing had ever run.
+#
+# Nothing detected it because everything looked right: CI was green, the
+# rebuild came from the same commit, and both `promote.yml` and
+# `live-verify-deploy.sh` had already passed before the final tag was pushed.
+#
+# So the final tag now builds nothing. It marks the commit, and that is all it
+# needs to do — `promote.yml` already published `:X.Y.Z` by retagging the
+# soaked digest. `tests/release-gate.test.ts` pins this trigger.
 on:
   push:
-    tags: ["v*"]
+    tags: ["v*-rc.*"]
 
 env:
   IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/recover
