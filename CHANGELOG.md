@@ -29,6 +29,13 @@ tag was pushed.
 - **Consequence, stated because it is a real cost:** a `vX.Y.Z` tag with no
   preceding RC now publishes no image at all. The RC and soak are not optional,
   even for a one-line fix.
+- **A second-order trap, found within minutes of the fix landing.** GitHub runs
+  the workflow file from the **tagged ref**, not from `main` — so tagging a
+  commit that predates this fix resurrects the old `["v*"]` trigger and starts
+  a rebuild anyway. `v0.105.0`, one merge older than the fix, did exactly that;
+  the run was caught queued and cancelled before it could publish, and
+  `:latest` never moved off the soaked digest. `docs/RELEASING.md` now says to
+  check for a started run after pushing any final tag.
 
 ### Migrations
 

@@ -266,6 +266,21 @@ SEED_DEMO=1 DEMO_EMAIL=<owner email> npm run db:seed-demo
     to production that has not been soaked — but it means the RC step is not
     optional even for a one-line fix.
 
+    **And a trap that caught this within minutes of the fix landing: GitHub
+    runs the workflow file from the TAGGED REF, not from `main`.** Tagging any
+    commit that predates the trigger fix resurrects the old `["v*"]` trigger
+    and starts a rebuild that will overwrite the promoted digest — exactly the
+    defect just closed. It happened on `v0.105.0`, whose commit is one merge
+    older than the fix; the run was caught queued and cancelled before it
+    could publish. So:
+
+    - **Never tag a commit older than the release.yml trigger fix.** If a
+      historical tag is needed, create it and then immediately check
+      `gh run list --workflow release.yml` and cancel anything it started.
+    - After pushing any final tag, confirm `:latest` still matches the digest
+      you promoted. `scripts/live-verify-deploy.sh` will also catch it, since
+      watchtower would move prod off the soaked image within 300s.
+
 15. **Release notes = the CHANGELOG section**, not the auto-generated PR
     list. `./scripts/release-object.sh <version>` extracts the section and
     creates the release object; the tag alone does not make one, and release
