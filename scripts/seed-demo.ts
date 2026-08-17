@@ -729,22 +729,21 @@ async function seedSettingsStates(userId: string): Promise<void> {
  * activity — not an arbitrary one — that needs data.
  *
  * Shapes are written against what fromRows (activity-streams.ts) actually
- * parses, not the schema.ts column comment: a row's `type` of "intervals"
- * (LAPS_TYPE there) is the laps array; every other `type` is stored
- * directly as `streams[row.type]`, a plain (number | null)[]. The reading
- * pages key off `heartrate`, `watts`, `altitude` and — confirmed against
- * both connectors/intervals.ts's STREAM_TYPES and the velocity read on the
- * detail/Today pages — `velocity_smooth`, not the "velocity" the schema.ts
- * inline comment suggests. `time` is seeded too since it's one of
- * intervals.icu's five fetched stream types, even though no chart reads it
- * directly.
+ * parses: a row's `type` of "intervals" (LAPS_TYPE there) is the laps
+ * array; every other `type` is stored directly as `streams[row.type]`, a
+ * plain (number | null)[]. The reading pages key off `heartrate`, `watts`,
+ * `altitude` and — confirmed against both connectors/intervals.ts's
+ * STREAM_TYPES and the velocity read on the detail/Today pages —
+ * `velocity_smooth`, matching schema.ts's inline comment. `time` is seeded
+ * too since it's one of intervals.icu's five fetched stream types, even
+ * though no chart reads it directly.
  *
  * Series are ~300 points of *varying* values on purpose: StreamChart
  * downsamples to 300 and bails (`nums.length < 2` → null) or clamps a zero
  * range to 1, so a constant series photographs as a flat line and proves
  * nothing about the component the capture exists to audit.
  */
-async function seedActivityStreams(
+export async function seedActivityStreams(
   userId: string,
   rand: () => number
 ): Promise<void> {

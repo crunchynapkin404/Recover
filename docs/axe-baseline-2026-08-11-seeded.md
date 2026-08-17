@@ -383,9 +383,9 @@ fixed.
 
 **`activity-log`'s 46-node figure (§9–§10 above, and v0.105.0's "activity-log
 is 46") described the manual-entry form alone.** `SURFACES` mapped
-`activity-log` → `/activity/[id]` had no entry at all — the page an athlete
-actually opens a ride on had never been captured or axe-audited, by any slice,
-until now. Nothing above this correction that mentions `activity-log` should
+`activity-log` to `/activity/log`; `/activity/[id]` had no entry at all — the
+page an athlete actually opens a ride on had never been captured or
+axe-audited, by any slice, until now. Nothing above this correction that mentions `activity-log` should
 be read as covering the detail page or the post-ride debrief sheet; they had
 no baseline before today.
 

@@ -373,9 +373,63 @@ async function expandSettingsSections(page: Page): Promise<void> {
     .waitFor({ state: "visible", timeout: 10_000 });
 }
 
+/**
+ * Thrown by waitForDebriefSheetOpen when the debrief sheet did not actually
+ * open. Named so it reads unambiguously in console output and in
+ * axeReport's `error` field, rather than a generic Error that looks the
+ * same as a timeout or a navigation failure.
+ */
+class DebriefSheetNotOpenError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "DebriefSheetNotOpenError";
+  }
+}
+
+/**
+ * debrief-sheet is captured at path "/" (search params carry the sheet
+ * state), and `assertOnSurface` in `captureWithRetry` compares pathname
+ * only — deliberately, per its own doc comment, so a query string can't
+ * make a real navigation mismatch look like a pass. But that means it
+ * CANNOT catch this surface's own failure mode: if `SheetHost`'s
+ * explicit-id branch (`?sheet=debrief&activity=<id>`) ever stops opening
+ * the sheet — a renamed param, the uuid check rejecting a valid id, the
+ * userId join finding nothing — `assertOnSurface` still sees "/" and
+ * passes, and this script would silently screenshot and axe-audit Today
+ * itself, then file the result under the name "debrief-sheet". That is
+ * exactly the shape of the settings-connect-errors defect (task 11
+ * finding): a capture that reaches a page but not the state it exists to
+ * measure, reporting a real number for the wrong thing all release.
+ *
+ * `[role="dialog"]` is BottomSheet's own root (src/components/ui/bottom-
+ * sheet.tsx), shared by DebriefSheet and CheckinSheet — but only DebriefSheet
+ * can render at this surface's URL, and BlockSheet (train/week) is the only
+ * other `role="dialog"` in the app and is unreachable from "/". Mirrors
+ * resolveActivityDetailPath's wait on `[data-stream-chart]`: prove the state
+ * this surface names actually rendered before letting the screenshot or the
+ * axe audit run.
+ */
+async function waitForDebriefSheetOpen(page: Page): Promise<void> {
+  try {
+    await page
+      .locator('[role="dialog"]')
+      .first()
+      .waitFor({ state: "visible", timeout: 10_000 });
+  } catch (err) {
+    throw new DebriefSheetNotOpenError(
+      'debrief-sheet: no [role="dialog"] appeared after navigating to ' +
+        "?sheet=debrief&activity=<id>. SheetHost's explicit-id branch did " +
+        "not open the sheet, so this run would otherwise capture and " +
+        'audit Today itself under the name "debrief-sheet" — refusing ' +
+        `to capture. (${err instanceof Error ? err.message : String(err)})`
+    );
+  }
+}
+
 const SURFACE_PREPARE: Record<string, (page: Page) => Promise<void>> = {
   "settings-expanded": expandSettingsSections,
   "settings-connect-errors": expandSettingsSections,
+  "debrief-sheet": waitForDebriefSheetOpen,
 };
 
 // deviceScaleFactor lives here per-viewport (task-6 review, Finding 4) but is

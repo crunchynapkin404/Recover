@@ -222,7 +222,7 @@ export const activityStreams = pgTable(
     activityId: uuid("activity_id")
       .notNull()
       .references(() => activities.id, { onDelete: "cascade" }),
-    type: text("type").notNull(), // time | heartrate | watts | velocity | altitude
+    type: text("type").notNull(), // time | heartrate | watts | velocity_smooth | altitude
     data: jsonb("data").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()

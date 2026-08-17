@@ -33,9 +33,14 @@ has a state to measure at all.
 **`activity-detail`'s first measurement is 0 confirmed nodes, and that is
 not "clean".** Axe reports 240 indeterminate nodes across the surface's four
 theme/viewport combinations instead — axe could not compute a contrast
-ratio, largely across the SVG stream charts. That is the highest
-indeterminate count of any surface this run except the two Settings
-expansions. A reader should not take 0 confirmed to mean the detail page
+ratio. Of the 60 per theme/viewport combo, only 8 are chart-internal (the
+stream charts' own headers); the other 52 are the page's own text — the
+`<h1>`, the metric tiles' `text-white` and `text-white/40`, the breadcrumb —
+each reporting `messageKey: "bgGradient"` and `contrastRatio: 0` because it
+sits over the page's gradient blob. Three surfaces this run carry more
+indeterminate nodes than activity-detail's 240 — the two Settings expansions
+(522, 510) and `admin` (310) — while a fourth, `settings-token-created`, sits
+below it at 189. A reader should not take 0 confirmed to mean the detail page
 passed; it means axe could not resolve an answer, not that it resolved a
 good one.
 
