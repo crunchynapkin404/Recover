@@ -275,6 +275,28 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // src/components/ui/button.tsx (see scope correction above — not
   // currently reachable from Coach; listed for completeness).
   //
+  // RESOLVED (v0.106 slice 5 Settings redesign, task 10, 2026-08-17): the gap
+  // the scope correction above flagged is closed, not just recorded.
+  // src/components/ui/button.tsx:26 is migrated, `text-[0.8rem]` →
+  // `text-label` on the `sm` size variant (12.8px → 12px) — this is
+  // "whichever slice migrates that shared component next" from the
+  // deferral two paragraphs up, and Settings is that slice: the importer
+  // list the correction above cites (sign-out-button.tsx and the five
+  // src/components/settings/*-card.tsx files) is exactly Settings' own
+  // render chain, unchanged since it was written. All ten `size="sm"` call
+  // sites across those six files were read directly — sign-out-button.tsx,
+  // webhooks-card.tsx, sessions-card.tsx (×2), api-tokens-card.tsx,
+  // llm-settings-card.tsx and coach-card.tsx (×4) — and none sit in a
+  // fixed-width or overflow-hidden container, and none matches its width
+  // against a sibling that is not also changing, so the −0.8px lands safely
+  // everywhere it renders. `xs`'s `text-xs` and the base `text-sm` on the
+  // same file are untouched — Tailwind defaults, not ARBITRARY_TYPE
+  // offenders, and their call sites are admin/import/login, slices 7 and 8's
+  // surfaces, not this one. This retires the pattern from
+  // src/components/ui/ entirely: the "arbitrary type sizes" ceiling below
+  // (this file's OFFENDER_CEILINGS) drops by exactly 1 as a result, from
+  // 53 to 52 — see that entry's own task-10 addendum for the count.
+  //
   // 137 occurrences, unchanged, measured 2026-08-13 after v0.102 (Body slice)
   // task 11 (the sweep) — re-pinned, not moved. Task 11's own sweep grep,
   // scoped to every file that renders on any of Body's four tabs (not just
@@ -494,7 +516,25 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // (src/lib/design/type-scale-patterns.ts) over every non-test file in
   // src/**/*.{ts,tsx} reports 53 on the working tree after this task's edit,
   // down from 68 before it.
-  "arbitrary type sizes": 53,
+  //
+  // 52 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
+  // redesign) task 10 — src/components/ui/button.tsx, the `sm` button-size
+  // variant's `text-[0.8rem]` → `text-label` (12.8px → 12px), the exact site
+  // the SCOPE CORRECTION above (whole-branch review 2026-08-14, in the 112
+  // entry) flagged and this task's own RESOLVED addendum there closes. Net
+  // −1 from the 53 task 9 left, this file's only offender. All ten
+  // `size="sm"` Button call sites (sign-out-button.tsx and the five
+  // src/components/settings/*-card.tsx files that import Button) were read
+  // directly and confirmed clear of fixed-width and overflow-hidden
+  // containers, so the narrower text is safe everywhere it renders. The gap
+  // this left (53 − 52 = 1) was well under RATCHET_SLACK (25), so the
+  // ratchet did not demand re-pinning — re-pinned anyway per this file's own
+  // established practice of re-pinning on every drop regardless. Verified
+  // directly: running ARBITRARY_TYPE (src/lib/design/type-scale-patterns.ts)
+  // over every non-test file in src/**/*.{ts,tsx} reports 52 on the working
+  // tree after this task's edit, down from 53 before it. This retires the
+  // pattern from src/components/ui/ entirely.
+  "arbitrary type sizes": 52,
   // 251 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
   // redesign) task 3 — repays the debt task 2 explicitly left for this task,
   // same three cards as the sibling ceiling above. Net −27 from the 278
