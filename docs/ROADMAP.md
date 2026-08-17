@@ -389,8 +389,10 @@ so" — is currently spoken in six dialects: `—` (47 uses), `calibrating` (39)
 - [ ] **2b.4 — Visual redesign. SLICES 0-5 OF 10 SHIPPED — v0.99.0, v0.100.0
       (both 2026-08-12), v0.101.0 and v0.102.0 (2026-08-13), v0.103.0
       (2026-08-14), v0.105.0 (2026-08-16, slice 5's phase A only) and v0.106.0
-      (2026-08-17, slice 5's phase B — the Settings redesign itself); the item
-      stays open and closes at slice 9, not before.** v0.99.0 built the foundations only — two token sets
+      (2026-08-17, slice 5's phase B — the Settings redesign itself), and
+      v0.107.0 (2026-08-17, slice 6's phase A only — the redesign is
+      v0.108.0); the item stays open and closes at slice 9, not before.**
+      v0.99.0 built the foundations only — two token sets
       with light and dark, a seven-step type scale on a hard 12px floor, a
       four-step ink ramp, four guards, and the headless capture/axe tooling the
       remaining slices are verified with. **No surface was redesigned.** The nine
@@ -486,6 +488,30 @@ so" — is currently spoken in six dialects: `—` (47 uses), `calibrating` (39)
       report **zero rule entries**, which no counting scheme can hide nodes
       beneath. See
       `docs/plans/2026-08-17-v0106-slice5-settings-redesign.md`'s Result
+      section.
+      **v0.107.0 shipped slice 6's PHASE A only — the redesign is v0.108.0.**
+      Activity turned out to hold two capture surfaces that had never
+      existed: the detail page an athlete actually opens a ride on
+      (`/activity/[id]`, no `SURFACES` entry at all) and the debrief sheet
+      shared with Today (`debrief-sheet.tsx`, closed on load, reached only by
+      `?sheet=debrief`). The same gap slice 2 closed for Train's tabs, slice
+      3 for Body's, and slice 5 for Settings' collapsed sections — the
+      fourth release in a row to find it. Making both surfaces visible left
+      `activity-log` unchanged at 46 (it described only the manual-entry
+      form all along), put `activity-detail` at 0 confirmed but 240
+      indeterminate (real debt axe cannot resolve on its SVG charts, not a
+      clean pass), and gave `debrief-sheet` a first-ever measurement of 43 —
+      a surface no Today capture had ever opened either, despite slice 1
+      declaring Today clean in v0.100.0. Combined, **89** confirmed nodes,
+      past the agreed 30-node threshold, so phase A ships alone and the
+      redesign is deferred, the same split slice 5 took at 86. Today's own
+      three states now read **6** confirmed nodes combined, not 2 — the same
+      known `text-white` defect, now counted across all three states rather
+      than one; not a regression and not caused by the debrief sheet, which
+      stays closed on Today's own captures. `activity_streams` was empty on
+      every seeded database and is seeded now, so the detail page has a
+      populated state to measure at all. See
+      `docs/plans/2026-08-17-v0107-slice6-activity.md`'s "Phase A result"
       section.
       **Carried out of slice 4, for later slices:** the desktop History
       dropdown is click-only and still uncaptured (`coach-history` at desktop
