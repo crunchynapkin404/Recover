@@ -29,10 +29,19 @@ account. Do not "fix" it by copying prod's key.
 
 Prod's running image digest, recorded whenever it changes:
 
-| Date       | Version  | Digest                                                                    |
-| ---------- | -------- | ------------------------------------------------------------------------- |
-| 2026-08-16 | v0.104.0 | `sha256:473fc46f763739d0c014a4eff869a0219c111de09c5ba4e240d49f5830c45413` |
-| 2026-08-14 | v0.103.0 | `sha256:8c0b451ad7f752ff72d304e2de394cedd9417dac13584d1aca970fa62c42fbb2` |
+| Date       | Version  | Digest                                                                    | Soaked?                             |
+| ---------- | -------- | ------------------------------------------------------------------------- | ----------------------------------- |
+| 2026-08-17 | v0.105.1 | `sha256:4f2abdc0124e139a776fe4710027fa1591763a6a6efa249b134bb1d4809661a2` | **yes**                             |
+| 2026-08-16 | v0.104.0 | `sha256:d7771b840f313a5ce0b2054983077712cf90ab6642cb85cf06c425082621cc6f` | **no** — see below                  |
+| 2026-08-16 | v0.104.0 | `sha256:473fc46f763739d0c014a4eff869a0219c111de09c5ba4e240d49f5830c45413` | yes, but superseded within the hour |
+| 2026-08-14 | v0.103.0 | `sha256:8c0b451ad7f752ff72d304e2de394cedd9417dac13584d1aca970fa62c42fbb2` | pre-gate                            |
+
+**Do not roll back to `d7771b84`.** It is a rebuild of v0.104.0's commit that
+the final `vX.Y.Z` tag produced _after_ `473fc46f` had been promoted,
+discarding it — the defect v0.105.1 closed. It ran in production for roughly
+twelve hours and nothing is known to be wrong with it, but nothing ever ran it
+anywhere else either. `473fc46f` is the soaked build of that same commit and is
+the correct v0.104.0 target.
 
 To roll back, retag `:latest` to the previous row's digest — see
 `docs/RELEASING.md`. **Read the migration caveat there first: rolling the image
@@ -185,6 +194,47 @@ The workflow cannot do this itself: it runs on GitHub's runners, which cannot
 reach 10.0.10.100, so `promote.yml` can go green while prod sits on the old
 image. Checked in both directions on 2026-08-16 — it passes on the running
 digest and fails on a wrong one.
+
+## Deploy drift — the guard on the gate itself
+
+`scripts/live-drift-check.sh` (untracked, `scripts/live-*.sh`) runs every four
+hours via cron and checks the one invariant the whole release gate exists to
+protect: **prod runs a digest that was soaked on the dev box.**
+
+That invariant broke **twice within 48 hours** of the gate being built, and
+both times the only thing that noticed was a human comparing two digests by
+eye — the final `vX.Y.Z` tag rebuilding the image and discarding the promoted
+digest (v0.104.0), then a tag on an older commit resurrecting the old trigger
+because GitHub runs the workflow file from the tagged ref. Every other property
+in this project got a guard the moment it was understood; this one had none.
+
+**It deliberately does not compare prod against `:latest`.** It cannot: in both
+failures the rebuild moved `:latest` and prod _together_, so the two agreed
+with each other while agreeing on an image nothing had ever run. The
+expectation is instead an immutable record — `~/.recover-promoted`, written by
+`scripts/live-verify-deploy.sh` at the moment a human verifies a promotion.
+
+It also fails on a null `backupAgeS` (the freshness notify has stopped landing
+again) and on a backup older than 48 hours (the dump itself has stopped).
+
+```bash
+scripts/live-drift-check.sh          # exit 0 = healthy, 1 = drift
+cat ~/.recover-drift.log             # every run, appended
+cat ~/RECOVER-DRIFT-ALERT            # exists only while something is wrong
+```
+
+The marker file is removed automatically once the state is good again, so its
+presence always means "wrong right now" rather than "was wrong once".
+
+**Known limitation, stated rather than papered over:** this alerts by writing
+a file, a log line, and a non-zero exit. Nothing pushes to a phone. On a
+single-owner instance that is proportionate — but it is the same shape as the
+defect v0.105.0 fixed, an instrument nobody is looking at. Wire it to a real
+channel before relying on it for anything busier.
+
+Verified in both directions on 2026-08-17: OK against the real promoted digest,
+and DRIFT (exit 1, marker written, both digests named) when the record was
+replaced with the rebuilt digest from the v0.104.0 failure.
 
 ## Freezing deploys
 
