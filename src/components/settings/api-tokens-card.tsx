@@ -93,9 +93,21 @@ export function ApiTokensCard({ tokens }: Props) {
           </div>
         )}
 
-        {/* Newly created token display */}
+        {/* Newly created token display. `bg-success-tint` + `border-hairline`
+            (whole-branch review fix wave, 2026-08-17): this was hand-rolling
+            its own per-theme green pair (`border-green-200 bg-green-50
+            dark:border-green-800 dark:bg-green-950`) right next to
+            `text-success-ink`, which Task 8b had already minted a real
+            token for — the exact anti-pattern that token's own comment in
+            globals.css argues against. `border-hairline` rather than
+            dropping the border: the box already carried one before this
+            fix, and the same idiom (border-hairline around a tinted/raised
+            block) is what the webhook-URL reveal in apple-health-card.tsx
+            and the secret reveal in webhooks-card.tsx use for the identical
+            "copy this now" case, so this now reads as one language across
+            all three instead of three bespoke treatments. */}
         {showToken && (
-          <div className="rounded-md border border-green-200 bg-green-50 p-3 dark:border-green-800 dark:bg-green-950">
+          <div className="rounded-md border border-hairline bg-success-tint p-3">
             <p className="mb-1 text-caption font-medium text-success-ink">
               Copy this token now — it won&apos;t be shown again:
             </p>

@@ -136,7 +136,24 @@ export function StravaCard({
       }
     >
       {connection && !connection.writeEnabled && (
-        <div className="mt-3 flex items-center justify-between gap-3 rounded-2xl border border-orange-500/20 bg-orange-500/10 p-3">
+        // border-hairline bg-surface-overlay, not a token-for-token
+        // colour swap (whole-branch review fix wave, 2026-08-17): this box
+        // was `border-orange-500/20 bg-orange-500/10`, a raw palette fill
+        // no guard sees, wrapped around a Reconnect CTA that already moved
+        // to `bg-accent` in this same task. Orange has no home in this
+        // design system's vocabulary — it isn't success, warning, or
+        // destructive, and minting a token for one call site is out of
+        // scope for a fix wave. More importantly, the box no longer earns
+        // a second colour signal now that the CTA inside it is a solid
+        // accent fill: two saturated, unrelated hues in one small row read
+        // as competing alerts rather than one message, and
+        // `connector-card.tsx`'s own history (Connect CTAs moved onto
+        // --accent specifically so brand colour and action colour don't
+        // compete — see globals.css's connector-tint comment) already
+        // settled this the same way for the five connector chips. Neutral
+        // `border-hairline bg-surface-overlay` groups the row exactly as
+        // the old box did, without a second hue fighting the button.
+        <div className="mt-3 flex items-center justify-between gap-3 rounded-2xl border border-hairline bg-surface-overlay p-3">
           <p className="text-label text-ink-secondary">
             Upgrade Strava connection for AI descriptions
           </p>

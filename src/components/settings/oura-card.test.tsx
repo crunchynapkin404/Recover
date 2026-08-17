@@ -9,6 +9,21 @@ vi.mock("@/app/settings/oura-actions", () => ({
   ouraSyncNow: vi.fn(),
 }));
 
+// useActionState is mocked directly, the same shape webhooks-card.test.tsx
+// uses for its own useActionState-backed state, so the disconnected-with-
+// connect-failure-message case (finding 1, whole-branch review fix wave)
+// can be rendered in one synchronous pass instead of driving a real form
+// submission through the mocked action. Everything else from react
+// (useState, useTransition, act, ...) is the real implementation.
+let mockConnectState: { ok: boolean; message: string } | null = null;
+vi.mock("react", async () => {
+  const actual = await vi.importActual<typeof import("react")>("react");
+  return {
+    ...actual,
+    useActionState: vi.fn(() => [mockConnectState, vi.fn(), false]),
+  };
+});
+
 import { OuraCard } from "./oura-card";
 
 declare global {
@@ -30,6 +45,7 @@ async function render(ui: React.ReactNode) {
 }
 
 afterEach(async () => {
+  mockConnectState = null;
   if (root) {
     const r = root;
     await act(async () => r.unmount());
@@ -80,5 +96,21 @@ describe("OuraCard", () => {
     expect(el.querySelector("[role='status']")?.textContent).toBe(
       "Last error: token expired"
     );
+  });
+
+  // Finding 1, whole-branch review fix wave (2026-08-17): the shell renders
+  // `status` before `{children}`, so this is the DOM-order case oura-card.tsx's
+  // new comment (near its `status` prop) describes as previously uncovered —
+  // disconnected (`connection: null`, still rendering the token form and
+  // help text) together with a connect-failure message.
+  it("renders a connect-failure message as a live region when disconnected", async () => {
+    mockConnectState = { ok: false, message: "Oura rejected that token." };
+    const el = await render(<OuraCard connection={null} />);
+    const status = el.querySelector("[role='status']");
+    expect(status).not.toBeNull();
+    expect(status?.textContent).toBe("Oura rejected that token.");
+    // Still disconnected, so the token form is present too — this is the
+    // case that puts the status paragraph ahead of the form in the DOM.
+    expect(el.querySelector("input[name='token']")).not.toBeNull();
   });
 });

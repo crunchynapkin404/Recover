@@ -1827,6 +1827,39 @@ surfaces they sat on, both failing AA text contrast. Task 8b added real
 (their own tokens, not aliases to the coach-inbox kind colours) and repointed
 nine call sites across six Settings cards.
 
+### A second gap in the per-task grep pattern: bare `black`
+
+Found in the whole-branch review's fix wave (2026-08-17), same shape as the
+defect above — a check this plan wrote covered one half of a pair and not the
+other. The "Surfaces and borders" section says plainly: **"Bare `text-white`
+and `bg-white` are in scope and no guard catches them... which is why the
+per-task check greps below all carry `\b(text|bg)-white\b`"** — every Phase 3
+task's own verification command included that clause. It never gained a
+matching `black` clause, so `\b(text|bg)-(white|black)\b` was never actually
+run — only the `white` half of it.
+
+That gap let two sites through every task's own check, undetected, the same
+way the raw greens above got past the alpha-only `ADHOC_INK` regex:
+`notifications-card.tsx:147` and `body-prefs-card.tsx:141`, both
+`bg-emerald-500 ... text-black` — a primary-action fill with no alpha slash
+(so `ADHOC_INK` doesn't match it) and not white (so the per-task grep's own
+bare-colour clause doesn't match it either). Both measure ~8.2:1 and are
+theme-independent, so axe read 0 the whole time; the CHANGELOG's "All 16
+files migrated onto the token scale" was true of what the checks could see,
+not true in fact. Both are now `bg-accent text-accent-foreground` — the
+primary-action token this design system already has for exactly this case.
+
+**This pattern lives only in this plan's per-task grep commands, not in an
+automated test.** `tests/type-scale-guard.test.ts`'s `ADHOC_INK` is
+deliberately alpha-only by design (see that file's own header comment on what
+it does and does not cover) and was never meant to catch a bare, opaque fill
+— minting a new guard file for two sites a fix wave already closed by hand
+would be solving a problem this plan's checklist already owns. Corrected here
+instead, for whoever next copies this grep into a new plan:
+`\b(text|bg)-(white|black)\b`. The six now-historical task-step commands
+above (Tasks 3–9) are left as the record of what actually ran — this note is
+the fix, not a silent rewrite of what those steps said at the time.
+
 ### `coach-thread` now captures
 
 Confirmed 0 in this run — resolving a carry-in open since v0.104.0, when

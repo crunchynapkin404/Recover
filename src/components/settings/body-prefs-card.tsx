@@ -138,7 +138,13 @@ export function BodyPrefsCard({
         <button
           onClick={save}
           disabled={pending}
-          className="rounded-xl bg-emerald-500 px-4 py-2 text-caption font-bold text-black disabled:opacity-50"
+          // bg-accent text-accent-foreground (whole-branch review fix wave,
+          // 2026-08-17) — same fix, same reason, as notifications-card.tsx's
+          // Enable button: was `bg-emerald-500 ... text-black`, a raw
+          // palette fill neither guard sees (see that file's comment for
+          // the full account). Dark's accent pair is byte-identical to the
+          // old emerald-500/black, so the reachable theme is unchanged.
+          className="rounded-xl bg-accent px-4 py-2 text-caption font-bold text-accent-foreground transition-colors hover:opacity-90 disabled:opacity-50"
         >
           {pending ? "Saving…" : "Save"}
         </button>

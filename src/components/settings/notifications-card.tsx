@@ -144,7 +144,18 @@ export function NotificationsCard({
           <button
             onClick={enable}
             disabled={!supported || !secure}
-            className="rounded-2xl bg-emerald-500 py-3 text-caption font-bold text-black transition-colors hover:bg-emerald-400 disabled:opacity-40"
+            // bg-accent text-accent-foreground (whole-branch review fix
+            // wave, 2026-08-17): was `bg-emerald-500 ... text-black`, a raw
+            // palette fill neither guard sees — ADHOC_INK only matches an
+            // alpha-slashed white/black, and the per-task migration grep's
+            // bare-color clause only ever checked `white`, never `black` —
+            // so this survived every task's own check even though the
+            // CHANGELOG claims all 16 files are on the token scale. This is
+            // a primary action fill, exactly what --accent/--accent-foreground
+            // is for; dark's values (#10b981 / #000000) are byte-identical
+            // to the old emerald-500/black pair, so the reachable theme's
+            // pixels don't move.
+            className="rounded-2xl bg-accent py-3 text-caption font-bold text-accent-foreground transition-colors hover:opacity-90 disabled:opacity-40"
           >
             Enable notifications
           </button>

@@ -160,9 +160,15 @@ export function WebhooksCard({ webhooks }: Props) {
           </div>
         )}
 
-        {/* Newly created secret display */}
+        {/* Newly created secret display. `bg-success-tint` + `border-hairline`
+            (whole-branch review fix wave, 2026-08-17): this was a dark-only
+            alpha (`border-emerald-500/30 bg-emerald-500/10`) sitting right
+            next to `text-success-ink`, which Task 8b had already minted a
+            real token for. See the near-identical fix in api-tokens-card.tsx
+            for why `border-hairline` stays rather than dropping the border —
+            same "copy this now" shape, same idiom, one language across both. */}
         {revealSecret && (
-          <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3">
+          <div className="rounded-md border border-hairline bg-success-tint p-3">
             <p className="mb-1 text-caption font-medium text-success-ink">
               Copy this secret now — it won&apos;t be shown again:
             </p>

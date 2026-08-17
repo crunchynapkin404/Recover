@@ -49,6 +49,22 @@ untouched, measuring **3.05:1** (`text-green-600`) and **1.41:1**
 Fixed with real `--warning-ink`/`--warning-tint` and
 `--success-ink`/`--success-tint` pairs, repointed across nine call sites.
 
+### A second gap in the per-task check: bare `black`
+
+Found in the whole-branch review's fix wave, same shape as the defect above.
+The per-task migration grep added a clause for bare `text-white`/`bg-white`
+(no guard test catches those — `ADHOC_INK` requires an alpha slash) but never
+gained a matching `black` clause, so two primary-action fills went
+unmigrated and undetected: `notifications-card.tsx` and `body-prefs-card.tsx`
+each had a `bg-emerald-500 ... text-black` button, measuring ~8.2:1 and
+theme-independent, hence a clean `confirmed: 0` throughout. "All 16 files
+migrated onto the token scale" above was true of what the checks could see,
+not true in fact. Both are now `bg-accent text-accent-foreground`. The
+`--success-tint` token Task 8b minted was also unused until this pass — the
+two "copy this now" banners it exists for were still hand-rolling their own
+grounds in two different spellings; both now use it, with `border-hairline`
+matching the identical banner in `apple-health-card.tsx`.
+
 ### The measurement
 
 **Settings: 0 confirmed axe nodes**, down from 86 at v0.105.0, across all four

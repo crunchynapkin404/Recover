@@ -22,10 +22,14 @@ import type { ReactNode } from "react";
  * byte-identical for Withings, Oura and Apple Health, but NOT for the glyph
  * span on Whoop and Strava. Whoop's span was `text-sm font-black
  * tracking-tight` (14px, bold, tight); Strava's was `text-xl text-orange-400`
- * (20px). Both are flattened to the single `text-base` (16px) below, with
- * colour moved onto TONE_CHIP's parent chip instead of the span (which is
- * genuinely byte-identical for the other three tones, whose spans were
- * already `text-base text-{colour}`). This is deliberate, ruled on
+ * (20px). Both are flattened to the single `text-body` (16px) below —
+ * renamed from `text-base` by Task 5's token migration; same 16px, this
+ * comment just hadn't caught up until the whole-branch review fix wave
+ * flagged the drift — with colour moved onto TONE_CHIP's parent chip
+ * instead of the span (which is genuinely byte-identical for the other
+ * three tones, whose spans were already `text-base text-{colour}`, the
+ * literal Tailwind class those cards' pre-extraction markup carried,
+ * unrelated to the later token rename). This is deliberate, ruled on
  * explicitly rather than an oversight this comment failed to catch: a
  * one-character monogram sitting in its own 40px tinted chip does not need
  * a third signal on top of size and brand ink, so the shell owns the
