@@ -299,6 +299,10 @@ const SURFACES: Record<string, string> = {
     "/settings?strava_error=denied&whoop_error=denied&withings_error=denied",
   admin: "/admin",
   import: "/import",
+  // activity-log is the manual-entry form, not the detail page an athlete
+  // opens on a ride. The activity id is a per-database uuid, so that page
+  // cannot be a literal SURFACES entry — it is resolved through the UI in
+  // main() by resolveActivityDetailPath, the same shape as coach-thread.
   "activity-log": "/activity/log",
   login: "/login",
 };
@@ -1137,6 +1141,61 @@ async function resolveCoachThreadPath(page: Page): Promise<string> {
 }
 
 /**
+ * Resolve a real activity detail path. The id is a per-database UUID, so
+ * this cannot be a literal SURFACES entry.
+ *
+ * Resolves through /train?tab=history — the list that links to detail pages
+ * — then PROVES the resolved page rendered the detail view before handing
+ * the path back, the same discipline resolveCoachThreadPath earned across
+ * three wrong threads. An activity with no cached streams renders
+ * StreamDataEmpty instead of charts, which is a legitimate state but not
+ * the one this surface exists to audit, so the check below demands the
+ * charts.
+ *
+ * `a[href^="/activity/"]` ALONE also matches TrainHeader's "Log activity"
+ * link (`href="/activity/log"`, src/app/train/page.tsx), which renders
+ * before HistoryList's rows in DOM order — so `.first()` over that selector
+ * picked it every time, a plausible-looking wrong match discovered running
+ * this exact resolver, the same shape of trap resolveCoachThreadPath's
+ * three attempts document. `/activity/log` is excluded explicitly rather
+ * than trusted to sort second.
+ */
+async function resolveActivityDetailPath(page: Page): Promise<string> {
+  await page.goto(`${BASE_URL}/train?tab=history`, {
+    waitUntil: "networkidle",
+    timeout: 20_000,
+  });
+  const href = await page
+    .locator('a[href^="/activity/"]:not([href="/activity/log"])')
+    .first()
+    .getAttribute("href", { timeout: 10_000 });
+  if (!href) {
+    throw new Error(
+      'no a[href^="/activity/"] link (other than /activity/log) on ' +
+        "/train?tab=history — the seeded activities are missing. Run " +
+        "scripts/seed-demo.ts against the target database first."
+    );
+  }
+
+  await page.goto(`${BASE_URL}${href}`, {
+    waitUntil: "networkidle",
+    timeout: 20_000,
+  });
+  const charts = await page.locator("[data-stream-chart]").count();
+  if (charts === 0) {
+    throw new Error(
+      `${href} rendered no [data-stream-chart]. activity_streams is empty ` +
+        "for this activity, so getOrFetchActivityDetail fell back to " +
+        "intervals.icu, which dev has no credentials for. Seed streams " +
+        "(Task 3) before capturing this surface — otherwise it audits " +
+        "StreamDataEmpty and reports a number for a page that is not the " +
+        "one this surface names."
+    );
+  }
+  return href;
+}
+
+/**
  * Messages describing surfaces that WERE reached but then failed (task-7
  * review, Finding 2) — as opposed to leakedTokenLabels (cleanup-only
  * failures) or a skipped-but-acceptable "could not reach" — any entry here
@@ -1204,6 +1263,38 @@ async function main() {
         hardFailures.push(message);
         axeReport.push({
           surface: "coach-thread",
+          theme,
+          viewport: vpName,
+          confirmed: [],
+          indeterminate: [],
+          error: err instanceof Error ? err.message : String(err),
+        });
+        writeReport();
+      }
+
+      // Resolved per context: the storage state is fresh each time and the
+      // href is cheap to re-read. A failure here is hard — see
+      // resolveActivityDetailPath.
+      try {
+        const detailPath = await resolveActivityDetailPath(p);
+        await captureWithRetry(
+          p,
+          "activity-detail",
+          detailPath,
+          join(outDir, `activity-detail-${theme}-${vpName}.png`),
+          dark,
+          theme,
+          vpName
+        );
+        total++;
+      } catch (err) {
+        const message =
+          `activity-detail FAILED for ${theme}/${vpName}: ` +
+          `${err instanceof Error ? err.message : String(err)}`;
+        console.error(message);
+        hardFailures.push(message);
+        axeReport.push({
+          surface: "activity-detail",
           theme,
           viewport: vpName,
           confirmed: [],
