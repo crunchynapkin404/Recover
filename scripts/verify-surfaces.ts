@@ -282,8 +282,21 @@ const SURFACES: Record<string, string> = {
   // prop; they render for nothing else, so no capture had ever reached them.
   // One load sets all three — they are independent cards on one page, and
   // three loads would audit the same DOM three times for one branch each.
+  //
+  // RESOLVED (v0.106 slice 5 Settings redesign, task 11, 2026-08-17): the
+  // params above read `access_denied`, but all three cards' ERROR_MESSAGES
+  // maps (strava-card.tsx, whoop-card.tsx, withings-card.tsx) key on
+  // `denied`, not `access_denied` — `state_mismatch`, `rejected` and `failed`
+  // are the other three keys, none of them this either. The lookup returned
+  // undefined and every card fell through to its
+  // `Last error: ${connection?.lastError}` fallback, which for the soak DB's
+  // already-connected demo accounts prints the literal string
+  // `Last error: null`. So since this surface shipped in v0.105.0 it has
+  // audited that fallback string, never the three OAuth error messages it
+  // exists to check — a true confirmed=0 that proved less than it claimed.
+  // Changed to `denied` below, which is a real key in all three maps.
   "settings-connect-errors":
-    "/settings?strava_error=access_denied&whoop_error=access_denied&withings_error=access_denied",
+    "/settings?strava_error=denied&whoop_error=denied&withings_error=denied",
   admin: "/admin",
   import: "/import",
   "activity-log": "/activity/log",
