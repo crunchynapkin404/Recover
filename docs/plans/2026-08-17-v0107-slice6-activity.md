@@ -452,6 +452,142 @@ verdict never included the debrief sheet.
 
 ---
 
+## Phase A result, 2026-08-17
+
+**Correction made before this capture.** Task 3 had put `debriefState:
+"pending"` on the _same_ activity it seeded streams for
+(`c7e319ff-60e8-43c7-a8b8-63831ad3e877`, "Long easy run") — and
+`/activity/[id]` renders `ActivityDebriefSection` inline and unconditionally,
+so the debrief panel sat over the vertical band the stream charts occupy. The
+charts were in the DOM (axe still audited them) but not visible in the
+screenshot, defeating its purpose. Fixed in `scripts/seed-demo.ts`'s
+`seedActivityStreams`: the streams activity's `debriefState` is now actively
+cleared (`null`), and `pending` is placed on the next-newest activity,
+resolved by query (`orderBy startDate desc` excluding the streams activity's
+id via `ne()`) rather than a hardcoded UUID. Re-seeding produced exactly the
+predicted pairing:
+
+```
+Seeded activity streams + 5 laps for activity c7e319ff-60e8-43c7-a8b8-63831ad3e877;
+debriefState=pending on 54455990-e8e7-4541-913c-3801a4dbc0d3.
+```
+
+`54455990-e8e7-4541-913c-3801a4dbc0d3` ("Long endurance ride") is the
+next-newest activity, as predicted. Confirmed against the database directly:
+`c7e319ff…` → `debriefState: null`, `54455990…` → `debriefState: "pending"`,
+and exactly one row across the whole table carries `pending`.
+
+**The screenshot now shows what it exists to show.**
+`activity-detail-dark-desktop.png` renders "Long easy run" with all four
+stream charts (Heart rate, Power, Pace, Elevation) and the laps table fully
+visible and unobstructed — no debrief panel in the way. This is the check the
+whole correction existed for, and it passes.
+
+### Capture run
+
+```
+$ set -a; . ./.env; set +a
+$ SCREENSHOT_BASE_URL=http://localhost:3200 npm run verify:surfaces -- v0107-activity
+...
+captured 96 images → /home/bart/projects/recover/.screenshots/v0107-activity
+axe report (96 entries) → /home/bart/projects/recover/.screenshots/v0107-activity/axe-report.json
+
+CONFIRMED DEFECTS (gates the exit code): 289 node(s) across 20 rule finding(s), in 18/96 surface/theme/viewport combinations.
+INDETERMINATE (does NOT gate the exit code): 2664 node(s) across 94 rule finding(s), in 94/96 combinations.
+```
+
+Exit code was non-zero, as expected — `admin` (182 confirmed nodes) and
+others still carry untouched debt. All 96 surface/theme/viewport combinations
+were audited; **0 were skipped** (no combo silently scored 0 by being absent
+from the report).
+
+### Per-surface table (nodes, not rules — summed across both themes and both viewports)
+
+| Surface                                                                      | Confirmed nodes | Rule rows | Audited | Skipped |
+| ---------------------------------------------------------------------------- | --------------: | --------: | ------: | ------: |
+| admin                                                                        |             182 |         4 |       4 |       0 |
+| activity-log                                                                 |              46 |         2 |       4 |       0 |
+| debrief-sheet                                                                |              43 |         4 |       4 |       0 |
+| import                                                                       |               8 |         2 |       4 |       0 |
+| login                                                                        |               4 |         2 |       4 |       0 |
+| today                                                                        |               2 |         2 |       4 |       0 |
+| today-post-session                                                           |               2 |         2 |       4 |       0 |
+| today-evening                                                                |               2 |         2 |       4 |       0 |
+| train, train-history, train-season, train-fitness                            |          0 each |         0 |  4 each |       0 |
+| coach, coach-history, coach-thread                                           |          0 each |         0 |  4 each |       0 |
+| body, body-sleep, body-journal, body-labs                                    |          0 each |         0 |  4 each |       0 |
+| settings, settings-expanded, settings-connect-errors, settings-token-created |          0 each |         0 |  4 each |       0 |
+| activity-detail                                                              |           **0** |         0 |       4 |       0 |
+| **Total**                                                                    |         **289** |        20 |      96 |       0 |
+
+### The three headline numbers
+
+- **`activity-log`: 46 confirmed nodes** — exactly matches the existing
+  46-node baseline (23 light/phone + 23 light/desktop, 0 dark). Confirms the
+  manual-entry form's number was already correct and stable; nothing in this
+  slice's seed or capture changes touched it.
+- **`activity-detail`: 0 confirmed nodes** — first-ever measurement of this
+  surface (it had never been captured before this slice). Zero confirmed
+  across all four theme/viewport combinations, even though the page is
+  visually dense (metric tiles, 4 stream charts, laps table) and the plan's
+  "what is actually there" survey found 27 arbitrary sizes / 25 ad-hoc ink /
+  0 default-scale / 20 bare-white sites across its render chain. Axe's
+  color-contrast check reports 60 _indeterminate_ nodes per theme/viewport
+  instead (composited/gradient backgrounds it cannot resolve to a ratio) —
+  real debt, just not debt `confirmed` can see yet. Phase B's job is to make
+  those tone colours and ad-hoc ink resolvable, not just silent.
+- **`debrief-sheet`: 43 confirmed nodes** — first-ever measurement (this
+  surface did not exist as a capture before this slice; it is a closed sheet
+  on Today, reached here by an explicit `?sheet=debrief&activity=<id>` deep
+  link onto `activity-detail`'s resolved activity, per Task 2's design). Split
+  20 (light/desktop) + 19 (light/phone) + 2 (dark/desktop) + 2 (dark/phone).
+
+### Whether Today moved
+
+Yes. `debrief-sheet.tsx` is shared with Today (imported by
+`src/components/today/sheet-host.tsx`), but Today's own three states in this
+run (`today`, `today-post-session`, `today-evening`) do **not** deep-link the
+sheet open, so the move is not from `debrief-sheet.tsx` itself — it is the
+node-counting catching up with all three states rather than one:
+
+| Surface             | Confirmed (light) | Confirmed (dark) | Total |
+| ------------------- | ----------------: | ---------------: | ----: |
+| today               |                 2 |                0 |     2 |
+| today-post-session  |                 2 |                0 |     2 |
+| today-evening       |                 2 |                0 |     2 |
+| **Today, combined** |             **6** |            **0** | **6** |
+
+Every one of the 6 confirmed nodes is the _same_ known defect, unchanged in
+substance: `<strong class="font-bold text-white">Readiness 71 (amber).</strong>`
+(`color-contrast`), recorded in `docs/axe-baseline-2026-08-11-seeded.md` as
+"Today's two light-only nodes" after v0.105.0. That figure (2) was the count
+for one occurrence; this run shows the identical sentence renders on **all
+three** Today states, at both viewports, for **6 confirmed nodes total** —
+not a new defect, the same one now measured completely across every state
+that carries it. Dark stays at 0 across all three states and both viewports,
+consistent with every prior baseline. Carried forward unfixed, as the plan's
+"Carried in" list already says, for the slice 9 sweep.
+
+### Scope decision
+
+The number that drives the split is the sum of confirmed nodes across the
+three surfaces Phase B is scoped to fix (plan's Phase B item 5: "Drive
+confirmed axe to zero across `activity-log`, `activity-detail` and
+`debrief-sheet`"):
+
+```
+activity-log (46) + activity-detail (0) + debrief-sheet (43) = 89
+```
+
+**89 ≥ 30 → phase A ships alone as v0.107.0.** The redesign (Phase B) becomes
+**v0.108.0**. This mirrors slice 5's split (86 confirmed nodes on Settings
+alone) almost exactly in scale, and the same reasoning applies: baseline and
+redesign are two different kinds of risk, and shipping the honest
+measurement now is worth its own release rather than waiting on ~144
+class-site edits across five files.
+
+---
+
 ## Phase B — the redesign
 
 **Scope confirmed by Task 4, not before.** The work itself, in the order slices

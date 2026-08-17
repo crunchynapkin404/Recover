@@ -376,3 +376,69 @@ The post-correction reading, taken against a populated owner with all sections
 open: **Settings 86 confirmed nodes, all color-contrast, all light-mode**, and
 zero `label` nodes after the Import control's missing accessible name was
 fixed.
+
+---
+
+## Correction, 2026-08-17 (v0.107.0 slice 6 / Activity, Phase A)
+
+**`activity-log`'s 46-node figure (§9–§10 above, and v0.105.0's "activity-log
+is 46") described the manual-entry form alone.** `SURFACES` mapped
+`activity-log` → `/activity/[id]` had no entry at all — the page an athlete
+actually opens a ride on had never been captured or axe-audited, by any slice,
+until now. Nothing above this correction that mentions `activity-log` should
+be read as covering the detail page or the post-ride debrief sheet; they had
+no baseline before today.
+
+Re-run against the same account/methodology as §1–§10
+(`demo@recover.local`-shaped owner account, seeded, dev DB on port 5434), now
+with two new surfaces:
+
+```
+$ SCREENSHOT_BASE_URL=http://localhost:3200 npm run verify:surfaces -- v0107-activity
+captured 96 images → .screenshots/v0107-activity
+axe report (96 entries) → .screenshots/v0107-activity/axe-report.json
+
+CONFIRMED DEFECTS (gates the exit code): 289 node(s) across 20 rule finding(s), in 18/96 combinations.
+INDETERMINATE (does NOT gate the exit code): 2664 node(s) across 94 rule finding(s), in 94/96 combinations.
+```
+
+All 96 combinations audited; 0 skipped.
+
+**First-ever numbers for the two new surfaces** (nodes, not rules):
+
+| Surface           | light/phone | light/desktop | dark/phone | dark/desktop |  Total |
+| ----------------- | ----------: | ------------: | ---------: | -----------: | -----: |
+| `activity-detail` |           0 |             0 |          0 |            0 |  **0** |
+| `debrief-sheet`   |          19 |            20 |          2 |            2 | **43** |
+
+`activity-log` itself re-measured at **46**, unchanged from §9/§10 and from
+v0.105.0's whole-run figure — confirms that number was already correct and
+stable.
+
+`activity-detail` renders 0 confirmed nodes despite being visually dense (4
+stream charts, a metric-tile grid, a laps table) — its debt is currently all
+in axe's _indeterminate_ bucket (60 nodes/theme/viewport, composited chart and
+gradient backgrounds axe cannot resolve to a ratio), which does not gate the
+exit code but is real work for the redesign.
+
+**Today's slice-1 "clean" verdict never included the debrief sheet.**
+`debrief-sheet.tsx` is imported by `src/components/today/sheet-host.tsx` and
+reached via `?sheet=debrief`, a sheet closed on load that no Today capture had
+ever opened before this slice added it as its own surface (deep-linked
+explicitly, `?sheet=debrief&activity=<id>`, reusing `activity-detail`'s
+resolved activity per that surface's design). Every one of `debrief-sheet`'s
+43 confirmed nodes was therefore invisible to every prior Today measurement,
+including the "clean" v0.100.0 slice-1 verdict and the "two light-only nodes"
+figure recorded after v0.105.0 — both describe Today's own three states with
+the sheet closed, not this content.
+
+Today's own three states, re-measured in the same run: `today` 2, `today-post-session`
+2, `today-evening` 2 (light only; dark 0 on all three) — 6 confirmed nodes
+total, all the same single known defect (a raw `text-white` readiness
+sentence) now counted across all three states rather than one. Not a new
+defect and not caused by `debrief-sheet.tsx` (the sheet stays closed on all
+three Today captures); carried forward to the slice 9 sweep as before.
+
+Full per-surface/theme/viewport breakdown and the phase-A/phase-B scope
+decision this run drove: `docs/plans/2026-08-17-v0107-slice6-activity.md`,
+"Phase A result" section.

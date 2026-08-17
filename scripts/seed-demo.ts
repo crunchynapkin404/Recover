@@ -14,7 +14,7 @@
 import { fileURLToPath } from "node:url";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, ne } from "drizzle-orm";
 import { db, schema } from "../src/lib/db";
 import { computeDailyMetrics } from "../src/lib/metrics";
 import type { ActivityLap } from "../src/lib/activity-streams";
@@ -859,15 +859,40 @@ async function seedActivityStreams(
     });
   }
 
-  // Every seeded activity's debriefState is NULL; this is a plain
-  // idempotent overwrite (not a guarded insert) so SheetHost's no-id
-  // `?sheet=debrief` path always has a pending row to find.
+  // debriefState=pending must NOT land on this activity. /activity/[id]
+  // renders ActivityDebriefSection inline and unconditionally, so a pending
+  // debrief here would sit right over the vertical band the stream charts
+  // occupy — axe still audits them (they're in the DOM) but
+  // activity-detail-dark-desktop.png would show the debrief panel instead
+  // of the charts this seed exists to make visible, defeating the
+  // screenshot's whole purpose. It goes on the next-newest activity
+  // instead, resolved by query (not a hardcoded id) so this works on any
+  // database. Both writes are plain idempotent overwrites (not guarded
+  // inserts): the streams activity is actively cleared here because an
+  // earlier version of this seed put pending state directly on it, so
+  // rerunning must move the row, not merely stop adding to it.
   await db
     .update(schema.activities)
-    .set({ debriefState: "pending" })
+    .set({ debriefState: null })
     .where(eq(schema.activities.id, activity.id));
 
+  const debriefActivity = await db.query.activities.findFirst({
+    where: and(
+      eq(schema.activities.userId, userId),
+      ne(schema.activities.id, activity.id)
+    ),
+    orderBy: (t, { desc }) => [desc(t.startDate)],
+  });
+
+  if (debriefActivity) {
+    await db
+      .update(schema.activities)
+      .set({ debriefState: "pending" })
+      .where(eq(schema.activities.id, debriefActivity.id));
+  }
+
   console.log(
-    `Seeded activity streams + ${laps.length} laps for activity ${activity.id} (debriefState=pending).`
+    `Seeded activity streams + ${laps.length} laps for activity ${activity.id}; ` +
+      `debriefState=pending on ${debriefActivity ? debriefActivity.id : "(no other activity found)"}.`
   );
 }
