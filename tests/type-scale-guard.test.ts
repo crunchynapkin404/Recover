@@ -154,6 +154,20 @@ function occurrences(pattern: RegExp): number {
  */
 const RATCHET_SLACK = 25;
 const OFFENDER_CEILINGS: Record<string, number> = {
+  // 117 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
+  // redesign) task 2 — src/components/settings/connector-card.tsx, the new
+  // shared shell the five connector cards (Strava, Whoop, Withings, Oura,
+  // Apple Health) are migrated onto in Tasks 3-4. 5 net new arbitrary-type
+  // sites (117 − 112), all in this one new file: connectorPillClass,
+  // connectorGhostClass and connectorCtaClass each carry one text-[10px],
+  // connectorBadgeClass one text-[8px], and the header's subtitle span one
+  // text-[10px]. This is intentionally NOT a migration — Task 2's whole
+  // point is a class-neutral extraction of markup the five existing cards
+  // still duplicate verbatim (see the file's header comment), so these are
+  // the same raw sizes the five cards already carried, now counted once
+  // more because they also live in the new shared file. Task 5 migrates
+  // this file onto the type/ink scale once Tasks 3-4 have moved the five
+  // cards onto it, which is what brings this ceiling back down.
   // 112 occurrences, measured 2026-08-14 after v0.99 slice 4 (Coach) task 10
   // (the sweep). Not moved by task 10's own edit — that fix
   // (history-panel.tsx's ghost-thread hover) is an ad-hoc-alpha site, not
@@ -375,7 +389,20 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // week-day-list.tsx and page.tsx are all token utilities, so the count did
   // not move there), 343 after task 2, 351 after the whole-branch-review
   // fixes, 355 right after slice 1, 395 at slice 0.
-  "arbitrary type sizes": 112,
+  "arbitrary type sizes": 117,
+  // 278 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
+  // redesign) task 2 — the same new file as the sibling ceiling above,
+  // src/components/settings/connector-card.tsx. 11 net new ad-hoc-alpha
+  // sites (278 − 267): TONE_CHIP.whoop's border-white/20 + bg-white/10 (2),
+  // connectorPillClass's border-white/10 + bg-white/5 + hover:bg-white/10
+  // (3), connectorGhostClass's border-white/10 + text-white/60 (2),
+  // connectorBadgeClass's bg-white/5 + text-white/50 (2), the header
+  // subtitle span's text-white/50 (1), and the status paragraph's ok-branch
+  // text-white/60 (1). Not migrated here for the same reason as the sibling
+  // ceiling: Task 2 extracts this markup byte-identical to the five cards
+  // it is copied from (see the file's header comment) so Task 5 can migrate
+  // it once instead of five times; migrating it now would be Task 5's job
+  // done early and out of order.
   // 267 occurrences, measured 2026-08-14 after v0.99 slice 4 (Coach) task 10
   // (the sweep). Ceiling was still 311 — unchanged since v0.102 (Body
   // slice) task 11 — going into this slice; by the time task 10 started,
@@ -631,7 +658,7 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // fuelling tile that moved to `bg-surface-overlay`). 709 after task 4,
   // for the same reason task 4 didn't move it — 729 after task 2, 738 after
   // the whole-branch-review fixes, 749 right after slice 1, 806 at slice 0.
-  "ad-hoc white/black alpha utilities": 267,
+  "ad-hoc white/black alpha utilities": 278,
 };
 
 function expectRatchet(name: string, pattern: RegExp): void {

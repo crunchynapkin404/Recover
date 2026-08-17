@@ -84,7 +84,17 @@ const COMPONENTS_ROOT = join(SRC_ROOT, "components");
 // no precedent for a new orphan to point at. Adding an entry means arguing
 // that a component with no render site should exist, which is a claim that
 // needs its reason written here.
-const KNOWN_ORPHANS = new Set<string>([]);
+const KNOWN_ORPHANS = new Set<string>([
+  // v0.106 slice 5 (Settings redesign) task 2, 2026-08-17.
+  // components/settings/connector-card.tsx is the shared shell extracted
+  // out of the five connector cards (Strava, Whoop, Withings, Oura, Apple
+  // Health), deliberately created before anything is wired to it: Tasks 3
+  // and 4 migrate each card onto it, one commit apart from this one, so a
+  // mistake in the extraction shows up against markup that has not moved
+  // rather than in the same diff that also rewires five call sites. Remove
+  // this entry once Task 3 lands the first real render site.
+  "components/settings/connector-card.tsx",
+]);
 
 function isTestFile(name: string): boolean {
   return name.endsWith(".test.ts") || name.endsWith(".test.tsx");
