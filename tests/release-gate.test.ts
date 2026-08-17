@@ -65,6 +65,26 @@ describe("release gate", () => {
     ).toBe(false);
   });
 
+  it("release.yml builds only pre-release tags", () => {
+    const body = workflow("release.yml");
+    const tags = /tags:\s*\[([^\]]*)\]/.exec(body)?.[1] ?? "";
+
+    // The v0.104.0 gate was defeated on its first release by this exact line.
+    // With `["v*"]`, the FINAL vX.Y.Z tag — pushed after promotion so the repo
+    // and registry agree — rebuilt the image and moved :latest to a new
+    // digest, discarding the soaked one promote.yml had just published.
+    // Watchtower deployed the rebuild. Everything upstream had already gone
+    // green, so nothing said a word.
+    expect(
+      tags.includes("-rc."),
+      "release.yml's tag trigger must match pre-release tags only (e.g. " +
+        `"v*-rc.*"), but is [${tags}]. A trigger that also matches the final ` +
+        "vX.Y.Z tag rebuilds the image after promotion and overwrites the " +
+        "digest that was soaked — which is the entire point of promoting by " +
+        "digest."
+    ).toBe(true);
+  });
+
   it("promote.yml is the only workflow that writes :latest", () => {
     const writers = allWorkflowNames().filter((name) =>
       /:latest/.test(workflow(name))
