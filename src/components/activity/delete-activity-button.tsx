@@ -28,7 +28,7 @@ export function DeleteActivityButton({
           });
         }
       }}
-      className="shrink-0 rounded-full p-2 text-white/40 transition-colors hover:bg-red-500/10 hover:text-red-400 disabled:opacity-50"
+      className="shrink-0 rounded-full p-2 text-ink-muted transition-colors hover:bg-red-500/10 hover:text-red-400 disabled:opacity-50"
     >
       <Trash2 aria-hidden className="size-4" />
     </button>

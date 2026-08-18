@@ -19,7 +19,7 @@ const SPORTS = [
 ] as const;
 
 const INPUT_CLS =
-  "w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none placeholder:text-white/30 focus:border-emerald-400/50";
+  "w-full rounded-xl border border-hairline bg-surface-raised px-3 py-2 text-caption text-ink-primary outline-none placeholder:text-ink-muted focus:border-accent";
 
 export function ActivityLogForm() {
   const [state, action, pending] = useActionState<
@@ -32,8 +32,10 @@ export function ActivityLogForm() {
   return (
     <div className="space-y-6">
       <header className="mb-6 pt-8">
-        <h2 className="text-2xl font-bold tracking-tighter">Log Activity</h2>
-        <p className="mt-1 text-xs text-white/50">
+        <h2 className="text-heading font-bold tracking-tighter">
+          Log Activity
+        </h2>
+        <p className="mt-1 text-label text-ink-secondary">
           Manually record a training session
         </p>
       </header>
@@ -58,10 +60,10 @@ export function ActivityLogForm() {
                 onClick={() =>
                   setSelectedSport(selectedSport === s.label ? "" : s.label)
                 }
-                className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm transition-all ${
+                className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-caption transition-all ${
                   selectedSport === s.label
-                    ? "bg-emerald-500/20 ring-2 ring-emerald-500 text-white"
-                    : "bg-white/5 text-white/60 hover:bg-white/10"
+                    ? "bg-accent/20 ring-2 ring-accent text-ink-primary"
+                    : "bg-surface-selected text-ink-secondary hover:bg-surface-overlay"
                 }`}
               >
                 <span aria-hidden>{s.emoji}</span>
@@ -79,7 +81,7 @@ export function ActivityLogForm() {
             <div>
               <label
                 htmlFor="activity-date"
-                className="mb-1 block text-xs font-medium text-white/60"
+                className="mb-1 block text-label font-medium text-ink-secondary"
               >
                 Date
               </label>
@@ -96,7 +98,7 @@ export function ActivityLogForm() {
             <div>
               <label
                 htmlFor="activity-name"
-                className="mb-1 block text-xs font-medium text-white/60"
+                className="mb-1 block text-label font-medium text-ink-secondary"
               >
                 Name (optional)
               </label>
@@ -114,7 +116,7 @@ export function ActivityLogForm() {
               <div>
                 <label
                   htmlFor="activity-duration"
-                  className="mb-1 block text-xs font-medium text-white/60"
+                  className="mb-1 block text-label font-medium text-ink-secondary"
                 >
                   Duration (min)
                 </label>
@@ -132,7 +134,7 @@ export function ActivityLogForm() {
               <div>
                 <label
                   htmlFor="activity-distance"
-                  className="mb-1 block text-xs font-medium text-white/60"
+                  className="mb-1 block text-label font-medium text-ink-secondary"
                 >
                   Distance (km)
                 </label>
@@ -151,7 +153,7 @@ export function ActivityLogForm() {
               <div>
                 <label
                   htmlFor="activity-hr"
-                  className="mb-1 block text-xs font-medium text-white/60"
+                  className="mb-1 block text-label font-medium text-ink-secondary"
                 >
                   Avg HR (bpm)
                 </label>
@@ -169,7 +171,7 @@ export function ActivityLogForm() {
               <div>
                 <label
                   htmlFor="activity-power"
-                  className="mb-1 block text-xs font-medium text-white/60"
+                  className="mb-1 block text-label font-medium text-ink-secondary"
                 >
                   Avg Power (W)
                 </label>
@@ -188,7 +190,7 @@ export function ActivityLogForm() {
               <div>
                 <label
                   htmlFor="activity-elevation"
-                  className="mb-1 block text-xs font-medium text-white/60"
+                  className="mb-1 block text-label font-medium text-ink-secondary"
                 >
                   Elevation (m)
                 </label>
@@ -206,7 +208,7 @@ export function ActivityLogForm() {
               <div>
                 <label
                   htmlFor="activity-load"
-                  className="mb-1 block text-xs font-medium text-white/60"
+                  className="mb-1 block text-label font-medium text-ink-secondary"
                 >
                   Training Load
                 </label>
@@ -228,7 +230,7 @@ export function ActivityLogForm() {
         {/* Status message */}
         {state && (
           <div
-            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm ${
+            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-caption ${
               state.ok
                 ? "bg-emerald-500/10 text-emerald-400"
                 : "bg-red-500/10 text-red-400"
@@ -243,7 +245,7 @@ export function ActivityLogForm() {
         <button
           type="submit"
           disabled={pending}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-6 py-3 font-bold text-black transition-all hover:bg-emerald-400 disabled:opacity-50"
+          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-accent px-6 py-3 font-bold text-accent-foreground transition-all hover:opacity-90 disabled:opacity-50"
         >
           {pending ? "Saving…" : "Log Activity"}
         </button>
