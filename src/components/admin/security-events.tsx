@@ -31,19 +31,21 @@ export async function SecurityEvents() {
         Recent security events ({events.length})
       </h3>
       {events.length === 0 ? (
-        <p className="text-sm text-white/50">No events recorded yet.</p>
+        <p className="text-caption text-ink-secondary">
+          No events recorded yet.
+        </p>
       ) : (
-        <ul className="divide-y divide-white/5">
+        <ul className="divide-y divide-hairline">
           {events.map((e) => (
             <li
               key={e.id}
               className="flex items-center justify-between gap-3 py-3"
             >
               <div className="min-w-0">
-                <p className="text-sm font-bold">
+                <p className="text-caption font-bold">
                   {EVENT_LABEL[e.event] ?? e.event}
                 </p>
-                <p className="truncate text-[10px] text-white/40">
+                <p className="truncate text-label text-ink-secondary">
                   {e.ip ?? "—"} ·{" "}
                   {e.createdAt.toISOString().slice(0, 16).replace("T", " ")}
                 </p>

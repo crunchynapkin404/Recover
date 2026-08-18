@@ -11,16 +11,18 @@ export function SurfaceViewsCard({
     <section className="glass rounded-[2rem] p-6">
       <h3 className="label-micro mb-4">Surface views</h3>
       {rows.length === 0 ? (
-        <p className="text-sm text-white/50">No views recorded yet.</p>
+        <p className="text-caption text-ink-secondary">
+          No views recorded yet.
+        </p>
       ) : (
         <ul className="space-y-1.5">
           {rows.map((r) => (
             <li
               key={r.surface}
-              className="flex items-baseline justify-between text-xs"
+              className="flex items-baseline justify-between text-label"
             >
-              <span className="text-white/70">{r.surface}</span>
-              <span className="font-mono tabular-nums text-white">
+              <span className="text-ink-secondary">{r.surface}</span>
+              <span className="font-mono tabular-nums text-ink-primary">
                 {r.total}
               </span>
             </li>

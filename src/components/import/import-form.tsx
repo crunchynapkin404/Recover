@@ -70,8 +70,8 @@ export function ImportForm() {
   return (
     <div className="space-y-6">
       <header className="mb-8 pt-8">
-        <h1 className="text-2xl font-bold tracking-tighter">Import Data</h1>
-        <p className="mt-1 text-xs font-medium uppercase tracking-widest text-white/50">
+        <h1 className="text-heading font-bold tracking-tighter">Import Data</h1>
+        <p className="mt-1 text-label font-medium uppercase tracking-widest text-ink-secondary">
           Wellness or activity data from a CSV file
         </p>
       </header>
@@ -81,10 +81,10 @@ export function ImportForm() {
         <button
           type="button"
           onClick={() => handleTabChange("wellness")}
-          className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+          className={`rounded-full px-4 py-1.5 text-caption font-medium transition-colors ${
             tab === "wellness"
-              ? "bg-emerald-500 text-black"
-              : "text-white/50 hover:text-white/80"
+              ? "bg-accent text-accent-foreground"
+              : "text-ink-secondary hover:text-ink-primary"
           }`}
         >
           Wellness
@@ -92,10 +92,10 @@ export function ImportForm() {
         <button
           type="button"
           onClick={() => handleTabChange("activities")}
-          className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+          className={`rounded-full px-4 py-1.5 text-caption font-medium transition-colors ${
             tab === "activities"
-              ? "bg-emerald-500 text-black"
-              : "text-white/50 hover:text-white/80"
+              ? "bg-accent text-accent-foreground"
+              : "text-ink-secondary hover:text-ink-primary"
           }`}
         >
           Activities
@@ -108,18 +108,18 @@ export function ImportForm() {
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="w-full cursor-pointer rounded-2xl border-2 border-dashed border-white/20 bg-white/[0.02] p-8 text-center transition-colors hover:border-emerald-400/50 hover:bg-white/[0.03]"
+            className="w-full cursor-pointer rounded-2xl border-2 border-dashed border-hairline bg-surface-selected p-8 text-center transition-colors hover:border-accent hover:bg-surface-overlay"
           >
-            <Upload className="mx-auto mb-3 h-8 w-8 text-white/40" />
-            <p className="text-sm text-white/70">
+            <Upload className="mx-auto mb-3 h-8 w-8 text-ink-secondary" />
+            <p className="text-caption text-ink-secondary">
               {fileName ? fileName : "Drop a CSV file here or click to browse"}
             </p>
             {rowCount != null && (
-              <p className="mt-1 text-xs text-emerald-400">
+              <p className="mt-1 text-label text-success-ink">
                 {rowCount} data row{rowCount !== 1 ? "s" : ""} found
               </p>
             )}
-            <p className="mt-2 text-[11px] text-white/30">Max 5 MB</p>
+            <p className="mt-2 text-label text-ink-secondary">Max 5 MB</p>
           </button>
 
           <input
@@ -133,10 +133,10 @@ export function ImportForm() {
 
           {/* Example format hint */}
           <div>
-            <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-white/40">
+            <p className="mb-1.5 text-label font-medium uppercase tracking-wider text-ink-secondary">
               Expected columns
             </p>
-            <code className="block rounded-xl bg-white/5 p-3 text-[11px] font-mono text-white/60">
+            <code className="block rounded-xl bg-surface-selected p-3 text-label font-mono text-ink-secondary">
               {EXAMPLE_HEADERS[tab]}
             </code>
           </div>
@@ -145,7 +145,7 @@ export function ImportForm() {
           <button
             type="submit"
             disabled={pending || rowCount == null || rowCount === 0}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-6 py-3 font-bold text-black transition-all hover:bg-emerald-400 disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-accent px-6 py-3 font-bold text-accent-foreground transition-all hover:opacity-90 disabled:opacity-50"
           >
             {pending
               ? "Importing…"
@@ -163,20 +163,20 @@ export function ImportForm() {
         >
           <div className="flex items-start gap-3">
             {state.ok ? (
-              <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-emerald-400" />
+              <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-success-ink" />
             ) : (
-              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-400" />
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-destructive-ink" />
             )}
             <div className="min-w-0">
               <p
-                className={`text-sm font-medium ${state.ok ? "text-emerald-400" : "text-red-400"}`}
+                className={`text-caption font-medium ${state.ok ? "text-success-ink" : "text-destructive-ink"}`}
               >
                 {state.message}
               </p>
               {state.errors.length > 0 && (
                 <ul className="mt-2 space-y-1">
                   {state.errors.map((err, i) => (
-                    <li key={i} className="text-[11px] text-white/50">
+                    <li key={i} className="text-label text-ink-secondary">
                       {err}
                     </li>
                   ))}

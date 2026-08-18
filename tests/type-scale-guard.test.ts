@@ -568,7 +568,20 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // (src/lib/design/type-scale-patterns.ts) over every non-test file in
   // src/**/*.{ts,tsx} reports 25 on the working tree after this slice's
   // edits, down from 52 before them.
-  "arbitrary type sizes": 25,
+  // 14 occurrences, measured 2026-08-18 after v0.109.0 slice 7 (Admin +
+  // Import). Net −11 from the 25 above, all six of the slice's files to zero:
+  //   sync-jobs-panel.tsx, import-form.tsx: 4 each
+  //   admin/page.tsx, invite-manager.tsx, security-events.tsx: 1 each
+  //   surface-views-card.tsx: 0 — it carried ad-hoc ink and default scale but
+  //     no arbitrary sizes, so it moves the sibling ceiling and not this one.
+  // 4 + 4 + 1 + 1 + 1 = 11. Every one sat BELOW the 12px floor (4 × [11px],
+  // 4 × [10px], 3 × [9px]) and came up to it. The gap this left (25 − 14 = 11)
+  // was UNDER RATCHET_SLACK (25), so the ratchet did not demand re-pinning —
+  // re-pinned anyway per this file's established practice of re-pinning on
+  // every drop. Verified directly: running ARBITRARY_TYPE over every non-test
+  // file in src/**/*.{ts,tsx} reports 14 on the working tree after this
+  // slice's edits, down from 25 before them.
+  "arbitrary type sizes": 14,
   // 251 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
   // redesign) task 3 — repays the debt task 2 explicitly left for this task,
   // same three cards as the sibling ceiling above. Net −27 from the 278
@@ -1015,7 +1028,31 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // Verified directly: running ADHOC_INK (src/lib/design/type-scale-patterns
   // .ts) over every non-test file in src/**/*.{ts,tsx} reports 73 on the
   // working tree after this slice's edits, down from 127 before them.
-  "ad-hoc white/black alpha utilities": 73,
+  // 35 occurrences, measured 2026-08-18 after v0.109.0 slice 7 (Admin +
+  // Import). Net −38 from the 73 above, the same six files:
+  //   import-form.tsx: 15
+  //   sync-jobs-panel.tsx: 7
+  //   invite-manager.tsx: 6
+  //   admin/page.tsx: 5
+  //   security-events.tsx: 3
+  //   surface-views-card.tsx: 2
+  // 15 + 7 + 6 + 5 + 3 + 2 = 38. The gap this left (73 − 35 = 38) was OVER
+  // RATCHET_SLACK (25), so the ratchet failed and re-pinning here was
+  // mandatory, not discretionary.
+  //
+  // This slice also retired the raw-palette badge inks that v0.108.0
+  // deliberately left alone, because on Admin they were CONFIRMED axe
+  // failures rather than latent ones: `bg-emerald-500/15 text-emerald-400`
+  // measured 1.68:1 (#00d492 on #d9f5eb) on the user-role badge. Those move
+  // to --success-ink/--success-tint and --destructive-ink/--destructive-tint,
+  // which measure 6.78-9.94:1 on their own tints and 6.56-11.87:1 on the
+  // glass card. Neither ceiling counts them — ADHOC_INK matches only
+  // white/black — so they are recorded here rather than tracked by a number.
+  //
+  // Verified directly: running ADHOC_INK over every non-test file in
+  // src/**/*.{ts,tsx} reports 35 on the working tree after this slice's
+  // edits, down from 73 before them.
+  "ad-hoc white/black alpha utilities": 35,
   // 234 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
   // redesign) task 4 — the same two cards as the sibling ceiling above,
   // strava-card.tsx and apple-health-card.tsx, moved onto connector-card.tsx's
