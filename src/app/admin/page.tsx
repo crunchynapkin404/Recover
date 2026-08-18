@@ -64,8 +64,8 @@ export default async function AdminPage() {
   return (
     <AppShell>
       <header className="mb-8 pt-8">
-        <h1 className="text-2xl font-bold tracking-tighter">Admin</h1>
-        <p className="mt-1 text-xs font-medium uppercase tracking-widest text-white/50">
+        <h1 className="text-heading font-bold tracking-tighter">Admin</h1>
+        <p className="mt-1 text-label font-medium uppercase tracking-widest text-ink-secondary">
           Members & invites
         </p>
       </header>
@@ -73,21 +73,23 @@ export default async function AdminPage() {
       <div className="space-y-6">
         <section className="glass rounded-[2rem] p-6">
           <h3 className="label-micro mb-4">Members ({users.length})</h3>
-          <ul className="divide-y divide-white/5">
+          <ul className="divide-y divide-hairline">
             {users.map((u) => (
               <li
                 key={u.id}
                 className="flex items-center justify-between gap-3 py-3"
               >
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-bold">{u.name}</p>
-                  <p className="truncate text-xs text-white/50">{u.email}</p>
+                  <p className="truncate text-caption font-bold">{u.name}</p>
+                  <p className="truncate text-label text-ink-secondary">
+                    {u.email}
+                  </p>
                 </div>
                 <span
-                  className={`rounded-full px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider ${
+                  className={`rounded-full px-2.5 py-1 text-label font-bold uppercase tracking-wider ${
                     u.role === "owner"
-                      ? "bg-emerald-500/15 text-emerald-400"
-                      : "bg-white/5 text-white/60"
+                      ? "bg-success-tint text-success-ink"
+                      : "bg-surface-selected text-ink-secondary"
                   }`}
                 >
                   {u.role}

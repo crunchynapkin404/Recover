@@ -87,7 +87,7 @@ export function SyncJobsPanel({ jobs, users }: Props) {
       </h3>
 
       {error && (
-        <p role="status" className="mb-4 text-sm text-red-400">
+        <p role="status" className="mb-4 text-caption text-destructive-ink">
           {error}
         </p>
       )}
@@ -98,7 +98,7 @@ export function SyncJobsPanel({ jobs, users }: Props) {
             value={kickTarget}
             onChange={(e) => setKickTarget(e.target.value)}
             aria-label="User to kick sync for"
-            className="login-input flex-1 rounded-xl px-3 py-2.5 text-sm text-white"
+            className="login-input flex-1 rounded-xl px-3 py-2.5 text-caption text-ink-primary"
           >
             {users.map((u) => (
               <option key={u.id} value={u.id}>
@@ -110,7 +110,7 @@ export function SyncJobsPanel({ jobs, users }: Props) {
             type="button"
             disabled={isPending || !kickTarget}
             onClick={() => kick(kickTarget)}
-            className="flex shrink-0 items-center gap-1.5 rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-bold text-black transition-all hover:bg-emerald-400 disabled:opacity-50"
+            className="flex shrink-0 items-center gap-1.5 rounded-xl bg-accent px-4 py-2.5 text-caption font-bold text-accent-foreground transition-all hover:opacity-90 disabled:opacity-50"
           >
             <Zap aria-hidden className="size-4" />
             {isPending && busyId === kickTarget ? "Kicking…" : "Kick sync"}
@@ -119,7 +119,7 @@ export function SyncJobsPanel({ jobs, users }: Props) {
       )}
 
       {jobs.length === 0 ? (
-        <p className="text-sm text-white/50">No active sync jobs.</p>
+        <p className="text-caption text-ink-secondary">No active sync jobs.</p>
       ) : (
         <div className="space-y-5">
           <JobGroup title="Queue" rows={queue} emptyLabel="Nothing queued." />
@@ -156,31 +156,31 @@ function JobGroup({
 }) {
   return (
     <div>
-      <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-white/40">
+      <p className="mb-2 text-label font-bold uppercase tracking-wider text-ink-secondary">
         {title} ({rows.length})
       </p>
       {rows.length === 0 ? (
-        <p className="text-xs text-white/40">{emptyLabel}</p>
+        <p className="text-label text-ink-secondary">{emptyLabel}</p>
       ) : (
-        <ul className="divide-y divide-white/5">
+        <ul className="divide-y divide-hairline">
           {rows.map((job) => (
             <li
               key={job.id}
               className="flex items-start justify-between gap-3 py-3"
             >
               <div className="min-w-0">
-                <p className="truncate text-sm font-bold">
+                <p className="truncate text-caption font-bold">
                   {job.userLabel}
-                  <span className="ml-2 font-normal text-white/50">
+                  <span className="ml-2 font-normal text-ink-secondary">
                     {PROVIDER_LABEL[job.provider] ?? job.provider} · {job.kind}
                   </span>
                 </p>
-                <p className="truncate text-[10px] text-white/40">
+                <p className="truncate text-label text-ink-secondary">
                   attempts {job.attempts} · runs {fmt(job.runAfter)} · updated{" "}
                   {fmt(job.updatedAt)}
                 </p>
                 {job.lastError && (
-                  <p className="mt-1 truncate text-[10px] text-red-400">
+                  <p className="mt-1 truncate text-label text-destructive-ink">
                     {job.lastError}
                   </p>
                 )}
@@ -191,7 +191,7 @@ function JobGroup({
                   disabled={busyId === job.id}
                   onClick={() => onRetry(job.id)}
                   aria-label={`Retry sync job for ${job.userLabel}`}
-                  className="flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-white/60 transition-colors hover:bg-emerald-500/10 hover:text-emerald-400 disabled:opacity-50"
+                  className="flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-label font-bold uppercase tracking-wider text-ink-secondary transition-colors hover:bg-success-tint hover:text-success-ink disabled:opacity-50"
                 >
                   <RotateCw aria-hidden className="size-3" />
                   {busyId === job.id ? "Retrying…" : "Retry"}

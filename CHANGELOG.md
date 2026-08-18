@@ -1,5 +1,121 @@
 # Changelog
 
+## v0.110.0 — 2026-08-18 — A front door, and the last confirmed node
+
+2b.4 slice 8: the pre-auth surface. `/login` becomes a small landing page, and
+the whole app reaches **zero confirmed axe nodes**.
+
+### The login page says what Recover is
+
+It used to show a logo, a wordmark, a form, and two lines of near-invisible
+decoration. It now carries the product: the tagline, four things Recover
+actually does, and links to the source and the licence. Copy is lifted from
+`README.md` rather than written fresh, so the landing page and the repository
+cannot drift into describing two different products.
+
+The MCP server is given its own point rather than a mention. It is the reason
+to choose this over a subscription: your own Claude, reading your own readiness
+over a scoped, revocable token.
+
+The sign-in card does not move. It stays centred, the same size, in the same
+place a returning athlete already reaches for; the landing content flows
+underneath it.
+
+### What was actually broken there
+
+Two of the four confirmed nodes were the email and password fields, rendering
+`text-white` on a light field: a **1:1 contrast ratio**, invisible rather than
+dim, exactly the defect Admin had. The footer's `text-white/10` measured about
+1.1:1, and the tagline sat inside an `opacity-40` wrapper that multiplied with
+its own `text-white/60` down to roughly 24% — a line of text nobody could read
+telling you the app was built for athletes who own their data.
+
+### One component now owns every depth layer
+
+`AppShell` and `/login` each painted their own blurred accent blobs, at
+different alphas with different hues. `src/components/gradient-depth.tsx` holds
+both variants, and `mesh-composite.ts` scans THAT file instead of `app-shell
+.tsx` — a page is not a shell, and pointing the scanner at one picked up button
+hover fills and card grounds along with the depth layers.
+
+**That scan found a real error in the guard itself.** Its Tailwind lookup held
+the familiar v3 hexes, but Tailwind v4 ships this palette in oklch:
+`emerald-500` is `oklch(69.6% 0.17 162.48)` = **`#00bc7d`**, not `#10b981`.
+Every composite the module had produced since v0.108.0 was computed from
+colours the browser does not paint. Corrected, and the ink ramp re-measured
+against all six real layers: `--ink-primary` 10.92:1, `--ink-secondary` 5.40:1,
+`--ink-muted` 3.11:1 — so the card-only rule for muted ink holds, and
+`--accent` (3.34:1) is confirmed as icon-only on that backdrop, never text.
+
+### Results
+
+| Surface                      |      Before |           After |
+| ---------------------------- | ----------: | --------------: |
+| `login`                      | 4 confirmed |           **0** |
+| **every surface in the app** |           — | **0 confirmed** |
+
+24 surfaces × 4 theme/viewport combos, 96 captures, no errored entries. Counted
+as nodes. The project's recorded baseline was **398**
+(`docs/axe-baseline-2026-08-11-seeded.md`).
+
+Indeterminate rose on `login` (24 → 76) because the page now has far more text
+on the gradient. That is the metric axe cannot compute rather than one it
+failed; `tests/contrast-guard.test.ts` asserts the ink ramp against the
+gradient composite directly, which is what that number is exchanged for.
+
+**2b.4 stays open.** It closes at slice 9 — the sweep, and lifting
+`forcedTheme`.
+
+## v0.109.0 — 2026-08-18 — The page that was invisible in daylight
+
+2b.4 slice 7: Admin and Import onto the v0.99 tokens. 85 class sites across six
+files, all to zero.
+
+**What an athlete notices:** nothing — `/admin` is owner-only and `/import` is
+rarely opened. What an OWNER notices in light mode is the whole page.
+
+### 241 confirmed nodes, and almost all of them said "1:1"
+
+Admin's failures were not dim text. axe scored node after node at a **1:1
+contrast ratio** — `text-white/40` through `text-white/60` rendered against a
+light card is white on white, and the page was simply blank where its content
+should be. It had never been seen because `forcedTheme="dark"` means nobody can
+open light mode yet; the capture script sets the class directly, which is the
+only reason this was measurable at all.
+
+`.glass` is opaque in light (`--surface-raised`) and translucent in dark, so
+the ink floor on these cards is `--ink-secondary`, not `--ink-muted`: measured
+over the real dark composite — glass over the mesh gradient's worst case,
+`#1d383e` — ink-muted is **3.60:1** and ink-secondary is **6.00:1**. That is
+the same rule v0.108.0 established for the manual log form, which sits on the
+same substrate.
+
+### The badge inks v0.108.0 deferred, retired here
+
+v0.108.0 left the raw-palette chromatic inks for the slice 9 sweep, on the
+grounds that they were latent rather than confirmed. On Admin they were
+confirmed: the user-role badge's `bg-emerald-500/15 text-emerald-400` measured
+**1.68:1** (`#00d492` on `#d9f5eb`). They move to the semantic pairs that
+already existed and that the Settings cards already used —
+`--success-ink`/`--success-tint` and `--destructive-ink`/`--destructive-tint` —
+which measure 6.78–9.94:1 on their own tints and 6.56–11.87:1 on the glass
+card, in both themes.
+
+### Results
+
+| Surface                |        Before |                After |
+| ---------------------- | ------------: | -------------------: |
+| `admin`                | 241 confirmed |                **0** |
+| `import`               |   8 confirmed |                **0** |
+| every v0.108.0 surface |             0 | **0**, no regression |
+
+Counted as **nodes**, across all four theme/viewport combos. Ratchets re-pinned:
+arbitrary type **25 → 14** (gap 11, under `RATCHET_SLACK`, done anyway per the
+file's standing practice), ad-hoc white/black alpha **73 → 35** (gap 38, over
+slack, so forced).
+
+**2b.4 stays open.** It closes at slice 9.
+
 ## v0.108.0 — 2026-08-18 — What the gradient was hiding
 
 2b.4 slice 6's phase B: the Activity redesign itself. The 102 remaining class

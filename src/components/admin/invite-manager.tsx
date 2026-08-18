@@ -43,12 +43,12 @@ export function InviteManager({ invites }: Props) {
           type="email"
           placeholder="friend@email.com (optional)"
           aria-label="Invitee email (optional)"
-          className="login-input flex-1 rounded-xl px-3 py-2.5 text-sm text-white"
+          className="login-input flex-1 rounded-xl px-3 py-2.5 text-caption text-ink-primary"
         />
         <button
           type="submit"
           disabled={pending}
-          className="rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-bold text-black transition-all hover:bg-emerald-400 disabled:opacity-50"
+          className="rounded-xl bg-accent px-4 py-2.5 text-caption font-bold text-accent-foreground transition-all hover:opacity-90 disabled:opacity-50"
         >
           {pending ? "Creating…" : "New invite"}
         </button>
@@ -57,7 +57,7 @@ export function InviteManager({ invites }: Props) {
       {state && (
         <p
           role="status"
-          className={`mb-4 text-sm ${state.ok ? "text-emerald-400" : "text-red-400"}`}
+          className={`mb-4 text-caption ${state.ok ? "text-success-ink" : "text-destructive-ink"}`}
         >
           {state.message}
           {state.code && (
@@ -73,17 +73,17 @@ export function InviteManager({ invites }: Props) {
       )}
 
       {invites.length === 0 ? (
-        <p className="text-sm text-white/50">No open invites.</p>
+        <p className="text-caption text-ink-secondary">No open invites.</p>
       ) : (
-        <ul className="divide-y divide-white/5">
+        <ul className="divide-y divide-hairline">
           {invites.map((invite) => (
             <li
               key={invite.id}
               className="flex items-center justify-between gap-3 py-3"
             >
               <div className="min-w-0">
-                <p className="truncate font-mono text-sm">{invite.code}</p>
-                <p className="truncate text-xs text-white/50">
+                <p className="truncate font-mono text-caption">{invite.code}</p>
+                <p className="truncate text-label text-ink-secondary">
                   {invite.email ?? "anyone"} · expires {invite.expiresAt}
                 </p>
               </div>
@@ -92,10 +92,10 @@ export function InviteManager({ invites }: Props) {
                   type="button"
                   onClick={() => copyLink(invite.code)}
                   aria-label={`Copy invite link for ${invite.email ?? invite.code}`}
-                  className="rounded-full p-2 text-white/60 transition-colors hover:bg-white/5 hover:text-white"
+                  className="rounded-full p-2 text-ink-secondary transition-colors hover:bg-surface-selected hover:text-ink-primary"
                 >
                   {copied === invite.code ? (
-                    <span className="text-[9px] font-bold text-emerald-400">
+                    <span className="text-label font-bold text-success-ink">
                       ✓
                     </span>
                   ) : (
@@ -110,7 +110,7 @@ export function InviteManager({ invites }: Props) {
                     })
                   }
                   aria-label={`Revoke invite ${invite.code}`}
-                  className="rounded-full p-2 text-white/60 transition-colors hover:bg-red-500/10 hover:text-red-400"
+                  className="rounded-full p-2 text-ink-secondary transition-colors hover:bg-destructive-tint hover:text-destructive-ink"
                 >
                   <Trash2 aria-hidden className="size-4" />
                 </button>

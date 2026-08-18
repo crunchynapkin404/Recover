@@ -1,7 +1,6 @@
 /**
- * The worst-case backdrop `AppShell`'s mesh gradient can put behind text —
- * derived from the CSS and the shell that ship, for
- * tests/contrast-guard.test.ts.
+ * The worst-case backdrop the mesh gradient can put behind text — derived from
+ * the CSS and the depth layers that ship, for tests/contrast-guard.test.ts.
  *
  * WHY THIS EXISTS. `activity-detail` reports 0 confirmed contrast violations
  * and 240 INDETERMINATE nodes. The zero is not a pass: axe's `color-contrast`
@@ -18,12 +17,16 @@
  * are fine on the gradient. This computes it instead, from the same CSS the
  * browser paints, so the claim fails the build when the gradient changes.
  *
- * WHAT "WORST CASE" MEANS HERE, EXACTLY. The gradient is four translucent
- * layers over `--surface-base`, each with its own peak alpha at its own point
- * on the page — the two radial blooms in `.mesh-gradient`, and the two blurred
- * blobs the shell paints over it. No single pixel carries all four peaks. But
- * an ink can land on any pixel, so the honest bound is the extreme over the
- * whole box of reachable alphas, not the value at some representative point.
+ * WHAT "WORST CASE" MEANS HERE, EXACTLY. The gradient is a stack of
+ * translucent layers over `--surface-base`: the two radial blooms in
+ * `.mesh-gradient`, plus every blurred blob `gradient-depth.tsx` declares. No
+ * single pixel carries every peak at once — and since v0.110.0 no single PAGE
+ * even declares every layer, because that file holds both the `app` and `auth`
+ * variants and a surface renders one of them. The bound is taken across all of
+ * them anyway. It is therefore stricter than any surface really is, which is
+ * the only direction a contrast guard may be wrong in, and it is cheap: the
+ * ink ramp still clears the floor against the combined stack, so nothing is
+ * lost by not splitting it per variant.
  *
  * Each composited channel is MULTILINEAR in those alphas (`out = src·α +
  * dst·(1−α)`, applied layer over layer), and a multilinear function on a box
@@ -39,6 +42,10 @@
  * Light theme takes the darkest bound and dark theme the lightest, because
  * those are the ones that shrink the ratio for the ink each theme actually
  * uses.
+ *
+ * `--accent` does NOT clear 4.5:1 here (3.34:1 light, 4.44:1 dark). It is used
+ * on this backdrop only for icons, where WCAG 1.4.11's 3:1 applies — never as
+ * text. `--ink-muted` does not clear it either; see the guard.
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -46,9 +53,9 @@ import { join } from "node:path";
 import { findColorLiterals, type Rgba } from "./color-literals";
 import { readThemeTokens, resolveToken, type ThemeName } from "./tokens";
 
-export const APP_SHELL_PATH = join(
+export const DEPTH_PATH = join(
   process.cwd(),
-  "src/components/app-shell.tsx"
+  "src/components/gradient-depth.tsx"
 );
 
 const OPAQUE_HEX = /^#[0-9a-fA-F]{6}$/;
@@ -62,15 +69,24 @@ const OPAQUE_HEX = /^#[0-9a-fA-F]{6}$/;
 const MAX_LAYERS = 20;
 
 /**
- * The Tailwind palette entries `AppShell`'s depth layers name. Tailwind's
+ * The Tailwind palette entries the depth layers name. Tailwind's
  * values, not ours, so this is a lookup rather than a decision — and an
  * unknown one THROWS rather than being skipped, because a layer this module
  * silently dropped would make the "worst case" quietly too flattering, which
  * is the exact failure mode the whole file exists to prevent.
  */
 const TAILWIND: Record<string, string> = {
-  "emerald-500": "#10b981",
-  "blue-500": "#3b82f6",
+  // TAILWIND v4 VALUES, NOT v3's. These were wrong until v0.110.0: the map
+  // held the familiar v3 hexes (#10b981, #3b82f6), but v4 ships this palette
+  // in oklch and those convert to visibly different sRGB — emerald-500 is
+  // oklch(69.6% 0.17 162.48) = #00bc7d, not #10b981. Every composite this
+  // module produced was therefore computed from colours the browser does not
+  // paint. Kept as hex rather than oklch because color-literals.ts
+  // deliberately refuses to gamut-map oklch, and a wrong-but-parseable value
+  // is exactly what this comment exists to stop happening twice.
+  "emerald-500": "#00bc7d", // oklch(69.6% 0.17 162.48)
+  "blue-500": "#2b7fff", // oklch(62.3% 0.214 259.815)
+  "indigo-500": "#615fff", // oklch(58.5% 0.233 277.117)
   white: "#ffffff",
   black: "#000000",
 };
@@ -153,13 +169,20 @@ function meshBloomLayers(css: string): MeshLayer[] {
 }
 
 /**
- * `AppShell`'s two blurred depth blobs, read as Tailwind utilities.
+ * Every blurred depth blob, read as Tailwind utilities out of
+ * `gradient-depth.tsx`.
  *
- * The whole file is scanned rather than just the `fixed inset-0` container:
- * the shell is small and holds nothing else with a background, and including
- * a background it grows later would only ever make the bound STRICTER, which
- * is the safe direction. `blur-[120px]` spreads each blob without capping its
- * alpha, so peak alpha is still reachable and the peak is what is used.
+ * That file exists to BE this scan's input. It used to read `app-shell.tsx`,
+ * which worked only because the shell is small and paints nothing else; the
+ * login page paints its own blobs too, and scanning a page picked up button
+ * hover fills and card grounds along with them. One component now owns every
+ * depth layer in the app, so the scan has a well-defined source and neither
+ * surface can add a layer nothing measures.
+ *
+ * The whole file is scanned rather than one variant: including more layers
+ * only makes the bound STRICTER, which is the safe direction. `blur-[…]`
+ * spreads a blob without capping its alpha, so peak alpha stays reachable and
+ * the peak is what is used.
  */
 function shellBlobLayers(source: string): MeshLayer[] {
   const out: MeshLayer[] = [];
@@ -186,7 +209,7 @@ function shellBlobLayers(source: string): MeshLayer[] {
     const hex = name.startsWith("[") ? name.slice(1, -1) : TAILWIND[name];
     if (!hex || !OPAQUE_HEX.test(hex)) {
       throw new Error(
-        `mesh-composite: app-shell.tsx paints ${text}, and this module cannot ` +
+        `mesh-composite: gradient-depth.tsx paints ${text}, and this module cannot ` +
           `reduce "${name}" to a colour. Add it to the Tailwind lookup, or ` +
           `express it as a hex — a depth layer left out of the composite ` +
           `makes the worst case look better than the page, which is the one ` +
@@ -201,12 +224,12 @@ function shellBlobLayers(source: string): MeshLayer[] {
           : Number(alpha) / 100;
     if (!Number.isFinite(a)) {
       throw new Error(
-        `mesh-composite: app-shell.tsx paints ${text} and its alpha ` +
+        `mesh-composite: gradient-depth.tsx paints ${text} and its alpha ` +
           `"${alpha}" is not a number this module can use.`
       );
     }
     out.push({
-      source: `app-shell ${text}`,
+      source: `depth ${text}`,
       text,
       rgba: [
         parseInt(hex.slice(1, 3), 16),
@@ -235,7 +258,7 @@ function over(fg: Rgba, dst: readonly number[]): number[] {
 export function compositeMeshCorners(
   css: string,
   theme: ThemeName,
-  shellSource: string = readFileSync(APP_SHELL_PATH, "utf8")
+  shellSource: string = readFileSync(DEPTH_PATH, "utf8")
 ): MeshComposite[] {
   const base = surfaceBase(css, theme);
   const all = [...meshBloomLayers(css), ...shellBlobLayers(shellSource)];
@@ -290,7 +313,7 @@ function toHex(rgb: readonly number[]): string {
 export function compositeMeshWorstCase(
   css: string,
   theme: ThemeName,
-  shellSource: string = readFileSync(APP_SHELL_PATH, "utf8")
+  shellSource: string = readFileSync(DEPTH_PATH, "utf8")
 ): MeshComposite {
   const corners = compositeMeshCorners(css, theme, shellSource);
   const base = corners[0].base;
