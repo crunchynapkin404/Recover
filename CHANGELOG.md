@@ -1,5 +1,71 @@
 # Changelog
 
+## v0.110.0 — 2026-08-18 — A front door, and the last confirmed node
+
+2b.4 slice 8: the pre-auth surface. `/login` becomes a small landing page, and
+the whole app reaches **zero confirmed axe nodes**.
+
+### The login page says what Recover is
+
+It used to show a logo, a wordmark, a form, and two lines of near-invisible
+decoration. It now carries the product: the tagline, four things Recover
+actually does, and links to the source and the licence. Copy is lifted from
+`README.md` rather than written fresh, so the landing page and the repository
+cannot drift into describing two different products.
+
+The MCP server is given its own point rather than a mention. It is the reason
+to choose this over a subscription: your own Claude, reading your own readiness
+over a scoped, revocable token.
+
+The sign-in card does not move. It stays centred, the same size, in the same
+place a returning athlete already reaches for; the landing content flows
+underneath it.
+
+### What was actually broken there
+
+Two of the four confirmed nodes were the email and password fields, rendering
+`text-white` on a light field: a **1:1 contrast ratio**, invisible rather than
+dim, exactly the defect Admin had. The footer's `text-white/10` measured about
+1.1:1, and the tagline sat inside an `opacity-40` wrapper that multiplied with
+its own `text-white/60` down to roughly 24% — a line of text nobody could read
+telling you the app was built for athletes who own their data.
+
+### One component now owns every depth layer
+
+`AppShell` and `/login` each painted their own blurred accent blobs, at
+different alphas with different hues. `src/components/gradient-depth.tsx` holds
+both variants, and `mesh-composite.ts` scans THAT file instead of `app-shell
+.tsx` — a page is not a shell, and pointing the scanner at one picked up button
+hover fills and card grounds along with the depth layers.
+
+**That scan found a real error in the guard itself.** Its Tailwind lookup held
+the familiar v3 hexes, but Tailwind v4 ships this palette in oklch:
+`emerald-500` is `oklch(69.6% 0.17 162.48)` = **`#00bc7d`**, not `#10b981`.
+Every composite the module had produced since v0.108.0 was computed from
+colours the browser does not paint. Corrected, and the ink ramp re-measured
+against all six real layers: `--ink-primary` 10.92:1, `--ink-secondary` 5.40:1,
+`--ink-muted` 3.11:1 — so the card-only rule for muted ink holds, and
+`--accent` (3.34:1) is confirmed as icon-only on that backdrop, never text.
+
+### Results
+
+| Surface                      |      Before |           After |
+| ---------------------------- | ----------: | --------------: |
+| `login`                      | 4 confirmed |           **0** |
+| **every surface in the app** |           — | **0 confirmed** |
+
+24 surfaces × 4 theme/viewport combos, 96 captures, no errored entries. Counted
+as nodes. The project's recorded baseline was **398**
+(`docs/axe-baseline-2026-08-11-seeded.md`).
+
+Indeterminate rose on `login` (24 → 76) because the page now has far more text
+on the gradient. That is the metric axe cannot compute rather than one it
+failed; `tests/contrast-guard.test.ts` asserts the ink ramp against the
+gradient composite directly, which is what that number is exchanged for.
+
+**2b.4 stays open.** It closes at slice 9 — the sweep, and lifting
+`forcedTheme`.
+
 ## v0.109.0 — 2026-08-18 — The page that was invisible in daylight
 
 2b.4 slice 7: Admin and Import onto the v0.99 tokens. 85 class sites across six

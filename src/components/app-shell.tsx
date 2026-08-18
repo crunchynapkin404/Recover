@@ -1,4 +1,5 @@
 import { BottomNav } from "@/components/bottom-nav";
+import { GradientDepth } from "@/components/gradient-depth";
 import { SidebarNav } from "@/components/sidebar-nav";
 
 export interface ShellUser {
@@ -30,11 +31,7 @@ interface Props {
 export function AppShell({ children, noChrome = false, user, overlay }: Props) {
   return (
     <div className="mesh-gradient relative min-h-svh pb-32 pt-[env(safe-area-inset-top)] lg:pb-0">
-      {/* Depth layers */}
-      <div className="pointer-events-none fixed inset-0 z-0">
-        <div className="absolute left-[-10%] top-[-10%] h-1/2 w-[60%] rounded-full bg-emerald-500/5 blur-[120px]" />
-        <div className="absolute bottom-[10%] right-[-10%] h-[40%] w-[50%] rounded-full bg-blue-500/5 blur-[120px]" />
-      </div>
+      <GradientDepth />
 
       {/* Desktop sidebar (lg+); small screens use the bottom tab bar below. */}
       <SidebarNav user={user ?? null} />

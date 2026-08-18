@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
+import { GradientDepth } from "@/components/gradient-depth";
+import { LandingInfo } from "@/components/login/landing-info";
 import { ShieldCheck, ArrowRight } from "lucide-react";
 
 export default function LoginPage() {
@@ -36,27 +38,23 @@ export default function LoginPage() {
 
   return (
     <div className="mesh-gradient relative flex min-h-svh flex-col items-center justify-center overflow-hidden p-6">
-      {/* Depth layers */}
-      <div className="pointer-events-none fixed inset-0">
-        <div className="absolute left-[-10%] top-[-5%] h-[60%] w-[60%] rounded-full bg-emerald-500/10 blur-[150px]" />
-        <div className="absolute bottom-[10%] right-[-10%] h-[50%] w-[50%] rounded-full bg-indigo-500/10 blur-[150px]" />
-      </div>
+      <GradientDepth variant="auth" />
 
       {/* Logo */}
       <div className="relative z-10 mb-12 flex flex-col items-center gap-3">
-        <div className="mb-2 flex h-16 w-16 items-center justify-center rounded-3xl border border-emerald-500/20 bg-emerald-500/10">
-          <ShieldCheck className="size-8 text-emerald-400" strokeWidth={1.5} />
+        <div className="mb-2 flex h-16 w-16 items-center justify-center rounded-3xl border border-accent/20 bg-accent/10">
+          <ShieldCheck className="size-8 text-accent" strokeWidth={1.5} />
         </div>
-        <h1 className="text-4xl font-bold tracking-tighter text-white">
+        <h1 className="text-hero font-bold tracking-tighter text-ink-primary">
           RECOVER
         </h1>
-        <span className="text-[10px] font-bold uppercase tracking-[0.4em] text-white/30">
-          Recovery &amp; Training Analytics
-        </span>
+        <p className="max-w-md text-balance text-center text-body leading-relaxed text-ink-secondary">
+          Your training and recovery, in one calm place — self-hosted and free.
+        </p>
       </div>
 
       {/* Login card */}
-      <div className="glass relative z-10 w-full max-w-sm rounded-[2.5rem] border-white/5 p-8 shadow-2xl">
+      <div className="glass relative z-10 w-full max-w-sm rounded-[2.5rem] border-hairline p-8 shadow-2xl">
         <form onSubmit={onSubmit} className="space-y-6">
           <div className="space-y-4">
             <div>
@@ -71,7 +69,7 @@ export default function LoginPage() {
                 placeholder="you@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="login-input w-full rounded-2xl px-6 py-4 text-sm text-white placeholder:text-white/20"
+                className="login-input w-full rounded-2xl px-6 py-4 text-caption text-ink-primary placeholder:text-ink-secondary"
               />
             </div>
             <div>
@@ -83,13 +81,16 @@ export default function LoginPage() {
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="login-input w-full rounded-2xl px-6 py-4 text-sm text-white placeholder:text-white/20"
+                className="login-input w-full rounded-2xl px-6 py-4 text-caption text-ink-primary placeholder:text-ink-secondary"
               />
             </div>
           </div>
 
           {error && (
-            <p role="alert" className="text-center text-sm text-red-400">
+            <p
+              role="alert"
+              className="text-center text-caption text-destructive-ink"
+            >
               {error}
             </p>
           )}
@@ -98,7 +99,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-500 py-4 font-bold text-black transition-all duration-300 hover:bg-emerald-400 hover:shadow-[0_0_30px_rgba(16,185,129,0.4)] hover:-translate-y-px active:translate-y-0 disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-accent py-4 font-bold text-accent-foreground transition-all duration-300 hover:opacity-90 hover:-translate-y-px active:translate-y-0 disabled:opacity-50"
             >
               <span>{loading ? "Signing in…" : "Sign In"}</span>
               {!loading && <ArrowRight className="size-[18px]" />}
@@ -107,19 +108,7 @@ export default function LoginPage() {
         </form>
       </div>
 
-      {/* Tagline */}
-      <div className="relative z-10 mt-12 text-center opacity-40">
-        <p className="text-xs font-medium tracking-wide text-white/60">
-          Built for athletes who own their data.
-        </p>
-      </div>
-
-      {/* Footer */}
-      <div className="mt-auto pb-8">
-        <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/10">
-          Invite Only · Self-Hosted
-        </p>
-      </div>
+      <LandingInfo />
     </div>
   );
 }

@@ -386,14 +386,16 @@ so" — is currently spoken in six dialects: `—` (47 uses), `calibrating` (39)
       confirmed-dead component; 2 sites investigated and excluded), and
       `docs/plans/2026-08-09-uncertainty-vocabulary-admin-misc.md` (no code
       change needed).
-- [ ] **2b.4 — Visual redesign. SLICES 0-7 OF 10 SHIPPED — v0.99.0, v0.100.0
+- [ ] **2b.4 — Visual redesign. SLICES 0-8 OF 10 SHIPPED — v0.99.0, v0.100.0
       (both 2026-08-12), v0.101.0 and v0.102.0 (2026-08-13), v0.103.0
       (2026-08-14), v0.105.0 (2026-08-16, slice 5's phase A only) and v0.106.0
       (2026-08-17, slice 5's phase B — the Settings redesign itself),
       v0.107.0 (2026-08-17, slice 6's phase A only), v0.108.0
       (2026-08-18, slice 6's phase B — the Activity redesign itself) and
-      v0.109.0 (2026-08-18, slice 7 — Admin + Import); the item stays open
-      and closes at slice 9, not before.**
+      v0.109.0 (2026-08-18, slice 7 — Admin + Import) and v0.110.0
+      (2026-08-18, slice 8 — the pre-auth landing page, at which point the
+      whole app reached zero confirmed axe nodes); the item stays open and
+      closes at slice 9, not before.**
       v0.99.0 built the foundations only — two token sets
       with light and dark, a seven-step type scale on a hard 12px floor, a
       four-step ink ramp, four guards, and the headless capture/axe tooling the
