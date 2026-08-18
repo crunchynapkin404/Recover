@@ -31,11 +31,21 @@ Prod's running image digest, recorded whenever it changes:
 
 | Date       | Version  | Digest                                                                    | Soaked?                             |
 | ---------- | -------- | ------------------------------------------------------------------------- | ----------------------------------- |
+| 2026-08-18 | v0.111.0 | `sha256:4395e18768e62671b3e9ffe9967ac3bd1ade0412ef17f954a7a37374a96ae3f8` | **yes**                             |
 | 2026-08-17 | v0.106.0 | `sha256:2ed296b142bb3e3fd73d057296f3f7b896c7ff168d992e5f270d940997f52032` | **yes**                             |
 | 2026-08-17 | v0.105.1 | `sha256:4f2abdc0124e139a776fe4710027fa1591763a6a6efa249b134bb1d4809661a2` | **yes**                             |
 | 2026-08-16 | v0.104.0 | `sha256:d7771b840f313a5ce0b2054983077712cf90ab6642cb85cf06c425082621cc6f` | **no** — see below                  |
 | 2026-08-16 | v0.104.0 | `sha256:473fc46f763739d0c014a4eff869a0219c111de09c5ba4e240d49f5830c45413` | yes, but superseded within the hour |
 | 2026-08-14 | v0.103.0 | `sha256:8c0b451ad7f752ff72d304e2de394cedd9417dac13584d1aca970fa62c42fbb2` | pre-gate                            |
+
+**v0.111.0 carries five releases' worth of work, and that is worth knowing
+before rolling back.** v0.107.0, v0.108.0, v0.110.0 and v0.111.0 were each
+tagged and given a GitHub release, but none built an image: `release.yml`
+triggers on `v*-rc.*` only, and no RC preceded any of them, so `:latest` never
+moved and prod ran v0.106.0 from 2026-08-17 until 2026-08-18. `v0.111.0-rc.1`
+is the first RC since, so rolling back from here lands on **v0.106.0** — there
+is no intermediate digest to stop at. Safe in schema terms: there are **zero
+migrations** between the two.
 
 **Do not roll back to `d7771b84`.** It is a rebuild of v0.104.0's commit that
 the final `vX.Y.Z` tag produced _after_ `473fc46f` had been promoted,
