@@ -53,6 +53,32 @@ export const CHART_TOKENS = {
   },
 } as const;
 
+/**
+ * The four streams `activity/[id]` charts, by name rather than by index into
+ * the series palette. Every one of these was a hex literal repeated at the
+ * call site; four of them were already in `CHART_TOKENS.series` with the same
+ * semantic comment, so the literals were duplicates of this file rather than
+ * choices of their own.
+ */
+export const STREAM_COLORS = {
+  heartrate: CHART_TOKENS.series[5], // #f87171 red-400
+  power: CHART_TOKENS.series[6], // #a78bfa violet-400
+  pace: CHART_TOKENS.series[7], // #22d3ee cyan-400
+  elevation: CHART_TOKENS.series[2], // #34d399 emerald-400
+} as const;
+
+/**
+ * A `#rrggbb` from the palette at an alpha, for the area fill drawn under a
+ * stream line. Exists so a fill cannot drift from the stroke it sits under:
+ * elevation's fill was written out as `rgba(52,211,153,0.15)`, which is the
+ * same colour as its line restated in another notation, where changing one
+ * would silently not change the other.
+ */
+export function chartFill(hex: string, alpha: number): string {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
 /** Shared tooltip/label number format: round to `decimals` places (default 0). */
 export function formatChartValue(v: number, decimals = 0): string {
   const factor = 10 ** decimals;
