@@ -1138,7 +1138,7 @@ async function resolveCoachThreadPath(page: Page): Promise<string> {
     throw new Error(
       "no a[data-chat-thread] link on /coach?history=1 — the seeded CHAT " +
         "thread ('Should I go hard today?') is missing. Run " +
-        "scripts/seed-demo.ts against the dev DB (5435) first. Refusing to " +
+        "scripts/seed-demo.ts against the dev DB (5434) first. Refusing to " +
         'fall back to a[href^="/coach?thread="]: that would silently ' +
         "capture an inbox thread instead of the seeded chat thread, which " +
         "is the exact bug this resolver exists to avoid."
@@ -1307,36 +1307,56 @@ async function main() {
         total++;
       }
 
+      /**
+       * coach-thread, activity-detail and debrief-sheet differ only in their
+       * name and in how their path is resolved. Everything else — capture,
+       * record the hard failure, file an empty axe entry so a failed surface
+       * is not merely absent from the report, flush — was the same ~30 lines
+       * written three times. Slices 7-9 add more resolved surfaces, so it is
+       * one helper.
+       *
+       * The path arrives as a thunk rather than a string so a caller can do
+       * work that must happen inside the try: activity-detail keeps the id it
+       * resolved, and debrief-sheet throws from inside its own resolver when
+       * that id never arrived.
+       */
+      const captureResolved = async (
+        name: string,
+        resolvePath: () => Promise<string>
+      ) => {
+        try {
+          const path = await resolvePath();
+          await captureWithRetry(
+            p,
+            name,
+            path,
+            join(outDir, `${name}-${theme}-${vpName}.png`),
+            dark,
+            theme,
+            vpName
+          );
+          total++;
+        } catch (err) {
+          const message =
+            `${name} FAILED for ${theme}/${vpName}: ` +
+            `${err instanceof Error ? err.message : String(err)}`;
+          console.error(message);
+          hardFailures.push(message);
+          axeReport.push({
+            surface: name,
+            theme,
+            viewport: vpName,
+            confirmed: [],
+            indeterminate: [],
+            error: err instanceof Error ? err.message : String(err),
+          });
+          writeReport();
+        }
+      };
+
       // Resolved per context: the storage state is fresh each time and the
       // href is cheap to re-read. A failure here is hard — see the resolver.
-      try {
-        const threadPath = await resolveCoachThreadPath(p);
-        await captureWithRetry(
-          p,
-          "coach-thread",
-          threadPath,
-          join(outDir, `coach-thread-${theme}-${vpName}.png`),
-          dark,
-          theme,
-          vpName
-        );
-        total++;
-      } catch (err) {
-        const message =
-          `coach-thread FAILED for ${theme}/${vpName}: ` +
-          `${err instanceof Error ? err.message : String(err)}`;
-        console.error(message);
-        hardFailures.push(message);
-        axeReport.push({
-          surface: "coach-thread",
-          theme,
-          viewport: vpName,
-          confirmed: [],
-          indeterminate: [],
-          error: err instanceof Error ? err.message : String(err),
-        });
-        writeReport();
-      }
+      await captureResolved("coach-thread", () => resolveCoachThreadPath(p));
 
       // Resolved per context, same reasoning as coach-thread above: the
       // storage state is fresh each time and the href is cheap to re-read.
@@ -1344,35 +1364,11 @@ async function main() {
       // resolved activity id is also reused below for debrief-sheet's deep
       // link, so it is captured into a variable rather than only a path.
       let activityId: string | undefined;
-      try {
+      await captureResolved("activity-detail", async () => {
         const detailPath = await resolveActivityDetailPath(p);
         activityId = detailPath.replace(/^\/activity\//, "");
-        await captureWithRetry(
-          p,
-          "activity-detail",
-          detailPath,
-          join(outDir, `activity-detail-${theme}-${vpName}.png`),
-          dark,
-          theme,
-          vpName
-        );
-        total++;
-      } catch (err) {
-        const message =
-          `activity-detail FAILED for ${theme}/${vpName}: ` +
-          `${err instanceof Error ? err.message : String(err)}`;
-        console.error(message);
-        hardFailures.push(message);
-        axeReport.push({
-          surface: "activity-detail",
-          theme,
-          viewport: vpName,
-          confirmed: [],
-          indeterminate: [],
-          error: err instanceof Error ? err.message : String(err),
-        });
-        writeReport();
-      }
+        return detailPath;
+      });
 
       // debrief-sheet reuses activity-detail's resolved id (Task 2 brief) —
       // deep-linked explicitly rather than bare ?sheet=debrief because
@@ -1380,7 +1376,7 @@ async function main() {
       // NULL on every seeded row. If activity-detail's resolver failed
       // above, there is no id to link to, so this is recorded as a hard
       // failure too rather than silently vanishing from the report.
-      try {
+      await captureResolved("debrief-sheet", async () => {
         if (!activityId) {
           throw new Error(
             "no activity id available — resolveActivityDetailPath did not " +
@@ -1388,33 +1384,8 @@ async function main() {
               "failure above)."
           );
         }
-        const sheetPath = `/?sheet=debrief&activity=${activityId}`;
-        await captureWithRetry(
-          p,
-          "debrief-sheet",
-          sheetPath,
-          join(outDir, `debrief-sheet-${theme}-${vpName}.png`),
-          dark,
-          theme,
-          vpName
-        );
-        total++;
-      } catch (err) {
-        const message =
-          `debrief-sheet FAILED for ${theme}/${vpName}: ` +
-          `${err instanceof Error ? err.message : String(err)}`;
-        console.error(message);
-        hardFailures.push(message);
-        axeReport.push({
-          surface: "debrief-sheet",
-          theme,
-          viewport: vpName,
-          confirmed: [],
-          indeterminate: [],
-          error: err instanceof Error ? err.message : String(err),
-        });
-        writeReport();
-      }
+        return `/?sheet=debrief&activity=${activityId}`;
+      });
 
       // Reach and capture the api-tokens-card "token created" state, once
       // per theme/viewport combination, then clean up via the real UI.
