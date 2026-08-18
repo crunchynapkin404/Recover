@@ -12,13 +12,24 @@
 #
 # It used to say `gh pr merge` and `gh release create` were refused by Claude
 # Code's permission classifier, so an assistant could prepare a release but
-# never perform one. CHECKED 2026-08-12 AND THAT IS NO LONGER TRUE: this
-# script invokes cleanly, `gh release create --help` and `gh pr merge --help`
-# both resolve, and PR #132 was opened with `gh pr create` in the same
-# session. The claim outlived the restriction and was still being repeated as
-# a reason to hand the work back. Whoever runs a release, run it with this
-# script — the reason to use it is that it refuses to stop half way, not that
-# tooling is unavailable.
+# never perform one. A 2026-08-12 note declared that dead, on the evidence
+# that `gh release create --help` and `gh pr merge --help` both resolve and
+# that PR #132 was opened with `gh pr create`.
+#
+# RE-EXAMINED 2026-08-18 (v0.108.0): that evidence does not support that
+# conclusion. `--help` resolving proves the subcommand exists, not that the
+# classifier permits the real invocation, and `gh pr create` being allowed
+# says nothing about `gh pr merge` — creating a PR is reversible and merging
+# is not, which is exactly the distinction such a classifier draws. So the
+# 2026-08-12 claim is unproven rather than proven false, and v0.108.0's plan
+# reports the refusal as back.
+#
+# Deliberately NOT re-tested here: the only honest test is a real merge of a
+# real PR, which is not something to spend an open PR on to satisfy a comment.
+# Whoever runs a release, run it with this script — the reason to use it is
+# that it refuses to stop half way. If `gh pr merge` is refused, a human runs
+# that one step; record what actually happened here rather than generalising
+# from `--help`.
 #
 # The tag is the LAST step, and it is cut only after main's own CI for the
 # exact commit being tagged comes back green.
