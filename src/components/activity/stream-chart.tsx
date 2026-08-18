@@ -43,7 +43,10 @@ export function StreamChart({
     fill && pts.length > 1 ? `0,40 ${pts.join(" ")} 100,40` : null;
 
   return (
-    <div className="rounded-[18px] border border-white/[0.08] bg-white/[0.03] p-4">
+    <div
+      data-stream-chart
+      className="rounded-[18px] border border-white/[0.08] bg-white/[0.03] p-4"
+    >
       <div className="mb-2 flex items-baseline justify-between gap-3">
         <h3 className="text-[11px] font-bold">{label}</h3>
         <span className="text-[9.5px] font-bold uppercase tracking-[0.15em] text-white/40">

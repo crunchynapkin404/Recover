@@ -14,9 +14,10 @@
 import { fileURLToPath } from "node:url";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, ne } from "drizzle-orm";
 import { db, schema } from "../src/lib/db";
 import { computeDailyMetrics } from "../src/lib/metrics";
+import type { ActivityLap } from "../src/lib/activity-streams";
 // The app's own AES-256-GCM helper, used so seeded connector rows have an
 // honest SHAPE. The plaintext inside them is deliberately worthless — see
 // seedSettingsStates, and docs/ENVIRONMENTS.md's rule that the dev box never
@@ -369,6 +370,7 @@ async function main() {
   await seedDemoChat(userId);
   await seedDemoInbox(userId);
   await seedSettingsStates(userId);
+  await seedActivityStreams(userId, rand);
 
   console.log(
     `Seeded ${days} wellness days + ${activityCount} activities; computed ${computed} daily metrics.`
@@ -709,5 +711,187 @@ async function seedSettingsStates(userId: string): Promise<void> {
 
   console.log(
     "Seeded Settings states: connections, webhooks, push, llm usage."
+  );
+}
+
+/**
+ * The states /activity/[id] needs to render as anything but StreamDataEmpty.
+ *
+ * activity_streams had 0 rows against 114 seeded activities.
+ * getOrFetchActivityDetail (src/lib/activity-streams.ts) reads cached rows
+ * first and, finding none, falls through to an intervals.icu fetch dev has
+ * no credentials for, returning reason: "unavailable" — so charts and the
+ * laps table were unreachable on every seeded database. Same trap as
+ * seedDemoInbox and seedSettingsStates, one surface later.
+ *
+ * The capture resolver opens the first activity link on
+ * `/train?tab=history`, which lists newest-first, so it's the most recent
+ * activity — not an arbitrary one — that needs data.
+ *
+ * Shapes are written against what fromRows (activity-streams.ts) actually
+ * parses: a row's `type` of "intervals" (LAPS_TYPE there) is the laps
+ * array; every other `type` is stored directly as `streams[row.type]`, a
+ * plain (number | null)[]. The reading pages key off `heartrate`, `watts`,
+ * `altitude` and — confirmed against both connectors/intervals.ts's
+ * STREAM_TYPES and the velocity read on the detail/Today pages —
+ * `velocity_smooth`, matching schema.ts's inline comment. `time` is seeded
+ * too since it's one of intervals.icu's five fetched stream types, even
+ * though no chart reads it directly.
+ *
+ * Series are ~300 points of *varying* values on purpose: StreamChart
+ * downsamples to 300 and bails (`nums.length < 2` → null) or clamps a zero
+ * range to 1, so a constant series photographs as a flat line and proves
+ * nothing about the component the capture exists to audit.
+ */
+export async function seedActivityStreams(
+  userId: string,
+  rand: () => number
+): Promise<void> {
+  const activity = await db.query.activities.findFirst({
+    where: eq(schema.activities.userId, userId),
+    orderBy: (t, { desc }) => [desc(t.startDate)],
+  });
+  if (!activity) return;
+
+  const POINTS = 300;
+  const dtS =
+    activity.durationS && activity.durationS > 0
+      ? activity.durationS / POINTS
+      : 3;
+  const hrBase = activity.avgHr ?? 138;
+  const wattsBase = activity.avgPower ?? 180;
+
+  // time: steadily increasing seconds across the ride's real duration.
+  const time: number[] = [];
+  for (let i = 0; i < POINTS; i++) time.push(Math.round(i * dtS));
+
+  // heartrate: slow aerobic-drift upward plus per-sample noise.
+  const heartrate: number[] = [];
+  for (let i = 0; i < POINTS; i++) {
+    const drift = (i / POINTS) * 14;
+    const noise = (rand() - 0.5) * 10;
+    heartrate.push(Math.round(clamp(hrBase - 7 + drift + noise, 80, 195)));
+  }
+
+  // watts: spiky — periodic surges (intervals) over a noisy base, never flat.
+  const watts: number[] = [];
+  for (let i = 0; i < POINTS; i++) {
+    const surge = Math.sin(i / 9) > 0.6 ? 90 + rand() * 60 : 0;
+    const noise = (rand() - 0.5) * 40;
+    watts.push(Math.max(0, Math.round(wattsBase - 20 + surge + noise)));
+  }
+
+  // velocity_smooth: m/s, gentle rolling variation around a plausible pace.
+  const velocitySmooth: number[] = [];
+  for (let i = 0; i < POINTS; i++) {
+    const wave = Math.sin(i / 24) * 1.6;
+    const noise = (rand() - 0.5) * 0.8;
+    velocitySmooth.push(round1(Math.max(0, 7.2 + wave + noise)));
+  }
+
+  // altitude: smooth rolling terrain profile, not sample-to-sample noise.
+  const altitude: number[] = [];
+  let alt = 120 + rand() * 40;
+  for (let i = 0; i < POINTS; i++) {
+    alt += Math.sin(i / 40) * 1.8 + (rand() - 0.5) * 0.6;
+    altitude.push(round1(Math.max(0, alt)));
+  }
+
+  const seriesRows: { type: string; data: number[] }[] = [
+    { type: "time", data: time },
+    { type: "heartrate", data: heartrate },
+    { type: "watts", data: watts },
+    { type: "velocity_smooth", data: velocitySmooth },
+    { type: "altitude", data: altitude },
+  ];
+
+  for (const row of seriesRows) {
+    const existing = await db.query.activityStreams.findFirst({
+      where: and(
+        eq(schema.activityStreams.activityId, activity.id),
+        eq(schema.activityStreams.type, row.type)
+      ),
+    });
+    if (existing) continue;
+    await db.insert(schema.activityStreams).values({
+      activityId: activity.id,
+      type: row.type,
+      data: row.data,
+    });
+  }
+
+  // Laps: warm-up/interval/recovery/interval/cool-down, so LapsTable's
+  // recovery-dimmed treatment (label matches /recover|rest|cool|warm/i) and
+  // its normal treatment both get exercised.
+  const LAPS_TYPE = "intervals"; // matches LAPS_TYPE in activity-streams.ts
+  const lapPlan: { label: string; work: boolean }[] = [
+    { label: "Warm-up", work: false },
+    { label: "Interval 1", work: true },
+    { label: "Recovery", work: false },
+    { label: "Interval 2", work: true },
+    { label: "Cool-down", work: false },
+  ];
+  const laps: ActivityLap[] = lapPlan.map((lap, i) => ({
+    index: i + 1,
+    label: lap.label,
+    durationS: Math.round(
+      (lap.work ? 480 : 300) + rand() * (lap.work ? 120 : 90)
+    ),
+    distanceM: Math.round(
+      (lap.work ? 2400 : 1200) + rand() * (lap.work ? 600 : 400)
+    ),
+    avgHr: Math.round(hrBase + (lap.work ? 18 : -22) + rand() * 8),
+    avgPower: Math.round(wattsBase + (lap.work ? 55 : -60) + rand() * 20),
+  }));
+
+  const existingLaps = await db.query.activityStreams.findFirst({
+    where: and(
+      eq(schema.activityStreams.activityId, activity.id),
+      eq(schema.activityStreams.type, LAPS_TYPE)
+    ),
+  });
+  if (!existingLaps) {
+    await db.insert(schema.activityStreams).values({
+      activityId: activity.id,
+      type: LAPS_TYPE,
+      data: laps,
+    });
+  }
+
+  // debriefState=pending must NOT land on this activity. /activity/[id]
+  // renders ActivityDebriefSection inline and unconditionally, so a pending
+  // debrief here would sit right over the vertical band the stream charts
+  // occupy — axe still audits them (they're in the DOM) but
+  // activity-detail-dark-desktop.png would show the debrief panel instead
+  // of the charts this seed exists to make visible, defeating the
+  // screenshot's whole purpose. It goes on the next-newest activity
+  // instead, resolved by query (not a hardcoded id) so this works on any
+  // database. Both writes are plain idempotent overwrites (not guarded
+  // inserts): the streams activity is actively cleared here because an
+  // earlier version of this seed put pending state directly on it, so
+  // rerunning must move the row, not merely stop adding to it.
+  await db
+    .update(schema.activities)
+    .set({ debriefState: null })
+    .where(eq(schema.activities.id, activity.id));
+
+  const debriefActivity = await db.query.activities.findFirst({
+    where: and(
+      eq(schema.activities.userId, userId),
+      ne(schema.activities.id, activity.id)
+    ),
+    orderBy: (t, { desc }) => [desc(t.startDate)],
+  });
+
+  if (debriefActivity) {
+    await db
+      .update(schema.activities)
+      .set({ debriefState: "pending" })
+      .where(eq(schema.activities.id, debriefActivity.id));
+  }
+
+  console.log(
+    `Seeded activity streams + ${laps.length} laps for activity ${activity.id}; ` +
+      `debriefState=pending on ${debriefActivity ? debriefActivity.id : "(no other activity found)"}.`
   );
 }

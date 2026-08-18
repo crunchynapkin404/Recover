@@ -299,8 +299,24 @@ const SURFACES: Record<string, string> = {
     "/settings?strava_error=denied&whoop_error=denied&withings_error=denied",
   admin: "/admin",
   import: "/import",
+  // activity-log is the manual-entry form, not the detail page an athlete
+  // opens on a ride. The activity id is a per-database uuid, so that page
+  // cannot be a literal SURFACES entry — it is resolved through the UI in
+  // main() by resolveActivityDetailPath, the same shape as coach-thread.
   "activity-log": "/activity/log",
   login: "/login",
+  // The debrief sheet, which no capture has ever opened. It is a <Sheet>,
+  // closed on load, reached only by ?sheet=debrief — so slice 1 declared
+  // Today clean in v0.100.0 without it ever having been rendered, and
+  // slice 6 inherits it. debrief-sheet.tsx is the largest single offender
+  // in Activity's chain (11 arbitrary sizes, 17 ad-hoc alphas, 15 bare
+  // whites) and is shared between Today and /activity/[id].
+  //
+  // Deep-linked with an explicit activity id rather than bare
+  // ?sheet=debrief: SheetHost's no-id path looks for debriefState
+  // "pending", which is NULL on every seeded row. The id is not a literal
+  // either — it is wired in main() from resolveActivityDetailPath's
+  // return value, same as activity-detail.
 };
 
 /**
@@ -357,9 +373,63 @@ async function expandSettingsSections(page: Page): Promise<void> {
     .waitFor({ state: "visible", timeout: 10_000 });
 }
 
+/**
+ * Thrown by waitForDebriefSheetOpen when the debrief sheet did not actually
+ * open. Named so it reads unambiguously in console output and in
+ * axeReport's `error` field, rather than a generic Error that looks the
+ * same as a timeout or a navigation failure.
+ */
+class DebriefSheetNotOpenError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "DebriefSheetNotOpenError";
+  }
+}
+
+/**
+ * debrief-sheet is captured at path "/" (search params carry the sheet
+ * state), and `assertOnSurface` in `captureWithRetry` compares pathname
+ * only — deliberately, per its own doc comment, so a query string can't
+ * make a real navigation mismatch look like a pass. But that means it
+ * CANNOT catch this surface's own failure mode: if `SheetHost`'s
+ * explicit-id branch (`?sheet=debrief&activity=<id>`) ever stops opening
+ * the sheet — a renamed param, the uuid check rejecting a valid id, the
+ * userId join finding nothing — `assertOnSurface` still sees "/" and
+ * passes, and this script would silently screenshot and axe-audit Today
+ * itself, then file the result under the name "debrief-sheet". That is
+ * exactly the shape of the settings-connect-errors defect (task 11
+ * finding): a capture that reaches a page but not the state it exists to
+ * measure, reporting a real number for the wrong thing all release.
+ *
+ * `[role="dialog"]` is BottomSheet's own root (src/components/ui/bottom-
+ * sheet.tsx), shared by DebriefSheet and CheckinSheet — but only DebriefSheet
+ * can render at this surface's URL, and BlockSheet (train/week) is the only
+ * other `role="dialog"` in the app and is unreachable from "/". Mirrors
+ * resolveActivityDetailPath's wait on `[data-stream-chart]`: prove the state
+ * this surface names actually rendered before letting the screenshot or the
+ * axe audit run.
+ */
+async function waitForDebriefSheetOpen(page: Page): Promise<void> {
+  try {
+    await page
+      .locator('[role="dialog"]')
+      .first()
+      .waitFor({ state: "visible", timeout: 10_000 });
+  } catch (err) {
+    throw new DebriefSheetNotOpenError(
+      'debrief-sheet: no [role="dialog"] appeared after navigating to ' +
+        "?sheet=debrief&activity=<id>. SheetHost's explicit-id branch did " +
+        "not open the sheet, so this run would otherwise capture and " +
+        'audit Today itself under the name "debrief-sheet" — refusing ' +
+        `to capture. (${err instanceof Error ? err.message : String(err)})`
+    );
+  }
+}
+
 const SURFACE_PREPARE: Record<string, (page: Page) => Promise<void>> = {
   "settings-expanded": expandSettingsSections,
   "settings-connect-errors": expandSettingsSections,
+  "debrief-sheet": waitForDebriefSheetOpen,
 };
 
 // deviceScaleFactor lives here per-viewport (task-6 review, Finding 4) but is
@@ -1137,6 +1207,61 @@ async function resolveCoachThreadPath(page: Page): Promise<string> {
 }
 
 /**
+ * Resolve a real activity detail path. The id is a per-database UUID, so
+ * this cannot be a literal SURFACES entry.
+ *
+ * Resolves through /train?tab=history — the list that links to detail pages
+ * — then PROVES the resolved page rendered the detail view before handing
+ * the path back, the same discipline resolveCoachThreadPath earned across
+ * three wrong threads. An activity with no cached streams renders
+ * StreamDataEmpty instead of charts, which is a legitimate state but not
+ * the one this surface exists to audit, so the check below demands the
+ * charts.
+ *
+ * `a[href^="/activity/"]` ALONE also matches TrainHeader's "Log activity"
+ * link (`href="/activity/log"`, src/app/train/page.tsx), which renders
+ * before HistoryList's rows in DOM order — so `.first()` over that selector
+ * picked it every time, a plausible-looking wrong match discovered running
+ * this exact resolver, the same shape of trap resolveCoachThreadPath's
+ * three attempts document. `/activity/log` is excluded explicitly rather
+ * than trusted to sort second.
+ */
+async function resolveActivityDetailPath(page: Page): Promise<string> {
+  await page.goto(`${BASE_URL}/train?tab=history`, {
+    waitUntil: "networkidle",
+    timeout: 20_000,
+  });
+  const href = await page
+    .locator('a[href^="/activity/"]:not([href="/activity/log"])')
+    .first()
+    .getAttribute("href", { timeout: 10_000 });
+  if (!href) {
+    throw new Error(
+      'no a[href^="/activity/"] link (other than /activity/log) on ' +
+        "/train?tab=history — the seeded activities are missing. Run " +
+        "scripts/seed-demo.ts against the target database first."
+    );
+  }
+
+  await page.goto(`${BASE_URL}${href}`, {
+    waitUntil: "networkidle",
+    timeout: 20_000,
+  });
+  const charts = await page.locator("[data-stream-chart]").count();
+  if (charts === 0) {
+    throw new Error(
+      `${href} rendered no [data-stream-chart]. activity_streams is empty ` +
+        "for this activity, so getOrFetchActivityDetail fell back to " +
+        "intervals.icu, which dev has no credentials for. Seed streams " +
+        "(Task 3) before capturing this surface — otherwise it audits " +
+        "StreamDataEmpty and reports a number for a page that is not the " +
+        "one this surface names."
+    );
+  }
+  return href;
+}
+
+/**
  * Messages describing surfaces that WERE reached but then failed (task-7
  * review, Finding 2) — as opposed to leakedTokenLabels (cleanup-only
  * failures) or a skipped-but-acceptable "could not reach" — any entry here
@@ -1204,6 +1329,84 @@ async function main() {
         hardFailures.push(message);
         axeReport.push({
           surface: "coach-thread",
+          theme,
+          viewport: vpName,
+          confirmed: [],
+          indeterminate: [],
+          error: err instanceof Error ? err.message : String(err),
+        });
+        writeReport();
+      }
+
+      // Resolved per context, same reasoning as coach-thread above: the
+      // storage state is fresh each time and the href is cheap to re-read.
+      // A failure here is hard — see resolveActivityDetailPath. The
+      // resolved activity id is also reused below for debrief-sheet's deep
+      // link, so it is captured into a variable rather than only a path.
+      let activityId: string | undefined;
+      try {
+        const detailPath = await resolveActivityDetailPath(p);
+        activityId = detailPath.replace(/^\/activity\//, "");
+        await captureWithRetry(
+          p,
+          "activity-detail",
+          detailPath,
+          join(outDir, `activity-detail-${theme}-${vpName}.png`),
+          dark,
+          theme,
+          vpName
+        );
+        total++;
+      } catch (err) {
+        const message =
+          `activity-detail FAILED for ${theme}/${vpName}: ` +
+          `${err instanceof Error ? err.message : String(err)}`;
+        console.error(message);
+        hardFailures.push(message);
+        axeReport.push({
+          surface: "activity-detail",
+          theme,
+          viewport: vpName,
+          confirmed: [],
+          indeterminate: [],
+          error: err instanceof Error ? err.message : String(err),
+        });
+        writeReport();
+      }
+
+      // debrief-sheet reuses activity-detail's resolved id (Task 2 brief) —
+      // deep-linked explicitly rather than bare ?sheet=debrief because
+      // SheetHost's no-id path looks for debriefState "pending", which is
+      // NULL on every seeded row. If activity-detail's resolver failed
+      // above, there is no id to link to, so this is recorded as a hard
+      // failure too rather than silently vanishing from the report.
+      try {
+        if (!activityId) {
+          throw new Error(
+            "no activity id available — resolveActivityDetailPath did not " +
+              "resolve one for this theme/viewport (see the activity-detail " +
+              "failure above)."
+          );
+        }
+        const sheetPath = `/?sheet=debrief&activity=${activityId}`;
+        await captureWithRetry(
+          p,
+          "debrief-sheet",
+          sheetPath,
+          join(outDir, `debrief-sheet-${theme}-${vpName}.png`),
+          dark,
+          theme,
+          vpName
+        );
+        total++;
+      } catch (err) {
+        const message =
+          `debrief-sheet FAILED for ${theme}/${vpName}: ` +
+          `${err instanceof Error ? err.message : String(err)}`;
+        console.error(message);
+        hardFailures.push(message);
+        axeReport.push({
+          surface: "debrief-sheet",
           theme,
           viewport: vpName,
           confirmed: [],

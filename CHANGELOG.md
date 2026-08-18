@@ -1,5 +1,85 @@
 # Changelog
 
+## v0.107.0 — 2026-08-17 — The pages nobody had ever opened
+
+2b.4 slice 6's phase A: Activity's redesign, scoped by measurement rather
+than guessed at up front. The activity detail page — where an athlete
+actually opens a ride — had no capture surface at all, and the debrief
+sheet had never once been opened by any capture either. Making both
+visible found 89 confirmed axe nodes, past the agreed 30-node threshold, so
+**phase A ships alone as v0.107.0 and the redesign becomes v0.108.0** — the
+same split slice 5 took at 86.
+
+**What an athlete notices: nothing.** This release changes no rendered
+style, no figure and no behaviour. It is tooling, seeding and measurement —
+the same sentence v0.105.0 wrote for the same reason.
+
+### The detail page nobody had ever photographed
+
+`SURFACES` mapped `activity-log` to `/activity/log`, which renders only
+`ActivityLogForm` and `ActivityLogEmpty` — the manual-entry form. The page
+an athlete actually opens after a ride, `/activity/[id]`, had no `SURFACES`
+entry at all, so its whole render chain — six components, 27 arbitrary type
+sizes, 20 of them below the 12px floor down to `text-[8.5px]` — had never
+been photographed or axe-audited by any prior slice. `activity-log`'s
+46-node figure, unchanged in this run, only ever described the form.
+
+`activity_streams` was empty on every seeded database, so
+`getOrFetchActivityDetail` fell through to an intervals.icu fetch dev has no
+credentials for, and the detail page could only ever render
+`StreamDataEmpty`. Seeded now, so the page that actually renders on a ride
+has a state to measure at all.
+
+**`activity-detail`'s first measurement is 0 confirmed nodes, and that is
+not "clean".** Axe reports 240 indeterminate nodes across the surface's four
+theme/viewport combinations instead — axe could not compute a contrast
+ratio. Of the 60 per theme/viewport combo, only 8 are chart-internal (the
+stream charts' own headers); the other 52 are the page's own text — the
+`<h1>`, the metric tiles' `text-white` and `text-white/40`, the breadcrumb —
+each reporting `messageKey: "bgGradient"` and `contrastRatio: 0` because it
+sits over the page's gradient blob. Three surfaces this run carry more
+indeterminate nodes than activity-detail's 240 — the two Settings expansions
+(522, 510) and `admin` (310) — while a fourth, `settings-token-created`, sits
+below it at 189. A reader should not take 0 confirmed to mean the detail page
+passed; it means axe could not resolve an answer, not that it resolved a
+good one.
+
+### The sheet Today never opened either
+
+`debrief-sheet.tsx` is imported by `src/components/today/sheet-host.tsx` —
+shared with Today, which slice 1 declared clean in v0.100.0 — and by
+`/activity/[id]`. It is a sheet, closed on load, reached only by
+`?sheet=debrief`, and **no capture, Today's or Activity's, had ever opened
+it before this slice.** Its first measurement is **43 confirmed nodes**.
+
+### Today reads 6, not 2
+
+Today's three states (`today`, `today-post-session`, `today-evening`) now
+report 6 confirmed nodes combined, not the 2 recorded after v0.105.0. **Not
+a regression, and not caused by the debrief sheet** — the sheet stays closed
+on all three of Today's own captures. It is the same known light-only
+`text-white` readiness-sentence defect, now counted across all three states
+instead of the one that happened to be measured before.
+
+### The measurement
+
+Per surface, counting nodes rather than rules, all four theme/viewport
+combinations audited, zero skipped:
+
+| Surface           | Confirmed | Note                                                                 |
+| ----------------- | --------: | -------------------------------------------------------------------- |
+| `activity-log`    |        46 | matches its baseline exactly — describes the manual-entry form alone |
+| `activity-detail` |         0 | but 240 indeterminate — see above; not a clean pass                  |
+| `debrief-sheet`   |        43 | first-ever measurement                                               |
+| **Slice 6 total** |    **89** | ≥ 30, so the release splits                                          |
+
+Also in the run: `admin` 182, `import` 8, `login` 4, Today 6 (see above),
+and all four Settings surfaces still **0** — v0.106.0's result holds.
+
+### Migrations
+
+**None.** Image rollback past this release is safe.
+
 ## v0.106.0 — 2026-08-17 — What flexbox and an error param were hiding
 
 2b.4 slice 5's phase B: the Settings redesign v0.105.0 deferred. All 16 files
