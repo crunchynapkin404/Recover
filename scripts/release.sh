@@ -16,20 +16,24 @@
 # that `gh release create --help` and `gh pr merge --help` both resolve and
 # that PR #132 was opened with `gh pr create`.
 #
-# RE-EXAMINED 2026-08-18 (v0.108.0): that evidence does not support that
-# conclusion. `--help` resolving proves the subcommand exists, not that the
-# classifier permits the real invocation, and `gh pr create` being allowed
-# says nothing about `gh pr merge` — creating a PR is reversible and merging
-# is not, which is exactly the distinction such a classifier draws. So the
-# 2026-08-12 claim is unproven rather than proven false, and v0.108.0's plan
-# reports the refusal as back.
+# SETTLED 2026-08-18 (v0.108.0), by running it rather than reasoning about it.
+# THE RESTRICTION IS REAL. Invoking `./scripts/release.sh 0.107.0 145` as an
+# agent is refused outright by the auto-mode classifier ("Blocked by
+# classifier") before the script executes a single line.
 #
-# Deliberately NOT re-tested here: the only honest test is a real merge of a
-# real PR, which is not something to spend an open PR on to satisfy a comment.
-# Whoever runs a release, run it with this script — the reason to use it is
-# that it refuses to stop half way. If `gh pr merge` is refused, a human runs
-# that one step; record what actually happened here rather than generalising
-# from `--help`.
+# The 2026-08-12 evidence never supported its conclusion: `--help` resolving
+# proves a subcommand exists, not that the classifier permits the real
+# invocation, and `gh pr create` being allowed says nothing about `gh pr
+# merge` — creating a PR is reversible and merging is not, which is exactly
+# the distinction the classifier draws. Confirmed in the same session: `git
+# push` and `gh pr create` both succeeded (PR #146), while this script was
+# denied.
+#
+# SO A HUMAN RUNS THE RELEASE. An agent can take it all the way to a green,
+# mergeable PR and should; the merge/tag/publish tail is yours. Do not
+# hand-run the steps individually to get around this — the reason to use the
+# script is that it refuses to stop half way, and half a release is the
+# failure mode it exists to prevent (v0.28.0, v0.28.1, v0.29.0, v0.30.0).
 #
 # The tag is the LAST step, and it is cut only after main's own CI for the
 # exact commit being tagged comes back green.
