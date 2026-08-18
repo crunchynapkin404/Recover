@@ -105,6 +105,25 @@ killed a whole run 16 surfaces in, before `activity-log`, `activity-detail` or
 `debrief-sheet` were reached. The role is now set at creation and re-asserted
 on every reseed.
 
+**The amplifier was the capture loop, and that is fixed too.** The seed bug
+explains one lost run; what made it cost a whole run is that
+`for (const [name, path] of Object.entries(SURFACES))` was not contained.
+`captureWithRetry` rethrows after its second attempt, the throw escaped
+`main()`, and every later surface AND every later theme/viewport combo went
+with it, unrecorded. Every captured surface now goes through the same
+`captureResolved` helper the three resolved surfaces use, so a run finishes and
+reports what failed. Verified by reproducing the original condition: with the
+demo user demoted to `member` again, `admin` is recorded as a failed entry with
+its navigation mismatch and the run carries on to capture `activity-log`,
+`activity-detail` and `debrief-sheet` — the three surfaces the abort had never
+reached. `hardFailures` still makes the exit non-zero.
+
+This also closed a gap `docs/ENVIRONMENTS.md` had carried as unfixable:
+`coach-thread` "cannot be captured on a seeded database at all", because the
+seed gives its six chat threads to `demo@recover.local` while the capture signs
+in as the owner. Those were the same account all along once the seed sets the
+role — all four `coach-thread` combos now capture with no error.
+
 `docs/v0.99-redesign-handoff.md`'s environment traps were corrected against
 `docs/ENVIRONMENTS.md`, `docker ps` and `.env`. The load-bearing error: **dev
 and prod use the same ports on different hosts**, so "5434 is the LIVE
