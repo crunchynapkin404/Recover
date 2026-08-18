@@ -152,9 +152,12 @@ export function NotificationsCard({
             // so this survived every task's own check even though the
             // CHANGELOG claims all 16 files are on the token scale. This is
             // a primary action fill, exactly what --accent/--accent-foreground
-            // is for; dark's values (#10b981 / #000000) are byte-identical
-            // to the old emerald-500/black pair, so the reachable theme's
-            // pixels don't move.
+            // is for. Dark's values are #10b981 / #000000. The foreground
+            // half IS identical (Tailwind's --color-black is #000), but the
+            // fill is not: Tailwind v4 ships emerald-500 as
+            // oklch(69.6% 0.17 162.48), so "byte-identical", as this comment
+            // read until v0.108.0, was false. Visually indistinguishable is
+            // the true claim, and it is the one that matters here.
             className="rounded-2xl bg-accent py-3 text-caption font-bold text-accent-foreground transition-colors hover:opacity-90 disabled:opacity-40"
           >
             Enable notifications

@@ -142,8 +142,10 @@ export function BodyPrefsCard({
           // 2026-08-17) — same fix, same reason, as notifications-card.tsx's
           // Enable button: was `bg-emerald-500 ... text-black`, a raw
           // palette fill neither guard sees (see that file's comment for
-          // the full account). Dark's accent pair is byte-identical to the
-          // old emerald-500/black, so the reachable theme is unchanged.
+          // the full account). Dark's accent pair is visually
+          // indistinguishable from the old emerald-500/black — not
+          // byte-identical, as this comment read until v0.108.0: Tailwind v4
+          // ships emerald-500 as oklch(69.6% 0.17 162.48), not #10b981.
           className="rounded-xl bg-accent px-4 py-2 text-caption font-bold text-accent-foreground transition-colors hover:opacity-90 disabled:opacity-50"
         >
           {pending ? "Saving…" : "Save"}
