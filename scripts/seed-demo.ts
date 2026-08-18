@@ -184,6 +184,21 @@ async function findOrCreateDemoUser(
     where: eq(schema.users.email, email),
   });
   if (existing) {
+    // The role is re-asserted on every reseed, not just at creation. /admin is
+    // a captured surface and redirects every role but owner, and
+    // verify-surfaces.ts treats that redirect as a hard navigation mismatch
+    // that aborts the WHOLE run — in v0.108.0 it killed the capture partway
+    // through the first of four theme/viewport combos, before activity-log,
+    // activity-detail or debrief-sheet were reached. A demo user that drifts
+    // back to member therefore costs a 30-45 minute run, so this does not
+    // trust the row it found.
+    if (existing.role !== "owner") {
+      await db
+        .update(schema.users)
+        .set({ role: "owner" })
+        .where(eq(schema.users.id, existing.id));
+      console.log(`Demo user ${email}: role ${existing.role} → owner.`);
+    }
     console.log(`Demo user ${email} already exists — reseeding data.`);
     return existing.id;
   }
@@ -196,11 +211,13 @@ async function findOrCreateDemoUser(
   const result = await seedAuth.api.signUpEmail({
     body: { email, password, name },
   });
+  // Owner, not Better Auth's default member — see the reseed path above for
+  // what a member costs the capture run.
   await db
     .update(schema.users)
-    .set({ emailVerified: true })
+    .set({ emailVerified: true, role: "owner" })
     .where(eq(schema.users.id, result.user.id));
-  console.log(`Demo user created: ${email}`);
+  console.log(`Demo user created: ${email} (owner)`);
   return result.user.id;
 }
 
