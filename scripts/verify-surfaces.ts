@@ -194,9 +194,11 @@ const BASE_URL = (() => {
   if (!url) {
     throw new Error(
       "SCREENSHOT_BASE_URL is required — this script has no default on purpose.\n" +
-        "Point it at a DEV server, never production:\n" +
-        "  BETTER_AUTH_URL=http://localhost:3100 TRUSTED_ORIGINS=http://localhost:3100 npx next dev -p 3100\n" +
-        "  SCREENSHOT_BASE_URL=http://localhost:3100 npm run verify:surfaces -- <slice>\n" +
+        "Point it at a DEV server, never production.\n" +
+        "NOT 3100 — that is recover-rc-app-1, the RC soak stack; capturing it\n" +
+        "measures the released image instead of your working tree:\n" +
+        "  BETTER_AUTH_URL=http://localhost:3200 TRUSTED_ORIGINS=http://localhost:3200 npx next dev -p 3200\n" +
+        "  SCREENSHOT_BASE_URL=http://localhost:3200 npm run verify:surfaces -- <slice>\n" +
         "See docs/ENVIRONMENTS.md for which box is which."
     );
   }
