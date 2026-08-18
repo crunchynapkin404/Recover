@@ -4,7 +4,7 @@
 > Execute task-by-task, committing at the end of each.
 
 **Goal:** Migrate the six Activity surfaces' 102 remaining class sites onto the
-v0.99 type/ink/surface tokens, and turn `activity-detail`'s 240 *indeterminate*
+v0.99 type/ink/surface tokens, and turn `activity-detail`'s 240 _indeterminate_
 axe nodes into computable ones.
 
 **Architecture:** Three moves, in dependency order. (1) Extend the contrast
@@ -52,13 +52,13 @@ Measured with the guard's **own exported patterns**
 (`src/**/*.{ts,tsx}`, excluding `*.test.*`). Reproduce with
 `npx vitest run tests/type-scale-guard.test.ts`.
 
-| Class | Handoff | **Real** | Verdict |
-| --- | ---: | ---: | --- |
-| arbitrary type (`ARBITRARY_TYPE`) | 27 | **27** | correct |
-| ad-hoc ink (`ADHOC_INK`) | 54 | **54** | correct |
-| default scale (`text-xs`/`text-2xl`) | 13 | **13** | correct |
-| bare `text-white`/`text-black` | 50 | **8** | **wrong — 6× overcounted** |
-| **total class-site edits** | ~144 | **102** | |
+| Class                                | Handoff | **Real** | Verdict                    |
+| ------------------------------------ | ------: | -------: | -------------------------- |
+| arbitrary type (`ARBITRARY_TYPE`)    |      27 |   **27** | correct                    |
+| ad-hoc ink (`ADHOC_INK`)             |      54 |   **54** | correct                    |
+| default scale (`text-xs`/`text-2xl`) |      13 |   **13** | correct                    |
+| bare `text-white`/`text-black`       |      50 |    **8** | **wrong — 6× overcounted** |
+| **total class-site edits**           |    ~144 |  **102** |                            |
 
 The handoff's per-file "bare white" column double-counts the alpha sites
 already in its own ad-hoc-ink column. The **warning** it attaches to that
@@ -69,16 +69,16 @@ and to any grep that only copies `ADHOC_INK`. Use
 
 The 8 bare sites, in full — there is no need to re-derive them:
 
-| File | Line | Class |
-| --- | ---: | --- |
-| `debrief-sheet.tsx` | 106 | `text-black` (RPE pill, selected) |
-| `debrief-sheet.tsx` | 145 | `text-white` (note input) |
-| `debrief-sheet.tsx` | 179 | `text-black` (Save button) |
-| `activity-log-form.tsx` | 22 | `text-white` (`INPUT_CLS`) |
-| `activity-log-form.tsx` | 63 | `text-white` (sport pill, selected) |
-| `activity-log-form.tsx` | 246 | `text-black` (Log Activity button) |
-| `page.tsx` | 121 | `text-white` (metric tile value) |
-| `laps-table.tsx` | 33 | `text-white` (non-recovery lap row) |
+| File                    | Line | Class                               |
+| ----------------------- | ---: | ----------------------------------- |
+| `debrief-sheet.tsx`     |  106 | `text-black` (RPE pill, selected)   |
+| `debrief-sheet.tsx`     |  145 | `text-white` (note input)           |
+| `debrief-sheet.tsx`     |  179 | `text-black` (Save button)          |
+| `activity-log-form.tsx` |   22 | `text-white` (`INPUT_CLS`)          |
+| `activity-log-form.tsx` |   63 | `text-white` (sport pill, selected) |
+| `activity-log-form.tsx` |  246 | `text-black` (Log Activity button)  |
+| `page.tsx`              |  121 | `text-white` (metric tile value)    |
+| `laps-table.tsx`        |   33 | `text-white` (non-recovery lap row) |
 
 **Five hardcoded chart colour literals the handoff's table omits entirely**
 live in `page.tsx:142,150,158,167,170`. Four are exact duplicates of
@@ -129,26 +129,26 @@ Two populations, two different fixes:
 Task 1 handles the second population by **proving** the inks clear 4.5:1
 against the gradient's worst-case composite, rather than leaving it asserted in
 prose. That converts an unverifiable indeterminate into a guarded fact and
-follows the project's own stated preference for guards that *derive* from the
+follows the project's own stated preference for guards that _derive_ from the
 code over prose that asserts what the code does.
 
 ---
 
 ## File Structure
 
-| File | Responsibility this slice |
-| --- | --- |
-| `tests/contrast-guard.test.ts` | **modify** — add mesh-gradient composite worst-case assertions |
-| `src/lib/design/mesh-composite.ts` | **create** — derive the gradient's worst-case composite from `globals.css` |
-| `src/components/activity/stream-chart.tsx` | opaque card, tokens |
-| `src/components/activity/laps-table.tsx` | opaque card, tokens, column widths for 12px |
-| `src/app/activity/[id]/page.tsx` | header ink, opaque tiles, chart colours → `CHART_TOKENS` |
-| `src/components/debrief/activity-debrief-section.tsx` | tokens |
-| `src/components/debrief/debrief-sheet.tsx` | tokens, accent buttons (**shared with Today**) |
-| `src/components/activity/activity-log-form.tsx` | tokens, default scale, accent button |
-| `src/components/activity/delete-activity-button.tsx` | one ink token |
-| `scripts/verify-surfaces.ts` | `captureResolved` helper; stale `(5435)` comment |
-| `tests/type-scale-guard.test.ts` | re-pin both ceilings |
+| File                                                  | Responsibility this slice                                                  |
+| ----------------------------------------------------- | -------------------------------------------------------------------------- |
+| `tests/contrast-guard.test.ts`                        | **modify** — add mesh-gradient composite worst-case assertions             |
+| `src/lib/design/mesh-composite.ts`                    | **create** — derive the gradient's worst-case composite from `globals.css` |
+| `src/components/activity/stream-chart.tsx`            | opaque card, tokens                                                        |
+| `src/components/activity/laps-table.tsx`              | opaque card, tokens, column widths for 12px                                |
+| `src/app/activity/[id]/page.tsx`                      | header ink, opaque tiles, chart colours → `CHART_TOKENS`                   |
+| `src/components/debrief/activity-debrief-section.tsx` | tokens                                                                     |
+| `src/components/debrief/debrief-sheet.tsx`            | tokens, accent buttons (**shared with Today**)                             |
+| `src/components/activity/activity-log-form.tsx`       | tokens, default scale, accent button                                       |
+| `src/components/activity/delete-activity-button.tsx`  | one ink token                                                              |
+| `scripts/verify-surfaces.ts`                          | `captureResolved` helper; stale `(5435)` comment                           |
+| `tests/type-scale-guard.test.ts`                      | re-pin both ceilings                                                       |
 
 ---
 
@@ -157,12 +157,14 @@ code over prose that asserts what the code does.
 The load-bearing task. Everything after it is mechanical.
 
 **Files:**
+
 - Create: `src/lib/design/mesh-composite.ts`
 - Modify: `tests/contrast-guard.test.ts`
 
 **Interfaces:**
+
 - Produces: `compositeMeshWorstCase(css: string, theme: "light" | "dark"):
-  { r: number; g: number; b: number }` — the darkest-in-light /
+{ r: number; g: number; b: number }` — the darkest-in-light /
   lightest-in-dark composite an ink can land on, derived by alpha-compositing
   every `.mesh-gradient` radial stop and both `AppShell` blob layers over
   `--surface-base`.
@@ -184,8 +186,9 @@ describe("mesh-gradient composite as a text backdrop", () => {
     const ground = compositeMeshWorstCase(GLOBALS_CSS, theme);
     for (const ink of ["ink-primary", "ink-secondary", "ink-muted"]) {
       it(`${ink} clears 4.5:1 over the mesh composite in ${theme}`, () => {
-        expect(contrastRatio(tokenValue(theme, ink), ground)).
-          toBeGreaterThanOrEqual(4.5);
+        expect(
+          contrastRatio(tokenValue(theme, ink), ground)
+        ).toBeGreaterThanOrEqual(4.5);
       });
     }
   }
@@ -226,6 +229,7 @@ git commit -m "test(contrast): prove the mesh gradient as a text backdrop"
 Smallest two files; they establish the opaque-card pattern the rest copy.
 
 **Files:**
+
 - Modify: `src/components/activity/stream-chart.tsx:48,51,52`
 - Modify: `src/components/activity/laps-table.tsx:13,14,17,26,33,35`
 
@@ -272,6 +276,7 @@ floor and has no token — it must come up to the floor, not stay).
 grep -nE 'text-\[[^]]*(px|rem|em)\]|\b(text|bg|border|fill|stroke|ring|divide)-(white|black)(\b(?!/)|/)' \
   src/components/activity/stream-chart.tsx src/components/activity/laps-table.tsx
 ```
+
 Expected: no output.
 
 - [ ] **Step 4: Typecheck and commit**
@@ -333,8 +338,8 @@ reference by index; add a named export so the indices are not magic numbers:
 // src/lib/charts.ts — alongside CHART_TOKENS
 export const STREAM_COLORS = {
   heartrate: CHART_TOKENS.series[5], // #f87171 red-400
-  power: CHART_TOKENS.series[6],     // #a78bfa violet-400
-  pace: CHART_TOKENS.series[7],      // #22d3ee cyan-400
+  power: CHART_TOKENS.series[6], // #a78bfa violet-400
+  pace: CHART_TOKENS.series[7], // #22d3ee cyan-400
   elevation: CHART_TOKENS.series[2], // #34d399 emerald-400
 } as const;
 ```
@@ -418,6 +423,7 @@ The note input's bare `text-white` → `text-ink-primary`, and
 ```bash
 npx vitest run tests/debrief
 ```
+
 Expected: PASS. `tests/seed-demo-activity-streams.test.ts` locks the invariant
 that the pending debrief and the streamed activity are different rows — do not
 disturb it.
@@ -435,6 +441,7 @@ git commit -m "feat(debrief): migrate the debrief sheet to tokens"
 ### Task 6: `activity-log-form.tsx` and `delete-activity-button.tsx`
 
 **Files:**
+
 - Modify: `src/components/activity/activity-log-form.tsx` (15 ink, 13 default
   scale, 3 bare)
 - Modify: `src/components/activity/delete-activity-button.tsx:31`
@@ -514,10 +521,10 @@ git commit -m "refactor(verify): collapse three resolve/capture blocks into one 
 Projected from this plan's measurements — **confirm against the suite's own
 reported figure, do not paste these blind**:
 
-| Ceiling | Was | Expected after |
-| --- | ---: | ---: |
-| `"arbitrary type sizes"` | 52 | **25** |
-| `"ad-hoc white/black alpha utilities"` | 127 | **73** |
+| Ceiling                                | Was | Expected after |
+| -------------------------------------- | --: | -------------: |
+| `"arbitrary type sizes"`               |  52 |         **25** |
+| `"ad-hoc white/black alpha utilities"` | 127 |         **73** |
 
 Both gaps (27 and 54) exceed `RATCHET_SLACK` (25), so re-pinning is **forced**,
 not optional. Write the per-file arithmetic into the comment above each
@@ -534,6 +541,7 @@ visually indistinguishable, **not** identical. One line each.
 ```bash
 npx vitest run
 ```
+
 **Do not source `.env` first** — with it sourced, vitest writes real rows to
 the dev database and leaves `*@example.invalid` users behind.
 
@@ -561,7 +569,7 @@ BETTER_AUTH_URL=http://localhost:3200 TRUSTED_ORIGINS=http://localhost:3200 \
 
 - [ ] **Step 2: Seed, then capture**
 
-Seed against **5434**. Export `DATABASE_URL` *after* any `. ./.env`, never
+Seed against **5434**. Export `DATABASE_URL` _after_ any `. ./.env`, never
 before — sourcing overwrites it.
 
 ```bash
@@ -587,12 +595,12 @@ indistinguishable from a clean pass.
 
 Required, for all 4 theme/viewport combos of each surface:
 
-| Surface | Baseline confirmed | Target |
-| --- | ---: | ---: |
-| `activity-log` | 46 | 0 |
-| `activity-detail` | 0 (**240 indeterminate**) | 0 confirmed **and indeterminate well down** |
-| `debrief-sheet` | 43 | 0 |
-| `today` + `today-evening` + `today-post-session` | re-measure | no regression |
+| Surface                                          |        Baseline confirmed |                                      Target |
+| ------------------------------------------------ | ------------------------: | ------------------------------------------: |
+| `activity-log`                                   |                        46 |                                           0 |
+| `activity-detail`                                | 0 (**240 indeterminate**) | 0 confirmed **and indeterminate well down** |
+| `debrief-sheet`                                  |                        43 |                                           0 |
+| `today` + `today-evening` + `today-post-session` |                re-measure |                               no regression |
 
 - [ ] **Step 4: Open the screenshots**
 
