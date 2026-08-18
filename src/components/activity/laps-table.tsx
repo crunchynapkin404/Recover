@@ -10,9 +10,26 @@ function clock(secs: number): string {
 export function LapsTable({ laps }: { laps: ActivityLap[] }) {
   if (laps.length === 0) return null;
   return (
-    <div className="overflow-x-auto rounded-[18px] border border-hairline bg-surface-raised p-4">
+    // A phone viewport leaves about 310px inside the page's px-6 and this
+    // card's p-4, which is what min-w-[310px] is sized to: v0.108.0 first took
+    // the table to 340 to fit the 12px header row and the screenshot showed the
+    // Power column clipped off the right edge, where at 9px it had fitted.
+    // Power gives back the step instead (w-16 to w-14 — "POWER" and "301 W"
+    // both sit inside 56px).
+    //
+    // tabIndex/role/aria-label stay regardless. They are what axe's
+    // scrollable-region-focusable asked for when the table did overflow, and a
+    // narrower device than 390px still overflows — a keyboard-only athlete
+    // could otherwise see the first four columns and reach the last two by no
+    // means at all.
+    <div
+      tabIndex={0}
+      role="region"
+      aria-label="Laps and intervals"
+      className="overflow-x-auto rounded-[18px] border border-hairline bg-surface-raised p-4"
+    >
       <h3 className="mb-2 text-label font-bold">Laps &amp; intervals</h3>
-      <table className="w-full min-w-[340px] text-left">
+      <table className="w-full min-w-[310px] text-left">
         <thead>
           <tr className="text-label font-bold uppercase text-ink-muted">
             <th className="w-[22px] py-1.5">#</th>
@@ -20,7 +37,7 @@ export function LapsTable({ laps }: { laps: ActivityLap[] }) {
             <th className="w-14 py-1.5 text-right">Time</th>
             <th className="w-14 py-1.5 text-right">Dist</th>
             <th className="w-12 py-1.5 text-right">HR</th>
-            <th className="w-16 py-1.5 text-right">Power</th>
+            <th className="w-14 py-1.5 text-right">Power</th>
           </tr>
         </thead>
         <tbody className="font-mono text-label">
