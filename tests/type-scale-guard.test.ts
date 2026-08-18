@@ -581,7 +581,20 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // every drop. Verified directly: running ARBITRARY_TYPE over every non-test
   // file in src/**/*.{ts,tsx} reports 14 on the working tree after this
   // slice's edits, down from 25 before them.
-  "arbitrary type sizes": 14,
+  // 1 occurrence, measured 2026-08-18 after v0.111.0 slice 9 (the sweep). Net
+  // −13 from the 14 above: 11 in today/checkin-sheet.tsx — a Today sheet that
+  // slice 1 never migrated, carrying the same shape debrief-sheet.tsx did —
+  // and 2 in the pre-auth join pages. Every one sat below the 12px floor.
+  //
+  // THE ONE THAT REMAINS is src/components/ui/inline-markdown.tsx's
+  // `text-[0.95em]`, and it is not going anywhere: a RELATIVE em that stays
+  // proportional to whatever ambient size wraps it, used at several different
+  // sizes, so no fixed-step token can replace it without changing what it
+  // renders at some call site. Left deliberately since slice 4 and re-affirmed
+  // here at the end of the sweep. That is why THIS pattern keeps its ceiling
+  // and its `it.fails` while the sibling ad-hoc-ink one was retired: this one
+  // has a permanent, reasoned floor of 1.
+  "arbitrary type sizes": 1,
   // 251 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
   // redesign) task 3 — repays the debt task 2 explicitly left for this task,
   // same three cards as the sibling ceiling above. Net −27 from the 278
@@ -1028,31 +1041,10 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // Verified directly: running ADHOC_INK (src/lib/design/type-scale-patterns
   // .ts) over every non-test file in src/**/*.{ts,tsx} reports 73 on the
   // working tree after this slice's edits, down from 127 before them.
-  // 35 occurrences, measured 2026-08-18 after v0.109.0 slice 7 (Admin +
-  // Import). Net −38 from the 73 above, the same six files:
-  //   import-form.tsx: 15
-  //   sync-jobs-panel.tsx: 7
-  //   invite-manager.tsx: 6
-  //   admin/page.tsx: 5
-  //   security-events.tsx: 3
-  //   surface-views-card.tsx: 2
-  // 15 + 7 + 6 + 5 + 3 + 2 = 38. The gap this left (73 − 35 = 38) was OVER
-  // RATCHET_SLACK (25), so the ratchet failed and re-pinning here was
-  // mandatory, not discretionary.
-  //
-  // This slice also retired the raw-palette badge inks that v0.108.0
-  // deliberately left alone, because on Admin they were CONFIRMED axe
-  // failures rather than latent ones: `bg-emerald-500/15 text-emerald-400`
-  // measured 1.68:1 (#00d492 on #d9f5eb) on the user-role badge. Those move
-  // to --success-ink/--success-tint and --destructive-ink/--destructive-tint,
-  // which measure 6.78-9.94:1 on their own tints and 6.56-11.87:1 on the
-  // glass card. Neither ceiling counts them — ADHOC_INK matches only
-  // white/black — so they are recorded here rather than tracked by a number.
-  //
-  // Verified directly: running ADHOC_INK over every non-test file in
-  // src/**/*.{ts,tsx} reports 35 on the working tree after this slice's
-  // edits, down from 73 before them.
-  "ad-hoc white/black alpha utilities": 35,
+  // NO ENTRY for "ad-hoc white/black alpha utilities" any more. v0.111.0's
+  // sweep took it to zero and flipped its `it.fails` into a real assertion, so
+  // a ceiling would be dead weight — worse, a ceiling of 0 alongside a real
+  // assertion is two things to keep in step for one fact.
   // 234 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
   // redesign) task 4 — the same two cards as the sibling ceiling above,
   // strava-card.tsx and apple-health-card.tsx, moved onto connector-card.tsx's
@@ -1353,7 +1345,7 @@ const INLINE_COLOR_INVENTORY: readonly string[] = [
   'src/components/ui/bottom-sheet.tsx — boxShadow: "0 -20px 60px rgba(0,0,0,0.6)"',
   'src/components/week/day-actions.tsx — background: "rgba(139,92,246,0.1)"',
   'src/components/week/day-actions.tsx — borderColor: "rgba(139,92,246,0.3)"',
-  'src/components/week/day-actions.tsx — color: "#a78bfa"',
+  'src/components/week/day-actions.tsx — color: "var(--coach-ink)"',
 ];
 
 describe("type-scale guard", () => {
@@ -1393,15 +1385,22 @@ describe("type-scale guard", () => {
   // Same pairing as above: the it.fails proves the goal is not met yet, the
   // ratchet below is the only thing that notices the count moving the wrong
   // way in the meantime.
-  it.fails("has no ad-hoc white/black alpha utilities — use the tokens", () => {
+  // FLIPPED FROM `it.fails` IN v0.111.0, the slice that finished the sweep.
+  // This file's own rule is that an `it.fails` which unexpectedly passes is
+  // the signal to flip it — and as of the slice 9 sweep the count is ZERO,
+  // down from 398-era levels through 127 (v0.107) → 73 (v0.108) → 35 (v0.109)
+  // → 29 (v0.110) → 0. The last two were not components at all: a raw
+  // `bg-black/60` modal scrim in two files, now the governed `--scrim` token,
+  // and a stale mention of the old class inside a comment — this pattern
+  // scans source text, so prose counts.
+  //
+  // It is a real assertion now, which means the next ad-hoc alpha anyone adds
+  // fails the build instead of being absorbed by a ceiling.
+  it("has no ad-hoc white/black alpha utilities — use the tokens", () => {
     expect(
       offenders(ADHOC_INK),
       "use ink-primary / ink-secondary / ink-muted / hairline / surface-*"
     ).toEqual([]);
-  });
-
-  it("ad-hoc ink alphas stay at or below the recorded ceiling", () => {
-    expectRatchet("ad-hoc white/black alpha utilities", ADHOC_INK);
   });
 
   // Unlike the two guards above, this one has zero offenders today — nothing

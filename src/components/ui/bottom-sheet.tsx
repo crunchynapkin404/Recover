@@ -69,9 +69,12 @@ export function BottomSheet({
         type="button"
         aria-label="Close"
         onClick={close}
-        // bg-black/60 is a modal scrim, not text or a surface — both themes
-        // want a dark scrim here, so it stays literal rather than tokenised.
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 motion-reduce:transition-none"
+        // The scrim darkens whatever is behind the sheet, so it is dark in
+        // BOTH themes — a light-mode scrim that went white would dim nothing.
+        // Tokenised as --scrim in v0.111.0 (value unchanged) so it stops being
+        // a raw alpha nothing governs; it is waived by name in
+        // tests/contrast-guard.test.ts, since no text is measured against it.
+        className="absolute inset-0 bg-scrim backdrop-blur-sm transition-opacity duration-300 motion-reduce:transition-none"
         style={{ opacity: closing ? 0 : 1 }}
       />
 

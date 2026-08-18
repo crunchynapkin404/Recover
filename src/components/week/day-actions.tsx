@@ -249,10 +249,16 @@ export function DayActions({ day, otherDays, bare = false }: Props) {
             disabled={pending || (needsTarget && target === "")}
             onClick={runPreview}
             className="rounded-full border px-3 py-1 text-label font-bold disabled:opacity-40"
+            // color was the literal #a78bfa, which IS dark's --coach-ink — the
+            // token hardcoded. Referencing it instead leaves dark unmoved and
+            // fixes light, where the literal measured 2.52:1 on --surface-base.
+            // It only became a failure when v0.111.0 lifted `forcedTheme` and
+            // renderableThemes() widened the guard to both themes; the tint and
+            // border stay literals because they carry no text.
             style={{
               background: "rgba(139,92,246,0.1)",
               borderColor: "rgba(139,92,246,0.3)",
-              color: "#a78bfa",
+              color: "var(--coach-ink)",
             }}
           >
             What if?

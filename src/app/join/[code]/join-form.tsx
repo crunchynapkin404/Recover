@@ -38,7 +38,7 @@ export function JoinForm({ code, inviteEmail }: Props) {
   return (
     <div className="glass w-full max-w-sm rounded-[2rem] p-8">
       <h1 className="mb-1 text-xl font-bold tracking-tighter">Join Recover</h1>
-      <p className="mb-6 text-sm text-white/60">
+      <p className="mb-6 text-caption text-ink-secondary">
         You&apos;ve been invited. Create your account — your training data stays
         on this server, nowhere else.
       </p>
@@ -63,7 +63,7 @@ export function JoinForm({ code, inviteEmail }: Props) {
             required
             maxLength={80}
             autoComplete="name"
-            className="login-input rounded-xl px-3 py-2.5 text-sm text-white"
+            className="login-input rounded-xl px-3 py-2.5 text-caption text-ink-primary"
           />
         </div>
         <div className="grid gap-1.5">
@@ -77,7 +77,7 @@ export function JoinForm({ code, inviteEmail }: Props) {
             required
             defaultValue={inviteEmail ?? ""}
             autoComplete="email"
-            className="login-input rounded-xl px-3 py-2.5 text-sm text-white"
+            className="login-input rounded-xl px-3 py-2.5 text-caption text-ink-primary"
           />
         </div>
         <div className="grid gap-1.5">
@@ -91,23 +91,23 @@ export function JoinForm({ code, inviteEmail }: Props) {
             required
             minLength={8}
             autoComplete="new-password"
-            className="login-input rounded-xl px-3 py-2.5 text-sm text-white"
+            className="login-input rounded-xl px-3 py-2.5 text-caption text-ink-primary"
           />
         </div>
         {state && !state.ok && (
-          <p role="alert" className="text-sm text-red-400">
+          <p role="alert" className="text-caption text-destructive-ink">
             {state.message}
           </p>
         )}
         {state?.ok && (
-          <p role="status" className="text-sm text-emerald-400">
+          <p role="status" className="text-caption text-success-ink">
             {state.message}
           </p>
         )}
         <button
           type="submit"
           disabled={pending || signingIn}
-          className="rounded-xl bg-emerald-500 py-3 font-bold text-black transition-all hover:bg-emerald-400 disabled:opacity-50"
+          className="rounded-xl bg-accent py-3 font-bold text-accent-foreground transition-all hover:opacity-90 disabled:opacity-50"
         >
           {pending ? "Creating account…" : signingIn ? "Signing in…" : "Join"}
         </button>

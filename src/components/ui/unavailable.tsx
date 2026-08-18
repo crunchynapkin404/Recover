@@ -30,7 +30,7 @@ export function Unavailable({
   }
 
   return (
-    <span data-slot="unavailable" className="text-white/50">
+    <span data-slot="unavailable" className="text-ink-secondary">
       {text}
       {fix && (
         <>
