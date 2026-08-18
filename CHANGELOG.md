@@ -5,6 +5,9 @@
 2b.4 slice 8: the pre-auth surface. `/login` becomes a small landing page, and
 the whole app reaches **zero confirmed axe nodes**.
 
+**This release also carries slice 7** (Admin + Import) — see the v0.109.0
+section below, which was merged but never tagged.
+
 ### The login page says what Recover is
 
 It used to show a logo, a wordmark, a form, and two lines of near-invisible
@@ -66,7 +69,17 @@ gradient composite directly, which is what that number is exchanged for.
 **2b.4 stays open.** It closes at slice 9 — the sweep, and lifting
 `forcedTheme`.
 
-## v0.109.0 — 2026-08-18 — The page that was invisible in daylight
+## v0.109.0 — never tagged; shipped inside v0.110.0 — The page that was invisible in daylight
+
+> **This version has no tag and no release object, deliberately.** Slice 7 was
+> merged (#147) and slice 8 (#148) went in ahead of it, so by the time a
+> release was attempted `main` already carried both and `package.json` read
+> `0.110.0`. `scripts/release.sh` refused the mismatch, which is the check
+> working. Tagging `v0.109.0` at its own commit after the fact was rejected:
+> this repo has already learned that tagging an old commit re-fires the
+> release trigger for that commit (#143). Everything below therefore ships as
+> part of **v0.110.0** — the section is kept because it is the account of what
+> changed, not because a `v0.109.0` exists.
 
 2b.4 slice 7: Admin and Import onto the v0.99 tokens. 85 class sites across six
 files, all to zero.
