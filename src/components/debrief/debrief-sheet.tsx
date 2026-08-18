@@ -74,23 +74,23 @@ export function DebriefSheet({
 
   return (
     <BottomSheet title={`How was ${activityName}?`} closeHref={closeHref}>
-      <p className="-mt-2 mb-4 text-[11.5px] leading-snug text-white/50">
+      <p className="-mt-2 mb-4 text-label leading-snug text-ink-secondary">
         Feeds the coach&apos;s ride review. Leave anything blank — nothing is
         invented from silence.
       </p>
 
       {metrics && (
-        <p className="mb-4 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3.5 py-2.5 font-mono text-[11.5px] text-white/70">
+        <p className="mb-4 rounded-xl border border-hairline bg-surface-selected px-3.5 py-2.5 font-mono text-label text-ink-secondary">
           {metrics}
         </p>
       )}
 
       <div role="group" aria-label="Perceived exertion 1 to 10">
         <div className="mb-2 flex items-baseline justify-between">
-          <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-white/40">
+          <span className="text-label font-bold uppercase tracking-[0.15em] text-ink-muted">
             RPE
           </span>
-          <span className="text-[11.5px] font-bold text-emerald-400">
+          <span className="text-label font-bold text-emerald-400">
             {rpe == null ? "" : `${rpe}/10 — ${RPE_WORD[rpe]}`}
           </span>
         </div>
@@ -101,10 +101,10 @@ export function DebriefSheet({
               type="button"
               aria-pressed={rpe === n}
               onClick={() => setRpe(rpe === n ? null : n)}
-              className={`size-[29px] rounded-full text-[11.5px] font-bold transition-colors ${
+              className={`size-[29px] rounded-full text-label font-bold transition-colors ${
                 rpe === n
-                  ? "bg-emerald-500 text-black"
-                  : "bg-white/[0.06] text-white/60"
+                  ? "bg-accent text-accent-foreground"
+                  : "bg-surface-selected text-ink-secondary"
               }`}
             >
               {n}
@@ -114,7 +114,7 @@ export function DebriefSheet({
       </div>
 
       <div className="mt-4" role="group" aria-label="How did you feel">
-        <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-white/40">
+        <span className="text-label font-bold uppercase tracking-[0.15em] text-ink-muted">
           Feel
         </span>
         <div className="mt-2 flex gap-1.5">
@@ -124,10 +124,10 @@ export function DebriefSheet({
               type="button"
               aria-pressed={feel === f}
               onClick={() => setFeel(feel === f ? null : f)}
-              className={`rounded-full px-5 py-2 text-[12px] font-bold capitalize transition-colors ${
+              className={`rounded-full px-5 py-2 text-label font-bold capitalize transition-colors ${
                 feel === f
                   ? "bg-emerald-500/20 text-emerald-400"
-                  : "bg-white/[0.06] text-white/60"
+                  : "bg-surface-selected text-ink-secondary"
               }`}
             >
               {f}
@@ -136,13 +136,13 @@ export function DebriefSheet({
         </div>
       </div>
 
-      <div className="mt-4 flex items-center gap-2 rounded-2xl border border-white/[0.08] bg-white/[0.03] px-3.5 py-2.5">
+      <div className="mt-4 flex items-center gap-2 rounded-2xl border border-hairline bg-surface-selected px-3.5 py-2.5">
         <input
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           placeholder="Anything to note — pain, mood, conditions?"
           aria-label="Note"
-          className="min-w-0 flex-1 bg-transparent text-[12.5px] text-white outline-none placeholder:text-white/35"
+          className="min-w-0 flex-1 bg-transparent text-label text-ink-primary outline-none placeholder:text-ink-muted"
         />
         {dictation.supported && (
           <button
@@ -153,7 +153,7 @@ export function DebriefSheet({
             className={`shrink-0 rounded-full p-1.5 transition-colors ${
               dictation.dictating
                 ? "bg-emerald-500/20 text-emerald-400"
-                : "text-white/40"
+                : "text-ink-muted"
             }`}
           >
             <Mic aria-hidden className="size-4" />
@@ -161,7 +161,7 @@ export function DebriefSheet({
         )}
       </div>
 
-      {error && <p className="mt-2 text-[11px] text-red-400">{error}</p>}
+      {error && <p className="mt-2 text-label text-red-400">{error}</p>}
 
       <div className="mt-5 flex gap-2">
         <button
@@ -176,7 +176,7 @@ export function DebriefSheet({
               })
             )
           }
-          className="flex-1 rounded-full bg-emerald-500 py-3 text-[13px] font-bold text-black transition-opacity hover:opacity-90 disabled:opacity-50"
+          className="flex-1 rounded-full bg-accent py-3 text-caption font-bold text-accent-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
         >
           {pending ? "Saving…" : "Save & get review"}
         </button>
@@ -184,7 +184,7 @@ export function DebriefSheet({
           type="button"
           disabled={pending}
           onClick={() => run(() => skipDebrief(activityId))}
-          className="rounded-full border border-white/10 bg-white/5 px-6 py-3 text-[13px] font-semibold text-white/70 disabled:opacity-50"
+          className="rounded-full border border-hairline bg-surface-selected px-6 py-3 text-caption font-semibold text-ink-secondary disabled:opacity-50"
         >
           Skip
         </button>
