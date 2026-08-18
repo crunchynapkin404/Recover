@@ -995,9 +995,10 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   //     neither ceiling counts)
   //   app/activity/[id]/page.tsx: 7
   //   laps-table.tsx: 6
-  //   stream-chart.tsx, activity-debrief-section.tsx: 5 each
+  //   activity-debrief-section.tsx: 5
+  //   stream-chart.tsx: 3
   //   delete-activity-button.tsx: 1
-  // 17 + 15 + 7 + 6 + 5 + 5 + 1 = 54. The gap this left (127 − 73 = 54) was
+  // 17 + 15 + 7 + 6 + 5 + 3 + 1 = 54. The gap this left (127 − 73 = 54) was
   // OVER RATCHET_SLACK (25), so the ratchet failed and re-pinning here was
   // mandatory, not discretionary.
   //

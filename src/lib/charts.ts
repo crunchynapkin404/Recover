@@ -55,10 +55,20 @@ export const CHART_TOKENS = {
 
 /**
  * The four streams `activity/[id]` charts, by name rather than by index into
- * the series palette. Every one of these was a hex literal repeated at the
- * call site; four of them were already in `CHART_TOKENS.series` with the same
- * semantic comment, so the literals were duplicates of this file rather than
- * choices of their own.
+ * the series palette. Each was a hex literal at that call site and each was
+ * already in `CHART_TOKENS.series` under the same semantic comment, so those
+ * literals were duplicates of this file rather than choices of their own.
+ *
+ * SCOPED TO THAT PAGE, deliberately. Two other call sites still write hexes
+ * these entries share — `train/pmc-chart.tsx`'s `fill="#34d399"` and
+ * `week/day-actions.tsx`'s `color: "#a78bfa"` — and they are NOT migrated
+ * here, because they mean different things: pmc-chart's is the fitness area
+ * and day-actions' is a preview-button accent, neither of which is an
+ * elevation or a power stream. Pointing them at `STREAM_COLORS.elevation` or
+ * `.power` would make the code claim a relationship that does not exist, and
+ * a later change to a stream colour would then silently move them. If those
+ * two want de-duplicating, it is against `CHART_TOKENS.series` under their own
+ * names, not against this map.
  */
 export const STREAM_COLORS = {
   heartrate: CHART_TOKENS.series[5], // #f87171 red-400
@@ -75,6 +85,19 @@ export const STREAM_COLORS = {
  * would silently not change the other.
  */
 export function chartFill(hex: string, alpha: number): string {
+  // Refuse what cannot be reduced rather than guessing. A 3-digit hex, a
+  // `var(--token)` or a Tailwind v4 `oklch(...)` all make every channel NaN,
+  // and `rgba(NaN,NaN,NaN,0.15)` is a truthy string — so the caller still
+  // renders it into an SVG `fill`, SVG discards the invalid value for the
+  // initial one, and the area under the line fills solid BLACK. A silent
+  // black flood is a worse outcome than a build that stops.
+  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) {
+    throw new Error(
+      `chartFill: expected a six-digit hex, got ${JSON.stringify(hex)}. ` +
+        `Pass a CHART_TOKENS/STREAM_COLORS entry — an unreducible colour ` +
+        `renders as an invalid fill, which SVG paints black.`
+    );
+  }
   const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
   return `rgba(${r},${g},${b},${alpha})`;
 }

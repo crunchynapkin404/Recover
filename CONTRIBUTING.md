@@ -55,13 +55,26 @@ npm run dev:browser-setup
 sudo "$(which node)" node_modules/playwright-core/cli.js install-deps chromium
 ```
 
-**Point it at a production build, not `npm run dev`.** Lazy compilation makes
-first navigations slow enough to trip the script's `networkidle` waits, and the
-dev server's memory footprint next to a headless browser is enough to push a
-small box into swap — an out-of-memory dev server renders a page with none of
-its blocks, which the script correctly reports as a block-order mismatch. The
-release candidate stack in `docker-compose.dev-rc.yml` serves a real production
-image on 3100 and is what `docs/RELEASING.md` step 7 uses:
+**Which target you want depends on what you are verifying, and the two are not
+interchangeable.**
+
+- **Verifying a RELEASE CANDIDATE** — point it at a production build. Lazy
+  compilation makes first navigations slow enough to trip the script's
+  `networkidle` waits, and the dev server's memory footprint next to a headless
+  browser is enough to push a small box into swap; an out-of-memory dev server
+  renders a page with none of its blocks, which the script correctly reports as
+  a block-order mismatch. The release-candidate stack in
+  `docker-compose.dev-rc.yml` serves a real production image on **3100** and is
+  what `docs/RELEASING.md` step 7 uses.
+- **Verifying a SLICE still in progress** — that same 3100 stack is the wrong
+  target, and silently so: it serves a **released image**, so you measure the
+  last release rather than your working tree and everything looks unchanged
+  because it is. Run a dev server on a free port (**3200**) with
+  `BETTER_AUTH_URL` and `TRUSTED_ORIGINS` both set to that same origin —
+  Better Auth refuses the login if `BETTER_AUTH_URL` names a different port —
+  and accept the dev-server caveats above.
+
+The release-candidate form:
 
 ```bash
 SCREENSHOT_BASE_URL=http://localhost:3100 \

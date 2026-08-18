@@ -323,27 +323,34 @@ describe("contrast guard", () => {
     }
 
     for (const theme of THEMES) {
-      const worst = compositeMeshWorstCase(css, theme);
+      // Called inside each `it`, never at collection time. mesh-composite.ts
+      // reads app-shell.tsx from disk and throws on anything it cannot reduce;
+      // at collection that throw is a FILE-level error, which takes the other
+      // 220-odd token/surface/waiver assertions in this file down with it and
+      // reports the wrong thing as broken.
+      const worst = () => compositeMeshWorstCase(css, theme);
 
       it(`${theme}: reads every layer of the backdrop`, () => {
-        expect(worst.hex).toMatch(OPAQUE_HEX);
+        const w = worst();
+        expect(w.hex).toMatch(OPAQUE_HEX);
         // Two blooms in the CSS rule, two blurred blobs in the shell. A
         // parser that has gone blind returns a bare --surface-base and every
         // ratio below passes for the wrong reason.
         expect(
-          worst.layers.length,
+          w.layers.length,
           "found no mesh layers, so the 'worst case' is just --surface-base"
         ).toBeGreaterThanOrEqual(4);
-        expect(worst.base).toMatch(OPAQUE_HEX);
+        expect(w.base).toMatch(OPAQUE_HEX);
       });
 
       for (const ink of ["ink-primary", "ink-secondary"]) {
         it(`${theme}: --${ink} clears ${TEXT_FLOOR}:1 over the composite`, () => {
-          const ratio = ratioOn(theme, ink, worst.hex);
+          const ground = worst().hex;
+          const ratio = ratioOn(theme, ink, ground);
           expect(
             ratio,
             `${theme}: --${ink} (${resolvedValue(theme, ink)}) on the mesh ` +
-              `gradient's worst-case composite (${worst.hex}) is ` +
+              `gradient's worst-case composite (${ground}) is ` +
               `${ratio.toFixed(2)}:1`
           ).toBeGreaterThanOrEqual(TEXT_FLOOR);
         });
@@ -376,11 +383,12 @@ describe("contrast guard", () => {
        * in every theme.
        */
       it(`${theme}: --ink-muted does NOT clear the floor — it is card-only ink`, () => {
-        const ratio = ratioOn(theme, "ink-muted", worst.hex);
+        const ground = worst().hex;
+        const ratio = ratioOn(theme, "ink-muted", ground);
         expect(
           ratio,
           `${theme}: --ink-muted now measures ${ratio.toFixed(2)}:1 on the ` +
-            `mesh composite (${worst.hex}). If that is at or above ` +
+            `mesh composite (${ground}). If that is at or above ` +
             `${TEXT_FLOOR}, it is safe un-carded now — delete this ` +
             `assertion and fold ink-muted into the loop above`
         ).toBeLessThan(TEXT_FLOOR);

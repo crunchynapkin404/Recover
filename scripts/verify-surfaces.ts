@@ -98,7 +98,9 @@
 //                       closed. On this machine port 3000 is *permanently* the
 //                       live production container and this script is refused
 //                       outright if pointed there. Start
-//                       the dev server on another port (3100 is verified)
+//                       the dev server on another port — 3200 while a
+//                       slice is in progress, since 3100 is the RC soak
+//                       stack and holds a RELEASED image, not your work —
 //                       with BETTER_AUTH_URL/TRUSTED_ORIGINS matching that
 //                       origin — without it, secure-cookie mode drops the
 //                       session and every authenticated capture is a login
@@ -178,7 +180,10 @@ try {
 //   1. Port 3000. Kept, though on the current dev box nothing production runs
 //      there — because a self-hoster following docs/SELF-HOSTING.md serves
 //      their real instance on exactly that port, and this file is public. It
-//      costs nothing to obey: run the dev server on 3100.
+//      costs nothing to obey: run the dev server on 3200. 3100 is the RC
+//      soak stack (recover-rc-app-1) — the right target when verifying a
+//      RELEASE CANDIDATE (docs/RELEASING.md step 7), the wrong one while a
+//      slice is in progress, because it serves a released image.
 //
 //   2. The production HOST. Added when the project moved to a dev box and a
 //      prod box on 2026-08-14 (docs/ENVIRONMENTS.md). The port rule was a
@@ -195,8 +200,10 @@ const BASE_URL = (() => {
     throw new Error(
       "SCREENSHOT_BASE_URL is required — this script has no default on purpose.\n" +
         "Point it at a DEV server, never production.\n" +
-        "NOT 3100 — that is recover-rc-app-1, the RC soak stack; capturing it\n" +
-        "measures the released image instead of your working tree:\n" +
+        "While a slice is in progress use 3200, not 3100: 3100 is\n" +
+        "recover-rc-app-1, the RC soak stack, so capturing it measures a\n" +
+        "RELEASED image rather than your working tree. (3100 IS the right\n" +
+        "target when verifying a release candidate — docs/RELEASING.md.)\n" +
         "  BETTER_AUTH_URL=http://localhost:3200 TRUSTED_ORIGINS=http://localhost:3200 npx next dev -p 3200\n" +
         "  SCREENSHOT_BASE_URL=http://localhost:3200 npm run verify:surfaces -- <slice>\n" +
         "See docs/ENVIRONMENTS.md for which box is which."
@@ -222,7 +229,8 @@ const BASE_URL = (() => {
     throw new Error(
       `Refusing to run against ${url} — port 3000 is where a self-hosted ` +
         `production instance serves (docs/SELF-HOSTING.md). This script ` +
-        `creates real data. Use a dev server on 3100.`
+        `creates real data. Use a dev server on 3200 for slice work, or ` +
+        `the RC stack on 3100 when verifying a release candidate.`
     );
   }
 
@@ -1296,26 +1304,24 @@ async function main() {
       `);
       const dark = theme === "dark";
       const p = await ctx.newPage();
-      for (const [name, path] of Object.entries(SURFACES)) {
-        await captureWithRetry(
-          p,
-          name,
-          path,
-          join(outDir, `${name}-${theme}-${vpName}.png`),
-          dark,
-          theme,
-          vpName
-        );
-        total++;
-      }
 
       /**
-       * coach-thread, activity-detail and debrief-sheet differ only in their
-       * name and in how their path is resolved. Everything else — capture,
-       * record the hard failure, file an empty axe entry so a failed surface
-       * is not merely absent from the report, flush — was the same ~30 lines
-       * written three times. Slices 7-9 add more resolved surfaces, so it is
-       * one helper.
+       * EVERY captured surface goes through here: the literal SURFACES map,
+       * and coach-thread / activity-detail / debrief-sheet, which differ only
+       * in their name and in how their path is resolved. Capture, record the
+       * hard failure, file an empty axe entry so a failed surface is not
+       * merely absent from the report, flush. Those three each carried their
+       * own ~30-line copy of it until v0.108.0.
+       *
+       * THE SURFACES LOOP USED NOT TO BE CONTAINED, and that is what made one
+       * bad surface expensive: captureWithRetry rethrows after its second
+       * attempt, the throw escaped main(), and every LATER surface and every
+       * later theme/viewport combo was lost with no axe entry filed for any of
+       * them. In v0.108.0 a demo user seeded as `member` redirected /admin and
+       * killed a 35-minute run 16 surfaces in. That seed bug is fixed, but the
+       * amplifier was this loop — so a run now finishes and reports what
+       * failed instead of stopping at the first unreachable page.
+       * `hardFailures` still makes the exit non-zero.
        *
        * The path arrives as a thunk rather than a string so a caller can do
        * work that must happen inside the try: activity-detail keeps the id it
@@ -1355,6 +1361,10 @@ async function main() {
           writeReport();
         }
       };
+
+      for (const [name, path] of Object.entries(SURFACES)) {
+        await captureResolved(name, async () => path);
+      }
 
       // Resolved per context: the storage state is fresh each time and the
       // href is cheap to re-read. A failure here is hard — see the resolver.

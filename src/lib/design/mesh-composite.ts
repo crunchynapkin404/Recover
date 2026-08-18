@@ -54,6 +54,14 @@ export const APP_SHELL_PATH = join(
 const OPAQUE_HEX = /^#[0-9a-fA-F]{6}$/;
 
 /**
+ * Ceiling on the layer count the corner enumeration will attempt. The shell
+ * paints four; this exists so that a file which somehow grows dozens fails
+ * loudly rather than through a wrapped bit shift. See the throw in
+ * `compositeMeshCorners`.
+ */
+const MAX_LAYERS = 20;
+
+/**
  * The Tailwind palette entries `AppShell`'s depth layers name. Tailwind's
  * values, not ours, so this is a lookup rather than a decision — and an
  * unknown one THROWS rather than being skipped, because a layer this module
@@ -155,27 +163,56 @@ function meshBloomLayers(css: string): MeshLayer[] {
  */
 function shellBlobLayers(source: string): MeshLayer[] {
   const out: MeshLayer[] = [];
+  // Every `bg-…` utility, matched loosely on purpose. The narrow form of this
+  // regex (colour name + bare-digit alpha) silently DROPPED every other
+  // spelling — a bracketed alpha, an arbitrary `bg-[#1e293b]` value, an opaque
+  // `bg-emerald-500` with no alpha at all — while the unknown-colour branch
+  // below threw, for exactly the reason a drop is worse: a depth layer left
+  // out makes the worst case look better than the page. Recognising the
+  // utility first and refusing what cannot be reduced handles both the same
+  // way.
+  //
+  // (The dropped spellings are described rather than written out: this file is
+  // inside the tree tests/type-scale-guard.test.ts scans, and spelling one in
+  // a comment counts as an offender against its ratchet — which is how this
+  // very paragraph was caught.)
   for (const m of source.matchAll(
-    /\bbg-((?:[a-z]+-\d{2,3})|white|black)\/(\d{1,3})\b/g
+    /\bbg-(\[[^\]]+\]|[a-z]+(?:-\d{2,3})?)(?:\/(\[[^\]]+\]|\d{1,3}))?\b/g
   )) {
-    const [, name, alpha] = m;
-    const hex = TAILWIND[name];
-    if (!hex) {
+    const [text, name, alpha] = m;
+    // Tailwind's own layout/state utilities share the bg- prefix in spirit but
+    // not in grammar; anything that is not a colour we can name is refused
+    // rather than skipped.
+    const hex = name.startsWith("[") ? name.slice(1, -1) : TAILWIND[name];
+    if (!hex || !OPAQUE_HEX.test(hex)) {
       throw new Error(
-        `mesh-composite: app-shell.tsx paints bg-${name}/${alpha}, and ` +
-          `"${name}" is not in this module's Tailwind lookup. Add its value ` +
-          `— a depth layer left out of the composite makes the worst case ` +
-          `look better than the page.`
+        `mesh-composite: app-shell.tsx paints ${text}, and this module cannot ` +
+          `reduce "${name}" to a colour. Add it to the Tailwind lookup, or ` +
+          `express it as a hex — a depth layer left out of the composite ` +
+          `makes the worst case look better than the page, which is the one ` +
+          `direction this guard must never be wrong in.`
+      );
+    }
+    const a =
+      alpha === undefined
+        ? 1
+        : alpha.startsWith("[")
+          ? Number(alpha.slice(1, -1))
+          : Number(alpha) / 100;
+    if (!Number.isFinite(a)) {
+      throw new Error(
+        `mesh-composite: app-shell.tsx paints ${text} and its alpha ` +
+          `"${alpha}" is not a number this module can use.`
       );
     }
     out.push({
-      source: `app-shell bg-${name}/${alpha}`,
-      text: `bg-${name}/${alpha}`,
+      source: `app-shell ${text}`,
+      text,
       rgba: [
         parseInt(hex.slice(1, 3), 16),
         parseInt(hex.slice(3, 5), 16),
         parseInt(hex.slice(5, 7), 16),
-        Number(alpha) / 100,
+        a,
       ],
     });
   }
@@ -202,6 +239,20 @@ export function compositeMeshCorners(
 ): MeshComposite[] {
   const base = surfaceBase(css, theme);
   const all = [...meshBloomLayers(css), ...shellBlobLayers(shellSource)];
+  // 2^n corners: fine for the four layers that exist, and this is where that
+  // stops being true. `1 << 31` is negative and `1 << 32` is 1 in JS, either of
+  // which would quietly reduce the enumeration to nothing or to the bare
+  // surface and let every ratio pass for the wrong reason. Refuse instead —
+  // and well before then, since 20 layers is already a million corners.
+  if (all.length > MAX_LAYERS) {
+    throw new Error(
+      `mesh-composite: ${all.length} layers is more than this module will ` +
+        `enumerate (${MAX_LAYERS}). It walks 2^n corners of the alpha box, so ` +
+        `the cost doubles per layer and the bit shift itself breaks at 31. ` +
+        `If the shell really does paint this many, the worst case needs a ` +
+        `different derivation, not a bigger loop.`
+    );
+  }
   const ground = [
     parseInt(base.slice(1, 3), 16),
     parseInt(base.slice(3, 5), 16),
