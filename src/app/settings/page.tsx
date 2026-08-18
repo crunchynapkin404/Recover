@@ -281,7 +281,7 @@ export default async function SettingsPage({
               <span className={triggerBadgeClass}>{integrationsSummary}</span>
             }
           >
-            <Layers aria-hidden className="size-[18px] text-blue-400" />
+            <Layers aria-hidden className="size-[18px] text-ink-muted" />
             <span className={triggerLabelClass}>Integrations</span>
           </CollapsibleTrigger>
           <CollapsiblePanel>
@@ -393,7 +393,7 @@ export default async function SettingsPage({
           <CollapsibleTrigger
             badge={<span className={triggerBadgeClass}>{coachSummary}</span>}
           >
-            <Sparkles aria-hidden className="size-[18px] text-emerald-400" />
+            <Sparkles aria-hidden className="size-[18px] text-ink-muted" />
             <span className={triggerLabelClass}>AI &amp; Coach</span>
           </CollapsibleTrigger>
           <CollapsiblePanel>
@@ -480,7 +480,7 @@ export default async function SettingsPage({
           >
             <SlidersHorizontal
               aria-hidden
-              className="size-[18px] text-orange-400"
+              className="size-[18px] text-ink-muted"
             />
             <span className={triggerLabelClass}>App</span>
           </CollapsibleTrigger>

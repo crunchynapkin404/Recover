@@ -73,13 +73,13 @@ export async function ActivityDebriefSection({
     // --ink-secondary while their opposite numbers on the same page (the tile
     // labels, the laps header) are muted inside an opaque bg-surface-raised.
     // See src/lib/design/mesh-composite.ts.
-    <section className="rounded-[18px] border border-emerald-500/25 bg-emerald-500/[0.05] p-4">
+    <section className="rounded-[18px] border border-accent/25 bg-success-tint p-4">
       <div className="flex items-baseline justify-between gap-3">
         <h3 className="text-label font-bold uppercase tracking-[0.15em] text-ink-secondary">
           Debrief
         </h3>
         {answer && (
-          <span className="text-label font-bold text-emerald-400">
+          <span className="text-label font-bold text-success-ink">
             {answer}
           </span>
         )}
@@ -94,7 +94,7 @@ export async function ActivityDebriefSection({
       <div className="mt-3 border-t border-hairline pt-3">
         {review ? (
           <p className="whitespace-pre-wrap text-label leading-[1.55] text-ink-secondary">
-            <strong className="font-bold text-violet-400">Coach: </strong>
+            <strong className="font-bold text-coach-ink">Coach: </strong>
             <InlineMarkdown text={review.content} />
           </p>
         ) : (

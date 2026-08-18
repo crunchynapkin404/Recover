@@ -1,5 +1,85 @@
 # Changelog
 
+## v0.111.0 — 2026-08-18 — Light
+
+2b.4 slice 9, the last one. `forcedTheme="dark"` is gone: the athlete can
+choose light, dark or system, and **2b.4 closes**.
+
+### Light mode is reachable
+
+It has shipped in the bundle since v0.99.0 and no athlete could open it. Every
+slice since has been screenshotted and audited in both themes anyway — the
+capture script sets the class directly — which is the only reason the defects
+it hid were ever measurable. Admin's 241 confirmed nodes were the clearest
+case: `text-white/40` on a light card is white on white, blank rather than dim,
+and nobody could have seen it.
+
+Three things go together in one commit, as `theme-provider.tsx` has said they
+must since slice 0:
+
+- `forcedTheme` removed.
+- `enableColorScheme` restored to the library default. Its value arrives
+  exactly now: `color-scheme` exists so native widgets FOLLOW the page's theme,
+  and until this commit the theme was a constant with nothing to follow. Native
+  scrollbars, 26 number spinners, 4 date and 6 time pickers and 13 `<select>`
+  popups now track the athlete's choice instead of being the one part of the
+  app that ignores it.
+- `layout.tsx`'s `themeColor` becomes per-theme, so browser and PWA chrome
+  follows too.
+
+**None of that last group can be verified here.** `chrome-headless-shell`
+renders no native chrome and picker popups are OS surfaces outside the page, so
+`scripts/verify-surfaces.ts` cannot see it in either direction. It needs a real
+device, and the check is written down in both files.
+
+### The sweep reached zero
+
+Ad-hoc white/black alpha utilities: **127 → 73 → 35 → 29 → 0** across v0.107 to
+here. Its `it.fails` is now a real assertion and its ratchet entry is deleted —
+a ceiling of 0 beside a real assertion is two things to keep in step for one
+fact. The next ad-hoc alpha anyone adds fails the build.
+
+The last two offenders were not components. A raw `bg-black/60` modal scrim in
+two files became the governed `--scrim` token — deliberately identical in both
+themes, since a light-mode scrim that went white would dim nothing — and the
+final one was a stale mention of the old class inside a _comment_, because this
+pattern scans source text and prose counts.
+
+Arbitrary type sizes: **14 → 1**. Eleven were in `today/checkin-sheet.tsx`, a
+sheet Today's slice 1 never migrated despite it carrying the same shape as the
+debrief sheet slice 6 found in the same host; two were the pre-auth join pages.
+The one that remains is `inline-markdown.tsx`'s `text-[0.95em]` — a relative em
+with no fixed-step equivalent, deliberate since slice 4 — which is why that
+pattern keeps its ceiling while its sibling was retired.
+
+### The tripwire caught exactly one thing
+
+`renderableThemes()` reads `forcedTheme` out of the provider. With it gone the
+function returns both themes, which widens every inline-literal AA assertion
+from one theme to two. One failed: `week/day-actions.tsx`'s "What if?" button
+at **2.52:1** in light.
+
+v0.108.0 had consciously left that literal, arguing it was a preview accent
+rather than a stream colour. That argument was right and the literal was still
+a latent failure. It turned out to be dark's `--coach-ink` hardcoded, so
+referencing the token fixes light without moving dark a pixel.
+
+28 base chromatic literals resolved to semantic tokens in total; they measured
+1.35–2.89:1 in light. The Settings section glyphs went to `--ink-muted` rather
+than to success/warning ink: they are decorative, and borrowing a status colour
+for a section icon states something the icon does not mean. **That is a visible
+change in dark** — three coloured glyphs become neutral, matching the two that
+already were.
+
+### Results
+
+Zero confirmed axe nodes, 24 surfaces × 4 theme/viewport combos, 96 captures,
+no errored entries — now measured against a light theme an athlete can actually
+open. Recorded baseline was **398**.
+
+**2b.4 is closed.** Ten slices: foundations, Today, Train, Body, Coach,
+Settings, Activity, Admin + Import, pre-auth, and this sweep.
+
 ## v0.110.0 — 2026-08-18 — A front door, and the last confirmed node
 
 2b.4 slice 8: the pre-auth surface. `/login` becomes a small landing page, and

@@ -55,7 +55,13 @@ export const viewport: Viewport = {
   // contrast with it. Repeat with the OS set to DARK. Both must look
   // identical while `forcedTheme="dark"` is in force — that identity IS the
   // assertion.
-  themeColor: "#0a0a0a",
+  // Per-theme since v0.111.0, the release that lifted `forcedTheme`. Browser
+  // and PWA chrome now follows the athlete's choice rather than being pinned
+  // to dark's --surface-base; the values are exactly those two tokens.
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f6f6f6" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+  ],
   viewportFit: "cover",
   width: "device-width",
   initialScale: 1,

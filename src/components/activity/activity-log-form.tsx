@@ -232,8 +232,8 @@ export function ActivityLogForm() {
           <div
             className={`flex items-center gap-2 rounded-xl px-4 py-2 text-caption ${
               state.ok
-                ? "bg-emerald-500/10 text-emerald-400"
-                : "bg-red-500/10 text-red-400"
+                ? "bg-success-tint text-success-ink"
+                : "bg-destructive-tint text-destructive-ink"
             }`}
           >
             {state.ok && <CheckCircle className="size-4" />}

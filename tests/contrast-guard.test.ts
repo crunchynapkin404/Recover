@@ -171,6 +171,12 @@ const WAIVED: Record<string, string> = {
   "connector-apple-tint":
     "this connector's own tile ground; checked directly against --connector-apple-ink below",
 
+  // ── Modal scrim (v0.111.0) ──────────────────────────────────────────────
+  // Darkens whatever sits behind a bottom sheet. Not ink and not a surface:
+  // nothing is measured against it, and it is deliberately identical in both
+  // themes because a light-mode scrim that went white would dim nothing.
+  scrim: "modal scrim; darkens the page behind a sheet, carries no text",
+
   // ── Semantic warning/success ink/tint (Task 8b) ─────────────────────────
   "warning-tint":
     "this token's own tile ground; checked directly against --warning-ink below",

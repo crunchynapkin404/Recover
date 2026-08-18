@@ -141,7 +141,7 @@ export function BlockSheet({
         type="button"
         aria-label="Close"
         onClick={onClose}
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        className="absolute inset-0 bg-scrim backdrop-blur-sm"
       />
 
       <div

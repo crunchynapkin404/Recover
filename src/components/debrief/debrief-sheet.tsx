@@ -90,7 +90,7 @@ export function DebriefSheet({
           <span className="text-label font-bold uppercase tracking-[0.15em] text-ink-muted">
             RPE
           </span>
-          <span className="text-label font-bold text-emerald-400">
+          <span className="text-label font-bold text-success-ink">
             {rpe == null ? "" : `${rpe}/10 — ${RPE_WORD[rpe]}`}
           </span>
         </div>
@@ -126,7 +126,7 @@ export function DebriefSheet({
               onClick={() => setFeel(feel === f ? null : f)}
               className={`rounded-full px-5 py-2 text-label font-bold capitalize transition-colors ${
                 feel === f
-                  ? "bg-emerald-500/20 text-emerald-400"
+                  ? "bg-success-tint text-success-ink"
                   : "bg-surface-selected text-ink-secondary"
               }`}
             >
@@ -152,7 +152,7 @@ export function DebriefSheet({
             aria-label="Dictate note"
             className={`shrink-0 rounded-full p-1.5 transition-colors ${
               dictation.dictating
-                ? "bg-emerald-500/20 text-emerald-400"
+                ? "bg-success-tint text-success-ink"
                 : "text-ink-muted"
             }`}
           >
@@ -161,7 +161,7 @@ export function DebriefSheet({
         )}
       </div>
 
-      {error && <p className="mt-2 text-label text-red-400">{error}</p>}
+      {error && <p className="mt-2 text-label text-destructive-ink">{error}</p>}
 
       <div className="mt-5 flex gap-2">
         <button

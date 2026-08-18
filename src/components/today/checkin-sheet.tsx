@@ -121,20 +121,20 @@ export function CheckinSheet({
         <div
           className={`mb-4 flex flex-wrap items-baseline gap-x-2 rounded-xl border px-3.5 py-2.5 ${
             synced.from
-              ? "border-white/[0.08] bg-white/[0.03]"
-              : "border-emerald-500/25 bg-emerald-500/[0.07]"
+              ? "border-hairline bg-surface-selected"
+              : "border-accent/25 bg-success-tint"
           }`}
         >
           <span
-            className={`text-[11.5px] font-bold ${
-              synced.from ? "text-white/50" : "text-emerald-400"
+            className={`text-label font-bold ${
+              synced.from ? "text-ink-secondary" : "text-success-ink"
             }`}
           >
             {synced.from
               ? `Last synced ${new Date(synced.from + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
               : "✓ Synced"}
           </span>
-          <span className="font-mono text-[11.5px] text-white/70">
+          <span className="font-mono text-label text-ink-secondary">
             {syncedParts.join(" · ")}
           </span>
         </div>
@@ -147,17 +147,17 @@ export function CheckinSheet({
             <div className="mb-1.5 flex items-baseline justify-between">
               <label
                 htmlFor={`checkin-${s.key}`}
-                className="text-[11px] font-semibold text-white/85"
+                className="text-label font-semibold text-ink-primary"
               >
                 {s.label}
               </label>
               <span
-                className={`font-mono text-[12px] font-bold ${
+                className={`font-mono text-label font-bold ${
                   v == null
-                    ? "text-white/30"
+                    ? "text-ink-muted"
                     : v >= 6
-                      ? "text-emerald-400"
-                      : "text-white/70"
+                      ? "text-success-ink"
+                      : "text-ink-secondary"
                 }`}
               >
                 {v ?? "—"}
@@ -176,16 +176,16 @@ export function CheckinSheet({
                   [s.key]: Number(e.target.value),
                 }))
               }
-              className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-white/[0.08] accent-emerald-500"
+              className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-surface-selected accent-accent"
             />
           </div>
         );
       })}
 
-      <p className="mb-2 mt-4 text-[9.5px] font-bold uppercase tracking-[0.15em] text-white/40">
+      <p className="mb-2 mt-4 text-label font-bold uppercase tracking-[0.15em] text-ink-muted">
         Yesterday&apos;s behaviors
         {usualTags.length > 0 && (
-          <span className="ml-1.5 font-medium normal-case tracking-normal text-white/30">
+          <span className="ml-1.5 font-medium normal-case tracking-normal text-ink-muted">
             · usual pre-toggled
           </span>
         )}
@@ -206,10 +206,10 @@ export function CheckinSheet({
                   return next;
                 })
               }
-              className={`rounded-full border px-3 py-1.5 text-[11.5px] font-semibold transition-colors ${
+              className={`rounded-full border px-3 py-1.5 text-label font-semibold transition-colors ${
                 active
-                  ? "border-emerald-500/50 bg-emerald-500/15 text-emerald-400"
-                  : "border-white/10 bg-white/5 text-white/70"
+                  ? "border-accent/50 bg-success-tint text-success-ink"
+                  : "border-hairline bg-surface-selected text-ink-secondary"
               }`}
             >
               {t}
@@ -220,20 +220,20 @@ export function CheckinSheet({
           <button
             type="button"
             onClick={() => setShowMore(true)}
-            className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[11.5px] font-semibold text-white/50"
+            className="rounded-full border border-hairline bg-surface-selected px-3 py-1.5 text-label font-semibold text-ink-secondary"
           >
             + more
           </button>
         )}
       </div>
 
-      <div className="mt-4 flex items-center gap-2 rounded-2xl border border-white/[0.08] bg-white/[0.03] px-3.5 py-2.5">
+      <div className="mt-4 flex items-center gap-2 rounded-2xl border border-hairline bg-surface-selected px-3.5 py-2.5">
         <input
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           placeholder="Anything to note?"
           aria-label="Note"
-          className="min-w-0 flex-1 bg-transparent text-[12.5px] text-white outline-none placeholder:text-white/35"
+          className="min-w-0 flex-1 bg-transparent text-label text-ink-primary outline-none placeholder:text-ink-muted"
         />
         {dictation.supported && (
           <button
@@ -243,8 +243,8 @@ export function CheckinSheet({
             aria-label="Dictate note"
             className={`shrink-0 rounded-full p-1.5 transition-colors ${
               dictation.dictating
-                ? "bg-emerald-500/20 text-emerald-400"
-                : "text-white/40"
+                ? "bg-success-tint text-success-ink"
+                : "text-ink-muted"
             }`}
           >
             <Mic aria-hidden className="size-4" />
@@ -252,21 +252,21 @@ export function CheckinSheet({
         )}
       </div>
 
-      {error && <p className="mt-2 text-[11px] text-red-400">{error}</p>}
+      {error && <p className="mt-2 text-label text-destructive-ink">{error}</p>}
 
       <div className="mt-5 flex gap-2">
         <button
           type="button"
           disabled={pending}
           onClick={save}
-          className="flex-1 rounded-full bg-emerald-500 py-3 text-[13px] font-bold text-black transition-opacity hover:opacity-90 disabled:opacity-50"
+          className="flex-1 rounded-full bg-accent py-3 text-caption font-bold text-accent-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
         >
           {pending ? "Saving…" : "Save check-in"}
         </button>
         <button
           type="button"
           onClick={() => router.push(closeHref)}
-          className="rounded-full border border-white/10 bg-white/5 px-6 py-3 text-[13px] font-semibold text-white/70"
+          className="rounded-full border border-hairline bg-surface-selected px-6 py-3 text-caption font-semibold text-ink-secondary"
         >
           Skip
         </button>

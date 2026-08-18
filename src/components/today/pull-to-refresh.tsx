@@ -59,7 +59,7 @@ export function PullToRefresh({ children }: { children: React.ReactNode }) {
         style={{ height: busy ? 40 : pull * 0.6 }}
       >
         <RefreshCw
-          className={`mt-2 size-5 text-emerald-400 ${busy ? "animate-spin" : ""}`}
+          className={`mt-2 size-5 text-success-ink ${busy ? "animate-spin" : ""}`}
           style={{ opacity: busy ? 1 : Math.min(1, pull / THRESHOLD_PX) }}
         />
       </div>
