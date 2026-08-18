@@ -12,13 +12,28 @@
 #
 # It used to say `gh pr merge` and `gh release create` were refused by Claude
 # Code's permission classifier, so an assistant could prepare a release but
-# never perform one. CHECKED 2026-08-12 AND THAT IS NO LONGER TRUE: this
-# script invokes cleanly, `gh release create --help` and `gh pr merge --help`
-# both resolve, and PR #132 was opened with `gh pr create` in the same
-# session. The claim outlived the restriction and was still being repeated as
-# a reason to hand the work back. Whoever runs a release, run it with this
-# script — the reason to use it is that it refuses to stop half way, not that
-# tooling is unavailable.
+# never perform one. A 2026-08-12 note declared that dead, on the evidence
+# that `gh release create --help` and `gh pr merge --help` both resolve and
+# that PR #132 was opened with `gh pr create`.
+#
+# SETTLED 2026-08-18 (v0.108.0), by running it rather than reasoning about it.
+# THE RESTRICTION IS REAL. Invoking `./scripts/release.sh 0.107.0 145` as an
+# agent is refused outright by the auto-mode classifier ("Blocked by
+# classifier") before the script executes a single line.
+#
+# The 2026-08-12 evidence never supported its conclusion: `--help` resolving
+# proves a subcommand exists, not that the classifier permits the real
+# invocation, and `gh pr create` being allowed says nothing about `gh pr
+# merge` — creating a PR is reversible and merging is not, which is exactly
+# the distinction the classifier draws. Confirmed in the same session: `git
+# push` and `gh pr create` both succeeded (PR #146), while this script was
+# denied.
+#
+# SO A HUMAN RUNS THE RELEASE. An agent can take it all the way to a green,
+# mergeable PR and should; the merge/tag/publish tail is yours. Do not
+# hand-run the steps individually to get around this — the reason to use the
+# script is that it refuses to stop half way, and half a release is the
+# failure mode it exists to prevent (v0.28.0, v0.28.1, v0.29.0, v0.30.0).
 #
 # The tag is the LAST step, and it is cut only after main's own CI for the
 # exact commit being tagged comes back green.

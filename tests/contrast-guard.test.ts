@@ -52,6 +52,10 @@ import {
   type Rgba,
 } from "../src/lib/design/color-literals";
 import {
+  compositeMeshCorners,
+  compositeMeshWorstCase,
+} from "../src/lib/design/mesh-composite";
+import {
   CSS_PATH,
   extractThemeBlocks,
   readDeclarations,
@@ -292,6 +296,147 @@ describe("contrast guard", () => {
       }
     });
   }
+
+  /**
+   * ── The mesh gradient as a text backdrop (v0.108.0, slice 6 phase B) ─────
+   * `activity-detail`'s <h1>, its breadcrumb and its `sport · date · provider`
+   * line sit directly on `AppShell`'s mesh gradient with no card behind them.
+   * axe reports that page as 0 confirmed and 240 INDETERMINATE, and the zero
+   * means the rule never ran, not that it passed: `color-contrast` cannot
+   * resolve a non-uniform backdrop, so it returns `contrastRatio: 0` and files
+   * every node under `incomplete`.
+   *
+   * The loop above cannot cover them either — it measures ink against the
+   * three flat `--surface-*` tokens, and the gradient is none of those. So the
+   * ratio is asserted here instead, against the worst composite the gradient
+   * can produce, which is what turns "indeterminate" back into a fact. See
+   * src/lib/design/mesh-composite.ts for how that composite is derived from
+   * the CSS and the shell rather than restated here.
+   */
+  describe("mesh-gradient composite", () => {
+    /** An ink's ratio against an opaque ground, composited if translucent. */
+    function ratioOn(theme: ThemeName, ink: string, ground: string): number {
+      return contrastRatio(
+        compositeOver(inkColor(theme, ink, "a text ink"), ground),
+        ground
+      );
+    }
+
+    for (const theme of THEMES) {
+      // Called inside each `it`, never at collection time. mesh-composite.ts
+      // reads app-shell.tsx from disk and throws on anything it cannot reduce;
+      // at collection that throw is a FILE-level error, which takes the other
+      // 220-odd token/surface/waiver assertions in this file down with it and
+      // reports the wrong thing as broken.
+      const worst = () => compositeMeshWorstCase(css, theme);
+
+      it(`${theme}: reads every layer of the backdrop`, () => {
+        const w = worst();
+        expect(w.hex).toMatch(OPAQUE_HEX);
+        // Two blooms in the CSS rule, two blurred blobs in the shell. A
+        // parser that has gone blind returns a bare --surface-base and every
+        // ratio below passes for the wrong reason.
+        expect(
+          w.layers.length,
+          "found no mesh layers, so the 'worst case' is just --surface-base"
+        ).toBeGreaterThanOrEqual(4);
+        expect(w.base).toMatch(OPAQUE_HEX);
+      });
+
+      for (const ink of ["ink-primary", "ink-secondary"]) {
+        it(`${theme}: --${ink} clears ${TEXT_FLOOR}:1 over the composite`, () => {
+          const ground = worst().hex;
+          const ratio = ratioOn(theme, ink, ground);
+          expect(
+            ratio,
+            `${theme}: --${ink} (${resolvedValue(theme, ink)}) on the mesh ` +
+              `gradient's worst-case composite (${ground}) is ` +
+              `${ratio.toFixed(2)}:1`
+          ).toBeGreaterThanOrEqual(TEXT_FLOOR);
+        });
+      }
+
+      /**
+       * ── --ink-muted is CARD-ONLY ink, and this is where that was found ───
+       * Measured 2026-08-17, writing this guard. `--ink-muted` is the floor
+       * of the text ramp: it clears 4.5:1 on all three flat `--surface-*`
+       * tokens (the loop above proves it) with very little to spare, and the
+       * gradient spends that margin. Over the worst-case composite it comes
+       * out at 3.71:1 in light and 4.20:1 in dark.
+       *
+       * That is asserted as a FACT rather than left as a passing silence,
+       * because the useful signal is when it changes. If a future gradient or
+       * a raised `--ink-muted` makes this test fail, ink-muted has become
+       * safe un-carded and this restriction should be deleted — the same
+       * two-sided shape as the waiver register at the bottom of this file.
+       *
+       * What the app must therefore not do is put `text-ink-muted` on text
+       * with no card behind it. On `activity-detail` that is the `<h1>`, the
+       * breadcrumb and the `sport · date · provider` line, which all take
+       * `--ink-secondary` or better; every other muted label on that page
+       * sits inside an opaque `bg-surface-raised` card, where the loop above
+       * is the thing that proves it.
+       *
+       * RAISING `--ink-muted` INSTEAD was considered and is not this slice's
+       * to make: the token is the text floor for the whole app, it was set to
+       * clear the surfaces exactly, and moving it re-measures every surface
+       * in every theme.
+       */
+      it(`${theme}: --ink-muted does NOT clear the floor — it is card-only ink`, () => {
+        const ground = worst().hex;
+        const ratio = ratioOn(theme, "ink-muted", ground);
+        expect(
+          ratio,
+          `${theme}: --ink-muted now measures ${ratio.toFixed(2)}:1 on the ` +
+            `mesh composite (${ground}). If that is at or above ` +
+            `${TEXT_FLOOR}, it is safe un-carded now — delete this ` +
+            `assertion and fold ink-muted into the loop above`
+        ).toBeLessThan(TEXT_FLOOR);
+      });
+    }
+
+    /**
+     * The aggregate above is a bound across all four layers at peak, and no
+     * single pixel carries all four. This pins the conclusion to a composite
+     * that plainly IS reachable: ONE of `.mesh-gradient`'s own 8% blooms, at
+     * its own centre, over nothing else. Even that most-flattering single
+     * bloom puts --ink-muted under the floor in light, so the finding is a
+     * property of the gradient rather than of how conservative the bound is.
+     *
+     * Scoped to the two CSS blooms deliberately. The shell's blurred blobs
+     * are 5%, and one of THOSE alone leaves --ink-muted at 4.52:1 — over the
+     * floor. Writing this assertion across all four single-layer corners
+     * claimed more than is true and failed, which is the whole reason it is
+     * worth pinning the reachable case separately from the bound.
+     */
+    it("light: one .mesh-gradient bloom alone puts --ink-muted under the floor", () => {
+      const single = compositeMeshCorners(css, "light").filter(
+        (corner) =>
+          corner.layers.length === 1 &&
+          corner.layers[0].source.startsWith(".mesh-gradient")
+      );
+      expect(single.length).toBe(2);
+
+      const best = single
+        .map((corner) => ({
+          corner,
+          ratio: contrastRatio(
+            compositeOver(
+              inkColor("light", "ink-muted", "a text ink"),
+              corner.hex
+            ),
+            corner.hex
+          ),
+        }))
+        .reduce((a, b) => (a.ratio > b.ratio ? a : b));
+
+      expect(
+        best.ratio,
+        `the most flattering single bloom (${best.corner.layers[0].source} → ` +
+          `${best.corner.hex}) still measures ${best.ratio.toFixed(2)}:1`
+      ).toBeLessThan(TEXT_FLOOR);
+    });
+  });
 
   /**
    * ── Coach inbox kind tiles (Task 5) ──────────────────────────────────────

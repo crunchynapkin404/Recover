@@ -1,5 +1,154 @@
 # Changelog
 
+## v0.108.0 — 2026-08-18 — What the gradient was hiding
+
+2b.4 slice 6's phase B: the Activity redesign itself. The 102 remaining class
+sites across Activity's six surfaces move onto the v0.99 type, ink and surface
+tokens, and `activity-detail`'s 240 _indeterminate_ axe nodes become computable.
+
+**What an athlete notices:** every type size below the 12px floor comes up to
+it — twenty of the slice's twenty-seven arbitrary sizes were under it, down to
+`text-[8.5px]` on the metric-tile labels. Cards that were translucent white are
+now opaque surfaces. Nothing moves position.
+
+### The zero that meant "the rule never ran"
+
+`activity-detail` measured 0 confirmed contrast violations and 240
+indeterminate. The zero was not a pass: axe's `color-contrast` rule cannot
+resolve a **non-uniform** backdrop, so on every node sitting over `AppShell`'s
+mesh gradient it returns `contrastRatio: 0` and files the node under
+`incomplete`. Most of the 240 were text inside translucent `bg-white/[0.0N]`
+cards — axe saw the gradient straight through them — and went away as a side
+effect of the cards going opaque. What was left is the text with no card at
+all: the `<h1>`, the breadcrumb, the `sport · date · provider` line.
+
+`src/lib/design/mesh-composite.ts` derives the worst backdrop the gradient can
+put behind text, alpha-compositing `.mesh-gradient`'s stops and the shell's two
+blur blobs over `--surface-base`, read from the CSS and the shell that ship
+rather than restated. `tests/contrast-guard.test.ts` asserts the inks against
+it, so "indeterminate" stops meaning "unknown".
+
+**It found a real defect. `--ink-muted` is card-only ink.** On that composite
+it is **3.71:1 in light and 4.20:1 in dark**, and a single 8% bloom at its own
+centre already puts it at **4.33:1** in light — reachable, so this is a
+property of the gradient and not of how conservative the bound is. The plan
+had specified `text-ink-muted` for the un-carded provenance line and for two
+labels in the debrief card; all three take `--ink-secondary` instead. Raising
+the token was declined: it is the whole app's text floor, set to clear the flat
+surfaces exactly, and moving it re-measures every surface in every theme.
+
+The restriction is pinned two-sided, so an `--ink-muted` that later becomes
+safe un-carded fails the build and gets the restriction deleted.
+
+`globals.css`'s own comment claimed the blooms "shift the page's rendered
+luminance by well under 1%, so they cannot threaten any text/surface contrast
+pair". Measured: **7–9%** in light (L 0.9216 → 0.8421 under the blue bloom),
+and enough to take `--ink-muted` through the AA floor. Corrected against the
+numbers.
+
+### Two more places the plan's token was wrong
+
+`--surface-raised` **equals** `--surface-overlay` in light — both `#ffffff`.
+The plan put the debrief sheet's chips, note wrapper and Skip button on
+`bg-surface-raised`; inside the sheet panel that is a no-op fill, and the RPE
+and Feel pills carry no border, so they would have disappeared into the panel
+entirely. They take `bg-surface-selected`, which `globals.css:130-144` already
+documents as existing for exactly this case. In dark the two differ
+(`#161616` vs `#1f1f1f`), which is why the mistake would have shipped looking
+fine.
+
+The handoff's per-file "bare white" column reported **50** sites by
+double-counting its own ad-hoc-ink column. There were **8**, and the real edit
+total was **102**, not the ~144 projected. No guard matches a bare
+`text-white`, so those 8 were invisible to `tests/type-scale-guard.test.ts` —
+the spelling that finds them is now recorded in the ceiling comment.
+
+### What only the screenshot could show
+
+Raising the laps table's min-width from 300 to 340, to fit the header row at
+12px, pushed it past the ~310px a 390px viewport leaves inside the page's
+`px-6` and the card's `p-4`. Two separate defects came out of that, and neither
+was visible from inside the task that caused it:
+
+- axe reported `scrollable-region-focusable` on phone in both themes — a
+  **new confirmed node**, which appeared only because the card had also gone
+  opaque and axe could finally compute the page. The region is now focusable
+  and labelled.
+- Opening the PNG showed the **Power column clipped mid-value** where at a 9px
+  header it had fitted. Power gives back a step (`w-16` → `w-14`) and the table
+  returns to 310.
+
+### Results
+
+| Surface                                        |                          Before |                After |
+| ---------------------------------------------- | ------------------------------: | -------------------: |
+| `activity-log`                                 |                    46 confirmed |                **0** |
+| `debrief-sheet`                                |                    43 confirmed |                **0** |
+| `activity-detail`                              | 0 confirmed / 240 indeterminate |           **0 / 20** |
+| `today`, `today-evening`, `today-post-session` |                               — | **0**, no regression |
+
+Counted as **nodes**, across all four theme/viewport combos of each surface.
+`debrief-sheet` renders on Today too, so Today was re-measured rather than
+assumed still clean from its slice-1 sign-off.
+
+Both ratchets re-pinned, forced rather than discretionary — the gaps of 27 and
+54 were over `RATCHET_SLACK` (25): arbitrary type sizes **52 → 25**, ad-hoc
+white/black alpha **127 → 73**.
+
+### The seed defect that cost a capture run
+
+`demo@recover.local` seeded as role `member`, and the reseed path returned the
+existing row untouched, so it could never recover. `/admin` redirects every
+role but owner, and `verify-surfaces.ts` treats that redirect as a hard
+navigation mismatch whose throw the `SURFACES` loop does not contain — it
+killed a whole run 16 surfaces in, before `activity-log`, `activity-detail` or
+`debrief-sheet` were reached. The role is now set at creation and re-asserted
+on every reseed.
+
+**The amplifier was the capture loop, and that is fixed too.** The seed bug
+explains one lost run; what made it cost a whole run is that
+`for (const [name, path] of Object.entries(SURFACES))` was not contained.
+`captureWithRetry` rethrows after its second attempt, the throw escaped
+`main()`, and every later surface AND every later theme/viewport combo went
+with it, unrecorded. Every captured surface now goes through the same
+`captureResolved` helper the three resolved surfaces use, so a run finishes and
+reports what failed. Verified by reproducing the original condition: with the
+demo user demoted to `member` again, `admin` is recorded as a failed entry with
+its navigation mismatch and the run carries on to capture `activity-log`,
+`activity-detail` and `debrief-sheet` — the three surfaces the abort had never
+reached. `hardFailures` still makes the exit non-zero.
+
+This also closed a gap `docs/ENVIRONMENTS.md` had carried as unfixable:
+`coach-thread` "cannot be captured on a seeded database at all", because the
+seed gives its six chat threads to `demo@recover.local` while the capture signs
+in as the owner. Those were the same account all along once the seed sets the
+role — all four `coach-thread` combos now capture with no error.
+
+`docs/v0.99-redesign-handoff.md`'s environment traps were corrected against
+`docs/ENVIRONMENTS.md`, `docker ps` and `.env`. The load-bearing error: **dev
+and prod use the same ports on different hosts**, so "5434 is the LIVE
+database, never point anything at it" is true on prod and actively wrong on
+devbox, where 5434 is the dev database and is what `.env` names. 5435 is the
+RC soak stack's database and 3100 is its app — the port the capture recipe
+told you to serve from, which measures the released image instead of your
+working tree. The `LD_LIBRARY_PATH` incantation is dead; its directory does not
+exist.
+
+### Also
+
+- `scripts/verify-surfaces.ts`: `coach-thread`, `activity-detail` and
+  `debrief-sheet` each carried the same ~30-line resolve/capture/catch/record
+  block. One `captureResolved` helper — 84 lines out, 55 in.
+- The five hardcoded chart colour literals on the detail page become
+  references. Four were already in `CHART_TOKENS.series`; elevation's
+  `rgba(52,211,153,0.15)` fill was its own stroke colour restated in another
+  notation, and `chartFill` now derives it from the same constant.
+- Two comments claiming dark's accent pair is "byte-identical" to
+  `bg-emerald-500`/`text-black` corrected: the foreground half is, but Tailwind
+  v4.3.2 ships `emerald-500` as `oklch(69.6% 0.17 162.48)`, not `#10b981`.
+
+**2b.4 stays open.** It closes at slice 9.
+
 ## v0.107.0 — 2026-08-17 — The pages nobody had ever opened
 
 2b.4 slice 6's phase A: Activity's redesign, scoped by measurement rather

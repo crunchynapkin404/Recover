@@ -471,12 +471,22 @@
 
 /* ── Mesh gradient background ────────────────────────────────────────────── */
 .mesh-gradient {
-  /* The two accent blooms stay identical in both themes: at 8% alpha they
-     shift the page's rendered luminance by well under 1%, so they cannot
-     threaten any text/surface contrast pair, and a faint blue/green wash
-     reads as intentional depth on a light surface exactly as it does on a
-     dark one. Only the base — the one hardcoded value in this rule — was
-     theme-blind; it now follows --surface-base. */
+  /* The two accent blooms stay identical in both themes, and a faint
+     blue/green wash reads as intentional depth on a light surface exactly as
+     it does on a dark one. Only the base — the one hardcoded value in this
+     rule — was theme-blind; it now follows --surface-base.
+
+     CORRECTED v0.108.0, measured rather than assumed. This comment used to
+     claim the blooms "shift the page's rendered luminance by well under 1%,
+     so they cannot threaten any text/surface contrast pair". Both halves are
+     false: one 8% bloom moves light-mode relative luminance by 7–9%
+     (0.9216 → 0.8421 under the blue one), and that is enough to take
+     --ink-muted from 4.72:1 on the bare base to 4.33:1 — through the AA
+     floor. So --ink-muted is CARD-ONLY ink; text with no opaque card behind
+     it takes --ink-secondary or better. tests/contrast-guard.test.ts proves
+     all of this against src/lib/design/mesh-composite.ts, which derives the
+     composite from THIS declaration, so editing the stops below re-runs the
+     check rather than aging this paragraph. */
   background:
     radial-gradient(at 10% 10%, rgba(59, 130, 246, 0.08) 0%, transparent 40%),
     radial-gradient(at 90% 20%, rgba(16, 185, 129, 0.08) 0%, transparent 40%),

@@ -11,6 +11,7 @@ import { StreamDataEmpty } from "@/components/activity/stream-data-empty";
 import { ActivityDebriefSection } from "@/components/debrief/activity-debrief-section";
 import { DeleteActivityButton } from "@/components/activity/delete-activity-button";
 import { formatDuration } from "@/lib/format";
+import { chartFill, STREAM_COLORS } from "@/lib/charts";
 
 // Provenance, spelled the way the athlete would recognise it.
 const PROVIDER_LABEL: Record<string, string> = {
@@ -81,12 +82,12 @@ export default async function ActivityPage({
       <header className="mb-5 pt-8">
         <Link
           href="/train?tab=history"
-          className="mb-3 inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.15em] text-white/50 transition-colors hover:text-white/80"
+          className="mb-3 inline-flex items-center gap-1.5 text-label font-bold uppercase tracking-[0.15em] text-ink-secondary transition-colors hover:text-ink-primary"
         >
           <ArrowLeft aria-hidden className="size-3" /> Train / History
         </Link>
         <div className="flex items-start justify-between gap-3">
-          <h1 className="text-[21px] font-bold tracking-[-0.03em]">
+          <h1 className="text-title font-bold tracking-[-0.03em]">
             {activity.name ?? activity.sport}
           </h1>
           <DeleteActivityButton
@@ -94,7 +95,7 @@ export default async function ActivityPage({
             activityName={activity.name ?? activity.sport}
           />
         </div>
-        <p className="mt-1 text-[9.5px] font-bold uppercase tracking-[0.15em] text-white/40">
+        <p className="mt-1 text-label font-bold uppercase tracking-[0.15em] text-ink-secondary">
           {[
             activity.sport,
             (activity.startDateLocal ?? activity.startDate).toLocaleDateString(
@@ -116,17 +117,17 @@ export default async function ActivityPage({
           {stats.map((s) => (
             <div
               key={s.label}
-              className="rounded-[14px] border border-white/[0.09] bg-white/[0.04] px-3 py-2.5"
+              className="rounded-[14px] border border-hairline bg-surface-raised px-3 py-2.5"
             >
-              <p className="font-mono text-[14px] font-bold leading-none text-white">
+              <p className="font-mono text-caption font-bold leading-none text-ink-primary">
                 {s.value}
                 {s.unit && (
-                  <span className="ml-0.5 text-[10px] font-medium text-white/40">
+                  <span className="ml-0.5 text-label font-medium text-ink-muted">
                     {s.unit}
                   </span>
                 )}
               </p>
-              <p className="mt-1.5 text-[8.5px] font-bold uppercase tracking-[0.15em] text-white/40">
+              <p className="mt-1.5 text-label font-bold uppercase text-ink-muted">
                 {s.label}
               </p>
             </div>
@@ -139,7 +140,7 @@ export default async function ActivityPage({
           <StreamChart
             label="Heart rate"
             unit="bpm"
-            color="#f87171"
+            color={STREAM_COLORS.heartrate}
             values={streams.heartrate}
           />
         )}
@@ -147,7 +148,7 @@ export default async function ActivityPage({
           <StreamChart
             label="Power"
             unit="W"
-            color="#a78bfa"
+            color={STREAM_COLORS.power}
             values={streams.watts}
           />
         )}
@@ -155,7 +156,7 @@ export default async function ActivityPage({
           <StreamChart
             label="Pace"
             unit="/km"
-            color="#22d3ee"
+            color={STREAM_COLORS.pace}
             values={pace}
             format={paceMinKm}
           />
@@ -164,10 +165,10 @@ export default async function ActivityPage({
           <StreamChart
             label="Elevation"
             unit="m"
-            color="#34d399"
+            color={STREAM_COLORS.elevation}
             values={streams.altitude}
             height={44}
-            fill="rgba(52,211,153,0.15)"
+            fill={chartFill(STREAM_COLORS.elevation, 0.15)}
           />
         )}
 

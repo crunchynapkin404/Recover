@@ -135,11 +135,19 @@ set -a; . ./.env; set +a
 SCREENSHOT_BASE_URL=http://localhost:3100 npm run verify:surfaces -- <slice>
 ```
 
-**Known gap, carried to a later slice:** `coach-thread` cannot be captured on a
-seeded database at all. `scripts/seed-demo.ts` gives its six chat threads to
-`demo@recover.local`, and the capture signs in as the owner, so
-`a[data-chat-thread]` never appears and those four captures fail. Slice 4 got
-coach captures because the old dev box's owner had real threads from actual use.
+**3100 is the RELEASE-CANDIDATE target, and only that.** It serves a released
+image, so a slice still in progress must capture a dev server instead (3200) or
+it measures the last release and reports no change — see CONTRIBUTING.md.
+
+**~~Known gap~~ — CLOSED in v0.108.0.** This said `coach-thread` could not be
+captured on a seeded database at all: `scripts/seed-demo.ts` gives its six chat
+threads to `demo@recover.local` while the capture signs in as the owner, so
+`a[data-chat-thread]` never appeared and those four captures failed. The cause
+was that the seed left `demo@recover.local` as a `member` and some other
+account was the owner. v0.108.0 makes the seed give that user the `owner` role
+at creation and on every reseed, so the account holding the threads is the
+account the capture signs in as. All four `coach-thread` combos now capture
+with no error.
 Closing it needs the owner seeded with threads.
 
 ## Dumps and secrets on the dev box

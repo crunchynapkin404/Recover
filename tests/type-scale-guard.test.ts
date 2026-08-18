@@ -546,7 +546,29 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // sites at different sizes, so no fixed-step token can replace it (see the
   // 112 entry above for the full reasoning, recorded when v0.99 slice 4
   // Coach's task 10 left it in place).
-  "arbitrary type sizes": 52,
+  // 25 occurrences, measured 2026-08-17 after v0.108.0 slice 6 phase B
+  // (Activity redesign). Net −27 from the 52 above, all seven of the slice's
+  // files to zero:
+  //   debrief-sheet.tsx: 11 (the largest single offender in the slice)
+  //   app/activity/[id]/page.tsx: 6
+  //   activity-debrief-section.tsx: 5
+  //   laps-table.tsx: 3
+  //   stream-chart.tsx: 2
+  //   activity-log-form.tsx, delete-activity-button.tsx: 0 each — both
+  //     carried ad-hoc ink and default scale but no arbitrary sizes, so they
+  //     move the sibling ceiling and not this one.
+  // 11 + 6 + 5 + 3 + 2 = 27. Twenty of the 27 sat BELOW the 12px floor
+  // (6 × [11px], 5 × [11.5px], 3 × [9.5px], 2 × [10px], 2 × [10.5px],
+  // 1 × [9px], 1 × [8.5px]) and came up to it rather than finding a smaller
+  // token, which is why two rows lost their tracking-[0.15em]: at 12px the
+  // uppercase treatment reads without it, and the tracking is what overflowed
+  // the fixed columns. The gap this left (52 − 25 = 27) was OVER
+  // RATCHET_SLACK (25), so the ratchet failed and re-pinning here was
+  // mandatory, not discretionary. Verified directly: running ARBITRARY_TYPE
+  // (src/lib/design/type-scale-patterns.ts) over every non-test file in
+  // src/**/*.{ts,tsx} reports 25 on the working tree after this slice's
+  // edits, down from 52 before them.
+  "arbitrary type sizes": 25,
   // 251 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
   // redesign) task 3 — repays the debt task 2 explicitly left for this task,
   // same three cards as the sibling ceiling above. Net −27 from the 278
@@ -964,7 +986,36 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // (src/lib/design/type-scale-patterns.ts) over every non-test file in
   // src/**/*.{ts,tsx} reports 156 on the working tree after these two
   // tasks' edits, down from 189 before them.
-  "ad-hoc white/black alpha utilities": 127,
+  // 73 occurrences, measured 2026-08-17 after v0.108.0 slice 6 phase B
+  // (Activity redesign). Net −54 from the 127 above, the same seven files as
+  // the sibling ceiling:
+  //   debrief-sheet.tsx: 17
+  //   activity-log-form.tsx: 15 (nothing arbitrary, so it moves only this
+  //     ceiling — plus all 13 of the slice's default-scale sites, which
+  //     neither ceiling counts)
+  //   app/activity/[id]/page.tsx: 7
+  //   laps-table.tsx: 6
+  //   activity-debrief-section.tsx: 5
+  //   stream-chart.tsx: 3
+  //   delete-activity-button.tsx: 1
+  // 17 + 15 + 7 + 6 + 5 + 3 + 1 = 54. The gap this left (127 − 73 = 54) was
+  // OVER RATCHET_SLACK (25), so the ratchet failed and re-pinning here was
+  // mandatory, not discretionary.
+  //
+  // NOT COUNTED BY THIS PATTERN, and the reason the slice's real edit total
+  // was 102 rather than the ~144 its handoff projected: 8 BARE
+  // text-white/text-black sites (3 in debrief-sheet.tsx, 3 in
+  // activity-log-form.tsx, 1 each in page.tsx and laps-table.tsx). ADHOC_INK
+  // requires an alpha slash, so no guard in this file ever saw them — the
+  // handoff's own per-file "bare white" column double-counted its ad-hoc-ink
+  // column and reported 50. All 8 are gone, but nothing here would have
+  // noticed if they were not; the spelling that finds them is
+  // \b(text|bg|border|fill|stroke|ring|divide)-(white|black)\b(?!/).
+  //
+  // Verified directly: running ADHOC_INK (src/lib/design/type-scale-patterns
+  // .ts) over every non-test file in src/**/*.{ts,tsx} reports 73 on the
+  // working tree after this slice's edits, down from 127 before them.
+  "ad-hoc white/black alpha utilities": 73,
   // 234 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
   // redesign) task 4 — the same two cards as the sibling ceiling above,
   // strava-card.tsx and apple-health-card.tsx, moved onto connector-card.tsx's

@@ -10,29 +10,46 @@ function clock(secs: number): string {
 export function LapsTable({ laps }: { laps: ActivityLap[] }) {
   if (laps.length === 0) return null;
   return (
-    <div className="overflow-x-auto rounded-[18px] border border-white/[0.08] bg-white/[0.03] p-4">
-      <h3 className="mb-2 text-[11px] font-bold">Laps &amp; intervals</h3>
-      <table className="w-full min-w-[300px] text-left">
+    // A phone viewport leaves about 310px inside the page's px-6 and this
+    // card's p-4, which is what min-w-[310px] is sized to: v0.108.0 first took
+    // the table to 340 to fit the 12px header row and the screenshot showed the
+    // Power column clipped off the right edge, where at 9px it had fitted.
+    // Power gives back the step instead (w-16 to w-14 — "POWER" and "301 W"
+    // both sit inside 56px).
+    //
+    // tabIndex/role/aria-label stay regardless. They are what axe's
+    // scrollable-region-focusable asked for when the table did overflow, and a
+    // narrower device than 390px still overflows — a keyboard-only athlete
+    // could otherwise see the first four columns and reach the last two by no
+    // means at all.
+    <div
+      tabIndex={0}
+      role="region"
+      aria-label="Laps and intervals"
+      className="overflow-x-auto rounded-[18px] border border-hairline bg-surface-raised p-4"
+    >
+      <h3 className="mb-2 text-label font-bold">Laps &amp; intervals</h3>
+      <table className="w-full min-w-[310px] text-left">
         <thead>
-          <tr className="text-[9px] font-bold uppercase tracking-[0.15em] text-white/40">
-            <th className="w-[18px] py-1.5">#</th>
+          <tr className="text-label font-bold uppercase text-ink-muted">
+            <th className="w-[22px] py-1.5">#</th>
             <th className="py-1.5">Label</th>
-            <th className="w-11 py-1.5 text-right">Time</th>
-            <th className="w-11 py-1.5 text-right">Dist</th>
-            <th className="w-10 py-1.5 text-right">HR</th>
-            <th className="w-12 py-1.5 text-right">Power</th>
+            <th className="w-14 py-1.5 text-right">Time</th>
+            <th className="w-14 py-1.5 text-right">Dist</th>
+            <th className="w-12 py-1.5 text-right">HR</th>
+            <th className="w-14 py-1.5 text-right">Power</th>
           </tr>
         </thead>
-        <tbody className="font-mono text-[10.5px]">
+        <tbody className="font-mono text-label">
           {laps.map((lap) => {
             // Recovery laps are dimmed so the work stands out at a glance.
             const recovery = /recover|rest|cool|warm/i.test(lap.label ?? "");
             return (
               <tr
                 key={lap.index}
-                className={`border-t border-white/[0.06] ${recovery ? "text-white/75" : "text-white"}`}
+                className={`border-t border-hairline ${recovery ? "text-ink-secondary" : "text-ink-primary"}`}
               >
-                <td className="py-1.5 text-white/35">{lap.index}</td>
+                <td className="py-1.5 text-ink-muted">{lap.index}</td>
                 <td className="py-1.5 pr-2 font-sans">{lap.label ?? "—"}</td>
                 <td className="py-1.5 text-right">
                   {lap.durationS != null ? clock(lap.durationS) : "—"}

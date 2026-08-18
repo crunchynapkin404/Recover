@@ -98,7 +98,9 @@
 //                       closed. On this machine port 3000 is *permanently* the
 //                       live production container and this script is refused
 //                       outright if pointed there. Start
-//                       the dev server on another port (3100 is verified)
+//                       the dev server on another port — 3200 while a
+//                       slice is in progress, since 3100 is the RC soak
+//                       stack and holds a RELEASED image, not your work —
 //                       with BETTER_AUTH_URL/TRUSTED_ORIGINS matching that
 //                       origin — without it, secure-cookie mode drops the
 //                       session and every authenticated capture is a login
@@ -178,7 +180,10 @@ try {
 //   1. Port 3000. Kept, though on the current dev box nothing production runs
 //      there — because a self-hoster following docs/SELF-HOSTING.md serves
 //      their real instance on exactly that port, and this file is public. It
-//      costs nothing to obey: run the dev server on 3100.
+//      costs nothing to obey: run the dev server on 3200. 3100 is the RC
+//      soak stack (recover-rc-app-1) — the right target when verifying a
+//      RELEASE CANDIDATE (docs/RELEASING.md step 7), the wrong one while a
+//      slice is in progress, because it serves a released image.
 //
 //   2. The production HOST. Added when the project moved to a dev box and a
 //      prod box on 2026-08-14 (docs/ENVIRONMENTS.md). The port rule was a
@@ -194,9 +199,13 @@ const BASE_URL = (() => {
   if (!url) {
     throw new Error(
       "SCREENSHOT_BASE_URL is required — this script has no default on purpose.\n" +
-        "Point it at a DEV server, never production:\n" +
-        "  BETTER_AUTH_URL=http://localhost:3100 TRUSTED_ORIGINS=http://localhost:3100 npx next dev -p 3100\n" +
-        "  SCREENSHOT_BASE_URL=http://localhost:3100 npm run verify:surfaces -- <slice>\n" +
+        "Point it at a DEV server, never production.\n" +
+        "While a slice is in progress use 3200, not 3100: 3100 is\n" +
+        "recover-rc-app-1, the RC soak stack, so capturing it measures a\n" +
+        "RELEASED image rather than your working tree. (3100 IS the right\n" +
+        "target when verifying a release candidate — docs/RELEASING.md.)\n" +
+        "  BETTER_AUTH_URL=http://localhost:3200 TRUSTED_ORIGINS=http://localhost:3200 npx next dev -p 3200\n" +
+        "  SCREENSHOT_BASE_URL=http://localhost:3200 npm run verify:surfaces -- <slice>\n" +
         "See docs/ENVIRONMENTS.md for which box is which."
     );
   }
@@ -220,7 +229,8 @@ const BASE_URL = (() => {
     throw new Error(
       `Refusing to run against ${url} — port 3000 is where a self-hosted ` +
         `production instance serves (docs/SELF-HOSTING.md). This script ` +
-        `creates real data. Use a dev server on 3100.`
+        `creates real data. Use a dev server on 3200 for slice work, or ` +
+        `the RC stack on 3100 when verifying a release candidate.`
     );
   }
 
@@ -1138,7 +1148,7 @@ async function resolveCoachThreadPath(page: Page): Promise<string> {
     throw new Error(
       "no a[data-chat-thread] link on /coach?history=1 — the seeded CHAT " +
         "thread ('Should I go hard today?') is missing. Run " +
-        "scripts/seed-demo.ts against the dev DB (5435) first. Refusing to " +
+        "scripts/seed-demo.ts against the dev DB (5434) first. Refusing to " +
         'fall back to a[href^="/coach?thread="]: that would silently ' +
         "capture an inbox thread instead of the seeded chat thread, which " +
         "is the exact bug this resolver exists to avoid."
@@ -1294,49 +1304,71 @@ async function main() {
       `);
       const dark = theme === "dark";
       const p = await ctx.newPage();
+
+      /**
+       * EVERY captured surface goes through here: the literal SURFACES map,
+       * and coach-thread / activity-detail / debrief-sheet, which differ only
+       * in their name and in how their path is resolved. Capture, record the
+       * hard failure, file an empty axe entry so a failed surface is not
+       * merely absent from the report, flush. Those three each carried their
+       * own ~30-line copy of it until v0.108.0.
+       *
+       * THE SURFACES LOOP USED NOT TO BE CONTAINED, and that is what made one
+       * bad surface expensive: captureWithRetry rethrows after its second
+       * attempt, the throw escaped main(), and every LATER surface and every
+       * later theme/viewport combo was lost with no axe entry filed for any of
+       * them. In v0.108.0 a demo user seeded as `member` redirected /admin and
+       * killed a 35-minute run 16 surfaces in. That seed bug is fixed, but the
+       * amplifier was this loop — so a run now finishes and reports what
+       * failed instead of stopping at the first unreachable page.
+       * `hardFailures` still makes the exit non-zero.
+       *
+       * The path arrives as a thunk rather than a string so a caller can do
+       * work that must happen inside the try: activity-detail keeps the id it
+       * resolved, and debrief-sheet throws from inside its own resolver when
+       * that id never arrived.
+       */
+      const captureResolved = async (
+        name: string,
+        resolvePath: () => Promise<string>
+      ) => {
+        try {
+          const path = await resolvePath();
+          await captureWithRetry(
+            p,
+            name,
+            path,
+            join(outDir, `${name}-${theme}-${vpName}.png`),
+            dark,
+            theme,
+            vpName
+          );
+          total++;
+        } catch (err) {
+          const message =
+            `${name} FAILED for ${theme}/${vpName}: ` +
+            `${err instanceof Error ? err.message : String(err)}`;
+          console.error(message);
+          hardFailures.push(message);
+          axeReport.push({
+            surface: name,
+            theme,
+            viewport: vpName,
+            confirmed: [],
+            indeterminate: [],
+            error: err instanceof Error ? err.message : String(err),
+          });
+          writeReport();
+        }
+      };
+
       for (const [name, path] of Object.entries(SURFACES)) {
-        await captureWithRetry(
-          p,
-          name,
-          path,
-          join(outDir, `${name}-${theme}-${vpName}.png`),
-          dark,
-          theme,
-          vpName
-        );
-        total++;
+        await captureResolved(name, async () => path);
       }
 
       // Resolved per context: the storage state is fresh each time and the
       // href is cheap to re-read. A failure here is hard — see the resolver.
-      try {
-        const threadPath = await resolveCoachThreadPath(p);
-        await captureWithRetry(
-          p,
-          "coach-thread",
-          threadPath,
-          join(outDir, `coach-thread-${theme}-${vpName}.png`),
-          dark,
-          theme,
-          vpName
-        );
-        total++;
-      } catch (err) {
-        const message =
-          `coach-thread FAILED for ${theme}/${vpName}: ` +
-          `${err instanceof Error ? err.message : String(err)}`;
-        console.error(message);
-        hardFailures.push(message);
-        axeReport.push({
-          surface: "coach-thread",
-          theme,
-          viewport: vpName,
-          confirmed: [],
-          indeterminate: [],
-          error: err instanceof Error ? err.message : String(err),
-        });
-        writeReport();
-      }
+      await captureResolved("coach-thread", () => resolveCoachThreadPath(p));
 
       // Resolved per context, same reasoning as coach-thread above: the
       // storage state is fresh each time and the href is cheap to re-read.
@@ -1344,35 +1376,11 @@ async function main() {
       // resolved activity id is also reused below for debrief-sheet's deep
       // link, so it is captured into a variable rather than only a path.
       let activityId: string | undefined;
-      try {
+      await captureResolved("activity-detail", async () => {
         const detailPath = await resolveActivityDetailPath(p);
         activityId = detailPath.replace(/^\/activity\//, "");
-        await captureWithRetry(
-          p,
-          "activity-detail",
-          detailPath,
-          join(outDir, `activity-detail-${theme}-${vpName}.png`),
-          dark,
-          theme,
-          vpName
-        );
-        total++;
-      } catch (err) {
-        const message =
-          `activity-detail FAILED for ${theme}/${vpName}: ` +
-          `${err instanceof Error ? err.message : String(err)}`;
-        console.error(message);
-        hardFailures.push(message);
-        axeReport.push({
-          surface: "activity-detail",
-          theme,
-          viewport: vpName,
-          confirmed: [],
-          indeterminate: [],
-          error: err instanceof Error ? err.message : String(err),
-        });
-        writeReport();
-      }
+        return detailPath;
+      });
 
       // debrief-sheet reuses activity-detail's resolved id (Task 2 brief) —
       // deep-linked explicitly rather than bare ?sheet=debrief because
@@ -1380,7 +1388,7 @@ async function main() {
       // NULL on every seeded row. If activity-detail's resolver failed
       // above, there is no id to link to, so this is recorded as a hard
       // failure too rather than silently vanishing from the report.
-      try {
+      await captureResolved("debrief-sheet", async () => {
         if (!activityId) {
           throw new Error(
             "no activity id available — resolveActivityDetailPath did not " +
@@ -1388,33 +1396,8 @@ async function main() {
               "failure above)."
           );
         }
-        const sheetPath = `/?sheet=debrief&activity=${activityId}`;
-        await captureWithRetry(
-          p,
-          "debrief-sheet",
-          sheetPath,
-          join(outDir, `debrief-sheet-${theme}-${vpName}.png`),
-          dark,
-          theme,
-          vpName
-        );
-        total++;
-      } catch (err) {
-        const message =
-          `debrief-sheet FAILED for ${theme}/${vpName}: ` +
-          `${err instanceof Error ? err.message : String(err)}`;
-        console.error(message);
-        hardFailures.push(message);
-        axeReport.push({
-          surface: "debrief-sheet",
-          theme,
-          viewport: vpName,
-          confirmed: [],
-          indeterminate: [],
-          error: err instanceof Error ? err.message : String(err),
-        });
-        writeReport();
-      }
+        return `/?sheet=debrief&activity=${activityId}`;
+      });
 
       // Reach and capture the api-tokens-card "token created" state, once
       // per theme/viewport combination, then clean up via the real UI.
