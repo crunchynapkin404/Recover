@@ -3,12 +3,16 @@ import {
   raceWeekWorkouts,
   taperFractionForWeek,
   taperWindowDays,
+  raceRecoveryDays,
   TAPER_FRACTION_RACE_WEEK,
   TAPER_FRACTION_WEEK_1,
   TAPER_FRACTION_WEEK_2,
   TAPER_WINDOW_LONG,
   TAPER_WINDOW_MID,
   TAPER_WINDOW_SHORT,
+  RACE_RECOVERY_DAYS_LONG,
+  RACE_RECOVERY_DAYS_MID,
+  RACE_RECOVERY_DAYS_SHORT,
 } from "./taper";
 
 const race = (date: string, raceType: string) => ({
@@ -165,5 +169,48 @@ describe("taper window bounds", () => {
     const firstStep = TAPER_FRACTION_WEEK_1 / TAPER_FRACTION_WEEK_2;
     const secondStep = TAPER_FRACTION_RACE_WEEK / TAPER_FRACTION_WEEK_1;
     expect(secondStep).toBeLessThan(firstStep);
+  });
+});
+
+describe("raceRecoveryDays", () => {
+  it("maps the long class to 14 days", () => {
+    expect(raceRecoveryDays("marathon")).toBe(14);
+    expect(raceRecoveryDays("Ironman")).toBe(14);
+  });
+
+  it("maps the mid class to 7 days", () => {
+    expect(raceRecoveryDays("half marathon")).toBe(7);
+    expect(raceRecoveryDays("70.3")).toBe(7);
+    expect(raceRecoveryDays("gran fondo")).toBe(7);
+  });
+
+  it("maps everything else to the short floor", () => {
+    expect(raceRecoveryDays("10k")).toBe(4);
+    expect(raceRecoveryDays("crit")).toBe(4);
+  });
+
+  it("classifies identically to taperWindowDays", () => {
+    // One classifier, two answers. If these ever disagree, a race is
+    // recovering on one ladder and tapering on another.
+    for (const rt of [
+      "marathon",
+      "ironman",
+      "half",
+      "70.3",
+      "century",
+      "fondo",
+      "10k",
+      "crit",
+      "sprint_tri",
+    ]) {
+      const longish = taperWindowDays(rt) === TAPER_WINDOW_LONG;
+      const midish = taperWindowDays(rt) === TAPER_WINDOW_MID;
+      const expected = longish
+        ? RACE_RECOVERY_DAYS_LONG
+        : midish
+          ? RACE_RECOVERY_DAYS_MID
+          : RACE_RECOVERY_DAYS_SHORT;
+      expect(raceRecoveryDays(rt)).toBe(expected);
+    }
   });
 });
