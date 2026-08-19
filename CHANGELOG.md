@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased
+
+### `generate_training_plan` can now target a second A-race over MCP
+
+The coach can request a two-A-race season plan by passing an optional
+`secondRaceId` alongside `raceId`. It maps to `previewTrainingPlan`'s
+`raceIds: [raceId, secondRaceId]`, which builds a full arc to the first
+race, a recovery bridge, then a rebuild and taper to the second — the
+periodization this branch's earlier Phase 3 work already builds, now
+reachable from the AI coach's own tool call rather than only the app's
+internal callers.
+
+The change is additive and backward-compatible: omitting `secondRaceId`
+still passes `raceId` straight through, byte-identical to the contract
+before this field existed. The frozen tool-surface snapshot
+(`frozen-tools.test.ts.snap`) was updated deliberately for the new optional
+field, in the same commit as the schema change (`a175e3d`), per
+`docs/API-STABILITY.md`.
+
 ## v0.113.0 — 2026-08-19 — Looked At
 
 Everything here came from capturing two surfaces nobody had ever captured. The
