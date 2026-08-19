@@ -1468,11 +1468,25 @@ export async function previewTrainingPlan(
   // no race date, or no measured current-hours/longest-ride history) and
   // names which one; `PlanPreview.feasibility` still collapses that to
   // `null` here — only the Train surface renders the reason.
+  // `weeksUntilEvent` must match the race `demand` was resolved AGAINST,
+  // not the plan's own end. `demand` comes from highest-priority-then-
+  // nearest-date over the athlete's races (assembleWeeklyTarget ->
+  // volume-inputs.ts), which is race ONE on a two-race plan -- but
+  // `weeksTotal` counts weeks to the FINAL target (race two). Scoring
+  // race one's demand against race two's horizon is systematically
+  // optimistic. `firstTarget` is null on a single-race plan, where race
+  // one IS the final race, so this is unchanged there and stays
+  // `weeksTotal` exactly.
+  const weeksUntilDemand = firstTarget
+    ? Math.ceil(
+        daysBetween(today, new Date(firstTarget.date + "T00:00:00")) / 7
+      )
+    : weeksTotal;
   const feasibilityFigure = feasibilityFor({
     demand,
     currentWeeklyHours: level.peakHours,
     longestSessionHours,
-    weeksUntilEvent: weeksTotal,
+    weeksUntilEvent: weeksUntilDemand,
   });
   const feasibility = feasibilityFigure.available
     ? feasibilityFigure.value
@@ -1620,20 +1634,38 @@ export async function previewFromDraft(
     daysBetween(today, new Date(draft.raceDate + "T00:00:00")) / 7
   );
 
+  // Read through planRaceTargets rather than draft.firstRaceDate directly
+  // (plan-targets.ts's contract) so an orphaned first-race row degrades to
+  // "no bridge-room warning" instead of a half-configured read. Needed
+  // ahead of feasibility below, not only for the bridge-room check further
+  // down.
+  const draftTargets = planRaceTargets(draft);
+
+  // `weeksUntilEvent` must match the race `demand` was resolved AGAINST,
+  // not the plan's own end. `demand` comes from highest-priority-then-
+  // nearest-date over the athlete's races (assembleWeeklyTarget ->
+  // volume-inputs.ts), which is race ONE on a two-race plan -- but
+  // `weeksUntilRace` (above) counts weeks to the FINAL target (race two,
+  // `draft.raceDate` always names it). Scoring race one's demand against
+  // race two's horizon is systematically optimistic. `draftTargets.first`
+  // is null on a single-race plan, where race one IS the final race, so
+  // this is unchanged there and stays `weeksUntilRace` exactly.
+  const weeksUntilDemand = draftTargets.first
+    ? Math.ceil(
+        daysBetween(today, new Date(draftTargets.first.date + "T00:00:00")) / 7
+      )
+    : weeksUntilRace;
+
   const feasibilityFigure = feasibilityFor({
     demand,
     currentWeeklyHours: level.peakHours,
     longestSessionHours,
-    weeksUntilEvent: weeksUntilRace,
+    weeksUntilEvent: weeksUntilDemand,
   });
   const feasibility = feasibilityFigure.available
     ? feasibilityFigure.value
     : null;
 
-  // Read through planRaceTargets rather than draft.firstRaceDate directly
-  // (plan-targets.ts's contract) so an orphaned first-race row degrades to
-  // "no bridge-room warning" instead of a half-configured read.
-  const draftTargets = planRaceTargets(draft);
   const noBridgeRoom = draftTargets.first
     ? !hasBridgeRoom(
         draftTargets.first.raceType,

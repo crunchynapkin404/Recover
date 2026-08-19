@@ -1,6 +1,15 @@
-import { describe, expect, it, beforeAll, afterAll, afterEach } from "vitest";
+import {
+  describe,
+  expect,
+  it,
+  beforeAll,
+  afterAll,
+  afterEach,
+  vi,
+} from "vitest";
 import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
+import * as feasibilityModule from "@/lib/race/feasibility";
 import {
   generateWorkouts,
   generateCyclingWorkouts,
@@ -1354,6 +1363,137 @@ describe.skipIf(!hasDb)("previewTrainingPlan — two A-races", () => {
 
     const rehydrated = await previewFromDraft(draft);
     expect(rehydrated.phases).toEqual(result.preview.phases);
+  });
+
+  // FIX 3: `demand` (assembleWeeklyTarget -> volume-inputs.ts) resolves to
+  // "highest priority, then nearest date" among the athlete's races -- race
+  // ONE on a two-race plan. `weeksTotal`/`draft.raceDate` name the FINAL
+  // target (race two). Scoring race one's demand against race two's
+  // horizon is systematically optimistic. `feasibilityFor` is spied on
+  // (not mocked -- it still runs for real) purely to inspect what
+  // `weeksUntilEvent` each call site actually passed it, since neither
+  // `PlanPreview.feasibility` nor its warnings surface that raw number.
+  describe("feasibility horizon (FIX 3)", () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("previewTrainingPlan assesses feasibility against race one's horizon on a two-race plan", async () => {
+      const earlierDate = FIRST_DATE;
+      const laterDate = addDaysYmd(FIRST_DATE, 200);
+      const a = await makeRace({
+        name: "Earlier",
+        raceType: "marathon",
+        date: earlierDate,
+      });
+      const b = await makeRace({
+        name: "Later",
+        raceType: "marathon",
+        date: laterDate,
+      });
+
+      const spy = vi.spyOn(feasibilityModule, "feasibilityFor");
+      const result = await previewTrainingPlan({
+        userId: USER,
+        raceType: "marathon",
+        raceDate: laterDate,
+        raceIds: [a, b],
+      });
+      expect(result.ok).toBe(true);
+      if (!result.ok) throw new Error("expected ok");
+      expect(spy).toHaveBeenCalledTimes(1);
+      const weeksUntilEvent = spy.mock.calls[0][0].weeksUntilEvent as number;
+
+      // `result.preview.weeksTotal` is the plan's own length, always
+      // spanning to the FINAL target (race two, ~200 days after race one).
+      // Before the fix, `weeksUntilEvent` WAS `weeksTotal` -- race two's
+      // horizon. Race one is strictly earlier, so the fixed value must be
+      // strictly less.
+      expect(weeksUntilEvent).toBeLessThan(result.preview.weeksTotal);
+      // FIRST_DATE is 140 days out (~20 weeks); pin a tolerant band around
+      // that rather than the exact day count, so the assertion doesn't
+      // couple to test-run time-of-day. Race two alone (~340 days, ~49
+      // weeks) sits far outside this band, so this also rules out the
+      // pre-fix value landing here by coincidence.
+      expect(weeksUntilEvent).toBeGreaterThanOrEqual(18);
+      expect(weeksUntilEvent).toBeLessThanOrEqual(22);
+    });
+
+    it("previewFromDraft assesses feasibility against race one's horizon on a two-race plan", async () => {
+      const earlierDate = FIRST_DATE;
+      const laterDate = addDaysYmd(FIRST_DATE, 200);
+      const a = await makeRace({
+        name: "Earlier",
+        raceType: "marathon",
+        date: earlierDate,
+      });
+      const b = await makeRace({
+        name: "Later",
+        raceType: "marathon",
+        date: laterDate,
+      });
+      const created = await previewTrainingPlan({
+        userId: USER,
+        raceType: "marathon",
+        raceDate: laterDate,
+        raceIds: [a, b],
+      });
+      expect(created.ok).toBe(true);
+      if (!created.ok) throw new Error("expected ok");
+      const draft = await db.query.trainingPlans.findFirst({
+        where: eq(schema.trainingPlans.id, created.preview.planId),
+      });
+      expect(draft).toBeTruthy();
+      if (!draft) return;
+
+      const spy = vi.spyOn(feasibilityModule, "feasibilityFor");
+      const rehydrated = await previewFromDraft(draft);
+      expect(spy).toHaveBeenCalledTimes(1);
+      const weeksUntilEvent = spy.mock.calls[0][0].weeksUntilEvent as number;
+
+      expect(weeksUntilEvent).toBeLessThan(rehydrated.weeksTotal);
+      expect(weeksUntilEvent).toBeGreaterThanOrEqual(18);
+      expect(weeksUntilEvent).toBeLessThanOrEqual(22);
+    });
+
+    it("FIX 3 control: a single-race plan's feasibility horizon is unaffected (previewTrainingPlan)", async () => {
+      const raceDate = FIRST_DATE;
+      const spy = vi.spyOn(feasibilityModule, "feasibilityFor");
+      const result = await previewTrainingPlan({
+        userId: USER,
+        raceType: "marathon",
+        raceDate,
+      });
+      expect(result.ok).toBe(true);
+      if (!result.ok) throw new Error("expected ok");
+      expect(spy).toHaveBeenCalledTimes(1);
+      const weeksUntilEvent = spy.mock.calls[0][0].weeksUntilEvent as number;
+      // No first target: race one IS the final race, so this must stay
+      // exactly the plan's own horizon -- byte-identical to before FIX 3.
+      expect(weeksUntilEvent).toBe(result.preview.weeksTotal);
+    });
+
+    it("FIX 3 control: a single-race plan's feasibility horizon is unaffected (previewFromDraft)", async () => {
+      const raceDate = FIRST_DATE;
+      const created = await previewTrainingPlan({
+        userId: USER,
+        raceType: "marathon",
+        raceDate,
+      });
+      expect(created.ok).toBe(true);
+      if (!created.ok) throw new Error("expected ok");
+      const draft = await db.query.trainingPlans.findFirst({
+        where: eq(schema.trainingPlans.id, created.preview.planId),
+      });
+      expect(draft).toBeTruthy();
+      if (!draft) return;
+
+      const spy = vi.spyOn(feasibilityModule, "feasibilityFor");
+      const rehydrated = await previewFromDraft(draft);
+      expect(spy).toHaveBeenCalledTimes(1);
+      const weeksUntilEvent = spy.mock.calls[0][0].weeksUntilEvent as number;
+      expect(weeksUntilEvent).toBe(rehydrated.weeksTotal);
+    });
   });
 });
 
