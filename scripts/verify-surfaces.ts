@@ -315,6 +315,22 @@ const SURFACES: Record<string, string> = {
   // main() by resolveActivityDetailPath, the same shape as coach-thread.
   "activity-log": "/activity/log",
   login: "/login",
+  /**
+   * The check-in sheet, which no capture has ever opened either — the same
+   * gap debrief-sheet carried until v0.108 slice 6, found the same way: by
+   * asking which states of Today have actually been rendered.
+   *
+   * `docs/ROADMAP.md` recorded it under 2b.4 slice 1 as "dark-only and below
+   * the 12px floor", and the v0.111.0 sweep fixed both — there is no
+   * dark-only literal and no arbitrary type size left in the file. What the
+   * roadmap line did not say, and what mattered more, is that the surface was
+   * never CAPTURED, so "0 confirmed axe nodes" had never included it. Fixed
+   * defects nobody has looked at are still unverified.
+   *
+   * A literal, unlike debrief-sheet: `?sheet=checkin` needs no id, because
+   * SheetHost reads the athlete's own recent wellness rows.
+   */
+  "checkin-sheet": "/?sheet=checkin",
   // The debrief sheet, which no capture has ever opened. It is a <Sheet>,
   // closed on load, reached only by ?sheet=debrief — so slice 1 declared
   // Today clean in v0.100.0 without it ever having been rendered, and
@@ -389,49 +405,178 @@ async function expandSettingsSections(page: Page): Promise<void> {
  * axeReport's `error` field, rather than a generic Error that looks the
  * same as a timeout or a navigation failure.
  */
-class DebriefSheetNotOpenError extends Error {
+class SheetNotOpenError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = "DebriefSheetNotOpenError";
+    this.name = "SheetNotOpenError";
   }
 }
 
 /**
- * debrief-sheet is captured at path "/" (search params carry the sheet
- * state), and `assertOnSurface` in `captureWithRetry` compares pathname
- * only — deliberately, per its own doc comment, so a query string can't
- * make a real navigation mismatch look like a pass. But that means it
- * CANNOT catch this surface's own failure mode: if `SheetHost`'s
- * explicit-id branch (`?sheet=debrief&activity=<id>`) ever stops opening
- * the sheet — a renamed param, the uuid check rejecting a valid id, the
- * userId join finding nothing — `assertOnSurface` still sees "/" and
- * passes, and this script would silently screenshot and axe-audit Today
- * itself, then file the result under the name "debrief-sheet". That is
- * exactly the shape of the settings-connect-errors defect (task 11
- * finding): a capture that reaches a page but not the state it exists to
- * measure, reporting a real number for the wrong thing all release.
+ * Both sheet surfaces are captured at path "/" — the search params carry the
+ * sheet state — and `assertOnSurface` in `captureWithRetry` compares pathname
+ * only, deliberately, per its own doc comment, so a query string cannot make a
+ * real navigation mismatch look like a pass.
  *
- * `[role="dialog"]` is BottomSheet's own root (src/components/ui/bottom-
- * sheet.tsx), shared by DebriefSheet and CheckinSheet — but only DebriefSheet
- * can render at this surface's URL, and BlockSheet (train/week) is the only
+ * That means `assertOnSurface` CANNOT catch these surfaces' own failure mode.
+ * If `SheetHost`'s branch for either sheet ever stops opening it — a renamed
+ * param, the uuid check rejecting a valid id, the userId join finding nothing —
+ * `assertOnSurface` still sees "/" and passes, and this script would silently
+ * screenshot and axe-audit **Today itself**, then file the result under the
+ * sheet's name. That is exactly the shape of the settings-connect-errors defect
+ * (task 11 finding): a capture that reaches a page but not the state it exists
+ * to measure, reporting a real number for the wrong thing all release.
+ *
+ * `[role="dialog"]` is BottomSheet's own root (`src/components/ui/bottom-
+ * sheet.tsx`), shared by DebriefSheet and CheckinSheet. Only one of them can
+ * render at any one of these URLs, and BlockSheet (train/week) is the only
  * other `role="dialog"` in the app and is unreachable from "/". Mirrors
- * resolveActivityDetailPath's wait on `[data-stream-chart]`: prove the state
+ * `resolveActivityDetailPath`'s wait on `[data-stream-chart]`: prove the state
  * this surface names actually rendered before letting the screenshot or the
  * axe audit run.
+ *
+ * One factory rather than one function per sheet — the two bodies were
+ * identical apart from the URL named in the message, which is the duplication
+ * shape v0.112.0 spent a release removing.
  */
-async function waitForDebriefSheetOpen(page: Page): Promise<void> {
+function sheetOpenGuard(
+  surface: string,
+  urlHint: string
+): (page: Page) => Promise<void> {
+  return async (page: Page) => {
+    try {
+      await page
+        .locator('[role="dialog"]')
+        .first()
+        .waitFor({ state: "visible", timeout: 10_000 });
+    } catch (err) {
+      throw new SheetNotOpenError(
+        `${surface}: no [role="dialog"] appeared after navigating to ` +
+          `${urlHint}. SheetHost's branch did not open the sheet, so this ` +
+          "run would otherwise capture and audit Today itself under the " +
+          `name "${surface}" — refusing to capture. ` +
+          `(${err instanceof Error ? err.message : String(err)})`
+      );
+    }
+  };
+}
+
+/**
+ * Coach has TWO History mechanisms, and only one of them is a URL.
+ *
+ * `chat-interface.tsx` renders a mobile header (`lg:hidden`) whose History
+ * control is a `<Link href="/coach?history=1&thread=…">` — a real route — and
+ * a desktop header (`hidden lg:flex`) whose control is a
+ * `<button onClick={() => setShowThreadMenu(v => !v)}>` opening a dropdown
+ * from client state. **The search param does nothing at lg+.**
+ *
+ * That is why `coach-history` was, until 2026-08-19, a false pass at desktop:
+ * navigating to `?history=1` at 1440px rendered the ordinary empty Coach page,
+ * `assertOnSurface` saw `/coach` and agreed, and the run filed a screenshot of
+ * the suggestion chips under a name promising the History panel — auditing the
+ * wrong DOM in both desktop themes for as long as the surface has existed. The
+ * same defect shape as settings-connect-errors (task 11), found the same way:
+ * by adding a guard that asserts the STATE rather than the path, and watching
+ * it refuse.
+ *
+ * So this opens the panel by whichever mechanism the viewport actually has,
+ * rather than assuming the URL did it.
+ */
+async function openHistoryPanel(page: Page): Promise<void> {
+  const anyRow = page.locator("a[data-chat-thread]").first();
+  if (await anyRow.isVisible().catch(() => false)) return; // mobile route
+
+  // Desktop: the panel is client state behind the thread-title button.
+  const trigger = page.locator('button[aria-haspopup="true"]').first();
+  if (await trigger.isVisible().catch(() => false)) {
+    await trigger.click();
+  }
+
+  /*
+   * Then WAIT FOR THE ANIMATION, on the computed value rather than a sleep.
+   *
+   * `.menu-pop` is a 160ms fade from opacity 0 (globals.css). Playwright
+   * calls an element "visible" as soon as it has a non-empty box, which is
+   * true at opacity 0.02 — so the first version of this captured the panel
+   * mid-fade. The PNG showed the chat bubbles apparently interleaved through
+   * the panel's rows, which reads exactly like a z-index defect and is not
+   * one: the panel was simply still see-through. Worth spelling out, because
+   * a half-transparent panel is also what axe would have audited, and every
+   * colour-contrast pair it computed would have been measured against a
+   * background that is not the one an athlete ever sees.
+   */
+  const panel = page.locator(".menu-pop").first();
+  if (await panel.isVisible().catch(() => false)) {
+    await page
+      .waitForFunction(
+        () => {
+          const el = document.querySelector(".menu-pop");
+          return !!el && getComputedStyle(el).opacity === "1";
+        },
+        { timeout: 5_000 }
+      )
+      .catch(() => {
+        /* fall through — the assertions below still gate the capture */
+      });
+  }
+}
+
+/**
+ * `coach-history` — the panel open, no row selected.
+ */
+async function waitForHistoryPanel(page: Page): Promise<void> {
+  await openHistoryPanel(page);
   try {
     await page
-      .locator('[role="dialog"]')
+      .locator("a[data-chat-thread]")
       .first()
       .waitFor({ state: "visible", timeout: 10_000 });
   } catch (err) {
-    throw new DebriefSheetNotOpenError(
-      'debrief-sheet: no [role="dialog"] appeared after navigating to ' +
-        "?sheet=debrief&activity=<id>. SheetHost's explicit-id branch did " +
-        "not open the sheet, so this run would otherwise capture and " +
-        'audit Today itself under the name "debrief-sheet" — refusing ' +
-        `to capture. (${err instanceof Error ? err.message : String(err)})`
+    throw new Error(
+      "coach-history: no visible a[data-chat-thread] after opening the " +
+        "History panel. At lg+ the panel is client state behind the " +
+        "thread-title button, NOT the ?history=1 param — if that button " +
+        "moved or lost aria-haspopup, this surface silently reverts to " +
+        "capturing the ordinary Coach page. Refusing to capture. " +
+        `(${err instanceof Error ? err.message : String(err)})`
+    );
+  }
+}
+
+/**
+ * `coach-history-active` — the panel open AND a row actually selected.
+ *
+ * `coach-history` loads the panel with no `thread=`, so `activeThreadId` is
+ * undefined and every row takes the inactive branch. The selected treatment —
+ * `bg-surface-selected text-ink-primary` in `history-panel.tsx` — had never
+ * appeared in a PNG or been seen by axe, on any surface, in either theme.
+ * `docs/ROADMAP.md` recorded exactly this under 2b.4.
+ */
+async function waitForActiveThreadRow(page: Page): Promise<void> {
+  await openHistoryPanel(page);
+  try {
+    const row = page.locator("a[data-chat-thread].bg-surface-selected").first();
+    await row.waitFor({ state: "visible", timeout: 10_000 });
+    /*
+     * Then SCROLL IT INTO THE PANEL'S OWN VIEWPORT before the screenshot.
+     *
+     * The panel is `max-h-[70vh] overflow-auto` and lists inbox items above
+     * chat threads, so on a seeded account the selected thread sits below the
+     * fold. Playwright calls it "visible" — it is rendered and unhidden — but
+     * the PNG would not contain it, which is the whole point of this surface.
+     * A screenshot that omits the state its name promises is the failure this
+     * file exists to prevent, one scroll offset further down than usual.
+     */
+    await row.scrollIntoViewIfNeeded({ timeout: 5_000 });
+  } catch (err) {
+    throw new Error(
+      "coach-history-active: no VISIBLE a[data-chat-thread] carried " +
+        "bg-surface-selected after opening the History panel. Either the " +
+        "thread id no longer matches a row, history-panel's selected " +
+        "treatment changed class, or the panel did not open for this " +
+        "viewport (see openHistoryPanel — the param is mobile-only). " +
+        "Capturing anyway would file an all-inactive list, or the ordinary " +
+        `Coach page, under a name promising the selected row. (${err instanceof Error ? err.message : String(err)})`
     );
   }
 }
@@ -439,7 +584,13 @@ async function waitForDebriefSheetOpen(page: Page): Promise<void> {
 const SURFACE_PREPARE: Record<string, (page: Page) => Promise<void>> = {
   "settings-expanded": expandSettingsSections,
   "settings-connect-errors": expandSettingsSections,
-  "debrief-sheet": waitForDebriefSheetOpen,
+  "debrief-sheet": sheetOpenGuard(
+    "debrief-sheet",
+    "?sheet=debrief&activity=<id>"
+  ),
+  "checkin-sheet": sheetOpenGuard("checkin-sheet", "?sheet=checkin"),
+  "coach-history": waitForHistoryPanel,
+  "coach-history-active": waitForActiveThreadRow,
 };
 
 // deviceScaleFactor lives here per-viewport (task-6 review, Finding 4) but is
@@ -1368,7 +1519,32 @@ async function main() {
 
       // Resolved per context: the storage state is fresh each time and the
       // href is cheap to re-read. A failure here is hard — see the resolver.
-      await captureResolved("coach-thread", () => resolveCoachThreadPath(p));
+      // The resolved href is `/coach?thread=<id>`; the id is reused below for
+      // coach-history-active, so it is captured into a variable rather than
+      // only a path — same shape as activity-detail feeding debrief-sheet.
+      let threadId: string | undefined;
+      await captureResolved("coach-thread", async () => {
+        const threadPath = await resolveCoachThreadPath(p);
+        threadId = new URL(threadPath, BASE_URL).searchParams.get(
+          "thread"
+        ) as string;
+        return threadPath;
+      });
+
+      // The History panel with a row actually selected — the state
+      // `coach-history` cannot reach, because without `thread=` every row
+      // takes the inactive branch. Recorded as open under 2b.4 in
+      // docs/ROADMAP.md until this surface existed.
+      await captureResolved("coach-history-active", async () => {
+        if (!threadId) {
+          throw new Error(
+            "no thread id available — resolveCoachThreadPath did not " +
+              "resolve one for this theme/viewport (see the coach-thread " +
+              "failure above)."
+          );
+        }
+        return `/coach?history=1&thread=${threadId}`;
+      });
 
       // Resolved per context, same reasoning as coach-thread above: the
       // storage state is fresh each time and the href is cheap to re-read.
