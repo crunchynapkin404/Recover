@@ -64,6 +64,7 @@ import {
   type PlanSport,
 } from "@/lib/plan-sport";
 import { previewFromDraft } from "@/lib/training-plan";
+import { planRaceTargets } from "@/lib/plan-targets";
 import { assembleWeeklyTarget } from "@/lib/week-plan/volume-inputs";
 import { currentTargetLoad, weekTargetLoad } from "@/lib/week-plan/volume";
 import { plannedMins, availableMins } from "@/lib/week-plan/fill";
@@ -717,10 +718,21 @@ async function WeekTab({
   // races section below. Owner: src/lib/race/outlook.ts (v0.87).
   const card = await raceCard(userId, today, week);
 
+  // plan.raceDate/raceType have always meant the plan's FINAL target
+  // (planRaceTargets, src/lib/plan-targets.ts); on a two-A-race season this
+  // names the earlier one too, so the subtitle doesn't silently describe
+  // only the race the plan ends on. Calendar fact only — no comparative
+  // claim about the second race (the evidence pass found no source in
+  // either direction), and this is additive: a single-race plan's subtitle
+  // is unchanged, since `planTargets.first` is null there.
+  const planTargets = planRaceTargets(plan);
   const subtitle = [
     plan.title,
     `week ${Math.min(plan.currentWeek, plan.weeksTotal)} of ${plan.weeksTotal}`,
     openBlock?.phase ? `${openBlock.phase} phase` : null,
+    planTargets.first
+      ? `${planTargets.first.raceType} ${planTargets.first.date} → ${planTargets.final.raceType} ${planTargets.final.date}`
+      : null,
   ]
     .filter(Boolean)
     .join(" · ");

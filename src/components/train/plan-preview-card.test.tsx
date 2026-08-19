@@ -113,7 +113,9 @@ describe("PlanPreviewCard", () => {
   it("shows every phase row and a total equal to the sum of phase weeks", () => {
     mount();
     for (const row of preview.phases) {
-      const el = container.querySelector(`[data-testid="phase-${row.phase}"]`);
+      const el = container.querySelector(
+        `[data-testid="phase-${row.segment}-${row.phase}"]`
+      );
       expect(el).toBeTruthy();
       expect(el!.textContent).toContain(String(row.weeks));
     }
@@ -125,6 +127,16 @@ describe("PlanPreviewCard", () => {
     expect(
       container.querySelector('[data-testid="phase-total"]')!.textContent
     ).toBe(String(expectedTotal));
+  });
+
+  // Task 8, Step 4: a single-race plan (every row at segment 1, this
+  // fixture's shape) must render byte-identically to today — no spanning
+  // header row at all, since there is only one arc to distinguish.
+  it("renders no segment header for a single-race plan", () => {
+    mount();
+    expect(
+      container.querySelectorAll('[data-testid^="segment-"]')
+    ).toHaveLength(0);
   });
 
   it("renders one sentence per warning", () => {
@@ -257,5 +269,75 @@ describe("PlanPreviewCard", () => {
     expect(html).not.toMatch(/text-white\//);
     expect(html).not.toMatch(/bg-white\//);
     expect(html).not.toMatch(/border-white\//);
+  });
+
+  // Task 8, Steps 3-4: a two-arc plan has two `base` rows and two `taper`
+  // rows sharing a `phase` — the React key collision this release fixes —
+  // and must show which arc each row belongs to.
+  describe("a two-arc (two-A-race) plan", () => {
+    const twoArcPreview: PlanPreview = {
+      ...preview,
+      phases: [
+        { segment: 1, phase: "base", weeks: 4, weekNumbers: [1, 2, 3, 4] },
+        { segment: 1, phase: "taper", weeks: 1, weekNumbers: [5] },
+        { segment: 1, phase: "recovery", weeks: 1, weekNumbers: [6] },
+        { segment: 2, phase: "base", weeks: 2, weekNumbers: [7, 8] },
+        { segment: 2, phase: "taper", weeks: 1, weekNumbers: [9] },
+      ],
+    };
+
+    let twoArcRoot: Root | null = null;
+    let twoArcContainer: HTMLDivElement;
+
+    function mountTwoArc() {
+      twoArcContainer = document.createElement("div");
+      document.body.appendChild(twoArcContainer);
+      twoArcRoot = createRoot(twoArcContainer);
+      act(() => {
+        twoArcRoot!.render(<PlanPreviewCard preview={twoArcPreview} />);
+      });
+    }
+
+    afterEach(() => {
+      if (twoArcRoot) act(() => twoArcRoot!.unmount());
+      twoArcRoot = null;
+      twoArcContainer?.remove();
+    });
+
+    it("gives each arc its own header row and each phase row a distinct testid", () => {
+      mountTwoArc();
+
+      const headers = twoArcContainer.querySelectorAll(
+        '[data-testid^="segment-"]'
+      );
+      expect(headers).toHaveLength(2);
+      expect(
+        twoArcContainer.querySelector('[data-testid="segment-1"]')!.textContent
+      ).toContain("First race");
+      expect(
+        twoArcContainer.querySelector('[data-testid="segment-2"]')!.textContent
+      ).toContain(twoArcPreview.race.name);
+
+      // Two "base" rows and two "taper" rows, one per segment — distinct
+      // data-testids (and React keys), not a collision on `phase` alone.
+      for (const testid of [
+        "phase-1-base",
+        "phase-1-taper",
+        "phase-1-recovery",
+        "phase-2-base",
+        "phase-2-taper",
+      ]) {
+        expect(
+          twoArcContainer.querySelector(`[data-testid="${testid}"]`)
+        ).toBeTruthy();
+      }
+    });
+
+    it("uses the token scale for the segment header too", () => {
+      mountTwoArc();
+      const html = twoArcContainer.innerHTML;
+      expect(html).not.toMatch(/text-\[[\d.]+px\]/);
+      expect(html).not.toMatch(/\btext-(xs|sm)\b/);
+    });
   });
 });

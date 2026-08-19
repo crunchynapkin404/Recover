@@ -12,7 +12,7 @@
  * table below, not a slider, because `periodize` is not a parameter this
  * screen lets the athlete tune.
  */
-import { useState, useTransition } from "react";
+import { Fragment, useState, useTransition } from "react";
 import { SPORT_LABEL } from "@/lib/plan-sport";
 import {
   REFUSAL_TEXT,
@@ -55,6 +55,14 @@ export function PlanPreviewCard({ preview }: { preview: PlanPreview }) {
   // Recomputed on screen, not trusted from `weeksTotal` alone — the release's
   // headline requirement is that this number and `weeksTotal` visibly agree.
   const total = preview.phases.reduce((sum, row) => sum + row.weeks, 0);
+
+  // A single-race plan is entirely segment 1 (buildPhases), so this is false
+  // — and the header row below never renders — on every plan this release
+  // did not change. `preview` carries no identity for the first arc's race
+  // beyond its place in the calendar (the draft row only names the FINAL
+  // target by id/name — see plan-targets.ts), so segment 1's header states
+  // that fact rather than a race name it doesn't have.
+  const hasTwoArcs = preview.phases.some((row) => row.segment === 2);
 
   // Both handlers capture what the action actually returned. A discarded
   // `{ ok: false }` is this release's own premise violated in a new place:
@@ -117,23 +125,43 @@ export function PlanPreviewCard({ preview }: { preview: PlanPreview }) {
           shown so the two can be checked against each other on screen. */}
       <table className="mb-4 w-full text-label">
         <tbody>
-          {preview.phases.map((row) => (
-            <tr
-              key={row.phase}
-              data-testid={`phase-${row.phase}`}
-              className="border-b border-hairline"
-            >
-              <td className="py-1.5 text-ink-secondary">
-                {PHASE_LABEL[row.phase]}
-              </td>
-              <td className="py-1.5 text-right font-numeric text-ink-muted">
-                {row.weeks}
-              </td>
-              <td className="py-1.5 pl-3 text-ink-muted">
-                weeks {row.weekNumbers.join(", ")}
-              </td>
-            </tr>
-          ))}
+          {preview.phases.map((row, i) => {
+            const prev = preview.phases[i - 1];
+            // Only a two-arc plan gets a header at all, and only once per
+            // arc (on the row where `segment` changes from the previous
+            // one) — a single-race plan's rows are all segment 1, so
+            // `showHeader` is false throughout and this table renders
+            // byte-identically to before this arc existed.
+            const showHeader = hasTwoArcs && row.segment !== prev?.segment;
+            return (
+              <Fragment key={`${row.segment}-${row.phase}`}>
+                {showHeader && (
+                  <tr data-testid={`segment-${row.segment}`}>
+                    <td
+                      colSpan={3}
+                      className="pt-3 pb-1 text-label text-ink-muted"
+                    >
+                      {row.segment === 1 ? "First race" : preview.race.name}
+                    </td>
+                  </tr>
+                )}
+                <tr
+                  data-testid={`phase-${row.segment}-${row.phase}`}
+                  className="border-b border-hairline"
+                >
+                  <td className="py-1.5 text-ink-secondary">
+                    {PHASE_LABEL[row.phase]}
+                  </td>
+                  <td className="py-1.5 text-right font-numeric text-ink-muted">
+                    {row.weeks}
+                  </td>
+                  <td className="py-1.5 pl-3 text-ink-muted">
+                    weeks {row.weekNumbers.join(", ")}
+                  </td>
+                </tr>
+              </Fragment>
+            );
+          })}
           <tr>
             <td className="pt-2 text-label font-bold text-ink-secondary">
               Total

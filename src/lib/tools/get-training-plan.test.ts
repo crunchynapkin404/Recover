@@ -139,4 +139,96 @@ describe.skipIf(!hasDb)("get_training_plan effective-state parity", () => {
     expect(result.plan.effectiveSeasonMode).toBe("off_season");
     expect(result.plan.reentryStage).toBe("week_2");
   });
+
+  // Task 8, Step 5: raceType/raceDate have always meant the plan's FINAL
+  // target (planRaceTargets, src/lib/plan-targets.ts); firstRace is
+  // additive so the coach can see a two-race season has an earlier A-race
+  // too.
+  it("has no firstRace on a single-race plan", async () => {
+    const result = (await getTrainingPlanTool.execute(
+      {},
+      { userId: USER, db }
+    )) as {
+      available: boolean;
+      plan: { raceType: string; raceDate: string; firstRace?: unknown };
+    };
+
+    expect(result.available).toBe(true);
+    expect(result.plan.raceType).toBe("marathon");
+    expect(result.plan.raceDate).toBe("2027-01-01");
+    expect(result.plan.firstRace).toBeUndefined();
+  });
+
+  it("reports both targets for a two-race plan, in the overview and the week detail", async () => {
+    // firstRaceId is a real FK (references races.id, onDelete: set null) —
+    // planRaceTargets is keyed on it being non-null, so it needs a real row.
+    const [firstRace] = await db
+      .insert(schema.races)
+      .values({
+        userId: USER,
+        name: "Tune-Up Half",
+        raceType: "half",
+        sport: "Run",
+        date: "2026-09-01",
+        priority: "A",
+        status: "upcoming",
+      })
+      .returning();
+
+    await db
+      .update(schema.trainingPlans)
+      .set({
+        raceType: "marathon",
+        raceDate: "2027-01-01",
+        firstRaceId: firstRace.id,
+        firstRaceDate: "2026-09-01",
+        firstRaceType: "half",
+      })
+      .where(
+        and(
+          eq(schema.trainingPlans.userId, USER),
+          eq(schema.trainingPlans.id, planId)
+        )
+      );
+
+    const overview = (await getTrainingPlanTool.execute(
+      {},
+      { userId: USER, db }
+    )) as {
+      available: boolean;
+      plan: {
+        raceType: string;
+        raceDate: string;
+        firstRace?: { raceType: string; date: string };
+      };
+    };
+    expect(overview.available).toBe(true);
+    // FINAL target unchanged — the existing contract.
+    expect(overview.plan.raceType).toBe("marathon");
+    expect(overview.plan.raceDate).toBe("2027-01-01");
+    // First target additive.
+    expect(overview.plan.firstRace).toEqual({
+      raceType: "half",
+      date: "2026-09-01",
+    });
+
+    const weekDetail = (await getTrainingPlanTool.execute(
+      { weekNumber: 3 },
+      { userId: USER, db }
+    )) as {
+      available: boolean;
+      plan: {
+        raceType: string;
+        raceDate: string;
+        firstRace?: { raceType: string; date: string };
+      };
+    };
+    expect(weekDetail.available).toBe(true);
+    expect(weekDetail.plan.raceType).toBe("marathon");
+    expect(weekDetail.plan.raceDate).toBe("2027-01-01");
+    expect(weekDetail.plan.firstRace).toEqual({
+      raceType: "half",
+      date: "2026-09-01",
+    });
+  });
 });

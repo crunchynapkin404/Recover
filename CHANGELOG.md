@@ -19,6 +19,23 @@ before this field existed. The frozen tool-surface snapshot
 field, in the same commit as the schema change (`a175e3d`), per
 `docs/API-STABILITY.md`.
 
+### `get_training_plan` now reports a two-A-race season's earlier target too
+
+The coach's `get_training_plan` overview and per-week detail both keep
+`raceType`/`raceDate` meaning the plan's FINAL target, unchanged from
+today. When the active plan also has an earlier A-race (`planRaceTargets`,
+`src/lib/plan-targets.ts`), the response additionally carries
+`firstRace: { raceType, date }` alongside it, so the coach can see the
+season has two races instead of reading only the one it always ended on.
+`firstRace` is absent on a single-race plan — the response is
+byte-identical to before this field existed in that case.
+
+This is an additive, output-only change: `get_training_plan`'s input
+`parameters` schema (`weekNumber`) is untouched, so
+`frozen-tools.test.ts.snap` did not need updating — `docs/API-STABILITY.md`
+freezes tool name/scope/input-schema, not output content beyond what that
+schema promises. Tool count stays 57.
+
 ## v0.113.0 — 2026-08-19 — Looked At
 
 Everything here came from capturing two surfaces nobody had ever captured. The
