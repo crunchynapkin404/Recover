@@ -18,29 +18,62 @@ import type { StartStateSource } from "@/lib/week-plan/start-state";
 export type PlanPhase = "base" | "build" | "peak" | "taper" | "recovery";
 
 export interface PhaseRow {
+  /**
+   * 1 = the plan's only arc, or (on a two-A-race plan) arc one plus the
+   * recovery that bridges to the rebuild. 2 = the rebuild arc after that
+   * recovery. Grouping by `(segment, phase)` rather than `phase` alone is
+   * what keeps a two-arc plan from rendering as one merged phase list —
+   * see this file's header comment and `buildPhases` below.
+   */
+  segment: 1 | 2;
   phase: PlanPhase;
   /** Equals weekNumbers.length. Carried explicitly because it is what renders. */
   weeks: number;
   weekNumbers: number[];
 }
 
-/** Display order. Recovery sits last: it is a modifier, not a stage. */
+/**
+ * Display order WITHIN a segment. Recovery sits last there: on a single-arc
+ * plan it is a modifier tacked onto the end, not a stage of its own. On a
+ * two-A-race plan the bridging recovery IS segment 1's own last stage
+ * (`periodize`: arc one -> recovery -> arc two) — this order still puts it
+ * last within segment 1, which is where it chronologically belongs; it is
+ * segment 2's absence of a "recovery" row that shows the athlete there is
+ * no recovery block after the rebuild arc.
+ */
 const PHASE_ORDER: PlanPhase[] = ["base", "build", "peak", "taper", "recovery"];
 
+/**
+ * Groups by `(segment, phase)`, not `phase` alone, and emits segment 1's
+ * rows (in `PHASE_ORDER`) before segment 2's. Grouping by phase across the
+ * whole plan is exactly the failure this module's header comment warns
+ * about: a two-A-race plan would render one merged "base 10, build 6, peak
+ * 3, taper 3, recovery 2" list with no way for the athlete to see there
+ * were two arcs. A single-race plan has every week at `segment: 1`, so this
+ * produces exactly the rows the old phase-only grouping did, plus that one
+ * added field.
+ */
 export function buildPhases(
-  weeks: { weekNumber: number; phase: PlanPhase }[]
+  weeks: { weekNumber: number; phase: PlanPhase; segment: 1 | 2 }[]
 ): PhaseRow[] {
-  const byPhase = new Map<PlanPhase, number[]>();
+  const byKey = new Map<string, number[]>();
   for (const w of weeks) {
-    const list = byPhase.get(w.phase) ?? [];
+    const key = `${w.segment}:${w.phase}`;
+    const list = byKey.get(key) ?? [];
     list.push(w.weekNumber);
-    byPhase.set(w.phase, list);
+    byKey.set(key, list);
   }
 
-  return PHASE_ORDER.filter((p) => byPhase.has(p)).map((phase) => {
-    const weekNumbers = [...(byPhase.get(phase) ?? [])].sort((a, b) => a - b);
-    return { phase, weeks: weekNumbers.length, weekNumbers };
-  });
+  const rows: PhaseRow[] = [];
+  for (const segment of [1, 2] as const) {
+    for (const phase of PHASE_ORDER) {
+      const key = `${segment}:${phase}`;
+      if (!byKey.has(key)) continue;
+      const weekNumbers = [...(byKey.get(key) ?? [])].sort((a, b) => a - b);
+      rows.push({ segment, phase, weeks: weekNumbers.length, weekNumbers });
+    }
+  }
+  return rows;
 }
 
 /**

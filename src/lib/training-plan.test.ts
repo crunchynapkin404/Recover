@@ -13,6 +13,7 @@ import {
   EASY_RUN_CAP_MINS,
   hasBridgeRoom,
   previewTrainingPlan,
+  previewFromDraft,
 } from "./training-plan";
 import { PLAN_CONSTANTS } from "./plan-constants";
 import {
@@ -998,6 +999,40 @@ describe("periodize with two races", () => {
     expect(blocks[blocks.length - 1].phase).toBe("taper");
   });
 
+  // `periodize` is Block.segment's one owner (plan-preview.ts's `buildPhases`
+  // groups by it rather than recomputing the boundary) -- these three pin
+  // where that value comes from directly, at the source, rather than only
+  // through buildPhases's own tests.
+  it("stamps every week segment 1 when the plan has no firstRace", () => {
+    const blocks = periodize(base);
+    expect(blocks.every((b) => b.segment === 1)).toBe(true);
+  });
+
+  it("segments arc one (plus its bridging recovery) as 1 and the rebuild arc as 2", () => {
+    const blocks = periodize({
+      ...base,
+      firstRace: { weekNumber: 10, raceType: "marathon" },
+    });
+    // raceRecoveryDays("marathon") is 14 -> 2 recovery weeks, so arc one
+    // (weeks 1-10) plus recovery (11-12) is segment 1, and the rebuild arc
+    // (13-20) is segment 2.
+    const segments = blocks.map((b) => b.segment);
+    expect(segments.slice(0, 12)).toEqual(Array(12).fill(1));
+    expect(segments.slice(12)).toEqual(Array(8).fill(2));
+  });
+
+  it("keeps every week at segment 1 when there is no room to rebuild", () => {
+    const blocks = periodize({
+      ...base,
+      weeksTotal: 12,
+      firstRace: { weekNumber: 10, raceType: "marathon" },
+    });
+    // firstRaceWeek 10 + recoveryWeeks 2 = 12 = weeksTotal: no rebuildWeeks
+    // left, so there is no arc two at all -- everything stays segment 1.
+    expect(blocks).toHaveLength(12);
+    expect(blocks.every((b) => b.segment === 1)).toBe(true);
+  });
+
   it("is byte-identical to today when firstRace is null", () => {
     expect(periodize({ ...base, firstRace: null })).toEqual(periodize(base));
   });
@@ -1275,6 +1310,50 @@ describe.skipIf(!hasDb)("previewTrainingPlan — two A-races", () => {
     expect(draft?.firstRaceType).toBe("half_marathon");
     expect(draft?.raceId).toBe(b);
     expect(draft?.raceDate).toBe(laterDate);
+  });
+
+  // `previewTrainingPlan`'s `phases` come from `blocks` (periodize's live
+  // return value, segment included for free); `previewFromDraft`'s come from
+  // persisted `training_blocks` rows, which have no `segment` column, so it
+  // re-derives the boundary instead (see its comment). This proves that
+  // re-derivation lands on exactly the same rows as the live computation
+  // did, for a real two-arc plan -- not an approximation of it.
+  it("previewFromDraft reconstructs the same per-arc phases from persisted training_blocks", async () => {
+    const earlierDate = FIRST_DATE;
+    const laterDate = addDaysYmd(FIRST_DATE, 200);
+    const a = await makeRace({
+      name: "Earlier",
+      raceType: "marathon",
+      date: earlierDate,
+    });
+    const b = await makeRace({
+      name: "Later",
+      raceType: "marathon",
+      date: laterDate,
+    });
+
+    const result = await previewTrainingPlan({
+      userId: USER,
+      raceType: "marathon",
+      raceDate: laterDate,
+      raceIds: [a, b],
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("expected ok");
+
+    // A genuine two-arc scenario, not a no-room boundary case where the
+    // rebuild arc is empty -- otherwise both sides collapsing to all-segment-1
+    // would pass this test for the wrong reason.
+    expect(result.preview.phases.some((row) => row.segment === 2)).toBe(true);
+
+    const draft = await db.query.trainingPlans.findFirst({
+      where: eq(schema.trainingPlans.id, result.preview.planId),
+    });
+    expect(draft).toBeTruthy();
+    if (!draft) return;
+
+    const rehydrated = await previewFromDraft(draft);
+    expect(rehydrated.phases).toEqual(result.preview.phases);
   });
 });
 

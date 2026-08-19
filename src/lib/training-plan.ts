@@ -243,6 +243,14 @@ interface Block {
   targetLoad: number;
   targetSessions: number;
   workouts: PlannedWorkout[];
+  /**
+   * Which arc this week belongs to. 1 = arc one plus the bridging recovery
+   * that follows it (or the plan's only arc, when there is no `firstRace`).
+   * 2 = the rebuild arc after that recovery. `periodize` is the one owner
+   * of this value — see `buildPhases` (plan-preview.ts), which groups by
+   * `(segment, phase)` rather than recomputing the boundary itself.
+   */
+  segment: 1 | 2;
 }
 
 export interface GeneratePlanParams {
@@ -360,7 +368,9 @@ export interface PeriodizeOptions {
 }
 
 /** One Base -> Build -> Peak -> Taper progression over `weeks` weeks. */
-function arc(opts: PeriodizeOptions & { weeks: number }): Block[] {
+function arc(
+  opts: PeriodizeOptions & { weeks: number; segment: 1 | 2 }
+): Block[] {
   const weeksTotal = opts.weeks;
   const {
     startingCtl,
@@ -369,6 +379,7 @@ function arc(opts: PeriodizeOptions & { weeks: number }): Block[] {
     sport,
     queenStageHours = null,
     startingTsb = null,
+    segment,
   } = opts;
   // Phase distribution
   const baseWeeks = Math.max(
@@ -490,7 +501,8 @@ function arc(opts: PeriodizeOptions & { weeks: number }): Block[] {
           daysPerWeek,
           hoursPerWeek,
           sport,
-          queenStageHours
+          queenStageHours,
+          segment
         )
       );
       weeksSinceRecovery = 0;
@@ -511,6 +523,7 @@ function arc(opts: PeriodizeOptions & { weeks: number }): Block[] {
           sport,
           queenStageHours
         ),
+        segment,
       });
       weeksSinceRecovery += 1;
     } else {
@@ -547,6 +560,7 @@ function arc(opts: PeriodizeOptions & { weeks: number }): Block[] {
         targetLoad,
         targetSessions: daysPerWeek,
         workouts,
+        segment,
       });
 
       // When opening form is negative, week 1 is intentionally downscaled.
@@ -603,7 +617,8 @@ function buildRecoveryBlock(
   daysPerWeek: number,
   hoursPerWeek: number,
   sport: PlanSport,
-  queenStageHours: number | null
+  queenStageHours: number | null,
+  segment: 1 | 2
 ): Block {
   return {
     weekNumber,
@@ -617,6 +632,7 @@ function buildRecoveryBlock(
       sport,
       queenStageHours
     ),
+    segment,
   };
 }
 
@@ -625,6 +641,10 @@ function buildRecoveryBlock(
  * `loadBasis` — mirroring `arc()`, which does not ratchet load down further
  * across back-to-back recovery weeks either (`currentLoad` itself is only
  * reset to zero-progression, never reduced, by a recovery week).
+ *
+ * Always `segment: 1` — the bridging recovery is arc one's own trailing
+ * stage, not arc two's (see `Block.segment`'s doc comment). It is never
+ * called for a single-arc plan, where `arc()` is the only source of blocks.
  */
 function recoverySegment(
   weeks: number,
@@ -643,7 +663,8 @@ function recoverySegment(
         daysPerWeek,
         hoursPerWeek,
         sport,
-        queenStageHours
+        queenStageHours,
+        1
       )
     );
   }
@@ -658,7 +679,7 @@ function recoverySegment(
  */
 export function periodize(opts: PeriodizeOptions): Block[] {
   const first = opts.firstRace ?? null;
-  if (!first) return arc({ ...opts, weeks: opts.weeksTotal });
+  if (!first) return arc({ ...opts, weeks: opts.weeksTotal, segment: 1 });
 
   // Clamped into [1, weeksTotal] before anything downstream uses it. Every
   // computation below assumes `arcOne` contains exactly this many blocks —
@@ -672,7 +693,7 @@ export function periodize(opts: PeriodizeOptions): Block[] {
   );
 
   const queenStageHours = opts.queenStageHours ?? null;
-  const arcOne = arc({ ...opts, weeks: firstRaceWeek });
+  const arcOne = arc({ ...opts, weeks: firstRaceWeek, segment: 1 });
 
   // The load basis for the bridging recovery, and (via its scaled-down
   // block) the fitness the rebuild resumes from: arc 1's PEAK week, not its
@@ -729,6 +750,7 @@ export function periodize(opts: PeriodizeOptions): Block[] {
     weeks: rebuildWeeks,
     startingCtl: recoveryLoad / PC.CTL_TO_WEEKLY_LOAD,
     startingTsb: null,
+    segment: 2,
   });
 
   // Contiguous renumbering. Both live sites (week-plan/service.ts,
@@ -1469,8 +1491,15 @@ export async function previewTrainingPlan(
     weeksTotal: planWeeks,
     daysPerWeek,
     hoursPerWeek,
+    // From `blocks` (periodize's own return value), not `weeks` — `blocks`
+    // already carries `segment` (periodize is its one owner) and `weeks`
+    // (PreviewWeek[]) deliberately doesn't duplicate it.
     phases: buildPhases(
-      weeks.map((w) => ({ weekNumber: w.weekNumber, phase: w.phase }))
+      blocks.map((b) => ({
+        weekNumber: b.weekNumber,
+        phase: b.phase as PlanPhase,
+        segment: b.segment,
+      }))
     ),
     weeks,
     startingCtl: {
@@ -1613,6 +1642,33 @@ export async function previewFromDraft(
       )
     : false;
 
+  // `training_blocks` rows persisted by `previewTrainingPlan` (and
+  // `generateTrainingPlan`) have no `segment` column -- unlike the
+  // `previewTrainingPlan` call site above, `blocks` here is read verbatim
+  // from the database rather than being `periodize`'s live return value, so
+  // there is no `segment` to read off it and no migration is being added
+  // just for this display value. Re-derive the same boundary `periodize`
+  // computes (`firstRaceWeek = clamp(planWeekOf(...), 1, weeksTotal)`,
+  // `recoveryWeeks = ceil(raceRecoveryDays(firstRace.raceType) / 7)`) from
+  // `planRaceTargets` instead: week <= firstRaceWeek + recoveryWeeks is
+  // segment 1 (arc one plus the bridging recovery), everything after is
+  // segment 2. On a single-race draft (`draftTargets.first` is null) every
+  // week is segment 1, matching `periodize`'s own no-`firstRace` path.
+  const firstTargetForSegment = draftTargets.first;
+  const firstRaceWeek = firstTargetForSegment
+    ? Math.min(
+        Math.max(1, planWeekOf(draft.startDate, firstTargetForSegment.date)),
+        draft.weeksTotal
+      )
+    : null;
+  const segmentBoundary =
+    firstTargetForSegment && firstRaceWeek !== null
+      ? firstRaceWeek +
+        Math.ceil(raceRecoveryDays(firstTargetForSegment.raceType) / 7)
+      : null;
+  const segmentForWeek = (weekNumber: number): 1 | 2 =>
+    segmentBoundary !== null && weekNumber > segmentBoundary ? 2 : 1;
+
   return {
     planId: draft.id,
     sport,
@@ -1627,7 +1683,11 @@ export async function previewFromDraft(
     daysPerWeek,
     hoursPerWeek,
     phases: buildPhases(
-      weeks.map((w) => ({ weekNumber: w.weekNumber, phase: w.phase }))
+      weeks.map((w) => ({
+        weekNumber: w.weekNumber,
+        phase: w.phase,
+        segment: segmentForWeek(w.weekNumber),
+      }))
     ),
     weeks,
     startingCtl: {

@@ -51,10 +51,10 @@ const preview: PlanPreview = {
   daysPerWeek: 6,
   hoursPerWeek: 10,
   phases: [
-    { phase: "base", weeks: 3, weekNumbers: [1, 2, 4] },
-    { phase: "build", weeks: 2, weekNumbers: [5, 7, 9] },
-    { phase: "taper", weeks: 1, weekNumbers: [6] },
-    { phase: "recovery", weeks: 1, weekNumbers: [3] },
+    { segment: 1, phase: "base", weeks: 3, weekNumbers: [1, 2, 4] },
+    { segment: 1, phase: "build", weeks: 2, weekNumbers: [5, 7, 9] },
+    { segment: 1, phase: "taper", weeks: 1, weekNumbers: [6] },
+    { segment: 1, phase: "recovery", weeks: 1, weekNumbers: [3] },
   ],
   weeks: Array.from({ length: 6 }, (_, i) => ({
     weekNumber: i + 1,
