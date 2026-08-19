@@ -1,5 +1,91 @@
 # Changelog
 
+## v0.112.0 — 2026-08-19 — Once
+
+**Phase 2 closes.** Its last two riders were carried, not new: the
+duplicated-data scan across all 12 pages, and the tab-pattern decision. Every
+checkbox in 2a, 2b, 2c and 2d is ticked — verified against the list rather
+than from memory, which is how that line has been wrong twice before.
+
+### The same value, stated once
+
+Seven duplications removed, on the v0.84.0 test: one specific value in two
+places, where drift is a bug the athlete can see. Generic helpers applied to
+different inputs are not that and were deliberately left.
+
+**One had already drifted.** `/activity/[id]` and Today's just-landed block
+each built the same six tiles from their own literal, while the card's doc
+comment asserted they could not disagree. They did: a hand-logged ride read
+**logged by hand** on one surface and **manual** on the other. The seeded
+athlete's own latest activity is a manual one, so the capture rendered both
+spellings side by side. `src/lib/activity-stats.ts` now owns the tiles and the
+provenance line, with a test pinning all three provider spellings.
+
+`RANGES` turned out to be a triple, and the third copy was load-bearing:
+`train/page.tsx` validated `?range=` against its own list while
+`train/range-tabs.tsx` rendered the pills from another, so a range the tab bar
+offered and the page refused fell back to 90 with nothing to say why. Also
+folded: `STATUS_DOT` (two maps rendering in the same viewport, one carrying a
+comment promising to keep itself in sync by hand), `NAV_ITEMS`, the weekday
+vocabulary at four lengths across six sites, `avatarInitial`, and admin's
+`userLabels`.
+
+Three findings are **left open and recorded** rather than resolved quietly —
+they are the same shape as the Sleep-tab one already held under 2b.3, and are
+the owner's call. Full working in
+`docs/plans/2026-08-18-duplicated-data-scan.md`, including what the capture
+does not cover.
+
+### A tab pattern, chosen rather than inherited
+
+`ui/segmented-tabs.tsx` — the link-based control the four rows were already
+hand-rolling. Re-vendoring the `ui/tabs.tsx` that v0.98.0 deleted was ruled
+out by the code, not by taste: shadcn's Tabs is state-based, and these are
+deliberately links so the filter state rides in the href and the back button
+walks the athlete's real path.
+
+**This was not a line saving** — 125 code lines became 153. It removed four
+copies of one treatment, and corrected a drift it exposed on the way:
+`train/range-tabs` still painted its active pill `bg-accent/20 text-accent`, a
+straight token translation of the `bg-emerald-500/20` it shipped with in
+`00534a5`, while the other three had moved to the surface treatment. The
+accent was inherited, never designed. Train's range pills now match the tab
+row directly beneath them — a visible change, and the only one in this
+release. It also takes a competing green off a screen where green already
+means load bars and TSB.
+
+`train/view-tabs` is deliberately not a caller: it is a month picker with date
+logic that only resembles a tab bar.
+
+### A dev server that only looked hung
+
+`next dev` became unusable for an evening — routes taking minutes to compile,
+`.next/dev/cache` at 1.4 GB, and flushing it blocking the server for 4-9
+minutes at a time (`✓ Finished writing to filesystem cache in 8.8min`).
+Nothing ever errored, so it read as a hang; the server was answering `/coach`
+in 1.7s throughout while pages missed Playwright's 20s `networkidle` budget.
+
+Turbopack infers the workspace root by walking up for a lockfile, and a stray
+`npm install` in `$HOME` had made the entire home directory — about 9 GB — the
+inferred root. `turbopack.root` is now pinned in `next.config.ts`, so nothing
+outside the repo can move it again. `/body` went from never finishing
+compilation to 1991 ms, and the surface capture from 7/96 with six failures to
+96/96 with none. CONTRIBUTING carries the symptom and the check, because the
+failure mode never errors.
+
+### Verification
+
+All six CI gates, and the verify lists in CONTRIBUTING and the Phase 2 handoff
+now match `ci.yml` — the handoff had named three of six, which is how a pull
+request that followed it exactly still went red on `format:check`.
+
+`verify-surfaces.ts` — **96/96 captured, 0 confirmed axe defects**, run twice:
+once for the scan, once for the tabs. The PNGs were opened both times. The
+sleep strip's letters were checked against the real August 2026 weekdays,
+which is the only way the Sunday-first to Monday-first migration in
+`sleep-history-strip` could be verified — an off-by-one there renders cleanly
+and passes axe.
+
 ## v0.111.0 — 2026-08-18 — Light
 
 2b.4 slice 9, the last one. `forcedTheme="dark"` is gone: the athlete can

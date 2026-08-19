@@ -1,9 +1,14 @@
-import Link from "next/link";
+import { SegmentedTabs } from "@/components/ui/segmented-tabs";
 
 /**
  * Trends' window picker. Was the smallest control on the surface at 10px —
  * below the floor, and in light mode it rendered white-on-white along with
- * everything else on this page.
+ * everything else on this page. It now renders `SegmentedTabs` at `pill`
+ * size, which owns the type scale, so neither can recur here alone.
+ *
+ * Unlabelled on purpose: this filters the page it is already on, so it is a
+ * plain row with `aria-current="true"` rather than a second `<nav>` landmark
+ * claiming `page`.
  */
 export function RangeTabs({
   active,
@@ -15,21 +20,15 @@ export function RangeTabs({
   href: (over: { range?: number }) => string;
 }) {
   return (
-    <div className="mb-3 flex justify-end gap-1">
-      {ranges.map((r) => (
-        <Link
-          key={r}
-          href={href({ range: r })}
-          aria-current={r === active ? "true" : undefined}
-          className={`rounded-full px-2.5 py-1 text-label font-bold transition-colors ${
-            r === active
-              ? "bg-surface-overlay text-ink-primary"
-              : "bg-surface-raised text-ink-muted hover:text-ink-secondary"
-          }`}
-        >
-          {r}d
-        </Link>
-      ))}
-    </div>
+    <SegmentedTabs
+      size="pill"
+      className="mb-3 justify-end"
+      active={active}
+      items={ranges.map((r) => ({
+        key: r,
+        label: `${r}d`,
+        href: href({ range: r }),
+      }))}
+    />
   );
 }
