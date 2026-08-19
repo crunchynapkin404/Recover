@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { renderToString } from "react-dom/server";
-import { RangeTabs, RANGES } from "./range-tabs";
+import { RangeTabs } from "./range-tabs";
+import { RANGES } from "@/lib/log-href";
 
 const href = (over: { range?: number }) => `/body?range=${over.range}`;
 

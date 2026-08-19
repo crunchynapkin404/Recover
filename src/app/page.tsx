@@ -6,7 +6,7 @@ import { requireUser } from "@/lib/session";
 import { recordSurfaceView } from "@/lib/telemetry";
 import { getActivePlan } from "@/lib/active-plan";
 import { Figure } from "@/lib/uncertainty";
-import { AppShell, shellUser } from "@/components/app-shell";
+import { AppShell, shellUser, avatarInitial } from "@/components/app-shell";
 import { PullToRefresh } from "@/components/today/pull-to-refresh";
 import { SyncChip } from "@/components/today/sync-chip";
 import { getLatestMorningInsight } from "@/lib/morning-insight";
@@ -46,6 +46,7 @@ import {
 import { DayLogCard } from "@/components/today/day-log-card";
 import { BedtimeCard } from "@/components/today/bedtime-card";
 import { formatDuration } from "@/lib/format";
+import { activityStats, activityMeta } from "@/lib/activity-stats";
 import { CalibrationProgress } from "@/components/today/calibration-progress";
 import { TodayHero, fmtTsb } from "@/components/today/today-hero";
 import { VitalsGrid, type VitalTile } from "@/components/today/vitals-grid";
@@ -248,10 +249,7 @@ export default async function DashboardPage({
 
   // Avatar initial, per the 2a mockup; falls back to the generic glyph when
   // the account has no usable name.
-  const initial = (user.name ?? user.email ?? "")
-    .trim()
-    .charAt(0)
-    .toUpperCase();
+  const initial = avatarInitial(user);
 
   // Use the most recent metric with a readiness score (today may be incomplete)
   const todayMetric =
@@ -466,35 +464,8 @@ export default async function DashboardPage({
     const detail = await getCachedActivityDetail(user.id, recentActivity.id);
     const a = detail?.activity ?? recentActivity;
 
-    const stats: { label: string; value: string; unit?: string }[] = [];
-    if (a.durationS != null)
-      stats.push({ label: "Duration", value: formatDuration(a.durationS) });
-    if (a.distanceM != null)
-      stats.push({
-        label: "Distance",
-        value: (a.distanceM / 1000).toFixed(1),
-        unit: "km",
-      });
-    if (a.load != null)
-      stats.push({ label: "Load", value: String(Math.round(a.load)) });
-    if (a.avgHr != null)
-      stats.push({
-        label: "Avg HR",
-        value: String(Math.round(a.avgHr)),
-        unit: "bpm",
-      });
-    if (a.avgPower != null)
-      stats.push({
-        label: "Avg Power",
-        value: String(Math.round(a.avgPower)),
-        unit: "W",
-      });
-    if (a.elevationM != null)
-      stats.push({
-        label: "Climb",
-        value: String(Math.round(a.elevationM)),
-        unit: "m",
-      });
+    // One owner, shared with /activity/[id] — see src/lib/activity-stats.ts.
+    const stats = activityStats(a);
 
     // The plan's own ask for today, when there was one. Never a judgement
     // on the gap — that claim would have no owner.
@@ -541,15 +512,7 @@ export default async function DashboardPage({
     justLanded = {
       activityId: a.id,
       name: a.name ?? a.sport,
-      meta: [
-        a.sport,
-        (a.startDateLocal ?? a.startDate).toLocaleDateString("en-US", {
-          weekday: "short",
-          month: "short",
-          day: "numeric",
-        }),
-        a.provider === "intervals_icu" ? "intervals.icu" : a.provider,
-      ].join(" · "),
+      meta: activityMeta(a),
       asked,
       delivered,
       stats,

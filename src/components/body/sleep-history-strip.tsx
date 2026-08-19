@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { WEEKDAY_INITIAL, weekdayIndex } from "@/lib/weekdays";
 
 export interface StripNight {
   date: string;
@@ -21,12 +22,10 @@ function dayLabel(date: string): string {
 
 /** Weekday initial, for orientation without spending width on a full name. */
 function weekdayLabel(date: string): string {
-  const [y, m, d] = date.split("-").map(Number);
-  // Constructed as UTC and read back as UTC: a local-time Date here would
-  // shift the weekday for anyone east or west of the server.
-  return ["S", "M", "T", "W", "T", "F", "S"][
-    new Date(Date.UTC(y, m - 1, d)).getUTCDay()
-  ];
+  // This was the app's one Sunday-first weekday array. weekdayIndex is
+  // Monday-first like every other surface, and carries the UTC construction
+  // that keeps the label from shifting for a server east or west of it.
+  return WEEKDAY_INITIAL[weekdayIndex(date)];
 }
 
 const SEGMENTS = [

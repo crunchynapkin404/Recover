@@ -23,6 +23,14 @@ const SECURITY_HEADERS = [
 const nextConfig: NextConfig = {
   // Standalone output for the Docker image; harmless on Vercel.
   output: "standalone",
+  // Turbopack infers the workspace root as the outermost directory holding a
+  // lockfile. On 2026-08-18 a stray `npm install` left a package-lock.json in
+  // $HOME, so it inferred the whole home directory — .vscode-server, every
+  // other project, ~9 GB — as the root. Dev compiles went from seconds to
+  // minutes and the dev filesystem cache grew to 1.4 GB, which then blocked
+  // the server for 4-9 minutes at a time while it wrote itself out. Pinning
+  // the root means nothing outside this repo can move it again.
+  turbopack: { root: __dirname },
   experimental: {
     // Health Auto Export can post large multi-day/all-metric payloads to
     // /api/connections/apple-health/ingest; match the route's own cap

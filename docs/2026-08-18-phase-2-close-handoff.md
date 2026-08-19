@@ -195,9 +195,20 @@ components that ship; `tests/contrast-guard.test.ts` asserts them.
 
 ## How to verify anything
 
+**The gate list is `.github/workflows/ci.yml`, and CONTRIBUTING.md's "Quality
+gates" mirrors it.** Run all of it, not a subset — the block below used to
+name three of the six, and a pull request that followed it exactly still went
+red on `format:check` (2026-08-19).
+
 ```bash
-# guards + suite
-npx tsc --noEmit && npm run lint && npx vitest run      # 2201 pass, 1 expected fail
+# every gate CI runs, in its order
+npm run lint
+npm run typecheck
+node scripts/migrate.mjs        # the production runner; a migration that
+                                # breaks on deploy breaks the PR first
+npm test                        # 2213 pass, 1 expected fail (2201 at v0.111.0)
+npm run format:check            # easy to skip locally; never skipped in CI
+npm run build
 
 # surfaces (dev server — NOT 3100, which serves a released image)
 BETTER_AUTH_URL=http://localhost:3200 TRUSTED_ORIGINS=http://localhost:3200 \

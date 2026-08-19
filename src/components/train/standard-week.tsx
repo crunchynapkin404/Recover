@@ -5,16 +5,7 @@ import { blockMins, type AvailabilityBlock } from "@/lib/availability/types";
 import { formatAvailability, formatBlocks } from "@/lib/availability/format";
 import { setStandardWeekDay } from "@/app/plan/actions";
 import { BlockSheet } from "@/components/week/block-sheet";
-
-const DAY_NAMES = [
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-  "Sunday",
-];
+import { WEEKDAY_NAMES } from "@/lib/weekdays";
 
 interface Props {
   /** Monday-first, seven entries. */
@@ -72,7 +63,7 @@ export function StandardWeek({ defaults, sports }: Props) {
       </p>
 
       <ul className="mb-4">
-        {DAY_NAMES.map((name, i) => (
+        {WEEKDAY_NAMES.map((name, i) => (
           <li key={name} className="border-b border-hairline last:border-0">
             <button
               type="button"
@@ -100,7 +91,7 @@ export function StandardWeek({ defaults, sports }: Props) {
 
       {open !== null && (
         <BlockSheet
-          dayLabel={DAY_NAMES[open]}
+          dayLabel={WEEKDAY_NAMES[open]}
           blocks={week[open]}
           sports={sports}
           onChange={(next) => stage(open, next)}

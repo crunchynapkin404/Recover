@@ -39,6 +39,24 @@ export function buildLogHref(
 
 export const TRAIN_DEFAULTS = { view: "week", range: 90 } as const;
 
+/**
+ * The day-windows every trend panel offers, on Body and Train alike.
+ *
+ * One list, because there were three: Body exported its own from
+ * `body/range-tabs.tsx`, Train's `range-tabs.tsx` kept a private copy to
+ * RENDER the pills, and `train/page.tsx` kept a third to VALIDATE `?range=`.
+ * The last pair is the one that could bite — a range in the tab bar that the
+ * page does not accept falls back to 90 with no way to tell why. It lives
+ * here so the list and `TRAIN_DEFAULTS.range`, its own fallback member, are
+ * read from one file.
+ */
+export const RANGES = [30, 90, 180, 365] as const;
+
+/** Narrowing guard for a raw `?range=` param — the only reader of RANGES a page needs. */
+export function isRange(v: unknown): boolean {
+  return (RANGES as readonly number[]).includes(Number(v));
+}
+
 export type BodyTab = "trends" | "sleep" | "journal" | "labs";
 
 export const BODY_TABS: BodyTab[] = ["trends", "sleep", "journal", "labs"];

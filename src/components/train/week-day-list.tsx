@@ -1,4 +1,6 @@
 import type { DayActuals, DaySlot } from "@/lib/week-plan/types";
+import { STATUS_DOT, STATUS_LABEL } from "@/lib/status-color";
+import { WEEKDAY_SHORT, weekdayIndex } from "@/lib/weekdays";
 import {
   DayActions,
   type DayActionsOtherDay,
@@ -9,35 +11,9 @@ import {
   NextWeekSummary,
 } from "@/components/train/next-week-summary";
 
-// The same palette week-strip.tsx paints, deliberately: the strip and the
-// list render the same seven days one above the other, and a status that
-// changed colour between them would read as two different facts. Race is
-// the new --ink-race token rather than the literal fuchsia this row shipped.
-const STATUS_DOT: Record<DaySlot["status"], string> = {
-  completed: "bg-chart-2",
-  adapted: "bg-chart-3",
-  moved: "bg-chart-3",
-  missed: "bg-chart-5",
-  planned: "bg-ink-muted",
-  rest: "bg-hairline opacity-40",
-  race: "bg-ink-race",
-};
-
-const STATUS_LABEL: Record<DaySlot["status"], string> = {
-  completed: "Completed",
-  adapted: "Adapted",
-  moved: "Moved",
-  missed: "Missed",
-  planned: "Planned",
-  rest: "Rest",
-  race: "Race day",
-};
-
-const WEEKDAY = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
 function weekdayOf(ymd: string): string {
-  // Monday-first index; the slot dates are already local Ymd strings.
-  return WEEKDAY[(new Date(ymd + "T00:00:00").getDay() + 6) % 7];
+  // The slot dates are already local Ymd strings; weekdayIndex is Monday-first.
+  return WEEKDAY_SHORT[weekdayIndex(ymd)];
 }
 
 /**

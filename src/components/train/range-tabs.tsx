@@ -1,7 +1,5 @@
 import Link from "next/link";
-import type { LogHref } from "@/lib/log-href";
-
-const RANGES = [30, 90, 180, 365] as const;
+import { RANGES, type LogHref } from "@/lib/log-href";
 
 /** Day-range pills for a trend panel (PMC or Wellness Trends). No client JS. */
 export function RangeTabs({

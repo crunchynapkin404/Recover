@@ -6,6 +6,7 @@ import { formatAvailability, formatBlocks } from "@/lib/availability/format";
 import type { Verdict } from "@/lib/week-plan/ctl-projection";
 import { clearDayOverride } from "@/app/plan/actions";
 import { BlockSheet } from "./block-sheet";
+import { WEEKDAY_NAMES, WEEKDAY_SHORT } from "@/lib/weekdays";
 
 export interface IntakeState {
   message: string;
@@ -39,17 +40,6 @@ interface Props {
    */
   heading?: string;
 }
-
-const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const DAY_NAMES = [
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-  "Sunday",
-];
 
 function verdictLine(v: Verdict, weekLabel: string): string | null {
   if (v.kind === "losing") {
@@ -135,7 +125,7 @@ export function IntakeForm({
           const pinned = overrideDates.includes(dates[i] ?? "");
           return (
             <li
-              key={DAY_LABELS[i]}
+              key={WEEKDAY_SHORT[i]}
               className="border-b border-hairline last:border-0"
             >
               <div className="flex items-center gap-3 py-2.5">
@@ -145,7 +135,7 @@ export function IntakeForm({
                   className="flex flex-1 items-center justify-between text-left"
                 >
                   <span className="text-label font-bold uppercase tracking-wider text-ink-muted">
-                    {DAY_LABELS[i]}
+                    {WEEKDAY_SHORT[i]}
                   </span>
                   <span className="text-label text-ink-secondary">
                     {formatBlocks(blocks)}
@@ -196,7 +186,7 @@ export function IntakeForm({
 
       {openDay !== null && (
         <BlockSheet
-          dayLabel={DAY_NAMES[openDay]}
+          dayLabel={WEEKDAY_NAMES[openDay]}
           blocks={week[openDay]}
           sports={sports}
           onChange={(next) =>
