@@ -31,6 +31,7 @@ Prod's running image digest, recorded whenever it changes:
 
 | Date       | Version  | Digest                                                                    | Soaked?                             |
 | ---------- | -------- | ------------------------------------------------------------------------- | ----------------------------------- |
+| 2026-08-19 | v0.113.0 | `sha256:651f366c6790fd90529a6814b392eb748fc996cf3f5b6d143a745c3ab5926443` | **yes**                             |
 | 2026-08-19 | v0.112.0 | `sha256:510bdb3f42b5e2383d962a161d2786d165fa46366fbc62ef23b8cf6afdd17fd2` | **yes**                             |
 | 2026-08-18 | v0.111.0 | `sha256:4395e18768e62671b3e9ffe9967ac3bd1ade0412ef17f954a7a37374a96ae3f8` | **yes**                             |
 | 2026-08-17 | v0.106.0 | `sha256:2ed296b142bb3e3fd73d057296f3f7b896c7ff168d992e5f270d940997f52032` | **yes**                             |
@@ -39,10 +40,11 @@ Prod's running image digest, recorded whenever it changes:
 | 2026-08-16 | v0.104.0 | `sha256:473fc46f763739d0c014a4eff869a0219c111de09c5ba4e240d49f5830c45413` | yes, but superseded within the hour |
 | 2026-08-14 | v0.103.0 | `sha256:8c0b451ad7f752ff72d304e2de394cedd9417dac13584d1aca970fa62c42fbb2` | pre-gate                            |
 
-**Rolling back from v0.112.0 is unconstrained.** It lands on v0.111.0
-(`4395e187`), which was soaked and promoted the day before, and there are
-**zero migrations** between the two — v0.112.0 added no files to `drizzle/`.
-Nothing about the schema has to be reasoned about first.
+**Rolling back from v0.113.0 is unconstrained,** and so is the step below it.
+v0.113.0 lands on v0.112.0 (`510bdb3f`), and v0.112.0 lands on v0.111.0
+(`4395e187`). Neither release added a file to `drizzle/`, so there are **zero
+migrations** across all three and nothing about the schema has to be reasoned
+about first.
 
 **v0.111.0 carries five releases' worth of work, and that is worth knowing
 before rolling back _past_ it.** v0.107.0, v0.108.0, v0.110.0 and v0.111.0 were
