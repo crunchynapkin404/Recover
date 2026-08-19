@@ -24,6 +24,7 @@ import { db, schema } from "@/lib/db";
 import { racesForWeek, currentCtl } from "@/lib/race/service";
 import { periodize } from "@/lib/training-plan";
 import { requirePlanSport } from "@/lib/plan-sport";
+import { planRaceTargets } from "@/lib/plan-targets";
 import { resolveWeek } from "@/lib/availability/resolve";
 import type { AvailabilityBlock } from "@/lib/availability/types";
 import { assembleVolumeInputs } from "./volume-inputs";
@@ -33,7 +34,12 @@ import {
   type VolumeResult,
 } from "./volume";
 import { materializeWeek } from "./materialize";
-import { addDaysYmd, getOpenWeekPlan, planConstraints } from "./service";
+import {
+  addDaysYmd,
+  daysBetweenYmd,
+  getOpenWeekPlan,
+  planConstraints,
+} from "./service";
 import { dayMins, type Band, type DaySlot } from "./types";
 
 export interface ProjectedWeek {
@@ -223,6 +229,18 @@ export async function projectWeek(
   // historical spelling.
   const sport = requirePlanSport(constraints.sports?.[0]);
 
+  // Which race is which, read the one way this plan row is allowed to be
+  // read for it — never by picking raceDate/raceId off `plan` directly.
+  const targets = planRaceTargets(plan);
+  const firstRace = targets.first
+    ? {
+        weekNumber: Math.ceil(
+          daysBetweenYmd(plan.startDate, targets.first.date) / 7
+        ),
+        raceType: targets.first.raceType,
+      }
+    : null;
+
   const derivedBlocks = periodize({
     weeksTotal: plan.weeksTotal,
     startingCtl: plan.startingCtl ?? 0,
@@ -230,6 +248,7 @@ export async function projectWeek(
     hoursPerWeek: target.hours,
     sport,
     queenStageHours,
+    firstRace,
   });
   // Matched by the requested skeleton week number — the stored week's own
   // skeletonWeek, or the open week's skeletonWeek + 1 for a projection —
@@ -270,6 +289,9 @@ export async function projectWeek(
     planStyle: constraints.planStyle,
     seasonMode: constraints.seasonMode,
     reentryStage: constraints.reentryStage,
+    previousARace: targets.first
+      ? { date: targets.first.date, raceType: targets.first.raceType }
+      : null,
   });
 
   const overrides = await db.query.availabilityOverrides.findMany({

@@ -798,6 +798,16 @@ export const trainingPlans = pgTable(
     raceId: uuid("race_id").references(() => races.id, {
       onDelete: "set null",
     }),
+    // raceId/raceDate are the plan's FINAL target. On a two-A-race plan that
+    // is the SECOND race, and the columns below name the first. Read the
+    // pairing through planRaceTargets() (src/lib/plan-targets.ts), never by
+    // picking one of these columns directly -- `raceDate` alone will silently
+    // give you the wrong race on a two-race plan. 43 sites read these.
+    firstRaceId: uuid("first_race_id").references(() => races.id, {
+      onDelete: "set null",
+    }),
+    firstRaceDate: date("first_race_date"),
+    firstRaceType: text("first_race_type"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

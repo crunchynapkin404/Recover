@@ -572,6 +572,11 @@ export async function importUserData(
         status: r.status,
         constraints: r.constraints,
         raceId: r.raceId ? (raceIdMap.get(r.raceId) ?? null) : null,
+        firstRaceId: r.firstRaceId
+          ? (raceIdMap.get(r.firstRaceId) ?? null)
+          : null,
+        firstRaceDate: r.firstRaceDate,
+        firstRaceType: r.firstRaceType,
         createdAt: toDate(r.createdAt),
         updatedAt: toDate(r.updatedAt),
       };

@@ -16,6 +16,7 @@ import { findBlockFor } from "./slots";
 import { providerSportAliases } from "@/lib/canonical-sport";
 import type { AvailabilityBlock } from "@/lib/availability/types";
 import { periodize } from "@/lib/training-plan";
+import { planRaceTargets } from "@/lib/plan-targets";
 import { requirePlanSport } from "@/lib/plan-sport";
 import { sanitizeDayFlags } from "@/lib/day-flags";
 import { assembleVolumeInputs, assembleWeeklyTarget } from "./volume-inputs";
@@ -66,6 +67,17 @@ export function addDaysYmd(ymd: string, n: number): string {
   const d = new Date(ymd + "T00:00:00");
   d.setDate(d.getDate() + n);
   return localYmd(d);
+}
+
+/** Exported so project.ts (which already imports addDaysYmd from here) can
+ * derive periodize()'s firstRace.weekNumber from the same plan.startDate
+ * basis without a second, possibly-drifting implementation. */
+export function daysBetweenYmd(fromYmd: string, toYmd: string): number {
+  return Math.round(
+    (new Date(toYmd + "T00:00:00").getTime() -
+      new Date(fromYmd + "T00:00:00").getTime()) /
+      86_400_000
+  );
 }
 
 /**
@@ -380,6 +392,18 @@ export async function rolloverWeekPlan(
   // generateTrainingPlan actually decided the plan's sport was.
   const sport = requirePlanSport(constraints.sports?.[0]);
 
+  // Which race is which, read the one way this plan row is allowed to be
+  // read for it — never by picking raceDate/raceId off `plan` directly.
+  const targets = planRaceTargets(plan);
+  const firstRace = targets.first
+    ? {
+        weekNumber: Math.ceil(
+          daysBetweenYmd(plan.startDate, targets.first.date) / 7
+        ),
+        raceType: targets.first.raceType,
+      }
+    : null;
+
   // Recomputed fresh, never read as authority — a stored target is exactly
   // how `hoursPerWeek` went stale in the first place.
   const derivedBlocks = periodize({
@@ -389,6 +413,7 @@ export async function rolloverWeekPlan(
     hoursPerWeek: target.hours,
     sport,
     queenStageHours,
+    firstRace,
   });
   const derived =
     derivedBlocks.find((b) => b.weekNumber === plan.currentWeek) ??
@@ -421,6 +446,9 @@ export async function rolloverWeekPlan(
     planStyle: constraints.planStyle,
     seasonMode: constraints.seasonMode,
     reentryStage: constraints.reentryStage,
+    previousARace: targets.first
+      ? { date: targets.first.date, raceType: targets.first.raceType }
+      : null,
   });
 
   // 4. Persist.
