@@ -23,6 +23,19 @@ npm run db:seed             # owner account (uses OWNER_EMAIL/OWNER_PASSWORD)
 npm run dev
 ```
 
+**If `next dev` goes unresponsive, read its startup banner first.** Turbopack
+infers the workspace root as the outermost directory holding a lockfile, so a
+stray `npm install` anywhere above the repo silently moves the root there —
+`next dev` then compiles, watches and caches against that whole tree. On
+2026-08-18 a lockfile left in `$HOME` cost an evening: single routes took
+minutes to compile, `.next/dev/cache` reached 1.4 GB, and writing it back
+blocked the server for 4-9 minutes at a time (`✓ Finished writing to
+filesystem cache in 8.8min`). It never crashes, so it reads as a hang.
+
+`turbopack.root` in `next.config.ts` pins this, and the banner is the check:
+a "We detected multiple lockfiles" warning means the pin is not taking. After
+changing it, delete `.next/dev` — the old cache is keyed to the old root.
+
 ### Demo data
 
 For UI work and screenshots, seed a demo account with 90 days of plausible
