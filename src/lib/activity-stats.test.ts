@@ -66,7 +66,9 @@ describe("activityMeta", () => {
   // Today's query excludes Strava rows, so that pair never rendered.
   it("spells every provider the way the athlete would recognise it", () => {
     const spell = (provider: string) =>
-      activityMeta({ ...base, provider }).split(" · ").at(-1);
+      activityMeta({ ...base, provider })
+        .split(" · ")
+        .at(-1);
     expect(spell("manual")).toBe("logged by hand");
     expect(spell("intervals_icu")).toBe("intervals.icu");
     expect(spell("strava")).toBe("Strava");

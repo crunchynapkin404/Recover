@@ -21,16 +21,16 @@ deliberately left — the `constraints.hoursPerWeek` precedent.
 `/activity/[id]` and Today's "just landed" block each built the same six
 tiles (Duration · Distance · Load · Avg HR · Avg Power · Climb) from their own
 literal — same fields, same order, same rounding, same units — while
-`JustLandedCard`'s doc comment asserted they could not disagree: *"Every
-figure here is one `/activity/[id]` already renders."*
+`JustLandedCard`'s doc comment asserted they could not disagree: _"Every
+figure here is one `/activity/[id]` already renders."_
 
 They already disagreed. The provenance line was the visible half:
 
-| provider        | `/activity/[id]`   | Today (before)   |
-| --------------- | ------------------ | ---------------- |
-| `intervals_icu` | `intervals.icu`    | `intervals.icu`  |
-| `manual`        | **logged by hand** | **manual**       |
-| `strava`        | `Strava`           | `strava` †       |
+| provider        | `/activity/[id]`   | Today (before)  |
+| --------------- | ------------------ | --------------- |
+| `intervals_icu` | `intervals.icu`    | `intervals.icu` |
+| `manual`        | **logged by hand** | **manual**      |
+| `strava`        | `Strava`           | `strava` †      |
 
 † unreachable — Today's `recentActivity` query excludes Strava rows. `manual`
 was reachable, so one hand-logged ride carried two names across two surfaces.
@@ -81,6 +81,7 @@ Identical four-line derivation in Today, Settings and SidebarNav — two of
 which render the same letter in the same viewport at lg+.
 
 ### 7. `admin/page.tsx` — `u.name || u.email` computed twice, 65 lines apart,
+
 both feeding `SyncJobsPanel`. One `userLabels` list now serves both props.
 
 **Net −155 lines across 19 files**, plus four new owning modules and two new
@@ -108,7 +109,7 @@ unilaterally.
   `6.9h`** — already recorded, unchanged.
 
 Train's Fitness tab is the precedent for resolving them: `showStats={false}`,
-commented *"the tiles above already carry CTL/ATL/TSB."*
+commented _"the tiles above already carry CTL/ATL/TSB."_
 
 ---
 
@@ -152,13 +153,13 @@ scan does not re-derive them:
     wrong, so axe would have passed it.
   - `activity-detail-dark-phone` against `today-post-session-dark-phone` —
     the seeded athlete's latest activity is a **manual** one, which is exactly
-    the reachable half of the drift. Both surfaces now say *logged by hand*
-    (Today used to say *manual*), and the six tiles agree figure for figure:
+    the reachable half of the drift. Both surfaces now say _logged by hand_
+    (Today used to say _manual_), and the six tiles agree figure for figure:
     1h 20m · 40.0 km · 91 · 153 bpm · 230 W · 480 m.
 
   Also visible in that second PNG, and left open on purpose: `Delivered:
-  1h 20m · 91 load · avg HR 153bpm` sits directly above tiles carrying the
-  same three numbers — the JustLandedCard finding recorded under *Open*.
+1h 20m · 91 load · avg HR 153bpm` sits directly above tiles carrying the
+  same three numbers — the JustLandedCard finding recorded under _Open_.
 
 - **What the capture does NOT cover.** On the seeded demo database Train →
   Week renders `No plan yet`, so `week-strip`, `week-day-list`,

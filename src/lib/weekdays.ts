@@ -49,15 +49,7 @@ export const WEEKDAY_NARROW = [
 ] as const;
 
 /** "M" — only where a cell is too narrow for two, as in the sleep strip. */
-export const WEEKDAY_INITIAL = [
-  "M",
-  "T",
-  "W",
-  "T",
-  "F",
-  "S",
-  "S",
-] as const;
+export const WEEKDAY_INITIAL = ["M", "T", "W", "T", "F", "S", "S"] as const;
 
 /**
  * Monday-first index (Mon = 0) for a local `YYYY-MM-DD`.

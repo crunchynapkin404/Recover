@@ -73,9 +73,11 @@ export function shellUser(u: {
  * Settings' header and SidebarNav's pinned row — and at lg+ two of them
  * render the same letter in the same viewport.
  */
-export function avatarInitial(u: {
-  name?: string | null;
-  email?: string | null;
-} | null): string {
+export function avatarInitial(
+  u: {
+    name?: string | null;
+    email?: string | null;
+  } | null
+): string {
   return (u?.name ?? u?.email ?? "").trim().charAt(0).toUpperCase() || "?";
 }

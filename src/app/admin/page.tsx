@@ -112,10 +112,7 @@ export default async function AdminPage() {
           }))}
         />
 
-        <SyncJobsPanel
-          jobs={syncJobs}
-          users={userLabels}
-        />
+        <SyncJobsPanel jobs={syncJobs} users={userLabels} />
 
         <SecurityEvents />
 
