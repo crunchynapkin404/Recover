@@ -163,6 +163,12 @@ exports[`MCP tool surface is frozen (names + scopes + schemas) 1`] = `
           ],
           "type": "string",
         },
+        "secondRaceId": {
+          "description": "A second A-priority race later in the season. The plan builds a full arc to the first race, a recovery bridge, then a rebuild and taper to this one. Both races must be A-priority and upcoming.",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+          "type": "string",
+        },
         "title": {
           "description": "Plan name, e.g. 'Berlin Marathon 2026'.",
           "type": "string",

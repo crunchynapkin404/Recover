@@ -52,10 +52,32 @@ const parameters = z.object({
     .uuid()
     .optional()
     .describe("Target an existing race instead of creating one."),
+  secondRaceId: z
+    .string()
+    .uuid()
+    .optional()
+    .describe(
+      "A second A-priority race later in the season. The plan builds a full arc to the first race, a recovery bridge, then a rebuild and taper to this one. Both races must be A-priority and upcoming."
+    ),
 });
 
 async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
-  const result = await previewTrainingPlan({ userId: ctx.userId, ...args });
+  // Omitting secondRaceId must keep today's contract byte-identical, so the
+  // single-raceId call still passes straight through as `...rest` did before
+  // this parameter existed. Only when a second target is given does the call
+  // switch to the two-race `raceIds` form previewTrainingPlan added.
+  const { secondRaceId, ...rest } = args;
+  const result = await previewTrainingPlan(
+    secondRaceId
+      ? {
+          userId: ctx.userId,
+          ...rest,
+          raceIds: [rest.raceId, secondRaceId].filter(
+            (id): id is string => id != null
+          ),
+        }
+      : { userId: ctx.userId, ...rest }
+  );
   if (!result.ok) {
     return {
       success: false,
@@ -71,6 +93,9 @@ export const generateTrainingPlanTool: ToolDefinition<typeof parameters> = {
   description:
     "Propose a periodized multi-week training plan targeting a race or fitness goal, " +
     "using current fitness (CTL), available time, and sport-science periodization rules. " +
+    "Optionally target a second A-race later in the season with secondRaceId — both races " +
+    "must be A-priority and upcoming, and the plan builds a full arc to the first race, a " +
+    "recovery bridge, then a rebuild and taper to the second. " +
     "This only DRAFTS a plan for the athlete to review — it does not activate anything, " +
     "archive their existing plan, or touch their calendar. Show the athlete the returned " +
     "preview and ask them to confirm before calling confirm_training_plan.",
