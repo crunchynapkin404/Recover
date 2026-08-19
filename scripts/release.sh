@@ -29,6 +29,22 @@
 # push` and `gh pr create` both succeeded (PR #146), while this script was
 # denied.
 #
+# AMENDED 2026-08-19, again by running it rather than reasoning about it. The
+# restriction is MODE-DEPENDENT. With auto mode OFF, an agent ran `gh pr
+# merge`, `gh release create`, tag pushes and `gh workflow run` unrefused, and
+# took v0.112.0 and v0.113.0 all the way to production. `git push origin
+# main:main` was still denied in the same session, so the classifier is drawing
+# a narrower line than "no releases", not no line at all.
+#
+# THIS CHANGES NOTHING ABOUT THE ADVICE BELOW, and the same session is why.
+# Both releases were driven by hand-running the tail step by step instead of
+# this script, and both reached production with NO GitHub release object —
+# noticed only when someone asked where the notes were. That is the fourth and
+# fifth time after v0.28.0, v0.28.1, v0.29.0 and v0.30.0. Being ALLOWED to
+# hand-run the tail is not a reason to; the script exists because the tail is
+# the part that gets half-done, and an agent that can perform every step is
+# exactly the thing most likely to stop one short.
+#
 # SO A HUMAN RUNS THE RELEASE. An agent can take it all the way to a green,
 # mergeable PR and should; the merge/tag/publish tail is yours. Do not
 # hand-run the steps individually to get around this — the reason to use the
