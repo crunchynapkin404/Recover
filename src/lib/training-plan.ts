@@ -325,15 +325,26 @@ function taperFractionFromEnd(weeksFromEnd: number): number {
  * `targetLoad`/`targetSessions` here. Do not "simplify" that parameter away
  * on the assumption these blocks already carry it; they don't.
  */
-export function periodize(
-  weeksTotal: number,
-  startingCtl: number,
-  daysPerWeek: number,
-  hoursPerWeek: number,
-  sport: PlanSport,
-  queenStageHours: number | null = null,
-  startingTsb: number | null = null
-): Block[] {
+export interface PeriodizeOptions {
+  weeksTotal: number;
+  startingCtl: number;
+  daysPerWeek: number;
+  hoursPerWeek: number;
+  sport: PlanSport;
+  queenStageHours?: number | null;
+  startingTsb?: number | null;
+}
+
+export function periodize(opts: PeriodizeOptions): Block[] {
+  const {
+    weeksTotal,
+    startingCtl,
+    daysPerWeek,
+    hoursPerWeek,
+    sport,
+    queenStageHours = null,
+    startingTsb = null,
+  } = opts;
   // Phase distribution
   const baseWeeks = Math.max(
     PC.MIN_BASE_WEEKS,
@@ -1064,15 +1075,15 @@ export async function previewTrainingPlan(
   });
   const startingCtl = startState.startingCtl;
 
-  const blocks = periodize(
-    planWeeks,
+  const blocks = periodize({
+    weeksTotal: planWeeks,
     startingCtl,
     daysPerWeek,
     hoursPerWeek,
     sport,
-    null,
-    startState.startingTsb
-  );
+    queenStageHours: null,
+    startingTsb: startState.startingTsb,
+  });
 
   // 4. One draft per athlete. Cascade removes the old blocks with the row.
   await db
@@ -1539,15 +1550,15 @@ export async function generateTrainingPlan(
   const startDate = localYmd(today);
 
   // 3. Periodize
-  const blocks = periodize(
+  const blocks = periodize({
     weeksTotal,
     startingCtl,
     daysPerWeek,
     hoursPerWeek,
     sport,
-    null,
-    startState.startingTsb
-  );
+    queenStageHours: null,
+    startingTsb: startState.startingTsb,
+  });
 
   // 4. Store in DB — archive any existing active plan first so there is
   // always at most one active plan per user (adherence/update pick it via

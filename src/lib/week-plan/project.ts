@@ -223,14 +223,14 @@ export async function projectWeek(
   // historical spelling.
   const sport = requirePlanSport(constraints.sports?.[0]);
 
-  const derivedBlocks = periodize(
-    plan.weeksTotal,
-    plan.startingCtl ?? 0,
-    constraints.daysPerWeek,
-    target.hours,
+  const derivedBlocks = periodize({
+    weeksTotal: plan.weeksTotal,
+    startingCtl: plan.startingCtl ?? 0,
+    daysPerWeek: constraints.daysPerWeek,
+    hoursPerWeek: target.hours,
     sport,
-    queenStageHours
-  );
+    queenStageHours,
+  });
   // Matched by the requested skeleton week number — the stored week's own
   // skeletonWeek, or the open week's skeletonWeek + 1 for a projection —
   // not `plan.currentWeek`, which may have moved on since. Same

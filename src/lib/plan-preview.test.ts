@@ -35,7 +35,13 @@ describe("buildPhases", () => {
   it.each([1, 2, 4, 8, 12, 16, 20, 24, 32, 40, 52])(
     "rows sum to weeksTotal for a %i-week plan",
     (weeksTotal) => {
-      const blocks = periodize(weeksTotal, 45, 5, 8, "Bike");
+      const blocks = periodize({
+        weeksTotal,
+        startingCtl: 45,
+        daysPerWeek: 5,
+        hoursPerWeek: 8,
+        sport: "Bike",
+      });
       const rows = buildPhases(
         blocks.map((b) => ({
           weekNumber: b.weekNumber,

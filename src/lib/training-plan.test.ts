@@ -273,8 +273,21 @@ describe("generateCyclingWorkouts distributes the target", () => {
 
 describe("periodize passes event demand to the cycling generator", () => {
   it("bounds the long ride by the event's hardest day", () => {
-    const withDemand = periodize(9, 76.7, 4, 12.5, "Bike", 4.897963084361944);
-    const withoutDemand = periodize(9, 76.7, 4, 12.5, "Bike");
+    const withDemand = periodize({
+      weeksTotal: 9,
+      startingCtl: 76.7,
+      daysPerWeek: 4,
+      hoursPerWeek: 12.5,
+      sport: "Bike",
+      queenStageHours: 4.897963084361944,
+    });
+    const withoutDemand = periodize({
+      weeksTotal: 9,
+      startingCtl: 76.7,
+      daysPerWeek: 4,
+      hoursPerWeek: 12.5,
+      sport: "Bike",
+    });
 
     const longOf = (blocks: ReturnType<typeof periodize>) =>
       blocks
@@ -290,13 +303,37 @@ describe("periodize passes event demand to the cycling generator", () => {
 
 describe("opening-week branching", () => {
   it("deep negative form reduces opening target load by 20%", () => {
-    const neutral = periodize(12, 50, 5, 8, "Bike", null, 0);
-    const deep = periodize(12, 50, 5, 8, "Bike", null, -20);
+    const neutral = periodize({
+      weeksTotal: 12,
+      startingCtl: 50,
+      daysPerWeek: 5,
+      hoursPerWeek: 8,
+      sport: "Bike",
+      queenStageHours: null,
+      startingTsb: 0,
+    });
+    const deep = periodize({
+      weeksTotal: 12,
+      startingCtl: 50,
+      daysPerWeek: 5,
+      hoursPerWeek: 8,
+      sport: "Bike",
+      queenStageHours: null,
+      startingTsb: -20,
+    });
     expect(deep[0].targetLoad).toBe(Math.round(neutral[0].targetLoad * 0.8));
   });
 
   it("deep negative form removes threshold/VO2 work in first 72h", () => {
-    const deep = periodize(12, 50, 5, 8, "Bike", null, -21);
+    const deep = periodize({
+      weeksTotal: 12,
+      startingCtl: 50,
+      daysPerWeek: 5,
+      hoursPerWeek: 8,
+      sport: "Bike",
+      queenStageHours: null,
+      startingTsb: -21,
+    });
     const firstWeek = deep[0].workouts;
     for (const w of firstWeek.filter((x) => x.day < 3)) {
       expect(w.type === "Intervals" || w.type === "Tempo").toBe(false);
@@ -307,14 +344,30 @@ describe("opening-week branching", () => {
   });
 
   it("moderate negative keeps opening branch and downgrades day-2 intensity", () => {
-    const moderate = periodize(12, 50, 5, 8, "Bike", null, -10);
+    const moderate = periodize({
+      weeksTotal: 12,
+      startingCtl: 50,
+      daysPerWeek: 5,
+      hoursPerWeek: 8,
+      sport: "Bike",
+      queenStageHours: null,
+      startingTsb: -10,
+    });
     const day2 = moderate[0].workouts.find((x) => x.day === 2);
     expect(day2?.type).toBe("Endurance");
     expect(day2?.purpose).toBe("aerobic_base");
   });
 
   it("caps week-2 rebound after opening downscale to <= 11%", () => {
-    const blocks = periodize(12, 55, 5, 8, "Bike", null, -10);
+    const blocks = periodize({
+      weeksTotal: 12,
+      startingCtl: 55,
+      daysPerWeek: 5,
+      hoursPerWeek: 8,
+      sport: "Bike",
+      queenStageHours: null,
+      startingTsb: -10,
+    });
     const w1 = blocks[0];
     const w2 = blocks[1];
     expect(w1.phase).not.toBe("recovery");
@@ -341,7 +394,13 @@ describe("recovery cadence", () => {
 
   it("never exceeds the base interval, at any plan length", () => {
     for (let weeks = 4; weeks <= 52; weeks++) {
-      const blocks = periodize(weeks, 50, 5, 8, "Bike");
+      const blocks = periodize({
+        weeksTotal: weeks,
+        startingCtl: 50,
+        daysPerWeek: 5,
+        hoursPerWeek: 8,
+        sport: "Bike",
+      });
       expect(
         longestLoadingRun(blocks),
         `${weeks}-week plan ran too long without recovery`
@@ -365,7 +424,13 @@ describe("recovery cadence", () => {
     // (RECOVERY_INTERVAL_DEFAULT - 1 = 2) for any baseWeeks >= MIN_BASE_WEEKS
     // (2) — so build's 2nd week is where recovery fires. That is the bound,
     // derived from the rule rather than read off the output.
-    const blocks = periodize(8, 50, 5, 8, "Bike");
+    const blocks = periodize({
+      weeksTotal: 8,
+      startingCtl: 50,
+      daysPerWeek: 5,
+      hoursPerWeek: 8,
+      sport: "Bike",
+    });
     const baseWeeks = Math.max(
       PLAN_CONSTANTS.MIN_BASE_WEEKS,
       Math.round(8 * PLAN_CONSTANTS.PHASE_SHARE_BASE)
@@ -408,7 +473,13 @@ describe("CTL ramp bound", () => {
   const startingCtl = 80;
 
   it("bounds a long plan against the CTL trajectory", () => {
-    const blocks = periodize(30, startingCtl, 5, 8, "Bike");
+    const blocks = periodize({
+      weeksTotal: 30,
+      startingCtl: startingCtl,
+      daysPerWeek: 5,
+      hoursPerWeek: 8,
+      sport: "Bike",
+    });
     for (const b of blocks) {
       if (b.phase === "recovery" || b.phase === "taper") continue;
       const maxLoad =
@@ -428,7 +499,13 @@ describe("CTL ramp bound", () => {
   // here instead, the same fix applied to the taper ladder in Task 4
   // (race/taper.test.ts, "pinned to literal values").
   it("pins one clamped week to a literal, not the constants it guards", () => {
-    const blocks = periodize(30, startingCtl, 5, 8, "Bike");
+    const blocks = periodize({
+      weeksTotal: 30,
+      startingCtl: startingCtl,
+      daysPerWeek: 5,
+      hoursPerWeek: 8,
+      sport: "Bike",
+    });
     const week7 = blocks.find((b) => b.weekNumber === 7)!;
     expect(week7.phase).toBe("base");
     // (80 + 5*7) * 7 = 805 — 5 and 7 are literal here (CTL_RAMP_PER_WEEK and
@@ -454,7 +531,13 @@ describe("CTL ramp bound", () => {
   // `currentLoad` was left at after week 7's progression AND its
   // currentLoad-clamp, with no bound check of its own.
   it("pins a recovery week to a literal, guarding the currentLoad clamp specifically", () => {
-    const blocks = periodize(30, startingCtl, 5, 8, "Bike");
+    const blocks = periodize({
+      weeksTotal: 30,
+      startingCtl: startingCtl,
+      daysPerWeek: 5,
+      hoursPerWeek: 8,
+      sport: "Bike",
+    });
     const week8 = blocks.find((b) => b.weekNumber === 8)!;
     expect(week8.phase).toBe("recovery");
     // Without the currentLoad clamp, week 7 leaves currentLoad at
@@ -470,7 +553,13 @@ describe("CTL ramp bound", () => {
   it("leaves a short plan the bound should not reach untouched", () => {
     // 6 weeks at 8%/week from CTL 50 stays well inside the trajectory,
     // so the bound must not quietly reshape a plan it was never meant to.
-    const blocks = periodize(6, 50, 5, 8, "Bike");
+    const blocks = periodize({
+      weeksTotal: 6,
+      startingCtl: 50,
+      daysPerWeek: 5,
+      hoursPerWeek: 8,
+      sport: "Bike",
+    });
     const loading = blocks.filter((b) => b.phase === "base");
     expect(loading.length).toBeGreaterThan(1);
     expect(loading[1].targetLoad).toBeGreaterThan(loading[0].targetLoad);
@@ -487,8 +576,20 @@ describe("CTL ramp bound", () => {
   // that reason — reading the same constant on both sides of an assertion
   // proves nothing about whether the constant itself is right.
   it("never lets the ramp bound cut below MIN_WEEKLY_LOAD", () => {
-    const ctl0 = periodize(12, 0, 5, 8, "Bike");
-    const ctl5 = periodize(12, 5, 5, 8, "Bike");
+    const ctl0 = periodize({
+      weeksTotal: 12,
+      startingCtl: 0,
+      daysPerWeek: 5,
+      hoursPerWeek: 8,
+      sport: "Bike",
+    });
+    const ctl5 = periodize({
+      weeksTotal: 12,
+      startingCtl: 5,
+      daysPerWeek: 5,
+      hoursPerWeek: 8,
+      sport: "Bike",
+    });
     // Both would sit BELOW the floor from the ramp bound alone (35 and 70
     // respectively) if the floor were not applied — the whole point of
     // this test.
@@ -499,7 +600,13 @@ describe("CTL ramp bound", () => {
 
 describe("periodize is unchanged by the constants refactor", () => {
   it("produces a stable skeleton for a known input", () => {
-    const blocks = periodize(12, 50, 5, 8, "Bike");
+    const blocks = periodize({
+      weeksTotal: 12,
+      startingCtl: 50,
+      daysPerWeek: 5,
+      hoursPerWeek: 8,
+      sport: "Bike",
+    });
     // v0.45 Task 3 carried the recovery counter across phase boundaries
     // (fixing a real defect: resetting per-phase could skip recovery
     // entirely, or restart a fresh interval right after a boundary). Two
@@ -598,7 +705,13 @@ describe("the skeleton taper has one authority", () => {
   // the code. Rewritten below to test the actual rule: both taper weeks
   // derive from ONE shared anchor load, recoverable from either week.
   it("both taper weeks derive from one shared anchor load, not two independent rates", () => {
-    const blocks = periodize(16, 50, 5, 8, "Bike");
+    const blocks = periodize({
+      weeksTotal: 16,
+      startingCtl: 50,
+      daysPerWeek: 5,
+      hoursPerWeek: 8,
+      sport: "Bike",
+    });
     const taper = blocks.filter((b) => b.phase === "taper");
     expect(taper.length).toBe(2);
 
@@ -624,7 +737,13 @@ describe("the skeleton taper has one authority", () => {
   // hoursRatio ≈0.860, an 0.11 gap. Now both read the same ladder fraction,
   // so the ratios agree (≈0.691 vs ≈0.696 here).
   it("scales hours on the same fraction as load, so the two no longer diverge", () => {
-    const blocks = periodize(16, 50, 5, 8, "Bike");
+    const blocks = periodize({
+      weeksTotal: 16,
+      startingCtl: 50,
+      daysPerWeek: 5,
+      hoursPerWeek: 8,
+      sport: "Bike",
+    });
     const taper = blocks.filter((b) => b.phase === "taper");
     expect(taper.length).toBe(2);
     const mins = (b: (typeof taper)[number]) =>
@@ -644,7 +763,13 @@ describe("the skeleton taper has one authority", () => {
   // shortest that reaches it: round(17 * 0.15) = 3, clearing
   // MIN_TAPER_WEEKS (2).
   it("the third rung (2+ weeks from the race) is reached and reads the ladder correctly", () => {
-    const blocks = periodize(17, 50, 5, 8, "Bike");
+    const blocks = periodize({
+      weeksTotal: 17,
+      startingCtl: 50,
+      daysPerWeek: 5,
+      hoursPerWeek: 8,
+      sport: "Bike",
+    });
     const taper = blocks.filter((b) => b.phase === "taper");
     expect(taper.length).toBe(3);
 

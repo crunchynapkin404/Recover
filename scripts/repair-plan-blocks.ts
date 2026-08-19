@@ -84,13 +84,13 @@ export async function repairPlanBlocks(
 
     // Recomputed fresh, never read as authority — a stored skeleton is
     // exactly how these blocks went stale in the first place.
-    const derived = periodize(
-      plan.weeksTotal,
-      plan.startingCtl ?? 0,
-      constraints.daysPerWeek,
-      constraints.hoursPerWeek,
-      sport
-    );
+    const derived = periodize({
+      weeksTotal: plan.weeksTotal,
+      startingCtl: plan.startingCtl ?? 0,
+      daysPerWeek: constraints.daysPerWeek,
+      hoursPerWeek: constraints.hoursPerWeek,
+      sport,
+    });
 
     // Strictly after the current week. See the module doc — this is the
     // boundary that protects real athlete data.

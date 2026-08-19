@@ -110,13 +110,13 @@ describe.skipIf(!hasDb)("repairPlanBlocks", () => {
     const { repairPlanBlocks } = await import("../scripts/repair-plan-blocks");
 
     const plan = await seedPlan(USER, /* currentWeek */ 5);
-    const expected = periodize(
-      PLAN_INPUT.weeksTotal,
-      PLAN_INPUT.startingCtl,
-      PLAN_INPUT.daysPerWeek,
-      PLAN_INPUT.hoursPerWeek,
-      PLAN_INPUT.sport
-    ).find((b) => b.weekNumber === 6)!;
+    const expected = periodize({
+      weeksTotal: PLAN_INPUT.weeksTotal,
+      startingCtl: PLAN_INPUT.startingCtl,
+      daysPerWeek: PLAN_INPUT.daysPerWeek,
+      hoursPerWeek: PLAN_INPUT.hoursPerWeek,
+      sport: PLAN_INPUT.sport,
+    }).find((b) => b.weekNumber === 6)!;
     // Sanity: the fixture's staleness assumption actually holds for this
     // engine run, or the rest of the test would prove nothing.
     expect(expected.targetLoad).not.toBe(STALE.targetLoadTotal);

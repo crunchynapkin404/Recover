@@ -382,14 +382,14 @@ export async function rolloverWeekPlan(
 
   // Recomputed fresh, never read as authority — a stored target is exactly
   // how `hoursPerWeek` went stale in the first place.
-  const derivedBlocks = periodize(
-    plan.weeksTotal,
-    plan.startingCtl ?? 0,
-    constraints.daysPerWeek,
-    target.hours,
+  const derivedBlocks = periodize({
+    weeksTotal: plan.weeksTotal,
+    startingCtl: plan.startingCtl ?? 0,
+    daysPerWeek: constraints.daysPerWeek,
+    hoursPerWeek: target.hours,
     sport,
-    queenStageHours
-  );
+    queenStageHours,
+  });
   const derived =
     derivedBlocks.find((b) => b.weekNumber === plan.currentWeek) ??
     derivedBlocks[derivedBlocks.length - 1];

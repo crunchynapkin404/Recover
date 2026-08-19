@@ -125,13 +125,13 @@ async function expectedFreshWeek(planId: string, days: DaySlot[]) {
     fallbackHours: constraints.hoursPerWeek,
   });
   const sport = requirePlanSport(constraints.sports?.[0]);
-  const derivedBlocks = periodize(
-    plan!.weeksTotal,
-    plan!.startingCtl ?? 0,
-    constraints.daysPerWeek,
-    target.hours,
-    sport
-  );
+  const derivedBlocks = periodize({
+    weeksTotal: plan!.weeksTotal,
+    startingCtl: plan!.startingCtl ?? 0,
+    daysPerWeek: constraints.daysPerWeek,
+    hoursPerWeek: target.hours,
+    sport,
+  });
   const derived =
     derivedBlocks.find((b) => b.weekNumber === SKELETON_WEEK) ??
     derivedBlocks[derivedBlocks.length - 1];
