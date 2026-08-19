@@ -1114,24 +1114,31 @@ Demand order, science-constrained.
       construction** (`previewTrainingPlan` takes one `raceId`), but the second
       race's taper **already works** via `racesForWeek`. The hole is the
       transition between them, and its duration has no source yet.
-- [ ] **Hydration mismatch on three surfaces — found 2026-08-19, unfixed.**
-      `/coach`, `/coach?history=1` and `/?sheet=checkin` each throw _"Hydration
+- [x] **Hydration mismatch on three surfaces — found and fixed 2026-08-19.**
+      `/coach`, `/coach?history=1` and `/?sheet=checkin` each threw _"Hydration
       failed because the server rendered HTML didn't match the client"_,
-      reproducibly, in a plain browser with no capture harness involved. React
-      discards and re-renders the client tree when this happens. It is also
-      what puts the red `1 Issue` chip in the dev devtools badge, which is how
-      it was noticed at all — the badge sat over the captured state in the new
-      `checkin-sheet` PNGs.
-      **Both causes are the same family: date formatting whose output depends
-      on the runtime's timezone, executed on server AND client.**
-      `history-panel.tsx:90` takes `now = new Date()` as a default parameter
-      and feeds it to `stamp()`'s `toLocaleTimeString`/`toLocaleDateString`;
-      `checkin-sheet.tsx:134` builds `new Date(ymd + "T00:00:00")`, which
-      parses as LOCAL time, and formats it. This repo already wrote the lesson
-      down — `weekdays.ts`'s `weekdayIndex` says "a local-time Date here would
-      shift the weekday for anyone east or west of the server" — and these two
-      predate it. Fix needs the formatted string resolved once (server) and
-      passed down, or the whole thing rendered client-only.
+      reproducibly, in a plain browser with no capture harness. React discards
+      and regenerates the client tree when this happens. Noticed only because
+      the dev devtools badge counts it as an Issue and the badge sat over the
+      newly-captured `checkin-sheet` PNGs.
+      **This entry first recorded the wrong cause,** which is worth leaving
+      visible: it named `checkin-sheet.tsx:134`'s local-time `new Date(ymd +
+"T00:00:00")` from reading the code. Reading React's actual diff showed
+      something else entirely — the client rendering a `<button aria-label=
+"Dictate note">` the server had not.
+      **Two causes, both now fixed.** `use-dictation.ts` derived `supported`
+      from a module constant read via `typeof window`, so the mic button was
+      absent server-side and present in the client's FIRST render — React's own
+      first listed cause, a server/client branch. It reached three call sites
+      (`checkin-sheet`, `debrief-sheet`, `chat-interface`), which is exactly
+      the surfaces that failed. Separately `history-panel.tsx`'s `stamp()`
+      formats with no explicit `timeZone` and reads a render-time `now`, so
+      `/coach?history=1` shipped a server `10:35` against a client `08:35`.
+      Both now resolve after hydration through `useIsHydrated()`
+      (`src/lib/use-hydrated.ts`), whose server snapshot makes the first client
+      render agree by construction. Verified with the browser in
+      America/New_York against a server in Europe/Amsterdam — a harder case
+      than the original repro. Guards on both, mutation-checked.
 - [ ] **Race pacing** — the skipped v0.54. Pacing bands with confidence and
       assumptions made visible.
 - [ ] Remainder of the demand map, by votes

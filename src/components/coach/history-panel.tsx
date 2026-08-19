@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Ghost, Search } from "lucide-react";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
 import type { InboxItem, InboxKind } from "@/lib/coach-inbox";
+import { useIsHydrated } from "@/lib/use-hydrated";
 
 // Each kind gets one ink/tint token pair, defined in globals.css for BOTH
 // themes and contrast-checked by tests/contrast-guard.test.ts. Raw hues used
@@ -92,6 +93,26 @@ export function HistoryPanel({
   const chats = threads.filter((t) => !t.ephemeral);
   const ghosts = threads.filter((t) => t.ephemeral);
 
+  /*
+   * Timestamps render only after hydration, and this is load-bearing.
+   *
+   * `stamp` formats with `toLocaleTimeString` / `toLocaleDateString` and no
+   * explicit `timeZone`, so it answers in whatever zone the runtime is in —
+   * Europe/Amsterdam on the server, the athlete's own in the browser. It also
+   * reads `now`, which is a different instant in each. On /coach?history=1
+   * that produced a server "10:35" against a client "08:35", and React threw
+   * "Hydration failed because the server rendered HTML didn't match the
+   * client" and regenerated the tree.
+   *
+   * The athlete's local time is the RIGHT answer, so the fix is not to pin a
+   * timezone — it is to let the client be the only one that answers. The
+   * server renders an empty stamp column, which the layout already tolerates:
+   * the column is `shrink-0` and the title beside it truncates (see the
+   * "keeps the truncating title able to shrink" test).
+   */
+  const hydrated = useIsHydrated();
+  const at = (d: Date) => (hydrated ? stamp(d, now) : "");
+
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-2 rounded-xl border border-hairline bg-surface-raised px-3 py-2.5 text-ink-muted">
@@ -155,7 +176,7 @@ export function HistoryPanel({
                     </span>
                   </span>
                   <span className="shrink-0 text-label text-ink-muted">
-                    {stamp(item.createdAt, now)}
+                    {at(item.createdAt)}
                   </span>
                 </Link>
               );
@@ -202,7 +223,7 @@ export function HistoryPanel({
                   {t.title}
                 </span>
                 <span className="shrink-0 text-label text-ink-muted">
-                  {stamp(new Date(t.updatedAt), now)}
+                  {at(new Date(t.updatedAt))}
                 </span>
               </Link>
             ))}
@@ -225,7 +246,7 @@ export function HistoryPanel({
                   {t.title}
                 </span>
                 <span className="shrink-0 text-label text-ink-muted">
-                  {stamp(new Date(t.updatedAt), now)}
+                  {at(new Date(t.updatedAt))}
                 </span>
               </Link>
             ))}
