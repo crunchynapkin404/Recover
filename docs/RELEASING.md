@@ -281,7 +281,14 @@ SEED_DEMO=1 DEMO_EMAIL=<owner email> npm run db:seed-demo
       you promoted. `scripts/live-verify-deploy.sh` will also catch it, since
       watchtower would move prod off the soaked image within 300s.
 
-15. **Release notes = the CHANGELOG section**, not the auto-generated PR
+15. **The release is not finished until step 15 is done.** Steps 12-14 leave
+    prod running the new image, which makes the release feel complete — that is
+    precisely why this step is the one that gets skipped. It was skipped for
+    v0.28.0, v0.28.1, v0.29.0, v0.30.0, and again for **v0.112.0 and v0.113.0
+    on 2026-08-19**, both of which shipped to production with no release page
+    until someone asked where the notes were.
+
+    **Release notes = the CHANGELOG section**, not the auto-generated PR
     list. `./scripts/release-object.sh <version>` extracts the section and
     creates the release object; the tag alone does not make one, and release
     pages lagged tags for the whole v0.28–v0.30 run because of it.
