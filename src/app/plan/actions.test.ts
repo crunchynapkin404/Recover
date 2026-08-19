@@ -1307,5 +1307,35 @@ describe.skipIf(!hasDb)("server actions", () => {
       // segment 1 because the action passed only `raceId`.
       expect(result.preview.phases.some((p) => p.segment === 2)).toBe(true);
     });
+
+    // FIX 2 regression: `planRaceTargets` returns `final.id: plan.raceId ??
+    // ""` (src/lib/plan-targets.ts). ON DELETE SET NULL nulls
+    // trainingPlans.raceId when its linked race row is deleted, but leaves
+    // firstRaceId/firstRaceDate/firstRaceType untouched -- so a two-race
+    // draft whose FINAL race was deleted produces raceIds:
+    // ["<first-uuid>", ""]. Before the fix that "" reached
+    // `inArray(schema.races.id, ...)` as a raw parameter, and Postgres
+    // rejects "" for a uuid column with an unhandled server error instead
+    // of a typed refusal.
+    it("degrades to a single-race plan on race one when the final race row is deleted", async () => {
+      const draft = await seedTwoRaceDraft();
+      const { db, schema } = await import("@/lib/db");
+      const finalRace = await db.query.races.findFirst({
+        where: and(
+          eq(schema.races.userId, USER),
+          eq(schema.races.name, "Fall Marathon")
+        ),
+      });
+      expect(finalRace).toBeDefined();
+      await db.delete(schema.races).where(eq(schema.races.id, finalRace!.id));
+
+      const result = await regeneratePreviewAction(draft.id, 5, 9);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      // Degrades to a single-race plan targeting race one -- not a crash,
+      // and not a plan that silently lost the athlete's remaining race.
+      expect(result.preview.race.name).toBe("Spring Marathon");
+      expect(result.preview.phases.every((p) => p.segment !== 2)).toBe(true);
+    });
   });
 });
