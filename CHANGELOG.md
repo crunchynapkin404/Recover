@@ -1,5 +1,83 @@
 # Changelog
 
+## v0.113.0 — 2026-08-19 — Looked At
+
+Everything here came from capturing two surfaces nobody had ever captured. The
+run that emits files is not the evidence; the run whose files you open is. Two
+real defects and one accessibility failure were sitting behind a `0 confirmed`
+that had never included them.
+
+### Hydration: the client is now the only side that answers
+
+`/coach`, `/coach?history=1` and `/?sheet=checkin` each threw **"Hydration
+failed because the server rendered HTML didn't match the client"**, in a plain
+browser with no test harness involved. React discards and regenerates the
+client tree when that happens.
+
+Two causes. `use-dictation.ts` derived `supported` from a module constant read
+via `typeof window`, so the dictation mic was absent server-side and present in
+the client's **first** render — React's own first listed cause, a server/client
+branch, reaching the check-in sheet, the debrief sheet and the coach composer.
+And `history-panel.tsx`'s `stamp()` formats with no explicit `timeZone` from a
+render-time `now`, so the History panel shipped a server `10:35` against a
+client `08:35`.
+
+Both now resolve after hydration through `useIsHydrated()`, whose
+`useSyncExternalStore` server snapshot makes the first client render agree with
+the server by construction. **`stamp()` is deliberately not pinned to a fixed
+timezone** — the athlete's own local time is the right answer, so the fix is to
+let only the client answer, not to make both sides agree on the wrong one.
+Verified with the browser in America/New_York against a server in
+Europe/Amsterdam.
+
+### The History panel's selected thread was colour-only
+
+`bg-surface-selected` on chats and `bg-ghost-tint` on ghosts, with nothing
+programmatic — a WCAG 1.4.1 failure, and one axe cannot report, because "this
+link is the page you are on" is not inferable from a class. Both now carry
+`aria-current="page"`.
+
+It went unnoticed because **no capture had ever rendered a selected row.**
+
+### Two surfaces that had never been captured, and a false pass
+
+`checkin-sheet` was recorded in the roadmap as "dark-only and below the 12px
+floor" long after v0.111.0 fixed both. The half nobody wrote down was that the
+sheet was not in `verify-surfaces.ts` at all, so every `0 confirmed` this
+project has published excluded it. Its first capture is its own proof: it
+renders correctly in light.
+
+`coach-history-active` renders the selected row for the first time. Building it
+exposed that **`coach-history` had been a false pass at desktop since the
+surface existed**: Coach has two History mechanisms, and the `?history=1` param
+does nothing at lg+, where the panel is client state behind the thread-title
+button. Every desktop run had screenshotted the ordinary Coach page under a
+name promising the History panel.
+
+24 → **26 surfaces, 104 combinations, 0 confirmed axe defects.**
+
+### The taper constants now carry a citation
+
+Phase 3's prerequisite, done before multi-A-race because that feature runs the
+taper twice per season and Phase 2a had labelled all seven of its constants
+**Invented, Confidence: Low**. Checked against Bosquet et al. 2007 and the 2023
+endurance meta-analysis: six move to **Medium** and nothing changes behaviour —
+the numbers were already right and merely uncited.
+
+Three things that were not known: `TAPER_WINDOW_LONG = 21` is the **last
+supported day**, not a comfortable middle, with benefit falling away at 22;
+race week reduces training _frequency_, which the evidence says not to, bounded
+to race week and recorded rather than resolved; and the distance mapping is a
+convention the evidence tolerates rather than one it requires. Six guards, all
+mutation-checked.
+
+### Phase 3 opens
+
+`docs/specs/2026-08-19-multi-a-race-seasons-design.md` records what the code
+actually does: the plan is single-race **by construction**, but the second
+race's taper **already works**. The hole is the transition between two A-races,
+and its duration has no source yet.
+
 ## v0.112.0 — 2026-08-19 — Once
 
 **Phase 2 closes.** Its last two riders were carried, not new: the
