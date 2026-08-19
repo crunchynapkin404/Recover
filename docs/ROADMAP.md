@@ -1107,13 +1107,46 @@ Demand order, science-constrained.
       race week reduces training _frequency_, which the evidence says not to —
       bounded to race week and recorded rather than resolved. `OPENER_MAX_MINS`
       stays Low; nothing measures it.
+- [x] **Transition evidence slice — the second prerequisite, and the last one.**
+      `docs/specs/2026-08-19-multi-a-race-transition-evidence.md`. The design
+      doc left three questions and said none should be answered by taste. Only
+      one of them yields a number. **Post-race recovery is evidenced and does
+      scale with distance** — 7d for a marathon's aerobic capacity (Takayama
+      2017, n=11), still-significant inflammation at 5d and VO₂max at 15d after
+      an Ironman (Neubauer 2008, n=42; Nosaka 2010, n=1), 9–16d after a 166 km
+      ultra (Millet 2011) — which is the **opposite** of what the taper pass
+      found, where the endurance review pooled distances and found no
+      difference. So the same classifier is a tolerated convention for the taper
+      and a supported one for the recovery. **The rebuild needs no constant at
+      all**: Mujika & Padilla and Hickson both reduce to "cut volume, hold
+      intensity", which is `RECOVERY_FRACTION` — already Medium on that band —
+      and `periodize()` already collapses into whatever weeks remain.
+      **Whether the second peak can equal the first has no source in either
+      direction**, so the plan may not say it will be lower and may not say it
+      will be equal. **The refusal question had the wrong shape**, and the code
+      settled it in 2026: `previewTrainingPlan` scales a close race and warns
+      rather than refusing, reserving `{ ok: false }` for input that can only be
+      a typo — so this is a `PreviewWarning`, not a refusal.
+      **One finding outside the three, and it is the one that bites.** In a
+      close pairing the shipped code already puts race two's _taper_ on the week
+      immediately after race one — `racesForWeek` drops race one the moment its
+      week passes, so the next week returns `TAPER_FRACTION_WEEK_2` (0.80) at a
+      21-day gap or `WEEK_1` (0.65) at 14 — on the week the evidence says is
+      still recovering. Nothing in `week-plan/` or `race/` distinguishes the
+      week after an A-race from any other; `RECOVERY_FRACTION`'s only three uses
+      are `periodize()`'s step-loading cadence. Unreachable today, and the first
+      thing the implementing release must pin.
 - [ ] **Multi-A-race seasons** — the 244-vote request and the skipped v0.53.
       Two A-races in one season, bridge phase, separate taper windows.
       Designed in `docs/specs/2026-08-19-multi-a-race-seasons-design.md`, which
       records the two findings that resize it: the plan is single-race **by
       construction** (`previewTrainingPlan` takes one `raceId`), but the second
       race's taper **already works** via `racesForWeek`. The hole is the
-      transition between them, and its duration has no source yet.
+      transition between them. **Both prerequisites are now done and it is
+      unblocked** — the transition slice above proposes the constants
+      (`RACE_RECOVERY_DAYS_*`, 14/7/4 by distance class, Medium/Low/Invented)
+      and the warning threshold (recovery + the second race's taper window: 35d
+      marathon→marathon, 21d half→half, 14d short→short).
 - [x] **Hydration mismatch on three surfaces — found and fixed 2026-08-19.**
       `/coach`, `/coach?history=1` and `/?sheet=checkin` each threw _"Hydration
       failed because the server rendered HTML didn't match the client"_,
