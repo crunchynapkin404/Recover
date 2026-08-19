@@ -6,6 +6,9 @@ import {
   TAPER_FRACTION_RACE_WEEK,
   TAPER_FRACTION_WEEK_1,
   TAPER_FRACTION_WEEK_2,
+  TAPER_WINDOW_LONG,
+  TAPER_WINDOW_MID,
+  TAPER_WINDOW_SHORT,
 } from "./taper";
 
 const race = (date: string, raceType: string) => ({
@@ -90,5 +93,77 @@ describe("raceWeekWorkouts", () => {
   it("early-week race fits what it can", () => {
     expect(raceWeekWorkouts("Run", 1)).toHaveLength(0);
     expect(raceWeekWorkouts("Bike", 2)).toHaveLength(1); // openers only
+  });
+});
+
+/**
+ * The two ceilings on TAPER_WINDOW_LONG, neither of which is visible from the
+ * constant itself. Added by the 2026-08-19 evidence pass
+ * (`docs/specs/2026-08-19-taper-evidence.md`) because Phase 3's multi-A-race
+ * work runs this machinery twice per season, and because the constant turns
+ * out to have no headroom at all.
+ */
+describe("taper window bounds", () => {
+  /**
+   * Ferreira et al. 2023 (PLOS One, endurance athletes) finds tapers of 22
+   * days or more show DIMINISHED effects, while 15-21 days still improves
+   * performance. 21 is therefore the last supported day, not a comfortable
+   * middle. Raising this constant crosses the evidence.
+   */
+  it("keeps the long window at or under the 21-day evidence ceiling", () => {
+    expect(TAPER_WINDOW_LONG).toBeLessThanOrEqual(21);
+  });
+
+  /**
+   * `racesForWeek` (src/lib/race/service.ts) only looks 27 days ahead of the
+   * week start, so a race further out than that is not returned and cannot be
+   * tapered for at all. A window longer than the lookahead would be silently
+   * truncated rather than refused — the failure would be a missing taper, with
+   * nothing logged. If you raise the window, raise the lookahead first.
+   */
+  it("keeps every window inside racesForWeek's 27-day lookahead", () => {
+    const LOOKAHEAD_DAYS = 27;
+    for (const w of [TAPER_WINDOW_SHORT, TAPER_WINDOW_MID, TAPER_WINDOW_LONG]) {
+      expect(w).toBeLessThanOrEqual(LOOKAHEAD_DAYS);
+    }
+  });
+
+  /** The ladder must stay ordered, or taperWindowDays' `>=` comparisons in
+   * taperFractionForWeek select the wrong rung. */
+  it("keeps the three windows strictly ordered", () => {
+    expect(TAPER_WINDOW_SHORT).toBeLessThan(TAPER_WINDOW_MID);
+    expect(TAPER_WINDOW_MID).toBeLessThan(TAPER_WINDOW_LONG);
+  });
+
+  /**
+   * Both meta-analyses put the effective VOLUME reduction at 41-60%. Race
+   * week is the rung that has to land inside it: 0.45 of current load is a
+   * 55% cut.
+   */
+  it("cuts race-week volume by an amount the evidence supports", () => {
+    const reduction = 1 - TAPER_FRACTION_RACE_WEEK;
+    expect(reduction).toBeGreaterThanOrEqual(0.41);
+    expect(reduction).toBeLessThanOrEqual(0.6);
+  });
+
+  /**
+   * Across the 2-week window — the largest-effect duration — the mean of the
+   * two applied rungs must also sit inside the band.
+   */
+  it("keeps the two-week mean reduction inside the band", () => {
+    const mean =
+      (1 - TAPER_FRACTION_WEEK_1 + (1 - TAPER_FRACTION_RACE_WEEK)) / 2;
+    expect(mean).toBeGreaterThanOrEqual(0.41);
+    expect(mean).toBeLessThanOrEqual(0.6);
+  });
+
+  /**
+   * Bosquet specifies an exponential FAST-DECAY taper rather than a step, so
+   * each rung must fall by a larger factor than the one before it.
+   */
+  it("decays faster as race day approaches, not linearly", () => {
+    const firstStep = TAPER_FRACTION_WEEK_1 / TAPER_FRACTION_WEEK_2;
+    const secondStep = TAPER_FRACTION_RACE_WEEK / TAPER_FRACTION_WEEK_1;
+    expect(secondStep).toBeLessThan(firstStep);
   });
 });
