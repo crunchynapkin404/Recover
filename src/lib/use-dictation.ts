@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useIsHydrated } from "@/lib/use-hydrated";
 
 // ── v0.15 voice input — Web Speech API, dictation only (never auto-sends).
 export type SpeechRecognitionLike = {
@@ -44,6 +45,32 @@ export function useDictation(onText: (chunk: string) => void): {
   toggle: () => void;
 } {
   const [dictating, setDictating] = useState(false);
+  /*
+   * Support is resolved AFTER MOUNT, never during render.
+   *
+   * `SpeechRecognitionCtor` is a module constant read from `typeof window`,
+   * so it is undefined on the server and (in most browsers) defined on the
+   * client. Returning it straight from this hook made the server render no
+   * mic and the client's FIRST render render one — and React threw
+   * "Hydration failed because the server rendered HTML didn't match the
+   * client" on /coach, /coach?history=1 and /?sheet=checkin, discarding and
+   * regenerating the whole tree. It is the first cause React's own error
+   * message lists: a server/client branch on `typeof window`.
+   *
+   * `useIsHydrated` is false for the server render AND the hydrating one, so
+   * the first client render agrees with the server by construction rather
+   * than by discipline. (An effect calling setState would also work and is
+   * what this reached for first — the repo's react-hooks/set-state-in-effect
+   * rule rejects it, correctly.)
+   *
+   * The cost is that the mic button appears one tick after mount, which is
+   * the right trade: the alternative is a control that renders for a moment
+   * in browsers that cannot use it.
+   *
+   * Do not "simplify" this back to reading the constant during render — see
+   * use-dictation.test.tsx, which fails if you do.
+   */
+  const supported = useIsHydrated() && SpeechRecognitionCtor != null;
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   // The recogniser's callbacks outlive any single render, so they read the
   // latest onText through a ref rather than closing over a stale one.
@@ -85,5 +112,5 @@ export function useDictation(onText: (chunk: string) => void): {
     };
   }, []);
 
-  return { dictating, supported: SpeechRecognitionCtor != null, toggle };
+  return { dictating, supported, toggle };
 }

@@ -300,4 +300,69 @@ describe("HistoryPanel layout invariants", () => {
       expect(html).not.toContain("aria-current");
     });
   });
+
+  /**
+   * The hydration contract for the stamp column.
+   *
+   * `stamp` formats with no explicit `timeZone` and reads a `now` that is a
+   * different instant on each side, so its answer cannot agree between server
+   * and client. On /coach?history=1 that shipped a server "10:35" against a
+   * client "08:35" and React regenerated the tree. The athlete's own local
+   * time is the right answer, so the client is now the only side that
+   * answers — `renderToString` (which runs no effects, exactly like the
+   * server) must emit no time at all.
+   */
+  describe("timestamps do not render before hydration", () => {
+    it("emits no stamp text on a server render", () => {
+      const html = renderToString(
+        <HistoryPanel
+          inboxItems={[
+            {
+              id: "m1",
+              threadId: "th1",
+              kind: "morning",
+              title: "Morning brief",
+              preview: "Readiness 71 (amber).",
+              createdAt: new Date("2026-08-13T07:02:00Z"),
+              unread: false,
+            },
+          ]}
+          threads={[
+            {
+              id: "t1",
+              title: "Should I go hard today?",
+              updatedAt: "2026-08-13T06:00:00Z",
+              ephemeral: false,
+            },
+          ]}
+          activeThreadId={null}
+          unread={0}
+          now={new Date("2026-08-13T09:00:00Z")}
+        />
+      );
+      // Any of stamp()'s three shapes appearing here is the bug returning.
+      expect(html).not.toMatch(/\d{2}:\d{2}/);
+      expect(html).not.toMatch(/>(Mon|Tue|Wed|Thu|Fri|Sat|Sun)</);
+      expect(html).not.toMatch(/>[A-Z][a-z]{2} \d{1,2}</);
+    });
+
+    it("still renders the rows themselves, only the times are deferred", () => {
+      const html = renderToString(
+        <HistoryPanel
+          inboxItems={[]}
+          threads={[
+            {
+              id: "t1",
+              title: "Should I go hard today?",
+              updatedAt: "2026-08-13T06:00:00Z",
+              ephemeral: false,
+            },
+          ]}
+          activeThreadId={null}
+          unread={0}
+        />
+      );
+      expect(html).toContain("Should I go hard today?");
+    });
+  });
 });
