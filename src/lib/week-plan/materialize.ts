@@ -256,10 +256,22 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
   // a "recovery" phase for this week is periodize()'s job, not this
   // function's — WeekState carries no phase field — so this guard only
   // suppresses the taper reshaping, nothing else.
+  //
+  // The window is bounded BOTH ways. `daysBetween(previousARace.date,
+  // weekStart)` is negative for every week that starts BEFORE that race —
+  // and the live wiring sites (week-plan/service.ts, week-plan/project.ts)
+  // pass `previousARace: targets.first` unconditionally, from plan week 1
+  // onward. An unbounded `<` check therefore treated the whole of arc one
+  // — including race one's own taper weeks and its own race week — as
+  // "inside race one's recovery window" and suppressed race one's own
+  // taper. `gap > 0` requires the week to start strictly AFTER that race.
+  const gap = input.previousARace
+    ? daysBetween(input.previousARace.date, input.weekStart)
+    : null;
   const inRecoveryWindow =
-    input.previousARace != null &&
-    daysBetween(input.previousARace.date, input.weekStart) <
-      raceRecoveryDays(input.previousARace.raceType);
+    gap != null &&
+    gap > 0 &&
+    gap < raceRecoveryDays(input.previousARace!.raceType);
   const taperFraction =
     !inRecoveryWindow && primary && primary.priority === "A"
       ? primaryTaperFraction

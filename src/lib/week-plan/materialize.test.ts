@@ -985,6 +985,30 @@ describe("materializeWeek race handling", () => {
     expect(r.effectiveLoad).toBe(171); // A won the reshaping
   });
 
+  it("FIX 1 regression: race one's own taper survives when previousARace is passed for race one itself", () => {
+    // The live wiring sites (week-plan/service.ts, week-plan/project.ts)
+    // pass `previousARace: targets.first` unconditionally, from plan week
+    // 1 onward — including race one's OWN taper weeks and its own race
+    // week. `daysBetween(previousARace.date, weekStart)` is NEGATIVE for
+    // every week before that race, so an unbounded `inRecoveryWindow`
+    // treated "negative gap" as "inside the recovery window" and
+    // suppressed race one's own taper for the whole of arc one. This must
+    // match the single-race control ("A race week", above) exactly: same
+    // effectiveLoad, same taper adjustment, same race-week workout layout.
+    const r = materializeWeek({
+      ...BASE_INPUT,
+      races: [A_RACE],
+      previousARace: { date: A_RACE.date, raceType: A_RACE.raceType },
+    });
+    const days = r.week.days;
+    expect(days[6].status).toBe("race");
+    expect(days[6].workouts).toHaveLength(0);
+    expect(days[3].workouts[0]?.durationMins).toBe(30); // Thursday easy
+    expect(days[4].workouts[0]?.durationMins).toBe(20); // Friday openers
+    expect(r.effectiveLoad).toBe(171); // 0.45 × 380, same as the control
+    expect(r.adjustments.some((a) => a.reason.startsWith("taper:"))).toBe(true);
+  });
+
   describe("collision guard: recovery from race one outranks race two's taper", () => {
     // Two A-marathons 21 days apart: race one on 2026-09-06, race two on
     // 2026-09-27. `racesForWeek` drops race one from the list the moment
