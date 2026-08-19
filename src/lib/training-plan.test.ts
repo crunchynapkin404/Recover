@@ -1000,15 +1000,57 @@ describe("periodize with two races", () => {
   });
 
   it("rebuilds from post-race fitness, not from plan-start fitness", () => {
+    // startingCtl and the week count to the first race are chosen so arc 1
+    // reaches a real peak and the recovery-derived basis clears
+    // MIN_WEEKLY_LOAD (100) with room to spare -- otherwise the floor, not
+    // the handoff, is what the assertion below would be measuring.
     const blocks = periodize({
-      ...base,
-      startingCtl: 30,
-      firstRace: { weekNumber: 10, raceType: "marathon" },
+      weeksTotal: 30,
+      startingCtl: 60,
+      daysPerWeek: 5,
+      hoursPerWeek: 8,
+      sport: "Run" as const,
+      firstRace: { weekNumber: 16, raceType: "marathon" },
     });
-    const lastOfArcOne = blocks[9].targetLoad;
-    const firstOfRebuild = blocks[12].targetLoad;
-    // The rebuild starts near where the athlete actually is after recovery,
-    // not back at a CTL-30 Base week.
-    expect(firstOfRebuild).toBeGreaterThan(lastOfArcOne * 0.4);
+    const peakOfArcOne = Math.max(
+      ...blocks.slice(0, 16).map((b) => b.targetLoad)
+    );
+    const expectedRecoveryLoad = Math.round(
+      peakOfArcOne * PLAN_CONSTANTS.RECOVERY_FRACTION
+    );
+    // Sanity check on the scenario itself: if this doesn't clear the floor,
+    // the tight assertion below would pass for the wrong reason.
+    expect(expectedRecoveryLoad).toBeGreaterThan(
+      PLAN_CONSTANTS.MIN_WEEKLY_LOAD
+    );
+
+    // raceRecoveryDays("marathon") is 14 -> 2 recovery weeks, so the
+    // rebuild's first block sits at index 16 (arc 1) + 2 (recovery) = 18.
+    const firstOfRebuild = blocks[18].targetLoad;
+    // Pinned to the exact value the peak-of-arc-1 handoff implies, not a
+    // loose bound -- a handoff bug that reads `opts.startingCtl` (60,
+    // yielding a 420 opening load here) instead of the recovery-derived CTL
+    // fails this assertion, where a loose `toBeGreaterThan` would not.
+    expect(firstOfRebuild).toBeCloseTo(expectedRecoveryLoad, 0);
   });
+});
+
+describe("periodize clamps an out-of-range firstRace.weekNumber", () => {
+  it.each([-5, 0, 1, 20, 25])(
+    "still produces exactly weeksTotal blocks, numbered 1..weeksTotal, for weekNumber=%i",
+    (weekNumber) => {
+      const blocks = periodize({
+        weeksTotal: 20,
+        startingCtl: 50,
+        daysPerWeek: 5,
+        hoursPerWeek: 8,
+        sport: "Run" as const,
+        firstRace: { weekNumber, raceType: "marathon" },
+      });
+      expect(blocks.length).toBe(20);
+      expect(blocks.map((b) => b.weekNumber)).toEqual(
+        Array.from({ length: 20 }, (_, i) => i + 1)
+      );
+    }
+  );
 });

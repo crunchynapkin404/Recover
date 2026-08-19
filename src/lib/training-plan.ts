@@ -642,26 +642,41 @@ export function periodize(opts: PeriodizeOptions): Block[] {
   const first = opts.firstRace ?? null;
   if (!first) return arc({ ...opts, weeks: opts.weeksTotal });
 
+  // Clamped into [1, weeksTotal] before anything downstream uses it. Every
+  // computation below assumes `arcOne` contains exactly this many blocks —
+  // an out-of-range week number (a stale race date, a bad migration) would
+  // otherwise desync that assumption from what arc()'s own loop actually
+  // produces (it silently floors a non-positive `weeks` to zero blocks),
+  // and the `1..weeksTotal` renumbering guarantee breaks.
+  const firstRaceWeek = Math.min(
+    Math.max(1, first.weekNumber),
+    opts.weeksTotal
+  );
+
   const queenStageHours = opts.queenStageHours ?? null;
-  const arcOne = arc({ ...opts, weeks: first.weekNumber });
+  const arcOne = arc({ ...opts, weeks: firstRaceWeek });
 
   // The load basis for the bridging recovery, and (via its scaled-down
-  // block) the fitness the rebuild resumes from. Deliberately NOT
-  // `opts.hoursPerWeek` and NOT `opts.startingCtl` — those are the plan's
-  // pre-season inputs, and the athlete finishing the first race is not
-  // that person anymore.
-  const recoveryBasis =
-    arcOne.length > 0 ? arcOne[arcOne.length - 1].targetLoad : 0;
+  // block) the fitness the rebuild resumes from: arc 1's PEAK week, not its
+  // last week. Arc 1's last week is a taper week (0.45-0.65x normal load),
+  // and CTL is a 42-day exponentially weighted mean — one taper week
+  // understates the athlete's actual fitness at race one by roughly half,
+  // which floors the rebuild's opening week at MIN_WEEKLY_LOAD instead of
+  // resuming near where the athlete really is. Deliberately NOT
+  // `opts.hoursPerWeek` and NOT `opts.startingCtl` either — those are the
+  // plan's pre-season inputs, and the athlete finishing the first race is
+  // not that person anymore.
+  const recoveryBasis = Math.max(...arcOne.map((b) => b.targetLoad));
 
   const recoveryWeeks = Math.ceil(raceRecoveryDays(first.raceType) / 7);
-  const rebuildWeeks = opts.weeksTotal - first.weekNumber - recoveryWeeks;
+  const rebuildWeeks = opts.weeksTotal - firstRaceWeek - recoveryWeeks;
 
   if (rebuildWeeks <= 0) {
     // No room to rebuild. The plan is arc + whatever recovery fits; the
     // athlete is TOLD this by the `no_bridge_room` warning in Task 6, not
     // by a refusal here — previewTrainingPlan already treats a close race
     // as scaled and warned about, never refused.
-    const fitting = Math.max(0, opts.weeksTotal - first.weekNumber);
+    const fitting = Math.max(0, opts.weeksTotal - firstRaceWeek);
     const recovery = recoverySegment(
       fitting,
       recoveryBasis,
