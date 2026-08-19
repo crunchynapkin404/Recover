@@ -4,10 +4,22 @@
 #   ./scripts/release-object.sh 0.87.1
 #
 # Creates the GitHub release object for an already-tagged version, with the
-# notes taken from that version's CHANGELOG section. This is the one step of
-# docs/RELEASING.md an assistant cannot perform: `gh release create` is
-# refused by Claude Code's auto-mode permission classifier (see the header of
-# scripts/release.sh). Run it yourself.
+# notes taken from that version's CHANGELOG section.
+#
+# It used to say flatly that an assistant cannot perform this step, because
+# `gh release create` is refused by Claude Code's auto-mode permission
+# classifier. That is true IN AUTO MODE and was re-confirmed on 2026-08-18
+# (see scripts/release.sh). It is not true outside it: on 2026-08-19, with
+# auto mode off, an agent ran `gh pr merge`, `gh release create`, tag pushes
+# and `gh workflow run` without refusal — while `git push origin main:main`
+# was still denied. The restriction is real and MODE-DEPENDENT, so do not
+# read either "an agent cannot" or "an agent can" as unconditional.
+#
+# None of which is a reason to hand-run the release tail. v0.112.0 and
+# v0.113.0 were both shipped that way on 2026-08-19 and both reached
+# production with NO release object, discovered only when someone asked where
+# the notes were — the exact failure scripts/release.sh exists to prevent, and
+# the fourth and fifth versions it has happened to after v0.28-v0.30.
 #
 # Generic on purpose -- v0.86 and v0.87 each got a throwaway one-off script
 # before this existed.
@@ -29,8 +41,15 @@ if [ -z "$TITLE" ]; then
   echo "No CHANGELOG heading found for ${TAG}." >&2
   exit 1
 fi
-# Release titles drop the date the CHANGELOG heading carries: "v0.87.1 — Name".
-TITLE="$(sed -E 's/ — [0-9]{4}-[0-9]{2}-[0-9]{2} — / — /' <<<"$TITLE")"
+# The title is the CHANGELOG heading verbatim, date included:
+# "v0.113.0 — 2026-08-19 — Looked At".
+#
+# This used to strip the date. The convention it was stripping to had already
+# stopped being the convention: v0.107.0 through v0.113.0 all carry the date on
+# their release pages, and only v0.106.0 and older do not, so the script would
+# have made every future release the odd one out. Settled 2026-08-19 by reading
+# `gh release list` rather than by preference. The date earns its place on a
+# release page, which is not a file that already sorts chronologically.
 
 NOTES="$(mktemp)"
 trap 'rm -f "$NOTES"' EXIT
