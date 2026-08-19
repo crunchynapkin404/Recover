@@ -56,7 +56,8 @@ export type PreviewWarning =
   | "feasibility_not_realistic"
   | "race_created"
   | "availability_seeded"
-  | "short_horizon";
+  | "short_horizon"
+  | "no_bridge_room";
 
 export interface WarningInput {
   startingCtlSource: StartStateSource;
@@ -72,6 +73,13 @@ export interface WarningInput {
   raceCreated: boolean;
   availabilitySeeded: boolean;
   shortHorizon: boolean;
+  /**
+   * True when the two A-races are close enough that the gap between them
+   * clears neither the first race's recovery days nor the second's own
+   * taper window — see `hasBridgeRoom` in training-plan.ts. Always false on
+   * a single-race plan.
+   */
+  noBridgeRoom: boolean;
 }
 
 export function collectWarnings(input: WarningInput): PreviewWarning[] {
@@ -109,6 +117,7 @@ export function collectWarnings(input: WarningInput): PreviewWarning[] {
   if (input.raceCreated) out.push("race_created");
   if (input.availabilitySeeded) out.push("availability_seeded");
   if (input.shortHorizon) out.push("short_horizon");
+  if (input.noBridgeRoom) out.push("no_bridge_room");
   return out;
 }
 
@@ -130,6 +139,8 @@ export const WARNING_TEXT: Record<PreviewWarning, string> = {
     "You have no standard week yet; confirming will create one from the hours above.",
   short_horizon:
     "There are fewer than four weeks until race day, so this is a shortened plan rather than a full progression.",
+  no_bridge_room:
+    "Your two A-races are close enough together that every week between them is either recovery or taper — there is no room to rebuild. The plan still covers both.",
 };
 
 // ── v0.43: the preview itself ──────────────────────────────────────────────
@@ -179,7 +190,12 @@ export type PreviewResult =
   | { ok: true; preview: PlanPreview }
   | {
       ok: false;
-      reason: "unknown_sport" | "race_not_found" | "horizon_too_long";
+      reason:
+        | "unknown_sport"
+        | "race_not_found"
+        | "horizon_too_long"
+        | "too_many_races"
+        | "second_race_not_a";
     };
 
 /** One sentence per refusal, naming the input at fault and its fix. */
@@ -192,4 +208,8 @@ export const REFUSAL_TEXT: Record<
   race_not_found: "That race is not on your calendar any more.",
   horizon_too_long:
     "Race day is more than 52 weeks away — check the date, or plan a nearer event first.",
+  too_many_races:
+    "This plan targets at most two A-races. Pick the two that matter and make the others B or C.",
+  second_race_not_a:
+    "Both target races must be A-priority and still upcoming. Change the second race's priority, or pick a different one.",
 };

@@ -16,7 +16,7 @@ import { findBlockFor } from "./slots";
 import { providerSportAliases } from "@/lib/canonical-sport";
 import type { AvailabilityBlock } from "@/lib/availability/types";
 import { periodize } from "@/lib/training-plan";
-import { planRaceTargets } from "@/lib/plan-targets";
+import { planRaceTargets, planWeekOf } from "@/lib/plan-targets";
 import { requirePlanSport } from "@/lib/plan-sport";
 import { sanitizeDayFlags } from "@/lib/day-flags";
 import { assembleVolumeInputs, assembleWeeklyTarget } from "./volume-inputs";
@@ -69,29 +69,12 @@ export function addDaysYmd(ymd: string, n: number): string {
   return localYmd(d);
 }
 
-/** Exported so project.ts (which already imports addDaysYmd from here) can
- * derive periodize()'s firstRace.weekNumber from the same plan.startDate
- * basis without a second, possibly-drifting implementation. */
-export function daysBetweenYmd(fromYmd: string, toYmd: string): number {
-  return Math.round(
-    (new Date(toYmd + "T00:00:00").getTime() -
-      new Date(fromYmd + "T00:00:00").getTime()) /
-      86_400_000
-  );
-}
-
-/**
- * Which periodized week number `date` falls in for a plan starting on
- * `startDate`. Week N spans days `7(N-1)..7N-1` from `startDate`, so a race
- * exactly 7 days out is in week 2, not week 1 — `Math.ceil(daysBetween / 7)`
- * (the formula both live call sites used before this fix) undercounts by
- * one at every exact multiple of 7, i.e. whenever the race falls on the
- * same weekday `startDate` did. Exported so project.ts shares this instead
- * of a second, possibly-drifting inline expression.
- */
-export function planWeekOf(startDate: string, date: string): number {
-  return Math.floor(daysBetweenYmd(startDate, date) / 7) + 1;
-}
+// daysBetweenYmd / planWeekOf moved to @/lib/plan-targets (Task 6): that
+// module has zero imports and is a true leaf, so both this file (which
+// training-plan.ts's periodize() depends on) and training-plan.ts itself
+// (which needs planWeekOf for a two-race preview) can import them without a
+// cycle. Re-exported here would just be a second name for the same import,
+// so callers now import planWeekOf directly from @/lib/plan-targets.
 
 /**
  * Legacy adapter for callers that still only speak one number per day (the

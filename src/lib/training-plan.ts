@@ -3,7 +3,7 @@
  * training plan generator. No LLM dependency; uses template-based
  * periodization with sport-specific workout prescriptions.
  */
-import { asc, eq, and } from "drizzle-orm";
+import { asc, eq, and, inArray } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { createRace } from "@/lib/race/service";
 import type { Purpose } from "@/lib/availability/types";
@@ -32,10 +32,16 @@ import { feasibilityFor } from "@/lib/race/feasibility";
 import { PLAN_CONSTANTS as PC } from "@/lib/plan-constants";
 import {
   raceRecoveryDays,
+  taperWindowDays,
   TAPER_FRACTION_RACE_WEEK,
   TAPER_FRACTION_WEEK_1,
   TAPER_FRACTION_WEEK_2,
 } from "@/lib/race/taper";
+import {
+  daysBetweenYmd,
+  planRaceTargets,
+  planWeekOf,
+} from "@/lib/plan-targets";
 import { resolvePlanStyle } from "@/lib/plan-style/resolve";
 import type { PlanStyle } from "@/lib/plan-style/types";
 import { resolveSeasonMode } from "@/lib/season-mode/resolve";
@@ -248,7 +254,19 @@ export interface GeneratePlanParams {
   hoursPerWeek?: number; // default 8
   planStyle?: PlanStyle;
   seasonMode?: SeasonMode;
+  /** @deprecated Use `raceIds`. Kept as the single-target form — behaves
+   *  exactly as before `raceIds` existed. */
   raceId?: string;
+  /**
+   * The A-race(s) this plan targets, by id. previewTrainingPlan does not
+   * select races — the caller decides. One id behaves exactly like `raceId`
+   * above (in fact `raceId` is normalised into a one-element array of this).
+   * Two ids target the plan at both: the earlier date becomes the plan's
+   * `firstRace`, the later its usual final target, regardless of the order
+   * given here. More than two ids is refused (`too_many_races`); either
+   * target not A-priority and `upcoming` is refused (`second_race_not_a`).
+   */
+  raceIds?: string[];
 }
 
 export interface GeneratePlanResult {
@@ -1151,6 +1169,23 @@ async function seedAvailabilityDefaults(
 // ── v0.43: preview (writes a draft, nothing else) ──────────────────────────
 
 /**
+ * Whether the gap between two A-races leaves at least one week that is
+ * neither recovery from the first nor taper into the second — the first's
+ * `raceRecoveryDays` plus the second's own `taperWindowDays`. Below this
+ * floor there is no week that is neither, so there is nothing to rebuild
+ * with; `previewTrainingPlan` still builds the plan, it just warns
+ * (`no_bridge_room`) rather than refusing — a close race is scaled, not a
+ * mistake. Exported so this file's own tests can pin the threshold.
+ */
+export function hasBridgeRoom(
+  firstType: string,
+  finalType: string,
+  gapDays: number
+): boolean {
+  return gapDays >= raceRecoveryDays(firstType) + taperWindowDays(finalType);
+}
+
+/**
  * Writes an inert `draft` training plan and returns a `PlanPreview` for the
  * athlete to check before committing to anything. Unlike
  * `generateTrainingPlan`, this never archives an existing active plan,
@@ -1170,14 +1205,60 @@ export async function previewTrainingPlan(
   // 1. The race decides the sport (v0.42). Refusals are returned, not thrown:
   //    a thrown Error reaches the athlete as whatever the coach model says
   //    about a failed tool call.
-  const raceId = params.raceId ?? null;
+  //
+  //    `raceId` is the single-target compatibility form: normalised into a
+  //    one-element array here so the rest of this function only ever
+  //    branches on `targetIds.length`, and a lone id takes the exact same
+  //    path (findFirst, no priority/status check) it always has — one id
+  //    behaves byte-identically to before `raceIds` existed.
+  const targetIds = params.raceIds ?? (params.raceId ? [params.raceId] : []);
+  if (targetIds.length > 2) {
+    return { ok: false, reason: "too_many_races" };
+  }
+
   let raceType = params.raceType;
   let raceDate = params.raceDate;
   let raceNameFromRow: string | null = null;
   let racePriority: "A" | "B" | "C" = "A";
   let sport: PlanSport;
+  // The FINAL target's id (what `raceId` has always meant), for the draft
+  // row's `raceId` column and the `race_created` warning. null only when no
+  // id was given at all -- confirming will create the race.
+  let raceId: string | null = null;
+  // The earlier A-race on a two-race plan. null on a single-race plan.
+  let firstTarget: { id: string; date: string; raceType: string } | null = null;
 
-  if (raceId) {
+  if (targetIds.length === 2) {
+    const rows = await db.query.races.findMany({
+      where: and(
+        inArray(schema.races.id, targetIds),
+        eq(schema.races.userId, userId)
+      ),
+    });
+    if (rows.length !== 2) return { ok: false, reason: "race_not_found" };
+    if (rows.some((r) => r.priority !== "A" || r.status !== "upcoming")) {
+      return { ok: false, reason: "second_race_not_a" };
+    }
+    // Earlier date is the plan's firstRace regardless of the order the
+    // caller passed the two ids in -- planRaceTargets' contract.
+    const [earlier, later] = [...rows].sort((a, b) =>
+      a.date < b.date ? -1 : a.date > b.date ? 1 : 0
+    );
+    firstTarget = {
+      id: earlier.id,
+      date: earlier.date,
+      raceType: earlier.raceType,
+    };
+    raceId = later.id;
+    raceType = later.raceType;
+    raceDate = later.date;
+    raceNameFromRow = later.name;
+    racePriority = later.priority as "A" | "B" | "C";
+    const resolved = toPlanSport(later.sport);
+    if (!resolved) return { ok: false, reason: "unknown_sport" };
+    sport = resolved;
+  } else if (targetIds.length === 1) {
+    raceId = targetIds[0];
     const race = await db.query.races.findFirst({
       where: and(eq(schema.races.id, raceId), eq(schema.races.userId, userId)),
     });
@@ -1215,10 +1296,34 @@ export async function previewTrainingPlan(
   //    reshaped phase list.
   const today = new Date();
   const race = new Date(raceDate + "T00:00:00");
+  // weeksTotal spans to the FINAL target (raceDate always names it, whether
+  // it came from a single raceId, the later of two raceIds, or a fresh
+  // raceType+raceDate) -- unchanged by how many targets this plan has.
   const weeksTotal = Math.ceil(daysBetween(today, race) / 7);
   if (weeksTotal > 52) return { ok: false, reason: "horizon_too_long" };
   const planWeeks = Math.max(1, weeksTotal);
   const shortHorizon = weeksTotal < 4;
+  // Needed by firstRace.weekNumber below, so computed here rather than at
+  // its original spot right before the insert -- same value either way,
+  // `today` is its only input.
+  const startDate = localYmd(today);
+
+  // The earlier A-race's week number and the bridge-room warning, both
+  // null/false on a single-race plan. `raceType` here is the FINAL
+  // target's, matching hasBridgeRoom(firstType, finalType, gapDays).
+  const firstRace = firstTarget
+    ? {
+        weekNumber: planWeekOf(startDate, firstTarget.date),
+        raceType: firstTarget.raceType,
+      }
+    : null;
+  const noBridgeRoom = firstTarget
+    ? !hasBridgeRoom(
+        firstTarget.raceType,
+        raceType,
+        daysBetweenYmd(firstTarget.date, raceDate)
+      )
+    : false;
 
   // 3. Fitness. Resolve one start-state snapshot with explicit provenance.
   const startState = await resolveStartStateForUser({
@@ -1236,6 +1341,7 @@ export async function previewTrainingPlan(
     sport,
     queenStageHours: null,
     startingTsb: startState.startingTsb,
+    firstRace,
   });
 
   // 4. One draft per athlete. Cascade removes the old blocks with the row.
@@ -1248,7 +1354,6 @@ export async function previewTrainingPlan(
       )
     );
 
-  const startDate = localYmd(today);
   const [draft] = await db
     .insert(schema.trainingPlans)
     .values({
@@ -1260,6 +1365,17 @@ export async function previewTrainingPlan(
       weeksTotal: planWeeks,
       startingCtl,
       raceId,
+      // firstRaceId/firstRaceDate/firstRaceType name the earlier A-race on
+      // a two-race plan (see plan-targets.ts) -- left undefined (column
+      // default null) on a single-race plan, exactly as before this field
+      // existed.
+      ...(firstTarget
+        ? {
+            firstRaceId: firstTarget.id,
+            firstRaceDate: firstTarget.date,
+            firstRaceType: firstTarget.raceType,
+          }
+        : {}),
       status: "draft",
       constraints: {
         daysPerWeek,
@@ -1371,6 +1487,7 @@ export async function previewTrainingPlan(
       raceCreated: raceId == null,
       availabilitySeeded: existingAvailability.length === 0,
       shortHorizon,
+      noBridgeRoom,
     }),
   };
 
@@ -1484,6 +1601,18 @@ export async function previewFromDraft(
     ? feasibilityFigure.value
     : null;
 
+  // Read through planRaceTargets rather than draft.firstRaceDate directly
+  // (plan-targets.ts's contract) so an orphaned first-race row degrades to
+  // "no bridge-room warning" instead of a half-configured read.
+  const draftTargets = planRaceTargets(draft);
+  const noBridgeRoom = draftTargets.first
+    ? !hasBridgeRoom(
+        draftTargets.first.raceType,
+        draftTargets.final.raceType,
+        daysBetweenYmd(draftTargets.first.date, draftTargets.final.date)
+      )
+    : false;
+
   return {
     planId: draft.id,
     sport,
@@ -1515,6 +1644,7 @@ export async function previewFromDraft(
       raceCreated: draft.raceId == null,
       availabilitySeeded: existingAvailability.length === 0,
       shortHorizon: weeksUntilRace < 4,
+      noBridgeRoom,
     }),
   };
 }

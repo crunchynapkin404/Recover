@@ -52,3 +52,36 @@ export function planRaceTargets(plan: {
     },
   };
 }
+
+// ── Day arithmetic ───────────────────────────────────────────────────────
+//
+// Moved here (Task 6, from week-plan/service.ts) because previewTrainingPlan
+// (src/lib/training-plan.ts) needs planWeekOf to place a two-race plan's
+// earlier A-race into periodize()'s `firstRace.weekNumber`, and
+// week-plan/service.ts statically imports `periodize` from training-plan.ts
+// — a static import back from training-plan.ts to service.ts would cycle.
+// This file has zero imports and is a true leaf, so both training-plan.ts
+// and week-plan/service.ts can import from here without creating one. One
+// owner for the day-diff math, not a fourth copy of it.
+
+/** Exported so every plan-week-number computation shares this instead of a
+ * second, possibly-drifting implementation. */
+export function daysBetweenYmd(fromYmd: string, toYmd: string): number {
+  return Math.round(
+    (new Date(toYmd + "T00:00:00").getTime() -
+      new Date(fromYmd + "T00:00:00").getTime()) /
+      86_400_000
+  );
+}
+
+/**
+ * Which periodized week number `date` falls in for a plan starting on
+ * `startDate`. Week N spans days `7(N-1)..7N-1` from `startDate`, so a race
+ * exactly 7 days out is in week 2, not week 1 — `Math.ceil(daysBetween / 7)`
+ * (the formula both live call sites used before this fix) undercounts by
+ * one at every exact multiple of 7, i.e. whenever the race falls on the
+ * same weekday `startDate` did.
+ */
+export function planWeekOf(startDate: string, date: string): number {
+  return Math.floor(daysBetweenYmd(startDate, date) / 7) + 1;
+}

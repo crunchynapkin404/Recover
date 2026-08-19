@@ -24,7 +24,7 @@ import { db, schema } from "@/lib/db";
 import { racesForWeek, currentCtl } from "@/lib/race/service";
 import { periodize } from "@/lib/training-plan";
 import { requirePlanSport } from "@/lib/plan-sport";
-import { planRaceTargets } from "@/lib/plan-targets";
+import { planRaceTargets, planWeekOf } from "@/lib/plan-targets";
 import { resolveWeek } from "@/lib/availability/resolve";
 import type { AvailabilityBlock } from "@/lib/availability/types";
 import { assembleVolumeInputs } from "./volume-inputs";
@@ -34,12 +34,7 @@ import {
   type VolumeResult,
 } from "./volume";
 import { materializeWeek } from "./materialize";
-import {
-  addDaysYmd,
-  getOpenWeekPlan,
-  planConstraints,
-  planWeekOf,
-} from "./service";
+import { addDaysYmd, getOpenWeekPlan, planConstraints } from "./service";
 import { dayMins, type Band, type DaySlot } from "./types";
 
 export interface ProjectedWeek {

@@ -9,7 +9,6 @@ import {
   moveWorkout,
   nextReentryStage,
   planConstraints,
-  planWeekOf,
   rolloverWeekPlan,
   runDailyAdaptation,
   swapWorkouts,
@@ -127,27 +126,8 @@ describe("planConstraints", () => {
   });
 });
 
-/**
- * Task 5, fix round 1: `firstRace.weekNumber` at both live `periodize()`
- * call sites used to be `Math.ceil(daysBetween / 7)`, which undercounts by
- * one at every exact multiple of 7 — i.e. whenever the race falls on the
- * same weekday `plan.startDate` did. Week N spans days `7(N-1)..7N-1` from
- * `startDate`, so a race exactly 7 days out is in week 2, not week 1. Pure
- * — no database involved, so this isn't gated on `hasDb`.
- */
-describe("planWeekOf", () => {
-  const START = "2026-01-05"; // Monday
-
-  it.each([
-    [6, 1],
-    [7, 2],
-    [8, 2],
-    [13, 2],
-    [14, 3],
-  ])("day offset %i from plan.startDate is week %i", (offset, week) => {
-    expect(planWeekOf(START, addDaysYmd(START, offset))).toBe(week);
-  });
-});
+// planWeekOf's tests moved to plan-targets.test.ts (Task 6) — it now lives
+// in @/lib/plan-targets, not here.
 
 /**
  * Task 10: an activity's load always lands somewhere, but only a day WITH a

@@ -66,6 +66,7 @@ const clean: WarningInput = {
   raceCreated: false,
   availabilitySeeded: false,
   shortHorizon: false,
+  noBridgeRoom: false,
 };
 
 describe("collectWarnings", () => {
@@ -99,6 +100,7 @@ describe("collectWarnings", () => {
         raceCreated: true,
         availabilitySeeded: true,
         shortHorizon: true,
+        noBridgeRoom: true,
       })
     ).toEqual([
       "no_ctl_history",
@@ -108,7 +110,19 @@ describe("collectWarnings", () => {
       "race_created",
       "availability_seeded",
       "short_horizon",
+      "no_bridge_room",
     ]);
+  });
+
+  it("warns when there is no room to rebuild between two A-races", () => {
+    // marathon -> marathon needs 14 + 21 = 35 days.
+    expect(collectWarnings({ ...clean, noBridgeRoom: true })).toEqual([
+      "no_bridge_room",
+    ]);
+  });
+
+  it("stays silent when the gap clears the floor", () => {
+    expect(collectWarnings({ ...clean, noBridgeRoom: false })).toEqual([]);
   });
 
   it("a null feasibility verdict is silent, not a warning", () => {

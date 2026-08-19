@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeAll, afterAll } from "vitest";
+import { describe, expect, it, beforeAll, afterAll, afterEach } from "vitest";
 import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import {
@@ -11,6 +11,8 @@ import {
   distributeRemainder,
   periodize,
   EASY_RUN_CAP_MINS,
+  hasBridgeRoom,
+  previewTrainingPlan,
 } from "./training-plan";
 import { PLAN_CONSTANTS } from "./plan-constants";
 import {
@@ -18,6 +20,7 @@ import {
   TAPER_FRACTION_WEEK_1,
   TAPER_FRACTION_WEEK_2,
 } from "./race/taper";
+import { addDaysYmd } from "./week-plan/service";
 
 // requires Postgres; skips without DATABASE_URL.
 const hasDb =
@@ -1032,6 +1035,246 @@ describe("periodize with two races", () => {
     // yielding a 420 opening load here) instead of the recovery-derived CTL
     // fails this assertion, where a loose `toBeGreaterThan` would not.
     expect(firstOfRebuild).toBeCloseTo(expectedRecoveryLoad, 0);
+  });
+});
+
+describe("bridgeRoom", () => {
+  it("needs 35 days between two marathons", () => {
+    expect(hasBridgeRoom("marathon", "marathon", 34)).toBe(false);
+    expect(hasBridgeRoom("marathon", "marathon", 35)).toBe(true);
+  });
+  it("needs 21 days between two halves", () => {
+    expect(hasBridgeRoom("half", "half", 20)).toBe(false);
+    expect(hasBridgeRoom("half", "half", 21)).toBe(true);
+  });
+});
+
+describe.skipIf(!hasDb)("previewTrainingPlan — two A-races", () => {
+  const USER = "test-preview-two-a-races";
+
+  function todayYmd(): string {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+
+  // Far enough out that every date below (plus a generous gap) still clears
+  // the 52-week horizon refusal, and far enough from "today" that a slow
+  // test run doesn't nudge a boundary date across a week seam.
+  const FIRST_DATE = addDaysYmd(todayYmd(), 140);
+
+  async function cleanup(): Promise<void> {
+    // trainingBlocks cascades with trainingPlans; nothing else is written
+    // by previewTrainingPlan (no availability seeding, no materialized week).
+    await db
+      .delete(schema.trainingPlans)
+      .where(eq(schema.trainingPlans.userId, USER));
+    await db.delete(schema.races).where(eq(schema.races.userId, USER));
+  }
+
+  beforeAll(async () => {
+    await cleanup();
+    await db.delete(schema.users).where(eq(schema.users.id, USER));
+    await db.insert(schema.users).values({
+      id: USER,
+      name: "Two A-Race User",
+      email: `${USER}@example.invalid`,
+    });
+  });
+
+  afterEach(cleanup);
+
+  afterAll(async () => {
+    await cleanup();
+    await db.delete(schema.users).where(eq(schema.users.id, USER));
+  });
+
+  async function makeRace(opts: {
+    name: string;
+    raceType: string;
+    date: string;
+    priority?: "A" | "B" | "C";
+    status?: "upcoming" | "completed" | "skipped";
+  }): Promise<string> {
+    const [row] = await db
+      .insert(schema.races)
+      .values({
+        userId: USER,
+        name: opts.name,
+        raceType: opts.raceType,
+        sport: "Run",
+        date: opts.date,
+        priority: opts.priority ?? "A",
+        status: opts.status ?? "upcoming",
+      })
+      .returning();
+    return row.id;
+  }
+
+  it("refuses a third race", async () => {
+    const a = await makeRace({
+      name: "A",
+      raceType: "marathon",
+      date: FIRST_DATE,
+    });
+    const b = await makeRace({
+      name: "B",
+      raceType: "marathon",
+      date: addDaysYmd(FIRST_DATE, 40),
+    });
+    const c = await makeRace({
+      name: "C",
+      raceType: "marathon",
+      date: addDaysYmd(FIRST_DATE, 80),
+    });
+    const result = await previewTrainingPlan({
+      userId: USER,
+      raceType: "marathon",
+      raceDate: addDaysYmd(FIRST_DATE, 80),
+      raceIds: [a, b, c],
+    });
+    expect(result).toEqual({ ok: false, reason: "too_many_races" });
+  });
+
+  it("refuses race_not_found when one of the two ids does not exist", async () => {
+    const a = await makeRace({
+      name: "A",
+      raceType: "marathon",
+      date: FIRST_DATE,
+    });
+    const result = await previewTrainingPlan({
+      userId: USER,
+      raceType: "marathon",
+      raceDate: FIRST_DATE,
+      raceIds: [a, "00000000-0000-0000-0000-000000000000"],
+    });
+    expect(result).toEqual({ ok: false, reason: "race_not_found" });
+  });
+
+  it("refuses when one target race is not A-priority", async () => {
+    const a = await makeRace({
+      name: "A",
+      raceType: "marathon",
+      date: FIRST_DATE,
+    });
+    const laterDate = addDaysYmd(FIRST_DATE, 60);
+    const b = await makeRace({
+      name: "B",
+      raceType: "marathon",
+      date: laterDate,
+      priority: "B",
+    });
+    const result = await previewTrainingPlan({
+      userId: USER,
+      raceType: "marathon",
+      raceDate: laterDate,
+      raceIds: [a, b],
+    });
+    expect(result).toEqual({ ok: false, reason: "second_race_not_a" });
+  });
+
+  it("refuses when one target race is not upcoming", async () => {
+    const a = await makeRace({
+      name: "A",
+      raceType: "marathon",
+      date: FIRST_DATE,
+    });
+    const laterDate = addDaysYmd(FIRST_DATE, 60);
+    const b = await makeRace({
+      name: "B",
+      raceType: "marathon",
+      date: laterDate,
+      status: "completed",
+    });
+    const result = await previewTrainingPlan({
+      userId: USER,
+      raceType: "marathon",
+      raceDate: laterDate,
+      raceIds: [a, b],
+    });
+    expect(result).toEqual({ ok: false, reason: "second_race_not_a" });
+  });
+
+  it("warns no_bridge_room when two marathons leave no room to rebuild, but still builds the plan", async () => {
+    const a = await makeRace({
+      name: "A",
+      raceType: "marathon",
+      date: FIRST_DATE,
+    });
+    // raceRecoveryDays("marathon") + taperWindowDays("marathon") = 14 + 21 = 35.
+    const finalDate = addDaysYmd(FIRST_DATE, 34);
+    const b = await makeRace({
+      name: "B",
+      raceType: "marathon",
+      date: finalDate,
+    });
+    const result = await previewTrainingPlan({
+      userId: USER,
+      raceType: "marathon",
+      raceDate: finalDate,
+      raceIds: [a, b],
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("expected ok");
+    expect(result.preview.warnings).toContain("no_bridge_room");
+  });
+
+  it("stays silent when the gap between two marathons clears the floor", async () => {
+    const a = await makeRace({
+      name: "A",
+      raceType: "marathon",
+      date: FIRST_DATE,
+    });
+    const finalDate = addDaysYmd(FIRST_DATE, 35);
+    const b = await makeRace({
+      name: "B",
+      raceType: "marathon",
+      date: finalDate,
+    });
+    const result = await previewTrainingPlan({
+      userId: USER,
+      raceType: "marathon",
+      raceDate: finalDate,
+      raceIds: [a, b],
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("expected ok");
+    expect(result.preview.warnings).not.toContain("no_bridge_room");
+  });
+
+  it("names the earlier date as first regardless of raceIds order, and writes it onto the draft", async () => {
+    const earlierDate = FIRST_DATE;
+    const laterDate = addDaysYmd(FIRST_DATE, 60);
+    const a = await makeRace({
+      name: "Earlier",
+      raceType: "half_marathon",
+      date: earlierDate,
+    });
+    const b = await makeRace({
+      name: "Later",
+      raceType: "marathon",
+      date: laterDate,
+    });
+
+    // ids passed in reverse (later first) -- proves sort-by-date, not arg order.
+    const result = await previewTrainingPlan({
+      userId: USER,
+      raceType: "marathon",
+      raceDate: laterDate,
+      raceIds: [b, a],
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("expected ok");
+    expect(result.preview.race.id).toBe(b);
+    expect(result.preview.race.date).toBe(laterDate);
+
+    const draft = await db.query.trainingPlans.findFirst({
+      where: eq(schema.trainingPlans.id, result.preview.planId),
+    });
+    expect(draft?.firstRaceId).toBe(a);
+    expect(draft?.firstRaceDate).toBe(earlierDate);
+    expect(draft?.firstRaceType).toBe("half_marathon");
+    expect(draft?.raceId).toBe(b);
+    expect(draft?.raceDate).toBe(laterDate);
   });
 });
 
