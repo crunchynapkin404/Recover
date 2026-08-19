@@ -147,8 +147,25 @@ describe.skipIf(!hasDb)("importUserData", () => {
       })
       .returning();
 
-    // Training plan links back to the race (raceId) — proves training_plans
-    // is inserted after races with correct remap.
+    // A second, EARLIER A-race — the plan's firstRaceId. Task 5 fix round 1:
+    // proves the GDPR round-trip carries the second race too, not just the
+    // plan's final target (raceId).
+    const [raceOne] = await db
+      .insert(schema.races)
+      .values({
+        userId: SOURCE_USER,
+        name: "IMPORT-TEST-RACE-ONE",
+        raceType: "5k",
+        sport: "Run",
+        date: "2026-03-01",
+        priority: "A",
+        status: "completed",
+      })
+      .returning();
+
+    // Training plan links back to both races (raceId = final target,
+    // firstRaceId = the earlier race) — proves training_plans is inserted
+    // after races with BOTH FKs correctly remapped.
     const [plan] = await db
       .insert(schema.trainingPlans)
       .values({
@@ -159,6 +176,9 @@ describe.skipIf(!hasDb)("importUserData", () => {
         startDate: "2026-01-01",
         weeksTotal: 12,
         raceId: race.id,
+        firstRaceId: raceOne.id,
+        firstRaceDate: raceOne.date,
+        firstRaceType: raceOne.raceType,
       })
       .returning();
     await db.insert(schema.trainingBlocks).values({
@@ -293,20 +313,34 @@ describe.skipIf(!hasDb)("importUserData", () => {
     const races = await db.query.races.findMany({
       where: eq(schema.races.userId, TARGET_USER),
     });
-    expect(races.length).toBe(1);
+    expect(races.length).toBe(2);
+    // Row order isn't guaranteed without ORDER BY, so match by name rather
+    // than array index.
+    const importedRace = races.find((r) => r.name === "IMPORT-TEST-RACE")!;
+    const importedRaceOne = races.find(
+      (r) => r.name === "IMPORT-TEST-RACE-ONE"
+    )!;
+    const sampleRace = sample.races.find((r) => r.name === "IMPORT-TEST-RACE")!;
     // Remapped FK must point at the NEW activity id.
-    expect(races[0].resultActivityId).toBe(activities[0].id);
-    expect(races[0].resultActivityId).not.toBe(
-      sample.races[0].resultActivityId
-    );
+    expect(importedRace.resultActivityId).toBe(activities[0].id);
+    expect(importedRace.resultActivityId).not.toBe(sampleRace.resultActivityId);
 
     const plans = await db.query.trainingPlans.findMany({
       where: eq(schema.trainingPlans.userId, TARGET_USER),
     });
     expect(plans.length).toBe(1);
     // Remapped FK must point at the NEW race id.
-    expect(plans[0].raceId).toBe(races[0].id);
+    expect(plans[0].raceId).toBe(importedRace.id);
     expect(plans[0].raceId).not.toBe(sample.training_plans[0].raceId);
+
+    // The second A-race must survive the round-trip too: firstRaceId
+    // remapped to the NEW race id (not the exported one), and the
+    // denormalized firstRaceDate/firstRaceType carried through unchanged.
+    expect(sample.training_plans[0].firstRaceId).not.toBeNull();
+    expect(plans[0].firstRaceId).toBe(importedRaceOne.id);
+    expect(plans[0].firstRaceId).not.toBe(sample.training_plans[0].firstRaceId);
+    expect(plans[0].firstRaceDate).toBe("2026-03-01");
+    expect(plans[0].firstRaceType).toBe("5k");
 
     const blocks = await db.query.trainingBlocks.findMany({
       where: eq(schema.trainingBlocks.planId, plans[0].id),

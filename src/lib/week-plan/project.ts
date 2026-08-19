@@ -36,9 +36,9 @@ import {
 import { materializeWeek } from "./materialize";
 import {
   addDaysYmd,
-  daysBetweenYmd,
   getOpenWeekPlan,
   planConstraints,
+  planWeekOf,
 } from "./service";
 import { dayMins, type Band, type DaySlot } from "./types";
 
@@ -234,9 +234,7 @@ export async function projectWeek(
   const targets = planRaceTargets(plan);
   const firstRace = targets.first
     ? {
-        weekNumber: Math.ceil(
-          daysBetweenYmd(plan.startDate, targets.first.date) / 7
-        ),
+        weekNumber: planWeekOf(plan.startDate, targets.first.date),
         raceType: targets.first.raceType,
       }
     : null;

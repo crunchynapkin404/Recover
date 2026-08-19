@@ -218,3 +218,123 @@ describe.skipIf(!hasDb)("projectWeek", () => {
     });
   });
 });
+
+/**
+ * Task 5, fix round 1: mirrors service.test.ts's "rolloverWeekPlan wires
+ * firstRace" test for projectWeek's OWN, separate periodize() call —
+ * service.test.ts only proves the rollover path is wired; this proves
+ * projectWeek's live call is too. Two plans, identical in every input
+ * except whether firstRaceId is set: if `firstRace` is ever dropped from
+ * project.ts's periodize() call, the two plans' effectiveLoad converge for
+ * the same skeleton week instead of diverging.
+ */
+describe.skipIf(!hasDb)(
+  "projectWeek wires firstRace into the live periodize() call (Task 5)",
+  () => {
+    const CONTROL_USER = "test-project-week-firstrace-control";
+    const TWO_RACE_USER = "test-project-week-firstrace-tworace";
+    const PLAN_START = "2026-01-05"; // Monday
+    const FINAL_RACE_DATE = "2026-06-01";
+    // 30 days out -> planWeekOf week 5 (floor(30/7)+1). Marathon recovery is
+    // 2 weeks, so weeks 6-7 are the two-race plan's bridging recovery
+    // segment. The single-arc control plan is still ramping its base phase
+    // at week 7 of 20 (baseWeeks = round(20 * 0.4) = 8) — same reasoning as
+    // service.test.ts's equivalent test.
+    const RACE_ONE_DATE = "2026-02-04";
+    const IN_BRIDGE_WEEK = 7;
+
+    async function seedPlan(
+      userId: string,
+      firstRace: { date: string; raceType: string } | null
+    ): Promise<void> {
+      await db
+        .insert(schema.users)
+        .values({
+          id: userId,
+          name: "Test Project Two-Race User",
+          email: `${userId}@example.invalid`,
+        })
+        .onConflictDoNothing();
+
+      let firstRaceId: string | null = null;
+      if (firstRace) {
+        const [race] = await db
+          .insert(schema.races)
+          .values({
+            userId,
+            name: "Race one",
+            raceType: firstRace.raceType,
+            sport: "Run",
+            date: firstRace.date,
+            priority: "A",
+          })
+          .returning();
+        firstRaceId = race.id;
+      }
+
+      const [plan] = await db
+        .insert(schema.trainingPlans)
+        .values({
+          userId,
+          title: "Two-race project wiring test plan",
+          raceType: "marathon",
+          raceDate: FINAL_RACE_DATE,
+          startDate: PLAN_START,
+          weeksTotal: 20,
+          startingCtl: 45,
+          status: "active",
+          constraints: { daysPerWeek: 5, hoursPerWeek: 8, sports: ["Run"] },
+          firstRaceId,
+          firstRaceDate: firstRace?.date ?? null,
+          firstRaceType: firstRace?.raceType ?? null,
+        })
+        .returning();
+
+      // A STORED row at exactly WEEK_START: projectWeek's `storedRow` path
+      // reads requestedSkeletonWeek off this row directly, so no
+      // trainingBlocks seeding or `getOpenWeekPlan` chain is needed — the
+      // skeleton comparison this test cares about comes entirely from
+      // periodize(), not from anything stored.
+      await db.insert(schema.weekPlans).values({
+        userId,
+        planId: plan.id,
+        weekStart: WEEK_START,
+        skeletonWeek: IN_BRIDGE_WEEK,
+        days: DATES.map(emptyDay),
+        status: "open",
+      });
+    }
+
+    afterAll(async () => {
+      for (const userId of [CONTROL_USER, TWO_RACE_USER]) {
+        await db
+          .delete(schema.weekPlans)
+          .where(eq(schema.weekPlans.userId, userId));
+        await db
+          .delete(schema.trainingPlans)
+          .where(eq(schema.trainingPlans.userId, userId));
+        await db.delete(schema.races).where(eq(schema.races.userId, userId));
+        await db.delete(schema.users).where(eq(schema.users.id, userId));
+      }
+    });
+
+    it("rebuilds a two-race plan as two arcs, not one", async () => {
+      await seedPlan(CONTROL_USER, null);
+      await seedPlan(TWO_RACE_USER, {
+        date: RACE_ONE_DATE,
+        raceType: "marathon",
+      });
+
+      const { projectWeek } = await import("@/lib/week-plan/project");
+      const control = await projectWeek(CONTROL_USER, WEEK_START, NOW);
+      const twoRace = await projectWeek(TWO_RACE_USER, WEEK_START, NOW);
+
+      expect(control).not.toBeNull();
+      expect(twoRace).not.toBeNull();
+      // Same skeleton week, same athlete profile, different skeleton: the
+      // two-race plan is in recovery here and the single-race plan is
+      // still building.
+      expect(twoRace!.effectiveLoad).toBeLessThan(control!.effectiveLoad);
+    });
+  }
+);

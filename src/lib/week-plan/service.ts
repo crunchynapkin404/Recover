@@ -81,6 +81,19 @@ export function daysBetweenYmd(fromYmd: string, toYmd: string): number {
 }
 
 /**
+ * Which periodized week number `date` falls in for a plan starting on
+ * `startDate`. Week N spans days `7(N-1)..7N-1` from `startDate`, so a race
+ * exactly 7 days out is in week 2, not week 1 — `Math.ceil(daysBetween / 7)`
+ * (the formula both live call sites used before this fix) undercounts by
+ * one at every exact multiple of 7, i.e. whenever the race falls on the
+ * same weekday `startDate` did. Exported so project.ts shares this instead
+ * of a second, possibly-drifting inline expression.
+ */
+export function planWeekOf(startDate: string, date: string): number {
+  return Math.floor(daysBetweenYmd(startDate, date) / 7) + 1;
+}
+
+/**
  * Legacy adapter for callers that still only speak one number per day (the
  * coach tool and the availability-change form haven't been rebuilt around
  * blocks yet). Wraps each day's minutes into a single untimed block, or no
@@ -397,9 +410,7 @@ export async function rolloverWeekPlan(
   const targets = planRaceTargets(plan);
   const firstRace = targets.first
     ? {
-        weekNumber: Math.ceil(
-          daysBetweenYmd(plan.startDate, targets.first.date) / 7
-        ),
+        weekNumber: planWeekOf(plan.startDate, targets.first.date),
         raceType: targets.first.raceType,
       }
     : null;
