@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { BODY_TABS, type BodyTab } from "@/lib/log-href";
+import { SegmentedTabs } from "@/components/ui/segmented-tabs";
 
 const LABEL: Record<BodyTab, string> = {
   trends: "Trends",
@@ -9,11 +9,13 @@ const LABEL: Record<BodyTab, string> = {
 };
 
 /**
- * Body's segmented control. Links, not state — every segment carries the rest
- * of the filter state with it (see buildBodyHref), so the browser's back
- * button walks the athlete's actual path. Deliberately identical in treatment
- * to TrainTabs: two sibling surfaces whose tab rows looked alike by accident
- * and drifted apart by accident too.
+ * Body's segmented control. Its treatment used to be kept identical to
+ * TrainTabs by hand — "two sibling surfaces whose tab rows looked alike by
+ * accident and drifted apart by accident too", as this comment previously
+ * put it. Both now render `SegmentedTabs`, so the likeness is structural.
+ *
+ * What stays here is Body's vocabulary and href builder: every segment
+ * carries the rest of the filter state with it (see buildBodyHref).
  */
 export function BodyTabs({
   active,
@@ -23,21 +25,15 @@ export function BodyTabs({
   href: (over: { tab?: BodyTab }) => string;
 }) {
   return (
-    <nav aria-label="Body sections" className="flex flex-wrap gap-1.5">
-      {BODY_TABS.map((t) => (
-        <Link
-          key={t}
-          href={href({ tab: t })}
-          aria-current={t === active ? "page" : undefined}
-          className={`rounded-full px-4 py-1.5 text-label font-bold transition-colors ${
-            t === active
-              ? "bg-surface-overlay text-ink-primary"
-              : "bg-surface-raised text-ink-muted hover:text-ink-secondary"
-          }`}
-        >
-          {LABEL[t]}
-        </Link>
-      ))}
-    </nav>
+    <SegmentedTabs
+      navLabel="Body sections"
+      className="flex-wrap"
+      active={active}
+      items={BODY_TABS.map((t) => ({
+        key: t,
+        label: LABEL[t],
+        href: href({ tab: t }),
+      }))}
+    />
   );
 }

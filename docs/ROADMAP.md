@@ -569,8 +569,18 @@ so" — is currently spoken in six dialects: `—` (47 uses), `calibrating` (39)
       the settled vocabulary. The largest item on this roadmap: it splits into
       its own releases with per-page gates, and needs real-browser verification
       — the v0.23 redesign shipped three bugs that only a real browser caught.
-- [ ] On every page touched: scan for and remove duplicated data — the same
+- [x] On every page touched: scan for and remove duplicated data — the same
       value shown twice. A standing finding from prior redesigns here.
+      **CLOSED by v0.112.0.** All 12 pages scanned; seven removed, three left
+      open as the owner's call and recorded rather than resolved quietly. One
+      had already drifted — `/activity/[id]` and Today's just-landed block
+      built the same six tiles from separate literals, and a hand-logged ride
+      read "logged by hand" on one surface and "manual" on the other, which the
+      capture caught on the seeded athlete's own activity. Full findings in
+      `docs/plans/2026-08-18-duplicated-data-scan.md`, including what the
+      capture does **not** cover: Train → Week renders `No plan yet` on the
+      seeded database, so the week-strip and day-list changes are covered by
+      render tests only.
 - [x] **Three Today components have no tests** — `today/today-hero`,
       `today/week-row`, `today/session-card`. **CLOSED by v0.100.0**, which
       redesigned all three and gave each its first tests (14, 8 and 12 cases
@@ -578,10 +588,25 @@ so" — is currently spoken in six dialects: `—` (47 uses), `calibrating` (39)
       belonged to their dead predecessors, so deleting them cost no effective
       coverage but made the gap visible. `today-hero` renders the readiness
       ring — the app's primary number.
-- [ ] **Decide a tab pattern.** `/body` and `/train` hand-roll their own tab
+- [x] **Decide a tab pattern.** `/body` and `/train` hand-roll their own tab
       bars while v0.98.0 deleted an unused vendored `ui/tabs.tsx`. The
       duplication is real; the answer is to choose a pattern deliberately, not
       to re-vendor a file because it once existed.
+      **CLOSED by v0.112.0 — owner's decision, taken 2026-08-19:** build the
+      link-based control the call sites were already hand-rolling, as
+      `components/ui/segmented-tabs.tsx`. Re-vendoring was ruled out by the
+      code rather than by taste: shadcn's Tabs is state-based, and all four
+      rows are deliberately links so the filter state rides in the href and
+      the back button walks the athlete's real path.
+      `train/view-tabs` is **not** a caller — it is a month picker with date
+      logic that only resembles a tab bar.
+      This was not a line saving: 125 code lines became 153. What it removed
+      is four copies of one treatment, and it corrected a drift it exposed —
+      `train/range-tabs` still painted its active pill `bg-accent/20`, a
+      straight token translation of the `bg-emerald-500/20` it shipped with in
+      00534a5, while the other three had moved to the surface treatment. The
+      accent was inherited, never designed; the pills now match the tab row
+      directly beneath them, which the capture shows.
 
 ### 2c — One source of truth per number
 
@@ -992,15 +1017,24 @@ telemetry was never able to support. If a second user ever joins this
 instance, the census argument above expires and the counts become a sample of
 one — reopen the question then rather than citing this reading.
 
-**Order now:** **2a, 2c and 2d are all closed** — 2c at v0.90.0, 2d at
-v0.93.2, and 2a's last item (inline numeric literals) at v0.94.0. Check that
-against the checkbox list before repeating it; that is how it was wrong in
-v0.93.0. **2b.2 closed at v0.98.0**, so **2b.4 — the visual redesign — is the only
-open item in Phase 2 and nothing blocks it.** It inherits a tree where a
-page's components are findable, no dead code to redesign by accident, and two
-guards holding both properties while it works. Per §2b.4 it splits into its
-own sequence of releases with per-page gates, and needs real-browser
-verification: v0.23 shipped three bugs that only a real browser caught.
+**Order now: Phase 2 is closed.** Verified against the checkbox list on
+2026-08-19, not from memory of the last release — 2a, 2b, 2c and 2d carry
+zero unticked items. 2c closed at v0.90.0, 2d at v0.93.2, 2a's last item
+(inline numeric literals) at v0.94.0, 2b.2 at v0.98.0, and 2b.4 — the visual
+redesign, the largest item here — across its ten slices ending at v0.111.0,
+when `forcedTheme` lifted and light mode became reachable.
+
+**2b's last two riders closed at v0.112.0**, both of them carried rather than
+new: the duplicated-data scan across all 12 pages, and the tab-pattern
+decision. The second was explicitly the owner's to make and was made on
+2026-08-19 — a purpose-built link-based `ui/segmented-tabs.tsx` rather than
+re-vendoring the state-based file v0.98.0 deleted.
+
+**What Phase 2 leaves the next phase:** every athlete-facing number has a
+source and a confidence, axe sits at 0 confirmed nodes across 24 surfaces in
+both themes, and the guards that hold it are real assertions rather than
+ratchets — ad-hoc alpha fails the build at zero. **Phase 3 is next, and
+nothing in Phase 2 blocks it.**
 
 **A correction worth keeping, because it is the second time this line has
 been wrong.** v0.93.0 first wrote here that "2a, 2c and 2d are all closed",

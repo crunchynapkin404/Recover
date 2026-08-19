@@ -1,5 +1,14 @@
 # Handoff — closing Phase 2, from v0.111.0
 
+> **Both items below closed at v0.112.0 on 2026-08-19, and Phase 2 with them.**
+> The duplicated-data scan is recorded in
+> `docs/plans/2026-08-18-duplicated-data-scan.md`; the tab-pattern decision was
+> taken by the owner — a link-based `ui/segmented-tabs.tsx`, not a re-vendored
+> `ui/tabs.tsx`. This file is kept as written because the rest of it — the
+> release-path traps, the measured ink floors, how to verify anything — is
+> still current and cost real time to learn. Read §"What remains for Phase 2"
+> as history rather than as a queue.
+
 **Read this first if you are picking up the roadmap.** 2b.4's ten redesign
 slices are shipped and prod runs v0.111.0. **Two items stand between here and a
 closed Phase 2**, and both are 2b.4 riders rather than new work.
