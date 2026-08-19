@@ -96,10 +96,10 @@ export function taperWindowDays(raceType: string): number {
  * exactly where it shows up. Marathon aerobic capacity is back inside 7 days
  * (Takayama et al. 2017, n=11); an Ironman still shows significantly elevated
  * CK, myoglobin, IL-6 and hs-CRP at 5 days (Neubauer et al. 2008, n=42) and
- * took 15 days for VO2max in the one case study (Nosaka et al. 2010, n=1); a
- * 166 km ultra needs 9-16 days for neuromuscular function (Millet et al.
- * 2011). **The same classifier is a tolerated convention for the taper and a
- * supported one for the recovery.**
+ * took 15 days for VO2max in the one case study (Nosaka et al. 2010, n=1, read
+ * second-hand: the paper is paywalled); a 166 km ultra needs 9-16 days for
+ * neuromuscular function (Millet et al. 2011). **The same classifier is a
+ * tolerated convention for the taper and a supported one for the recovery.**
  *
  * Read the confidence per row, not the table shape. Only the long class has
  * studies under it.
@@ -117,16 +117,18 @@ export function taperWindowDays(raceType: string): number {
 export const RACE_RECOVERY_DAYS_LONG = 14;
 
 /**
- * Half / 70.3 / fondo / century. **No study was located at this distance** —
- * a search on 2026-08-19 returned CK kinetics reported second-hand and no
- * primary time-to-recovery study in trained runners. Interpolated between the
- * long class and nothing. Confidence: Low.
+ * Half / 70.3 / fondo / century. **Evidence:** `docs/specs/2026-08-19-multi-a-race-transition-evidence.md`.
+ * **No study was located at this distance** — a search on 2026-08-19 returned
+ * CK kinetics reported second-hand and no primary time-to-recovery study in
+ * trained runners. Interpolated between the long class and nothing.
+ * Confidence: Low.
  */
 export const RACE_RECOVERY_DAYS_MID = 7;
 
 /**
- * Everything else. **Invented** — no evidence at all. A floor so a short
- * A-race still costs something rather than nothing. Confidence: Low.
+ * Everything else. **Evidence:** `docs/specs/2026-08-19-multi-a-race-transition-evidence.md`.
+ * **Invented** — no evidence at all. A floor so a short A-race still costs
+ * something rather than nothing. Confidence: Low.
  */
 export const RACE_RECOVERY_DAYS_SHORT = 4;
 
