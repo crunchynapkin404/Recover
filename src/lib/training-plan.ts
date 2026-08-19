@@ -31,6 +31,7 @@ import {
 import { feasibilityFor } from "@/lib/race/feasibility";
 import { PLAN_CONSTANTS as PC } from "@/lib/plan-constants";
 import {
+  raceRecoveryDays,
   TAPER_FRACTION_RACE_WEEK,
   TAPER_FRACTION_WEEK_1,
   TAPER_FRACTION_WEEK_2,
@@ -333,11 +334,17 @@ export interface PeriodizeOptions {
   sport: PlanSport;
   queenStageHours?: number | null;
   startingTsb?: number | null;
+  /**
+   * The earlier A-race, when the plan has two. null = today's single arc.
+   * `weekNumber` is 1-based and is the week the race falls in.
+   */
+  firstRace?: { weekNumber: number; raceType: string } | null;
 }
 
-export function periodize(opts: PeriodizeOptions): Block[] {
+/** One Base -> Build -> Peak -> Taper progression over `weeks` weeks. */
+function arc(opts: PeriodizeOptions & { weeks: number }): Block[] {
+  const weeksTotal = opts.weeks;
   const {
-    weeksTotal,
     startingCtl,
     daysPerWeek,
     hoursPerWeek,
@@ -458,19 +465,16 @@ export function periodize(opts: PeriodizeOptions): Block[] {
       phase !== "taper";
 
     if (isRecovery) {
-      blocks.push({
-        weekNumber: w,
-        phase: "recovery",
-        targetLoad: Math.round(currentLoad * PC.RECOVERY_FRACTION),
-        targetSessions: Math.max(3, daysPerWeek - 1),
-        workouts: generateWorkouts(
-          daysPerWeek - 1,
-          hoursPerWeek * PC.RECOVERY_FRACTION,
-          "recovery",
+      blocks.push(
+        buildRecoveryBlock(
+          w,
+          currentLoad,
+          daysPerWeek,
+          hoursPerWeek,
           sport,
           queenStageHours
-        ),
-      });
+        )
+      );
       weeksSinceRecovery = 0;
       // Don't increase load after recovery
     } else if (phase === "taper") {
@@ -567,6 +571,140 @@ export function periodize(opts: PeriodizeOptions): Block[] {
   }
 
   return blocks;
+}
+
+/**
+ * The single recovery-week block: a `PC.RECOVERY_FRACTION` cut of `loadBasis`
+ * for load, and of `hoursPerWeek` for the workouts generated to fill it.
+ * Shared by `arc()`'s in-phase recovery weeks and `recoverySegment()`'s
+ * between-arc recovery block — one construction, two call sites.
+ */
+function buildRecoveryBlock(
+  weekNumber: number,
+  loadBasis: number,
+  daysPerWeek: number,
+  hoursPerWeek: number,
+  sport: PlanSport,
+  queenStageHours: number | null
+): Block {
+  return {
+    weekNumber,
+    phase: "recovery",
+    targetLoad: Math.round(loadBasis * PC.RECOVERY_FRACTION),
+    targetSessions: Math.max(3, daysPerWeek - 1),
+    workouts: generateWorkouts(
+      daysPerWeek - 1,
+      hoursPerWeek * PC.RECOVERY_FRACTION,
+      "recovery",
+      sport,
+      queenStageHours
+    ),
+  };
+}
+
+/**
+ * `weeks` consecutive recovery blocks bridging two arcs, all at the same
+ * `loadBasis` — mirroring `arc()`, which does not ratchet load down further
+ * across back-to-back recovery weeks either (`currentLoad` itself is only
+ * reset to zero-progression, never reduced, by a recovery week).
+ */
+function recoverySegment(
+  weeks: number,
+  loadBasis: number,
+  daysPerWeek: number,
+  hoursPerWeek: number,
+  sport: PlanSport,
+  queenStageHours: number | null
+): Block[] {
+  const blocks: Block[] = [];
+  for (let w = 1; w <= weeks; w++) {
+    blocks.push(
+      buildRecoveryBlock(
+        w,
+        loadBasis,
+        daysPerWeek,
+        hoursPerWeek,
+        sport,
+        queenStageHours
+      )
+    );
+  }
+  return blocks;
+}
+
+/**
+ * Composes the full plan skeleton. With no `firstRace`, this is one arc over
+ * `weeksTotal` — unchanged from before this function grew two-race support.
+ * With a `firstRace`, it is `arc(weeksToFirstRace) + recovery(n) +
+ * arc(remainingWeeks)`, renumbered contiguously.
+ */
+export function periodize(opts: PeriodizeOptions): Block[] {
+  const first = opts.firstRace ?? null;
+  if (!first) return arc({ ...opts, weeks: opts.weeksTotal });
+
+  const queenStageHours = opts.queenStageHours ?? null;
+  const arcOne = arc({ ...opts, weeks: first.weekNumber });
+
+  // The load basis for the bridging recovery, and (via its scaled-down
+  // block) the fitness the rebuild resumes from. Deliberately NOT
+  // `opts.hoursPerWeek` and NOT `opts.startingCtl` — those are the plan's
+  // pre-season inputs, and the athlete finishing the first race is not
+  // that person anymore.
+  const recoveryBasis =
+    arcOne.length > 0 ? arcOne[arcOne.length - 1].targetLoad : 0;
+
+  const recoveryWeeks = Math.ceil(raceRecoveryDays(first.raceType) / 7);
+  const rebuildWeeks = opts.weeksTotal - first.weekNumber - recoveryWeeks;
+
+  if (rebuildWeeks <= 0) {
+    // No room to rebuild. The plan is arc + whatever recovery fits; the
+    // athlete is TOLD this by the `no_bridge_room` warning in Task 6, not
+    // by a refusal here — previewTrainingPlan already treats a close race
+    // as scaled and warned about, never refused.
+    const fitting = Math.max(0, opts.weeksTotal - first.weekNumber);
+    const recovery = recoverySegment(
+      fitting,
+      recoveryBasis,
+      opts.daysPerWeek,
+      opts.hoursPerWeek,
+      opts.sport,
+      queenStageHours
+    );
+    return [arcOne, recovery]
+      .flat()
+      .map((b, i) => ({ ...b, weekNumber: i + 1 }));
+  }
+
+  const recovery = recoverySegment(
+    recoveryWeeks,
+    recoveryBasis,
+    opts.daysPerWeek,
+    opts.hoursPerWeek,
+    opts.sport,
+    queenStageHours
+  );
+  // The CTL implied by where recovery leaves the athlete — the documented
+  // inverse of `startingCtl * CTL_TO_WEEKLY_LOAD` (plan-constants.ts: "a
+  // steady weekly load L settles at CTL = L/7"). `startingTsb` is a
+  // plan-start concept, so arc 2 gets `null`, not the original plan's TSB.
+  const recoveryLoad =
+    recovery.length > 0
+      ? recovery[recovery.length - 1].targetLoad
+      : recoveryBasis;
+  const arcTwo = arc({
+    ...opts,
+    weeks: rebuildWeeks,
+    startingCtl: recoveryLoad / PC.CTL_TO_WEEKLY_LOAD,
+    startingTsb: null,
+  });
+
+  // Contiguous renumbering. Both live sites (week-plan/service.ts,
+  // week-plan/project.ts) find their block by matching a number against
+  // weekNumber and FALL BACK TO THE LAST BLOCK when the match misses — so a
+  // gap here does not throw, it silently serves the plan's final week.
+  return [arcOne, recovery, arcTwo]
+    .flat()
+    .map((b, i) => ({ ...b, weekNumber: i + 1 }));
 }
 
 function loadMultiplier(phase: Block["phase"], weekInPhase: number): number {

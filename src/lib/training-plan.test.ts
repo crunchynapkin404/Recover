@@ -957,3 +957,58 @@ describe("generateWorkouts dispatches on sport alone", () => {
     }
   });
 });
+
+describe("periodize with two races", () => {
+  const base = {
+    weeksTotal: 20,
+    startingCtl: 50,
+    daysPerWeek: 5,
+    hoursPerWeek: 8,
+    sport: "Run" as const,
+  };
+
+  it("numbers every week exactly once, contiguously", () => {
+    const blocks = periodize({
+      ...base,
+      firstRace: { weekNumber: 10, raceType: "marathon" },
+    });
+    const nums = blocks.map((b) => b.weekNumber);
+    expect(nums).toEqual(Array.from({ length: 20 }, (_, i) => i + 1));
+  });
+
+  it("puts recovery weeks immediately after the first race", () => {
+    const blocks = periodize({
+      ...base,
+      firstRace: { weekNumber: 10, raceType: "marathon" },
+    });
+    // raceRecoveryDays("marathon") is 14 -> ceil(14/7) = 2 weeks
+    expect(blocks[10].phase).toBe("recovery");
+    expect(blocks[11].phase).toBe("recovery");
+    expect(blocks[12].phase).not.toBe("recovery");
+  });
+
+  it("ends the second segment in a taper", () => {
+    const blocks = periodize({
+      ...base,
+      firstRace: { weekNumber: 10, raceType: "marathon" },
+    });
+    expect(blocks[blocks.length - 1].phase).toBe("taper");
+  });
+
+  it("is byte-identical to today when firstRace is null", () => {
+    expect(periodize({ ...base, firstRace: null })).toEqual(periodize(base));
+  });
+
+  it("rebuilds from post-race fitness, not from plan-start fitness", () => {
+    const blocks = periodize({
+      ...base,
+      startingCtl: 30,
+      firstRace: { weekNumber: 10, raceType: "marathon" },
+    });
+    const lastOfArcOne = blocks[9].targetLoad;
+    const firstOfRebuild = blocks[12].targetLoad;
+    // The rebuild starts near where the athlete actually is after recovery,
+    // not back at a CTL-30 Base week.
+    expect(firstOfRebuild).toBeGreaterThan(lastOfArcOne * 0.4);
+  });
+});
