@@ -984,6 +984,97 @@ describe("materializeWeek race handling", () => {
     expect(r.week.days[5].status).toBe("race");
     expect(r.effectiveLoad).toBe(171); // A won the reshaping
   });
+
+  describe("collision guard: recovery from race one outranks race two's taper", () => {
+    // Two A-marathons 21 days apart: race one on 2026-09-06, race two on
+    // 2026-09-27. `racesForWeek` drops race one from the list the moment
+    // its week passes, so on its own the week starting 2026-09-07 — the
+    // day after race one — sees only race two, 20 days out, which lands
+    // squarely in race two's TAPER_FRACTION_WEEK_2 (0.80) window. That is
+    // the defect: the week the athlete is still recovering from race one
+    // gets reshaped as race two's taper instead. See
+    // docs/specs/2026-08-19-multi-a-race-transition-evidence.md §7.
+    const raceTwo: RaceContext = {
+      date: "2026-09-27",
+      priority: "A",
+      raceType: "marathon",
+      name: "Race two",
+    };
+
+    it("CONTROL: without a previous A-race on record, this week tapers for race two at 0.80", () => {
+      const r = materializeWeek({
+        ...BASE_INPUT,
+        weekStart: "2026-09-07",
+        races: [raceTwo],
+      });
+      // 0.80 × 380 (prevWeek actual load) = 304 — the taper the guard
+      // below must suppress. If this assertion doesn't pass, the fixture
+      // isn't reaching the taper path and the guard test below proves
+      // nothing.
+      expect(r.effectiveLoad).toBe(304);
+      expect(r.adjustments.some((a) => a.reason.startsWith("taper:"))).toBe(
+        true
+      );
+    });
+
+    it("does not taper for race two on the week after race one", () => {
+      const r = materializeWeek({
+        ...BASE_INPUT,
+        weekStart: "2026-09-07",
+        previousARace: { date: "2026-09-06", raceType: "marathon" },
+        races: [raceTwo],
+      });
+      // Guarded: race one's 14-day marathon recovery window (Task 2's
+      // raceRecoveryDays) covers this week, so race two's taper never
+      // fires. No race-driven reshaping means the skeleton's own "peak"
+      // target (400) flows through effectiveWeekLoad unchanged — not race
+      // two's 0.80 taper (304, per the control above).
+      expect(r.effectiveLoad).toBe(400);
+      expect(r.adjustments.some((a) => a.reason.startsWith("taper:"))).toBe(
+        false
+      );
+    });
+
+    // raceRecoveryDays("marathon") is 14. These two pin the boundary of the
+    // `<` comparison directly: day 13 is still inside the window (recovery
+    // wins, no taper), day 14 is the first day out of it (race two's own
+    // taper resumes). A race two date far enough out (2026-10-04) keeps
+    // race two's taper fraction identical (0.80) on both weekStarts, so the
+    // only thing that can move `effectiveLoad` between these two tests is
+    // the recovery-window boundary itself.
+    const raceTwoLater: RaceContext = {
+      date: "2026-10-04",
+      priority: "A",
+      raceType: "marathon",
+      name: "Race two",
+    };
+
+    it("pins the last recovery day (day 13): still recovery, no taper", () => {
+      const r = materializeWeek({
+        ...BASE_INPUT,
+        weekStart: "2026-09-19", // 13 days after race one (2026-09-06)
+        previousARace: { date: "2026-09-06", raceType: "marathon" },
+        races: [raceTwoLater],
+      });
+      expect(r.effectiveLoad).toBe(400);
+      expect(r.adjustments.some((a) => a.reason.startsWith("taper:"))).toBe(
+        false
+      );
+    });
+
+    it("pins the first non-recovery day (day 14): race two's taper resumes", () => {
+      const r = materializeWeek({
+        ...BASE_INPUT,
+        weekStart: "2026-09-20", // 14 days after race one (2026-09-06)
+        previousARace: { date: "2026-09-06", raceType: "marathon" },
+        races: [raceTwoLater],
+      });
+      expect(r.effectiveLoad).toBe(304); // 0.80 × 380
+      expect(r.adjustments.some((a) => a.reason.startsWith("taper:"))).toBe(
+        true
+      );
+    });
+  });
 });
 
 describe("materializeWeek — block fitting", () => {
