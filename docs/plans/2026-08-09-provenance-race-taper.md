@@ -1,5 +1,12 @@
 # Provenance: race/taper domain constants (v0.77.0)
 
+> **Superseded for `taper.ts` only, 2026-08-19.** Six of its seven constants
+> moved from Invented / Low to **Medium** once they were checked against the
+> taper literature — see `docs/specs/2026-08-19-taper-evidence.md`. This
+> document's finding was correct when written: no source had been connected.
+> The ratings below for `forecast.ts`, `feasibility.ts` and
+> `triathlon-legs.ts` stand unchanged, as does `OPENER_MAX_MINS`.
+
 **Date:** 2026-08-09
 **Phase:** 2a — Provenance (`docs/ROADMAP.md`)
 **Slice:** fourth. Follows v0.74.0 (`athlete-level.ts` + `week-plan/types.ts`),

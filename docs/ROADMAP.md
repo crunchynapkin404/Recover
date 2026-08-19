@@ -1084,8 +1084,24 @@ capability during Phase 2:
 
 Demand order, science-constrained.
 
+- [x] **Taper evidence slice — the prerequisite, done first on purpose.**
+      `docs/specs/2026-08-19-taper-evidence.md`. Multi-A-race runs the taper
+      machinery twice per season, and Phase 2a had labelled all seven of its
+      constants **Invented, Confidence: Low**. Connecting them to Bosquet et
+      al. 2007 and the 2023 endurance meta-analysis raised six to **Medium**
+      and changed no behaviour: the numbers were already right and merely
+      uncited. Two things that were not known before: `TAPER_WINDOW_LONG = 21`
+      sits at the **last supported day** (≥22 diminishes) with no headroom, and
+      race week reduces training _frequency_, which the evidence says not to —
+      bounded to race week and recorded rather than resolved. `OPENER_MAX_MINS`
+      stays Low; nothing measures it.
 - [ ] **Multi-A-race seasons** — the 244-vote request and the skipped v0.53.
       Two A-races in one season, bridge phase, separate taper windows.
+      Designed in `docs/specs/2026-08-19-multi-a-race-seasons-design.md`, which
+      records the two findings that resize it: the plan is single-race **by
+      construction** (`previewTrainingPlan` takes one `raceId`), but the second
+      race's taper **already works** via `racesForWeek`. The hole is the
+      transition between them, and its duration has no source yet.
 - [ ] **Race pacing** — the skipped v0.54. Pacing bands with confidence and
       assumptions made visible.
 - [ ] Remainder of the demand map, by votes
