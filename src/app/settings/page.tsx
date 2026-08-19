@@ -3,7 +3,7 @@ import { db, schema } from "@/lib/db";
 import { requireSession } from "@/lib/session";
 import { recordSurfaceView } from "@/lib/telemetry";
 import { getMySessions } from "@/lib/sessions";
-import { AppShell, shellUser } from "@/components/app-shell";
+import { AppShell, shellUser, avatarInitial } from "@/components/app-shell";
 import { IntervalsCard } from "@/components/settings/intervals-card";
 import { NotificationsCard } from "@/components/settings/notifications-card";
 import { BodyPrefsCard } from "@/components/settings/body-prefs-card";
@@ -178,10 +178,7 @@ export default async function SettingsPage({
     where: eq(schema.bodyPrefs.userId, user.id),
   });
 
-  const initial = (user.name ?? user.email ?? "")
-    .trim()
-    .charAt(0)
-    .toUpperCase();
+  const initial = avatarInitial(user);
 
   // ── Group summary lines (2c) ──────────────────────────────────────────
   // Each one states what is actually configured, so a closed group still

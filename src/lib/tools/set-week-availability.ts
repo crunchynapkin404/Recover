@@ -7,17 +7,8 @@ import {
 } from "@/lib/availability/types";
 import { syncDateOverrides } from "@/lib/availability/sync-overrides";
 import { availabilityBlockSchema } from "./availability-block-schema";
-
-/** Days are Monday-first, matching the tool's own weekday indexing. */
-const WEEKDAY_NAMES = [
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-  "Sunday",
-];
+// Monday-first, matching the tool's own weekday indexing.
+import { WEEKDAY_NAMES } from "@/lib/weekdays";
 
 const parameters = z
   .object({

@@ -2,22 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  Clock,
-  CalendarRange,
-  Sparkles,
-  Activity,
-  Settings2,
-} from "lucide-react";
-
-// Option B IA (v0.21): mirrors BottomNav — Today / Train / Coach / Body / Menu.
-const NAV_ITEMS = [
-  { href: "/", label: "Today", icon: Clock },
-  { href: "/train", label: "Train", icon: CalendarRange },
-  { href: "/coach", label: "Coach", icon: Sparkles },
-  { href: "/body", label: "Body", icon: Activity },
-  { href: "/settings", label: "Menu", icon: Settings2 },
-] as const;
+import { NAV_ITEMS, isNavActive } from "@/lib/nav-items";
+import { avatarInitial } from "@/components/app-shell";
 
 /**
  * Desktop sidebar nav (v0.12) — the same routes as BottomNav, shown only at
@@ -31,10 +17,7 @@ export function SidebarNav({
   user?: { name: string | null; email: string; role: string } | null;
 }) {
   const pathname = usePathname();
-  const initial = (user?.name ?? user?.email ?? "")
-    .trim()
-    .charAt(0)
-    .toUpperCase();
+  const initial = avatarInitial(user ?? null);
 
   return (
     <nav className="fixed left-0 top-0 z-40 hidden h-svh w-[216px] flex-col border-r border-hairline bg-surface-base px-4 py-8 backdrop-blur-xl lg:flex">
@@ -43,8 +26,7 @@ export function SidebarNav({
       </span>
       <div className="flex flex-col gap-1">
         {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
-          const active =
-            href === "/" ? pathname === "/" : pathname.startsWith(href);
+          const active = isNavActive(href, pathname);
           return (
             <Link
               key={href}

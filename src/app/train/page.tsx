@@ -78,6 +78,8 @@ import {
 } from "@/lib/charts";
 import {
   buildTrainHref,
+  isRange,
+  TRAIN_DEFAULTS,
   TRAIN_TABS,
   type TrainHref,
   type TrainTab,
@@ -100,8 +102,6 @@ import { projectWeek } from "@/lib/week-plan/project";
 import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
-
-const RANGES = [30, 90, 180, 365];
 
 function daysAgo(n: number): string {
   const d = new Date();
@@ -189,7 +189,7 @@ export default async function TrainPage({
     sp.view === "today" || sp.view === "month" ? sp.view : "week";
   const month =
     sp.month && /^\d{4}-\d{2}$/.test(sp.month) ? sp.month : currentYm();
-  const range = RANGES.includes(Number(sp.range)) ? Number(sp.range) : 90;
+  const range = isRange(sp.range) ? Number(sp.range) : TRAIN_DEFAULTS.range;
   const sportFilter = sp.sport;
   // Direct reachability for the availability week switcher: a link to
   // `?availability=next` (the next-week preview, wired up separately) must

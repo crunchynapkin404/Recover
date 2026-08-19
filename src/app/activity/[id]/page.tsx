@@ -10,15 +10,8 @@ import { LapsTable } from "@/components/activity/laps-table";
 import { StreamDataEmpty } from "@/components/activity/stream-data-empty";
 import { ActivityDebriefSection } from "@/components/debrief/activity-debrief-section";
 import { DeleteActivityButton } from "@/components/activity/delete-activity-button";
-import { formatDuration } from "@/lib/format";
 import { chartFill, STREAM_COLORS } from "@/lib/charts";
-
-// Provenance, spelled the way the athlete would recognise it.
-const PROVIDER_LABEL: Record<string, string> = {
-  intervals_icu: "intervals.icu",
-  strava: "Strava",
-  manual: "logged by hand",
-};
+import { activityStats, activityMeta } from "@/lib/activity-stats";
 
 const paceMinKm = (v: number) => {
   const m = Math.floor(v);
@@ -38,40 +31,9 @@ export default async function ActivityPage({
   if (!detail) notFound();
   const { activity, streams, laps, reason } = detail;
 
-  // Value + its unit are separate so the tile can set the unit smaller —
-  // only stats the activity actually carries are pushed.
-  const stats: { label: string; value: string; unit?: string }[] = [];
-  if (activity.durationS != null)
-    stats.push({
-      label: "Duration",
-      value: formatDuration(activity.durationS),
-    });
-  if (activity.distanceM != null)
-    stats.push({
-      label: "Distance",
-      value: (activity.distanceM / 1000).toFixed(1),
-      unit: "km",
-    });
-  if (activity.load != null)
-    stats.push({ label: "Load", value: String(Math.round(activity.load)) });
-  if (activity.avgHr != null)
-    stats.push({
-      label: "Avg HR",
-      value: String(Math.round(activity.avgHr)),
-      unit: "bpm",
-    });
-  if (activity.avgPower != null)
-    stats.push({
-      label: "Avg Power",
-      value: String(Math.round(activity.avgPower)),
-      unit: "W",
-    });
-  if (activity.elevationM != null)
-    stats.push({
-      label: "Climb",
-      value: String(Math.round(activity.elevationM)),
-      unit: "m",
-    });
+  // One owner, shared with Today's "just landed" block — see
+  // src/lib/activity-stats.ts for why these stopped being two literals.
+  const stats = activityStats(activity);
 
   const pace = streams?.velocity_smooth?.map((v) =>
     v != null && v > 0.5 ? 1000 / 60 / v : null
@@ -96,18 +58,7 @@ export default async function ActivityPage({
           />
         </div>
         <p className="mt-1 text-label font-bold uppercase tracking-[0.15em] text-ink-secondary">
-          {[
-            activity.sport,
-            (activity.startDateLocal ?? activity.startDate).toLocaleDateString(
-              "en-US",
-              {
-                weekday: "short",
-                month: "short",
-                day: "numeric",
-              }
-            ),
-            PROVIDER_LABEL[activity.provider] ?? activity.provider,
-          ].join(" · ")}
+          {activityMeta(activity)}
         </p>
       </header>
 

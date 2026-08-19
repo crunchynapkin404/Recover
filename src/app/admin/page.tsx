@@ -45,7 +45,11 @@ export default async function AdminPage() {
       updatedAt: true,
     },
   });
-  const userLabel = new Map(users.map((u) => [u.id, u.name || u.email]));
+  // One derivation of "what to call this athlete", read by both the job rows
+  // and the panel's filter — they used to be two expressions that happened
+  // to agree.
+  const userLabels = users.map((u) => ({ id: u.id, label: u.name || u.email }));
+  const userLabel = new Map(userLabels.map((u) => [u.id, u.label]));
   const syncJobs = syncJobRows.map((j) => ({
     id: j.id,
     userId: j.userId,
@@ -110,7 +114,7 @@ export default async function AdminPage() {
 
         <SyncJobsPanel
           jobs={syncJobs}
-          users={users.map((u) => ({ id: u.id, label: u.name || u.email }))}
+          users={userLabels}
         />
 
         <SecurityEvents />

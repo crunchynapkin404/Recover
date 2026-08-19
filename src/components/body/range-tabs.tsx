@@ -1,8 +1,5 @@
 import Link from "next/link";
 
-/** The windows Trends offers. Lives here because RangeTabs is its only reader. */
-export const RANGES = [30, 90, 180, 365] as const;
-
 /**
  * Trends' window picker. Was the smallest control on the surface at 10px —
  * below the floor, and in light mode it rendered white-on-white along with

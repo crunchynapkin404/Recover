@@ -43,9 +43,16 @@ import {
   DEFAULT_BED_MINUTES,
 } from "@/lib/body-battery";
 import { sleepDebtFrom, DEFAULT_SLEEP_NEED_SECS } from "@/lib/sleep-debt";
-import { buildBodyHref, BODY_TABS, type BodyTab } from "@/lib/log-href";
+import {
+  buildBodyHref,
+  isRange,
+  RANGES,
+  TRAIN_DEFAULTS,
+  BODY_TABS,
+  type BodyTab,
+} from "@/lib/log-href";
 import { BodyTabs } from "@/components/body/body-tabs";
-import { RangeTabs, RANGES } from "@/components/body/range-tabs";
+import { RangeTabs } from "@/components/body/range-tabs";
 import type { BiomarkerCategory } from "@/lib/health-records";
 import { isBaselineExcluded, type DayFlag } from "@/lib/day-flags";
 import { calibrationProgress } from "@/lib/calibration";
@@ -129,9 +136,7 @@ export default async function BodyPage({
   await recordSurfaceView(user.id, "body");
   const sp = await searchParams;
   const tab: BodyTab = BODY_TABS.find((t) => t === sp.tab) ?? "trends";
-  const range = (RANGES as readonly number[]).includes(Number(sp.range))
-    ? Number(sp.range)
-    : 90;
+  const range = isRange(sp.range) ? Number(sp.range) : TRAIN_DEFAULTS.range;
   // Raw URL input — validated against the loaded nights inside SleepTab,
   // never used to build a query.
   const night = sp.night;

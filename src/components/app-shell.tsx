@@ -64,3 +64,18 @@ export function shellUser(u: {
 }): ShellUser {
   return { name: u.name ?? null, email: u.email, role: u.role ?? "member" };
 }
+
+/**
+ * The avatar's letter: first character of the display name, or of the email
+ * when the account has no usable name. "?" when it has neither.
+ *
+ * One derivation, because there were three identical ones — Today's header,
+ * Settings' header and SidebarNav's pinned row — and at lg+ two of them
+ * render the same letter in the same viewport.
+ */
+export function avatarInitial(u: {
+  name?: string | null;
+  email?: string | null;
+} | null): string {
+  return (u?.name ?? u?.email ?? "").trim().charAt(0).toUpperCase() || "?";
+}
