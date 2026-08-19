@@ -103,14 +103,12 @@ export function taperWindowDays(raceType: string): number {
  *
  * Read the confidence per row, not the table shape. Only the long class has
  * studies under it.
- */
-
-/**
- * Marathon / full Ironman. Bounded BELOW by marathon aerobic recovery at 7d
- * and ABOVE by Ironman VO2max at 15d, with inflammation still significant at
- * 5d. Aerobic capacity returns before tissue does, and a plan that resumes on
- * the aerobic reading alone resumes onto a leg that is still repairing — so
- * this sits above the marathon finding and below the Ironman one.
+ *
+ * This constant: marathon / full Ironman. Bounded BELOW by marathon aerobic
+ * recovery at 7d and ABOVE by Ironman VO2max at 15d, with inflammation still
+ * significant at 5d. Aerobic capacity returns before tissue does, and a plan
+ * that resumes on the aerobic reading alone resumes onto a leg that is still
+ * repairing — so this sits above the marathon finding and below the Ironman one.
  * Confidence: Medium. A judgement between two evidenced endpoints, which is
  * not the same as a number with no endpoints.
  */
