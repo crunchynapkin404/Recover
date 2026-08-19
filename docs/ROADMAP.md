@@ -526,10 +526,22 @@ so" — is currently spoken in six dialects: `—` (47 uses), `calibrating` (39)
       cannot share a capture run; and slice 4's active-row fix
       (`--surface-selected`) is proven at the markup and token level but not
       visually, because the capture loads `/coach?history=1` with no
-      `thread=` and therefore no row is ever active in any PNG. Closing that
-      needs the capture to load `/coach?history=1&thread=<id>`.
-      One item slice 1 deliberately left is still open:
-      `today/checkin-sheet.tsx` is dark-only and below the 12px floor.
+      `thread=` and therefore no row is ever active in any PNG. **CLOSED
+      2026-08-19** by the `coach-history-active` surface, which loads
+      `/coach?history=1&thread=<id>` using the id `resolveCoachThreadPath`
+      already resolves, and refuses to capture unless a row actually carries
+      the selected treatment.
+      One item slice 1 deliberately left **is now closed, and the line that
+      said otherwise was stale from v0.111.0 until 2026-08-19**:
+      `today/checkin-sheet.tsx` was recorded here as dark-only and below the
+      12px floor, and the v0.111.0 sweep fixed both — the file carries no
+      dark-only literal and `src/` carries no arbitrary type size at all.
+      What that line never said is the part that mattered: **the sheet had
+      never been captured.** It was not in `verify-surfaces.ts`, so every
+      "0 confirmed axe nodes" this project has reported excluded it. Fixed
+      defects nobody has looked at are still unverified. Added as the
+      `checkin-sheet` surface, with the same open-state guard debrief-sheet
+      carries.
       **`sidebar-nav.tsx`'s avatar is FIXED** (v0.101.0) — it was a measured
       1:1 contrast failure in light and below the floor, and it was the only
       confirmed axe finding on Train, Today and Body; fixing it took all
