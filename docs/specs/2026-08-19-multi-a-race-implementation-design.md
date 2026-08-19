@@ -117,7 +117,7 @@ rollover that passes.
 
 ---
 
-## 2. Data model — one additive column pair, and why
+## 2. Data model — three additive columns, and why
 
 ### 2.1 The decision, and the instinct it overturned
 
@@ -144,7 +144,17 @@ nullable pair.
 ALTER TABLE "training_plans" ADD COLUMN "first_race_id" uuid
   REFERENCES "races"("id") ON DELETE SET NULL;
 ALTER TABLE "training_plans" ADD COLUMN "first_race_date" date;
+ALTER TABLE "training_plans" ADD COLUMN "first_race_type" text;
 ```
+
+**Three columns, not two, and `first_race_type` is the one that needs
+justifying.** `periodize` needs `raceRecoveryDays(firstRaceType)` at both live
+recurring sites (`week-plan/service.ts:385`, `week-plan/project.ts:226`), and
+neither loads the race row — only the plan row. Joining `races` there would add
+a query to the rollover path on every open week. Denormalising the type instead
+**mirrors what the table already does**: `trainingPlans.raceType` sits beside
+`raceId` for exactly this reason. It is a cache of the race row's value, and
+`schema.ts` says so.
 
 `0041_dashing_blur.sql` is the current head, so this is `0042`. (The
 `feat/v0.65-mcp-contract-hardening` disposition doc says push quiet hours would
