@@ -186,6 +186,12 @@ export function HistoryPanel({
                 // conversation instead of a single-message inbox item. Do
                 // not remove this as unused markup.
                 data-chat-thread
+                // The selected thread was distinguished by background colour
+                // alone until v0.113 — a WCAG 1.4.1 problem, and one axe
+                // cannot report, because "this link is the page you are on"
+                // is not something it can infer from a class. Same token
+                // `ui/segmented-tabs.tsx` uses for a current nav item.
+                aria-current={t.id === activeThreadId ? "page" : undefined}
                 className={`flex items-center justify-between gap-2 rounded-xl px-2 py-2 transition-colors ${
                   t.id === activeThreadId
                     ? "bg-surface-selected text-ink-primary"
@@ -204,6 +210,10 @@ export function HistoryPanel({
               <Link
                 key={t.id}
                 href={`/coach?thread=${t.id}`}
+                // Same colour-only problem as the chat rows above, and
+                // worse here: ghost-tint against ghost-ink is a subtler
+                // difference than the selected surface.
+                aria-current={t.id === activeThreadId ? "page" : undefined}
                 className={`flex items-center gap-1.5 rounded-xl px-2 py-2 transition-colors ${
                   t.id === activeThreadId
                     ? "bg-ghost-tint text-ghost-ink"

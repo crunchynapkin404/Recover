@@ -35,7 +35,13 @@ const nextConfig: NextConfig = {
     // Health Auto Export can post large multi-day/all-metric payloads to
     // /api/connections/apple-health/ingest; match the route's own cap
     // (MAX_BODY_BYTES in that route) so Next doesn't truncate first.
-    middlewareClientMaxBodySize: "50mb",
+    //
+    // Renamed from `middlewareClientMaxBodySize` in v0.113: Next 16.2.10
+    // deprecates that spelling, and the warning it printed on every `next dev`
+    // boot was the app's only dev "Issue" — which is why the devtools badge
+    // showed a red `1 Issue` chip in the bottom-left of every captured
+    // screenshot, over whatever happened to be there. Same option, same cap.
+    proxyClientMaxBodySize: "50mb",
   },
   // Dev-only: allow LAN/tunnel origins for `next dev`, via env (comma-separated
   // hostnames), never hardcoded machine-specific IPs.
