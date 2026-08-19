@@ -1,5 +1,9 @@
 # Handoff — closing Phase 2, from v0.111.0
 
+> **Superseded by `docs/2026-08-19-phase-3-handoff.md`.** Start there if you
+> are picking up the roadmap; come back here for the release-path traps and
+> the measured ink floors, which that file does not repeat.
+>
 > **Both items below closed at v0.112.0 on 2026-08-19, and Phase 2 with them.**
 > The duplicated-data scan is recorded in
 > `docs/plans/2026-08-18-duplicated-data-scan.md`; the tab-pattern decision was
