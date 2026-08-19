@@ -167,15 +167,23 @@ every pull request; only the axe _run_ is local.
 
 ## Quality gates
 
-CI runs all of these; run them locally before pushing:
+These are every gate in `.github/workflows/ci.yml`, in its order. Run all of
+them locally before pushing — `format:check` in particular is easy to skip by
+hand and is never skipped in CI.
 
 ```bash
 npm run lint
 npm run typecheck
+node scripts/migrate.mjs     # the same runner Dockerfile:42 executes on every
+                             # deploy, so a migration that would break on
+                             # deploy breaks the pull request first
 npm test
 npm run format:check
 npm run build
 ```
+
+A second job builds the Docker image (`docker build -t recover .`); it needs no
+local equivalent, but it is what gates the release path.
 
 ## Principles
 
