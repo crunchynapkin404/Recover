@@ -1,6 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { renderToString } from "react-dom/server";
-import { HistoryPanel, KIND_STYLE, stamp } from "./history-panel";
+import {
+  HistoryPanel,
+  KIND_STYLE,
+  stamp,
+  type HistoryThread,
+} from "./history-panel";
 import type { InboxItem } from "@/lib/coach-inbox";
 
 describe("HistoryPanel", () => {
@@ -239,5 +244,60 @@ describe("HistoryPanel layout invariants", () => {
     // The stamp column must be shrink-0 AND the title must be allowed to
     // shrink, or widening the stamp to the 12px floor eats the title.
     expect(html).toMatch(/min-w-0[^"]*truncate|truncate[^"]*min-w-0/);
+  });
+
+  const thread = (over: Partial<HistoryThread> = {}): HistoryThread => ({
+    id: "t1",
+    title: "Should I go hard today?",
+    updatedAt: "2026-08-15T09:00:00Z",
+    ephemeral: false,
+    ...over,
+  });
+
+  /**
+   * Until v0.113 the selected thread was distinguished by background colour
+   * alone — `bg-surface-selected` on chats, `bg-ghost-tint` on ghosts — which
+   * is a WCAG 1.4.1 problem and one axe cannot report: "this link is the page
+   * you are on" is not inferable from a class. It went unnoticed for as long
+   * as it did because no capture had ever rendered a selected row at all
+   * (v0.113's `coach-history-active` surface).
+   */
+  describe("the selected thread is programmatic, not just coloured", () => {
+    it("marks the active chat row with aria-current", () => {
+      const html = renderToString(
+        <HistoryPanel
+          inboxItems={[]}
+          threads={[thread({ id: "a" }), thread({ id: "b", title: "Other" })]}
+          activeThreadId="a"
+          unread={0}
+        />
+      );
+      expect(html).toContain('aria-current="page"');
+      expect(html.match(/aria-current="page"/g)).toHaveLength(1);
+    });
+
+    it("marks the active GHOST row too — the subtler of the two tints", () => {
+      const html = renderToString(
+        <HistoryPanel
+          inboxItems={[]}
+          threads={[thread({ id: "g", ephemeral: true })]}
+          activeThreadId="g"
+          unread={0}
+        />
+      );
+      expect(html).toContain('aria-current="page"');
+    });
+
+    it("marks nothing when no thread is active", () => {
+      const html = renderToString(
+        <HistoryPanel
+          inboxItems={[]}
+          threads={[thread(), thread({ id: "t2", ephemeral: true })]}
+          activeThreadId={null}
+          unread={0}
+        />
+      );
+      expect(html).not.toContain("aria-current");
+    });
   });
 });

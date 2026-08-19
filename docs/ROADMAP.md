@@ -1114,6 +1114,24 @@ Demand order, science-constrained.
       construction** (`previewTrainingPlan` takes one `raceId`), but the second
       race's taper **already works** via `racesForWeek`. The hole is the
       transition between them, and its duration has no source yet.
+- [ ] **Hydration mismatch on three surfaces — found 2026-08-19, unfixed.**
+      `/coach`, `/coach?history=1` and `/?sheet=checkin` each throw _"Hydration
+      failed because the server rendered HTML didn't match the client"_,
+      reproducibly, in a plain browser with no capture harness involved. React
+      discards and re-renders the client tree when this happens. It is also
+      what puts the red `1 Issue` chip in the dev devtools badge, which is how
+      it was noticed at all — the badge sat over the captured state in the new
+      `checkin-sheet` PNGs.
+      **Both causes are the same family: date formatting whose output depends
+      on the runtime's timezone, executed on server AND client.**
+      `history-panel.tsx:90` takes `now = new Date()` as a default parameter
+      and feeds it to `stamp()`'s `toLocaleTimeString`/`toLocaleDateString`;
+      `checkin-sheet.tsx:134` builds `new Date(ymd + "T00:00:00")`, which
+      parses as LOCAL time, and formats it. This repo already wrote the lesson
+      down — `weekdays.ts`'s `weekdayIndex` says "a local-time Date here would
+      shift the weekday for anyone east or west of the server" — and these two
+      predate it. Fix needs the formatted string resolved once (server) and
+      passed down, or the whole thing rendered client-only.
 - [ ] **Race pacing** — the skipped v0.54. Pacing bands with confidence and
       assumptions made visible.
 - [ ] Remainder of the demand map, by votes
