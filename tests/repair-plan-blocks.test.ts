@@ -218,4 +218,123 @@ describe.skipIf(!hasDb)("repairPlanBlocks", () => {
     expect(await blocksFor(mine.id)).toEqual(beforeMine);
     expect(await blocksFor(theirs.id)).toEqual(beforeTheirs);
   });
+
+  // FIX 4: periodize() was converted to an options object (v0.114 Task 1)
+  // and gained an optional `firstRace` (v0.114 Task 4/5) so a two-race plan
+  // composes arc + recovery + arc, but this script's own periodize() call
+  // never gained it. --apply on an active two-race plan therefore recomputes
+  // its future training_blocks as a single flattened arc: materialization
+  // still uses freshly-derived two-arc blocks (so the athlete's actual
+  // weeks stay right), but the STORED blocks this script writes — what
+  // /train's phase label and get_training_plan's block list read — become
+  // a lie.
+  it("derives a two-race plan's repaired blocks with firstRace, not a flattened single arc", async () => {
+    const TWO_RACE_USER = "test-repair-plan-blocks-two-race-user";
+    const { db, schema } = await import("@/lib/db");
+    const { periodize } = await import("@/lib/training-plan");
+    const { repairPlanBlocks } = await import("../scripts/repair-plan-blocks");
+    const { addDaysYmd } = await import("@/lib/week-plan/service");
+
+    try {
+      await db
+        .insert(schema.users)
+        .values({
+          id: TWO_RACE_USER,
+          name: "Repair Plan Blocks Two-Race Test",
+          email: `${TWO_RACE_USER}@example.invalid`,
+        })
+        .onConflictDoNothing();
+
+      // A longer plan than PLAN_INPUT.weeksTotal (12) — long enough for a
+      // real recovery + rebuild + taper arc two after race one, and for
+      // week 20 (below) to fall inside it rather than past the plan's end.
+      const TWO_RACE_WEEKS_TOTAL = 30;
+      const startDate = new Date(Date.now() + 90 * 86_400_000)
+        .toISOString()
+        .slice(0, 10);
+      // planWeekOf(startDate, firstRaceDate) = floor(77/7)+1 = 12.
+      const firstRaceDate = addDaysYmd(startDate, 77);
+      const finalRaceDate = addDaysYmd(startDate, 200);
+
+      const [firstRaceRow] = await db
+        .insert(schema.races)
+        .values({
+          userId: TWO_RACE_USER,
+          name: "Race one",
+          raceType: "marathon",
+          sport: "Run",
+          date: firstRaceDate,
+          priority: "A",
+          status: "upcoming",
+        })
+        .returning();
+
+      const [plan] = await db
+        .insert(schema.trainingPlans)
+        .values({
+          userId: TWO_RACE_USER,
+          title: "Two-race repair test plan",
+          raceType: "marathon",
+          raceDate: finalRaceDate,
+          startDate,
+          weeksTotal: TWO_RACE_WEEKS_TOTAL,
+          currentWeek: 1,
+          startingCtl: PLAN_INPUT.startingCtl,
+          status: "active",
+          firstRaceId: firstRaceRow.id,
+          firstRaceDate,
+          firstRaceType: "marathon",
+          constraints: {
+            daysPerWeek: PLAN_INPUT.daysPerWeek,
+            hoursPerWeek: PLAN_INPUT.hoursPerWeek,
+            sports: [PLAN_INPUT.sport],
+          },
+        })
+        .returning();
+
+      // Week 20 sits well inside arc two (past firstRaceWeek=12 plus
+      // marathon's recovery weeks), where a two-arc periodize() output
+      // diverges from a single flattened 30-week arc.
+      await db.insert(schema.trainingBlocks).values({
+        planId: plan.id,
+        weekNumber: 20,
+        ...STALE,
+      });
+
+      const singleArcWeek20 = periodize({
+        weeksTotal: TWO_RACE_WEEKS_TOTAL,
+        startingCtl: PLAN_INPUT.startingCtl,
+        daysPerWeek: PLAN_INPUT.daysPerWeek,
+        hoursPerWeek: PLAN_INPUT.hoursPerWeek,
+        sport: PLAN_INPUT.sport,
+      }).find((b) => b.weekNumber === 20)!;
+      const twoArcWeek20 = periodize({
+        weeksTotal: TWO_RACE_WEEKS_TOTAL,
+        startingCtl: PLAN_INPUT.startingCtl,
+        daysPerWeek: PLAN_INPUT.daysPerWeek,
+        hoursPerWeek: PLAN_INPUT.hoursPerWeek,
+        sport: PLAN_INPUT.sport,
+        firstRace: { weekNumber: 12, raceType: "marathon" },
+      }).find((b) => b.weekNumber === 20)!;
+      // Sanity: the fixture's divergence assumption actually holds for this
+      // engine run, or the rest of the test proves nothing.
+      expect(twoArcWeek20.phase).not.toBe(singleArcWeek20.phase);
+
+      const applied = await repairPlanBlocks({
+        dryRun: false,
+        userId: TWO_RACE_USER,
+      });
+      expect(applied.changes.map((c) => c.weekNumber)).toEqual([20]);
+
+      const after = await blocksFor(plan.id);
+      expect(after).toHaveLength(1);
+      // Correct: matches the two-arc derivation.
+      expect(after[0].phase).toBe(twoArcWeek20.phase);
+      expect(after[0].targetLoadTotal).toBe(twoArcWeek20.targetLoad);
+      // Wrong (pre-fix): must NOT match the flattened single-arc derivation.
+      expect(after[0].phase).not.toBe(singleArcWeek20.phase);
+    } finally {
+      await db.delete(schema.users).where(eq(schema.users.id, TWO_RACE_USER));
+    }
+  });
 });
