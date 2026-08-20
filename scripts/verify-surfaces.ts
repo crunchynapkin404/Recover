@@ -258,6 +258,16 @@ const SURFACES: Record<string, string> = {
   "train-history": "/train?tab=history",
   "train-season": "/train?tab=season",
   "train-fitness": "/train?tab=fitness",
+  // A two-A-race plan preview. Same PATH as `train` — the card only renders
+  // when the athlete has an open draft, so the state is the surface, not the
+  // URL. It gets its own entry because `train` promises nothing about a
+  // preview and would pass happily without one, while THIS name promises two
+  // arcs; `assertOnSurface` compares pathname only, so the guard in
+  // SURFACE_PREPARE is what makes the promise true. Requires
+  // scripts/seed-two-race.ts to have run — seed-demo.ts seeds no races and no
+  // plans, so without it this surface fails loudly rather than filing the
+  // single-race path under a two-race name.
+  "train-plan-preview": "/train",
   // Coach is a multi-state surface behind one URL, and `/coach` alone renders
   // `messages.length === 0` — the empty state. Until slice 4, every message
   // bubble, the timestamp, ArtifactCard, the typing indicator and the error
@@ -581,7 +591,40 @@ async function waitForActiveThreadRow(page: Page): Promise<void> {
   }
 }
 
+/**
+ * Assert the plan preview on screen is actually the TWO-ARC one.
+ *
+ * The card renders from whatever draft exists, and a single-race draft renders
+ * a perfectly good preview — just not this surface's subject. Capturing that
+ * under `train-plan-preview` would be the `coach-history` failure again: a
+ * real page, a truthful path, and a name promising a state nobody verified.
+ *
+ * Segment 2's header is the cheapest positive proof, because Task 8 renders it
+ * ONLY when `preview.phases` contains a segment-2 row.
+ */
+async function waitForTwoArcPreview(page: Page): Promise<void> {
+  try {
+    const header = page.locator('[data-testid="segment-2"]').first();
+    await header.waitFor({ state: "visible", timeout: 10_000 });
+    // And scroll it in, for the same reason coach-history-active does: the
+    // phase table sits below the fold on a phone, and "visible" to Playwright
+    // is not "in the PNG".
+    await header.scrollIntoViewIfNeeded({ timeout: 5_000 });
+  } catch (err) {
+    throw new Error(
+      "train-plan-preview: no visible [data-testid=segment-2] on /train. " +
+        "Either no draft exists, the draft is single-race, or the segment " +
+        "header stopped rendering. Run " +
+        "`SEED_DEMO=1 DEMO_EMAIL=<owner> npx tsx scripts/seed-two-race.ts` " +
+        "against this database first. Capturing anyway would file the " +
+        "single-race preview under a name promising two arcs. " +
+        `(${err instanceof Error ? err.message : String(err)})`
+    );
+  }
+}
+
 const SURFACE_PREPARE: Record<string, (page: Page) => Promise<void>> = {
+  "train-plan-preview": waitForTwoArcPreview,
   "settings-expanded": expandSettingsSections,
   "settings-connect-errors": expandSettingsSections,
   "debrief-sheet": sheetOpenGuard(
