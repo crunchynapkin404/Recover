@@ -20,8 +20,15 @@ then `docs/ROADMAP.md`, then this file. Everything here was verified on
 | Rollback target   | `sha256:651f366c…` — v0.113.0                                               |
 | Migrations        | 0042 is **additive**, so a rollback past it is schema-safe                  |
 | Tests             | **2854** pass with a database, 2290 without (562 skip on no `DATABASE_URL`) |
-| Surfaces          | 27 (`train-plan-preview` is new), 108 capture entries, **0 confirmed**      |
+| Surfaces          | 108 capture entries, **0 confirmed** (`train-plan-preview` is new)          |
 | Phase 3           | multi-A-race **shipped**; race pacing and the demand-map remainder open     |
+
+**Do not quote a surface count from here.** `SURFACES` in
+`verify-surfaces.ts` holds 21 literal entries and `main()` resolves more at
+runtime (`coach-thread`, `activity-detail`), so the only honest number is what
+a run reports — 108 entries on 2026-08-20, at four theme/viewport combos each.
+Point at the run, not at a figure in prose. This roadmap has been wrong about
+counts in both directions before, and says so about itself.
 
 **Open PR: #165** — records v0.114.0's digest in `ENVIRONMENTS.md` and pins the
 soak stack to `0.114.0-rc.1`. Bookkeeping; prod already runs what it describes.
