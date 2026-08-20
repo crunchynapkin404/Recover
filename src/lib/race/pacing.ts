@@ -46,6 +46,14 @@ export interface PacingInput {
   ftpWatts: number | null;
   massKg: number | null;
   thresholdPaceSecPerKm: number | null;
+  /**
+   * False when the anchor was DERIVED rather than set by the athlete —
+   * schema.ts's contract for both anchors is "null = derive from history (Low
+   * confidence), then refuse", and this carries the second half of it. Default
+   * true, so an omitted flag never silently downgrades an existing caller.
+   */
+  ftpAthleteSet?: boolean;
+  runPaceAthleteSet?: boolean;
 }
 
 export type PacingTarget =
@@ -69,6 +77,15 @@ export type PacingTarget =
     };
 
 /** The 8h anchor's own words, repeated to the athlete rather than paraphrased. */
+/**
+ * Deliberately terse. The feasibility card directly above this on Train
+ * already says "estimated from your recent runs — set a threshold pace in
+ * Settings for a sharper figure", and repeating that in full put six lines of
+ * grey text under the race chip on a phone. Say the part this figure adds —
+ * that it is estimated — and let the card above carry the instruction.
+ */
+const DERIVED_ANCHOR_WHY = "Estimated from recent sessions, not measured.";
+
 const LONG_EVENT_WHY =
   "Past 8 h the sustainable-effort figure is a reading of an older band, not a " +
   "published measurement — treat this as a starting point and adjust by feel.";
@@ -123,6 +140,14 @@ export function racePacing(input: PacingInput): Figure<PacingTarget> {
     const half = targetWatts * PACING_BAND_FRACTION;
     const anchors = C.FTP_FRACTION_ANCHORS;
     const long = hours >= anchors[anchors.length - 1].hours;
+    const derived = input.ftpAthleteSet === false;
+    const why = [
+      BIKE_WHY,
+      long ? LONG_EVENT_WHY : null,
+      derived ? DERIVED_ANCHOR_WHY : null,
+    ]
+      .filter(Boolean)
+      .join(" ");
 
     return Figure.available(
       {
@@ -133,8 +158,8 @@ export function racePacing(input: PacingInput): Figure<PacingTarget> {
         ftpFraction,
         hours,
       },
-      long ? "low" : "medium",
-      long ? `${BIKE_WHY} ${LONG_EVENT_WHY}` : BIKE_WHY
+      long || derived ? "low" : "medium",
+      why
     );
   }
 
@@ -155,6 +180,7 @@ export function racePacing(input: PacingInput): Figure<PacingTarget> {
 
     const targetSecPerKm = Math.round((hours * 3600) / distanceKm);
     const half = targetSecPerKm * PACING_BAND_FRACTION;
+    const derived = input.runPaceAthleteSet === false;
 
     return Figure.available(
       {
@@ -166,8 +192,8 @@ export function racePacing(input: PacingInput): Figure<PacingTarget> {
         highSecPerKm: Math.round(targetSecPerKm + half),
         hours,
       },
-      "medium",
-      RUN_WHY
+      derived ? "low" : "medium",
+      derived ? `${RUN_WHY} ${DERIVED_ANCHOR_WHY}` : RUN_WHY
     );
   }
 

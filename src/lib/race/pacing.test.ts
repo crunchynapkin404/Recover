@@ -229,3 +229,69 @@ describe("racePacing — when it refuses", () => {
     expect(r.needs).toMatch(/distance/i);
   });
 });
+
+describe("racePacing — a derived anchor caps confidence", () => {
+  // schema.ts: "null = derive from history (Low confidence), then refuse".
+  // The derivation happens in pacingAnchors; this is the second half of that
+  // contract — a figure built on a Riegel-converted best effort must not be
+  // reported with the same confidence as one the athlete measured and typed.
+  it("drops a run to low confidence when the pace was derived", () => {
+    const set = racePacing({
+      sport: "Run",
+      distanceKm: 21.1,
+      elevationM: 0,
+      eventDays: 1,
+      ftpWatts: null,
+      massKg: null,
+      thresholdPaceSecPerKm: 240,
+      runPaceAthleteSet: true,
+    });
+    const derived = racePacing({
+      sport: "Run",
+      distanceKm: 21.1,
+      elevationM: 0,
+      eventDays: 1,
+      ftpWatts: null,
+      massKg: null,
+      thresholdPaceSecPerKm: 240,
+      runPaceAthleteSet: false,
+    });
+    expect(set.available && derived.available).toBe(true);
+    if (!set.available || !derived.available) return;
+    expect(set.confidence).toBe("medium");
+    expect(derived.confidence).toBe("low");
+    expect(derived.why).toMatch(/estimat|recent runs/i);
+  });
+
+  it("drops a bike to low confidence when the FTP was not set", () => {
+    const derived = racePacing({
+      sport: "Bike",
+      distanceKm: 90,
+      elevationM: 900,
+      eventDays: 1,
+      ftpWatts: 250,
+      massKg: 75,
+      thresholdPaceSecPerKm: null,
+      ftpAthleteSet: false,
+    });
+    expect(derived.available).toBe(true);
+    if (!derived.available) return;
+    expect(derived.confidence).toBe("low");
+  });
+
+  // Omitting the flags must not silently downgrade every existing caller.
+  it("treats an unspecified flag as athlete-set", () => {
+    const r = racePacing({
+      sport: "Run",
+      distanceKm: 21.1,
+      elevationM: 0,
+      eventDays: 1,
+      ftpWatts: null,
+      massKg: null,
+      thresholdPaceSecPerKm: 240,
+    });
+    expect(r.available).toBe(true);
+    if (!r.available) return;
+    expect(r.confidence).toBe("medium");
+  });
+});

@@ -48,6 +48,7 @@ import {
 } from "@/components/train/fitness-tiles";
 import { RaceChip } from "@/components/today/race-chip";
 import { raceCard } from "@/lib/race/outlook";
+import { Unavailable } from "@/components/ui/unavailable";
 
 /** Seconds per km as m:ss/km. 285 -> "4:45/km". */
 function fmtPace(secPerKm: number): string {
@@ -866,13 +867,18 @@ async function WeekTab({
                   {card.pacing.why} ({card.pacing.confidence} confidence)
                 </p>
               )}
-              {card.pacing &&
-                !card.pacing.available &&
-                card.pacing.kind === "not_applicable" && (
-                  <p className="-mt-5 mb-6 px-1 text-label text-ink-muted">
-                    {card.pacing.why}
-                  </p>
-                )}
+              {/* Every non-available kind, not just not_applicable. The
+                  seeded athlete has no threshold pace, so this is
+                  missing_input — which carries a fix link, and rendering
+                  nothing for it would throw away the whole point of the
+                  vocabulary. <Unavailable> is the house component for this
+                  and handles calibrating/missing_input/not_applicable
+                  uniformly. */}
+              {card.pacing && !card.pacing.available && (
+                <p className="-mt-5 mb-6 px-1 text-label text-ink-muted">
+                  Race pacing: <Unavailable state={card.pacing} />
+                </p>
+              )}
             </>
           )}
 
