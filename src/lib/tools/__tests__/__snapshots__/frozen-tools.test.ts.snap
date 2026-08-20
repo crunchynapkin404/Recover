@@ -387,6 +387,16 @@ exports[`MCP tool surface is frozen (names + scopes + schemas) 1`] = `
     "scope": "read",
   },
   {
+    "name": "get_race_pacing",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object",
+    },
+    "scope": "read",
+  },
+  {
     "name": "get_races",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",

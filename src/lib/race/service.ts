@@ -404,3 +404,45 @@ export async function assembleForecastInputs(
     race,
   };
 }
+
+/**
+ * The three anchors pacing needs, and nothing else.
+ *
+ * volume-inputs.ts assembles the same values for the demand model, inline
+ * inside a much larger read that also pulls stages, overrides and history
+ * derivations. This is deliberately NOT that: pacing needs three numbers, and
+ * a focused reader is cheaper to understand than a shared one carrying six
+ * callers' worth of options.
+ *
+ * Athlete-set values win over synced ones, matching demand.ts's `athleteSet`
+ * precedence.
+ */
+export async function pacingAnchors(userId: string): Promise<{
+  ftpWatts: number | null;
+  massKg: number | null;
+  thresholdPaceSecPerKm: number | null;
+}> {
+  const prefs = await db.query.bodyPrefs.findFirst({
+    where: eq(schema.bodyPrefs.userId, userId),
+  });
+  // NOTE: the column is `date`, not `day` — a Postgres `date` that drizzle
+  // types as a string. volume-inputs.ts:46 carries the warning.
+  const latest = await db.query.wellnessDaily.findMany({
+    where: eq(schema.wellnessDaily.userId, userId),
+    orderBy: [desc(schema.wellnessDaily.date)],
+    limit: 60,
+  });
+
+  const eftp = latest.find((w) => w.eftp != null)?.eftp ?? null;
+  const weightKg = latest.find((w) => w.weightKg != null)?.weightKg ?? null;
+
+  return {
+    ftpWatts: prefs?.ftpWatts ?? (eftp != null ? Math.round(eftp) : null),
+    // Rider weight PLUS the same 8 kg bike-and-kit allowance the demand model
+    // applies (volume-inputs.ts). Without it a pacing target and a demand
+    // estimate would silently disagree about how heavy the rider is, and
+    // riding-time.ts charges mass against every metre of climbing.
+    massKg: weightKg != null ? weightKg + 8 : null,
+    thresholdPaceSecPerKm: prefs?.thresholdPaceSecPerKm ?? null,
+  };
+}

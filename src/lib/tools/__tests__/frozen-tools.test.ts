@@ -19,7 +19,7 @@ import { z } from "zod";
 import { allTools } from "@/lib/tools/registry";
 
 test("MCP tool count is frozen", () => {
-  expect(allTools.length).toBe(57);
+  expect(allTools.length).toBe(58);
 });
 
 test("MCP tool surface is frozen (names + scopes + schemas)", () => {
