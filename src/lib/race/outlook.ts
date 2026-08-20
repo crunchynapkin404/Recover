@@ -19,6 +19,8 @@ import {
   type RaceOutlook,
 } from "./outlook-figure";
 import { localYmd } from "@/lib/insights/auto-tags";
+import { racePacing, type PacingTarget } from "./pacing";
+import { pacingAnchors } from "./service";
 
 export type { RaceOutlook };
 
@@ -31,6 +33,8 @@ export interface RaceCard {
   } | null;
   daysOut: number | null;
   outlook: RaceOutlook | null;
+  /** null only when there is no race at all. */
+  pacing: Figure<PacingTarget> | null;
 }
 
 /**
@@ -46,7 +50,7 @@ export async function raceCard(
 ): Promise<RaceCard> {
   const today = localYmd(now);
   const race = await nextUpcomingRace(userId, now);
-  if (!race) return { race: null, daysOut: null, outlook: null };
+  if (!race) return { race: null, daysOut: null, outlook: null, pacing: null };
 
   const assembled = await assembleForecastInputs(
     userId,
@@ -61,6 +65,19 @@ export async function raceCard(
         href: "/train?tab=week",
       })
     : raceOutlook(forecastForm(assembled.inputs));
+
+  const anchors = await pacingAnchors(userId);
+  const pacing = racePacing({
+    sport: race.sport,
+    distanceKm: race.distanceKm,
+    elevationM: race.elevationM,
+    eventDays: race.eventDays ?? 1,
+    ftpWatts: anchors.ftpWatts,
+    massKg: anchors.massKg,
+    thresholdPaceSecPerKm: anchors.thresholdPaceSecPerKm,
+    ftpAthleteSet: anchors.ftpAthleteSet,
+    runPaceAthleteSet: anchors.runPaceAthleteSet,
+  });
 
   return {
     race: {
@@ -78,6 +95,7 @@ export async function raceCard(
       )
     ),
     outlook,
+    pacing,
   };
 }
 
