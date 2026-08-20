@@ -30,7 +30,11 @@ jobs:
       DATABASE_URL: postgres://ci:ci@localhost:5432/ci
       DATABASE_DRIVER: pg
       ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
-      BETTER_AUTH_SECRET: ci-only-secret
+      # 32-character floor: src/lib/env-validation.ts throws below it, from
+      # the instrumentation hook. vitest never runs that hook, so the old
+      # 14-character value passed here and would have failed any job that
+      # boots the real app. tests/release-gate.test.ts pins the length.
+      BETTER_AUTH_SECRET: "ci-only-secret-0000000000000000000000000000000000"
       BETTER_AUTH_URL: http://localhost:3000
     steps:
       - uses: actions/checkout@v7

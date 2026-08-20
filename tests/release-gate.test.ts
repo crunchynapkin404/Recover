@@ -115,3 +115,28 @@ describe("release gate", () => {
     ).toBe(false);
   });
 });
+
+describe("workflow environment", () => {
+  // src/lib/env-validation.ts throws below 32 characters, from the
+  // instrumentation hook. vitest never runs that hook, so ci.yml got away with
+  // a 14-character value for as long as CI only ever ran tests — but every job
+  // that boots the real app does run it, and surfaces.yml boots the real app.
+  // A workflow that boots with a short secret fails at startup with a message
+  // about auth, which is a long way from the cause.
+  it("every BETTER_AUTH_SECRET in a workflow is at least 32 characters", () => {
+    for (const name of allWorkflowNames()) {
+      const body = workflow(name);
+      for (const m of body.matchAll(
+        /BETTER_AUTH_SECRET:\s*["']?([^"'\s]+)["']?/g
+      )) {
+        const value = m[1];
+        if (value.startsWith("${{")) continue; // a secret reference
+        expect(
+          value.length,
+          `${name} sets BETTER_AUTH_SECRET to a ${value.length}-character ` +
+            `value; src/lib/env-validation.ts requires 32.`
+        ).toBeGreaterThanOrEqual(32);
+      }
+    }
+  });
+});
