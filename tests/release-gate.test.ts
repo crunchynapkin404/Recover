@@ -140,3 +140,29 @@ describe("workflow environment", () => {
     }
   });
 });
+
+describe("self-hosted runner safety", () => {
+  // The repository is PUBLIC. A fork's pull request runs that fork's workflow
+  // file, so a self-hosted runner that serves pull_request is arbitrary code
+  // execution on the devbox — a machine with SSH access to production and to
+  // the backup volumes. Only workflow_dispatch and base-repo tag pushes may
+  // target it, neither of which a fork can trigger. That is GitHub's own
+  // documented mitigation, and it is the entire safety story here.
+  //
+  // Same reasoning as the :latest flavor guard above: a written rule that
+  // nothing enforces is a rule broken by accident.
+  it("no workflow pairs a self-hosted runner with a pull_request trigger", () => {
+    for (const name of allWorkflowNames()) {
+      const body = workflow(name);
+      const selfHosted =
+        /runs-on:\s*(\[[^\]]*self-hosted[^\]]*\]|self-hosted\b)/.test(body);
+      if (!selfHosted) continue;
+      expect(
+        /^\s*pull_request(_target)?:/m.test(body),
+        `${name} runs on a self-hosted runner AND triggers on pull_request. ` +
+          `This repository is public: that is code execution from any fork on ` +
+          `a box with SSH to production. Use workflow_dispatch.`
+      ).toBe(false);
+    }
+  });
+});
