@@ -28,8 +28,35 @@ reasoning that produced the `:latest` flavor guard and the `v*-rc.*` trigger
 guard. So `tests/release-gate.test.ts` fails the suite if any workflow file
 pairs them. It is mutation-checked: a probe workflow with that pairing fails it.
 
-The runner is registered `--ephemeral`, so it accepts one job and de-registers.
-A job cannot leave state behind for the next one.
+**The runner is persistent, not `--ephemeral`, and that is a deliberate
+retreat.** It was registered `--ephemeral` first, on the reasoning that a job
+should not be able to leave state for the next one. That configuration works
+exactly once: the runner de-registers after its job and `svc.sh`'s service
+**stops itself** rather than re-registering —
+
+```
+Job soak completed with result: Succeeded
+√ Removed .credentials
+√ Removed .runner
+Runner listener exit with 0 return code, stop the service, no retry needed.
+```
+
+Found on v0.115.0's own release: the soak ran, and `finish-release.yml` then
+queued against nothing. (Queueing rather than failing is the safe direction —
+a release stalls visibly instead of a step being skipped quietly — but it is
+still a release that does not finish.)
+
+Keeping `--ephemeral` means re-registering before every job, and registration
+tokens expire after an hour, so it needs a long-lived PAT stored on this box.
+On a machine with SSH to production that is a worse trade than the state
+isolation is worth. **The containment that actually matters is the
+`pull_request` rule below, which is enforced by a test; ephemeral was
+defence-in-depth on top of it, not the control itself.**
+
+What this costs: the work directory now persists between jobs.
+`actions/checkout` cleans the workspace each run and `soak.yml` tears its stack
+down before bringing one up, so the exposure is small — but it is no longer
+zero, and a job that leaves something behind will now be inherited.
 
 ## What must be on the box
 
@@ -59,7 +86,7 @@ curl -fsSL -o actions-runner-linux-x64.tar.gz \
 tar xzf actions-runner-linux-x64.tar.gz
 ./config.sh --url https://github.com/crunchynapkin404/Recover \
   --token "$(gh api -X POST repos/crunchynapkin404/Recover/actions/runners/registration-token --jq .token)" \
-  --labels devbox --name devbox --ephemeral --unattended
+  --labels devbox --name devbox --unattended --replace
 sudo ./svc.sh install && sudo ./svc.sh start
 ```
 
@@ -71,8 +98,10 @@ gh api repos/crunchynapkin404/Recover/actions/runners \
 # devbox online self-hosted,Linux,X64,devbox
 ```
 
-**An ephemeral runner de-registers after each job**, so `gh api` showing zero
-runners between releases is normal, not a fault — the service re-registers it.
+A healthy runner shows `online` between releases. **Zero registered runners is
+a fault, not a resting state** — an earlier version of this page claimed the
+opposite, on the assumption that an ephemeral runner would be re-registered by
+its service. It is not; see above.
 
 ## Removing it
 
