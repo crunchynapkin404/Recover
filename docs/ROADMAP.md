@@ -1136,17 +1136,38 @@ Demand order, science-constrained.
       week after an A-race from any other; `RECOVERY_FRACTION`'s only three uses
       are `periodize()`'s step-loading cadence. Unreachable today, and the first
       thing the implementing release must pin.
-- [ ] **Multi-A-race seasons** — the 244-vote request and the skipped v0.53.
-      Two A-races in one season, bridge phase, separate taper windows.
-      Designed in `docs/specs/2026-08-19-multi-a-race-seasons-design.md`, which
-      records the two findings that resize it: the plan is single-race **by
-      construction** (`previewTrainingPlan` takes one `raceId`), but the second
-      race's taper **already works** via `racesForWeek`. The hole is the
-      transition between them. **Both prerequisites are now done and it is
-      unblocked** — the transition slice above proposes the constants
-      (`RACE_RECOVERY_DAYS_*`, 14/7/4 by distance class, Medium/Low/Invented)
-      and the warning threshold (recovery + the second race's taper window: 35d
-      marathon→marathon, 21d half→half, 14d short→short).
+- [x] **Multi-A-race seasons — SHIPPED in v0.114.0 (2026-08-20).** The
+      244-vote request and the skipped v0.53, closed. `periodize()` composes
+      `arc(weeksToFirstRace) + recovery(n) + arc(remainingWeeks)`; `arc()` is
+      the old body moved unchanged, so single-race plans take a byte-identical
+      path. Migration 0042 is additive — three nullable columns naming the
+      earlier A-race, with `raceId`/`raceDate` keeping their meaning as the
+      plan's FINAL target so none of the 43 read sites changed meaning.
+      Constants: `RACE_RECOVERY_DAYS_LONG` 14 **Medium**, `MID` 7 **Low** (no
+      study located at that distance), `SHORT` 4 **Invented, Low**. Evidence:
+      `docs/specs/2026-08-19-multi-a-race-transition-evidence.md`.
+      **The entry point is the coach, and that is worth stating plainly.**
+      There is no plan-creation UI in this app — `plan-empty.tsx` links to
+      `/coach` — so `generate_training_plan` gained an optional `secondRaceId`
+      rather than a picker being built for a flow that does not exist. The
+      design's own §3 specified that picker; it was cut on the owner's call
+      once the code showed the flow was imaginary. **A second in-app entry
+      point is not part of this item and is not scheduled.**
+      **Two of the four worst defects were invisible to the suite AND to a
+      clean axe report**, which is the lesson worth keeping. Race one lost its
+      taper on every two-race plan, because the recovery guard's day-count is
+      negative for weeks BEFORE the race and both live sites pass the first
+      race from week 1 — a defect that existed only where two separately-clean
+      tasks met, found by a whole-branch reviewer running the code rather than
+      reading it. And the bridge rendered merged with the athlete's ordinary
+      easy weeks ("Recovery · 5 · weeks 4, 7, 11, 14, 15"), found only by
+      opening a screenshot behind a `0 confirmed`. Captured now by
+      `train-plan-preview` plus `scripts/seed-two-race.ts`, because
+      `seed-demo.ts` seeds no races and no plans, so this surface had never
+      been photographed at all.
+      **Deliberately NOT resolved:** whether the second peak can equal the
+      first. No source in either direction, so no surface claims it, and a
+      grep guards that.
 - [x] **Hydration mismatch on three surfaces — found and fixed 2026-08-19.**
       `/coach`, `/coach?history=1` and `/?sheet=checkin` each threw _"Hydration
       failed because the server rendered HTML didn't match the client"_,

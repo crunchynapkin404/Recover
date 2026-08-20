@@ -1,6 +1,63 @@
 # Changelog
 
-## Unreleased
+## v0.114.0 — 2026-08-20 — Both
+
+The #1 ranked external request — "choosing a new goal before the last one's
+done", 244 votes — and the skipped `v0.53`. An athlete with two A-races used to
+get a full periodised arc to the first, a correct taper for the second, and
+**nothing structured in between**. The plan simply ended at race one.
+
+Two of this release's four worst defects were invisible to 2,851 tests and to a
+clean `0 confirmed` axe report. One took a whole-branch reviewer running the
+code rather than reading it; the other took opening a screenshot.
+
+### A season can now have two A-races
+
+`periodize()` stops producing one arc and composes segments:
+`arc(weeksToFirstRace) + recovery(n) + arc(remainingWeeks)`. `arc()` is the old
+body moved unchanged, so a single-race plan takes a byte-identical path.
+`trainingBlocks.phase` already accepted `"recovery"`, so the bridge needed no
+enum migration.
+
+The three values that flow between segments are the part most likely to be got
+wrong, and were: the recovery segment's load basis is arc one's **peak** week,
+not its last. Arc one's last week is a **taper** week at 0.45-0.65 of normal
+load, and CTL is a 42-day exponentially weighted mean — using it understated
+fitness at race one by roughly half and floored the rebuild at
+`MIN_WEEKLY_LOAD`, handing a marathoner a 100 TSS/week restart. The rebuild now
+opens at 452 where it opened at 208.
+
+The entry point is the coach. There is no plan-creation UI in this app —
+`plan-empty.tsx` links to `/coach` — so `generate_training_plan` gained the
+optional `secondRaceId` rather than a picker being built for a flow that does
+not exist.
+
+### Where the bridge's numbers come from
+
+`docs/specs/2026-08-19-multi-a-race-transition-evidence.md`. The design left
+three open questions and only one of them yields a number.
+
+**Post-race recovery is evidenced, and it does scale with distance** — 7 days
+for a marathon's aerobic capacity (Takayama et al. 2017, n=11), inflammation
+still significantly elevated at 5 days and VO₂max at 15 after an Ironman
+(Neubauer et al. 2008, n=42; Nosaka et al. 2010, n=1, read second-hand), 9-16
+days after a 166 km ultra (Millet et al. 2011). That is the **opposite** of
+what the taper pass found, where the endurance review pooled distances and
+found no difference — so the same classifier is a tolerated convention for the
+taper and a supported one for the recovery, and `raceRecoveryDays()` says so
+in-code.
+
+`RACE_RECOVERY_DAYS_LONG` = 14 is **Medium**; `MID` = 7 is **Low**, because no
+study was located at that distance; `SHORT` = 4 is **Invented, Low**. Read the
+confidence per row, not the table shape.
+
+**The rebuild needs no constant at all.** Mujika & Padilla and Hickson both
+reduce to "cut volume, hold intensity" — that is `RECOVERY_FRACTION`, already
+rated Medium — and `periodize()` already collapses into whatever weeks remain.
+
+**Whether the second peak can equal the first has no source in either
+direction.** No surface says it will be lower and none says it will be equal. A
+grep guards it.
 
 ### `generate_training_plan` can now target a second A-race over MCP
 
@@ -35,6 +92,78 @@ This is an additive, output-only change: `get_training_plan`'s input
 `frozen-tools.test.ts.snap` did not need updating — `docs/API-STABILITY.md`
 freezes tool name/scope/input-schema, not output content beyond what that
 schema promises. Tool count stays 57.
+
+### Four defects the reviews found, and how
+
+**Race one lost its taper on every two-race plan.** The recovery guard used
+`daysBetween(previousARace.date, weekStart) < raceRecoveryDays(...)`, and that
+value is **negative** for every week _before_ the race — while both live sites
+pass the first race from plan week 1. So the guard suppressed race one's own
+taper for the entire first arc: race-week `effectiveLoad` 171 → 304, planned
+minutes 50 → 180, the pre-race easy session and the Z3 openers gone. Neither
+task's diff contained the defect; it existed only where two separately-clean
+tasks met, and only the whole-branch review could see it.
+
+**`firstRace.weekNumber` was off by one.** Week N spans days `7(N-1)..7N-1`
+from the plan's start, so a race exactly 7 days out is in week 2 —
+`Math.ceil(days/7)` returns 1, and is wrong at every exact multiple of 7. That
+fires whenever the first race falls on the same weekday the plan was created,
+roughly one two-race plan in seven, and put the recovery segment over the
+athlete's actual race week. `planWeekOf()` now owns the conversion.
+
+**Regenerating a two-race draft destroyed it.** `regeneratePreviewAction`
+passed only `raceId`, so an athlete adjusting their weekly hours on the preview
+card silently got a single-race plan back. A deleted second race could also
+send `""` into a uuid column and crash the action outright.
+
+**Both offline repair scripts would have flattened a two-race plan on
+`--apply`.** `repair-plan-blocks.ts` now carries the first race through;
+`repair-plan-sport.ts` refuses and names the reason, because its regeneration
+path has no way to express a second target.
+
+### The surface that had never been captured
+
+There was no way to reach a two-race state at all — `seed-demo.ts` seeds
+activities, wellness and chat, and no races or plans whatsoever. So the
+feature's own surface had never been photographed.
+
+`scripts/seed-two-race.ts` builds the season through the real
+`previewTrainingPlan` rather than hand-inserting a row, and refuses if the
+resulting draft has no second segment. `train-plan-preview` shares `/train`'s
+path — the card renders on state, not on a URL — so its `SURFACE_PREPARE` guard
+waits for a visible segment-2 header and scrolls it into the viewport, because
+`assertOnSurface` compares pathname only and would otherwise file the
+single-race path under a name promising two arcs.
+
+It captured 4/4 combos at **0 confirmed** axe nodes. Opening the PNGs then
+showed three things axe cannot see, all now fixed:
+
+- The bridge was **invisible**, and it is the whole feature. The card rendered
+  "Recovery · 5 · weeks 4, 7, 11, 14, 15", merging the athlete's ordinary
+  step-loading easy weeks with the gap between their two goal races. It now
+  reads "Recovery · 3 · weeks 4, 7, 11" and "Recovery between races · 2 ·
+  weeks 14, 15".
+- **Race one was never named anywhere** — not in the header, not on its own
+  week. A 21-week two-race plan showed exactly one race, at the end.
+- **"First race"** sat as a placeholder directly above the second race's real
+  name.
+
+### Feasibility now answers the question it was asked
+
+`demand` resolves highest-priority-then-nearest-date across all of an athlete's
+races, while the horizon counted weeks to the plan's end. On a two-race plan
+that scored race one's demand against race two's horizon — systematically
+optimistic, so `feasibility_tight` and `feasibility_not_realistic` under-fired.
+Both now read the date off the same `targetRace` the demand came from, so they
+cannot disagree even when a third, unrelated A-race is nearer than either of
+the plan's own two.
+
+### Migration 0042 — additive
+
+Three nullable columns naming the earlier A-race. `raceId`/`raceDate` keep
+meaning the plan's **final** target, so none of the 43 existing read sites
+changes meaning, every existing plan row gets NULL and behaves identically, and
+rollback stays cheap. `planRaceTargets()` is the one read path for the pairing.
 
 ## v0.113.0 — 2026-08-19 — Looked At
 
