@@ -1,5 +1,70 @@
 # Changelog
 
+## v0.115.0 — 2026-08-20 — Both
+
+The release path moves into GitHub Actions, Playwright included, and the
+capture becomes a gate rather than something a human remembered to run.
+
+**No athlete sees a different number after this release** — except one they
+could not see at all before.
+
+### Bold text was invisible in light theme
+
+`inline-markdown.tsx` rendered `**bold**` as `font-bold text-white`. That was
+harmless while the app was dark-only and stopped being harmless in v0.111.0,
+when `forcedTheme` was removed and `ThemeProvider`'s default became `"system"`.
+Since then, any athlete whose OS was in light mode saw **white text on a white
+background** — a 1:1 contrast ratio — wherever the coach emphasised a word: on
+Today, on both check-in sheets, and in every debrief.
+
+It survived four releases and 2,874 tests. It was found by the first run of the
+new capture workflow, which is the entire argument for this release.
+
+`tests/theme-color-guard.test.ts` closes the class. `tests/contrast-guard.test.ts`
+was never wrong — it reads the token palette out of the shipped CSS, and the
+palette was correct the whole time. A colour written directly into a component
+is not a token and never reached it.
+
+### The capture runs in CI
+
+`.github/workflows/surfaces.yml` seeds a database, boots the real app, drives a
+real Chromium and captures all 27 surfaces in both themes at both viewports —
+108 entries. `CONTRIBUTING.md` listed three reasons this could not be a CI gate;
+all three are closed.
+
+It is **two jobs, and cannot be one.** `previewStateFrom` returns `null` under
+`NODE_ENV=production`, so a production build renders whichever state the clock
+dictates for all three `today*` surfaces and `assertTodayStatesDiffer` fails on
+the byte-identical PNGs. A single job would capture the wrong page for three
+surfaces and report success.
+
+The axe result is ratcheted against `surface-ceilings.json` rather than gated at
+zero — a permanently red check is one that gets disabled. The ceiling is written
+by a run, never typed: it was pinned at 10, and the bold-text fix took it to 0.
+
+### One release path, and it runs itself
+
+`release-rc.yml`, `soak.yml` and `finish-release.yml` join `promote.yml`, and
+`docs/RELEASING.md` states the path once as a table where every row names the
+workflow that runs it. Two rows have no entry point: writing the code, and
+**opening the pictures**.
+
+`promote.yml` now requires a `capture_run` and verifies the run named is a
+passed soak that captured _that_ candidate. It cannot verify a person looked.
+That is the point — it is the one step automation must not absorb, because two
+of v0.114.0's four worst defects were invisible to every gate that exists here.
+
+`scripts/release.sh` is **deleted**. On 2026-08-20 it merged, tagged and
+published a release page while nothing had been built, soaked, promoted or
+deployed. The defect was not in its steps; it was that a second path existed at
+all. `finish-release.yml` verifies the deploy _before_ tagging, and
+`tests/release-gate.test.ts` fails if a local tag-and-publish path returns.
+
+### Migrations
+
+**None.** No file was added to `drizzle/`, so a rollback past this release is
+unconstrained in schema terms.
+
 ## v0.114.0 — 2026-08-20 — Both
 
 The #1 ranked external request — "choosing a new goal before the last one's

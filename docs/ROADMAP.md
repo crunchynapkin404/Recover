@@ -1199,6 +1199,33 @@ Demand order, science-constrained.
 
 ## Phase 4 — Breadth
 
+- [x] **The release path runs itself, Playwright included — v0.115.0.** The
+      v0.104.0 gate made promotion deliberate; this makes the whole path
+      mechanical. `surfaces.yml` seeds a database, boots the real app and
+      drives a real Chromium over all 27 surfaces in both themes at both
+      viewports — 108 entries — and ratchets the axe result against
+      `surface-ceilings.json` instead of gating at zero, because a permanently
+      red check is one that gets disabled. `release-rc.yml`, `soak.yml` and
+      `finish-release.yml` join `promote.yml`, and `scripts/release.sh` is
+      deleted: on 2026-08-20 it merged, tagged and published a release page
+      while nothing had been built, soaked, promoted or deployed, and the
+      defect was that a second path existed at all.
+      **The capture found a live defect on its first run.**
+      `inline-markdown.tsx` rendered bold as `text-white`, a 1:1 contrast
+      ratio in light theme — invisible — on Today, both check-in sheets and
+      every debrief. It had shipped that way since v0.111.0 removed
+      `forcedTheme`, survived four releases and 2,874 tests, and
+      `contrast-guard.test.ts` could not see it because a colour written into
+      a component is not a token. That one line was all 10 confirmed nodes in
+      the first run; the ceiling went 10 → 0 when it was fixed, and
+      `theme-color-guard.test.ts` now holds the class at zero.
+      **What was deliberately not automated:** opening the pictures.
+      `promote.yml` requires a `capture_run` and verifies the named run is a
+      passed soak of that candidate, but it cannot verify that a person
+      looked. Two of v0.114.0's four worst defects were invisible to every
+      gate that exists here — one needed a reviewer running the code, the
+      other needed a screenshot opened.
+
 - [x] **A release gate between the boxes — v0.104.0.** The project moved onto a
       dev box (`devbox`, 10.0.10.50) and a prod box (`prod`, 10.0.10.100) on
       2026-08-14, and the release path did not move with it: a `v*` tag
