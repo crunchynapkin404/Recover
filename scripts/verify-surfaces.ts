@@ -139,6 +139,7 @@ import {
   type AxeFinding,
 } from "./lib/axe-report";
 import { selectSurfaces } from "./lib/surface-select";
+import { axeGateEnabled } from "./lib/axe-gate";
 
 // playwright-core is an exact-pinned devDependency as of v0.104.0. It used to
 // resolve ONLY from an npx cache path baked into this file
@@ -699,6 +700,13 @@ const SELECTED_SURFACES = new Set(
     except: flagList("except"),
   })
 );
+
+/**
+ * Off in CI, where the ratchet adjudicates the axe totals over BOTH captures
+ * summed. On everywhere else, so a person running this still gets a non-zero
+ * exit for a confirmed defect. Hard failures ignore this entirely.
+ */
+const AXE_GATE = axeGateEnabled(process.argv);
 
 /**
  * The single filter point. Every capture in main() goes through either
@@ -1786,8 +1794,20 @@ async function main() {
   // findings (see file header and scripts/lib/axe-report.ts for why: the
   // four gradient-background surfaces can never resolve those, which would
   // make the exit code unfalsifiable).
+  //
+  // --no-axe-gate hands that decision downstream. See scripts/lib/axe-gate.ts:
+  // in surfaces.yml the ratchet is the gate, and it needs both captures to
+  // have finished in order to sum them.
   if (totals.confirmedNodes > 0) {
-    process.exitCode = 1;
+    if (AXE_GATE) {
+      process.exitCode = 1;
+    } else {
+      console.log(
+        `\n--no-axe-gate: ${totals.confirmedNodes} confirmed node(s) do not ` +
+          `fail this run. The ratchet adjudicates them against ` +
+          `surface-ceilings.json once every capture has finished.`
+      );
+    }
   }
 
   if (erroredEntries.length > 0 || hardFailures.length > 0) {

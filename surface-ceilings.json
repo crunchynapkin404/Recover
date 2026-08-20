@@ -1,5 +1,5 @@
 {
-  "confirmedNodes": -1,
-  "measured": "never",
-  "slices": []
+  "confirmedNodes": 10,
+  "measured": "2026-08-20",
+  "slices": ["capture-main", "capture-preview"]
 }

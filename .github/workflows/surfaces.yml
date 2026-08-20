@@ -132,7 +132,13 @@ jobs:
 
       # Everything except the three preview states — see this file's header.
       - name: Capture surfaces
-        run: npx tsx scripts/verify-surfaces.ts capture-main --except="$PREVIEW_SURFACES"
+        # --no-axe-gate: the RATCHET decides, in the job below, over both
+        # captures summed. Without it the script's own `confirmed > 0` exit
+        # fails this job and the ratchet job is skipped for a failed
+        # dependency — which is what happened on run 32368432220, where both
+        # captures completed cleanly and were failed by a zero threshold the
+        # ratchet exists to replace. Hard failures still fail this step.
+        run: npx tsx scripts/verify-surfaces.ts capture-main --except="$PREVIEW_SURFACES" --no-axe-gate
 
       - name: Show the server log if the capture failed
         if: failure()
@@ -225,7 +231,8 @@ jobs:
           curl -fsS -o /dev/null "http://localhost:3200/?state=evening" || true
 
       - name: Capture the preview states
-        run: npx tsx scripts/verify-surfaces.ts capture-preview --only="$PREVIEW_SURFACES"
+        # See the note on the production capture above.
+        run: npx tsx scripts/verify-surfaces.ts capture-preview --only="$PREVIEW_SURFACES" --no-axe-gate
 
       - name: Show the server log if the capture failed
         if: failure()
