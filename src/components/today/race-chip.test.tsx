@@ -22,6 +22,7 @@ describe("RaceChip", () => {
       <RaceChip
         race={RACE}
         daysOut={45}
+        pacing={null}
         outlook={Figure.available(
           {
             full: { tsb: 5, band: "green" },
@@ -41,6 +42,7 @@ describe("RaceChip", () => {
       <RaceChip
         race={RACE}
         daysOut={45}
+        pacing={null}
         outlook={Figure.available(
           {
             full: { tsb: 5, band: "green" },
@@ -60,6 +62,7 @@ describe("RaceChip", () => {
       <RaceChip
         race={RACE}
         daysOut={45}
+        pacing={null}
         outlook={Figure.missingInput("training-load history")}
       />
     );

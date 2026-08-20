@@ -48,6 +48,13 @@ import {
 } from "@/components/train/fitness-tiles";
 import { RaceChip } from "@/components/today/race-chip";
 import { raceCard } from "@/lib/race/outlook";
+
+/** Seconds per km as m:ss/km. 285 -> "4:45/km". */
+function fmtPace(secPerKm: number): string {
+  const m = Math.floor(secPerKm / 60);
+  const sec = Math.round(secPerKm % 60);
+  return `${m}:${String(sec).padStart(2, "0")}/km`;
+}
 import { BAND_TEXT, BAND_DOT } from "@/lib/band-color";
 import type { Band } from "@/lib/readiness";
 import { Figure } from "@/lib/uncertainty";
@@ -844,6 +851,28 @@ async function WeekTab({
                   {card.race.goalNote}
                 </p>
               )}
+              {/* Rendered here rather than inside RaceChip: the chip is shared
+                  with Today, which is out of scope for pacing, and a target, a
+                  band and an assumption do not fit a chip — the assumption is
+                  what a chip would drop first, and it is the half that
+                  matters. */}
+              {card.pacing?.available && (
+                <p className="-mt-5 mb-6 px-1 text-label text-ink-muted">
+                  <span className="font-bold text-ink-secondary">
+                    {card.pacing.value.sport === "Bike"
+                      ? `Target ${card.pacing.value.targetWatts} W · hold ${card.pacing.value.lowWatts}–${card.pacing.value.highWatts} W`
+                      : `Target ${fmtPace(card.pacing.value.targetSecPerKm)} · hold ${fmtPace(card.pacing.value.lowSecPerKm)}–${fmtPace(card.pacing.value.highSecPerKm)}`}
+                  </span>{" "}
+                  {card.pacing.why} ({card.pacing.confidence} confidence)
+                </p>
+              )}
+              {card.pacing &&
+                !card.pacing.available &&
+                card.pacing.kind === "not_applicable" && (
+                  <p className="-mt-5 mb-6 px-1 text-label text-ink-muted">
+                    {card.pacing.why}
+                  </p>
+                )}
             </>
           )}
 
