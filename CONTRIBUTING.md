@@ -89,6 +89,12 @@ interchangeable.**
 
 The release-candidate form:
 
+`--only=a,b` and `--except=a,b` narrow the run; without either, all 27 surfaces
+are captured. Both reject an unknown name rather than quietly matching nothing,
+and both cover the five surfaces `main()` resolves at runtime as well as the 22
+in the `SURFACES` literal. `.github/workflows/surfaces.yml` uses them to split
+the capture — see "Can this run in CI?" below for why that split is mandatory.
+
 ```bash
 SCREENSHOT_BASE_URL=http://localhost:3100 \
   OWNER_EMAIL=... OWNER_PASSWORD=... \
@@ -118,47 +124,78 @@ browser proof that the confirmed/indeterminate split discriminates correctly
 in both directions (`scripts/axe-split-proof.ts`). Same `CHROME_PATH` /
 `LD_LIBRARY_PATH` requirement; it needs no server and no database.
 
-#### Can this run in CI? Not as configured — and the spec was wrong to imply it
+#### Can this run in CI? It does now — `.github/workflows/surfaces.yml`
 
-`docs/specs/2026-08-11-2b4-visual-redesign-design.md` lists axe under "Guards
-that fail the build". **It is not one, and it should not become one yet.** Its
-own "Real-browser screenshots" section says the opposite and is the correct
-one. Four things stand between `npm run verify:surfaces` and
-`.github/workflows/ci.yml`, in ascending order of cost:
+`docs/specs/2026-08-11-2b4-visual-redesign-design.md` listed axe under "Guards
+that fail the build" before it was one, and this section spent four releases
+explaining why it was not. All four reasons are now closed. They are kept here
+because each names a real property of the check, and anyone changing
+`surfaces.yml` needs to know which of them they are about to reopen.
 
-1. **A zero-threshold gate would fail every pull request from slice 0 to
-   slice 8.** This is the decisive one. The recorded baseline is **398
-   confirmed defect nodes** (`docs/axe-baseline-2026-08-11-seeded.md` §10) and
-   it is _supposed_ to be non-zero until the surfaces are migrated — the script
-   exits 1 today, by design. Wiring it to CI as-is would mean a red suite for
-   eight slices, which is how a check gets disabled. It would first need a
-   **ratchet** against a committed baseline number (the shape
-   `tests/type-scale-guard.test.ts`'s `OFFENDER_CEILINGS` uses), failing on a
-   _rise_ rather than on non-zero.
+1. **A zero-threshold gate would fail every pull request from slice 0 to slice 8.** This was the decisive one — the recorded baseline was **398 confirmed
+   defect nodes** (`docs/axe-baseline-2026-08-11-seeded.md` §10) and was
+   _supposed_ to be non-zero until the surfaces were migrated. **Closed by a
+   ratchet**, the shape `tests/type-scale-guard.test.ts`'s `OFFENDER_CEILINGS`
+   uses: `scripts/lib/surface-ratchet.ts` fails on a **rise** against
+   `surface-ceilings.json`, never on non-zero. Lowering the ceiling is routine;
+   raising it needs a reason in the commit message.
+
+   `indeterminate` is summed and printed but **never gates**. On this app's four
+   gradient-background surfaces axe can never compute an answer, so gating it
+   would make "drive the number to zero" permanently unreachable.
+
+   **The ceiling is measured by a run, never typed from a document.** It ships
+   as `-1`, which nothing can pass, and the first green run re-pins it. A number
+   copied out of prose is how this project has been wrong about counts in both
+   directions.
+
 2. **A seeded database, not just a migrated one.** CI's Postgres service is
-   created empty and only migrated. That is not a cosmetic difference: seeding
-   alone moved the node count 1398 → 1687 (+20.7%, Train +600%) because the
-   charts, badges, week rows and tables where sub-AA colour actually lives are
-   simply not on screen for an empty account. A CI number measured against an
-   empty DB is not comparable to the recorded baseline. Cheapest of the four
-   to fix — `npm run db:seed` and `SEED_DEMO=1 npm run db:seed-demo` are both
-   deterministic and idempotent — and the run's real-API-token create/revoke
-   is _safer_ against CI's throwaway database than against a dev one.
-3. **A running server.** CI builds but never starts the app. Needs
-   `next start` on a non-production port with matching
-   `BETTER_AUTH_URL`/`TRUSTED_ORIGINS`, plus a readiness wait.
-4. ~~**`playwright-core`, which this repo does not depend on at all.**~~
-   **CLOSED in v0.104.0.** It is now an exact-pinned devDependency, and
-   `npm run dev:browser-setup` fetches the matching Chromium, so `npm ci` is
-   enough to make the script resolvable. The deferred decision — "adding a
-   dependency and pinning it to a browser revision, which is a deliberate
-   decision nobody has made yet" — was made by events: the old npx-cache path
-   was hardcoded in the script, it did not survive the move to a new dev box
-   on 2026-08-14, and every redesign slice was unverifiable until it was
-   declared. Undeclared tooling stops existing when the machine changes.
+   created empty and only migrated, and seeding alone moved the node count
+   1398 → 1687 (+20.7%, Train +600%) because the charts, badges, week rows and
+   tables where sub-AA colour actually lives are simply not on screen for an
+   empty account. **Closed:** each capture job runs `db:seed`, `db:seed-demo`
+   and `seed-two-race.ts` — all deterministic and idempotent — and the run's
+   real-API-token create/revoke is _safer_ against CI's throwaway database than
+   against a dev one.
 
-   **Three blockers remain, and they are still why this is not a CI gate:**
-   the ratchet, the seeded database and the running server.
+   The jobs seed **the owner they then sign in as**. `/admin` is a captured
+   surface and redirects every other role, and seeding `demo@recover.local`
+   instead is the 2026-08-14 defect that voided every reading taken before
+   2026-08-16. Establishing the credential in the same job that uses it closes
+   that by construction rather than by remembering.
+
+3. **A running server.** CI built but never started the app. **Closed — and it
+   needed two jobs, not one.** `previewStateFrom` (`src/lib/today/state.ts`)
+   returns `null` when `NODE_ENV === "production"`, so a production build
+   renders whichever state the clock dictates for `today`, `today-post-session`
+   and `today-evening`; `assertTodayStatesDiffer()` then fails the run on the
+   byte-identical PNGs, correctly. So `surfaces.yml` runs a production build for
+   every shipping surface and a `next dev` server for exactly those three.
+
+   **Do not merge those two jobs back together.** A single job would capture the
+   wrong page for three surfaces and report success — the `assertOnSurface`
+   trap in a different costume.
+
+   The split is also why `verify-surfaces.ts` takes `--only=` / `--except=`.
+   Before that, `argv[2]` was only an output directory name and `main()` always
+   walked every surface. The filter lives inside `captureResolved` and the
+   `captureTokenCreated` call rather than around the `SURFACES` loop, because
+   five surfaces — `coach-thread`, `coach-history-active`, `activity-detail`,
+   `debrief-sheet`, `settings-token-created` — are resolved at runtime and are
+   not in that literal. 22 literal + 5 resolved = 27, at four theme/viewport
+   combos each.
+
+4. ~~**`playwright-core`, which this repo does not depend on at all.**~~
+   **CLOSED in v0.104.0.** It is an exact-pinned devDependency and
+   `npm run dev:browser-setup` fetches the matching Chromium, so `npm ci` is
+   enough to make the script resolvable. Undeclared tooling stops existing when
+   the machine changes — the old npx-cache path did not survive the move to a
+   new dev box on 2026-08-14, and every redesign slice was unverifiable until it
+   was declared.
+
+   In CI, `CHROME_PATH` is deliberately left unset: `playwright-core` resolves
+   the browser it installed. A revision-keyed path hardcoded into a workflow is
+   the same mistake at a different address.
 
 **What IS already in CI:** `tests/axe-report-split.test.ts` runs under
 `npm test`, and pins the confirmed/indeterminate classification logic against
@@ -184,6 +221,14 @@ npm run build
 
 A second job builds the Docker image (`docker build -t recover .`); it needs no
 local equivalent, but it is what gates the release path.
+
+**`ci.yml` is not the only workflow that gates a pull request.**
+`.github/workflows/surfaces.yml` captures every surface in a real browser and
+ratchets the axe result; it has no single-command local equivalent because it
+needs a seeded database, a running server and a Chromium. Run it locally the
+long way (see "Real-browser screenshots" above) or read the capture artifact
+the workflow publishes. **A run that emits files is not evidence — open the
+PNGs.**
 
 ## Principles
 
