@@ -73,6 +73,19 @@ const LONG_EVENT_WHY =
   "Past 8 h the sustainable-effort figure is a reading of an older band, not a " +
   "published measurement — treat this as a starting point and adjust by feel.";
 
+const TRIATHLON_WHY =
+  "Triathlon pacing is not supported yet. How hard you ride determines what " +
+  "is left for the run, and that link is not modelled — a bike target worked " +
+  "out as if no run followed would be worse than no target at all.";
+
+const MULTI_DAY_WHY =
+  "This event runs over more than one day, and the distance recorded is the " +
+  "total across all of them — a single sustainable effort for that total " +
+  "would not describe any of the days.";
+
+/** Where an athlete sets both anchors: BodyPrefsCard on /settings. */
+const ANCHOR_FIX = { label: "Set it", href: "/settings" };
+
 const RUN_WHY =
   "Assumes an even effort at the pace Riegel's endurance model predicts for " +
   "this distance from your threshold pace, with climbing priced as extra flat " +
@@ -85,12 +98,17 @@ const BIKE_WHY =
 export function racePacing(input: PacingInput): Figure<PacingTarget> {
   const { sport, distanceKm, elevationM, ftpWatts, massKg } = input;
 
+  // Both guards sit above the sport branches: they apply to every sport, and
+  // refusing is a first-class result here rather than a gap to paper over.
+  if (input.eventDays > 1) return Figure.notApplicable(MULTI_DAY_WHY);
+  if (sport === "Triathlon") return Figure.notApplicable(TRIATHLON_WHY);
+
   if (sport === "Bike") {
     if (distanceKm == null || !(distanceKm > 0)) {
       return Figure.missingInput("this race's distance");
     }
     if (ftpWatts == null || !(ftpWatts > 0)) {
-      return Figure.missingInput("your FTP");
+      return Figure.missingInput("your FTP", ANCHOR_FIX);
     }
     const hours = estimateRidingHours({
       distanceKm,
@@ -126,7 +144,7 @@ export function racePacing(input: PacingInput): Figure<PacingTarget> {
     }
     const secPerKm = input.thresholdPaceSecPerKm;
     if (secPerKm == null || !(secPerKm > 0)) {
-      return Figure.missingInput("your threshold pace");
+      return Figure.missingInput("your threshold pace", ANCHOR_FIX);
     }
     const hours = estimateRunningHours({
       distanceKm,

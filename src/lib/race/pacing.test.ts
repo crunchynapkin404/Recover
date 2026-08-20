@@ -140,3 +140,92 @@ describe("racePacing — Run", () => {
     expect(r.kind).toBe("missing_input");
   });
 });
+
+describe("racePacing — when it refuses", () => {
+  // Bike effort determines what is left for the run. A bike wattage computed
+  // as though no run followed is not an incomplete answer, it is a harmful
+  // one — so this refuses, and says why rather than showing a blank.
+  it("refuses Triathlon, naming the bike-to-run coupling", () => {
+    const r = racePacing({
+      sport: "Triathlon",
+      distanceKm: 113,
+      elevationM: 900,
+      eventDays: 1,
+      ftpWatts: 250,
+      massKg: 75,
+      thresholdPaceSecPerKm: 240,
+    });
+    expect(r.available).toBe(false);
+    if (r.available) return;
+    expect(r.kind).toBe("not_applicable");
+    if (r.kind !== "not_applicable") return;
+    expect(r.why).toMatch(/run/i);
+    expect(r.why.length).toBeGreaterThan(30);
+  });
+
+  // distanceKm is the TOTAL across days, so one sustainable intensity over it
+  // is meaningless.
+  it("refuses a multi-day event, naming the reason", () => {
+    const r = racePacing({
+      sport: "Bike",
+      distanceKm: 600,
+      elevationM: 9000,
+      eventDays: 5,
+      ftpWatts: 250,
+      massKg: 75,
+      thresholdPaceSecPerKm: null,
+    });
+    expect(r.available).toBe(false);
+    if (r.available) return;
+    expect(r.kind).toBe("not_applicable");
+    if (r.kind !== "not_applicable") return;
+    expect(r.why).toMatch(/day/i);
+  });
+
+  it("refuses a bike race with no FTP, and offers a fix", () => {
+    const r = racePacing({
+      sport: "Bike",
+      distanceKm: 90,
+      elevationM: 900,
+      eventDays: 1,
+      ftpWatts: null,
+      massKg: 75,
+      thresholdPaceSecPerKm: null,
+    });
+    expect(r.available).toBe(false);
+    if (r.available || r.kind !== "missing_input") return;
+    expect(r.needs).toMatch(/FTP/i);
+    expect(r.fix?.href).toBeTruthy();
+  });
+
+  it("refuses a run with no threshold pace, and offers a fix", () => {
+    const r = racePacing({
+      sport: "Run",
+      distanceKm: 21.1,
+      elevationM: 0,
+      eventDays: 1,
+      ftpWatts: null,
+      massKg: null,
+      thresholdPaceSecPerKm: null,
+    });
+    expect(r.available).toBe(false);
+    if (r.available || r.kind !== "missing_input") return;
+    expect(r.needs).toMatch(/pace/i);
+    expect(r.fix?.href).toBeTruthy();
+  });
+
+  it("refuses with no distance", () => {
+    const r = racePacing({
+      sport: "Bike",
+      distanceKm: null,
+      elevationM: 0,
+      eventDays: 1,
+      ftpWatts: 250,
+      massKg: 75,
+      thresholdPaceSecPerKm: null,
+    });
+    expect(r.available).toBe(false);
+    if (r.available || r.kind !== "missing_input") return;
+    expect(r.needs).toMatch(/distance/i);
+  });
+});
