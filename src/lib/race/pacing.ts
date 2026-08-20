@@ -16,6 +16,7 @@
 import { Figure } from "@/lib/uncertainty";
 import { DEMAND_CONSTANTS as C } from "./demand-constants";
 import { estimateRidingHours, ftpFractionFor } from "./riding-time";
+import { estimateRunningHours } from "./running-time";
 
 /**
  * Half-width of the pacing band, as a fraction of the target.
@@ -72,6 +73,11 @@ const LONG_EVENT_WHY =
   "Past 8 h the sustainable-effort figure is a reading of an older band, not a " +
   "published measurement — treat this as a starting point and adjust by feel.";
 
+const RUN_WHY =
+  "Assumes an even effort at the pace Riegel's endurance model predicts for " +
+  "this distance from your threshold pace, with climbing priced as extra flat " +
+  "distance.";
+
 const BIKE_WHY =
   "Assumes a steady effort at a share of your FTP that falls as the event gets " +
   "longer, on a course averaged from its total distance and climbing.";
@@ -111,6 +117,39 @@ export function racePacing(input: PacingInput): Figure<PacingTarget> {
       },
       long ? "low" : "medium",
       long ? `${BIKE_WHY} ${LONG_EVENT_WHY}` : BIKE_WHY
+    );
+  }
+
+  if (sport === "Run") {
+    if (distanceKm == null || !(distanceKm > 0)) {
+      return Figure.missingInput("this race's distance");
+    }
+    const secPerKm = input.thresholdPaceSecPerKm;
+    if (secPerKm == null || !(secPerKm > 0)) {
+      return Figure.missingInput("your threshold pace");
+    }
+    const hours = estimateRunningHours({
+      distanceKm,
+      elevationM: elevationM ?? 0,
+      thresholdPaceSecPerKm: secPerKm,
+    });
+    if (hours == null) return Figure.missingInput("this race's distance");
+
+    const targetSecPerKm = Math.round((hours * 3600) / distanceKm);
+    const half = targetSecPerKm * PACING_BAND_FRACTION;
+
+    return Figure.available(
+      {
+        sport: "Run",
+        targetSecPerKm,
+        // Lower seconds-per-km is FASTER. Named for speed, not magnitude:
+        // lowSecPerKm is the fast end of the band.
+        lowSecPerKm: Math.round(targetSecPerKm - half),
+        highSecPerKm: Math.round(targetSecPerKm + half),
+        hours,
+      },
+      "medium",
+      RUN_WHY
     );
   }
 

@@ -77,3 +77,66 @@ describe("racePacing — Bike", () => {
     expect(bikeValue(bike()).confidence).toBe("medium");
   });
 });
+
+const run = (over: Partial<Parameters<typeof racePacing>[0]> = {}) =>
+  racePacing({
+    sport: "Run",
+    distanceKm: 21.1,
+    elevationM: 150,
+    eventDays: 1,
+    ftpWatts: null,
+    massKg: null,
+    thresholdPaceSecPerKm: 240,
+    ...over,
+  });
+
+/** The Run counterpart of bikeValue — same narrowing reason. */
+function runValue(r: ReturnType<typeof racePacing>) {
+  if (!r.available) throw new Error(`expected available, got ${r.kind}`);
+  if (r.value.sport !== "Run") throw new Error("expected a Run target");
+  return { value: r.value, confidence: r.confidence, why: r.why };
+}
+
+describe("racePacing — Run", () => {
+  it("targets a pace slower than threshold for a half marathon", () => {
+    const { value } = runValue(run());
+    expect(value.sport).toBe("Run");
+    // Threshold is ~1h race pace; a half takes longer, so pace must be slower
+    // (a HIGHER seconds-per-km) than the 240 anchor.
+    expect(value.targetSecPerKm).toBeGreaterThan(240);
+  });
+
+  // Riegel decays pace with distance. A 10k must be paced faster than a
+  // marathon off the same threshold, or the model is not being consulted.
+  it("paces a 10k faster than a marathon", () => {
+    const short = runValue(run({ distanceKm: 10, elevationM: 0 }));
+    const long = runValue(run({ distanceKm: 42.2, elevationM: 0 }));
+    expect(short.value.targetSecPerKm).toBeLessThan(long.value.targetSecPerKm);
+  });
+
+  // lowSecPerKm is the FAST end. Getting this backwards would tell an athlete
+  // their easy end is their hard end, and no type would catch it.
+  it("names the fast end low and the slow end high", () => {
+    const { targetSecPerKm, lowSecPerKm, highSecPerKm } = runValue(run()).value;
+    expect(lowSecPerKm).toBeLessThan(targetSecPerKm);
+    expect(highSecPerKm).toBeGreaterThan(targetSecPerKm);
+    expect(
+      Math.abs(
+        highSecPerKm - lowSecPerKm - 2 * targetSecPerKm * PACING_BAND_FRACTION
+      )
+    ).toBeLessThanOrEqual(1);
+  });
+
+  it("is medium confidence and cites Riegel", () => {
+    const r = runValue(run());
+    expect(r.confidence).toBe("medium");
+    expect(r.why).toMatch(/Riegel/i);
+  });
+
+  it("refuses without a threshold pace", () => {
+    const r = run({ thresholdPaceSecPerKm: null });
+    expect(r.available).toBe(false);
+    if (r.available) return;
+    expect(r.kind).toBe("missing_input");
+  });
+});
