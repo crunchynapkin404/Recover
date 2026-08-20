@@ -1,5 +1,55 @@
 # Changelog
 
+## v0.116.0 — 2026-08-20 — Both
+
+Race pacing — the skipped v0.54. How hard to go on the day, with the assumption
+behind it in plain sight.
+
+### A target and a band, for the bike and the run
+
+The race card on Train now says what effort to hold: **Target 208 W · hold
+198-218 W** for a bike race, **Target 4:45/km · hold 4:31-4:59/km** for a run,
+each followed by the assumption it rests on and how much the app trusts it.
+
+**This is not a new model, and that is the point.** `riding-time.ts` already
+resolved a sustainable share of FTP by fixed-point iteration and returned only
+the hours; `running-time.ts` already ran Riegel, which predicts race pace by
+construction. The number was being computed and thrown away. This release
+derives it and says out loud what it assumed.
+
+**A band here is an intensity range, never positional.** The app stores a
+race's total distance and total climbing and has no course profile, so "hold
+198-218 W" is supportable and "ease off on the climb at 40 km" would be
+invented. The ±5% band width is an uncited engineering bound and is documented
+as one — it does not widen when confidence drops, because that would make a
+shaky figure look derived.
+
+**Confidence never reads "high",** because nothing here is measured against
+this athlete's own race results. A bike event past 8 h reports **low**, quoting
+the reason the constant itself carries: past that anchor the figure is a
+reading of an older band, not a published measurement. Runs report **medium** —
+Riegel is published; the elevation conversion in front of it is not.
+
+### What it refuses to answer, and why it says so
+
+**Triathletes get a sentence, not a number.** How hard you ride determines what
+is left for the run, and that link is not modelled — a bike target worked out
+as if no run followed would be worse than no target at all. Multi-day events
+refuse too: the recorded distance is the total across all days, so one
+sustainable effort for it describes none of them. Missing an FTP or a threshold
+pace produces a link to set it rather than a fabricated figure.
+
+### For MCP clients
+
+`get_race_pacing` is added, at scope `read`. **Additive only** — no existing
+tool's name, scope or schema changed, so nothing breaks. The frozen tool
+surface moves 57 → 58 (`docs/API-STABILITY.md`).
+
+### Migrations
+
+**None.** No file was added to `drizzle/`, so a rollback past this release is
+unconstrained in schema terms.
+
 ## v0.115.0 — 2026-08-20 — Both
 
 The release path moves into GitHub Actions, Playwright included, and the

@@ -1193,8 +1193,26 @@ Demand order, science-constrained.
       render agree by construction. Verified with the browser in
       America/New_York against a server in Europe/Amsterdam — a harder case
       than the original repro. Guards on both, mutation-checked.
-- [ ] **Race pacing** — the skipped v0.54. Pacing bands with confidence and
-      assumptions made visible.
+- [x] **Race pacing — v0.116.0.** Mostly a derivation, not an engine:
+      `riding-time.ts` already resolved a sustainable share of FTP by
+      fixed-point iteration and returned only the hours, and Riegel predicts
+      race pace by construction, so both targets fell out of code that already
+      ran. `src/lib/race/pacing.ts` returns `Figure<PacingTarget>`, so the
+      confidence and the assumption travel with the number instead of beside
+      it, and `get_race_pacing` gives the coach the same figure the card shows.
+      **A band is an intensity range, never positional** — the schema holds a
+      race's total distance and total climbing with no course profile, so
+      anything positional would be invented. **Confidence never reads "high"**,
+      because nothing is measured against this athlete's own race results;
+      `races.resultActivityId` is populated and deliberately unused here, and
+      calibrating against it is the release that could earn it.
+      **What it refuses is the design, not a gap.** Triathlon returns a stated
+      reason: bike effort determines what is left for the run, and a wattage
+      worked out as if no run followed would be worse than no wattage.
+      Multi-day events refuse for the same kind of reason — the stored distance
+      is a total across days. The ±5% band is an uncited engineering bound,
+      documented as one, and does not widen with lower confidence, because that
+      would make a shaky figure look derived.
 - [ ] Remainder of the demand map, by votes
 
 ## Phase 4 — Breadth
