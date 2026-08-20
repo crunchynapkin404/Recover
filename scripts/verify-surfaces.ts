@@ -138,6 +138,7 @@ import {
   computeTotals,
   type AxeFinding,
 } from "./lib/axe-report";
+import { selectSurfaces } from "./lib/surface-select";
 
 // playwright-core is an exact-pinned devDependency as of v0.104.0. It used to
 // resolve ONLY from an npx cache path baked into this file
@@ -664,6 +665,51 @@ if (!slice)
 const outDir = join(process.cwd(), ".screenshots", slice);
 mkdirSync(outDir, { recursive: true });
 const axeReportPath = join(outDir, "axe-report.json");
+
+/**
+ * Surfaces main() resolves at RUNTIME rather than reading from SURFACES —
+ * their paths are only knowable once a page has been driven (a coach thread
+ * id, the newest activity, the sheet that activity opens, a freshly minted
+ * token). They are listed here so --only/--except can name them and so a typo
+ * in either is still rejected: 22 literal + these 5 is the whole surface set,
+ * and 27 x 2 themes x 2 viewports is the 108 capture entries a full run
+ * reports.
+ */
+const RESOLVED_SURFACES = [
+  "coach-thread",
+  "coach-history-active",
+  "activity-detail",
+  "debrief-sheet",
+  "settings-token-created",
+] as const;
+
+function flagList(name: string): string[] | undefined {
+  const arg = process.argv.find((a) => a.startsWith(`--${name}=`));
+  if (!arg) return undefined;
+  return arg
+    .slice(name.length + 3)
+    .split(",")
+    .map((v) => v.trim())
+    .filter(Boolean);
+}
+
+const SELECTED_SURFACES = new Set(
+  selectSurfaces([...Object.keys(SURFACES), ...RESOLVED_SURFACES], {
+    only: flagList("only"),
+    except: flagList("except"),
+  })
+);
+
+/**
+ * The single filter point. Every capture in main() goes through either
+ * captureResolved or captureTokenCreated, so gating those two gates all 27
+ * surfaces — a filter applied only to the SURFACES loop would let both
+ * capture jobs record the runtime-resolved surfaces, and the ratchet sums
+ * both reports.
+ */
+function isSelected(name: string): boolean {
+  return SELECTED_SURFACES.has(name);
+}
 
 /**
  * See scripts/lib/axe-report.ts for the full split rationale (task-7
@@ -1526,6 +1572,7 @@ async function main() {
         name: string,
         resolvePath: () => Promise<string>
       ) => {
+        if (!isSelected(name)) return;
         try {
           const path = await resolvePath();
           await captureWithRetry(
@@ -1632,8 +1679,10 @@ async function main() {
       //     utilities. Recorded as `error` AND collected into
       //     hardFailures so the run's exit code reflects it.
       try {
-        await captureTokenCreated(p, theme, vpName, dark);
-        total++;
+        if (isSelected("settings-token-created")) {
+          await captureTokenCreated(p, theme, vpName, dark);
+          total++;
+        }
       } catch (err) {
         if (err instanceof TokenStateUnreachableError) {
           console.warn(
