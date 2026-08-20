@@ -1419,6 +1419,48 @@ describe.skipIf(!hasDb)("previewTrainingPlan — two A-races", () => {
       expect(weeksUntilEvent).toBeLessThanOrEqual(22);
     });
 
+    it("uses the race demand was priced against, even when it is not in the plan", async () => {
+      // The case the first version of this fix could not handle. `demand`
+      // resolves highest-priority-then-nearest-date over ALL the athlete's
+      // races, so a third A-race NEARER than either of the plan's two is what
+      // gets priced -- while the horizon was being counted to the plan's own
+      // first target. The verdict then answered a question about neither race.
+      const nearest = addDaysYmd(FIRST_DATE, -60);
+      await makeRace({
+        name: "Unrelated but nearer",
+        raceType: "marathon",
+        date: nearest,
+      });
+      const a = await makeRace({
+        name: "Plan first",
+        raceType: "marathon",
+        date: FIRST_DATE,
+      });
+      const b = await makeRace({
+        name: "Plan final",
+        raceType: "marathon",
+        date: addDaysYmd(FIRST_DATE, 200),
+      });
+
+      const spy = vi.spyOn(feasibilityModule, "feasibilityFor");
+      const result = await previewTrainingPlan({
+        userId: USER,
+        raceType: "marathon",
+        raceDate: addDaysYmd(FIRST_DATE, 200),
+        raceIds: [a, b],
+      });
+      expect(result.ok).toBe(true);
+      if (!result.ok) throw new Error("expected ok");
+      const weeksUntilEvent = spy.mock.calls[0][0].weeksUntilEvent as number;
+
+      // FIRST_DATE is ~140 days out, so the unrelated race is ~80 days (~11
+      // weeks). Scoring against the plan's first target instead would land in
+      // the 18-22 band the test above pins -- well clear of this one, so this
+      // assertion distinguishes the two fixes rather than merely passing.
+      expect(weeksUntilEvent).toBeGreaterThanOrEqual(9);
+      expect(weeksUntilEvent).toBeLessThanOrEqual(13);
+    });
+
     it("previewFromDraft assesses feasibility against race one's horizon on a two-race plan", async () => {
       const earlierDate = FIRST_DATE;
       const laterDate = addDaysYmd(FIRST_DATE, 200);

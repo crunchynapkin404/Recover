@@ -1452,7 +1452,7 @@ export async function previewTrainingPlan(
   }
 
   // 5. Reuse the engine's own numbers rather than inventing display ones.
-  const { target, demand, level, longestSessionHours } =
+  const { target, demand, level, longestSessionHours, targetRace } =
     await assembleWeeklyTarget(userId, today, {
       availabilityHours: hoursPerWeek,
       planHoursPerWeek: hoursPerWeek,
@@ -1500,19 +1500,22 @@ export async function previewTrainingPlan(
   // no race date, or no measured current-hours/longest-ride history) and
   // names which one; `PlanPreview.feasibility` still collapses that to
   // `null` here — only the Train surface renders the reason.
-  // `weeksUntilEvent` must match the race `demand` was resolved AGAINST,
-  // not the plan's own end. `demand` comes from highest-priority-then-
-  // nearest-date over the athlete's races (assembleWeeklyTarget ->
-  // volume-inputs.ts), which is race ONE on a two-race plan -- but
-  // `weeksTotal` counts weeks to the FINAL target (race two). Scoring
-  // race one's demand against race two's horizon is systematically
-  // optimistic. `firstTarget` is null on a single-race plan, where race
-  // one IS the final race, so this is unchanged there and stays
-  // `weeksTotal` exactly.
-  const weeksUntilDemand = firstTarget
-    ? Math.ceil(
-        daysBetween(today, new Date(firstTarget.date + "T00:00:00")) / 7
-      )
+  // `weeksUntilEvent` must match the race `demand` was resolved AGAINST, not
+  // the plan's own end, or the verdict answers a question nobody asked.
+  //
+  // Read it off `targetRace`, which `assembleWeeklyTarget` returns from the
+  // very same highest-priority-then-nearest-date pick that produced `demand`
+  // (volume-inputs.ts). An earlier fix used the plan's own first target
+  // instead, which is right whenever the plan's races are the athlete's
+  // nearest — and wrong when a THIRD, unrelated A-race sits nearer than
+  // either of them, because then `demand` prices that race while the horizon
+  // counted to a later one. Taking both from the same source cannot disagree
+  // by construction.
+  //
+  // `weeksTotal` remains the fallback for an athlete with no races at all,
+  // where `demand` is null and feasibility does not speak anyway.
+  const weeksUntilDemand = targetRace
+    ? Math.ceil(daysBetween(today, new Date(targetRace.date + "T00:00:00")) / 7)
     : weeksTotal;
   const feasibilityFigure = feasibilityFor({
     demand,
@@ -1707,7 +1710,7 @@ export async function previewFromDraft(
     where: eq(schema.availabilityDefaults.userId, draft.userId),
   });
 
-  const { target, demand, level, longestSessionHours } =
+  const { target, demand, level, longestSessionHours, targetRace } =
     await assembleWeeklyTarget(draft.userId, today, {
       availabilityHours: hoursPerWeek,
       planHoursPerWeek: hoursPerWeek,
@@ -1723,19 +1726,11 @@ export async function previewFromDraft(
   // ahead of feasibility below, not only for the bridge-room check further
   // down.
 
-  // `weeksUntilEvent` must match the race `demand` was resolved AGAINST,
-  // not the plan's own end. `demand` comes from highest-priority-then-
-  // nearest-date over the athlete's races (assembleWeeklyTarget ->
-  // volume-inputs.ts), which is race ONE on a two-race plan -- but
-  // `weeksUntilRace` (above) counts weeks to the FINAL target (race two,
-  // `draft.raceDate` always names it). Scoring race one's demand against
-  // race two's horizon is systematically optimistic. `draftTargets.first`
-  // is null on a single-race plan, where race one IS the final race, so
-  // this is unchanged there and stays `weeksUntilRace` exactly.
-  const weeksUntilDemand = draftTargets.first
-    ? Math.ceil(
-        daysBetween(today, new Date(draftTargets.first.date + "T00:00:00")) / 7
-      )
+  // Same source as `demand` itself — see the longer note on the twin in
+  // `previewTrainingPlan`. Using the plan's own first target instead is wrong
+  // when a third, unrelated A-race is nearer than either of the plan's two.
+  const weeksUntilDemand = targetRace
+    ? Math.ceil(daysBetween(today, new Date(targetRace.date + "T00:00:00")) / 7)
     : weeksUntilRace;
 
   const feasibilityFigure = feasibilityFor({
