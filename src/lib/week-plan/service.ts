@@ -16,6 +16,7 @@ import { findBlockFor } from "./slots";
 import { providerSportAliases } from "@/lib/canonical-sport";
 import type { AvailabilityBlock } from "@/lib/availability/types";
 import { periodize } from "@/lib/training-plan";
+import { planRaceTargets, planWeekOf } from "@/lib/plan-targets";
 import { requirePlanSport } from "@/lib/plan-sport";
 import { sanitizeDayFlags } from "@/lib/day-flags";
 import { assembleVolumeInputs, assembleWeeklyTarget } from "./volume-inputs";
@@ -67,6 +68,13 @@ export function addDaysYmd(ymd: string, n: number): string {
   d.setDate(d.getDate() + n);
   return localYmd(d);
 }
+
+// daysBetweenYmd / planWeekOf moved to @/lib/plan-targets (Task 6): that
+// module has zero imports and is a true leaf, so both this file (which
+// training-plan.ts's periodize() depends on) and training-plan.ts itself
+// (which needs planWeekOf for a two-race preview) can import them without a
+// cycle. Re-exported here would just be a second name for the same import,
+// so callers now import planWeekOf directly from @/lib/plan-targets.
 
 /**
  * Legacy adapter for callers that still only speak one number per day (the
@@ -380,16 +388,27 @@ export async function rolloverWeekPlan(
   // generateTrainingPlan actually decided the plan's sport was.
   const sport = requirePlanSport(constraints.sports?.[0]);
 
+  // Which race is which, read the one way this plan row is allowed to be
+  // read for it — never by picking raceDate/raceId off `plan` directly.
+  const targets = planRaceTargets(plan);
+  const firstRace = targets.first
+    ? {
+        weekNumber: planWeekOf(plan.startDate, targets.first.date),
+        raceType: targets.first.raceType,
+      }
+    : null;
+
   // Recomputed fresh, never read as authority — a stored target is exactly
   // how `hoursPerWeek` went stale in the first place.
-  const derivedBlocks = periodize(
-    plan.weeksTotal,
-    plan.startingCtl ?? 0,
-    constraints.daysPerWeek,
-    target.hours,
+  const derivedBlocks = periodize({
+    weeksTotal: plan.weeksTotal,
+    startingCtl: plan.startingCtl ?? 0,
+    daysPerWeek: constraints.daysPerWeek,
+    hoursPerWeek: target.hours,
     sport,
-    queenStageHours
-  );
+    queenStageHours,
+    firstRace,
+  });
   const derived =
     derivedBlocks.find((b) => b.weekNumber === plan.currentWeek) ??
     derivedBlocks[derivedBlocks.length - 1];
@@ -421,6 +440,9 @@ export async function rolloverWeekPlan(
     planStyle: constraints.planStyle,
     seasonMode: constraints.seasonMode,
     reentryStage: constraints.reentryStage,
+    previousARace: targets.first
+      ? { date: targets.first.date, raceType: targets.first.raceType }
+      : null,
   });
 
   // 4. Persist.

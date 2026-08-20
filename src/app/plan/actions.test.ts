@@ -1,5 +1,6 @@
 import {
   afterAll,
+  afterEach,
   beforeAll,
   beforeEach,
   describe,
@@ -10,6 +11,7 @@ import {
 import { and, eq } from "drizzle-orm";
 import {
   clearDayOverride,
+  regeneratePreviewAction,
   setDayOverride,
   setPlanStyleQuick,
   setSeasonModeQuick,
@@ -1214,6 +1216,126 @@ describe.skipIf(!hasDb)("server actions", () => {
         expect(resolved.get(DATES[0])).toEqual(pinned);
         expect(resolved.get(otherMonday)).toEqual(defaultV2);
       });
+    });
+  });
+
+  // Task 8, Step 1: a live data-loss defect. Regenerating a two-race draft
+  // (e.g. to change hours/days) used to call previewTrainingPlan with only
+  // `raceId`, so it silently rebuilt the draft as a single-race plan and the
+  // athlete lost the second arc without any error.
+  describe("regeneratePreviewAction", () => {
+    function todayYmd(): string {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    }
+
+    // Far enough out to clear the 52-week horizon refusal with room to
+    // spare, and far enough from "today" that a slow test run can't nudge a
+    // boundary date across a week seam.
+    const FIRST_DATE_OFFSET = 140;
+    // raceRecoveryDays("marathon") + taperWindowDays("marathon") = 14 + 21 =
+    // 35; a 60-day gap clears bridge room comfortably so this test isn't
+    // also exercising the no_bridge_room warning path.
+    const GAP_DAYS = 60;
+
+    afterEach(async () => {
+      const { db, schema } = await import("@/lib/db");
+      await db
+        .delete(schema.trainingPlans)
+        .where(eq(schema.trainingPlans.userId, USER));
+      await db.delete(schema.races).where(eq(schema.races.userId, USER));
+    });
+
+    async function seedTwoRaceDraft(): Promise<{ id: string }> {
+      const { db, schema } = await import("@/lib/db");
+      const { addDaysYmd } = await import("@/lib/week-plan/service");
+      const firstDate = addDaysYmd(todayYmd(), FIRST_DATE_OFFSET);
+      const finalDate = addDaysYmd(firstDate, GAP_DAYS);
+
+      const [first] = await db
+        .insert(schema.races)
+        .values({
+          userId: USER,
+          name: "Spring Marathon",
+          raceType: "marathon",
+          sport: "Run",
+          date: firstDate,
+          priority: "A",
+          status: "upcoming",
+        })
+        .returning();
+      const [final] = await db
+        .insert(schema.races)
+        .values({
+          userId: USER,
+          name: "Fall Marathon",
+          raceType: "marathon",
+          sport: "Run",
+          date: finalDate,
+          priority: "A",
+          status: "upcoming",
+        })
+        .returning();
+
+      const [draft] = await db
+        .insert(schema.trainingPlans)
+        .values({
+          userId: USER,
+          title: "Two Race Draft",
+          raceType: "marathon",
+          raceDate: finalDate,
+          startDate: todayYmd(),
+          weeksTotal: 30,
+          currentWeek: 1,
+          status: "draft",
+          raceId: final.id,
+          firstRaceId: first.id,
+          firstRaceDate: firstDate,
+          firstRaceType: "marathon",
+          constraints: { daysPerWeek: 5, hoursPerWeek: 8, sports: ["Run"] },
+        })
+        .returning();
+      return draft;
+    }
+
+    it("keeps both targets when a two-race draft is regenerated", async () => {
+      const draft = await seedTwoRaceDraft();
+      const result = await regeneratePreviewAction(draft.id, 5, 9);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      // The second arc must survive. Before the fix, phases collapse to
+      // segment 1 because the action passed only `raceId`.
+      expect(result.preview.phases.some((p) => p.segment === 2)).toBe(true);
+    });
+
+    // FIX 2 regression: `planRaceTargets` returns `final.id: plan.raceId ??
+    // ""` (src/lib/plan-targets.ts). ON DELETE SET NULL nulls
+    // trainingPlans.raceId when its linked race row is deleted, but leaves
+    // firstRaceId/firstRaceDate/firstRaceType untouched -- so a two-race
+    // draft whose FINAL race was deleted produces raceIds:
+    // ["<first-uuid>", ""]. Before the fix that "" reached
+    // `inArray(schema.races.id, ...)` as a raw parameter, and Postgres
+    // rejects "" for a uuid column with an unhandled server error instead
+    // of a typed refusal.
+    it("degrades to a single-race plan on race one when the final race row is deleted", async () => {
+      const draft = await seedTwoRaceDraft();
+      const { db, schema } = await import("@/lib/db");
+      const finalRace = await db.query.races.findFirst({
+        where: and(
+          eq(schema.races.userId, USER),
+          eq(schema.races.name, "Fall Marathon")
+        ),
+      });
+      expect(finalRace).toBeDefined();
+      await db.delete(schema.races).where(eq(schema.races.id, finalRace!.id));
+
+      const result = await regeneratePreviewAction(draft.id, 5, 9);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      // Degrades to a single-race plan targeting race one -- not a crash,
+      // and not a plan that silently lost the athlete's remaining race.
+      expect(result.preview.race.name).toBe("Spring Marathon");
+      expect(result.preview.phases.every((p) => p.segment !== 2)).toBe(true);
     });
   });
 });

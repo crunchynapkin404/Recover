@@ -4,6 +4,7 @@ import {
   type PlannedWorkout,
 } from "@/lib/training-plan";
 import {
+  raceRecoveryDays,
   raceWeekWorkouts,
   taperFractionForWeek,
   TAPER_FRACTION_RACE_WEEK,
@@ -147,6 +148,15 @@ export interface MaterializeInput {
   seasonMode?: SeasonMode;
   /** Optional explicit re-entry stage. */
   reentryStage?: ReentryStage;
+  /**
+   * The most recent A-race before this week, if any — sorted out of the
+   * plan's full race list by the caller (`racesForWeek` drops it from
+   * `races` the moment its own week passes). Used to suppress a LATER
+   * race's taper reshaping while this week still sits inside the earlier
+   * race's recovery window. See
+   * docs/specs/2026-08-19-multi-a-race-transition-evidence.md §7.
+   */
+  previousARace?: { date: string; raceType: string } | null;
 }
 
 export interface MaterializeResult {
@@ -161,6 +171,17 @@ function addDays(ymd: string, n: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
     d.getDate()
   ).padStart(2, "0")}`;
+}
+
+// taper.ts has an identical private helper; not exported there, so this
+// mirrors it rather than reaching across the module boundary for a
+// one-line date subtraction.
+function daysBetween(fromYmd: string, toYmd: string): number {
+  return Math.round(
+    (new Date(toYmd + "T00:00:00").getTime() -
+      new Date(fromYmd + "T00:00:00").getTime()) /
+      86_400_000
+  );
 }
 
 type PlanPhase = MaterializeInput["skeleton"]["phase"];
@@ -224,8 +245,37 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
   const primaryTaperFraction = primary
     ? taperFractionForWeek(input.weekStart, primary)
     : null;
+  // A week inside the PREVIOUS A-race's recovery window is still
+  // repairing, and that recovery outranks any LATER race's taper.
+  // `racesForWeek` (the caller) drops a race from `races` the moment its
+  // own week passes, so without this guard the week right after an A-race
+  // gets reshaped as the NEXT race's taper instead — 80% of prior actual
+  // load, intensity preserved, openers two days out — on the week the
+  // evidence says is still resolving. See
+  // docs/specs/2026-08-19-multi-a-race-transition-evidence.md §7. Emitting
+  // a "recovery" phase for this week is periodize()'s job, not this
+  // function's — WeekState carries no phase field — so this guard only
+  // suppresses the taper reshaping, nothing else.
+  //
+  // The window is bounded BOTH ways. `daysBetween(previousARace.date,
+  // weekStart)` is negative for every week that starts BEFORE that race —
+  // and the live wiring sites (week-plan/service.ts, week-plan/project.ts)
+  // pass `previousARace: targets.first` unconditionally, from plan week 1
+  // onward. An unbounded `<` check therefore treated the whole of arc one
+  // — including race one's own taper weeks and its own race week — as
+  // "inside race one's recovery window" and suppressed race one's own
+  // taper. `gap > 0` requires the week to start strictly AFTER that race.
+  const gap = input.previousARace
+    ? daysBetween(input.previousARace.date, input.weekStart)
+    : null;
+  const inRecoveryWindow =
+    gap != null &&
+    gap > 0 &&
+    gap < raceRecoveryDays(input.previousARace!.raceType);
   const taperFraction =
-    primary && primary.priority === "A" ? primaryTaperFraction : null;
+    !inRecoveryWindow && primary && primary.priority === "A"
+      ? primaryTaperFraction
+      : null;
   const hasActualLoad = !!input.prevWeek && input.prevWeek.actualLoad > 0;
   const hasCtl = input.currentCtl != null;
   const taperBase = hasActualLoad

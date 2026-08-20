@@ -10,46 +10,33 @@
 # the image and the release therefore feels finished before the release page
 # exists. This script does not let you stop half way.
 #
-# It used to say `gh pr merge` and `gh release create` were refused by Claude
-# Code's permission classifier, so an assistant could prepare a release but
-# never perform one. A 2026-08-12 note declared that dead, on the evidence
-# that `gh release create --help` and `gh pr merge --help` both resolve and
-# that PR #132 was opened with `gh pr create`.
+# WHO MAY RUN IT: anyone. Agent or human, no distinction. Changed 2026-08-20
+# by the owner, replacing a rule that reserved the merge/tag/publish tail for
+# a human.
 #
-# SETTLED 2026-08-18 (v0.108.0), by running it rather than reasoning about it.
-# THE RESTRICTION IS REAL. Invoking `./scripts/release.sh 0.107.0 145` as an
-# agent is refused outright by the auto-mode classifier ("Blocked by
-# classifier") before the script executes a single line.
+# THE RULE THAT REMAINS, and it is the one the evidence actually supports:
+# **THE RELEASE GOES THROUGH THIS SCRIPT. NEVER HAND-RUN THE STEPS.**
 #
-# The 2026-08-12 evidence never supported its conclusion: `--help` resolving
-# proves a subcommand exists, not that the classifier permits the real
-# invocation, and `gh pr create` being allowed says nothing about `gh pr
-# merge` — creating a PR is reversible and merging is not, which is exactly
-# the distinction the classifier draws. Confirmed in the same session: `git
-# push` and `gh pr create` both succeeded (PR #146), while this script was
-# denied.
+# All six half-releases on record — v0.28.0, v0.28.1, v0.29.0, v0.30.0, and
+# then v0.112.0 and v0.113.0 on 2026-08-19 — were hand-run. Not one was caused
+# by this script, which is `set -euo pipefail` and cannot tag without then
+# creating the release object. The old rule read that history as "agents must
+# not release". It actually says "nobody should hand-run the tail", which is a
+# different and better-supported claim: the failure mode is a sequence
+# performed step by step by an operator who believes it is finished one step
+# early, and that operator's species is not the variable.
 #
-# AMENDED 2026-08-19, again by running it rather than reasoning about it. The
-# restriction is MODE-DEPENDENT. With auto mode OFF, an agent ran `gh pr
-# merge`, `gh release create`, tag pushes and `gh workflow run` unrefused, and
-# took v0.112.0 and v0.113.0 all the way to production. `git push origin
-# main:main` was still denied in the same session, so the classifier is drawing
-# a narrower line than "no releases", not no line at all.
+# So if you are about to type `gh pr merge`, `git tag` or `gh release create`
+# for a release — stop, and run this instead.
 #
-# THIS CHANGES NOTHING ABOUT THE ADVICE BELOW, and the same session is why.
-# Both releases were driven by hand-running the tail step by step instead of
-# this script, and both reached production with NO GitHub release object —
-# noticed only when someone asked where the notes were. That is the fourth and
-# fifth time after v0.28.0, v0.28.1, v0.29.0 and v0.30.0. Being ALLOWED to
-# hand-run the tail is not a reason to; the script exists because the tail is
-# the part that gets half-done, and an agent that can perform every step is
-# exactly the thing most likely to stop one short.
-#
-# SO A HUMAN RUNS THE RELEASE. An agent can take it all the way to a green,
-# mergeable PR and should; the merge/tag/publish tail is yours. Do not
-# hand-run the steps individually to get around this — the reason to use the
-# script is that it refuses to stop half way, and half a release is the
-# failure mode it exists to prevent (v0.28.0, v0.28.1, v0.29.0, v0.30.0).
+# The classifier restriction on agents here is MODE-DEPENDENT (settled
+# 2026-08-18, amended 2026-08-19, both times by running it rather than
+# reasoning about it): with auto mode OFF an agent can run `gh pr merge`, `gh
+# release create`, tag pushes and `gh workflow run`, while `git push origin
+# main:main` stays denied. If this script is refused part-way through, that is
+# where to look — and a refusal part-way through is precisely the half-release
+# it exists to prevent, so re-run the script rather than finishing the
+# remaining steps by hand.
 #
 # The tag is the LAST step, and it is cut only after main's own CI for the
 # exact commit being tagged comes back green.

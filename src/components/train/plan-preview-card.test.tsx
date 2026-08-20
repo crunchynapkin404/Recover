@@ -42,6 +42,7 @@ const preview: PlanPreview = {
     date: "2026-09-13",
     priority: "A",
   },
+  firstRace: null,
   startDate: "2026-08-05",
   weeksTotal: 6,
   // Deliberately NOT 5/8 (the old hardcoded `useState` defaults) — Finding 3
@@ -51,10 +52,28 @@ const preview: PlanPreview = {
   daysPerWeek: 6,
   hoursPerWeek: 10,
   phases: [
-    { phase: "base", weeks: 3, weekNumbers: [1, 2, 4] },
-    { phase: "build", weeks: 2, weekNumbers: [5, 7, 9] },
-    { phase: "taper", weeks: 1, weekNumbers: [6] },
-    { phase: "recovery", weeks: 1, weekNumbers: [3] },
+    {
+      segment: 1,
+      phase: "base",
+      weeks: 3,
+      weekNumbers: [1, 2, 4],
+      isBridge: false,
+    },
+    {
+      segment: 1,
+      phase: "build",
+      weeks: 2,
+      weekNumbers: [5, 7, 9],
+      isBridge: false,
+    },
+    { segment: 1, phase: "taper", weeks: 1, weekNumbers: [6], isBridge: false },
+    {
+      segment: 1,
+      phase: "recovery",
+      weeks: 1,
+      weekNumbers: [3],
+      isBridge: false,
+    },
   ],
   weeks: Array.from({ length: 6 }, (_, i) => ({
     weekNumber: i + 1,
@@ -62,6 +81,7 @@ const preview: PlanPreview = {
     targetLoad: 400 + i * 10,
     targetHours: 8,
     raceName: i === 5 ? "Dolomites Gran Fondo" : null,
+    isBridge: false,
   })),
   startingCtl: { value: 30, source: "global_fallback" },
   feasibility: null,
@@ -113,7 +133,9 @@ describe("PlanPreviewCard", () => {
   it("shows every phase row and a total equal to the sum of phase weeks", () => {
     mount();
     for (const row of preview.phases) {
-      const el = container.querySelector(`[data-testid="phase-${row.phase}"]`);
+      const el = container.querySelector(
+        `[data-testid="phase-${row.segment}-${row.phase}"]`
+      );
       expect(el).toBeTruthy();
       expect(el!.textContent).toContain(String(row.weeks));
     }
@@ -125,6 +147,16 @@ describe("PlanPreviewCard", () => {
     expect(
       container.querySelector('[data-testid="phase-total"]')!.textContent
     ).toBe(String(expectedTotal));
+  });
+
+  // Task 8, Step 4: a single-race plan (every row at segment 1, this
+  // fixture's shape) must render byte-identically to today — no spanning
+  // header row at all, since there is only one arc to distinguish.
+  it("renders no segment header for a single-race plan", () => {
+    mount();
+    expect(
+      container.querySelectorAll('[data-testid^="segment-"]')
+    ).toHaveLength(0);
   });
 
   it("renders one sentence per warning", () => {
@@ -257,5 +289,192 @@ describe("PlanPreviewCard", () => {
     expect(html).not.toMatch(/text-white\//);
     expect(html).not.toMatch(/bg-white\//);
     expect(html).not.toMatch(/border-white\//);
+  });
+
+  // Task 8, Steps 3-4: a two-arc plan has two `base` rows and two `taper`
+  // rows sharing a `phase` — the React key collision this release fixes —
+  // and must show which arc each row belongs to.
+  describe("a two-arc (two-A-race) plan", () => {
+    const twoArcPreview: PlanPreview = {
+      ...preview,
+      phases: [
+        {
+          segment: 1,
+          phase: "base",
+          weeks: 4,
+          weekNumbers: [1, 2, 3, 4],
+          isBridge: false,
+        },
+        {
+          segment: 1,
+          phase: "taper",
+          weeks: 1,
+          weekNumbers: [5],
+          isBridge: false,
+        },
+        {
+          segment: 1,
+          phase: "recovery",
+          weeks: 1,
+          weekNumbers: [6],
+          isBridge: false,
+        },
+        {
+          segment: 2,
+          phase: "base",
+          weeks: 2,
+          weekNumbers: [7, 8],
+          isBridge: false,
+        },
+        {
+          segment: 2,
+          phase: "taper",
+          weeks: 1,
+          weekNumbers: [9],
+          isBridge: false,
+        },
+      ],
+    };
+
+    let twoArcRoot: Root | null = null;
+    let twoArcContainer: HTMLDivElement;
+
+    function mountTwoArc() {
+      twoArcContainer = document.createElement("div");
+      document.body.appendChild(twoArcContainer);
+      twoArcRoot = createRoot(twoArcContainer);
+      act(() => {
+        twoArcRoot!.render(<PlanPreviewCard preview={twoArcPreview} />);
+      });
+    }
+
+    afterEach(() => {
+      if (twoArcRoot) act(() => twoArcRoot!.unmount());
+      twoArcRoot = null;
+      twoArcContainer?.remove();
+    });
+
+    it("gives each arc its own header row and each phase row a distinct testid", () => {
+      mountTwoArc();
+
+      const headers = twoArcContainer.querySelectorAll(
+        '[data-testid^="segment-"]'
+      );
+      expect(headers).toHaveLength(2);
+      expect(
+        twoArcContainer.querySelector('[data-testid="segment-1"]')!.textContent
+      ).toContain("First race");
+      expect(
+        twoArcContainer.querySelector('[data-testid="segment-2"]')!.textContent
+      ).toContain(twoArcPreview.race.name);
+
+      // Two "base" rows and two "taper" rows, one per segment — distinct
+      // data-testids (and React keys), not a collision on `phase` alone.
+      for (const testid of [
+        "phase-1-base",
+        "phase-1-taper",
+        "phase-1-recovery",
+        "phase-2-base",
+        "phase-2-taper",
+      ]) {
+        expect(
+          twoArcContainer.querySelector(`[data-testid="${testid}"]`)
+        ).toBeTruthy();
+      }
+    });
+
+    it("uses the token scale for the segment header too", () => {
+      mountTwoArc();
+      const html = twoArcContainer.innerHTML;
+      expect(html).not.toMatch(/text-\[[\d.]+px\]/);
+      expect(html).not.toMatch(/\btext-(xs|sm)\b/);
+    });
+  });
+});
+
+describe("two-arc labelling", () => {
+  const twoArc: PlanPreview = {
+    ...preview,
+    firstRace: { id: "r1", name: "Spring Marathon", date: "2026-11-12" },
+    race: { ...preview.race, name: "Autumn Marathon" },
+    phases: [
+      {
+        segment: 1,
+        phase: "base",
+        weeks: 2,
+        weekNumbers: [1, 2],
+        isBridge: false,
+      },
+      {
+        segment: 1,
+        phase: "recovery",
+        weeks: 1,
+        weekNumbers: [3],
+        isBridge: false,
+      },
+      {
+        segment: 1,
+        phase: "recovery",
+        weeks: 2,
+        weekNumbers: [4, 5],
+        isBridge: true,
+      },
+      {
+        segment: 2,
+        phase: "taper",
+        weeks: 1,
+        weekNumbers: [6],
+        isBridge: false,
+      },
+    ],
+  };
+
+  let root: Root | null = null;
+  let container: HTMLDivElement;
+
+  function mount(p: PlanPreview) {
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+    act(() => {
+      root!.render(<PlanPreviewCard preview={p} />);
+    });
+  }
+
+  afterEach(() => {
+    if (root) act(() => root!.unmount());
+    root = null;
+    container?.remove();
+  });
+
+  it("names segment 1 after the first race, not a placeholder", () => {
+    mount(twoArc);
+    expect(
+      container.querySelector('[data-testid="segment-1"]')!.textContent
+    ).toContain("Spring Marathon");
+    expect(
+      container.querySelector('[data-testid="segment-2"]')!.textContent
+    ).toContain("Autumn Marathon");
+    // The placeholder read as unfinished sitting above a real race name.
+    expect(container.textContent).not.toContain("First race");
+  });
+
+  it("names the bridge instead of calling it another Recovery row", () => {
+    mount(twoArc);
+    const bridge = container.querySelector('[data-testid="phase-bridge"]')!;
+    expect(bridge.textContent).toContain("Recovery between races");
+    expect(bridge.textContent).toContain("weeks 4, 5");
+    // The arc's OWN easy week stays a separate, ordinary Recovery row --
+    // merging the two is what made the bridge invisible on screen.
+    expect(
+      container.querySelector('[data-testid="phase-1-recovery"]')!.textContent
+    ).toContain("weeks 3");
+  });
+
+  it("falls back when the first race row was deleted underneath the draft", () => {
+    mount({ ...twoArc, firstRace: null });
+    expect(
+      container.querySelector('[data-testid="segment-1"]')!.textContent
+    ).toContain("First race");
   });
 });

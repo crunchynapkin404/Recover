@@ -701,9 +701,13 @@ describe.skipIf(!hasDb)("week-plan service", () => {
       // (see rollover-volume.test.ts's 20x-spread test), so this
       // independently reproduces what rolloverWeekPlan computed internally
       // without needing to replicate the volume-derivation pipeline.
-      const derived = periodize(12, 0, 5, 999, "Bike").find(
-        (b) => b.weekNumber === 1
-      )!;
+      const derived = periodize({
+        weeksTotal: 12,
+        startingCtl: 0,
+        daysPerWeek: 5,
+        hoursPerWeek: 999,
+        sport: "Bike",
+      }).find((b) => b.weekNumber === 1)!;
 
       // This is the finding: passing an already-clamped hours figure to
       // materializeWeek would make its own availability-vs-need comparison

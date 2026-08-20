@@ -24,6 +24,7 @@ import {
   resolveWeekStartTarget,
 } from "@/lib/availability/validate-week-start";
 import { createRace, deleteRace, updateRace } from "@/lib/race/service";
+import { planRaceTargets } from "@/lib/plan-targets";
 import type { PlanChange } from "@/lib/race/forecast";
 import { simulateRaceForm } from "@/lib/race/outlook";
 import {
@@ -809,10 +810,27 @@ export async function regeneratePreviewAction(
   });
   if (!draft) return { ok: false, reason: "not_found" };
 
+  const targets = planRaceTargets(draft);
   const result = await previewTrainingPlan({
     userId: user.id,
     raceType: draft.raceType,
     raceDate: draft.raceDate,
+    // Both targets, or regeneration silently downgrades a two-race plan to
+    // a single-race one — the athlete changes their hours and loses an arc.
+    // previewTrainingPlan prefers `raceIds` when present, so `raceId` below
+    // stays as the legacy fallback for the no-race draft path (undefined
+    // here, never `[]`, keeps that branch behaving exactly as today).
+    // `.filter(Boolean)` drops `planRaceTargets`' `""` sentinel — the FINAL
+    // race row can be deleted (ON DELETE SET NULL nulls `race_id` but
+    // leaves `first_race_id` alone) while race one still stands, and `""`
+    // must never reach `inArray(schema.races.id, …)`: Postgres rejects it
+    // for a uuid column outright. Filtering degrades this plan to a
+    // single-race plan on race one, rather than crashing.
+    raceIds: targets.first
+      ? [targets.first.id, targets.final.id].filter(Boolean)
+      : targets.final.id
+        ? [targets.final.id]
+        : undefined,
     raceId: draft.raceId ?? undefined,
     title: draft.title,
     daysPerWeek,

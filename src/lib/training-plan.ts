@@ -3,7 +3,7 @@
  * training plan generator. No LLM dependency; uses template-based
  * periodization with sport-specific workout prescriptions.
  */
-import { asc, eq, and } from "drizzle-orm";
+import { asc, eq, and, inArray } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { createRace } from "@/lib/race/service";
 import type { Purpose } from "@/lib/availability/types";
@@ -31,10 +31,17 @@ import {
 import { feasibilityFor } from "@/lib/race/feasibility";
 import { PLAN_CONSTANTS as PC } from "@/lib/plan-constants";
 import {
+  raceRecoveryDays,
+  taperWindowDays,
   TAPER_FRACTION_RACE_WEEK,
   TAPER_FRACTION_WEEK_1,
   TAPER_FRACTION_WEEK_2,
 } from "@/lib/race/taper";
+import {
+  daysBetweenYmd,
+  planRaceTargets,
+  planWeekOf,
+} from "@/lib/plan-targets";
 import { resolvePlanStyle } from "@/lib/plan-style/resolve";
 import type { PlanStyle } from "@/lib/plan-style/types";
 import { resolveSeasonMode } from "@/lib/season-mode/resolve";
@@ -236,6 +243,25 @@ interface Block {
   targetLoad: number;
   targetSessions: number;
   workouts: PlannedWorkout[];
+  /**
+   * Which arc this week belongs to. 1 = arc one plus the bridging recovery
+   * that follows it (or the plan's only arc, when there is no `firstRace`).
+   * 2 = the rebuild arc after that recovery. `periodize` is the one owner
+   * of this value — see `buildPhases` (plan-preview.ts), which groups by
+   * `(segment, phase)` rather than recomputing the boundary itself.
+   */
+  segment: 1 | 2;
+  /**
+   * True only for the recovery weeks that BRIDGE two A-races, false for the
+   * ordinary step-loading recovery weeks `arc()` emits on its own cadence.
+   *
+   * Both are `phase: "recovery"`, and merging them is what made the bridge
+   * invisible on screen: a two-race plan rendered "Recovery · 5 · weeks 4, 7,
+   * 11, 14, 15" with nothing saying that 14-15 are the gap between the
+   * athlete's two goal races and 4/7/11 are their normal easy weeks. The
+   * bridge is the whole feature; it needs its own row.
+   */
+  isBridge: boolean;
 }
 
 export interface GeneratePlanParams {
@@ -247,7 +273,19 @@ export interface GeneratePlanParams {
   hoursPerWeek?: number; // default 8
   planStyle?: PlanStyle;
   seasonMode?: SeasonMode;
+  /** @deprecated Use `raceIds`. Kept as the single-target form — behaves
+   *  exactly as before `raceIds` existed. */
   raceId?: string;
+  /**
+   * The A-race(s) this plan targets, by id. previewTrainingPlan does not
+   * select races — the caller decides. One id behaves exactly like `raceId`
+   * above (in fact `raceId` is normalised into a one-element array of this).
+   * Two ids target the plan at both: the earlier date becomes the plan's
+   * `firstRace`, the later its usual final target, regardless of the order
+   * given here. More than two ids is refused (`too_many_races`); either
+   * target not A-priority and `upcoming` is refused (`second_race_not_a`).
+   */
+  raceIds?: string[];
 }
 
 export interface GeneratePlanResult {
@@ -325,15 +363,35 @@ function taperFractionFromEnd(weeksFromEnd: number): number {
  * `targetLoad`/`targetSessions` here. Do not "simplify" that parameter away
  * on the assumption these blocks already carry it; they don't.
  */
-export function periodize(
-  weeksTotal: number,
-  startingCtl: number,
-  daysPerWeek: number,
-  hoursPerWeek: number,
-  sport: PlanSport,
-  queenStageHours: number | null = null,
-  startingTsb: number | null = null
+export interface PeriodizeOptions {
+  weeksTotal: number;
+  startingCtl: number;
+  daysPerWeek: number;
+  hoursPerWeek: number;
+  sport: PlanSport;
+  queenStageHours?: number | null;
+  startingTsb?: number | null;
+  /**
+   * The earlier A-race, when the plan has two. null = today's single arc.
+   * `weekNumber` is 1-based and is the week the race falls in.
+   */
+  firstRace?: { weekNumber: number; raceType: string } | null;
+}
+
+/** One Base -> Build -> Peak -> Taper progression over `weeks` weeks. */
+function arc(
+  opts: PeriodizeOptions & { weeks: number; segment: 1 | 2 }
 ): Block[] {
+  const weeksTotal = opts.weeks;
+  const {
+    startingCtl,
+    daysPerWeek,
+    hoursPerWeek,
+    sport,
+    queenStageHours = null,
+    startingTsb = null,
+    segment,
+  } = opts;
   // Phase distribution
   const baseWeeks = Math.max(
     PC.MIN_BASE_WEEKS,
@@ -447,19 +505,18 @@ export function periodize(
       phase !== "taper";
 
     if (isRecovery) {
-      blocks.push({
-        weekNumber: w,
-        phase: "recovery",
-        targetLoad: Math.round(currentLoad * PC.RECOVERY_FRACTION),
-        targetSessions: Math.max(3, daysPerWeek - 1),
-        workouts: generateWorkouts(
-          daysPerWeek - 1,
-          hoursPerWeek * PC.RECOVERY_FRACTION,
-          "recovery",
+      blocks.push(
+        buildRecoveryBlock(
+          w,
+          currentLoad,
+          daysPerWeek,
+          hoursPerWeek,
           sport,
-          queenStageHours
-        ),
-      });
+          queenStageHours,
+          segment,
+          false
+        )
+      );
       weeksSinceRecovery = 0;
       // Don't increase load after recovery
     } else if (phase === "taper") {
@@ -478,6 +535,8 @@ export function periodize(
           sport,
           queenStageHours
         ),
+        segment,
+        isBridge: false,
       });
       weeksSinceRecovery += 1;
     } else {
@@ -514,6 +573,8 @@ export function periodize(
         targetLoad,
         targetSessions: daysPerWeek,
         workouts,
+        segment,
+        isBridge: false,
       });
 
       // When opening form is negative, week 1 is intentionally downscaled.
@@ -556,6 +617,166 @@ export function periodize(
   }
 
   return blocks;
+}
+
+/**
+ * The single recovery-week block: a `PC.RECOVERY_FRACTION` cut of `loadBasis`
+ * for load, and of `hoursPerWeek` for the workouts generated to fill it.
+ * Shared by `arc()`'s in-phase recovery weeks and `recoverySegment()`'s
+ * between-arc recovery block — one construction, two call sites.
+ */
+function buildRecoveryBlock(
+  weekNumber: number,
+  loadBasis: number,
+  daysPerWeek: number,
+  hoursPerWeek: number,
+  sport: PlanSport,
+  queenStageHours: number | null,
+  segment: 1 | 2,
+  isBridge: boolean
+): Block {
+  return {
+    weekNumber,
+    phase: "recovery",
+    targetLoad: Math.round(loadBasis * PC.RECOVERY_FRACTION),
+    targetSessions: Math.max(3, daysPerWeek - 1),
+    workouts: generateWorkouts(
+      daysPerWeek - 1,
+      hoursPerWeek * PC.RECOVERY_FRACTION,
+      "recovery",
+      sport,
+      queenStageHours
+    ),
+    segment,
+    isBridge,
+  };
+}
+
+/**
+ * `weeks` consecutive recovery blocks bridging two arcs, all at the same
+ * `loadBasis` — mirroring `arc()`, which does not ratchet load down further
+ * across back-to-back recovery weeks either (`currentLoad` itself is only
+ * reset to zero-progression, never reduced, by a recovery week).
+ *
+ * Always `segment: 1` — the bridging recovery is arc one's own trailing
+ * stage, not arc two's (see `Block.segment`'s doc comment). It is never
+ * called for a single-arc plan, where `arc()` is the only source of blocks.
+ */
+function recoverySegment(
+  weeks: number,
+  loadBasis: number,
+  daysPerWeek: number,
+  hoursPerWeek: number,
+  sport: PlanSport,
+  queenStageHours: number | null
+): Block[] {
+  const blocks: Block[] = [];
+  for (let w = 1; w <= weeks; w++) {
+    blocks.push(
+      buildRecoveryBlock(
+        w,
+        loadBasis,
+        daysPerWeek,
+        hoursPerWeek,
+        sport,
+        queenStageHours,
+        1,
+        true
+      )
+    );
+  }
+  return blocks;
+}
+
+/**
+ * Composes the full plan skeleton. With no `firstRace`, this is one arc over
+ * `weeksTotal` — unchanged from before this function grew two-race support.
+ * With a `firstRace`, it is `arc(weeksToFirstRace) + recovery(n) +
+ * arc(remainingWeeks)`, renumbered contiguously.
+ */
+export function periodize(opts: PeriodizeOptions): Block[] {
+  const first = opts.firstRace ?? null;
+  if (!first) return arc({ ...opts, weeks: opts.weeksTotal, segment: 1 });
+
+  // Clamped into [1, weeksTotal] before anything downstream uses it. Every
+  // computation below assumes `arcOne` contains exactly this many blocks —
+  // an out-of-range week number (a stale race date, a bad migration) would
+  // otherwise desync that assumption from what arc()'s own loop actually
+  // produces (it silently floors a non-positive `weeks` to zero blocks),
+  // and the `1..weeksTotal` renumbering guarantee breaks.
+  const firstRaceWeek = Math.min(
+    Math.max(1, first.weekNumber),
+    opts.weeksTotal
+  );
+
+  const queenStageHours = opts.queenStageHours ?? null;
+  const arcOne = arc({ ...opts, weeks: firstRaceWeek, segment: 1 });
+
+  // The load basis for the bridging recovery, and (via its scaled-down
+  // block) the fitness the rebuild resumes from: arc 1's PEAK week, not its
+  // last week. Arc 1's last week is a taper week (0.45-0.65x normal load),
+  // and CTL is a 42-day exponentially weighted mean — one taper week
+  // understates the athlete's actual fitness at race one by roughly half,
+  // which floors the rebuild's opening week at MIN_WEEKLY_LOAD instead of
+  // resuming near where the athlete really is. Deliberately NOT
+  // `opts.hoursPerWeek` and NOT `opts.startingCtl` either — those are the
+  // plan's pre-season inputs, and the athlete finishing the first race is
+  // not that person anymore.
+  const recoveryBasis = Math.max(...arcOne.map((b) => b.targetLoad));
+
+  const recoveryWeeks = Math.ceil(raceRecoveryDays(first.raceType) / 7);
+  const rebuildWeeks = opts.weeksTotal - firstRaceWeek - recoveryWeeks;
+
+  if (rebuildWeeks <= 0) {
+    // No room to rebuild. The plan is arc + whatever recovery fits; the
+    // athlete is TOLD this by the `no_bridge_room` warning in Task 6, not
+    // by a refusal here — previewTrainingPlan already treats a close race
+    // as scaled and warned about, never refused.
+    const fitting = Math.max(0, opts.weeksTotal - firstRaceWeek);
+    const recovery = recoverySegment(
+      fitting,
+      recoveryBasis,
+      opts.daysPerWeek,
+      opts.hoursPerWeek,
+      opts.sport,
+      queenStageHours
+    );
+    return [arcOne, recovery]
+      .flat()
+      .map((b, i) => ({ ...b, weekNumber: i + 1 }));
+  }
+
+  const recovery = recoverySegment(
+    recoveryWeeks,
+    recoveryBasis,
+    opts.daysPerWeek,
+    opts.hoursPerWeek,
+    opts.sport,
+    queenStageHours
+  );
+  // The CTL implied by where recovery leaves the athlete — the documented
+  // inverse of `startingCtl * CTL_TO_WEEKLY_LOAD` (plan-constants.ts: "a
+  // steady weekly load L settles at CTL = L/7"). `startingTsb` is a
+  // plan-start concept, so arc 2 gets `null`, not the original plan's TSB.
+  const recoveryLoad =
+    recovery.length > 0
+      ? recovery[recovery.length - 1].targetLoad
+      : recoveryBasis;
+  const arcTwo = arc({
+    ...opts,
+    weeks: rebuildWeeks,
+    startingCtl: recoveryLoad / PC.CTL_TO_WEEKLY_LOAD,
+    startingTsb: null,
+    segment: 2,
+  });
+
+  // Contiguous renumbering. Both live sites (week-plan/service.ts,
+  // week-plan/project.ts) find their block by matching a number against
+  // weekNumber and FALL BACK TO THE LAST BLOCK when the match misses — so a
+  // gap here does not throw, it silently serves the plan's final week.
+  return [arcOne, recovery, arcTwo]
+    .flat()
+    .map((b, i) => ({ ...b, weekNumber: i + 1 }));
 }
 
 function loadMultiplier(phase: Block["phase"], weekInPhase: number): number {
@@ -987,6 +1208,23 @@ async function seedAvailabilityDefaults(
 // ── v0.43: preview (writes a draft, nothing else) ──────────────────────────
 
 /**
+ * Whether the gap between two A-races leaves at least one week that is
+ * neither recovery from the first nor taper into the second — the first's
+ * `raceRecoveryDays` plus the second's own `taperWindowDays`. Below this
+ * floor there is no week that is neither, so there is nothing to rebuild
+ * with; `previewTrainingPlan` still builds the plan, it just warns
+ * (`no_bridge_room`) rather than refusing — a close race is scaled, not a
+ * mistake. Exported so this file's own tests can pin the threshold.
+ */
+export function hasBridgeRoom(
+  firstType: string,
+  finalType: string,
+  gapDays: number
+): boolean {
+  return gapDays >= raceRecoveryDays(firstType) + taperWindowDays(finalType);
+}
+
+/**
  * Writes an inert `draft` training plan and returns a `PlanPreview` for the
  * athlete to check before committing to anything. Unlike
  * `generateTrainingPlan`, this never archives an existing active plan,
@@ -1006,14 +1244,66 @@ export async function previewTrainingPlan(
   // 1. The race decides the sport (v0.42). Refusals are returned, not thrown:
   //    a thrown Error reaches the athlete as whatever the coach model says
   //    about a failed tool call.
-  const raceId = params.raceId ?? null;
+  //
+  //    `raceId` is the single-target compatibility form: normalised into a
+  //    one-element array here so the rest of this function only ever
+  //    branches on `targetIds.length`, and a lone id takes the exact same
+  //    path (findFirst, no priority/status check) it always has — one id
+  //    behaves byte-identically to before `raceIds` existed.
+  const targetIds = params.raceIds ?? (params.raceId ? [params.raceId] : []);
+  if (targetIds.length > 2) {
+    return { ok: false, reason: "too_many_races" };
+  }
+
   let raceType = params.raceType;
   let raceDate = params.raceDate;
   let raceNameFromRow: string | null = null;
   let racePriority: "A" | "B" | "C" = "A";
   let sport: PlanSport;
+  // The FINAL target's id (what `raceId` has always meant), for the draft
+  // row's `raceId` column and the `race_created` warning. null only when no
+  // id was given at all -- confirming will create the race.
+  let raceId: string | null = null;
+  // The earlier A-race on a two-race plan. null on a single-race plan.
+  let firstTarget: {
+    id: string;
+    name: string;
+    date: string;
+    raceType: string;
+  } | null = null;
 
-  if (raceId) {
+  if (targetIds.length === 2) {
+    const rows = await db.query.races.findMany({
+      where: and(
+        inArray(schema.races.id, targetIds),
+        eq(schema.races.userId, userId)
+      ),
+    });
+    if (rows.length !== 2) return { ok: false, reason: "race_not_found" };
+    if (rows.some((r) => r.priority !== "A" || r.status !== "upcoming")) {
+      return { ok: false, reason: "second_race_not_a" };
+    }
+    // Earlier date is the plan's firstRace regardless of the order the
+    // caller passed the two ids in -- planRaceTargets' contract.
+    const [earlier, later] = [...rows].sort((a, b) =>
+      a.date < b.date ? -1 : a.date > b.date ? 1 : 0
+    );
+    firstTarget = {
+      id: earlier.id,
+      name: earlier.name,
+      date: earlier.date,
+      raceType: earlier.raceType,
+    };
+    raceId = later.id;
+    raceType = later.raceType;
+    raceDate = later.date;
+    raceNameFromRow = later.name;
+    racePriority = later.priority as "A" | "B" | "C";
+    const resolved = toPlanSport(later.sport);
+    if (!resolved) return { ok: false, reason: "unknown_sport" };
+    sport = resolved;
+  } else if (targetIds.length === 1) {
+    raceId = targetIds[0];
     const race = await db.query.races.findFirst({
       where: and(eq(schema.races.id, raceId), eq(schema.races.userId, userId)),
     });
@@ -1051,10 +1341,34 @@ export async function previewTrainingPlan(
   //    reshaped phase list.
   const today = new Date();
   const race = new Date(raceDate + "T00:00:00");
+  // weeksTotal spans to the FINAL target (raceDate always names it, whether
+  // it came from a single raceId, the later of two raceIds, or a fresh
+  // raceType+raceDate) -- unchanged by how many targets this plan has.
   const weeksTotal = Math.ceil(daysBetween(today, race) / 7);
   if (weeksTotal > 52) return { ok: false, reason: "horizon_too_long" };
   const planWeeks = Math.max(1, weeksTotal);
   const shortHorizon = weeksTotal < 4;
+  // Needed by firstRace.weekNumber below, so computed here rather than at
+  // its original spot right before the insert -- same value either way,
+  // `today` is its only input.
+  const startDate = localYmd(today);
+
+  // The earlier A-race's week number and the bridge-room warning, both
+  // null/false on a single-race plan. `raceType` here is the FINAL
+  // target's, matching hasBridgeRoom(firstType, finalType, gapDays).
+  const firstRace = firstTarget
+    ? {
+        weekNumber: planWeekOf(startDate, firstTarget.date),
+        raceType: firstTarget.raceType,
+      }
+    : null;
+  const noBridgeRoom = firstTarget
+    ? !hasBridgeRoom(
+        firstTarget.raceType,
+        raceType,
+        daysBetweenYmd(firstTarget.date, raceDate)
+      )
+    : false;
 
   // 3. Fitness. Resolve one start-state snapshot with explicit provenance.
   const startState = await resolveStartStateForUser({
@@ -1064,15 +1378,16 @@ export async function previewTrainingPlan(
   });
   const startingCtl = startState.startingCtl;
 
-  const blocks = periodize(
-    planWeeks,
+  const blocks = periodize({
+    weeksTotal: planWeeks,
     startingCtl,
     daysPerWeek,
     hoursPerWeek,
     sport,
-    null,
-    startState.startingTsb
-  );
+    queenStageHours: null,
+    startingTsb: startState.startingTsb,
+    firstRace,
+  });
 
   // 4. One draft per athlete. Cascade removes the old blocks with the row.
   await db
@@ -1084,7 +1399,6 @@ export async function previewTrainingPlan(
       )
     );
 
-  const startDate = localYmd(today);
   const [draft] = await db
     .insert(schema.trainingPlans)
     .values({
@@ -1096,6 +1410,17 @@ export async function previewTrainingPlan(
       weeksTotal: planWeeks,
       startingCtl,
       raceId,
+      // firstRaceId/firstRaceDate/firstRaceType name the earlier A-race on
+      // a two-race plan (see plan-targets.ts) -- left undefined (column
+      // default null) on a single-race plan, exactly as before this field
+      // existed.
+      ...(firstTarget
+        ? {
+            firstRaceId: firstTarget.id,
+            firstRaceDate: firstTarget.date,
+            firstRaceType: firstTarget.raceType,
+          }
+        : {}),
       status: "draft",
       constraints: {
         daysPerWeek,
@@ -1127,7 +1452,7 @@ export async function previewTrainingPlan(
   }
 
   // 5. Reuse the engine's own numbers rather than inventing display ones.
-  const { target, demand, level, longestSessionHours } =
+  const { target, demand, level, longestSessionHours, targetRace } =
     await assembleWeeklyTarget(userId, today, {
       availabilityHours: hoursPerWeek,
       planHoursPerWeek: hoursPerWeek,
@@ -1152,7 +1477,16 @@ export async function previewTrainingPlan(
       phase: b.phase as PlanPhase,
       targetLoad: b.targetLoad,
       targetHours: Math.round((scheduledMins / 60) * 10) / 10,
-      raceName: b.weekNumber === planWeeks ? raceName : null,
+      // Both targets get named on their own week. Naming only the final one
+      // left a two-race plan showing exactly one race, at the very end, with
+      // no indication of where the first goal race fell.
+      raceName:
+        b.weekNumber === planWeeks
+          ? raceName
+          : firstRace && b.weekNumber === firstRace.weekNumber
+            ? (firstTarget?.name ?? null)
+            : null,
+      isBridge: b.isBridge,
     };
   });
 
@@ -1166,11 +1500,28 @@ export async function previewTrainingPlan(
   // no race date, or no measured current-hours/longest-ride history) and
   // names which one; `PlanPreview.feasibility` still collapses that to
   // `null` here — only the Train surface renders the reason.
+  // `weeksUntilEvent` must match the race `demand` was resolved AGAINST, not
+  // the plan's own end, or the verdict answers a question nobody asked.
+  //
+  // Read it off `targetRace`, which `assembleWeeklyTarget` returns from the
+  // very same highest-priority-then-nearest-date pick that produced `demand`
+  // (volume-inputs.ts). An earlier fix used the plan's own first target
+  // instead, which is right whenever the plan's races are the athlete's
+  // nearest — and wrong when a THIRD, unrelated A-race sits nearer than
+  // either of them, because then `demand` prices that race while the horizon
+  // counted to a later one. Taking both from the same source cannot disagree
+  // by construction.
+  //
+  // `weeksTotal` remains the fallback for an athlete with no races at all,
+  // where `demand` is null and feasibility does not speak anyway.
+  const weeksUntilDemand = targetRace
+    ? Math.ceil(daysBetween(today, new Date(targetRace.date + "T00:00:00")) / 7)
+    : weeksTotal;
   const feasibilityFigure = feasibilityFor({
     demand,
     currentWeeklyHours: level.peakHours,
     longestSessionHours,
-    weeksUntilEvent: weeksTotal,
+    weeksUntilEvent: weeksUntilDemand,
   });
   const feasibility = feasibilityFigure.available
     ? feasibilityFigure.value
@@ -1185,12 +1536,23 @@ export async function previewTrainingPlan(
       date: raceDate,
       priority: racePriority,
     },
+    firstRace: firstTarget
+      ? { id: firstTarget.id, name: firstTarget.name, date: firstTarget.date }
+      : null,
     startDate,
     weeksTotal: planWeeks,
     daysPerWeek,
     hoursPerWeek,
+    // From `blocks` (periodize's own return value), not `weeks` — `blocks`
+    // already carries `segment` (periodize is its one owner) and `weeks`
+    // (PreviewWeek[]) deliberately doesn't duplicate it.
     phases: buildPhases(
-      weeks.map((w) => ({ weekNumber: w.weekNumber, phase: w.phase }))
+      blocks.map((b) => ({
+        weekNumber: b.weekNumber,
+        phase: b.phase as PlanPhase,
+        segment: b.segment,
+        isBridge: b.isBridge,
+      }))
     ),
     weeks,
     startingCtl: {
@@ -1207,6 +1569,7 @@ export async function previewTrainingPlan(
       raceCreated: raceId == null,
       availabilitySeeded: existingAvailability.length === 0,
       shortHorizon,
+      noBridgeRoom,
     }),
   };
 
@@ -1271,10 +1634,44 @@ export async function previewFromDraft(
     }
   }
 
+  // The pairing, and the earlier race's NAME. planRaceTargets carries id,
+  // date and type but not the name -- it reads the plan row, and the name
+  // lives on the race row. Without this the card had nothing to label
+  // segment 1 with and printed the literal "First race" above the second
+  // race's real name.
+  const draftTargets = planRaceTargets(draft);
+  let firstRaceName: string | null = null;
+  if (draftTargets.first) {
+    const firstRow = await db.query.races.findFirst({
+      where: and(
+        eq(schema.races.id, draftTargets.first.id),
+        eq(schema.races.userId, draft.userId)
+      ),
+    });
+    firstRaceName = firstRow?.name ?? null;
+  }
+
   const blocks = await db.query.trainingBlocks.findMany({
     where: eq(schema.trainingBlocks.planId, draft.id),
     orderBy: [asc(schema.trainingBlocks.weekNumber)],
   });
+
+  // Re-derived here rather than read off the row: persisted `training_blocks`
+  // carry neither `segment` nor `isBridge`, and neither is worth a migration
+  // for a display value. Same boundary `periodize` computes -- see the longer
+  // note at `segmentForWeek` below, which reuses these.
+  const firstTargetForSegment = draftTargets.first;
+  const firstRaceWeek = firstTargetForSegment
+    ? Math.min(
+        Math.max(1, planWeekOf(draft.startDate, firstTargetForSegment.date)),
+        draft.weeksTotal
+      )
+    : null;
+  const segmentBoundary =
+    firstTargetForSegment && firstRaceWeek !== null
+      ? firstRaceWeek +
+        Math.ceil(raceRecoveryDays(firstTargetForSegment.raceType) / 7)
+      : null;
 
   const weeks: PreviewWeek[] = blocks.map((b) => {
     const workouts = (b.workouts ?? []) as PlannedWorkout[];
@@ -1284,7 +1681,20 @@ export async function previewFromDraft(
       phase: b.phase as PlanPhase,
       targetLoad: b.targetLoadTotal != null ? Math.round(b.targetLoadTotal) : 0,
       targetHours: Math.round((scheduledMins / 60) * 10) / 10,
-      raceName: b.weekNumber === draft.weeksTotal ? raceName : null,
+      raceName:
+        b.weekNumber === draft.weeksTotal
+          ? raceName
+          : firstRaceWeek !== null && b.weekNumber === firstRaceWeek
+            ? (firstRaceName ?? null)
+            : null,
+      // A bridging recovery week: phase "recovery", after the first race,
+      // and not past the segment boundary.
+      isBridge:
+        b.phase === "recovery" &&
+        firstRaceWeek !== null &&
+        segmentBoundary !== null &&
+        b.weekNumber > firstRaceWeek &&
+        b.weekNumber <= segmentBoundary,
     };
   });
 
@@ -1300,7 +1710,7 @@ export async function previewFromDraft(
     where: eq(schema.availabilityDefaults.userId, draft.userId),
   });
 
-  const { target, demand, level, longestSessionHours } =
+  const { target, demand, level, longestSessionHours, targetRace } =
     await assembleWeeklyTarget(draft.userId, today, {
       availabilityHours: hoursPerWeek,
       planHoursPerWeek: hoursPerWeek,
@@ -1310,15 +1720,51 @@ export async function previewFromDraft(
     daysBetween(today, new Date(draft.raceDate + "T00:00:00")) / 7
   );
 
+  // Read through planRaceTargets rather than draft.firstRaceDate directly
+  // (plan-targets.ts's contract) so an orphaned first-race row degrades to
+  // "no bridge-room warning" instead of a half-configured read. Needed
+  // ahead of feasibility below, not only for the bridge-room check further
+  // down.
+
+  // Same source as `demand` itself — see the longer note on the twin in
+  // `previewTrainingPlan`. Using the plan's own first target instead is wrong
+  // when a third, unrelated A-race is nearer than either of the plan's two.
+  const weeksUntilDemand = targetRace
+    ? Math.ceil(daysBetween(today, new Date(targetRace.date + "T00:00:00")) / 7)
+    : weeksUntilRace;
+
   const feasibilityFigure = feasibilityFor({
     demand,
     currentWeeklyHours: level.peakHours,
     longestSessionHours,
-    weeksUntilEvent: weeksUntilRace,
+    weeksUntilEvent: weeksUntilDemand,
   });
   const feasibility = feasibilityFigure.available
     ? feasibilityFigure.value
     : null;
+
+  const noBridgeRoom = draftTargets.first
+    ? !hasBridgeRoom(
+        draftTargets.first.raceType,
+        draftTargets.final.raceType,
+        daysBetweenYmd(draftTargets.first.date, draftTargets.final.date)
+      )
+    : false;
+
+  // `training_blocks` rows persisted by `previewTrainingPlan` (and
+  // `generateTrainingPlan`) have no `segment` column -- unlike the
+  // `previewTrainingPlan` call site above, `blocks` here is read verbatim
+  // from the database rather than being `periodize`'s live return value, so
+  // there is no `segment` to read off it and no migration is being added
+  // just for this display value. Re-derive the same boundary `periodize`
+  // computes (`firstRaceWeek = clamp(planWeekOf(...), 1, weeksTotal)`,
+  // `recoveryWeeks = ceil(raceRecoveryDays(firstRace.raceType) / 7)`) from
+  // `planRaceTargets` instead: week <= firstRaceWeek + recoveryWeeks is
+  // segment 1 (arc one plus the bridging recovery), everything after is
+  // segment 2. On a single-race draft (`draftTargets.first` is null) every
+  // week is segment 1, matching `periodize`'s own no-`firstRace` path.
+  const segmentForWeek = (weekNumber: number): 1 | 2 =>
+    segmentBoundary !== null && weekNumber > segmentBoundary ? 2 : 1;
 
   return {
     planId: draft.id,
@@ -1329,12 +1775,25 @@ export async function previewFromDraft(
       date: draft.raceDate,
       priority: racePriority,
     },
+    firstRace:
+      draftTargets.first && firstRaceName
+        ? {
+            id: draftTargets.first.id,
+            name: firstRaceName,
+            date: draftTargets.first.date,
+          }
+        : null,
     startDate: draft.startDate,
     weeksTotal: draft.weeksTotal,
     daysPerWeek,
     hoursPerWeek,
     phases: buildPhases(
-      weeks.map((w) => ({ weekNumber: w.weekNumber, phase: w.phase }))
+      weeks.map((w) => ({
+        weekNumber: w.weekNumber,
+        phase: w.phase,
+        segment: segmentForWeek(w.weekNumber),
+        isBridge: w.isBridge,
+      }))
     ),
     weeks,
     startingCtl: {
@@ -1351,6 +1810,7 @@ export async function previewFromDraft(
       raceCreated: draft.raceId == null,
       availabilitySeeded: existingAvailability.length === 0,
       shortHorizon: weeksUntilRace < 4,
+      noBridgeRoom,
     }),
   };
 }
@@ -1539,15 +1999,15 @@ export async function generateTrainingPlan(
   const startDate = localYmd(today);
 
   // 3. Periodize
-  const blocks = periodize(
+  const blocks = periodize({
     weeksTotal,
     startingCtl,
     daysPerWeek,
     hoursPerWeek,
     sport,
-    null,
-    startState.startingTsb
-  );
+    queenStageHours: null,
+    startingTsb: startState.startingTsb,
+  });
 
   // 4. Store in DB — archive any existing active plan first so there is
   // always at most one active plan per user (adherence/update pick it via

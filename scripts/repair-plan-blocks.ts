@@ -32,6 +32,7 @@ import { db, schema } from "@/lib/db";
 import { periodize } from "@/lib/training-plan";
 import { requirePlanSport } from "@/lib/plan-sport";
 import { planConstraints } from "@/lib/week-plan/service";
+import { planRaceTargets, planWeekOf } from "@/lib/plan-targets";
 
 export interface PlanBlockChange {
   planId: string;
@@ -82,15 +83,33 @@ export async function repairPlanBlocks(
     const constraints = planConstraints(plan.constraints);
     const sport = requirePlanSport(constraints.sports?.[0]);
 
+    // Which race is which, read the one way this plan row is allowed to be
+    // read for it (plan-targets.ts's contract) — never by picking
+    // raceDate/raceId off `plan` directly. Same derivation as the two live
+    // periodize() wiring sites (week-plan/service.ts, week-plan/project.ts).
+    // Without this, an active two-race plan's future blocks get recomputed
+    // as a single arc: the athlete's materialized weeks stay right (those
+    // read freshly-derived two-arc blocks independently), but the STORED
+    // blocks this script writes — what /train's phase label and
+    // get_training_plan's block list read — become a lie.
+    const targets = planRaceTargets(plan);
+    const firstRace = targets.first
+      ? {
+          weekNumber: planWeekOf(plan.startDate, targets.first.date),
+          raceType: targets.first.raceType,
+        }
+      : null;
+
     // Recomputed fresh, never read as authority — a stored skeleton is
     // exactly how these blocks went stale in the first place.
-    const derived = periodize(
-      plan.weeksTotal,
-      plan.startingCtl ?? 0,
-      constraints.daysPerWeek,
-      constraints.hoursPerWeek,
-      sport
-    );
+    const derived = periodize({
+      weeksTotal: plan.weeksTotal,
+      startingCtl: plan.startingCtl ?? 0,
+      daysPerWeek: constraints.daysPerWeek,
+      hoursPerWeek: constraints.hoursPerWeek,
+      sport,
+      firstRace,
+    });
 
     // Strictly after the current week. See the module doc — this is the
     // boundary that protects real athlete data.

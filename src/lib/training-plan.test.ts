@@ -1,6 +1,15 @@
-import { describe, expect, it, beforeAll, afterAll } from "vitest";
+import {
+  describe,
+  expect,
+  it,
+  beforeAll,
+  afterAll,
+  afterEach,
+  vi,
+} from "vitest";
 import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
+import * as feasibilityModule from "@/lib/race/feasibility";
 import {
   generateWorkouts,
   generateCyclingWorkouts,
@@ -11,6 +20,9 @@ import {
   distributeRemainder,
   periodize,
   EASY_RUN_CAP_MINS,
+  hasBridgeRoom,
+  previewTrainingPlan,
+  previewFromDraft,
 } from "./training-plan";
 import { PLAN_CONSTANTS } from "./plan-constants";
 import {
@@ -18,6 +30,7 @@ import {
   TAPER_FRACTION_WEEK_1,
   TAPER_FRACTION_WEEK_2,
 } from "./race/taper";
+import { addDaysYmd } from "./week-plan/service";
 
 // requires Postgres; skips without DATABASE_URL.
 const hasDb =
@@ -273,8 +286,21 @@ describe("generateCyclingWorkouts distributes the target", () => {
 
 describe("periodize passes event demand to the cycling generator", () => {
   it("bounds the long ride by the event's hardest day", () => {
-    const withDemand = periodize(9, 76.7, 4, 12.5, "Bike", 4.897963084361944);
-    const withoutDemand = periodize(9, 76.7, 4, 12.5, "Bike");
+    const withDemand = periodize({
+      weeksTotal: 9,
+      startingCtl: 76.7,
+      daysPerWeek: 4,
+      hoursPerWeek: 12.5,
+      sport: "Bike",
+      queenStageHours: 4.897963084361944,
+    });
+    const withoutDemand = periodize({
+      weeksTotal: 9,
+      startingCtl: 76.7,
+      daysPerWeek: 4,
+      hoursPerWeek: 12.5,
+      sport: "Bike",
+    });
 
     const longOf = (blocks: ReturnType<typeof periodize>) =>
       blocks
@@ -290,13 +316,37 @@ describe("periodize passes event demand to the cycling generator", () => {
 
 describe("opening-week branching", () => {
   it("deep negative form reduces opening target load by 20%", () => {
-    const neutral = periodize(12, 50, 5, 8, "Bike", null, 0);
-    const deep = periodize(12, 50, 5, 8, "Bike", null, -20);
+    const neutral = periodize({
+      weeksTotal: 12,
+      startingCtl: 50,
+      daysPerWeek: 5,
+      hoursPerWeek: 8,
+      sport: "Bike",
+      queenStageHours: null,
+      startingTsb: 0,
+    });
+    const deep = periodize({
+      weeksTotal: 12,
+      startingCtl: 50,
+      daysPerWeek: 5,
+      hoursPerWeek: 8,
+      sport: "Bike",
+      queenStageHours: null,
+      startingTsb: -20,
+    });
     expect(deep[0].targetLoad).toBe(Math.round(neutral[0].targetLoad * 0.8));
   });
 
   it("deep negative form removes threshold/VO2 work in first 72h", () => {
-    const deep = periodize(12, 50, 5, 8, "Bike", null, -21);
+    const deep = periodize({
+      weeksTotal: 12,
+      startingCtl: 50,
+      daysPerWeek: 5,
+      hoursPerWeek: 8,
+      sport: "Bike",
+      queenStageHours: null,
+      startingTsb: -21,
+    });
     const firstWeek = deep[0].workouts;
     for (const w of firstWeek.filter((x) => x.day < 3)) {
       expect(w.type === "Intervals" || w.type === "Tempo").toBe(false);
@@ -307,14 +357,30 @@ describe("opening-week branching", () => {
   });
 
   it("moderate negative keeps opening branch and downgrades day-2 intensity", () => {
-    const moderate = periodize(12, 50, 5, 8, "Bike", null, -10);
+    const moderate = periodize({
+      weeksTotal: 12,
+      startingCtl: 50,
+      daysPerWeek: 5,
+      hoursPerWeek: 8,
+      sport: "Bike",
+      queenStageHours: null,
+      startingTsb: -10,
+    });
     const day2 = moderate[0].workouts.find((x) => x.day === 2);
     expect(day2?.type).toBe("Endurance");
     expect(day2?.purpose).toBe("aerobic_base");
   });
 
   it("caps week-2 rebound after opening downscale to <= 11%", () => {
-    const blocks = periodize(12, 55, 5, 8, "Bike", null, -10);
+    const blocks = periodize({
+      weeksTotal: 12,
+      startingCtl: 55,
+      daysPerWeek: 5,
+      hoursPerWeek: 8,
+      sport: "Bike",
+      queenStageHours: null,
+      startingTsb: -10,
+    });
     const w1 = blocks[0];
     const w2 = blocks[1];
     expect(w1.phase).not.toBe("recovery");
@@ -341,7 +407,13 @@ describe("recovery cadence", () => {
 
   it("never exceeds the base interval, at any plan length", () => {
     for (let weeks = 4; weeks <= 52; weeks++) {
-      const blocks = periodize(weeks, 50, 5, 8, "Bike");
+      const blocks = periodize({
+        weeksTotal: weeks,
+        startingCtl: 50,
+        daysPerWeek: 5,
+        hoursPerWeek: 8,
+        sport: "Bike",
+      });
       expect(
         longestLoadingRun(blocks),
         `${weeks}-week plan ran too long without recovery`
@@ -365,7 +437,13 @@ describe("recovery cadence", () => {
     // (RECOVERY_INTERVAL_DEFAULT - 1 = 2) for any baseWeeks >= MIN_BASE_WEEKS
     // (2) — so build's 2nd week is where recovery fires. That is the bound,
     // derived from the rule rather than read off the output.
-    const blocks = periodize(8, 50, 5, 8, "Bike");
+    const blocks = periodize({
+      weeksTotal: 8,
+      startingCtl: 50,
+      daysPerWeek: 5,
+      hoursPerWeek: 8,
+      sport: "Bike",
+    });
     const baseWeeks = Math.max(
       PLAN_CONSTANTS.MIN_BASE_WEEKS,
       Math.round(8 * PLAN_CONSTANTS.PHASE_SHARE_BASE)
@@ -408,7 +486,13 @@ describe("CTL ramp bound", () => {
   const startingCtl = 80;
 
   it("bounds a long plan against the CTL trajectory", () => {
-    const blocks = periodize(30, startingCtl, 5, 8, "Bike");
+    const blocks = periodize({
+      weeksTotal: 30,
+      startingCtl: startingCtl,
+      daysPerWeek: 5,
+      hoursPerWeek: 8,
+      sport: "Bike",
+    });
     for (const b of blocks) {
       if (b.phase === "recovery" || b.phase === "taper") continue;
       const maxLoad =
@@ -428,7 +512,13 @@ describe("CTL ramp bound", () => {
   // here instead, the same fix applied to the taper ladder in Task 4
   // (race/taper.test.ts, "pinned to literal values").
   it("pins one clamped week to a literal, not the constants it guards", () => {
-    const blocks = periodize(30, startingCtl, 5, 8, "Bike");
+    const blocks = periodize({
+      weeksTotal: 30,
+      startingCtl: startingCtl,
+      daysPerWeek: 5,
+      hoursPerWeek: 8,
+      sport: "Bike",
+    });
     const week7 = blocks.find((b) => b.weekNumber === 7)!;
     expect(week7.phase).toBe("base");
     // (80 + 5*7) * 7 = 805 — 5 and 7 are literal here (CTL_RAMP_PER_WEEK and
@@ -454,7 +544,13 @@ describe("CTL ramp bound", () => {
   // `currentLoad` was left at after week 7's progression AND its
   // currentLoad-clamp, with no bound check of its own.
   it("pins a recovery week to a literal, guarding the currentLoad clamp specifically", () => {
-    const blocks = periodize(30, startingCtl, 5, 8, "Bike");
+    const blocks = periodize({
+      weeksTotal: 30,
+      startingCtl: startingCtl,
+      daysPerWeek: 5,
+      hoursPerWeek: 8,
+      sport: "Bike",
+    });
     const week8 = blocks.find((b) => b.weekNumber === 8)!;
     expect(week8.phase).toBe("recovery");
     // Without the currentLoad clamp, week 7 leaves currentLoad at
@@ -470,7 +566,13 @@ describe("CTL ramp bound", () => {
   it("leaves a short plan the bound should not reach untouched", () => {
     // 6 weeks at 8%/week from CTL 50 stays well inside the trajectory,
     // so the bound must not quietly reshape a plan it was never meant to.
-    const blocks = periodize(6, 50, 5, 8, "Bike");
+    const blocks = periodize({
+      weeksTotal: 6,
+      startingCtl: 50,
+      daysPerWeek: 5,
+      hoursPerWeek: 8,
+      sport: "Bike",
+    });
     const loading = blocks.filter((b) => b.phase === "base");
     expect(loading.length).toBeGreaterThan(1);
     expect(loading[1].targetLoad).toBeGreaterThan(loading[0].targetLoad);
@@ -487,8 +589,20 @@ describe("CTL ramp bound", () => {
   // that reason — reading the same constant on both sides of an assertion
   // proves nothing about whether the constant itself is right.
   it("never lets the ramp bound cut below MIN_WEEKLY_LOAD", () => {
-    const ctl0 = periodize(12, 0, 5, 8, "Bike");
-    const ctl5 = periodize(12, 5, 5, 8, "Bike");
+    const ctl0 = periodize({
+      weeksTotal: 12,
+      startingCtl: 0,
+      daysPerWeek: 5,
+      hoursPerWeek: 8,
+      sport: "Bike",
+    });
+    const ctl5 = periodize({
+      weeksTotal: 12,
+      startingCtl: 5,
+      daysPerWeek: 5,
+      hoursPerWeek: 8,
+      sport: "Bike",
+    });
     // Both would sit BELOW the floor from the ramp bound alone (35 and 70
     // respectively) if the floor were not applied — the whole point of
     // this test.
@@ -499,7 +613,13 @@ describe("CTL ramp bound", () => {
 
 describe("periodize is unchanged by the constants refactor", () => {
   it("produces a stable skeleton for a known input", () => {
-    const blocks = periodize(12, 50, 5, 8, "Bike");
+    const blocks = periodize({
+      weeksTotal: 12,
+      startingCtl: 50,
+      daysPerWeek: 5,
+      hoursPerWeek: 8,
+      sport: "Bike",
+    });
     // v0.45 Task 3 carried the recovery counter across phase boundaries
     // (fixing a real defect: resetting per-phase could skip recovery
     // entirely, or restart a fresh interval right after a boundary). Two
@@ -598,7 +718,13 @@ describe("the skeleton taper has one authority", () => {
   // the code. Rewritten below to test the actual rule: both taper weeks
   // derive from ONE shared anchor load, recoverable from either week.
   it("both taper weeks derive from one shared anchor load, not two independent rates", () => {
-    const blocks = periodize(16, 50, 5, 8, "Bike");
+    const blocks = periodize({
+      weeksTotal: 16,
+      startingCtl: 50,
+      daysPerWeek: 5,
+      hoursPerWeek: 8,
+      sport: "Bike",
+    });
     const taper = blocks.filter((b) => b.phase === "taper");
     expect(taper.length).toBe(2);
 
@@ -624,7 +750,13 @@ describe("the skeleton taper has one authority", () => {
   // hoursRatio ≈0.860, an 0.11 gap. Now both read the same ladder fraction,
   // so the ratios agree (≈0.691 vs ≈0.696 here).
   it("scales hours on the same fraction as load, so the two no longer diverge", () => {
-    const blocks = periodize(16, 50, 5, 8, "Bike");
+    const blocks = periodize({
+      weeksTotal: 16,
+      startingCtl: 50,
+      daysPerWeek: 5,
+      hoursPerWeek: 8,
+      sport: "Bike",
+    });
     const taper = blocks.filter((b) => b.phase === "taper");
     expect(taper.length).toBe(2);
     const mins = (b: (typeof taper)[number]) =>
@@ -644,7 +776,13 @@ describe("the skeleton taper has one authority", () => {
   // shortest that reaches it: round(17 * 0.15) = 3, clearing
   // MIN_TAPER_WEEKS (2).
   it("the third rung (2+ weeks from the race) is reached and reads the ladder correctly", () => {
-    const blocks = periodize(17, 50, 5, 8, "Bike");
+    const blocks = periodize({
+      weeksTotal: 17,
+      startingCtl: 50,
+      daysPerWeek: 5,
+      hoursPerWeek: 8,
+      sport: "Bike",
+    });
     const taper = blocks.filter((b) => b.phase === "taper");
     expect(taper.length).toBe(3);
 
@@ -831,4 +969,592 @@ describe("generateWorkouts dispatches on sport alone", () => {
       );
     }
   });
+});
+
+describe("periodize with two races", () => {
+  const base = {
+    weeksTotal: 20,
+    startingCtl: 50,
+    daysPerWeek: 5,
+    hoursPerWeek: 8,
+    sport: "Run" as const,
+  };
+
+  it("numbers every week exactly once, contiguously", () => {
+    const blocks = periodize({
+      ...base,
+      firstRace: { weekNumber: 10, raceType: "marathon" },
+    });
+    const nums = blocks.map((b) => b.weekNumber);
+    expect(nums).toEqual(Array.from({ length: 20 }, (_, i) => i + 1));
+  });
+
+  it("puts recovery weeks immediately after the first race", () => {
+    const blocks = periodize({
+      ...base,
+      firstRace: { weekNumber: 10, raceType: "marathon" },
+    });
+    // raceRecoveryDays("marathon") is 14 -> ceil(14/7) = 2 weeks
+    expect(blocks[10].phase).toBe("recovery");
+    expect(blocks[11].phase).toBe("recovery");
+    expect(blocks[12].phase).not.toBe("recovery");
+  });
+
+  it("ends the second segment in a taper", () => {
+    const blocks = periodize({
+      ...base,
+      firstRace: { weekNumber: 10, raceType: "marathon" },
+    });
+    expect(blocks[blocks.length - 1].phase).toBe("taper");
+  });
+
+  // `periodize` is Block.segment's one owner (plan-preview.ts's `buildPhases`
+  // groups by it rather than recomputing the boundary) -- these three pin
+  // where that value comes from directly, at the source, rather than only
+  // through buildPhases's own tests.
+  it("stamps every week segment 1 when the plan has no firstRace", () => {
+    const blocks = periodize(base);
+    expect(blocks.every((b) => b.segment === 1)).toBe(true);
+  });
+
+  it("segments arc one (plus its bridging recovery) as 1 and the rebuild arc as 2", () => {
+    const blocks = periodize({
+      ...base,
+      firstRace: { weekNumber: 10, raceType: "marathon" },
+    });
+    // raceRecoveryDays("marathon") is 14 -> 2 recovery weeks, so arc one
+    // (weeks 1-10) plus recovery (11-12) is segment 1, and the rebuild arc
+    // (13-20) is segment 2.
+    const segments = blocks.map((b) => b.segment);
+    expect(segments.slice(0, 12)).toEqual(Array(12).fill(1));
+    expect(segments.slice(12)).toEqual(Array(8).fill(2));
+  });
+
+  it("keeps every week at segment 1 when there is no room to rebuild", () => {
+    const blocks = periodize({
+      ...base,
+      weeksTotal: 12,
+      firstRace: { weekNumber: 10, raceType: "marathon" },
+    });
+    // firstRaceWeek 10 + recoveryWeeks 2 = 12 = weeksTotal: no rebuildWeeks
+    // left, so there is no arc two at all -- everything stays segment 1.
+    expect(blocks).toHaveLength(12);
+    expect(blocks.every((b) => b.segment === 1)).toBe(true);
+  });
+
+  it("is byte-identical to today when firstRace is null", () => {
+    expect(periodize({ ...base, firstRace: null })).toEqual(periodize(base));
+  });
+
+  it("rebuilds from post-race fitness, not from plan-start fitness", () => {
+    // startingCtl and the week count to the first race are chosen so arc 1
+    // reaches a real peak and the recovery-derived basis clears
+    // MIN_WEEKLY_LOAD (100) with room to spare -- otherwise the floor, not
+    // the handoff, is what the assertion below would be measuring.
+    const blocks = periodize({
+      weeksTotal: 30,
+      startingCtl: 60,
+      daysPerWeek: 5,
+      hoursPerWeek: 8,
+      sport: "Run" as const,
+      firstRace: { weekNumber: 16, raceType: "marathon" },
+    });
+    const peakOfArcOne = Math.max(
+      ...blocks.slice(0, 16).map((b) => b.targetLoad)
+    );
+    const expectedRecoveryLoad = Math.round(
+      peakOfArcOne * PLAN_CONSTANTS.RECOVERY_FRACTION
+    );
+    // Sanity check on the scenario itself: if this doesn't clear the floor,
+    // the tight assertion below would pass for the wrong reason.
+    expect(expectedRecoveryLoad).toBeGreaterThan(
+      PLAN_CONSTANTS.MIN_WEEKLY_LOAD
+    );
+
+    // raceRecoveryDays("marathon") is 14 -> 2 recovery weeks, so the
+    // rebuild's first block sits at index 16 (arc 1) + 2 (recovery) = 18.
+    const firstOfRebuild = blocks[18].targetLoad;
+    // Pinned to the exact value the peak-of-arc-1 handoff implies, not a
+    // loose bound -- a handoff bug that reads `opts.startingCtl` (60,
+    // yielding a 420 opening load here) instead of the recovery-derived CTL
+    // fails this assertion, where a loose `toBeGreaterThan` would not.
+    expect(firstOfRebuild).toBeCloseTo(expectedRecoveryLoad, 0);
+  });
+});
+
+describe("bridgeRoom", () => {
+  it("needs 35 days between two marathons", () => {
+    expect(hasBridgeRoom("marathon", "marathon", 34)).toBe(false);
+    expect(hasBridgeRoom("marathon", "marathon", 35)).toBe(true);
+  });
+  it("needs 21 days between two halves", () => {
+    expect(hasBridgeRoom("half", "half", 20)).toBe(false);
+    expect(hasBridgeRoom("half", "half", 21)).toBe(true);
+  });
+});
+
+describe.skipIf(!hasDb)("previewTrainingPlan — two A-races", () => {
+  const USER = "test-preview-two-a-races";
+
+  function todayYmd(): string {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+
+  // Far enough out that every date below (plus a generous gap) still clears
+  // the 52-week horizon refusal, and far enough from "today" that a slow
+  // test run doesn't nudge a boundary date across a week seam.
+  const FIRST_DATE = addDaysYmd(todayYmd(), 140);
+
+  async function cleanup(): Promise<void> {
+    // trainingBlocks cascades with trainingPlans; nothing else is written
+    // by previewTrainingPlan (no availability seeding, no materialized week).
+    await db
+      .delete(schema.trainingPlans)
+      .where(eq(schema.trainingPlans.userId, USER));
+    await db.delete(schema.races).where(eq(schema.races.userId, USER));
+  }
+
+  beforeAll(async () => {
+    await cleanup();
+    await db.delete(schema.users).where(eq(schema.users.id, USER));
+    await db.insert(schema.users).values({
+      id: USER,
+      name: "Two A-Race User",
+      email: `${USER}@example.invalid`,
+    });
+  });
+
+  afterEach(cleanup);
+
+  afterAll(async () => {
+    await cleanup();
+    await db.delete(schema.users).where(eq(schema.users.id, USER));
+  });
+
+  async function makeRace(opts: {
+    name: string;
+    raceType: string;
+    date: string;
+    priority?: "A" | "B" | "C";
+    status?: "upcoming" | "completed" | "skipped";
+  }): Promise<string> {
+    const [row] = await db
+      .insert(schema.races)
+      .values({
+        userId: USER,
+        name: opts.name,
+        raceType: opts.raceType,
+        sport: "Run",
+        date: opts.date,
+        priority: opts.priority ?? "A",
+        status: opts.status ?? "upcoming",
+      })
+      .returning();
+    return row.id;
+  }
+
+  it("refuses a third race", async () => {
+    const a = await makeRace({
+      name: "A",
+      raceType: "marathon",
+      date: FIRST_DATE,
+    });
+    const b = await makeRace({
+      name: "B",
+      raceType: "marathon",
+      date: addDaysYmd(FIRST_DATE, 40),
+    });
+    const c = await makeRace({
+      name: "C",
+      raceType: "marathon",
+      date: addDaysYmd(FIRST_DATE, 80),
+    });
+    const result = await previewTrainingPlan({
+      userId: USER,
+      raceType: "marathon",
+      raceDate: addDaysYmd(FIRST_DATE, 80),
+      raceIds: [a, b, c],
+    });
+    expect(result).toEqual({ ok: false, reason: "too_many_races" });
+  });
+
+  it("refuses race_not_found when one of the two ids does not exist", async () => {
+    const a = await makeRace({
+      name: "A",
+      raceType: "marathon",
+      date: FIRST_DATE,
+    });
+    const result = await previewTrainingPlan({
+      userId: USER,
+      raceType: "marathon",
+      raceDate: FIRST_DATE,
+      raceIds: [a, "00000000-0000-0000-0000-000000000000"],
+    });
+    expect(result).toEqual({ ok: false, reason: "race_not_found" });
+  });
+
+  it("refuses when one target race is not A-priority", async () => {
+    const a = await makeRace({
+      name: "A",
+      raceType: "marathon",
+      date: FIRST_DATE,
+    });
+    const laterDate = addDaysYmd(FIRST_DATE, 60);
+    const b = await makeRace({
+      name: "B",
+      raceType: "marathon",
+      date: laterDate,
+      priority: "B",
+    });
+    const result = await previewTrainingPlan({
+      userId: USER,
+      raceType: "marathon",
+      raceDate: laterDate,
+      raceIds: [a, b],
+    });
+    expect(result).toEqual({ ok: false, reason: "second_race_not_a" });
+  });
+
+  it("refuses when one target race is not upcoming", async () => {
+    const a = await makeRace({
+      name: "A",
+      raceType: "marathon",
+      date: FIRST_DATE,
+    });
+    const laterDate = addDaysYmd(FIRST_DATE, 60);
+    const b = await makeRace({
+      name: "B",
+      raceType: "marathon",
+      date: laterDate,
+      status: "completed",
+    });
+    const result = await previewTrainingPlan({
+      userId: USER,
+      raceType: "marathon",
+      raceDate: laterDate,
+      raceIds: [a, b],
+    });
+    expect(result).toEqual({ ok: false, reason: "second_race_not_a" });
+  });
+
+  it("warns no_bridge_room when two marathons leave no room to rebuild, but still builds the plan", async () => {
+    const a = await makeRace({
+      name: "A",
+      raceType: "marathon",
+      date: FIRST_DATE,
+    });
+    // raceRecoveryDays("marathon") + taperWindowDays("marathon") = 14 + 21 = 35.
+    const finalDate = addDaysYmd(FIRST_DATE, 34);
+    const b = await makeRace({
+      name: "B",
+      raceType: "marathon",
+      date: finalDate,
+    });
+    const result = await previewTrainingPlan({
+      userId: USER,
+      raceType: "marathon",
+      raceDate: finalDate,
+      raceIds: [a, b],
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("expected ok");
+    expect(result.preview.warnings).toContain("no_bridge_room");
+  });
+
+  it("stays silent when the gap between two marathons clears the floor", async () => {
+    const a = await makeRace({
+      name: "A",
+      raceType: "marathon",
+      date: FIRST_DATE,
+    });
+    const finalDate = addDaysYmd(FIRST_DATE, 35);
+    const b = await makeRace({
+      name: "B",
+      raceType: "marathon",
+      date: finalDate,
+    });
+    const result = await previewTrainingPlan({
+      userId: USER,
+      raceType: "marathon",
+      raceDate: finalDate,
+      raceIds: [a, b],
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("expected ok");
+    expect(result.preview.warnings).not.toContain("no_bridge_room");
+  });
+
+  it("names the earlier date as first regardless of raceIds order, and writes it onto the draft", async () => {
+    const earlierDate = FIRST_DATE;
+    const laterDate = addDaysYmd(FIRST_DATE, 60);
+    const a = await makeRace({
+      name: "Earlier",
+      raceType: "half_marathon",
+      date: earlierDate,
+    });
+    const b = await makeRace({
+      name: "Later",
+      raceType: "marathon",
+      date: laterDate,
+    });
+
+    // ids passed in reverse (later first) -- proves sort-by-date, not arg order.
+    const result = await previewTrainingPlan({
+      userId: USER,
+      raceType: "marathon",
+      raceDate: laterDate,
+      raceIds: [b, a],
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("expected ok");
+    expect(result.preview.race.id).toBe(b);
+    expect(result.preview.race.date).toBe(laterDate);
+
+    const draft = await db.query.trainingPlans.findFirst({
+      where: eq(schema.trainingPlans.id, result.preview.planId),
+    });
+    expect(draft?.firstRaceId).toBe(a);
+    expect(draft?.firstRaceDate).toBe(earlierDate);
+    expect(draft?.firstRaceType).toBe("half_marathon");
+    expect(draft?.raceId).toBe(b);
+    expect(draft?.raceDate).toBe(laterDate);
+  });
+
+  // `previewTrainingPlan`'s `phases` come from `blocks` (periodize's live
+  // return value, segment included for free); `previewFromDraft`'s come from
+  // persisted `training_blocks` rows, which have no `segment` column, so it
+  // re-derives the boundary instead (see its comment). This proves that
+  // re-derivation lands on exactly the same rows as the live computation
+  // did, for a real two-arc plan -- not an approximation of it.
+  it("previewFromDraft reconstructs the same per-arc phases from persisted training_blocks", async () => {
+    const earlierDate = FIRST_DATE;
+    const laterDate = addDaysYmd(FIRST_DATE, 200);
+    const a = await makeRace({
+      name: "Earlier",
+      raceType: "marathon",
+      date: earlierDate,
+    });
+    const b = await makeRace({
+      name: "Later",
+      raceType: "marathon",
+      date: laterDate,
+    });
+
+    const result = await previewTrainingPlan({
+      userId: USER,
+      raceType: "marathon",
+      raceDate: laterDate,
+      raceIds: [a, b],
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("expected ok");
+
+    // A genuine two-arc scenario, not a no-room boundary case where the
+    // rebuild arc is empty -- otherwise both sides collapsing to all-segment-1
+    // would pass this test for the wrong reason.
+    expect(result.preview.phases.some((row) => row.segment === 2)).toBe(true);
+
+    const draft = await db.query.trainingPlans.findFirst({
+      where: eq(schema.trainingPlans.id, result.preview.planId),
+    });
+    expect(draft).toBeTruthy();
+    if (!draft) return;
+
+    const rehydrated = await previewFromDraft(draft);
+    expect(rehydrated.phases).toEqual(result.preview.phases);
+  });
+
+  // FIX 3: `demand` (assembleWeeklyTarget -> volume-inputs.ts) resolves to
+  // "highest priority, then nearest date" among the athlete's races -- race
+  // ONE on a two-race plan. `weeksTotal`/`draft.raceDate` name the FINAL
+  // target (race two). Scoring race one's demand against race two's
+  // horizon is systematically optimistic. `feasibilityFor` is spied on
+  // (not mocked -- it still runs for real) purely to inspect what
+  // `weeksUntilEvent` each call site actually passed it, since neither
+  // `PlanPreview.feasibility` nor its warnings surface that raw number.
+  describe("feasibility horizon (FIX 3)", () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("previewTrainingPlan assesses feasibility against race one's horizon on a two-race plan", async () => {
+      const earlierDate = FIRST_DATE;
+      const laterDate = addDaysYmd(FIRST_DATE, 200);
+      const a = await makeRace({
+        name: "Earlier",
+        raceType: "marathon",
+        date: earlierDate,
+      });
+      const b = await makeRace({
+        name: "Later",
+        raceType: "marathon",
+        date: laterDate,
+      });
+
+      const spy = vi.spyOn(feasibilityModule, "feasibilityFor");
+      const result = await previewTrainingPlan({
+        userId: USER,
+        raceType: "marathon",
+        raceDate: laterDate,
+        raceIds: [a, b],
+      });
+      expect(result.ok).toBe(true);
+      if (!result.ok) throw new Error("expected ok");
+      expect(spy).toHaveBeenCalledTimes(1);
+      const weeksUntilEvent = spy.mock.calls[0][0].weeksUntilEvent as number;
+
+      // `result.preview.weeksTotal` is the plan's own length, always
+      // spanning to the FINAL target (race two, ~200 days after race one).
+      // Before the fix, `weeksUntilEvent` WAS `weeksTotal` -- race two's
+      // horizon. Race one is strictly earlier, so the fixed value must be
+      // strictly less.
+      expect(weeksUntilEvent).toBeLessThan(result.preview.weeksTotal);
+      // FIRST_DATE is 140 days out (~20 weeks); pin a tolerant band around
+      // that rather than the exact day count, so the assertion doesn't
+      // couple to test-run time-of-day. Race two alone (~340 days, ~49
+      // weeks) sits far outside this band, so this also rules out the
+      // pre-fix value landing here by coincidence.
+      expect(weeksUntilEvent).toBeGreaterThanOrEqual(18);
+      expect(weeksUntilEvent).toBeLessThanOrEqual(22);
+    });
+
+    it("uses the race demand was priced against, even when it is not in the plan", async () => {
+      // The case the first version of this fix could not handle. `demand`
+      // resolves highest-priority-then-nearest-date over ALL the athlete's
+      // races, so a third A-race NEARER than either of the plan's two is what
+      // gets priced -- while the horizon was being counted to the plan's own
+      // first target. The verdict then answered a question about neither race.
+      const nearest = addDaysYmd(FIRST_DATE, -60);
+      await makeRace({
+        name: "Unrelated but nearer",
+        raceType: "marathon",
+        date: nearest,
+      });
+      const a = await makeRace({
+        name: "Plan first",
+        raceType: "marathon",
+        date: FIRST_DATE,
+      });
+      const b = await makeRace({
+        name: "Plan final",
+        raceType: "marathon",
+        date: addDaysYmd(FIRST_DATE, 200),
+      });
+
+      const spy = vi.spyOn(feasibilityModule, "feasibilityFor");
+      const result = await previewTrainingPlan({
+        userId: USER,
+        raceType: "marathon",
+        raceDate: addDaysYmd(FIRST_DATE, 200),
+        raceIds: [a, b],
+      });
+      expect(result.ok).toBe(true);
+      if (!result.ok) throw new Error("expected ok");
+      const weeksUntilEvent = spy.mock.calls[0][0].weeksUntilEvent as number;
+
+      // FIRST_DATE is ~140 days out, so the unrelated race is ~80 days (~11
+      // weeks). Scoring against the plan's first target instead would land in
+      // the 18-22 band the test above pins -- well clear of this one, so this
+      // assertion distinguishes the two fixes rather than merely passing.
+      expect(weeksUntilEvent).toBeGreaterThanOrEqual(9);
+      expect(weeksUntilEvent).toBeLessThanOrEqual(13);
+    });
+
+    it("previewFromDraft assesses feasibility against race one's horizon on a two-race plan", async () => {
+      const earlierDate = FIRST_DATE;
+      const laterDate = addDaysYmd(FIRST_DATE, 200);
+      const a = await makeRace({
+        name: "Earlier",
+        raceType: "marathon",
+        date: earlierDate,
+      });
+      const b = await makeRace({
+        name: "Later",
+        raceType: "marathon",
+        date: laterDate,
+      });
+      const created = await previewTrainingPlan({
+        userId: USER,
+        raceType: "marathon",
+        raceDate: laterDate,
+        raceIds: [a, b],
+      });
+      expect(created.ok).toBe(true);
+      if (!created.ok) throw new Error("expected ok");
+      const draft = await db.query.trainingPlans.findFirst({
+        where: eq(schema.trainingPlans.id, created.preview.planId),
+      });
+      expect(draft).toBeTruthy();
+      if (!draft) return;
+
+      const spy = vi.spyOn(feasibilityModule, "feasibilityFor");
+      const rehydrated = await previewFromDraft(draft);
+      expect(spy).toHaveBeenCalledTimes(1);
+      const weeksUntilEvent = spy.mock.calls[0][0].weeksUntilEvent as number;
+
+      expect(weeksUntilEvent).toBeLessThan(rehydrated.weeksTotal);
+      expect(weeksUntilEvent).toBeGreaterThanOrEqual(18);
+      expect(weeksUntilEvent).toBeLessThanOrEqual(22);
+    });
+
+    it("FIX 3 control: a single-race plan's feasibility horizon is unaffected (previewTrainingPlan)", async () => {
+      const raceDate = FIRST_DATE;
+      const spy = vi.spyOn(feasibilityModule, "feasibilityFor");
+      const result = await previewTrainingPlan({
+        userId: USER,
+        raceType: "marathon",
+        raceDate,
+      });
+      expect(result.ok).toBe(true);
+      if (!result.ok) throw new Error("expected ok");
+      expect(spy).toHaveBeenCalledTimes(1);
+      const weeksUntilEvent = spy.mock.calls[0][0].weeksUntilEvent as number;
+      // No first target: race one IS the final race, so this must stay
+      // exactly the plan's own horizon -- byte-identical to before FIX 3.
+      expect(weeksUntilEvent).toBe(result.preview.weeksTotal);
+    });
+
+    it("FIX 3 control: a single-race plan's feasibility horizon is unaffected (previewFromDraft)", async () => {
+      const raceDate = FIRST_DATE;
+      const created = await previewTrainingPlan({
+        userId: USER,
+        raceType: "marathon",
+        raceDate,
+      });
+      expect(created.ok).toBe(true);
+      if (!created.ok) throw new Error("expected ok");
+      const draft = await db.query.trainingPlans.findFirst({
+        where: eq(schema.trainingPlans.id, created.preview.planId),
+      });
+      expect(draft).toBeTruthy();
+      if (!draft) return;
+
+      const spy = vi.spyOn(feasibilityModule, "feasibilityFor");
+      const rehydrated = await previewFromDraft(draft);
+      expect(spy).toHaveBeenCalledTimes(1);
+      const weeksUntilEvent = spy.mock.calls[0][0].weeksUntilEvent as number;
+      expect(weeksUntilEvent).toBe(rehydrated.weeksTotal);
+    });
+  });
+});
+
+describe("periodize clamps an out-of-range firstRace.weekNumber", () => {
+  it.each([-5, 0, 1, 20, 25])(
+    "still produces exactly weeksTotal blocks, numbered 1..weeksTotal, for weekNumber=%i",
+    (weekNumber) => {
+      const blocks = periodize({
+        weeksTotal: 20,
+        startingCtl: 50,
+        daysPerWeek: 5,
+        hoursPerWeek: 8,
+        sport: "Run" as const,
+        firstRace: { weekNumber, raceType: "marathon" },
+      });
+      expect(blocks.length).toBe(20);
+      expect(blocks.map((b) => b.weekNumber)).toEqual(
+        Array.from({ length: 20 }, (_, i) => i + 1)
+      );
+    }
+  );
 });

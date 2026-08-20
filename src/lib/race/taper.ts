@@ -83,6 +83,60 @@ export function taperWindowDays(raceType: string): number {
   return TAPER_WINDOW_SHORT;
 }
 
+/**
+ * Days of recovery a race of this class costs before rebuilding may start.
+ *
+ * **Evidence:** `docs/specs/2026-08-19-multi-a-race-transition-evidence.md`.
+ *
+ * Note the asymmetry with the taper windows directly above, because it is
+ * easy to assume they behave the same way and they do not. Ferreira et al.
+ * 2023 pooled middle-, long- and ultra-distance and found **no significant
+ * difference by event distance** for taper LENGTH — so that mapping is a
+ * convention the evidence tolerates. Recovery is the opposite: distance is
+ * exactly where it shows up. Marathon aerobic capacity is back inside 7 days
+ * (Takayama et al. 2017, n=11); an Ironman still shows significantly elevated
+ * CK, myoglobin, IL-6 and hs-CRP at 5 days (Neubauer et al. 2008, n=42) and
+ * took 15 days for VO2max in the one case study (Nosaka et al. 2010, n=1, read
+ * second-hand: the paper is paywalled); a 166 km ultra needs 9-16 days for
+ * neuromuscular function (Millet et al. 2011). **The same classifier is a
+ * tolerated convention for the taper and a supported one for the recovery.**
+ *
+ * Read the confidence per row, not the table shape. Only the long class has
+ * studies under it.
+ *
+ * This constant: marathon / full Ironman. Bounded BELOW by marathon aerobic
+ * recovery at 7d and ABOVE by Ironman VO2max at 15d, with inflammation still
+ * significant at 5d. Aerobic capacity returns before tissue does, and a plan
+ * that resumes on the aerobic reading alone resumes onto a leg that is still
+ * repairing — so this sits above the marathon finding and below the Ironman one.
+ * Confidence: Medium. A judgement between two evidenced endpoints, which is
+ * not the same as a number with no endpoints.
+ */
+export const RACE_RECOVERY_DAYS_LONG = 14;
+
+/**
+ * Half / 70.3 / fondo / century. **Evidence:** `docs/specs/2026-08-19-multi-a-race-transition-evidence.md`.
+ * **No study was located at this distance** — a search on 2026-08-19 returned
+ * CK kinetics reported second-hand and no primary time-to-recovery study in
+ * trained runners. Interpolated between the long class and nothing.
+ * Confidence: Low.
+ */
+export const RACE_RECOVERY_DAYS_MID = 7;
+
+/**
+ * Everything else. **Evidence:** `docs/specs/2026-08-19-multi-a-race-transition-evidence.md`.
+ * **Invented** — no evidence at all. A floor so a short A-race still costs
+ * something rather than nothing. Confidence: Low.
+ */
+export const RACE_RECOVERY_DAYS_SHORT = 4;
+
+export function raceRecoveryDays(raceType: string): number {
+  const window = taperWindowDays(raceType);
+  if (window === TAPER_WINDOW_LONG) return RACE_RECOVERY_DAYS_LONG;
+  if (window === TAPER_WINDOW_MID) return RACE_RECOVERY_DAYS_MID;
+  return RACE_RECOVERY_DAYS_SHORT;
+}
+
 function daysBetween(fromYmd: string, toYmd: string): number {
   return Math.round(
     (new Date(toYmd + "T00:00:00").getTime() -

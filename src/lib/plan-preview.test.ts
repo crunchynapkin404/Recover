@@ -10,36 +10,154 @@ import { periodize } from "./training-plan";
 describe("buildPhases", () => {
   it("gives recovery its own row rather than folding it into a phase", () => {
     const rows = buildPhases([
-      { weekNumber: 1, phase: "base" },
-      { weekNumber: 2, phase: "base" },
-      { weekNumber: 3, phase: "recovery" },
-      { weekNumber: 4, phase: "build" },
+      { weekNumber: 1, phase: "base", segment: 1 },
+      { weekNumber: 2, phase: "base", segment: 1 },
+      { weekNumber: 3, phase: "recovery", segment: 1 },
+      { weekNumber: 4, phase: "build", segment: 1 },
     ]);
 
     expect(rows).toEqual([
-      { phase: "base", weeks: 2, weekNumbers: [1, 2] },
-      { phase: "build", weeks: 1, weekNumbers: [4] },
-      { phase: "recovery", weeks: 1, weekNumbers: [3] },
+      {
+        segment: 1,
+        phase: "base",
+        weeks: 2,
+        weekNumbers: [1, 2],
+        isBridge: false,
+      },
+      {
+        segment: 1,
+        phase: "build",
+        weeks: 1,
+        weekNumbers: [4],
+        isBridge: false,
+      },
+      {
+        segment: 1,
+        phase: "recovery",
+        weeks: 1,
+        weekNumbers: [3],
+        isBridge: false,
+      },
     ]);
   });
 
   it("orders week numbers ascending within a row", () => {
     const rows = buildPhases([
-      { weekNumber: 9, phase: "base" },
-      { weekNumber: 2, phase: "base" },
+      { weekNumber: 9, phase: "base", segment: 1 },
+      { weekNumber: 2, phase: "base", segment: 1 },
     ]);
     expect(rows[0].weekNumbers).toEqual([2, 9]);
+  });
+
+  it("keeps the two arcs separate", () => {
+    const rows = buildPhases([
+      { weekNumber: 1, phase: "base", segment: 1 },
+      { weekNumber: 2, phase: "taper", segment: 1 },
+      { weekNumber: 3, phase: "recovery", segment: 1 },
+      { weekNumber: 4, phase: "base", segment: 2 },
+      { weekNumber: 5, phase: "taper", segment: 2 },
+    ]);
+    expect(rows.map((r) => [r.segment, r.phase])).toEqual([
+      [1, "base"],
+      [1, "taper"],
+      [1, "recovery"],
+      [2, "base"],
+      [2, "taper"],
+    ]);
+  });
+
+  it("still sums to weeksTotal for a two-arc plan", () => {
+    const rows = buildPhases([
+      { weekNumber: 1, phase: "base", segment: 1 },
+      { weekNumber: 2, phase: "taper", segment: 1 },
+      { weekNumber: 3, phase: "recovery", segment: 1 },
+      { weekNumber: 4, phase: "base", segment: 2 },
+      { weekNumber: 5, phase: "taper", segment: 2 },
+    ]);
+    expect(rows.reduce((n, r) => n + r.weeks, 0)).toBe(5);
+  });
+
+  // Mutation guard, made explicit rather than relying on the suite passing:
+  // a single-race plan (every week at segment 1) must produce EXACTLY
+  // today's rows plus that one added field, not a reshaped or reordered
+  // list. This pins the full shape for one representative plan length
+  // (16 weeks, matching this file's other periodize-driven cases), so a
+  // regression in phase boundaries, week numbers, or ordering fails here
+  // even though the summed-total and grouping tests above would not catch
+  // every way that could go wrong.
+  it("is byte-identical to today's rows for a single-race plan", () => {
+    const blocks = periodize({
+      weeksTotal: 16,
+      startingCtl: 45,
+      daysPerWeek: 5,
+      hoursPerWeek: 8,
+      sport: "Run",
+    });
+    expect(blocks.every((b) => b.segment === 1)).toBe(true);
+
+    const rows = buildPhases(
+      blocks.map((b) => ({
+        weekNumber: b.weekNumber,
+        phase: b.phase as PlanPhase,
+        segment: b.segment,
+      }))
+    );
+
+    expect(rows).toEqual([
+      {
+        segment: 1,
+        phase: "base",
+        weeks: 5,
+        weekNumbers: [1, 2, 3, 5, 6],
+        isBridge: false,
+      },
+      {
+        segment: 1,
+        phase: "build",
+        weeks: 3,
+        weekNumbers: [7, 9, 10],
+        isBridge: false,
+      },
+      {
+        segment: 1,
+        phase: "peak",
+        weeks: 2,
+        weekNumbers: [12, 13],
+        isBridge: false,
+      },
+      {
+        segment: 1,
+        phase: "taper",
+        weeks: 2,
+        weekNumbers: [15, 16],
+        isBridge: false,
+      },
+      {
+        segment: 1,
+        phase: "recovery",
+        weeks: 4,
+        weekNumbers: [4, 8, 11, 14],
+        isBridge: false,
+      },
+    ]);
   });
 
   // The property the athlete actually checks on screen.
   it.each([1, 2, 4, 8, 12, 16, 20, 24, 32, 40, 52])(
     "rows sum to weeksTotal for a %i-week plan",
     (weeksTotal) => {
-      const blocks = periodize(weeksTotal, 45, 5, 8, "Bike");
+      const blocks = periodize({
+        weeksTotal,
+        startingCtl: 45,
+        daysPerWeek: 5,
+        hoursPerWeek: 8,
+        sport: "Bike",
+      });
       const rows = buildPhases(
         blocks.map((b) => ({
           weekNumber: b.weekNumber,
           phase: b.phase as PlanPhase,
+          segment: b.segment,
         }))
       );
 
@@ -60,6 +178,7 @@ const clean: WarningInput = {
   raceCreated: false,
   availabilitySeeded: false,
   shortHorizon: false,
+  noBridgeRoom: false,
 };
 
 describe("collectWarnings", () => {
@@ -93,6 +212,7 @@ describe("collectWarnings", () => {
         raceCreated: true,
         availabilitySeeded: true,
         shortHorizon: true,
+        noBridgeRoom: true,
       })
     ).toEqual([
       "no_ctl_history",
@@ -102,7 +222,19 @@ describe("collectWarnings", () => {
       "race_created",
       "availability_seeded",
       "short_horizon",
+      "no_bridge_room",
     ]);
+  });
+
+  it("warns when there is no room to rebuild between two A-races", () => {
+    // marathon -> marathon needs 14 + 21 = 35 days.
+    expect(collectWarnings({ ...clean, noBridgeRoom: true })).toEqual([
+      "no_bridge_room",
+    ]);
+  });
+
+  it("stays silent when the gap clears the floor", () => {
+    expect(collectWarnings({ ...clean, noBridgeRoom: false })).toEqual([]);
   });
 
   it("a null feasibility verdict is silent, not a warning", () => {
@@ -112,6 +244,76 @@ describe("collectWarnings", () => {
   it("a ready feasibility verdict is silent, not a warning", () => {
     expect(collectWarnings({ ...clean, feasibilityVerdict: "ready" })).toEqual(
       []
+    );
+  });
+});
+
+describe("segment 2's recovery row is the rebuild's own cadence, not a bridge", () => {
+  it("groups a segment-2 recovery week separately from segment 1's bridge", () => {
+    // Pins the fact the PHASE_ORDER comment now states. A rebuild arc long
+    // enough to hit arc()'s step-loading cadence emits its own recovery
+    // weeks, so segment 2 having a recovery row is normal and says nothing
+    // about the bridge between the two races.
+    const rows = buildPhases([
+      { weekNumber: 1, phase: "base", segment: 1 },
+      { weekNumber: 2, phase: "recovery", segment: 1 }, // the bridge
+      { weekNumber: 3, phase: "base", segment: 2 },
+      { weekNumber: 4, phase: "recovery", segment: 2 }, // the rebuild's cadence
+      { weekNumber: 5, phase: "taper", segment: 2 },
+    ]);
+    const recoveries = rows.filter((r) => r.phase === "recovery");
+    expect(recoveries).toHaveLength(2);
+    expect(recoveries.map((r) => r.segment)).toEqual([1, 2]);
+    // And they must never be merged into one row -- that would tell the
+    // athlete the bridge is longer than it is.
+    expect(recoveries[0].weekNumbers).toEqual([2]);
+    expect(recoveries[1].weekNumbers).toEqual([4]);
+  });
+});
+
+describe("the bridge is its own row, not merged with the arc's easy weeks", () => {
+  it("splits bridging recovery from step-loading recovery in the same segment", () => {
+    // The defect this closes was only visible in a screenshot: a real
+    // two-marathon plan rendered "Recovery · 5 · weeks 4, 7, 11, 14, 15",
+    // merging the athlete's ordinary easy weeks (4, 7, 11) with the gap
+    // between their two goal races (14, 15). The bridge is the whole feature.
+    const rows = buildPhases([
+      { weekNumber: 4, phase: "recovery", segment: 1, isBridge: false },
+      { weekNumber: 7, phase: "recovery", segment: 1, isBridge: false },
+      { weekNumber: 12, phase: "taper", segment: 1, isBridge: false },
+      { weekNumber: 14, phase: "recovery", segment: 1, isBridge: true },
+      { weekNumber: 15, phase: "recovery", segment: 1, isBridge: true },
+      { weekNumber: 16, phase: "base", segment: 2, isBridge: false },
+    ]);
+    const recovery = rows.filter((r) => r.phase === "recovery");
+    expect(recovery).toHaveLength(2);
+    expect(recovery[0]).toMatchObject({
+      isBridge: false,
+      weekNumbers: [4, 7],
+    });
+    expect(recovery[1]).toMatchObject({
+      isBridge: true,
+      weekNumbers: [14, 15],
+    });
+  });
+
+  it("still sums to the week count with the bridge split out", () => {
+    const rows = buildPhases([
+      { weekNumber: 1, phase: "base", segment: 1, isBridge: false },
+      { weekNumber: 2, phase: "recovery", segment: 1, isBridge: false },
+      { weekNumber: 3, phase: "recovery", segment: 1, isBridge: true },
+      { weekNumber: 4, phase: "base", segment: 2, isBridge: false },
+    ]);
+    expect(rows.reduce((n, r) => n + r.weeks, 0)).toBe(4);
+  });
+
+  it("is byte-identical for a plan with no bridge at all", () => {
+    const weeks = [
+      { weekNumber: 1, phase: "base" as const, segment: 1 as const },
+      { weekNumber: 2, phase: "recovery" as const, segment: 1 as const },
+    ];
+    expect(buildPhases(weeks)).toEqual(
+      buildPhases(weeks.map((w) => ({ ...w, isBridge: false })))
     );
   });
 });

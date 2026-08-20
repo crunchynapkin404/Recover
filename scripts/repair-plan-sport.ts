@@ -7,12 +7,15 @@
  * The live case: plan 34a69f25 for a gran fondo held
  * constraints.sports = ["Ride"] and 24 running sessions.
  */
+import { fileURLToPath } from "node:url";
 import { db, schema } from "@/lib/db";
 import { and, eq } from "drizzle-orm";
-import { inferPlanSport, requirePlanSport } from "@/lib/plan-sport";
+import {
+  inferPlanSport,
+  requirePlanSport,
+  type PlanSport,
+} from "@/lib/plan-sport";
 import { generateTrainingPlan } from "@/lib/training-plan";
-
-const APPLY = process.argv.includes("--apply");
 
 /**
  * The race this plan is for, and the sport it therefore wants.
@@ -69,16 +72,59 @@ async function resolveTarget(plan: typeof schema.trainingPlans.$inferSelect) {
   return null;
 }
 
-async function main() {
+export type PlanSportOutcome =
+  | { planId: string; kind: "skipped_no_target"; raceTypeRaw: string | null }
+  // A second A-race is on record (migration 0042's firstRaceId).
+  // generateTrainingPlan below only ever takes a single
+  // raceId/raceType/raceDate — it has no way to carry a firstRace through —
+  // so regenerating here would silently collapse the athlete's two-arc plan
+  // (arc + recovery + arc, periodize()'s composition) into one flattened
+  // arc. Refused rather than guessed at. Same defect class as
+  // repair-plan-blocks.ts before its own FIX 4.
+  | { planId: string; kind: "refused_two_race" }
+  | { planId: string; kind: "already_correct"; want: PlanSport; via: string }
+  | {
+      planId: string;
+      kind: "regenerate";
+      want: PlanSport;
+      via: string;
+      raceName: string;
+      sportsFound: string[];
+      applied: boolean;
+    };
+
+export interface RepairPlanSportResult {
+  outcomes: PlanSportOutcome[];
+}
+
+/**
+ * Core repair, importable by tests without the CLI's process.argv parsing
+ * or process.exit side effects — same shape as repairPlanBlocks
+ * (repair-plan-blocks.ts). No console output here; `main()` below does all
+ * the printing from the returned outcomes, so this stays a plain,
+ * inspectable result.
+ */
+export async function repairPlanSport(opts: {
+  apply: boolean;
+}): Promise<RepairPlanSportResult> {
   const plans = await db.query.trainingPlans.findMany({
     where: eq(schema.trainingPlans.status, "active"),
   });
+  const outcomes: PlanSportOutcome[] = [];
+
   for (const plan of plans) {
+    if (plan.firstRaceId) {
+      outcomes.push({ planId: plan.id, kind: "refused_two_race" });
+      continue;
+    }
+
     const target = await resolveTarget(plan);
     if (!target) {
-      console.log(
-        `plan ${plan.id.slice(0, 8)}: no race, and race_type ${JSON.stringify(plan.raceType)} names no sport — skipped`
-      );
+      outcomes.push({
+        planId: plan.id,
+        kind: "skipped_no_target",
+        raceTypeRaw: plan.raceType,
+      });
       continue;
     }
     const { race, want, via } = target;
@@ -106,38 +152,83 @@ async function main() {
           !["Swim", "Bike", "Run"].every((s) => sports.has(s))
         : [...sports].some((s) => s !== want);
     if (!wrong) {
-      console.log(
-        `plan ${plan.id.slice(0, 8)}: already ${want} (via ${via}) — no change`
-      );
+      outcomes.push({ planId: plan.id, kind: "already_correct", want, via });
       continue;
     }
-    console.log(
-      `plan ${plan.id.slice(0, 8)} (${race?.name ?? plan.title}): wants ${want} via ${via}, workouts are ${[...sports].join("/")} — REGENERATE`
-    );
-    if (!APPLY) continue;
-    await generateTrainingPlan({
-      userId: plan.userId,
-      // When a race was found, regenerate against IT — passing raceId makes
-      // generateTrainingPlan read race.sport directly and also repairs the
-      // missing plan→race link. Without one, fall back to the plan's own
-      // fields; generateTrainingPlan will create a race and link that.
-      raceType: race?.raceType ?? plan.raceType,
-      raceDate: race?.date ?? plan.raceDate,
-      ...(race ? { raceId: race.id } : {}),
-      daysPerWeek:
-        (plan.constraints as { daysPerWeek?: number } | null)?.daysPerWeek ?? 5,
-      hoursPerWeek:
-        (plan.constraints as { hoursPerWeek?: number } | null)?.hoursPerWeek ??
-        8,
+
+    if (opts.apply) {
+      await generateTrainingPlan({
+        userId: plan.userId,
+        // When a race was found, regenerate against IT — passing raceId makes
+        // generateTrainingPlan read race.sport directly and also repairs the
+        // missing plan→race link. Without one, fall back to the plan's own
+        // fields; generateTrainingPlan will create a race and link that.
+        raceType: race?.raceType ?? plan.raceType,
+        raceDate: race?.date ?? plan.raceDate,
+        ...(race ? { raceId: race.id } : {}),
+        daysPerWeek:
+          (plan.constraints as { daysPerWeek?: number } | null)?.daysPerWeek ??
+          5,
+        hoursPerWeek:
+          (plan.constraints as { hoursPerWeek?: number } | null)
+            ?.hoursPerWeek ?? 8,
+      });
+    }
+    outcomes.push({
+      planId: plan.id,
+      kind: "regenerate",
+      want,
+      via,
+      raceName: race?.name ?? plan.title,
+      sportsFound: [...sports],
+      applied: opts.apply,
     });
-    console.log(`  regenerated`);
+  }
+
+  return { outcomes };
+}
+
+async function main(): Promise<void> {
+  const apply = process.argv.includes("--apply");
+  const { outcomes } = await repairPlanSport({ apply });
+  for (const o of outcomes) {
+    const short = o.planId.slice(0, 8);
+    switch (o.kind) {
+      case "refused_two_race":
+        console.log(
+          `plan ${short}: has a second A-race on record (firstRaceId set) — this script only knows how to regenerate a single-race plan and would collapse the two-race arc into one, so it refuses to touch this plan`
+        );
+        break;
+      case "skipped_no_target":
+        console.log(
+          `plan ${short}: no race, and race_type ${JSON.stringify(o.raceTypeRaw)} names no sport — skipped`
+        );
+        break;
+      case "already_correct":
+        console.log(
+          `plan ${short}: already ${o.want} (via ${o.via}) — no change`
+        );
+        break;
+      case "regenerate":
+        console.log(
+          `plan ${short} (${o.raceName}): wants ${o.want} via ${o.via}, workouts are ${o.sportsFound.join("/")} — REGENERATE`
+        );
+        if (o.applied) console.log(`  regenerated`);
+        break;
+    }
   }
 }
 
-main().then(
-  () => process.exit(0),
-  (e) => {
-    console.error(e);
-    process.exit(1);
-  }
-);
+// Guards the CLI entry point without `require.main` (unsafe under Vitest's
+// ESM transform, which is why this file must be importable by its test
+// without side effects) — import.meta.url works in both tsx and Vitest.
+// Same idiom as repair-plan-blocks.ts and backfill-start-date-local.ts.
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  main().then(
+    () => process.exit(0),
+    (e) => {
+      console.error(e);
+      process.exit(1);
+    }
+  );
+}

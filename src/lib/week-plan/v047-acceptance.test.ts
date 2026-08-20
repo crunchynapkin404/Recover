@@ -33,7 +33,15 @@ describe("v0.47 acceptance matrix", () => {
   });
 
   it("2) deep negative TSB enters recovery-first opening", () => {
-    const blocks = periodize(12, 50, 5, 8, "Bike", null, -21);
+    const blocks = periodize({
+      weeksTotal: 12,
+      startingCtl: 50,
+      daysPerWeek: 5,
+      hoursPerWeek: 8,
+      sport: "Bike",
+      queenStageHours: null,
+      startingTsb: -21,
+    });
     const week1 = blocks[0];
     expect(week1.targetLoad).toBe(280);
     expect(

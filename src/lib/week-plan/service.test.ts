@@ -2,11 +2,14 @@ import { describe, expect, it, beforeAll, afterAll, beforeEach } from "vitest";
 import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import {
+  addDaysYmd,
   applyResolvedAvailability,
   getOpenWeekPlan,
+  mondayOf,
   moveWorkout,
   nextReentryStage,
   planConstraints,
+  rolloverWeekPlan,
   runDailyAdaptation,
   swapWorkouts,
 } from "./service";
@@ -122,6 +125,9 @@ describe("planConstraints", () => {
     });
   });
 });
+
+// planWeekOf's tests moved to plan-targets.test.ts (Task 6) — it now lives
+// in @/lib/plan-targets, not here.
 
 /**
  * Task 10: an activity's load always lands somewhere, but only a day WITH a
@@ -1099,6 +1105,163 @@ describe.skipIf(!hasDb)(
 
       const week = await getOpenWeekPlan(TEST_USER);
       expect(week!.days[0].availableBlocks).toHaveLength(2);
+    });
+  }
+);
+
+/**
+ * Task 5, Step 7: proves `periodize()`'s `firstRace` argument is actually
+ * wired into the live rollover, not just accepted by the pure engine.
+ * `materializeWeek`'s `previousARace` guard already has direct-call
+ * coverage (materialize.test.ts, Task 3) — what was missing is proof that
+ * `rolloverWeekPlan` itself populates either argument from the plan row it
+ * already loaded. Two plans, identical in every input except whether
+ * `firstRaceId` is set: if a future edit drops the `firstRace` argument at
+ * either live `periodize()` call site (service.ts or project.ts), this
+ * reverts to a single-arc skeleton and the two plans' `effectiveTarget`
+ * converge for the same week number instead of diverging.
+ */
+describe.skipIf(!hasDb)(
+  "rolloverWeekPlan wires firstRace into the live periodize() call (Task 5)",
+  () => {
+    const CONTROL_USER = "test-week-plan-service-firstrace-control";
+    const TWO_RACE_USER = "test-week-plan-service-firstrace-tworace";
+    const PLAN_START = "2026-01-05"; // Monday
+    const RACE_ONE_DATE = addDaysYmd(PLAN_START, 30); // -> firstRaceWeek 5
+    const FINAL_RACE_DATE = addDaysYmd(PLAN_START, 140);
+    // Race one falls in week 5; marathon recovery is 2 weeks (Task 2's
+    // raceRecoveryDays), so weeks 6-7 are the bridging recovery segment.
+    // The single-arc control plan is still ramping its base phase at week 7
+    // of 20 (baseWeeks = round(20 * 0.4) = 8).
+    const IN_BRIDGE_WEEK = 7;
+
+    async function seedPlan(
+      userId: string,
+      firstRace: { date: string; raceType: string } | null
+    ): Promise<void> {
+      await db
+        .insert(schema.users)
+        .values({
+          id: userId,
+          name: "Test Two-Race User",
+          email: `${userId}@example.invalid`,
+        })
+        .onConflictDoNothing();
+
+      let firstRaceId: string | null = null;
+      if (firstRace) {
+        const [race] = await db
+          .insert(schema.races)
+          .values({
+            userId,
+            name: "Race one",
+            raceType: firstRace.raceType,
+            sport: "Run",
+            date: firstRace.date,
+            priority: "A",
+          })
+          .returning();
+        firstRaceId = race.id;
+      }
+
+      const [plan] = await db
+        .insert(schema.trainingPlans)
+        .values({
+          userId,
+          title: "Two-race wiring test plan",
+          raceType: "marathon",
+          raceDate: FINAL_RACE_DATE,
+          startDate: PLAN_START,
+          weeksTotal: 20,
+          currentWeek: IN_BRIDGE_WEEK,
+          startingCtl: 45,
+          status: "active",
+          constraints: { daysPerWeek: 5, hoursPerWeek: 8, sports: ["Run"] },
+          firstRaceId,
+          firstRaceDate: firstRace?.date ?? null,
+          firstRaceType: firstRace?.raceType ?? null,
+        })
+        .returning();
+
+      await db.insert(schema.trainingBlocks).values({
+        planId: plan.id,
+        weekNumber: IN_BRIDGE_WEEK,
+        phase: "build",
+        targetLoadTotal: 400,
+        targetSessions: 5,
+        workouts: [],
+      });
+
+      // A standard week so materializeWeek has real capacity to work with
+      // — without it, an unconfigured user gets an all-rest week (see
+      // resolveWeek) and the two skeletons' different targetLoadTotal would
+      // both be masked by zero availability.
+      await db.insert(schema.availabilityDefaults).values(
+        Array.from({ length: 7 }, (_, weekday) => ({
+          userId,
+          weekday,
+          blocks: [
+            {
+              start: null,
+              end: null,
+              mins: 90,
+              energy: "normal" as const,
+              sports: null,
+            },
+          ],
+        }))
+      );
+    }
+
+    async function readEffectiveTarget(userId: string): Promise<number | null> {
+      const week = await db.query.weekPlans.findFirst({
+        where: and(
+          eq(schema.weekPlans.userId, userId),
+          eq(schema.weekPlans.weekStart, mondayOf(new Date()))
+        ),
+      });
+      return week?.effectiveTarget ?? null;
+    }
+
+    afterAll(async () => {
+      for (const userId of [CONTROL_USER, TWO_RACE_USER]) {
+        await db
+          .delete(schema.weekPlans)
+          .where(eq(schema.weekPlans.userId, userId));
+        await db
+          .delete(schema.trainingPlans)
+          .where(eq(schema.trainingPlans.userId, userId));
+        await db
+          .delete(schema.availabilityDefaults)
+          .where(eq(schema.availabilityDefaults.userId, userId));
+        await db.delete(schema.races).where(eq(schema.races.userId, userId));
+        await db.delete(schema.users).where(eq(schema.users.id, userId));
+      }
+    });
+
+    it("rebuilds a two-race plan as two arcs, not one", async () => {
+      // The regression this step exists to prevent: a rollover that
+      // recomputes the skeleton WITHOUT firstRace produces a single arc, so
+      // the plan the athlete confirmed silently stops matching the plan
+      // they get.
+      await seedPlan(CONTROL_USER, null);
+      await seedPlan(TWO_RACE_USER, {
+        date: RACE_ONE_DATE,
+        raceType: "marathon",
+      });
+
+      expect(await rolloverWeekPlan(CONTROL_USER)).toBe("rolled");
+      expect(await rolloverWeekPlan(TWO_RACE_USER)).toBe("rolled");
+
+      const control = await readEffectiveTarget(CONTROL_USER);
+      const twoRace = await readEffectiveTarget(TWO_RACE_USER);
+      expect(control).not.toBeNull();
+      expect(twoRace).not.toBeNull();
+
+      // Same week number, same athlete profile, different skeleton: the
+      // two-race plan is in recovery here and the single-race plan is
+      // still building.
+      expect(twoRace!).toBeLessThan(control!);
     });
   }
 );

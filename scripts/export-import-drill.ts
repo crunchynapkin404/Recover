@@ -395,6 +395,9 @@ async function seed() {
     status: "completed",
     constraints: { maxWeeklyHours: 10 },
     raceId: race.id,
+    firstRaceId: null,
+    firstRaceDate: null,
+    firstRaceType: null,
     createdAt: new Date("2025-12-01T07:00:00Z"),
     updatedAt: new Date("2026-01-02T13:00:00Z"),
   };

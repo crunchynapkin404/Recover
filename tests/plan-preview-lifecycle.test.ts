@@ -162,7 +162,13 @@ describe.skipIf(!hasDb)("previewTrainingPlan (v0.43)", () => {
     // but the loop bound (`w <= weeksTotal`) cuts it off before build,
     // peak or taper are ever reached.
     expect(result.preview.phases).toEqual([
-      { phase: "base", weeks: 2, weekNumbers: [1, 2] },
+      {
+        segment: 1,
+        phase: "base",
+        weeks: 2,
+        weekNumbers: [1, 2],
+        isBridge: false,
+      },
     ]);
   });
 

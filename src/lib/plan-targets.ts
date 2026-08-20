@@ -1,0 +1,87 @@
+// src/lib/plan-targets.ts — the one read path for "which race is which" on a
+// training plan.
+//
+// `training_plans.raceId`/`raceDate` have always meant the plan's FINAL
+// target; migration 0042 added `firstRaceId`/`firstRaceDate`/`firstRaceType`
+// to name an EARLIER A-race on a two-race plan, without repurposing the
+// existing columns. Every call site that needs to know which race is which
+// must go through `planRaceTargets` rather than reading `raceDate` (or
+// `firstRaceDate`) directly, or it will silently pick the wrong race on a
+// two-race plan.
+
+export interface RaceTarget {
+  id: string;
+  date: string; // YYYY-MM-DD
+  raceType: string;
+}
+
+/** `final` is always the plan's end. `first` is null on a single-race plan. */
+export function planRaceTargets(plan: {
+  raceId: string | null;
+  raceDate: string;
+  raceType: string;
+  firstRaceId: string | null;
+  firstRaceDate: string | null;
+  firstRaceType: string | null;
+}): { first: RaceTarget | null; final: RaceTarget } {
+  // Keyed on firstRaceId, never firstRaceDate: ON DELETE SET NULL on
+  // first_race_id nulls the id but leaves the denormalized date/type columns
+  // behind. A plan whose first race row was deleted must degrade to a
+  // single-race plan, not report a half-configured first race.
+  const first =
+    plan.firstRaceId != null &&
+    plan.firstRaceDate != null &&
+    plan.firstRaceType != null
+      ? {
+          id: plan.firstRaceId,
+          date: plan.firstRaceDate,
+          raceType: plan.firstRaceType,
+        }
+      : null;
+
+  return {
+    first,
+    final: {
+      // raceId is nullable in the schema (a plan need not link back to a
+      // `races` row), but RaceTarget.id is a plain string; "" is the
+      // sentinel for "no linked race row" rather than laundering null into
+      // a truthy id.
+      id: plan.raceId ?? "",
+      date: plan.raceDate,
+      raceType: plan.raceType,
+    },
+  };
+}
+
+// ── Day arithmetic ───────────────────────────────────────────────────────
+//
+// Moved here (Task 6, from week-plan/service.ts) because previewTrainingPlan
+// (src/lib/training-plan.ts) needs planWeekOf to place a two-race plan's
+// earlier A-race into periodize()'s `firstRace.weekNumber`, and
+// week-plan/service.ts statically imports `periodize` from training-plan.ts
+// — a static import back from training-plan.ts to service.ts would cycle.
+// This file has zero imports and is a true leaf, so both training-plan.ts
+// and week-plan/service.ts can import from here without creating one. One
+// owner for the day-diff math, not a fourth copy of it.
+
+/** Exported so every plan-week-number computation shares this instead of a
+ * second, possibly-drifting implementation. */
+export function daysBetweenYmd(fromYmd: string, toYmd: string): number {
+  return Math.round(
+    (new Date(toYmd + "T00:00:00").getTime() -
+      new Date(fromYmd + "T00:00:00").getTime()) /
+      86_400_000
+  );
+}
+
+/**
+ * Which periodized week number `date` falls in for a plan starting on
+ * `startDate`. Week N spans days `7(N-1)..7N-1` from `startDate`, so a race
+ * exactly 7 days out is in week 2, not week 1 — `Math.ceil(daysBetween / 7)`
+ * (the formula both live call sites used before this fix) undercounts by
+ * one at every exact multiple of 7, i.e. whenever the race falls on the
+ * same weekday `startDate` did.
+ */
+export function planWeekOf(startDate: string, date: string): number {
+  return Math.floor(daysBetweenYmd(startDate, date) / 7) + 1;
+}

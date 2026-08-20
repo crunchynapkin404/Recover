@@ -5,6 +5,7 @@ import { and, eq, asc } from "drizzle-orm";
 import { getActivePlan } from "@/lib/active-plan";
 import { resolvePlanningSurfaceState } from "@/lib/planning-surface/effective-state";
 import { resolveBlockTargets } from "@/lib/week-plan/service";
+import { planRaceTargets } from "@/lib/plan-targets";
 
 const parameters = z.object({
   weekNumber: z
@@ -35,13 +36,25 @@ async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
     const resolved = (await resolveBlockTargets(plan.id, [block])).get(
       block.weekNumber
     );
+    const weekTargets = planRaceTargets(plan);
     return {
       available: true,
       plan: {
         id: plan.id,
         title: plan.title,
-        raceType: plan.raceType,
-        raceDate: plan.raceDate,
+        // raceType/raceDate stay the FINAL target so the existing contract
+        // is unchanged; firstRace is additive and absent on single-race
+        // plans (see planRaceTargets, src/lib/plan-targets.ts).
+        raceType: weekTargets.final.raceType,
+        raceDate: weekTargets.final.date,
+        ...(weekTargets.first
+          ? {
+              firstRace: {
+                raceType: weekTargets.first.raceType,
+                date: weekTargets.first.date,
+              },
+            }
+          : {}),
         weeksTotal: plan.weeksTotal,
         currentWeek: plan.currentWeek,
         effectiveStyle: state.effectiveStyle,
@@ -64,13 +77,25 @@ async function execute(args: z.infer<typeof parameters>, ctx: ToolContext) {
   // Same read path as the single-week detail above: a materialized week's
   // effective target wins over the skeleton value it started from.
   const resolvedTargets = await resolveBlockTargets(plan.id, blocks);
+  const overviewTargets = planRaceTargets(plan);
   return {
     available: true,
     plan: {
       id: plan.id,
       title: plan.title,
-      raceType: plan.raceType,
-      raceDate: plan.raceDate,
+      // raceType/raceDate stay the FINAL target so the existing contract is
+      // unchanged; firstRace is additive and absent on single-race plans
+      // (see planRaceTargets, src/lib/plan-targets.ts).
+      raceType: overviewTargets.final.raceType,
+      raceDate: overviewTargets.final.date,
+      ...(overviewTargets.first
+        ? {
+            firstRace: {
+              raceType: overviewTargets.first.raceType,
+              date: overviewTargets.first.date,
+            },
+          }
+        : {}),
       startDate: plan.startDate,
       weeksTotal: plan.weeksTotal,
       currentWeek: plan.currentWeek,

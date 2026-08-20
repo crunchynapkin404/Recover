@@ -18,29 +18,92 @@ import type { StartStateSource } from "@/lib/week-plan/start-state";
 export type PlanPhase = "base" | "build" | "peak" | "taper" | "recovery";
 
 export interface PhaseRow {
+  /**
+   * 1 = the plan's only arc, or (on a two-A-race plan) arc one plus the
+   * recovery that bridges to the rebuild. 2 = the rebuild arc after that
+   * recovery. Grouping by `(segment, phase)` rather than `phase` alone is
+   * what keeps a two-arc plan from rendering as one merged phase list —
+   * see this file's header comment and `buildPhases` below.
+   */
+  segment: 1 | 2;
   phase: PlanPhase;
   /** Equals weekNumbers.length. Carried explicitly because it is what renders. */
   weeks: number;
   weekNumbers: number[];
+  /**
+   * True for the row holding the recovery weeks that BRIDGE two A-races,
+   * false for every other row including segment 1's ordinary step-loading
+   * recovery weeks. Both are `phase: "recovery"`, and merging them rendered
+   * "Recovery · 5 · weeks 4, 7, 11, 14, 15" — the athlete could not tell the
+   * gap between their two goal races from their normal easy weeks.
+   */
+  isBridge: boolean;
 }
 
-/** Display order. Recovery sits last: it is a modifier, not a stage. */
+/**
+ * Display order WITHIN a segment. Recovery sits last there: on a single-arc
+ * plan it is a modifier tacked onto the end, not a stage of its own. On a
+ * two-A-race plan the bridging recovery IS segment 1's own last stage
+ * (`periodize`: arc one -> recovery -> arc two) — this order still puts it
+ * last within segment 1, which is where it chronologically belongs.
+ *
+ * **Segment 2 usually has a recovery row too, and that is not the bridge.**
+ * The rebuild arc runs `arc()`'s ordinary step-loading cadence, so a
+ * long enough rebuild emits its own recovery weeks (a 26-week plan with the
+ * first race in week 12 puts them at weeks 18 and 21). An earlier version of
+ * this comment claimed segment 2's ABSENCE of a recovery row was meaningful;
+ * it is not, because the row is normally present. Do not read a segment-2
+ * recovery row as a second bridge — `plan-preview.test.ts` pins this.
+ */
 const PHASE_ORDER: PlanPhase[] = ["base", "build", "peak", "taper", "recovery"];
 
+/**
+ * Groups by `(segment, phase)`, not `phase` alone, and emits segment 1's
+ * rows (in `PHASE_ORDER`) before segment 2's. Grouping by phase across the
+ * whole plan is exactly the failure this module's header comment warns
+ * about: a two-A-race plan would render one merged "base 10, build 6, peak
+ * 3, taper 3, recovery 2" list with no way for the athlete to see there
+ * were two arcs. A single-race plan has every week at `segment: 1`, so this
+ * produces exactly the rows the old phase-only grouping did, plus that one
+ * added field.
+ */
 export function buildPhases(
-  weeks: { weekNumber: number; phase: PlanPhase }[]
+  weeks: {
+    weekNumber: number;
+    phase: PlanPhase;
+    segment: 1 | 2;
+    isBridge?: boolean;
+  }[]
 ): PhaseRow[] {
-  const byPhase = new Map<PlanPhase, number[]>();
+  const byKey = new Map<string, number[]>();
   for (const w of weeks) {
-    const list = byPhase.get(w.phase) ?? [];
+    const key = `${w.segment}:${w.phase}:${w.isBridge ? "bridge" : "own"}`;
+    const list = byKey.get(key) ?? [];
     list.push(w.weekNumber);
-    byPhase.set(w.phase, list);
+    byKey.set(key, list);
   }
 
-  return PHASE_ORDER.filter((p) => byPhase.has(p)).map((phase) => {
-    const weekNumbers = [...(byPhase.get(phase) ?? [])].sort((a, b) => a - b);
-    return { phase, weeks: weekNumbers.length, weekNumbers };
-  });
+  const rows: PhaseRow[] = [];
+  for (const segment of [1, 2] as const) {
+    for (const phase of PHASE_ORDER) {
+      // Own-cadence first, then the bridge. Within a segment the bridging
+      // recovery always follows the taper chronologically, so emitting it
+      // last keeps the rows in the order the athlete lives them.
+      for (const kind of ["own", "bridge"] as const) {
+        const key = `${segment}:${phase}:${kind}`;
+        if (!byKey.has(key)) continue;
+        const weekNumbers = [...(byKey.get(key) ?? [])].sort((a, b) => a - b);
+        rows.push({
+          segment,
+          phase,
+          weeks: weekNumbers.length,
+          weekNumbers,
+          isBridge: kind === "bridge",
+        });
+      }
+    }
+  }
+  return rows;
 }
 
 /**
@@ -56,7 +119,8 @@ export type PreviewWarning =
   | "feasibility_not_realistic"
   | "race_created"
   | "availability_seeded"
-  | "short_horizon";
+  | "short_horizon"
+  | "no_bridge_room";
 
 export interface WarningInput {
   startingCtlSource: StartStateSource;
@@ -72,6 +136,13 @@ export interface WarningInput {
   raceCreated: boolean;
   availabilitySeeded: boolean;
   shortHorizon: boolean;
+  /**
+   * True when the two A-races are close enough that the gap between them
+   * clears neither the first race's recovery days nor the second's own
+   * taper window — see `hasBridgeRoom` in training-plan.ts. Always false on
+   * a single-race plan.
+   */
+  noBridgeRoom: boolean;
 }
 
 export function collectWarnings(input: WarningInput): PreviewWarning[] {
@@ -109,6 +180,7 @@ export function collectWarnings(input: WarningInput): PreviewWarning[] {
   if (input.raceCreated) out.push("race_created");
   if (input.availabilitySeeded) out.push("availability_seeded");
   if (input.shortHorizon) out.push("short_horizon");
+  if (input.noBridgeRoom) out.push("no_bridge_room");
   return out;
 }
 
@@ -130,6 +202,8 @@ export const WARNING_TEXT: Record<PreviewWarning, string> = {
     "You have no standard week yet; confirming will create one from the hours above.",
   short_horizon:
     "There are fewer than four weeks until race day, so this is a shortened plan rather than a full progression.",
+  no_bridge_room:
+    "Your two A-races are close enough together that every week between them is either recovery or taper — there is no room to rebuild. The plan still covers both.",
 };
 
 // ── v0.43: the preview itself ──────────────────────────────────────────────
@@ -140,6 +214,8 @@ export interface PreviewWeek {
   targetLoad: number;
   targetHours: number;
   raceName: string | null;
+  /** True for a bridging recovery week between two A-races. */
+  isBridge: boolean;
 }
 
 export interface PlanPreview {
@@ -153,6 +229,21 @@ export interface PlanPreview {
     date: string;
     priority: "A" | "B" | "C";
   };
+  /**
+   * The EARLIER A-race on a two-race plan; null on a single-race one.
+   *
+   * `race` above is the plan's FINAL target, matching what
+   * `training_plans.raceId`/`raceDate` mean. Without this the card had no name
+   * for segment 1 and rendered the literal string "First race" directly above
+   * the second race's real name, and the first race's own week went unlabelled
+   * in the week list — a 21-week two-race plan showed exactly one race, at the
+   * end, and the athlete could not see where their first goal race fell.
+   */
+  firstRace: {
+    id: string;
+    name: string;
+    date: string;
+  } | null;
   startDate: string;
   weeksTotal: number;
   /** The constraints this specific draft was built from — Rebuild's inputs
@@ -179,7 +270,12 @@ export type PreviewResult =
   | { ok: true; preview: PlanPreview }
   | {
       ok: false;
-      reason: "unknown_sport" | "race_not_found" | "horizon_too_long";
+      reason:
+        | "unknown_sport"
+        | "race_not_found"
+        | "horizon_too_long"
+        | "too_many_races"
+        | "second_race_not_a";
     };
 
 /** One sentence per refusal, naming the input at fault and its fix. */
@@ -192,4 +288,8 @@ export const REFUSAL_TEXT: Record<
   race_not_found: "That race is not on your calendar any more.",
   horizon_too_long:
     "Race day is more than 52 weeks away — check the date, or plan a nearer event first.",
+  too_many_races:
+    "This plan targets at most two A-races. Pick the two that matter and make the others B or C.",
+  second_race_not_a:
+    "Both target races must be A-priority and still upcoming. Change the second race's priority, or pick a different one.",
 };
