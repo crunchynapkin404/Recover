@@ -166,3 +166,36 @@ describe("self-hosted runner safety", () => {
     }
   });
 });
+
+describe("no second release path", () => {
+  // scripts/release.sh was deleted when finish-release.yml replaced it. It
+  // merged, tagged and published a release page — and on 2026-08-20 it did all
+  // three while nothing had been built, soaked, promoted or deployed. Prod
+  // stayed on the previous version and the release page ran ahead of reality.
+  //
+  // The defect was not in the script's steps; it was that a second path to the
+  // same place existed at all. finish-release.yml verifies the deploy BEFORE
+  // tagging and cannot be stopped half way. A local script that tags and
+  // publishes can, so there must not be one.
+  //
+  // `git tag -a/-s` rather than bare `git tag`: backfill-release-objects.sh
+  // legitimately reads tags with `git tag -l` while creating release objects
+  // for historical releases, and that is not a release path.
+  it("no script both creates a version tag and creates a release object", () => {
+    const dir = join(process.cwd(), "scripts");
+    for (const f of readdirSync(dir)) {
+      if (!f.endsWith(".sh")) continue;
+      const body = readFileSync(join(dir, f), "utf8");
+      const createsTag =
+        /git\s+tag\s+-[as]\b/.test(body) ||
+        /git\s+push\s+\S+\s+["']?refs\/tags\//.test(body);
+      const createsRelease = /gh\s+release\s+create/.test(body);
+      expect(
+        createsTag && createsRelease,
+        `scripts/${f} both creates a tag and creates a release object. That is ` +
+          `the local tail finish-release.yml replaced; a second path is how a ` +
+          `release gets performed one step early.`
+      ).toBe(false);
+    }
+  });
+});
