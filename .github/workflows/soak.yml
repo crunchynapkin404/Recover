@@ -1,0 +1,151 @@
+name: Soak
+
+# RELEASING.md's soak boxes, run by machine instead of by hand.
+#
+# runs-on devbox because none of this is reachable from GitHub's runners: the
+# RC stack, the backup volumes the drills restore from, and the seeded database
+# all live there.
+#
+# NEVER add pull_request to this trigger. The repository is public and this
+# runner is a box with SSH to production and to the backup volumes;
+# tests/release-gate.test.ts fails the suite if that rule is broken.
+#
+# The three preview-state surfaces are deliberately NOT captured here: the RC
+# image is a production build, so previewStateFrom refuses `?state=` and all
+# three would render the same clock-chosen state. surfaces.yml's push-to-main
+# run covers them against the commit this candidate was cut from.
+
+on:
+  workflow_dispatch:
+    inputs:
+      rc_tag:
+        description: "Candidate to soak, e.g. 0.115.0-rc.1"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/recover
+  PREVIEW_SURFACES: today,today-post-session,today-evening
+  # .env.rc is gitignored, so it is not in the runner's fresh checkout. It
+  # lives at a stable path on the box instead; see docs/RUNNER.md.
+  RC_ENV_FILE_DEFAULT: .recover-ops/env.rc
+
+jobs:
+  soak:
+    runs-on: [self-hosted, devbox]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: npm ci
+
+      - name: Restore .env.rc from the box
+        run: |
+          set -euo pipefail
+          src="${RC_ENV_FILE:-$HOME/$RC_ENV_FILE_DEFAULT}"
+          if [ ! -f "$src" ]; then
+            echo "::error::No RC env file at $src. It is gitignored, so it is"
+            echo "::error::not in this checkout. Copy the box's .env.rc there —"
+            echo "::error::see docs/RUNNER.md."
+            exit 1
+          fi
+          cp "$src" .env.rc
+          echo "restored .env.rc from $src"
+
+      # The stack is normally left running from the previous release, so tear
+      # down first rather than assuming a clean box. -v drops the RC database
+      # too, which is why the seed steps below are not conditional.
+      - name: Tear down any previous soak stack
+        run: |
+          docker compose -p recover-rc --env-file .env.rc \
+            -f docker-compose.yml -f docker-compose.dev-rc.yml down -v || true
+
+      - name: Pin the candidate
+        run: |
+          set -euo pipefail
+          sed -i -E "s#^(\s*image:\s*).*recover:.*#\1${IMAGE_NAME}:${{ inputs.rc_tag }}#" \
+            docker-compose.dev-rc.yml
+          grep -n "image:" docker-compose.dev-rc.yml
+
+      - name: Bring up the stack
+        run: |
+          docker compose -p recover-rc --env-file .env.rc \
+            -f docker-compose.yml -f docker-compose.dev-rc.yml up -d db app
+
+      - name: Box 1 — health endpoint reports ok and db up
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 60); do
+            body=$(curl -fsS http://localhost:3100/api/health 2>/dev/null || true)
+            if echo "$body" | grep -q '"status":"ok"' && echo "$body" | grep -q '"db":"up"'; then
+              echo "health ok after $((i*5))s: $body"; exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::/api/health never reported status ok + db up"
+          docker logs recover-rc-app-1 --tail 80 || true
+          exit 1
+
+      - name: Box 2 — container reports healthy
+        run: |
+          set -euo pipefail
+          s=$(docker inspect recover-rc-app-1 --format '{{.State.Health.Status}}')
+          [ "$s" = "healthy" ] || { echo "::error::container is $s"; exit 1; }
+          echo "container healthy"
+
+      # The RC database is recreated by `down -v` above, so it is empty. The
+      # capture signs in as the OWNER — /admin is a captured surface and
+      # redirects every other role — and seeding demo@recover.local instead is
+      # the 2026-08-14 defect that voided every reading before 2026-08-16. The
+      # credentials come from .env.rc, the same file the running RC app booted
+      # with, so the account seeded here is the account that exists there.
+      - name: Boxes 3-5 — seed the owner into the RC database
+        run: |
+          set -euo pipefail
+          set -a; . ./.env.rc; set +a
+          export DATABASE_URL="postgres://recover:${POSTGRES_PASSWORD}@localhost:5435/recover"
+          export DATABASE_DRIVER=pg
+          npm run db:seed
+          SEED_DEMO=1 DEMO_EMAIL="$OWNER_EMAIL" npm run db:seed-demo
+          SEED_DEMO=1 DEMO_EMAIL="$OWNER_EMAIL" npx tsx scripts/seed-two-race.ts
+
+      - name: Box 6 — migration drill
+        run: RECOVER_BACKUP_VOLUME=recover-dev_backups scripts/migration-drill.sh
+
+      - name: Box 7 — restore drill
+        run: RECOVER_BACKUP_VOLUME=recover-dev_backups scripts/restore-drill.sh
+
+      # Against :3100 — the bytes that will actually be promoted, not a rebuild.
+      - name: Box 8 — capture the candidate
+        run: |
+          set -euo pipefail
+          set -a; . ./.env.rc; set +a
+          SCREENSHOT_BASE_URL=http://localhost:3100 \
+          OWNER_EMAIL="$OWNER_EMAIL" OWNER_PASSWORD="$OWNER_PASSWORD" \
+            npx tsx scripts/verify-surfaces.ts soak --except="$PREVIEW_SURFACES"
+
+      # The artifact name carries the candidate. promote.yml asserts this exact
+      # name, which is what binds a reviewed capture to the digest it describes
+      # — a run id alone could name a capture of something else entirely.
+      - name: Publish the capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: soak-capture-${{ inputs.rc_tag }}
+          path: .screenshots/soak
+          if-no-files-found: warn
+          retention-days: 90
+
+      - name: Remove the restored secrets from the workspace
+        if: always()
+        run: rm -f .env.rc
+
+      - name: Say what happens next
+        run: |
+          echo "::notice title=Soaked::${{ inputs.rc_tag }} — run id ${{ github.run_id }}"
+          echo "::notice::Download the soak-capture artifact and OPEN THE PNGs."
+          echo "::notice::Then dispatch Promote with capture_run=${{ github.run_id }}."

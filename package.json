@@ -1,6 +1,6 @@
 {
   "name": "recover",
-  "version": "0.114.0",
+  "version": "0.115.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -11,6 +11,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "verify:surfaces": "tsx scripts/verify-surfaces.ts",
+    "verify:ratchet": "tsx scripts/surface-ratchet.ts",
     "verify:axe-split-proof": "tsx scripts/axe-split-proof.ts",
     "dev:browser-setup": "node node_modules/playwright-core/cli.js install chromium",
     "db:generate": "drizzle-kit generate",

@@ -1,0 +1,142 @@
+name: Release RC
+
+# Cuts the pre-release tag. Everything above the tag push is a precondition
+# check; the push is the last line.
+#
+# release.yml is NOT modified by this workflow. Its `tags: ["v*-rc.*"]` trigger
+# is pinned by tests/release-gate.test.ts, and widening it to `v*` is the
+# v0.105.1 defect that threw away a soaked digest and left prod running bytes
+# nothing had ever run.
+#
+# WHY THIS NEEDS A PAT, AND WHY GITHUB_TOKEN WILL NOT DO. A tag pushed using
+# the automatic GITHUB_TOKEN does not start another workflow run — GitHub
+# suppresses that to stop workflows triggering themselves. So a tag pushed with
+# it would leave release.yml unfired and this workflow green, having built
+# nothing: a release candidate that does not exist. RELEASE_TAG_TOKEN is a
+# fine-grained PAT with Contents: write on this repository only.
+#
+# Secrets are not exposed to workflows from forked pull requests, so this is
+# safe on a public repository.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version without the v, e.g. 0.115.0"
+        required: true
+        type: string
+      rc:
+        description: "Candidate number, e.g. 1"
+        required: true
+        default: "1"
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  cut:
+    runs-on: ubuntu-latest
+    steps:
+      # Fail here rather than after the checks, so a missing credential costs
+      # seconds instead of looking like a successful cut that built nothing.
+      - name: RELEASE_TAG_TOKEN must be present
+        env:
+          TOKEN: ${{ secrets.RELEASE_TAG_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${TOKEN:-}" ]; then
+            echo "::error::RELEASE_TAG_TOKEN is not set. A tag pushed with the"
+            echo "::error::automatic GITHUB_TOKEN does not trigger release.yml,"
+            echo "::error::so the candidate would never be built. Create a"
+            echo "::error::fine-grained PAT with Contents: write and add it."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_TAG_TOKEN }}
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: package.json must already say this version
+        run: |
+          set -euo pipefail
+          have=$(node -p "require('./package.json').version")
+          if [ "$have" != "${{ inputs.version }}" ]; then
+            echo "::error::package.json says $have, you asked for ${{ inputs.version }}."
+            echo "::error::Bump it on the branch and merge that first — RELEASING.md step 3."
+            exit 1
+          fi
+
+      # The release object is built from this section by finish-release.yml.
+      # Finding out it is missing after the image is built and soaked wastes an
+      # hour and leaves a candidate nobody can finish.
+      - name: CHANGELOG must have a section for this version
+        run: |
+          set -euo pipefail
+          if ! grep -qE "^## v${{ inputs.version }} " CHANGELOG.md; then
+            echo "::error::No '## v${{ inputs.version }} …' section in CHANGELOG.md."
+            exit 1
+          fi
+
+      - name: The tag must not already exist
+        run: |
+          set -euo pipefail
+          tag="v${{ inputs.version }}-rc.${{ inputs.rc }}"
+          if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+            echo "::error::$tag already exists. Bump the rc number."
+            exit 1
+          fi
+
+      # v0.63.0 and v0.64.0 were both tagged from a commit whose CI had already
+      # failed, and release.yml published the image regardless because it never
+      # looked at test results. release.yml checks this too; checking it here
+      # as well means the failure is reported before a tag exists rather than
+      # after one has to be deleted.
+      - name: main's CI must be green for this exact commit
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          sha=$(git rev-parse HEAD)
+          run=$(gh api "repos/${{ github.repository }}/actions/workflows/ci.yml/runs?head_sha=$sha&per_page=1" \
+            --jq '.workflow_runs[0] | "\(.status) \(.conclusion // "pending")"' 2>/dev/null || echo "missing")
+          if [ "$run" != "completed success" ]; then
+            echo "::error::CI for $sha is '$run', not 'completed success'."
+            exit 1
+          fi
+          echo "CI green for $sha"
+
+      # surfaces.yml is a gate too — CONTRIBUTING.md's "Quality gates" is no
+      # longer only ci.yml. A candidate cut from a commit whose capture never
+      # ran has no evidence behind it.
+      - name: The surface capture must be green for this exact commit
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          sha=$(git rev-parse HEAD)
+          run=$(gh api "repos/${{ github.repository }}/actions/workflows/surfaces.yml/runs?head_sha=$sha&per_page=1" \
+            --jq '.workflow_runs[0] | "\(.status) \(.conclusion // "pending")"' 2>/dev/null || echo "missing")
+          if [ "$run" != "completed success" ]; then
+            echo "::error::Surfaces for $sha is '$run', not 'completed success'."
+            exit 1
+          fi
+          echo "Surfaces green for $sha"
+
+      - name: Tag and push
+        run: |
+          set -euo pipefail
+          tag="v${{ inputs.version }}-rc.${{ inputs.rc }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "$tag" -m "$tag"
+          git push origin "$tag"
+          echo "::notice title=Cut::$tag pushed. release.yml is building it."
+          echo "::notice::Next: Soak with rc_tag=${{ inputs.version }}-rc.${{ inputs.rc }}"

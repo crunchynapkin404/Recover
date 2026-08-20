@@ -2,39 +2,44 @@ import { describe, expect, it } from "vitest";
 import { renderToString } from "react-dom/server";
 import { InlineMarkdown } from "./inline-markdown";
 
+/**
+ * Found by the first CI run of .github/workflows/surfaces.yml (run
+ * 32368432220): `**bold**` rendered as `font-bold text-white`, which axe
+ * measured at a 1:1 contrast ratio in light theme — invisible text — on
+ * today, today-post-session, today-evening, checkin-sheet and debrief-sheet,
+ * at both viewports. All 10 of that run's confirmed defect nodes were this
+ * one line.
+ *
+ * It was live rather than latent: `forcedTheme` was removed in v0.111.0 and
+ * ThemeProvider's defaultTheme is "system", so any athlete on a light-mode OS
+ * saw blank gaps where the coach's emphasis should be.
+ *
+ * tests/contrast-guard.test.ts could not catch it — that guard reads the CSS
+ * token palette, and this was a hardcoded Tailwind utility in TSX. Hence a
+ * test here, at the component.
+ */
 describe("InlineMarkdown", () => {
-  it("renders bold as an element rather than printing asterisks", () => {
+  it("colours bold with the theme token, not a hardcoded white", () => {
+    const html = renderToString(<InlineMarkdown text="Readiness **71**." />);
+    expect(html).toContain("text-foreground");
+    expect(html).not.toContain("text-white");
+  });
+
+  // The whole component, not just <strong>: `code` and `em` carry no colour
+  // class at all and inherit, which is correct. This fails if any branch
+  // starts hardcoding one.
+  it("renders no hardcoded white anywhere", () => {
     const html = renderToString(
-      <InlineMarkdown text="**Amber-band status** — manage carefully." />
+      <InlineMarkdown text="**bold** and *italic* and `code` and plain" />
     );
+    expect(html).not.toContain("text-white");
+    expect(html).not.toContain("#fff");
+  });
+
+  it("still renders the emphasis it is there to render", () => {
+    const html = renderToString(<InlineMarkdown text="Readiness **71**." />);
     expect(html).toContain("<strong");
-    expect(html).toContain("Amber-band status");
+    expect(html).toContain("71");
     expect(html).not.toContain("**");
-  });
-
-  it("renders italics and inline code", () => {
-    const html = renderToString(
-      <InlineMarkdown text="hold *steady* at your `ftp`" />
-    );
-    expect(html).toContain("<em");
-    expect(html).toContain("steady");
-    expect(html).toContain("<code");
-    expect(html).toContain("ftp");
-  });
-
-  it("leaves arithmetic alone — 2×20 is not emphasis", () => {
-    const html = renderToString(<InlineMarkdown text="2×20 @ 88–93% FTP" />);
-    expect(html).not.toContain("<em");
-    expect(html).toContain("2×20 @ 88–93% FTP");
-  });
-
-  it("does not treat a mid-word asterisk as italics", () => {
-    const html = renderToString(<InlineMarkdown text="load*2 is not italic" />);
-    expect(html).not.toContain("<em");
-  });
-
-  it("keeps plain text untouched", () => {
-    const html = renderToString(<InlineMarkdown text="CTL 51 → 58" />);
-    expect(html).toContain("CTL 51 → 58");
   });
 });

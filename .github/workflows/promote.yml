@@ -26,6 +26,10 @@ on:
         description: "Release tag to publish alongside :latest, e.g. 0.104.0"
         required: true
         type: string
+      capture_run:
+        description: "Run ID of the Soak whose capture you opened"
+        required: true
+        type: string
 
 env:
   IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/recover
@@ -38,6 +42,68 @@ jobs:
   promote:
     runs-on: ubuntu-latest
     steps:
+      # THE ONE HUMAN STEP IN THE RELEASE PATH.
+      #
+      # Two of v0.114.0's four worst defects were invisible to 2,854 tests AND
+      # to a clean `0 confirmed` axe report: race one lost its taper on every
+      # two-race plan, and the recovery bridge rendered merged with the
+      # athlete's ordinary easy weeks. One was found by running the code, the
+      # other by opening a screenshot. A pipeline finds neither, and a pipeline
+      # that captures 108 PNGs and reports 0 confirmed is exactly the state
+      # both of them hid behind.
+      #
+      # This step cannot verify that a person looked at the PNGs. It verifies
+      # that the run they named is real, passed, and captured THIS candidate —
+      # which closes the fabrication gap. What remains is someone typing a real
+      # run id without opening it: a decision by a person rather than an
+      # accident by a pipeline, and preserving that distinction is the point.
+      - name: The named capture must exist, have passed, and be this candidate
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ inputs.capture_run }}
+          RC_TAG: ${{ inputs.rc_tag }}
+        run: |
+          set -euo pipefail
+
+          # Test gh's EXIT CODE, not its output. On a 404 `gh api --jq` writes
+          # the raw error body to stdout without applying the filter, so a
+          # `[ -z "$run" ]` check passes straight through and the run id ends
+          # up compared against a JSON blob — it still fails closed, but it
+          # reports `Run X is '{"message":"Not Found"...}'`, which is a
+          # miserable thing to read halfway through a release.
+          if ! run=$(gh api "repos/$REPO/actions/runs/$RUN_ID" \
+              --jq '"\(.name)|\(.status)|\(.conclusion // "pending")"' 2>/dev/null); then
+            echo "::error::No run $RUN_ID in $REPO. capture_run must be a Soak run id."
+            exit 1
+          fi
+
+          name=${run%%|*}; rest=${run#*|}
+          status=${rest%%|*}; conclusion=${rest#*|}
+
+          if [ "$name" != "Soak" ]; then
+            echo "::error::Run $RUN_ID is '$name', not 'Soak'."
+            exit 1
+          fi
+          if [ "$status" != "completed" ] || [ "$conclusion" != "success" ]; then
+            echo "::error::Soak $RUN_ID is $status/$conclusion — not a passed soak."
+            exit 1
+          fi
+
+          want="soak-capture-$RC_TAG"
+          if ! names=$(gh api "repos/$REPO/actions/runs/$RUN_ID/artifacts" \
+              --jq '.artifacts[].name' 2>/dev/null); then
+            echo "::error::Could not list artifacts for run $RUN_ID."
+            exit 1
+          fi
+          if ! grep -qx "$want" <<< "$names"; then
+            echo "::error::Soak $RUN_ID has no artifact named '$want'."
+            echo "::error::That run captured a different candidate than $RC_TAG."
+            exit 1
+          fi
+
+          echo "::notice title=Capture::$want from run $RUN_ID — promoting."
+
       - uses: docker/setup-buildx-action@v3
 
       - uses: docker/login-action@v3

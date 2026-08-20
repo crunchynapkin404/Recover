@@ -1,0 +1,277 @@
+name: Surfaces
+
+# Playwright surface capture + the axe ratchet.
+#
+# TWO CAPTURE JOBS, DELIBERATELY. previewStateFrom (src/lib/today/state.ts)
+# returns null when NODE_ENV === "production", so a production build renders
+# whichever state the clock dictates for all three `today*` surfaces, and
+# assertTodayStatesDiffer then fails the run on the byte-identical PNGs —
+# correctly. A single cheaper job would capture the wrong page for three
+# surfaces and report success, which is the assertOnSurface trap wearing a
+# different hat. Do not merge these jobs back together.
+#
+# The push-to-main run is the one that matters for a release: it is the only
+# capture taken against the exact commit an RC is cut from, and soak.yml cannot
+# cover the preview states because the RC image is a production build.
+#
+# No secrets. Each job seeds the owner it then signs in as, against a throwaway
+# CI Postgres, so the credentials are established by the job rather than assumed
+# from ambient state — you cannot seed the wrong user when the step that seeds
+# is the step that authenticates. That is the 2026-08-14 defect class, closed by
+# construction.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  # Dummy values only — a public repository's workflow file must never carry a
+  # real secret, and this database is created empty and destroyed with the job.
+  # BETTER_AUTH_SECRET is long because these jobs boot the real app, where
+  # src/lib/env-validation.ts throws below 32 characters. ci.yml's old value was
+  # 14 and survived only because vitest never runs the instrumentation hook.
+  DATABASE_URL: postgres://ci:ci@localhost:5432/ci
+  DATABASE_DRIVER: pg
+  ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
+  BETTER_AUTH_SECRET: "surfaces-only-secret-0000000000000000000000000"
+  BETTER_AUTH_URL: http://localhost:3200
+  TRUSTED_ORIGINS: http://localhost:3200
+  SCREENSHOT_BASE_URL: http://localhost:3200
+  # The OWNER, not the demo user: /admin is a captured surface and redirects
+  # every other role. Seeding demo@recover.local is the 2026-08-14 defect that
+  # voided every reading taken before 2026-08-16.
+  OWNER_EMAIL: dev@recover.local
+  OWNER_PASSWORD: surfaces-ci-owner-password
+  PREVIEW_SURFACES: today,today-post-session,today-evening
+
+jobs:
+  capture:
+    name: capture (production build)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      - name: Resolve the pinned Chromium revision
+        id: pw
+        run: |
+          set -euo pipefail
+          v=$(node -p "require('./node_modules/playwright-core/package.json').version")
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Chromium
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ms-playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
+
+      - name: Install Chromium and its system libraries
+        run: |
+          set -euo pipefail
+          npm run dev:browser-setup
+          sudo "$(which node)" node_modules/playwright-core/cli.js install-deps chromium
+
+      - run: node scripts/migrate.mjs
+
+      # Seed the owner this job will sign in as. CONTRIBUTING.md records seeding
+      # as +20.7% axe nodes overall and +600% on Train: a number measured
+      # against an empty account is not comparable to the baseline, because the
+      # charts, badges and tables where sub-AA colour lives are simply not on
+      # screen for an empty account.
+      - name: Seed the owner
+        run: npm run db:seed
+
+      - name: Seed demo data onto the owner
+        run: SEED_DEMO=1 DEMO_EMAIL="$OWNER_EMAIL" npm run db:seed-demo
+
+      # seed-demo covers activities, wellness, chat and connectors but seeds no
+      # races and no training plans. seed-two-race builds a two-A-race season
+      # through the real previewTrainingPlan, so what gets captured is what the
+      # engine emits rather than rows someone inserted.
+      - name: Seed a two-A-race season onto the owner
+        run: SEED_DEMO=1 DEMO_EMAIL="$OWNER_EMAIL" npx tsx scripts/seed-two-race.ts
+
+      - run: npm run build
+
+      # nohup so the server survives this step's shell; a bare `&` can take a
+      # SIGHUP when the step exits and the capture then fails on a dead port.
+      - name: Start the app and wait for it
+        run: |
+          set -euo pipefail
+          nohup npx next start -p 3200 > /tmp/next.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:3200/api/health >/dev/null 2>&1; then
+              echo "app up after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::app did not become healthy on :3200 within 60s"
+          tail -50 /tmp/next.log
+          exit 1
+
+      # Everything except the three preview states — see this file's header.
+      - name: Capture surfaces
+        # --no-axe-gate: the RATCHET decides, in the job below, over both
+        # captures summed. Without it the script's own `confirmed > 0` exit
+        # fails this job and the ratchet job is skipped for a failed
+        # dependency — which is what happened on run 32368432220, where both
+        # captures completed cleanly and were failed by a zero threshold the
+        # ratchet exists to replace. Hard failures still fail this step.
+        run: npx tsx scripts/verify-surfaces.ts capture-main --except="$PREVIEW_SURFACES" --no-axe-gate
+
+      - name: Show the server log if the capture failed
+        if: failure()
+        run: tail -100 /tmp/next.log
+
+      - name: Upload the capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: capture-main
+          path: .screenshots/capture-main
+          if-no-files-found: warn
+          retention-days: 30
+
+  capture-preview-states:
+    name: capture (dev server, preview states)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      - name: Resolve the pinned Chromium revision
+        id: pw
+        run: |
+          set -euo pipefail
+          v=$(node -p "require('./node_modules/playwright-core/package.json').version")
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Chromium
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ms-playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
+
+      - name: Install Chromium and its system libraries
+        run: |
+          set -euo pipefail
+          npm run dev:browser-setup
+          sudo "$(which node)" node_modules/playwright-core/cli.js install-deps chromium
+
+      - run: node scripts/migrate.mjs
+
+      - name: Seed the owner
+        run: npm run db:seed
+
+      - name: Seed demo data onto the owner
+        run: SEED_DEMO=1 DEMO_EMAIL="$OWNER_EMAIL" npm run db:seed-demo
+
+      - name: Seed a two-A-race season onto the owner
+        run: SEED_DEMO=1 DEMO_EMAIL="$OWNER_EMAIL" npx tsx scripts/seed-two-race.ts
+
+      # `next dev`, not `next start`: only a non-production build honours
+      # `?state=`. Lazy compilation makes first navigations slow enough to trip
+      # the script's networkidle waits, so warm the route before capturing.
+      - name: Start the dev server and warm the route
+        run: |
+          set -euo pipefail
+          nohup npx next dev -p 3200 > /tmp/next.log 2>&1 &
+          up=0
+          for i in $(seq 1 120); do
+            if curl -fsS http://localhost:3200/api/health >/dev/null 2>&1; then
+              echo "dev server up after ${i}s"; up=1; break
+            fi
+            sleep 1
+          done
+          if [ "$up" != "1" ]; then
+            echo "::error::dev server did not become healthy on :3200 within 120s"
+            tail -50 /tmp/next.log
+            exit 1
+          fi
+          curl -fsS -o /dev/null "http://localhost:3200/" || true
+          curl -fsS -o /dev/null "http://localhost:3200/?state=evening" || true
+
+      - name: Capture the preview states
+        # See the note on the production capture above.
+        run: npx tsx scripts/verify-surfaces.ts capture-preview --only="$PREVIEW_SURFACES" --no-axe-gate
+
+      - name: Show the server log if the capture failed
+        if: failure()
+        run: tail -100 /tmp/next.log
+
+      - name: Upload the capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: capture-preview-states
+          path: .screenshots/capture-preview
+          if-no-files-found: warn
+          retention-days: 30
+
+  ratchet:
+    name: axe ratchet (both captures)
+    needs: [capture, capture-preview-states]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: capture-main
+          path: .screenshots/capture-main
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: capture-preview-states
+          path: .screenshots/capture-preview
+
+      # Both slices together. A ratchet over only one job's surfaces would
+      # leave the other job's confirmed nodes ungated — and the five surfaces
+      # main() resolves at runtime are captured by whichever job selects them,
+      # so summing is the only way the total means anything.
+      - name: Compare against the committed ceiling
+        run: npm run verify:ratchet -- capture-main capture-preview

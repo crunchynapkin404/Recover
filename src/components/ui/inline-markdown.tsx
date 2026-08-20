@@ -9,6 +9,13 @@ import { Fragment } from "react";
  * asterisks verbatim. It deliberately does not parse block markdown: a full
  * parser would be a dependency and a sanitisation surface for what is, in
  * practice, emphasis.
+ *
+ * `strong` uses `text-foreground`, not `text-white`. It was `text-white` from
+ * when this app was dark-only, and stayed that way past v0.111.0 removing
+ * `forcedTheme` — so on a light-mode OS every bold word the coach wrote was
+ * white on white, a 1:1 contrast ratio, invisible. The first CI run of
+ * surfaces.yml found it across five surfaces. `em` and `code` deliberately
+ * carry no colour class and inherit; only emphasis needs full-strength ink.
  */
 const PATTERN = /(\*\*[^*\n]+\*\*|(?<![*\w])\*[^*\n]+\*(?!\w)|`[^`\n]+`)/g;
 
@@ -21,7 +28,7 @@ export function InlineMarkdown({ text }: { text: string }) {
         const key = `${i}-${part.slice(0, 8)}`;
         if (part.startsWith("**") && part.endsWith("**")) {
           return (
-            <strong key={key} className="font-bold text-white">
+            <strong key={key} className="font-bold text-foreground">
               {part.slice(2, -2)}
             </strong>
           );
