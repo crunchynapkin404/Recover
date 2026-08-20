@@ -251,6 +251,17 @@ interface Block {
    * `(segment, phase)` rather than recomputing the boundary itself.
    */
   segment: 1 | 2;
+  /**
+   * True only for the recovery weeks that BRIDGE two A-races, false for the
+   * ordinary step-loading recovery weeks `arc()` emits on its own cadence.
+   *
+   * Both are `phase: "recovery"`, and merging them is what made the bridge
+   * invisible on screen: a two-race plan rendered "Recovery · 5 · weeks 4, 7,
+   * 11, 14, 15" with nothing saying that 14-15 are the gap between the
+   * athlete's two goal races and 4/7/11 are their normal easy weeks. The
+   * bridge is the whole feature; it needs its own row.
+   */
+  isBridge: boolean;
 }
 
 export interface GeneratePlanParams {
@@ -502,7 +513,8 @@ function arc(
           hoursPerWeek,
           sport,
           queenStageHours,
-          segment
+          segment,
+          false
         )
       );
       weeksSinceRecovery = 0;
@@ -524,6 +536,7 @@ function arc(
           queenStageHours
         ),
         segment,
+        isBridge: false,
       });
       weeksSinceRecovery += 1;
     } else {
@@ -561,6 +574,7 @@ function arc(
         targetSessions: daysPerWeek,
         workouts,
         segment,
+        isBridge: false,
       });
 
       // When opening form is negative, week 1 is intentionally downscaled.
@@ -618,7 +632,8 @@ function buildRecoveryBlock(
   hoursPerWeek: number,
   sport: PlanSport,
   queenStageHours: number | null,
-  segment: 1 | 2
+  segment: 1 | 2,
+  isBridge: boolean
 ): Block {
   return {
     weekNumber,
@@ -633,6 +648,7 @@ function buildRecoveryBlock(
       queenStageHours
     ),
     segment,
+    isBridge,
   };
 }
 
@@ -664,7 +680,8 @@ function recoverySegment(
         hoursPerWeek,
         sport,
         queenStageHours,
-        1
+        1,
+        true
       )
     );
   }
@@ -1248,7 +1265,12 @@ export async function previewTrainingPlan(
   // id was given at all -- confirming will create the race.
   let raceId: string | null = null;
   // The earlier A-race on a two-race plan. null on a single-race plan.
-  let firstTarget: { id: string; date: string; raceType: string } | null = null;
+  let firstTarget: {
+    id: string;
+    name: string;
+    date: string;
+    raceType: string;
+  } | null = null;
 
   if (targetIds.length === 2) {
     const rows = await db.query.races.findMany({
@@ -1268,6 +1290,7 @@ export async function previewTrainingPlan(
     );
     firstTarget = {
       id: earlier.id,
+      name: earlier.name,
       date: earlier.date,
       raceType: earlier.raceType,
     };
@@ -1454,7 +1477,16 @@ export async function previewTrainingPlan(
       phase: b.phase as PlanPhase,
       targetLoad: b.targetLoad,
       targetHours: Math.round((scheduledMins / 60) * 10) / 10,
-      raceName: b.weekNumber === planWeeks ? raceName : null,
+      // Both targets get named on their own week. Naming only the final one
+      // left a two-race plan showing exactly one race, at the very end, with
+      // no indication of where the first goal race fell.
+      raceName:
+        b.weekNumber === planWeeks
+          ? raceName
+          : firstRace && b.weekNumber === firstRace.weekNumber
+            ? (firstTarget?.name ?? null)
+            : null,
+      isBridge: b.isBridge,
     };
   });
 
@@ -1501,6 +1533,9 @@ export async function previewTrainingPlan(
       date: raceDate,
       priority: racePriority,
     },
+    firstRace: firstTarget
+      ? { id: firstTarget.id, name: firstTarget.name, date: firstTarget.date }
+      : null,
     startDate,
     weeksTotal: planWeeks,
     daysPerWeek,
@@ -1513,6 +1548,7 @@ export async function previewTrainingPlan(
         weekNumber: b.weekNumber,
         phase: b.phase as PlanPhase,
         segment: b.segment,
+        isBridge: b.isBridge,
       }))
     ),
     weeks,
@@ -1595,10 +1631,44 @@ export async function previewFromDraft(
     }
   }
 
+  // The pairing, and the earlier race's NAME. planRaceTargets carries id,
+  // date and type but not the name -- it reads the plan row, and the name
+  // lives on the race row. Without this the card had nothing to label
+  // segment 1 with and printed the literal "First race" above the second
+  // race's real name.
+  const draftTargets = planRaceTargets(draft);
+  let firstRaceName: string | null = null;
+  if (draftTargets.first) {
+    const firstRow = await db.query.races.findFirst({
+      where: and(
+        eq(schema.races.id, draftTargets.first.id),
+        eq(schema.races.userId, draft.userId)
+      ),
+    });
+    firstRaceName = firstRow?.name ?? null;
+  }
+
   const blocks = await db.query.trainingBlocks.findMany({
     where: eq(schema.trainingBlocks.planId, draft.id),
     orderBy: [asc(schema.trainingBlocks.weekNumber)],
   });
+
+  // Re-derived here rather than read off the row: persisted `training_blocks`
+  // carry neither `segment` nor `isBridge`, and neither is worth a migration
+  // for a display value. Same boundary `periodize` computes -- see the longer
+  // note at `segmentForWeek` below, which reuses these.
+  const firstTargetForSegment = draftTargets.first;
+  const firstRaceWeek = firstTargetForSegment
+    ? Math.min(
+        Math.max(1, planWeekOf(draft.startDate, firstTargetForSegment.date)),
+        draft.weeksTotal
+      )
+    : null;
+  const segmentBoundary =
+    firstTargetForSegment && firstRaceWeek !== null
+      ? firstRaceWeek +
+        Math.ceil(raceRecoveryDays(firstTargetForSegment.raceType) / 7)
+      : null;
 
   const weeks: PreviewWeek[] = blocks.map((b) => {
     const workouts = (b.workouts ?? []) as PlannedWorkout[];
@@ -1608,7 +1678,20 @@ export async function previewFromDraft(
       phase: b.phase as PlanPhase,
       targetLoad: b.targetLoadTotal != null ? Math.round(b.targetLoadTotal) : 0,
       targetHours: Math.round((scheduledMins / 60) * 10) / 10,
-      raceName: b.weekNumber === draft.weeksTotal ? raceName : null,
+      raceName:
+        b.weekNumber === draft.weeksTotal
+          ? raceName
+          : firstRaceWeek !== null && b.weekNumber === firstRaceWeek
+            ? (firstRaceName ?? null)
+            : null,
+      // A bridging recovery week: phase "recovery", after the first race,
+      // and not past the segment boundary.
+      isBridge:
+        b.phase === "recovery" &&
+        firstRaceWeek !== null &&
+        segmentBoundary !== null &&
+        b.weekNumber > firstRaceWeek &&
+        b.weekNumber <= segmentBoundary,
     };
   });
 
@@ -1639,7 +1722,6 @@ export async function previewFromDraft(
   // "no bridge-room warning" instead of a half-configured read. Needed
   // ahead of feasibility below, not only for the bridge-room check further
   // down.
-  const draftTargets = planRaceTargets(draft);
 
   // `weeksUntilEvent` must match the race `demand` was resolved AGAINST,
   // not the plan's own end. `demand` comes from highest-priority-then-
@@ -1686,18 +1768,6 @@ export async function previewFromDraft(
   // segment 1 (arc one plus the bridging recovery), everything after is
   // segment 2. On a single-race draft (`draftTargets.first` is null) every
   // week is segment 1, matching `periodize`'s own no-`firstRace` path.
-  const firstTargetForSegment = draftTargets.first;
-  const firstRaceWeek = firstTargetForSegment
-    ? Math.min(
-        Math.max(1, planWeekOf(draft.startDate, firstTargetForSegment.date)),
-        draft.weeksTotal
-      )
-    : null;
-  const segmentBoundary =
-    firstTargetForSegment && firstRaceWeek !== null
-      ? firstRaceWeek +
-        Math.ceil(raceRecoveryDays(firstTargetForSegment.raceType) / 7)
-      : null;
   const segmentForWeek = (weekNumber: number): 1 | 2 =>
     segmentBoundary !== null && weekNumber > segmentBoundary ? 2 : 1;
 
@@ -1710,6 +1780,14 @@ export async function previewFromDraft(
       date: draft.raceDate,
       priority: racePriority,
     },
+    firstRace:
+      draftTargets.first && firstRaceName
+        ? {
+            id: draftTargets.first.id,
+            name: firstRaceName,
+            date: draftTargets.first.date,
+          }
+        : null,
     startDate: draft.startDate,
     weeksTotal: draft.weeksTotal,
     daysPerWeek,
@@ -1719,6 +1797,7 @@ export async function previewFromDraft(
         weekNumber: w.weekNumber,
         phase: w.phase,
         segment: segmentForWeek(w.weekNumber),
+        isBridge: w.isBridge,
       }))
     ),
     weeks,

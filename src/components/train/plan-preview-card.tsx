@@ -133,24 +133,45 @@ export function PlanPreviewCard({ preview }: { preview: PlanPreview }) {
             // `showHeader` is false throughout and this table renders
             // byte-identically to before this arc existed.
             const showHeader = hasTwoArcs && row.segment !== prev?.segment;
+            // Segment 1 is named after the race it builds to, the same way
+            // segment 2 is. It fell back to the literal "First race" while
+            // `PlanPreview` resolved identity for the final target only, and
+            // that placeholder sitting directly above the second race's real
+            // name read as unfinished on screen. The fallback stays for a
+            // first race whose row was deleted underneath the draft.
+            const segmentLabel =
+              row.segment === 1
+                ? (preview.firstRace?.name ?? "First race")
+                : preview.race.name;
             return (
-              <Fragment key={`${row.segment}-${row.phase}`}>
+              <Fragment
+                key={`${row.segment}-${row.phase}-${row.isBridge ? "b" : "o"}`}
+              >
                 {showHeader && (
                   <tr data-testid={`segment-${row.segment}`}>
                     <td
                       colSpan={3}
                       className="pt-3 pb-1 text-label text-ink-muted"
                     >
-                      {row.segment === 1 ? "First race" : preview.race.name}
+                      {segmentLabel}
                     </td>
                   </tr>
                 )}
                 <tr
-                  data-testid={`phase-${row.segment}-${row.phase}`}
+                  data-testid={
+                    row.isBridge
+                      ? "phase-bridge"
+                      : `phase-${row.segment}-${row.phase}`
+                  }
                   className="border-b border-hairline"
                 >
                   <td className="py-1.5 text-ink-secondary">
-                    {PHASE_LABEL[row.phase]}
+                    {/* The bridge is the whole point of a two-race plan and
+                        was rendering as an ordinary "Recovery" row merged
+                        with the arc's own easy weeks. Named, it is legible. */}
+                    {row.isBridge
+                      ? "Recovery between races"
+                      : PHASE_LABEL[row.phase]}
                   </td>
                   <td className="py-1.5 text-right font-numeric text-ink-muted">
                     {row.weeks}

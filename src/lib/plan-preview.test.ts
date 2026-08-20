@@ -17,9 +17,27 @@ describe("buildPhases", () => {
     ]);
 
     expect(rows).toEqual([
-      { segment: 1, phase: "base", weeks: 2, weekNumbers: [1, 2] },
-      { segment: 1, phase: "build", weeks: 1, weekNumbers: [4] },
-      { segment: 1, phase: "recovery", weeks: 1, weekNumbers: [3] },
+      {
+        segment: 1,
+        phase: "base",
+        weeks: 2,
+        weekNumbers: [1, 2],
+        isBridge: false,
+      },
+      {
+        segment: 1,
+        phase: "build",
+        weeks: 1,
+        weekNumbers: [4],
+        isBridge: false,
+      },
+      {
+        segment: 1,
+        phase: "recovery",
+        weeks: 1,
+        weekNumbers: [3],
+        isBridge: false,
+      },
     ]);
   });
 
@@ -86,15 +104,40 @@ describe("buildPhases", () => {
     );
 
     expect(rows).toEqual([
-      { segment: 1, phase: "base", weeks: 5, weekNumbers: [1, 2, 3, 5, 6] },
-      { segment: 1, phase: "build", weeks: 3, weekNumbers: [7, 9, 10] },
-      { segment: 1, phase: "peak", weeks: 2, weekNumbers: [12, 13] },
-      { segment: 1, phase: "taper", weeks: 2, weekNumbers: [15, 16] },
+      {
+        segment: 1,
+        phase: "base",
+        weeks: 5,
+        weekNumbers: [1, 2, 3, 5, 6],
+        isBridge: false,
+      },
+      {
+        segment: 1,
+        phase: "build",
+        weeks: 3,
+        weekNumbers: [7, 9, 10],
+        isBridge: false,
+      },
+      {
+        segment: 1,
+        phase: "peak",
+        weeks: 2,
+        weekNumbers: [12, 13],
+        isBridge: false,
+      },
+      {
+        segment: 1,
+        phase: "taper",
+        weeks: 2,
+        weekNumbers: [15, 16],
+        isBridge: false,
+      },
       {
         segment: 1,
         phase: "recovery",
         weeks: 4,
         weekNumbers: [4, 8, 11, 14],
+        isBridge: false,
       },
     ]);
   });
@@ -225,5 +268,52 @@ describe("segment 2's recovery row is the rebuild's own cadence, not a bridge", 
     // athlete the bridge is longer than it is.
     expect(recoveries[0].weekNumbers).toEqual([2]);
     expect(recoveries[1].weekNumbers).toEqual([4]);
+  });
+});
+
+describe("the bridge is its own row, not merged with the arc's easy weeks", () => {
+  it("splits bridging recovery from step-loading recovery in the same segment", () => {
+    // The defect this closes was only visible in a screenshot: a real
+    // two-marathon plan rendered "Recovery · 5 · weeks 4, 7, 11, 14, 15",
+    // merging the athlete's ordinary easy weeks (4, 7, 11) with the gap
+    // between their two goal races (14, 15). The bridge is the whole feature.
+    const rows = buildPhases([
+      { weekNumber: 4, phase: "recovery", segment: 1, isBridge: false },
+      { weekNumber: 7, phase: "recovery", segment: 1, isBridge: false },
+      { weekNumber: 12, phase: "taper", segment: 1, isBridge: false },
+      { weekNumber: 14, phase: "recovery", segment: 1, isBridge: true },
+      { weekNumber: 15, phase: "recovery", segment: 1, isBridge: true },
+      { weekNumber: 16, phase: "base", segment: 2, isBridge: false },
+    ]);
+    const recovery = rows.filter((r) => r.phase === "recovery");
+    expect(recovery).toHaveLength(2);
+    expect(recovery[0]).toMatchObject({
+      isBridge: false,
+      weekNumbers: [4, 7],
+    });
+    expect(recovery[1]).toMatchObject({
+      isBridge: true,
+      weekNumbers: [14, 15],
+    });
+  });
+
+  it("still sums to the week count with the bridge split out", () => {
+    const rows = buildPhases([
+      { weekNumber: 1, phase: "base", segment: 1, isBridge: false },
+      { weekNumber: 2, phase: "recovery", segment: 1, isBridge: false },
+      { weekNumber: 3, phase: "recovery", segment: 1, isBridge: true },
+      { weekNumber: 4, phase: "base", segment: 2, isBridge: false },
+    ]);
+    expect(rows.reduce((n, r) => n + r.weeks, 0)).toBe(4);
+  });
+
+  it("is byte-identical for a plan with no bridge at all", () => {
+    const weeks = [
+      { weekNumber: 1, phase: "base" as const, segment: 1 as const },
+      { weekNumber: 2, phase: "recovery" as const, segment: 1 as const },
+    ];
+    expect(buildPhases(weeks)).toEqual(
+      buildPhases(weeks.map((w) => ({ ...w, isBridge: false })))
+    );
   });
 });

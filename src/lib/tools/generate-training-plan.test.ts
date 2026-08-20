@@ -125,6 +125,11 @@ describe.skipIf(!hasDb)("generate_training_plan — secondRaceId", () => {
         "planId",
         "sport",
         "race",
+        // Additive: PlanPreview now names the earlier A-race so the card can
+        // label segment 1 and the first race's own week. null on every
+        // single-race plan, so the contract is unchanged in value, only in
+        // shape -- which is exactly what this test exists to notice.
+        "firstRace",
         "startDate",
         "weeksTotal",
         "daysPerWeek",

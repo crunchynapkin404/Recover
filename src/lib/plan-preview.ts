@@ -30,6 +30,14 @@ export interface PhaseRow {
   /** Equals weekNumbers.length. Carried explicitly because it is what renders. */
   weeks: number;
   weekNumbers: number[];
+  /**
+   * True for the row holding the recovery weeks that BRIDGE two A-races,
+   * false for every other row including segment 1's ordinary step-loading
+   * recovery weeks. Both are `phase: "recovery"`, and merging them rendered
+   * "Recovery · 5 · weeks 4, 7, 11, 14, 15" — the athlete could not tell the
+   * gap between their two goal races from their normal easy weeks.
+   */
+  isBridge: boolean;
 }
 
 /**
@@ -60,11 +68,16 @@ const PHASE_ORDER: PlanPhase[] = ["base", "build", "peak", "taper", "recovery"];
  * added field.
  */
 export function buildPhases(
-  weeks: { weekNumber: number; phase: PlanPhase; segment: 1 | 2 }[]
+  weeks: {
+    weekNumber: number;
+    phase: PlanPhase;
+    segment: 1 | 2;
+    isBridge?: boolean;
+  }[]
 ): PhaseRow[] {
   const byKey = new Map<string, number[]>();
   for (const w of weeks) {
-    const key = `${w.segment}:${w.phase}`;
+    const key = `${w.segment}:${w.phase}:${w.isBridge ? "bridge" : "own"}`;
     const list = byKey.get(key) ?? [];
     list.push(w.weekNumber);
     byKey.set(key, list);
@@ -73,10 +86,21 @@ export function buildPhases(
   const rows: PhaseRow[] = [];
   for (const segment of [1, 2] as const) {
     for (const phase of PHASE_ORDER) {
-      const key = `${segment}:${phase}`;
-      if (!byKey.has(key)) continue;
-      const weekNumbers = [...(byKey.get(key) ?? [])].sort((a, b) => a - b);
-      rows.push({ segment, phase, weeks: weekNumbers.length, weekNumbers });
+      // Own-cadence first, then the bridge. Within a segment the bridging
+      // recovery always follows the taper chronologically, so emitting it
+      // last keeps the rows in the order the athlete lives them.
+      for (const kind of ["own", "bridge"] as const) {
+        const key = `${segment}:${phase}:${kind}`;
+        if (!byKey.has(key)) continue;
+        const weekNumbers = [...(byKey.get(key) ?? [])].sort((a, b) => a - b);
+        rows.push({
+          segment,
+          phase,
+          weeks: weekNumbers.length,
+          weekNumbers,
+          isBridge: kind === "bridge",
+        });
+      }
     }
   }
   return rows;
@@ -190,6 +214,8 @@ export interface PreviewWeek {
   targetLoad: number;
   targetHours: number;
   raceName: string | null;
+  /** True for a bridging recovery week between two A-races. */
+  isBridge: boolean;
 }
 
 export interface PlanPreview {
@@ -203,6 +229,21 @@ export interface PlanPreview {
     date: string;
     priority: "A" | "B" | "C";
   };
+  /**
+   * The EARLIER A-race on a two-race plan; null on a single-race one.
+   *
+   * `race` above is the plan's FINAL target, matching what
+   * `training_plans.raceId`/`raceDate` mean. Without this the card had no name
+   * for segment 1 and rendered the literal string "First race" directly above
+   * the second race's real name, and the first race's own week went unlabelled
+   * in the week list — a 21-week two-race plan showed exactly one race, at the
+   * end, and the athlete could not see where their first goal race fell.
+   */
+  firstRace: {
+    id: string;
+    name: string;
+    date: string;
+  } | null;
   startDate: string;
   weeksTotal: number;
   /** The constraints this specific draft was built from — Rebuild's inputs
