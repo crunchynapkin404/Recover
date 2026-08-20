@@ -37,9 +37,15 @@ export interface PhaseRow {
  * plan it is a modifier tacked onto the end, not a stage of its own. On a
  * two-A-race plan the bridging recovery IS segment 1's own last stage
  * (`periodize`: arc one -> recovery -> arc two) — this order still puts it
- * last within segment 1, which is where it chronologically belongs; it is
- * segment 2's absence of a "recovery" row that shows the athlete there is
- * no recovery block after the rebuild arc.
+ * last within segment 1, which is where it chronologically belongs.
+ *
+ * **Segment 2 usually has a recovery row too, and that is not the bridge.**
+ * The rebuild arc runs `arc()`'s ordinary step-loading cadence, so a
+ * long enough rebuild emits its own recovery weeks (a 26-week plan with the
+ * first race in week 12 puts them at weeks 18 and 21). An earlier version of
+ * this comment claimed segment 2's ABSENCE of a recovery row was meaningful;
+ * it is not, because the row is normally present. Do not read a segment-2
+ * recovery row as a second bridge — `plan-preview.test.ts` pins this.
  */
 const PHASE_ORDER: PlanPhase[] = ["base", "build", "peak", "taper", "recovery"];
 

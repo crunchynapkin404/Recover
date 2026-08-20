@@ -204,3 +204,26 @@ describe("collectWarnings", () => {
     );
   });
 });
+
+describe("segment 2's recovery row is the rebuild's own cadence, not a bridge", () => {
+  it("groups a segment-2 recovery week separately from segment 1's bridge", () => {
+    // Pins the fact the PHASE_ORDER comment now states. A rebuild arc long
+    // enough to hit arc()'s step-loading cadence emits its own recovery
+    // weeks, so segment 2 having a recovery row is normal and says nothing
+    // about the bridge between the two races.
+    const rows = buildPhases([
+      { weekNumber: 1, phase: "base", segment: 1 },
+      { weekNumber: 2, phase: "recovery", segment: 1 }, // the bridge
+      { weekNumber: 3, phase: "base", segment: 2 },
+      { weekNumber: 4, phase: "recovery", segment: 2 }, // the rebuild's cadence
+      { weekNumber: 5, phase: "taper", segment: 2 },
+    ]);
+    const recoveries = rows.filter((r) => r.phase === "recovery");
+    expect(recoveries).toHaveLength(2);
+    expect(recoveries.map((r) => r.segment)).toEqual([1, 2]);
+    // And they must never be merged into one row -- that would tell the
+    // athlete the bridge is longer than it is.
+    expect(recoveries[0].weekNumbers).toEqual([2]);
+    expect(recoveries[1].weekNumbers).toEqual([4]);
+  });
+});

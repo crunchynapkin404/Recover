@@ -218,3 +218,48 @@ describe.skipIf(!hasDb)("generate_training_plan — secondRaceId", () => {
     ).toBe(true);
   });
 });
+
+describe("generate_training_plan — malformed two-race arguments", () => {
+  it("refuses a second race with no first, instead of silently targeting it", async () => {
+    // Before this guard the lone id fell through to the one-target branch,
+    // which runs no A-priority check, so the coach got a plausible
+    // single-race plan for a race it never asked to target alone.
+    const result = await generateTrainingPlanTool.execute(
+      {
+        raceType: "marathon",
+        raceDate: "2026-10-11",
+        daysPerWeek: 5,
+        hoursPerWeek: 8,
+        secondRaceId: "11111111-1111-4111-8111-111111111111",
+      } as never,
+      { userId: "someone" } as never
+    );
+    expect(result.success).toBe(false);
+    expect((result as { reason: string }).reason).toBe(
+      "second_race_without_first"
+    );
+  });
+
+  it("refuses the same race twice with a sentence that is true", async () => {
+    // Previously this refused as `race_not_found` -- "That race is not on
+    // your calendar any more" -- which is simply untrue: it is on the
+    // calendar, it was just named twice.
+    const id = "22222222-2222-4222-8222-222222222222";
+    const result = await generateTrainingPlanTool.execute(
+      {
+        raceType: "marathon",
+        raceDate: "2026-10-11",
+        daysPerWeek: 5,
+        hoursPerWeek: 8,
+        raceId: id,
+        secondRaceId: id,
+      } as never,
+      { userId: "someone" } as never
+    );
+    expect(result.success).toBe(false);
+    expect((result as { reason: string }).reason).toBe("same_race_twice");
+    expect((result as { error: string }).error).not.toMatch(
+      /not on your calendar/
+    );
+  });
+});
