@@ -240,7 +240,20 @@ const BASE_URL = (() => {
 })();
 
 const SURFACES: Record<string, string> = {
-  today: "/",
+  // `?state=morning` is NOT redundant with the bare path, and leaving it off
+  // made this surface wall-clock dependent. TODAY_STATE_BY_SURFACE says this
+  // surface stands in for "morning", and assertBlockOrder checks the rendered
+  // blocks against BLOCK_ORDER.morning — but `/` renders whatever
+  // resolveTodayState() derives from the clock, and EVENING_HOUR is 18. So the
+  // run passed before 18:00 local and failed after it, and it additionally
+  // made `today` byte-identical to `today-evening`, which assertTodayStatesDiffer
+  // correctly refuses to report as a pass.
+  //
+  // It went unnoticed for as long as this script was only ever run by a person
+  // during the working day. Making the capture a blocking CI gate (v0.115.0)
+  // turned that into a job that failed every evening — found at 18:20 UTC on
+  // run 32401663053, on a docs-only pull request that changed nothing.
+  today: "/?state=morning",
   // Today is state-aware from v0.99 slice 1. `?state=` only REORDERS blocks
   // and is refused outright in production (previewStateFrom in
   // src/lib/today/state.ts returns null when NODE_ENV === "production"), so
