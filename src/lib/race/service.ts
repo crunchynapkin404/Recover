@@ -20,6 +20,37 @@ export type RaceRow = typeof schema.races.$inferSelect;
 export type RacePriority = "A" | "B" | "C";
 export type RaceStatus = "upcoming" | "completed" | "skipped";
 
+export type FtpSource = "outdoor" | "indoor" | "synced";
+
+export interface FtpAnchor {
+  watts: number;
+  source: FtpSource;
+}
+
+/**
+ * The one place "which FTP does this athlete mean" gets decided.
+ * `pacingAnchors()` and `volume-inputs.ts` used to resolve this
+ * independently — see docs/specs/2026-08-24-indoor-ftp-design.md for why
+ * that was a drift risk this closes.
+ *
+ * Pure — no I/O. Callers fetch `prefs`/`latestEftp` themselves.
+ */
+export function resolveFtpAnchor(
+  prefs: { ftpWatts: number | null; ftpWattsIndoor: number | null } | null,
+  latestEftp: number | null
+): FtpAnchor | null {
+  if (prefs?.ftpWatts != null) {
+    return { watts: prefs.ftpWatts, source: "outdoor" };
+  }
+  if (prefs?.ftpWattsIndoor != null) {
+    return { watts: prefs.ftpWattsIndoor, source: "indoor" };
+  }
+  if (latestEftp != null) {
+    return { watts: Math.round(latestEftp), source: "synced" };
+  }
+  return null;
+}
+
 /**
  * A stage as consumers see it. Guarded by `Projected<>` for the same reason
  * `races` is: `race_stages` is a small table today, and a column added to it
@@ -425,8 +456,7 @@ export async function pacingAnchors(userId: string): Promise<{
   ftpWatts: number | null;
   massKg: number | null;
   thresholdPaceSecPerKm: number | null;
-  /** False when an anchor was derived rather than set by the athlete. */
-  ftpAthleteSet: boolean;
+  ftpSource: FtpSource;
   runPaceAthleteSet: boolean;
 }> {
   const prefs = await db.query.bodyPrefs.findFirst({
@@ -462,10 +492,16 @@ export async function pacingAnchors(userId: string): Promise<{
     runPaceDerived = thresholdPaceFromHistory(anchorRows);
   }
 
+  const ftpAnchor = resolveFtpAnchor(prefs ?? null, eftp);
+
   return {
-    ftpAthleteSet: prefs?.ftpWatts != null,
+    ftpWatts: ftpAnchor?.watts ?? null,
+    // Defaults to "synced" when there's no anchor at all, purely so the
+    // field is never undefined — pacing.ts's missingInput branch (checked
+    // before ftpSource is ever read) already refuses in that case, so this
+    // value is never actually consulted.
+    ftpSource: ftpAnchor?.source ?? "synced",
     runPaceAthleteSet: runPaceSet != null,
-    ftpWatts: prefs?.ftpWatts ?? (eftp != null ? Math.round(eftp) : null),
     // Rider weight PLUS the same 8 kg bike-and-kit allowance the demand model
     // applies (volume-inputs.ts). Without it a pacing target and a demand
     // estimate would silently disagree about how heavy the rider is, and
