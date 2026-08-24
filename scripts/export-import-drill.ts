@@ -202,7 +202,7 @@ async function seed() {
     sleepNeedSecs: 27000,
     maxHr: 190,
     ftpWatts: 285,
-    ftpWattsIndoor: null,
+    ftpWattsIndoor: 220,
     thresholdPaceSecPerKm: 258,
     birthYear: 1990,
     levelOverride: "advanced",
