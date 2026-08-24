@@ -105,9 +105,25 @@ jobs:
         run: SEED_DEMO=1 DEMO_EMAIL="$OWNER_EMAIL" npm run db:seed-demo
 
       # seed-demo covers activities, wellness, chat and connectors but seeds no
-      # races and no training plans. seed-two-race builds a two-A-race season
-      # through the real previewTrainingPlan, so what gets captured is what the
-      # engine emits rather than rows someone inserted.
+      # races and no training plans. seed-confirmed-race confirms a single-race
+      # plan through the real previewTrainingPlan/confirmTrainingPlan, so the
+      # race card's pacing line (never captured before docs/2026-08-20-pacing-
+      # capture-gap.md) has a confirmed plan to render against.
+      #
+      # MUST run before seed-two-race, not after: previewTrainingPlan deletes
+      # every existing draft for the user before writing its own ("one draft
+      # per athlete"), and seed-confirmed-race's own draft is confirmed (no
+      # longer a draft) by the time it exits. Reversing this order would have
+      # seed-two-race delete nothing of this step's, but running this step
+      # second would delete seed-two-race's two-arc draft the moment this
+      # script previews its own single-race one — see
+      # scripts/seed-confirmed-race.ts's file header.
+      - name: Seed a confirmed race plan onto the owner
+        run: SEED_DEMO=1 DEMO_EMAIL="$OWNER_EMAIL" npx tsx scripts/seed-confirmed-race.ts
+
+      # seed-two-race builds a two-A-race season through the real
+      # previewTrainingPlan, so what gets captured is what the engine emits
+      # rather than rows someone inserted.
       - name: Seed a two-A-race season onto the owner
         run: SEED_DEMO=1 DEMO_EMAIL="$OWNER_EMAIL" npx tsx scripts/seed-two-race.ts
 
@@ -204,6 +220,10 @@ jobs:
 
       - name: Seed demo data onto the owner
         run: SEED_DEMO=1 DEMO_EMAIL="$OWNER_EMAIL" npm run db:seed-demo
+
+      # Order matters — see the identical step in the `capture` job above.
+      - name: Seed a confirmed race plan onto the owner
+        run: SEED_DEMO=1 DEMO_EMAIL="$OWNER_EMAIL" npx tsx scripts/seed-confirmed-race.ts
 
       - name: Seed a two-A-race season onto the owner
         run: SEED_DEMO=1 DEMO_EMAIL="$OWNER_EMAIL" npx tsx scripts/seed-two-race.ts

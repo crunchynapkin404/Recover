@@ -858,7 +858,10 @@ async function WeekTab({
                   what a chip would drop first, and it is the half that
                   matters. */}
               {card.pacing?.available && (
-                <p className="-mt-5 mb-6 px-1 text-label text-ink-muted">
+                <p
+                  data-testid="race-pacing"
+                  className="-mt-5 mb-6 px-1 text-label text-ink-muted"
+                >
                   <span className="font-bold text-ink-secondary">
                     {card.pacing.value.sport === "Bike"
                       ? `Target ${card.pacing.value.targetWatts} W · hold ${card.pacing.value.lowWatts}–${card.pacing.value.highWatts} W`
