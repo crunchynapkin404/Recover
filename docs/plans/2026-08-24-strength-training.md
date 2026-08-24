@@ -7,7 +7,7 @@ structured, periodization-aware strength sessions into the week alongside
 endurance work — while stopping the existing silent miscount that books
 synced lifting sessions as endurance load.
 
-**Architecture:** One canonical exported `PlanPhase` (replacing three
+**Architecture:** One canonical exported `PlanPhase` (replacing four
 independently-drifting copies of the same union). Four new nullable
 `bodyPrefs` columns. One new pure `strengthPrescription(phase, oneRms)`
 keyed on that phase. `Purpose` gains `"strength"`, so the existing
@@ -61,10 +61,11 @@ the file that implements it.
 1. **`Block` is not exported** (`src/lib/training-plan.ts:240` — `interface
 Block`, no `export`). The spec's "keyed on the exact same `Block["phase"]`
    union" is not directly expressible. Worse, that union is currently written
-   out **three times**: `training-plan.ts:242`, `materialize.ts:120` (aliased
-   to a local, unexported `PlanPhase` at `:187`), and `schema.ts:836`'s
-   `trainingBlocks.phase` enum. Task 1 exports one canonical `PlanPhase` and
-   points the first two at it — the same "one resolver, not two" cleanup
+   out **four times**: `training-plan.ts:242`, `materialize.ts:120` (aliased
+   to a local, unexported `PlanPhase` at `:187`), `plan-preview.ts:18` (exported
+   as `PlanPhase`), and `schema.ts:836`'s `trainingBlocks.phase` enum. Task 1
+   exports one canonical `PlanPhase` and points the first two at it; `plan-preview.ts`
+   now re-exports it — the same "one resolver, not two" cleanup
    `resolveFtpAnchor()` did for FTP in v0.118.0.
 2. **`LoadActivity` has no `sport` field** (`training-load.ts:77-88`).
    `activityLoad()` structurally _cannot_ filter by sport today. Task 6 adds
