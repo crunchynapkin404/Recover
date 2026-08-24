@@ -199,6 +199,31 @@ describe("validateBlocks — value validation (I6)", () => {
   });
 });
 
+describe("strength as a Purpose", () => {
+  it("has a floor of 20 minutes", () => {
+    expect(PURPOSE_FLOORS.strength).toBe(20);
+  });
+
+  it("is not admitted on an easy day", () => {
+    // A fixed-load lift under low expected energy is closer to threshold/
+    // vo2max risk than to aerobic_base — excluded for the same reason those
+    // are. This is the whole readiness-gating mechanism for strength; there
+    // is deliberately no bespoke intensity-scaling branch anywhere.
+    expect(ENERGY_CEILING.easy).not.toContain("strength");
+  });
+
+  it("is admitted on normal and full days", () => {
+    expect(ENERGY_CEILING.normal).toContain("strength");
+    expect(ENERGY_CEILING.full).toContain("strength");
+  });
+
+  it("degrades to recovery rather than to a lighter lift", () => {
+    // There is no "lighter strength" tier to fall back to, so the honest
+    // substitution is out of the sport entirely.
+    expect(SUBSTITUTE_TO.strength).toBe("recovery");
+  });
+});
+
 describe("engine tables", () => {
   it("caps easy energy at aerobic work", () => {
     expect(ENERGY_CEILING.easy).toEqual(["recovery", "aerobic_base", "long"]);
@@ -216,6 +241,7 @@ describe("engine tables", () => {
       vo2max: 40,
       brick: 60,
       long: 90,
+      strength: 20,
     });
   });
 

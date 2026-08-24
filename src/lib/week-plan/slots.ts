@@ -96,6 +96,15 @@ export const TYPE_BY_PURPOSE: Record<
   threshold: { type: "Tempo", intensity: "Z3" },
   vo2max: { type: "Intervals", intensity: "Z4-Z5" },
   brick: { type: "Brick", intensity: "Z3" },
+  /**
+   * Required by the exhaustive Record, never selected at runtime: fill.ts
+   * refuses every purpose except aerobic_base/long, and fitToBlock's
+   * substitution path reads the SUBSTITUTE target's entry (strength
+   * substitutes to recovery), never strength's own. A synthesized strength
+   * session would have no prescription, which is why nothing may synthesize
+   * one.
+   */
+  strength: { type: "Strength", intensity: "" },
 };
 
 /**

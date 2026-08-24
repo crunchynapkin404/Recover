@@ -3,7 +3,13 @@
 export type Energy = "easy" | "normal" | "full";
 
 export type Purpose =
-  "recovery" | "aerobic_base" | "threshold" | "vo2max" | "brick" | "long";
+  | "recovery"
+  | "aerobic_base"
+  | "threshold"
+  | "vo2max"
+  | "brick"
+  | "long"
+  | "strength";
 
 export interface AvailabilityBlock {
   /** "HH:MM" local. null only on rows migrated from the pre-block model. */
@@ -27,8 +33,16 @@ export const MAX_SESSIONS_PER_DAY = 2;
 /** Which purposes an expected energy level admits. */
 export const ENERGY_CEILING: Record<Energy, Purpose[]> = {
   easy: ["recovery", "aerobic_base", "long"],
-  normal: ["recovery", "aerobic_base", "long", "threshold"],
-  full: ["recovery", "aerobic_base", "long", "threshold", "vo2max", "brick"],
+  normal: ["recovery", "aerobic_base", "long", "threshold", "strength"],
+  full: [
+    "recovery",
+    "aerobic_base",
+    "long",
+    "threshold",
+    "vo2max",
+    "brick",
+    "strength",
+  ],
 };
 
 /**
@@ -44,6 +58,12 @@ export const PURPOSE_FLOORS: Record<Purpose, number> = {
   vo2max: 40,
   brick: 60,
   long: 90,
+  /**
+   * Below this a strength session is not worth changing clothes for. Matches
+   * `recovery`'s floor — the shortest big-4 session that still delivers a
+   * stimulus. Coaching judgment, not literature-cited. Confidence: Low.
+   */
+  strength: 20,
 };
 
 /** One step toward the nearest lesser stimulus. recovery is the floor. */
@@ -53,6 +73,7 @@ export const SUBSTITUTE_TO: Partial<Record<Purpose, Purpose>> = {
   threshold: "aerobic_base",
   long: "aerobic_base",
   aerobic_base: "recovery",
+  strength: "recovery",
 };
 
 function toMinutes(hhmm: string): number {
