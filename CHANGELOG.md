@@ -38,6 +38,19 @@ and read (`Target 6:04/km · hold 5:46/km–6:22/km`, low confidence, derived
 from the seeded athlete's run history), and axed clean — 0 confirmed nodes
 across all three `train*` surfaces.
 
+**Two side effects of seeding a second race, checked rather than assumed.**
+`nextUpcomingRace` picks strictly by earliest date with no plan-ownership tie-
+break, and this seed's race (30 days out) is sooner than `seed-two-race.ts`'s
+(84/147 days out) — so it becomes the race every `raceCard()` caller sees,
+including Today's. Today's own `RaceChip` only renders inside 21 days
+(`src/app/page.tsx`), and both races sit outside that window, so the three
+`today*` surfaces' PNGs are unchanged — confirmed by capturing and opening
+them, not by reading the gate. And `train`/`train-plan-preview` now render the
+draft preview card stacked above a real confirmed-plan week — previously
+accidental duplicates of each other, since `plan` was always null in every
+prior CI seed. Opened: it reads as an athlete with an active plan drafting a
+second season, which is a real, sane state, not a rendering defect.
+
 ### Migrations
 
 **None.** No file was added to `drizzle/`.
