@@ -39,6 +39,34 @@ function clone(week: WeekState): WeekState {
   };
 }
 
+/**
+ * The plan's endurance sport, read off the week's own evidence.
+ *
+ * `WeekState` carries no plan-level sport field — only each workout's own
+ * `sport` — and `adaptDay`'s caller (`runDailyAdaptation`, service.ts) never
+ * fetches the parent plan row either, so there is no plan sport already in
+ * scope to reach for; threading one in would mean a new field on
+ * `AdaptDayInput` and a new query and a new join at the one call site, for a
+ * single substitution branch below. `fillSport` (fill.ts) already settled
+ * the same question the same way: "the week itself is the evidence" — a
+ * materialized week always generates its endurance sessions before
+ * strength is ever appended on top (materialize.ts), so an endurance
+ * `sport` is always sitting on some other day right next to the lift.
+ *
+ * Returns null only when literally no non-strength workout exists anywhere
+ * in the week — a shape no materialized week actually has (strength is
+ * always additive over a generated endurance plan); callers fall back to
+ * leaving the sport as it was rather than fabricating one.
+ */
+function weekEnduranceSport(days: DaySlot[]): string | null {
+  for (const d of days) {
+    for (const w of d.workouts) {
+      if (w.purpose !== "strength") return w.sport;
+    }
+  }
+  return null;
+}
+
 function handleMissedYesterday(
   week: WeekState,
   todayIdx: number,
@@ -129,6 +157,12 @@ function handleMissedYesterday(
   const share = remaining.length ? totalMins / remaining.length : 0;
   for (const d of remaining) {
     const w = d.workouts[0]!;
+    // Strength is excluded from the recipients here for the same reason
+    // it's excluded from the dropped total above: a lift's duration is not
+    // a dial anywhere in this codebase (see the strength-readiness branch
+    // in adaptDay below). Without this, a missed ride's minutes grew a
+    // day's lift — a fabricated duration against an unchanged prescription.
+    if (w.purpose === "strength") continue;
     const cap = Math.round(w.durationMins * (1 + DAY_REDISTRIBUTE_CAP_PCT));
     const block = d.availableBlocks[w.blockIdx];
     const blockCapacity = block ? blockMins(block) : 0;
@@ -427,6 +461,20 @@ export function adaptDay(input: AdaptDayInput): AdaptDayResult {
             workouts: [
               withPurpose({
                 ...tWorkout,
+                // A substituted lift must not keep `sport: "Strength"`:
+                // completion matching (service.ts) accepts only a logged
+                // lift for that sport, so an "Easy recovery session" an
+                // athlete actually rode or ran could never mark the day
+                // done — the day reads as missed, and its minutes get
+                // redistributed as endurance debt on top. Read the plan's
+                // endurance sport off the week's own evidence
+                // (weekEnduranceSport, above); an ordinary quality→recovery
+                // swap already carries the right sport in via `...tWorkout`
+                // and is left untouched.
+                sport:
+                  tWorkout.purpose === "strength"
+                    ? (weekEnduranceSport(week.days) ?? tWorkout.sport)
+                    : tWorkout.sport,
                 type: "Recovery",
                 intensity: "Recovery",
                 durationMins: RED_RECOVERY_MINS,
