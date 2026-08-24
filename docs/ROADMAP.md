@@ -1219,6 +1219,24 @@ Demand order, science-constrained.
       would have passed every gate. `scripts/seed-confirmed-race.ts` and a new
       `train-race-pacing` surface close it — see
       `docs/2026-08-20-pacing-capture-gap.md`.
+- [x] **Different FTPs indoor/outdoor — v0.118.0.** The 105-vote row, closed
+      by splitting one number rather than building a model —
+      `docs/2026-08-20-demand-map-handoff.md` called it "the only one of the
+      three whose machinery already exists" and recommended it next. A race is
+      always outdoors in this app's model, so an indoor FTP can never mean
+      "use it for race day"; it is a fallback anchor only, one tier below the
+      outdoor figure and above the synced eFTP `pacingAnchors()` already fell
+      back to. New nullable `bodyPrefs.ftpWattsIndoor`, and Settings gains a
+      second optional field beside the now-relabeled outdoor one.
+      **Closed a real duplicate on the way in:** `pacingAnchors()` and
+      `volume-inputs.ts` had each resolved "the athlete's FTP" with their own
+      copy of the same fallback, the drift risk `raceCard()` was built to
+      close in v0.87 — now one `resolveFtpAnchor()` in `race/service.ts`.
+      Deliberately excluded: `training-load.ts`'s per-activity historical
+      intensity, which would need an indoor/outdoor classifier on every ride
+      that does not exist and is not cheap to build honestly — a data-model
+      project, not this one. Design:
+      `docs/specs/2026-08-24-indoor-ftp-design.md`.
 - [ ] Remainder of the demand map, by votes
 
 ## Phase 4 — Breadth

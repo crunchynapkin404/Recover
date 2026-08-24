@@ -235,12 +235,12 @@ describe.skipIf(!hasDb)("get_races demand provenance", () => {
     // This FOURTH user has done everything the app lets a triathlete do: an
     // athlete-set FTP, an athlete-set threshold pace, a logged weight, and
     // enough recent swim history for swimPaceFromHistory() to derive a pace.
-    // It still reads "low", by design — allAnchorsAthleteSet for a triathlon
-    // requires swimPace.athleteSet, and there is no athlete-set swim pace
-    // anywhere in this codebase: no body_prefs column beside ftpWatts and
-    // thresholdPaceSecPerKm, no Settings control, and volume-inputs.ts
-    // supplies swim pace only from swimPaceFromHistory() with
-    // `athleteSet: false`. See the comment on ANCHOR_SET_COPY in
+    // It still reads "low", by design — a triathlon's weakestAnchorSource
+    // can only reach "outdoor" when swimPace.athleteSet is true, and there is
+    // no athlete-set swim pace anywhere in this codebase: no body_prefs
+    // column beside ftpWatts and thresholdPaceSecPerKm, no Settings control,
+    // and volume-inputs.ts supplies swim pace only from swimPaceFromHistory()
+    // with `athleteSet: false`. See the comment on ANCHOR_SET_COPY in
     // src/lib/race/demand.ts for the full account of why "medium" is
     // currently unreachable for this sport. This test exists so that if a
     // swim anchor is ever added, the confidence consequence is a deliberate

@@ -57,6 +57,7 @@ docs/superpowers/
 # Claude Code worktrees/config (never commit local tooling state)
 .claude/
 .superpowers/
+.worktrees/
 .env.live-restore
 
 # Deployment-specific operational wrappers (container names, live ports).

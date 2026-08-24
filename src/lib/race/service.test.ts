@@ -1,7 +1,11 @@
 import { describe, expect, it, beforeAll, afterAll } from "vitest";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
-import { assembleForecastInputs } from "./service";
+import {
+  assembleForecastInputs,
+  pacingAnchors,
+  resolveFtpAnchor,
+} from "./service";
 import { getOpenWeekPlan } from "@/lib/week-plan/service";
 import type { DaySlot } from "@/lib/week-plan/types";
 
@@ -11,6 +15,74 @@ const hasDb =
 
 const TEST_USER = "test-race-service-user";
 const WEEK_START = "2026-07-20"; // Monday
+
+describe("resolveFtpAnchor", () => {
+  it("prefers outdoor over everything else", () => {
+    const result = resolveFtpAnchor(
+      { ftpWatts: 250, ftpWattsIndoor: 230 },
+      240
+    );
+    expect(result).toEqual({ watts: 250, source: "outdoor" });
+  });
+
+  it("falls back to indoor when outdoor is unset", () => {
+    const result = resolveFtpAnchor(
+      { ftpWatts: null, ftpWattsIndoor: 230 },
+      240
+    );
+    expect(result).toEqual({ watts: 230, source: "indoor" });
+  });
+
+  it("falls back to synced eFTP when neither is set", () => {
+    const result = resolveFtpAnchor(
+      { ftpWatts: null, ftpWattsIndoor: null },
+      240.6
+    );
+    expect(result).toEqual({ watts: 241, source: "synced" });
+  });
+
+  it("returns null when there is nothing to anchor on", () => {
+    const result = resolveFtpAnchor(
+      { ftpWatts: null, ftpWattsIndoor: null },
+      null
+    );
+    expect(result).toBeNull();
+    expect(resolveFtpAnchor(null, null)).toBeNull();
+  });
+});
+
+describe.skipIf(!hasDb)("pacingAnchors — indoor fallback", () => {
+  const INDOOR_USER = "test-pacing-anchors-indoor-user";
+
+  beforeAll(async () => {
+    await db
+      .insert(schema.users)
+      .values({
+        id: INDOOR_USER,
+        name: "Test Pacing Anchors Indoor User",
+        email: `${INDOOR_USER}@example.invalid`,
+      })
+      .onConflictDoNothing();
+    await db.insert(schema.bodyPrefs).values({
+      userId: INDOOR_USER,
+      ftpWatts: null,
+      ftpWattsIndoor: 235,
+    });
+  });
+
+  afterAll(async () => {
+    await db
+      .delete(schema.bodyPrefs)
+      .where(eq(schema.bodyPrefs.userId, INDOOR_USER));
+    await db.delete(schema.users).where(eq(schema.users.id, INDOOR_USER));
+  });
+
+  it("uses indoor FTP when outdoor is unset", async () => {
+    const anchors = await pacingAnchors(INDOOR_USER);
+    expect(anchors.ftpWatts).toBe(235);
+    expect(anchors.ftpSource).toBe("indoor");
+  });
+});
 
 function emptyWeek(weekStart: string): DaySlot[] {
   const days: DaySlot[] = [];

@@ -12,7 +12,8 @@ const NO_RACE = "test-outlook-no-race";
 const NO_PLAN = "test-outlook-no-plan";
 const NO_LOAD = "test-outlook-no-load";
 const CAPPED = "test-outlook-capped";
-const ALL_USERS = [NO_RACE, NO_PLAN, NO_LOAD, CAPPED];
+const INDOOR_FTP = "test-race-card-indoor-ftp-user";
+const ALL_USERS = [NO_RACE, NO_PLAN, NO_LOAD, CAPPED, INDOOR_FTP];
 
 const WEEK_START = "2026-07-20"; // Monday
 const NOW = new Date("2026-07-22T09:00:00"); // Wednesday of that week
@@ -132,6 +133,9 @@ describe.skipIf(!hasDb)("raceCard", () => {
     await db
       .delete(schema.races)
       .where(inArray(schema.races.userId, ALL_USERS));
+    await db
+      .delete(schema.bodyPrefs)
+      .where(inArray(schema.bodyPrefs.userId, ALL_USERS));
     await db.delete(schema.users).where(inArray(schema.users.id, ALL_USERS));
   });
 
@@ -173,6 +177,34 @@ describe.skipIf(!hasDb)("raceCard", () => {
     const card = await raceCard(NO_LOAD, NOW);
     // 2026-07-22 → 2026-08-15
     expect(card.daysOut).toBe(24);
+  });
+
+  it("uses indoor FTP for race pacing when outdoor is unset", async () => {
+    const userId = INDOOR_FTP;
+    await seedUser(userId);
+    await db.insert(schema.races).values({
+      userId,
+      name: "Test Bike Race",
+      raceType: "gran_fondo",
+      sport: "Bike",
+      date: "2026-12-01",
+      priority: "A",
+      distanceKm: 90,
+      elevationM: 900,
+    });
+    await db.insert(schema.bodyPrefs).values({
+      userId,
+      ftpWatts: null,
+      ftpWattsIndoor: 235,
+    });
+
+    const card = await raceCard(userId, new Date("2026-08-01"));
+    expect(card.pacing?.available).toBe(true);
+    if (!card.pacing?.available) return;
+    expect(card.pacing.confidence).toBe("low");
+    expect(card.pacing.why).toMatch(/indoor/i);
+    // Cleanup: the shared afterAll deletes races/bodyPrefs/users for every id
+    // in ALL_USERS, including INDOOR_FTP, unconditionally on pass or fail.
   });
 
   describe("simulateRaceForm", () => {

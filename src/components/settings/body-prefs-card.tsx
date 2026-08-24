@@ -8,6 +8,7 @@ interface Props {
   sleepNeedSecs: number;
   maxHr: number | null;
   ftpWatts: number | null;
+  ftpWattsIndoor: number | null;
   thresholdPaceSecPerKm: number | null;
 }
 
@@ -19,12 +20,14 @@ export function BodyPrefsCard({
   sleepNeedSecs,
   maxHr,
   ftpWatts,
+  ftpWattsIndoor,
   thresholdPaceSecPerKm,
 }: Props) {
   const [wake, setWake] = useState(wakeTime ?? "");
   const [hours, setHours] = useState((sleepNeedSecs / 3600).toString());
   const [hrMax, setHrMax] = useState(maxHr?.toString() ?? "");
   const [ftp, setFtp] = useState(ftpWatts?.toString() ?? "");
+  const [ftpIndoor, setFtpIndoor] = useState(ftpWattsIndoor?.toString() ?? "");
   const [thresholdPace, setThresholdPace] = useState(
     thresholdPaceSecPerKm?.toString() ?? ""
   );
@@ -38,6 +41,7 @@ export function BodyPrefsCard({
         sleepNeedSecs: Math.round(Number(hours) * 3600),
         maxHr: hrMax.trim() ? Number(hrMax) : null,
         ftpWatts: ftp.trim() ? Number(ftp) : null,
+        ftpWattsIndoor: ftpIndoor.trim() ? Number(ftpIndoor) : null,
         thresholdPaceSecPerKm: thresholdPace.trim()
           ? Number(thresholdPace)
           : null,
@@ -107,7 +111,7 @@ export function BodyPrefsCard({
           />
         </label>
         <label className="block">
-          <span className="label-micro mb-1 block">FTP (watts)</span>
+          <span className="label-micro mb-1 block">FTP (watts) — outdoor</span>
           <input
             type="number"
             min={50}
@@ -115,6 +119,20 @@ export function BodyPrefsCard({
             value={ftp}
             onChange={(e) => setFtp(e.target.value)}
             placeholder="e.g. 250"
+            className={inputClass}
+          />
+        </label>
+        <label className="block">
+          <span className="label-micro mb-1 block">
+            FTP (watts) — indoor (optional)
+          </span>
+          <input
+            type="number"
+            min={50}
+            max={600}
+            value={ftpIndoor}
+            onChange={(e) => setFtpIndoor(e.target.value)}
+            placeholder="e.g. 235"
             className={inputClass}
           />
         </label>

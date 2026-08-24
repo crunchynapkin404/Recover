@@ -75,7 +75,7 @@ export async function raceCard(
     ftpWatts: anchors.ftpWatts,
     massKg: anchors.massKg,
     thresholdPaceSecPerKm: anchors.thresholdPaceSecPerKm,
-    ftpAthleteSet: anchors.ftpAthleteSet,
+    ftpSource: anchors.ftpSource,
     runPaceAthleteSet: anchors.runPaceAthleteSet,
   });
 

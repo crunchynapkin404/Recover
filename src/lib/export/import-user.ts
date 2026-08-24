@@ -249,6 +249,7 @@ export async function importUserData(
           sleepNeedSecs: r.sleepNeedSecs,
           maxHr: r.maxHr,
           ftpWatts: r.ftpWatts,
+          ftpWattsIndoor: r.ftpWattsIndoor,
           thresholdPaceSecPerKm: r.thresholdPaceSecPerKm,
           birthYear: r.birthYear,
           levelOverride: r.levelOverride,

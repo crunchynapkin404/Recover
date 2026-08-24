@@ -587,6 +587,13 @@ export const bodyPrefs = pgTable("body_prefs", {
   maxHr: integer("max_hr"),
   ftpWatts: integer("ftp_watts"),
   /**
+   * v0.118: the indoor/trainer FTP, distinct from the outdoor one above.
+   * null = not set. Used ONLY as a fallback anchor when ftpWatts is null —
+   * races have no indoor concept in this app, so this can never mean "use it
+   * for race day" directly. See docs/specs/2026-08-24-indoor-ftp-design.md.
+   */
+  ftpWattsIndoor: integer("ftp_watts_indoor"),
+  /**
    * v0.46: the running anchor, the exact analogue of ftpWatts. Seconds per
    * kilometre at threshold — roughly one-hour race pace by definition, which
    * is what makes it a Riegel reference performance with no second input.

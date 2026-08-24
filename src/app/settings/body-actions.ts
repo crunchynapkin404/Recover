@@ -24,6 +24,7 @@ export async function setBodyPrefs(input: {
   sleepNeedSecs: number;
   maxHr: number | null;
   ftpWatts: number | null;
+  ftpWattsIndoor: number | null;
   thresholdPaceSecPerKm: number | null;
 }): Promise<{ ok: boolean; message?: string }> {
   const user = await requireUser();
@@ -60,6 +61,17 @@ export async function setBodyPrefs(input: {
     return { ok: false, message: "FTP must be between 50 and 600 watts." };
   }
   if (
+    input.ftpWattsIndoor != null &&
+    (!Number.isInteger(input.ftpWattsIndoor) ||
+      input.ftpWattsIndoor < MIN_FTP ||
+      input.ftpWattsIndoor > MAX_FTP)
+  ) {
+    return {
+      ok: false,
+      message: "Indoor FTP must be between 50 and 600 watts.",
+    };
+  }
+  if (
     input.thresholdPaceSecPerKm != null &&
     (!Number.isInteger(input.thresholdPaceSecPerKm) ||
       input.thresholdPaceSecPerKm < MIN_THRESHOLD_PACE ||
@@ -80,6 +92,7 @@ export async function setBodyPrefs(input: {
     sleepNeedSecs: input.sleepNeedSecs,
     maxHr: input.maxHr,
     ftpWatts: input.ftpWatts,
+    ftpWattsIndoor: input.ftpWattsIndoor,
     thresholdPaceSecPerKm: input.thresholdPaceSecPerKm,
   };
   await db

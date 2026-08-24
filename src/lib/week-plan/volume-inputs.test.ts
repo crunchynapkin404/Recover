@@ -141,3 +141,48 @@ describe.skipIf(!hasDb)("assembleVolumeInputs — CTL source (v0.92)", () => {
     expect(result.level.source).toBe("computed");
   });
 });
+
+describe.skipIf(!hasDb)("assembleVolumeInputs — indoor FTP fallback", () => {
+  const USER = "test-volume-inputs-indoor-ftp-user";
+  const now = new Date(2026, 7, 1);
+
+  beforeAll(async () => {
+    await db
+      .insert(schema.users)
+      .values({
+        id: USER,
+        name: "Volume Inputs Indoor FTP Test",
+        email: `${USER}@example.test`,
+      })
+      .onConflictDoNothing();
+    await db.insert(schema.races).values({
+      userId: USER,
+      name: "Test Gran Fondo",
+      raceType: "gran_fondo",
+      sport: "Bike",
+      date: "2026-12-01",
+      priority: "A",
+      distanceKm: 130,
+      elevationM: 4000,
+    });
+    await db.insert(schema.bodyPrefs).values({
+      userId: USER,
+      ftpWatts: null,
+      ftpWattsIndoor: 235,
+    });
+  });
+
+  afterAll(async () => {
+    await db.delete(schema.races).where(eq(schema.races.userId, USER));
+    await db.delete(schema.bodyPrefs).where(eq(schema.bodyPrefs.userId, USER));
+    await db.delete(schema.users).where(eq(schema.users.id, USER));
+  });
+
+  it("uses indoor FTP for demand when outdoor is unset", async () => {
+    const result = await assembleVolumeInputs(USER, now);
+    expect(result.demand?.available).toBe(true);
+    if (!result.demand?.available) return;
+    expect(result.demand.confidence).toBe("low");
+    expect(result.demand.confidenceReason).toMatch(/indoor/i);
+  });
+});

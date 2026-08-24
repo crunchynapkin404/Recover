@@ -17,6 +17,7 @@ import { Figure } from "@/lib/uncertainty";
 import { DEMAND_CONSTANTS as C } from "./demand-constants";
 import { estimateRidingHours, ftpFractionFor } from "./riding-time";
 import { estimateRunningHours } from "./running-time";
+import type { FtpSource } from "./service";
 
 /**
  * Half-width of the pacing band, as a fraction of the target.
@@ -47,12 +48,11 @@ export interface PacingInput {
   massKg: number | null;
   thresholdPaceSecPerKm: number | null;
   /**
-   * False when the anchor was DERIVED rather than set by the athlete —
-   * schema.ts's contract for both anchors is "null = derive from history (Low
-   * confidence), then refuse", and this carries the second half of it. Default
-   * true, so an omitted flag never silently downgrades an existing caller.
+   * Which FTP this anchor is. Omitted defaults to the same "treat as best
+   * case" behavior `ftpAthleteSet`'s absence used to have — an omitted flag
+   * must never silently downgrade an existing caller.
    */
-  ftpAthleteSet?: boolean;
+  ftpSource?: FtpSource;
   runPaceAthleteSet?: boolean;
 }
 
@@ -85,6 +85,8 @@ export type PacingTarget =
  * that it is estimated — and let the card above carry the instruction.
  */
 const DERIVED_ANCHOR_WHY = "Estimated from recent sessions, not measured.";
+
+const INDOOR_ANCHOR_WHY = "Uses your indoor FTP — outdoor effort may differ.";
 
 const LONG_EVENT_WHY =
   "Past 8 h the sustainable-effort figure is a reading of an older band, not a " +
@@ -140,10 +142,12 @@ export function racePacing(input: PacingInput): Figure<PacingTarget> {
     const half = targetWatts * PACING_BAND_FRACTION;
     const anchors = C.FTP_FRACTION_ANCHORS;
     const long = hours >= anchors[anchors.length - 1].hours;
-    const derived = input.ftpAthleteSet === false;
+    const derived = input.ftpSource === "synced";
+    const indoorFallback = input.ftpSource === "indoor";
     const why = [
       BIKE_WHY,
       long ? LONG_EVENT_WHY : null,
+      indoorFallback ? INDOOR_ANCHOR_WHY : null,
       derived ? DERIVED_ANCHOR_WHY : null,
     ]
       .filter(Boolean)
@@ -158,7 +162,7 @@ export function racePacing(input: PacingInput): Figure<PacingTarget> {
         ftpFraction,
         hours,
       },
-      long || derived ? "low" : "medium",
+      long || derived || indoorFallback ? "low" : "medium",
       why
     );
   }
