@@ -57,14 +57,35 @@ export function fillCeilingMins(
 }
 
 /**
- * Every planned minute in the week, locked days included.
+ * Every planned ENDURANCE minute in the week, locked days included.
+ *
+ * Strength sessions are deliberately excluded. This total feeds two things
+ * that only make sense for endurance: fill's own target-hours accounting
+ * above (`opts.targetMins` is an endurance hours target — see
+ * `weeklyTargetHours`/`assembleVolumeInputs`, neither of which reasons
+ * about strength), and `week_plans.materialized_mins`, whose sole purpose
+ * is the `effectiveTarget / materialized_mins` load-per-minute rate
+ * (`volume.ts`'s `weekLoadPerMin`) — a rate that only holds if the minutes
+ * on both sides of that division are the same kind. Strength carries no
+ * load (`training-load.ts` refuses one, per Task 6), so folding its
+ * minutes into either total would make an opted-in week look like it
+ * needs less endurance than it does, or read its own load-per-minute rate
+ * as artificially diluted. Every current caller of this function wants
+ * this same endurance-only total; none has been found that legitimately
+ * wants strength minutes included (checked at the time strength was
+ * added — see docs/specs/2026-08-24-strength-training-design.md).
  *
  * A completed Monday is training the week actually contains; excluding it
  * would make fill re-add what the athlete has already done.
  */
 export function plannedMins(days: DaySlot[]): number {
   return days.reduce(
-    (total, d) => total + d.workouts.reduce((s, x) => s + x.durationMins, 0),
+    (total, d) =>
+      total +
+      d.workouts.reduce(
+        (s, x) => s + (x.purpose === "strength" ? 0 : x.durationMins),
+        0
+      ),
     0
   );
 }

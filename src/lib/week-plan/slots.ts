@@ -58,6 +58,19 @@ export function admits(
   const day = days[slot.dayIdx];
   if (day.workouts.length >= MAX_SESSIONS_PER_DAY) return false;
 
+  // Two strength sessions never share a day. Deliberately separate from
+  // the QUALITY_TYPES adjacency rule below: strength stays OUT of
+  // QUALITY_TYPES (Task 3) so it inherits no adjacent-day spacing, but the
+  // spec's 2x/week cadence means two DIFFERENT days, never both lifts
+  // back-to-back on one day just because MAX_SESSIONS_PER_DAY allows two
+  // sessions total.
+  if (
+    w.sport === "Strength" &&
+    day.workouts.some((x) => x.sport === "Strength")
+  ) {
+    return false;
+  }
+
   if (isQuality(w)) {
     // Never two quality sessions on one day, nor on adjacent days.
     if (day.workouts.some((x) => isQuality(x))) return false;

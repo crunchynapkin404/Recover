@@ -22,6 +22,10 @@ import {
   thresholdPaceFromHistory,
 } from "./anchors";
 import { weeklyDisplayTarget, type VolumeResult } from "./volume";
+import {
+  oneRmsFromBodyPrefs,
+  type OneRepMaxes,
+} from "@/lib/strength/prescription";
 
 /** Monday of the week containing `d`, at local midnight. */
 function weekStartOf(d: Date): Date {
@@ -138,6 +142,17 @@ export interface VolumeInputsResult {
     date: string;
     sport: PlanSport;
   } | null;
+  /**
+   * The athlete's per-lift maxima, or null when they have opted out (no
+   * bodyPrefs row, or a row with all four still null). Derived once here
+   * from the SAME `prefs` row this function already fetches for
+   * `levelOverride`/`thresholdPaceSecPerKm`/FTP anchoring, rather than a
+   * second `bodyPrefs` query at each `materializeWeek` caller — both
+   * `rolloverWeekPlan` (service.ts) and `projectWeek` (project.ts) call
+   * `assembleVolumeInputs` before `materializeWeek` already, so this is
+   * the one place the row needs reading.
+   */
+  oneRms: OneRepMaxes | null;
 }
 
 export async function assembleVolumeInputs(
@@ -306,6 +321,7 @@ export async function assembleVolumeInputs(
           sport: target.sport,
         }
       : null,
+    oneRms: oneRmsFromBodyPrefs(prefs),
   };
 }
 

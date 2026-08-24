@@ -36,7 +36,6 @@ import {
 import { materializeWeek } from "./materialize";
 import { addDaysYmd, getOpenWeekPlan, planConstraints } from "./service";
 import { dayMins, type Band, type DaySlot } from "./types";
-import type { OneRepMaxes } from "@/lib/strength/prescription";
 
 export interface ProjectedWeek {
   weekStart: string;
@@ -77,44 +76,6 @@ async function recentBandsFor(userId: string): Promise<Band[]> {
     limit: 7,
   });
   return rows.reverse().map((r) => (r.band ?? "calibrating") as Band);
-}
-
-/**
- * The materialize-layer opt-in signal, from the athlete's stored bodyPrefs
- * row. Strength is opt-in via the four Settings fields (materialize.ts):
- * an athlete who has touched none of them — no row at all, or a row with
- * all four still null (the common case: bodyPrefs already exists for most
- * athletes, for FTP/weight/pace, well before any of them ever visits the
- * new strength fields) — must get null, never an all-null OneRepMaxes
- * object, so materializeWeek's `input.oneRms != null` opt-in gate reads it
- * as "schedule no strength at all". Any ONE lift set is enough to opt in;
- * the rest simply refuse their own load in strengthPrescription(). Mirrors
- * service.ts's private `oneRmsFromBodyPrefs` — see recentBandsFor's own
- * docstring above for why this file duplicates rather than imports it.
- */
-function oneRmsFromBodyPrefs(
-  prefs:
-    | {
-        squatOneRmKg: number | null;
-        benchOneRmKg: number | null;
-        deadliftOneRmKg: number | null;
-        overheadPressOneRmKg: number | null;
-      }
-    | null
-    | undefined
-): OneRepMaxes | null {
-  if (!prefs) return null;
-  const { squatOneRmKg, benchOneRmKg, deadliftOneRmKg, overheadPressOneRmKg } =
-    prefs;
-  if (
-    squatOneRmKg == null &&
-    benchOneRmKg == null &&
-    deadliftOneRmKg == null &&
-    overheadPressOneRmKg == null
-  ) {
-    return null;
-  }
-  return { squatOneRmKg, benchOneRmKg, deadliftOneRmKg, overheadPressOneRmKg };
 }
 
 /**
@@ -296,13 +257,10 @@ export async function projectWeek(
     );
   }
 
-  const [races, ctlNow, recentBands, bodyPrefs] = await Promise.all([
+  const [races, ctlNow, recentBands] = await Promise.all([
     racesForWeek(userId, weekStart),
     currentCtl(userId),
     recentBandsFor(userId),
-    db.query.bodyPrefs.findFirst({
-      where: eq(schema.bodyPrefs.userId, userId),
-    }),
   ]);
 
   const r = materializeWeek({
@@ -327,7 +285,10 @@ export async function projectWeek(
     previousARace: targets.first
       ? { date: targets.first.date, raceType: targets.first.raceType }
       : null,
-    oneRms: oneRmsFromBodyPrefs(bodyPrefs),
+    // Read off the SAME assembleVolumeInputs() call this function already
+    // makes above (`volumeInputs`, for `target`/`queenStageHours`) rather
+    // than a second `bodyPrefs` query here.
+    oneRms: volumeInputs.oneRms,
   });
 
   const overrides = await db.query.availabilityOverrides.findMany({

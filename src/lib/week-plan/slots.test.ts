@@ -153,6 +153,55 @@ describe("admits", () => {
     const s = buildSlots(days)[0];
     expect(admits(s, workout(), days, new Set([slotKey(s)]))).toBe(false);
   });
+
+  it("refuses a second strength session on a day that already has one", () => {
+    // Deliberately separate from the QUALITY_TYPES adjacency rule above:
+    // strength stays out of QUALITY_TYPES (Task 3) on purpose, so this
+    // same-day guard cannot piggyback on `isQuality`.
+    const strengthWorkout = (o: Partial<ScheduledWorkout> = {}) =>
+      workout({
+        sport: "Strength",
+        type: "Strength",
+        purpose: "strength",
+        durationMins: 45,
+        minEffectiveMins: 20,
+        ...o,
+      });
+    const days = week([
+      day(
+        "2026-08-03",
+        [{ mins: 120 }, { mins: 120 }],
+        [strengthWorkout({ blockIdx: 0 })]
+      ),
+    ]);
+    const secondBlock = buildSlots(days).find((s) => s.blockIdx === 1)!;
+    expect(admits(secondBlock, strengthWorkout(), days, empty)).toBe(false);
+  });
+
+  it("admits a strength session on a day whose only other session is not strength", () => {
+    const strengthWorkout = workout({
+      sport: "Strength",
+      type: "Strength",
+      purpose: "strength",
+      durationMins: 45,
+      minEffectiveMins: 20,
+    });
+    const days = week([
+      day(
+        "2026-08-03",
+        [{ mins: 120 }, { mins: 120 }],
+        [
+          workout({
+            type: "Endurance",
+            purpose: "aerobic_base",
+            blockIdx: 0,
+          }),
+        ]
+      ),
+    ]);
+    const secondBlock = buildSlots(days).find((s) => s.blockIdx === 1)!;
+    expect(admits(secondBlock, strengthWorkout, days, empty)).toBe(true);
+  });
 });
 
 describe("fitToBlock", () => {

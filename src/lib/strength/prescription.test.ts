@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { PLAN_PHASES } from "@/lib/plan-phase";
 import {
+  oneRmsFromBodyPrefs,
   STRENGTH_SESSION_LOAD,
   strengthPrescription,
   type OneRepMaxes,
@@ -108,5 +109,52 @@ describe("strengthPrescription", () => {
     // 30 < DURATION_TSS_PER_HOUR (40). This figure must never read as
     // commensurate with an endurance TSS.
     expect(STRENGTH_SESSION_LOAD).toBe(30);
+  });
+});
+
+describe("oneRmsFromBodyPrefs", () => {
+  // The whole point of this function: a bodyPrefs row already exists for
+  // most athletes today (FTP, weight, pace), created long before any of
+  // them ever visits the new strength fields. Treating that pre-existing
+  // row as an opt-in (rather than "no row" being the only opt-out) would
+  // silently start scheduling strength for nearly every existing athlete
+  // on their next rollover.
+
+  it("returns null when there is no row at all", () => {
+    expect(oneRmsFromBodyPrefs(null)).toBeNull();
+    expect(oneRmsFromBodyPrefs(undefined)).toBeNull();
+  });
+
+  it("returns null when the row exists but all four maxima are still null", () => {
+    expect(
+      oneRmsFromBodyPrefs({
+        squatOneRmKg: null,
+        benchOneRmKg: null,
+        deadliftOneRmKg: null,
+        overheadPressOneRmKg: null,
+      })
+    ).toBeNull();
+  });
+
+  it("opts in on exactly one maximum being set", () => {
+    // Any ONE lift is enough — the other three simply refuse their own
+    // load in strengthPrescription(), rather than blocking the session.
+    expect(
+      oneRmsFromBodyPrefs({
+        squatOneRmKg: 150,
+        benchOneRmKg: null,
+        deadliftOneRmKg: null,
+        overheadPressOneRmKg: null,
+      })
+    ).toEqual({
+      squatOneRmKg: 150,
+      benchOneRmKg: null,
+      deadliftOneRmKg: null,
+      overheadPressOneRmKg: null,
+    });
+  });
+
+  it("passes every value through unchanged when all four are set", () => {
+    expect(oneRmsFromBodyPrefs(ALL_SET)).toEqual(ALL_SET);
   });
 });

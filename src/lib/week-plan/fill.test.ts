@@ -185,6 +185,47 @@ describe("plannedMins", () => {
   it("is zero for an empty week", () => {
     expect(plannedMins(days([{}, {}, {}]))).toBe(0);
   });
+
+  it("excludes strength minutes from the endurance total", () => {
+    // This total feeds fill's own target-hours accounting and
+    // materialized_mins' load-per-minute rate — both endurance-only
+    // concepts (strength carries no load, Task 6). A strength session's
+    // minutes must never pad either.
+    const d = days([
+      {
+        workouts: [
+          w({ durationMins: 60 }),
+          w({
+            durationMins: 45,
+            sport: "Strength",
+            type: "Strength",
+            purpose: "strength",
+            minEffectiveMins: 20,
+            blockIdx: 1,
+          }),
+        ],
+      },
+      { workouts: [w({ durationMins: 30 })] },
+    ]);
+    expect(plannedMins(d)).toBe(90);
+  });
+
+  it("is zero for a day holding only a strength session", () => {
+    const d = days([
+      {
+        workouts: [
+          w({
+            durationMins: 45,
+            sport: "Strength",
+            type: "Strength",
+            purpose: "strength",
+            minEffectiveMins: 20,
+          }),
+        ],
+      },
+    ]);
+    expect(plannedMins(d)).toBe(0);
+  });
 });
 
 describe("availableMins", () => {

@@ -38,6 +38,47 @@ export interface OneRepMaxes {
   overheadPressOneRmKg: number | null;
 }
 
+/**
+ * The materialize-layer opt-in signal, from the athlete's raw bodyPrefs row
+ * (or its absence). Strength is opt-in via the four Settings fields: an
+ * athlete who has touched none of them — no row at all, or a row with all
+ * four still null (the common case: bodyPrefs already exists for most
+ * athletes, for FTP/weight/pace, well before any of them ever visits the
+ * new strength fields) — must get `null` here, never an all-null
+ * `OneRepMaxes` object, so `materializeWeek`'s `input.oneRms != null`
+ * opt-in gate reads it as "schedule no strength at all". Any ONE lift set
+ * is enough to opt in; the rest simply refuse their own load in
+ * `strengthPrescription()` above.
+ *
+ * Takes a plain field shape rather than the drizzle `bodyPrefs` row type
+ * so this file stays dependency-free (no db import) — every caller already
+ * has a row shaped like this from `db.query.bodyPrefs.findFirst(...)`.
+ */
+export function oneRmsFromBodyPrefs(
+  prefs:
+    | {
+        squatOneRmKg: number | null;
+        benchOneRmKg: number | null;
+        deadliftOneRmKg: number | null;
+        overheadPressOneRmKg: number | null;
+      }
+    | null
+    | undefined
+): OneRepMaxes | null {
+  if (!prefs) return null;
+  const { squatOneRmKg, benchOneRmKg, deadliftOneRmKg, overheadPressOneRmKg } =
+    prefs;
+  if (
+    squatOneRmKg == null &&
+    benchOneRmKg == null &&
+    deadliftOneRmKg == null &&
+    overheadPressOneRmKg == null
+  ) {
+    return null;
+  }
+  return { squatOneRmKg, benchOneRmKg, deadliftOneRmKg, overheadPressOneRmKg };
+}
+
 interface PhaseRx {
   sets: number;
   reps: number;
