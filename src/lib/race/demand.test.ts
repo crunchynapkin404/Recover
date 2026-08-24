@@ -525,6 +525,28 @@ describe("eventDemand reports its confidence", () => {
     expect(result.confidenceReason).not.toMatch(/indoor/i);
   });
 
+  // LATENT, same reasoning as "downgrades a fully anchored triathlon to low
+  // confidence" below: swimPace.athleteSet: true is production-unreachable
+  // (no athlete-set swim pace exists anywhere in this codebase), but pinning
+  // it here is the only way to exercise weakestOfTriathlonAnchors() actually
+  // landing on rank 1 ("indoor") as the MAX across all three anchors, rather
+  // than only ever seeing rank 0 or rank 2. Without this, a swapped rank or
+  // an off-by-one in FTP_SOURCE_BY_RANK would go undetected.
+  it("names the indoor anchor when it is the weakest across a triathlon's three legs", () => {
+    const result = eventDemand({
+      ...BASE,
+      sport: "Triathlon",
+      raceType: "ironman",
+      distanceKm: 226,
+      ftp: { watts: 235, source: "indoor" },
+      runPace: { secPerKm: 300, athleteSet: true },
+      swimPace: { secPer100m: 120, athleteSet: true },
+    });
+    expect(result.available).toBe(true);
+    if (!result.available) return;
+    expect(result.confidenceReason).toMatch(/indoor/i);
+  });
+
   it("takes the weakest anchor across a triathlon's three legs", () => {
     const result = eventDemand({
       ...BASE,
