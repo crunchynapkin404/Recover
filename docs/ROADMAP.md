@@ -1213,6 +1213,12 @@ Demand order, science-constrained.
       is a total across days. The ±5% band is an uncited engineering bound,
       documented as one, and does not widen with lower confidence, because that
       would make a shaky figure look derived.
+      **The capture gap this shipped with is closed — v0.117.0.** The pacing
+      line only renders for a confirmed plan, and nothing `surfaces.yml` or
+      `soak.yml` seeded had ever confirmed one; a regression deleting the line
+      would have passed every gate. `scripts/seed-confirmed-race.ts` and a new
+      `train-race-pacing` surface close it — see
+      `docs/2026-08-20-pacing-capture-gap.md`.
 - [ ] Remainder of the demand map, by votes
 
 ## Phase 4 — Breadth

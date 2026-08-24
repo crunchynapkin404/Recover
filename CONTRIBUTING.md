@@ -153,8 +153,10 @@ because each names a real property of the check, and anyone changing
    created empty and only migrated, and seeding alone moved the node count
    1398 → 1687 (+20.7%, Train +600%) because the charts, badges, week rows and
    tables where sub-AA colour actually lives are simply not on screen for an
-   empty account. **Closed:** each capture job runs `db:seed`, `db:seed-demo`
-   and `seed-two-race.ts` — all deterministic and idempotent — and the run's
+   empty account. **Closed:** each capture job runs `db:seed`, `db:seed-demo`,
+   `seed-confirmed-race.ts` and `seed-two-race.ts`, in that order (see the
+   first script's file header for why the order isn't arbitrary) — all
+   deterministic and idempotent — and the run's
    real-API-token create/revoke is _safer_ against CI's throwaway database than
    against a dev one.
 

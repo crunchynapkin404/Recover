@@ -283,6 +283,17 @@ const SURFACES: Record<string, string> = {
   // plans, so without it this surface fails loudly rather than filing the
   // single-race path under a two-race name.
   "train-plan-preview": "/train",
+  // Also same PATH as `train`, and same reasoning as `train-plan-preview`
+  // above — the race card's pacing line only renders once the athlete has a
+  // CONFIRMED plan, and neither `train` nor `train-plan-preview` ever reach
+  // that branch: `seed-demo.ts` seeds no plan at all, and `seed-two-race.ts`
+  // deliberately stops at a draft. So this state had never been captured —
+  // a regression deleting the pacing line outright would pass every gate.
+  // See docs/2026-08-20-pacing-capture-gap.md. Requires
+  // scripts/seed-confirmed-race.ts to have run, BEFORE seed-two-race.ts (it
+  // would otherwise delete that script's two-arc draft — see this script's
+  // own file header).
+  "train-race-pacing": "/train",
   // Coach is a multi-state surface behind one URL, and `/coach` alone renders
   // `messages.length === 0` — the empty state. Until slice 4, every message
   // bubble, the timestamp, ArtifactCard, the typing indicator and the error
@@ -638,8 +649,37 @@ async function waitForTwoArcPreview(page: Page): Promise<void> {
   }
 }
 
+/**
+ * Assert the race card on screen actually carries a rendered pacing line.
+ *
+ * `card.pacing?.available` is the whole branch — false, or no confirmed
+ * plan at all, renders nothing here, and this surface would otherwise
+ * silently capture whatever DID render (the plan-preview card, the empty
+ * state, or the confirmed page minus its pacing line) under a name
+ * promising the target-and-band text. Same failure shape as
+ * `waitForTwoArcPreview` above, one state over.
+ */
+async function waitForRacePacing(page: Page): Promise<void> {
+  try {
+    const line = page.locator('[data-testid="race-pacing"]').first();
+    await line.waitFor({ state: "visible", timeout: 10_000 });
+    await line.scrollIntoViewIfNeeded({ timeout: 5_000 });
+  } catch (err) {
+    throw new Error(
+      "train-race-pacing: no visible [data-testid=race-pacing] on /train. " +
+        "Either there is no confirmed plan, the athlete's race is missing " +
+        "or unavailable for pacing (triathlon/multi-day), or the derived " +
+        "anchor could not resolve. Run `SEED_DEMO=1 DEMO_EMAIL=<owner> npx " +
+        "tsx scripts/seed-confirmed-race.ts` against this database first — " +
+        "BEFORE seed-two-race.ts. Capturing anyway would file the wrong " +
+        `state under a name promising a rendered target. (${err instanceof Error ? err.message : String(err)})`
+    );
+  }
+}
+
 const SURFACE_PREPARE: Record<string, (page: Page) => Promise<void>> = {
   "train-plan-preview": waitForTwoArcPreview,
+  "train-race-pacing": waitForRacePacing,
   "settings-expanded": expandSettingsSections,
   "settings-connect-errors": expandSettingsSections,
   "debrief-sheet": sheetOpenGuard(

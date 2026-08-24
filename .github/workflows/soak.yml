@@ -111,6 +111,11 @@ jobs:
           export DATABASE_DRIVER=pg
           npm run db:seed
           SEED_DEMO=1 DEMO_EMAIL="$OWNER_EMAIL" npm run db:seed-demo
+          # Order matters: seed-confirmed-race BEFORE seed-two-race, or
+          # previewTrainingPlan's "one draft per athlete" delete wipes the
+          # two-arc draft the moment the confirmed-race script previews its
+          # own single-race one. See scripts/seed-confirmed-race.ts.
+          SEED_DEMO=1 DEMO_EMAIL="$OWNER_EMAIL" npx tsx scripts/seed-confirmed-race.ts
           SEED_DEMO=1 DEMO_EMAIL="$OWNER_EMAIL" npx tsx scripts/seed-two-race.ts
 
       - name: Box 6 — migration drill

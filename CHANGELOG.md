@@ -1,5 +1,47 @@
 # Changelog
 
+## v0.117.0 — 2026-08-24 — Confirmed
+
+No athlete sees anything different. What changed is what CI can no longer get
+wrong.
+
+### The pacing line had never been captured
+
+`src/app/train/page.tsx` renders the race card's target-and-band line only
+once the athlete has a **confirmed** plan — draft or none takes the same
+early-return branch. Every account `surfaces.yml` and `soak.yml` ever seeded
+stopped short of that: `seed-demo.ts` seeds no races or plans at all, and
+`seed-two-race.ts` deliberately stops at a draft, because `train-plan-preview`
+needs that draft to survive. So the confirmed-plan branch — the race chip, the
+week strip, and the pacing line v0.116.0 shipped — had never once been
+photographed or axe-audited. A regression deleting the line outright would
+have passed 2895 tests and a clean `0 confirmed` ratchet. Full detail in
+`docs/2026-08-20-pacing-capture-gap.md`, written the day the gap was found.
+
+**Closed with a sibling script, not a change to the existing ones.**
+`scripts/seed-confirmed-race.ts` builds and confirms a single-race plan
+through the real `previewTrainingPlan`/`confirmTrainingPlan`, the same
+producer-not-fixture reasoning `seed-two-race.ts` already used. It **must run
+before** `seed-two-race.ts`: `previewTrainingPlan` enforces "one draft per
+athlete" by deleting every existing draft for the user before writing its
+own, and this script's plan is confirmed — no longer a draft — by the time it
+exits. Reversed, it deletes the two-arc draft `train-plan-preview` depends on;
+verified by deliberately running it in the wrong order and watching that
+surface fail before fixing the sequence.
+
+A new surface, `train-race-pacing`, captures the confirmed state — guarded by
+a `data-testid="race-pacing"` on the rendered line itself, the same shape as
+`train-plan-preview`'s `segment-2` guard, so a run that reaches the page but
+not the line refuses loudly instead of filing the wrong state under this
+surface's name. Verified locally end to end: seeded, captured, the PNG opened
+and read (`Target 6:04/km · hold 5:46/km–6:22/km`, low confidence, derived
+from the seeded athlete's run history), and axed clean — 0 confirmed nodes
+across all three `train*` surfaces.
+
+### Migrations
+
+**None.** No file was added to `drizzle/`.
+
 ## v0.116.0 — 2026-08-20 — Both
 
 Race pacing — the skipped v0.54. How hard to go on the day, with the assumption
