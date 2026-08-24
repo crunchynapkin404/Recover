@@ -1,3 +1,13 @@
+> **Archived 2026-08-24 at v0.119.0.** This was `docs/ROADMAP.md` from v0.65.0
+> through v0.119.0, covering Phases 1–4: the goal and pillars, proving the
+> existing numbers correct, and closing the highest-ranked demand gaps. All of
+> it is complete.
+>
+> **It is a record, not a plan — nothing here is scheduled.** The live roadmap
+> is [`docs/ROADMAP.md`](../ROADMAP.md). Documents written before this date
+> cite this file's contents by line number under its old path; those citations
+> resolve here.
+
 # Roadmap
 
 Current baseline: **v0.65.0** — see `docs/BASELINE.md` for the measured state.
