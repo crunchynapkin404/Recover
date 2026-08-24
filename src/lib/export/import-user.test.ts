@@ -779,6 +779,10 @@ describe.skipIf(!hasDb)("importUserData", () => {
         maxHr: 188,
         ftpWatts: 250,
         ftpWattsIndoor: 235,
+        squatOneRmKg: 180,
+        benchOneRmKg: 95,
+        deadliftOneRmKg: 220,
+        overheadPressOneRmKg: 55,
       });
 
       // Export as JSON to simulate a real import from req.json().
@@ -826,6 +830,10 @@ describe.skipIf(!hasDb)("importUserData", () => {
       expect(imported?.maxHr).toBe(188);
       expect(imported?.ftpWatts).toBe(250);
       expect(imported?.ftpWattsIndoor).toBe(235);
+      expect(imported?.squatOneRmKg).toBe(180);
+      expect(imported?.benchOneRmKg).toBe(95);
+      expect(imported?.deadliftOneRmKg).toBe(220);
+      expect(imported?.overheadPressOneRmKg).toBe(55);
     } finally {
       // Cleanup the test users. bodyPrefs.userId references users.id with
       // onDelete: "cascade" (schema.ts), so deleting the users is enough to
