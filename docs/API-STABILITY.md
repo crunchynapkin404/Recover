@@ -12,12 +12,12 @@ As of **v0.20**, that surface — its tool names, required scopes, and input
 schemas — is **frozen**. The count was **54** when the freeze landed, **56**
 as of v0.26.0 (which added `set_standard_week` and
 `clear_availability_override`), **57** as of v0.43.0, which added
-`confirm_training_plan`, and **59** as of the strength-training feature,
-which added `get_race_pacing` and `get_strength_prescription`. This is the
-point past which the sweep's API/MCP freeze task
-(`docs/specs/2026-07-21-v0.20-final-sweep-design.md`) was placed last in the
-release: nothing else in the sweep touches a tool schema after this doc and
-its guard test land.
+`confirm_training_plan`, **58** as of v0.116.0, which added
+`get_race_pacing`, and **59** as of v0.119.0, which added
+`get_strength_prescription`. This is the point past which the sweep's
+API/MCP freeze task (`docs/specs/2026-07-21-v0.20-final-sweep-design.md`)
+was placed last in the release: nothing else in the sweep touches a tool
+schema after this doc and its guard test land.
 
 ## What "frozen" means
 
