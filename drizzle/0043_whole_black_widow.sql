@@ -1,0 +1,1 @@
+ALTER TABLE "body_prefs" ADD COLUMN "ftp_watts_indoor" integer;
