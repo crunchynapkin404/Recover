@@ -58,6 +58,19 @@ export function admits(
   const day = days[slot.dayIdx];
   if (day.workouts.length >= MAX_SESSIONS_PER_DAY) return false;
 
+  // Two strength sessions never share a day. Deliberately separate from
+  // the QUALITY_TYPES adjacency rule below: strength stays OUT of
+  // QUALITY_TYPES (Task 3) so it inherits no adjacent-day spacing, but the
+  // spec's 2x/week cadence means two DIFFERENT days, never both lifts
+  // back-to-back on one day just because MAX_SESSIONS_PER_DAY allows two
+  // sessions total.
+  if (
+    w.sport === "Strength" &&
+    day.workouts.some((x) => x.sport === "Strength")
+  ) {
+    return false;
+  }
+
   if (isQuality(w)) {
     // Never two quality sessions on one day, nor on adjacent days.
     if (day.workouts.some((x) => isQuality(x))) return false;
@@ -96,6 +109,15 @@ export const TYPE_BY_PURPOSE: Record<
   threshold: { type: "Tempo", intensity: "Z3" },
   vo2max: { type: "Intervals", intensity: "Z4-Z5" },
   brick: { type: "Brick", intensity: "Z3" },
+  /**
+   * Required by the exhaustive Record, never selected at runtime: fill.ts
+   * refuses every purpose except aerobic_base/long, and fitToBlock's
+   * substitution path reads the SUBSTITUTE target's entry (strength
+   * substitutes to recovery), never strength's own. A synthesized strength
+   * session would have no prescription, which is why nothing may synthesize
+   * one.
+   */
+  strength: { type: "Strength", intensity: "" },
 };
 
 /**
@@ -115,6 +137,16 @@ export function fitToBlock(
 } | null {
   if (roomMins <= 0) return null;
   if (roomMins >= w.durationMins) return { workout: w, how: "whole" };
+
+  // A strength session's duration is not a dial: its minutes exist to hold
+  // a fixed number of working sets, and shortening it while keeping every
+  // set intact is a rest-interval cut wearing the name "shortened" — the
+  // opposite of what compressing an endurance session means. A lift fits a
+  // block whole or not at all; returning null routes it through the
+  // caller's existing move/drop/substitute path instead of silently
+  // trimming rest between sets.
+  if (w.purpose === "strength") return null;
+
   if (roomMins >= PURPOSE_FLOORS[w.purpose]) {
     return { workout: { ...w, durationMins: roomMins }, how: "compressed" };
   }

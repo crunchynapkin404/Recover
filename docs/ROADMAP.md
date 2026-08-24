@@ -67,11 +67,11 @@ rows below the FTP line are no longer visible on the vendor's board at all
 (closed or merged there since 2026-08-08) — kept at their last-known count
 since Recover's own status hasn't changed.
 
-| Request                                        | Votes | Recover at v0.118.0 |
+| Request                                        | Votes | Recover at v0.119.0 |
 | ---------------------------------------------- | ----: | ------------------- |
 | Choosing a new goal before the last one's done |   253 | **Gap** → Phase 3   |
 | Availability beyond one week ahead             |   161 | **Leads**           |
-| Strength training                              |   155 | Absent              |
+| Strength training                              |   155 | Shipped (v0.119.0)  |
 | Calendar                                       |   125 | Partial             |
 | Different FTPs indoor/outdoor                  |   107 | Shipped (v0.118.0)  |
 | Race scheduling weeks ahead                    |     8 | Shipped             |
@@ -1245,6 +1245,24 @@ Demand order, science-constrained.
       that does not exist and is not cheap to build honestly — a data-model
       project, not this one. Design:
       `docs/specs/2026-08-24-indoor-ftp-design.md`.
+- [x] **Strength training — v0.119.0.** The 155-vote row — the highest-vote
+      demand-map entry that was neither a lead nor already the flagged Phase 3
+      gap — closed structured rather than as a reserved slot: squat, bench,
+      deadlift and overhead press only, prescribed by sets/reps/%1RM off the
+      plan's existing per-week phase, placed by the same skeleton/materialize/
+      fill pipeline Bike/Run/Swim already use. Opt-in on four new nullable
+      `bodyPrefs` columns — no 1RM set is not a missing row (every athlete
+      already has one, for FTP/pace) but all four maxima null, and the plan is
+      then identical to before. **Found on the way in, not the point of the
+      release:** `activityLoad()` had no sport filter at all, so a synced lift
+      with no power/HR fell through to the duration rung and was booked as 40
+      TSS/hour of endurance zone-2 load, silently blended into CTL/ATL — fixed
+      by refusing to score `Strength` at any rung, never summed into the
+      endurance series. Deliberately out of scope: accessory lifts, RPE
+      auto-regulation, week-to-week progression within a phase, and set-level
+      completion verification — providers send duration, never reps or load,
+      so a completed strength day reads "Completed," never "as prescribed."
+      Design: `docs/specs/2026-08-24-strength-training-design.md`.
 - [ ] Remainder of the demand map, by votes
 
 ## Phase 4 — Breadth

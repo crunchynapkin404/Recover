@@ -1,10 +1,11 @@
 // src/lib/week-plan/adapt-day.test.ts
 import { describe, expect, it } from "vitest";
 import { adaptDay } from "./adapt-day";
-import { AMBER_SCALE, blockFits, dayMins } from "./types";
+import { AMBER_SCALE, blockFits, dayMins, RED_RECOVERY_MINS } from "./types";
 import type { DaySlot, ScheduledWorkout, WeekState } from "./types";
 import { withPurpose } from "@/lib/training-plan";
 import { blockMins } from "@/lib/availability/types";
+import { sportMatches } from "@/lib/canonical-sport";
 
 // "full" energy, matching materialize.test.ts's and replan.test.ts's default
 // block helpers: a day's ordinary block should admit any session type unless
@@ -201,6 +202,76 @@ describe("adaptDay — missed yesterday", () => {
     });
     expect(r.week.days[0].status).toBe("missed");
     expect(r.week.days.some((d) => d.movedFrom)).toBe(false);
+  });
+
+  it("FIX 4: a missed lift is not endurance debt — remaining rides are not grown to cover it", () => {
+    // Reproduces the reviewer's verified failure exactly: a missed 45min
+    // lift growing three 60min rides to 75min each (60 x 1.25 = the
+    // +25%/day cap, hit dead-on because the buggy 45min/3 = 15min share
+    // pushes every ride straight to its cap).
+    const w = week([
+      D("2026-07-20", 60, {
+        sport: "Strength",
+        type: "Strength",
+        durationMins: 45,
+      }),
+      D("2026-07-21", 90, { type: "Endurance", durationMins: 60 }),
+      D("2026-07-22", 90, { type: "Endurance", durationMins: 60 }),
+      D("2026-07-23", 90, { type: "Endurance", durationMins: 60 }),
+      D("2026-07-24", 60, null),
+      D("2026-07-25", 60, null),
+      D("2026-07-26", 60, null),
+    ]);
+    const r = adaptDay({
+      week: w,
+      today: "2026-07-21",
+      band: "green",
+      yesterdayCompleted: false,
+    });
+    expect(r.week.days[0].status).toBe("missed");
+    // Strength isn't a quality type, so the lift is dropped, not moved.
+    expect(r.week.days.some((d) => d.movedFrom)).toBe(false);
+    expect(r.week.days[1].workouts[0]!.durationMins).toBe(60);
+    expect(r.week.days[2].workouts[0]!.durationMins).toBe(60);
+    expect(r.week.days[3].workouts[0]!.durationMins).toBe(60);
+  });
+
+  it("R2: a missed ride's minutes never grow a lift — strength is excluded from redistribution recipients", () => {
+    // Reproduces the re-reviewer's verified failure exactly: yesterday a
+    // missed 60min Endurance ride; remaining is a strength-only day (45min
+    // lift in a 90min block) plus a 60min ride day. Buggy behaviour grew the
+    // lift to 56min (45 + 30min share, capped at 45*1.25 rounded) with its
+    // 4x8 prescription untouched — a fabricated duration against an
+    // unchanged prescription. Strength is excluded from the DROPPED total
+    // (see the comment at :126-128 above) but was not excluded from the
+    // RECIPIENTS the drop grows — this closes that hole.
+    const w = week([
+      D("2026-07-20", 60, { type: "Endurance", durationMins: 60 }),
+      D("2026-07-21", 90, {
+        sport: "Strength",
+        type: "Strength",
+        durationMins: 45,
+        intensity: "4x8",
+      }),
+      D("2026-07-22", 90, { type: "Endurance", durationMins: 60 }),
+      D("2026-07-23", 60, null),
+      D("2026-07-24", 60, null),
+      D("2026-07-25", 60, null),
+      D("2026-07-26", 60, null),
+    ]);
+    const r = adaptDay({
+      week: w,
+      today: "2026-07-21",
+      band: "green",
+      yesterdayCompleted: false,
+    });
+    expect(r.week.days[0].status).toBe("missed");
+    // The lift's duration — and its prescription — are untouched.
+    expect(r.week.days[1].workouts[0]!.type).toBe("Strength");
+    expect(r.week.days[1].workouts[0]!.durationMins).toBe(45);
+    expect(r.week.days[1].workouts[0]!.intensity).toBe("4x8");
+    // The ride still absorbs the missed minutes.
+    expect(r.week.days[2].workouts[0]!.durationMins).toBeGreaterThan(60);
   });
 
   it("drop-and-redistribute caps growth to the occupied block's own capacity, not the day's total across blocks", () => {
@@ -833,6 +904,157 @@ describe("adaptDay — C3: red readiness with no room for a recovery spin", () =
     expect(
       r.adjustments.some((a) => a.reason.includes("replaced by recovery"))
     ).toBe(false);
+  });
+});
+
+describe("adaptDay — strength readiness (FIX 3: a lift's duration is not a dial)", () => {
+  const strengthDay = (todayMins: number, workoutMins = 45) =>
+    week([
+      D("2026-07-20", 60, null, "rest"),
+      D("2026-07-21", todayMins, {
+        sport: "Strength",
+        type: "Strength",
+        durationMins: workoutMins,
+        intensity: "4x8",
+        description:
+          "Squat 4x8 @ 65% (130kg) · Bench 4x8 @ 65% (68kg) · " +
+          "Deadlift 4x8 @ 65% (163kg) · OverheadPress 4x8 @ 65% (46kg)",
+        exercises: [
+          {
+            lift: "Squat",
+            sets: 4,
+            reps: 8,
+            pctOneRm: 0.65,
+            targetLoadKg: 130,
+          },
+        ],
+      }),
+      D("2026-07-22", 60, null),
+      D("2026-07-23", 60, null),
+      D("2026-07-24", 60, null),
+      D("2026-07-25", 60, null),
+      D("2026-07-26", 60, null),
+    ]);
+
+  it("red: substitutes the lift to a recovery session rather than shortening it", () => {
+    const r = adaptDay({
+      week: strengthDay(60),
+      today: "2026-07-21",
+      band: "red",
+      yesterdayCompleted: null,
+    });
+    const today = r.week.days[1];
+    expect(today.workouts[0]!.type).toBe("Recovery");
+    expect(today.workouts[0]!.purpose).toBe("recovery");
+    expect(today.workouts[0]!.durationMins).toBe(RED_RECOVERY_MINS);
+    // The stale sets/reps/kg prescription must not ride along under a
+    // "Recovery" header.
+    expect(today.workouts[0]!.exercises).toBeUndefined();
+    expect(today.status).toBe("adapted");
+    expect(
+      r.adjustments.some(
+        (a) => a.trigger === "low_readiness" && a.action === "swapped"
+      )
+    ).toBe(true);
+  });
+
+  it("R1: substituting a lift to Recovery does not leave sport 'Strength' — completion matching would only ever see a logged lift", () => {
+    // Same shape as the substitution test above, but with the week's own
+    // endurance evidence present (a Bike day either side of the lift) — the
+    // realistic shape of a materialized week, where strength is always
+    // layered on top of a generated endurance plan. Without this fix the
+    // substituted "Easy recovery session" kept `sport: "Strength"`:
+    // service.ts's completion matcher only accepts a logged lift for that
+    // sport, so an ordinary easy ride could never mark the day done.
+    const w = week([
+      D("2026-07-20", 60, {
+        sport: "Bike",
+        type: "Endurance",
+        durationMins: 45,
+      }),
+      D("2026-07-21", 60, {
+        sport: "Strength",
+        type: "Strength",
+        durationMins: 45,
+        intensity: "4x8",
+        exercises: [
+          {
+            lift: "Squat",
+            sets: 4,
+            reps: 8,
+            pctOneRm: 0.65,
+            targetLoadKg: 130,
+          },
+        ],
+      }),
+      D("2026-07-22", 60, {
+        sport: "Bike",
+        type: "Endurance",
+        durationMins: 50,
+      }),
+      D("2026-07-23", 60, null),
+      D("2026-07-24", 60, null),
+      D("2026-07-25", 60, null),
+      D("2026-07-26", 60, null),
+    ]);
+    const r = adaptDay({
+      week: w,
+      today: "2026-07-21",
+      band: "red",
+      yesterdayCompleted: null,
+    });
+    const today = r.week.days[1];
+    expect(today.workouts[0]!.type).toBe("Recovery");
+    expect(today.workouts[0]!.sport).not.toBe("Strength");
+    expect(today.workouts[0]!.sport).toBe("Bike");
+    // An ordinary logged ride — not a lift — can complete this session.
+    expect(sportMatches(today.workouts[0]!.sport, "Ride")).toBe(true);
+  });
+
+  it("red: moves the lift whole to a later day instead of shortening it, when not even a recovery spin fits today", () => {
+    const r = adaptDay({
+      week: strengthDay(20), // below RED_RECOVERY_MINS (30)
+      today: "2026-07-21",
+      band: "red",
+      yesterdayCompleted: null,
+    });
+    expect(r.week.days[1].workouts).toHaveLength(0);
+    const moved = r.week.days.find((d) => d.movedFrom === "2026-07-21");
+    expect(moved).toBeDefined();
+    // The full prescription travels with it — never trimmed.
+    expect(moved!.workouts[0]!.type).toBe("Strength");
+    expect(moved!.workouts[0]!.durationMins).toBe(45);
+    expect(moved!.workouts[0]!.exercises).toHaveLength(1);
+  });
+
+  it("amber: the lift is left exactly as prescribed — no scaling, no adjustment", () => {
+    const w = strengthDay(60);
+    const r = adaptDay({
+      week: w,
+      today: "2026-07-21",
+      band: "amber",
+      yesterdayCompleted: null,
+    });
+    const today = r.week.days[1];
+    expect(today.workouts[0]!.type).toBe("Strength");
+    expect(today.workouts[0]!.durationMins).toBe(45);
+    expect(today.workouts[0]!.exercises).toHaveLength(1);
+    expect(today.status).toBe("planned"); // never marked "adapted"
+    expect(
+      r.adjustments.filter((a) => a.trigger === "low_readiness")
+    ).toHaveLength(0);
+  });
+
+  it("green: nothing changes", () => {
+    const w = strengthDay(60);
+    const r = adaptDay({
+      week: w,
+      today: "2026-07-21",
+      band: "green",
+      yesterdayCompleted: null,
+    });
+    expect(r.week).toEqual(w);
+    expect(r.adjustments).toHaveLength(0);
   });
 });
 

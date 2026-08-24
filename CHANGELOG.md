@@ -1,5 +1,101 @@
 # Changelog
 
+## v0.119.0 — 2026-08-24 — Not zone 2
+
+Squat, bench, deadlift and overhead press get a genuine place in the plan —
+and a session Recover already had wrong gets fixed on the way in.
+
+### The load miscount this closes
+
+Before this release, a synced `WeightTraining` session with no power or
+heart-rate data fell all the way through `activityLoad()`'s ladder
+(`src/lib/training-load.ts`) to the duration rung and was booked as
+`DURATION_TSS_PER_HOUR` (40) TSS/hour of endurance zone-2 load — straight
+into CTL/ATL. Every rung above that one measures endurance stimulus by
+construction (power over FTP, HR over heart-rate reserve, duration assuming
+an easy zone-2 hour); a lift satisfies none of them. `activityLoad()` now
+refuses outright: `canonicalSport(activity.sport) === "Strength"` returns
+`null` before any rung runs, even when the provider sent its own `load`
+figure, which is on a scale this engine does not share. An athlete's fitness
+chart was quietly wrong every time a lift synced with no power or HR; it no
+longer is. That is the change an athlete will actually notice, ahead of the
+new feature below.
+
+### Periodized strength, once you set a max
+
+Settings gains four optional fields — Squat, Bench, Deadlift, Overhead Press
+(kg) — beside the existing FTP/pace thresholds. Set any one of them and the
+week planner starts placing structured strength sessions (2×/week, dropping
+to 1×/week during taper, and to zero on a race week) through the same
+skeleton/materialize/fill pipeline Bike/Run/Swim already use: sets, reps and
+a %1RM-derived target load, keyed off the plan's existing per-week phase
+(`base`/`build`/`peak`/`taper`/`recovery`) rather than a second, separate
+progression counter. A lift with no 1RM set still shows its sets and reps,
+with no fabricated load figure. `get_strength_prescription` gives the coach
+and any MCP client the same table — tool surface 58 → 59, additive only
+(`docs/API-STABILITY.md`).
+
+### Opt-in, and it stays that way
+
+No 1RM set is not a missing row: every existing athlete already has a
+`bodyPrefs` row, for FTP, weight and pace. The opt-out is "all four maxima
+null," and with all four null the plan is identical to before — no strength
+`Purpose`, no strength session, nothing rendered differently anywhere.
+Strength also never spends the endurance session or hours budget it is
+scheduled alongside (`fill.ts`, `slots.ts`) — see the mutation finding below
+for how that guarantee was actually pinned down.
+
+### What this deliberately does not do
+
+- **Big-4 only.** Squat, bench, deadlift, overhead press — no accessory
+  lifts, no exercise catalog.
+- **No RPE / auto-regulation.** Pure %1RM by phase; a low-readiness day
+  substitutes to `recovery` (skip the lift) through the existing
+  `ENERGY_CEILING`/`SUBSTITUTE_TO` machinery, not a bespoke intensity
+  scale-down.
+- **No week-to-week progression within a phase.** The prescription table
+  changes at phase transitions only.
+- **No set-level completion verification.** Strava/intervals.icu send
+  duration and sometimes average heart rate for a lift — never reps or
+  load — so a completed strength day reads "Completed," never "as
+  prescribed." That restraint needed no new code: the existing
+  `sportMatches` completion check already stops at sport-and-duration, and
+  no surface anywhere claims more.
+
+### `PlanPhase`, one definition instead of four
+
+`Block["phase"]` (`training-plan.ts`), `MaterializeInput["skeleton"]["phase"]`
+(`materialize.ts`), `plan-preview.ts`'s own `PlanPhase` export, and
+`trainingBlocks.phase`'s schema enum were four independent copies of one
+five-value union — the exact drift shape `resolveFtpAnchor()` closed for FTP
+in v0.118.0. All but the schema enum (which drizzle needs as a literal
+array) now import one `PlanPhase` from `src/lib/plan-phase.ts`;
+`plan-phase.test.ts` asserts the schema's own list still matches it. Pure
+refactor, no behavior change — done first because strength periodization
+keys off this union.
+
+### A surviving mutation, found and fixed
+
+Per `docs/RELEASING.md` step 3: the test guarding "strength must not consume
+the endurance session budget" (`materialize.test.ts`) initially **passed**
+against the mutated code under review — moving the strength append to
+before the endurance session cap. Its fixture used 8h/week availability,
+where every generated endurance session already runs ≥58 minutes, so the
+45-minute strength session (`STRENGTH_SESSION_MINS`) always sorted last in
+the duration-descending cap and the buggy early append was sliced away
+harmlessly — a false pass. The fixture was tightened to 3h/week, where
+several endurance fillers land under 45 minutes: the same mutation now
+correctly displaces two endurance sessions and the test fails as it should.
+Fixed and re-verified. Recorded here per the standing rule that a surviving
+mutation is a finding, not a footnote.
+
+### Migrations
+
+**Additive.** Four new nullable `body_prefs` columns — `squat_one_rm_kg`,
+`bench_one_rm_kg`, `deadlift_one_rm_kg`, `overhead_press_one_rm_kg`
+(`drizzle/0044_great_maddog.sql`) — no backfill. Old code ignores columns it
+does not know about, so an image rollback past this release is safe.
+
 ## v0.118.0 — 2026-08-24 — The wrong venue
 
 The demand map's 105-vote "Different FTPs indoor/outdoor" row closes without a

@@ -10,6 +10,8 @@
  * defect class v0.10 removes.
  */
 
+import { canonicalSport } from "@/lib/canonical-sport";
+
 /**
  * The exponentially-weighted moving-average time constants that define
  * "CTL" and "ATL" as those terms are used throughout this codebase and the
@@ -85,6 +87,12 @@ export interface LoadActivity {
   load: number | null;
   avgHr: number | null;
   avgPower: number | null;
+  /**
+   * The provider's discipline string. Optional so existing callers that
+   * never set it keep their exact prior behavior — only a recognized
+   * STRENGTH sport changes any outcome.
+   */
+  sport?: string | null;
 }
 
 export interface AthleteThresholds {
@@ -109,6 +117,16 @@ export function activityLoad(
   activity: LoadActivity,
   athlete: AthleteThresholds
 ): ActivityLoad | null {
+  // Strength work has no honest TSS. Every rung below this line measures
+  // endurance stimulus: the power rung divides by FTP, the HR rung by
+  // heart-rate reserve, and the duration rung assumes an easy zone-2 hour.
+  // A lift satisfies none of those, so booking it as any of them inflates
+  // CTL/ATL with work that is real but not endurance. Refusing is the
+  // honest outcome: the activity itself still exists wherever activities
+  // are listed, but it contributes nothing to this series — there is no
+  // flat substitute figure invented for it here or anywhere else.
+  if (canonicalSport(activity.sport) === "Strength") return null;
+
   if (activity.load != null && activity.load > 0) {
     return { load: round1(activity.load), source: "provider" };
   }

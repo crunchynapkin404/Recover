@@ -10,6 +10,10 @@ interface Props {
   ftpWatts: number | null;
   ftpWattsIndoor: number | null;
   thresholdPaceSecPerKm: number | null;
+  squatOneRmKg: number | null;
+  benchOneRmKg: number | null;
+  deadliftOneRmKg: number | null;
+  overheadPressOneRmKg: number | null;
 }
 
 const inputClass =
@@ -22,6 +26,10 @@ export function BodyPrefsCard({
   ftpWatts,
   ftpWattsIndoor,
   thresholdPaceSecPerKm,
+  squatOneRmKg,
+  benchOneRmKg,
+  deadliftOneRmKg,
+  overheadPressOneRmKg,
 }: Props) {
   const [wake, setWake] = useState(wakeTime ?? "");
   const [hours, setHours] = useState((sleepNeedSecs / 3600).toString());
@@ -31,6 +39,10 @@ export function BodyPrefsCard({
   const [thresholdPace, setThresholdPace] = useState(
     thresholdPaceSecPerKm?.toString() ?? ""
   );
+  const [squat, setSquat] = useState(squatOneRmKg?.toString() ?? "");
+  const [bench, setBench] = useState(benchOneRmKg?.toString() ?? "");
+  const [deadlift, setDeadlift] = useState(deadliftOneRmKg?.toString() ?? "");
+  const [ohp, setOhp] = useState(overheadPressOneRmKg?.toString() ?? "");
   const [message, setMessage] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -45,6 +57,10 @@ export function BodyPrefsCard({
         thresholdPaceSecPerKm: thresholdPace.trim()
           ? Number(thresholdPace)
           : null,
+        squatOneRmKg: squat.trim() ? Number(squat) : null,
+        benchOneRmKg: bench.trim() ? Number(bench) : null,
+        deadliftOneRmKg: deadlift.trim() ? Number(deadlift) : null,
+        overheadPressOneRmKg: ohp.trim() ? Number(ohp) : null,
       });
       setMessage(result.ok ? "Saved." : (result.message ?? "Failed."));
     });
@@ -150,6 +166,67 @@ export function BodyPrefsCard({
             className={inputClass}
           />
         </label>
+      </div>
+
+      <div className="mt-6">
+        <span className="label-micro mb-1 block">Strength maxes</span>
+        <p className="mb-3 text-caption text-ink-muted">
+          Your one-rep max per lift, in kilograms. Setting these turns on
+          planned strength sessions; a lift you leave blank still gets sets and
+          reps, just no weight target.
+        </p>
+        <div className="grid grid-cols-3 gap-4">
+          <label className="block">
+            <span className="label-micro mb-1 block">Squat 1RM (kg)</span>
+            <input
+              type="number"
+              min={10}
+              max={400}
+              value={squat}
+              onChange={(e) => setSquat(e.target.value)}
+              placeholder="e.g. 120"
+              className={inputClass}
+            />
+          </label>
+          <label className="block">
+            <span className="label-micro mb-1 block">Bench 1RM (kg)</span>
+            <input
+              type="number"
+              min={10}
+              max={400}
+              value={bench}
+              onChange={(e) => setBench(e.target.value)}
+              placeholder="e.g. 80"
+              className={inputClass}
+            />
+          </label>
+          <label className="block">
+            <span className="label-micro mb-1 block">Deadlift 1RM (kg)</span>
+            <input
+              type="number"
+              min={10}
+              max={400}
+              value={deadlift}
+              onChange={(e) => setDeadlift(e.target.value)}
+              placeholder="e.g. 150"
+              className={inputClass}
+            />
+          </label>
+          <label className="block">
+            <span className="label-micro mb-1 block">
+              Overhead press 1RM (kg)
+            </span>
+            <input
+              type="number"
+              min={10}
+              max={400}
+              value={ohp}
+              onChange={(e) => setOhp(e.target.value)}
+              placeholder="e.g. 50"
+              className={inputClass}
+            />
+          </label>
+        </div>
       </div>
 
       <div className="flex items-center gap-3">

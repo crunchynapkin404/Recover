@@ -14,6 +14,18 @@ const w = (mins: number): ScheduledWorkout => ({
   blockIdx: 0,
 });
 
+const strengthWorkout = (mins: number): ScheduledWorkout => ({
+  day: 0,
+  sport: "Strength",
+  type: "Strength",
+  durationMins: mins,
+  intensity: "4x8",
+  description: "Squat 4x8 · Bench 4x8",
+  purpose: "strength",
+  minEffectiveMins: 20,
+  blockIdx: 1,
+});
+
 function day(date: string, status: DaySlot["status"], mins: number[]): DaySlot {
   return {
     date,
@@ -141,5 +153,30 @@ describe("openWeekPlannedLoads", () => {
         today: "2026-08-04",
       })
     ).toEqual([]);
+  });
+
+  it("FIX 2: does not book the endurance load rate onto a lift's minutes", () => {
+    // A day carrying 300 endurance minutes plus a 45min lift. `perMin` is an
+    // ENDURANCE-only rate (materialized_mins excludes strength, per Task 7);
+    // if strength minutes leaked into this day's total, the rate would be
+    // applied to the lift's 45 minutes too, inflating the race forecast's
+    // CTL/ATL/TSB and outlook band with load a lift never produces.
+    const mixedDay: DaySlot = {
+      date: "2026-08-07",
+      availableBlocks: [],
+      workouts: [w(300), strengthWorkout(45)],
+      availableMins: 0,
+      status: "planned",
+    };
+    const r = openWeekPlannedLoads({
+      days: [day("2026-08-03", "completed", [100]), mixedDay],
+      perMin: PER_MIN,
+      fallbackTarget: 400,
+      today: "2026-08-04",
+    });
+
+    // 300 endurance minutes x 0.5/min = 150. Were the 45 strength minutes
+    // counted too, this would read 172.5.
+    expect(r).toEqual([{ date: "2026-08-07", load: 150 }]);
   });
 });

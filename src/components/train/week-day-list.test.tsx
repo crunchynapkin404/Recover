@@ -22,6 +22,25 @@ const tempo: DaySlot["workouts"][number] = withPurpose({
   blockIdx: 0,
 });
 
+const strengthSession: DaySlot["workouts"][number] = withPurpose({
+  day: 0,
+  sport: "Strength",
+  type: "Strength",
+  durationMins: 45,
+  intensity: "4x8",
+  description: "Squat 4x8 @ 130kg · Bench 4x8 @ 65kg",
+  blockIdx: 0,
+  exercises: [
+    {
+      lift: "Squat",
+      sets: 4,
+      reps: 8,
+      pctOneRm: 0.65,
+      targetLoadKg: 130,
+    },
+  ],
+});
+
 const slot = (
   date: string,
   status: DaySlot["status"],
@@ -157,6 +176,42 @@ describe("WeekDayList", () => {
     );
     expect(html).toContain("Rest");
     expect(html).not.toContain("session");
+  });
+
+  it("shows the lifts and loads on a strength day", () => {
+    const html = renderToString(
+      <WeekDayList
+        today={TODAY}
+        days={[slot(TODAY, "planned", strengthSession)]}
+      />
+    );
+    expect(html).toContain("Squat 4x8 @ 130kg");
+  });
+
+  it("shows sets and reps for a lift with no weight target", () => {
+    const noWeight: DaySlot["workouts"][number] = withPurpose({
+      day: 0,
+      sport: "Strength",
+      type: "Strength",
+      durationMins: 45,
+      intensity: "4x8",
+      description: "Squat 4x8",
+      blockIdx: 0,
+      exercises: [
+        {
+          lift: "Squat",
+          sets: 4,
+          reps: 8,
+          pctOneRm: 0.65,
+          targetLoadKg: null,
+        },
+      ],
+    });
+    const html = renderToString(
+      <WeekDayList today={TODAY} days={[slot(TODAY, "planned", noWeight)]} />
+    );
+    expect(html).toContain("Squat 4x8");
+    expect(html).not.toMatch(/@ NaN|@ nullkg/);
   });
 
   it("names the race rather than the workout on a race day", () => {

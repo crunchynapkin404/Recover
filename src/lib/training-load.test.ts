@@ -291,6 +291,95 @@ describe("nativeLoadMetrics", () => {
   });
 });
 
+describe("strength activities and endurance load", () => {
+  const athlete = { ftpWatts: 250, maxHr: 185, restingHr: 50 };
+
+  it("contributes no load for a lifting session with no power or HR", () => {
+    // Before this, the duration rung booked 45 min of lifting as 30 TSS of
+    // endurance work, straight into CTL/ATL. A strength session is real
+    // training, but it is not endurance training, and there is no honest
+    // TSS for it.
+    const result = activityLoad(
+      {
+        provider: "strava",
+        sport: "WeightTraining",
+        startDate: new Date("2026-08-01T10:00:00Z"),
+        durationS: 2700,
+        load: null,
+        avgHr: null,
+        avgPower: null,
+      },
+      athlete
+    );
+    expect(result).toBeNull();
+  });
+
+  it("contributes no load even when the provider sent one", () => {
+    // A provider load for a lift is on a scale this engine does not share.
+    const result = activityLoad(
+      {
+        provider: "intervals_icu",
+        sport: "WeightTraining",
+        startDate: new Date("2026-08-01T10:00:00Z"),
+        durationS: 2700,
+        load: 55,
+        avgHr: null,
+        avgPower: null,
+      },
+      athlete
+    );
+    expect(result).toBeNull();
+  });
+
+  it("contributes no load even when HR was recorded", () => {
+    const result = activityLoad(
+      {
+        provider: "strava",
+        sport: "WeightTraining",
+        startDate: new Date("2026-08-01T10:00:00Z"),
+        durationS: 2700,
+        load: null,
+        avgHr: 130,
+        avgPower: null,
+      },
+      athlete
+    );
+    expect(result).toBeNull();
+  });
+
+  it("still books an ordinary ride normally", () => {
+    const result = activityLoad(
+      {
+        provider: "strava",
+        sport: "Ride",
+        startDate: new Date("2026-08-01T10:00:00Z"),
+        durationS: 3600,
+        load: null,
+        avgHr: null,
+        avgPower: 200,
+      },
+      athlete
+    );
+    expect(result?.source).toBe("power");
+  });
+
+  it("still books an activity with no sport at all", () => {
+    // Every existing caller that omits sport must behave exactly as before.
+    const result = activityLoad(
+      {
+        provider: "strava",
+        startDate: new Date("2026-08-01T10:00:00Z"),
+        durationS: 3600,
+        load: null,
+        avgHr: null,
+        avgPower: null,
+      },
+      athlete
+    );
+    expect(result?.source).toBe("duration");
+  });
+});
+
 describe("resolveEffectiveLoad", () => {
   const native = { ctl: 30, atl: 40, activityDays: 10 };
 

@@ -455,6 +455,31 @@ exports[`MCP tool surface is frozen (names + scopes + schemas) 1`] = `
     "scope": "read",
   },
   {
+    "name": "get_strength_prescription",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "phase": {
+          "description": "Which periodization phase to prescribe for.",
+          "enum": [
+            "base",
+            "build",
+            "peak",
+            "taper",
+            "recovery",
+          ],
+          "type": "string",
+        },
+      },
+      "required": [
+        "phase",
+      ],
+      "type": "object",
+    },
+    "scope": "read",
+  },
+  {
     "name": "get_training_load_summary",
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",

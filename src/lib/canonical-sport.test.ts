@@ -117,3 +117,32 @@ describe("providerSportAliases", () => {
     expect(providerSportAliases(null)).toEqual([]);
   });
 });
+
+describe("strength", () => {
+  it("maps WeightTraining to Strength", () => {
+    expect(canonicalSport("WeightTraining")).toBe("Strength");
+    expect(canonicalSport("weighttraining")).toBe("Strength");
+  });
+
+  it("completes a planned strength session", () => {
+    expect(sportMatches("Strength", "WeightTraining")).toBe(true);
+  });
+
+  it("does not claim Strava's generic Workout as strength", () => {
+    // "Workout" is Strava's catch-all for anything it cannot classify.
+    // Claiming all of it as lifting would book yoga, tennis and rowing as
+    // strength sessions. Unmapped is the honest outcome, exactly as this
+    // module's own doc comment argues for Tennis.
+    expect(canonicalSport("Workout")).toBe("Workout");
+    expect(sportMatches("Strength", "Workout")).toBe(false);
+  });
+
+  it("never completes an endurance session with a lift", () => {
+    expect(sportMatches("Bike", "WeightTraining")).toBe(false);
+    expect(sportMatches("Run", "WeightTraining")).toBe(false);
+  });
+
+  it("lists its provider aliases for the SQL filter", () => {
+    expect(providerSportAliases("Strength")).toContain("weighttraining");
+  });
+});

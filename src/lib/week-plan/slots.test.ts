@@ -153,6 +153,55 @@ describe("admits", () => {
     const s = buildSlots(days)[0];
     expect(admits(s, workout(), days, new Set([slotKey(s)]))).toBe(false);
   });
+
+  it("refuses a second strength session on a day that already has one", () => {
+    // Deliberately separate from the QUALITY_TYPES adjacency rule above:
+    // strength stays out of QUALITY_TYPES (Task 3) on purpose, so this
+    // same-day guard cannot piggyback on `isQuality`.
+    const strengthWorkout = (o: Partial<ScheduledWorkout> = {}) =>
+      workout({
+        sport: "Strength",
+        type: "Strength",
+        purpose: "strength",
+        durationMins: 45,
+        minEffectiveMins: 20,
+        ...o,
+      });
+    const days = week([
+      day(
+        "2026-08-03",
+        [{ mins: 120 }, { mins: 120 }],
+        [strengthWorkout({ blockIdx: 0 })]
+      ),
+    ]);
+    const secondBlock = buildSlots(days).find((s) => s.blockIdx === 1)!;
+    expect(admits(secondBlock, strengthWorkout(), days, empty)).toBe(false);
+  });
+
+  it("admits a strength session on a day whose only other session is not strength", () => {
+    const strengthWorkout = workout({
+      sport: "Strength",
+      type: "Strength",
+      purpose: "strength",
+      durationMins: 45,
+      minEffectiveMins: 20,
+    });
+    const days = week([
+      day(
+        "2026-08-03",
+        [{ mins: 120 }, { mins: 120 }],
+        [
+          workout({
+            type: "Endurance",
+            purpose: "aerobic_base",
+            blockIdx: 0,
+          }),
+        ]
+      ),
+    ]);
+    const secondBlock = buildSlots(days).find((s) => s.blockIdx === 1)!;
+    expect(admits(secondBlock, strengthWorkout, days, empty)).toBe(true);
+  });
 });
 
 describe("fitToBlock", () => {
@@ -207,5 +256,34 @@ describe("fitToBlock", () => {
 
   it("returns null instead of a negative-duration workout when room is negative", () => {
     expect(fitToBlock(workout(), -10)).toBeNull();
+  });
+
+  it("FIX 3: never compresses a strength session — fits whole or not at all", () => {
+    // A lift's minutes hold a fixed number of working sets; compressing it
+    // to roomMins would keep every set while quietly cutting rest between
+    // them — a rest-interval cut wearing the label "shortened".
+    const lift = workout({
+      sport: "Strength",
+      type: "Strength",
+      purpose: "strength",
+      durationMins: 45,
+      minEffectiveMins: 20,
+    });
+    // 30min room is >= PURPOSE_FLOORS.strength (20), so the generic
+    // compress branch would otherwise have compressed it.
+    expect(fitToBlock(lift, 30)).toBeNull();
+  });
+
+  it("FIX 3: still fits a strength session whole when the room is enough", () => {
+    const lift = workout({
+      sport: "Strength",
+      type: "Strength",
+      purpose: "strength",
+      durationMins: 45,
+      minEffectiveMins: 20,
+    });
+    const r = fitToBlock(lift, 60)!;
+    expect(r.how).toBe("whole");
+    expect(r.workout.durationMins).toBe(45);
   });
 });

@@ -285,6 +285,10 @@ export async function projectWeek(
     previousARace: targets.first
       ? { date: targets.first.date, raceType: targets.first.raceType }
       : null,
+    // Read off the SAME assembleVolumeInputs() call this function already
+    // makes above (`volumeInputs`, for `target`/`queenStageHours`) rather
+    // than a second `bodyPrefs` query here.
+    oneRms: volumeInputs.oneRms,
   });
 
   const overrides = await db.query.availabilityOverrides.findMany({

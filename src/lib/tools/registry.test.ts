@@ -38,7 +38,7 @@ describe("tool registry", () => {
   });
 
   it("registers the v0.6 strava describe tool", () => {
-    expect(allTools.length).toBe(58);
+    expect(allTools.length).toBe(59);
     const names = allTools.map((t) => t.name);
     expect(names).toContain("describe_strava_activity");
     for (const name of [
@@ -126,7 +126,7 @@ describe("tool registry", () => {
   });
 
   it("registers the v0.9.6 absorbed icu_* activity/wellness/sport-settings tools with correct scopes", () => {
-    expect(allTools.length).toBe(58);
+    expect(allTools.length).toBe(59);
     const names = allTools.map((t) => t.name);
     for (const name of [
       "icu_update_activity",
@@ -161,7 +161,7 @@ describe("tool registry", () => {
   });
 
   it("registers the v0.9.6 absorbed icu_* histogram/search/intervals/workout-library read tools (48 total)", () => {
-    expect(allTools.length).toBe(58);
+    expect(allTools.length).toBe(59);
     const names = allTools.map((t) => t.name);
     for (const name of [
       "icu_get_hr_histogram",
@@ -181,7 +181,7 @@ describe("tool registry", () => {
   });
 
   it("registers the v0.9.6 get_workout_syntax reference tool (49 total)", () => {
-    expect(allTools.length).toBe(58);
+    expect(allTools.length).toBe(59);
     const tool = allTools.find((t) => t.name === "get_workout_syntax")!;
     expect(tool).toBeDefined();
     expect(tool.scope).toBeUndefined();
@@ -197,7 +197,7 @@ describe("tool registry", () => {
   });
 
   it("registers the v0.14 race tools with correct scopes (53 total)", () => {
-    expect(allTools.length).toBe(58);
+    expect(allTools.length).toBe(59);
     const names = allTools.map((t) => t.name);
     for (const name of [
       "get_races",
@@ -220,7 +220,7 @@ describe("tool registry", () => {
   });
 
   it("registers the v0.15 recall_history tool (54 total)", () => {
-    expect(allTools.length).toBe(58);
+    expect(allTools.length).toBe(59);
     const tool = allTools.find((t) => t.name === "recall_history")!;
     expect(tool).toBeDefined();
     expect(tool.scope).toBeUndefined(); // defaults to read

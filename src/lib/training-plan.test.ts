@@ -45,6 +45,7 @@ describe("workout purpose", () => {
       Tempo: "threshold",
       Intervals: "vo2max",
       Brick: "brick",
+      Strength: "strength",
     });
   });
 

@@ -72,6 +72,7 @@ function toLoadActivity(
     load: r.load,
     avgHr: r.avgHr,
     avgPower: r.avgPower,
+    sport: r.sport,
   }));
 }
 

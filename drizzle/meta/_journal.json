@@ -309,6 +309,13 @@
       "when": 1787559122553,
       "tag": "0043_whole_black_widow",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1787574253172,
+      "tag": "0044_great_maddog",
+      "breakpoints": true
     }
   ]
 }

@@ -161,6 +161,7 @@ describe("effectiveWeekLoad (hand-computed fixtures)", () => {
 
 import { materializeWeek } from "./materialize";
 import { isQuality } from "./types";
+import { plannedMins } from "./fill";
 import type { AvailabilityBlock } from "@/lib/availability/types";
 
 /**
@@ -1481,5 +1482,188 @@ describe("a B/C race's missing taper is recorded", () => {
     expect(
       r.adjustments.find((a) => a.reason.includes("no taper"))
     ).toBeUndefined();
+  });
+});
+
+describe("strength sessions", () => {
+  const ONE_RMS = {
+    squatOneRmKg: 200,
+    benchOneRmKg: 100,
+    deadliftOneRmKg: 240,
+    overheadPressOneRmKg: 60,
+  };
+
+  // Roomy, uniform, full-energy availability: 7 days x 1 block, plenty of
+  // room for baseInput's 5-session endurance budget plus 2 strength
+  // sessions (7 slots total) with no block-fitting or adjacency drops.
+  const roomyFixture = {
+    ...baseInput,
+    availableBlocksPerDay: blocksPerDay([120, 120, 120, 120, 120, 120, 120]),
+  };
+
+  it("adds two strength sessions to an ordinary week", () => {
+    const result = materializeWeek({
+      ...roomyFixture,
+      oneRms: ONE_RMS,
+    });
+    const strength = result.week.days
+      .flatMap((d) => d.workouts)
+      .filter((w) => w.sport === "Strength");
+    expect(strength).toHaveLength(2);
+  });
+
+  it("does not spend the endurance session budget on strength", () => {
+    // The whole risk of appending: if strength counts against
+    // skeleton.targetSessions, every lift silently deletes a ride.
+    //
+    // hoursPerWeek is deliberately tight (3h, not roomyFixture's 8h): at 8h
+    // generateWorkouts produces only sessions well over
+    // STRENGTH_SESSION_MINS (45), so an appended-before-the-cap 45min lift
+    // always sorts last and never displaces anything — a mutation that
+    // moves the append before `.slice(0, sessions)` would still pass this
+    // assertion by accident. At 3h several endurance fillers land under 45
+    // minutes, so a pre-cap lift genuinely outranks and bumps one during
+    // the duration-descending sort+slice, which is what actually pins the
+    // "strength never spends the endurance budget" constraint.
+    const input = {
+      ...baseInput,
+      hoursPerWeek: 3,
+      availableBlocksPerDay: blocksPerDay([120, 120, 120, 120, 120, 120, 120]),
+      skeleton: { ...baseInput.skeleton, targetSessions: 5 },
+    };
+    const without = materializeWeek({ ...input, oneRms: null });
+    const with_ = materializeWeek({ ...input, oneRms: ONE_RMS });
+
+    const enduranceCount = (r: typeof without) =>
+      r.week.days
+        .flatMap((d) => d.workouts)
+        .filter((w) => w.sport !== "Strength").length;
+    const strengthCount = (r: typeof without) =>
+      r.week.days
+        .flatMap((d) => d.workouts)
+        .filter((w) => w.sport === "Strength").length;
+
+    expect(enduranceCount(with_)).toBe(enduranceCount(without));
+    // M1: the equality above can pass vacuously if strength stops being
+    // scheduled at all (0 === 0 either way). Pin that strength was actually
+    // produced, not merely that it didn't cannibalize anything.
+    expect(strengthCount(with_)).toBe(2);
+  });
+
+  it("does not spend the endurance hours budget on strength", () => {
+    // plannedMins (fill.ts) — and everything derived from it:
+    // materialized_mins, the load-per-minute rate in volume.ts, and the
+    // planned-vs-target hours shown on /train — must count only endurance
+    // minutes. Folding strength minutes into that total would make an
+    // opted-in week look ~90min (2 x STRENGTH_SESSION_MINS) fuller than its
+    // endurance content actually is, under-growing fill's own accounting
+    // and misreporting the athlete's real endurance progress.
+    const without = materializeWeek({ ...roomyFixture, oneRms: null });
+    const with_ = materializeWeek({ ...roomyFixture, oneRms: ONE_RMS });
+
+    expect(plannedMins(with_.week.days)).toBe(plannedMins(without.week.days));
+    // Confirm strength really was scheduled in `with_` — otherwise the
+    // equality above holds trivially for the same vacuous reason as M1.
+    expect(
+      with_.week.days
+        .flatMap((d) => d.workouts)
+        .filter((w) => w.sport === "Strength")
+    ).toHaveLength(2);
+  });
+
+  it("drops to one strength session in taper", () => {
+    const result = materializeWeek({
+      ...roomyFixture,
+      skeleton: { ...roomyFixture.skeleton, phase: "taper" as const },
+      oneRms: ONE_RMS,
+    });
+    const strength = result.week.days
+      .flatMap((d) => d.workouts)
+      .filter((w) => w.sport === "Strength");
+    expect(strength).toHaveLength(1);
+  });
+
+  it("carries the phase's prescription on the session", () => {
+    const result = materializeWeek({
+      ...roomyFixture,
+      skeleton: { ...roomyFixture.skeleton, phase: "base" as const },
+      oneRms: ONE_RMS,
+    });
+    const strength = result.week.days
+      .flatMap((d) => d.workouts)
+      .find((w) => w.sport === "Strength")!;
+    expect(strength.exercises).toHaveLength(4);
+    expect(strength.exercises![0].sets).toBe(4); // base: 4x8
+  });
+
+  it("plans no strength when the athlete has set no maxes", () => {
+    // v1 treats strength as opt-in: the four Settings fields are the
+    // opt-in. An athlete who has set none gets exactly today's plan.
+    const result = materializeWeek({
+      ...roomyFixture,
+      oneRms: null,
+    });
+    expect(
+      result.week.days
+        .flatMap((d) => d.workouts)
+        .filter((w) => w.sport === "Strength")
+    ).toHaveLength(0);
+  });
+
+  it("never puts a strength session on an easy-energy block", () => {
+    // ENERGY_CEILING.easy excludes "strength" (Task 3). This asserts the
+    // placement path actually honors it, not just the table.
+    const easyBlocksPerDay: AvailabilityBlock[][] = Array.from(
+      { length: 7 },
+      () => [{ start: null, end: null, mins: 60, energy: "easy", sports: null }]
+    );
+    const result = materializeWeek({
+      ...baseInput,
+      availableBlocksPerDay: easyBlocksPerDay,
+      oneRms: ONE_RMS,
+    });
+    expect(
+      result.week.days
+        .flatMap((d) => d.workouts)
+        .filter((w) => w.sport === "Strength")
+    ).toHaveLength(0);
+  });
+
+  it("never places both strength sessions on the same day", () => {
+    // Reproducer from review: a lopsided week (one weekday block each,
+    // TWO blocks on Saturday, a small Sunday block) used to let both lifts
+    // land on Saturday back-to-back, with none the rest of the week.
+    // `admits` only enforced MAX_SESSIONS_PER_DAY (2), and strength is
+    // deliberately outside QUALITY_TYPES so it inherited no spacing.
+    const oneBlock = (mins: number): AvailabilityBlock[] => [
+      { start: null, end: null, mins, energy: "full", sports: null },
+    ];
+    const splitSaturday: AvailabilityBlock[][] = [
+      oneBlock(120), // Mon
+      oneBlock(120), // Tue
+      oneBlock(120), // Wed
+      oneBlock(120), // Thu
+      oneBlock(120), // Fri
+      [
+        { start: null, end: null, mins: 120, energy: "full", sports: null },
+        { start: null, end: null, mins: 120, energy: "full", sports: null },
+      ], // Sat — two blocks
+      oneBlock(50), // Sun
+    ];
+    const result = materializeWeek({
+      ...baseInput,
+      availableBlocksPerDay: splitSaturday,
+      oneRms: ONE_RMS,
+    });
+    const strengthDays = result.week.days
+      .filter((d) => d.workouts.some((w) => w.sport === "Strength"))
+      .map((d) => d.date);
+    // There is room for both (Saturday plus Sunday's 50min block, ≥
+    // STRENGTH_SESSION_MINS), so this pins "two different days", not just
+    // "no day has two" — a week that genuinely has no room for the second
+    // lift elsewhere would legitimately drop it instead (logged
+    // adjustment), which this fixture is NOT exercising.
+    expect(strengthDays).toHaveLength(2);
+    expect(new Set(strengthDays).size).toBe(2);
   });
 });

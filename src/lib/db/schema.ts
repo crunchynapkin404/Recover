@@ -600,6 +600,17 @@ export const bodyPrefs = pgTable("body_prefs", {
    * null = derive from history (Low confidence), then refuse.
    */
   thresholdPaceSecPerKm: integer("threshold_pace_sec_per_km"),
+  /**
+   * v0.119: per-lift one-rep maxima, in kilograms. null = not set, which
+   * makes that ONE lift refuse a load target — the other lifts in the same
+   * session still prescribe normally. The resistance-training analogue of
+   * ftpWatts/thresholdPaceSecPerKm: an athlete-set anchor, never derived.
+   * See docs/specs/2026-08-24-strength-training-design.md.
+   */
+  squatOneRmKg: integer("squat_one_rm_kg"),
+  benchOneRmKg: integer("bench_one_rm_kg"),
+  deadliftOneRmKg: integer("deadlift_one_rm_kg"),
+  overheadPressOneRmKg: integer("overhead_press_one_rm_kg"),
   // v0.13 Deep Biology: enables the biological-age estimate. null = not set
   // (bio-age reports "insufficient inputs" listing this among what's missing).
   birthYear: integer("birth_year"),

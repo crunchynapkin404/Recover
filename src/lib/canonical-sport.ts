@@ -38,6 +38,13 @@ const CANONICAL: Record<string, string> = {
   swim: "Swim",
   openwaterswim: "Swim",
   swimming: "Swim",
+  // Strength. `workout` is deliberately absent: it is Strava's catch-all for
+  // anything it could not classify (yoga, rowing, tennis all land there), so
+  // claiming it would book non-lifting as lifting. An unmapped discipline
+  // simply never matches a planned session, which is the honest outcome.
+  weighttraining: "Strength",
+  strengthtraining: "Strength",
+  strength: "Strength",
 };
 
 /**

@@ -14,8 +14,9 @@ import type { Verdict, Feasibility } from "@/lib/race/feasibility";
 import type { VolumeResult } from "@/lib/week-plan/volume";
 import type { PlanSport } from "@/lib/plan-sport";
 import type { StartStateSource } from "@/lib/week-plan/start-state";
+import type { PlanPhase } from "@/lib/plan-phase";
 
-export type PlanPhase = "base" | "build" | "peak" | "taper" | "recovery";
+export type { PlanPhase };
 
 export interface PhaseRow {
   /**
