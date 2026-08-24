@@ -57,12 +57,20 @@ function prefs(overrides: {
   ftpWatts?: number | null;
   ftpWattsIndoor?: number | null;
   thresholdPaceSecPerKm?: number | null;
+  squatOneRmKg?: number | null;
+  benchOneRmKg?: number | null;
+  deadliftOneRmKg?: number | null;
+  overheadPressOneRmKg?: number | null;
 }) {
   return {
     maxHr: null,
     ftpWatts: null,
     ftpWattsIndoor: null,
     thresholdPaceSecPerKm: null,
+    squatOneRmKg: null,
+    benchOneRmKg: null,
+    deadliftOneRmKg: null,
+    overheadPressOneRmKg: null,
     ...overrides,
   };
 }
@@ -250,5 +258,66 @@ describe.skipIf(!hasDb)("setBodyPrefs — honest wake time", () => {
     expect(saved?.maxHr).toBe(185); // unchanged
     expect(saved?.ftpWatts).toBe(250);
     expect(saved?.ftpWattsIndoor).toBeNull();
+  });
+
+  it("round-trips per-lift 1RMs and clears them to NULL", async () => {
+    const { setBodyPrefs } = await import("@/app/settings/body-actions");
+
+    const set = await setBodyPrefs(
+      prefs({
+        wakeTime: "07:00",
+        sleepNeedSecs: 28800,
+        squatOneRmKg: 120,
+        benchOneRmKg: 80,
+        deadliftOneRmKg: 150,
+        overheadPressOneRmKg: 50,
+      })
+    );
+    expect(set.ok).toBe(true);
+    let saved = await row();
+    expect(saved?.squatOneRmKg).toBe(120);
+    expect(saved?.benchOneRmKg).toBe(80);
+    expect(saved?.deadliftOneRmKg).toBe(150);
+    expect(saved?.overheadPressOneRmKg).toBe(50);
+
+    // Clearing all four is the athlete's opt-out signal — must be genuine
+    // SQL NULL, not 0, or oneRmsFromBodyPrefs can never see "no strength".
+    const cleared = await setBodyPrefs(
+      prefs({ wakeTime: "07:00", sleepNeedSecs: 28800 })
+    );
+    expect(cleared.ok).toBe(true);
+    saved = await row();
+    expect(saved?.squatOneRmKg).toBeNull();
+    expect(saved?.benchOneRmKg).toBeNull();
+    expect(saved?.deadliftOneRmKg).toBeNull();
+    expect(saved?.overheadPressOneRmKg).toBeNull();
+  });
+
+  it("rejects out-of-range 1RMs and does not write", async () => {
+    const { setBodyPrefs } = await import("@/app/settings/body-actions");
+
+    await setBodyPrefs(
+      prefs({
+        wakeTime: "07:00",
+        sleepNeedSecs: 28800,
+        squatOneRmKg: 120,
+      })
+    );
+
+    const tooLow = await setBodyPrefs(
+      prefs({ wakeTime: "07:00", sleepNeedSecs: 28800, squatOneRmKg: 5 })
+    );
+    expect(tooLow.ok).toBe(false);
+    expect(tooLow.message).toMatch(/squat 1RM must be between 10 and 400 kg/);
+
+    const tooHigh = await setBodyPrefs(
+      prefs({ wakeTime: "07:00", sleepNeedSecs: 28800, benchOneRmKg: 500 })
+    );
+    expect(tooHigh.ok).toBe(false);
+    expect(tooHigh.message).toMatch(/bench 1RM must be between 10 and 400 kg/);
+
+    const saved = await row();
+    expect(saved?.squatOneRmKg).toBe(120); // unchanged
+    expect(saved?.benchOneRmKg).toBeNull(); // unchanged
   });
 });

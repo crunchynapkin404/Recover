@@ -506,6 +506,12 @@ export default async function SettingsPage({
                 thresholdPaceSecPerKm={
                   bodyPrefsRow?.thresholdPaceSecPerKm ?? null
                 }
+                squatOneRmKg={bodyPrefsRow?.squatOneRmKg ?? null}
+                benchOneRmKg={bodyPrefsRow?.benchOneRmKg ?? null}
+                deadliftOneRmKg={bodyPrefsRow?.deadliftOneRmKg ?? null}
+                overheadPressOneRmKg={
+                  bodyPrefsRow?.overheadPressOneRmKg ?? null
+                }
               />
             </div>
           </CollapsiblePanel>

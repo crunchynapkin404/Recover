@@ -16,6 +16,12 @@ const MAX_FTP = 600;
 /** v0.46: the running anchor, the exact analogue of ftpWatts. */
 const MIN_THRESHOLD_PACE = 150;
 const MAX_THRESHOLD_PACE = 600;
+/**
+ * Human lift bounds, wide on purpose: the point is to reject a typo or a
+ * unit mix-up (a 500kg squat, a 2kg deadlift), not to judge the athlete.
+ */
+const MIN_ONE_RM_KG = 10;
+const MAX_ONE_RM_KG = 400;
 /** Threshold changes re-shape computed load this far back. */
 const RECOMPUTE_WINDOW_DAYS = 90;
 
@@ -26,6 +32,10 @@ export async function setBodyPrefs(input: {
   ftpWatts: number | null;
   ftpWattsIndoor: number | null;
   thresholdPaceSecPerKm: number | null;
+  squatOneRmKg: number | null;
+  benchOneRmKg: number | null;
+  deadliftOneRmKg: number | null;
+  overheadPressOneRmKg: number | null;
 }): Promise<{ ok: boolean; message?: string }> {
   const user = await requireUser();
 
@@ -82,6 +92,25 @@ export async function setBodyPrefs(input: {
       message: "Threshold pace must be between 150 and 600 seconds per km.",
     };
   }
+  const oneRms = {
+    squatOneRmKg: input.squatOneRmKg,
+    benchOneRmKg: input.benchOneRmKg,
+    deadliftOneRmKg: input.deadliftOneRmKg,
+    overheadPressOneRmKg: input.overheadPressOneRmKg,
+  };
+  for (const [field, value] of Object.entries(oneRms)) {
+    if (
+      value != null &&
+      (!Number.isInteger(value) ||
+        value < MIN_ONE_RM_KG ||
+        value > MAX_ONE_RM_KG)
+    ) {
+      return {
+        ok: false,
+        message: `${field.replace(/OneRmKg$/, "")} 1RM must be between ${MIN_ONE_RM_KG} and ${MAX_ONE_RM_KG} kg.`,
+      };
+    }
+  }
 
   const before = await db.query.bodyPrefs.findFirst({
     where: (t, { eq }) => eq(t.userId, user.id),
@@ -94,6 +123,7 @@ export async function setBodyPrefs(input: {
     ftpWatts: input.ftpWatts,
     ftpWattsIndoor: input.ftpWattsIndoor,
     thresholdPaceSecPerKm: input.thresholdPaceSecPerKm,
+    ...oneRms,
   };
   await db
     .insert(schema.bodyPrefs)
