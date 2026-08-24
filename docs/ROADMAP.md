@@ -56,18 +56,24 @@ The failure was not speed. It was working without a source.
 
 ## Demand map
 
-Recover's standing against ranked external demand. Votes last polled from the
-board 2026-08-08 — not refreshed here. The **Recover at** column is corrected
-as of 2026-08-24 for what has since shipped; re-read the board itself before
-picking the next item, since vote counts go stale on their own.
+Recover's standing against ranked external demand. Votes live-polled from the
+board 2026-08-24. **Strength training has overtaken Calendar since the last
+read** (121→155 vs. 152→125) — the rank order below changed, not just the
+counts. Excluded as out of scope: the board's "Workout Player"-tagged rows
+(e.g. "Show target cadence in workout", 123 votes) — Recover has no in-app
+workout-execution surface, only `get-workout-syntax.ts`'s syntax generation
+for intervals.icu, so that demand has nothing to attach to here. The five
+rows below the FTP line are no longer visible on the vendor's board at all
+(closed or merged there since 2026-08-08) — kept at their last-known count
+since Recover's own status hasn't changed.
 
 | Request                                        | Votes | Recover at v0.118.0 |
 | ---------------------------------------------- | ----: | ------------------- |
-| Choosing a new goal before the last one's done |   244 | **Gap** → Phase 3   |
-| Availability beyond one week ahead             |   159 | **Leads**           |
-| Calendar                                       |   152 | Partial             |
-| Strength training                              |   121 | Absent              |
-| Different FTPs indoor/outdoor                  |   105 | Shipped (v0.118.0)  |
+| Choosing a new goal before the last one's done |   253 | **Gap** → Phase 3   |
+| Availability beyond one week ahead             |   161 | **Leads**           |
+| Strength training                              |   155 | Absent              |
+| Calendar                                       |   125 | Partial             |
+| Different FTPs indoor/outdoor                  |   107 | Shipped (v0.118.0)  |
 | Race scheduling weeks ahead                    |     8 | Shipped             |
 | Multiple time blocks within a day              |     7 | **Leads**           |
 | Vacation weeks in advance                      |     5 | **Leads**           |
