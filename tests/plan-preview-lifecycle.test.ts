@@ -226,7 +226,7 @@ describe.skipIf(!hasDb)("previewTrainingPlan (v0.43)", () => {
       stages: [],
       overrideWeeklyHours: null,
       expectedFinishHours: null,
-      ftp: { watts: ftpWatts, athleteSet: true },
+      ftp: { watts: ftpWatts, source: "outdoor" as const },
       massKg: null,
       runPace: null,
       swimPace: null,
