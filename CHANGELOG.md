@@ -1,5 +1,61 @@
 # Changelog
 
+## v0.118.0 — 2026-08-24 — The wrong venue
+
+The demand map's 105-vote "Different FTPs indoor/outdoor" row closes without a
+new model: one column split into two, and a third tier added to a fallback
+that already existed.
+
+### Indoor FTP, only ever a fallback
+
+Races have no indoor concept anywhere in this app's model — a start line is
+always outdoors — so "indoor FTP" can never mean "use it for race day"; its
+only honest role is a lower-confidence anchor for when the outdoor one isn't
+set. `bodyPrefs.ftpWattsIndoor` (`src/lib/db/schema.ts:595`) sits beside the
+existing `ftpWatts`, and Settings gains a second, optional field — "FTP
+(watts) — indoor (optional)" — next to the now-relabeled "FTP (watts) —
+outdoor" (`body-prefs-card.tsx`).
+
+The fallback order is three deep now: outdoor (athlete-set) → indoor
+(athlete-set) → synced eFTP (derived) → refuse. Using the indoor tier forces
+`confidence: "low"` and adds its own sentence — "Uses your indoor FTP —
+outdoor effort may differ" on the race pacing card, "Modelled from your indoor
+FTP — outdoor effort may differ…" in the demand estimate — the same mechanism
+`pacing.ts` already used for a long event or a synced FTP, not a new code path
+(`src/lib/race/pacing.ts:144-165`, `src/lib/race/demand.ts:415-422`). Both
+branches are mutation-checked: kill the `indoorFallback` check or the
+`weakestAnchorSource === "indoor"` branch, the test naming the indoor anchor
+fails, revert.
+
+**Explicitly not historical load.** `training-load.ts` divides every past
+ride's recorded power by one FTP to score how hard it was. Doing that
+correctly per activity needs an indoor/outdoor classifier on each ride, which
+doesn't exist and isn't cheap to build honestly — Strava's own `VirtualRide`
+signal is provider-specific and gets collapsed into plain `Bike` at ingestion
+regardless. That's a data-model project, not a Settings field, and stays out
+of scope here.
+
+### One resolver, not two
+
+`pacingAnchors()` and `volume-inputs.ts` used to work out "the athlete's FTP"
+independently, each with its own duplicated `athleteSet ?? derived` fallback —
+the same shape of drift risk `raceCard()` was built to close in v0.87. Both
+now call one `resolveFtpAnchor()` (`src/lib/race/service.ts`), and the boolean
+`ftpAthleteSet` it replaced is gone from the codebase. The anchor's shape grew
+from a boolean to `source: "outdoor" | "indoor" | "synced"` and threads
+through `EventDemandInput.ftp`, `PacingInput.ftpSource`, and `demand.ts`'s
+`weakestAnchorSource` — a triathlon's bike leg (tri-state) and run leg (still
+boolean; running has no indoor tier here) reconcile onto one rank scale to
+take the worst of the two. `get_race_pacing`'s internal call was updated for
+the rename; its `parameters`/output shape did not change, so nothing moved in
+`API-STABILITY.md`.
+
+### Migrations
+
+**Additive.** One new nullable column, `body_prefs.ftp_watts_indoor`
+(`drizzle/0043_whole_black_widow.sql`) — no backfill. Old code ignores a
+column it doesn't know about, so an image rollback past this release is safe.
+
 ## v0.117.0 — 2026-08-24 — Confirmed
 
 No athlete sees anything different. What changed is what CI can no longer get

@@ -200,7 +200,9 @@ describe.skipIf(!hasDb)("raceCard", () => {
     expect(card.pacing.confidence).toBe("low");
     expect(card.pacing.why).toMatch(/indoor/i);
 
-    await db.delete(schema.bodyPrefs).where(eq(schema.bodyPrefs.userId, userId));
+    await db
+      .delete(schema.bodyPrefs)
+      .where(eq(schema.bodyPrefs.userId, userId));
     await db.delete(schema.races).where(eq(schema.races.userId, userId));
     await db.delete(schema.users).where(eq(schema.users.id, userId));
   });
