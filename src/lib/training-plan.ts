@@ -14,10 +14,10 @@ import {
   toPlanSport,
   type PlanSport,
 } from "@/lib/plan-sport";
+import type { PlanPhase } from "@/lib/plan-phase";
 import {
   buildPhases,
   collectWarnings,
-  type PlanPhase,
   type PlanPreview,
   type PreviewResult,
   type PreviewWeek,
@@ -239,7 +239,7 @@ export function distributeRemainder(
 
 interface Block {
   weekNumber: number;
-  phase: "base" | "build" | "peak" | "taper" | "recovery";
+  phase: PlanPhase;
   targetLoad: number;
   targetSessions: number;
   workouts: PlannedWorkout[];

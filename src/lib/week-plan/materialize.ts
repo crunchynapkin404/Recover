@@ -3,6 +3,7 @@ import {
   withPurpose,
   type PlannedWorkout,
 } from "@/lib/training-plan";
+import type { PlanPhase } from "@/lib/plan-phase";
 import {
   raceRecoveryDays,
   raceWeekWorkouts,
@@ -117,7 +118,7 @@ export interface MaterializeInput {
   weekStart: string;
   skeleton: {
     weekNumber: number;
-    phase: "base" | "build" | "peak" | "taper" | "recovery";
+    phase: PlanPhase;
     targetLoadTotal: number;
     targetSessions: number;
   };
@@ -183,8 +184,6 @@ function daysBetween(fromYmd: string, toYmd: string): number {
       86_400_000
   );
 }
-
-type PlanPhase = MaterializeInput["skeleton"]["phase"];
 
 function focusPurposesFor(
   phase: PlanPhase,
