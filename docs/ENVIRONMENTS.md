@@ -290,9 +290,9 @@ seeded database, among them `test-coach-inbox-user` and
 `test-coach-inbox-other-user`.
 
 Those two names are the pair that appeared **in production** on 2026-07-27,
-which `docs/ROADMAP.md` recorded as an unexplained defect: "Something pointed a
-test run at production… deleting the rows removed the evidence without removing
-the cause." The cause is this command, run on a box whose `.env` pointed at the
+which `docs/archive/ROADMAP-through-v0.119.md` recorded as an unexplained
+defect: "Something pointed a test run at production… deleting the rows removed
+the evidence without removing the cause." The cause is this command, run on a box whose `.env` pointed at the
 live database. On the two-box setup it is safe, because devbox's `.env` can only
 reach devbox's Postgres — and that is now a property worth protecting rather
 than a coincidence.

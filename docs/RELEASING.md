@@ -129,7 +129,8 @@ DATABASE_URL=postgres://ci:ci@localhost:55432/ci DATABASE_DRIVER=pg \
 
 **Pointing a test run at a real database writes real rows to it.** That is what
 put `test-coach-inbox-user` and `test-coach-inbox-other-user` into
-**production** on 2026-07-27 — the defect `docs/ROADMAP.md` recorded as
+**production** on 2026-07-27 — the defect `docs/archive/ROADMAP-through-v0.119.md`
+recorded as
 "something pointed a test run at production" and could not explain. What
 protects you now is topology, not vigilance: dev and prod are different
 machines (`docs/ENVIRONMENTS.md`). Clean up anyway:

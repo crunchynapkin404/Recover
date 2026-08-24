@@ -1,8 +1,9 @@
 # Design system — as built
 
 Descriptive, not prescriptive: what exists at this commit. Phase 2b.1
-(`docs/ROADMAP.md`). Living — Phase 2c's number slices push small deltas
-back into this file as they land; it is not re-derived from scratch.
+(`docs/archive/ROADMAP-through-v0.119.md`). Living — Phase 2c's number slices
+push small deltas back into this file as they land; it is not re-derived from
+scratch.
 
 The artifact v0.21 and v0.23 were each supposed to leave behind and neither
 did (`.superdesign/` is empty).
@@ -57,7 +58,8 @@ Whether this is the right shape is Phase 2b.2's question. That question was
 deferred until four weeks of `surface_views` data existed (on or after
 2026-09-05); the gate was lifted on 2026-08-11 at day 4, and 2b.2 is now
 open. The reading it will be settled against, and the reasoning for ending
-the window early, are in `docs/ROADMAP.md` under 2b.2 and "Sequencing".
+the window early, are in `docs/archive/ROADMAP-through-v0.119.md` under 2b.2
+and "Sequencing".
 
 One caveat travels with that reading, because this section is where the
 surface list lives: `import` recorded zero views, and that is not evidence
