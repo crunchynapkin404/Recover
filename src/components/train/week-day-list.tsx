@@ -76,15 +76,21 @@ function DayRow({ day: d, isToday, badge, otherDays, actual }: DayRowProps) {
         <div className="min-w-0 flex-1">
           {d.workouts.length > 0 ? (
             d.workouts.map((w, i) => (
-              <p
-                key={i}
-                className={`truncate text-caption ${isToday ? "font-bold text-ink-primary" : "text-ink-secondary"}`}
-              >
-                {`${w.type} · ${provisional ? "~" : ""}${w.durationMins} min`}
-                <span className="ml-1.5 font-normal text-ink-muted">
-                  {w.intensity}
-                </span>
-              </p>
+              <div key={i}>
+                <p
+                  className={`truncate text-caption ${isToday ? "font-bold text-ink-primary" : "text-ink-secondary"}`}
+                >
+                  {`${w.type} · ${provisional ? "~" : ""}${w.durationMins} min`}
+                  <span className="ml-1.5 font-normal text-ink-muted">
+                    {w.intensity}
+                  </span>
+                </p>
+                {w.exercises && w.exercises.length > 0 && (
+                  <p className="mt-0.5 truncate text-label text-ink-muted">
+                    {w.description}
+                  </p>
+                )}
+              </div>
             ))
           ) : d.status === "race" ? (
             <p className="truncate text-caption font-bold text-ink-race">
