@@ -27,6 +27,10 @@ intervals.icu / Strava — your choice. Recover computes a daily readiness score
 from _your_ personal baselines — not population norms — and shows it on one
 calm dashboard.
 
+Recover leads or ships nearly every top-ranked row on
+[the largest public demand board in this category](https://joincycling.featurebase.app/en/roadmap)
+— while staying self-hosted and free.
+
 ## Your Claude, your training data
 
 The part we care most about: Recover ships a **built-in MCP server**, so
@@ -52,12 +56,14 @@ OpenAI-compatible endpoint including a fully local Ollama. Keys are encrypted
   activities manually; import CSV data from any source (Apple Health, Garmin,
   Whoop, spreadsheets); or connect intervals.icu / Strava for automatic sync.
   Your readiness score unlocks after 14 days of data regardless of source.
-- **intervals.icu sync** — wellness, activities, and training load, kept fresh
-  by an in-process scheduler. **Strava OAuth** as a second source, with
-  provenance tracking (Strava data is excluded from AI context by default, per
-  Strava's API terms). **Whoop and Withings** connect via OAuth and **Oura**
-  via a pasted personal access token, each feeding wellness alongside
-  intervals.icu with an explicit per-field priority when sources overlap.
+- **Six wellness/activity sources** — intervals.icu sync keeps wellness,
+  activities, and training load fresh via an in-process scheduler. **Strava
+  OAuth** is a second source, with provenance tracking (Strava data is
+  excluded from AI context by default, per Strava's API terms). **Whoop and
+  Withings** connect via OAuth, **Oura** via a pasted personal access token,
+  and **Apple Health** via Health Auto Export (a background webhook or a
+  one-off file upload) — each feeding wellness alongside intervals.icu with an
+  explicit per-field priority when sources overlap.
 - **Analytics depth** — open any activity for stream charts (HR, power, pace,
   elevation) and laps; track fitness with CTL/ATL/TSB over 30–365 day ranges;
   watch HRV, resting HR, and sleep trend against your personal baselines.
@@ -73,12 +79,18 @@ OpenAI-compatible endpoint including a fully local Ollama. Keys are encrypted
   previews the load/form impact of a move, swap, or skip before you commit.
   The morning coach leads with a race-day brief, and a post-race debrief
   links the result and closes the loop.
+- **Strength training** (v0.119.0) — opt-in per-lift 1RMs (squat, bench,
+  deadlift, overhead press) drive a periodized prescription that follows the
+  plan's own phase: 2 sessions/week, dropping to 1 in taper and none on a
+  race week. Leave every 1RM unset and the plan is exactly what it was before
+  strength existed.
 - **Deeper insights** — the journal correlates behaviors against next-day
   readiness with honest 95% confidence intervals: manual tags plus auto-tags
   derived from your activities (hard sessions, double days, rest days,
-  morning/late training), weekday/weekend splits, and rows that say
-  "inconclusive" instead of asserting an impact the data can't back. Plus
-  real logging streaks (consecutive runs, not counts) and sober milestones.
+  morning/late training), weekday/weekend splits, and rows that read "No
+  detectable effect" or "Calibrating" instead of asserting an impact the data
+  can't back. Plus real logging streaks (consecutive runs, not counts) and
+  sober milestones.
 - **AI coach** — evidence-based endurance-coach persona that cites the actual
   numbers from your data, adapts its tone to your readiness band, and refuses
   to program through injury or illness. BYO key: Anthropic or any
@@ -105,21 +117,24 @@ OpenAI-compatible endpoint including a fully local Ollama. Keys are encrypted
 - **MCP server** — stateless streamable-HTTP endpoint at `/api/mcp` with
   hashed, scoped (`read` / `write:wellness` / `write:plan` / `write:memory` /
   `write:strava` / `write:icu`), revocable bearer tokens and rate limiting.
-  54 tools: readiness (+ history), wellness, log-wellness, fitness &
+  59 tools: readiness (+ history), wellness, log-wellness, fitness &
   training-load summaries, power/pace curves, best efforts, activity list &
   detail, athlete profile, planned workouts, calendar availability, coach
   memory (remember/forget), recall over history (full-text search across past
   conversations and reviews), chart rendering, training-plan
-  generate/get/update, Strava description write-back, the living week (get
-  plan / set availability / drift), biomarkers, and races (get/upsert/delete/
-  simulate plan change). Also a full intervals.icu tool set absorbed from the
+  generate/get/confirm/update, Strava description write-back, the living week
+  (get plan / set availability / standard week / clear override / drift),
+  biomarkers, strength prescription, and races (get/upsert/delete/simulate
+  plan change/pacing). Also a full intervals.icu tool set absorbed from the
   standalone `intervals-icu-mcp` server: calendar events (list/get/create/
   update/delete/bulk/duplicate), activity edits and messages, wellness push,
   sport settings, an apply-training-plan action, per-activity histograms
   (HR/power/pace/GAP), activity search & intervals, the workout library, and
-  a workout-syntax reference. This 54-tool surface (names, scopes, schemas)
-  is frozen as of v0.20 — see [docs/API-STABILITY.md](docs/API-STABILITY.md)
-  for the guarantee and deprecation policy.
+  a workout-syntax reference. This surface (names, scopes, schemas) has been
+  frozen since v0.20 — grown only through additive, backward-compatible
+  changes to 59 tools as of v0.119.0 — see
+  [docs/API-STABILITY.md](docs/API-STABILITY.md) for the guarantee and
+  deprecation policy.
 - **Installable PWA** — add it to your phone's home screen; a push
   notification delivers your readiness score every morning, and
   pull-to-refresh or the sync chip pulls fresh data on demand.
@@ -171,108 +186,16 @@ fills a demo account with 90 days of plausible training history (see
 
 ## Status & roadmap
 
-**Current release: v0.50.0 (released 2026-08-07).**
+**Current release: v0.119.0.** See the
+[GitHub releases page](https://github.com/crunchynapkin404/Recover/releases)
+or [CHANGELOG.md](CHANGELOG.md) for what shipped and when.
 
-Latest highlights:
+Recover is feature-complete against ranked external demand — the focus now is
+stability first, then the overall experience. The full plan, including what's
+deliberately not scheduled yet (ICS calendar export is the one real gap), lives
+in [docs/ROADMAP.md](docs/ROADMAP.md).
 
-- Session-aware fuelling guidance in Train (before/during/after) with
-  confidence labels and explicit assumptions (v0.49).
-- Shared fuelling parity between UI and coach/tool outputs via
-  `get_week_plan` enrichment (v0.49).
-- Deterministic `.zwo` export core for planned bike sessions (v0.50).
-- Weekly export helper with explicit unsupported-sport refusals and
-  deterministic ordering (v0.50).
-
-Recent release trail: **v0.49.0 Fuelling Lite**, **v0.48.0 The season on one
-screen**, **v0.47.0 The plan knows how you start**, **v0.46.0 Demand knows its
-sport**, and before that
-**v0.21.0 Design Consistency** extended the dark-glass
-visual language to every remaining screen (concentric readiness rings,
-hairline-list settings, glass-tile dedup). **v0.23.0 IA & Navigation
-Redesign** replaced the old five-tab layout with **Today / Train / Coach /
-Body / Menu**: Today got a concentric-ring readiness hero, a 4-across vitals
-row, and a real "mark done" action; `/plan` and `/log` merged into **Train**
-(Week/History/Fitness tabs); `/journal`, `/health`, and the wellness half of
-the old log page merged into **Body** (Trends/Sleep/Journal/Labs); morning
-check-in and post-ride debrief became URL-driven bottom sheets instead of
-buried inline forms; and Coach picked up a Chat/Inbox split. **v0.24.0**
-backed VO2max on Strava descriptions with the daily wellness value instead
-of leaving it blank, and added two opt-in description fields (ride review,
-RPE/feel). **v0.25.0 Strava-Triggered Intervals Sync** added a Strava
-webhook so a finished ride pulls a fresh intervals.icu sync immediately
-instead of waiting for the next poll — then **v0.25.1–v0.25.8** shipped a
-run of fixes found by testing against the live instance rather than just
-reading the diff: the webhook route itself was unreachable (307-redirected
-before the handler ever ran) until v0.25.1; the ride-review popup never
-mounted for Strava-sourced activities (their duration is null by Strava's
-own API design) until v0.25.2; auto-describe couldn't resolve a Strava
-activity id at all (v0.25.3) and then raced ahead of debrief promotion,
-permanently burning the one-time description write (v0.25.6); deleted
-activities lingered instead of being cleaned up (v0.25.4); push
-notifications silently died from an orphaned VAPID key (v0.25.5); activity
-times were stored as local wall-clock mislabeled as UTC, root-caused and
-fixed at every affected call site rather than patched around (v0.25.7); and
-v0.25.8 added a tap-to-open availability picker for the weekly plan intake,
-raised the Apple Health ingest cap 10MB→50MB, and fixed two real rendering
-bugs (invisible weekly-load bars on Train, sync gaps compressing instead of
-showing as gaps on Body's trend charts). Full detail in
-[CHANGELOG.md](CHANGELOG.md).
-
-The v0.9→v0.14 series made
-the app honest, adaptive, and durable: v0.9.0 deleted every metric the data
-couldn't back, v0.9.2–0.9.3 turned static training plans into a living week
-that adapts to your availability and readiness, v0.9.4 added auto-tags,
-correlation insights with real confidence intervals, and true logging
-streaks, v0.9.5 made the database back itself up nightly with a one-command
-restore drill, and v0.9.6 folded the standalone intervals-icu MCP server's
-tools into Recover's own endpoint so that separate server can be retired,
-and v0.10 made training load honest — CTL/ATL computed natively from your
-own sessions (any source), with `calibrating` instead of invented scores,
-v0.11 opened up the data sources — Whoop, Oura, Apple Health, and Withings
-feed wellness alongside intervals.icu, resolved by an explicit per-field
-priority, with a guided first run — and v0.12 turned that staged-sleep data
-into real sleep-stage, consistency, and chronotype cards, and gave the app
-a proper desktop layout, v0.13 added deep biology — upload a blood test
-to extract biomarkers (reviewed before anything is stored), a biological-age
-estimate, and blood-pressure trends against clinical bands — and v0.14 gave
-the living week its payoff: A/B/C races as first-class entities with a
-dashboard countdown, a taper engine that reshapes the week from current load
-and race distance, an honest EMA form-outlook band for race day, and a
-what-if simulator that previews a plan change's impact before it's saved,
-and v0.15 gave the coach memory: full-text recall over past conversations
-and reviews, a post-ride debrief loop that reconciles RPE/feel/notes with
-the numbers, a monthly report, voice dictation, and per-user token usage in
-settings. All on top of the full stack: manual entry and CSV import,
-intervals.icu sync, readiness scoring, dashboard, journal, analytics depth,
-installable PWA with morning push, AI coach with memory/personalities/
-proactive insights, training plans, Google Calendar awareness, chart
-artifacts, weekly reviews, Strava AI descriptions, and 54 MCP tools. v0.19
-jumped ahead of the operations/hardening track for a design pass: the
-dashboard, coach, log, journal, and settings screens are now built around
-progressive disclosure — one focal metric and a compact stat row on the
-dashboard, an accordion per settings domain, collapsible trend panels on
-the log page, a stepped journal check-in, and collapsible chat chrome on
-the coach — collapsed by default instead of everything rendered flat. v0.18
-followed with the first slice of 1.0 hardening: security headers, login
-rate-limiting and boot-time secret validation, a hardened Apple Health
-ingest endpoint, an owner-viewable auth/token/connection audit log, and an
-exhaustive 101-surface per-user isolation audit that found zero cross-user
-data-leak gaps. v0.20 closed out the rest of the roadmap in one sweep:
-honest empty states and loading skeletons on every remaining page, a
-unified chart token/axis grammar, pre-toggled journal defaults, a
-Prometheus `/metrics` endpoint and richer health signals, signed outbound
-webhooks (readiness/band/backup events), an owner-only sync-jobs admin
-panel, a complete GDPR export with a matching lossless import, restored
-native arm64 release images, a refreshed Vercel + Neon deploy guide, an
-accessibility sweep, session-management UI (list/revoke your own active
-sessions), documented upgrade and rollback guarantees, a dashboard
-performance pass, a frozen 54-tool MCP surface with a deprecation policy,
-an end-to-end docs review, and a final security review that re-confirmed
-every new surface — zero gaps. Stronger Together (social/sharing) is
-deferred to a fresh roadmap rather than folded in here. The full plan
-lives in [docs/ROADMAP.md](docs/ROADMAP.md).
-
-An honest hobby project built for one owner and about ten friends. If it's
+An honest hobby project built for one owner and a handful of friends. If it's
 useful to you, self-host it and make it yours. Issues and PRs welcome — see
 [CONTRIBUTING.md](CONTRIBUTING.md).
 
