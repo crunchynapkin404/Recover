@@ -7,6 +7,7 @@ import { and, desc, eq, gte } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { dedupeActivities } from "@/lib/training-load";
 import { eventDemand, type EventDemandResult } from "@/lib/race/demand";
+import { resolveFtpAnchor } from "@/lib/race/service";
 import { canonicalSport } from "@/lib/canonical-sport";
 import { disciplinesOf, type PlanSport } from "@/lib/plan-sport";
 import {
@@ -260,8 +261,7 @@ export async function assembleVolumeInputs(
     const runPaceDerived =
       runPaceSet == null ? thresholdPaceFromHistory(anchorRows) : null;
     const swimDerived = swimPaceFromHistory(anchorRows);
-    const ftpSet = prefs?.ftpWatts ?? null;
-    const ftpSynced = latestEftp != null ? Math.round(latestEftp) : null;
+    const ftpAnchor = resolveFtpAnchor(prefs ?? null, latestEftp ?? null);
 
     demand = eventDemand({
       sport: target.sport,
@@ -276,12 +276,7 @@ export async function assembleVolumeInputs(
       })),
       overrideWeeklyHours: target.demandHoursOverride,
       expectedFinishHours: target.expectedFinishHours,
-      ftp:
-        ftpSet != null
-          ? { watts: ftpSet, athleteSet: true }
-          : ftpSynced != null
-            ? { watts: ftpSynced, athleteSet: false }
-            : null,
+      ftp: ftpAnchor,
       // Rider weight plus an allowance for bike and kit.
       massKg: latestWeight != null ? latestWeight + 8 : null,
       runPace:
