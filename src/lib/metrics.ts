@@ -87,6 +87,7 @@ export async function computeDailyMetrics(
       load: true,
       avgHr: true,
       avgPower: true,
+      sport: true,
     },
   });
   const activities: LoadActivity[] = activityRows;
