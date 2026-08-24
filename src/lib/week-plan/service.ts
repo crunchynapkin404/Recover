@@ -32,6 +32,7 @@ import type { PlanStyle } from "@/lib/plan-style/types";
 import type { ReentryStage, SeasonMode } from "@/lib/season-mode/types";
 import { resolvePlanningSurfaceState } from "@/lib/planning-surface/effective-state";
 import type { Figure } from "@/lib/uncertainty";
+import type { OneRepMaxes } from "@/lib/strength/prescription";
 
 export type AdjustmentRow = typeof schema.planAdjustments.$inferSelect;
 
@@ -161,6 +162,42 @@ async function recentIllFlags(userId: string): Promise<boolean[]> {
   return rows
     .reverse()
     .map((r) => sanitizeDayFlags(r.dayFlags ?? []).includes("ill"));
+}
+
+/**
+ * The materialize-layer opt-in signal, from the athlete's stored bodyPrefs
+ * row. Strength is opt-in via the four Settings fields (materialize.ts):
+ * an athlete who has touched none of them — no row at all, or a row with
+ * all four still null (the common case: bodyPrefs already exists for most
+ * athletes, for FTP/weight/pace, well before any of them ever visits the
+ * new strength fields) — must get null, never an all-null OneRepMaxes
+ * object, so materializeWeek's `input.oneRms != null` opt-in gate reads it
+ * as "schedule no strength at all". Any ONE lift set is enough to opt in;
+ * the rest simply refuse their own load in strengthPrescription().
+ */
+function oneRmsFromBodyPrefs(
+  prefs:
+    | {
+        squatOneRmKg: number | null;
+        benchOneRmKg: number | null;
+        deadliftOneRmKg: number | null;
+        overheadPressOneRmKg: number | null;
+      }
+    | null
+    | undefined
+): OneRepMaxes | null {
+  if (!prefs) return null;
+  const { squatOneRmKg, benchOneRmKg, deadliftOneRmKg, overheadPressOneRmKg } =
+    prefs;
+  if (
+    squatOneRmKg == null &&
+    benchOneRmKg == null &&
+    deadliftOneRmKg == null &&
+    overheadPressOneRmKg == null
+  ) {
+    return null;
+  }
+  return { squatOneRmKg, benchOneRmKg, deadliftOneRmKg, overheadPressOneRmKg };
 }
 
 async function saveAdjustments(
@@ -414,11 +451,14 @@ export async function rolloverWeekPlan(
     derivedBlocks[derivedBlocks.length - 1];
 
   // 3. Materialize.
-  const [races, ctlNow, bands, illnessFlags] = await Promise.all([
+  const [races, ctlNow, bands, illnessFlags, bodyPrefs] = await Promise.all([
     racesForWeek(userId, weekStart),
     currentCtl(userId),
     recentBands(userId),
     recentIllFlags(userId),
+    db.query.bodyPrefs.findFirst({
+      where: eq(schema.bodyPrefs.userId, userId),
+    }),
   ]);
   const r = materializeWeek({
     weekStart,
@@ -443,6 +483,7 @@ export async function rolloverWeekPlan(
     previousARace: targets.first
       ? { date: targets.first.date, raceType: targets.first.raceType }
       : null,
+    oneRms: oneRmsFromBodyPrefs(bodyPrefs),
   });
 
   // 4. Persist.

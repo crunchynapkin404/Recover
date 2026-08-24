@@ -1483,3 +1483,119 @@ describe("a B/C race's missing taper is recorded", () => {
     ).toBeUndefined();
   });
 });
+
+describe("strength sessions", () => {
+  const ONE_RMS = {
+    squatOneRmKg: 200,
+    benchOneRmKg: 100,
+    deadliftOneRmKg: 240,
+    overheadPressOneRmKg: 60,
+  };
+
+  // Roomy, uniform, full-energy availability: 7 days x 1 block, plenty of
+  // room for baseInput's 5-session endurance budget plus 2 strength
+  // sessions (7 slots total) with no block-fitting or adjacency drops.
+  const roomyFixture = {
+    ...baseInput,
+    availableBlocksPerDay: blocksPerDay([120, 120, 120, 120, 120, 120, 120]),
+  };
+
+  it("adds two strength sessions to an ordinary week", () => {
+    const result = materializeWeek({
+      ...roomyFixture,
+      oneRms: ONE_RMS,
+    });
+    const strength = result.week.days
+      .flatMap((d) => d.workouts)
+      .filter((w) => w.sport === "Strength");
+    expect(strength).toHaveLength(2);
+  });
+
+  it("does not spend the endurance session budget on strength", () => {
+    // The whole risk of appending: if strength counts against
+    // skeleton.targetSessions, every lift silently deletes a ride.
+    //
+    // hoursPerWeek is deliberately tight (3h, not roomyFixture's 8h): at 8h
+    // generateWorkouts produces only sessions well over
+    // STRENGTH_SESSION_MINS (45), so an appended-before-the-cap 45min lift
+    // always sorts last and never displaces anything — a mutation that
+    // moves the append before `.slice(0, sessions)` would still pass this
+    // assertion by accident. At 3h several endurance fillers land under 45
+    // minutes, so a pre-cap lift genuinely outranks and bumps one during
+    // the duration-descending sort+slice, which is what actually pins the
+    // "strength never spends the endurance budget" constraint.
+    const input = {
+      ...baseInput,
+      hoursPerWeek: 3,
+      availableBlocksPerDay: blocksPerDay([120, 120, 120, 120, 120, 120, 120]),
+      skeleton: { ...baseInput.skeleton, targetSessions: 5 },
+    };
+    const without = materializeWeek({ ...input, oneRms: null });
+    const with_ = materializeWeek({ ...input, oneRms: ONE_RMS });
+
+    const enduranceCount = (r: typeof without) =>
+      r.week.days
+        .flatMap((d) => d.workouts)
+        .filter((w) => w.sport !== "Strength").length;
+
+    expect(enduranceCount(with_)).toBe(enduranceCount(without));
+  });
+
+  it("drops to one strength session in taper", () => {
+    const result = materializeWeek({
+      ...roomyFixture,
+      skeleton: { ...roomyFixture.skeleton, phase: "taper" as const },
+      oneRms: ONE_RMS,
+    });
+    const strength = result.week.days
+      .flatMap((d) => d.workouts)
+      .filter((w) => w.sport === "Strength");
+    expect(strength).toHaveLength(1);
+  });
+
+  it("carries the phase's prescription on the session", () => {
+    const result = materializeWeek({
+      ...roomyFixture,
+      skeleton: { ...roomyFixture.skeleton, phase: "base" as const },
+      oneRms: ONE_RMS,
+    });
+    const strength = result.week.days
+      .flatMap((d) => d.workouts)
+      .find((w) => w.sport === "Strength")!;
+    expect(strength.exercises).toHaveLength(4);
+    expect(strength.exercises![0].sets).toBe(4); // base: 4x8
+  });
+
+  it("plans no strength when the athlete has set no maxes", () => {
+    // v1 treats strength as opt-in: the four Settings fields are the
+    // opt-in. An athlete who has set none gets exactly today's plan.
+    const result = materializeWeek({
+      ...roomyFixture,
+      oneRms: null,
+    });
+    expect(
+      result.week.days
+        .flatMap((d) => d.workouts)
+        .filter((w) => w.sport === "Strength")
+    ).toHaveLength(0);
+  });
+
+  it("never puts a strength session on an easy-energy block", () => {
+    // ENERGY_CEILING.easy excludes "strength" (Task 3). This asserts the
+    // placement path actually honors it, not just the table.
+    const easyBlocksPerDay: AvailabilityBlock[][] = Array.from(
+      { length: 7 },
+      () => [{ start: null, end: null, mins: 60, energy: "easy", sports: null }]
+    );
+    const result = materializeWeek({
+      ...baseInput,
+      availableBlocksPerDay: easyBlocksPerDay,
+      oneRms: ONE_RMS,
+    });
+    expect(
+      result.week.days
+        .flatMap((d) => d.workouts)
+        .filter((w) => w.sport === "Strength")
+    ).toHaveLength(0);
+  });
+});

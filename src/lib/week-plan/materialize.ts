@@ -38,6 +38,13 @@ import { resolvePlanStyle } from "@/lib/plan-style/resolve";
 import type { ReentryStage, SeasonMode } from "@/lib/season-mode/types";
 import { normalizeSeasonState } from "@/lib/season-mode/resolve";
 import { applyOffSeasonShaping } from "./off-season";
+import {
+  STRENGTH_SESSIONS_PER_WEEK,
+  STRENGTH_SESSIONS_PER_WEEK_TAPER,
+  STRENGTH_SESSION_MINS,
+  strengthPrescription,
+  type OneRepMaxes,
+} from "@/lib/strength/prescription";
 
 export interface EffectiveLoadInput {
   skeletonTarget: number;
@@ -158,6 +165,12 @@ export interface MaterializeInput {
    * docs/specs/2026-08-19-multi-a-race-transition-evidence.md §7.
    */
   previousARace?: { date: string; raceType: string } | null;
+  /**
+   * The athlete's per-lift maxima, or null when they have set none. Strength
+   * is opt-in: null means this week gets exactly the endurance plan it would
+   * have had before strength existed.
+   */
+  oneRms?: OneRepMaxes | null;
 }
 
 export interface MaterializeResult {
@@ -744,6 +757,43 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
           1
         )}h against a ${effectiveHours.toFixed(1)}h target`,
       });
+    }
+
+    // Appended AFTER every endurance-budget cap above — the initial
+    // `.slice(0, sessions)` on generateWorkouts' output AND the off-season
+    // reshape's own `shaped.workouts.slice(...)` — never inside either.
+    // Both of those enforce skeleton.targetSessions (or a shaping-reduced
+    // version of it), which is an ENDURANCE budget. Counting strength
+    // against it would mean every lift silently deletes a ride — see this
+    // plan's Global Constraints.
+    //
+    // Strength is opt-in via the athlete's 1RMs. No maxes set means no
+    // strength sessions, and a week identical to the pre-strength plan.
+    if (input.oneRms != null) {
+      const strengthCount =
+        skeleton.phase === "taper"
+          ? STRENGTH_SESSIONS_PER_WEEK_TAPER
+          : STRENGTH_SESSIONS_PER_WEEK;
+      const exercises = strengthPrescription(skeleton.phase, input.oneRms);
+      for (let i = 0; i < strengthCount; i++) {
+        workouts.push(
+          withPurpose({
+            day: 0, // placement decides the real day; this is a template
+            sport: "Strength",
+            type: "Strength",
+            durationMins: STRENGTH_SESSION_MINS,
+            intensity: `${exercises[0].sets}x${exercises[0].reps}`,
+            description: exercises
+              .map(
+                (e) =>
+                  `${e.lift} ${e.sets}x${e.reps}` +
+                  (e.targetLoadKg != null ? ` @ ${e.targetLoadKg}kg` : "")
+              )
+              .join(" · "),
+            exercises,
+          })
+        );
+      }
     }
 
     const taken = new Set<string>();

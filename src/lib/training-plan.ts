@@ -58,6 +58,7 @@ import {
   TRI_SECONDARY_FRACTION,
   TRI_SPLIT,
 } from "@/lib/plan-distribution-constants";
+import type { StrengthExercise } from "@/lib/strength/prescription";
 
 /**
  * The transaction handle `db.transaction()`'s callback receives. `Database`
@@ -82,6 +83,12 @@ export interface PlannedWorkout {
   purpose: Purpose;
   /** Below this the session no longer delivers its stimulus. */
   minEffectiveMins: number;
+  /**
+   * Present only when `sport === "Strength"`. The structured prescription
+   * behind `description`'s human-readable line — what the MCP tool and any
+   * future coach reason about, rather than re-parsing prose.
+   */
+  exercises?: StrengthExercise[];
 }
 
 export const PURPOSE_BY_TYPE: Record<string, Purpose> = {
@@ -91,6 +98,7 @@ export const PURPOSE_BY_TYPE: Record<string, Purpose> = {
   Tempo: "threshold",
   Intervals: "vo2max",
   Brick: "brick",
+  Strength: "strength",
 };
 
 /**
