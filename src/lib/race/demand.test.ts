@@ -3,7 +3,7 @@ import { eventDemand, type EventDemandInput } from "./demand";
 import { estimateSwimHours } from "./swim-time";
 import { triathlonLegsFor } from "./triathlon-legs";
 
-const ATHLETE = { ftp: { watts: 310, athleteSet: true }, massKg: 87 };
+const ATHLETE = { ftp: { watts: 310, source: "outdoor" as const }, massKg: 87 };
 const base: EventDemandInput = {
   sport: "Bike",
   raceType: "gran_fondo",
@@ -312,7 +312,7 @@ describe("eventDemand dispatches on sport", () => {
     stages: [],
     overrideWeeklyHours: null,
     expectedFinishHours: null,
-    ftp: { watts: 310, athleteSet: true },
+    ftp: { watts: 310, source: "outdoor" as const },
     massKg: 83,
     runPace: { secPerKm: 300, athleteSet: true },
     swimPace: null,
@@ -499,13 +499,39 @@ describe("eventDemand reports its confidence", () => {
     expect(result.confidence).toBe("low");
   });
 
+  it("is low, and names the indoor anchor, when the FTP used was indoor", () => {
+    const result = eventDemand({
+      ...BASE,
+      sport: "Bike",
+      ftp: { watts: 235, source: "indoor" },
+      runPace: null,
+    });
+    expect(result.available).toBe(true);
+    if (!result.available) return;
+    expect(result.confidence).toBe("low");
+    expect(result.confidenceReason).toMatch(/indoor/i);
+  });
+
+  it("does not call a synced FTP 'indoor'", () => {
+    const result = eventDemand({
+      ...BASE,
+      sport: "Bike",
+      ftp: { watts: 250, source: "synced" },
+      runPace: null,
+    });
+    expect(result.available).toBe(true);
+    if (!result.available) return;
+    expect(result.confidence).toBe("low");
+    expect(result.confidenceReason).not.toMatch(/indoor/i);
+  });
+
   it("takes the weakest anchor across a triathlon's three legs", () => {
     const result = eventDemand({
       ...BASE,
       sport: "Triathlon",
       raceType: "ironman",
       distanceKm: 226,
-      ftp: { watts: 310, athleteSet: true },
+      ftp: { watts: 310, source: "outdoor" as const },
       runPace: { secPerKm: 300, athleteSet: true },
       swimPace: { secPer100m: 120, athleteSet: false },
     });
@@ -528,7 +554,7 @@ describe("eventDemand reports its confidence", () => {
       sport: "Triathlon",
       raceType: "ironman",
       distanceKm: 226,
-      ftp: { watts: 310, athleteSet: true },
+      ftp: { watts: 310, source: "outdoor" as const },
       runPace: { secPerKm: 300, athleteSet: true },
       swimPace: { secPer100m: 120, athleteSet: false },
     });
@@ -544,7 +570,7 @@ describe("eventDemand reports its confidence", () => {
       sport: "Triathlon",
       raceType: "ironman",
       distanceKm: 226,
-      ftp: { watts: 310, athleteSet: true },
+      ftp: { watts: 310, source: "outdoor" as const },
       runPace: { secPerKm: 300, athleteSet: true },
       swimPace: { secPer100m: 120, athleteSet: true },
     });
@@ -566,7 +592,7 @@ describe("eventDemand reports its confidence", () => {
       raceType: "ironman",
       distanceKm: 226,
       expectedFinishHours: 11,
-      ftp: { watts: 310, athleteSet: true },
+      ftp: { watts: 310, source: "outdoor" as const },
       runPace: { secPerKm: 300, athleteSet: true },
       swimPace: { secPer100m: 120, athleteSet: true },
     });
@@ -607,7 +633,7 @@ describe("cycling demand is unchanged by v0.46", () => {
     stages: [],
     overrideWeeklyHours: null,
     expectedFinishHours: null,
-    ftp: { watts: 310, athleteSet: true },
+    ftp: { watts: 310, source: "outdoor" as const },
     massKg: 83,
     runPace: null,
     swimPace: null,

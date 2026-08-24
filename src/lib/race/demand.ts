@@ -21,6 +21,7 @@ import type { PlanSport } from "@/lib/plan-sport";
 import { DEMAND_CONSTANTS as C } from "./demand-constants";
 import { estimateRidingHours } from "./riding-time";
 import { estimateRunningHours } from "./running-time";
+import type { FtpSource } from "./service";
 import { estimateSwimHours } from "./swim-time";
 import { triathlonLegsFor } from "./triathlon-legs";
 
@@ -46,7 +47,7 @@ export interface EventDemandInput {
    * model, needs no anchor, and skips leg pricing entirely.
    */
   expectedFinishHours: number | null;
-  ftp: { watts: number; athleteSet: boolean } | null;
+  ftp: { watts: number; source: FtpSource } | null;
   massKg: number | null;
   runPace: { secPerKm: number; athleteSet: boolean } | null;
   swimPace: { secPer100m: number; athleteSet: boolean } | null;
@@ -119,13 +120,13 @@ export const DEMAND_UNAVAILABLE_COPY: Record<DemandUnavailableReason, string> =
  *
  * The `Triathlon` entry is currently UNREACHABLE, and is kept rather than
  * deleted because the day it becomes reachable is a known one. A triathlon's
- * `allAnchorsAthleteSet` requires `swimPace.athleteSet`, and there is no
- * athlete-set swim pace anywhere in this codebase: no `body_prefs` column
- * beside `ftpWatts` and `thresholdPaceSecPerKm`, no Settings control, and
- * `volume-inputs.ts` supplies swim pace only from `swimPaceFromHistory()`
- * with `athleteSet: false`. So a triathlon is pinned at "low" however much
- * the athlete configures. An earlier version of this comment claimed a swim
- * pace could be "typed into Settings"; it never could.
+ * `weakestAnchorSource` can only reach `"outdoor"` when `swimPace.athleteSet`
+ * is true, and there is no athlete-set swim pace anywhere in this codebase: no
+ * `body_prefs` column beside `ftpWatts` and `thresholdPaceSecPerKm`, no
+ * Settings control, and `volume-inputs.ts` supplies swim pace only from
+ * `swimPaceFromHistory()` with `athleteSet: false`. So a triathlon is pinned
+ * at "low" however much the athlete configures. An earlier version of this
+ * comment claimed a swim pace could be "typed into Settings"; it never could.
  */
 const ANCHOR_SET_COPY: Record<PlanSport, string> = {
   Bike: "Modelled from your FTP and the course profile.",
@@ -155,6 +156,55 @@ const ANCHOR_DERIVED_COPY: Record<PlanSport, string> = {
 };
 
 /**
+ * Confidence copy when the weakest anchor used was an athlete-set INDOOR
+ * FTP — not derived, but a real approximation for an outdoor estimate, so it
+ * gets its own sentence rather than folding into ANCHOR_DERIVED_COPY's
+ * "estimated" framing (indoor FTP is measured, just for the wrong venue).
+ *
+ * `Run`'s entry is unreachable in practice — a pure Run event's
+ * `weakestAnchorSource` only ever consults `runPace.athleteSet`, which has no
+ * indoor tier — kept anyway, same reasoning ANCHOR_SET_COPY's Triathlon
+ * entry gives for its own unreachable-until case.
+ */
+const ANCHOR_INDOOR_COPY: Record<PlanSport, string> = {
+  Bike: "Modelled from your indoor FTP — outdoor effort may differ. Set an outdoor FTP in Settings for a sharper figure.",
+  Run: "Modelled from your threshold pace and the course profile.",
+  Triathlon:
+    "Modelled partly from your indoor FTP — outdoor effort may differ. Set an outdoor FTP in Settings for a sharper figure.",
+};
+
+const FTP_SOURCE_RANK: Record<FtpSource, 0 | 1 | 2> = {
+  outdoor: 0,
+  indoor: 1,
+  synced: 2,
+};
+const FTP_SOURCE_BY_RANK: readonly FtpSource[] = [
+  "outdoor",
+  "indoor",
+  "synced",
+];
+
+/**
+ * A triathlon's weakestAnchorSource combines the FTP anchor's tri-state
+ * `source` with `runPace`/`swimPace`'s plain `athleteSet` booleans onto one
+ * scale. A boolean anchor is as good as `"outdoor"` when athlete-set, as bad
+ * as `"synced"` when derived — it never earns the `"indoor"` middle rank,
+ * which only an FTP anchor can.
+ */
+function weakestOfTriathlonAnchors(
+  swimAthleteSet: boolean,
+  ftp: { source: FtpSource } | null,
+  runAthleteSet: boolean
+): FtpSource {
+  const ranks: (0 | 1 | 2)[] = [
+    swimAthleteSet ? 0 : 2,
+    ftp ? FTP_SOURCE_RANK[ftp.source] : 2,
+    runAthleteSet ? 0 : 2,
+  ];
+  return FTP_SOURCE_BY_RANK[Math.max(...ranks)];
+}
+
+/**
  * Confidence copy when the athlete's own stated finish time won outright —
  * the "high" branch, set before the sport dispatch even runs. A single
  * sentence rather than a per-sport record like ANCHOR_SET_COPY: the athlete
@@ -182,8 +232,13 @@ interface Priced {
   totalHours: number;
   queenStageHours: number | null;
   queenStageKnown: boolean;
-  /** False as soon as any anchor used was derived rather than athlete-set. */
-  allAnchorsAthleteSet: boolean;
+  /**
+   * The weakest anchor used, on the shared `"outdoor" | "indoor" | "synced"`
+   * scale — `"outdoor"` when every anchor was athlete-set (or, for a boolean
+   * anchor, its equivalent), degrading toward `"synced"` as any anchor used
+   * was derived rather than set.
+   */
+  weakestAnchorSource: FtpSource;
 }
 
 /** Prices one distance/elevation pair for one sport, or says why it cannot. */
@@ -232,7 +287,7 @@ export function eventDemand(input: EventDemandInput): EventDemandResult {
       totalHours: input.expectedFinishHours,
       queenStageHours: null,
       queenStageKnown: false,
-      allAnchorsAthleteSet: true,
+      weakestAnchorSource: "outdoor",
     };
     confidence = "high";
     confidenceReason = STATED_FINISH_TIME_COPY;
@@ -261,10 +316,11 @@ export function eventDemand(input: EventDemandInput): EventDemandResult {
       totalHours: swimHours + bike.hours + run.hours,
       queenStageHours: null,
       queenStageKnown: false,
-      allAnchorsAthleteSet:
-        input.swimPace.athleteSet &&
-        (input.ftp?.athleteSet ?? false) &&
-        (input.runPace?.athleteSet ?? false),
+      weakestAnchorSource: weakestOfTriathlonAnchors(
+        input.swimPace.athleteSet,
+        input.ftp,
+        input.runPace?.athleteSet ?? false
+      ),
     };
   } else {
     // 3. Bike and Run share the stage / average-day structure. This is the
@@ -339,10 +395,12 @@ export function eventDemand(input: EventDemandInput): EventDemandResult {
       totalHours,
       queenStageHours,
       queenStageKnown,
-      allAnchorsAthleteSet:
+      weakestAnchorSource:
         sport === "Bike"
-          ? (input.ftp?.athleteSet ?? false)
-          : (input.runPace?.athleteSet ?? false),
+          ? (input.ftp?.source ?? "synced")
+          : input.runPace?.athleteSet
+            ? "outdoor"
+            : "synced",
     };
   }
 
@@ -355,10 +413,13 @@ export function eventDemand(input: EventDemandInput): EventDemandResult {
     : dailyRateHours;
 
   if (confidence == null) {
-    confidence = priced.allAnchorsAthleteSet ? "medium" : "low";
-    confidenceReason = priced.allAnchorsAthleteSet
-      ? ANCHOR_SET_COPY[input.sport]
-      : ANCHOR_DERIVED_COPY[input.sport];
+    confidence = priced.weakestAnchorSource === "outdoor" ? "medium" : "low";
+    confidenceReason =
+      priced.weakestAnchorSource === "outdoor"
+        ? ANCHOR_SET_COPY[input.sport]
+        : priced.weakestAnchorSource === "indoor"
+          ? ANCHOR_INDOOR_COPY[input.sport]
+          : ANCHOR_DERIVED_COPY[input.sport];
   }
 
   // Three individually sound anchors do not compose into a sound triathlon
@@ -373,7 +434,7 @@ export function eventDemand(input: EventDemandInput): EventDemandResult {
   //
   // LATENT, deliberately. As ANCHOR_SET_COPY explains, a triathlon cannot
   // currently reach "medium" at all — there is no athlete-set swim pace in
-  // this codebase, so `allAnchorsAthleteSet` is structurally false for the
+  // this codebase, so `weakestAnchorSource` never reaches `"outdoor"` for the
   // sport and this block never executes in production. It is kept as a
   // pre-placed guard rather than deleted: the moment a swim anchor is added,
   // triathlon would jump from "low" straight to "medium" as a side effect of
