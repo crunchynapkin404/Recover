@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeAll, afterAll } from "vitest";
-import { eq, inArray } from "drizzle-orm";
+import { inArray } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import type { DaySlot } from "@/lib/week-plan/types";
 import { raceCard, simulateRaceForm } from "./outlook";
@@ -12,7 +12,8 @@ const NO_RACE = "test-outlook-no-race";
 const NO_PLAN = "test-outlook-no-plan";
 const NO_LOAD = "test-outlook-no-load";
 const CAPPED = "test-outlook-capped";
-const ALL_USERS = [NO_RACE, NO_PLAN, NO_LOAD, CAPPED];
+const INDOOR_FTP = "test-race-card-indoor-ftp-user";
+const ALL_USERS = [NO_RACE, NO_PLAN, NO_LOAD, CAPPED, INDOOR_FTP];
 
 const WEEK_START = "2026-07-20"; // Monday
 const NOW = new Date("2026-07-22T09:00:00"); // Wednesday of that week
@@ -132,6 +133,9 @@ describe.skipIf(!hasDb)("raceCard", () => {
     await db
       .delete(schema.races)
       .where(inArray(schema.races.userId, ALL_USERS));
+    await db
+      .delete(schema.bodyPrefs)
+      .where(inArray(schema.bodyPrefs.userId, ALL_USERS));
     await db.delete(schema.users).where(inArray(schema.users.id, ALL_USERS));
   });
 
@@ -176,7 +180,7 @@ describe.skipIf(!hasDb)("raceCard", () => {
   });
 
   it("uses indoor FTP for race pacing when outdoor is unset", async () => {
-    const userId = "test-race-card-indoor-ftp-user";
+    const userId = INDOOR_FTP;
     await seedUser(userId);
     await db.insert(schema.races).values({
       userId,
@@ -199,12 +203,8 @@ describe.skipIf(!hasDb)("raceCard", () => {
     if (!card.pacing?.available) return;
     expect(card.pacing.confidence).toBe("low");
     expect(card.pacing.why).toMatch(/indoor/i);
-
-    await db
-      .delete(schema.bodyPrefs)
-      .where(eq(schema.bodyPrefs.userId, userId));
-    await db.delete(schema.races).where(eq(schema.races.userId, userId));
-    await db.delete(schema.users).where(eq(schema.users.id, userId));
+    // Cleanup: the shared afterAll deletes races/bodyPrefs/users for every id
+    // in ALL_USERS, including INDOOR_FTP, unconditionally on pass or fail.
   });
 
   describe("simulateRaceForm", () => {

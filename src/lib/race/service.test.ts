@@ -36,9 +36,9 @@ describe("resolveFtpAnchor", () => {
   it("falls back to synced eFTP when neither is set", () => {
     const result = resolveFtpAnchor(
       { ftpWatts: null, ftpWattsIndoor: null },
-      240
+      240.6
     );
-    expect(result).toEqual({ watts: 240, source: "synced" });
+    expect(result).toEqual({ watts: 241, source: "synced" });
   });
 
   it("returns null when there is nothing to anchor on", () => {

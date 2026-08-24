@@ -769,61 +769,69 @@ describe.skipIf(!hasDb)("importUserData", () => {
       ])
       .onConflictDoNothing();
 
-    await db.insert(schema.bodyPrefs).values({
-      userId: PREFS_SOURCE,
-      maxHr: 188,
-      ftpWatts: 250,
-      ftpWattsIndoor: 235,
-    });
+    // Wrapped in try/finally so a thrown assertion still lets cleanup run —
+    // bodyPrefs.userId is UNIQUE, so a row left behind by a failed run would
+    // otherwise fail the next run's insert with a duplicate-key error
+    // instead of showing the real failure.
+    try {
+      await db.insert(schema.bodyPrefs).values({
+        userId: PREFS_SOURCE,
+        maxHr: 188,
+        ftpWatts: 250,
+        ftpWattsIndoor: 235,
+      });
 
-    // Export as JSON to simulate a real import from req.json().
-    const fullExport = JSON.parse(
-      JSON.stringify(await exportUserData(db, PREFS_SOURCE))
-    );
+      // Export as JSON to simulate a real import from req.json().
+      const fullExport = JSON.parse(
+        JSON.stringify(await exportUserData(db, PREFS_SOURCE))
+      );
 
-    // Trim to just bodyPrefs to keep this test independent and avoid
-    // duplicate-key violations on singleton tables.
-    const exported = {
-      ...fullExport,
-      body_prefs: fullExport.body_prefs,
-      wellness_daily: [],
-      daily_metrics: [],
-      chat_threads: [],
-      chat_messages: [],
-      coach_memories: [],
-      biomarkers: [],
-      notification_prefs: [],
-      journal_prefs: [],
-      surface_views: [],
-      llm_settings: [],
-      training_plans: [],
-      training_blocks: [],
-      week_plans: [],
-      plan_adjustments: [],
-      activities: [],
-      activity_streams: [],
-      races: [],
-      api_tokens: [],
-      connections: [],
-      webhook_subscriptions: [],
-      llm_usage: [],
-    };
+      // Trim to just bodyPrefs to keep this test independent and avoid
+      // duplicate-key violations on singleton tables.
+      const exported = {
+        ...fullExport,
+        body_prefs: fullExport.body_prefs,
+        wellness_daily: [],
+        daily_metrics: [],
+        chat_threads: [],
+        chat_messages: [],
+        coach_memories: [],
+        biomarkers: [],
+        notification_prefs: [],
+        journal_prefs: [],
+        surface_views: [],
+        llm_settings: [],
+        training_plans: [],
+        training_blocks: [],
+        week_plans: [],
+        plan_adjustments: [],
+        activities: [],
+        activity_streams: [],
+        races: [],
+        api_tokens: [],
+        connections: [],
+        webhook_subscriptions: [],
+        llm_usage: [],
+      };
 
-    // Import into a fresh target user to verify FK remap and field copy.
-    await importUserData(db, PREFS_TARGET, exported);
+      // Import into a fresh target user to verify FK remap and field copy.
+      await importUserData(db, PREFS_TARGET, exported);
 
-    const [imported] = await db
-      .select()
-      .from(schema.bodyPrefs)
-      .where(eq(schema.bodyPrefs.userId, PREFS_TARGET));
+      const [imported] = await db
+        .select()
+        .from(schema.bodyPrefs)
+        .where(eq(schema.bodyPrefs.userId, PREFS_TARGET));
 
-    expect(imported).toBeDefined();
-    expect(imported?.maxHr).toBe(188);
-    expect(imported?.ftpWatts).toBe(250);
-    expect(imported?.ftpWattsIndoor).toBe(235);
-
-    // Cleanup the test users.
-    await db.delete(schema.users).where(eq(schema.users.id, PREFS_SOURCE));
-    await db.delete(schema.users).where(eq(schema.users.id, PREFS_TARGET));
+      expect(imported).toBeDefined();
+      expect(imported?.maxHr).toBe(188);
+      expect(imported?.ftpWatts).toBe(250);
+      expect(imported?.ftpWattsIndoor).toBe(235);
+    } finally {
+      // Cleanup the test users. bodyPrefs.userId references users.id with
+      // onDelete: "cascade" (schema.ts), so deleting the users is enough to
+      // remove their bodyPrefs rows too.
+      await db.delete(schema.users).where(eq(schema.users.id, PREFS_SOURCE));
+      await db.delete(schema.users).where(eq(schema.users.id, PREFS_TARGET));
+    }
   });
 });

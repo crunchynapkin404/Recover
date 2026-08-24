@@ -200,12 +200,14 @@ describe.skipIf(!hasDb)("setBodyPrefs — honest wake time", () => {
         sleepNeedSecs: 28800,
         maxHr: 185,
         ftpWatts: 250,
+        ftpWattsIndoor: 235,
       })
     );
     expect(set.ok).toBe(true);
     let saved = await row();
     expect(saved?.maxHr).toBe(185);
     expect(saved?.ftpWatts).toBe(250);
+    expect(saved?.ftpWattsIndoor).toBe(235);
 
     const cleared = await setBodyPrefs(
       prefs({ wakeTime: "07:00", sleepNeedSecs: 28800 })
@@ -214,6 +216,7 @@ describe.skipIf(!hasDb)("setBodyPrefs — honest wake time", () => {
     saved = await row();
     expect(saved?.maxHr).toBeNull();
     expect(saved?.ftpWatts).toBeNull();
+    expect(saved?.ftpWattsIndoor).toBeNull();
   });
 
   it("rejects out-of-range thresholds and does not write", async () => {
@@ -238,8 +241,14 @@ describe.skipIf(!hasDb)("setBodyPrefs — honest wake time", () => {
     );
     expect(badFtp.ok).toBe(false);
 
+    const badIndoorFtp = await setBodyPrefs(
+      prefs({ wakeTime: "07:00", sleepNeedSecs: 28800, ftpWattsIndoor: 10 })
+    );
+    expect(badIndoorFtp.ok).toBe(false);
+
     const saved = await row();
     expect(saved?.maxHr).toBe(185); // unchanged
     expect(saved?.ftpWatts).toBe(250);
+    expect(saved?.ftpWattsIndoor).toBeNull();
   });
 });

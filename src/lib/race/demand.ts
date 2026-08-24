@@ -165,6 +165,12 @@ const ANCHOR_DERIVED_COPY: Record<PlanSport, string> = {
  * `weakestAnchorSource` only ever consults `runPace.athleteSet`, which has no
  * indoor tier — kept anyway, same reasoning ANCHOR_SET_COPY's Triathlon
  * entry gives for its own unreachable-until case.
+ *
+ * `Triathlon`'s entry is, for now, equally unreachable, for the identical
+ * reason ANCHOR_SET_COPY's comment gives at length: `volume-inputs.ts` always
+ * supplies `swimPace.athleteSet: false`, so `weakestOfTriathlonAnchors`
+ * always sees rank 2 from the swim anchor and returns `"synced"`, never
+ * `"indoor"`, in real data today.
  */
 const ANCHOR_INDOOR_COPY: Record<PlanSport, string> = {
   Bike: "Modelled from your indoor FTP — outdoor effort may differ. Set an outdoor FTP in Settings for a sharper figure.",

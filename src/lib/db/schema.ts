@@ -587,7 +587,7 @@ export const bodyPrefs = pgTable("body_prefs", {
   maxHr: integer("max_hr"),
   ftpWatts: integer("ftp_watts"),
   /**
-   * v0.117: the indoor/trainer FTP, distinct from the outdoor one above.
+   * v0.118: the indoor/trainer FTP, distinct from the outdoor one above.
    * null = not set. Used ONLY as a fallback anchor when ftpWatts is null —
    * races have no indoor concept in this app, so this can never mean "use it
    * for race day" directly. See docs/specs/2026-08-24-indoor-ftp-design.md.

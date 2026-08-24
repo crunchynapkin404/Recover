@@ -449,8 +449,11 @@ export async function assembleForecastInputs(
  * a focused reader is cheaper to understand than a shared one carrying six
  * callers' worth of options.
  *
- * Athlete-set values win over synced ones, matching demand.ts's `athleteSet`
- * precedence.
+ * Athlete-set values win over synced ones. FTP's precedence is returned as
+ * `ftpSource: FtpSource` (outdoor → indoor → synced), matching demand.ts's
+ * `weakestAnchorSource` tri-state; `runPace` stays a plain athlete-set vs.
+ * derived boolean, matching demand.ts's `runPace.athleteSet` (and
+ * `swimPace.athleteSet`, for the leg this function doesn't resolve).
  */
 export async function pacingAnchors(userId: string): Promise<{
   ftpWatts: number | null;

@@ -125,9 +125,15 @@ identical pattern to the existing `ftpWatts` check.
 
 ## Touch points with no design decision
 
-`icu-sport-settings-shape.ts` and `export/import-user.ts` add the new field
-for symmetry — both already round-trip `ftpWatts` the same way and need no new
-reasoning, just the second field.
+`export/import-user.ts` adds the new field for symmetry — it already
+round-trips `ftpWatts` the same way and needs no new reasoning, just the
+second field.
+
+`icu-sport-settings-shape.ts` was investigated and found to be unrelated: it
+maps `ftp` from intervals.icu's own `SportSettings` API payload — a separate,
+external data source (one FTP per intervals.icu profile, spanning
+`Ride`+`VirtualRide`) — not from this app's `bodyPrefs` table. It needs no
+change and was correctly left alone.
 
 ## Testing
 
