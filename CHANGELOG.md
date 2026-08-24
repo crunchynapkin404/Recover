@@ -26,13 +26,14 @@ new feature below.
 Settings gains four optional fields — Squat, Bench, Deadlift, Overhead Press
 (kg) — beside the existing FTP/pace thresholds. Set any one of them and the
 week planner starts placing structured strength sessions (2×/week, dropping
-to 1×/week during taper) through the same skeleton/materialize/fill pipeline
-Bike/Run/Swim already use: sets, reps and a %1RM-derived target load, keyed
-off the plan's existing per-week phase (`base`/`build`/`peak`/`taper`/
-`recovery`) rather than a second, separate progression counter. A lift with
-no 1RM set still shows its sets and reps, with no fabricated load figure.
-`get_strength_prescription` gives the coach and any MCP client the same
-table — tool surface 58 → 59, additive only (`docs/API-STABILITY.md`).
+to 1×/week during taper, and to zero on a race week) through the same
+skeleton/materialize/fill pipeline Bike/Run/Swim already use: sets, reps and
+a %1RM-derived target load, keyed off the plan's existing per-week phase
+(`base`/`build`/`peak`/`taper`/`recovery`) rather than a second, separate
+progression counter. A lift with no 1RM set still shows its sets and reps,
+with no fabricated load figure. `get_strength_prescription` gives the coach
+and any MCP client the same table — tool surface 58 → 59, additive only
+(`docs/API-STABILITY.md`).
 
 ### Opt-in, and it stays that way
 

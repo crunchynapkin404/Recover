@@ -8,6 +8,7 @@
 import { and, desc, eq, gte, lt, ne, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { localYmd } from "@/lib/charts";
+import { canonicalSport } from "@/lib/canonical-sport";
 import type { DayActuals, DaySlot } from "./types";
 
 /**
@@ -67,7 +68,15 @@ export async function deriveDayActuals(
     });
     acc.count += 1;
     acc.secs += a.durationS ?? 0;
-    acc.load += a.load ?? 0;
+    // Strength never merges into an endurance metric (the spec's central
+    // rule, enforced for activityLoad() by Task 6). `a.load` here is the
+    // RAW PROVIDER figure, not activityLoad()'s output, so that guard does
+    // not cover this path on its own — without this check a lift's provider
+    // load flows straight into weekActuals' actualLoad/unplannedLoad, and
+    // from there into the ramp clamp and adherence.
+    if (canonicalSport(a.sport) !== "Strength") {
+      acc.load += a.load ?? 0;
+    }
   }
   return out;
 }

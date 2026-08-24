@@ -150,6 +150,34 @@ describe.skipIf(!hasDb)("deriveDayActuals", () => {
     expect(out["2026-07-30"]).toBeDefined();
     expect(Object.keys(out)).not.toContain("2026-07-29");
   });
+
+  it("FIX 1: excludes a strength activity's raw provider load from the day sum", async () => {
+    // A synced WeightTraining row carries the PROVIDER's own load figure —
+    // not activityLoad()'s output, so Task 6's `activityLoad()` guard does
+    // not run on this path at all. Without a sport filter here, a strap's
+    // ~45 provider load for a lift would flow straight into weekActuals'
+    // actualLoad/unplannedLoad, the ramp clamp and adherence.
+    await addActivity({
+      externalId: "lift-provider-load",
+      sport: "WeightTraining",
+      start: "2026-08-03T07:00:00",
+      load: 45,
+    });
+    await addActivity({
+      externalId: "ride-same-day",
+      sport: "Ride",
+      start: "2026-08-03T17:00:00",
+      load: 55,
+    });
+
+    const out = await deriveDayActuals(TEST_USER, "2026-08-03", "2026-08-03");
+
+    // Only the ride's load counts; the lift's raw 45 must not be added in.
+    expect(out["2026-08-03"].load).toBe(55);
+    // The lift still counts as an activity for count/secs purposes — only
+    // its LOAD is excluded, not its existence.
+    expect(out["2026-08-03"].count).toBe(2);
+  });
 });
 
 function sw(o: Partial<ScheduledWorkout> = {}): ScheduledWorkout {

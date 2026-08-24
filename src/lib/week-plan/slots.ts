@@ -137,6 +137,16 @@ export function fitToBlock(
 } | null {
   if (roomMins <= 0) return null;
   if (roomMins >= w.durationMins) return { workout: w, how: "whole" };
+
+  // A strength session's duration is not a dial: its minutes exist to hold
+  // a fixed number of working sets, and shortening it while keeping every
+  // set intact is a rest-interval cut wearing the name "shortened" — the
+  // opposite of what compressing an endurance session means. A lift fits a
+  // block whole or not at all; returning null routes it through the
+  // caller's existing move/drop/substitute path instead of silently
+  // trimming rest between sets.
+  if (w.purpose === "strength") return null;
+
   if (roomMins >= PURPOSE_FLOORS[w.purpose]) {
     return { workout: { ...w, durationMins: roomMins }, how: "compressed" };
   }

@@ -22,6 +22,18 @@ const MAX_THRESHOLD_PACE = 600;
  */
 const MIN_ONE_RM_KG = 10;
 const MAX_ONE_RM_KG = 400;
+/**
+ * Display names for the validation message below — keyed by the field name
+ * with its `OneRmKg` suffix already stripped. Without this the message
+ * rendered the raw camelCase field name verbatim ("overheadPress 1RM must
+ * be between...").
+ */
+const LIFT_DISPLAY_NAMES: Record<string, string> = {
+  squat: "Squat",
+  bench: "Bench",
+  deadlift: "Deadlift",
+  overheadPress: "Overhead press",
+};
 /** Threshold changes re-shape computed load this far back. */
 const RECOMPUTE_WINDOW_DAYS = 90;
 
@@ -105,9 +117,11 @@ export async function setBodyPrefs(input: {
         value < MIN_ONE_RM_KG ||
         value > MAX_ONE_RM_KG)
     ) {
+      const liftKey = field.replace(/OneRmKg$/, "");
+      const liftName = LIFT_DISPLAY_NAMES[liftKey] ?? liftKey;
       return {
         ok: false,
-        message: `${field.replace(/OneRmKg$/, "")} 1RM must be between ${MIN_ONE_RM_KG} and ${MAX_ONE_RM_KG} kg.`,
+        message: `${liftName} 1RM must be between ${MIN_ONE_RM_KG} and ${MAX_ONE_RM_KG} kg.`,
       };
     }
   }

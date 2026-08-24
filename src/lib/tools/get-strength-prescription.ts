@@ -6,11 +6,11 @@ import {
   strengthPrescription,
   oneRmsFromBodyPrefs,
 } from "@/lib/strength/prescription";
-import type { PlanPhase } from "@/lib/plan-phase";
+import { PLAN_PHASES, type PlanPhase } from "@/lib/plan-phase";
 
 const parameters = z.object({
   phase: z
-    .enum(["base", "build", "peak", "taper", "recovery"])
+    .enum(PLAN_PHASES)
     .describe("Which periodization phase to prescribe for."),
 });
 

@@ -67,7 +67,7 @@ rows below the FTP line are no longer visible on the vendor's board at all
 (closed or merged there since 2026-08-08) — kept at their last-known count
 since Recover's own status hasn't changed.
 
-| Request                                        | Votes | Recover at v0.118.0 |
+| Request                                        | Votes | Recover at v0.119.0 |
 | ---------------------------------------------- | ----: | ------------------- |
 | Choosing a new goal before the last one's done |   253 | **Gap** → Phase 3   |
 | Availability beyond one week ahead             |   161 | **Leads**           |

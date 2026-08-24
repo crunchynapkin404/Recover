@@ -77,11 +77,18 @@ Block`, no `export`). The spec's "keyed on the exact same `Block["phase"]`
    set is "exactly the three branches `generateWorkouts` has";
    `requirePlanSport` throws on anything else. Strength sessions are appended
    alongside the endurance week, not dispatched through `generateWorkouts`.
-4. **`STRENGTH_SESSION_LOAD` is display-only.** The spec called it
-   `actualLoad`. It cannot be, without leaking into `effectiveWeekLoad`'s
-   feedback loop (`actuals.ts:95-96` sums `actualLoad + unplannedLoad`).
-   Task 6 makes strength contribute `null` load; Task 9 renders the flat 30
-   as a label only.
+4. **`STRENGTH_SESSION_LOAD` is display-only — and, as it turned out, never
+   displayed.** The spec called it `actualLoad`. It cannot be, without
+   leaking into `effectiveWeekLoad`'s feedback loop (`actuals.ts:95-96` sums
+   `actualLoad + unplannedLoad`). Task 6 makes strength contribute `null`
+   load. **Corrected post-implementation:** no task ever wired
+   `STRENGTH_SESSION_LOAD` into a UI surface — Task 9 renders a completed
+   strength day's sets/reps/kg prescription, not a load figure of any kind.
+   The final whole-branch review found the constant dead (its only readers
+   were its own doc comment and a tautological test) and deleted it rather
+   than build the display it was never given: a completed strength day reads
+   "Completed," with no load number attached, exactly the spec's own
+   restraint about not claiming more than the provider payload supports.
 
 ---
 

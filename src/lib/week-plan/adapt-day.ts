@@ -117,7 +117,15 @@ function handleMissedYesterday(
       d.status !== "completed" &&
       d.status !== "race"
   );
-  const totalMins = toDrop.reduce((s, wo) => s + wo.durationMins, 0);
+  // A missed lift is not endurance debt: strength never merges into an
+  // endurance metric, and that includes the MINUTES an endurance session
+  // grows by here, not just the load figures elsewhere in this codebase.
+  // Without this exclusion a missed 45min lift grew three 60min rides to
+  // 75min each — inflating each ride's minutes by a session that was never
+  // itself endurance to begin with.
+  const totalMins = toDrop
+    .filter((wo) => wo.purpose !== "strength")
+    .reduce((s, wo) => s + wo.durationMins, 0);
   const share = remaining.length ? totalMins / remaining.length : 0;
   for (const d of remaining) {
     const w = d.workouts[0]!;
@@ -374,7 +382,16 @@ export function adaptDay(input: AdaptDayInput): AdaptDayResult {
     };
     const before = [{ ...day, workouts: day.workouts.map((w) => ({ ...w })) }];
     if (input.band === "red") {
-      if (isQuality(tWorkout)) {
+      // A strength session degrades exactly like a quality one: substitute
+      // to recovery (SUBSTITUTE_TO.strength, availability/types.ts) rather
+      // than shrink its duration. Cutting a lift's minutes while keeping
+      // every prescribed set is a rest-interval cut, not a reduction — the
+      // opposite of spec D3's intent. Sharing this branch with isQuality is
+      // deliberate: both need the identical "substitute to a full recovery
+      // session, or move/drop when not even that fits" behaviour, and the
+      // reason strings below already read the replaced session's own
+      // `type`, so nothing here needs to know it was a lift.
+      if (isQuality(tWorkout) || tWorkout.purpose === "strength") {
         if (!blockFits(day, tWorkout.blockIdx, RED_RECOVERY_MINS)) {
           // Not even a recovery-length substitute fits today's block — most
           // often reached when the band worsens to red in the same call as
@@ -414,6 +431,12 @@ export function adaptDay(input: AdaptDayInput): AdaptDayResult {
                 intensity: "Recovery",
                 durationMins: RED_RECOVERY_MINS,
                 description: "Easy recovery session — readiness is red",
+                // A lift's structured prescription belongs to the session it
+                // was written for, not to the recovery session replacing it —
+                // carrying it over would render sets/reps/kg under a
+                // "Recovery" header (week-day-list.tsx keys its description
+                // line off `exercises`, not off `type`).
+                exercises: undefined,
               }),
             ],
             readinessBase: base,
@@ -442,7 +465,13 @@ export function adaptDay(input: AdaptDayInput): AdaptDayResult {
           reason: `readiness red — duration reduced ${Math.round((1 - RED_ENDURANCE_SCALE) * 100)}%`,
         });
       }
-    } else {
+    } else if (tWorkout.purpose !== "strength") {
+      // Amber never touches a lift (see the red branch's comment above): a
+      // strength session's duration is not a dial, and amber has no
+      // lesser-stimulus tier to step down to the way a quality session
+      // steps to its STEP_DOWN target. Left intact — no scaling, no type
+      // change, no adjustment logged, exactly the same no-op shape as the
+      // "already adapted" / "green" cases elsewhere in this function.
       const steppedType = isQuality(tWorkout)
         ? (STEP_DOWN[tWorkout.type] ?? "Endurance")
         : tWorkout.type;

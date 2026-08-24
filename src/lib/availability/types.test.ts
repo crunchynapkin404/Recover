@@ -207,8 +207,13 @@ describe("strength as a Purpose", () => {
   it("is not admitted on an easy day", () => {
     // A fixed-load lift under low expected energy is closer to threshold/
     // vo2max risk than to aerobic_base — excluded for the same reason those
-    // are. This is the whole readiness-gating mechanism for strength; there
-    // is deliberately no bespoke intensity-scaling branch anywhere.
+    // are. This is the pre-placement admission gate, not the whole story:
+    // once placed, a lift's duration is never scaled either — adaptDay
+    // (week-plan/adapt-day.ts) substitutes it to recovery via
+    // SUBSTITUTE_TO.strength on red readiness, and leaves it exactly as
+    // prescribed on amber. A lift fits a block whole or not at all
+    // (fitToBlock, week-plan/slots.ts) — never compressed or duration-
+    // scaled in place.
     expect(ENERGY_CEILING.easy).not.toContain("strength");
   });
 

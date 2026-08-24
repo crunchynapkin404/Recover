@@ -1,6 +1,7 @@
 // Projecting a week's remaining days as load. Pure — no DB, no clock; the
 // caller resolves the rate and passes today in.
 import type { DaySlot } from "./types";
+import { plannedMins } from "./fill";
 
 /** Statuses whose sessions are still ahead of the athlete. */
 function isForecastable(d: DaySlot): boolean {
@@ -10,8 +11,18 @@ function isForecastable(d: DaySlot): boolean {
   );
 }
 
+/**
+ * One day's ENDURANCE minutes. Strength is deliberately excluded — same
+ * reasoning as `plannedMins` (fill.ts), whose per-workout predicate this
+ * reuses by calling it on a single-day array rather than re-stating the
+ * `purpose === "strength"` exclusion a third time. A `perMin` load-per-minute
+ * rate is derived from `materialized_mins`, an endurance-only total (Task 7);
+ * multiplying it by a minutes figure that silently included strength would
+ * book an endurance load rate onto a lift's minutes — exactly the race
+ * forecast's CTL/ATL/TSB and outlook band inflation this exists to prevent.
+ */
 function dayWorkoutMins(d: DaySlot): number {
-  return d.workouts.reduce((s, x) => s + (x.durationMins ?? 0), 0);
+  return plannedMins([d]);
 }
 
 const round1 = (n: number) => Math.round(n * 10) / 10;

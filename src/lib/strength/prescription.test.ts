@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { PLAN_PHASES } from "@/lib/plan-phase";
 import {
   oneRmsFromBodyPrefs,
-  STRENGTH_SESSION_LOAD,
   strengthPrescription,
   type OneRepMaxes,
 } from "./prescription";
@@ -103,12 +102,6 @@ describe("strengthPrescription", () => {
     const rx = strengthPrescription("base", null);
     expect(rx).toHaveLength(4);
     expect(rx.every((e) => e.targetLoadKg === null)).toBe(true);
-  });
-
-  it("keeps strength load below the endurance duration rung", () => {
-    // 30 < DURATION_TSS_PER_HOUR (40). This figure must never read as
-    // commensurate with an endurance TSS.
-    expect(STRENGTH_SESSION_LOAD).toBe(30);
   });
 });
 

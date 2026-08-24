@@ -308,13 +308,29 @@ describe.skipIf(!hasDb)("setBodyPrefs — honest wake time", () => {
       prefs({ wakeTime: "07:00", sleepNeedSecs: 28800, squatOneRmKg: 5 })
     );
     expect(tooLow.ok).toBe(false);
-    expect(tooLow.message).toMatch(/squat 1RM must be between 10 and 400 kg/);
+    // FIX 7: was the raw camelCase field name ("squat 1RM must be..."); now
+    // a proper display name.
+    expect(tooLow.message).toMatch(/Squat 1RM must be between 10 and 400 kg/);
 
     const tooHigh = await setBodyPrefs(
       prefs({ wakeTime: "07:00", sleepNeedSecs: 28800, benchOneRmKg: 500 })
     );
     expect(tooHigh.ok).toBe(false);
-    expect(tooHigh.message).toMatch(/bench 1RM must be between 10 and 400 kg/);
+    expect(tooHigh.message).toMatch(/Bench 1RM must be between 10 and 400 kg/);
+
+    // FIX 7: the multi-word lift name must not render as raw camelCase
+    // ("overheadPress 1RM must be...").
+    const overheadTooHigh = await setBodyPrefs(
+      prefs({
+        wakeTime: "07:00",
+        sleepNeedSecs: 28800,
+        overheadPressOneRmKg: 500,
+      })
+    );
+    expect(overheadTooHigh.ok).toBe(false);
+    expect(overheadTooHigh.message).toMatch(
+      /Overhead press 1RM must be between 10 and 400 kg/
+    );
 
     const saved = await row();
     expect(saved?.squatOneRmKg).toBe(120); // unchanged

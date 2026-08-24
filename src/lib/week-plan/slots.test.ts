@@ -257,4 +257,33 @@ describe("fitToBlock", () => {
   it("returns null instead of a negative-duration workout when room is negative", () => {
     expect(fitToBlock(workout(), -10)).toBeNull();
   });
+
+  it("FIX 3: never compresses a strength session — fits whole or not at all", () => {
+    // A lift's minutes hold a fixed number of working sets; compressing it
+    // to roomMins would keep every set while quietly cutting rest between
+    // them — a rest-interval cut wearing the label "shortened".
+    const lift = workout({
+      sport: "Strength",
+      type: "Strength",
+      purpose: "strength",
+      durationMins: 45,
+      minEffectiveMins: 20,
+    });
+    // 30min room is >= PURPOSE_FLOORS.strength (20), so the generic
+    // compress branch would otherwise have compressed it.
+    expect(fitToBlock(lift, 30)).toBeNull();
+  });
+
+  it("FIX 3: still fits a strength session whole when the room is enough", () => {
+    const lift = workout({
+      sport: "Strength",
+      type: "Strength",
+      purpose: "strength",
+      durationMins: 45,
+      minEffectiveMins: 20,
+    });
+    const r = fitToBlock(lift, 60)!;
+    expect(r.how).toBe("whole");
+    expect(r.workout.durationMins).toBe(45);
+  });
 });

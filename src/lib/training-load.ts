@@ -122,8 +122,9 @@ export function activityLoad(
   // heart-rate reserve, and the duration rung assumes an easy zone-2 hour.
   // A lift satisfies none of those, so booking it as any of them inflates
   // CTL/ATL with work that is real but not endurance. Refusing is the
-  // honest outcome; the session is still tracked and displayed, at a flat
-  // figure of its own (STRENGTH_SESSION_LOAD) that never enters this series.
+  // honest outcome: the activity itself still exists wherever activities
+  // are listed, but it contributes nothing to this series — there is no
+  // flat substitute figure invented for it here or anywhere else.
   if (canonicalSport(activity.sport) === "Strength") return null;
 
   if (activity.load != null && activity.load > 0) {

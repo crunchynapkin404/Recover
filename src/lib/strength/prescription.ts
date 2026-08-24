@@ -100,17 +100,6 @@ const PHASE_TABLE: Record<PlanPhase, PhaseRx> = {
 };
 
 /**
- * A completed strength session's load, for DISPLAY only.
- *
- * Deliberately below DURATION_TSS_PER_HOUR (40): a lift session is shorter
- * than the duration rung's hour, and this number must never read as
- * commensurate with an endurance TSS. It is never summed into CTL/ATL — see
- * training-load.ts, which returns null load for a strength activity.
- * Invented. Confidence: Low.
- */
-export const STRENGTH_SESSION_LOAD = 30;
-
-/**
  * How many strength sessions a week carries. Drops in taper so race-week
  * freshness is not spent in the gym. Coaching convention. Confidence: Low.
  */
