@@ -742,4 +742,88 @@ describe.skipIf(!hasDb)("importUserData", () => {
       );
     expect(race.sport).toBe("Triathlon");
   });
+
+  it("carries bodyPrefs ftpWatts and ftpWattsIndoor through a round trip", async () => {
+    const { db, schema } = await import("@/lib/db");
+    const { exportUserData } = await import("./export-user");
+    const { importUserData } = await import("./import-user");
+
+    // Insert a fresh bodyPrefs row with distinct ftpWatts and ftpWattsIndoor
+    // values to verify they survive the export/import round-trip. Use a new
+    // userId to avoid conflicting with beforeAll's fixture (singleton table).
+    const PREFS_SOURCE = "test-bodyprefs-source";
+    const PREFS_TARGET = "test-bodyprefs-target";
+    await db
+      .insert(schema.users)
+      .values([
+        {
+          id: PREFS_SOURCE,
+          name: "Body Prefs Source",
+          email: "bodyprefs-source@example.invalid",
+        },
+        {
+          id: PREFS_TARGET,
+          name: "Body Prefs Target",
+          email: "bodyprefs-target@example.invalid",
+        },
+      ])
+      .onConflictDoNothing();
+
+    await db.insert(schema.bodyPrefs).values({
+      userId: PREFS_SOURCE,
+      maxHr: 188,
+      ftpWatts: 250,
+      ftpWattsIndoor: 235,
+    });
+
+    // Export as JSON to simulate a real import from req.json().
+    const fullExport = JSON.parse(
+      JSON.stringify(await exportUserData(db, PREFS_SOURCE))
+    );
+
+    // Trim to just bodyPrefs to keep this test independent and avoid
+    // duplicate-key violations on singleton tables.
+    const exported = {
+      ...fullExport,
+      body_prefs: fullExport.body_prefs,
+      wellness_daily: [],
+      daily_metrics: [],
+      chat_threads: [],
+      chat_messages: [],
+      coach_memories: [],
+      biomarkers: [],
+      notification_prefs: [],
+      journal_prefs: [],
+      surface_views: [],
+      llm_settings: [],
+      training_plans: [],
+      training_blocks: [],
+      week_plans: [],
+      plan_adjustments: [],
+      activities: [],
+      activity_streams: [],
+      races: [],
+      api_tokens: [],
+      connections: [],
+      webhook_subscriptions: [],
+      llm_usage: [],
+    };
+
+    // Import into a fresh target user to verify FK remap and field copy.
+    await importUserData(db, PREFS_TARGET, exported);
+
+    const [imported] = await db
+      .select()
+      .from(schema.bodyPrefs)
+      .where(eq(schema.bodyPrefs.userId, PREFS_TARGET));
+
+    expect(imported).toBeDefined();
+    expect(imported?.maxHr).toBe(188);
+    expect(imported?.ftpWatts).toBe(250);
+    expect(imported?.ftpWattsIndoor).toBe(235);
+
+    // Cleanup the test users.
+    await db.delete(schema.users).where(eq(schema.users.id, PREFS_SOURCE));
+    await db.delete(schema.users).where(eq(schema.users.id, PREFS_TARGET));
+  });
 });
