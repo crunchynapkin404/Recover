@@ -20,7 +20,7 @@ async function execute(_args: z.infer<typeof parameters>, ctx: ToolContext) {
     ftpWatts: anchors.ftpWatts,
     massKg: anchors.massKg,
     thresholdPaceSecPerKm: anchors.thresholdPaceSecPerKm,
-    ftpAthleteSet: anchors.ftpAthleteSet,
+    ftpSource: anchors.ftpSource,
     runPaceAthleteSet: anchors.runPaceAthleteSet,
   });
 

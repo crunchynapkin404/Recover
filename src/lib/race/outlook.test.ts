@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeAll, afterAll } from "vitest";
-import { inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import type { DaySlot } from "@/lib/week-plan/types";
 import { raceCard, simulateRaceForm } from "./outlook";
@@ -173,6 +173,36 @@ describe.skipIf(!hasDb)("raceCard", () => {
     const card = await raceCard(NO_LOAD, NOW);
     // 2026-07-22 → 2026-08-15
     expect(card.daysOut).toBe(24);
+  });
+
+  it("uses indoor FTP for race pacing when outdoor is unset", async () => {
+    const userId = "test-race-card-indoor-ftp-user";
+    await seedUser(userId);
+    await db.insert(schema.races).values({
+      userId,
+      name: "Test Bike Race",
+      raceType: "gran_fondo",
+      sport: "Bike",
+      date: "2026-12-01",
+      priority: "A",
+      distanceKm: 90,
+      elevationM: 900,
+    });
+    await db.insert(schema.bodyPrefs).values({
+      userId,
+      ftpWatts: null,
+      ftpWattsIndoor: 235,
+    });
+
+    const card = await raceCard(userId, new Date("2026-08-01"));
+    expect(card.pacing?.available).toBe(true);
+    if (!card.pacing?.available) return;
+    expect(card.pacing.confidence).toBe("low");
+    expect(card.pacing.why).toMatch(/indoor/i);
+
+    await db.delete(schema.bodyPrefs).where(eq(schema.bodyPrefs.userId, userId));
+    await db.delete(schema.races).where(eq(schema.races.userId, userId));
+    await db.delete(schema.users).where(eq(schema.users.id, userId));
   });
 
   describe("simulateRaceForm", () => {

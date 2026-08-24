@@ -272,11 +272,45 @@ describe("racePacing — a derived anchor caps confidence", () => {
       ftpWatts: 250,
       massKg: 75,
       thresholdPaceSecPerKm: null,
-      ftpAthleteSet: false,
+      ftpSource: "synced",
     });
     expect(derived.available).toBe(true);
     if (!derived.available) return;
     expect(derived.confidence).toBe("low");
+  });
+
+  it("drops a bike to low confidence and names the indoor anchor, when FTP is indoor-sourced", () => {
+    const r = racePacing({
+      sport: "Bike",
+      distanceKm: 90,
+      elevationM: 900,
+      eventDays: 1,
+      ftpWatts: 235,
+      massKg: 75,
+      thresholdPaceSecPerKm: null,
+      ftpSource: "indoor",
+    });
+    expect(r.available).toBe(true);
+    if (!r.available) return;
+    expect(r.confidence).toBe("low");
+    expect(r.why).toMatch(/indoor/i);
+  });
+
+  it("does not call a synced FTP 'indoor'", () => {
+    const r = racePacing({
+      sport: "Bike",
+      distanceKm: 90,
+      elevationM: 900,
+      eventDays: 1,
+      ftpWatts: 250,
+      massKg: 75,
+      thresholdPaceSecPerKm: null,
+      ftpSource: "synced",
+    });
+    expect(r.available).toBe(true);
+    if (!r.available) return;
+    expect(r.confidence).toBe("low");
+    expect(r.why).not.toMatch(/indoor/i);
   });
 
   // Omitting the flags must not silently downgrade every existing caller.
