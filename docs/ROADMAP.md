@@ -56,21 +56,23 @@ The failure was not speed. It was working without a source.
 
 ## Demand map
 
-Recover's standing against ranked external demand. Updated when the board is
-re-read; last read 2026-08-08.
+Recover's standing against ranked external demand. Votes last polled from the
+board 2026-08-08 — not refreshed here. The **Recover at** column is corrected
+as of 2026-08-24 for what has since shipped; re-read the board itself before
+picking the next item, since vote counts go stale on their own.
 
-| Request                                        | Votes | Recover at v0.65.0 |
-| ---------------------------------------------- | ----: | ------------------ |
-| Choosing a new goal before the last one's done |   244 | **Gap** → Phase 3  |
-| Availability beyond one week ahead             |   159 | **Leads**          |
-| Calendar                                       |   152 | Partial            |
-| Strength training                              |   121 | Absent             |
-| Different FTPs indoor/outdoor                  |   105 | Absent             |
-| Race scheduling weeks ahead                    |     8 | Shipped            |
-| Multiple time blocks within a day              |     7 | **Leads**          |
-| Vacation weeks in advance                      |     5 | **Leads**          |
-| Fuelling suggestion                            |     5 | Shipped (v0.49)    |
-| Summary after a ride                           |     2 | Shipped            |
+| Request                                        | Votes | Recover at v0.118.0 |
+| ---------------------------------------------- | ----: | ------------------- |
+| Choosing a new goal before the last one's done |   244 | **Gap** → Phase 3   |
+| Availability beyond one week ahead             |   159 | **Leads**           |
+| Calendar                                       |   152 | Partial             |
+| Strength training                              |   121 | Absent              |
+| Different FTPs indoor/outdoor                  |   105 | Shipped (v0.118.0)  |
+| Race scheduling weeks ahead                    |     8 | Shipped             |
+| Multiple time blocks within a day              |     7 | **Leads**           |
+| Vacation weeks in advance                      |     5 | **Leads**           |
+| Fuelling suggestion                            |     5 | Shipped (v0.49)     |
+| Summary after a ride                           |     2 | Shipped             |
 
 Recover leads on availability — the #2 request — and that is worth defending.
 The #1 request is a known gap and the feature the sequence skipped.
