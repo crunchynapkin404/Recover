@@ -55,11 +55,13 @@ function prefs(overrides: {
   sleepNeedSecs: number;
   maxHr?: number | null;
   ftpWatts?: number | null;
+  ftpWattsIndoor?: number | null;
   thresholdPaceSecPerKm?: number | null;
 }) {
   return {
     maxHr: null,
     ftpWatts: null,
+    ftpWattsIndoor: null,
     thresholdPaceSecPerKm: null,
     ...overrides,
   };
