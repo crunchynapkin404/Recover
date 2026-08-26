@@ -16,9 +16,17 @@ export function WeekStrip({ days }: Props) {
   return (
     // gap-x-2 is load-bearing since the 12px floor: at 10px the day labels
     // cleared each other under justify-between alone, at 12px they collide
-    // into "MOTUWETHFRSASU" whenever the strip is squeezed (Today's desktop
-    // week row puts it in a flex-1 beside the volume summary).
-    <div className="flex items-center justify-between gap-x-2 rounded-[2rem] border border-hairline bg-surface-raised px-5 py-4">
+    // into "MOTUWETHFRSASU" whenever the strip is squeezed.
+    //
+    // min-w-fit is the other half of that: the day columns cannot shrink
+    // below their labels, so a container narrower than the strip's
+    // min-content used to leave the seven days rendering OUTSIDE this
+    // bordered bubble — at 1024px Today's week row squeezed it to a 42px
+    // pill with 173px of days spilling across it. Refusing to go below
+    // fit-content keeps the border around the days it is drawn for; a
+    // container too narrow for that now overflows visibly instead of
+    // silently drawing the bubble through its own contents.
+    <div className="flex min-w-fit items-center justify-between gap-x-2 rounded-[2rem] border border-hairline bg-surface-raised px-5 py-4">
       {days.map((d, i) => (
         <div key={d.date} className="flex flex-col items-center gap-2">
           <span className="text-label font-bold uppercase text-ink-muted">

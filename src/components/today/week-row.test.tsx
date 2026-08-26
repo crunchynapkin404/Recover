@@ -88,6 +88,20 @@ describe("WeekRow", () => {
     expect(html).toContain("Gran Fondo Alpe");
   });
 
+  // The row stacks: label and summary on one line, the strip full-width on
+  // its own. Side by side, the strip was the flex-1 in a column whose inner
+  // width tops out at 572px against the 582px the three parts need, so it
+  // absorbed the whole deficit and its days spilled across the summary at
+  // every desktop width (worst at lg: a 42px bubble under 173px of days).
+  // A flex-col section is what makes that impossible; see week-row.tsx.
+  it("stacks the strip below the summary rather than beside it", () => {
+    const html = renderToString(
+      <WeekRow days={week()} hoursDone={5.8} hoursTarget={9} />
+    );
+    expect(html).toMatch(/<section class="[^"]*\bflex-col\b[^"]*"/);
+    expect(html).not.toMatch(/class="[^"]*\bflex-1\b[^"]*"/);
+  });
+
   it("uses the token type and ink scales", () => {
     const html = renderToString(
       <WeekRow days={week()} hoursDone={5.8} hoursTarget={9} />
