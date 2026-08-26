@@ -209,9 +209,8 @@ describe("strength as a Purpose", () => {
     // vo2max risk than to aerobic_base — excluded for the same reason those
     // are. This is the pre-placement admission gate, not the whole story:
     // once placed, a lift's duration is never scaled either — adaptDay
-    // (week-plan/adapt-day.ts) substitutes it to recovery via
-    // SUBSTITUTE_TO.strength on red readiness, and leaves it exactly as
-    // prescribed on amber. A lift fits a block whole or not at all
+    // (week-plan/adapt-day.ts) substitutes it to a recovery session on red
+    // readiness, and leaves it exactly as prescribed on amber. A lift fits a block whole or not at all
     // (fitToBlock, week-plan/slots.ts) — never compressed or duration-
     // scaled in place.
     expect(ENERGY_CEILING.easy).not.toContain("strength");
@@ -224,7 +223,11 @@ describe("strength as a Purpose", () => {
 
   it("degrades to recovery rather than to a lighter lift", () => {
     // There is no "lighter strength" tier to fall back to, so the honest
-    // substitution is out of the sport entirely.
+    // substitution is out of the sport entirely. This entry is a declared
+    // fallback, not the live mechanism: fitToBlock returns null for strength
+    // before the substitution loop reads it, and adaptDay hardcodes its own
+    // Recovery substitute. Kept so the table states an intent for any future
+    // caller that does reach it.
     expect(SUBSTITUTE_TO.strength).toBe("recovery");
   });
 });
