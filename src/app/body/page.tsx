@@ -60,7 +60,7 @@ import type { BiomarkerCategory } from "@/lib/health-records";
 import { isBaselineExcluded, type DayFlag } from "@/lib/day-flags";
 import { calibrationProgress } from "@/lib/calibration";
 import { Figure } from "@/lib/uncertainty";
-import { HeartPulse, Moon } from "lucide-react";
+import { HeartPulse, Moon, Gauge } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -157,11 +157,27 @@ export default async function BodyPage({
       <header className="mb-5 pt-8">
         <div className="mb-4 flex items-start justify-between gap-3">
           <h1 className="text-title font-bold tracking-[-0.03em]">Body</h1>
-          {milestones.currentStreak > 0 && (
-            <span className="shrink-0 rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-label font-bold text-chart-2">
-              Streak {milestones.currentStreak}d ✓
-            </span>
-          )}
+          <div className="flex shrink-0 items-center gap-2">
+            {milestones.currentStreak > 0 && (
+              <span className="rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-label font-bold text-chart-2">
+                Streak {milestones.currentStreak}d ✓
+              </span>
+            )}
+            {/* The one link out of Body, and it goes to the numbers BEHIND
+                these numbers. /body had exactly one inbound link in the whole
+                app before v0.121 and no outbound one; an athlete looking at a
+                resting-HR band and thinking "my max HR is wrong" had no path
+                from here to the field that sets it. Placed in the existing
+                header row rather than a new one — Body ▸ Trends already
+                spends two rows of chrome before its first number. */}
+            <Link
+              href="/settings?open=baselines#baselines"
+              className="flex items-center gap-1.5 rounded-full border border-hairline px-3 py-1 text-label font-bold text-ink-muted transition-colors hover:text-ink-primary"
+            >
+              <Gauge aria-hidden className="size-3.5" />
+              Baselines
+            </Link>
+          </div>
         </div>
         <BodyTabs active={tab} href={href} />
       </header>

@@ -195,10 +195,28 @@ phase written as a checklist becomes a tweak list:
       The inventory's own recommendation shipped with it: **tab-level
       telemetry**, because the counter recorded nine route keys and none of
       the eleven second-level destinations the inventory calls unequal.
-      Seventeen keys now, no migration. Two of the four open questions are
-      deliberately parked until that counter has data — deciding them now
-      would throw away the evidence just commissioned. The restructure
-      itself still needs its brainstorm.
+      Seventeen keys now, no migration.
+      **Two of the four questions are decided** (v0.121,
+      `docs/2026-08-26-ia-decisions.md`), and they are the two counting could
+      never have settled. "Menu" is now **Settings** — the label promised a
+      hub of destinations while the page behind it was a settings page, and
+      the page had renamed its own `<h1>` to agree with the tab rather than
+      the other way round. And `BodyPrefsCard` — wake time, max HR, both
+      FTPs, threshold pace, four 1RMs — left "App", where it sat between the
+      push toggles and LLM usage, for its own section, **Your baselines**,
+      placed second directly under Integrations. Those are not settings about
+      the app; they are the figures every engine number is computed against,
+      which is the goal sentence's own word. Body links to it, closing the
+      one surface that had a single inbound link and no outbound one.
+      **The other two stay parked on purpose** — whether Season, Fitness,
+      Sleep and Labs deserve to be tabs is exactly what the new counter
+      exists to answer, and deciding it now would discard the evidence just
+      commissioned. Note that no usage evidence exists yet and none was
+      claimed: `surface_views` shows `settings` as the most-viewed surface,
+      and that figure is the capture script visiting four settings surfaces
+      plus dev-server link-prefetch. Flow and friction, and visual polish,
+      are unblocked by this: the top level is settled and Today's morning
+      grid is not moving.
 - [ ] **Flow and friction.** The multi-step journeys: confirm a week, plan a
       season, debrief a ride, connect a provider.
 - [ ] **Visual polish and motion.** Transitions, loading states, density,

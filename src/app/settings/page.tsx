@@ -37,12 +37,13 @@ import {
   Sparkles,
   Terminal,
   SlidersHorizontal,
+  Gauge,
   Download,
 } from "lucide-react";
 
-// The five Collapsible section triggers below share this pair of class
+// The six Collapsible section triggers below share this pair of class
 // strings verbatim; hoisted so each token swap happens once instead of
-// five times (the same argument that drove connector-card.tsx's shell
+// six times (the same argument that drove connector-card.tsx's shell
 // extraction earlier in this release).
 const triggerBadgeClass = "text-label font-medium text-ink-muted";
 const triggerLabelClass =
@@ -62,12 +63,21 @@ export default async function SettingsPage({
     whoop_error?: string;
     oura_error?: string;
     withings_error?: string;
+    /** Opens one section on load — see `opened` below. */
+    open?: string;
   }>;
 }) {
   const session = await requireSession();
   const user = session.user;
   await recordSurfaceView(user.id, "settings");
-  const { strava_error, whoop_error, withings_error } = await searchParams;
+  // `open` is renamed on destructure: `open` alone shadows nothing here but
+  // reads as a boolean, and this is a section name.
+  const {
+    strava_error,
+    whoop_error,
+    withings_error,
+    open: opened,
+  } = await searchParams;
 
   const { sessions: activeSessions } = await getMySessions(
     user.id,
@@ -211,18 +221,27 @@ export default async function SettingsPage({
       ].join(" · ")
     : "not configured";
 
+  // App is now push and app behaviour only. Wake time and FTP moved out with
+  // BodyPrefsCard — a badge summarising the athlete's own thresholds under a
+  // section labelled "App" was part of what made them unfindable.
   const appSummary =
+    notificationPrefs?.morningPushEnabled === false
+      ? "push off"
+      : pushSubs.length > 0
+        ? "push on"
+        : "defaults";
+
+  // The figures the engine reads back. Deliberately shows what IS set rather
+  // than a count: an athlete opening this section is usually checking one
+  // number, and "wake 06:30 · FTP 250" answers that without expanding.
+  const baselinesSummary =
     [
-      notificationPrefs?.morningPushEnabled === false
-        ? "push off"
-        : pushSubs.length > 0
-          ? "push on"
-          : null,
       bodyPrefsRow?.wakeTime ? `wake ${bodyPrefsRow.wakeTime}` : null,
+      bodyPrefsRow?.maxHr ? `max HR ${bodyPrefsRow.maxHr}` : null,
       bodyPrefsRow?.ftpWatts ? `FTP ${bodyPrefsRow.ftpWatts}` : null,
     ]
       .filter(Boolean)
-      .join(" · ") || "defaults";
+      .join(" · ") || "not set";
 
   const advancedSummary = [
     `${apiTokens.length} ${apiTokens.length === 1 ? "token" : "tokens"}`,
@@ -234,7 +253,7 @@ export default async function SettingsPage({
     <AppShell user={shellUser(user)}>
       {/* Header */}
       <header className="mb-5 pt-8">
-        <h1 className="text-heading font-bold tracking-[-0.03em]">Menu</h1>
+        <h1 className="text-heading font-bold tracking-[-0.03em]">Settings</h1>
       </header>
 
       <div className="space-y-3">
@@ -385,6 +404,53 @@ export default async function SettingsPage({
           </CollapsiblePanel>
         </Collapsible>
 
+        {/* Your baselines — second, directly under Integrations, and that
+            order is the argument. Integrations bring the athlete's data in;
+            these are the figures the engine reads it against. Everything
+            below is peripheral to whether a number is right.
+
+            This card used to sit inside "App", between the push toggles and
+            LLM usage, because it was none of integrations/coach/API/data —
+            "App" was the drawer's drawer. But wake time, max HR, FTP and the
+            1RMs are not settings ABOUT THE APP: they are the athlete's own
+            baselines, and the roadmap's goal sentence turns on exactly that
+            word ("Baselines are the athlete's own, not population norms").
+            They are the inputs behind every figure the app defends, so when
+            a number looks wrong this is the page to reach — and it was five
+            screens down under a label that did not name it. */}
+        <Collapsible id="baselines" defaultOpen={opened === "baselines"}>
+          <CollapsibleTrigger
+            badge={
+              <span className={triggerBadgeClass}>{baselinesSummary}</span>
+            }
+          >
+            <Gauge aria-hidden className="size-[18px] text-ink-muted" />
+            <span className={triggerLabelClass}>Your baselines</span>
+          </CollapsibleTrigger>
+          <CollapsiblePanel>
+            <div className="hairline-list px-5 pb-3">
+              <BodyPrefsCard
+                wakeTime={bodyPrefsRow?.wakeTime ?? null}
+                sleepNeedSecs={
+                  bodyPrefsRow?.sleepNeedSecs ?? DEFAULT_SLEEP_NEED_SECS
+                }
+                maxHr={bodyPrefsRow?.maxHr ?? null}
+                ftpWatts={bodyPrefsRow?.ftpWatts ?? null}
+                ftpWattsIndoor={bodyPrefsRow?.ftpWattsIndoor ?? null}
+                thresholdPaceSecPerKm={
+                  bodyPrefsRow?.thresholdPaceSecPerKm ?? null
+                }
+                squatOneRmKg={bodyPrefsRow?.squatOneRmKg ?? null}
+                benchOneRmKg={bodyPrefsRow?.benchOneRmKg ?? null}
+                deadliftOneRmKg={bodyPrefsRow?.deadliftOneRmKg ?? null}
+                overheadPressOneRmKg={
+                  bodyPrefsRow?.overheadPressOneRmKg ?? null
+                }
+              />
+            </div>
+          </CollapsiblePanel>
+        </Collapsible>
+
         {/* AI & Tech */}
         <Collapsible>
           <CollapsibleTrigger
@@ -494,25 +560,6 @@ export default async function SettingsPage({
               <RideDebriefCard />
 
               <LlmUsageCard />
-
-              <BodyPrefsCard
-                wakeTime={bodyPrefsRow?.wakeTime ?? null}
-                sleepNeedSecs={
-                  bodyPrefsRow?.sleepNeedSecs ?? DEFAULT_SLEEP_NEED_SECS
-                }
-                maxHr={bodyPrefsRow?.maxHr ?? null}
-                ftpWatts={bodyPrefsRow?.ftpWatts ?? null}
-                ftpWattsIndoor={bodyPrefsRow?.ftpWattsIndoor ?? null}
-                thresholdPaceSecPerKm={
-                  bodyPrefsRow?.thresholdPaceSecPerKm ?? null
-                }
-                squatOneRmKg={bodyPrefsRow?.squatOneRmKg ?? null}
-                benchOneRmKg={bodyPrefsRow?.benchOneRmKg ?? null}
-                deadliftOneRmKg={bodyPrefsRow?.deadliftOneRmKg ?? null}
-                overheadPressOneRmKg={
-                  bodyPrefsRow?.overheadPressOneRmKg ?? null
-                }
-              />
             </div>
           </CollapsiblePanel>
         </Collapsible>

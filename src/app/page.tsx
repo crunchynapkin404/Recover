@@ -606,7 +606,11 @@ export default async function DashboardPage({
               </Link>
               <Link
                 href="/settings"
-                aria-label="Menu"
+                // The accessible name has to name the destination: this is
+                // the avatar button, so a screen-reader user hears only this
+                // string before following it. It said "Menu" while the nav
+                // tab did; both now say Settings, which is where it goes.
+                aria-label="Settings"
                 className="glass flex size-9 shrink-0 items-center justify-center rounded-full"
               >
                 {initial ? (
