@@ -221,6 +221,46 @@ npm run format:check
 npm run build
 ```
 
+**A `typecheck` error whose path starts with `.next/` is almost never yours.**
+Those files are generated, and a dev server, a `build`, or another checkout of
+this repo regenerating them mid-run makes `tsc` read one half-written. Seen
+2026-08-26:
+
+```
+.next/dev/types/validator.ts(134,1): error TS1109: Expression expected.
+```
+
+A parse error inside generated output, on a branch that changed no route. It
+passed on the very next run with nothing deleted. **Run it again before you
+bisect your own diff** — the instinct on a red typecheck is to suspect the
+change in front of you, and here that hunts a bug that was never there. If it
+survives a re-run, `rm -rf .next/types` and try once more; only treat it as
+real when it survives both. To settle it in one command:
+`git stash && npm run typecheck && git stash pop`.
+
+**"This page couldn't load" locally, while `npm test` is green, usually means
+the dev database is behind.** `npm test` runs against a scratch database this
+repo migrates from scratch, so it proves nothing about the long-lived dev
+database on `127.0.0.1:5434` — that one only advances when someone runs the
+migration. Pull a branch whose feature added a column and every page reading
+that table fails, with `42703 errorMissingColumn` in the server log. It reads
+exactly like a broken branch and is not one. Found 2026-08-26 with the dev
+database three migrations behind: `body_prefs` had neither `ftp_watts_indoor`
+(v0.118.0) nor the four one-RM columns (v0.119.0), and Today and Body both
+refused to render.
+
+```bash
+# how far behind, and what the table actually has
+docker exec recover-db-1 psql -U recover -d recover \
+  -c "select count(*) from drizzle.__drizzle_migrations;"   # vs. ls drizzle/*.sql | wc -l
+docker exec recover-db-1 psql -U recover -d recover -c "\d body_prefs"
+
+npm run db:migrate
+```
+
+Both of these are the same trap: **a signal that looks like your mistake and
+belongs to the environment.** Check the environment before the diff.
+
 A second job builds the Docker image (`docker build -t recover .`); it needs no
 local equivalent, but it is what gates the release path.
 
