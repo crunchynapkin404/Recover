@@ -313,14 +313,15 @@ const SURFACES: Record<string, string> = {
   "body-sleep": "/body?tab=sleep",
   "body-journal": "/body?tab=journal",
   "body-labs": "/body?tab=labs",
-  // Settings is FIVE <Collapsible> sections behind one path, all closed on
+  // Settings is SIX <Collapsible> sections behind one path, all closed on
   // load, and `/settings` alone captures none of their contents. Integrations
   // (six connector cards), AI & Coach, App and Data had never been captured or
-  // axe-audited before v0.99 slice 5 — the fifth, Advanced / API, only ever
-  // opened inside captureTokenCreated's own click. The same gap slice 2 closed
-  // for Train's tabs and slice 3 for Body's, at four times the size.
+  // axe-audited before v0.99 slice 5 — Advanced / API only ever opened inside
+  // captureTokenCreated's own click. The same gap slice 2 closed for Train's
+  // tabs and slice 3 for Body's, at four times the size. The sixth, "Your
+  // baselines", was split out of "App" in v0.121 when BodyPrefsCard moved.
   // `settings` is kept as the collapsed landing state; `settings-expanded`
-  // opens all five (see SURFACE_PREPARE).
+  // opens all six (see SURFACE_PREPARE).
   settings: "/settings",
   "settings-expanded": "/settings",
   // The three OAuth failure branches. page.tsx reads strava_error, whoop_error
@@ -499,8 +500,14 @@ async function screenshotStable(
 }
 
 async function expandSettingsSections(page: Page): Promise<void> {
+  // Six, not five: "Your baselines" was split out of "App" when BodyPrefsCard
+  // moved (v0.121). A section missing from this list is not a loud failure —
+  // it simply stays collapsed, so the capture photographs a closed row and the
+  // axe run audits nothing inside it, while the surface still passes. Adding a
+  // section means adding it here.
   for (const label of [
     "Integrations",
+    "Your baselines",
     "AI & Coach",
     "Advanced / API",
     "App",

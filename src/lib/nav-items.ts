@@ -29,7 +29,13 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { href: "/train", label: "Train", icon: CalendarRange },
   { href: "/coach", label: "Coach", icon: Sparkles },
   { href: "/body", label: "Body", icon: Activity },
-  { href: "/settings", label: "Menu", icon: Settings2 },
+  // "Settings", not "Menu". The label used to be "Menu" and /settings' own
+  // <h1> read "Menu" to agree with it — the page renamed itself to match the
+  // tab rather than the tab being named for its destination. "Menu" promises
+  // a hub of destinations; what is behind it is a settings page, and every
+  // other item here names the job it opens. Same slot, same icon, same route:
+  // only the promise changed.
+  { href: "/settings", label: "Settings", icon: Settings2 },
 ] as const;
 
 /**
