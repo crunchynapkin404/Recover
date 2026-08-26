@@ -117,7 +117,7 @@ named defect, not an aspiration:
       `SUBSTITUTE_TO.strength` became unreachable, so a comment naming it as
       the red-readiness mechanism is false even though the behaviour is
       right.
-- [ ] **Soak capture flakiness**, found 2026-08-24 while releasing v0.119.0:
+- [x] **Soak capture flakiness**, found 2026-08-24 while releasing v0.119.0:
       the same settings surface rendered 5217 px in dark and 3649 px in
       light within one run. A truncated PNG is indistinguishable from a
       passing one.
@@ -132,7 +132,16 @@ named defect, not an aspiration:
       target is only reachable while that run still exists. Numbers and the
       constraint are in `docs/RELEASING.md`.
 - [ ] `scripts/repair-plan-sport.ts` still refuses two-race plans.
-- [ ] Triathlon and multi-day pacing refusals have never been seen rendered.
+- [x] Triathlon and multi-day pacing refusals have now been seen rendered
+      (2026-08-26). Both reach the page through the `!card.pacing.available`
+      branch in `src/app/train/page.tsx` and read correctly in place. A
+      triathlon surfaces two distinct refusals — the demand card's "no demand
+      figure yet" and the pacing line's own — each naming a different missing
+      thing. **Permanent capture coverage is NOT closed by this** and is a
+      larger piece than it looks: `nextUpcomingRace` picks strictly by
+      earliest date, so seeding a refusal race alongside the existing
+      confirmed one hijacks the race card on every `train*` surface. It needs
+      a second seeded athlete or a tie-break, and deserves its own scoping.
 
 ## Phase 6 — Experience
 
