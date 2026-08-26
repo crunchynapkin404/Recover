@@ -184,6 +184,21 @@ phase written as a checklist becomes a tweak list:
 - [ ] **Information architecture.** Today/Train/Coach/Body/Menu was set in
       v0.23.0 and has had features bolted on since; Settings alone has grown
       long enough that a reviewer got lost finding a card in it.
+      **Inventory done** (`docs/2026-08-26-ia-inventory.md`), and it did
+      _not_ overturn its premise the way the first-run strand did: five tabs
+      sit above twenty-one destinations, the top level is sound, and every
+      measured symptom is one level down. Settings expanded is 7.8 phone
+      screens and Train ▸ Week is 4.7, while Body ▸ Trends, Body ▸ Labs,
+      Train ▸ Season and Train ▸ Fitness do not scroll at all — four tabs
+      the nav presents as peers of a surface ten times their size. Body has
+      exactly one inbound link in the whole app.
+      The inventory's own recommendation shipped with it: **tab-level
+      telemetry**, because the counter recorded nine route keys and none of
+      the eleven second-level destinations the inventory calls unequal.
+      Seventeen keys now, no migration. Two of the four open questions are
+      deliberately parked until that counter has data — deciding them now
+      would throw away the evidence just commissioned. The restructure
+      itself still needs its brainstorm.
 - [ ] **Flow and friction.** The multi-step journeys: confirm a week, plan a
       season, debrief a ride, connect a provider.
 - [ ] **Visual polish and motion.** Transitions, loading states, density,

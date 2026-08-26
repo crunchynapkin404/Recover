@@ -93,6 +93,55 @@ describe.skipIf(!hasDb)("recordSurfaceView", () => {
     expect(rows.map((r) => r.surface).sort()).toEqual(["body", "today"]);
   });
 
+  it("stores the tab colon-joined onto the surface", async () => {
+    await recordSurfaceView(TEST_USER, "body", "labs");
+
+    const rows = await db.query.surfaceViews.findMany({
+      where: eq(schema.surfaceViews.userId, TEST_USER),
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0].surface).toBe("body:labs");
+    expect(rows[0].count).toBe(1);
+  });
+
+  it("counts two tabs of one surface as two rows, not one", async () => {
+    // The whole point of v0.121's change. Before it, both of these wrote
+    // `body` and the IA question "does anyone open Labs?" was unanswerable
+    // from the data the app collected about itself.
+    await recordSurfaceView(TEST_USER, "body", "trends");
+    await recordSurfaceView(TEST_USER, "body", "trends");
+    await recordSurfaceView(TEST_USER, "body", "labs");
+
+    const rows = await db.query.surfaceViews.findMany({
+      where: eq(schema.surfaceViews.userId, TEST_USER),
+    });
+    expect(Object.fromEntries(rows.map((r) => [r.surface, r.count]))).toEqual({
+      "body:trends": 2,
+      "body:labs": 1,
+    });
+  });
+
+  it("keeps a tabbed key distinct from its bare parent", async () => {
+    // Pre-v0.121 rows carry `train`; new ones carry `train:week`. They must
+    // not collide — the upsert key is (user, surface, day), and merging the
+    // two eras into one counter would silently overstate the new one.
+    await recordSurfaceView(TEST_USER, "train", "week");
+    await db.insert(schema.surfaceViews).values({
+      userId: TEST_USER,
+      surface: "train",
+      day: localYmd(new Date()),
+      count: 9,
+    });
+
+    const rows = await db.query.surfaceViews.findMany({
+      where: eq(schema.surfaceViews.userId, TEST_USER),
+    });
+    expect(Object.fromEntries(rows.map((r) => [r.surface, r.count]))).toEqual({
+      train: 9,
+      "train:week": 1,
+    });
+  });
+
   it("never throws when the write fails", async () => {
     // A user id with no row in `users` violates the FK. The page render must
     // survive it; a missing count is always preferable to a 500.

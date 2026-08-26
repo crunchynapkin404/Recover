@@ -191,10 +191,15 @@ export default async function TrainPage({
   }>;
 }) {
   const user = await requireUser();
-  await recordSurfaceView(user.id, "train");
   const sp = await searchParams;
 
   const tab: TrainTab = TRAIN_TABS.find((t) => t === sp.tab) ?? "week";
+  // Recorded AFTER the tab resolves, not before. Train is four tabs behind
+  // one path and the tab is the thing worth counting; recording at the top
+  // of the render filed all four under `train`. `sp.tab` is untrusted URL
+  // input, so it becomes a key only once TRAIN_TABS has vouched for it —
+  // `?tab=garbage` records `train:week`, which is what actually renders.
+  await recordSurfaceView(user.id, "train", tab);
   const view: "today" | "week" | "month" =
     sp.view === "today" || sp.view === "month" ? sp.view : "week";
   const month =

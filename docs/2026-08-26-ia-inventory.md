@@ -185,20 +185,36 @@ their contents well enough to open only one:
   `/import` — and Export has one, inside Data. The two halves of the same job
   are not in the same place.
 
-### 5. Nothing knows which of these screens anyone uses
+### 5. Nothing knew which of these screens anyone uses — **fixed in this branch**
 
-`src/lib/telemetry.ts:11-21` records a closed set of **nine** surfaces:
+As found: `src/lib/telemetry.ts` recorded a closed set of **nine** surfaces:
 `today, train, coach, body, settings, admin, import, activity, activity-log`.
 The comment explains the closure — pathnames would make the table unbounded —
-and it is right to be closed. But the set stops at the route, so **no tab is
-counted**. `recordSurfaceView(user.id, "body")` fires identically whether the
-athlete opened Trends or Labs.
+and it is right to be closed. But the set stopped at the route, so **no tab
+was counted**. `recordSurfaceView(user.id, "body")` fired identically whether
+the athlete opened Trends or Labs. Of the twenty-one destinations above, nine
+had usage data and the eleven second-level ones — exactly those this inventory
+calls unequal — had none.
 
-The consequence for this strand: the twenty screens above have usage data for
-nine of them, and the eleven second-level destinations — exactly the ones this
-inventory suggests are unequal — have none at all. `surfaceViewTotals()` is
-already rendered by `SurfaceViewsCard` on `/admin`, so the nine that are
-counted can be read off production today.
+This one is closed rather than logged, because every other finding here is a
+judgement that wants evidence and this was the missing instrument:
+
+- `recordSurfaceView` takes an optional third argument, typed against the
+  surface it belongs to — `("body", "season")` does not compile. Train and
+  Body now pass it, recording after the tab resolves rather than at the top
+  of the render.
+- Stored colon-joined (`body:labs`) in the existing `text` column, so **no
+  migration**. `SURFACE_TABS` imports `TRAIN_TABS`/`BODY_TABS` from
+  `log-href.ts` rather than restating them, so a tab cannot become navigable
+  and uncounted.
+- `SurfaceViewsCard` folds tab keys under their parent and labels the bare
+  pre-v0.121 rows `untabbed · before v0.121`, so the discontinuity reads as a
+  release boundary instead of a bug.
+
+Seventeen keys instead of nine. **The counter now has to run for a while
+before it answers anything** — that is the cost of the instrument arriving
+after the question, and it is the reason this was worth doing before the
+brainstorm rather than after.
 
 ---
 
@@ -242,15 +258,19 @@ symptom above is a level-2 symptom.
 
 ---
 
-## Recommended next step
+## Next step
 
-**Extend `SURFACES` in `src/lib/telemetry.ts` to record the tab**, before
-proposing any restructure. It is a small, additive, closed-set change —
-`train:week`, `body:labs` and so on, ~15 keys instead of 9 — it needs no
-migration (`surfaceViews` is keyed on a text surface), and it turns questions
-1 and 3 above from taste into evidence. The instrumentation has to precede the
-decision or the decision is guesswork, and this project's whole stated goal is
-not showing a number it cannot defend.
+The instrumentation this inventory called for is **done, in this branch** —
+see finding 5. Questions 1 and 3 above are now answerable by waiting rather
+than by arguing; nothing else here is.
+
+So the next step is the **brainstorm on structure**, with one deliberate
+asymmetry: questions 1 and 3 (are Season/Fitness/Sleep/Labs really tabs?)
+should be **left open until the counter has data**, because they are precisely
+the ones evidence can settle and a restructure decided this week would throw
+that evidence away. Questions 2 and 4 — where `BodyPrefsCard` belongs, and
+whether "Menu" is a tab or a drawer — cannot be settled by counting and are
+ready to decide now.
 
 That is a proposal about _how to decide_, not about the structure. The
 structure itself still needs a brainstorm, and per the handoff the spec for it
