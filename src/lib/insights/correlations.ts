@@ -181,7 +181,35 @@ export function correlationFigure(
   insight: EvidenceFields
 ): Figure<CorrelationFinding> {
   if (insight.evidence === "limited") {
-    return Figure.calibrating(insight.events, MIN_EVENTS_FOR_EVIDENCE, "days");
+    // TWO different things produce `evidence: "limited"` (see the ternary
+    // that sets it): too few tagged days, OR enough days whose confidence
+    // interval is still wider than the effect. Only the first is a countdown.
+    //
+    // Mapping both to `calibrating` rendered the second as
+    // "Calibrating — day 48 of 10 days" on a real seeded account. That is
+    // unreadable, and worse than unreadable: it names a finish line the
+    // athlete has already passed and tells them to wait for days they have.
+    // More tagged days may narrow the interval or may never narrow it; what
+    // is certain is that this is not a count toward ten.
+    //
+    // The Body page already guards exactly this class — it only claims
+    // calibrating while `batteryCalibration.remaining > 0`, so a veteran
+    // athlete never sees "a false 'day 14 of 14' claim" (body/page.tsx:564).
+    // The guard was simply missing here.
+    if (insight.events < MIN_EVENTS_FOR_EVIDENCE) {
+      return Figure.calibrating(
+        insight.events,
+        MIN_EVENTS_FOR_EVIDENCE,
+        "days"
+      );
+    }
+    // No event count in the string: correlation-rows.tsx already renders
+    // "· {events} events" after this message (line 51), so including it here
+    // printed the number twice — "46 tagged days, still inside normal
+    // variation · 46 events". The old copy had the same duplication and hid
+    // it behind the nonsense of "day 48 of 10 days". Found by looking at the
+    // rendered row, not by the tests, which never see the suffix.
+    return Figure.notApplicable("still inside normal variation");
   }
   return Figure.available(
     {

@@ -214,6 +214,57 @@ describe("correlationFigure", () => {
     }
   });
 
+  // The case neither test above could reach. BOTH of them pass `events: 3`,
+  // and a thin sample can never produce the defect: with events < 10 the
+  // countdown reads correctly. So the branch was covered twice by inputs
+  // structurally incapable of exposing it — the same shape as the
+  // <Unavailable full> bug (v0.121.0), where every `full` case used a kind
+  // that cannot carry a fix.
+  it("does not claim a countdown once the sample passes the threshold", () => {
+    const f = correlationFigure({
+      ...base,
+      conclusive: false,
+      evidence: "limited",
+      events: 48,
+    });
+    expect(f.available).toBe(false);
+    // The defect: this rendered "Calibrating — day 48 of 10 days".
+    expect(f.available === false && f.kind).toBe("not_applicable");
+    if (!f.available && f.kind === "not_applicable") {
+      expect(f.why).toBe("still inside normal variation");
+      expect(f.why).not.toContain("of 10");
+      // correlation-rows.tsx appends "· {events} events" after this string,
+      // so the message must NOT carry the count itself.
+      expect(f.why).not.toContain("48");
+    }
+  });
+
+  it("still counts down at exactly one day short of the threshold", () => {
+    const f = correlationFigure({
+      ...base,
+      conclusive: false,
+      evidence: "limited",
+      events: MIN_EVENTS_FOR_EVIDENCE - 1,
+    });
+    expect(f.available === false && f.kind).toBe("calibrating");
+    if (!f.available && f.kind === "calibrating") {
+      expect(f.have).toBe(MIN_EVENTS_FOR_EVIDENCE - 1);
+      expect(f.need).toBe(MIN_EVENTS_FOR_EVIDENCE);
+    }
+  });
+
+  // The boundary itself: at exactly MIN_EVENTS_FOR_EVIDENCE the countdown is
+  // complete, so "day 10 of 10" would be the same false claim in miniature.
+  it("does not say day 10 of 10", () => {
+    const f = correlationFigure({
+      ...base,
+      conclusive: false,
+      evidence: "limited",
+      events: MIN_EVENTS_FOR_EVIDENCE,
+    });
+    expect(f.available === false && f.kind).toBe("not_applicable");
+  });
+
   it("stays calibrating even when a thin sample is statistically conclusive", () => {
     // welchCompare only needs n>=2 per side, independent of
     // MIN_EVENTS_FOR_EVIDENCE — a sample this thin can land conclusive: true
