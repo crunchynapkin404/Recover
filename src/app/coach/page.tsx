@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { and, eq, desc } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
@@ -99,16 +98,6 @@ export default async function CoachPage({
                 },
               }}
             />
-            {/* Unavailable's `full` treatment renders the EmptyState message
-                only — it does not surface `state.fix` (see
-                components/ui/unavailable.tsx). The fix link is rendered
-                here instead. */}
-            <Link
-              href="/"
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-accent px-6 py-3 font-bold text-accent-foreground transition-all hover:bg-accent/90"
-            >
-              Connect a device or log manually
-            </Link>
           </div>
         </div>
       ) : (
