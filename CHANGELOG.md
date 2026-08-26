@@ -1,5 +1,190 @@
 # Changelog
 
+## v0.121.0 — 2026-08-26 — The drawer's drawer
+
+Four things in this release were already there and could not be found.
+The athlete's own thresholds sat five screens down under a label that did
+not name them. A fix link existed in the state object and was silently
+discarded before it could render. Seven days of a week strip spilled 152 px
+outside the bubble drawn around them. And eleven of the app's twenty-one
+destinations were invisible to the counter that exists to say which ones
+anyone uses.
+
+None of that is a missing feature. It is the difference between shipping
+something and shipping something reachable.
+
+### Information architecture, measured before it was touched
+
+Phase 6's second strand opened with an inventory
+(`docs/2026-08-26-ia-inventory.md`) rather than a proposal, and the
+inventory's own premise did **not** turn out to be wrong the way the
+first-run strand's did — worth saying plainly rather than manufacturing a
+reversal. Five nav tabs sit above **twenty-one destinations**. The top
+level is sound; every measured symptom is one level down.
+
+The measurements, from real capture artifacts at 390×844 CSS px, not
+estimates:
+
+| Surface                                                     | Screens |
+| ----------------------------------------------------------- | ------: |
+| Settings, expanded                                          |     7.8 |
+| Train ▸ Week                                                |     4.7 |
+| Body ▸ Trends, Body ▸ Labs, Train ▸ Season, Train ▸ Fitness |     1.0 |
+
+Those last four **do not scroll at all** — one screen each, presented by
+the nav as peers of a surface ten times their size. And `/body` had
+exactly one inbound link in the entire application, a deep link to
+`?tab=journal`: nothing ever pointed an athlete at their own HRV trend.
+
+### The tab is named for where it goes
+
+The fifth nav item read **Menu** and opened `/settings` — whose own `<h1>`
+had been changed to read "Menu" so it would agree with the tab. The page
+renamed itself rather than the tab being named for its destination. Today,
+Train, Coach and Body each name the job they open; the fifth promised a hub
+of destinations and delivered a settings page. It now reads **Settings**,
+as does the page, as does the `aria-label` on Today's avatar button — which
+lands in the same place and is the version that matters most, because a
+screen-reader user hears only that string before following it.
+
+Same slot, same icon, same route. Only the promise changed.
+
+Dropping settings from the nav entirely was considered and rejected on a
+fact rather than a preference: `SidebarNav` is `lg:` only, so a phone has no
+avatar row, and removing the tab would leave mobile with no settings entry
+at all until one was designed and built.
+
+### Your baselines are not app settings
+
+`BodyPrefsCard` — usual wake time, sleep target, max HR, FTP outdoor, FTP
+indoor, threshold pace and four 1RMs — lived inside **App**, between the
+push toggles and LLM usage. It landed there because it was not an
+integration, not the coach, not an API and not data. **"App" was the
+drawer's drawer.**
+
+None of those figures is a setting about the app. They are the athlete's own
+baselines, which every engine number is computed against, and the roadmap's
+goal sentence turns on exactly that word: _"Baselines are the athlete's own,
+not population norms."_ When a number looks wrong, this is the page to
+reach.
+
+They now have their own section, **Your baselines**, placed second directly
+under Integrations. That order is the argument: integrations bring the data
+in, baselines are what it is measured against, everything below is
+peripheral to whether a figure is right. It is addressable at
+`/settings?open=baselines#baselines`, because href-carried state is the
+property the tab pattern was chosen for, and **Body links to it** — closing
+the one surface that had a single inbound link and no outbound one.
+
+The badge summary split with it: `appSummary` had been advertising
+`wake 06:30 · FTP 250` under a section called "App", which was part of what
+made the thresholds unfindable.
+
+**Cost, stated rather than buried:** collapsed `/settings` was exactly one
+phone viewport at 844 px. The sixth section makes it 851 px, so the landing
+screen now scrolls by 7 px.
+
+**Two of the four open IA questions remain open on purpose.** Whether
+Season, Fitness, Sleep and Labs deserve to be tabs is precisely what
+evidence can settle, and the instrument to settle it shipped in this same
+release. Deciding now would discard the evidence just commissioned.
+
+### The counter can see the tabs
+
+`recordSurfaceView` recorded a closed set of nine keys, all of them routes.
+Train is four tabs behind `/train` and Body is four behind `/body`, so
+`recordSurfaceView(id, "body")` fired identically whether the athlete opened
+Trends or Labs — and the eleven second-level destinations the inventory
+calls unequal had no data at all.
+
+It now takes an optional tab, **typed against its surface**, so
+`("body", "season")` does not compile. Seventeen keys instead of nine,
+stored colon-joined in the existing `text` column: **no migration.**
+`SURFACE_TABS` imports `TRAIN_TABS`/`BODY_TABS` rather than restating them,
+so a tab cannot become navigable and uncounted. `/admin`'s card folds the
+tab keys under their parent and labels pre-v0.121 rows
+`untabbed · before v0.121`, so the discontinuity reads as a release boundary
+instead of a bug.
+
+**No usage evidence exists yet and none is claimed anywhere in this
+release.** `surface_views` currently reports `settings` as the most-viewed
+surface; that figure is the capture script visiting four settings surfaces,
+plus `next dev` link-prefetch, plus verification traffic. Both IA decisions
+above rest on structure and say so
+(`docs/2026-08-26-ia-decisions.md`).
+
+### The fix link that never rendered
+
+`<Unavailable full>` rendered its message and **silently discarded
+`state.fix`** — a caller could hand the component a fix and watch it
+disappear. v0.120.0 shipped documenting this gap; all three first-run
+screens worked around it by hand-rendering the link as a sibling, which
+meant the label _and_ the href existed twice per site: once in the state
+object the component was given, once in the markup beside it. Three
+duplicated copies of "Connect a device or log manually", each free to drift
+from the state it was supposed to mirror.
+
+The component renders it now, below the panel, matching `PlanEmpty` — the
+house pattern for an empty state that offers an action. All three
+workarounds are gone and `coach/page.tsx` no longer imports `Link` at all.
+
+**Why the tests never caught it, which is the more useful finding:**
+`unavailable.test.tsx` already exercised the `full` treatment — but every
+`full` case used `not_applicable` or `calibrating`, and **neither of those
+kinds can carry a fix.** Only `missing_input` does. The branch was covered
+repeatedly with inputs structurally incapable of exposing the defect. That
+is worse than no coverage, because it reads as done.
+
+### The week strip that would not fit its bubble
+
+Today's `WeekRow` never fitted at **any** desktop width, not merely when
+resized. One line needs 84 px of label + 215 px of strip min-content +
+243 px of summary + 40 px of gaps = 582 px, and the column's inner width
+tops out at 572 px and falls to 373 px at `lg`. The strip was the only
+shrinkable item, so it absorbed the entire deficit: at 1024 px its bordered
+bubble rendered 42 px wide with a 0 px content box while the seven days
+spanned 173 px, spilling 152 px past its own right border and across the
+volume summary. It now stacks — the strip gets its own full-width line.
+Measured in a real browser at seven widths, before and after.
+
+### Also
+
+- **`surfaces.yml` warms the sign-in path.** The dev-server capture job
+  warmed `/`, `/?state=evening` and the health endpoint but never the auth
+  catch-all, so the capture's first request to `/api/auth/[...all]` was its
+  sign-in POST against a cold route. On 2026-08-26 that answered 404 three
+  times and failed `main`, on a commit whose identical tree had already
+  passed the same job twice. `signIn()` retries at 1 s intervals, which
+  defends against a slow blip and not against a route that has settled into
+  answering 404.
+- **CONTRIBUTING carries two failures that look like your bug and are
+  not:** a `typecheck` error whose path starts with `.next/` (generated
+  types read mid-regeneration — re-run before bisecting your own diff), and
+  a stale dev database, which fails every page reading a new column with
+  `42703` while `npm test` stays green, because tests run against a scratch
+  database migrated from scratch.
+- **`section-order.test.ts`** guards a failure that is silent rather than
+  loud: `expandSettingsSections` hardcodes the six labels it clicks open,
+  and a section missing from that list does not fail — it stays collapsed,
+  so the capture photographs a closed row and the axe run audits nothing
+  inside it while `settings-expanded` still passes.
+
+### Migrations
+
+**None.** The tab-level telemetry needed none — `surface_views.surface` was
+already `text`, and the tabbed keys are ordinary values in it. Rows written
+before this release keep their bare `train`/`body` keys and are read, and
+labelled, alongside the new ones.
+
+### Verification
+
+2997 tests pass with a database (1 expected fail, 1 skipped), up from 2973
+at v0.120.0. Zero confirmed axe violations across every captured surface.
+Every guard added in this release was **mutation-checked** — the thing each
+test names was broken, the failure observed, and reverted — including the
+two that would otherwise have passed while proving nothing: the capture
+script's section list, and `full` dropping its fix.
+
 ## v0.120.0 — 2026-08-26 — Four flavours of nothing
 
 Today already had a proper welcome card — a heading, three ranked data
