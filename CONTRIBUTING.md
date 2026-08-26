@@ -221,6 +221,23 @@ npm run format:check
 npm run build
 ```
 
+**A `typecheck` error whose path starts with `.next/` is almost never yours.**
+Those files are generated, and a dev server, a `build`, or another checkout of
+this repo regenerating them mid-run makes `tsc` read one half-written. Seen
+2026-08-26:
+
+```
+.next/dev/types/validator.ts(134,1): error TS1109: Expression expected.
+```
+
+A parse error inside generated output, on a branch that changed no route. It
+passed on the very next run with nothing deleted. **Run it again before you
+bisect your own diff** — the instinct on a red typecheck is to suspect the
+change in front of you, and here that hunts a bug that was never there. If it
+survives a re-run, `rm -rf .next/types` and try once more; only treat it as
+real when it survives both. To settle it in one command:
+`git stash && npm run typecheck && git stash pop`.
+
 A second job builds the Docker image (`docker build -t recover .`); it needs no
 local equivalent, but it is what gates the release path.
 
