@@ -136,9 +136,12 @@ export default async function BodyPage({
   searchParams: Promise<{ tab?: string; range?: string; night?: string }>;
 }) {
   const user = await requireUser();
-  await recordSurfaceView(user.id, "body");
   const sp = await searchParams;
   const tab: BodyTab = BODY_TABS.find((t) => t === sp.tab) ?? "trends";
+  // After the tab resolves — see the same note in train/page.tsx. Body's four
+  // tabs were the least visible surfaces in the app: the IA inventory found
+  // exactly one inbound link to /body anywhere, and it deep-links to Journal.
+  await recordSurfaceView(user.id, "body", tab);
   const range = isRange(sp.range) ? Number(sp.range) : TRAIN_DEFAULTS.range;
   // Raw URL input — validated against the loaded nights inside SleepTab,
   // never used to build a query.
