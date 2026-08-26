@@ -379,6 +379,43 @@ const SURFACES: Record<string, string> = {
   // "pending", which is NULL on every seeded row. The id is not a literal
   // either — it is wired in main() from resolveActivityDetailPath's
   // return value, same as activity-detail.
+  // The four first-run branches: isFirstRun(userId) (src/lib/first-run.ts)
+  // reading true, on Today, Train, Coach and Body. NO existing surface above
+  // can ever reach these — every one of them signs in as an owner that
+  // scripts/seed-demo.ts (plus seed-confirmed-race/seed-two-race) has
+  // deliberately given data, specifically so the OTHER 27+ surfaces have
+  // something to render. That is exactly why the welcome card on "/" kept
+  // pre-redesign styling — sub-floor pixel sizes, glass, white-alpha inks, a
+  // raw emerald accent — straight through a whole redesign slice: no capture
+  // had ever photographed the branch it lived in (see src/app/page.tsx's
+  // comment on the same finding).
+  //
+  // These four therefore run as a SEPARATE capture pass, signed in as a
+  // completely different, deliberately dataless account
+  // (scripts/seed-fresh-owner.ts) against a database that never runs
+  // seed-demo.ts at all — see .github/workflows/surfaces.yml's
+  // `capture-first-run` job. A second seeded user sharing this SAME pass
+  // was considered and rejected: signIn() below authenticates once per
+  // process and hands that one storageState to every context this script
+  // opens, so making surfaces here read as a second identity would mean
+  // restructuring that shared, heavily-guarded harness — where a separate
+  // pass needs no change to it at all, the same tradeoff already made
+  // between the `capture` and `capture-preview-states` jobs above. Two
+  // fixtures that can clash (a data-bearing account and a dataless one,
+  // signed into with the same script in the same run) is the failure mode
+  // with the highest cost; two passes against two throwaway databases
+  // cannot clash by construction.
+  //
+  // Guarded on `data-testid="first-run"` (firstRunGuard below), the same
+  // discipline as train-race-pacing's `data-testid="race-pacing"`: a capture
+  // that reaches "/", "/train", "/coach" or "/body" but finds the ordinary,
+  // data-bearing page — because the fresh-owner account picked up so much as
+  // one wellness row or one active connection — must fail loudly rather than
+  // file that page under a name promising the first-run state.
+  "first-run-today": "/",
+  "first-run-train": "/train",
+  "first-run-body": "/body",
+  "first-run-coach": "/coach",
 };
 
 /**
@@ -727,9 +764,57 @@ async function waitForRacePacing(page: Page): Promise<void> {
   }
 }
 
+/**
+ * Assert the page actually rendered its first-run branch, for one of the
+ * four first-run-* surfaces (Today, Train, Coach, Body).
+ *
+ * These surfaces sign in as a dedicated, deliberately dataless account
+ * (scripts/seed-fresh-owner.ts) run through a separate capture pass — see
+ * the SURFACES entries above and .github/workflows/surfaces.yml's
+ * `capture-first-run` job for why. But `assertOnSurface` only checks the
+ * PATH, and "/", "/train", "/coach" and "/body" are all real, always-
+ * reachable pages regardless of account state. If that account ever picks
+ * up so much as one wellness row or one active connection — a stray webhook
+ * retry, a leftover connection from a previous run, a manual test — isFirstRun
+ * (src/lib/first-run.ts) flips to false and each page renders its ordinary,
+ * data-bearing content instead. Capturing that anyway would file the wrong
+ * page under a name promising the first-run state, silently, which is
+ * exactly the defect class this project has hit three times now (the
+ * race-pacing gap, the truncated settings PNGs, and the welcome card itself
+ * — see src/app/page.tsx's comment on why THAT branch went unphotographed
+ * for an entire redesign slice). `data-testid="first-run"` is the one
+ * marker all four panels share (Train, Coach and Body already carried it;
+ * Today's welcome card was given the same attribute alongside this guard).
+ */
+function firstRunGuard(
+  surface: string,
+  routePath: string
+): (page: Page) => Promise<void> {
+  return async (page: Page) => {
+    try {
+      const panel = page.locator('[data-testid="first-run"]').first();
+      await panel.waitFor({ state: "visible", timeout: 10_000 });
+    } catch (err) {
+      throw new Error(
+        `${surface}: no visible [data-testid="first-run"] on ${routePath}. ` +
+          "Either this account is no longer dataless — a wellness row or an " +
+          "active connection landed on it; see scripts/seed-fresh-owner.ts, " +
+          "which refuses to seed over existing data but cannot stop it " +
+          "arriving afterward — or the first-run branch stopped rendering. " +
+          "Capturing anyway would file the ordinary, data-bearing page " +
+          `under a name promising the first-run state. (${err instanceof Error ? err.message : String(err)})`
+      );
+    }
+  };
+}
+
 const SURFACE_PREPARE: Record<string, (page: Page) => Promise<void>> = {
   "train-plan-preview": waitForTwoArcPreview,
   "train-race-pacing": waitForRacePacing,
+  "first-run-today": firstRunGuard("first-run-today", "/"),
+  "first-run-train": firstRunGuard("first-run-train", "/train"),
+  "first-run-body": firstRunGuard("first-run-body", "/body"),
+  "first-run-coach": firstRunGuard("first-run-coach", "/coach"),
   "settings-expanded": expandSettingsSections,
   "settings-connect-errors": expandSettingsSections,
   "debrief-sheet": sheetOpenGuard(
@@ -775,9 +860,11 @@ const axeReportPath = join(outDir, "axe-report.json");
  * their paths are only knowable once a page has been driven (a coach thread
  * id, the newest activity, the sheet that activity opens, a freshly minted
  * token). They are listed here so --only/--except can name them and so a typo
- * in either is still rejected: 22 literal + these 5 is the whole surface set,
- * and 27 x 2 themes x 2 viewports is the 108 capture entries a full run
- * reports.
+ * in either is still rejected: 27 literal + these 5 is the whole surface set,
+ * and 32 x 2 themes x 2 viewports is the 128 capture entries a full run
+ * reports (the four `first-run-*` surfaces run through a separate pass —
+ * see their SURFACES entries above — but are still part of this same
+ * literal+resolved count and still selectable by name here).
  */
 const RESOLVED_SURFACES = [
   "coach-thread",

@@ -2,13 +2,33 @@ name: Surfaces
 
 # Playwright surface capture + the axe ratchet.
 #
-# TWO CAPTURE JOBS, DELIBERATELY. previewStateFrom (src/lib/today/state.ts)
-# returns null when NODE_ENV === "production", so a production build renders
-# whichever state the clock dictates for all three `today*` surfaces, and
-# assertTodayStatesDiffer then fails the run on the byte-identical PNGs —
-# correctly. A single cheaper job would capture the wrong page for three
-# surfaces and report success, which is the assertOnSurface trap wearing a
-# different hat. Do not merge these jobs back together.
+# THREE CAPTURE JOBS, DELIBERATELY.
+#
+# `capture` vs `capture-preview-states`: previewStateFrom
+# (src/lib/today/state.ts) returns null when NODE_ENV === "production", so a
+# production build renders whichever state the clock dictates for all three
+# `today*` surfaces, and assertTodayStatesDiffer then fails the run on the
+# byte-identical PNGs — correctly. A single cheaper job would capture the
+# wrong page for three surfaces and report success, which is the
+# assertOnSurface trap wearing a different hat.
+#
+# `capture-first-run` exists for the same reason, one level up: the
+# `first-run-*` surfaces (Today/Train/Coach/Body's isFirstRun branch, see
+# src/lib/first-run.ts) need an account with NO wellness and NO connections,
+# ever, and both jobs above sign in as an owner `seed-demo.ts` (plus
+# seed-confirmed-race/seed-two-race) has deliberately given data — precisely
+# so the other 27 surfaces have something to render. The two states cannot
+# share an account, and — per the same reasoning documented at the
+# seed-confirmed-race/seed-two-race step below — two fixtures that CAN clash
+# is worse than two that structurally cannot. A second seeded user signed
+# into within one of the existing jobs was considered and rejected: this
+# script's signIn() authenticates once per process and hands that one
+# storageState to every surface the run captures, so making some surfaces
+# use a second identity would mean restructuring that shared harness. A
+# third job, against its own throwaway Postgres, needs no such change and
+# cannot collide with the other two by construction.
+#
+# Do not merge any of these jobs back together.
 #
 # The push-to-main run is the one that matters for a release: it is the only
 # capture taken against the exact commit an RC is cut from, and soak.yml cannot
@@ -45,6 +65,7 @@ env:
   OWNER_EMAIL: dev@recover.local
   OWNER_PASSWORD: surfaces-ci-owner-password
   PREVIEW_SURFACES: today,today-post-session,today-evening
+  FIRST_RUN_SURFACES: first-run-today,first-run-train,first-run-body,first-run-coach
 
 jobs:
   capture:
@@ -146,15 +167,19 @@ jobs:
           tail -50 /tmp/next.log
           exit 1
 
-      # Everything except the three preview states — see this file's header.
+      # Everything except the three preview states and the four first-run
+      # states — see this file's header for why each of those needs its own
+      # job. This owner has demo data, so a first-run-* capture here would be
+      # a hard failure (firstRunGuard refusing a data-bearing page), not
+      # merely a wasted one.
       - name: Capture surfaces
-        # --no-axe-gate: the RATCHET decides, in the job below, over both
-        # captures summed. Without it the script's own `confirmed > 0` exit
-        # fails this job and the ratchet job is skipped for a failed
+        # --no-axe-gate: the RATCHET decides, in the job below, over all
+        # three captures summed. Without it the script's own `confirmed > 0`
+        # exit fails this job and the ratchet job is skipped for a failed
         # dependency — which is what happened on run 32368432220, where both
         # captures completed cleanly and were failed by a zero threshold the
         # ratchet exists to replace. Hard failures still fail this step.
-        run: npx tsx scripts/verify-surfaces.ts capture-main --except="$PREVIEW_SURFACES" --no-axe-gate
+        run: npx tsx scripts/verify-surfaces.ts capture-main --except="$PREVIEW_SURFACES,$FIRST_RUN_SURFACES" --no-axe-gate
 
       - name: Show the server log if the capture failed
         if: failure()
@@ -267,9 +292,109 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
 
+  capture-first-run:
+    name: capture (production build, dataless owner)
+    runs-on: ubuntu-latest
+    env:
+      # Overrides the workflow-level OWNER_EMAIL/OWNER_PASSWORD for this job's
+      # steps only — a completely different account from the other two jobs'
+      # `dev@recover.local`, on this job's own throwaway Postgres, so the
+      # first-run-* surfaces can never observe the demo owner's data. See
+      # this file's header for why this must be a separate job rather than a
+      # second sign-in inside `capture`.
+      OWNER_EMAIL: fresh-owner@recover.local
+      OWNER_PASSWORD: surfaces-ci-fresh-owner-password
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      - name: Resolve the pinned Chromium revision
+        id: pw
+        run: |
+          set -euo pipefail
+          v=$(node -p "require('./node_modules/playwright-core/package.json').version")
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Chromium
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ms-playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
+
+      - name: Install Chromium and its system libraries
+        run: |
+          set -euo pipefail
+          npm run dev:browser-setup
+          sudo "$(which node)" node_modules/playwright-core/cli.js install-deps chromium
+
+      - run: node scripts/migrate.mjs
+
+      # ONLY the fresh, dataless owner. No db:seed (that seeds OWNER_EMAIL as
+      # a plain owner, which is fine, but this script also refuses loudly if
+      # the account already has wellness rows — the guarantee the four
+      # first-run-* surfaces depend on) and deliberately no db:seed-demo,
+      # seed-confirmed-race or seed-two-race: adding any of those here would
+      # be the exact defect this job exists to avoid.
+      - name: Seed the dataless owner
+        run: npx tsx scripts/seed-fresh-owner.ts
+
+      - run: npm run build
+
+      # nohup so the server survives this step's shell; a bare `&` can take a
+      # SIGHUP when the step exits and the capture then fails on a dead port.
+      - name: Start the app and wait for it
+        run: |
+          set -euo pipefail
+          nohup npx next start -p 3200 > /tmp/next.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:3200/api/health >/dev/null 2>&1; then
+              echo "app up after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::app did not become healthy on :3200 within 60s"
+          tail -50 /tmp/next.log
+          exit 1
+
+      - name: Capture the first-run states
+        # See the note on the production capture above.
+        run: npx tsx scripts/verify-surfaces.ts capture-first-run --only="$FIRST_RUN_SURFACES" --no-axe-gate
+
+      - name: Show the server log if the capture failed
+        if: failure()
+        run: tail -100 /tmp/next.log
+
+      - name: Upload the capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: capture-first-run
+          path: .screenshots/capture-first-run
+          if-no-files-found: warn
+          retention-days: 30
+
   ratchet:
-    name: axe ratchet (both captures)
-    needs: [capture, capture-preview-states]
+    name: axe ratchet (all captures)
+    needs: [capture, capture-preview-states, capture-first-run]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -289,9 +414,14 @@ jobs:
           name: capture-preview-states
           path: .screenshots/capture-preview
 
-      # Both slices together. A ratchet over only one job's surfaces would
-      # leave the other job's confirmed nodes ungated — and the five surfaces
+      - uses: actions/download-artifact@v4
+        with:
+          name: capture-first-run
+          path: .screenshots/capture-first-run
+
+      # All three slices together. A ratchet over only some jobs' surfaces would
+      # leave the other jobs' confirmed nodes ungated — and the five surfaces
       # main() resolves at runtime are captured by whichever job selects them,
       # so summing is the only way the total means anything.
       - name: Compare against the committed ceiling
-        run: npm run verify:ratchet -- capture-main capture-preview
+        run: npm run verify:ratchet -- capture-main capture-preview capture-first-run

@@ -89,7 +89,7 @@ interchangeable.**
 
 The release-candidate form:
 
-`--only=a,b` and `--except=a,b` narrow the run; without either, all 27 surfaces
+`--only=a,b` and `--except=a,b` narrow the run; without either, all 32 surfaces
 are captured. Both reject an unknown name rather than quietly matching nothing,
 and both cover the five surfaces `main()` resolves at runtime as well as the 22
 in the `SURFACES` literal. `.github/workflows/surfaces.yml` uses them to split

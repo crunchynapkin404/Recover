@@ -276,8 +276,11 @@ export default async function DashboardPage({
   // returning athlete as new. See src/lib/first-run.ts.
   if (await isFirstRun(user.id)) {
     return (
-      <AppShell>
-        <div className="flex min-h-[60svh] flex-col items-center justify-center text-center">
+      <AppShell user={shellUser(user)}>
+        <div
+          data-testid="first-run"
+          className="flex min-h-[60svh] flex-col items-center justify-center text-center"
+        >
           <div className="glass glass-no-hover mx-auto max-w-md rounded-[2.5rem] p-8">
             <h2 className="text-title font-bold tracking-tight text-ink-primary">
               Welcome to Recover
@@ -323,9 +326,18 @@ export default async function DashboardPage({
             </div>
 
             <p className="mt-6 text-label text-ink-muted">
-              Recover needs {CALIBRATION_TARGET_DAYS} days of HRV &amp; resting
-              HR to calibrate your readiness score — it&apos;ll show a
-              day-by-day countdown while it learns your baseline.
+              {/* A single template-literal expression, not JSX text mixed
+                  with {CALIBRATION_TARGET_DAYS} — Next.js's compiler drops
+                  the space immediately after a same-line expression when the
+                  following text wraps to a new line ("14days", not "14
+                  days"), even though every spec-compliant JSX transform
+                  (Babel, TypeScript, esbuild) preserves it and `prettier
+                  --write` "cleans up" the usual {" "} workaround right back
+                  into the broken form, trusting that same spec. One string
+                  sidesteps the text/expression boundary entirely. Caught by
+                  Task 6's first capture of this dataless-account branch —
+                  see this file's isFirstRun comment above. */}
+              {`Recover needs ${CALIBRATION_TARGET_DAYS} days of HRV & resting HR to calibrate your readiness score — it'll show a day-by-day countdown while it learns your baseline.`}
             </p>
           </div>
         </div>
