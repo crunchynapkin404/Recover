@@ -126,7 +126,16 @@ named defect, not an aspiration:
 - [ ] **Rollback has never been exercised against prod.** Documented,
       designed, untested — `docs/RELEASING.md` says so itself.
 - [ ] `scripts/repair-plan-sport.ts` still refuses two-race plans.
-- [ ] Triathlon and multi-day pacing refusals have never been seen rendered.
+- [x] Triathlon and multi-day pacing refusals have now been seen rendered
+      (2026-08-26). Both reach the page through the `!card.pacing.available`
+      branch in `src/app/train/page.tsx` and read correctly in place. A
+      triathlon surfaces two distinct refusals — the demand card's "no demand
+      figure yet" and the pacing line's own — each naming a different missing
+      thing. **Permanent capture coverage is NOT closed by this** and is a
+      larger piece than it looks: `nextUpcomingRace` picks strictly by
+      earliest date, so seeding a refusal race alongside the existing
+      confirmed one hijacks the race card on every `train*` surface. It needs
+      a second seeded athlete or a tie-break, and deserves its own scoping.
 
 ## Phase 6 — Experience
 
