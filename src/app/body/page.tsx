@@ -1,8 +1,11 @@
+import Link from "next/link";
 import { and, desc, eq, gte, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { recordSurfaceView } from "@/lib/telemetry";
+import { isFirstRun } from "@/lib/first-run";
 import { AppShell, shellUser } from "@/components/app-shell";
+import { Unavailable } from "@/components/ui/unavailable";
 import { BaselineTrendCard } from "@/components/body/baseline-trend-card";
 import { SleepNightCard } from "@/components/body/sleep-night-card";
 import { SleepHistoryStrip } from "@/components/body/sleep-history-strip";
@@ -184,6 +187,42 @@ async function TrendsTab({
   range: number;
   href: (over: { tab?: BodyTab; range?: number }) => string;
 }) {
+  // A first-run athlete has never synced or logged anything, in any range —
+  // today's rendering said so four times over: once per HRV/RHR/Weight card
+  // ("Not enough readings in this range yet.") plus a page-level echo
+  // ("No wellness readings in this range yet."). Route them back to the
+  // data paths instead, replacing the whole trends section the same way
+  // /train and /coach already replace their own dataless content. An
+  // established athlete whose *selected range* happens to be empty is a
+  // different case entirely (isFirstRun is about all-time history, not the
+  // current range) and falls through to the untouched code below, which
+  // keeps today's per-card and page-level wording exactly as it is.
+  const firstRun: boolean = await isFirstRun(userId);
+  if (firstRun) {
+    return (
+      <div data-testid="first-run" className="space-y-4">
+        <Unavailable
+          full
+          state={{
+            kind: "missing_input",
+            needs: "HRV, resting heart rate, and weight readings",
+            fix: { label: "Connect a device or log manually", href: "/" },
+          }}
+        />
+        {/* Unavailable's `full` treatment renders the EmptyState message
+            only — it does not surface `state.fix` (see
+            components/ui/unavailable.tsx). The fix link is rendered here
+            instead, same pattern as /train and /coach. */}
+        <Link
+          href="/"
+          className="block text-center text-caption font-bold text-accent"
+        >
+          Connect a device or log manually
+        </Link>
+      </div>
+    );
+  }
+
   // Always at least the baseline window, even on the 30d chart: the band is
   // a fixed 60-day reference, so a shorter range must not quietly narrow it
   // to whatever happens to be on screen. fillDailyGaps only reads the days it
