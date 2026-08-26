@@ -31,6 +31,8 @@ Prod's running image digest, recorded whenever it changes:
 
 | Date       | Version  | Digest                                                                    | Soaked?                             |
 | ---------- | -------- | ------------------------------------------------------------------------- | ----------------------------------- |
+| 2026-08-24 | v0.119.0 | `sha256:9a82b62c83be062b461ebe6091f73aad1d10c499876e54f2d3fe0d6e30361c05` | **yes**                             |
+| 2026-08-24 | v0.118.0 | `sha256:cea5b7143b46bd3283eef5ebec889dfc82bfeb27f289dbc692fe389630b919e2` | **yes**                             |
 | 2026-08-20 | v0.116.0 | `sha256:e424e3d347d0eede407214642ad5cfa2d14c6c28f280b8d6296f26934af7b24d` | **yes**                             |
 | 2026-08-20 | v0.115.0 | `sha256:e9427387e23f3db1e476022f2085e6c96540c914b2648f57e813990fc13d4753` | **yes**                             |
 | 2026-08-20 | v0.114.0 | `sha256:69100f0e9a1efa6a67a62c0f96d2e63261f779f4e96b8b7150c26d9fdb24b1ab` | **yes**                             |
