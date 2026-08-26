@@ -1,6 +1,6 @@
 # Roadmap
 
-Current release: **v0.119.0**. History through v0.119 is preserved in
+Current release: **v0.120.0**. History through v0.119 is preserved in
 [`docs/archive/ROADMAP-through-v0.119.md`](archive/ROADMAP-through-v0.119.md) —
 Phases 1–4, all complete. It is a record, not a plan.
 
@@ -163,10 +163,24 @@ The maximum focus. Four strands, each its own brainstorm → spec → plan
 cycle — the discipline Phase 2b (design language and IA) used, because a UX
 phase written as a checklist becomes a tweak list:
 
-- [ ] **First run and onboarding.** Recover computes from the athlete's own
-      baselines, so day one is inherently empty and "calibrating" _is_ the
-      new athlete's first experience — an edge case serving as the front
-      door.
+- [x] **First run and onboarding**, closed in v0.120.0. Recover computes
+      from the athlete's own baselines, so day one is inherently empty and
+      "calibrating" _is_ the new athlete's first experience — an edge case
+      serving as the front door. Today already had a proper welcome card;
+      Train, Body and Coach did not, so a new athlete who clicked around
+      before connecting anything met four different flavours of nothing
+      with no way back. One shared predicate — `isFirstRun()`, strictly
+      gated on no active connection _and_ no wellness ever — now drives all
+      four tabs through the `missing_input`/`fix` vocabulary the rest of the
+      app already standardised on; Body's four repeated "not enough
+      readings" statements collapse to one; a returning athlete whose
+      wellness is older than 90 days is no longer mistaken for brand new;
+      and all four first-run screens get real capture coverage for the
+      first time — no capture had ever photographed a dataless account.
+      Two rendering defects (a JSX-whitespace bug, a missing sidebar
+      identity row) were found only by opening those new screenshots. This
+      strand is one of four in Phase 6 — information architecture, flow and
+      friction, and visual polish remain open.
 - [ ] **Information architecture.** Today/Train/Coach/Body/Menu was set in
       v0.23.0 and has had features bolted on since; Settings alone has grown
       long enough that a reviewer got lost finding a card in it.

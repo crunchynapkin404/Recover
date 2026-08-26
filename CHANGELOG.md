@@ -1,5 +1,106 @@
 # Changelog
 
+## v0.120.0 — 2026-08-26 — Four flavours of nothing
+
+Today already had a proper welcome card — a heading, three ranked data
+paths, an honest calibration countdown — and it worked. The problem was
+narrower than "there is no onboarding": that card existed on **one tab out
+of five**, while the nav is live from the first second. A new athlete
+clicking around before connecting anything, which is what people do, met
+four different flavours of nothing on Train, Body and Coach, none of which
+routed back to the one screen that would help. This release makes those
+three tabs cohere with Today — not by inventing a new onboarding design, but
+by reusing the `missing_input`/`fix` vocabulary `src/lib/uncertainty.ts`
+already standardised and `<Unavailable full>` already renders.
+
+### One predicate, not four inline copies
+
+`src/lib/first-run.ts` exports `isFirstRun(userId)` — the same "one
+resolver, not two" move `resolveFtpAnchor()` made for FTP in v0.118.0.
+Today's inline `!connection && wellness.length === 0` check is gone; Train,
+Body and Coach all call the same function before deciding what to render.
+**Strictly gated on no active connection _and_ no wellness ever** — the
+distinction that keeps this safe: "not enough readings in this range" for an
+established athlete with a gap in their selected range is untouched, on
+every tab.
+
+- Train's week tab, with no plan and no draft preview: "Needs wellness data
+  before it can plan your week" (`src/app/train/page.tsx`).
+- Coach, with no thread and nothing yet to reason about: "Needs some
+  training data before the coach has anything to talk about" — independent
+  of, and checked ahead of, the existing "needs an LLM key" wall
+  (`src/components/coach/chat-interface.tsx:327`), which is still the right
+  message for an established athlete who simply hasn't configured a key.
+- Body: one absence statement, not four — see below.
+
+Each panel carries a fix link back to `/` ("Connect a device or log
+manually"). `<Unavailable full>` renders the `missing_input` message but
+discards `state.fix` (`src/components/ui/unavailable.tsx:26-30`), so the link is
+rendered as a sibling next to it, the same pattern `PlanEmpty` already used
+for its own "Talk to the coach" link. That gap in `Unavailable` itself is
+left for a future pass — three call sites now work around it identically,
+which is one honest workaround instead of three different ones.
+
+### Body said the same thing four times
+
+One screen, four near-identical sentences: "Not enough readings in this
+range yet." once per card — HRV, resting heart rate, weight — plus a
+page-level "No wellness readings in this range yet." First-run now collapses
+all four into one: `TrendsTab` returns a single `<Unavailable full>` panel
+in place of the range tabs, the three cards, and the page-level empty
+state. An established athlete whose _selected range_ happens to be empty
+still sees the pre-existing per-card and page-level wording, untouched —
+that is a real gap, not first-run, and stays exactly as it was.
+
+### A behaviour change to Today, worth noticing
+
+The old gate windowed wellness to 90 days, so an athlete who logged for a
+year, stopped, and returned 100+ days later was shown the welcome card as
+though brand new. `isFirstRun()` counts all of history, so they no longer
+are. This is a real, noticeable change to existing behaviour, not a side
+effect of the refactor — called out here per the correction the spec
+documents rather than applying it silently
+(`docs/specs/2026-08-26-first-run-coherence-design.md`).
+
+### Two defects found by opening the capture PNGs
+
+No test caught either one; both surfaced from actually looking at the four
+new screenshots, which is exactly why `docs/RELEASING.md` step 8 exists:
+
+- Today's welcome card rendered **"14days"** instead of "14 days" — a
+  Next.js/SWC-specific JSX-whitespace divergence (Babel's, TypeScript's and
+  esbuild's JSX transforms all preserve the space; Next's SWC compiler drops
+  it). The standard `{" "}` fix round-trips through `prettier --write` and
+  gets silently collapsed back into the broken form, so the calibration
+  sentence is now one template-literal expression instead of JSX text mixed
+  with `{CALIBRATION_TARGET_DAYS}` — no text/expression boundary left for
+  either tool to mishandle.
+- Today's first-run branch alone never passed `user` to `<AppShell>`, so it
+  was the one first-run screen missing the sidebar identity row that Train's,
+  Body's and Coach's first-run panels all show.
+
+### Capture coverage, for the first time
+
+No capture had ever photographed a dataless account — every existing
+surface seeds `seed-demo.ts` or a variant of it first — which is why the
+welcome card had silently kept pre-redesign styling (sub-floor pixel sizes,
+glass, white-alpha inks, a raw emerald accent) straight through, until a
+whole-branch review caught it in August 2026. Four new surfaces —
+`first-run-today`, `first-run-train`, `first-run-body`, `first-run-coach` —
+now run in their own CI job (`capture-first-run`) against a freshly seeded,
+genuinely dataless account (`scripts/seed-fresh-owner.ts`), kept separate
+from the existing demo-seeded pass so the two accounts can never collide.
+Guarded on `data-testid="first-run"`, the same discipline
+`train-race-pacing`'s guard uses: a run that reaches the page but not the
+first-run panel fails loudly instead of silently filing the wrong state.
+0 confirmed axe violations across all 16 images (4 surfaces × 2 themes × 2
+viewports).
+
+### Migrations
+
+**None.** No file was added to `drizzle/`, so a rollback past this release
+is unconstrained in schema terms.
+
 ## v0.119.0 — 2026-08-24 — Not zone 2
 
 Squat, bench, deadlift and overhead press get a genuine place in the plan —

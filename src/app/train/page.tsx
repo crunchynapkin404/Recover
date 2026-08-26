@@ -49,6 +49,7 @@ import {
 import { RaceChip } from "@/components/today/race-chip";
 import { raceCard } from "@/lib/race/outlook";
 import { Unavailable } from "@/components/ui/unavailable";
+import { isFirstRun } from "@/lib/first-run";
 
 /** Seconds per km as m:ss/km. 285 -> "4:45/km". */
 function fmtPace(secPerKm: number): string {
@@ -375,11 +376,53 @@ async function WeekTab({
   );
 
   if (!plan) {
+    // Skipped when a draft preview exists — a coach-proposed plan is worth
+    // showing even to a first-run athlete. Otherwise this is the fork: a
+    // first-run athlete with nothing at all gets a way back to the data
+    // paths, while an established athlete between seasons keeps the
+    // honest "no plan yet" wording untouched (see PlanEmpty).
+    // The explicit `: boolean` is load-bearing here, unlike on Body/Coach: a
+    // dropped `await` would type this ternary as `false | Promise<boolean>`,
+    // and having a real `false` arm stops TS2801's "always truthy Promise"
+    // check from firing — only this annotation still turns that mistake
+    // into a compile error (a bare `Promise<boolean>` isn't assignable to
+    // `boolean`).
+    const firstRun: boolean = draftPreview ? false : await isFirstRun(userId);
     return (
       <>
         <TrainHeader tab="week" href={href} action={chip} />
         {draftPreview ? (
           <PlanPreviewCard preview={draftPreview} />
+        ) : firstRun ? (
+          <div
+            data-testid="first-run"
+            className="flex min-h-[60svh] items-center justify-center px-6"
+          >
+            <div className="mx-auto max-w-sm space-y-4 text-center">
+              <Unavailable
+                full
+                state={{
+                  kind: "missing_input",
+                  needs: "wellness data before it can plan your week",
+                  fix: {
+                    label: "Connect a device or log manually",
+                    href: "/",
+                  },
+                }}
+              />
+              {/* Unavailable's `full` treatment renders the EmptyState
+                  message only — it does not surface `state.fix` (see
+                  components/ui/unavailable.tsx). The fix link is rendered
+                  here instead, same pattern PlanEmpty uses for its own "Talk
+                  to the coach" link below the EmptyState. */}
+              <Link
+                href="/"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-accent px-6 py-3 font-bold text-accent-foreground transition-all hover:bg-accent/90"
+              >
+                Connect a device or log manually
+              </Link>
+            </div>
+          </div>
         ) : (
           <PlanEmpty />
         )}

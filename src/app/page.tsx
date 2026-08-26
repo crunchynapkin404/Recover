@@ -5,6 +5,7 @@ import { db, schema } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { recordSurfaceView } from "@/lib/telemetry";
 import { getActivePlan } from "@/lib/active-plan";
+import { isFirstRun } from "@/lib/first-run";
 import { Figure } from "@/lib/uncertainty";
 import { AppShell, shellUser, avatarInitial } from "@/components/app-shell";
 import { PullToRefresh } from "@/components/today/pull-to-refresh";
@@ -96,13 +97,6 @@ export default async function DashboardPage({
   // Sheet state lives in the URL so the morning and post-ride pushes can
   // deep-link straight into an open sheet, and Back closes it.
   const { sheet, activity: sheetActivity, state } = await searchParams;
-
-  const connection = await db.query.connections.findFirst({
-    where: and(
-      eq(schema.connections.userId, user.id),
-      eq(schema.connections.status, "active")
-    ),
-  });
 
   const allConnections = await db.query.connections.findMany({
     where: eq(schema.connections.userId, user.id),
@@ -277,10 +271,16 @@ export default async function DashboardPage({
   // accent — straight through. Migrated with the same mapping the rest of the
   // slice used. Class names are described, not spelled: Tailwind compiles
   // literals it finds in comments, and the offender scan counts them.
-  if (!connection && wellness.length === 0) {
+  // The shared predicate, not an inline condition — three other tabs now ask
+  // the same question, and this one used a 90-day window that treated a
+  // returning athlete as new. See src/lib/first-run.ts.
+  if (await isFirstRun(user.id)) {
     return (
-      <AppShell>
-        <div className="flex min-h-[60svh] flex-col items-center justify-center text-center">
+      <AppShell user={shellUser(user)}>
+        <div
+          data-testid="first-run"
+          className="flex min-h-[60svh] flex-col items-center justify-center text-center"
+        >
           <div className="glass glass-no-hover mx-auto max-w-md rounded-[2.5rem] p-8">
             <h2 className="text-title font-bold tracking-tight text-ink-primary">
               Welcome to Recover
@@ -326,9 +326,18 @@ export default async function DashboardPage({
             </div>
 
             <p className="mt-6 text-label text-ink-muted">
-              Recover needs {CALIBRATION_TARGET_DAYS} days of HRV &amp; resting
-              HR to calibrate your readiness score — it&apos;ll show a
-              day-by-day countdown while it learns your baseline.
+              {/* A single template-literal expression, not JSX text mixed
+                  with {CALIBRATION_TARGET_DAYS} — Next.js's compiler drops
+                  the space immediately after a same-line expression when the
+                  following text wraps to a new line ("14days", not "14
+                  days"), even though every spec-compliant JSX transform
+                  (Babel, TypeScript, esbuild) preserves it and `prettier
+                  --write` "cleans up" the usual {" "} workaround right back
+                  into the broken form, trusting that same spec. One string
+                  sidesteps the text/expression boundary entirely. Caught by
+                  Task 6's first capture of this dataless-account branch —
+                  see this file's isFirstRun comment above. */}
+              {`Recover needs ${CALIBRATION_TARGET_DAYS} days of HRV & resting HR to calibrate your readiness score — it'll show a day-by-day countdown while it learns your baseline.`}
             </p>
           </div>
         </div>
