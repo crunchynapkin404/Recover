@@ -417,8 +417,11 @@ export function adaptDay(input: AdaptDayInput): AdaptDayResult {
     const before = [{ ...day, workouts: day.workouts.map((w) => ({ ...w })) }];
     if (input.band === "red") {
       // A strength session degrades exactly like a quality one: substitute
-      // to recovery (SUBSTITUTE_TO.strength, availability/types.ts) rather
-      // than shrink its duration. Cutting a lift's minutes while keeping
+      // to a full recovery session rather than shrink its duration. Note the
+      // substitute is hardcoded here, NOT read from SUBSTITUTE_TO — this
+      // branch is shared with isQuality, and reading the table would send a
+      // red-day vo2max session to Tempo instead of Recovery, which is a
+      // different behaviour. Cutting a lift's minutes while keeping
       // every prescribed set is a rest-interval cut, not a reduction — the
       // opposite of spec D3's intent. Sharing this branch with isQuality is
       // deliberate: both need the identical "substitute to a full recovery

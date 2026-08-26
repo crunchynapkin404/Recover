@@ -113,7 +113,7 @@ subsystem.
 The precondition, deliberately small and finishable. Every item is a known,
 named defect, not an aspiration:
 
-- [ ] The three parked v0.119.0 doc-accuracy findings — chiefly that
+- [x] The three parked v0.119.0 doc-accuracy findings — chiefly that
       `SUBSTITUTE_TO.strength` became unreachable, so a comment naming it as
       the red-readiness mechanism is false even though the behaviour is
       right.
@@ -121,7 +121,7 @@ named defect, not an aspiration:
       the same settings surface rendered 5217 px in dark and 3649 px in
       light within one run. A truncated PNG is indistinguishable from a
       passing one.
-- [ ] Record the previous digest in `docs/ENVIRONMENTS.md` —
+- [x] Record the previous digest in `docs/ENVIRONMENTS.md` —
       `promote.yml` asks for it on every run; it was not done for v0.119.0.
 - [ ] **Rollback has never been exercised against prod.** Documented,
       designed, untested — `docs/RELEASING.md` says so itself.
