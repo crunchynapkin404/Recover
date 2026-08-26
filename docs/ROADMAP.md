@@ -125,7 +125,21 @@ named defect, not an aspiration:
       `promote.yml` asks for it on every run; it was not done for v0.119.0.
 - [ ] **Rollback has never been exercised against prod.** Documented,
       designed, untested — `docs/RELEASING.md` says so itself.
-- [ ] `scripts/repair-plan-sport.ts` still refuses two-race plans.
+- [x] `scripts/repair-plan-sport.ts` refusing two-race plans is **correct
+      behaviour, not a defect** — reframed 2026-08-26 after three handoffs
+      carried it as an open to-do. It is a v0.42 one-off repair for a single
+      live plan (its header names it), and the defect class it repaired is now
+      structurally closed: a plan's sport flows through
+      `requirePlanSport(race.sport)`, which throws on an unsupported sport
+      rather than falling through to running — the exact v0.42 bug. Refusing a
+      two-race plan, loudly and with its reason, is the honest outcome; the
+      alternative is collapsing a two-arc season into one. The script is
+      tested and wired into no workflow.
+      **The real open question is whether to retire it**, and that is a
+      judgement about operational tooling rather than a bug: keeping a tested
+      repair tool that refuses safely costs almost nothing, and deleting it
+      because "the bug cannot happen any more" is the kind of confidence this
+      project usually declines. Not scheduled either way.
 - [x] Triathlon and multi-day pacing refusals have now been seen rendered
       (2026-08-26). Both reach the page through the `!card.pacing.available`
       branch in `src/app/train/page.tsx` and read correctly in place. A
