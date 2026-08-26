@@ -274,6 +274,30 @@ jobs:
           fi
           curl -fsS -o /dev/null "http://localhost:3200/" || true
           curl -fsS -o /dev/null "http://localhost:3200/?state=evening" || true
+          # The sign-in path was NOT warmed here, and that failed main on
+          # 2026-08-26 (run 32978623883). The capture's very first request to
+          # `/api/auth/[...all]` is its sign-in POST, and against a cold
+          # catch-all Better Auth answered 404 three times running:
+          #
+          #   POST /api/auth/sign-in/email 404 in 421ms
+          #   POST /api/auth/sign-in/email 404 in 54ms
+          #   POST /api/auth/sign-in/email 404 in 53ms
+          #   Error: sign-in failed after 3 attempts
+          #
+          # It reads exactly like bad credentials or a broken auth config and
+          # was neither: the identical tree had passed this same job twice on
+          # the pull request, and a re-run of the failed job passed. signIn()
+          # already retries three times at 1s (verify-surfaces.ts), which
+          # defends against a slow blip but not against a route that has
+          # settled into answering 404 — so the retry cannot be the fix.
+          #
+          # `/ok` is Better Auth's own health endpoint: a GET, no session, no
+          # side effects. It lives in the same route module as the POST
+          # handler, so warming it compiles both. `/login` is warmed for the
+          # same reason — it paid a 2.7s cold compile inside the capture's
+          # 15s navigation budget on that run.
+          curl -fsS -o /dev/null "http://localhost:3200/login" || true
+          curl -fsS -o /dev/null "http://localhost:3200/api/auth/ok" || true
 
       - name: Capture the preview states
         # See the note on the production capture above.
