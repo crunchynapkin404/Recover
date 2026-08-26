@@ -49,6 +49,7 @@ import {
 import { RaceChip } from "@/components/today/race-chip";
 import { raceCard } from "@/lib/race/outlook";
 import { Unavailable } from "@/components/ui/unavailable";
+import { isFirstRun } from "@/lib/first-run";
 
 /** Seconds per km as m:ss/km. 285 -> "4:45/km". */
 function fmtPace(secPerKm: number): string {
@@ -375,11 +376,42 @@ async function WeekTab({
   );
 
   if (!plan) {
+    // Skipped when a draft preview exists — a coach-proposed plan is worth
+    // showing even to a first-run athlete. Otherwise this is the fork: a
+    // first-run athlete with nothing at all gets a way back to the data
+    // paths, while an established athlete between seasons keeps the
+    // honest "no plan yet" wording untouched (see PlanEmpty).
+    const firstRun: boolean = draftPreview ? false : await isFirstRun(userId);
     return (
       <>
         <TrainHeader tab="week" href={href} action={chip} />
         {draftPreview ? (
           <PlanPreviewCard preview={draftPreview} />
+        ) : firstRun ? (
+          <div data-testid="first-run" className="space-y-4">
+            <Unavailable
+              full
+              state={{
+                kind: "missing_input",
+                needs: "wellness data before it can plan your week",
+                fix: {
+                  label: "Connect a device or log manually",
+                  href: "/",
+                },
+              }}
+            />
+            {/* Unavailable's `full` treatment renders the EmptyState message
+                only — it does not surface `state.fix` (see
+                components/ui/unavailable.tsx). The fix link is rendered here
+                instead, same pattern PlanEmpty uses for its own "Talk to the
+                coach" link below the EmptyState. */}
+            <Link
+              href="/"
+              className="block text-center text-caption font-bold text-accent"
+            >
+              Connect a device or log manually
+            </Link>
+          </div>
         ) : (
           <PlanEmpty />
         )}
