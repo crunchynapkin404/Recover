@@ -5,6 +5,7 @@ import { db, schema } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { recordSurfaceView } from "@/lib/telemetry";
 import { getActivePlan } from "@/lib/active-plan";
+import { isFirstRun } from "@/lib/first-run";
 import { Figure } from "@/lib/uncertainty";
 import { AppShell, shellUser, avatarInitial } from "@/components/app-shell";
 import { PullToRefresh } from "@/components/today/pull-to-refresh";
@@ -96,13 +97,6 @@ export default async function DashboardPage({
   // Sheet state lives in the URL so the morning and post-ride pushes can
   // deep-link straight into an open sheet, and Back closes it.
   const { sheet, activity: sheetActivity, state } = await searchParams;
-
-  const connection = await db.query.connections.findFirst({
-    where: and(
-      eq(schema.connections.userId, user.id),
-      eq(schema.connections.status, "active")
-    ),
-  });
 
   const allConnections = await db.query.connections.findMany({
     where: eq(schema.connections.userId, user.id),
@@ -277,7 +271,10 @@ export default async function DashboardPage({
   // accent — straight through. Migrated with the same mapping the rest of the
   // slice used. Class names are described, not spelled: Tailwind compiles
   // literals it finds in comments, and the offender scan counts them.
-  if (!connection && wellness.length === 0) {
+  // The shared predicate, not an inline condition — three other tabs now ask
+  // the same question, and this one used a 90-day window that treated a
+  // returning athlete as new. See src/lib/first-run.ts.
+  if (await isFirstRun(user.id)) {
     return (
       <AppShell>
         <div className="flex min-h-[60svh] flex-col items-center justify-center text-center">
