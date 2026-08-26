@@ -173,9 +173,35 @@ image. Check the classification for the release you are rolling back _past_:
   broken instance. Restore the newest dump into prod's database first, accepting
   the loss back to 03:30, and only then retag.
 
-Rollback is **designed and documented but has never been exercised against
-prod**, because proving it means deliberately regressing the athlete's live
-instance. Treat the first real use as the test it is.
+Rollback was **exercised against prod for the first time on 2026-08-26**,
+v0.119.0 → v0.118.0 and back. It works, and the measured numbers are:
+
+| Direction                 | Dispatch → prod verified |
+| ------------------------- | ------------------------ |
+| Back, v0.119.0→v0.118.0   | **3m42s**                |
+| Forward, back to v0.119.0 | **4m13s**                |
+
+Prod served the older image for about four and a half minutes. Three things
+the rehearsal established that were previously only claimed:
+
+- **Old code really does tolerate a schema that is ahead of it.** v0.118.0 ran
+  against v0.119.0's four additional `body_prefs` columns and reported
+  `"db":"up"` with zero failed jobs. That is the whole basis of the additive
+  rule above, and it had never been observed.
+- **Watchtower picks up a change well inside its 300s poll, in both
+  directions.** The "within 300s" figure is real, not aspirational.
+- **The roll-FORWARD is the half that matters in an incident**, and it is the
+  half nothing documented. If you roll back at 03:00 the thing you actually
+  need is getting forward again.
+
+**One constraint the rehearsal exposed:** `Promote` requires the `capture_run`
+of the Soak that captured the target candidate, so rolling back to v0.118.0
+needed that release's original Soak run id. That guard is correct — it is what
+stops an unsoaked digest reaching prod — but it means **a rollback target is
+only reachable while its Soak run still exists.** GitHub expires Actions runs,
+so a rollback to a sufficiently old release can be blocked by an expired run
+rather than by anything about the image. Check the run still exists before you
+need it.
 
 ## Freezing deploys
 

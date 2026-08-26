@@ -123,8 +123,14 @@ named defect, not an aspiration:
       passing one.
 - [x] Record the previous digest in `docs/ENVIRONMENTS.md` —
       `promote.yml` asks for it on every run; it was not done for v0.119.0.
-- [ ] **Rollback has never been exercised against prod.** Documented,
-      designed, untested — `docs/RELEASING.md` says so itself.
+- [x] **Rollback exercised against prod, 2026-08-26** — v0.119.0 → v0.118.0
+      and back, 3m42s down and 4m13s up, prod on the older image for about
+      four and a half minutes. It proved the thing the additive rule rests on
+      and nobody had ever watched: old code running against a schema ahead of
+      it, `"db":"up"`, zero failed jobs. Also exposed a real constraint —
+      `Promote` needs the target release's original Soak run id, so a rollback
+      target is only reachable while that run still exists. Numbers and the
+      constraint are in `docs/RELEASING.md`.
 - [x] `scripts/repair-plan-sport.ts` refusing two-race plans is **correct
       behaviour, not a defect** — reframed 2026-08-26 after three handoffs
       carried it as an open to-do. It is a v0.42 one-off repair for a single
