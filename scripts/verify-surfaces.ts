@@ -411,6 +411,56 @@ const TODAY_STATE_BY_SURFACE: Record<string, TodayState> = {
  * settings-connect-errors has to expand it too or it photographs a collapsed
  * page with three invisible error messages.
  */
+/**
+ * Wait until the full-page height stops changing, then screenshot.
+ *
+ * `page.screenshot({ fullPage: true })` snapshots whatever
+ * `document.scrollHeight` is at that instant. Several surfaces open animated
+ * containers first — `.collapsible-panel` carries `transition: height 0.3s
+ * ease-out` (globals.css) — and the openers above wait for a child element to
+ * become VISIBLE, which happens as soon as a panel starts expanding, not when
+ * it has finished. Fire the shot in that window and the PNG is a short page.
+ *
+ * That is not hypothetical. Releasing v0.119.0 on 2026-08-24, one soak run
+ * captured `settings-connect-errors` at 5217px in dark and 3649px in light —
+ * the same surface, the same run — and `settings-expanded` came back ~1300px
+ * shorter than the release before it, on a release that ADDED a settings
+ * section. Nothing failed: a truncated full-page PNG is indistinguishable
+ * from a passing one, which makes this precisely the class of blind spot
+ * step 8 of docs/RELEASING.md exists to catch, and precisely the class it
+ * cannot catch unaided.
+ *
+ * Polls scrollHeight until it repeats `STABLE_READINGS` times in a row, so a
+ * mid-transition plateau does not read as settled. Falls through on timeout
+ * rather than throwing: a slightly-early screenshot is worth strictly more
+ * than no screenshot, and the surface guards elsewhere in this file already
+ * refuse a page whose named content is missing.
+ */
+const HEIGHT_POLL_MS = 100;
+const HEIGHT_STABLE_READINGS = 3;
+const HEIGHT_TIMEOUT_MS = 5_000;
+
+async function screenshotStable(
+  page: Page,
+  options: { path: string }
+): Promise<void> {
+  const deadline = Date.now() + HEIGHT_TIMEOUT_MS;
+  let last = -1;
+  let repeats = 0;
+  while (Date.now() < deadline) {
+    const h = await page.evaluate(() => document.documentElement.scrollHeight);
+    if (h === last) {
+      repeats += 1;
+      if (repeats >= HEIGHT_STABLE_READINGS) break;
+    } else {
+      last = h;
+      repeats = 0;
+    }
+    await page.waitForTimeout(HEIGHT_POLL_MS);
+  }
+  await page.screenshot({ path: options.path, fullPage: true });
+}
+
 async function expandSettingsSections(page: Page): Promise<void> {
   for (const label of [
     "Integrations",
@@ -1221,7 +1271,7 @@ async function captureWithRetry(
       await forceThemeVerified(page, dark);
       const prepare = SURFACE_PREPARE[surfaceName];
       if (prepare) await prepare(page);
-      await page.screenshot({ path: filePath, fullPage: true });
+      await screenshotStable(page, { path: filePath });
       await auditPage(page, surfaceName, theme, vpName);
       const todayState = TODAY_STATE_BY_SURFACE[surfaceName];
       if (todayState) await assertBlockOrder(page, surfaceName, todayState);
@@ -1362,9 +1412,8 @@ async function captureTokenCreated(
     // forceThemeVerified guards against generally.
     await page.waitForTimeout(300);
     await forceThemeVerified(page, dark);
-    await page.screenshot({
+    await screenshotStable(page, {
       path: join(outDir, `settings-token-created-${theme}-${vpName}.png`),
-      fullPage: true,
     });
     await auditPage(page, "settings-token-created", theme, vpName);
   } finally {

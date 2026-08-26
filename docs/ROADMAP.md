@@ -117,7 +117,7 @@ named defect, not an aspiration:
       `SUBSTITUTE_TO.strength` became unreachable, so a comment naming it as
       the red-readiness mechanism is false even though the behaviour is
       right.
-- [ ] **Soak capture flakiness**, found 2026-08-24 while releasing v0.119.0:
+- [x] **Soak capture flakiness**, found 2026-08-24 while releasing v0.119.0:
       the same settings surface rendered 5217 px in dark and 3649 px in
       light within one run. A truncated PNG is indistinguishable from a
       passing one.
