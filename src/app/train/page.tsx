@@ -415,17 +415,6 @@ async function WeekTab({
                   },
                 }}
               />
-              {/* Unavailable's `full` treatment renders the EmptyState
-                  message only — it does not surface `state.fix` (see
-                  components/ui/unavailable.tsx). The fix link is rendered
-                  here instead, same pattern PlanEmpty uses for its own "Talk
-                  to the coach" link below the EmptyState. */}
-              <Link
-                href="/"
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-accent px-6 py-3 font-bold text-accent-foreground transition-all hover:bg-accent/90"
-              >
-                Connect a device or log manually
-              </Link>
             </div>
           </div>
         ) : (
