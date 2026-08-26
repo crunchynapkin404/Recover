@@ -28,7 +28,7 @@ from _your_ personal baselines — not population norms — and shows it on one
 calm dashboard.
 
 Recover leads or ships nearly every top-ranked row on
-[the largest public demand board in this category](https://joincycling.featurebase.app/en/roadmap)
+[the public demand board this project tracks](https://joincycling.featurebase.app/en/roadmap)
 — while staying self-hosted and free.
 
 ## Your Claude, your training data

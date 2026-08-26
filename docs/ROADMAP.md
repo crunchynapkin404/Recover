@@ -65,7 +65,7 @@ around future races), six wellness/activity sources (intervals.icu, Strava,
 Whoop, Oura, Apple Health, Withings), training history, multiple time blocks
 per day, running, and strength (v0.119.0).
 
-**Mechanically sound.** 2963 tests, 45 migrations, zero confirmed axe
+**Mechanically sound.** 2963 tests (572 skip without a database), 45 migrations, zero confirmed axe
 violations across the app, an 83-token design system
 (`docs/design-system.md`), a 59-tool MCP surface, and a release path that is
 fully automated end to end (`docs/RELEASING.md`).
