@@ -200,25 +200,30 @@ async function TrendsTab({
   const firstRun: boolean = await isFirstRun(userId);
   if (firstRun) {
     return (
-      <div data-testid="first-run" className="space-y-4">
-        <Unavailable
-          full
-          state={{
-            kind: "missing_input",
-            needs: "HRV, resting heart rate, and weight readings",
-            fix: { label: "Connect a device or log manually", href: "/" },
-          }}
-        />
-        {/* Unavailable's `full` treatment renders the EmptyState message
-            only — it does not surface `state.fix` (see
-            components/ui/unavailable.tsx). The fix link is rendered here
-            instead, same pattern as /train and /coach. */}
-        <Link
-          href="/"
-          className="block text-center text-caption font-bold text-accent"
-        >
-          Connect a device or log manually
-        </Link>
+      <div
+        data-testid="first-run"
+        className="flex min-h-[60svh] items-center justify-center px-6"
+      >
+        <div className="mx-auto max-w-sm space-y-4 text-center">
+          <Unavailable
+            full
+            state={{
+              kind: "missing_input",
+              needs: "HRV, resting heart rate, and weight readings",
+              fix: { label: "Connect a device or log manually", href: "/" },
+            }}
+          />
+          {/* Unavailable's `full` treatment renders the EmptyState message
+              only — it does not surface `state.fix` (see
+              components/ui/unavailable.tsx). The fix link is rendered here
+              instead, same pattern as /train and /coach. */}
+          <Link
+            href="/"
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-accent px-6 py-3 font-bold text-accent-foreground transition-all hover:bg-accent/90"
+          >
+            Connect a device or log manually
+          </Link>
+        </div>
       </div>
     );
   }

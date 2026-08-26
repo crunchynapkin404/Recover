@@ -29,13 +29,13 @@ every tab.
 - Coach, with no thread and nothing yet to reason about: "Needs some
   training data before the coach has anything to talk about" — independent
   of, and checked ahead of, the existing "needs an LLM key" wall
-  (`components/coach/chat-interface.tsx:327`), which is still the right
+  (`src/components/coach/chat-interface.tsx:327`), which is still the right
   message for an established athlete who simply hasn't configured a key.
 - Body: one absence statement, not four — see below.
 
 Each panel carries a fix link back to `/` ("Connect a device or log
 manually"). `<Unavailable full>` renders the `missing_input` message but
-discards `state.fix` (`components/ui/unavailable.tsx:26-30`), so the link is
+discards `state.fix` (`src/components/ui/unavailable.tsx:26-30`), so the link is
 rendered as a sibling next to it, the same pattern `PlanEmpty` already used
 for its own "Talk to the coach" link. That gap in `Unavailable` itself is
 left for a future pass — three call sites now work around it identically,
