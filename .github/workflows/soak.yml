@@ -29,6 +29,18 @@ permissions:
 env:
   IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/recover
   PREVIEW_SURFACES: today,today-post-session,today-evening
+  # The four first-run surfaces are deliberately NOT captured here either,
+  # for the same shape of reason as PREVIEW_SURFACES above. This soak seeds a
+  # demo owner WITH data (Boxes 3-5), so a dataless account cannot exist in
+  # this database by construction. Their guard then does exactly what it is
+  # for — refuses rather than filing a data-bearing page under a name that
+  # promises the first-run state — and Box 8 fails. That is the guard working,
+  # not a defect to route around, so the honest fix is to say here that this
+  # soak cannot photograph them. surfaces.yml's dedicated capture-first-run
+  # job covers all four against the same commit this candidate was cut from.
+  # Found by v0.120.0-rc.1's soak, which is the first release after the
+  # surfaces were added.
+  FIRST_RUN_SURFACES: first-run-today,first-run-train,first-run-body,first-run-coach
   # .env.rc is gitignored, so it is not in the runner's fresh checkout. It
   # lives at a stable path on the box instead; see docs/RUNNER.md.
   RC_ENV_FILE_DEFAULT: .recover-ops/env.rc
@@ -131,7 +143,7 @@ jobs:
           set -a; . ./.env.rc; set +a
           SCREENSHOT_BASE_URL=http://localhost:3100 \
           OWNER_EMAIL="$OWNER_EMAIL" OWNER_PASSWORD="$OWNER_PASSWORD" \
-            npx tsx scripts/verify-surfaces.ts soak --except="$PREVIEW_SURFACES"
+            npx tsx scripts/verify-surfaces.ts soak --except="$PREVIEW_SURFACES,$FIRST_RUN_SURFACES"
 
       # The artifact name carries the candidate. promote.yml asserts this exact
       # name, which is what binds a reviewed capture to the digest it describes
