@@ -76,4 +76,17 @@ describe("week strip", () => {
     const html = renderToString(<WeekStrip days={days} />);
     expect(html).toMatch(/class="[^"]*\bgap-x-2\b[^"]*"/);
   });
+
+  // The other half of the same problem, and the half the gap could not
+  // solve: the day columns cannot shrink below their labels, so a container
+  // narrower than this strip's ~215px min-content used to leave the seven
+  // days rendering OUTSIDE the bordered bubble rather than inside it. At
+  // 1024px Today's week row squeezed the bubble to 42px while the days
+  // spanned 173px, drawing the border straight through them. min-w-fit is
+  // what keeps the bubble around the days it is drawn for; measured in a
+  // real browser at 320-1600px, it never once forces an overflow of its own.
+  it("refuses to render its bubble narrower than the days inside it", () => {
+    const html = renderToString(<WeekStrip days={days} />);
+    expect(html).toMatch(/class="[^"]*\bmin-w-fit\b[^"]*"/);
+  });
 });
