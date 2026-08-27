@@ -42,7 +42,14 @@ describe("SeasonProgress", () => {
     );
     expect(el.textContent).toContain("17%");
     expect(el.textContent).toContain("5");
-    expect(el.textContent).toContain("WEEKS TO RACE");
+    // Case-insensitive: the label is natural-case text ("Weeks to race")
+    // transformed visually by the `uppercase` class, the same convention
+    // every other uppercase-classed label in this codebase follows
+    // (fitness-tiles.tsx, day-log-card.tsx, season-timeline-card.tsx,
+    // fuelling-card.tsx) — jsdom's textContent never sees text-transform,
+    // so the assertion reads case-insensitively rather than the source
+    // being forced into literal caps.
+    expect(el.textContent!.toUpperCase()).toContain("WEEKS TO RACE");
   });
 
   // The engine computes progress from plan weeks elapsed against total. An
@@ -60,6 +67,11 @@ describe("SeasonProgress", () => {
       <SeasonProgress progressPct={40} weeksToRace={null} raceName={null} />
     );
     expect(el.textContent).toContain("40%");
-    expect(el.textContent).not.toContain("WEEKS TO RACE");
+    expect(el.textContent!.toUpperCase()).not.toContain("WEEKS TO RACE");
+    // Closes a mutation gap: deleting the `weeksToRace != null` guard left
+    // every existing assertion passing, because with raceName also null the
+    // guard-free label would render unconditionally as "Weeks left" — which
+    // nothing here checked for. This pins its absence.
+    expect(el.textContent!.toUpperCase()).not.toContain("WEEKS LEFT");
   });
 });

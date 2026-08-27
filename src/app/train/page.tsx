@@ -77,7 +77,11 @@ import {
 import { previewFromDraft } from "@/lib/training-plan";
 import { planRaceTargets } from "@/lib/plan-targets";
 import { assembleWeeklyTarget } from "@/lib/week-plan/volume-inputs";
-import { currentTargetLoad, weekTargetLoad } from "@/lib/week-plan/volume";
+import {
+  currentTargetLoad,
+  seasonProgressPct,
+  weekTargetLoad,
+} from "@/lib/week-plan/volume";
 import { plannedMins, availableMins } from "@/lib/week-plan/fill";
 import { feasibilityFor, type Feasibility } from "@/lib/race/feasibility";
 import type { EventDemandResult } from "@/lib/race/demand";
@@ -779,22 +783,15 @@ async function WeekTab({
   // not a new query:
   //
   // - progressPct comes from the OPEN week's own skeletonWeek, not
-  //   plan.currentWeek. currentWeek is a counter the weekly rollover bumps
-  //   independently of week materialization (weekly-review.ts) — project.ts
-  //   already documents it as a value that "may have moved on since" the
-  //   week actually open on screen. skeletonWeek is the position of the
-  //   week the athlete is looking at right now, so it can't disagree with
-  //   what's rendered below it. Null whenever there's no open week to
-  //   measure a position in — a plan with no materialized week has nothing
-  //   to progress through yet, same honesty rule as a missing race.
-  //   Clamped to weeksTotal the same way the subtitle below already is.
+  //   plan.currentWeek — see seasonProgressPct's own doc comment
+  //   (lib/week-plan/volume.ts) for why, and its tests for the arithmetic
+  //   this used to carry inline, unpinned.
   // - weeksToRace is the same countdown the race chip prints as "N days",
   //   turned into weeks; no second query for a figure this function already
   //   has for `card`.
-  const progressPct =
-    week && plan.weeksTotal > 0
-      ? (Math.min(week.skeletonWeek, plan.weeksTotal) / plan.weeksTotal) * 100
-      : null;
+  const progressPct = week
+    ? seasonProgressPct(week.skeletonWeek, plan.weeksTotal)
+    : null;
   const weeksToRace =
     card.daysOut != null ? Math.round(card.daysOut / 7) : null;
   const raceName = card.race?.name ?? null;

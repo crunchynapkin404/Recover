@@ -282,3 +282,30 @@ export function weekAdherencePct(input: {
   const target = resolveWeekTarget(input);
   return target ? Math.round((input.actualLoad / target) * 100) : 0;
 }
+
+/**
+ * How far through the plan the athlete's OPEN week sits, as a percentage —
+ * the figure `SeasonProgress` prints on Week
+ * (src/components/train/season-progress.tsx). Pulled out of page.tsx so the
+ * arithmetic has its own unit tests instead of resting on the page's suite
+ * not regressing.
+ *
+ * `skeletonWeek` is the open week's own position, not `plan.currentWeek` —
+ * project.ts documents why: the rollover bumps `currentWeek` independently
+ * of whether the next week has materialized, so it "may have moved on
+ * since" the week actually on screen. Callers pass the open week's
+ * `skeletonWeek` precisely because it can't disagree with what's rendered
+ * under this figure.
+ *
+ * null whenever there's no honest total to measure against — a missing or
+ * non-positive `weeksTotal` — matching the same rule as a missing plan:
+ * no figure, not a fabricated one. `skeletonWeek` past `weeksTotal` clamps
+ * to 100, the same clamp the header's own "week X of Y" subtitle applies.
+ */
+export function seasonProgressPct(
+  skeletonWeek: number,
+  weeksTotal: number | null
+): number | null {
+  if (weeksTotal == null || weeksTotal <= 0) return null;
+  return (Math.min(skeletonWeek, weeksTotal) / weeksTotal) * 100;
+}

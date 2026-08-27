@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   currentTargetLoad,
   hoursForMaterialize,
+  seasonProgressPct,
   weekAdherencePct,
   weekLoadPerMin,
   weekTargetLoad,
@@ -417,5 +418,30 @@ describe("adherence is not scaled", () => {
     expect(scaled).toBe(600);
     expect(scaled).not.toBe(frozen);
     expect(adherencePct).not.toBe(Math.round((300 / scaled!) * 100));
+  });
+});
+
+describe("seasonProgressPct", () => {
+  it("reads week 1 of 12 as roughly one twelfth", () => {
+    expect(seasonProgressPct(1, 12)).toBeCloseTo(100 / 12, 5);
+  });
+
+  it("reads the final week as 100", () => {
+    expect(seasonProgressPct(12, 12)).toBe(100);
+  });
+
+  it("is null against a weeksTotal of 0 — nothing to divide into", () => {
+    expect(seasonProgressPct(3, 0)).toBeNull();
+  });
+
+  it("is null against a null weeksTotal", () => {
+    expect(seasonProgressPct(3, null)).toBeNull();
+  });
+
+  // A plan running past its own nominal length (currentWeek/skeletonWeek can
+  // exceed weeksTotal before the plan is archived) clamps at 100 rather than
+  // reporting over — same clamp the header's "week X of Y" subtitle applies.
+  it("clamps a skeletonWeek past weeksTotal to 100", () => {
+    expect(seasonProgressPct(15, 12)).toBe(100);
   });
 });

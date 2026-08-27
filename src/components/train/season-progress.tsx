@@ -28,7 +28,7 @@ export function SeasonProgress({
             {Math.round(progressPct)}%
           </p>
           <p className="text-label font-bold uppercase tracking-[0.13em] text-ink-muted">
-            PROGRESS
+            Progress
           </p>
         </div>
       )}
@@ -38,7 +38,7 @@ export function SeasonProgress({
             {weeksToRace}
           </p>
           <p className="text-label font-bold uppercase tracking-[0.13em] text-ink-muted">
-            {raceName ? "WEEKS TO RACE" : "WEEKS LEFT"}
+            {raceName ? "Weeks to race" : "Weeks left"}
           </p>
         </div>
       )}
