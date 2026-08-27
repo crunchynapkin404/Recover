@@ -287,3 +287,13 @@ Named so they are not rediscovered; unscheduled so they are not promises.
 - **On-ramps for the three dormant-but-kept features** — Deep Biology,
   outbound webhooks, coach long-term memory.
 - **Fitbit / Google Health direct, and Cycle-Aware.**
+- **No capture photographs a disconnected connector.** Found while shipping
+  v0.122.0's mechanism note: every capture fixture — the development
+  database, the soak stack's seed — has all six connectors connected, so
+  `settings-expanded` and `settings-connect-errors` returned a clean
+  `0 confirmed` over markup the release had just changed and never
+  photographed. The dataless-owner job is the obvious home for a settings
+  surface, since that account has no connections by construction, but it
+  moves the axe ratchet and so is a scoped piece rather than a line. Same
+  shape as the collapsed-section gap `section-order.test.ts` guards: a
+  capture that passes over a state nobody has is not evidence.
