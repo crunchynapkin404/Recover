@@ -136,9 +136,26 @@ now so the decision is not made silently later.
 One card, two tenses, `This week | Next week`. Contains, in order:
 
 - **The day strip (V2).** Seven bars. **Height is duration** on a shared
-  scale; **ink is intensity** — accent for endurance, `--warning-ink` for
-  anything above threshold. No third colour is introduced: warm ink is already
-  the app's "hard day" token. Today's bar carries the existing focus ring.
+  scale. Today's bar carries the existing focus ring.
+
+  **CORRECTION, found while planning the implementation and recorded rather
+  than silently fixed.** V2 was chosen as "height is duration, ink is
+  intensity". Ink is not available: `STATUS_DOT`
+  (`src/lib/status-color.ts`) already owns colour in this strip — completed,
+  adapted, moved, missed, planned, rest, race — and it is deliberately shared
+  with `week-day-list.tsx` so that, in its own words, "a status never means
+  two colours". Painting intensity there would break the exact invariant that
+  file exists to enforce, on a surface where "did I miss Tuesday" matters more
+  to a planning decision than "was Tuesday hard".
+
+  So: **fill stays `STATUS_DOT`, height carries duration, and intensity gets a
+  mark rather than a hue** — a small notch above any bar whose session is
+  above threshold. Hard days are one or two a week, so the mark stays rare
+  enough to read as an accent instead of a second alphabet. This keeps two
+  quantitative channels plus status, and introduces no colour.
+
+  Rest days keep an explicit glyph rather than a 3 px bar: a 20-minute
+  recovery spin and nothing planned must not look alike.
 
   **Rest days get an explicit glyph, not a short bar.** A 3 px bar and a
   20-minute recovery spin are indistinguishable, and "nothing planned" is a
