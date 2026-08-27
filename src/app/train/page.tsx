@@ -70,6 +70,7 @@ import {
 } from "@/lib/week-plan/service";
 import { deriveDayActuals } from "@/lib/week-plan/actuals";
 import { openDayFrom } from "@/lib/week-plan/day-shape";
+import { verdictLine } from "@/lib/week-plan/verdict-line";
 import {
   disciplinesOf,
   requirePlanSport,
@@ -149,6 +150,26 @@ function feedbackLine(a: {
   if (a.feel) parts.push(`felt ${a.feel}`);
   if (parts.length > 0) return parts.join(" · ");
   return a.debriefState === "pending" ? "debrief pending" : null;
+}
+
+/**
+ * Splits `verdict.emphasis` out of `verdict.text` so only that substring
+ * renders in the accent colour. `emphasis` is always an exact substring of
+ * `text` by verdict-line.ts's own contract — a plain `indexOf` is enough,
+ * no markup to parse — but a failed lookup falls back to the plain string
+ * rather than dropping the sentence.
+ */
+function verdictNode(text: string, emphasis: string | null): React.ReactNode {
+  if (!emphasis) return text;
+  const idx = text.indexOf(emphasis);
+  if (idx === -1) return text;
+  return (
+    <>
+      {text.slice(0, idx)}
+      <span className="text-accent">{emphasis}</span>
+      {text.slice(idx + emphasis.length)}
+    </>
+  );
 }
 
 /**
@@ -600,6 +621,15 @@ async function WeekTab({
   // Postgres) rather than parsing it, so a date outside this week falls
   // through to today, never to an empty panel or a stray render.
   const openDate = week ? openDayFrom(week.days, dayParam, todayYmd) : todayYmd;
+  const openDaySlot = week?.days.find((d) => d.date === openDate) ?? null;
+  // Only reachable once a plan AND an open week both exist (this whole
+  // block is past the `if (!plan) return` fork above) — the athlete this
+  // module must never address is the first-run one, and that athlete can
+  // never get here. See verdict-line.ts's module comment for the rest of
+  // this line's honesty rules.
+  const verdict = openDaySlot
+    ? verdictLine({ openDay: openDaySlot, band, readiness })
+    : null;
 
   const defaultRows = await db.query.availabilityDefaults.findMany({
     where: eq(schema.availabilityDefaults.userId, userId),
@@ -880,8 +910,15 @@ async function WeekTab({
         }
       />
 
-      {/* Task 5 inserts a verdict headline above this — leave it room rather
-          than assuming SeasonProgress is the first thing under the header. */}
+      {/* Only ever set once a plan and an open week both exist — see the
+          `verdict` const above. Renders nothing (not a fallback sentence)
+          whenever verdictLine itself declines to make a claim: nothing is
+          always better than a cheerful lie. */}
+      {verdict && (
+        <p className="mb-4 text-body font-bold text-ink-primary">
+          {verdictNode(verdict.text, verdict.emphasis)}
+        </p>
+      )}
       <SeasonProgress
         progressPct={progressPct}
         weeksToRace={weeksToRace}
