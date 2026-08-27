@@ -130,6 +130,32 @@ describe("buildTrainHref", () => {
     const href = buildTrainHref({ ...TRAIN_BASE, sport: "Run" }, { sport: "" });
     expect(href).not.toContain("sport=");
   });
+
+  // Task 4: the open day (?day=, via openDayFrom) is a fifth axis, carried
+  // the same way view/month/range/sport already are — switching tabs must
+  // not silently close whatever day the athlete had open on Week.
+  it("carries the open day across a tab switch", () => {
+    const href = buildTrainHref(
+      { ...TRAIN_BASE, tab: "week", day: "2026-08-29" },
+      { tab: "history" }
+    );
+    expect(href).toContain("tab=history");
+    expect(href).toContain("day=2026-08-29");
+  });
+
+  it("sets the day via an override without disturbing sibling state", () => {
+    const href = buildTrainHref(
+      { ...TRAIN_BASE, sport: "Ride" },
+      { day: "2026-08-24" }
+    );
+    expect(href).toContain("day=2026-08-24");
+    expect(href).toContain("sport=Ride");
+  });
+
+  it("omits day from the URL when there is none open", () => {
+    const href = buildTrainHref(TRAIN_BASE, {});
+    expect(href).not.toContain("day=");
+  });
 });
 
 // Extracted so /train's `?tab=season` redirect — which has no page-level

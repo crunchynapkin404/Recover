@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dayShape, weekMaxMins } from "./day-shape";
+import { dayShape, openDayFrom, weekMaxMins } from "./day-shape";
 import type { DaySlot, ScheduledWorkout } from "./types";
 
 const slot = (over: Partial<DaySlot> = {}): DaySlot => ({
@@ -97,5 +97,40 @@ describe("dayShape", () => {
       workouts: [w(30, "aerobic_base")],
     });
     expect(weekMaxMins([strengthDay, easyDay])).toBe(90);
+  });
+});
+
+// Fixed week fixture: Mon 2026-08-24 .. Sun 2026-08-30, matching the dates
+// the brief's own worked examples use.
+const WEEK: DaySlot[] = [
+  "2026-08-24",
+  "2026-08-25",
+  "2026-08-26",
+  "2026-08-27",
+  "2026-08-28",
+  "2026-08-29",
+  "2026-08-30",
+].map((date) => slot({ date }));
+
+describe("openDayFrom", () => {
+  it("opens today by default", () => {
+    expect(openDayFrom(WEEK, undefined, "2026-08-27")).toBe("2026-08-27");
+  });
+
+  it("opens the day the URL names", () => {
+    expect(openDayFrom(WEEK, "2026-08-29", "2026-08-27")).toBe("2026-08-29");
+  });
+
+  // ?day= is untrusted URL input. A date outside this week must not open an
+  // empty panel or reach a query — the same rule SheetHost applies to ids.
+  it("ignores a date that is not in this week", () => {
+    expect(openDayFrom(WEEK, "2027-01-01", "2026-08-27")).toBe("2026-08-27");
+    expect(openDayFrom(WEEK, "garbage", "2026-08-27")).toBe("2026-08-27");
+  });
+
+  // Next week's card, or a week the athlete is looking back at, contains no
+  // "today" at all.
+  it("falls back to the week's first day when today is elsewhere", () => {
+    expect(openDayFrom(WEEK, undefined, "2026-09-14")).toBe("2026-08-24");
   });
 });

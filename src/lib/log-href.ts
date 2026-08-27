@@ -117,11 +117,19 @@ export type TrainFilterState = LogFilterState & {
   tab: TrainTab;
   /** `"next"` when the availability week switcher is in next-week mode; `""` (or absent) otherwise. */
   availability?: string;
+  /**
+   * The day open on the Week tab (`?day=`, via openDayFrom), so switching
+   * tabs or filters keeps it open rather than silently resetting to today.
+   * Absent (or "") means no day is carried — the same "" clears it as
+   * `sport` and `availability` already use.
+   */
+  day?: string;
 };
 
 export type TrainHrefOverride = LogHrefOverride & {
   tab?: TrainTab;
   availability?: string;
+  day?: string;
 };
 
 export type TrainHref = (over: TrainHrefOverride) => string;
@@ -149,11 +157,13 @@ export function buildTrainHref(
     over.availability !== undefined
       ? over.availability
       : (current.availability ?? "");
+  const d = over.day !== undefined ? over.day : (current.day ?? "");
   const q = new URLSearchParams({ tab: t });
   if (v !== TRAIN_DEFAULTS.view) q.set("view", v);
   if (v === "month") q.set("month", m);
   if (r !== TRAIN_DEFAULTS.range) q.set("range", String(r));
   if (s) q.set("sport", s);
   if (a) q.set("availability", a);
+  if (d) q.set("day", d);
   return `/train?${q.toString()}`;
 }

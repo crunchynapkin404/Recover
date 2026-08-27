@@ -60,3 +60,28 @@ export function dayShape(day: DaySlot, maxMins: number): DayShape {
     rest,
   };
 }
+
+/**
+ * The date to open on Train's Week tab: the URL's `?day=` when it names a
+ * day actually in this week, today when the URL says nothing, and the
+ * week's first day when today isn't part of this week at all (a week the
+ * athlete is looking back at, or a future one).
+ *
+ * `param` is untrusted URL input — the same class of value SheetHost's UUID
+ * regex exists to catch before an unparseable id reaches Postgres and takes
+ * the page down. Here the equivalent failure would be a date outside this
+ * week silently opening nothing (or, worse, indexing into a day that isn't
+ * there): checking membership against this week's own dates, rather than
+ * parsing `param` as a date at all, makes an invalid value fall through to
+ * the same default path as an absent one instead of reaching a render.
+ */
+export function openDayFrom(
+  days: DaySlot[],
+  param: string | undefined,
+  todayYmd: string
+): string {
+  const dates = new Set(days.map((d) => d.date));
+  if (param && dates.has(param)) return param;
+  if (dates.has(todayYmd)) return todayYmd;
+  return days[0]?.date ?? todayYmd;
+}

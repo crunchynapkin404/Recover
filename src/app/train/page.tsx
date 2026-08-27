@@ -69,6 +69,7 @@ import {
   planConstraints,
 } from "@/lib/week-plan/service";
 import { deriveDayActuals } from "@/lib/week-plan/actuals";
+import { openDayFrom } from "@/lib/week-plan/day-shape";
 import {
   disciplinesOf,
   requirePlanSport,
@@ -196,6 +197,7 @@ export default async function TrainPage({
     month?: string;
     range?: string;
     availability?: string;
+    day?: string;
   }>;
 }) {
   const user = await requireUser();
@@ -232,7 +234,10 @@ export default async function TrainPage({
   // One href builder for every segment, filter and range link on the page —
   // switching one axis never drops the others (see src/lib/log-href.ts).
   const href: TrainHref = (over) =>
-    buildTrainHref({ tab, view, month, range, sport: sportFilter ?? "" }, over);
+    buildTrainHref(
+      { tab, view, month, range, sport: sportFilter ?? "", day: sp.day },
+      over
+    );
 
   return (
     <AppShell user={shellUser(user)}>
@@ -241,6 +246,7 @@ export default async function TrainPage({
           userId={user.id}
           href={href}
           initialAvailabilityMode={initialAvailabilityMode}
+          dayParam={sp.day}
         />
       ) : tab === "history" ? (
         <HistoryTab
@@ -319,10 +325,13 @@ async function WeekTab({
   userId,
   href,
   initialAvailabilityMode,
+  dayParam,
 }: {
   userId: string;
   href: TrainHref;
   initialAvailabilityMode: AvailabilityWeekMode;
+  /** Raw `?day=`, untrusted — resolved against the open week via openDayFrom below. */
+  dayParam: string | undefined;
 }) {
   const plan = await getActivePlan(userId);
 
@@ -585,6 +594,12 @@ async function WeekTab({
   const today = new Date();
   const todayYmd = localYmd(today);
   const todaySlot = week?.days.find((d) => d.date === todayYmd) ?? null;
+  // The day WeekDayList expands and WeekStrip rings. dayParam is untrusted
+  // URL input — openDayFrom checks it against this week's own dates (the
+  // same class of guard SheetHost applies to a UUID before it reaches
+  // Postgres) rather than parsing it, so a date outside this week falls
+  // through to today, never to an empty panel or a stray render.
+  const openDate = week ? openDayFrom(week.days, dayParam, todayYmd) : todayYmd;
 
   const defaultRows = await db.query.availabilityDefaults.findMany({
     where: eq(schema.availabilityDefaults.userId, userId),
@@ -878,12 +893,18 @@ async function WeekTab({
       {week ? (
         <>
           <section className="mb-4">
-            <WeekStrip days={week.days} marks="bars" />
+            <WeekStrip
+              days={week.days}
+              marks="bars"
+              selectedDate={openDate}
+              hrefForDay={(date) => href({ day: date })}
+            />
           </section>
 
           <WeekDayList
             days={week.days}
             today={todayYmd}
+            openDate={openDate}
             nextWeek={nextWeekPreview}
             actuals={dayActuals}
           />
