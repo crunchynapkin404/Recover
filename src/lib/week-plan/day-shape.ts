@@ -1,5 +1,4 @@
 import type { DaySlot } from "./types";
-import { plannedMins } from "./fill";
 
 /** Below this a bar reads as a hairline rather than as a session. */
 const MIN_HEIGHT_PCT = 12;
@@ -24,19 +23,34 @@ export interface DayShape {
   rest: boolean;
 }
 
+/**
+ * A day's DISPLAY minutes: how long the athlete is actually occupied,
+ * strength included. Deliberately NOT `plannedMins` (fill.ts) — that is
+ * the engine's TARGET/load minutes, and excludes strength on purpose (an
+ * endurance-only load-per-minute rate must never be multiplied by a
+ * lift's duration; see plannedMins' own comment). This strip only ever
+ * draws a bar — it never feeds a rate or a target — so a strength-only
+ * day belongs at its own height. Using plannedMins here summed a
+ * 90-minute strength day to 0, which floors to MIN_HEIGHT_PCT exactly
+ * like a 5-minute one: the height was simply wrong, not just imprecise.
+ *
+ * Do NOT "fix" this back to plannedMins. tests/target-minutes-wiring.test.ts
+ * allowlists this file for exactly this reason — see that test's own
+ * comment for why a display-only sum is not the drift it exists to catch.
+ */
+function displayMins(day: DaySlot): number {
+  return day.workouts.reduce((total, w) => total + w.durationMins, 0);
+}
+
 export function weekMaxMins(days: DaySlot[]): number {
-  // plannedMins (fill.ts) is the one definition of "a day's minutes" this
-  // repo enforces (tests/target-minutes-wiring.test.ts) — a second
-  // hand-rolled sum here would drift from it exactly the way the rate
-  // numerator/denominator drift that guard exists to catch.
-  const max = Math.max(0, ...days.map((d) => plannedMins([d])));
+  const max = Math.max(0, ...days.map((d) => displayMins(d)));
   // Never zero: the caller divides by this, and a week with nothing planned
   // is a real state (a new athlete, an off-season week).
   return max > 0 ? max : 1;
 }
 
 export function dayShape(day: DaySlot, maxMins: number): DayShape {
-  const mins = plannedMins([day]);
+  const mins = displayMins(day);
   const rest = day.workouts.length === 0;
   const raw = (mins / maxMins) * 100;
   return {

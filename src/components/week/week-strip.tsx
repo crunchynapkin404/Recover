@@ -23,6 +23,22 @@ interface Props {
    * slice's progress ledger (pre-Task 3).
    */
   hrefForDay?: (date: string) => string;
+  /**
+   * Which visual language draws each day's mark. Defaults to "dots" — the
+   * pre-Task-3 status dot — so a caller that doesn't opt in is unaffected
+   * by the bar/notch redesign. Train passes "bars" explicitly; Today does
+   * not pass this at all and keeps its dots.
+   *
+   * Deliberately a SEPARATE prop from `hrefForDay`, not derived from it:
+   * a first pass shared one mark renderer between both callers, and
+   * Today's week row silently went from 10px dots to 32px bars as a side
+   * effect of Train gaining links — an unreviewed visual change to
+   * exactly the surface v0.121.0 had to fix a real 152px overflow on.
+   * Interactivity and visual mode are different questions; keying one off
+   * the other is how a future change to either breaks the other by
+   * accident.
+   */
+  marks?: "dots" | "bars";
 }
 
 function localYmd(d: Date): string {
@@ -34,6 +50,10 @@ function localYmd(d: Date): string {
  * notch, folded into one sentence — a bar chart is not itself an accessible
  * name. Race and rest days fall outside that height/notch language
  * entirely, so they get their own short forms instead of "0 minutes".
+ *
+ * Computed regardless of `marks`: dots mode still needs a real accessible
+ * name (see WeekStrip's `role="group"` comment below) — the visual mark is
+ * the only thing that varies by mode, not what a screen reader announces.
  */
 function accessibleLabel(weekday: string, d: DaySlot, shape: DayShape): string {
   if (d.status === "race") {
@@ -49,13 +69,66 @@ function accessibleLabel(weekday: string, d: DaySlot, shape: DayShape): string {
 }
 
 /**
+ * The pre-Task-3 mark: a small status dot, or the race flag. Byte-for-byte
+ * the markup Today's week row has always rendered (`aria-hidden` added only
+ * because the wrapping element now carries the real accessible name — see
+ * WeekStrip). Kept as its own renderer rather than folded into BarMark: see
+ * `marks`'s doc comment on Props for why sharing one broke Today silently.
+ */
+function DotMark({ day: d, ringed }: { day: DaySlot; ringed: boolean }) {
+  if (d.status === "race") {
+    return (
+      <span
+        data-status="race"
+        aria-hidden="true"
+        className={`flex h-3 w-3 items-center justify-center text-label leading-none ${
+          ringed ? "rounded-full ring-2 ring-ink-muted" : ""
+        }`}
+      >
+        🏁
+      </span>
+    );
+  }
+  return (
+    <span
+      data-status={d.status}
+      aria-hidden="true"
+      className={`h-2.5 w-2.5 rounded-full ${STATUS_DOT[d.status]} ${
+        ringed ? "ring-2 ring-ink-muted" : ""
+      }`}
+    />
+  );
+}
+
+/** h-8 */
+const TRACK_PX = 32;
+/** h-1 — the notch */
+const NOTCH_PX = 4;
+/** gap-0.5, between the notch and the bar */
+const GAP_PX = 2;
+/**
+ * The bar's own pixel budget once the notch and the gap above it are
+ * reserved. Sizing the bar as a PERCENTAGE OF THE FULL TRACK (as a first
+ * pass did) let the notch + gap silently eat into that percentage instead:
+ * flexbox's default shrink then clamped the bar at ~26px for any
+ * heightPct above ~81, so the week's longest day (100 by construction)
+ * rendered identically to anything within ~19 points of it — exactly
+ * where an athlete needs the difference to be readable, and invisible to
+ * the suite because jsdom computes no layout. Scaling against the bar's
+ * real budget instead keeps [MIN_HEIGHT_PCT, 100] linear across its whole
+ * range, and the notch (marked `shrink-0` below) can never compete with
+ * it for space again.
+ */
+const BAR_MAX_PX = TRACK_PX - NOTCH_PX - GAP_PX;
+
+/**
  * The day's mark: a duration bar for a real session, an explicit glyph for
  * a day with none. Colour still comes from STATUS_DOT — this never invents
  * a second colour channel for intensity, it only adds a notch above hard
  * bars and a flat glyph in place of a hairline-thin one. `aria-hidden`
  * throughout: the wrapping link/div already carries the accessible name.
  */
-function DayMark({
+function BarMark({
   day: d,
   shape,
   ringed,
@@ -78,10 +151,15 @@ function DayMark({
     );
   }
   return (
-    <div className="flex h-8 w-2.5 flex-col items-center justify-end gap-0.5">
+    <div
+      className="flex w-2.5 flex-col items-center justify-end gap-0.5"
+      style={{ height: `${TRACK_PX}px` }}
+    >
       {/* The notch: a small mark above the bar on a hard day only. Shape
           and position carry the meaning, not a colour — COLOUR IS NOT
-          AVAILABLE FOR INTENSITY, STATUS_DOT already owns it. */}
+          AVAILABLE FOR INTENSITY, STATUS_DOT already owns it. shrink-0
+          so it can never be squeezed to make room for a tall bar — see
+          BAR_MAX_PX above for why that squeeze was the actual bug. */}
       <span
         aria-hidden="true"
         data-hard={shape.hard ? "" : undefined}
@@ -96,24 +174,29 @@ function DayMark({
         <span
           data-status={d.status}
           aria-hidden="true"
-          className={`h-[3px] w-3 rounded-full ${STATUS_DOT[d.status]} ${
+          className={`h-[3px] w-3 shrink-0 rounded-full ${STATUS_DOT[d.status]} ${
             ringed ? "ring-2 ring-ink-muted" : ""
           }`}
         />
       ) : (
         <div
           data-status={d.status}
-          className={`w-2.5 rounded-sm ${STATUS_DOT[d.status]} ${
+          className={`w-2.5 shrink-0 rounded-sm ${STATUS_DOT[d.status]} ${
             ringed ? "ring-2 ring-ink-muted" : ""
           }`}
-          style={{ height: `${shape.heightPct}%` }}
+          style={{ height: `${(shape.heightPct / 100) * BAR_MAX_PX}px` }}
         />
       )}
     </div>
   );
 }
 
-export function WeekStrip({ days, selectedDate, hrefForDay }: Props) {
+export function WeekStrip({
+  days,
+  selectedDate,
+  hrefForDay,
+  marks = "dots",
+}: Props) {
   if (!days || days.length === 0) return null;
   const today = localYmd(new Date());
   // Falls back to the real calendar date when nothing is explicitly
@@ -148,13 +231,18 @@ export function WeekStrip({ days, selectedDate, hrefForDay }: Props) {
             <span className="text-label font-bold uppercase text-ink-muted">
               {WEEKDAY_NARROW[i] ?? ""}
             </span>
-            <DayMark day={d} shape={shape} ringed={ringed} />
+            {marks === "bars" ? (
+              <BarMark day={d} shape={shape} ringed={ringed} />
+            ) : (
+              <DotMark day={d} ringed={ringed} />
+            )}
           </>
         );
 
         return hrefForDay ? (
           <a
             key={d.date}
+            data-date={d.date}
             href={hrefForDay(d.date)}
             title={label}
             aria-label={label}
@@ -164,8 +252,16 @@ export function WeekStrip({ days, selectedDate, hrefForDay }: Props) {
             {content}
           </a>
         ) : (
+          // role="group" is load-bearing, not decorative: a bare <div>'s
+          // implicit role is "generic", and WAI-ARIA 1.2 PROHIBITS an
+          // accessible name on "generic" — conformant tools drop
+          // aria-label entirely and most screen readers ignore it too.
+          // Without this, Today's week row (the only caller that reaches
+          // this branch) had no accessible name for any of its seven days.
           <div
             key={d.date}
+            data-date={d.date}
+            role="group"
             title={label}
             aria-label={label}
             className="flex flex-col items-center gap-2"

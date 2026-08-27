@@ -878,7 +878,7 @@ async function WeekTab({
       {week ? (
         <>
           <section className="mb-4">
-            <WeekStrip days={week.days} />
+            <WeekStrip days={week.days} marks="bars" />
           </section>
 
           <WeekDayList

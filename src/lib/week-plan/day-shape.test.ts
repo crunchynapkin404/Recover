@@ -66,4 +66,36 @@ describe("dayShape", () => {
     expect(weekMaxMins([slot(), slot()])).toBeGreaterThan(0);
     expect(dayShape(slot(), weekMaxMins([slot()])).heightPct).toBe(0);
   });
+
+  // plannedMins (fill.ts) is the engine's TARGET minutes and deliberately
+  // excludes strength — but this strip only ever draws a bar, so a
+  // strength-only day must show its own real duration, not fall back to
+  // MIN_HEIGHT_PCT as if nothing were there. Review round 1 caught this:
+  // a 90-minute strength day and a 5-minute one rendered identically.
+  it("counts a strength-only day's own minutes, unlike plannedMins", () => {
+    const day = slot({ workouts: [w(90, "strength")] });
+    expect(dayShape(day, 90).mins).toBe(90);
+    expect(dayShape(day, 90).heightPct).toBe(100);
+    // Still a real session, not the rest glyph.
+    expect(dayShape(day, 90).rest).toBe(false);
+  });
+
+  it("sums a mixed endurance-and-strength day for display", () => {
+    const day = slot({
+      workouts: [w(60, "aerobic_base"), w(30, "strength")],
+    });
+    expect(dayShape(day, 200).mins).toBe(90);
+  });
+
+  it("counts a strength-only day when finding the week's longest day", () => {
+    const strengthDay = slot({
+      date: "2026-08-24",
+      workouts: [w(90, "strength")],
+    });
+    const easyDay = slot({
+      date: "2026-08-25",
+      workouts: [w(30, "aerobic_base")],
+    });
+    expect(weekMaxMins([strengthDay, easyDay])).toBe(90);
+  });
 });

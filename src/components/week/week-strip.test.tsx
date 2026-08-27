@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { computeAccessibleName } from "dom-accessibility-api";
 import { WeekStrip } from "./week-strip";
 import type { DaySlot, ScheduledWorkout } from "@/lib/week-plan/types";
 import { withPurpose } from "@/lib/training-plan";
@@ -92,9 +93,10 @@ const raceWeek: DaySlot[] = [
 
 // The pre-existing seven days this test suite covered before the rewrite —
 // a mix of statuses with and without a session, run through the SAME
-// component with no selectedDate/hrefForDay. This is Today's week row: it
-// must keep working exactly as it did (v0.121.0's 152px overflow fix lives
-// in the outer container these share).
+// component with no selectedDate/hrefForDay/marks. This is Today's week
+// row: it must keep working exactly as it did (v0.121.0's 152px overflow
+// fix lives in the outer container these share, and the reviewer's ruling
+// in Task 3 fix round 1 keeps Today on dots by default).
 const run = withPurpose({
   day: 0,
   sport: "Run",
@@ -115,7 +117,7 @@ const legacyDays: DaySlot[] = [
   day("2026-07-26", "rest"),
 ];
 
-describe("WeekStrip — Today's non-interactive week row (no hrefForDay)", () => {
+describe("WeekStrip — Today's non-interactive, dots-by-default week row", () => {
   it("renders nothing for null days — no empty claims", async () => {
     const el = await render(<WeekStrip days={null} />);
     expect(el.innerHTML).toBe("");
@@ -170,27 +172,71 @@ describe("WeekStrip — Today's non-interactive week row (no hrefForDay)", () =>
     expect(el.querySelector('[class*="min-w-fit"]')).not.toBeNull();
   });
 
-  it("still gives every day an accessible name even without a link", async () => {
+  it("defaults to dots and never renders a notch, even on a hard day", async () => {
     const el = await render(<WeekStrip days={week} />);
-    expect(
-      el.querySelector(
-        '[aria-label="Thursday, 95 minutes, hard session, planned"]'
-      )
-    ).not.toBeNull();
+    // `week` has exactly one hard day (Thursday) — the bars-mode test
+    // below proves that would otherwise produce one [data-hard]. Zero
+    // here proves dots stayed dots.
+    expect(el.querySelectorAll("[data-hard]").length).toBe(0);
+  });
+
+  it("renders the plain status dot, not an inline-height bar", async () => {
+    const el = await render(<WeekStrip days={week} />);
+    const thuMark = el.querySelector('[data-date="2026-08-27"] [data-status]');
+    // The dot is a fixed-size circle (h-2.5 w-2.5); the bar variant sizes
+    // itself with an inline `style="height:…"` this mark must not have.
+    expect(thuMark?.className).toContain("h-2.5");
+    expect(thuMark?.hasAttribute("style")).toBe(false);
+  });
+
+  /**
+   * Review round 1, Finding 1 (Critical): a bare `<div>`'s implicit ARIA
+   * role is "generic", and WAI-ARIA 1.2 explicitly PROHIBITS an accessible
+   * name on "generic" — conformant tools drop `aria-label` there, so the
+   * previous version of this test (asserting the raw attribute was
+   * present in the DOM) proved nothing about what a screen reader would
+   * actually announce. `computeAccessibleName` runs the real AccName
+   * computation (the same engine @testing-library and axe-core's `label`
+   * rule use — see apple-health-card.a11y.test.tsx for the precedent) so
+   * a `role` regression here fails this test instead of passing it.
+   */
+  it("gives every day a REAL accessible name — computed, not just present in markup", async () => {
+    const el = await render(<WeekStrip days={week} />);
+    const thu = el.querySelector('[data-date="2026-08-27"]') as HTMLElement;
+    // `computeAccessibleName` alone does not catch a missing role here:
+    // dom-accessibility-api 0.5.16 computes aria-label's text regardless
+    // of role, so it does not itself model ARIA 1.2's "name prohibited on
+    // generic" rule the way current screen readers do (verified directly:
+    // removing role="group" left this string assertion passing). The
+    // explicit role check is therefore the real regression guard; the
+    // name assertion below independently pins the label text itself.
+    expect(thu.getAttribute("role")).toBe("group");
+    expect(computeAccessibleName(thu)).toBe(
+      "Thursday, 95 minutes, hard session, planned"
+    );
+  });
+
+  it("names a rest day as rest even without a link", async () => {
+    const el = await render(<WeekStrip days={week} />);
+    const mon = el.querySelector('[data-date="2026-08-24"]') as HTMLElement;
+    expect(computeAccessibleName(mon)).toBe("Monday, rest");
   });
 });
 
-describe("WeekStrip — Train's interactive strip (hrefForDay present)", () => {
+describe('WeekStrip — Train\'s interactive bar strip (hrefForDay + marks="bars")', () => {
   it("gives every day a link and an accessible name that reads as a sentence", async () => {
     const el = await render(
       <WeekStrip
         days={week}
         selectedDate="2026-08-27"
         hrefForDay={(d) => `/train?day=${d}`}
+        marks="bars"
       />
     );
-    const thu = el.querySelector('a[href="/train?day=2026-08-27"]');
-    expect(thu?.getAttribute("aria-label")).toBe(
+    const thu = el.querySelector(
+      'a[href="/train?day=2026-08-27"]'
+    ) as HTMLElement;
+    expect(computeAccessibleName(thu)).toBe(
       "Thursday, 95 minutes, hard session, planned"
     );
   });
@@ -203,10 +249,13 @@ describe("WeekStrip — Train's interactive strip (hrefForDay present)", () => {
         days={week}
         selectedDate={null}
         hrefForDay={(d) => `/train?day=${d}`}
+        marks="bars"
       />
     );
-    const mon = el.querySelector('a[href="/train?day=2026-08-24"]');
-    expect(mon?.getAttribute("aria-label")).toBe("Monday, rest");
+    const mon = el.querySelector(
+      'a[href="/train?day=2026-08-24"]'
+    ) as HTMLElement;
+    expect(computeAccessibleName(mon)).toBe("Monday, rest");
   });
 
   it("marks the selected day for assistive tech, not only in colour", async () => {
@@ -215,6 +264,7 @@ describe("WeekStrip — Train's interactive strip (hrefForDay present)", () => {
         days={week}
         selectedDate="2026-08-27"
         hrefForDay={(d) => `/train?day=${d}`}
+        marks="bars"
       />
     );
     expect(
@@ -230,6 +280,7 @@ describe("WeekStrip — Train's interactive strip (hrefForDay present)", () => {
         days={week}
         selectedDate="2026-08-27"
         hrefForDay={(d) => `/train?day=${d}`}
+        marks="bars"
       />
     );
     expect(
@@ -245,9 +296,44 @@ describe("WeekStrip — Train's interactive strip (hrefForDay present)", () => {
         days={week}
         selectedDate={null}
         hrefForDay={(d) => `/train?day=${d}`}
+        marks="bars"
       />
     );
     expect(el.querySelectorAll("[data-hard]").length).toBe(1);
+  });
+
+  // Review round 1, Finding 2: the bar's height was capped by flexbox
+  // shrink at ~81% of the scale, so the week's longest day and anything
+  // within ~19 points of it rendered at the same pixel height. jsdom
+  // computes no layout, so this pins the actual inline style instead —
+  // the number that would have been wrong.
+  it("gives the week's longest day the bar's full height budget", async () => {
+    const el = await render(
+      <WeekStrip
+        days={week}
+        selectedDate={null}
+        hrefForDay={(d) => `/train?day=${d}`}
+        marks="bars"
+      />
+    );
+    // Saturday (120 min) is `week`'s longest day, so heightPct is 100 and
+    // the bar should get the full 26px budget (32px track − 4px notch −
+    // 2px gap), not the ~26px a shrink bug would have coincidentally also
+    // produced — the real assertion is that it is NOT silently clamped
+    // below what a shorter-but-still-tall day would also render at.
+    const sat = el.querySelector(
+      'a[href="/train?day=2026-08-29"] [data-status="planned"]'
+    ) as HTMLElement;
+    const fri = el.querySelector(
+      'a[href="/train?day=2026-08-28"] [data-status="planned"]'
+    ) as HTMLElement;
+    const satPx = parseFloat(sat.style.height);
+    const friPx = parseFloat(fri.style.height);
+    expect(satPx).toBe(26);
+    // Friday is 30 min against a 120 min max: 25% of the scale, well
+    // under the ~81% flattening threshold either way, but strictly less
+    // than Saturday's height either way this is computed.
+    expect(friPx).toBeLessThan(satPx);
   });
 
   it("keeps the race glyph", async () => {
@@ -256,8 +342,34 @@ describe("WeekStrip — Train's interactive strip (hrefForDay present)", () => {
         days={raceWeek}
         selectedDate={null}
         hrefForDay={(d) => `/train?day=${d}`}
+        marks="bars"
       />
     );
     expect(el.querySelector('[data-status="race"]')).not.toBeNull();
+  });
+});
+
+describe("WeekStrip — marks and hrefForDay are independent knobs", () => {
+  // Review round 1, Finding 4 (ruling): a first pass keyed the visual
+  // mark off whether hrefForDay was present, so Today's week row silently
+  // went from dots to bars as a side effect of Train gaining links. These
+  // two tests pin the cross product directly so that regression can't
+  // come back the same way.
+  it("renders bars without any link", async () => {
+    const el = await render(<WeekStrip days={week} marks="bars" />);
+    expect(el.querySelectorAll("a").length).toBe(0);
+    expect(el.querySelectorAll("[data-hard]").length).toBe(1);
+  });
+
+  it("renders dots even when every day is a link", async () => {
+    const el = await render(
+      <WeekStrip
+        days={week}
+        hrefForDay={(d) => `/train?day=${d}`}
+        marks="dots"
+      />
+    );
+    expect(el.querySelectorAll("a").length).toBe(7);
+    expect(el.querySelectorAll("[data-hard]").length).toBe(0);
   });
 });
