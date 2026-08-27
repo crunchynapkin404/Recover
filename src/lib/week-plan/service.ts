@@ -49,6 +49,8 @@ export interface OpenWeekPlan {
   availabilityConfirmedAt: Date | null;
   /** Set once this week's availability nudge has actually been pushed. */
   availabilityPromptedAt: Date | null;
+  /** Set once the Sunday nudge about NEXT week has been pushed from this row. */
+  nextWeekPromptedAt: Date | null;
 }
 
 function localYmd(d: Date): string {
@@ -193,6 +195,7 @@ export async function getOpenWeekPlan(
     materializedMins: row.materializedMins,
     availabilityConfirmedAt: row.availabilityConfirmedAt,
     availabilityPromptedAt: row.availabilityPromptedAt,
+    nextWeekPromptedAt: row.nextWeekPromptedAt,
   };
 }
 

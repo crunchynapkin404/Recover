@@ -366,6 +366,21 @@ export async function runSchedulerTick(
           message: err instanceof Error ? err.message : String(err),
         });
       }
+      // v0.123 Sunday nudge about NEXT week. Separate call from the one
+      // above rather than folded into it: they ask about different weeks,
+      // answer to different evidence (a confirmation on the week's own row
+      // vs whether any override exists for next week's dates), and fire on
+      // days that do not overlap. Guards inside; never touches the sync job.
+      try {
+        const { promptNextWeekAvailability } =
+          await import("@/lib/week-plan/availability-prompt");
+        await promptNextWeekAvailability(job.userId);
+      } catch (err) {
+        logger.error("next week availability prompt failed", {
+          userId: job.userId,
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
       // v0.15 monthly report — guards inside ensure at-most-once/month.
       try {
         const { generateMonthlyReport } = await import("@/lib/monthly-report");

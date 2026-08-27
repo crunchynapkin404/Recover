@@ -436,6 +436,7 @@ async function seed() {
     materializedMins: 360,
     availabilityConfirmedAt: new Date("2026-01-01T18:00:00Z"),
     availabilityPromptedAt: new Date("2025-12-30T09:00:00Z"),
+    nextWeekPromptedAt: new Date("2025-12-28T09:00:00Z"),
     createdAt: new Date("2025-12-29T07:00:00Z"),
     updatedAt: new Date("2026-01-03T07:00:00Z"),
   };

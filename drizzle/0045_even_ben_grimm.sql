@@ -1,0 +1,1 @@
+ALTER TABLE "week_plans" ADD COLUMN "next_week_prompted_at" timestamp with time zone;

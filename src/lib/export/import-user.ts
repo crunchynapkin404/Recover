@@ -640,6 +640,7 @@ export async function importUserData(
         materializedMins: r.materializedMins,
         availabilityConfirmedAt: toDateOrNull(r.availabilityConfirmedAt),
         availabilityPromptedAt: toDateOrNull(r.availabilityPromptedAt),
+        nextWeekPromptedAt: toDateOrNull(r.nextWeekPromptedAt),
         createdAt: toDate(r.createdAt),
         updatedAt: toDate(r.updatedAt),
       };
