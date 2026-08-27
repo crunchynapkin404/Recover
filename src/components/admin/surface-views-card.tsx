@@ -1,3 +1,5 @@
+import { RETIRED_SURFACE_KEYS } from "@/lib/telemetry";
+
 /**
  * Owner-only. Instrumentation for the Phase 2b.2 IA decision, not an athlete
  * metric — it says what was opened, nothing about training.
@@ -8,7 +10,7 @@ interface Group {
   surface: string;
   /** Views stored against the bare key. Pre-v0.121 for tabbed surfaces. */
   own: number;
-  tabs: { tab: string; total: number }[];
+  tabs: { tab: string; total: number; retired: boolean }[];
   /** Sort weight: everything recorded under this surface, both eras. */
   total: number;
 }
@@ -46,7 +48,16 @@ export function groupSurfaces(
       g.own += r.total;
     } else {
       const g = get(r.surface.slice(0, i));
-      g.tabs.push({ tab: r.surface.slice(i + 1), total: r.total });
+      g.tabs.push({
+        tab: r.surface.slice(i + 1),
+        total: r.total,
+        // The full key ("train:season"), not just the tab half — a retired
+        // key is retired for one parent, not for every surface that happens
+        // to share the tab name.
+        retired: (RETIRED_SURFACE_KEYS as readonly string[]).includes(
+          r.surface
+        ),
+      });
     }
   }
 
@@ -91,7 +102,13 @@ export function SurfaceViewsCard({
                       key={t.tab}
                       className="flex items-baseline justify-between text-label"
                     >
-                      <span className="text-ink-muted">{t.tab}</span>
+                      <span className="text-ink-muted">
+                        {t.tab}
+                        {/* A retired tab's rows stay readable, same as a
+                            pre-v0.121 untabbed row — labeled so it reads as
+                            history, not as a bug. */}
+                        {t.retired ? " · retired" : ""}
+                      </span>
                       <span className="font-mono tabular-nums text-ink-secondary">
                         {t.total}
                       </span>

@@ -91,6 +91,7 @@ import {
 import {
   buildTrainHref,
   isRange,
+  retiredTabRedirect,
   TRAIN_DEFAULTS,
   TRAIN_TABS,
   type TrainHref,
@@ -198,8 +199,11 @@ export default async function TrainPage({
   // A retired tab is a redirect, not a 404 and not a silent fallback: the
   // athlete may have it bookmarked, and telemetry should record where they
   // actually landed rather than filing the visit under whatever
-  // `TRAIN_TABS.find` falls back to.
-  if (sp.tab === "season") redirect("/train?tab=week");
+  // `TRAIN_TABS.find` falls back to. The decision itself lives in
+  // retiredTabRedirect (lib/log-href.ts), which is unit-tested — this page
+  // has no test harness of its own.
+  const retiredRedirect = retiredTabRedirect(sp.tab);
+  if (retiredRedirect) redirect(retiredRedirect);
 
   const tab: TrainTab = TRAIN_TABS.find((t) => t === sp.tab) ?? "week";
   // Recorded AFTER the tab resolves, not before. Train is three tabs behind

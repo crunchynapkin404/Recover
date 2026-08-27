@@ -3,6 +3,7 @@ import {
   buildBodyHref,
   buildLogHref,
   buildTrainHref,
+  retiredTabRedirect,
   type LogFilterState,
   type TrainFilterState,
 } from "./log-href";
@@ -128,6 +129,29 @@ describe("buildTrainHref", () => {
   it("clears the sport filter on an empty-string override", () => {
     const href = buildTrainHref({ ...TRAIN_BASE, sport: "Run" }, { sport: "" });
     expect(href).not.toContain("sport=");
+  });
+});
+
+// Extracted so /train's `?tab=season` redirect — which has no page-level
+// test harness — has something a unit test can actually cover. Deleting the
+// redirect from page.tsx should fail one of these, not zero.
+describe("retiredTabRedirect", () => {
+  it("sends a retired tab to its replacement href", () => {
+    expect(retiredTabRedirect("season")).toBe("/train?tab=week");
+  });
+
+  it("leaves a live tab alone", () => {
+    expect(retiredTabRedirect("week")).toBeNull();
+    expect(retiredTabRedirect("fitness")).toBeNull();
+    expect(retiredTabRedirect("history")).toBeNull();
+  });
+
+  it("leaves an absent tab alone", () => {
+    expect(retiredTabRedirect(undefined)).toBeNull();
+  });
+
+  it("leaves an unrecognized tab alone", () => {
+    expect(retiredTabRedirect("garbage")).toBeNull();
   });
 });
 

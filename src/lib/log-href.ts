@@ -96,6 +96,23 @@ export type TrainTab = "week" | "history" | "season" | "fitness";
  */
 export const TRAIN_TABS: TrainTab[] = ["week", "history", "fitness"];
 
+/**
+ * The /train redirect target for a tab that used to be offered and no
+ * longer is, or null when `tab` is live, absent, or unrecognized.
+ *
+ * Pulled out of train/page.tsx as a pure function because that page has no
+ * test harness of its own — deleting `if (sp.tab === "season") redirect(...)`
+ * from the page would fail no test there, since `tab` still resolves to
+ * "week" through the `TRAIN_TABS.find(...) ?? "week"` fallback and the page
+ * looks identical; only the 302 disappears. This is the piece a unit test
+ * can actually cover, so the redirect behaviour is the helper's, not the
+ * page's.
+ */
+export function retiredTabRedirect(tab: string | undefined): string | null {
+  if (tab === "season") return "/train?tab=week";
+  return null;
+}
+
 export type TrainFilterState = LogFilterState & {
   tab: TrainTab;
   /** `"next"` when the availability week switcher is in next-week mode; `""` (or absent) otherwise. */
