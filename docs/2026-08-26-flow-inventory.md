@@ -1,15 +1,16 @@
-# Flow and friction — structural map
+# Flow and friction — structural map, and choice load
 
-**Phase 6, strand 3. This is a structural map, not yet a measurement.**
+**Phase 6, strand 3.** The structural map came first; the measurement below
+was added after, and the scope note that used to say "nothing here is
+measured" no longer applies to the choice-load section.
 Written 2026-08-26 against `main` at `659542c` (v0.121.0), following the same
 inventory-before-proposal discipline the IA strand used.
 
-**Read the scope limit first.** The IA inventory
-(`docs/2026-08-26-ia-inventory.md`) led with measured pixel heights from real
-capture artifacts, and that is what made it worth trusting. **Nothing here is
-measured that way yet.** What follows is read out of the code: which actions
-exist, what wraps what, and where a journey leaves its surface. Interaction
-counts and time-to-complete need a browser and are not in this document.
+**Read the scope limit first.** The structural sections below are read out of
+the code: which actions exist, what wraps what, where a journey leaves its
+surface. The **choice load** section at the end is measured in a real browser
+and carries its own, different caveat — read that one before quoting its
+numbers. Time-to-complete is still measured nowhere.
 
 Two claims were drafted and withdrawn while writing it, both after checking
 the file rather than trusting the grep. They are recorded below, because a
@@ -81,6 +82,87 @@ needs no measurement to state.
 
 ---
 
+## Choice load, measured
+
+How many things an athlete can actually press on each surface. Measured in a
+real browser at 390x844, counting only **visible and enabled** elements
+(`button, a[href], input, select, textarea, [role=button]`), split three ways:
+
+- **appChrome** — the fixed bottom bar / sidebar. Identical on every screen.
+- **tabs** — the surface's own tab rows. Navigation, but part of this
+  surface's structure rather than the app's.
+- **surface** — everything else. What this screen puts in front of you.
+
+| Surface                   | surface | tabs | appChrome | hidden/disabled | scroll (IA) |
+| ------------------------- | ------: | ---: | --------: | --------------: | ----------: |
+| **Body ▸ Journal**        |  **27** |    4 |         5 |              17 |         2.4 |
+| **Train ▸ Week**          |  **21** |    4 |         5 |          **49** |     **4.7** |
+| Settings ▸ baselines open |      19 |    0 |         5 |               6 |           — |
+| Activity log              |      16 |    0 |         5 |              10 |         1.2 |
+| Today                     |      13 |    0 |         5 |               8 |         1.6 |
+| Coach                     |      10 |    0 |         5 |              10 |         1.2 |
+| Settings (collapsed)      |       8 |    0 |         5 |               6 |         1.0 |
+| Body ▸ Trends             |       5 |    4 |         5 |               6 |         1.0 |
+| Train ▸ History           |       4 |    7 |         5 |               6 |         1.0 |
+| Train ▸ Fitness           |       4 |    4 |         5 |               6 |         1.0 |
+| Import                    |       3 |    0 |         5 |              11 |         1.0 |
+| **Train ▸ Season**        |   **0** |    4 |         5 |               6 |     **1.0** |
+
+**`appChrome` is 5 on every row.** That constancy is the method's own check:
+it is the same bar everywhere, so any variation would have meant the buckets
+were wrong. They were, in a first pass — see the caveat below.
+
+### What it says
+
+**Train ▸ Season has zero actions.** One screen of content, four tab
+controls to reach it, and nothing on it to press. You can look; you cannot
+act. That is a report wearing a tab's clothing, and it is _evidence_ for the
+IA inventory's parked question about whether Season should be a tab at all —
+not taste.
+
+**Train ▸ History spends more controls on navigation than on content**: seven
+tab controls (four Train tabs + three view tabs) against four surface
+controls. It is the only surface where chrome outnumbers content.
+
+**Train ▸ Week is worst on both axes at once** — 4.7 screens _and_ 21 visible
+controls, with **49 more hidden or disabled**, by far the largest of any
+surface. Those are the contents of its **four** collapsibles — "What changed
+& why", "Standard week", "Races", "Remaining skeleton" — present in the DOM,
+costed by assistive technology, and invisible until opened. Length and choice
+load usually diverge; here they compound.
+
+(The IA inventory says "three more collapsibles (Standard week, Races,
+Remaining skeleton)". That is an undercount: "What changed & why" is a fourth,
+at `src/app/train/page.tsx:928`. Corrected here rather than by editing a dated
+document, per the convention the roadmap reset established.)
+
+**Body ▸ Journal has the most visible controls of anything (27)** on a
+2.4-screen surface, and the picture explains why: it is an explicitly
+numbered multi-step form ("1. Subjective feeling", "2. Wellness sliders")
+with five date circles, five feeling faces, ten tag buttons, a notes field
+and a save. It is a _flow_ rendered as a page, which is exactly what this
+strand exists to look at.
+
+### The caveat that matters more than the numbers
+
+**These figures are fixture-dependent, and the first run of them was wrong.**
+
+Against the local dev database as it stood, `Train ▸ Week` measured
+**surface = 1** — because that database had no training plan, so Week rendered
+`PlanEmpty` and its single "Talk to the coach" link. A plausible number,
+entirely an artifact of the seed. The table above was taken after seeding a
+confirmed race plan with the same `scripts/seed-confirmed-race.ts` CI uses.
+
+A second flaw in the same first pass: everything inside a `<nav>` was called
+"chrome", but `SegmentedTabs` renders a `<nav>` too, so the app bar and each
+surface's tab row landed in one bucket — "chrome" varied 5 to 12 when it can
+only be 5. Hence the three-way split above, and hence checking that
+`appChrome` is constant before quoting anything else.
+
+Anyone re-running this must seed first and check the `appChrome` column.
+
+---
+
 ## The fifth journey: adjusting a week, which has no path
 
 `WeekAdjustmentSwitch` (v0.56–v0.60) is **deliberately not rendered**, and the
@@ -124,8 +206,9 @@ claiming, and it paid off twice more here.
 
 ## What this document does not establish
 
-- **No interaction counts.** How many taps each journey costs, and how many
-  are avoidable, needs a browser walkthrough per journey.
+- **No interaction counts.** Choice load is now measured, but that is how
+  many controls a surface _offers_, not how many an athlete must _press_ to
+  finish a journey. The second still needs a walkthrough per journey.
 - **No abandonment evidence.** The v0.121.0 tab-level telemetry counts surface
   views, not journey completion. Nothing currently records that an athlete
   opened the debrief sheet and closed it without submitting.
