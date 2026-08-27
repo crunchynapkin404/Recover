@@ -1,5 +1,145 @@
 # Changelog
 
+## v0.122.0 — 2026-08-27 — Before you press it
+
+Two of this release's changes are the same defect wearing different clothes:
+the app knew something the athlete needed and did not say it. A card offered
+six identical-looking buttons, three of which hand you to a third party and
+one of which wants a file from a device that is not this one. A correlations
+row told an athlete with forty-eight days of tagged data to wait for ten.
+
+Neither is a missing feature. Both are the app being less honest than the
+engine behind it.
+
+### One label, three journeys
+
+Phase 6's third strand — flow and friction — opened the way the second did,
+with an inventory rather than a proposal
+(`docs/2026-08-26-flow-inventory.md`). Its clearest finding needed no
+measurement to state: six connectors sit under one **Integrations** heading
+doing three structurally different things.
+
+| Mechanism       | Providers               | What it does to the athlete            |
+| --------------- | ----------------------- | -------------------------------------- |
+| OAuth redirect  | Strava, Whoop, Withings | leaves the app, returns via a callback |
+| Credential form | intervals.icu, Oura     | stays here                             |
+| Push / file     | Apple Health            | needs a second device                  |
+
+Every card showed the same avatar chip, a subtitle naming the data, and the
+same Connect pill. The one thing that actually differed between them was the
+one thing the card never said, and the section badge summarises what is
+connected, never what connecting will involve.
+
+Three sentences now do — one per mechanism, owned by `ConnectorCard` rather
+than written five times in five card bodies, for the same reason
+`isFirstRun()` got a single home in v0.120.0. One vocabulary keeps the six
+comparable at a glance; five phrasings would make them look like six
+unrelated things again.
+
+Each connect control points at its sentence with `aria-describedby`.
+Without that the disclosure is only reachable by browsing the document: an
+athlete tabbing straight to "Connect" hears the button and not the warning
+that pressing it leaves the app — the exact athlete the change exists for.
+The note appears only while a connector is genuinely connectable (with
+`WHOOP_CLIENT_ID` unset the action is a "Set WHOOP_CLIENT_ID" badge, and
+describing a redirect nobody can start is worse than silence) and disappears
+once connected.
+
+**Strava's subtitle, found by the change itself.** With every disconnected
+card in the same two-line shape — data on top, mechanism underneath — Strava's
+line read "Not connected", which the button beside it already said, while the
+other four named what they bring. It now reads "Activities, power, heart
+rate", accurate to `src/lib/connectors/strava.ts`.
+
+`intervals.icu` is the sixth connector and is deliberately untouched: it still
+renders the older `<Card>`, and its own description already names its
+mechanism. Migrating that card is redesign work, not this fix.
+
+### Day 48 of 10 days
+
+The 90-day correlations card read, to an athlete with a real history:
+
+> Calibrating · day 48 of 10 days · 48 events
+
+`evidence: "limited"` is set by **two** different conditions — too few tagged
+days, or enough days whose confidence interval is still wider than the effect
+— and `correlationFigure` mapped both to the countdown, which always reports
+the event-count reason. So an inconclusive 48-event sample named a finish line
+the athlete had passed 38 days earlier and told them to wait for days they
+already had.
+
+Below the threshold it still counts down. At or above it, the row now says the
+sample is **still inside normal variation** — honest about what is known, and
+careful not to promise that waiting resolves it, because more tagged days may
+narrow that interval or may never narrow it. The guard already existed
+elsewhere: `body/page.tsx` only claims calibrating while
+`batteryCalibration.remaining > 0`, and its comment names the exact failure
+mode, "not a false 'day 14 of 14' claim to a veteran athlete".
+
+**Why the tests never caught it** — the same shape as v0.121.0's
+`<Unavailable full>` defect, one release later. Both existing calibrating
+tests passed `events: 3`. A thin sample _cannot_ produce "day 48 of 10": below
+the threshold the countdown reads correctly. The branch was covered twice by
+inputs structurally incapable of exposing the defect, which reads as done and
+is worse than no coverage. Three new tests: above the threshold, one short of
+it, and exactly at it — day 10 of 10 is the same false claim in miniature.
+
+**A second defect, visible only once rendered.** The first fix read "46 tagged
+days, still inside normal variation · 46 events" — the count twice, because
+`correlation-rows.tsx` already appends the events suffix. No unit test could
+have caught it: the string is correct alone and wrong in place. The old copy
+had the same duplication, hidden behind the nonsense in front of it.
+
+### Choice load, measured
+
+The flow inventory's structural map was followed by the measurement it said it
+was missing: how many things an athlete can actually press on each surface,
+counted in a real browser at 390×844, split into app chrome, the surface's own
+tab rows, and the surface itself.
+
+| Surface        | Surface controls | Hidden/disabled | Screens |
+| -------------- | ---------------: | --------------: | ------: |
+| Body ▸ Journal |               27 |              17 |     2.4 |
+| Train ▸ Week   |               21 |          **49** |     4.7 |
+| Train ▸ Season |            **0** |               6 |     1.0 |
+
+**Train ▸ Season has zero actions** — one screen of content, four tab controls
+to reach it, and nothing on it to press. That is a report wearing a tab's
+clothing, and it is evidence for the IA strand's parked question about whether
+Season deserves to be a tab, rather than taste. **Train ▸ Week is worst on both
+axes at once**, and its 49 hidden controls are the contents of four
+collapsibles — costed by assistive technology, invisible until opened.
+**Body ▸ Journal** is a flow rendered as a page, which is what the strand
+exists to look at.
+
+The document states plainly that these figures are **fixture-dependent**, and
+that the first run of them was wrong: against a database with no training
+plan, Train ▸ Week measured one surface control, because Week rendered
+`PlanEmpty` and its single link — a plausible number and a complete artifact of
+the seed.
+
+**That caveat came due one day later.** Capturing `settings-expanded` and
+`settings-connect-errors` for the connector change returned 0 confirmed axe
+defects across 8/8 combinations — and photographed nothing of the change,
+because the development database has all six connectors connected, so the
+disconnected state never rendered. The notes were reviewed instead on a
+throwaway probe route rendering the five cards disconnected, in both themes,
+which is also where the `aria-describedby` wiring was checked in a real
+browser. A capture that runs clean over a state your change does not touch is
+not evidence.
+
+### Migrations
+
+**None.** Nothing in this release touches the schema.
+
+### Verification
+
+3015 tests pass with a database (1 expected fail, 1 skipped), up from 2997 at
+v0.121.0; 587 skip without one. Zero confirmed axe violations across every
+captured surface. Every test added here was watched failing first, and the
+correlations fix was mutation-checked — restoring the old mapping fails two of
+the three new tests.
+
 ## v0.121.0 — 2026-08-26 — The drawer's drawer
 
 Four things in this release were already there and could not be found.
