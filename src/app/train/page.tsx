@@ -13,6 +13,7 @@ import {
   type RaceListItem,
 } from "@/components/train/races-section";
 import { IntakeForm } from "@/components/week/intake-form";
+import { PinnedAction } from "@/components/week/pinned-action";
 import { StandardWeek } from "@/components/train/standard-week";
 import { PlanEmpty } from "@/components/train/plan-empty";
 import { PlanPreviewCard } from "@/components/train/plan-preview-card";
@@ -1143,18 +1144,15 @@ async function WeekTab({
         </>
       ) : (
         <section className="mb-6">
-          <form action={startWeek} className="glass rounded-[18px] p-5">
+          <form className="glass rounded-[18px] p-5">
             <p className="text-caption leading-relaxed text-ink-secondary">
               This week hasn&apos;t been planned yet. Start it now and it
               materializes from your skeleton — you can adjust your availability
               right after.
             </p>
-            <button
-              type="submit"
-              className="mt-4 w-full rounded-full bg-accent py-2.5 text-label font-bold text-primary-foreground transition-opacity hover:opacity-90"
-            >
-              Plan this week
-            </button>
+            <div className="mt-4">
+              <PinnedAction label="Plan this week" formAction={startWeek} />
+            </div>
           </form>
         </section>
       )}

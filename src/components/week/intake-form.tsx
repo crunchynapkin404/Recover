@@ -6,6 +6,7 @@ import { formatAvailability, formatBlocks } from "@/lib/availability/format";
 import type { Verdict } from "@/lib/week-plan/ctl-projection";
 import { clearDayOverride } from "@/app/plan/actions";
 import { BlockSheet } from "./block-sheet";
+import { PinnedAction } from "./pinned-action";
 import { WEEKDAY_NAMES, WEEKDAY_SHORT } from "@/lib/weekdays";
 
 export interface IntakeState {
@@ -120,6 +121,26 @@ export function IntakeForm({
         When you can train — the week plans itself around these blocks.
       </p>
 
+      {/* Total + warning render BEFORE the day list, not after it, so
+          PinnedAction (below) is always the day list's immediate DOM
+          neighbour. When it moves before, PinnedAction sat right after
+          this text in document order — but once stuck, it visually floats
+          ABOVE its own natural position, which put a lower-document-order
+          fragment of this exact text on screen BELOW an already-rendered
+          button: a DOM-order inversion, not the "content legibly scrolls
+          under the band" the brief anticipates (Task 6 report, browser
+          verification screenshot). Nothing between the list and the button
+          removes the inversion outright rather than relying on the band's
+          blur to paper over it. */}
+      <p className="mb-2 text-center text-label text-ink-muted">
+        {`${formatAvailability(totalMins)} ${weekLabel}`}
+      </p>
+      {warning && (
+        <p className="mb-5 text-center text-label leading-relaxed text-chart-3">
+          {warning}
+        </p>
+      )}
+
       <ul className="mb-3">
         {week.map((blocks, i) => {
           const pinned = overrideDates.includes(dates[i] ?? "");
@@ -129,10 +150,19 @@ export function IntakeForm({
               className="border-b border-hairline last:border-0"
             >
               <div className="flex items-center gap-3 py-2.5">
+                {/* scroll-mb-52 (208px): PinnedAction's stuck band occupies
+                    the bottom ~189px of the viewport once engaged (Task 6
+                    report — measured at 390x844). Without this, tabbing to
+                    a late day (Sat/Sun) lands focus on a row the browser
+                    already considers "in view" by raw bounding box, so it
+                    never scrolls further — leaving a focused, invisible
+                    control sitting behind an opaque-ish band. scroll-margin
+                    is honoured by the same focus-scroll algorithm and forces
+                    the extra scroll this needs. */}
                 <button
                   type="button"
                   onClick={() => setOpenDay(i)}
-                  className="flex flex-1 items-center justify-between text-left"
+                  className="flex flex-1 scroll-mb-52 items-center justify-between text-left"
                 >
                   <span className="text-label font-bold uppercase tracking-wider text-ink-muted">
                     {WEEKDAY_SHORT[i]}
@@ -146,7 +176,7 @@ export function IntakeForm({
                     type="button"
                     onClick={() => unpin(i)}
                     title="Back to your standard week"
-                    className="rounded-full border border-hairline bg-surface-overlay px-2 py-0.5 text-label font-bold text-chart-3"
+                    className="scroll-mb-52 rounded-full border border-hairline bg-surface-overlay px-2 py-0.5 text-label font-bold text-chart-3"
                   >
                     Pinned ×
                   </button>
@@ -162,22 +192,11 @@ export function IntakeForm({
         })}
       </ul>
 
-      <p className="mb-2 text-center text-label text-ink-muted">
-        {`${formatAvailability(totalMins)} ${weekLabel}`}
-      </p>
-      {warning && (
-        <p className="mb-5 text-center text-label leading-relaxed text-chart-3">
-          {warning}
-        </p>
-      )}
-
-      <button
-        type="submit"
-        disabled={pending}
-        className="w-full rounded-2xl bg-accent py-3 text-caption font-bold text-primary-foreground transition-opacity disabled:opacity-50"
-      >
-        Confirm week
-      </button>
+      <PinnedAction
+        label="Confirm week"
+        formAction={formAction}
+        pending={pending}
+      />
       {state.message !== "" && (
         <p className="mt-3 text-center text-label text-ink-secondary">
           {state.message}
