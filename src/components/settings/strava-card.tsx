@@ -20,6 +20,7 @@ import {
   connectorGhostClass,
   connectorCtaClass,
   connectorBadgeClass,
+  mechanismNoteId,
 } from "./connector-card";
 
 interface Props {
@@ -99,8 +100,19 @@ export function StravaCard({
       tone="strava"
       glyph="↗"
       subtitle={
-        connection ? `Connected as ${connection.athleteName}` : "Not connected"
+        connection
+          ? `Connected as ${connection.athleteName}`
+          : // What it brings, not whether it is on — the Connect pill beside
+            // this line already says that, and the other four connectors all
+            // name their data here. Accurate to src/lib/connectors/strava.ts,
+            // which maps average_watts and average_heartrate off each
+            // activity.
+            "Activities, power, heart rate"
       }
+      // Only while it is genuinely connectable: with the client id unset
+      // the action is a "Set X_CLIENT_ID" badge, and describing a redirect
+      // the athlete cannot start would be worse than saying nothing.
+      mechanism={!connection && configured ? "redirect" : null}
       status={status}
       actions={
         connection ? (
@@ -127,7 +139,11 @@ export function StravaCard({
             </button>
           </div>
         ) : configured ? (
-          <a href="/api/connections/strava" className={connectorCtaClass}>
+          <a
+            href="/api/connections/strava"
+            aria-describedby={mechanismNoteId("Strava")}
+            className={connectorCtaClass}
+          >
             Connect
           </a>
         ) : (

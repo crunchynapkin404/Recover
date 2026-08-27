@@ -9,6 +9,7 @@ vi.mock("@/app/settings/withings-actions", () => ({
 }));
 
 import { WithingsCard } from "./withings-card";
+import { mechanismNoteId } from "./connector-card";
 
 declare global {
   var IS_REACT_ACT_ENVIRONMENT: boolean;
@@ -75,5 +76,17 @@ describe("WithingsCard", () => {
     expect(el.querySelector("[role='status']")?.textContent).toBe(
       "You declined the Withings authorization."
     );
+  });
+});
+
+describe("WithingsCard's mechanism note (flow strand)", () => {
+  it("tells the athlete Connect will leave for Withings", async () => {
+    const el = await render(<WithingsCard configured connection={null} />);
+    expect(el.textContent).toContain("Sends you to Withings to sign in");
+    expect(
+      el
+        .querySelector("a[href='/api/connections/withings']")
+        ?.getAttribute("aria-describedby")
+    ).toBe(mechanismNoteId("Withings"));
   });
 });

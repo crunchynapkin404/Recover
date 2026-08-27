@@ -54,6 +54,51 @@ export const TONE_CHIP: Record<ConnectorTone, string> = {
   apple: "bg-connector-apple-tint text-connector-apple-ink",
 };
 
+/**
+ * WHAT CONNECTING WILL INVOLVE — Phase 6 strand 3 (flow and friction).
+ *
+ * The flow inventory's clearest finding, and the only one that needed no
+ * measurement to state: six connectors sit under one "Integrations" heading
+ * doing three structurally different things. Three hand the athlete to a
+ * third party and come back through a callback; two want a token pasted
+ * here; one wants a push set up on a device that is not this one. Every card
+ * showed the same chip, the same subtitle naming the data, and the same
+ * Connect pill — so the one thing that actually differs between them was the
+ * one thing the card never said.
+ *
+ * Three sentences, owned by the shell rather than written five times in five
+ * card bodies, for the reason the first-run strand gave isFirstRun() a single
+ * home in v0.120.0: one vocabulary makes the six comparable at a glance,
+ * five phrasings make them look like six unrelated things again.
+ *
+ * intervals.icu is the sixth connector and is deliberately not on this
+ * shell — it still renders the older <Card>, and its own description already
+ * names its mechanism ("Find your API key under intervals.icu → Settings →
+ * Developer"). Migrating that card is redesign work, not this fix.
+ */
+export type ConnectorMechanism = "redirect" | "token" | "push";
+
+export const MECHANISM_NOTE: Record<
+  ConnectorMechanism,
+  (name: string) => string
+> = {
+  redirect: (name) => `Sends you to ${name} to sign in, then back here.`,
+  token: (name) => `Stays here — you paste a token from ${name}.`,
+  push: () =>
+    `Stays here — you'll get a URL your iPhone pushes to, or upload an export below.`,
+};
+
+/**
+ * The note's id, so a connect control can point at it with
+ * `aria-describedby`. Without that, the sentence is only reachable by
+ * browsing the document — a screen-reader user tabbing straight to "Connect"
+ * hears the button and not the warning that it leaves the app, which is the
+ * exact athlete this fix exists for.
+ */
+export function mechanismNoteId(name: string): string {
+  return `connector-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-mechanism`;
+}
+
 export const connectorPillClass =
   "rounded-full border border-hairline bg-surface-overlay px-3 py-1.5 text-label font-bold uppercase tracking-wider transition-colors hover:bg-surface-selected disabled:opacity-50";
 
@@ -71,6 +116,9 @@ export interface ConnectorCardProps {
   tone: ConnectorTone;
   glyph: ReactNode;
   subtitle: ReactNode;
+  /** What connecting involves. Pass only while the card is connectable and
+   *  not yet connected — there is nothing to disclose once it is done. */
+  mechanism?: ConnectorMechanism | null;
   actions?: ReactNode;
   status?: { message: ReactNode; ok: boolean } | null;
   children?: ReactNode;
@@ -81,6 +129,7 @@ export function ConnectorCard({
   tone,
   glyph,
   subtitle,
+  mechanism,
   actions,
   status,
   children,
@@ -121,6 +170,17 @@ export function ConnectorCard({
         </div>
         {actions}
       </div>
+
+      {/* Under the header row, so it sits directly beneath the control it
+          describes rather than below the card's body. */}
+      {mechanism && (
+        <p
+          id={mechanismNoteId(name)}
+          className="mt-3 text-label text-ink-muted"
+        >
+          {MECHANISM_NOTE[mechanism](name)}
+        </p>
+      )}
 
       {status && (
         <p

@@ -12,6 +12,7 @@ import {
   connectorPillClass,
   connectorGhostClass,
   connectorCtaClass,
+  mechanismNoteId,
 } from "./connector-card";
 
 interface Props {
@@ -44,6 +45,10 @@ export function OuraCard({ connection }: Props) {
           ? `Connected${connection.accountName ? ` · ${connection.accountName}` : ""}`
           : "Staged sleep, HRV, temperature"
       }
+      // A token paste, not a redirect: the form below is visible proof of
+      // that, but only once the athlete has read down to it. The note says
+      // it at the top, in the same words the other four cards use.
+      mechanism={connection ? null : "token"}
       // DOM POSITION (documentation gap closed, whole-branch review fix
       // wave, 2026-08-17). Before this card moved onto the shared shell
       // (df82880, "only the chrome moved… Still no class changes"), this
@@ -121,6 +126,7 @@ export function OuraCard({ connection }: Props) {
           <button
             type="submit"
             disabled={connecting}
+            aria-describedby={mechanismNoteId("Oura")}
             className={`${connectorCtaClass} shrink-0`}
           >
             {connecting ? "…" : "Connect"}

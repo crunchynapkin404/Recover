@@ -13,6 +13,7 @@ import {
   connectorGhostClass,
   connectorCtaClass,
   connectorBadgeClass,
+  mechanismNoteId,
 } from "./connector-card";
 
 /** Health Auto Export pushes at least daily when healthy; 3 days of silence
@@ -77,6 +78,10 @@ export function AppleHealthCard({
       subtitle={
         connected ? "Push via Health Auto Export" : "Sleep, HRV, BP, body comp"
       }
+      // The least self-evident of the six: "Enable" reads like a switch, and
+      // what it actually does is mint a webhook URL for an app on a device
+      // that is not this one. Only while BETTER_AUTH_URL makes that possible.
+      mechanism={!connected && baseUrlConfigured ? "push" : null}
       status={status}
       actions={
         connected ? (
@@ -113,6 +118,7 @@ export function AppleHealthCard({
             onClick={() =>
               startTransition(async () => setResult(await enableAppleHealth()))
             }
+            aria-describedby={mechanismNoteId("Apple Health")}
             className={connectorCtaClass}
           >
             Enable

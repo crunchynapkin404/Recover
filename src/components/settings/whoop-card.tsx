@@ -12,6 +12,7 @@ import {
   connectorGhostClass,
   connectorCtaClass,
   connectorBadgeClass,
+  mechanismNoteId,
 } from "./connector-card";
 
 interface Props {
@@ -57,6 +58,10 @@ export function WhoopCard({ configured, connection, errorParam }: Props) {
           ? `Connected as ${connection.athleteName}`
           : "Recovery, HRV, staged sleep"
       }
+      // Only while it is genuinely connectable: with the client id unset
+      // the action is a "Set X_CLIENT_ID" badge, and describing a redirect
+      // the athlete cannot start would be worse than saying nothing.
+      mechanism={!connection && configured ? "redirect" : null}
       status={status}
       actions={
         connection ? (
@@ -83,7 +88,11 @@ export function WhoopCard({ configured, connection, errorParam }: Props) {
             </button>
           </div>
         ) : configured ? (
-          <a href="/api/connections/whoop" className={connectorCtaClass}>
+          <a
+            href="/api/connections/whoop"
+            aria-describedby={mechanismNoteId("Whoop")}
+            className={connectorCtaClass}
+          >
             Connect
           </a>
         ) : (

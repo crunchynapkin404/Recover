@@ -12,6 +12,7 @@ import {
   connectorGhostClass,
   connectorCtaClass,
   connectorBadgeClass,
+  mechanismNoteId,
 } from "./connector-card";
 
 interface Props {
@@ -55,6 +56,10 @@ export function WithingsCard({ configured, connection, errorParam }: Props) {
       subtitle={
         connection ? "Connected" : "Weight, body composition, blood pressure"
       }
+      // Only while it is genuinely connectable: with the client id unset
+      // the action is a "Set X_CLIENT_ID" badge, and describing a redirect
+      // the athlete cannot start would be worse than saying nothing.
+      mechanism={!connection && configured ? "redirect" : null}
       status={status}
       actions={
         connection ? (
@@ -83,7 +88,11 @@ export function WithingsCard({ configured, connection, errorParam }: Props) {
             </button>
           </div>
         ) : configured ? (
-          <a href="/api/connections/withings" className={connectorCtaClass}>
+          <a
+            href="/api/connections/withings"
+            aria-describedby={mechanismNoteId("Withings")}
+            className={connectorCtaClass}
+          >
             Connect
           </a>
         ) : (

@@ -12,6 +12,7 @@ vi.mock("@/app/settings/strava-actions", () => ({
 }));
 
 import { StravaCard } from "./strava-card";
+import { mechanismNoteId } from "./connector-card";
 
 declare global {
   var IS_REACT_ACT_ENVIRONMENT: boolean;
@@ -143,5 +144,43 @@ describe("StravaCard", () => {
     );
     expect(el.textContent).not.toContain("Auto-describe new activities");
     expect(el.querySelector("input[type='checkbox']")).toBeNull();
+  });
+});
+
+describe("StravaCard's mechanism note (flow strand)", () => {
+  it("tells the athlete Connect will leave for Strava", async () => {
+    const el = await render(
+      <StravaCard
+        configured
+        connection={null}
+        autoDescribe={false}
+        descriptionFields={{}}
+      />
+    );
+    expect(el.textContent).toContain("Sends you to Strava to sign in");
+    expect(
+      el
+        .querySelector("a[href='/api/connections/strava']")
+        ?.getAttribute("aria-describedby")
+    ).toBe(mechanismNoteId("Strava"));
+  });
+});
+
+// The mechanism note put every disconnected card into the same two-line shape
+// — data on top, mechanism underneath — and that made Strava's odd subtitle
+// obvious: four cards named what they bring, Strava said "Not connected",
+// which the Connect button beside it already says.
+describe("StravaCard's disconnected subtitle", () => {
+  it("names the data it brings, as the other four connectors do", async () => {
+    const el = await render(
+      <StravaCard
+        configured
+        connection={null}
+        autoDescribe={false}
+        descriptionFields={{}}
+      />
+    );
+    expect(el.textContent).toContain("Activities, power, heart rate");
+    expect(el.textContent).not.toContain("Not connected");
   });
 });

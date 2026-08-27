@@ -8,6 +8,7 @@ import {
   connectorCtaClass,
   connectorGhostClass,
   connectorPillClass,
+  mechanismNoteId,
   TONE_CHIP,
 } from "./connector-card";
 
@@ -148,5 +149,92 @@ describe("ConnectorCard class constants (pinned, see Task 5)", () => {
       oura: "bg-connector-oura-tint text-connector-oura-ink",
       apple: "bg-connector-apple-tint text-connector-apple-ink",
     });
+  });
+});
+
+/**
+ * Phase 6, strand 3 (flow and friction). The flow inventory
+ * (docs/2026-08-26-flow-inventory.md, "Connect a provider — one label, three
+ * journeys") found six connectors under one Integrations heading doing
+ * structurally different things: three redirect to a third party and come
+ * back through a callback, two want a token pasted here, one wants a file
+ * exported from another device. Nothing on the card said which one the
+ * athlete was about to enter — the section badge summarises what is
+ * connected, never what connecting will involve.
+ *
+ * The note lives on the shell rather than in five card bodies for the same
+ * reason isFirstRun() lives in one place: one vocabulary, three sentences,
+ * so the six cards are comparable at a glance instead of each inventing its
+ * own phrasing.
+ */
+describe("ConnectorCard's mechanism note", () => {
+  it("warns that a redirect connector leaves the app", async () => {
+    const el = await render(
+      <ConnectorCard
+        name="Whoop"
+        tone="whoop"
+        glyph="W"
+        subtitle="Recovery, HRV, staged sleep"
+        mechanism="redirect"
+      />
+    );
+    expect(el.textContent).toContain(
+      "Sends you to Whoop to sign in, then back here."
+    );
+  });
+
+  it("says a token connector keeps the athlete on this page", async () => {
+    const el = await render(
+      <ConnectorCard
+        name="Oura"
+        tone="oura"
+        glyph="◍"
+        subtitle="Staged sleep, HRV, temperature"
+        mechanism="token"
+      />
+    );
+    expect(el.textContent).toContain("Stays here");
+    expect(el.textContent).toContain("token from Oura");
+  });
+
+  it("says a push connector is set up from the athlete's own device", async () => {
+    const el = await render(
+      <ConnectorCard
+        name="Apple Health"
+        tone="apple"
+        glyph="♥"
+        subtitle="Sleep, HRV, BP, body comp"
+        mechanism="push"
+      />
+    );
+    expect(el.textContent).toContain("Stays here");
+    expect(el.textContent).toContain("iPhone");
+  });
+
+  it("gives the note an id the connect control can be described by", async () => {
+    const el = await render(
+      <ConnectorCard
+        name="Apple Health"
+        tone="apple"
+        glyph="♥"
+        subtitle="Sleep, HRV, BP, body comp"
+        mechanism="push"
+      />
+    );
+    expect(
+      el.querySelector(`#${mechanismNoteId("Apple Health")}`)
+    ).not.toBeNull();
+  });
+
+  it("renders no note at all when no mechanism is given", async () => {
+    const el = await render(
+      <ConnectorCard
+        name="Withings"
+        tone="withings"
+        glyph="⚖"
+        subtitle="Connected"
+      />
+    );
+    expect(el.querySelector("[id$='-mechanism']")).toBeNull();
   });
 });

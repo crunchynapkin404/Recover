@@ -9,6 +9,7 @@ vi.mock("@/app/settings/whoop-actions", () => ({
 }));
 
 import { WhoopCard } from "./whoop-card";
+import { mechanismNoteId } from "./connector-card";
 
 declare global {
   var IS_REACT_ACT_ENVIRONMENT: boolean;
@@ -74,5 +75,40 @@ describe("WhoopCard", () => {
     expect(el.querySelector("[role='status']")?.textContent).toBe(
       "You declined the Whoop authorization."
     );
+  });
+});
+
+describe("WhoopCard's mechanism note (flow strand)", () => {
+  it("tells the athlete Connect will leave for Whoop", async () => {
+    const el = await render(<WhoopCard configured connection={null} />);
+    expect(el.textContent).toContain("Sends you to Whoop to sign in");
+  });
+
+  it("points Connect at that sentence for assistive tech", async () => {
+    const el = await render(<WhoopCard configured connection={null} />);
+    const link = el.querySelector("a[href='/api/connections/whoop']");
+    expect(link?.getAttribute("aria-describedby")).toBe(
+      mechanismNoteId("Whoop")
+    );
+  });
+
+  it("drops the note once connected — there is nothing left to enter", async () => {
+    const el = await render(
+      <WhoopCard
+        configured
+        connection={{
+          athleteName: "Bart",
+          status: "active",
+          lastSyncAt: null,
+          lastError: null,
+        }}
+      />
+    );
+    expect(el.textContent).not.toContain("Sends you to Whoop");
+  });
+
+  it("stays quiet when the connector cannot be connected at all", async () => {
+    const el = await render(<WhoopCard configured={false} connection={null} />);
+    expect(el.textContent).not.toContain("Sends you to Whoop");
   });
 });
