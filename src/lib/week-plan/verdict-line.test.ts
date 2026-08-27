@@ -31,7 +31,6 @@ const w = (durationMins: number, purpose: string) =>
 const TODAY = "2026-08-27"; // Thursday
 
 const longRide = slot({ date: TODAY, workouts: [w(180, "long")] });
-const restDay = slot({ date: TODAY, workouts: [], status: "rest" });
 
 describe("verdictLine", () => {
   it("names the day's session and says the athlete is ready", () => {
@@ -46,11 +45,21 @@ describe("verdictLine", () => {
     expect(v?.emphasis).toBe("you're ready for it");
   });
 
-  it("says rest is the plan on a rest day that IS today, rather than nothing", () => {
-    // readiness is green and current here on purpose: a rest day makes no
-    // readiness claim regardless — there is no session to pace.
+  // types.ts:44-64 — `restIntent` is the ONLY marker for a day the engine
+  // deliberately left empty. `status: "rest"` alone cannot mean this
+  // (materializeWeek starts every day there, and the drop/move rungs
+  // restamp a day "rest" too — see the two tests below this one).
+  it("says rest is the plan on a deliberately-empty day that IS today", () => {
+    const preRaceToday = slot({
+      date: TODAY,
+      workouts: [],
+      status: "rest",
+      restIntent: "pre_race",
+    });
+    // readiness is green and current here on purpose: an empty day makes
+    // no readiness claim regardless — there is no session to pace.
     const v = verdictLine({
-      openDay: restDay,
+      openDay: preRaceToday,
       band: "green",
       readiness: 78,
       todayYmd: TODAY,
@@ -60,18 +69,81 @@ describe("verdictLine", () => {
     expect(v?.emphasis).toBeNull();
   });
 
-  // Review finding 2: "Nothing planned today" is a factual error on any
-  // rest day that isn't today — the open day (?day=) is usually not today.
-  it("names a rest day that is NOT today, instead of calling it 'today'", () => {
-    const tuesday = slot({ date: "2026-08-25", workouts: [], status: "rest" });
+  it("names a deliberately-empty day that is NOT today, instead of calling it 'today'", () => {
+    const preRaceTuesday = slot({
+      date: "2026-08-25",
+      workouts: [],
+      status: "rest",
+      restIntent: "pre_race",
+    });
     const v = verdictLine({
-      openDay: tuesday,
+      openDay: preRaceTuesday,
       band: "green",
       readiness: 78,
       todayYmd: TODAY,
       readinessDate: TODAY,
     });
     expect(v?.text).toBe("Tuesday is a rest day — that's the plan.");
+    expect(v?.emphasis).toBeNull();
+  });
+
+  // Review breakage 2: service.ts's drop/move rung (moveWorkout,
+  // ~line 840) stamps a day back to `status: "rest"` with NO `restIntent`
+  // when its last session leaves — types.ts says outright that such a day
+  // is precisely NOT deliberate rest. It must not read "that's the plan".
+  it("says nothing is planned, without claiming it, on a day emptied by a drop or move", () => {
+    const droppedToday = slot({ date: TODAY, workouts: [], status: "rest" });
+    const v = verdictLine({
+      openDay: droppedToday,
+      band: "green",
+      readiness: 78,
+      todayYmd: TODAY,
+      readinessDate: TODAY,
+    });
+    expect(v?.text).toBe("Nothing planned today.");
+    expect(v?.emphasis).toBeNull();
+  });
+
+  it("names a non-today day emptied by a drop or move, without claiming it's the plan", () => {
+    const droppedTuesday = slot({
+      date: "2026-08-25",
+      workouts: [],
+      status: "rest",
+    });
+    const v = verdictLine({
+      openDay: droppedTuesday,
+      band: "green",
+      readiness: 78,
+      todayYmd: TODAY,
+      readinessDate: TODAY,
+    });
+    expect(v?.text).toBe("Nothing planned for Tuesday.");
+    expect(v?.emphasis).toBeNull();
+  });
+
+  // Review breakage 1: adapt-day.ts's handleMissedYesterday empties
+  // `workouts` in the SAME stamp that sets `status: "missed"` — a missed
+  // day can never carry workouts in production, so this fixture matches
+  // what the engine actually writes (the prior version of this test built
+  // a status/workouts combination production cannot produce). Must not
+  // read as rest (the athlete didn't choose this) and must not claim
+  // nothing happened (Recover tracks `unplannedLoad` separately for
+  // exactly that reason).
+  it("says a planned session was missed, not that the day was rest", () => {
+    const missedMonday = slot({
+      date: "2026-08-24",
+      workouts: [],
+      status: "missed",
+    });
+    const v = verdictLine({
+      openDay: missedMonday,
+      band: "green",
+      readiness: 78,
+      todayYmd: TODAY,
+      readinessDate: TODAY,
+    });
+    expect(v?.text).toBe("Monday's planned session was missed.");
+    expect(v?.text).not.toContain("rest");
     expect(v?.emphasis).toBeNull();
   });
 
@@ -174,8 +246,8 @@ describe("verdictLine", () => {
     expect(v?.emphasis).toBeNull();
   });
 
-  // Review finding 4: a day already completed or missed is not described
-  // as if it were still ahead.
+  // Review finding 4: a day already completed is not described as if it
+  // were still ahead.
   it("describes a completed day in the past tense, and makes no claim off-today", () => {
     const monday = slot({
       date: "2026-08-24",
@@ -191,22 +263,6 @@ describe("verdictLine", () => {
     });
     expect(v?.text).toBe("Monday was your long one.");
     expect(v?.emphasis).toBeNull();
-  });
-
-  it("describes a missed day in the past tense", () => {
-    const monday = slot({
-      date: "2026-08-24",
-      workouts: [w(60, "threshold")],
-      status: "missed",
-    });
-    const v = verdictLine({
-      openDay: monday,
-      band: "calibrating",
-      readiness: null,
-      todayYmd: TODAY,
-      readinessDate: null,
-    });
-    expect(v?.text).toBe("Monday was a threshold session.");
   });
 
   // materializeWeek always empties `workouts` on a race day — status is the

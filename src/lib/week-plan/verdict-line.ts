@@ -18,9 +18,24 @@ import { WEEKDAY_NAMES, weekdayIndex } from "@/lib/weekdays";
  *   "you're ready for it" dressed down.
  * - `amber` and `red` are stated as plain facts, not encouragement. Neither
  *   pretends the athlete is "ready" — that phrase is reserved for green.
- * - A rest day is not "nothing to say" — rest is the plan, so it gets its
- *   own sentence and never carries a readiness claim (there is nothing to
- *   pace on a day with no session).
+ * - AN EMPTY DAY (`workouts.length === 0`, not a race) IS NOT ONE STORY.
+ *   `types.ts`'s own `restIntent` doc explains why `status: "rest"` cannot
+ *   be trusted alone: `materializeWeek` starts every day there before
+ *   placing anything, and both the drop rung and `moveWorkout`
+ *   (service.ts) stamp a day back to `"rest"` when its last session
+ *   leaves — none of those are the plan asking for rest. Three different
+ *   claims, three different sentences (see `sessionBase`):
+ *     - `status === "missed"`: a planned session did not happen. Says
+ *       exactly that — never "rest" (the athlete didn't choose this) and
+ *       never "nothing happened" (Recover tracks `unplannedLoad`
+ *       precisely because a missed plan and an idle day are not the same
+ *       fact).
+ *     - `restIntent != null`: the ONLY marker for a day the engine
+ *       deliberately left empty (`types.ts:44-64`). Only this earns
+ *       "that's the plan".
+ *     - everything else empty (dropped, moved off, or simply never
+ *       filled): the weaker, true statement — nothing is planned, with no
+ *       claim that this was a choice.
  * - A race day is likewise never mistaken for a rest day: materializeWeek
  *   always clears `workouts` on a race day (see materialize.ts), so
  *   `workouts.length === 0` alone cannot tell "nothing planned" apart from
@@ -38,9 +53,11 @@ import { WEEKDAY_NAMES, weekdayIndex } from "@/lib/weekdays";
  *   no marker for. Off-today, or on a stale figure, the sentence describes
  *   only the session — the same shape the calibrating case already used,
  *   extended to a second reason a claim isn't safe to make.
- * - A day already `completed` or `missed` is described in the past tense
- *   ("Monday was your long one"), never the present — the open day can be
- *   any day of the week (Task 4), not only an upcoming one.
+ * - A day already `completed` is described in the past tense ("Monday was
+ *   your long one"), never the present — the open day can be any day of
+ *   the week (Task 4), not only an upcoming one. A `missed` day needs no
+ *   separate tense flag: "was missed" is already the only tense a session
+ *   that didn't happen can honestly take.
  *
  * Deliberately does NOT call `dayShape` (day-shape.ts): that function's
  * `rest` flag is just `workouts.length === 0` restated, and its `hard` flag
@@ -68,10 +85,10 @@ const SESSION_PHRASE: Record<Purpose, string> = {
 
 /**
  * Plain-language translation of a band, for the days it is safe to state at
- * all (never on a rest day, never off-today, never on a stale figure — see
- * the module comment). `calibrating` has no entry: the caller checks for it
- * before reaching this map, because there is no honest phrase for a score
- * that was never computed.
+ * all (never on an empty day, never off-today, never on a stale figure —
+ * see the module comment). `calibrating` has no entry: the caller checks
+ * for it before reaching this map, because there is no honest phrase for a
+ * score that was never computed.
  *
  * `green` is the one phrase this task's spec pins verbatim
  * ("you're ready for it"). `amber`/`red` deliberately do not borrow that
@@ -90,13 +107,8 @@ const READINESS_CLAIM: Record<"green" | "amber" | "red", string> = {
  * The sentence's subject and session description — no readiness claim
  * lives here at all (see `readinessClaim` for that).
  *
- * `isToday`/`isPast` only change the REST branch's subject word and the
- * SESSION branch's verb, respectively — never which branch fires. A rest
- * day and a completed/missed day are mutually exclusive in practice
- * (`markDayDone`/`adapt-day.ts` only ever stamp "completed"/"missed" on a
- * day that had workouts; see service.ts's own `workouts.length === 0`
- * guard), but each flag is independent so this stays correct even if that
- * changes.
+ * `isToday`/`isPast` only change the DELIBERATE-REST branch's subject word
+ * and the SESSION branch's verb, respectively — never which branch fires.
  */
 function sessionBase(
   weekday: string,
@@ -116,11 +128,31 @@ function sessionBase(
         : `${day.workouts.length} sessions`;
     return `${weekday} ${isPast ? "was" : "is"} ${phrase}`;
   }
-  // "today" is reserved for the day that actually is today; every other
-  // rest day is named, same as every other branch.
-  return isToday
-    ? "Nothing planned today — that's the plan"
-    : `${weekday} is a rest day — that's the plan`;
+  // Empty. WHICH kind of empty is the whole question — see the module
+  // comment's `restIntent` section.
+  //
+  // A planned session that did not happen — adapt-day.ts's
+  // handleMissedYesterday empties `workouts` in the same stamp that sets
+  // this status, so there is no session left to name, only the fact that
+  // one was missed. Already the only tense this can honestly take: a
+  // missed day cannot be "still ahead".
+  if (day.status === "missed") {
+    return `${weekday}'s planned session was missed`;
+  }
+  // The ONLY marker for a day the engine deliberately left empty
+  // (types.ts:44-64) — `status: "rest"` alone cannot mean this, since
+  // materializeWeek starts every day there and the drop/move rungs
+  // (service.ts) both restamp a day "rest" when its last session leaves,
+  // none of which is the plan choosing rest.
+  if (day.restIntent != null) {
+    return isToday
+      ? "Nothing planned today — that's the plan"
+      : `${weekday} is a rest day — that's the plan`;
+  }
+  // Everything else empty: dropped, moved off, or simply never filled.
+  // The weaker, true statement — nothing is planned, with no claim that
+  // this was a choice.
+  return isToday ? "Nothing planned today" : `Nothing planned for ${weekday}`;
 }
 
 /**
@@ -175,11 +207,14 @@ export function verdictLine(input: {
   const weekday = WEEKDAY_NAMES[weekdayIndex(openDay.date)];
   const isToday = openDay.date === todayYmd;
   const isPast = openDay.status === "completed" || openDay.status === "missed";
-  const isRestDay = openDay.status !== "race" && openDay.workouts.length === 0;
+  // No session to pace, whatever the reason (missed, deliberately rested,
+  // or simply empty) — `sessionBase` tells the three apart in the text;
+  // none of them earns a claim about the athlete's body.
+  const isEmptyDay = openDay.status !== "race" && openDay.workouts.length === 0;
   const isCurrent = isToday && readinessDate === todayYmd;
 
   const base = sessionBase(weekday, openDay, isToday, isPast);
-  const claim = isRestDay ? null : readinessClaim(band, readiness, isCurrent);
+  const claim = isEmptyDay ? null : readinessClaim(band, readiness, isCurrent);
 
   return {
     text: claim ? `${base} — ${claim}.` : `${base}.`,
