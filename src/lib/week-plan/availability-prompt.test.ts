@@ -140,3 +140,105 @@ describe("shouldPromptAvailability — at most one nudge per week (I10)", () => 
     ).toBe(true);
   });
 });
+
+/**
+ * The Sunday nudge (v0.123). The v0.20 prompt asks about the week the athlete
+ * is already in, from its Monday onwards. That is the wrong moment: by then
+ * the week has started and the plan has already been built around whatever
+ * the standard week said.
+ *
+ * This asks on the Sunday BEFORE, about the week that is about to start,
+ * which is when the answer is knowable and the plan can still be shaped by
+ * it. It exists because the athlete reported adjusting availability every
+ * single week — so the defaults are only ever a seed, and the nudge, not the
+ * standard week, is the thing that must not fail.
+ */
+import { shouldPromptNextWeekAvailability } from "./availability-prompt";
+
+describe("shouldPromptNextWeekAvailability", () => {
+  const NEXT_MONDAY = "2026-08-31";
+  const SUNDAY = "2026-08-30";
+
+  it("nudges on the Sunday before an untouched week", () => {
+    expect(
+      shouldPromptNextWeekAvailability({
+        overriddenDates: 0,
+        promptedAt: null,
+        nextWeekStart: NEXT_MONDAY,
+        today: SUNDAY,
+      })
+    ).toBe(true);
+  });
+
+  it("says nothing on any other day of the week", () => {
+    for (const today of [
+      "2026-08-24",
+      "2026-08-26",
+      "2026-08-29",
+      "2026-08-31",
+    ]) {
+      expect(
+        shouldPromptNextWeekAvailability({
+          overriddenDates: 0,
+          promptedAt: null,
+          nextWeekStart: NEXT_MONDAY,
+          today,
+        })
+      ).toBe(false);
+    }
+  });
+
+  it("stays quiet once any day of next week has been set", () => {
+    expect(
+      shouldPromptNextWeekAvailability({
+        overriddenDates: 1,
+        promptedAt: null,
+        nextWeekStart: NEXT_MONDAY,
+        today: SUNDAY,
+      })
+    ).toBe(false);
+  });
+
+  it("does not nudge twice on the same Sunday", () => {
+    expect(
+      shouldPromptNextWeekAvailability({
+        overriddenDates: 0,
+        promptedAt: new Date("2026-08-30T09:00:00Z"),
+        nextWeekStart: NEXT_MONDAY,
+        today: SUNDAY,
+      })
+    ).toBe(false);
+  });
+
+  it("nudges again the following week, when the record is a week old", () => {
+    expect(
+      shouldPromptNextWeekAvailability({
+        overriddenDates: 0,
+        promptedAt: new Date("2026-08-23T09:00:00Z"),
+        nextWeekStart: NEXT_MONDAY,
+        today: SUNDAY,
+      })
+    ).toBe(true);
+  });
+
+  it("reads the prompt record in local time, not UTC", () => {
+    // Europe/Amsterdam, the container's zone. A nudge sent at 00:30 local on
+    // Sunday is 22:30 UTC on Saturday; deriving the day with toISOString()
+    // would read it as belonging to Saturday and fire a second push hours
+    // later. Same defect class the v0.20 prompt documents for confirmations.
+    const originalTz = process.env.TZ;
+    process.env.TZ = "Europe/Amsterdam";
+    try {
+      expect(
+        shouldPromptNextWeekAvailability({
+          overriddenDates: 0,
+          promptedAt: new Date("2026-08-29T22:30:00Z"),
+          nextWeekStart: NEXT_MONDAY,
+          today: SUNDAY,
+        })
+      ).toBe(false);
+    } finally {
+      process.env.TZ = originalTz;
+    }
+  });
+});

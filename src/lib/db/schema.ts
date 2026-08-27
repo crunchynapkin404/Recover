@@ -988,6 +988,15 @@ export const weekPlans = pgTable(
     availabilityPromptedAt: timestamp("availability_prompted_at", {
       withTimezone: true,
     }),
+    // Set when the Sunday nudge about the NEXT week is pushed (v0.123). It
+    // lives on the OPEN week's row rather than next week's, because next week
+    // has no row yet on the Sunday the nudge fires — rows are written when a
+    // week is materialized, on its own Monday. The open week's row is the
+    // only per-week record that exists at that moment, and it is exactly as
+    // at-most-once as availability_prompted_at is for its own week.
+    nextWeekPromptedAt: timestamp("next_week_prompted_at", {
+      withTimezone: true,
+    }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
