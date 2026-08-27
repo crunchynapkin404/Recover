@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { and, asc, desc, eq, gte, inArray, lte, ne } from "drizzle-orm";
 import { Bike, ClipboardList, LineChart, Plus } from "lucide-react";
 import { db, schema } from "@/lib/db";
@@ -85,6 +86,7 @@ import {
   seasonTimelinePoints,
   weeklyActivitySummaries,
   weeklyLoads,
+  type SeasonTimelinePoint,
 } from "@/lib/charts";
 import {
   buildTrainHref,
@@ -193,10 +195,16 @@ export default async function TrainPage({
   const user = await requireUser();
   const sp = await searchParams;
 
+  // A retired tab is a redirect, not a 404 and not a silent fallback: the
+  // athlete may have it bookmarked, and telemetry should record where they
+  // actually landed rather than filing the visit under whatever
+  // `TRAIN_TABS.find` falls back to.
+  if (sp.tab === "season") redirect("/train?tab=week");
+
   const tab: TrainTab = TRAIN_TABS.find((t) => t === sp.tab) ?? "week";
-  // Recorded AFTER the tab resolves, not before. Train is four tabs behind
+  // Recorded AFTER the tab resolves, not before. Train is three tabs behind
   // one path and the tab is the thing worth counting; recording at the top
-  // of the render filed all four under `train`. `sp.tab` is untrusted URL
+  // of the render filed all three under `train`. `sp.tab` is untrusted URL
   // input, so it becomes a key only once TRAIN_TABS has vouched for it —
   // `?tab=garbage` records `train:week`, which is what actually renders.
   await recordSurfaceView(user.id, "train", tab);
@@ -233,8 +241,6 @@ export default async function TrainPage({
           month={month}
           sportFilter={sportFilter}
         />
-      ) : tab === "season" ? (
-        <SeasonTab userId={user.id} href={href} />
       ) : (
         <FitnessTab userId={user.id} href={href} range={range} />
       )}
@@ -1310,102 +1316,6 @@ async function HistoryTab({
   );
 }
 
-// ── Season (v0.48) ───────────────────────────────────────────────────────
-
-async function SeasonTab({
-  userId,
-  href,
-}: {
-  userId: string;
-  href: TrainHref;
-}) {
-  const plan = await getActivePlan(userId);
-  const thisMonday = new Date();
-  thisMonday.setHours(0, 0, 0, 0);
-  thisMonday.setDate(thisMonday.getDate() - ((thisMonday.getDay() + 6) % 7));
-  const thisMondayYmd = localYmd(thisMonday);
-
-  if (!plan) {
-    return (
-      <>
-        <TrainHeader tab="season" href={href} />
-        <EmptyState
-          icon={LineChart}
-          message="No active plan yet. Build a plan to unlock season target vs actual tracking."
-        />
-      </>
-    );
-  }
-
-  const weeks = await db.query.weekPlans.findMany({
-    where: and(
-      eq(schema.weekPlans.userId, userId),
-      eq(schema.weekPlans.planId, plan.id),
-      lte(schema.weekPlans.weekStart, thisMondayYmd)
-    ),
-    orderBy: asc(schema.weekPlans.weekStart),
-  });
-
-  if (weeks.length === 0) {
-    return (
-      <>
-        <TrainHeader tab="season" href={href} />
-        <EmptyState
-          icon={LineChart}
-          message="No season weeks to compare yet. Season progress appears once the first week starts."
-        />
-      </>
-    );
-  }
-
-  const firstWeek = weeks[0].weekStart;
-  const firstWeekDate = new Date(`${firstWeek}T00:00:00`);
-  const spanWeeks =
-    Math.max(
-      1,
-      Math.floor(
-        (thisMonday.getTime() - firstWeekDate.getTime()) / 604_800_000
-      ) + 1
-    ) || 1;
-
-  const activities = await db.query.activities.findMany({
-    where: and(
-      eq(schema.activities.userId, userId),
-      ne(schema.activities.provider, "strava"),
-      gte(schema.activities.startDate, firstWeekDate)
-    ),
-    orderBy: desc(schema.activities.startDate),
-    limit: 1000,
-  });
-
-  const actualSummaries = weeklyActivitySummaries(
-    activities.map((a) => ({
-      startDate: a.startDateLocal ?? a.startDate,
-      load: a.load,
-      durationS: a.durationS,
-      distanceM: a.distanceM,
-    })),
-    spanWeeks
-  );
-
-  const points = seasonTimelinePoints(
-    weeks.map((w) => ({
-      weekStart: w.weekStart,
-      targetLoad: w.effectiveTarget,
-    })),
-    actualSummaries
-  );
-
-  return (
-    <>
-      <TrainHeader tab="season" href={href} />
-      <div className="pb-10">
-        <SeasonTimelineCard data={points} />
-      </div>
-    </>
-  );
-}
-
 // ── Fitness (1e) ──────────────────────────────────────────────────────────
 
 async function FitnessTab({
@@ -1456,6 +1366,73 @@ async function FitnessTab({
     })),
     12
   );
+
+  // Season progress — target vs actual load per plan week, moved here from
+  // the retired Season tab (see TRAIN_TABS in lib/log-href.ts) along with
+  // SeasonTimelineCard below. Its own query, not a reuse of `activities`
+  // above: that fetch is a flat rolling window (400 most-recent, `range`
+  // days) built for the PMC chart and weekly-load bars, while this one needs
+  // activities from the plan's very first materialized week onward, bucketed
+  // per week rather than truncated to a lookback — genuinely independent
+  // data, so it stays a separate query rather than a reshape of the other.
+  const seasonPlan = await getActivePlan(userId);
+  let seasonPoints: SeasonTimelinePoint[] = [];
+  if (seasonPlan) {
+    const seasonMonday = new Date();
+    seasonMonday.setHours(0, 0, 0, 0);
+    seasonMonday.setDate(
+      seasonMonday.getDate() - ((seasonMonday.getDay() + 6) % 7)
+    );
+    const seasonMondayYmd = localYmd(seasonMonday);
+
+    const seasonWeeks = await db.query.weekPlans.findMany({
+      where: and(
+        eq(schema.weekPlans.userId, userId),
+        eq(schema.weekPlans.planId, seasonPlan.id),
+        lte(schema.weekPlans.weekStart, seasonMondayYmd)
+      ),
+      orderBy: asc(schema.weekPlans.weekStart),
+    });
+
+    if (seasonWeeks.length > 0) {
+      const firstWeekDate = new Date(`${seasonWeeks[0].weekStart}T00:00:00`);
+      const spanWeeks =
+        Math.max(
+          1,
+          Math.floor(
+            (seasonMonday.getTime() - firstWeekDate.getTime()) / 604_800_000
+          ) + 1
+        ) || 1;
+
+      const seasonActivities = await db.query.activities.findMany({
+        where: and(
+          eq(schema.activities.userId, userId),
+          ne(schema.activities.provider, "strava"),
+          gte(schema.activities.startDate, firstWeekDate)
+        ),
+        orderBy: desc(schema.activities.startDate),
+        limit: 1000,
+      });
+
+      const actualSummaries = weeklyActivitySummaries(
+        seasonActivities.map((a) => ({
+          startDate: a.startDateLocal ?? a.startDate,
+          load: a.load,
+          durationS: a.durationS,
+          distanceM: a.distanceM,
+        })),
+        spanWeeks
+      );
+
+      seasonPoints = seasonTimelinePoints(
+        seasonWeeks.map((w) => ({
+          weekStart: w.weekStart,
+          targetLoad: w.effectiveTarget,
+        })),
+        actualSummaries
+      );
+    }
+  }
 
   // ctl/atl come from the resolved daily_metrics series, not the
   // provider-only wellness_daily one; null means calibrating, never 0.
@@ -1569,6 +1546,10 @@ async function FitnessTab({
       />
 
       <FitnessTiles tiles={tiles} />
+
+      <div className="mb-8">
+        <SeasonTimelineCard data={seasonPoints} />
+      </div>
 
       {hasLoadSeries ? (
         <section className="glass mb-4 rounded-[18px] p-4">

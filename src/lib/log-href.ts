@@ -86,7 +86,15 @@ export function buildBodyHref(
 
 export type TrainTab = "week" | "history" | "season" | "fitness";
 
-export const TRAIN_TABS: TrainTab[] = ["week", "history", "season", "fitness"];
+/**
+ * The tabs Train currently offers. `"season"` stays a legal `TrainTab` value
+ * — it is still a real key in `RETIRED_SURFACE_KEYS` (lib/telemetry.ts) and
+ * a real value on `?tab=season` links the app must keep resolving — but it
+ * is retired from this list, the set the tab row and the redirect check
+ * both read. The Season tab folded into Week and Fitness (see the
+ * `tab === "season"` redirect in train/page.tsx).
+ */
+export const TRAIN_TABS: TrainTab[] = ["week", "history", "fitness"];
 
 export type TrainFilterState = LogFilterState & {
   tab: TrainTab;

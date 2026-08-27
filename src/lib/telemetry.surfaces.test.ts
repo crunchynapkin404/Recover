@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { SURFACES, SURFACE_TABS, surfaceViewKeys } from "./telemetry";
+import {
+  RETIRED_SURFACE_KEYS,
+  SURFACES,
+  SURFACE_TABS,
+  surfaceViewKeys,
+} from "./telemetry";
 import { BODY_TABS, TRAIN_TABS } from "./log-href";
 
 /** Every page.tsx under src/app, as repo-relative paths. */
@@ -86,5 +91,17 @@ describe("surface instrumentation", () => {
     const src = readFileSync("src/app/admin/page.tsx", "utf8");
     expect(src).toContain("surfaceViewTotals(");
     expect(src).toContain("<SurfaceViewsCard");
+  });
+
+  it("no longer offers season as a train tab", () => {
+    expect(TRAIN_TABS).not.toContain("season");
+    expect(TRAIN_TABS).toEqual(["week", "history", "fitness"]);
+  });
+
+  // v0.121.0 shipped tab-level telemetry one day before this tab was retired.
+  // Rows written as `train:season` still exist and must stay readable; the key
+  // is retired from the offered set, not from history.
+  it("keeps train:season readable as a retired key", () => {
+    expect(RETIRED_SURFACE_KEYS).toContain("train:season");
   });
 });
