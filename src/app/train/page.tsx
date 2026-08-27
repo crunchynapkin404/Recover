@@ -412,6 +412,11 @@ async function WeekTab({
         ).find((m) => m.readiness != null);
   const band = (readinessMetric?.band ?? "calibrating") as Band;
   const readiness = readinessMetric?.readiness ?? null;
+  // The date `band`/`readiness` actually describe — `readinessMetric` can
+  // fall back up to 7 days above, and verdictLine's readiness clause must
+  // never quote a stale figure as if it were today's (Task 5 fix pass,
+  // review finding 3).
+  const readinessDate = readinessMetric?.date ?? null;
 
   const chip = (
     <span
@@ -625,10 +630,18 @@ async function WeekTab({
   // Only reachable once a plan AND an open week both exist (this whole
   // block is past the `if (!plan) return` fork above) — the athlete this
   // module must never address is the first-run one, and that athlete can
-  // never get here. See verdict-line.ts's module comment for the rest of
-  // this line's honesty rules.
+  // never get here. `todayYmd`/`readinessDate` are what let verdictLine
+  // tell "today" apart from a day the athlete has merely scrolled to
+  // (Task 4's `?day=`, which is usually NOT today) — see verdict-line.ts's
+  // module comment for the rest of this line's honesty rules.
   const verdict = openDaySlot
-    ? verdictLine({ openDay: openDaySlot, band, readiness })
+    ? verdictLine({
+        openDay: openDaySlot,
+        band,
+        readiness,
+        todayYmd,
+        readinessDate,
+      })
     : null;
 
   const defaultRows = await db.query.availabilityDefaults.findMany({

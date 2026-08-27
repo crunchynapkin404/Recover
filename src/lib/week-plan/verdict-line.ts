@@ -24,7 +24,23 @@ import { WEEKDAY_NAMES, weekdayIndex } from "@/lib/weekdays";
  * - A race day is likewise never mistaken for a rest day: materializeWeek
  *   always clears `workouts` on a race day (see materialize.ts), so
  *   `workouts.length === 0` alone cannot tell "nothing planned" apart from
- *   "the plan is a race today" — `status` is what tells them apart.
+ *   "the plan is a race today" — `status` is what tells them apart. Checked
+ *   FIRST in `sessionBase`, ahead of the workouts check, so that is a
+ *   structural guarantee rather than an accident this file happens to rely
+ *   on staying true.
+ * - THE READINESS CLAUSE IS A CLAIM ABOUT THE ATHLETE'S BODY RIGHT NOW, so
+ *   it only ever attaches when the open day (Task 4's `?day=`, which is
+ *   usually NOT today — that's the whole point of the day strip) IS today,
+ *   AND the figure being quoted is itself today's. `readiness`/`band` are
+ *   read off `readinessMetric` (page.tsx), which falls back up to 7 days
+ *   looking for a non-null readiness — the same staleness gap
+ *   today-hero.tsx's own `staleLabel` exists to cover, which Week's chip has
+ *   no marker for. Off-today, or on a stale figure, the sentence describes
+ *   only the session — the same shape the calibrating case already used,
+ *   extended to a second reason a claim isn't safe to make.
+ * - A day already `completed` or `missed` is described in the past tense
+ *   ("Monday was your long one"), never the present — the open day can be
+ *   any day of the week (Task 4), not only an upcoming one.
  *
  * Deliberately does NOT call `dayShape` (day-shape.ts): that function's
  * `rest` flag is just `workouts.length === 0` restated, and its `hard` flag
@@ -52,9 +68,10 @@ const SESSION_PHRASE: Record<Purpose, string> = {
 
 /**
  * Plain-language translation of a band, for the days it is safe to state at
- * all (never on a rest day — see the module comment). `calibrating` has no
- * entry: the caller checks for it before reaching this map, because there
- * is no honest phrase for a score that was never computed.
+ * all (never on a rest day, never off-today, never on a stale figure — see
+ * the module comment). `calibrating` has no entry: the caller checks for it
+ * before reaching this map, because there is no honest phrase for a score
+ * that was never computed.
  *
  * `green` is the one phrase this task's spec pins verbatim
  * ("you're ready for it"). `amber`/`red` deliberately do not borrow that
@@ -69,44 +86,68 @@ const READINESS_CLAIM: Record<"green" | "amber" | "red", string> = {
   red: "readiness is low today",
 };
 
-function sessionBase(weekday: string, day: DaySlot): string {
+/**
+ * The sentence's subject and session description — no readiness claim
+ * lives here at all (see `readinessClaim` for that).
+ *
+ * `isToday`/`isPast` only change the REST branch's subject word and the
+ * SESSION branch's verb, respectively — never which branch fires. A rest
+ * day and a completed/missed day are mutually exclusive in practice
+ * (`markDayDone`/`adapt-day.ts` only ever stamp "completed"/"missed" on a
+ * day that had workouts; see service.ts's own `workouts.length === 0`
+ * guard), but each flag is independent so this stays correct even if that
+ * changes.
+ */
+function sessionBase(
+  weekday: string,
+  day: DaySlot,
+  isToday: boolean,
+  isPast: boolean
+): string {
+  // Checked first, not merely because a race day happens to carry no
+  // workouts today (see the module comment) — status is the authority.
+  if (day.status === "race") {
+    return `${weekday} is race day`;
+  }
   if (day.workouts.length > 0) {
     const phrase =
       day.workouts.length === 1
         ? (SESSION_PHRASE[day.workouts[0].purpose] ?? "a session")
         : `${day.workouts.length} sessions`;
-    return `${weekday} is ${phrase}`;
+    return `${weekday} ${isPast ? "was" : "is"} ${phrase}`;
   }
-  // materializeWeek always empties `workouts` on a race day (see the module
-  // comment) — `status` is the only way to tell "nothing planned" apart
-  // from "the plan is a race today".
-  if (day.status === "race") {
-    return `${weekday} is race day`;
-  }
-  return "Nothing planned today — that's the plan";
+  // "today" is reserved for the day that actually is today; every other
+  // rest day is named, same as every other branch.
+  return isToday
+    ? "Nothing planned today — that's the plan"
+    : `${weekday} is a rest day — that's the plan`;
 }
 
 /**
- * `null` on a rest day: rest is stated as the plan itself (see
- * `sessionBase`), with no separate claim about the athlete's body to make —
- * there is no session to pace, so there is nothing for a readiness figure
- * to say.
+ * `null` whenever there is no claim it is safe to make:
  *
- * The `"calibrating"` case is its own switch arm, deliberately not folded
- * into the `readiness == null` check below it: `calibrating` and a null
- * figure coincide on every real row (readiness.ts's computeReadiness never
- * produces one without the other), so a single merged guard would make
- * this arm's own correctness unobservable — a mutation that made
- * `"calibrating"` fall through to a confident sentence would still pass
- * every test, because the null-figure guard would catch that same input
- * for an unrelated reason. Kept separate so each has its own test: this
- * arm returning `null` unconditionally, and the null-figure guard below
- * catching the case a stored row disagrees with itself (a band claiming
- * confidence with no number behind it — not a state computeReadiness
- * itself ever produces, but not one this module should trust blindly
- * either).
+ * - `!isCurrent` (the open day isn't today, or today's figure isn't in
+ *   yet) — checked first and unconditionally, because a claim about a
+ *   different day's body is not a claim this module can back at all,
+ *   regardless of what the band says.
+ * - `band === "calibrating"` — its own switch arm, deliberately not folded
+ *   into the `readiness == null` check below it: `calibrating` and a null
+ *   figure coincide on every real row (readiness.ts's computeReadiness
+ *   never produces one without the other), so a single merged guard would
+ *   make this arm's own correctness unobservable — a mutation that made
+ *   `"calibrating"` fall through to a confident sentence would still pass
+ *   every test, caught for the wrong reason by the null guard. Kept
+ *   separate so each has its own test.
+ * - a band claiming confidence with no number behind it (`readiness ==
+ *   null` on green/amber/red) — not a state computeReadiness itself ever
+ *   produces, but not one this module should trust blindly either.
  */
-function readinessClaim(band: Band, readiness: number | null): string | null {
+function readinessClaim(
+  band: Band,
+  readiness: number | null,
+  isCurrent: boolean
+): string | null {
+  if (!isCurrent) return null;
   switch (band) {
     case "calibrating":
       return null;
@@ -121,13 +162,24 @@ export function verdictLine(input: {
   openDay: DaySlot;
   band: Band;
   readiness: number | null;
+  /** Local Ymd (page.tsx's `todayYmd`) — the open day is only "today" when it matches this. */
+  todayYmd: string;
+  /**
+   * The date `band`/`readiness` actually describe — `readinessMetric`'s own
+   * `.date` (page.tsx), or `null` when there is no metric row at all. May
+   * be up to 7 days behind `todayYmd`; see the module comment.
+   */
+  readinessDate: string | null;
 }): { text: string; emphasis: string | null } | null {
-  const { openDay, band, readiness } = input;
+  const { openDay, band, readiness, todayYmd, readinessDate } = input;
   const weekday = WEEKDAY_NAMES[weekdayIndex(openDay.date)];
-  const isRestDay = openDay.workouts.length === 0 && openDay.status !== "race";
+  const isToday = openDay.date === todayYmd;
+  const isPast = openDay.status === "completed" || openDay.status === "missed";
+  const isRestDay = openDay.status !== "race" && openDay.workouts.length === 0;
+  const isCurrent = isToday && readinessDate === todayYmd;
 
-  const base = sessionBase(weekday, openDay);
-  const claim = isRestDay ? null : readinessClaim(band, readiness);
+  const base = sessionBase(weekday, openDay, isToday, isPast);
+  const claim = isRestDay ? null : readinessClaim(band, readiness, isCurrent);
 
   return {
     text: claim ? `${base} — ${claim}.` : `${base}.`,
