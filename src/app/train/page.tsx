@@ -33,6 +33,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { TrainTabs } from "@/components/train/train-tabs";
 import { WeekDayList } from "@/components/train/week-day-list";
 import { SeasonTimelineCard } from "@/components/train/season-timeline-card";
+import { SeasonProgress } from "@/components/train/season-progress";
 import { FuellingCard } from "@/components/train/fuelling-card";
 import { PlanStyleSwitch } from "@/components/train/plan-style-switch";
 import { SeasonModeSwitch } from "@/components/train/season-mode-switch";
@@ -773,6 +774,31 @@ async function WeekTab({
   // races section below. Owner: src/lib/race/outlook.ts (v0.87).
   const card = await raceCard(userId, today, week);
 
+  // The two figures the retired Season tab left worth reading — see
+  // SeasonProgress. Both are read off data this function already fetched,
+  // not a new query:
+  //
+  // - progressPct comes from the OPEN week's own skeletonWeek, not
+  //   plan.currentWeek. currentWeek is a counter the weekly rollover bumps
+  //   independently of week materialization (weekly-review.ts) — project.ts
+  //   already documents it as a value that "may have moved on since" the
+  //   week actually open on screen. skeletonWeek is the position of the
+  //   week the athlete is looking at right now, so it can't disagree with
+  //   what's rendered below it. Null whenever there's no open week to
+  //   measure a position in — a plan with no materialized week has nothing
+  //   to progress through yet, same honesty rule as a missing race.
+  //   Clamped to weeksTotal the same way the subtitle below already is.
+  // - weeksToRace is the same countdown the race chip prints as "N days",
+  //   turned into weeks; no second query for a figure this function already
+  //   has for `card`.
+  const progressPct =
+    week && plan.weeksTotal > 0
+      ? (Math.min(week.skeletonWeek, plan.weeksTotal) / plan.weeksTotal) * 100
+      : null;
+  const weeksToRace =
+    card.daysOut != null ? Math.round(card.daysOut / 7) : null;
+  const raceName = card.race?.name ?? null;
+
   // plan.raceDate/raceType have always meant the plan's FINAL target
   // (planRaceTargets, src/lib/plan-targets.ts); on a two-A-race season this
   // names the earlier one too, so the subtitle doesn't silently describe
@@ -840,6 +866,14 @@ async function WeekTab({
             */}
           </>
         }
+      />
+
+      {/* Task 5 inserts a verdict headline above this — leave it room rather
+          than assuming SeasonProgress is the first thing under the header. */}
+      <SeasonProgress
+        progressPct={progressPct}
+        weeksToRace={weeksToRace}
+        raceName={raceName}
       />
 
       {draftPreview && <PlanPreviewCard preview={draftPreview} />}
