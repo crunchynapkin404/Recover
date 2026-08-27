@@ -114,3 +114,12 @@ describe("OuraCard", () => {
     expect(el.querySelector("input[name='token']")).not.toBeNull();
   });
 });
+
+describe("OuraCard's mechanism note (flow strand)", () => {
+  it("names the mechanism a token paste, not a redirect", async () => {
+    const el = await render(<OuraCard connection={null} />);
+    expect(el.textContent).toContain("Stays here");
+    expect(el.textContent).toContain("token from Oura");
+    expect(el.textContent).not.toContain("Sends you to");
+  });
+});

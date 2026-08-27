@@ -219,6 +219,34 @@ phase written as a checklist becomes a tweak list:
       grid is not moving.
 - [ ] **Flow and friction.** The multi-step journeys: confirm a week, plan a
       season, debrief a ride, connect a provider.
+      **Inventory done** (`docs/2026-08-26-flow-inventory.md`): a structural
+      map of the four journeys, and then choice load — how many things an
+      athlete can actually press — measured in a real browser at 390x844.
+      Train ▸ Season has **zero** actions: one screen of content, four tab
+      controls to reach it, nothing on it to press, which is evidence for the
+      IA strand's parked question rather than taste. Train ▸ Week is worst on
+      both axes at once (4.7 screens, 21 visible controls, 49 more hidden or
+      disabled). Body ▸ Journal is a flow rendered as a page (27 controls on
+      2.4 screens). Those figures are fixture-dependent and the document says
+      so, including the seed that made the first run of them wrong.
+      **First fix: connect a provider**, the finding that needed no
+      measurement to state. Six connectors sat under one "Integrations"
+      heading doing three structurally different things — three redirect to a
+      third party and come back through a callback, two want a token pasted
+      here, one wants a push set up from a device that is not this one — and
+      nothing on the card said which one the athlete was about to enter. One
+      sentence per mechanism now does, owned by the connector shell rather
+      than written five times, so the six stay comparable; each connect
+      control points at it with `aria-describedby`, so an athlete tabbing
+      straight to "Connect" hears the warning that it leaves the app rather
+      than just the word "Connect". Strava's disconnected subtitle said "Not
+      connected" — which the button beside it already said — and now names
+      its data like the other four.
+      Still open in this strand: the week adjustment that has no path
+      (`src/app/train/page.tsx:812` already states the choice — either the
+      action re-materializes the open week, or the copy describes the
+      skeleton it actually edits), Season's zero actions, and the Week tab
+      owning the season editing the Season tab only reports.
 - [ ] **Visual polish and motion.** Transitions, loading states, density,
       typographic rhythm.
 
