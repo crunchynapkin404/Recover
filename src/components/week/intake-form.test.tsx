@@ -123,4 +123,90 @@ describe("IntakeForm", () => {
     expect(html).not.toMatch(/bg-white\//);
     expect(html).not.toMatch(/border-white\//);
   });
+
+  it("renders the total/warning text before the day list, not after it", () => {
+    // Found only by scrolling the real page (Task 6 report, "DOM-order
+    // inversion"): PinnedAction's submit button is `sticky` and visually
+    // floats ABOVE its natural flow position once stuck. The total/warning
+    // paragraphs used to sit BETWEEN the day list and that button — their
+    // own document position never moved, so once the button was hoisted
+    // above them on screen, a fragment of that trailing text rendered
+    // BELOW an already-drawn CTA. jsdom computes no layout, so it cannot
+    // see that visual inversion at all — but it CAN see the ordering
+    // decision that removes it outright: the total/warning text must
+    // precede the day list in DOM order, so the list's closing `</ul>` is
+    // always PinnedAction's immediate predecessor and there is nothing
+    // left to invert.
+    const dates = [
+      "2026-08-03",
+      "2026-08-04",
+      "2026-08-05",
+      "2026-08-06",
+      "2026-08-07",
+      "2026-08-08",
+      "2026-08-09",
+    ];
+    const html = renderToString(
+      <IntakeForm
+        resolved={resolved}
+        overrideDates={[]}
+        dates={dates}
+        verdict={{ kind: "losing", maintenanceHrs: 6, projectedCtl: 57 }}
+        sports={["Bike"]}
+        action={noop}
+      />
+    );
+    const totalIdx = html.indexOf("1h 30m");
+    const warningIdx = html.indexOf("hold your fitness");
+    const listOpenIdx = html.indexOf("<ul");
+    const listCloseIdx = html.indexOf("</ul>");
+    const buttonIdx = html.indexOf("Confirm week");
+    expect(totalIdx).toBeGreaterThan(-1);
+    expect(warningIdx).toBeGreaterThan(-1);
+    expect(listOpenIdx).toBeGreaterThan(-1);
+    expect(buttonIdx).toBeGreaterThan(-1);
+    expect(totalIdx).toBeLessThan(listOpenIdx);
+    expect(warningIdx).toBeLessThan(listOpenIdx);
+    expect(listCloseIdx).toBeLessThan(buttonIdx);
+  });
+
+  it("gives every focusable control in the day list scroll-mb-52", () => {
+    // Found only by focusing the real last day-row control with the pinned
+    // band engaged (Task 6 report, "focus-reachability defect"): the
+    // control's raw bounding box already sat inside [0, viewportHeight],
+    // so Chromium's native focus-scroll never engaged — it has no notion
+    // that PinnedAction's higher-stacked (z-30), 95%-opaque band visually
+    // covers it. jsdom computes no layout, so it cannot see a focused
+    // element sitting behind an overlay — but it CAN see the class that
+    // forces the extra scroll: `scroll-mb-52` is honoured by the same
+    // focus-scroll algorithm regardless of layout. Every button in the day
+    // list (the day toggle AND the "Pinned ×" unpin button) must carry it —
+    // whichever one doesn't is the next silent regression of this bug.
+    const dates = [
+      "2026-08-03",
+      "2026-08-04",
+      "2026-08-05",
+      "2026-08-06",
+      "2026-08-07",
+      "2026-08-08",
+      "2026-08-09",
+    ];
+    const html = renderToString(
+      <IntakeForm
+        resolved={resolved}
+        overrideDates={["2026-08-05"]}
+        dates={dates}
+        verdict={{ kind: "ok" }}
+        sports={["Bike"]}
+        action={noop}
+      />
+    );
+    const listHtml = html.slice(html.indexOf("<ul"), html.indexOf("</ul>"));
+    const buttonCount = (listHtml.match(/<button/g) ?? []).length;
+    const scrollMbCount = (listHtml.match(/scroll-mb-52/g) ?? []).length;
+    // 7 day-toggle buttons + 1 "Pinned ×" unpin button for the one
+    // overridden date above.
+    expect(buttonCount).toBe(8);
+    expect(scrollMbCount).toBe(buttonCount);
+  });
 });

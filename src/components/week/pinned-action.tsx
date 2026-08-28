@@ -33,6 +33,12 @@ export function PinnedAction({ label, formAction, pending = false }: Props) {
   return (
     <div
       data-pinned-action
+      // `bottom-32` deliberately follows BottomNav's (src/components/
+      // bottom-nav.tsx) flat, NON-safe-area convention rather than
+      // `env(safe-area-inset-bottom)` (used by block-sheet.tsx, ui/
+      // bottom-sheet.tsx, and the chat interface) — the 24px clearance
+      // between this band and BottomNav's top edge stays safe-area-
+      // independent precisely because both ignore it identically.
       className="sticky bottom-32 z-30 bg-surface-base/95 pb-1 pt-3 backdrop-blur"
     >
       <button
