@@ -254,4 +254,55 @@ describe("WeekRationale", () => {
     expect(html).not.toMatch(/bg-white\//);
     expect(html).not.toMatch(/border-white\//);
   });
+
+  // This panel only ever renders inside the "why-week" sheet, whose own
+  // panel is bg-surface-overlay — `.glass` resolves to the SAME #ffffff as
+  // that overlay in light mode, painting an invisible fill behind a bare
+  // hairline. Pinned as its own assertion, not folded into the token-scale
+  // test above, because `.glass` is a real, valid class elsewhere in this
+  // app; this is a "wrong token for this container" bug, not a raw-value
+  // one the ad-hoc-size/white-alpha checks above would ever catch.
+  it("fills its card with surface-selected, not glass (invisible on the sheet's own white overlay)", () => {
+    const html = renderToString(
+      <WeekRationale
+        reasons={[]}
+        targetHours={6}
+        plannedHours={4.9}
+        shortfall={null}
+        raceName={null}
+        source={null}
+      />
+    );
+    expect(html).toContain("bg-surface-selected");
+    expect(html).not.toMatch(/\bglass\b/);
+  });
+
+  it("hides its own micro-label when the caller already names the panel", () => {
+    const shown = renderToString(
+      <WeekRationale
+        reasons={[]}
+        targetHours={6}
+        plannedHours={4.9}
+        shortfall={null}
+        raceName={null}
+        source={null}
+      />
+    );
+    expect(shown).toContain("Why this week");
+
+    const hidden = renderToString(
+      <WeekRationale
+        reasons={[]}
+        targetHours={6}
+        plannedHours={4.9}
+        shortfall={null}
+        raceName={null}
+        source={null}
+        hideHeading
+      />
+    );
+    expect(hidden).not.toContain("Why this week");
+    // Everything else the panel says is unaffected by the flag.
+    expect(hidden).toContain("planned against");
+  });
 });

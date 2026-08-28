@@ -4,6 +4,12 @@ import { renderToReadableStream } from "react-dom/server";
 import { mondayOf, addDaysYmd } from "@/lib/week-plan/service";
 import type { DaySlot } from "@/lib/week-plan/types";
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function ymd(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 // Same App Router shims first-run.test.tsx and day-param-self-heals.test.tsx
 // need — SidebarNav/BottomNav call usePathname/useRouter, which need
 // context this test has none of. BottomSheet (rendered when ?sheet=why-week
@@ -141,6 +147,148 @@ describe.skipIf(!hasDb)(
     it("renders no dialog for a valid-but-unimplemented sheet name", async () => {
       const html = await renderTrainWeekWithSheet(TEST_USER, "plan-setup");
       expect(html).not.toContain('role="dialog"');
+    });
+  }
+);
+
+// Review finding 2 on this task: every test above proves the MECHANISM
+// (param validation, dialog presence) — none of them prove the four blocks
+// this task was actually defined to move (WeekRationale, the adjustments
+// list, EventReadiness, the race-pacing prose) are gone from the page.
+// Re-adding <WeekRationale/> and <EventReadiness/> to page.tsx beside the
+// sheet would leave every test above green. This describe block is the
+// guard for that: seed a week with real content in all four categories —
+// through the actual previewTrainingPlan/confirmTrainingPlan engine, the
+// same producer seed-confirmed-race.ts uses, not hand-inserted rows shaped
+// to match what the page happens to expect — then diff the closed-page
+// render against the open-sheet render.
+//
+// SHAPE FOR TASKS 2-5 TO COPY: seed real content for your destination, then
+// assert (a) its marker text is ABSENT from the page with no `?sheet=`, and
+// (b) the SAME text IS present once your sheet's `?sheet=` is open. Two
+// renders and a diff — nothing else proves "moved" as opposed to "also
+// duplicated".
+const FULL_RATIONALE_USER = "test-train-sheet-moves-content";
+
+async function seedWeekWithFullRationale(userId: string): Promise<void> {
+  const { db, schema } = await import("@/lib/db");
+  const { previewTrainingPlan, confirmTrainingPlan } =
+    await import("@/lib/training-plan");
+
+  await db.insert(schema.users).values({
+    id: userId,
+    name: "Test Athlete",
+    email: `${userId}@example.invalid`,
+  });
+
+  // Enough run history that demand/pacing price the race rather than
+  // refusing for want of a threshold — this is what pushes EventReadiness
+  // and the race-pacing prose into their real-content branches instead of
+  // their (equally real, but less distinctive) missing_input refusals.
+  const activities = Array.from({ length: 8 }, (_, i) => ({
+    userId,
+    provider: "manual" as const,
+    externalId: `${userId}-run-${i}`,
+    sport: "Run",
+    name: `Seed run ${i}`,
+    startDate: new Date(Date.now() - (i + 2) * DAY_MS),
+    startDateLocal: new Date(Date.now() - (i + 2) * DAY_MS),
+    durationS: 2400,
+    distanceM: 8000,
+    load: 60,
+  }));
+  await db.insert(schema.activities).values(activities);
+
+  const raceDate = ymd(new Date(Date.now() + 30 * DAY_MS));
+  const [race] = await db
+    .insert(schema.races)
+    .values({
+      userId,
+      name: "Moved Content Race",
+      raceType: "marathon",
+      sport: "Run",
+      date: raceDate,
+      priority: "A",
+      status: "upcoming",
+      eventDays: 1,
+      distanceKm: 42.2,
+      elevationM: 250,
+      goalNote: "Goal: even effort",
+    })
+    .returning();
+
+  // The real engine, not hand-inserted rows: rolloverWeekPlan (called from
+  // confirmTrainingPlan) is what actually produces the "session dropped"
+  // plan_adjustments rows the sheet's adjustments list shows — an athlete
+  // with no availability defaults set gets a materialized week that drops
+  // sessions it has nowhere to put, which is exactly the case here.
+  const preview = await previewTrainingPlan({
+    userId,
+    raceType: "marathon",
+    raceDate,
+    raceIds: [race.id],
+    title: "Moved content plan",
+    daysPerWeek: 5,
+    hoursPerWeek: 8,
+  });
+  if (!preview.ok) {
+    throw new Error(`previewTrainingPlan refused: ${preview.reason}`);
+  }
+  const confirmed = await confirmTrainingPlan(userId, preview.preview.planId);
+  if (!confirmed.ok) {
+    throw new Error(`confirmTrainingPlan refused: ${confirmed.reason}`);
+  }
+}
+
+describe.skipIf(!hasDb)(
+  "TrainPage: the four why-week blocks actually leave the page",
+  () => {
+    beforeAll(async () => {
+      await seedWeekWithFullRationale(FULL_RATIONALE_USER);
+    });
+
+    afterAll(async () => {
+      const { db, schema } = await import("@/lib/db");
+      await db
+        .delete(schema.users)
+        .where(eq(schema.users.id, FULL_RATIONALE_USER));
+    });
+
+    it("keeps the summary row on the page but not the four blocks it replaces", async () => {
+      const closed = await renderTrainWeekWithSheet(
+        FULL_RATIONALE_USER,
+        undefined
+      );
+      // The row that replaces all four stays on the page.
+      expect(closed).toContain("Why this week");
+      // WeekRationale's own sentence.
+      expect(closed).not.toContain("planned against");
+      // The adjustments list's heading.
+      expect(closed).not.toContain("What changed &amp; why");
+      // EventReadiness's demand sentence — a phrase that appears nowhere
+      // else on the page (WeekRationale's own shortfall sentence uses the
+      // same words lowercased, mid-sentence, never this exact casing).
+      expect(closed).not.toContain("Asks about");
+      // The race-pacing prose's own test id.
+      expect(closed).not.toContain('data-testid="race-pacing"');
+      // The chip's goalNote is NOT one of the four that moved — it must
+      // still be on the page.
+      expect(closed).toContain("Goal: even effort");
+    });
+
+    it("puts all four blocks in the sheet once it opens", async () => {
+      const open = await renderTrainWeekWithSheet(
+        FULL_RATIONALE_USER,
+        "why-week"
+      );
+      expect(open).toContain('role="dialog"');
+      expect(open).toContain("planned against");
+      expect(open).toContain("What changed &amp; why");
+      expect(open).toContain("Asks about");
+      expect(open).toContain('data-testid="race-pacing"');
+      // Only the prose moved — the chip's goalNote is not duplicated into
+      // the sheet, so it still appears exactly once in the whole page.
+      expect(open.split("Goal: even effort").length - 1).toBe(1);
     });
   }
 );

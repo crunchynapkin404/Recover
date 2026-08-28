@@ -937,8 +937,14 @@ async function WeekTab({
   // so the sheet can never show a different number than the row that opens
   // it (the same reason this whole slice renders sheets from WeekTab
   // rather than a second SheetHost re-querying it).
+  // Gated on `week` as well as `sheetParam`: with no open week, the sheet
+  // would hold at most the race-pacing prose (rationale/adjustments/
+  // eventReadiness are all unset) and often nothing at all — and no row on
+  // the page links here in that state either (the SummaryRow below is
+  // itself gated on `rationale`, which needs `week`), so an empty dialog
+  // would be reachable only by typing the URL directly.
   const whyWeekSheet =
-    sheetParam === "why-week" ? (
+    sheetParam === "why-week" && week ? (
       <WeekSheet title="Why this week" closeHref={resolvedHref({ sheet: "" })}>
         {rationale && (
           <WeekRationale
@@ -948,6 +954,10 @@ async function WeekTab({
             shortfall={rationale.shortfall}
             raceName={rationale.raceName}
             source={rationale.source}
+            // The sheet's own <h2> (above) already reads "Why this week" —
+            // WeekRationale's identical micro-label directly beneath it
+            // would repeat the same three words twice in a row.
+            hideHeading
           />
         )}
 
@@ -1139,7 +1149,9 @@ async function WeekTab({
                   label="Why this week"
                   badge={
                     adjustments.length > 0
-                      ? `${adjustments.length} changes`
+                      ? adjustments.length === 1
+                        ? "1 change"
+                        : `${adjustments.length} changes`
                       : undefined
                   }
                   href={resolvedHref({ sheet: "why-week" })}

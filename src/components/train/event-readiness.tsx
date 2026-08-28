@@ -66,9 +66,18 @@ export function EventReadiness({
   feasibility,
   demand,
 }: Props) {
+  // `bg-surface-selected`, not `.glass`, on all three panels below: this
+  // component only ever renders inside the "why-week" sheet now
+  // (train/page.tsx), whose own panel is `bg-surface-overlay`. `--glass-bg`
+  // resolves to `--surface-raised`, and both equal #ffffff in light, so
+  // `.glass` painted an invisible fill behind a hairline border there —
+  // dark mode's translucent `--glass-bg` hid the same bug. `--surface-
+  // selected` is the token built for a highlight inside a raised/overlay
+  // container (see its own comment in globals.css), already proven against
+  // both themes by contrast-guard.test.ts.
   if (!demand.available) {
     return (
-      <div className="glass mt-4 rounded-[1.5rem] p-5">
+      <div className="mt-4 rounded-[1.5rem] border border-hairline bg-surface-selected p-5">
         <p className="label-micro mb-1">{raceName}</p>
         <p className="mb-2 text-caption font-bold text-chart-3">
           No demand figure yet.
@@ -81,7 +90,7 @@ export function EventReadiness({
   }
   if (!feasibility.available) {
     return (
-      <div className="glass mt-4 rounded-[1.5rem] p-5">
+      <div className="mt-4 rounded-[1.5rem] border border-hairline bg-surface-selected p-5">
         <p className="label-micro mb-1">{raceName}</p>
         <p className="mb-2 text-caption font-bold text-chart-3">
           No verdict yet.
@@ -101,7 +110,7 @@ export function EventReadiness({
   );
 
   return (
-    <div className="glass mt-4 rounded-[1.5rem] p-5">
+    <div className="mt-4 rounded-[1.5rem] border border-hairline bg-surface-selected p-5">
       <p className="label-micro mb-1">{raceName}</p>
       <p className={`mb-2 text-caption font-bold ${VERDICT_TONE[verdict]}`}>
         {VERDICT_COPY[verdict]}

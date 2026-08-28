@@ -224,4 +224,43 @@ describe("EventReadiness", () => {
     expect(html).not.toMatch(/bg-white\//);
     expect(html).not.toMatch(/border-white\//);
   });
+
+  // This panel only ever renders inside the "why-week" sheet, whose own
+  // panel is bg-surface-overlay — `.glass` resolves to the SAME #ffffff as
+  // that overlay in light mode, painting an invisible fill behind a bare
+  // hairline. All three return branches (no demand, no verdict, the real
+  // card) carry the fill separately, so all three are checked here rather
+  // than just the success path.
+  it("fills every branch's card with surface-selected, not glass", () => {
+    const noDemand = renderToString(
+      <EventReadiness
+        raceName="Ironman Hamburg"
+        sport="Triathlon"
+        feasibility={Figure.missingInput(
+          "a tracked race with computable demand"
+        )}
+        demand={{ available: false, reason: "no_swim_anchor" }}
+      />
+    );
+    const noVerdict = renderToString(
+      <EventReadiness
+        raceName="Dolomites"
+        sport="Bike"
+        feasibility={Figure.missingInput("measured training history")}
+        demand={demand}
+      />
+    );
+    const readyCard = renderToString(
+      <EventReadiness
+        raceName="Dolomites"
+        sport="Bike"
+        feasibility={feasibility}
+        demand={demand}
+      />
+    );
+    for (const html of [noDemand, noVerdict, readyCard]) {
+      expect(html).toContain("bg-surface-selected");
+      expect(html).not.toMatch(/\bglass\b/);
+    }
+  });
 });
