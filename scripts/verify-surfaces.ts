@@ -305,6 +305,16 @@ const SURFACES: Record<string, string> = {
   // would otherwise delete that script's two-arc draft — see this script's
   // own file header).
   "train-race-pacing": "/train?sheet=why-week",
+  // The availability sheet — the app's most-used write path, and until now
+  // photographed by nothing. Slice 2 moved AvailabilityWeekSwitcher and both
+  // IntakeForms off the page and into this sheet, which took the whole
+  // surface out of the capture set without anyone noticing: `train` renders
+  // a summary row where the seven-day form used to be. Slice 3 rebuilt that
+  // sheet's innards as a drag-timeline, so a regression in the one control
+  // the athlete touches every week would otherwise reach production with
+  // every gate green. Requires no extra seeding beyond seed-demo.ts — the
+  // sheet renders for any athlete, with or without an active plan.
+  "train-availability": "/train?sheet=availability",
   // Coach is a multi-state surface behind one URL, and `/coach` alone renders
   // `messages.length === 0` — the empty state. Until slice 4, every message
   // bubble, the timestamp, ArtifactCard, the typing indicator and the error

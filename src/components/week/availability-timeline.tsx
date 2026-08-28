@@ -316,6 +316,13 @@ function DayTrack({
         data-track={day}
         className="relative h-9 rounded-lg bg-surface-overlay"
       >
+        {/* THE PILL CARRIES NO TEXT, and that is a finding from the capture,
+            not an oversight. At the 44px floor — which is where every block
+            under 2h19m lands — a duration renders as "1h 00…" and an
+            ellipsis is worse than nothing. The numbers live one line up, in
+            the day summary, at full width; the pill is a mark, the way the
+            day strip's bars are. `describeBlock` carries everything for a
+            screen reader, which never depended on the painted label. */}
         {placed.map((p) => {
           const b = blocks[p.index];
           const id = idOf(day, p.index);
@@ -358,7 +365,7 @@ function DayTrack({
               onPointerCancel={onPointerCancel}
               {...touchGuards}
               style={{ left: pct(p.leftPx), width: pct(p.widthPx) }}
-              className={`absolute inset-y-0 flex min-w-11 touch-pinch-zoom scroll-mb-52 items-center justify-center gap-1 rounded-lg border border-accent/60 text-label text-ink-primary ${
+              className={`absolute inset-y-0 flex min-w-11 touch-pinch-zoom scroll-mb-52 items-center justify-center gap-1 rounded-lg border border-accent ${
                 ENERGY_FILL[b.energy]
               } ${isSelected ? "ring-2 ring-accent" : ""}`}
             >
@@ -371,7 +378,6 @@ function DayTrack({
                   className="h-1 w-1 shrink-0 rounded-full bg-ink-primary"
                 />
               )}
-              <span className="truncate">{formatAvailability(blockMins(b))}</span>
               {isSelected && (
                 <>
                   {/* OUTSIDE the pill's own bounds (-left-3 / -right-3, 24px
