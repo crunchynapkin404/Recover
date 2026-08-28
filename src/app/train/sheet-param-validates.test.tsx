@@ -786,8 +786,15 @@ describe.skipIf(!hasDb)(
       expect(closed).not.toContain("Availability week");
       // IntakeForm's own body copy.
       expect(closed).not.toContain("When you can train");
-      // PinnedAction's own label, as rendered inside IntakeForm's form.
-      expect(closed).not.toContain("Confirm week");
+      // Review finding 1, task 4's fix pass: "Confirm week" now DOES
+      // belong on the closed page again — as the page's own pinned
+      // primary action, a real navigation <a>, not IntakeForm's <button
+      // type="submit"> (which only exists once the sheet housing that
+      // form is actually mounted — see the "puts the switcher…" test
+      // below, and the dedicated describe block further down for the
+      // link's own shape/href/label-by-state).
+      expect(closed).toMatch(/<a[^>]*>Confirm week<\/a>/);
+      expect(closed).not.toMatch(/<button[^>]*>\s*Confirm week/);
       // The real block Monday's standard-week default set, formatted —
       // proves this isn't a structural-marker-only check.
       expect(closed).not.toContain("06:00–07:00");
@@ -830,6 +837,97 @@ describe.skipIf(!hasDb)(
       // The decisive assertion, unconfounded by that preview's own matches.
       const matches = closed.match(INTAKE_FORM_WEEKDAY_SPAN);
       expect(matches ?? []).toHaveLength(0);
+    });
+  }
+);
+
+// Review finding 1, task 4's fix pass: with IntakeForm's own "Confirm
+// week" submit moved into the "availability" sheet (the describe block
+// above), the page itself lost its only pinned primary action — the spec
+// (§ "One primary action, pinned") requires exactly one, permanently
+// reachable, not one tap-and-a-scroll behind a sheet. `PinnedAction` now
+// renders a real `<Link>` in the OPEN-WEEK branch instead, worded for
+// whichever tense the athlete is actually in. Separate fixtures/users from
+// AVAILABILITY_USER above so this block can drive `availabilityConfirmedAt`
+// independently without disturbing that block's own assertions.
+const PINNED_USER = "test-train-sheet-pinned-availability-unconfirmed";
+const PINNED_CONFIRMED_USER = "test-train-sheet-pinned-availability-confirmed";
+
+/**
+ * The pinned bar's own wrapper (`data-pinned-action`), not the whole page —
+ * WeekDayList's pre-existing "Assumes this week goes to plan… Set next
+ * week's availability" prose CTA (`NextWeekAvailabilityNote`) carries the
+ * IDENTICAL label and an identical `availability=next` href, unrelated to
+ * this pinned action, so a whole-page substring check for either label
+ * would pass even if the pinned bar itself said the wrong thing (or
+ * nothing at all). Scoping to this one element is what actually proves the
+ * PINNED bar's own label, not just that the string appears somewhere.
+ */
+function pinnedActionHtml(html: string): string {
+  const match = html.match(
+    /<div data-pinned-action="true"[^>]*>[\s\S]*?<\/div>/
+  );
+  expect(match).not.toBeNull();
+  return match![0];
+}
+
+describe.skipIf(!hasDb)(
+  "TrainPage: the page keeps one pinned primary action, worded for the athlete's actual tense",
+  () => {
+    beforeAll(async () => {
+      await seedOpenWeek(PINNED_USER);
+      await seedOpenWeek(PINNED_CONFIRMED_USER);
+      const { db, schema } = await import("@/lib/db");
+      await db
+        .update(schema.weekPlans)
+        .set({ availabilityConfirmedAt: new Date() })
+        .where(eq(schema.weekPlans.userId, PINNED_CONFIRMED_USER));
+    });
+
+    afterAll(async () => {
+      const { db, schema } = await import("@/lib/db");
+      await db.delete(schema.users).where(eq(schema.users.id, PINNED_USER));
+      await db
+        .delete(schema.users)
+        .where(eq(schema.users.id, PINNED_CONFIRMED_USER));
+    });
+
+    it('pins "Confirm week" — a real navigation link, not a disguised button — to the availability sheet in this-week mode, while this week is unconfirmed', async () => {
+      const html = await renderTrainWeekWithSheet(PINNED_USER, undefined);
+      // Exactly one pinned action on the closed page — the spec's own
+      // "one primary action, pinned" rule, not merely this label's own
+      // presence.
+      expect(html.match(/data-pinned-action/g) ?? []).toHaveLength(1);
+      const pinned = pinnedActionHtml(html);
+      const match = pinned.match(
+        /<a[^>]*href="([^"]+)"[^>]*>Confirm week<\/a>/
+      );
+      expect(match).not.toBeNull();
+      const href = match![1];
+      expect(href).toContain("sheet=availability");
+      // The "confirm THIS week" tense, not next week's — no `?availability=
+      // next` riding along.
+      expect(href).not.toContain("availability=next");
+      // No `<button>` masquerading as this bar's action either.
+      expect(pinned).not.toContain("<button");
+    });
+
+    it('re-labels to "Set next week\'s availability" once this week is confirmed — a stale "Confirm week" would claim more than the app knows', async () => {
+      const html = await renderTrainWeekWithSheet(
+        PINNED_CONFIRMED_USER,
+        undefined
+      );
+      expect(html.match(/data-pinned-action/g) ?? []).toHaveLength(1);
+      const pinned = pinnedActionHtml(html);
+      const match = pinned.match(
+        /<a[^>]*href="([^"]+)"[^>]*>Set next week&#x27;s availability<\/a>/
+      );
+      expect(match).not.toBeNull();
+      const href = match![1];
+      expect(href).toContain("availability=next");
+      // Confirmed: the "Confirm week" tense is gone from THIS bar, not
+      // merely relabelled beside a stale duplicate.
+      expect(pinned).not.toContain("Confirm week");
     });
   }
 );

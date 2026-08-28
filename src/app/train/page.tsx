@@ -1297,6 +1297,48 @@ async function WeekTab({
     availability: availabilitySheet,
   };
 
+  // The page's one pinned primary action (review finding 1, task 4's fix
+  // pass: IntakeForm's own "Confirm week" submit moved into the
+  // "availability" sheet with the form it terminates, and the page was
+  // left with none — the athlete's headline task went from a permanently
+  // visible button to two taps and a scroll). Link-shaped, not a submit:
+  // AvailabilityWeekSwitcher mounts this week's and next week's IntakeForm
+  // at once, toggled by client-only state, so there is no single form a
+  // page-level button could bind its `formAction` to — see PinnedAction's
+  // own `LinkProps` doc comment. The spec's own pinned-label list already
+  // includes a pure-navigation entry ("Set next week's availability")
+  // alongside the two submits, so this isn't a workaround, it's the shape
+  // the spec described.
+  //
+  // The label follows the tense the athlete is actually in — a button
+  // that still says "Confirm week" after the athlete confirmed on Monday
+  // is noise, not a shortcut:
+  //   - this week's half is still open (Monday hasn't completed it) AND
+  //     unconfirmed → "Confirm week", landing on the sheet in its default
+  //     (this-week) mode.
+  //   - otherwise, whenever a next week is still worth setting →
+  //     "Set next week's availability", reusing `nextWeekAvailabilityHref`
+  //     verbatim rather than re-deriving the identical link the rolling
+  //     day list's own CTA already builds above.
+  //   - neither applies → no label, so the bar does not render at all.
+  //     `intake` being non-null already guarantees `thisWeek` or
+  //     `nextWeek` is set (see its own assembly above: the whole block is
+  //     gated on `!mondayCompleted || projected`), so this is a defensive
+  //     fallback rather than a state this app's own invariants can
+  //     currently reach — kept because "hide when there is nothing behind
+  //     the link" is the same rule the "Availability" `SummaryRow` below
+  //     already lives by, not a new one invented for this button.
+  const pinnedAvailabilityLabel =
+    !week?.availabilityConfirmedAt && intake?.thisWeek
+      ? "Confirm week"
+      : intake?.nextWeek
+        ? "Set next week's availability"
+        : null;
+  const pinnedAvailabilityHref =
+    pinnedAvailabilityLabel === "Confirm week"
+      ? resolvedHref({ sheet: "availability" })
+      : nextWeekAvailabilityHref;
+
   return {
     content: (
       <>
@@ -1412,6 +1454,17 @@ async function WeekTab({
                   href={resolvedHref({ sheet: "availability" })}
                 />
               </div>
+            )}
+
+            {/* Review finding 1, task 4's fix pass: the page's one pinned
+              primary action, restored — see the derivation above for why
+              it's a link, not a submit, and how its label picks the
+              athlete's actual tense. */}
+            {pinnedAvailabilityLabel && (
+              <PinnedAction
+                label={pinnedAvailabilityLabel}
+                href={pinnedAvailabilityHref}
+              />
             )}
           </>
         ) : (
