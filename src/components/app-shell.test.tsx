@@ -101,3 +101,49 @@ describe("AppShell", () => {
     expect(el.querySelector("button")!.closest("[inert]")).toBeNull();
   });
 });
+
+/**
+ * A SOURCE SCAN, in the style of tests/dead-component-guard.test.ts, because
+ * the defect this guards is at the CALL SITE and no page-level harness
+ * renders Today.
+ *
+ * `overlay`'s truthiness drives `inert` on the entire background. A JSX
+ * element is truthy even when the component inside it renders null — so
+ * `overlay={<SheetHost … />}`, passed unconditionally, made every control on
+ * Today inert with no sheet open at all. It shipped for exactly one commit.
+ *
+ * The three tests above pin AppShell's own behaviour, and would have stayed
+ * green through that bug: the shell was right, the caller was wrong. This
+ * asserts the contract the shell's doc comment states — pass null when
+ * nothing is open — by requiring every call site's expression to be
+ * conditional (a ternary, a `&&`, or a literal null).
+ */
+describe("AppShell's overlay contract, across every call site", () => {
+  it("never passes an unconditional element as overlay", async () => {
+    const { readdirSync, readFileSync, statSync } = await import("node:fs");
+    const { join } = await import("node:path");
+
+    function walk(dir: string): string[] {
+      return readdirSync(dir).flatMap((name) => {
+        const full = join(dir, name);
+        if (statSync(full).isDirectory()) return walk(full);
+        return full.endsWith(".tsx") && !full.includes(".test.") ? [full] : [];
+      });
+    }
+
+    const offenders: string[] = [];
+    for (const file of walk(join(process.cwd(), "src", "app"))) {
+      const src = readFileSync(file, "utf8");
+      const idx = src.indexOf("overlay={");
+      if (idx === -1) continue;
+      // The expression up to the matching close, cheaply bounded: everything
+      // between `overlay={` and the line that closes it at the same indent.
+      const rest = src.slice(idx, idx + 600);
+      const conditional =
+        rest.includes("?") || rest.includes("&&") || rest.includes("null");
+      if (!conditional) offenders.push(file.replace(process.cwd() + "/", ""));
+    }
+
+    expect(offenders).toEqual([]);
+  });
+});

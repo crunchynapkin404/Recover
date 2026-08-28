@@ -25,6 +25,14 @@ interface Props {
    * which opens a stacking context, so anything mounted within it can never
    * rise above the sidebar's own z-40 no matter what z-index it asks for.
    */
+  /**
+   * PASS `null` WHEN NOTHING IS OPEN. This prop's truthiness drives `inert`
+   * on the whole background (below), and a JSX element is truthy even when
+   * the component inside it renders null — so an unconditional
+   * `overlay={<SheetHost/>}` makes every control on the page inert with no
+   * sheet open at all. Today shipped exactly that bug for the length of one
+   * commit; Coach's `history === "1" ? … : null` is the shape to copy.
+   */
   overlay?: React.ReactNode;
 }
 

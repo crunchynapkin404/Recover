@@ -572,14 +572,21 @@ export default async function DashboardPage({
     <AppShell
       noChrome
       user={shellUser(user)}
+      // `null` when no sheet is named, NOT an always-truthy <SheetHost/>:
+      // AppShell derives `inert` for the whole background from this prop's
+      // truthiness, and a JSX element is truthy even when the component
+      // itself renders null. Passing it unconditionally made every control
+      // on Today inert — permanently, with no sheet open.
       overlay={
-        <SheetHost
-          userId={user.id}
-          sheet={sheet}
-          activityId={sheetActivity}
-          closeHref="/"
-          todayYmd={todayYmd}
-        />
+        sheet == null || sheet === "" ? null : (
+          <SheetHost
+            userId={user.id}
+            sheet={sheet}
+            activityId={sheetActivity}
+            closeHref="/"
+            todayYmd={todayYmd}
+          />
+        )
       }
     >
       <PullToRefresh>
