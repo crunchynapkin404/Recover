@@ -127,6 +127,28 @@ export function BottomSheet({
         }}
         onTouchMove={(e) => {
           if (startY.current == null) return;
+          // Root-cause fix for review finding 3 on the "plan-review" sheet
+          // (a card ~1.5 phone screens tall, task 5): a drag begins ONLY
+          // once the panel is already scrolled to its own top. Without
+          // this, any downward `touchmove` on the panel set `dragY`
+          // regardless of `scrollTop`, so scrolling back UP through a
+          // tall sheet body — the everyday gesture needed to re-read
+          // something further up the page, not a dismiss attempt — fought
+          // native scroll for the same gesture and, past 110px, dismissed
+          // the sheet outright. Fixed here rather than in any one sheet's
+          // content: every consumer of this shell — present or future —
+          // inherits it for free, the same reasoning that put the Escape
+          // guard above at this shell instead of in StandardWeek.
+          if ((panelRef.current?.scrollTop ?? 0) > 0) {
+            // Re-baselined on every still-scrolling move, not left at the
+            // gesture's original touch point, so the drag itself starts
+            // from `dragY = 0` the instant the panel reaches its top —
+            // not a jump to whatever `dy` had already accumulated against
+            // a touch point the athlete has since scrolled well past.
+            startY.current = e.touches[0].clientY;
+            if (dragY !== 0) setDragY(0);
+            return;
+          }
           const dy = e.touches[0].clientY - startY.current;
           if (dy > 0) setDragY(dy);
         }}

@@ -981,7 +981,17 @@ async function seedPlanWithDraftReview(userId: string): Promise<void> {
     throw new Error(`confirmTrainingPlan refused: ${confirmed.reason}`);
   }
 
-  const draftRaceDate = ymd(new Date(Date.now() + 240 * DAY_MS));
+  // 238 calendar days, not a raw `Date.now() + N * DAY_MS` offset: review
+  // finding 4 wants the exact rendered week count asserted below, and
+  // `weeksTotal` is `Math.ceil(daysBetween(now, raceDate) / 7)`
+  // (training-plan.ts) -- `daysBetween` rounds a NOW-to-MIDNIGHT ms
+  // difference, so its result depends on what time of day the suite
+  // happens to run, landing on either 237 or 238 days for a target exactly
+  // 238 CALENDAR days out. `ceil` only changes the answer between those
+  // two candidates when the smaller one is a multiple of 7 (237 isn't), so
+  // 238 is a deliberately chosen stable offset: `Math.ceil(237 / 7)` and
+  // `Math.ceil(238 / 7)` both equal 34, whichever way the clock rounds.
+  const draftRaceDate = addDaysYmd(ymd(new Date()), 238);
   const draftPreview = await previewTrainingPlan({
     userId,
     raceType: "marathon",
@@ -1014,12 +1024,15 @@ describe.skipIf(!hasDb)(
         PLAN_REVIEW_USER,
         undefined
       );
-      // The banner that replaces the card stays on the page. (React SSR
-      // inserts an empty comment between the JSX text and the interpolated
-      // `{weeksTotal}`, so this checks the trailing half of the sentence —
-      // the number-independent part — rather than matching the whole
-      // thing as one contiguous string.)
-      expect(closed).toContain("-week plan is ready");
+      // The banner that replaces the card stays on the page, with the
+      // real week count -- review finding 4: checking only the
+      // number-independent tail let a wrong field through silently.
+      // React SSR inserts an empty `<!--` `-->` comment between the JSX
+      // text and the interpolated `{weeksTotal}` (and another right after
+      // it), so strip comments first rather than working around them by
+      // dropping the number from the assertion.
+      const closedNoComments = closed.replace(/<!--.*?-->/g, "");
+      expect(closedNoComments).toContain("A 34-week plan is ready");
       expect(closed).toContain("Review →");
       // The card's own distinctive markers must not also render inline.
       expect(closed).not.toContain('data-testid="phase-total"');

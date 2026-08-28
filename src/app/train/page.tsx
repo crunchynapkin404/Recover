@@ -1269,7 +1269,7 @@ async function WeekTab({
   const planReviewSheet =
     sheetParam === "plan-review" && draftPreview ? (
       <WeekSheet title="Plan review" closeHref={resolvedHref({ sheet: "" })}>
-        <PlanPreviewCard preview={draftPreview} />
+        <PlanPreviewCard preview={draftPreview} variant="sheet" />
       </WeekSheet>
     ) : null;
 
@@ -1409,11 +1409,19 @@ async function WeekTab({
           It used to render here directly, 21 rows deep, pushing
           everything below (WeekStrip, the day list, the rest of this
           branch) below the fold for as long as the draft stayed
-          unconfirmed. */}
+          unconfirmed.
+          No manual `hover:bg-surface-overlay` here (review finding 5):
+          `--glass-bg` resolves to `--surface-raised`, which equals
+          `--surface-overlay` in light mode (both #ffffff), so that utility
+          was a no-op there — and it was also redundant even where it did
+          work, since `.glass:hover` (globals.css) already gives every
+          glass row its own theme-safe hover affordance (a lift + shadow),
+          the same one SummaryRow's identical `.glass` link rows rely on
+          without any hover utility of their own. */}
         {draftPreview && (
           <Link
             href={resolvedHref({ sheet: "plan-review" })}
-            className="mb-4 flex items-center justify-between gap-3 rounded-[14px] glass px-3.5 py-2.5 text-caption text-ink-secondary transition-colors hover:bg-surface-overlay"
+            className="mb-4 flex items-center justify-between gap-3 rounded-[14px] glass px-3.5 py-2.5 text-caption text-ink-secondary"
           >
             <span>A {draftPreview.weeksTotal}-week plan is ready</span>
             <span className="shrink-0 text-label font-bold text-accent">

@@ -168,4 +168,83 @@ describe("BottomSheet", () => {
     });
     expect(dialog.style.transform).toBe("translateY(50px)");
   });
+
+  // Review finding 3 on task 5's "plan-review" sheet: PlanPreviewCard is
+  // ~1.5 phone screens, and this panel is `maxHeight: 92svh; overflowY:
+  // auto` -- before this fix, a downward `touchmove` set `dragY`
+  // regardless of `scrollTop`, so scrolling back UP through a tall sheet
+  // body (the everyday gesture needed to re-read something further up)
+  // fought native scroll for the same gesture, and past 110px, dismissed
+  // the sheet outright. A drag must not begin while the panel still has
+  // room to scroll.
+  it("does not begin a drag while the panel is scrolled away from its own top", async () => {
+    const el = await render(
+      <BottomSheet title="Outer" closeHref="/train?tab=week">
+        <p>Body</p>
+      </BottomSheet>
+    );
+    const dialog = el.querySelector('[role="dialog"]') as HTMLElement;
+    // jsdom never actually lays out or scrolls content, but `scrollTop`
+    // is a plain read/write property regardless -- setting it directly is
+    // how the panel's "already scrolled into its content" state is
+    // simulated here.
+    Object.defineProperty(dialog, "scrollTop", {
+      value: 50,
+      configurable: true,
+    });
+    await act(async () => {
+      const start = new Event("touchstart", { bubbles: true });
+      Object.assign(start, { touches: [{ clientY: 100 }] });
+      dialog.dispatchEvent(start);
+    });
+    await act(async () => {
+      const move = new Event("touchmove", { bubbles: true });
+      Object.assign(move, { touches: [{ clientY: 150 }] });
+      dialog.dispatchEvent(move);
+    });
+    // No transform at all -- not even a smaller one -- while the panel
+    // still has scrolled-past content above it.
+    expect(dialog.style.transform).toBe("");
+  });
+
+  // The companion case: once the panel genuinely reaches its own top
+  // (scrollTop back to 0, whether from more scrolling or having started
+  // there), a further downward swipe DOES begin the drag -- the fix must
+  // not have disabled swipe-to-dismiss outright, only gated it correctly.
+  it("begins the drag once the panel is scrolled back to its own top", async () => {
+    const el = await render(
+      <BottomSheet title="Outer" closeHref="/train?tab=week">
+        <p>Body</p>
+      </BottomSheet>
+    );
+    const dialog = el.querySelector('[role="dialog"]') as HTMLElement;
+    let scrollTop = 50;
+    Object.defineProperty(dialog, "scrollTop", {
+      get: () => scrollTop,
+      configurable: true,
+    });
+    await act(async () => {
+      const start = new Event("touchstart", { bubbles: true });
+      Object.assign(start, { touches: [{ clientY: 100 }] });
+      dialog.dispatchEvent(start);
+    });
+    await act(async () => {
+      // Still scrolled -- ignored, and re-baselines the drag's own start
+      // point to this touch (clientY 150), not the original 100.
+      const move = new Event("touchmove", { bubbles: true });
+      Object.assign(move, { touches: [{ clientY: 150 }] });
+      dialog.dispatchEvent(move);
+    });
+    expect(dialog.style.transform).toBe("");
+    scrollTop = 0; // the panel has now reached its own top.
+    await act(async () => {
+      const move = new Event("touchmove", { bubbles: true });
+      Object.assign(move, { touches: [{ clientY: 170 }] });
+      dialog.dispatchEvent(move);
+    });
+    // Measured from the re-baselined 150, not the original 100: a jump to
+    // translateY(70px) here would mean the drag silently inherited the
+    // whole gesture's distance the instant it was allowed to start.
+    expect(dialog.style.transform).toBe("translateY(20px)");
+  });
 });
