@@ -442,16 +442,16 @@ else matching the selector. **`appChrome` came out 5 on every row below,
 including every sheet open** — the method's own check, satisfied six times
 over, not once.
 
-| Surface                                       | surface | tabs | appChrome | hidden/disabled |    scroll |
-| ---------------------------------------------- | ------: | ---: | --------: | ---------------: | --------: |
-| Train ▸ Week — **before** (2026-08-26)          |      21 |    4 |         5 |                49 |       4.7 |
-| Train ▸ Week — **slice 1** (2026-08-28, default) |      28 |    3 |         5 |                55 |      3.28 |
-| Train ▸ Week — **slice 2** (2026-08-28, default, no `?sheet=`) |  **17** |    3 |         5 |             **7** |  **1.84** |
-| … `?sheet=why-week` open                        |      18 |    3 |         5 |                 7 |      1.84¹ |
-| … `?sheet=plan-setup` open                      |      27 |    3 |         5 |                17 |      1.84¹ |
-| … `?sheet=races` open                           |      32 |    3 |         5 |                 7 |      1.84¹ |
-| … `?sheet=availability` open                    |      28 |    3 |         5 |                45 |      1.84¹ |
-| … `?sheet=plan-review` open                     |    n/a² |  n/a² |       n/a² |               n/a² |       n/a² |
+| Surface                                                        | surface | tabs | appChrome | hidden/disabled |   scroll |
+| -------------------------------------------------------------- | ------: | ---: | --------: | --------------: | -------: |
+| Train ▸ Week — **before** (2026-08-26)                         |      21 |    4 |         5 |              49 |      4.7 |
+| Train ▸ Week — **slice 1** (2026-08-28, default)               |      28 |    3 |         5 |              55 |     3.28 |
+| Train ▸ Week — **slice 2** (2026-08-28, default, no `?sheet=`) |  **17** |    3 |         5 |           **7** | **1.84** |
+| … `?sheet=why-week` open                                       |      18 |    3 |         5 |               7 |    1.84¹ |
+| … `?sheet=plan-setup` open                                     |      27 |    3 |         5 |              17 |    1.84¹ |
+| … `?sheet=races` open                                          |      32 |    3 |         5 |               7 |    1.84¹ |
+| … `?sheet=availability` open                                   |      28 |    3 |         5 |              45 |    1.84¹ |
+| … `?sheet=plan-review` open                                    |    n/a² | n/a² |      n/a² |            n/a² |     n/a² |
 
 ¹ The sheet is `position: fixed; inset: 0`, not part of document flow, and
 `document.body.style.overflow` is locked to `hidden` while it's open — so
@@ -473,12 +473,12 @@ already names; not measured here for the same reason it wasn't captured.
 the same "how many screens of this to get through" question the page
 number answers for the page):
 
-| Sheet          | panel scrollHeight | panel clientHeight (visible) | sheet screens |
-| -------------- | ------------------: | -----------------------------: | -------------: |
-| why-week       |               1049px |                          774px |          1.36 |
-| plan-setup     |                943px |                          774px |          1.22 |
-| races          |                292px |                          292px |          1.00 |
-| availability   |                651px |                          651px |          1.00 |
+| Sheet        | panel scrollHeight | panel clientHeight (visible) | sheet screens |
+| ------------ | -----------------: | ---------------------------: | ------------: |
+| why-week     |             1049px |                        774px |          1.36 |
+| plan-setup   |              943px |                        774px |          1.22 |
+| races        |              292px |                        292px |          1.00 |
+| availability |              651px |                        651px |          1.00 |
 
 **What "surface" on a sheet-open row actually counts.** The background page
 is not made `inert` or `aria-hidden` while a sheet sits over it —
@@ -489,12 +489,12 @@ sheet-open row's `surface` count is the closed page's 17 (still true,
 still technically focusable, just visually covered by the scrim) **plus**
 the sheet's own new controls — confirmed by reading the delta, not assumed:
 
-| Sheet          | Δ surface (new controls the sheet itself adds) | Δ hidden (new hidden/disabled nodes) |
-| -------------- | ------------------------------------------------: | --------------------------------------: |
-| why-week       |                                       +1 (Close)   |                                     +0 |
-| plan-setup     |            +10 (Close, 2 style/season toggles, 7 "standard week" day rows) | +10 (the 7 days' own nested block editors, present, unopened) |
-| races          | +15 (Close, status/edit/delete on the one confirmed race, 8 add-race form fields, Add race) | +0 |
-| availability   | +11 (Close, This week/Next week switcher, 7 day rows, Confirm week) | +38 (the *other* week's whole `IntakeForm` — its 7 day buttons and per-day block-edit fields — sitting hidden in the DOM behind the switcher) |
+| Sheet        |                                              Δ surface (new controls the sheet itself adds) |                                                                                                          Δ hidden (new hidden/disabled nodes) |
+| ------------ | ------------------------------------------------------------------------------------------: | --------------------------------------------------------------------------------------------------------------------------------------------: |
+| why-week     |                                                                                  +1 (Close) |                                                                                                                                            +0 |
+| plan-setup   |                             +10 (Close, 2 style/season toggles, 7 "standard week" day rows) |                                                                                 +10 (the 7 days' own nested block editors, present, unopened) |
+| races        | +15 (Close, status/edit/delete on the one confirmed race, 8 add-race form fields, Add race) |                                                                                                                                            +0 |
+| availability |                         +11 (Close, This week/Next week switcher, 7 day rows, Confirm week) | +38 (the _other_ week's whole `IntakeForm` — its 7 day buttons and per-day block-edit fields — sitting hidden in the DOM behind the switcher) |
 
 availability's +38 is the same pattern the pre-slice-2 page already had —
 `AvailabilityWeekSwitcher` always mounted both `IntakeForm`s and hid
@@ -560,8 +560,8 @@ and the ~1.2 predicted, and neither is invisible or mysterious:
    the pinned action and the summary rows. It's shared with Today
    (`src/components/today/race-chip.tsx`), and folding it away was not in
    this task list's scope (`task-7-brief.md`'s self-review names Races as
-   "Task 3 (as a sheet, deviation argued above)" — the race *list* moved,
-   the race *chip* didn't).
+   "Task 3 (as a sheet, deviation argued above)" — the race _list_ moved,
+   the race _chip_ didn't).
 2. **`SessionFuelling` (the "Before / During / After" carb-and-fluid card)
    and the availability summary's own next-week preview are still on the
    page**, un-sheeted, by design — nobody on this task list argued they
