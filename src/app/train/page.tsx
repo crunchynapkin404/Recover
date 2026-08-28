@@ -47,7 +47,7 @@ import {
   type FitnessTile,
 } from "@/components/train/fitness-tiles";
 import { RaceChip } from "@/components/today/race-chip";
-import { raceCard } from "@/lib/race/outlook";
+import { raceCard, weeksFromDays } from "@/lib/race/outlook";
 import { Unavailable } from "@/components/ui/unavailable";
 import { isFirstRun } from "@/lib/first-run";
 
@@ -650,18 +650,25 @@ async function WeekTab({
 
     // Weeks until the event, counted from this week's Monday so it agrees
     // with the rest of the page rather than drifting by a day mid-week.
+    // Days first (same shape as outlook.ts's own `daysOut`), then
+    // `weeksFromDays` — task 6a: this used to round the ms/week figure
+    // directly, which overstated weeks remaining (32 days out read "5
+    // weeks", not 4) in exactly the direction that hurts a taper.
+    // `weeksToRace` below calls the same `weeksFromDays`, so the two
+    // cannot independently drift back to rounding.
     const raceDate = volumeInputs.targetRace?.date ?? null;
-    const weeksUntilEvent =
+    const daysUntilEvent =
       raceDate == null
         ? null
-        : Math.max(
-            0,
-            Math.round(
-              (new Date(raceDate + "T00:00:00").getTime() -
-                new Date(week.weekStart + "T00:00:00").getTime()) /
-                (7 * 24 * 60 * 60 * 1000)
-            )
+        : Math.round(
+            (new Date(raceDate + "T00:00:00").getTime() -
+              new Date(week.weekStart + "T00:00:00").getTime()) /
+              86_400_000
           );
+    const weeksUntilEvent =
+      daysUntilEvent == null
+        ? null
+        : Math.max(0, weeksFromDays(daysUntilEvent));
 
     // weeksUntilEvent may be null (no target race date) — feasibilityFor
     // handles that itself and states that exact reason, so no separate
@@ -943,13 +950,14 @@ async function WeekTab({
   //   (lib/week-plan/volume.ts) for why, and its tests for the arithmetic
   //   this used to carry inline, unpinned.
   // - weeksToRace is the same countdown the race chip prints as "N days",
-  //   turned into weeks; no second query for a figure this function already
-  //   has for `card`.
+  //   turned into weeks (rounded DOWN — task 6a, see `weeksFromDays`'s own
+  //   doc comment — the same function `weeksUntilEvent` above calls, so
+  //   the two figures cannot independently drift back to rounding); no
+  //   second query for a figure this function already has for `card`.
   const progressPct = week
     ? seasonProgressPct(week.skeletonWeek, plan.weeksTotal)
     : null;
-  const weeksToRace =
-    card.daysOut != null ? Math.round(card.daysOut / 7) : null;
+  const weeksToRace = card.daysOut != null ? weeksFromDays(card.daysOut) : null;
   const raceName = card.race?.name ?? null;
 
   // plan.raceDate/raceType have always meant the plan's FINAL target

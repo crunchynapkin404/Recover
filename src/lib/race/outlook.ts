@@ -99,6 +99,24 @@ export async function raceCard(
   };
 }
 
+/**
+ * `daysOut` (or any non-negative day count), rounded DOWN to a whole week.
+ *
+ * `Math.round` here reports "5 weeks to race" at 32 days out (4 weeks 4
+ * days) — an overstatement, and it runs in exactly the direction that
+ * hurts a taper: it credits the athlete with a week of preparation time
+ * that doesn't exist. Carried from slice 1, deliberately left alone there
+ * only because train/page.tsx's `weeksToRace` (this card's own `daysOut`
+ * turned into weeks) and its `weeksUntilEvent` (the feasibility input,
+ * counted from the week's Monday rather than today) both rounded the same
+ * wrong way — fixing one without the other would have traded a rounding
+ * error for the two figures disagreeing, which is worse. Both call this
+ * one function now, so they cannot independently drift back to rounding.
+ */
+export function weeksFromDays(days: number): number {
+  return Math.floor(days / 7);
+}
+
 export type SimulatedRaceForm =
   | {
       available: true;

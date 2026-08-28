@@ -129,7 +129,16 @@ describe("verdictLine", () => {
   // read as rest (the athlete didn't choose this) and must not claim
   // nothing happened (Recover tracks `unplannedLoad` separately for
   // exactly that reason).
-  it("says a planned session was missed, not that the day was rest", () => {
+  //
+  // Task 6b: "planned SESSION was missed" said singular, but
+  // handleMissedYesterday snapshots and moves/drops EVERY session on the
+  // day before wiping it — a two-session day misses both sessions (see
+  // the two-session test right below) — and that count is discarded by
+  // the same stamp this fixture matches: `workouts` is always `[]` here,
+  // whether one session or two were actually lost, so this branch has no
+  // number left to pluralise correctly even if it tried. "plan" is
+  // count-neutral and honest either way.
+  it("says a plan was missed, not that the day was rest", () => {
     const missedMonday = slot({
       date: "2026-08-24",
       workouts: [],
@@ -142,9 +151,36 @@ describe("verdictLine", () => {
       todayYmd: TODAY,
       readinessDate: TODAY,
     });
-    expect(v?.text).toBe("Monday's planned session was missed.");
+    expect(v?.text).toBe("Monday's plan was missed.");
     expect(v?.text).not.toContain("rest");
+    expect(v?.text).not.toContain("session");
     expect(v?.emphasis).toBeNull();
+  });
+
+  // A two-session missed day (adapt-day.ts:87-90's own example — "A
+  // two-session day misses both sessions") reaches verdictLine as the
+  // EXACT SAME shape as a one-session miss: handleMissedYesterday snapshots
+  // both sessions for its own move/drop bookkeeping, then wipes `workouts`
+  // to `[]` in the same stamp that sets `status: "missed"`, so no session
+  // count ever survives into the DaySlot this function reads. This test
+  // exists to make that explicit rather than leaving it implicit in the
+  // single fixture above: the count-neutral "plan was missed" is correct
+  // for both a one- and a two-session day, by construction, not by luck.
+  it("reads identically for a day that lost two sessions — the count never survives to this function", () => {
+    const missedTwoSessionMonday = slot({
+      date: "2026-08-24",
+      workouts: [], // what a 2-session miss ALSO collapses to — see above.
+      status: "missed",
+    });
+    const v = verdictLine({
+      openDay: missedTwoSessionMonday,
+      band: "green",
+      readiness: 78,
+      todayYmd: TODAY,
+      readinessDate: TODAY,
+    });
+    expect(v?.text).toBe("Monday's plan was missed.");
+    expect(v?.text).not.toContain("session");
   });
 
   // The whole project's discipline: no claim the engine cannot support. An

@@ -150,7 +150,7 @@ function sessionBase(
   // one was missed. Already the only tense this can honestly take: a
   // missed day cannot be "still ahead".
   if (day.status === "missed") {
-    return `${weekday}'s planned session was missed`;
+    return `${weekday}'s plan was missed`;
   }
   // The ONLY marker for a day the engine deliberately left empty
   // (types.ts:44-64) — `status: "rest"` alone cannot mean this, since
