@@ -65,7 +65,7 @@ around future races), six wellness/activity sources (intervals.icu, Strava,
 Whoop, Oura, Apple Health, Withings), training history, multiple time blocks
 per day, running, and strength (v0.119.0).
 
-**Mechanically sound.** 3015 tests (587 skip without a database), 45 migrations, zero confirmed axe
+**Mechanically sound.** 3204 tests (587 skip without a database), 46 migrations, zero confirmed axe
 violations across the app, an 83-token design system
 (`docs/design-system.md`), a 59-tool MCP surface, and a release path that is
 fully automated end to end (`docs/RELEASING.md`).
@@ -242,6 +242,26 @@ phase written as a checklist becomes a tweak list:
       than just the word "Connect". Strava's disconnected subtitle said "Not
       connected" — which the button beside it already said — and now names
       its data like the other four.
+      **Shipped in v0.123.0, and measured rather than predicted.** Two slices:
+      composition (a verdict headline instead of a bare readiness score, the
+      Season tab retired into two figures, a day strip carrying duration and
+      status, one open day chosen by `?day=`) and destinations (`Why this
+week`, `Plan setup`, `Races`, `Availability` and the 21-row draft
+      preview all behind `?sheet=` rows). **4.7 phone screens → 1.84; visible
+      controls 21 → 17; hidden 49 → 7.**
+      Slice 1 alone measured WORSE than what it replaced — 3.28 screens with
+      controls rising to 28 — because it added and removed nothing, exactly as
+      the spec's own Risks section predicted. It was merged and held back from
+      release until slice 2 existed. The prediction was ~1.2 screens and was
+      not met: the session-fuelling card and the race chip still sit on the
+      page, both assigned an `ⓘ` destination the spec describes and this
+      release does not build. There is no `ⓘ` anywhere in the app yet.
+      Four defects reached that branch which 3204 passing tests were green
+      through — Today's page going fully inert, Coach dying on desktop, a
+      prose-only sheet unscrollable by keyboard, and two capture surfaces
+      pointing at moved content. Each was caught by a different part of the
+      release pipeline. That is the argument for keeping a real-browser step
+      that no unit test stands in for.
       Still open in this strand: the week adjustment that has no path
       (`src/app/train/page.tsx:812` already states the choice — either the
       action re-materializes the open week, or the copy describes the
