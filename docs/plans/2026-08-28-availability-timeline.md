@@ -1249,7 +1249,6 @@ function DayTrack({
   onChangeDay,
   onUnpin,
   onOpenDay,
-  trackRef,
 }: {
   day: number;
   blocks: AvailabilityBlock[];
@@ -1323,7 +1322,6 @@ function DayTrack({
       </div>
 
       <div
-        ref={trackRef}
         data-track={day}
         className="relative h-9 rounded-lg bg-surface-overlay"
       >
