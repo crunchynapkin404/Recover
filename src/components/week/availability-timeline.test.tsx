@@ -258,3 +258,103 @@ describe("AvailabilityTimeline keyboard path", () => {
     expect(t.calls).toHaveLength(0);
   });
 });
+
+describe("AvailabilityTimeline pointer drag", () => {
+  /** jsdom gives every element a zero rect; the drag math needs a real width. */
+  const realRect = HTMLElement.prototype.getBoundingClientRect;
+  function stubTrackWidth(px: number) {
+    Object.defineProperty(HTMLElement.prototype, "getBoundingClientRect", {
+      configurable: true,
+      value() {
+        return { width: px, height: 36, top: 0, left: 0, right: px, bottom: 36, x: 0, y: 0, toJSON: () => ({}) };
+      },
+    });
+  }
+  // Restored, because this patches a PROTOTYPE: left in place it would hand a
+  // fake 180px rect to every test that runs after this describe block, in
+  // this file and — if the ordering ever changes — before the ones that
+  // assert against real zero-width jsdom layout.
+  afterEach(() => {
+    Object.defineProperty(HTMLElement.prototype, "getBoundingClientRect", {
+      configurable: true,
+      value: realRect,
+    });
+  });
+
+  function drag(el: HTMLElement, fromX: number, toX: number) {
+    (el as HTMLElement & { setPointerCapture?: (id: number) => void }).setPointerCapture =
+      () => {};
+    (el as HTMLElement & { releasePointerCapture?: (id: number) => void }).releasePointerCapture =
+      () => {};
+    act(() => {
+      el.dispatchEvent(
+        new PointerEvent("pointerdown", { clientX: fromX, pointerId: 1, bubbles: true })
+      );
+    });
+    act(() => {
+      el.dispatchEvent(
+        new PointerEvent("pointermove", { clientX: toX, pointerId: 1, bubbles: true })
+      );
+    });
+    act(() => {
+      el.dispatchEvent(
+        new PointerEvent("pointerup", { clientX: toX, pointerId: 1, bubbles: true })
+      );
+    });
+  }
+
+  it("moves a block by the dragged distance, snapped", () => {
+    stubTrackWidth(180); // 18h over 180px — 10px an hour, so 30px is 3h.
+    const week = emptyWeek();
+    week[0] = [block("10:00", "11:00")];
+    const t = mount(week);
+    drag(host!.querySelector<HTMLElement>('[data-block="0:0"]')!, 0, 30);
+    expect(t.calls.at(-1)).toEqual([
+      0,
+      [expect.objectContaining({ start: "13:00", end: "14:00" })],
+    ]);
+  });
+
+  it("resizes from the end handle instead of moving", () => {
+    stubTrackWidth(180);
+    const week = emptyWeek();
+    week[0] = [block("10:00", "11:00")];
+    const t = mount(week);
+    act(() => {
+      host!
+        .querySelector<HTMLElement>('[data-block="0:0"]')!
+        .dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    drag(host!.querySelector<HTMLElement>('[data-handle="0:0:end"]')!, 0, 10);
+    expect(t.calls.at(-1)).toEqual([
+      0,
+      [expect.objectContaining({ start: "10:00", end: "12:00", mins: 120 })],
+    ]);
+  });
+
+  // The spec: handles appear only on the selected block, and OUTSIDE the
+  // pill's visual bounds so the touch target is not the pill's own width.
+  it("shows resize handles only on the selected block", () => {
+    stubTrackWidth(180);
+    const week = emptyWeek();
+    week[0] = [block("10:00", "11:00")];
+    mount(week);
+    expect(host!.querySelector('[data-handle="0:0:end"]')).toBeNull();
+    act(() => {
+      host!
+        .querySelector<HTMLElement>('[data-block="0:0"]')!
+        .dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    expect(host!.querySelector('[data-handle="0:0:end"]')).not.toBeNull();
+    expect(host!.querySelector('[data-handle="0:0:start"]')).not.toBeNull();
+  });
+
+  it("commits nothing when the pointer never moved", () => {
+    stubTrackWidth(180);
+    const week = emptyWeek();
+    week[0] = [block("10:00", "11:00")];
+    const t = mount(week);
+    drag(host!.querySelector<HTMLElement>('[data-block="0:0"]')!, 40, 40);
+    expect(t.calls).toHaveLength(0);
+  });
+});

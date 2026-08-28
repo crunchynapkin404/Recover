@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Plus, SlidersHorizontal } from "lucide-react";
 import type { AvailabilityBlock } from "@/lib/availability/types";
 import { formatAvailability } from "@/lib/availability/format";
@@ -13,6 +13,7 @@ import {
   describeBlock,
   layoutDay,
   moveBlock,
+  pxToMins,
   resizeBlock,
   trackWindow,
   type TrackWindow,
@@ -35,6 +36,16 @@ export interface AvailabilityTimelineProps {
 /** "3:0" — day index and block index, the id both a pointer and a key press use. */
 type BlockId = `${number}:${number}`;
 const idOf = (day: number, block: number): BlockId => `${day}:${block}`;
+
+/**
+ * The track's real width right now, for turning a pixel drag into minutes.
+ * Read from the element at gesture start rather than measured on every
+ * render: this is the ONE place a real width is needed, and reading it here
+ * costs one layout per drag instead of a resize observer for the page's life.
+ */
+function trackPxOf(el: HTMLElement | null): number {
+  return el?.getBoundingClientRect().width || 0;
+}
 
 /**
  * The availability drag-timeline (slice 3). Seven day tracks, one shared
@@ -131,6 +142,78 @@ function DayTrack({
     .filter(({ b }) => b.start == null || b.end == null);
   const full = addBlock(blocks, win) === null;
 
+  // The gesture in flight. A ref, not state: pointermove fires far faster
+  // than React can re-render, and the drag's own arithmetic must read the
+  // value the LAST move wrote, not the one the last commit re-rendered with.
+  const drag = useRef<{
+    blockIndex: number;
+    edge: "start" | "end" | null;
+    originX: number;
+    trackPx: number;
+    committed: AvailabilityBlock[];
+  } | null>(null);
+
+  function onPointerDown(
+    e: React.PointerEvent<HTMLElement>,
+    blockIndex: number,
+    edge: "start" | "end" | null
+  ) {
+    const track = e.currentTarget.closest<HTMLElement>("[data-track]");
+    const trackPx = trackPxOf(track);
+    if (trackPx === 0) return;
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    drag.current = {
+      blockIndex,
+      edge,
+      originX: e.clientX,
+      trackPx,
+      committed: blocks,
+    };
+  }
+
+  function onPointerMove(e: React.PointerEvent<HTMLElement>) {
+    const d = drag.current;
+    if (!d) return;
+    const deltaMins = pxToMins(e.clientX - d.originX, d.trackPx, win);
+    // Snapping happens inside moveBlock/resizeBlock, so a sub-step drag
+    // resolves to the same block it started as and commits nothing new.
+    const next = d.edge
+      ? resizeBlock(d.committed, d.blockIndex, d.edge, deltaMins, win)
+      : moveBlock(d.committed, d.blockIndex, deltaMins, win);
+    if (JSON.stringify(next) === JSON.stringify(d.committed)) return;
+    onChangeDay(day, next);
+  }
+
+  function onPointerUp(e: React.PointerEvent<HTMLElement>) {
+    e.currentTarget.releasePointerCapture?.(e.pointerId);
+    drag.current = null;
+  }
+
+  /**
+   * A resize handle's pointer props. `stopPropagation` is load-bearing, not
+   * hygiene: the handles render INSIDE the pill button — they must, to be
+   * positioned against it — so without it a pointerdown on a handle bubbles
+   * to the button, whose own onPointerDown overwrites the gesture with
+   * `edge: null` and turns a resize into a move. The test
+   * "resizes from the end handle instead of moving" is what caught it.
+   */
+  function handleProps(blockIndex: number, edge: "start" | "end") {
+    return {
+      onPointerDown: (e: React.PointerEvent<HTMLElement>) => {
+        e.stopPropagation();
+        onPointerDown(e, blockIndex, edge);
+      },
+      onPointerMove: (e: React.PointerEvent<HTMLElement>) => {
+        e.stopPropagation();
+        onPointerMove(e);
+      },
+      onPointerUp: (e: React.PointerEvent<HTMLElement>) => {
+        e.stopPropagation();
+        onPointerUp(e);
+      },
+    };
+  }
+
   return (
     <li className="border-b border-hairline py-2 last:border-0">
       {/* The label is ABOVE the track, not beside it: a 40px label column
@@ -219,8 +302,11 @@ function DayTrack({
                     : moveBlock(blocks, p.index, dir * SNAP_MIN, win)
                 );
               }}
+              onPointerDown={(e) => onPointerDown(e, p.index, null)}
+              onPointerMove={onPointerMove}
+              onPointerUp={onPointerUp}
               style={{ left: pct(p.leftPx), width: pct(p.widthPx) }}
-              className={`absolute inset-y-0 flex min-w-11 items-center justify-center gap-1 rounded-lg border border-accent/60 text-label text-ink-primary ${
+              className={`absolute inset-y-0 flex min-w-11 touch-none items-center justify-center gap-1 rounded-lg border border-accent/60 text-label text-ink-primary ${
                 ENERGY_FILL[b.energy]
               } ${isSelected ? "ring-2 ring-accent" : ""}`}
             >
@@ -234,6 +320,31 @@ function DayTrack({
                 />
               )}
               <span className="truncate">{formatAvailability(blockMins(b))}</span>
+              {isSelected && (
+                <>
+                  {/* OUTSIDE the pill's own bounds (-left-3 / -right-3, 24px
+                      wide): the spec is explicit that "the touch target is not
+                      the pill's rendered width", and at the 44px floor the
+                      pill has no room to host a grabbable edge inside itself.
+                      aria-hidden with tabIndex -1 — the keyboard path is
+                      shift+arrows on the pill itself, so these would be two
+                      extra tab stops that do nothing a keyboard user needs. */}
+                  <span
+                    aria-hidden
+                    tabIndex={-1}
+                    data-handle={`${id}:start`}
+                    {...handleProps(p.index, "start")}
+                    className="absolute -left-3 inset-y-0 w-6 cursor-ew-resize"
+                  />
+                  <span
+                    aria-hidden
+                    tabIndex={-1}
+                    data-handle={`${id}:end`}
+                    {...handleProps(p.index, "end")}
+                    className="absolute -right-3 inset-y-0 w-6 cursor-ew-resize"
+                  />
+                </>
+              )}
             </button>
           );
         })}

@@ -1818,6 +1818,30 @@ In `DayTrack`, above the returned JSX:
     e.currentTarget.releasePointerCapture?.(e.pointerId);
     drag.current = null;
   }
+
+  /**
+   * A resize handle's pointer props. `stopPropagation` is load-bearing, not
+   * hygiene: the handles render INSIDE the pill button — they must, to be
+   * positioned against it — so without it a pointerdown on a handle bubbles
+   * to the button, whose own onPointerDown overwrites the gesture with
+   * `edge: null` and turns a resize into a move.
+   */
+  function handleProps(blockIndex: number, edge: "start" | "end") {
+    return {
+      onPointerDown: (e: React.PointerEvent<HTMLElement>) => {
+        e.stopPropagation();
+        onPointerDown(e, blockIndex, edge);
+      },
+      onPointerMove: (e: React.PointerEvent<HTMLElement>) => {
+        e.stopPropagation();
+        onPointerMove(e);
+      },
+      onPointerUp: (e: React.PointerEvent<HTMLElement>) => {
+        e.stopPropagation();
+        onPointerUp(e);
+      },
+    };
+  }
 ```
 
 Add `pxToMins` to the timeline import and `useRef` to the React import
@@ -1847,18 +1871,14 @@ selection:
                     aria-hidden
                     tabIndex={-1}
                     data-handle={`${id}:start`}
-                    onPointerDown={(e) => onPointerDown(e, p.index, "start")}
-                    onPointerMove={onPointerMove}
-                    onPointerUp={onPointerUp}
+                    {...handleProps(p.index, "start")}
                     className="absolute -left-3 inset-y-0 w-6 cursor-ew-resize"
                   />
                   <span
                     aria-hidden
                     tabIndex={-1}
                     data-handle={`${id}:end`}
-                    onPointerDown={(e) => onPointerDown(e, p.index, "end")}
-                    onPointerMove={onPointerMove}
-                    onPointerUp={onPointerUp}
+                    {...handleProps(p.index, "end")}
                     className="absolute -right-3 inset-y-0 w-6 cursor-ew-resize"
                   />
                 </>
