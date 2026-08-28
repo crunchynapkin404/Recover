@@ -213,12 +213,19 @@ describe.skipIf(!hasDb)(
       expect(html).toContain('aria-label="Availability"');
     });
 
-    // A real TRAIN_SHEETS member (task 5's own destination, not yet
-    // implemented — "plan-setup" graduated out of this list in task 2,
-    // "races" in task 3, "availability" in task 4) must not fall through to
-    // the one sheet this task built — membership in TRAIN_SHEETS is
-    // necessary, not sufficient, to open "why-week" specifically.
-    it("renders no dialog for a valid-but-unimplemented sheet name", async () => {
+    // This used to be "renders no dialog for a valid-but-unimplemented
+    // sheet name" — the probe for a TRAIN_SHEETS member with NO entry in
+    // `sheetOverlays` at all, silently falling through its `?? null`.
+    // Task 5 implemented "plan-review", the last such member, so that gap
+    // no longer exists anywhere in this codebase; keeping the old name and
+    // comment would claim a bug class this file can no longer produce.
+    // What's still true of "plan-review" specifically: like "why-week"'s
+    // `week` gate, it's gated on `draftPreview`, and TEST_USER
+    // (seedOpenWeek) never writes a `trainingPlans` row with
+    // `status: "draft"` — so this now proves that gate, not a missing map
+    // entry. See "TrainPage: a draft plan preview becomes a destination"
+    // below for the positive case (a real draft, the dialog it opens).
+    it("renders no dialog for plan-review when there is no draft for it to show", async () => {
       const html = await renderTrainWeekWithSheet(TEST_USER, "plan-review");
       expect(html).not.toContain('role="dialog"');
     });
@@ -928,6 +935,183 @@ describe.skipIf(!hasDb)(
       // Confirmed: the "Confirm week" tense is gone from THIS bar, not
       // merely relabelled beside a stale duplicate.
       expect(pinned).not.toContain("Confirm week");
+    });
+  }
+);
+
+// Task 5's own destination: PlanPreviewCard (21 rows, ~1.5 phone screens)
+// moved off the page and behind a banner. Seeds BOTH a confirmed plan (so
+// `week` exists — the thing the card used to bury) and a second,
+// unconfirmed `previewTrainingPlan` call for the same athlete (a
+// later-season proposal). `previewTrainingPlan` only ever deletes a PRIOR
+// DRAFT row before writing a new one, and the first plan is `status:
+// "active"` by the time the second call runs — not a draft — so both
+// survive side by side, the same "independent of whether an active plan
+// also exists" shape page.tsx's own comment on the draft query describes.
+const PLAN_REVIEW_USER = "test-train-sheet-moves-plan-review";
+
+async function seedPlanWithDraftReview(userId: string): Promise<void> {
+  const { db, schema } = await import("@/lib/db");
+  const { previewTrainingPlan, confirmTrainingPlan } =
+    await import("@/lib/training-plan");
+
+  await db.insert(schema.users).values({
+    id: userId,
+    name: "Test Athlete",
+    email: `${userId}@example.invalid`,
+  });
+
+  const activeRaceDate = ymd(new Date(Date.now() + 60 * DAY_MS));
+  const activePreview = await previewTrainingPlan({
+    userId,
+    raceType: "marathon",
+    raceDate: activeRaceDate,
+    title: "Active season plan",
+    daysPerWeek: 5,
+    hoursPerWeek: 8,
+  });
+  if (!activePreview.ok) {
+    throw new Error(`previewTrainingPlan refused: ${activePreview.reason}`);
+  }
+  const confirmed = await confirmTrainingPlan(
+    userId,
+    activePreview.preview.planId
+  );
+  if (!confirmed.ok) {
+    throw new Error(`confirmTrainingPlan refused: ${confirmed.reason}`);
+  }
+
+  const draftRaceDate = ymd(new Date(Date.now() + 240 * DAY_MS));
+  const draftPreview = await previewTrainingPlan({
+    userId,
+    raceType: "marathon",
+    raceDate: draftRaceDate,
+    title: "Next season proposal",
+    daysPerWeek: 5,
+    hoursPerWeek: 8,
+  });
+  if (!draftPreview.ok) {
+    throw new Error(`previewTrainingPlan refused: ${draftPreview.reason}`);
+  }
+}
+
+describe.skipIf(!hasDb)(
+  "TrainPage: a draft plan preview becomes a destination",
+  () => {
+    beforeAll(async () => {
+      await seedPlanWithDraftReview(PLAN_REVIEW_USER);
+    });
+
+    afterAll(async () => {
+      const { db, schema } = await import("@/lib/db");
+      await db
+        .delete(schema.users)
+        .where(eq(schema.users.id, PLAN_REVIEW_USER));
+    });
+
+    it("keeps a banner on the page but not the 21-row table it replaces", async () => {
+      const closed = await renderTrainWeekWithSheet(
+        PLAN_REVIEW_USER,
+        undefined
+      );
+      // The banner that replaces the card stays on the page. (React SSR
+      // inserts an empty comment between the JSX text and the interpolated
+      // `{weeksTotal}`, so this checks the trailing half of the sentence —
+      // the number-independent part — rather than matching the whole
+      // thing as one contiguous string.)
+      expect(closed).toContain("-week plan is ready");
+      expect(closed).toContain("Review →");
+      // The card's own distinctive markers must not also render inline.
+      expect(closed).not.toContain('data-testid="phase-total"');
+      expect(closed).not.toContain(">Rebuild<");
+      expect(closed).not.toContain(">Start this plan<");
+      // The week the draft used to bury is still the headline content —
+      // proof the banner is winning back the fold, not just adding a
+      // second UI on top of the old one.
+      expect(closed).toContain("data-season-progress");
+    });
+
+    it("puts the 21-row table and its Rebuild/Start actions in the sheet once it opens", async () => {
+      const open = await renderTrainWeekWithSheet(
+        PLAN_REVIEW_USER,
+        "plan-review"
+      );
+      expect(open).toContain('role="dialog"');
+      expect(open).toContain('aria-label="Plan review"');
+      expect(open).toContain('data-testid="phase-total"');
+      expect(open).toContain(">Rebuild<");
+      expect(open).toContain(">Start this plan<");
+    });
+  }
+);
+
+// Task 5's ruling on the OTHER PlanPreviewCard call site (the `!plan`
+// early return, around page.tsx:505): that branch has no open week to
+// bury the card below — `draftPreview` and `firstRun`/`PlanEmpty` are
+// mutually exclusive there, so a draft is the entire content of the
+// branch, not something sitting on top of something else — and the
+// branch hard-codes `overlay: null` regardless of `sheetParam`, so a
+// `?sheet=plan-review` banner would link to a sheet this branch has no
+// machinery to open. It keeps rendering the card inline.
+const NO_PLAN_DRAFT_USER = "test-train-no-plan-draft-preview";
+
+async function seedDraftWithNoActivePlan(userId: string): Promise<void> {
+  const { db, schema } = await import("@/lib/db");
+  const { previewTrainingPlan } = await import("@/lib/training-plan");
+
+  await db.insert(schema.users).values({
+    id: userId,
+    name: "Test Athlete",
+    email: `${userId}@example.invalid`,
+  });
+
+  const raceDate = ymd(new Date(Date.now() + 90 * DAY_MS));
+  const preview = await previewTrainingPlan({
+    userId,
+    raceType: "marathon",
+    raceDate,
+    title: "First plan proposal",
+    daysPerWeek: 5,
+    hoursPerWeek: 8,
+  });
+  if (!preview.ok) {
+    throw new Error(`previewTrainingPlan refused: ${preview.reason}`);
+  }
+}
+
+describe.skipIf(!hasDb)(
+  "TrainPage: a first-run draft (no active plan) stays inline",
+  () => {
+    beforeAll(async () => {
+      await seedDraftWithNoActivePlan(NO_PLAN_DRAFT_USER);
+    });
+
+    afterAll(async () => {
+      const { db, schema } = await import("@/lib/db");
+      await db
+        .delete(schema.users)
+        .where(eq(schema.users.id, NO_PLAN_DRAFT_USER));
+    });
+
+    it("renders the 21-row table inline, not behind a banner — there is no open week here for it to bury", async () => {
+      const html = await renderTrainWeekWithSheet(
+        NO_PLAN_DRAFT_USER,
+        undefined
+      );
+      expect(html).toContain('data-testid="phase-total"');
+      expect(html).toContain(">Rebuild<");
+      expect(html).toContain(">Start this plan<");
+      expect(html).not.toContain("Review →");
+    });
+
+    it("opens no dialog for ?sheet=plan-review — this branch hard-codes overlay: null", async () => {
+      const html = await renderTrainWeekWithSheet(
+        NO_PLAN_DRAFT_USER,
+        "plan-review"
+      );
+      expect(html).not.toContain('role="dialog"');
+      // Still the inline card, sheet param or not.
+      expect(html).toContain('data-testid="phase-total"');
     });
   }
 );

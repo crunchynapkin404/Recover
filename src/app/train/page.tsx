@@ -503,6 +503,18 @@ async function WeekTab({
         <>
           <TrainHeader tab="week" href={href} action={chip} />
           {draftPreview ? (
+            // Deliberately still inline, not the banner+sheet the with-plan
+            // call site below gets (slice 2, task 5). That banner exists
+            // because the card was pushing an open WEEK below the fold; on
+            // this branch there is no week — `firstRun`/`PlanEmpty` are the
+            // only other things this ternary could show, and draftPreview
+            // here is mutually exclusive with both, so the card is not
+            // burying anything, it IS the branch's entire content. It also
+            // has nowhere to send a banner: this return hard-codes
+            // `overlay: null` below regardless of `sheetParam` (no `week`,
+            // no `resolvedHref`, none of the sheet machinery the with-plan
+            // branch builds exists here), so a `?sheet=plan-review` link
+            // would open a sheet this branch cannot render.
             <PlanPreviewCard preview={draftPreview} />
           ) : firstRun ? (
             <div
@@ -1235,6 +1247,24 @@ async function WeekTab({
   // is null only when there is nothing to show (Monday completed and no
   // next-week projection) — WeekTab's `SummaryRow` below carries the same
   // gate, so there is never a row pointing at an empty sheet.
+  // The "plan review" destination (slice 2, task 5): PlanPreviewCard — 21
+  // rows, ~1.5 phone screens — moved off the page and behind the banner
+  // below it. Unlike the other three sheets above, this one didn't need a
+  // richer destination; it needed to stop being the FIRST thing on the
+  // page while a draft was pending, since it rendered directly under
+  // SeasonProgress and pushed the athlete's actual open week (WeekStrip,
+  // the day list, everything below) beneath the fold. Gated on
+  // `draftPreview`, the same shape as `whyWeekSheet`'s `week` gate above:
+  // no draft, nothing for this sheet to hold, and the banner that links
+  // here is itself gated on `draftPreview` too, so there is never a row
+  // pointing at an empty sheet.
+  const planReviewSheet =
+    sheetParam === "plan-review" && draftPreview ? (
+      <WeekSheet title="Plan review" closeHref={resolvedHref({ sheet: "" })}>
+        <PlanPreviewCard preview={draftPreview} />
+      </WeekSheet>
+    ) : null;
+
   const availabilitySheet =
     sheetParam === "availability" && intake ? (
       <WeekSheet
@@ -1287,14 +1317,16 @@ async function WeekTab({
   // keyed on `sheetParam` means each of them adds a key here instead of
   // another `??`. Each entry is still independently gated above (e.g.
   // whyWeekSheet is null unless `sheetParam === "why-week" && week`), so
-  // indexing by `sheetParam` picks the one real overlay (or `undefined` for
-  // a TRAIN_SHEETS member with no sheet implemented yet — "plan-review",
-  // task 5's, is the only one left).
+  // indexing by `sheetParam` picks the one real overlay. Every TRAIN_SHEETS
+  // member has an entry as of task 5 ("plan-review" was the last); the `??
+  // null` below is what a future retired destination would fall through to,
+  // not a gap this map still has.
   const sheetOverlays: Partial<Record<TrainSheetName, React.ReactNode>> = {
     "why-week": whyWeekSheet,
     "plan-setup": planSetupSheet,
     races: racesSheet,
     availability: availabilitySheet,
+    "plan-review": planReviewSheet,
   };
 
   // The page's one pinned primary action (review finding 1, task 4's fix
@@ -1364,7 +1396,23 @@ async function WeekTab({
           raceName={raceName}
         />
 
-        {draftPreview && <PlanPreviewCard preview={draftPreview} />}
+        {/* PlanPreviewCard itself moved into the "plan-review" sheet above
+          (slice 2, task 5) — this banner is the one row that replaces it.
+          It used to render here directly, 21 rows deep, pushing
+          everything below (WeekStrip, the day list, the rest of this
+          branch) below the fold for as long as the draft stayed
+          unconfirmed. */}
+        {draftPreview && (
+          <Link
+            href={resolvedHref({ sheet: "plan-review" })}
+            className="mb-4 flex items-center justify-between gap-3 rounded-[14px] glass px-3.5 py-2.5 text-caption text-ink-secondary transition-colors hover:bg-surface-overlay"
+          >
+            <span>A {draftPreview.weeksTotal}-week plan is ready</span>
+            <span className="shrink-0 text-label font-bold text-accent">
+              Review →
+            </span>
+          </Link>
+        )}
 
         {week ? (
           <>

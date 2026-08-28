@@ -109,7 +109,14 @@ export function PlanPreviewCard({ preview }: { preview: PlanPreview }) {
   }
 
   return (
-    <section className="glass mb-4 rounded-[1.5rem] p-5">
+    // `border-hairline bg-surface-selected`, not `.glass`: this card now
+    // also renders inside the "plan-review" sheet (train/page.tsx), whose
+    // panel is `bg-surface-overlay`. `.glass` resolves to
+    // `--surface-raised`, which equals `--surface-overlay` in light mode
+    // (both #ffffff) — a `.glass` card there would be invisible, the same
+    // collision races-section.tsx and event-readiness.tsx already carry
+    // this same fix for.
+    <section className="mb-4 rounded-[1.5rem] border border-hairline bg-surface-selected p-5">
       <p className="label-micro mb-1">Plan preview</p>
       <h2 className="mb-1 text-body font-bold text-ink-primary">
         {SPORT_LABEL[preview.sport]} plan for {preview.race.name}
