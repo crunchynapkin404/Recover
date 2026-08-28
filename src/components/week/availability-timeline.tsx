@@ -8,9 +8,12 @@ import { blockMins } from "@/lib/availability/types";
 import { ENERGY_FILL } from "@/lib/availability/energy-fill";
 import {
   NOMINAL_TRACK_PX,
+  SNAP_MIN,
   addBlock,
   describeBlock,
   layoutDay,
+  moveBlock,
+  resizeBlock,
   trackWindow,
   type TrackWindow,
 } from "@/lib/availability/timeline";
@@ -193,6 +196,29 @@ function DayTrack({
               aria-label={describeBlock(dayName, b)}
               aria-pressed={isSelected}
               onClick={() => onSelect(isSelected ? null : id)}
+              onKeyDown={(e) => {
+                // The spec's keyboard contract: arrows move the start,
+                // shift+arrows resize, both in SNAP_MIN steps — the same
+                // steps a drag lands on, so the two paths cannot disagree.
+                // Enter hands off to BlockSheet, which stays the precise and
+                // assistive editor for energy, sports and exact clock times.
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onOpenDay(day);
+                  return;
+                }
+                const dir =
+                  e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+                if (dir === 0) return;
+                e.preventDefault();
+                onSelect(id);
+                onChangeDay(
+                  day,
+                  e.shiftKey
+                    ? resizeBlock(blocks, p.index, "end", dir * SNAP_MIN, win)
+                    : moveBlock(blocks, p.index, dir * SNAP_MIN, win)
+                );
+              }}
               style={{ left: pct(p.leftPx), width: pct(p.widthPx) }}
               className={`absolute inset-y-0 flex min-w-11 items-center justify-center gap-1 rounded-lg border border-accent/60 text-label text-ink-primary ${
                 ENERGY_FILL[b.energy]

@@ -126,3 +126,135 @@ describe("AvailabilityTimeline", () => {
     expect(html).not.toMatch(/class="[^"]*\b(translate|scale|rotate|skew)-/);
   });
 });
+
+import { act } from "react";
+import { createRoot, type Root } from "react-dom/client";
+import { afterEach } from "vitest";
+
+declare global {
+  var IS_REACT_ACT_ENVIRONMENT: boolean;
+}
+globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+
+let root: Root | null = null;
+let host: HTMLElement | null = null;
+
+afterEach(() => {
+  act(() => root?.unmount());
+  host?.remove();
+  root = null;
+  host = null;
+});
+
+/** Mounts the timeline and returns the last `onChangeDay` call's arguments. */
+function mount(week: AvailabilityBlock[][]) {
+  const calls: [number, AvailabilityBlock[]][] = [];
+  host = document.createElement("div");
+  document.body.appendChild(host);
+  root = createRoot(host);
+  act(() => {
+    root!.render(
+      <AvailabilityTimeline
+        week={week}
+        pinned={Array(7).fill(false)}
+        onChangeDay={(d, next) => calls.push([d, next])}
+        onUnpin={vi.fn()}
+        onOpenDay={vi.fn()}
+      />
+    );
+  });
+  return {
+    calls,
+    press(id: string, key: string, shiftKey = false) {
+      const el = host!.querySelector<HTMLElement>(`[data-block="${id}"]`);
+      if (!el) throw new Error(`no block ${id}`);
+      act(() => {
+        el.dispatchEvent(
+          new KeyboardEvent("keydown", { key, shiftKey, bubbles: true })
+        );
+      });
+    },
+  };
+}
+
+describe("AvailabilityTimeline keyboard path", () => {
+  it("moves the start a quarter hour on ArrowRight", () => {
+    const week = emptyWeek();
+    week[0] = [block("18:00", "19:00")];
+    const t = mount(week);
+    t.press("0:0", "ArrowRight");
+    expect(t.calls.at(-1)).toEqual([
+      0,
+      [expect.objectContaining({ start: "18:15", end: "19:15" })],
+    ]);
+  });
+
+  it("moves the start back a quarter hour on ArrowLeft", () => {
+    const week = emptyWeek();
+    week[0] = [block("18:00", "19:00")];
+    const t = mount(week);
+    t.press("0:0", "ArrowLeft");
+    expect(t.calls.at(-1)).toEqual([
+      0,
+      [expect.objectContaining({ start: "17:45", end: "18:45" })],
+    ]);
+  });
+
+  it("resizes the end on shift+ArrowRight, keeping the start", () => {
+    const week = emptyWeek();
+    week[0] = [block("18:00", "19:00")];
+    const t = mount(week);
+    t.press("0:0", "ArrowRight", true);
+    expect(t.calls.at(-1)).toEqual([
+      0,
+      [expect.objectContaining({ start: "18:00", end: "19:15", mins: 75 })],
+    ]);
+  });
+
+  it("shrinks on shift+ArrowLeft but never below a quarter hour", () => {
+    const week = emptyWeek();
+    week[0] = [block("18:00", "18:15")];
+    const t = mount(week);
+    t.press("0:0", "ArrowLeft", true);
+    expect(t.calls.at(-1)).toEqual([
+      0,
+      [expect.objectContaining({ start: "18:00", end: "18:15" })],
+    ]);
+  });
+
+  it("opens the precise editor on Enter", () => {
+    const week = emptyWeek();
+    week[0] = [block("18:00", "19:00")];
+    const opened: number[] = [];
+    host = document.createElement("div");
+    document.body.appendChild(host);
+    root = createRoot(host);
+    act(() => {
+      root!.render(
+        <AvailabilityTimeline
+          week={week}
+          pinned={Array(7).fill(false)}
+          onChangeDay={vi.fn()}
+          onUnpin={vi.fn()}
+          onOpenDay={(d) => opened.push(d)}
+        />
+      );
+    });
+    const el = host.querySelector<HTMLElement>('[data-block="0:0"]')!;
+    act(() => {
+      el.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Enter", bubbles: true })
+      );
+    });
+    expect(opened).toEqual([0]);
+  });
+
+  it("leaves other keys to the browser", () => {
+    const week = emptyWeek();
+    week[0] = [block("18:00", "19:00")];
+    const t = mount(week);
+    t.press("0:0", "Tab");
+    t.press("0:0", "a");
+    expect(t.calls).toHaveLength(0);
+  });
+});
