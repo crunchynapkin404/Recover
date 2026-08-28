@@ -583,3 +583,92 @@ including before either slice started. That is not the ~74% cut the spec
 promised. It is a genuine, evidenced, roughly 60% cut on scroll length and
 a real cut on control count, with the rest of the gap named rather than
 hidden.
+
+---
+
+## Slice 3 — the availability sheet, 2026-08-28
+
+Slice 3 replaced the availability sheet's seven-rows-and-a-modal form with a
+drag-timeline. It does not touch the Train ▸ Week page, so the page's own
+numbers are unchanged and are reproduced below only as the method's control.
+
+Same method, same selector, same three-way split, phone viewport (390×844),
+same ad hoc Playwright pass (not committed, as before). **Both columns were
+measured against the same fixture in the same hour**, from two dev servers —
+`main` at 3f122f7 and this branch — because the "before" number for a sheet
+nothing had ever measured could not be read off any earlier section here.
+
+The fixture needed one addition, and it is worth naming: **`seed-demo.ts`
+seeds only LEGACY untimed availability blocks** (`start: null`), which the
+timeline correctly declines to place on a track. Measured against the stock
+fixture, the timeline renders seven empty tracks and the whole surface looks
+broken while being right. Real timed blocks were seeded by hand for both
+columns.
+
+| Surface                                         | surface | in-sheet | tabs | appChrome | hidden/disabled | scroll |
+| ----------------------------------------------- | ------: | -------: | ---: | --------: | --------------: | -----: |
+| Train ▸ Week (control, sheet closed) — before    |      16 |        0 |    3 |         5 |               7 |   1.75 |
+| Train ▸ Week (control, sheet closed) — after     |      16 |        0 |    3 |         5 |               7 |   1.75 |
+| **Availability sheet — before (slice 2)**       |      34 |   **17** |    3 |         5 |              45 |   0.84 |
+| **Availability sheet — after (slice 3)**        |      48 |   **31** |    3 |         5 |              57 |   1.09 |
+
+**`appChrome` came out 5 on all four rows** — the method's own check,
+satisfied.
+
+**Read the `in-sheet` column, not `surface`.** With a sheet open,
+`BottomSheet` sets `inert` on `[data-app-background]`, and `inert` does not
+change `checkVisibility()` — so the 17 background controls counted in
+`surface` are visible to the DOM and pressable by nobody. That is a flaw in
+applying this method to a modal surface, found here; the honest figure for
+what an athlete can act on is the in-sheet count.
+
+### What it says
+
+**Choice load went UP, 17 → 31, and the sheet got longer, 0.84 → 1.09
+screens.** Direct manipulation is not free: every day gained a `+` and an
+"edit precisely" control (14 of the 14 added), where the old list gave each
+day a single row button that opened a modal.
+
+**This is slice 1's lesson in a smaller frame, and it is not the same
+mistake.** Slice 1 added a verdict, a strip and figures while removing
+nothing, and its own spec had predicted that. Here the added controls buy
+something the count cannot see: a week's availability is now editable
+without opening a modal at all, which is the write path the athlete uses
+**every single week** and the reason this slice was prioritised over the
+`ⓘ` work and the two remaining page blocks.
+
+**One reduction was tried and reverted, and the reason is worth keeping.**
+Moving "edit precisely" from per-day to per-selection is what the spec
+actually asks for ("reachable from the selected block") and would have taken
+31 → 24. It was reverted because on a **Rest** day there is no block to
+select, so `BlockSheet` — which the spec calls "the precise and assistive
+path" — became unreachable without first creating a block by other means.
+Trading the assistive path for seven controls is the wrong direction, and
+the spec's own sentence ("if the keyboard path is not done, the feature is
+not done") is the tiebreak. The count is reported as it is.
+
+**What could still take it down honestly**, for whoever picks this up: the
+`Pinned ×` badge renders per pinned day and is a control (up to 7). It is a
+_status_ that happens to be pressable. A single "back to standard week"
+control acting on the whole week, with the badge demoted to a non-interactive
+mark, would cut up to six controls without removing any capability — and
+would fix the row crowding the capture shows, where day, summary, badge, `+`
+and edit share one line and the summary truncates.
+
+### What the capture found that 3270 passing tests could not
+
+Recorded because both defects were invisible to the suite and obvious in the
+artifact — the same pattern the v0.123 handoff names.
+
+1. **The availability sheet had no capture surface at all.** Slice 2 moved
+   the whole form into it, which silently removed the app's most-used write
+   path from the photographed set: `train` renders a summary row where the
+   form used to be, so every gate stayed green over a surface nothing looked
+   at. Now `train-availability` in `scripts/verify-surfaces.ts`.
+2. **The pill's label was an ellipsis at every real width.** At the 44 px
+   floor — where every block under 2h19m lands — "1h 00m" renders as
+   "1h 00…". The numbers moved to the day summary line, which has full width;
+   the pill is a mark now, like the day strip's bars.
+
+0 confirmed axe defects across both themes and both viewports. The ratchet
+ceiling stayed at **0**.
