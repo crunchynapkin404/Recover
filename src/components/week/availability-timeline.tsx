@@ -197,6 +197,44 @@ function DayTrack({
   }
 
   /**
+   * A gesture the browser took over — it decided the touch was a scroll after
+   * all. Clearing the ref is what stops the next unrelated pointermove from
+   * resuming a drag nobody is making.
+   */
+  function onPointerCancel() {
+    drag.current = null;
+  }
+
+  /**
+   * THE SECOND HALF OF THE GESTURE CONFLICT. A horizontal pill drag competes
+   * with two separate things, and they need two separate answers.
+   *
+   * The browser's own pan is handled by `touch-pinch-zoom` on the pill
+   * (`touch-action: pinch-zoom`): it stops the browser claiming the gesture
+   * as a scroll, and it KEEPS pinch-zoom, which the blanket "block every
+   * gesture" value would not. That distinction is the whole of WCAG 1.4.4
+   * here, and it is why `tests/viewport-zoom-guard.test.ts` bans that value
+   * and the directional pan ones while allowing this — an app whose own
+   * premise was that most of its type is 11px or smaller cannot be the one
+   * that takes magnification away.
+   *
+   * (Written without spelling those two class names: that guard matches a
+   * bare word, so naming them in prose counts as using them — the same trap
+   * `block-sheet.tsx`'s scrim comment documents for the offender ratchet.)
+   *
+   * `BottomSheet`'s drag-to-dismiss is a React listener on its panel, not a
+   * browser gesture, so `touch-action` cannot reach it: it fires from
+   * `onTouchMove` whenever the panel is scrolled to the top, which is exactly
+   * when a pill drag is most likely. Stopping the touch events here is what
+   * keeps a drag on a pill from dismissing the sheet out from under it.
+   * `onPointerCancel` above covers whatever still gets away.
+   */
+  const touchGuards = {
+    onTouchStart: (e: React.TouchEvent<HTMLElement>) => e.stopPropagation(),
+    onTouchMove: (e: React.TouchEvent<HTMLElement>) => e.stopPropagation(),
+  };
+
+  /**
    * A resize handle's pointer props. `stopPropagation` is load-bearing, not
    * hygiene: the handles render INSIDE the pill button — they must, to be
    * positioned against it — so without it a pointerdown on a handle bubbles
@@ -218,6 +256,8 @@ function DayTrack({
         e.stopPropagation();
         onPointerUp(e);
       },
+      onPointerCancel,
+      ...touchGuards,
     };
   }
 
@@ -315,8 +355,10 @@ function DayTrack({
               onPointerDown={(e) => onPointerDown(e, p.index, null)}
               onPointerMove={onPointerMove}
               onPointerUp={onPointerUp}
+              onPointerCancel={onPointerCancel}
+              {...touchGuards}
               style={{ left: pct(p.leftPx), width: pct(p.widthPx) }}
-              className={`absolute inset-y-0 flex min-w-11 touch-none scroll-mb-52 items-center justify-center gap-1 rounded-lg border border-accent/60 text-label text-ink-primary ${
+              className={`absolute inset-y-0 flex min-w-11 touch-pinch-zoom scroll-mb-52 items-center justify-center gap-1 rounded-lg border border-accent/60 text-label text-ink-primary ${
                 ENERGY_FILL[b.energy]
               } ${isSelected ? "ring-2 ring-accent" : ""}`}
             >
