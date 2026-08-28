@@ -6,6 +6,7 @@
 import { asc, eq, and, inArray } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { createRace } from "@/lib/race/service";
+import { weeksFromDays } from "@/lib/race/outlook";
 import type { Purpose } from "@/lib/availability/types";
 import { PURPOSE_FLOORS } from "@/lib/availability/types";
 import {
@@ -1522,8 +1523,19 @@ export async function previewTrainingPlan(
   //
   // `weeksTotal` remains the fallback for an athlete with no races at all,
   // where `demand` is null and feasibility does not speak anyway.
+  //
+  // `weeksFromDays` (floor), not `Math.ceil`, as of task 6a's fix pass on
+  // /train (src/lib/race/outlook.ts) — this is genuinely the SAME figure
+  // that fix pass named ("one surface disagreeing with another about
+  // weeks-to-race is worse than the rounding itself"): `weeksUntilDemand`
+  // feeds `feasibilityFor`'s `volumeWeeksNeeded > weeksUntilEvent` ladder
+  // the identical way `/train`'s own `weeksUntilEvent` does, so crediting a
+  // partial week as a whole one here overstates available runway in
+  // exactly the direction that makes a genuinely tight taper read as
+  // "on_track" instead of "tight" — the same overstatement the outlook fix
+  // exists to prevent, just reached through `ceil` instead of `round`.
   const weeksUntilDemand = targetRace
-    ? Math.ceil(daysBetween(today, new Date(targetRace.date + "T00:00:00")) / 7)
+    ? weeksFromDays(daysBetween(today, new Date(targetRace.date + "T00:00:00")))
     : weeksTotal;
   const feasibilityFigure = feasibilityFor({
     demand,
@@ -1724,8 +1736,15 @@ export async function previewFromDraft(
       planHoursPerWeek: hoursPerWeek,
     });
 
-  const weeksUntilRace = Math.ceil(
-    daysBetween(today, new Date(draft.raceDate + "T00:00:00")) / 7
+  // `weeksFromDays` (floor), not `Math.ceil` — see the identical fix and
+  // the same reasoning on `previewTrainingPlan`'s own `weeksUntilDemand`
+  // above: this feeds the same `feasibilityFor` ladder, `weeksUntilRace`
+  // ALSO feeds `shortHorizon` below (a short-timeline warning, which the
+  // same overstatement direction was making fire too late), and both
+  // readings of "weeks until this race" must agree with `/train`'s, not
+  // just with each other.
+  const weeksUntilRace = weeksFromDays(
+    daysBetween(today, new Date(draft.raceDate + "T00:00:00"))
   );
 
   // Read through planRaceTargets rather than draft.firstRaceDate directly
@@ -1738,7 +1757,7 @@ export async function previewFromDraft(
   // `previewTrainingPlan`. Using the plan's own first target instead is wrong
   // when a third, unrelated A-race is nearer than either of the plan's two.
   const weeksUntilDemand = targetRace
-    ? Math.ceil(daysBetween(today, new Date(targetRace.date + "T00:00:00")) / 7)
+    ? weeksFromDays(daysBetween(today, new Date(targetRace.date + "T00:00:00")))
     : weeksUntilRace;
 
   const feasibilityFigure = feasibilityFor({

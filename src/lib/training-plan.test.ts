@@ -1512,8 +1512,18 @@ describe.skipIf(!hasDb)("previewTrainingPlan — two A-races", () => {
       expect(spy).toHaveBeenCalledTimes(1);
       const weeksUntilEvent = spy.mock.calls[0][0].weeksUntilEvent as number;
       // No first target: race one IS the final race, so this must stay
-      // exactly the plan's own horizon -- byte-identical to before FIX 3.
-      expect(weeksUntilEvent).toBe(result.preview.weeksTotal);
+      // the plan's own horizon -- FIX 3's own point, still true. Not
+      // byte-identical any more (task 6a): `weeksTotal` is still
+      // `Math.ceil` (periodize needs whole weeks to schedule into) while
+      // `weeksUntilEvent` is now `weeksFromDays` (floor, so feasibility
+      // never overstates runway) -- two different roundings of what is
+      // still the SAME day count here, which can differ by exactly 1 when
+      // that count isn't a whole multiple of 7, and never in the
+      // direction that makes `weeksUntilEvent` the larger of the two.
+      expect(weeksUntilEvent).toBeLessThanOrEqual(result.preview.weeksTotal);
+      expect(weeksUntilEvent).toBeGreaterThanOrEqual(
+        result.preview.weeksTotal - 1
+      );
     });
 
     it("FIX 3 control: a single-race plan's feasibility horizon is unaffected (previewFromDraft)", async () => {
@@ -1535,7 +1545,91 @@ describe.skipIf(!hasDb)("previewTrainingPlan — two A-races", () => {
       const rehydrated = await previewFromDraft(draft);
       expect(spy).toHaveBeenCalledTimes(1);
       const weeksUntilEvent = spy.mock.calls[0][0].weeksUntilEvent as number;
-      expect(weeksUntilEvent).toBe(rehydrated.weeksTotal);
+      // See the sibling `previewTrainingPlan` control test above for why
+      // this is a tolerant band, not exact equality, as of task 6a.
+      expect(weeksUntilEvent).toBeLessThanOrEqual(rehydrated.weeksTotal);
+      expect(weeksUntilEvent).toBeGreaterThanOrEqual(rehydrated.weeksTotal - 1);
+    });
+  });
+
+  // Task 6a, finding 2 of the review pass: `/train` rounds weeks-to-race
+  // DOWN (`weeksFromDays`, src/lib/race/outlook.ts) so a taper is never
+  // credited with a week of prep time it doesn't have. The slice-1 ruling
+  // deferred that fix specifically because `Math.round` there agreed with
+  // `Math.ceil` here at every boundary the bug actually hit (32 days out:
+  // both said "5 weeks") -- fixing only outlook.ts would have reintroduced
+  // that exact disagreement, one level deeper: the coach's own
+  // `generate_training_plan` tool returns this `feasibility` verdict
+  // straight through (tools/generate-training-plan.ts), and
+  // `feasibilityFor`'s ladder is a bare `volumeWeeksNeeded >
+  // weeksUntilEvent` (feasibility.ts) -- one extra phantom week is enough
+  // to flip `tight` to `not_realistic` or back. Pinned here, at the
+  // feasibility layer, not only as a pure-function test on `weeksFromDays`
+  // itself (outlook.test.ts already covers that).
+  describe("feasibility horizon rounds weeks-to-race DOWN, not up (task 6a)", () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    // `raceIds: [raceId]` (a real, tracked race), not the bare
+    // `raceDate`/`raceType` fields alone: without a tracked race,
+    // `targetRace`/`demand` both resolve null and `feasibilityFor` bails
+    // before ever reading `weeksUntilEvent` (`demand == null` is checked
+    // FIRST) -- that branch's own fallback (`weeksTotal`, still `Math.ceil`,
+    // a genuinely different "total plan length" figure, not this task's
+    // concern) is provably inert there. A tracked race is what makes
+    // `weeksUntilEvent` actually reach the live ladder this finding is
+    // about.
+    it("32 days out (4 weeks 4 days) reaches feasibilityFor as 4 weeks, not the old 5 (previewTrainingPlan)", async () => {
+      const raceDate = addDaysYmd(todayYmd(), 32);
+      const raceId = await makeRace({
+        name: "Boundary race",
+        raceType: "marathon",
+        date: raceDate,
+      });
+      const spy = vi.spyOn(feasibilityModule, "feasibilityFor");
+      const result = await previewTrainingPlan({
+        userId: USER,
+        raceType: "marathon",
+        raceDate,
+        raceIds: [raceId],
+      });
+      expect(result.ok).toBe(true);
+      if (!result.ok) throw new Error("expected ok");
+      expect(spy).toHaveBeenCalledTimes(1);
+      const weeksUntilEvent = spy.mock.calls[0][0].weeksUntilEvent as number;
+      expect(weeksUntilEvent).toBe(4);
+      // The pre-fix value, ruled out explicitly rather than merely absent.
+      expect(weeksUntilEvent).not.toBe(5);
+    });
+
+    it("32 days out (4 weeks 4 days) reaches feasibilityFor as 4 weeks, not the old 5 (previewFromDraft)", async () => {
+      const raceDate = addDaysYmd(todayYmd(), 32);
+      const raceId = await makeRace({
+        name: "Boundary race",
+        raceType: "marathon",
+        date: raceDate,
+      });
+      const created = await previewTrainingPlan({
+        userId: USER,
+        raceType: "marathon",
+        raceDate,
+        raceIds: [raceId],
+      });
+      expect(created.ok).toBe(true);
+      if (!created.ok) throw new Error("expected ok");
+      const draft = await db.query.trainingPlans.findFirst({
+        where: eq(schema.trainingPlans.id, created.preview.planId),
+      });
+      expect(draft).toBeTruthy();
+      if (!draft) return;
+
+      const spy = vi.spyOn(feasibilityModule, "feasibilityFor");
+      await previewFromDraft(draft);
+      expect(spy).toHaveBeenCalledTimes(1);
+      const weeksUntilEvent = spy.mock.calls[0][0].weeksUntilEvent as number;
+      expect(weeksUntilEvent).toBe(4);
+      expect(weeksUntilEvent).not.toBe(5);
     });
   });
 });
