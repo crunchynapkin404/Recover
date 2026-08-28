@@ -58,4 +58,27 @@ describe("PlanStyleSwitch", () => {
     expect(html).not.toMatch(/bg-white\//);
     expect(html).not.toMatch(/border-white\//);
   });
+
+  // This control now renders only inside the "plan-setup" sheet (slice 2
+  // task 2), whose own panel is bg-surface-overlay. `bg-surface-raised`
+  // resolves to the SAME #ffffff as that overlay in light mode — the
+  // capsule's fill would go invisible against the sheet, leaving the chip
+  // trap this component's own header comment warns about (active and
+  // inactive segments told apart by text colour alone, since the active
+  // segment's own bg-surface-overlay fill would ALSO match the sheet).
+  // `bg-surface-selected` is the token this repo built for exactly this
+  // shape — distinct from bg-surface-overlay in both themes.
+  it("fills the capsule with surface-selected, not surface-raised (invisible on the sheet's own overlay)", () => {
+    const html = renderToString(
+      <PlanStyleSwitch effectiveStyle="balanced" action={noop} />
+    );
+    // Matches on the capsule's own distinguishing classes, not "the first
+    // div" (review finding 4 on ded5f64) — a match on any div silently
+    // retargets to whatever wrapper lands first in a future markup change.
+    const capsule = /<div class="([^"]*\brounded-full border[^"]*)">/.exec(
+      html
+    );
+    expect(capsule![1]).toContain("bg-surface-selected");
+    expect(capsule![1]).not.toContain("bg-surface-raised");
+  });
 });

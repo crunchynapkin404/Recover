@@ -360,3 +360,226 @@ scrolled to. That part of the prediction — "one day, not seven flattened
 into a scroll" — is true. It just isn't the part that drove the headline
 screens/controls numbers down, because nothing else on the page shrank to
 make room for it.
+
+---
+
+## 2026-08-28 — Task 7 of `.superpowers/sdd/2026-08-28-week-destinations/`: slice 2, the removal half, measured
+
+**This is the section slice 1 was missing.** Slice 1 (tasks 1–6 of
+`2026-08-27-week-composition`, measured above) added a verdict headline, a
+day strip and two season figures, and removed nothing — choice load rose
+21 → 28 and scroll only fell 4.7 → 3.28 screens against a 4.7 → ~1.2
+prediction. Slice 2 (tasks 1–6 of `2026-08-28-week-destinations`) is the
+other half: `Why this week`, `Plan setup`, `Races`, `Availability` and
+`Plan review` moved off the page and behind `?sheet=` destinations, each
+reachable from a one-line summary row. This section measures what that
+actually bought, with the same method, against the same seed, so the three
+rows are comparable.
+
+Branch `feat-week-destinations` at `01ae34e`, based on `main` at `ba4f48c`
+(v0.122.0, the commit slice 1 merged at). Seeded with
+`SEED_DEMO=1 DEMO_EMAIL=dev@recover.local npx tsx
+scripts/seed-confirmed-race.ts` against the local dev DB (`127.0.0.1:5434`)
+— the same script, same account, same "confirmed race only, no draft" seed
+shape as both earlier measurements, for the same reason: comparability.
+
+**Availability, checked before trusting the number** (the brief's own
+warning, from a real defect found earlier on this branch: a claim true of a
+fixture with no availability and false of a real athlete, because
+`NextWeekSummary` renders seven more day rows once next week has any).
+`seed-confirmed-race.ts` does not touch availability at all — it doesn't
+need to. The dev account already carries real `availability_defaults` rows
+(Tue–Sat, 95 min each, Sun/Mon empty) from earlier work on this database,
+confirmed by querying `availability_defaults` directly before and after
+seeding. That's enough for `nextWeekHasAvailability` to be true: the closed
+page's screenshot below shows the real "~5 sessions planned, 0 open · 5.7h
+planned of 7.1h target / Show all 7 days (provisional) →" summary, not the
+no-availability branch. Measured against the fixture the brief asked for,
+not the one that would have hidden the regression.
+
+### Capture and axe
+
+```
+SCREENSHOT_BASE_URL=http://localhost:3210 npx tsx scripts/verify-surfaces.ts week-slice2 --only=train,train-plan-preview
+```
+
+`train` captured cleanly at all 4 theme/viewport combinations:
+`.screenshots/week-slice2/train-{light,dark}-{phone,desktop}.png`.
+`train-plan-preview` failed all 4, for the identical, expected reason
+recorded in the slice-1 section above: its `waitForTwoArcPreview` guard
+refuses to capture without a two-arc draft, and `seed-two-race.ts`
+deliberately did not run — running it after `seed-confirmed-race.ts` would
+hand the athlete a live draft alongside a confirmed plan and switch `/train`
+onto a different render branch entirely (`PlanPreviewCard`, per that
+script's own file header), which would stop measuring the surface this
+section is about. Not a defect in the redesign.
+
+**Axe: 0 confirmed defects, 66 indeterminate nodes**, across 4 rule findings
+(all `color-contrast`, all on `train`, none on the failed
+`train-plan-preview`): 10 (light/phone), 24 (dark/phone), 8 (light/desktop),
+24 (dark/desktop). Verified against `.screenshots/week-slice2/axe-report.json`'s
+own `totals`: `{"confirmedNodes": 0, "indeterminateNodes": 66}`. Per
+`verify-surfaces.ts`'s header, this app's four gradient-background surfaces
+structurally can never resolve `color-contrast` either way, so the
+indeterminate count is real but does not gate — the number the task
+requires at zero (confirmed) is zero. **66 is down from slice 1's
+comparable 125** (train's own four combos there: 12+51+11+51) — a real,
+if secondary, improvement, not claimed as this task's target.
+
+### Choice load, measured
+
+Same method as both rows above: visible+enabled
+`button, a[href], input, select, textarea, [role=button]`, split
+appChrome / tabs / surface, `document.querySelectorAll` (not a Playwright
+locator, for the dev-mode-indicator reason the slice-1 section gives),
+phone viewport 390×844 CSS px at `deviceScaleFactor: 2`. Script: another ad
+hoc Playwright pass (still not committed — this repo still has no committed
+choice-load counter), signed in as `dev@recover.local`. Buckets identified
+structurally: `appChrome` = everything inside `nav.fixed.bottom-8`
+(`BottomNav`); `tabs` = everything inside
+`nav[aria-label="Train sections"]` (`TrainTabs`); `surface` = everything
+else matching the selector. **`appChrome` came out 5 on every row below,
+including every sheet open** — the method's own check, satisfied six times
+over, not once.
+
+| Surface                                                        | surface | tabs | appChrome | hidden/disabled |   scroll |
+| -------------------------------------------------------------- | ------: | ---: | --------: | --------------: | -------: |
+| Train ▸ Week — **before** (2026-08-26)                         |      21 |    4 |         5 |              49 |      4.7 |
+| Train ▸ Week — **slice 1** (2026-08-28, default)               |      28 |    3 |         5 |              55 |     3.28 |
+| Train ▸ Week — **slice 2** (2026-08-28, default, no `?sheet=`) |  **17** |    3 |         5 |           **7** | **1.84** |
+| … `?sheet=why-week` open                                       |      18 |    3 |         5 |               7 |    1.84¹ |
+| … `?sheet=plan-setup` open                                     |      27 |    3 |         5 |              17 |    1.84¹ |
+| … `?sheet=races` open                                          |      32 |    3 |         5 |               7 |    1.84¹ |
+| … `?sheet=availability` open                                   |      28 |    3 |         5 |              45 |    1.84¹ |
+| … `?sheet=plan-review` open                                    |    n/a² | n/a² |      n/a² |            n/a² |     n/a² |
+
+¹ The sheet is `position: fixed; inset: 0`, not part of document flow, and
+`document.body.style.overflow` is locked to `hidden` while it's open — so
+`document.documentElement.scrollHeight` for the underlying page is
+unchanged at 1557px/1.84 screens no matter which sheet sits on top of it.
+That number describes the page, not what's actually in front of the
+athlete, which is why the sheet's own scroll extent is reported separately
+below.
+
+² Not reachable against this fixture: `plan-review` is gated on a live
+draft (`draftPreview`), and this seed — deliberately, for the comparability
+reason above — never creates one. Confirmed directly: `?sheet=plan-review`
+renders no `[role="dialog"]` at all, and the page is byte-identical to the
+default row. The same limitation `train-plan-preview`'s capture failure
+already names; not measured here for the same reason it wasn't captured.
+
+**The sheet's own scrollable extent** (its `[role="dialog"]` panel,
+`maxHeight: 92svh; overflow-y: auto` — `scrollHeight` ÷ `clientHeight`,
+the same "how many screens of this to get through" question the page
+number answers for the page):
+
+| Sheet        | panel scrollHeight | panel clientHeight (visible) | sheet screens |
+| ------------ | -----------------: | ---------------------------: | ------------: |
+| why-week     |             1049px |                        774px |          1.36 |
+| plan-setup   |              943px |                        774px |          1.22 |
+| races        |              292px |                        292px |          1.00 |
+| availability |              651px |                        651px |          1.00 |
+
+**What "surface" on a sheet-open row actually counts.** The background page
+is not made `inert` or `aria-hidden` while a sheet sits over it —
+`progress.md` for this branch already names this as a deferred minor from
+Task 4 ("the page-level and sheet-level PinnedActions are both mounted
+while a sheet is open — invisible... but both in the tab order"). So each
+sheet-open row's `surface` count is the closed page's 17 (still true,
+still technically focusable, just visually covered by the scrim) **plus**
+the sheet's own new controls — confirmed by reading the delta, not assumed:
+
+| Sheet        |                                              Δ surface (new controls the sheet itself adds) |                                                                                                          Δ hidden (new hidden/disabled nodes) |
+| ------------ | ------------------------------------------------------------------------------------------: | --------------------------------------------------------------------------------------------------------------------------------------------: |
+| why-week     |                                                                                  +1 (Close) |                                                                                                                                            +0 |
+| plan-setup   |                             +10 (Close, 2 style/season toggles, 7 "standard week" day rows) |                                                                                 +10 (the 7 days' own nested block editors, present, unopened) |
+| races        | +15 (Close, status/edit/delete on the one confirmed race, 8 add-race form fields, Add race) |                                                                                                                                            +0 |
+| availability |                         +11 (Close, This week/Next week switcher, 7 day rows, Confirm week) | +38 (the _other_ week's whole `IntakeForm` — its 7 day buttons and per-day block-edit fields — sitting hidden in the DOM behind the switcher) |
+
+availability's +38 is the same pattern the pre-slice-2 page already had —
+`AvailabilityWeekSwitcher` always mounted both `IntakeForm`s and hid
+whichever week wasn't selected — now inherited by the sheet rather than
+invented by it.
+
+**A check the numbers above imply and is worth stating outright: the sheet
+content is genuinely gone from the default page's DOM, not CSS-hidden.**
+Read directly off the captured HTML for the default (`?sheet=` absent) page:
+zero occurrences of `"Add race"`, `"Your standard week"`, `"What changed"`,
+`"remaining skeleton"`, `role="dialog"`, or the add-race form's
+`aria-label="Priority"`. Every one of those strings is on the page only once
+its own `?sheet=` is in the URL. That is a structurally different claim
+from what the **before** row's 49 hidden controls were: those were `<details>`
+collapsibles, present in the DOM and costed by assistive technology on
+every load, whether opened or not. Slice 2's sheets are Next.js
+conditionally rendering the content in only when the query param names it —
+nothing to page-load, nothing to walk past, until the athlete taps the row.
+
+### What it says
+
+**The default-state numbers are the ones to hold against the spec's
+prediction (4.7 → ~1.2 screens, 21 → ~14 visible controls, ~0 hidden), and
+they are close, not exact — but decisively better than slice 1's regression
+alone claimed.**
+
+- **Screens: 4.7 → 3.28 (slice 1) → 1.84 (slice 2).** Slice 2 alone took
+  another 44% off slice 1's number, and 61% off the original before-row.
+  The prediction's ~1.2 is still not reached — 1.84 is roughly half a
+  screen over it — but this is the same order of magnitude, not the same
+  kind of miss slice 1 posted.
+- **Surface controls: 21 → 28 (slice 1) → 17 (slice 2).** Slice 2 does not
+  just cancel slice 1's regression, it goes past the original before-row:
+  17 is fewer controls on the default page than Train ▸ Week has ever
+  measured at, including before either slice existed. The ~14 prediction is
+  3 controls away, not the "went up instead of down" story slice 1 alone
+  told.
+- **Hidden/disabled: 49 (before) → 55 (slice 1) → 7 (default, slice 2).**
+  This is the biggest single move in the whole progression, and the DOM
+  check above explains why it's real rather than a counting quirk: the
+  weight didn't move to a `hidden` attribute, it moved out of the response
+  entirely. The ~0 prediction basically held — 7 is the sidebar's
+  phone-hidden duplicate nav (5), a duplicate owner-avatar link, and one
+  disabled `What if?` button, all pre-existing to this redesign and present
+  on every surface in the whole document, not new weight slice 2 added.
+
+**The prediction did not fully hold, but the shape of the miss changed.**
+Slice 1 alone, measured honestly, made the page worse on two of three axes.
+Slice 2, measured the same way, makes it better on all three — past the
+original baseline on controls and hidden weight, most of the way there on
+screens — without the sheets' own content having vanished: it is one tap
+away, at a legible, mostly-sub-1.4-screen cost per destination (races and
+availability fit in exactly one sheet-screen with no scrolling at all;
+why-week's 1.36 is the longest, because a race with four change-log entries
+and a pacing paragraph is genuinely that much content).
+
+**What's left of the gap, and whose it is.** Two things stand between 1.84
+and the ~1.2 predicted, and neither is invisible or mysterious:
+
+1. **The confirmed-race card (`RaceChip`) still renders directly on the
+   page**, not behind a sheet — it's the item labelled
+   `"🏁 Confirmed Race (demo) · A r…"` in the surface list, sitting between
+   the pinned action and the summary rows. It's shared with Today
+   (`src/components/today/race-chip.tsx`), and folding it away was not in
+   this task list's scope (`task-7-brief.md`'s self-review names Races as
+   "Task 3 (as a sheet, deviation argued above)" — the race _list_ moved,
+   the race _chip_ didn't).
+2. **`SessionFuelling` (the "Before / During / After" carb-and-fluid card)
+   and the availability summary's own next-week preview are still on the
+   page**, un-sheeted, by design — nobody on this task list argued they
+   should move, and this measurement isn't the place to invent that
+   argument retroactively.
+
+Both are real, nameable, and neither is slice 3's drag-timeline (which is
+availability's own editing surface, not any of this). If Train ▸ Week is to
+close the remaining ~0.6 screens, it's one of these two, not a re-run of
+this same measurement finding a different number by accident.
+
+**Verdict: partly held, and materially better than "partly."** The
+screens/controls/hidden triple the spec predicted did not land exactly —
+1.84 vs ~1.2, 17 vs ~14 — but every one of the three moved in the right
+direction by a wide margin, one of the three (hidden) landed almost exactly
+on the prediction for a structurally real reason, and the whole page is
+provably lighter today than it has ever been measured at in this document,
+including before either slice started. That is not the ~74% cut the spec
+promised. It is a genuine, evidenced, roughly 60% cut on scroll length and
+a real cut on control count, with the rest of the gap named rather than
+hidden.

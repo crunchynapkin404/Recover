@@ -25,28 +25,57 @@ interface Props {
    * which opens a stacking context, so anything mounted within it can never
    * rise above the sidebar's own z-40 no matter what z-index it asks for.
    */
+  /**
+   * Full-screen overlays — the bottom sheets. Rendered as a sibling of the
+   * background wrapper below, never inside it.
+   *
+   * This prop's truthiness means NOTHING about whether a sheet is visible,
+   * and two shipped bugs came from assuming it did: a JSX element is truthy
+   * even when the component inside renders null (Today's unconditional
+   * `<SheetHost/>`), and an element can be present but hidden at a
+   * breakpoint (Coach's `lg:hidden` history panel, invisible on desktop).
+   * `BottomSheet` marks the background inert itself, on mount — the only
+   * thing that actually knows a modal is open is the modal.
+   */
   overlay?: React.ReactNode;
 }
 
 export function AppShell({ children, noChrome = false, user, overlay }: Props) {
+  // The background subtree must leave the tab order and the accessibility
+  // tree while a sheet is open, or `aria-modal` is decorative: Tab otherwise
+  // walks every page control and BottomNav before reaching the panel.
+  //
+  // WHO DECIDES IS THE WHOLE LESSON HERE. This was first computed from
+  // `Boolean(overlay)` and shipped two bugs in two commits: Today passed an
+  // always-truthy `<SheetHost/>` (page dead on every load), and Coach's
+  // overlay is `lg:hidden` (page dead on desktop, caught only by the real-
+  // browser capture). A prop's truthiness cannot know whether a modal is
+  // visible. `BottomSheet` sets `inert` on this element itself when it
+  // mounts and clears it when it unmounts — see its own effect. The marker
+  // attribute below is the contract between them.
   return (
     <div className="mesh-gradient relative min-h-svh pb-32 pt-[env(safe-area-inset-top)] lg:pb-0">
       <GradientDepth />
 
-      {/* Desktop sidebar (lg+); small screens use the bottom tab bar below. */}
-      <SidebarNav user={user ?? null} />
+      {/* `overlay` stays OUTSIDE this wrapper (a sibling, not a child) —
+        it must never itself go inert along with the background it sits
+        above. */}
+      <div data-app-background>
+        {/* Desktop sidebar (lg+); small screens use the bottom tab bar below. */}
+        <SidebarNav user={user ?? null} />
 
-      <div className="relative z-10 lg:pl-[216px]">
-        {noChrome ? (
-          children
-        ) : (
-          <main className="mx-auto w-full max-w-lg px-6 lg:max-w-3xl">
-            {children}
-          </main>
-        )}
+        <div className="relative z-10 lg:pl-[216px]">
+          {noChrome ? (
+            children
+          ) : (
+            <main className="mx-auto w-full max-w-lg px-6 lg:max-w-3xl">
+              {children}
+            </main>
+          )}
+        </div>
+
+        <BottomNav />
       </div>
-
-      <BottomNav />
 
       {overlay}
     </div>

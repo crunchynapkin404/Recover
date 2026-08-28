@@ -1512,8 +1512,18 @@ describe.skipIf(!hasDb)("previewTrainingPlan — two A-races", () => {
       expect(spy).toHaveBeenCalledTimes(1);
       const weeksUntilEvent = spy.mock.calls[0][0].weeksUntilEvent as number;
       // No first target: race one IS the final race, so this must stay
-      // exactly the plan's own horizon -- byte-identical to before FIX 3.
-      expect(weeksUntilEvent).toBe(result.preview.weeksTotal);
+      // the plan's own horizon -- FIX 3's own point, still true. Not
+      // byte-identical any more (task 6a): `weeksTotal` is still
+      // `Math.ceil` (periodize needs whole weeks to schedule into) while
+      // `weeksUntilEvent` is now `weeksFromDays` (floor, so feasibility
+      // never overstates runway) -- two different roundings of what is
+      // still the SAME day count here, which can differ by exactly 1 when
+      // that count isn't a whole multiple of 7, and never in the
+      // direction that makes `weeksUntilEvent` the larger of the two.
+      expect(weeksUntilEvent).toBeLessThanOrEqual(result.preview.weeksTotal);
+      expect(weeksUntilEvent).toBeGreaterThanOrEqual(
+        result.preview.weeksTotal - 1
+      );
     });
 
     it("FIX 3 control: a single-race plan's feasibility horizon is unaffected (previewFromDraft)", async () => {
@@ -1535,9 +1545,167 @@ describe.skipIf(!hasDb)("previewTrainingPlan — two A-races", () => {
       const rehydrated = await previewFromDraft(draft);
       expect(spy).toHaveBeenCalledTimes(1);
       const weeksUntilEvent = spy.mock.calls[0][0].weeksUntilEvent as number;
-      expect(weeksUntilEvent).toBe(rehydrated.weeksTotal);
+      // See the sibling `previewTrainingPlan` control test above for why
+      // this is a tolerant band, not exact equality, as of task 6a.
+      expect(weeksUntilEvent).toBeLessThanOrEqual(rehydrated.weeksTotal);
+      expect(weeksUntilEvent).toBeGreaterThanOrEqual(rehydrated.weeksTotal - 1);
     });
   });
+
+  // Task 6a, finding 2 of the review pass: `/train` rounds weeks-to-race
+  // DOWN (`weeksFromDays`, src/lib/race/outlook.ts) so a taper is never
+  // credited with a week of prep time it doesn't have. The slice-1 ruling
+  // deferred that fix specifically because `Math.round` there agreed with
+  // `Math.ceil` here at every boundary the bug actually hit (32 days out:
+  // both said "5 weeks") -- fixing only outlook.ts would have reintroduced
+  // that exact disagreement, one level deeper: the coach's own
+  // `generate_training_plan` tool returns this `feasibility` verdict
+  // straight through (tools/generate-training-plan.ts), and
+  // `feasibilityFor`'s ladder is a bare `volumeWeeksNeeded >
+  // weeksUntilEvent` (feasibility.ts) -- one extra phantom week is enough
+  // to flip `tight` to `not_realistic` or back. Pinned here, at the
+  // feasibility layer, not only as a pure-function test on `weeksFromDays`
+  // itself (outlook.test.ts already covers that).
+  describe("feasibility horizon rounds weeks-to-race DOWN, not up (task 6a)", () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    // `raceIds: [raceId]` (a real, tracked race), not the bare
+    // `raceDate`/`raceType` fields alone: without a tracked race,
+    // `targetRace`/`demand` both resolve null and `feasibilityFor` bails
+    // before ever reading `weeksUntilEvent` (`demand == null` is checked
+    // FIRST) -- that branch's own fallback (`weeksTotal`, still `Math.ceil`,
+    // a genuinely different "total plan length" figure, not this task's
+    // concern) is provably inert there. A tracked race is what makes
+    // `weeksUntilEvent` actually reach the live ladder this finding is
+    // about.
+    it("32 days out (4 weeks 4 days) reaches feasibilityFor as 4 weeks, not the old 5 (previewTrainingPlan)", async () => {
+      const raceDate = addDaysYmd(todayYmd(), 32);
+      const raceId = await makeRace({
+        name: "Boundary race",
+        raceType: "marathon",
+        date: raceDate,
+      });
+      const spy = vi.spyOn(feasibilityModule, "feasibilityFor");
+      const result = await previewTrainingPlan({
+        userId: USER,
+        raceType: "marathon",
+        raceDate,
+        raceIds: [raceId],
+      });
+      expect(result.ok).toBe(true);
+      if (!result.ok) throw new Error("expected ok");
+      expect(spy).toHaveBeenCalledTimes(1);
+      const weeksUntilEvent = spy.mock.calls[0][0].weeksUntilEvent as number;
+      expect(weeksUntilEvent).toBe(4);
+      // The pre-fix value, ruled out explicitly rather than merely absent.
+      expect(weeksUntilEvent).not.toBe(5);
+    });
+
+    it("32 days out (4 weeks 4 days) reaches feasibilityFor as 4 weeks, not the old 5 (previewFromDraft)", async () => {
+      const raceDate = addDaysYmd(todayYmd(), 32);
+      const raceId = await makeRace({
+        name: "Boundary race",
+        raceType: "marathon",
+        date: raceDate,
+      });
+      const created = await previewTrainingPlan({
+        userId: USER,
+        raceType: "marathon",
+        raceDate,
+        raceIds: [raceId],
+      });
+      expect(created.ok).toBe(true);
+      if (!created.ok) throw new Error("expected ok");
+      const draft = await db.query.trainingPlans.findFirst({
+        where: eq(schema.trainingPlans.id, created.preview.planId),
+      });
+      expect(draft).toBeTruthy();
+      if (!draft) return;
+
+      const spy = vi.spyOn(feasibilityModule, "feasibilityFor");
+      await previewFromDraft(draft);
+      expect(spy).toHaveBeenCalledTimes(1);
+      const weeksUntilEvent = spy.mock.calls[0][0].weeksUntilEvent as number;
+      expect(weeksUntilEvent).toBe(4);
+      expect(weeksUntilEvent).not.toBe(5);
+    });
+  });
+
+  // Residual finding on the review pass above: `previewFromDraft`'s
+  // `shortHorizon` briefly read the floored `weeksUntilRace` (the
+  // feasibility figure) instead of the ceiled `weeksTotal` the card's own
+  // header prints -- self-contradictory in the 22-27-day band, where
+  // Math.floor(days/7) < 4 but Math.ceil(days/7) is already 4: the header
+  // would read "4 weeks" while the warning claimed "fewer than four
+  // weeks". Reverted to `draft.weeksTotal < 4`, matching
+  // `previewTrainingPlan`'s own `weeksTotal < 4` -- one rule, and it is
+  // the rule that keeps a single card's own header and warning agreeing
+  // with each other, not merely the rule nearest the code it sat next to.
+  //
+  // 21/25/28 days, as named in the finding, each chosen (like the 238-day
+  // banner fixture, review finding 4) to sit away from Math.ceil's own
+  // boundary-crossing point in the day count's own +/-1 rounding band
+  // (`daysBetween` rounds a NOW-to-MIDNIGHT ms difference, so it can land
+  // on either N or N-1 depending on what time of day the suite runs) --
+  // Math.ceil((N-1)/7) and Math.ceil(N/7) agree for all three, so the
+  // expected verdict below is not itself a coin flip.
+  describe.each([
+    { days: 21, expectShort: true },
+    // The reported failure's own boundary: floor(25/7)=3 (<4) but
+    // ceil(25/7)=4 (not <4) -- this is the day count that would have
+    // caught the residual finding directly.
+    { days: 25, expectShort: false },
+    { days: 28, expectShort: false },
+  ])(
+    "shortHorizon at $days days out (header and warning must agree)",
+    ({ days, expectShort }) => {
+      it("previewTrainingPlan: weeksTotal and the short_horizon warning agree", async () => {
+        const raceDate = addDaysYmd(todayYmd(), days);
+        const result = await previewTrainingPlan({
+          userId: USER,
+          raceType: "marathon",
+          raceDate,
+        });
+        expect(result.ok).toBe(true);
+        if (!result.ok) throw new Error("expected ok");
+        const hasWarning = result.preview.warnings.includes("short_horizon");
+        expect(hasWarning).toBe(expectShort);
+        // The header's own number is the thing the warning must never
+        // contradict: "short" means "< 4", stated in terms of the exact
+        // figure the card prints two lines above the warning.
+        expect(result.preview.weeksTotal < 4).toBe(expectShort);
+      });
+
+      it("previewFromDraft: weeksTotal and the short_horizon warning agree, and match previewTrainingPlan's own verdict", async () => {
+        const raceDate = addDaysYmd(todayYmd(), days);
+        const created = await previewTrainingPlan({
+          userId: USER,
+          raceType: "marathon",
+          raceDate,
+        });
+        expect(created.ok).toBe(true);
+        if (!created.ok) throw new Error("expected ok");
+        const draft = await db.query.trainingPlans.findFirst({
+          where: eq(schema.trainingPlans.id, created.preview.planId),
+        });
+        expect(draft).toBeTruthy();
+        if (!draft) return;
+
+        const rehydrated = await previewFromDraft(draft);
+        const hasWarning = rehydrated.warnings.includes("short_horizon");
+        expect(hasWarning).toBe(expectShort);
+        expect(rehydrated.weeksTotal < 4).toBe(expectShort);
+        // Cross-surface agreement: the coach's own preview and the
+        // athlete's rehydrated card must reach the identical verdict for
+        // the identical race.
+        expect(hasWarning).toBe(
+          created.preview.warnings.includes("short_horizon")
+        );
+      });
+    }
+  );
 });
 
 describe("periodize clamps an out-of-range firstRace.weekNumber", () => {

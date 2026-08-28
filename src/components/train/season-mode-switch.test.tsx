@@ -90,4 +90,31 @@ describe("SeasonModeSwitch", () => {
     // colour this component carried before migration.
     expect(html).not.toMatch(/emerald/);
   });
+
+  // This control now renders only inside the "plan-setup" sheet (slice 2
+  // task 2), whose own panel is bg-surface-overlay. `bg-surface-raised`
+  // resolves to the SAME #ffffff as that overlay in light mode — the
+  // capsule's fill would go invisible against the sheet, leaving the chip
+  // trap the test above guards against (active/inactive told apart by text
+  // colour alone, since the active segment's own bg-surface-overlay fill
+  // would ALSO match the sheet). `bg-surface-selected` is the token this
+  // repo built for exactly this shape — distinct from bg-surface-overlay
+  // in both themes.
+  it("fills the capsule with surface-selected, not surface-raised (invisible on the sheet's own overlay)", () => {
+    const html = renderToString(
+      <SeasonModeSwitch
+        effectiveSeasonMode="normal"
+        reentryStage="none"
+        action={noop}
+      />
+    );
+    // Matches on the capsule's own distinguishing classes, not "the first
+    // div" (review finding 4 on ded5f64) — a match on any div silently
+    // retargets to whatever wrapper lands first in a future markup change.
+    const capsule = /<div class="([^"]*\brounded-full border[^"]*)">/.exec(
+      html
+    );
+    expect(capsule![1]).toContain("bg-surface-selected");
+    expect(capsule![1]).not.toContain("bg-surface-raised");
+  });
 });

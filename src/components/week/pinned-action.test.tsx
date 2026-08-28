@@ -111,4 +111,70 @@ describe("PinnedAction", () => {
     const btn = el.querySelector('button[type="submit"]') as HTMLButtonElement;
     expect(btn.disabled).toBe(true);
   });
+
+  // Review finding 1 (task 4 fix pass): the spec's own pinned-label list
+  // includes "Set next week's availability" beside "Confirm week"/"Plan
+  // this week" — pure navigation, not a submit. `href` is the opt-in for
+  // that shape; the default (no `href`) stays exactly the submit button
+  // the test above already pins, so this is a genuinely separate code path
+  // rather than a widened one.
+  it("renders a real navigation link when given href, not a disguised button", async () => {
+    const el = await render(
+      <PinnedAction
+        label="Set next week's availability"
+        href="/train?sheet=availability"
+      />
+    );
+    const link = el.querySelector("a");
+    expect(link?.getAttribute("href")).toBe("/train?sheet=availability");
+    expect(link?.textContent).toBe("Set next week's availability");
+    expect(el.querySelector("button")).toBeNull();
+  });
+
+  // Review finding 4 (task 4 fix pass): `IntakeForm` — now nested inside
+  // the "availability" sheet — is the first caller whose nearest scrolling
+  // ancestor is the sheet's own panel, not the page. `variant="sheet"`
+  // must drop the BottomNav-measured `bottom-32`/`lg:bottom-6` entirely,
+  // not merely add to it — BottomNav sits behind the sheet's own scrim,
+  // so there is nothing there to clear.
+  //
+  // M2, final whole-branch review: `bottom-0` (this test's own value,
+  // until this fix) was wrong on its own terms. A sticky offset resolves
+  // against its scrolling ancestor's PADDING box, not its content box —
+  // and the panel's own bottom padding is
+  // `calc(env(safe-area-inset-bottom)+1.25rem)` (bottom-sheet.tsx), there
+  // specifically to clear the home indicator on a notched phone.
+  // `bottom-0` sticks flush to the padding-box edge, i.e. AT the very
+  // bottom of the safe area rather than above it — the same distance the
+  // panel already reserves for its own padding, restated here so the
+  // sticky child's resting position lands at the content-box edge (where
+  // it would sit in ordinary, non-sticky flow) instead of past it.
+  it('clears the panel\'s own safe-area padding for variant="sheet", instead of sticking flush to its padding-box edge', async () => {
+    const el = await render(
+      <PinnedAction label="Confirm week" formAction={noop} variant="sheet" />
+    );
+    const wrap = el.querySelector("[data-pinned-action]");
+    // Matches bottom-sheet.tsx's own `pb-[calc(env(safe-area-inset-bottom)+1.25rem)]`
+    // exactly — a coincidence would be worse than a shared magic number:
+    // if the panel's padding ever changes, this offset silently stops
+    // clearing it again.
+    expect(wrap?.className).toContain(
+      "bottom-[calc(env(safe-area-inset-bottom)+1.25rem)]"
+    );
+    // The bare "bottom-0" this used to be — asserted absent, not merely
+    // untested, so a partial revert (offset restored, class un-renamed)
+    // still fails this test.
+    expect(wrap?.className).not.toMatch(/(?:^|\s)bottom-0(?:\s|$)/);
+    expect(wrap?.className).not.toContain("bottom-32");
+    expect(wrap?.className).not.toContain("lg:bottom-6");
+  });
+
+  it("keeps the page offset by default, so every pre-existing caller is unaffected", async () => {
+    const el = await render(
+      <PinnedAction label="Confirm week" formAction={noop} />
+    );
+    const wrap = el.querySelector("[data-pinned-action]");
+    expect(wrap?.className).toContain("bottom-32");
+    expect(wrap?.className).not.toContain("bottom-0");
+  });
 });

@@ -2,7 +2,7 @@ import { describe, expect, it, beforeAll, afterAll } from "vitest";
 import { inArray } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import type { DaySlot } from "@/lib/week-plan/types";
-import { raceCard, simulateRaceForm } from "./outlook";
+import { raceCard, simulateRaceForm, weeksFromDays } from "./outlook";
 
 // requires Postgres; skips without DATABASE_URL.
 const hasDb =
@@ -229,5 +229,46 @@ describe.skipIf(!hasDb)("raceCard", () => {
       if (!r.available) return;
       expect(r.value.capped).toBe(true);
     });
+  });
+});
+
+// Pure arithmetic — no DB, runs even without DATABASE_URL.
+describe("weeksFromDays", () => {
+  // The regression this exists to fix (task 6a, carried from slice 1):
+  // Math.round(32 / 7) is 5 — "5 weeks to race" at 4 weeks 4 days out — an
+  // overstatement, and it runs in exactly the direction that hurts a
+  // taper. Math.floor(32 / 7) is 4, the true count of whole weeks left.
+  it("rounds DOWN, not to the nearest week", () => {
+    expect(weeksFromDays(32)).toBe(4);
+    expect(weeksFromDays(32)).not.toBe(Math.round(32 / 7));
+  });
+
+  // The four boundaries the brief calls out, 28/31/32/34 days out — all
+  // read "4 weeks" (4 whole weeks elapsed, some remainder of days short of
+  // a 5th), unlike Math.round, which flips to 5 at 32 and stays there
+  // through 34.
+  it("28 days (exactly 4 weeks) reads 4", () => {
+    expect(weeksFromDays(28)).toBe(4);
+  });
+
+  it("31 days (4 weeks 3 days, just under the old rounding's half-week flip) reads 4", () => {
+    expect(weeksFromDays(31)).toBe(4);
+  });
+
+  it("32 days (4 weeks 4 days, exactly where Math.round used to flip to 5) reads 4", () => {
+    expect(weeksFromDays(32)).toBe(4);
+  });
+
+  it("34 days (4 weeks 6 days, one day short of a real 5th week) still reads 4", () => {
+    expect(weeksFromDays(34)).toBe(4);
+  });
+
+  // Not just stuck at 4 — the boundary above it still moves.
+  it("35 days (exactly 5 weeks) reads 5", () => {
+    expect(weeksFromDays(35)).toBe(5);
+  });
+
+  it("0 days out reads 0 weeks", () => {
+    expect(weeksFromDays(0)).toBe(0);
   });
 });

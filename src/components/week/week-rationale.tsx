@@ -27,6 +27,15 @@ interface Props {
    * panel below.
    */
   source: "race" | "ceiling" | "floor" | "fallback" | null;
+  /**
+   * Set when the caller already names this panel — inside the "why-week"
+   * sheet, the sheet's own `<h2>` already says "Why this week", so this
+   * component's identical micro-label directly beneath it would repeat the
+   * same three words twice in a row. Same precedent as `RacesSection`'s
+   * `hideHeading` (races-section.tsx): the heading is this component's own
+   * business everywhere else, so it defaults to shown.
+   */
+  hideHeading?: boolean;
 }
 
 /** "6h" for a whole number, "6.3h" otherwise. Exported so week-row.tsx's
@@ -97,14 +106,24 @@ export function WeekRationale({
   shortfall,
   raceName,
   source,
+  hideHeading = false,
 }: Props) {
   if (reasons.length === 0 && targetHours == null && shortfall == null) {
     return null;
   }
 
   return (
-    <div className="glass mt-4 rounded-[1.5rem] p-5">
-      <p className="label-micro mb-2">Why this week</p>
+    // `bg-surface-selected`, not `.glass`: this panel only ever renders
+    // inside the "why-week" sheet now (train/page.tsx), whose own panel is
+    // `bg-surface-overlay` — `--glass-bg` resolves to `--surface-raised`,
+    // and both equal #ffffff in light, so `.glass` painted an invisible
+    // fill behind a hairline border. `--surface-selected` is the token
+    // built for exactly this — a highlight inside a raised/overlay
+    // container, distinct from it in both themes (see its own comment in
+    // globals.css) — already proven against contrast-guard.test.ts rather
+    // than a new pairing this component would owe its own proof for.
+    <div className="mt-4 rounded-[1.5rem] border border-hairline bg-surface-selected p-5">
+      {!hideHeading && <p className="label-micro mb-2">Why this week</p>}
       {plannedHours != null && targetHours != null && (
         <p className="mb-2 text-caption text-ink-secondary">
           {`${fmt(plannedHours)} planned against ${article(targetHours)} ${fmt(

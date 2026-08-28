@@ -46,7 +46,52 @@ const ACTION_FAILED_TEXT =
 const SPORT_CHANGED_TEXT =
   "The race this plan targets has since changed sport, so this plan no longer matches it. Ask your coach for a fresh plan.";
 
-export function PlanPreviewCard({ preview }: { preview: PlanPreview }) {
+export function PlanPreviewCard({
+  preview,
+  /**
+   * Which surface this instance sits on, `PinnedAction`'s own `variant`
+   * pattern (src/components/week/pinned-action.tsx): the two call sites
+   * are NOT interchangeable, and this component is the only one of the
+   * nine that gained the `bg-surface-selected` fix in this slice that
+   * actually renders in both places (every other one is sheet-only).
+   *
+   * `"page"` (default) — the no-plan branch (train/page.tsx's `!plan`
+   * early return), which has no sheet machinery at all (see that call
+   * site's own comment) and renders directly on the page, on
+   * `--surface-base`. `.glass` (`--surface-raised`) is the right ground
+   * there, the same one every other page-level card uses.
+   *
+   * `"sheet"` — the "plan-review" sheet, whose panel is
+   * `bg-surface-overlay`. `.glass` collides there (`--surface-raised` ==
+   * `--surface-overlay` in light, both #ffffff) — `border-hairline
+   * bg-surface-selected` is the fix, THE SAME RULE the other eight
+   * sheet-only components already follow.
+   *
+   * THE RULE THIS ENCODES: `bg-surface-selected` is safe only inside a
+   * `--surface-raised`/`--surface-overlay` container, never directly on
+   * the page — `--surface-selected` equals `--surface-base` in BOTH
+   * themes (deliberately: see globals.css's own comment on it), so on
+   * the page it is not a subtle recolour, it is no ground at all.
+   */
+  variant = "page",
+}: {
+  preview: PlanPreview;
+  variant?: "page" | "sheet";
+}) {
+  // Review finding 3, task 5's fix pass: dismissing the "plan-review"
+  // sheet (Escape, backdrop, swipe) unmounts this component and drops
+  // whatever days/hours the athlete had adjusted but not yet applied via
+  // Rebuild. The LIKELY cause of an accidental dismiss — a scroll gesture
+  // on this ~1.5-screen card doubling as bottom-sheet.tsx's own drag
+  // gesture — is fixed at the shell (a drag no longer begins until the
+  // panel is scrolled to its own top), so the remaining way to lose this
+  // state is a DELIBERATE dismiss before pressing Rebuild. That is not
+  // this component's own bug to fix further: `days`/`hours` are draft
+  // ADJUSTMENTS to a value Rebuild applies, not a value anything has
+  // committed yet, the same as closing any form with unsubmitted input —
+  // IntakeForm's own fields behind the "availability" sheet are lost the
+  // same way on the same dismiss paths, and nothing in this app persists
+  // an in-progress, un-submitted numeric input across a deliberate close.
   const [days, setDays] = useState(preview.daysPerWeek);
   const [hours, setHours] = useState(preview.hoursPerWeek);
   const [pending, startTransition] = useTransition();
@@ -108,8 +153,16 @@ export function PlanPreviewCard({ preview }: { preview: PlanPreview }) {
     });
   }
 
+  // See the `variant` doc comment above for the full reasoning. Computed
+  // once, not inlined into the className template, so it is one obvious
+  // place to check when the light-mode-collision guard test below fails.
+  const surfaceClass =
+    variant === "sheet"
+      ? "border border-hairline bg-surface-selected"
+      : "glass";
+
   return (
-    <section className="glass mb-4 rounded-[1.5rem] p-5">
+    <section className={`mb-4 rounded-[1.5rem] ${surfaceClass} p-5`}>
       <p className="label-micro mb-1">Plan preview</p>
       <h2 className="mb-1 text-body font-bold text-ink-primary">
         {SPORT_LABEL[preview.sport]} plan for {preview.race.name}

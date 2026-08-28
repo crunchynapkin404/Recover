@@ -59,6 +59,7 @@ const thisWeek: WeekIntake = {
   overrideDates: [],
   verdict: { kind: "ok" },
   weekStart: "",
+  offeredMins: 0,
 };
 
 const nextWeek: WeekIntake = {
@@ -79,6 +80,7 @@ const nextWeek: WeekIntake = {
   overrideDates: [NEXT_DATES[2]],
   verdict: { kind: "ok" },
   weekStart: NEXT_MONDAY,
+  offeredMins: 60,
 };
 
 let root: Root | null = null;
@@ -287,6 +289,38 @@ describe("AvailabilityWeekSwitcher", () => {
   it("passes no function-valued props into the client switcher except the server action", () => {
     const proof: NoStrayFunctions = true;
     expect(proof).toBe(true);
+  });
+
+  // The chip trap (Task 7 shipped it once): a selection control's active
+  // segment must differ from its inactive segment in FILL, not text colour
+  // alone. This now renders only inside the "availability" sheet (slice 2
+  // task 4), whose own panel is bg-surface-overlay — the toggle used to sit
+  // directly on that panel with its OWN `bg-surface-overlay` on the active
+  // pill (identical to the panel, in both themes) and `bg-surface-raised`
+  // on the inactive one (identical to the panel in light only). Wrapped in
+  // a `border-hairline bg-surface-selected` capsule, the same shape
+  // PlanStyleSwitch/SeasonModeSwitch use for this exact "separate pills
+  // inside an overlay sheet" case, with the active segment's own
+  // `bg-surface-overlay` now read against that capsule instead of directly
+  // against the sheet.
+  it("gives the active segment a fill the inactive segment does not have, on a capsule distinct from the sheet", async () => {
+    await render();
+    const group = container.querySelector(
+      '[role="group"][aria-label="Availability week"]'
+    );
+    expect(group).not.toBeNull();
+    expect(group!.className).toContain("bg-surface-selected");
+    expect(group!.className).not.toContain("bg-surface-raised");
+
+    const buttons = Array.from(group!.querySelectorAll("button"));
+    const active = buttons.find((b) => b.textContent === "This week");
+    const inactive = buttons.find((b) => b.textContent === "Next week");
+    expect(active).toBeDefined();
+    expect(inactive).toBeDefined();
+    expect(active!.className).toContain("bg-surface-overlay");
+    expect(inactive!.className).not.toContain("bg-surface-overlay");
+    expect(inactive!.className).not.toContain("bg-surface-raised");
+    expect(active!.className).not.toBe(inactive!.className);
   });
 
   it("uses the token scale, not ad-hoc sizes or white alphas", async () => {

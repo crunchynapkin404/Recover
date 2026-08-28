@@ -25,11 +25,6 @@ import {
 } from "@/components/train/fitness-stats-row";
 import { RangeTabs } from "@/components/train/range-tabs";
 import { ViewTabs, currentYm } from "@/components/train/view-tabs";
-import {
-  Collapsible,
-  CollapsibleTrigger,
-  CollapsiblePanel,
-} from "@/components/ui/collapsible";
 import { EmptyState } from "@/components/ui/empty-state";
 import { TrainTabs } from "@/components/train/train-tabs";
 import { WeekDayList } from "@/components/train/week-day-list";
@@ -39,6 +34,8 @@ import { FuellingCard } from "@/components/train/fuelling-card";
 import { PlanStyleSwitch } from "@/components/train/plan-style-switch";
 import { SeasonModeSwitch } from "@/components/train/season-mode-switch";
 import { WeekRationale } from "@/components/week/week-rationale";
+import { WeekSheet } from "@/components/week/week-sheet";
+import { SummaryRow } from "@/components/week/summary-row";
 import { EventReadiness } from "@/components/train/event-readiness";
 import {
   HistoryList,
@@ -50,7 +47,7 @@ import {
   type FitnessTile,
 } from "@/components/train/fitness-tiles";
 import { RaceChip } from "@/components/today/race-chip";
-import { raceCard } from "@/lib/race/outlook";
+import { raceCard, weeksFromDays } from "@/lib/race/outlook";
 import { Unavailable } from "@/components/ui/unavailable";
 import { isFirstRun } from "@/lib/first-run";
 
@@ -101,8 +98,10 @@ import {
   isRange,
   retiredTabRedirect,
   TRAIN_DEFAULTS,
+  TRAIN_SHEETS,
   TRAIN_TABS,
   type TrainHref,
+  type TrainSheetName,
   type TrainTab,
 } from "@/lib/log-href";
 import {
@@ -117,6 +116,7 @@ import {
   type WeekIntake,
 } from "@/components/train/availability-week-switcher";
 import { blockMins, type AvailabilityBlock } from "@/lib/availability/types";
+import { formatAvailability } from "@/lib/availability/format";
 import { resolveWeek } from "@/lib/availability/resolve";
 import { availabilityVerdict } from "@/lib/week-plan/ctl-projection";
 import { projectWeek } from "@/lib/week-plan/project";
@@ -206,6 +206,7 @@ async function resolveWeekIntake(
     dates,
     overrideDates: overrides.map((o) => o.date),
     verdict: availabilityVerdict({ ...verdictInput, offeredMins }),
+    offeredMins,
   };
 }
 
@@ -220,6 +221,7 @@ export default async function TrainPage({
     range?: string;
     availability?: string;
     day?: string;
+    sheet?: string;
   }>;
 }) {
   const user = await requireUser();
@@ -252,24 +254,97 @@ export default async function TrainPage({
   // start the control in next-week mode on a fresh load, not only on click.
   const initialAvailabilityMode: AvailabilityWeekMode =
     sp.availability === "next" ? "next" : "this";
+  // `?sheet=` is untrusted URL input: it becomes a value this module acts
+  // on only once TRAIN_SHEETS has vouched for it, the same membership check
+  // `openDayFrom` applies to `?day=` and SheetHost applies to a UUID before
+  // either reaches a render (or, in the UUID's case, Postgres). An unknown
+  // or absent value resolves to `undefined` — no sheet renders — never a
+  // raw string carried forward into a render or a query.
+  //
+  // `?availability=next` falls back to the "availability" sheet when no
+  // `?sheet=` is present at all (an explicit `?sheet=` still wins — the `??`
+  // only fires when TRAIN_SHEETS found nothing to open). Task 4 moved
+  // AvailabilityWeekSwitcher/IntakeForm off the page and into that sheet;
+  // without this fallback, the Sunday push notification (`promptNextWeek
+  // Availability`, already shipped, deep-linking to exactly
+  // `/train?availability=next` with no `sheet=` — that URL cannot change
+  // now that it is live) and the page's own "Set next week's availability"
+  // link (`nextWeekAvailabilityHref` below, same query shape) would both
+  // land the athlete on a page with the thing they came for sealed behind
+  // an unopened sheet. Deriving it here, rather than redirecting to add
+  // `sheet=availability` to the URL, fixes every such link at once — this
+  // is also why `initialAvailabilityMode` above stays keyed on
+  // `sp.availability` directly rather than on this derived value.
+  //
+  // Gated on `tab === "week"` (review finding 3, fix pass — and M1, final
+  // whole-branch review, which widened the gate to the WHOLE expression):
+  // `sheetParam` feeds `href` below, which every tab uses to build ITS OWN
+  // links — without gating both halves, `/train?tab=history&sheet=races`
+  // (or `&availability=next`) derived a sheet name on History exactly as
+  // it would on Week, and every link History renders — including its own
+  // "Week" segment, built through the very same `href`/`resolvedHref` — silently
+  // carried `sheet=races` (or `sheet=availability`) forward, reopening
+  // that sheet the moment the athlete switched back to Week, from a URL
+  // that never named it. The fix pass this comment used to describe only
+  // gated the `??` fallback (the `?availability=next` half) and left the
+  // explicit-`?sheet=` half — `TRAIN_SHEETS.find((s) => s === sp.sheet)`
+  // — ungated, on the claim that "nothing links `?sheet=` from History":
+  // false. Week's own `TrainTabs` are built from `resolvedHref`, the same
+  // `href` this derivation feeds, so an explicit `?sheet=` on any tab
+  // leaked right back into Week's own tab link the moment the athlete
+  // landed on, say, History with `?sheet=races` still in the URL (a
+  // bookmark, a shared link, or simply not having stripped it on their
+  // own tab switch). Gating the whole expression, not just the fallback,
+  // closes both halves at once.
+  const sheetParam =
+    tab === "week"
+      ? (TRAIN_SHEETS.find((s) => s === sp.sheet) ??
+        (sp.availability === "next" ? "availability" : undefined))
+      : undefined;
 
   // One href builder for every segment, filter and range link on the page —
   // switching one axis never drops the others (see src/lib/log-href.ts).
+  // `sheet` carries the VALIDATED value, not the raw param: an invalid
+  // `?sheet=` must not propagate into every link the page builds, the same
+  // self-heal `day` still owes the raw `sp.day` it carries here (fixed only
+  // for WeekTab's own links, via `resolvedHref`, after the M1 finding).
   const href: TrainHref = (over) =>
     buildTrainHref(
-      { tab, view, month, range, sport: sportFilter ?? "", day: sp.day },
+      {
+        tab,
+        view,
+        month,
+        range,
+        sport: sportFilter ?? "",
+        day: sp.day,
+        sheet: sheetParam,
+      },
       over
     );
 
+  // Only the Week tab has sheet destinations (Task 1 of 5; the sheets
+  // render from WeekTab, which already fetched everything they show,
+  // rather than a second Today-style SheetHost re-querying it). WeekTab is
+  // called directly, not as JSX, because its overlay must reach AppShell's
+  // `overlay` slot: the shell's content wrapper is `relative z-10`, its own
+  // stacking context, so a sheet mounted inside `children` — however high
+  // its own z-index — can never rise above the sidebar/bottom-nav siblings
+  // that sit outside it (see AppShell's own doc comment on `overlay`).
+  const weekTab =
+    tab === "week"
+      ? await WeekTab({
+          userId: user.id,
+          href,
+          initialAvailabilityMode,
+          dayParam: sp.day,
+          sheetParam,
+        })
+      : null;
+
   return (
-    <AppShell user={shellUser(user)}>
-      {tab === "week" ? (
-        <WeekTab
-          userId={user.id}
-          href={href}
-          initialAvailabilityMode={initialAvailabilityMode}
-          dayParam={sp.day}
-        />
+    <AppShell user={shellUser(user)} overlay={weekTab?.overlay ?? null}>
+      {tab === "week" && weekTab ? (
+        weekTab.content
       ) : tab === "history" ? (
         <HistoryTab
           userId={user.id}
@@ -285,31 +360,30 @@ export default async function TrainPage({
   );
 }
 
-/** Shared page chrome: title, contextual subtitle/action, segmented control. */
+/**
+ * Shared page chrome: title, contextual subtitle/action, segmented control.
+ *
+ * Used to carry a `controls`/`controlsNote` pair too — a full-width row
+ * beneath the title for PlanStyleSwitch/SeasonModeSwitch, which outgrew
+ * `action`'s one-compact-element budget. Slice 2 task 2 moved both switches
+ * off the page entirely, into the "plan-setup" sheet; History and Fitness
+ * never passed either prop, so nothing else was left holding it. Removed
+ * rather than left unused — a prop with no caller is a lie about what this
+ * header can still do.
+ */
 function TrainHeader({
   subtitle,
   action,
-  controls,
-  controlsNote,
   tab,
   href,
 }: {
   subtitle?: string;
   /**
    * Sits on the title row, right-aligned. Room for ONE compact element —
-   * a chip or a small tab group. Anything more belongs in `controls`: this
-   * row cannot wrap without colliding with the title.
+   * a chip or a small tab group. Anything more risks colliding with the
+   * title on a phone.
    */
   action?: React.ReactNode;
-  /**
-   * Full-width row beneath the title, above the tabs. Wraps. This exists
-   * because the planning switches outgrew `action`: chip + Style + Season
-   * is ~300px of unshrinkable pills in a slot sized for one, so on a phone
-   * it ran off the viewport and overlapped the heading.
-   */
-  controls?: React.ReactNode;
-  /** One quiet line under `controls`, for saying what they affect. */
-  controlsNote?: string;
   tab: TrainTab;
   href: TrainHref;
 }) {
@@ -326,16 +400,6 @@ function TrainHeader({
         </div>
         {action && <div className="shrink-0">{action}</div>}
       </div>
-      {controls && (
-        <div className="mb-4">
-          <div className="flex flex-wrap items-center gap-2">{controls}</div>
-          {controlsNote && (
-            <p className="mt-1.5 text-label font-medium text-ink-muted">
-              {controlsNote}
-            </p>
-          )}
-        </div>
-      )}
       <TrainTabs active={tab} href={href} />
     </header>
   );
@@ -348,13 +412,16 @@ async function WeekTab({
   href,
   initialAvailabilityMode,
   dayParam,
+  sheetParam,
 }: {
   userId: string;
   href: TrainHref;
   initialAvailabilityMode: AvailabilityWeekMode;
   /** Raw `?day=`, untrusted — resolved against the open week via openDayFrom below. */
   dayParam: string | undefined;
-}) {
+  /** Already validated against TRAIN_SHEETS by the caller; `undefined` means no sheet is open. */
+  sheetParam: TrainSheetName | undefined;
+}): Promise<{ content: React.ReactNode; overlay: React.ReactNode }> {
   const plan = await getActivePlan(userId);
 
   // A plan the coach proposed but the athlete hasn't confirmed yet (v0.43).
@@ -444,35 +511,52 @@ async function WeekTab({
     // into a compile error (a bare `Promise<boolean>` isn't assignable to
     // `boolean`).
     const firstRun: boolean = draftPreview ? false : await isFirstRun(userId);
-    return (
-      <>
-        <TrainHeader tab="week" href={href} action={chip} />
-        {draftPreview ? (
-          <PlanPreviewCard preview={draftPreview} />
-        ) : firstRun ? (
-          <div
-            data-testid="first-run"
-            className="flex min-h-[60svh] items-center justify-center px-6"
-          >
-            <div className="mx-auto max-w-sm space-y-4 text-center">
-              <Unavailable
-                full
-                state={{
-                  kind: "missing_input",
-                  needs: "wellness data before it can plan your week",
-                  fix: {
-                    label: "Connect a device or log manually",
-                    href: "/",
-                  },
-                }}
-              />
+    return {
+      content: (
+        <>
+          <TrainHeader tab="week" href={href} action={chip} />
+          {draftPreview ? (
+            // Deliberately still inline, not the banner+sheet the with-plan
+            // call site below gets (slice 2, task 5). That banner exists
+            // because the card was pushing an open WEEK below the fold; on
+            // this branch there is no week — `firstRun`/`PlanEmpty` are the
+            // only other things this ternary could show, and draftPreview
+            // here is mutually exclusive with both, so the card is not
+            // burying anything, it IS the branch's entire content. It also
+            // has nowhere to send a banner: this return hard-codes
+            // `overlay: null` below regardless of `sheetParam` (no `week`,
+            // no `resolvedHref`, none of the sheet machinery the with-plan
+            // branch builds exists here), so a `?sheet=plan-review` link
+            // would open a sheet this branch cannot render.
+            <PlanPreviewCard preview={draftPreview} />
+          ) : firstRun ? (
+            <div
+              data-testid="first-run"
+              className="flex min-h-[60svh] items-center justify-center px-6"
+            >
+              <div className="mx-auto max-w-sm space-y-4 text-center">
+                <Unavailable
+                  full
+                  state={{
+                    kind: "missing_input",
+                    needs: "wellness data before it can plan your week",
+                    fix: {
+                      label: "Connect a device or log manually",
+                      href: "/",
+                    },
+                  }}
+                />
+              </div>
             </div>
-          </div>
-        ) : (
-          <PlanEmpty />
-        )}
-      </>
-    );
+          ) : (
+            <PlanEmpty />
+          )}
+        </>
+      ),
+      // No open week exists yet on this branch, so none of the five sheet
+      // destinations have anything to show.
+      overlay: null,
+    };
   }
 
   const week = await getOpenWeekPlan(userId);
@@ -579,18 +663,25 @@ async function WeekTab({
 
     // Weeks until the event, counted from this week's Monday so it agrees
     // with the rest of the page rather than drifting by a day mid-week.
+    // Days first (same shape as outlook.ts's own `daysOut`), then
+    // `weeksFromDays` — task 6a: this used to round the ms/week figure
+    // directly, which overstated weeks remaining (32 days out read "5
+    // weeks", not 4) in exactly the direction that hurts a taper.
+    // `weeksToRace` below calls the same `weeksFromDays`, so the two
+    // cannot independently drift back to rounding.
     const raceDate = volumeInputs.targetRace?.date ?? null;
-    const weeksUntilEvent =
+    const daysUntilEvent =
       raceDate == null
         ? null
-        : Math.max(
-            0,
-            Math.round(
-              (new Date(raceDate + "T00:00:00").getTime() -
-                new Date(week.weekStart + "T00:00:00").getTime()) /
-                (7 * 24 * 60 * 60 * 1000)
-            )
+        : Math.round(
+            (new Date(raceDate + "T00:00:00").getTime() -
+              new Date(week.weekStart + "T00:00:00").getTime()) /
+              86_400_000
           );
+    const weeksUntilEvent =
+      daysUntilEvent == null
+        ? null
+        : Math.max(0, weeksFromDays(daysUntilEvent));
 
     // weeksUntilEvent may be null (no target race date) — feasibilityFor
     // handles that itself and states that exact reason, so no separate
@@ -830,6 +921,23 @@ async function WeekTab({
     };
   }
 
+  // The "Availability" row's badge: the week's offered hours. This week's
+  // total when it exists (the row's default landing view, matching
+  // AvailabilityWeekSwitcher's own `initialMode` default of "this"); next
+  // week's when Monday has completed and only that half remains. Omitted
+  // rather than shown as "Rest" when nothing is offered yet — the same "no
+  // badge over an invented string" rule Races follows for zero races.
+  //
+  // Review finding (fix pass): this used to re-reduce `resolved` itself —
+  // the identical figure `resolveWeekIntake` above already computed as
+  // `offeredMins` (to hand `availabilityVerdict` exactly this number) and
+  // discarded. Reads it off `WeekIntake` instead of re-deriving it.
+  const availabilityWeek = intake?.thisWeek ?? intake?.nextWeek ?? null;
+  const availabilityBadge =
+    availabilityWeek && availabilityWeek.offeredMins > 0
+      ? formatAvailability(availabilityWeek.offeredMins)
+      : undefined;
+
   // What the athlete actually trained, per local day, from the same
   // derivation the week plan books from — so the screen and the stored
   // numbers cannot disagree. They did before v0.44: this view was right and
@@ -855,13 +963,14 @@ async function WeekTab({
   //   (lib/week-plan/volume.ts) for why, and its tests for the arithmetic
   //   this used to carry inline, unpinned.
   // - weeksToRace is the same countdown the race chip prints as "N days",
-  //   turned into weeks; no second query for a figure this function already
-  //   has for `card`.
+  //   turned into weeks (rounded DOWN — task 6a, see `weeksFromDays`'s own
+  //   doc comment — the same function `weeksUntilEvent` above calls, so
+  //   the two figures cannot independently drift back to rounding); no
+  //   second query for a figure this function already has for `card`.
   const progressPct = week
     ? seasonProgressPct(week.skeletonWeek, plan.weeksTotal)
     : null;
-  const weeksToRace =
-    card.daysOut != null ? Math.round(card.daysOut / 7) : null;
+  const weeksToRace = card.daysOut != null ? weeksFromDays(card.daysOut) : null;
   const raceName = card.race?.name ?? null;
 
   // plan.raceDate/raceType have always meant the plan's FINAL target
@@ -883,93 +992,494 @@ async function WeekTab({
     .filter(Boolean)
     .join(" · ");
 
-  return (
-    <>
-      <TrainHeader
-        tab="week"
-        href={resolvedHref}
-        subtitle={subtitle}
-        action={chip}
-        // Both switches write plan constraints and stop there — the open
-        // week is already materialized in week_plans and nothing recomputes
-        // it, so this week keeps the sessions it has. The next-week preview
-        // below DOES re-read constraints (projectWeek), so the athlete can
-        // see the effect immediately; it just isn't where they might look
-        // first. Saying so is cheaper than the alternative reading, which is
-        // that the control is broken.
-        controlsNote="Applies from next week — this week is already planned."
-        controls={
-          <>
-            <PlanStyleSwitch
-              effectiveStyle={constraints.planStyle}
-              action={submitPlanStyleQuick}
-            />
-            <SeasonModeSwitch
-              effectiveSeasonMode={constraints.seasonMode}
-              reentryStage={constraints.reentryStage}
-              action={submitSeasonModeQuick}
-            />
-            {/*
-              WeekAdjustmentSwitch (v0.56–v0.60) is deliberately not rendered.
-              Its action writes trainingBlocks.targetLoadTotal, but the open
-              week the athlete actually trains is materialized from a target
-              periodize() recomputes on the spot — service.ts says so outright:
-              "Recomputed fresh, never read as authority". The persisted
-              weekPlans row is not recomputed either, so pressing "Skip week"
-              left this week's sessions untouched.
+  // The "why this week" destination (Task 1 of 5): the rationale, the
+  // adjustments list, event readiness and the race-pacing prose, in that
+  // order — everything the page used to only explain about this week's
+  // shape, now behind the one row above rather than open on the page by
+  // default. Built from data WeekTab already fetched for the page itself,
+  // so the sheet can never show a different number than the row that opens
+  // it (the same reason this whole slice renders sheets from WeekTab
+  // rather than a second SheetHost re-querying it).
+  // Gated on `week` as well as `sheetParam`: with no open week, the sheet
+  // would hold at most the race-pacing prose (rationale/adjustments/
+  // eventReadiness are all unset) and often nothing at all — and no row on
+  // the page links here in that state either (the SummaryRow below is
+  // itself gated on `rationale`, which needs `week`), so an empty dialog
+  // would be reachable only by typing the URL directly.
+  const whyWeekSheet =
+    sheetParam === "why-week" && week ? (
+      <WeekSheet title="Why this week" closeHref={resolvedHref({ sheet: "" })}>
+        {rationale && (
+          <WeekRationale
+            reasons={rationale.reasons}
+            targetHours={rationale.targetHours}
+            plannedHours={rationale.plannedHours}
+            shortfall={rationale.shortfall}
+            raceName={rationale.raceName}
+            source={rationale.source}
+            // The sheet's own <h2> (above) already reads "Why this week" —
+            // WeekRationale's identical micro-label directly beneath it
+            // would repeat the same three words twice in a row.
+            hideHeading
+          />
+        )}
 
-              That made the buttons worse than inert: targetLoadTotal IS read
-              by the blocks table below, get_training_plan, get_plan_drift and
-              race forecasting, so the number moved everywhere the plan is
-              reported and nowhere it is executed. A live press had already
-              left one athlete's block at 0 against a real week of 259.
+        {adjustments.length > 0 && (
+          <div className="mt-4">
+            <p className="label-micro mb-2">
+              What changed &amp; why · {adjustments.length}
+            </p>
+            <ul>
+              {adjustments.map((a) => (
+                <li
+                  key={a.id}
+                  className="border-b border-hairline py-2.5 last:border-0"
+                >
+                  <p className="text-caption text-ink-secondary">
+                    <span aria-hidden className="mr-1.5 text-ink-muted">
+                      ↻
+                    </span>
+                    {a.reason}
+                  </p>
+                  <p className="mt-0.5 pl-4 text-label text-ink-muted">
+                    {a.createdAt.toLocaleString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
-              Re-enabling this needs a decision, not a patch: either the action
-              re-materializes the open week, or the copy describes the skeleton
-              it actually edits. Until then the controls stay off rather than
-              promising "Ease -30% · Deload -50%" and doing none of it.
-            */}
-          </>
-        }
-      />
+        {eventReadiness && (
+          <EventReadiness
+            raceName={eventReadiness.raceName}
+            sport={eventReadiness.sport}
+            feasibility={eventReadiness.feasibility}
+            demand={eventReadiness.demand}
+          />
+        )}
 
-      {/* Only ever set once a plan and an open week both exist — see the
+        {/* Only the prose moves — the chip itself stays on the page next to
+            `goalNote`. Rendered here rather than inside RaceChip: the chip
+            is shared with Today, which is out of scope for pacing, and a
+            target, a band and an assumption do not fit a chip — the
+            assumption is what a chip would drop first, and it is the half
+            that matters. */}
+        {card.race && card.pacing?.available && (
+          <p
+            data-testid="race-pacing"
+            className="mt-4 text-label text-ink-muted"
+          >
+            <span className="font-bold text-ink-secondary">
+              {card.pacing.value.sport === "Bike"
+                ? `Target ${card.pacing.value.targetWatts} W · hold ${card.pacing.value.lowWatts}–${card.pacing.value.highWatts} W`
+                : `Target ${fmtPace(card.pacing.value.targetSecPerKm)} · hold ${fmtPace(card.pacing.value.lowSecPerKm)}–${fmtPace(card.pacing.value.highSecPerKm)}`}
+            </span>{" "}
+            {card.pacing.why} ({card.pacing.confidence} confidence)
+          </p>
+        )}
+        {/* Every non-available kind, not just not_applicable. The seeded
+            athlete has no threshold pace, so this is missing_input — which
+            carries a fix link, and rendering nothing for it would throw
+            away the whole point of the vocabulary. <Unavailable> is the
+            house component for this and handles
+            calibrating/missing_input/not_applicable uniformly. */}
+        {card.race && card.pacing && !card.pacing.available && (
+          <p className="mt-4 text-label text-ink-muted">
+            Race pacing: <Unavailable state={card.pacing} />
+          </p>
+        )}
+      </WeekSheet>
+    ) : null;
+
+  // The "plan setup" destination (slice 2, task 2): PlanStyleSwitch and
+  // SeasonModeSwitch (with the note explaining them), the Standard week
+  // Collapsible's contents and the Remaining skeleton Collapsible's
+  // contents — the two switches that used to render above the tabs
+  // (the first thing seen, the last thing touched) and the two
+  // Collapsibles that used to sit at the bottom of the page, now behind
+  // the one row below rather than open by default in either place.
+  // Not gated on `week`, unlike whyWeekSheet above: the switches and the
+  // remaining skeleton were both reachable even with no open week before
+  // this move (only Standard week's own content was — `week &&` below
+  // keeps that same nesting), so gating the whole sheet on `week` would
+  // make the switches unreachable in that state, deleting something the
+  // engine still knows.
+  const planSetupSheet =
+    sheetParam === "plan-setup" ? (
+      <WeekSheet title="Plan setup" closeHref={resolvedHref({ sheet: "" })}>
+        <div className="flex flex-wrap items-center gap-2">
+          <PlanStyleSwitch
+            effectiveStyle={constraints.planStyle}
+            action={submitPlanStyleQuick}
+          />
+          <SeasonModeSwitch
+            effectiveSeasonMode={constraints.seasonMode}
+            reentryStage={constraints.reentryStage}
+            action={submitSeasonModeQuick}
+          />
+          {/*
+          WeekAdjustmentSwitch (v0.56–v0.60) is deliberately not rendered.
+          Its action writes trainingBlocks.targetLoadTotal, but the open
+          week the athlete actually trains is materialized from a target
+          periodize() recomputes on the spot — service.ts says so outright:
+          "Recomputed fresh, never read as authority". The persisted
+          weekPlans row is not recomputed either, so pressing "Skip week"
+          left this week's sessions untouched.
+
+          That made the buttons worse than inert: targetLoadTotal IS read
+          by the blocks table below, get_training_plan, get_plan_drift and
+          race forecasting, so the number moved everywhere the plan is
+          reported and nowhere it is executed. A live press had already
+          left one athlete's block at 0 against a real week of 259.
+
+          Re-enabling this needs a decision, not a patch: either the action
+          re-materializes the open week, or the copy describes the skeleton
+          it actually edits. Until then the controls stay off rather than
+          promising "Ease -30% · Deload -50%" and doing none of it.
+        */}
+        </div>
+        {/* Both switches write plan constraints and stop there — the open
+          week is already materialized in week_plans and nothing recomputes
+          it, so this week keeps the sessions it has. The next-week preview
+          (WeekDayList's `nextWeek` prop) DOES re-read constraints
+          (projectWeek), so the athlete can see the effect immediately; it
+          just isn't where they might look first. Saying so is cheaper than
+          the alternative reading, which is that the control is broken. */}
+        <p className="mt-1.5 text-label font-medium text-ink-muted">
+          Applies from next week — this week is already planned.
+        </p>
+
+        {/* Same `week &&` gate the Standard week Collapsible carried before
+          this move — `standardWeek` itself doesn't depend on `week`, but
+          its own trigger only ever rendered once an open week existed. */}
+        {week && (
+          <div className="mt-4">
+            <StandardWeek defaults={standardWeek} sports={blockSheetSports} />
+          </div>
+        )}
+
+        {remaining.length > 0 && (
+          <div className="mt-4">
+            <p className="label-micro mb-2">
+              Remaining skeleton · {remaining.length}
+            </p>
+            <div className="hide-scrollbar overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="text-label font-bold uppercase tracking-[0.15em] text-ink-muted">
+                    <th className="whitespace-nowrap px-4 py-2">Week</th>
+                    <th className="whitespace-nowrap px-4 py-2">Phase</th>
+                    <th className="whitespace-nowrap px-4 py-2 text-right">
+                      Target load
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {remaining.map((b) => {
+                    // The open week (week?.skeletonWeek) has a materialized
+                    // effective target that supersedes the block's un-tapered
+                    // skeleton value — every other row here is a future week
+                    // with no weekPlans row yet, so its skeleton value is all
+                    // there is. See week-plan/volume.ts's weekTargetLoad().
+                    const resolved =
+                      b.weekNumber === (week?.skeletonWeek ?? -1)
+                        ? weekTargetLoad({
+                            effectiveTarget: week?.effectiveTarget ?? null,
+                            blockTarget: b.targetLoadTotal,
+                          })
+                        : null;
+                    const targetLoad = resolved
+                      ? resolved.available
+                        ? resolved.value
+                        : null
+                      : b.targetLoadTotal;
+                    return (
+                      <tr
+                        key={b.weekNumber}
+                        className="border-t border-hairline"
+                      >
+                        <td className="px-4 py-2 font-numeric text-label text-ink-secondary">
+                          {b.weekNumber}
+                        </td>
+                        {/* Task 12 per-pair override: pre-migration the
+                          week-number cell (above) was 80% white and
+                          phase/target were 60% — a genuine
+                          alpha pair that flattened onto one token in
+                          Task 6. Phase and target move to ink-muted;
+                          the week number keeps ink-secondary. */}
+                        <td className="px-4 py-2 text-label capitalize text-ink-muted">
+                          {b.phase}
+                        </td>
+                        <td className="px-4 py-2 text-right font-numeric text-label text-ink-muted">
+                          {targetLoad != null ? Math.round(targetLoad) : "—"}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </WeekSheet>
+    ) : null;
+
+  // The "races" destination (slice 2, task 3): RacesSection (743 lines —
+  // add / edit demand / set status / remove races) used to render from two
+  // mutually exclusive call sites below the plan-setup row — a
+  // `Collapsible`-wrapped list when `races.length > 0`, a bare
+  // `<RacesSection/>` when it was 0. Both are replaced by the one row that
+  // opens this sheet. `hideHeading`: the old Collapsible trigger supplied
+  // "Races" as its own label; here the sheet's own `<h2>` does, exactly the
+  // role task 1/2 already gave it for WeekRationale/StandardWeek. Not gated
+  // on `week`, matching both old call sites — races were reachable
+  // whenever a plan existed (this whole function body is past the
+  // `if (!plan) return` fork), open week or not.
+  const racesSheet =
+    sheetParam === "races" ? (
+      <WeekSheet title="Races" closeHref={resolvedHref({ sheet: "" })}>
+        <RacesSection races={raceListItems} hideHeading />
+      </WeekSheet>
+    ) : null;
+
+  // The "availability" destination (slice 2, task 4 — the one that fixes
+  // the measured regression): AvailabilityWeekSwitcher and both IntakeForms
+  // used to render inline below the day list, showing THIS week's seven
+  // days a second time next to WeekStrip's own seven. Moved unchanged
+  // (slice 3 replaces their innards with a drag timeline; redesigning them
+  // here would double that work) behind this one row.
+  //
+  // `closeHref` clears `availability` alongside `sheet` — not just
+  // `resolvedHref({ sheet: "" })` like the other three sheets. `sheetParam`
+  // derives "availability" from `?availability=next` above whenever no
+  // `?sheet=` is present; leaving `availability=next` in the URL after an
+  // explicit close would make the very next render re-derive the same
+  // sheet open again, so the X button, the backdrop, Escape and swipe-
+  // dismiss — all four route through this one `closeHref` — would look
+  // like they do nothing.
+  //
+  // Gated on `intake`, exactly as the section this replaces was: `intake`
+  // is null only when there is nothing to show (Monday completed and no
+  // next-week projection) — WeekTab's `SummaryRow` below carries the same
+  // gate, so there is never a row pointing at an empty sheet.
+  // The "plan review" destination (slice 2, task 5): PlanPreviewCard — 21
+  // rows, ~1.5 phone screens — moved off the page and behind the banner
+  // below it. Unlike the other three sheets above, this one didn't need a
+  // richer destination; it needed to stop being the FIRST thing on the
+  // page while a draft was pending, since it rendered directly under
+  // SeasonProgress and pushed the athlete's actual open week (WeekStrip,
+  // the day list, everything below) beneath the fold. Gated on
+  // `draftPreview`, the same shape as `whyWeekSheet`'s `week` gate above:
+  // no draft, nothing for this sheet to hold, and the banner that links
+  // here is itself gated on `draftPreview` too, so there is never a row
+  // pointing at an empty sheet.
+  const planReviewSheet =
+    sheetParam === "plan-review" && draftPreview ? (
+      <WeekSheet title="Plan review" closeHref={resolvedHref({ sheet: "" })}>
+        <PlanPreviewCard preview={draftPreview} variant="sheet" />
+      </WeekSheet>
+    ) : null;
+
+  const availabilitySheet =
+    sheetParam === "availability" && intake ? (
+      <WeekSheet
+        title="Availability"
+        closeHref={resolvedHref({ sheet: "", availability: "" })}
+      >
+        {intake.thisWeek && intake.nextWeek ? (
+          <AvailabilityWeekSwitcher
+            // See the switcher's own call site doc (unchanged from before
+            // the move) for why this key is still needed even now that the
+            // whole tree only mounts while the sheet is open: `sheetParam`
+            // can stay "availability" across a navigation that only flips
+            // `?availability=`, e.g. the push notification landing while an
+            // explicit `?sheet=availability` is already in the URL, which
+            // does not by itself remount this component.
+            key={initialAvailabilityMode}
+            thisWeek={intake.thisWeek}
+            nextWeek={intake.nextWeek}
+            initialMode={initialAvailabilityMode}
+            sports={blockSheetSports}
+            action={submitAvailability}
+          />
+        ) : intake.nextWeek ? (
+          <IntakeForm
+            heading="Next week's availability"
+            resolved={intake.nextWeek.resolved}
+            dates={intake.nextWeek.dates}
+            overrideDates={intake.nextWeek.overrideDates}
+            verdict={intake.nextWeek.verdict}
+            sports={blockSheetSports}
+            action={submitAvailability}
+            weekStart={intake.nextWeek.weekStart}
+          />
+        ) : intake.thisWeek ? (
+          <IntakeForm
+            resolved={intake.thisWeek.resolved}
+            dates={intake.thisWeek.dates}
+            overrideDates={intake.thisWeek.overrideDates}
+            verdict={intake.thisWeek.verdict}
+            sports={blockSheetSports}
+            action={submitAvailability}
+          />
+        ) : null}
+      </WeekSheet>
+    ) : null;
+
+  // Review finding 3 on ded5f64 (Minor): `overlay: whyWeekSheet ??
+  // planSetupSheet` was correct — the two params are mutually exclusive —
+  // but grows one `??` per task, and tasks 3-5 are all still coming. A map
+  // keyed on `sheetParam` means each of them adds a key here instead of
+  // another `??`. Each entry is still independently gated above (e.g.
+  // whyWeekSheet is null unless `sheetParam === "why-week" && week`), so
+  // indexing by `sheetParam` picks the one real overlay. Every TRAIN_SHEETS
+  // member has an entry as of task 5 ("plan-review" was the last); the `??
+  // null` below is what a future retired destination would fall through to,
+  // not a gap this map still has.
+  const sheetOverlays: Partial<Record<TrainSheetName, React.ReactNode>> = {
+    "why-week": whyWeekSheet,
+    "plan-setup": planSetupSheet,
+    races: racesSheet,
+    availability: availabilitySheet,
+    "plan-review": planReviewSheet,
+  };
+
+  // The page's one pinned primary action (review finding 1, task 4's fix
+  // pass: IntakeForm's own "Confirm week" submit moved into the
+  // "availability" sheet with the form it terminates, and the page was
+  // left with none — the athlete's headline task went from a permanently
+  // visible button to two taps and a scroll). Link-shaped, not a submit:
+  // AvailabilityWeekSwitcher mounts this week's and next week's IntakeForm
+  // at once, toggled by client-only state, so there is no single form a
+  // page-level button could bind its `formAction` to — see PinnedAction's
+  // own `LinkProps` doc comment. The spec's own pinned-label list already
+  // includes a pure-navigation entry ("Set next week's availability")
+  // alongside the two submits, so this isn't a workaround, it's the shape
+  // the spec described.
+  //
+  // The label follows the tense the athlete is actually in — a button
+  // that still says "Set this week's availability" after the athlete
+  // confirmed on Monday is noise, not a shortcut:
+  //   - this week's half is still open (Monday hasn't completed it) AND
+  //     unconfirmed → "Set this week's availability", landing on the
+  //     sheet in its default (this-week) mode.
+  //   - otherwise, whenever a next week is still worth setting →
+  //     "Set next week's availability", reusing `nextWeekAvailabilityHref`
+  //     verbatim rather than re-deriving the identical link the rolling
+  //     day list's own CTA already builds above.
+  //   - neither applies → no label, so the bar does not render at all.
+  //     `intake` being non-null already guarantees `thisWeek` or
+  //     `nextWeek` is set (see its own assembly above: the whole block is
+  //     gated on `!mondayCompleted || projected`), so this is a defensive
+  //     fallback rather than a state this app's own invariants can
+  //     currently reach — kept because "hide when there is nothing behind
+  //     the link" is the same rule the "Availability" `SummaryRow` below
+  //     already lives by, not a new one invented for this button.
+  //
+  // I2, final whole-branch review: this used to say "Confirm week" — a
+  // claim the tap itself never honoured, since PinnedAction renders a
+  // `<Link>` here (see its own `LinkProps` doc comment above), not a
+  // submit; the real "Confirm week" button is IntakeForm's, inside the
+  // sheet this link only navigates to. An athlete who tapped it got an
+  // editor, not a confirmation, and then had to press a SECOND,
+  // identically-labelled control to do what the first one claimed.
+  // Renamed to the same imperative-navigation phrasing the sibling
+  // "Set next week's availability" label already uses (and the spec's
+  // own pinned-label list already sanctions) — a link-shaped pinned
+  // action promises to take you somewhere, never to have done something
+  // on your behalf. `pinnedAvailabilityThisWeek` also drives whether the
+  // "Availability" `SummaryRow` below renders at all: in this exact
+  // state its href is byte-identical to this link's, so showing both was
+  // two controls to one destination (option b of the two the review
+  // offered; see the row's own comment for why b over a).
+  const pinnedAvailabilityThisWeek =
+    !week?.availabilityConfirmedAt && !!intake?.thisWeek;
+  const pinnedAvailabilityLabel = pinnedAvailabilityThisWeek
+    ? "Set this week's availability"
+    : intake?.nextWeek
+      ? "Set next week's availability"
+      : null;
+  const pinnedAvailabilityHref = pinnedAvailabilityThisWeek
+    ? resolvedHref({ sheet: "availability" })
+    : nextWeekAvailabilityHref;
+
+  return {
+    content: (
+      <>
+        <TrainHeader
+          tab="week"
+          href={resolvedHref}
+          subtitle={subtitle}
+          action={chip}
+        />
+
+        {/* Only ever set once a plan and an open week both exist — see the
           `verdict` const above. Renders nothing (not a fallback sentence)
           whenever verdictLine itself declines to make a claim: nothing is
           always better than a cheerful lie. */}
-      {verdict && (
-        <p className="mb-4 text-body font-bold text-ink-primary">
-          {verdictNode(verdict.text, verdict.emphasis)}
-        </p>
-      )}
-      <SeasonProgress
-        progressPct={progressPct}
-        weeksToRace={weeksToRace}
-        raceName={raceName}
-      />
+        {verdict && (
+          <p className="mb-4 text-body font-bold text-ink-primary">
+            {verdictNode(verdict.text, verdict.emphasis)}
+          </p>
+        )}
+        <SeasonProgress
+          progressPct={progressPct}
+          weeksToRace={weeksToRace}
+          raceName={raceName}
+        />
 
-      {draftPreview && <PlanPreviewCard preview={draftPreview} />}
+        {/* PlanPreviewCard itself moved into the "plan-review" sheet above
+          (slice 2, task 5) — this banner is the one row that replaces it.
+          It used to render here directly, 21 rows deep, pushing
+          everything below (WeekStrip, the day list, the rest of this
+          branch) below the fold for as long as the draft stayed
+          unconfirmed.
+          No manual `hover:bg-surface-overlay` here (review finding 5):
+          `--glass-bg` resolves to `--surface-raised`, which equals
+          `--surface-overlay` in light mode (both #ffffff), so that utility
+          was a no-op there — and it was also redundant even where it did
+          work, since `.glass:hover` (globals.css) already gives every
+          glass row its own theme-safe hover affordance (a lift + shadow),
+          the same one SummaryRow's identical `.glass` link rows rely on
+          without any hover utility of their own. */}
+        {draftPreview && (
+          <Link
+            href={resolvedHref({ sheet: "plan-review" })}
+            className="mb-4 flex items-center justify-between gap-3 rounded-[14px] glass px-3.5 py-2.5 text-caption text-ink-secondary"
+          >
+            <span>A {draftPreview.weeksTotal}-week plan is ready</span>
+            <span className="shrink-0 text-label font-bold text-accent">
+              Review →
+            </span>
+          </Link>
+        )}
 
-      {week ? (
-        <>
-          <section className="mb-4">
-            <WeekStrip
+        {week ? (
+          <>
+            <section className="mb-4">
+              <WeekStrip
+                days={week.days}
+                marks="bars"
+                selectedDate={openDate}
+                hrefForDay={(date) => resolvedHref({ day: date })}
+              />
+            </section>
+
+            <WeekDayList
               days={week.days}
-              marks="bars"
-              selectedDate={openDate}
-              hrefForDay={(date) => resolvedHref({ day: date })}
+              today={todayYmd}
+              openDate={openDate}
+              nextWeek={nextWeekPreview}
+              actuals={dayActuals}
             />
-          </section>
 
-          <WeekDayList
-            days={week.days}
-            today={todayYmd}
-            openDate={openDate}
-            nextWeek={nextWeekPreview}
-            actuals={dayActuals}
-          />
-
-          {/* C1, final whole-branch review: this used to bind to
+            {/* C1, final whole-branch review: this used to bind to
               todaySlot/todayYmd while rendering directly beneath the OPEN
               day's row (WeekDayList, just above). Task 4 moved the open day
               off "today" everywhere else on this tab — the verdict, the
@@ -978,299 +1488,158 @@ async function WeekTab({
               Wednesday's own fuelling instead (or nothing, when Wednesday
               was a rest day). The spec (§3, "The week card") puts fuelling
               INSIDE the open day; openDaySlot/openDate is that day. */}
-          {openDaySlot && openDaySlot.workouts.length > 0 && (
-            <FuellingCard
-              date={openDate}
-              workouts={openDaySlot.workouts}
-              bodyMassKg={bodyMassKg}
-            />
-          )}
+            {openDaySlot && openDaySlot.workouts.length > 0 && (
+              <FuellingCard
+                date={openDate}
+                workouts={openDaySlot.workouts}
+                bodyMassKg={bodyMassKg}
+              />
+            )}
 
-          {rationale && (
-            <WeekRationale
-              reasons={rationale.reasons}
-              targetHours={rationale.targetHours}
-              plannedHours={rationale.plannedHours}
-              shortfall={rationale.shortfall}
-              raceName={rationale.raceName}
-              source={rationale.source}
-            />
-          )}
+            {/* WeekRationale, EventReadiness, the adjustments list and the
+              race-pacing prose all moved into the "why-week" sheet below —
+              this is the one row that replaces all four (slice 2, task 1).
+              Gated on `rationale`, exactly as WeekRationale's own render
+              used to be: both are set only once an open week exists. */}
+            {rationale && (
+              <div className="mb-4">
+                <SummaryRow
+                  label="Why this week"
+                  badge={
+                    adjustments.length > 0
+                      ? adjustments.length === 1
+                        ? "1 change"
+                        : `${adjustments.length} changes`
+                      : undefined
+                  }
+                  href={resolvedHref({ sheet: "why-week" })}
+                />
+              </div>
+            )}
 
-          {eventReadiness && (
-            <EventReadiness
-              raceName={eventReadiness.raceName}
-              sport={eventReadiness.sport}
-              feasibility={eventReadiness.feasibility}
-              demand={eventReadiness.demand}
-            />
-          )}
-
-          {card.race && (
-            <>
-              {/* The chip's own mb-6 moved to its call sites in v0.99 slice 1
+            {card.race && (
+              <>
+                {/* The chip's own mb-6 moved to its call sites in v0.99 slice 1
                   (Today's redesign owns block spacing there). Train is a later
                   slice, and the goalNote below is tuned to collapse against
                   this 24px — without it the note is pulled onto the chip. */}
-              <div className="mb-6">
-                <RaceChip {...card} />
-              </div>
-              {card.race.goalNote && (
-                <p className="-mt-5 mb-6 px-1 text-label text-ink-muted">
-                  {card.race.goalNote}
-                </p>
-              )}
-              {/* Rendered here rather than inside RaceChip: the chip is shared
-                  with Today, which is out of scope for pacing, and a target, a
-                  band and an assumption do not fit a chip — the assumption is
-                  what a chip would drop first, and it is the half that
-                  matters. */}
-              {card.pacing?.available && (
-                <p
-                  data-testid="race-pacing"
-                  className="-mt-5 mb-6 px-1 text-label text-ink-muted"
-                >
-                  <span className="font-bold text-ink-secondary">
-                    {card.pacing.value.sport === "Bike"
-                      ? `Target ${card.pacing.value.targetWatts} W · hold ${card.pacing.value.lowWatts}–${card.pacing.value.highWatts} W`
-                      : `Target ${fmtPace(card.pacing.value.targetSecPerKm)} · hold ${fmtPace(card.pacing.value.lowSecPerKm)}–${fmtPace(card.pacing.value.highSecPerKm)}`}
-                  </span>{" "}
-                  {card.pacing.why} ({card.pacing.confidence} confidence)
-                </p>
-              )}
-              {/* Every non-available kind, not just not_applicable. The
-                  seeded athlete has no threshold pace, so this is
-                  missing_input — which carries a fix link, and rendering
-                  nothing for it would throw away the whole point of the
-                  vocabulary. <Unavailable> is the house component for this
-                  and handles calibrating/missing_input/not_applicable
-                  uniformly. */}
-              {card.pacing && !card.pacing.available && (
-                <p className="-mt-5 mb-6 px-1 text-label text-ink-muted">
-                  Race pacing: <Unavailable state={card.pacing} />
-                </p>
-              )}
-            </>
-          )}
-
-          {adjustments.length > 0 && (
-            <div className="mb-5">
-              <Collapsible>
-                <CollapsibleTrigger className="rounded-[18px] p-4">
-                  <span className="text-label font-bold uppercase tracking-[0.15em] text-ink-secondary">
-                    What changed &amp; why · {adjustments.length}
-                  </span>
-                </CollapsibleTrigger>
-                <CollapsiblePanel>
-                  <ul className="px-4 pb-4 pt-3">
-                    {adjustments.map((a) => (
-                      <li
-                        key={a.id}
-                        className="border-b border-hairline py-2.5 last:border-0"
-                      >
-                        <p className="text-caption text-ink-secondary">
-                          <span aria-hidden className="mr-1.5 text-ink-muted">
-                            ↻
-                          </span>
-                          {a.reason}
-                        </p>
-                        <p className="mt-0.5 pl-4 text-label text-ink-muted">
-                          {a.createdAt.toLocaleString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </p>
-                      </li>
-                    ))}
-                  </ul>
-                </CollapsiblePanel>
-              </Collapsible>
-            </div>
-          )}
-
-          {intake && (
-            <section className="mb-6">
-              {intake.thisWeek && intake.nextWeek ? (
-                <AvailabilityWeekSwitcher
-                  // `initialMode` only seeds `useState` on the FIRST mount —
-                  // a prop change on its own does nothing once mounted. The
-                  // "Set next week's availability" link below is now a
-                  // `Link` (Finding 3), which does a client-side transition
-                  // that keeps this component instance alive across the
-                  // `?availability=` change rather than a full reload
-                  // remounting it fresh. Keying on the mode forces exactly
-                  // that remount when the URL's mode actually changes, so
-                  // the link still lands in next-week mode after the
-                  // switch away from a plain `<a>`.
-                  key={initialAvailabilityMode}
-                  thisWeek={intake.thisWeek}
-                  nextWeek={intake.nextWeek}
-                  initialMode={initialAvailabilityMode}
-                  sports={blockSheetSports}
-                  action={submitAvailability}
-                />
-              ) : intake.nextWeek ? (
-                // Monday has completed, so this week's half is frozen — but
-                // a projection exists, so next week must still be enterable
-                // (the fix this section exists for: the "Set next week's
-                // availability" link above must always land on a real
-                // control, not a page with nothing to activate). No
-                // switcher, no "this week" option — just next week's plain
-                // form, matching the switcher's own next-week heading.
-                <IntakeForm
-                  heading="Next week's availability"
-                  resolved={intake.nextWeek.resolved}
-                  dates={intake.nextWeek.dates}
-                  overrideDates={intake.nextWeek.overrideDates}
-                  verdict={intake.nextWeek.verdict}
-                  sports={blockSheetSports}
-                  action={submitAvailability}
-                  weekStart={intake.nextWeek.weekStart}
-                />
-              ) : intake.thisWeek ? (
-                <IntakeForm
-                  resolved={intake.thisWeek.resolved}
-                  dates={intake.thisWeek.dates}
-                  overrideDates={intake.thisWeek.overrideDates}
-                  verdict={intake.thisWeek.verdict}
-                  sports={blockSheetSports}
-                  action={submitAvailability}
-                />
-              ) : null}
-            </section>
-          )}
-
-          <div className="mb-6">
-            <Collapsible>
-              <CollapsibleTrigger className="rounded-[18px] p-4">
-                <span className="text-label font-bold uppercase tracking-[0.15em] text-ink-secondary">
-                  Standard week
-                </span>
-              </CollapsibleTrigger>
-              <CollapsiblePanel>
-                <div className="px-1 pb-1 pt-3">
-                  <StandardWeek
-                    defaults={standardWeek}
-                    sports={blockSheetSports}
-                  />
+                <div className="mb-6">
+                  <RaceChip {...card} />
                 </div>
-              </CollapsiblePanel>
-            </Collapsible>
-          </div>
-        </>
-      ) : (
-        <section className="mb-6">
-          <form className="glass rounded-[18px] p-5">
-            <p className="text-caption leading-relaxed text-ink-secondary">
-              This week hasn&apos;t been planned yet. Start it now and it
-              materializes from your skeleton — you can adjust your availability
-              right after.
-            </p>
-            <div className="mt-4">
-              <PinnedAction label="Plan this week" formAction={startWeek} />
-            </div>
-          </form>
-        </section>
-      )}
+                {card.race.goalNote && (
+                  <p className="-mt-5 mb-6 px-1 text-label text-ink-muted">
+                    {card.race.goalNote}
+                  </p>
+                )}
+              </>
+            )}
 
-      {/* The next race already has its chip above with the countdown and form
-          outlook. This is the management list (add / status / delete), so it
-          stays collapsed rather than printing the same race twice. */}
-      {races.length > 0 && (
-        <div className="mb-5">
-          <Collapsible>
-            <CollapsibleTrigger className="rounded-[18px] p-4">
-              <span className="text-label font-bold uppercase tracking-[0.15em] text-ink-secondary">
-                Races · {races.length}
-              </span>
-            </CollapsibleTrigger>
-            <CollapsiblePanel>
-              <div className="px-4 pb-1 pt-3">
-                <RacesSection races={raceListItems} hideHeading />
+            {/* AvailabilityWeekSwitcher and both IntakeForms moved into the
+              "availability" sheet above — this is the one row that
+              replaces them (slice 2, task 4, the task that fixes the
+              measured regression: this section used to render THIS week's
+              seven days a second time, right below WeekStrip's own seven).
+              Gated on `intake`, exactly as the section it replaces was —
+              AND, since I2 (final whole-branch review), on NOT
+              `pinnedAvailabilityThisWeek`: in that state this row's href
+              (`resolvedHref({ sheet: "availability" })`, unchanged below)
+              is byte-identical to the pinned action's own, so showing
+              both was two controls to one destination in a slice whose
+              whole purpose was cutting control count (measured 21 → 17).
+              Option (b) of the two the review offered, over (a)
+              "relabel and keep both": the branch's own stated purpose is
+              cutting control count, and once the pinned link is honestly
+              labelled (done above), a summary row pointed at the exact
+              same URL adds a second tap to the identical destination
+              with no distinct information of its own — the row's only
+              extra content, the hours badge, is one tap away either way,
+              behind the same sheet. The row keeps its place once next
+              week's half is the live one instead: `pinnedAvailabilityHref`
+              is then `nextWeekAvailabilityHref` (`?availability=next`),
+              a genuinely different landing mode than this row's plain
+              link, so the two are not the same control twice. */}
+            {intake && !pinnedAvailabilityThisWeek && (
+              <div className="mb-6">
+                <SummaryRow
+                  label="Availability"
+                  badge={availabilityBadge}
+                  href={resolvedHref({ sheet: "availability" })}
+                />
               </div>
-            </CollapsiblePanel>
-          </Collapsible>
-        </div>
-      )}
-      {races.length === 0 && (
-        <div className="mb-5">
-          <RacesSection races={raceListItems} />
-        </div>
-      )}
+            )}
+          </>
+        ) : (
+          <section className="mb-6">
+            <form className="glass rounded-[18px] p-5">
+              <p className="text-caption leading-relaxed text-ink-secondary">
+                This week hasn&apos;t been planned yet. Start it now and it
+                materializes from your skeleton — you can adjust your
+                availability right after.
+              </p>
+              <div className="mt-4">
+                <PinnedAction label="Plan this week" formAction={startWeek} />
+              </div>
+            </form>
+          </section>
+        )}
 
-      {remaining.length > 0 && (
-        <div className="mb-10">
-          <Collapsible>
-            <CollapsibleTrigger className="rounded-[18px] p-4">
-              <span className="text-label font-bold uppercase tracking-[0.15em] text-ink-secondary">
-                Remaining skeleton · {remaining.length}
-              </span>
-            </CollapsibleTrigger>
-            <CollapsiblePanel>
-              <div className="hide-scrollbar overflow-x-auto">
-                <table className="w-full text-left">
-                  <thead>
-                    <tr className="text-label font-bold uppercase tracking-[0.15em] text-ink-muted">
-                      <th className="whitespace-nowrap px-4 py-2">Week</th>
-                      <th className="whitespace-nowrap px-4 py-2">Phase</th>
-                      <th className="whitespace-nowrap px-4 py-2 text-right">
-                        Target load
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {remaining.map((b) => {
-                      // The open week (week?.skeletonWeek) has a materialized
-                      // effective target that supersedes the block's un-tapered
-                      // skeleton value — every other row here is a future week
-                      // with no weekPlans row yet, so its skeleton value is all
-                      // there is. See week-plan/volume.ts's weekTargetLoad().
-                      const resolved =
-                        b.weekNumber === (week?.skeletonWeek ?? -1)
-                          ? weekTargetLoad({
-                              effectiveTarget: week?.effectiveTarget ?? null,
-                              blockTarget: b.targetLoadTotal,
-                            })
-                          : null;
-                      const targetLoad = resolved
-                        ? resolved.available
-                          ? resolved.value
-                          : null
-                        : b.targetLoadTotal;
-                      return (
-                        <tr
-                          key={b.weekNumber}
-                          className="border-t border-hairline"
-                        >
-                          <td className="px-4 py-2 font-numeric text-label text-ink-secondary">
-                            {b.weekNumber}
-                          </td>
-                          {/* Task 12 per-pair override: pre-migration the
-                              week-number cell (above) was 80% white and
-                              phase/target were 60% — a genuine
-                              alpha pair that flattened onto one token in
-                              Task 6. Phase and target move to ink-muted;
-                              the week number keeps ink-secondary. */}
-                          <td className="px-4 py-2 text-label capitalize text-ink-muted">
-                            {b.phase}
-                          </td>
-                          <td className="px-4 py-2 text-right font-numeric text-label text-ink-muted">
-                            {targetLoad != null ? Math.round(targetLoad) : "—"}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </CollapsiblePanel>
-          </Collapsible>
+        {/* PlanStyleSwitch, SeasonModeSwitch, the Standard week
+          Collapsible's contents and the Remaining skeleton Collapsible's
+          contents all moved into the "plan-setup" sheet above — this is
+          the one row that replaces all four (slice 2, task 2). Not gated
+          on `week` or on either block having content: the switches were
+          reachable whenever a plan exists before this move too (this
+          whole function body is past the `if (!plan) return` fork), which
+          this row preserves unchanged. */}
+        <div className="mb-5">
+          <SummaryRow
+            label="Plan setup"
+            href={resolvedHref({ sheet: "plan-setup" })}
+          />
         </div>
-      )}
-    </>
-  );
+
+        {/* The next race already has its chip above with the countdown and
+          form outlook. This is the management list (add / edit demand /
+          set status / remove), moved into the "races" sheet above — this
+          is the one row that replaces both old call sites (a
+          Collapsible-wrapped list when races.length > 0, a bare
+          RacesSection otherwise). No badge when there are no races yet —
+          the empty case still needs a way in, and the sheet holds the
+          empty-state UI RacesSection already provides, unchanged. */}
+        <div className="mb-5">
+          <SummaryRow
+            label="Races"
+            badge={races.length > 0 ? String(races.length) : undefined}
+            href={resolvedHref({ sheet: "races" })}
+          />
+        </div>
+
+        {/* I1, final whole-branch review: this used to render INSIDE the
+          `week ? (…)` branch, between the Availability and Plan setup
+          rows — `PinnedAction` is `position: sticky`, so it always
+          reserves its own in-flow slot, and that slot sat mid-document
+          instead of at the bottom the spec's wireframe puts it (§3, "The
+          new Week, top to bottom"): the ~78px gap visible in
+          `.screenshots/week-slice2/train-dark-phone.png`, and at maximum
+          scroll the button un-stuck and reappeared THERE instead of at
+          the bottom. Moved to the end of the returned fragment, after
+          every summary row (Why this week / Availability / Plan setup /
+          Races), so the reserved slot — and the un-stuck button — land
+          last, matching the wireframe. Still gated on
+          `pinnedAvailabilityLabel`, unchanged: that's non-null only once
+          `week` and `intake` both exist (see their own derivations
+          above), so this renders nothing in the plan-empty branch, which
+          has its own "Plan this week" PinnedAction. */}
+        {pinnedAvailabilityLabel && (
+          <PinnedAction
+            label={pinnedAvailabilityLabel}
+            href={pinnedAvailabilityHref}
+          />
+        )}
+      </>
+    ),
+    overlay: sheetParam ? (sheetOverlays[sheetParam] ?? null) : null,
+  };
 }
 
 // ── History (1d) ──────────────────────────────────────────────────────────

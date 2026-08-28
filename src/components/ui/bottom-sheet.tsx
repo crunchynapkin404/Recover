@@ -4,6 +4,23 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 /**
+ * Elements a focus trap should stop at, in DOM order. Deliberately plain —
+ * anchors with a real `href`, non-disabled form controls, and anything
+ * carrying an explicit non-negative `tabindex` — the same set every
+ * standard "roving focus trap" reference implementation targets. Excludes
+ * `[tabindex="-1"]` on purpose: that's how the panel itself (below) is
+ * reachable programmatically without joining the trap's own cycle.
+ */
+const FOCUSABLE_SELECTOR = [
+  "a[href]",
+  "button:not([disabled])",
+  "input:not([disabled])",
+  "select:not([disabled])",
+  "textarea:not([disabled])",
+  '[tabindex]:not([tabindex="-1"])',
+].join(",");
+
+/**
  * The redesign's bottom sheet (1h / 1i shell).
  *
  * Open state is the URL (`?sheet=checkin`), not React state, so a push
@@ -32,11 +49,60 @@ export function BottomSheet({
   const [closing, setClosing] = useState(false);
   const startY = useRef<number | null>(null);
   const reduceMotion = useRef(false);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  // I3, final whole-branch review: whatever had focus right before this
+  // sheet mounted — restored to it on close/unmount, rather than left
+  // wherever focus happened to end up (often nowhere, once the trigger
+  // itself has scrolled off or gone `inert`).
+  const triggerRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     reduceMotion.current =
       typeof window !== "undefined" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  }, []);
+
+  // I3: moves focus into the panel the instant it mounts, and hands it
+  // back on unmount. The panel itself — not a specific child — is the one
+  // target every sheet's content shares regardless of what it renders
+  // (`tabIndex={-1}` on the panel below is what makes a plain `<div>` a
+  // valid programmatic focus target without joining the natural tab
+  // order). A `[role="dialog"]` claiming `aria-modal="true"` while never
+  // moving focus into itself is the same kind of inert claim `app-shell.tsx`'s
+  // own I3 fix addresses for the background: the attribute promised
+  // something the DOM never delivered.
+  useEffect(() => {
+    const panel = panelRef.current;
+
+    // A SHEET CAN BE MOUNTED AND NOT VISIBLE, and this is the third page this
+    // distinction has nearly killed. Coach wraps its history sheet in
+    // `lg:hidden` — on desktop React mounts this component into a
+    // `display: none` subtree, so mounting is not evidence that a modal is on
+    // screen any more than a truthy prop was. A sheet nobody can see must not
+    // take focus, must not trap it, and must not make the page inert.
+    //
+    // `checkVisibility()` is the real-browser answer and does not exist in
+    // jsdom, where nothing has layout at all — there we fall back to "mounted
+    // means visible", which is what every test in this file intends.
+    const visible = panel?.checkVisibility?.() ?? panel != null;
+    if (!visible) return;
+
+    triggerRef.current = document.activeElement as HTMLElement | null;
+    panel?.focus();
+
+    // The background leaves the tab order and the accessibility tree for as
+    // long as this sheet is open. Done HERE, by the modal itself, rather than
+    // by AppShell from its `overlay` prop: a prop's truthiness cannot know
+    // whether a modal is visible, and inferring it killed two pages in two
+    // commits — an always-truthy `<SheetHost/>` on Today, and Coach's
+    // `lg:hidden` history panel on desktop.
+    const background = document.querySelector("[data-app-background]");
+    background?.setAttribute("inert", "");
+
+    return () => {
+      background?.removeAttribute("inert");
+      triggerRef.current?.focus?.();
+    };
   }, []);
 
   const close = useCallback(() => {
@@ -49,7 +115,70 @@ export function BottomSheet({
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") close();
+      if (e.key === "Escape") {
+        // Review finding 1 (slice 2 task 2): a dialog nested inside this
+        // sheet's own content — BlockSheet, opened from StandardWeek in
+        // the plan-setup sheet, and IntakeForm's copy of the same pattern
+        // once task 4 lands — has no Escape handler of its own and
+        // stages its edits locally, writing them only from its own
+        // onClose. This listener is document-level and stays live the
+        // whole time a nested dialog is open, so without this guard
+        // Escape would close THIS sheet, unmounting the nested dialog's
+        // host before it ever calls its own close-and-save path — a
+        // silent discard, invisible to a pointer/click test since a real
+        // tap can never reach this sheet's own backdrop while a
+        // full-viewport nested dialog covers it (only a keyboard event
+        // bypasses that hit-testing). Fixed at this shell, not inside
+        // StandardWeek: every consumer that nests a `role="dialog"` in
+        // here — present or future — inherits the guard for free, rather
+        // than each one needing its own Escape handling.
+        if (panelRef.current?.querySelector('[role="dialog"]')) return;
+        close();
+        return;
+      }
+
+      if (e.key !== "Tab") return;
+      // I3, final whole-branch review: a manual focus trap. `inert` on
+      // the background (app-shell.tsx's own I3 fix) already removes the
+      // rest of the document from the tab order in a real browser, but
+      // Tab off the panel's own last (or first) focusable element still
+      // needs somewhere to go — and jsdom (this file's own test
+      // environment) implements neither `inert`'s focus-blocking nor
+      // native Tab traversal at all, so this is the part that has to be
+      // explicit regardless of `inert`.
+      const panel = panelRef.current;
+      if (!panel) return;
+      // Same guard as the Escape branch above, and the same reason: a
+      // nested `[role="dialog"]` (BlockSheet) covers this panel's own
+      // content, and this trap's plain DOM-order query can't tell "the
+      // nested dialog's own controls" apart from "this panel's" — both
+      // match FOCUSABLE_SELECTOR. Redirecting Tab within a mix of the
+      // two would fight whatever the nested dialog wants focus to do
+      // instead of deferring to it, so this trap stands down while one
+      // is mounted, exactly as Escape does.
+      if (panel.querySelector('[role="dialog"]')) return;
+      const focusables = Array.from(
+        panel.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
+      );
+      if (focusables.length === 0) {
+        // Nothing to cycle to — hold focus on the panel itself rather
+        // than letting Tab walk out into a background that (in a real
+        // browser) is `inert` and cannot receive it anyway.
+        e.preventDefault();
+        return;
+      }
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement;
+      if (e.shiftKey) {
+        if (active === first || active === panel) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else if (active === last || active === panel) {
+        e.preventDefault();
+        first.focus();
+      }
     }
     document.addEventListener("keydown", onKey);
     // The page behind must not scroll while a sheet is over it.
@@ -79,13 +208,43 @@ export function BottomSheet({
       />
 
       <div
+        ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-label={title}
+        // 0, not -1. A plain <div> cannot receive focus at all without a
+        // tabindex, so the open-effect's focus() would be a no-op and the
+        // trap would have nothing to trap — but -1 allows only PROGRAMMATIC
+        // focus, and this panel is a scroll container (`overflowY: auto`,
+        // `maxHeight: 92svh`). axe's `scrollable-region-focusable` failed it
+        // as serious on the one sheet whose content is pure prose — "Why this
+        // week" has no buttons at all — because a keyboard user could not
+        // focus it and therefore could not scroll it. Sheets with controls
+        // inside passed only by accident of having something tabbable.
+        //
+        // 0 puts the panel itself in the sequential tab order, which is
+        // harmless inside a focus trap and is what makes an unfocusable
+        // scroll region reachable. It does not disturb the trap: the trap
+        // reads `panel.querySelectorAll`, which returns descendants only, so
+        // the panel is never its own first or last stop.
+        tabIndex={0}
         className="sheet-panel relative w-full max-w-lg rounded-t-[28px] border border-hairline bg-surface-overlay px-6 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] pt-3"
         style={{
           boxShadow: "0 -20px 60px rgba(0,0,0,0.6)",
-          transform: `translateY(${translate})`,
+          // Omitted entirely while idle — not merely set to `translateY(0px)`.
+          // Per the CSS transforms spec, ANY transform value on this panel,
+          // including a zero one, makes it the containing block for a
+          // `position: fixed` descendant. Slice 2 task 2 nests exactly that:
+          // the plan-setup sheet hosts StandardWeek, which opens BlockSheet
+          // (its own `fixed inset-0` dialog) on a day tap — with a transform
+          // sitting here, that dialog collapses to this panel's own box
+          // instead of covering the viewport, instead of opening as a full
+          // sheet over it. Idle is the only state a tap can land in: a drag
+          // fires from touchmove, not a click, and by the time anyone can
+          // aim at a row the mount entrance animation (`.sheet-panel`'s own
+          // `sheet-up` keyframes, ~300ms) is long over.
+          transform:
+            dragY > 0 || closing ? `translateY(${translate})` : undefined,
           transition: dragY > 0 ? "none" : undefined,
           maxHeight: "92svh",
           overflowY: "auto",
@@ -95,6 +254,28 @@ export function BottomSheet({
         }}
         onTouchMove={(e) => {
           if (startY.current == null) return;
+          // Root-cause fix for review finding 3 on the "plan-review" sheet
+          // (a card ~1.5 phone screens tall, task 5): a drag begins ONLY
+          // once the panel is already scrolled to its own top. Without
+          // this, any downward `touchmove` on the panel set `dragY`
+          // regardless of `scrollTop`, so scrolling back UP through a
+          // tall sheet body — the everyday gesture needed to re-read
+          // something further up the page, not a dismiss attempt — fought
+          // native scroll for the same gesture and, past 110px, dismissed
+          // the sheet outright. Fixed here rather than in any one sheet's
+          // content: every consumer of this shell — present or future —
+          // inherits it for free, the same reasoning that put the Escape
+          // guard above at this shell instead of in StandardWeek.
+          if ((panelRef.current?.scrollTop ?? 0) > 0) {
+            // Re-baselined on every still-scrolling move, not left at the
+            // gesture's original touch point, so the drag itself starts
+            // from `dragY = 0` the instant the panel reaches its top —
+            // not a jump to whatever `dy` had already accumulated against
+            // a touch point the athlete has since scrolled well past.
+            startY.current = e.touches[0].clientY;
+            if (dragY !== 0) setDragY(0);
+            return;
+          }
           const dy = e.touches[0].clientY - startY.current;
           if (dy > 0) setDragY(dy);
         }}

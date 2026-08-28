@@ -55,7 +55,7 @@ import { SessionCard } from "@/components/today/session-card";
 import { DebriefChip } from "@/components/today/debrief-chip";
 import { RaceChip } from "@/components/today/race-chip";
 import { CoachBrief } from "@/components/today/coach-brief";
-import { SheetHost } from "@/components/today/sheet-host";
+import { SheetHost, TODAY_SHEETS } from "@/components/today/sheet-host";
 import { WeekRow } from "@/components/today/week-row";
 import { listInboxItems } from "@/lib/coach-inbox";
 
@@ -572,14 +572,21 @@ export default async function DashboardPage({
     <AppShell
       noChrome
       user={shellUser(user)}
+      // `null` when no sheet is named, NOT an always-truthy <SheetHost/>:
+      // AppShell derives `inert` for the whole background from this prop's
+      // truthiness, and a JSX element is truthy even when the component
+      // itself renders null. Passing it unconditionally made every control
+      // on Today inert — permanently, with no sheet open.
       overlay={
-        <SheetHost
-          userId={user.id}
-          sheet={sheet}
-          activityId={sheetActivity}
-          closeHref="/"
-          todayYmd={todayYmd}
-        />
+        TODAY_SHEETS.some((s) => s === sheet) ? (
+          <SheetHost
+            userId={user.id}
+            sheet={sheet}
+            activityId={sheetActivity}
+            closeHref="/"
+            todayYmd={todayYmd}
+          />
+        ) : null
       }
     >
       <PullToRefresh>

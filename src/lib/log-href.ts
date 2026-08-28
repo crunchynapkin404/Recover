@@ -113,6 +113,23 @@ export function retiredTabRedirect(tab: string | undefined): string | null {
   return null;
 }
 
+/**
+ * The destinations Week's content moved behind in slice 2 — everything the
+ * page used to only explain or configure. Every name is declared here now,
+ * even though a given task may only render one of them: tasks 2-5 consume
+ * this same union, and narrowing it to what task 1 implements would make
+ * each of them edit this list in turn.
+ */
+export const TRAIN_SHEETS = [
+  "why-week",
+  "plan-setup",
+  "races",
+  "availability",
+  "plan-review",
+] as const;
+
+export type TrainSheetName = (typeof TRAIN_SHEETS)[number];
+
 export type TrainFilterState = LogFilterState & {
   tab: TrainTab;
   /** `"next"` when the availability week switcher is in next-week mode; `""` (or absent) otherwise. */
@@ -124,12 +141,23 @@ export type TrainFilterState = LogFilterState & {
    * `sport` and `availability` already use.
    */
   day?: string;
+  /**
+   * The sheet open on the Week tab (`?sheet=`, one of TRAIN_SHEETS), so
+   * switching tabs or filters keeps it open rather than silently closing
+   * it — the same "carried, cleared by empty string" rule `day` already
+   * follows. `?sheet=` is untrusted URL input; this field holds whatever
+   * string the URL carries and the page validates it before rendering
+   * anything, the way `?day=` is checked by openDayFrom rather than
+   * trusted directly.
+   */
+  sheet?: string;
 };
 
 export type TrainHrefOverride = LogHrefOverride & {
   tab?: TrainTab;
   availability?: string;
   day?: string;
+  sheet?: string;
 };
 
 export type TrainHref = (over: TrainHrefOverride) => string;
@@ -158,6 +186,7 @@ export function buildTrainHref(
       ? over.availability
       : (current.availability ?? "");
   const d = over.day !== undefined ? over.day : (current.day ?? "");
+  const sh = over.sheet !== undefined ? over.sheet : (current.sheet ?? "");
   const q = new URLSearchParams({ tab: t });
   if (v !== TRAIN_DEFAULTS.view) q.set("view", v);
   if (v === "month") q.set("month", m);
@@ -165,5 +194,6 @@ export function buildTrainHref(
   if (s) q.set("sport", s);
   if (a) q.set("availability", a);
   if (d) q.set("day", d);
+  if (sh) q.set("sheet", sh);
   return `/train?${q.toString()}`;
 }

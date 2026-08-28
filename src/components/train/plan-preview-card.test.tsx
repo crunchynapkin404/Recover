@@ -392,6 +392,64 @@ describe("PlanPreviewCard", () => {
   });
 });
 
+// This is the ONE component of the nine that gained the sheet's
+// `bg-surface-selected` fix in this slice that actually renders in two
+// contexts (every other one is sheet-only) -- see the `variant` prop's own
+// doc comment. Both branches are pinned here, the same shape as
+// event-readiness.test.tsx / standard-week.test.tsx / races-section.test.tsx
+// pin the sheet-only fix elsewhere: this is the one component where getting
+// it backwards (or dropping the `variant` split entirely) would actually
+// ship an invisible card, so it is the one that most needs its own guard.
+describe("PlanPreviewCard surface (variant prop)", () => {
+  let root: Root | null = null;
+  let container: HTMLDivElement;
+
+  function mountVariant(variant?: "page" | "sheet") {
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+    act(() => {
+      root!.render(<PlanPreviewCard preview={preview} variant={variant} />);
+    });
+  }
+
+  afterEach(() => {
+    if (root) act(() => root!.unmount());
+    root = null;
+    container?.remove();
+  });
+
+  // Default (no `variant` prop, and the explicit "page" call site --
+  // train/page.tsx's `!plan` early return, which has no sheet machinery at
+  // all): `.glass`, the same ground every other page-level card uses.
+  it("fills the page variant with glass, not surface-selected", () => {
+    mountVariant();
+    const html = container.innerHTML;
+    expect(html).toMatch(/\bglass\b/);
+    expect(html).not.toContain("bg-surface-selected");
+
+    mountVariant("page");
+    const explicitHtml = container.innerHTML;
+    expect(explicitHtml).toMatch(/\bglass\b/);
+    expect(explicitHtml).not.toContain("bg-surface-selected");
+  });
+
+  // `variant="sheet"` (the "plan-review" sheet, train/page.tsx): the sheet
+  // panel is `bg-surface-overlay`, and `.glass` resolves to
+  // `--surface-raised`, which equals `--surface-overlay` in light mode
+  // (both #ffffff) -- an invisible fill behind a bare hairline, the exact
+  // collision this component shipped with before this fix.
+  // `--surface-selected` is what the rest of this app's sheet content uses
+  // instead.
+  it("fills the sheet variant with surface-selected, not glass", () => {
+    mountVariant("sheet");
+    const html = container.innerHTML;
+    expect(html).toContain("border-hairline");
+    expect(html).toContain("bg-surface-selected");
+    expect(html).not.toMatch(/\bglass\b/);
+  });
+});
+
 describe("two-arc labelling", () => {
   const twoArc: PlanPreview = {
     ...preview,
