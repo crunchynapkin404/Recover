@@ -100,4 +100,20 @@ describe("StandardWeek", () => {
     expect(html).not.toMatch(/bg-white\//);
     expect(html).not.toMatch(/border-white\//);
   });
+
+  // This card now renders only inside the "plan-setup" sheet (slice 2 task
+  // 2), whose own panel is bg-surface-overlay. `--glass-bg` resolves to
+  // `--surface-raised`, and both equal #ffffff in light — the same "second
+  // time this exact bug has shipped" collision task 1 fixed on
+  // WeekRationale/EventReadiness (see week-rationale.test.tsx's identically
+  // named test). `.glass` painted an invisible fill behind a bare hairline
+  // there; `--surface-selected` is the token this repo built for exactly
+  // this shape and stays distinct from the sheet's own fill in both themes.
+  it("fills its card with surface-selected, not glass (invisible on the sheet's own white overlay)", () => {
+    const html = renderToString(
+      <StandardWeek defaults={empty} sports={["Bike"]} />
+    );
+    expect(html).toContain("bg-surface-selected");
+    expect(html).not.toMatch(/\bglass\b/);
+  });
 });

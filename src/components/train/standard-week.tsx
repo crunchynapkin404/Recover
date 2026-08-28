@@ -55,7 +55,14 @@ export function StandardWeek({ defaults, sports }: Props) {
   }
 
   return (
-    <div className="glass rounded-[2rem] p-6">
+    // This card renders only inside the "plan-setup" sheet (slice 2 task
+    // 2), whose own panel is bg-surface-overlay. `--glass-bg` resolves to
+    // `--surface-raised`, and both equal #ffffff in light — `.glass` would
+    // paint an invisible fill behind a bare hairline there, the same
+    // collision task 1 fixed on WeekRationale/EventReadiness.
+    // `--surface-selected` is the token this repo built for exactly this
+    // shape and stays distinct from the sheet's own fill in both themes.
+    <div className="rounded-[2rem] border border-hairline bg-surface-selected p-6">
       <p className="label-micro mb-1">Your standard week</p>
       <p className="mb-5 text-label text-ink-muted">
         The time you normally have. Any single day you change from the week view

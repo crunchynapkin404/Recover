@@ -6,9 +6,9 @@ const LABEL: Record<PlanStyle, string> = {
 };
 
 /**
- * Same segmented-control shape and chip-trap reasoning as
- * SeasonModeSwitch (its neighbour in TrainHeader's `controls` row) — see
- * that file's header comment.
+ * Same segmented-control shape and chip-trap reasoning as SeasonModeSwitch
+ * (its neighbour in the "plan-setup" sheet, slice 2 task 2) — see that
+ * file's header comment.
  */
 export function PlanStyleSwitch({
   effectiveStyle,
@@ -18,7 +18,7 @@ export function PlanStyleSwitch({
   action: (formData: FormData) => void | Promise<void>;
 }) {
   return (
-    <div className="flex items-center gap-1 rounded-full border border-hairline bg-surface-raised p-1">
+    <div className="flex items-center gap-1 rounded-full border border-hairline bg-surface-selected p-1">
       <span className="px-2 text-label font-semibold text-ink-secondary">
         Style
       </span>

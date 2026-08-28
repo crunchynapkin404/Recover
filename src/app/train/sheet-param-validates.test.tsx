@@ -140,12 +140,20 @@ describe.skipIf(!hasDb)(
       expect(html).toContain('aria-label="Why this week"');
     });
 
-    // A real TRAIN_SHEETS member (tasks 2-5's destinations, not yet
-    // implemented) must not fall through to the one sheet this task built —
-    // membership in TRAIN_SHEETS is necessary, not sufficient, to open
-    // "why-week" specifically.
-    it("renders no dialog for a valid-but-unimplemented sheet name", async () => {
+    // Task 2's own destination — implemented alongside "why-week" now.
+    it("renders the dialog for the plan-setup sheet name", async () => {
       const html = await renderTrainWeekWithSheet(TEST_USER, "plan-setup");
+      expect(html).toContain('role="dialog"');
+      expect(html).toContain('aria-label="Plan setup"');
+    });
+
+    // A real TRAIN_SHEETS member (tasks 3-5's destinations, not yet
+    // implemented — "plan-setup" graduated out of this list in task 2) must
+    // not fall through to the one sheet this task built — membership in
+    // TRAIN_SHEETS is necessary, not sufficient, to open "why-week"
+    // specifically.
+    it("renders no dialog for a valid-but-unimplemented sheet name", async () => {
+      const html = await renderTrainWeekWithSheet(TEST_USER, "races");
       expect(html).not.toContain('role="dialog"');
     });
   }
@@ -289,6 +297,101 @@ describe.skipIf(!hasDb)(
       // Only the prose moved — the chip's goalNote is not duplicated into
       // the sheet, so it still appears exactly once in the whole page.
       expect(open.split("Goal: even effort").length - 1).toBe(1);
+    });
+  }
+);
+
+// Task 2's own copy of the shape above: PlanStyleSwitch, SeasonModeSwitch
+// (with its "Applies from next week…" note), the Standard week
+// Collapsible's contents and the Remaining skeleton Collapsible's contents
+// all moved into the "plan-setup" sheet. Seeded through the real
+// previewTrainingPlan/confirmTrainingPlan engine (not hand-inserted rows)
+// so `remaining` holds genuine trainingBlocks rows and `week` is a genuine
+// materialized week — the same two conditions the moved content always
+// needed, unchanged by the move.
+const PLAN_SETUP_USER = "test-train-sheet-moves-plan-setup";
+
+async function seedPlanForPlanSetup(userId: string): Promise<void> {
+  const { db, schema } = await import("@/lib/db");
+  const { previewTrainingPlan, confirmTrainingPlan } =
+    await import("@/lib/training-plan");
+
+  await db.insert(schema.users).values({
+    id: userId,
+    name: "Test Athlete",
+    email: `${userId}@example.invalid`,
+  });
+
+  // 42 days out -> a 6-week plan (Math.ceil(42/7)), so periodize() writes
+  // several trainingBlocks beyond the open week -- what `remaining` reads.
+  const raceDate = ymd(new Date(Date.now() + 42 * DAY_MS));
+  // Named to avoid the substring "Plan setup" itself — the plan's own
+  // title renders on the page as TrainHeader's subtitle, and the closed-
+  // page assertion below checks for that exact phrase as the SummaryRow's
+  // label; a title containing it would satisfy that check for the wrong
+  // reason.
+  const preview = await previewTrainingPlan({
+    userId,
+    raceType: "marathon",
+    raceDate,
+    title: "Marathon build test plan",
+    daysPerWeek: 5,
+    hoursPerWeek: 8,
+  });
+  if (!preview.ok) {
+    throw new Error(`previewTrainingPlan refused: ${preview.reason}`);
+  }
+  const confirmed = await confirmTrainingPlan(userId, preview.preview.planId);
+  if (!confirmed.ok) {
+    throw new Error(`confirmTrainingPlan refused: ${confirmed.reason}`);
+  }
+}
+
+describe.skipIf(!hasDb)(
+  "TrainPage: the plan-setup blocks actually leave the page",
+  () => {
+    beforeAll(async () => {
+      await seedPlanForPlanSetup(PLAN_SETUP_USER);
+    });
+
+    afterAll(async () => {
+      const { db, schema } = await import("@/lib/db");
+      await db.delete(schema.users).where(eq(schema.users.id, PLAN_SETUP_USER));
+    });
+
+    it("keeps the summary row on the page but not the four blocks it replaces", async () => {
+      const closed = await renderTrainWeekWithSheet(PLAN_SETUP_USER, undefined);
+      // The row that replaces all four stays on the page.
+      expect(closed).toContain("Plan setup");
+      // PlanStyleSwitch's own option labels.
+      expect(closed).not.toContain("Block-lite");
+      // SeasonModeSwitch's own option label, and the note that explains
+      // both switches (moves WITH them, not orphaned on the page).
+      expect(closed).not.toContain("Off-season");
+      expect(closed).not.toContain(
+        "Applies from next week — this week is already planned."
+      );
+      // StandardWeek's own heading.
+      expect(closed).not.toContain("Your standard week");
+      // The remaining-skeleton table's own heading and column.
+      expect(closed).not.toContain("Remaining skeleton");
+      expect(closed).not.toContain("Target load");
+    });
+
+    it("puts all four blocks in the sheet once it opens", async () => {
+      const open = await renderTrainWeekWithSheet(
+        PLAN_SETUP_USER,
+        "plan-setup"
+      );
+      expect(open).toContain('role="dialog"');
+      expect(open).toContain("Block-lite");
+      expect(open).toContain("Off-season");
+      expect(open).toContain(
+        "Applies from next week — this week is already planned."
+      );
+      expect(open).toContain("Your standard week");
+      expect(open).toContain("Remaining skeleton");
+      expect(open).toContain("Target load");
     });
   }
 );

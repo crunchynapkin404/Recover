@@ -11,13 +11,17 @@ const MODE_LABEL: Record<SeasonMode, string> = {
  * their "no shared container" shape (no restructuring, per Task 12).
  *
  * The chip trap (Task 7 shipped it once): active and inactive must differ
- * in FILL, never text colour alone. This sits directly on the page
- * background (TrainHeader's `controls` slot carries no surface class of
- * its own), so the capsule can freely claim the first step up —
- * `bg-surface-raised` — leaving `bg-surface-overlay` free for the active
- * segment. That is the same base → raised → overlay ladder train-tabs.tsx
- * and view-tabs.tsx use, adapted to a shared-container shape instead of
- * separate pills.
+ * in FILL, never text colour alone. This now renders only inside the
+ * "plan-setup" sheet (slice 2 task 2), whose own panel is
+ * bg-surface-overlay — `bg-surface-raised` resolves to the SAME #ffffff as
+ * that overlay in light mode, so the capsule claims `bg-surface-selected`
+ * instead, leaving `bg-surface-overlay` free for the active segment
+ * (`--surface-selected` is the token this repo built for exactly this
+ * "distinct from the overlay it sits inside, in both themes" shape). That
+ * is the same base → raised → overlay ladder train-tabs.tsx and
+ * view-tabs.tsx use, shifted one step to selected → overlay because the
+ * container this sits in now IS the raised/overlay step, adapted to a
+ * shared-container shape instead of separate pills.
  */
 export function SeasonModeSwitch({
   effectiveSeasonMode,
@@ -29,7 +33,7 @@ export function SeasonModeSwitch({
   action: (formData: FormData) => void | Promise<void>;
 }) {
   return (
-    <div className="flex items-center gap-1 rounded-full border border-hairline bg-surface-raised p-1">
+    <div className="flex items-center gap-1 rounded-full border border-hairline bg-surface-selected p-1">
       <span className="px-2 text-label font-semibold text-ink-secondary">
         Season
       </span>

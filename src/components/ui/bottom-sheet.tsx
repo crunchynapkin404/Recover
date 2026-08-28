@@ -85,7 +85,20 @@ export function BottomSheet({
         className="sheet-panel relative w-full max-w-lg rounded-t-[28px] border border-hairline bg-surface-overlay px-6 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] pt-3"
         style={{
           boxShadow: "0 -20px 60px rgba(0,0,0,0.6)",
-          transform: `translateY(${translate})`,
+          // Omitted entirely while idle — not merely set to `translateY(0px)`.
+          // Per the CSS transforms spec, ANY transform value on this panel,
+          // including a zero one, makes it the containing block for a
+          // `position: fixed` descendant. Slice 2 task 2 nests exactly that:
+          // the plan-setup sheet hosts StandardWeek, which opens BlockSheet
+          // (its own `fixed inset-0` dialog) on a day tap — with a transform
+          // sitting here, that dialog collapses to this panel's own box
+          // instead of covering the viewport, instead of opening as a full
+          // sheet over it. Idle is the only state a tap can land in: a drag
+          // fires from touchmove, not a click, and by the time anyone can
+          // aim at a row the mount entrance animation (`.sheet-panel`'s own
+          // `sheet-up` keyframes, ~300ms) is long over.
+          transform:
+            dragY > 0 || closing ? `translateY(${translate})` : undefined,
           transition: dragY > 0 ? "none" : undefined,
           maxHeight: "92svh",
           overflowY: "auto",

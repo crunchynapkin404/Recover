@@ -323,31 +323,30 @@ export default async function TrainPage({
   );
 }
 
-/** Shared page chrome: title, contextual subtitle/action, segmented control. */
+/**
+ * Shared page chrome: title, contextual subtitle/action, segmented control.
+ *
+ * Used to carry a `controls`/`controlsNote` pair too — a full-width row
+ * beneath the title for PlanStyleSwitch/SeasonModeSwitch, which outgrew
+ * `action`'s one-compact-element budget. Slice 2 task 2 moved both switches
+ * off the page entirely, into the "plan-setup" sheet; History and Fitness
+ * never passed either prop, so nothing else was left holding it. Removed
+ * rather than left unused — a prop with no caller is a lie about what this
+ * header can still do.
+ */
 function TrainHeader({
   subtitle,
   action,
-  controls,
-  controlsNote,
   tab,
   href,
 }: {
   subtitle?: string;
   /**
    * Sits on the title row, right-aligned. Room for ONE compact element —
-   * a chip or a small tab group. Anything more belongs in `controls`: this
-   * row cannot wrap without colliding with the title.
+   * a chip or a small tab group. Anything more risks colliding with the
+   * title on a phone.
    */
   action?: React.ReactNode;
-  /**
-   * Full-width row beneath the title, above the tabs. Wraps. This exists
-   * because the planning switches outgrew `action`: chip + Style + Season
-   * is ~300px of unshrinkable pills in a slot sized for one, so on a phone
-   * it ran off the viewport and overlapped the heading.
-   */
-  controls?: React.ReactNode;
-  /** One quiet line under `controls`, for saying what they affect. */
-  controlsNote?: string;
   tab: TrainTab;
   href: TrainHref;
 }) {
@@ -364,16 +363,6 @@ function TrainHeader({
         </div>
         {action && <div className="shrink-0">{action}</div>}
       </div>
-      {controls && (
-        <div className="mb-4">
-          <div className="flex flex-wrap items-center gap-2">{controls}</div>
-          {controlsNote && (
-            <p className="mt-1.5 text-label font-medium text-ink-muted">
-              {controlsNote}
-            </p>
-          )}
-        </div>
-      )}
       <TrainTabs active={tab} href={href} />
     </header>
   );
@@ -1034,6 +1023,139 @@ async function WeekTab({
       </WeekSheet>
     ) : null;
 
+  // The "plan setup" destination (slice 2, task 2): PlanStyleSwitch and
+  // SeasonModeSwitch (with the note explaining them), the Standard week
+  // Collapsible's contents and the Remaining skeleton Collapsible's
+  // contents — the two switches that used to render above the tabs
+  // (the first thing seen, the last thing touched) and the two
+  // Collapsibles that used to sit at the bottom of the page, now behind
+  // the one row below rather than open by default in either place.
+  // Not gated on `week`, unlike whyWeekSheet above: the switches and the
+  // remaining skeleton were both reachable even with no open week before
+  // this move (only Standard week's own content was — `week &&` below
+  // keeps that same nesting), so gating the whole sheet on `week` would
+  // make the switches unreachable in that state, deleting something the
+  // engine still knows.
+  const planSetupSheet =
+    sheetParam === "plan-setup" ? (
+      <WeekSheet title="Plan setup" closeHref={resolvedHref({ sheet: "" })}>
+        <div className="flex flex-wrap items-center gap-2">
+          <PlanStyleSwitch
+            effectiveStyle={constraints.planStyle}
+            action={submitPlanStyleQuick}
+          />
+          <SeasonModeSwitch
+            effectiveSeasonMode={constraints.seasonMode}
+            reentryStage={constraints.reentryStage}
+            action={submitSeasonModeQuick}
+          />
+          {/*
+          WeekAdjustmentSwitch (v0.56–v0.60) is deliberately not rendered.
+          Its action writes trainingBlocks.targetLoadTotal, but the open
+          week the athlete actually trains is materialized from a target
+          periodize() recomputes on the spot — service.ts says so outright:
+          "Recomputed fresh, never read as authority". The persisted
+          weekPlans row is not recomputed either, so pressing "Skip week"
+          left this week's sessions untouched.
+
+          That made the buttons worse than inert: targetLoadTotal IS read
+          by the blocks table below, get_training_plan, get_plan_drift and
+          race forecasting, so the number moved everywhere the plan is
+          reported and nowhere it is executed. A live press had already
+          left one athlete's block at 0 against a real week of 259.
+
+          Re-enabling this needs a decision, not a patch: either the action
+          re-materializes the open week, or the copy describes the skeleton
+          it actually edits. Until then the controls stay off rather than
+          promising "Ease -30% · Deload -50%" and doing none of it.
+        */}
+        </div>
+        {/* Both switches write plan constraints and stop there — the open
+          week is already materialized in week_plans and nothing recomputes
+          it, so this week keeps the sessions it has. The next-week preview
+          (WeekDayList's `nextWeek` prop) DOES re-read constraints
+          (projectWeek), so the athlete can see the effect immediately; it
+          just isn't where they might look first. Saying so is cheaper than
+          the alternative reading, which is that the control is broken. */}
+        <p className="mt-1.5 text-label font-medium text-ink-muted">
+          Applies from next week — this week is already planned.
+        </p>
+
+        {/* Same `week &&` gate the Standard week Collapsible carried before
+          this move — `standardWeek` itself doesn't depend on `week`, but
+          its own trigger only ever rendered once an open week existed. */}
+        {week && (
+          <div className="mt-4">
+            <StandardWeek defaults={standardWeek} sports={blockSheetSports} />
+          </div>
+        )}
+
+        {remaining.length > 0 && (
+          <div className="mt-4">
+            <p className="label-micro mb-2">
+              Remaining skeleton · {remaining.length}
+            </p>
+            <div className="hide-scrollbar overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="text-label font-bold uppercase tracking-[0.15em] text-ink-muted">
+                    <th className="whitespace-nowrap px-4 py-2">Week</th>
+                    <th className="whitespace-nowrap px-4 py-2">Phase</th>
+                    <th className="whitespace-nowrap px-4 py-2 text-right">
+                      Target load
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {remaining.map((b) => {
+                    // The open week (week?.skeletonWeek) has a materialized
+                    // effective target that supersedes the block's un-tapered
+                    // skeleton value — every other row here is a future week
+                    // with no weekPlans row yet, so its skeleton value is all
+                    // there is. See week-plan/volume.ts's weekTargetLoad().
+                    const resolved =
+                      b.weekNumber === (week?.skeletonWeek ?? -1)
+                        ? weekTargetLoad({
+                            effectiveTarget: week?.effectiveTarget ?? null,
+                            blockTarget: b.targetLoadTotal,
+                          })
+                        : null;
+                    const targetLoad = resolved
+                      ? resolved.available
+                        ? resolved.value
+                        : null
+                      : b.targetLoadTotal;
+                    return (
+                      <tr
+                        key={b.weekNumber}
+                        className="border-t border-hairline"
+                      >
+                        <td className="px-4 py-2 font-numeric text-label text-ink-secondary">
+                          {b.weekNumber}
+                        </td>
+                        {/* Task 12 per-pair override: pre-migration the
+                          week-number cell (above) was 80% white and
+                          phase/target were 60% — a genuine
+                          alpha pair that flattened onto one token in
+                          Task 6. Phase and target move to ink-muted;
+                          the week number keeps ink-secondary. */}
+                        <td className="px-4 py-2 text-label capitalize text-ink-muted">
+                          {b.phase}
+                        </td>
+                        <td className="px-4 py-2 text-right font-numeric text-label text-ink-muted">
+                          {targetLoad != null ? Math.round(targetLoad) : "—"}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </WeekSheet>
+    ) : null;
+
   return {
     content: (
       <>
@@ -1042,47 +1164,6 @@ async function WeekTab({
           href={resolvedHref}
           subtitle={subtitle}
           action={chip}
-          // Both switches write plan constraints and stop there — the open
-          // week is already materialized in week_plans and nothing recomputes
-          // it, so this week keeps the sessions it has. The next-week preview
-          // below DOES re-read constraints (projectWeek), so the athlete can
-          // see the effect immediately; it just isn't where they might look
-          // first. Saying so is cheaper than the alternative reading, which is
-          // that the control is broken.
-          controlsNote="Applies from next week — this week is already planned."
-          controls={
-            <>
-              <PlanStyleSwitch
-                effectiveStyle={constraints.planStyle}
-                action={submitPlanStyleQuick}
-              />
-              <SeasonModeSwitch
-                effectiveSeasonMode={constraints.seasonMode}
-                reentryStage={constraints.reentryStage}
-                action={submitSeasonModeQuick}
-              />
-              {/*
-              WeekAdjustmentSwitch (v0.56–v0.60) is deliberately not rendered.
-              Its action writes trainingBlocks.targetLoadTotal, but the open
-              week the athlete actually trains is materialized from a target
-              periodize() recomputes on the spot — service.ts says so outright:
-              "Recomputed fresh, never read as authority". The persisted
-              weekPlans row is not recomputed either, so pressing "Skip week"
-              left this week's sessions untouched.
-
-              That made the buttons worse than inert: targetLoadTotal IS read
-              by the blocks table below, get_training_plan, get_plan_drift and
-              race forecasting, so the number moved everywhere the plan is
-              reported and nowhere it is executed. A live press had already
-              left one athlete's block at 0 against a real week of 259.
-
-              Re-enabling this needs a decision, not a patch: either the action
-              re-materializes the open week, or the copy describes the skeleton
-              it actually edits. Until then the controls stay off rather than
-              promising "Ease -30% · Deload -50%" and doing none of it.
-            */}
-            </>
-          }
         />
 
         {/* Only ever set once a plan and an open week both exist — see the
@@ -1227,24 +1308,6 @@ async function WeekTab({
                 ) : null}
               </section>
             )}
-
-            <div className="mb-6">
-              <Collapsible>
-                <CollapsibleTrigger className="rounded-[18px] p-4">
-                  <span className="text-label font-bold uppercase tracking-[0.15em] text-ink-secondary">
-                    Standard week
-                  </span>
-                </CollapsibleTrigger>
-                <CollapsiblePanel>
-                  <div className="px-1 pb-1 pt-3">
-                    <StandardWeek
-                      defaults={standardWeek}
-                      sports={blockSheetSports}
-                    />
-                  </div>
-                </CollapsiblePanel>
-              </Collapsible>
-            </div>
           </>
         ) : (
           <section className="mb-6">
@@ -1260,6 +1323,21 @@ async function WeekTab({
             </form>
           </section>
         )}
+
+        {/* PlanStyleSwitch, SeasonModeSwitch, the Standard week
+          Collapsible's contents and the Remaining skeleton Collapsible's
+          contents all moved into the "plan-setup" sheet above — this is
+          the one row that replaces all four (slice 2, task 2). Not gated
+          on `week` or on either block having content: the switches were
+          reachable whenever a plan exists before this move too (this
+          whole function body is past the `if (!plan) return` fork), which
+          this row preserves unchanged. */}
+        <div className="mb-5">
+          <SummaryRow
+            label="Plan setup"
+            href={resolvedHref({ sheet: "plan-setup" })}
+          />
+        </div>
 
         {/* The next race already has its chip above with the countdown and form
           outlook. This is the management list (add / status / delete), so it
@@ -1285,81 +1363,9 @@ async function WeekTab({
             <RacesSection races={raceListItems} />
           </div>
         )}
-
-        {remaining.length > 0 && (
-          <div className="mb-10">
-            <Collapsible>
-              <CollapsibleTrigger className="rounded-[18px] p-4">
-                <span className="text-label font-bold uppercase tracking-[0.15em] text-ink-secondary">
-                  Remaining skeleton · {remaining.length}
-                </span>
-              </CollapsibleTrigger>
-              <CollapsiblePanel>
-                <div className="hide-scrollbar overflow-x-auto">
-                  <table className="w-full text-left">
-                    <thead>
-                      <tr className="text-label font-bold uppercase tracking-[0.15em] text-ink-muted">
-                        <th className="whitespace-nowrap px-4 py-2">Week</th>
-                        <th className="whitespace-nowrap px-4 py-2">Phase</th>
-                        <th className="whitespace-nowrap px-4 py-2 text-right">
-                          Target load
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {remaining.map((b) => {
-                        // The open week (week?.skeletonWeek) has a materialized
-                        // effective target that supersedes the block's un-tapered
-                        // skeleton value — every other row here is a future week
-                        // with no weekPlans row yet, so its skeleton value is all
-                        // there is. See week-plan/volume.ts's weekTargetLoad().
-                        const resolved =
-                          b.weekNumber === (week?.skeletonWeek ?? -1)
-                            ? weekTargetLoad({
-                                effectiveTarget: week?.effectiveTarget ?? null,
-                                blockTarget: b.targetLoadTotal,
-                              })
-                            : null;
-                        const targetLoad = resolved
-                          ? resolved.available
-                            ? resolved.value
-                            : null
-                          : b.targetLoadTotal;
-                        return (
-                          <tr
-                            key={b.weekNumber}
-                            className="border-t border-hairline"
-                          >
-                            <td className="px-4 py-2 font-numeric text-label text-ink-secondary">
-                              {b.weekNumber}
-                            </td>
-                            {/* Task 12 per-pair override: pre-migration the
-                              week-number cell (above) was 80% white and
-                              phase/target were 60% — a genuine
-                              alpha pair that flattened onto one token in
-                              Task 6. Phase and target move to ink-muted;
-                              the week number keeps ink-secondary. */}
-                            <td className="px-4 py-2 text-label capitalize text-ink-muted">
-                              {b.phase}
-                            </td>
-                            <td className="px-4 py-2 text-right font-numeric text-label text-ink-muted">
-                              {targetLoad != null
-                                ? Math.round(targetLoad)
-                                : "—"}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </CollapsiblePanel>
-            </Collapsible>
-          </div>
-        )}
       </>
     ),
-    overlay: whyWeekSheet,
+    overlay: whyWeekSheet ?? planSetupSheet,
   };
 }
 
