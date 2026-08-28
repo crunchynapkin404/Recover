@@ -271,7 +271,14 @@ const SURFACES: Record<string, string> = {
   // only way two of slice 1's defects were ever found.
   train: "/train",
   "train-history": "/train?tab=history",
-  "train-season": "/train?tab=season",
+  // `train-season` is GONE, not renamed. v0.123.0 retired the Season tab
+  // (zero actions on a screen that did not scroll), and `/train?tab=season`
+  // now redirects to Week — so this entry photographed the WEEK tab under a
+  // name promising Season, in every theme and viewport, for one release.
+  // That is precisely the failure this file's own header warns about: a
+  // capture filed under a name that promises something it does not show.
+  // The timeline chart the tab used to hold now lives on Fitness, which
+  // `train-fitness` already captures.
   "train-fitness": "/train?tab=fitness",
   // A two-A-race plan preview. Same PATH as `train` — the card only renders
   // when the athlete has an open draft, so the state is the surface, not the
