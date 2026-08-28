@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { DaySlot } from "@/lib/week-plan/types";
 import { STATUS_DOT, STATUS_LABEL } from "@/lib/status-color";
 import { WEEKDAY_NAMES, WEEKDAY_NARROW, weekdayIndex } from "@/lib/weekdays";
@@ -12,8 +13,14 @@ interface Props {
   /**
    * The day currently open elsewhere on the page (Train's `?day=`, via
    * openDayFrom). Optional, and independent of `hrefForDay`: Today's week
-   * row passes neither, so no day is ever marked current there and the
-   * "today" ring below falls back to the real calendar date instead.
+   * row passes neither, so no day ever gets the open-day pill there.
+   *
+   * Independent of "today", too (I2 fix, final whole-branch review): this
+   * used to collapse onto one `highlightDate` (`selectedDate ?? today`),
+   * so on Train — which always passes this — the focus ring meant "open"
+   * and never "today", contrary to the spec. `today` is computed from the
+   * real calendar date below regardless of what this prop carries; a day
+   * can be rung as today, marked open, both, or neither, independently.
    */
   selectedDate?: string | null;
   /**
@@ -199,10 +206,6 @@ export function WeekStrip({
 }: Props) {
   if (!days || days.length === 0) return null;
   const today = localYmd(new Date());
-  // Falls back to the real calendar date when nothing is explicitly
-  // selected, which is exactly Today's case: it never passes selectedDate,
-  // so this keeps ringing whichever day is actually today, as before.
-  const highlightDate = selectedDate ?? today;
   const maxMins = weekMaxMins(days);
 
   return (
@@ -223,8 +226,19 @@ export function WeekStrip({
         const weekday = WEEKDAY_NAMES[weekdayIndex(d.date)] ?? "";
         const shape = dayShape(d, maxMins);
         const label = accessibleLabel(weekday, d, shape);
-        const ringed = d.date === highlightDate;
-        const isSelected = selectedDate != null && d.date === selectedDate;
+        // I2, final whole-branch review: these used to collapse onto one
+        // `highlightDate` (selectedDate ?? today), so on Train — which
+        // always passes selectedDate — the ring meant "open" and never
+        // "today" (the spec: "Today's bar carries the existing focus
+        // ring"). Two independent concepts now get two independent marks:
+        // `isToday` keeps the pre-existing ring on the mark itself (dot or
+        // bar), unaffected by whichever day is open; `isOpen` puts a
+        // background pill on the whole column. Neither is a new hue —
+        // STATUS_DOT still owns colour in this strip — and both can be
+        // true on the same day at once (the open day IS today), which is
+        // the case the third I2 test below pins.
+        const isToday = d.date === today;
+        const isOpen = selectedDate != null && d.date === selectedDate;
 
         const content = (
           <>
@@ -232,25 +246,39 @@ export function WeekStrip({
               {WEEKDAY_NARROW[i] ?? ""}
             </span>
             {marks === "bars" ? (
-              <BarMark day={d} shape={shape} ringed={ringed} />
+              <BarMark day={d} shape={shape} ringed={isToday} />
             ) : (
-              <DotMark day={d} ringed={ringed} />
+              <DotMark day={d} ringed={isToday} />
             )}
           </>
         );
 
+        // The open day's own mark: a filled pill behind the whole column,
+        // legible alongside today's ring (a ring drawn inside a filled
+        // pill) rather than competing with it for the same visual slot.
+        const columnClassName = `flex flex-col items-center gap-2 rounded-2xl px-1.5 py-1 ${
+          isOpen ? "bg-surface-overlay" : ""
+        }`;
+
         return hrefForDay ? (
-          <a
+          // next/link, not a raw anchor tag: a raw anchor here does a full
+          // document reload on every tap (I1) — this repo already fixed
+          // the identical bug on "Set next week's availability" (see
+          // page.tsx's comment on that Link) so a client-side transition
+          // survives the switcher instance and every open Collapsible
+          // instead of resetting them.
+          <Link
             key={d.date}
             data-date={d.date}
+            data-open={isOpen ? "true" : undefined}
             href={hrefForDay(d.date)}
             title={label}
             aria-label={label}
-            aria-current={isSelected ? "true" : undefined}
-            className="flex flex-col items-center gap-2"
+            aria-current={isOpen ? "true" : undefined}
+            className={columnClassName}
           >
             {content}
-          </a>
+          </Link>
         ) : (
           // role="group" is load-bearing, not decorative: a bare <div>'s
           // implicit role is "generic", and WAI-ARIA 1.2 PROHIBITS an
@@ -264,7 +292,7 @@ export function WeekStrip({
             role="group"
             title={label}
             aria-label={label}
-            className="flex flex-col items-center gap-2"
+            className={columnClassName}
           >
             {content}
           </div>

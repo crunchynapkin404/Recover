@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -223,6 +224,27 @@ describe("WeekStrip — Today's non-interactive, dots-by-default week row", () =
   });
 });
 
+// I1, final whole-branch review: a raw `<a href>` here does a full document
+// reload on every tap — this repo already fixed the exact same bug on
+// "Set next week's availability" (see page.tsx's comment on that Link),
+// specifically so a client-side transition survives with component state
+// (the availability switcher instance, open Collapsibles) intact. Rendered
+// jsdom output can't tell `next/link`'s `<a>` apart from a raw one — both
+// end up an `<a href>` in the DOM — so this pins the SOURCE instead: no
+// literal `<a` JSX tag, and a real `next/link` import backing the one
+// anchor-shaped thing on the page.
+describe("WeekStrip — I1: day navigation is next/link, not a raw anchor", () => {
+  const src = readFileSync("src/components/week/week-strip.tsx", "utf8");
+
+  it("imports next/link", () => {
+    expect(src).toMatch(/^import Link from "next\/link";$/m);
+  });
+
+  it("never writes a raw <a> JSX tag", () => {
+    expect(src).not.toMatch(/<a[\s>]/);
+  });
+});
+
 describe('WeekStrip — Train\'s interactive bar strip (hrefForDay + marks="bars")', () => {
   it("gives every day a link and an accessible name that reads as a sentence", async () => {
     const el = await render(
@@ -346,6 +368,83 @@ describe('WeekStrip — Train\'s interactive bar strip (hrefForDay + marks="bars
       />
     );
     expect(el.querySelector('[data-status="race"]')).not.toBeNull();
+  });
+});
+
+// I2, final whole-branch review: `highlightDate = selectedDate ?? today`
+// meant the ring followed whichever day was OPEN, and Train always passes
+// `selectedDate` — so on Train the ring never once meant "today", contrary
+// to the spec ("Today's bar carries the existing focus ring"). These use a
+// week built off the REAL current date (not the fixed 2026-08-24..30
+// fixture, which can coincidentally contain the real run date and mask
+// this) so WeekStrip's own `new Date()`-derived "today" lines up with a
+// day these tests control directly.
+describe("WeekStrip — I2: today's ring and the open day's mark are independent", () => {
+  function localYmd(d: Date): string {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+  function addDays(ymd: string, n: number): string {
+    const d = new Date(ymd + "T00:00:00");
+    d.setDate(d.getDate() + n);
+    return localYmd(d);
+  }
+  const REAL_TODAY = localYmd(new Date());
+  const OTHER_DAY = addDays(REAL_TODAY, 3);
+  const sessionWeek: DaySlot[] = Array.from({ length: 7 }, (_, i) =>
+    day(addDays(REAL_TODAY, i), "planned", [workout(45, "Endurance")])
+  );
+
+  it("rings today's bar even when a different day is open", async () => {
+    const el = await render(
+      <WeekStrip
+        days={sessionWeek}
+        selectedDate={OTHER_DAY}
+        hrefForDay={(d) => `/train?day=${d}`}
+        marks="bars"
+      />
+    );
+    const todayMark = el.querySelector(
+      `[data-date="${REAL_TODAY}"] [data-status]`
+    );
+    expect(todayMark?.className).toContain("ring-2");
+    // The open day is a different day and must not itself carry today's ring.
+    const openMark = el.querySelector(
+      `[data-date="${OTHER_DAY}"] [data-status]`
+    );
+    expect(openMark?.className).not.toContain("ring-2");
+  });
+
+  it("gives the open day its own mark, distinct from today's ring", async () => {
+    const el = await render(
+      <WeekStrip
+        days={sessionWeek}
+        selectedDate={OTHER_DAY}
+        hrefForDay={(d) => `/train?day=${d}`}
+        marks="bars"
+      />
+    );
+    const openColumn = el.querySelector(`[data-date="${OTHER_DAY}"]`);
+    expect(openColumn?.getAttribute("data-open")).toBe("true");
+    // Today is not the open day here, so it must not carry the open mark.
+    const todayColumn = el.querySelector(`[data-date="${REAL_TODAY}"]`);
+    expect(todayColumn?.getAttribute("data-open")).not.toBe("true");
+  });
+
+  it("shows both marks together when the open day IS today", async () => {
+    const el = await render(
+      <WeekStrip
+        days={sessionWeek}
+        selectedDate={REAL_TODAY}
+        hrefForDay={(d) => `/train?day=${d}`}
+        marks="bars"
+      />
+    );
+    const todayColumn = el.querySelector(`[data-date="${REAL_TODAY}"]`);
+    expect(todayColumn?.getAttribute("data-open")).toBe("true");
+    const todayMark = el.querySelector(
+      `[data-date="${REAL_TODAY}"] [data-status]`
+    );
+    expect(todayMark?.className).toContain("ring-2");
   });
 });
 
