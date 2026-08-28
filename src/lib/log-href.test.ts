@@ -156,6 +156,46 @@ describe("buildTrainHref", () => {
     const href = buildTrainHref(TRAIN_BASE, {});
     expect(href).not.toContain("day=");
   });
+
+  // Task 1: the open sheet (?sheet=, one of TRAIN_SHEETS) is a sixth axis,
+  // carried the same way day/view/month/range/sport already are — switching
+  // tabs must not silently close whatever sheet the athlete had open.
+  it("carries an open sheet across a tab switch", () => {
+    expect(
+      buildTrainHref(
+        {
+          tab: "week",
+          view: "week",
+          month: "",
+          range: 90,
+          sport: "",
+          sheet: "why-week",
+        },
+        { tab: "history" }
+      )
+    ).toContain("sheet=why-week");
+  });
+
+  it("clears the sheet when asked", () => {
+    expect(
+      buildTrainHref(
+        {
+          tab: "week",
+          view: "week",
+          month: "",
+          range: 90,
+          sport: "",
+          sheet: "why-week",
+        },
+        { sheet: "" }
+      )
+    ).not.toContain("sheet=");
+  });
+
+  it("omits sheet from the URL when there is none open", () => {
+    const href = buildTrainHref(TRAIN_BASE, {});
+    expect(href).not.toContain("sheet=");
+  });
 });
 
 // Extracted so /train's `?tab=season` redirect — which has no page-level
