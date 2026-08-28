@@ -8,6 +8,10 @@ import {
   type Energy,
 } from "@/lib/availability/types";
 import { formatBlock } from "@/lib/availability/format";
+// Shared with the availability drag-timeline (slice 3) rather than defined
+// twice: both editors turn the same clock strings into the same minutes, and
+// a second copy is how the two would silently disagree about the end of a day.
+import { toClock, toMins } from "@/lib/availability/timeline";
 
 export interface BlockSheetProps {
   dayLabel: string;
@@ -31,21 +35,6 @@ const NEW_BLOCK: AvailabilityBlock = {
   energy: "normal",
   sports: null,
 };
-
-/** Latest time TIME_RE admits. A block cannot run past the end of its day. */
-const LAST_MINUTE_OF_DAY = 23 * 60 + 59;
-
-function toMins(clock: string): number {
-  const [h, m] = clock.split(":").map(Number);
-  return h * 60 + m;
-}
-
-/** Minutes back to "HH:MM", clamped into the day TIME_RE accepts. */
-function toClock(mins: number): string {
-  const clamped = Math.max(0, Math.min(LAST_MINUTE_OF_DAY, mins));
-  const h = Math.floor(clamped / 60);
-  return `${String(h).padStart(2, "0")}:${String(clamped % 60).padStart(2, "0")}`;
-}
 
 function minutesBetween(start: string, end: string): number {
   return toMins(end) - toMins(start);
