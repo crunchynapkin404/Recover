@@ -506,3 +506,22 @@ describe("BottomSheet when it is mounted but not visible", () => {
     }
   });
 });
+
+/**
+ * axe's `scrollable-region-focusable`, serious, caught by CI's ratchet on the
+ * one sheet whose content is pure prose ("Why this week" has no buttons).
+ * The panel is a scroll container; with `tabindex="-1"` a keyboard user could
+ * focus nothing inside it and so could not scroll it at all. Sheets that hold
+ * controls passed only by accident of having something tabbable.
+ */
+describe("BottomSheet's panel as a scroll container", () => {
+  it("is reachable by keyboard, so a prose-only sheet can be scrolled", async () => {
+    const el = await render(
+      <BottomSheet title="Why this week" closeHref="/train?tab=week">
+        <p>Prose with nothing focusable in it at all.</p>
+      </BottomSheet>
+    );
+    const dialog = el.querySelector('[role="dialog"]');
+    expect(dialog?.getAttribute("tabindex")).toBe("0");
+  });
+});

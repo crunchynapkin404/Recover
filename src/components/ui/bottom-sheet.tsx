@@ -212,11 +212,22 @@ export function BottomSheet({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        // A plain <div> cannot receive focus at all without this, so the
-        // open-effect's panelRef.current.focus() would be a no-op and the
-        // trap below would have nothing to trap. -1 keeps it out of the
-        // sequential tab order while still allowing programmatic focus.
-        tabIndex={-1}
+        // 0, not -1. A plain <div> cannot receive focus at all without a
+        // tabindex, so the open-effect's focus() would be a no-op and the
+        // trap would have nothing to trap — but -1 allows only PROGRAMMATIC
+        // focus, and this panel is a scroll container (`overflowY: auto`,
+        // `maxHeight: 92svh`). axe's `scrollable-region-focusable` failed it
+        // as serious on the one sheet whose content is pure prose — "Why this
+        // week" has no buttons at all — because a keyboard user could not
+        // focus it and therefore could not scroll it. Sheets with controls
+        // inside passed only by accident of having something tabbable.
+        //
+        // 0 puts the panel itself in the sequential tab order, which is
+        // harmless inside a focus trap and is what makes an unfocusable
+        // scroll region reachable. It does not disturb the trap: the trap
+        // reads `panel.querySelectorAll`, which returns descendants only, so
+        // the panel is never its own first or last stop.
+        tabIndex={0}
         className="sheet-panel relative w-full max-w-lg rounded-t-[28px] border border-hairline bg-surface-overlay px-6 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] pt-3"
         style={{
           boxShadow: "0 -20px 60px rgba(0,0,0,0.6)",
