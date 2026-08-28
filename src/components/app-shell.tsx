@@ -29,24 +29,43 @@ interface Props {
 }
 
 export function AppShell({ children, noChrome = false, user, overlay }: Props) {
+  // I3, final whole-branch review: while a sheet overlay is mounted, the
+  // background must stop being reachable by keyboard/AT navigation — Tab
+  // used to walk straight through every page control plus BottomNav
+  // before ever reaching the sheet, and the sheet's own `aria-modal="true"`
+  // was inert because nothing ever kept the rest of the document from
+  // sharing focus with it. `inert` (a native HTML attribute; React
+  // forwards it) removes a whole subtree from the tab order AND the
+  // accessibility tree in one declarative step. Computed here, at render
+  // time, from the same `overlay` truthiness the sheet itself is already
+  // gated on — no client-side effect needed for this half; only moving
+  // focus into the panel, trapping it there, and restoring it on close
+  // (bottom-sheet.tsx) needs one, since those are lifecycle-shaped, not a
+  // pure function of props.
+  const sheetOpen = Boolean(overlay);
   return (
     <div className="mesh-gradient relative min-h-svh pb-32 pt-[env(safe-area-inset-top)] lg:pb-0">
       <GradientDepth />
 
-      {/* Desktop sidebar (lg+); small screens use the bottom tab bar below. */}
-      <SidebarNav user={user ?? null} />
+      {/* `overlay` stays OUTSIDE this wrapper (a sibling, not a child) —
+        it must never itself go inert along with the background it sits
+        above. */}
+      <div inert={sheetOpen}>
+        {/* Desktop sidebar (lg+); small screens use the bottom tab bar below. */}
+        <SidebarNav user={user ?? null} />
 
-      <div className="relative z-10 lg:pl-[216px]">
-        {noChrome ? (
-          children
-        ) : (
-          <main className="mx-auto w-full max-w-lg px-6 lg:max-w-3xl">
-            {children}
-          </main>
-        )}
+        <div className="relative z-10 lg:pl-[216px]">
+          {noChrome ? (
+            children
+          ) : (
+            <main className="mx-auto w-full max-w-lg px-6 lg:max-w-3xl">
+              {children}
+            </main>
+          )}
+        </div>
+
+        <BottomNav />
       </div>
-
-      <BottomNav />
 
       {overlay}
     </div>

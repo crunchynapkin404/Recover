@@ -4,6 +4,23 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 /**
+ * Elements a focus trap should stop at, in DOM order. Deliberately plain —
+ * anchors with a real `href`, non-disabled form controls, and anything
+ * carrying an explicit non-negative `tabindex` — the same set every
+ * standard "roving focus trap" reference implementation targets. Excludes
+ * `[tabindex="-1"]` on purpose: that's how the panel itself (below) is
+ * reachable programmatically without joining the trap's own cycle.
+ */
+const FOCUSABLE_SELECTOR = [
+  "a[href]",
+  "button:not([disabled])",
+  "input:not([disabled])",
+  "select:not([disabled])",
+  "textarea:not([disabled])",
+  '[tabindex]:not([tabindex="-1"])',
+].join(",");
+
+/**
  * The redesign's bottom sheet (1h / 1i shell).
  *
  * Open state is the URL (`?sheet=checkin`), not React state, so a push
@@ -33,11 +50,33 @@ export function BottomSheet({
   const startY = useRef<number | null>(null);
   const reduceMotion = useRef(false);
   const panelRef = useRef<HTMLDivElement | null>(null);
+  // I3, final whole-branch review: whatever had focus right before this
+  // sheet mounted — restored to it on close/unmount, rather than left
+  // wherever focus happened to end up (often nowhere, once the trigger
+  // itself has scrolled off or gone `inert`).
+  const triggerRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     reduceMotion.current =
       typeof window !== "undefined" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  }, []);
+
+  // I3: moves focus into the panel the instant it mounts, and hands it
+  // back on unmount. The panel itself — not a specific child — is the one
+  // target every sheet's content shares regardless of what it renders
+  // (`tabIndex={-1}` on the panel below is what makes a plain `<div>` a
+  // valid programmatic focus target without joining the natural tab
+  // order). A `[role="dialog"]` claiming `aria-modal="true"` while never
+  // moving focus into itself is the same kind of inert claim `app-shell.tsx`'s
+  // own I3 fix addresses for the background: the attribute promised
+  // something the DOM never delivered.
+  useEffect(() => {
+    triggerRef.current = document.activeElement as HTMLElement | null;
+    panelRef.current?.focus();
+    return () => {
+      triggerRef.current?.focus?.();
+    };
   }, []);
 
   const close = useCallback(() => {
@@ -50,24 +89,70 @@ export function BottomSheet({
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key !== "Escape") return;
-      // Review finding 1 (slice 2 task 2): a dialog nested inside this
-      // sheet's own content — BlockSheet, opened from StandardWeek in the
-      // plan-setup sheet, and IntakeForm's copy of the same pattern once
-      // task 4 lands — has no Escape handler of its own and stages its
-      // edits locally, writing them only from its own onClose. This
-      // listener is document-level and stays live the whole time a nested
-      // dialog is open, so without this guard Escape would close THIS
-      // sheet, unmounting the nested dialog's host before it ever calls
-      // its own close-and-save path — a silent discard, invisible to a
-      // pointer/click test since a real tap can never reach this sheet's
-      // own backdrop while a full-viewport nested dialog covers it (only a
-      // keyboard event bypasses that hit-testing). Fixed at this shell,
-      // not inside StandardWeek: every consumer that nests a `role="dialog"`
-      // in here — present or future — inherits the guard for free, rather
-      // than each one needing its own Escape handling.
-      if (panelRef.current?.querySelector('[role="dialog"]')) return;
-      close();
+      if (e.key === "Escape") {
+        // Review finding 1 (slice 2 task 2): a dialog nested inside this
+        // sheet's own content — BlockSheet, opened from StandardWeek in
+        // the plan-setup sheet, and IntakeForm's copy of the same pattern
+        // once task 4 lands — has no Escape handler of its own and
+        // stages its edits locally, writing them only from its own
+        // onClose. This listener is document-level and stays live the
+        // whole time a nested dialog is open, so without this guard
+        // Escape would close THIS sheet, unmounting the nested dialog's
+        // host before it ever calls its own close-and-save path — a
+        // silent discard, invisible to a pointer/click test since a real
+        // tap can never reach this sheet's own backdrop while a
+        // full-viewport nested dialog covers it (only a keyboard event
+        // bypasses that hit-testing). Fixed at this shell, not inside
+        // StandardWeek: every consumer that nests a `role="dialog"` in
+        // here — present or future — inherits the guard for free, rather
+        // than each one needing its own Escape handling.
+        if (panelRef.current?.querySelector('[role="dialog"]')) return;
+        close();
+        return;
+      }
+
+      if (e.key !== "Tab") return;
+      // I3, final whole-branch review: a manual focus trap. `inert` on
+      // the background (app-shell.tsx's own I3 fix) already removes the
+      // rest of the document from the tab order in a real browser, but
+      // Tab off the panel's own last (or first) focusable element still
+      // needs somewhere to go — and jsdom (this file's own test
+      // environment) implements neither `inert`'s focus-blocking nor
+      // native Tab traversal at all, so this is the part that has to be
+      // explicit regardless of `inert`.
+      const panel = panelRef.current;
+      if (!panel) return;
+      // Same guard as the Escape branch above, and the same reason: a
+      // nested `[role="dialog"]` (BlockSheet) covers this panel's own
+      // content, and this trap's plain DOM-order query can't tell "the
+      // nested dialog's own controls" apart from "this panel's" — both
+      // match FOCUSABLE_SELECTOR. Redirecting Tab within a mix of the
+      // two would fight whatever the nested dialog wants focus to do
+      // instead of deferring to it, so this trap stands down while one
+      // is mounted, exactly as Escape does.
+      if (panel.querySelector('[role="dialog"]')) return;
+      const focusables = Array.from(
+        panel.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
+      );
+      if (focusables.length === 0) {
+        // Nothing to cycle to — hold focus on the panel itself rather
+        // than letting Tab walk out into a background that (in a real
+        // browser) is `inert` and cannot receive it anyway.
+        e.preventDefault();
+        return;
+      }
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement;
+      if (e.shiftKey) {
+        if (active === first || active === panel) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else if (active === last || active === panel) {
+        e.preventDefault();
+        first.focus();
+      }
     }
     document.addEventListener("keydown", onKey);
     // The page behind must not scroll while a sheet is over it.
@@ -101,6 +186,11 @@ export function BottomSheet({
         role="dialog"
         aria-modal="true"
         aria-label={title}
+        // A plain <div> cannot receive focus at all without this, so the
+        // open-effect's panelRef.current.focus() would be a no-op and the
+        // trap below would have nothing to trap. -1 keeps it out of the
+        // sequential tab order while still allowing programmatic focus.
+        tabIndex={-1}
         className="sheet-panel relative w-full max-w-lg rounded-t-[28px] border border-hairline bg-surface-overlay px-6 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] pt-3"
         style={{
           boxShadow: "0 -20px 60px rgba(0,0,0,0.6)",

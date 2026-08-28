@@ -247,4 +247,153 @@ describe("BottomSheet", () => {
     // whole gesture's distance the instant it was allowed to start.
     expect(dialog.style.transform).toBe("translateY(20px)");
   });
+
+  // I3, final whole-branch review: this shell had no initial focus move,
+  // no focus trap and no focus restore, and app-shell.tsx rendered the
+  // overlay as the last DOM node with the background neither `inert` nor
+  // `aria-hidden`. When this shell hosted only Today's check-in that was
+  // a nicety; on the week-destinations branch it became the ONLY route to
+  // availability editing, race management and plan setup, and
+  // `aria-modal="true"` was inert because focus never actually entered
+  // the panel — a keyboard/AT user who activated a summary row had to Tab
+  // past every page control plus BottomNav to reach it. Focus IS
+  // observable in jsdom even though layout is not
+  // (`document.activeElement`); these mutation-check each part.
+  describe("focus management", () => {
+    it("moves focus into the panel itself when it opens", async () => {
+      const trigger = document.createElement("button");
+      trigger.textContent = "Open";
+      document.body.appendChild(trigger);
+      trigger.focus();
+      expect(document.activeElement).toBe(trigger);
+      const el = await render(
+        <BottomSheet title="Outer" closeHref="/train?tab=week">
+          <p>Body</p>
+        </BottomSheet>
+      );
+      const dialog = el.querySelector('[role="dialog"]');
+      expect(document.activeElement).toBe(dialog);
+      trigger.remove();
+    });
+
+    it("restores focus to the element that opened it, once the sheet unmounts", async () => {
+      const trigger = document.createElement("button");
+      trigger.textContent = "Open";
+      document.body.appendChild(trigger);
+      trigger.focus();
+      await render(
+        <BottomSheet title="Outer" closeHref="/train?tab=week">
+          <p>Body</p>
+        </BottomSheet>
+      );
+      expect(document.activeElement).not.toBe(trigger);
+      await act(async () => {
+        root!.unmount();
+      });
+      root = null;
+      expect(document.activeElement).toBe(trigger);
+      trigger.remove();
+    });
+
+    it("moves focus to the panel's first focusable element on a plain Tab from the panel's own initial focus", async () => {
+      const el = await render(
+        <BottomSheet title="Outer" closeHref="/train?tab=week">
+          <button>First</button>
+          <button>Last</button>
+        </BottomSheet>
+      );
+      const dialog = el.querySelector('[role="dialog"]');
+      expect(document.activeElement).toBe(dialog);
+      await act(async () => {
+        document.dispatchEvent(
+          new KeyboardEvent("keydown", { key: "Tab", bubbles: true })
+        );
+      });
+      expect(document.activeElement).toBe(
+        dialog!.querySelectorAll("button")[0]
+      );
+    });
+
+    it("wraps Tab from the panel's last focusable element back to its first", async () => {
+      const el = await render(
+        <BottomSheet title="Outer" closeHref="/train?tab=week">
+          <button>First</button>
+          <button>Last</button>
+        </BottomSheet>
+      );
+      const dialog = el.querySelector('[role="dialog"]');
+      const buttons = dialog!.querySelectorAll("button");
+      const first = buttons[0];
+      const last = buttons[buttons.length - 1];
+      last.focus();
+      expect(document.activeElement).toBe(last);
+      await act(async () => {
+        document.dispatchEvent(
+          new KeyboardEvent("keydown", { key: "Tab", bubbles: true })
+        );
+      });
+      expect(document.activeElement).toBe(first);
+    });
+
+    it("wraps Shift+Tab from the panel's first focusable element back to its last", async () => {
+      const el = await render(
+        <BottomSheet title="Outer" closeHref="/train?tab=week">
+          <button>First</button>
+          <button>Last</button>
+        </BottomSheet>
+      );
+      const dialog = el.querySelector('[role="dialog"]');
+      const buttons = dialog!.querySelectorAll("button");
+      const first = buttons[0];
+      const last = buttons[buttons.length - 1];
+      first.focus();
+      expect(document.activeElement).toBe(first);
+      await act(async () => {
+        document.dispatchEvent(
+          new KeyboardEvent("keydown", {
+            key: "Tab",
+            shiftKey: true,
+            bubbles: true,
+          })
+        );
+      });
+      expect(document.activeElement).toBe(last);
+    });
+
+    // The guard this fix must not regress (see the Escape test above):
+    // the Tab trap and the Escape guard are two independent branches of
+    // the same handler, and a nested `[role="dialog"]` must leave Tab's
+    // own default browser handling alone (no `preventDefault`) exactly
+    // as it already leaves Escape alone.
+    it("does not trap Tab while a nested dialog is mounted, mirroring the Escape guard", async () => {
+      const el = await render(
+        <BottomSheet title="Outer" closeHref="/train?tab=week">
+          <button>Outer button</button>
+          <div role="dialog" aria-modal="true" aria-label="Nested">
+            <button>Nested button</button>
+          </div>
+        </BottomSheet>
+      );
+      const nestedButton = el.querySelector(
+        '[aria-label="Nested"] button'
+      ) as HTMLElement;
+      nestedButton.focus();
+      expect(document.activeElement).toBe(nestedButton);
+      let prevented = false;
+      await act(async () => {
+        const event = new KeyboardEvent("keydown", {
+          key: "Tab",
+          bubbles: true,
+          cancelable: true,
+        });
+        prevented = !document.dispatchEvent(event);
+      });
+      // Not redirected by the outer trap — focus is left exactly where
+      // the browser's own default Tab handling would take it (untouched
+      // by this handler, which is all a jsdom dispatch can prove: no
+      // `preventDefault`, no forced `.focus()` call).
+      expect(prevented).toBe(false);
+      expect(document.activeElement).toBe(nestedButton);
+    });
+  });
 });
