@@ -50,100 +50,33 @@ afterEach(async () => {
  * truthiness at render time — no client effect needed for this half, only
  * the focus move/trap/restore inside BottomSheet does (bottom-sheet.test.tsx).
  */
-describe("AppShell", () => {
-  it("leaves the background reachable when no sheet overlay is mounted", async () => {
+describe("AppShell's background marker", () => {
+  // AppShell no longer decides when the background is inert — BottomSheet
+  // does, on mount, because only a mounted modal knows a modal is visible.
+  // Deriving it from the `overlay` prop's truthiness shipped two page-killing
+  // bugs in two commits (Today's always-truthy <SheetHost/>, Coach's
+  // lg:hidden history panel). What AppShell owes BottomSheet is this marker.
+  it("marks the background subtree so a sheet can find it", async () => {
+    const el = await render(<AppShell user={null}>content</AppShell>);
+    expect(el.querySelector("[data-app-background]")).not.toBeNull();
+  });
+
+  it("never marks the overlay itself as background", async () => {
     const el = await render(
-      <AppShell>
-        <button>Page control</button>
+      <AppShell user={null} overlay={<div data-testid="ov">sheet</div>}>
+        content
       </AppShell>
     );
-    const btn = el.querySelector("button");
-    expect(btn).not.toBeNull();
-    expect(btn!.closest("[inert]")).toBeNull();
-    // BottomNav's own links must stay reachable too, not just `children`.
-    const navLink = el.querySelector("nav a");
-    expect(navLink).not.toBeNull();
-    expect(navLink!.closest("[inert]")).toBeNull();
+    const background = el.querySelector("[data-app-background]");
+    expect(background?.querySelector('[data-testid="ov"]')).toBeNull();
   });
 
-  it("marks the background inert while a sheet overlay is mounted, but leaves the overlay itself reachable", async () => {
+  it("does not set inert itself, whatever the overlay prop holds", async () => {
     const el = await render(
-      <AppShell overlay={<div role="dialog">Sheet</div>}>
-        <button>Page control</button>
+      <AppShell user={null} overlay={<div>hidden on desktop</div>}>
+        content
       </AppShell>
     );
-    const btn = el.querySelector("button");
-    expect(btn).not.toBeNull();
-    expect(btn!.closest("[inert]")).not.toBeNull();
-    const navLink = el.querySelector("nav a");
-    expect(navLink).not.toBeNull();
-    expect(navLink!.closest("[inert]")).not.toBeNull();
-    // The overlay is a sibling of the inert wrapper (see the component's
-    // own doc comment on why), so it must never itself be inert.
-    const dialog = el.querySelector('[role="dialog"]');
-    expect(dialog).not.toBeNull();
-    expect(dialog!.closest("[inert]")).toBeNull();
-  });
-
-  it("clears inert again once the overlay unmounts", async () => {
-    function Wrapper({ open }: { open: boolean }) {
-      return (
-        <AppShell overlay={open ? <div role="dialog">Sheet</div> : null}>
-          <button>Page control</button>
-        </AppShell>
-      );
-    }
-    const el = await render(<Wrapper open={true} />);
-    expect(el.querySelector("button")!.closest("[inert]")).not.toBeNull();
-    await act(async () => {
-      root!.render(<Wrapper open={false} />);
-    });
-    expect(el.querySelector("button")!.closest("[inert]")).toBeNull();
-  });
-});
-
-/**
- * A SOURCE SCAN, in the style of tests/dead-component-guard.test.ts, because
- * the defect this guards is at the CALL SITE and no page-level harness
- * renders Today.
- *
- * `overlay`'s truthiness drives `inert` on the entire background. A JSX
- * element is truthy even when the component inside it renders null — so
- * `overlay={<SheetHost … />}`, passed unconditionally, made every control on
- * Today inert with no sheet open at all. It shipped for exactly one commit.
- *
- * The three tests above pin AppShell's own behaviour, and would have stayed
- * green through that bug: the shell was right, the caller was wrong. This
- * asserts the contract the shell's doc comment states — pass null when
- * nothing is open — by requiring every call site's expression to be
- * conditional (a ternary, a `&&`, or a literal null).
- */
-describe("AppShell's overlay contract, across every call site", () => {
-  it("never passes an unconditional element as overlay", async () => {
-    const { readdirSync, readFileSync, statSync } = await import("node:fs");
-    const { join } = await import("node:path");
-
-    function walk(dir: string): string[] {
-      return readdirSync(dir).flatMap((name) => {
-        const full = join(dir, name);
-        if (statSync(full).isDirectory()) return walk(full);
-        return full.endsWith(".tsx") && !full.includes(".test.") ? [full] : [];
-      });
-    }
-
-    const offenders: string[] = [];
-    for (const file of walk(join(process.cwd(), "src", "app"))) {
-      const src = readFileSync(file, "utf8");
-      const idx = src.indexOf("overlay={");
-      if (idx === -1) continue;
-      // The expression up to the matching close, cheaply bounded: everything
-      // between `overlay={` and the line that closes it at the same indent.
-      const rest = src.slice(idx, idx + 600);
-      const conditional =
-        rest.includes("?") || rest.includes("&&") || rest.includes("null");
-      if (!conditional) offenders.push(file.replace(process.cwd() + "/", ""));
-    }
-
-    expect(offenders).toEqual([]);
+    expect(el.querySelector("[inert]")).toBeNull();
   });
 });

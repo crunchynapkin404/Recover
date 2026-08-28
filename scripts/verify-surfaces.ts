@@ -282,7 +282,11 @@ const SURFACES: Record<string, string> = {
   // scripts/seed-two-race.ts to have run — seed-demo.ts seeds no races and no
   // plans, so without it this surface fails loudly rather than filing the
   // single-race path under a two-race name.
-  "train-plan-preview": "/train",
+  // Slice 2 moved the 21-row draft table into the `plan-review` sheet — the
+  // page now carries a banner instead. The surface still photographs the
+  // table, so it opens the sheet by URL. Same for `train-race-pacing`, whose
+  // prose moved into `why-week`.
+  "train-plan-preview": "/train?sheet=plan-review",
   // Also same PATH as `train`, and same reasoning as `train-plan-preview`
   // above — the race card's pacing line only renders once the athlete has a
   // CONFIRMED plan, and neither `train` nor `train-plan-preview` ever reach
@@ -293,7 +297,7 @@ const SURFACES: Record<string, string> = {
   // scripts/seed-confirmed-race.ts to have run, BEFORE seed-two-race.ts (it
   // would otherwise delete that script's two-arc draft — see this script's
   // own file header).
-  "train-race-pacing": "/train",
+  "train-race-pacing": "/train?sheet=why-week",
   // Coach is a multi-state surface behind one URL, and `/coach` alone renders
   // `messages.length === 0` — the empty state. Until slice 4, every message
   // bubble, the timestamp, ArtifactCard, the typing indicator and the error
@@ -732,7 +736,7 @@ async function waitForTwoArcPreview(page: Page): Promise<void> {
     await header.scrollIntoViewIfNeeded({ timeout: 5_000 });
   } catch (err) {
     throw new Error(
-      "train-plan-preview: no visible [data-testid=segment-2] on /train. " +
+      "train-plan-preview: no visible [data-testid=segment-2] in the plan-review sheet. " +
         "Either no draft exists, the draft is single-race, or the segment " +
         "header stopped rendering. Run " +
         "`SEED_DEMO=1 DEMO_EMAIL=<owner> npx tsx scripts/seed-two-race.ts` " +
@@ -760,7 +764,7 @@ async function waitForRacePacing(page: Page): Promise<void> {
     await line.scrollIntoViewIfNeeded({ timeout: 5_000 });
   } catch (err) {
     throw new Error(
-      "train-race-pacing: no visible [data-testid=race-pacing] on /train. " +
+      "train-race-pacing: no visible [data-testid=race-pacing] in the why-week sheet. " +
         "Either there is no confirmed plan, the athlete's race is missing " +
         "or unavailable for pacing (triathlon/multi-day), or the derived " +
         "anchor could not resolve. Run `SEED_DEMO=1 DEMO_EMAIL=<owner> npx " +

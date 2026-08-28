@@ -74,7 +74,20 @@ export function BottomSheet({
   useEffect(() => {
     triggerRef.current = document.activeElement as HTMLElement | null;
     panelRef.current?.focus();
+
+    // The background leaves the tab order and the accessibility tree for as
+    // long as this sheet is mounted. Done HERE, by the modal itself, rather
+    // than by AppShell from its `overlay` prop: truthiness cannot know
+    // whether a modal is visible, and inferring it shipped two page-killing
+    // bugs — an always-truthy `<SheetHost/>` on Today, and Coach's
+    // `lg:hidden` history panel, which is present in the DOM on desktop and
+    // renders nothing. A mounted BottomSheet is the one unambiguous signal
+    // that a modal is actually on screen.
+    const background = document.querySelector("[data-app-background]");
+    background?.setAttribute("inert", "");
+
     return () => {
+      background?.removeAttribute("inert");
       triggerRef.current?.focus?.();
     };
   }, []);

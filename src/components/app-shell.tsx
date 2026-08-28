@@ -26,31 +26,33 @@ interface Props {
    * rise above the sidebar's own z-40 no matter what z-index it asks for.
    */
   /**
-   * PASS `null` WHEN NOTHING IS OPEN. This prop's truthiness drives `inert`
-   * on the whole background (below), and a JSX element is truthy even when
-   * the component inside it renders null — so an unconditional
-   * `overlay={<SheetHost/>}` makes every control on the page inert with no
-   * sheet open at all. Today shipped exactly that bug for the length of one
-   * commit; Coach's `history === "1" ? … : null` is the shape to copy.
+   * Full-screen overlays — the bottom sheets. Rendered as a sibling of the
+   * background wrapper below, never inside it.
+   *
+   * This prop's truthiness means NOTHING about whether a sheet is visible,
+   * and two shipped bugs came from assuming it did: a JSX element is truthy
+   * even when the component inside renders null (Today's unconditional
+   * `<SheetHost/>`), and an element can be present but hidden at a
+   * breakpoint (Coach's `lg:hidden` history panel, invisible on desktop).
+   * `BottomSheet` marks the background inert itself, on mount — the only
+   * thing that actually knows a modal is open is the modal.
    */
   overlay?: React.ReactNode;
 }
 
 export function AppShell({ children, noChrome = false, user, overlay }: Props) {
-  // I3, final whole-branch review: while a sheet overlay is mounted, the
-  // background must stop being reachable by keyboard/AT navigation — Tab
-  // used to walk straight through every page control plus BottomNav
-  // before ever reaching the sheet, and the sheet's own `aria-modal="true"`
-  // was inert because nothing ever kept the rest of the document from
-  // sharing focus with it. `inert` (a native HTML attribute; React
-  // forwards it) removes a whole subtree from the tab order AND the
-  // accessibility tree in one declarative step. Computed here, at render
-  // time, from the same `overlay` truthiness the sheet itself is already
-  // gated on — no client-side effect needed for this half; only moving
-  // focus into the panel, trapping it there, and restoring it on close
-  // (bottom-sheet.tsx) needs one, since those are lifecycle-shaped, not a
-  // pure function of props.
-  const sheetOpen = Boolean(overlay);
+  // The background subtree must leave the tab order and the accessibility
+  // tree while a sheet is open, or `aria-modal` is decorative: Tab otherwise
+  // walks every page control and BottomNav before reaching the panel.
+  //
+  // WHO DECIDES IS THE WHOLE LESSON HERE. This was first computed from
+  // `Boolean(overlay)` and shipped two bugs in two commits: Today passed an
+  // always-truthy `<SheetHost/>` (page dead on every load), and Coach's
+  // overlay is `lg:hidden` (page dead on desktop, caught only by the real-
+  // browser capture). A prop's truthiness cannot know whether a modal is
+  // visible. `BottomSheet` sets `inert` on this element itself when it
+  // mounts and clears it when it unmounts — see its own effect. The marker
+  // attribute below is the contract between them.
   return (
     <div className="mesh-gradient relative min-h-svh pb-32 pt-[env(safe-area-inset-top)] lg:pb-0">
       <GradientDepth />
@@ -58,7 +60,7 @@ export function AppShell({ children, noChrome = false, user, overlay }: Props) {
       {/* `overlay` stays OUTSIDE this wrapper (a sibling, not a child) —
         it must never itself go inert along with the background it sits
         above. */}
-      <div inert={sheetOpen}>
+      <div data-app-background>
         {/* Desktop sidebar (lg+); small screens use the bottom tab bar below. */}
         <SidebarNav user={user ?? null} />
 

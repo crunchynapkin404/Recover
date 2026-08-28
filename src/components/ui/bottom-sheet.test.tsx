@@ -397,3 +397,61 @@ describe("BottomSheet", () => {
     });
   });
 });
+
+/**
+ * The background's inert state belongs to the sheet, not to AppShell.
+ *
+ * Deriving it from AppShell's `overlay` prop shipped two page-killing bugs in
+ * two commits: Today passed an always-truthy `<SheetHost/>` whose component
+ * renders null (every control on Today inert, on every load), and Coach's
+ * overlay is `lg:hidden` — present in the DOM on desktop, rendering nothing —
+ * which killed Coach's desktop page and was caught only by the real-browser
+ * capture, never by jsdom. A prop cannot know whether a modal is visible; a
+ * mounted modal can.
+ */
+describe("BottomSheet and the background", () => {
+  it("marks the background inert while it is mounted", async () => {
+    const bg = document.createElement("div");
+    bg.setAttribute("data-app-background", "");
+    document.body.appendChild(bg);
+    try {
+      await render(
+        <BottomSheet title="Sheet" closeHref="/train?tab=week">
+          <button>Inside</button>
+        </BottomSheet>
+      );
+      expect(bg.hasAttribute("inert")).toBe(true);
+    } finally {
+      bg.remove();
+    }
+  });
+
+  it("clears it again when it unmounts, so the page comes back", async () => {
+    const bg = document.createElement("div");
+    bg.setAttribute("data-app-background", "");
+    document.body.appendChild(bg);
+    try {
+      await render(
+        <BottomSheet title="Sheet" closeHref="/train?tab=week">
+          <button>Inside</button>
+        </BottomSheet>
+      );
+      expect(bg.hasAttribute("inert")).toBe(true);
+      const r = root;
+      await act(async () => r!.unmount());
+      root = null;
+      expect(bg.hasAttribute("inert")).toBe(false);
+    } finally {
+      bg.remove();
+    }
+  });
+
+  it("does nothing when no background marker exists", async () => {
+    await render(
+      <BottomSheet title="Sheet" closeHref="/train?tab=week">
+        <button>Inside</button>
+      </BottomSheet>
+    );
+    expect(document.querySelector("[inert]")).toBeNull();
+  });
+});
