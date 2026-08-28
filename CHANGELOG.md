@@ -1,5 +1,118 @@
 # Changelog
 
+## v0.123.0 — 2026-08-28 — The page is the week
+
+Train ▸ Week was seventeen sections and 4.7 phone screens. It is now four
+sections and 1.84, with nothing the engine knows deleted — every block that
+left the page is one tap away. And the weekly nudge finally asks its question
+at a moment when the answer can still change anything.
+
+### Ask on Sunday, about the week that is about to start
+
+The v0.20 prompt asked "have you confirmed this week's availability" from the
+week's own Monday through day 4. By then the week has started and the plan
+was already built around whatever the standard week said, so the athlete is
+being asked to correct a plan rather than shape one. It now asks on the
+**Sunday before**, about the week ahead, deep-linking to next week's
+availability rather than to the page that contains it.
+
+That change exists because of something the redesign turned up: **the
+standard week is a fiction.** This athlete overrides it every single week, so
+the defaults are only ever a seed for the first override — which means the
+thing that must not fail is the prompt, not the defaults. The standard week
+was cut from the redesign on that evidence, and this replaces it.
+
+One touched day stops the nudge. An athlete who has set three of seven days
+has engaged with next week deliberately; nagging them to finish is nagging
+about a judgement they already made.
+
+### The week, in two slices
+
+**Slice 1 composed it.** A verdict headline instead of a bare `54 · amber` the
+athlete has to interpret. The season reduced to two figures — the Season tab
+had **zero actions** on a screen that did not scroll, a report wearing a tab's
+clothing, so it is retired and its telemetry key retired with it rather than
+deleted. Seven day-rows became a day strip carrying the week's shape (height
+is duration, fill is status, a notch marks a hard day) plus **one open day**,
+chosen by `?day=` so it survives a reload and can be linked.
+
+**Slice 2 removed.** `Why this week`, `Plan setup`, `Races`, `Availability`
+and the 21-row draft plan preview all moved behind `?sheet=` destinations with
+summary rows. That is the half that matters, and the numbers say why.
+
+### The measurement, which is the point
+
+|                  | Before | After slice 1 | **After slice 2** |
+| ---------------- | -----: | ------------: | ----------------: |
+| Phone screens    |    4.7 |          3.28 |          **1.84** |
+| Visible controls |     21 |            28 |            **17** |
+| Hidden controls  |     49 |            55 |             **7** |
+
+**Slice 1 alone made the surface worse.** It added the headline, the strip and
+the figures while removing nothing, and the spec's own Risks section had
+predicted exactly that ("slice 1 without slice 2 is a regression"). It was
+merged and deliberately held back from release until slice 2 existed.
+
+The original prediction was ~1.2 screens. It was not met, and the gap is named
+rather than explained away: the session-fuelling card and the race chip still
+sit on the page, and the spec assigns both a destination with an `ⓘ` that this
+release does not build. That is roughly 0.27 of the remaining 0.64 screens,
+and there is no `ⓘ` anywhere in the app yet.
+
+### What the tests could not see
+
+Four defects shipped into this branch that 3204 passing tests were green
+through, each caught by a different part of the release pipeline rather than
+by the suite:
+
+- **Today's entire page went inert.** The new focus work derived "is a sheet
+  open" from `Boolean(overlay)`, and Today passed an always-truthy
+  `<SheetHost/>` whose component renders null. Not just tab order — the
+  accessibility tree and pointer events. Every control on Today, dead, on
+  every load.
+- **Then Coach died on desktop**, from the same inference one step further in:
+  its history sheet is wrapped in `lg:hidden`, so it _mounts_ into a
+  `display: none` subtree. Mounting is not evidence a modal is visible any
+  more than a truthy prop was. Found by the production capture at a desktop
+  breakpoint.
+- **The "Why this week" sheet could not be scrolled by keyboard.** It is the
+  one destination whose content is pure prose, so `tabindex="-1"` left a
+  scroll container with nothing focusable in it. `scrollable-region-focusable`,
+  serious, caught by the axe ratchet — whose ceiling stayed at 0.
+- **Two capture surfaces pointed at content that had moved into sheets.**
+
+The answer to "is a modal actually visible" is now `checkVisibility()` — asked
+of the browser rather than inferred from a prop or a mount.
+
+### Also
+
+- **Sheets manage focus at last.** `BottomSheet` moves focus into the panel,
+  traps it, restores it to the trigger, and makes the background inert.
+  `aria-modal="true"` had been decorative since it was written, because focus
+  never entered. Today and Coach inherit all of it.
+- **A missed session no longer reads as planned rest.** `adapt-day` empties a
+  day's workouts when it stamps `missed`, so the day fell into the rest branch
+  and told the athlete the session they skipped was never planned.
+- **Weeks-to-race rounds down** at every producer that reaches the feasibility
+  ladder. At 32 days out it said "5 weeks", and the error ran in the direction
+  that hurts a taper.
+- **`/train?tab=season` redirects** rather than rendering an empty tab, and
+  `/admin` labels retired telemetry keys as retired rather than showing them
+  as live destinations.
+
+### Migrations
+
+**One, additive.** `week_plans.next_week_prompted_at` — a nullable timestamp
+recording that the Sunday nudge fired, so it cannot fire twice. No backfill,
+no rewrite.
+
+### Verification
+
+3204 tests pass with a database (1 expected fail, 1 skipped), up from 3015 at
+v0.122.0. Zero confirmed axe violations. Every guard mutation-checked —
+including one re-run fifteen times after a reviewer caught an earlier guard
+passing 1-in-5 against the mutation it existed to catch.
+
 ## v0.122.0 — 2026-08-27 — Before you press it
 
 Two of this release's changes are the same defect wearing different clothes:
