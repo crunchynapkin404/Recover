@@ -72,17 +72,30 @@ export function BottomSheet({
   // own I3 fix addresses for the background: the attribute promised
   // something the DOM never delivered.
   useEffect(() => {
+    const panel = panelRef.current;
+
+    // A SHEET CAN BE MOUNTED AND NOT VISIBLE, and this is the third page this
+    // distinction has nearly killed. Coach wraps its history sheet in
+    // `lg:hidden` — on desktop React mounts this component into a
+    // `display: none` subtree, so mounting is not evidence that a modal is on
+    // screen any more than a truthy prop was. A sheet nobody can see must not
+    // take focus, must not trap it, and must not make the page inert.
+    //
+    // `checkVisibility()` is the real-browser answer and does not exist in
+    // jsdom, where nothing has layout at all — there we fall back to "mounted
+    // means visible", which is what every test in this file intends.
+    const visible = panel?.checkVisibility?.() ?? panel != null;
+    if (!visible) return;
+
     triggerRef.current = document.activeElement as HTMLElement | null;
-    panelRef.current?.focus();
+    panel?.focus();
 
     // The background leaves the tab order and the accessibility tree for as
-    // long as this sheet is mounted. Done HERE, by the modal itself, rather
-    // than by AppShell from its `overlay` prop: truthiness cannot know
-    // whether a modal is visible, and inferring it shipped two page-killing
-    // bugs — an always-truthy `<SheetHost/>` on Today, and Coach's
-    // `lg:hidden` history panel, which is present in the DOM on desktop and
-    // renders nothing. A mounted BottomSheet is the one unambiguous signal
-    // that a modal is actually on screen.
+    // long as this sheet is open. Done HERE, by the modal itself, rather than
+    // by AppShell from its `overlay` prop: a prop's truthiness cannot know
+    // whether a modal is visible, and inferring it killed two pages in two
+    // commits — an always-truthy `<SheetHost/>` on Today, and Coach's
+    // `lg:hidden` history panel on desktop.
     const background = document.querySelector("[data-app-background]");
     background?.setAttribute("inert", "");
 

@@ -455,3 +455,54 @@ describe("BottomSheet and the background", () => {
     expect(document.querySelector("[inert]")).toBeNull();
   });
 });
+
+/**
+ * The hidden-but-mounted case, which killed Coach's desktop page and was
+ * caught only by a real-browser capture. Coach wraps its history sheet in
+ * `lg:hidden`, so on desktop React mounts this component into a
+ * `display: none` subtree. jsdom computes no layout and has no
+ * `checkVisibility`, so this test installs one to stand in for the browser.
+ */
+describe("BottomSheet when it is mounted but not visible", () => {
+  it("leaves the background alone", async () => {
+    const bg = document.createElement("div");
+    bg.setAttribute("data-app-background", "");
+    document.body.appendChild(bg);
+    const proto = Element.prototype as unknown as {
+      checkVisibility?: () => boolean;
+    };
+    proto.checkVisibility = () => false;
+    try {
+      await render(
+        <BottomSheet title="Hidden" closeHref="/coach">
+          <button>Inside</button>
+        </BottomSheet>
+      );
+      expect(bg.hasAttribute("inert")).toBe(false);
+    } finally {
+      delete proto.checkVisibility;
+      bg.remove();
+    }
+  });
+
+  it("does not steal focus", async () => {
+    const trigger = document.createElement("button");
+    document.body.appendChild(trigger);
+    trigger.focus();
+    const proto = Element.prototype as unknown as {
+      checkVisibility?: () => boolean;
+    };
+    proto.checkVisibility = () => false;
+    try {
+      await render(
+        <BottomSheet title="Hidden" closeHref="/coach">
+          <button>Inside</button>
+        </BottomSheet>
+      );
+      expect(document.activeElement).toBe(trigger);
+    } finally {
+      delete proto.checkVisibility;
+      trigger.remove();
+    }
+  });
+});
