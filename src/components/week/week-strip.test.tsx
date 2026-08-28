@@ -430,6 +430,32 @@ describe("WeekStrip — I2: today's ring and the open day's mark are independent
     expect(todayColumn?.getAttribute("data-open")).not.toBe("true");
   });
 
+  it("paints the open column with a ground that is distinct from its container, not the one that collides with it", async () => {
+    // jsdom has no computed colour, so this cannot see that the pill is
+    // invisible — that's a real-browser fact, guarded instead by
+    // tests/contrast-guard.test.ts's per-token ratios plus the globals.css
+    // comment on --surface-selected. What jsdom CAN see is which CLASS is
+    // on the element: bg-surface-overlay is a no-op here because the
+    // column's container (week-strip's outer div) is bg-surface-raised,
+    // and --surface-raised and --surface-overlay are BOTH #ffffff in light
+    // (globals.css :root). bg-surface-selected is the token the repo
+    // already uses for exactly this "highlight inside a raised container"
+    // collision (see its comment in globals.css), and it differs from
+    // surface-raised in both themes. Pin the class, as a stand-in for the
+    // contrast that class is responsible for producing.
+    const el = await render(
+      <WeekStrip
+        days={sessionWeek}
+        selectedDate={OTHER_DAY}
+        hrefForDay={(d) => `/train?day=${d}`}
+        marks="bars"
+      />
+    );
+    const openColumn = el.querySelector(`[data-date="${OTHER_DAY}"]`);
+    expect(openColumn?.className).toContain("bg-surface-selected");
+    expect(openColumn?.className).not.toContain("bg-surface-overlay");
+  });
+
   it("shows both marks together when the open day IS today", async () => {
     const el = await render(
       <WeekStrip

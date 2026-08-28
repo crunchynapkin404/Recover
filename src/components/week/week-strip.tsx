@@ -256,8 +256,15 @@ export function WeekStrip({
         // The open day's own mark: a filled pill behind the whole column,
         // legible alongside today's ring (a ring drawn inside a filled
         // pill) rather than competing with it for the same visual slot.
+        // bg-surface-overlay would be a no-op here: this column sits inside
+        // a bg-surface-raised container (see the outer div below), and
+        // --surface-raised and --surface-overlay are BOTH #ffffff in light
+        // (globals.css :root) — the pill would paint white on white.
+        // --surface-selected exists for exactly this "highlight inside a
+        // raised container" collision (see its comment in globals.css) and
+        // is distinct from --surface-raised in both themes.
         const columnClassName = `flex flex-col items-center gap-2 rounded-2xl px-1.5 py-1 ${
-          isOpen ? "bg-surface-overlay" : ""
+          isOpen ? "bg-surface-selected" : ""
         }`;
 
         return hrefForDay ? (
