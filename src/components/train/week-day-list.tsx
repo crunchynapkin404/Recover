@@ -44,9 +44,33 @@ interface DayRowProps {
   badge: RowBadge;
   otherDays: DayActionsOtherDay[];
   actual?: DayActuals;
+  /**
+   * I4, final whole-branch review: whether the open day's own actions
+   * (Move, Target day, What if?, No time today) can possibly succeed.
+   * Before Task 4, `visibleDays = days.filter(d => d.date >= today)` meant
+   * a past day had no row at all, so DayActions never got the chance to
+   * mount on one; the day strip now makes every day a tap away, and this
+   * is what restores the same floor. False on a day the athlete has
+   * already completed or missed (moveWorkout/swapWorkouts refuse those as
+   * a source; zeroDay has no such guard of its own and would happily pin a
+   * zero-availability override onto a day already trained) or that is
+   * simply in the past (a day the daily adaptation never got to still
+   * reads "planned" forever — see verdict-line.ts's I3 fix for the same
+   * gap). Only WeekDayList computes this, since only it has `today` in
+   * scope; a next-week preview row always passes `isOpen={false}`, so this
+   * prop is moot there and defaults true.
+   */
+  actionable?: boolean;
 }
 
-function DayRow({ day: d, isOpen, badge, otherDays, actual }: DayRowProps) {
+function DayRow({
+  day: d,
+  isOpen,
+  badge,
+  otherDays,
+  actual,
+  actionable = true,
+}: DayRowProps) {
   // Only for days the plan left empty. A planned session that happened
   // already says so through its own "completed" chip, and repeating the
   // ride underneath it would be the same duplicated-data problem this
@@ -136,7 +160,7 @@ function DayRow({ day: d, isOpen, badge, otherDays, actual }: DayRowProps) {
         )}
       </div>
 
-      {isOpen && d.workouts.length > 0 && (
+      {isOpen && actionable && d.workouts.length > 0 && (
         <DayActions
           day={{ date: d.date, workoutCount: d.workouts.length }}
           otherDays={otherDays.filter((o) => o.date !== d.date)}
@@ -241,6 +265,15 @@ export function WeekDayList({
           badge={null}
           otherDays={otherDays}
           actual={actuals?.[openDay.date]}
+          // I4: no action here can succeed on a day already completed or
+          // missed, or on any day already in the past (see DayRow's
+          // `actionable` doc comment) — those get the row, but not the
+          // actions under it.
+          actionable={
+            openDay.date >= today &&
+            openDay.status !== "completed" &&
+            openDay.status !== "missed"
+          }
         />
       )}
 

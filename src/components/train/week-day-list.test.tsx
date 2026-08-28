@@ -455,16 +455,19 @@ describe("WeekDayList — status as a dot, not a pill (v0.99 slice 2)", () => {
 
   it("has no type below the 12px floor and no ad-hoc white alphas", () => {
     // Today (2026-07-28) has a workout in CURRENT_WEEK_DAYS and is the open
-    // day, so <DayActions> mounts inline on its row (isOpen &&
+    // day, so <DayActions> mounts inline on its row (isOpen && actionable &&
     // workouts.length > 0). DayActions (src/components/week/day-actions.tsx)
     // is on the token scale as of slice-2 Task 5, so the unmodified fixture
-    // is safe here.
+    // is safe here — except CURRENT_WEEK_DAYS' own Tuesday is "completed"
+    // (I4, final whole-branch review: DayActions no longer mounts on a
+    // completed day at all), which would silently stop this test from
+    // covering DayActions. Overridden to "planned" here, and only here, so
+    // this test keeps exercising what its comment says it does.
+    const days = CURRENT_WEEK_DAYS.map((d) =>
+      d.date === "2026-07-28" ? { ...d, status: "planned" as const } : d
+    );
     const html = renderToString(
-      <WeekDayList
-        days={CURRENT_WEEK_DAYS}
-        today="2026-07-28"
-        openDate="2026-07-28"
-      />
+      <WeekDayList days={days} today="2026-07-28" openDate="2026-07-28" />
     );
     expect(html).not.toMatch(/text-\[[\d.]+px\]/);
     expect(html).not.toMatch(/\btext-xs\b/);
@@ -511,5 +514,74 @@ describe("WeekDayList — status as a dot, not a pill (v0.99 slice 2)", () => {
     expect(previewRow).toContain(
       'class="truncate text-caption text-ink-secondary"'
     );
+  });
+});
+
+// I4, final whole-branch review: before Task 4, `visibleDays = days.filter(
+// d => d.date >= today)` meant a past day had no row and no actions at all.
+// The day strip now makes every day — including every past one — one tap
+// from its own row, and DayActions used to mount there with no guard
+// beyond "is this the open day and does it have a workout". moveWorkout /
+// swapWorkouts (service.ts) refuse a completed/missed SOURCE day, so Move
+// and Target-day on one are a guaranteed dead end; zeroDay
+// ("No time today") has no such guard at all and would write a real
+// zero-availability override for a day the athlete demonstrably trained.
+//
+// Chosen fix (argued in the report): hide DayActions rather than guard
+// zeroDay alone. Guarding zeroDay only would still leave Move and Target
+// day visually tappable-but-doomed — a confusing dead end the server
+// safely rejects but the UI still offers. Hiding the whole row restores
+// exactly the pre-Task-4 invariant ("past days had no actions") and closes
+// all four actions (Move, Target day, What if?, No time today) in the one
+// place that decides whether the row can succeed at all.
+describe("WeekDayList — I4: DayActions only mounts where it can succeed", () => {
+  const THREE_DAYS_AGO = localYmd(new Date(Date.now() - 3 * 86_400_000));
+
+  it("hides DayActions on a completed open day, even though it's open", () => {
+    const html = renderToString(
+      <WeekDayList
+        today={TODAY}
+        openDate={TODAY}
+        days={[slot(TODAY, "completed", tempo)]}
+      />
+    );
+    expect(html).not.toContain('aria-label="Plan change"');
+  });
+
+  // The I3 gap this mirrors: adapt-day.ts's handleMissedYesterday only
+  // ever looks at yesterday, so a day three days gone can still carry
+  // `status: "planned"` — never "completed" — forever. A status check
+  // alone would miss exactly this day; the date floor is what catches it.
+  it("hides DayActions on a past open day never stamped completed or missed", () => {
+    const html = renderToString(
+      <WeekDayList
+        today={TODAY}
+        openDate={THREE_DAYS_AGO}
+        days={[slot(THREE_DAYS_AGO, "planned", tempo)]}
+      />
+    );
+    expect(html).not.toContain('aria-label="Plan change"');
+  });
+
+  it("still shows DayActions on today's open day when nothing has happened yet", () => {
+    const html = renderToString(
+      <WeekDayList
+        today={TODAY}
+        openDate={TODAY}
+        days={[slot(TODAY, "planned", tempo)]}
+      />
+    );
+    expect(html).toContain('aria-label="Plan change"');
+  });
+
+  it("still shows DayActions on a future open day", () => {
+    const html = renderToString(
+      <WeekDayList
+        today={TODAY}
+        openDate={TOMORROW}
+        days={[slot(TODAY, "rest"), slot(TOMORROW, "planned", tempo)]}
+      />
+    );
+    expect(html).toContain('aria-label="Plan change"');
   });
 });
