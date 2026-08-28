@@ -1,5 +1,23 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderToString } from "react-dom/server";
+
+// I5, final whole-branch review: `state.message` is the server's response
+// to a real submission (e.g. "That week has already passed. Nothing was
+// changed."), which `useActionState` only ever produces after a real form
+// submit — unreachable from a single synchronous renderToString pass with
+// the real hook. Mocked the same way oura-card.test.tsx/
+// webhooks-card.test.tsx already mock `useActionState` for their own
+// message-state cases: everything else from react stays the real
+// implementation, only this one hook returns a configurable state.
+let mockIntakeState: { message: string } = { message: "" };
+vi.mock("react", async () => {
+  const actual = await vi.importActual<typeof import("react")>("react");
+  return {
+    ...actual,
+    useActionState: vi.fn(() => [mockIntakeState, vi.fn(), false]),
+  };
+});
+
 import { IntakeForm } from "./intake-form";
 
 const resolved = Array.from({ length: 7 }, (_, i) =>
@@ -16,6 +34,13 @@ const resolved = Array.from({ length: 7 }, (_, i) =>
     : []
 );
 const noop = vi.fn();
+
+afterEach(() => {
+  // Every test but the one that sets it explicitly expects the initial,
+  // no-submission-yet state — matching what the real hook returns on a
+  // first render.
+  mockIntakeState = { message: "" };
+});
 
 describe("IntakeForm", () => {
   it("carries each day's blocks into the form as JSON", () => {
@@ -208,5 +233,43 @@ describe("IntakeForm", () => {
     // overridden date above.
     expect(buttonCount).toBe(8);
     expect(scrollMbCount).toBe(buttonCount);
+  });
+
+  // I5, final whole-branch review: Task 6 moved the total/warning text
+  // above the day list to fix the DOM-order inversion above (see that
+  // test's comment) — the day list's closing `</ul>` became PinnedAction's
+  // immediate predecessor. `state.message`, the one piece of text a failed
+  // submission actually needs the athlete to read (e.g. "That week has
+  // already passed. Nothing was changed."), was left AFTER PinnedAction —
+  // the exact position Task 6 just finished proving is wrong, off-screen
+  // in precisely the scroll state that makes the button sticky.
+  it("renders the result message before PinnedAction, not after it", () => {
+    mockIntakeState = {
+      message: "That week has already passed. Nothing was changed.",
+    };
+    const html = renderToString(
+      <IntakeForm
+        resolved={resolved}
+        overrideDates={[]}
+        dates={[]}
+        verdict={{ kind: "ok" }}
+        sports={["Bike"]}
+        action={noop}
+      />
+    );
+    const messageIdx = html.indexOf("That week has already passed");
+    const listOpenIdx = html.indexOf("<ul");
+    const listCloseIdx = html.indexOf("</ul>");
+    const buttonIdx = html.indexOf("Confirm week");
+    expect(messageIdx).toBeGreaterThan(-1);
+    expect(listOpenIdx).toBeGreaterThan(-1);
+    expect(listCloseIdx).toBeGreaterThan(-1);
+    expect(buttonIdx).toBeGreaterThan(-1);
+    expect(messageIdx).toBeLessThan(buttonIdx);
+    // Not just "before the button" — before the day list too, keeping the
+    // Task 6 invariant intact: `</ul>` stays PinnedAction's immediate DOM
+    // predecessor, with nothing reintroduced between them.
+    expect(messageIdx).toBeLessThan(listOpenIdx);
+    expect(listCloseIdx).toBeLessThan(buttonIdx);
   });
 });

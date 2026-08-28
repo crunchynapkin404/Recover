@@ -140,6 +140,19 @@ export function IntakeForm({
           {warning}
         </p>
       )}
+      {/* I5, final whole-branch review: `state.message` — the server's
+          response to a real submission, e.g. "That week has already
+          passed. Nothing was changed." — used to render AFTER
+          PinnedAction, exactly the position the comment above says causes
+          a DOM-order inversion. It joins total/warning here rather than
+          sitting between the list and the button, so `</ul>` stays
+          PinnedAction's immediate DOM predecessor and there is still
+          nothing between them to invert. */}
+      {state.message !== "" && (
+        <p className="mb-5 text-center text-label text-ink-secondary">
+          {state.message}
+        </p>
+      )}
 
       <ul className="mb-3">
         {week.map((blocks, i) => {
@@ -197,11 +210,6 @@ export function IntakeForm({
         formAction={formAction}
         pending={pending}
       />
-      {state.message !== "" && (
-        <p className="mt-3 text-center text-label text-ink-secondary">
-          {state.message}
-        </p>
-      )}
 
       {openDay !== null && (
         <BlockSheet
