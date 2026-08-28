@@ -620,7 +620,6 @@ async function WeekTab({
 
   const today = new Date();
   const todayYmd = localYmd(today);
-  const todaySlot = week?.days.find((d) => d.date === todayYmd) ?? null;
   // The day WeekDayList expands and WeekStrip rings. dayParam is untrusted
   // URL input — openDayFrom checks it against this week's own dates (the
   // same class of guard SheetHost applies to a UUID before it reaches
@@ -960,10 +959,19 @@ async function WeekTab({
             actuals={dayActuals}
           />
 
-          {todaySlot && todaySlot.workouts.length > 0 && (
+          {/* C1, final whole-branch review: this used to bind to
+              todaySlot/todayYmd while rendering directly beneath the OPEN
+              day's row (WeekDayList, just above). Task 4 moved the open day
+              off "today" everywhere else on this tab — the verdict, the
+              strip, WeekDayList itself — and missed this call site, so a
+              Wednesday spent looking at Saturday's long ride showed
+              Wednesday's own fuelling instead (or nothing, when Wednesday
+              was a rest day). The spec (§3, "The week card") puts fuelling
+              INSIDE the open day; openDaySlot/openDate is that day. */}
+          {openDaySlot && openDaySlot.workouts.length > 0 && (
             <FuellingCard
-              date={todayYmd}
-              workouts={todaySlot.workouts}
+              date={openDate}
+              workouts={openDaySlot.workouts}
               bodyMassKg={bodyMassKg}
             />
           )}
