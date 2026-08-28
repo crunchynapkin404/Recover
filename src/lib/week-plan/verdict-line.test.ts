@@ -311,6 +311,9 @@ describe("verdictLine", () => {
   // sentence must not pretend it is only one of them. Given a real band
   // (not "calibrating", which the mutation check below needs isolated to
   // tests actually about it) so this pins its own claim independently.
+  // M3, final whole-branch review: "Thursday is 2 sessions" reads as an
+  // equation ("Thursday equals two sessions"), not a schedule. "has" is
+  // the verb a count of sessions actually takes.
   it("counts multiple sessions rather than naming just one", () => {
     const twoADay = slot({
       workouts: [w(60, "aerobic_base"), w(30, "strength")],
@@ -323,7 +326,7 @@ describe("verdictLine", () => {
       readinessDate: TODAY,
     });
     expect(v?.text).toBe(
-      "Thursday is 2 sessions — readiness is moderate today."
+      "Thursday has 2 sessions — readiness is moderate today."
     );
     expect(v?.emphasis).toBe("readiness is moderate today");
   });
@@ -340,5 +343,69 @@ describe("verdictLine", () => {
       "Thursday is a threshold session — readiness is low today."
     );
     expect(v?.emphasis).toBe("readiness is low today");
+  });
+
+  // I3, final whole-branch review: `isPast` used to be
+  // `status === "completed" || "missed"`. A race day's status is always
+  // "race" — never "completed" or "missed" — so a past race kept reading
+  // in the present tense forever. Tense must come from the date.
+  it("reads a past race day in the past tense", () => {
+    const pastRace = slot({
+      date: "2026-08-22", // the Saturday before TODAY (2026-08-27, Thursday)
+      workouts: [],
+      status: "race",
+      raceName: "Club Crit",
+    });
+    const v = verdictLine({
+      openDay: pastRace,
+      band: "green",
+      readiness: 78,
+      todayYmd: TODAY,
+      readinessDate: TODAY,
+    });
+    expect(v?.text).toBe("Saturday was race day.");
+    expect(v?.emphasis).toBeNull();
+  });
+
+  // I3: the other half of the same root cause. adapt-day.ts's
+  // handleMissedYesterday only ever looks at yesterday, so a day three
+  // days gone can still carry `status: "planned"` — never "completed" —
+  // forever. No test before this one covered a past day whose status is
+  // neither "completed" nor "missed".
+  it("describes a past day in the past tense even when nothing ever stamped it completed or missed", () => {
+    const staleMonday = slot({
+      date: "2026-08-24", // Monday, three days before TODAY — status
+      workouts: [w(180, "long")], // untouched: still "planned", not "completed"
+      status: "planned",
+    });
+    const v = verdictLine({
+      openDay: staleMonday,
+      band: "green",
+      readiness: 78,
+      todayYmd: TODAY,
+      readinessDate: TODAY,
+    });
+    expect(v?.text).toBe("Monday was your long one.");
+    expect(v?.emphasis).toBeNull();
+  });
+
+  // I3 + M3 together: a past day with more than one session takes "had",
+  // not "has" — the same count-noun fix as the present-tense case above,
+  // in the tense a genuinely past day actually needs.
+  it("reads a past multi-session day with 'had', not 'has'", () => {
+    const pastTwoADay = slot({
+      date: "2026-08-24",
+      workouts: [w(60, "aerobic_base"), w(30, "strength")],
+      status: "planned",
+    });
+    const v = verdictLine({
+      openDay: pastTwoADay,
+      band: "green",
+      readiness: 78,
+      todayYmd: TODAY,
+      readinessDate: TODAY,
+    });
+    expect(v?.text).toBe("Monday had 2 sessions.");
+    expect(v?.emphasis).toBeNull();
   });
 });

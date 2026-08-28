@@ -53,11 +53,17 @@ import { WEEKDAY_NAMES, weekdayIndex } from "@/lib/weekdays";
  *   no marker for. Off-today, or on a stale figure, the sentence describes
  *   only the session — the same shape the calibrating case already used,
  *   extended to a second reason a claim isn't safe to make.
- * - A day already `completed` is described in the past tense ("Monday was
- *   your long one"), never the present — the open day can be any day of
- *   the week (Task 4), not only an upcoming one. A `missed` day needs no
- *   separate tense flag: "was missed" is already the only tense a session
- *   that didn't happen can honestly take.
+ * - TENSE IS DERIVED FROM THE DATE, NOT THE STATUS (I3 fix, final
+ *   whole-branch review). A past day is described in the past tense
+ *   ("Monday was your long one") whether or not the daily adaptation has
+ *   gotten around to stamping it: `adapt-day.ts`'s `handleMissedYesterday`
+ *   only ever looks at yesterday, so a day three days gone can still carry
+ *   `status: "planned"` forever, and a past RACE day keeps `status: "race"`
+ *   forever too — nothing ever re-stamps a race day after the fact. Both
+ *   read in the past tense off the date, not off a status that was never
+ *   going to change. A `missed` day needs no separate tense flag: "was
+ *   missed" is already the only tense a session that didn't happen can
+ *   honestly take.
  *
  * Deliberately does NOT call `dayShape` (day-shape.ts): that function's
  * `rest` flag is just `workouts.length === 0` restated, and its `hard` flag
@@ -107,8 +113,9 @@ const READINESS_CLAIM: Record<"green" | "amber" | "red", string> = {
  * The sentence's subject and session description — no readiness claim
  * lives here at all (see `readinessClaim` for that).
  *
- * `isToday`/`isPast` only change the DELIBERATE-REST branch's subject word
- * and the SESSION branch's verb, respectively — never which branch fires.
+ * `isToday` only changes the DELIBERATE-REST branch's subject word.
+ * `isPast` only changes the RACE and SESSION branches' verb (was/is,
+ * had/has) — neither ever changes which branch fires.
  */
 function sessionBase(
   weekday: string,
@@ -118,15 +125,21 @@ function sessionBase(
 ): string {
   // Checked first, not merely because a race day happens to carry no
   // workouts today (see the module comment) — status is the authority.
+  //
+  // Tensed off `isPast` like the workouts branch below: a race day's
+  // status is always "race", never "completed", so a past race would
+  // otherwise read in the present tense forever (I3 fix).
   if (day.status === "race") {
-    return `${weekday} is race day`;
+    return `${weekday} ${isPast ? "was" : "is"} race day`;
   }
   if (day.workouts.length > 0) {
-    const phrase =
-      day.workouts.length === 1
-        ? (SESSION_PHRASE[day.workouts[0].purpose] ?? "a session")
-        : `${day.workouts.length} sessions`;
-    return `${weekday} ${isPast ? "was" : "is"} ${phrase}`;
+    if (day.workouts.length === 1) {
+      const phrase = SESSION_PHRASE[day.workouts[0].purpose] ?? "a session";
+      return `${weekday} ${isPast ? "was" : "is"} ${phrase}`;
+    }
+    // M3 fix: "Thursday is 2 sessions" reads as an equation, not a
+    // schedule. A count of sessions takes "has"/"had", not "is"/"was".
+    return `${weekday} ${isPast ? "had" : "has"} ${day.workouts.length} sessions`;
   }
   // Empty. WHICH kind of empty is the whole question — see the module
   // comment's `restIntent` section.
@@ -206,7 +219,13 @@ export function verdictLine(input: {
   const { openDay, band, readiness, todayYmd, readinessDate } = input;
   const weekday = WEEKDAY_NAMES[weekdayIndex(openDay.date)];
   const isToday = openDay.date === todayYmd;
-  const isPast = openDay.status === "completed" || openDay.status === "missed";
+  // I3, final whole-branch review: date-derived, not status-derived. A
+  // past RACE day keeps `status: "race"` forever (nothing ever re-stamps
+  // it), and adapt-day.ts's `handleMissedYesterday` only ever looks at
+  // yesterday — a day three days gone can still read `status: "planned"`.
+  // Both `openDay.date` and `todayYmd` are YYYY-MM-DD, so a plain string
+  // comparison is already a correct chronological one.
+  const isPast = openDay.date < todayYmd;
   // No session to pace, whatever the reason (missed, deliberately rested,
   // or simply empty) — `sessionBase` tells the three apart in the text;
   // none of them earns a claim about the athlete's body.
