@@ -83,17 +83,30 @@ export type PinnedActionProps = SubmitProps | LinkProps;
  * `z-[60]`) — nothing to clear — and this instance's nearest scrolling
  * ancestor isn't the page at all, it's the sheet panel itself
  * (`overflow-y: auto`, `max-height: 92svh`), so a page-relative offset is
- * measuring the wrong box regardless. `bottom-0` sticks to that panel's
- * own scrollport edge instead of inventing a second BottomNav-shaped
- * number for a container that has no BottomNav. REASONED, NOT MEASURED —
- * no device check backs this one the way `bottom-32` above has; a real
- * pass (the layout-measurement method this repo already has for exactly
- * this class of question) is worth running before shipping it wider than
- * one caller.
+ * measuring the wrong box regardless.
+ *
+ * M2, final whole-branch review: this used to be `bottom-0`, and that was
+ * wrong on its own terms, not merely unmeasured — the "REASONED, NOT
+ * MEASURED" caveat below named the risk without naming the actual bug. A
+ * `position: sticky` offset resolves against its scrolling ancestor's
+ * PADDING box, not its content box. The panel's own bottom padding is
+ * `calc(env(safe-area-inset-bottom)+1.25rem)` (bottom-sheet.tsx's
+ * `sheet-panel`), there specifically to keep content clear of a notched
+ * phone's home indicator — `bottom-0` stuck this button flush to THAT
+ * padding-box edge, i.e. as low as the safe area's own outer edge, past
+ * the padding meant to protect it, landing the sheet's own "Confirm week"
+ * under the home indicator. Repeating the panel's exact padding value
+ * here as the offset instead pulls the stuck position back up by that
+ * same amount, so it rests at the content-box edge — where it would sit
+ * in ordinary, non-sticky flow once the panel is scrolled all the way
+ * down — clearing the safe area rather than sticking past it.
  */
 export function PinnedAction(props: PinnedActionProps) {
   const { label, variant = "page" } = props;
-  const offset = variant === "sheet" ? "bottom-0" : "bottom-32 lg:bottom-6";
+  const offset =
+    variant === "sheet"
+      ? "bottom-[calc(env(safe-area-inset-bottom)+1.25rem)]"
+      : "bottom-32 lg:bottom-6";
   return (
     <div
       data-pinned-action
