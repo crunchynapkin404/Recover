@@ -373,6 +373,17 @@ describe.skipIf(!hasDb)(
       );
       // StandardWeek's own heading.
       expect(closed).not.toContain("Your standard week");
+      // The deleted Collapsible trigger's own label (review finding 2 on
+      // ded5f64) — case-distinct from "Your standard week" above and from
+      // the "standard week" this file's own comments use lowercase. Base
+      // UI's CollapsiblePanel doesn't render its children into SSR while
+      // closed, so a closed-page string check can't tell "moved into the
+      // sheet" apart from "re-wrapped in a still-collapsed Collapsible" for
+      // PANEL content (see the mutation-check note in task-2-report.md) —
+      // but the TRIGGER label is always rendered, closed or not, so this
+      // line is the one that actually catches a re-wrap. It now survives
+      // only in comments, nowhere in rendered output.
+      expect(closed).not.toContain("Standard week");
       // The remaining-skeleton table's own heading and column.
       expect(closed).not.toContain("Remaining skeleton");
       expect(closed).not.toContain("Target load");
