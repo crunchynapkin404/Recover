@@ -1632,6 +1632,80 @@ describe.skipIf(!hasDb)("previewTrainingPlan — two A-races", () => {
       expect(weeksUntilEvent).not.toBe(5);
     });
   });
+
+  // Residual finding on the review pass above: `previewFromDraft`'s
+  // `shortHorizon` briefly read the floored `weeksUntilRace` (the
+  // feasibility figure) instead of the ceiled `weeksTotal` the card's own
+  // header prints -- self-contradictory in the 22-27-day band, where
+  // Math.floor(days/7) < 4 but Math.ceil(days/7) is already 4: the header
+  // would read "4 weeks" while the warning claimed "fewer than four
+  // weeks". Reverted to `draft.weeksTotal < 4`, matching
+  // `previewTrainingPlan`'s own `weeksTotal < 4` -- one rule, and it is
+  // the rule that keeps a single card's own header and warning agreeing
+  // with each other, not merely the rule nearest the code it sat next to.
+  //
+  // 21/25/28 days, as named in the finding, each chosen (like the 238-day
+  // banner fixture, review finding 4) to sit away from Math.ceil's own
+  // boundary-crossing point in the day count's own +/-1 rounding band
+  // (`daysBetween` rounds a NOW-to-MIDNIGHT ms difference, so it can land
+  // on either N or N-1 depending on what time of day the suite runs) --
+  // Math.ceil((N-1)/7) and Math.ceil(N/7) agree for all three, so the
+  // expected verdict below is not itself a coin flip.
+  describe.each([
+    { days: 21, expectShort: true },
+    // The reported failure's own boundary: floor(25/7)=3 (<4) but
+    // ceil(25/7)=4 (not <4) -- this is the day count that would have
+    // caught the residual finding directly.
+    { days: 25, expectShort: false },
+    { days: 28, expectShort: false },
+  ])(
+    "shortHorizon at $days days out (header and warning must agree)",
+    ({ days, expectShort }) => {
+      it("previewTrainingPlan: weeksTotal and the short_horizon warning agree", async () => {
+        const raceDate = addDaysYmd(todayYmd(), days);
+        const result = await previewTrainingPlan({
+          userId: USER,
+          raceType: "marathon",
+          raceDate,
+        });
+        expect(result.ok).toBe(true);
+        if (!result.ok) throw new Error("expected ok");
+        const hasWarning = result.preview.warnings.includes("short_horizon");
+        expect(hasWarning).toBe(expectShort);
+        // The header's own number is the thing the warning must never
+        // contradict: "short" means "< 4", stated in terms of the exact
+        // figure the card prints two lines above the warning.
+        expect(result.preview.weeksTotal < 4).toBe(expectShort);
+      });
+
+      it("previewFromDraft: weeksTotal and the short_horizon warning agree, and match previewTrainingPlan's own verdict", async () => {
+        const raceDate = addDaysYmd(todayYmd(), days);
+        const created = await previewTrainingPlan({
+          userId: USER,
+          raceType: "marathon",
+          raceDate,
+        });
+        expect(created.ok).toBe(true);
+        if (!created.ok) throw new Error("expected ok");
+        const draft = await db.query.trainingPlans.findFirst({
+          where: eq(schema.trainingPlans.id, created.preview.planId),
+        });
+        expect(draft).toBeTruthy();
+        if (!draft) return;
+
+        const rehydrated = await previewFromDraft(draft);
+        const hasWarning = rehydrated.warnings.includes("short_horizon");
+        expect(hasWarning).toBe(expectShort);
+        expect(rehydrated.weeksTotal < 4).toBe(expectShort);
+        // Cross-surface agreement: the coach's own preview and the
+        // athlete's rehydrated card must reach the identical verdict for
+        // the identical race.
+        expect(hasWarning).toBe(
+          created.preview.warnings.includes("short_horizon")
+        );
+      });
+    }
+  );
 });
 
 describe("periodize clamps an out-of-range firstRace.weekNumber", () => {

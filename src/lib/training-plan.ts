@@ -1356,6 +1356,19 @@ export async function previewTrainingPlan(
   const weeksTotal = Math.ceil(daysBetween(today, race) / 7);
   if (weeksTotal > 52) return { ok: false, reason: "horizon_too_long" };
   const planWeeks = Math.max(1, weeksTotal);
+  // Deliberately bound to `weeksTotal` (Math.ceil, the same figure the
+  // card's own header prints as "N weeks") rather than a floored
+  // runway-remaining figure like `feasibilityFor`'s `weeksUntilEvent`.
+  // `short_horizon`'s own text is "fewer than four weeks until race day,
+  // so THIS IS A SHORTENED PLAN" -- a claim about the plan `weeksTotal`
+  // itself describes (periodize() always builds exactly `planWeeks` weeks
+  // of blocks), not a separate countdown concept. Binding it to anything
+  // else risks the header and the warning disagreeing on the same card
+  // (review finding on task 6a's fix pass: `previewFromDraft`'s twin,
+  // below, briefly floored this and produced exactly that self-
+  // contradiction -- "4 weeks" in the header, "fewer than four weeks" in
+  // the warning, for the same draft). `previewFromDraft` uses the
+  // identical rule, off its own stored `weeksTotal`.
   const shortHorizon = weeksTotal < 4;
   // Needed by firstRace.weekNumber below, so computed here rather than at
   // its original spot right before the insert -- same value either way,
@@ -1499,16 +1512,33 @@ export async function previewTrainingPlan(
     };
   });
 
-  // 6. Feasibility, assembled the same way `/train` assembles it
-  // (src/app/train/page.tsx) — `demand` is the athlete's currently tracked
-  // race (highest priority, nearest date among their upcoming races), which
-  // may or may not be the race this preview is for when raceId is null and
+  // 6. Feasibility. `demand` is the athlete's currently tracked race
+  // (highest priority, nearest date among their upcoming races), which may
+  // or may not be the race this preview is for when raceId is null and
   // nothing has been created yet. That mirrors the rest of the app: there is
   // one "current target race" concept, not a second one invented for
   // previews. `feasibilityFor` decides what "no verdict" means (no demand,
   // no race date, or no measured current-hours/longest-ride history) and
   // names which one; `PlanPreview.feasibility` still collapses that to
   // `null` here — only the Train surface renders the reason.
+  //
+  // "ASSEMBLED THE SAME WAY /TRAIN ASSEMBLES IT" IS ONLY HALF TRUE, and
+  // deliberately so for one half, misleadingly for the other — corrected
+  // by a follow-up review pass after task 6a's fix. What IS shared: the
+  // rounding rule (`weeksFromDays`, floor — see below) and the "which
+  // race" resolution (`targetRace`, the same highest-priority-then-
+  // nearest-date pick `demand` itself uses). What is NOT shared, and was
+  // never claimed as a bug to fix here: the ANCHOR `weeksUntilEvent` counts
+  // FROM. `/train` (page.tsx) counts from `week.weekStart` — the open
+  // week's own Monday, chosen there specifically so the figure agrees with
+  // itself across a single week rather than drifting by a day mid-week
+  // (see that call site's own comment). This function counts from
+  // `new Date()` — the actual instant the coach tool or the athlete's
+  // "review this draft" reopen runs. The two anchors can differ by up to
+  // six days, so the SAME race can read up to a week apart between this
+  // preview and `/train`'s own figure mid-week. Pre-existing, and out of
+  // this fix's scope; noted here so the next reader does not take the
+  // (still true) rounding-agreement claim as a stronger promise than it is.
   // `weeksUntilEvent` must match the race `demand` was resolved AGAINST, not
   // the plan's own end, or the verdict answers a question nobody asked.
   //
@@ -1738,11 +1768,20 @@ export async function previewFromDraft(
 
   // `weeksFromDays` (floor), not `Math.ceil` — see the identical fix and
   // the same reasoning on `previewTrainingPlan`'s own `weeksUntilDemand`
-  // above: this feeds the same `feasibilityFor` ladder, `weeksUntilRace`
-  // ALSO feeds `shortHorizon` below (a short-timeline warning, which the
-  // same overstatement direction was making fire too late), and both
-  // readings of "weeks until this race" must agree with `/train`'s, not
-  // just with each other.
+  // above: this feeds the same `feasibilityFor` ladder as its fallback
+  // (below), so it must agree with `/train`'s own runway figure, not just
+  // with itself.
+  //
+  // FEASIBILITY-ONLY, as of a follow-up review pass: an earlier version of
+  // this fix ALSO fed `shortHorizon` (below) from this floored value,
+  // which put it out of step with `previewTrainingPlan`'s own
+  // `shortHorizon` (still `weeksTotal < 4`, Math.ceil) and, worse, with
+  // THIS SAME preview's own header (`weeksTotal: draft.weeksTotal`,
+  // stored, also Math.ceil) — a card that could print "4 weeks" in its
+  // header and "fewer than four weeks until race day" in its warning at
+  // once. `shortHorizon` reads `draft.weeksTotal` directly instead; see
+  // its own comment below and `previewTrainingPlan`'s twin for why that
+  // one stays ceiled on purpose rather than matching this figure.
   const weeksUntilRace = weeksFromDays(
     daysBetween(today, new Date(draft.raceDate + "T00:00:00"))
   );
@@ -1836,7 +1875,13 @@ export async function previewFromDraft(
       feasibilityVerdict: feasibility?.verdict ?? null,
       raceCreated: draft.raceId == null,
       availabilitySeeded: existingAvailability.length === 0,
-      shortHorizon: weeksUntilRace < 4,
+      // `draft.weeksTotal` (Math.ceil, stored at creation), not
+      // `weeksUntilRace` (Math.floor, recomputed fresh here for
+      // feasibility only) — see `weeksUntilRace`'s own comment above and
+      // `previewTrainingPlan`'s identical rule for the reasoning. This is
+      // also the exact number the card's OWN header prints two lines
+      // above this warning, on the same screen.
+      shortHorizon: draft.weeksTotal < 4,
       noBridgeRoom,
     }),
   };
