@@ -24,6 +24,14 @@ export const SURFACES = [
 export type Surface = (typeof SURFACES)[number];
 
 /**
+ * Keys that were once offered and no longer are. `/admin` labels rows
+ * carrying them so a retired destination reads as history rather than as a
+ * bug — the same treatment pre-v0.121 rows get for having no tab at all.
+ * Retiring a tab must never make its recorded views unreadable.
+ */
+export const RETIRED_SURFACE_KEYS = ["train:season"] as const;
+
+/**
  * The tabs each tabbed surface may report, keyed by surface.
  *
  * Two of the nine surfaces above are not one screen. Train is four tabs

@@ -86,17 +86,50 @@ export function buildBodyHref(
 
 export type TrainTab = "week" | "history" | "season" | "fitness";
 
-export const TRAIN_TABS: TrainTab[] = ["week", "history", "season", "fitness"];
+/**
+ * The tabs Train currently offers. `"season"` stays a legal `TrainTab` value
+ * — it is still a real key in `RETIRED_SURFACE_KEYS` (lib/telemetry.ts) and
+ * a real value on `?tab=season` links the app must keep resolving — but it
+ * is retired from this list, the set the tab row and the redirect check
+ * both read. The Season tab folded into Week and Fitness (see the
+ * `tab === "season"` redirect in train/page.tsx).
+ */
+export const TRAIN_TABS: TrainTab[] = ["week", "history", "fitness"];
+
+/**
+ * The /train redirect target for a tab that used to be offered and no
+ * longer is, or null when `tab` is live, absent, or unrecognized.
+ *
+ * Pulled out of train/page.tsx as a pure function because that page has no
+ * test harness of its own — deleting `if (sp.tab === "season") redirect(...)`
+ * from the page would fail no test there, since `tab` still resolves to
+ * "week" through the `TRAIN_TABS.find(...) ?? "week"` fallback and the page
+ * looks identical; only the 302 disappears. This is the piece a unit test
+ * can actually cover, so the redirect behaviour is the helper's, not the
+ * page's.
+ */
+export function retiredTabRedirect(tab: string | undefined): string | null {
+  if (tab === "season") return "/train?tab=week";
+  return null;
+}
 
 export type TrainFilterState = LogFilterState & {
   tab: TrainTab;
   /** `"next"` when the availability week switcher is in next-week mode; `""` (or absent) otherwise. */
   availability?: string;
+  /**
+   * The day open on the Week tab (`?day=`, via openDayFrom), so switching
+   * tabs or filters keeps it open rather than silently resetting to today.
+   * Absent (or "") means no day is carried — the same "" clears it as
+   * `sport` and `availability` already use.
+   */
+  day?: string;
 };
 
 export type TrainHrefOverride = LogHrefOverride & {
   tab?: TrainTab;
   availability?: string;
+  day?: string;
 };
 
 export type TrainHref = (over: TrainHrefOverride) => string;
@@ -124,11 +157,13 @@ export function buildTrainHref(
     over.availability !== undefined
       ? over.availability
       : (current.availability ?? "");
+  const d = over.day !== undefined ? over.day : (current.day ?? "");
   const q = new URLSearchParams({ tab: t });
   if (v !== TRAIN_DEFAULTS.view) q.set("view", v);
   if (v === "month") q.set("month", m);
   if (r !== TRAIN_DEFAULTS.range) q.set("range", String(r));
   if (s) q.set("sport", s);
   if (a) q.set("availability", a);
+  if (d) q.set("day", d);
   return `/train?${q.toString()}`;
 }

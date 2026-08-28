@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { and, asc, desc, eq, gte, inArray, lte, ne } from "drizzle-orm";
 import { Bike, ClipboardList, LineChart, Plus } from "lucide-react";
 import { db, schema } from "@/lib/db";
@@ -12,6 +13,7 @@ import {
   type RaceListItem,
 } from "@/components/train/races-section";
 import { IntakeForm } from "@/components/week/intake-form";
+import { PinnedAction } from "@/components/week/pinned-action";
 import { StandardWeek } from "@/components/train/standard-week";
 import { PlanEmpty } from "@/components/train/plan-empty";
 import { PlanPreviewCard } from "@/components/train/plan-preview-card";
@@ -32,6 +34,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { TrainTabs } from "@/components/train/train-tabs";
 import { WeekDayList } from "@/components/train/week-day-list";
 import { SeasonTimelineCard } from "@/components/train/season-timeline-card";
+import { SeasonProgress } from "@/components/train/season-progress";
 import { FuellingCard } from "@/components/train/fuelling-card";
 import { PlanStyleSwitch } from "@/components/train/plan-style-switch";
 import { SeasonModeSwitch } from "@/components/train/season-mode-switch";
@@ -67,6 +70,8 @@ import {
   planConstraints,
 } from "@/lib/week-plan/service";
 import { deriveDayActuals } from "@/lib/week-plan/actuals";
+import { openDayFrom } from "@/lib/week-plan/day-shape";
+import { verdictLine } from "@/lib/week-plan/verdict-line";
 import {
   disciplinesOf,
   requirePlanSport,
@@ -75,7 +80,11 @@ import {
 import { previewFromDraft } from "@/lib/training-plan";
 import { planRaceTargets } from "@/lib/plan-targets";
 import { assembleWeeklyTarget } from "@/lib/week-plan/volume-inputs";
-import { currentTargetLoad, weekTargetLoad } from "@/lib/week-plan/volume";
+import {
+  currentTargetLoad,
+  seasonProgressPct,
+  weekTargetLoad,
+} from "@/lib/week-plan/volume";
 import { plannedMins, availableMins } from "@/lib/week-plan/fill";
 import { feasibilityFor, type Feasibility } from "@/lib/race/feasibility";
 import type { EventDemandResult } from "@/lib/race/demand";
@@ -85,10 +94,12 @@ import {
   seasonTimelinePoints,
   weeklyActivitySummaries,
   weeklyLoads,
+  type SeasonTimelinePoint,
 } from "@/lib/charts";
 import {
   buildTrainHref,
   isRange,
+  retiredTabRedirect,
   TRAIN_DEFAULTS,
   TRAIN_TABS,
   type TrainHref,
@@ -143,6 +154,26 @@ function feedbackLine(a: {
 }
 
 /**
+ * Splits `verdict.emphasis` out of `verdict.text` so only that substring
+ * renders in the accent colour. `emphasis` is always an exact substring of
+ * `text` by verdict-line.ts's own contract — a plain `indexOf` is enough,
+ * no markup to parse — but a failed lookup falls back to the plain string
+ * rather than dropping the sentence.
+ */
+function verdictNode(text: string, emphasis: string | null): React.ReactNode {
+  if (!emphasis) return text;
+  const idx = text.indexOf(emphasis);
+  if (idx === -1) return text;
+  return (
+    <>
+      {text.slice(0, idx)}
+      <span className="text-accent">{emphasis}</span>
+      {text.slice(idx + emphasis.length)}
+    </>
+  );
+}
+
+/**
  * One week's worth of `IntakeForm` data — resolved blocks, which dates carry
  * an override, and the availability verdict. Shared by this week's and next
  * week's derivation (Task 5's fix pass) so the two never drift apart; only
@@ -188,15 +219,25 @@ export default async function TrainPage({
     month?: string;
     range?: string;
     availability?: string;
+    day?: string;
   }>;
 }) {
   const user = await requireUser();
   const sp = await searchParams;
 
+  // A retired tab is a redirect, not a 404 and not a silent fallback: the
+  // athlete may have it bookmarked, and telemetry should record where they
+  // actually landed rather than filing the visit under whatever
+  // `TRAIN_TABS.find` falls back to. The decision itself lives in
+  // retiredTabRedirect (lib/log-href.ts), which is unit-tested — this page
+  // has no test harness of its own.
+  const retiredRedirect = retiredTabRedirect(sp.tab);
+  if (retiredRedirect) redirect(retiredRedirect);
+
   const tab: TrainTab = TRAIN_TABS.find((t) => t === sp.tab) ?? "week";
-  // Recorded AFTER the tab resolves, not before. Train is four tabs behind
+  // Recorded AFTER the tab resolves, not before. Train is three tabs behind
   // one path and the tab is the thing worth counting; recording at the top
-  // of the render filed all four under `train`. `sp.tab` is untrusted URL
+  // of the render filed all three under `train`. `sp.tab` is untrusted URL
   // input, so it becomes a key only once TRAIN_TABS has vouched for it —
   // `?tab=garbage` records `train:week`, which is what actually renders.
   await recordSurfaceView(user.id, "train", tab);
@@ -215,7 +256,10 @@ export default async function TrainPage({
   // One href builder for every segment, filter and range link on the page —
   // switching one axis never drops the others (see src/lib/log-href.ts).
   const href: TrainHref = (over) =>
-    buildTrainHref({ tab, view, month, range, sport: sportFilter ?? "" }, over);
+    buildTrainHref(
+      { tab, view, month, range, sport: sportFilter ?? "", day: sp.day },
+      over
+    );
 
   return (
     <AppShell user={shellUser(user)}>
@@ -224,6 +268,7 @@ export default async function TrainPage({
           userId={user.id}
           href={href}
           initialAvailabilityMode={initialAvailabilityMode}
+          dayParam={sp.day}
         />
       ) : tab === "history" ? (
         <HistoryTab
@@ -233,8 +278,6 @@ export default async function TrainPage({
           month={month}
           sportFilter={sportFilter}
         />
-      ) : tab === "season" ? (
-        <SeasonTab userId={user.id} href={href} />
       ) : (
         <FitnessTab userId={user.id} href={href} range={range} />
       )}
@@ -304,10 +347,13 @@ async function WeekTab({
   userId,
   href,
   initialAvailabilityMode,
+  dayParam,
 }: {
   userId: string;
   href: TrainHref;
   initialAvailabilityMode: AvailabilityWeekMode;
+  /** Raw `?day=`, untrusted — resolved against the open week via openDayFrom below. */
+  dayParam: string | undefined;
 }) {
   const plan = await getActivePlan(userId);
 
@@ -367,6 +413,11 @@ async function WeekTab({
         ).find((m) => m.readiness != null);
   const band = (readinessMetric?.band ?? "calibrating") as Band;
   const readiness = readinessMetric?.readiness ?? null;
+  // The date `band`/`readiness` actually describe — `readinessMetric` can
+  // fall back up to 7 days above, and verdictLine's readiness clause must
+  // never quote a stale figure as if it were today's (Task 5 fix pass,
+  // review finding 3).
+  const readinessDate = readinessMetric?.date ?? null;
 
   const chip = (
     <span
@@ -569,7 +620,39 @@ async function WeekTab({
 
   const today = new Date();
   const todayYmd = localYmd(today);
-  const todaySlot = week?.days.find((d) => d.date === todayYmd) ?? null;
+  // The day WeekDayList expands and WeekStrip rings. dayParam is untrusted
+  // URL input — openDayFrom checks it against this week's own dates (the
+  // same class of guard SheetHost applies to a UUID before it reaches
+  // Postgres) rather than parsing it, so a date outside this week falls
+  // through to today, never to an empty panel or a stray render.
+  const openDate = week ? openDayFrom(week.days, dayParam, todayYmd) : todayYmd;
+  const openDaySlot = week?.days.find((d) => d.date === openDate) ?? null;
+  // M1, final whole-branch review: `href` (the prop above) closes over the
+  // RAW `dayParam` — every link it builds carried that verbatim, so an
+  // invalid or stale `?day=` stuck to every tab/filter link on this page
+  // forever instead of self-healing the moment openDayFrom resolves it.
+  // From here on WeekTab uses this wrapped version instead — TrainHeader's
+  // tabs, the next-week availability link, … — so they all carry the
+  // RESOLVED day by default. `over.day` still wins when a caller sets it
+  // explicitly (WeekStrip does, to point each bar at its own date), since
+  // it's spread after the default below.
+  const resolvedHref: TrainHref = (over) => href({ day: openDate, ...over });
+  // Only reachable once a plan AND an open week both exist (this whole
+  // block is past the `if (!plan) return` fork above) — the athlete this
+  // module must never address is the first-run one, and that athlete can
+  // never get here. `todayYmd`/`readinessDate` are what let verdictLine
+  // tell "today" apart from a day the athlete has merely scrolled to
+  // (Task 4's `?day=`, which is usually NOT today) — see verdict-line.ts's
+  // module comment for the rest of this line's honesty rules.
+  const verdict = openDaySlot
+    ? verdictLine({
+        openDay: openDaySlot,
+        band,
+        readiness,
+        todayYmd,
+        readinessDate,
+      })
+    : null;
 
   const defaultRows = await db.query.availabilityDefaults.findMany({
     where: eq(schema.availabilityDefaults.userId, userId),
@@ -624,7 +707,7 @@ async function WeekTab({
   // Part D dedupe) — computed once here and threaded into the summary
   // below, so the "planned vs target" figures and the one action that
   // follows from them live in one place instead of two.
-  const nextWeekAvailabilityHref = href({ availability: "next" });
+  const nextWeekAvailabilityHref = resolvedHref({ availability: "next" });
   const nextWeekPreview = projected
     ? {
         days: projected.days,
@@ -763,6 +846,24 @@ async function WeekTab({
   // races section below. Owner: src/lib/race/outlook.ts (v0.87).
   const card = await raceCard(userId, today, week);
 
+  // The two figures the retired Season tab left worth reading — see
+  // SeasonProgress. Both are read off data this function already fetched,
+  // not a new query:
+  //
+  // - progressPct comes from the OPEN week's own skeletonWeek, not
+  //   plan.currentWeek — see seasonProgressPct's own doc comment
+  //   (lib/week-plan/volume.ts) for why, and its tests for the arithmetic
+  //   this used to carry inline, unpinned.
+  // - weeksToRace is the same countdown the race chip prints as "N days",
+  //   turned into weeks; no second query for a figure this function already
+  //   has for `card`.
+  const progressPct = week
+    ? seasonProgressPct(week.skeletonWeek, plan.weeksTotal)
+    : null;
+  const weeksToRace =
+    card.daysOut != null ? Math.round(card.daysOut / 7) : null;
+  const raceName = card.race?.name ?? null;
+
   // plan.raceDate/raceType have always meant the plan's FINAL target
   // (planRaceTargets, src/lib/plan-targets.ts); on a two-A-race season this
   // names the earlier one too, so the subtitle doesn't silently describe
@@ -786,7 +887,7 @@ async function WeekTab({
     <>
       <TrainHeader
         tab="week"
-        href={href}
+        href={resolvedHref}
         subtitle={subtitle}
         action={chip}
         // Both switches write plan constraints and stop there — the open
@@ -832,25 +933,55 @@ async function WeekTab({
         }
       />
 
+      {/* Only ever set once a plan and an open week both exist — see the
+          `verdict` const above. Renders nothing (not a fallback sentence)
+          whenever verdictLine itself declines to make a claim: nothing is
+          always better than a cheerful lie. */}
+      {verdict && (
+        <p className="mb-4 text-body font-bold text-ink-primary">
+          {verdictNode(verdict.text, verdict.emphasis)}
+        </p>
+      )}
+      <SeasonProgress
+        progressPct={progressPct}
+        weeksToRace={weeksToRace}
+        raceName={raceName}
+      />
+
       {draftPreview && <PlanPreviewCard preview={draftPreview} />}
 
       {week ? (
         <>
           <section className="mb-4">
-            <WeekStrip days={week.days} />
+            <WeekStrip
+              days={week.days}
+              marks="bars"
+              selectedDate={openDate}
+              hrefForDay={(date) => resolvedHref({ day: date })}
+            />
           </section>
 
           <WeekDayList
             days={week.days}
             today={todayYmd}
+            openDate={openDate}
             nextWeek={nextWeekPreview}
             actuals={dayActuals}
           />
 
-          {todaySlot && todaySlot.workouts.length > 0 && (
+          {/* C1, final whole-branch review: this used to bind to
+              todaySlot/todayYmd while rendering directly beneath the OPEN
+              day's row (WeekDayList, just above). Task 4 moved the open day
+              off "today" everywhere else on this tab — the verdict, the
+              strip, WeekDayList itself — and missed this call site, so a
+              Wednesday spent looking at Saturday's long ride showed
+              Wednesday's own fuelling instead (or nothing, when Wednesday
+              was a rest day). The spec (§3, "The week card") puts fuelling
+              INSIDE the open day; openDaySlot/openDate is that day. */}
+          {openDaySlot && openDaySlot.workouts.length > 0 && (
             <FuellingCard
-              date={todayYmd}
-              workouts={todaySlot.workouts}
+              date={openDate}
+              workouts={openDaySlot.workouts}
               bodyMassKg={bodyMassKg}
             />
           )}
@@ -1031,18 +1162,15 @@ async function WeekTab({
         </>
       ) : (
         <section className="mb-6">
-          <form action={startWeek} className="glass rounded-[18px] p-5">
+          <form className="glass rounded-[18px] p-5">
             <p className="text-caption leading-relaxed text-ink-secondary">
               This week hasn&apos;t been planned yet. Start it now and it
               materializes from your skeleton — you can adjust your availability
               right after.
             </p>
-            <button
-              type="submit"
-              className="mt-4 w-full rounded-full bg-accent py-2.5 text-label font-bold text-primary-foreground transition-opacity hover:opacity-90"
-            >
-              Plan this week
-            </button>
+            <div className="mt-4">
+              <PinnedAction label="Plan this week" formAction={startWeek} />
+            </div>
           </form>
         </section>
       )}
@@ -1310,102 +1438,6 @@ async function HistoryTab({
   );
 }
 
-// ── Season (v0.48) ───────────────────────────────────────────────────────
-
-async function SeasonTab({
-  userId,
-  href,
-}: {
-  userId: string;
-  href: TrainHref;
-}) {
-  const plan = await getActivePlan(userId);
-  const thisMonday = new Date();
-  thisMonday.setHours(0, 0, 0, 0);
-  thisMonday.setDate(thisMonday.getDate() - ((thisMonday.getDay() + 6) % 7));
-  const thisMondayYmd = localYmd(thisMonday);
-
-  if (!plan) {
-    return (
-      <>
-        <TrainHeader tab="season" href={href} />
-        <EmptyState
-          icon={LineChart}
-          message="No active plan yet. Build a plan to unlock season target vs actual tracking."
-        />
-      </>
-    );
-  }
-
-  const weeks = await db.query.weekPlans.findMany({
-    where: and(
-      eq(schema.weekPlans.userId, userId),
-      eq(schema.weekPlans.planId, plan.id),
-      lte(schema.weekPlans.weekStart, thisMondayYmd)
-    ),
-    orderBy: asc(schema.weekPlans.weekStart),
-  });
-
-  if (weeks.length === 0) {
-    return (
-      <>
-        <TrainHeader tab="season" href={href} />
-        <EmptyState
-          icon={LineChart}
-          message="No season weeks to compare yet. Season progress appears once the first week starts."
-        />
-      </>
-    );
-  }
-
-  const firstWeek = weeks[0].weekStart;
-  const firstWeekDate = new Date(`${firstWeek}T00:00:00`);
-  const spanWeeks =
-    Math.max(
-      1,
-      Math.floor(
-        (thisMonday.getTime() - firstWeekDate.getTime()) / 604_800_000
-      ) + 1
-    ) || 1;
-
-  const activities = await db.query.activities.findMany({
-    where: and(
-      eq(schema.activities.userId, userId),
-      ne(schema.activities.provider, "strava"),
-      gte(schema.activities.startDate, firstWeekDate)
-    ),
-    orderBy: desc(schema.activities.startDate),
-    limit: 1000,
-  });
-
-  const actualSummaries = weeklyActivitySummaries(
-    activities.map((a) => ({
-      startDate: a.startDateLocal ?? a.startDate,
-      load: a.load,
-      durationS: a.durationS,
-      distanceM: a.distanceM,
-    })),
-    spanWeeks
-  );
-
-  const points = seasonTimelinePoints(
-    weeks.map((w) => ({
-      weekStart: w.weekStart,
-      targetLoad: w.effectiveTarget,
-    })),
-    actualSummaries
-  );
-
-  return (
-    <>
-      <TrainHeader tab="season" href={href} />
-      <div className="pb-10">
-        <SeasonTimelineCard data={points} />
-      </div>
-    </>
-  );
-}
-
 // ── Fitness (1e) ──────────────────────────────────────────────────────────
 
 async function FitnessTab({
@@ -1456,6 +1488,73 @@ async function FitnessTab({
     })),
     12
   );
+
+  // Season progress — target vs actual load per plan week, moved here from
+  // the retired Season tab (see TRAIN_TABS in lib/log-href.ts) along with
+  // SeasonTimelineCard below. Its own query, not a reuse of `activities`
+  // above: that fetch is a flat rolling window (400 most-recent, `range`
+  // days) built for the PMC chart and weekly-load bars, while this one needs
+  // activities from the plan's very first materialized week onward, bucketed
+  // per week rather than truncated to a lookback — genuinely independent
+  // data, so it stays a separate query rather than a reshape of the other.
+  const seasonPlan = await getActivePlan(userId);
+  let seasonPoints: SeasonTimelinePoint[] = [];
+  if (seasonPlan) {
+    const seasonMonday = new Date();
+    seasonMonday.setHours(0, 0, 0, 0);
+    seasonMonday.setDate(
+      seasonMonday.getDate() - ((seasonMonday.getDay() + 6) % 7)
+    );
+    const seasonMondayYmd = localYmd(seasonMonday);
+
+    const seasonWeeks = await db.query.weekPlans.findMany({
+      where: and(
+        eq(schema.weekPlans.userId, userId),
+        eq(schema.weekPlans.planId, seasonPlan.id),
+        lte(schema.weekPlans.weekStart, seasonMondayYmd)
+      ),
+      orderBy: asc(schema.weekPlans.weekStart),
+    });
+
+    if (seasonWeeks.length > 0) {
+      const firstWeekDate = new Date(`${seasonWeeks[0].weekStart}T00:00:00`);
+      const spanWeeks =
+        Math.max(
+          1,
+          Math.floor(
+            (seasonMonday.getTime() - firstWeekDate.getTime()) / 604_800_000
+          ) + 1
+        ) || 1;
+
+      const seasonActivities = await db.query.activities.findMany({
+        where: and(
+          eq(schema.activities.userId, userId),
+          ne(schema.activities.provider, "strava"),
+          gte(schema.activities.startDate, firstWeekDate)
+        ),
+        orderBy: desc(schema.activities.startDate),
+        limit: 1000,
+      });
+
+      const actualSummaries = weeklyActivitySummaries(
+        seasonActivities.map((a) => ({
+          startDate: a.startDateLocal ?? a.startDate,
+          load: a.load,
+          durationS: a.durationS,
+          distanceM: a.distanceM,
+        })),
+        spanWeeks
+      );
+
+      seasonPoints = seasonTimelinePoints(
+        seasonWeeks.map((w) => ({
+          weekStart: w.weekStart,
+          targetLoad: w.effectiveTarget,
+        })),
+        actualSummaries
+      );
+    }
+  }
 
   // ctl/atl come from the resolved daily_metrics series, not the
   // provider-only wellness_daily one; null means calibrating, never 0.
@@ -1569,6 +1668,10 @@ async function FitnessTab({
       />
 
       <FitnessTiles tiles={tiles} />
+
+      <div className="mb-8">
+        <SeasonTimelineCard data={seasonPoints} />
+      </div>
 
       {hasLoadSeries ? (
         <section className="glass mb-4 rounded-[18px] p-4">

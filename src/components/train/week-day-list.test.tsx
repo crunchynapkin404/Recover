@@ -80,14 +80,12 @@ const NEXT_WEEK_DAYS: DaySlot[] = [
 ];
 
 describe("WeekDayList", () => {
-  it("renders one row per day with workout, intensity and status", () => {
+  it("renders the open day's row with its workout, intensity and status", () => {
     const html = renderToString(
       <WeekDayList
         today={TODAY}
-        days={[
-          slot(TODAY, "completed", tempo),
-          slot(TOMORROW, "planned", tempo),
-        ]}
+        openDate={TODAY}
+        days={[slot(TODAY, "completed", tempo)]}
       />
     );
     expect(html).toContain("Tempo");
@@ -98,23 +96,50 @@ describe("WeekDayList", () => {
     // block below for the dedicated coverage of that rendering.
     expect(html).toContain('data-status="completed"');
     expect(html).toContain('<span class="sr-only">Completed</span>');
-    expect(html).toContain('data-status="planned"');
-    expect(html).toContain('<span class="sr-only">Planned</span>');
   });
 
-  it("marks only today's row", () => {
+  it("renders only the open day — Task 4 collapses seven rows to one", () => {
     const html = renderToString(
       <WeekDayList
         today={TODAY}
-        days={[slot(TODAY, "rest"), slot(TOMORROW, "completed", tempo)]}
+        openDate={TODAY}
+        days={[
+          slot(TODAY, "completed", tempo),
+          slot(TOMORROW, "planned", tempo),
+        ]}
       />
     );
-    expect(html.match(/data-today/g) ?? []).toHaveLength(1);
+    expect(html).toContain(`data-date="${TODAY}"`);
+    expect(html).not.toContain(`data-date="${TOMORROW}"`);
+    expect((html.match(/data-date="/g) ?? []).length).toBe(1);
+  });
+
+  it("gives the open day today's row treatment even when it isn't literally today", () => {
+    // The day strip (Task 3) can open ANY day of the week, via ?day=. The
+    // highlight and DayActions used to be exclusive to isToday; now they
+    // belong to whichever day is open, or browsing to Wednesday would
+    // silently lose both.
+    const html = renderToString(
+      <WeekDayList
+        today={TODAY}
+        openDate={TOMORROW}
+        days={[slot(TODAY, "rest"), slot(TOMORROW, "planned", tempo)]}
+      />
+    );
+    expect(html).toContain(`data-date="${TOMORROW}"`);
+    expect(html).not.toContain(`data-date="${TODAY}"`);
+    expect(html).toContain("bg-surface-overlay");
+    // DayActions mounted — its own "Plan change" select is the marker.
+    expect(html).toContain('aria-label="Plan change"');
   });
 
   it("shows free minutes on a rest day instead of inventing a session", () => {
     const html = renderToString(
-      <WeekDayList today={TODAY} days={[slot(TOMORROW, "rest")]} />
+      <WeekDayList
+        today={TODAY}
+        openDate={TOMORROW}
+        days={[slot(TOMORROW, "rest")]}
+      />
     );
     expect(html).toContain("Rest");
     expect(html).toContain("90 min free");
@@ -128,6 +153,7 @@ describe("WeekDayList", () => {
     const html = renderToString(
       <WeekDayList
         today={TODAY}
+        openDate={TODAY}
         days={[slot(TODAY, "rest")]}
         actuals={{
           [TODAY]: { count: 2, secs: 5823, load: 130, activityId: "act-1" },
@@ -144,6 +170,7 @@ describe("WeekDayList", () => {
     const html = renderToString(
       <WeekDayList
         today={TODAY}
+        openDate={TODAY}
         days={[slot(TODAY, "rest")]}
         actuals={{
           [TODAY]: { count: 1, secs: 3039, load: 63, activityId: "act-1" },
@@ -161,6 +188,7 @@ describe("WeekDayList", () => {
     const html = renderToString(
       <WeekDayList
         today={TODAY}
+        openDate={TODAY}
         days={[slot(TODAY, "completed", tempo)]}
         actuals={{
           [TODAY]: { count: 1, secs: 3039, load: 63, activityId: "act-1" },
@@ -172,7 +200,12 @@ describe("WeekDayList", () => {
 
   it("shows nothing extra on a rest day with no training", () => {
     const html = renderToString(
-      <WeekDayList today={TODAY} days={[slot(TODAY, "rest")]} actuals={{}} />
+      <WeekDayList
+        today={TODAY}
+        openDate={TODAY}
+        days={[slot(TODAY, "rest")]}
+        actuals={{}}
+      />
     );
     expect(html).toContain("Rest");
     expect(html).not.toContain("session");
@@ -182,6 +215,7 @@ describe("WeekDayList", () => {
     const html = renderToString(
       <WeekDayList
         today={TODAY}
+        openDate={TODAY}
         days={[slot(TODAY, "planned", strengthSession)]}
       />
     );
@@ -208,7 +242,11 @@ describe("WeekDayList", () => {
       ],
     });
     const html = renderToString(
-      <WeekDayList today={TODAY} days={[slot(TODAY, "planned", noWeight)]} />
+      <WeekDayList
+        today={TODAY}
+        openDate={TODAY}
+        days={[slot(TODAY, "planned", noWeight)]}
+      />
     );
     expect(html).toContain("Squat 4x8");
     expect(html).not.toMatch(/@ NaN|@ nullkg/);
@@ -218,6 +256,7 @@ describe("WeekDayList", () => {
     const html = renderToString(
       <WeekDayList
         today={TODAY}
+        openDate={TOMORROW}
         days={[slot(TOMORROW, "race", null, { raceName: "Gran Fondo" })]}
       />
     );
@@ -228,6 +267,7 @@ describe("WeekDayList", () => {
     const html = renderToString(
       <WeekDayList
         today={TODAY}
+        openDate={TODAY}
         days={[slot(TODAY, "moved", tempo, { movedFrom: YESTERDAY })]}
       />
     );
@@ -237,35 +277,40 @@ describe("WeekDayList", () => {
     expect(html).toContain(`moved from ${from}`);
   });
 
-  it("excludes a dropped past day from today's move/swap targets", () => {
-    // A rest day before today is dropped from the visible list — it must
-    // not leak back in as a selectable DayActions "Target day" option for
-    // today's row, which would let the athlete move a session onto a day
-    // whose own row they can no longer even see.
+  it("excludes a dropped past day from the open day's move/swap targets", () => {
+    // A rest day before today must not leak back in as a selectable
+    // DayActions "Target day" option for the open row — DayActions itself
+    // only filters by workoutCount/isRace, trusting the caller for "target
+    // days are always inside the open week" (its own comment).
     const html = renderToString(
       <WeekDayList
         today="2026-07-28"
+        openDate="2026-07-28"
         days={[
           // Mon, dropped, no workout — would otherwise pass DayActions'
           // own "move" target filter and show up in the dropdown.
           slot("2026-07-27", "rest"),
-          slot("2026-07-28", "planned", tempo), // Tue — today
+          slot("2026-07-28", "planned", tempo), // Tue — today, open
         ]}
       />
     );
     expect(html).not.toContain("2026-07-27");
   });
 
-  it("drops days before today but never today itself", () => {
+  it("renders only the open day from the current week — nothing else, past or future", () => {
     const html = renderToString(
       <WeekDayList
         days={CURRENT_WEEK_DAYS} // Mon..Sun, Mon+Tue completed, today = Tue
         today="2026-07-28"
+        openDate="2026-07-28"
         nextWeek={null}
       />
     );
-    expect(html).not.toContain("2026-07-27");
-    expect(html).toContain("2026-07-28");
+    for (const d of CURRENT_WEEK_DAYS) {
+      if (d.date === "2026-07-28") continue;
+      expect(html).not.toContain(`data-date="${d.date}"`);
+    }
+    expect(html).toContain('data-date="2026-07-28"');
   });
 
   it("shows next week under a boundary, collapsed into a summary that still holds the rows", () => {
@@ -273,6 +318,7 @@ describe("WeekDayList", () => {
       <WeekDayList
         days={CURRENT_WEEK_DAYS}
         today="2026-07-28"
+        openDate="2026-07-28"
         nextWeek={{
           days: NEXT_WEEK_DAYS,
           pinned: {},
@@ -306,6 +352,7 @@ describe("WeekDayList", () => {
       <WeekDayList
         days={CURRENT_WEEK_DAYS}
         today="2026-07-28"
+        openDate="2026-07-28"
         nextWeek={{
           days: NEXT_WEEK_DAYS,
           pinned: { "2026-08-04": true },
@@ -343,6 +390,7 @@ describe("WeekDayList", () => {
       <WeekDayList
         days={CURRENT_WEEK_DAYS}
         today="2026-07-28"
+        openDate="2026-07-28"
         nextWeek={{
           days: allRest,
           pinned: {},
@@ -365,16 +413,32 @@ describe("WeekDayList", () => {
 
 describe("WeekDayList — status as a dot, not a pill (v0.99 slice 2)", () => {
   it("names the status for assistive tech without printing it as a pill", () => {
-    const html = renderToString(
-      <WeekDayList days={CURRENT_WEEK_DAYS} today="2026-07-28" />
+    // Only one row renders per call now (Task 4), so the completed and
+    // planned statuses are checked across two separate opens of the same
+    // week rather than in one render of every day.
+    const completedHtml = renderToString(
+      <WeekDayList
+        days={CURRENT_WEEK_DAYS}
+        today="2026-07-28"
+        openDate="2026-07-28"
+      />
     );
     // The dot carries the status in the DOM the way week-strip does.
-    expect(html).toContain('data-status="completed"');
-    expect(html).toContain('data-status="planned"');
+    expect(completedHtml).toContain('data-status="completed"');
     // …and names it for a screen reader.
-    expect(html).toMatch(/<span class="sr-only">Completed<\/span>/i);
+    expect(completedHtml).toMatch(/<span class="sr-only">Completed<\/span>/i);
     // But the uppercase text pill is gone: no visible bare status word.
-    expect(html).not.toMatch(/uppercase[^"]*">\s*completed/i);
+    expect(completedHtml).not.toMatch(/uppercase[^"]*">\s*completed/i);
+
+    const plannedHtml = renderToString(
+      <WeekDayList
+        days={CURRENT_WEEK_DAYS}
+        today="2026-07-28"
+        openDate="2026-07-29"
+      />
+    );
+    expect(plannedHtml).toContain('data-status="planned"');
+    expect(plannedHtml).toMatch(/<span class="sr-only">Planned<\/span>/i);
   });
 
   it("paints race day in the race ink token, not a fuchsia literal", () => {
@@ -382,7 +446,7 @@ describe("WeekDayList — status as a dot, not a pill (v0.99 slice 2)", () => {
       raceName: "Gran Fondo Alpe",
     });
     const html = renderToString(
-      <WeekDayList days={[race]} today="2026-07-28" />
+      <WeekDayList days={[race]} today="2026-07-28" openDate="2026-07-30" />
     );
     expect(html).toContain("Gran Fondo Alpe");
     expect(html).toMatch(/text-ink-race/);
@@ -390,13 +454,20 @@ describe("WeekDayList — status as a dot, not a pill (v0.99 slice 2)", () => {
   });
 
   it("has no type below the 12px floor and no ad-hoc white alphas", () => {
-    // Today (2026-07-28) has a workout in CURRENT_WEEK_DAYS, which mounts
-    // <DayActions> inline on its row (isToday && workouts.length > 0).
-    // DayActions (src/components/week/day-actions.tsx) is on the token
-    // scale as of slice-2 Task 5, so the unmodified fixture is safe here —
-    // every row, including today's with DayActions mounted, is covered.
+    // Today (2026-07-28) has a workout in CURRENT_WEEK_DAYS and is the open
+    // day, so <DayActions> mounts inline on its row (isOpen && actionable &&
+    // workouts.length > 0). DayActions (src/components/week/day-actions.tsx)
+    // is on the token scale as of slice-2 Task 5, so the unmodified fixture
+    // is safe here — except CURRENT_WEEK_DAYS' own Tuesday is "completed"
+    // (I4, final whole-branch review: DayActions no longer mounts on a
+    // completed day at all), which would silently stop this test from
+    // covering DayActions. Overridden to "planned" here, and only here, so
+    // this test keeps exercising what its comment says it does.
+    const days = CURRENT_WEEK_DAYS.map((d) =>
+      d.date === "2026-07-28" ? { ...d, status: "planned" as const } : d
+    );
     const html = renderToString(
-      <WeekDayList days={CURRENT_WEEK_DAYS} today="2026-07-28" />
+      <WeekDayList days={days} today="2026-07-28" openDate="2026-07-28" />
     );
     expect(html).not.toMatch(/text-\[[\d.]+px\]/);
     expect(html).not.toMatch(/\btext-xs\b/);
@@ -405,43 +476,112 @@ describe("WeekDayList — status as a dot, not a pill (v0.99 slice 2)", () => {
     expect(html).not.toMatch(/border-white\//);
   });
 
-  it("keeps today's own workout row on the ink scale, with DayActions mounted beside it", () => {
-    // The sibling test above now renders the unmodified CURRENT_WEEK_DAYS
-    // fixture too — DayActions (src/components/week/day-actions.tsx) is on
-    // the token scale as of slice-2 Task 5, so mounting it beside today's
-    // workout doesn't contaminate its negative regexes. Those checks are
-    // blanket regexes over the whole render, though, not a targeted
-    // assertion, so no test in this file pins week-day-list.tsx's
-    //   isToday ? "font-bold text-ink-primary" : "text-ink-secondary"
-    // ternary on the isToday=true side to an exact class string.
-    // A literal swapped onto just that branch (e.g. "font-bold text-white")
-    // would pass every test in this file.
-    //
-    // This test asserts POSITIVELY on the exact class string instead of
-    // negatively over the whole HTML: a positive match only cares what this
-    // one branch emits, so it is immune to DayActions' own pre-token classes
-    // and can render the full, unmodified fixture — today's workout intact.
-    // Do not "simplify" this back to a negative regex; that is what silently
-    // lost coverage the first time.
+  it("keeps the open day's workout row on the ink scale, distinct from a next-week preview row", () => {
+    // Guards the isOpen ternary directly: a literal swapped onto just the
+    // open-day branch (e.g. "font-bold text-white") would pass every other
+    // test in this file, since those only assert on the open row alone.
+    // Comparing it against a next-week preview row (isOpen=false) in the
+    // SAME render exercises both sides of the branch that survived the
+    // Task 4 rewrite — the not-open path used to belong to "not today",
+    // now it belongs to "not the open day", and only next-week rows still
+    // take it.
     const html = renderToString(
-      <WeekDayList days={CURRENT_WEEK_DAYS} today="2026-07-28" />
+      <WeekDayList
+        days={CURRENT_WEEK_DAYS}
+        today="2026-07-28"
+        openDate="2026-07-28"
+        nextWeek={{
+          days: NEXT_WEEK_DAYS,
+          pinned: {},
+          targetHours: 13,
+          availabilityHref: "/train?availability=next",
+        }}
+      />
     );
 
-    // Isolate each row the same way the "pinned day" test above does, so a
-    // class on a sibling row can't make either assertion pass by accident.
     const rowsByDate = html.split('data-date="').slice(1);
-    const todayRow = rowsByDate.find((r) => r.startsWith("2026-07-28"));
-    const wedRow = rowsByDate.find((r) => r.startsWith("2026-07-29"));
-    expect(todayRow).toBeDefined();
-    expect(wedRow).toBeDefined();
+    const openRow = rowsByDate.find((r) => r.startsWith("2026-07-28"));
+    const previewRow = rowsByDate.find((r) => r.startsWith("2026-08-03"));
+    expect(openRow).toBeDefined();
+    expect(previewRow).toBeDefined();
 
-    // isToday branch: bold, text-ink-primary.
-    expect(todayRow).toContain(
+    // isOpen branch: bold, text-ink-primary.
+    expect(openRow).toContain(
       'class="truncate text-caption font-bold text-ink-primary"'
     );
-    // Not-today branch (Wed, also has a workout): not bold, text-ink-secondary.
-    expect(wedRow).toContain(
+    // Not-open branch (a next-week preview row, also has a workout): not
+    // bold, text-ink-secondary.
+    expect(previewRow).toContain(
       'class="truncate text-caption text-ink-secondary"'
     );
+  });
+});
+
+// I4, final whole-branch review: before Task 4, `visibleDays = days.filter(
+// d => d.date >= today)` meant a past day had no row and no actions at all.
+// The day strip now makes every day — including every past one — one tap
+// from its own row, and DayActions used to mount there with no guard
+// beyond "is this the open day and does it have a workout". moveWorkout /
+// swapWorkouts (service.ts) refuse a completed/missed SOURCE day, so Move
+// and Target-day on one are a guaranteed dead end; zeroDay
+// ("No time today") has no such guard at all and would write a real
+// zero-availability override for a day the athlete demonstrably trained.
+//
+// Chosen fix (argued in the report): hide DayActions rather than guard
+// zeroDay alone. Guarding zeroDay only would still leave Move and Target
+// day visually tappable-but-doomed — a confusing dead end the server
+// safely rejects but the UI still offers. Hiding the whole row restores
+// exactly the pre-Task-4 invariant ("past days had no actions") and closes
+// all four actions (Move, Target day, What if?, No time today) in the one
+// place that decides whether the row can succeed at all.
+describe("WeekDayList — I4: DayActions only mounts where it can succeed", () => {
+  const THREE_DAYS_AGO = localYmd(new Date(Date.now() - 3 * 86_400_000));
+
+  it("hides DayActions on a completed open day, even though it's open", () => {
+    const html = renderToString(
+      <WeekDayList
+        today={TODAY}
+        openDate={TODAY}
+        days={[slot(TODAY, "completed", tempo)]}
+      />
+    );
+    expect(html).not.toContain('aria-label="Plan change"');
+  });
+
+  // The I3 gap this mirrors: adapt-day.ts's handleMissedYesterday only
+  // ever looks at yesterday, so a day three days gone can still carry
+  // `status: "planned"` — never "completed" — forever. A status check
+  // alone would miss exactly this day; the date floor is what catches it.
+  it("hides DayActions on a past open day never stamped completed or missed", () => {
+    const html = renderToString(
+      <WeekDayList
+        today={TODAY}
+        openDate={THREE_DAYS_AGO}
+        days={[slot(THREE_DAYS_AGO, "planned", tempo)]}
+      />
+    );
+    expect(html).not.toContain('aria-label="Plan change"');
+  });
+
+  it("still shows DayActions on today's open day when nothing has happened yet", () => {
+    const html = renderToString(
+      <WeekDayList
+        today={TODAY}
+        openDate={TODAY}
+        days={[slot(TODAY, "planned", tempo)]}
+      />
+    );
+    expect(html).toContain('aria-label="Plan change"');
+  });
+
+  it("still shows DayActions on a future open day", () => {
+    const html = renderToString(
+      <WeekDayList
+        today={TODAY}
+        openDate={TOMORROW}
+        days={[slot(TODAY, "rest"), slot(TOMORROW, "planned", tempo)]}
+      />
+    );
+    expect(html).toContain('aria-label="Plan change"');
   });
 });

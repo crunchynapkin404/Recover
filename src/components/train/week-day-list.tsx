@@ -32,13 +32,45 @@ function clock(secs: number): string {
 
 interface DayRowProps {
   day: DaySlot;
-  isToday: boolean;
+  /**
+   * Whether this is the day the athlete has open — Train's `?day=`
+   * (openDayFrom), not necessarily the real calendar date. Renamed from the
+   * pre-Task-4 `isToday`: only ONE row from the current week ever renders
+   * now (WeekDayList below), and it always passes `isOpen` — so this flag's
+   * only remaining job is telling the open row apart from a next-week
+   * preview row, which always passes `isOpen={false}`.
+   */
+  isOpen: boolean;
   badge: RowBadge;
   otherDays: DayActionsOtherDay[];
   actual?: DayActuals;
+  /**
+   * I4, final whole-branch review: whether the open day's own actions
+   * (Move, Target day, What if?, No time today) can possibly succeed.
+   * Before Task 4, `visibleDays = days.filter(d => d.date >= today)` meant
+   * a past day had no row at all, so DayActions never got the chance to
+   * mount on one; the day strip now makes every day a tap away, and this
+   * is what restores the same floor. False on a day the athlete has
+   * already completed or missed (moveWorkout/swapWorkouts refuse those as
+   * a source; zeroDay has no such guard of its own and would happily pin a
+   * zero-availability override onto a day already trained) or that is
+   * simply in the past (a day the daily adaptation never got to still
+   * reads "planned" forever — see verdict-line.ts's I3 fix for the same
+   * gap). Only WeekDayList computes this, since only it has `today` in
+   * scope; a next-week preview row always passes `isOpen={false}`, so this
+   * prop is moot there and defaults true.
+   */
+  actionable?: boolean;
 }
 
-function DayRow({ day: d, isToday, badge, otherDays, actual }: DayRowProps) {
+function DayRow({
+  day: d,
+  isOpen,
+  badge,
+  otherDays,
+  actual,
+  actionable = true,
+}: DayRowProps) {
   // Only for days the plan left empty. A planned session that happened
   // already says so through its own "completed" chip, and repeating the
   // ride underneath it would be the same duplicated-data problem this
@@ -51,15 +83,15 @@ function DayRow({ day: d, isToday, badge, otherDays, actual }: DayRowProps) {
   return (
     <div
       data-date={d.date}
-      data-today={isToday ? "" : undefined}
+      data-open={isOpen ? "" : undefined}
       className={`border-b border-hairline px-4 py-3.5 last:border-0 ${
-        isToday ? "bg-surface-overlay" : ""
+        isOpen ? "bg-surface-overlay" : ""
       }`}
     >
       <div className="flex items-center gap-3">
         <span
           className={`w-10 shrink-0 text-label font-bold uppercase tracking-[0.15em] ${
-            isToday ? "text-ink-secondary" : "text-ink-muted"
+            isOpen ? "text-ink-secondary" : "text-ink-muted"
           }`}
         >
           {weekdayOf(d.date)}
@@ -78,7 +110,7 @@ function DayRow({ day: d, isToday, badge, otherDays, actual }: DayRowProps) {
             d.workouts.map((w, i) => (
               <div key={i}>
                 <p
-                  className={`truncate text-caption ${isToday ? "font-bold text-ink-primary" : "text-ink-secondary"}`}
+                  className={`truncate text-caption ${isOpen ? "font-bold text-ink-primary" : "text-ink-secondary"}`}
                 >
                   {`${w.type} · ${provisional ? "~" : ""}${w.durationMins} min`}
                   <span className="ml-1.5 font-normal text-ink-muted">
@@ -128,7 +160,7 @@ function DayRow({ day: d, isToday, badge, otherDays, actual }: DayRowProps) {
         )}
       </div>
 
-      {isToday && d.workouts.length > 0 && (
+      {isOpen && actionable && d.workouts.length > 0 && (
         <DayActions
           day={{ date: d.date, workoutCount: d.workouts.length }}
           otherDays={otherDays.filter((o) => o.date !== d.date)}
@@ -139,42 +171,51 @@ function DayRow({ day: d, isToday, badge, otherDays, actual }: DayRowProps) {
 }
 
 /**
- * The week as one grouped surface with hairline rows (1c) — replacing the
- * seven separate glass cards. Today's row is highlighted and is the only
- * one that carries its move/swap/skip actions inline; the rest stay a
- * scannable list.
+ * The week as ONE open day (Task 4) — replacing the seven-row rolling list
+ * that used to sit above the next-week summary. `openDate` (from Train's
+ * `?day=`, resolved by openDayFrom so it always names a real day of `days`)
+ * is the only row rendered from the current week; the day strip above this
+ * component (WeekStrip, Task 3) is now the only way to move between days.
+ * Whatever styling and behaviour used to be exclusive to `isToday` — the
+ * highlight, the bold session line, and DayActions (move/swap/skip) — now
+ * belongs to the open day instead, even when it isn't literally today: see
+ * DayRow's `isOpen` doc comment.
  *
- * A ROLLING schedule, not a fixed Monday-first week: days before `today`
- * are dropped (already happened, no longer part of what's ahead), `today`
- * itself is never dropped even if it's already complete — an athlete
- * opening the app at 20:00 must still see what today asked of them. When
- * `nextWeek` is supplied (docs/plans/2026-07-29-next-week-preview.md, Task
- * 4), its days no longer render as seven more full rows: `NextWeekSummary`
- * (v0.99 slice 2 Task 4) collapses them to one summary row behind a closed
- * `<details>` — a forecast, not a commitment, so it does not double the
- * tab's scroll length the way seven expanded rows did. Each day is still
- * marked "provisional" with a `~` before its durations once expanded,
- * except where the athlete pinned that date's availability with an
- * override, which makes it a real fact rather than a projection.
+ * `today` (the real calendar date) still does two things that are
+ * independent of which day is open: it is the floor for `otherDays`, the
+ * DayActions "Target day" list, so a workout can never be moved onto a day
+ * that has already passed — see the comment on `otherDays` below — and it
+ * is passed to NextWeekSummary/actuals lookups exactly as before.
+ *
+ * When `nextWeek` is supplied (docs/plans/2026-07-29-next-week-preview.md,
+ * Task 4 of that slice), its days render exactly as they did before this
+ * task: collapsed to one summary row behind a closed `<details>`
+ * (`NextWeekSummary`), each still marked "provisional" with a `~` before
+ * its durations once expanded, except where the athlete pinned that date's
+ * availability with an override, which makes it a real fact rather than a
+ * projection. This task does not touch any of that — only the current
+ * week's seven rows collapse to one.
  *
  * NOTE: `WeekRationale`, adherence and the weekly review stay Monday–Sunday
  * accounting for the week that's closing; this component is schedule, not
- * accounting, and is the only one that rolls.
- *
- * NOTE: the v0.21 /plan page put DayActions on every day that had a
- * workout, so a future day could be rescheduled directly from its own row.
- * The 1c mockup shows the action pills only under today. Dropping the
- * `isToday &&` guard below restores the old reach if that turns out to
- * matter more than the quieter list.
+ * accounting.
  */
 export function WeekDayList({
   days,
   today,
+  openDate,
   nextWeek,
   actuals,
 }: {
   days: DaySlot[];
   today: string;
+  /**
+   * The one day of `days` to render, expanded — always a real date in
+   * `days` by construction (openDayFrom, src/lib/week-plan/day-shape.ts,
+   * never returns anything else). Required: WeekDayList renders nothing
+   * from the current week without it.
+   */
+  openDate: string;
   nextWeek?: {
     days: DaySlot[];
     pinned: Record<string, boolean>;
@@ -191,21 +232,24 @@ export function WeekDayList({
    */
   actuals?: Record<string, DayActuals>;
 }) {
+  const openDay = days.find((d) => d.date === openDate);
+
   // Ymd strings compare lexicographically the same as chronologically —
   // the convention already used for this in replan.ts and service.ts.
-  const visibleDays = days.filter((d) => d.date >= today);
-
-  // Built from visibleDays, not the raw `days` prop: a dropped (past) day
-  // must never surface as a move/swap target in today's DayActions either
+  //
+  // Built from days >= today, not the raw `days` prop: a past day must
+  // never surface as a move/swap target in the open day's DayActions either
   // — DayActions itself only filters by workoutCount/isRace, trusting the
   // caller for "target days are always inside the open week" (its own
   // comment), so a rest day before today would otherwise leak back in
-  // through the Target day dropdown even though its row is gone.
-  const otherDays: DayActionsOtherDay[] = visibleDays.map((o) => ({
-    date: o.date,
-    workoutCount: o.workouts.length,
-    isRace: o.status === "race",
-  }));
+  // through the Target day dropdown even though its own row is never shown.
+  const otherDays: DayActionsOtherDay[] = days
+    .filter((d) => d.date >= today)
+    .map((o) => ({
+      date: o.date,
+      workoutCount: o.workouts.length,
+      isRace: o.status === "race",
+    }));
 
   const nextWeekHasAvailability =
     nextWeek != null &&
@@ -213,16 +257,25 @@ export function WeekDayList({
 
   return (
     <section className="glass mb-5 overflow-hidden rounded-[18px]">
-      {visibleDays.map((d) => (
+      {openDay && (
         <DayRow
-          key={d.date}
-          day={d}
-          isToday={d.date === today}
+          key={openDay.date}
+          day={openDay}
+          isOpen
           badge={null}
           otherDays={otherDays}
-          actual={actuals?.[d.date]}
+          actual={actuals?.[openDay.date]}
+          // I4: no action here can succeed on a day already completed or
+          // missed, or on any day already in the past (see DayRow's
+          // `actionable` doc comment) — those get the row, but not the
+          // actions under it.
+          actionable={
+            openDay.date >= today &&
+            openDay.status !== "completed" &&
+            openDay.status !== "missed"
+          }
         />
-      ))}
+      )}
 
       {nextWeek &&
         (nextWeekHasAvailability ? (
@@ -236,7 +289,7 @@ export function WeekDayList({
               <DayRow
                 key={d.date}
                 day={d}
-                isToday={false}
+                isOpen={false}
                 badge={nextWeek.pinned[d.date] ? "pinned" : "provisional"}
                 otherDays={otherDays}
               />

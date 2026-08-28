@@ -224,3 +224,139 @@ reaches three of the four; "connect a provider" needs care, because three of
 its six paths leave for a third-party OAuth screen.
 
 Then, and only then, a proposal.
+
+---
+
+## 2026-08-28 — Task 7: the redesign, measured against the same method
+
+**Phase 6, strand 3, Task 7 of `.superpowers/sdd/2026-08-27-week-composition/`.**
+Tasks 1–6 rebuilt Train ▸ Week: the Season tab retired, the season now reads
+as two figures, the day strip carries duration/status/hard-day/rest, one day
+opens at a time from `?day=`, a verdict headline leads, and the primary
+action is pinned above the bottom nav. The spec that drove those tasks
+predicted this surface would go from **4.8 screens / 21 visible + 49 hidden
+controls to ~1.2 screens / ~14 visible + ~0 hidden**. That was a prediction.
+This section is the measurement.
+
+Branch `feat-week-composition` at `2364a6c`, based on `main` at `763ea63`
+(right after the v0.122.0 release the earlier measurement predates). Seeded
+with `SEED_DEMO=1 DEMO_EMAIL=dev@recover.local npx tsx
+scripts/seed-confirmed-race.ts` against the local dev DB — the same script
+and the same account (`OWNER_EMAIL=dev@recover.local`) `verify-surfaces.ts`
+signs in as, so the surface measured is the one actually captured and
+audited. `train-plan-preview` (the two-A-race draft preview) was **not**
+seeded — only `seed-confirmed-race.ts` ran, matching the original
+measurement's seed exactly, so the two numbers are comparable rather than
+comparing a confirmed-plan week against a draft-preview one.
+
+### Capture and axe
+
+```
+SCREENSHOT_BASE_URL=http://localhost:3210 npx tsx scripts/verify-surfaces.ts week-redesign --only=train,train-plan-preview
+```
+
+`train` captured cleanly at all 4 theme/viewport combinations.
+`train-plan-preview` failed all 4 — expected, and by the script's own design:
+that surface's `waitForTwoArcPreview` guard refuses to capture unless a
+two-arc draft exists (`scripts/seed-two-race.ts`), which this measurement
+deliberately did not run, for the seed-parity reason above. Not a defect in
+the redesign.
+
+**Axe: 0 confirmed defects, 125 indeterminate nodes**, all one rule
+(`color-contrast`), all on `train`: 12 (light/phone), 51 (dark/phone), 11
+(light/desktop), 51 (dark/desktop). Per `verify-surfaces.ts`'s own header,
+this app's four gradient-background surfaces (today/train/coach/body)
+structurally can never resolve that rule either way — the indeterminate
+count is real and worth trending down, but it does not gate, and the
+CONFIRMED number the task requires at zero is zero.
+
+Screenshots opened in both themes at both viewports:
+`.screenshots/week-redesign/train-{light,dark}-{phone,desktop}.png`. Visual
+read: the redesign's new pieces (verdict headline, day strip, two season
+figures) render correctly and match the spec's descriptions. But every
+pre-existing card below them is still there, unchanged — see "What it says"
+below for why that matters more than it sounds like it should.
+
+### Choice load, measured
+
+Same method, same selector, same three-way split, phone viewport (390×844).
+Script: an ad hoc Playwright pass (not committed — this repo has no
+committed choice-load counter, same as the first measurement), signed in as
+`dev@recover.local`, using `document.querySelectorAll` (not a Playwright
+locator) specifically so the Next.js dev-mode indicator — a shadow-DOM
+custom element — cannot leak into the count. Buckets identified structurally
+rather than by guesswork: `appChrome` = everything inside
+`nav.fixed.bottom-8` (`BottomNav`); `tabs` = everything inside
+`nav[aria-label="Train sections"]` (`TrainTabs`'s `SegmentedTabs`); `surface`
+= everything else matching the selector. **`appChrome` came out 5 on every
+row below** — the method's own check, satisfied.
+
+| Surface                                                    | surface |  tabs | appChrome | hidden/disabled |   scroll |
+| ---------------------------------------------------------- | ------: | ----: | --------: | --------------: | -------: |
+| Train ▸ Week — **2026-08-26, before**                      |      21 |     4 |         5 |              49 |      4.7 |
+| Train ▸ Week — **2026-08-28, after (default, no `?day=`)** |  **28** | **3** |         5 |          **55** | **3.28** |
+| Train ▸ Week — after, `?day=` a non-today workout day      |      28 |     3 |         5 |              55 |     3.28 |
+| Train ▸ Week — after, `?day=` a non-today rest day         |      25 |     3 |         5 |              54 |     3.18 |
+
+The "default" row is the one to compare against the spec's prediction: no
+`?day=` in the URL is exactly what an athlete gets from tapping Train, and
+it already opens today (Task 4) — there is no "no day open" state left to
+measure separately, which is itself a real structural change from the
+before row.
+
+The two `?day=` rows exist because Task 4 made which day is open part of
+the URL, and the spec's 1.2-screen prediction was implicitly a claim about
+_that_ shape too. Opening a different day with a session (Sunday, non-today)
+produces **byte-identical** counts and pixel-identical scroll height to the
+default — confirmed separately by reading the verdict headline text off each
+page (`"Friday is your long one."` vs `"Sunday is an endurance session."`,
+proving the param really took effect and this isn't a caching artifact).
+Opening a rest/nothing-planned day (Monday) drops exactly three controls —
+the per-day `Move/Swap/Skip` select, the `Target day…` select, and `No time
+today` — because there is no session on that day to act on. That is a clean,
+legible difference; nothing else about the open-day panel's control count
+moves.
+
+### What it says
+
+**The prediction did not hold. Choice load went up, not down — 21 → 28
+visible, 49 → 55 hidden — and scroll length dropped by roughly a third
+(4.7 → 3.28 screens) rather than by three quarters (the predicted 4.7 →
+~1.2).** Tabs did drop, 4 → 3, exactly as expected (Season retired, Task 1).
+Everything else moved the wrong way or moved much less than promised.
+
+**Why, and it is not a mystery once you scroll the screenshot.** Tasks 1–6
+added a verdict headline, a day strip (7 new `<a>` day cells), two season
+figures, and a pinned action — real, working, and correctly built. But
+nothing removed or collapsed what was already on the page below them:
+`SessionFuelling`, `WhyThisWeek`, the confirmed-race outlook card, the
+`What changed & why` collapsible, the `This week`/`Next week` availability
+switcher with its own per-day list (7 more day buttons, one per weekday —
+`MonRest`, `TueRest`, `Wed1h 35m`... — sitting right underneath the
+brand-new day strip, doing an overlapping job), and the `Standard week` /
+`Races` / `Remaining skeleton`
+collapsibles. The new day strip is additive, not a replacement: an athlete
+now has three separate places to pick a day (the strip, the open-day panel,
+and the availability form's own day list), where before there were two.
+
+**This matches what this plan's own self-review already flagged, not a
+surprise it hid.** The task-7 brief's self-review says outright: "Race line
+and the ⓘ destinations → slice 2, not this plan (they need sheets)... Summary
+rows → slice 2." The 4.7 → 1.2 screens prediction in the spec was a claim
+about the _finished_ redesign — sheets and all. Tasks 1–6 are slice 1 of
+that: the top of the surface, not the collapse of everything beneath it.
+Measured honestly, slice 1 alone gets Train ▸ Week from 4.7 to 3.28 screens
+(-30%) while _adding_ seven controls and six hidden ones — a real
+improvement in what leads the page, bought without yet paying down the
+length or choice load the spec's number was about. The 1.2-screen, ~14-
+control claim is still ahead of this branch, gated on the sheet work slice 2
+was always going to be.
+
+**One genuine, unambiguous win the numbers do show:** the old "no day open"
+state (a report you had to hunt through) is gone. Every visit to Train ▸
+Week now opens exactly one day, today's by default, with a verdict sentence
+that is honest about whether it's describing right now or a day you've
+scrolled to. That part of the prediction — "one day, not seven flattened
+into a scroll" — is true. It just isn't the part that drove the headline
+screens/controls numbers down, because nothing else on the page shrank to
+make room for it.
