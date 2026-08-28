@@ -1156,6 +1156,19 @@ async function WeekTab({
       </WeekSheet>
     ) : null;
 
+  // Review finding 3 on ded5f64 (Minor): `overlay: whyWeekSheet ??
+  // planSetupSheet` was correct — the two params are mutually exclusive —
+  // but grows one `??` per task, and tasks 3-5 are all still coming. A map
+  // keyed on `sheetParam` means each of them adds a key here instead of
+  // another `??`. Each entry is still independently gated above (e.g.
+  // whyWeekSheet is null unless `sheetParam === "why-week" && week`), so
+  // indexing by `sheetParam` picks the one real overlay (or `undefined` for
+  // a TRAIN_SHEETS member with no sheet implemented yet, e.g. "races").
+  const sheetOverlays: Partial<Record<TrainSheetName, React.ReactNode>> = {
+    "why-week": whyWeekSheet,
+    "plan-setup": planSetupSheet,
+  };
+
   return {
     content: (
       <>
@@ -1365,7 +1378,7 @@ async function WeekTab({
         )}
       </>
     ),
-    overlay: whyWeekSheet ?? planSetupSheet,
+    overlay: sheetParam ? (sheetOverlays[sheetParam] ?? null) : null,
   };
 }
 
