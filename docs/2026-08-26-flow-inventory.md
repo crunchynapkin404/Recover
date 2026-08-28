@@ -291,12 +291,12 @@ rather than by guesswork: `appChrome` = everything inside
 = everything else matching the selector. **`appChrome` came out 5 on every
 row below** — the method's own check, satisfied.
 
-| Surface                                          | surface | tabs | appChrome | hidden/disabled | scroll |
-| ------------------------------------------------- | ------: | ---: | --------: | ---------------: | -----: |
-| Train ▸ Week — **2026-08-26, before**              |      21 |    4 |         5 |                49 |    4.7 |
-| Train ▸ Week — **2026-08-28, after (default, no `?day=`)** |  **28** |  **3** |         5 |            **55** | **3.28** |
-| Train ▸ Week — after, `?day=` a non-today workout day | 28 | 3 | 5 | 55 | 3.28 |
-| Train ▸ Week — after, `?day=` a non-today rest day | 25 | 3 | 5 | 54 | 3.18 |
+| Surface                                                    | surface |  tabs | appChrome | hidden/disabled |   scroll |
+| ---------------------------------------------------------- | ------: | ----: | --------: | --------------: | -------: |
+| Train ▸ Week — **2026-08-26, before**                      |      21 |     4 |         5 |              49 |      4.7 |
+| Train ▸ Week — **2026-08-28, after (default, no `?day=`)** |  **28** | **3** |         5 |          **55** | **3.28** |
+| Train ▸ Week — after, `?day=` a non-today workout day      |      28 |     3 |         5 |              55 |     3.28 |
+| Train ▸ Week — after, `?day=` a non-today rest day         |      25 |     3 |         5 |              54 |     3.18 |
 
 The "default" row is the one to compare against the spec's prediction: no
 `?day=` in the URL is exactly what an athlete gets from tapping Train, and
@@ -306,7 +306,7 @@ before row.
 
 The two `?day=` rows exist because Task 4 made which day is open part of
 the URL, and the spec's 1.2-screen prediction was implicitly a claim about
-*that* shape too. Opening a different day with a session (Sunday, non-today)
+_that_ shape too. Opening a different day with a session (Sunday, non-today)
 produces **byte-identical** counts and pixel-identical scroll height to the
 default — confirmed separately by reading the verdict headline text off each
 page (`"Friday is your long one."` vs `"Sunday is an endurance session."`,
@@ -343,10 +343,10 @@ and the availability form's own day list), where before there were two.
 surprise it hid.** The task-7 brief's self-review says outright: "Race line
 and the ⓘ destinations → slice 2, not this plan (they need sheets)... Summary
 rows → slice 2." The 4.7 → 1.2 screens prediction in the spec was a claim
-about the *finished* redesign — sheets and all. Tasks 1–6 are slice 1 of
+about the _finished_ redesign — sheets and all. Tasks 1–6 are slice 1 of
 that: the top of the surface, not the collapse of everything beneath it.
 Measured honestly, slice 1 alone gets Train ▸ Week from 4.7 to 3.28 screens
-(-30%) while *adding* seven controls and six hidden ones — a real
+(-30%) while _adding_ seven controls and six hidden ones — a real
 improvement in what leads the page, bought without yet paying down the
 length or choice load the spec's number was about. The 1.2-screen, ~14-
 control claim is still ahead of this branch, gated on the sheet work slice 2
