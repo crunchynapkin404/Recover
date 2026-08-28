@@ -265,6 +265,33 @@ describe("verdictLine", () => {
     expect(v?.emphasis).toBeNull();
   });
 
+  // I4, this fix wave: the case the test above masks. That one's day is
+  // genuinely in the past (2026-08-24 < TODAY), so `isPast` reads true off
+  // the date alone and the status never gets exercised. Here the athlete
+  // has marked TODAY's ride done (mark-done-button.tsx → markDayDone →
+  // service.ts stamps "completed" same-day) — `openDay.date === todayYmd`,
+  // so a pure date comparison says `isPast === false` even though the
+  // session is over. Both halves matter: the tense must say "was" (not
+  // "is", which is simply wrong), AND no readiness claim may attach (a
+  // "you're ready for it" about a ride already finished is not a grammar
+  // slip, it's a false claim about the athlete's body).
+  it("describes TODAY's already-completed day in the past tense, with no readiness claim", () => {
+    const finishedToday = slot({
+      date: TODAY,
+      workouts: [w(180, "long")],
+      status: "completed",
+    });
+    const v = verdictLine({
+      openDay: finishedToday,
+      band: "green",
+      readiness: 78,
+      todayYmd: TODAY,
+      readinessDate: TODAY,
+    });
+    expect(v?.text).toBe("Thursday was your long one.");
+    expect(v?.emphasis).toBeNull();
+  });
+
   // materializeWeek always empties `workouts` on a race day — status is the
   // only way to tell "nothing planned" apart from "the plan is a race
   // today", so a race day must never read as a rest day. Both `text` and

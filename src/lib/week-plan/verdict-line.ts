@@ -225,12 +225,23 @@ export function verdictLine(input: {
   // yesterday — a day three days gone can still read `status: "planned"`.
   // Both `openDay.date` and `todayYmd` are YYYY-MM-DD, so a plain string
   // comparison is already a correct chronological one.
-  const isPast = openDay.date < todayYmd;
+  const isPast =
+    openDay.date < todayYmd ||
+    openDay.status === "completed" ||
+    openDay.status === "missed";
   // No session to pace, whatever the reason (missed, deliberately rested,
   // or simply empty) — `sessionBase` tells the three apart in the text;
   // none of them earns a claim about the athlete's body.
   const isEmptyDay = openDay.status !== "race" && openDay.workouts.length === 0;
-  const isCurrent = isToday && readinessDate === todayYmd;
+  // `!isPast` here (not just `isToday`) is what keeps a readiness claim off
+  // a day already marked "completed" today (mark-done-button.tsx →
+  // markDayDone → service.ts stamps this same-day, before `isPast`'s own
+  // date check would ever flip): "you're ready for it" is a claim about a
+  // session still ahead, and one the athlete has already finished is not
+  // that, whatever the clock says. `isPast` already carries the
+  // completed/missed union above, so this reuses it rather than
+  // re-deriving the same status check a second time.
+  const isCurrent = isToday && !isPast && readinessDate === todayYmd;
 
   const base = sessionBase(weekday, openDay, isToday, isPast);
   const claim = isEmptyDay ? null : readinessClaim(band, readiness, isCurrent);
