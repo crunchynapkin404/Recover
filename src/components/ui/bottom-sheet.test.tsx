@@ -93,4 +93,52 @@ describe("BottomSheet", () => {
     const dialog = el.querySelector('[role="dialog"]') as HTMLElement;
     expect(dialog.style.transform).toBe("translateY(100%)");
   });
+
+  // Review finding 1 (slice 2 task 2): StandardWeek (nested in the
+  // plan-setup sheet) stages BlockSheet edits in a ref and writes them only
+  // from BlockSheet's own onClose. BlockSheet has no Escape handler of its
+  // own, so this sheet's document-level keydown listener — which stays live
+  // the whole time BlockSheet is open — must not fire close() while a
+  // nested `[role="dialog"]` is mounted, or Escape silently discards
+  // whatever the nested dialog hadn't saved yet.
+  it("does not close on Escape while a nested dialog is mounted", async () => {
+    await render(
+      <BottomSheet title="Outer" closeHref="/train?tab=week">
+        <div role="dialog" aria-modal="true" aria-label="Nested">
+          <p>Nested dialog content</p>
+        </div>
+      </BottomSheet>
+    );
+    await act(async () => {
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true })
+      );
+    });
+    expect(pushMock).not.toHaveBeenCalled();
+  });
+
+  // Task 2's own regression, the other half: narrowing the idle-transform
+  // condition to `closing ? … : undefined` (dropping the `dragY > 0` half)
+  // would leave both tests above green while quietly breaking swipe-follow
+  // — the panel would stop tracking a finger mid-drag. A synthetic
+  // touchmove is the only thing that catches that.
+  it("follows a drag with translateY(dragY) while dragging, not just while closing", async () => {
+    const el = await render(
+      <BottomSheet title="Outer" closeHref="/train?tab=week">
+        <p>Body</p>
+      </BottomSheet>
+    );
+    const dialog = el.querySelector('[role="dialog"]') as HTMLElement;
+    await act(async () => {
+      const start = new Event("touchstart", { bubbles: true });
+      Object.assign(start, { touches: [{ clientY: 100 }] });
+      dialog.dispatchEvent(start);
+    });
+    await act(async () => {
+      const move = new Event("touchmove", { bubbles: true });
+      Object.assign(move, { touches: [{ clientY: 150 }] });
+      dialog.dispatchEvent(move);
+    });
+    expect(dialog.style.transform).toBe("translateY(50px)");
+  });
 });

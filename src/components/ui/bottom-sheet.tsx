@@ -32,6 +32,7 @@ export function BottomSheet({
   const [closing, setClosing] = useState(false);
   const startY = useRef<number | null>(null);
   const reduceMotion = useRef(false);
+  const panelRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     reduceMotion.current =
@@ -49,7 +50,24 @@ export function BottomSheet({
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") close();
+      if (e.key !== "Escape") return;
+      // Review finding 1 (slice 2 task 2): a dialog nested inside this
+      // sheet's own content — BlockSheet, opened from StandardWeek in the
+      // plan-setup sheet, and IntakeForm's copy of the same pattern once
+      // task 4 lands — has no Escape handler of its own and stages its
+      // edits locally, writing them only from its own onClose. This
+      // listener is document-level and stays live the whole time a nested
+      // dialog is open, so without this guard Escape would close THIS
+      // sheet, unmounting the nested dialog's host before it ever calls
+      // its own close-and-save path — a silent discard, invisible to a
+      // pointer/click test since a real tap can never reach this sheet's
+      // own backdrop while a full-viewport nested dialog covers it (only a
+      // keyboard event bypasses that hit-testing). Fixed at this shell,
+      // not inside StandardWeek: every consumer that nests a `role="dialog"`
+      // in here — present or future — inherits the guard for free, rather
+      // than each one needing its own Escape handling.
+      if (panelRef.current?.querySelector('[role="dialog"]')) return;
+      close();
     }
     document.addEventListener("keydown", onKey);
     // The page behind must not scroll while a sheet is over it.
@@ -79,6 +97,7 @@ export function BottomSheet({
       />
 
       <div
+        ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-label={title}
