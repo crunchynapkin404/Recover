@@ -554,18 +554,27 @@ export function RacesSection({ races, hideHeading = false }: Props) {
     });
   }
 
+  // `border-hairline bg-surface-selected`, not `.glass`, on all three
+  // panels below: this section now only ever renders inside the "races"
+  // sheet (train/page.tsx), whose own panel is `bg-surface-overlay`.
+  // `--glass-bg` resolves to `--surface-raised`, and both equal #ffffff in
+  // light — `.glass` would paint an invisible fill behind a bare hairline
+  // border there, the same bug ac747af fixed for WeekRationale/
+  // EventReadiness and ded5f64 fixed for StandardWeek. `--surface-selected`
+  // is the token this repo built for exactly this — a highlight inside a
+  // raised/overlay container, distinct from it in both themes.
   return (
     <section className="mb-10">
       {!hideHeading && <p className="label-micro mb-3">Races</p>}
 
       {races.length === 0 ? (
-        <div className="glass mb-4 rounded-2xl p-5">
+        <div className="mb-4 rounded-2xl border border-hairline bg-surface-selected p-5">
           <p className="text-caption text-ink-muted">
             No races yet — add one so the plan can taper toward it.
           </p>
         </div>
       ) : (
-        <div className="glass mb-4 overflow-hidden rounded-2xl">
+        <div className="mb-4 overflow-hidden rounded-2xl border border-hairline bg-surface-selected">
           <ul className="divide-y divide-hairline">
             {races.map((race) => (
               <Fragment key={race.id}>
@@ -655,7 +664,10 @@ export function RacesSection({ races, hideHeading = false }: Props) {
         </div>
       )}
 
-      <details ref={detailsRef} className="glass rounded-2xl">
+      <details
+        ref={detailsRef}
+        className="rounded-2xl border border-hairline bg-surface-selected"
+      >
         <summary className="cursor-pointer list-none px-5 py-3 text-label font-bold uppercase tracking-wider text-chart-2">
           + Add race
         </summary>

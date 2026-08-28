@@ -147,13 +147,25 @@ describe.skipIf(!hasDb)(
       expect(html).toContain('aria-label="Plan setup"');
     });
 
-    // A real TRAIN_SHEETS member (tasks 3-5's destinations, not yet
-    // implemented — "plan-setup" graduated out of this list in task 2) must
-    // not fall through to the one sheet this task built — membership in
-    // TRAIN_SHEETS is necessary, not sufficient, to open "why-week"
-    // specifically.
-    it("renders no dialog for a valid-but-unimplemented sheet name", async () => {
+    // Task 3's own destination. TEST_USER has an active plan but no races
+    // (seedOpenWeek never touches schema.races), so this also doubles as
+    // the empty-case check the brief calls out: the sheet must hold
+    // RacesSection's own empty-state UI, not an invented "no races" string
+    // of the page's own.
+    it("renders the dialog for the races sheet name, empty-state UI included", async () => {
       const html = await renderTrainWeekWithSheet(TEST_USER, "races");
+      expect(html).toContain('role="dialog"');
+      expect(html).toContain('aria-label="Races"');
+      expect(html).toContain("No races yet");
+    });
+
+    // A real TRAIN_SHEETS member (tasks 4-5's destinations, not yet
+    // implemented — "plan-setup" graduated out of this list in task 2,
+    // "races" in task 3) must not fall through to the one sheet this task
+    // built — membership in TRAIN_SHEETS is necessary, not sufficient, to
+    // open "why-week" specifically.
+    it("renders no dialog for a valid-but-unimplemented sheet name", async () => {
+      const html = await renderTrainWeekWithSheet(TEST_USER, "availability");
       expect(html).not.toContain('role="dialog"');
     });
   }
@@ -403,6 +415,146 @@ describe.skipIf(!hasDb)(
       expect(open).toContain("Your standard week");
       expect(open).toContain("Remaining skeleton");
       expect(open).toContain("Target load");
+    });
+  }
+);
+
+// Task 3's own copy of the shape above: RacesSection (743 lines — add /
+// edit demand / set status / remove races) used to render from TWO mutually
+// exclusive call sites — a Collapsible-wrapped list when races.length > 0,
+// a bare `<RacesSection/>` when it was 0 — both replaced by one row. This
+// seed exercises the non-empty case (the empty case is covered by TEST_USER
+// above, which has a plan but no races at all).
+const RACES_USER = "test-train-sheet-moves-races";
+
+async function seedPlanWithRaces(userId: string): Promise<void> {
+  const { db, schema } = await import("@/lib/db");
+  const { previewTrainingPlan, confirmTrainingPlan } =
+    await import("@/lib/training-plan");
+
+  await db.insert(schema.users).values({
+    id: userId,
+    name: "Test Athlete",
+    email: `${userId}@example.invalid`,
+  });
+
+  // The plan's own target race, pre-created and passed explicitly as
+  // `raceIds` so confirmTrainingPlan does not fall back to creating an
+  // IMPLICIT race of its own (it does that only when no id is given —
+  // see the `if (!raceId)` branch in confirmTrainingPlan). Status
+  // "completed" keeps it out of nextUpcomingRace, so it never becomes the
+  // page's own RaceChip (`card.race`) — this test is about RacesSection's
+  // list, not the chip, and letting the two overlap would make the
+  // closed-page assertions below ambiguous about which component a race
+  // name came from.
+  const [planRace] = await db
+    .insert(schema.races)
+    .values({
+      userId,
+      name: "Races Sheet Plan Race",
+      raceType: "marathon",
+      sport: "Run",
+      date: ymd(new Date(Date.now() + 45 * DAY_MS)),
+      priority: "A",
+      status: "completed",
+    })
+    .returning();
+
+  const preview = await previewTrainingPlan({
+    userId,
+    raceType: "marathon",
+    raceDate: planRace.date,
+    raceIds: [planRace.id],
+    title: "Races sheet test plan",
+    daysPerWeek: 5,
+    hoursPerWeek: 8,
+  });
+  if (!preview.ok) {
+    throw new Error(`previewTrainingPlan refused: ${preview.reason}`);
+  }
+  const confirmed = await confirmTrainingPlan(userId, preview.preview.planId);
+  if (!confirmed.ok) {
+    throw new Error(`confirmTrainingPlan refused: ${confirmed.reason}`);
+  }
+
+  // The two races RacesSection's own management list actually exercises.
+  // Both non-"upcoming", for the same reason as planRace above.
+  await db.insert(schema.races).values([
+    {
+      userId,
+      name: "Race Sheet Alpha",
+      raceType: "10k",
+      sport: "Run",
+      date: ymd(new Date(Date.now() + 10 * DAY_MS)),
+      priority: "B",
+      status: "completed",
+      eventDays: 1,
+      distanceKm: 10,
+      elevationM: 50,
+      goalNote: "Alpha goal note",
+    },
+    {
+      userId,
+      name: "Race Sheet Bravo",
+      raceType: "half marathon",
+      sport: "Run",
+      date: ymd(new Date(Date.now() + 20 * DAY_MS)),
+      priority: "C",
+      status: "skipped",
+      eventDays: 1,
+      distanceKm: 21.1,
+      elevationM: 120,
+      goalNote: "Bravo goal note",
+    },
+  ]);
+}
+
+describe.skipIf(!hasDb)(
+  "TrainPage: the races blocks actually leave the page",
+  () => {
+    beforeAll(async () => {
+      await seedPlanWithRaces(RACES_USER);
+    });
+
+    afterAll(async () => {
+      const { db, schema } = await import("@/lib/db");
+      await db.delete(schema.users).where(eq(schema.users.id, RACES_USER));
+    });
+
+    it("keeps the summary row on the page but not the races list it replaces", async () => {
+      const closed = await renderTrainWeekWithSheet(RACES_USER, undefined);
+      // The row that replaces both old call sites stays on the page.
+      expect(closed).toContain("Races");
+      // The old Collapsible trigger's own text (review finding 2 on
+      // ded5f64's pattern) — Base UI's CollapsiblePanel doesn't render its
+      // children into SSR while closed, so a closed-page string check
+      // can't tell "moved into the sheet" apart from "re-wrapped in a
+      // still-collapsed Collapsible" for the races LIST itself; the
+      // trigger text is the one marker that survives closed either way,
+      // so this is the line that actually catches a re-wrap.
+      expect(closed).not.toContain("Races · ");
+      // The individual races themselves — caught only for a bare re-add,
+      // per the same limitation (see task 2's own note above), which is
+      // the realistic regression this guards against.
+      expect(closed).not.toContain("Race Sheet Alpha");
+      expect(closed).not.toContain("Race Sheet Bravo");
+      expect(closed).not.toContain("Alpha goal note");
+      expect(closed).not.toContain("Bravo goal note");
+      // The add-race disclosure — rendered unconditionally by RacesSection
+      // regardless of races.length, so its absence here is not explained
+      // by races.length being nonzero.
+      expect(closed).not.toContain("+ Add race");
+    });
+
+    it("puts the whole races list in the sheet once it opens", async () => {
+      const open = await renderTrainWeekWithSheet(RACES_USER, "races");
+      expect(open).toContain('role="dialog"');
+      expect(open).toContain('aria-label="Races"');
+      expect(open).toContain("Race Sheet Alpha");
+      expect(open).toContain("Race Sheet Bravo");
+      expect(open).toContain("Alpha goal note");
+      expect(open).toContain("Bravo goal note");
+      expect(open).toContain("+ Add race");
     });
   }
 );

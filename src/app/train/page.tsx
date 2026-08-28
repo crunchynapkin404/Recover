@@ -25,11 +25,6 @@ import {
 } from "@/components/train/fitness-stats-row";
 import { RangeTabs } from "@/components/train/range-tabs";
 import { ViewTabs, currentYm } from "@/components/train/view-tabs";
-import {
-  Collapsible,
-  CollapsibleTrigger,
-  CollapsiblePanel,
-} from "@/components/ui/collapsible";
 import { EmptyState } from "@/components/ui/empty-state";
 import { TrainTabs } from "@/components/train/train-tabs";
 import { WeekDayList } from "@/components/train/week-day-list";
@@ -1156,6 +1151,24 @@ async function WeekTab({
       </WeekSheet>
     ) : null;
 
+  // The "races" destination (slice 2, task 3): RacesSection (743 lines —
+  // add / edit demand / set status / remove races) used to render from two
+  // mutually exclusive call sites below the plan-setup row — a
+  // `Collapsible`-wrapped list when `races.length > 0`, a bare
+  // `<RacesSection/>` when it was 0. Both are replaced by the one row that
+  // opens this sheet. `hideHeading`: the old Collapsible trigger supplied
+  // "Races" as its own label; here the sheet's own `<h2>` does, exactly the
+  // role task 1/2 already gave it for WeekRationale/StandardWeek. Not gated
+  // on `week`, matching both old call sites — races were reachable
+  // whenever a plan existed (this whole function body is past the
+  // `if (!plan) return` fork), open week or not.
+  const racesSheet =
+    sheetParam === "races" ? (
+      <WeekSheet title="Races" closeHref={resolvedHref({ sheet: "" })}>
+        <RacesSection races={raceListItems} hideHeading />
+      </WeekSheet>
+    ) : null;
+
   // Review finding 3 on ded5f64 (Minor): `overlay: whyWeekSheet ??
   // planSetupSheet` was correct — the two params are mutually exclusive —
   // but grows one `??` per task, and tasks 3-5 are all still coming. A map
@@ -1163,10 +1176,12 @@ async function WeekTab({
   // another `??`. Each entry is still independently gated above (e.g.
   // whyWeekSheet is null unless `sheetParam === "why-week" && week`), so
   // indexing by `sheetParam` picks the one real overlay (or `undefined` for
-  // a TRAIN_SHEETS member with no sheet implemented yet, e.g. "races").
+  // a TRAIN_SHEETS member with no sheet implemented yet, e.g.
+  // "availability").
   const sheetOverlays: Partial<Record<TrainSheetName, React.ReactNode>> = {
     "why-week": whyWeekSheet,
     "plan-setup": planSetupSheet,
+    races: racesSheet,
   };
 
   return {
@@ -1352,30 +1367,21 @@ async function WeekTab({
           />
         </div>
 
-        {/* The next race already has its chip above with the countdown and form
-          outlook. This is the management list (add / status / delete), so it
-          stays collapsed rather than printing the same race twice. */}
-        {races.length > 0 && (
-          <div className="mb-5">
-            <Collapsible>
-              <CollapsibleTrigger className="rounded-[18px] p-4">
-                <span className="text-label font-bold uppercase tracking-[0.15em] text-ink-secondary">
-                  Races · {races.length}
-                </span>
-              </CollapsibleTrigger>
-              <CollapsiblePanel>
-                <div className="px-4 pb-1 pt-3">
-                  <RacesSection races={raceListItems} hideHeading />
-                </div>
-              </CollapsiblePanel>
-            </Collapsible>
-          </div>
-        )}
-        {races.length === 0 && (
-          <div className="mb-5">
-            <RacesSection races={raceListItems} />
-          </div>
-        )}
+        {/* The next race already has its chip above with the countdown and
+          form outlook. This is the management list (add / edit demand /
+          set status / remove), moved into the "races" sheet above — this
+          is the one row that replaces both old call sites (a
+          Collapsible-wrapped list when races.length > 0, a bare
+          RacesSection otherwise). No badge when there are no races yet —
+          the empty case still needs a way in, and the sheet holds the
+          empty-state UI RacesSection already provides, unchanged. */}
+        <div className="mb-5">
+          <SummaryRow
+            label="Races"
+            badge={races.length > 0 ? String(races.length) : undefined}
+            href={resolvedHref({ sheet: "races" })}
+          />
+        </div>
       </>
     ),
     overlay: sheetParam ? (sheetOverlays[sheetParam] ?? null) : null,

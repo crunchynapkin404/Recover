@@ -112,4 +112,34 @@ describe("RacesSection", () => {
     expect(html).not.toMatch(/bg-white\//);
     expect(html).not.toMatch(/border-white\//);
   });
+
+  // This section only ever renders inside the "races" sheet (train/page.tsx
+  // slice 2 task 3), whose own panel is bg-surface-overlay — `.glass`
+  // resolves to the SAME #ffffff as that overlay in light mode, painting an
+  // invisible fill behind a bare hairline on all three of this section's
+  // panels (the empty state, the races list, and the add-race disclosure).
+  // Pinned as its own assertion, not folded into the token-scale test
+  // above, because `.glass` is a real, valid class elsewhere in this app —
+  // this is a "wrong token for this container" bug, not a raw-value one.
+  it("fills its panels with surface-selected, not glass (invisible on the sheet's own white overlay)", () => {
+    const empty = renderToString(<RacesSection races={[]} />);
+    expect(empty).toContain("bg-surface-selected");
+    expect(empty).not.toMatch(/\bglass\b/);
+
+    const withRaces = renderToString(<RacesSection races={races} />);
+    expect(withRaces).toContain("bg-surface-selected");
+    expect(withRaces).not.toMatch(/\bglass\b/);
+  });
+
+  it("hides its own micro-label when the caller already names the panel", () => {
+    const shown = renderToString(<RacesSection races={races} />);
+    expect(shown).toContain("Races");
+
+    const hidden = renderToString(<RacesSection races={races} hideHeading />);
+    // The section's own heading is the sole "Races" text it ever renders —
+    // hiding it must leave nothing behind for that exact string, while the
+    // rest of the panel (the race itself) is unaffected by the flag.
+    expect(hidden).not.toContain("Races");
+    expect(hidden).toContain("City Marathon");
+  });
 });
