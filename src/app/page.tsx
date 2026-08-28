@@ -55,7 +55,7 @@ import { SessionCard } from "@/components/today/session-card";
 import { DebriefChip } from "@/components/today/debrief-chip";
 import { RaceChip } from "@/components/today/race-chip";
 import { CoachBrief } from "@/components/today/coach-brief";
-import { SheetHost } from "@/components/today/sheet-host";
+import { SheetHost, TODAY_SHEETS } from "@/components/today/sheet-host";
 import { WeekRow } from "@/components/today/week-row";
 import { listInboxItems } from "@/lib/coach-inbox";
 
@@ -578,7 +578,7 @@ export default async function DashboardPage({
       // itself renders null. Passing it unconditionally made every control
       // on Today inert — permanently, with no sheet open.
       overlay={
-        sheet == null || sheet === "" ? null : (
+        TODAY_SHEETS.some((s) => s === sheet) ? (
           <SheetHost
             userId={user.id}
             sheet={sheet}
@@ -586,7 +586,7 @@ export default async function DashboardPage({
             closeHref="/"
             todayYmd={todayYmd}
           />
-        )
+        ) : null
       }
     >
       <PullToRefresh>

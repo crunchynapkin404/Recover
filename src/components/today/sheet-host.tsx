@@ -14,6 +14,15 @@ import { DebriefSheet } from "@/components/debrief/debrief-sheet";
  * took the whole page down with a 500 rather than simply not opening a
  * sheet.
  */
+/**
+ * The sheet names this host actually renders. Exported because Today's page
+ * must decide whether an overlay exists BEFORE rendering one — AppShell
+ * derives `inert` for the whole background from that prop's truthiness, so
+ * building a <SheetHost/> for a name this host resolves to null makes every
+ * control on Today dead. Train does the same thing with TRAIN_SHEETS.
+ */
+export const TODAY_SHEETS = ["checkin", "debrief"] as const;
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function addDays(ymd: string, n: number): string {
