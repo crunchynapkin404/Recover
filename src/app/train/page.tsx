@@ -627,6 +627,16 @@ async function WeekTab({
   // through to today, never to an empty panel or a stray render.
   const openDate = week ? openDayFrom(week.days, dayParam, todayYmd) : todayYmd;
   const openDaySlot = week?.days.find((d) => d.date === openDate) ?? null;
+  // M1, final whole-branch review: `href` (the prop above) closes over the
+  // RAW `dayParam` — every link it builds carried that verbatim, so an
+  // invalid or stale `?day=` stuck to every tab/filter link on this page
+  // forever instead of self-healing the moment openDayFrom resolves it.
+  // From here on WeekTab uses this wrapped version instead — TrainHeader's
+  // tabs, the next-week availability link, … — so they all carry the
+  // RESOLVED day by default. `over.day` still wins when a caller sets it
+  // explicitly (WeekStrip does, to point each bar at its own date), since
+  // it's spread after the default below.
+  const resolvedHref: TrainHref = (over) => href({ day: openDate, ...over });
   // Only reachable once a plan AND an open week both exist (this whole
   // block is past the `if (!plan) return` fork above) — the athlete this
   // module must never address is the first-run one, and that athlete can
@@ -697,7 +707,7 @@ async function WeekTab({
   // Part D dedupe) — computed once here and threaded into the summary
   // below, so the "planned vs target" figures and the one action that
   // follows from them live in one place instead of two.
-  const nextWeekAvailabilityHref = href({ availability: "next" });
+  const nextWeekAvailabilityHref = resolvedHref({ availability: "next" });
   const nextWeekPreview = projected
     ? {
         days: projected.days,
@@ -877,7 +887,7 @@ async function WeekTab({
     <>
       <TrainHeader
         tab="week"
-        href={href}
+        href={resolvedHref}
         subtitle={subtitle}
         action={chip}
         // Both switches write plan constraints and stop there — the open
@@ -947,7 +957,7 @@ async function WeekTab({
               days={week.days}
               marks="bars"
               selectedDate={openDate}
-              hrefForDay={(date) => href({ day: date })}
+              hrefForDay={(date) => resolvedHref({ day: date })}
             />
           </section>
 

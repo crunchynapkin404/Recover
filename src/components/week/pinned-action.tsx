@@ -28,6 +28,15 @@ interface Props {
  * started with — see pinned-action.test.tsx and the Task 6 report for how
  * BottomNav's real footprint at 390x844 was measured and why bottom-20
  * (the original guess) would have sat this button under it.
+ *
+ * M2, final whole-branch review: that 128px was unconditional, but
+ * BottomNav is `lg:hidden` and AppShell itself drops its own matching
+ * clearance to `lg:pb-0` — on desktop there is nothing at the bottom of
+ * the viewport to clear, so this band floated 128px above empty space.
+ * `lg:bottom-6` follows the same mobile-vs-desktop split
+ * chat-interface.tsx already uses for its own bottom-docked bar (a big
+ * safe-area-aware pad on mobile, `lg:pb-6` on desktop) rather than
+ * inventing a new number for the same "there's no nav to clear" case.
  */
 export function PinnedAction({ label, formAction, pending = false }: Props) {
   return (
@@ -39,7 +48,7 @@ export function PinnedAction({ label, formAction, pending = false }: Props) {
       // bottom-sheet.tsx, and the chat interface) — the 24px clearance
       // between this band and BottomNav's top edge stays safe-area-
       // independent precisely because both ignore it identically.
-      className="sticky bottom-32 z-30 bg-surface-base/95 pb-1 pt-3 backdrop-blur"
+      className="sticky bottom-32 z-30 bg-surface-base/95 pb-1 pt-3 backdrop-blur lg:bottom-6"
     >
       <button
         type="submit"

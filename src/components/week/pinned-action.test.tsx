@@ -49,6 +49,21 @@ describe("PinnedAction", () => {
     expect(wrap?.className).toContain("bottom-32");
   });
 
+  // M2, final whole-branch review: `bottom-32` had no `lg:` variant, but
+  // BottomNav is `lg:hidden` and AppShell itself drops to `lg:pb-0` — on
+  // desktop there is nothing at the bottom of the viewport to clear, so
+  // the unconditional 128px left this band floating with 128px of empty
+  // space beneath it. `lg:bottom-6` matches the same mobile-vs-desktop
+  // split chat-interface.tsx already uses for its own bottom-docked bar
+  // (`pb-[…+96px] lg:pb-6`) rather than inventing a new number.
+  it("drops to a small desktop clearance once BottomNav is gone", async () => {
+    const el = await render(
+      <PinnedAction label="Confirm week" formAction={noop} />
+    );
+    const wrap = el.querySelector("[data-pinned-action]");
+    expect(wrap?.className).toContain("lg:bottom-6");
+  });
+
   it("carries a translucent blurred band so content scrolling under it stays legible", async () => {
     const el = await render(
       <PinnedAction label="Confirm week" formAction={noop} />
