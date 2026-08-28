@@ -276,18 +276,31 @@ export default async function TrainPage({
   // is also why `initialAvailabilityMode` above stays keyed on
   // `sp.availability` directly rather than on this derived value.
   //
-  // Gated on `tab === "week"` (review finding 3, fix pass): `sheetParam`
-  // feeds `href` below, which every tab uses to build ITS OWN links —
-  // without this gate, `/train?tab=history&availability=next` derived
-  // "availability" here too, so every History link silently carried
-  // `sheet=availability` forward and switching back to Week reopened the
-  // sheet unbidden. The explicit-`?sheet=` half of the `??` needs no such
-  // gate: `TRAIN_SHEETS.find` already returns `undefined` off the Week tab
-  // in practice (nothing links `?sheet=` from History/Fitness), and gating
-  // it too would only make an already-inert case redundant to prove inert.
+  // Gated on `tab === "week"` (review finding 3, fix pass — and M1, final
+  // whole-branch review, which widened the gate to the WHOLE expression):
+  // `sheetParam` feeds `href` below, which every tab uses to build ITS OWN
+  // links — without gating both halves, `/train?tab=history&sheet=races`
+  // (or `&availability=next`) derived a sheet name on History exactly as
+  // it would on Week, and every link History renders — including its own
+  // "Week" segment, built through the very same `href`/`resolvedHref` — silently
+  // carried `sheet=races` (or `sheet=availability`) forward, reopening
+  // that sheet the moment the athlete switched back to Week, from a URL
+  // that never named it. The fix pass this comment used to describe only
+  // gated the `??` fallback (the `?availability=next` half) and left the
+  // explicit-`?sheet=` half — `TRAIN_SHEETS.find((s) => s === sp.sheet)`
+  // — ungated, on the claim that "nothing links `?sheet=` from History":
+  // false. Week's own `TrainTabs` are built from `resolvedHref`, the same
+  // `href` this derivation feeds, so an explicit `?sheet=` on any tab
+  // leaked right back into Week's own tab link the moment the athlete
+  // landed on, say, History with `?sheet=races` still in the URL (a
+  // bookmark, a shared link, or simply not having stripped it on their
+  // own tab switch). Gating the whole expression, not just the fallback,
+  // closes both halves at once.
   const sheetParam =
-    TRAIN_SHEETS.find((s) => s === sp.sheet) ??
-    (tab === "week" && sp.availability === "next" ? "availability" : undefined);
+    tab === "week"
+      ? (TRAIN_SHEETS.find((s) => s === sp.sheet) ??
+        (sp.availability === "next" ? "availability" : undefined))
+      : undefined;
 
   // One href builder for every segment, filter and range link on the page —
   // switching one axis never drops the others (see src/lib/log-href.ts).

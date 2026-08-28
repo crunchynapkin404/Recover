@@ -310,6 +310,31 @@ describe.skipIf(!hasDb)(
       expect(html).not.toContain("sheet=availability");
     });
 
+    // M1, final whole-branch review: the fix pass above gated only the `??`
+    // FALLBACK on `tab === "week"`, not the whole `sheetParam` expression —
+    // `TRAIN_SHEETS.find((s) => s === sp.sheet)` still ran unconditionally.
+    // `/train?tab=history&sheet=races` derives `sheetParam = "races"` on
+    // History exactly as it would on Week, and `href` (fed by `sheetParam`)
+    // is the ONE builder every tab's own links go through — so every link
+    // History renders, including its own "Week" segment, silently carries
+    // `sheet=races` forward, and returning to Week reopens the races sheet
+    // from a URL that only ever named History. The old comment claiming
+    // "nothing links `?sheet=` from History" was false: Week's own
+    // `TrainTabs` are built from `resolvedHref`, which is `href` with `day`
+    // pinned — the same builder.
+    it("does not let an explicit ?sheet= leak onto another tab's own links either", async () => {
+      const html = await renderTrain(TEST_USER, {
+        tab: "history",
+        sheet: "races",
+      });
+      // History renders no sheet of its own regardless — this is the
+      // defence-in-depth half of the assertion.
+      expect(html).not.toContain('role="dialog"');
+      // The decisive half: not one link on the page — including History's
+      // own "Week" tab link — carries the explicit sheet param forward.
+      expect(html).not.toContain("sheet=races");
+    });
+
     // THE DECISIVE ASSERTION for the whole task: the measured regression was
     // the week rendering TWICE — once as WeekStrip's day strip, once as
     // IntakeForm's own Monday-through-Sunday list, both outside any sheet.
