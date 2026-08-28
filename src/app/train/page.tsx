@@ -1351,11 +1351,11 @@ async function WeekTab({
   // the spec described.
   //
   // The label follows the tense the athlete is actually in — a button
-  // that still says "Confirm week" after the athlete confirmed on Monday
-  // is noise, not a shortcut:
+  // that still says "Set this week's availability" after the athlete
+  // confirmed on Monday is noise, not a shortcut:
   //   - this week's half is still open (Monday hasn't completed it) AND
-  //     unconfirmed → "Confirm week", landing on the sheet in its default
-  //     (this-week) mode.
+  //     unconfirmed → "Set this week's availability", landing on the
+  //     sheet in its default (this-week) mode.
   //   - otherwise, whenever a next week is still worth setting →
   //     "Set next week's availability", reusing `nextWeekAvailabilityHref`
   //     verbatim rather than re-deriving the identical link the rolling
@@ -1368,16 +1368,33 @@ async function WeekTab({
   //     currently reach — kept because "hide when there is nothing behind
   //     the link" is the same rule the "Availability" `SummaryRow` below
   //     already lives by, not a new one invented for this button.
-  const pinnedAvailabilityLabel =
-    !week?.availabilityConfirmedAt && intake?.thisWeek
-      ? "Confirm week"
-      : intake?.nextWeek
-        ? "Set next week's availability"
-        : null;
-  const pinnedAvailabilityHref =
-    pinnedAvailabilityLabel === "Confirm week"
-      ? resolvedHref({ sheet: "availability" })
-      : nextWeekAvailabilityHref;
+  //
+  // I2, final whole-branch review: this used to say "Confirm week" — a
+  // claim the tap itself never honoured, since PinnedAction renders a
+  // `<Link>` here (see its own `LinkProps` doc comment above), not a
+  // submit; the real "Confirm week" button is IntakeForm's, inside the
+  // sheet this link only navigates to. An athlete who tapped it got an
+  // editor, not a confirmation, and then had to press a SECOND,
+  // identically-labelled control to do what the first one claimed.
+  // Renamed to the same imperative-navigation phrasing the sibling
+  // "Set next week's availability" label already uses (and the spec's
+  // own pinned-label list already sanctions) — a link-shaped pinned
+  // action promises to take you somewhere, never to have done something
+  // on your behalf. `pinnedAvailabilityThisWeek` also drives whether the
+  // "Availability" `SummaryRow` below renders at all: in this exact
+  // state its href is byte-identical to this link's, so showing both was
+  // two controls to one destination (option b of the two the review
+  // offered; see the row's own comment for why b over a).
+  const pinnedAvailabilityThisWeek =
+    !week?.availabilityConfirmedAt && !!intake?.thisWeek;
+  const pinnedAvailabilityLabel = pinnedAvailabilityThisWeek
+    ? "Set this week's availability"
+    : intake?.nextWeek
+      ? "Set next week's availability"
+      : null;
+  const pinnedAvailabilityHref = pinnedAvailabilityThisWeek
+    ? resolvedHref({ sheet: "availability" })
+    : nextWeekAvailabilityHref;
 
   return {
     content: (
@@ -1509,8 +1526,26 @@ async function WeekTab({
               replaces them (slice 2, task 4, the task that fixes the
               measured regression: this section used to render THIS week's
               seven days a second time, right below WeekStrip's own seven).
-              Gated on `intake`, exactly as the section it replaces was. */}
-            {intake && (
+              Gated on `intake`, exactly as the section it replaces was —
+              AND, since I2 (final whole-branch review), on NOT
+              `pinnedAvailabilityThisWeek`: in that state this row's href
+              (`resolvedHref({ sheet: "availability" })`, unchanged below)
+              is byte-identical to the pinned action's own, so showing
+              both was two controls to one destination in a slice whose
+              whole purpose was cutting control count (measured 21 → 17).
+              Option (b) of the two the review offered, over (a)
+              "relabel and keep both": the branch's own stated purpose is
+              cutting control count, and once the pinned link is honestly
+              labelled (done above), a summary row pointed at the exact
+              same URL adds a second tap to the identical destination
+              with no distinct information of its own — the row's only
+              extra content, the hours badge, is one tap away either way,
+              behind the same sheet. The row keeps its place once next
+              week's half is the live one instead: `pinnedAvailabilityHref`
+              is then `nextWeekAvailabilityHref` (`?availability=next`),
+              a genuinely different landing mode than this row's plain
+              link, so the two are not the same control twice. */}
+            {intake && !pinnedAvailabilityThisWeek && (
               <div className="mb-6">
                 <SummaryRow
                   label="Availability"
@@ -1518,17 +1553,6 @@ async function WeekTab({
                   href={resolvedHref({ sheet: "availability" })}
                 />
               </div>
-            )}
-
-            {/* Review finding 1, task 4's fix pass: the page's one pinned
-              primary action, restored — see the derivation above for why
-              it's a link, not a submit, and how its label picks the
-              athlete's actual tense. */}
-            {pinnedAvailabilityLabel && (
-              <PinnedAction
-                label={pinnedAvailabilityLabel}
-                href={pinnedAvailabilityHref}
-              />
             )}
           </>
         ) : (
@@ -1576,6 +1600,29 @@ async function WeekTab({
             href={resolvedHref({ sheet: "races" })}
           />
         </div>
+
+        {/* I1, final whole-branch review: this used to render INSIDE the
+          `week ? (…)` branch, between the Availability and Plan setup
+          rows — `PinnedAction` is `position: sticky`, so it always
+          reserves its own in-flow slot, and that slot sat mid-document
+          instead of at the bottom the spec's wireframe puts it (§3, "The
+          new Week, top to bottom"): the ~78px gap visible in
+          `.screenshots/week-slice2/train-dark-phone.png`, and at maximum
+          scroll the button un-stuck and reappeared THERE instead of at
+          the bottom. Moved to the end of the returned fragment, after
+          every summary row (Why this week / Availability / Plan setup /
+          Races), so the reserved slot — and the un-stuck button — land
+          last, matching the wireframe. Still gated on
+          `pinnedAvailabilityLabel`, unchanged: that's non-null only once
+          `week` and `intake` both exist (see their own derivations
+          above), so this renders nothing in the plan-empty branch, which
+          has its own "Plan this week" PinnedAction. */}
+        {pinnedAvailabilityLabel && (
+          <PinnedAction
+            label={pinnedAvailabilityLabel}
+            href={pinnedAvailabilityHref}
+          />
+        )}
       </>
     ),
     overlay: sheetParam ? (sheetOverlays[sheetParam] ?? null) : null,

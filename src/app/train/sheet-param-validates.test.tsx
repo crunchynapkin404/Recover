@@ -25,6 +25,15 @@ function ymd(d: Date): string {
 const INTAKE_FORM_WEEKDAY_SPAN =
   /<span class="text-label font-bold uppercase tracking-wider text-ink-muted">(Mon|Tue|Wed|Thu|Fri|Sat|Sun)</g;
 
+/**
+ * Matches ONLY the "Availability" `SummaryRow`'s own label span (I2, final
+ * whole-branch review) — the exact class list `summary-row.tsx` renders,
+ * not a bare substring match that would also hit the pinned action's own
+ * "…availability" text or the sheet's `aria-label="Availability"`.
+ */
+const AVAILABILITY_ROW_LABEL_SPAN =
+  /<span class="text-label font-bold uppercase tracking-\[0\.15em\] text-ink-secondary">Availability<\/span>/;
+
 // Same App Router shims first-run.test.tsx and day-param-self-heals.test.tsx
 // need — SidebarNav/BottomNav call usePathname/useRouter, which need
 // context this test has none of. BottomSheet (rendered when ?sheet=why-week
@@ -779,28 +788,30 @@ describe.skipIf(!hasDb)(
         .where(eq(schema.users.id, AVAILABILITY_USER));
     });
 
-    it("keeps the summary row (with an hours badge) on the page but not the switcher it replaces", async () => {
+    it("keeps only the pinned action reachable for availability (I2: the summary row it would otherwise duplicate is dropped), and never leaks the switcher it replaces", async () => {
       const closed = await renderTrainWeekWithSheet(
         AVAILABILITY_USER,
         undefined
       );
-      // The row that replaces the switcher stays on the page, badged with
-      // the week's real offered hours — computed off data WeekTab already
-      // fetched, not a new query, so it costs nothing to show.
-      expect(closed).toContain("Availability");
-      expect(closed).toContain("1h");
+      // I2, final whole-branch review: this fixture is unconfirmed with a
+      // real this-week half — exactly the state where the "Availability"
+      // SummaryRow's href used to be byte-identical to the pinned
+      // action's own. Two controls to one destination, in a slice whose
+      // whole purpose was cutting control count — the row is dropped
+      // here (option b); the pinned link is the only way in, so the
+      // week's real offered hours ("1h") no longer surface on the closed
+      // page outside it.
+      expect(closed).not.toMatch(AVAILABILITY_ROW_LABEL_SPAN);
       // AvailabilityWeekSwitcher's own group label.
       expect(closed).not.toContain("Availability week");
       // IntakeForm's own body copy.
       expect(closed).not.toContain("When you can train");
-      // Review finding 1, task 4's fix pass: "Confirm week" now DOES
-      // belong on the closed page again — as the page's own pinned
-      // primary action, a real navigation <a>, not IntakeForm's <button
-      // type="submit"> (which only exists once the sheet housing that
-      // form is actually mounted — see the "puts the switcher…" test
-      // below, and the dedicated describe block further down for the
-      // link's own shape/href/label-by-state).
-      expect(closed).toMatch(/<a[^>]*>Confirm week<\/a>/);
+      // The pinned link promises navigation, not the confirmation the
+      // sheet itself still performs (dedicated describe block further
+      // down covers the label's own shape/href/tense in full) — a stale
+      // "Confirm week" claim must not survive on this closed page either.
+      expect(closed).toMatch(/<a[^>]*>Set this week&#x27;s availability<\/a>/);
+      expect(closed).not.toContain("Confirm week");
       expect(closed).not.toMatch(/<button[^>]*>\s*Confirm week/);
       // The real block Monday's standard-week default set, formatted —
       // proves this isn't a structural-marker-only check.
@@ -899,15 +910,22 @@ describe.skipIf(!hasDb)(
         .where(eq(schema.users.id, PINNED_CONFIRMED_USER));
     });
 
-    it('pins "Confirm week" — a real navigation link, not a disguised button — to the availability sheet in this-week mode, while this week is unconfirmed', async () => {
+    it('pins "Set this week\'s availability" — a real navigation link, not a disguised button — to the availability sheet in this-week mode, while this week is unconfirmed', async () => {
       const html = await renderTrainWeekWithSheet(PINNED_USER, undefined);
       // Exactly one pinned action on the closed page — the spec's own
       // "one primary action, pinned" rule, not merely this label's own
       // presence.
       expect(html.match(/data-pinned-action/g) ?? []).toHaveLength(1);
       const pinned = pinnedActionHtml(html);
+      // I2, final whole-branch review: this used to be "Confirm week" — a
+      // claim the tap itself does not honour, since this is a `<Link>`
+      // (see PinnedAction's own `LinkProps`) that only navigates to the
+      // sheet housing the real "Confirm week" submit. Renamed to match
+      // the "Set next week's availability" tense already beside it: a
+      // link-shaped pinned action promises to take you somewhere, never
+      // to have done something on your behalf.
       const match = pinned.match(
-        /<a[^>]*href="([^"]+)"[^>]*>Confirm week<\/a>/
+        /<a[^>]*href="([^"]+)"[^>]*>Set this week&#x27;s availability<\/a>/
       );
       expect(match).not.toBeNull();
       const href = match![1];
@@ -917,9 +935,17 @@ describe.skipIf(!hasDb)(
       expect(href).not.toContain("availability=next");
       // No `<button>` masquerading as this bar's action either.
       expect(pinned).not.toContain("<button");
+      // The stale claim is gone outright, not merely relabelled beside it.
+      expect(pinned).not.toContain("Confirm week");
+      // I2 option (b): the "Availability" SummaryRow is dropped in this
+      // exact state — its href was byte-identical to the pinned link's
+      // (both `resolvedHref({ sheet: "availability" })`), so keeping both
+      // was two controls to one destination in a slice whose whole
+      // purpose was cutting control count.
+      expect(html).not.toMatch(AVAILABILITY_ROW_LABEL_SPAN);
     });
 
-    it('re-labels to "Set next week\'s availability" once this week is confirmed — a stale "Confirm week" would claim more than the app knows', async () => {
+    it('re-labels to "Set next week\'s availability" once this week is confirmed, and the "Availability" row comes back since it no longer duplicates the pinned link', async () => {
       const html = await renderTrainWeekWithSheet(
         PINNED_CONFIRMED_USER,
         undefined
@@ -932,9 +958,37 @@ describe.skipIf(!hasDb)(
       expect(match).not.toBeNull();
       const href = match![1];
       expect(href).toContain("availability=next");
-      // Confirmed: the "Confirm week" tense is gone from THIS bar, not
-      // merely relabelled beside a stale duplicate.
+      // Confirmed: the "Confirm week"/"Set this week's availability" tense
+      // is gone from THIS bar, not merely relabelled beside a stale
+      // duplicate.
       expect(pinned).not.toContain("Confirm week");
+      expect(pinned).not.toContain("Set this week&#x27;s availability");
+      // I2 option (b), the other half: the pinned link now points at
+      // `?availability=next` — a different landing mode than the row's
+      // own plain `resolvedHref({ sheet: "availability" })` — so showing
+      // both is not the I2 duplicate, and the row stays.
+      expect(html).toMatch(AVAILABILITY_ROW_LABEL_SPAN);
+    });
+
+    // I1, final whole-branch review: `PinnedAction` is `position: sticky`,
+    // so it always reserves its own in-flow slot — rendering it between
+    // two summary rows (as it used to) put that reserved gap, and the
+    // un-stuck button at max scroll, mid-document instead of at the very
+    // bottom the spec's own wireframe puts it (§3, "The new Week, top to
+    // bottom"). This pins the actual DOM order, which a purely visual
+    // check would miss.
+    it("renders the pinned action after every summary row, not mid-document between them", async () => {
+      const html = await renderTrainWeekWithSheet(PINNED_USER, undefined);
+      const pinnedAt = html.indexOf('data-pinned-action="true"');
+      expect(pinnedAt).toBeGreaterThan(-1);
+      // Every row the wireframe lists before the pinned action — "Why
+      // this week", "Plan setup", "Races" — must all appear earlier in
+      // the document, not just the last one.
+      for (const label of ["Why this week", "Plan setup", "Races"]) {
+        const rowAt = html.indexOf(`>${label}<`);
+        expect(rowAt).toBeGreaterThan(-1);
+        expect(rowAt).toBeLessThan(pinnedAt);
+      }
     });
   }
 );
