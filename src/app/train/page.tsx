@@ -206,6 +206,7 @@ async function resolveWeekIntake(
     dates,
     overrideDates: overrides.map((o) => o.date),
     verdict: availabilityVerdict({ ...verdictInput, offeredMins }),
+    offeredMins,
   };
 }
 
@@ -274,9 +275,19 @@ export default async function TrainPage({
   // `sheet=availability` to the URL, fixes every such link at once — this
   // is also why `initialAvailabilityMode` above stays keyed on
   // `sp.availability` directly rather than on this derived value.
+  //
+  // Gated on `tab === "week"` (review finding 3, fix pass): `sheetParam`
+  // feeds `href` below, which every tab uses to build ITS OWN links —
+  // without this gate, `/train?tab=history&availability=next` derived
+  // "availability" here too, so every History link silently carried
+  // `sheet=availability` forward and switching back to Week reopened the
+  // sheet unbidden. The explicit-`?sheet=` half of the `??` needs no such
+  // gate: `TRAIN_SHEETS.find` already returns `undefined` off the Week tab
+  // in practice (nothing links `?sheet=` from History/Fitness), and gating
+  // it too would only make an already-inert case redundant to prove inert.
   const sheetParam =
     TRAIN_SHEETS.find((s) => s === sp.sheet) ??
-    (sp.availability === "next" ? "availability" : undefined);
+    (tab === "week" && sp.availability === "next" ? "availability" : undefined);
 
   // One href builder for every segment, filter and range link on the page —
   // switching one axis never drops the others (see src/lib/log-href.ts).
@@ -878,24 +889,21 @@ async function WeekTab({
     };
   }
 
-  // The "Availability" row's badge: the week's offered hours, cheap to
-  // show because it is a reduce over `intake` data WeekTab already fetched
-  // above, not a new query. This week's total when it exists (the row's
-  // default landing view, matching AvailabilityWeekSwitcher's own
-  // `initialMode` default of "this"); next week's when Monday has
-  // completed and only that half remains. Omitted rather than shown as
-  // "Rest" when nothing is offered yet — the same "no badge over an
-  // invented string" rule Races follows for zero races.
+  // The "Availability" row's badge: the week's offered hours. This week's
+  // total when it exists (the row's default landing view, matching
+  // AvailabilityWeekSwitcher's own `initialMode` default of "this"); next
+  // week's when Monday has completed and only that half remains. Omitted
+  // rather than shown as "Rest" when nothing is offered yet — the same "no
+  // badge over an invented string" rule Races follows for zero races.
+  //
+  // Review finding (fix pass): this used to re-reduce `resolved` itself —
+  // the identical figure `resolveWeekIntake` above already computed as
+  // `offeredMins` (to hand `availabilityVerdict` exactly this number) and
+  // discarded. Reads it off `WeekIntake` instead of re-deriving it.
   const availabilityWeek = intake?.thisWeek ?? intake?.nextWeek ?? null;
-  const availabilityMins = availabilityWeek
-    ? availabilityWeek.resolved.reduce(
-        (s, day) => s + day.reduce((d, b) => d + blockMins(b), 0),
-        0
-      )
-    : 0;
   const availabilityBadge =
-    availabilityWeek && availabilityMins > 0
-      ? formatAvailability(availabilityMins)
+    availabilityWeek && availabilityWeek.offeredMins > 0
+      ? formatAvailability(availabilityWeek.offeredMins)
       : undefined;
 
   // What the athlete actually trained, per local day, from the same

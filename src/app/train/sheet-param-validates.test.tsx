@@ -10,6 +10,21 @@ function ymd(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+/**
+ * Matches ONLY IntakeForm's own day-row weekday span (`text-label font-bold
+ * uppercase tracking-wider text-ink-muted`) — not WeekDayList's open-day
+ * badge (`text-ink-secondary`) and, the confound review caught, not its
+ * `NextWeekSummary` preview rows either (`w-10 shrink-0 text-label
+ * font-bold uppercase tracking-[0.15em] text-ink-muted` — same trailing
+ * token, different `tracking-*`, `w-10 shrink-0` prefix DayRow alone
+ * carries). See the decisive test's own comment, below, for the full case
+ * — and the AVAILABILITY_USER test further down for proof this narrowing
+ * still holds against a fixture where NextWeekSummary's rows actually
+ * render, not just one where they happen not to.
+ */
+const INTAKE_FORM_WEEKDAY_SPAN =
+  /<span class="text-label font-bold uppercase tracking-wider text-ink-muted">(Mon|Tue|Wed|Thu|Fri|Sat|Sun)</g;
+
 // Same App Router shims first-run.test.tsx and day-param-self-heals.test.tsx
 // need — SidebarNav/BottomNav call usePathname/useRouter, which need
 // context this test has none of. BottomSheet (rendered when ?sheet=why-week
@@ -84,6 +99,43 @@ async function seedOpenWeek(userId: string): Promise<void> {
   });
 }
 
+/**
+ * The general form: any of TrainPage's own searchParams keys. Most tests
+ * only ever vary `sheet` (and, since task 4, `availability`) against the
+ * default `tab=week` — `renderTrainWeekWithSheet` below stays the short
+ * spelling for that common case. Review finding 3 on task 4's fix pass
+ * needs `tab` driven independently too: `sheetParam`'s `?availability=next`
+ * fallback must not leak onto a tab that never asked for it.
+ */
+async function renderTrain(
+  userId: string,
+  params: {
+    tab?: string;
+    sheet?: string;
+    availability?: string;
+  }
+): Promise<string> {
+  requireUserMock.mockResolvedValue({
+    id: userId,
+    email: `${userId}@example.invalid`,
+    name: "Test Athlete",
+  });
+  const { default: TrainPage } = await import("./page");
+  const stream = await renderToReadableStream(
+    <TrainPage searchParams={Promise.resolve(params)} />
+  );
+  await stream.allReady;
+  const reader = stream.getReader();
+  const decoder = new TextDecoder();
+  let html = "";
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    html += decoder.decode(value, { stream: true });
+  }
+  return html;
+}
+
 async function renderTrainWeekWithSheet(
   userId: string,
   sheet: string | undefined,
@@ -96,25 +148,7 @@ async function renderTrainWeekWithSheet(
    */
   availability?: string
 ): Promise<string> {
-  requireUserMock.mockResolvedValue({
-    id: userId,
-    email: `${userId}@example.invalid`,
-    name: "Test Athlete",
-  });
-  const { default: TrainPage } = await import("./page");
-  const stream = await renderToReadableStream(
-    <TrainPage searchParams={Promise.resolve({ sheet, availability })} />
-  );
-  await stream.allReady;
-  const reader = stream.getReader();
-  const decoder = new TextDecoder();
-  let html = "";
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    html += decoder.decode(value, { stream: true });
-  }
-  return html;
+  return renderTrain(userId, { sheet, availability });
 }
 
 describe.skipIf(!hasDb)(
@@ -239,23 +273,59 @@ describe.skipIf(!hasDb)(
       expect(html).not.toContain('aria-label="Availability"');
     });
 
+    // Review finding 3 on this task's fix pass: `sheetParam` (and the
+    // `??` fallback it computes) feeds `href`, the ONE builder every tab —
+    // not just Week — uses for its own links. Without gating the fallback
+    // on `tab === "week"`, `/train?tab=history&availability=next` derived
+    // "availability" too, and every link History renders (including its
+    // own "Week" segment, back to the tab that actually owns the sheet)
+    // silently carried `sheet=availability` forward — switching back to
+    // Week would reopen the sheet unbidden, from a URL that never named it.
+    it("does not let ?availability=next leak sheet=availability onto another tab's own links", async () => {
+      const html = await renderTrain(TEST_USER, {
+        tab: "history",
+        availability: "next",
+      });
+      // History renders no sheet of its own regardless — this is the
+      // defence-in-depth half of the assertion.
+      expect(html).not.toContain('role="dialog"');
+      // The decisive half: not one link on the page — including History's
+      // own "Week" tab link — carries the derived sheet param forward.
+      expect(html).not.toContain("sheet=availability");
+    });
+
     // THE DECISIVE ASSERTION for the whole task: the measured regression was
     // the week rendering TWICE — once as WeekStrip's day strip, once as
     // IntakeForm's own Monday-through-Sunday list, both outside any sheet.
-    // WeekStrip's day labels are two letters ("Mo", via WEEKDAY_NARROW) and
-    // carry no `text-ink-muted` class of their own, so this pattern —
-    // IntakeForm's own three-letter WEEKDAY_SHORT span, `text-ink-muted` —
-    // matches ONLY IntakeForm's day-row labels, never WeekStrip's, never
-    // WeekDayList's single open-day badge (that one is `text-ink-secondary`,
-    // a different token — verified empirically against this exact fixture
-    // before writing this test, not assumed). Both IntakeForm instances
-    // inside the switcher would each contribute all seven if either stayed
-    // outside the sheet — the fixed count is exactly 0, not "fewer".
-    it("renders none of the seven weekdays' own short labels outside the sheet — the duplicate week this task removes", async () => {
+    //
+    // CLAIM, PRECISELY: this counts IntakeForm's OWN day-row span, not any
+    // muted three-letter weekday text on the page. Two other renderers of
+    // the exact same WEEKDAY_SHORT strings, both legitimate and both
+    // untouched by this task, would otherwise confound a looser match —
+    // caught in review, not by this file's original TEST_USER fixture,
+    // which happens to seed zero availability and so never exercises
+    // either: WeekDayList's own open-day badge (week-day-list.tsx:92-96,
+    // `text-ink-secondary` when open) and, the real leak, its
+    // `NextWeekSummary` preview (week-day-list.tsx:279-296) — SEVEN more
+    // `DayRow`s, `isOpen={false}`, each `text-ink-muted`, rendered into the
+    // SSR HTML (a native `<details>` with no `open` attribute still emits
+    // its children, only CSS hides them) the moment `nextWeekHasAvailability`
+    // is true. That preview is next week's, not a duplicate of THIS week,
+    // and this task does not touch it — so it must not be able to fail
+    // this assertion either way, which a wildcard class match could not
+    // guarantee. IntakeForm's span is `text-label font-bold uppercase
+    // tracking-wider text-ink-muted`; DayRow's non-open span is `w-10
+    // shrink-0 text-label font-bold uppercase tracking-[0.15em]
+    // text-ink-muted` — same trailing token, different `tracking-*` value
+    // and DayRow-only `w-10 shrink-0` prefix. Matching the EXACT class
+    // list (not `[^"]*text-ink-muted`) is what tells the two apart; the
+    // "confirmed against a fixture where NextWeekSummary's rows actually
+    // render" test below (AVAILABILITY_USER) is what proves this
+    // narrowing still catches the real regression rather than just
+    // dodging the confound by coincidence.
+    it("renders none of the seven weekdays' own IntakeForm-day-row labels outside the sheet — the duplicate week this task removes", async () => {
       const closed = await renderTrainWeekWithSheet(TEST_USER, undefined);
-      const matches = closed.match(
-        /<span class="[^"]*text-ink-muted">(Mon|Tue|Wed|Thu|Fri|Sat|Sun)</g
-      );
+      const matches = closed.match(INTAKE_FORM_WEEKDAY_SPAN);
       expect(matches ?? []).toHaveLength(0);
     });
 
@@ -263,11 +333,9 @@ describe.skipIf(!hasDb)(
     // moved. Without this, a test that deleted IntakeForm's day list
     // entirely (rather than relocating it) would also pass the assertion
     // above.
-    it("renders the seven weekdays' own short labels inside the sheet once it opens", async () => {
+    it("renders the seven weekdays' own IntakeForm-day-row labels inside the sheet once it opens", async () => {
       const open = await renderTrainWeekWithSheet(TEST_USER, "availability");
-      const matches = open.match(
-        /<span class="[^"]*text-ink-muted">(Mon|Tue|Wed|Thu|Fri|Sat|Sun)</g
-      );
+      const matches = open.match(INTAKE_FORM_WEEKDAY_SPAN);
       expect((matches ?? []).length).toBeGreaterThan(0);
     });
   }
@@ -736,6 +804,32 @@ describe.skipIf(!hasDb)(
       expect(open).toContain("When you can train");
       expect(open).toContain("Confirm week");
       expect(open).toContain("06:00–07:00");
+    });
+
+    // Review finding 2 on this task's fix pass: the "0, not fewer" claim
+    // above was only ever exercised against TEST_USER, which seeds no
+    // availability at all — `NextWeekSummary`'s own seven-row preview
+    // (week-day-list.tsx) never fires there, so a wildcard weekday-text
+    // match would have looked correct for a reason that had nothing to do
+    // with IntakeForm actually moving. AVAILABILITY_USER's recurring
+    // Monday default carries into next week's projection too (a standard-
+    // week default applies to every week), which is enough to make
+    // `nextWeekHasAvailability` true and put those seven rows on the page
+    // for real — confirmed below by the preview's own trigger label, not
+    // assumed. The scoped `INTAKE_FORM_WEEKDAY_SPAN` still returns zero
+    // against that fixture; the old, wider pattern would not have.
+    it("still shows zero IntakeForm weekday labels even when the next-week preview's own seven rows are on the page", async () => {
+      const closed = await renderTrainWeekWithSheet(
+        AVAILABILITY_USER,
+        undefined
+      );
+      // Proves the confound is real on this fixture, not hypothetical:
+      // NextWeekSummary's own disclosure trigger, present only once
+      // `nextWeekHasAvailability` is true.
+      expect(closed).toMatch(/Show all \d+ days/);
+      // The decisive assertion, unconfounded by that preview's own matches.
+      const matches = closed.match(INTAKE_FORM_WEEKDAY_SPAN);
+      expect(matches ?? []).toHaveLength(0);
     });
   }
 );

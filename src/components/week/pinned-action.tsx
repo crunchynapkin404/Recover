@@ -1,6 +1,19 @@
-interface Props {
-  /** The button's visible text and accessible name. */
+import Link from "next/link";
+
+type BaseProps = {
+  /** The button's (or link's) visible text and accessible name. */
   label: string;
+  /**
+   * Which scrolling context this instance clears — see the file doc
+   * comment below for the full reasoning behind each value. Defaults to
+   * "page": every caller before task 4's fix pass rendered directly on
+   * the page, and `IntakeForm`'s own call site is the one that now needs
+   * to say "sheet" explicitly.
+   */
+  variant?: "page" | "sheet";
+};
+
+type SubmitProps = BaseProps & {
   /**
    * A React 19 form action — `(formData: FormData) => void | Promise<void>`.
    * Set as the BUTTON's own `formAction`, not a `<form action>` here: this
@@ -14,20 +27,43 @@ interface Props {
   formAction: (formData: FormData) => void | Promise<void>;
   /** Disables the button while a submission from this action is in flight. */
   pending?: boolean;
-}
+  href?: undefined;
+};
+
+type LinkProps = BaseProps & {
+  /**
+   * A plain navigation target, for the one shape of pinned primary action
+   * that isn't a submit: the spec's own pinned-label list includes "Set
+   * next week's availability" alongside "Confirm week"/"Plan this week",
+   * and that one is pure navigation, not a form. Review finding 1 (task 4
+   * fix pass): with `IntakeForm` moved into the "availability" sheet, the
+   * page itself has no submit-shaped fields left to pin a button to — but
+   * the spec never required the pinned slot to submit anything, only to
+   * be reachable. Renders a real `<Link>`, never a bare `<button>` that
+   * only LOOKS like navigation.
+   */
+  href: string;
+  formAction?: undefined;
+  pending?: undefined;
+};
+
+export type PinnedActionProps = SubmitProps | LinkProps;
 
 /**
  * The week's one primary action, pinned so it survives scrolling a long
  * card instead of waiting at the bottom of it. `sticky`, not `fixed`: it
- * only floats once its own form's box would otherwise scroll it out of
- * view, and it returns to the document flow with the rest of that form
- * once the athlete scrolls past it entirely — it never floats over
- * unrelated content above or below the form that hosts it.
+ * only floats once its own container's box would otherwise scroll it out
+ * of view, and it returns to the document flow with the rest of that
+ * container once the athlete scrolls past it entirely — it never floats
+ * over unrelated content above or below the container that hosts it.
  *
- * `bottom-32` (128px) is a measured value, not the guess this task
- * started with — see pinned-action.test.tsx and the Task 6 report for how
- * BottomNav's real footprint at 390x844 was measured and why bottom-20
- * (the original guess) would have sat this button under it.
+ * TWO SCROLLING CONTEXTS, TWO OFFSETS (`variant`).
+ *
+ * `variant="page"` (default) — `bottom-32` (128px) is a measured value,
+ * not the guess this task started with — see pinned-action.test.tsx and
+ * the Task 6 report for how BottomNav's real footprint at 390x844 was
+ * measured and why bottom-20 (the original guess) would have sat this
+ * button under it.
  *
  * M2, final whole-branch review: that 128px was unconditional, but
  * BottomNav is `lg:hidden` and AppShell itself drops its own matching
@@ -37,27 +73,49 @@ interface Props {
  * chat-interface.tsx already uses for its own bottom-docked bar (a big
  * safe-area-aware pad on mobile, `lg:pb-6` on desktop) rather than
  * inventing a new number for the same "there's no nav to clear" case.
+ *
+ * `variant="sheet"` — review finding 4 (task 4 fix pass), the first time
+ * this component has ever rendered nested inside a `WeekSheet`
+ * (`IntakeForm`'s own "Confirm week", now that `IntakeForm` lives in the
+ * "availability" sheet). `bottom-32` is wrong there on two counts at
+ * once: it was measured to clear `BottomNav`, but `BottomNav` sits BEHIND
+ * the sheet's own scrim (`bottom-nav.tsx`'s `z-50` vs `bottom-sheet.tsx`'s
+ * `z-[60]`) — nothing to clear — and this instance's nearest scrolling
+ * ancestor isn't the page at all, it's the sheet panel itself
+ * (`overflow-y: auto`, `max-height: 92svh`), so a page-relative offset is
+ * measuring the wrong box regardless. `bottom-0` sticks to that panel's
+ * own scrollport edge instead of inventing a second BottomNav-shaped
+ * number for a container that has no BottomNav. REASONED, NOT MEASURED —
+ * no device check backs this one the way `bottom-32` above has; a real
+ * pass (the layout-measurement method this repo already has for exactly
+ * this class of question) is worth running before shipping it wider than
+ * one caller.
  */
-export function PinnedAction({ label, formAction, pending = false }: Props) {
+export function PinnedAction(props: PinnedActionProps) {
+  const { label, variant = "page" } = props;
+  const offset = variant === "sheet" ? "bottom-0" : "bottom-32 lg:bottom-6";
   return (
     <div
       data-pinned-action
-      // `bottom-32` deliberately follows BottomNav's (src/components/
-      // bottom-nav.tsx) flat, NON-safe-area convention rather than
-      // `env(safe-area-inset-bottom)` (used by block-sheet.tsx, ui/
-      // bottom-sheet.tsx, and the chat interface) — the 24px clearance
-      // between this band and BottomNav's top edge stays safe-area-
-      // independent precisely because both ignore it identically.
-      className="sticky bottom-32 z-30 bg-surface-base/95 pb-1 pt-3 backdrop-blur lg:bottom-6"
+      className={`sticky ${offset} z-30 bg-surface-base/95 pb-1 pt-3 backdrop-blur`}
     >
-      <button
-        type="submit"
-        formAction={formAction}
-        disabled={pending}
-        className="w-full rounded-2xl bg-accent py-3 text-caption font-bold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
-      >
-        {label}
-      </button>
+      {props.href !== undefined ? (
+        <Link
+          href={props.href}
+          className="block w-full rounded-2xl bg-accent py-3 text-center text-caption font-bold text-primary-foreground transition-opacity hover:opacity-90"
+        >
+          {label}
+        </Link>
+      ) : (
+        <button
+          type="submit"
+          formAction={props.formAction}
+          disabled={props.pending}
+          className="w-full rounded-2xl bg-accent py-3 text-caption font-bold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+        >
+          {label}
+        </button>
+      )}
     </div>
   );
 }

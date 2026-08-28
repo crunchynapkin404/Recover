@@ -24,6 +24,16 @@ export interface WeekIntake {
   overrideDates: string[];
   verdict: Verdict;
   weekStart: string;
+  /**
+   * Total minutes offered across `resolved` — the same figure
+   * `availabilityVerdict` was already given to produce `verdict`
+   * (train/page.tsx's `resolveWeekIntake`), carried through rather than
+   * re-derived. Unused by this component and by `IntakeForm` (both derive
+   * their own on-screen totals from `resolved` directly, since `IntakeForm`
+   * tracks in-progress local edits `offeredMins` cannot see); its one
+   * consumer is train/page.tsx's own "Availability" row badge.
+   */
+  offeredMins: number;
 }
 
 interface Props {

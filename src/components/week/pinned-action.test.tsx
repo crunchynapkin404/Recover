@@ -111,4 +111,48 @@ describe("PinnedAction", () => {
     const btn = el.querySelector('button[type="submit"]') as HTMLButtonElement;
     expect(btn.disabled).toBe(true);
   });
+
+  // Review finding 1 (task 4 fix pass): the spec's own pinned-label list
+  // includes "Set next week's availability" beside "Confirm week"/"Plan
+  // this week" — pure navigation, not a submit. `href` is the opt-in for
+  // that shape; the default (no `href`) stays exactly the submit button
+  // the test above already pins, so this is a genuinely separate code path
+  // rather than a widened one.
+  it("renders a real navigation link when given href, not a disguised button", async () => {
+    const el = await render(
+      <PinnedAction
+        label="Set next week's availability"
+        href="/train?sheet=availability"
+      />
+    );
+    const link = el.querySelector("a");
+    expect(link?.getAttribute("href")).toBe("/train?sheet=availability");
+    expect(link?.textContent).toBe("Set next week's availability");
+    expect(el.querySelector("button")).toBeNull();
+  });
+
+  // Review finding 4 (task 4 fix pass): `IntakeForm` — now nested inside
+  // the "availability" sheet — is the first caller whose nearest scrolling
+  // ancestor is the sheet's own panel, not the page. `variant="sheet"`
+  // must drop the BottomNav-measured `bottom-32`/`lg:bottom-6` entirely,
+  // not merely add to it — BottomNav sits behind the sheet's own scrim,
+  // so there is nothing there to clear.
+  it("drops the page's BottomNav clearance for variant=\"sheet\", using the panel's own edge instead", async () => {
+    const el = await render(
+      <PinnedAction label="Confirm week" formAction={noop} variant="sheet" />
+    );
+    const wrap = el.querySelector("[data-pinned-action]");
+    expect(wrap?.className).toContain("bottom-0");
+    expect(wrap?.className).not.toContain("bottom-32");
+    expect(wrap?.className).not.toContain("lg:bottom-6");
+  });
+
+  it("keeps the page offset by default, so every pre-existing caller is unaffected", async () => {
+    const el = await render(
+      <PinnedAction label="Confirm week" formAction={noop} />
+    );
+    const wrap = el.querySelector("[data-pinned-action]");
+    expect(wrap?.className).toContain("bottom-32");
+    expect(wrap?.className).not.toContain("bottom-0");
+  });
 });

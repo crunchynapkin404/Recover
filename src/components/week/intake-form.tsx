@@ -220,6 +220,10 @@ export function IntakeForm({
         label="Confirm week"
         formAction={formAction}
         pending={pending}
+        // This form now renders only inside the "availability" sheet
+        // (slice 2 task 4) — see PinnedAction's own doc comment for why
+        // its sticky offset differs there (review finding 4, fix pass).
+        variant="sheet"
       />
 
       {openDay !== null && (

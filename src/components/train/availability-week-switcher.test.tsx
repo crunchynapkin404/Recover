@@ -59,6 +59,7 @@ const thisWeek: WeekIntake = {
   overrideDates: [],
   verdict: { kind: "ok" },
   weekStart: "",
+  offeredMins: 0,
 };
 
 const nextWeek: WeekIntake = {
@@ -79,6 +80,7 @@ const nextWeek: WeekIntake = {
   overrideDates: [NEXT_DATES[2]],
   verdict: { kind: "ok" },
   weekStart: NEXT_MONDAY,
+  offeredMins: 60,
 };
 
 let root: Root | null = null;
