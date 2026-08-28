@@ -250,9 +250,16 @@ describe("IntakeForm", () => {
     const listHtml = html.slice(html.indexOf("<ul"), html.indexOf("</ul>"));
     const buttonCount = (listHtml.match(/<button/g) ?? []).length;
     const scrollMbCount = (listHtml.match(/scroll-mb-52/g) ?? []).length;
-    // 7 day-toggle buttons + 1 "Pinned ×" unpin button for the one
-    // overridden date above.
-    expect(buttonCount).toBe(8);
+    // Slice 3: the day list became AvailabilityTimeline, so the control set
+    // changed shape while the invariant did not. Per day: a "+" and an
+    // "edit precisely" button (14). Plus one "Pinned ×" for the one
+    // overridden date above, and one pill for the one block in `resolved`.
+    //
+    // The count is incidental; the assertion below it is the real guard, and
+    // it is what caught the timeline shipping without scroll-mb-52 at all —
+    // tabbing to Saturday would have focused a control sitting behind
+    // PinnedAction's stuck band.
+    expect(buttonCount).toBe(16);
     expect(scrollMbCount).toBe(buttonCount);
   });
 
@@ -292,5 +299,51 @@ describe("IntakeForm", () => {
     // predecessor, with nothing reintroduced between them.
     expect(messageIdx).toBeLessThan(listOpenIdx);
     expect(listCloseIdx).toBeLessThan(buttonIdx);
+  });
+  it("renders the week as tracks, not as a list of rows", () => {
+    const html = renderToString(
+      <IntakeForm
+        resolved={resolved}
+        dates={[
+          "2026-08-03",
+          "2026-08-04",
+          "2026-08-05",
+          "2026-08-06",
+          "2026-08-07",
+          "2026-08-08",
+          "2026-08-09",
+        ]}
+        overrideDates={[]}
+        verdict={{ kind: "ok" }}
+        sports={["Ride"]}
+        action={noop}
+      />
+    );
+    expect(html.match(/data-track=/g)).toHaveLength(7);
+    expect(html).toContain('aria-label="Wednesday 18:00 to 19:30, normal"');
+  });
+
+  it("still submits every day through its hidden input", () => {
+    const html = renderToString(
+      <IntakeForm
+        resolved={resolved}
+        dates={[
+          "2026-08-03",
+          "2026-08-04",
+          "2026-08-05",
+          "2026-08-06",
+          "2026-08-07",
+          "2026-08-08",
+          "2026-08-09",
+        ]}
+        overrideDates={[]}
+        verdict={{ kind: "ok" }}
+        sports={["Ride"]}
+        action={noop}
+      />
+    );
+    for (let i = 0; i < 7; i++) {
+      expect(html).toContain(`name="blocks-${i}"`);
+    }
   });
 });

@@ -2,12 +2,13 @@
 
 import { useActionState, useState, useTransition } from "react";
 import { blockMins, type AvailabilityBlock } from "@/lib/availability/types";
-import { formatAvailability, formatBlocks } from "@/lib/availability/format";
+import { formatAvailability } from "@/lib/availability/format";
 import type { Verdict } from "@/lib/week-plan/ctl-projection";
 import { clearDayOverride } from "@/app/plan/actions";
 import { BlockSheet } from "./block-sheet";
+import { AvailabilityTimeline } from "./availability-timeline";
 import { PinnedAction } from "./pinned-action";
-import { WEEKDAY_NAMES, WEEKDAY_SHORT } from "@/lib/weekdays";
+import { WEEKDAY_NAMES } from "@/lib/weekdays";
 
 export interface IntakeState {
   message: string;
@@ -124,7 +125,7 @@ export function IntakeForm({
   return (
     <form
       action={formAction}
-      className="rounded-[2rem] border border-hairline bg-surface-selected p-7"
+      className="rounded-[2rem] border border-hairline bg-surface-selected p-4"
     >
       <input type="hidden" name="weekStart" value={weekStart} />
       <p className="label-micro mb-1">{heading}</p>
@@ -165,56 +166,27 @@ export function IntakeForm({
         </p>
       )}
 
-      <ul className="mb-3">
-        {week.map((blocks, i) => {
-          const pinned = overrideDates.includes(dates[i] ?? "");
-          return (
-            <li
-              key={WEEKDAY_SHORT[i]}
-              className="border-b border-hairline last:border-0"
-            >
-              <div className="flex items-center gap-3 py-2.5">
-                {/* scroll-mb-52 (208px): PinnedAction's stuck band occupies
-                    the bottom ~189px of the viewport once engaged (Task 6
-                    report — measured at 390x844). Without this, tabbing to
-                    a late day (Sat/Sun) lands focus on a row the browser
-                    already considers "in view" by raw bounding box, so it
-                    never scrolls further — leaving a focused, invisible
-                    control sitting behind an opaque-ish band. scroll-margin
-                    is honoured by the same focus-scroll algorithm and forces
-                    the extra scroll this needs. */}
-                <button
-                  type="button"
-                  onClick={() => setOpenDay(i)}
-                  className="flex flex-1 scroll-mb-52 items-center justify-between text-left"
-                >
-                  <span className="text-label font-bold uppercase tracking-wider text-ink-muted">
-                    {WEEKDAY_SHORT[i]}
-                  </span>
-                  <span className="text-label text-ink-secondary">
-                    {formatBlocks(blocks)}
-                  </span>
-                </button>
-                {pinned && (
-                  <button
-                    type="button"
-                    onClick={() => unpin(i)}
-                    title="Back to your standard week"
-                    className="scroll-mb-52 rounded-full border border-hairline bg-surface-overlay px-2 py-0.5 text-label font-bold text-chart-3"
-                  >
-                    Pinned ×
-                  </button>
-                )}
-              </div>
-              <input
-                type="hidden"
-                name={`blocks-${i}`}
-                value={JSON.stringify(blocks)}
-              />
-            </li>
-          );
-        })}
-      </ul>
+      <AvailabilityTimeline
+        week={week}
+        pinned={dates.map((d) => overrideDates.includes(d))}
+        onChangeDay={(i, next) =>
+          setWeek((prev) => prev.map((d, j) => (j === i ? next : d)))
+        }
+        onUnpin={unpin}
+        onOpenDay={setOpenDay}
+      />
+      {/* The submitted value, unchanged from the list this replaced. The
+          timeline is a VIEW over `week`; these are what actually reach
+          submitAvailability, and tests/intake-form-resync.test.tsx asserts
+          against them for exactly that reason. */}
+      {week.map((blocks, i) => (
+        <input
+          key={i}
+          type="hidden"
+          name={`blocks-${i}`}
+          value={JSON.stringify(blocks)}
+        />
+      ))}
 
       <PinnedAction
         label="Confirm week"

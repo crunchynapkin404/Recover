@@ -239,7 +239,11 @@ describe("AvailabilityWeekSwitcher", () => {
     // block — a real edit made through the actual IntakeForm + BlockSheet
     // component tree, not a stand-in.
     const monBtn = Array.from(thisForm().querySelectorAll("button")).find(
-      (b) => b.querySelector("span")?.textContent === "Mon"
+      (b) =>
+        // Slice 3: the day list became AvailabilityTimeline, so a day is
+        // opened from its own "edit precisely" control rather than by
+        // tapping a row. Same behaviour under test, new affordance.
+        b.getAttribute("aria-label") === "Edit Monday precisely"
     );
     if (!monBtn) throw new Error("no Monday row in this week's form");
     await act(async () => {

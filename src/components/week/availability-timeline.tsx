@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { Plus, SlidersHorizontal } from "lucide-react";
 import type { AvailabilityBlock } from "@/lib/availability/types";
-import { formatAvailability } from "@/lib/availability/format";
+import { formatAvailability, formatBlocks } from "@/lib/availability/format";
 import { blockMins } from "@/lib/availability/types";
 import { ENERGY_FILL } from "@/lib/availability/energy-fill";
 import {
@@ -65,6 +65,13 @@ function trackPxOf(el: HTMLElement | null): number {
  * A DRAG-ONLY CONTROL IS UNUSABLE BY KEYBOARD AND SCREEN READER, so every
  * pill is a real `<button>` with the name `describeBlock` builds, arrow keys
  * adjust it, and `BlockSheet` stays reachable per day as the precise path.
+ *
+ * EVERY FOCUSABLE CONTROL CARRIES `scroll-mb-52` (208px). `PinnedAction`'s
+ * stuck band occupies the bottom ~189px of the viewport once engaged, and
+ * without this, tabbing to a late day lands focus on a control the browser
+ * already considers in view by raw bounding box — leaving it focused and
+ * invisible behind the band. `IntakeForm`'s own day list carried this before
+ * the timeline replaced it, and its guard test is what caught the omission.
  *
  * NO TRANSFORM, ANYWHERE IN THIS TREE. `BlockSheet` is `position: fixed` and
  * opens from inside this component's own sheet; per the CSS transforms spec
@@ -223,19 +230,22 @@ function DayTrack({
         <span className="shrink-0 text-label font-bold uppercase tracking-wider text-ink-muted">
           {WEEKDAY_SHORT[day]}
         </span>
+        {/* `formatBlocks`, exactly as the day list this replaced showed it —
+            "07:00-08:00 · 1h 00m", or "Rest". The timeline conveys WHEN by
+            position, but position is only approximate once the 44px floor
+            distorts it, so the numeric clock range stays on the page rather
+            than being reachable only through BlockSheet. Dropping it was a
+            real information loss, and availability-week-switcher.test.tsx
+            is what caught it. */}
         <span className="flex-1 truncate text-label text-ink-secondary">
-          {blocks.length === 0
-            ? "Rest"
-            : formatAvailability(
-                blocks.reduce((s, b) => s + blockMins(b), 0)
-              )}
+          {formatBlocks(blocks)}
         </span>
         {pinned && (
           <button
             type="button"
             aria-label={`${dayName}: back to your standard week`}
             onClick={() => onUnpin(day)}
-            className="shrink-0 rounded-full border border-hairline bg-surface-overlay px-2 py-0.5 text-label font-bold text-chart-3"
+            className="shrink-0 scroll-mb-52 rounded-full border border-hairline bg-surface-overlay px-2 py-0.5 text-label font-bold text-chart-3"
           >
             Pinned ×
           </button>
@@ -248,7 +258,7 @@ function DayTrack({
             const next = addBlock(blocks, win);
             if (next) onChangeDay(day, next);
           }}
-          className="shrink-0 rounded-full p-1 text-ink-muted disabled:opacity-40"
+          className="shrink-0 scroll-mb-52 rounded-full p-1 text-ink-muted disabled:opacity-40"
         >
           <Plus aria-hidden className="size-3.5" />
         </button>
@@ -256,7 +266,7 @@ function DayTrack({
           type="button"
           aria-label={`Edit ${dayName} precisely`}
           onClick={() => onOpenDay(day)}
-          className="shrink-0 rounded-full p-1 text-ink-muted"
+          className="shrink-0 scroll-mb-52 rounded-full p-1 text-ink-muted"
         >
           <SlidersHorizontal aria-hidden className="size-3.5" />
         </button>
@@ -306,7 +316,7 @@ function DayTrack({
               onPointerMove={onPointerMove}
               onPointerUp={onPointerUp}
               style={{ left: pct(p.leftPx), width: pct(p.widthPx) }}
-              className={`absolute inset-y-0 flex min-w-11 touch-none items-center justify-center gap-1 rounded-lg border border-accent/60 text-label text-ink-primary ${
+              className={`absolute inset-y-0 flex min-w-11 touch-none scroll-mb-52 items-center justify-center gap-1 rounded-lg border border-accent/60 text-label text-ink-primary ${
                 ENERGY_FILL[b.energy]
               } ${isSelected ? "ring-2 ring-accent" : ""}`}
             >
@@ -359,7 +369,7 @@ function DayTrack({
                 data-untimed={idOf(day, i)}
                 aria-label={`${describeBlock(dayName, b)} — set a time`}
                 onClick={() => onOpenDay(day)}
-                className="rounded-full border border-hairline bg-surface-overlay px-2 py-0.5 text-label text-ink-secondary"
+                className="scroll-mb-52 rounded-full border border-hairline bg-surface-overlay px-2 py-0.5 text-label text-ink-secondary"
               >
                 {formatAvailability(blockMins(b))}
               </button>

@@ -136,7 +136,11 @@ describe("WeekSheet", () => {
     // Open Monday's block editor — a real day tap through the real
     // IntakeForm, not a stand-in.
     const monBtn = Array.from(el.querySelectorAll("button")).find(
-      (b) => b.querySelector("span")?.textContent === "Mon"
+      (b) =>
+        // Slice 3: the day list became AvailabilityTimeline, so a day is
+        // opened from its own "edit precisely" control rather than by
+        // tapping a row. Same behaviour under test, new affordance.
+        b.getAttribute("aria-label") === "Edit Monday precisely"
     );
     if (!monBtn) throw new Error("no Monday row in the day list");
     await act(async () => {
