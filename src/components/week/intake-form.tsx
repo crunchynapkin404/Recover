@@ -63,6 +63,14 @@ function verdictLine(v: Verdict, weekLabel: string): string | null {
  * Editing this form and resubmitting never clears a pin: submitAvailability
  * writes per-day blocks, which is exactly what an override already is, so a
  * day left untouched here keeps whatever was last saved for it.
+ *
+ * LIGHT-MODE SURFACE COLLISION, a fifth time. This now renders only inside
+ * the "availability" sheet (slice 2 task 4), whose own panel is
+ * bg-surface-overlay. The root used to carry `.glass` (`--glass-bg` resolves
+ * to `--surface-raised`, which equals `--surface-overlay` in light — both
+ * #ffffff) — the same bug task 1 fixed for WeekRationale/EventReadiness,
+ * task 2 for StandardWeek, task 3 for RacesSection. Fixed with the same
+ * `border-hairline bg-surface-selected` precedent.
  */
 export function IntakeForm({
   resolved,
@@ -114,7 +122,10 @@ export function IntakeForm({
   }
 
   return (
-    <form action={formAction} className="glass rounded-[2rem] p-7">
+    <form
+      action={formAction}
+      className="rounded-[2rem] border border-hairline bg-surface-selected p-7"
+    >
       <input type="hidden" name="weekStart" value={weekStart} />
       <p className="label-micro mb-1">{heading}</p>
       <p className="mb-5 text-label text-ink-muted">

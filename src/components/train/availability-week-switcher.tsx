@@ -90,6 +90,25 @@ const OPTIONS: { mode: AvailabilityWeekMode; label: string }[] = [
  * `hidden` (not conditional rendering) is what keeps both instances
  * mounted; the day list beneath a `hidden` element also isn't in the tab
  * order or accessibility tree, so the inactive week doesn't intrude.
+ *
+ * LIGHT-MODE SURFACE COLLISION, a sixth time. This now renders only inside
+ * the "availability" sheet (slice 2 task 4), whose own panel is
+ * bg-surface-overlay. The mode toggle used to sit directly on that panel
+ * with no shared capsule (ViewTabs' own base -> raised -> overlay ladder for
+ * separate pills, ported here when this control still sat on the page
+ * background): the active pill's own `bg-surface-overlay` fill is now
+ * IDENTICAL to the panel behind it in both themes, not just in light, and
+ * the inactive pill's `bg-surface-raised` still collides with it in light
+ * the same way task 1-3's fixes did. Wrapped in the same
+ * `border-hairline bg-surface-selected` capsule PlanStyleSwitch/
+ * SeasonModeSwitch use for this exact shape (renders only inside an
+ * overlay sheet, separate segments) — the capsule claims `bg-surface-
+ * selected`, distinct from the panel in both themes, and the active
+ * segment's `bg-surface-overlay` now reads against THAT, not against the
+ * sheet directly. The inactive segment drops its own fill entirely
+ * (text only), the same as those two switches' inactive segment — the chip
+ * trap (active/inactive told apart by FILL, not text colour alone) is still
+ * satisfied by the capsule itself always differing from both.
  */
 export function AvailabilityWeekSwitcher({
   thisWeek,
@@ -105,7 +124,7 @@ export function AvailabilityWeekSwitcher({
       <div
         role="group"
         aria-label="Availability week"
-        className="mb-3 flex justify-center gap-1.5"
+        className="mb-3 flex justify-center gap-1 rounded-full border border-hairline bg-surface-selected p-1"
       >
         {OPTIONS.map((opt) => (
           <button
@@ -116,7 +135,7 @@ export function AvailabilityWeekSwitcher({
             className={`rounded-full px-4 py-1.5 text-label font-bold transition-colors ${
               mode === opt.mode
                 ? "bg-surface-overlay text-ink-primary"
-                : "bg-surface-raised text-ink-muted hover:text-ink-secondary"
+                : "text-ink-muted hover:text-ink-secondary"
             }`}
           >
             {opt.label}

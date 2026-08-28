@@ -196,6 +196,26 @@ describe("buildTrainHref", () => {
     const href = buildTrainHref(TRAIN_BASE, {});
     expect(href).not.toContain("sheet=");
   });
+
+  // Task 4: the "availability" sheet's own closeHref clears `sheet` AND
+  // `availability` together, not just `sheet` like the other three sheets'
+  // closeHrefs — `sheetParam` in page.tsx falls back to "availability"
+  // whenever `?availability=next` is present with no `?sheet=` at all, so
+  // clearing only `sheet` would leave `availability=next` in the URL and
+  // the very next render would re-derive the same sheet open again. This
+  // pins the exact override page.tsx's closeHref passes.
+  it("clears both the sheet and the availability mode together, as the availability sheet's close link does", () => {
+    const href = buildTrainHref(
+      {
+        ...TRAIN_BASE,
+        sheet: "availability",
+        availability: "next",
+      },
+      { sheet: "", availability: "" }
+    );
+    expect(href).not.toContain("sheet=");
+    expect(href).not.toContain("availability=");
+  });
 });
 
 // Extracted so /train's `?tab=season` redirect — which has no page-level

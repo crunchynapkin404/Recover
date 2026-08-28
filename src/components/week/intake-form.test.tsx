@@ -123,6 +123,27 @@ describe("IntakeForm", () => {
     expect(html).not.toContain("hold your fitness");
   });
 
+  // This form now renders only inside the "availability" sheet (slice 2
+  // task 4), whose own panel is bg-surface-overlay. `.glass` resolves to
+  // `--surface-raised`, and both equal #ffffff in light — the same
+  // collision task 1 fixed for WeekRationale/EventReadiness, task 2 for
+  // StandardWeek, task 3 for RacesSection. `--surface-selected` is the
+  // token this repo built for exactly this shape.
+  it("fills its own card with surface-selected, not glass (invisible on the sheet's own white overlay)", () => {
+    const html = renderToString(
+      <IntakeForm
+        resolved={resolved}
+        overrideDates={[]}
+        dates={[]}
+        verdict={{ kind: "ok" }}
+        sports={["Bike"]}
+        action={noop}
+      />
+    );
+    expect(html).toContain("bg-surface-selected");
+    expect(html).not.toMatch(/\bglass\b/);
+  });
+
   it("uses the token scale, not ad-hoc sizes or white alphas", () => {
     const html = renderToString(
       <IntakeForm

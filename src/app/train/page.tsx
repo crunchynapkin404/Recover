@@ -116,6 +116,7 @@ import {
   type WeekIntake,
 } from "@/components/train/availability-week-switcher";
 import { blockMins, type AvailabilityBlock } from "@/lib/availability/types";
+import { formatAvailability } from "@/lib/availability/format";
 import { resolveWeek } from "@/lib/availability/resolve";
 import { availabilityVerdict } from "@/lib/week-plan/ctl-projection";
 import { projectWeek } from "@/lib/week-plan/project";
@@ -258,7 +259,24 @@ export default async function TrainPage({
   // either reaches a render (or, in the UUID's case, Postgres). An unknown
   // or absent value resolves to `undefined` — no sheet renders — never a
   // raw string carried forward into a render or a query.
-  const sheetParam = TRAIN_SHEETS.find((s) => s === sp.sheet);
+  //
+  // `?availability=next` falls back to the "availability" sheet when no
+  // `?sheet=` is present at all (an explicit `?sheet=` still wins — the `??`
+  // only fires when TRAIN_SHEETS found nothing to open). Task 4 moved
+  // AvailabilityWeekSwitcher/IntakeForm off the page and into that sheet;
+  // without this fallback, the Sunday push notification (`promptNextWeek
+  // Availability`, already shipped, deep-linking to exactly
+  // `/train?availability=next` with no `sheet=` — that URL cannot change
+  // now that it is live) and the page's own "Set next week's availability"
+  // link (`nextWeekAvailabilityHref` below, same query shape) would both
+  // land the athlete on a page with the thing they came for sealed behind
+  // an unopened sheet. Deriving it here, rather than redirecting to add
+  // `sheet=availability` to the URL, fixes every such link at once — this
+  // is also why `initialAvailabilityMode` above stays keyed on
+  // `sp.availability` directly rather than on this derived value.
+  const sheetParam =
+    TRAIN_SHEETS.find((s) => s === sp.sheet) ??
+    (sp.availability === "next" ? "availability" : undefined);
 
   // One href builder for every segment, filter and range link on the page —
   // switching one axis never drops the others (see src/lib/log-href.ts).
@@ -860,6 +878,26 @@ async function WeekTab({
     };
   }
 
+  // The "Availability" row's badge: the week's offered hours, cheap to
+  // show because it is a reduce over `intake` data WeekTab already fetched
+  // above, not a new query. This week's total when it exists (the row's
+  // default landing view, matching AvailabilityWeekSwitcher's own
+  // `initialMode` default of "this"); next week's when Monday has
+  // completed and only that half remains. Omitted rather than shown as
+  // "Rest" when nothing is offered yet — the same "no badge over an
+  // invented string" rule Races follows for zero races.
+  const availabilityWeek = intake?.thisWeek ?? intake?.nextWeek ?? null;
+  const availabilityMins = availabilityWeek
+    ? availabilityWeek.resolved.reduce(
+        (s, day) => s + day.reduce((d, b) => d + blockMins(b), 0),
+        0
+      )
+    : 0;
+  const availabilityBadge =
+    availabilityWeek && availabilityMins > 0
+      ? formatAvailability(availabilityMins)
+      : undefined;
+
   // What the athlete actually trained, per local day, from the same
   // derivation the week plan books from — so the screen and the stored
   // numbers cannot disagree. They did before v0.44: this view was right and
@@ -1169,6 +1207,72 @@ async function WeekTab({
       </WeekSheet>
     ) : null;
 
+  // The "availability" destination (slice 2, task 4 — the one that fixes
+  // the measured regression): AvailabilityWeekSwitcher and both IntakeForms
+  // used to render inline below the day list, showing THIS week's seven
+  // days a second time next to WeekStrip's own seven. Moved unchanged
+  // (slice 3 replaces their innards with a drag timeline; redesigning them
+  // here would double that work) behind this one row.
+  //
+  // `closeHref` clears `availability` alongside `sheet` — not just
+  // `resolvedHref({ sheet: "" })` like the other three sheets. `sheetParam`
+  // derives "availability" from `?availability=next` above whenever no
+  // `?sheet=` is present; leaving `availability=next` in the URL after an
+  // explicit close would make the very next render re-derive the same
+  // sheet open again, so the X button, the backdrop, Escape and swipe-
+  // dismiss — all four route through this one `closeHref` — would look
+  // like they do nothing.
+  //
+  // Gated on `intake`, exactly as the section this replaces was: `intake`
+  // is null only when there is nothing to show (Monday completed and no
+  // next-week projection) — WeekTab's `SummaryRow` below carries the same
+  // gate, so there is never a row pointing at an empty sheet.
+  const availabilitySheet =
+    sheetParam === "availability" && intake ? (
+      <WeekSheet
+        title="Availability"
+        closeHref={resolvedHref({ sheet: "", availability: "" })}
+      >
+        {intake.thisWeek && intake.nextWeek ? (
+          <AvailabilityWeekSwitcher
+            // See the switcher's own call site doc (unchanged from before
+            // the move) for why this key is still needed even now that the
+            // whole tree only mounts while the sheet is open: `sheetParam`
+            // can stay "availability" across a navigation that only flips
+            // `?availability=`, e.g. the push notification landing while an
+            // explicit `?sheet=availability` is already in the URL, which
+            // does not by itself remount this component.
+            key={initialAvailabilityMode}
+            thisWeek={intake.thisWeek}
+            nextWeek={intake.nextWeek}
+            initialMode={initialAvailabilityMode}
+            sports={blockSheetSports}
+            action={submitAvailability}
+          />
+        ) : intake.nextWeek ? (
+          <IntakeForm
+            heading="Next week's availability"
+            resolved={intake.nextWeek.resolved}
+            dates={intake.nextWeek.dates}
+            overrideDates={intake.nextWeek.overrideDates}
+            verdict={intake.nextWeek.verdict}
+            sports={blockSheetSports}
+            action={submitAvailability}
+            weekStart={intake.nextWeek.weekStart}
+          />
+        ) : intake.thisWeek ? (
+          <IntakeForm
+            resolved={intake.thisWeek.resolved}
+            dates={intake.thisWeek.dates}
+            overrideDates={intake.thisWeek.overrideDates}
+            verdict={intake.thisWeek.verdict}
+            sports={blockSheetSports}
+            action={submitAvailability}
+          />
+        ) : null}
+      </WeekSheet>
+    ) : null;
+
   // Review finding 3 on ded5f64 (Minor): `overlay: whyWeekSheet ??
   // planSetupSheet` was correct — the two params are mutually exclusive —
   // but grows one `??` per task, and tasks 3-5 are all still coming. A map
@@ -1176,12 +1280,13 @@ async function WeekTab({
   // another `??`. Each entry is still independently gated above (e.g.
   // whyWeekSheet is null unless `sheetParam === "why-week" && week`), so
   // indexing by `sheetParam` picks the one real overlay (or `undefined` for
-  // a TRAIN_SHEETS member with no sheet implemented yet, e.g.
-  // "availability").
+  // a TRAIN_SHEETS member with no sheet implemented yet — "plan-review",
+  // task 5's, is the only one left).
   const sheetOverlays: Partial<Record<TrainSheetName, React.ReactNode>> = {
     "why-week": whyWeekSheet,
     "plan-setup": planSetupSheet,
     races: racesSheet,
+    availability: availabilitySheet,
   };
 
   return {
@@ -1285,56 +1390,20 @@ async function WeekTab({
               </>
             )}
 
+            {/* AvailabilityWeekSwitcher and both IntakeForms moved into the
+              "availability" sheet above — this is the one row that
+              replaces them (slice 2, task 4, the task that fixes the
+              measured regression: this section used to render THIS week's
+              seven days a second time, right below WeekStrip's own seven).
+              Gated on `intake`, exactly as the section it replaces was. */}
             {intake && (
-              <section className="mb-6">
-                {intake.thisWeek && intake.nextWeek ? (
-                  <AvailabilityWeekSwitcher
-                    // `initialMode` only seeds `useState` on the FIRST mount —
-                    // a prop change on its own does nothing once mounted. The
-                    // "Set next week's availability" link below is now a
-                    // `Link` (Finding 3), which does a client-side transition
-                    // that keeps this component instance alive across the
-                    // `?availability=` change rather than a full reload
-                    // remounting it fresh. Keying on the mode forces exactly
-                    // that remount when the URL's mode actually changes, so
-                    // the link still lands in next-week mode after the
-                    // switch away from a plain `<a>`.
-                    key={initialAvailabilityMode}
-                    thisWeek={intake.thisWeek}
-                    nextWeek={intake.nextWeek}
-                    initialMode={initialAvailabilityMode}
-                    sports={blockSheetSports}
-                    action={submitAvailability}
-                  />
-                ) : intake.nextWeek ? (
-                  // Monday has completed, so this week's half is frozen — but
-                  // a projection exists, so next week must still be enterable
-                  // (the fix this section exists for: the "Set next week's
-                  // availability" link above must always land on a real
-                  // control, not a page with nothing to activate). No
-                  // switcher, no "this week" option — just next week's plain
-                  // form, matching the switcher's own next-week heading.
-                  <IntakeForm
-                    heading="Next week's availability"
-                    resolved={intake.nextWeek.resolved}
-                    dates={intake.nextWeek.dates}
-                    overrideDates={intake.nextWeek.overrideDates}
-                    verdict={intake.nextWeek.verdict}
-                    sports={blockSheetSports}
-                    action={submitAvailability}
-                    weekStart={intake.nextWeek.weekStart}
-                  />
-                ) : intake.thisWeek ? (
-                  <IntakeForm
-                    resolved={intake.thisWeek.resolved}
-                    dates={intake.thisWeek.dates}
-                    overrideDates={intake.thisWeek.overrideDates}
-                    verdict={intake.thisWeek.verdict}
-                    sports={blockSheetSports}
-                    action={submitAvailability}
-                  />
-                ) : null}
-              </section>
+              <div className="mb-6">
+                <SummaryRow
+                  label="Availability"
+                  badge={availabilityBadge}
+                  href={resolvedHref({ sheet: "availability" })}
+                />
+              </div>
             )}
           </>
         ) : (

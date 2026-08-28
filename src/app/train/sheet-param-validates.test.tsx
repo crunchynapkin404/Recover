@@ -86,7 +86,15 @@ async function seedOpenWeek(userId: string): Promise<void> {
 
 async function renderTrainWeekWithSheet(
   userId: string,
-  sheet: string | undefined
+  sheet: string | undefined,
+  /**
+   * Task 4's own addition: `?availability=next`, the Sunday push
+   * notification's own query param, deep-links straight into the
+   * "availability" sheet with no `?sheet=` of its own (see page.tsx's
+   * `sheetParam` derivation) — tests of that seam need to drive
+   * `availability` independently of `sheet`.
+   */
+  availability?: string
 ): Promise<string> {
   requireUserMock.mockResolvedValue({
     id: userId,
@@ -95,7 +103,7 @@ async function renderTrainWeekWithSheet(
   });
   const { default: TrainPage } = await import("./page");
   const stream = await renderToReadableStream(
-    <TrainPage searchParams={Promise.resolve({ sheet })} />
+    <TrainPage searchParams={Promise.resolve({ sheet, availability })} />
   );
   await stream.allReady;
   const reader = stream.getReader();
@@ -159,14 +167,108 @@ describe.skipIf(!hasDb)(
       expect(html).toContain("No races yet");
     });
 
-    // A real TRAIN_SHEETS member (tasks 4-5's destinations, not yet
-    // implemented — "plan-setup" graduated out of this list in task 2,
-    // "races" in task 3) must not fall through to the one sheet this task
-    // built — membership in TRAIN_SHEETS is necessary, not sufficient, to
-    // open "why-week" specifically.
-    it("renders no dialog for a valid-but-unimplemented sheet name", async () => {
+    // Task 4's own destination: AvailabilityWeekSwitcher/IntakeForm.
+    // TEST_USER's plain seedOpenWeek (an active plan, an open week, no
+    // availability defaults or overrides) is enough for this: WeekTab's
+    // `projectWeek` call succeeds on it, so both `intake.thisWeek` and
+    // `intake.nextWeek` are set and the real switcher renders — the
+    // richer, two-form case, not just the bare single-form fallback.
+    it("renders the dialog for the availability sheet name", async () => {
       const html = await renderTrainWeekWithSheet(TEST_USER, "availability");
+      expect(html).toContain('role="dialog"');
+      expect(html).toContain('aria-label="Availability"');
+    });
+
+    // A real TRAIN_SHEETS member (task 5's own destination, not yet
+    // implemented — "plan-setup" graduated out of this list in task 2,
+    // "races" in task 3, "availability" in task 4) must not fall through to
+    // the one sheet this task built — membership in TRAIN_SHEETS is
+    // necessary, not sufficient, to open "why-week" specifically.
+    it("renders no dialog for a valid-but-unimplemented sheet name", async () => {
+      const html = await renderTrainWeekWithSheet(TEST_USER, "plan-review");
       expect(html).not.toContain('role="dialog"');
+    });
+
+    // THE HIGHEST-CONSEQUENCE SEAM IN THIS TASK. `promptNextWeekAvailability`
+    // (src/lib/week-plan/availability-prompt.ts), shipped a release ago,
+    // sends a live push every Sunday linking to exactly
+    // `/train?availability=next` — no `?sheet=` at all, because that link
+    // predates this task's sheet and cannot be changed retroactively. Before
+    // this task that param alone drove `initialAvailabilityMode`; the
+    // control it names is now behind a sheet, so the same param must ALSO
+    // open it, or the notification lands the athlete on a page with the
+    // thing it promised sealed shut.
+    it("opens the availability sheet, in next-week mode, from ?availability=next alone — no ?sheet= at all", async () => {
+      const html = await renderTrainWeekWithSheet(TEST_USER, undefined, "next");
+      expect(html).toContain('role="dialog"');
+      expect(html).toContain('aria-label="Availability"');
+      // The switcher's next-week button is the pressed one…
+      expect(html).toMatch(
+        /aria-pressed="true"[^>]*>Next week<|>Next week<\/button>[^]*?aria-pressed="true"/
+      );
+      // …and next week's own IntakeForm — not this week's — is the one NOT
+      // marked `hidden`. Each IntakeForm sits directly inside its own
+      // wrapper `<div>` (visible) or `<div hidden="">` (hidden) with
+      // nothing else in between (AvailabilityWeekSwitcher's own markup) —
+      // so the nearer of those two EXACT open tags, immediately preceding
+      // each heading, names that heading's own wrapper. Both headings are
+      // always in the document (both IntakeForms stay mounted, see the
+      // switcher's own doc comment), so only which wrapper form wins proves
+      // which mode actually won, not mere presence of either heading.
+      function isHiddenWrapper(headingIdx: number): boolean {
+        const hiddenAt = html.lastIndexOf('<div hidden="">', headingIdx);
+        const visibleAt = html.lastIndexOf("<div>", headingIdx);
+        expect(Math.max(hiddenAt, visibleAt)).toBeGreaterThan(-1);
+        return hiddenAt > visibleAt;
+      }
+      const thisIdx = html.indexOf("This week&#x27;s availability");
+      const nextIdx = html.indexOf("Next week&#x27;s availability");
+      expect(thisIdx).toBeGreaterThan(-1);
+      expect(nextIdx).toBeGreaterThan(-1);
+      expect(isHiddenWrapper(thisIdx)).toBe(true);
+      expect(isHiddenWrapper(nextIdx)).toBe(false);
+    });
+
+    // An explicit `?sheet=` still wins over the `?availability=next`
+    // fallback — the derivation is `TRAIN_SHEETS.find(...) ?? (…)`, and this
+    // is the only test that would notice the `??` silently becoming `||` or
+    // being dropped in favour of always preferring `availability`.
+    it("lets an explicit ?sheet= win over ?availability=next", async () => {
+      const html = await renderTrainWeekWithSheet(TEST_USER, "races", "next");
+      expect(html).toContain('aria-label="Races"');
+      expect(html).not.toContain('aria-label="Availability"');
+    });
+
+    // THE DECISIVE ASSERTION for the whole task: the measured regression was
+    // the week rendering TWICE — once as WeekStrip's day strip, once as
+    // IntakeForm's own Monday-through-Sunday list, both outside any sheet.
+    // WeekStrip's day labels are two letters ("Mo", via WEEKDAY_NARROW) and
+    // carry no `text-ink-muted` class of their own, so this pattern —
+    // IntakeForm's own three-letter WEEKDAY_SHORT span, `text-ink-muted` —
+    // matches ONLY IntakeForm's day-row labels, never WeekStrip's, never
+    // WeekDayList's single open-day badge (that one is `text-ink-secondary`,
+    // a different token — verified empirically against this exact fixture
+    // before writing this test, not assumed). Both IntakeForm instances
+    // inside the switcher would each contribute all seven if either stayed
+    // outside the sheet — the fixed count is exactly 0, not "fewer".
+    it("renders none of the seven weekdays' own short labels outside the sheet — the duplicate week this task removes", async () => {
+      const closed = await renderTrainWeekWithSheet(TEST_USER, undefined);
+      const matches = closed.match(
+        /<span class="[^"]*text-ink-muted">(Mon|Tue|Wed|Thu|Fri|Sat|Sun)</g
+      );
+      expect(matches ?? []).toHaveLength(0);
+    });
+
+    // The other half of the same proof: the labels are not gone, only
+    // moved. Without this, a test that deleted IntakeForm's day list
+    // entirely (rather than relocating it) would also pass the assertion
+    // above.
+    it("renders the seven weekdays' own short labels inside the sheet once it opens", async () => {
+      const open = await renderTrainWeekWithSheet(TEST_USER, "availability");
+      const matches = open.match(
+        /<span class="[^"]*text-ink-muted">(Mon|Tue|Wed|Thu|Fri|Sat|Sun)</g
+      );
+      expect((matches ?? []).length).toBeGreaterThan(0);
     });
   }
 );
@@ -555,6 +657,85 @@ describe.skipIf(!hasDb)(
       expect(open).toContain("Alpha goal note");
       expect(open).toContain("Bravo goal note");
       expect(open).toContain("+ Add race");
+    });
+  }
+);
+
+// Task 4's own copy of the shape above: AvailabilityWeekSwitcher and both
+// IntakeForms (this week's + next week's, both always mounted — see the
+// switcher's own doc comment) used to render inline below the day list,
+// showing THIS week's seven days a second time next to WeekStrip's own
+// seven — the measured regression this whole task exists to remove. A
+// standard-week default on Monday (a real, non-"Rest" block) gives the
+// closed-page assertions below a genuine, checkable time string to prove
+// absent, and the "Availability" row a real hours badge to prove present —
+// not just structural markers.
+const AVAILABILITY_USER = "test-train-sheet-moves-availability";
+
+async function seedPlanForAvailability(userId: string): Promise<void> {
+  await seedOpenWeek(userId);
+  const { db, schema } = await import("@/lib/db");
+  await db.insert(schema.availabilityDefaults).values({
+    userId,
+    weekday: 0,
+    blocks: [
+      {
+        start: "06:00",
+        end: "07:00",
+        mins: 60,
+        energy: "normal" as const,
+        sports: null,
+      },
+    ],
+  });
+}
+
+describe.skipIf(!hasDb)(
+  "TrainPage: the availability blocks actually leave the page",
+  () => {
+    beforeAll(async () => {
+      await seedPlanForAvailability(AVAILABILITY_USER);
+    });
+
+    afterAll(async () => {
+      const { db, schema } = await import("@/lib/db");
+      await db
+        .delete(schema.users)
+        .where(eq(schema.users.id, AVAILABILITY_USER));
+    });
+
+    it("keeps the summary row (with an hours badge) on the page but not the switcher it replaces", async () => {
+      const closed = await renderTrainWeekWithSheet(
+        AVAILABILITY_USER,
+        undefined
+      );
+      // The row that replaces the switcher stays on the page, badged with
+      // the week's real offered hours — computed off data WeekTab already
+      // fetched, not a new query, so it costs nothing to show.
+      expect(closed).toContain("Availability");
+      expect(closed).toContain("1h");
+      // AvailabilityWeekSwitcher's own group label.
+      expect(closed).not.toContain("Availability week");
+      // IntakeForm's own body copy.
+      expect(closed).not.toContain("When you can train");
+      // PinnedAction's own label, as rendered inside IntakeForm's form.
+      expect(closed).not.toContain("Confirm week");
+      // The real block Monday's standard-week default set, formatted —
+      // proves this isn't a structural-marker-only check.
+      expect(closed).not.toContain("06:00–07:00");
+    });
+
+    it("puts the switcher, both IntakeForms and the real block in the sheet once it opens", async () => {
+      const open = await renderTrainWeekWithSheet(
+        AVAILABILITY_USER,
+        "availability"
+      );
+      expect(open).toContain('role="dialog"');
+      expect(open).toContain('aria-label="Availability"');
+      expect(open).toContain("Availability week");
+      expect(open).toContain("When you can train");
+      expect(open).toContain("Confirm week");
+      expect(open).toContain("06:00–07:00");
     });
   }
 );

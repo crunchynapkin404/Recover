@@ -12,6 +12,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 import { WeekSheet } from "./week-sheet";
+import { IntakeForm, type IntakeState } from "./intake-form";
 
 declare global {
   var IS_REACT_ACT_ENVIRONMENT: boolean;
@@ -103,5 +104,79 @@ describe("WeekSheet", () => {
     });
 
     expect(pushMock).toHaveBeenCalledWith("/train?tab=week");
+  });
+
+  // Task 4's own composition: IntakeForm — now nested in the "availability"
+  // sheet — opens BlockSheet (another `fixed inset-0` `role="dialog"`) on a
+  // day tap, exactly the shape ded5f64/fe7b77b fixed for StandardWeek's own
+  // nested BlockSheet inside the "plan-setup" sheet. Both fixes (BottomSheet
+  // carries no `transform` while idle; BottomSheet skips its own Escape
+  // close while a nested dialog is mounted) live at the BottomSheet shell,
+  // so they should already cover this caller too — but "correct for one
+  // caller, broken for the other" is exactly this branch's failure pattern,
+  // per the task brief, so this is exercised directly with the REAL
+  // IntakeForm/BlockSheet tree rather than trusted from the generic
+  // bare-`role="dialog"` stand-in bottom-sheet.test.tsx already covers.
+  it("does not close on Escape, or lose the staged edit, while IntakeForm's own BlockSheet is open", async () => {
+    const resolved = Array.from({ length: 7 }, () => []);
+    const action = vi.fn(async (): Promise<IntakeState> => ({ message: "" }));
+    const el = await render(
+      <WeekSheet title="Availability" closeHref="/train?tab=week">
+        <IntakeForm
+          resolved={resolved}
+          dates={[]}
+          overrideDates={[]}
+          verdict={{ kind: "ok" }}
+          sports={["Bike"]}
+          action={action}
+        />
+      </WeekSheet>
+    );
+
+    // Open Monday's block editor — a real day tap through the real
+    // IntakeForm, not a stand-in.
+    const monBtn = Array.from(el.querySelectorAll("button")).find(
+      (b) => b.querySelector("span")?.textContent === "Mon"
+    );
+    if (!monBtn) throw new Error("no Monday row in the day list");
+    await act(async () => {
+      monBtn.click();
+    });
+    const nested = el.querySelector(
+      '[role="dialog"][aria-label="Availability for Monday"]'
+    );
+    expect(nested).not.toBeNull();
+
+    // The outer sheet's own panel must carry no `transform` while idle,
+    // even with BlockSheet nested inside it — the exact regression that
+    // collapsed a nested `fixed inset-0` dialog to the outer panel's own
+    // 132px sliver (ded5f64).
+    const outerDialog = el.querySelector(
+      '[role="dialog"][aria-label="Availability"]'
+    ) as HTMLElement;
+    expect(outerDialog.style.transform).toBe("");
+
+    // Escape must not reach the outer sheet's close() while BlockSheet is
+    // open — see bottom-sheet.test.tsx's own comment for why this needs
+    // fake timers rather than a synchronous assert: close()'s
+    // `router.push` runs inside a real `window.setTimeout`, and a bare
+    // assert right after dispatch races that timer against the event loop
+    // (caught empirically failing 1 run in 5 against the mutation this
+    // guards).
+    vi.useFakeTimers();
+    await act(async () => {
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true })
+      );
+    });
+    vi.runAllTimers();
+    vi.useRealTimers();
+
+    expect(pushMock).not.toHaveBeenCalled();
+    // The nested dialog is still mounted — Escape did not unmount its host
+    // and silently discard whatever it hadn't saved yet.
+    expect(
+      el.querySelector('[role="dialog"][aria-label="Availability for Monday"]')
+    ).not.toBeNull();
   });
 });
