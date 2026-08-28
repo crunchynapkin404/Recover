@@ -52,6 +52,10 @@ afterEach(async () => {
   }
   container?.remove();
   document.body.style.overflow = "";
+  // Belt-and-braces: the guard test below turns fake timers on and back off
+  // itself, but if a future edit throws between the two, real timers must
+  // still come back for every test after it.
+  vi.useRealTimers();
 });
 
 describe("BottomSheet", () => {
@@ -79,6 +83,13 @@ describe("BottomSheet", () => {
   // The closing exit animation is the one state that legitimately needs the
   // transform back — proves the idle case above is a real conditional, not
   // a transform that quietly never applied at all.
+  //
+  // NOT racy against close()'s real setTimeout (bottom-sheet.tsx:48), unlike
+  // the guard test below: `closing` flips to `true` synchronously inside
+  // `close()` itself, before the timeout is even scheduled, so the
+  // transform this test reads is never gated on that timer firing. The
+  // timeout only delays the *navigation* (`router.push`), which this test
+  // never inspects — checked deliberately, per review, not assumed.
   it("applies the closing transform once dismissal starts", async () => {
     const el = await render(
       <BottomSheet title="Outer" closeHref="/train?tab=week">
@@ -101,6 +112,16 @@ describe("BottomSheet", () => {
   // the whole time BlockSheet is open — must not fire close() while a
   // nested `[role="dialog"]` is mounted, or Escape silently discards
   // whatever the nested dialog hadn't saved yet.
+  //
+  // Fake timers, not a synchronous assert right after dispatch: `close()`
+  // only calls `router.push` inside a real `window.setTimeout(fn, delay)`
+  // (bottom-sheet.tsx:48; `delay` is 0 here since `matchMedia` above is
+  // mocked to report reduced motion). A synchronous assert races that
+  // timer's callback against the Node event loop reaching it — caught
+  // empirically failing 1 run in 5 against the exact "remove the guard"
+  // mutation this test exists to catch (a false pass on the one test
+  // guarding a silent-data-loss path). Advancing the fake clock ourselves
+  // makes the outcome depend on the guard alone, not on scheduling luck.
   it("does not close on Escape while a nested dialog is mounted", async () => {
     await render(
       <BottomSheet title="Outer" closeHref="/train?tab=week">
@@ -109,11 +130,17 @@ describe("BottomSheet", () => {
         </div>
       </BottomSheet>
     );
+    vi.useFakeTimers();
     await act(async () => {
       document.dispatchEvent(
         new KeyboardEvent("keydown", { key: "Escape", bubbles: true })
       );
     });
+    // If the guard failed to stop close(), its setTimeout is now pending on
+    // the fake clock — flush it before asserting, so a broken guard cannot
+    // hide behind an unfired timer.
+    vi.runAllTimers();
+    vi.useRealTimers();
     expect(pushMock).not.toHaveBeenCalled();
   });
 
