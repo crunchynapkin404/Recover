@@ -108,7 +108,12 @@ describe("SeasonModeSwitch", () => {
         action={noop}
       />
     );
-    const capsule = /<div class="([^"]*)">/.exec(html);
+    // Matches on the capsule's own distinguishing classes, not "the first
+    // div" (review finding 4 on ded5f64) — a match on any div silently
+    // retargets to whatever wrapper lands first in a future markup change.
+    const capsule = /<div class="([^"]*\brounded-full border[^"]*)">/.exec(
+      html
+    );
     expect(capsule![1]).toContain("bg-surface-selected");
     expect(capsule![1]).not.toContain("bg-surface-raised");
   });
