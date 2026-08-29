@@ -28,6 +28,20 @@ export const ENERGY_ALPHA: Record<Energy, number> = {
  * that appear as literal strings in source (see tests/type-scale-guard.test.ts
  * for the same argument), so a computed `bg-accent/${n}` would produce no CSS.
  */
+/**
+ * The second channel, as a COUNT. The first version painted the day strip's
+ * notch only on `full`, which left `easy` and `normal` distinguishable by
+ * nothing but two alpha steps of the same hue — 1.36:1 in light, 1.51:1 in
+ * dark, both under the 3:1 WCAG asks of a meaningful graphical distinction.
+ * The pill carries no text, so there was no other way to tell them apart.
+ * Counting the notches gives every tier a shape as well as a density.
+ */
+export const ENERGY_NOTCHES: Record<Energy, number> = {
+  easy: 0,
+  normal: 1,
+  full: 2,
+};
+
 export const ENERGY_FILL: Record<Energy, string> = {
   easy: "bg-accent/20",
   normal: "bg-accent/40",

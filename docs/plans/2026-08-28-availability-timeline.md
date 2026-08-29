@@ -263,7 +263,7 @@ describe("layoutDay", () => {
   });
 
   // The spec's first named cost, made explicit: a one-hour block is 19px on
-  // a phone and nobody can grab it. Everything under 2h19m is floored — see
+  // a phone and nobody can grab it. Everything under ~2h20m is floored — see
   // the plan's decision 5 for why that number is what it is.
   it("floors a short block to the minimum touch width and says so", () => {
     const [p] = layoutDay([block("18:00", "19:00")], trackPx, DEFAULT_WINDOW);

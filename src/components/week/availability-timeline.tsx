@@ -5,7 +5,7 @@ import { Plus, SlidersHorizontal } from "lucide-react";
 import type { AvailabilityBlock } from "@/lib/availability/types";
 import { formatAvailability, formatBlocks } from "@/lib/availability/format";
 import { blockMins } from "@/lib/availability/types";
-import { ENERGY_FILL } from "@/lib/availability/energy-fill";
+import { ENERGY_FILL, ENERGY_NOTCHES } from "@/lib/availability/energy-fill";
 import {
   NOMINAL_TRACK_PX,
   SNAP_MIN,
@@ -32,6 +32,14 @@ export interface AvailabilityTimelineProps {
   /** Open BlockSheet on day `i` — the precise and assistive path. */
   onOpenDay: (dayIndex: number) => void;
 }
+
+/**
+ * How far a pointer must travel before the gesture counts as a drag. One
+ * pixel on the nominal track is ~3.2 minutes, and `snap()` rounds to the
+ * quarter hour, so without a threshold a 3px tap wobble committed a
+ * 15-minute move with nothing on screen to say so.
+ */
+const DRAG_THRESHOLD_PX = 8;
 
 /** "3:0" — day index and block index, the id both a pointer and a key press use. */
 type BlockId = `${number}:${number}`;
@@ -90,11 +98,15 @@ export function AvailabilityTimeline({
   const win = trackWindow(week);
 
   return (
-    // -mx-4 cancels IntakeForm's own p-4 so the track spans the sheet's full
-    // content width. Decision 5: at anything narrower the 44px floor swallows
-    // every block a real athlete enters, and the timeline shows one width for
-    // everything. This is a margin, NOT a transform — see the file doc.
-    <div className="-mx-4 mb-3 px-4">
+    // -mx-4 with NO padding put back. The first version paired it with px-4,
+    // which restores exactly what the negative margin pulls out — a net-zero
+    // change that left the track at 306px while every position is computed
+    // against NOMINAL_TRACK_PX (342). A container NARROWER than nominal is
+    // the one case the min-width backstop cannot absorb, so adjacent pills
+    // overlapped and one block's resize handle sat under its neighbour.
+    // Only the day header rows are padded back in, below; the track itself
+    // is meant to bleed. This is a margin, NOT a transform — see the file doc.
+    <div className="-mx-4 mb-3">
       <ul>
         {week.map((blocks, day) => (
           <DayTrack
@@ -139,9 +151,16 @@ function DayTrack({
   const dayName = WEEKDAY_NAMES[day];
   // Computed once against the nominal track width and rendered as a FRACTION
   // of it, so the layout survives any container width with no resize observer
-  // and no hydration mismatch. `min-w-11` on the pill is the hard 44px
-  // backstop at every width that is not the nominal one. See
-  // NOMINAL_TRACK_PX's own comment for why the floor forces this shape.
+  // and no hydration mismatch.
+  //
+  // THERE IS NO CSS `min-width` BACKSTOP, deliberately. The first version had
+  // one, which meant the rendered floor and the computed floor disagreed
+  // whenever the real track was not the nominal width — and on a container
+  // NARROWER than nominal that disagreement is an OVERLAP, the one thing
+  // `layoutDay` promises cannot happen. Letting the percentages carry the
+  // floor means everything scales together: the floor is 44px at the
+  // reference viewport, proportionally smaller on a narrower phone, and
+  // non-overlapping at every width.
   const placed = layoutDay(blocks, NOMINAL_TRACK_PX, win);
   const pct = (px: number) => `${(px / NOMINAL_TRACK_PX) * 100}%`;
   const untimed = blocks
@@ -153,12 +172,23 @@ function DayTrack({
   // than React can re-render, and the drag's own arithmetic must read the
   // value the LAST move wrote, not the one the last commit re-rendered with.
   const drag = useRef<{
+    pointerId: number;
     blockIndex: number;
     edge: "start" | "end" | null;
     originX: number;
     trackPx: number;
     committed: AvailabilityBlock[];
+    /** Set once the pointer travels past DRAG_THRESHOLD_PX. */
+    moved: boolean;
   } | null>(null);
+
+  /**
+   * True while the click the browser synthesises after a drag is still to
+   * come. The pill's onClick toggles selection, and that click bubbles up
+   * from the handles too — so without this every resize ended by deselecting
+   * the block and unmounting the handles it was being performed with.
+   */
+  const swallowClick = useRef(false);
 
   function onPointerDown(
     e: React.PointerEvent<HTMLElement>,
@@ -170,18 +200,35 @@ function DayTrack({
     if (trackPx === 0) return;
     e.currentTarget.setPointerCapture?.(e.pointerId);
     drag.current = {
+      pointerId: e.pointerId,
       blockIndex,
       edge,
       originX: e.clientX,
       trackPx,
       committed: blocks,
+      moved: false,
     };
   }
 
   function onPointerMove(e: React.PointerEvent<HTMLElement>) {
     const d = drag.current;
     if (!d) return;
-    const deltaMins = pxToMins(e.clientX - d.originX, d.trackPx, win);
+    // A SECOND FINGER MUST NOT STEER THE FIRST ONE'S GESTURE. There is one
+    // drag ref per day, so without this a touch landing on the other pill
+    // mid-drag replaced the block index and the origin, and the first
+    // finger's next move jumped a block nobody was dragging.
+    if (e.pointerId !== d.pointerId) return;
+    const dx = e.clientX - d.originX;
+    // A TAP IS NOT A DRAG. On the nominal track one pixel is ~3.2 minutes, so
+    // snap() turned a 3px wobble into a committed quarter-hour move — and
+    // Android's touch slop alone is 8px, so this fired on ordinary taps. The
+    // gesture has to clear a real distance before it edits anything.
+    if (!d.moved) {
+      if (Math.abs(dx) < DRAG_THRESHOLD_PX) return;
+      d.moved = true;
+      swallowClick.current = true;
+    }
+    const deltaMins = pxToMins(dx, d.trackPx, win);
     // Snapping happens inside moveBlock/resizeBlock, so a sub-step drag
     // resolves to the same block it started as and commits nothing new.
     const next = d.edge
@@ -192,6 +239,7 @@ function DayTrack({
   }
 
   function onPointerUp(e: React.PointerEvent<HTMLElement>) {
+    if (drag.current && e.pointerId !== drag.current.pointerId) return;
     e.currentTarget.releasePointerCapture?.(e.pointerId);
     drag.current = null;
   }
@@ -206,33 +254,24 @@ function DayTrack({
   }
 
   /**
-   * THE SECOND HALF OF THE GESTURE CONFLICT. A horizontal pill drag competes
-   * with two separate things, and they need two separate answers.
+   * NO `touch-action` AND NO TOUCH GUARDS, arrived at by removing both.
    *
-   * The browser's own pan is handled by `touch-pinch-zoom` on the pill
-   * (`touch-action: pinch-zoom`): it stops the browser claiming the gesture
-   * as a scroll, and it KEEPS pinch-zoom, which the blanket "block every
-   * gesture" value would not. That distinction is the whole of WCAG 1.4.4
-   * here, and it is why `tests/viewport-zoom-guard.test.ts` bans that value
-   * and the directional pan ones while allowing this — an app whose own
-   * premise was that most of its type is 11px or smaller cannot be the one
-   * that takes magnification away.
+   * The first version put `touch-action: pinch-zoom` on the pill and stopped
+   * touch events reaching `BottomSheet`. That settled the horizontal drag and
+   * broke everything else: `pinch-zoom` forbids ALL single-finger panning, not
+   * just horizontal, and the stopPropagation killed the sheet's own
+   * drag-to-dismiss — so on a sheet that is 1.09 screens tall, a thumb swipe
+   * starting anywhere on a pill scrolled nothing, dismissed nothing, and slid
+   * the block a quarter hour instead. Seven tracks of pills, mostly covered.
    *
-   * (Written without spelling those two class names: that guard matches a
-   * bare word, so naming them in prose counts as using them — the same trap
-   * `block-sheet.tsx`'s scrim comment documents for the offender ratchet.)
-   *
-   * `BottomSheet`'s drag-to-dismiss is a React listener on its panel, not a
-   * browser gesture, so `touch-action` cannot reach it: it fires from
-   * `onTouchMove` whenever the panel is scrolled to the top, which is exactly
-   * when a pill drag is most likely. Stopping the touch events here is what
-   * keeps a drag on a pill from dismissing the sheet out from under it.
-   * `onPointerCancel` above covers whatever still gets away.
+   * DRAG_THRESHOLD_PX is what makes doing nothing correct. A vertical swipe
+   * never travels far enough horizontally to commit, the browser claims the
+   * gesture and scrolls, and `onPointerCancel` retires the drag cleanly. A
+   * horizontal drag in a vertically-scrolling container is not claimed, so it
+   * reaches these handlers as before. Pinch-zoom is untouched, which is the
+   * whole of WCAG 1.4.4 here and what `tests/viewport-zoom-guard.test.ts`
+   * exists to protect.
    */
-  const touchGuards = {
-    onTouchStart: (e: React.TouchEvent<HTMLElement>) => e.stopPropagation(),
-    onTouchMove: (e: React.TouchEvent<HTMLElement>) => e.stopPropagation(),
-  };
 
   /**
    * A resize handle's pointer props. `stopPropagation` is load-bearing, not
@@ -257,7 +296,10 @@ function DayTrack({
         onPointerUp(e);
       },
       onPointerCancel,
-      ...touchGuards,
+      onClick: (e: React.MouseEvent<HTMLElement>) => {
+        e.stopPropagation();
+        swallowClick.current = false;
+      },
     };
   }
 
@@ -266,7 +308,7 @@ function DayTrack({
       {/* The label is ABOVE the track, not beside it: a 40px label column
           costs 12% of the track, and decision 5's arithmetic does not survive
           that. */}
-      <div className="mb-1 flex items-center gap-2">
+      <div className="mb-1 flex items-center gap-2 px-4">
         <span className="shrink-0 text-label font-bold uppercase tracking-wider text-ink-muted">
           {WEEKDAY_SHORT[day]}
         </span>
@@ -283,7 +325,12 @@ function DayTrack({
         {pinned && (
           <button
             type="button"
-            aria-label={`${dayName}: back to your standard week`}
+            // The visible text is "Pinned ×", so the accessible name has to
+            // start with it (WCAG 2.5.3). The first version replaced it
+            // wholesale, which broke "tap Pinned" for every voice-control
+            // user — a regression against main, where the button had only a
+            // `title` and its visible text WAS its name.
+            aria-label={`Pinned — ${dayName}, back to your standard week`}
             onClick={() => onUnpin(day)}
             className="shrink-0 scroll-mb-52 rounded-full border border-hairline bg-surface-overlay px-2 py-0.5 text-label font-bold text-chart-3"
           >
@@ -318,7 +365,7 @@ function DayTrack({
       >
         {/* THE PILL CARRIES NO TEXT, and that is a finding from the capture,
             not an oversight. At the 44px floor — which is where every block
-            under 2h19m lands — a duration renders as "1h 00…" and an
+            under ~2h20m lands — a duration renders as "1h 00…" and an
             ellipsis is worse than nothing. The numbers live one line up, in
             the day summary, at full width; the pill is a mark, the way the
             day strip's bars are. `describeBlock` carries everything for a
@@ -335,7 +382,17 @@ function DayTrack({
               data-widened={p.widened ? "" : undefined}
               aria-label={describeBlock(dayName, b)}
               aria-pressed={isSelected}
-              onClick={() => onSelect(isSelected ? null : id)}
+              onClick={() => {
+                // The click that closes a drag is not a selection gesture.
+                // It arrives from the handles too, which sit inside this
+                // button, so a resize used to end by deselecting the block
+                // and unmounting the very handles it was using.
+                if (swallowClick.current) {
+                  swallowClick.current = false;
+                  return;
+                }
+                onSelect(isSelected ? null : id);
+              }}
               onKeyDown={(e) => {
                 // The spec's keyboard contract: arrows move the start,
                 // shift+arrows resize, both in SNAP_MIN steps — the same
@@ -363,20 +420,27 @@ function DayTrack({
               onPointerMove={onPointerMove}
               onPointerUp={onPointerUp}
               onPointerCancel={onPointerCancel}
-              {...touchGuards}
               style={{ left: pct(p.leftPx), width: pct(p.widthPx) }}
-              className={`absolute inset-y-0 flex min-w-11 touch-pinch-zoom scroll-mb-52 items-center justify-center gap-1 rounded-lg border border-accent ${
+              className={`absolute inset-y-0 flex scroll-mb-52 items-center justify-center gap-1 rounded-lg border border-accent ${
                 ENERGY_FILL[b.energy]
               } ${isSelected ? "ring-2 ring-accent" : ""}`}
             >
-              {b.energy === "full" && (
-                // The day strip's own notch glyph, reused verbatim: energy is
-                // never told apart by fill density alone.
-                <span
-                  aria-hidden
-                  data-notch=""
-                  className="h-1 w-1 shrink-0 rounded-full bg-ink-primary"
-                />
+              {/* The day strip's notch glyph, reused — but COUNTED, not
+                  reserved for the top tier. Painting it only on `full` left
+                  `easy` and `normal` separated by two alpha steps of one hue,
+                  measured at 1.36:1, under the 3:1 WCAG asks of a meaningful
+                  graphical distinction — and the pill carries no text, so
+                  there was nothing else to read. One dot for normal, two for
+                  full gas, none for easy: a shape channel that scales. */}
+              {ENERGY_NOTCHES[b.energy] > 0 && (
+                <span aria-hidden data-notch="" className="flex shrink-0 gap-0.5">
+                  {Array.from({ length: ENERGY_NOTCHES[b.energy] }, (_, n) => (
+                    <span
+                      key={n}
+                      className="h-1 w-1 rounded-full bg-ink-primary"
+                    />
+                  ))}
+                </span>
               )}
               {isSelected && (
                 <>
@@ -409,7 +473,7 @@ function DayTrack({
       </div>
 
       {untimed.length > 0 && (
-        <ul className="mt-1 flex flex-wrap gap-1.5">
+        <ul className="mt-1 flex flex-wrap gap-1.5 px-4">
           {untimed.map(({ b, i }) => (
             <li key={i}>
               <button

@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_WINDOW,
+  LAST_MINUTE_OF_DAY,
   MIN_BLOCK_PX,
   NOMINAL_TRACK_PX,
+  SNAP_MIN,
   addBlock,
   describeBlock,
   layoutDay,
@@ -13,7 +15,7 @@ import {
   toMins,
   trackWindow,
 } from "./timeline";
-import type { AvailabilityBlock } from "./types";
+import { blockMins, validateBlocks, type AvailabilityBlock } from "./types";
 
 const block = (
   start: string,
@@ -56,9 +58,12 @@ describe("trackWindow", () => {
     expect(trackWindow(week).endMin).toBe(23 * 60);
   });
 
-  it("widens up to a whole hour to contain a late block", () => {
+  // NOT 24:00, which is what this test asserted when it was written and which
+  // was the bug: `toClock` cannot express 1440, so a window ceiling there put
+  // the window and the clock a minute apart. See "the end-of-day wall" below.
+  it("widens to contain a late block, but never past 23:59", () => {
     const week = [[], [], [], [], [], [], [block("22:00", "23:30")]];
-    expect(trackWindow(week).endMin).toBe(24 * 60);
+    expect(trackWindow(week).endMin).toBe(LAST_MINUTE_OF_DAY);
   });
 
   it("ignores untimed legacy blocks", () => {
@@ -88,7 +93,7 @@ describe("layoutDay", () => {
   });
 
   // The spec's first named cost, made explicit: a one-hour block is 19px on
-  // a phone and nobody can grab it. Everything under 2h19m is floored — see
+  // a phone and nobody can grab it. Everything under ~2h20m is floored — see
   // the plan's decision 5 for why that number is what it is.
   it("floors a short block to the minimum touch width and says so", () => {
     const [p] = layoutDay([block("18:00", "19:00")], trackPx, DEFAULT_WINDOW);
@@ -267,5 +272,98 @@ describe("describeBlock", () => {
         sports: null,
       })
     ).toBe("Monday 1h 30m, normal");
+  });
+});
+
+// ── Regressions found by the whole-branch review (2026-08-29) ──────────────
+
+describe("layoutDay when a day is over-subscribed", () => {
+  const trackPx = NOMINAL_TRACK_PX;
+
+  // The docstring promises "guaranteed non-overlapping". Four legal blocks
+  // whose FLOORED widths sum past the track broke that promise: the backward
+  // pass clamped with Math.max(0, ...) and pulled pills on top of each other,
+  // hiding one block's resize handle underneath its neighbour.
+  it("never overlaps, even when the floored widths cannot all fit", () => {
+    const day = [
+      block("06:15", "20:15"),
+      block("21:15", "21:45"),
+      block("21:45", "22:00"),
+      block("22:00", "22:45"),
+    ];
+    expect(validateBlocks(day)).toBeNull();
+    const placed = layoutDay(day, trackPx, DEFAULT_WINDOW);
+    for (let i = 1; i < placed.length; i++) {
+      expect(placed[i].leftPx).toBeGreaterThanOrEqual(
+        placed[i - 1].leftPx + placed[i - 1].widthPx - 0.001
+      );
+    }
+    for (const p of placed) {
+      expect(p.leftPx).toBeGreaterThanOrEqual(-0.001);
+      expect(p.leftPx + p.widthPx).toBeLessThanOrEqual(trackPx + 0.001);
+    }
+  });
+
+  it("keeps chronological order when it has to shrink to fit", () => {
+    const day = Array.from({ length: 9 }, (_, i) =>
+      block(toClock(6 * 60 + i * 60), toClock(6 * 60 + i * 60 + 30))
+    );
+    const placed = layoutDay(day, trackPx, DEFAULT_WINDOW);
+    expect(placed.map((p) => p.index)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8]);
+    for (let i = 1; i < placed.length; i++) {
+      expect(placed[i].leftPx).toBeGreaterThanOrEqual(
+        placed[i - 1].leftPx + placed[i - 1].widthPx - 0.001
+      );
+    }
+  });
+});
+
+describe("the end-of-day wall", () => {
+  // trackWindow rounded UP to a whole hour and could return 1440, but toClock
+  // clamps to 23:59. The two clamps disagreed by a minute, so a block pushed
+  // against the right wall lost a minute per commit: it slid off the 15-minute
+  // grid, shrank without any resize gesture, and eventually reached
+  // start === end, which validateBlocks rejects — with the bad value already
+  // in the hidden input IntakeForm submits.
+  it("never widens the window past the last minute a clock can express", () => {
+    const week = [[block("21:30", "23:30")], [], [], [], [], [], []];
+    expect(trackWindow(week).endMin).toBeLessThanOrEqual(LAST_MINUTE_OF_DAY);
+  });
+
+  it("does not erode a block held against the right wall", () => {
+    const win = trackWindow([[block("21:30", "23:30")], [], [], [], [], [], []]);
+    let day = [block("22:00", "23:00")];
+    for (let i = 0; i < 40; i++) day = moveBlock(day, 0, 15, win);
+    expect(validateBlocks(day)).toBeNull();
+    expect(blockMins(day[0])).toBe(60);
+    expect(day[0].mins).toBe(60);
+    expect(toMins(day[0].start!) % SNAP_MIN).toBe(0);
+  });
+
+  it("keeps mins and the clock range in agreement at the wall", () => {
+    const win = { startMin: 5 * 60, endMin: LAST_MINUTE_OF_DAY };
+    const next = moveBlock([block("22:00", "23:00")], 0, 600, win);
+    expect(next[0].mins).toBe(
+      toMins(next[0].end!) - toMins(next[0].start!)
+    );
+  });
+});
+
+describe("addBlock against an off-grid neighbour", () => {
+  // snap() rounds to NEAREST, so a candidate derived from a 10:07 end rounded
+  // BACKWARDS into that neighbour, clashed, and was discarded — reporting the
+  // day full while a 113-minute gap sat open, and disabling the + button.
+  it("finds the gap after a neighbour whose end is off the quarter hour", () => {
+    const day = [block("05:00", "10:07"), block("12:00", "23:00")];
+    expect(validateBlocks(day)).toBeNull();
+    const next = addBlock(day, DEFAULT_WINDOW);
+    expect(next).not.toBeNull();
+    const added = next![next!.length - 1];
+    expect(added.start).toBe("10:15");
+    expect(validateBlocks(next!)).toBeNull();
+  });
+
+  it("still refuses a day with no room", () => {
+    expect(addBlock([block("05:00", "23:00")], DEFAULT_WINDOW)).toBeNull();
   });
 });

@@ -850,6 +850,11 @@ const SURFACE_PREPARE: Record<string, (page: Page) => Promise<void>> = {
     "?sheet=debrief&activity=<id>"
   ),
   "checkin-sheet": sheetOpenGuard("checkin-sheet", "?sheet=checkin"),
+  // Without this the surface was a green number for a page it never reached:
+  // `assertOnSurface` compares pathname only, and `/train?sheet=availability`
+  // shares a pathname with `/train`, so a fixture with no open week would
+  // photograph and axe-audit the ordinary Train tab under this name.
+  "train-availability": sheetOpenGuard("train-availability", "?sheet=availability"),
   "coach-history": waitForHistoryPanel,
   "coach-history-active": waitForActiveThreadRow,
 };

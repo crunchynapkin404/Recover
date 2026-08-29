@@ -28,23 +28,31 @@ export const SNAP_MIN = 15;
 export const MIN_BLOCK_PX = 44;
 
 /**
- * The track's assumed width, in px, at the reference viewport (390px phone,
- * inside the availability sheet, full-bleed — see the plan's decision 5).
+ * The track's width in px at the reference viewport — MEASURED in a browser,
+ * not derived. 390px phone, minus the sheet panel's border and px-6, minus
+ * IntakeForm's border and p-4, plus the timeline's own -mx-4: 338px. An
+ * earlier comment here claimed 342 by forgetting the two 1px borders, and
+ * claimed the timeline was full-bleed while it paired `-mx-4` with a `px-4`
+ * that cancelled it exactly — the real track was 306px. Both found by the
+ * whole-branch review; this number is now what a browser reports.
  *
- * WHY A NOMINAL WIDTH AND NOT A MEASURED ONE. The pills are positioned in
- * PERCENT so the layout survives any container width with no resize observer
- * and no SSR/hydration mismatch. But MIN_BLOCK_PX is a real pixel floor, and
- * a floor cannot be applied in percent without knowing what 100% is worth.
- * So the layout is computed once against this nominal width and the result
- * read as a fraction of it; CSS `min-width: 44px` on the pill is the hard
- * backstop that keeps the floor true at every OTHER width. The consequence,
- * stated: on a container much wider than this the overlap sweep is slightly
- * conservative, never wrong — it can leave a gap, never an overlap.
+ * WHY A NOMINAL WIDTH AND NOT A LIVE ONE. The pills are positioned in PERCENT
+ * so the layout survives any container width with no resize observer and no
+ * SSR/hydration mismatch. But MIN_BLOCK_PX is a real pixel floor, and a floor
+ * cannot be applied in percent without knowing what 100% is worth. So the
+ * layout is computed once against this width and the whole result read as a
+ * fraction of it — floor included, with no CSS `min-width` to disagree with
+ * it. Everything therefore scales together: the floor is a true 44px here,
+ * proportionally smaller on a narrower phone, larger on a desktop, and
+ * non-overlapping at every width.
  *
- * At 342px over an 18-hour window this is 19px/hour, which is the figure the
- * spec costed the distortion at.
+ * At 338px over an 18-hour window this is 18.8px/hour, so the 44px floor
+ * flattens every block shorter than about 2h20m. The spec costed the
+ * distortion at ~18px/hour, so this is the trade it accepted — but the
+ * flattening is bigger in practice than that sentence sounds, and the
+ * durations are read from the day summary line, not from the geometry.
  */
-export const NOMINAL_TRACK_PX = 342;
+export const NOMINAL_TRACK_PX = 338;
 
 /** The shortest block a drag may produce. One snap step. */
 export const MIN_BLOCK_MIN = SNAP_MIN;
@@ -96,7 +104,17 @@ export function trackWindow(week: AvailabilityBlock[][]): TrackWindow {
     for (const b of day) {
       if (!isTimed(b)) continue;
       startMin = Math.min(startMin, Math.floor(toMins(b.start!) / 60) * 60);
-      endMin = Math.max(endMin, Math.ceil(toMins(b.end!) / 60) * 60);
+      // Capped at the last minute a clock can express, NOT rounded freely up
+      // to 24:00. `toClock` clamps to 23:59, so a window ceiling of 1440 put
+      // the two clamps a minute apart: a block pushed against the right wall
+      // was written back one minute shorter every commit, slid off the
+      // 15-minute grid, and eventually reached start === end — a value
+      // `validateBlocks` rejects, already sitting in the hidden input
+      // `IntakeForm` submits. Found by the whole-branch review.
+      endMin = Math.min(
+        LAST_MINUTE_OF_DAY,
+        Math.max(endMin, Math.ceil(toMins(b.end!) / 60) * 60)
+      );
     }
   }
   return { startMin, endMin };
@@ -146,6 +164,20 @@ export function layoutDay(
         widened: widthPx > trueWidth,
       };
     });
+
+  // A day can be over-subscribed: several short blocks, each floored to
+  // MIN_BLOCK_PX, can need more room than the track has. The sweeps below
+  // cannot invent space, and the backward pass used to resolve that by
+  // clamping to 0 — which stacked pills on top of each other and hid one
+  // block's resize handle beneath its neighbour, breaking this function's own
+  // "guaranteed non-overlapping" promise. Scaling every width by the same
+  // factor keeps the order and the guarantee, and gives up the 44px floor,
+  // which is the only thing that CAN be given up here.
+  const wanted = placed.reduce((sum, p) => sum + p.widthPx, 0);
+  if (wanted > trackPx && wanted > 0) {
+    const shrink = trackPx / wanted;
+    for (const p of placed) p.widthPx *= shrink;
+  }
 
   let cursor = 0;
   for (const p of placed) {
@@ -201,12 +233,13 @@ function withTimes(
   startMin: number,
   endMin: number
 ): AvailabilityBlock {
-  return {
-    ...b,
-    start: toClock(startMin),
-    end: toClock(endMin),
-    mins: endMin - startMin,
-  };
+  // `mins` is derived from the CLAMPED clocks, never from the raw arguments.
+  // Those two disagreed at the end-of-day wall and `validateBlocks` admits the
+  // disagreement, so it would have persisted: `blockMins` prefers the clocks,
+  // but `mins` is what a legacy reader sees.
+  const start = toClock(startMin);
+  const end = toClock(endMin);
+  return { ...b, start, end, mins: toMins(end) - toMins(start) };
 }
 
 /** Slide a block, keeping its duration, stopping at the window and its neighbours. */
@@ -221,7 +254,16 @@ export function moveBlock(
   const duration = blockMins(b);
   const { floor, ceil } = walls(blocks, index, win);
   const wanted = snap(toMins(b.start!) + deltaMins);
-  const start = Math.max(floor, Math.min(wanted, ceil - duration));
+  // The right wall is floored ONTO the snap grid before it clamps. The window
+  // ceiling is 23:59, which is not a multiple of SNAP_MIN, so clamping to it
+  // directly parked the block at an off-grid start (22:59 for an hour) and
+  // broke the spec's "both in 15-minute steps" contract at exactly the edge
+  // where an athlete holds the arrow key down. Costs up to 14 minutes of
+  // reach at the very end of the day; BlockSheet still sets those exactly.
+  // The LEFT wall is not floored: it is a neighbour's end, and stopping flush
+  // against it is more useful than stopping on the grid short of it.
+  const lastStart = Math.floor((ceil - duration) / SNAP_MIN) * SNAP_MIN;
+  const start = Math.max(floor, Math.min(wanted, lastStart));
   return blocks.map((x, i) => (i === index ? withTimes(x, start, start + duration) : x));
 }
 
@@ -273,7 +315,11 @@ export function addBlock(
     win.startMin,
   ];
   for (const raw of candidates) {
-    const start = Math.max(win.startMin, snap(raw));
+    // Snapped FORWARD, not to the nearest step. `snap()` rounds, so a
+    // candidate taken from a neighbour ending at 10:07 became 10:00 — back
+    // inside that neighbour — then failed the clash test and was discarded,
+    // reporting the day full (and disabling `+`) with a two-hour gap open.
+    const start = Math.max(win.startMin, Math.ceil(raw / SNAP_MIN) * SNAP_MIN);
     const end = start + NEW_BLOCK_MIN;
     if (end > win.endMin) continue;
     const clashes = timed.some(

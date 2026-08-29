@@ -62,14 +62,23 @@ describe("AvailabilityTimeline", () => {
     expect(html).toContain("bg-accent/60");
   });
 
-  // Decision 3's second channel: full gas is not told apart by density alone.
-  it("marks full gas with the day strip's notch, and nothing below it", () => {
-    const full = emptyWeek();
-    full[0] = [block("06:00", "07:00", "full")];
-    expect(render(full)).toContain('data-notch=""');
-    const normal = emptyWeek();
-    normal[0] = [block("06:00", "07:00", "normal")];
-    expect(render(normal)).not.toContain("data-notch");
+  // Decision 3's second channel, COUNTED. Painting the notch only on `full`
+  // left easy and normal apart by fill density alone at 1.36:1 — under the
+  // 3:1 WCAG asks of a meaningful graphical distinction, on a pill that
+  // carries no text. Found by the whole-branch review.
+  it("gives each energy its own notch count, not colour alone", () => {
+    const dots = (energy: AvailabilityBlock["energy"]) => {
+      const week = emptyWeek();
+      week[0] = [block("06:00", "07:00", energy)];
+      const html = render(week);
+      const i = html.indexOf('data-notch=""');
+      if (i === -1) return 0;
+      const tail = html.slice(i, html.indexOf("</button>", i));
+      return (tail.match(/h-1 w-1 rounded-full/g) ?? []).length;
+    };
+    expect(dots("easy")).toBe(0);
+    expect(dots("normal")).toBe(1);
+    expect(dots("full")).toBe(2);
   });
 
   it("positions a pill by percentage of the track, not by pixels", () => {
@@ -90,7 +99,12 @@ describe("AvailabilityTimeline", () => {
     pinned[2] = true;
     const html = render(emptyWeek(), pinned);
     expect(html).toContain("Pinned");
-    expect(html).toContain('aria-label="Wednesday: back to your standard week"');
+    // WCAG 2.5.3: the accessible name must CONTAIN the visible text, so a
+    // voice-control user saying "tap Pinned" reaches this control.
+    expect(html).toContain('Pinned ×');
+    expect(html).toContain(
+      'aria-label="Pinned — Wednesday, back to your standard week"'
+    );
   });
 
   it("offers a plus per day that reaches the precise editor", () => {
@@ -355,6 +369,111 @@ describe("AvailabilityTimeline pointer drag", () => {
     week[0] = [block("10:00", "11:00")];
     const t = mount(week);
     drag(host!.querySelector<HTMLElement>('[data-block="0:0"]')!, 40, 40);
+    expect(t.calls).toHaveLength(0);
+  });
+});
+
+// ── Regressions found by the whole-branch review (2026-08-29) ──────────────
+
+describe("AvailabilityTimeline gesture safety", () => {
+  function stubTrackWidth(px: number) {
+    Object.defineProperty(HTMLElement.prototype, "getBoundingClientRect", {
+      configurable: true,
+      value() {
+        return { width: px, height: 36, top: 0, left: 0, right: px, bottom: 36, x: 0, y: 0, toJSON: () => ({}) };
+      },
+    });
+  }
+  const realRect = HTMLElement.prototype.getBoundingClientRect;
+  afterEach(() => {
+    Object.defineProperty(HTMLElement.prototype, "getBoundingClientRect", {
+      configurable: true,
+      value: realRect,
+    });
+  });
+
+  function pointer(el: HTMLElement, xs: number[]) {
+    const cast = el as HTMLElement & {
+      setPointerCapture?: (id: number) => void;
+      releasePointerCapture?: (id: number) => void;
+    };
+    cast.setPointerCapture = () => {};
+    cast.releasePointerCapture = () => {};
+    act(() => {
+      el.dispatchEvent(new PointerEvent("pointerdown", { clientX: xs[0], pointerId: 1, bubbles: true }));
+    });
+    for (const x of xs.slice(1)) {
+      act(() => {
+        el.dispatchEvent(new PointerEvent("pointermove", { clientX: x, pointerId: 1, bubbles: true }));
+      });
+    }
+    act(() => {
+      el.dispatchEvent(new PointerEvent("pointerup", { clientX: xs[xs.length - 1], pointerId: 1, bubbles: true }));
+    });
+  }
+
+  // A tap is not a drag. pxToMins(3px) is 9.5 minutes, which snap() rounds to
+  // a full quarter hour — so ordinary touch jitter on a tap silently moved the
+  // block and committed it. Android's touch slop alone is 8px.
+  it("ignores a tap that wobbles below the drag threshold", () => {
+    stubTrackWidth(342);
+    const week = emptyWeek();
+    week[0] = [block("18:00", "19:00")];
+    const t = mount(week);
+    pointer(host!.querySelector<HTMLElement>('[data-block="0:0"]')!, [100, 103]);
+    expect(t.calls).toHaveLength(0);
+  });
+
+  it("still commits once the pointer travels past the threshold", () => {
+    stubTrackWidth(342);
+    const week = emptyWeek();
+    week[0] = [block("18:00", "19:00")];
+    const t = mount(week);
+    pointer(host!.querySelector<HTMLElement>('[data-block="0:0"]')!, [100, 140]);
+    expect(t.calls.length).toBeGreaterThan(0);
+  });
+
+  // The browser fires a compatibility click after pointerup. It bubbled from
+  // the aria-hidden handle span to the pill button, whose onClick toggles
+  // selection — so every resize ended by unmounting the handles it was using.
+  it("does not toggle selection on the click that follows a drag", () => {
+    stubTrackWidth(342);
+    const week = emptyWeek();
+    week[0] = [block("18:00", "19:00")];
+    mount(week);
+    const pill = host!.querySelector<HTMLElement>('[data-block="0:0"]')!;
+    act(() => {
+      pill.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    expect(host!.querySelector('[data-handle="0:0:end"]')).not.toBeNull();
+
+    pointer(host!.querySelector<HTMLElement>('[data-handle="0:0:end"]')!, [100, 140]);
+    // The click the browser synthesises after the gesture.
+    act(() => {
+      host!
+        .querySelector<HTMLElement>('[data-handle="0:0:end"]')!
+        .dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    expect(host!.querySelector('[data-handle="0:0:end"]')).not.toBeNull();
+  });
+
+  // One drag ref per day with no pointerId: a second finger landing on another
+  // pill overwrote the in-flight gesture's block index and origin, so the first
+  // finger's next move jumped a block it was never touching.
+  it("ignores pointer events from a second, uninvolved finger", () => {
+    stubTrackWidth(342);
+    const week = emptyWeek();
+    week[0] = [block("07:00", "08:00"), block("18:00", "19:00")];
+    const t = mount(week);
+    const first = host!.querySelector<HTMLElement>('[data-block="0:0"]')!;
+    const cast = first as HTMLElement & { setPointerCapture?: (id: number) => void };
+    cast.setPointerCapture = () => {};
+    act(() => {
+      first.dispatchEvent(new PointerEvent("pointerdown", { clientX: 100, pointerId: 1, bubbles: true }));
+    });
+    act(() => {
+      first.dispatchEvent(new PointerEvent("pointermove", { clientX: 300, pointerId: 2, bubbles: true }));
+    });
     expect(t.calls).toHaveLength(0);
   });
 });

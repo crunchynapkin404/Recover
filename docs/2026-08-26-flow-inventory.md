@@ -664,11 +664,60 @@ artifact — the same pattern the v0.123 handoff names.
    the whole form into it, which silently removed the app's most-used write
    path from the photographed set: `train` renders a summary row where the
    form used to be, so every gate stayed green over a surface nothing looked
-   at. Now `train-availability` in `scripts/verify-surfaces.ts`.
+   at. Now `train-availability` in `scripts/verify-surfaces.ts` — with the
+   `sheetOpenGuard` every other sheet surface already used, without which it
+   would have photographed the ordinary Train tab under this name and passed.
 2. **The pill's label was an ellipsis at every real width.** At the 44 px
-   floor — where every block under 2h19m lands — "1h 00m" renders as
+   floor — where every block under ~2h20m lands — "1h 00m" renders as
    "1h 00…". The numbers moved to the day summary line, which has full width;
    the pill is a mark now, like the day strip's bars.
 
-0 confirmed axe defects across both themes and both viewports. The ratchet
-ceiling stayed at **0**.
+### And what a whole-branch review found that the capture also could not
+
+A dimension-based adversarial pass over the finished branch — composition
+seams, pure geometry, accessibility, the pointer state machine — surfaced
+twelve further defects, all fixed. Recorded because the pattern is the point:
+every one of them lived in a case the tests exercised only at its happy path.
+
+- **The track was never full-bleed.** `-mx-4` was paired with a `px-4` that
+  restored exactly what it pulled out, so the real track was 306 px against a
+  layout computed for 342 — and a container narrower than nominal is the one
+  case a CSS `min-width` backstop cannot absorb, so adjacent pills overlapped
+  and one block's resize handle sat under its neighbour. The measured width is
+  **338 px** (342 forgot two 1 px borders), and the CSS floor is gone: the
+  percentages carry it, so the layout scales as one piece and cannot overlap
+  at any width. At 18.8 px/hour the floor flattens everything under ~2h20m.
+- **A 3 px tap wobble committed a 15-minute move.** One pixel is ~3.2 minutes
+  and `snap()` rounds to the quarter hour, so ordinary touch jitter edited the
+  week silently — Android's touch slop alone is 8 px. There is a drag
+  threshold now.
+- **Every resize ended by unmounting its own handles.** The compatibility
+  `click` the browser fires after a drag bubbled from the handle to the pill,
+  whose `onClick` toggles selection. jsdom never synthesises that click, so no
+  test in this repo could have seen it.
+- **A block held against the end of the day eroded a minute per commit.**
+  `trackWindow` rounded up to 24:00 but `toClock` clamps to 23:59, so the two
+  clamps disagreed: the block slid off the 15-minute grid and shrank with no
+  resize gesture, eventually reaching `start === end` — which `validateBlocks`
+  rejects, with the bad value already in the input `IntakeForm` submits.
+- **`addBlock` reported a day full with a two-hour gap open**, because a
+  candidate taken from a neighbour ending at 10:07 was rounded *back* to
+  10:00, inside that neighbour, and then discarded for clashing.
+- **`layoutDay`'s "guaranteed non-overlapping" was false** once several
+  floored widths outran the track.
+- **Label in Name regressed** (WCAG 2.5.3): the unpin chip reads "Pinned ×"
+  but its new `aria-label` did not contain that text, so "tap Pinned" stopped
+  working for voice control — something that worked on `main`.
+- **`easy` and `normal` were told apart by fill alone at 1.36:1**, because the
+  notch was painted only on `full` and the pill carries no text. The notch is
+  a count now: none, one, two.
+- **A vertical swipe starting on a pill did nothing at all** — `touch-action:
+  pinch-zoom` forbids every single-finger pan, not just the horizontal one,
+  and the touch guards killed the sheet's own drag-to-dismiss. On a sheet 1.09
+  screens tall, mostly covered by pills. Both were removed; the drag threshold
+  is what makes doing nothing correct.
+- **A second finger hijacked an in-flight drag**, since the gesture ref stored
+  no `pointerId`.
+
+0 confirmed axe defects across both themes and both viewports, before and
+after those fixes. The ratchet ceiling stayed at **0**.
