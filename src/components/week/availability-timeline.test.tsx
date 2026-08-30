@@ -63,7 +63,7 @@ describe("AvailabilityTimeline", () => {
   });
 
   // Decision 3's second channel, COUNTED. Painting the notch only on `full`
-  // left easy and normal apart by fill density alone at 1.36:1 — under the
+  // left easy and normal apart by fill density alone at 1.37:1 — under the
   // 3:1 WCAG asks of a meaningful graphical distinction, on a pill that
   // carries no text. Found by the whole-branch review.
   it("gives each energy its own notch count, not colour alone", () => {
@@ -236,7 +236,29 @@ describe("AvailabilityTimeline keyboard path", () => {
     ]);
   });
 
-  it("opens the precise editor on Enter", () => {
+  // ACTIVATION MEANS THE SAME THING IN EVERY MODALITY. It did not: click
+  // toggled selection while Enter opened BlockSheet — and a touch
+  // screen-reader double-tap dispatches a CLICK, so those users got a
+  // selection toggle whose only effect is revealing two aria-hidden spans,
+  // and could never reach the precise editor from a pill. aria-pressed was
+  // announcing a toggle the keyboard path never performed. BlockSheet is
+  // still one Tab away on the day's own "Edit precisely" control, which does
+  // not depend on selection and is the better assistive path anyway.
+  it("toggles selection on Enter, exactly as a click does", () => {
+    const week = emptyWeek();
+    week[0] = [block("18:00", "19:00")];
+    mount(week);
+    const el = host!.querySelector<HTMLElement>('[data-block="0:0"]')!;
+    expect(el.getAttribute("aria-pressed")).toBe("false");
+    act(() => {
+      el.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    expect(
+      host!.querySelector('[data-block="0:0"]')!.getAttribute("aria-pressed")
+    ).toBe("true");
+  });
+
+  it("does not hand Enter a different meaning from a tap", () => {
     const week = emptyWeek();
     week[0] = [block("18:00", "19:00")];
     const opened: number[] = [];
@@ -254,13 +276,14 @@ describe("AvailabilityTimeline keyboard path", () => {
         />
       );
     });
-    const el = host.querySelector<HTMLElement>('[data-block="0:0"]')!;
     act(() => {
-      el.dispatchEvent(
-        new KeyboardEvent("keydown", { key: "Enter", bubbles: true })
-      );
+      host!
+        .querySelector<HTMLElement>('[data-block="0:0"]')!
+        .dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
     });
-    expect(opened).toEqual([0]);
+    // Enter no longer short-circuits to the sheet; the browser's own
+    // button semantics turn it into the same click a tap produces.
+    expect(opened).toEqual([]);
   });
 
   it("leaves other keys to the browser", () => {
@@ -455,6 +478,29 @@ describe("AvailabilityTimeline gesture safety", () => {
         .dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
     expect(host!.querySelector('[data-handle="0:0:end"]')).not.toBeNull();
+  });
+
+  // The handle path above is protected by the handle's OWN stopPropagation,
+  // so it passes with or without swallowClick — which a mutation run proved.
+  // The flag is load-bearing for a drag on the PILL itself, where nothing
+  // stops the click bubbling to its own onClick and toggling selection off.
+  it("does not toggle selection on the click that follows a pill drag", () => {
+    stubTrackWidth(342);
+    const week = emptyWeek();
+    week[0] = [block("18:00", "19:00")];
+    mount(week);
+    const pill = () => host!.querySelector<HTMLElement>('[data-block="0:0"]')!;
+    act(() => {
+      pill().dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    expect(pill().getAttribute("aria-pressed")).toBe("true");
+
+    pointer(pill(), [100, 150]);
+    act(() => {
+      pill().dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    // Still selected: the drag's trailing click is not a selection gesture.
+    expect(pill().getAttribute("aria-pressed")).toBe("true");
   });
 
   // One drag ref per day with no pointerId: a second finger landing on another

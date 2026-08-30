@@ -313,7 +313,13 @@ const SURFACES: Record<string, string> = {
   // sheet's innards as a drag-timeline, so a regression in the one control
   // the athlete touches every week would otherwise reach production with
   // every gate green. Requires no extra seeding beyond seed-demo.ts — the
-  // sheet renders for any athlete, with or without an active plan.
+  // sheet renders for any athlete, with or without an active plan — but it
+  // renders EMPTY without timed blocks to draw, and `seed-demo.ts` seeds no
+  // availability at all. Requires scripts/seed-availability.ts to have run;
+  // without it this photographs seven blank tracks and proves nothing about
+  // the pills, the energy fills, the notch counts or the 44px floor. The dev
+  // database's own `availability_defaults` rows are LEGACY (`start: null`),
+  // which the timeline declines to place, so they do not stand in for it.
   "train-availability": "/train?sheet=availability",
   // Coach is a multi-state surface behind one URL, and `/coach` alone renders
   // `messages.length === 0` — the empty state. Until slice 4, every message

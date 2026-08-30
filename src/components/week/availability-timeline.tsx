@@ -199,6 +199,12 @@ function DayTrack({
     const trackPx = trackPxOf(track);
     if (trackPx === 0) return;
     e.currentTarget.setPointerCapture?.(e.pointerId);
+    // Cleared at the START of every gesture, not left to the click that ends
+    // one. Setting it on the drag and clearing it on the click assumed a
+    // click always arrives — it does not after a pointercancel, or when the
+    // gesture ends off the element — and a stuck flag silently swallowed the
+    // NEXT legitimate tap instead.
+    swallowClick.current = false;
     drag.current = {
       pointerId: e.pointerId,
       blockIndex,
@@ -226,7 +232,6 @@ function DayTrack({
     if (!d.moved) {
       if (Math.abs(dx) < DRAG_THRESHOLD_PX) return;
       d.moved = true;
-      swallowClick.current = true;
     }
     const deltaMins = pxToMins(dx, d.trackPx, win);
     // Snapping happens inside moveBlock/resizeBlock, so a sub-step drag
@@ -241,6 +246,8 @@ function DayTrack({
   function onPointerUp(e: React.PointerEvent<HTMLElement>) {
     if (drag.current && e.pointerId !== drag.current.pointerId) return;
     e.currentTarget.releasePointerCapture?.(e.pointerId);
+    // Only a gesture that actually moved should eat the click that follows.
+    swallowClick.current = drag.current?.moved === true;
     drag.current = null;
   }
 
@@ -250,6 +257,9 @@ function DayTrack({
    * resuming a drag nobody is making.
    */
   function onPointerCancel() {
+    // No click follows a cancelled gesture, so nothing must be armed to
+    // swallow one.
+    swallowClick.current = false;
     drag.current = null;
   }
 
@@ -397,13 +407,18 @@ function DayTrack({
                 // The spec's keyboard contract: arrows move the start,
                 // shift+arrows resize, both in SNAP_MIN steps — the same
                 // steps a drag lands on, so the two paths cannot disagree.
-                // Enter hands off to BlockSheet, which stays the precise and
-                // assistive editor for energy, sports and exact clock times.
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  onOpenDay(day);
-                  return;
-                }
+                //
+                // ENTER AND SPACE ARE DELIBERATELY NOT HANDLED HERE. They
+                // used to call onOpenDay, which made activation mean two
+                // different things: a tap toggled selection, Enter opened
+                // BlockSheet — and a touch screen reader's double-tap
+                // dispatches a CLICK, so those users got the toggle and could
+                // never reach the sheet from a pill, while `aria-pressed`
+                // announced a state the keyboard path never set. Left alone,
+                // the browser turns Enter/Space on a <button> into the same
+                // click a tap produces, and the two modalities agree. The
+                // precise editor is the day's own "Edit precisely" control,
+                // which does not depend on selection.
                 const dir =
                   e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
                 if (dir === 0) return;
@@ -428,7 +443,7 @@ function DayTrack({
               {/* The day strip's notch glyph, reused — but COUNTED, not
                   reserved for the top tier. Painting it only on `full` left
                   `easy` and `normal` separated by two alpha steps of one hue,
-                  measured at 1.36:1, under the 3:1 WCAG asks of a meaningful
+                  measured at 1.37:1, under the 3:1 WCAG asks of a meaningful
                   graphical distinction — and the pill carries no text, so
                   there was nothing else to read. One dot for normal, two for
                   full gas, none for easy: a shape channel that scales. */}

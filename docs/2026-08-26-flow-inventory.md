@@ -598,12 +598,16 @@ measured against the same fixture in the same hour**, from two dev servers —
 `main` at 3f122f7 and this branch — because the "before" number for a sheet
 nothing had ever measured could not be read off any earlier section here.
 
-The fixture needed one addition, and it is worth naming: **`seed-demo.ts`
-seeds only LEGACY untimed availability blocks** (`start: null`), which the
-timeline correctly declines to place on a track. Measured against the stock
-fixture, the timeline renders seven empty tracks and the whole surface looks
-broken while being right. Real timed blocks were seeded by hand for both
-columns.
+The fixture needed one addition, and the reason is worth naming — an earlier
+draft of this section got it wrong and said `seed-demo.ts` seeds legacy
+untimed blocks. It does not: **nothing in `scripts/` seeded availability at
+all.** The untimed blocks (`start: null`, duration only) live in
+`availability_defaults` rows already in the dev database. The timeline
+correctly declines to place a block with no position, so against that state it
+renders seven empty tracks and the surface looks broken while being right, and
+against a *fresh* database it renders nothing at all. Real timed blocks were
+seeded by hand for both columns; `scripts/seed-availability.ts` now does it
+reproducibly, and `train-availability` requires it.
 
 | Surface                                         | surface | in-sheet | tabs | appChrome | hidden/disabled | scroll |
 | ----------------------------------------------- | ------: | -------: | ---: | --------: | --------------: | -----: |
@@ -708,7 +712,7 @@ every one of them lived in a case the tests exercised only at its happy path.
 - **Label in Name regressed** (WCAG 2.5.3): the unpin chip reads "Pinned ×"
   but its new `aria-label` did not contain that text, so "tap Pinned" stopped
   working for voice control — something that worked on `main`.
-- **`easy` and `normal` were told apart by fill alone at 1.36:1**, because the
+- **`easy` and `normal` were told apart by fill alone at 1.37:1**, because the
   notch was painted only on `full` and the pill carries no text. The notch is
   a count now: none, one, two.
 - **A vertical swipe starting on a pill did nothing at all** — `touch-action:

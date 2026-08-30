@@ -367,3 +367,71 @@ describe("addBlock against an off-grid neighbour", () => {
     expect(addBlock([block("05:00", "23:00")], DEFAULT_WINDOW)).toBeNull();
   });
 });
+
+describe("what the timeline is allowed to hand the server", () => {
+  // parseDayBlocks re-runs validateBlocks on every day and refuses the WHOLE
+  // submission if any day fails, so an invalid block cannot be persisted. But
+  // validateBlocks does NOT cross-check `mins` against the clock range, so a
+  // block that is accepted can still be internally inconsistent — and `mins`
+  // is what a legacy reader sees. Every mutator must keep the two agreeing.
+  const win = { startMin: 5 * 60, endMin: LAST_MINUTE_OF_DAY };
+
+  function consistent(bs: AvailabilityBlock[]) {
+    for (const b of bs) {
+      if (b.start == null || b.end == null) continue;
+      expect(b.mins).toBe(toMins(b.end) - toMins(b.start));
+      expect(b.mins).toBeGreaterThan(0);
+    }
+    expect(validateBlocks(bs)).toBeNull();
+  }
+
+  it("keeps mins and the clock range agreeing through any move", () => {
+    let day = [block("06:00", "07:30")];
+    for (const d of [15, -30, 600, -600, 45, 9999, -9999]) {
+      day = moveBlock(day, 0, d, win);
+      consistent(day);
+    }
+  });
+
+  it("keeps mins and the clock range agreeing through any resize", () => {
+    let day = [block("06:00", "07:30")];
+    for (const [edge, d] of [
+      ["end", 15], ["end", -600], ["start", -45], ["start", 9999], ["end", 9999],
+    ] as const) {
+      day = resizeBlock(day, 0, edge, d, win);
+      consistent(day);
+    }
+  });
+
+  // A legacy duration-only block has no position, so layoutDay omits it — but
+  // it is still in the array the hidden input serialises. Editing the day's
+  // TIMED block must not drop it.
+  it("preserves an untimed legacy block while its neighbour is edited", () => {
+    const legacy: AvailabilityBlock = {
+      start: null, end: null, mins: 45, energy: "easy", sports: ["Ride"],
+    };
+    const day: AvailabilityBlock[] = [legacy, block("18:00", "19:00")];
+    expect(layoutDay(day, NOMINAL_TRACK_PX, win)).toHaveLength(1);
+
+    const moved = moveBlock(day, 1, 60, win);
+    expect(moved[0]).toEqual(legacy);
+    const resized = resizeBlock(moved, 1, "end", 30, win);
+    expect(resized[0]).toEqual(legacy);
+    const added = addBlock(resized, win);
+    expect(added![0]).toEqual(legacy);
+    expect(validateBlocks(added!)).toBeNull();
+  });
+
+  it("never drops a block's sports or energy when moving or resizing it", () => {
+    const day: AvailabilityBlock[] = [
+      { start: "18:00", end: "19:00", mins: 60, energy: "full", sports: ["Run"] },
+    ];
+    for (const next of [
+      moveBlock(day, 0, 30, win),
+      resizeBlock(day, 0, "end", 30, win),
+    ]) {
+      expect(next[0].energy).toBe("full");
+      expect(next[0].sports).toEqual(["Run"]);
+    }
+  });
+});

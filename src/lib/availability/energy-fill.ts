@@ -31,7 +31,7 @@ export const ENERGY_ALPHA: Record<Energy, number> = {
 /**
  * The second channel, as a COUNT. The first version painted the day strip's
  * notch only on `full`, which left `easy` and `normal` distinguishable by
- * nothing but two alpha steps of the same hue — 1.36:1 in light, 1.51:1 in
+ * nothing but two alpha steps of the same hue — 1.37:1 in light, 1.51:1 in
  * dark, both under the 3:1 WCAG asks of a meaningful graphical distinction.
  * The pill carries no text, so there was no other way to tell them apart.
  * Counting the notches gives every tier a shape as well as a density.

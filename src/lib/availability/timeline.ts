@@ -234,9 +234,15 @@ function withTimes(
   endMin: number
 ): AvailabilityBlock {
   // `mins` is derived from the CLAMPED clocks, never from the raw arguments.
-  // Those two disagreed at the end-of-day wall and `validateBlocks` admits the
-  // disagreement, so it would have persisted: `blockMins` prefers the clocks,
-  // but `mins` is what a legacy reader sees.
+  //
+  // Belt and braces, and honestly labelled as such: `trackWindow`'s cap at
+  // LAST_MINUTE_OF_DAY is what actually stops the two diverging, so no input
+  // reachable through this module's public API can tell the difference — a
+  // mutation swapping this back for `endMin - startMin` does NOT fail the
+  // suite, which is how it was found. It stays because `validateBlocks`
+  // admits a `mins` that disagrees with the clock range, `blockMins` prefers
+  // the clocks while a legacy reader sees `mins`, and anything that later
+  // lifts the cap would reintroduce the divergence silently.
   const start = toClock(startMin);
   const end = toClock(endMin);
   return { ...b, start, end, mins: toMins(end) - toMins(start) };
