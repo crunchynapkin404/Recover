@@ -59,7 +59,7 @@ stop, so it gets factored into a shared helper first.
 - Consumes: `CSS_PATH` (already exported from this module).
 - Produces: `readPrefixedThemeTokens(css: string, prefix: string): Record<string, string>` — keys are full token names including the `--`, values are the raw declaration text with surrounding whitespace trimmed. Throws if there is no `@theme inline` block. Returns `{}` for a prefix with no declarations (unlike `readScaleTokens`, which throws — an empty motion scale is a legitimate "before" state that Task 2's test depends on).
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `src/lib/design/tokens.test.ts`:
 
@@ -112,12 +112,12 @@ describe("readPrefixedThemeTokens", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run src/lib/design/tokens.test.ts`
 Expected: FAIL — `readPrefixedThemeTokens is not a function` (no such export).
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 Add to `src/lib/design/tokens.ts`, directly beneath `readScaleTokens`:
 
@@ -157,12 +157,12 @@ export function readPrefixedThemeTokens(
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run src/lib/design/tokens.test.ts`
 Expected: PASS, 5 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/design/tokens.ts src/lib/design/tokens.test.ts
@@ -187,7 +187,7 @@ drift apart invisibly."
 - Consumes: `readPrefixedThemeTokens` from Task 1, `CSS_PATH` from `src/lib/design/tokens`.
 - Produces: ten CSS custom properties — `--duration-feedback`, `--duration-motion`, `--duration-transition`, `--duration-reveal`, `--duration-loop`, `--duration-drift`, `--ease-standard`, `--ease-settle`, `--ease-draw`, `--ease-spring`. Later slices reference them as the Tailwind utilities `duration-feedback`, `ease-settle`, and so on.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/motion-scale-guard.test.ts`:
 
@@ -269,13 +269,13 @@ describe("the motion scale exists", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/motion-scale-guard.test.ts`
 Expected: FAIL — the first test reports `{}` against the six expected
 durations, because no motion tokens exist yet.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 In `src/app/globals.css`, inside `@theme inline`, immediately after the
 `--spacing-12: 3rem;` line and before the block's closing `}`, add:
@@ -306,7 +306,7 @@ In `src/app/globals.css`, inside `@theme inline`, immediately after the
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 ```bash
 npx prettier --write src/app/globals.css
@@ -314,7 +314,7 @@ npx vitest run tests/motion-scale-guard.test.ts
 ```
 Expected: PASS, 3 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/app/globals.css tests/motion-scale-guard.test.ts
@@ -340,7 +340,7 @@ just documented."
 **Interfaces:**
 - Produces: three exported `RegExp`s with the `g` flag — `HANDWRITTEN_MOTION` (CSS duration/easing literals), `TRANSITION_ALL` (the Tailwind utility), `NUMERIC_DURATION` (Tailwind's `duration-<number>` utilities). Task 4 imports all three.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `src/lib/design/motion-scale-patterns.test.ts`:
 
@@ -405,12 +405,12 @@ describe("NUMERIC_DURATION", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run src/lib/design/motion-scale-patterns.test.ts`
 Expected: FAIL — cannot resolve `./motion-scale-patterns`.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 Create `src/lib/design/motion-scale-patterns.ts`:
 
@@ -451,7 +451,7 @@ export const TRANSITION_ALL = /\btransition-all\b/g;
 export const NUMERIC_DURATION = /\bduration-\d+\b/g;
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run src/lib/design/motion-scale-patterns.test.ts`
 Expected: PASS, 9 tests.
@@ -464,7 +464,7 @@ it — the block is already located by `readPrefixedThemeTokens`. Prefer the
 fallback over a pattern nobody can read; record which you chose in the commit
 message.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/design/motion-scale-patterns.ts src/lib/design/motion-scale-patterns.test.ts
@@ -501,7 +501,7 @@ without running anything: `src/app/login/page.tsx:102`,
 `src/components/coach/artifact-card.tsx:156`,
 `src/components/ui/bottom-sheet.tsx:206`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `tests/motion-scale-guard.test.ts`, and **extend the existing
 `node:fs` import** at the top of the file rather than adding a second one —
@@ -629,7 +629,7 @@ describe("the motion ratchet", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it reports the real counts**
+- [x] **Step 2: Run test to verify it reports the real counts**
 
 Run: `npx vitest run tests/motion-scale-guard.test.ts`
 Expected: PASS. If any ceiling assertion fails, **do not adjust the code to
@@ -638,7 +638,7 @@ the ceiling to it, then note the corrected number in the commit message. The
 numbers above were measured at `d7b1e17`; a concurrent session may have moved
 the tree.
 
-- [ ] **Step 3: Verify the ratchet actually bites**
+- [x] **Step 3: Verify the ratchet actually bites**
 
 Temporarily add `transition-all` to any one `className` in
 `src/components/ui/badge.tsx`, then:
@@ -650,7 +650,7 @@ re-run to confirm PASS.
 
 A guard that has never been seen to fail is a guard nobody has tested.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add tests/motion-scale-guard.test.ts
@@ -686,7 +686,7 @@ and the rest).
 - Consumes: `readPrefixedThemeTokens` from Task 1.
 - Produces: nothing new; removes seven declarations.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `tests/motion-scale-guard.test.ts`:
 
@@ -722,7 +722,7 @@ describe("the spacing scale is the scale the app runs", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/motion-scale-guard.test.ts -t "spacing scale"`
 Expected: FAIL — seven no-ops listed: `--spacing-1` … `--spacing-12`.
@@ -730,7 +730,7 @@ Expected: FAIL — seven no-ops listed: `--spacing-1` … `--spacing-12`.
 That failure is the proof the removal is safe. Every listed token computes
 what the default already gives, so deleting them cannot move a pixel.
 
-- [ ] **Step 3: Remove them**
+- [x] **Step 3: Remove them**
 
 In `src/app/globals.css`, delete these eight lines (the comment and the seven
 declarations) from inside `@theme inline`:
@@ -761,7 +761,7 @@ and replace with a comment recording what the scale actually is:
      halves of this. */
 ```
 
-- [ ] **Step 4: Run the tests**
+- [x] **Step 4: Run the tests**
 
 ```bash
 npx prettier --write src/app/globals.css
@@ -769,7 +769,7 @@ npx vitest run tests/motion-scale-guard.test.ts
 ```
 Expected: PASS, all assertions including the two new ones.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/app/globals.css tests/motion-scale-guard.test.ts
@@ -795,7 +795,7 @@ tests assert the tokens exist; only a capture proves the app did not move.
 
 **Files:** none modified. This task produces evidence.
 
-- [ ] **Step 1: Run the whole suite with a database**
+- [x] **Step 1: Run the whole suite with a database**
 
 ```bash
 set -a; . ./.env; set +a
@@ -806,7 +806,7 @@ plus this slice's new tests. The expected fail is
 `type-scale-guard.test.ts`'s surviving `it.fails` — it stays failing until
 slice 7, and a run where it *passes* is the signal to flip it, not a problem.
 
-- [ ] **Step 2: Start the app**
+- [x] **Step 2: Start the app**
 
 ```bash
 BETTER_AUTH_URL=http://localhost:3210 npm run dev -- --port 3210
@@ -815,7 +815,7 @@ BETTER_AUTH_URL=http://localhost:3210 npm run dev -- --port 3210
 If it hangs with no error, read the startup banner for the inferred workspace
 root before debugging anything else.
 
-- [ ] **Step 3: Seed, then capture**
+- [x] **Step 3: Seed, then capture**
 
 ```bash
 SEED_DEMO=1 npx tsx scripts/seed-availability.ts
@@ -827,7 +827,7 @@ Seeding is not optional: without `seed-availability.ts` the
 `train-availability` surface photographs seven blank tracks, which is how
 v0.124.0-rc.1 nearly shipped a picture of nothing.
 
-- [ ] **Step 4: Open the pictures — all of them**
+- [x] **Step 4: Open the pictures — all of them**
 
 Compare against the v0.124.0 capture set. **The expected diff is empty.** A
 non-empty diff means a token collided with a Tailwind built-in or the spacing
@@ -837,12 +837,12 @@ Open every surface, not the ones you expect to have changed. Four defects
 reached a green pipeline on the last release and a human looking at a picture
 caught all four.
 
-- [ ] **Step 5: Confirm the axe ceiling held**
+- [x] **Step 5: Confirm the axe ceiling held**
 
 Expected: **0 confirmed violations.** The ratchet ceiling is 0 and has never
 been raised.
 
-- [ ] **Step 6: Tick this plan's checkboxes and commit**
+- [x] **Step 6: Tick this plan's checkboxes and commit**
 
 The plan document is already on the branch (committed before execution
 began), so this commit records the run, not the plan.
@@ -885,3 +885,68 @@ knows what it inherits:
 slice's captures are clean — the same per-slice rhythm 2b.4 used
 (`docs/plans/2026-08-1[23]-v099-slice*.md`), so a defect found after deploy
 costs one `git revert` rather than the release.
+
+
+---
+
+## Outcome — run 2026-08-30, all six tasks complete
+
+**Suite:** 3316 passed, 1 expected fail, 1 skipped (3318). Up 26 from the
+v0.124.0 baseline of 3290; the expected fail is `type-scale-guard.test.ts`'s
+surviving `it.fails`, which stays failing until slice 7. `tsc --noEmit` clean.
+
+**Captures:** 100 PNGs over ~40 surfaces in both themes and both viewports,
+`.screenshots/polish-slice0/`. **Confirmed axe violations: 0** — the ratchet
+ceiling held and was not raised.
+
+22 surfaces recorded capture errors, all fixture gaps in the dev database and
+none a rendering defect: `first-run-*` (16) needs a dataless account and this
+one has data; `train-plan-preview` (4) needs a draft plan; `activity-detail`
+and `debrief-sheet` (6, overlapping) need an activity to exist. The run still
+exited 0.
+
+**The no-op claim, proven at the compiler rather than by eye.** No full
+v0.124.0 capture set exists on disk to diff against — every earlier set is a
+4-image `--only=train` run — so a picture diff was not available. A stronger
+check was: only `globals.css` can reach the screen (the other new files are
+imported by tests alone), so the entire stylesheet was compiled through
+`@tailwindcss/postcss` at `b331578` and at HEAD and the two outputs diffed in
+full.
+
+- **120 changed declarations, all computing identically, zero mismatches.**
+  Every one is a spacing utility moving from an inlined literal to
+  `calc(var(--spacing) * n)` — `padding: 1rem` → `calc(var(--spacing) * 4)`
+  — and Tailwind emits its own `--spacing: 0.25rem`, so each resolves to
+  exactly the value it had.
+- **One token-block hunk:** 7 spacing keys out, 10 motion tokens in. Custom
+  properties only; no rule references them yet.
+- **One new dead rule:** `.ease-settle` (4 lines), generated because the token
+  name appears in the new source *text* — Tailwind scans comments and test
+  files as class candidates. No element carries that class, so it cannot
+  render; slice 1 makes it real. Worth recording as the same family as
+  `viewport-zoom-guard.test.ts`'s bare-word matching: writing a utility name
+  in prose has effects in this repo.
+- **`.ease-out` in the output is still bound to Tailwind's own `--ease-out`.**
+  That is the naming decision working, visible in the compiled artefact rather
+  than argued from the spec.
+
+Nothing else in 136,689 bytes of compiled CSS differs. A stylesheet whose only
+changes are unused custom properties, arithmetically identical spacing, and a
+rule no element carries cannot render differently.
+
+**Two errors the ratchet caught in this plan, on its first run** — recorded
+because both were mine and both would have been pinned in as if real:
+
+1. The CSS ceiling was predicted at 16 from `grep -c`, which counts matching
+   **lines**. The guard counts occurrences: 16 lines carry 25 literals,
+   because a `transition:` shorthand spells a duration and a curve on one
+   line. Re-pinned to 25; all 25 read back individually to confirm none is
+   prose.
+2. `transition-all` came out at 19, not 17, because the scan was counting the
+   **patterns module itself** — `/\btransition-all\b/` necessarily contains
+   the literal it hunts for, and so does its doc comment.
+   `type-scale-patterns.ts` never hit this because its patterns are shapes
+   that spell no literal. The module is now excluded from its own scan.
+
+**Ceilings as they stand for slice 1 to drive down:** `globals.css motion
+literals` 25, `transition-all` 17, `numeric duration utilities` 4.
