@@ -60,7 +60,7 @@ export function ActivityLogForm() {
                 onClick={() =>
                   setSelectedSport(selectedSport === s.label ? "" : s.label)
                 }
-                className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-caption transition-all ${
+                className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-caption transition-[color,background-color,box-shadow] ${
                   selectedSport === s.label
                     ? "bg-accent/20 ring-2 ring-accent text-ink-primary"
                     : "bg-surface-selected text-ink-secondary hover:bg-surface-overlay"
@@ -245,7 +245,7 @@ export function ActivityLogForm() {
         <button
           type="submit"
           disabled={pending}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-accent px-6 py-3 font-bold text-accent-foreground transition-all hover:opacity-90 disabled:opacity-50"
+          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-accent px-6 py-3 font-bold text-accent-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
         >
           {pending ? "Saving…" : "Log Activity"}
         </button>

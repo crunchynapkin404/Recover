@@ -329,7 +329,7 @@ export function ChatInterface({
           </p>
           <Link
             href="/settings"
-            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-accent px-6 py-3 font-bold text-accent-foreground transition-all hover:bg-accent/90"
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-accent px-6 py-3 font-bold text-accent-foreground transition-colors hover:bg-accent/90"
           >
             Configure AI Coach
           </Link>

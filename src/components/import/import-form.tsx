@@ -145,7 +145,7 @@ export function ImportForm() {
           <button
             type="submit"
             disabled={pending || rowCount == null || rowCount === 0}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-accent px-6 py-3 font-bold text-accent-foreground transition-all hover:opacity-90 disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-accent px-6 py-3 font-bold text-accent-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
           >
             {pending
               ? "Importing…"

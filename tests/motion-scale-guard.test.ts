@@ -197,10 +197,11 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // its own migration — and all 25 were read back individually to confirm
   // none is prose caught by the scan.
   "globals.css motion literals": 0,
-  // Includes ui/button.tsx's base cva string, which animates every property a
-  // button has — including the `:active` translate-y, which is why presses
-  // read slightly late.
-  "transition-all": 17,
+  // 0 — slice 1 replaced every one with the properties that actually change
+  // at that call site. Was 17, including ui/button.tsx's base cva string,
+  // which animated every property a button has — the `:active` translate-y
+  // included, which is why presses read slightly late.
+  "transition-all": 0,
   // 0 — slice 1 moved all four onto token-named utilities. Was 4 at d7b1e17:
   // login/page.tsx:102, ui/collapsible.tsx:38, coach/artifact-card.tsx:156,
   // ui/bottom-sheet.tsx:206.

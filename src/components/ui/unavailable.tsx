@@ -44,7 +44,7 @@ export function Unavailable({
         <EmptyState icon={CircleDashed} message={text} />
         <Link
           href={fix.href}
-          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-accent px-6 py-3 font-bold text-accent-foreground transition-all hover:bg-accent/90"
+          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-accent px-6 py-3 font-bold text-accent-foreground transition-colors hover:bg-accent/90"
         >
           {fix.label}
         </Link>

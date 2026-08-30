@@ -107,7 +107,7 @@ export function JoinForm({ code, inviteEmail }: Props) {
         <button
           type="submit"
           disabled={pending || signingIn}
-          className="rounded-xl bg-accent py-3 font-bold text-accent-foreground transition-all hover:opacity-90 disabled:opacity-50"
+          className="rounded-xl bg-accent py-3 font-bold text-accent-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
         >
           {pending ? "Creating account…" : signingIn ? "Signing in…" : "Join"}
         </button>

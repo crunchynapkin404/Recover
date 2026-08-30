@@ -48,7 +48,7 @@ export function InviteManager({ invites }: Props) {
         <button
           type="submit"
           disabled={pending}
-          className="rounded-xl bg-accent px-4 py-2.5 text-caption font-bold text-accent-foreground transition-all hover:opacity-90 disabled:opacity-50"
+          className="rounded-xl bg-accent px-4 py-2.5 text-caption font-bold text-accent-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
         >
           {pending ? "Creating…" : "New invite"}
         </button>

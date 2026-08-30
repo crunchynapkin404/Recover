@@ -153,7 +153,7 @@ export function ArtifactCard({ spec }: { spec: ChartSpec }) {
 
   return (
     <div
-      className={`glass overflow-hidden rounded-2xl transition-all duration-motion ${expanded ? "h-80" : "h-20"}`}
+      className={`glass overflow-hidden rounded-2xl transition-[height] duration-motion ${expanded ? "h-80" : "h-20"}`}
     >
       <button
         type="button"

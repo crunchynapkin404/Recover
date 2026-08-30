@@ -320,7 +320,7 @@ export function JournalForm({
                     setSelectedMood(selectedMood === i ? null : i);
                     setActiveStep("sliders");
                   }}
-                  className={`text-heading transition-all ${
+                  className={`text-heading transition-[filter,box-shadow] ${
                     selectedMood === i
                       ? "rounded-full ring-2 ring-accent p-1"
                       : "grayscale hover:grayscale-0"
@@ -695,7 +695,7 @@ export function JournalForm({
         <button
           type="submit"
           disabled={pending}
-          className="w-full rounded-2xl bg-accent py-4 font-bold text-primary-foreground transition-all hover:opacity-90 disabled:opacity-50"
+          className="w-full rounded-2xl bg-accent py-4 font-bold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
         >
           {pending ? "Saving…" : `Save check-in for ${selectedDate}`}
         </button>
