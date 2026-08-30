@@ -373,6 +373,17 @@ function DayTrack({
         data-track={day}
         className="relative h-9 rounded-lg bg-surface-overlay"
       >
+        {/* A day whose only blocks are UNTIMED renders no pills, and used to
+            leave a blank bar that reads as broken rather than as "this day has
+            time, it just has no hour yet". Every athlete whose standard week
+            predates v0.124.0 is in exactly that state, so it is the first
+            thing they see. Not interactive: the chip below is the affordance,
+            and a second control here would be two ways to say one thing. */}
+        {placed.length === 0 && untimed.length > 0 && (
+          <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-label text-ink-muted">
+            No time set
+          </span>
+        )}
         {/* THE PILL CARRIES NO TEXT, and that is a finding from the capture,
             not an oversight. At the 44px floor — which is where every block
             under ~2h20m lands — a duration renders as "1h 00…" and an
@@ -498,11 +509,11 @@ function DayTrack({
               <button
                 type="button"
                 data-untimed={idOf(day, i)}
-                aria-label={`${describeBlock(dayName, b)} — set a time`}
+                aria-label={`Set a time for ${describeBlock(dayName, b)}`}
                 onClick={() => onOpenDay(day)}
-                className="scroll-mb-52 rounded-full border border-hairline bg-surface-overlay px-2 py-0.5 text-label text-ink-secondary"
+                className="scroll-mb-52 rounded-full border border-accent bg-surface-overlay px-2 py-0.5 text-label font-bold text-accent"
               >
-                {formatAvailability(blockMins(b))}
+                {formatAvailability(blockMins(b))} · set a time
               </button>
             </li>
           ))}

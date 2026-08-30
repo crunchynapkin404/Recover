@@ -113,6 +113,25 @@ describe("AvailabilityTimeline", () => {
     expect(html).toContain('aria-label="Edit Monday precisely"');
   });
 
+  // An untimed day rendered as a BLANK TRACK with a bare duration chip below
+  // it, which reads as broken rather than as "these have no time yet". Every
+  // athlete whose standard week predates v0.124.0 has exactly this state, so
+  // it is the first thing they see. Found by opening the rc.1 soak capture.
+  it("says a day has time with no hour set, rather than rendering blank", () => {
+    const week = emptyWeek();
+    week[0] = [
+      { start: null, end: null, mins: 95, energy: "normal", sports: null },
+    ];
+    const html = render(week);
+    expect(html).toContain("No time set");
+    expect(html).toContain('aria-label="Set a time for Monday 1h 35m, normal"');
+  });
+
+  it("says nothing of the sort on a genuinely empty day", () => {
+    const html = render(emptyWeek());
+    expect(html).not.toContain("No time set");
+  });
+
   // Decision 2: an untimed legacy block has no position and must not be
   // given an invented one, but it must not vanish either.
   it("lists an untimed legacy block under its track rather than placing it", () => {

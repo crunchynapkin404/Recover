@@ -1169,13 +1169,27 @@ function generateTriathlonWorkouts(
 /**
  * Seeds a standard week for a brand-new athlete so rolloverWeekPlan never
  * silently resolves to an all-rest week for someone who has never touched
- * Settings → Availability. Spreads hoursPerWeek across the last
- * daysPerWeek days of the week (Sunday backwards), one untimed block per
- * training day — the same shape migration 0031's fallback produces, and
- * the same shape the deleted prefillAvailability produced for a fresh
- * athlete, so a backfilled athlete and a newly created one end up
- * consistent. Never touches a day the athlete already configured: rows are
- * inserted only where no (userId, weekday) row exists yet.
+ * Settings → Availability. Spreads hoursPerWeek across the last daysPerWeek
+ * days of the week (Sunday backwards), one block per training day. Never
+ * touches a day the athlete already configured: rows are inserted only where
+ * no (userId, weekday) row exists yet.
+ *
+ * THE BLOCKS CARRY REAL CLOCK TIMES (v0.124.0). They used to be duration-only
+ * (`start: null`) — the shape migration 0031's fallback produces and the one
+ * the deleted prefillAvailability produced, chosen so a backfilled athlete and
+ * a new one matched. The availability drag-timeline cannot place a block with
+ * no start: it has no position, and inventing one at render time would
+ * fabricate data the athlete never entered. So the old shape meant every
+ * athlete on the DEFAULT path — anyone who had not hand-set times — opened the
+ * timeline to seven blank tracks. That is the whole feature, invisible to
+ * exactly the people it was built for.
+ *
+ * An evening start is the guess, because it is the one most athletes' training
+ * actually takes; a long day starts early enough to finish by the end of the
+ * timeline's window, and it is a guess the athlete can now correct by dragging
+ * rather than by opening a modal per day. Duration is unchanged, so the engine
+ * sees exactly what it saw before: `blockMins` reads the clocks when present
+ * and `mins` otherwise, and both give the same number here.
  */
 async function seedAvailabilityDefaults(
   userId: string,
@@ -1187,15 +1201,33 @@ async function seedAvailabilityDefaults(
     daysPerWeek > 0
       ? Math.max(0, Math.round((hoursPerWeek * 60) / daysPerWeek / 5) * 5)
       : 0;
+  // Inside the timeline's own 05:00-23:00 window, so a seeded block is on
+  // screen and draggable the first time the sheet is opened. Evening by
+  // default; a day long enough to overrun 23:00 starts earlier instead of
+  // being clipped.
+  const DAY_END_MIN = 23 * 60;
+  const DAY_START_FLOOR_MIN = 5 * 60;
+  const PREFERRED_START_MIN = 18 * 60;
+  const startMin = Math.max(
+    DAY_START_FLOOR_MIN,
+    Math.min(PREFERRED_START_MIN, DAY_END_MIN - perDayMins)
+  );
+  const clock = (mins: number) =>
+    `${String(Math.floor(mins / 60)).padStart(2, "0")}:${String(mins % 60).padStart(2, "0")}`;
+
   const rows = Array.from({ length: 7 }, (_, weekday) => ({
     userId,
     weekday,
+    // perDayMins can round to 0 for a very small hoursPerWeek, and a
+    // zero-length block is one `validateBlocks` rejects. A rest day is the
+    // honest representation of "no time", and it is what the old untimed
+    // shape effectively meant anyway.
     blocks:
-      daysPerWeek > 0 && weekday >= 7 - daysPerWeek
+      daysPerWeek > 0 && weekday >= 7 - daysPerWeek && perDayMins > 0
         ? [
             {
-              start: null,
-              end: null,
+              start: clock(startMin),
+              end: clock(startMin + perDayMins),
               mins: perDayMins,
               energy: "normal" as const,
               sports: null,
