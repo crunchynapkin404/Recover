@@ -583,3 +583,145 @@ including before either slice started. That is not the ~74% cut the spec
 promised. It is a genuine, evidenced, roughly 60% cut on scroll length and
 a real cut on control count, with the rest of the gap named rather than
 hidden.
+
+---
+
+## Slice 3 — the availability sheet, 2026-08-28
+
+Slice 3 replaced the availability sheet's seven-rows-and-a-modal form with a
+drag-timeline. It does not touch the Train ▸ Week page, so the page's own
+numbers are unchanged and are reproduced below only as the method's control.
+
+Same method, same selector, same three-way split, phone viewport (390×844),
+same ad hoc Playwright pass (not committed, as before). **Both columns were
+measured against the same fixture in the same hour**, from two dev servers —
+`main` at 3f122f7 and this branch — because the "before" number for a sheet
+nothing had ever measured could not be read off any earlier section here.
+
+The fixture needed one addition, and the reason is worth naming — an earlier
+draft of this section got it wrong and said `seed-demo.ts` seeds legacy
+untimed blocks. It does not: **nothing in `scripts/` seeded availability at
+all.** The untimed blocks (`start: null`, duration only) live in
+`availability_defaults` rows already in the dev database. The timeline
+correctly declines to place a block with no position, so against that state it
+renders seven empty tracks and the surface looks broken while being right, and
+against a _fresh_ database it renders nothing at all. Real timed blocks were
+seeded by hand for both columns; `scripts/seed-availability.ts` now does it
+reproducibly, and `train-availability` requires it.
+
+| Surface                                       | surface | in-sheet | tabs | appChrome | hidden/disabled | scroll |
+| --------------------------------------------- | ------: | -------: | ---: | --------: | --------------: | -----: |
+| Train ▸ Week (control, sheet closed) — before |      16 |        0 |    3 |         5 |               7 |   1.75 |
+| Train ▸ Week (control, sheet closed) — after  |      16 |        0 |    3 |         5 |               7 |   1.75 |
+| **Availability sheet — before (slice 2)**     |      34 |   **17** |    3 |         5 |              45 |   0.84 |
+| **Availability sheet — after (slice 3)**      |      48 |   **31** |    3 |         5 |              57 |   1.09 |
+
+**`appChrome` came out 5 on all four rows** — the method's own check,
+satisfied.
+
+**Read the `in-sheet` column, not `surface`.** With a sheet open,
+`BottomSheet` sets `inert` on `[data-app-background]`, and `inert` does not
+change `checkVisibility()` — so the 17 background controls counted in
+`surface` are visible to the DOM and pressable by nobody. That is a flaw in
+applying this method to a modal surface, found here; the honest figure for
+what an athlete can act on is the in-sheet count.
+
+### What it says
+
+**Choice load went UP, 17 → 31, and the sheet got longer, 0.84 → 1.09
+screens.** Direct manipulation is not free: every day gained a `+` and an
+"edit precisely" control (14 of the 14 added), where the old list gave each
+day a single row button that opened a modal.
+
+**This is slice 1's lesson in a smaller frame, and it is not the same
+mistake.** Slice 1 added a verdict, a strip and figures while removing
+nothing, and its own spec had predicted that. Here the added controls buy
+something the count cannot see: a week's availability is now editable
+without opening a modal at all, which is the write path the athlete uses
+**every single week** and the reason this slice was prioritised over the
+`ⓘ` work and the two remaining page blocks.
+
+**One reduction was tried and reverted, and the reason is worth keeping.**
+Moving "edit precisely" from per-day to per-selection is what the spec
+actually asks for ("reachable from the selected block") and would have taken
+31 → 24. It was reverted because on a **Rest** day there is no block to
+select, so `BlockSheet` — which the spec calls "the precise and assistive
+path" — became unreachable without first creating a block by other means.
+Trading the assistive path for seven controls is the wrong direction, and
+the spec's own sentence ("if the keyboard path is not done, the feature is
+not done") is the tiebreak. The count is reported as it is.
+
+**What could still take it down honestly**, for whoever picks this up: the
+`Pinned ×` badge renders per pinned day and is a control (up to 7). It is a
+_status_ that happens to be pressable. A single "back to standard week"
+control acting on the whole week, with the badge demoted to a non-interactive
+mark, would cut up to six controls without removing any capability — and
+would fix the row crowding the capture shows, where day, summary, badge, `+`
+and edit share one line and the summary truncates.
+
+### What the capture found that 3270 passing tests could not
+
+Recorded because both defects were invisible to the suite and obvious in the
+artifact — the same pattern the v0.123 handoff names.
+
+1. **The availability sheet had no capture surface at all.** Slice 2 moved
+   the whole form into it, which silently removed the app's most-used write
+   path from the photographed set: `train` renders a summary row where the
+   form used to be, so every gate stayed green over a surface nothing looked
+   at. Now `train-availability` in `scripts/verify-surfaces.ts` — with the
+   `sheetOpenGuard` every other sheet surface already used, without which it
+   would have photographed the ordinary Train tab under this name and passed.
+2. **The pill's label was an ellipsis at every real width.** At the 44 px
+   floor — where every block under ~2h20m lands — "1h 00m" renders as
+   "1h 00…". The numbers moved to the day summary line, which has full width;
+   the pill is a mark now, like the day strip's bars.
+
+### And what a whole-branch review found that the capture also could not
+
+A dimension-based adversarial pass over the finished branch — composition
+seams, pure geometry, accessibility, the pointer state machine — surfaced
+twelve further defects, all fixed. Recorded because the pattern is the point:
+every one of them lived in a case the tests exercised only at its happy path.
+
+- **The track was never full-bleed.** `-mx-4` was paired with a `px-4` that
+  restored exactly what it pulled out, so the real track was 306 px against a
+  layout computed for 342 — and a container narrower than nominal is the one
+  case a CSS `min-width` backstop cannot absorb, so adjacent pills overlapped
+  and one block's resize handle sat under its neighbour. The measured width is
+  **338 px** (342 forgot two 1 px borders), and the CSS floor is gone: the
+  percentages carry it, so the layout scales as one piece and cannot overlap
+  at any width. At 18.8 px/hour the floor flattens everything under ~2h20m.
+- **A 3 px tap wobble committed a 15-minute move.** One pixel is ~3.2 minutes
+  and `snap()` rounds to the quarter hour, so ordinary touch jitter edited the
+  week silently — Android's touch slop alone is 8 px. There is a drag
+  threshold now.
+- **Every resize ended by unmounting its own handles.** The compatibility
+  `click` the browser fires after a drag bubbled from the handle to the pill,
+  whose `onClick` toggles selection. jsdom never synthesises that click, so no
+  test in this repo could have seen it.
+- **A block held against the end of the day eroded a minute per commit.**
+  `trackWindow` rounded up to 24:00 but `toClock` clamps to 23:59, so the two
+  clamps disagreed: the block slid off the 15-minute grid and shrank with no
+  resize gesture, eventually reaching `start === end` — which `validateBlocks`
+  rejects, with the bad value already in the input `IntakeForm` submits.
+- **`addBlock` reported a day full with a two-hour gap open**, because a
+  candidate taken from a neighbour ending at 10:07 was rounded _back_ to
+  10:00, inside that neighbour, and then discarded for clashing.
+- **`layoutDay`'s "guaranteed non-overlapping" was false** once several
+  floored widths outran the track.
+- **Label in Name regressed** (WCAG 2.5.3): the unpin chip reads "Pinned ×"
+  but its new `aria-label` did not contain that text, so "tap Pinned" stopped
+  working for voice control — something that worked on `main`.
+- **`easy` and `normal` were told apart by fill alone at 1.37:1**, because the
+  notch was painted only on `full` and the pill carries no text. The notch is
+  a count now: none, one, two.
+- **A vertical swipe starting on a pill did nothing at all** — `touch-action:
+pinch-zoom` forbids every single-finger pan, not just the horizontal one,
+  and the touch guards killed the sheet's own drag-to-dismiss. On a sheet 1.09
+  screens tall, mostly covered by pills. Both were removed; the drag threshold
+  is what makes doing nothing correct.
+- **A second finger hijacked an in-flight drag**, since the gesture ref stored
+  no `pointerId`.
+
+0 confirmed axe defects across both themes and both viewports, before and
+after those fixes. The ratchet ceiling stayed at **0**.

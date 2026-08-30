@@ -239,7 +239,11 @@ describe("AvailabilityWeekSwitcher", () => {
     // block — a real edit made through the actual IntakeForm + BlockSheet
     // component tree, not a stand-in.
     const monBtn = Array.from(thisForm().querySelectorAll("button")).find(
-      (b) => b.querySelector("span")?.textContent === "Mon"
+      (b) =>
+        // Slice 3: the day list became AvailabilityTimeline, so a day is
+        // opened from its own "edit precisely" control rather than by
+        // tapping a row. Same behaviour under test, new affordance.
+        b.getAttribute("aria-label") === "Edit Monday precisely"
     );
     if (!monBtn) throw new Error("no Monday row in this week's form");
     await act(async () => {
@@ -332,5 +336,40 @@ describe("AvailabilityWeekSwitcher", () => {
     expect(html).not.toMatch(/text-white\//);
     expect(html).not.toMatch(/bg-white\//);
     expect(html).not.toMatch(/border-white\//);
+  });
+
+  /**
+   * Slice 3 doubled what "both weeks always mounted" costs. The day list was
+   * eight controls per week; AvailabilityTimeline is sixteen, and one of them
+   * is a drag surface. Both weeks' timelines are in the DOM at once, so the
+   * inactive week's controls must be inside the `[hidden]` subtree — that is
+   * what takes them out of the tab order AND the accessibility tree, and
+   * without it Tab from this week's Sunday walks into next week's Monday
+   * with nothing on screen to explain where focus went.
+   *
+   * Asserted structurally rather than via computed style on purpose: jsdom
+   * has no layout, so `checkVisibility`/`offsetParent` cannot answer this —
+   * containment in a `[hidden]` ancestor is the same fact the browser acts
+   * on, and it is checkable here.
+   */
+  it("keeps the inactive week's timeline controls inside the hidden subtree", async () => {
+    await render();
+
+    const inactive = nextForm();
+    expect(isHidden(inactive)).toBe(true);
+    const controls = Array.from(
+      inactive.querySelectorAll("button, [data-block], [data-handle]")
+    );
+    expect(controls.length).toBeGreaterThan(0);
+    for (const el of controls) {
+      expect(el.closest("[hidden]")).not.toBeNull();
+    }
+
+    // And the mirror, so this cannot pass by everything being hidden.
+    const active = thisForm();
+    expect(isHidden(active)).toBe(false);
+    expect(
+      Array.from(active.querySelectorAll("button")).length
+    ).toBeGreaterThan(0);
   });
 });

@@ -21,9 +21,16 @@ function ymd(d: Date): string {
  * — and the AVAILABILITY_USER test further down for proof this narrowing
  * still holds against a fixture where NextWeekSummary's rows actually
  * render, not just one where they happen not to.
+ *
+ * SLICE 3 CHANGED THE MARKUP THIS MATCHES, NOT WHAT IT IS FOR. IntakeForm's
+ * day list became `AvailabilityTimeline`, whose weekday label carries the
+ * same class list with a `shrink-0` prefix. The discrimination this pattern
+ * exists for is unaffected: `DayRow`'s span is `w-10 shrink-0 …
+ * tracking-[0.15em] …`, so it still differs by BOTH its `w-10` prefix and
+ * its `tracking-*` value, and an exact-list match still tells the two apart.
  */
 const INTAKE_FORM_WEEKDAY_SPAN =
-  /<span class="text-label font-bold uppercase tracking-wider text-ink-muted">(Mon|Tue|Wed|Thu|Fri|Sat|Sun)</g;
+  /<span class="shrink-0 text-label font-bold uppercase tracking-wider text-ink-muted">(Mon|Tue|Wed|Thu|Fri|Sat|Sun)</g;
 
 /**
  * Matches ONLY the "Availability" `SummaryRow`'s own label span (I2, final

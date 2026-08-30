@@ -217,8 +217,9 @@ phase written as a checklist becomes a tweak list:
       plus dev-server link-prefetch. Flow and friction, and visual polish,
       are unblocked by this: the top level is settled and Today's morning
       grid is not moving.
-- [ ] **Flow and friction.** The multi-step journeys: confirm a week, plan a
-      season, debrief a ride, connect a provider.
+- [x] **Flow and friction.** The multi-step journeys: confirm a week, plan a
+      season, debrief a ride, connect a provider. **Complete in v0.124.0**,
+      three slices.
       **Inventory done** (`docs/2026-08-26-flow-inventory.md`): a structural
       map of the four journeys, and then choice load — how many things an
       athlete can actually press — measured in a real browser at 390x844.
@@ -262,6 +263,25 @@ week`, `Plan setup`, `Races`, `Availability` and the 21-row draft
       pointing at moved content. Each was caught by a different part of the
       release pipeline. That is the argument for keeping a real-browser step
       that no unit test stands in for.
+      **Slice 3, the availability drag-timeline, shipped in v0.124.0.**
+      The third and last slice of this strand: the availability sheet's
+      seven-rows-and-a-modal form became a week of drag-editable time tracks,
+      with arrow-key move/resize and `BlockSheet` kept as the precise and
+      assistive path. It changes the sheet, not the Week page, so Train ▸
+      Week stays at 1.84 screens / 17 controls.
+      **Measured, and one number went the wrong way: the sheet's own choice
+      load rose 17 → 31 and its length 0.84 → 1.09 screens** — every day
+      gained a `+` and an "edit precisely" control. That is what direct
+      manipulation costs, and it buys a write path the athlete uses every
+      single week without opening a modal at all. A reduction to 24 was tried
+      and reverted: moving "edit precisely" onto the selection is what the
+      spec asks for, but on a Rest day there is no block to select, and it
+      made the assistive path unreachable. See the flow inventory's slice 3
+      section for the full table and for what could still come down honestly.
+      The capture found two things 3270 passing tests did not: the
+      availability sheet had **no capture surface at all** since slice 2
+      moved the form into it, and the pill's in-fill label was an ellipsis at
+      every width the 44 px touch floor produces.
       Still open in this strand: the week adjustment that has no path
       (`src/app/train/page.tsx:812` already states the choice — either the
       action re-materializes the open week, or the copy describes the
