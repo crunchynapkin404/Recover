@@ -188,6 +188,40 @@ export function readScaleTokens(css: string): Record<string, number> {
   return out;
 }
 
+/**
+ * Every `--<prefix>*` declaration inside the ONE `@theme inline { … }` block,
+ * as raw strings.
+ *
+ * `readScaleTokens` above does this for `--text-*` and converts to pixels;
+ * this is the same reader for prefixes whose values are not lengths
+ * (durations, easing curves). Factored out rather than copied, for the reason
+ * `src/lib/design/type-scale-patterns.ts` records: two guards that re-spell
+ * the same scan drift apart, and the drift is invisible until something slips
+ * through the narrower copy.
+ *
+ * Returns `{}` — rather than throwing like `readScaleTokens` — for a prefix
+ * with no declarations. An absent scale is a legitimate state a guard may
+ * want to assert about ("these tokens do not exist yet"); an absent `@theme`
+ * block is not, and still throws.
+ */
+export function readPrefixedThemeTokens(
+  css: string,
+  prefix: string
+): Record<string, string> {
+  const block = /^@theme\s+inline\s*\{([\s\S]*?)^\}/m.exec(css);
+  if (!block) {
+    throw new Error(
+      "tokens: no `@theme inline { … }` block in globals.css — the scales " +
+        "live there and this reader would find nothing"
+    );
+  }
+  const out: Record<string, string> = {};
+  const escaped = prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const re = new RegExp(`^[ \\t]*(${escaped}[\\w-]*)\\s*:\\s*([^;]+);`, "gm");
+  for (const m of block[1].matchAll(re)) out[m[1]] = m[2].trim();
+  return out;
+}
+
 export type ThemeTokens = Record<string, string>;
 
 /**
