@@ -114,6 +114,30 @@
   --spacing-6: 1.5rem;
   --spacing-8: 2rem;
   --spacing-12: 3rem;
+
+  /* Motion scale — Phase 6.4. Six durations, four easings, replacing 11
+     hand-written duration spellings of 10 values and 8 easings. Semantic
+     names, for the same reason the type scale above uses them.
+
+     AND NOT TAILWIND'S OWN KEYS. `--ease-in`, `--ease-out`, `--ease-in-out`
+     and `--ease-linear` are Tailwind v4 theme keys: declaring one here does
+     not add a token, it repoints every existing `ease-out` in the app at a
+     curve it was never designed against — a silent, app-wide motion change
+     out of a foundations-only edit. `--ease-settle` costs one word and
+     cannot do that. This is the identical trap the type scale's comment
+     records for `--text-sm`, and tests/motion-scale-guard.test.ts asserts
+     it rather than trusting this paragraph. */
+  --duration-feedback: 120ms; /* colour and opacity under the finger */
+  --duration-motion: 200ms; /* small transforms, pops, chips */
+  --duration-transition: 320ms; /* sheets, panel heights, entrances */
+  --duration-reveal: 1200ms; /* one-shot data draws: rings, sparklines */
+  --duration-loop: 3s; /* ambient breathe / pulse */
+  --duration-drift: 8s; /* the shimmer rotation */
+
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-settle: cubic-bezier(0.21, 1.02, 0.49, 1);
+  --ease-draw: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 /* ── Two themes. :root is light; .dark is dark. ───────────────────────────
