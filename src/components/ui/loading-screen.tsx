@@ -23,7 +23,10 @@ export function LoadingScreen({
 }) {
   return (
     <div role="status" aria-live="polite">
-      <span className="sr-only">Loading {label}…</span>
+      {/* One interpolated string, not three children: adjacent text nodes
+          serialise with `<!-- -->` separators between them, which is noise in
+          the DOM and in any test that reads it. */}
+      <span className="sr-only">{`Loading ${label}…`}</span>
       {children}
     </div>
   );

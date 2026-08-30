@@ -152,12 +152,34 @@ function srcOffenders(pattern: RegExp): string[] {
   return out;
 }
 
-/** Motion literals in globals.css, with the token block itself excluded. */
+/**
+ * Motion literals in globals.css, with two regions excluded.
+ *
+ * The `@theme inline` block is the scale itself — a guard that flags its own
+ * tokens is one nobody can satisfy.
+ *
+ * The `prefers-reduced-motion` block is excluded because its `1ms` values are
+ * NOT scale steps and must never become tokens. They mean "effectively zero",
+ * an accessibility escape hatch deliberately off the scale; giving one a
+ * semantic name would imply it is a duration an athlete experiences. (They
+ * are 1ms rather than 0 for a reason the rule's own comment gives: `none`
+ * cancels, so `transitionend` never fires.)
+ */
 function cssMotionOffenders(): string[] {
-  const text = css().replace(/^@theme\s+inline\s*\{[\s\S]*?^\}/m, "");
+  const text = css()
+    .replace(/^@theme\s+inline\s*\{[\s\S]*?^\}/m, "")
+    .replace(/@media \(prefers-reduced-motion: reduce\) \{[\s\S]*?\n\}/, "")
+    // COMMENTS ARE STRIPPED WHOLESALE, not skipped line-by-line. The
+    // line-by-line version this replaces only skipped lines *starting* with
+    // `*` or `/*`, so the continuation lines of a block comment — which
+    // Prettier formats as plain prose — were scanned as declarations. Writing
+    // "a 1ms duration" in a sentence explaining the reduced-motion rule
+    // failed this guard. That is the same bare-words trap
+    // tests/viewport-zoom-guard.test.ts carries, and a guard prose can trip
+    // is one people work around instead of satisfying.
+    .replace(/\/\*[\s\S]*?\*\//g, "");
   const out: string[] = [];
   text.split("\n").forEach((line, i) => {
-    if (line.trim().startsWith("*") || line.trim().startsWith("/*")) return;
     for (const _ of line.matchAll(new RegExp(HANDWRITTEN_MOTION.source, "g"))) {
       out.push(`globals.css:${i + 1}`);
     }
@@ -359,5 +381,24 @@ describe("routes that await", () => {
     // state, but it is pre-auth and outside AppShell — the spec assigns
     // pre-auth to slice 5, which takes this to 0.
     expect(awaitingWithoutLoading()).toEqual(["src/app/join/[code]/page.tsx"]);
+  });
+});
+
+describe("reduced motion", () => {
+  it("stops motion without cancelling state changes", () => {
+    const rule = /@media \(prefers-reduced-motion: reduce\) \{([\s\S]*?)\n\}/.exec(
+      css()
+    );
+    expect(rule, "the reduced-motion block is gone").not.toBeNull();
+    const body = rule![1];
+    // `animation: none` and `transition: none` cancel outright: an animation
+    // never runs its final frame and a transitionend never fires. The
+    // standard pattern collapses them to 1ms instead, which is not motion
+    // but does complete.
+    expect(body).not.toMatch(/animation:\s*none/);
+    expect(body).not.toMatch(/transition:\s*none/);
+    expect(body).toMatch(/animation-duration:\s*1ms/);
+    expect(body).toMatch(/transition-duration:\s*1ms/);
+    expect(body).toMatch(/animation-iteration-count:\s*1/);
   });
 });

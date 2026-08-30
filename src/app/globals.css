@@ -870,10 +870,24 @@
 }
 
 /* ── Reduced motion ──────────────────────────────────────────────────────── */
+/* 1ms rather than `none`. `animation: none` and `transition: none` CANCEL: an
+   animation never reaches its final frame, and `transitionend` never fires,
+   so any component keyed on completion silently stalls. That duration is not
+   motion by any reasonable reading, and it completes.
+
+   This also used to stop `.animate-pulse` dead, which left a reduced-motion
+   athlete looking at a static grey page with no indication anything was
+   loading — motion was the only carrier of that state. `LoadingScreen` now
+   speaks it, which is what makes softening this safe rather than merely
+   nicer. tests/motion-scale-guard.test.ts asserts the shape of this rule. */
 @media (prefers-reduced-motion: reduce) {
-  * {
-    animation: none !important;
-    transition: none !important;
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
   }
 }
 
