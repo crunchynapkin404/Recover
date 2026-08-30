@@ -217,8 +217,9 @@ phase written as a checklist becomes a tweak list:
       plus dev-server link-prefetch. Flow and friction, and visual polish,
       are unblocked by this: the top level is settled and Today's morning
       grid is not moving.
-- [ ] **Flow and friction.** The multi-step journeys: confirm a week, plan a
-      season, debrief a ride, connect a provider.
+- [x] **Flow and friction.** The multi-step journeys: confirm a week, plan a
+      season, debrief a ride, connect a provider. **Complete in v0.124.0**,
+      three slices.
       **Inventory done** (`docs/2026-08-26-flow-inventory.md`): a structural
       map of the four journeys, and then choice load — how many things an
       athlete can actually press — measured in a real browser at 390x844.
@@ -262,7 +263,7 @@ week`, `Plan setup`, `Races`, `Availability` and the 21-row draft
       pointing at moved content. Each was caught by a different part of the
       release pipeline. That is the argument for keeping a real-browser step
       that no unit test stands in for.
-      **Slice 3, the availability drag-timeline, on branch and unreleased.**
+      **Slice 3, the availability drag-timeline, shipped in v0.124.0.**
       The third and last slice of this strand: the availability sheet's
       seven-rows-and-a-modal form became a week of drag-editable time tracks,
       with arrow-key move/resize and `BlockSheet` kept as the precise and

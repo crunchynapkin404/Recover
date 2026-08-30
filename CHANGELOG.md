@@ -1,5 +1,132 @@
 # Changelog
 
+## v0.124.0 — 2026-08-30 — The week, dragged into shape
+
+Availability was a list of seven days and a modal per day. It is now seven
+tracks you drag blocks around on. This is the write path the athlete uses
+**every single week** — it is why the standard week was cut and why the Sunday
+nudge exists — and it was still the most form-shaped thing in the app.
+
+The athlete asked for exactly this, in these words: _"i want the flexibility of
+the block sheet but with some kind of slider. easier."_
+
+### What you will notice
+
+Each day is a track from 05:00 to 23:00, and each block is a pill on it.
+Position is when, width is how long, fill density is how hard, and a notch
+count says the same thing again without relying on colour — none for easy, one
+for normal, two for full gas. Drag the body to move, drag either end to resize,
+everything snaps to a quarter hour. Overlaps are prevented by the drag rather
+than rejected afterwards.
+
+Nothing about the underlying model changed. Blocks are still
+`{ start, end, mins, energy, sports }`, days still hold more than one, and
+every edit still commits through the same validation as before — including
+server-side, per day, where one bad day refuses the whole submission rather
+than saving part of it.
+
+**The numeric editor is still there**, reachable per day, and it is still the
+only place to set sports, energy or an exact clock time. It is also the path
+that works when dragging does not.
+
+### What you will not notice, and should know anyway
+
+**Below about 2h20m, every block renders the same width.** Eighteen hours
+across a phone is ~19px an hour, so a one-hour block would be 19px — too small
+to grab. Pills have a 44px minimum, which means the geometry tells you _when_
+accurately and _how long_ only above that threshold. Durations are read from
+the line above each track, not from the pill. This distortion was costed in the
+design and accepted deliberately; it is larger in practice than that sentence
+makes it sound.
+
+**The sheet has more controls than before, not fewer** — 31 where the old form
+had 17, and 1.09 phone screens where it had 0.84. Every day gained a `+` and an
+"edit precisely" control. That is what direct manipulation costs, and it is
+recorded rather than optimised away: a reduction to 24 was implemented and then
+reverted, because it worked by removing the precise editor from days that have
+no block to select, which is exactly where an athlete who cannot drag needs it.
+
+Everything is reachable by keyboard: arrows move a block's start, shift+arrows
+resize it, both in the same fifteen-minute steps a drag lands on. Activation
+means the same thing whether you tap, press Enter, or double-tap with a screen
+reader — which it did not, at first.
+
+### Thirteen defects that a green suite did not see
+
+Recorded because the pattern is the point, and because two of them would have
+reached an athlete's phone.
+
+The branch passed **3268 tests, a clean typecheck, a clean lint and a
+`0 confirmed` axe report** while carrying all of these:
+
+- **The timeline's track was never as wide as the code believed.** A negative
+  margin meant to bleed it full-width was paired with padding that restored
+  exactly what it removed. The layout was computed for 342px against a real
+  306px, and a container narrower than the computed one is the single case the
+  CSS safety net cannot absorb — so **adjacent pills physically overlapped**,
+  hiding one block's resize handle under its neighbour.
+- **A 3px tap wobble committed a fifteen-minute change.** One pixel is ~3.2
+  minutes and the snap rounds to the quarter hour, so ordinary touch jitter on
+  a tap silently moved a block. Android's touch slop alone is 8px.
+- **Every resize ended by unmounting the handles it was using**, via the
+  compatibility click browsers fire after a drag. jsdom does not synthesise
+  that click, so no test in this repo could have caught it.
+- **A block held against the end of the day shrank by a minute per keypress**
+  until it reached zero length — a value the validator rejects, with the bad
+  value already in the field that gets submitted.
+- **Voice control stopped being able to unpin a day.** The chip reads
+  "Pinned ×" but its accessible name no longer contained that text, so "tap
+  Pinned" matched nothing. That worked in v0.123.0.
+- **Easy and normal were separated by a 1.37:1 fill difference and nothing
+  else**, on a pill that carries no text — below the 3:1 any meaningful
+  graphical distinction needs. The notch is a count now for that reason.
+- **A vertical swipe starting on a pill did nothing at all** — it neither
+  scrolled the sheet nor dismissed it, on a sheet that has to be scrolled to
+  reach "Confirm week".
+
+Plus four quieter ones: a layout routine whose "cannot overlap" guarantee was
+false when a day held enough short blocks, an "add a block" that reported a day
+full with a two-hour gap open, a second finger hijacking an in-flight drag, and
+activation meaning two different things depending on input device.
+
+Two were found by opening a screenshot. The rest were found by a whole-branch
+adversarial review run **after** the branch was already green — which is the
+argument for keeping that step, and for not reading a passing suite as a
+finished feature.
+
+### Two tests that were not evidence
+
+Per the release process, a surviving mutation is a finding.
+
+Nine assertions on this branch were mutation-checked and **two survived**. One
+guarded a fallback that a later fix had already made unreachable — it is kept
+as labelled insurance rather than claimed as protection. The other exercised
+the resize-handle path, which its own event handling already protects, instead
+of the pill path where the guard actually matters; that path now has its own
+test, and it fails without the guard.
+
+Both are recorded in the code beside the assertions, rather than deleted.
+
+### One claim in the docs was simply wrong
+
+`docs/2026-08-26-flow-inventory.md` stated that the demo seed script produces
+legacy untimed availability blocks. It does not — **nothing in `scripts/`
+seeded availability at all**, which meant the new capture surface for this
+sheet had no reproducible fixture and photographed blank tracks on a fresh
+database. `scripts/seed-availability.ts` now provides one, shaped to put a
+floored block, an unfloored one, all three energies, a two-block day and a rest
+day in a single frame.
+
+The related gap: this sheet had **no capture surface at all** before this
+release. Slice 2 moved the whole form behind a `?sheet=` destination in
+v0.123.0, which silently removed the app's most-used write path from the
+photographed set — every gate stayed green over a surface nothing looked at.
+
+### Migrations
+
+**None.** This release carries no schema change, so an image rollback to
+v0.123.0 is safe with no database work.
+
 ## v0.123.0 — 2026-08-28 — The page is the week
 
 Train ▸ Week was seventeen sections and 4.7 phone screens. It is now four
