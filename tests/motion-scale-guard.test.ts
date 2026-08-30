@@ -10,8 +10,14 @@
 // module, same source scan, same two-sided OFFENDER_CEILINGS ratchet — so
 // motion cannot become the one scale with no enforcement.
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { join, relative } from "node:path";
 import { CSS_PATH, readPrefixedThemeTokens } from "../src/lib/design/tokens";
+import {
+  HANDWRITTEN_MOTION,
+  TRANSITION_ALL,
+  NUMERIC_DURATION,
+} from "../src/lib/design/motion-scale-patterns";
 
 const css = () => readFileSync(CSS_PATH, "utf8");
 
@@ -71,5 +77,144 @@ describe("the motion scale exists", () => {
         /^(\d+ms|\d+s)$/
       );
     }
+  });
+});
+
+const SRC = join(process.cwd(), "src");
+
+/**
+ * THE PATTERNS MODULE IS EXCLUDED FROM ITS OWN SCAN, and that is not a
+ * convenience — without it this guard counts itself. `TRANSITION_ALL` is
+ * `/\\btransition-all\\b/`, so the regex necessarily contains the literal it
+ * hunts for, and so does the doc comment above it: two phantom offenders that
+ * would have been permanently pinned into the ceiling as if they were real
+ * call sites.
+ *
+ * `type-scale-patterns.ts` never hit this because its patterns are shapes
+ * (`text-\\[…(px|rem|em)\\]`) that never spell a literal — and its own comment
+ * records refusing to write examples "since this file lives inside the tree
+ * the patterns themselves scan". A literal-bearing pattern cannot dodge it
+ * that way, so the exclusion is named here instead.
+ *
+ * This is the same family of trap as tests/viewport-zoom-guard.test.ts
+ * matching BARE WORDS, where naming `touch-none` in a comment fails the
+ * guard.
+ */
+const SELF = join(SRC, "lib/design/motion-scale-patterns.ts");
+
+function walk(dir: string, out: string[] = []): string[] {
+  for (const entry of readdirSync(dir)) {
+    const full = join(dir, entry);
+    if (statSync(full).isDirectory()) walk(full, out);
+    else if (/\.tsx?$/.test(full) && !/\.test\.tsx?$/.test(full) && full !== SELF)
+      out.push(full);
+  }
+  return out;
+}
+
+/** `file:line` for every match of `pattern` in src/**, excluding tests. */
+function srcOffenders(pattern: RegExp): string[] {
+  const out: string[] = [];
+  for (const file of walk(SRC)) {
+    const lines = readFileSync(file, "utf8").split("\n");
+    lines.forEach((line, i) => {
+      for (const _ of line.matchAll(new RegExp(pattern.source, "g"))) {
+        out.push(`${relative(process.cwd(), file)}:${i + 1}`);
+      }
+    });
+  }
+  return out;
+}
+
+/** Motion literals in globals.css, with the token block itself excluded. */
+function cssMotionOffenders(): string[] {
+  const text = css().replace(/^@theme\s+inline\s*\{[\s\S]*?^\}/m, "");
+  const out: string[] = [];
+  text.split("\n").forEach((line, i) => {
+    if (line.trim().startsWith("*") || line.trim().startsWith("/*")) return;
+    for (const _ of line.matchAll(new RegExp(HANDWRITTEN_MOTION.source, "g"))) {
+      out.push(`globals.css:${i + 1}`);
+    }
+  });
+  return out;
+}
+
+/* ── THE RATCHET ───────────────────────────────────────────────────────────
+ * Same doctrine as tests/type-scale-guard.test.ts, and the same reason: an
+ * `it.fails` passes on ANY failure, so it gives no signal at all on the way
+ * down — it fires exactly once, at zero, the moment before the goal is met.
+ * These ceilings are the missing signal, asserted by real `it()`s.
+ *
+ * TWO-SIDED ON PURPOSE. A pure upper bound goes stale: a slice that removes
+ * ten offenders and leaves the ceiling ten high hands the next implementer
+ * ten free ones back. So each ceiling must also stay CLOSE to the real count.
+ *
+ * RATCHET_SLACK IS 3, NOT the type guard's 25. That guard opened against 300
+ * offenders where 25 is under a tenth; these families open at 16, 17 and 4,
+ * where a slack of 25 would mean no lower bound at all. The slack must be
+ * small relative to the family it governs or the two-sidedness is decorative.
+ *
+ * TO UPDATE: run the suite, read the actual count out of the failure message,
+ * put it here. Lowering is routine. Raising needs a reason in the commit
+ * message, and on this strand there is unlikely to be a good one.
+ */
+const RATCHET_SLACK = 3;
+const OFFENDER_CEILINGS: Record<string, number> = {
+  // 25, measured 2026-08-30 at d7b1e17, before any migration. Slice 1 takes
+  // this to 0 by pointing every one at a token.
+  //
+  // The plan predicted 16 and the ratchet caught it on its first run. 16 was
+  // `grep -c`, which counts matching LINES; this counts occurrences, and 16
+  // lines carry 25 literals because a `transition:` shorthand spells a
+  // duration and a curve on one line. Occurrences is the right unit — each is
+  // its own migration — and all 25 were read back individually to confirm
+  // none is prose caught by the scan.
+  "globals.css motion literals": 25,
+  // Includes ui/button.tsx's base cva string, which animates every property a
+  // button has — including the `:active` translate-y, which is why presses
+  // read slightly late.
+  "transition-all": 17,
+  // login/page.tsx:102, ui/collapsible.tsx:38, coach/artifact-card.tsx:156,
+  // ui/bottom-sheet.tsx:206.
+  "numeric duration utilities": 4,
+};
+
+describe("the motion ratchet", () => {
+  const counts: Record<string, () => string[]> = {
+    "globals.css motion literals": cssMotionOffenders,
+    "transition-all": () => srcOffenders(TRANSITION_ALL),
+    "numeric duration utilities": () => srcOffenders(NUMERIC_DURATION),
+  };
+
+  for (const [name, count] of Object.entries(counts)) {
+    it(`${name} does not rise above its pinned ceiling`, () => {
+      const actual = count().length;
+      const ceiling = OFFENDER_CEILINGS[name];
+      expect(
+        actual,
+        `${name} rose to ${actual}, above the pinned ceiling of ${ceiling}. ` +
+          `Use the motion scale — see globals.css's motion block. Nothing on ` +
+          `this strand has a good reason to raise a ceiling.`
+      ).toBeLessThanOrEqual(ceiling);
+    });
+
+    it(`${name}'s ceiling stays close to the real count`, () => {
+      const actual = count().length;
+      const ceiling = OFFENDER_CEILINGS[name];
+      expect(
+        ceiling - actual,
+        `${name} is down to ${actual} but its ceiling is still ${ceiling} ` +
+          `(slack ${RATCHET_SLACK}) — that headroom is free offenders for ` +
+          `the next slice. Re-pin OFFENDER_CEILINGS["${name}"] to ${actual}.`
+      ).toBeLessThanOrEqual(RATCHET_SLACK);
+    });
+  }
+
+  it("scanned a plausible source tree", () => {
+    // Not a ceiling assertion: this pins that the walk actually found files,
+    // so "zero offenders" can never mean "the scan silently measured
+    // nothing". type-scale-guard.test.ts:1352 carries the same guard for the
+    // same reason.
+    expect(walk(SRC).length).toBeGreaterThan(100);
   });
 });
