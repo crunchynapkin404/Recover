@@ -203,7 +203,7 @@ export function BottomSheet({
         // Tokenised as --scrim in v0.111.0 (value unchanged) so it stops being
         // a raw alpha nothing governs; it is waived by name in
         // tests/contrast-guard.test.ts, since no text is measured against it.
-        className="absolute inset-0 bg-scrim backdrop-blur-sm transition-opacity duration-300 motion-reduce:transition-none"
+        className="absolute inset-0 bg-scrim backdrop-blur-sm transition-opacity duration-panel motion-reduce:transition-none"
         style={{ opacity: closing ? 0 : 1 }}
       />
 

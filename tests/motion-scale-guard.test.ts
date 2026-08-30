@@ -38,15 +38,15 @@ const TAILWIND_EASE_KEYS = [
 
 describe("the motion scale exists", () => {
   it("declares six durations and four easings", () => {
-    const durations = readPrefixedThemeTokens(css(), "--duration-");
+    const durations = readPrefixedThemeTokens(css(), "--transition-duration-");
     const eases = readPrefixedThemeTokens(css(), "--ease-");
     expect(durations).toEqual({
-      "--duration-feedback": "120ms",
-      "--duration-motion": "200ms",
-      "--duration-transition": "320ms",
-      "--duration-reveal": "1200ms",
-      "--duration-loop": "3s",
-      "--duration-drift": "8s",
+      "--transition-duration-feedback": "120ms",
+      "--transition-duration-motion": "200ms",
+      "--transition-duration-panel": "320ms",
+      "--transition-duration-reveal": "1200ms",
+      "--transition-duration-loop": "3s",
+      "--transition-duration-drift": "8s",
     });
     expect(eases).toEqual({
       "--ease-standard": "cubic-bezier(0.4, 0, 0.2, 1)",
@@ -67,8 +67,34 @@ describe("the motion scale exists", () => {
     ).toEqual([]);
   });
 
+  it("uses a namespace Tailwind actually generates utilities from", async () => {
+    // THE BUG THIS PINS, and it shipped in slice 0: the scale was declared as
+    // `--duration-*`, which is a plain custom property Tailwind v4 generates
+    // NOTHING from. `duration-panel` was an inert class — present in markup,
+    // silently doing nothing, and no test noticed because the tokens existed
+    // and the class name looked right. `--transition-duration-*` is the real
+    // namespace. `--ease-*` was correct already, which is why .ease-settle
+    // compiled while its duration sibling did not.
+    //
+    // Compiling is the only honest check here: a token's EXISTENCE says
+    // nothing about whether a utility exists, and that gap is exactly what
+    // let the wrong namespace through.
+    const postcss = (await import("postcss")).default;
+    const tw = (await import("@tailwindcss/postcss")).default;
+    const out = await postcss([tw()]).process(css(), { from: CSS_PATH });
+    for (const cls of ["duration-panel", "duration-motion", "ease-settle"]) {
+      expect(
+        new RegExp(`\\.${cls}\\s*\\{[^}]*\\}`).test(out.css),
+        `.${cls} generates no CSS. The token exists but its namespace is one ` +
+          `Tailwind does not build utilities from, so every call site using ` +
+          `this class is silently doing nothing. Durations belong under ` +
+          `--transition-duration-*, easings under --ease-*.`
+      ).toBe(true);
+    }
+  });
+
   it("writes every duration in one unit, so two spellings cannot mean one value", () => {
-    const values = Object.values(readPrefixedThemeTokens(css(), "--duration-"));
+    const values = Object.values(readPrefixedThemeTokens(css(), "--transition-duration-"));
     // The bug this pins: globals.css shipped both `0.3s` and `300ms`.
     // Sub-second durations are ms, second-and-over are s, and nothing is
     // written two ways.
@@ -175,9 +201,10 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // button has — including the `:active` translate-y, which is why presses
   // read slightly late.
   "transition-all": 17,
+  // 0 — slice 1 moved all four onto token-named utilities. Was 4 at d7b1e17:
   // login/page.tsx:102, ui/collapsible.tsx:38, coach/artifact-card.tsx:156,
   // ui/bottom-sheet.tsx:206.
-  "numeric duration utilities": 4,
+  "numeric duration utilities": 0,
 };
 
 describe("the motion ratchet", () => {

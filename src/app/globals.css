@@ -121,6 +121,15 @@
      hand-written duration spellings of 10 values and 8 easings. Semantic
      names, for the same reason the type scale above uses them.
 
+     THE NAMESPACE IS `--transition-duration-*`, NOT `--duration-*`, and that
+     is not a stylistic choice. Tailwind v4 generates the `duration-<name>`
+     utility from `--transition-duration-*` ONLY; a `--duration-*` key is a
+     plain custom property that produces no utility at all, so `duration-panel`
+     would have been an inert class silently doing nothing. Slice 0 shipped
+     the wrong namespace — harmless while nothing referenced it, corrected
+     here before anything did. The step is `panel` rather than `transition`
+     so the utility does not read `duration-transition`.
+
      AND NOT TAILWIND'S OWN KEYS. `--ease-in`, `--ease-out`, `--ease-in-out`
      and `--ease-linear` are Tailwind v4 theme keys: declaring one here does
      not add a token, it repoints every existing `ease-out` in the app at a
@@ -129,12 +138,12 @@
      cannot do that. This is the identical trap the type scale's comment
      records for `--text-sm`, and tests/motion-scale-guard.test.ts asserts
      it rather than trusting this paragraph. */
-  --duration-feedback: 120ms; /* colour and opacity under the finger */
-  --duration-motion: 200ms; /* small transforms, pops, chips */
-  --duration-transition: 320ms; /* sheets, panel heights, entrances */
-  --duration-reveal: 1200ms; /* one-shot data draws: rings, sparklines */
-  --duration-loop: 3s; /* ambient breathe / pulse */
-  --duration-drift: 8s; /* the shimmer rotation */
+  --transition-duration-feedback: 120ms; /* colour and opacity under the finger */
+  --transition-duration-motion: 200ms; /* small transforms, pops, chips */
+  --transition-duration-panel: 320ms; /* sheets, panel heights, entrances */
+  --transition-duration-reveal: 1200ms; /* one-shot data draws: rings, sparklines */
+  --transition-duration-loop: 3s; /* ambient breathe / pulse */
+  --transition-duration-drift: 8s; /* the shimmer rotation */
 
   --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
   --ease-settle: cubic-bezier(0.21, 1.02, 0.49, 1);
@@ -535,8 +544,8 @@
   -webkit-backdrop-filter: blur(24px);
   border: 1px solid var(--glass-border);
   transition:
-    transform var(--duration-transition) var(--ease-spring),
-    box-shadow var(--duration-transition) var(--ease-standard);
+    transform var(--transition-duration-panel) var(--ease-spring),
+    box-shadow var(--transition-duration-panel) var(--ease-standard);
 }
 .glass-border-strong {
   border: 1px solid var(--glass-border);
@@ -575,7 +584,8 @@
 
 /* ── Animations ──────────────────────────────────────────────────────────── */
 .hero-pulse {
-  animation: pulse-glow var(--duration-loop) var(--ease-standard) infinite;
+  animation: pulse-glow var(--transition-duration-loop) var(--ease-standard)
+    infinite;
 }
 @keyframes pulse-glow {
   0%,
@@ -592,7 +602,8 @@
 .ring-animate {
   stroke-dasharray: 276;
   stroke-dashoffset: 276;
-  animation: ring-draw var(--duration-reveal) var(--ease-draw) forwards;
+  animation: ring-draw var(--transition-duration-reveal) var(--ease-draw)
+    forwards;
 }
 @keyframes ring-draw {
   to {
@@ -604,7 +615,7 @@
    value (--ring-offset). Resting state is the filled value (set inline), so
    reduced-motion users simply see the filled ring with no animation. */
 .ring-fill {
-  animation: ring-fill var(--duration-reveal) var(--ease-draw);
+  animation: ring-fill var(--transition-duration-reveal) var(--ease-draw);
 }
 @keyframes ring-fill {
   from {
@@ -618,7 +629,8 @@
 .sparkline-animate path {
   stroke-dasharray: 200;
   stroke-dashoffset: 200;
-  animation: draw-path var(--duration-reveal) var(--ease-standard) forwards;
+  animation: draw-path var(--transition-duration-reveal) var(--ease-standard)
+    forwards;
 }
 @keyframes draw-path {
   to {
@@ -628,7 +640,8 @@
 
 .clip-reveal {
   clip-path: inset(0 100% 0 0);
-  animation: reveal-clip var(--duration-reveal) var(--ease-draw) forwards;
+  animation: reveal-clip var(--transition-duration-reveal) var(--ease-draw)
+    forwards;
 }
 @keyframes reveal-clip {
   to {
@@ -637,7 +650,8 @@
 }
 
 .trend-arrow-animate {
-  animation: arrow-bounce var(--duration-transition) var(--ease-spring) forwards;
+  animation: arrow-bounce var(--transition-duration-panel) var(--ease-spring)
+    forwards;
 }
 @keyframes arrow-bounce {
   0% {
@@ -654,7 +668,7 @@
 }
 
 .ai-sparkle {
-  animation: rotate-shimmer var(--duration-drift) linear infinite;
+  animation: rotate-shimmer var(--transition-duration-drift) linear infinite;
 }
 @keyframes rotate-shimmer {
   from {
@@ -681,7 +695,8 @@
      disclosed change, like .label-micro above. */
   background: var(--ink-primary);
   box-shadow: 0 0 12px var(--ink-primary);
-  animation: breathe var(--duration-loop) var(--ease-standard) infinite;
+  animation: breathe var(--transition-duration-loop) var(--ease-standard)
+    infinite;
 }
 @keyframes breathe {
   0%,
@@ -700,8 +715,8 @@
   opacity: 0;
   transform: translateY(24px);
   transition:
-    opacity var(--duration-transition) var(--ease-settle),
-    transform var(--duration-transition) var(--ease-settle);
+    opacity var(--transition-duration-panel) var(--ease-settle),
+    transform var(--transition-duration-panel) var(--ease-settle);
 }
 .reveal.active {
   opacity: 1;
@@ -713,9 +728,9 @@
   background: var(--login-input-bg);
   border: 1px solid var(--login-input-border);
   transition:
-    background var(--duration-motion) var(--ease-standard),
-    border-color var(--duration-motion) var(--ease-standard),
-    box-shadow var(--duration-motion) var(--ease-standard);
+    background var(--transition-duration-motion) var(--ease-standard),
+    border-color var(--transition-duration-motion) var(--ease-standard),
+    box-shadow var(--transition-duration-motion) var(--ease-standard);
 }
 .login-input:focus {
   background: var(--login-input-focus-bg);
@@ -756,7 +771,7 @@
 .collapsible-panel {
   overflow: hidden;
   height: var(--collapsible-panel-height, auto);
-  transition: height var(--duration-transition) var(--ease-standard);
+  transition: height var(--transition-duration-panel) var(--ease-standard);
 }
 .collapsible-panel[data-starting-style],
 .collapsible-panel[data-ending-style] {
@@ -826,8 +841,8 @@
 
 /* ── Bottom sheets (1h / 1i) ─────────────────────────────────────────────── */
 .sheet-panel {
-  animation: sheet-up var(--duration-transition) var(--ease-settle);
-  transition: transform var(--duration-motion) var(--ease-settle);
+  animation: sheet-up var(--transition-duration-panel) var(--ease-settle);
+  transition: transform var(--transition-duration-motion) var(--ease-settle);
 }
 @keyframes sheet-up {
   from {
@@ -840,7 +855,7 @@
 
 /* ── Coach history dropdown (desktop) ─────────────────────────────────────── */
 .menu-pop {
-  animation: menu-pop var(--duration-motion) var(--ease-standard);
+  animation: menu-pop var(--transition-duration-motion) var(--ease-standard);
   transform-origin: top left;
 }
 @keyframes menu-pop {
