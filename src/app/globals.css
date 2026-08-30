@@ -535,8 +535,8 @@
   -webkit-backdrop-filter: blur(24px);
   border: 1px solid var(--glass-border);
   transition:
-    transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
-    box-shadow 0.3s ease;
+    transform var(--duration-transition) var(--ease-spring),
+    box-shadow var(--duration-transition) var(--ease-standard);
 }
 .glass-border-strong {
   border: 1px solid var(--glass-border);
@@ -575,7 +575,7 @@
 
 /* ── Animations ──────────────────────────────────────────────────────────── */
 .hero-pulse {
-  animation: pulse-glow 3s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  animation: pulse-glow var(--duration-loop) var(--ease-standard) infinite;
 }
 @keyframes pulse-glow {
   0%,
@@ -592,7 +592,7 @@
 .ring-animate {
   stroke-dasharray: 276;
   stroke-dashoffset: 276;
-  animation: ring-draw 1.2s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+  animation: ring-draw var(--duration-reveal) var(--ease-draw) forwards;
 }
 @keyframes ring-draw {
   to {
@@ -604,7 +604,7 @@
    value (--ring-offset). Resting state is the filled value (set inline), so
    reduced-motion users simply see the filled ring with no animation. */
 .ring-fill {
-  animation: ring-fill 1.2s cubic-bezier(0.65, 0, 0.35, 1);
+  animation: ring-fill var(--duration-reveal) var(--ease-draw);
 }
 @keyframes ring-fill {
   from {
@@ -618,7 +618,7 @@
 .sparkline-animate path {
   stroke-dasharray: 200;
   stroke-dashoffset: 200;
-  animation: draw-path 1.2s ease-out forwards;
+  animation: draw-path var(--duration-reveal) var(--ease-standard) forwards;
 }
 @keyframes draw-path {
   to {
@@ -628,7 +628,7 @@
 
 .clip-reveal {
   clip-path: inset(0 100% 0 0);
-  animation: reveal-clip 1.5s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+  animation: reveal-clip var(--duration-reveal) var(--ease-draw) forwards;
 }
 @keyframes reveal-clip {
   to {
@@ -637,7 +637,7 @@
 }
 
 .trend-arrow-animate {
-  animation: arrow-bounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  animation: arrow-bounce var(--duration-transition) var(--ease-spring) forwards;
 }
 @keyframes arrow-bounce {
   0% {
@@ -654,7 +654,7 @@
 }
 
 .ai-sparkle {
-  animation: rotate-shimmer 8s linear infinite;
+  animation: rotate-shimmer var(--duration-drift) linear infinite;
 }
 @keyframes rotate-shimmer {
   from {
@@ -681,7 +681,7 @@
      disclosed change, like .label-micro above. */
   background: var(--ink-primary);
   box-shadow: 0 0 12px var(--ink-primary);
-  animation: breathe 3s ease-in-out infinite;
+  animation: breathe var(--duration-loop) var(--ease-standard) infinite;
 }
 @keyframes breathe {
   0%,
@@ -699,7 +699,9 @@
 .reveal {
   opacity: 0;
   transform: translateY(24px);
-  transition: all 0.7s cubic-bezier(0.21, 1.02, 0.49, 1);
+  transition:
+    opacity var(--duration-transition) var(--ease-settle),
+    transform var(--duration-transition) var(--ease-settle);
 }
 .reveal.active {
   opacity: 1;
@@ -710,7 +712,10 @@
 .login-input {
   background: var(--login-input-bg);
   border: 1px solid var(--login-input-border);
-  transition: all 0.2s ease;
+  transition:
+    background var(--duration-motion) var(--ease-standard),
+    border-color var(--duration-motion) var(--ease-standard),
+    box-shadow var(--duration-motion) var(--ease-standard);
 }
 .login-input:focus {
   background: var(--login-input-focus-bg);
@@ -751,7 +756,7 @@
 .collapsible-panel {
   overflow: hidden;
   height: var(--collapsible-panel-height, auto);
-  transition: height 0.3s ease-out;
+  transition: height var(--duration-transition) var(--ease-standard);
 }
 .collapsible-panel[data-starting-style],
 .collapsible-panel[data-ending-style] {
@@ -821,8 +826,8 @@
 
 /* ── Bottom sheets (1h / 1i) ─────────────────────────────────────────────── */
 .sheet-panel {
-  animation: sheet-up 300ms cubic-bezier(0.21, 1.02, 0.49, 1);
-  transition: transform 220ms cubic-bezier(0.21, 1.02, 0.49, 1);
+  animation: sheet-up var(--duration-transition) var(--ease-settle);
+  transition: transform var(--duration-motion) var(--ease-settle);
 }
 @keyframes sheet-up {
   from {
@@ -835,7 +840,7 @@
 
 /* ── Coach history dropdown (desktop) ─────────────────────────────────────── */
 .menu-pop {
-  animation: menu-pop 160ms ease-out;
+  animation: menu-pop var(--duration-motion) var(--ease-standard);
   transform-origin: top left;
 }
 @keyframes menu-pop {

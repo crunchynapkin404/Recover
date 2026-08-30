@@ -160,8 +160,9 @@ function cssMotionOffenders(): string[] {
  */
 const RATCHET_SLACK = 3;
 const OFFENDER_CEILINGS: Record<string, number> = {
-  // 25, measured 2026-08-30 at d7b1e17, before any migration. Slice 1 takes
-  // this to 0 by pointing every one at a token.
+  // 0 — slice 1 migrated every literal onto the motion scale. Was 25 at
+  // d7b1e17; the two-sided ratchet now pins it here, so a re-introduced
+  // literal fails the suite immediately.
   //
   // The plan predicted 16 and the ratchet caught it on its first run. 16 was
   // `grep -c`, which counts matching LINES; this counts occurrences, and 16
@@ -169,7 +170,7 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // duration and a curve on one line. Occurrences is the right unit — each is
   // its own migration — and all 25 were read back individually to confirm
   // none is prose caught by the scan.
-  "globals.css motion literals": 25,
+  "globals.css motion literals": 0,
   // Includes ui/button.tsx's base cva string, which animates every property a
   // button has — including the `:active` translate-y, which is why presses
   // read slightly late.
