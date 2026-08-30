@@ -9,6 +9,16 @@ import {
 } from "vitest";
 import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
+import {
+  validateBlocks,
+  type AvailabilityBlock,
+} from "@/lib/availability/types";
+import {
+  DEFAULT_WINDOW,
+  NOMINAL_TRACK_PX,
+  layoutDay,
+  toMins,
+} from "@/lib/availability/timeline";
 import * as feasibilityModule from "@/lib/race/feasibility";
 import {
   generateWorkouts,
@@ -897,6 +907,61 @@ describe.skipIf(!hasDb)("generateTrainingPlan — availability seeding", () => {
     // hoursPerWeek=6 -> 360 minutes, rounded to the nearest 5min per day.
     expect(totalMins).toBeGreaterThanOrEqual(350);
     expect(totalMins).toBeLessThanOrEqual(370);
+
+    // v0.124.0: the seeded week must carry REAL CLOCK TIMES. It used to seed
+    // duration-only blocks (`start: null`), which the availability
+    // drag-timeline cannot place — a block with no start has no position, and
+    // inventing one at render time would fabricate data. The consequence was
+    // that every athlete on the default path opened the timeline to seven
+    // blank tracks: the feature was invisible to exactly the people who had
+    // never hand-set a time. Found by opening the v0.124.0-rc.1 soak capture,
+    // with 3287 tests and a 0-violation axe report green over it.
+    for (const row of daysWithBlocks) {
+      for (const b of row.blocks as {
+        start: string | null;
+        end: string | null;
+        mins: number;
+      }[]) {
+        expect(b.start).toMatch(/^\d{2}:\d{2}$/);
+        expect(b.end).toMatch(/^\d{2}:\d{2}$/);
+        expect(validateBlocks([b as never])).toBeNull();
+      }
+    }
+  });
+
+  it("seeds a standard week the drag-timeline can actually place", async () => {
+    await db
+      .delete(schema.availabilityDefaults)
+      .where(eq(schema.availabilityDefaults.userId, FRESH_USER));
+    await generateTrainingPlan({
+      userId: FRESH_USER,
+      raceType: "marathon",
+      raceDate: "2026-12-01",
+      daysPerWeek: 3,
+      hoursPerWeek: 9,
+    });
+    const rows = await db.query.availabilityDefaults.findMany({
+      where: eq(schema.availabilityDefaults.userId, FRESH_USER),
+    });
+    const week = rows
+      .sort((a, b) => a.weekday - b.weekday)
+      .map((r) => r.blocks as AvailabilityBlock[]);
+
+    // Every seeded block lands inside the timeline's own default window, so
+    // it is on screen and draggable the first time the sheet is opened.
+    const placed = week.map((day) =>
+      layoutDay(day, NOMINAL_TRACK_PX, DEFAULT_WINDOW)
+    );
+    expect(placed.filter((p) => p.length > 0)).toHaveLength(3);
+    for (const day of week) {
+      expect(validateBlocks(day)).toBeNull();
+      for (const b of day) {
+        expect(toMins(b.start!)).toBeGreaterThanOrEqual(
+          DEFAULT_WINDOW.startMin
+        );
+        expect(toMins(b.end!)).toBeLessThanOrEqual(DEFAULT_WINDOW.endMin);
+      }
+    }
   });
 
   it("leaves a pre-existing standard week untouched when a second plan is created", async () => {
