@@ -64,9 +64,9 @@ describe("energy fill scale", () => {
       it(`keeps AA headroom for --ink-primary on ${energy} in ${theme}`, () => {
         const [r, g, b] = hexToRgb(tokens[theme].accent);
         const fill = compositeOver([r, g, b, alpha], tokens[theme][GROUND]);
-        expect(contrastRatio(tokens[theme]["ink-primary"], fill)).toBeGreaterThanOrEqual(
-          AA_TEXT
-        );
+        expect(
+          contrastRatio(tokens[theme]["ink-primary"], fill)
+        ).toBeGreaterThanOrEqual(AA_TEXT);
       });
     }
   }

@@ -605,16 +605,16 @@ all.** The untimed blocks (`start: null`, duration only) live in
 `availability_defaults` rows already in the dev database. The timeline
 correctly declines to place a block with no position, so against that state it
 renders seven empty tracks and the surface looks broken while being right, and
-against a *fresh* database it renders nothing at all. Real timed blocks were
+against a _fresh_ database it renders nothing at all. Real timed blocks were
 seeded by hand for both columns; `scripts/seed-availability.ts` now does it
 reproducibly, and `train-availability` requires it.
 
-| Surface                                         | surface | in-sheet | tabs | appChrome | hidden/disabled | scroll |
-| ----------------------------------------------- | ------: | -------: | ---: | --------: | --------------: | -----: |
-| Train ▸ Week (control, sheet closed) — before    |      16 |        0 |    3 |         5 |               7 |   1.75 |
-| Train ▸ Week (control, sheet closed) — after     |      16 |        0 |    3 |         5 |               7 |   1.75 |
-| **Availability sheet — before (slice 2)**       |      34 |   **17** |    3 |         5 |              45 |   0.84 |
-| **Availability sheet — after (slice 3)**        |      48 |   **31** |    3 |         5 |              57 |   1.09 |
+| Surface                                       | surface | in-sheet | tabs | appChrome | hidden/disabled | scroll |
+| --------------------------------------------- | ------: | -------: | ---: | --------: | --------------: | -----: |
+| Train ▸ Week (control, sheet closed) — before |      16 |        0 |    3 |         5 |               7 |   1.75 |
+| Train ▸ Week (control, sheet closed) — after  |      16 |        0 |    3 |         5 |               7 |   1.75 |
+| **Availability sheet — before (slice 2)**     |      34 |   **17** |    3 |         5 |              45 |   0.84 |
+| **Availability sheet — after (slice 3)**      |      48 |   **31** |    3 |         5 |              57 |   1.09 |
 
 **`appChrome` came out 5 on all four rows** — the method's own check,
 satisfied.
@@ -705,7 +705,7 @@ every one of them lived in a case the tests exercised only at its happy path.
   resize gesture, eventually reaching `start === end` — which `validateBlocks`
   rejects, with the bad value already in the input `IntakeForm` submits.
 - **`addBlock` reported a day full with a two-hour gap open**, because a
-  candidate taken from a neighbour ending at 10:07 was rounded *back* to
+  candidate taken from a neighbour ending at 10:07 was rounded _back_ to
   10:00, inside that neighbour, and then discarded for clashing.
 - **`layoutDay`'s "guaranteed non-overlapping" was false** once several
   floored widths outran the track.
@@ -716,7 +716,7 @@ every one of them lived in a case the tests exercised only at its happy path.
   notch was painted only on `full` and the pill carries no text. The notch is
   a count now: none, one, two.
 - **A vertical swipe starting on a pill did nothing at all** — `touch-action:
-  pinch-zoom` forbids every single-finger pan, not just the horizontal one,
+pinch-zoom` forbids every single-finger pan, not just the horizontal one,
   and the touch guards killed the sheet's own drag-to-dismiss. On a sheet 1.09
   screens tall, mostly covered by pills. Both were removed; the drag threshold
   is what makes doing nothing correct.

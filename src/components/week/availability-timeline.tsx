@@ -448,7 +448,11 @@ function DayTrack({
                   there was nothing else to read. One dot for normal, two for
                   full gas, none for easy: a shape channel that scales. */}
               {ENERGY_NOTCHES[b.energy] > 0 && (
-                <span aria-hidden data-notch="" className="flex shrink-0 gap-0.5">
+                <span
+                  aria-hidden
+                  data-notch=""
+                  className="flex shrink-0 gap-0.5"
+                >
                   {Array.from({ length: ENERGY_NOTCHES[b.energy] }, (_, n) => (
                     <span
                       key={n}

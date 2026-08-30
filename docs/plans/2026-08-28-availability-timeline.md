@@ -74,7 +74,7 @@ tenses the spec asks for are likewise already live in
 - **This branch's signature defect is "correct in isolation, wrong in
   composition."** Thirteen such defects were found across slices 1 and 2, each
   having passed its own task review. Before finishing any task, ask what
-  *other* surface consumes what you touched.
+  _other_ surface consumes what you touched.
 
 ## Five decisions taken as plan author
 
@@ -129,28 +129,30 @@ Recorded because they resolve silences in the spec, or deviate from it.
 
 ## File structure
 
-| File | Responsibility |
-| --- | --- |
-| `src/lib/availability/timeline.ts` (new) | All geometry and mutation math. Pure: no React, no DOM, no clock reads. |
-| `src/lib/availability/timeline.test.ts` (new) | Node-env tests for the above. |
-| `src/lib/availability/energy-fill.ts` (new) | `ENERGY_FILL` — the measured density scale, as Tailwind class strings. |
-| `tests/energy-fill-contrast.test.ts` (new) | Proves each density clears AA under `--ink-primary`, both themes. |
-| `src/components/week/availability-timeline.tsx` (new) | Seven tracks. Owns selection, pointer drag, keyboard. |
-| `src/components/week/availability-timeline.test.tsx` (new) | Static render + keyboard + drag. |
-| `src/components/week/block-sheet.tsx` (modify) | Imports `toMins`/`toClock` from `timeline.ts` instead of defining them. |
-| `src/components/week/intake-form.tsx` (modify) | `<ul>` day list → `<AvailabilityTimeline>`. Everything else unchanged. |
+| File                                                       | Responsibility                                                          |
+| ---------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `src/lib/availability/timeline.ts` (new)                   | All geometry and mutation math. Pure: no React, no DOM, no clock reads. |
+| `src/lib/availability/timeline.test.ts` (new)              | Node-env tests for the above.                                           |
+| `src/lib/availability/energy-fill.ts` (new)                | `ENERGY_FILL` — the measured density scale, as Tailwind class strings.  |
+| `tests/energy-fill-contrast.test.ts` (new)                 | Proves each density clears AA under `--ink-primary`, both themes.       |
+| `src/components/week/availability-timeline.tsx` (new)      | Seven tracks. Owns selection, pointer drag, keyboard.                   |
+| `src/components/week/availability-timeline.test.tsx` (new) | Static render + keyboard + drag.                                        |
+| `src/components/week/block-sheet.tsx` (modify)             | Imports `toMins`/`toClock` from `timeline.ts` instead of defining them. |
+| `src/components/week/intake-form.tsx` (modify)             | `<ul>` day list → `<AvailabilityTimeline>`. Everything else unchanged.  |
 
 ---
 
 ### Task 1: The pure timeline module
 
 **Files:**
+
 - Create: `src/lib/availability/timeline.ts`
 - Create: `src/lib/availability/timeline.test.ts`
 - Modify: `src/components/week/block-sheet.tsx:36-52` (delete the local
   `toMins`/`toClock`/`LAST_MINUTE_OF_DAY`, import them instead)
 
 **Interfaces:**
+
 - Consumes: `AvailabilityBlock`, `Energy` from `@/lib/availability/types`.
 - Produces, all from `@/lib/availability/timeline`:
   - `LAST_MINUTE_OF_DAY: number`, `SNAP_MIN: number`, `MIN_BLOCK_PX: number`,
@@ -288,9 +290,9 @@ describe("layoutDay", () => {
 
   it("reports the index of the block it placed, in chronological order", () => {
     const day = [block("20:00", "21:00"), block("07:00", "08:00")];
-    expect(layoutDay(day, trackPx, DEFAULT_WINDOW).map((p) => p.index)).toEqual([
-      1, 0,
-    ]);
+    expect(layoutDay(day, trackPx, DEFAULT_WINDOW).map((p) => p.index)).toEqual(
+      [1, 0]
+    );
   });
 
   it("skips untimed blocks entirely", () => {
@@ -683,7 +685,9 @@ export function moveBlock(
   const { floor, ceil } = walls(blocks, index, win);
   const wanted = snap(toMins(b.start!) + deltaMins);
   const start = Math.max(floor, Math.min(wanted, ceil - duration));
-  return blocks.map((x, i) => (i === index ? withTimes(x, start, start + duration) : x));
+  return blocks.map((x, i) =>
+    i === index ? withTimes(x, start, start + duration) : x
+  );
 }
 
 /** Drag one edge, keeping the other fixed, never below MIN_BLOCK_MIN. */
@@ -700,9 +704,15 @@ export function resizeBlock(
   let start = toMins(b.start!);
   let end = toMins(b.end!);
   if (edge === "start") {
-    start = Math.max(floor, Math.min(snap(start + deltaMins), end - MIN_BLOCK_MIN));
+    start = Math.max(
+      floor,
+      Math.min(snap(start + deltaMins), end - MIN_BLOCK_MIN)
+    );
   } else {
-    end = Math.min(ceil, Math.max(snap(end + deltaMins), start + MIN_BLOCK_MIN));
+    end = Math.min(
+      ceil,
+      Math.max(snap(end + deltaMins), start + MIN_BLOCK_MIN)
+    );
   }
   return blocks.map((x, i) => (i === index ? withTimes(x, start, end) : x));
 }
@@ -738,7 +748,13 @@ export function addBlock(
     if (clashes) continue;
     return [
       ...blocks,
-      { start: toClock(start), end: toClock(end), mins: NEW_BLOCK_MIN, energy: "normal", sports: null },
+      {
+        start: toClock(start),
+        end: toClock(end),
+        mins: NEW_BLOCK_MIN,
+        energy: "normal",
+        sports: null,
+      },
     ];
   }
   return null;
@@ -798,10 +814,12 @@ git commit -m "feat(availability): pure geometry and mutation core for the drag-
 ### Task 2: The measured energy fill scale
 
 **Files:**
+
 - Create: `src/lib/availability/energy-fill.ts`
 - Create: `tests/energy-fill-contrast.test.ts`
 
 **Interfaces:**
+
 - Consumes: `Energy` from `@/lib/availability/types`.
 - Produces: `ENERGY_FILL: Record<Energy, string>` — the Tailwind fill class for
   a pill at that energy — and `ENERGY_ALPHA: Record<Energy, number>`, the same
@@ -863,9 +881,9 @@ describe("energy fill scale", () => {
       it(`clears AA for --ink-primary on ${energy} in ${theme}`, () => {
         const [r, g, b] = hexToRgb(tokens[theme].accent);
         const fill = compositeOver([r, g, b, alpha], tokens[theme][GROUND]);
-        expect(contrastRatio(tokens[theme]["ink-primary"], fill)).toBeGreaterThanOrEqual(
-          AA_TEXT
-        );
+        expect(
+          contrastRatio(tokens[theme]["ink-primary"], fill)
+        ).toBeGreaterThanOrEqual(AA_TEXT);
       });
     }
   }
@@ -967,10 +985,12 @@ git commit -m "feat(availability): measured energy fill scale, capped at AA"
 ### Task 3: The timeline component, static render
 
 **Files:**
+
 - Create: `src/components/week/availability-timeline.tsx`
 - Create: `src/components/week/availability-timeline.test.tsx`
 
 **Interfaces:**
+
 - Consumes: everything Task 1 and Task 2 produce; `WEEKDAY_NAMES`,
   `WEEKDAY_SHORT` from `@/lib/weekdays`; `formatBlocks`, `formatAvailability`
   from `@/lib/availability/format`.
@@ -989,7 +1009,9 @@ export interface AvailabilityTimelineProps {
   /** Open BlockSheet on day `i` — the precise and assistive path. */
   onOpenDay: (dayIndex: number) => void;
 }
-export function AvailabilityTimeline(props: AvailabilityTimelineProps): JSX.Element;
+export function AvailabilityTimeline(
+  props: AvailabilityTimelineProps
+): JSX.Element;
 ```
 
 This task renders and is reachable by keyboard focus; arrow keys and drag land
@@ -1092,7 +1114,9 @@ describe("AvailabilityTimeline", () => {
     pinned[2] = true;
     const html = render(emptyWeek(), pinned);
     expect(html).toContain("Pinned");
-    expect(html).toContain('aria-label="Wednesday: back to your standard week"');
+    expect(html).toContain(
+      'aria-label="Wednesday: back to your standard week"'
+    );
   });
 
   it("offers a plus per day that reaches the precise editor", () => {
@@ -1285,9 +1309,7 @@ function DayTrack({
         <span className="flex-1 truncate text-label text-ink-secondary">
           {blocks.length === 0
             ? "Rest"
-            : formatAvailability(
-                blocks.reduce((s, b) => s + blockMins(b), 0)
-              )}
+            : formatAvailability(blocks.reduce((s, b) => s + blockMins(b), 0))}
         </span>
         {pinned && (
           <button
@@ -1352,7 +1374,9 @@ function DayTrack({
                   className="h-1 w-1 shrink-0 rounded-full bg-ink-primary"
                 />
               )}
-              <span className="truncate">{formatAvailability(blockMins(b))}</span>
+              <span className="truncate">
+                {formatAvailability(blockMins(b))}
+              </span>
             </button>
           );
         })}
@@ -1400,12 +1424,14 @@ git commit -m "feat(availability): timeline tracks, pills and the energy notch"
 ### Task 4: The keyboard path
 
 **Files:**
+
 - Modify: `src/components/week/availability-timeline.tsx` (add `onKeyDown` to
   the pill button)
 - Modify: `src/components/week/availability-timeline.test.tsx` (append a
   `describe` block)
 
 **Interfaces:**
+
 - Consumes: `moveBlock`, `resizeBlock` from Task 1.
 - Produces: no new exports. Behaviour only.
 
@@ -1628,10 +1654,12 @@ git commit -m "feat(availability): arrow-key move and resize on the timeline"
 ### Task 5: The pointer drag
 
 **Files:**
+
 - Modify: `src/components/week/availability-timeline.tsx`
 - Modify: `src/components/week/availability-timeline.test.tsx`
 
 **Interfaces:**
+
 - Consumes: `pxToMins`, `moveBlock`, `resizeBlock` from Task 1.
 - Produces: no new exports. Behaviour only.
 
@@ -1651,7 +1679,17 @@ describe("AvailabilityTimeline pointer drag", () => {
     Object.defineProperty(HTMLElement.prototype, "getBoundingClientRect", {
       configurable: true,
       value() {
-        return { width: px, height: 36, top: 0, left: 0, right: px, bottom: 36, x: 0, y: 0, toJSON: () => ({}) };
+        return {
+          width: px,
+          height: 36,
+          top: 0,
+          left: 0,
+          right: px,
+          bottom: 36,
+          x: 0,
+          y: 0,
+          toJSON: () => ({}),
+        };
       },
     });
   }
@@ -1667,23 +1705,37 @@ describe("AvailabilityTimeline pointer drag", () => {
   });
 
   function drag(el: HTMLElement, fromX: number, toX: number) {
-    (el as HTMLElement & { setPointerCapture?: (id: number) => void }).setPointerCapture =
-      () => {};
-    (el as HTMLElement & { releasePointerCapture?: (id: number) => void }).releasePointerCapture =
-      () => {};
+    (
+      el as HTMLElement & { setPointerCapture?: (id: number) => void }
+    ).setPointerCapture = () => {};
+    (
+      el as HTMLElement & { releasePointerCapture?: (id: number) => void }
+    ).releasePointerCapture = () => {};
     act(() => {
       el.dispatchEvent(
-        new PointerEvent("pointerdown", { clientX: fromX, pointerId: 1, bubbles: true })
+        new PointerEvent("pointerdown", {
+          clientX: fromX,
+          pointerId: 1,
+          bubbles: true,
+        })
       );
     });
     act(() => {
       el.dispatchEvent(
-        new PointerEvent("pointermove", { clientX: toX, pointerId: 1, bubbles: true })
+        new PointerEvent("pointermove", {
+          clientX: toX,
+          pointerId: 1,
+          bubbles: true,
+        })
       );
     });
     act(() => {
       el.dispatchEvent(
-        new PointerEvent("pointerup", { clientX: toX, pointerId: 1, bubbles: true })
+        new PointerEvent("pointerup", {
+          clientX: toX,
+          pointerId: 1,
+          bubbles: true,
+        })
       );
     });
   }
@@ -1772,76 +1824,76 @@ function trackPxOf(el: HTMLElement | null): number {
 In `DayTrack`, above the returned JSX:
 
 ```tsx
-  // The gesture in flight. A ref, not state: pointermove fires far faster
-  // than React can re-render, and the drag's own arithmetic must read the
-  // value the LAST move wrote, not the one the last commit re-rendered with.
-  const drag = useRef<{
-    blockIndex: number;
-    edge: "start" | "end" | null;
-    originX: number;
-    trackPx: number;
-    committed: AvailabilityBlock[];
-  } | null>(null);
+// The gesture in flight. A ref, not state: pointermove fires far faster
+// than React can re-render, and the drag's own arithmetic must read the
+// value the LAST move wrote, not the one the last commit re-rendered with.
+const drag = useRef<{
+  blockIndex: number;
+  edge: "start" | "end" | null;
+  originX: number;
+  trackPx: number;
+  committed: AvailabilityBlock[];
+} | null>(null);
 
-  function onPointerDown(
-    e: React.PointerEvent<HTMLElement>,
-    blockIndex: number,
-    edge: "start" | "end" | null
-  ) {
-    const track = e.currentTarget.closest<HTMLElement>("[data-track]");
-    const trackPx = trackPxOf(track);
-    if (trackPx === 0) return;
-    e.currentTarget.setPointerCapture?.(e.pointerId);
-    drag.current = {
-      blockIndex,
-      edge,
-      originX: e.clientX,
-      trackPx,
-      committed: blocks,
-    };
-  }
+function onPointerDown(
+  e: React.PointerEvent<HTMLElement>,
+  blockIndex: number,
+  edge: "start" | "end" | null
+) {
+  const track = e.currentTarget.closest<HTMLElement>("[data-track]");
+  const trackPx = trackPxOf(track);
+  if (trackPx === 0) return;
+  e.currentTarget.setPointerCapture?.(e.pointerId);
+  drag.current = {
+    blockIndex,
+    edge,
+    originX: e.clientX,
+    trackPx,
+    committed: blocks,
+  };
+}
 
-  function onPointerMove(e: React.PointerEvent<HTMLElement>) {
-    const d = drag.current;
-    if (!d) return;
-    const deltaMins = pxToMins(e.clientX - d.originX, d.trackPx, win);
-    // Snapping happens inside moveBlock/resizeBlock, so a sub-step drag
-    // resolves to the same block it started as and commits nothing new.
-    const next = d.edge
-      ? resizeBlock(d.committed, d.blockIndex, d.edge, deltaMins, win)
-      : moveBlock(d.committed, d.blockIndex, deltaMins, win);
-    if (JSON.stringify(next) === JSON.stringify(d.committed)) return;
-    onChangeDay(day, next);
-  }
+function onPointerMove(e: React.PointerEvent<HTMLElement>) {
+  const d = drag.current;
+  if (!d) return;
+  const deltaMins = pxToMins(e.clientX - d.originX, d.trackPx, win);
+  // Snapping happens inside moveBlock/resizeBlock, so a sub-step drag
+  // resolves to the same block it started as and commits nothing new.
+  const next = d.edge
+    ? resizeBlock(d.committed, d.blockIndex, d.edge, deltaMins, win)
+    : moveBlock(d.committed, d.blockIndex, deltaMins, win);
+  if (JSON.stringify(next) === JSON.stringify(d.committed)) return;
+  onChangeDay(day, next);
+}
 
-  function onPointerUp(e: React.PointerEvent<HTMLElement>) {
-    e.currentTarget.releasePointerCapture?.(e.pointerId);
-    drag.current = null;
-  }
+function onPointerUp(e: React.PointerEvent<HTMLElement>) {
+  e.currentTarget.releasePointerCapture?.(e.pointerId);
+  drag.current = null;
+}
 
-  /**
-   * A resize handle's pointer props. `stopPropagation` is load-bearing, not
-   * hygiene: the handles render INSIDE the pill button — they must, to be
-   * positioned against it — so without it a pointerdown on a handle bubbles
-   * to the button, whose own onPointerDown overwrites the gesture with
-   * `edge: null` and turns a resize into a move.
-   */
-  function handleProps(blockIndex: number, edge: "start" | "end") {
-    return {
-      onPointerDown: (e: React.PointerEvent<HTMLElement>) => {
-        e.stopPropagation();
-        onPointerDown(e, blockIndex, edge);
-      },
-      onPointerMove: (e: React.PointerEvent<HTMLElement>) => {
-        e.stopPropagation();
-        onPointerMove(e);
-      },
-      onPointerUp: (e: React.PointerEvent<HTMLElement>) => {
-        e.stopPropagation();
-        onPointerUp(e);
-      },
-    };
-  }
+/**
+ * A resize handle's pointer props. `stopPropagation` is load-bearing, not
+ * hygiene: the handles render INSIDE the pill button — they must, to be
+ * positioned against it — so without it a pointerdown on a handle bubbles
+ * to the button, whose own onPointerDown overwrites the gesture with
+ * `edge: null` and turns a resize into a move.
+ */
+function handleProps(blockIndex: number, edge: "start" | "end") {
+  return {
+    onPointerDown: (e: React.PointerEvent<HTMLElement>) => {
+      e.stopPropagation();
+      onPointerDown(e, blockIndex, edge);
+    },
+    onPointerMove: (e: React.PointerEvent<HTMLElement>) => {
+      e.stopPropagation();
+      onPointerMove(e);
+    },
+    onPointerUp: (e: React.PointerEvent<HTMLElement>) => {
+      e.stopPropagation();
+      onPointerUp(e);
+    },
+  };
+}
 ```
 
 Add `pxToMins` to the timeline import and `useRef` to the React import
@@ -1858,31 +1910,33 @@ and render the two handles inside the pill, after the label span, gated on
 selection:
 
 ```tsx
-              {isSelected && (
-                <>
-                  {/* OUTSIDE the pill's own bounds (-left-3 / -right-3, 24px
+{
+  isSelected && (
+    <>
+      {/* OUTSIDE the pill's own bounds (-left-3 / -right-3, 24px
                       wide): the spec is explicit that "the touch target is not
                       the pill's rendered width", and at the 44px floor the
                       pill has no room to host a grabbable edge inside itself.
                       aria-hidden with tabIndex -1 — the keyboard path is
                       shift+arrows on the pill itself, so these would be two
                       extra tab stops that do nothing a keyboard user needs. */}
-                  <span
-                    aria-hidden
-                    tabIndex={-1}
-                    data-handle={`${id}:start`}
-                    {...handleProps(p.index, "start")}
-                    className="absolute -left-3 inset-y-0 w-6 cursor-ew-resize"
-                  />
-                  <span
-                    aria-hidden
-                    tabIndex={-1}
-                    data-handle={`${id}:end`}
-                    {...handleProps(p.index, "end")}
-                    className="absolute -right-3 inset-y-0 w-6 cursor-ew-resize"
-                  />
-                </>
-              )}
+      <span
+        aria-hidden
+        tabIndex={-1}
+        data-handle={`${id}:start`}
+        {...handleProps(p.index, "start")}
+        className="absolute -left-3 inset-y-0 w-6 cursor-ew-resize"
+      />
+      <span
+        aria-hidden
+        tabIndex={-1}
+        data-handle={`${id}:end`}
+        {...handleProps(p.index, "end")}
+        className="absolute -right-3 inset-y-0 w-6 cursor-ew-resize"
+      />
+    </>
+  );
+}
 ```
 
 The pill needs `touch-none` added to its class list so a horizontal drag is
@@ -1918,6 +1972,7 @@ git commit -m "feat(availability): pointer drag to move and resize blocks"
 ### Task 6: Wire the timeline into `IntakeForm`
 
 **Files:**
+
 - Modify: `src/components/week/intake-form.tsx` — replace the `<ul>` day list
   (and only that) with `<AvailabilityTimeline>`
 - Modify: `src/components/week/intake-form.test.tsx` — update the day-list
@@ -1925,6 +1980,7 @@ git commit -m "feat(availability): pointer drag to move and resize blocks"
 - Test: `tests/intake-form-resync.test.tsx` must pass UNCHANGED
 
 **Interfaces:**
+
 - Consumes: `AvailabilityTimeline` from Task 3–5.
 - Produces: no new exports.
 
@@ -1941,36 +1997,36 @@ Append to `src/components/week/intake-form.test.tsx`, inside the existing
 `describe("IntakeForm")`:
 
 ```tsx
-  it("renders the week as tracks, not as a list of rows", () => {
-    const html = renderToString(
-      <IntakeForm
-        resolved={resolved}
-        dates={dates}
-        overrideDates={[]}
-        verdict={{ kind: "building" } as never}
-        sports={["Ride"]}
-        action={noop}
-      />
-    );
-    expect(html.match(/data-track=/g)).toHaveLength(7);
-    expect(html).toContain('aria-label="Wednesday 18:00 to 19:30, normal"');
-  });
+it("renders the week as tracks, not as a list of rows", () => {
+  const html = renderToString(
+    <IntakeForm
+      resolved={resolved}
+      dates={dates}
+      overrideDates={[]}
+      verdict={{ kind: "building" } as never}
+      sports={["Ride"]}
+      action={noop}
+    />
+  );
+  expect(html.match(/data-track=/g)).toHaveLength(7);
+  expect(html).toContain('aria-label="Wednesday 18:00 to 19:30, normal"');
+});
 
-  it("still submits every day through its hidden input", () => {
-    const html = renderToString(
-      <IntakeForm
-        resolved={resolved}
-        dates={dates}
-        overrideDates={[]}
-        verdict={{ kind: "building" } as never}
-        sports={["Ride"]}
-        action={noop}
-      />
-    );
-    for (let i = 0; i < 7; i++) {
-      expect(html).toContain(`name="blocks-${i}"`);
-    }
-  });
+it("still submits every day through its hidden input", () => {
+  const html = renderToString(
+    <IntakeForm
+      resolved={resolved}
+      dates={dates}
+      overrideDates={[]}
+      verdict={{ kind: "building" } as never}
+      sports={["Ride"]}
+      action={noop}
+    />
+  );
+  for (let i = 0; i < 7; i++) {
+    expect(html).toContain(`name="blocks-${i}"`);
+  }
+});
 ```
 
 Add a `dates` fixture alongside the existing `resolved` one if the file does
@@ -2007,27 +2063,31 @@ import { AvailabilityTimeline } from "./availability-timeline";
 Replace the whole `<ul className="mb-3"> … </ul>` block with:
 
 ```tsx
-      <AvailabilityTimeline
-        week={week}
-        pinned={dates.map((d) => overrideDates.includes(d))}
-        onChangeDay={(i, next) =>
-          setWeek((prev) => prev.map((d, j) => (j === i ? next : d)))
-        }
-        onUnpin={unpin}
-        onOpenDay={setOpenDay}
-      />
-      {/* The submitted value, unchanged from the list this replaced. The
+<AvailabilityTimeline
+  week={week}
+  pinned={dates.map((d) => overrideDates.includes(d))}
+  onChangeDay={(i, next) =>
+    setWeek((prev) => prev.map((d, j) => (j === i ? next : d)))
+  }
+  onUnpin={unpin}
+  onOpenDay={setOpenDay}
+/>;
+{
+  /* The submitted value, unchanged from the list this replaced. The
           timeline is a VIEW over `week`; these are what actually reach
           submitAvailability, and tests/intake-form-resync.test.tsx asserts
-          against them for exactly that reason. */}
-      {week.map((blocks, i) => (
-        <input
-          key={i}
-          type="hidden"
-          name={`blocks-${i}`}
-          value={JSON.stringify(blocks)}
-        />
-      ))}
+          against them for exactly that reason. */
+}
+{
+  week.map((blocks, i) => (
+    <input
+      key={i}
+      type="hidden"
+      name={`blocks-${i}`}
+      value={JSON.stringify(blocks)}
+    />
+  ));
+}
 ```
 
 Change the form's own padding from `p-7` to `p-4`. The timeline cancels that
@@ -2066,6 +2126,7 @@ git commit -m "feat(availability): the sheet's day list becomes the drag-timelin
 ### Task 7: The whole-branch pass
 
 **Files:**
+
 - Modify: `docs/2026-08-26-flow-inventory.md` — a fourth dated section
 - Modify: `docs/ROADMAP.md` — flow-and-friction 3 of 3
 
@@ -2152,8 +2213,7 @@ via "Edit precisely". This/Next tenses, `Pinned` badge, `clearDayOverride`
 per day → already live in `AvailabilityWeekSwitcher`/`IntakeForm`, preserved
 by task 6. Standard week not a tense here → unchanged. 44 px minimum with the
 distortion commented → task 1 `MIN_BLOCK_PX`. Focusable blocks with the
-spec's accessible name and arrow-key adjustment → tasks 1 `describeBlock` and
-4. `BlockSheet` kept as the precise path → task 3's "Edit precisely" and task
+spec's accessible name and arrow-key adjustment → tasks 1 `describeBlock` and 4. `BlockSheet` kept as the precise path → task 3's "Edit precisely" and task
 4's Enter. The Sunday reminder → **already shipped in v0.123.0**, see the
 header.
 

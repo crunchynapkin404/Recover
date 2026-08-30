@@ -101,7 +101,7 @@ describe("AvailabilityTimeline", () => {
     expect(html).toContain("Pinned");
     // WCAG 2.5.3: the accessible name must CONTAIN the visible text, so a
     // voice-control user saying "tap Pinned" reaches this control.
-    expect(html).toContain('Pinned ×');
+    expect(html).toContain("Pinned ×");
     expect(html).toContain(
       'aria-label="Pinned — Wednesday, back to your standard week"'
     );
@@ -279,7 +279,9 @@ describe("AvailabilityTimeline keyboard path", () => {
     act(() => {
       host!
         .querySelector<HTMLElement>('[data-block="0:0"]')!
-        .dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+        .dispatchEvent(
+          new KeyboardEvent("keydown", { key: "Enter", bubbles: true })
+        );
     });
     // Enter no longer short-circuits to the sheet; the browser's own
     // button semantics turn it into the same click a tap produces.
@@ -303,7 +305,17 @@ describe("AvailabilityTimeline pointer drag", () => {
     Object.defineProperty(HTMLElement.prototype, "getBoundingClientRect", {
       configurable: true,
       value() {
-        return { width: px, height: 36, top: 0, left: 0, right: px, bottom: 36, x: 0, y: 0, toJSON: () => ({}) };
+        return {
+          width: px,
+          height: 36,
+          top: 0,
+          left: 0,
+          right: px,
+          bottom: 36,
+          x: 0,
+          y: 0,
+          toJSON: () => ({}),
+        };
       },
     });
   }
@@ -319,23 +331,37 @@ describe("AvailabilityTimeline pointer drag", () => {
   });
 
   function drag(el: HTMLElement, fromX: number, toX: number) {
-    (el as HTMLElement & { setPointerCapture?: (id: number) => void }).setPointerCapture =
-      () => {};
-    (el as HTMLElement & { releasePointerCapture?: (id: number) => void }).releasePointerCapture =
-      () => {};
+    (
+      el as HTMLElement & { setPointerCapture?: (id: number) => void }
+    ).setPointerCapture = () => {};
+    (
+      el as HTMLElement & { releasePointerCapture?: (id: number) => void }
+    ).releasePointerCapture = () => {};
     act(() => {
       el.dispatchEvent(
-        new PointerEvent("pointerdown", { clientX: fromX, pointerId: 1, bubbles: true })
+        new PointerEvent("pointerdown", {
+          clientX: fromX,
+          pointerId: 1,
+          bubbles: true,
+        })
       );
     });
     act(() => {
       el.dispatchEvent(
-        new PointerEvent("pointermove", { clientX: toX, pointerId: 1, bubbles: true })
+        new PointerEvent("pointermove", {
+          clientX: toX,
+          pointerId: 1,
+          bubbles: true,
+        })
       );
     });
     act(() => {
       el.dispatchEvent(
-        new PointerEvent("pointerup", { clientX: toX, pointerId: 1, bubbles: true })
+        new PointerEvent("pointerup", {
+          clientX: toX,
+          pointerId: 1,
+          bubbles: true,
+        })
       );
     });
   }
@@ -403,7 +429,17 @@ describe("AvailabilityTimeline gesture safety", () => {
     Object.defineProperty(HTMLElement.prototype, "getBoundingClientRect", {
       configurable: true,
       value() {
-        return { width: px, height: 36, top: 0, left: 0, right: px, bottom: 36, x: 0, y: 0, toJSON: () => ({}) };
+        return {
+          width: px,
+          height: 36,
+          top: 0,
+          left: 0,
+          right: px,
+          bottom: 36,
+          x: 0,
+          y: 0,
+          toJSON: () => ({}),
+        };
       },
     });
   }
@@ -423,15 +459,33 @@ describe("AvailabilityTimeline gesture safety", () => {
     cast.setPointerCapture = () => {};
     cast.releasePointerCapture = () => {};
     act(() => {
-      el.dispatchEvent(new PointerEvent("pointerdown", { clientX: xs[0], pointerId: 1, bubbles: true }));
+      el.dispatchEvent(
+        new PointerEvent("pointerdown", {
+          clientX: xs[0],
+          pointerId: 1,
+          bubbles: true,
+        })
+      );
     });
     for (const x of xs.slice(1)) {
       act(() => {
-        el.dispatchEvent(new PointerEvent("pointermove", { clientX: x, pointerId: 1, bubbles: true }));
+        el.dispatchEvent(
+          new PointerEvent("pointermove", {
+            clientX: x,
+            pointerId: 1,
+            bubbles: true,
+          })
+        );
       });
     }
     act(() => {
-      el.dispatchEvent(new PointerEvent("pointerup", { clientX: xs[xs.length - 1], pointerId: 1, bubbles: true }));
+      el.dispatchEvent(
+        new PointerEvent("pointerup", {
+          clientX: xs[xs.length - 1],
+          pointerId: 1,
+          bubbles: true,
+        })
+      );
     });
   }
 
@@ -443,7 +497,10 @@ describe("AvailabilityTimeline gesture safety", () => {
     const week = emptyWeek();
     week[0] = [block("18:00", "19:00")];
     const t = mount(week);
-    pointer(host!.querySelector<HTMLElement>('[data-block="0:0"]')!, [100, 103]);
+    pointer(
+      host!.querySelector<HTMLElement>('[data-block="0:0"]')!,
+      [100, 103]
+    );
     expect(t.calls).toHaveLength(0);
   });
 
@@ -452,7 +509,10 @@ describe("AvailabilityTimeline gesture safety", () => {
     const week = emptyWeek();
     week[0] = [block("18:00", "19:00")];
     const t = mount(week);
-    pointer(host!.querySelector<HTMLElement>('[data-block="0:0"]')!, [100, 140]);
+    pointer(
+      host!.querySelector<HTMLElement>('[data-block="0:0"]')!,
+      [100, 140]
+    );
     expect(t.calls.length).toBeGreaterThan(0);
   });
 
@@ -470,7 +530,10 @@ describe("AvailabilityTimeline gesture safety", () => {
     });
     expect(host!.querySelector('[data-handle="0:0:end"]')).not.toBeNull();
 
-    pointer(host!.querySelector<HTMLElement>('[data-handle="0:0:end"]')!, [100, 140]);
+    pointer(
+      host!.querySelector<HTMLElement>('[data-handle="0:0:end"]')!,
+      [100, 140]
+    );
     // The click the browser synthesises after the gesture.
     act(() => {
       host!
@@ -512,13 +575,27 @@ describe("AvailabilityTimeline gesture safety", () => {
     week[0] = [block("07:00", "08:00"), block("18:00", "19:00")];
     const t = mount(week);
     const first = host!.querySelector<HTMLElement>('[data-block="0:0"]')!;
-    const cast = first as HTMLElement & { setPointerCapture?: (id: number) => void };
+    const cast = first as HTMLElement & {
+      setPointerCapture?: (id: number) => void;
+    };
     cast.setPointerCapture = () => {};
     act(() => {
-      first.dispatchEvent(new PointerEvent("pointerdown", { clientX: 100, pointerId: 1, bubbles: true }));
+      first.dispatchEvent(
+        new PointerEvent("pointerdown", {
+          clientX: 100,
+          pointerId: 1,
+          bubbles: true,
+        })
+      );
     });
     act(() => {
-      first.dispatchEvent(new PointerEvent("pointermove", { clientX: 300, pointerId: 2, bubbles: true }));
+      first.dispatchEvent(
+        new PointerEvent("pointermove", {
+          clientX: 300,
+          pointerId: 2,
+          bubbles: true,
+        })
+      );
     });
     expect(t.calls).toHaveLength(0);
   });

@@ -118,9 +118,9 @@ describe("layoutDay", () => {
 
   it("reports the index of the block it placed, in chronological order", () => {
     const day = [block("20:00", "21:00"), block("07:00", "08:00")];
-    expect(layoutDay(day, trackPx, DEFAULT_WINDOW).map((p) => p.index)).toEqual([
-      1, 0,
-    ]);
+    expect(layoutDay(day, trackPx, DEFAULT_WINDOW).map((p) => p.index)).toEqual(
+      [1, 0]
+    );
   });
 
   it("skips untimed blocks entirely", () => {
@@ -331,7 +331,15 @@ describe("the end-of-day wall", () => {
   });
 
   it("does not erode a block held against the right wall", () => {
-    const win = trackWindow([[block("21:30", "23:30")], [], [], [], [], [], []]);
+    const win = trackWindow([
+      [block("21:30", "23:30")],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [],
+    ]);
     let day = [block("22:00", "23:00")];
     for (let i = 0; i < 40; i++) day = moveBlock(day, 0, 15, win);
     expect(validateBlocks(day)).toBeNull();
@@ -343,9 +351,7 @@ describe("the end-of-day wall", () => {
   it("keeps mins and the clock range in agreement at the wall", () => {
     const win = { startMin: 5 * 60, endMin: LAST_MINUTE_OF_DAY };
     const next = moveBlock([block("22:00", "23:00")], 0, 600, win);
-    expect(next[0].mins).toBe(
-      toMins(next[0].end!) - toMins(next[0].start!)
-    );
+    expect(next[0].mins).toBe(toMins(next[0].end!) - toMins(next[0].start!));
   });
 });
 
@@ -396,7 +402,11 @@ describe("what the timeline is allowed to hand the server", () => {
   it("keeps mins and the clock range agreeing through any resize", () => {
     let day = [block("06:00", "07:30")];
     for (const [edge, d] of [
-      ["end", 15], ["end", -600], ["start", -45], ["start", 9999], ["end", 9999],
+      ["end", 15],
+      ["end", -600],
+      ["start", -45],
+      ["start", 9999],
+      ["end", 9999],
     ] as const) {
       day = resizeBlock(day, 0, edge, d, win);
       consistent(day);
@@ -408,7 +418,11 @@ describe("what the timeline is allowed to hand the server", () => {
   // TIMED block must not drop it.
   it("preserves an untimed legacy block while its neighbour is edited", () => {
     const legacy: AvailabilityBlock = {
-      start: null, end: null, mins: 45, energy: "easy", sports: ["Ride"],
+      start: null,
+      end: null,
+      mins: 45,
+      energy: "easy",
+      sports: ["Ride"],
     };
     const day: AvailabilityBlock[] = [legacy, block("18:00", "19:00")];
     expect(layoutDay(day, NOMINAL_TRACK_PX, win)).toHaveLength(1);
@@ -424,7 +438,13 @@ describe("what the timeline is allowed to hand the server", () => {
 
   it("never drops a block's sports or energy when moving or resizing it", () => {
     const day: AvailabilityBlock[] = [
-      { start: "18:00", end: "19:00", mins: 60, energy: "full", sports: ["Run"] },
+      {
+        start: "18:00",
+        end: "19:00",
+        mins: 60,
+        energy: "full",
+        sports: ["Run"],
+      },
     ];
     for (const next of [
       moveBlock(day, 0, 30, win),

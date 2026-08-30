@@ -860,7 +860,10 @@ const SURFACE_PREPARE: Record<string, (page: Page) => Promise<void>> = {
   // `assertOnSurface` compares pathname only, and `/train?sheet=availability`
   // shares a pathname with `/train`, so a fixture with no open week would
   // photograph and axe-audit the ordinary Train tab under this name.
-  "train-availability": sheetOpenGuard("train-availability", "?sheet=availability"),
+  "train-availability": sheetOpenGuard(
+    "train-availability",
+    "?sheet=availability"
+  ),
   "coach-history": waitForHistoryPanel,
   "coach-history-active": waitForActiveThreadRow,
 };

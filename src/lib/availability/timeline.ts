@@ -270,7 +270,9 @@ export function moveBlock(
   // against it is more useful than stopping on the grid short of it.
   const lastStart = Math.floor((ceil - duration) / SNAP_MIN) * SNAP_MIN;
   const start = Math.max(floor, Math.min(wanted, lastStart));
-  return blocks.map((x, i) => (i === index ? withTimes(x, start, start + duration) : x));
+  return blocks.map((x, i) =>
+    i === index ? withTimes(x, start, start + duration) : x
+  );
 }
 
 /** Drag one edge, keeping the other fixed, never below MIN_BLOCK_MIN. */
@@ -287,9 +289,15 @@ export function resizeBlock(
   let start = toMins(b.start!);
   let end = toMins(b.end!);
   if (edge === "start") {
-    start = Math.max(floor, Math.min(snap(start + deltaMins), end - MIN_BLOCK_MIN));
+    start = Math.max(
+      floor,
+      Math.min(snap(start + deltaMins), end - MIN_BLOCK_MIN)
+    );
   } else {
-    end = Math.min(ceil, Math.max(snap(end + deltaMins), start + MIN_BLOCK_MIN));
+    end = Math.min(
+      ceil,
+      Math.max(snap(end + deltaMins), start + MIN_BLOCK_MIN)
+    );
   }
   return blocks.map((x, i) => (i === index ? withTimes(x, start, end) : x));
 }
@@ -334,7 +342,13 @@ export function addBlock(
     if (clashes) continue;
     return [
       ...blocks,
-      { start: toClock(start), end: toClock(end), mins: NEW_BLOCK_MIN, energy: "normal", sports: null },
+      {
+        start: toClock(start),
+        end: toClock(end),
+        mins: NEW_BLOCK_MIN,
+        energy: "normal",
+        sports: null,
+      },
     ];
   }
   return null;

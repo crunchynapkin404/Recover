@@ -29,14 +29,23 @@
  */
 import { and, eq, inArray } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
-import { validateBlocks, type AvailabilityBlock } from "@/lib/availability/types";
+import {
+  validateBlocks,
+  type AvailabilityBlock,
+} from "@/lib/availability/types";
 
 if (process.env.SEED_DEMO !== "1") {
-  console.error("Refusing to run: this seeds fake demo data. Set SEED_DEMO=1 to confirm.");
+  console.error(
+    "Refusing to run: this seeds fake demo data. Set SEED_DEMO=1 to confirm."
+  );
   process.exit(1);
 }
 
-const WEEK: { start: string; end: string; energy: AvailabilityBlock["energy"] }[][] = [
+const WEEK: {
+  start: string;
+  end: string;
+  energy: AvailabilityBlock["energy"];
+}[][] = [
   [{ start: "06:30", end: "07:30", energy: "easy" }],
   [{ start: "18:00", end: "19:30", energy: "full" }],
   [],
@@ -71,7 +80,8 @@ async function main() {
   const user = await db.query.users.findFirst({
     where: eq(schema.users.email, email),
   });
-  if (!user) throw new Error(`no user ${email} — run scripts/seed-demo.ts first`);
+  if (!user)
+    throw new Error(`no user ${email} — run scripts/seed-demo.ts first`);
 
   const monday = mondayOf(new Date());
   const dates = WEEK.map((_, i) => {
@@ -103,13 +113,16 @@ async function main() {
     // The same gate every writer passes through. A seed that plants a value
     // the app would refuse is a fixture that tests nothing.
     const invalid = validateBlocks(blocks);
-    if (invalid) throw new Error(`day ${dates[i]} is not a legal week: ${invalid}`);
+    if (invalid)
+      throw new Error(`day ${dates[i]} is not a legal week: ${invalid}`);
     await db.insert(schema.availabilityOverrides).values({
       userId: user.id,
       date: dates[i],
       blocks,
     } as never);
-    console.log(`${dates[i]}  ${blocks.map((b) => `${b.start}-${b.end} ${b.energy}`).join(" + ") || "rest"}`);
+    console.log(
+      `${dates[i]}  ${blocks.map((b) => `${b.start}-${b.end} ${b.energy}`).join(" + ") || "rest"}`
+    );
   }
   console.log(`Seeded a timed availability week for ${email}.`);
   process.exit(0);
