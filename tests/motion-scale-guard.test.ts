@@ -322,3 +322,42 @@ describe("a route that waits says so", () => {
     ).toBe(true);
   });
 });
+
+describe("routes that await", () => {
+  /** Every page.tsx under src/app, repo-relative. */
+  function pageFiles(
+    dir = join(process.cwd(), "src/app"),
+    out: string[] = []
+  ): string[] {
+    for (const entry of readdirSync(dir)) {
+      const full = join(dir, entry);
+      if (statSync(full).isDirectory()) pageFiles(full, out);
+      else if (entry === "page.tsx") out.push(relative(process.cwd(), full));
+    }
+    return out;
+  }
+
+  /**
+   * A page is an offender when it can make the athlete wait and says nothing
+   * while it does. "Can wait" is `await` in a server component: a "use client"
+   * page renders instantly, and a page whose whole body is a redirect() never
+   * paints.
+   */
+  function awaitingWithoutLoading(): string[] {
+    return pageFiles().filter((f) => {
+      const src = readFileSync(f, "utf8");
+      if (src.includes('"use client"')) return false;
+      if (/^\s*redirect\(/m.test(src) && !/\bawait\b/.test(src)) return false;
+      if (!/\bawait\b/.test(src)) return false;
+      return !existsSync(f.replace(/page\.tsx$/, "loading.tsx"));
+    });
+  }
+
+  it("do not wait in silence", () => {
+    // Not zero, and the exception is named rather than filtered out:
+    // src/app/join/[code]/page.tsx awaits findValidInvite and has no loading
+    // state, but it is pre-auth and outside AppShell — the spec assigns
+    // pre-auth to slice 5, which takes this to 0.
+    expect(awaitingWithoutLoading()).toEqual(["src/app/join/[code]/page.tsx"]);
+  });
+});
