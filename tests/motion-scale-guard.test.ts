@@ -10,7 +10,7 @@
 // module, same source scan, same two-sided OFFENDER_CEILINGS ratchet — so
 // motion cannot become the one scale with no enforcement.
 import { describe, it, expect } from "vitest";
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
 import { join, relative } from "node:path";
 import { CSS_PATH, readPrefixedThemeTokens } from "../src/lib/design/tokens";
 import {
@@ -277,5 +277,48 @@ describe("the spacing scale is the scale the app runs", () => {
     expect(
       readPrefixedThemeTokens(css(), "--spacing")["--spacing"]
     ).toBeUndefined();
+  });
+});
+
+
+/** Every `loading.tsx` under src/app, as repo-relative paths. */
+function loadingFiles(
+  dir = join(process.cwd(), "src/app"),
+  out: string[] = []
+): string[] {
+  for (const entry of readdirSync(dir)) {
+    const full = join(dir, entry);
+    if (statSync(full).isDirectory()) loadingFiles(full, out);
+    else if (entry === "loading.tsx") out.push(relative(process.cwd(), full));
+  }
+  return out;
+}
+
+describe("a route that waits says so", () => {
+  it("every loading.tsx announces itself", () => {
+    // The defect this pins: all six loading.tsx files carried skeletons and
+    // NOTHING else — no role, no live region, no text. A screen-reader user
+    // got silence, and because the reduced-motion rule kills animation
+    // outright, a reduced-motion user got a static grey page. Motion was the
+    // only carrier of "this is loading", and two audiences cannot perceive it.
+    const silent = loadingFiles().filter(
+      (f) => !readFileSync(f, "utf8").includes("LoadingScreen")
+    );
+    expect(
+      silent,
+      `these loading states carry no status semantics — wrap their skeletons ` +
+        `in <LoadingScreen label="…"> so the wait is announced rather than ` +
+        `only animated.`
+    ).toEqual([]);
+  });
+
+  it("Skeleton is decorative, not announced", () => {
+    const src = readFileSync("src/components/ui/skeleton.tsx", "utf8");
+    expect(
+      src.includes("aria-hidden"),
+      "Skeleton must be aria-hidden: it is decoration, and the LoadingScreen " +
+        "region around it is what speaks. Without this a screen reader walks " +
+        "a pile of empty divs."
+    ).toBe(true);
   });
 });
