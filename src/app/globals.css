@@ -106,14 +106,16 @@
      so numeric-display call sites read as intent, not as "code font". */
   --font-numeric: var(--font-geist-mono);
 
-  /* Spacing scale — 4px base. */
-  --spacing-1: 0.25rem;
-  --spacing-2: 0.5rem;
-  --spacing-3: 0.75rem;
-  --spacing-4: 1rem;
-  --spacing-6: 1.5rem;
-  --spacing-8: 2rem;
-  --spacing-12: 3rem;
+  /* Spacing — Tailwind v4's default 0.25rem base, deliberately NOT
+     redeclared. Seven discrete --spacing-N keys used to sit here restating
+     exactly what that base computes; they generated no distinct utility and
+     claimed a seven-step scale the app has never run. It runs an eleven-step
+     2px grid — 210 half-step call sites (py-1.5, gap-1.5, py-2.5, px-3.5,
+     px-2.5 and the rest), which are legitimate steps on a 4px base, not
+     scatter. Do not lower the base to make them look integral: --spacing
+     multiplies every spacing utility in the app, and halving it halves every
+     padding on every surface. tests/motion-scale-guard.test.ts asserts both
+     halves of this. */
 
   /* Motion scale — Phase 6.4. Six durations, four easings, replacing 11
      hand-written duration spellings of 10 values and 8 easings. Semantic

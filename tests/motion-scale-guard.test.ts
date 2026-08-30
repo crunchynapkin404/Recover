@@ -218,3 +218,35 @@ describe("the motion ratchet", () => {
     expect(walk(SRC).length).toBeGreaterThan(100);
   });
 });
+
+describe("the spacing scale is the scale the app runs", () => {
+  const DEFAULT_BASE_REM = 0.25; // Tailwind v4's own --spacing default
+
+  it("declares no key that merely restates the default base", () => {
+    const declared = readPrefixedThemeTokens(css(), "--spacing-");
+    const noops: string[] = [];
+    for (const [token, value] of Object.entries(declared)) {
+      const step = Number(token.replace("--spacing-", ""));
+      const rem = /^([\d.]+)rem$/.exec(value);
+      if (!Number.isFinite(step) || !rem) continue;
+      if (Number(rem[1]) === step * DEFAULT_BASE_REM) noops.push(token);
+    }
+    expect(
+      noops,
+      `these declarations compute exactly what Tailwind's default --spacing ` +
+        `base already gives, so they add nothing but a false claim that the ` +
+        `scale has only these steps. The app runs an 11-step 2px grid: 210 ` +
+        `half-step call sites. Delete them.`
+    ).toEqual([]);
+  });
+
+  it("does not override the spacing base", () => {
+    // --spacing multiplies EVERY spacing utility in the app. Lowering it to
+    // 0.125rem to make the half-steps look integral would halve every
+    // padding on every surface. The half-steps are legitimate on a 4px base;
+    // the base does not move.
+    expect(
+      readPrefixedThemeTokens(css(), "--spacing")["--spacing"]
+    ).toBeUndefined();
+  });
+});
