@@ -62,7 +62,7 @@ claiming the amber result is still a threshold session (`STEP_DOWN` sends
 `Tempo → Endurance` and `withPurpose` re-derives the purpose). A third prose
 copy would be a third chance to be wrong. The guard reads the constants.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `src/lib/interval/coverage-guard.test.ts`:
 
@@ -194,12 +194,12 @@ describe("library coverage", () => {
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `npx vitest run src/lib/interval/coverage-guard.test.ts`
 Expected: FAIL — cannot resolve `./library`.
 
-- [ ] **Step 3: Create the empty library**
+- [x] **Step 3: Create the empty library**
 
 Create `src/lib/interval/library.ts`:
 
@@ -220,7 +220,7 @@ import type { LibraryWorkout } from "./types";
 export const LIBRARY: readonly LibraryWorkout[] = [];
 ```
 
-- [ ] **Step 4: Run the tests**
+- [x] **Step 4: Run the tests**
 
 Run: `npx vitest run src/lib/interval/coverage-guard.test.ts`
 Expected: PASS, 6 tests. Coverage passes vacuously — there is nothing to cover
@@ -228,7 +228,7 @@ yet, which Task 3's final assertion closes.
 
 Then `npx tsc --noEmit`: no errors outside `.next/`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 npx prettier --write src/lib/interval/
@@ -281,7 +281,7 @@ written** — if one disagrees, the transcription is wrong, not the number:
 | `long-surges-mid` | long-surges   | 140      | 95–185     |
 | `long-surges-xl`  | long-surges   | 235      | 145–325    |
 
-- [ ] **Step 1: Add the shared helpers and the fifteen workouts**
+- [x] **Step 1: Add the shared helpers and the fifteen workouts**
 
 Replace the body of `src/lib/interval/library.ts`'s array, keeping its doc
 comment, with the helpers and entries below. The helpers keep 30 literals
@@ -499,7 +499,7 @@ Then the fifteen entries:
   },
 ```
 
-- [ ] **Step 2: Run the guard**
+- [x] **Step 2: Run the guard**
 
 Run: `npx vitest run src/lib/interval/coverage-guard.test.ts`
 Expected: PASS, 6 tests — and now meaningfully: `recovery`, `aerobic_base` and
@@ -508,7 +508,7 @@ Expected: PASS, 6 tests — and now meaningfully: `recovery`, `aerobic_base` and
 Then `npx tsc --noEmit` (no errors outside `.next/`) and
 `npx vitest run src/lib/interval/` (all module tests still green).
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 npx prettier --write src/lib/interval/
@@ -561,7 +561,7 @@ and the 27-minute day has no answer.
 | `vo2-8x3`         | short-vo2        | 87       | 72–102     |
 | `vo2-12x3`        | short-vo2        | 107      | 94–120     |
 
-- [ ] **Step 1: Append the fifteen quality workouts**
+- [x] **Step 1: Append the fifteen quality workouts**
 
 ```ts
   // ── threshold ────────────────────────────────────────────────────────
@@ -747,7 +747,7 @@ and the 27-minute day has no answer.
   },
 ```
 
-- [ ] **Step 2: Close the vacuous-coverage loophole**
+- [x] **Step 2: Close the vacuous-coverage loophole**
 
 The guard skips a purpose with no workouts, which was right while the library
 was being built and is wrong now. Append to the `library coverage` describe in
@@ -768,14 +768,14 @@ it("answers every purpose the matcher can be asked for", () => {
 });
 ```
 
-- [ ] **Step 3: Run the guard**
+- [x] **Step 3: Run the guard**
 
 Run: `npx vitest run src/lib/interval/coverage-guard.test.ts`
 Expected: PASS, 7 tests, with all five purposes now checked for holes.
 
 Then `npx tsc --noEmit` and `npx vitest run src/lib/interval/`.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 npx prettier --write src/lib/interval/
@@ -797,13 +797,13 @@ The guard no longer skips an unauthored purpose."
 
 ### Task 4: Prove the slice
 
-- [ ] **Step 1: The library is still pure and still names no wattage**
+- [x] **Step 1: The library is still pure and still names no wattage**
 
 Run: `npx vitest run src/lib/interval/purity-guard.test.ts`
 Expected: PASS, 3 tests. `library.ts` is scanned automatically. If the file
 count assertion now fails, raise it — it tracks the module's real size.
 
-- [ ] **Step 2: Every workout renders**
+- [x] **Step 2: Every workout renders**
 
 The library has never been through the renderers. In a scratch file under your
 scratchpad (not under `src/`):
@@ -842,7 +842,7 @@ real content**, and the `\d{3,}m` check is the metres trap that slice 0 shipped
 and slice 1's plan fixed — `end-xl` and `long-xl` are exactly the workouts that
 would trip it.
 
-- [ ] **Step 3: Read three workouts by eye**
+- [x] **Step 3: Read three workouts by eye**
 
 Print `renderIcu` and `renderDescription` for `ou-3x12`, `vo2-30-30` and
 `long-surges-xl` — the three whose structures are least like the others — and
@@ -850,7 +850,7 @@ read them. The over-under and the 30/30 are the shapes `renderDescription`
 summarises by span rather than by naming each step; confirm the sentence is
 honest rather than merely non-empty.
 
-- [ ] **Step 4: Types, lint, and the full suite**
+- [x] **Step 4: Types, lint, and the full suite**
 
 ```bash
 npx tsc --noEmit
@@ -863,7 +863,7 @@ DATABASE_URL="$DATABASE_URL" DATABASE_DRIVER=pg npx vitest run
 Expected: clean; the suite at its post-slice-1 baseline of **3385 passed, 1
 skipped, no expected fail**, plus this slice's 7. Read the shape, not the total.
 
-- [ ] **Step 5: Commit the plan's completion**
+- [x] **Step 5: Commit the plan's completion**
 
 ## What this slice deliberately does not do
 
