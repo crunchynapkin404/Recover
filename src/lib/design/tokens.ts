@@ -162,6 +162,17 @@ export function readScaleTokens(css: string): Record<string, number> {
   const out: Record<string, number> = {};
   for (const m of body.matchAll(/^[ \t]*(--text-[\w-]+)\s*:\s*([^;]+);/gm)) {
     const token = m[1];
+    // `--text-<step>--line-height` companions are Tailwind's pairing
+    // convention, not size steps: they are unitless ratios, so the px
+    // resolution below cannot apply and the 12px floor has nothing to say
+    // about them. Skipped by NAME rather than by failing to parse, so a real
+    // size token written in a unit this cannot read still throws.
+    //
+    // NARROWING A GUARD IS HOW GUARDS GET HOLLOWED OUT, so note what still
+    // covers these: tests/motion-scale-guard.test.ts asserts every step has a
+    // companion and that the display steps are tighter than the body steps.
+    // They are checked, just not here.
+    if (token.endsWith("--line-height")) continue;
     const raw = m[2].trim();
     const line = blockLine + body.slice(0, m.index).split("\n").length - 1;
     const px = /^([\d.]+)px$/.test(raw)
@@ -185,6 +196,40 @@ export function readScaleTokens(css: string): Record<string, number> {
         "the type scale moved or was renamed and this reader is now blind"
     );
   }
+  return out;
+}
+
+/**
+ * Every `--<prefix>*` declaration inside the ONE `@theme inline { … }` block,
+ * as raw strings.
+ *
+ * `readScaleTokens` above does this for `--text-*` and converts to pixels;
+ * this is the same reader for prefixes whose values are not lengths
+ * (durations, easing curves). Factored out rather than copied, for the reason
+ * `src/lib/design/type-scale-patterns.ts` records: two guards that re-spell
+ * the same scan drift apart, and the drift is invisible until something slips
+ * through the narrower copy.
+ *
+ * Returns `{}` — rather than throwing like `readScaleTokens` — for a prefix
+ * with no declarations. An absent scale is a legitimate state a guard may
+ * want to assert about ("these tokens do not exist yet"); an absent `@theme`
+ * block is not, and still throws.
+ */
+export function readPrefixedThemeTokens(
+  css: string,
+  prefix: string
+): Record<string, string> {
+  const block = /^@theme\s+inline\s*\{([\s\S]*?)^\}/m.exec(css);
+  if (!block) {
+    throw new Error(
+      "tokens: no `@theme inline { … }` block in globals.css — the scales " +
+        "live there and this reader would find nothing"
+    );
+  }
+  const out: Record<string, string> = {};
+  const escaped = prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const re = new RegExp(`^[ \\t]*(${escaped}[\\w-]*)\\s*:\\s*([^;]+);`, "gm");
+  for (const m of block[1].matchAll(re)) out[m[1]] = m[2].trim();
   return out;
 }
 

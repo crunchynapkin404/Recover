@@ -37,7 +37,9 @@ export function JoinForm({ code, inviteEmail }: Props) {
 
   return (
     <div className="glass w-full max-w-sm rounded-[2rem] p-8">
-      <h1 className="mb-1 text-xl font-bold tracking-tighter">Join Recover</h1>
+      <h1 className="mb-1 text-title font-bold tracking-tighter">
+        Join Recover
+      </h1>
       <p className="mb-6 text-caption text-ink-secondary">
         You&apos;ve been invited. Create your account — your training data stays
         on this server, nowhere else.
@@ -107,7 +109,7 @@ export function JoinForm({ code, inviteEmail }: Props) {
         <button
           type="submit"
           disabled={pending || signingIn}
-          className="rounded-xl bg-accent py-3 font-bold text-accent-foreground transition-all hover:opacity-90 disabled:opacity-50"
+          className="rounded-xl bg-accent py-3 font-bold text-accent-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
         >
           {pending ? "Creating account…" : signingIn ? "Signing in…" : "Join"}
         </button>

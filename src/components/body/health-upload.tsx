@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState, useTransition } from "react";
+import { PendingButton } from "@/components/ui/pending-button";
 import {
   extractAction,
   saveBiomarkers,
@@ -216,14 +217,16 @@ export function HealthUpload() {
                     className="rounded-lg border border-hairline bg-surface-overlay px-2 py-1 text-ink-primary"
                   />
                 </label>
-                <button
+                <PendingButton
                   type="button"
                   onClick={save}
-                  disabled={saving || rows.length === 0}
+                  pending={saving}
+                  pendingLabel="Saving…"
+                  disabled={rows.length === 0}
                   className="rounded-full bg-accent px-4 py-2 text-label font-bold uppercase tracking-wider text-primary-foreground disabled:opacity-50"
                 >
-                  {saving ? "Saving…" : `Save ${rows.length}`}
-                </button>
+                  {`Save ${rows.length}`}
+                </PendingButton>
                 <button
                   type="button"
                   onClick={() => setRows(null)}

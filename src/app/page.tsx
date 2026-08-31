@@ -305,7 +305,7 @@ export default async function DashboardPage({
               </Link>
               <Link
                 href="/body?tab=journal"
-                className="flex w-full flex-col rounded-2xl border border-hairline px-5 py-3 transition-all hover:bg-surface-overlay"
+                className="flex w-full flex-col rounded-2xl border border-hairline px-5 py-3 transition-colors hover:bg-surface-overlay"
               >
                 <span className="font-bold text-ink-secondary">
                   Log manually
@@ -316,7 +316,7 @@ export default async function DashboardPage({
               </Link>
               <Link
                 href="/import"
-                className="flex w-full flex-col rounded-2xl border border-hairline px-5 py-3 transition-all hover:bg-surface-overlay"
+                className="flex w-full flex-col rounded-2xl border border-hairline px-5 py-3 transition-colors hover:bg-surface-overlay"
               >
                 <span className="font-bold text-ink-secondary">Import CSV</span>
                 <span className="text-label font-medium text-ink-muted">

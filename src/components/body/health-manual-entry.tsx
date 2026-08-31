@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { PendingButton } from "@/components/ui/pending-button";
 import { saveBloodPressure, setBirthYear } from "@/app/health/actions";
 import {
   Collapsible,
@@ -25,6 +26,9 @@ export function HealthManualEntry({ birthYear }: Props) {
   const [dia, setDia] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  // Two independent Saves share one flag; name the action so only the one
+  // doing the work says so.
+  const [busy, setBusy] = useState<string | null>(null);
 
   return (
     <Collapsible>
@@ -48,21 +52,25 @@ export function HealthManualEntry({ birthYear }: Props) {
                   className="mt-1 w-28 rounded-xl border border-hairline bg-surface-overlay px-3 py-2 text-caption text-ink-primary"
                 />
               </label>
-              <button
+              <PendingButton
                 type="button"
                 disabled={pending}
-                onClick={() =>
+                pending={pending && busy === "birth-year"}
+                pendingLabel="Saving…"
+                onClick={() => {
+                  setBusy("birth-year");
                   start(async () => {
                     const res = await setBirthYear(
                       year.trim() ? Number(year) : null
                     );
                     setMsg(res.message);
-                  })
-                }
+                    setBusy(null);
+                  });
+                }}
                 className="rounded-full border border-hairline bg-surface-overlay px-4 py-2 text-label font-bold uppercase tracking-wider disabled:opacity-50"
               >
                 Save
-              </button>
+              </PendingButton>
             </div>
           </div>
 
@@ -100,10 +108,13 @@ export function HealthManualEntry({ birthYear }: Props) {
                   className="mt-1 w-20 rounded-xl border border-hairline bg-surface-overlay px-3 py-2 text-caption text-ink-primary"
                 />
               </label>
-              <button
+              <PendingButton
                 type="button"
                 disabled={pending}
-                onClick={() =>
+                pending={pending && busy === "blood-pressure"}
+                pendingLabel="Saving…"
+                onClick={() => {
+                  setBusy("blood-pressure");
                   start(async () => {
                     const res = await saveBloodPressure(
                       date,
@@ -115,12 +126,13 @@ export function HealthManualEntry({ birthYear }: Props) {
                       setSys("");
                       setDia("");
                     }
-                  })
-                }
+                    setBusy(null);
+                  });
+                }}
                 className="rounded-full bg-accent px-4 py-2 text-label font-bold uppercase tracking-wider text-primary-foreground disabled:opacity-50"
               >
                 Save
-              </button>
+              </PendingButton>
             </div>
           </div>
 

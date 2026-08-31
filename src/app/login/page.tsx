@@ -99,7 +99,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-accent py-4 font-bold text-accent-foreground transition-all duration-300 hover:opacity-90 hover:-translate-y-px active:translate-y-0 disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-accent py-4 font-bold text-accent-foreground transition-[opacity,translate] duration-panel hover:opacity-90 hover:-translate-y-px active:translate-y-0 disabled:opacity-50"
             >
               <span>{loading ? "Signing in…" : "Sign In"}</span>
               {!loading && <ArrowRight className="size-[18px]" />}

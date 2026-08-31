@@ -101,19 +101,75 @@
   --text-figure: 1.875rem; /* 30 */
   --text-hero: 2.75rem; /* 44 — the primary figure */
 
+  /* Line-heights. Tailwind pairs `--text-<name>--line-height` with
+     `--text-<name>` automatically, and `leading-*` at a call site still wins.
+
+     THE TEXT END IS PINNED AT ITS CURRENT VALUE, NOT RETUNED. label, caption
+     and body render at 1.5 today — inherited from Tailwind preflight's
+     `html { line-height: 1.5 }`, not from any decision anyone made. Writing
+     1.5 down moves no pixel on 582 call sites and stops the value drifting if
+     the framework reset ever changes.
+
+     THE DISPLAY END IS THE DEFECT. A 44px hero at 1.5 is 66px of leading.
+     `today-hero.tsx` and `bedtime-card.tsx` had each already patched their own
+     figure with `leading-none` — two people working around a missing token
+     rather than a coincidence. Those overrides still win. */
+  --text-label--line-height: 1.5; /* pinned, unchanged */
+  --text-caption--line-height: 1.5; /* pinned, unchanged */
+  --text-body--line-height: 1.5; /* pinned, unchanged */
+  --text-title--line-height: 1.35;
+  --text-heading--line-height: 1.25;
+  --text-figure--line-height: 1.1;
+  --text-hero--line-height: 1;
+
   /* Numeric type — mono figures for scores, HR, power. Phase 2b.4. Reuses
      the already-loaded Geist Mono font; named separately from --font-mono
      so numeric-display call sites read as intent, not as "code font". */
   --font-numeric: var(--font-geist-mono);
 
-  /* Spacing scale — 4px base. */
-  --spacing-1: 0.25rem;
-  --spacing-2: 0.5rem;
-  --spacing-3: 0.75rem;
-  --spacing-4: 1rem;
-  --spacing-6: 1.5rem;
-  --spacing-8: 2rem;
-  --spacing-12: 3rem;
+  /* Spacing — Tailwind v4's default 0.25rem base, deliberately NOT
+     redeclared. Seven discrete --spacing-N keys used to sit here restating
+     exactly what that base computes; they generated no distinct utility and
+     claimed a seven-step scale the app has never run. It runs an eleven-step
+     2px grid — 210 half-step call sites (py-1.5, gap-1.5, py-2.5, px-3.5,
+     px-2.5 and the rest), which are legitimate steps on a 4px base, not
+     scatter. Do not lower the base to make them look integral: --spacing
+     multiplies every spacing utility in the app, and halving it halves every
+     padding on every surface. tests/motion-scale-guard.test.ts asserts both
+     halves of this. */
+
+  /* Motion scale — Phase 6.4. Six durations, four easings, replacing 11
+     hand-written duration spellings of 10 values and 8 easings. Semantic
+     names, for the same reason the type scale above uses them.
+
+     THE NAMESPACE IS `--transition-duration-*`, NOT `--duration-*`, and that
+     is not a stylistic choice. Tailwind v4 generates the `duration-<name>`
+     utility from `--transition-duration-*` ONLY; a `--duration-*` key is a
+     plain custom property that produces no utility at all, so `duration-panel`
+     would have been an inert class silently doing nothing. Slice 0 shipped
+     the wrong namespace — harmless while nothing referenced it, corrected
+     here before anything did. The step is `panel` rather than `transition`
+     so the utility does not read `duration-transition`.
+
+     AND NOT TAILWIND'S OWN KEYS. `--ease-in`, `--ease-out`, `--ease-in-out`
+     and `--ease-linear` are Tailwind v4 theme keys: declaring one here does
+     not add a token, it repoints every existing `ease-out` in the app at a
+     curve it was never designed against — a silent, app-wide motion change
+     out of a foundations-only edit. `--ease-settle` costs one word and
+     cannot do that. This is the identical trap the type scale's comment
+     records for `--text-sm`, and tests/motion-scale-guard.test.ts asserts
+     it rather than trusting this paragraph. */
+  --transition-duration-feedback: 120ms; /* colour and opacity under the finger */
+  --transition-duration-motion: 200ms; /* small transforms, pops, chips */
+  --transition-duration-panel: 320ms; /* sheets, panel heights, entrances */
+  --transition-duration-reveal: 1200ms; /* one-shot data draws: rings, sparklines */
+  --transition-duration-loop: 3s; /* ambient breathe / pulse */
+  --transition-duration-drift: 8s; /* the shimmer rotation */
+
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-settle: cubic-bezier(0.21, 1.02, 0.49, 1);
+  --ease-draw: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 /* ── Two themes. :root is light; .dark is dark. ───────────────────────────
@@ -378,11 +434,17 @@
   }
   body {
     @apply bg-background text-foreground;
-    /* Stays at the pre-redesign 15px until the last surface migrates
-       (slice 9), when this moves to --text-body (16px). Sitting on the new
-       scale now would be a one-pixel, app-wide visible change this
-       foundations-only slice is not permitted to make. */
-    font-size: 15px;
+    /* On the scale as of Phase 6.4 slice 4. This sat at the pre-redesign
+       15px from v0.99, under a comment promising it would move "until the
+       last surface migrates (slice 9)". Slice 9 never ran — 2b.4 shipped
+       slices 0-6 and the rest were reorganised away — so the note stood for
+       thirteen releases. Slice 3b finished that work, which made the
+       condition true, so the wait is over.
+
+       While this was 15px the scale disagreed with the element it describes:
+       --text-body is 16px, so the 12 `text-body` call sites rendered a pixel
+       larger than the prose around them. */
+    font-size: var(--text-body);
     -webkit-font-smoothing: antialiased;
     letter-spacing: -0.01em;
     overflow-x: hidden;
@@ -509,8 +571,8 @@
   -webkit-backdrop-filter: blur(24px);
   border: 1px solid var(--glass-border);
   transition:
-    transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
-    box-shadow 0.3s ease;
+    transform var(--transition-duration-panel) var(--ease-spring),
+    box-shadow var(--transition-duration-panel) var(--ease-standard);
 }
 .glass-border-strong {
   border: 1px solid var(--glass-border);
@@ -549,7 +611,8 @@
 
 /* ── Animations ──────────────────────────────────────────────────────────── */
 .hero-pulse {
-  animation: pulse-glow 3s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  animation: pulse-glow var(--transition-duration-loop) var(--ease-standard)
+    infinite;
 }
 @keyframes pulse-glow {
   0%,
@@ -566,7 +629,8 @@
 .ring-animate {
   stroke-dasharray: 276;
   stroke-dashoffset: 276;
-  animation: ring-draw 1.2s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+  animation: ring-draw var(--transition-duration-reveal) var(--ease-draw)
+    forwards;
 }
 @keyframes ring-draw {
   to {
@@ -578,7 +642,7 @@
    value (--ring-offset). Resting state is the filled value (set inline), so
    reduced-motion users simply see the filled ring with no animation. */
 .ring-fill {
-  animation: ring-fill 1.2s cubic-bezier(0.65, 0, 0.35, 1);
+  animation: ring-fill var(--transition-duration-reveal) var(--ease-draw);
 }
 @keyframes ring-fill {
   from {
@@ -592,7 +656,8 @@
 .sparkline-animate path {
   stroke-dasharray: 200;
   stroke-dashoffset: 200;
-  animation: draw-path 1.2s ease-out forwards;
+  animation: draw-path var(--transition-duration-reveal) var(--ease-standard)
+    forwards;
 }
 @keyframes draw-path {
   to {
@@ -602,7 +667,8 @@
 
 .clip-reveal {
   clip-path: inset(0 100% 0 0);
-  animation: reveal-clip 1.5s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+  animation: reveal-clip var(--transition-duration-reveal) var(--ease-draw)
+    forwards;
 }
 @keyframes reveal-clip {
   to {
@@ -611,7 +677,8 @@
 }
 
 .trend-arrow-animate {
-  animation: arrow-bounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  animation: arrow-bounce var(--transition-duration-panel) var(--ease-spring)
+    forwards;
 }
 @keyframes arrow-bounce {
   0% {
@@ -628,7 +695,7 @@
 }
 
 .ai-sparkle {
-  animation: rotate-shimmer 8s linear infinite;
+  animation: rotate-shimmer var(--transition-duration-drift) linear infinite;
 }
 @keyframes rotate-shimmer {
   from {
@@ -655,7 +722,8 @@
      disclosed change, like .label-micro above. */
   background: var(--ink-primary);
   box-shadow: 0 0 12px var(--ink-primary);
-  animation: breathe 3s ease-in-out infinite;
+  animation: breathe var(--transition-duration-loop) var(--ease-standard)
+    infinite;
 }
 @keyframes breathe {
   0%,
@@ -673,7 +741,9 @@
 .reveal {
   opacity: 0;
   transform: translateY(24px);
-  transition: all 0.7s cubic-bezier(0.21, 1.02, 0.49, 1);
+  transition:
+    opacity var(--transition-duration-panel) var(--ease-settle),
+    transform var(--transition-duration-panel) var(--ease-settle);
 }
 .reveal.active {
   opacity: 1;
@@ -684,7 +754,10 @@
 .login-input {
   background: var(--login-input-bg);
   border: 1px solid var(--login-input-border);
-  transition: all 0.2s ease;
+  transition:
+    background var(--transition-duration-motion) var(--ease-standard),
+    border-color var(--transition-duration-motion) var(--ease-standard),
+    box-shadow var(--transition-duration-motion) var(--ease-standard);
 }
 .login-input:focus {
   background: var(--login-input-focus-bg);
@@ -725,7 +798,7 @@
 .collapsible-panel {
   overflow: hidden;
   height: var(--collapsible-panel-height, auto);
-  transition: height 0.3s ease-out;
+  transition: height var(--transition-duration-panel) var(--ease-standard);
 }
 .collapsible-panel[data-starting-style],
 .collapsible-panel[data-ending-style] {
@@ -795,8 +868,8 @@
 
 /* ── Bottom sheets (1h / 1i) ─────────────────────────────────────────────── */
 .sheet-panel {
-  animation: sheet-up 300ms cubic-bezier(0.21, 1.02, 0.49, 1);
-  transition: transform 220ms cubic-bezier(0.21, 1.02, 0.49, 1);
+  animation: sheet-up var(--transition-duration-panel) var(--ease-settle);
+  transition: transform var(--transition-duration-motion) var(--ease-settle);
 }
 @keyframes sheet-up {
   from {
@@ -809,7 +882,7 @@
 
 /* ── Coach history dropdown (desktop) ─────────────────────────────────────── */
 .menu-pop {
-  animation: menu-pop 160ms ease-out;
+  animation: menu-pop var(--transition-duration-motion) var(--ease-standard);
   transform-origin: top left;
 }
 @keyframes menu-pop {
@@ -824,10 +897,24 @@
 }
 
 /* ── Reduced motion ──────────────────────────────────────────────────────── */
+/* 1ms rather than `none`. `animation: none` and `transition: none` CANCEL: an
+   animation never reaches its final frame, and `transitionend` never fires,
+   so any component keyed on completion silently stalls. That duration is not
+   motion by any reasonable reading, and it completes.
+
+   This also used to stop `.animate-pulse` dead, which left a reduced-motion
+   athlete looking at a static grey page with no indication anything was
+   loading — motion was the only carrier of that state. `LoadingScreen` now
+   speaks it, which is what makes softening this safe rather than merely
+   nicer. tests/motion-scale-guard.test.ts asserts the shape of this rule. */
 @media (prefers-reduced-motion: reduce) {
-  * {
-    animation: none !important;
-    transition: none !important;
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
   }
 }
 

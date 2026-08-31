@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState, useTransition } from "react";
+import { PendingButton } from "@/components/ui/pending-button";
 import {
   disableAppleHealth,
   enableAppleHealth,
@@ -51,6 +52,22 @@ export function AppleHealthCard({
     (ActionResult & { url?: string }) | null
   >(null);
   const [pending, startTransition] = useTransition();
+  // Three controls share one transition flag; without a name, all three would
+  // announce themselves while one works.
+  const [busy, setBusy] = useState<string | null>(null);
+
+  function run(action: string, fn: () => Promise<typeof result>) {
+    setBusy(action);
+    startTransition(async () => {
+      try {
+        setResult(await fn());
+      } finally {
+        // finally, not a trailing call: an action that throws would otherwise
+        // strand its button in the pending label for the rest of the session.
+        setBusy(null);
+      }
+    });
+  }
 
   const staleDays = staleSilenceDays(lastSyncAt);
   const [uploadState, uploadAction, uploading] = useActionState<
@@ -86,43 +103,36 @@ export function AppleHealthCard({
       actions={
         connected ? (
           <div className="flex gap-2">
-            <button
+            <PendingButton
               type="button"
               disabled={pending}
-              onClick={() =>
-                startTransition(async () =>
-                  setResult(await enableAppleHealth())
-                )
-              }
+              pending={pending && busy === "new-url"}
+              onClick={() => run("new-url", enableAppleHealth)}
               className={connectorPillClass}
             >
               New URL
-            </button>
-            <button
+            </PendingButton>
+            <PendingButton
               type="button"
               disabled={pending}
-              onClick={() =>
-                startTransition(async () =>
-                  setResult(await disableAppleHealth())
-                )
-              }
+              pending={pending && busy === "disable"}
+              onClick={() => run("disable", disableAppleHealth)}
               className={connectorGhostClass}
             >
               Disable
-            </button>
+            </PendingButton>
           </div>
         ) : baseUrlConfigured ? (
-          <button
+          <PendingButton
             type="button"
             disabled={pending}
-            onClick={() =>
-              startTransition(async () => setResult(await enableAppleHealth()))
-            }
+            pending={pending && busy === "enable"}
+            onClick={() => run("enable", enableAppleHealth)}
             aria-describedby={mechanismNoteId("Apple Health")}
             className={connectorCtaClass}
           >
             Enable
-          </button>
+          </PendingButton>
         ) : (
           <span className={connectorBadgeClass}>Set BETTER_AUTH_URL</span>
         )

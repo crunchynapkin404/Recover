@@ -18,7 +18,9 @@ export default async function JoinPage({
     return (
       <main className="mesh-gradient flex min-h-svh items-center justify-center p-6">
         <div className="glass w-full max-w-sm rounded-[2rem] p-8 text-center">
-          <h1 className="mb-2 text-xl font-bold tracking-tighter">Recover</h1>
+          <h1 className="mb-2 text-title font-bold tracking-tighter">
+            Recover
+          </h1>
           <p className="text-caption text-ink-secondary">{messages[reason!]}</p>
         </div>
       </main>

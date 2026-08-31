@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { PendingButton } from "@/components/ui/pending-button";
 import { RotateCw, Zap } from "lucide-react";
 import { retrySyncJob, kickUserSync } from "@/app/admin/actions";
 
@@ -106,15 +107,24 @@ export function SyncJobsPanel({ jobs, users }: Props) {
               </option>
             ))}
           </select>
-          <button
+          <PendingButton
             type="button"
-            disabled={isPending || !kickTarget}
+            disabled={!kickTarget}
+            pending={isPending && busyId === kickTarget}
+            // Icon beside text, so the types require this rather than letting
+            // the button silently say nothing.
+            pendingLabel={
+              <>
+                <Zap aria-hidden className="size-4" />
+                Kicking…
+              </>
+            }
             onClick={() => kick(kickTarget)}
-            className="flex shrink-0 items-center gap-1.5 rounded-xl bg-accent px-4 py-2.5 text-caption font-bold text-accent-foreground transition-all hover:opacity-90 disabled:opacity-50"
+            className="flex shrink-0 items-center gap-1.5 rounded-xl bg-accent px-4 py-2.5 text-caption font-bold text-accent-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
           >
             <Zap aria-hidden className="size-4" />
-            {isPending && busyId === kickTarget ? "Kicking…" : "Kick sync"}
-          </button>
+            Kick sync
+          </PendingButton>
         </div>
       )}
 

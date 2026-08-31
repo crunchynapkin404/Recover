@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState, useTransition } from "react";
+import { PendingButton } from "@/components/ui/pending-button";
 import { CheckCircle, Star } from "lucide-react";
 import { logWellness, type ActionResult } from "@/app/wellness/actions";
 import { setUsualBehaviorTags } from "@/app/journal/actions";
@@ -320,7 +321,7 @@ export function JournalForm({
                     setSelectedMood(selectedMood === i ? null : i);
                     setActiveStep("sliders");
                   }}
-                  className={`text-heading transition-all ${
+                  className={`text-heading transition-[filter,box-shadow] ${
                     selectedMood === i
                       ? "rounded-full ring-2 ring-accent p-1"
                       : "grayscale hover:grayscale-0"
@@ -617,19 +618,23 @@ export function JournalForm({
               "Save check-in" submit. Saves only the behavior tags currently
               checked above; mood, day flags, and the sliders are never read
               or written by this. */}
-          <button
+          <PendingButton
             type="button"
             onClick={rememberUsualTags}
-            disabled={rememberPending}
+            pending={rememberPending}
+            // Icon plus a three-way idle label, so the types require this to
+            // be spelled out rather than letting the button say nothing.
+            pendingLabel={
+              <>
+                <Star aria-hidden className="size-3" />
+                Saving…
+              </>
+            }
             className="mt-6 flex w-full items-center justify-center gap-1.5 rounded-2xl bg-surface-overlay py-2.5 text-label font-bold uppercase tracking-wide text-ink-secondary transition-colors hover:bg-surface-raised disabled:opacity-50"
           >
             <Star aria-hidden className="size-3" />
-            {rememberPending
-              ? "Saving…"
-              : rememberSaved
-                ? "Saved as your usual"
-                : "Remember these as usual"}
-          </button>
+            {rememberSaved ? "Saved as your usual" : "Remember these as usual"}
+          </PendingButton>
         </div>
 
         {/* Day flags — facts that invalidate the day as a baseline reference.
@@ -695,7 +700,7 @@ export function JournalForm({
         <button
           type="submit"
           disabled={pending}
-          className="w-full rounded-2xl bg-accent py-4 font-bold text-primary-foreground transition-all hover:opacity-90 disabled:opacity-50"
+          className="w-full rounded-2xl bg-accent py-4 font-bold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
         >
           {pending ? "Saving…" : `Save check-in for ${selectedDate}`}
         </button>

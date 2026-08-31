@@ -16,7 +16,7 @@ export function BottomNav() {
             key={href}
             href={href}
             aria-current={active ? "page" : undefined}
-            className={`relative flex flex-col items-center gap-1 px-2 transition-all active:scale-90 ${
+            className={`relative flex flex-col items-center gap-1 px-2 transition-[color,scale] active:scale-90 ${
               active
                 ? "text-ink-primary"
                 : "text-ink-muted hover:text-ink-primary"

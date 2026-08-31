@@ -100,14 +100,19 @@ export function WebhooksCard({ webhooks }: Props) {
     FormData
   >(createWebhookSubscription, null);
   const [revoking, startRevoke] = useTransition();
+  // Which row is being revoked, so only THAT button says so — the per-item
+  // shape sessions-card established.
+  const [revokingId, setRevokingId] = useState<string | null>(null);
   const [revokeResult, setRevokeResult] = useState<string | null>(null);
 
   const revealSecret = createState?.ok ? (createState.secret ?? null) : null;
 
   function handleRevoke(id: string) {
+    setRevokingId(id);
     startRevoke(async () => {
       const result = await revokeWebhookSubscription(id);
       setRevokeResult(result.message);
+      setRevokingId(null);
     });
   }
 
@@ -151,6 +156,7 @@ export function WebhooksCard({ webhooks }: Props) {
                   size="sm"
                   onClick={() => handleRevoke(w.id)}
                   disabled={revoking}
+                  pending={revoking && revokingId === w.id}
                   className="text-destructive shrink-0"
                 >
                   Revoke
@@ -210,8 +216,8 @@ export function WebhooksCard({ webhooks }: Props) {
               ))}
             </div>
           </div>
-          <Button type="submit" disabled={creating}>
-            {creating ? "Creating…" : "Add webhook"}
+          <Button type="submit" pending={creating} pendingLabel="Creating…">
+            Add webhook
           </Button>
         </form>
 

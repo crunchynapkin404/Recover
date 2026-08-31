@@ -13,6 +13,7 @@
  * screen lets the athlete tune.
  */
 import { Fragment, useState, useTransition } from "react";
+import { PendingButton } from "@/components/ui/pending-button";
 import { SPORT_LABEL } from "@/lib/plan-sport";
 import {
   REFUSAL_TEXT,
@@ -95,6 +96,9 @@ export function PlanPreviewCard({
   const [days, setDays] = useState(preview.daysPerWeek);
   const [hours, setHours] = useState(preview.hoursPerWeek);
   const [pending, startTransition] = useTransition();
+  // Rebuild and Start share one transition flag; without a name both would
+  // announce themselves while one works.
+  const [busy, setBusy] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
   // Recomputed on screen, not trusted from `weeksTotal` alone — the release's
@@ -116,6 +120,7 @@ export function PlanPreviewCard({
   // inside the action re-renders the page with fresh props; on failure (or a
   // thrown rejection) this state is what tells the athlete so on screen.
   function handleRebuild() {
+    setBusy("rebuild");
     startTransition(async () => {
       try {
         const result = await regeneratePreviewAction(
@@ -132,11 +137,16 @@ export function PlanPreviewCard({
         }
       } catch {
         setActionError(ACTION_FAILED_TEXT);
+      } finally {
+        // finally, not a trailing call: a thrown action would otherwise strand
+        // its button in the pending label for the rest of the session.
+        setBusy(null);
       }
     });
   }
 
   function handleConfirm() {
+    setBusy("confirm");
     startTransition(async () => {
       try {
         const result = await confirmPlanAction(preview.planId);
@@ -149,6 +159,10 @@ export function PlanPreviewCard({
         }
       } catch {
         setActionError(ACTION_FAILED_TEXT);
+      } finally {
+        // finally, not a trailing call: a thrown action would otherwise strand
+        // its button in the pending label for the rest of the session.
+        setBusy(null);
       }
     });
   }
@@ -325,22 +339,26 @@ export function PlanPreviewCard({
             className="w-16 rounded-xl border border-hairline px-3 py-2 text-caption text-ink-primary"
           />
         </div>
-        <button
+        <PendingButton
           type="button"
           disabled={pending}
+          pending={pending && busy === "rebuild"}
+          pendingLabel="Rebuilding…"
           onClick={handleRebuild}
           className="rounded-full border border-hairline px-3.5 py-2 text-label font-bold text-ink-secondary transition-colors hover:bg-surface-overlay disabled:opacity-50"
         >
           Rebuild
-        </button>
-        <button
+        </PendingButton>
+        <PendingButton
           type="button"
           disabled={pending}
+          pending={pending && busy === "confirm"}
+          pendingLabel="Starting…"
           onClick={handleConfirm}
           className="rounded-full bg-accent px-4 py-2 text-label font-bold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
         >
           Start this plan
-        </button>
+        </PendingButton>
       </div>
     </section>
   );

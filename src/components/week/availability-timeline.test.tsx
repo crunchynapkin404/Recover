@@ -26,7 +26,6 @@ function render(week: AvailabilityBlock[][], pinned = Array(7).fill(false)) {
       week={week}
       pinned={pinned}
       onChangeDay={vi.fn()}
-      onUnpin={vi.fn()}
       onOpenDay={vi.fn()}
     />
   );
@@ -94,17 +93,27 @@ describe("AvailabilityTimeline", () => {
     expect(render(emptyWeek())).toContain("Rest");
   });
 
-  it("keeps the Pinned badge and its unpin affordance", () => {
+  it("marks a pinned day without spending a control on it", () => {
+    // REPLACES "keeps the Pinned badge and its unpin affordance" (slice 6).
+    // The badge was a status that happened to be pressable, up to seven times
+    // on one sheet — the largest single contributor to a choice load that
+    // rose 17 → 31 in v0.124.0, and it crowded the row until the block
+    // summary truncated on a two-block day.
+    //
+    // It is a mark now. Per-day unpin did not disappear with it: BlockSheet
+    // gained "Back to your standard day" in the commit before this one, which
+    // is why that ordering mattered.
     const pinned = Array(7).fill(false);
     pinned[2] = true;
     const html = render(emptyWeek(), pinned);
+
+    // Still says so — it is real state, and a screen reader must still hear it.
     expect(html).toContain("Pinned");
-    // WCAG 2.5.3: the accessible name must CONTAIN the visible text, so a
-    // voice-control user saying "tap Pinned" reaches this control.
-    expect(html).toContain("Pinned ×");
-    expect(html).toContain(
-      'aria-label="Pinned — Wednesday, back to your standard week"'
-    );
+
+    // But it is no longer a button, and no longer claims an action it cannot
+    // perform. The old aria-label promised "back to your standard week".
+    expect(html).not.toContain("Pinned ×");
+    expect(html).not.toContain("back to your standard week");
   });
 
   it("offers a plus per day that reaches the precise editor", () => {
@@ -191,7 +200,6 @@ function mount(week: AvailabilityBlock[][]) {
         week={week}
         pinned={Array(7).fill(false)}
         onChangeDay={(d, next) => calls.push([d, next])}
-        onUnpin={vi.fn()}
         onOpenDay={vi.fn()}
       />
     );
@@ -290,7 +298,6 @@ describe("AvailabilityTimeline keyboard path", () => {
           week={week}
           pinned={Array(7).fill(false)}
           onChangeDay={vi.fn()}
-          onUnpin={vi.fn()}
           onOpenDay={(d) => opened.push(d)}
         />
       );

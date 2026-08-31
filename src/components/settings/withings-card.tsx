@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { PendingButton } from "@/components/ui/pending-button";
 import {
   withingsDisconnect,
   withingsSyncNow,
@@ -36,6 +37,22 @@ const ERROR_MESSAGES: Record<string, string> = {
 export function WithingsCard({ configured, connection, errorParam }: Props) {
   const [result, setResult] = useState<ActionResult | null>(null);
   const [pending, startTransition] = useTransition();
+  // Sync and Disconnect share one transition flag; without a name, both would
+  // announce themselves while one works.
+  const [busy, setBusy] = useState<string | null>(null);
+
+  function run(action: string, fn: () => Promise<ActionResult>) {
+    setBusy(action);
+    startTransition(async () => {
+      try {
+        setResult(await fn());
+      } finally {
+        // finally, not a trailing call: an action that throws would otherwise
+        // strand its button in the pending label for the rest of the session.
+        setBusy(null);
+      }
+    });
+  }
 
   const status =
     errorParam || result || connection?.lastError
@@ -64,28 +81,24 @@ export function WithingsCard({ configured, connection, errorParam }: Props) {
       actions={
         connection ? (
           <div className="flex gap-2">
-            <button
+            <PendingButton
               type="button"
               disabled={pending}
-              onClick={() =>
-                startTransition(async () => setResult(await withingsSyncNow()))
-              }
+              pending={pending && busy === "sync"}
+              onClick={() => run("sync", withingsSyncNow)}
               className={connectorPillClass}
             >
-              {pending ? "…" : "Sync"}
-            </button>
-            <button
+              Sync
+            </PendingButton>
+            <PendingButton
               type="button"
               disabled={pending}
-              onClick={() =>
-                startTransition(async () =>
-                  setResult(await withingsDisconnect())
-                )
-              }
+              pending={pending && busy === "disconnect"}
+              onClick={() => run("disconnect", withingsDisconnect)}
               className={connectorGhostClass}
             >
               Disconnect
-            </button>
+            </PendingButton>
           </div>
         ) : configured ? (
           <a

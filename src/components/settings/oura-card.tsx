@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState, useTransition } from "react";
+import { PendingButton } from "@/components/ui/pending-button";
 import {
   connectOura,
   ouraDisconnect,
@@ -31,6 +32,22 @@ export function OuraCard({ connection }: Props) {
   >(connectOura, null);
   const [result, setResult] = useState<ActionResult | null>(null);
   const [pending, startTransition] = useTransition();
+  // Sync and Disconnect share one transition flag; without a name, both would
+  // announce themselves while one works.
+  const [busy, setBusy] = useState<string | null>(null);
+
+  function run(action: string, fn: () => Promise<ActionResult>) {
+    setBusy(action);
+    startTransition(async () => {
+      try {
+        setResult(await fn());
+      } finally {
+        // finally, not a trailing call: an action that throws would otherwise
+        // strand its button in the pending label for the rest of the session.
+        setBusy(null);
+      }
+    });
+  }
 
   const message = result?.message ?? connectState?.message;
   const messageOk = result?.ok ?? connectState?.ok;
@@ -89,26 +106,24 @@ export function OuraCard({ connection }: Props) {
       actions={
         connection ? (
           <div className="flex gap-2">
-            <button
+            <PendingButton
               type="button"
               disabled={pending}
-              onClick={() =>
-                startTransition(async () => setResult(await ouraSyncNow()))
-              }
+              pending={pending && busy === "sync"}
+              onClick={() => run("sync", ouraSyncNow)}
               className={connectorPillClass}
             >
-              {pending ? "…" : "Sync"}
-            </button>
-            <button
+              Sync
+            </PendingButton>
+            <PendingButton
               type="button"
               disabled={pending}
-              onClick={() =>
-                startTransition(async () => setResult(await ouraDisconnect()))
-              }
+              pending={pending && busy === "disconnect"}
+              onClick={() => run("disconnect", ouraDisconnect)}
               className={connectorGhostClass}
             >
               Disconnect
-            </button>
+            </PendingButton>
           </div>
         ) : null
       }

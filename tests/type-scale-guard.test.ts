@@ -114,17 +114,6 @@ function offenders(pattern: RegExp): string[] {
   return found;
 }
 
-/** Total individual matches, not offending lines — one line can hold several. */
-function occurrences(pattern: RegExp): number {
-  let total = 0;
-  for (const file of walk(SRC)) {
-    for (const content of readFileSync(file, "utf8").split("\n")) {
-      total += content.match(new RegExp(pattern.source, "g"))?.length ?? 0;
-    }
-  }
-  return total;
-}
-
 /* ── THE RATCHET (I5, whole-branch review 2026-08-11) ───────────────────────
  * The two `it.fails` assertions below are deliberate and stay — the offenders
  * cannot be gone until the last surface migrates. But `it.fails` passes on
@@ -152,957 +141,962 @@ function occurrences(pattern: RegExp): number {
  * RAISING one is a decision that needs a reason in the commit message, and
  * on this release there is unlikely to be a good one.
  */
-const RATCHET_SLACK = 25;
-const OFFENDER_CEILINGS: Record<string, number> = {
-  // 74 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
-  // redesign) task 6 — the last four Integrations card bodies the shell
-  // does not own: strava-card.tsx, apple-health-card.tsx,
-  // intervals-card.tsx and oura-card.tsx. Net −13 from the 87 task 5 left:
-  // strava-card.tsx dropped 4 (the auto-describe help line, the
-  // fields-to-include label, the preview label, and the powered-by-Strava
-  // note), apple-health-card.tsx dropped 7 (the webhook-URL label, the
-  // "shown once" warning, the last-received line, the stale-silence
-  // warning, the file input's file:text-[10px], the Upload button, and the
-  // one-off-upload note), intervals-card.tsx dropped 1 (the wellness-poll
-  // timestamp), and oura-card.tsx dropped 1 (the token-form help paragraph
-  // — the fifth site task 3's comment explicitly left as unmigrated
-  // `children` markup, still counting until now). 4 + 7 + 1 + 1 = 13. The
-  // gap this left (93 − 74 = 19) was under RATCHET_SLACK (25), so the
-  // ratchet did not strictly demand re-pinning — re-pinned anyway per this
-  // file's own established practice (tasks 3 and 4) of re-pinning on every
-  // drop regardless. Verified directly: running ARBITRARY_TYPE
-  // (src/lib/design/type-scale-patterns.ts) over src/**/*.tsx, excluding
-  // *.test.tsx, at the pre-task-6 commit reports 87; the same scan on the
-  // working tree after this task's edit reports 74. This retires the
-  // pattern from all five connector cards — none of the Integrations
-  // section's per-provider card bodies carry an arbitrary type size any
-  // longer.
-  // 93 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
-  // redesign) task 4 — strava-card.tsx and apple-health-card.tsx moved onto
-  // connector-card.tsx's shell, the same way task 3 moved Whoop, Withings and
-  // Oura. Net −10 from the 103 task 3 left: each card dropped the same 5
-  // text-[10px]/text-[8px] sites the shell renders once instead of per-card —
-  // the subtitle span, the Sync pill, the Disconnect ghost, the Connect CTA
-  // and the "Set X" badge. 5 + 5 = 10. The gap this left (103 − 93 = 10) was
-  // under RATCHET_SLACK (25), so the ratchet did not fail — re-pinned anyway,
-  // matching task 3's own practice, since a ceiling with slack is free
-  // offenders for whoever comes next regardless of whether the suite forces
-  // the point. Verified directly: `git diff` on the two touched files against
-  // ARBITRARY_TYPE counts exactly 5 removed lines each, 0 added (the shell's
-  // own class constants are referenced by name, not spelled out again here).
-  // Task 5 migrates connector-card.tsx itself onto the type/ink scale next,
-  // which is what finally retires this pattern from the shared file too —
-  // there is no Task 6 for this pair of cards to repeat the move.
-  // 103 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
-  // redesign) task 3 — repays the debt task 2 explicitly left for this task.
-  // whoop-card.tsx, withings-card.tsx and oura-card.tsx moved onto
-  // connector-card.tsx's shell, deleting each card's own copy of the chrome
-  // the shell now renders once. Net −14 from the 117 task 2 left: each of
-  // whoop-card.tsx and withings-card.tsx dropped 5 text-[10px]/text-[8px]
-  // sites (the Sync/Disconnect pair, the Connect-or-badge branch and the
-  // subtitle span — all now rendered once by the shell instead of three
-  // times), and oura-card.tsx dropped 4 of its 5 (same shell sites; its
-  // fifth, the token-form help paragraph's text-[10px], is unmigrated
-  // `children` markup that did not move onto the shell and so still counts).
-  // 5 + 5 + 4 = 14. Verified directly: running ARBITRARY_TYPE
-  // (src/lib/design/type-scale-patterns.ts) over src/**/*.tsx, excluding
-  // *.test.tsx, at the pre-task-3 commit (86a64d6) reports 117; the same
-  // scan on the working tree after this task's edit reports 103 — 9 below
-  // the pre-task-2 baseline of 112, matching the brief's predicted ~9.
-  // Re-pinned to the real count per this file's own ratchet rule — a
-  // ceiling with slack is free offenders for whoever comes next. Task 4
-  // moves Strava and Apple Health the same way and re-pins again; Task 5
-  // then migrates connector-card.tsx itself onto the type/ink scale, which
-  // is what finally retires this pattern from the shared file too.
-  // 117 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
-  // redesign) task 2 — src/components/settings/connector-card.tsx, the new
-  // shared shell the five connector cards (Strava, Whoop, Withings, Oura,
-  // Apple Health) are migrated onto in Tasks 3-4. 5 net new arbitrary-type
-  // sites (117 − 112), all in this one new file: connectorPillClass,
-  // connectorGhostClass and connectorCtaClass each carry one text-[10px],
-  // connectorBadgeClass one text-[8px], and the header's subtitle span one
-  // text-[10px]. This is intentionally NOT a migration — Task 2's whole
-  // point is a class-neutral extraction of markup the five existing cards
-  // still duplicate verbatim (see the file's header comment), so these are
-  // the same raw sizes the five cards already carried, now counted once
-  // more because they also live in the new shared file. Task 5 migrates
-  // this file onto the type/ink scale once Tasks 3-4 have moved the five
-  // cards onto it, which is what brings this ceiling back down.
-  // 112 occurrences, measured 2026-08-14 after v0.99 slice 4 (Coach) task 10
-  // (the sweep). Not moved by task 10's own edit — that fix
-  // (history-panel.tsx's ghost-thread hover) is an ad-hoc-alpha site, not
-  // an arbitrary-size one. The ceiling had sat at 137, unchanged since
-  // v0.102 (Body slice) task 11, because tasks 3-9 of this slice — while
-  // migrating sites of this pattern too — never widened the gap past
-  // RATCHET_SLACK (25), so none were forced to re-pin. Verified via
-  // `git diff 7c8a4e4..HEAD` (7c8a4e4 = v0.102.0, this slice's branch
-  // point) counting text-\[…(px|rem|em)\] matches: 25 removed, 0 added,
-  // split across chat-interface.tsx (9), history-panel.tsx (13),
-  // bottom-sheet.tsx (2) and artifact-card.tsx (1). Task 10's own
-  // full-render-chain sweep (scope below) found exactly one arbitrary size
-  // left in scope: src/components/ui/inline-markdown.tsx:31's
-  // `text-[0.95em]` on inline `<code>`. Left deliberately: it is a
-  // relative em, scaled off whatever ambient text size wraps it, used
-  // identically across four call sites in three surfaces — Coach's
-  // chat-interface.tsx (text-body, 16px), Today's just-landed-card.tsx and
-  // coach-brief.tsx (text-caption, 14px), and Debrief's
-  // activity-debrief-section.tsx (its own unmigrated text-[11.5px]). No
-  // fixed-step token can replace a value whose whole job is staying
-  // proportional to a parent that differs by call site — two of those
-  // three surfaces this slice does not touch, and this task does not run
-  // the Playwright capture that would show the result (that is task 11's
-  // job). Left for whichever slice migrates that shared component next.
-  //
-  // SCOPE CORRECTION (whole-branch review 2026-08-14): "exactly one" above
-  // is wrong. src/components/ui/button.tsx:26 also carries an arbitrary
-  // size, `text-[0.8rem]` on the `sm` button-size variant — a second one
-  // living in the very directory (src/components/ui/) that three of the
-  // four files below are drawn from. It changes nothing this task must
-  // migrate: grep for every importer of "@/components/ui/button" in src/
-  // returns only src/components/sign-out-button.tsx and the five
-  // src/components/settings/*-card.tsx files, so Button has no path into
-  // Coach's render chain today. But the scope list was silently
-  // incomplete for the same reason the Body slice's was (see the sibling
-  // ceiling's I3 correction, below): a shared src/components/ui/ primitive
-  // was left off. Recorded here so the slice that first pulls Button into
-  // Coach does not inherit an invisible gap.
-  // Full render-chain scope: src/app/coach/page.tsx,
-  // src/app/coach/loading.tsx, src/app/layout.tsx,
-  // src/components/theme-provider.tsx, src/components/app-shell.tsx,
-  // src/components/bottom-nav.tsx, src/components/sidebar-nav.tsx,
-  // src/components/coach/*.tsx, src/components/ui/bottom-sheet.tsx,
-  // src/components/ui/inline-markdown.tsx, src/components/ui/empty-state.tsx,
-  // src/components/ui/button.tsx (see scope correction above — not
-  // currently reachable from Coach; listed for completeness).
-  //
-  // RESOLVED (v0.106 slice 5 Settings redesign, task 10, 2026-08-17): the gap
-  // the scope correction above flagged is closed, not just recorded.
-  // src/components/ui/button.tsx:26 is migrated, `text-[0.8rem]` →
-  // `text-label` on the `sm` size variant (12.8px → 12px) — this is
-  // "whichever slice migrates that shared component next" from the
-  // deferral two paragraphs up, and Settings is that slice: the importer
-  // list the correction above cites (sign-out-button.tsx and the five
-  // src/components/settings/*-card.tsx files) is exactly Settings' own
-  // render chain, unchanged since it was written. All ten `size="sm"` call
-  // sites across those six files were read directly — sign-out-button.tsx,
-  // webhooks-card.tsx, sessions-card.tsx (×2), api-tokens-card.tsx,
-  // llm-settings-card.tsx and coach-card.tsx (×4) — and none sit in a
-  // fixed-width or overflow-hidden container, and none matches its width
-  // against a sibling that is not also changing, so the −0.8px lands safely
-  // everywhere it renders. `xs`'s `text-xs` and the base `text-sm` on the
-  // same file are untouched — Tailwind defaults, not ARBITRARY_TYPE
-  // offenders, and their call sites are admin/import/login, slices 7 and 8's
-  // surfaces, not this one. This resolves src/components/ui/button.tsx's own
-  // occurrence — not every occurrence in src/components/ui/.
-  // src/components/ui/inline-markdown.tsx:31's `text-[0.95em]`, described
-  // above in this same entry, remains: deliberately, for the same reason
-  // recorded there — a relative em whose whole job is staying proportional
-  // to whichever ambient text size wraps it, used across call sites at
-  // different sizes, so no fixed-step token can replace it. The
-  // "arbitrary type sizes" ceiling below (this file's OFFENDER_CEILINGS)
-  // still drops by exactly 1 as a result, from 53 to 52 — see that entry's
-  // own task-10 addendum for the count.
-  //
-  // 137 occurrences, unchanged, measured 2026-08-13 after v0.102 (Body slice)
-  // task 11 (the sweep) — re-pinned, not moved. Task 11's own sweep grep,
-  // scoped to every file that renders on any of Body's four tabs (not just
-  // src/components/body/), found TOTAL 0 0 for both patterns across:
-  // src/app/body/page.tsx, src/components/body/*.tsx,
-  // src/components/app-shell.tsx, src/components/bottom-nav.tsx,
-  // src/components/sidebar-nav.tsx, src/components/ui/empty-state.tsx,
-  // src/components/ui/collapsible.tsx. journal-form.tsx's mood-picker emoji
-  // size (bare text-2xl, an un-tokenised Tailwind step this pattern's own
-  // regex — text-\[…px|rem|em\] — cannot see, since it only matches arbitrary
-  // bracket values) was migrated to text-heading, its exact 24px equivalent;
-  // that fix does not move this count either, for the same reason. See the
-  // sibling ceiling below for the ad-hoc-alpha half of this task's sweep.
-  //
-  // SCOPE CORRECTION (I3, whole-branch review 2026-08-13). Task 11's sweep
-  // grep, above, was derived from src/app/body/page.tsx's own import list
-  // and never from the route's LAYOUT chain — every page under app/ is also
-  // wrapped by src/app/layout.tsx, which renders
-  // src/components/theme-provider.tsx. Re-run with both added: TOTAL 0 0,
-  // unchanged — src/app/layout.tsx and src/components/theme-provider.tsx
-  // carry zero arbitrary sizes and zero white/black alphas. Nothing was
-  // broken; the recorded scope was just incomplete, and an incomplete scope
-  // written down is what the next slice inherits and re-runs verbatim. Full
-  // corrected scope: src/app/body/page.tsx, src/app/layout.tsx,
-  // src/components/theme-provider.tsx, src/components/body/*.tsx,
-  // src/components/app-shell.tsx, src/components/bottom-nav.tsx,
-  // src/components/sidebar-nav.tsx, src/components/ui/empty-state.tsx,
-  // src/components/ui/collapsible.tsx.
-  // 137 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 10 —
-  // health-upload.tsx and health-manual-entry.tsx (both folded behind
-  // Collapsible in the same task) migrated 13 text-[Npx] sites:
-  // health-upload.tsx (7) — the intro paragraph (text-[12px] →
-  // text-label), the file input's own file:text-[10px] (→ file:text-label),
-  // the Extract button (text-[10px] → text-label), the
-  // parsed-without-a-model warning (text-[11px] → text-label), the review
-  // table's header row (text-[10px] → text-label), and the Save/Discard
-  // pair below the table (each its own text-[10px] → text-label);
-  // health-manual-entry.tsx (6) — the four field labels (Birth year, Date,
-  // Systolic, Diastolic; text-[11px] x4 → text-label) and the two Save
-  // buttons (each its own text-[10px] → text-label). text-sm stayed on the
-  // two headings (now text-caption, and h3 not h2 — the trigger's own h3
-  // wrapper must not sit under a higher heading level) and on the
-  // textarea/date/number inputs (now text-caption); text-xs stayed on the
-  // file input's base size, the error line, the confidence cell and the
-  // Measured/saveMsg text (now text-label or font-numeric text-label).
-  // Neither text-sm nor text-xs is arbitrary, so none of those move this
-  // count.
-  // Was 150 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 9 —
-  // the Labs tab's four reading blocks migrated 13 text-[Npx] sites:
-  // labs-tiles.tsx (7) — both tile eyebrows (text-[8.5px] x2 → label-micro),
-  // the age figure (text-[22px] → text-title), the delta (text-[11px] →
-  // text-label), the unavailable line (text-[11px] → text-caption), the
-  // biomarker count (text-[12.5px] → text-caption) and the draw date
-  // (text-[10.5px] → text-label); bio-age-card.tsx (2) — the unavailable
-  // line (text-[11px] → text-caption) and the component row (text-[11px] →
-  // text-label); blood-pressure-card.tsx (2) — the readings/direction line
-  // (text-[11px] → text-label) and the average (text-[11px] → text-caption);
-  // biomarker-list.tsx (2) — the category heading (text-[10px] →
-  // text-label) and the unit (text-[11px] → text-label). text-4xl, text-3xl,
-  // text-sm and text-xs are named Tailwind sizes, not arbitrary, so they
-  // don't move this count.
-  // Was 163 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 8 —
-  // correlation-rows.tsx migrated its 6 text-[Npx] sites: the "90-day
-  // correlations" heading eyebrow (text-[9.5px] → label-micro), the
-  // behaviour-name row (text-[12px] → text-caption), the "auto" marker
-  // (text-[9px] → text-label) and the three badge states — unavailable
-  // (text-[11px]), no-effect (text-[11.5px]) and the signed finding
-  // (text-[11.5px]) — all three collapsed onto the one text-label size, the
-  // three states now told apart by wording and ink/weight alone
-  // (unavailable: text-ink-muted; no effect: font-medium text-ink-secondary;
-  // finding: font-bold text-chart-2/text-chart-5). milestones-card.tsx had
-  // no arbitrary sizes to begin with (it used text-xs), so it does not move
-  // this count.
-  // Was 169 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 7 —
-  // journal-form.tsx migrated the rest of the file (the manual-vitals
-  // panel, behavior tags, day flags, notes and the submit button) and
-  // dropped 10 text-[Npx] sites: the vitals intro paragraph and its four
-  // input labels (text-[10px] x5 → text-label), the tag-group heading
-  // (text-[9px] → text-label), the tag pills and day-flag pills (each
-  // text-[10px] → text-label), the "remember these as usual" button
-  // (text-[10px] → text-label) and the day-flags footnote (text-[10px] →
-  // text-label).
-  // Was 179 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 6 —
-  // journal-form.tsx migrated 6 text-[Npx] sites: two went with the deleted
-  // header (the "Logging Streak" eyebrow's text-[10px] and the streak
-  // ring's text-[8px] fraction — the owner decision to drop the form's own
-  // duplicate header, since the page header's chip is the single streak on
-  // screen), the calendar strip's day label (text-[9px] → text-label), and
-  // the sliders' low/high end labels (text-[9px] x2 → text-label).
-  // Was 185 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 5 —
-  // body-battery.tsx migrated 5 text-[Npx] sites: the modelled-from line
-  // (text-[11px] → text-label), both tag-pill branches' text-[9px], hoisted
-  // into one BatteryTags component and reduced to a single text-label
-  // occurrence, the checkpoint grid wrapper's text-[10px] (dropped, the
-  // token now lives on the tile's own label/value spans) and the axis row's
-  // text-[10px] → text-label.
-  // Was 190 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 4 —
-  // the Sleep tab (sleep-night-card.tsx, sleep-history-strip.tsx and
-  // page.tsx's consistency/chronotype rhythm row) migrated 14 text-[Npx]
-  // sites: sleep-night-card.tsx's heading eyebrow (9.5px → label-micro), the
-  // four nav-arrow spans (13px → text-caption), the bed-window line (11px →
-  // text-label), the stage-legend li (9.5px → text-label), the fallback
-  // paragraph (11px → text-caption) and the bedtime line (11px →
-  // text-caption); sleep-history-strip.tsx's weekday initial (8px →
-  // text-label) and day-number (11px → text-label); and page.tsx's
-  // Consistency/Chronotype labels (11px x2) and the "last 30 nights"
-  // caption (10px), all three → text-label.
-  // Was 204 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 3 —
-  // baseline-trend-card.tsx migrated 4 text-[Npx] sites: the eyebrow
-  // (text-[9.5px] → label-micro, which already carries text-label) and the
-  // reading row (text-[11px] → text-label, text-[12px] → text-caption, and
-  // the empty-state text-[11px] → text-caption).
-  // Was 208 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 2 —
-  // page.tsx's header (the h1 and the streak chip) plus the two new
-  // components it now delegates to, body-tabs.tsx and range-tabs.tsx —
-  // migrated 4 text-[Npx] sites: text-[22px] (h1 → text-title), text-[10.5px]
-  // (streak chip → text-label), text-[11px] (Body's tab-row labels →
-  // text-label) and text-[10px] (Trends' range-pill labels → text-label).
-  // Was 212 occurrences, measured 2026-08-13 in v0.101.1 (whole-branch review 2,
-  // C1). The "Train is now at ZERO offenders" line directly below, written
-  // after task 12, was false: task 12's Step-1 sweep grep never covered
-  // sidebar-nav.tsx (the desktop, lg-and-above nav — the exact complement of
-  // bottom-nav.tsx's lg-and-below half, which the sweep DID add) or
-  // empty-state.tsx (rendered at five Train call sites). Both render on
-  // every Train tab via AppShell. sidebar-nav.tsx alone carried 4 arbitrary
-  // pixel sizes — including one site below the 12px floor — plus 8 ad-hoc
-  // white-alpha utilities; empty-state.tsx carried 2 more ad-hoc alphas.
-  // Ten live offender lines the sweep's scope never reached. Both files are
-  // migrated to the token scale now, and both are added to the sweep's own
-  // grep (docs/plans/2026-08-12-v099-slice2-train.md, Task 12 Step 1) so a
-  // later slice re-running it cannot repeat the miss. With the sweep's true
-  // scope, the Train surface is at zero offenders with exactly one
-  // deliberate exclusion: block-sheet.tsx's modal scrim, which is neither
-  // ink nor surface and has no token.
-  // 217 occurrences, measured 2026-08-13 after task 12 (the sweep — the two
-  // header control switches season-mode-switch.tsx and plan-style-switch.tsx,
-  // which no earlier task owned, plus bottom-nav.tsx and plan-empty.tsx)
-  // migrated 6 text-[Npx] sites. CORRECTION (v0.101.1, above): the claim
-  // that followed here — that the Train surface was at zero offenders with
-  // one exclusion — was false; the sweep's grep never reached
-  // sidebar-nav.tsx or empty-state.tsx.
-  // Was 223 occurrences, measured 2026-08-13 after task 11 (Fitness —
-  // fitness-tiles.tsx, pmc-chart.tsx, fitness-stats-row.tsx and page.tsx's
-  // Fitness half) migrated 6 text-[Npx] sites: the tile label, value and
-  // context in fitness-tiles.tsx, the Stat label in pmc-chart.tsx, the
-  // eFTP/Max Power/W'/Ramp label in fitness-stats-row.tsx, and the CTL/ATL/
-  // TSB legend row in page.tsx.
-  // Was 229 occurrences, measured 2026-08-13 after task 10 (Season — the
-  // season-timeline-card.tsx restructure) migrated 6 text-[Npx] sites: the
-  // eyebrow, the three stat tiles' shared text-[10px] wrapper, and the
-  // closing note and empty state, one each. The per-bar week (9px) and
-  // session-count (8px) labels were not migrated to a token — they were
-  // deleted outright, replaced by the axis ticks and the detail readout.
-  // Was 235 occurrences, measured 2026-08-13 after task 9 (History — the
-  // day-grouped rows in history-list.tsx, the summary strip in
-  // history-stat-strip.tsx, and the Log-activity link and sport filter
-  // pills in page.tsx's History half) migrated 9 text-[Npx] sites.
-  // Was 244 after task 8 (races-section.tsx and plan-preview-card.tsx —
-  // the A/B/C priority chips, the add-race and demand-edit forms, the
-  // phase table and week list) migrated 21 text-[Npx] sites.
-  // 265 after task 7 (the availability intake path — intake-form.tsx,
-  // block-sheet.tsx, standard-week.tsx and availability-week-switcher.tsx)
-  // migrated 23 text-[Npx] sites. 288 after task 6 (the week tab's
-  // page-level chrome in page.tsx itself — the adjustments panel, the
-  // remaining-skeleton table, the start-week form, the next-week note and
-  // the race chip's goal note) migrated 14 text-[Npx] sites. 302 after task
-  // 5 (the week tab's prose blocks — day-actions.tsx's pills and selects,
-  // fuelling-card.tsx's card and confidence chip, week-rationale.tsx's
-  // shortfall/reason prose, and event-readiness.tsx's verdict/demand prose)
-  // migrated 31 text-[Npx] sites. 333 after task 4 (the next-week preview
-  // collapse — the new next-week-summary.tsx and the wiring changes in
-  // week-day-list.tsx and page.tsx are all token utilities, so the count did
-  // not move there), 343 after task 2, 351 after the whole-branch-review
-  // fixes, 355 right after slice 1, 395 at slice 0.
-  //
-  // 68 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
-  // redesign) tasks 7-8 — AI & Coach, Advanced / API and App
-  // (llm-usage-card.tsx, llm-settings-card.tsx, coach-card.tsx,
-  // api-tokens-card.tsx, webhooks-card.tsx, sessions-card.tsx,
-  // notifications-card.tsx, body-prefs-card.tsx, ride-debrief-toggles.tsx;
-  // ride-debrief-card.tsx was already at zero and untouched). Net −6 from the
-  // 74 task 6 left, all from three files: notifications-card.tsx's morning-
-  // push toggle detail (text-[10px] → text-label, 1), body-prefs-card.tsx's
-  // two section-intro paragraphs and the save-message span (text-[12px] x3
-  // → text-label, 3) and ride-debrief-toggles.tsx's two toggle-detail spans
-  // (text-[10px] x2 → text-label, 2). The other six files (all six of task 7)
-  // carried named Tailwind sizes (text-xs/text-sm/text-base/text-xl) only,
-  // never an arbitrary bracket size, so they move the ad-hoc-alpha ceiling
-  // below but not this one. The gap this left (74 − 68 = 6) was under
-  // RATCHET_SLACK (25), so the ratchet did not strictly demand re-pinning —
-  // re-pinned anyway per this file's own established practice of re-pinning
-  // on every drop regardless. Verified directly: running ARBITRARY_TYPE
-  // (src/lib/design/type-scale-patterns.ts) over every non-test file in
-  // src/**/*.{ts,tsx} reports 68 on the working tree after these two tasks'
-  // edits, down from 74 before them.
-  //
-  // 53 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
-  // redesign) task 9 — src/app/settings/page.tsx, the page shell (the last
-  // code migration of the release; Task 11 is the axe audit). Net −15 from
-  // the 68 task 7-8 left, all in this one file: the header h1 (text-[22px] →
-  // text-heading, 1), the profile row's initial avatar (text-[14px] →
-  // text-caption, 1), the athlete name (text-[13.5px] → text-caption, 1),
-  // the athlete email (text-[10.5px] → text-label, 1), the Admin link
-  // (text-[10px] → text-label, 1), the five section-trigger badges — hoisted
-  // to one `triggerBadgeClass` const before migrating, since all five
-  // repeated the same string verbatim (text-[10px] → text-label, 5), the
-  // Data section's two row-detail spans — hoisted to `dataDetailClass`
-  // (text-[10px] → text-label, 2), the two Export/Import buttons — hoisted
-  // to `dataButtonClass`, identical to each other (text-[10px] → text-label,
-  // 2), and the footer (text-[10px] → text-label, 1). 1+1+1+1+1+5+2+2+1 = 15.
-  // The five section-trigger LABELS (text-xs, not arbitrary) and the two
-  // Data row titles (text-sm, not arbitrary) move the ad-hoc-alpha ceiling
-  // below but not this one. The gap this left (68 − 53 = 15) was under
-  // RATCHET_SLACK (25), so the ratchet did not strictly demand re-pinning —
-  // re-pinned anyway per this file's own established practice of re-pinning
-  // on every drop regardless. Verified directly: running ARBITRARY_TYPE
-  // (src/lib/design/type-scale-patterns.ts) over every non-test file in
-  // src/**/*.{ts,tsx} reports 53 on the working tree after this task's edit,
-  // down from 68 before it.
-  //
-  // 52 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
-  // redesign) task 10 — src/components/ui/button.tsx, the `sm` button-size
-  // variant's `text-[0.8rem]` → `text-label` (12.8px → 12px), the exact site
-  // the SCOPE CORRECTION above (whole-branch review 2026-08-14, in the 112
-  // entry) flagged and this task's own RESOLVED addendum there closes. Net
-  // −1 from the 53 task 9 left, this file's only offender. All ten
-  // `size="sm"` Button call sites (sign-out-button.tsx and the five
-  // src/components/settings/*-card.tsx files that import Button) were read
-  // directly and confirmed clear of fixed-width and overflow-hidden
-  // containers, so the narrower text is safe everywhere it renders. The gap
-  // this left (53 − 52 = 1) was well under RATCHET_SLACK (25), so the
-  // ratchet did not demand re-pinning — re-pinned anyway per this file's own
-  // established practice of re-pinning on every drop regardless. Verified
-  // directly: running ARBITRARY_TYPE (src/lib/design/type-scale-patterns.ts)
-  // over every non-test file in src/**/*.{ts,tsx} reports 52 on the working
-  // tree after this task's edit, down from 53 before it. This retires
-  // button.tsx's own occurrence of the pattern, not the pattern from
-  // src/components/ui/ as a whole — src/components/ui/inline-markdown.tsx:31's
-  // `text-[0.95em]` remains, deliberately: a relative em that stays
-  // proportional to whichever ambient text size wraps it, used across call
-  // sites at different sizes, so no fixed-step token can replace it (see the
-  // 112 entry above for the full reasoning, recorded when v0.99 slice 4
-  // Coach's task 10 left it in place).
-  // 25 occurrences, measured 2026-08-17 after v0.108.0 slice 6 phase B
-  // (Activity redesign). Net −27 from the 52 above, all seven of the slice's
-  // files to zero:
-  //   debrief-sheet.tsx: 11 (the largest single offender in the slice)
-  //   app/activity/[id]/page.tsx: 6
-  //   activity-debrief-section.tsx: 5
-  //   laps-table.tsx: 3
-  //   stream-chart.tsx: 2
-  //   activity-log-form.tsx, delete-activity-button.tsx: 0 each — both
-  //     carried ad-hoc ink and default scale but no arbitrary sizes, so they
-  //     move the sibling ceiling and not this one.
-  // 11 + 6 + 5 + 3 + 2 = 27. Twenty of the 27 sat BELOW the 12px floor
-  // (6 × [11px], 5 × [11.5px], 3 × [9.5px], 2 × [10px], 2 × [10.5px],
-  // 1 × [9px], 1 × [8.5px]) and came up to it rather than finding a smaller
-  // token, which is why two rows lost their tracking-[0.15em]: at 12px the
-  // uppercase treatment reads without it, and the tracking is what overflowed
-  // the fixed columns. The gap this left (52 − 25 = 27) was OVER
-  // RATCHET_SLACK (25), so the ratchet failed and re-pinning here was
-  // mandatory, not discretionary. Verified directly: running ARBITRARY_TYPE
-  // (src/lib/design/type-scale-patterns.ts) over every non-test file in
-  // src/**/*.{ts,tsx} reports 25 on the working tree after this slice's
-  // edits, down from 52 before them.
-  // 14 occurrences, measured 2026-08-18 after v0.109.0 slice 7 (Admin +
-  // Import). Net −11 from the 25 above, all six of the slice's files to zero:
-  //   sync-jobs-panel.tsx, import-form.tsx: 4 each
-  //   admin/page.tsx, invite-manager.tsx, security-events.tsx: 1 each
-  //   surface-views-card.tsx: 0 — it carried ad-hoc ink and default scale but
-  //     no arbitrary sizes, so it moves the sibling ceiling and not this one.
-  // 4 + 4 + 1 + 1 + 1 = 11. Every one sat BELOW the 12px floor (4 × [11px],
-  // 4 × [10px], 3 × [9px]) and came up to it. The gap this left (25 − 14 = 11)
-  // was UNDER RATCHET_SLACK (25), so the ratchet did not demand re-pinning —
-  // re-pinned anyway per this file's established practice of re-pinning on
-  // every drop. Verified directly: running ARBITRARY_TYPE over every non-test
-  // file in src/**/*.{ts,tsx} reports 14 on the working tree after this
-  // slice's edits, down from 25 before them.
-  // 1 occurrence, measured 2026-08-18 after v0.111.0 slice 9 (the sweep). Net
-  // −13 from the 14 above: 11 in today/checkin-sheet.tsx — a Today sheet that
-  // slice 1 never migrated, carrying the same shape debrief-sheet.tsx did —
-  // and 2 in the pre-auth join pages. Every one sat below the 12px floor.
-  //
-  // THE ONE THAT REMAINS is src/components/ui/inline-markdown.tsx's
-  // `text-[0.95em]`, and it is not going anywhere: a RELATIVE em that stays
-  // proportional to whatever ambient size wraps it, used at several different
-  // sizes, so no fixed-step token can replace it without changing what it
-  // renders at some call site. Left deliberately since slice 4 and re-affirmed
-  // here at the end of the sweep. That is why THIS pattern keeps its ceiling
-  // and its `it.fails` while the sibling ad-hoc-ink one was retired: this one
-  // has a permanent, reasoned floor of 1.
-  "arbitrary type sizes": 1,
-  // 251 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
-  // redesign) task 3 — repays the debt task 2 explicitly left for this task,
-  // same three cards as the sibling ceiling above. Net −27 from the 278
-  // task 2 left, broken down per card:
-  //   whoop-card.tsx: dropped 11, the exact 11 the sibling comment below
-  //     itemises as connector-card.tsx's net-new sites, since Whoop's
-  //     markup is what they were copied from verbatim — the chip's
-  //     border-white/20 + bg-white/10 (2), the pill's border-white/10 +
-  //     bg-white/5 + hover:bg-white/10 (3), the ghost's border-white/10 +
-  //     text-white/60 (2), the badge's bg-white/5 + text-white/50 (2), the
-  //     subtitle's text-white/50 (1) and the status paragraph's ok-branch
-  //     text-white/60 (1). Kept exactly one: the Connect CTA's
-  //     hover:bg-white/80, brand colour on the anchor tag, not chrome the
-  //     shell owns.
-  //   withings-card.tsx: dropped all 9 it had — the same pill/ghost/badge/
-  //     subtitle/status sites as Whoop (3 + 2 + 2 + 1 + 1), minus the chip,
-  //     which was never white/black (Withings' chip and CTA are both teal).
-  //     Kept none.
-  //   oura-card.tsx: dropped 7 of its 10 — the same pill/ghost/subtitle/
-  //     status sites (3 + 2 + 1 + 1; no chip or badge, Oura has neither).
-  //     Kept 3, all in the token-form/help-text `children` markup that
-  //     never moved onto the shell: the input's border-white/10 +
-  //     bg-white/5 and the help paragraph's text-white/40.
-  // 11 + 9 + 7 = 27. This ceiling's own suite run caught the debt directly —
-  // `ad-hoc ink alphas stay at or below the recorded ceiling` failed with
-  // "the ceiling (278) is now 27 above the real count (251), which is more
-  // than RATCHET_SLACK (25)" — confirming both the exact count and that it
-  // had silently passed slack. Re-pinned to 251 per this file's own ratchet
-  // rule. Task 4 moves Strava and Apple Health the same way and re-pins
-  // again; Task 5 then migrates connector-card.tsx itself onto the ink
-  // scale, retiring this pattern from the shared file too.
-  // 278 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
-  // redesign) task 2 — the same new file as the sibling ceiling above,
-  // src/components/settings/connector-card.tsx. 11 net new ad-hoc-alpha
-  // sites (278 − 267): TONE_CHIP.whoop's border-white/20 + bg-white/10 (2),
-  // connectorPillClass's border-white/10 + bg-white/5 + hover:bg-white/10
-  // (3), connectorGhostClass's border-white/10 + text-white/60 (2),
-  // connectorBadgeClass's bg-white/5 + text-white/50 (2), the header
-  // subtitle span's text-white/50 (1), and the status paragraph's ok-branch
-  // text-white/60 (1). Not migrated here for the same reason as the sibling
-  // ceiling: Task 2 extracts this markup byte-identical to the five cards
-  // it is copied from (see the file's header comment) so Task 5 can migrate
-  // it once instead of five times; migrating it now would be Task 5's job
-  // done early and out of order.
-  // 267 occurrences, measured 2026-08-14 after v0.99 slice 4 (Coach) task 10
-  // (the sweep). Ceiling was still 311 — unchanged since v0.102 (Body
-  // slice) task 11 — going into this slice; by the time task 10 started,
-  // tasks 3-9 had already driven the real count to 268, 43 below ceiling,
-  // which had silently passed RATCHET_SLACK (25) with nobody forced to
-  // re-pin, since no earlier Coach task happened to re-run this suite
-  // after its own edit. Verified the same way as the sibling ceiling
-  // (`git diff 7c8a4e4..HEAD`, counting
-  // (text|bg|border|fill|stroke|ring|divide)-(white|black)/N matches):
-  // chat-interface.tsx (net 17), history-panel.tsx (net 18, of 19 removed
-  // / 1 added — see below), bottom-sheet.tsx (net 2, of 3 removed / 1
-  // added — see below) and artifact-card.tsx (net 6) = 43 net. Task 10
-  // itself fixed the one KNOWN LEFTOVER its own brief flagged:
-  // history-panel.tsx's ghost-thread row was still `text-ghost-ink
-  // hover:bg-white/[0.04]` while its sibling chat-thread row directly
-  // above it had already moved to `hover:bg-surface-raised` (task 4) —
-  // migrated to `hover:bg-surface-raised` to match, −1. 268 − 1 = 267.
-  // (The +1 on history-panel.tsx above is task 4's own rewrite of that
-  // same line, which kept the ad-hoc alpha it should have replaced — the
-  // very leftover task 10 just closed.) Task 10's own full-render-chain
-  // sweep (scope below) found no other Coach-owned ad-hoc alpha. The two
-  // remaining matches in scope both trace to bottom-sheet.tsx's single
-  // deliberate scrim: the literal `bg-black/60` class, plus this guard's
-  // plain-text line scan also counting the words "bg-black/60" inside the
-  // comment directly above it that explains why the class stays literal
-  // (the +1 on bottom-sheet.tsx above is that same comment, added by task
-  // 3). A modal scrim is neither text nor a surface, both themes want it
-  // dark, and it already carries that comment — deliberately left, not
-  // residue to chase. Full render-chain scope: src/app/coach/page.tsx,
-  // src/app/coach/loading.tsx, src/app/layout.tsx,
-  // src/components/theme-provider.tsx, src/components/app-shell.tsx,
-  // src/components/bottom-nav.tsx, src/components/sidebar-nav.tsx,
-  // src/components/coach/*.tsx, src/components/ui/bottom-sheet.tsx,
-  // src/components/ui/inline-markdown.tsx, src/components/ui/empty-state.tsx.
-  //
-  // 311 occurrences, unchanged, measured 2026-08-13 after v0.102 (Body slice)
-  // task 11 (the sweep) — re-pinned, not moved. Task 11's own sweep grep
-  // (same file list as the sibling ceiling above: src/app/body/page.tsx,
-  // src/components/body/*.tsx, src/components/app-shell.tsx,
-  // src/components/bottom-nav.tsx, src/components/sidebar-nav.tsx,
-  // src/components/ui/empty-state.tsx, src/components/ui/collapsible.tsx)
-  // found TOTAL 0 0 for both patterns.
-  //
-  // SCOPE CORRECTION (I3, whole-branch review 2026-08-13) — same correction
-  // as the sibling ceiling above: the recorded scope omitted the route's
-  // layout chain, src/app/layout.tsx and src/components/theme-provider.tsx.
-  // Re-run with both added: TOTAL 0 0, unchanged — neither file carries an
-  // ad-hoc white/black alpha. See the sibling ceiling for the full corrected
-  // scope. journal-form.tsx's CheckCircle badge
-  // on the "Subjective feeling" step (text-emerald-500 → text-chart-2) was
-  // migrated in the same commit — an unguarded colour literal this pattern's
-  // own regex cannot see, since it only matches white/black alpha utilities,
-  // not a bare Tailwind palette colour — so it does not move this count
-  // either. Two items checked and deliberately left: .tag-active on the
-  // journal's tag/day-flag pills (journal-form.tsx) hardcodes the dark accent
-  // as a recorded deferral to slice 9 (docs/v0.99-redesign-handoff.md), and
-  // ui/unavailable.tsx's one text-white/50 belongs to its <Unavailable>
-  // component, which no Body file renders — confirmed with
-  // `grep -rn "<Unavailable" src/`, which finds it only in
-  // unavailable.test.tsx — Body calls only the unavailableMessage() string
-  // helper. Neither is this task's to fix.
-  // 311 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 10 —
-  // health-upload.tsx and health-manual-entry.tsx migrated 35 text-white/N,
-  // bg-white/N and border-white/N sites: health-upload.tsx (19) — the intro
-  // paragraph's text-white/50, the textarea's border-white/10 + bg-white/5,
-  // the file input's own text-white/60 + file:bg-white/10 + file:text-white/80
-  // (3), the review table's header row text-white/40, the row divider's
-  // border-white/5, the three editable cells' shared bg-white/5 (displayName/
-  // value/unit, 3), the confidence cell's low-confidence-else text-white/50,
-  // the remove button's text-white/40, the "Measured" label's text-white/60,
-  // its date input's border-white/10 + bg-white/5, the Discard button's
-  // text-white/40 + hover:text-white/70 (2), and the save-message
-  // paragraph's text-white/60 — all → text-ink-muted / text-ink-secondary /
-  // border-hairline / bg-surface-overlay as the per-site ink weight called
-  // for; health-manual-entry.tsx (16) — the four field labels' shared
-  // text-white/50 (4), the four inputs' shared border-white/10 + bg-white/5
-  // (8), the birth-year Save button's border-white/10 + bg-white/5 (2), the
-  // section divider's border-white/5, and the message paragraph's
-  // text-white/60 — all → text-ink-muted / border-hairline /
-  // bg-surface-overlay. Neither file's Save/Extract buttons move this
-  // count: `bg-emerald-500`/`text-black` are opaque, not an alpha utility
-  // (the buttons move to `bg-accent`/`text-primary-foreground` as tokens,
-  // which this guard does not scan for — it only flags the ad-hoc
-  // white/black alpha this task is eliminating).
-  // Was 346 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 9 —
-  // the Labs tab's four reading blocks migrated 20 text-white/N and
-  // bg-white/N sites: labs-tiles.tsx (9) — both tiles' border-white/[0.09] +
-  // bg-white/[0.04] pairs (→ `glass`, 4), both eyebrows' text-white/40
-  // (dropped with the move to `label-micro`, 2), the unavailable line and
-  // the delta's non-younger branch (both text-white/50 → text-ink-muted, 2)
-  // and the draw date's text-white/45 (→ text-ink-muted, 1); bio-age-card.tsx
-  // (4) — the "Not enough inputs yet" line's text-white/70 (→
-  // text-ink-secondary), the unavailable detail and component label's
-  // text-white/50 (both → text-ink-muted) and the zero-offset branch's
-  // text-white/40 (→ text-ink-muted); blood-pressure-card.tsx (3) — the
-  // readings/direction line and unit's text-white/40 and the average's
-  // text-white/50 (all → text-ink-muted); biomarker-list.tsx (4) — the
-  // category heading's text-white/40, the divider's divide-white/5 (→
-  // divide-hairline), the marker name's text-white/80 (→ text-ink-secondary,
-  // the per-pair override: name and unit sat in different alpha buckets and
-  // the unit, the subordinate, takes text-ink-muted rather than the nearer
-  // text-ink-secondary) and the unit's text-white/40. The five BAND_COLOR
-  // values (text-emerald-400/text-yellow-400/text-amber-400/
-  // text-orange-400/text-red-400 → text-chart-2/text-chart-3/text-chart-5)
-  // and labs-tiles.tsx's/bio-age-card.tsx's text-emerald-400 (→
-  // text-chart-2) were never white/black alpha, so they don't move this
-  // count.
-  // Was 366 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 8 —
-  // correlation-rows.tsx migrated 8 text-white/N, bg-white/N and
-  // border-white/N sites: the card wrapper's border-white/[0.08] +
-  // bg-white/[0.03] (→ `glass`), the row divider's border-white/[0.06] (→
-  // `border-hairline`), the behaviour-name ink (text-white/85 →
-  // text-ink-secondary), the "auto" marker (text-white/30 → text-ink-muted)
-  // and the heading eyebrow (text-white/40, dropped with the move to
-  // `label-micro`) plus the unavailable and no-effect badges' text-white/40
-  // and text-white/70 (→ text-ink-muted / text-ink-secondary). The signed
-  // finding badge's text-emerald-400/text-red-400 moved to
-  // text-chart-2/text-chart-5 but was never white/black alpha, so it does
-  // not move this count. milestones-card.tsx migrated 3 more: the row
-  // label's text-white/70 (→ text-ink-secondary), the em-dash placeholder's
-  // text-white/30 and the detail's text-white/40 (both → text-ink-muted —
-  // the per-pair override: the row label and its detail sat in different
-  // alpha buckets, and the quieter one takes ink-muted even though
-  // nearest-value would put it on ink-secondary).
-  // Was 377 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 7 —
-  // journal-form.tsx migrated 26 text-white/N, bg-white/N and
-  // border-white/N sites: the manual-vitals panel (17) — the intro
-  // paragraph and four labels' text-white/50 (→ text-ink-muted), and each
-  // of the four inputs' border-white/10 + bg-white/5 +
-  // placeholder:text-white/30 trio (→ border-hairline + bg-surface-overlay
-  // + placeholder:text-ink-muted; the bare `text-white` on each input has
-  // no alpha, so it does not move this count — it moved to text-ink-primary
-  // in the same edit); the tag-group heading's text-white/50 (1); the tag
-  // pills' and day-flag pills' border-white/10 (2, one source occurrence
-  // each, both → border-hairline, both still `glass`); the "remember these
-  // as usual" button's bg-white/5 + text-white/60 + hover:bg-white/10 trio
-  // (3, → bg-surface-overlay / text-ink-secondary / hover:bg-surface-raised);
-  // the footnote's text-white/50 (1); and the notes textarea's
-  // text-white/80 + placeholder:text-white/40 pair (2, →
-  // text-ink-secondary / placeholder:text-ink-muted). `tag-active` on the
-  // tag/flag pills is untouched — it hardcodes the dark accent as a
-  // deliberate deferral to slice 9 (docs/v0.99-redesign-handoff.md).
-  // Was 403 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 6 —
-  // journal-form.tsx migrated 11 text-white/N, bg-white/N and border-white/N
-  // sites: three went with the deleted header (the eyebrow's text-white/50,
-  // the streak ring's border-white/10 and its track circle's text-white/5);
-  // the calendar strip's day label and day circle inactive states (both
-  // text-white/50 → text-ink-muted, active states moved to
-  // text-chart-2/text-ink-primary); the slider label (text-white/80 →
-  // text-ink-secondary) and value's unanswered state (text-white/40 →
-  // text-ink-muted); the Continue button's trio (bg-white/5 +
-  // hover:bg-white/10 → bg-surface-overlay/hover:bg-surface-raised,
-  // text-white/70 → text-ink-secondary); and the "intervals.icu synced"
-  // chip (text-white/40 → text-ink-muted). The low/high end labels'
-  // text-emerald-400/60 and text-red-400/60 moved to text-chart-2 /
-  // text-chart-5 (alphas dropped) but were never white/black, so they don't
-  // move this count.
-  // Was 414 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 5 —
-  // body-battery.tsx migrated 14 text-white/N, bg-white/N and border-white/N
-  // sites: the unavailable-state paragraph's text-white/50 (→
-  // text-ink-muted), both tag-pill branches' border-white/10 + bg-white/5 +
-  // text-white/55 trio (6 matches total), hoisted into the single
-  // BatteryTags component and reduced to zero — border-hairline,
-  // bg-surface-overlay and text-ink-secondary carry no ad-hoc alpha; the
-  // "% now" readout's text-white/80 (→ text-ink-secondary); the
-  // modelled-from line's text-white/40 (→ text-ink-muted); the checkpoint
-  // tile's border-white/10 + bg-white/5 (→ border-hairline +
-  // bg-surface-overlay), its label's text-white/35 and value's text-white/85
-  // (both → the ink scale); and the axis row's text-white/50 (→
-  // text-ink-muted).
-  // Was 428 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 4 —
-  // the same three files migrated 27 text-white/N, bg-white/N and
-  // border-white/N sites: sleep-night-card.tsx (13) — the card wrapper's
-  // border-white/[0.08] + bg-white/[0.03] (→ `glass`), the heading ink, both
-  // nav-arrow link/disabled pairs, the bed-window ink, the legend ink, the
-  // fallback-paragraph ink and the divider border (→ `border-hairline`);
-  // sleep-history-strip.tsx (7) — the cell's selected/unselected
-  // border+background trio (→ `border-ink-muted`/`bg-surface-overlay`), the
-  // weekday-initial ink, the day-number selected/unselected pair and the
-  // no-stages bar fill (→ `bg-surface-overlay`); and page.tsx's rhythm row
-  // (7) — the card wrapper's border + background (→ `glass`) and the
-  // text-white/50 (x2) + text-white/85 (x2) + text-white/30 ink sites (all →
-  // `text-ink-muted`/`text-ink-secondary`).
-  // Was 455 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 3 —
-  // baseline-trend-card.tsx migrated 6 text-white/N, bg-white/N and
-  // border-white/N sites: the card wrapper's border-white/[0.08] +
-  // bg-white/[0.03] (→ `glass`) and four text-white/N ink sites (the
-  // eyebrow, the reading row's font-mono wrapper, the unit and the empty
-  // state, all → text-ink-muted). All 16 call sites' hex `color`/`bandFill`
-  // props do not move this count — this guard only scans Tailwind utility
-  // classes, and those were props, not classes; they are the 32 raw colour
-  // literals tests/type-scale-guard.test.ts's own header comment already
-  // says it cannot see (`color="#a78bfa"` props passed into chart
-  // components), now replaced by the four chart tokens in trend-tone.ts.
-  // Was 461 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 2
-  // migrated 8 text-white/N, bg-white/N and border-white/N sites: 4 in
-  // page.tsx's own header markup before it was replaced (bg-white/[0.12] +
-  // text-white, and bg-white/[0.04] + text-white/50 + hover:text-white/80 —
-  // that one line alone is 3 matches) and the same 4-match shape again in the
-  // range-pill row, both now on body-tabs.tsx / range-tabs.tsx's
-  // bg-surface-overlay / bg-surface-raised / text-ink-primary /
-  // text-ink-muted instead. The streak chip's border-emerald-500/30 and
-  // bg-emerald-500/[0.08] moved to border-accent/30 / bg-accent/10 in the
-  // same diff but were never ad-hoc WHITE/BLACK alpha, so they don't move
-  // this count.
-  // Was 469 occurrences, measured 2026-08-13 in v0.101.1 (whole-branch review 2,
-  // C1). sidebar-nav.tsx and empty-state.tsx were outside task 12's sweep
-  // scope (see the matching correction on "arbitrary type sizes" above) and
-  // together carried 10 ad-hoc white-alpha utilities that this patch
-  // migrated to the ink scale: 8 in sidebar-nav.tsx (the nav rail's border
-  // and fill, the wordmark, the active/inactive item pair, the settings
-  // row's border and hover state, and the pinned user row's name) plus 2 in
-  // empty-state.tsx (the icon and the message). Was 480 occurrences,
-  // measured 2026-08-13 after task 12 migrated 16 text-white/N, bg-white/N
-  // and border-white/N sites: plan-style-switch.tsx (6) +
-  // season-mode-switch.tsx (8) + bottom-nav.tsx (2). block-sheet.tsx's diff
-  // that task was comment-only — its scrim is the one deliberate exclusion,
-  // not a migrated site.
-  // Was 496 occurrences, measured 2026-08-13 after task 11 migrated 13
-  // text-white/N, bg-white/N and border-white/N sites across
-  // fitness-tiles.tsx (the tile card, which moved to `bg-surface-overlay`,
-  // and the label ink), pmc-chart.tsx (the calibrating message, the Stat
-  // block's divider and label ink), fitness-stats-row.tsx (the label ink)
-  // and page.tsx's Fitness half (both cards, which moved to `glass`, the
-  // legend divider and its ink; the legend's swatch colour itself moved off
-  // inline style entirely, onto `bg-chart-1`/`bg-chart-5`/`bg-chart-2`).
-  // Was 509 occurrences, measured 2026-08-13 after task 10 migrated 20
-  // text-white/N, bg-white/N and border-white/N sites in
-  // season-timeline-card.tsx (including the card, which moved to `glass`,
-  // and the three stat tiles plus the bar-pair wrapper, which moved to
-  // `bg-surface-overlay`; the target/actual bar fills moved to the named
-  // `bg-ink-muted`/`bg-chart-2` tokens, not an alpha bucket).
-  // Was 529 occurrences, measured 2026-08-13 after task 9 migrated 19
-  // text-white/N, bg-white/N and border-white/N sites across
-  // history-list.tsx, history-stat-strip.tsx and page.tsx's History half
-  // (including both cards, which moved to `glass`, and the row's hover,
-  // which moved to `bg-surface-overlay`).
-  // Was 548 after task 8 migrated 65 text-white/N, bg-white/N and
-  // border-white/N sites across races-section.tsx and
-  // plan-preview-card.tsx (including the two cards that were already
-  // `glass` and needed no change, and the demand-edit form's tile, which
-  // moved to `bg-surface-overlay`).
-  // 613 after task 7 migrated 38 text-white/N, bg-white/N and
-  // border-white/N sites across the same four availability-intake
-  // components (including block-sheet.tsx's sheet panel, which moved to
-  // `glass`, and its nested block tile, which moved to `bg-surface-overlay`).
-  // 651 after task 6 migrated 18 text-white/N, bg-white/N and
-  // border-white/N sites in the same page.tsx chrome (including the
-  // skeleton table's own scroll wrapper and the start-week form's card,
-  // which moved to `glass`). 669 after task 5 migrated 40 text-white/N,
-  // bg-white/N and border-white/N sites across the same four components
-  // (including the card wrappers that moved to `glass` and the nested
-  // fuelling tile that moved to `bg-surface-overlay`). 709 after task 4,
-  // for the same reason task 4 didn't move it — 729 after task 2, 738 after
-  // the whole-branch-review fixes, 749 right after slice 1, 806 at slice 0.
-  //
-  // 233 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
-  // redesign) task 4, review round 2. CORRECTS the entry directly below:
-  // review worked the case and showed Apple Health's status paragraph does
-  // fit the shell's `status` prop after all. The `!result?.url` guard folds
-  // into the computed value itself — `status = (result?.message ||
-  // uploadState) && !result?.url ? {...} : null` — the exact ternary shape
-  // already used for Strava earlier in this same file, and the ok-ness
-  // becomes `result?.ok ?? uploadState?.ok ?? false` to satisfy
-  // `status.ok: boolean`. Rendered DOM position is unchanged either way:
-  // when `result.url` is set, `status` is null (shell renders nothing) and
-  // children's `{result?.url && (...)}` block is first, exactly as before;
-  // when it is not set, that block renders nothing and the shell's status
-  // paragraph — now sitting directly under the header rather than after the
-  // (empty) url block — lands in the same visual position the manual
-  // paragraph held. `role="status"` is unchanged, now supplied by
-  // connector-card.tsx's own status paragraph instead of Apple Health's own.
-  // Net −1 from the 234 below: the status paragraph's ok-branch
-  // text-white/60 is now the shell's single copy; its class string
-  // (`mt-3 text-xs` / `text-white/60` / `text-red-400`) is byte-identical to
-  // what the shell already renders, so nothing new was added on the shell
-  // side. Verified: `git diff` on apple-health-card.tsx against ADHOC_INK
-  // shows exactly 1 removed line (the deleted inline status paragraph's
-  // ok-branch), 0 added. Both apple-health-card.test.tsx and
-  // apple-health-card.a11y.test.tsx pass unedited (`git diff --stat` empty)
-  // — the gate this move was conditioned on.
-  // 189 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
-  // redesign) task 6 — the same four Integrations card bodies as the
-  // sibling ceiling above: strava-card.tsx, apple-health-card.tsx,
-  // intervals-card.tsx and oura-card.tsx. Net −32 from the 221 task 5 left:
-  // strava-card.tsx dropped 14 (the upgrade-callout text, the auto-describe
-  // label's border and help line, the fields-to-include border and label,
-  // the field-checkbox row, the no-fields-selected warning, the preview
-  // label, the "(example data)" span deleted outright rather than
-  // migrated — see the editorial-cut note in the commit — the preview
-  // `<pre>`'s border, background and text, the powered-by-Strava border and
-  // text, and the "never sent" `<strong>`), apple-health-card.tsx dropped
-  // 13 (the webhook label, the webhook `<pre>`'s border/background/text,
-  // the "shown once" warning, the last-received line, the upload form's
-  // border, the file input's text and its file:-variant background and
-  // text, the Upload button's border and two backgrounds, and the one-off-
-  // upload note), intervals-card.tsx dropped 2 (the wellness-sync select's
-  // border and the wellness-poll timestamp), and oura-card.tsx dropped 3
-  // (the token input's border and background, and the token-form help
-  // paragraph). 14 + 13 + 2 + 3 = 32. The gap this left (233 − 189 = 44)
-  // was OVER RATCHET_SLACK (25), so the ratchet failed and re-pinning here
-  // was mandatory, not discretionary. Verified directly: running ADHOC_INK
-  // (src/lib/design/type-scale-patterns.ts) over src/**/*.tsx, excluding
-  // *.test.tsx, at the pre-task-6 commit reports 221; the same scan on the
-  // working tree after this task's edit reports 189. This retires the
-  // pattern from all five connector cards, same as the sibling ceiling.
-  //
-  // 127 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
-  // redesign) task 9 — the same file as the sibling ceiling's task 9 entry,
-  // src/app/settings/page.tsx. Net −29 from the 156 tasks 7-8 left, all in
-  // this one file: the profile row's wrapper border-white/[0.08] +
-  // bg-white/[0.03] (→ border-hairline + bg-surface-overlay, 2), its initial
-  // avatar's text-white/80 (→ text-ink-secondary, 1), its fallback User
-  // icon's text-white/60 (→ text-ink-muted, 1), the athlete email's
-  // text-white/45 (→ text-ink-muted, 1), the five section-trigger badges'
-  // shared text-white/35 — hoisted to `triggerBadgeClass` (→ text-ink-muted,
-  // 5), the five section-trigger labels' shared text-white/80 — hoisted to
-  // `triggerLabelClass` (→ text-ink-secondary, 5), the Terminal and Download
-  // icons' text-white/40 (→ text-ink-muted, 2 — the brief's decorative-icon
-  // exemption named only the three bare-palette icons, text-blue-400/
-  // text-emerald-400/text-orange-400; these two carry an ink alpha the
-  // general mapping already covers, so they migrate), the Data section's two
-  // row-detail spans' shared text-white/50 — hoisted to `dataDetailClass`
-  // (→ text-ink-muted, 2), the two Export/Import buttons' shared
-  // border-white/10 + bg-white/5 + text-white/80 + hover:bg-white/10 —
-  // hoisted to `dataButtonClass`, identical to each other (→ border-hairline
-  // + bg-surface-overlay + text-ink-secondary + hover:bg-surface-selected,
-  // 4 × 2 = 8), the Import row's own border-t border-white/5 (→
-  // border-hairline, 1), and the footer's text-white/25 (→ text-ink-muted,
-  // 1). 2+1+1+1+5+5+2+2+8+1+1 = 29. Three decorative section icons were
-  // deliberately left as raw palette values per the brief's own ruling —
-  // text-blue-400 (Integrations), text-emerald-400 (AI & Coach) and
-  // text-orange-400 (App) — since axe's color-contrast rule does not
-  // evaluate aria-hidden decoration and minting token pairs for them is
-  // scope this release does not want; they carry no ADHOC_INK match anyway
-  // (bare palette colours, no alpha slash), so they do not move this count
-  // either way. The gap this left (156 − 127 = 29) was OVER RATCHET_SLACK
-  // (25), so the ratchet failed and re-pinning here was mandatory, not
-  // discretionary — confirmed by this ceiling's own suite run. Verified
-  // directly: running ADHOC_INK (src/lib/design/type-scale-patterns.ts) over
-  // every non-test file in src/**/*.{ts,tsx} reports 127 on the working tree
-  // after this task's edit, down from 156 before it. This is the last code
-  // migration of the release; Task 11 is the real-browser axe audit.
-  //
-  // 156 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
-  // redesign) tasks 7-8 — the same nine files as the sibling ceiling's
-  // task 7-8 entry. Net −33 from the 189 task 6 left, per file:
-  // llm-usage-card.tsx dropped 5 (the usage-intro paragraph, the
-  // no-usage-yet line, the this-month line, its last-month aside and the
-  // per-model row, all text-white/N → text-ink-muted/text-ink-secondary);
-  // webhooks-card.tsx dropped 2 (the revealed-secret `<code>`'s
-  // bg-black/40 + text-white/80 → bg-surface-base + text-ink-secondary, the
-  // pair the brief called out by name); notifications-card.tsx dropped 9
-  // (the intro paragraph's text-white/50, the disable/test buttons' shared
-  // border-white/10 + text-white/70 + hover:bg-white/5 trio ×2, the
-  // morning-push row's border-white/5 and its detail span's text-white/50);
-  // body-prefs-card.tsx dropped 13 (the five hoisted inputs' shared
-  // border-white/10 + bg-white/5 pair ×5 = 10, plus the two section-intro
-  // paragraphs' and the save-message span's text-white/N, 3 more); and
-  // ride-debrief-toggles.tsx dropped 4 (both toggles' detail-span
-  // text-white/50, the intro paragraph's text-white/50 and the second
-  // toggle's border-t border-white/5). llm-settings-card.tsx,
-  // coach-card.tsx, api-tokens-card.tsx and sessions-card.tsx carried no
-  // white/black alpha to begin with — only named type-scale utilities and
-  // shadcn's own semantic tokens — so they move the sibling ceiling but not
-  // this one; api-tokens-card.tsx's bare `bg-white`/`dark:bg-black` pair
-  // (→ `bg-surface-raised`) had no alpha slash either, so ADHOC_INK never
-  // counted it. 5 + 2 + 9 + 13 + 4 = 33. The gap this left (189 − 156 = 33)
-  // was OVER RATCHET_SLACK (25), so the ratchet failed and re-pinning here
-  // was mandatory, not discretionary. Verified directly: running ADHOC_INK
-  // (src/lib/design/type-scale-patterns.ts) over every non-test file in
-  // src/**/*.{ts,tsx} reports 156 on the working tree after these two
-  // tasks' edits, down from 189 before them.
-  // 73 occurrences, measured 2026-08-17 after v0.108.0 slice 6 phase B
-  // (Activity redesign). Net −54 from the 127 above, the same seven files as
-  // the sibling ceiling:
-  //   debrief-sheet.tsx: 17
-  //   activity-log-form.tsx: 15 (nothing arbitrary, so it moves only this
-  //     ceiling — plus all 13 of the slice's default-scale sites, which
-  //     neither ceiling counts)
-  //   app/activity/[id]/page.tsx: 7
-  //   laps-table.tsx: 6
-  //   activity-debrief-section.tsx: 5
-  //   stream-chart.tsx: 3
-  //   delete-activity-button.tsx: 1
-  // 17 + 15 + 7 + 6 + 5 + 3 + 1 = 54. The gap this left (127 − 73 = 54) was
-  // OVER RATCHET_SLACK (25), so the ratchet failed and re-pinning here was
-  // mandatory, not discretionary.
-  //
-  // NOT COUNTED BY THIS PATTERN, and the reason the slice's real edit total
-  // was 102 rather than the ~144 its handoff projected: 8 BARE
-  // text-white/text-black sites (3 in debrief-sheet.tsx, 3 in
-  // activity-log-form.tsx, 1 each in page.tsx and laps-table.tsx). ADHOC_INK
-  // requires an alpha slash, so no guard in this file ever saw them — the
-  // handoff's own per-file "bare white" column double-counted its ad-hoc-ink
-  // column and reported 50. All 8 are gone, but nothing here would have
-  // noticed if they were not; the spelling that finds them is
-  // \b(text|bg|border|fill|stroke|ring|divide)-(white|black)\b(?!/).
-  //
-  // Verified directly: running ADHOC_INK (src/lib/design/type-scale-patterns
-  // .ts) over every non-test file in src/**/*.{ts,tsx} reports 73 on the
-  // working tree after this slice's edits, down from 127 before them.
-  // NO ENTRY for "ad-hoc white/black alpha utilities" any more. v0.111.0's
-  // sweep took it to zero and flipped its `it.fails` into a real assertion, so
-  // a ceiling would be dead weight — worse, a ceiling of 0 alongside a real
-  // assertion is two things to keep in step for one fact.
-  // 234 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
-  // redesign) task 4 — the same two cards as the sibling ceiling above,
-  // strava-card.tsx and apple-health-card.tsx, moved onto connector-card.tsx's
-  // shell. Net −17 from the 251 task 3 left:
-  //   strava-card.tsx: dropped 9 — the subtitle's text-white/50 (1), the
-  //     pill's border-white/10 + bg-white/5 + hover:bg-white/10 (3), the
-  //     ghost's border-white/10 + text-white/60 (2), the badge's bg-white/5 +
-  //     text-white/50 (2) and the status paragraph's ok-branch text-white/60
-  //     (1), now the shell's single copy of each instead of Strava's own.
-  //     Kept none: the Connect CTA is bg-orange-500/hover:bg-orange-400 with
-  //     bare text-black, no alpha slash on any of the three.
-  //   apple-health-card.tsx: dropped 8 — the same subtitle/pill/ghost/badge
-  //     sites as Strava (1 + 3 + 2 + 2), minus the status paragraph, which
-  //     stayed unmigrated `children` here (see below) so it still counts.
-  //     Kept none: the Enable CTA is bg-red-400/hover:bg-red-300 with bare
-  //     text-black, same shape as Strava's.
-  // 9 + 8 = 17. CORRECTED ABOVE (see the 233 entry): the paragraph below
-  // claiming Apple Health's status paragraph "did NOT move onto the shell's
-  // `status` prop" because its shape didn't fit is WRONG — reviewed and
-  // reworked in the very next commit. Left as written at the time, not
-  // rewritten, so this stays an honest record of what task 4's first pass
-  // actually shipped; the 233 entry above is the corrected state.
-  // Apple Health's status paragraph did NOT move onto the shell's
-  // `status` prop, unlike every other card so far: its condition is
-  // `(result?.message || uploadState) && !result?.url`, guarding against the
-  // webhook-URL block above it, and its ok-ness is `result?.ok ??
-  // uploadState?.ok` — neither shape fits ConnectorCardProps#status, which
-  // assumes a single message/ok pair with no sibling to suppress against. It
-  // stayed exactly where it was, still part of `children`, verbatim — the
-  // brief's "result <pre>, instructions become children" already implied
-  // everything below the header row does, this paragraph included. This
-  // ceiling's own suite run did not fail — the gap (251 − 234 = 17) stayed
-  // under RATCHET_SLACK (25) — re-pinned anyway per this file's own ratchet
-  // rule and task 3's precedent of re-pinning on every drop regardless.
-  // Verified directly: `git diff` on the two touched files against ADHOC_INK
-  // counts exactly 9 and 8 removed lines, 0 added. Task 5 migrates
-  // connector-card.tsx onto the ink scale next; Apple Health's still-`children`
-  // status paragraph is not this pattern's problem to solve, since it never
-  // moved onto the shell in the first place.
-};
-
-function expectRatchet(name: string, pattern: RegExp): void {
-  const ceiling = OFFENDER_CEILINGS[name];
-  const actual = occurrences(pattern);
-  expect(
-    actual,
-    `${name}: ${actual} occurrences, ceiling ${ceiling}. This count must ` +
-      `only ever go DOWN. If you added one, use the type/ink scale instead; ` +
-      `the sibling it.fails cannot catch you because it fails either way.`
-  ).toBeLessThanOrEqual(ceiling);
-  expect(
-    ceiling - actual,
-    `${name}: the ceiling (${ceiling}) is now ${ceiling - actual} above the ` +
-      `real count (${actual}), which is more than RATCHET_SLACK ` +
-      `(${RATCHET_SLACK}) — that headroom is free offenders for the next ` +
-      `slice. Re-pin OFFENDER_CEILINGS["${name}"] to ${actual}.`
-  ).toBeLessThanOrEqual(RATCHET_SLACK);
-}
+// ── THE RATCHET, RETIRED (Phase 6.4 slice 7) ─────────────────────────────
+//
+// Both families this governed now have REAL assertions, so there is no
+// ceiling left to pin: ad-hoc ink reached zero and flipped in v0.111.0, and
+// arbitrary type sizes were replaced by an exact RELATIVE_TYPE_INVENTORY
+// naming their single permanent exception rather than counting it.
+//
+// A ceiling beside a real assertion is two things to keep in step for one
+// fact — this file's own reasoning, applied to itself.
+//
+// LINE COMMENTS, NOT A BLOCK. Converting these to /* … */ breaks on the
+// `src/**/*.tsx` written below, whose `*/` closes the comment early — which
+// is exactly what happened on the first attempt at this edit.
+//
+// The measurements below are kept, not deleted: they are the record of how
+// 300-plus offenders came down across nine slices, and the only place the
+// per-slice arithmetic survives. RATCHET_SLACK was 25.
+//
+// 74 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
+// redesign) task 6 — the last four Integrations card bodies the shell
+// does not own: strava-card.tsx, apple-health-card.tsx,
+// intervals-card.tsx and oura-card.tsx. Net −13 from the 87 task 5 left:
+// strava-card.tsx dropped 4 (the auto-describe help line, the
+// fields-to-include label, the preview label, and the powered-by-Strava
+// note), apple-health-card.tsx dropped 7 (the webhook-URL label, the
+// "shown once" warning, the last-received line, the stale-silence
+// warning, the file input's file:text-[10px], the Upload button, and the
+// one-off-upload note), intervals-card.tsx dropped 1 (the wellness-poll
+// timestamp), and oura-card.tsx dropped 1 (the token-form help paragraph
+// — the fifth site task 3's comment explicitly left as unmigrated
+// `children` markup, still counting until now). 4 + 7 + 1 + 1 = 13. The
+// gap this left (93 − 74 = 19) was under RATCHET_SLACK (25), so the
+// ratchet did not strictly demand re-pinning — re-pinned anyway per this
+// file's own established practice (tasks 3 and 4) of re-pinning on every
+// drop regardless. Verified directly: running ARBITRARY_TYPE
+// (src/lib/design/type-scale-patterns.ts) over src/**/*.tsx, excluding
+// *.test.tsx, at the pre-task-6 commit reports 87; the same scan on the
+// working tree after this task's edit reports 74. This retires the
+// pattern from all five connector cards — none of the Integrations
+// section's per-provider card bodies carry an arbitrary type size any
+// longer.
+// 93 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
+// redesign) task 4 — strava-card.tsx and apple-health-card.tsx moved onto
+// connector-card.tsx's shell, the same way task 3 moved Whoop, Withings and
+// Oura. Net −10 from the 103 task 3 left: each card dropped the same 5
+// text-[10px]/text-[8px] sites the shell renders once instead of per-card —
+// the subtitle span, the Sync pill, the Disconnect ghost, the Connect CTA
+// and the "Set X" badge. 5 + 5 = 10. The gap this left (103 − 93 = 10) was
+// under RATCHET_SLACK (25), so the ratchet did not fail — re-pinned anyway,
+// matching task 3's own practice, since a ceiling with slack is free
+// offenders for whoever comes next regardless of whether the suite forces
+// the point. Verified directly: `git diff` on the two touched files against
+// ARBITRARY_TYPE counts exactly 5 removed lines each, 0 added (the shell's
+// own class constants are referenced by name, not spelled out again here).
+// Task 5 migrates connector-card.tsx itself onto the type/ink scale next,
+// which is what finally retires this pattern from the shared file too —
+// there is no Task 6 for this pair of cards to repeat the move.
+// 103 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
+// redesign) task 3 — repays the debt task 2 explicitly left for this task.
+// whoop-card.tsx, withings-card.tsx and oura-card.tsx moved onto
+// connector-card.tsx's shell, deleting each card's own copy of the chrome
+// the shell now renders once. Net −14 from the 117 task 2 left: each of
+// whoop-card.tsx and withings-card.tsx dropped 5 text-[10px]/text-[8px]
+// sites (the Sync/Disconnect pair, the Connect-or-badge branch and the
+// subtitle span — all now rendered once by the shell instead of three
+// times), and oura-card.tsx dropped 4 of its 5 (same shell sites; its
+// fifth, the token-form help paragraph's text-[10px], is unmigrated
+// `children` markup that did not move onto the shell and so still counts).
+// 5 + 5 + 4 = 14. Verified directly: running ARBITRARY_TYPE
+// (src/lib/design/type-scale-patterns.ts) over src/**/*.tsx, excluding
+// *.test.tsx, at the pre-task-3 commit (86a64d6) reports 117; the same
+// scan on the working tree after this task's edit reports 103 — 9 below
+// the pre-task-2 baseline of 112, matching the brief's predicted ~9.
+// Re-pinned to the real count per this file's own ratchet rule — a
+// ceiling with slack is free offenders for whoever comes next. Task 4
+// moves Strava and Apple Health the same way and re-pins again; Task 5
+// then migrates connector-card.tsx itself onto the type/ink scale, which
+// is what finally retires this pattern from the shared file too.
+// 117 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
+// redesign) task 2 — src/components/settings/connector-card.tsx, the new
+// shared shell the five connector cards (Strava, Whoop, Withings, Oura,
+// Apple Health) are migrated onto in Tasks 3-4. 5 net new arbitrary-type
+// sites (117 − 112), all in this one new file: connectorPillClass,
+// connectorGhostClass and connectorCtaClass each carry one text-[10px],
+// connectorBadgeClass one text-[8px], and the header's subtitle span one
+// text-[10px]. This is intentionally NOT a migration — Task 2's whole
+// point is a class-neutral extraction of markup the five existing cards
+// still duplicate verbatim (see the file's header comment), so these are
+// the same raw sizes the five cards already carried, now counted once
+// more because they also live in the new shared file. Task 5 migrates
+// this file onto the type/ink scale once Tasks 3-4 have moved the five
+// cards onto it, which is what brings this ceiling back down.
+// 112 occurrences, measured 2026-08-14 after v0.99 slice 4 (Coach) task 10
+// (the sweep). Not moved by task 10's own edit — that fix
+// (history-panel.tsx's ghost-thread hover) is an ad-hoc-alpha site, not
+// an arbitrary-size one. The ceiling had sat at 137, unchanged since
+// v0.102 (Body slice) task 11, because tasks 3-9 of this slice — while
+// migrating sites of this pattern too — never widened the gap past
+// RATCHET_SLACK (25), so none were forced to re-pin. Verified via
+// `git diff 7c8a4e4..HEAD` (7c8a4e4 = v0.102.0, this slice's branch
+// point) counting text-\[…(px|rem|em)\] matches: 25 removed, 0 added,
+// split across chat-interface.tsx (9), history-panel.tsx (13),
+// bottom-sheet.tsx (2) and artifact-card.tsx (1). Task 10's own
+// full-render-chain sweep (scope below) found exactly one arbitrary size
+// left in scope: src/components/ui/inline-markdown.tsx:31's
+// `text-[0.95em]` on inline `<code>`. Left deliberately: it is a
+// relative em, scaled off whatever ambient text size wraps it, used
+// identically across four call sites in three surfaces — Coach's
+// chat-interface.tsx (text-body, 16px), Today's just-landed-card.tsx and
+// coach-brief.tsx (text-caption, 14px), and Debrief's
+// activity-debrief-section.tsx (its own unmigrated text-[11.5px]). No
+// fixed-step token can replace a value whose whole job is staying
+// proportional to a parent that differs by call site — two of those
+// three surfaces this slice does not touch, and this task does not run
+// the Playwright capture that would show the result (that is task 11's
+// job). Left for whichever slice migrates that shared component next.
+//
+// SCOPE CORRECTION (whole-branch review 2026-08-14): "exactly one" above
+// is wrong. src/components/ui/button.tsx:26 also carries an arbitrary
+// size, `text-[0.8rem]` on the `sm` button-size variant — a second one
+// living in the very directory (src/components/ui/) that three of the
+// four files below are drawn from. It changes nothing this task must
+// migrate: grep for every importer of "@/components/ui/button" in src/
+// returns only src/components/sign-out-button.tsx and the five
+// src/components/settings/*-card.tsx files, so Button has no path into
+// Coach's render chain today. But the scope list was silently
+// incomplete for the same reason the Body slice's was (see the sibling
+// ceiling's I3 correction, below): a shared src/components/ui/ primitive
+// was left off. Recorded here so the slice that first pulls Button into
+// Coach does not inherit an invisible gap.
+// Full render-chain scope: src/app/coach/page.tsx,
+// src/app/coach/loading.tsx, src/app/layout.tsx,
+// src/components/theme-provider.tsx, src/components/app-shell.tsx,
+// src/components/bottom-nav.tsx, src/components/sidebar-nav.tsx,
+// src/components/coach/*.tsx, src/components/ui/bottom-sheet.tsx,
+// src/components/ui/inline-markdown.tsx, src/components/ui/empty-state.tsx,
+// src/components/ui/button.tsx (see scope correction above — not
+// currently reachable from Coach; listed for completeness).
+//
+// RESOLVED (v0.106 slice 5 Settings redesign, task 10, 2026-08-17): the gap
+// the scope correction above flagged is closed, not just recorded.
+// src/components/ui/button.tsx:26 is migrated, `text-[0.8rem]` →
+// `text-label` on the `sm` size variant (12.8px → 12px) — this is
+// "whichever slice migrates that shared component next" from the
+// deferral two paragraphs up, and Settings is that slice: the importer
+// list the correction above cites (sign-out-button.tsx and the five
+// src/components/settings/*-card.tsx files) is exactly Settings' own
+// render chain, unchanged since it was written. All ten `size="sm"` call
+// sites across those six files were read directly — sign-out-button.tsx,
+// webhooks-card.tsx, sessions-card.tsx (×2), api-tokens-card.tsx,
+// llm-settings-card.tsx and coach-card.tsx (×4) — and none sit in a
+// fixed-width or overflow-hidden container, and none matches its width
+// against a sibling that is not also changing, so the −0.8px lands safely
+// everywhere it renders. `xs`'s `text-xs` and the base `text-sm` on the
+// same file are untouched — Tailwind defaults, not ARBITRARY_TYPE
+// offenders, and their call sites are admin/import/login, slices 7 and 8's
+// surfaces, not this one. This resolves src/components/ui/button.tsx's own
+// occurrence — not every occurrence in src/components/ui/.
+// src/components/ui/inline-markdown.tsx:31's `text-[0.95em]`, described
+// above in this same entry, remains: deliberately, for the same reason
+// recorded there — a relative em whose whole job is staying proportional
+// to whichever ambient text size wraps it, used across call sites at
+// different sizes, so no fixed-step token can replace it. The
+// "arbitrary type sizes" ceiling below (this file's OFFENDER_CEILINGS)
+// still drops by exactly 1 as a result, from 53 to 52 — see that entry's
+// own task-10 addendum for the count.
+//
+// 137 occurrences, unchanged, measured 2026-08-13 after v0.102 (Body slice)
+// task 11 (the sweep) — re-pinned, not moved. Task 11's own sweep grep,
+// scoped to every file that renders on any of Body's four tabs (not just
+// src/components/body/), found TOTAL 0 0 for both patterns across:
+// src/app/body/page.tsx, src/components/body/*.tsx,
+// src/components/app-shell.tsx, src/components/bottom-nav.tsx,
+// src/components/sidebar-nav.tsx, src/components/ui/empty-state.tsx,
+// src/components/ui/collapsible.tsx. journal-form.tsx's mood-picker emoji
+// size (bare text-2xl, an un-tokenised Tailwind step this pattern's own
+// regex — text-\[…px|rem|em\] — cannot see, since it only matches arbitrary
+// bracket values) was migrated to text-heading, its exact 24px equivalent;
+// that fix does not move this count either, for the same reason. See the
+// sibling ceiling below for the ad-hoc-alpha half of this task's sweep.
+//
+// SCOPE CORRECTION (I3, whole-branch review 2026-08-13). Task 11's sweep
+// grep, above, was derived from src/app/body/page.tsx's own import list
+// and never from the route's LAYOUT chain — every page under app/ is also
+// wrapped by src/app/layout.tsx, which renders
+// src/components/theme-provider.tsx. Re-run with both added: TOTAL 0 0,
+// unchanged — src/app/layout.tsx and src/components/theme-provider.tsx
+// carry zero arbitrary sizes and zero white/black alphas. Nothing was
+// broken; the recorded scope was just incomplete, and an incomplete scope
+// written down is what the next slice inherits and re-runs verbatim. Full
+// corrected scope: src/app/body/page.tsx, src/app/layout.tsx,
+// src/components/theme-provider.tsx, src/components/body/*.tsx,
+// src/components/app-shell.tsx, src/components/bottom-nav.tsx,
+// src/components/sidebar-nav.tsx, src/components/ui/empty-state.tsx,
+// src/components/ui/collapsible.tsx.
+// 137 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 10 —
+// health-upload.tsx and health-manual-entry.tsx (both folded behind
+// Collapsible in the same task) migrated 13 text-[Npx] sites:
+// health-upload.tsx (7) — the intro paragraph (text-[12px] →
+// text-label), the file input's own file:text-[10px] (→ file:text-label),
+// the Extract button (text-[10px] → text-label), the
+// parsed-without-a-model warning (text-[11px] → text-label), the review
+// table's header row (text-[10px] → text-label), and the Save/Discard
+// pair below the table (each its own text-[10px] → text-label);
+// health-manual-entry.tsx (6) — the four field labels (Birth year, Date,
+// Systolic, Diastolic; text-[11px] x4 → text-label) and the two Save
+// buttons (each its own text-[10px] → text-label). text-sm stayed on the
+// two headings (now text-caption, and h3 not h2 — the trigger's own h3
+// wrapper must not sit under a higher heading level) and on the
+// textarea/date/number inputs (now text-caption); text-xs stayed on the
+// file input's base size, the error line, the confidence cell and the
+// Measured/saveMsg text (now text-label or font-numeric text-label).
+// Neither text-sm nor text-xs is arbitrary, so none of those move this
+// count.
+// Was 150 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 9 —
+// the Labs tab's four reading blocks migrated 13 text-[Npx] sites:
+// labs-tiles.tsx (7) — both tile eyebrows (text-[8.5px] x2 → label-micro),
+// the age figure (text-[22px] → text-title), the delta (text-[11px] →
+// text-label), the unavailable line (text-[11px] → text-caption), the
+// biomarker count (text-[12.5px] → text-caption) and the draw date
+// (text-[10.5px] → text-label); bio-age-card.tsx (2) — the unavailable
+// line (text-[11px] → text-caption) and the component row (text-[11px] →
+// text-label); blood-pressure-card.tsx (2) — the readings/direction line
+// (text-[11px] → text-label) and the average (text-[11px] → text-caption);
+// biomarker-list.tsx (2) — the category heading (text-[10px] →
+// text-label) and the unit (text-[11px] → text-label). text-4xl, text-3xl,
+// text-sm and text-xs are named Tailwind sizes, not arbitrary, so they
+// don't move this count.
+// Was 163 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 8 —
+// correlation-rows.tsx migrated its 6 text-[Npx] sites: the "90-day
+// correlations" heading eyebrow (text-[9.5px] → label-micro), the
+// behaviour-name row (text-[12px] → text-caption), the "auto" marker
+// (text-[9px] → text-label) and the three badge states — unavailable
+// (text-[11px]), no-effect (text-[11.5px]) and the signed finding
+// (text-[11.5px]) — all three collapsed onto the one text-label size, the
+// three states now told apart by wording and ink/weight alone
+// (unavailable: text-ink-muted; no effect: font-medium text-ink-secondary;
+// finding: font-bold text-chart-2/text-chart-5). milestones-card.tsx had
+// no arbitrary sizes to begin with (it used text-xs), so it does not move
+// this count.
+// Was 169 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 7 —
+// journal-form.tsx migrated the rest of the file (the manual-vitals
+// panel, behavior tags, day flags, notes and the submit button) and
+// dropped 10 text-[Npx] sites: the vitals intro paragraph and its four
+// input labels (text-[10px] x5 → text-label), the tag-group heading
+// (text-[9px] → text-label), the tag pills and day-flag pills (each
+// text-[10px] → text-label), the "remember these as usual" button
+// (text-[10px] → text-label) and the day-flags footnote (text-[10px] →
+// text-label).
+// Was 179 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 6 —
+// journal-form.tsx migrated 6 text-[Npx] sites: two went with the deleted
+// header (the "Logging Streak" eyebrow's text-[10px] and the streak
+// ring's text-[8px] fraction — the owner decision to drop the form's own
+// duplicate header, since the page header's chip is the single streak on
+// screen), the calendar strip's day label (text-[9px] → text-label), and
+// the sliders' low/high end labels (text-[9px] x2 → text-label).
+// Was 185 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 5 —
+// body-battery.tsx migrated 5 text-[Npx] sites: the modelled-from line
+// (text-[11px] → text-label), both tag-pill branches' text-[9px], hoisted
+// into one BatteryTags component and reduced to a single text-label
+// occurrence, the checkpoint grid wrapper's text-[10px] (dropped, the
+// token now lives on the tile's own label/value spans) and the axis row's
+// text-[10px] → text-label.
+// Was 190 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 4 —
+// the Sleep tab (sleep-night-card.tsx, sleep-history-strip.tsx and
+// page.tsx's consistency/chronotype rhythm row) migrated 14 text-[Npx]
+// sites: sleep-night-card.tsx's heading eyebrow (9.5px → label-micro), the
+// four nav-arrow spans (13px → text-caption), the bed-window line (11px →
+// text-label), the stage-legend li (9.5px → text-label), the fallback
+// paragraph (11px → text-caption) and the bedtime line (11px →
+// text-caption); sleep-history-strip.tsx's weekday initial (8px →
+// text-label) and day-number (11px → text-label); and page.tsx's
+// Consistency/Chronotype labels (11px x2) and the "last 30 nights"
+// caption (10px), all three → text-label.
+// Was 204 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 3 —
+// baseline-trend-card.tsx migrated 4 text-[Npx] sites: the eyebrow
+// (text-[9.5px] → label-micro, which already carries text-label) and the
+// reading row (text-[11px] → text-label, text-[12px] → text-caption, and
+// the empty-state text-[11px] → text-caption).
+// Was 208 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 2 —
+// page.tsx's header (the h1 and the streak chip) plus the two new
+// components it now delegates to, body-tabs.tsx and range-tabs.tsx —
+// migrated 4 text-[Npx] sites: text-[22px] (h1 → text-title), text-[10.5px]
+// (streak chip → text-label), text-[11px] (Body's tab-row labels →
+// text-label) and text-[10px] (Trends' range-pill labels → text-label).
+// Was 212 occurrences, measured 2026-08-13 in v0.101.1 (whole-branch review 2,
+// C1). The "Train is now at ZERO offenders" line directly below, written
+// after task 12, was false: task 12's Step-1 sweep grep never covered
+// sidebar-nav.tsx (the desktop, lg-and-above nav — the exact complement of
+// bottom-nav.tsx's lg-and-below half, which the sweep DID add) or
+// empty-state.tsx (rendered at five Train call sites). Both render on
+// every Train tab via AppShell. sidebar-nav.tsx alone carried 4 arbitrary
+// pixel sizes — including one site below the 12px floor — plus 8 ad-hoc
+// white-alpha utilities; empty-state.tsx carried 2 more ad-hoc alphas.
+// Ten live offender lines the sweep's scope never reached. Both files are
+// migrated to the token scale now, and both are added to the sweep's own
+// grep (docs/plans/2026-08-12-v099-slice2-train.md, Task 12 Step 1) so a
+// later slice re-running it cannot repeat the miss. With the sweep's true
+// scope, the Train surface is at zero offenders with exactly one
+// deliberate exclusion: block-sheet.tsx's modal scrim, which is neither
+// ink nor surface and has no token.
+// 217 occurrences, measured 2026-08-13 after task 12 (the sweep — the two
+// header control switches season-mode-switch.tsx and plan-style-switch.tsx,
+// which no earlier task owned, plus bottom-nav.tsx and plan-empty.tsx)
+// migrated 6 text-[Npx] sites. CORRECTION (v0.101.1, above): the claim
+// that followed here — that the Train surface was at zero offenders with
+// one exclusion — was false; the sweep's grep never reached
+// sidebar-nav.tsx or empty-state.tsx.
+// Was 223 occurrences, measured 2026-08-13 after task 11 (Fitness —
+// fitness-tiles.tsx, pmc-chart.tsx, fitness-stats-row.tsx and page.tsx's
+// Fitness half) migrated 6 text-[Npx] sites: the tile label, value and
+// context in fitness-tiles.tsx, the Stat label in pmc-chart.tsx, the
+// eFTP/Max Power/W'/Ramp label in fitness-stats-row.tsx, and the CTL/ATL/
+// TSB legend row in page.tsx.
+// Was 229 occurrences, measured 2026-08-13 after task 10 (Season — the
+// season-timeline-card.tsx restructure) migrated 6 text-[Npx] sites: the
+// eyebrow, the three stat tiles' shared text-[10px] wrapper, and the
+// closing note and empty state, one each. The per-bar week (9px) and
+// session-count (8px) labels were not migrated to a token — they were
+// deleted outright, replaced by the axis ticks and the detail readout.
+// Was 235 occurrences, measured 2026-08-13 after task 9 (History — the
+// day-grouped rows in history-list.tsx, the summary strip in
+// history-stat-strip.tsx, and the Log-activity link and sport filter
+// pills in page.tsx's History half) migrated 9 text-[Npx] sites.
+// Was 244 after task 8 (races-section.tsx and plan-preview-card.tsx —
+// the A/B/C priority chips, the add-race and demand-edit forms, the
+// phase table and week list) migrated 21 text-[Npx] sites.
+// 265 after task 7 (the availability intake path — intake-form.tsx,
+// block-sheet.tsx, standard-week.tsx and availability-week-switcher.tsx)
+// migrated 23 text-[Npx] sites. 288 after task 6 (the week tab's
+// page-level chrome in page.tsx itself — the adjustments panel, the
+// remaining-skeleton table, the start-week form, the next-week note and
+// the race chip's goal note) migrated 14 text-[Npx] sites. 302 after task
+// 5 (the week tab's prose blocks — day-actions.tsx's pills and selects,
+// fuelling-card.tsx's card and confidence chip, week-rationale.tsx's
+// shortfall/reason prose, and event-readiness.tsx's verdict/demand prose)
+// migrated 31 text-[Npx] sites. 333 after task 4 (the next-week preview
+// collapse — the new next-week-summary.tsx and the wiring changes in
+// week-day-list.tsx and page.tsx are all token utilities, so the count did
+// not move there), 343 after task 2, 351 after the whole-branch-review
+// fixes, 355 right after slice 1, 395 at slice 0.
+//
+// 68 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
+// redesign) tasks 7-8 — AI & Coach, Advanced / API and App
+// (llm-usage-card.tsx, llm-settings-card.tsx, coach-card.tsx,
+// api-tokens-card.tsx, webhooks-card.tsx, sessions-card.tsx,
+// notifications-card.tsx, body-prefs-card.tsx, ride-debrief-toggles.tsx;
+// ride-debrief-card.tsx was already at zero and untouched). Net −6 from the
+// 74 task 6 left, all from three files: notifications-card.tsx's morning-
+// push toggle detail (text-[10px] → text-label, 1), body-prefs-card.tsx's
+// two section-intro paragraphs and the save-message span (text-[12px] x3
+// → text-label, 3) and ride-debrief-toggles.tsx's two toggle-detail spans
+// (text-[10px] x2 → text-label, 2). The other six files (all six of task 7)
+// carried named Tailwind sizes (text-xs/text-sm/text-base/text-xl) only,
+// never an arbitrary bracket size, so they move the ad-hoc-alpha ceiling
+// below but not this one. The gap this left (74 − 68 = 6) was under
+// RATCHET_SLACK (25), so the ratchet did not strictly demand re-pinning —
+// re-pinned anyway per this file's own established practice of re-pinning
+// on every drop regardless. Verified directly: running ARBITRARY_TYPE
+// (src/lib/design/type-scale-patterns.ts) over every non-test file in
+// src/**/*.{ts,tsx} reports 68 on the working tree after these two tasks'
+// edits, down from 74 before them.
+//
+// 53 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
+// redesign) task 9 — src/app/settings/page.tsx, the page shell (the last
+// code migration of the release; Task 11 is the axe audit). Net −15 from
+// the 68 task 7-8 left, all in this one file: the header h1 (text-[22px] →
+// text-heading, 1), the profile row's initial avatar (text-[14px] →
+// text-caption, 1), the athlete name (text-[13.5px] → text-caption, 1),
+// the athlete email (text-[10.5px] → text-label, 1), the Admin link
+// (text-[10px] → text-label, 1), the five section-trigger badges — hoisted
+// to one `triggerBadgeClass` const before migrating, since all five
+// repeated the same string verbatim (text-[10px] → text-label, 5), the
+// Data section's two row-detail spans — hoisted to `dataDetailClass`
+// (text-[10px] → text-label, 2), the two Export/Import buttons — hoisted
+// to `dataButtonClass`, identical to each other (text-[10px] → text-label,
+// 2), and the footer (text-[10px] → text-label, 1). 1+1+1+1+1+5+2+2+1 = 15.
+// The five section-trigger LABELS (text-xs, not arbitrary) and the two
+// Data row titles (text-sm, not arbitrary) move the ad-hoc-alpha ceiling
+// below but not this one. The gap this left (68 − 53 = 15) was under
+// RATCHET_SLACK (25), so the ratchet did not strictly demand re-pinning —
+// re-pinned anyway per this file's own established practice of re-pinning
+// on every drop regardless. Verified directly: running ARBITRARY_TYPE
+// (src/lib/design/type-scale-patterns.ts) over every non-test file in
+// src/**/*.{ts,tsx} reports 53 on the working tree after this task's edit,
+// down from 68 before it.
+//
+// 52 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
+// redesign) task 10 — src/components/ui/button.tsx, the `sm` button-size
+// variant's `text-[0.8rem]` → `text-label` (12.8px → 12px), the exact site
+// the SCOPE CORRECTION above (whole-branch review 2026-08-14, in the 112
+// entry) flagged and this task's own RESOLVED addendum there closes. Net
+// −1 from the 53 task 9 left, this file's only offender. All ten
+// `size="sm"` Button call sites (sign-out-button.tsx and the five
+// src/components/settings/*-card.tsx files that import Button) were read
+// directly and confirmed clear of fixed-width and overflow-hidden
+// containers, so the narrower text is safe everywhere it renders. The gap
+// this left (53 − 52 = 1) was well under RATCHET_SLACK (25), so the
+// ratchet did not demand re-pinning — re-pinned anyway per this file's own
+// established practice of re-pinning on every drop regardless. Verified
+// directly: running ARBITRARY_TYPE (src/lib/design/type-scale-patterns.ts)
+// over every non-test file in src/**/*.{ts,tsx} reports 52 on the working
+// tree after this task's edit, down from 53 before it. This retires
+// button.tsx's own occurrence of the pattern, not the pattern from
+// src/components/ui/ as a whole — src/components/ui/inline-markdown.tsx:31's
+// `text-[0.95em]` remains, deliberately: a relative em that stays
+// proportional to whichever ambient text size wraps it, used across call
+// sites at different sizes, so no fixed-step token can replace it (see the
+// 112 entry above for the full reasoning, recorded when v0.99 slice 4
+// Coach's task 10 left it in place).
+// 25 occurrences, measured 2026-08-17 after v0.108.0 slice 6 phase B
+// (Activity redesign). Net −27 from the 52 above, all seven of the slice's
+// files to zero:
+//   debrief-sheet.tsx: 11 (the largest single offender in the slice)
+//   app/activity/[id]/page.tsx: 6
+//   activity-debrief-section.tsx: 5
+//   laps-table.tsx: 3
+//   stream-chart.tsx: 2
+//   activity-log-form.tsx, delete-activity-button.tsx: 0 each — both
+//     carried ad-hoc ink and default scale but no arbitrary sizes, so they
+//     move the sibling ceiling and not this one.
+// 11 + 6 + 5 + 3 + 2 = 27. Twenty of the 27 sat BELOW the 12px floor
+// (6 × [11px], 5 × [11.5px], 3 × [9.5px], 2 × [10px], 2 × [10.5px],
+// 1 × [9px], 1 × [8.5px]) and came up to it rather than finding a smaller
+// token, which is why two rows lost their tracking-[0.15em]: at 12px the
+// uppercase treatment reads without it, and the tracking is what overflowed
+// the fixed columns. The gap this left (52 − 25 = 27) was OVER
+// RATCHET_SLACK (25), so the ratchet failed and re-pinning here was
+// mandatory, not discretionary. Verified directly: running ARBITRARY_TYPE
+// (src/lib/design/type-scale-patterns.ts) over every non-test file in
+// src/**/*.{ts,tsx} reports 25 on the working tree after this slice's
+// edits, down from 52 before them.
+// 14 occurrences, measured 2026-08-18 after v0.109.0 slice 7 (Admin +
+// Import). Net −11 from the 25 above, all six of the slice's files to zero:
+//   sync-jobs-panel.tsx, import-form.tsx: 4 each
+//   admin/page.tsx, invite-manager.tsx, security-events.tsx: 1 each
+//   surface-views-card.tsx: 0 — it carried ad-hoc ink and default scale but
+//     no arbitrary sizes, so it moves the sibling ceiling and not this one.
+// 4 + 4 + 1 + 1 + 1 = 11. Every one sat BELOW the 12px floor (4 × [11px],
+// 4 × [10px], 3 × [9px]) and came up to it. The gap this left (25 − 14 = 11)
+// was UNDER RATCHET_SLACK (25), so the ratchet did not demand re-pinning —
+// re-pinned anyway per this file's established practice of re-pinning on
+// every drop. Verified directly: running ARBITRARY_TYPE over every non-test
+// file in src/**/*.{ts,tsx} reports 14 on the working tree after this
+// slice's edits, down from 25 before them.
+// 1 occurrence, measured 2026-08-18 after v0.111.0 slice 9 (the sweep). Net
+// −13 from the 14 above: 11 in today/checkin-sheet.tsx — a Today sheet that
+// slice 1 never migrated, carrying the same shape debrief-sheet.tsx did —
+// and 2 in the pre-auth join pages. Every one sat below the 12px floor.
+//
+// THE ONE THAT REMAINS is src/components/ui/inline-markdown.tsx's
+// `text-[0.95em]`, and it is not going anywhere: a RELATIVE em that stays
+// proportional to whatever ambient size wraps it, used at several different
+// sizes, so no fixed-step token can replace it without changing what it
+// renders at some call site. Left deliberately since slice 4 and re-affirmed
+// here at the end of the sweep.
+//
+// ENTRY DELETED in Phase 6.4 slice 7. The measurements above are kept as the
+// record of how it reached 1. The reasoning that justified a ceiling here —
+// "a permanent, reasoned floor of 1" — is exactly what made the sibling
+// `it.fails` permanently vacuous: it tested for a zero that could never
+// arrive, so it fired on any non-empty list and the ceiling did all the
+// work. Both are replaced by one real assertion against
+// RELATIVE_TYPE_INVENTORY, which NAMES the single exception instead of
+// counting it. Same move v0.111.0 made for ad-hoc ink, same reason: a
+// ceiling beside a real assertion is two things to keep in step for one
+// fact.
+// 251 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
+// redesign) task 3 — repays the debt task 2 explicitly left for this task,
+// same three cards as the sibling ceiling above. Net −27 from the 278
+// task 2 left, broken down per card:
+//   whoop-card.tsx: dropped 11, the exact 11 the sibling comment below
+//     itemises as connector-card.tsx's net-new sites, since Whoop's
+//     markup is what they were copied from verbatim — the chip's
+//     border-white/20 + bg-white/10 (2), the pill's border-white/10 +
+//     bg-white/5 + hover:bg-white/10 (3), the ghost's border-white/10 +
+//     text-white/60 (2), the badge's bg-white/5 + text-white/50 (2), the
+//     subtitle's text-white/50 (1) and the status paragraph's ok-branch
+//     text-white/60 (1). Kept exactly one: the Connect CTA's
+//     hover:bg-white/80, brand colour on the anchor tag, not chrome the
+//     shell owns.
+//   withings-card.tsx: dropped all 9 it had — the same pill/ghost/badge/
+//     subtitle/status sites as Whoop (3 + 2 + 2 + 1 + 1), minus the chip,
+//     which was never white/black (Withings' chip and CTA are both teal).
+//     Kept none.
+//   oura-card.tsx: dropped 7 of its 10 — the same pill/ghost/subtitle/
+//     status sites (3 + 2 + 1 + 1; no chip or badge, Oura has neither).
+//     Kept 3, all in the token-form/help-text `children` markup that
+//     never moved onto the shell: the input's border-white/10 +
+//     bg-white/5 and the help paragraph's text-white/40.
+// 11 + 9 + 7 = 27. This ceiling's own suite run caught the debt directly —
+// `ad-hoc ink alphas stay at or below the recorded ceiling` failed with
+// "the ceiling (278) is now 27 above the real count (251), which is more
+// than RATCHET_SLACK (25)" — confirming both the exact count and that it
+// had silently passed slack. Re-pinned to 251 per this file's own ratchet
+// rule. Task 4 moves Strava and Apple Health the same way and re-pins
+// again; Task 5 then migrates connector-card.tsx itself onto the ink
+// scale, retiring this pattern from the shared file too.
+// 278 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
+// redesign) task 2 — the same new file as the sibling ceiling above,
+// src/components/settings/connector-card.tsx. 11 net new ad-hoc-alpha
+// sites (278 − 267): TONE_CHIP.whoop's border-white/20 + bg-white/10 (2),
+// connectorPillClass's border-white/10 + bg-white/5 + hover:bg-white/10
+// (3), connectorGhostClass's border-white/10 + text-white/60 (2),
+// connectorBadgeClass's bg-white/5 + text-white/50 (2), the header
+// subtitle span's text-white/50 (1), and the status paragraph's ok-branch
+// text-white/60 (1). Not migrated here for the same reason as the sibling
+// ceiling: Task 2 extracts this markup byte-identical to the five cards
+// it is copied from (see the file's header comment) so Task 5 can migrate
+// it once instead of five times; migrating it now would be Task 5's job
+// done early and out of order.
+// 267 occurrences, measured 2026-08-14 after v0.99 slice 4 (Coach) task 10
+// (the sweep). Ceiling was still 311 — unchanged since v0.102 (Body
+// slice) task 11 — going into this slice; by the time task 10 started,
+// tasks 3-9 had already driven the real count to 268, 43 below ceiling,
+// which had silently passed RATCHET_SLACK (25) with nobody forced to
+// re-pin, since no earlier Coach task happened to re-run this suite
+// after its own edit. Verified the same way as the sibling ceiling
+// (`git diff 7c8a4e4..HEAD`, counting
+// (text|bg|border|fill|stroke|ring|divide)-(white|black)/N matches):
+// chat-interface.tsx (net 17), history-panel.tsx (net 18, of 19 removed
+// / 1 added — see below), bottom-sheet.tsx (net 2, of 3 removed / 1
+// added — see below) and artifact-card.tsx (net 6) = 43 net. Task 10
+// itself fixed the one KNOWN LEFTOVER its own brief flagged:
+// history-panel.tsx's ghost-thread row was still `text-ghost-ink
+// hover:bg-white/[0.04]` while its sibling chat-thread row directly
+// above it had already moved to `hover:bg-surface-raised` (task 4) —
+// migrated to `hover:bg-surface-raised` to match, −1. 268 − 1 = 267.
+// (The +1 on history-panel.tsx above is task 4's own rewrite of that
+// same line, which kept the ad-hoc alpha it should have replaced — the
+// very leftover task 10 just closed.) Task 10's own full-render-chain
+// sweep (scope below) found no other Coach-owned ad-hoc alpha. The two
+// remaining matches in scope both trace to bottom-sheet.tsx's single
+// deliberate scrim: the literal `bg-black/60` class, plus this guard's
+// plain-text line scan also counting the words "bg-black/60" inside the
+// comment directly above it that explains why the class stays literal
+// (the +1 on bottom-sheet.tsx above is that same comment, added by task
+// 3). A modal scrim is neither text nor a surface, both themes want it
+// dark, and it already carries that comment — deliberately left, not
+// residue to chase. Full render-chain scope: src/app/coach/page.tsx,
+// src/app/coach/loading.tsx, src/app/layout.tsx,
+// src/components/theme-provider.tsx, src/components/app-shell.tsx,
+// src/components/bottom-nav.tsx, src/components/sidebar-nav.tsx,
+// src/components/coach/*.tsx, src/components/ui/bottom-sheet.tsx,
+// src/components/ui/inline-markdown.tsx, src/components/ui/empty-state.tsx.
+//
+// 311 occurrences, unchanged, measured 2026-08-13 after v0.102 (Body slice)
+// task 11 (the sweep) — re-pinned, not moved. Task 11's own sweep grep
+// (same file list as the sibling ceiling above: src/app/body/page.tsx,
+// src/components/body/*.tsx, src/components/app-shell.tsx,
+// src/components/bottom-nav.tsx, src/components/sidebar-nav.tsx,
+// src/components/ui/empty-state.tsx, src/components/ui/collapsible.tsx)
+// found TOTAL 0 0 for both patterns.
+//
+// SCOPE CORRECTION (I3, whole-branch review 2026-08-13) — same correction
+// as the sibling ceiling above: the recorded scope omitted the route's
+// layout chain, src/app/layout.tsx and src/components/theme-provider.tsx.
+// Re-run with both added: TOTAL 0 0, unchanged — neither file carries an
+// ad-hoc white/black alpha. See the sibling ceiling for the full corrected
+// scope. journal-form.tsx's CheckCircle badge
+// on the "Subjective feeling" step (text-emerald-500 → text-chart-2) was
+// migrated in the same commit — an unguarded colour literal this pattern's
+// own regex cannot see, since it only matches white/black alpha utilities,
+// not a bare Tailwind palette colour — so it does not move this count
+// either. Two items checked and deliberately left: .tag-active on the
+// journal's tag/day-flag pills (journal-form.tsx) hardcodes the dark accent
+// as a recorded deferral to slice 9 (docs/v0.99-redesign-handoff.md), and
+// ui/unavailable.tsx's one text-white/50 belongs to its <Unavailable>
+// component, which no Body file renders — confirmed with
+// `grep -rn "<Unavailable" src/`, which finds it only in
+// unavailable.test.tsx — Body calls only the unavailableMessage() string
+// helper. Neither is this task's to fix.
+// 311 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 10 —
+// health-upload.tsx and health-manual-entry.tsx migrated 35 text-white/N,
+// bg-white/N and border-white/N sites: health-upload.tsx (19) — the intro
+// paragraph's text-white/50, the textarea's border-white/10 + bg-white/5,
+// the file input's own text-white/60 + file:bg-white/10 + file:text-white/80
+// (3), the review table's header row text-white/40, the row divider's
+// border-white/5, the three editable cells' shared bg-white/5 (displayName/
+// value/unit, 3), the confidence cell's low-confidence-else text-white/50,
+// the remove button's text-white/40, the "Measured" label's text-white/60,
+// its date input's border-white/10 + bg-white/5, the Discard button's
+// text-white/40 + hover:text-white/70 (2), and the save-message
+// paragraph's text-white/60 — all → text-ink-muted / text-ink-secondary /
+// border-hairline / bg-surface-overlay as the per-site ink weight called
+// for; health-manual-entry.tsx (16) — the four field labels' shared
+// text-white/50 (4), the four inputs' shared border-white/10 + bg-white/5
+// (8), the birth-year Save button's border-white/10 + bg-white/5 (2), the
+// section divider's border-white/5, and the message paragraph's
+// text-white/60 — all → text-ink-muted / border-hairline /
+// bg-surface-overlay. Neither file's Save/Extract buttons move this
+// count: `bg-emerald-500`/`text-black` are opaque, not an alpha utility
+// (the buttons move to `bg-accent`/`text-primary-foreground` as tokens,
+// which this guard does not scan for — it only flags the ad-hoc
+// white/black alpha this task is eliminating).
+// Was 346 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 9 —
+// the Labs tab's four reading blocks migrated 20 text-white/N and
+// bg-white/N sites: labs-tiles.tsx (9) — both tiles' border-white/[0.09] +
+// bg-white/[0.04] pairs (→ `glass`, 4), both eyebrows' text-white/40
+// (dropped with the move to `label-micro`, 2), the unavailable line and
+// the delta's non-younger branch (both text-white/50 → text-ink-muted, 2)
+// and the draw date's text-white/45 (→ text-ink-muted, 1); bio-age-card.tsx
+// (4) — the "Not enough inputs yet" line's text-white/70 (→
+// text-ink-secondary), the unavailable detail and component label's
+// text-white/50 (both → text-ink-muted) and the zero-offset branch's
+// text-white/40 (→ text-ink-muted); blood-pressure-card.tsx (3) — the
+// readings/direction line and unit's text-white/40 and the average's
+// text-white/50 (all → text-ink-muted); biomarker-list.tsx (4) — the
+// category heading's text-white/40, the divider's divide-white/5 (→
+// divide-hairline), the marker name's text-white/80 (→ text-ink-secondary,
+// the per-pair override: name and unit sat in different alpha buckets and
+// the unit, the subordinate, takes text-ink-muted rather than the nearer
+// text-ink-secondary) and the unit's text-white/40. The five BAND_COLOR
+// values (text-emerald-400/text-yellow-400/text-amber-400/
+// text-orange-400/text-red-400 → text-chart-2/text-chart-3/text-chart-5)
+// and labs-tiles.tsx's/bio-age-card.tsx's text-emerald-400 (→
+// text-chart-2) were never white/black alpha, so they don't move this
+// count.
+// Was 366 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 8 —
+// correlation-rows.tsx migrated 8 text-white/N, bg-white/N and
+// border-white/N sites: the card wrapper's border-white/[0.08] +
+// bg-white/[0.03] (→ `glass`), the row divider's border-white/[0.06] (→
+// `border-hairline`), the behaviour-name ink (text-white/85 →
+// text-ink-secondary), the "auto" marker (text-white/30 → text-ink-muted)
+// and the heading eyebrow (text-white/40, dropped with the move to
+// `label-micro`) plus the unavailable and no-effect badges' text-white/40
+// and text-white/70 (→ text-ink-muted / text-ink-secondary). The signed
+// finding badge's text-emerald-400/text-red-400 moved to
+// text-chart-2/text-chart-5 but was never white/black alpha, so it does
+// not move this count. milestones-card.tsx migrated 3 more: the row
+// label's text-white/70 (→ text-ink-secondary), the em-dash placeholder's
+// text-white/30 and the detail's text-white/40 (both → text-ink-muted —
+// the per-pair override: the row label and its detail sat in different
+// alpha buckets, and the quieter one takes ink-muted even though
+// nearest-value would put it on ink-secondary).
+// Was 377 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 7 —
+// journal-form.tsx migrated 26 text-white/N, bg-white/N and
+// border-white/N sites: the manual-vitals panel (17) — the intro
+// paragraph and four labels' text-white/50 (→ text-ink-muted), and each
+// of the four inputs' border-white/10 + bg-white/5 +
+// placeholder:text-white/30 trio (→ border-hairline + bg-surface-overlay
+// + placeholder:text-ink-muted; the bare `text-white` on each input has
+// no alpha, so it does not move this count — it moved to text-ink-primary
+// in the same edit); the tag-group heading's text-white/50 (1); the tag
+// pills' and day-flag pills' border-white/10 (2, one source occurrence
+// each, both → border-hairline, both still `glass`); the "remember these
+// as usual" button's bg-white/5 + text-white/60 + hover:bg-white/10 trio
+// (3, → bg-surface-overlay / text-ink-secondary / hover:bg-surface-raised);
+// the footnote's text-white/50 (1); and the notes textarea's
+// text-white/80 + placeholder:text-white/40 pair (2, →
+// text-ink-secondary / placeholder:text-ink-muted). `tag-active` on the
+// tag/flag pills is untouched — it hardcodes the dark accent as a
+// deliberate deferral to slice 9 (docs/v0.99-redesign-handoff.md).
+// Was 403 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 6 —
+// journal-form.tsx migrated 11 text-white/N, bg-white/N and border-white/N
+// sites: three went with the deleted header (the eyebrow's text-white/50,
+// the streak ring's border-white/10 and its track circle's text-white/5);
+// the calendar strip's day label and day circle inactive states (both
+// text-white/50 → text-ink-muted, active states moved to
+// text-chart-2/text-ink-primary); the slider label (text-white/80 →
+// text-ink-secondary) and value's unanswered state (text-white/40 →
+// text-ink-muted); the Continue button's trio (bg-white/5 +
+// hover:bg-white/10 → bg-surface-overlay/hover:bg-surface-raised,
+// text-white/70 → text-ink-secondary); and the "intervals.icu synced"
+// chip (text-white/40 → text-ink-muted). The low/high end labels'
+// text-emerald-400/60 and text-red-400/60 moved to text-chart-2 /
+// text-chart-5 (alphas dropped) but were never white/black, so they don't
+// move this count.
+// Was 414 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 5 —
+// body-battery.tsx migrated 14 text-white/N, bg-white/N and border-white/N
+// sites: the unavailable-state paragraph's text-white/50 (→
+// text-ink-muted), both tag-pill branches' border-white/10 + bg-white/5 +
+// text-white/55 trio (6 matches total), hoisted into the single
+// BatteryTags component and reduced to zero — border-hairline,
+// bg-surface-overlay and text-ink-secondary carry no ad-hoc alpha; the
+// "% now" readout's text-white/80 (→ text-ink-secondary); the
+// modelled-from line's text-white/40 (→ text-ink-muted); the checkpoint
+// tile's border-white/10 + bg-white/5 (→ border-hairline +
+// bg-surface-overlay), its label's text-white/35 and value's text-white/85
+// (both → the ink scale); and the axis row's text-white/50 (→
+// text-ink-muted).
+// Was 428 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 4 —
+// the same three files migrated 27 text-white/N, bg-white/N and
+// border-white/N sites: sleep-night-card.tsx (13) — the card wrapper's
+// border-white/[0.08] + bg-white/[0.03] (→ `glass`), the heading ink, both
+// nav-arrow link/disabled pairs, the bed-window ink, the legend ink, the
+// fallback-paragraph ink and the divider border (→ `border-hairline`);
+// sleep-history-strip.tsx (7) — the cell's selected/unselected
+// border+background trio (→ `border-ink-muted`/`bg-surface-overlay`), the
+// weekday-initial ink, the day-number selected/unselected pair and the
+// no-stages bar fill (→ `bg-surface-overlay`); and page.tsx's rhythm row
+// (7) — the card wrapper's border + background (→ `glass`) and the
+// text-white/50 (x2) + text-white/85 (x2) + text-white/30 ink sites (all →
+// `text-ink-muted`/`text-ink-secondary`).
+// Was 455 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 3 —
+// baseline-trend-card.tsx migrated 6 text-white/N, bg-white/N and
+// border-white/N sites: the card wrapper's border-white/[0.08] +
+// bg-white/[0.03] (→ `glass`) and four text-white/N ink sites (the
+// eyebrow, the reading row's font-mono wrapper, the unit and the empty
+// state, all → text-ink-muted). All 16 call sites' hex `color`/`bandFill`
+// props do not move this count — this guard only scans Tailwind utility
+// classes, and those were props, not classes; they are the 32 raw colour
+// literals tests/type-scale-guard.test.ts's own header comment already
+// says it cannot see (`color="#a78bfa"` props passed into chart
+// components), now replaced by the four chart tokens in trend-tone.ts.
+// Was 461 occurrences, measured 2026-08-13 after v0.102 (Body slice) task 2
+// migrated 8 text-white/N, bg-white/N and border-white/N sites: 4 in
+// page.tsx's own header markup before it was replaced (bg-white/[0.12] +
+// text-white, and bg-white/[0.04] + text-white/50 + hover:text-white/80 —
+// that one line alone is 3 matches) and the same 4-match shape again in the
+// range-pill row, both now on body-tabs.tsx / range-tabs.tsx's
+// bg-surface-overlay / bg-surface-raised / text-ink-primary /
+// text-ink-muted instead. The streak chip's border-emerald-500/30 and
+// bg-emerald-500/[0.08] moved to border-accent/30 / bg-accent/10 in the
+// same diff but were never ad-hoc WHITE/BLACK alpha, so they don't move
+// this count.
+// Was 469 occurrences, measured 2026-08-13 in v0.101.1 (whole-branch review 2,
+// C1). sidebar-nav.tsx and empty-state.tsx were outside task 12's sweep
+// scope (see the matching correction on "arbitrary type sizes" above) and
+// together carried 10 ad-hoc white-alpha utilities that this patch
+// migrated to the ink scale: 8 in sidebar-nav.tsx (the nav rail's border
+// and fill, the wordmark, the active/inactive item pair, the settings
+// row's border and hover state, and the pinned user row's name) plus 2 in
+// empty-state.tsx (the icon and the message). Was 480 occurrences,
+// measured 2026-08-13 after task 12 migrated 16 text-white/N, bg-white/N
+// and border-white/N sites: plan-style-switch.tsx (6) +
+// season-mode-switch.tsx (8) + bottom-nav.tsx (2). block-sheet.tsx's diff
+// that task was comment-only — its scrim is the one deliberate exclusion,
+// not a migrated site.
+// Was 496 occurrences, measured 2026-08-13 after task 11 migrated 13
+// text-white/N, bg-white/N and border-white/N sites across
+// fitness-tiles.tsx (the tile card, which moved to `bg-surface-overlay`,
+// and the label ink), pmc-chart.tsx (the calibrating message, the Stat
+// block's divider and label ink), fitness-stats-row.tsx (the label ink)
+// and page.tsx's Fitness half (both cards, which moved to `glass`, the
+// legend divider and its ink; the legend's swatch colour itself moved off
+// inline style entirely, onto `bg-chart-1`/`bg-chart-5`/`bg-chart-2`).
+// Was 509 occurrences, measured 2026-08-13 after task 10 migrated 20
+// text-white/N, bg-white/N and border-white/N sites in
+// season-timeline-card.tsx (including the card, which moved to `glass`,
+// and the three stat tiles plus the bar-pair wrapper, which moved to
+// `bg-surface-overlay`; the target/actual bar fills moved to the named
+// `bg-ink-muted`/`bg-chart-2` tokens, not an alpha bucket).
+// Was 529 occurrences, measured 2026-08-13 after task 9 migrated 19
+// text-white/N, bg-white/N and border-white/N sites across
+// history-list.tsx, history-stat-strip.tsx and page.tsx's History half
+// (including both cards, which moved to `glass`, and the row's hover,
+// which moved to `bg-surface-overlay`).
+// Was 548 after task 8 migrated 65 text-white/N, bg-white/N and
+// border-white/N sites across races-section.tsx and
+// plan-preview-card.tsx (including the two cards that were already
+// `glass` and needed no change, and the demand-edit form's tile, which
+// moved to `bg-surface-overlay`).
+// 613 after task 7 migrated 38 text-white/N, bg-white/N and
+// border-white/N sites across the same four availability-intake
+// components (including block-sheet.tsx's sheet panel, which moved to
+// `glass`, and its nested block tile, which moved to `bg-surface-overlay`).
+// 651 after task 6 migrated 18 text-white/N, bg-white/N and
+// border-white/N sites in the same page.tsx chrome (including the
+// skeleton table's own scroll wrapper and the start-week form's card,
+// which moved to `glass`). 669 after task 5 migrated 40 text-white/N,
+// bg-white/N and border-white/N sites across the same four components
+// (including the card wrappers that moved to `glass` and the nested
+// fuelling tile that moved to `bg-surface-overlay`). 709 after task 4,
+// for the same reason task 4 didn't move it — 729 after task 2, 738 after
+// the whole-branch-review fixes, 749 right after slice 1, 806 at slice 0.
+//
+// 233 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
+// redesign) task 4, review round 2. CORRECTS the entry directly below:
+// review worked the case and showed Apple Health's status paragraph does
+// fit the shell's `status` prop after all. The `!result?.url` guard folds
+// into the computed value itself — `status = (result?.message ||
+// uploadState) && !result?.url ? {...} : null` — the exact ternary shape
+// already used for Strava earlier in this same file, and the ok-ness
+// becomes `result?.ok ?? uploadState?.ok ?? false` to satisfy
+// `status.ok: boolean`. Rendered DOM position is unchanged either way:
+// when `result.url` is set, `status` is null (shell renders nothing) and
+// children's `{result?.url && (...)}` block is first, exactly as before;
+// when it is not set, that block renders nothing and the shell's status
+// paragraph — now sitting directly under the header rather than after the
+// (empty) url block — lands in the same visual position the manual
+// paragraph held. `role="status"` is unchanged, now supplied by
+// connector-card.tsx's own status paragraph instead of Apple Health's own.
+// Net −1 from the 234 below: the status paragraph's ok-branch
+// text-white/60 is now the shell's single copy; its class string
+// (`mt-3 text-xs` / `text-white/60` / `text-red-400`) is byte-identical to
+// what the shell already renders, so nothing new was added on the shell
+// side. Verified: `git diff` on apple-health-card.tsx against ADHOC_INK
+// shows exactly 1 removed line (the deleted inline status paragraph's
+// ok-branch), 0 added. Both apple-health-card.test.tsx and
+// apple-health-card.a11y.test.tsx pass unedited (`git diff --stat` empty)
+// — the gate this move was conditioned on.
+// 189 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
+// redesign) task 6 — the same four Integrations card bodies as the
+// sibling ceiling above: strava-card.tsx, apple-health-card.tsx,
+// intervals-card.tsx and oura-card.tsx. Net −32 from the 221 task 5 left:
+// strava-card.tsx dropped 14 (the upgrade-callout text, the auto-describe
+// label's border and help line, the fields-to-include border and label,
+// the field-checkbox row, the no-fields-selected warning, the preview
+// label, the "(example data)" span deleted outright rather than
+// migrated — see the editorial-cut note in the commit — the preview
+// `<pre>`'s border, background and text, the powered-by-Strava border and
+// text, and the "never sent" `<strong>`), apple-health-card.tsx dropped
+// 13 (the webhook label, the webhook `<pre>`'s border/background/text,
+// the "shown once" warning, the last-received line, the upload form's
+// border, the file input's text and its file:-variant background and
+// text, the Upload button's border and two backgrounds, and the one-off-
+// upload note), intervals-card.tsx dropped 2 (the wellness-sync select's
+// border and the wellness-poll timestamp), and oura-card.tsx dropped 3
+// (the token input's border and background, and the token-form help
+// paragraph). 14 + 13 + 2 + 3 = 32. The gap this left (233 − 189 = 44)
+// was OVER RATCHET_SLACK (25), so the ratchet failed and re-pinning here
+// was mandatory, not discretionary. Verified directly: running ADHOC_INK
+// (src/lib/design/type-scale-patterns.ts) over src/**/*.tsx, excluding
+// *.test.tsx, at the pre-task-6 commit reports 221; the same scan on the
+// working tree after this task's edit reports 189. This retires the
+// pattern from all five connector cards, same as the sibling ceiling.
+//
+// 127 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
+// redesign) task 9 — the same file as the sibling ceiling's task 9 entry,
+// src/app/settings/page.tsx. Net −29 from the 156 tasks 7-8 left, all in
+// this one file: the profile row's wrapper border-white/[0.08] +
+// bg-white/[0.03] (→ border-hairline + bg-surface-overlay, 2), its initial
+// avatar's text-white/80 (→ text-ink-secondary, 1), its fallback User
+// icon's text-white/60 (→ text-ink-muted, 1), the athlete email's
+// text-white/45 (→ text-ink-muted, 1), the five section-trigger badges'
+// shared text-white/35 — hoisted to `triggerBadgeClass` (→ text-ink-muted,
+// 5), the five section-trigger labels' shared text-white/80 — hoisted to
+// `triggerLabelClass` (→ text-ink-secondary, 5), the Terminal and Download
+// icons' text-white/40 (→ text-ink-muted, 2 — the brief's decorative-icon
+// exemption named only the three bare-palette icons, text-blue-400/
+// text-emerald-400/text-orange-400; these two carry an ink alpha the
+// general mapping already covers, so they migrate), the Data section's two
+// row-detail spans' shared text-white/50 — hoisted to `dataDetailClass`
+// (→ text-ink-muted, 2), the two Export/Import buttons' shared
+// border-white/10 + bg-white/5 + text-white/80 + hover:bg-white/10 —
+// hoisted to `dataButtonClass`, identical to each other (→ border-hairline
+// + bg-surface-overlay + text-ink-secondary + hover:bg-surface-selected,
+// 4 × 2 = 8), the Import row's own border-t border-white/5 (→
+// border-hairline, 1), and the footer's text-white/25 (→ text-ink-muted,
+// 1). 2+1+1+1+5+5+2+2+8+1+1 = 29. Three decorative section icons were
+// deliberately left as raw palette values per the brief's own ruling —
+// text-blue-400 (Integrations), text-emerald-400 (AI & Coach) and
+// text-orange-400 (App) — since axe's color-contrast rule does not
+// evaluate aria-hidden decoration and minting token pairs for them is
+// scope this release does not want; they carry no ADHOC_INK match anyway
+// (bare palette colours, no alpha slash), so they do not move this count
+// either way. The gap this left (156 − 127 = 29) was OVER RATCHET_SLACK
+// (25), so the ratchet failed and re-pinning here was mandatory, not
+// discretionary — confirmed by this ceiling's own suite run. Verified
+// directly: running ADHOC_INK (src/lib/design/type-scale-patterns.ts) over
+// every non-test file in src/**/*.{ts,tsx} reports 127 on the working tree
+// after this task's edit, down from 156 before it. This is the last code
+// migration of the release; Task 11 is the real-browser axe audit.
+//
+// 156 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
+// redesign) tasks 7-8 — the same nine files as the sibling ceiling's
+// task 7-8 entry. Net −33 from the 189 task 6 left, per file:
+// llm-usage-card.tsx dropped 5 (the usage-intro paragraph, the
+// no-usage-yet line, the this-month line, its last-month aside and the
+// per-model row, all text-white/N → text-ink-muted/text-ink-secondary);
+// webhooks-card.tsx dropped 2 (the revealed-secret `<code>`'s
+// bg-black/40 + text-white/80 → bg-surface-base + text-ink-secondary, the
+// pair the brief called out by name); notifications-card.tsx dropped 9
+// (the intro paragraph's text-white/50, the disable/test buttons' shared
+// border-white/10 + text-white/70 + hover:bg-white/5 trio ×2, the
+// morning-push row's border-white/5 and its detail span's text-white/50);
+// body-prefs-card.tsx dropped 13 (the five hoisted inputs' shared
+// border-white/10 + bg-white/5 pair ×5 = 10, plus the two section-intro
+// paragraphs' and the save-message span's text-white/N, 3 more); and
+// ride-debrief-toggles.tsx dropped 4 (both toggles' detail-span
+// text-white/50, the intro paragraph's text-white/50 and the second
+// toggle's border-t border-white/5). llm-settings-card.tsx,
+// coach-card.tsx, api-tokens-card.tsx and sessions-card.tsx carried no
+// white/black alpha to begin with — only named type-scale utilities and
+// shadcn's own semantic tokens — so they move the sibling ceiling but not
+// this one; api-tokens-card.tsx's bare `bg-white`/`dark:bg-black` pair
+// (→ `bg-surface-raised`) had no alpha slash either, so ADHOC_INK never
+// counted it. 5 + 2 + 9 + 13 + 4 = 33. The gap this left (189 − 156 = 33)
+// was OVER RATCHET_SLACK (25), so the ratchet failed and re-pinning here
+// was mandatory, not discretionary. Verified directly: running ADHOC_INK
+// (src/lib/design/type-scale-patterns.ts) over every non-test file in
+// src/**/*.{ts,tsx} reports 156 on the working tree after these two
+// tasks' edits, down from 189 before them.
+// 73 occurrences, measured 2026-08-17 after v0.108.0 slice 6 phase B
+// (Activity redesign). Net −54 from the 127 above, the same seven files as
+// the sibling ceiling:
+//   debrief-sheet.tsx: 17
+//   activity-log-form.tsx: 15 (nothing arbitrary, so it moves only this
+//     ceiling — plus all 13 of the slice's default-scale sites, which
+//     neither ceiling counts)
+//   app/activity/[id]/page.tsx: 7
+//   laps-table.tsx: 6
+//   activity-debrief-section.tsx: 5
+//   stream-chart.tsx: 3
+//   delete-activity-button.tsx: 1
+// 17 + 15 + 7 + 6 + 5 + 3 + 1 = 54. The gap this left (127 − 73 = 54) was
+// OVER RATCHET_SLACK (25), so the ratchet failed and re-pinning here was
+// mandatory, not discretionary.
+//
+// NOT COUNTED BY THIS PATTERN, and the reason the slice's real edit total
+// was 102 rather than the ~144 its handoff projected: 8 BARE
+// text-white/text-black sites (3 in debrief-sheet.tsx, 3 in
+// activity-log-form.tsx, 1 each in page.tsx and laps-table.tsx). ADHOC_INK
+// requires an alpha slash, so no guard in this file ever saw them — the
+// handoff's own per-file "bare white" column double-counted its ad-hoc-ink
+// column and reported 50. All 8 are gone, but nothing here would have
+// noticed if they were not; the spelling that finds them is
+// \b(text|bg|border|fill|stroke|ring|divide)-(white|black)\b(?!/).
+//
+// Verified directly: running ADHOC_INK (src/lib/design/type-scale-patterns
+// .ts) over every non-test file in src/**/*.{ts,tsx} reports 73 on the
+// working tree after this slice's edits, down from 127 before them.
+// NO ENTRY for "ad-hoc white/black alpha utilities" any more. v0.111.0's
+// sweep took it to zero and flipped its `it.fails` into a real assertion, so
+// a ceiling would be dead weight — worse, a ceiling of 0 alongside a real
+// assertion is two things to keep in step for one fact.
+// 234 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
+// redesign) task 4 — the same two cards as the sibling ceiling above,
+// strava-card.tsx and apple-health-card.tsx, moved onto connector-card.tsx's
+// shell. Net −17 from the 251 task 3 left:
+//   strava-card.tsx: dropped 9 — the subtitle's text-white/50 (1), the
+//     pill's border-white/10 + bg-white/5 + hover:bg-white/10 (3), the
+//     ghost's border-white/10 + text-white/60 (2), the badge's bg-white/5 +
+//     text-white/50 (2) and the status paragraph's ok-branch text-white/60
+//     (1), now the shell's single copy of each instead of Strava's own.
+//     Kept none: the Connect CTA is bg-orange-500/hover:bg-orange-400 with
+//     bare text-black, no alpha slash on any of the three.
+//   apple-health-card.tsx: dropped 8 — the same subtitle/pill/ghost/badge
+//     sites as Strava (1 + 3 + 2 + 2), minus the status paragraph, which
+//     stayed unmigrated `children` here (see below) so it still counts.
+//     Kept none: the Enable CTA is bg-red-400/hover:bg-red-300 with bare
+//     text-black, same shape as Strava's.
+// 9 + 8 = 17. CORRECTED ABOVE (see the 233 entry): the paragraph below
+// claiming Apple Health's status paragraph "did NOT move onto the shell's
+// `status` prop" because its shape didn't fit is WRONG — reviewed and
+// reworked in the very next commit. Left as written at the time, not
+// rewritten, so this stays an honest record of what task 4's first pass
+// actually shipped; the 233 entry above is the corrected state.
+// Apple Health's status paragraph did NOT move onto the shell's
+// `status` prop, unlike every other card so far: its condition is
+// `(result?.message || uploadState) && !result?.url`, guarding against the
+// webhook-URL block above it, and its ok-ness is `result?.ok ??
+// uploadState?.ok` — neither shape fits ConnectorCardProps#status, which
+// assumes a single message/ok pair with no sibling to suppress against. It
+// stayed exactly where it was, still part of `children`, verbatim — the
+// brief's "result <pre>, instructions become children" already implied
+// everything below the header row does, this paragraph included. This
+// ceiling's own suite run did not fail — the gap (251 − 234 = 17) stayed
+// under RATCHET_SLACK (25) — re-pinned anyway per this file's own ratchet
+// rule and task 3's precedent of re-pinning on every drop regardless.
+// Verified directly: `git diff` on the two touched files against ADHOC_INK
+// counts exactly 9 and 8 removed lines, 0 added. Task 5 migrates
+// connector-card.tsx onto the ink scale next; Apple Health's still-`children`
+// status paragraph is not this pattern's problem to solve, since it never
+// moved onto the shell in the first place.
 
 /**
  * This file's own blind spot, closed (Task 6b, 2026-08-11): everything above
@@ -1370,12 +1364,44 @@ describe("type-scale guard", () => {
   // it is satisfied by ANY non-empty offender list, so it cannot tell 395
   // offenders from 600 and would stay green for eight slices while the count
   // rose. The ceiling is what actually binds until this flips.
-  it.fails("has no arbitrary type sizes — use the scale", () => {
-    expect(offenders(ARBITRARY_TYPE), "use text-label … text-hero").toEqual([]);
-  });
+  /**
+   * THE RECORD, not a waiver list — the same doctrine as
+   * INLINE_COLOR_INVENTORY further down. Arbitrary type sizes in a RELATIVE
+   * unit, which no fixed-step token can express.
+   *
+   * There is exactly one, and it is not a defect. `inline-markdown.tsx`
+   * renders `<code>` at `0.95em` because Geist Mono sets visibly larger than
+   * Geist Sans at an identical `font-size`; the `em` is what keeps that
+   * correction proportional to whatever scale step wraps it. Deleting it
+   * makes inline code read oversized on every surface that renders prose, and
+   * pinning it to a step changes what it renders at some call site.
+   *
+   * EXACT, so it cannot grow quietly: a second relative size fails this
+   * assertion, and the commit that adds one has to argue for it.
+   */
+  const RELATIVE_TYPE_INVENTORY: readonly string[] = [
+    "src/components/ui/inline-markdown.tsx:38 — text-[0.95em]",
+  ];
 
-  it("arbitrary type sizes stay at or below the recorded ceiling", () => {
-    expectRatchet("arbitrary type sizes", ARBITRARY_TYPE);
+  // FLIPPED FROM `it.fails` IN Phase 6.4 slice 7 (the visual-polish sweep).
+  //
+  // The `it.fails` this replaces could never pass, and the comment on its own
+  // ceiling said so: "a permanent, reasoned floor of 1". An `it.fails` that is
+  // permanently satisfied is permanently vacuous — it fires on any non-empty
+  // list, so it could not tell one offender from fifty, and the ceiling beside
+  // it was doing all the work.
+  //
+  // A real assertion against an exact inventory does both jobs at once, which
+  // is why the ceiling entry went with it. That is this file's own reasoning,
+  // borrowed from v0.111.0 when the sibling ad-hoc-ink guard flipped: "a
+  // ceiling of 0 beside a real assertion is two things to keep in step for one
+  // fact".
+  it("has no arbitrary type sizes beyond the recorded relative one", () => {
+    expect(
+      offenders(ARBITRARY_TYPE),
+      "use text-label … text-hero. A relative unit that genuinely cannot be a " +
+        "scale step goes in RELATIVE_TYPE_INVENTORY with its reason."
+    ).toEqual(RELATIVE_TYPE_INVENTORY);
   });
 
   // TODO(slice-9): flip to `it(` once the last surface is migrated. Tracked

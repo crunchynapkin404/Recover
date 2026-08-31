@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { PendingButton } from "@/components/ui/pending-button";
 import { useRouter } from "next/navigation";
 import { Mic } from "lucide-react";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
@@ -255,14 +256,15 @@ export function CheckinSheet({
       {error && <p className="mt-2 text-label text-destructive-ink">{error}</p>}
 
       <div className="mt-5 flex gap-2">
-        <button
+        <PendingButton
           type="button"
-          disabled={pending}
+          pending={pending}
+          pendingLabel="Saving…"
           onClick={save}
           className="flex-1 rounded-full bg-accent py-3 text-caption font-bold text-accent-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
         >
-          {pending ? "Saving…" : "Save check-in"}
-        </button>
+          Save check-in
+        </PendingButton>
         <button
           type="button"
           onClick={() => router.push(closeHref)}

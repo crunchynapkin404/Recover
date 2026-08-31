@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { PendingButton } from "@/components/ui/pending-button";
 import {
   applyPlanChange,
   previewPlanChange,
@@ -196,14 +197,14 @@ export function DayActions({ day, otherDays, bare = false }: Props) {
             )}
           <div className="flex gap-2">
             {action !== "skip" && (
-              <button
+              <PendingButton
                 type="button"
-                disabled={pending}
+                pending={pending}
                 onClick={confirmApply}
                 className="rounded-lg bg-accent px-3 py-1 text-label font-bold text-primary-foreground disabled:opacity-50"
               >
                 Confirm
-              </button>
+              </PendingButton>
             )}
             <button
               type="button"

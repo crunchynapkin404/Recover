@@ -205,31 +205,48 @@ describe("AvailabilityWeekSwitcher", () => {
   });
 
   it("targets a next-week date when unpinning in next-week mode", async () => {
+    // SLICE 6 MOVED THE ROUTE, NOT THE BEHAVIOUR. This used to click the day
+    // row's "Pinned ×" button, which is a non-interactive mark now; per-day
+    // unpin lives in BlockSheet. The assertion below is the one that matters
+    // and is unchanged: the date handed to clearDayOverride must be NEXT
+    // week's, not the corresponding day of THIS week.
     await render();
     await click("Next week");
 
-    const unpinBtn = Array.from(nextForm().querySelectorAll("button")).find(
-      (b) => b.textContent?.includes("Pinned")
+    const editBtn = Array.from(nextForm().querySelectorAll("button")).find(
+      (b) => b.getAttribute("aria-label")?.startsWith("Edit Wednesday")
     );
-    if (!unpinBtn) throw new Error('no "Pinned ×" button on next week\'s form');
+    if (!editBtn)
+      throw new Error("no precise-editor button for the pinned day");
     await act(async () => {
-      unpinBtn.click();
+      editBtn.click();
+    });
+
+    const restoreBtn = Array.from(document.querySelectorAll("button")).find(
+      (b) => b.textContent?.includes("Back to your standard day")
+    );
+    if (!restoreBtn) {
+      throw new Error("BlockSheet offered no restore for a pinned day");
+    }
+    await act(async () => {
+      restoreBtn.click();
     });
 
     expect(clearDayOverrideMock).toHaveBeenCalledTimes(1);
-    // The critical assertion: the date passed is one of NEXT week's dates
-    // (specifically the pinned one, NEXT_DATES[2]) — not the corresponding
-    // THIS-week date. Before the fix, `dates` handed to next-week mode was
-    // always this week's, so this would have been THIS_DATES[2] instead.
+    // Before the fix this guards, `dates` handed to next-week mode was always
+    // this week's, so this would have been THIS_DATES[2] instead.
     expect(clearDayOverrideMock).toHaveBeenCalledWith(NEXT_DATES[2]);
   });
 
-  it("does not have a 'Pinned ×' button anywhere for this week (no overrides there)", async () => {
+  it("marks the pinned day on next week's form and not on this week's", async () => {
+    // REWRITTEN in slice 6. The original asserted there were no "Pinned ×"
+    // BUTTONS on this week's form — which became vacuously true the moment
+    // the badge stopped being a button anywhere, so it would have passed
+    // while the mark appeared on the wrong week. It now checks the mark
+    // itself, which is the invariant it was always about.
     await render();
-    const pinnedButtons = Array.from(
-      thisForm().querySelectorAll("button")
-    ).filter((b) => b.textContent?.includes("Pinned"));
-    expect(pinnedButtons).toHaveLength(0);
+    expect(thisForm().textContent).not.toContain("Pinned");
+    expect(nextForm().textContent).toContain("Pinned");
   });
 
   it("keeps an edit typed for one week when toggling away and back", async () => {

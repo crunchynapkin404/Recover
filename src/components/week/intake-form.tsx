@@ -4,10 +4,11 @@ import { useActionState, useState, useTransition } from "react";
 import { blockMins, type AvailabilityBlock } from "@/lib/availability/types";
 import { formatAvailability } from "@/lib/availability/format";
 import type { Verdict } from "@/lib/week-plan/ctl-projection";
-import { clearDayOverride } from "@/app/plan/actions";
+import { clearDayOverride, clearWeekOverrides } from "@/app/plan/actions";
 import { BlockSheet } from "./block-sheet";
 import { AvailabilityTimeline } from "./availability-timeline";
 import { PinnedAction } from "./pinned-action";
+import { PendingButton } from "@/components/ui/pending-button";
 import { WEEKDAY_NAMES } from "@/lib/weekdays";
 
 export interface IntakeState {
@@ -86,7 +87,9 @@ export function IntakeForm({
   const [state, formAction, pending] = useActionState(action, { message: "" });
   const [week, setWeek] = useState(resolved);
   const [openDay, setOpenDay] = useState<number | null>(null);
-  const [, startTransition] = useTransition();
+  // The flag was discarded here until slice 6, which is why unpinning showed
+  // no feedback at all: the old `Pinned ×` badge only ever went disabled.
+  const [unpinning, startTransition] = useTransition();
 
   // The server owns what is actually stored. Unpinning a day deletes its
   // override and revalidates, so `resolved` comes back as the standard week —
@@ -119,6 +122,14 @@ export function IntakeForm({
   function unpin(i: number) {
     startTransition(async () => {
       await clearDayOverride(dates[i]);
+    });
+  }
+
+  const pinnedDates = dates.filter((d) => overrideDates.includes(d));
+
+  function unpinWeek() {
+    startTransition(async () => {
+      await clearWeekOverrides(pinnedDates);
     });
   }
 
@@ -172,13 +183,29 @@ export function IntakeForm({
         onChangeDay={(i, next) =>
           setWeek((prev) => prev.map((d, j) => (j === i ? next : d)))
         }
-        onUnpin={unpin}
         onOpenDay={setOpenDay}
       />
       {/* The submitted value, unchanged from the list this replaced. The
           timeline is a VIEW over `week`; these are what actually reach
           submitAvailability, and tests/intake-form-resync.test.tsx asserts
           against them for exactly that reason. */}
+      {/* ONE CONTROL, AND ONLY WHEN IT SAVES REAL WORK (slice 6). Per-day
+          unpin lives in BlockSheet now, so this is a convenience rather than
+          the only path — and with a single day pinned it saves nothing, since
+          opening that day and restoring it is the same number of taps. At two
+          or more it replaces a trip through the sheet per day. */}
+      {pinnedDates.length > 1 && (
+        <PendingButton
+          type="button"
+          pending={unpinning}
+          pendingLabel="Restoring…"
+          onClick={unpinWeek}
+          className="mb-4 flex w-full items-center justify-center rounded-2xl border border-hairline py-2.5 text-label font-bold text-ink-muted transition-colors hover:text-ink-primary"
+        >
+          Back to your standard week
+        </PendingButton>
+      )}
+
       {week.map((blocks, i) => (
         <input
           key={i}
@@ -207,6 +234,9 @@ export function IntakeForm({
             setWeek((prev) => prev.map((d, j) => (j === openDay ? next : d)))
           }
           onClose={() => setOpenDay(null)}
+          pinned={overrideDates.includes(dates[openDay])}
+          onUnpin={() => unpin(openDay)}
+          unpinPending={unpinning}
         />
       )}
     </form>
