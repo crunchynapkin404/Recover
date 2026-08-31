@@ -309,7 +309,7 @@ captures and axe pass, so a defect found after deploy costs one `git revert`.
 | 2 | **Loading and pending** | `loading.tsx` for `/train` and `/body`; busy semantics on all of them; the gentler reduced-motion rule; `Button`'s `pending` prop and 26 call sites onto it. Captures in both motion preferences. |
 | 3 | **The primitives** | The 17 stock type sizes, five shared primitives first. Widest blast radius in the strand; full capture set. |
 | 4 | **The body flip** | 15px → 16px alone, nothing else. Re-measure choice load and screens; flow inventory gains its fifth dated section. |
-| 5 | **Slices 7 + 8's surfaces** | Admin, Import, and pre-auth (`login`, `join/[code]`) — the surfaces 2b.4 never reached. `/admin` gains a `loading.tsx`. |
+| 5 | **Slices 7 + 8's surfaces** | ~~Admin, Import, and pre-auth — the surfaces 2b.4 never reached.~~ **Premise expired, corrected 2026-08-31.** Measured with the guards' own patterns, all three groups are at **0 arbitrary type sizes, 0 ad-hoc ink, 0 raw colour** — migrated in pieces by the v0.106 settings redesign, by guards that scan all of `src/` rather than one slice's directory, and by slice 3b taking `join/[code]`'s last two `text-xl`. `/admin` got its `loading.tsx` in slice 2a. The slice shrank to one file: `join/[code]/loading.tsx`. |
 | 6 | **The named offenders** | `Pinned ×` demoted to a mark; one week-level "Back to your standard week"; re-measure the sheet's choice load against the predicted ~25. |
 | 7 | **Sweep** | Last arbitrary type size; every ceiling re-pinned; `it.fails` flipped; `design-system.md` rewritten prescriptive; typographic rhythm review against captures; roadmap ticked. |
 

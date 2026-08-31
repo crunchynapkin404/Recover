@@ -396,11 +396,9 @@ describe("routes that await", () => {
   }
 
   it("do not wait in silence", () => {
-    // Not zero, and the exception is named rather than filtered out:
-    // src/app/join/[code]/page.tsx awaits findValidInvite and has no loading
-    // state, but it is pre-auth and outside AppShell — the spec assigns
-    // pre-auth to slice 5, which takes this to 0.
-    expect(awaitingWithoutLoading()).toEqual(["src/app/join/[code]/page.tsx"]);
+    // Zero as of slice 5. join/[code] was the last one — pre-auth, outside
+    // AppShell, and awaiting findValidInvite behind a blank screen.
+    expect(awaitingWithoutLoading()).toEqual([]);
   });
 });
 
