@@ -280,8 +280,13 @@ reference — slice 0 shipped a defect from comparing hand-authored steps with
 
 - [ ] **Step 1: Write the failing test**
 
-First replace the two import lines at the top of
-`src/lib/interval/flex.test.ts` with these three:
+Replace the import block at the top of `src/lib/interval/flex.test.ts` with
+this. **All four lines — keep the `./types` import.** An earlier draft of this
+plan listed only the first three and told you to replace "the two import
+lines"; the file has three, and the dropped one is the type import. Following
+that literally produced six `Cannot find name 'Block'` errors that the suite
+could not see, because vitest transpiles and strips types rather than
+type-checking:
 
 ```ts
 import { describe, it, expect } from "vitest";
@@ -293,6 +298,7 @@ import {
   FLEX_FLOOR_SECS,
 } from "./flex";
 import { totalSecs } from "./duration";
+import type { Block, LibraryWorkout } from "./types";
 ```
 
 Then append this `describe` to the same file:
@@ -394,10 +400,15 @@ export function resolve(
 }
 ```
 
-- [ ] **Step 4: Run the tests**
+- [ ] **Step 4: Run the tests, then the type-checker**
 
 Run: `npx vitest run src/lib/interval/flex.test.ts`
 Expected: PASS, 14 tests.
+
+Then run `npx tsc --noEmit` and expect no errors outside `.next/`. **A green
+suite is not evidence that this branch compiles** — vitest strips types
+without checking them, so a broken import passes every test and fails CI's
+`npm run typecheck`. Do this at the end of every task, not only at Task 4.
 
 - [ ] **Step 5: Commit**
 
