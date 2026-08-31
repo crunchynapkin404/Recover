@@ -67,7 +67,7 @@ And it is already being worked around by hand: of 12 display-size call sites,
 - Modify: `src/app/globals.css`
 - Modify: `tests/motion-scale-guard.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 describe("the type scale has line-heights", () => {
@@ -106,12 +106,12 @@ describe("the type scale has line-heights", () => {
 });
 ```
 
-- [ ] **Step 2: Run it and watch both fail**
+- [x] **Step 2: Run it and watch both fail**
 
 Run: `npx vitest run tests/motion-scale-guard.test.ts -t "line-heights"`
 Expected: FAIL listing all seven steps as missing.
 
-- [ ] **Step 3: Add the companions**
+- [x] **Step 3: Add the companions**
 
 In `src/app/globals.css`, beside each step:
 
@@ -138,7 +138,7 @@ In `src/app/globals.css`, beside each step:
   --text-hero--line-height: 1;
 ```
 
-- [ ] **Step 4: Run the tests**
+- [x] **Step 4: Run the tests**
 
 ```bash
 npx prettier --write src/app/globals.css
@@ -146,7 +146,7 @@ npx vitest run tests/motion-scale-guard.test.ts
 ```
 Expected: PASS.
 
-- [ ] **Step 5: Prove the text end did not move, at the compiler**
+- [x] **Step 5: Prove the text end did not move, at the compiler**
 
 The claim "582 call sites are unaffected" is checkable without a browser:
 
@@ -163,19 +163,19 @@ Expected: label/caption/body carry `line-height: var(--tw-leading, 1.5)` —
 the same 1.5 they inherited — and the four display steps carry their new,
 smaller values.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ---
 
 ### Task 2: prove it in a browser, and look at it
 
-- [ ] **Step 1: Measure the rendered leading, before and after**
+- [x] **Step 1: Measure the rendered leading, before and after**
 
 With the dev server up, read computed `fontSize`/`lineHeight` for one element
 of each step. Expected: label 12/18, caption 14/21, body 16/24 **unchanged**;
 title 20/27, heading 24/30, figure 30/33, hero 44/44.
 
-- [ ] **Step 2: Capture**
+- [x] **Step 2: Capture**
 
 ```bash
 SCREENSHOT_BASE_URL=http://localhost:3210 npx tsx scripts/verify-surfaces.ts polish-slice3a
@@ -189,13 +189,13 @@ Body and several others render date-dependent content, and the previous runs
 straddle a midnight boundary. Capture a fresh baseline in the same session if
 a diff is wanted.
 
-- [ ] **Step 3: Open the display surfaces specifically**
+- [x] **Step 3: Open the display surfaces specifically**
 
 `today` is the one that matters: its figure is the largest type in the app and
 already carries `leading-none`, so it should be **unchanged** — if it moved,
 the `leading-*` override is not winning and the whole approach is wrong.
 
-- [ ] **Step 4: Tick and commit**
+- [x] **Step 4: Tick and commit**
 
 ## What this slice deliberately does not do
 
@@ -212,3 +212,51 @@ the `leading-*` override is not winning and the whole approach is wrong.
 
 `docs/plans/2026-08-31-polish-slice3b-primitives.md` — the 17 stock sizes,
 five shared primitives first.
+
+
+---
+
+## Outcome — run 2026-08-31, both tasks complete
+
+Suite **3333 passed / 1 expected fail / 1 skipped**; `tsc` and `eslint` clean.
+Capture: **100 PNGs, 0 confirmed axe violations**, 128 entries / 89
+indeterminate / 28 errors — identical to every prior slice.
+
+**The compiler agrees with the design:**
+
+| step | leading before | after |
+| --- | --- | --- |
+| label / caption / body | 18 / 21 / 24px | **unchanged** |
+| title | 30px | 27px |
+| heading | 36px | 30px |
+| figure | 45px | 33px |
+| hero | 66px | **44px** |
+
+**The falsifier passed.** Today's figure carries `leading-none` and measures
+30/30 after the change, so a call-site override still wins. Had it moved, the
+whole approach would have been wrong.
+
+**Both captures were taken the same day**, so the diff is readable for once.
+90 of 100 images changed and the pattern is exactly the intended one: pages
+carrying display type got **shorter** by small amounts — `login` −44px (the
+44px hero), `admin` −12px, `body-journal` −16px, `import` −12px, `train`
+−18px — while `settings*` grew by the established API-token accumulation.
+
+Opened `login` before and after: the wordmark's 66px leading had been pushing
+its subtitle away from it, and at 44px the two read as one unit. This is the
+change the two hand-written `leading-none` workarounds were reaching for.
+
+### The codebase defended itself, and that was right
+
+Adding the companions took `tests/type-scale-guard.test.ts` down **entirely**:
+`readScaleTokens` fails loudly on any `--text-*` it cannot resolve to pixels,
+and `--text-label--line-height: 1.5` is a unitless ratio. It was narrowed by
+NAME rather than by tolerating a parse failure, so a real size token in an
+unreadable unit still throws, and the comment records what still covers the
+companions.
+
+**The failure mode is worth remembering.** The suite reported "3324 passed, 1
+skipped" with the expected-fail line simply *gone* — a whole guard file had
+stopped loading, and the headline count went UP because that file's own
+failing-by-design test vanished with it. A green-looking number is not a green
+suite; read the shape of the result, not just the total.

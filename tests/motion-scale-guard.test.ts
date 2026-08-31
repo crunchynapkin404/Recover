@@ -543,3 +543,23 @@ describe("the type scale has line-heights", () => {
     expect(lh("figure")).toBeGreaterThan(lh("hero"));
   });
 });
+
+describe("the type scale is the only type scale", () => {
+  /** Tailwind's own size keys, which the semantic scale replaced. */
+  const STOCK_TYPE = /\btext-(xs|sm|base|lg|xl|2xl|3xl|4xl|5xl)\b/g;
+
+  it("no call site uses a stock Tailwind type size", () => {
+    // Not a style preference: two scales in one app means two answers to
+    // "how big is small text", and the semantic one is what the 12px floor
+    // and the contrast guard actually check. type-scale-guard.test.ts's
+    // ARBITRARY_TYPE covers `text-[…]` arbitrary values and says nothing
+    // about Tailwind's own keys, which is how 17 of them survived nine
+    // slices of a type migration.
+    expect(
+      srcOffenders(STOCK_TYPE),
+      `these use Tailwind's built-in type scale rather than the app's. The ` +
+        `sizes map exactly — xs→label, sm→caption, base→body, xl→title — so ` +
+        `this is a rename plus at most 2px of leading.`
+    ).toEqual([]);
+  });
+});
