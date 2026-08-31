@@ -804,3 +804,55 @@ it with 1.36 would swap one fixture-dependent figure for another and imply the
 flow strand had regressed, which it has not. What is recorded instead is that
 a comparison across fixture states is not a comparison at all — the same
 lesson the capture sets teach about comparing across a date boundary.
+
+---
+
+## Slice 6 of visual polish — the named offenders, measured 2026-08-31
+
+The sixth dated measurement, and the first since slice 3 to move the
+availability sheet's own numbers. Same method, same viewport (390×844), same
+`dev@recover.local` fixtures, all seven days pinned.
+
+| | v0.124.0 | now |
+| --- | ---: | ---: |
+| Sheet choice load (visible + enabled) | **31** | **25** |
+| Sheet length | 0.84 → **1.09** screens | **1.17** screens |
+| Day summary truncates on a two-block day | **yes** | **no** |
+
+The v0.124.0 handoff predicted "~25" for the choice load. It is 25.
+
+### What was traded for what
+
+**−6 controls.** The `Pinned ×` badge was a status that happened to be
+pressable, one per day and up to seven on one sheet. It is a non-interactive
+mark now. Per-day unpin did not go with it: it moved into `BlockSheet`, the
+spec's own precise and assistive path, and one week-level "Back to your
+standard week" appears when two or more days are pinned — at one pinned day it
+would save nothing, since opening that day and restoring it is the same number
+of taps.
+
+**+0.08 screens.** The sheet got about 68px longer. Two causes, both
+deliberate: the week-level control, and the day summary now wrapping instead
+of truncating.
+
+### The handoff's expectation that did not survive measurement
+
+The handoff proposed the badge demotion partly to uncrowd the row, whose
+summary truncated on a two-block day. **Measured at 390px, the demotion bought
+about 6px** — the summary span went from ~140px to 146px, against the 269px a
+two-block day needs. It did not fix the truncation and could not have.
+
+So the truncation was fixed on its own terms: the summary wraps. It costs one
+extra line (18px) on the one day that needs it, instead of silently dropping
+the second block's clock times — and those times are the only place the
+athlete can read them, because the pills carry no text at all by deliberate
+choice.
+
+### A capability the handoff's framing would have removed
+
+The handoff says the demotion "would cut six without removing any capability."
+That was not true as written: per-day unpin existed nowhere else, and
+`BlockSheet` had no unpin control at all. Demoting the badge alone would have
+meant an athlete who overrode Tuesday and wanted only Tuesday back had to
+clear the whole week and re-override the rest. Moving the capability first,
+in its own commit, is what made the claim true.
