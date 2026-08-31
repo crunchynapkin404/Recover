@@ -162,6 +162,17 @@ export function readScaleTokens(css: string): Record<string, number> {
   const out: Record<string, number> = {};
   for (const m of body.matchAll(/^[ \t]*(--text-[\w-]+)\s*:\s*([^;]+);/gm)) {
     const token = m[1];
+    // `--text-<step>--line-height` companions are Tailwind's pairing
+    // convention, not size steps: they are unitless ratios, so the px
+    // resolution below cannot apply and the 12px floor has nothing to say
+    // about them. Skipped by NAME rather than by failing to parse, so a real
+    // size token written in a unit this cannot read still throws.
+    //
+    // NARROWING A GUARD IS HOW GUARDS GET HOLLOWED OUT, so note what still
+    // covers these: tests/motion-scale-guard.test.ts asserts every step has a
+    // companion and that the display steps are tighter than the body steps.
+    // They are checked, just not here.
+    if (token.endsWith("--line-height")) continue;
     const raw = m[2].trim();
     const line = blockLine + body.slice(0, m.index).split("\n").length - 1;
     const px = /^([\d.]+)px$/.test(raw)
