@@ -329,7 +329,19 @@ function DayTrack({
             than being reachable only through BlockSheet. Dropping it was a
             real information loss, and availability-week-switcher.test.tsx
             is what caught it. */}
-        <span className="flex-1 truncate text-label text-ink-secondary">
+        {/* WRAPS RATHER THAN TRUNCATES (slice 6). Measured at 390px: this
+            span gets ~146px, and a two-block day needs 269px — so `truncate`
+            was silently dropping the second block's clock times on exactly
+            the days that have the most to say. Demoting the Pinned badge
+            bought about 6px, nowhere near enough, which is why the handoff's
+            expectation that the demotion would fix the crowding did not
+            survive measurement.
+
+            Wrapping costs a second line only on the days that need one, and
+            these times are not decoration: the pills carry no text at all, by
+            deliberate choice, so this span is the only place the athlete can
+            read when they said they were free. */}
+        <span className="min-w-0 flex-1 text-label text-ink-secondary">
           {formatBlocks(blocks)}
         </span>
         {/* A MARK, NOT A CONTROL (slice 6). This was a button reading
