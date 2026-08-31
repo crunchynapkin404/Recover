@@ -95,9 +95,11 @@ export function SessionsCard({ sessions }: Props) {
                   size="sm"
                   onClick={() => handleRevoke(s.id)}
                   disabled={pending}
+                  pending={pending && pendingId === s.id}
+                  pendingLabel="Revoking…"
                   className="text-destructive shrink-0"
                 >
-                  {pending && pendingId === s.id ? "Revoking…" : "Revoke"}
+                  Revoke
                 </Button>
               )}
             </div>
@@ -116,11 +118,11 @@ export function SessionsCard({ sessions }: Props) {
               size="sm"
               onClick={handleSignOutOthers}
               disabled={pending}
+              pending={pending && pendingId === "__others__"}
+              pendingLabel="Signing out…"
               className="text-destructive"
             >
-              {pending && pendingId === "__others__"
-                ? "Signing out…"
-                : `Sign out everywhere else (${otherCount})`}
+              {`Sign out everywhere else (${otherCount})`}
             </Button>
             <p className="text-muted-foreground mt-1 text-label">
               Ends every session except this one — this device stays signed in.

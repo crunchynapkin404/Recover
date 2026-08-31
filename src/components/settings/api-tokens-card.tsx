@@ -35,6 +35,10 @@ export function ApiTokensCard({ tokens }: Props) {
     FormData
   >(createApiToken, null);
   const [revoking, startRevoke] = useTransition();
+  // Which row is being revoked, so only THAT button says so. Without it every
+  // Revoke on the card would announce itself while one of them works — the
+  // same per-item shape sessions-card already uses.
+  const [revokingId, setRevokingId] = useState<string | null>(null);
   const [revokeResult, setRevokeResult] = useState<string | null>(null);
   const [showToken, setShowToken] = useState<string | null>(null);
 
@@ -44,9 +48,11 @@ export function ApiTokensCard({ tokens }: Props) {
   }
 
   function handleRevoke(tokenId: string) {
+    setRevokingId(tokenId);
     startRevoke(async () => {
       const result = await revokeApiToken(tokenId);
       setRevokeResult(result.message);
+      setRevokingId(null);
     });
   }
 
@@ -84,6 +90,7 @@ export function ApiTokensCard({ tokens }: Props) {
                   size="sm"
                   onClick={() => handleRevoke(t.id)}
                   disabled={revoking}
+                  pending={revoking && revokingId === t.id}
                   className="text-destructive"
                 >
                   Revoke
@@ -149,8 +156,8 @@ export function ApiTokensCard({ tokens }: Props) {
               </option>
             </select>
           </div>
-          <Button type="submit" disabled={creating}>
-            {creating ? "Creating…" : "Create token"}
+          <Button type="submit" pending={creating} pendingLabel="Creating…">
+            Create token
           </Button>
         </form>
 

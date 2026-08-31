@@ -34,6 +34,31 @@ export type PendingButtonProps = Base &
     | { children: React.ReactNode; pendingLabel: React.ReactNode }
   );
 
+/**
+ * The vocabulary itself, separated from the element that carries it.
+ *
+ * `Button` cannot delegate to `PendingButton` — it renders base-ui's
+ * `ButtonPrimitive`, not a raw `<button>`, and swapping that would drop every
+ * variant it styles. So the two share this instead of each spelling the rule,
+ * which is the same reason `type-scale-patterns.ts` exists: two
+ * implementations of one rule drift, and the drift is invisible.
+ *
+ * NOT EVERY `disabled={pending}` IS THIS. A Cancel button beside a saving
+ * Save is disabled *because* work is in flight, but it is not doing the work
+ * — it must not say "Cancel…" and must not claim `aria-busy`. Those stay
+ * plain buttons with a plain `disabled`.
+ */
+export function pendingSemantics(
+  pending: boolean,
+  children: React.ReactNode,
+  pendingLabel?: React.ReactNode
+): { "aria-busy": true | undefined; content: React.ReactNode } {
+  return {
+    "aria-busy": pending || undefined,
+    content: pending ? (pendingLabel ?? `${children as string}…`) : children,
+  };
+}
+
 export function PendingButton({
   pending,
   pendingLabel,
@@ -41,15 +66,20 @@ export function PendingButton({
   disabled,
   ...props
 }: PendingButtonProps) {
+  const { content, ...aria } = pendingSemantics(
+    pending,
+    children,
+    pendingLabel
+  );
   return (
     <button
       {...props}
       // A caller's own `disabled` is a separate reason (an invalid form, a
       // missing target); pending adds to it rather than replacing it.
       disabled={disabled || pending}
-      aria-busy={pending || undefined}
+      {...aria}
     >
-      {pending ? (pendingLabel ?? `${children as string}…`) : children}
+      {content}
     </button>
   );
 }

@@ -43,6 +43,19 @@ export function IntervalsCard({ connection }: Props) {
   >(connectIntervals, null);
   const [result, setResult] = useState<ActionResult | null>(null);
   const [pending, startTransition] = useTransition();
+  // Which of the three actions is running. They share one transition flag, so
+  // without this all three buttons would announce themselves while one works
+  // — the per-item shape sessions-card established.
+  const [busy, setBusy] = useState<string | null>(null);
+
+  /** Runs `fn` as the named action, so only its own button says so. */
+  function run(name: string, fn: () => Promise<typeof result>) {
+    setBusy(name);
+    startTransition(async () => {
+      setResult(await fn());
+      setBusy(null);
+    });
+  }
 
   const message = result?.message ?? connectState?.message;
   const messageOk = result?.ok ?? connectState?.ok;
@@ -82,8 +95,12 @@ export function IntervalsCard({ connection }: Props) {
                 required
               />
             </div>
-            <Button type="submit" disabled={connecting}>
-              {connecting ? "Validating…" : "Connect intervals.icu"}
+            <Button
+              type="submit"
+              pending={connecting}
+              pendingLabel="Validating…"
+            >
+              Connect intervals.icu
             </Button>
           </form>
         )}
@@ -92,29 +109,29 @@ export function IntervalsCard({ connection }: Props) {
           <div className="flex flex-wrap items-center gap-3">
             <Button
               disabled={pending}
-              onClick={() =>
-                startTransition(async () => setResult(await syncNow()))
-              }
+              pending={busy === "sync"}
+              pendingLabel="Syncing…"
+              onClick={() => run("sync", syncNow)}
             >
-              {pending ? "Syncing…" : "Sync now"}
+              Sync now
             </Button>
             <Button
               variant="outline"
               disabled={pending}
-              onClick={() =>
-                startTransition(async () =>
-                  setResult(await disconnectIntervals())
-                )
-              }
+              pending={busy === "disconnect"}
+              onClick={() => run("disconnect", disconnectIntervals)}
             >
               Disconnect
             </Button>
             <Button
               variant="outline"
               disabled={pending || connection.backfillRunning}
-              onClick={() =>
-                startTransition(async () => setResult(await backfillHistory()))
-              }
+              pending={busy === "backfill"}
+              onClick={() => run("backfill", backfillHistory)}
+              // Explicit, because the idle label is already "Backfilling…"
+              // when the SERVER has a backfill running — the default would
+              // append a second ellipsis to it.
+              pendingLabel="Starting backfill…"
             >
               {connection.backfillRunning
                 ? "Backfilling…"
