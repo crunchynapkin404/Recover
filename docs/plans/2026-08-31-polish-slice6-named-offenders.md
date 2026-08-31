@@ -66,17 +66,17 @@ leave a commit in history with no way to unpin one day.
 - Modify: `src/components/week/intake-form.tsx` (pass the handler through)
 - Test: `src/components/week/block-sheet.test.tsx`
 
-- [ ] **Step 1: Write the failing test** — a pinned day's sheet offers to
+- [x] **Step 1: Write the failing test** — a pinned day's sheet offers to
   restore the standard day; an unpinned day's does not.
 
-- [ ] **Step 2: Thread `pinned` and `onUnpin` into `BlockSheet`**, which
+- [x] **Step 2: Thread `pinned` and `onUnpin` into `BlockSheet`**, which
   already receives the day index. `intake-form.tsx` holds both
   (`overrideDates`, `unpin`).
 
-- [ ] **Step 3: Render the control** only when that day is pinned, using
+- [x] **Step 3: Render the control** only when that day is pinned, using
   `PendingButton` so it speaks the vocabulary slice 2b established.
 
-- [ ] **Step 4: Tests, types, lint. Commit.**
+- [x] **Step 4: Tests, types, lint. Commit.**
 
 ---
 
@@ -86,10 +86,10 @@ leave a commit in history with no way to unpin one day.
 - Modify: `src/components/week/availability-timeline.tsx`
 - Test: `src/components/week/availability-timeline.test.tsx`
 
-- [ ] **Step 1: Write the failing test** — the row renders no button whose
+- [x] **Step 1: Write the failing test** — the row renders no button whose
   accessible name starts "Pinned", and still exposes the pinned state as text.
 
-- [ ] **Step 2: Replace the button with a span**
+- [x] **Step 2: Replace the button with a span**
 
 ```tsx
 {pinned && (
@@ -104,14 +104,14 @@ leave a commit in history with no way to unpin one day.
 The `×` goes with the button — it promised an action. Keep the word, which is
 the status.
 
-- [ ] **Step 3: Check the row actually got its width back**
+- [x] **Step 3: Check the row actually got its width back**
 
 Measure, do not assume: at 390px, with a two-block day, confirm the summary no
 longer truncates. `docs/2026-08-26-flow-inventory.md`'s method and
 [[recover-layout-measurement]] both apply — measure the content box in a real
 browser rather than eyeballing a screenshot.
 
-- [ ] **Step 4: Commit.**
+- [x] **Step 4: Commit.**
 
 ---
 
@@ -119,30 +119,30 @@ browser rather than eyeballing a screenshot.
 
 **Files:** `src/components/week/intake-form.tsx`, plus a bulk action.
 
-- [ ] **Step 1: Decide where the loop lives.** `clearDayOverride(date)` is
+- [x] **Step 1: Decide where the loop lives.** `clearDayOverride(date)` is
   per-date (`src/app/plan/actions.ts:370`). Either call it once per pinned
   date from the client, or add `clearWeekOverrides(dates)` beside it. **Prefer
   the server action**: seven sequential round-trips from the client is a
   visible stall, and the existing action already re-validates the date shape
   and the user on every call.
 
-- [ ] **Step 2: Render it only when at least one day is pinned**, as a
+- [x] **Step 2: Render it only when at least one day is pinned**, as a
   `PendingButton` labelled "Back to your standard week".
 
-- [ ] **Step 3: Confirm the count moved.** Re-measure the sheet's choice load
+- [x] **Step 3: Confirm the count moved.** Re-measure the sheet's choice load
   with the flow inventory's method. The handoff predicts **31 → ~25**; record
   what it actually is, and if it is not ~25 say so rather than adjusting the
   prediction after the fact.
 
-- [ ] **Step 4: Commit.**
+- [x] **Step 4: Commit.**
 
 ---
 
 ### Task 4: prove it
 
-- [ ] **Step 1: Suite, types, lint.**
+- [x] **Step 1: Suite, types, lint.**
 
-- [ ] **Step 2: Seed and capture.** `train-availability` is the surface, and
+- [x] **Step 2: Seed and capture.** `train-availability` is the surface, and
   it **photographs blank tracks without seeding** — the defect that nearly
   shipped in v0.124.0-rc.1:
 
@@ -151,14 +151,14 @@ SEED_DEMO=1 npx tsx scripts/seed-availability.ts
 SCREENSHOT_BASE_URL=http://localhost:3210 npx tsx scripts/verify-surfaces.ts polish-slice6 --only=train
 ```
 
-- [ ] **Step 3: Drive a pin, then unpin it both ways.** A capture shows the
+- [x] **Step 3: Drive a pin, then unpin it both ways.** A capture shows the
   row at rest; it cannot show that unpinning still works. Exercise the
   BlockSheet control and the week-level control in a browser.
 
-- [ ] **Step 4: Update the flow inventory** with a sixth dated section: the
+- [x] **Step 4: Update the flow inventory** with a sixth dated section: the
   sheet's choice load before and after, and the row-crowding fix.
 
-- [ ] **Step 5: Tick and commit.**
+- [x] **Step 5: Tick and commit.**
 
 ## What this slice does not do
 
@@ -174,3 +174,54 @@ SCREENSHOT_BASE_URL=http://localhost:3210 npx tsx scripts/verify-surfaces.ts pol
 `docs/plans/2026-08-31-polish-slice7-sweep.md` — the last arbitrary type size
 inventoried, every ceiling re-pinned, the `it.fails` flipped, and
 `design-system.md` rewritten prescriptive.
+
+
+---
+
+## Outcome — run 2026-08-31, all four tasks complete
+
+Suite **3337 passed / 1 expected fail / 1 skipped**; `tsc` and `eslint` clean.
+Capture of `train-availability` in both themes and viewports: **0 confirmed
+defects, 0 indeterminate**, 0 errors.
+
+| | v0.124.0 | now |
+| --- | ---: | ---: |
+| Sheet choice load | **31** | **25** |
+| Sheet length | 1.09 screens | 1.17 screens |
+| Two-block summary truncates | yes | **no** |
+
+The handoff predicted "~25". It is 25.
+
+### The handoff's expectation that did not survive measurement
+
+The badge demotion was proposed partly to uncrowd the row. **Measured at
+390px, it bought about 6px** — the summary span went 140 → 146px against the
+**269px** a two-block day needs. It did not fix the truncation and could not
+have.
+
+So the truncation was fixed on its own terms: the summary wraps. One extra
+line (18px) on the one day that needs it, instead of silently dropping the
+second block's clock times — which are the only place an athlete can read
+them, because the pills carry no text at all by deliberate choice. The
+capture shows FRI carrying "07:00–08:00 · 1h 00m + 19:00–20:00 · 1h 00m" in
+full.
+
+### The capability the handoff's framing would have removed
+
+"Cuts six without removing any capability" was not true as written: per-day
+unpin existed nowhere else and `BlockSheet` had no unpin control. Task 1 moved
+it there **first**, in its own commit, so no point in history leaves per-day
+unpin unreachable. Verified in a browser: the mark is a non-pressable `SPAN`,
+BlockSheet offers "Back to your standard day", and the week-level control
+appears when two or more days are pinned.
+
+### Two dead things the change exposed
+
+- `availability-timeline`'s `onUnpin` prop had no consumer left — caught by
+  lint, removed rather than prefixed with `_`.
+- `availability-week-switcher.test.tsx`'s "no Pinned button for this week"
+  became **vacuous** the moment the badge stopped being a button anywhere: it
+  would have passed while the mark appeared on the wrong week. Rewritten to
+  check the mark. Its sibling — which guards that unpinning targets next
+  week's date rather than this week's — was rewired through BlockSheet, with
+  the assertion that matters unchanged.
