@@ -68,7 +68,7 @@ so only the `scroll (IA)` column of the flow inventory's table moves.
 
 **Files:** none. This task produces the "before" column.
 
-- [ ] **Step 1: Confirm the current state**
+- [x] **Step 1: Confirm the current state**
 
 ```bash
 grep -n "font-size: 15px" src/app/globals.css
@@ -76,7 +76,7 @@ grep -n "font-size: 15px" src/app/globals.css
 Expected: one hit, in the `body` rule. If it is already 16px, this slice has
 been done and the plan is stale.
 
-- [ ] **Step 2: Measure screens for every surface in the inventory's table**
+- [x] **Step 2: Measure screens for every surface in the inventory's table**
 
 The repo has no committed choice-load counter — the flow inventory says so
 twice — so this is an ad hoc Playwright pass, same as the previous four
@@ -90,7 +90,7 @@ Surfaces, in the inventory's own order: `Body ▸ Journal`, `Train ▸ Week`,
 Record the numbers to two decimals, in a scratch file, before touching
 anything.
 
-- [ ] **Step 3: Sanity-check against the banked figure**
+- [x] **Step 3: Sanity-check against the banked figure**
 
 Train ▸ Week should read close to **1.84**. If it does not, say so — three
 slices have landed since that measurement and one of them (3a) shortened
@@ -103,7 +103,7 @@ not verify**; record what you measured and note the drift.
 
 **Files:** `src/app/globals.css` only.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `tests/motion-scale-guard.test.ts`:
 
@@ -123,7 +123,7 @@ describe("the body element sits on the scale", () => {
 
 Run it. Expected: FAIL on the first matcher — `font-size: 15px` is present.
 
-- [ ] **Step 2: Flip it**
+- [x] **Step 2: Flip it**
 
 ```css
   body {
@@ -142,7 +142,7 @@ Run it. Expected: FAIL on the first matcher — `font-size: 15px` is present.
   }
 ```
 
-- [ ] **Step 3: Tests, types, lint**
+- [x] **Step 3: Tests, types, lint**
 
 ```bash
 npx prettier --write src/app/globals.css
@@ -156,7 +156,7 @@ Read the *shape* of the suite result, not just the total: a guard file that
 stops loading takes its own `it.fails` with it and the headline count goes
 **up**. Expect `1 expected fail` to still be present.
 
-- [ ] **Step 4: Commit, alone**
+- [x] **Step 4: Commit, alone**
 
 ```bash
 git add src/app/globals.css tests/motion-scale-guard.test.ts
@@ -169,12 +169,12 @@ git commit -m "feat(design): body sits on the scale — 15px to 16px
 
 ### Task 3: measure the new ruler, and disclose it
 
-- [ ] **Step 1: Re-measure, same method, same fixtures**
+- [x] **Step 1: Re-measure, same method, same fixtures**
 
 Identical script, identical surfaces, identical viewport. The only thing that
 may differ is the day's data — note it if so.
 
-- [ ] **Step 2: Add a fifth dated section to the flow inventory**
+- [x] **Step 2: Add a fifth dated section to the flow inventory**
 
 `docs/2026-08-26-flow-inventory.md` has four dated sections (original, slice
 1, slice 2, slice 3). Add a fifth for this, stating plainly:
@@ -186,14 +186,14 @@ may differ is the day's data — note it if so.
   same content measured against a different ruler;
 - Train ▸ Week specifically, since 1.84 is the figure the roadmap quotes.
 
-- [ ] **Step 3: Update the roadmap if it quotes a moved number**
+- [x] **Step 3: Update the roadmap if it quotes a moved number**
 
 `docs/ROADMAP.md` states "4.7 phone screens → 1.84". If the new figure differs,
 correct it there too, in the same commit, with a pointer to the new section.
 Leaving the roadmap quoting a superseded measurement is how the v0.87.0
 mistake happened, per 2b.4's own spec.
 
-- [ ] **Step 4: Capture and axe**
+- [x] **Step 4: Capture and axe**
 
 ```bash
 SCREENSHOT_BASE_URL=http://localhost:3210 npx tsx scripts/verify-surfaces.ts polish-slice4
@@ -204,7 +204,7 @@ slice ships alone — with one declaration in the diff, a defect cannot hide
 behind an unrelated change. Capture a same-day baseline first if a diff is
 wanted, since date-dependent content makes cross-day sets unreadable.
 
-- [ ] **Step 5: Open the pictures, and know what you are looking for**
+- [x] **Step 5: Open the pictures, and know what you are looking for**
 
 Not "did it get bigger" — it did, everywhere, by design. Look for:
 
@@ -217,7 +217,7 @@ Not "did it get bigger" — it did, everywhere, by design. Look for:
 - **anything that now overflows horizontally**, since `body` has
   `overflow-x: hidden` and would silently clip rather than scroll.
 
-- [ ] **Step 6: Commit the measurement**
+- [x] **Step 6: Commit the measurement**
 
 ## What this slice does not do
 
@@ -231,3 +231,41 @@ Not "did it get bigger" — it did, everywhere, by design. Look for:
 
 `docs/plans/2026-08-31-polish-slice5-remaining-surfaces.md` — admin, import
 and pre-auth, the surfaces 2b.4's slices 7 and 8 never reached.
+
+
+---
+
+## Outcome — run 2026-08-31, all three tasks complete
+
+Suite **3335 passed / 1 expected fail / 1 skipped**; `tsc` and `eslint` clean.
+Capture: **100 PNGs, 0 confirmed axe violations**, 128/89/28 — identical to
+every prior slice.
+
+### The predicted risk did not materialise, and the reason is worth keeping
+
+The spec called this the risky slice: 15px → 16px would make every surface
+taller and collide with the banked 1.84 screens. Measured before and after in
+one session on identical fixtures, **every surface was unchanged** except
+Train ▸ Fitness at +0.01. The capture agrees: all 100 images moved, but by
+**1–6px** on pages 1,700–4,000px tall.
+
+**The type scale is in `rem`, anchored to `html`, not to `body`.** `html` is
+the browser default 16px, so `--text-label: 0.75rem` has always been 12px
+whatever `body` said. The flip reached only text that sets no size of its own:
+on Train ▸ Week, **66 text-bearing elements carry an explicit scale class and
+42 inherit**, and the inheriting ones are short inline fragments
+(`ml-1.5 text-ink-muted`, "0 min free"), `sr-only` text, and a script node.
+
+So the flip was safe **because** the type migration is complete. The spec's
+risk was written when it was not.
+
+### The drift it surfaced
+
+The banked figures no longer reproduce on current fixtures — Train ▸ Week
+1.84 → 1.36, Fitness 1.00 → 1.48, Season 1.00 → 1.36. The drift runs in
+**both** directions, which rules out a CSS cause. It is fixture data, and
+`docs/2026-08-26-flow-inventory.md` gained a fifth dated section recording it.
+
+**The roadmap's "4.7 → 1.84" was deliberately left alone.** Replacing it with
+1.36 would swap one fixture-dependent number for another and imply the flow
+strand regressed, which it did not.
