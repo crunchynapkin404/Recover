@@ -27,8 +27,6 @@ export interface AvailabilityTimelineProps {
   pinned: boolean[];
   /** Commit one day's new block list. The caller runs validateBlocks. */
   onChangeDay: (dayIndex: number, next: AvailabilityBlock[]) => void;
-  /** Unpin day `i` — IntakeForm's existing clearDayOverride path. */
-  onUnpin: (dayIndex: number) => void;
   /** Open BlockSheet on day `i` — the precise and assistive path. */
   onOpenDay: (dayIndex: number) => void;
 }
@@ -91,7 +89,6 @@ export function AvailabilityTimeline({
   week,
   pinned,
   onChangeDay,
-  onUnpin,
   onOpenDay,
 }: AvailabilityTimelineProps) {
   const [selected, setSelected] = useState<BlockId | null>(null);
@@ -118,7 +115,6 @@ export function AvailabilityTimeline({
             selected={selected}
             onSelect={setSelected}
             onChangeDay={onChangeDay}
-            onUnpin={onUnpin}
             onOpenDay={onOpenDay}
           />
         ))}
@@ -135,7 +131,6 @@ function DayTrack({
   selected,
   onSelect,
   onChangeDay,
-  onUnpin,
   onOpenDay,
 }: {
   day: number;
@@ -145,7 +140,6 @@ function DayTrack({
   selected: BlockId | null;
   onSelect: (id: BlockId | null) => void;
   onChangeDay: (dayIndex: number, next: AvailabilityBlock[]) => void;
-  onUnpin: (dayIndex: number) => void;
   onOpenDay: (dayIndex: number) => void;
 }) {
   const dayName = WEEKDAY_NAMES[day];

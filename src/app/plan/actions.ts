@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { requireUser } from "@/lib/session";
 import { logger } from "@/lib/logger";
 import { db, schema } from "@/lib/db";
@@ -378,6 +378,33 @@ export async function clearDayOverride(date: string): Promise<Result> {
       and(
         eq(schema.availabilityOverrides.userId, user.id),
         eq(schema.availabilityOverrides.date, date)
+      )
+    );
+  revalidatePlan();
+  return { ok: true };
+}
+
+/**
+ * "Back to your standard week": deletes every pin in one round trip.
+ *
+ * A server action rather than a loop of `clearDayOverride` from the client:
+ * seven sequential round-trips is a visible stall on a control whose whole
+ * point is that it is quicker than doing it a day at a time. The date shape
+ * and the user are still re-validated here, exactly as the per-day action
+ * does — this is one query, not one waived check.
+ */
+export async function clearWeekOverrides(dates: string[]): Promise<Result> {
+  const user = await requireUser();
+  if (!dates.every((d) => /^\d{4}-\d{2}-\d{2}$/.test(d))) {
+    return { ok: false, error: "invalid_date" };
+  }
+  if (dates.length === 0) return { ok: true };
+  await db
+    .delete(schema.availabilityOverrides)
+    .where(
+      and(
+        eq(schema.availabilityOverrides.userId, user.id),
+        inArray(schema.availabilityOverrides.date, dates)
       )
     );
   revalidatePlan();

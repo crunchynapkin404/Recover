@@ -26,7 +26,6 @@ function render(week: AvailabilityBlock[][], pinned = Array(7).fill(false)) {
       week={week}
       pinned={pinned}
       onChangeDay={vi.fn()}
-      onUnpin={vi.fn()}
       onOpenDay={vi.fn()}
     />
   );
@@ -201,7 +200,6 @@ function mount(week: AvailabilityBlock[][]) {
         week={week}
         pinned={Array(7).fill(false)}
         onChangeDay={(d, next) => calls.push([d, next])}
-        onUnpin={vi.fn()}
         onOpenDay={vi.fn()}
       />
     );
@@ -300,7 +298,6 @@ describe("AvailabilityTimeline keyboard path", () => {
           week={week}
           pinned={Array(7).fill(false)}
           onChangeDay={vi.fn()}
-          onUnpin={vi.fn()}
           onOpenDay={(d) => opened.push(d)}
         />
       );
