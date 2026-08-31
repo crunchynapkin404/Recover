@@ -110,6 +110,19 @@ describe("library coverage", () => {
     }
   });
 
+  it("answers every purpose the matcher can be asked for", () => {
+    // Until now the coverage test skipped an unauthored purpose. From here a
+    // missing purpose is a hole, not a work-in-progress.
+    const answered = new Set(LIBRARY.map((w) => w.purpose));
+    expect([...answered].sort()).toEqual([
+      "aerobic_base",
+      "long",
+      "recovery",
+      "threshold",
+      "vo2max",
+    ]);
+  });
+
   it("authors whole seconds only", () => {
     // The exact-duration guarantee and both renderers assume integral secs.
     for (const w of LIBRARY) {

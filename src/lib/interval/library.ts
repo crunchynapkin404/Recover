@@ -69,7 +69,7 @@ export const LIBRARY: readonly LibraryWorkout[] = [
     name: "Recovery with Cadence",
     purpose: "recovery",
     family: "cadence-play",
-    why: "Easy watts at high cadence — neuromuscular work without load.",
+    why: "Easy effort at high cadence — neuromuscular work without load.",
     source: conv(
       "high-cadence spinning on recovery days is convention, untested against plain easy riding",
       "a trial comparing recovery quality with and without the cadence work"
@@ -218,6 +218,231 @@ export const LIBRARY: readonly LibraryWorkout[] = [
       BODY(180, 56, 70),
       B("Surges", 5, [S(60, 105, 115), S(240, 55, 65)]),
       CD(15),
+    ],
+  },
+
+  // ── threshold ────────────────────────────────────────────────────────
+  {
+    id: "thr-3x4",
+    name: "Threshold 3×4",
+    purpose: "threshold",
+    family: "threshold-blocks",
+    why: "Three short blocks at threshold — the shortest session that still delivers the stimulus.",
+    // The 4-minute cooldown is deliberate: FLEX_FLOOR_SECS stops the warmup
+    // shrinking below 5 minutes, so a 5-minute cooldown would start this
+    // workout's span at 28 and leave the 27-minute day unanswered.
+    source: conv(
+      "block length at threshold is convention, not derived",
+      NO_TRIAL
+    ),
+    blocks: [WU(8), B("Main set", 3, [S(240, 95, 100), S(120, 55, 55)]), CD(4)],
+  },
+  {
+    id: "thr-3x5",
+    name: "Threshold 3×5",
+    purpose: "threshold",
+    family: "threshold-blocks",
+    why: "Three blocks at threshold.",
+    source: conv("as thr-3x4", NO_TRIAL),
+    blocks: [
+      WU(10),
+      B("Main set", 3, [S(300, 95, 100), S(180, 55, 55)]),
+      CD(6),
+    ],
+  },
+  {
+    id: "ss-3x5",
+    name: "Sweet Spot 3×5",
+    purpose: "threshold",
+    family: "sweet-spot",
+    why: "Three short sweet-spot blocks — less sharp than threshold, easier to repeat.",
+    source: conv(
+      "the sweet-spot band (88-93%) is widely used and has no settled definition",
+      "a comparison of 88-93% against 95-100% for the same total work"
+    ),
+    blocks: [WU(10), B("Main set", 3, [S(300, 88, 93), S(180, 55, 55)]), CD(6)],
+  },
+  {
+    id: "thr-3x5-long-wu",
+    name: "Threshold 3×5, Long Build",
+    purpose: "threshold",
+    family: "threshold-blocks",
+    why: "The same main set behind a longer build.",
+    source: conv("as thr-3x4", NO_TRIAL),
+    blocks: [
+      WU(20),
+      B("Main set", 3, [S(300, 95, 100), S(180, 55, 55)]),
+      CD(6),
+    ],
+  },
+  {
+    id: "ss-2x12",
+    name: "Sweet Spot 2×12",
+    purpose: "threshold",
+    family: "sweet-spot",
+    why: "Two longer sweet-spot blocks.",
+    source: conv("as ss-3x5", "the same"),
+    blocks: [WU(20), B("Main set", 2, [S(720, 88, 93), S(300, 55, 55)]), CD(8)],
+  },
+  {
+    id: "thr-4x8",
+    name: "Threshold 4×8",
+    purpose: "threshold",
+    family: "threshold-blocks",
+    why: "Four blocks at threshold — the classic mid-length session.",
+    source: conv("as thr-3x4", NO_TRIAL),
+    blocks: [
+      WU(25),
+      B("Main set", 4, [S(480, 95, 100), S(240, 55, 55)]),
+      CD(9),
+    ],
+  },
+  {
+    id: "ou-3x12",
+    name: "Over-Under 3×12",
+    purpose: "threshold",
+    family: "over-under",
+    why: "Alternating either side of threshold — clearing lactate while still working.",
+    source: conv(
+      "over-unders are convention for threshold tolerance; the 2-minute alternation is arbitrary",
+      "a trial comparing alternation periods at matched total work"
+    ),
+    blocks: [
+      WU(25),
+      B("Main set", 3, [
+        S(120, 105, 105),
+        S(120, 90, 90),
+        S(120, 105, 105),
+        S(120, 90, 90),
+        S(120, 105, 105),
+        S(120, 90, 90),
+        S(300, 55, 55),
+      ]),
+      CD(9),
+    ],
+  },
+  {
+    id: "ss-3x20",
+    name: "Sweet Spot 3×20",
+    purpose: "threshold",
+    family: "sweet-spot",
+    why: "Three long sweet-spot blocks — the upper end of a threshold day.",
+    source: conv("as ss-3x5", "the same"),
+    blocks: [
+      WU(28),
+      B("Main set", 3, [S(1200, 88, 93), S(300, 55, 55)]),
+      CD(9),
+    ],
+  },
+
+  // ── vo2max ───────────────────────────────────────────────────────────
+  {
+    id: "vo2-6x1",
+    name: "VO₂max 6×1",
+    purpose: "vo2max",
+    family: "short-vo2",
+    why: "Six short, sharp efforts — the shortest VO₂max session worth doing.",
+    source: conv(
+      "short-interval VO2max work is convention; one minute is one of several lengths in use",
+      "a comparison of 1-, 3- and 5-minute intervals at matched total work"
+    ),
+    blocks: [
+      WU(16),
+      B("Main set", 6, [S(60, 110, 120), S(120, 50, 50)]),
+      CD(6),
+    ],
+  },
+  {
+    id: "vo2-5x3",
+    name: "VO₂max 5×3",
+    purpose: "vo2max",
+    family: "classic-vo2",
+    why: "Five three-minute efforts with equal recovery.",
+    source: conv("3-minute intervals at 106-118% are convention", NO_TRIAL),
+    blocks: [
+      WU(20),
+      B("Main set", 5, [S(180, 106, 118), S(180, 50, 50)]),
+      CD(8),
+    ],
+  },
+  {
+    id: "vo2-30-30",
+    name: "VO₂max 30/30",
+    purpose: "vo2max",
+    family: "short-vo2",
+    why: "Thirty on, thirty off — accumulates time near VO₂max at lower perceived cost.",
+    source: conv(
+      "30/30s are widely used; the claim that they accumulate more time at VO2max is not tested here",
+      "a comparison of measured time-at-VO2max against 4-minute intervals"
+    ),
+    blocks: [
+      WU(20),
+      B("Main set", 3, [
+        S(30, 115, 125),
+        S(30, 50, 50),
+        S(30, 115, 125),
+        S(30, 50, 50),
+        S(30, 115, 125),
+        S(30, 50, 50),
+        S(30, 115, 125),
+        S(30, 50, 50),
+        S(30, 115, 125),
+        S(30, 50, 50),
+        S(300, 50, 50),
+      ]),
+      CD(8),
+    ],
+  },
+  {
+    id: "vo2-5x4",
+    name: "VO₂max 5×4",
+    purpose: "vo2max",
+    family: "classic-vo2",
+    why: "Five four-minute efforts — the session most plans mean by VO₂max.",
+    source: conv("as vo2-5x3", NO_TRIAL),
+    blocks: [
+      WU(25),
+      B("Main set", 5, [S(240, 106, 115), S(240, 50, 50)]),
+      CD(9),
+    ],
+  },
+  {
+    id: "vo2-4x5",
+    name: "VO₂max 4×5",
+    purpose: "vo2max",
+    family: "classic-vo2",
+    why: "Four five-minute efforts — longer and a little lower than 5×4.",
+    source: conv("as vo2-5x3", NO_TRIAL),
+    blocks: [
+      WU(30),
+      B("Main set", 4, [S(300, 106, 112), S(300, 50, 50)]),
+      CD(9),
+    ],
+  },
+  {
+    id: "vo2-8x3",
+    name: "VO₂max 8×3",
+    purpose: "vo2max",
+    family: "short-vo2",
+    why: "Eight three-minute efforts.",
+    source: conv("as vo2-6x1", "the same"),
+    blocks: [
+      WU(30),
+      B("Main set", 8, [S(180, 108, 116), S(180, 50, 50)]),
+      CD(9),
+    ],
+  },
+  {
+    id: "vo2-12x3",
+    name: "VO₂max 12×3",
+    purpose: "vo2max",
+    family: "short-vo2",
+    why: "Twelve three-minute efforts — the upper end of a VO₂max day.",
+    source: conv("as vo2-6x1", "the same"),
+    blocks: [
+      WU(26),
+      B("Main set", 12, [S(180, 108, 116), S(180, 50, 50)]),
+      CD(9),
     ],
   },
 ];
