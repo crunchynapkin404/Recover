@@ -7,6 +7,7 @@ import {
   FLEX_FLOOR_SECS,
 } from "./flex";
 import { totalSecs } from "./duration";
+import type { Block, LibraryWorkout } from "./types";
 
 const W = (secs: number, lo: number, hi: number) => ({ secs, lo, hi });
 

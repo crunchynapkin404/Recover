@@ -1,3 +1,4 @@
+import type { Purpose } from "@/lib/availability/types";
 import type { Block, LibraryWorkout, LibraryPurpose } from "./types";
 import { resolve } from "./flex";
 
@@ -15,6 +16,11 @@ export interface MatchSession {
   durationMins: number;
 }
 
+/**
+ * There is no `synthesized` variant. The spec reserved one and nothing in
+ * this slice can return it; an unreachable variant is dead code with a type
+ * to maintain. It goes in when something actually synthesizes.
+ */
 export type MatchResult =
   | { kind: "matched"; workout: LibraryWorkout; blocks: Block[] }
   | {
