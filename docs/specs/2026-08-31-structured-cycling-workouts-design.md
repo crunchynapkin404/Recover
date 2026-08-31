@@ -29,9 +29,9 @@ relitigated below:
 5. **Targets are authored in %FTP**, never absolute watts.
 6. **One source of truth.** The library is typed data in a pure module; every
    other representation is derived from it.
-7. **Export pins.** Nothing is stored on a day until the athlete exports it;
-   exporting writes the chosen workout's id onto the day, and Recover then
-   marks it stale if the day subsequently changes.
+7. **Export pins.** Nothing is stored until the athlete exports it; exporting
+   writes the chosen workout's id onto the **session**, and Recover then marks
+   it stale if that session subsequently changes.
 
 ## The reversal, recorded
 
@@ -73,8 +73,8 @@ confidence label, and says what would raise it** — the convention
 `plan-constants.ts` uses. A workout with no provenance does not ship.
 
 The third clause of the gate — _"when it does not know, it says so"_ — is
-served by refusal: an athlete with no FTP, or a day with no matching workout,
-gets today's prose and band. Nothing is invented to fill a gap.
+served by refusal: a day with no matching workout keeps today's prose and band.
+Nothing is invented to fill a gap.
 
 ---
 
@@ -116,8 +116,8 @@ intervals.icu calendar and has synced to their head unit, a silent re-derive
 means **Recover disagrees with the device**, and the athlete finds out
 mid-ride.
 
-So exporting writes `workoutId` and `exportedAt` onto the day — the one
-moment pinning is genuine. From then on Recover renders the pinned workout,
+So exporting writes the pin onto the **session** — the one moment pinning is
+genuine. From then on Recover renders the pinned workout,
 and if `(purpose, durationMins)` no longer match what it was chosen for,
 shows it as **stale** with a re-export action. The roadmap anticipated
 exactly this: _"a prescription pinned in the morning and adapted at noon has
@@ -133,8 +133,38 @@ changing _next_ Tuesday's workout changes this Tuesday's pick — and the athlet
 is told a day is stale that nothing happened to.
 
 So export stores `workoutId`, `exportedAt`, and **`purpose` and `durationMins`
-as they were at export**. Staleness is a direct comparison against the day's
-current values, with no dependency on anything outside that day.
+as they were at export**. Staleness is a direct comparison against the
+session's current values, with no dependency on anything outside it.
+
+**Where the pin lives, and why not on the day.** An earlier draft of this spec
+wrote those four fields "onto the day". That is a level too high, and it does
+not typecheck against the domain: `purpose` and `durationMins` are properties
+of a `PlannedWorkout` (`src/lib/training-plan.ts:76-93`), while a `DaySlot`
+holds `workouts: ScheduledWorkout[]` — "Up to MAX_SESSIONS_PER_DAY sessions"
+(`src/lib/week-plan/types.ts:29`), which is **2**
+(`src/lib/availability/types.ts:31`). On a day carrying a morning recovery spin
+and an evening threshold session — both cycling, both `LibraryPurpose` — a
+day-level pin cannot say which session it pins, and "the day's current values"
+has two answers.
+
+The repo has already been bitten by exactly this shape and recorded it:
+
+```ts
+// src/lib/week-plan/service.ts:818-826
+// A day can now genuinely hold two sessions (MAX_SESSIONS_PER_DAY). This
+// signature only names a day, not which of its sessions to move, so a
+// multi-session source is refused rather than guessed at…
+if (from.workouts.length > 1) return "invalid";
+```
+
+So the pin goes on `ScheduledWorkout`, beside `exercises?: StrengthExercise[]`
+— the precedent this design has been comparing itself to all along, which was
+never a day-level field either. That also makes staleness a same-object
+comparison, which is the whole point of storing the two extra fields, and it
+makes the pin die with the session it belongs to: the red-readiness swap at
+`adapt-day.ts:461-494` rebuilds the day as `{ ...day, workouts: [...] }`, so a
+day-level pin would outlive the session it described while the very same code
+is careful to clear `exercises`.
 
 This is the only stored state the feature adds, and it is added at the one
 point where the athlete has externalised something.
@@ -213,8 +243,33 @@ blocks, cadence _ranges_, nested repeats.
 ## Design 3 — Fitting: how "the day wins" becomes literally true
 
 Each workout has exactly one **flex step**: the longest step in any
-`repeat === 1` block — in practice a warmup or cooldown — ties broken by the
-last, which puts a cooldown ahead of an equal-length warmup.
+`repeat === 1` block, ties broken by the last, which puts a cooldown ahead of
+an equal-length warmup.
+
+**Authoring guidance, because this sentence sets the library's size.** An
+earlier draft added "in practice a warmup or cooldown" here. That is true of
+`threshold` and `vo2max`, where the main set _is_ the workout and nothing else
+is stretchable — and false, expensively, everywhere else. A workout covers
+exactly the span its flex step can absorb, so a 10-minute warmup buys 10
+minutes of coverage; authoring every purpose that way needs **70 workouts** to
+tile the range, against slice 2's budget of 30, and the guard would fail the
+build with no hint as to why.
+
+For `recovery`, `aerobic_base` and `long` the longest `repeat === 1` step is
+the **endurance body**, and stretching it is precisely what those sessions
+tolerate. Sized that way the same range needs **20**:
+
+| purpose        | flex step                              | one workout covers | n   |
+| -------------- | -------------------------------------- | ------------------ | --- |
+| `recovery`     | 35 min — the easy body itself          | 23–58 min          | 2   |
+| `aerobic_base` | 80 min — the endurance body            | 55–135 min         | 2   |
+| `threshold`    | 15 min — warmup; the main set is fixed | 68–83 min          | 7   |
+| `vo2max`       | 15 min — warmup; the main set is fixed | 53–68 min          | 6   |
+| `long`         | 150 min — the endurance body           | 95–245 min         | 3   |
+
+**Choose the flex step for the span the purpose must cover**, not by position.
+Twenty tiles the range; forty gives every duration two families to rotate
+between, which is what `family` needs to mean anything.
 
 Fitting adjusts **only** that step, within a bounded tolerance expressed as a
 fraction of its authored length. The main set, which is what the workout _is_,
@@ -257,30 +312,63 @@ mode to be engineered away:
   different workout on a re-render. Recent ids _and recent families_ are
   avoided.
 - `synthesized` — reserved, not built in the first slice.
-- `refused` — no candidate fits, or the athlete has no FTP for this context.
-  The day keeps today's prose and band.
+- `refused` — no candidate fits. The day keeps today's prose and band.
 
 **Refusal is the honest path, not a gap.** It is how `strengthPrescription`
 already degrades when a 1RM is unset, and it is the gate's third clause in
 code.
 
-### Indoor vs outdoor FTP
+### Indoor vs outdoor FTP — a question the matcher does not ask
 
-`v0.118.0` keeps them apart, and the roadmap names getting this wrong as a
-non-goal in itself: _"a step targeting 105% of the wrong one is worse than a
-zone band."_ Resolution picks the FTP matching the session's context; where
-context is unknown, it refuses rather than guessing.
+The roadmap names getting this wrong as a non-goal in itself: _"a step
+targeting 105% of the wrong one is worse than a zone band."_ An earlier draft
+answered it by having resolution _"pick the FTP matching the session's
+context"_ and refuse where context is unknown. **Both halves of that were
+wrong, and together they would have shipped a feature that never fires.**
+
+**There is no session context to pick from.** A `PlannedWorkout` is
+`day, sport, type, durationMins, intensity, description, purpose,
+minEffectiveMins, exercises?` (`src/lib/training-plan.ts:76-93`). Nothing on a
+planned session says whether it will be ridden indoors. Context is therefore
+unknown on every day, and a rule that refuses on unknown context refuses
+everything.
+
+**And v0.118.0 is not a symmetric pair to choose between.** The schema is
+explicit that indoor is a fallback, not a peer:
+
+```ts
+// src/lib/db/schema.ts:589-595
+/**
+ * v0.118: the indoor/trainer FTP, distinct from the outdoor one above.
+ * null = not set. Used ONLY as a fallback anchor when ftpWatts is null —
+ * races have no indoor concept in this app, so this can never mean "use it
+ * for race day" directly.
+ */
+ftpWattsIndoor: integer("ftp_watts_indoor"),
+```
+
+**The question dissolves once you notice no renderer needs an FTP.** `renderIcu`
+emits `88-93%` and `renderZwo` emits `0.88`; intervals.icu resolves the
+percentage against the athlete's own settings and Zwift against theirs, each
+already knowing whether the ride is indoors in a way Recover does not. Matching
+is on `(purpose, durationMins)`. So FTP is not a matcher input and not a
+refusal condition — it is not part of this design at all.
+
+It returns only if slice 3 chooses to show absolute watts in-app. If it does,
+it resolves with v0.118's real precedence — `ftpWatts ?? ftpWattsIndoor` — and
+labels the number when it came from the fallback, which is the gate's third
+clause applied where it actually bites.
 
 ## Design 4 — Every representation derived
 
 `blocks` is the single source of truth. Four renderers, each pure:
 
-| Renderer            | Output                                | Notes                                                                                                                               |
-| ------------------- | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `renderIcu`         | intervals.icu structured-workout text | Goes in the `description` of a WORKOUT event. Syntax already shipped verbatim in `get-workout-syntax.ts`; `%` and `X-Y%` are native |
-| `renderZwo`         | `.zwo` XML                            | Plain text, no auth, no third party                                                                                                 |
-| `renderProfile`     | the in-app interval shape             | Hand-rolled SVG, the repo's existing convention                                                                                     |
-| `renderDescription` | the human-readable line               | **Replaces** today's hand-written `description` for library days                                                                    |
+| Renderer            | Output                                | Notes                                                                                                                                                                                                                    |
+| ------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `renderIcu`         | intervals.icu structured-workout text | Goes in the `description` of a WORKOUT event. Syntax already shipped verbatim in `get-workout-syntax.ts`; `%` and `X-Y%` are native                                                                                      |
+| `renderZwo`         | `.zwo` XML                            | Plain text, no auth, no third party. **Narrows a range to its midpoint** — Zwift's `SteadyState` takes one power, so `88-93%` ships as `0.905`. The one place a representation is lossy, recorded rather than discovered |
+| `renderProfile`     | the in-app interval shape             | Hand-rolled SVG, the repo's existing convention                                                                                                                                                                          |
+| `renderDescription` | the human-readable line               | **Replaces** today's hand-written `description` for library days                                                                                                                                                         |
 
 That last row is the point. The roadmap named the failure to avoid:
 _"What happens to `description`? It should be **derived** from the steps
@@ -332,23 +420,23 @@ three would have adopted two non-goals instead of one.
 | --- | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 0   | **Shape + renderers**     | `types.ts`, `renderIcu`, `renderZwo`, `renderDescription`, tested against hand-written expected output. No library, no matcher, nothing user-visible |
 | 1   | **The matcher**           | `match.ts` with fit/flex/refuse, deterministic selection, family rotation. Tested against a stub library                                             |
-| 2   | **The library, first 30** | Every `(purpose, duration band)` covered once, each with `source` and confidence. Coverage asserted by a guard                                       |
+| 2   | **The library, first 30** | The continuous integer range covered per purpose — see "Coverage is continuous" — each with `source` and confidence. Coverage asserted by a guard    |
 | 3   | **The surface**           | Workout name, profile and targets in the Week open-day block                                                                                         |
-| 4   | **Export**                | `.zwo` download route + the intervals.icu WORKOUT write, and the `workoutId`/`exportedAt` pin with its stale marker                                  |
+| 4   | **Export**                | `.zwo` download route + the intervals.icu WORKOUT write, and the four-field pin on `ScheduledWorkout` with its stale marker                          |
 | 5   | **The library, to 100+**  | Pure content. No code change — which is the test of whether slices 0–2 got the shape right                                                           |
 
 Slices 0–2 are the design work; 3–4 are largely plumbing; 5 is authoring.
 
 ## Risks
 
-| Risk                                                  | Mitigation                                                                                                                                                                                         |
-| ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Coverage gaps mean days silently fall back to prose   | Slice 2 ends with a guard asserting the **union of flex spans covers the continuous integer range** per purpose — see "Coverage is continuous". A gap fails the build, it does not degrade quietly |
-| 100 hand-authored workouts is 100 coaching judgements | Each carries `source` and a confidence label. The reversal above is what makes that acceptable, and it is recorded                                                                                 |
-| A pinned workout and a re-planned day disagree        | The pin is explicit, the staleness marker is explicit, and re-export is one action. The alternative — silent disagreement with the head unit — is the failure being designed out                   |
-| Determinism breaks and the week re-picks on re-render | Selection is seeded by the day's date, never by a clock or a random. Asserted in slice 1                                                                                                           |
-| `%FTP` resolved against the wrong FTP                 | Indoor/outdoor kept apart per v0.118.0; unknown context refuses                                                                                                                                    |
-| `description` drifts from the steps                   | It is derived, not stored. Slice 0 asserts it                                                                                                                                                      |
+| Risk                                                  | Mitigation                                                                                                                                                                                                                                          |
+| ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Coverage gaps mean days silently fall back to prose   | Slice 2 ends with a guard asserting the **union of flex spans covers the continuous integer range** per purpose — see "Coverage is continuous". A gap fails the build, it does not degrade quietly                                                  |
+| 100 hand-authored workouts is 100 coaching judgements | Each carries `source` and a confidence label. The reversal above is what makes that acceptable, and it is recorded                                                                                                                                  |
+| A pinned workout and a re-planned day disagree        | The pin is explicit, the staleness marker is explicit, and re-export is one action. It lives on the session, so it dies with the session it described. The alternative — silent disagreement with the head unit — is the failure being designed out |
+| Determinism breaks and the week re-picks on re-render | Selection is seeded by the day's date, never by a clock or a random. Asserted in slice 1                                                                                                                                                            |
+| `%FTP` resolved against the wrong FTP                 | Nothing in this design resolves one. Renderers emit `%` and fractions; intervals.icu and Zwift resolve against the athlete's own settings, each knowing the indoor/outdoor answer Recover does not — see "a question the matcher does not ask"      |
+| `description` drifts from the steps                   | It is derived, not stored. Slice 0 asserts it — including on an unrolled over-under, which is the case that broke the first implementation                                                                                                          |
 
 ## What has NOT been verified
 
@@ -356,15 +444,30 @@ Stated plainly rather than implied, because the design was produced by a
 17-agent workflow of which **7 agents died on a session limit**: all three
 judges and all four adversarial attackers.
 
-So this design has been **compared but not scored, and only partly attacked.**
+**The adversarial pass has since been done by hand and is recorded in
+`docs/2026-08-31-cycling-workouts-adversarial-pass.md`.** It found eleven
+confirmed defects and cleared three lenses; every fix is folded into the text
+above. Four of the eleven were in the two fixes applied earlier the same day —
+the pin and the coverage claim — which is the second piece of evidence in two
+days that attacking this document repays the time. Notably:
 
-**Two defects were found by a manual adversarial pass and are fixed above**:
-the staleness check was unimplementable from the fields it stored, and the
-coverage claim was banded where the engine's durations are continuous. Both
-were in the first draft. That two survived into a written spec and were caught
-only by attacking it is the argument for finishing the adversarial pass rather
-than treating this section as a formality. Two of
-three independent designs converged on derive-at-read-time, and the code claim
-they rest on was verified by hand (`adapt-day.ts:505-507`). But the strongest
-objections recorded here are the designs' own self-stated weaknesses, not an
-adversary's findings. **The adversarial pass is owed before slice 0 begins.**
+- the pin was stored a level above the fields it stores (`DaySlot` holds two
+  sessions), fixed in Design 1;
+- the flex-step guidance aimed authors at the warmup, which would have needed
+  70 workouts to tile a range that 20 covers, fixed in Design 3;
+- the indoor/outdoor FTP rule refused every day, because no planned session
+  carries the context it tested — and no renderer needs an FTP at all. Removed
+  from Design 3 entirely.
+
+**The judges did not run, and nothing has replaced them.** The pass attacked
+the winning design; it did not re-score the three rivals against `fitsRepo` /
+`survivesAdaptation` / `authoringCost` / `noDrift`, and the cached run's
+`result.tally` is still `{}`. Two of three independent designs converged on
+derive-at-read-time, and the code claim they rest on was verified by hand
+(`adapt-day.ts:505-507`) — but the comparison remains **unscored**.
+
+**If that workflow is ever resumed, re-seed it first.** Its Verify phase builds
+its prompt from the cached `result.winningDesign`, never from this file, and
+that cache predates every fix above — its own `weakness` field still reads "I
+have made pinning impossible". Resuming as-is spends seven agents attacking a
+design nobody is going to build.

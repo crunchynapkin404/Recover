@@ -258,7 +258,24 @@ describe("renderIcu", () => {
     const out = renderIcu(b);
     expect(out).toContain("- 30s 100%");
     expect(out).toContain("- 1m30s 60%");
-    expect(out).toContain("- 60m 55%");
+    expect(out).toContain("- 1h 55%");
+  });
+
+  it("never emits a minutes count that the syntax reads as metres", () => {
+    // get-workout-syntax.ts defines `Xm` TWICE: minutes, and — in the
+    // distance table — "Meters (context-dependent, >200 = meters)". A long
+    // ride's endurance body is the flex step and routinely exceeds 200
+    // minutes, so `210m` would export as a 210-METRE step. Above an hour we
+    // use the syntax's own `XhYm` form, which has no such collision.
+    const long = (secs: number): string =>
+      renderIcu([
+        { name: "Endurance", repeat: 1, steps: [{ secs, lo: 60, hi: 70 }] },
+      ]);
+    expect(long(12600)).toContain("- 3h30m 60-70%");
+    expect(long(14400)).toContain("- 4h 60-70%");
+    for (const secs of [10800, 12000, 12600, 14400, 21600]) {
+      expect(long(secs)).not.toMatch(/- \d{3,}m /);
+    }
   });
 
   it("omits the repeat suffix for a plain section", () => {
@@ -284,16 +301,24 @@ Create `src/lib/interval/render-icu.ts`:
 import type { Block, Step } from "./types";
 
 /**
- * Duration in the syntax's own vocabulary: whole minutes as `10m`, sub-minute
- * as `30s`, anything else as `1m30s`. `get-workout-syntax.ts` lists an `X:YY`
- * form too; one spelling is enough and this is the one its own examples use.
+ * Duration in the syntax's own vocabulary: `30s`, `10m`, `1m30s`, `1h30m`.
+ * `get-workout-syntax.ts` lists an `X:YY` form too; one spelling is enough and
+ * this is the one its own examples use.
+ *
+ * HOURS ARE NOT OPTIONAL above 60 minutes. That file defines `Xm` twice —
+ * minutes, and "Meters (context-dependent, >200 = meters)" in the distance
+ * table. A long ride's endurance body is its flex step and routinely passes
+ * 200 minutes, so spelling it `210m` exports a 210-METRE step to every device
+ * the athlete owns. Carrying hours keeps the minutes component under 60,
+ * where the ambiguity cannot arise.
  */
 function dur(secs: number): string {
-  const m = Math.floor(secs / 60);
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor((secs % 3600) / 60);
   const s = secs % 60;
-  if (m === 0) return `${s}s`;
-  if (s === 0) return `${m}m`;
-  return `${m}m${s}s`;
+  return (
+    (h ? `${h}h` : "") + (m ? `${m}m` : "") + (s || (!h && !m) ? `${s}s` : "")
+  );
 }
 
 function target(step: Step): string {
@@ -330,7 +355,7 @@ export function renderIcu(blocks: readonly Block[]): string {
 - [ ] **Step 4: Run the tests**
 
 Run: `npx vitest run src/lib/interval/render-icu.test.ts`
-Expected: PASS, 4 tests.
+Expected: PASS, 5 tests.
 
 - [ ] **Step 5: Commit**
 
@@ -553,8 +578,34 @@ identically."
 **What it replaces.** `PlannedWorkout.description` is hand-written prose today
 — `"VO2max intervals: 5×4min at threshold+, 3min recovery"`
 (`src/lib/training-plan.ts:979`). For a day carrying a library workout, that
-line is **derived** instead. The rule: describe the main set, which is the
-block with the highest `repeat`; ties go to the longest.
+line is **derived** instead.
+
+**The rule, and the rule it replaces.** Describe the main set — the block with
+the highest `repeat`, ties to the longest. Within it, **the recovery is the
+last step, and only when its `hi` is below the block's peak**; everything
+before it is the work body, described by its total time and the span of its
+targets.
+
+An earlier draft of this plan instead found the single highest-`hi` step and
+called _everything else_ recovery:
+
+```ts
+const work = main.steps.reduce((a, b) => (b.hi > a.hi ? b : a), main.steps[0]);
+const rest = main.steps.filter((s) => s !== work); // ← wrong, twice over
+```
+
+That is wrong on the shape this spec makes central. An over-under is authored
+as an unrolled body inside one repeat, so a `3 ×` block of
+`2m 105% / 2m 90%` six times then `5m 55%` rendered as **"3 × 2 min at 105%
+FTP, 15 min recovery"** — counting the work intervals as rest and reporting
+three times the recovery that exists, while `renderIcu` rendered the same
+workout correctly. Two representations of one workout disagreeing is the exact
+defect this renderer exists to prevent.
+
+It is also wrong for a second reason: `filter(s => s !== work)` compares by
+**reference**, so an author who hoists a reused rest — `const REST = { secs:
+300, lo: 55, hi: 55 }` — gets both copies treated as one step. Never use
+reference equality on data authors write by hand.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -563,7 +614,7 @@ Create `src/lib/interval/render-description.test.ts`:
 ```ts
 import { describe, it, expect } from "vitest";
 import { renderDescription } from "./render-description";
-import type { Block } from "./types";
+import type { Block, Step } from "./types";
 
 describe("renderDescription", () => {
   it("describes the main set of a repeated workout", () => {
@@ -616,6 +667,66 @@ describe("renderDescription", () => {
     expect(renderDescription(b)).toContain("88–94%");
     expect(renderDescription(b)).not.toContain("88-94%");
   });
+
+  it("describes an unrolled over-under by its whole work body", () => {
+    // THE CASE THAT BROKE THE FIRST IMPLEMENTATION. The main set is 6 x 2 min
+    // alternating 105/90, then 5 min recovery. Peak-step logic called the
+    // five non-peak work steps "recovery" and reported 15 min of it.
+    const b: Block[] = [
+      {
+        name: "Warmup",
+        repeat: 1,
+        steps: [{ secs: 600, lo: 50, hi: 65, ramp: true }],
+      },
+      {
+        name: "Main set",
+        repeat: 3,
+        steps: [
+          { secs: 120, lo: 105, hi: 105 },
+          { secs: 120, lo: 90, hi: 90 },
+          { secs: 120, lo: 105, hi: 105 },
+          { secs: 120, lo: 90, hi: 90 },
+          { secs: 120, lo: 105, hi: 105 },
+          { secs: 120, lo: 90, hi: 90 },
+          { secs: 300, lo: 55, hi: 55 },
+        ],
+      },
+      { name: "Cooldown", repeat: 1, steps: [{ secs: 540, lo: 50, hi: 50 }] },
+    ];
+    expect(renderDescription(b)).toBe(
+      "3 × 12 min at 90–105% FTP, 5 min recovery"
+    );
+  });
+
+  it("does not treat two references to one step object as one step", () => {
+    // A hoisted rest is a thing library authors will write. Reference
+    // equality would drop both copies together.
+    const REST: Step = { secs: 300, lo: 55, hi: 55 };
+    const b: Block[] = [
+      {
+        name: "Main set",
+        repeat: 4,
+        steps: [
+          { secs: 480, lo: 95, hi: 100 },
+          REST,
+          { secs: 480, lo: 95, hi: 100 },
+          REST,
+        ],
+      },
+    ];
+    // Only the TRAILING step is recovery; the interior rest is part of the
+    // work body, which is described by its span rather than invented away.
+    expect(renderDescription(b)).toBe(
+      "4 × 21 min at 55–100% FTP, 5 min recovery"
+    );
+  });
+
+  it("returns an empty string rather than throwing on no steps", () => {
+    // Not a workout. The caller keeps its own description; it must not get a
+    // TypeError, which is what seeding a reduce with `all[0]` produced.
+    expect(renderDescription([])).toBe("");
+    expect(renderDescription([{ name: "X", repeat: 1, steps: [] }])).toBe("");
+  });
 });
 ```
 
@@ -634,9 +745,15 @@ import { totalSecs } from "./duration";
 
 const mins = (secs: number): number => Math.round(secs / 60);
 
-/** En dash, matching the app's prose; the icu syntax uses a hyphen instead. */
-function pct(s: Step): string {
-  return s.lo === s.hi ? `${s.lo}% FTP` : `${s.lo}–${s.hi}% FTP`;
+/**
+ * The intensity of a run of steps, as one target. A single step reads as
+ * authored; several read as the span they cover, low of the lows to high of
+ * the highs. En dash, matching the app's prose — the icu syntax uses a hyphen.
+ */
+function span(steps: readonly Step[]): string {
+  const lo = Math.min(...steps.map((s) => s.lo));
+  const hi = Math.max(...steps.map((s) => s.hi));
+  return lo === hi ? `${lo}% FTP` : `${lo}–${hi}% FTP`;
 }
 
 /**
@@ -648,37 +765,49 @@ function pct(s: Step): string {
  * names that failure: "the same class of defect as v0.122.0's duplicated
  * event count".
  *
- * The rule is to describe the MAIN SET — the block with the highest repeat,
- * ties to the longest — because that is what the session is. A workout with
- * nothing repeated is described by its total and its target.
+ * Describe the MAIN SET — the block with the highest repeat, ties to the
+ * longest — because that is what the session is. Within it THE RECOVERY IS
+ * THE LAST STEP, and only when its `hi` is below the block's peak. Everything
+ * before it is the work body.
+ *
+ * That rule, rather than "the highest step is the work and the rest is
+ * recovery", because an over-under is authored as an unrolled body inside one
+ * repeat: peak-step logic reads its five non-peak work steps as rest and
+ * reports three times the recovery that exists, while renderIcu renders the
+ * same workout correctly. A work body holding an interior rest is described
+ * by its span instead of being taken apart — vague is recoverable, wrong is
+ * not, and the profile and the icu text are where per-step detail lives.
+ *
+ * Selection is by INDEX, never reference equality: a hoisted `const REST`
+ * used twice in one block is two steps.
  */
 export function renderDescription(blocks: readonly Block[]): string {
   const main = [...blocks]
-    .filter((b) => b.repeat > 1)
+    .filter((b) => b.repeat > 1 && b.steps.length > 0)
     .sort((a, b) => b.repeat - a.repeat || totalSecs([b]) - totalSecs([a]))[0];
 
   if (!main) {
     const all = blocks.flatMap((b) => b.steps);
-    const work = all.reduce((a, b) => (b.hi > a.hi ? b : a), all[0]);
-    return `${mins(totalSecs(blocks))} min at ${pct(work)}`;
+    // No steps is not a workout. The caller keeps its own description.
+    if (all.length === 0) return "";
+    return `${mins(totalSecs(blocks))} min at ${span(all)}`;
   }
 
-  const work = main.steps.reduce(
-    (a, b) => (b.hi > a.hi ? b : a),
-    main.steps[0]
-  );
-  const rest = main.steps.filter((s) => s !== work);
-  const head = `${main.repeat} × ${mins(work.secs)} min at ${pct(work)}`;
-  if (rest.length === 0) return head;
-  const recovery = rest.reduce((sum, s) => sum + s.secs, 0);
-  return `${head}, ${mins(recovery)} min recovery`;
+  const peak = Math.max(...main.steps.map((s) => s.hi));
+  const last = main.steps[main.steps.length - 1];
+  const hasRecovery = main.steps.length > 1 && last.hi < peak;
+  const work = hasRecovery ? main.steps.slice(0, -1) : main.steps;
+
+  const workSecs = work.reduce((t, s) => t + s.secs, 0);
+  const head = `${main.repeat} × ${mins(workSecs)} min at ${span(work)}`;
+  return hasRecovery ? `${head}, ${mins(last.secs)} min recovery` : head;
 }
 ```
 
 - [ ] **Step 4: Run the tests**
 
 Run: `npx vitest run src/lib/interval/render-description.test.ts`
-Expected: PASS, 4 tests.
+Expected: PASS, 7 tests.
 
 - [ ] **Step 5: Commit**
 
@@ -697,23 +826,85 @@ that is what the session is."
 
 ### Task 5: prove the slice
 
-- [ ] **Step 1: The whole module is pure**
+- [ ] **Step 1: Write the guard as a test, not as a grep**
 
-```bash
-grep -rnE "from \"@/lib/db\"|new Date|Date\.now|Math\.random" src/lib/interval/ || echo "pure"
+The two Global Constraints that have no other enforcement — pure module, no
+absolute power — get one test file. **They were bash one-liners in an earlier
+draft of this plan, and both were wrong.**
+
+The wattage grep was `grep -rniE "\bwatt|…"`, run against a `types.ts` whose
+doc comment Task 1 mandates verbatim: `Targets are ALWAYS % of FTP, never
+watts.` `\bwatt` matches inside "watts", so the step could never print its
+expected output — **the plan wrote a comment in Task 1 that failed its own
+guard in Task 5.** This is the trap
+`docs/2026-08-31-visual-polish-handoff.md` names — _"a guard you can trip by
+writing prose is a guard people work around"_, recorded there as happening
+four times in one strand. This would have been the fifth.
+
+The second problem is quieter: a one-shot grep in a markdown file is not a
+guard at all. It runs once, by hand, on the day the slice lands, and nothing
+checks it again. `type-scale-guard.test.ts` and `motion-scale-guard.test.ts`
+are real test files that ratchet, and that is the convention here.
+
+Create `src/lib/interval/purity-guard.test.ts`:
+
+```ts
+import { describe, it, expect } from "vitest";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+
+const DIR = join(process.cwd(), "src/lib/interval");
+
+/**
+ * Strip comments before matching, the way motion-scale-guard.test.ts does.
+ * Prose must be unable to trip a guard — and equally unable to satisfy one,
+ * which is why this strips rather than skips files that mention a banned
+ * term. Safe here because this module has no string literal containing `//`;
+ * revisit if one ever appears.
+ */
+function code(src: string): string {
+  return src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+}
+
+function sources(): [string, string][] {
+  return readdirSync(DIR)
+    .filter((f) => f.endsWith(".ts") && !f.endsWith(".test.ts"))
+    .map((f) => [f, code(readFileSync(join(DIR, f), "utf8"))]);
+}
+
+describe("src/lib/interval stays a pure module", () => {
+  it("reaches no database, no clock and no randomness", () => {
+    // What makes it callable from a test and from the MCP surface, exactly
+    // as strengthPrescription is.
+    const banned = /from "@\/lib\/db"|new Date\b|Date\.now|Math\.random/;
+    for (const [file, src] of sources()) {
+      expect(src, `${file} broke the pure-module contract`).not.toMatch(banned);
+    }
+  });
+
+  it("names no absolute power", () => {
+    // Every target here is % of FTP. Resolution against the athlete's own
+    // FTP happens later and elsewhere — and per the spec, no renderer needs
+    // an FTP at all.
+    const banned = /\bwatts?\b|\bftpWatts\b|\btargetLoadKg\b/i;
+    for (const [file, src] of sources()) {
+      expect(src, `${file} named an absolute power`).not.toMatch(banned);
+    }
+  });
+
+  it("has files to check", () => {
+    // A guard that silently scans nothing passes forever. The handoff records
+    // a whole guard going dark while the headline test count went UP.
+    expect(sources().length).toBeGreaterThanOrEqual(4);
+  });
+});
 ```
 
-Expected: `pure`. A single hit means this module can no longer be called from
-a test or the MCP surface the way `strengthPrescription` is.
+- [ ] **Step 2: Run it**
 
-- [ ] **Step 2: No wattage anywhere**
-
-```bash
-grep -rniE "\bwatt|\bftpWatts|targetLoadKg" src/lib/interval/ || echo "no absolute power"
-```
-
-Expected: `no absolute power`. The Global Constraints forbid it: everything
-here is % of FTP.
+Run: `npx vitest run src/lib/interval/purity-guard.test.ts`
+Expected: PASS, 3 tests. Confirm it can still fail: add `const t = Date.now();`
+to `duration.ts`, re-run, watch it go red, remove it.
 
 - [ ] **Step 3: Types, lint, and the full suite**
 
@@ -725,7 +916,7 @@ DATABASE_URL="$DATABASE_URL" DATABASE_DRIVER=pg npx vitest run
 ```
 
 Expected: clean; suite at its v0.125.0 baseline of **3337 passed, 1 skipped,
-no expected fail**, plus this slice's 17 new tests. Read the _shape_ of the
+no expected fail**, plus this slice's 24 new tests (3 + 5 + 6 + 7 + 3). Read the _shape_ of the
 result, not the total — a guard file that stops loading takes its own tests
 with it and the headline number can rise.
 
