@@ -1,5 +1,106 @@
 # Changelog
 
+## v0.125.0 — 2026-08-31 — Finish the design system
+
+Phase 6's last strand was on the roadmap as "transitions, loading states,
+density, typographic rhythm", which reads like a taste pass. Measuring the
+territory found unfinished system work instead, so this release finishes the
+design system rather than decorating it.
+
+### What you will notice
+
+**Buttons tell you they are working.** Twenty-four controls that started
+something now say so — "Saving…", "Creating…", "Sync…" — where two of them
+previously just went grey and said nothing at all. All of them now announce
+themselves to a screen reader as busy, which none of them did before.
+
+**Train, Body and Admin stop hanging on the previous page.** The two heaviest
+surfaces in the app had no loading state, so tapping their tab held whatever
+you were looking at until the data arrived. They have skeletons now, and every
+loading screen announces itself rather than relying on a pulse — which
+mattered most to anyone using reduced motion, who previously got a static grey
+page with no indication anything was happening.
+
+**Display type stops floating.** A 44px figure was set with the line spacing of
+a paragraph. The type scale now carries its own line heights, so headings and
+big numbers sit properly against what follows them.
+
+**The availability sheet lost six controls and stopped hiding information.**
+The "Pinned ×" badge on each day was a status you could press, up to seven of
+them; it is a mark now, and restoring one day to your standard week moved into
+the precise editor where the rest of that day's settings already live. A single
+"Back to your standard week" appears when two or more days are pinned. And a
+day with two blocks no longer truncates its own times — the pills carry no
+text, so that line was the only place those hours were readable.
+
+**Reduced motion behaves properly.** It used to switch animation off outright,
+which also stopped anything waiting on an animation to finish. Motion is now
+collapsed to effectively zero instead, so nothing stalls.
+
+### What you will not notice, and should know anyway
+
+**Body text moved from 15px to 16px** — a note that had stood in the stylesheet
+since v0.99, waiting on a migration that had quietly finished. It changes every
+surface by one to six pixels, and nothing else, because the type scale is
+anchored to the document rather than to the body element.
+
+**Nothing was redesigned.** Every change here either put an outlier onto a
+scale that already existed, or fixed something the previous release's handoff
+had already named as debt.
+
+### Under it
+
+Motion became a scale: six duration tokens and four easings, replacing eleven
+hand-written duration spellings of ten values — `0.3s` and `300ms` both
+shipped, for the same value — and eight easings. A new `motion-scale-guard`
+holds it, along with the spacing grid, the stock type sizes, the loading
+vocabulary and the pending vocabulary; every counted family is at zero.
+
+The type migration reached its end: the last seventeen stock-Tailwind sizes are
+gone, and the app has one type scale. `design-system.md` is prescriptive for
+the first time — it had been stale in nearly every particular, listing 83
+custom properties against 283, sixteen primitives against fifteen, and one
+theme against the two the app has had since v0.111.0.
+
+The last `it.fails` in the repository is now a real assertion, so the suite
+reports no expected failure for the first time since v0.99.
+
+**Zero confirmed accessibility violations throughout**, across nine capture
+sets. The ceiling has never been raised.
+
+**No migrations.** The schema is untouched at 46, so an image rollback is safe
+and cheap.
+
+### A guard that was weaker than it looked
+
+Mutation-checking the new guards before cutting this release found one that
+would not have failed. The loading-state guard tested
+`includes("LoadingScreen")`, which the **import line alone** satisfies — so
+deleting the wrapper while leaving the import passed it, and the only thing
+that noticed was an eslint warning, which does not fail CI. It checks for the
+JSX now.
+
+The other new guards were mutation-checked and hold: a re-introduced motion
+literal, an eighteenth `transition-all`, an absolute `text-[13px]`, a _second_
+relative `text-[0.9em]`, and an announced `Skeleton` all fail. Dropping a
+`pending` prop is caught by the compiler rather than the guard, which is
+sufficient — but it is the compiler doing it, not the test.
+
+### What is not covered
+
+Two things this release changed cannot be proven by the test suite, and are
+stated rather than implied:
+
+- **Motion does not photograph.** The guards assert that every duration and
+  easing resolves to a token, and computed styles were read from a live
+  browser to confirm the properties apply — but no test says a 320ms curve
+  feels right. Three timings moved deliberately: a clip reveal 1500→1200ms, a
+  trend arrow 600→320ms, and a scroll reveal 700→320ms.
+- **`loading.tsx` is invisible to the capture pass**, which waits for content
+  by design. The four loading screens were driven and photographed by hand
+  instead; that is what caught the root boundary announcing "Loading your
+  day…" on Train, since it stands in for every route rather than only Today.
+
 ## v0.124.0 — 2026-08-30 — The week, dragged into shape
 
 Availability was a list of seven days and a modal per day. It is now seven

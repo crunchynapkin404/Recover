@@ -343,8 +343,12 @@ describe("a route that waits says so", () => {
     // got silence, and because the reduced-motion rule kills animation
     // outright, a reduced-motion user got a static grey page. Motion was the
     // only carrier of "this is loading", and two audiences cannot perceive it.
+    // `<LoadingScreen` — the JSX, not the identifier. A mutation check found
+    // this: removing the wrapper while leaving the import satisfied a plain
+    // `includes("LoadingScreen")`, and the only thing that noticed was an
+    // eslint *warning* about an unused import, which does not fail CI.
     const silent = loadingFiles().filter(
-      (f) => !readFileSync(f, "utf8").includes("LoadingScreen")
+      (f) => !readFileSync(f, "utf8").includes("<LoadingScreen")
     );
     expect(
       silent,
