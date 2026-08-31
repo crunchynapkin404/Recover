@@ -33,4 +33,19 @@ describe("LoadingScreen", () => {
     expect(skeletons).toHaveLength(2);
     expect(hidden.length).toBeGreaterThanOrEqual(2);
   });
+
+  it("says a plain 'Loading…' when no surface is named", () => {
+    // src/app/loading.tsx is the ROOT segment's boundary, so it stands in for
+    // every route whose own boundary has not resolved yet — a hard load of
+    // /train paints it first. It must not name a surface, or it announces the
+    // wrong one. This shipped briefly saying "Loading your day…" on /train
+    // and /admin, and only a screenshot of the real loading screen caught it.
+    const html = renderToString(
+      <LoadingScreen>
+        <Skeleton className="h-8" />
+      </LoadingScreen>
+    );
+    expect(html).toContain("Loading…");
+    expect(html).not.toContain("Loading your day");
+  });
 });

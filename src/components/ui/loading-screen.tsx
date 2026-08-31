@@ -17,8 +17,17 @@ export function LoadingScreen({
   label,
   children,
 }: {
-  /** The surface being loaded, in the athlete's words: "Train", "your day". */
-  label: string;
+  /**
+   * The surface being loaded, in the athlete's words: "Train", "Body".
+   *
+   * OMIT IT for a fallback that is not tied to one surface. `src/app/
+   * loading.tsx` is the root segment's boundary, so it stands in for EVERY
+   * route whose own boundary has not resolved yet — a hard load of /train
+   * paints it first. Naming a surface there announces the wrong one, which
+   * is exactly what shipped for an hour: /train and /admin both said
+   * "Loading your day…".
+   */
+  label?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -26,7 +35,9 @@ export function LoadingScreen({
       {/* One interpolated string, not three children: adjacent text nodes
           serialise with `<!-- -->` separators between them, which is noise in
           the DOM and in any test that reads it. */}
-      <span className="sr-only">{`Loading ${label}…`}</span>
+      <span className="sr-only">
+        {label ? `Loading ${label}…` : "Loading…"}
+      </span>
       {children}
     </div>
   );

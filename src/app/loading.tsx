@@ -5,7 +5,11 @@ import { AppShell } from "@/components/app-shell";
 export default function Loading() {
   return (
     <AppShell noChrome>
-      <LoadingScreen label="your day">
+      {/* No label: this is the ROOT segment boundary, so it stands in for
+          every route whose own boundary has not resolved yet. Naming a
+          surface here announces the wrong one on /train, /admin and the
+          rest. */}
+      <LoadingScreen>
         <div className="mx-auto max-w-lg px-6 pt-8 lg:max-w-5xl lg:pb-16">
           <Skeleton className="mb-8 h-10 w-48" />
           <div className="mb-8 flex flex-col items-center gap-6">

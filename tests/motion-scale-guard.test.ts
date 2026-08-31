@@ -402,3 +402,18 @@ describe("reduced motion", () => {
     expect(body).toMatch(/animation-iteration-count:\s*1/);
   });
 });
+
+describe("the root loading boundary", () => {
+  it("does not name a surface", () => {
+    // src/app/loading.tsx is the root segment's Suspense boundary: it is the
+    // fallback for EVERY route whose own boundary has not resolved yet, not
+    // just for Today. A label there is announced on /train, /body and /admin
+    // too, which is how "Loading your day…" ended up being read out on Train.
+    const src = readFileSync("src/app/loading.tsx", "utf8");
+    expect(
+      /<LoadingScreen\s+label=/.test(src),
+      "src/app/loading.tsx must use <LoadingScreen> with no label — it stands " +
+        "in for every route, so naming one announces the wrong surface."
+    ).toBe(false);
+  });
+});
