@@ -1,97 +1,202 @@
-# Design system — as built
+# Design system
 
-Descriptive, not prescriptive: what exists at this commit. Phase 2b.1
-(`docs/archive/ROADMAP-through-v0.119.md`). Living — Phase 2c's number slices
-push small deltas back into this file as they land; it is not re-derived from
-scratch.
+**Prescriptive: what to use.** Rewritten 2026-08-31 at the end of Phase 6.4,
+the visual-polish strand — the rewrite Phase 2b.4's slice 9 promised and did
+not ship, so this document spent thirteen releases opening with "Descriptive,
+not prescriptive" and claiming the app had one theme.
 
-The artifact v0.21 and v0.23 were each supposed to leave behind and neither
-did (`.superdesign/` is empty).
+Every rule here is enforced by a test. Where one is, the test is named; a rule
+with no guard beside it is a convention, and says so.
 
-## Tokens
+---
 
-83 CSS custom properties in `src/app/globals.css` (verified via
-`grep -cE '^\s*--[a-zA-Z0-9-]+:' src/app/globals.css`), one dark theme (no
-light mode — "Dark-first: the only theme"). Grouped:
+## Themes
 
-| Group                   | Tokens                                                                                                                                     | Example                           |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------- |
-| Core surface            | `--background`, `--foreground`, `--card`, `--popover`                                                                                      | `--background: #0a0a0a`           |
-| Semantic                | `--primary`, `--secondary`, `--muted`, `--accent`, `--destructive` (+ their `-foreground` pairs)                                           | `--primary: #10b981`              |
-| Border/ring             | `--border`, `--input`, `--ring`                                                                                                            | `--border: rgba(255,255,255,0.1)` |
-| Charts                  | `--chart-1` … `--chart-5`                                                                                                                  | `--chart-2: #10b981`              |
-| Sidebar                 | `--sidebar`, `--sidebar-foreground`, `--sidebar-primary`, `--sidebar-accent`, `--sidebar-border`, `--sidebar-ring` (+ `-foreground` pairs) | `--sidebar: #121212`              |
-| Radius                  | `--radius` + 6 derived scales (`sm` → `4xl`)                                                                                               | `--radius: 1rem`                  |
-| Viz (charts, line ~358) | `--viz-series-1/2/3/5`, `--viz-grid`, `--viz-axis`, `--viz-muted-ink`, `--viz-status-good/warning/critical`                                | `--viz-status-critical: #ef4444`  |
+**Two, and both are real.** `:root` is light, `.dark` is dark, and
+`theme-provider.tsx` defaults to `system`. `forcedTheme` was lifted in
+v0.111.0.
 
-`@theme inline` remaps most of these to Tailwind's `--color-*`/`--radius-*`
-namespace for utility classes; the glassmorphic look layers translucent
-white (`bg-white/5`, `border-white/10`) on top rather than its own tokens.
+Anything you add must work in both. `renderableThemes()` is the single source
+of which themes the app can render, and `tests/contrast-guard.test.ts` reads
+**every** `:root`/`.dark` block in `globals.css` — six of them — and requires
+every declaration to be checked, aliased or waived **by name**.
 
-## Primitives (`src/components/ui/`)
+**A token's name is what governs it**, so naming is not decoration:
 
-16 files: `badge`, `bottom-sheet`, `button`, `card`, `collapsible`,
-`confidence-chip`, `empty-state`, `hero-card`, `inline-markdown`, `input`,
-`label`, `separator`, `skeleton`, `sonner`, `tabs`, `unavailable`. The last
-two are the uncertainty-vocabulary primitives added alongside this doc
-(`docs/plans/2026-08-08-uncertainty-vocabulary.md`).
+| Suffix                                       | Means            | Floor                               |
+| -------------------------------------------- | ---------------- | ----------------------------------- |
+| `--*-ink`                                    | text colour      | 4.5:1 on every surface, both themes |
+| `--surface-*`                                | an opaque ground | must be opaque                      |
+| `--*-hairline`, `-divider`, `-grid`, `-axis` | non-text         | none                                |
 
-## IA — as built
+Add a token claiming none of those and the guard fails telling you so. There
+is no list to remember to update.
 
-Two navs, same 5 routes, never both visible (`SidebarNav` is `lg:` only,
-`BottomNav` is `lg:hidden`):
+## Type
 
-| Route       | Label | Icon          |
-| ----------- | ----- | ------------- |
-| `/`         | Today | Clock         |
-| `/train`    | Train | CalendarRange |
-| `/coach`    | Coach | Sparkles      |
-| `/body`     | Body  | Activity      |
-| `/settings` | Menu  | Settings2     |
+Seven steps. **Use the semantic names, never Tailwind's own size keys** —
+`text-sm` and friends are a second scale, and two scales mean two answers to
+"how big is small text".
 
-`src/lib/telemetry.ts`'s `SURFACES` — the full closed set of authenticated
-pages, including ones reached by drilling in rather than from the nav —
-is: `today`, `train`, `coach`, `body`, `settings`, `admin`, `import`, `activity`, `activity-log`.
-`admin`, `import`, `activity` and `activity-log` have no nav entry of their own.
+| Token          | Size | Leading | Use for                                |
+| -------------- | ---: | ------: | -------------------------------------- |
+| `text-label`   | 12px |     1.5 | the floor. Nothing smaller exists.     |
+| `text-caption` | 14px |     1.5 | secondary prose, card bodies           |
+| `text-body`    | 16px |     1.5 | body text; `body` itself sits here     |
+| `text-title`   | 20px |    1.35 | surface headings                       |
+| `text-heading` | 24px |    1.25 | page `h1`                              |
+| `text-figure`  | 30px |     1.1 | a number the athlete reads at a glance |
+| `text-hero`    | 44px |     1.0 | the primary figure, one per surface    |
 
-Whether this is the right shape is Phase 2b.2's question. That question was
-deferred until four weeks of `surface_views` data existed (on or after
-2026-09-05); the gate was lifted on 2026-08-11 at day 4, and 2b.2 is now
-open. The reading it will be settled against, and the reasoning for ending
-the window early, are in `docs/archive/ROADMAP-through-v0.119.md` under 2b.2
-and "Sequencing".
+**The leading is part of the scale**, added in Phase 6.4. Before that every
+step inherited Tailwind preflight's `html { line-height: 1.5 }`, which is right
+for a paragraph and wrong for a 44px figure — two call sites had already
+patched their own with `leading-none`. `leading-*` at a call site still wins.
 
-One caveat travels with that reading, because this section is where the
-surface list lives: `import` recorded zero views, and that is not evidence
-it is unused. It is a once-ever surface, so it would read zero at any window
-length.
+**The scale is in `rem`, anchored to `html`.** Changing `body`'s font-size
+does not scale it; that is why the 15px → 16px flip in Phase 6.4 moved every
+surface by 1–6px rather than reflowing the app.
 
-## Uncertainty vocabulary
+`--font-numeric` (Geist Mono) is for figures — scores, HR, power. Named
+separately from `--font-mono` so call sites read as intent, not "code font".
 
-`src/lib/uncertainty.ts` (Phase 2b.3, first slice —
-`docs/plans/2026-08-08-uncertainty-vocabulary.md`). A number's owner returns
-`Figure<T>`:
+Enforced by `tests/type-scale-guard.test.ts` (a 12px floor, no arbitrary
+sizes) and `tests/motion-scale-guard.test.ts` (no stock Tailwind sizes, every
+step has a leading). **One arbitrary size exists**, recorded by name in
+`RELATIVE_TYPE_INVENTORY`: `inline-markdown.tsx`'s `text-[0.95em]`, an optical
+correction for Geist Mono setting larger than Geist Sans. A second one fails
+the build.
 
-- `{ available: true, value, confidence, why? }` — confidence is
-  `"low" | "medium" | "high"`; `<ConfidenceChip>` renders anything below
-  `"high"`, nothing at `"high"`.
-- `{ available: false, ...Unavailable }` — one of three kinds, rendered by
-  `<Unavailable>` (inline by default, `full` for an empty-panel treatment):
-  - `calibrating` — machinery works, history is short, resolves itself.
-    Carries `have`/`need`/`unit`.
-  - `missing_input` — a required input is absent and won't arrive alone.
-    Carries `needs` and an optional `fix` link.
-  - `not_applicable` — does not apply here. Carries `why`.
+## Spacing
 
-**Migrated so far:** the 90-day correlation rows
-(`src/components/body/correlation-rows.tsx`) — the surface where
-"limited evidence" (calibrating) and "inconclusive" (a real finding of no
-effect) used to render identically.
+**Tailwind's default 0.25rem base, deliberately not redeclared.** Seven
+discrete `--spacing-N` keys used to sit in `@theme` restating exactly what that
+base computes; they were deleted in Phase 6.4 because they claimed a
+seven-step scale the app has never run.
 
-**Still on the six-dialect strings, not yet migrated:** the em-dash
-placeholder (`—`), the `calibrating` label text on the readiness hero/rings/
-race-countdown/day-actions/morning-insight/coach-context, `insufficient`
-(bio-age, race forecast, race-countdown), bare `unknown` copy, `no data`/
-`not enough data` (body battery, PMC chart, wellness trends), and the
-ad-hoc `· limited data` (sleep debt). Tracked as a backlog, not a task, in
-`docs/plans/2026-08-08-uncertainty-vocabulary.md`.
+It runs an **eleven-step 2px grid**: half-steps (`py-1.5`, `gap-1.5`,
+`px-3.5`) are legitimate, and there are ~210 of them.
+
+**Do not lower the base** to make half-steps look integral — `--spacing`
+multiplies every spacing utility, so halving it halves every padding in the
+app. Asserted.
+
+## Motion
+
+Six durations, four easings. **Never write a literal.**
+
+| Token                            |  Value | Use for                                |
+| -------------------------------- | -----: | -------------------------------------- |
+| `--transition-duration-feedback` |  120ms | colour and opacity under the finger    |
+| `--transition-duration-motion`   |  200ms | small transforms, pops, chips          |
+| `--transition-duration-panel`    |  320ms | sheets, panel heights, entrances       |
+| `--transition-duration-reveal`   | 1200ms | one-shot data draws: rings, sparklines |
+| `--transition-duration-loop`     |     3s | ambient breathe / pulse                |
+| `--transition-duration-drift`    |     8s | the shimmer rotation                   |
+
+| Token             | Curve                               |
+| ----------------- | ----------------------------------- |
+| `--ease-standard` | `cubic-bezier(0.4, 0, 0.2, 1)`      |
+| `--ease-settle`   | `cubic-bezier(0.21, 1.02, 0.49, 1)` |
+| `--ease-draw`     | `cubic-bezier(0.65, 0, 0.35, 1)`    |
+| `--ease-spring`   | `cubic-bezier(0.34, 1.56, 0.64, 1)` |
+
+**Two traps, both learned the hard way and both asserted:**
+
+- **The namespace is `--transition-duration-*`, not `--duration-*`.** Tailwind
+  builds the `duration-<name>` utility from the former only; the latter is a
+  plain custom property that produces no utility, so the class is inert while
+  looking correct. The guard compiles `globals.css` and checks the rule is
+  emitted, because a token's existence says nothing about a utility's.
+- **Never take a name Tailwind already defines.** `--ease-in`, `--ease-out`,
+  `--ease-in-out` and `--ease-linear` are its own keys: declaring one repoints
+  every existing call site rather than adding a token. Hence `--ease-settle`.
+
+**`transition-all` is banned.** List the properties that actually change.
+Tailwind v4 uses standalone `translate` and `scale` properties, so
+`transition-transform` does not cover them.
+
+**Reduced motion** collapses durations to 1ms rather than `none`: `none`
+_cancels_, so an animation never reaches its final frame and `transitionend`
+never fires.
+
+Enforced by `tests/motion-scale-guard.test.ts`, all three counted families at
+zero.
+
+## Radius
+
+`--radius: 1rem`, with six derived steps `sm` → `4xl`. Use the steps.
+
+## Primitives — `src/components/ui/`
+
+Fifteen. The ones that carry a rule rather than a shape:
+
+| Primitive                                   | Owns                               |
+| ------------------------------------------- | ---------------------------------- |
+| `pending-button`                            | the pending vocabulary — see below |
+| `loading-screen`                            | the loading vocabulary — see below |
+| `skeleton`                                  | decorative, always `aria-hidden`   |
+| `confidence-chip`, `unavailable`            | the uncertainty vocabulary         |
+| `button`, `badge`, `card`, `input`, `label` | shape, on the scales above         |
+
+## The three vocabularies
+
+Each exists so a state is expressed one way rather than N.
+
+**Pending — work in flight.** `<PendingButton>` renders a plain `<button>` and
+passes `className` through, because only 4 of the 26 components running a
+transition use the `Button` primitive. `<Button pending>` shares the same
+`pendingSemantics`. While pending a control is `disabled`, carries
+`aria-busy`, and says so in its label; a string label gets a free ellipsis and
+richer children must supply `pendingLabel`, so silence is unreachable by
+omission.
+
+**Not every `disabled={pending}` is this.** A Cancel beside a saving Save is
+disabled _because_ work is in flight but is not doing the work — it stays a
+plain button. `standard-week.tsx` is recorded in `NO_WORKING_BUTTON` for
+exactly that reason.
+
+**Loading — a route that waits.** Every `loading.tsx` wraps its skeletons in
+`<LoadingScreen>`, which renders `role="status"` + `aria-live="polite"` and a
+visually-hidden label. **`src/app/loading.tsx` passes no label**: it is the
+root segment's boundary and stands in for every route, so naming a surface
+there announces the wrong one.
+
+Ten of the twelve routes have one. The two without are `/login` (a client
+component, nothing to wait for) and `/wellness` (a redirect that never paints).
+
+**Uncertainty — a number's confidence.** A number's owner returns
+`Figure<T>`: `{ available: true, value, confidence, why? }`, rendered by
+`<ConfidenceChip>` below `"high"`; or `{ available: false, ... }` in one of
+three kinds — `calibrating`, `missing_input`, `not_supported` — rendered by
+`<Unavailable>`. `src/lib/uncertainty.ts`, guarded by
+`tests/uncertainty-dialects-guard.test.ts`.
+
+## The guards, and what each is for
+
+Fourteen. The design-system ones:
+
+| Guard                  | Holds                                               |
+| ---------------------- | --------------------------------------------------- |
+| `contrast-guard`       | every token in every theme block, by name           |
+| `type-scale-guard`     | the 12px floor, no arbitrary sizes, no ad-hoc ink   |
+| `motion-scale-guard`   | motion, spacing, stock type sizes, loading, pending |
+| `glass-contrast-guard` | text over translucent surfaces                      |
+| `theme-color-guard`    | the browser chrome colour per theme                 |
+| `viewport-zoom-guard`  | pinch-zoom is never disabled                        |
+
+**A guard you can trip by writing prose is a guard people work around.** Four
+scans in `motion-scale-guard` strip comments before matching, each after being
+tripped by documentation that merely _named_ what it hunts for.
+`viewport-zoom-guard` still matches bare words and has not been fixed.
+
+## Conventions with no guard
+
+Say so honestly, so nobody mistakes them for enforced:
+
+- **Typographic rhythm beyond the scale** — where a heading sits relative to
+  its content is judged in review against captures.
+- **Density per role** — card padding still ranges `p-3` … `p-8`. The scale
+  permits it; nothing checks it.
+- **Which scale step a given piece of text deserves.** The floor is enforced;
+  the choice is editorial.
