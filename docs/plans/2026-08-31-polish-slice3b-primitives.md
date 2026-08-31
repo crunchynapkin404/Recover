@@ -82,7 +82,7 @@ size.
 
 **Files:** the 8 files above, plus `tests/type-scale-guard.test.ts`.
 
-- [ ] **Step 1: Pin the target first**
+- [x] **Step 1: Pin the target first**
 
 `tests/type-scale-guard.test.ts` has no counted family for stock sizes — its
 `ARBITRARY_TYPE` scan covers `text-[…]` arbitrary values, not Tailwind's own
@@ -105,14 +105,14 @@ describe("the type scale is the only type scale", () => {
 Run it. Expected: FAIL listing 17 `file:line` entries. If the count is not 17,
 re-measure and correct this plan's table rather than the test.
 
-- [ ] **Step 2: Apply the mapping**
+- [x] **Step 2: Apply the mapping**
 
 One file at a time, re-running the new test after each so the list shrinks
 visibly. Do `ui/input.tsx` deliberately by hand — it is the only file where a
 naive `text-sm` → `text-caption` would also rewrite `file:text-sm` and
 `md:text-sm`, which is correct here but must be *seen* to be correct.
 
-- [ ] **Step 3: Confirm no font size moved**
+- [x] **Step 3: Confirm no font size moved**
 
 ```bash
 node --input-type=module -e '
@@ -127,27 +127,27 @@ for (const [a, b] of [["text-xs","text-label"],["text-sm","text-caption"],["text
 Expected: each pair reports the same computed size (`var(--text-xs)` resolves
 to 0.75rem, `text-label` is 0.75rem, and so on).
 
-- [ ] **Step 4: Suite, types, lint**
+- [x] **Step 4: Suite, types, lint**
 
 Expect component tests that assert on class strings to fail — several read
 `text-sm` directly. Each is a finding: update it to the new class, and check
 while you are there that the assertion was about the size rather than about
 Tailwind specifically.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ---
 
 ### Task 2: prove it
 
-- [ ] **Step 1: Capture**
+- [x] **Step 1: Capture**
 
 ```bash
 SCREENSHOT_BASE_URL=http://localhost:3210 npx tsx scripts/verify-surfaces.ts polish-slice3b
 ```
 Expected: 0 confirmed axe violations.
 
-- [ ] **Step 2: Open the card-bearing surfaces**
+- [x] **Step 2: Open the card-bearing surfaces**
 
 `settings`, `settings-expanded` and `admin` are the densest card stacks and
 carry `card.tsx`'s inherited `text-caption`. A +1px leading per line
@@ -157,7 +157,7 @@ place this slice could plausibly need a second opinion.
 Buttons, badges and inputs need no special attention: their heights are fixed
 and their text is centred, so the delta cannot reach the layout.
 
-- [ ] **Step 3: Tick and commit**
+- [x] **Step 3: Tick and commit**
 
 ## What this slice completes
 
@@ -166,3 +166,53 @@ the only thing left standing between the strand and a prescriptive
 `design-system.md`. The remaining arbitrary size is
 `inline-markdown.tsx`'s `text-[0.95em]`, which the spec records as an optical
 correction to be inventoried rather than removed — slice 7's job.
+
+
+---
+
+## Outcome — run 2026-08-31, both tasks complete
+
+**The app has one type scale.** Suite **3334 passed / 1 expected fail / 1
+skipped**; `tsc` and `eslint` clean. Capture: **100 PNGs, 0 confirmed axe
+violations**, 128/89/28 — identical to every prior slice.
+
+### The count was never 17
+
+Four of the seventeen were **prose**. `connector-card.tsx`'s doc comment
+*recounts* the historical `text-sm` / `text-xl` / `text-base` values it was
+migrated away from in v0.106. The first measurement read documentation as
+code, and that file needed no change at all.
+
+Thirteen were real: button 2, badge 1, label 1, card 4, input 3, join 2.
+
+The guard now strips comments before scanning — **the fourth time in this
+file's life** that a scan has been tripped by text merely naming the thing it
+hunts for (motion literals, the reduced-motion rule, `aria-busy` in a doc
+comment, and now this). `tests/viewport-zoom-guard.test.ts` still carries the
+unfixed version of the same problem.
+
+### Every size verified identical at the compiler
+
+`text-xs`→`text-label` 0.75rem, `text-sm`→`text-caption` 0.875rem,
+`text-base`→`text-body` 1rem, `text-xl`→`text-title` 1.25rem. No text changed
+size.
+
+### The fixed-height reasoning held
+
+**79 of 100 captures byte-identical.** `button`, `badge` and `input` centre
+their text in fixed heights, so their ±2px leading delta could not reach
+layout — and no surface carrying them moved.
+
+The 21 that changed are exactly the predicted ones: the card-bearing settings
+stacks (`settings-expanded` +400px on phone, +114px on desktop), which is
+`card.tsx`'s inherited `text-caption` adding 1px of leading per line down a
+very long list, plus the established API-token and audit-log accumulation on
+`settings*` and `admin`. Opened the settings card region: prose reads more
+comfortably and nothing is broken.
+
+### `input.tsx` was done by hand, deliberately
+
+A naive `text-sm` swap would also have rewritten `file:text-sm` and the
+`md:text-sm` half of its responsive pair — 16px on mobile so iOS does not zoom
+the viewport on focus, 14px from `md` up. All three migrated together;
+migrating only the base would have silently dropped the desktop size.
