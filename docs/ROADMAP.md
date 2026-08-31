@@ -179,8 +179,12 @@ phase written as a checklist becomes a tweak list:
       first time — no capture had ever photographed a dataless account.
       Two rendering defects (a JSX-whitespace bug, a missing sidebar
       identity row) were found only by opening those new screenshots. This
-      strand is one of four in Phase 6 — information architecture, flow and
-      friction, and visual polish remain open.
+      strand is one of four in Phase 6 — the other three were information
+      architecture, flow and friction, and visual polish. Flow and friction
+      closed in v0.124.0 and visual polish on
+      `feat/finish-the-design-system`; **information architecture is the one
+      still open**, and deliberately so — its two remaining questions are
+      parked on the telemetry commissioned to answer them.
 - [ ] **Information architecture.** Today/Train/Coach/Body/Menu was set in
       v0.23.0 and has had features bolted on since; Settings alone has grown
       long enough that a reviewer got lost finding a card in it.
@@ -287,8 +291,59 @@ week`, `Plan setup`, `Races`, `Availability` and the 21-row draft
       action re-materializes the open week, or the copy describes the
       skeleton it actually edits), Season's zero actions, and the Week tab
       owning the season editing the Season tab only reports.
-- [ ] **Visual polish and motion.** Transitions, loading states, density,
-      typographic rhythm.
+- [x] **Visual polish and motion.** Transitions, loading states, density,
+      typographic rhythm. **Complete**, nine slices on
+      `feat/finish-the-design-system`
+      (`docs/specs/2026-08-30-visual-polish-and-motion-design.md`).
+      The strand's own name undersells it: measuring the territory found that
+      2b.4's slice 9 had shipped without two of its stated deliverables, so
+      this is **finish the design system** rather than a taste pass. (An
+      earlier reading — that 2b.4's slices 7–9 never ran at all — was wrong,
+      inferred from `docs/plans/` stopping at a slice-6 plan file; `git log`
+      has them. The spec carries the correction.)
+      **Motion became a scale.** 83 custom properties held zero durations and
+      zero easings, against 11 hand-written duration spellings of 10 values —
+      `0.3s` and `300ms` both shipped, for the same value — and 8 easings. Six
+      duration tokens, four easings, and a `motion-scale-guard` modelled on
+      the type-scale ratchet took all three counted families to zero:
+      25 CSS literals, 17 `transition-all`, 4 numeric duration utilities.
+      **The type scale got its missing half.** It defined sizes and no
+      line-heights, so every step inherited Tailwind preflight's 1.5 — right
+      for a paragraph, wrong for a 44px hero set at 66px of leading, which two
+      call sites had already hand-patched with `leading-none`. The text end is
+      pinned at the 1.5 it already rendered (582 call sites, zero pixels
+      moved); only the four display steps tightened. The last 17 stock-Tailwind
+      sizes went with it — **four of which turned out to be prose**, recounted
+      in a doc comment describing a migration that had already happened.
+      **`body` moved 15px → 16px**, closing a note that had stood since v0.99.
+      The spec called it the risky slice; it moved every surface by 1–6px,
+      because the scale is in `rem` anchored to `html` and the flip only ever
+      reached text that sets no size of its own. Recorded as a fifth
+      measurement in `docs/2026-08-26-flow-inventory.md`.
+      **Two vocabularies where there had been none.** Every `loading.tsx` now
+      announces itself (`role="status"`, a visually-hidden label, `Skeleton`
+      explicitly `aria-hidden`) and `/train`, `/body`, `/admin` and
+      `join/[code]` gained the loading states they never had — reduced motion
+      no longer stops the only signal, since it collapses to 1ms rather than
+      `none`, which _cancels_. And 24 components speak one pending vocabulary:
+      `disabled`, `aria-busy` — **new to every one of them** — and a label that
+      says work is happening, where two buttons had said nothing at all.
+      **The named offenders closed.** The availability sheet's choice load
+      fell **31 → 25**, exactly the v0.124.0 handoff's prediction, and the
+      two-block day summary stopped truncating. The handoff's claim that
+      demoting the `Pinned ×` badge removed no capability was untrue as
+      written — per-day unpin existed nowhere else — so it moved into
+      `BlockSheet` first, in its own commit.
+      **`design-system.md` is prescriptive**, the rewrite 2b.4's slice 9
+      promised. It had been stale in nearly every particular: 83 custom
+      properties against 283, 16 primitives against 15, and one theme against
+      the two the app has had since v0.111.0.
+      **The last `it.fails` in the repo is gone** — a guard that tested for a
+      zero its own comment called unreachable, replaced by a real assertion
+      naming its single permanent exception. The suite reports no expected
+      fail for the first time since v0.99.
+      Zero confirmed axe violations throughout; the ceiling has never been
+      raised.
 
 **Constraint carried from Phase 2b:** zero confirmed axe violations is a
 ratchet, not a milestone. No experience work may regress it.
