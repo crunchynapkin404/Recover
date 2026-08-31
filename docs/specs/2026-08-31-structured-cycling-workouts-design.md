@@ -123,6 +123,19 @@ shows it as **stale** with a re-export action. The roadmap anticipated
 exactly this: _"a prescription pinned in the morning and adapted at noon has
 to re-prescribe, **or be pinned deliberately and marked stale**."_
 
+**What export stores, and why it is four fields rather than two.** An earlier
+draft of this spec stored only `workoutId` and `exportedAt`, and defined
+staleness as "the day no longer matches what the workout was chosen for". That
+is unimplementable from those two fields: the only available test is
+re-deriving and comparing ids, and **re-derivation has a wider dependency
+footprint than the day itself.** Selection avoids recent ids and families, so
+changing _next_ Tuesday's workout changes this Tuesday's pick — and the athlete
+is told a day is stale that nothing happened to.
+
+So export stores `workoutId`, `exportedAt`, and **`purpose` and `durationMins`
+as they were at export**. Staleness is a direct comparison against the day's
+current values, with no dependency on anything outside that day.
+
 This is the only stored state the feature adds, and it is added at the one
 point where the athlete has externalised something.
 
@@ -211,7 +224,26 @@ is never touched. The guarantee is exact:
 
 A 75-minute `Sweet Spot 3×12` whose flex step is a 600 s warmup ramp (bounded
 to 300–900 s) therefore covers days of 70–80 minutes, and is not a candidate
-outside that band. **Coverage is a property of the library, not of the
+outside that band.
+
+### Coverage is continuous, not banded
+
+An earlier draft asked the guard to prove "every `(purpose, duration band)` has
+a candidate". **That is the wrong claim and would have passed over real
+holes.** The engine does not emit banded durations. It emits
+`Math.round(d × RED_ENDURANCE_SCALE)` where that constant is `0.7`
+(`week-plan/types.ts:221`), `Math.round(d × AMBER_SCALE)` at `0.85` (`:227`),
+and redistribution capped at `±DAY_REDISTRIBUTE_CAP_PCT`, `0.25` (`:215`).
+
+A 95-minute threshold day therefore becomes **67** on red, **81** on amber and
+**119** redistributed. A library covering 70/75/80/90 has nothing at 67 — and
+that day falls back to prose on precisely the morning readiness dropped, which
+is when being handed a well-chosen easier session matters most.
+
+**So the guard asserts the union of every workout's flex span covers the
+continuous integer range of durations reachable for that purpose**, scaled
+values included. Authoring to round numbers is exactly the instinct that would
+leave the holes. **Coverage is a property of the library, not of the
 matcher** — which is what makes "author 100+" the real cost and the code the
 easy part.
 
@@ -309,14 +341,14 @@ Slices 0–2 are the design work; 3–4 are largely plumbing; 5 is authoring.
 
 ## Risks
 
-| Risk                                                  | Mitigation                                                                                                                                                                       |
-| ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Coverage gaps mean days silently fall back to prose   | Slice 2 ends with a guard asserting every `(purpose, band)` the engine can emit has ≥1 candidate. A gap fails the build, it does not degrade quietly                             |
-| 100 hand-authored workouts is 100 coaching judgements | Each carries `source` and a confidence label. The reversal above is what makes that acceptable, and it is recorded                                                               |
-| A pinned workout and a re-planned day disagree        | The pin is explicit, the staleness marker is explicit, and re-export is one action. The alternative — silent disagreement with the head unit — is the failure being designed out |
-| Determinism breaks and the week re-picks on re-render | Selection is seeded by the day's date, never by a clock or a random. Asserted in slice 1                                                                                         |
-| `%FTP` resolved against the wrong FTP                 | Indoor/outdoor kept apart per v0.118.0; unknown context refuses                                                                                                                  |
-| `description` drifts from the steps                   | It is derived, not stored. Slice 0 asserts it                                                                                                                                    |
+| Risk                                                  | Mitigation                                                                                                                                                                                         |
+| ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Coverage gaps mean days silently fall back to prose   | Slice 2 ends with a guard asserting the **union of flex spans covers the continuous integer range** per purpose — see "Coverage is continuous". A gap fails the build, it does not degrade quietly |
+| 100 hand-authored workouts is 100 coaching judgements | Each carries `source` and a confidence label. The reversal above is what makes that acceptable, and it is recorded                                                                                 |
+| A pinned workout and a re-planned day disagree        | The pin is explicit, the staleness marker is explicit, and re-export is one action. The alternative — silent disagreement with the head unit — is the failure being designed out                   |
+| Determinism breaks and the week re-picks on re-render | Selection is seeded by the day's date, never by a clock or a random. Asserted in slice 1                                                                                                           |
+| `%FTP` resolved against the wrong FTP                 | Indoor/outdoor kept apart per v0.118.0; unknown context refuses                                                                                                                                    |
+| `description` drifts from the steps                   | It is derived, not stored. Slice 0 asserts it                                                                                                                                                      |
 
 ## What has NOT been verified
 
@@ -324,7 +356,14 @@ Stated plainly rather than implied, because the design was produced by a
 17-agent workflow of which **7 agents died on a session limit**: all three
 judges and all four adversarial attackers.
 
-So this design has been **compared but not scored, and not attacked.** Two of
+So this design has been **compared but not scored, and only partly attacked.**
+
+**Two defects were found by a manual adversarial pass and are fixed above**:
+the staleness check was unimplementable from the fields it stored, and the
+coverage claim was banded where the engine's durations are continuous. Both
+were in the first draft. That two survived into a written spec and were caught
+only by attacking it is the argument for finishing the adversarial pass rather
+than treating this section as a formality. Two of
 three independent designs converged on derive-at-read-time, and the code claim
 they rest on was verified by hand (`adapt-day.ts:505-507`). But the strongest
 objections recorded here are the designs' own self-stated weaknesses, not an
