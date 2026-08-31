@@ -300,22 +300,94 @@ outside that band.
 
 An earlier draft asked the guard to prove "every `(purpose, duration band)` has
 a candidate". **That is the wrong claim and would have passed over real
-holes.** The engine does not emit banded durations. It emits
-`Math.round(d × RED_ENDURANCE_SCALE)` where that constant is `0.7`
-(`week-plan/types.ts:221`), `Math.round(d × AMBER_SCALE)` at `0.85` (`:227`),
-and redistribution capped at `±DAY_REDISTRIBUTE_CAP_PCT`, `0.25` (`:215`).
-
-A 95-minute threshold day therefore becomes **67** on red, **81** on amber and
-**119** redistributed. A library covering 70/75/80/90 has nothing at 67 — and
-that day falls back to prose on precisely the morning readiness dropped, which
-is when being handed a well-chosen easier session matters most.
+holes.** The engine does not emit banded durations: base durations are
+`Math.round(totalMins × FRACTION)` of the athlete's own weekly volume
+(`training-plan.ts:977`, `:988`, `:1010`), so they are arbitrary integers
+before any adaptation touches them, and redistribution is capped at
+`±DAY_REDISTRIBUTE_CAP_PCT`, `0.25` (`week-plan/types.ts:215`).
 
 **So the guard asserts the union of every workout's flex span covers the
-continuous integer range of durations reachable for that purpose**, scaled
-values included. Authoring to round numbers is exactly the instinct that would
-leave the holes. **Coverage is a property of the library, not of the
-matcher** — which is what makes "author 100+" the real cost and the code the
-easy part.
+continuous integer range of durations reachable for that purpose.** Authoring
+to round numbers is exactly the instinct that would leave the holes. **Coverage
+is a property of the library, not of the matcher** — which is what makes
+"author 100+" the real cost and the code the easy part.
+
+### Which durations are actually reachable, per purpose
+
+**A second draft got this wrong too, and the error would have shaped the whole
+library.** It said a 95-minute threshold day "becomes 67 on red, 81 on amber
+and 119 redistributed". Only the third is right, and the first cannot happen at
+all.
+
+Readiness adaptation branches on `isQuality`, which is keyed off `type`, not
+purpose: `QUALITY_TYPES = ["Intervals", "Tempo", "Brick"]`
+(`week-plan/types.ts:140`), and `PURPOSE_BY_TYPE` maps `Tempo → threshold` and
+`Intervals → vo2max` (`training-plan.ts:95-103`). So:
+
+- **Red on a quality day does not scale it — it replaces it.**
+  `adapt-day.ts:432` sends any `isQuality` session to a full recovery session
+  at `RED_RECOVERY_MINS`, `30` (`week-plan/types.ts:233`). A threshold day
+  never becomes a 67-minute threshold day; it becomes a 30-minute recovery
+  ride. `RED_ENDURANCE_SCALE` is reachable **only** by `recovery`,
+  `aerobic_base` and `long`.
+- **Amber on a quality day changes its purpose as well as its length.**
+  `adapt-day.ts:526-535` takes `STEP_DOWN` — `{Intervals: "Tempo",
+Tempo: "Endurance"}` — and passes the result through `withPurpose`, which
+  re-derives `purpose` from the new `type`. So that 81-minute session is an
+  **`aerobic_base`** session. It belongs in `aerobic_base`'s coverage range,
+  not threshold's.
+- **Amber on a non-quality day keeps its purpose** and only scales by
+  `AMBER_SCALE`, `0.85` (`:227`) — `steppedType` falls through to
+  `tWorkout.type` for anything not quality.
+
+Which gives the set each purpose must cover:
+
+| purpose        | receives                                                                                                                                                                              |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `vo2max`       | its own base durations, and those redistributed up to `×1.25`. Nothing steps down _to_ vo2max, and it is never scaled down — so this is the narrowest range in the library            |
+| `threshold`    | its own base; `round(0.85 × a vo2max base)` from amber step-downs; those `×1.25`                                                                                                      |
+| `aerobic_base` | its own base; `×0.7` on red; `×0.85` on amber; `round(0.85 × a threshold base)` from amber step-downs; those `×1.25` — **the widest range, and the one a naive reading under-covers** |
+| `long`         | its own base; `×0.7`; `×0.85`; those `×1.25`                                                                                                                                          |
+| `recovery`     | its own base; `×0.7`; `×0.85`; **a fixed 30** from every red quality day; those `×1.25`                                                                                               |
+
+**The guard must derive this from the engine's own exported constants rather
+than restate it in prose**, or it becomes a third copy of a table that has now
+been wrong twice. `RED_ENDURANCE_SCALE`, `AMBER_SCALE`,
+`DAY_REDISTRIBUTE_CAP_PCT`, `RED_RECOVERY_MINS`, `QUALITY_TYPES`, `STEP_DOWN`
+and `PURPOSE_BY_TYPE` are all already exported; the guard lives in a
+`.test.ts`, which the purity scan skips, so importing them costs nothing.
+
+### Where coverage stops, and why it stops there
+
+The reachable set above is technically right and partly absurd. Redistribution
+applies `×1.25` to whatever a day already holds, so a 20 h/week athlete makes a
+**270-minute `vo2max` day** and a **450-minute `recovery` day** genuinely
+reachable. Covering those means hand-authoring a four-and-a-half-hour VO2max
+session, which nobody should ride — and authoring it only to satisfy a guard
+would be the guard driving the coaching instead of the reverse.
+
+So **the library covers each purpose up to a stated ceiling, and refuses
+above it.** The day keeps today's prose and band, which the spec already calls
+the honest path rather than a gap:
+
+| purpose        | covered | ceiling is                                                                                |
+| -------------- | ------- | ----------------------------------------------------------------------------------------- |
+| `recovery`     | 21–90   | beyond this it is an endurance ride, not a recovery spin                                  |
+| `aerobic_base` | 21–210  | beyond this the plan calls it a long ride                                                 |
+| `long`         | 48–300  | `ABSOLUTE_LONG_BOUND_MINS` is 360; 300 is the last length worth authoring a structure for |
+| `threshold`    | 27–120  | a threshold session past two hours is an endurance ride with efforts in it                |
+| `vo2max`       | 32–120  | same                                                                                      |
+
+Source: coaching convention, chosen by the athlete/owner. Confidence: Low.
+What would raise it: nothing available — it is a judgement about what is worth
+authoring, not a measurable quantity.
+
+**This is what makes slice 2's thirty workouts sufficient rather than exactly
+exhausted.** Tiling the capped ranges takes **17** workouts; **34** gives every
+duration two families to rotate between. Against the uncapped ranges it takes
+31 to tile once and ~62 for two families, so thirty would have covered
+everything exactly once and left `family` rotation with nothing to choose
+between — the machinery would have been dead weight until slice 5.
 
 ### Selection
 
@@ -454,14 +526,14 @@ three would have adopted two non-goals instead of one.
 
 ## Slices
 
-| #   | Slice                     | Ships                                                                                                                                                |
-| --- | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0   | **Shape + renderers**     | `types.ts`, `renderIcu`, `renderZwo`, `renderDescription`, tested against hand-written expected output. No library, no matcher, nothing user-visible |
-| 1   | **The matcher**           | `match.ts` with fit/flex/refuse, deterministic date-seeded selection, family-first spread. Tested against a stub library                             |
-| 2   | **The library, first 30** | The continuous integer range covered per purpose — see "Coverage is continuous" — each with `source` and confidence. Coverage asserted by a guard    |
-| 3   | **The surface**           | Workout name, profile and targets in the Week open-day block                                                                                         |
-| 4   | **Export**                | `.zwo` download route + the intervals.icu WORKOUT write, and the four-field pin on `ScheduledWorkout` with its stale marker                          |
-| 5   | **The library, to 100+**  | Pure content. No code change — which is the test of whether slices 0–2 got the shape right                                                           |
+| #   | Slice                     | Ships                                                                                                                                                                                                                                    |
+| --- | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0   | **Shape + renderers**     | `types.ts`, `renderIcu`, `renderZwo`, `renderDescription`, tested against hand-written expected output. No library, no matcher, nothing user-visible                                                                                     |
+| 1   | **The matcher**           | `match.ts` with fit/flex/refuse, deterministic date-seeded selection, family-first spread. Tested against a stub library                                                                                                                 |
+| 2   | **The library, first 30** | The capped integer range covered per purpose — 17 workouts tile it, 30 gives most durations two families. Each with `source` and confidence. Coverage asserted by a guard that derives the reachable set from the engine's own constants |
+| 3   | **The surface**           | Workout name, profile and targets in the Week open-day block                                                                                                                                                                             |
+| 4   | **Export**                | `.zwo` download route + the intervals.icu WORKOUT write, and the four-field pin on `ScheduledWorkout` with its stale marker                                                                                                              |
+| 5   | **The library, to 100+**  | Pure content. No code change — which is the test of whether slices 0–2 got the shape right                                                                                                                                               |
 
 Slices 0–2 are the design work; 3–4 are largely plumbing; 5 is authoring.
 

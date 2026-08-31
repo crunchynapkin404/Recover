@@ -107,6 +107,42 @@ describe("renderDescription", () => {
     );
   });
 
+  it("describes a long ride by its body, not by the surges bolted onto it", () => {
+    // THE CASE SLICE 2's LIBRARY FOUND. Choosing the block with the highest
+    // repeat made a 235-minute endurance ride read as "5 × 1 min at 105–115%
+    // FTP, 4 min recovery" — a four-hour ride described as a twenty-five
+    // minute interval session. The body owns the time, so the body leads.
+    const b: Block[] = [
+      { name: "Warmup", repeat: 1, steps: [{ secs: 900, lo: 50, hi: 70 }] },
+      {
+        name: "Endurance",
+        repeat: 1,
+        steps: [{ secs: 10800, lo: 56, hi: 70 }],
+      },
+      {
+        name: "Surges",
+        repeat: 5,
+        steps: [
+          { secs: 60, lo: 105, hi: 115 },
+          { secs: 240, lo: 55, hi: 65 },
+        ],
+      },
+      { name: "Cooldown", repeat: 1, steps: [{ secs: 900, lo: 50, hi: 50 }] },
+    ];
+    expect(renderDescription(b)).toBe(
+      "180 min at 56–70% FTP, with 5 × 1 min at 105–115% FTP, 4 min recovery"
+    );
+  });
+
+  it("names no efforts when a steady block owns the ride alone", () => {
+    const b: Block[] = [
+      { name: "Warmup", repeat: 1, steps: [{ secs: 900, lo: 50, hi: 70 }] },
+      { name: "Endurance", repeat: 1, steps: [{ secs: 5400, lo: 56, hi: 72 }] },
+      { name: "Cooldown", repeat: 1, steps: [{ secs: 900, lo: 50, hi: 50 }] },
+    ];
+    expect(renderDescription(b)).toBe("90 min at 56–72% FTP");
+  });
+
   it("returns an empty string rather than throwing on no steps", () => {
     // Not a workout. The caller keeps its own description; it must not get a
     // TypeError, which is what seeding a reduce with `all[0]` produced.
