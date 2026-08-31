@@ -17,20 +17,41 @@ typographic rhythm" — which reads like a taste exercise. It is not. Measuring
 the territory turned up a **half-finished migration whose closing slice was
 reorganised away**.
 
-`docs/specs/2026-08-11-2b4-visual-redesign-design.md` planned ten slices. The
-branch shipped slices 0–6 (`docs/plans/2026-08-1[23]-v099-slice*.md`) and
-stopped. Slices 7 (Admin + Import), 8 (Pre-auth) and 9 (Sweep) never ran, and
-slice 9 owned three things that are still open today:
+> **CORRECTED 2026-08-31, mid-strand.** This section originally claimed that
+> 2b.4's slices 7, 8 and 9 "never ran". **That is wrong**, and it was the
+> premise several slices of this strand were argued from. The correct account
+> is below; the conclusion the strand draws from it survives, but narrower.
+>
+> The error came from reading `docs/plans/`, which stops at a slice-6 plan
+> document, and from `globals.css` still carrying a comment that said 15px
+> stays "until slice 9". Neither is evidence a slice did not run — the later
+> slices simply have no plan file. `git log` does have them:
+> `81ab022 feat(admin): migrate Admin and Import to tokens` is slice 7
+> (v0.109.0), and `3042cac feat(theme): lift forcedTheme, and finish the sweep`
+> is slice 9 (v0.111.0). `tests/type-scale-guard.test.ts` records both, with
+> per-file counts, in comments that were there to be read.
+
+`docs/specs/2026-08-11-2b4-visual-redesign-design.md` planned ten slices and
+**all ten ran**, across v0.99 → v0.111. Slice 9 took the ad-hoc-ink sweep to
+zero, flipped that guard's `it.fails` into a real assertion, deleted its
+ratchet entry, and lifted `forcedTheme` so the app gained a light theme.
+
+What it did **not** do is two of its own stated deliverables, and they are what
+this strand inherits:
 
 - the `body` font-size flip from the pre-redesign 15px to `--text-body` (16px),
-  which `src/app/globals.css:385` still carries a comment promising;
+  which `globals.css` still carried a comment promising — the comment named
+  slice 9 as its trigger and slice 9 shipped without pulling it;
 - `design-system.md` "rewritten prescriptive", which is why that document still
-  opens with *"Descriptive, not prescriptive"*;
-- the final sweep that would have taken the type-scale ratchet to zero.
+  opens with *"Descriptive, not prescriptive"* — and why it still claims the
+  app has one theme, thirteen releases after the very commit that finished the
+  sweep gave it two.
 
-`tests/type-scale-guard.test.ts:294` already names the owners of what is left:
-*"their call sites are admin/import/login, slices 7 and 8's surfaces, not this
-one."* The guard has been waiting for this strand for six weeks.
+So the residue is real but narrower than first written: two items slice 9
+promised and did not deliver, not three slices that never happened. **The type
+and colour migration itself is finished**, which is exactly what slice 5 of
+this strand went on to measure and confirm — admin, import and pre-auth all at
+zero on every counted family.
 
 So this strand is not "add polish". It is **finish the design system, and give
 motion and loading the same treatment type and colour already got.**
