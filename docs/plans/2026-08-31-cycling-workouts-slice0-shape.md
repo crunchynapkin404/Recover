@@ -52,7 +52,7 @@ exists so slices 1–5 have something to be built on.
   `totalSecs(blocks: readonly Block[]): number` — the authored length of a
   workout in seconds, counting each repeat.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `src/lib/interval/duration.test.ts`:
 
@@ -102,12 +102,12 @@ describe("totalSecs", () => {
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `npx vitest run src/lib/interval/duration.test.ts`
 Expected: FAIL — cannot resolve `./duration`.
 
-- [ ] **Step 3: Write the types**
+- [x] **Step 3: Write the types**
 
 Create `src/lib/interval/types.ts` exactly as the spec's "Design 2 — The
 shape" section gives it, including every doc comment. The comments carry the
@@ -116,7 +116,7 @@ reasoning and are not decoration: `LibraryPurpose` explains why it is an
 more than an id, and `source` explains that a workout without provenance does
 not ship.
 
-- [ ] **Step 4: Write `totalSecs`**
+- [x] **Step 4: Write `totalSecs`**
 
 Create `src/lib/interval/duration.ts`:
 
@@ -141,12 +141,12 @@ export function totalSecs(blocks: readonly Block[]): number {
 }
 ```
 
-- [ ] **Step 5: Run the tests**
+- [x] **Step 5: Run the tests**
 
 Run: `npx vitest run src/lib/interval/duration.test.ts`
 Expected: PASS, 3 tests.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 npx prettier --write src/lib/interval/
@@ -185,7 +185,7 @@ remembered.** That file ships the spec verbatim over MCP; it is the authority:
   plain range
 - Cadence appends: `- 10m 88-94% 90rpm`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `src/lib/interval/render-icu.test.ts`:
 
@@ -288,12 +288,12 @@ describe("renderIcu", () => {
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `npx vitest run src/lib/interval/render-icu.test.ts`
 Expected: FAIL — cannot resolve `./render-icu`.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Create `src/lib/interval/render-icu.ts`:
 
@@ -352,12 +352,12 @@ export function renderIcu(blocks: readonly Block[]): string {
 }
 ```
 
-- [ ] **Step 4: Run the tests**
+- [x] **Step 4: Run the tests**
 
 Run: `npx vitest run src/lib/interval/render-icu.test.ts`
 Expected: PASS, 5 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 npx prettier --write src/lib/interval/
@@ -398,7 +398,7 @@ repeat-1 section takes no suffix."
    correct and needs no special case. It is more verbose in the file and
    identical on the screen.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `src/lib/interval/render-zwo.test.ts`:
 
@@ -475,12 +475,12 @@ describe("renderZwo", () => {
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `npx vitest run src/lib/interval/render-zwo.test.ts`
 Expected: FAIL — cannot resolve `./render-zwo`.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Create `src/lib/interval/render-zwo.ts`:
 
@@ -542,12 +542,12 @@ export function renderZwo(w: LibraryWorkout): string {
 }
 ```
 
-- [ ] **Step 4: Run the tests**
+- [x] **Step 4: Run the tests**
 
 Run: `npx vitest run src/lib/interval/render-zwo.test.ts`
 Expected: PASS, 6 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 npx prettier --write src/lib/interval/
@@ -607,7 +607,7 @@ It is also wrong for a second reason: `filter(s => s !== work)` compares by
 300, lo: 55, hi: 55 }` — gets both copies treated as one step. Never use
 reference equality on data authors write by hand.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `src/lib/interval/render-description.test.ts`:
 
@@ -730,12 +730,12 @@ describe("renderDescription", () => {
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `npx vitest run src/lib/interval/render-description.test.ts`
 Expected: FAIL — cannot resolve `./render-description`.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Create `src/lib/interval/render-description.ts`:
 
@@ -804,12 +804,12 @@ export function renderDescription(blocks: readonly Block[]): string {
 }
 ```
 
-- [ ] **Step 4: Run the tests**
+- [x] **Step 4: Run the tests**
 
 Run: `npx vitest run src/lib/interval/render-description.test.ts`
 Expected: PASS, 7 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 npx prettier --write src/lib/interval/
@@ -826,7 +826,7 @@ that is what the session is."
 
 ### Task 5: prove the slice
 
-- [ ] **Step 1: Write the guard as a test, not as a grep**
+- [x] **Step 1: Write the guard as a test, not as a grep**
 
 The two Global Constraints that have no other enforcement — pure module, no
 absolute power — get one test file. **They were bash one-liners in an earlier
@@ -900,13 +900,13 @@ describe("src/lib/interval stays a pure module", () => {
 });
 ```
 
-- [ ] **Step 2: Run it**
+- [x] **Step 2: Run it**
 
 Run: `npx vitest run src/lib/interval/purity-guard.test.ts`
 Expected: PASS, 3 tests. Confirm it can still fail: add `const t = Date.now();`
 to `duration.ts`, re-run, watch it go red, remove it.
 
-- [ ] **Step 3: Types, lint, and the full suite**
+- [x] **Step 3: Types, lint, and the full suite**
 
 ```bash
 npx tsc --noEmit
@@ -920,7 +920,7 @@ no expected fail**, plus this slice's 24 new tests (3 + 5 + 6 + 7 + 3). Read the
 result, not the total — a guard file that stops loading takes its own tests
 with it and the headline number can rise.
 
-- [ ] **Step 4: Round-trip one workout by eye**
+- [x] **Step 4: Round-trip one workout by eye**
 
 Print the three renderings of `ss-3x12` and read them:
 
@@ -938,7 +938,7 @@ into the shape you expect. **Nothing in this slice proves the syntax is
 accepted by the service** — the tests assert only that we emit what
 `get-workout-syntax.ts` documents.
 
-- [ ] **Step 5: Commit the plan's completion**
+- [x] **Step 5: Commit the plan's completion**
 
 ## What this slice deliberately does not do
 
