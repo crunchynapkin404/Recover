@@ -49,8 +49,11 @@ describe("src/lib/interval stays a pure module", () => {
   });
 
   it("has files to check", () => {
-    // A guard that silently scans nothing passes forever. The handoff records
-    // a whole guard going dark while the headline test count went UP.
-    expect(sources().length).toBeGreaterThanOrEqual(4);
+    // A guard that silently scans nothing passes forever. The handoff
+    // records a whole guard going dark while the headline test count went
+    // UP. This number tracks the module's real non-test .ts file count (7 as
+    // of this slice) and must rise whenever one is added — it should never
+    // fall.
+    expect(sources().length).toBeGreaterThanOrEqual(7);
   });
 });
