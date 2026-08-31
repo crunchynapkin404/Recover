@@ -39,24 +39,38 @@ function span(steps: readonly Step[]): string {
  * Selection is by INDEX, never reference equality: a hoisted `const REST`
  * used twice in one block is two steps.
  */
-export function renderDescription(blocks: readonly Block[]): string {
-  const main = [...blocks]
-    .filter((b) => b.repeat > 1 && b.steps.length > 0)
-    .sort((a, b) => b.repeat - a.repeat || totalSecs([b]) - totalSecs([a]))[0];
-
-  if (!main) {
-    const all = blocks.flatMap((b) => b.steps);
-    // No steps is not a workout. The caller keeps its own description.
-    if (all.length === 0) return "";
-    return `${mins(totalSecs(blocks))} min at ${span(all)}`;
-  }
-
+/** A repeated block as `N × M min at X% FTP, R min recovery`. */
+function repeated(main: Block): string {
   const peak = Math.max(...main.steps.map((s) => s.hi));
   const last = main.steps[main.steps.length - 1];
   const hasRecovery = main.steps.length > 1 && last.hi < peak;
   const work = hasRecovery ? main.steps.slice(0, -1) : main.steps;
-
   const workSecs = work.reduce((t, s) => t + s.secs, 0);
   const head = `${main.repeat} × ${mins(workSecs)} min at ${span(work)}`;
   return hasRecovery ? `${head}, ${mins(last.secs)} min recovery` : head;
+}
+
+export function renderDescription(blocks: readonly Block[]): string {
+  const real = blocks.filter((b) => b.steps.length > 0);
+  if (real.length === 0) return "";
+
+  // The block that OWNS THE MOST TIME, ties to the later. Not the highest
+  // repeat: a long ride is a three-hour endurance body with a handful of
+  // surges bolted on, and choosing by repeat count described it as
+  // "5 × 1 min at 105–115% FTP" — a four-hour ride reading like a
+  // twenty-five-minute interval session.
+  const main = [...real].sort((a, b) => totalSecs([a]) - totalSecs([b]) || 1)[
+    real.length - 1
+  ];
+
+  if (main.repeat > 1) return repeated(main);
+
+  // A steady block owns the workout. Say so — and name the repeated block too
+  // when there is one, or the efforts that give the ride its character vanish.
+  const head = `${mins(totalSecs([main]))} min at ${span(main.steps)}`;
+  const effort = [...real]
+    .filter((b) => b.repeat > 1)
+    .sort((a, b) => totalSecs([a]) - totalSecs([b]))
+    .pop();
+  return effort ? `${head}, with ${repeated(effort)}` : head;
 }
