@@ -58,7 +58,7 @@ change. Slice 2b owns it.
   `role="status"` container with `aria-live="polite"` and a visually-hidden
   "Loading {label}…", wrapping the skeletons.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `tests/motion-scale-guard.test.ts`:
 
@@ -105,12 +105,12 @@ describe("a route that waits says so", () => {
 });
 ```
 
-- [ ] **Step 2: Run it and watch both fail**
+- [x] **Step 2: Run it and watch both fail**
 
 Run: `npx vitest run tests/motion-scale-guard.test.ts -t "route that waits"`
 Expected: FAIL — six files listed as silent, and `Skeleton` not `aria-hidden`.
 
-- [ ] **Step 3: Write `LoadingScreen`**
+- [x] **Step 3: Write `LoadingScreen`**
 
 Create `src/components/ui/loading-screen.tsx`:
 
@@ -147,7 +147,7 @@ export function LoadingScreen({
 }
 ```
 
-- [ ] **Step 4: Make `Skeleton` decorative**
+- [x] **Step 4: Make `Skeleton` decorative**
 
 In `src/components/ui/skeleton.tsx`, add `aria-hidden` to the div:
 
@@ -160,7 +160,7 @@ In `src/components/ui/skeleton.tsx`, add `aria-hidden` to the div:
     />
 ```
 
-- [ ] **Step 5: Wrap all six existing loading states**
+- [x] **Step 5: Wrap all six existing loading states**
 
 Each file imports `LoadingScreen` and wraps the content *inside* `AppShell`
 (the shell's nav is real, not a skeleton, and must not be inside the status
@@ -194,12 +194,12 @@ export default function Loading() {
 }
 ```
 
-- [ ] **Step 6: Run the tests**
+- [x] **Step 6: Run the tests**
 
 Run: `npx vitest run tests/motion-scale-guard.test.ts`
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/components/ui/loading-screen.tsx src/components/ui/skeleton.tsx src/app tests/motion-scale-guard.test.ts
@@ -240,7 +240,7 @@ and Skeleton is now explicitly aria-hidden decoration."
 | `/login` | no — `"use client"` | no | not an offender |
 | `/wellness` | no — `redirect()` only | no | not an offender |
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 describe("routes that await", () => {
@@ -281,14 +281,14 @@ describe("routes that await", () => {
 
 Add `existsSync` to the `node:fs` import.
 
-- [ ] **Step 2: Run it and read the real list**
+- [x] **Step 2: Run it and read the real list**
 
 Run: `npx vitest run tests/motion-scale-guard.test.ts -t "await"`
 Expected: FAIL, listing four — `train`, `body`, `admin` and `join/[code]`.
 If the list differs, the audit table above is wrong; fix the table, not the
 test.
 
-- [ ] **Step 3: Add the three loading states**
+- [x] **Step 3: Add the three loading states**
 
 `src/app/train/loading.tsx` — Train's shell is a `<header className="mb-5 pt-8">`
 with an `h1`, then the week surface:
@@ -362,12 +362,12 @@ export default function Loading() {
 }
 ```
 
-- [ ] **Step 4: Run the tests**
+- [x] **Step 4: Run the tests**
 
 Run: `npx vitest run tests/motion-scale-guard.test.ts`
 Expected: PASS — only `join/[code]` remains, as the assertion states.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/app/train/loading.tsx src/app/body/loading.tsx src/app/admin/loading.tsx tests/motion-scale-guard.test.ts
@@ -401,7 +401,7 @@ the blunt rule has a second problem: `transition: none` cancels transitions
 mid-flight rather than completing them, so a component that reads a state
 change on `transitionend` never hears it.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 describe("reduced motion", () => {
@@ -422,12 +422,12 @@ describe("reduced motion", () => {
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `npx vitest run tests/motion-scale-guard.test.ts -t "reduced motion"`
 Expected: FAIL on the first `not.toMatch` — `animation: none` is present.
 
-- [ ] **Step 3: Replace the rule**
+- [x] **Step 3: Replace the rule**
 
 ```css
 /* ── Reduced motion ──────────────────────────────────────────────────────── */
@@ -452,7 +452,7 @@ Expected: FAIL on the first `not.toMatch` — `animation: none` is present.
 }
 ```
 
-- [ ] **Step 4: Run the tests**
+- [x] **Step 4: Run the tests**
 
 ```bash
 npx prettier --write src/app/globals.css
@@ -460,7 +460,7 @@ npx vitest run tests/motion-scale-guard.test.ts
 ```
 Expected: PASS.
 
-- [ ] **Step 5: Verify in a browser under emulated reduced motion**
+- [x] **Step 5: Verify in a browser under emulated reduced motion**
 
 Reading the CSS proves the rule; only the browser proves the effect.
 
@@ -472,7 +472,7 @@ Then, with Playwright, load `/login` under `reducedMotion: "reduce"` and read
 a computed `animation-duration` and `transition-duration` off a real element.
 Expected: both `0.001s`, and the page still paints normally.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/app/globals.css tests/motion-scale-guard.test.ts
@@ -491,7 +491,7 @@ now speaks that state, which is what makes this safe to soften."
 
 ### Task 4: prove it
 
-- [ ] **Step 1: Full suite, types, lint**
+- [x] **Step 1: Full suite, types, lint**
 
 ```bash
 npx tsc --noEmit && npx eslint src tests
@@ -500,7 +500,7 @@ DATABASE_URL="$DATABASE_URL" DATABASE_DRIVER=pg npx vitest run
 ```
 Expected: clean; suite at the slice-1 baseline plus this slice's new tests.
 
-- [ ] **Step 2: Capture and axe**
+- [x] **Step 2: Capture and axe**
 
 ```bash
 SCREENSHOT_BASE_URL=http://localhost:3210 npx tsx scripts/verify-surfaces.ts polish-slice2a
@@ -510,14 +510,14 @@ Expected: ~100 PNGs, **0 confirmed axe violations**. Do not pipe through
 run-to-run — `verify-surfaces.ts` creates an API token per theme/viewport
 combo, so those grow every run. That is not a regression.
 
-- [ ] **Step 3: The new axe surface area is the point**
+- [x] **Step 3: The new axe surface area is the point**
 
 A `role="status"` region with a live announcement is exactly the kind of thing
 axe has opinions about. Read the report's confirmed count specifically, and if
 anything appears, fix it rather than raising the ceiling — 0 has never been
 raised.
 
-- [ ] **Step 4: Tick and commit**
+- [x] **Step 4: Tick and commit**
 
 ```bash
 git add docs/plans/2026-08-30-polish-slice2a-loading-states.md
@@ -536,3 +536,70 @@ git commit -m "docs(plan): slice 2a complete"
 ## Next
 
 `docs/plans/2026-08-30-polish-slice2b-pending-vocabulary.md`.
+
+
+---
+
+## Outcome — run 2026-08-30/31, all four tasks complete
+
+Suite **3323 passed / 1 expected fail / 1 skipped** at task 3, plus three
+tests from the defect below. `tsc` and `eslint` clean. Capture: **100 PNGs,
+0 confirmed axe violations**, 128 entries / 89 indeterminate / 28 errors —
+identical to slices 0 and 1, so the fixture gaps are stable.
+
+### A defect this slice introduced, and only a driven browser could find
+
+`src/app/loading.tsx` is not merely Today's loading UI. It is the **root
+segment's Suspense boundary**, so it stands in for every route whose own
+boundary has not resolved yet — a hard load of `/train` paints it first.
+Giving it `label="your day"` therefore made `/train` and `/admin` announce
+**"Loading your day…"** to a screen reader.
+
+Before this slice it had no text at all, so there was nothing wrong to
+notice. **Adding a voice is what made the wrong label audible.**
+
+`label` is now optional and the root passes none. Verified in a browser:
+`/train` → "Loading Train…", `/body` → "Loading Body…", `/admin` → "Loading
+Admin…", `/` → "Loading…". A render test and a guard both pin it.
+
+**No amount of capture coverage would have found this.** `verify-surfaces.ts`
+waits for real content, so it can never photograph a loading state. Catching
+it needed real navigations screenshotted mid-flight.
+
+### A false finding, nearly reported
+
+Three attempts to observe the loading state during client-side navigation
+returned `null`, and the conclusion drawn — that `loading.tsx` does not appear
+on tab-to-tab navigation — was **wrong**. It was a measurement artifact: the
+poll window was 1.2s against a 6s injected RSC delay, so the navigation had
+not committed yet. With correct timing the fallback appears on both hard and
+client-side navigation. Recorded because the wrong version was stated aloud
+before it was checked.
+
+### The capture diff is entirely environmental
+
+76 of 100 images differ from slice 1, and none of it is this slice:
+
+- **The date rolled over between runs.** Slice 1 captured at 2026-08-30 19:53,
+  this at 2026-08-31 05:30. Today, Train, Body, `checkin-sheet`,
+  `train-fitness` and `body-sleep` all render date-dependent content, and most
+  of them got *shorter*.
+- **`settings*` grew again** — the capture script creates an API token per
+  theme/viewport combo, as slice 1 recorded.
+
+Proven rather than assumed: every file this slice touched is a `loading.tsx`
+(never captured), a component used only by those, or the
+`prefers-reduced-motion` block (captures do not emulate that preference).
+`Skeleton` and `LoadingScreen` have no importer outside `loading.tsx`. **The
+code cannot reach a captured surface.**
+
+**Capture sets are not comparable across a date boundary**, which now joins
+the token side effect on the list of reasons a run-to-run diff misleads here.
+
+### Verified in a real browser
+
+- Under emulated `prefers-reduced-motion: reduce`, `.animate-pulse` keeps its
+  `animation-name` and runs **one iteration at 0.001s** rather than being
+  switched off — it completes instead of being cancelled, which is what any
+  `transitionend`/`animationend` listener needs.
+- Without the preference it is `2s`, infinite, unchanged.
