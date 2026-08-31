@@ -129,6 +129,20 @@ describe("resolve", () => {
     expect(checked).toBeGreaterThan(10);
   });
 
+  it("resolve's acceptance set is exactly flexSpanSecs, down to the endpoint second", () => {
+    // The whole-minute sweep above only ever lands on multiples of 60 and so
+    // never exercises span.lo or span.hi themselves. That flexSpanSecs is
+    // exactly resolve's acceptance set is the invariant slice 2's coverage
+    // guard will assume, so check the endpoints directly, in seconds
+    // (converted to minutes, which may be fractional — that is fine and is
+    // the point).
+    const span = flexSpanSecs(wk(SS))!;
+    expect(totalSecs(resolve(wk(SS), span.lo / 60)!)).toBe(span.lo);
+    expect(totalSecs(resolve(wk(SS), span.hi / 60)!)).toBe(span.hi);
+    expect(resolve(wk(SS), (span.lo - 1) / 60)).toBeNull();
+    expect(resolve(wk(SS), (span.hi + 1) / 60)).toBeNull();
+  });
+
   it("does not mutate the workout it was given", () => {
     const w = wk(SS);
     const before = JSON.stringify(w);

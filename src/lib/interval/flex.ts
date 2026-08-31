@@ -100,8 +100,18 @@ export function flexSpanSecs(
  * exact and nothing else in the workout moves: the main set the athlete is
  * there for is identical at 68 minutes and at 82.
  *
- * Returns fresh blocks; the library is never mutated, because it is module
- * data shared by every read.
+ * That exactness assumes every authored `Step.secs` is a whole number of
+ * seconds — a fractional one would miss `totalSecs(...) === Math.round(...)`
+ * by its fractional remainder, and both render-zwo.ts (`Duration="${s.secs}"`
+ * verbatim) and render-icu.ts (`secs % 60`) assume whole seconds too. Nothing
+ * here asserts it; slice 2's library guard is where that assertion belongs.
+ *
+ * Only the top-level array and the single flexed `Step` are fresh; every
+ * untouched `Block` and `Step` is the SAME object reference as the library's
+ * — `resolve(w, mins)[i] === w.blocks[i]` for every `i` but the flexed one.
+ * The library itself is never mutated, because it is module data shared by
+ * every read — but a caller that mutates a returned block in place would
+ * corrupt that shared library.
  */
 export function resolve(
   w: LibraryWorkout,

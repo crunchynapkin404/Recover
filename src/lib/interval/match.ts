@@ -47,8 +47,10 @@ const LIBRARY_PURPOSES: ReadonlySet<string> = new Set(
 );
 
 /**
- * FNV-1a. Deterministic, dependency-free, and well spread over short inputs
- * like a date string.
+ * FNV-1a, with a murmur3-style finalizer mixed in below. Deterministic and
+ * dependency-free — but NOT well spread in its own low bits over short
+ * inputs like a date string, which is exactly why the finalizer is here; see
+ * its comment for what that cost before it was added.
  *
  * A hash rather than a counter because the seed must be the DAY'S OWN DATE and
  * nothing else: that is what makes a re-render, a re-read, and a projection
@@ -62,10 +64,14 @@ function seed(s: string): number {
   }
   // Avalanche the accumulator before anything takes it modulo a small number.
   // NOT optional and not cargo cult: FNV-1a's prime is odd, so its low bit is
-  // only a parity of the input's low bits — which makes seed(`${date}|${family}`)
-  // a CONSTANT XOR of seed(date), and the in-family draw a constant on exactly
-  // the dates that chose that family. Measured before this line: one workout of
-  // a two-workout family was picked 0 times in 364 days.
+  // only a parity of the input's low bits. That does NOT make
+  // seed(`${date}|${family}`) a constant XOR of seed(date) over the whole
+  // word — measured over a year the full hash takes 365 distinct values —
+  // but the LOW BIT of the two hashes does differ by a constant, which is
+  // exactly what degenerates `% 2` to one fixed draw for every date that
+  // chose a given family (and already halves `% 4`'s spread to 2 values
+  // instead of 4). Measured before this line: one workout of a two-workout
+  // family was picked 0 times in 364 days.
   h ^= h >>> 16;
   h = Math.imul(h, 2246822507);
   h ^= h >>> 13;
@@ -73,6 +79,13 @@ function seed(s: string): number {
   h ^= h >>> 16;
   return h >>> 0;
 }
+
+// An explicit, locale-independent comparator — not the default `.sort()`
+// (UTF-16 code-unit order, undocumented as a choice) and not
+// `.localeCompare()` (implementation-dependent with no explicit locale,
+// which is the one thing a module whose whole contract is determinism cannot
+// take on). Returns 0 on equality, unlike a bare `a < b ? -1 : 1`.
+const byString = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 
 /**
  * The workout this day gets, or an honest refusal.
@@ -99,8 +112,24 @@ function seed(s: string): number {
 export function matchWorkout(
   library: readonly LibraryWorkout[],
   session: MatchSession,
+  // YYYY-MM-DD, as week-plan/types.ts's DaySlot.date is. Any two distinct
+  // strings seed independent picks, so passing an ISO datetime here instead
+  // of a plain date would silently change the workout for what is otherwise
+  // the same day.
   date: string
 ): MatchResult {
+  // Raw string equality, not canonicalSport: canonicalSport exists to
+  // translate PROVIDER discipline names (Strava/intervals.icu "Ride",
+  // "VirtualRide", …) into the planner's vocabulary, and every existing
+  // caller applies it to an ACTIVITY. Comparing a raw provider string with
+  // `===` is exactly what cost 219 live rides their match in
+  // canonical-sport.ts's own defect, and cost plan-sport.ts's `sports[0] ===
+  // "Bike"` a fallthrough to running when `sports[0]` still held "Ride".
+  // session.sport here is neither: it comes from a PlannedWorkout, which
+  // generateWorkouts stamps from the closed set {Run, Bike, Swim, Strength}
+  // — already the planner's own vocabulary. Routing it through
+  // canonicalSport would imply an input class — an unnormalized provider
+  // string — that cannot reach the matcher.
   if (session.sport !== "Bike") {
     return { kind: "refused", reason: "not-cycling" };
   }
@@ -118,11 +147,13 @@ export function matchWorkout(
     return { kind: "refused", reason: "no-candidate" };
   }
 
-  const families = [...new Set(candidates.map((c) => c.workout.family))].sort();
+  const families = [...new Set(candidates.map((c) => c.workout.family))].sort(
+    byString
+  );
   const family = families[seed(date) % families.length];
   const inFamily = candidates
     .filter((c) => c.workout.family === family)
-    .sort((a, b) => a.workout.id.localeCompare(b.workout.id));
+    .sort((a, b) => byString(a.workout.id, b.workout.id));
   // A second seed with the family mixed in, so the within-family index is not
   // correlated with the family index.
   const chosen = inFamily[seed(`${date}|${family}`) % inFamily.length];

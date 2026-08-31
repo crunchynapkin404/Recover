@@ -478,6 +478,7 @@ const wk = (
 
 // Spans, worked out from Task 1's rules:
 //   ss-3x12  authored 75 min, flex 900s -> 67.5-82.5 min
+//   ss-2x20  authored 74 min, flex 900s -> 66.5-81.5 min
 //   thr-4x8  authored 72 min, flex 900s -> 64.5-79.5 min
 //   ou-3x12  authored 51 min, flex 900s -> 43.5-58.5 min
 //   end-2h   authored 100 min, flex 4800s -> 60-140 min
@@ -485,6 +486,11 @@ const STUB: LibraryWorkout[] = [
   wk("ss-3x12", "sweet-spot", "threshold", [
     { name: "Warmup", repeat: 1, steps: [W(900, 50, 65)] },
     { name: "Main set", repeat: 3, steps: [W(720, 88, 93), W(300, 55, 55)] },
+    { name: "Cooldown", repeat: 1, steps: [W(540, 50, 50)] },
+  ]),
+  wk("ss-2x20", "sweet-spot", "threshold", [
+    { name: "Warmup", repeat: 1, steps: [W(900, 50, 65)] },
+    { name: "Main set", repeat: 2, steps: [W(1200, 88, 93), W(300, 55, 55)] },
     { name: "Cooldown", repeat: 1, steps: [W(540, 50, 50)] },
   ]),
   wk("thr-4x8", "threshold-blocks", "threshold", [
@@ -574,23 +580,37 @@ describe("matchWorkout selection", () => {
   });
 
   it("spreads across families rather than across ids", () => {
-    // At 75 min only sweet-spot and threshold-blocks span the day; ou-3x12
-    // covers 43.5-58.5, so its absence is correct fitting, not starvation.
-    const counts = new Map<string, number>();
+    // The sweet-spot family holds TWO candidates at 75 min and
+    // threshold-blocks holds one, so the two rules differ measurably:
+    // family-first gives sweet-spot ~50%, id-uniform would give ~66.7%.
+    // ou-3x12 covers 43.5-58.5 and is correctly absent.
+    const families = new Map<string, number>();
+    const ids = new Map<string, number>();
     for (let d = 0; d < 364; d++) {
       const date = new Date(Date.UTC(2026, 0, 1 + d))
         .toISOString()
         .slice(0, 10);
       const r = matchWorkout(STUB, BIKE, date);
       if (r.kind === "matched") {
-        counts.set(r.workout.family, (counts.get(r.workout.family) ?? 0) + 1);
+        families.set(
+          r.workout.family,
+          (families.get(r.workout.family) ?? 0) + 1
+        );
+        ids.set(r.workout.id, (ids.get(r.workout.id) ?? 0) + 1);
       }
     }
-    expect([...counts.keys()].sort()).toEqual([
+    expect([...families.keys()].sort()).toEqual([
       "sweet-spot",
       "threshold-blocks",
     ]);
-    for (const n of counts.values()) expect(n).toBeGreaterThan(364 * 0.3);
+    // The discriminating assertion: well under the 66.7% id-uniform would give.
+    const sweetSpotShare = families.get("sweet-spot")! / 364;
+    expect(sweetSpotShare).toBeGreaterThan(0.4);
+    expect(sweetSpotShare).toBeLessThan(0.6);
+    // And every workout in a multi-workout family must be reachable at all —
+    // this is what the seed's missing avalanche used to make impossible.
+    expect(ids.get("ss-3x12")).toBeGreaterThan(0);
+    expect(ids.get("ss-2x20")).toBeGreaterThan(0);
   });
 
   it("reaches a workout at a length only it spans", () => {
@@ -609,11 +629,17 @@ Expected: FAIL — cannot resolve `./match`.
 
 - [x] **Step 3: Implement**
 
+**Corrected after the final branch review.** The code blocks below match what
+actually shipped, not the first draft — most notably `seed`, which needs its
+murmur3-style finalizer because FNV-1a's low bit is only a parity of the
+input's low bits, and without it one workout in a two-workout family was
+picked 0 times in 364 days.
+
 Create `src/lib/interval/match.ts`:
 
 ```ts
 import type { Purpose } from "@/lib/availability/types";
-import type { Block, LibraryWorkout } from "./types";
+import type { Block, LibraryWorkout, LibraryPurpose } from "./types";
 import { resolve } from "./flex";
 
 /**
@@ -642,17 +668,29 @@ export type MatchResult =
       reason: "not-cycling" | "not-a-library-purpose" | "no-candidate";
     };
 
-const LIBRARY_PURPOSES: ReadonlySet<Purpose> = new Set<Purpose>([
-  "recovery",
-  "aerobic_base",
-  "long",
-  "threshold",
-  "vo2max",
-]);
+/**
+ * Keyed by LibraryPurpose so the two cannot drift: adding a member to
+ * LibraryPurpose without adding it here is a compile error, and a key that is
+ * not a LibraryPurpose is also a compile error. types.ts asks for exactly this
+ * — "never a parallel union ... rather than a silent hole".
+ */
+const LIBRARY_PURPOSE_KEYS: Record<LibraryPurpose, true> = {
+  recovery: true,
+  aerobic_base: true,
+  long: true,
+  threshold: true,
+  vo2max: true,
+};
+
+const LIBRARY_PURPOSES: ReadonlySet<string> = new Set(
+  Object.keys(LIBRARY_PURPOSE_KEYS)
+);
 
 /**
- * FNV-1a. Deterministic, dependency-free, and well spread over short inputs
- * like a date string.
+ * FNV-1a, with a murmur3-style finalizer mixed in below. Deterministic and
+ * dependency-free — but NOT well spread in its own low bits over short
+ * inputs like a date string, which is exactly why the finalizer is here; see
+ * its comment for what that cost before it was added.
  *
  * A hash rather than a counter because the seed must be the DAY'S OWN DATE and
  * nothing else: that is what makes a re-render, a re-read, and a projection
@@ -664,8 +702,30 @@ function seed(s: string): number {
     h ^= s.charCodeAt(i);
     h = Math.imul(h, 16777619);
   }
+  // Avalanche the accumulator before anything takes it modulo a small number.
+  // NOT optional and not cargo cult: FNV-1a's prime is odd, so its low bit is
+  // only a parity of the input's low bits. That does NOT make
+  // seed(`${date}|${family}`) a constant XOR of seed(date) over the whole
+  // word — measured over a year the full hash takes 365 distinct values —
+  // but the LOW BIT of the two hashes does differ by a constant, which is
+  // exactly what degenerates `% 2` to one fixed draw for every date that
+  // chose a given family (and already halves `% 4`'s spread to 2 values
+  // instead of 4). Measured before this line: one workout of a two-workout
+  // family was picked 0 times in 364 days.
+  h ^= h >>> 16;
+  h = Math.imul(h, 2246822507);
+  h ^= h >>> 13;
+  h = Math.imul(h, 3266489909);
+  h ^= h >>> 16;
   return h >>> 0;
 }
+
+// An explicit, locale-independent comparator — not the default `.sort()`
+// (UTF-16 code-unit order, undocumented as a choice) and not
+// `.localeCompare()` (implementation-dependent with no explicit locale,
+// which is the one thing a module whose whole contract is determinism cannot
+// take on). Returns 0 on equality, unlike a bare `a < b ? -1 : 1`.
+const byString = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 
 /**
  * The workout this day gets, or an honest refusal.
@@ -711,11 +771,13 @@ export function matchWorkout(
     return { kind: "refused", reason: "no-candidate" };
   }
 
-  const families = [...new Set(candidates.map((c) => c.workout.family))].sort();
+  const families = [...new Set(candidates.map((c) => c.workout.family))].sort(
+    byString
+  );
   const family = families[seed(date) % families.length];
   const inFamily = candidates
     .filter((c) => c.workout.family === family)
-    .sort((a, b) => (a.workout.id < b.workout.id ? -1 : 1));
+    .sort((a, b) => byString(a.workout.id, b.workout.id));
   // A second seed with the family mixed in, so the within-family index is not
   // correlated with the family index.
   const chosen = inFamily[seed(`${date}|${family}`) % inFamily.length];
