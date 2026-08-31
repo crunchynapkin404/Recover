@@ -52,7 +52,7 @@ slice 2 authors a single workout.
   `flexRef(blocks: readonly Block[]): { b: number; s: number } | null`, and
   `flexSpanSecs(w: LibraryWorkout): { lo: number; hi: number } | null`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `src/lib/interval/flex.test.ts`:
 
@@ -140,12 +140,12 @@ describe("flexSpanSecs", () => {
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `npx vitest run src/lib/interval/flex.test.ts`
 Expected: FAIL — cannot resolve `./flex`.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Create `src/lib/interval/flex.ts`:
 
@@ -244,12 +244,12 @@ export function flexSpanSecs(
 }
 ```
 
-- [ ] **Step 4: Run the tests**
+- [x] **Step 4: Run the tests**
 
 Run: `npx vitest run src/lib/interval/flex.test.ts`
 Expected: PASS, 8 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 npx prettier --write src/lib/interval/
@@ -278,7 +278,7 @@ reference — slice 0 shipped a defect from comparing hand-authored steps with
   — the workout's blocks with its flex step adjusted so the total is exactly
   `Math.round(durationMins * 60)`, or `null` when that is out of bounds.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Replace the import block at the top of `src/lib/interval/flex.test.ts` with
 this. **All four lines — keep the `./types` import.** An earlier draft of this
@@ -355,12 +355,12 @@ describe("resolve", () => {
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `npx vitest run src/lib/interval/flex.test.ts`
 Expected: FAIL — `resolve` is not exported.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Append to `src/lib/interval/flex.ts`:
 
@@ -400,7 +400,7 @@ export function resolve(
 }
 ```
 
-- [ ] **Step 4: Run the tests, then the type-checker**
+- [x] **Step 4: Run the tests, then the type-checker**
 
 Run: `npx vitest run src/lib/interval/flex.test.ts`
 Expected: PASS, 14 tests.
@@ -410,7 +410,7 @@ suite is not evidence that this branch compiles** — vitest strips types
 without checking them, so a broken import passes every test and fails CI's
 `npm run typecheck`. Do this at the end of every task, not only at Task 4.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 npx prettier --write src/lib/interval/
@@ -450,7 +450,7 @@ mutated."
    Picking ids uniformly would let a family holding five workouts outvote one
    holding a single workout, which is the opposite of what `family` is for.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `src/lib/interval/match.test.ts`:
 
@@ -602,12 +602,12 @@ describe("matchWorkout selection", () => {
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `npx vitest run src/lib/interval/match.test.ts`
 Expected: FAIL — cannot resolve `./match`.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Create `src/lib/interval/match.ts`:
 
@@ -723,12 +723,12 @@ export function matchWorkout(
 }
 ```
 
-- [ ] **Step 4: Run the tests**
+- [x] **Step 4: Run the tests**
 
 Run: `npx vitest run src/lib/interval/match.test.ts`
 Expected: PASS, 9 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 npx prettier --write src/lib/interval/
@@ -752,14 +752,14 @@ answers, and nothing that fits the length."
 
 ### Task 4: prove the slice
 
-- [ ] **Step 1: The module is still pure**
+- [x] **Step 1: The module is still pure**
 
 Run: `npx vitest run src/lib/interval/purity-guard.test.ts`
 Expected: PASS, 3 tests. The guard scans every non-test `.ts` in the
 directory, so `flex.ts` and `match.ts` were covered the moment they existed —
 there is nothing to register. If it reports fewer than 4 files, the scan broke.
 
-- [ ] **Step 2: No FTP reached the matcher**
+- [x] **Step 2: No FTP reached the matcher**
 
 ```bash
 grep -rniE "ftp" src/lib/interval/*.ts | grep -v "\.test\.ts" | grep -v "% of FTP" | grep -v "% FTP"
@@ -770,7 +770,7 @@ matcher does not ask" — `matchWorkout` takes `(library, session, date)` and a
 session is `sport`, `purpose`, `durationMins`. If an FTP appears here, the
 refusal-that-refuses-everything defect has come back.
 
-- [ ] **Step 3: Types, lint, and the full suite**
+- [x] **Step 3: Types, lint, and the full suite**
 
 ```bash
 npx tsc --noEmit
@@ -785,7 +785,7 @@ skipped, no expected fail**, plus this slice's 23 new tests (8 + 6 + 9), for
 **3384**. Read the _shape_ of the result, not the total — a guard file that
 stops loading takes its own tests with it and the headline number can rise.
 
-- [ ] **Step 4: Confirm the guarantee holds outside the tests**
+- [x] **Step 4: Confirm the guarantee holds outside the tests**
 
 The exact-duration guarantee is the one claim worth checking by hand, because
 every later slice assumes it. In a scratch file:
@@ -811,7 +811,7 @@ console.log("exact at every length 40-150");
 
 Expected: prints, throws nothing.
 
-- [ ] **Step 5: Commit the plan's completion**
+- [x] **Step 5: Commit the plan's completion**
 
 ## What this slice deliberately does not do
 
