@@ -591,10 +591,18 @@ const OFFENDER_CEILINGS: Record<string, number> = {
   // proportional to whatever ambient size wraps it, used at several different
   // sizes, so no fixed-step token can replace it without changing what it
   // renders at some call site. Left deliberately since slice 4 and re-affirmed
-  // here at the end of the sweep. That is why THIS pattern keeps its ceiling
-  // and its `it.fails` while the sibling ad-hoc-ink one was retired: this one
-  // has a permanent, reasoned floor of 1.
-  "arbitrary type sizes": 1,
+  // here at the end of the sweep.
+  //
+  // ENTRY DELETED in Phase 6.4 slice 7. The measurements above are kept as the
+  // record of how it reached 1. The reasoning that justified a ceiling here —
+  // "a permanent, reasoned floor of 1" — is exactly what made the sibling
+  // `it.fails` permanently vacuous: it tested for a zero that could never
+  // arrive, so it fired on any non-empty list and the ceiling did all the
+  // work. Both are replaced by one real assertion against
+  // RELATIVE_TYPE_INVENTORY, which NAMES the single exception instead of
+  // counting it. Same move v0.111.0 made for ad-hoc ink, same reason: a
+  // ceiling beside a real assertion is two things to keep in step for one
+  // fact.
   // 251 occurrences, measured 2026-08-17 after v0.106 slice 5 (Settings
   // redesign) task 3 — repays the debt task 2 explicitly left for this task,
   // same three cards as the sibling ceiling above. Net −27 from the 278
@@ -1370,12 +1378,44 @@ describe("type-scale guard", () => {
   // it is satisfied by ANY non-empty offender list, so it cannot tell 395
   // offenders from 600 and would stay green for eight slices while the count
   // rose. The ceiling is what actually binds until this flips.
-  it.fails("has no arbitrary type sizes — use the scale", () => {
-    expect(offenders(ARBITRARY_TYPE), "use text-label … text-hero").toEqual([]);
-  });
+  /**
+   * THE RECORD, not a waiver list — the same doctrine as
+   * INLINE_COLOR_INVENTORY further down. Arbitrary type sizes in a RELATIVE
+   * unit, which no fixed-step token can express.
+   *
+   * There is exactly one, and it is not a defect. `inline-markdown.tsx`
+   * renders `<code>` at `0.95em` because Geist Mono sets visibly larger than
+   * Geist Sans at an identical `font-size`; the `em` is what keeps that
+   * correction proportional to whatever scale step wraps it. Deleting it
+   * makes inline code read oversized on every surface that renders prose, and
+   * pinning it to a step changes what it renders at some call site.
+   *
+   * EXACT, so it cannot grow quietly: a second relative size fails this
+   * assertion, and the commit that adds one has to argue for it.
+   */
+  const RELATIVE_TYPE_INVENTORY: readonly string[] = [
+    "src/components/ui/inline-markdown.tsx:38 — text-[0.95em]",
+  ];
 
-  it("arbitrary type sizes stay at or below the recorded ceiling", () => {
-    expectRatchet("arbitrary type sizes", ARBITRARY_TYPE);
+  // FLIPPED FROM `it.fails` IN Phase 6.4 slice 7 (the visual-polish sweep).
+  //
+  // The `it.fails` this replaces could never pass, and the comment on its own
+  // ceiling said so: "a permanent, reasoned floor of 1". An `it.fails` that is
+  // permanently satisfied is permanently vacuous — it fires on any non-empty
+  // list, so it could not tell one offender from fifty, and the ceiling beside
+  // it was doing all the work.
+  //
+  // A real assertion against an exact inventory does both jobs at once, which
+  // is why the ceiling entry went with it. That is this file's own reasoning,
+  // borrowed from v0.111.0 when the sibling ad-hoc-ink guard flipped: "a
+  // ceiling of 0 beside a real assertion is two things to keep in step for one
+  // fact".
+  it("has no arbitrary type sizes beyond the recorded relative one", () => {
+    expect(
+      offenders(ARBITRARY_TYPE),
+      "use text-label … text-hero. A relative unit that genuinely cannot be a " +
+        "scale step goes in RELATIVE_TYPE_INVENTORY with its reason."
+    ).toEqual(RELATIVE_TYPE_INVENTORY);
   });
 
   // TODO(slice-9): flip to `it(` once the last surface is migrated. Tracked
