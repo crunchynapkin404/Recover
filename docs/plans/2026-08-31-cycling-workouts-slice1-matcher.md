@@ -762,10 +762,18 @@ there is nothing to register. If it reports fewer than 4 files, the scan broke.
 - [x] **Step 2: No FTP reached the matcher**
 
 ```bash
-grep -rniE "ftp" src/lib/interval/*.ts | grep -v "\.test\.ts" | grep -v "% of FTP" | grep -v "% FTP"
+for f in src/lib/interval/flex.ts src/lib/interval/match.ts; do
+  perl -0777 -pe 's{/\*.*?\*/}{}gs; s{//.*$}{}gm' "$f" | grep -niE "ftp" && echo "  ^ in $f"
+done
+echo "(no output above means clean)"
 ```
 
-Expected: no output beyond the `%FTP` doc comments. The spec's "a question the
+Expected: no output. **Comment-stripped and scoped to the two files this slice
+adds** — an earlier draft grepped the whole module and filtered prose by
+enumerating phrasings (`% of FTP`, `% FTP`), which matched a slice-0 doc
+comment in `render-zwo.ts` and reported a violation that did not exist. That is
+the third prose-matching check to misfire in this feature; `purity-guard.
+test.ts` already strips comments and is the pattern to copy. The spec's "a question the
 matcher does not ask" — `matchWorkout` takes `(library, session, date)` and a
 session is `sport`, `purpose`, `durationMins`. If an FTP appears here, the
 refusal-that-refuses-everything defect has come back.
