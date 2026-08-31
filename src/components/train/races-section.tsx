@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useRef, useState, useTransition } from "react";
+import { PendingButton } from "@/components/ui/pending-button";
 import { Pencil, Trash2 } from "lucide-react";
 import {
   addRace,
@@ -411,13 +412,14 @@ function RaceDemandEditor({
       />
 
       <div className="flex gap-2">
-        <button
+        <PendingButton
           type="submit"
-          disabled={pending}
+          pending={pending}
+          pendingLabel="Saving…"
           className="flex-1 rounded-2xl bg-accent py-2.5 text-caption font-bold text-primary-foreground transition-opacity disabled:opacity-50"
         >
-          {pending ? "Saving…" : "Save"}
-        </button>
+          Save
+        </PendingButton>
         <button
           type="button"
           disabled={pending}
@@ -736,13 +738,14 @@ export function RacesSection({ races, hideHeading = false }: Props) {
             placeholder="Goal note (optional)"
             className="w-full rounded-xl border border-hairline px-3 py-2 text-caption text-ink-primary placeholder:text-ink-muted focus:border-accent focus:outline-none"
           />
-          <button
+          <PendingButton
             type="submit"
-            disabled={pending}
+            pending={pending}
+            pendingLabel="Adding…"
             className="w-full rounded-2xl bg-accent py-2.5 text-caption font-bold text-primary-foreground transition-opacity disabled:opacity-50"
           >
-            {pending ? "Adding…" : "Add race"}
-          </button>
+            Add race
+          </PendingButton>
           {error && (
             <p role="status" className="text-center text-label text-chart-5">
               {error}

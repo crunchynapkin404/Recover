@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState, useTransition } from "react";
+import { PendingButton } from "@/components/ui/pending-button";
 import { Copy, Trash2 } from "lucide-react";
 import {
   createInvite,
@@ -45,13 +46,14 @@ export function InviteManager({ invites }: Props) {
           aria-label="Invitee email (optional)"
           className="login-input flex-1 rounded-xl px-3 py-2.5 text-caption text-ink-primary"
         />
-        <button
+        <PendingButton
           type="submit"
-          disabled={pending}
+          pending={pending}
+          pendingLabel="Creating…"
           className="rounded-xl bg-accent px-4 py-2.5 text-caption font-bold text-accent-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
         >
-          {pending ? "Creating…" : "New invite"}
-        </button>
+          New invite
+        </PendingButton>
       </form>
 
       {state && (

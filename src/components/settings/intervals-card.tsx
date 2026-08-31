@@ -52,8 +52,13 @@ export function IntervalsCard({ connection }: Props) {
   function run(name: string, fn: () => Promise<typeof result>) {
     setBusy(name);
     startTransition(async () => {
-      setResult(await fn());
-      setBusy(null);
+      try {
+        setResult(await fn());
+      } finally {
+        // finally, not a trailing call: an action that throws would otherwise
+        // strand its button in the pending label for the rest of the session.
+        setBusy(null);
+      }
     });
   }
 
@@ -109,7 +114,7 @@ export function IntervalsCard({ connection }: Props) {
           <div className="flex flex-wrap items-center gap-3">
             <Button
               disabled={pending}
-              pending={busy === "sync"}
+              pending={pending && busy === "sync"}
               pendingLabel="Syncing…"
               onClick={() => run("sync", syncNow)}
             >
@@ -118,7 +123,7 @@ export function IntervalsCard({ connection }: Props) {
             <Button
               variant="outline"
               disabled={pending}
-              pending={busy === "disconnect"}
+              pending={pending && busy === "disconnect"}
               onClick={() => run("disconnect", disconnectIntervals)}
             >
               Disconnect
@@ -126,7 +131,7 @@ export function IntervalsCard({ connection }: Props) {
             <Button
               variant="outline"
               disabled={pending || connection.backfillRunning}
-              pending={busy === "backfill"}
+              pending={pending && busy === "backfill"}
               onClick={() => run("backfill", backfillHistory)}
               // Explicit, because the idle label is already "Backfilling…"
               // when the SERVER has a backfill running — the default would

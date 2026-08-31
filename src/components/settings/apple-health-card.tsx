@@ -59,8 +59,13 @@ export function AppleHealthCard({
   function run(action: string, fn: () => Promise<typeof result>) {
     setBusy(action);
     startTransition(async () => {
-      setResult(await fn());
-      setBusy(null);
+      try {
+        setResult(await fn());
+      } finally {
+        // finally, not a trailing call: an action that throws would otherwise
+        // strand its button in the pending label for the rest of the session.
+        setBusy(null);
+      }
     });
   }
 
@@ -101,7 +106,7 @@ export function AppleHealthCard({
             <PendingButton
               type="button"
               disabled={pending}
-              pending={busy === "new-url"}
+              pending={pending && busy === "new-url"}
               onClick={() => run("new-url", enableAppleHealth)}
               className={connectorPillClass}
             >
@@ -110,7 +115,7 @@ export function AppleHealthCard({
             <PendingButton
               type="button"
               disabled={pending}
-              pending={busy === "disable"}
+              pending={pending && busy === "disable"}
               onClick={() => run("disable", disableAppleHealth)}
               className={connectorGhostClass}
             >
@@ -121,7 +126,7 @@ export function AppleHealthCard({
           <PendingButton
             type="button"
             disabled={pending}
-            pending={busy === "enable"}
+            pending={pending && busy === "enable"}
             onClick={() => run("enable", enableAppleHealth)}
             aria-describedby={mechanismNoteId("Apple Health")}
             className={connectorCtaClass}

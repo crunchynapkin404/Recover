@@ -62,8 +62,13 @@ export function StravaCard({
   function run(action: string, fn: () => Promise<ActionResult>) {
     setBusy(action);
     startTransition(async () => {
-      setResult(await fn());
-      setBusy(null);
+      try {
+        setResult(await fn());
+      } finally {
+        // finally, not a trailing call: an action that throws would otherwise
+        // strand its button in the pending label for the rest of the session.
+        setBusy(null);
+      }
     });
   }
   const [auto, setAuto] = useState(autoDescribe);
@@ -132,7 +137,7 @@ export function StravaCard({
             <PendingButton
               type="button"
               disabled={pending}
-              pending={busy === "sync"}
+              pending={pending && busy === "sync"}
               onClick={() => run("sync", stravaSyncNow)}
               className={connectorPillClass}
             >
@@ -141,7 +146,7 @@ export function StravaCard({
             <PendingButton
               type="button"
               disabled={pending}
-              pending={busy === "disconnect"}
+              pending={pending && busy === "disconnect"}
               onClick={() => run("disconnect", stravaDisconnect)}
               className={connectorGhostClass}
             >

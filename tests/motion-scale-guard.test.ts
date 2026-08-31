@@ -138,6 +138,16 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
+/**
+ * Source with comments removed, so a guard cannot be tripped by prose that
+ * merely NAMES the thing it hunts for. Block comments first, then line
+ * comments; string contents are left alone, which is fine because every
+ * pattern here hunts for identifiers and attributes rather than literals.
+ */
+function stripComments(src: string): string {
+  return src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^[ \t]*\/\/.*$/gm, "");
+}
+
 /** `file:line` for every match of `pattern` in src/**, excluding tests. */
 function srcOffenders(pattern: RegExp): string[] {
   const out: string[] = [];
@@ -415,5 +425,89 @@ describe("the root loading boundary", () => {
       "src/app/loading.tsx must use <LoadingScreen> with no label — it stands " +
         "in for every route, so naming one announces the wrong surface."
     ).toBe(false);
+  });
+});
+
+describe("pending is spoken one way", () => {
+  /** Components that run a transition and render a button for it. */
+  function transitionButtons(): string[] {
+    return walk(SRC)
+      .filter((f) => {
+        const src = readFileSync(f, "utf8");
+        return src.includes("useTransition") && /<[Bb]utton[\s>]/.test(src);
+      })
+      .map((f) => relative(process.cwd(), f));
+  }
+
+  /**
+   * Adopting means handing the transition flag to a component that owns the
+   * vocabulary — `<PendingButton pending={…}>`, `<Button pending={…}>` or
+   * `<PinnedAction pending={…}>` — rather than spelling disabled/aria-busy
+   * and a label ternary at the call site.
+   *
+   * TWO CHECKS, because one is not enough. A file can adopt for its primary
+   * button and still hand-spell a second one, so a hand-rolled label ternary
+   * on the transition flag (`{pending ? "Saving…" : "Save"}`) is an offender
+   * even in a file that passes `pending={}` elsewhere.
+   *
+   * NOT an offender: a bare `disabled={pending}` on a SECONDARY control — a
+   * Cancel beside a saving Save is disabled because work is in flight, but it
+   * is not doing the work. It must not say "Cancel…" or claim `aria-busy`.
+   */
+  /**
+   * THE RECORD, not a waiver list — the same doctrine as
+   * type-scale-guard.test.ts's INLINE_COLOR_INVENTORY. A file belongs here
+   * only when it runs a transition and renders a button, but has NO button
+   * that does the work: every `disabled={flag}` on it is secondary.
+   *
+   * standard-week.tsx's single button opens a day row. It is disabled while a
+   * save is in flight elsewhere on the card, which is a correct thing to be —
+   * but it is not doing that work, so making it say "…" or claim `aria-busy`
+   * would be a lie about what the athlete is waiting for.
+   */
+  const NO_WORKING_BUTTON: readonly string[] = [
+    "src/components/train/standard-week.tsx",
+  ];
+
+  function withoutVocabulary(): string[] {
+    return transitionButtons().filter((f) => {
+      if (NO_WORKING_BUTTON.includes(f)) return false;
+      const src = readFileSync(f, "utf8");
+      const flag = /const \[(\w+), start\w*\] = useTransition/.exec(src)?.[1];
+      // A LABEL ternary, not any ternary. `busyId={isPending ? busyId : null}`
+      // passes state to a child and is none of this guard's business; a label
+      // has a quoted string in it. Requiring one keeps the check on the thing
+      // it is actually about.
+      const handRolledLabel =
+        flag &&
+        new RegExp(`\\{\\s*${flag}\\s*\\?[^}]*["\`']`).test(src);
+      return !src.includes("pending={") || handRolledLabel;
+    });
+  }
+
+  it("every transition button uses the shared primitive", () => {
+    expect(
+      withoutVocabulary(),
+      `these components start a transition and render a button for it, but ` +
+        `spell the pending state themselves. Three spellings already exist ` +
+        `and two of them say nothing at all. Use <PendingButton>.`
+    ).toEqual([]);
+  });
+
+  it("aria-busy is not hand-rolled anywhere", () => {
+    // A call site that sets it directly has re-implemented the vocabulary
+    // rather than adopted it, and the two will drift.
+    //
+    // COMMENTS ARE STRIPPED FIRST, for the third time in this file's life:
+    // the motion scan hit it, the reduced-motion rule hit it, and this hit it
+    // when ui/button.tsx's own doc comment named the attribute it delegates.
+    // A guard that prose can trip is one people reword around instead of
+    // satisfying — see tests/viewport-zoom-guard.test.ts, which matches bare
+    // words and has that exact problem.
+    const rogue = walk(SRC)
+      .filter((f) => !f.endsWith("pending-button.tsx"))
+      .filter((f) => stripComments(readFileSync(f, "utf8")).includes("aria-busy"))
+      .map((f) => relative(process.cwd(), f));
+    expect(rogue).toEqual([]);
   });
 });

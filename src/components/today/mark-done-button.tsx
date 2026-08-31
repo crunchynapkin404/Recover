@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { PendingButton } from "@/components/ui/pending-button";
 import { markSessionDone } from "@/app/plan/actions";
 import { friendlyPlanError } from "@/components/week/day-actions";
 
@@ -25,9 +26,9 @@ export function MarkDoneButton({ date }: { date: string }) {
 
   return (
     <>
-      <button
+      <PendingButton
         type="button"
-        disabled={pending}
+        pending={pending}
         onClick={() => {
           setError(null);
           startTransition(async () => {
@@ -39,7 +40,7 @@ export function MarkDoneButton({ date }: { date: string }) {
         className="rounded-full bg-accent px-3.5 py-1.5 text-label font-bold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
       >
         Mark done
-      </button>
+      </PendingButton>
       {error && <span className="text-label text-chart-5">{error}</span>}
     </>
   );
