@@ -578,3 +578,15 @@ describe("the type scale is the only type scale", () => {
     ).toEqual([]);
   });
 });
+
+describe("the body element sits on the scale", () => {
+  it("uses --text-body, not a pre-redesign literal", () => {
+    // The scale's own body step is 16px. While `body` was 15px the scale
+    // disagreed with the element it describes, and the 12 call sites using
+    // `text-body` rendered a pixel larger than the prose around them.
+    const body = /\n\s*body\s*\{([\s\S]*?)\n\s*\}/.exec(css());
+    expect(body, "no body rule in globals.css").not.toBeNull();
+    expect(body![1]).not.toMatch(/font-size:\s*15px/);
+    expect(body![1]).toMatch(/font-size:\s*var\(--text-body\)/);
+  });
+});
