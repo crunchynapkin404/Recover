@@ -125,9 +125,10 @@ export function matchWorkout(
   // `===` is exactly what cost 219 live rides their match in
   // canonical-sport.ts's own defect, and cost plan-sport.ts's `sports[0] ===
   // "Bike"` a fallthrough to running when `sports[0]` still held "Ride".
-  // session.sport here is neither: it comes from a PlannedWorkout, which
-  // generateWorkouts stamps from the closed set {Run, Bike, Swim, Strength}
-  // — already the planner's own vocabulary. Routing it through
+  // session.sport here is neither: it comes from a PlannedWorkout, whose
+  // sport is always stamped by the planner itself — generateWorkouts writes
+  // Run/Bike/Swim, and materializeWeek adds Strength — so it is already the
+  // planner's own vocabulary, never a provider's. Routing it through
   // canonicalSport would imply an input class — an unnormalized provider
   // string — that cannot reach the matcher.
   if (session.sport !== "Bike") {

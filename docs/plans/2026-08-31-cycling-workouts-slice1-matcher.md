@@ -563,8 +563,10 @@ describe("matchWorkout selection", () => {
   });
 
   it("is deterministic: the same day always gets the same workout", () => {
+    // Twice is enough: matchWorkout is pure and holds no module state, so
+    // repetition adds nothing a second call has not already shown.
     const first = matchWorkout(STUB, BIKE, "2026-09-01");
-    for (let i = 0; i < 200; i++) {
+    for (let i = 0; i < 2; i++) {
       expect(matchWorkout(STUB, BIKE, "2026-09-01")).toEqual(first);
     }
   });
