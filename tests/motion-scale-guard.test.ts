@@ -148,11 +148,21 @@ function stripComments(src: string): string {
   return src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^[ \t]*\/\/.*$/gm, "");
 }
 
-/** `file:line` for every match of `pattern` in src/**, excluding tests. */
-function srcOffenders(pattern: RegExp): string[] {
+/**
+ * `file:line` for every match of `pattern` in src/**, excluding tests.
+ *
+ * `stripComments` is opt-in rather than the default because the motion scans
+ * want line numbers that match the file as written; the type scan cares only
+ * about whether a class is real.
+ */
+function srcOffenders(
+  pattern: RegExp,
+  opts: { stripComments?: boolean } = {}
+): string[] {
   const out: string[] = [];
   for (const file of walk(SRC)) {
-    const lines = readFileSync(file, "utf8").split("\n");
+    const raw = readFileSync(file, "utf8");
+    const lines = (opts.stripComments ? stripComments(raw) : raw).split("\n");
     lines.forEach((line, i) => {
       for (const _ of line.matchAll(new RegExp(pattern.source, "g"))) {
         out.push(`${relative(process.cwd(), file)}:${i + 1}`);
@@ -555,8 +565,13 @@ describe("the type scale is the only type scale", () => {
     // ARBITRARY_TYPE covers `text-[…]` arbitrary values and says nothing
     // about Tailwind's own keys, which is how 17 of them survived nine
     // slices of a type migration.
+    // Comments stripped, for the fourth time in this file's life. The first
+    // measurement of this family counted 17, and four of those were prose:
+    // connector-card.tsx's doc comment RECOUNTS the historical `text-sm` /
+    // `text-xl` / `text-base` values it was migrated away from. A guard that
+    // reads documentation as code makes people delete the documentation.
     expect(
-      srcOffenders(STOCK_TYPE),
+      srcOffenders(STOCK_TYPE, { stripComments: true }),
       `these use Tailwind's built-in type scale rather than the app's. The ` +
         `sizes map exactly — xs→label, sm→caption, base→body, xl→title — so ` +
         `this is a rename plus at most 2px of leading.`
