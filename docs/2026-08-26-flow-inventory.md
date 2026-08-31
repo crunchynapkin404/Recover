@@ -725,3 +725,82 @@ pinch-zoom` forbids every single-finger pan, not just the horizontal one,
 
 0 confirmed axe defects across both themes and both viewports, before and
 after those fixes. The ratchet ceiling stayed at **0**.
+
+---
+
+## Slice 4 of visual polish — the body flip, measured 2026-08-31
+
+The fifth dated measurement. Phase 6.4 slice 4 moved `body`'s font-size from
+the pre-redesign **15px** to `var(--text-body)` (**16px**), closing a note that
+had stood in `globals.css` since v0.99 promising the move "until the last
+surface migrates".
+
+**The prediction was that this would make every surface taller.** The spec
+said so, and this document was expected to record a rise. It did not happen.
+
+### Screens, measured before and after in one session
+
+Same method as the four sections above — real browser, 390×844, signed in as
+`dev@recover.local`, `document.documentElement.scrollHeight / 844`. Both
+readings taken minutes apart against **identical fixture data**, so the delta
+isolates the flip and nothing else.
+
+| Surface | before (15px) | after (16px) | delta |
+| --- | ---: | ---: | ---: |
+| Body ▸ Journal | 2.36 | 2.36 | 0 |
+| Train ▸ Week | 1.36 | 1.36 | 0 |
+| Activity log | 1.14 | 1.14 | 0 |
+| Today | 1.00 | 1.00 | 0 |
+| Coach | 1.15 | 1.15 | 0 |
+| Settings (collapsed) | 1.00 | 1.00 | 0 |
+| Body ▸ Trends | 1.00 | 1.00 | 0 |
+| Train ▸ History | 1.00 | 1.00 | 0 |
+| Train ▸ Fitness | 1.48 | 1.49 | **+0.01** |
+| Import | 1.03 | 1.03 | 0 |
+| Train ▸ Season | 1.36 | 1.36 | 0 |
+
+**Choice load is unchanged** and was not re-measured: the flip adds and removes
+no control.
+
+### Why it is inert, which is the useful part
+
+**The type scale is in `rem`, anchored to `html`, not to `body`.** `html`
+computes to the browser default 16px, so `--text-label: 0.75rem` has always
+been 12px no matter what `body` said. Changing `body`'s font-size therefore
+reached only text that sets **no** size of its own.
+
+Counted on Train ▸ Week: **66 text-bearing elements carry an explicit scale
+class, 42 inherit** — and the inheriting ones are short inline fragments
+(`ml-1.5 text-ink-muted`, "0 min free"), `sr-only` text, and a script node.
+Short spans inside flex rows do not move a page's height.
+
+So the flip was safe **because** the type migration is complete. The spec's
+risk was written when it was not, and the fear was reasonable then; it is
+simply no longer true. The change is still worth making: while `body` was
+15px, unstyled text rendered a pixel smaller than the scale's own body step,
+so `text-body` looked oversized next to the prose around it.
+
+### A drift this measurement surfaced, and did not paper over
+
+The banked figures in the table at the top of this document no longer
+reproduce. Measured immediately before the flip, on current fixtures:
+
+| Surface | banked | now |
+| --- | ---: | ---: |
+| Train ▸ Week | 1.84 | **1.36** |
+| Train ▸ Fitness | 1.00 | **1.48** |
+| Train ▸ Season | 1.00 | **1.36** |
+| Body ▸ Journal | 2.4 | 2.36 |
+
+The drift runs in **both** directions, which rules out a CSS cause — three
+slices of visual polish could shorten surfaces, not lengthen them. It is
+fixture data: the seeded week, plan and activity state differ from what
+existed when those numbers were taken, and this document's own caveat already
+says the figures are fixture-dependent.
+
+**The roadmap's "4.7 phone screens → 1.84" is left alone deliberately.** That
+number described a real measurement against the fixtures of its day; replacing
+it with 1.36 would swap one fixture-dependent figure for another and imply the
+flow strand had regressed, which it has not. What is recorded instead is that
+a comparison across fixture states is not a comparison at all — the same
+lesson the capture sets teach about comparing across a date boundary.
