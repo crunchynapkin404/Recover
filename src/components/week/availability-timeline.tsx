@@ -332,20 +332,22 @@ function DayTrack({
         <span className="flex-1 truncate text-label text-ink-secondary">
           {formatBlocks(blocks)}
         </span>
+        {/* A MARK, NOT A CONTROL (slice 6). This was a button reading
+            "Pinned ×", one per day and up to seven on one sheet — the largest
+            single contributor to a choice load that rose 17 → 31 in v0.124.0,
+            and it crowded this row until the block summary truncated on a
+            two-block day. The summary carries the actual clock times, because
+            the pills are deliberately unlabelled, so truncating it was a real
+            information loss.
+
+            The `×` went with the button: it promised an action. The word
+            stays, because the state is real and a screen reader still needs
+            to hear it. Per-day unpin moved to BlockSheet — the spec's own
+            precise and assistive path — rather than disappearing. */}
         {pinned && (
-          <button
-            type="button"
-            // The visible text is "Pinned ×", so the accessible name has to
-            // start with it (WCAG 2.5.3). The first version replaced it
-            // wholesale, which broke "tap Pinned" for every voice-control
-            // user — a regression against main, where the button had only a
-            // `title` and its visible text WAS its name.
-            aria-label={`Pinned — ${dayName}, back to your standard week`}
-            onClick={() => onUnpin(day)}
-            className="shrink-0 scroll-mb-52 rounded-full border border-hairline bg-surface-overlay px-2 py-0.5 text-label font-bold text-chart-3"
-          >
-            Pinned ×
-          </button>
+          <span className="shrink-0 rounded-full border border-hairline bg-surface-overlay px-2 py-0.5 text-label font-bold text-chart-3">
+            Pinned
+          </span>
         )}
         <button
           type="button"

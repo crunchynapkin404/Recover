@@ -226,8 +226,10 @@ describe("IntakeForm", () => {
     // element sitting behind an overlay — but it CAN see the class that
     // forces the extra scroll: `scroll-mb-52` is honoured by the same
     // focus-scroll algorithm regardless of layout. Every button in the day
-    // list (the day toggle AND the "Pinned ×" unpin button) must carry it —
-    // whichever one doesn't is the next silent regression of this bug.
+    // list must carry it — whichever one doesn't is the next silent
+    // regression of this bug. (The "Pinned ×" button this comment used to
+    // name is a mark now, slice 6; it is not focusable, so it is out of
+    // scope rather than exempt.)
     const dates = [
       "2026-08-03",
       "2026-08-04",
@@ -252,14 +254,19 @@ describe("IntakeForm", () => {
     const scrollMbCount = (listHtml.match(/scroll-mb-52/g) ?? []).length;
     // Slice 3: the day list became AvailabilityTimeline, so the control set
     // changed shape while the invariant did not. Per day: a "+" and an
-    // "edit precisely" button (14). Plus one "Pinned ×" for the one
-    // overridden date above, and one pill for the one block in `resolved`.
+    // "edit precisely" button (14). Plus one pill for the one block in
+    // `resolved`.
+    //
+    // Slice 6 took this from 16 to 15: the "Pinned ×" button for the one
+    // overridden date became a non-interactive mark, so it is no longer
+    // focusable and no longer needs the scroll margin. Per-day unpin moved
+    // into BlockSheet.
     //
     // The count is incidental; the assertion below it is the real guard, and
     // it is what caught the timeline shipping without scroll-mb-52 at all —
     // tabbing to Saturday would have focused a control sitting behind
     // PinnedAction's stuck band.
-    expect(buttonCount).toBe(16);
+    expect(buttonCount).toBe(15);
     expect(scrollMbCount).toBe(buttonCount);
   });
 
