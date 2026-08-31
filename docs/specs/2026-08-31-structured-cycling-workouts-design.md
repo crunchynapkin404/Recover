@@ -81,8 +81,10 @@ Nothing is invented to fill a gap.
 ## Design 1 — Storage: derive at read time, pin on export
 
 **Nothing is stored on a planned day until the athlete exports it.**
-`matchWorkout(purpose, durationMins, date)` is a pure function over the
-library, called on every read.
+`matchWorkout(library, session, date)` is a pure function over the library,
+called on every read. The library is a **parameter, not an import** — that is
+what lets the matcher be built and tested against a stub before slice 2
+authors a single workout.
 
 ### Why this, and not a field on `PlannedWorkout`
 
@@ -128,9 +130,20 @@ draft of this spec stored only `workoutId` and `exportedAt`, and defined
 staleness as "the day no longer matches what the workout was chosen for". That
 is unimplementable from those two fields: the only available test is
 re-deriving and comparing ids, and **re-derivation has a wider dependency
-footprint than the day itself.** Selection avoids recent ids and families, so
-changing _next_ Tuesday's workout changes this Tuesday's pick — and the athlete
-is told a day is stale that nothing happened to.
+footprint than the day itself.**
+
+An earlier draft made that point about neighbouring days, on the strength of
+selection avoiding recent picks. Selection no longer does — it is a date-seeded
+spread over the candidates, depending on nothing outside the day — so **that
+particular argument has expired, and the conclusion it supported has not.** The
+dependency that remains is larger and less avoidable: re-derivation depends on
+**the library**, and the library grows. Slice 2 ships 30 workouts and slice 5
+takes it past 100. Every workout added changes how the date seed lands, so a
+release that only adds content would re-derive a different workout for every
+day an athlete had already exported, and mark all of them stale at once —
+telling the athlete their whole calendar drifted when nothing about their plan
+moved. A pin that survives its own library's growth cannot be derived from
+that library.
 
 So export stores `workoutId`, `exportedAt`, and **`purpose` and `durationMins`
 as they were at export**. Staleness is a direct comparison against the
@@ -235,7 +248,9 @@ export interface LibraryWorkout {
 ```
 
 Deliberately **cut**: `sport` (the module is cycling-only; the matcher refuses
-non-Bike once rather than 100+ literals repeating a constant), `durationMins`
+non-Bike once rather than 100+ literals repeating a constant — which means
+`sport` is an input to `matchWorkout`, on the session, even though it is not a
+field on a workout), `durationMins`
 (derived), `intensity` (derived from the peak main-set target through the zone
 table already shipped in `get-workout-syntax.ts`), per-step text prompts, free
 blocks, cadence _ranges_, nested repeats.
@@ -307,12 +322,35 @@ easy part.
 `matchWorkout` returns one of three things, and the third is not a failure
 mode to be engineered away:
 
-- `matched` — a candidate fits. Among candidates, the pick is **deterministic**
-  and seeded by the day's own date, so the same week never re-picks a
-  different workout on a re-render. Recent ids _and recent families_ are
-  avoided.
-- `synthesized` — reserved, not built in the first slice.
-- `refused` — no candidate fits. The day keeps today's prose and band.
+- `matched` — a candidate fits. Among candidates the pick is **deterministic
+  and seeded by the day's own date**, so the same week never re-picks a
+  different workout on a re-render.
+- `refused` — the session is not cycling, its `purpose` is not one a library
+  workout answers, or no candidate fits. The day keeps today's prose and band.
+
+**How variety actually works, which an earlier draft overstated.** That draft
+promised "recent ids _and recent families_ are avoided" from a signature
+carrying no history. The two cannot both hold: avoiding what a nearby day
+picked requires knowing it, and the only ways to know are to take a `recent`
+argument — reintroducing exactly the neighbouring-day dependency the staleness
+fix removed from the pin — or to store something.
+
+So variety is **spread, not avoidance**. The date seeds a pick among the
+candidates that fit, and the pick is **family-first**: choose the family, then
+choose within it. Picking ids uniformly would let a family holding five
+workouts outvote one holding a single workout, which is the opposite of what
+`family` exists for. Two days a fortnight apart can still draw the same
+workout; nothing promises otherwise, and the promise is not worth the coupling.
+
+**Any candidate inside its flex bound is acceptable by construction** — that
+is what bounding the flex is _for_ — so the pick does not also rank by how
+little a workout stretches. Ranking that way would collapse variety outright:
+the nearest-fitting workout would win every time for a given duration, and
+rotation would stop happening at all.
+
+**`synthesized` is not in the union.** The earlier draft reserved it as a third
+result. Slice 1 can never return it, and a variant that is unreachable is dead
+code with a type to maintain; it goes in when something actually synthesizes.
 
 **Refusal is the honest path, not a gap.** It is how `strengthPrescription`
 already degrades when a 1RM is unset, and it is the gate's third clause in
@@ -419,7 +457,7 @@ three would have adopted two non-goals instead of one.
 | #   | Slice                     | Ships                                                                                                                                                |
 | --- | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 0   | **Shape + renderers**     | `types.ts`, `renderIcu`, `renderZwo`, `renderDescription`, tested against hand-written expected output. No library, no matcher, nothing user-visible |
-| 1   | **The matcher**           | `match.ts` with fit/flex/refuse, deterministic selection, family rotation. Tested against a stub library                                             |
+| 1   | **The matcher**           | `match.ts` with fit/flex/refuse, deterministic date-seeded selection, family-first spread. Tested against a stub library                             |
 | 2   | **The library, first 30** | The continuous integer range covered per purpose — see "Coverage is continuous" — each with `source` and confidence. Coverage asserted by a guard    |
 | 3   | **The surface**           | Workout name, profile and targets in the Week open-day block                                                                                         |
 | 4   | **Export**                | `.zwo` download route + the intervals.icu WORKOUT write, and the four-field pin on `ScheduledWorkout` with its stale marker                          |
