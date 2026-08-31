@@ -511,3 +511,35 @@ describe("pending is spoken one way", () => {
     expect(rogue).toEqual([]);
   });
 });
+
+describe("the type scale has line-heights", () => {
+  it("every step pairs a size with a leading", () => {
+    // The gap this pins: the scale shipped font sizes only, so every step
+    // inherited Tailwind preflight's `html { line-height: 1.5 }`. That is
+    // right for body and wrong for display — a 44px hero was set at 66px
+    // leading, and two call sites had already hand-patched it with
+    // `leading-none`.
+    const all = readPrefixedThemeTokens(css(), "--text-");
+    const sizes = Object.keys(all).filter((t) => !t.endsWith("--line-height"));
+    const missing = sizes.filter(
+      (t) => all[`${t}--line-height`] === undefined
+    );
+    expect(
+      missing,
+      `these steps set a size with no leading, so they inherit whatever the ` +
+        `framework reset happens to say. A scale that does not state its own ` +
+        `leading is half a scale.`
+    ).toEqual([]);
+  });
+
+  it("display steps are tighter than body steps", () => {
+    // Not a taste assertion: leading that is right for a paragraph is visibly
+    // loose on a 44px figure, which is the defect this slice fixes.
+    const t = readPrefixedThemeTokens(css(), "--text-");
+    const lh = (n: string) => Number(t[`--text-${n}--line-height`]);
+    expect(lh("body")).toBeGreaterThan(lh("title"));
+    expect(lh("title")).toBeGreaterThan(lh("heading"));
+    expect(lh("heading")).toBeGreaterThan(lh("figure"));
+    expect(lh("figure")).toBeGreaterThan(lh("hero"));
+  });
+});

@@ -101,6 +101,27 @@
   --text-figure: 1.875rem; /* 30 */
   --text-hero: 2.75rem; /* 44 — the primary figure */
 
+  /* Line-heights. Tailwind pairs `--text-<name>--line-height` with
+     `--text-<name>` automatically, and `leading-*` at a call site still wins.
+
+     THE TEXT END IS PINNED AT ITS CURRENT VALUE, NOT RETUNED. label, caption
+     and body render at 1.5 today — inherited from Tailwind preflight's
+     `html { line-height: 1.5 }`, not from any decision anyone made. Writing
+     1.5 down moves no pixel on 582 call sites and stops the value drifting if
+     the framework reset ever changes.
+
+     THE DISPLAY END IS THE DEFECT. A 44px hero at 1.5 is 66px of leading.
+     `today-hero.tsx` and `bedtime-card.tsx` had each already patched their own
+     figure with `leading-none` — two people working around a missing token
+     rather than a coincidence. Those overrides still win. */
+  --text-label--line-height: 1.5; /* pinned, unchanged */
+  --text-caption--line-height: 1.5; /* pinned, unchanged */
+  --text-body--line-height: 1.5; /* pinned, unchanged */
+  --text-title--line-height: 1.35;
+  --text-heading--line-height: 1.25;
+  --text-figure--line-height: 1.1;
+  --text-hero--line-height: 1;
+
   /* Numeric type — mono figures for scores, HR, power. Phase 2b.4. Reuses
      the already-loaded Geist Mono font; named separately from --font-mono
      so numeric-display call sites read as intent, not as "code font". */
