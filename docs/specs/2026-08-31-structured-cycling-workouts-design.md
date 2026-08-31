@@ -357,6 +357,38 @@ been wrong twice. `RED_ENDURANCE_SCALE`, `AMBER_SCALE`,
 and `PURPOSE_BY_TYPE` are all already exported; the guard lives in a
 `.test.ts`, which the purity scan skips, so importing them costs nothing.
 
+### Where coverage stops, and why it stops there
+
+The reachable set above is technically right and partly absurd. Redistribution
+applies `×1.25` to whatever a day already holds, so a 20 h/week athlete makes a
+**270-minute `vo2max` day** and a **450-minute `recovery` day** genuinely
+reachable. Covering those means hand-authoring a four-and-a-half-hour VO2max
+session, which nobody should ride — and authoring it only to satisfy a guard
+would be the guard driving the coaching instead of the reverse.
+
+So **the library covers each purpose up to a stated ceiling, and refuses
+above it.** The day keeps today's prose and band, which the spec already calls
+the honest path rather than a gap:
+
+| purpose        | covered | ceiling is                                                                                |
+| -------------- | ------- | ----------------------------------------------------------------------------------------- |
+| `recovery`     | 21–90   | beyond this it is an endurance ride, not a recovery spin                                  |
+| `aerobic_base` | 21–210  | beyond this the plan calls it a long ride                                                 |
+| `long`         | 48–300  | `ABSOLUTE_LONG_BOUND_MINS` is 360; 300 is the last length worth authoring a structure for |
+| `threshold`    | 27–120  | a threshold session past two hours is an endurance ride with efforts in it                |
+| `vo2max`       | 32–120  | same                                                                                      |
+
+Source: coaching convention, chosen by the athlete/owner. Confidence: Low.
+What would raise it: nothing available — it is a judgement about what is worth
+authoring, not a measurable quantity.
+
+**This is what makes slice 2's thirty workouts sufficient rather than exactly
+exhausted.** Tiling the capped ranges takes **17** workouts; **34** gives every
+duration two families to rotate between. Against the uncapped ranges it takes
+31 to tile once and ~62 for two families, so thirty would have covered
+everything exactly once and left `family` rotation with nothing to choose
+between — the machinery would have been dead weight until slice 5.
+
 ### Selection
 
 `matchWorkout` returns one of three things, and the third is not a failure
@@ -494,14 +526,14 @@ three would have adopted two non-goals instead of one.
 
 ## Slices
 
-| #   | Slice                     | Ships                                                                                                                                                |
-| --- | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0   | **Shape + renderers**     | `types.ts`, `renderIcu`, `renderZwo`, `renderDescription`, tested against hand-written expected output. No library, no matcher, nothing user-visible |
-| 1   | **The matcher**           | `match.ts` with fit/flex/refuse, deterministic date-seeded selection, family-first spread. Tested against a stub library                             |
-| 2   | **The library, first 30** | The continuous integer range covered per purpose — see "Coverage is continuous" — each with `source` and confidence. Coverage asserted by a guard    |
-| 3   | **The surface**           | Workout name, profile and targets in the Week open-day block                                                                                         |
-| 4   | **Export**                | `.zwo` download route + the intervals.icu WORKOUT write, and the four-field pin on `ScheduledWorkout` with its stale marker                          |
-| 5   | **The library, to 100+**  | Pure content. No code change — which is the test of whether slices 0–2 got the shape right                                                           |
+| #   | Slice                     | Ships                                                                                                                                                                                                                                    |
+| --- | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0   | **Shape + renderers**     | `types.ts`, `renderIcu`, `renderZwo`, `renderDescription`, tested against hand-written expected output. No library, no matcher, nothing user-visible                                                                                     |
+| 1   | **The matcher**           | `match.ts` with fit/flex/refuse, deterministic date-seeded selection, family-first spread. Tested against a stub library                                                                                                                 |
+| 2   | **The library, first 30** | The capped integer range covered per purpose — 17 workouts tile it, 30 gives most durations two families. Each with `source` and confidence. Coverage asserted by a guard that derives the reachable set from the engine's own constants |
+| 3   | **The surface**           | Workout name, profile and targets in the Week open-day block                                                                                                                                                                             |
+| 4   | **Export**                | `.zwo` download route + the intervals.icu WORKOUT write, and the four-field pin on `ScheduledWorkout` with its stale marker                                                                                                              |
+| 5   | **The library, to 100+**  | Pure content. No code change — which is the test of whether slices 0–2 got the shape right                                                                                                                                               |
 
 Slices 0–2 are the design work; 3–4 are largely plumbing; 5 is authoring.
 
