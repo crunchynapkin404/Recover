@@ -1,5 +1,4 @@
-import type { Purpose } from "@/lib/availability/types";
-import type { Block, LibraryWorkout } from "./types";
+import type { Block, LibraryWorkout, LibraryPurpose } from "./types";
 import { resolve } from "./flex";
 
 /**
@@ -16,11 +15,6 @@ export interface MatchSession {
   durationMins: number;
 }
 
-/**
- * There is no `synthesized` variant. The spec reserved one and nothing in
- * this slice can return it; an unreachable variant is dead code with a type
- * to maintain. It goes in when something actually synthesizes.
- */
 export type MatchResult =
   | { kind: "matched"; workout: LibraryWorkout; blocks: Block[] }
   | {
@@ -28,13 +22,23 @@ export type MatchResult =
       reason: "not-cycling" | "not-a-library-purpose" | "no-candidate";
     };
 
-const LIBRARY_PURPOSES: ReadonlySet<Purpose> = new Set<Purpose>([
-  "recovery",
-  "aerobic_base",
-  "long",
-  "threshold",
-  "vo2max",
-]);
+/**
+ * Keyed by LibraryPurpose so the two cannot drift: adding a member to
+ * LibraryPurpose without adding it here is a compile error, and a key that is
+ * not a LibraryPurpose is also a compile error. types.ts asks for exactly this
+ * — "never a parallel union ... rather than a silent hole".
+ */
+const LIBRARY_PURPOSE_KEYS: Record<LibraryPurpose, true> = {
+  recovery: true,
+  aerobic_base: true,
+  long: true,
+  threshold: true,
+  vo2max: true,
+};
+
+const LIBRARY_PURPOSES: ReadonlySet<string> = new Set(
+  Object.keys(LIBRARY_PURPOSE_KEYS)
+);
 
 /**
  * FNV-1a. Deterministic, dependency-free, and well spread over short inputs
@@ -50,6 +54,17 @@ function seed(s: string): number {
     h ^= s.charCodeAt(i);
     h = Math.imul(h, 16777619);
   }
+  // Avalanche the accumulator before anything takes it modulo a small number.
+  // NOT optional and not cargo cult: FNV-1a's prime is odd, so its low bit is
+  // only a parity of the input's low bits — which makes seed(`${date}|${family}`)
+  // a CONSTANT XOR of seed(date), and the in-family draw a constant on exactly
+  // the dates that chose that family. Measured before this line: one workout of
+  // a two-workout family was picked 0 times in 364 days.
+  h ^= h >>> 16;
+  h = Math.imul(h, 2246822507);
+  h ^= h >>> 13;
+  h = Math.imul(h, 3266489909);
+  h ^= h >>> 16;
   return h >>> 0;
 }
 
@@ -101,7 +116,7 @@ export function matchWorkout(
   const family = families[seed(date) % families.length];
   const inFamily = candidates
     .filter((c) => c.workout.family === family)
-    .sort((a, b) => (a.workout.id < b.workout.id ? -1 : 1));
+    .sort((a, b) => a.workout.id.localeCompare(b.workout.id));
   // A second seed with the family mixed in, so the within-family index is not
   // correlated with the family index.
   const chosen = inFamily[seed(`${date}|${family}`) % inFamily.length];

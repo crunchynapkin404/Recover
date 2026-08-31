@@ -21,6 +21,7 @@ const wk = (
 
 // Spans, worked out from Task 1's rules:
 //   ss-3x12  authored 75 min, flex 900s -> 67.5-82.5 min
+//   ss-2x20  authored 72 min, flex 900s -> 66.5-81.5 min
 //   thr-4x8  authored 72 min, flex 900s -> 64.5-79.5 min
 //   ou-3x12  authored 51 min, flex 900s -> 43.5-58.5 min
 //   end-2h   authored 100 min, flex 4800s -> 60-140 min
@@ -28,6 +29,11 @@ const STUB: LibraryWorkout[] = [
   wk("ss-3x12", "sweet-spot", "threshold", [
     { name: "Warmup", repeat: 1, steps: [W(900, 50, 65)] },
     { name: "Main set", repeat: 3, steps: [W(720, 88, 93), W(300, 55, 55)] },
+    { name: "Cooldown", repeat: 1, steps: [W(540, 50, 50)] },
+  ]),
+  wk("ss-2x20", "sweet-spot", "threshold", [
+    { name: "Warmup", repeat: 1, steps: [W(900, 50, 65)] },
+    { name: "Main set", repeat: 2, steps: [W(1200, 88, 93), W(300, 55, 55)] },
     { name: "Cooldown", repeat: 1, steps: [W(540, 50, 50)] },
   ]),
   wk("thr-4x8", "threshold-blocks", "threshold", [
@@ -117,23 +123,37 @@ describe("matchWorkout selection", () => {
   });
 
   it("spreads across families rather than across ids", () => {
-    // At 75 min only sweet-spot and threshold-blocks span the day; ou-3x12
-    // covers 43.5-58.5, so its absence is correct fitting, not starvation.
-    const counts = new Map<string, number>();
+    // The sweet-spot family holds TWO candidates at 75 min and
+    // threshold-blocks holds one, so the two rules differ measurably:
+    // family-first gives sweet-spot ~50%, id-uniform would give ~66.7%.
+    // ou-3x12 covers 43.5-58.5 and is correctly absent.
+    const families = new Map<string, number>();
+    const ids = new Map<string, number>();
     for (let d = 0; d < 364; d++) {
       const date = new Date(Date.UTC(2026, 0, 1 + d))
         .toISOString()
         .slice(0, 10);
       const r = matchWorkout(STUB, BIKE, date);
       if (r.kind === "matched") {
-        counts.set(r.workout.family, (counts.get(r.workout.family) ?? 0) + 1);
+        families.set(
+          r.workout.family,
+          (families.get(r.workout.family) ?? 0) + 1
+        );
+        ids.set(r.workout.id, (ids.get(r.workout.id) ?? 0) + 1);
       }
     }
-    expect([...counts.keys()].sort()).toEqual([
+    expect([...families.keys()].sort()).toEqual([
       "sweet-spot",
       "threshold-blocks",
     ]);
-    for (const n of counts.values()) expect(n).toBeGreaterThan(364 * 0.3);
+    // The discriminating assertion: well under the 66.7% id-uniform would give.
+    const sweetSpotShare = families.get("sweet-spot")! / 364;
+    expect(sweetSpotShare).toBeGreaterThan(0.4);
+    expect(sweetSpotShare).toBeLessThan(0.6);
+    // And every workout in a multi-workout family must be reachable at all —
+    // this is what the seed's missing avalanche used to make impossible.
+    expect(ids.get("ss-3x12")).toBeGreaterThan(0);
+    expect(ids.get("ss-2x20")).toBeGreaterThan(0);
   });
 
   it("reaches a workout at a length only it spans", () => {
