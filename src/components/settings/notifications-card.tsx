@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { PendingButton } from "@/components/ui/pending-button";
 import { toast } from "sonner";
 import {
   sendTestNotification,
@@ -184,7 +185,7 @@ export function NotificationsCard({
           />
         </label>
 
-        <button
+        <PendingButton
           onClick={() =>
             startTransition(async () => {
               const res = await sendTestNotification();
@@ -192,11 +193,13 @@ export function NotificationsCard({
               else toast.error(res.message);
             })
           }
-          disabled={pending || (subscriptionCount === 0 && !subscribedHere)}
+          pending={pending}
+          pendingLabel="Sending…"
+          disabled={subscriptionCount === 0 && !subscribedHere}
           className="rounded-2xl border border-hairline py-3 text-caption font-bold text-ink-secondary transition-colors hover:bg-surface-selected disabled:opacity-40"
         >
           Send test notification
-        </button>
+        </PendingButton>
       </div>
     </section>
   );

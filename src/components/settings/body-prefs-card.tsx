@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { PendingButton } from "@/components/ui/pending-button";
 import { setBodyPrefs } from "@/app/settings/body-actions";
 
 interface Props {
@@ -230,9 +231,10 @@ export function BodyPrefsCard({
       </div>
 
       <div className="flex items-center gap-3">
-        <button
+        <PendingButton
           onClick={save}
-          disabled={pending}
+          pending={pending}
+          pendingLabel="Saving…"
           // bg-accent text-accent-foreground (whole-branch review fix wave,
           // 2026-08-17) — same fix, same reason, as notifications-card.tsx's
           // Enable button: was `bg-emerald-500 ... text-black`, a raw
@@ -243,8 +245,8 @@ export function BodyPrefsCard({
           // ships emerald-500 as oklch(69.6% 0.17 162.48), not #10b981.
           className="rounded-xl bg-accent px-4 py-2 text-caption font-bold text-accent-foreground transition-colors hover:opacity-90 disabled:opacity-50"
         >
-          {pending ? "Saving…" : "Save"}
-        </button>
+          Save
+        </PendingButton>
         {message && (
           <span className="text-label text-ink-muted">{message}</span>
         )}

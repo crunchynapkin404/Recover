@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { PendingButton } from "@/components/ui/pending-button";
 import {
   previewStravaDescription,
   setAutoDescribeStrava,
@@ -54,6 +55,17 @@ export function StravaCard({
 }: Props) {
   const [result, setResult] = useState<ActionResult | null>(null);
   const [pending, startTransition] = useTransition();
+  // Sync and Disconnect share one transition flag; without a name, both would
+  // announce themselves while one works.
+  const [busy, setBusy] = useState<string | null>(null);
+
+  function run(action: string, fn: () => Promise<ActionResult>) {
+    setBusy(action);
+    startTransition(async () => {
+      setResult(await fn());
+      setBusy(null);
+    });
+  }
   const [auto, setAuto] = useState(autoDescribe);
   // null config = every field on (v0.6 default) — expand it for the checkboxes.
   const [fields, setFields] = useState<Record<DescriptionField, boolean>>(
@@ -117,26 +129,24 @@ export function StravaCard({
       actions={
         connection ? (
           <div className="flex gap-2">
-            <button
+            <PendingButton
               type="button"
               disabled={pending}
-              onClick={() =>
-                startTransition(async () => setResult(await stravaSyncNow()))
-              }
+              pending={busy === "sync"}
+              onClick={() => run("sync", stravaSyncNow)}
               className={connectorPillClass}
             >
-              {pending ? "…" : "Sync"}
-            </button>
-            <button
+              Sync
+            </PendingButton>
+            <PendingButton
               type="button"
               disabled={pending}
-              onClick={() =>
-                startTransition(async () => setResult(await stravaDisconnect()))
-              }
+              pending={busy === "disconnect"}
+              onClick={() => run("disconnect", stravaDisconnect)}
               className={connectorGhostClass}
             >
               Disconnect
-            </button>
+            </PendingButton>
           </div>
         ) : configured ? (
           <a
