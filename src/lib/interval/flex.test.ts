@@ -1,6 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { flexRef, flexSpanSecs, FLEX_FRACTION, FLEX_FLOOR_SECS } from "./flex";
-import type { Block, LibraryWorkout } from "./types";
+import {
+  flexRef,
+  flexSpanSecs,
+  resolve,
+  FLEX_FRACTION,
+  FLEX_FLOOR_SECS,
+} from "./flex";
+import { totalSecs } from "./duration";
 
 const W = (secs: number, lo: number, hi: number) => ({ secs, lo, hi });
 
@@ -77,5 +83,55 @@ describe("flexSpanSecs", () => {
   it("keeps the tolerance constants where the spec put them", () => {
     expect(FLEX_FRACTION).toBe(0.5);
     expect(FLEX_FLOOR_SECS).toBe(300);
+  });
+});
+
+describe("resolve", () => {
+  it("hits the requested duration EXACTLY", () => {
+    const blocks = resolve(wk(SS), 70);
+    expect(blocks).not.toBeNull();
+    expect(totalSecs(blocks!)).toBe(4200);
+  });
+
+  it("moves only the flex step and leaves the main set alone", () => {
+    const blocks = resolve(wk(SS), 70)!;
+    expect(blocks[0].steps[0].secs).toBe(600); // warmup absorbed -300
+    expect(blocks[1]).toEqual(SS[1]); // main set untouched, same shape
+    expect(blocks[2]).toEqual(SS[2]); // cooldown untouched
+  });
+
+  it("refuses a length outside the flex step's bounds", () => {
+    // SS spans 4050-4950s, i.e. 67.5-82.5 min.
+    expect(resolve(wk(SS), 60)).toBeNull();
+    expect(resolve(wk(SS), 90)).toBeNull();
+  });
+
+  it("refuses a workout with nothing to flex", () => {
+    expect(
+      resolve(wk([{ name: "Main", repeat: 5, steps: [W(240, 110, 110)] }]), 40)
+    ).toBeNull();
+  });
+
+  it("hits every whole minute across its own span, exactly", () => {
+    // The guarantee the spec states, swept rather than sampled: a rounding
+    // slip of one second at some awkward length would not show in an example.
+    const span = flexSpanSecs(wk(SS))!;
+    let checked = 0;
+    for (let secs = span.lo; secs <= span.hi; secs++) {
+      if (secs % 60 !== 0) continue;
+      const mins = secs / 60;
+      const blocks = resolve(wk(SS), mins);
+      expect(blocks, `refused ${mins} min inside its own span`).not.toBeNull();
+      expect(totalSecs(blocks!)).toBe(Math.round(mins * 60));
+      checked++;
+    }
+    expect(checked).toBeGreaterThan(10);
+  });
+
+  it("does not mutate the workout it was given", () => {
+    const w = wk(SS);
+    const before = JSON.stringify(w);
+    resolve(w, 70);
+    expect(JSON.stringify(w)).toBe(before);
   });
 });

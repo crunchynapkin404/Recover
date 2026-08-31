@@ -90,3 +90,37 @@ export function flexSpanSecs(
   const fixed = totalSecs(w.blocks) - flex.secs;
   return { lo: fixed + flexLo(flex.secs), hi: fixed + flexHi(flex.secs) };
 }
+
+/**
+ * The workout's blocks with its flex step adjusted so the total is EXACTLY
+ * `Math.round(durationMins * 60)`, or null when that would push the flex step
+ * outside its bounds.
+ *
+ * This is where "the planned day wins" stops being a slogan. The guarantee is
+ * exact and nothing else in the workout moves: the main set the athlete is
+ * there for is identical at 68 minutes and at 82.
+ *
+ * Returns fresh blocks; the library is never mutated, because it is module
+ * data shared by every read.
+ */
+export function resolve(
+  w: LibraryWorkout,
+  durationMins: number
+): Block[] | null {
+  const target = Math.round(durationMins * 60);
+  const ref = flexRef(w.blocks);
+  if (!ref) return null;
+  const flex = w.blocks[ref.b].steps[ref.s];
+  const wanted = flex.secs + (target - totalSecs(w.blocks));
+  if (wanted < flexLo(flex.secs) || wanted > flexHi(flex.secs)) return null;
+  return w.blocks.map((b, bi) =>
+    bi !== ref.b
+      ? b
+      : {
+          ...b,
+          steps: b.steps.map((s, si) =>
+            si !== ref.s ? s : { ...s, secs: wanted }
+          ),
+        }
+  );
+}
