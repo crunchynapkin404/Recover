@@ -19,11 +19,11 @@ third piece.
 `src/app/globals.css` carries this, and has since v0.99:
 
 ```css
-  /* Stays at the pre-redesign 15px until the last surface migrates
+/* Stays at the pre-redesign 15px until the last surface migrates
      (slice 9), when this moves to --text-body (16px). Sitting on the new
      scale now would be a one-pixel, app-wide visible change this
      foundations-only slice is not permitted to make. */
-  font-size: 15px;
+font-size: 15px;
 ```
 
 Slice 9 never ran. The comment has been a promissory note for thirteen
@@ -73,6 +73,7 @@ so only the `scroll (IA)` column of the flow inventory's table moves.
 ```bash
 grep -n "font-size: 15px" src/app/globals.css
 ```
+
 Expected: one hit, in the `body` rule. If it is already 16px, this slice has
 been done and the plan is stale.
 
@@ -126,20 +127,20 @@ Run it. Expected: FAIL on the first matcher — `font-size: 15px` is present.
 - [x] **Step 2: Flip it**
 
 ```css
-  body {
-    @apply bg-background text-foreground;
-    /* On the scale as of slice 4. This sat at the pre-redesign 15px from
+body {
+  @apply bg-background text-foreground;
+  /* On the scale as of slice 4. This sat at the pre-redesign 15px from
        v0.99 until slice 3b migrated the last surface, which was the condition
        the original comment named — "until the last surface migrates (slice
        9)". Slice 9 never ran; slice 3b finished its work. The scale's body
        step is 16px, and while this was 15px the scale disagreed with the
        element it describes: the 12 `text-body` call sites rendered a pixel
        larger than the prose around them. */
-    font-size: var(--text-body);
-    -webkit-font-smoothing: antialiased;
-    letter-spacing: -0.01em;
-    overflow-x: hidden;
-  }
+  font-size: var(--text-body);
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: -0.01em;
+  overflow-x: hidden;
+}
 ```
 
 - [x] **Step 3: Tests, types, lint**
@@ -152,7 +153,7 @@ set -a; . ./.env; set +a
 DATABASE_URL="$DATABASE_URL" DATABASE_DRIVER=pg npx vitest run
 ```
 
-Read the *shape* of the suite result, not just the total: a guard file that
+Read the _shape_ of the suite result, not just the total: a guard file that
 stops loading takes its own `it.fails` with it and the headline count goes
 **up**. Expect `1 expected fail` to still be present.
 
@@ -231,7 +232,6 @@ Not "did it get bigger" — it did, everywhere, by design. Look for:
 
 `docs/plans/2026-08-31-polish-slice5-remaining-surfaces.md` — admin, import
 and pre-auth, the surfaces 2b.4's slices 7 and 8 never reached.
-
 
 ---
 

@@ -11,12 +11,12 @@ const hits = (re: RegExp, s: string) =>
 
 describe("HANDWRITTEN_MOTION", () => {
   it("catches both spellings of one duration", () => {
-    expect(hits(HANDWRITTEN_MOTION, "animation: sheet-up 300ms ease;")).toContain(
-      "300ms"
-    );
-    expect(hits(HANDWRITTEN_MOTION, "transition: height 0.3s ease-out;")).toContain(
-      "0.3s"
-    );
+    expect(
+      hits(HANDWRITTEN_MOTION, "animation: sheet-up 300ms ease;")
+    ).toContain("300ms");
+    expect(
+      hits(HANDWRITTEN_MOTION, "transition: height 0.3s ease-out;")
+    ).toContain("0.3s");
   });
 
   it("catches raw cubic-bezier curves", () => {
@@ -49,7 +49,10 @@ describe("HANDWRITTEN_MOTION", () => {
     // never show up in the guard's counts — it would just sit there until
     // someone reused the pattern somewhere that does not strip.
     expect(
-      hits(HANDWRITTEN_MOTION, "  --ease-settle: cubic-bezier(0.21, 1.02, 0.49, 1);")
+      hits(
+        HANDWRITTEN_MOTION,
+        "  --ease-settle: cubic-bezier(0.21, 1.02, 0.49, 1);"
+      )
     ).toEqual([]);
   });
 
@@ -63,9 +66,9 @@ describe("HANDWRITTEN_MOTION", () => {
 
 describe("TRANSITION_ALL", () => {
   it("catches the utility", () => {
-    expect(hits(TRANSITION_ALL, 'className="transition-all duration-300"')).toEqual(
-      ["transition-all"]
-    );
+    expect(
+      hits(TRANSITION_ALL, 'className="transition-all duration-300"')
+    ).toEqual(["transition-all"]);
   });
 
   it("does not catch the other transition utilities", () => {
@@ -83,6 +86,8 @@ describe("NUMERIC_DURATION", () => {
   });
 
   it("does not catch a token-named duration utility", () => {
-    expect(hits(NUMERIC_DURATION, 'className="duration-transition"')).toEqual([]);
+    expect(hits(NUMERIC_DURATION, 'className="duration-transition"')).toEqual(
+      []
+    );
   });
 });

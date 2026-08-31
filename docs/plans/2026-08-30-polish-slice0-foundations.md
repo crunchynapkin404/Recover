@@ -52,10 +52,12 @@ is exactly the drift `type-scale-patterns.ts`'s own doc comment was created to
 stop, so it gets factored into a shared helper first.
 
 **Files:**
+
 - Modify: `src/lib/design/tokens.ts` (add `readPrefixedThemeTokens`)
 - Test: `src/lib/design/tokens.test.ts` (create)
 
 **Interfaces:**
+
 - Consumes: `CSS_PATH` (already exported from this module).
 - Produces: `readPrefixedThemeTokens(css: string, prefix: string): Record<string, string>` — keys are full token names including the `--`, values are the raw declaration text with surrounding whitespace trimmed. Throws if there is no `@theme inline` block. Returns `{}` for a prefix with no declarations (unlike `readScaleTokens`, which throws — an empty motion scale is a legitimate "before" state that Task 2's test depends on).
 
@@ -180,10 +182,12 @@ drift apart invisibly."
 ### Task 2: The motion tokens
 
 **Files:**
+
 - Modify: `src/app/globals.css` (inside `@theme inline`, after the spacing scale at line ~110-118)
 - Test: `tests/motion-scale-guard.test.ts` (create)
 
 **Interfaces:**
+
 - Consumes: `readPrefixedThemeTokens` from Task 1, `CSS_PATH` from `src/lib/design/tokens`.
 - Produces: ten CSS custom properties — `--duration-feedback`, `--duration-motion`, `--duration-transition`, `--duration-reveal`, `--duration-loop`, `--duration-drift`, `--ease-standard`, `--ease-settle`, `--ease-draw`, `--ease-spring`. Later slices reference them as the Tailwind utilities `duration-feedback`, `ease-settle`, and so on.
 
@@ -281,7 +285,7 @@ In `src/app/globals.css`, inside `@theme inline`, immediately after the
 `--spacing-12: 3rem;` line and before the block's closing `}`, add:
 
 ```css
-  /* Motion scale — Phase 6.4. Six durations, four easings, replacing 11
+/* Motion scale — Phase 6.4. Six durations, four easings, replacing 11
      hand-written duration spellings of 10 values and 8 easings. Semantic
      names, for the same reason the type scale above uses them.
 
@@ -293,17 +297,17 @@ In `src/app/globals.css`, inside `@theme inline`, immediately after the
      cannot do that. This is the identical trap the type scale's comment
      records for `--text-sm`, and tests/motion-scale-guard.test.ts asserts
      it rather than trusting this paragraph. */
-  --duration-feedback: 120ms; /* colour and opacity under the finger */
-  --duration-motion: 200ms; /* small transforms, pops, chips */
-  --duration-transition: 320ms; /* sheets, panel heights, entrances */
-  --duration-reveal: 1200ms; /* one-shot data draws: rings, sparklines */
-  --duration-loop: 3s; /* ambient breathe / pulse */
-  --duration-drift: 8s; /* the shimmer rotation */
+--duration-feedback: 120ms; /* colour and opacity under the finger */
+--duration-motion: 200ms; /* small transforms, pops, chips */
+--duration-transition: 320ms; /* sheets, panel heights, entrances */
+--duration-reveal: 1200ms; /* one-shot data draws: rings, sparklines */
+--duration-loop: 3s; /* ambient breathe / pulse */
+--duration-drift: 8s; /* the shimmer rotation */
 
-  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
-  --ease-settle: cubic-bezier(0.21, 1.02, 0.49, 1);
-  --ease-draw: cubic-bezier(0.65, 0, 0.35, 1);
-  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+--ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+--ease-settle: cubic-bezier(0.21, 1.02, 0.49, 1);
+--ease-draw: cubic-bezier(0.65, 0, 0.35, 1);
+--ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 ```
 
 - [x] **Step 4: Run test to verify it passes**
@@ -312,6 +316,7 @@ In `src/app/globals.css`, inside `@theme inline`, immediately after the
 npx prettier --write src/app/globals.css
 npx vitest run tests/motion-scale-guard.test.ts
 ```
+
 Expected: PASS, 3 tests.
 
 - [x] **Step 5: Commit**
@@ -334,10 +339,12 @@ just documented."
 ### Task 3: The offender patterns
 
 **Files:**
+
 - Create: `src/lib/design/motion-scale-patterns.ts`
 - Test: `src/lib/design/motion-scale-patterns.test.ts` (create)
 
 **Interfaces:**
+
 - Produces: three exported `RegExp`s with the `g` flag — `HANDWRITTEN_MOTION` (CSS duration/easing literals), `TRANSITION_ALL` (the Tailwind utility), `NUMERIC_DURATION` (Tailwind's `duration-<number>` utilities). Task 4 imports all three.
 
 - [x] **Step 1: Write the failing test**
@@ -353,54 +360,79 @@ import {
 } from "./motion-scale-patterns";
 
 /** Regexes carry `g`, so lastIndex must not leak between assertions. */
-const hits = (re: RegExp, s: string) => s.match(new RegExp(re.source, "g")) ?? [];
+const hits = (re: RegExp, s: string) =>
+  s.match(new RegExp(re.source, "g")) ?? [];
 
 describe("HANDWRITTEN_MOTION", () => {
   it("catches both spellings of one duration", () => {
-    expect(hits(HANDWRITTEN_MOTION, "animation: sheet-up 300ms ease;")).toContain("300ms");
-    expect(hits(HANDWRITTEN_MOTION, "transition: height 0.3s ease-out;")).toContain("0.3s");
+    expect(
+      hits(HANDWRITTEN_MOTION, "animation: sheet-up 300ms ease;")
+    ).toContain("300ms");
+    expect(
+      hits(HANDWRITTEN_MOTION, "transition: height 0.3s ease-out;")
+    ).toContain("0.3s");
   });
 
   it("catches raw cubic-bezier curves", () => {
-    expect(hits(HANDWRITTEN_MOTION, "transition: all 0.7s cubic-bezier(0.21, 1.02, 0.49, 1);"))
-      .toContain("cubic-bezier(0.21, 1.02, 0.49, 1)");
+    expect(
+      hits(
+        HANDWRITTEN_MOTION,
+        "transition: all 0.7s cubic-bezier(0.21, 1.02, 0.49, 1);"
+      )
+    ).toContain("cubic-bezier(0.21, 1.02, 0.49, 1)");
   });
 
   it("does not count a var() reference to a token", () => {
-    expect(hits(HANDWRITTEN_MOTION, "animation: sheet-up var(--duration-transition) var(--ease-settle);"))
-      .toEqual([]);
+    expect(
+      hits(
+        HANDWRITTEN_MOTION,
+        "animation: sheet-up var(--duration-transition) var(--ease-settle);"
+      )
+    ).toEqual([]);
   });
 
   it("does not count the token declarations themselves", () => {
     // The scan excludes the @theme block before applying this pattern, but
     // the pattern must also not fire on a declaration line if it ever sees
     // one — a guard that flags its own scale is a guard nobody can satisfy.
-    expect(hits(HANDWRITTEN_MOTION, "  --duration-transition: 320ms;")).toEqual([]);
+    expect(hits(HANDWRITTEN_MOTION, "  --duration-transition: 320ms;")).toEqual(
+      []
+    );
   });
 
   it("does not count non-motion numbers that happen to end in s", () => {
-    expect(hits(HANDWRITTEN_MOTION, "grid-template-columns: repeat(3, 1fr);")).toEqual([]);
+    expect(
+      hits(HANDWRITTEN_MOTION, "grid-template-columns: repeat(3, 1fr);")
+    ).toEqual([]);
     expect(hits(HANDWRITTEN_MOTION, "flex: 1 1 0%;")).toEqual([]);
   });
 });
 
 describe("TRANSITION_ALL", () => {
   it("catches the utility", () => {
-    expect(hits(TRANSITION_ALL, 'className="transition-all duration-300"')).toEqual(["transition-all"]);
+    expect(
+      hits(TRANSITION_ALL, 'className="transition-all duration-300"')
+    ).toEqual(["transition-all"]);
   });
 
   it("does not catch the other transition utilities", () => {
-    expect(hits(TRANSITION_ALL, 'className="transition-colors transition-opacity"')).toEqual([]);
+    expect(
+      hits(TRANSITION_ALL, 'className="transition-colors transition-opacity"')
+    ).toEqual([]);
   });
 });
 
 describe("NUMERIC_DURATION", () => {
   it("catches Tailwind's numeric duration utilities", () => {
-    expect(hits(NUMERIC_DURATION, 'className="duration-300"')).toEqual(["duration-300"]);
+    expect(hits(NUMERIC_DURATION, 'className="duration-300"')).toEqual([
+      "duration-300",
+    ]);
   });
 
   it("does not catch a token-named duration utility", () => {
-    expect(hits(NUMERIC_DURATION, 'className="duration-transition"')).toEqual([]);
+    expect(hits(NUMERIC_DURATION, 'className="duration-transition"')).toEqual(
+      []
+    );
   });
 });
 ```
@@ -479,9 +511,11 @@ type-scale-patterns.ts records: re-spelled scans drift apart invisibly."
 ### Task 4: The ratchet
 
 **Files:**
+
 - Modify: `tests/motion-scale-guard.test.ts` (append)
 
 **Interfaces:**
+
 - Consumes: the three patterns from Task 3; `CSS_PATH` from `src/lib/design/tokens`.
 - Produces: `OFFENDER_CEILINGS` in this file, which slices 1 and 2 must re-pin.
 
@@ -489,11 +523,11 @@ type-scale-patterns.ts records: re-spelled scans drift apart invisibly."
 the numbers the ceilings are pinned to, and each was produced by the command
 beside it):
 
-| Family | Count | Command |
-| --- | --- | --- |
-| `globals.css motion literals` | **16** lines | `grep -cE '(^\|[^-a-z])[0-9.]+m?s\b\|cubic-bezier\(' src/app/globals.css` |
-| `transition-all` | **17** in 14 files | `grep -rno 'transition-all' src --include=*.tsx \| grep -v test \| wc -l` |
-| `numeric duration utilities` | **4** | `grep -rnoE '\bduration-[0-9]+\b' src --include=*.tsx \| grep -v test \| wc -l` |
+| Family                        | Count              | Command                                                                         |
+| ----------------------------- | ------------------ | ------------------------------------------------------------------------------- |
+| `globals.css motion literals` | **16** lines       | `grep -cE '(^\|[^-a-z])[0-9.]+m?s\b\|cubic-bezier\(' src/app/globals.css`       |
+| `transition-all`              | **17** in 14 files | `grep -rno 'transition-all' src --include=*.tsx \| grep -v test \| wc -l`       |
+| `numeric duration utilities`  | **4**              | `grep -rnoE '\bduration-[0-9]+\b' src --include=*.tsx \| grep -v test \| wc -l` |
 
 The four numeric-duration sites, named so a reviewer can check the count
 without running anything: `src/app/login/page.tsx:102`,
@@ -523,7 +557,8 @@ function walk(dir: string, out: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {
     const full = join(dir, entry);
     if (statSync(full).isDirectory()) walk(full, out);
-    else if (/\.tsx?$/.test(full) && !/\.test\.tsx?$/.test(full)) out.push(full);
+    else if (/\.tsx?$/.test(full) && !/\.test\.tsx?$/.test(full))
+      out.push(full);
   }
   return out;
 }
@@ -679,10 +714,12 @@ call sites (`py-1.5`×45, `gap-1.5`×37, `py-2.5`×33, `px-3.5`×18, `px-2.5`×1
 and the rest).
 
 **Files:**
+
 - Modify: `src/app/globals.css` (remove lines ~110-118)
 - Modify: `tests/motion-scale-guard.test.ts` (append the spacing assertion)
 
 **Interfaces:**
+
 - Consumes: `readPrefixedThemeTokens` from Task 1.
 - Produces: nothing new; removes seven declarations.
 
@@ -717,7 +754,9 @@ describe("the spacing scale is the scale the app runs", () => {
     // 0.125rem to make the half-steps look integral would halve every
     // padding on every surface. The half-steps are legitimate on a 4px base;
     // the base does not move.
-    expect(readPrefixedThemeTokens(css(), "--spacing")["--spacing"]).toBeUndefined();
+    expect(
+      readPrefixedThemeTokens(css(), "--spacing")["--spacing"]
+    ).toBeUndefined();
   });
 });
 ```
@@ -736,20 +775,20 @@ In `src/app/globals.css`, delete these eight lines (the comment and the seven
 declarations) from inside `@theme inline`:
 
 ```css
-  /* Spacing scale — 4px base. */
-  --spacing-1: 0.25rem;
-  --spacing-2: 0.5rem;
-  --spacing-3: 0.75rem;
-  --spacing-4: 1rem;
-  --spacing-6: 1.5rem;
-  --spacing-8: 2rem;
-  --spacing-12: 3rem;
+/* Spacing scale — 4px base. */
+--spacing-1: 0.25rem;
+--spacing-2: 0.5rem;
+--spacing-3: 0.75rem;
+--spacing-4: 1rem;
+--spacing-6: 1.5rem;
+--spacing-8: 2rem;
+--spacing-12: 3rem;
 ```
 
 and replace with a comment recording what the scale actually is:
 
 ```css
-  /* Spacing — Tailwind v4's default 0.25rem base, deliberately NOT
+/* Spacing — Tailwind v4's default 0.25rem base, deliberately NOT
      redeclared. Seven discrete --spacing-N keys used to sit here restating
      exactly what that base computes; they generated no distinct utility and
      claimed a seven-step scale the app has never run. It runs an eleven-step
@@ -767,6 +806,7 @@ and replace with a comment recording what the scale actually is:
 npx prettier --write src/app/globals.css
 npx vitest run tests/motion-scale-guard.test.ts
 ```
+
 Expected: PASS, all assertions including the two new ones.
 
 - [x] **Step 5: Commit**
@@ -801,10 +841,11 @@ tests assert the tokens exist; only a capture proves the app did not move.
 set -a; . ./.env; set +a
 DATABASE_URL="$DATABASE_URL" DATABASE_DRIVER=pg npx vitest run
 ```
+
 Expected: the v0.124.0 baseline of **3290 passed, 1 expected fail, 1 skipped**,
 plus this slice's new tests. The expected fail is
 `type-scale-guard.test.ts`'s surviving `it.fails` — it stays failing until
-slice 7, and a run where it *passes* is the signal to flip it, not a problem.
+slice 7, and a run where it _passes_ is the signal to flip it, not a problem.
 
 - [x] **Step 2: Start the app**
 
@@ -886,7 +927,6 @@ slice's captures are clean — the same per-slice rhythm 2b.4 used
 (`docs/plans/2026-08-1[23]-v099-slice*.md`), so a defect found after deploy
 costs one `git revert` rather than the release.
 
-
 ---
 
 ## Outcome — run 2026-08-30, all six tasks complete
@@ -921,7 +961,7 @@ full.
 - **One token-block hunk:** 7 spacing keys out, 10 motion tokens in. Custom
   properties only; no rule references them yet.
 - **One new dead rule:** `.ease-settle` (4 lines), generated because the token
-  name appears in the new source *text* — Tailwind scans comments and test
+  name appears in the new source _text_ — Tailwind scans comments and test
   files as class candidates. No element carries that class, so it cannot
   render; slice 1 makes it real. Worth recording as the same family as
   `viewport-zoom-guard.test.ts`'s bare-word matching: writing a utility name

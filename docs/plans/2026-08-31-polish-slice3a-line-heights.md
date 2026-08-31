@@ -35,12 +35,12 @@ measured in a real browser at `text-label` 12/18, `text-caption` 14/21,
 The real defect is the opposite end of the scale. Display type inherits body
 leading:
 
-| Step | Size | Renders at | Should be near |
-| --- | --- | --- | --- |
-| `--text-hero` | 44px | **66px** | ~44px |
-| `--text-figure` | 30px | **45px** | ~33px |
-| `--text-heading` | 24px | **36px** | ~30px |
-| `--text-title` | 20px | **30px** | ~27px |
+| Step             | Size | Renders at | Should be near |
+| ---------------- | ---- | ---------- | -------------- |
+| `--text-hero`    | 44px | **66px**   | ~44px          |
+| `--text-figure`  | 30px | **45px**   | ~33px          |
+| `--text-heading` | 24px | **36px**   | ~30px          |
+| `--text-title`   | 20px | **30px**   | ~27px          |
 
 And it is already being worked around by hand: of 12 display-size call sites,
 **10 set no leading at all and two set `leading-none`** — `today-hero.tsx` and
@@ -64,6 +64,7 @@ And it is already being worked around by hand: of 12 display-size call sites,
 ### Task 1: the line-height companions
 
 **Files:**
+
 - Modify: `src/app/globals.css`
 - Modify: `tests/motion-scale-guard.test.ts`
 
@@ -116,7 +117,7 @@ Expected: FAIL listing all seven steps as missing.
 In `src/app/globals.css`, beside each step:
 
 ```css
-  /* Line-heights. Tailwind pairs `--text-<name>--line-height` with
+/* Line-heights. Tailwind pairs `--text-<name>--line-height` with
      `--text-<name>` automatically, and `leading-*` at a call site still wins.
 
      THE TEXT END IS PINNED AT ITS CURRENT VALUE, NOT RETUNED. label, caption
@@ -129,13 +130,13 @@ In `src/app/globals.css`, beside each step:
      `today-hero.tsx` and `bedtime-card.tsx` had each already patched their own
      figure with `leading-none`, which is two people working around a missing
      token rather than a coincidence. */
-  --text-label--line-height: 1.5; /* pinned, unchanged */
-  --text-caption--line-height: 1.5; /* pinned, unchanged */
-  --text-body--line-height: 1.5; /* pinned, unchanged */
-  --text-title--line-height: 1.35;
-  --text-heading--line-height: 1.25;
-  --text-figure--line-height: 1.1;
-  --text-hero--line-height: 1;
+--text-label--line-height: 1.5; /* pinned, unchanged */
+--text-caption--line-height: 1.5; /* pinned, unchanged */
+--text-body--line-height: 1.5; /* pinned, unchanged */
+--text-title--line-height: 1.35;
+--text-heading--line-height: 1.25;
+--text-figure--line-height: 1.1;
+--text-hero--line-height: 1;
 ```
 
 - [x] **Step 4: Run the tests**
@@ -144,6 +145,7 @@ In `src/app/globals.css`, beside each step:
 npx prettier --write src/app/globals.css
 npx vitest run tests/motion-scale-guard.test.ts
 ```
+
 Expected: PASS.
 
 - [x] **Step 5: Prove the text end did not move, at the compiler**
@@ -159,6 +161,7 @@ for (const c of ["text-label","text-caption","text-body","text-title","text-head
   console.log(i < 0 ? c + ": NOT EMITTED" : out.css.slice(i, out.css.indexOf("}", i) + 1).replace(/\s+/g, " "));
 }'
 ```
+
 Expected: label/caption/body carry `line-height: var(--tw-leading, 1.5)` —
 the same 1.5 they inherited — and the four display steps carry their new,
 smaller values.
@@ -180,6 +183,7 @@ title 20/27, heading 24/30, figure 30/33, hero 44/44.
 ```bash
 SCREENSHOT_BASE_URL=http://localhost:3210 npx tsx scripts/verify-surfaces.ts polish-slice3a
 ```
+
 Expected: 0 confirmed axe violations. Surfaces that will legitimately change
 are the ones carrying display type: `today` (the hero figure), `settings`,
 `admin`, `import`, `activity-log`, `train-season`, `body-labs`.
@@ -213,7 +217,6 @@ the `leading-*` override is not winning and the whole approach is wrong.
 `docs/plans/2026-08-31-polish-slice3b-primitives.md` — the 17 stock sizes,
 five shared primitives first.
 
-
 ---
 
 ## Outcome — run 2026-08-31, both tasks complete
@@ -224,13 +227,13 @@ indeterminate / 28 errors — identical to every prior slice.
 
 **The compiler agrees with the design:**
 
-| step | leading before | after |
-| --- | --- | --- |
+| step                   | leading before | after         |
+| ---------------------- | -------------- | ------------- |
 | label / caption / body | 18 / 21 / 24px | **unchanged** |
-| title | 30px | 27px |
-| heading | 36px | 30px |
-| figure | 45px | 33px |
-| hero | 66px | **44px** |
+| title                  | 30px           | 27px          |
+| heading                | 36px           | 30px          |
+| figure                 | 45px           | 33px          |
+| hero                   | 66px           | **44px**      |
 
 **The falsifier passed.** Today's figure carries `leading-none` and measures
 30/30 after the change, so a call-site override still wins. Had it moved, the
@@ -256,7 +259,7 @@ unreadable unit still throws, and the comment records what still covers the
 companions.
 
 **The failure mode is worth remembering.** The suite reported "3324 passed, 1
-skipped" with the expected-fail line simply *gone* — a whole guard file had
+skipped" with the expected-fail line simply _gone_ — a whole guard file had
 stopped loading, and the headline count went UP because that file's own
 failing-by-design test vanished with it. A green-looking number is not a green
 suite; read the shape of the result, not just the total.

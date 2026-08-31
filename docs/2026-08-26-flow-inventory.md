@@ -745,19 +745,19 @@ Same method as the four sections above — real browser, 390×844, signed in as
 readings taken minutes apart against **identical fixture data**, so the delta
 isolates the flip and nothing else.
 
-| Surface | before (15px) | after (16px) | delta |
-| --- | ---: | ---: | ---: |
-| Body ▸ Journal | 2.36 | 2.36 | 0 |
-| Train ▸ Week | 1.36 | 1.36 | 0 |
-| Activity log | 1.14 | 1.14 | 0 |
-| Today | 1.00 | 1.00 | 0 |
-| Coach | 1.15 | 1.15 | 0 |
-| Settings (collapsed) | 1.00 | 1.00 | 0 |
-| Body ▸ Trends | 1.00 | 1.00 | 0 |
-| Train ▸ History | 1.00 | 1.00 | 0 |
-| Train ▸ Fitness | 1.48 | 1.49 | **+0.01** |
-| Import | 1.03 | 1.03 | 0 |
-| Train ▸ Season | 1.36 | 1.36 | 0 |
+| Surface              | before (15px) | after (16px) |     delta |
+| -------------------- | ------------: | -----------: | --------: |
+| Body ▸ Journal       |          2.36 |         2.36 |         0 |
+| Train ▸ Week         |          1.36 |         1.36 |         0 |
+| Activity log         |          1.14 |         1.14 |         0 |
+| Today                |          1.00 |         1.00 |         0 |
+| Coach                |          1.15 |         1.15 |         0 |
+| Settings (collapsed) |          1.00 |         1.00 |         0 |
+| Body ▸ Trends        |          1.00 |         1.00 |         0 |
+| Train ▸ History      |          1.00 |         1.00 |         0 |
+| Train ▸ Fitness      |          1.48 |         1.49 | **+0.01** |
+| Import               |          1.03 |         1.03 |         0 |
+| Train ▸ Season       |          1.36 |         1.36 |         0 |
 
 **Choice load is unchanged** and was not re-measured: the flip adds and removes
 no control.
@@ -785,12 +785,12 @@ so `text-body` looked oversized next to the prose around it.
 The banked figures in the table at the top of this document no longer
 reproduce. Measured immediately before the flip, on current fixtures:
 
-| Surface | banked | now |
-| --- | ---: | ---: |
-| Train ▸ Week | 1.84 | **1.36** |
-| Train ▸ Fitness | 1.00 | **1.48** |
-| Train ▸ Season | 1.00 | **1.36** |
-| Body ▸ Journal | 2.4 | 2.36 |
+| Surface         | banked |      now |
+| --------------- | -----: | -------: |
+| Train ▸ Week    |   1.84 | **1.36** |
+| Train ▸ Fitness |   1.00 | **1.48** |
+| Train ▸ Season  |   1.00 | **1.36** |
+| Body ▸ Journal  |    2.4 |     2.36 |
 
 The drift runs in **both** directions, which rules out a CSS cause — three
 slices of visual polish could shorten surfaces, not lengthen them. It is
@@ -813,11 +813,11 @@ The sixth dated measurement, and the first since slice 3 to move the
 availability sheet's own numbers. Same method, same viewport (390×844), same
 `dev@recover.local` fixtures, all seven days pinned.
 
-| | v0.124.0 | now |
-| --- | ---: | ---: |
-| Sheet choice load (visible + enabled) | **31** | **25** |
-| Sheet length | 0.84 → **1.09** screens | **1.17** screens |
-| Day summary truncates on a two-block day | **yes** | **no** |
+|                                          |                v0.124.0 |              now |
+| ---------------------------------------- | ----------------------: | ---------------: |
+| Sheet choice load (visible + enabled)    |                  **31** |           **25** |
+| Sheet length                             | 0.84 → **1.09** screens | **1.17** screens |
+| Day summary truncates on a two-block day |                 **yes** |           **no** |
 
 The v0.124.0 handoff predicted "~25" for the choice load. It is 25.
 

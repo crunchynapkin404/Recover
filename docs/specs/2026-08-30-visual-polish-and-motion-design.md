@@ -43,7 +43,7 @@ this strand inherits:
   which `globals.css` still carried a comment promising — the comment named
   slice 9 as its trigger and slice 9 shipped without pulling it;
 - `design-system.md` "rewritten prescriptive", which is why that document still
-  opens with *"Descriptive, not prescriptive"* — and why it still claims the
+  opens with _"Descriptive, not prescriptive"_ — and why it still claims the
   app has one theme, thirteen releases after the very commit that finished the
   sweep gave it two.
 
@@ -89,15 +89,15 @@ repo already trusts: `OFFENDER_CEILINGS` in `tests/type-scale-guard.test.ts`,
 two-sided with `RATCHET_SLACK = 25`, re-pinned by every slice that moves a
 number.
 
-| Family | Today | Target | How counted |
-| --- | --- | --- | --- |
-| Arbitrary type sizes | **1** | 0 | existing `ARBITRARY_TYPE` scan; the one live offender is `src/components/ui/inline-markdown.tsx:38` (`text-[0.95em]`) |
-| Stock-Tailwind type sizes | **17** in 8 files | 0 | `grep -rnoE '\btext-(xs\|sm\|base\|lg\|xl\|2xl\|3xl\|4xl\|5xl)\b' src --include=*.tsx \| grep -v test` |
-| Hand-written durations | **11 spellings / 10 values** | 6 tokens, 0 literals | scan of `globals.css` + `duration-[…]` utilities |
-| Hand-written easings | **8** | 4 tokens, 0 literals | scan of `globals.css` + `ease-[…]` utilities |
-| Pending vocabularies | **3** across 26 components | 1 | call sites setting `disabled={<transition flag>}` without the shared primitive |
-| Routes that wait with no `loading.tsx` | **2** (`/train`, `/body`) | 0 | `find src/app -name loading.tsx` against the route list |
-| Loading states with no busy semantics | **6 of 6** | 0 | `aria-busy` / `role="status"` scan over `loading.tsx` |
+| Family                                 | Today                        | Target               | How counted                                                                                                           |
+| -------------------------------------- | ---------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Arbitrary type sizes                   | **1**                        | 0                    | existing `ARBITRARY_TYPE` scan; the one live offender is `src/components/ui/inline-markdown.tsx:38` (`text-[0.95em]`) |
+| Stock-Tailwind type sizes              | **17** in 8 files            | 0                    | `grep -rnoE '\btext-(xs\|sm\|base\|lg\|xl\|2xl\|3xl\|4xl\|5xl)\b' src --include=*.tsx \| grep -v test`                |
+| Hand-written durations                 | **11 spellings / 10 values** | 6 tokens, 0 literals | scan of `globals.css` + `duration-[…]` utilities                                                                      |
+| Hand-written easings                   | **8**                        | 4 tokens, 0 literals | scan of `globals.css` + `ease-[…]` utilities                                                                          |
+| Pending vocabularies                   | **3** across 26 components   | 1                    | call sites setting `disabled={<transition flag>}` without the shared primitive                                        |
+| Routes that wait with no `loading.tsx` | **2** (`/train`, `/body`)    | 0                    | `find src/app -name loading.tsx` against the route list                                                               |
+| Loading states with no busy semantics  | **6 of 6**                   | 0                    | `aria-busy` / `role="status"` scan over `loading.tsx`                                                                 |
 
 `0.3s` and `300ms` both appear in `globals.css` for the same value. That two
 spellings of one number survived a design-system release is the argument for
@@ -120,12 +120,12 @@ semantically for the same reason the type scale is:
    values, and redefining them here would silently change every existing
    `ease-out` call site — the identical trap the type scale's comment records
    for --text-*. --duration-* has no built-in keys, so those are free. */
---duration-feedback: 120ms;   /* colour and opacity under the finger */
---duration-motion: 200ms;     /* small transforms, pops, chips */
+--duration-feedback: 120ms; /* colour and opacity under the finger */
+--duration-motion: 200ms; /* small transforms, pops, chips */
 --duration-transition: 320ms; /* sheets, panel heights, entrances */
---duration-reveal: 1200ms;    /* one-shot data draws: rings, sparklines */
---duration-loop: 3s;          /* ambient breathe / pulse */
---duration-drift: 8s;         /* the shimmer rotation */
+--duration-reveal: 1200ms; /* one-shot data draws: rings, sparklines */
+--duration-loop: 3s; /* ambient breathe / pulse */
+--duration-drift: 8s; /* the shimmer rotation */
 
 --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
 --ease-settle: cubic-bezier(0.21, 1.02, 0.49, 1);
@@ -157,7 +157,12 @@ feel slightly late. Each becomes an explicit property list.
 `globals.css:827` is a sledgehammer:
 
 ```css
-@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
 ```
 
 `animation: none` also stops `.animate-pulse`. Combined with **zero of the six
@@ -213,7 +218,7 @@ Three pieces, and the third is the risky one.
 
    So it is recorded, not removed. `type-scale-guard.test.ts` already has the
    precedent and the doctrine for exactly this: `INLINE_COLOR_INVENTORY`,
-   described in its own comment as *"THE RECORD, not a waiver list"* — an
+   described in its own comment as _"THE RECORD, not a waiver list"_ — an
    exact inventory that cannot grow, for values no scan can rule on. A
    one-entry `RELATIVE_TYPE_INVENTORY` holds this call site and its reason;
    the scan narrows to arbitrary **absolute** sizes, which is what the release
@@ -225,6 +230,7 @@ Three pieces, and the third is the risky one.
    constraint is written into the slice: the inventory is exact and
    size-capped at one entry, a second relative size fails the suite, and the
    commit that adds one has to argue for it in the message.
+
 2. **The 17 stock sizes.** Five shadcn primitives (`button`, `card`, `input`,
    `badge`, `label`), plus `connector-card.tsx` and `join/[code]`.
    `ui/button.tsx` is the illustrative one: within a single `cva` string its
@@ -306,8 +312,8 @@ inventory's own convention.
 
 ## Design 7 — The documentation debt
 
-`docs/design-system.md` states *"one dark theme (no light mode — 'Dark-first:
-the only theme')"*. Both themes have rendered since **v0.111.0** lifted
+`docs/design-system.md` states _"one dark theme (no light mode — 'Dark-first:
+the only theme')"_. Both themes have rendered since **v0.111.0** lifted
 `forcedTheme`; `theme-provider.tsx:65` sets `defaultTheme="system"` and
 `renderableThemes()` returns both. The document has been wrong for thirteen
 releases because the slice that owned correcting it never ran.
@@ -323,28 +329,28 @@ themes.
 One branch, one PR, one deploy. Each slice is its own commit with its own
 captures and axe pass, so a defect found after deploy costs one `git revert`.
 
-| # | Slice | Contents |
-| --- | --- | --- |
-| 0 | **Foundations** | Motion tokens, spacing base, `motion-scale-guard.test.ts` with its ceilings pinned at the measured counts. **No call site changes**, so the app renders identically — the same shape slice 0 of 2b.4 used, and the proof is an unchanged capture set. |
-| 1 | **Motion migration** | Every hand-written duration and easing onto the tokens; `transition-all` ×17 replaced with explicit property lists; ceilings re-pinned. |
-| 2 | **Loading and pending** | `loading.tsx` for `/train` and `/body`; busy semantics on all of them; the gentler reduced-motion rule; `Button`'s `pending` prop and 26 call sites onto it. Captures in both motion preferences. |
-| 3 | **The primitives** | The 17 stock type sizes, five shared primitives first. Widest blast radius in the strand; full capture set. |
-| 4 | **The body flip** | 15px → 16px alone, nothing else. Re-measure choice load and screens; flow inventory gains its fifth dated section. |
-| 5 | **Slices 7 + 8's surfaces** | ~~Admin, Import, and pre-auth — the surfaces 2b.4 never reached.~~ **Premise expired, corrected 2026-08-31.** Measured with the guards' own patterns, all three groups are at **0 arbitrary type sizes, 0 ad-hoc ink, 0 raw colour** — migrated in pieces by the v0.106 settings redesign, by guards that scan all of `src/` rather than one slice's directory, and by slice 3b taking `join/[code]`'s last two `text-xl`. `/admin` got its `loading.tsx` in slice 2a. The slice shrank to one file: `join/[code]/loading.tsx`. |
-| 6 | **The named offenders** | `Pinned ×` demoted to a mark; one week-level "Back to your standard week"; re-measure the sheet's choice load against the predicted ~25. |
-| 7 | **Sweep** | Last arbitrary type size; every ceiling re-pinned; `it.fails` flipped; `design-system.md` rewritten prescriptive; typographic rhythm review against captures; roadmap ticked. |
+| #   | Slice                       | Contents                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| --- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0   | **Foundations**             | Motion tokens, spacing base, `motion-scale-guard.test.ts` with its ceilings pinned at the measured counts. **No call site changes**, so the app renders identically — the same shape slice 0 of 2b.4 used, and the proof is an unchanged capture set.                                                                                                                                                                                                                                                                           |
+| 1   | **Motion migration**        | Every hand-written duration and easing onto the tokens; `transition-all` ×17 replaced with explicit property lists; ceilings re-pinned.                                                                                                                                                                                                                                                                                                                                                                                         |
+| 2   | **Loading and pending**     | `loading.tsx` for `/train` and `/body`; busy semantics on all of them; the gentler reduced-motion rule; `Button`'s `pending` prop and 26 call sites onto it. Captures in both motion preferences.                                                                                                                                                                                                                                                                                                                               |
+| 3   | **The primitives**          | The 17 stock type sizes, five shared primitives first. Widest blast radius in the strand; full capture set.                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| 4   | **The body flip**           | 15px → 16px alone, nothing else. Re-measure choice load and screens; flow inventory gains its fifth dated section.                                                                                                                                                                                                                                                                                                                                                                                                              |
+| 5   | **Slices 7 + 8's surfaces** | ~~Admin, Import, and pre-auth — the surfaces 2b.4 never reached.~~ **Premise expired, corrected 2026-08-31.** Measured with the guards' own patterns, all three groups are at **0 arbitrary type sizes, 0 ad-hoc ink, 0 raw colour** — migrated in pieces by the v0.106 settings redesign, by guards that scan all of `src/` rather than one slice's directory, and by slice 3b taking `join/[code]`'s last two `text-xl`. `/admin` got its `loading.tsx` in slice 2a. The slice shrank to one file: `join/[code]/loading.tsx`. |
+| 6   | **The named offenders**     | `Pinned ×` demoted to a mark; one week-level "Back to your standard week"; re-measure the sheet's choice load against the predicted ~25.                                                                                                                                                                                                                                                                                                                                                                                        |
+| 7   | **Sweep**                   | Last arbitrary type size; every ceiling re-pinned; `it.fails` flipped; `design-system.md` rewritten prescriptive; typographic rhythm review against captures; roadmap ticked.                                                                                                                                                                                                                                                                                                                                                   |
 
 ## Risks
 
-| Risk | Mitigation |
-| --- | --- |
+| Risk                                                                           | Mitigation                                                                                                                                                    |
+| ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | The body flip changes every capture at once, hiding a real defect in the noise | It ships alone, in its own slice, with nothing else in the commit. A diff that touches one declaration cannot hide a layout defect in an unrelated component. |
-| The flip regresses the flow strand's banked figures | Expected and disclosed, not denied. Re-measured with the flow inventory's own method and recorded in a dated section naming the cause. |
-| Migrating the shared primitives changes surfaces nobody looked at | Slice 3 takes a full capture set, not a targeted one. The v0.124.0 lesson is that the picture you did not expect to open is the one that carries the defect. |
-| The gentler reduced-motion rule lets motion through that a user asked to stop | 1ms duration is not motion; the rule is the widely-used pattern. Captured under both motion preferences, and the axe pass runs against both. |
-| A new `--ease-*` token silently repoints existing Tailwind call sites | Designed against: no token takes a name Tailwind v4 already defines. Slice 0's guard asserts that no token in the motion block collides with a built-in key. |
-| The `Pinned ×` demotion removes a capability rather than a control | The week-level control lands in the same commit as the demotion, and the slice's acceptance is that every unpin reachable before is reachable after. |
-| "Visual polish" quietly becomes a tweak list | Six of the seven slices close against a counted number. The one that does not — typographic rhythm — says so in this spec rather than pretending. |
+| The flip regresses the flow strand's banked figures                            | Expected and disclosed, not denied. Re-measured with the flow inventory's own method and recorded in a dated section naming the cause.                        |
+| Migrating the shared primitives changes surfaces nobody looked at              | Slice 3 takes a full capture set, not a targeted one. The v0.124.0 lesson is that the picture you did not expect to open is the one that carries the defect.  |
+| The gentler reduced-motion rule lets motion through that a user asked to stop  | 1ms duration is not motion; the rule is the widely-used pattern. Captured under both motion preferences, and the axe pass runs against both.                  |
+| A new `--ease-*` token silently repoints existing Tailwind call sites          | Designed against: no token takes a name Tailwind v4 already defines. Slice 0's guard asserts that no token in the motion block collides with a built-in key.  |
+| The `Pinned ×` demotion removes a capability rather than a control             | The week-level control lands in the same commit as the demotion, and the slice's acceptance is that every unpin reachable before is reachable after.          |
+| "Visual polish" quietly becomes a tweak list                                   | Six of the seven slices close against a counted number. The one that does not — typographic rhythm — says so in this spec rather than pretending.             |
 
 ## Verification
 

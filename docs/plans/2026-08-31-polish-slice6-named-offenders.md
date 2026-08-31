@@ -62,19 +62,20 @@ Do this **first**. Removing the row button before its replacement exists would
 leave a commit in history with no way to unpin one day.
 
 **Files:**
+
 - Modify: `src/components/week/block-sheet.tsx`
 - Modify: `src/components/week/intake-form.tsx` (pass the handler through)
 - Test: `src/components/week/block-sheet.test.tsx`
 
 - [x] **Step 1: Write the failing test** — a pinned day's sheet offers to
-  restore the standard day; an unpinned day's does not.
+      restore the standard day; an unpinned day's does not.
 
 - [x] **Step 2: Thread `pinned` and `onUnpin` into `BlockSheet`**, which
-  already receives the day index. `intake-form.tsx` holds both
-  (`overrideDates`, `unpin`).
+      already receives the day index. `intake-form.tsx` holds both
+      (`overrideDates`, `unpin`).
 
 - [x] **Step 3: Render the control** only when that day is pinned, using
-  `PendingButton` so it speaks the vocabulary slice 2b established.
+      `PendingButton` so it speaks the vocabulary slice 2b established.
 
 - [x] **Step 4: Tests, types, lint. Commit.**
 
@@ -83,22 +84,23 @@ leave a commit in history with no way to unpin one day.
 ### Task 2: the badge becomes a mark
 
 **Files:**
+
 - Modify: `src/components/week/availability-timeline.tsx`
 - Test: `src/components/week/availability-timeline.test.tsx`
 
 - [x] **Step 1: Write the failing test** — the row renders no button whose
-  accessible name starts "Pinned", and still exposes the pinned state as text.
+      accessible name starts "Pinned", and still exposes the pinned state as text.
 
 - [x] **Step 2: Replace the button with a span**
 
 ```tsx
-{pinned && (
-  <span
-    className="shrink-0 rounded-full border border-hairline bg-surface-overlay px-2 py-0.5 text-label font-bold text-chart-3"
-  >
-    Pinned
-  </span>
-)}
+{
+  pinned && (
+    <span className="shrink-0 rounded-full border border-hairline bg-surface-overlay px-2 py-0.5 text-label font-bold text-chart-3">
+      Pinned
+    </span>
+  );
+}
 ```
 
 The `×` goes with the button — it promised an action. Keep the word, which is
@@ -120,19 +122,19 @@ browser rather than eyeballing a screenshot.
 **Files:** `src/components/week/intake-form.tsx`, plus a bulk action.
 
 - [x] **Step 1: Decide where the loop lives.** `clearDayOverride(date)` is
-  per-date (`src/app/plan/actions.ts:370`). Either call it once per pinned
-  date from the client, or add `clearWeekOverrides(dates)` beside it. **Prefer
-  the server action**: seven sequential round-trips from the client is a
-  visible stall, and the existing action already re-validates the date shape
-  and the user on every call.
+      per-date (`src/app/plan/actions.ts:370`). Either call it once per pinned
+      date from the client, or add `clearWeekOverrides(dates)` beside it. **Prefer
+      the server action**: seven sequential round-trips from the client is a
+      visible stall, and the existing action already re-validates the date shape
+      and the user on every call.
 
 - [x] **Step 2: Render it only when at least one day is pinned**, as a
-  `PendingButton` labelled "Back to your standard week".
+      `PendingButton` labelled "Back to your standard week".
 
 - [x] **Step 3: Confirm the count moved.** Re-measure the sheet's choice load
-  with the flow inventory's method. The handoff predicts **31 → ~25**; record
-  what it actually is, and if it is not ~25 say so rather than adjusting the
-  prediction after the fact.
+      with the flow inventory's method. The handoff predicts **31 → ~25**; record
+      what it actually is, and if it is not ~25 say so rather than adjusting the
+      prediction after the fact.
 
 - [x] **Step 4: Commit.**
 
@@ -143,8 +145,8 @@ browser rather than eyeballing a screenshot.
 - [x] **Step 1: Suite, types, lint.**
 
 - [x] **Step 2: Seed and capture.** `train-availability` is the surface, and
-  it **photographs blank tracks without seeding** — the defect that nearly
-  shipped in v0.124.0-rc.1:
+      it **photographs blank tracks without seeding** — the defect that nearly
+      shipped in v0.124.0-rc.1:
 
 ```bash
 SEED_DEMO=1 npx tsx scripts/seed-availability.ts
@@ -152,11 +154,11 @@ SCREENSHOT_BASE_URL=http://localhost:3210 npx tsx scripts/verify-surfaces.ts pol
 ```
 
 - [x] **Step 3: Drive a pin, then unpin it both ways.** A capture shows the
-  row at rest; it cannot show that unpinning still works. Exercise the
-  BlockSheet control and the week-level control in a browser.
+      row at rest; it cannot show that unpinning still works. Exercise the
+      BlockSheet control and the week-level control in a browser.
 
 - [x] **Step 4: Update the flow inventory** with a sixth dated section: the
-  sheet's choice load before and after, and the row-crowding fix.
+      sheet's choice load before and after, and the row-crowding fix.
 
 - [x] **Step 5: Tick and commit.**
 
@@ -175,7 +177,6 @@ SCREENSHOT_BASE_URL=http://localhost:3210 npx tsx scripts/verify-surfaces.ts pol
 inventoried, every ceiling re-pinned, the `it.fails` flipped, and
 `design-system.md` rewritten prescriptive.
 
-
 ---
 
 ## Outcome — run 2026-08-31, all four tasks complete
@@ -184,11 +185,11 @@ Suite **3337 passed / 1 expected fail / 1 skipped**; `tsc` and `eslint` clean.
 Capture of `train-availability` in both themes and viewports: **0 confirmed
 defects, 0 indeterminate**, 0 errors.
 
-| | v0.124.0 | now |
-| --- | ---: | ---: |
-| Sheet choice load | **31** | **25** |
-| Sheet length | 1.09 screens | 1.17 screens |
-| Two-block summary truncates | yes | **no** |
+|                             |     v0.124.0 |          now |
+| --------------------------- | -----------: | -----------: |
+| Sheet choice load           |       **31** |       **25** |
+| Sheet length                | 1.09 screens | 1.17 screens |
+| Two-block summary truncates |          yes |       **no** |
 
 The handoff predicted "~25". It is 25.
 

@@ -94,7 +94,9 @@ describe("the motion scale exists", () => {
   });
 
   it("writes every duration in one unit, so two spellings cannot mean one value", () => {
-    const values = Object.values(readPrefixedThemeTokens(css(), "--transition-duration-"));
+    const values = Object.values(
+      readPrefixedThemeTokens(css(), "--transition-duration-")
+    );
     // The bug this pins: globals.css shipped both `0.3s` and `300ms`.
     // Sub-second durations are ms, second-and-over are s, and nothing is
     // written two ways.
@@ -132,7 +134,11 @@ function walk(dir: string, out: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {
     const full = join(dir, entry);
     if (statSync(full).isDirectory()) walk(full, out);
-    else if (/\.tsx?$/.test(full) && !/\.test\.tsx?$/.test(full) && full !== SELF)
+    else if (
+      /\.tsx?$/.test(full) &&
+      !/\.test\.tsx?$/.test(full) &&
+      full !== SELF
+    )
       out.push(full);
   }
   return out;
@@ -322,7 +328,6 @@ describe("the spacing scale is the scale the app runs", () => {
   });
 });
 
-
 /** Every `loading.tsx` under src/app, as repo-relative paths. */
 function loadingFiles(
   dir = join(process.cwd(), "src/app"),
@@ -408,9 +413,8 @@ describe("routes that await", () => {
 
 describe("reduced motion", () => {
   it("stops motion without cancelling state changes", () => {
-    const rule = /@media \(prefers-reduced-motion: reduce\) \{([\s\S]*?)\n\}/.exec(
-      css()
-    );
+    const rule =
+      /@media \(prefers-reduced-motion: reduce\) \{([\s\S]*?)\n\}/.exec(css());
     expect(rule, "the reduced-motion block is gone").not.toBeNull();
     const body = rule![1];
     // `animation: none` and `transition: none` cancel outright: an animation
@@ -491,8 +495,7 @@ describe("pending is spoken one way", () => {
       // has a quoted string in it. Requiring one keeps the check on the thing
       // it is actually about.
       const handRolledLabel =
-        flag &&
-        new RegExp(`\\{\\s*${flag}\\s*\\?[^}]*["\`']`).test(src);
+        flag && new RegExp(`\\{\\s*${flag}\\s*\\?[^}]*["\`']`).test(src);
       return !src.includes("pending={") || handRolledLabel;
     });
   }
@@ -518,7 +521,9 @@ describe("pending is spoken one way", () => {
     // words and has that exact problem.
     const rogue = walk(SRC)
       .filter((f) => !f.endsWith("pending-button.tsx"))
-      .filter((f) => stripComments(readFileSync(f, "utf8")).includes("aria-busy"))
+      .filter((f) =>
+        stripComments(readFileSync(f, "utf8")).includes("aria-busy")
+      )
       .map((f) => relative(process.cwd(), f));
     expect(rogue).toEqual([]);
   });
@@ -533,9 +538,7 @@ describe("the type scale has line-heights", () => {
     // `leading-none`.
     const all = readPrefixedThemeTokens(css(), "--text-");
     const sizes = Object.keys(all).filter((t) => !t.endsWith("--line-height"));
-    const missing = sizes.filter(
-      (t) => all[`${t}--line-height`] === undefined
-    );
+    const missing = sizes.filter((t) => all[`${t}--line-height`] === undefined);
     expect(
       missing,
       `these steps set a size with no leading, so they inherit whatever the ` +

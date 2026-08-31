@@ -48,12 +48,14 @@ change. Slice 2b owns it.
 ### Task 1: `LoadingScreen`, and the six files that speak silently
 
 **Files:**
+
 - Create: `src/components/ui/loading-screen.tsx`
 - Modify: `src/components/ui/skeleton.tsx`
 - Modify: all six existing `loading.tsx`
 - Modify: `tests/motion-scale-guard.test.ts` (new assertions)
 
 **Interfaces:**
+
 - Produces: `<LoadingScreen label="Train">…</LoadingScreen>` — renders a
   `role="status"` container with `aria-live="polite"` and a visually-hidden
   "Loading {label}…", wrapping the skeletons.
@@ -66,7 +68,10 @@ Append to `tests/motion-scale-guard.test.ts`:
 import { readdirSync as rd } from "node:fs";
 
 /** Every `loading.tsx` under src/app, as repo-relative paths. */
-function loadingFiles(dir = join(process.cwd(), "src/app"), out: string[] = []): string[] {
+function loadingFiles(
+  dir = join(process.cwd(), "src/app"),
+  out: string[] = []
+): string[] {
   for (const entry of rd(dir)) {
     const full = join(dir, entry);
     if (statSync(full).isDirectory()) loadingFiles(full, out);
@@ -96,7 +101,7 @@ describe("a route that waits says so", () => {
   it("Skeleton is decorative, not announced", () => {
     const src = readFileSync("src/components/ui/skeleton.tsx", "utf8");
     expect(
-      src.includes('aria-hidden'),
+      src.includes("aria-hidden"),
       "Skeleton must be aria-hidden: it is decoration, and the LoadingScreen " +
         "region around it is what speaks. Without this a screen reader walks " +
         "a pile of empty divs."
@@ -152,17 +157,17 @@ export function LoadingScreen({
 In `src/components/ui/skeleton.tsx`, add `aria-hidden` to the div:
 
 ```tsx
-    <div
-      data-slot="skeleton"
-      aria-hidden
-      className={cn("animate-pulse rounded-md bg-muted", className)}
-      {...props}
-    />
+<div
+  data-slot="skeleton"
+  aria-hidden
+  className={cn("animate-pulse rounded-md bg-muted", className)}
+  {...props}
+/>
 ```
 
 - [x] **Step 5: Wrap all six existing loading states**
 
-Each file imports `LoadingScreen` and wraps the content *inside* `AppShell`
+Each file imports `LoadingScreen` and wraps the content _inside_ `AppShell`
 (the shell's nav is real, not a skeleton, and must not be inside the status
 region). Labels: `/` → "your day", `/coach` → "Coach", `/settings` →
 "Settings", `/import` → "Import", `/activity/[id]` → "this activity",
@@ -220,32 +225,36 @@ and Skeleton is now explicitly aria-hidden decoration."
 ### Task 2: the routes that wait in silence
 
 **Files:**
+
 - Create: `src/app/train/loading.tsx`, `src/app/body/loading.tsx`, `src/app/admin/loading.tsx`
 - Modify: `tests/motion-scale-guard.test.ts`
 
 **The route audit**, from reading every `page.tsx` under `src/app`:
 
-| Route | Awaits? | `loading.tsx` | Verdict |
-| --- | --- | --- | --- |
-| `/` | yes | yes | — |
-| `/activity/[id]` | yes | yes | — |
-| `/activity/log` | yes | yes | — |
-| `/coach` | yes | yes | — |
-| `/import` | yes | yes | — |
-| `/settings` | yes | yes | — |
-| `/train` | yes | **no** | **add** |
-| `/body` | yes | **no** | **add** |
-| `/admin` | yes | **no** | **add** |
-| `/join/[code]` | yes | **no** | offender, **slice 5's** (pre-auth) |
-| `/login` | no — `"use client"` | no | not an offender |
-| `/wellness` | no — `redirect()` only | no | not an offender |
+| Route            | Awaits?                | `loading.tsx` | Verdict                            |
+| ---------------- | ---------------------- | ------------- | ---------------------------------- |
+| `/`              | yes                    | yes           | —                                  |
+| `/activity/[id]` | yes                    | yes           | —                                  |
+| `/activity/log`  | yes                    | yes           | —                                  |
+| `/coach`         | yes                    | yes           | —                                  |
+| `/import`        | yes                    | yes           | —                                  |
+| `/settings`      | yes                    | yes           | —                                  |
+| `/train`         | yes                    | **no**        | **add**                            |
+| `/body`          | yes                    | **no**        | **add**                            |
+| `/admin`         | yes                    | **no**        | **add**                            |
+| `/join/[code]`   | yes                    | **no**        | offender, **slice 5's** (pre-auth) |
+| `/login`         | no — `"use client"`    | no            | not an offender                    |
+| `/wellness`      | no — `redirect()` only | no            | not an offender                    |
 
 - [x] **Step 1: Write the failing test**
 
 ```ts
 describe("routes that await", () => {
   /** Every page.tsx under src/app, repo-relative. */
-  function pageFiles(dir = join(process.cwd(), "src/app"), out: string[] = []): string[] {
+  function pageFiles(
+    dir = join(process.cwd(), "src/app"),
+    out: string[] = []
+  ): string[] {
     for (const entry of rd(dir)) {
       const full = join(dir, entry);
       if (statSync(full).isDirectory()) pageFiles(full, out);
@@ -384,6 +393,7 @@ join/[code] remains, and the spec assigns pre-auth to slice 5."
 ### Task 3: reduced motion that stops motion without stopping meaning
 
 **Files:**
+
 - Modify: `src/app/globals.css`
 - Modify: `tests/motion-scale-guard.test.ts`
 
@@ -391,7 +401,10 @@ The rule today:
 
 ```css
 @media (prefers-reduced-motion: reduce) {
-  * { animation: none !important; transition: none !important; }
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
 }
 ```
 
@@ -406,7 +419,8 @@ change on `transitionend` never hears it.
 ```ts
 describe("reduced motion", () => {
   it("stops motion without cancelling state changes", () => {
-    const rule = /@media \(prefers-reduced-motion: reduce\) \{([\s\S]*?)\n\}/.exec(css());
+    const rule =
+      /@media \(prefers-reduced-motion: reduce\) \{([\s\S]*?)\n\}/.exec(css());
     expect(rule, "the reduced-motion block is gone").not.toBeNull();
     const body = rule![1];
     // `animation: none` and `transition: none` cancel outright: an animation
@@ -458,6 +472,7 @@ Expected: FAIL on the first `not.toMatch` — `animation: none` is present.
 npx prettier --write src/app/globals.css
 npx vitest run tests/motion-scale-guard.test.ts
 ```
+
 Expected: PASS.
 
 - [x] **Step 5: Verify in a browser under emulated reduced motion**
@@ -498,6 +513,7 @@ npx tsc --noEmit && npx eslint src tests
 set -a; . ./.env; set +a
 DATABASE_URL="$DATABASE_URL" DATABASE_DRIVER=pg npx vitest run
 ```
+
 Expected: clean; suite at the slice-1 baseline plus this slice's new tests.
 
 - [x] **Step 2: Capture and axe**
@@ -505,6 +521,7 @@ Expected: clean; suite at the slice-1 baseline plus this slice's new tests.
 ```bash
 SCREENSHOT_BASE_URL=http://localhost:3210 npx tsx scripts/verify-surfaces.ts polish-slice2a
 ```
+
 Expected: ~100 PNGs, **0 confirmed axe violations**. Do not pipe through
 `tail`. Remember `admin` and every `settings*` surface are never comparable
 run-to-run — `verify-surfaces.ts` creates an API token per theme/viewport
@@ -536,7 +553,6 @@ git commit -m "docs(plan): slice 2a complete"
 ## Next
 
 `docs/plans/2026-08-30-polish-slice2b-pending-vocabulary.md`.
-
 
 ---
 
@@ -583,7 +599,7 @@ before it was checked.
 - **The date rolled over between runs.** Slice 1 captured at 2026-08-30 19:53,
   this at 2026-08-31 05:30. Today, Train, Body, `checkin-sheet`,
   `train-fitness` and `body-sleep` all render date-dependent content, and most
-  of them got *shorter*.
+  of them got _shorter_.
 - **`settings*` grew again** — the capture script creates an API token per
   theme/viewport combo, as slice 1 recorded.
 

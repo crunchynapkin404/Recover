@@ -18,12 +18,12 @@ this first would have stripped the leading from five shared primitives.
 
 ## The complete mapping, measured at the compiler
 
-| From | To | Size | Leading | Delta |
-| --- | --- | --- | --- | --- |
-| `text-xs` | `text-label` | 12px, same | 16 → 18px | **+2px** |
-| `text-sm` | `text-caption` | 14px, same | 20 → 21px | **+1px** |
-| `text-base` | `text-body` | 16px, same | 24 → 24px | **0** |
-| `text-xl` | `text-title` | 20px, same | 28 → 27px | **−1px** |
+| From        | To             | Size       | Leading   | Delta    |
+| ----------- | -------------- | ---------- | --------- | -------- |
+| `text-xs`   | `text-label`   | 12px, same | 16 → 18px | **+2px** |
+| `text-sm`   | `text-caption` | 14px, same | 20 → 21px | **+1px** |
+| `text-base` | `text-body`    | 16px, same | 24 → 24px | **0**    |
+| `text-xl`   | `text-title`   | 20px, same | 28 → 27px | **−1px** |
 
 No font size moves. The leading deltas are the app's 1.5 asserting itself over
 Tailwind's tighter pairing at small sizes — the same 1.5 that 582 existing
@@ -44,22 +44,22 @@ its own size, so that is the one to watch in captures.
 
 ## The 17 call sites
 
-| File | Line | Now | Becomes |
-| --- | --- | --- | --- |
-| `ui/button.tsx` | 8 | `text-sm` | `text-caption` |
-| `ui/button.tsx` | 26 | `text-xs` | `text-label` |
-| `ui/badge.tsx` | 8 | `text-xs` | `text-label` |
-| `ui/label.tsx` | 12 | `text-sm` | `text-caption` |
-| `ui/input.tsx` | 12 | `text-base` … `md:text-sm` | `text-body` … `md:text-caption` |
-| `ui/input.tsx` | 12 | `file:text-sm` | `file:text-caption` |
-| `ui/card.tsx` | 15 | `text-sm` | `text-caption` |
-| `ui/card.tsx` | 41 | `text-base` + `group-data-[size=sm]/card:text-sm` | `text-body` + `group-data-[size=sm]/card:text-caption` |
-| `ui/card.tsx` | 53 | `text-sm` | `text-caption` |
-| `settings/connector-card.tsx` | 23 | `text-sm` | `text-caption` |
-| `settings/connector-card.tsx` | 24 | `text-xl` | `text-title` |
-| `settings/connector-card.tsx` | 26, 30 | `text-base` | `text-body` |
-| `app/join/[code]/page.tsx` | 21 | `text-xl` | `text-title` |
-| `app/join/[code]/join-form.tsx` | 40 | `text-xl` | `text-title` |
+| File                            | Line   | Now                                               | Becomes                                                |
+| ------------------------------- | ------ | ------------------------------------------------- | ------------------------------------------------------ |
+| `ui/button.tsx`                 | 8      | `text-sm`                                         | `text-caption`                                         |
+| `ui/button.tsx`                 | 26     | `text-xs`                                         | `text-label`                                           |
+| `ui/badge.tsx`                  | 8      | `text-xs`                                         | `text-label`                                           |
+| `ui/label.tsx`                  | 12     | `text-sm`                                         | `text-caption`                                         |
+| `ui/input.tsx`                  | 12     | `text-base` … `md:text-sm`                        | `text-body` … `md:text-caption`                        |
+| `ui/input.tsx`                  | 12     | `file:text-sm`                                    | `file:text-caption`                                    |
+| `ui/card.tsx`                   | 15     | `text-sm`                                         | `text-caption`                                         |
+| `ui/card.tsx`                   | 41     | `text-base` + `group-data-[size=sm]/card:text-sm` | `text-body` + `group-data-[size=sm]/card:text-caption` |
+| `ui/card.tsx`                   | 53     | `text-sm`                                         | `text-caption`                                         |
+| `settings/connector-card.tsx`   | 23     | `text-sm`                                         | `text-caption`                                         |
+| `settings/connector-card.tsx`   | 24     | `text-xl`                                         | `text-title`                                           |
+| `settings/connector-card.tsx`   | 26, 30 | `text-base`                                       | `text-body`                                            |
+| `app/join/[code]/page.tsx`      | 21     | `text-xl`                                         | `text-title`                                           |
+| `app/join/[code]/join-form.tsx` | 40     | `text-xl`                                         | `text-title`                                           |
 
 `input.tsx`'s `md:text-sm` is a deliberate responsive pair — 16px on mobile so
 iOS does not zoom the viewport on focus, 14px from `md` up. **Both halves must
@@ -110,7 +110,7 @@ re-measure and correct this plan's table rather than the test.
 One file at a time, re-running the new test after each so the list shrinks
 visibly. Do `ui/input.tsx` deliberately by hand — it is the only file where a
 naive `text-sm` → `text-caption` would also rewrite `file:text-sm` and
-`md:text-sm`, which is correct here but must be *seen* to be correct.
+`md:text-sm`, which is correct here but must be _seen_ to be correct.
 
 - [x] **Step 3: Confirm no font size moved**
 
@@ -124,6 +124,7 @@ for (const [a, b] of [["text-xs","text-label"],["text-sm","text-caption"],["text
   console.log(a + " " + fs(get(a)) + "  ->  " + b + " " + fs(get(b)));
 }'
 ```
+
 Expected: each pair reports the same computed size (`var(--text-xs)` resolves
 to 0.75rem, `text-label` is 0.75rem, and so on).
 
@@ -145,6 +146,7 @@ Tailwind specifically.
 ```bash
 SCREENSHOT_BASE_URL=http://localhost:3210 npx tsx scripts/verify-surfaces.ts polish-slice3b
 ```
+
 Expected: 0 confirmed axe violations.
 
 - [x] **Step 2: Open the card-bearing surfaces**
@@ -167,7 +169,6 @@ the only thing left standing between the strand and a prescriptive
 `inline-markdown.tsx`'s `text-[0.95em]`, which the spec records as an optical
 correction to be inventoried rather than removed — slice 7's job.
 
-
 ---
 
 ## Outcome — run 2026-08-31, both tasks complete
@@ -179,7 +180,7 @@ violations**, 128/89/28 — identical to every prior slice.
 ### The count was never 17
 
 Four of the seventeen were **prose**. `connector-card.tsx`'s doc comment
-*recounts* the historical `text-sm` / `text-xl` / `text-base` values it was
+_recounts_ the historical `text-sm` / `text-xl` / `text-base` values it was
 migrated away from in v0.106. The first measurement read documentation as
 code, and that file needed no change at all.
 

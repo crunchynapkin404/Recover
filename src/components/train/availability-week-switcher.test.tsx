@@ -216,7 +216,8 @@ describe("AvailabilityWeekSwitcher", () => {
     const editBtn = Array.from(nextForm().querySelectorAll("button")).find(
       (b) => b.getAttribute("aria-label")?.startsWith("Edit Wednesday")
     );
-    if (!editBtn) throw new Error("no precise-editor button for the pinned day");
+    if (!editBtn)
+      throw new Error("no precise-editor button for the pinned day");
     await act(async () => {
       editBtn.click();
     });

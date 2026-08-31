@@ -47,10 +47,12 @@ errors it corrected.
 ### Task 1: globals.css — 25 literals to zero
 
 **Files:**
+
 - Modify: `src/app/globals.css`
 - Modify: `tests/motion-scale-guard.test.ts` (lower one ceiling)
 
 **Interfaces:**
+
 - Consumes: the ten motion tokens from slice 0.
 - Produces: no new names.
 
@@ -58,24 +60,24 @@ errors it corrected.
 "±" is the rendered change; three entries are large enough to name in the
 commit message.
 
-| Line | Selector | Now | Becomes | Rendered change |
-| --- | --- | --- | --- | --- |
-| 402 | `.glass` transform | `0.3s` + spring | `var(--duration-transition)` + `var(--ease-spring)` | +20ms |
-| 403 | `.glass` box-shadow | `0.3s ease` | `var(--duration-transition)` + `var(--ease-standard)` | +20ms, curve |
-| 442 | `.hero-pulse` | `3s` + `(0.4,0,0.2,1)` | `var(--duration-loop)` + `var(--ease-standard)` | none |
-| 459 | `.ring-animate` | `1.2s` + draw | `var(--duration-reveal)` + `var(--ease-draw)` | none |
-| 471 | `.ring-fill` | `1.2s` + draw | `var(--duration-reveal)` + `var(--ease-draw)` | none |
-| 485 | `.sparkline-animate path` | `1.2s ease-out` | `var(--duration-reveal)` + `var(--ease-standard)` | curve |
-| 495 | `.clip-reveal` | `1.5s` + draw | `var(--duration-reveal)` + `var(--ease-draw)` | **−300ms** |
-| 504 | `.trend-arrow-animate` | `0.6s` + spring | `var(--duration-transition)` + `var(--ease-spring)` | **−280ms** |
-| 521 | `.ai-sparkle` | `8s linear` | `var(--duration-drift) linear` | none |
-| 548 | `.breathe` | `3s ease-in-out` | `var(--duration-loop)` + `var(--ease-standard)` | curve |
-| 566 | `.reveal` | `all 0.7s` + settle | explicit props + `var(--duration-transition)` + `var(--ease-settle)` | **−380ms** |
-| 577 | `.login-input` | `all 0.2s ease` | explicit props + `var(--duration-motion)` + `var(--ease-standard)` | curve |
-| 618 | `.collapsible-panel` | `height 0.3s ease-out` | `height var(--duration-transition) var(--ease-standard)` | +20ms, curve |
-| 688 | `.sheet-panel` animation | `300ms` + settle | `var(--duration-transition)` + `var(--ease-settle)` | +20ms |
-| 689 | `.sheet-panel` transition | `220ms` + settle | `var(--duration-motion)` + `var(--ease-settle)` | −20ms |
-| 702 | `.menu-pop` | `160ms ease-out` | `var(--duration-motion)` + `var(--ease-standard)` | +40ms |
+| Line | Selector                  | Now                    | Becomes                                                              | Rendered change |
+| ---- | ------------------------- | ---------------------- | -------------------------------------------------------------------- | --------------- |
+| 402  | `.glass` transform        | `0.3s` + spring        | `var(--duration-transition)` + `var(--ease-spring)`                  | +20ms           |
+| 403  | `.glass` box-shadow       | `0.3s ease`            | `var(--duration-transition)` + `var(--ease-standard)`                | +20ms, curve    |
+| 442  | `.hero-pulse`             | `3s` + `(0.4,0,0.2,1)` | `var(--duration-loop)` + `var(--ease-standard)`                      | none            |
+| 459  | `.ring-animate`           | `1.2s` + draw          | `var(--duration-reveal)` + `var(--ease-draw)`                        | none            |
+| 471  | `.ring-fill`              | `1.2s` + draw          | `var(--duration-reveal)` + `var(--ease-draw)`                        | none            |
+| 485  | `.sparkline-animate path` | `1.2s ease-out`        | `var(--duration-reveal)` + `var(--ease-standard)`                    | curve           |
+| 495  | `.clip-reveal`            | `1.5s` + draw          | `var(--duration-reveal)` + `var(--ease-draw)`                        | **−300ms**      |
+| 504  | `.trend-arrow-animate`    | `0.6s` + spring        | `var(--duration-transition)` + `var(--ease-spring)`                  | **−280ms**      |
+| 521  | `.ai-sparkle`             | `8s linear`            | `var(--duration-drift) linear`                                       | none            |
+| 548  | `.breathe`                | `3s ease-in-out`       | `var(--duration-loop)` + `var(--ease-standard)`                      | curve           |
+| 566  | `.reveal`                 | `all 0.7s` + settle    | explicit props + `var(--duration-transition)` + `var(--ease-settle)` | **−380ms**      |
+| 577  | `.login-input`            | `all 0.2s ease`        | explicit props + `var(--duration-motion)` + `var(--ease-standard)`   | curve           |
+| 618  | `.collapsible-panel`      | `height 0.3s ease-out` | `height var(--duration-transition) var(--ease-standard)`             | +20ms, curve    |
+| 688  | `.sheet-panel` animation  | `300ms` + settle       | `var(--duration-transition)` + `var(--ease-settle)`                  | +20ms           |
+| 689  | `.sheet-panel` transition | `220ms` + settle       | `var(--duration-motion)` + `var(--ease-settle)`                      | −20ms           |
+| 702  | `.menu-pop`               | `160ms ease-out`       | `var(--duration-motion)` + `var(--ease-standard)`                    | +40ms           |
 
 **The three that move visibly, and why each is right rather than merely
 tolerated:**
@@ -147,6 +149,7 @@ Apply the mapping table above. Worked examples for the three shapes present:
 npx prettier --write src/app/globals.css
 npx vitest run tests/motion-scale-guard.test.ts
 ```
+
 Expected: PASS. If the count is not 0, the failure message names the
 remaining `globals.css:<line>` — go and look at it rather than raising the
 ceiling.
@@ -156,6 +159,7 @@ ceiling.
 ```bash
 grep -nE "animation:|transition:" src/app/globals.css | grep -v "var(--duration" | grep -v "^\s*[0-9]*:\s*\*"
 ```
+
 Expected: no output. Any line printed is a declaration that kept a literal or
 lost its easing entirely.
 
@@ -181,6 +185,7 @@ Two CSS \`transition: all\` became explicit property lists at the same time."
 ### Task 2: the four numeric duration utilities
 
 **Files:**
+
 - Modify: `src/app/login/page.tsx:102`, `src/components/ui/collapsible.tsx:38`, `src/components/coach/artifact-card.tsx:156`, `src/components/ui/bottom-sheet.tsx:206`
 - Modify: `tests/motion-scale-guard.test.ts`
 
@@ -219,6 +224,7 @@ for (const c of ["duration-transition","duration-motion"]) {
   console.log(m ? m[0].replace(/\\s+/g," ") : c + ": NOT EMITTED — the utility is inert");
 }'
 ```
+
 Expected: both print a rule containing `transition-duration`. A `NOT EMITTED`
 means the class silently does nothing, which is worse than the literal it
 replaced.
@@ -245,37 +251,38 @@ than the literal it replaced."
 ### Task 3: `transition-all` — 17 to zero
 
 **Files:** the 14 files below.
+
 - Modify: `tests/motion-scale-guard.test.ts`
 
 **The complete mapping**, derived by reading the variant classes on each
 element. Tailwind v4 property names, confirmed against compiled output.
 
-| # | Site | What actually changes | Replacement |
-| --- | --- | --- | --- |
-| 1 | `app/page.tsx:308` | `hover:bg-surface-overlay` | `transition-colors` |
-| 2 | `app/page.tsx:319` | same | `transition-colors` |
-| 3 | `app/join/[code]/join-form.tsx:110` | `hover:opacity-90`, `disabled:opacity-50` | `transition-opacity` |
-| 4 | `app/login/page.tsx:102` | opacity + `hover:-translate-y-px` + `active:translate-y-0` | `transition-[opacity,translate]` |
-| 5 | `components/bottom-nav.tsx:19` | `active:scale-90` + active/inactive `text-*` | `transition-[color,scale]` |
-| 6 | `components/activity/activity-log-form.tsx:63` | bg, `ring-2` (box-shadow), text colour | `transition-[color,background-color,box-shadow]` |
-| 7 | `components/activity/activity-log-form.tsx:248` | opacity | `transition-opacity` |
-| 8 | `components/import/import-form.tsx:148` | opacity | `transition-opacity` |
-| 9 | `components/ui/button.tsx:7` | bg/text/border colour, focus ring, `disabled:opacity-50` | `transition-[color,background-color,border-color,box-shadow,opacity]` |
-| 10 | `components/ui/unavailable.tsx:47` | `hover:bg-accent/90` | `transition-colors` |
-| 11 | `components/ui/badge.tsx:8` | bg/text/border colour, focus ring | `transition-[color,background-color,border-color,box-shadow]` |
-| 12 | `components/admin/invite-manager.tsx:51` | opacity | `transition-opacity` |
-| 13 | `components/admin/sync-jobs-panel.tsx:113` | opacity | `transition-opacity` |
-| 14 | `components/coach/artifact-card.tsx:156` | `h-80` ↔ `h-20` | `transition-[height]` |
-| 15 | `components/coach/chat-interface.tsx:332` | `hover:bg-accent/90` | `transition-colors` |
-| 16 | `components/body/journal-form.tsx:323` | `grayscale` ↔ `grayscale-0` (filter), `ring-2` | `transition-[filter,box-shadow]` |
-| 17 | `components/body/journal-form.tsx:698` | opacity | `transition-opacity` |
+| #   | Site                                            | What actually changes                                      | Replacement                                                           |
+| --- | ----------------------------------------------- | ---------------------------------------------------------- | --------------------------------------------------------------------- |
+| 1   | `app/page.tsx:308`                              | `hover:bg-surface-overlay`                                 | `transition-colors`                                                   |
+| 2   | `app/page.tsx:319`                              | same                                                       | `transition-colors`                                                   |
+| 3   | `app/join/[code]/join-form.tsx:110`             | `hover:opacity-90`, `disabled:opacity-50`                  | `transition-opacity`                                                  |
+| 4   | `app/login/page.tsx:102`                        | opacity + `hover:-translate-y-px` + `active:translate-y-0` | `transition-[opacity,translate]`                                      |
+| 5   | `components/bottom-nav.tsx:19`                  | `active:scale-90` + active/inactive `text-*`               | `transition-[color,scale]`                                            |
+| 6   | `components/activity/activity-log-form.tsx:63`  | bg, `ring-2` (box-shadow), text colour                     | `transition-[color,background-color,box-shadow]`                      |
+| 7   | `components/activity/activity-log-form.tsx:248` | opacity                                                    | `transition-opacity`                                                  |
+| 8   | `components/import/import-form.tsx:148`         | opacity                                                    | `transition-opacity`                                                  |
+| 9   | `components/ui/button.tsx:7`                    | bg/text/border colour, focus ring, `disabled:opacity-50`   | `transition-[color,background-color,border-color,box-shadow,opacity]` |
+| 10  | `components/ui/unavailable.tsx:47`              | `hover:bg-accent/90`                                       | `transition-colors`                                                   |
+| 11  | `components/ui/badge.tsx:8`                     | bg/text/border colour, focus ring                          | `transition-[color,background-color,border-color,box-shadow]`         |
+| 12  | `components/admin/invite-manager.tsx:51`        | opacity                                                    | `transition-opacity`                                                  |
+| 13  | `components/admin/sync-jobs-panel.tsx:113`      | opacity                                                    | `transition-opacity`                                                  |
+| 14  | `components/coach/artifact-card.tsx:156`        | `h-80` ↔ `h-20`                                            | `transition-[height]`                                                 |
+| 15  | `components/coach/chat-interface.tsx:332`       | `hover:bg-accent/90`                                       | `transition-colors`                                                   |
+| 16  | `components/body/journal-form.tsx:323`          | `grayscale` ↔ `grayscale-0` (filter), `ring-2`             | `transition-[filter,box-shadow]`                                      |
+| 17  | `components/body/journal-form.tsx:698`          | opacity                                                    | `transition-opacity`                                                  |
 
 **TWO SITES DELIBERATELY STOP ANIMATING SOMETHING. Both are improvements, and
 both are visible:**
 
 - **#9, `ui/button.tsx`.** The base string carries
   `active:not-aria-[haspopup]:translate-y-px` — the press nudge. Under
-  `transition-all` that nudge is *animated*, so the button sinks over the
+  `transition-all` that nudge is _animated_, so the button sinks over the
   transition duration instead of on contact. That is the "presses read
   slightly late" note in the spec. `translate` is deliberately excluded, so
   the nudge becomes instant. **This changes how every button in the app feels
@@ -317,6 +324,7 @@ Then confirm exactly seven changed and none was missed:
 ```bash
 grep -rno "transition-opacity hover:opacity-90" src --include=*.tsx | grep -v test | wc -l
 ```
+
 Expected: `7`.
 
 - [x] **Step 3: Apply the four `transition-colors` sites**
@@ -352,6 +360,7 @@ for (const w of want) {
   console.log(out.css.includes(w) ? "ok   " + w : "MISSING (inert!) " + w);
 }'
 ```
+
 Expected: every line `ok`. A `MISSING` means Tailwind did not generate that
 class and the element now has no transition at all.
 
@@ -362,6 +371,7 @@ npx vitest run tests/motion-scale-guard.test.ts
 set -a; . ./.env; set +a
 DATABASE_URL="$DATABASE_URL" DATABASE_DRIVER=pg npx vitest run
 ```
+
 Expected: guard PASS with all three ceilings at 0; suite at the slice-0
 baseline of 3316 passed / 1 expected fail / 1 skipped.
 
@@ -408,6 +418,7 @@ fails the suite immediately.
 npx tsc --noEmit
 npx eslint src tests
 ```
+
 Expected: clean. Ignore `.next/` generated-type noise; re-run before
 investigating it.
 
@@ -430,7 +441,7 @@ recorded (`first-run-*`, `train-plan-preview`, `activity-detail`,
 - [x] **Step 4: Open the pictures, and know which ones matter**
 
 Motion does not photograph. A still capture proves nothing about a 320ms
-curve, so this step is about the things that changed *statically* or that a
+curve, so this step is about the things that changed _statically_ or that a
 capture can catch mid-transition:
 
 - **`body-journal`** — the mood picker's selected state (#16). Padding no
@@ -480,7 +491,6 @@ git commit -m "docs(plan): slice 1 complete — all three motion ceilings at zer
 `docs/plans/2026-08-30-polish-slice2-loading-and-pending.md`: `loading.tsx`
 for `/train` and `/body`, busy semantics on all of them, the gentler
 reduced-motion rule, and `Button`'s `pending` prop with 26 call sites onto it.
-
 
 ---
 
@@ -540,7 +550,7 @@ slice must not read a diff on those as a regression.
 
 **What no check here covers.** Motion does not photograph. A still capture
 says nothing about a 320ms curve, and the computed-style assertions prove the
-properties and durations are applied, not that they *feel* right. The three
+properties and durations are applied, not that they _feel_ right. The three
 deliberate timing changes — `clip-reveal` −300ms, `trend-arrow` −280ms, the
 scroll reveal −380ms — and the button press nudge want a human with a
 browser. That check is outstanding.

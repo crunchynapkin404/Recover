@@ -19,10 +19,10 @@ when the spec was written and is no longer true.
 Measured 2026-08-31 with the guards' own patterns, comments stripped:
 
 | Surface group | files | arbitrary type | ad-hoc ink | raw colour |
-| --- | ---: | ---: | ---: | ---: |
-| Admin | 7 | **0** | **0** | **0** |
-| Import | 4 | **0** | **0** | **0** |
-| Pre-auth | 5 | **0** | **0** | **0** |
+| ------------- | ----: | -------------: | ---------: | ---------: |
+| Admin         |     7 |          **0** |      **0** |      **0** |
+| Import        |     4 |          **0** |      **0** |      **0** |
+| Pre-auth      |     5 |          **0** |      **0** |      **0** |
 
 They were migrated in pieces by work that came after 2b.4 stopped: the v0.106
 settings redesign pulled shared chrome onto the tokens, the contrast and
@@ -50,6 +50,7 @@ loading state. It is the single named entry in slice 2a's route guard, which
 records it as pre-auth and therefore this slice's to close.
 
 **Files:**
+
 - Create: `src/app/join/[code]/loading.tsx`
 - Modify: `tests/motion-scale-guard.test.ts`
 
@@ -59,9 +60,9 @@ In the `routes that await` block, change the assertion from naming
 `join/[code]` to expecting an empty list:
 
 ```ts
-  it("do not wait in silence", () => {
-    expect(awaitingWithoutLoading()).toEqual([]);
-  });
+it("do not wait in silence", () => {
+  expect(awaitingWithoutLoading()).toEqual([]);
+});
 ```
 
 Run it. Expected: FAIL, listing `src/app/join/[code]/page.tsx` alone.

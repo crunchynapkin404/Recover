@@ -6,7 +6,7 @@
 is in flight, in the same way, to sighted and screen-reader athletes alike.
 
 **Architecture:** A `PendingButton` that renders a plain `<button>` and owns
-only the *semantics* — `disabled`, `aria-busy`, and the label swap. It takes
+only the _semantics_ — `disabled`, `aria-busy`, and the label swap. It takes
 `className` from the call site and has no styling opinion at all, which is
 what lets 22 raw buttons adopt it without a single pixel moving.
 
@@ -19,14 +19,14 @@ slice **overrides** the spec's stated primitive; see below.
 
 ## Why the spec's primitive is wrong
 
-The spec says: *"One vocabulary, owned by `ui/button.tsx`: a `pending` prop."*
+The spec says: _"One vocabulary, owned by `ui/button.tsx`: a `pending` prop."_
 Measuring killed it. Of the 26 components that call `useTransition`:
 
-| | count |
-| --- | --- |
-| use the `Button` primitive | **4** — `api-tokens-card`, `intervals-card`, `sessions-card`, `webhooks-card` |
-| use raw `<button>` with their own class strings | **20** |
-| have no button at all | **2** — `ride-debrief-toggles` (toggles), `intake-form` (delegates to `PinnedAction`) |
+|                                                 | count                                                                                 |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------- |
+| use the `Button` primitive                      | **4** — `api-tokens-card`, `intervals-card`, `sessions-card`, `webhooks-card`         |
+| use raw `<button>` with their own class strings | **20**                                                                                |
+| have no button at all                           | **2** — `ride-debrief-toggles` (toggles), `intake-form` (delegates to `PinnedAction`) |
 
 A prop on `Button` reaches four files. Reaching the other twenty would mean
 migrating them onto the primitive — a restyle of twenty surfaces, which is
@@ -65,10 +65,12 @@ with a button that greys out and says nothing.
 ### Task 1: the primitive
 
 **Files:**
+
 - Create: `src/components/ui/pending-button.tsx`
 - Create: `src/components/ui/pending-button.test.tsx`
 
 **Interfaces:**
+
 - Produces: `<PendingButton pending={boolean} pendingLabel?={ReactNode} …buttonProps>`.
   With `children: string`, `pendingLabel` is optional and defaults to
   `` `${children}…` ``. With any other `children`, `pendingLabel` is required.
@@ -83,7 +85,11 @@ import { PendingButton } from "./pending-button";
 describe("PendingButton", () => {
   it("is an ordinary button when idle, with the caller's classes", () => {
     const html = renderToString(
-      <PendingButton pending={false} type="button" className="rounded-full bg-accent">
+      <PendingButton
+        pending={false}
+        type="button"
+        className="rounded-full bg-accent"
+      >
         Save
       </PendingButton>
     );
@@ -119,7 +125,12 @@ describe("PendingButton", () => {
 
   it("uses an explicit pendingLabel when given", () => {
     const html = renderToString(
-      <PendingButton pending type="button" className="x" pendingLabel="Syncing…">
+      <PendingButton
+        pending
+        type="button"
+        className="x"
+        pendingLabel="Syncing…"
+      >
         Sync
       </PendingButton>
     );
@@ -187,9 +198,7 @@ export function PendingButton({
       disabled={disabled || pending}
       aria-busy={pending || undefined}
     >
-      {pending
-        ? (pendingLabel ?? `${children as string}…`)
-        : children}
+      {pending ? (pendingLabel ?? `${children as string}…`) : children}
     </button>
   );
 }
@@ -227,10 +236,12 @@ string label gets a free ellipsis, richer children must supply pendingLabel."
 describe("pending is spoken one way", () => {
   /** Components that run a transition and render a button for it. */
   function transitionButtons(): string[] {
-    return walk(SRC).filter((f) => {
-      const src = readFileSync(f, "utf8");
-      return src.includes("useTransition") && /<[Bb]utton[\s>]/.test(src);
-    }).map((f) => relative(process.cwd(), f));
+    return walk(SRC)
+      .filter((f) => {
+        const src = readFileSync(f, "utf8");
+        return src.includes("useTransition") && /<[Bb]utton[\s>]/.test(src);
+      })
+      .map((f) => relative(process.cwd(), f));
   }
 
   function withoutVocabulary(): string[] {
@@ -349,6 +360,7 @@ whatever the code now does without reading why.
 ```bash
 SCREENSHOT_BASE_URL=http://localhost:3210 npx tsx scripts/verify-surfaces.ts polish-slice2b
 ```
+
 Expected: **0 confirmed axe violations**. Do not pipe through `tail`. `admin`
 and every `settings*` surface grow every run (the script creates an API token
 per theme/viewport combo) — not a regression.
@@ -375,7 +387,6 @@ transition is in flight. Without this the slice has no evidence.
 `docs/plans/2026-08-30-polish-slice3-primitives.md` — the 17 stock-Tailwind
 type sizes, five shared primitives first.
 
-
 ---
 
 ## Outcome — run 2026-08-31, all four tasks complete
@@ -388,11 +399,11 @@ so `aria-busy` on 24 components introduced nothing.
 **Driven in a real browser**, which is the only evidence that matters here — a
 capture photographs buttons at rest and cannot show this working at all:
 
-| | label | `aria-busy` | `disabled` |
-| --- | --- | --- | --- |
-| idle | New invite | — | no |
-| in flight | Creating… | `true` | yes |
-| after | New invite | — | no |
+|           | label      | `aria-busy` | `disabled` |
+| --------- | ---------- | ----------- | ---------- |
+| idle      | New invite | —           | no         |
+| in flight | Creating…  | `true`      | yes        |
+| after     | New invite | —           | no         |
 
 ### Most of the work was not the swap
 
