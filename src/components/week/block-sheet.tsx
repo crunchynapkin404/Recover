@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { PendingButton } from "@/components/ui/pending-button";
 import { Plus, Trash2 } from "lucide-react";
 import {
   validateBlocks,
@@ -20,6 +21,29 @@ export interface BlockSheetProps {
   sports: string[];
   onChange: (next: AvailabilityBlock[]) => void;
   onClose: () => void;
+  /**
+   * Whether this day carries an availability override — a "pinned" day.
+   *
+   * PER-DAY UNPIN LIVES HERE. The timeline row used to carry a pressable
+   * `Pinned ×` badge, one per day, up to seven on one sheet; it was the
+   * largest single contributor to that sheet's choice load and it crowded the
+   * row until the block summary truncated. The badge is a non-interactive
+   * mark now, and this is the capability moving rather than disappearing —
+   * this sheet is the spec's own "precise and assistive path", which is where
+   * a per-day correction belongs.
+   */
+  pinned?: boolean;
+  /**
+   * Clears this day's override, restoring the standard week's day.
+   *
+   * OPTIONAL, because pinning is a property of a DATED week. `standard-week.
+   * tsx` renders this same sheet to edit the standard week itself, where
+   * there is no override to clear and nothing to restore to. Requiring it
+   * there would mean passing a no-op that lies about what the sheet can do.
+   */
+  onUnpin?: () => void;
+  /** True while that clear is in flight. */
+  unpinPending?: boolean;
 }
 
 const ENERGY_LEVELS: { value: Energy; label: string }[] = [
@@ -66,6 +90,9 @@ export function BlockSheet({
   sports,
   onChange,
   onClose,
+  pinned = false,
+  onUnpin,
+  unpinPending = false,
 }: BlockSheetProps) {
   const [error, setError] = useState<string | null>(null);
 
@@ -272,6 +299,18 @@ export function BlockSheet({
           <Plus aria-hidden className="size-3.5" />
           Add a block
         </button>
+
+        {pinned && onUnpin && (
+          <PendingButton
+            type="button"
+            pending={unpinPending}
+            pendingLabel="Restoring…"
+            onClick={onUnpin}
+            className="mt-2 flex w-full items-center justify-center rounded-2xl py-2.5 text-label font-bold text-ink-muted transition-colors hover:text-ink-primary"
+          >
+            Back to your standard day
+          </PendingButton>
+        )}
       </div>
     </div>
   );

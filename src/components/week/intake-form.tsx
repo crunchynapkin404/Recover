@@ -86,7 +86,9 @@ export function IntakeForm({
   const [state, formAction, pending] = useActionState(action, { message: "" });
   const [week, setWeek] = useState(resolved);
   const [openDay, setOpenDay] = useState<number | null>(null);
-  const [, startTransition] = useTransition();
+  // The flag was discarded here until slice 6, which is why unpinning showed
+  // no feedback at all: the old `Pinned ×` badge only ever went disabled.
+  const [unpinning, startTransition] = useTransition();
 
   // The server owns what is actually stored. Unpinning a day deletes its
   // override and revalidates, so `resolved` comes back as the standard week —
@@ -207,6 +209,9 @@ export function IntakeForm({
             setWeek((prev) => prev.map((d, j) => (j === openDay ? next : d)))
           }
           onClose={() => setOpenDay(null)}
+          pinned={overrideDates.includes(dates[openDay])}
+          onUnpin={() => unpin(openDay)}
+          unpinPending={unpinning}
         />
       )}
     </form>

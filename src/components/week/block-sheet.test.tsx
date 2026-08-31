@@ -466,3 +466,33 @@ describe("BlockSheet interactions", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("restoring the standard day", () => {
+  const base = {
+    dayLabel: "Tuesday",
+    blocks,
+    sports: [],
+    onChange: () => {},
+    onClose: () => {},
+    onUnpin: () => {},
+  };
+
+  it("offers to restore only when the day is pinned", () => {
+    // Per-day unpin lives HERE now. The timeline row's `Pinned ×` button was
+    // demoted to a non-interactive mark to uncrowd the row, and this is the
+    // capability moving rather than disappearing — BlockSheet is the spec's
+    // own "precise and assistive path", which is where a per-day correction
+    // belongs.
+    const pinnedHtml = renderToString(<BlockSheet {...base} pinned />);
+    expect(pinnedHtml).toContain("Back to your standard day");
+
+    const plainHtml = renderToString(<BlockSheet {...base} pinned={false} />);
+    expect(plainHtml).not.toContain("Back to your standard day");
+  });
+
+  it("speaks the pending vocabulary while restoring", () => {
+    const html = renderToString(<BlockSheet {...base} pinned unpinPending />);
+    expect(html).toContain('aria-busy="true"');
+    expect(html).toContain("Restoring…");
+  });
+});
