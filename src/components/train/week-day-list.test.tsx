@@ -3,6 +3,7 @@ import { renderToString } from "react-dom/server";
 import { WeekDayList } from "./week-day-list";
 import type { DaySlot } from "@/lib/week-plan/types";
 import { withPurpose } from "@/lib/training-plan";
+import { workoutForDay } from "@/lib/interval/for-day";
 
 function localYmd(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -583,5 +584,78 @@ describe("WeekDayList — I4: DayActions only mounts where it can succeed", () =
       />
     );
     expect(html).toContain('aria-label="Plan change"');
+  });
+});
+
+describe("WeekDayList — the structured workout", () => {
+  const bikeDay: DaySlot["workouts"][number] = withPurpose({
+    day: 0,
+    sport: "Bike",
+    type: "Tempo",
+    durationMins: 75,
+    intensity: "Z4",
+    description: "Tempo ride — steady sweetspot effort",
+    blockIdx: 0,
+  });
+
+  const days: DaySlot[] = [
+    slot(TODAY, "planned", bikeDay),
+    slot(TOMORROW, "planned", bikeDay),
+  ];
+
+  it("shows the workout name, the derived line and the profile on the open day", () => {
+    const structured = [workoutForDay(bikeDay, TODAY)];
+    expect(
+      structured[0],
+      "the library must answer a 75-minute Bike Tempo"
+    ).not.toBeNull();
+    const html = renderToString(
+      <WeekDayList
+        days={days}
+        today={TODAY}
+        openDate={TODAY}
+        structured={structured}
+      />
+    );
+    expect(html).toContain("data-structured-workout");
+    expect(html).toContain(structured[0]!.workout.name);
+    expect(html).toContain("data-workout-profile");
+  });
+
+  it("shows nothing structured when the library refuses", () => {
+    // A run is not cycling. The row must render exactly what it rendered
+    // before this feature existed — prose and band, nothing else.
+    const html = renderToString(
+      <WeekDayList
+        days={days}
+        today={TODAY}
+        openDate={TODAY}
+        structured={[null]}
+      />
+    );
+    expect(html).not.toContain("data-structured-workout");
+    expect(html).toContain("Tempo");
+  });
+
+  it("shows nothing structured when the prop is absent entirely", () => {
+    // Every existing caller passes nothing; none of them may change.
+    const html = renderToString(
+      <WeekDayList days={days} today={TODAY} openDate={TODAY} />
+    );
+    expect(html).not.toContain("data-structured-workout");
+  });
+
+  it("never draws a profile on a collapsed row", () => {
+    // structured is only ever passed for the open day; a profile on seven
+    // rows would bury the one the athlete opened.
+    const html = renderToString(
+      <WeekDayList
+        days={days}
+        today={TODAY}
+        openDate={TOMORROW}
+        structured={[workoutForDay(bikeDay, TOMORROW)]}
+      />
+    );
+    expect((html.match(/data-workout-profile/g) ?? []).length).toBe(1);
   });
 });
