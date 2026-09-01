@@ -156,7 +156,7 @@ function DayRow({
                         gives the same bytes. */}
                     <a
                       href={`/api/workout/zwo?date=${d.date}&i=${i}`}
-                      className="mt-1 inline-block text-label font-bold text-ink-secondary underline decoration-hairline underline-offset-2"
+                      className="mt-1 inline-block text-label font-bold text-accent underline underline-offset-2"
                     >
                       Download .zwo
                       <span className="sr-only">{` — ${structured[i]!.workout.name} for ${d.date}`}</span>

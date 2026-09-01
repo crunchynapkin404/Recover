@@ -47,7 +47,7 @@ export function ExportWorkout({
       <button
         type="submit"
         disabled={pending}
-        className="text-label font-bold text-ink-secondary underline decoration-hairline underline-offset-2 disabled:opacity-60"
+        className="text-label font-bold text-accent underline underline-offset-2 disabled:opacity-60"
       >
         {pending
           ? "Sending…"
