@@ -125,10 +125,15 @@ both against `package.json`; it caught README on its first run.
 
 ## What you are inheriting
 
-- **The coverage model has been wrong three times** and is the part of this
-  spec most worth attacking next. It now derives from the engine's own
-  constants (`coverage-guard.test.ts`) rather than restating them, but _which_
-  constants matter was one person's reading of `adapt-day.ts` and `slots.ts`.
+- **The coverage model has now been wrong FOUR times**, and each correction
+  found the next one. Banded when the engine is continuous; wrong about quality
+  purposes on red and amber; blind to the availability path that compresses a
+  session to an arbitrary block length; and finally blind to triathlon, whose
+  bike days use `TRI_SPLIT` rather than the cycling fractions every earlier
+  correction reasoned from (#226). The pattern is not carelessness — it is that
+  "derive from the engine" is not the same as "derive from ALL of the engine",
+  and each pass widened the reading by exactly one path. If you touch this,
+  assume there is a fifth and go looking for the generator you have not read.
 - **Everything the v0.124.0 and visual-polish handoffs listed is still
   inherited**, including information architecture as Phase 6's last open
   strand.
