@@ -58,10 +58,14 @@ week-plan JSON. An image rollback is safe.
 
 ### What is not proven
 
-**Nothing here has spoken to the real intervals.icu API.** The request shape is
-asserted against a mock and the workout syntax is what `get-workout-syntax.ts`
-documents, but whether the service accepts the event and parses the description
-is one manual send away from being known. Send one before trusting it.
+**~~Nothing here has spoken to the real intervals.icu API.~~ Confirmed working
+2026-09-01, after release.** The request shape was asserted against a mock and
+the workout syntax is what `get-workout-syntax.ts` documents; whether the
+service accepted the event and parsed the description was one manual send away
+from being known. That send has now been made and it works. The note is
+corrected rather than deleted, because it was true when this shipped — and a
+release that says "unverified" while the thing works is as misleading as the
+reverse.
 
 **Family rotation is thin at thirty workouts.** About half the covered durations
 have a single family, so the same day can draw the same session. It fills in as
