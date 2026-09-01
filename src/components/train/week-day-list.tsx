@@ -148,6 +148,17 @@ function DayRow({
                       bars={structured[i]!.profile}
                       label={structured[i]!.description}
                     />
+                    {/* A plain link, not a button: the file is a pure GET
+                        derived from the planned day, so there is nothing to
+                        submit and nothing to change. Downloading it twice
+                        gives the same bytes. */}
+                    <a
+                      href={`/api/workout/zwo?date=${d.date}&i=${i}`}
+                      className="mt-1 inline-block text-label font-bold text-ink-secondary underline decoration-hairline underline-offset-2"
+                    >
+                      Download .zwo
+                      <span className="sr-only">{` — ${structured[i]!.workout.name} for ${d.date}`}</span>
+                    </a>
                   </div>
                 )}
               </div>

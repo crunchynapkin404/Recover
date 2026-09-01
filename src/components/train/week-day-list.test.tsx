@@ -659,3 +659,40 @@ describe("WeekDayList — the structured workout", () => {
     expect((html.match(/data-workout-profile/g) ?? []).length).toBe(1);
   });
 });
+
+describe("WeekDayList — the .zwo download", () => {
+  const bikeDay: DaySlot["workouts"][number] = withPurpose({
+    day: 0,
+    sport: "Bike",
+    type: "Tempo",
+    durationMins: 75,
+    intensity: "Z4",
+    description: "Tempo ride",
+    blockIdx: 0,
+  });
+  const days: DaySlot[] = [slot(TODAY, "planned", bikeDay)];
+
+  it("links to the route with this day's own date and session index", () => {
+    const html = renderToString(
+      <WeekDayList
+        days={days}
+        today={TODAY}
+        openDate={TODAY}
+        structured={[workoutForDay(bikeDay, TODAY)]}
+      />
+    );
+    expect(html).toContain(`/api/workout/zwo?date=${TODAY}&amp;i=0`);
+  });
+
+  it("offers no download when the library refused", () => {
+    const html = renderToString(
+      <WeekDayList
+        days={days}
+        today={TODAY}
+        openDate={TODAY}
+        structured={[null]}
+      />
+    );
+    expect(html).not.toContain("/api/workout/zwo");
+  });
+});
