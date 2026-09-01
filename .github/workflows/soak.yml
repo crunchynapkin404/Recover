@@ -41,6 +41,14 @@ env:
   # Found by v0.120.0-rc.1's soak, which is the first release after the
   # surfaces were added.
   FIRST_RUN_SURFACES: first-run-today,first-run-train,first-run-body,first-run-coach
+  # And `train-workout` is excluded for the third variant of the same reason.
+  # It needs a CYCLING plan — the race decides the plan's sport, and this soak
+  # seeds the demo marathon runner, so the surface refuses rather than
+  # photographing the ordinary Train tab under its name. surfaces.yml runs it
+  # against its own seeded cycling owner on its own Postgres, which is the
+  # capture that matters for a release anyway: it is the only one taken
+  # against the exact commit an RC is cut from.
+  CYCLING_SURFACES: train-workout
   # .env.rc is gitignored, so it is not in the runner's fresh checkout. It
   # lives at a stable path on the box instead; see docs/RUNNER.md.
   RC_ENV_FILE_DEFAULT: .recover-ops/env.rc
@@ -143,7 +151,7 @@ jobs:
           set -a; . ./.env.rc; set +a
           SCREENSHOT_BASE_URL=http://localhost:3100 \
           OWNER_EMAIL="$OWNER_EMAIL" OWNER_PASSWORD="$OWNER_PASSWORD" \
-            npx tsx scripts/verify-surfaces.ts soak --except="$PREVIEW_SURFACES,$FIRST_RUN_SURFACES"
+            npx tsx scripts/verify-surfaces.ts soak --except="$PREVIEW_SURFACES,$FIRST_RUN_SURFACES,$CYCLING_SURFACES"
 
       # The artifact name carries the candidate. promote.yml asserts this exact
       # name, which is what binds a reviewed capture to the digest it describes
