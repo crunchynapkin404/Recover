@@ -10,6 +10,11 @@ import {
   STEP_DOWN,
 } from "@/lib/week-plan/types";
 import { PURPOSE_FLOORS } from "@/lib/availability/types";
+import {
+  TRI_SPLIT,
+  TRI_SECONDARY_FRACTION,
+} from "@/lib/plan-distribution-constants";
+import { workoutForDay } from "./for-day";
 import { PURPOSE_BY_TYPE } from "@/lib/training-plan";
 
 /**
@@ -96,6 +101,71 @@ describe("the availability path, which sets duration directly", () => {
         lo,
         `${purpose} is covered from ${lo} but compression reaches ${PURPOSE_FLOORS[purpose]}`
       ).toBeLessThanOrEqual(PURPOSE_FLOORS[purpose]);
+    }
+  });
+});
+
+describe("a triathlon plan's bike sessions", () => {
+  // THE COVERAGE MODEL WAS DERIVED FROM THE CYCLING GENERATOR ALONE, twice
+  // over, and a triathlon plan sizes its bike days by entirely different
+  // fractions: the Sunday long ride is round(totalMins * TRI_SPLIT.bike * 0.5)
+  // and the Thursday interval day is round(... * TRI_SECONDARY_FRACTION).
+  // Neither appears anywhere in the reasoning behind COVER.
+  //
+  // These durations are DERIVED here from the same constants the generator
+  // uses, not typed in, so the day this split changes the assertion moves with
+  // it. What is pinned is which volumes the library answers and which it
+  // refuses — refusal being the honest path, but a silent change in WHICH days
+  // fall back to prose is not something to discover from an athlete.
+  const triBike = (hours: number) => {
+    const bike = hours * 60 * TRI_SPLIT.bike;
+    return {
+      long: Math.round(bike * 0.5),
+      secondary: Math.round(bike * TRI_SECONDARY_FRACTION),
+    };
+  };
+  const answers = (purpose: "long" | "vo2max" | "aerobic_base", m: number) =>
+    workoutForDay({ sport: "Bike", purpose, durationMins: m }, "2026-09-01") !==
+    null;
+
+  it("answers the long ride from 4 h/week upward", () => {
+    expect(answers("long", triBike(3).long)).toBe(false); // 36 min
+    for (let h = 4; h <= 20; h++) {
+      expect(answers("long", triBike(h).long), `${h} h/week`).toBe(true);
+    }
+  });
+
+  it("refuses the interval day at both ends, and says why here", () => {
+    // Below: a 3 h/week triathlete's bike-interval day is 22 minutes, under
+    // vo2max's own PURPOSE_FLOORS value of 40 — the generator does not clamp
+    // to it. Above: at 17 h/week and beyond it reaches 122-144 minutes, past
+    // the 120 this library covers.
+    //
+    // The ceiling is NOT raised to swallow those. A 144-minute session the
+    // engine labels vo2max is an endurance ride with intervals in it, and
+    // authoring one so a guard goes green would be the guard driving the
+    // coaching — the thing the ceiling exists to prevent. Those days keep
+    // today's prose and band, which the spec calls the honest path.
+    expect(triBike(3).secondary).toBeLessThan(PURPOSE_FLOORS.vo2max);
+    expect(answers("vo2max", triBike(3).secondary)).toBe(false);
+    for (let h = 4; h <= 16; h++) {
+      expect(answers("vo2max", triBike(h).secondary), `${h} h/week`).toBe(true);
+    }
+    for (let h = 17; h <= 20; h++) {
+      expect(answers("vo2max", triBike(h).secondary), `${h} h/week`).toBe(
+        false
+      );
+    }
+  });
+
+  it("answers that same day at every volume when it is endurance, not intervals", () => {
+    // Outside build and peak the Thursday bike is Endurance, and aerobic_base
+    // covers 21-210 — so the refusals above are a property of the vo2max
+    // ceiling, not of the triathlon split.
+    for (let h = 3; h <= 20; h++) {
+      expect(answers("aerobic_base", triBike(h).secondary), `${h} h/week`).toBe(
+        true
+      );
     }
   });
 });

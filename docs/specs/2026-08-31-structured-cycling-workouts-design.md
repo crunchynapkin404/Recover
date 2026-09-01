@@ -385,6 +385,45 @@ been wrong twice. `RED_ENDURANCE_SCALE`, `AMBER_SCALE`,
 and `PURPOSE_BY_TYPE` are all already exported; the guard lives in a
 `.test.ts`, which the purity scan skips, so importing them costs nothing.
 
+### A triathlon plan sizes its bike days differently
+
+**The reachable set above was derived from the cycling generator alone — twice
+over, in two separate corrections of this section, and it was still
+incomplete.** A `Triathlon` plan does not use `BIKE_LONG_FRACTION` or
+`BIKE_EASY_FRACTION` at all. Its Sunday ride is
+`round(totalMins × TRI_SPLIT.bike × 0.5)` and its Thursday bike day is
+`round(totalMins × TRI_SPLIT.bike × TRI_SECONDARY_FRACTION)`
+(`training-plan.ts:1055-1135`), and neither fraction appears anywhere in the
+reasoning that produced the table above.
+
+Measured across 3–20 h/week, six of those sessions fall outside what the
+library covers:
+
+| volume   | session            | length      | outcome                                                              |
+| -------- | ------------------ | ----------- | -------------------------------------------------------------------- |
+| 3 h/week | Sunday long ride   | 36 min      | refused — under `long`'s covered range                               |
+| 3 h/week | Thursday intervals | 22 min      | refused — under `vo2max`'s, and under `PURPOSE_FLOORS.vo2max` itself |
+| 17–20 h  | Thursday intervals | 122–144 min | refused — over `vo2max`'s ceiling                                    |
+
+**The ceiling is not raised to swallow the top three.** A 144-minute session
+the engine labels `vo2max` is an endurance ride with intervals in it — its own
+generated description is "4×5min above threshold, 3min recovery" — and
+authoring a four-hour VO₂max workout so a guard goes green would be the guard
+driving the coaching, which is what the ceiling exists to prevent. Those days
+keep today's prose and band.
+
+The bottom two are a different thing worth noticing on its own: **the generator
+emits sessions below their own `PURPOSE_FLOORS` value** — a 22-minute `vo2max`
+day against a floor of 40, a 36-minute `long` against a floor of 90 — because
+nothing clamps generated durations to `minEffectiveMins`. That is the engine's
+business rather than this library's, but it is why "the floor is the lower
+bound" is not quite true, and the guard asserts the measured outcomes rather
+than that rule.
+
+All six are pinned in `coverage-guard.test.ts`, deriving the durations from the
+same constants the generator uses rather than hard-coding them, so which days
+fall back to prose cannot change silently.
+
 ### Where coverage stops, and why it stops there
 
 The reachable set above is technically right and partly absurd. Redistribution
