@@ -9,6 +9,7 @@ import {
   QUALITY_TYPES,
   STEP_DOWN,
 } from "@/lib/week-plan/types";
+import { PURPOSE_FLOORS } from "@/lib/availability/types";
 import { PURPOSE_BY_TYPE } from "@/lib/training-plan";
 
 /**
@@ -24,7 +25,7 @@ import { PURPOSE_BY_TYPE } from "@/lib/training-plan";
  * worth authoring, not a measurable quantity.
  */
 const COVER: Record<LibraryPurpose, [number, number]> = {
-  recovery: [21, 90],
+  recovery: [20, 90],
   aerobic_base: [21, 210],
   long: [48, 300],
   threshold: [27, 120],
@@ -69,6 +70,33 @@ describe("the reachable-duration model", () => {
     expect(RED_RECOVERY_MINS).toBe(30);
     expect(COVER.recovery[0]).toBeLessThanOrEqual(RED_RECOVERY_MINS);
     expect(COVER.recovery[1]).toBeGreaterThanOrEqual(RED_RECOVERY_MINS);
+  });
+});
+
+describe("the availability path, which sets duration directly", () => {
+  it("covers each purpose down to the floor compression respects", () => {
+    // READINESS IS NOT THE ONLY THING THAT SETS A DURATION, and an earlier
+    // reading of this guard implied it was. `fitToBlock` (week-plan/slots.ts)
+    // compresses a session to EXACTLY the room its availability block has —
+    // an arbitrary integer — whenever that room is at least the purpose's
+    // floor, and substitutes down SUBSTITUTE_TO when it is not. `fill.ts`
+    // grows and adds sessions the same way, refusing anything under the floor
+    // (`if (mins < PURPOSE_FLOORS[purpose]) continue`).
+    //
+    // So every integer from a purpose's floor upward is reachable, directly,
+    // without any readiness event at all — and it is probably the commonest
+    // source of odd durations in practice. That makes PURPOSE_FLOORS the real
+    // lower bound the library must reach, not a number typed by hand: this
+    // caught COVER.recovery starting at 21 when compression can produce 20.
+    for (const [purpose, [lo]] of Object.entries(COVER) as [
+      LibraryPurpose,
+      [number, number],
+    ][]) {
+      expect(
+        lo,
+        `${purpose} is covered from ${lo} but compression reaches ${PURPOSE_FLOORS[purpose]}`
+      ).toBeLessThanOrEqual(PURPOSE_FLOORS[purpose]);
+    }
   });
 });
 
