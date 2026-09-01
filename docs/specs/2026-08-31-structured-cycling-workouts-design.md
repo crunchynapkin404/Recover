@@ -597,6 +597,38 @@ days that attacking this document repays the time. Notably:
   carries the context it tested — and no renderer needs an FTP at all. Removed
   from Design 3 entirely.
 
+**NO CAPTURE HAS EVER PHOTOGRAPHED THIS FEATURE, and none can today.**
+`/train` opens the athlete's own current day, and every seeded plan in the
+capture fixtures is `raceType: "marathon"` — `seed-confirmed-race.ts:85,126`
+and `seed-two-race.ts`. The demo athlete is a runner, so **there is no cycling
+session anywhere in the fixtures, on any day**, and a cycling-only feature is
+structurally unphotographable by `verify-surfaces.ts`.
+
+That is not "today happened to be a rest day". v0.126.0 shipped with 100 Soak
+PNGs and an axe ratchet reporting `0 confirmed`, and not one of those pictures
+contained the name, the derived line, the profile or either action. The ratchet
+says nothing whatever about this UI, and `RELEASING.md` step 8 — open the
+pictures — cannot be performed on a picture that cannot be taken. It is the
+state two of v0.114.0's four worst defects hid behind.
+
+What stands in for it meanwhile, and why neither is a substitute:
+`src/components/train/workout-a11y.test.tsx` runs axe over all thirty workouts'
+profiles directly, which covers the chart but not the block around it or its
+contrast in either theme; and the layout was verified once by rendering the real
+page against a seeded database and opening it at 390px, which is how the
+two-row action layout was found — but that is a thing done by hand, once, not a
+ratchet.
+
+**The fix is a fixture migration, not a script change.** A `train-workout`
+surface driven onto a planned day was written and reverted (#218): the surface
+is right and the fixtures cannot feed it. The demo athlete's marathon plan
+drives `train-race-pacing`, `train-fitness`, the race chip, threshold pace and
+Today's session cards, so giving the capture set a cycling plan ripples across
+all 100 captures — and `surfaces.yml` warns that two fixtures which CAN clash
+are worse than two that structurally cannot. It is real work and it is worth
+doing before this block is changed again, because until then a regression in it
+is invisible to the pipeline.
+
 **The judges did not run, and nothing has replaced them.** The pass attacked
 the winning design; it did not re-score the three rivals against `fitsRepo` /
 `survivesAdaptation` / `authoringCost` / `noDrift`, and the cached run's
