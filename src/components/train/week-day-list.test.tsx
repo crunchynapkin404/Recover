@@ -3,6 +3,7 @@ import { renderToString } from "react-dom/server";
 import { WeekDayList } from "./week-day-list";
 import type { DaySlot } from "@/lib/week-plan/types";
 import { withPurpose } from "@/lib/training-plan";
+import { workoutForDay } from "@/lib/interval/for-day";
 
 function localYmd(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -583,5 +584,169 @@ describe("WeekDayList — I4: DayActions only mounts where it can succeed", () =
       />
     );
     expect(html).toContain('aria-label="Plan change"');
+  });
+});
+
+describe("WeekDayList — the structured workout", () => {
+  const bikeDay: DaySlot["workouts"][number] = withPurpose({
+    day: 0,
+    sport: "Bike",
+    type: "Tempo",
+    durationMins: 75,
+    intensity: "Z4",
+    description: "Tempo ride — steady sweetspot effort",
+    blockIdx: 0,
+  });
+
+  const days: DaySlot[] = [
+    slot(TODAY, "planned", bikeDay),
+    slot(TOMORROW, "planned", bikeDay),
+  ];
+
+  it("shows the workout name, the derived line and the profile on the open day", () => {
+    const structured = [workoutForDay(bikeDay, TODAY)];
+    expect(
+      structured[0],
+      "the library must answer a 75-minute Bike Tempo"
+    ).not.toBeNull();
+    const html = renderToString(
+      <WeekDayList
+        days={days}
+        today={TODAY}
+        openDate={TODAY}
+        structured={structured}
+      />
+    );
+    expect(html).toContain("data-structured-workout");
+    expect(html).toContain(structured[0]!.workout.name);
+    expect(html).toContain("data-workout-profile");
+  });
+
+  it("shows nothing structured when the library refuses", () => {
+    // A run is not cycling. The row must render exactly what it rendered
+    // before this feature existed — prose and band, nothing else.
+    const html = renderToString(
+      <WeekDayList
+        days={days}
+        today={TODAY}
+        openDate={TODAY}
+        structured={[null]}
+      />
+    );
+    expect(html).not.toContain("data-structured-workout");
+    expect(html).toContain("Tempo");
+  });
+
+  it("shows nothing structured when the prop is absent entirely", () => {
+    // Every existing caller passes nothing; none of them may change.
+    const html = renderToString(
+      <WeekDayList days={days} today={TODAY} openDate={TODAY} />
+    );
+    expect(html).not.toContain("data-structured-workout");
+  });
+
+  it("never draws a profile on a collapsed row", () => {
+    // structured is only ever passed for the open day; a profile on seven
+    // rows would bury the one the athlete opened.
+    const html = renderToString(
+      <WeekDayList
+        days={days}
+        today={TODAY}
+        openDate={TOMORROW}
+        structured={[workoutForDay(bikeDay, TOMORROW)]}
+      />
+    );
+    expect((html.match(/data-workout-profile/g) ?? []).length).toBe(1);
+  });
+});
+
+describe("WeekDayList — the .zwo download", () => {
+  const bikeDay: DaySlot["workouts"][number] = withPurpose({
+    day: 0,
+    sport: "Bike",
+    type: "Tempo",
+    durationMins: 75,
+    intensity: "Z4",
+    description: "Tempo ride",
+    blockIdx: 0,
+  });
+  const days: DaySlot[] = [slot(TODAY, "planned", bikeDay)];
+
+  it("links to the route with this day's own date and session index", () => {
+    const html = renderToString(
+      <WeekDayList
+        days={days}
+        today={TODAY}
+        openDate={TODAY}
+        structured={[workoutForDay(bikeDay, TODAY)]}
+      />
+    );
+    expect(html).toContain(`/api/workout/zwo?date=${TODAY}&amp;i=0`);
+  });
+
+  it("offers no download when the library refused", () => {
+    const html = renderToString(
+      <WeekDayList
+        days={days}
+        today={TODAY}
+        openDate={TODAY}
+        structured={[null]}
+      />
+    );
+    expect(html).not.toContain("/api/workout/zwo");
+  });
+});
+
+describe("WeekDayList — the export pin", () => {
+  const base = {
+    day: 0,
+    sport: "Bike",
+    type: "Tempo",
+    durationMins: 75,
+    intensity: "Z4",
+    description: "Tempo ride",
+    blockIdx: 0,
+  };
+  const pin = {
+    workoutId: "ou-3x12",
+    exportedAt: "2026-09-01T07:00:00.000Z",
+    purpose: "threshold" as const,
+    durationMins: 75,
+  };
+
+  const render1 = (w: DaySlot["workouts"][number]) =>
+    renderToString(
+      <WeekDayList
+        days={[slot(TODAY, "planned", w)]}
+        today={TODAY}
+        openDate={TODAY}
+        structured={[workoutForDay(w, TODAY)]}
+      />
+    );
+
+  it("shows the pinned workout, not a freshly chosen one", () => {
+    const w = withPurpose({ ...base, pin });
+    expect(render1(w)).toContain("Over-Under 3×12");
+  });
+
+  it("says nothing about staleness while the session still matches", () => {
+    expect(render1(withPurpose({ ...base, pin }))).not.toContain(
+      "data-workout-stale"
+    );
+  });
+
+  it("marks it stale once the day's length moved under it", () => {
+    // Red readiness scaled the day; the head unit still holds the 75.
+    const w = withPurpose({ ...base, durationMins: 53, pin });
+    const html = render1(w);
+    expect(html).toContain("data-workout-stale");
+    // And it still shows what was SENT, rather than swapping it silently.
+    expect(html).toContain("Over-Under 3×12");
+  });
+
+  it("marks it stale once the day's purpose changed under it", () => {
+    // Amber steps Tempo down to Endurance, which re-derives the purpose.
+    const w = withPurpose({ ...base, type: "Endurance", pin });
+    expect(render1(w)).toContain("data-workout-stale");
   });
 });

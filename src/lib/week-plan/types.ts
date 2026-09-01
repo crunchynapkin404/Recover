@@ -1,4 +1,5 @@
 import type { PlannedWorkout } from "@/lib/training-plan";
+import type { WorkoutPin } from "@/lib/interval/pin";
 import type { Band } from "@/lib/readiness";
 import type { AvailabilityBlock } from "@/lib/availability/types";
 import type { PlanStyle } from "@/lib/plan-style/types";
@@ -20,6 +21,21 @@ export type DayStatus =
 export interface ScheduledWorkout extends PlannedWorkout {
   /** Index into its day's availableBlocks. The block this session occupies. */
   blockIdx: number;
+  /**
+   * Set ONLY when the athlete has exported this session's structured workout
+   * to their intervals.icu calendar — the one moment the workout leaves
+   * Recover and can reach a head unit, and therefore the one moment pinning is
+   * genuine. Everything else about a library workout is derived on read.
+   *
+   * It lives HERE, on the session, and not on the DaySlot: `purpose` and
+   * `durationMins` are properties of a session, a day holds up to
+   * MAX_SESSIONS_PER_DAY of them, and a day-level pin could not say which one
+   * it pinned. `service.ts:818` already refuses day-addressed session moves for
+   * exactly that reason. Living on the session also means it dies with the
+   * session — the red-readiness swap rebuilds the day's workouts and takes the
+   * pin with them, the same way it clears `exercises`.
+   */
+  pin?: WorkoutPin;
 }
 
 export interface DaySlot {

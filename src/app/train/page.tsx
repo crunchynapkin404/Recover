@@ -28,6 +28,7 @@ import { ViewTabs, currentYm } from "@/components/train/view-tabs";
 import { EmptyState } from "@/components/ui/empty-state";
 import { TrainTabs } from "@/components/train/train-tabs";
 import { WeekDayList } from "@/components/train/week-day-list";
+import { workoutForDay } from "@/lib/interval/for-day";
 import { SeasonTimelineCard } from "@/components/train/season-timeline-card";
 import { SeasonProgress } from "@/components/train/season-progress";
 import { FuellingCard } from "@/components/train/fuelling-card";
@@ -1477,6 +1478,15 @@ async function WeekTab({
               openDate={openDate}
               nextWeek={nextWeekPreview}
               actuals={dayActuals}
+              /* Resolved HERE, on the server, and only for the open day.
+                 workoutForDay reaches LIBRARY — thirty workouts of data that
+                 have no business in the client bundle — and it is pure, so
+                 there is nothing to await and nothing to cache. A null entry
+                 is the library refusing, and the row then renders exactly
+                 what it did before this feature existed. */
+              structured={openDaySlot?.workouts.map((w) =>
+                workoutForDay(w, openDate)
+              )}
             />
 
             {/* C1, final whole-branch review: this used to bind to

@@ -10,6 +10,10 @@ import {
   NextWeekDivider,
   NextWeekSummary,
 } from "@/components/train/next-week-summary";
+import { WorkoutProfile } from "@/components/train/workout-profile";
+import { ExportWorkout } from "@/components/train/export-workout";
+import { isPinStale } from "@/lib/interval/pin";
+import type { DayWorkout } from "@/lib/interval/for-day";
 
 function weekdayOf(ymd: string): string {
   // The slot dates are already local Ymd strings; weekdayIndex is Monday-first.
@@ -41,6 +45,17 @@ interface DayRowProps {
    * preview row, which always passes `isOpen={false}`.
    */
   isOpen: boolean;
+  /**
+   * The structured workout for each of this day's sessions, by index, where
+   * the library answers one. Resolved on the SERVER — LIBRARY is thirty
+   * workouts of data and none of it belongs in the client bundle.
+   *
+   * Absent, or a null entry, means the library refused: no sport match, no
+   * purpose it answers, or nothing that fits the length. The row then renders
+   * exactly what it rendered before this feature existed, which is the whole
+   * of the fallback.
+   */
+  structured?: (DayWorkout | null)[];
   badge: RowBadge;
   otherDays: DayActionsOtherDay[];
   actual?: DayActuals;
@@ -66,6 +81,7 @@ interface DayRowProps {
 function DayRow({
   day: d,
   isOpen,
+  structured,
   badge,
   otherDays,
   actual,
@@ -121,6 +137,37 @@ function DayRow({
                   <p className="mt-0.5 truncate text-label text-ink-muted">
                     {w.description}
                   </p>
+                )}
+                {isOpen && structured?.[i] && (
+                  <div data-structured-workout>
+                    <p className="mt-0.5 text-label font-bold text-ink-secondary">
+                      {structured[i]!.workout.name}
+                    </p>
+                    <p className="mt-0.5 text-label text-ink-muted">
+                      {structured[i]!.description}
+                    </p>
+                    <WorkoutProfile
+                      bars={structured[i]!.profile}
+                      label={structured[i]!.description}
+                    />
+                    {/* A plain link, not a button: the file is a pure GET
+                        derived from the planned day, so there is nothing to
+                        submit and nothing to change. Downloading it twice
+                        gives the same bytes. */}
+                    <a
+                      href={`/api/workout/zwo?date=${d.date}&i=${i}`}
+                      className="mt-1 inline-block text-label font-bold text-accent underline underline-offset-2"
+                    >
+                      Download .zwo
+                      <span className="sr-only">{` — ${structured[i]!.workout.name} for ${d.date}`}</span>
+                    </a>
+                    <ExportWorkout
+                      date={d.date}
+                      index={i}
+                      exportedAt={w.pin?.exportedAt}
+                      stale={isPinStale(w.pin, w)}
+                    />
+                  </div>
                 )}
               </div>
             ))
@@ -206,6 +253,7 @@ export function WeekDayList({
   openDate,
   nextWeek,
   actuals,
+  structured,
 }: {
   days: DaySlot[];
   today: string;
@@ -231,6 +279,14 @@ export function WeekDayList({
    * has to be visible on today's row, which is the whole point.
    */
   actuals?: Record<string, DayActuals>;
+  /**
+   * The open day's structured workouts, by session index. Resolved on the
+   * server so the thirty-workout library never reaches the client bundle,
+   * and passed only for the OPEN day: a collapsed row shows a type, a
+   * duration and a band, and adding a profile to seven of them would bury
+   * the one the athlete opened.
+   */
+  structured?: (DayWorkout | null)[];
 }) {
   const openDay = days.find((d) => d.date === openDate);
 
@@ -262,6 +318,7 @@ export function WeekDayList({
           key={openDay.date}
           day={openDay}
           isOpen
+          structured={structured}
           badge={null}
           otherDays={otherDays}
           actual={actuals?.[openDay.date]}
