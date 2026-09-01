@@ -1,6 +1,6 @@
 # Roadmap
 
-Current release: **v0.121.0**. History through v0.119 is preserved in
+Current release: **v0.125.0**. History through v0.119 is preserved in
 [`docs/archive/ROADMAP-through-v0.119.md`](archive/ROADMAP-through-v0.119.md) —
 Phases 1–4, all complete. It is a record, not a plan.
 
@@ -65,7 +65,7 @@ around future races), six wellness/activity sources (intervals.icu, Strava,
 Whoop, Oura, Apple Health, Withings), training history, multiple time blocks
 per day, running, and strength (v0.119.0).
 
-**Mechanically sound.** 3204 tests (587 skip without a database), 46 migrations, zero confirmed axe
+**Mechanically sound.** 3444 tests (1 skipped), 46 migrations, zero confirmed axe
 violations across the app, an 83-token design system
 (`docs/design-system.md`), a 59-tool MCP surface, and a release path that is
 fully automated end to end (`docs/RELEASING.md`).
@@ -93,7 +93,7 @@ category · comments · votes`) across every column.
 |   164 | Add running workout                           | Has                             |
 |   161 | Choosing new goal before the last is finished | Shipped (v0.114.0)              |
 |   155 | Availability beyond one week ahead            | **Leads**                       |
-|   155 | Add length filter when browsing workouts      | n/a — no workout library        |
+|   155 | Add length filter when browsing workouts      | Structured cycling workouts     |
 |   125 | Strength training                             | Shipped (v0.119.0)              |
 |   123 | Calendar                                      | **Partial — ICS export absent** |
 |   107 | Show target cadence in workout                | n/a — no workout player         |
@@ -377,6 +377,11 @@ Named so they are not rediscovered; unscheduled so they are not promises.
 - **ICS export** — the one genuine demand gap (123 votes). Cheap to do
   badly: timezones, recurrence, and a feed URL that is a bearer credential
   in a query string.
+- **Structured cycling workouts** — _Demand_ (155, "length filter when
+  browsing workouts"). A curated %FTP library matched to the day the engine
+  already planned, shown on the open day and exportable to intervals.icu.
+  Reverses a recorded non-goal, with the argument written down:
+  `docs/specs/2026-08-31-structured-cycling-workouts-design.md`.
 - **MCP contract freeze** — after the numbers underneath are stable, not
   before.
 - **On-ramps for the three dormant-but-kept features** — Deep Biology,
