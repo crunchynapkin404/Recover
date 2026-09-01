@@ -270,6 +270,12 @@ const SURFACES: Record<string, string> = {
   // be checked against its own axe run or looked at in a PNG, which is the
   // only way two of slice 1's defects were ever found.
   train: "/train",
+  // `train` opens TODAY, and a seeded demo athlete's today is routinely a
+  // rest day — v0.126.0 shipped the structured-workout block and NOT ONE of
+  // the Soak's 100 PNGs contained it, so the axe ratchet's `0 confirmed` said
+  // nothing about the surface that release existed to add. Same path, driven
+  // to a day that actually has a session. See openPlannedDay.
+  "train-workout": "/train",
   "train-history": "/train?tab=history",
   // `train-season` is GONE, not renamed. v0.123.0 retired the Season tab
   // (zero actions on a screen that did not scroll), and `/train?tab=season`
@@ -842,6 +848,52 @@ function firstRunGuard(
   };
 }
 
+/**
+ * `train-workout` — the open day driven onto a day that HAS a session.
+ *
+ * `/train` opens today, and a seeded demo athlete's today is routinely a rest
+ * day. v0.126.0 shipped the structured-workout block — name, derived line,
+ * interval profile, and two actions — and not one of that release's 100 Soak
+ * captures contained it, because today was Rest in every one. A surface that
+ * is never photographed cannot be looked at in a PNG and contributes nothing
+ * to the axe ratchet, which is exactly the state two of v0.114.0's four worst
+ * defects hid behind.
+ *
+ * Walks the week strip's own day links rather than computing a date: the
+ * seed's shape is not this script's business, and a strip that stops
+ * rendering `a[data-date]` should fail here loudly rather than quietly
+ * capture the ordinary Train tab under a second name.
+ */
+async function openPlannedDay(page: Page): Promise<void> {
+  const links = page.locator("a[data-date]");
+  const dates: string[] = [];
+  for (let i = 0; i < (await links.count()); i++) {
+    const d = await links.nth(i).getAttribute("data-date");
+    if (d) dates.push(d);
+  }
+  if (dates.length === 0) {
+    throw new Error(
+      "train-workout: the week strip rendered no a[data-date] links, so there " +
+        "is no day to open. Refusing to capture the default Train tab under " +
+        "a second name."
+    );
+  }
+
+  for (const date of dates) {
+    await page.goto(`${BASE_URL}/train?day=${date}`, {
+      waitUntil: "networkidle",
+    });
+    if ((await page.locator("[data-structured-workout]").count()) > 0) return;
+  }
+
+  throw new Error(
+    `train-workout: none of ${dates.length} days in the seeded week produced a ` +
+      "[data-structured-workout] block. Either the seed has no cycling " +
+      "session the library answers, or the block stopped rendering — both are " +
+      "findings. Refusing to capture."
+  );
+}
+
 const SURFACE_PREPARE: Record<string, (page: Page) => Promise<void>> = {
   "train-plan-preview": waitForTwoArcPreview,
   "train-race-pacing": waitForRacePacing,
@@ -864,6 +916,7 @@ const SURFACE_PREPARE: Record<string, (page: Page) => Promise<void>> = {
     "train-availability",
     "?sheet=availability"
   ),
+  "train-workout": openPlannedDay,
   "coach-history": waitForHistoryPanel,
   "coach-history-active": waitForActiveThreadRow,
 };
@@ -902,8 +955,8 @@ const axeReportPath = join(outDir, "axe-report.json");
  * their paths are only knowable once a page has been driven (a coach thread
  * id, the newest activity, the sheet that activity opens, a freshly minted
  * token). They are listed here so --only/--except can name them and so a typo
- * in either is still rejected: 27 literal + these 5 is the whole surface set,
- * and 32 x 2 themes x 2 viewports is the 128 capture entries a full run
+ * in either is still rejected: 28 literal + these 5 is the whole surface set,
+ * and 33 x 2 themes x 2 viewports is the 132 capture entries a full run
  * reports (the four `first-run-*` surfaces run through a separate pass —
  * see their SURFACES entries above — but are still part of this same
  * literal+resolved count and still selectable by name here).
