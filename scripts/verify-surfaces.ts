@@ -270,6 +270,14 @@ const SURFACES: Record<string, string> = {
   // be checked against its own axe run or looked at in a PNG, which is the
   // only way two of slice 1's defects were ever found.
   train: "/train",
+  // `train` opens TODAY, and the demo owner is a marathon runner — every
+  // seeded plan is a Run race, and the race decides the plan's sport. So
+  // v0.126.0 shipped the structured-workout block with 100 capture PNGs and
+  // `0 confirmed` axe violations, not one of which contained it. This is the
+  // same path against the CYCLING owner seeded by scripts/seed-cycling-owner.ts
+  // (its own job, its own Postgres — see surfaces.yml), driven onto a day that
+  // has a session. See openPlannedDay.
+  "train-workout": "/train",
   "train-history": "/train?tab=history",
   // `train-season` is GONE, not renamed. v0.123.0 retired the Season tab
   // (zero actions on a screen that did not scroll), and `/train?tab=season`
@@ -842,6 +850,49 @@ function firstRunGuard(
   };
 }
 
+/**
+ * `train-workout` — the open day driven onto a day that HAS a session.
+ *
+ * Walks the week strip's own `a[data-date]` links rather than computing a
+ * date: which day carries a session is the seed's business, not this script's.
+ *
+ * REFUSES rather than falling back. No strip links, or no day producing a
+ * `[data-structured-workout]` block, is an error — silently capturing the
+ * ordinary Train tab under a second name is the exact failure this surface
+ * exists to close, and `train-availability` above carries the same guard after
+ * it once did precisely that.
+ */
+async function openPlannedDay(page: Page): Promise<void> {
+  const links = page.locator("a[data-date]");
+  const dates: string[] = [];
+  for (let i = 0; i < (await links.count()); i++) {
+    const d = await links.nth(i).getAttribute("data-date");
+    if (d) dates.push(d);
+  }
+  if (dates.length === 0) {
+    throw new Error(
+      "train-workout: the week strip rendered no a[data-date] links, so there " +
+        "is no day to open. Refusing to capture the default Train tab under " +
+        "a second name."
+    );
+  }
+
+  for (const date of dates) {
+    await page.goto(`${BASE_URL}/train?day=${date}`, {
+      waitUntil: "networkidle",
+    });
+    if ((await page.locator("[data-structured-workout]").count()) > 0) return;
+  }
+
+  throw new Error(
+    `train-workout: none of ${dates.length} days produced a ` +
+      "[data-structured-workout] block. Either this job signed in as the " +
+      "wrong owner (it must be the cycling owner, not the demo marathon " +
+      "runner), or the block stopped rendering. Both are findings. Refusing " +
+      "to capture."
+  );
+}
+
 const SURFACE_PREPARE: Record<string, (page: Page) => Promise<void>> = {
   "train-plan-preview": waitForTwoArcPreview,
   "train-race-pacing": waitForRacePacing,
@@ -864,6 +915,7 @@ const SURFACE_PREPARE: Record<string, (page: Page) => Promise<void>> = {
     "train-availability",
     "?sheet=availability"
   ),
+  "train-workout": openPlannedDay,
   "coach-history": waitForHistoryPanel,
   "coach-history-active": waitForActiveThreadRow,
 };
@@ -902,8 +954,8 @@ const axeReportPath = join(outDir, "axe-report.json");
  * their paths are only knowable once a page has been driven (a coach thread
  * id, the newest activity, the sheet that activity opens, a freshly minted
  * token). They are listed here so --only/--except can name them and so a typo
- * in either is still rejected: 27 literal + these 5 is the whole surface set,
- * and 32 x 2 themes x 2 viewports is the 128 capture entries a full run
+ * in either is still rejected: 28 literal + these 5 is the whole surface set,
+ * and 33 x 2 themes x 2 viewports is the 132 capture entries a full run
  * reports (the four `first-run-*` surfaces run through a separate pass —
  * see their SURFACES entries above — but are still part of this same
  * literal+resolved count and still selectable by name here).

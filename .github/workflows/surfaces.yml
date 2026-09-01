@@ -66,6 +66,11 @@ env:
   OWNER_PASSWORD: surfaces-ci-owner-password
   PREVIEW_SURFACES: today,today-post-session,today-evening
   FIRST_RUN_SURFACES: first-run-today,first-run-train,first-run-body,first-run-coach
+  # The structured-workout block answers CYCLING days only, and every other
+  # seeded plan is a marathon — the race decides the plan's sport. v0.126.0
+  # shipped it with 100 PNGs and `0 confirmed` axe violations, not one of
+  # which contained it. Its own job, its own owner, its own Postgres.
+  CYCLING_SURFACES: train-workout
 
 jobs:
   capture:
@@ -179,7 +184,7 @@ jobs:
         # dependency — which is what happened on run 32368432220, where both
         # captures completed cleanly and were failed by a zero threshold the
         # ratchet exists to replace. Hard failures still fail this step.
-        run: npx tsx scripts/verify-surfaces.ts capture-main --except="$PREVIEW_SURFACES,$FIRST_RUN_SURFACES" --no-axe-gate
+        run: npx tsx scripts/verify-surfaces.ts capture-main --except="$PREVIEW_SURFACES,$FIRST_RUN_SURFACES,$CYCLING_SURFACES" --no-axe-gate
 
       - name: Show the server log if the capture failed
         if: failure()
@@ -416,9 +421,109 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
 
+  capture-cycling:
+    name: capture (production build, cycling owner)
+    runs-on: ubuntu-latest
+    env:
+      # Overrides the workflow-level OWNER_EMAIL/OWNER_PASSWORD for this job's
+      # steps only. A completely different account from the other three jobs',
+      # on this job's own throwaway Postgres, because the structured-workout
+      # block answers CYCLING days and the demo owner is a marathon runner —
+      # the race decides the plan's sport, and every other seed creates a Run
+      # race. See this file's header for why this must be a separate job
+      # rather than a second sign-in inside `capture`.
+      OWNER_EMAIL: cycling-owner@recover.local
+      OWNER_PASSWORD: surfaces-ci-cycling-owner-password
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      - name: Resolve the pinned Chromium revision
+        id: pw
+        run: |
+          set -euo pipefail
+          v=$(node -p "require('./node_modules/playwright-core/package.json').version")
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Chromium
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ms-playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
+
+      - name: Install Chromium and its system libraries
+        run: |
+          set -euo pipefail
+          npm run dev:browser-setup
+          sudo "$(which node)" node_modules/playwright-core/cli.js install-deps chromium
+
+      - run: node scripts/migrate.mjs
+
+      # ONLY the cycling owner. Deliberately no db:seed-demo,
+      # seed-confirmed-race or seed-two-race: each of those creates a Run race,
+      # and a Run race on this account would make train-workout capture the
+      # ordinary Train tab under a name promising a workout — the exact defect
+      # this job exists to close. The seed refuses loudly if it finds one.
+      - name: Seed the cycling owner
+        run: npx tsx scripts/seed-cycling-owner.ts
+
+      - run: npm run build
+
+      # nohup so the server survives this step's shell; a bare `&` can take a
+      # SIGHUP when the step exits and the capture then fails on a dead port.
+      - name: Start the app and wait for it
+        run: |
+          set -euo pipefail
+          nohup npx next start -p 3200 > /tmp/next.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:3200/api/health >/dev/null 2>&1; then
+              echo "app up after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::app did not become healthy on :3200 within 60s"
+          tail -50 /tmp/next.log
+          exit 1
+
+      - name: Capture the structured workout
+        # See the note on the production capture above.
+        run: npx tsx scripts/verify-surfaces.ts capture-cycling --only="$CYCLING_SURFACES" --no-axe-gate
+
+      - name: Show the server log if the capture failed
+        if: failure()
+        run: tail -100 /tmp/next.log
+
+      - name: Upload the capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: capture-cycling
+          path: .screenshots/capture-cycling
+          if-no-files-found: warn
+          retention-days: 30
+
   ratchet:
     name: axe ratchet (all captures)
-    needs: [capture, capture-preview-states, capture-first-run]
+    needs: [capture, capture-preview-states, capture-first-run, capture-cycling]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -443,9 +548,14 @@ jobs:
           name: capture-first-run
           path: .screenshots/capture-first-run
 
-      # All three slices together. A ratchet over only some jobs' surfaces would
+      - uses: actions/download-artifact@v4
+        with:
+          name: capture-cycling
+          path: .screenshots/capture-cycling
+
+      # All four slices together. A ratchet over only some jobs' surfaces would
       # leave the other jobs' confirmed nodes ungated — and the five surfaces
       # main() resolves at runtime are captured by whichever job selects them,
       # so summing is the only way the total means anything.
       - name: Compare against the committed ceiling
-        run: npm run verify:ratchet -- capture-main capture-preview capture-first-run
+        run: npm run verify:ratchet -- capture-main capture-preview capture-first-run capture-cycling
