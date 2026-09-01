@@ -1,5 +1,72 @@
 # Changelog
 
+## v0.126.0 — 2026-09-01 — Structured cycling workouts
+
+Recover planned _"Intervals · 95 min · Z4–Z5"_ and left the rest to you. It now
+plans the session — _"5 × 4 min at 106–115% FTP, 4 min recovery"_ — shows it,
+and hands it to your head unit.
+
+### What you will notice
+
+**The open day names its workout and draws it.** A cycling day on Train ▸ Week
+now shows which session it is, a line describing the main set, and the interval
+shape. Nothing else on the page moved, and a day the library cannot answer looks
+exactly as it did before.
+
+**You can download it, or send it.** `Download .zwo` gives Zwift a file.
+`Send to intervals.icu` puts a structured workout on your calendar, from where
+your own device sync carries it to the head unit.
+
+**A workout you sent stays the workout you sent.** Once it is on your calendar
+Recover keeps showing that session rather than quietly choosing another — and if
+the day changes underneath it, readiness scaling it or stepping it down, it says
+so and offers to re-send. The failure being designed out is finding mid-ride
+that Recover and your device disagree.
+
+**Thirty workouts, each saying where it came from.** Every one carries its
+provenance, a confidence label, and what would raise it. They are coaching
+conventions and they say so; none claims a citation it does not have.
+
+### What you will not notice
+
+No numbers changed. No plan was re-generated, no load recalculated, no migration
+run — the pin is the only thing this release stores, it lands inside the
+existing week-plan JSON, and it is written only when you export.
+
+### Under it
+
+**A recorded reversal.** "A curated library" was a named non-goal, on the
+grounds that Recover derives from the athlete's own baselines. The reversal is
+deliberate and argued: the roadmap's gate governs BASELINES, and a library
+authored in %FTP supplies none — every watt is `pctFtp × your own FTP`. What is
+conceded is narrower, that the SHAPES are convention, which is why every workout
+carries a source.
+
+**The day always wins.** A workout is fitted to the planned day's exact length
+by stretching one step — never the main set. `rendered total === round(minutes ×
+60)`, always, swept across every minute of every workout's span and
+brute-forced in review across 2,806 random shapes.
+
+**Coverage is a build gate.** A guard fails the build if any duration a planned
+day can reach has no workout to answer it, deriving the reachable set from the
+engine's own constants rather than restating them.
+
+### Migrations
+
+**None.** The export pin is four fields on a session inside the existing
+week-plan JSON. An image rollback is safe.
+
+### What is not proven
+
+**Nothing here has spoken to the real intervals.icu API.** The request shape is
+asserted against a mock and the workout syntax is what `get-workout-syntax.ts`
+documents, but whether the service accepts the event and parses the description
+is one manual send away from being known. Send one before trusting it.
+
+**Family rotation is thin at thirty workouts.** About half the covered durations
+have a single family, so the same day can draw the same session. It fills in as
+the library grows past a hundred.
+
 ## v0.125.0 — 2026-08-31 — Finish the design system
 
 Phase 6's last strand was on the roadmap as "transitions, loading states,
