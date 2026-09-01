@@ -126,6 +126,39 @@ describe("library coverage", () => {
     }
   });
 
+  it("gives every covered minute at least two families to rotate between", () => {
+    // COVERAGE IS NOT ROTATION. Thirty workouts tiled every range while
+    // leaving about half the covered minutes with a single family — so
+    // matchWorkout's family-first pick had nothing to choose between and the
+    // same day drew the same session every time. The machinery was correct
+    // and inert, which no coverage assertion could tell you.
+    //
+    // Two is the threshold because it is the smallest number at which the
+    // pick is a choice at all. It is not a claim that two is enough variety.
+    for (const [purpose, [lo, hi]] of Object.entries(COVER) as [
+      LibraryPurpose,
+      [number, number],
+    ][]) {
+      const families = new Map<number, Set<string>>();
+      for (const w of LIBRARY.filter((w) => w.purpose === purpose)) {
+        const span = flexSpanSecs(w)!;
+        for (
+          let m = Math.ceil(span.lo / 60);
+          m <= Math.floor(span.hi / 60);
+          m++
+        ) {
+          if (!families.has(m)) families.set(m, new Set());
+          families.get(m)!.add(w.family);
+        }
+      }
+      const thin: number[] = [];
+      for (let m = lo; m <= hi; m++) {
+        if ((families.get(m)?.size ?? 0) < 2) thin.push(m);
+      }
+      expect(thin, `${purpose} minutes with only one family`).toEqual([]);
+    }
+  });
+
   it("gives every workout a stable id and a provenance", () => {
     const ids = LIBRARY.map((w) => w.id);
     expect(new Set(ids).size, "ids must be unique").toBe(ids.length);
