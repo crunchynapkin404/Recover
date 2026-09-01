@@ -15,9 +15,10 @@ import {
  *
  * `stale` means the session has changed since it was exported: a different
  * length, or a different purpose after a readiness step-down. Recover keeps
- * showing the workout it sent rather than silently swapping it, and says so —
- * the alternative is the athlete finding out mid-ride that Recover and the
- * device disagree.
+ * showing the workout it sent rather than silently swapping it. The MESSAGE
+ * saying so lives in the row above, not here, so this form can sit inline
+ * beside the download link — `display: contents` puts the button straight into
+ * that flex row while the status line still claims a full row of its own.
  */
 export function ExportWorkout({
   date,
@@ -36,14 +37,9 @@ export function ExportWorkout({
   >(exportWorkoutAction, null);
 
   return (
-    <form action={action} className="mt-1">
+    <form action={action} className="contents">
       <input type="hidden" name="date" value={date} />
       <input type="hidden" name="i" value={index} />
-      {stale && (
-        <p data-workout-stale className="text-label font-bold text-chart-3">
-          This no longer fits today&rsquo;s session — re-send to update it.
-        </p>
-      )}
       <button
         type="submit"
         disabled={pending}
@@ -60,7 +56,7 @@ export function ExportWorkout({
       {state && (
         <p
           role="status"
-          className={`mt-0.5 text-label ${state.ok ? "text-chart-2" : "text-chart-3"}`}
+          className={`w-full text-label ${state.ok ? "text-chart-2" : "text-chart-3"}`}
         >
           {state.message}
         </p>

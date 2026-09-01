@@ -154,19 +154,33 @@ function DayRow({
                         derived from the planned day, so there is nothing to
                         submit and nothing to change. Downloading it twice
                         gives the same bytes. */}
-                    <a
-                      href={`/api/workout/zwo?date=${d.date}&i=${i}`}
-                      className="mt-1 inline-block text-label font-bold text-accent underline underline-offset-2"
-                    >
-                      Download .zwo
-                      <span className="sr-only">{` — ${structured[i]!.workout.name} for ${d.date}`}</span>
-                    </a>
-                    <ExportWorkout
-                      date={d.date}
-                      index={i}
-                      exportedAt={w.pin?.exportedAt}
-                      stale={isPinStale(w.pin, w)}
-                    />
+                    {isPinStale(w.pin, w) && (
+                      <p
+                        data-workout-stale
+                        className="mt-0.5 text-label font-bold text-chart-3"
+                      >
+                        This no longer fits today&rsquo;s session — re-send to
+                        update it.
+                      </p>
+                    )}
+                    {/* One row, because the open day already carries four
+                        controls beneath it and two full-width action lines
+                        pushed them off a 390px screen. */}
+                    <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1">
+                      <a
+                        href={`/api/workout/zwo?date=${d.date}&i=${i}`}
+                        className="text-label font-bold text-accent underline underline-offset-2"
+                      >
+                        Download .zwo
+                        <span className="sr-only">{` — ${structured[i]!.workout.name} for ${d.date}`}</span>
+                      </a>
+                      <ExportWorkout
+                        date={d.date}
+                        index={i}
+                        exportedAt={w.pin?.exportedAt}
+                        stale={isPinStale(w.pin, w)}
+                      />
+                    </div>
                   </div>
                 )}
               </div>
