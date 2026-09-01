@@ -1,5 +1,56 @@
 # Changelog
 
+## v0.127.0 — 2026-09-01 — A second family at every duration
+
+v0.126.0 gave every training day a real session. This one makes sure it is not
+always the _same_ session — and gives the release pipeline eyes on the feature
+it could not previously see at all.
+
+### What you will notice
+
+**The same day stops drawing the same workout.** Thirty workouts covered every
+duration the plan can produce, but about half of those durations had only one
+workout family answering them, so the choice between them was not a choice.
+Sixteen more, authored against the measured gaps rather than to a round number,
+give every covered duration at least two families to rotate between.
+
+That is 46 workouts now: a high-cadence endurance family, shorter and longer
+over-unders, 40/20s alongside the 30/30s, and threshold and VO₂max sessions
+filling the lengths that previously had a single answer.
+
+### What you will not notice
+
+Nothing else changed. No plan was re-generated, no number recalculated, no
+migration run. If a day already suited the workout it had, it keeps it — the
+export pin still holds whatever you sent to your calendar.
+
+### Under it
+
+**Coverage was never rotation, and no assertion said so.** Coverage was
+genuinely 100% while half the durations had one family, so `matchWorkout`'s
+family-first pick — the machinery a Critical defect in v0.126.0's development
+cost two fix rounds to get right — was correct and completely inert. That
+property is now a build gate: the guard asserts every covered minute has two
+families and names the thin minutes when it does not.
+
+**The pipeline can finally photograph this feature.** v0.126.0 shipped with 100
+capture PNGs and a `0 confirmed` axe report, not one of which contained the
+workout block: every seeded plan was a marathon, the race decides the plan's
+sport, and this answers cycling days only. A fourth capture job with its own
+seeded cycling owner and its own throwaway database now captures it in both
+themes and both viewports, and the axe ratchet gates it. Until this release,
+that surface had never been audited or looked at by the pipeline at all.
+
+### Migrations
+
+**None.** An image rollback is safe.
+
+### What is not proven
+
+**Two families is the floor, not a claim about enough.** It is the smallest
+number at which the pick is a choice at all. Whether 46 workouts feels varied
+over a season is a question only riding it answers.
+
 ## v0.126.0 — 2026-09-01 — Structured cycling workouts
 
 Recover planned _"Intervals · 95 min · Z4–Z5"_ and left the rest to you. It now
