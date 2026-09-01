@@ -696,3 +696,57 @@ describe("WeekDayList — the .zwo download", () => {
     expect(html).not.toContain("/api/workout/zwo");
   });
 });
+
+describe("WeekDayList — the export pin", () => {
+  const base = {
+    day: 0,
+    sport: "Bike",
+    type: "Tempo",
+    durationMins: 75,
+    intensity: "Z4",
+    description: "Tempo ride",
+    blockIdx: 0,
+  };
+  const pin = {
+    workoutId: "ou-3x12",
+    exportedAt: "2026-09-01T07:00:00.000Z",
+    purpose: "threshold" as const,
+    durationMins: 75,
+  };
+
+  const render1 = (w: DaySlot["workouts"][number]) =>
+    renderToString(
+      <WeekDayList
+        days={[slot(TODAY, "planned", w)]}
+        today={TODAY}
+        openDate={TODAY}
+        structured={[workoutForDay(w, TODAY)]}
+      />
+    );
+
+  it("shows the pinned workout, not a freshly chosen one", () => {
+    const w = withPurpose({ ...base, pin });
+    expect(render1(w)).toContain("Over-Under 3×12");
+  });
+
+  it("says nothing about staleness while the session still matches", () => {
+    expect(render1(withPurpose({ ...base, pin }))).not.toContain(
+      "data-workout-stale"
+    );
+  });
+
+  it("marks it stale once the day's length moved under it", () => {
+    // Red readiness scaled the day; the head unit still holds the 75.
+    const w = withPurpose({ ...base, durationMins: 53, pin });
+    const html = render1(w);
+    expect(html).toContain("data-workout-stale");
+    // And it still shows what was SENT, rather than swapping it silently.
+    expect(html).toContain("Over-Under 3×12");
+  });
+
+  it("marks it stale once the day's purpose changed under it", () => {
+    // Amber steps Tempo down to Endurance, which re-derives the purpose.
+    const w = withPurpose({ ...base, type: "Endurance", pin });
+    expect(render1(w)).toContain("data-workout-stale");
+  });
+});

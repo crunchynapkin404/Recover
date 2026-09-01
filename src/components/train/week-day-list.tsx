@@ -11,6 +11,8 @@ import {
   NextWeekSummary,
 } from "@/components/train/next-week-summary";
 import { WorkoutProfile } from "@/components/train/workout-profile";
+import { ExportWorkout } from "@/components/train/export-workout";
+import { isPinStale } from "@/lib/interval/pin";
 import type { DayWorkout } from "@/lib/interval/for-day";
 
 function weekdayOf(ymd: string): string {
@@ -159,6 +161,12 @@ function DayRow({
                       Download .zwo
                       <span className="sr-only">{` — ${structured[i]!.workout.name} for ${d.date}`}</span>
                     </a>
+                    <ExportWorkout
+                      date={d.date}
+                      index={i}
+                      exportedAt={w.pin?.exportedAt}
+                      stale={isPinStale(w.pin, w)}
+                    />
                   </div>
                 )}
               </div>

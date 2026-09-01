@@ -78,3 +78,65 @@ describe("workoutForDay", () => {
     }
   });
 });
+
+describe("workoutForDay — a pinned session", () => {
+  // 75 minutes is a length TWO threshold workouts span (thr-4x8 73-94 and
+  // ou-3x12 73-97), so pinning one can be told apart from the natural pick.
+  // A length only one workout covers would make this test pass either way.
+  const pin = {
+    workoutId: "ou-3x12",
+    exportedAt: "2026-09-01T07:00:00.000Z",
+    purpose: "threshold" as const,
+    durationMins: 75,
+  };
+
+  it("renders the workout that was sent, not the one that would be chosen now", () => {
+    // Unpinned, a 62-minute threshold day picks whatever the date seed lands
+    // on. Pinned, it must show ss-2x12 — the athlete's head unit has that one.
+    const unpinned = workoutForDay(
+      { sport: "Bike", purpose: "threshold", durationMins: 75 },
+      DATE
+    );
+    const pinned = workoutForDay(
+      { sport: "Bike", purpose: "threshold", durationMins: 75, pin },
+      DATE
+    );
+    expect(pinned!.workout.id).toBe("ou-3x12");
+    // The test is only meaningful if the two genuinely differ.
+    expect(unpinned!.workout.id).not.toBe("ou-3x12");
+  });
+
+  it("renders it at the length it was exported at, not the day's new length", () => {
+    // The day since shrank to 53 minutes. The device still holds 75.
+    const got = workoutForDay(
+      { sport: "Bike", purpose: "threshold", durationMins: 53, pin },
+      DATE
+    );
+    expect(got!.workout.id).toBe("ou-3x12");
+    expect(totalSecs(got!.blocks)).toBe(75 * 60);
+  });
+
+  it("holds the pin even when the day's purpose changed underneath it", () => {
+    // Amber steps Tempo down to Endurance. Recover keeps showing what it sent
+    // and marks it stale rather than silently swapping the session.
+    const got = workoutForDay(
+      { sport: "Bike", purpose: "aerobic_base", durationMins: 75, pin },
+      DATE
+    );
+    expect(got!.workout.id).toBe("ou-3x12");
+  });
+
+  it("falls back to a fresh match when the pinned id is gone from the library", () => {
+    const got = workoutForDay(
+      {
+        sport: "Bike",
+        purpose: "threshold",
+        durationMins: 75,
+        pin: { ...pin, workoutId: "deleted-long-ago" },
+      },
+      DATE
+    );
+    expect(got).not.toBeNull();
+    expect(totalSecs(got!.blocks)).toBe(75 * 60);
+  });
+});
