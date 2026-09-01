@@ -350,6 +350,34 @@ Which gives the set each purpose must cover:
 | `long`         | its own base; `×0.7`; `×0.85`; those `×1.25`                                                                                                                                          |
 | `recovery`     | its own base; `×0.7`; `×0.85`; **a fixed 30** from every red quality day; those `×1.25`                                                                                               |
 
+### Readiness is not the only thing that sets a duration
+
+**Two drafts of this section described readiness adaptation as though it were
+the whole story. It is not, and the path it omits is probably the commoner
+one.** `fitToBlock` (`week-plan/slots.ts:131-171`) fits a session to the room
+its availability block actually has:
+
+- room at or above the purpose's floor → the session is **compressed to exactly
+  `roomMins`**, keeping its purpose. `roomMins` is whatever the athlete's block
+  is, so this is an arbitrary integer, produced with no readiness event at all.
+- room below the floor → it walks `SUBSTITUTE_TO` (`availability/types.ts:70`)
+  down to the first purpose whose floor fits, and creates that purpose's session
+  at `roomMins`. This is the one place `SUBSTITUTE_TO` changes a purpose;
+  amber uses `STEP_DOWN` instead, and confusing the two is easy.
+
+`fill.ts` does the same from the other side: `:238-245` grows a session to
+`min(blockMins, ceiling, …)`, and `:305-317` adds one at
+`min(slot.mins, ceiling, …)` — refusing outright when that is under the floor
+(`if (mins < PURPOSE_FLOORS[purpose]) continue`).
+
+**So every integer from a purpose's `PURPOSE_FLOORS` value upward is reachable,
+directly.** That makes the floors the real lower bound the library must reach,
+and the guard asserts each covered range starts at or below its purpose's
+floor rather than trusting a hand-typed number. That assertion immediately
+caught `recovery` being covered from 21 when compression reaches 20 — a hole
+the library happened to fill anyway, which is exactly the kind that survives
+until someone edits the workout that was covering it by accident.
+
 **The guard must derive this from the engine's own exported constants rather
 than restate it in prose**, or it becomes a third copy of a table that has now
 been wrong twice. `RED_ENDURANCE_SCALE`, `AMBER_SCALE`,
