@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { allTools } from "@/lib/tools/registry";
 
 const roadmap = readFileSync(join(process.cwd(), "docs/ROADMAP.md"), "utf8");
+const readme = readFileSync(join(process.cwd(), "README.md"), "utf8");
 
 function claimed(pattern: RegExp, what: string): number {
   const m = pattern.exec(roadmap);
@@ -41,6 +42,18 @@ describe("ROADMAP's countable claims", () => {
     expect(claimed(/a (\d+)-tool MCP surface/, "an MCP tool count")).toBe(
       allTools.length
     );
+  });
+
+  it("agrees with README about the size of the MCP surface", () => {
+    // The same number lives in three places and only one was checked, so the
+    // two documents could drift apart while each looked internally fine.
+    // README states it twice: once live, and once as "59 tools as of
+    // v0.119.0" — that second one is DATED and deliberately not asserted
+    // here, the same treatment ROADMAP's test count gets. A dated claim
+    // records what was true; only a live one can go wrong silently.
+    const live = /(\d+) tools:/.exec(readme);
+    expect(live, "README no longer states a live tool count").not.toBeNull();
+    expect(Number(live![1])).toBe(allTools.length);
   });
 
   it("states the real size of the design system, both ways", () => {
