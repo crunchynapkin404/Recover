@@ -6,6 +6,7 @@ import { renderDescription } from "./render-description";
 import { renderProfile, type ProfileBar } from "./render-profile";
 import { resolve as fitToDuration } from "./flex";
 import type { WorkoutPin } from "./pin";
+import { reconcileBand } from "./zone-band";
 
 /** Everything the surface needs about a day's structured workout. */
 export interface DayWorkout {
@@ -14,6 +15,16 @@ export interface DayWorkout {
   /** Derived, never stored — the sentence and the structure cannot disagree. */
   description: string;
   profile: ProfileBar[];
+  /**
+   * The day's own `intensity` label, widened when the chosen workout goes
+   * above it — see zone-band.ts. Derived HERE rather than in the component so
+   * the band and the workout it describes have one owner and cannot be
+   * assembled two different ways on two surfaces, which is the failure
+   * `docs/specs/2026-08-11-display-derived-figures-ownership-design.md`
+   * exists to prevent. Equal to the planned label whenever the workout stays
+   * inside it, which is the common case.
+   */
+  band: string;
 }
 
 /**
@@ -35,6 +46,9 @@ export function workoutForDay(
     sport: string;
     purpose: Purpose;
     durationMins: number;
+    /** The planner's own label for the day. Optional: callers that predate
+     *  the band lived without it, and an absent one simply yields "". */
+    intensity?: string;
     pin?: WorkoutPin;
   },
   date: string
@@ -61,6 +75,7 @@ export function workoutForDay(
         blocks,
         description: renderDescription(blocks),
         profile: renderProfile(blocks),
+        band: reconcileBand(session.intensity ?? "", blocks),
       };
     }
   }
@@ -72,5 +87,6 @@ export function workoutForDay(
     blocks: match.blocks,
     description: renderDescription(match.blocks),
     profile: renderProfile(match.blocks),
+    band: reconcileBand(session.intensity ?? "", match.blocks),
   };
 }

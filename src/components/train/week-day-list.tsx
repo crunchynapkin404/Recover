@@ -129,8 +129,14 @@ function DayRow({
                   className={`truncate text-caption ${isOpen ? "font-bold text-ink-primary" : "text-ink-secondary"}`}
                 >
                   {`${w.type} · ${provisional ? "~" : ""}${w.durationMins} min`}
+                  {/* The structured workout's reconciled band when there is
+                      one, the planner's own label otherwise. Before this the
+                      card could read "Long · 95 min Z1-Z2" above "3 × 10 min
+                      at 76-85% FTP" — the two halves never knew about each
+                      other. Widened only, and only when the workout goes
+                      above the label; see interval/zone-band.ts. */}
                   <span className="ml-1.5 font-normal text-ink-muted">
-                    {w.intensity}
+                    {structured?.[i]?.band || w.intensity}
                   </span>
                 </p>
                 {w.exercises && w.exercises.length > 0 && (

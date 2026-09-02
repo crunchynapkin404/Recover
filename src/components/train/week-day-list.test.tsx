@@ -622,6 +622,57 @@ describe("WeekDayList — the structured workout", () => {
     expect(html).toContain("data-workout-profile");
   });
 
+  /**
+   * THE DEFECT THIS TEST EXISTS FOR, found by opening a CI capture rather
+   * than by any assertion: the open day rendered "Long · 95 min Z1-Z2" with
+   * "3 × 10 min at 76-85% FTP" directly beneath it. The planner's literal and
+   * the library never knew about each other, so the card contradicted itself
+   * in both themes and both viewports, and axe reported 0 confirmed because
+   * a card disagreeing with itself is not an accessibility fault.
+   *
+   * Asserted at the SURFACE and through the real `workoutForDay`, not against
+   * a hand-built band: a unit test of `reconcileBand` cannot prove the page
+   * renders its result rather than `w.intensity`.
+   */
+  it("shows the band widened to cover the workout, not the planner's literal", () => {
+    const longDay: DaySlot["workouts"][number] = withPurpose({
+      day: 0,
+      sport: "Bike",
+      type: "Long",
+      durationMins: 95,
+      intensity: "Z1-Z2",
+      description: "Long ride",
+      blockIdx: 0,
+    });
+    const structured = [workoutForDay(longDay, TODAY)];
+    expect(
+      structured[0],
+      "the library must answer a 95-minute Bike Long"
+    ).not.toBeNull();
+    const html = renderToString(
+      <WeekDayList
+        days={[slot(TODAY, "planned", longDay)]}
+        today={TODAY}
+        openDate={TODAY}
+        structured={structured}
+      />
+    );
+    // Whichever long workout the date seed picks, the band shown must cover
+    // it — pinning one workout id here would make this test a hostage to the
+    // library's growth, which is the thing that grows most often.
+    const peak = Math.max(
+      ...structured[0]!.blocks.flatMap((b) => b.steps.map((st) => st.hi))
+    );
+    const expected =
+      peak > 75 ? `Z1-Z${peak <= 90 ? 3 : peak <= 105 ? 4 : 5}` : "Z1-Z2";
+    expect(html).toContain(expected);
+    if (expected !== "Z1-Z2") {
+      // The contradiction itself: the old literal must be GONE, not merely
+      // accompanied by the corrected one.
+      expect(html).not.toContain(">Z1-Z2<");
+    }
+  });
+
   it("shows nothing structured when the library refuses", () => {
     // A run is not cycling. The row must render exactly what it rendered
     // before this feature existed — prose and band, nothing else.

@@ -48,6 +48,30 @@ produces. Those days are refused on purpose: a 144-minute session the engine
 labels VO₂max is an endurance ride with intervals in it. The triathlon guard
 went red and the warmup came back to 20.
 
+**The card could contradict itself, and opening a capture is what found
+it.** The open day rendered _"Long · 95 min Z1-Z2"_ with _"3 × 10 min at
+76-85% FTP"_ directly beneath — 76-85% is tempo, above the band the same card
+stated. The two halves never knew about each other: `intensity` is a literal
+the planner stamps on a session, the library is indexed on purpose and
+duration and has never carried a zone, and nothing reconciled them. It did not
+matter until this release added families that put a third of a long ride at
+tempo. 132 capture PNGs and a clean `0 confirmed` axe report said nothing —
+a card disagreeing with itself is not an accessibility fault.
+
+The day's band is now **widened when the workout goes above it**, and only
+then. Recomputing the band from the workout was the first design and measuring
+it killed the idea: every session spans from its recovery valleys to its peak,
+so the range collapses to "Z1-Zpeak" — threshold days would read "Z1-Z4" and
+VO₂max days "Z1-Z5", both true and both strictly less useful than what the
+planner already said. Zone boundaries enter the codebase for the first time,
+cited to Allen & Coggan's seven-zone model at `Confidence: Medium`, and a
+label this cannot parse — the planner also emits "Recovery" and "4x8" — is
+returned untouched rather than guessed at.
+
+It also makes the recovery-day openers honest: they really do contain Z4
+efforts on an easy day, because that is what an opener is, and the label says
+so instead of reading "Z1-Z2".
+
 **A second test caught a naming inconsistency.** The ladder sessions first
 called their work block "Ladder" while every other quality session in the
 library calls it "Main set". Nothing was broken until the date-seeded pick
