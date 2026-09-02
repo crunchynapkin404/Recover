@@ -194,6 +194,23 @@ export const activities = pgTable(
         onDelete: "set null",
       }
     ),
+    /**
+     * The athlete's own answer to "was this your planned session?", asked in
+     * the post-ride debrief.
+     *
+     * NULL IS LOAD-BEARING and is not `false`: it means the question was never
+     * asked. True of every row written before v0.132.0, and of every activity
+     * on a day with no planned session, where the question has no true answer
+     * and is not shown.
+     *
+     * Only the athlete can supply this. `bookWeekActuals` books a day's load
+     * from the activities table automatically but deliberately never touches
+     * `status`, because "an activity ended today" says nothing about whether
+     * the PLANNED session is the one that happened — the defect that told
+     * someone who rode a 20-minute commute their 90-minute threshold session
+     * was complete (src/app/page.tsx). This column is that missing fact.
+     */
+    wasPlannedSession: boolean("was_planned_session"),
     reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
     reviewAttempts: integer("review_attempts").notNull().default(0),
     // Short (~1 sentence) summary of the ride review, distinct from the

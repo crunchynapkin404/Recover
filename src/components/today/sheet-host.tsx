@@ -7,6 +7,8 @@ import {
 } from "@/lib/debrief/lifecycle";
 import { CheckinSheet } from "@/components/today/checkin-sheet";
 import { DebriefSheet } from "@/components/debrief/debrief-sheet";
+import { getOpenWeekPlan } from "@/lib/week-plan/service";
+import { planDayOfActivity } from "@/lib/week-plan/complete-from-activity";
 
 /**
  * The id arrives from the URL (and from a push payload), so it is checked
@@ -127,6 +129,14 @@ export async function SheetHost({
     const raw = activity.raw as Record<string, unknown> | null;
     const metrics = formatActivityMetrics(activity);
 
+    // Only ask "was this your planned session?" when there IS one. On a rest
+    // day, or a day the plan left empty, the question has no true answer and
+    // the sheet hides it rather than offering an unanswerable control.
+    const week = await getOpenWeekPlan(userId);
+    const day = week?.days.find((d) => d.date === planDayOfActivity(activity));
+    const hasPlannedSession =
+      day != null && day.workouts.length > 0 && day.status === "planned";
+
     return (
       <DebriefSheet
         activityId={activity.id}
@@ -134,6 +144,7 @@ export async function SheetHost({
         metrics={metrics}
         prefillRpe={rpeFromRaw(raw)}
         prefillFeel={feelFromIcu(raw?.feel)}
+        hasPlannedSession={hasPlannedSession}
         closeHref={closeHref}
       />
     );

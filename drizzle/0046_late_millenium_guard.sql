@@ -1,0 +1,1 @@
+ALTER TABLE "activities" ADD COLUMN "was_planned_session" boolean;

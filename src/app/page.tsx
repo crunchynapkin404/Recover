@@ -11,6 +11,8 @@ import { AppShell, shellUser, avatarInitial } from "@/components/app-shell";
 import { PullToRefresh } from "@/components/today/pull-to-refresh";
 import { SyncChip } from "@/components/today/sync-chip";
 import { getLatestMorningInsight } from "@/lib/morning-insight";
+import { dayAdherence } from "@/lib/week-plan/day-adherence";
+import { plannedMins } from "@/lib/week-plan/fill";
 import {
   getOpenWeekPlan,
   listAdjustments,
@@ -124,6 +126,18 @@ export default async function DashboardPage({
   const todayDate = new Date();
   const todayYmd = `${todayDate.getFullYear()}-${String(todayDate.getMonth() + 1).padStart(2, "0")}-${String(todayDate.getDate()).padStart(2, "0")}`;
   const todaySlot = weekPlan?.days.find((d) => d.date === todayYmd) ?? null;
+  // How closely today matched what the plan asked. Reported only — nothing in
+  // the engine reads it. Rendered on the done line, and only when the athlete
+  // has said the session happened, which is what puts the card in that state.
+  const todayAdherence =
+    weekPlan && todaySlot
+      ? dayAdherence({
+          effectiveTarget: weekPlan.effectiveTarget,
+          materializedMins: weekPlan.materializedMins,
+          plannedMins: plannedMins([todaySlot]),
+          actualLoad: todaySlot.actualLoad ?? null,
+        })
+      : null;
   const todayAdjustment = weekPlan
     ? ((await listAdjustments(weekPlan.id))
         .filter((a) => a.date === todayYmd)
@@ -710,6 +724,7 @@ export default async function DashboardPage({
                     adjustmentReason={todayAdjustment}
                     otherDays={otherDays}
                     variant="done"
+                    adherence={todayAdherence}
                   />
                 ) : (
                   <SessionCard

@@ -7,6 +7,14 @@ export interface DebriefInput {
   rpe: number | null;
   feel: "strong" | "normal" | "weak" | null;
   notes: string | null;
+  /**
+   * "Was this your planned session?" — the one fact the app cannot derive.
+   * NULL means unanswered, and is NOT `false`: `bookWeekActuals` books a
+   * day's load automatically but never its status, because an activity
+   * ending today says nothing about whether the PLANNED session happened
+   * (src/app/page.tsx's C1 comment). Unanswered must leave the day alone.
+   */
+  wasPlanned: boolean | null;
 }
 
 export interface DebriefResult {
@@ -46,6 +54,9 @@ export async function storeDebriefAnswer(
       ...(input.rpe != null ? { perceivedExertion: input.rpe } : {}),
       ...(input.feel != null ? { feel: input.feel } : {}),
       ...(notes != null ? { debriefNotes: notes } : {}),
+      ...(input.wasPlanned != null
+        ? { wasPlannedSession: input.wasPlanned }
+        : {}),
     })
     .where(
       and(

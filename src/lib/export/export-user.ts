@@ -309,6 +309,10 @@ export async function exportUserData(
       debriefNotes: a.debriefNotes,
       debriefState: a.debriefState,
       debriefThreadId: a.debriefThreadId,
+      // The athlete's own answer to "was this your planned session?" — a
+      // fact only they can supply, so a GDPR export that dropped it would
+      // lose something the app could never regenerate.
+      wasPlannedSession: a.wasPlannedSession,
       reviewedAt: a.reviewedAt,
       reviewAttempts: a.reviewAttempts,
       reviewSummary: a.reviewSummary,

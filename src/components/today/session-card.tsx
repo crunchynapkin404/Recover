@@ -1,3 +1,5 @@
+import type { Figure } from "@/lib/uncertainty";
+import type { DayAdherence } from "@/lib/week-plan/day-adherence";
 import type { DaySlot } from "@/lib/week-plan/types";
 import {
   DayActions,
@@ -31,6 +33,16 @@ interface Props {
    * a false claim (I5, same review).
    */
   variant?: "full" | "done";
+  /**
+   * How closely the day matched what the plan asked, or the stated reason
+   * there is no figure. Computed server-side and passed in — the derivation
+   * reads the week's target and the day's booked load.
+   *
+   * REPORTED, NEVER ACTED ON. Nothing in the engine reads it; a number the
+   * plan reacts to is a number worth gaming, and the week-level
+   * `adherencePct` is the one the safety rails already consult.
+   */
+  adherence?: Figure<DayAdherence> | null;
   /** Off for tomorrow: a session that has not happened cannot be done. */
   allowMarkDone?: boolean;
 }
@@ -53,6 +65,7 @@ export function SessionCard({
   otherDays,
   heading = "Today's session",
   variant = "full",
+  adherence = null,
   allowMarkDone = true,
 }: Props) {
   if (!slot) return null;
@@ -83,8 +96,22 @@ export function SessionCard({
             </p>
           )}
         </div>
-        <span className="shrink-0 text-label font-bold text-chart-2">
+        <span className="shrink-0 text-right text-label font-bold text-chart-2">
           ✓ Done
+          {/* Only when there is a real figure. A refusal is deliberately NOT
+              rendered here: the done line is one row on a phone, and "✓ Done ·
+              waiting for the activity to sync" is noise at the moment the
+              athlete has just told the app they did the session. The full
+              card and the week carry the unavailable states. */}
+          {adherence?.available && (
+            <span
+              data-day-adherence
+              title={adherence.why}
+              className="ml-1.5 block font-normal text-ink-muted"
+            >
+              {adherence.value.pct}% of plan
+            </span>
+          )}
         </span>
       </section>
     );

@@ -31,6 +31,13 @@ export interface DebriefSheetProps {
   metrics: string;
   prefillRpe: number | null;
   prefillFeel: (typeof FEELS)[number] | null;
+  /**
+   * Whether this activity's day has a planned session at all. False (or
+   * omitted) hides the "was this your planned session?" question entirely —
+   * asking it about a day with nothing planned is a question with no true
+   * answer, and an unanswerable control is worse than no control.
+   */
+  hasPlannedSession?: boolean;
   closeHref: string;
 }
 
@@ -48,12 +55,17 @@ export function DebriefSheet({
   metrics,
   prefillRpe,
   prefillFeel,
+  hasPlannedSession = false,
   closeHref,
 }: DebriefSheetProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [rpe, setRpe] = useState<number | null>(prefillRpe);
   const [feel, setFeel] = useState<(typeof FEELS)[number] | null>(prefillFeel);
+  // Unset by default and never defaulted to a guess: null means the question
+  // was not answered, which is not the same as "no". Only `true` completes
+  // the day, and only in the same submit as the rest of the answers.
+  const [wasPlanned, setWasPlanned] = useState<boolean | null>(null);
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
   const dictation = useDictation((chunk) =>
@@ -113,6 +125,39 @@ export function DebriefSheet({
           ))}
         </div>
       </div>
+
+      {hasPlannedSession && (
+        <div
+          className="mt-4"
+          role="group"
+          aria-label="Was this your planned session"
+        >
+          <span className="text-label font-bold uppercase tracking-[0.15em] text-ink-muted">
+            Was this your planned session?
+          </span>
+          <div className="mt-2 flex gap-1.5">
+            {([true, false] as const).map((v) => (
+              <button
+                key={String(v)}
+                type="button"
+                aria-pressed={wasPlanned === v}
+                onClick={() => setWasPlanned(wasPlanned === v ? null : v)}
+                className={`rounded-full px-5 py-2 text-label font-bold transition-colors ${
+                  wasPlanned === v
+                    ? "bg-success-tint text-success-ink"
+                    : "bg-surface-selected text-ink-secondary"
+                }`}
+              >
+                {v ? "Yes" : "No"}
+              </button>
+            ))}
+          </div>
+          <p className="mt-1.5 text-label text-ink-muted">
+            Saying yes marks the day done — the app cannot tell on its own which
+            ride was the session.
+          </p>
+        </div>
+      )}
 
       <div className="mt-4" role="group" aria-label="How did you feel">
         <span className="text-label font-bold uppercase tracking-[0.15em] text-ink-muted">
@@ -175,6 +220,7 @@ export function DebriefSheet({
                 rpe,
                 feel,
                 notes: notes.trim() || null,
+                wasPlanned,
               })
             )
           }

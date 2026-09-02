@@ -343,6 +343,7 @@ async function seed() {
     avgPower: 210,
     elevationM: 620,
     perceivedExertion: 6.5,
+    wasPlannedSession: true,
     feel: "strong",
     debriefNotes: "Drill debrief notes",
     debriefState: "answered",
