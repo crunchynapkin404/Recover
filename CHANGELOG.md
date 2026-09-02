@@ -1,5 +1,85 @@
 # Changelog
 
+## v0.130.0 — 2026-09-02 — A finished race stops vanishing
+
+v0.129.0 could tell you how a race went against its pacing target, and only if
+you thought to ask the coach. This puts it on a screen — and fixes something
+found while measuring for it: **a finished race was on no surface at all.**
+
+### What you will notice
+
+**Your last races now say how they went.** Train ▸ Races shows, under each of
+your three most recent raced events: what the model predicted, the band, what
+you actually held, and whether that was harder than the band, inside it, or
+easier. In those words — for a run, "harder" is a faster pace, and no reader
+should have to work that out from the sign of a number.
+
+**Your post-race debrief carries the same sentence.** Not a second phrasing of
+the same race: literally the same string, from the same figure.
+
+**It says the target was not recorded before your start.** Because it was not.
+Nothing writes a prediction down on race day, so the target is recomputed from
+the anchors that were on file then, and the line says so every time rather than
+letting a reconstruction read as a record.
+
+### What you will not notice
+
+**An upcoming race is unchanged**, and so is the race chip. No new block, no
+new screen. If a race has no result yet the row looks exactly as it did.
+
+No migration, no plan regenerated, no number recalculated.
+
+### Under it
+
+**A finished race used to vanish from every screen.** `RaceChip` is built from
+`raceCard`, which is built from `nextUpcomingRace`, which filters
+`status = "upcoming"` — and the debrief sets `completed` in the same
+transaction that links the result. From that moment the race was nowhere. That
+is why this is not a line on the race card: that card is gone by the time there
+is anything to say. The Races sheet already listed completed races and had
+never put anything useful in them.
+
+**A defect made and caught while writing this.** The debrief composes its
+message BEFORE the transaction that writes `races.resultActivityId`, so the
+first version — which read that column — found no result linked, refused, and
+added no line. Every time, silently, because a missing stat line looks exactly
+like a race with nothing to say. `pacingResultForRace` now takes the activity
+the debrief already holds, and both callers still run one derivation.
+
+**One sentence, one source.** `describePacingResult` exists so the athlete's
+screen and their coach cannot phrase one race two ways, and a test asserts the
+debrief contains the exact string the sheet renders.
+
+**The raw pace delta is deliberately not printed.** For a run its sign runs
+opposite to the effort — −7 s/km is faster, which is harder — so "+25 s/km"
+next to a verdict reads backwards to anyone who has not been told the
+convention. The percentage carries the same information and the verdict says
+the direction outright.
+
+**A green suite is not evidence the branch compiles**, again: vitest passed on
+a test fixture with a field `RaceListItem` does not have, and `tsc --noEmit`
+caught it. The strand handoff already warns about this exact trap.
+
+### Migrations
+
+**None.** Everything read here has existed since v0.14 or v0.129.0. An image
+rollback is safe.
+
+### What is not proven
+
+**No capture photographs the new line.** The Soak's owner is a marathon runner
+with no linked race result, the same class of reason `train-workout` is already
+excepted from it. The four refusals are the interesting states and a seeded
+athlete has at most one of them; the spec budgets for a seeded race result and
+this release does not yet spend it. Asserted by component and integration
+tests, not by a picture — which is exactly the gap that let a self-contradicting
+card ship in v0.129.0.
+
+**The quiet answer was taken deliberately.** An athlete who never opens the
+Races sheet sees this once, in a chat message. Whether a finished race should
+instead MEET them — a post-race state on Today — is the open question in
+`docs/specs/2026-09-02-race-result-surface-design.md`, and it is a larger slice.
+
 ## v0.129.0 — 2026-09-02 — What you actually held, and the library slice 5 always meant
 
 **Two features and two corrections, shipped together.** They were developed as

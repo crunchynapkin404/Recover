@@ -1,6 +1,6 @@
 # Roadmap
 
-Current release: **v0.129.0**. History through v0.119 is preserved in
+Current release: **v0.130.0**. History through v0.119 is preserved in
 [`docs/archive/ROADMAP-through-v0.119.md`](archive/ROADMAP-through-v0.119.md) —
 Phases 1–4, all complete. It is a record, not a plan.
 
@@ -65,7 +65,7 @@ around future races), six wellness/activity sources (intervals.icu, Strava,
 Whoop, Oura, Apple Health, Withings), training history, multiple time blocks
 per day, running, and strength (v0.119.0).
 
-**Mechanically sound.** 3506 tests at v0.129.0, 46 migrations, zero confirmed
+**Mechanically sound.** 3521 tests at v0.130.0, 46 migrations, zero confirmed
 axe violations across the app, a 197-token design system across 283
 declarations in two themes (`docs/design-system.md`), a 60-tool MCP surface,
 and a release path that is fully automated end to end (`docs/RELEASING.md`).
@@ -433,9 +433,11 @@ it: the engine work is small, and the surface ("we predicted 208 W, you held
       evidence.
 - [ ] Compare the demand/feasibility estimate against what the athlete
       actually did.
-- [ ] Surface the comparison to the athlete — the one capability that
+- [x] Surface the comparison to the athlete — the one capability that
       requires this athlete's own history, which no competitor can do
-      without their data. **Specced 2026-09-02**:
+      without their data. **Shipped v0.130.0** to the Races sheet (the three
+      most recent raced events) and to the post-race debrief, from one figure
+      and one sentence. **Specced 2026-09-02**:
       `docs/specs/2026-09-02-race-result-surface-design.md`. Measuring the
       surface changed what the item is: a finished race currently vanishes
       from every screen, because `RaceChip` is built from `nextUpcomingRace`
@@ -444,8 +446,13 @@ it: the engine work is small, and the surface ("we predicted 208 W, you held
       the time there is anything to say. The spec puts the durable answer in
       the Races sheet, which already lists completed races and has never put
       anything useful in them, and hands the same figure to the debrief as a
-      stat line. It names one question for the owner: whether a finished race
-      should merely be findable, or should meet the athlete.
+      stat line. It named one question for the owner and v0.130.0 took the
+      quiet answer: a finished race is now findable. Whether it should instead
+      MEET the athlete — a post-race state on Today — is still open, and is a
+      larger slice than this one was.
+      **No capture photographs the new line yet.** The Soak's owner has no
+      linked race result and the four refusals are the interesting states; the
+      spec budgets for a seeded one and v0.130.0 did not spend it.
 
 **The discipline that makes this honest:** calibration may only raise a
 confidence label when the evidence genuinely supports the raise. A

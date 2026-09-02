@@ -86,7 +86,11 @@ import {
 import { plannedMins, availableMins } from "@/lib/week-plan/fill";
 import { feasibilityFor, type Feasibility } from "@/lib/race/feasibility";
 import type { EventDemandResult } from "@/lib/race/demand";
-import { listRaces, stagesByRaceIds } from "@/lib/race/service";
+import {
+  listRaces,
+  racePacingResult,
+  stagesByRaceIds,
+} from "@/lib/race/service";
 import {
   localYmd,
   seasonTimelinePoints,
@@ -569,8 +573,34 @@ async function WeekTab({
   // race's demand, not just accept it silently on the add form. Shared with
   // the coach's get_races since v0.41, so the two cannot drift.
   const stagesByRace = await stagesByRaceIds(races.map((r) => r.id));
+  // How each recently-raced race actually went, against the target the model
+  // would have set. BOUNDED, and the bound is declared rather than assumed:
+  // `racePacingResult` is one race per call and reads three tables, while this
+  // list holds a whole season. A comparison for a race three seasons ago costs
+  // a query and says nothing an athlete is looking for.
+  //
+  // Source: judgement, not a measurement. Confidence: Low. What would raise
+  // it: usage telemetry showing how far back athletes actually scroll.
+  const RACE_RESULTS_SHOWN = 3;
+  const recentlyRaced = races
+    .filter((r) => r.resultActivityId != null)
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .slice(0, RACE_RESULTS_SHOWN);
+  const pacingResults = new Map(
+    await Promise.all(
+      recentlyRaced.map(
+        async (r) =>
+          [
+            r.id,
+            (await racePacingResult(userId, r.id))?.comparison ?? null,
+          ] as const
+      )
+    )
+  );
+
   const raceListItems: RaceListItem[] = races.map((r) => ({
     ...r,
+    pacingResult: pacingResults.get(r.id) ?? null,
     // Narrowed to what the list renders: RaceListItem is a client-component
     // prop and has no use for the stage name.
     stages: (stagesByRace.get(r.id) ?? []).map((s) => ({
