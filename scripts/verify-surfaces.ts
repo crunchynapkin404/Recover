@@ -313,6 +313,16 @@ const SURFACES: Record<string, string> = {
   // would otherwise delete that script's two-arc draft — see this script's
   // own file header).
   "train-race-pacing": "/train?sheet=why-week",
+  // The ONLY durable place a finished race appears. RaceChip is built from
+  // nextUpcomingRace, which filters "upcoming", and the debrief sets
+  // "completed" in the same transaction it links the result — so from that
+  // moment a raced event is on no other surface at all.
+  //
+  // Cycling-only, like train-workout, and for a stricter reason: counted in
+  // production on 2026-09-02, races.resultActivityId has NEVER been non-null
+  // there. Only the seeded cycling owner has one, so this surface belongs to
+  // that job's --only list and must be excepted from capture-main.
+  "train-races": "/train?sheet=races",
   // The availability sheet — the app's most-used write path, and until now
   // photographed by nothing. Slice 2 moved AvailabilityWeekSwitcher and both
   // IntakeForms off the page and into this sheet, which took the whole

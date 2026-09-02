@@ -1,6 +1,6 @@
 # Roadmap
 
-Current release: **v0.130.0**. History through v0.119 is preserved in
+Current release: **v0.131.0**. History through v0.119 is preserved in
 [`docs/archive/ROADMAP-through-v0.119.md`](archive/ROADMAP-through-v0.119.md) —
 Phases 1–4, all complete. It is a record, not a plan.
 
@@ -65,7 +65,7 @@ around future races), six wellness/activity sources (intervals.icu, Strava,
 Whoop, Oura, Apple Health, Withings), training history, multiple time blocks
 per day, running, and strength (v0.119.0).
 
-**Mechanically sound.** 3521 tests at v0.130.0, 46 migrations, zero confirmed
+**Mechanically sound.** 3521 tests at v0.131.0, 46 migrations, zero confirmed
 axe violations across the app, a 197-token design system across 283
 declarations in two themes (`docs/design-system.md`), a 60-tool MCP surface,
 and a release path that is fully automated end to end (`docs/RELEASING.md`).
@@ -397,6 +397,42 @@ the comparison move constants off `Confidence: Low` where — and only where —
 the evidence supports it. This overlaps Phase 6 rather than queueing behind
 it: the engine work is small, and the surface ("we predicted 208 W, you held
 214 W") is experience work.
+
+**PARKED ON DATA, NOT ON WORK — counted in production 2026-09-02.** The
+machinery is built and the sample is empty:
+
+| in production        |                                          |
+| -------------------- | ---------------------------------------- |
+| users / activities   | 3 / 306 — the instance is genuinely used |
+| races                | **1**, a Bike A-race 11 days out         |
+| races with a result  | **0**                                    |
+| races ever debriefed | **0**                                    |
+
+`races.resultActivityId` **has never been non-null in production.** Not "too
+few to calibrate" — none, and not once. So v0.129.0's engine and v0.130.0's
+surface currently render for nobody: `get_race_result_pacing` returns
+`no_raced_race` for all three users, and the Races-sheet line has no row to
+appear on. Both shipped ahead of their data, which is defensible — the race is
+coming and the debrief populates this automatically — but neither release's
+notes said so, and this line is the correction.
+
+**This is the second strand parked on real usage nobody can manufacture**, the
+information-architecture strand above being the first. The distinction matters
+for planning: neither is blocked on someone doing work.
+
+**So item 2 is deliberately NOT next.** Building a third engine against an
+empty column would tick this phase's last box while its stated purpose — move
+a confidence label where the evidence supports it — stayed impossible. That is
+the exact substitution this file has now recorded twice (2b.4's slices, and
+slice 5 of the workouts strand); doing it knowingly would make three.
+
+**A correction to v0.129.0's release notes**, which said "one athlete's races
+are not a calibration set". That understated it. There are no races.
+
+**What unblocks it:** the A-race, then its debrief. One result is still not a
+calibration set — it is the difference between zero and one — so the honest
+expectation is that the first pass concludes "still Low", which this file
+already calls a successful pass.
 
 - [x] Compare predicted race pacing against the actual result activity.
       `src/lib/race/pacing-result.ts` (pure) + `racePacingResult` in
