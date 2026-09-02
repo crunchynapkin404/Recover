@@ -596,9 +596,21 @@ export function RacesSection({ races, hideHeading = false }: Props) {
             {races.map((race) => (
               <Fragment key={race.id}>
                 <li className="px-5 py-4">
-                  {/* The row proper. The race-result line is deliberately
-                      NOT in here — see below. */}
-                  <div className="flex items-center justify-between gap-3">
+                  {/* CONTENT FIRST, ACTIONS UNDER IT, at every width.
+                      These used to share one flex row with the status
+                      select and two icon buttons, which left the text
+                      ~130px on a phone: the name rendered "Mounta…" and the
+                      meta line "gran_fondo · 202…", hiding both which race
+                      it was and when. Not a phone-only problem — this sheet
+                      is a centred panel about 490px wide on a desktop too,
+                      so there is no width at which the old row was roomy,
+                      and no breakpoint worth introducing for it. This repo
+                      uses `lg:` for the nav and nothing else.
+
+                      Invisible to every test by construction: `truncate` is
+                      CSS, so the full name is in the DOM either way. It took
+                      a capture to see, and a capture is what checks it. */}
+                  <div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <span
@@ -606,19 +618,19 @@ export function RacesSection({ races, hideHeading = false }: Props) {
                         >
                           {race.priority}
                         </span>
-                        <p className="truncate text-caption font-bold text-ink-primary">
+                        <p className="text-caption font-bold text-ink-primary">
                           {race.name}
                         </p>
                       </div>
-                      <p className="mt-1 truncate text-label text-ink-muted">
+                      <p className="mt-1 text-label text-ink-muted">
                         {`${race.raceType} · ${race.date}`}
                         {race.goalNote && ` · ${race.goalNote}`}
                       </p>
-                      <p className="mt-0.5 truncate text-label text-ink-muted">
+                      <p className="mt-0.5 text-label text-ink-muted">
                         {demandSummary(race)}
                       </p>
                     </div>
-                    <div className="flex shrink-0 items-center gap-2">
+                    <div className="mt-2 flex shrink-0 items-center gap-2">
                       <select
                         defaultValue={race.status}
                         aria-label={`Status for ${race.name}`}
