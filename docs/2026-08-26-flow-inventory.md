@@ -195,6 +195,22 @@ with its own specification of what choosing looks like.
 has **zero references anywhere, including tests** — dead weight, though a
 tidy-up rather than a defect.
 
+> **Both stay, deliberately, now that the control is decided against
+> (2026-09-01).** Deleting them was considered and rejected: the decision not
+> to rebuild is recorded as reversible, and removing the tested actions —
+> including the open-week freshness guard v0.58 shipped into
+> `setWeekAdjustmentQuick` — would make reversing it materially harder than
+> the argument for it is strong. The capability itself is not dead either:
+> both delegate to `updateTrainingPlanTool`, which is on the frozen MCP
+> surface and still reachable through the coach. What was removed was a
+> blanket UI dial, not the ability to adjust a week.
+>
+> Note that this means **the hazard the incident exposed is not gone** — a
+> coach-driven `reduce_load` writes `trainingBlocks.targetLoadTotal` exactly
+> as the button did. It has a human asking for it by name rather than a
+> two-tap control promising something else, which is the difference that made
+> the button worse, but it is not nothing.
+
 ---
 
 ## Two claims withdrawn while writing this

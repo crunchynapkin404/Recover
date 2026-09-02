@@ -290,14 +290,25 @@ week`, `Plan setup`, `Races`, `Availability` and the 21-row draft
       availability sheet had **no capture surface at all** since slice 2
       moved the form into it, and the pill's in-fill label was an ellipsis at
       every width the 44 px touch floor produces.
-      Still open in this strand: the week adjustment that has no path —
-      `src/app/train/page.tsx`'s `WeekAdjustmentSwitch` comment states the
-      choice (either the action re-materializes the open week, or the copy
-      describes the skeleton it actually edits) and now also records two
-      things that make it cost more than it reads: the component was
-      **deleted** in `ca98ee4`, so either branch begins by rebuilding it,
-      and re-materializing would **discard an export pin**, forgetting what
-      Recover sent to the athlete's head unit.
+      **The week adjustment is decided: it is not coming back**, and this
+      strand has nothing open. `WeekAdjustmentSwitch` offered "Ease −30% ·
+      Deload −50%" as a blanket dial on the week. Three things say not to
+      rebuild it. The need is already served, and better: readiness
+      adaptation eases the week automatically with sourced constants
+      (`RED_ENDURANCE_SCALE`, `AMBER_SCALE`, both carrying Source and
+      Confidence), while `zeroDay` — "No time today" — pins a single date to
+      zero as a durable override, and Move retargets a session. Per-day and
+      measured beats blanket and guessed. Second, **−30% is a figure with no
+      source**, which line 24 of this file makes a hard gate: a manual load
+      dial cannot state a confidence because there is nothing behind it but
+      the number. Third, the cost has risen since the choice was written:
+      the component was deleted in `ca98ee4`, so either branch starts by
+      rebuilding it, and the re-materialize branch would now **discard an
+      export pin**, forgetting what Recover sent to the athlete's head unit.
+      A control with a live incident behind it — one press left a block at 0
+      against a real week of 259 — should come back only for a need nothing
+      else meets, and this is not one. Reversible if wrong: the argument is
+      here and in `train/page.tsx`'s comment, not just the conclusion.
       **The other two items this list used to carry are closed**, by the same
       release that made the finding: "Season's zero actions" and "the Week tab
       owning the season editing the Season tab only reports" both described an
