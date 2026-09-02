@@ -1,5 +1,84 @@
 # Changelog
 
+## v0.132.0 — 2026-09-02 — One step after a ride
+
+Asked for in as many words: _"at the end of a ride, on a ride review, I want
+the ability to mark that day's training done. Now I have to do a ride review
+and after that mark the training done. I want this in 1 step."_
+
+### What you will notice
+
+**The ride review asks whether it was your planned session.** Yes marks the day
+done, in the same submit as the RPE, the feel and the note. No records that it
+was not — a fact nothing stored before. Leaving it unanswered changes nothing,
+which is what it did yesterday.
+
+**The question only appears when there IS a planned session.** On a rest day,
+or a day the plan left empty, asking it would be a question with no true
+answer.
+
+**The done line carries a score.** `✓ Done · 96% of plan` — your booked load
+against what that day was asked for.
+
+### What you will not notice
+
+Mark done is still on Today, unchanged, for the times you want it without a
+review. Nothing about how load is booked changed; that was already automatic.
+
+### Under it
+
+**The app still refuses to guess, and that is the point.** `bookWeekActuals`
+books a day's load from the activities table on every pass but deliberately
+never touches its status, because "an activity ended today" says nothing about
+whether the PLANNED session is the one that happened — the defect that told
+someone who rode a 20-minute commute their 90-minute threshold session was
+complete. This release does not remove that refusal. It asks you instead, in
+the one place you were already answering questions.
+
+**Null is not false.** `was_planned_session` is nullable and unanswered stays
+null — true of every row written before this, and of every activity on a day
+with nothing planned. Mutation-tested: collapsing null to false fails a named
+test.
+
+**The answers survive a refused completion.** `markDayDone` runs after the
+answers are stored and outside their write, because it refuses a rest day, a
+race day, an already-completed day and a day with no open week — and none of
+those should cost you the RPE and note you just typed. A status is one tap; the
+answers are not recoverable.
+
+**The score is the week's own rate, one level down.** The day's target is
+`weekLoadPerMin × the day's planned minutes` — the same rate the week is
+projected with, so the day and the week cannot tell you two different stories.
+It refuses rather than inventing a percentage when the week has no target, the
+week materialized no minutes, the day planned nothing, or no activity has
+booked yet. Uncapped in both directions: a clamp would tell someone who rode
+double that they rode exactly the session.
+
+**Reported, never acted on.** Nothing in the engine reads the per-day figure. A
+number the plan reacts to is a number worth gaming.
+
+**A test that could not fail, found and fixed.** The timezone case — a 23:00
+ride whose UTC date is already tomorrow — was asserted through a path that
+returned the same answer either way. `planDayOfActivity` is exported and tested
+directly now, and the mutation fails it.
+
+### Migrations
+
+**One, additive.** `activities.was_planned_session boolean`, nullable. Old rows
+read null, old code never selects it, and a rollback leaves a column nobody
+reads. An image rollback is safe.
+
+### What is not proven
+
+**No capture photographs any of this.** The debrief sheet's new question and
+the done line's score are asserted by tests, not by a picture — and the seeded
+soak athlete has no pending debrief. The same gap the race-result line had
+before v0.131.0 closed it, and it should be closed the same way.
+
+**The score has never been seen against a real week.** Every fixture here is
+constructed. Whether "96% of plan" reads as useful or as pressure is a question
+only riding with it answers.
+
 ## v0.131.0 — 2026-09-02 — The picture nobody could take
 
 v0.130.0 put a finished race's pacing comparison on a screen and said, in its

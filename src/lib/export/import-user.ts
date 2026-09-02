@@ -428,6 +428,7 @@ export async function importUserData(
         avgPower: r.avgPower,
         elevationM: r.elevationM,
         perceivedExertion: r.perceivedExertion,
+        wasPlannedSession: r.wasPlannedSession ?? null,
         feel: r.feel,
         debriefNotes: r.debriefNotes,
         debriefState: r.debriefState,
