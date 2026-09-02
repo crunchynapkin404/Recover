@@ -595,103 +595,119 @@ export function RacesSection({ races, hideHeading = false }: Props) {
           <ul className="divide-y divide-hairline">
             {races.map((race) => (
               <Fragment key={race.id}>
-                <li className="flex items-center justify-between gap-3 px-5 py-4">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`rounded-full border px-2 py-0.5 text-label font-bold uppercase tracking-wider ${PRIORITY_CHIP[race.priority]}`}
-                      >
-                        {race.priority}
-                      </span>
-                      <p className="truncate text-caption font-bold text-ink-primary">
-                        {race.name}
+                <li className="px-5 py-4">
+                  {/* The row proper. The race-result line is deliberately
+                      NOT in here — see below. */}
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`rounded-full border px-2 py-0.5 text-label font-bold uppercase tracking-wider ${PRIORITY_CHIP[race.priority]}`}
+                        >
+                          {race.priority}
+                        </span>
+                        <p className="truncate text-caption font-bold text-ink-primary">
+                          {race.name}
+                        </p>
+                      </div>
+                      <p className="mt-1 truncate text-label text-ink-muted">
+                        {`${race.raceType} · ${race.date}`}
+                        {race.goalNote && ` · ${race.goalNote}`}
+                      </p>
+                      <p className="mt-0.5 truncate text-label text-ink-muted">
+                        {demandSummary(race)}
                       </p>
                     </div>
-                    <p className="mt-1 truncate text-label text-ink-muted">
-                      {`${race.raceType} · ${race.date}`}
-                      {race.goalNote && ` · ${race.goalNote}`}
-                    </p>
-                    <p className="mt-0.5 truncate text-label text-ink-muted">
-                      {demandSummary(race)}
-                    </p>
-                    {/* How it actually went. Only ever present on a race with
+                    <div className="flex shrink-0 items-center gap-2">
+                      <select
+                        defaultValue={race.status}
+                        aria-label={`Status for ${race.name}`}
+                        disabled={pending}
+                        onChange={(e) => {
+                          const status = e.target.value as RaceStatus;
+                          startTransition(async () => {
+                            await setRaceStatus(race.id, status);
+                          });
+                        }}
+                        className="rounded-lg border border-hairline px-2 py-1 text-label text-ink-secondary focus:border-accent focus:outline-none disabled:opacity-50"
+                      >
+                        {(Object.keys(STATUS_LABEL) as RaceStatus[]).map(
+                          (s) => (
+                            <option key={s} value={s}>
+                              {STATUS_LABEL[s]}
+                            </option>
+                          )
+                        )}
+                      </select>
+                      <button
+                        type="button"
+                        aria-label={`Edit demand for ${race.name}`}
+                        disabled={pending}
+                        onClick={() =>
+                          setEditingId((cur) =>
+                            cur === race.id ? null : race.id
+                          )
+                        }
+                        className="rounded-full p-2 text-ink-secondary transition-colors hover:bg-surface-overlay hover:text-ink-primary disabled:opacity-50"
+                      >
+                        <Pencil aria-hidden className="size-4" />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={`Delete ${race.name}`}
+                        disabled={pending}
+                        onClick={() => {
+                          if (
+                            confirm(
+                              `Delete ${race.name}? This can't be undone.`
+                            )
+                          ) {
+                            startTransition(async () => {
+                              await removeRace(race.id);
+                            });
+                          }
+                        }}
+                        className="rounded-full p-2 text-ink-secondary transition-colors hover:bg-chart-5/10 hover:text-chart-5 disabled:opacity-50"
+                      >
+                        <Trash2 aria-hidden className="size-4" />
+                      </button>
+                    </div>
+                  </div>
+                  {/* How it actually went. Only ever present on a race with
                         a result (or one that should have had one), so an
                         upcoming race is unchanged. NOT truncated, unlike the
                         three lines above: the `why` says the target was not
                         recorded before the start, and that is the half a
-                        clipped line would lose. */}
-                    {race.pacingResult && (
-                      <p
-                        data-race-pacing-result
-                        className="mt-1 text-label text-ink-muted"
-                      >
-                        {race.pacingResult.available ? (
-                          <>
-                            <span className="font-bold text-ink-secondary">
-                              {describePacingResult(race.pacingResult.value)}
-                            </span>{" "}
-                            {race.pacingResult.why} (
-                            {race.pacingResult.confidence} confidence)
-                          </>
-                        ) : (
-                          <>
-                            Race pacing:{" "}
-                            <Unavailable state={race.pacingResult} />
-                          </>
-                        )}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <select
-                      defaultValue={race.status}
-                      aria-label={`Status for ${race.name}`}
-                      disabled={pending}
-                      onChange={(e) => {
-                        const status = e.target.value as RaceStatus;
-                        startTransition(async () => {
-                          await setRaceStatus(race.id, status);
-                        });
-                      }}
-                      className="rounded-lg border border-hairline px-2 py-1 text-label text-ink-secondary focus:border-accent focus:outline-none disabled:opacity-50"
+                        clipped line would lose.
+
+                        FULL WIDTH, OUTSIDE THE FLEX ROW, which is the whole
+                        reason `li` is no longer the flex container. Inside
+                        the row this shared a ~130px column with the status
+                        select and two icon buttons: on a 390px phone a
+                        refusal wrapped to thirteen lines and pushed the one
+                        race that HAD a comparison below the fold. Found by
+                        opening the capture, which is the only thing that
+                        could have found it. */}
+                  {race.pacingResult && (
+                    <p
+                      data-race-pacing-result
+                      className="mt-1 text-label text-ink-muted"
                     >
-                      {(Object.keys(STATUS_LABEL) as RaceStatus[]).map((s) => (
-                        <option key={s} value={s}>
-                          {STATUS_LABEL[s]}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      type="button"
-                      aria-label={`Edit demand for ${race.name}`}
-                      disabled={pending}
-                      onClick={() =>
-                        setEditingId((cur) =>
-                          cur === race.id ? null : race.id
-                        )
-                      }
-                      className="rounded-full p-2 text-ink-secondary transition-colors hover:bg-surface-overlay hover:text-ink-primary disabled:opacity-50"
-                    >
-                      <Pencil aria-hidden className="size-4" />
-                    </button>
-                    <button
-                      type="button"
-                      aria-label={`Delete ${race.name}`}
-                      disabled={pending}
-                      onClick={() => {
-                        if (
-                          confirm(`Delete ${race.name}? This can't be undone.`)
-                        ) {
-                          startTransition(async () => {
-                            await removeRace(race.id);
-                          });
-                        }
-                      }}
-                      className="rounded-full p-2 text-ink-secondary transition-colors hover:bg-chart-5/10 hover:text-chart-5 disabled:opacity-50"
-                    >
-                      <Trash2 aria-hidden className="size-4" />
-                    </button>
-                  </div>
+                      {race.pacingResult.available ? (
+                        <>
+                          <span className="font-bold text-ink-secondary">
+                            {describePacingResult(race.pacingResult.value)}
+                          </span>{" "}
+                          {race.pacingResult.why} (
+                          {race.pacingResult.confidence} confidence)
+                        </>
+                      ) : (
+                        <>
+                          Race pacing: <Unavailable state={race.pacingResult} />
+                        </>
+                      )}
+                    </p>
+                  )}
                 </li>
                 {editingId === race.id && (
                   <li>

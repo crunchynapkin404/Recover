@@ -70,7 +70,7 @@ env:
   # seeded plan is a marathon — the race decides the plan's sport. v0.126.0
   # shipped it with 100 PNGs and `0 confirmed` axe violations, not one of
   # which contained it. Its own job, its own owner, its own Postgres.
-  CYCLING_SURFACES: train-workout
+  CYCLING_SURFACES: train-workout,train-races
 
 jobs:
   capture:

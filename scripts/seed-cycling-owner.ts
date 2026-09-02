@@ -52,6 +52,131 @@ function ymd(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+/**
+ * Past races with results, so `train-races` has something to photograph.
+ *
+ * WITHOUT THIS THE SURFACE IS BLANK. Counted in production on 2026-09-02:
+ * `races.resultActivityId` has never been non-null there, not once, so the
+ * comparison v0.129.0 computes and v0.130.0 renders has never appeared on any
+ * screen or in any capture. A seeded athlete is the only way to see it before
+ * a real race produces one.
+ *
+ * THREE of the four refusals are seeded, not four. The Races sheet shows the
+ * three most recent raced events (`RACE_RESULTS_SHOWN` in train/page.tsx), so
+ * a fourth would push one off the surface it exists to photograph — and
+ * widening a product bound to suit a fixture is the guard driving the
+ * coaching. The one left unseeded is "a bike result with no power", chosen
+ * because it is a plain `missingInput` string, where the other three each
+ * render something with more to get wrong: a full comparison, the Strava
+ * firewall's sentence, and a mismatch message that formats two distances.
+ */
+async function seedRaceResults(userId: string): Promise<void> {
+  const past = (days: number) => new Date(Date.now() - days * DAY_MS);
+
+  // AN FTP, WITHOUT WHICH THIS WHOLE FIXTURE PHOTOGRAPHS ONE STATE.
+  //
+  // Found by opening the first capture: all three seeded races rendered the
+  // identical line, "Race pacing: Needs your FTP · Set it". `racePacing`
+  // refuses before it ever looks at the result, so `comparePacing` passes
+  // that refusal through and every row says the same thing — three rows of
+  // evidence for a state that needed one. The seeded athlete had no anchor
+  // of any kind, which is also not what a cycling owner looks like.
+  await db
+    .insert(schema.bodyPrefs)
+    .values({ userId, ftpWatts: 250 })
+    .onConflictDoNothing();
+
+  const cases = [
+    {
+      // AVAILABLE. 90 km at 214 W against a target the model recomputes from
+      // race-day anchors — the state the whole feature exists for.
+      name: "Spring Classic (demo)",
+      days: 30,
+      provider: "intervals_icu" as const,
+      distanceM: 90_000,
+      avgPower: 214,
+      raceDistanceKm: 90,
+    },
+    {
+      // NOT_APPLICABLE — the Strava firewall (Nov 2024 API agreement). Linked
+      // as bookkeeping, never scored. The refusal with a legal obligation
+      // behind it, so the one most worth having a picture of.
+      name: "Summer Century (demo)",
+      days: 60,
+      provider: "strava" as const,
+      distanceM: 160_000,
+      avgPower: 198,
+      raceDistanceKm: 160,
+    },
+    {
+      // NOT_APPLICABLE — the recorded result is nothing like the race's own
+      // distance. A DNF, or the wrong activity linked. Its copy names both
+      // figures, which is the part that can silently stop formatting.
+      name: "Mountain Marathon (demo)",
+      days: 90,
+      provider: "intervals_icu" as const,
+      distanceM: 42_000,
+      avgPower: 205,
+      raceDistanceKm: 120,
+    },
+  ];
+
+  for (const c of cases) {
+    const when = past(c.days);
+    const date = ymd(when);
+    const existing = await db.query.races.findFirst({
+      where: eq(schema.races.name, c.name),
+    });
+    if (existing?.resultActivityId) continue;
+
+    const [activity] = await db
+      .insert(schema.activities)
+      .values({
+        userId,
+        provider: c.provider,
+        externalId: `seed-result-${c.days}`,
+        sport: "Ride",
+        startDate: new Date(date + "T09:00:00"),
+        durationS: 11_000,
+        distanceM: c.distanceM,
+        avgPower: c.avgPower,
+        load: 210,
+      })
+      .onConflictDoNothing()
+      .returning();
+    const resultId =
+      activity?.id ??
+      (
+        await db.query.activities.findFirst({
+          where: eq(schema.activities.externalId, `seed-result-${c.days}`),
+        })
+      )?.id;
+    if (!resultId) continue;
+
+    if (existing) {
+      await db
+        .update(schema.races)
+        .set({ resultActivityId: resultId, status: "completed" })
+        .where(eq(schema.races.id, existing.id));
+      continue;
+    }
+    await db.insert(schema.races).values({
+      userId,
+      name: c.name,
+      raceType: "gran_fondo",
+      sport: "Bike",
+      date,
+      priority: "B",
+      status: "completed",
+      eventDays: 1,
+      distanceKm: c.raceDistanceKm,
+      elevationM: 900,
+      resultActivityId: resultId,
+      debriefedAt: when,
+    });
+  }
+}
+
 async function ensureUser(email: string, password: string): Promise<string> {
   const existing = await db.query.users.findFirst({
     where: eq(schema.users.email, email),
@@ -180,9 +305,29 @@ async function main() {
     process.exit(1);
   }
 
+  await seedRaceResults(userId);
+
+  // Self-check, the same shape as the structured-workout one above: prove the
+  // state came out, rather than trusting that no error means it did. A blank
+  // `train-races` capture would photograph an empty sheet under a name
+  // promising race results — the exact failure `train-workout` was created to
+  // close, repeated one surface along.
+  const raced = await db.query.races.findMany({
+    where: eq(schema.races.userId, userId),
+  });
+  const withResult = raced.filter((r) => r.resultActivityId != null).length;
+  if (withResult < 3) {
+    console.error(
+      `Seeded, but only ${withResult} of ${raced.length} races carry a result. ` +
+        "train-races would photograph a sheet with nothing in it. Refusing."
+    );
+    process.exit(1);
+  }
+
   console.log(
     `Cycling owner ${email} seeded; race ${raceDate}; ` +
-      `${hits} of ${answered.length} sessions have a structured workout.`
+      `${hits} of ${answered.length} sessions have a structured workout; ` +
+      `${withResult} past races carry a result.`
   );
 }
 

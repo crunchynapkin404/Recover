@@ -1,5 +1,68 @@
 # Changelog
 
+## v0.131.0 — 2026-09-02 — The picture nobody could take
+
+v0.130.0 put a finished race's pacing comparison on a screen and said, in its
+own notes, that no capture photographs it. This takes the picture — and the
+picture found two things.
+
+### What you will notice
+
+**The race-result line is readable on a phone.** It used to share a ~130px
+column with the status dropdown and two icon buttons, so a refusal wrapped to
+thirteen lines and pushed the one race that actually HAD a comparison below the
+fold. It now spans the full row. Four races fit where two did.
+
+### What you will not notice
+
+Nothing else. No engine changed, no number moved, no migration.
+
+### Under it
+
+**A seeded athlete with race results, which production does not have.**
+Counted on 2026-09-02: `races.resultActivityId` has never been non-null in
+production — not once, across 3 users and 306 activities. So the only way to
+see this feature before a real race produces one is to seed it.
+`seed-cycling-owner.ts` now creates three past races carrying three DIFFERENT
+states — an available comparison, the Strava-firewall refusal, and a
+distance-mismatch refusal — and refuses to finish if fewer than three carry a
+result, the same self-check shape the structured-workout seed already used.
+
+**Three of four refusals, deliberately, not four.** The sheet shows the three
+most recent raced events, so a fourth would push one off the surface it exists
+to photograph — and widening a product bound to suit a fixture is the guard
+driving the coaching. The one left unseeded is "a bike result with no power",
+chosen because it is a plain string where the other three each render something
+with more to get wrong.
+
+**The first capture photographed one state three times.** All three seeded
+races rendered "Race pacing: Needs your FTP · Set it", because the seeded owner
+had no FTP at all — `racePacing` refuses before it ever looks at a result, so
+`comparePacing` passes that refusal straight through. Three rows of evidence
+for a state that needed one, which is precisely "a capture that passes over a
+state nobody has is not evidence". The seed now sets an FTP, which is also what
+a cycling owner should have looked like all along.
+
+**Both workflows' exception lists, together.** `train-races` needs the seeded
+cycling owner, so it is excepted from the Soak and added to the cycling job —
+in `soak.yml` AND `surfaces.yml`. v0.127.0-rc.1 was killed by its own guard
+because #220 updated one of them and not the other.
+
+### Migrations
+
+**None.** Fixture, workflow config and one layout change.
+
+### What is not proven
+
+**The race name is still truncated on a phone** — "Mounta…", "Summer…". It
+shares the row with the controls and always has; this release did not cause it
+and does not fix it. Now visible in a capture, which is where it should have
+been all along.
+
+**Production still has no race result.** This release makes the feature
+photographable, not exercised. The A-race is 11 days out; its debrief is what
+will produce the first real one.
+
 ## v0.130.0 — 2026-09-02 — A finished race stops vanishing
 
 v0.129.0 could tell you how a race went against its pacing target, and only if
