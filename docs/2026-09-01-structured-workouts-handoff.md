@@ -13,14 +13,14 @@ traps are all still true and still worth reading.
 
 ## State
 
-|            |                                                                        |
-| ---------- | ---------------------------------------------------------------------- |
-| Shipped    | **v0.126.0** (slices 0–4) and **v0.127.0** (slice 5 + the capture job) |
-| Merges     | 13, `#211`–`#224`                                                      |
-| Tests      | **3452 passed, 1 skipped**, no expected fail                           |
-| Library    | **46 workouts, 12 families**, two families at every covered duration   |
-| Migrations | **none** — the export pin lives in the existing week-plan JSON         |
-| Rollback   | reachable only while Soak run **33519240386** exists                   |
+|            |                                                                                      |
+| ---------- | ------------------------------------------------------------------------------------ |
+| Shipped    | **v0.126.0** (slices 0–4), **v0.127.0** (the capture job) and **v0.129.0** (slice 5) |
+| Merges     | 13, `#211`–`#224`                                                                    |
+| Tests      | **3452 passed, 1 skipped**, no expected fail                                         |
+| Library    | **103 workouts, 22 families**, four families at every covered duration               |
+| Migrations | **none** — the export pin lives in the existing week-plan JSON                       |
+| Rollback   | reachable only while Soak run **33519240386** exists                                 |
 
 The feature: Recover planned _"Intervals · 95 min · Z4–Z5"_ and left the rest
 to the athlete. It now plans the session, draws it, and hands it to the head
@@ -42,9 +42,16 @@ Stated plainly rather than implied, because two of these were nearly missed.
   five minutes of alternating work then five easy — but it describes the span
   rather than the structure. Deliberate: a work body holding interior rests is
   described by its span, because vague is recoverable and wrong is not.
-- **Two families is a floor, not a claim about sufficiency.** It is the
-  smallest number at which the pick is a choice at all. Whether 46 workouts
-  feels varied over a season is a question only riding it answers.
+- **Four families is a ratchet, not a claim about sufficiency.** Two is the
+  principle — the smallest number at which the pick is a choice at all — and
+  four is what the library reached. Whether 103 workouts feels varied over a
+  season is a question only riding it answers.
+- **v0.127.0 closed this strand with slice 5's stated target unmet**, and
+  said so nowhere. The slice is named "The library, to 100+"; what shipped
+  under that name was 16 workouts to reach 46. Nothing was broken — coverage
+  was met and guarded — but "two families at every covered duration" had
+  quietly replaced "100+" as the measure, and no test could tell. Closed in
+  v0.129.0 at 103, with `LIBRARY_TARGET` now asserting the number.
 
 ---
 

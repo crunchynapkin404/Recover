@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { allTools } from "@/lib/tools/registry";
+import { LIBRARY } from "@/lib/interval/library";
 
 const roadmap = readFileSync(join(process.cwd(), "docs/ROADMAP.md"), "utf8");
 const readme = readFileSync(join(process.cwd(), "README.md"), "utf8");
@@ -54,6 +55,20 @@ describe("ROADMAP's countable claims", () => {
     const live = /(\d+) tools:/.exec(readme);
     expect(live, "README no longer states a live tool count").not.toBeNull();
     expect(Number(live![1])).toBe(allTools.length);
+  });
+
+  it("states the real size of the workout library, and agrees with README", () => {
+    // ADDED AFTER THE COUNT ROTTED TWICE. README said "a curated library of
+    // thirty" for two releases after v0.127.0 took it to 46, and the spec's
+    // own "100+" target went unmet and unnoticed for a release. Both are the
+    // same failure the token count had: a number quoted in prose that nothing
+    // recomputes. LIBRARY is the one place it can be wrong.
+    expect(claimed(/library of \*\*(\d+) workouts/, "a workout count")).toBe(
+      LIBRARY.length
+    );
+    const live = /curated library of (\d+)\n?\s*hand-authored/.exec(readme);
+    expect(live, "README no longer states a library size").not.toBeNull();
+    expect(Number(live![1])).toBe(LIBRARY.length);
   });
 
   it("states the real size of the design system, both ways", () => {
