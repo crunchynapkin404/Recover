@@ -1,5 +1,42 @@
 # Changelog
 
+## v0.133.0 — 2026-09-02 — The race row stops hiding which race it is
+
+### What you will notice
+
+**Race names and dates are readable.** In Train ▸ Races a row used to render
+"Mounta…" and "gran_fondo · 202…", hiding both which race it was and when. The
+name, the date and the distance now have the row to themselves, with the
+status control and the edit and delete buttons on the line below.
+
+### What you will not notice
+
+Nothing else. No data, no engine, no migration — one element moved.
+
+### Under it
+
+**Not a phone-only problem, which is why there is no breakpoint.** The name
+shared a flex row with a status select and two icon buttons, leaving the text
+about 130px on a 390px phone. But this sheet is a centred panel roughly 490px
+wide on a desktop too, so there was no width at which the old row was roomy.
+This repo uses `lg:` for the nav and nothing else, and introducing a breakpoint
+to fix a layout that was cramped at every size would have been the wrong tool.
+
+**Invisible to every test, by construction.** `truncate` is CSS: the full name
+was always in the DOM, so no assertion could see it was being hidden. It took
+a capture, and a capture is what checks it — `train-races` has been a captured
+surface since v0.131.0 for exactly this reason.
+
+### Migrations
+
+**None.** An image rollback is safe.
+
+### What is not proven
+
+**Nothing yet tests that this stays fixed** beyond the capture. A row with a
+much longer name than the seeded three would wrap further, and no fixture
+carries one.
+
 ## v0.132.0 — 2026-09-02 — One step after a ride
 
 Asked for in as many words: _"at the end of a ride, on a ride review, I want
