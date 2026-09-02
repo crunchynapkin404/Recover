@@ -293,9 +293,16 @@ week`, `Plan setup`, `Races`, `Availability` and the 21-row draft
       things that make it cost more than it reads: the component was
       **deleted** in `ca98ee4`, so either branch begins by rebuilding it,
       and re-materializing would **discard an export pin**, forgetting what
-      Recover sent to the athlete's head unit. Also still open: Season's
-      zero actions, and the Week tab owning the season editing the Season
-      tab only reports.
+      Recover sent to the athlete's head unit.
+      **The other two items this list used to carry are closed**, by the same
+      release that made the finding: "Season's zero actions" and "the Week tab
+      owning the season editing the Season tab only reports" both described an
+      asymmetry between two tabs, and v0.123.0 retired one of them. `TRAIN_TABS`
+      is `week, history, fitness`; `?tab=season` redirects; `train:season` is a
+      `RETIRED_SURFACE_KEYS` entry so its recorded views stay readable. The
+      timeline chart moved to Fitness and the two figures worth reading moved to
+      Week (`SeasonProgress`, whose own comment cites the zero-actions finding as
+      the reason). Week now owns the editing **and** the report.
 - [x] **Visual polish and motion.** Transitions, loading states, density,
       typographic rhythm. **Complete**, nine slices on
       `feat/finish-the-design-system`

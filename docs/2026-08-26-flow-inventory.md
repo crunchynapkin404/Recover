@@ -120,6 +120,14 @@ act. That is a report wearing a tab's clothing, and it is _evidence_ for the
 IA inventory's parked question about whether Season should be a tab at all —
 not taste.
 
+> **Acted on in v0.123.0**, and this finding is why: the tab was retired
+> rather than redesigned. `TRAIN_TABS` is now `week, history, fitness`,
+> `?tab=season` redirects to Week, and `train:season` became a
+> `RETIRED_SURFACE_KEYS` entry so its recorded views stay readable rather
+> than reading as a bug. The timeline chart moved to Fitness; the two figures
+> worth keeping moved to Week as `SeasonProgress`. The measurement above
+> stands as what was true on 2026-08-26.
+
 **Train ▸ History spends more controls on navigation than on content**: seven
 tab controls (four Train tabs + three view tabs) against four surface
 controls. It is the only surface where chrome outnumbers content.
