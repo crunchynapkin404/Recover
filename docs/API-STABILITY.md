@@ -13,8 +13,10 @@ schemas — is **frozen**. The count was **54** when the freeze landed, **56**
 as of v0.26.0 (which added `set_standard_week` and
 `clear_availability_override`), **57** as of v0.43.0, which added
 `confirm_training_plan`, **58** as of v0.116.0, which added
-`get_race_pacing`, and **59** as of v0.119.0, which added
-`get_strength_prescription`. This is the point past which the sweep's
+`get_race_pacing`, **59** as of v0.119.0, which added
+`get_strength_prescription`, and **60** with `get_race_result_pacing`
+(ROADMAP Phase 7's first item — the first read of
+`races.resultActivityId`). This is the point past which the sweep's
 API/MCP freeze task (`docs/specs/2026-07-21-v0.20-final-sweep-design.md`)
 was placed last in the release: nothing else in the sweep touches a tool
 schema after this doc and its guard test land.
@@ -36,7 +38,7 @@ For each tool in `allTools`:
   new _optional_ field) are allowed without bumping past a minor version,
   but still require updating the frozen snapshot deliberately (see below)
   and a CHANGELOG entry.
-- The **tool count** (59) is asserted directly, so an accidental add or
+- The **tool count** (60) is asserted directly, so an accidental add or
   remove is caught even in the pathological case where a rename happens to
   collide with another entry's old name.
 
@@ -62,7 +64,7 @@ edit.
 `src/lib/tools/__tests__/frozen-tools.test.ts` is the enforcement
 mechanism, not just documentation of intent:
 
-- `MCP tool count is frozen` — fails if `allTools.length !== 59`.
+- `MCP tool count is frozen` — fails if `allTools.length !== 60`.
 - `MCP tool surface is frozen (names + scopes + schemas)` — snapshots
   `{ name, scope, schema }` for every tool, sorted by name, via Vitest's
   `toMatchSnapshot()` against

@@ -125,7 +125,7 @@ OpenAI-compatible endpoint including a fully local Ollama. Keys are encrypted
 - **MCP server** — stateless streamable-HTTP endpoint at `/api/mcp` with
   hashed, scoped (`read` / `write:wellness` / `write:plan` / `write:memory` /
   `write:strava` / `write:icu`), revocable bearer tokens and rate limiting.
-  59 tools: readiness (+ history), wellness, log-wellness, fitness &
+  60 tools: readiness (+ history), wellness, log-wellness, fitness &
   training-load summaries, power/pace curves, best efforts, activity list &
   detail, athlete profile, planned workouts, calendar availability, coach
   memory (remember/forget), recall over history (full-text search across past
@@ -133,7 +133,7 @@ OpenAI-compatible endpoint including a fully local Ollama. Keys are encrypted
   generate/get/confirm/update, Strava description write-back, the living week
   (get plan / set availability / standard week / clear override / drift),
   biomarkers, strength prescription, and races (get/upsert/delete/simulate
-  plan change/pacing). Also a full intervals.icu tool set absorbed from the
+  plan change/pacing/pacing-vs-result). Also a full intervals.icu tool set absorbed from the
   standalone `intervals-icu-mcp` server: calendar events (list/get/create/
   update/delete/bulk/duplicate), activity edits and messages, wellness push,
   sport settings, an apply-training-plan action, per-activity histograms
@@ -194,7 +194,7 @@ fills a demo account with 90 days of plausible training history (see
 
 ## Status & roadmap
 
-**Current release: v0.127.0.** See the
+**Current release: v0.128.0.** See the
 [GitHub releases page](https://github.com/crunchynapkin404/Recover/releases)
 or [CHANGELOG.md](CHANGELOG.md) for what shipped and when.
 
