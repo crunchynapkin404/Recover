@@ -436,10 +436,12 @@
     @apply bg-background text-foreground;
     /* On the scale as of Phase 6.4 slice 4. This sat at the pre-redesign
        15px from v0.99, under a comment promising it would move "until the
-       last surface migrates (slice 9)". Slice 9 never ran — 2b.4 shipped
-       slices 0-6 and the rest were reorganised away — so the note stood for
-       thirteen releases. Slice 3b finished that work, which made the
-       condition true, so the wait is over.
+       last surface migrates (slice 9)". 2b.4's slice 9 DID run, in v0.111.0
+       — the reading that it never did was inferred from `docs/plans/`
+       stopping at a slice-6 file, and `git log` has it; `docs/ROADMAP.md`
+       carries that correction. What slice 9 shipped without was this flip,
+       so the note stood for thirteen releases either way. Slice 3b finished
+       the work, which made the condition true, so the wait is over.
 
        While this was 15px the scale disagreed with the element it describes:
        --text-body is 16px, so the 12 `text-body` call sites rendered a pixel
