@@ -1,6 +1,6 @@
 # Roadmap
 
-Current release: **v0.127.0**. History through v0.119 is preserved in
+Current release: **v0.128.0**. History through v0.119 is preserved in
 [`docs/archive/ROADMAP-through-v0.119.md`](archive/ROADMAP-through-v0.119.md) —
 Phases 1–4, all complete. It is a record, not a plan.
 
@@ -65,9 +65,9 @@ around future races), six wellness/activity sources (intervals.icu, Strava,
 Whoop, Oura, Apple Health, Withings), training history, multiple time blocks
 per day, running, and strength (v0.119.0).
 
-**Mechanically sound.** 3459 tests at v0.127.0, 46 migrations, zero confirmed
+**Mechanically sound.** 3490 tests at v0.128.0, 46 migrations, zero confirmed
 axe violations across the app, a 197-token design system across 283
-declarations in two themes (`docs/design-system.md`), a 59-tool MCP surface,
+declarations in two themes (`docs/design-system.md`), a 60-tool MCP surface,
 and a release path that is fully automated end to end (`docs/RELEASING.md`).
 The migration, token and tool figures are asserted by
 `tests/roadmap-figures.test.ts`; the test count is dated because it changes on
@@ -76,9 +76,12 @@ well.
 
 **The remaining debt is epistemic, not functional.** 102 of 120 exported
 engine constants carry `Confidence: Low` (16 Medium, 2 High). And
-`races.resultActivityId` — how each race actually went — is stored, exposed
-over MCP, and round-tripped on import, but nothing reads it. Phase 7 exists
-because of that gap, not because of the numbers above.
+`races.resultActivityId` — how each race actually went — was stored, exposed
+over MCP, and round-tripped on import while nothing read it. Phase 7 exists
+because of that gap, not because of the numbers above. **The first read of it
+has landed** — pacing predicted against pacing held (`src/lib/race/pacing-result.ts`,
+`get_race_result_pacing`). The demand/feasibility half, the athlete-facing
+surface, and the calibration the whole phase is for are still open.
 
 Board re-read 2026-08-24 with a structured scrape. **An earlier refresh the
 same day was wrong** — it read each card's vote count from the row above,
@@ -391,7 +394,39 @@ the evidence supports it. This overlaps Phase 6 rather than queueing behind
 it: the engine work is small, and the surface ("we predicted 208 W, you held
 214 W") is experience work.
 
-- [ ] Compare predicted race pacing against the actual result activity.
+- [x] Compare predicted race pacing against the actual result activity.
+      `src/lib/race/pacing-result.ts` (pure) + `racePacingResult` in
+      `race/service.ts` (assembly) + `get_race_result_pacing`. Target, band,
+      what was actually held, the signed delta, and a verdict of
+      harder/inside/easier — in EFFORT terms for both sports, which for a run
+      inverts against the raw seconds-per-km delta.
+      **The target was never recorded before the start**, so it is recomputed
+      — and the one decision that makes that honest is which anchors it is
+      recomputed from. `pacingAnchors(userId, asOf)` reconstructs them as of
+      race-day 00:00, because both anchors move on the race itself: a hard
+      event routinely raises synced eFTP, and with no athlete-set threshold
+      pace the derived run anchor takes the fastest run on file, which IS the
+      race. Either one would have the model marking its own homework —
+      scoring a personal best as a shortfall, or predicting roughly the pace
+      that was just run and calling a breakthrough unremarkable. Both are
+      mutation-verified: drop the `asOf` and a test goes red for each.
+      `body_prefs` has no history, so an athlete-SET anchor is still today's
+      value; the figure's `why` says the target was not recorded beforehand,
+      which is exactly that limit.
+      **It refuses in four ways rather than guessing**: no result linked yet,
+      a Strava result (the firewall `debrief.ts` already holds — linked as
+      bookkeeping, never scored in an AI surface), a bike result with no
+      power, and a result whose distance is more than
+      `RESULT_DISTANCE_TOLERANCE` from the race's own — a DNF or a mis-linked
+      activity, where "you held 8% under target" would read as a verdict on
+      pacing rather than on a race that did not happen. That tolerance is a
+      new uncited engineering bound, declared in the voice
+      `PACING_BAND_FRACTION` and `ADHERENCE_CEIL` use.
+      **It moved no constant off `Confidence: Low`, and claims nothing new.**
+      The comparison inherits the prediction's confidence exactly — measuring
+      what the athlete held is certain, but what it MEANS is only as good as
+      the target it is held against. Calibration is a later slice with its own
+      evidence.
 - [ ] Compare the demand/feasibility estimate against what the athlete
       actually did.
 - [ ] Surface the comparison to the athlete — the one capability that

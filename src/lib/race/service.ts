@@ -1,7 +1,19 @@
 // src/lib/race/service.ts — race CRUD. Pure race math lives in taper.ts /
 // forecast.ts; this layer only touches the DB.
-import { and, asc, desc, eq, gte, inArray, lte, ne } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  gte,
+  inArray,
+  isNotNull,
+  lt,
+  lte,
+  ne,
+} from "drizzle-orm";
 import { db, schema } from "@/lib/db";
+import type { Figure } from "@/lib/uncertainty";
 import type { Projected } from "@/lib/db/projected";
 import type { PlanSport } from "@/lib/plan-sport";
 import type { RaceContext } from "./taper";
@@ -15,6 +27,8 @@ import {
   ANCHOR_CONSTANTS,
   thresholdPaceFromHistory,
 } from "@/lib/week-plan/anchors";
+import { racePacing } from "./pacing";
+import { comparePacing, type PacingComparison } from "./pacing-result";
 
 export type RaceRow = typeof schema.races.$inferSelect;
 export type RacePriority = "A" | "B" | "C";
@@ -454,8 +468,25 @@ export async function assembleForecastInputs(
  * `weakestAnchorSource` tri-state; `runPace` stays a plain athlete-set vs.
  * derived boolean, matching demand.ts's `runPace.athleteSet` (and
  * `swimPace.athleteSet`, for the leg this function doesn't resolve).
+ *
+ * `asOf` reconstructs the anchors AS THEY STOOD at an instant, for scoring a
+ * finished race against the target it was actually given (pacing-result.ts).
+ * Without it a race that raised the athlete's synced eFTP would be compared
+ * against a target inflated by its own result — the athlete would read
+ * "you held 6% under" for a race that set a personal best. Two sources move
+ * with it: `wellnessDaily` (dated, so it filters) and the run-anchor history
+ * window, which becomes `[asOf - WINDOW_DAYS, asOf)` — the exclusive upper
+ * bound is what keeps the race itself out of the anchor it is scored against.
+ *
+ * `bodyPrefs` has NO history, so an athlete-set FTP or threshold pace is
+ * whatever it is today even under `asOf`. That is a real limit of the
+ * reconstruction, not an oversight: the figure's `why` says the target was
+ * never recorded before the start, which is exactly this.
  */
-export async function pacingAnchors(userId: string): Promise<{
+export async function pacingAnchors(
+  userId: string,
+  asOf?: Date
+): Promise<{
   ftpWatts: number | null;
   massKg: number | null;
   thresholdPaceSecPerKm: number | null;
@@ -468,7 +499,10 @@ export async function pacingAnchors(userId: string): Promise<{
   // NOTE: the column is `date`, not `day` — a Postgres `date` that drizzle
   // types as a string. volume-inputs.ts:46 carries the warning.
   const latest = await db.query.wellnessDaily.findMany({
-    where: eq(schema.wellnessDaily.userId, userId),
+    where: and(
+      eq(schema.wellnessDaily.userId, userId),
+      ...(asOf ? [lte(schema.wellnessDaily.date, localYmd(asOf))] : [])
+    ),
     orderBy: [desc(schema.wellnessDaily.date)],
     limit: 60,
   });
@@ -483,12 +517,15 @@ export async function pacingAnchors(userId: string): Promise<{
   const runPaceSet = prefs?.thresholdPaceSecPerKm ?? null;
   let runPaceDerived: number | null = null;
   if (runPaceSet == null) {
-    const floor = new Date();
+    const floor = new Date(asOf ?? new Date());
     floor.setDate(floor.getDate() - ANCHOR_CONSTANTS.WINDOW_DAYS);
     const anchorRows = await db.query.activities.findMany({
       where: and(
         eq(schema.activities.userId, userId),
-        gte(schema.activities.startDate, floor)
+        gte(schema.activities.startDate, floor),
+        // Exclusive, and only under `asOf`: the race being scored must not
+        // become the anchor its own target is derived from.
+        ...(asOf ? [lt(schema.activities.startDate, asOf)] : [])
       ),
       columns: { sport: true, distanceM: true, durationS: true },
     });
@@ -511,5 +548,100 @@ export async function pacingAnchors(userId: string): Promise<{
     // riding-time.ts charges mass against every metre of climbing.
     massKg: weightKg != null ? weightKg + 8 : null,
     thresholdPaceSecPerKm: runPaceSet ?? runPaceDerived,
+  };
+}
+
+/**
+ * The most recently raced race that has a result linked to it.
+ *
+ * Ordered by race DATE, not by when the row was written or debriefed: "how
+ * did my last race go" is a question about the calendar. `status` is not
+ * filtered — the debrief sets `completed` in the same transaction it links
+ * the result, but an athlete (or an import) can leave a linked race
+ * `upcoming`, and refusing to read a result that plainly exists would be a
+ * gap with no reason behind it.
+ */
+export async function lastRacedRace(userId: string): Promise<RaceRow | null> {
+  const row = await db.query.races.findFirst({
+    where: and(
+      eq(schema.races.userId, userId),
+      isNotNull(schema.races.resultActivityId)
+    ),
+    orderBy: [desc(schema.races.date), desc(schema.races.createdAt)],
+  });
+  return row ?? null;
+}
+
+export interface RacePacingResult {
+  race: RaceRow;
+  comparison: Figure<PacingComparison>;
+}
+
+/**
+ * Predicted pacing against what the athlete actually did — the read path for
+ * ROADMAP Phase 7's first item, and the only place `races.resultActivityId`
+ * is turned into a number rather than passed along.
+ *
+ * Assembly only; every judgement is in the pure `comparePacing`. The one
+ * decision made HERE is which anchors to predict from: those on file at the
+ * START of race day, not today's. See `pacingAnchors`' `asOf`.
+ *
+ * Returns null only when there is no such race at all — a race with no
+ * usable result still comes back, carrying a `comparison` that says why.
+ */
+export async function racePacingResult(
+  userId: string,
+  raceId?: string
+): Promise<RacePacingResult | null> {
+  const race = raceId
+    ? ((await db.query.races.findFirst({
+        where: and(
+          eq(schema.races.id, raceId),
+          eq(schema.races.userId, userId)
+        ),
+      })) ?? null)
+    : await lastRacedRace(userId);
+  if (!race) return null;
+
+  const raceDayStart = new Date(race.date + "T00:00:00");
+  const anchors = await pacingAnchors(userId, raceDayStart);
+  const predicted = racePacing({
+    sport: race.sport,
+    distanceKm: race.distanceKm,
+    elevationM: race.elevationM,
+    eventDays: race.eventDays ?? 1,
+    ftpWatts: anchors.ftpWatts,
+    massKg: anchors.massKg,
+    thresholdPaceSecPerKm: anchors.thresholdPaceSecPerKm,
+    ftpSource: anchors.ftpSource,
+    runPaceAthleteSet: anchors.runPaceAthleteSet,
+  });
+
+  const result = race.resultActivityId
+    ? ((await db.query.activities.findFirst({
+        where: and(
+          eq(schema.activities.id, race.resultActivityId),
+          eq(schema.activities.userId, userId)
+        ),
+        columns: {
+          provider: true,
+          avgPower: true,
+          durationS: true,
+          distanceM: true,
+        },
+      })) ?? null)
+    : null;
+
+  return {
+    race,
+    comparison: comparePacing({
+      predicted,
+      raceDistanceKm: race.distanceKm,
+      // The Strava firewall is enforced inside comparePacing, which refuses a
+      // Strava result by NAME rather than by filtering it out here: the
+      // athlete gets told why there is no comparison, instead of a race that
+      // plainly has a result reading as though it has none.
+      actual: result,
+    }),
   };
 }

@@ -1,5 +1,85 @@
 # Changelog
 
+## v0.128.0 — 2026-09-02 — What you actually held
+
+Recover has told you how hard to go in your next race since v0.116.0. It has
+stored how that race actually went since v0.14, and never once looked at it.
+This release closes the loop in one direction: predicted pacing against the
+pacing you held.
+
+### What you will notice
+
+**Ask your coach how your last race went, and it now has the number.** "We had
+you at 208 W; you held 214 W — above the band" is an answer it could not
+previously give, because nothing read `races.resultActivityId`. The same
+capability is `get_race_result_pacing` over MCP.
+
+**It says what it does not know, in the same breath.** The target was never
+recorded before your start — nothing writes a prediction down on race day — so
+it is recomputed, and the figure says so every time rather than presenting a
+reconstruction as a record.
+
+### What you will not notice
+
+**Nothing on screen changed.** There is no race-result line on Train, no chip,
+no card. This release is the engine and the coach's access to it; the athlete-
+facing surface is the next item on the same list and is not in here. Nothing
+else moved either: no plan re-generated, no number recalculated, no migration.
+
+### Under it
+
+**The model does not get to mark its own homework.** Recomputing the target
+from today's anchors would score a race against a target its own result
+inflated, and both anchors move on the race itself: a hard event routinely
+raises synced eFTP, and with no athlete-set threshold pace the derived run
+anchor takes the fastest run on file — which IS the race. So the anchors are
+reconstructed as of race-day 00:00, with an exclusive upper bound on the
+run-anchor window. Without the first, a personal best reads as a shortfall;
+without the second, the model predicts roughly the pace that was just run and
+calls a breakthrough unremarkable. Both are mutation-verified — drop either and
+a named test goes red. `body_prefs` has no history, so an athlete-SET anchor is
+still today's value, and that limit is in the figure's own words.
+
+**The verdict is in effort, and for a run that inverts.** `harder` means above
+the band, which for a run is a FASTER pace — a LOWER seconds-per-km. The raw
+`deltaSecPerKm` keeps its own units, so a positive value there is slower and
+therefore easier. A comparison that copied the bike branch would read every
+fast run as easy, and no type catches it; that is the mutation
+`pacing-result.test.ts` exists for.
+
+**It refuses four ways rather than guessing.** No result linked yet; a Strava
+result, which is linked as bookkeeping but never scored in an AI surface (the
+firewall `debrief.ts` already holds, Nov 2024 API agreement); a bike result
+with no power; and a result whose distance is too far from the race's own — a
+DNF or a mis-linked activity, where "you held 8% under target" would read as a
+verdict on your pacing rather than on a race that did not happen. That last
+tolerance is a new uncited engineering bound and is declared as one.
+
+**The MCP surface grows to 60 tools**, additively: `get_race_result_pacing`,
+one new optional argument, no existing schema touched.
+
+### Migrations
+
+**None.** `races.resultActivityId` has existed since v0.14 — this release is
+the first thing to read it. An image rollback is safe.
+
+### What is not proven
+
+**No constant moved off `Confidence: Low`, and none was going to.** The
+comparison inherits the prediction's confidence exactly. Measuring what you
+held is certain; what it MEANS is only as good as the target it is held
+against, and that target is the same interpolated engineering reading it was
+last release. Calibration is a later slice with its own evidence — and per this
+file's own discipline, a calibration pass that concludes "still Low" is a
+successful pass.
+
+**One athlete's races are not a calibration set.** This ships the mechanism
+that makes calibration possible, not any evidence from it.
+
+**Nobody has seen this rendered, because there is nothing to render.** The
+tool path is tested end to end against a real database; no capture photographs
+it, and none can until the surface exists.
+
 ## v0.127.0 — 2026-09-01 — A second family at every duration
 
 v0.126.0 gave every training day a real session. This one makes sure it is not
