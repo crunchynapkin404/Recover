@@ -65,10 +65,14 @@ around future races), six wellness/activity sources (intervals.icu, Strava,
 Whoop, Oura, Apple Health, Withings), training history, multiple time blocks
 per day, running, and strength (v0.119.0).
 
-**Mechanically sound.** 3452 tests (1 skipped), 46 migrations, zero confirmed axe
-violations across the app, an 83-token design system
-(`docs/design-system.md`), a 59-tool MCP surface, and a release path that is
-fully automated end to end (`docs/RELEASING.md`).
+**Mechanically sound.** 3458 tests at v0.127.0, 46 migrations, zero confirmed
+axe violations across the app, a 197-token design system across 283
+declarations in two themes (`docs/design-system.md`), a 59-tool MCP surface,
+and a release path that is fully automated end to end (`docs/RELEASING.md`).
+The migration, token and tool figures are asserted by
+`tests/roadmap-figures.test.ts`; the test count is dated because it changes on
+almost every pull request, and a guard on it would fail work that is going
+well.
 
 **The remaining debt is epistemic, not functional.** 102 of 120 exported
 engine constants carry `Confidence: Low` (16 Medium, 2 High). And
