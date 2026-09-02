@@ -435,7 +435,17 @@ it: the engine work is small, and the surface ("we predicted 208 W, you held
       actually did.
 - [ ] Surface the comparison to the athlete — the one capability that
       requires this athlete's own history, which no competitor can do
-      without their data.
+      without their data. **Specced 2026-09-02**:
+      `docs/specs/2026-09-02-race-result-surface-design.md`. Measuring the
+      surface changed what the item is: a finished race currently vanishes
+      from every screen, because `RaceChip` is built from `nextUpcomingRace`
+      and the debrief sets `completed` in the same transaction it links the
+      result. So this is not a line on the race card — that card is gone by
+      the time there is anything to say. The spec puts the durable answer in
+      the Races sheet, which already lists completed races and has never put
+      anything useful in them, and hands the same figure to the debrief as a
+      stat line. It names one question for the owner: whether a finished race
+      should merely be findable, or should meet the athlete.
 
 **The discipline that makes this honest:** calibration may only raise a
 confidence label when the evidence genuinely supports the raise. A
