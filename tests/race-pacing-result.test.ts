@@ -473,3 +473,122 @@ describe.skipIf(!hasDb)(
     });
   }
 );
+
+/**
+ * THE DEFECT THIS BLOCK EXISTS FOR, made while writing it. The debrief
+ * composes its message BEFORE the transaction that writes
+ * `races.resultActivityId`. The first version called `racePacingResult`,
+ * which reads that column — so it found no result linked, refused, and added
+ * no line. Every time. Silently, because a missing stat line looks exactly
+ * like a race with nothing to say about it.
+ *
+ * `pacingResultForRace` takes the activity the debrief already holds. This
+ * asserts the sentence reaches the athlete, on the DETERMINISTIC template
+ * rather than the LLM path — `runRaceDebriefs` takes an `llm` override for
+ * exactly this reason.
+ */
+describe.skipIf(!hasDb)("the debrief carries the pacing comparison", () => {
+  const USER4 = `${USER}-debrief`;
+  const now = new Date();
+  const raceDate = ymdOffset(now, -1);
+
+  async function cleanup4() {
+    const { db, schema } = await import("@/lib/db");
+    const threads = await db.query.chatThreads.findMany({
+      where: eq(schema.chatThreads.userId, USER4),
+    });
+    for (const t of threads)
+      await db
+        .delete(schema.chatMessages)
+        .where(eq(schema.chatMessages.threadId, t.id));
+    await db
+      .delete(schema.chatThreads)
+      .where(eq(schema.chatThreads.userId, USER4));
+    await db.delete(schema.races).where(eq(schema.races.userId, USER4));
+    await db
+      .delete(schema.activities)
+      .where(eq(schema.activities.userId, USER4));
+    await db.delete(schema.bodyPrefs).where(eq(schema.bodyPrefs.userId, USER4));
+    await db.delete(schema.users).where(eq(schema.users.id, USER4));
+  }
+
+  beforeAll(async () => {
+    await cleanup4();
+    const { db, schema } = await import("@/lib/db");
+    await db.insert(schema.users).values({
+      id: USER4,
+      name: "Debriefed Racer",
+      email: "race-pacing-debrief@example.invalid",
+    });
+    await db.insert(schema.bodyPrefs).values({ userId: USER4, ftpWatts: 250 });
+    await db.insert(schema.activities).values({
+      userId: USER4,
+      provider: "intervals_icu",
+      externalId: "debrief-pacing-result",
+      sport: "Ride",
+      startDate: new Date(raceDate + "T09:00:00"),
+      durationS: 11_000,
+      distanceM: 90_000,
+      avgPower: 214,
+      load: 210,
+    });
+    await db.insert(schema.races).values({
+      userId: USER4,
+      name: "Debrief Fondo",
+      raceType: "road",
+      sport: "Bike",
+      date: raceDate,
+      priority: "A",
+      distanceKm: 90,
+      elevationM: 900,
+    });
+  });
+  afterAll(cleanup4);
+
+  it("puts the comparison in the posted debrief, in the same words the sheet uses", async () => {
+    const { db, schema } = await import("@/lib/db");
+    const { runRaceDebriefs } = await import("@/lib/race/debrief");
+    // Empty string from the override falls through to the deterministic
+    // template, which is the text this asserts on.
+    expect(await runRaceDebriefs(USER4, { llm: async () => "" })).toBe(
+      "posted"
+    );
+
+    const thread = await db.query.chatThreads.findFirst({
+      where: eq(schema.chatThreads.userId, USER4),
+    });
+    const messages = await db.query.chatMessages.findMany({
+      where: eq(schema.chatMessages.threadId, thread!.id),
+    });
+    const text = messages.map((m) => m.content).join("\n");
+    expect(text).toContain("you held 214 W");
+    expect(text).toMatch(/Predicted \d+ W/);
+    // The verdict in words, not left to the sign of a delta.
+    expect(text).toMatch(
+      /harder than the band|inside the band|easier than the band/
+    );
+  });
+
+  it("says the same thing the sheet would, from the same figure", async () => {
+    const { racePacingResult } = await import("@/lib/race/service");
+    const { describePacingResult } =
+      await import("@/lib/race/pacing-result-copy");
+    const { db, schema } = await import("@/lib/db");
+    // After the debrief the row IS linked, so the sheet's read path works.
+    const fromSheet = await racePacingResult(USER4);
+    if (!fromSheet?.comparison.available) {
+      throw new Error("expected the sheet path to produce a comparison");
+    }
+    const thread = await db.query.chatThreads.findFirst({
+      where: eq(schema.chatThreads.userId, USER4),
+    });
+    const messages = await db.query.chatMessages.findMany({
+      where: eq(schema.chatMessages.threadId, thread!.id),
+    });
+    // One sentence, one source. If these ever diverge the athlete's screen and
+    // their coach are describing the same race two different ways.
+    expect(messages.map((m) => m.content).join("\n")).toContain(
+      describePacingResult(fromSheet.comparison.value)
+    );
+  });
+});

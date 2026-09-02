@@ -28,7 +28,11 @@ import {
   thresholdPaceFromHistory,
 } from "@/lib/week-plan/anchors";
 import { racePacing } from "./pacing";
-import { comparePacing, type PacingComparison } from "./pacing-result";
+import {
+  comparePacing,
+  type ActualEffort,
+  type PacingComparison,
+} from "./pacing-result";
 
 export type RaceRow = typeof schema.races.$inferSelect;
 export type RacePriority = "A" | "B" | "C";
@@ -589,6 +593,49 @@ export interface RacePacingResult {
  * Returns null only when there is no such race at all — a race with no
  * usable result still comes back, carrying a `comparison` that says why.
  */
+/**
+ * The comparison for a race whose result activity the caller ALREADY HOLDS.
+ *
+ * Exists because the post-race debrief needs the figure while composing the
+ * message it posts — and at that moment the race row has NOT been updated:
+ * `resultActivityId` is written in the same transaction as the message, below
+ * the composition. Calling `racePacingResult` there reads a row with no result
+ * linked and refuses every time, silently, which is exactly the shape of
+ * defect that ships.
+ *
+ * Split out rather than duplicated so both callers run ONE derivation. The
+ * anchors decision (as of race-day 00:00) lives here, once.
+ */
+export async function pacingResultForRace(
+  userId: string,
+  race: RaceRow,
+  result: ActualEffort | null
+): Promise<Figure<PacingComparison>> {
+  const anchors = await pacingAnchors(
+    userId,
+    new Date(race.date + "T00:00:00")
+  );
+  return comparePacing({
+    predicted: racePacing({
+      sport: race.sport,
+      distanceKm: race.distanceKm,
+      elevationM: race.elevationM,
+      eventDays: race.eventDays ?? 1,
+      ftpWatts: anchors.ftpWatts,
+      massKg: anchors.massKg,
+      thresholdPaceSecPerKm: anchors.thresholdPaceSecPerKm,
+      ftpSource: anchors.ftpSource,
+      runPaceAthleteSet: anchors.runPaceAthleteSet,
+    }),
+    raceDistanceKm: race.distanceKm,
+    // The Strava firewall is enforced inside comparePacing, which refuses a
+    // Strava result by NAME rather than by filtering it out here: the athlete
+    // gets told why there is no comparison, instead of a race that plainly
+    // has a result reading as though it has none.
+    actual: result,
+  });
+}
+
 export async function racePacingResult(
   userId: string,
   raceId?: string
@@ -602,20 +649,6 @@ export async function racePacingResult(
       })) ?? null)
     : await lastRacedRace(userId);
   if (!race) return null;
-
-  const raceDayStart = new Date(race.date + "T00:00:00");
-  const anchors = await pacingAnchors(userId, raceDayStart);
-  const predicted = racePacing({
-    sport: race.sport,
-    distanceKm: race.distanceKm,
-    elevationM: race.elevationM,
-    eventDays: race.eventDays ?? 1,
-    ftpWatts: anchors.ftpWatts,
-    massKg: anchors.massKg,
-    thresholdPaceSecPerKm: anchors.thresholdPaceSecPerKm,
-    ftpSource: anchors.ftpSource,
-    runPaceAthleteSet: anchors.runPaceAthleteSet,
-  });
 
   const result = race.resultActivityId
     ? ((await db.query.activities.findFirst({
@@ -632,16 +665,5 @@ export async function racePacingResult(
       })) ?? null)
     : null;
 
-  return {
-    race,
-    comparison: comparePacing({
-      predicted,
-      raceDistanceKm: race.distanceKm,
-      // The Strava firewall is enforced inside comparePacing, which refuses a
-      // Strava result by NAME rather than by filtering it out here: the
-      // athlete gets told why there is no comparison, instead of a race that
-      // plainly has a result reading as though it has none.
-      actual: result,
-    }),
-  };
+  return { race, comparison: await pacingResultForRace(userId, race, result) };
 }

@@ -23,6 +23,11 @@ export interface RaceStageItem {
   elevationM: number | null;
 }
 
+import type { Figure } from "@/lib/uncertainty";
+import type { PacingComparison } from "@/lib/race/pacing-result";
+import { describePacingResult } from "@/lib/race/pacing-result-copy";
+import { Unavailable } from "@/components/ui/unavailable";
+
 export interface RaceListItem {
   id: string;
   name: string;
@@ -43,6 +48,16 @@ export interface RaceListItem {
   distanceKm: number | null;
   /** TOTAL elevation gain across all days, m. */
   elevationM: number | null;
+  /**
+   * How this race actually went against its pacing target, or the stated
+   * reason there is no comparison. Null on a race that was never raced —
+   * distinct from an unavailable Figure, which means the race HAS a result
+   * (or should) and something specific is in the way.
+   *
+   * Computed server-side (`racePacingResult`) and passed in: this is a client
+   * component, and the derivation reads three tables.
+   */
+  pacingResult?: Figure<PacingComparison> | null;
   /** Per-day stage detail on file for this race, day-ascending. Distinct
    * from `eventDays > 1`, since a multi-day event can still have only the
    * totals filled in — an empty array here means no per-day detail, not
@@ -599,6 +614,33 @@ export function RacesSection({ races, hideHeading = false }: Props) {
                     <p className="mt-0.5 truncate text-label text-ink-muted">
                       {demandSummary(race)}
                     </p>
+                    {/* How it actually went. Only ever present on a race with
+                        a result (or one that should have had one), so an
+                        upcoming race is unchanged. NOT truncated, unlike the
+                        three lines above: the `why` says the target was not
+                        recorded before the start, and that is the half a
+                        clipped line would lose. */}
+                    {race.pacingResult && (
+                      <p
+                        data-race-pacing-result
+                        className="mt-1 text-label text-ink-muted"
+                      >
+                        {race.pacingResult.available ? (
+                          <>
+                            <span className="font-bold text-ink-secondary">
+                              {describePacingResult(race.pacingResult.value)}
+                            </span>{" "}
+                            {race.pacingResult.why} (
+                            {race.pacingResult.confidence} confidence)
+                          </>
+                        ) : (
+                          <>
+                            Race pacing:{" "}
+                            <Unavailable state={race.pacingResult} />
+                          </>
+                        )}
+                      </p>
+                    )}
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
                     <select

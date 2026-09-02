@@ -27,6 +27,8 @@ import { disciplinesOf, requirePlanSport } from "@/lib/plan-sport";
 import { findOrCreateMorningThread } from "@/lib/morning-insight";
 import { describeActivityOnStravaForUser } from "@/lib/strava-describer";
 import { currentTargetLoad } from "@/lib/week-plan/volume";
+import { pacingResultForRace } from "./service";
+import { describePacingResult } from "./pacing-result-copy";
 import { plannedMins } from "@/lib/week-plan/fill";
 import type { DaySlot } from "@/lib/week-plan/types";
 
@@ -273,6 +275,25 @@ export async function runRaceDebriefs(
       statLines.push(
         `The result is a Strava activity — its numbers are excluded from AI analysis (provider agreement), so this debrief has no race stats.`
       );
+    }
+
+    // How the pacing target held up. The SAME figure and the SAME sentence
+    // the Races sheet shows — `describePacingResult` exists so the athlete's
+    // screen and their coach cannot phrase one race two ways.
+    //
+    // `pacingResultForRace`, NOT `racePacingResult`: this runs while the
+    // message is being composed, and `resultActivityId` is not written until
+    // the transaction below. Reading the row here would find no result linked
+    // and refuse every single time, silently. `match` is the activity, and we
+    // already hold it.
+    //
+    // The Strava firewall needs no repeating: `comparePacing` refuses a
+    // Strava result by name, so a Strava race contributes no line — the same
+    // outcome as the `isStrava` branch above, reached by the rule rather than
+    // by a second copy of it.
+    const pacing = await pacingResultForRace(userId, race, match);
+    if (pacing.available) {
+      statLines.push(`${describePacingResult(pacing.value)}.`);
     }
 
     // Taper adherence: last two closed blocks of the plan actually linked to
