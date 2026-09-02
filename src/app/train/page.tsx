@@ -1139,10 +1139,18 @@ async function WeekTab({
           reported and nowhere it is executed. A live press had already
           left one athlete's block at 0 against a real week of 259.
 
-          Re-enabling this needs a decision, not a patch: either the action
+          Re-enabling this needed a decision, not a patch: either the action
           re-materializes the open week, or the copy describes the skeleton
-          it actually edits. Until then the controls stay off rather than
-          promising "Ease -30% · Deload -50%" and doing none of it.
+          it actually edits.
+
+          DECIDED 2026-09-01 — NEITHER. It is not coming back. The need it
+          served is already met, and better: readiness adaptation eases the
+          week automatically off sourced constants, `zeroDay` ("No time
+          today") pins a date to zero as a durable override, and Move
+          retargets a session. Per-day and measured beats blanket and
+          guessed — and "-30%" is a figure with no source, which
+          ROADMAP.md:24 makes a hard gate. See that file's flow-and-friction
+          entry for the full argument, including why the cost had risen.
 
           TWO THINGS HAVE CHANGED SINCE THAT WAS WRITTEN (2026-08-08), and
           both make the choice cost more than it reads here.
