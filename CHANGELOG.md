@@ -1,49 +1,20 @@
 # Changelog
 
-## v0.133.0 — 2026-09-02 — The race row stops hiding which race it is
+## v0.133.0 — 2026-09-02 — One step after a ride, and two things a picture found
 
-### What you will notice
+**Three merged changes, one tag.** They were separate branches and separate
+CHANGELOG headings; only one release is cut from this commit, so v0.131.0 and
+v0.132.0 would have been headings no tag, image or release page ever matched.
+Consolidated rather than left orphaned — the same correction #238 made, and
+the reason it is stated here rather than done quietly.
 
-**Race names and dates are readable.** In Train ▸ Races a row used to render
-"Mounta…" and "gran_fondo · 202…", hiding both which race it was and when. The
-name, the date and the distance now have the row to themselves, with the
-status control and the edit and delete buttons on the line below.
-
-### What you will not notice
-
-Nothing else. No data, no engine, no migration — one element moved.
-
-### Under it
-
-**Not a phone-only problem, which is why there is no breakpoint.** The name
-shared a flex row with a status select and two icon buttons, leaving the text
-about 130px on a 390px phone. But this sheet is a centred panel roughly 490px
-wide on a desktop too, so there was no width at which the old row was roomy.
-This repo uses `lg:` for the nav and nothing else, and introducing a breakpoint
-to fix a layout that was cramped at every size would have been the wrong tool.
-
-**Invisible to every test, by construction.** `truncate` is CSS: the full name
-was always in the DOM, so no assertion could see it was being hidden. It took
-a capture, and a capture is what checks it — `train-races` has been a captured
-surface since v0.131.0 for exactly this reason.
-
-### Migrations
-
-**None.** An image rollback is safe.
-
-### What is not proven
-
-**Nothing yet tests that this stays fixed** beyond the capture. A row with a
-much longer name than the seeded three would wrap further, and no fixture
-carries one.
-
-## v0.132.0 — 2026-09-02 — One step after a ride
+### One step after a ride
 
 Asked for in as many words: _"at the end of a ride, on a ride review, I want
 the ability to mark that day's training done. Now I have to do a ride review
 and after that mark the training done. I want this in 1 step."_
 
-### What you will notice
+#### What you will notice
 
 **The ride review asks whether it was your planned session.** Yes marks the day
 done, in the same submit as the RPE, the feel and the note. No records that it
@@ -57,12 +28,12 @@ answer.
 **The done line carries a score.** `✓ Done · 96% of plan` — your booked load
 against what that day was asked for.
 
-### What you will not notice
+#### What you will not notice
 
 Mark done is still on Today, unchanged, for the times you want it without a
 review. Nothing about how load is booked changed; that was already automatic.
 
-### Under it
+#### Under it
 
 **The app still refuses to guess, and that is the point.** `bookWeekActuals`
 books a day's load from the activities table on every pass but deliberately
@@ -99,13 +70,13 @@ ride whose UTC date is already tomorrow — was asserted through a path that
 returned the same answer either way. `planDayOfActivity` is exported and tested
 directly now, and the mutation fails it.
 
-### Migrations
+#### Migrations
 
 **One, additive.** `activities.was_planned_session boolean`, nullable. Old rows
 read null, old code never selects it, and a rollback leaves a column nobody
 reads. An image rollback is safe.
 
-### What is not proven
+#### What is not proven
 
 **No capture photographs any of this.** The debrief sheet's new question and
 the done line's score are asserted by tests, not by a picture — and the seeded
@@ -116,24 +87,24 @@ before v0.131.0 closed it, and it should be closed the same way.
 constructed. Whether "96% of plan" reads as useful or as pressure is a question
 only riding with it answers.
 
-## v0.131.0 — 2026-09-02 — The picture nobody could take
+### Photographing the race result, and Phase 7 parked on data
 
 v0.130.0 put a finished race's pacing comparison on a screen and said, in its
 own notes, that no capture photographs it. This takes the picture — and the
 picture found two things.
 
-### What you will notice
+#### What you will notice
 
 **The race-result line is readable on a phone.** It used to share a ~130px
 column with the status dropdown and two icon buttons, so a refusal wrapped to
 thirteen lines and pushed the one race that actually HAD a comparison below the
 fold. It now spans the full row. Four races fit where two did.
 
-### What you will not notice
+#### What you will not notice
 
 Nothing else. No engine changed, no number moved, no migration.
 
-### Under it
+#### Under it
 
 **A seeded athlete with race results, which production does not have.**
 Counted on 2026-09-02: `races.resultActivityId` has never been non-null in
@@ -164,11 +135,11 @@ cycling owner, so it is excepted from the Soak and added to the cycling job —
 in `soak.yml` AND `surfaces.yml`. v0.127.0-rc.1 was killed by its own guard
 because #220 updated one of them and not the other.
 
-### Migrations
+#### Migrations
 
 **None.** Fixture, workflow config and one layout change.
 
-### What is not proven
+#### What is not proven
 
 **The race name is still truncated on a phone** — "Mounta…", "Summer…". It
 shares the row with the controls and always has; this release did not cause it
@@ -178,6 +149,43 @@ been all along.
 **Production still has no race result.** This release makes the feature
 photographable, not exercised. The A-race is 11 days out; its debrief is what
 will produce the first real one.
+
+### The race row stops hiding which race it is
+
+#### What you will notice
+
+**Race names and dates are readable.** In Train ▸ Races a row used to render
+"Mounta…" and "gran_fondo · 202…", hiding both which race it was and when. The
+name, the date and the distance now have the row to themselves, with the
+status control and the edit and delete buttons on the line below.
+
+#### What you will not notice
+
+Nothing else. No data, no engine, no migration — one element moved.
+
+#### Under it
+
+**Not a phone-only problem, which is why there is no breakpoint.** The name
+shared a flex row with a status select and two icon buttons, leaving the text
+about 130px on a 390px phone. But this sheet is a centred panel roughly 490px
+wide on a desktop too, so there was no width at which the old row was roomy.
+This repo uses `lg:` for the nav and nothing else, and introducing a breakpoint
+to fix a layout that was cramped at every size would have been the wrong tool.
+
+**Invisible to every test, by construction.** `truncate` is CSS: the full name
+was always in the DOM, so no assertion could see it was being hidden. It took
+a capture, and a capture is what checks it — `train-races` has been a captured
+surface since v0.131.0 for exactly this reason.
+
+#### Migrations
+
+**None.** An image rollback is safe.
+
+#### What is not proven
+
+**Nothing yet tests that this stays fixed** beyond the capture. A row with a
+much longer name than the seeded three would wrap further, and no fixture
+carries one.
 
 ## v0.130.0 — 2026-09-02 — A finished race stops vanishing
 
