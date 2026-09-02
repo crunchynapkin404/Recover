@@ -84,7 +84,7 @@ OpenAI-compatible endpoint including a fully local Ollama. Keys are encrypted
   plan's own phase: 2 sessions/week, dropping to 1 in taper and none on a
   race week. Leave every 1RM unset and the plan is exactly what it was before
   strength existed.
-- **Structured cycling workouts** (v0.126.0) — a curated library of thirty
+- **Structured cycling workouts** (v0.126.0) — a curated library of 103
   hand-authored sessions, matched to the day the plan already made and fitted
   to its exact length. The open day names the workout, describes its main set
   and draws the interval shape; download it as a Zwift `.zwo` or send it to
@@ -194,7 +194,7 @@ fills a demo account with 90 days of plausible training history (see
 
 ## Status & roadmap
 
-**Current release: v0.128.0.** See the
+**Current release: v0.129.0.** See the
 [GitHub releases page](https://github.com/crunchynapkin404/Recover/releases)
 or [CHANGELOG.md](CHANGELOG.md) for what shipped and when.
 

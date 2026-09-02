@@ -1,5 +1,94 @@
 # Changelog
 
+## v0.129.0 — 2026-09-02 — The library slice 5 always meant
+
+The structured-workouts spec settled its size before any design was written:
+"a real curated library, JOIN-style, 100+ hand-authored workouts", recorded as
+a decision taken by the owner and marked not to be relitigated. Slice 5 is
+named "The library, to 100+". v0.127.0 shipped 16 workouts to reach 46, closed
+the strand, and nobody noticed the other 54. This is them.
+
+### What you will notice
+
+**103 workouts instead of 46, and 22 families instead of 12.** Recovery gains
+single-leg drills and pre-race openers. Endurance gains progressive rides that
+finish stronger and big-gear torque work. Long rides gain sustained tempo in
+the second half and hard efforts saved for the end, when the legs are already
+tired. Threshold gains ladders and tempo-float sets. VO₂max gains 15/15
+micro-bursts and ramped reps that get harder each minute.
+
+**Every duration your plan can produce now has at least four different
+sessions that can answer it** — up from two. That is the number that decides
+whether the same Tuesday keeps drawing the same workout.
+
+### What you will not notice
+
+**Nothing else changed.** No code, by design — the slice was specified as pure
+content precisely so that authoring it would test whether the earlier slices
+got the shape right. They did: 57 new workouts, not one change to the matcher,
+the renderers, the flex model or the export pin. No plan was regenerated, no
+number recalculated, no migration run. A workout you have already exported
+keeps its pin.
+
+### Under it
+
+**Authored at the measured thin edges, not to a round number.** Before this,
+every purpose sat at the two-family floor across most of its range — recovery,
+long and VO₂max at exactly two everywhere — so rotation had a choice of two.
+Each batch was measured, authored, and re-measured; the last five workouts
+exist because `aerobic_base` 21-28, `threshold` 27-36 and `vo2max` 32-34 and
+92-120 were the only bands still answered by exactly three families.
+
+**A guard caught the release raising a ceiling it did not mean to.** The
+warmup is the flex step for a quality session, so it sets how far that workout
+stretches. The longest micro-burst session was first authored with a
+22-minute warmup, which took its reach to 123 minutes — and it immediately
+began answering the 122-144 minute "VO₂max" days a 17-20 h/week triathlon plan
+produces. Those days are refused on purpose: a 144-minute session the engine
+labels VO₂max is an endurance ride with intervals in it. The triathlon guard
+went red and the warmup came back to 20.
+
+**A second test caught a naming inconsistency.** The ladder sessions first
+called their work block "Ladder" while every other quality session in the
+library calls it "Main set". Nothing was broken until the date-seeded pick
+happened to land a ladder on the day `export-workout.test.ts` exports, whose
+assertion on the exported description is the only thing that reads a block
+name. Renamed to match the library's own convention — the workout's name
+already says it is a ladder.
+
+**The size is now asserted, and so is the family floor.** `LIBRARY_TARGET`
+pins the number the spec's decision states; a separate ratchet pins the four
+families every covered minute actually reached. Both were mutation-tested:
+drop a family and the ratchet fails, delete four workouts and the target does.
+
+**Two stale counts fixed on the way.** README said "a curated library of
+thirty" — two releases out of date — and the workout count is now checked
+against `LIBRARY.length` in both README and ROADMAP, the same treatment the
+MCP tool count and the design-system token count already get.
+
+### Migrations
+
+**None.** No schema, no data, no code. An image rollback is safe.
+
+### What is not proven
+
+**Four families is a ratchet, not a claim about sufficiency.** Two is the
+principle — the smallest number at which the pick is a choice at all. Four is
+what the library reached. Whether 103 workouts feels varied over a season is a
+question only riding it answers.
+
+**103 coaching judgements, and they say so.** Every new workout carries a
+`source` naming its shape as convention, a `Confidence: Low`, and what would
+raise it. Not one claims a citation it does not have. Several honestly record
+that the shape's distinct effect is unestablished — ramped reps against flat
+ones, tempo floats against easy recoveries, low-cadence work against matched
+riding at free cadence.
+
+**No capture photographs the new workouts specifically.** The cycling capture
+job added in v0.127.0 photographs the workout block, but which of 103 sessions
+a seeded day draws is date-seeded; the pictures prove the surface renders, not
+that any particular new session does.
+
 ## v0.128.0 — 2026-09-02 — What you actually held
 
 Recover has told you how hard to go in your next race since v0.116.0. It has

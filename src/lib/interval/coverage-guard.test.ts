@@ -37,6 +37,19 @@ const COVER: Record<LibraryPurpose, [number, number]> = {
   vo2max: [32, 120],
 };
 
+/**
+ * The size decision 2 of the spec states, asserted rather than remembered.
+ * Source: the athlete/owner, in conversation, before the design. Confidence:
+ * n/a — it is a decision, not a measurement.
+ */
+const LIBRARY_TARGET = 100;
+
+/**
+ * The lowest family count any covered minute currently has. A ratchet on what
+ * was reached, not a judgement about what is enough.
+ */
+const FAMILY_RATCHET = 4;
+
 /** The type each library purpose is planned as, inverted from PURPOSE_BY_TYPE. */
 function typeFor(purpose: LibraryPurpose): string {
   const hit = Object.entries(PURPOSE_BY_TYPE).find(([, p]) => p === purpose);
@@ -226,6 +239,56 @@ describe("library coverage", () => {
         if ((families.get(m)?.size ?? 0) < 2) thin.push(m);
       }
       expect(thin, `${purpose} minutes with only one family`).toEqual([]);
+    }
+  });
+
+  it("meets the library size the spec's decision 2 states", () => {
+    // NOT A ROUND NUMBER SOMEONE LIKED. "A real curated library, JOIN-style,
+    // 100+ hand-authored workouts" is decision 2 in
+    // docs/specs/2026-08-31-structured-cycling-workouts-design.md, recorded
+    // under "Decisions taken before the design, and by whom" and marked not
+    // to be relitigated.
+    //
+    // This assertion exists because that decision was quietly missed once:
+    // slice 5 was named "The library, to 100+", shipped 16 workouts to reach
+    // 46, and closed. Nothing was wrong with the 46 — coverage was met and
+    // guarded — but the stated target was not, and no test could tell.
+    // A narrower true metric ("two families at every covered duration") had
+    // been substituted for the goal, and every check anyone ran was green.
+    expect(LIBRARY.length).toBeGreaterThanOrEqual(LIBRARY_TARGET);
+  });
+
+  it("does not regress the measured family floor", () => {
+    // A RATCHET, not a claim that four families is enough. The test above
+    // pins TWO as the principle — the smallest number at which the pick is a
+    // choice at all — and this pins what the library actually reached, so
+    // deleting workouts cannot quietly walk it back to that floor.
+    //
+    // Raise it when the library rises; never lower it to make a change pass.
+    for (const [purpose, [lo, hi]] of Object.entries(COVER) as [
+      LibraryPurpose,
+      [number, number],
+    ][]) {
+      const families = new Map<number, Set<string>>();
+      for (const w of LIBRARY.filter((w) => w.purpose === purpose)) {
+        const span = flexSpanSecs(w)!;
+        for (
+          let m = Math.ceil(span.lo / 60);
+          m <= Math.floor(span.hi / 60);
+          m++
+        ) {
+          if (!families.has(m)) families.set(m, new Set());
+          families.get(m)!.add(w.family);
+        }
+      }
+      const thin: number[] = [];
+      for (let m = lo; m <= hi; m++) {
+        if ((families.get(m)?.size ?? 0) < FAMILY_RATCHET) thin.push(m);
+      }
+      expect(
+        thin,
+        `${purpose} minutes below the ${FAMILY_RATCHET}-family ratchet`
+      ).toEqual([]);
     }
   });
 

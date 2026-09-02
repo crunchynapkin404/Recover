@@ -1,6 +1,6 @@
 # Roadmap
 
-Current release: **v0.128.0**. History through v0.119 is preserved in
+Current release: **v0.129.0**. History through v0.119 is preserved in
 [`docs/archive/ROADMAP-through-v0.119.md`](archive/ROADMAP-through-v0.119.md) —
 Phases 1–4, all complete. It is a record, not a plan.
 
@@ -65,7 +65,7 @@ around future races), six wellness/activity sources (intervals.icu, Strava,
 Whoop, Oura, Apple Health, Withings), training history, multiple time blocks
 per day, running, and strength (v0.119.0).
 
-**Mechanically sound.** 3490 tests at v0.128.0, 46 migrations, zero confirmed
+**Mechanically sound.** 3493 tests at v0.129.0, 46 migrations, zero confirmed
 axe violations across the app, a 197-token design system across 283
 declarations in two themes (`docs/design-system.md`), a 60-tool MCP surface,
 and a release path that is fully automated end to end (`docs/RELEASING.md`).
@@ -110,13 +110,17 @@ category · comments · votes`) across every column.
 |    33 | Indoor–outdoor switch                         | Partial — see v0.118.0          |
 |    33 | Import completed activity FIT files           | Partial — CSV only              |
 
-**Structured cycling workouts shipped in v0.126.0 and v0.127.0** — a curated
-%FTP library matched to the day the engine already planned, shown on the open
-day and exportable as `.zwo` or to intervals.icu. It **reverses a recorded
-non-goal**, and the argument for why that still passes this file's admission
-gate is written down rather than assumed:
-`docs/specs/2026-08-31-structured-cycling-workouts-design.md`, with the
-strand's traps in `docs/2026-09-01-structured-workouts-handoff.md`.
+**Structured cycling workouts shipped in v0.126.0, v0.127.0 and v0.129.0** —
+a curated %FTP library of **103 workouts across 22 families**, matched to the
+day the engine already planned, shown on the open day and exportable as `.zwo`
+or to intervals.icu. It **reverses a recorded non-goal**, and the argument for
+why that still passes this file's admission gate is written down rather than
+assumed: `docs/specs/2026-08-31-structured-cycling-workouts-design.md`, with
+the strand's traps in `docs/2026-09-01-structured-workouts-handoff.md`.
+**v0.129.0 is that spec's slice 5**, which v0.127.0 had closed with its stated
+target unmet and unrecorded — the second time a strand shipped under a
+narrower metric than the one it set itself. Both the size and the family floor
+are now asserted, because two occurrences is a pattern rather than a lapse.
 
 **The one genuine gap is narrow.** "Calendar" splits cleanly in two:
 vacation-planning, which Recover already leads via availability overrides,
