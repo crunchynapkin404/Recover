@@ -286,11 +286,16 @@ week`, `Plan setup`, `Races`, `Availability` and the 21-row draft
       availability sheet had **no capture surface at all** since slice 2
       moved the form into it, and the pill's in-fill label was an ellipsis at
       every width the 44 px touch floor produces.
-      Still open in this strand: the week adjustment that has no path
-      (`src/app/train/page.tsx:812` already states the choice — either the
-      action re-materializes the open week, or the copy describes the
-      skeleton it actually edits), Season's zero actions, and the Week tab
-      owning the season editing the Season tab only reports.
+      Still open in this strand: the week adjustment that has no path —
+      `src/app/train/page.tsx`'s `WeekAdjustmentSwitch` comment states the
+      choice (either the action re-materializes the open week, or the copy
+      describes the skeleton it actually edits) and now also records two
+      things that make it cost more than it reads: the component was
+      **deleted** in `ca98ee4`, so either branch begins by rebuilding it,
+      and re-materializing would **discard an export pin**, forgetting what
+      Recover sent to the athlete's head unit. Also still open: Season's
+      zero actions, and the Week tab owning the season editing the Season
+      tab only reports.
 - [x] **Visual polish and motion.** Transitions, loading states, density,
       typographic rhythm. **Complete**, nine slices on
       `feat/finish-the-design-system`

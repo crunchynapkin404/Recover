@@ -165,8 +165,10 @@ Anyone re-running this must seed first and check the `appChrome` column.
 
 ## The fifth journey: adjusting a week, which has no path
 
-`WeekAdjustmentSwitch` (v0.56–v0.60) is **deliberately not rendered**, and the
-comment at `src/app/train/page.tsx:812` explains why in detail:
+`WeekAdjustmentSwitch` (v0.56–v0.60) is **deliberately not rendered** — and
+since `ca98ee4` the component is deleted outright, so "not rendered" now means
+"does not exist". The
+`WeekAdjustmentSwitch` comment in `src/app/train/page.tsx` explains why in detail:
 
 > Its action writes `trainingBlocks.targetLoadTotal`, but the open week the
 > athlete actually trains is materialized from a target `periodize()`

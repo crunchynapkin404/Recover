@@ -1143,6 +1143,28 @@ async function WeekTab({
           re-materializes the open week, or the copy describes the skeleton
           it actually edits. Until then the controls stay off rather than
           promising "Ease -30% · Deload -50%" and doing none of it.
+
+          TWO THINGS HAVE CHANGED SINCE THAT WAS WRITTEN (2026-08-08), and
+          both make the choice cost more than it reads here.
+
+          The component is GONE, not disabled. `ca98ee4` (2026-08-11,
+          "delete the 22 dead components") removed
+          week-adjustment-switch.tsx and its test three days after this
+          comment landed. "The controls stay off" describes a switch that
+          can be flipped; there is nothing to flip. Either branch below now
+          starts by rebuilding the component, which is why ROADMAP.md's
+          "the week adjustment that has no path" is a strand item rather
+          than a chore.
+
+          And re-materializing now DISCARDS THE EXPORT PIN. Since v0.126.0 a
+          ScheduledWorkout may carry `pin` — what was sent to the athlete's
+          intervals.icu calendar and therefore to their head unit.
+          materializeWeek builds days from the skeleton and knows nothing
+          about it, and rolloverWeekPlan replaces `days` wholesale, so the
+          first branch would silently forget what Recover told the device.
+          That is precisely the disagreement the pin exists to prevent, so
+          taking that branch means deciding what happens to a pinned session
+          first — carry it, or clear it and say so on the surface.
         */}
         </div>
         {/* Both switches write plan constraints and stop there — the open
