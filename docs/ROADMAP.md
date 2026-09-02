@@ -97,7 +97,7 @@ category · comments · votes`) across every column.
 |   164 | Add running workout                           | Has                             |
 |   161 | Choosing new goal before the last is finished | Shipped (v0.114.0)              |
 |   155 | Availability beyond one week ahead            | **Leads**                       |
-|   155 | Add length filter when browsing workouts      | Structured cycling workouts     |
+|   155 | Add length filter when browsing workouts      | Shipped (v0.126.0)              |
 |   125 | Strength training                             | Shipped (v0.119.0)              |
 |   123 | Calendar                                      | **Partial — ICS export absent** |
 |   107 | Show target cadence in workout                | n/a — no workout player         |
@@ -106,6 +106,14 @@ category · comments · votes`) across every column.
 |    45 | Landscape mode                                | n/a — no workout player         |
 |    33 | Indoor–outdoor switch                         | Partial — see v0.118.0          |
 |    33 | Import completed activity FIT files           | Partial — CSV only              |
+
+**Structured cycling workouts shipped in v0.126.0 and v0.127.0** — a curated
+%FTP library matched to the day the engine already planned, shown on the open
+day and exportable as `.zwo` or to intervals.icu. It **reverses a recorded
+non-goal**, and the argument for why that still passes this file's admission
+gate is written down rather than assumed:
+`docs/specs/2026-08-31-structured-cycling-workouts-design.md`, with the
+strand's traps in `docs/2026-09-01-structured-workouts-handoff.md`.
 
 **The one genuine gap is narrow.** "Calendar" splits cleanly in two:
 vacation-planning, which Recover already leads via availability overrides,
@@ -404,11 +412,6 @@ Named so they are not rediscovered; unscheduled so they are not promises.
 - **ICS export** — the one genuine demand gap (123 votes). Cheap to do
   badly: timezones, recurrence, and a feed URL that is a bearer credential
   in a query string.
-- **Structured cycling workouts** — _Demand_ (155, "length filter when
-  browsing workouts"). A curated %FTP library matched to the day the engine
-  already planned, shown on the open day and exportable to intervals.icu.
-  Reverses a recorded non-goal, with the argument written down:
-  `docs/specs/2026-08-31-structured-cycling-workouts-design.md`.
 - **MCP contract freeze** — after the numbers underneath are stable, not
   before.
 - **On-ramps for the three dormant-but-kept features** — Deep Biology,
