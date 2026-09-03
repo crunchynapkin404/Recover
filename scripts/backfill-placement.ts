@@ -31,10 +31,7 @@ import { fileURLToPath } from "node:url";
 import { eq } from "drizzle-orm";
 // Relative, not "@/" — tsx run standalone does not resolve the path alias.
 import { db, schema } from "../src/lib/db";
-import {
-  normalizeDays,
-  serializeDays,
-} from "../src/lib/week-plan/serialize";
+import { normalizeDays, serializeDays } from "../src/lib/week-plan/serialize";
 
 interface Change {
   weekPlanId: string;

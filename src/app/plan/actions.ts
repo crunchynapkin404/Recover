@@ -24,10 +24,7 @@ import {
   resolveWeekStartTarget,
 } from "@/lib/availability/validate-week-start";
 import { createRace, deleteRace, updateRace } from "@/lib/race/service";
-import {
-  addChosenWorkout,
-  removeChosenWorkout,
-} from "@/lib/week-plan/service";
+import { addChosenWorkout, removeChosenWorkout } from "@/lib/week-plan/service";
 import { planRaceTargets } from "@/lib/plan-targets";
 import type { PlanChange } from "@/lib/race/forecast";
 import { simulateRaceForm } from "@/lib/race/outlook";
@@ -892,7 +889,8 @@ export async function addChosenWorkoutAction(
   todayYmd: string
 ): Promise<Result> {
   const user = await requireUser();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { ok: false, error: "invalid_date" };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date))
+    return { ok: false, error: "invalid_date" };
   if (!/^\d{4}-\d{2}-\d{2}$/.test(todayYmd))
     return { ok: false, error: "invalid_date" };
   if (!Number.isInteger(durationMins) || durationMins <= 0)
@@ -916,7 +914,8 @@ export async function removeChosenWorkoutAction(
   workoutId: string
 ): Promise<Result> {
   const user = await requireUser();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { ok: false, error: "invalid_date" };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date))
+    return { ok: false, error: "invalid_date" };
 
   const outcome = await removeChosenWorkout(user.id, date, workoutId);
   if (outcome !== "removed") return { ok: false, error: outcome };

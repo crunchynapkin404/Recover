@@ -31,11 +31,9 @@ import {
 } from "@/lib/week-plan/actuals";
 import { addDaysYmd } from "@/lib/week-plan/service";
 import { weekAdherencePct } from "@/lib/week-plan/volume";
-// Relative, not "@/" — tsx run standalone does not resolve the path alias.
-import {
-  normalizeDays,
-  serializeDays,
-} from "../src/lib/week-plan/serialize";
+// Relative to match this directory's other one-off scripts; the "@/" alias
+// above also resolves under tsx, so either form works here.
+import { normalizeDays, serializeDays } from "../src/lib/week-plan/serialize";
 
 const APPLY = process.argv.includes("--apply");
 const ALL = process.argv.includes("--all");
