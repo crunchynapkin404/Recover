@@ -1,6 +1,8 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { and, eq } from "drizzle-orm";
 import { withPurpose } from "@/lib/training-plan";
+import { blockIdxOf } from "@/lib/week-plan/placement";
+import { blockPlacement } from "@/lib/week-plan/placement";
 
 /**
  * Integration tests for the v0.9.2 week-plan service layer. Same idiom as
@@ -109,7 +111,7 @@ function seededDays() {
             durationMins: 50,
             intensity: "Z4-Z5",
             description: "Interval session",
-            blockIdx: 0,
+            placement: blockPlacement(0),
           }),
         ],
         status: "planned" as const,
@@ -256,7 +258,7 @@ describe.skipIf(!hasDb)("week-plan service", () => {
               durationMins: 45,
               intensity: "Z1-Z2",
               description: "Easy run",
-              blockIdx: 0,
+              placement: blockPlacement(0),
             },
           ],
           status: "completed" as const,
@@ -324,7 +326,7 @@ describe.skipIf(!hasDb)("week-plan service", () => {
               durationMins: 45,
               intensity: "Z1-Z2",
               description: "Easy run",
-              blockIdx: 0,
+              placement: blockPlacement(0),
             },
           ],
           status: "completed" as const,
@@ -907,7 +909,7 @@ describe.skipIf(!hasDb)("week-plan service", () => {
     const week = await getOpenWeekPlan(USER);
     const dest = week!.days.find((d) => d.date === toDate)!;
     expect(dest.workouts[0]?.type).toBe("Intervals");
-    expect(dest.workouts[0]?.blockIdx).toBe(1);
+    expect(blockIdxOf(dest.workouts[0]!.placement)).toBe(1);
     const source = week!.days.find((d) => d.date === todayYmd)!;
     expect(source.workouts).toHaveLength(0);
     expect(source.status).toBe("rest");
@@ -932,7 +934,7 @@ describe.skipIf(!hasDb)("week-plan service", () => {
                 durationMins: 40,
                 intensity: "Z1-Z2",
                 description: "Easy run",
-                blockIdx: 0,
+                placement: blockPlacement(0),
               }),
             ],
             status: "planned" as const,
@@ -1139,7 +1141,7 @@ describe.skipIf(!hasDb)("week-plan service", () => {
               durationMins: 45,
               intensity: "Z1-Z2",
               description: "Easy run",
-              blockIdx: 0,
+              placement: blockPlacement(0),
             },
           ],
           status: "planned" as const,

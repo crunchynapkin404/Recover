@@ -2,6 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
 import { getWeekPlanTool } from "./get-week-plan";
 import type { AvailabilityBlock } from "@/lib/availability/types";
+import { blockPlacement } from "@/lib/week-plan/placement";
 
 // requires Postgres; skips without DATABASE_URL.
 const hasDb =
@@ -44,7 +45,7 @@ describe.skipIf(!hasDb)("get_week_plan day shape", () => {
     description: "Steady hour",
     purpose: "aerobic_base" as const,
     minEffectiveMins: 40,
-    blockIdx: 0,
+    placement: blockPlacement(0),
   };
 
   let planId: string;

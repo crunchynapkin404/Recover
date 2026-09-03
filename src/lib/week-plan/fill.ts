@@ -16,6 +16,7 @@ import {
 } from "@/lib/training-plan";
 import { TYPE_BY_PURPOSE, admits, buildSlots } from "./slots";
 import type { AdjustmentRecord, DaySlot } from "./types";
+import { blockIdxOf, blockPlacement } from "./placement";
 
 /**
  * How long fill may make a session of this purpose, in this sport — or null
@@ -231,7 +232,9 @@ export function fillWeek(
       );
       if (ceiling == null) continue;
 
-      const block = day.availableBlocks[workout.blockIdx];
+      const wBlockIdx = blockIdxOf(workout.placement);
+      const block =
+        wBlockIdx == null ? undefined : day.availableBlocks[wBlockIdx];
       if (!block) continue;
 
       const grown = Math.min(
@@ -282,7 +285,13 @@ export function fillWeek(
       // silently inert.
       const taken = new Set<string>();
       out.forEach((d, dayIdx) =>
-        d.workouts.forEach((x) => taken.add(`${dayIdx}:${x.blockIdx}`))
+        d.workouts.forEach((x) => {
+          // An athlete-placed session occupies no block, so it reserves
+          // none — but it still counts toward the day's session cap, which
+          // admits() reads from day.workouts.length.
+          const idx = blockIdxOf(x.placement);
+          if (idx != null) taken.add(`${dayIdx}:${idx}`);
+        })
       );
 
       const todayIdx = Math.max(
@@ -329,7 +338,7 @@ export function fillWeek(
             ...day,
             workouts: [
               ...day.workouts,
-              { ...candidate, blockIdx: slot.blockIdx },
+              { ...candidate, placement: blockPlacement(slot.blockIdx) },
             ],
             status: day.workouts.length > 0 ? day.status : "planned",
           };

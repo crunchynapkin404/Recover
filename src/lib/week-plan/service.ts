@@ -32,6 +32,7 @@ import type { PlanStyle } from "@/lib/plan-style/types";
 import type { ReentryStage, SeasonMode } from "@/lib/season-mode/types";
 import { resolvePlanningSurfaceState } from "@/lib/planning-surface/effective-state";
 import type { Figure } from "@/lib/uncertainty";
+import { blockPlacement } from "./placement";
 
 export type AdjustmentRow = typeof schema.planAdjustments.$inferSelect;
 
@@ -857,7 +858,7 @@ export async function moveWorkout(
   ];
   days[toIdx] = {
     ...days[toIdx],
-    workouts: [{ ...workout, blockIdx }],
+    workouts: [{ ...workout, placement: blockPlacement(blockIdx) }],
     status: "moved",
     movedFrom: fromDate,
   };
@@ -928,14 +929,14 @@ export async function swapWorkouts(
   if (toBlockIdx == null) return "invalid";
   days[toIdx] = {
     ...days[toIdx],
-    workouts: [{ ...fromWorkoutSrc, blockIdx: toBlockIdx }],
+    workouts: [{ ...fromWorkoutSrc, placement: blockPlacement(toBlockIdx) }],
   };
 
   const fromBlockIdx = findBlockFor(days, fromIdx, toWorkoutSrc, new Set());
   if (fromBlockIdx == null) return "invalid";
   days[fromIdx] = {
     ...days[fromIdx],
-    workouts: [{ ...toWorkoutSrc, blockIdx: fromBlockIdx }],
+    workouts: [{ ...toWorkoutSrc, placement: blockPlacement(fromBlockIdx) }],
   };
 
   await db

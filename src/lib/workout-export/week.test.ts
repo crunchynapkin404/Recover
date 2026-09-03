@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { withPurpose } from "@/lib/training-plan";
 import type { DaySlot } from "@/lib/week-plan/types";
 import { exportWeekToZwo } from "./week";
+import { blockPlacement } from "@/lib/week-plan/placement";
 
 function day(date: string, workouts: DaySlot["workouts"]): DaySlot {
   return {
@@ -30,7 +31,7 @@ describe("exportWeekToZwo", () => {
       durationMins: 60,
       intensity: "Z1-Z2",
       description: "A",
-      blockIdx: 0,
+      placement: blockPlacement(0),
     });
     const run = withPurpose({
       day: 1,
@@ -39,7 +40,7 @@ describe("exportWeekToZwo", () => {
       durationMins: 40,
       intensity: "Z3",
       description: "R",
-      blockIdx: 0,
+      placement: blockPlacement(0),
     });
     const bikeB = withPurpose({
       day: 2,
@@ -48,7 +49,7 @@ describe("exportWeekToZwo", () => {
       durationMins: 50,
       intensity: "Z4-Z5",
       description: "B",
-      blockIdx: 0,
+      placement: blockPlacement(0),
     });
 
     const out = exportWeekToZwo([
@@ -71,7 +72,7 @@ describe("exportWeekToZwo", () => {
       durationMins: 75,
       intensity: "Z3",
       description: "steady",
-      blockIdx: 0,
+      placement: blockPlacement(0),
     });
 
     const days = [day("2026-08-10", [bike])];

@@ -1,6 +1,7 @@
 // tests/race-week-threading.test.ts
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
+import { blockPlacement } from "@/lib/week-plan/placement";
 
 const hasDb =
   !!process.env.DATABASE_URL && process.env.DATABASE_DRIVER === "pg";
@@ -291,7 +292,7 @@ describe.skipIf(!hasDb)(
                 durationMins: 90,
                 intensity: "Z1-Z2",
                 description: "Long run",
-                blockIdx: 0,
+                placement: blockPlacement(0),
               },
             ],
             status: "completed" as const,

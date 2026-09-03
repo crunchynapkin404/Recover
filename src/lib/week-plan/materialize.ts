@@ -45,6 +45,7 @@ import {
   strengthPrescription,
   type OneRepMaxes,
 } from "@/lib/strength/prescription";
+import { blockPlacement } from "./placement";
 
 export interface EffectiveLoadInput {
   skeletonTarget: number;
@@ -582,7 +583,10 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
         );
         days[w.day] = {
           ...days[w.day],
-          workouts: [...days[w.day].workouts, { ...w, blockIdx }],
+          workouts: [
+            ...days[w.day].workouts,
+            { ...w, placement: blockPlacement(blockIdx) },
+          ],
           status: "planned",
         };
         continue;
@@ -613,7 +617,10 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
           ...target,
           workouts: [
             ...target.workouts,
-            { ...fitted.workout, blockIdx: candidate.blockIdx },
+            {
+              ...fitted.workout,
+              placement: blockPlacement(candidate.blockIdx),
+            },
           ],
           status: "planned",
         };
@@ -877,7 +884,10 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
             ...target,
             workouts: [
               ...target.workouts,
-              { ...fitted.workout, blockIdx: candidate.blockIdx },
+              {
+                ...fitted.workout,
+                placement: blockPlacement(candidate.blockIdx),
+              },
             ],
             status: "planned",
           };
@@ -910,7 +920,10 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
       const target = days[slot.dayIdx];
       days[slot.dayIdx] = {
         ...target,
-        workouts: [...target.workouts, { ...workout, blockIdx: slot.blockIdx }],
+        workouts: [
+          ...target.workouts,
+          { ...workout, placement: blockPlacement(slot.blockIdx) },
+        ],
         status: "planned",
       };
     }
@@ -1060,7 +1073,9 @@ export function materializeWeek(input: MaterializeInput): MaterializeResult {
         } else {
           days[idx - 1] = {
             ...days[idx - 1],
-            workouts: [{ ...opener, blockIdx: openerBlockIdx }],
+            workouts: [
+              { ...opener, placement: blockPlacement(openerBlockIdx) },
+            ],
             status: "planned",
             restIntent: undefined,
           };

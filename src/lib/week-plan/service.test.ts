@@ -18,6 +18,8 @@ import { blockFits } from "./types";
 import type { DaySlot, ScheduledWorkout } from "./types";
 import { withPurpose } from "@/lib/training-plan";
 import type { AvailabilityBlock } from "@/lib/availability/types";
+import { blockPlacement } from "./placement";
+import { blockIdxOf } from "./placement";
 
 // requires Postgres; skips without DATABASE_URL.
 const hasDb =
@@ -41,7 +43,7 @@ function sw(o: Partial<ScheduledWorkout> = {}): ScheduledWorkout {
     durationMins: 45,
     intensity: "Z1-Z2",
     description: "Easy run",
-    blockIdx: 0,
+    placement: blockPlacement(0),
     ...o,
   });
 }
@@ -248,7 +250,9 @@ describe.skipIf(!hasDb)(
     it("moveWorkout onto a day whose only fitting block is not index 0", async () => {
       const days = DATES.map((d) => emptyDay(d));
       days[0].availableBlocks = [blk(90)];
-      days[0].workouts = [sw({ durationMins: 90, blockIdx: 0 })];
+      days[0].workouts = [
+        sw({ durationMins: 90, placement: blockPlacement(0) }),
+      ];
       days[0].status = "planned";
       // Destination's only fitting block sits at index 1 — the 20min block
       // at index 0 (the carried index) is too small.
@@ -261,11 +265,11 @@ describe.skipIf(!hasDb)(
       const week = await getOpenWeekPlan(TEST_USER);
       const dest = week!.days[1];
       expect(dest.workouts).toHaveLength(1);
-      expect(dest.workouts[0].blockIdx).toBe(1);
+      expect(blockIdxOf(dest.workouts[0].placement)).toBe(1);
       expect(
         blockFits(
           dest,
-          dest.workouts[0].blockIdx,
+          dest.workouts[0].placement,
           dest.workouts[0].durationMins
         )
       ).toBe(true);
@@ -274,10 +278,14 @@ describe.skipIf(!hasDb)(
     it("moveWorkout refuses a day where the only large-enough block is already occupied", async () => {
       const days = DATES.map((d) => emptyDay(d));
       days[0].availableBlocks = [blk(90)];
-      days[0].workouts = [sw({ durationMins: 90, blockIdx: 0 })];
+      days[0].workouts = [
+        sw({ durationMins: 90, placement: blockPlacement(0) }),
+      ];
       days[0].status = "planned";
       days[1].availableBlocks = [blk(20), blk(120)];
-      days[1].workouts = [sw({ durationMins: 100, blockIdx: 1 })];
+      days[1].workouts = [
+        sw({ durationMins: 100, placement: blockPlacement(1) }),
+      ];
       days[1].status = "planned";
       await seedWeek(days);
 
@@ -287,13 +295,15 @@ describe.skipIf(!hasDb)(
       // Not silently double-booked: the destination day is untouched.
       const week = await getOpenWeekPlan(TEST_USER);
       expect(week!.days[1].workouts).toHaveLength(1);
-      expect(week!.days[1].workouts[0].blockIdx).toBe(1);
+      expect(blockIdxOf(week!.days[1].workouts[0].placement)).toBe(1);
     });
 
     it("moveWorkout corrects blockIdx to 0 when the destination day has fewer blocks than the carried index", async () => {
       const days = DATES.map((d) => emptyDay(d));
       days[0].availableBlocks = [blk(60), blk(90)];
-      days[0].workouts = [sw({ durationMins: 80, blockIdx: 1 })];
+      days[0].workouts = [
+        sw({ durationMins: 80, placement: blockPlacement(1) }),
+      ];
       days[0].status = "planned";
       // Destination has a single block — the carried index (1) points at
       // nothing there, but block 0 plainly fits.
@@ -305,11 +315,11 @@ describe.skipIf(!hasDb)(
 
       const week = await getOpenWeekPlan(TEST_USER);
       const dest = week!.days[1];
-      expect(dest.workouts[0].blockIdx).toBe(0);
+      expect(blockIdxOf(dest.workouts[0].placement)).toBe(0);
       expect(
         blockFits(
           dest,
-          dest.workouts[0].blockIdx,
+          dest.workouts[0].placement,
           dest.workouts[0].durationMins
         )
       ).toBe(true);
@@ -320,12 +330,16 @@ describe.skipIf(!hasDb)(
       // Monday: a small 20min block and a roomy 150min sibling. Its own
       // 45min session sits in the roomy one (blockIdx 1).
       days[0].availableBlocks = [blk(20), blk(150)];
-      days[0].workouts = [sw({ durationMins: 45, blockIdx: 1 })];
+      days[0].workouts = [
+        sw({ durationMins: 45, placement: blockPlacement(1) }),
+      ];
       days[0].status = "planned";
       // Thursday: a roomy 100min block and a tiny 10min sibling. Its own
       // 80min session sits in the roomy one (blockIdx 0).
       days[3].availableBlocks = [blk(100), blk(10)];
-      days[3].workouts = [sw({ durationMins: 80, blockIdx: 0 })];
+      days[3].workouts = [
+        sw({ durationMins: 80, placement: blockPlacement(0) }),
+      ];
       days[3].status = "planned";
       await seedWeek(days);
 
@@ -339,17 +353,17 @@ describe.skipIf(!hasDb)(
       // Thursday's 80min session, carried index 0, must land in Monday's
       // 150min block (index 1) — its own 20min block at index 0 is too small.
       expect(mon.workouts[0].durationMins).toBe(80);
-      expect(mon.workouts[0].blockIdx).toBe(1);
+      expect(blockIdxOf(mon.workouts[0].placement)).toBe(1);
       expect(
-        blockFits(mon, mon.workouts[0].blockIdx, mon.workouts[0].durationMins)
+        blockFits(mon, mon.workouts[0].placement, mon.workouts[0].durationMins)
       ).toBe(true);
 
       // Monday's 45min session, carried index 1, must land in Thursday's
       // 100min block (index 0) — its own 10min block at index 1 is too small.
       expect(thu.workouts[0].durationMins).toBe(45);
-      expect(thu.workouts[0].blockIdx).toBe(0);
+      expect(blockIdxOf(thu.workouts[0].placement)).toBe(0);
       expect(
-        blockFits(thu, thu.workouts[0].blockIdx, thu.workouts[0].durationMins)
+        blockFits(thu, thu.workouts[0].placement, thu.workouts[0].durationMins)
       ).toBe(true);
     });
   }
@@ -425,8 +439,8 @@ describe.skipIf(!hasDb)(
       const days = DATES.map((d) => emptyDay(d));
       days[0].availableBlocks = [blk(45), blk(60)];
       days[0].workouts = [
-        sw({ durationMins: 40, blockIdx: 0 }),
-        sw({ durationMins: 50, blockIdx: 1 }),
+        sw({ durationMins: 40, placement: blockPlacement(0) }),
+        sw({ durationMins: 50, placement: blockPlacement(1) }),
       ];
       days[0].status = "planned";
       days[1].availableBlocks = [blk(90)]; // empty, would otherwise admit a move
@@ -445,12 +459,14 @@ describe.skipIf(!hasDb)(
     it("moveWorkout refuses when the destination day holds two sessions, leaving both untouched", async () => {
       const days = DATES.map((d) => emptyDay(d));
       days[0].availableBlocks = [blk(60)];
-      days[0].workouts = [sw({ durationMins: 45, blockIdx: 0 })];
+      days[0].workouts = [
+        sw({ durationMins: 45, placement: blockPlacement(0) }),
+      ];
       days[0].status = "planned";
       days[1].availableBlocks = [blk(45), blk(60)];
       days[1].workouts = [
-        sw({ durationMins: 40, blockIdx: 0 }),
-        sw({ durationMins: 50, blockIdx: 1 }),
+        sw({ durationMins: 40, placement: blockPlacement(0) }),
+        sw({ durationMins: 50, placement: blockPlacement(1) }),
       ];
       days[1].status = "planned";
       await seedWeek(days);
@@ -470,12 +486,14 @@ describe.skipIf(!hasDb)(
       const days = DATES.map((d) => emptyDay(d));
       days[0].availableBlocks = [blk(45), blk(60)];
       days[0].workouts = [
-        sw({ durationMins: 40, blockIdx: 0 }),
-        sw({ durationMins: 50, blockIdx: 1 }),
+        sw({ durationMins: 40, placement: blockPlacement(0) }),
+        sw({ durationMins: 50, placement: blockPlacement(1) }),
       ];
       days[0].status = "planned";
       days[3].availableBlocks = [blk(60)];
-      days[3].workouts = [sw({ durationMins: 45, blockIdx: 0 })];
+      days[3].workouts = [
+        sw({ durationMins: 45, placement: blockPlacement(0) }),
+      ];
       days[3].status = "planned";
       await seedWeek(days);
 
@@ -564,21 +582,35 @@ describe.skipIf(!hasDb)(
     function seedDays(): DaySlot[] {
       const days = DATES.map((d) => emptyDay(d));
       days[0].availableBlocks = [blk(60)];
-      days[0].workouts = [sw({ type: "Tempo", durationMins: 45, blockIdx: 0 })];
+      days[0].workouts = [
+        sw({ type: "Tempo", durationMins: 45, placement: blockPlacement(0) }),
+      ];
       days[0].status = "planned";
       days[1].availableBlocks = [blk(60)];
       days[1].workouts = [
-        sw({ type: "Endurance", durationMins: 40, blockIdx: 0 }),
+        sw({
+          type: "Endurance",
+          durationMins: 40,
+          placement: blockPlacement(0),
+        }),
       ];
       days[1].status = "planned";
       days[2].availableBlocks = [blk(60)];
       days[2].workouts = [
-        sw({ type: "Intervals", durationMins: 40, blockIdx: 0 }),
+        sw({
+          type: "Intervals",
+          durationMins: 40,
+          placement: blockPlacement(0),
+        }),
       ];
       days[2].status = "planned";
       days[5].availableBlocks = [blk(60)];
       days[5].workouts = [
-        sw({ type: "Endurance", durationMins: 40, blockIdx: 0 }),
+        sw({
+          type: "Endurance",
+          durationMins: 40,
+          placement: blockPlacement(0),
+        }),
       ];
       days[5].status = "planned";
       return days;
@@ -616,12 +648,12 @@ describe.skipIf(!hasDb)(
       expect(mon.workouts[0].type).toBe("Endurance");
       expect(mon.workouts[0].durationMins).toBe(40);
       expect(
-        blockFits(mon, mon.workouts[0].blockIdx, mon.workouts[0].durationMins)
+        blockFits(mon, mon.workouts[0].placement, mon.workouts[0].durationMins)
       ).toBe(true);
       expect(sat.workouts[0].type).toBe("Tempo");
       expect(sat.workouts[0].durationMins).toBe(45);
       expect(
-        blockFits(sat, sat.workouts[0].blockIdx, sat.workouts[0].durationMins)
+        blockFits(sat, sat.workouts[0].placement, sat.workouts[0].durationMins)
       ).toBe(true);
     });
   }

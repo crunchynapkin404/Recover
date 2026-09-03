@@ -1,4 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import { blockPlacement } from "./placement";
 
 const icuRequest = vi.fn();
 vi.mock("@/lib/connectors/intervals", () => ({
@@ -16,7 +17,7 @@ const bike = withPurpose({
   durationMins: 75,
   intensity: "Z4",
   description: "x",
-  blockIdx: 0,
+  placement: blockPlacement(0),
 });
 
 let updated: unknown;

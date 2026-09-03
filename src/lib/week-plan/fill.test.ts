@@ -14,6 +14,8 @@ import {
   longRideBoundMins,
   NO_DEMAND_LONG_BOUND_MINS,
 } from "@/lib/training-plan";
+import { blockPlacement } from "./placement";
+import { blockIdxOf } from "./placement";
 
 describe("fillCeilingMins", () => {
   // queenStageHours of 5, not 4: longRideBoundMins(4) collides with
@@ -141,7 +143,7 @@ const w = (o: Partial<ScheduledWorkout> = {}): ScheduledWorkout => ({
   description: "Aerobic endurance ride",
   purpose: "aerobic_base",
   minEffectiveMins: 40,
-  blockIdx: 0,
+  placement: blockPlacement(0),
   ...o,
 });
 
@@ -174,7 +176,7 @@ describe("plannedMins", () => {
       {
         workouts: [
           w({ durationMins: 45 }),
-          w({ durationMins: 30, blockIdx: 1 }),
+          w({ durationMins: 30, placement: blockPlacement(1) }),
         ],
       },
     ]);
@@ -201,7 +203,7 @@ describe("plannedMins", () => {
             type: "Strength",
             purpose: "strength",
             minEffectiveMins: 20,
-            blockIdx: 1,
+            placement: blockPlacement(1),
           }),
         ],
       },
@@ -432,8 +434,8 @@ describe("fillWeek — 1a grow in place", () => {
       {
         mins: [130, 220],
         workouts: [
-          w({ durationMins: 60, blockIdx: 0 }),
-          w({ durationMins: 80, blockIdx: 1 }),
+          w({ durationMins: 60, placement: blockPlacement(0) }),
+          w({ durationMins: 80, placement: blockPlacement(1) }),
         ],
       },
     ]);
@@ -463,7 +465,10 @@ describe("fillWeek — 1a grow in place", () => {
     // if growth were ever judged against the day's biggest block instead of
     // the block the session actually occupies, this would grow past 70.
     const d = days([
-      { mins: [70, 400], workouts: [w({ durationMins: 60, blockIdx: 0 })] },
+      {
+        mins: [70, 400],
+        workouts: [w({ durationMins: 60, placement: blockPlacement(0) })],
+      },
     ]);
 
     const r = fillWeek(d, {
@@ -632,17 +637,25 @@ describe("fillWeek — 1b add one", () => {
     // the existing one instead of being skipped.
     const d = days([
       { mins: [] },
-      { mins: [60, 200], workouts: [w({ durationMins: 60, blockIdx: 0 })] },
+      {
+        mins: [60, 200],
+        workouts: [w({ durationMins: 60, placement: blockPlacement(0) })],
+      },
     ]);
 
     const r = fillWeek(d, opts);
 
     expect(r.days[1].workouts).toHaveLength(2);
-    expect(r.days[1].workouts.map((x) => x.blockIdx).sort()).toEqual([0, 1]);
-    expect(r.days[1].workouts.find((x) => x.blockIdx === 0)?.durationMins).toBe(
-      60
-    );
-    expect(r.days[1].workouts.find((x) => x.blockIdx === 1)).toBeDefined();
+    expect(
+      r.days[1].workouts.map((x) => blockIdxOf(x.placement)).sort()
+    ).toEqual([0, 1]);
+    expect(
+      r.days[1].workouts.find((x) => blockIdxOf(x.placement) === 0)
+        ?.durationMins
+    ).toBe(60);
+    expect(
+      r.days[1].workouts.find((x) => blockIdxOf(x.placement) === 1)
+    ).toBeDefined();
   });
 
   it("preserves a day's existing status when a second session is added to it", () => {
@@ -655,7 +668,7 @@ describe("fillWeek — 1b add one", () => {
     const d = days([
       {
         mins: [60, 200],
-        workouts: [w({ durationMins: 60, blockIdx: 0 })],
+        workouts: [w({ durationMins: 60, placement: blockPlacement(0) })],
         status: "adapted",
       },
     ]);

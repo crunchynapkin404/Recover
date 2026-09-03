@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { renderToString } from "react-dom/server";
 import type { DaySlot } from "@/lib/week-plan/types";
 import { SessionCard } from "./session-card";
+import { blockPlacement } from "@/lib/week-plan/placement";
 
 function slot(overrides: Partial<DaySlot> = {}): DaySlot {
   return {
@@ -19,7 +20,7 @@ function slot(overrides: Partial<DaySlot> = {}): DaySlot {
         description: "Steady aerobic, keep it conversational.",
         purpose: "aerobic_base",
         minEffectiveMins: 45,
-        blockIdx: 0,
+        placement: blockPlacement(0),
       },
     ],
     ...overrides,

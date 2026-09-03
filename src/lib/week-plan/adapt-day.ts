@@ -16,6 +16,7 @@ import {
 import { findBlockFor, fitToBlock } from "./slots";
 import { blockMins } from "@/lib/availability/types";
 import { withPurpose, type PlannedWorkout } from "@/lib/training-plan";
+import { blockIdxOf, blockPlacement } from "./placement";
 
 export interface AdaptDayInput {
   week: WeekState;
@@ -110,7 +111,7 @@ function handleMissedYesterday(
           if (blockIdx != null) {
             week.days[i] = {
               ...t,
-              workouts: [{ ...workout, blockIdx }],
+              workouts: [{ ...workout, placement: blockPlacement(blockIdx) }],
               status: "moved",
               movedFrom: y.date,
             };
@@ -164,7 +165,8 @@ function handleMissedYesterday(
     // day's lift — a fabricated duration against an unchanged prescription.
     if (w.purpose === "strength") continue;
     const cap = Math.round(w.durationMins * (1 + DAY_REDISTRIBUTE_CAP_PCT));
-    const block = d.availableBlocks[w.blockIdx];
+    const wBlockIdx = blockIdxOf(w.placement);
+    const block = wBlockIdx == null ? undefined : d.availableBlocks[wBlockIdx];
     const blockCapacity = block ? blockMins(block) : 0;
     w.durationMins = Math.min(
       cap,
@@ -241,7 +243,7 @@ function moveOrDropWorkout(
   if (target !== -1) {
     week.days[target] = {
       ...week.days[target],
-      workouts: [{ ...workout, blockIdx: targetBlockIdx! }],
+      workouts: [{ ...workout, placement: blockPlacement(targetBlockIdx!) }],
       status: "moved",
       movedFrom: today.date,
     };
@@ -280,7 +282,7 @@ function fitAvailability(
   const todayWorkout = today.workouts[0] ?? null;
   if (
     !todayWorkout ||
-    blockFits(today, todayWorkout.blockIdx, todayWorkout.durationMins)
+    blockFits(today, todayWorkout.placement, todayWorkout.durationMins)
   ) {
     return;
   }
@@ -288,7 +290,9 @@ function fitAvailability(
   const before = [
     { ...today, workouts: today.workouts.map((w) => ({ ...w })) },
   ];
-  const block = today.availableBlocks[todayWorkout.blockIdx];
+  const todayBlockIdx = blockIdxOf(todayWorkout.placement);
+  const block =
+    todayBlockIdx == null ? undefined : today.availableBlocks[todayBlockIdx];
   const blockCapacity = block ? blockMins(block) : 0;
   // Only this one session is removed from today's workouts below — any
   // sibling session (a second block, untouched) is left exactly as it
@@ -317,7 +321,7 @@ function fitAvailability(
       ...today,
       workouts: [
         ...remainingToday,
-        { ...fitted.workout, blockIdx: todayWorkout.blockIdx },
+        { ...fitted.workout, placement: todayWorkout.placement },
       ],
       status: "adapted",
     };
@@ -429,7 +433,7 @@ export function adaptDay(input: AdaptDayInput): AdaptDayResult {
       // reason strings below already read the replaced session's own
       // `type`, so nothing here needs to know it was a lift.
       if (isQuality(tWorkout) || tWorkout.purpose === "strength") {
-        if (!blockFits(day, tWorkout.blockIdx, RED_RECOVERY_MINS)) {
+        if (!blockFits(day, tWorkout.placement, RED_RECOVERY_MINS)) {
           // Not even a recovery-length substitute fits today's block — most
           // often reached when the band worsens to red in the same call as
           // an availability collapse (the bandChanging skip above means the

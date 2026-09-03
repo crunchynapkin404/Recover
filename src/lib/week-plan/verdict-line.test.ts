@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { verdictLine } from "./verdict-line";
 import type { DaySlot, ScheduledWorkout } from "./types";
+import { blockPlacement } from "./placement";
 
 // Same local-fixture convention as day-shape.test.ts (this suite's sibling):
 // no shared test util, a `slot`/`w` pair per file.
@@ -23,7 +24,7 @@ const w = (durationMins: number, purpose: string) =>
     intensity: "Z1-Z2",
     description: "",
     minEffectiveMins: 90,
-    blockIdx: 0,
+    placement: blockPlacement(0),
   }) as unknown as ScheduledWorkout;
 
 // The fixed "today" every test dates itself against, matching the week

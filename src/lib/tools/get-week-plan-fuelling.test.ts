@@ -3,6 +3,7 @@ import { withPurpose } from "@/lib/training-plan";
 import type { DaySlot } from "@/lib/week-plan/types";
 import { fuellingFromSession } from "@/lib/fuelling/from-session";
 import { mapDaysWithFuelling } from "./get-week-plan";
+import { blockPlacement } from "@/lib/week-plan/placement";
 
 function day(date: string, workouts: DaySlot["workouts"]): DaySlot {
   return {
@@ -31,7 +32,7 @@ describe("mapDaysWithFuelling", () => {
       durationMins: 80,
       intensity: "Z3",
       description: "steady work",
-      blockIdx: 0,
+      placement: blockPlacement(0),
     });
 
     const out = mapDaysWithFuelling([day("2026-08-10", [workout])], 70);
@@ -48,7 +49,7 @@ describe("mapDaysWithFuelling", () => {
       durationMins: 45,
       intensity: "Z1-Z2",
       description: "easy run",
-      blockIdx: 0,
+      placement: blockPlacement(0),
     });
 
     const days = [day("2026-08-11", [workout])];
