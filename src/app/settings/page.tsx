@@ -26,6 +26,7 @@ import { LlmUsageCard } from "@/components/settings/llm-usage-card";
 import { SignOutButton } from "@/components/sign-out-button";
 import Link from "next/link";
 import { User } from "lucide-react";
+import { baselinesSummary } from "@/lib/settings/baselines-summary";
 import { DEFAULT_SLEEP_NEED_SECS } from "@/lib/sleep-debt";
 import {
   Collapsible,
@@ -231,17 +232,10 @@ export default async function SettingsPage({
         ? "push on"
         : "defaults";
 
-  // The figures the engine reads back. Deliberately shows what IS set rather
-  // than a count: an athlete opening this section is usually checking one
-  // number, and "wake 06:30 · FTP 250" answers that without expanding.
-  const baselinesSummary =
-    [
-      bodyPrefsRow?.wakeTime ? `wake ${bodyPrefsRow.wakeTime}` : null,
-      bodyPrefsRow?.maxHr ? `max HR ${bodyPrefsRow.maxHr}` : null,
-      bodyPrefsRow?.ftpWatts ? `FTP ${bodyPrefsRow.ftpWatts}` : null,
-    ]
-      .filter(Boolean)
-      .join(" · ") || "not set";
+  // The figures the engine reads back. Names what IS set and what is NOT —
+  // "FTP 250" alone read as done while the run anchor was missing, which was
+  // every production user's state. See the module header for the argument.
+  const baselines = baselinesSummary(bodyPrefsRow);
 
   const advancedSummary = [
     `${apiTokens.length} ${apiTokens.length === 1 ? "token" : "tokens"}`,
@@ -421,7 +415,7 @@ export default async function SettingsPage({
         <Collapsible id="baselines" defaultOpen={opened === "baselines"}>
           <CollapsibleTrigger
             badge={
-              <span className={triggerBadgeClass}>{baselinesSummary}</span>
+              <span className={triggerBadgeClass}>{baselines}</span>
             }
           >
             <Gauge aria-hidden className="size-[18px] text-ink-muted" />
