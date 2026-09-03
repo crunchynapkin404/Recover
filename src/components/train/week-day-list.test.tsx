@@ -81,6 +81,82 @@ const NEXT_WEEK_DAYS: DaySlot[] = [
   slot("2026-08-09", "rest"), // Sun
 ];
 
+describe("WeekDayList — the Add a ride link", () => {
+  // The ONLY entry point to the athlete-chosen-workout picker, and it was
+  // shipped with no test and no capture: the soak fixture's open day always
+  // holds a session, so the link never renders in any photograph. If it were
+  // wrong the whole feature would be unreachable and nothing would say so.
+  const REST_DAYS: DaySlot[] = [slot("2026-08-01", "rest")];
+
+  it("renders on an empty open day when the page offers an href", () => {
+    const html = renderToString(
+      <WeekDayList
+        days={REST_DAYS}
+        today="2026-08-01"
+        openDate="2026-08-01"
+        addRideHref={{
+          "2026-08-01": "/train?sheet=pick-workout&day=2026-08-01",
+        }}
+      />
+    );
+    expect(html).toContain("Add a ride");
+    expect(html).toContain("/train?sheet=pick-workout&amp;day=2026-08-01");
+  });
+
+  it("does not render when the page offers no href for that day", () => {
+    // The page builds the map from canAddWorkout, so an absent date IS the
+    // refusal — settled, full and past days simply never appear in it.
+    const html = renderToString(
+      <WeekDayList
+        days={REST_DAYS}
+        today="2026-08-01"
+        openDate="2026-08-01"
+        addRideHref={{}}
+      />
+    );
+    expect(html).not.toContain("Add a ride");
+  });
+
+  it("does not render when the prop is absent entirely", () => {
+    const html = renderToString(
+      <WeekDayList days={REST_DAYS} today="2026-08-01" openDate="2026-08-01" />
+    );
+    expect(html).not.toContain("Add a ride");
+  });
+
+  it("does not render on a day that already holds a session", () => {
+    // A day with a workout renders its session row, not the Rest line the
+    // link lives on — this is what the soak fixture exercises, and why the
+    // link was invisible to every capture.
+    const html = renderToString(
+      <WeekDayList
+        days={[slot("2026-08-01", "planned", tempo)]}
+        today="2026-08-01"
+        openDate="2026-08-01"
+        addRideHref={{
+          "2026-08-01": "/train?sheet=pick-workout&day=2026-08-01",
+        }}
+      />
+    );
+    expect(html).not.toContain("Add a ride");
+  });
+
+  it("keeps the Rest line's free-minutes reading alongside the link", () => {
+    const html = renderToString(
+      <WeekDayList
+        days={REST_DAYS}
+        today="2026-08-01"
+        openDate="2026-08-01"
+        addRideHref={{
+          "2026-08-01": "/train?sheet=pick-workout&day=2026-08-01",
+        }}
+      />
+    );
+    expect(html).toContain("Rest");
+    expect(html).toContain("min free");
+  });
+});
+
 describe("WeekDayList", () => {
   it("renders the open day's row with its workout, intensity and status", () => {
     const html = renderToString(
