@@ -138,6 +138,7 @@ import {
   computeTotals,
   type AxeFinding,
 } from "./lib/axe-report";
+import { diagnoseSignIn, type SignInResponse } from "./lib/sign-in-diagnosis";
 import { selectSurfaces } from "./lib/surface-select";
 import { axeGateEnabled } from "./lib/axe-gate";
 
@@ -1172,9 +1173,26 @@ async function signIn(browser: import("playwright-core").Browser) {
 
   const attempts = 3;
   let lastErr: unknown;
+  // What the server answered the sign-in POST. Playwright reports every
+  // failure here as `waitForURL: Timeout`, which reads the same for a
+  // rejected origin, an unregistered route and a wrong password — see
+  // scripts/lib/sign-in-diagnosis.ts for the two that cost real time.
+  let authResponse: SignInResponse | null = null;
   for (let attempt = 1; attempt <= attempts; attempt++) {
     const ctx = await browser.newContext({ viewport: VIEWPORTS.phone });
     const page = await ctx.newPage();
+    page.on("response", (r: import("playwright-core").Response) => {
+      if (!r.url().includes("/api/auth/sign-in/")) return;
+      const status = r.status();
+      void r
+        .text()
+        .then((body: string) => {
+          authResponse = { status, body };
+        })
+        .catch(() => {
+          authResponse = { status, body: "" };
+        });
+    });
     try {
       await page.goto(`${BASE_URL}/login`, { waitUntil: "networkidle" });
       await page.fill('input[type="email"]', email);
@@ -1200,7 +1218,7 @@ async function signIn(browser: import("playwright-core").Browser) {
   throw new Error(
     `sign-in failed after ${attempts} attempts: ${
       lastErr instanceof Error ? lastErr.message : String(lastErr)
-    }`
+    }\n\n${diagnoseSignIn(authResponse)}`
   );
 }
 
