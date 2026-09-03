@@ -358,15 +358,20 @@ const SURFACES: Record<string, string> = {
   "body-sleep": "/body?tab=sleep",
   "body-journal": "/body?tab=journal",
   "body-labs": "/body?tab=labs",
-  // Settings is SIX <Collapsible> sections behind one path, all closed on
+  // Settings is SEVEN <Collapsible> sections behind one path, all closed on
   // load, and `/settings` alone captures none of their contents. Integrations
   // (six connector cards), AI & Coach, App and Data had never been captured or
   // axe-audited before v0.99 slice 5 — Advanced / API only ever opened inside
   // captureTokenCreated's own click. The same gap slice 2 closed for Train's
   // tabs and slice 3 for Body's, at four times the size. The sixth, "Your
-  // baselines", was split out of "App" in v0.121 when BodyPrefsCard moved.
-  // `settings` is kept as the collapsed landing state; `settings-expanded`
-  // opens all six (see SURFACE_PREPARE).
+  // baselines", was split out of "App" in v0.121 when BodyPrefsCard moved;
+  // the seventh, "Security", took Sessions out of "Advanced / API" in
+  // v0.134.0. `settings` is kept as the collapsed landing state;
+  // `settings-expanded` opens all seven (see SURFACE_PREPARE).
+  //
+  // section-order.test.ts asserts this list against the page's rendered
+  // labels in both directions, because a section missing here stays closed
+  // and the capture passes while photographing nothing.
   settings: "/settings",
   "settings-expanded": "/settings",
   // The three OAuth failure branches. page.tsx reads strava_error, whoop_error
