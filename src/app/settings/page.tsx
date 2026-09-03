@@ -419,9 +419,7 @@ export default async function SettingsPage({
             screens down under a label that did not name it. */}
         <Collapsible id="baselines" defaultOpen={opened === "baselines"}>
           <CollapsibleTrigger
-            badge={
-              <span className={triggerBadgeClass}>{baselines}</span>
-            }
+            badge={<span className={triggerBadgeClass}>{baselines}</span>}
           >
             <Gauge aria-hidden className="size-[18px] text-ink-muted" />
             <span className={triggerLabelClass}>Your baselines</span>

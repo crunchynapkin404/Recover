@@ -35,7 +35,7 @@ this design does not build one.
 
 With no athlete-set FTP, `resolveFtpAnchor()` falls back to synced eFTP,
 stamps `ftpSource: "synced"`, and `racePacing()` drops the target to **Low**
-confidence with *"Estimated from recent sessions, not measured."*
+confidence with _"Estimated from recent sessions, not measured."_
 (`src/lib/race/pacing.ts:87`, `:145`). With no threshold pace, every run figure
 is derived-and-Low **by construction**. The `Set it` fix links already exist.
 Nobody follows them.
@@ -55,15 +55,15 @@ and it is not the one the athlete arrives through when a number says Low.
 `wakeTime · maxHr · ftpWatts` only. Threshold pace, indoor FTP and the four
 1RMs are not in it. An athlete with FTP set and no pace sees `FTP 250` on a
 collapsed drawer — a true statement that answers a question nobody asked.
-This is the inventory's diagnosis stated exactly: *"the accordion labels do
-not predict their contents well enough to open only one"*
+This is the inventory's diagnosis stated exactly: _"the accordion labels do
+not predict their contents well enough to open only one"_
 (`docs/2026-08-26-ia-inventory.md:173`).
 
 **3. Nobody is ever asked.**
 `isFirstRun()` returns `false` the moment a connection is active
 (`src/lib/first-run.ts:24`). So `ac4319` — 2 connections, 18 activities — was
 never shown the first-run treatment and has never been asked for a number.
-First run means *"connect something"*, and there is no second question.
+First run means _"connect something"_, and there is no second question.
 
 ### The size, and what it is not
 
@@ -71,27 +71,27 @@ Settings expanded is **7.8 phone screens**, the longest surface in the app
 (`docs/2026-08-26-ia-inventory.md:101`), and a reviewer once got lost finding
 a card in it. But the same inventory records that **collapsed it is 1.0 screen
 — five rows, perfectly legible** (`:173`). The landing state is fine. The 7.8
-is what an athlete traverses *because the badges do not let them open only
-one drawer.* **This is a prediction defect, not a length defect**, and the fix
+is what an athlete traverses _because the badges do not let them open only
+one drawer._ **This is a prediction defect, not a length defect**, and the fix
 is aimed at prediction.
 
 ---
 
 ## Decisions
 
-| #   | Decision                                                                                                                                                                                                     | Why                                                                                                                                                                                                                                            |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 1   | `?open=<section>#<field>` becomes the app's anchor-fix vocabulary. `ANCHOR_FIX` and every sibling stop pointing at bare `/settings`.                                                                          | The mechanism exists, works and is test-guarded, with one caller. Building a second way to reach a section would be the "one resolver, not two" mistake `first-run.ts` names in its own header.                                                 |
-| 2   | Each section badge names **what is missing**, not only what is set. Baselines becomes e.g. `FTP 250 · no run pace`.                                                                                           | The inventory's diagnosis is that labels do not predict contents. A badge that lists only what is set can never say "not here"; it is structurally incapable of the one answer that saves a drawer-by-drawer scan.                              |
-| 3   | Every input in `BodyPrefsCard` gets a stable `id`, and its `<label>` an explicit `htmlFor`.                                                                                                                    | The card uses wrapping `<label className="block">` with no `id` anywhere, so **the fragment target in decision 1 does not currently exist**. Ids are the prerequisite, and they also make `aria-describedby` reachable for the Low-confidence why. |
-| 4   | A new predicate `missingAnchors(userId)` in its own module. **`isFirstRun()` is not touched.**                                                                                                                | Two different questions. Widening `isFirstRun` to demand anchors would put "Connect a device to begin" in front of an athlete with 64 rides — the exact failure its own comment says it was written to prevent.                                  |
-| 5   | The prompt is **sport-gated**: threshold pace is asked for only if the athlete has run activity; FTP only if they ride.                                                                                       | Asking a pure cyclist for a run pace is the same class of error as inventing a wake time, which `body_prefs`' schema comment records v0.9.0 removing: *"a guessed wake time would put an invented bedtime on the dashboard"*.                    |
-| 6   | The prompt is a Today block key, present in **all three** state arrays in `BLOCK_ORDER`.                                                                                                                       | `src/lib/today/block-order.ts` declares "REORDER, NEVER HIDE" and `block-order.test.ts` enforces it mechanically. The prompt's subject is not a moment, so `MOMENT_ONLY` does not apply and a two-state array would fail the suite, correctly.   |
-| 7   | Dismissal is durable, stored as one nullable timestamp column on `body_prefs`.                                                                                                                                | The state is about `body_prefs`' own emptiness, so it lives in that row. A dedicated table for one column is the drawer's drawer again. A timestamp rather than a boolean because it costs the same and answers "when" for free.                 |
-| 8   | Dismissing removes the **nag**, never the **information**. The badge keeps naming the gap, and the Low-confidence `Set it` links stay, forever.                                                               | A permanent dismiss that also hid the consequence would leave an athlete with Low figures and no remaining explanation. Dismiss answers "stop asking me on Today", not "tell me my numbers are fine".                                            |
-| 9   | Sessions leaves "Advanced / API" for a **seventh section, "Security"**, whose badge names the live session count.                                                                                              | Inventory finding: *"'Advanced / API' holds Sessions, which is where an athlete signs other devices out. That is a security action, not an advanced one."* A seventh row costs the 1.0-screen landing state almost nothing and buys a label that predicts its contents — which is decision 2's whole argument, applied to a section instead of a badge. |
-| 10  | **The inventory's "Import has two doors" finding is dismissed, not built.** Verified against the code during this design; see *Findings that did not survive* below.                                            | Both doors are correct and Export already sits beside Import. Building a fix for a defect that is not there would have moved a working first-run affordance.                                                                                     |
-| 11  | This work does **not** claim the Information Architecture roadmap strand.                                                                                                                                     | The strand's two open questions are about whether Season/Fitness/Sleep/Labs deserve to be tabs, parked on telemetry commissioned to answer them. Claiming closure on a Settings fix is the *"narrower true metric replaced the goal"* failure this repo has now recorded twice. |
+| #   | Decision                                                                                                                                                             | Why                                                                                                                                                                                                                                                                                                                                                     |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `?open=<section>#<field>` becomes the app's anchor-fix vocabulary. `ANCHOR_FIX` and every sibling stop pointing at bare `/settings`.                                 | The mechanism exists, works and is test-guarded, with one caller. Building a second way to reach a section would be the "one resolver, not two" mistake `first-run.ts` names in its own header.                                                                                                                                                         |
+| 2   | Each section badge names **what is missing**, not only what is set. Baselines becomes e.g. `FTP 250 · no run pace`.                                                  | The inventory's diagnosis is that labels do not predict contents. A badge that lists only what is set can never say "not here"; it is structurally incapable of the one answer that saves a drawer-by-drawer scan.                                                                                                                                      |
+| 3   | Every input in `BodyPrefsCard` gets a stable `id`, and its `<label>` an explicit `htmlFor`.                                                                          | The card uses wrapping `<label className="block">` with no `id` anywhere, so **the fragment target in decision 1 does not currently exist**. Ids are the prerequisite, and they also make `aria-describedby` reachable for the Low-confidence why.                                                                                                      |
+| 4   | A new predicate `missingAnchors(userId)` in its own module. **`isFirstRun()` is not touched.**                                                                       | Two different questions. Widening `isFirstRun` to demand anchors would put "Connect a device to begin" in front of an athlete with 64 rides — the exact failure its own comment says it was written to prevent.                                                                                                                                         |
+| 5   | The prompt is **sport-gated**: threshold pace is asked for only if the athlete has run activity; FTP only if they ride.                                              | Asking a pure cyclist for a run pace is the same class of error as inventing a wake time, which `body_prefs`' schema comment records v0.9.0 removing: _"a guessed wake time would put an invented bedtime on the dashboard"_.                                                                                                                           |
+| 6   | The prompt is a Today block key, present in **all three** state arrays in `BLOCK_ORDER`.                                                                             | `src/lib/today/block-order.ts` declares "REORDER, NEVER HIDE" and `block-order.test.ts` enforces it mechanically. The prompt's subject is not a moment, so `MOMENT_ONLY` does not apply and a two-state array would fail the suite, correctly.                                                                                                          |
+| 7   | Dismissal is durable, stored as one nullable timestamp column on `body_prefs`.                                                                                       | The state is about `body_prefs`' own emptiness, so it lives in that row. A dedicated table for one column is the drawer's drawer again. A timestamp rather than a boolean because it costs the same and answers "when" for free.                                                                                                                        |
+| 8   | Dismissing removes the **nag**, never the **information**. The badge keeps naming the gap, and the Low-confidence `Set it` links stay, forever.                      | A permanent dismiss that also hid the consequence would leave an athlete with Low figures and no remaining explanation. Dismiss answers "stop asking me on Today", not "tell me my numbers are fine".                                                                                                                                                   |
+| 9   | Sessions leaves "Advanced / API" for a **seventh section, "Security"**, whose badge names the live session count.                                                    | Inventory finding: _"'Advanced / API' holds Sessions, which is where an athlete signs other devices out. That is a security action, not an advanced one."_ A seventh row costs the 1.0-screen landing state almost nothing and buys a label that predicts its contents — which is decision 2's whole argument, applied to a section instead of a badge. |
+| 10  | **The inventory's "Import has two doors" finding is dismissed, not built.** Verified against the code during this design; see _Findings that did not survive_ below. | Both doors are correct and Export already sits beside Import. Building a fix for a defect that is not there would have moved a working first-run affordance.                                                                                                                                                                                            |
+| 11  | This work does **not** claim the Information Architecture roadmap strand.                                                                                            | The strand's two open questions are about whether Season/Fitness/Sleep/Labs deserve to be tabs, parked on telemetry commissioned to answer them. Claiming closure on a Settings fix is the _"narrower true metric replaced the goal"_ failure this repo has now recorded twice.                                                                         |
 
 ---
 
@@ -109,15 +109,15 @@ is null; `pace` is true when they have run activity and
 `body_prefs.thresholdPaceSecPerKm` is null. Sport **must** be read through `canonicalSport()`.
 `activities.sport` stores the raw provider discipline — a bike ride is `Ride`,
 `VirtualRide` or `GravelRide`, never `Bike` — and every consumer canonicalises
-at read time (`plan-sport.ts:175`: *"Compare against `canonicalSport(activity.sport)`,
-never"*). A naive `sport = 'Bike'` filter here would make the FTP prompt **never
+at read time (`plan-sport.ts:175`: _"Compare against `canonicalSport(activity.sport)`,
+never"_). A naive `sport = 'Bike'` filter here would make the FTP prompt **never
 fire for any cyclist**: silent, green, and invisible unless you ride, which is
 the exact shape of the bug `canonical-sport.ts`'s header records — 219 live
 rides, not one matched. That guard is mutation-tested.
 
 `ftpWattsIndoor` does not satisfy `ftp`. Its schema comment is explicit that
-it is a fallback anchor only and *"can never mean 'use it for race day'
-directly"*, which is precisely the figure the prompt is about.
+it is a fallback anchor only and _"can never mean 'use it for race day'
+directly"_, which is precisely the figure the prompt is about.
 
 ### B. The prompt — a Today block
 
@@ -163,7 +163,7 @@ become section-and-field deep links.
 - **A fragment points at a field that is not rendered** → the browser does not
   scroll and nothing throws. The section still opens, because `?open=` and
   the fragment are independent.
-- **The athlete has activity but no anchors *and* is genuinely first-run** →
+- **The athlete has activity but no anchors _and_ is genuinely first-run** →
   `isFirstRun()` still wins and the first-run treatment renders instead. The
   prompt never stacks on top of "Connect a device to begin".
 
@@ -184,7 +184,7 @@ become section-and-field deep links.
   at the depth of all of them.
 - **Does not change how anchors are derived, or how confidence is computed.**
   `resolveFtpAnchor`, `ftpSource` and the Low/Medium/High bands are untouched.
-  This work changes who is *asked*, not what the engine does with the answer.
+  This work changes who is _asked_, not what the engine does with the answer.
 - **Does not model behaviour from n=3.** No frequency tuning, no re-prompt
   schedule, no engagement heuristic. One ask, one dismiss.
 - **Does not claim the Information Architecture strand closed** (decision 11).
@@ -199,8 +199,8 @@ were scoped into this work. **One of them is not real**, and it is recorded
 here rather than quietly dropped.
 
 **"Import has two doors."** The inventory reads:
-*"Today links `/import`, and Settings ▸ Data links `/import` — and Export has
-one, inside Data. The two halves of the same job are not in the same place."*
+_"Today links `/import`, and Settings ▸ Data links `/import` — and Export has
+one, inside Data. The two halves of the same job are not in the same place."_
 
 Against the code, on 2026-09-03:
 
@@ -247,7 +247,7 @@ The seeds are already in the right states, which is unusually lucky:
   surface is needed to photograph the present state.
 - **`seed-cycling-owner.ts` writes `ftpWatts: 250` and no pace.** A cyclist
   with FTP set and no run activity is exactly decision 5's gate, so
-  `train-workout` and its siblings photograph the *refusal* for free.
+  `train-workout` and its siblings photograph the _refusal_ for free.
 
 If a new surface is added anyway, it goes in **`surfaces.yml` AND `soak.yml`**
 exception lists together — v0.127.0-rc.1 was killed by its own guard because
@@ -262,7 +262,7 @@ must be **looked at** in a capture, not asserted only in a test.
 
 1. **`body_prefs` row existence stops meaning "has set something".** Decision
    7 makes a dismissal create the row. The production count above used the
-   anchor *columns*, so it stands — but any future count must read the
+   anchor _columns_, so it stands — but any future count must read the
    columns, not `SELECT count(*) FROM body_prefs`. Recorded here because that
    diagnostic was run eight days before this migration lands.
 2. **The prompt could read as nagging on an athlete the gate should have

@@ -186,7 +186,7 @@ their contents well enough to open only one:
   `/import` — and Export has one, inside Data. The two halves of the same job
   are not in the same place.
   **STRUCK 2026-09-03, on reading the code.** This describes a shape the app
-  does not have. Today's `/import` link (`src/app/page.tsx`) sits *inside*
+  does not have. Today's `/import` link (`src/app/page.tsx`) sits _inside_
   the `isFirstRun` branch, beside "Log manually" — it is the onboarding door
   for an athlete with no data at all, not a second door on Today. And
   Settings ▸ Data already renders Data export and Import CSV adjacent in one

@@ -192,11 +192,11 @@ export function BodyPrefsCard({
         </p>
         <div className="grid grid-cols-3 gap-4">
           <div className="block">
-          <label htmlFor="squat-1rm" className="label-micro mb-1 block">
-            Squat 1RM (kg)
-          </label>
-          <input
-            id="squat-1rm"
+            <label htmlFor="squat-1rm" className="label-micro mb-1 block">
+              Squat 1RM (kg)
+            </label>
+            <input
+              id="squat-1rm"
               type="number"
               min={10}
               max={400}
@@ -207,11 +207,11 @@ export function BodyPrefsCard({
             />
           </div>
           <div className="block">
-          <label htmlFor="bench-1rm" className="label-micro mb-1 block">
-            Bench 1RM (kg)
-          </label>
-          <input
-            id="bench-1rm"
+            <label htmlFor="bench-1rm" className="label-micro mb-1 block">
+              Bench 1RM (kg)
+            </label>
+            <input
+              id="bench-1rm"
               type="number"
               min={10}
               max={400}
@@ -222,11 +222,11 @@ export function BodyPrefsCard({
             />
           </div>
           <div className="block">
-          <label htmlFor="deadlift-1rm" className="label-micro mb-1 block">
-            Deadlift 1RM (kg)
-          </label>
-          <input
-            id="deadlift-1rm"
+            <label htmlFor="deadlift-1rm" className="label-micro mb-1 block">
+              Deadlift 1RM (kg)
+            </label>
+            <input
+              id="deadlift-1rm"
               type="number"
               min={10}
               max={400}
@@ -237,11 +237,11 @@ export function BodyPrefsCard({
             />
           </div>
           <div className="block">
-          <label htmlFor="ohp-1rm" className="label-micro mb-1 block">
-            Overhead press 1RM (kg)
-          </label>
-          <input
-            id="ohp-1rm"
+            <label htmlFor="ohp-1rm" className="label-micro mb-1 block">
+              Overhead press 1RM (kg)
+            </label>
+            <input
+              id="ohp-1rm"
               type="number"
               min={10}
               max={400}

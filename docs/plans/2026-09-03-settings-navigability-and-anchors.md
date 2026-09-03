@@ -24,23 +24,23 @@
 
 ## File Structure
 
-| File | Responsibility | Task |
-| --- | --- | --- |
-| `src/components/settings/body-prefs-card.tsx` | Modify: stable `id`/`htmlFor` per input | 1 |
-| `src/app/settings/page.tsx` | Modify: section ids, honest badges, Security section | 2, 3, 4 |
-| `src/app/settings/section-order.test.ts` | Modify: seven sections, deep-link assertions | 2, 4 |
-| `scripts/verify-surfaces.ts` | Modify: `expandSettingsSections` click list | 4 |
-| `src/lib/anchors-needed.ts` | **Create**: the resolver. One question, one module | 5 |
-| `src/lib/anchors-needed.test.ts` | **Create**: DB-backed resolver tests | 5 |
-| `src/lib/db/schema.ts` + `drizzle/0047_*.sql` | Modify/Create: `anchor_prompt_dismissed_at` | 6 |
-| `src/app/settings/body-actions.ts` | Modify: `dismissAnchorPrompt()` | 6 |
-| `src/components/today/anchor-prompt.tsx` | **Create**: the block | 7 |
-| `src/components/today/anchor-prompt.test.tsx` | **Create**: render tests | 7 |
-| `src/lib/today/block-order.ts` | Modify: `anchorPrompt` key in all three states | 7 |
-| `src/app/page.tsx` | Modify: assemble and render the block | 7 |
-| `src/lib/race/pacing.ts` | Modify: `ANCHOR_FIX` targets the field | 8 |
-| `src/components/coach/chat-interface.tsx` | Modify: coach link targets its section | 8 |
-| `docs/ROADMAP.md`, `docs/2026-08-26-ia-inventory.md` | Modify: migration count, strand note, struck finding | 9 |
+| File                                                 | Responsibility                                       | Task    |
+| ---------------------------------------------------- | ---------------------------------------------------- | ------- |
+| `src/components/settings/body-prefs-card.tsx`        | Modify: stable `id`/`htmlFor` per input              | 1       |
+| `src/app/settings/page.tsx`                          | Modify: section ids, honest badges, Security section | 2, 3, 4 |
+| `src/app/settings/section-order.test.ts`             | Modify: seven sections, deep-link assertions         | 2, 4    |
+| `scripts/verify-surfaces.ts`                         | Modify: `expandSettingsSections` click list          | 4       |
+| `src/lib/anchors-needed.ts`                          | **Create**: the resolver. One question, one module   | 5       |
+| `src/lib/anchors-needed.test.ts`                     | **Create**: DB-backed resolver tests                 | 5       |
+| `src/lib/db/schema.ts` + `drizzle/0047_*.sql`        | Modify/Create: `anchor_prompt_dismissed_at`          | 6       |
+| `src/app/settings/body-actions.ts`                   | Modify: `dismissAnchorPrompt()`                      | 6       |
+| `src/components/today/anchor-prompt.tsx`             | **Create**: the block                                | 7       |
+| `src/components/today/anchor-prompt.test.tsx`        | **Create**: render tests                             | 7       |
+| `src/lib/today/block-order.ts`                       | Modify: `anchorPrompt` key in all three states       | 7       |
+| `src/app/page.tsx`                                   | Modify: assemble and render the block                | 7       |
+| `src/lib/race/pacing.ts`                             | Modify: `ANCHOR_FIX` targets the field               | 8       |
+| `src/components/coach/chat-interface.tsx`            | Modify: coach link targets its section               | 8       |
+| `docs/ROADMAP.md`, `docs/2026-08-26-ia-inventory.md` | Modify: migration count, strand note, struck finding | 9       |
 
 ---
 
@@ -49,10 +49,12 @@
 The prerequisite for every fragment link in Task 8. The card uses wrapping `<label className="block">` with **no `id` on any input**, so `#threshold-pace` currently targets nothing.
 
 **Files:**
+
 - Modify: `src/components/settings/body-prefs-card.tsx`
 - Test: `src/components/settings/body-prefs-card.test.tsx` (create if absent)
 
 **Interfaces:**
+
 - Consumes: nothing.
 - Produces: DOM ids `wake-time`, `sleep-target`, `max-hr`, `ftp-outdoor`, `ftp-indoor`, `threshold-pace`, `squat-1rm`, `bench-1rm`, `deadlift-1rm`, `ohp-1rm`. Task 8 links to `#threshold-pace` and `#ftp-outdoor`.
 
@@ -65,9 +67,16 @@ import { renderToString } from "react-dom/server";
 import { BodyPrefsCard } from "./body-prefs-card";
 
 const empty = {
-  wakeTime: null, sleepNeedSecs: 28800, maxHr: null, ftpWatts: null,
-  ftpWattsIndoor: null, thresholdPaceSecPerKm: null, squatOneRmKg: null,
-  benchOneRmKg: null, deadliftOneRmKg: null, overheadPressOneRmKg: null,
+  wakeTime: null,
+  sleepNeedSecs: 28800,
+  maxHr: null,
+  ftpWatts: null,
+  ftpWattsIndoor: null,
+  thresholdPaceSecPerKm: null,
+  squatOneRmKg: null,
+  benchOneRmKg: null,
+  deadliftOneRmKg: null,
+  overheadPressOneRmKg: null,
 };
 
 describe("BodyPrefsCard field addressing", () => {
@@ -77,7 +86,13 @@ describe("BodyPrefsCard field addressing", () => {
   // this whole change exists to fix.
   it("gives every anchor input a stable id its label points at", () => {
     const html = renderToString(<BodyPrefsCard {...empty} />);
-    for (const id of ["threshold-pace", "ftp-outdoor", "ftp-indoor", "max-hr", "wake-time"]) {
+    for (const id of [
+      "threshold-pace",
+      "ftp-outdoor",
+      "ftp-indoor",
+      "max-hr",
+      "wake-time",
+    ]) {
       expect(html).toContain(`id="${id}"`);
       expect(html).toContain(`for="${id}"`);
     }
@@ -138,10 +153,12 @@ git commit -m "Baseline fields get ids, so a fix link can land on one"
 `?open=` works and has exactly one caller. Only `baselines` carries an `id`. Task 8 needs `coach` too.
 
 **Files:**
+
 - Modify: `src/app/settings/page.tsx` (the AI & Coach `<Collapsible>`, ~line 455)
 - Modify: `src/app/settings/section-order.test.ts`
 
 **Interfaces:**
+
 - Consumes: nothing.
 - Produces: `/settings?open=coach#coach` opens and scrolls to AI & Coach. Task 8 uses it.
 
@@ -150,15 +167,15 @@ git commit -m "Baseline fields get ids, so a fix link can land on one"
 Add to the existing `describe("settings sections")` block in `section-order.test.ts`:
 
 ```ts
-  // Every section a fix link points at must be addressable. `baselines` was
-  // the only one, and `chat-interface.tsx` sent "Configure AI Coach" to bare
-  // /settings — six closed drawers, no indication which.
-  it("makes every deep-linked section addressable", () => {
-    for (const id of ["baselines", "coach"]) {
-      expect(PAGE).toContain(`<Collapsible id="${id}"`);
-      expect(PAGE).toContain(`defaultOpen={opened === "${id}"}`);
-    }
-  });
+// Every section a fix link points at must be addressable. `baselines` was
+// the only one, and `chat-interface.tsx` sent "Configure AI Coach" to bare
+// /settings — six closed drawers, no indication which.
+it("makes every deep-linked section addressable", () => {
+  for (const id of ["baselines", "coach"]) {
+    expect(PAGE).toContain(`<Collapsible id="${id}"`);
+    expect(PAGE).toContain(`defaultOpen={opened === "${id}"}`);
+  }
+});
 ```
 
 - [ ] **Step 2: Run it and watch it fail**
@@ -200,11 +217,13 @@ git commit -m "A second settings section becomes addressable"
 `baselinesSummary` is built from `wakeTime · maxHr · ftpWatts` only. An athlete with FTP set and no threshold pace sees `FTP 250` — true, and it reads as done. This is the defect all three production users sit in.
 
 **Files:**
+
 - Modify: `src/app/settings/page.tsx:237-245`
 - Create: `src/lib/settings/baselines-summary.ts`
 - Create: `src/lib/settings/baselines-summary.test.ts`
 
 **Interfaces:**
+
 - Consumes: nothing.
 - Produces: `baselinesSummary(row: BaselinesRow | null | undefined): string`, where `BaselinesRow = { wakeTime, maxHr, ftpWatts, thresholdPaceSecPerKm }` with all fields `string | number | null`.
 
@@ -223,7 +242,12 @@ describe("baselinesSummary", () => {
 
   it("states what IS set, so a closed section answers 'is this right?'", () => {
     expect(
-      baselinesSummary({ wakeTime: "06:30", maxHr: 185, ftpWatts: 250, thresholdPaceSecPerKm: 285 })
+      baselinesSummary({
+        wakeTime: "06:30",
+        maxHr: 185,
+        ftpWatts: 250,
+        thresholdPaceSecPerKm: 285,
+      })
     ).toBe("wake 06:30 · max HR 185 · FTP 250 · pace 4:45/km");
   });
 
@@ -233,25 +257,45 @@ describe("baselinesSummary", () => {
   // incapable of saying "not here".
   it("names the missing run anchor rather than reading as done", () => {
     expect(
-      baselinesSummary({ wakeTime: null, maxHr: null, ftpWatts: 250, thresholdPaceSecPerKm: null })
+      baselinesSummary({
+        wakeTime: null,
+        maxHr: null,
+        ftpWatts: 250,
+        thresholdPaceSecPerKm: null,
+      })
     ).toBe("FTP 250 · no run pace");
   });
 
   it("names a missing FTP the same way", () => {
     expect(
-      baselinesSummary({ wakeTime: null, maxHr: null, ftpWatts: null, thresholdPaceSecPerKm: 285 })
+      baselinesSummary({
+        wakeTime: null,
+        maxHr: null,
+        ftpWatts: null,
+        thresholdPaceSecPerKm: 285,
+      })
     ).toBe("pace 4:45/km · no FTP");
   });
 
   it("does not nag about both when neither is set — that is 'not set'", () => {
     expect(
-      baselinesSummary({ wakeTime: "06:30", maxHr: null, ftpWatts: null, thresholdPaceSecPerKm: null })
+      baselinesSummary({
+        wakeTime: "06:30",
+        maxHr: null,
+        ftpWatts: null,
+        thresholdPaceSecPerKm: null,
+      })
     ).toBe("wake 06:30 · no FTP · no run pace");
   });
 
   it("formats pace as mm:ss/km, because sec/km is not a pace anyone reads", () => {
     expect(
-      baselinesSummary({ wakeTime: null, maxHr: null, ftpWatts: null, thresholdPaceSecPerKm: 240 })
+      baselinesSummary({
+        wakeTime: null,
+        maxHr: null,
+        ftpWatts: null,
+        thresholdPaceSecPerKm: 240,
+      })
     ).toBe("pace 4:00/km · no FTP");
   });
 });
@@ -330,9 +374,9 @@ import { baselinesSummary } from "@/lib/settings/baselines-summary";
 ```
 
 ```tsx
-  // The figures the engine reads back. Names what is set AND what is not —
-  // see the module header for why "FTP 250" alone was the defect.
-  const baselines = baselinesSummary(bodyPrefsRow);
+// The figures the engine reads back. Names what is set AND what is not —
+// see the module header for why "FTP 250" alone was the defect.
+const baselines = baselinesSummary(bodyPrefsRow);
 ```
 
 Then change the badge usage from `{baselinesSummary}` to `{baselines}` at the `Collapsible id="baselines"` trigger.
@@ -354,16 +398,18 @@ git commit -m "The baselines badge stops reading as done when it isn't"
 
 ### Task 4: Sessions leaves "Advanced / API" for "Security"
 
-Inventory finding: *"'Advanced / API' holds Sessions, which is where an athlete signs other devices out. That is a security action, not an advanced one."*
+Inventory finding: _"'Advanced / API' holds Sessions, which is where an athlete signs other devices out. That is a security action, not an advanced one."_
 
 **This is the riskiest edit in the plan, for a reason unrelated to users.** `section-order.test.ts` cross-checks the rendered labels against `expandSettingsSections`' hardcoded click list in `verify-surfaces.ts`. A section missing from that list does **not** fail loudly: it stays collapsed, the capture photographs a closed row, axe audits nothing inside it, and `settings-expanded` still passes. Both lists move in this commit.
 
 **Files:**
+
 - Modify: `src/app/settings/page.tsx` (Advanced section ~line 495; new section after it)
 - Modify: `src/app/settings/section-order.test.ts`
 - Modify: `scripts/verify-surfaces.ts` (`expandSettingsSections` label list)
 
 **Interfaces:**
+
 - Consumes: nothing.
 - Produces: a seventh section labelled `Security`. Task 9 confirms it in a capture.
 
@@ -372,35 +418,35 @@ Inventory finding: *"'Advanced / API' holds Sessions, which is where an athlete 
 In `section-order.test.ts`, change the expected array:
 
 ```ts
-    expect(renderedSections()).toEqual([
-      "Integrations",
-      "Your baselines",
-      "AI & Coach",
-      "Advanced / API",
-      "Security",
-      "App",
-      "Data",
-    ]);
+expect(renderedSections()).toEqual([
+  "Integrations",
+  "Your baselines",
+  "AI & Coach",
+  "Advanced / API",
+  "Security",
+  "App",
+  "Data",
+]);
 ```
 
 Add a test recording why it exists:
 
 ```ts
-  // Signing another device out is a security action, not an advanced one —
-  // the IA inventory's finding (docs/2026-08-26-ia-inventory.md). Advanced
-  // keeps tokens and webhooks, which really are for people wiring things up.
-  it("keeps sessions out of Advanced, where a security control was buried", () => {
-    const at = (needle: string) => PAGE.indexOf(needle);
-    const sessions = at("<SessionsCard");
-    const security = at("triggerLabelClass}>Security<");
-    const app = at("triggerLabelClass}>App<");
+// Signing another device out is a security action, not an advanced one —
+// the IA inventory's finding (docs/2026-08-26-ia-inventory.md). Advanced
+// keeps tokens and webhooks, which really are for people wiring things up.
+it("keeps sessions out of Advanced, where a security control was buried", () => {
+  const at = (needle: string) => PAGE.indexOf(needle);
+  const sessions = at("<SessionsCard");
+  const security = at("triggerLabelClass}>Security<");
+  const app = at("triggerLabelClass}>App<");
 
-    expect(security).toBeGreaterThan(-1);
-    expect(sessions).toBeGreaterThan(security);
-    expect(sessions).toBeLessThan(app);
-    // And it is genuinely gone from Advanced, not merely duplicated.
-    expect(at("triggerLabelClass}>Advanced / API<")).toBeLessThan(security);
-  });
+  expect(security).toBeGreaterThan(-1);
+  expect(sessions).toBeGreaterThan(security);
+  expect(sessions).toBeLessThan(app);
+  // And it is genuinely gone from Advanced, not merely duplicated.
+  expect(at("triggerLabelClass}>Advanced / API<")).toBeLessThan(security);
+});
 ```
 
 - [ ] **Step 2: Run and watch it fail**
@@ -413,38 +459,40 @@ Expected: FAIL — rendered sections are six, `Security` absent; and the "captur
 In `src/app/settings/page.tsx`, remove `<SessionsCard sessions={activeSessions} />` from the Advanced panel, and add a new `<Collapsible>` immediately after the Advanced one closes:
 
 ```tsx
-        {/* Security — Sessions was under "Advanced / API", which is where an
+{
+  /* Security — Sessions was under "Advanced / API", which is where an
             athlete signs another device out. The IA inventory called that
             what it is: a security action filed under a label that predicts
             tokens and webhooks. A seventh row costs the 1.0-screen landing
             state almost nothing and buys a label that says what is behind
-            it, which is the same argument the badges make one level down. */}
-        <Collapsible>
-          <CollapsibleTrigger
-            badge={<span className={triggerBadgeClass}>{securitySummary}</span>}
-          >
-            <ShieldCheck aria-hidden className="size-[18px] text-ink-muted" />
-            <span className={triggerLabelClass}>Security</span>
-          </CollapsibleTrigger>
-          <CollapsiblePanel>
-            <div className="hairline-list px-5 pb-3">
-              <SessionsCard sessions={activeSessions} />
-            </div>
-          </CollapsiblePanel>
-        </Collapsible>
+            it, which is the same argument the badges make one level down. */
+}
+<Collapsible>
+  <CollapsibleTrigger
+    badge={<span className={triggerBadgeClass}>{securitySummary}</span>}
+  >
+    <ShieldCheck aria-hidden className="size-[18px] text-ink-muted" />
+    <span className={triggerLabelClass}>Security</span>
+  </CollapsibleTrigger>
+  <CollapsiblePanel>
+    <div className="hairline-list px-5 pb-3">
+      <SessionsCard sessions={activeSessions} />
+    </div>
+  </CollapsiblePanel>
+</Collapsible>;
 ```
 
 Add `ShieldCheck` to the `lucide-react` import. Add the badge beside the other summaries, and drop sessions from `advancedSummary`:
 
 ```ts
-  const advancedSummary = [
-    `${apiTokens.length} ${apiTokens.length === 1 ? "token" : "tokens"}`,
-    `${webhookSubscriptions.length} ${webhookSubscriptions.length === 1 ? "webhook" : "webhooks"}`,
-  ].join(" · ");
+const advancedSummary = [
+  `${apiTokens.length} ${apiTokens.length === 1 ? "token" : "tokens"}`,
+  `${webhookSubscriptions.length} ${webhookSubscriptions.length === 1 ? "webhook" : "webhooks"}`,
+].join(" · ");
 
-  const securitySummary = `${activeSessions.length} ${
-    activeSessions.length === 1 ? "session" : "sessions"
-  }`;
+const securitySummary = `${activeSessions.length} ${
+  activeSessions.length === 1 ? "session" : "sessions"
+}`;
 ```
 
 - [ ] **Step 4: Update the capture script in the SAME commit**
@@ -475,10 +523,12 @@ git commit -m "Signing a device out is a security control, not an advanced one"
 A second predicate beside `isFirstRun()`, not a widening of it. `isFirstRun` answers "has this athlete got nothing at all"; this answers "which anchors are unset **and** relevant to what they do".
 
 **Files:**
+
 - Create: `src/lib/anchors-needed.ts`
 - Create: `src/lib/anchors-needed.test.ts`
 
 **Interfaces:**
+
 - Consumes: `canonicalSport` from `@/lib/canonical-sport`; `db`, `schema` from `@/lib/db`.
 - Produces: `missingAnchors(userId: string): Promise<MissingAnchors>` where `MissingAnchors = { ftp: boolean; pace: boolean; dismissed: boolean }`. Task 7 renders it.
 
@@ -537,7 +587,9 @@ describe.skipIf(!hasDb)("missingAnchors", () => {
 
   afterAll(async () => {
     for (const id of ALL_USERS) {
-      await db.delete(schema.activities).where(eq(schema.activities.userId, id));
+      await db
+        .delete(schema.activities)
+        .where(eq(schema.activities.userId, id));
       await db.delete(schema.bodyPrefs).where(eq(schema.bodyPrefs.userId, id));
       await db.delete(schema.users).where(eq(schema.users.id, id));
     }
@@ -545,32 +597,42 @@ describe.skipIf(!hasDb)("missingAnchors", () => {
 
   it("asks a runner with no pace for a pace, and not for an FTP", async () => {
     expect(await missingAnchors(RUNNER)).toEqual({
-      ftp: false, pace: true, dismissed: false,
+      ftp: false,
+      pace: true,
+      dismissed: false,
     });
   });
 
   // Reading `sport` raw would return ftp:false here and be green forever.
   it("asks a cyclist for an FTP even though the provider said VirtualRide", async () => {
     expect(await missingAnchors(CYCLIST)).toEqual({
-      ftp: true, pace: false, dismissed: false,
+      ftp: true,
+      pace: false,
+      dismissed: false,
     });
   });
 
   it("asks an anchored athlete for nothing", async () => {
     expect(await missingAnchors(ANCHORED)).toEqual({
-      ftp: false, pace: false, dismissed: false,
+      ftp: false,
+      pace: false,
+      dismissed: false,
     });
   });
 
   it("reports a dismissal without forgetting what is still missing", async () => {
     expect(await missingAnchors(DISMISSED)).toEqual({
-      ftp: false, pace: true, dismissed: true,
+      ftp: false,
+      pace: true,
+      dismissed: true,
     });
   });
 
   it("asks an athlete with no activity for nothing at all", async () => {
     expect(await missingAnchors(IDLE)).toEqual({
-      ftp: false, pace: false, dismissed: false,
+      ftp: false,
+      pace: false,
+      dismissed: false,
     });
   });
 });
@@ -679,11 +741,13 @@ git commit -m "A second predicate: which anchors does this athlete actually need
 ### Task 6: The dismissal column and action
 
 **Files:**
+
 - Modify: `src/lib/db/schema.ts` (`bodyPrefs`, after `thresholdPaceSecPerKm`)
 - Create: `drizzle/0047_*.sql` (generated)
 - Modify: `src/app/settings/body-actions.ts`
 
 **Interfaces:**
+
 - Consumes: `requireUser` from `@/lib/session`.
 - Produces: column `body_prefs.anchor_prompt_dismissed_at` (`timestamp with time zone`, nullable); server action `dismissAnchorPrompt(): Promise<void>`. Task 7 calls it.
 
@@ -766,6 +830,7 @@ git commit -m "Somewhere to record 'not now'"
 ### Task 7: The prompt on Today
 
 **Files:**
+
 - Create: `src/components/today/anchor-prompt.tsx`
 - Create: `src/components/today/anchor-prompt.test.tsx`
 - Modify: `src/lib/today/block-order.ts`
@@ -773,10 +838,11 @@ git commit -m "Somewhere to record 'not now'"
 - Modify: `src/app/page.tsx`
 
 **Interfaces:**
+
 - Consumes: `MissingAnchors` from `@/lib/anchors-needed`; `dismissAnchorPrompt` from `@/app/settings/body-actions`.
 - Produces: `<AnchorPrompt missing={MissingAnchors} />`, and the `BLOCK_ORDER` key `"anchorPrompt"`.
 
-**The governing constraint:** `block-order.ts` declares *"REORDER, NEVER HIDE"* and `block-order.test.ts` enforces it. `anchorPrompt` is not moment-bound, so it does **not** belong in `MOMENT_ONLY` and **must** appear in all three state arrays. A two-state array fails the suite, correctly.
+**The governing constraint:** `block-order.ts` declares _"REORDER, NEVER HIDE"_ and `block-order.test.ts` enforces it. `anchorPrompt` is not moment-bound, so it does **not** belong in `MOMENT_ONLY` and **must** appear in all three state arrays. A two-state array fails the suite, correctly.
 
 - [ ] **Step 1: Write the failing component test**
 
@@ -788,7 +854,9 @@ import { AnchorPrompt } from "./anchor-prompt";
 describe("AnchorPrompt", () => {
   it("renders nothing when no anchor is missing", () => {
     expect(
-      renderToString(<AnchorPrompt missing={{ ftp: false, pace: false, dismissed: false }} />)
+      renderToString(
+        <AnchorPrompt missing={{ ftp: false, pace: false, dismissed: false }} />
+      )
     ).toBe("");
   });
 
@@ -796,7 +864,9 @@ describe("AnchorPrompt", () => {
   // every "Set it" link keep working. This block is the only thing silenced.
   it("renders nothing once dismissed, even with an anchor still missing", () => {
     expect(
-      renderToString(<AnchorPrompt missing={{ ftp: false, pace: true, dismissed: true }} />)
+      renderToString(
+        <AnchorPrompt missing={{ ftp: false, pace: true, dismissed: true }} />
+      )
     ).toBe("");
   });
 
@@ -925,11 +995,11 @@ Expected: PASS, 5 tests.
 In `src/lib/today/block-order.ts`, add `"anchorPrompt"` to `TodayBlockKey`, and place it in all three `BLOCK_ORDER` arrays directly after `"calibration"` (morning, post-session) and after `"calibration"` in evening too. Do **not** add it to `MOMENT_ONLY` — its subject is not a moment. Add the reasoning:
 
 ```ts
-  // anchorPrompt sits beside calibration because both answer "why is this
-  // number soft?" — calibration says "not enough history yet", this says
-  // "no anchor to compute against". It renders null when nothing is
-  // missing, so its place in every state costs an anchored athlete nothing,
-  // the same argument dayLog and bedtime carry above.
+// anchorPrompt sits beside calibration because both answer "why is this
+// number soft?" — calibration says "not enough history yet", this says
+// "no anchor to compute against". It renders null when nothing is
+// missing, so its place in every state costs an anchored athlete nothing,
+// the same argument dayLog and bedtime carry above.
 ```
 
 - [ ] **Step 6: Run the ordering suite**
@@ -970,11 +1040,13 @@ git commit -m "Ask once, on Today, and only for the sport they do"
 ### Task 8: The fix links land on the field
 
 **Files:**
+
 - Modify: `src/lib/race/pacing.ts:106`
 - Modify: `src/components/coach/chat-interface.tsx:331`
 - Modify: `src/lib/race/pacing.test.ts` (or create the assertion where pacing refusals are tested)
 
 **Interfaces:**
+
 - Consumes: the ids from Task 1, the section ids from Task 2.
 - Produces: nothing downstream.
 
@@ -983,21 +1055,25 @@ git commit -m "Ask once, on Today, and only for the sport they do"
 Add to the pacing tests:
 
 ```ts
-  // The fix link is the whole mechanism. Pointing it at bare /settings put
-  // the athlete at the top of the app's longest surface with the drawer
-  // they needed closed and badged "FTP 250" — which reads as done. The
-  // deep link existed, was test-guarded, and had exactly one caller.
-  it("sends 'Set it' to the field, not to the top of settings", () => {
-    const figure = racePacing({
-      sport: "Bike", distanceKm: 100, elevationM: 500,
-      ftpWatts: null, massKg: 70, eventDays: 1,
-    });
-    expect(figure.available).toBe(false);
-    if (figure.available) return;
-    expect(figure.kind).toBe("missing_input");
-    if (figure.kind !== "missing_input") return;
-    expect(figure.fix?.href).toBe("/settings?open=baselines#ftp-outdoor");
+// The fix link is the whole mechanism. Pointing it at bare /settings put
+// the athlete at the top of the app's longest surface with the drawer
+// they needed closed and badged "FTP 250" — which reads as done. The
+// deep link existed, was test-guarded, and had exactly one caller.
+it("sends 'Set it' to the field, not to the top of settings", () => {
+  const figure = racePacing({
+    sport: "Bike",
+    distanceKm: 100,
+    elevationM: 500,
+    ftpWatts: null,
+    massKg: 70,
+    eventDays: 1,
   });
+  expect(figure.available).toBe(false);
+  if (figure.available) return;
+  expect(figure.kind).toBe("missing_input");
+  if (figure.kind !== "missing_input") return;
+  expect(figure.fix?.href).toBe("/settings?open=baselines#ftp-outdoor");
+});
 ```
 
 - [ ] **Step 2: Run and watch it fail**
@@ -1018,8 +1094,14 @@ Expected: FAIL — received `/settings`.
  * neither of which this link used, so "Set it" landed 7.8 screens from the
  * thing it named.
  */
-const FTP_FIX = { label: "Set it", href: "/settings?open=baselines#ftp-outdoor" };
-const PACE_FIX = { label: "Set it", href: "/settings?open=baselines#threshold-pace" };
+const FTP_FIX = {
+  label: "Set it",
+  href: "/settings?open=baselines#ftp-outdoor",
+};
+const PACE_FIX = {
+  label: "Set it",
+  href: "/settings?open=baselines#threshold-pace",
+};
 ```
 
 Replace the `ANCHOR_FIX` usage at the FTP branch with `FTP_FIX`, and the run-anchor branch with `PACE_FIX`. Check every `ANCHOR_FIX` reference in the file and give each the anchor it actually names.
@@ -1048,6 +1130,7 @@ git commit -m "Set it now means set THIS"
 ### Task 9: Docs, guarded figures, and looking at the pictures
 
 **Files:**
+
 - Modify: `docs/ROADMAP.md`
 - Modify: `docs/2026-08-26-ia-inventory.md`
 - Modify: `CHANGELOG.md`
@@ -1088,13 +1171,13 @@ In `docs/ROADMAP.md`, under the Information Architecture item, add — and do **
 In `docs/2026-08-26-ia-inventory.md`, at the "Import has two doors" bullet, append:
 
 ```markdown
-  **Struck 2026-09-03, on reading the code.** Today's `/import` link
-  (`src/app/page.tsx:332`) is inside the `isFirstRun` branch that opens at
-  `:291` — it is the onboarding door, beside "Log manually", for an athlete
-  with no data at all. And Settings ▸ Data already renders Data export and
-  Import CSV adjacent in one section under the badge `Export · Import CSV`.
-  The two halves are already together and both doors are correct. See
-  `docs/specs/2026-09-03-settings-navigability-and-anchors-design.md`.
+**Struck 2026-09-03, on reading the code.** Today's `/import` link
+(`src/app/page.tsx:332`) is inside the `isFirstRun` branch that opens at
+`:291` — it is the onboarding door, beside "Log manually", for an athlete
+with no data at all. And Settings ▸ Data already renders Data export and
+Import CSV adjacent in one section under the badge `Export · Import CSV`.
+The two halves are already together and both doors are correct. See
+`docs/specs/2026-09-03-settings-navigability-and-anchors-design.md`.
 ```
 
 - [ ] **Step 5: Full suite and typecheck**
@@ -1103,6 +1186,7 @@ In `docs/2026-08-26-ia-inventory.md`, at the "Import has two doors" bullet, appe
 npx vitest run
 npx tsc --noEmit
 ```
+
 Expected: all green. `.next/` generated-type parse errors are noise — re-run before bisecting your own diff.
 
 - [ ] **Step 6: Capture and LOOK**
@@ -1110,6 +1194,7 @@ Expected: all green. `.next/` generated-type parse errors are noise — re-run b
 The seeds are already in the states that matter — `seed-demo.ts` writes no `body_prefs` row and the demo athlete is a marathon runner, so the prompt and the missing-pace badge fire on the existing `today`, `settings` and `settings-expanded` surfaces. `seed-cycling-owner.ts` writes `ftpWatts: 250` with no pace and no run activity, which photographs the sport gate refusing.
 
 Capture those surfaces and **open the PNGs**. `truncate` is CSS, so a hidden badge is still in the DOM and a test cannot see what a screenshot can. Confirm by eye:
+
 - the Today prompt reads at 390px wide without a new breakpoint;
 - the baselines badge is not clipped at its longest (`wake 06:30 · max HR 185 · FTP 250 · no run pace`);
 - the seventh section did not push anything off, and Security is open in `settings-expanded`.

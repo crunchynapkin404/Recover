@@ -4,7 +4,7 @@
 
 Counted in production on 2026-09-02: one user of three has a `body_prefs` row,
 and **nobody has ever set a threshold pace**. So every running figure the app
-produces is Low confidence *by construction*, the fix links that say so land
+produces is Low confidence _by construction_, the fix links that say so land
 at the top of the longest surface in the app, and the drawer they need is
 badged `FTP 250` — which reads as finished.
 
@@ -18,7 +18,7 @@ or ride and have no FTP, one card asks for it and links straight to the field.
 running pace. Sport is read through the app's own vocabulary mapping, so a
 ride recorded as `VirtualRide` or `GravelRide` still counts as riding.
 
-**"Set it" now sets *that*.** Both anchors shared one link to bare
+**"Set it" now sets _that_.** Both anchors shared one link to bare
 `/settings`. Each now opens its own section and scrolls to its own input.
 
 **The baselines badge tells you what is missing.** It read `wake 06:30 · FTP

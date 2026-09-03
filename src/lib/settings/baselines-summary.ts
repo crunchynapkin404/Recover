@@ -34,9 +34,7 @@ export function formatPace(secPerKm: number): string {
   return `${mins}:${String(secs).padStart(2, "0")}/km`;
 }
 
-export function baselinesSummary(
-  row: BaselinesRow | null | undefined
-): string {
+export function baselinesSummary(row: BaselinesRow | null | undefined): string {
   const set = [
     row?.wakeTime ? `wake ${row.wakeTime}` : null,
     row?.maxHr ? `max HR ${row.maxHr}` : null,

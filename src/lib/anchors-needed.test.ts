@@ -57,7 +57,9 @@ describe.skipIf(!hasDb)("missingAnchors", () => {
 
   afterAll(async () => {
     for (const id of ALL_USERS) {
-      await db.delete(schema.activities).where(eq(schema.activities.userId, id));
+      await db
+        .delete(schema.activities)
+        .where(eq(schema.activities.userId, id));
       await db.delete(schema.bodyPrefs).where(eq(schema.bodyPrefs.userId, id));
       await db.delete(schema.users).where(eq(schema.users.id, id));
     }
