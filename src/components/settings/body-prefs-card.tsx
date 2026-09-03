@@ -79,18 +79,24 @@ export function BodyPrefsCard({
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        <label className="block">
-          <span className="label-micro mb-1 block">Usual wake time</span>
+        <div className="block">
+          <label htmlFor="wake-time" className="label-micro mb-1 block">
+            Usual wake time
+          </label>
           <input
+            id="wake-time"
             type="time"
             value={wake}
             onChange={(e) => setWake(e.target.value)}
             className={inputClass}
           />
-        </label>
-        <label className="block">
-          <span className="label-micro mb-1 block">Sleep target (hours)</span>
+        </div>
+        <div className="block">
+          <label htmlFor="sleep-target" className="label-micro mb-1 block">
+            Sleep target (hours)
+          </label>
           <input
+            id="sleep-target"
             type="number"
             min={4}
             max={12}
@@ -99,7 +105,7 @@ export function BodyPrefsCard({
             onChange={(e) => setHours(e.target.value)}
             className={inputClass}
           />
-        </label>
+        </div>
       </div>
 
       <div>
@@ -115,9 +121,12 @@ export function BodyPrefsCard({
       </div>
 
       <div className="grid grid-cols-3 gap-4">
-        <label className="block">
-          <span className="label-micro mb-1 block">Max HR (bpm)</span>
+        <div className="block">
+          <label htmlFor="max-hr" className="label-micro mb-1 block">
+            Max HR (bpm)
+          </label>
           <input
+            id="max-hr"
             type="number"
             min={100}
             max={230}
@@ -126,10 +135,13 @@ export function BodyPrefsCard({
             placeholder="e.g. 185"
             className={inputClass}
           />
-        </label>
-        <label className="block">
-          <span className="label-micro mb-1 block">FTP (watts) — outdoor</span>
+        </div>
+        <div className="block">
+          <label htmlFor="ftp-outdoor" className="label-micro mb-1 block">
+            FTP (watts) — outdoor
+          </label>
           <input
+            id="ftp-outdoor"
             type="number"
             min={50}
             max={600}
@@ -138,12 +150,13 @@ export function BodyPrefsCard({
             placeholder="e.g. 250"
             className={inputClass}
           />
-        </label>
-        <label className="block">
-          <span className="label-micro mb-1 block">
+        </div>
+        <div className="block">
+          <label htmlFor="ftp-indoor" className="label-micro mb-1 block">
             FTP (watts) — indoor (optional)
-          </span>
+          </label>
           <input
+            id="ftp-indoor"
             type="number"
             min={50}
             max={600}
@@ -152,12 +165,13 @@ export function BodyPrefsCard({
             placeholder="e.g. 235"
             className={inputClass}
           />
-        </label>
-        <label className="block">
-          <span className="label-micro mb-1 block">
+        </div>
+        <div className="block">
+          <label htmlFor="threshold-pace" className="label-micro mb-1 block">
             Threshold pace (sec/km)
-          </span>
+          </label>
           <input
+            id="threshold-pace"
             type="number"
             min={150}
             max={600}
@@ -166,7 +180,7 @@ export function BodyPrefsCard({
             placeholder="e.g. 285"
             className={inputClass}
           />
-        </label>
+        </div>
       </div>
 
       <div className="mt-6">
@@ -177,9 +191,12 @@ export function BodyPrefsCard({
           reps, just no weight target.
         </p>
         <div className="grid grid-cols-3 gap-4">
-          <label className="block">
-            <span className="label-micro mb-1 block">Squat 1RM (kg)</span>
-            <input
+          <div className="block">
+          <label htmlFor="squat-1rm" className="label-micro mb-1 block">
+            Squat 1RM (kg)
+          </label>
+          <input
+            id="squat-1rm"
               type="number"
               min={10}
               max={400}
@@ -188,10 +205,13 @@ export function BodyPrefsCard({
               placeholder="e.g. 120"
               className={inputClass}
             />
+          </div>
+          <div className="block">
+          <label htmlFor="bench-1rm" className="label-micro mb-1 block">
+            Bench 1RM (kg)
           </label>
-          <label className="block">
-            <span className="label-micro mb-1 block">Bench 1RM (kg)</span>
-            <input
+          <input
+            id="bench-1rm"
               type="number"
               min={10}
               max={400}
@@ -200,10 +220,13 @@ export function BodyPrefsCard({
               placeholder="e.g. 80"
               className={inputClass}
             />
+          </div>
+          <div className="block">
+          <label htmlFor="deadlift-1rm" className="label-micro mb-1 block">
+            Deadlift 1RM (kg)
           </label>
-          <label className="block">
-            <span className="label-micro mb-1 block">Deadlift 1RM (kg)</span>
-            <input
+          <input
+            id="deadlift-1rm"
               type="number"
               min={10}
               max={400}
@@ -212,12 +235,13 @@ export function BodyPrefsCard({
               placeholder="e.g. 150"
               className={inputClass}
             />
+          </div>
+          <div className="block">
+          <label htmlFor="ohp-1rm" className="label-micro mb-1 block">
+            Overhead press 1RM (kg)
           </label>
-          <label className="block">
-            <span className="label-micro mb-1 block">
-              Overhead press 1RM (kg)
-            </span>
-            <input
+          <input
+            id="ohp-1rm"
               type="number"
               min={10}
               max={400}
@@ -226,7 +250,7 @@ export function BodyPrefsCard({
               placeholder="e.g. 50"
               className={inputClass}
             />
-          </label>
+          </div>
         </div>
       </div>
 
