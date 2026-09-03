@@ -84,6 +84,16 @@ describe("settings sections", () => {
     expect(PAGE).toContain('defaultOpen={opened === "baselines"}');
   });
 
+  // Every section a fix link points at must be addressable. `baselines` was
+  // the only one that was, and chat-interface.tsx sent an unconfigured coach
+  // to bare /settings — six closed drawers, with nothing saying which.
+  it("makes every deep-linked section addressable", () => {
+    for (const id of ["baselines", "coach"]) {
+      expect(PAGE).toContain(`<Collapsible id="${id}"`);
+      expect(PAGE).toContain(`defaultOpen={opened === "${id}"}`);
+    }
+  });
+
   it("is reachable from Body, which had no outbound link before", () => {
     const body = readFileSync("src/app/body/page.tsx", "utf8");
     expect(body).toContain('href="/settings?open=baselines#baselines"');

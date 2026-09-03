@@ -451,8 +451,9 @@ export default async function SettingsPage({
           </CollapsiblePanel>
         </Collapsible>
 
-        {/* AI & Tech */}
-        <Collapsible>
+        {/* AI & Coach — addressable, because chat-interface.tsx sends an
+            unconfigured coach here and "in Settings" is not a location. */}
+        <Collapsible id="coach" defaultOpen={opened === "coach"}>
           <CollapsibleTrigger
             badge={<span className={triggerBadgeClass}>{coachSummary}</span>}
           >
