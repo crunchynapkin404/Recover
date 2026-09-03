@@ -66,6 +66,43 @@ const chosen = (durationMins = 75): Partial<ScheduledWorkout> => ({
 /** No resolved availability anywhere — the week the drop rung would empty. */
 const noAvailability = (): Map<string, AvailabilityBlock[]> => new Map();
 
+describe("adaptDay complies out loud", () => {
+  it("records a kept note when it disagrees with the pick", () => {
+    const w = week([
+      D("2026-07-20", 60, [{ durationMins: 60 }]),
+      D("2026-07-21", 0, [chosen(75)]),
+      D("2026-07-22", 60, [{ durationMins: 60 }]),
+    ]);
+    const r = adaptDay({
+      week: w,
+      today: "2026-07-21",
+      band: "red",
+      yesterdayCompleted: null,
+    });
+    const note = r.adjustments.find((a) => a.trigger === "athlete_choice");
+    expect(note).toBeDefined();
+    expect(note!.action).toBe("kept");
+    expect(note!.reasonCode).toBe("chosen_kept_on_red");
+  });
+
+  it("stays silent when it does not disagree", () => {
+    const w = week([
+      D("2026-07-20", 60, [{ durationMins: 60 }]),
+      D("2026-07-21", 0, [chosen(75)]),
+      D("2026-07-22", 60, [{ durationMins: 60 }]),
+    ]);
+    const r = adaptDay({
+      week: w,
+      today: "2026-07-21",
+      band: "green",
+      yesterdayCompleted: null,
+    });
+    expect(r.adjustments.filter((a) => a.trigger === "athlete_choice")).toEqual(
+      []
+    );
+  });
+});
+
 describe("the fill rung never grows an athlete-chosen session", () => {
   it("leaves it at the length the athlete set, even under a week target", () => {
     // No explicit isAthleteChosen guard is needed in fill's growth loop: the

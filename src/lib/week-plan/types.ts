@@ -144,10 +144,19 @@ export type AdjustmentTrigger =
   | "missed_workout"
   | "availability_change"
   | "weekly_rollover"
-  | "race";
+  | "race"
+  /** A rung would have changed an athlete-chosen session and was not allowed to. */
+  | "athlete_choice";
 
 export type AdjustmentAction =
-  "scaled" | "moved" | "swapped" | "dropped" | "redistributed" | "added";
+  | "scaled"
+  | "moved"
+  | "swapped"
+  | "dropped"
+  | "redistributed"
+  | "added"
+  /** Left standing on purpose, with the engine's disagreement recorded. */
+  | "kept";
 
 export interface AdjustmentRecord {
   date: string; // the day the adjustment applies to

@@ -17,6 +17,7 @@ import { findBlockFor, fitToBlock } from "./slots";
 import { blockMins } from "@/lib/availability/types";
 import { withPurpose, type PlannedWorkout } from "@/lib/training-plan";
 import { blockIdxOf, blockPlacement, isAthleteChosen } from "./placement";
+import { keptNote } from "./kept-note";
 
 export interface AdaptDayInput {
   week: WeekState;
@@ -421,6 +422,16 @@ export function adaptDay(input: AdaptDayInput): AdaptDayResult {
   // engine's own prescription; the athlete's pick is theirs. Recover records
   // its disagreement instead (keptNote) and leaves the session standing.
   const tWorkout = day.workouts.find((w) => !isAthleteChosen(w)) ?? null;
+
+  // Comply out loud. The guards above make Recover leave the athlete's own
+  // pick alone; this is where it says so when it disagrees with the pick.
+  // Emitted before the readiness branch so the note survives every early
+  // return below it.
+  for (const chosen of day.workouts.filter(isAthleteChosen)) {
+    const note = keptNote(day, chosen, input.band);
+    if (note) adjustments.push(note);
+  }
+
   if (tWorkout && (input.band === "red" || input.band === "amber")) {
     // Snapshot the ORIGINAL session before any mutation below — this is
     // what the next run must derive from, not whatever we're about to

@@ -1110,6 +1110,10 @@ export const planAdjustments = pgTable(
       .notNull()
       .references(() => weekPlans.id, { onDelete: "cascade" }),
     date: date("date").notNull(),
+    // A plain text column with a TYPE-level enum, not a Postgres enum type
+    // and with no CHECK constraint (see drizzle/0012). Adding a member is
+    // therefore a type change and needs no migration — which is the only
+    // reason "athlete_choice"/"kept" could ship without one.
     trigger: text("trigger", {
       enum: [
         "low_readiness",
@@ -1118,10 +1122,19 @@ export const planAdjustments = pgTable(
         "availability_change",
         "weekly_rollover",
         "race",
+        "athlete_choice",
       ],
     }).notNull(),
     action: text("action", {
-      enum: ["scaled", "moved", "swapped", "dropped", "redistributed", "added"],
+      enum: [
+        "scaled",
+        "moved",
+        "swapped",
+        "dropped",
+        "redistributed",
+        "added",
+        "kept",
+      ],
     }).notNull(),
     before: jsonb("before"),
     after: jsonb("after"),
