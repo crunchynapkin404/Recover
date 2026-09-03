@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — Settings navigability, and the anchors nobody sets
+## v0.134.0 — 2026-09-03 — Settings navigability, and the anchors nobody sets
 
 Counted in production on 2026-09-02: one user of three has a `body_prefs` row,
 and **nobody has ever set a threshold pace**. So every running figure the app
@@ -49,6 +49,15 @@ side. Recorded in the inventory and the spec instead of quietly dropped.
 **The information architecture strand stays open.** Settings expanded is still
 7.8 phone screens, deliberately — the diagnosis was prediction, not depth. The
 two questions parked on telemetry are untouched.
+
+**Migrations: additive.** One migration, `0047_orange_marvex.sql`, adding a
+single nullable column — `body_prefs.anchor_prompt_dismissed_at`. Old code
+ignores a column it does not know about, so an image rollback is safe.
+
+**One consequence worth knowing:** dismissing the prompt creates a
+`body_prefs` row, so row existence stops meaning "has set something". Any
+future count of who has anchors must read the anchor columns, not
+`select count(*) from body_prefs`.
 
 ## v0.133.0 — 2026-09-02 — One step after a ride, and two things a picture found
 
