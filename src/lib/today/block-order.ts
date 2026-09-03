@@ -16,9 +16,7 @@ import type { TodayState } from "./state";
  * re-stating a copy of it.
  */
 export type TodayBlockKey =
-  | "heroFull"
-  | "heroCompact"
-  | "heroRecap"
+  | "hero"
   | "calibration"
   | "anchorPrompt"
   | "vitals"
@@ -41,9 +39,9 @@ export type TodayBlockKey =
  * against families rather than raw keys.
  */
 export const VARIANT_FAMILY: Partial<Record<TodayBlockKey, string>> = {
-  heroFull: "hero",
-  heroCompact: "hero",
-  heroRecap: "hero",
+  // The hero had three members here, one per state. It renders one way at
+  // every hour now, so there is no family left to police: `hero` is simply
+  // a block. See today-hero.tsx.
   session: "session",
   sessionDone: "session",
   // sessionTomorrow is deliberately NOT in the session family. It shows a
@@ -94,7 +92,7 @@ export function blockConcept(key: TodayBlockKey): string {
  */
 export const BLOCK_ORDER: Record<TodayState, readonly TodayBlockKey[]> = {
   morning: [
-    "heroFull",
+    "hero",
     "calibration",
     "anchorPrompt",
     "vitals",
@@ -112,7 +110,7 @@ export const BLOCK_ORDER: Record<TodayState, readonly TodayBlockKey[]> = {
   ],
   "post-session": [
     "justLanded",
-    "heroCompact",
+    "hero",
     "sessionDone",
     "calibration",
     "anchorPrompt",
@@ -126,7 +124,7 @@ export const BLOCK_ORDER: Record<TodayState, readonly TodayBlockKey[]> = {
   ],
   evening: [
     "dayLog",
-    "heroRecap",
+    "hero",
     "sessionTomorrow",
     "bedtime",
     "coach",
@@ -147,7 +145,7 @@ export const BLOCK_ORDER: Record<TodayState, readonly TodayBlockKey[]> = {
  * reorder, so the other two states take one honest column.
  */
 export const MORNING_LEFT_COLUMN: ReadonlySet<TodayBlockKey> = new Set([
-  "heroFull",
+  "hero",
   "calibration",
   // Beside calibration, for the reason BLOCK_ORDER gives: the two answer the
   // same question and the morning grid must not split them across columns.

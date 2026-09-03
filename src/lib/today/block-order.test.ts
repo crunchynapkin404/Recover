@@ -22,9 +22,13 @@ describe("Today's block order", () => {
   });
 
   /**
-   * The governing rule, mechanically. Checked against CONCEPTS, not raw keys:
-   * heroFull/heroCompact/heroRecap are one block at three emphases, and a
-   * state picks one. Raw-key equality would fail a correct implementation.
+   * The governing rule, mechanically. Checked against CONCEPTS, not raw keys,
+   * because `session`/`sessionDone` are one block at two emphases and a state
+   * picks one — raw-key equality would fail a correct implementation.
+   *
+   * The hero used to be such a family too (heroFull/heroCompact/heroRecap,
+   * one per state). It renders one way at every hour now, so it is a plain
+   * key; the CONCEPTS indirection stays for the session pair.
    */
   it("shows every block in every state, except the moment-only ones", () => {
     const universe = new Set<string>();
@@ -74,7 +78,7 @@ describe("Today's block order", () => {
   });
 
   it("leads each state with the block that answers its moment", () => {
-    expect(BLOCK_ORDER.morning[0]).toBe("heroFull");
+    expect(BLOCK_ORDER.morning[0]).toBe("hero");
     expect(BLOCK_ORDER["post-session"][0]).toBe("justLanded");
     expect(BLOCK_ORDER.evening[0]).toBe("dayLog");
   });

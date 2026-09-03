@@ -8,7 +8,14 @@ const BAND_VERDICT: Record<Band, string> = {
   calibrating: "Calibrating · learning baseline",
 };
 
-/** The verdict in one word, for the compact recap line. */
+/**
+ * The verdict in one word, without the advice clause.
+ *
+ * Used when the reading is not today's: "ready for intensity" is a
+ * recommendation about a body measured days ago, and a date alone is a weak
+ * contradiction of it. The band still describes what was measured, so the
+ * word stays and the advice goes.
+ */
 const BAND_WORD: Record<Band, string> = {
   green: "Strong",
   amber: "Moderate",
@@ -32,17 +39,16 @@ interface Props {
   sleepScore: number | null;
   why: TodayHeroWhy;
   /**
-   * "full" is the morning lead: ring, verdict, why line, legend.
-   * "compact" is the recap the post-session and evening states carry below
-   * their own lead — the same number, no ring, no legend.
+   * When the reading is from, when it is NOT today's — "yesterday",
+   * "Monday", "12 days ago". null for today's reading, which is the normal
+   * case and renders the card with nothing added.
+   *
+   * From describeReadingAge() (src/lib/today/reading-age.ts). This replaced
+   * a `staleLabel` driven by TIME OF DAY, which marked a reading taken that
+   * same morning as stale at 18:00 and left a three-week-old one unmarked at
+   * 07:00. The card no longer varies by hour at all.
    */
-  variant?: "full" | "compact";
-  /**
-   * Compact only. Set it ("Readiness this morning") and the recap says so
-   * and drops the why line, because by evening those inputs describe a
-   * reading the athlete already acted on.
-   */
-  staleLabel?: string | null;
+  readingAge?: string | null;
 }
 
 // One geometry, scaled by CSS at lg+ (3a wants a 150px ring) so the ring's
@@ -94,8 +100,7 @@ export function TodayHero({
   recoveryScore,
   sleepScore,
   why,
-  variant = "full",
-  staleLabel = null,
+  readingAge = null,
 }: Props) {
   const calibrating = band === "calibrating" || readiness == null;
   const filled = calibrating ? 0 : Math.max(0, Math.min(100, readiness ?? 0));
@@ -105,79 +110,6 @@ export function TodayHero({
   const srScore = calibrating
     ? "Readiness calibrating"
     : `Readiness ${Math.round(readiness ?? 0)}`;
-
-  if (variant === "compact") {
-    return (
-      <section className="flex items-center gap-3.5 rounded-[20px] glass glass-no-hover p-4">
-        {/* The ring returns at roughly half scale (v0.100.1, owner feedback).
-            The demoted variant shipped as a bare numeral, and 51 sitting on
-            its own read as one stat among others rather than as the app's
-            headline signal. Halving it keeps the demotion — the ride still
-            leads this state — without the number losing its own identity.
-            Same geometry and same draw-in animation as the full ring; only
-            the rendered box is smaller. */}
-        <div className="relative aspect-square w-14 shrink-0">
-          <svg
-            aria-hidden
-            viewBox={`0 0 ${SIZE} ${SIZE}`}
-            className="h-full w-full -rotate-90"
-          >
-            <circle
-              cx={SIZE / 2}
-              cy={SIZE / 2}
-              r={R}
-              fill="none"
-              className="stroke-hairline opacity-35"
-              strokeWidth={STROKE}
-            />
-            {!calibrating && (
-              <circle
-                cx={SIZE / 2}
-                cy={SIZE / 2}
-                r={R}
-                fill="none"
-                className={`ring-fill ${BAND_STROKE[band]}`}
-                strokeWidth={STROKE}
-                strokeLinecap="round"
-                strokeDasharray={CIRC}
-                strokeDashoffset={targetOffset}
-                style={
-                  {
-                    "--ring-circ": CIRC,
-                    "--ring-offset": targetOffset,
-                  } as React.CSSProperties
-                }
-              />
-            )}
-          </svg>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span
-              aria-hidden
-              className={`font-numeric text-caption font-bold leading-none ${BAND_TEXT[band]}`}
-            >
-              {shown}
-            </span>
-          </div>
-        </div>
-        <span className="sr-only">{srScore}</span>
-        <div className="min-w-0">
-          <p className="text-caption text-ink-secondary">
-            {staleLabel ? (
-              <>
-                {staleLabel} ·{" "}
-                <span className="font-bold">{BAND_WORD[band]}</span>
-              </>
-            ) : (
-              BAND_VERDICT[band]
-            )}
-          </p>
-          {!staleLabel && whyLine && (
-            <p className="mt-1 text-caption text-ink-muted">{whyLine}</p>
-          )}
-        </div>
-      </section>
-    );
-  }
 
   const legend = [
     { label: "Recovery", tone: "bg-chart-2", value: recoveryScore },
@@ -241,7 +173,14 @@ export function TodayHero({
         {/* BAND_TEXT already maps calibrating to --ink-muted, so the old
             theme-blind rgba(255,255,255,0.6) ternary is simply gone. */}
         <p className={`text-body font-bold ${BAND_TEXT[band]}`}>
-          {BAND_VERDICT[band]}
+          {readingAge ? (
+            <>
+              From <span className="font-bold">{readingAge}</span> ·{" "}
+              {BAND_WORD[band]}
+            </>
+          ) : (
+            BAND_VERDICT[band]
+          )}
         </p>
         {whyLine && (
           <p className="mt-1.5 text-caption leading-snug text-ink-secondary">

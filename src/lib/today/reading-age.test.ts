@@ -44,3 +44,20 @@ describe("describeReadingAge", () => {
     expect(describeReadingAge(undefined, "2026-09-03")).toBeNull();
   });
 });
+
+describe("describeReadingAge with a Date input", () => {
+  // Drizzle types daily_metrics.date as Date but returns a "2026-05-17"
+  // STRING at runtime (verified against the dev database). Callers pass a
+  // value TypeScript believes is a Date, so both must work.
+  it("accepts a Date without shifting the day", () => {
+    expect(
+      describeReadingAge(new Date("2026-09-02T00:00:00Z"), "2026-09-03")
+    ).toBe("yesterday");
+  });
+
+  it("returns null for a Date that is today", () => {
+    expect(
+      describeReadingAge(new Date("2026-09-03T00:00:00Z"), "2026-09-03")
+    ).toBeNull();
+  });
+});

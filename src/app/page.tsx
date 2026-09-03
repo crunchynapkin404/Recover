@@ -7,6 +7,7 @@ import { recordSurfaceView } from "@/lib/telemetry";
 import { getActivePlan } from "@/lib/active-plan";
 import { isFirstRun } from "@/lib/first-run";
 import { missingAnchors } from "@/lib/anchors-needed";
+import { describeReadingAge } from "@/lib/today/reading-age";
 import { Figure } from "@/lib/uncertainty";
 import { AppShell, shellUser, avatarInitial } from "@/components/app-shell";
 import { PullToRefresh } from "@/components/today/pull-to-refresh";
@@ -268,6 +269,11 @@ export default async function DashboardPage({
   // The real null (not coalesced) so a calibrating athlete gets a track-only
   // ring and "—", never a modelled empty score.
   const readinessOrNull = todayMetric?.readiness ?? null;
+  // The card says WHEN the reading is from whenever it is not today's. The
+  // search above walks back through thirty days, so this is reachable — and
+  // before v0.135 it was unmarked in every state, because the old marker
+  // keyed on time of day rather than on the reading's own date.
+  const readingAge = describeReadingAge(todayMetric?.date, todayYmd);
 
   // First-run calibrating progress ("day N of 14") — shown under the hero
   // while readiness learns the athlete's baseline.
@@ -660,34 +666,14 @@ export default async function DashboardPage({
 
           {(() => {
             const blocks: Record<TodayBlockKey, React.ReactNode> = {
-              heroFull: (
+              hero: (
                 <TodayHero
                   readiness={readinessOrNull}
                   band={band}
                   recoveryScore={recoveryScore}
                   sleepScore={latest?.sleepScore ?? null}
                   why={heroWhy}
-                />
-              ),
-              heroCompact: (
-                <TodayHero
-                  readiness={readinessOrNull}
-                  band={band}
-                  recoveryScore={recoveryScore}
-                  sleepScore={latest?.sleepScore ?? null}
-                  why={heroWhy}
-                  variant="compact"
-                />
-              ),
-              heroRecap: (
-                <TodayHero
-                  readiness={readinessOrNull}
-                  band={band}
-                  recoveryScore={recoveryScore}
-                  sleepScore={latest?.sleepScore ?? null}
-                  why={heroWhy}
-                  variant="compact"
-                  staleLabel="Readiness this morning"
+                  readingAge={readingAge}
                 />
               ),
               anchorPrompt: <AnchorPrompt missing={anchors} />,
