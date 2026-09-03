@@ -40,6 +40,7 @@ import { dedupeActivities, type LoadActivity } from "../src/lib/training-load";
 import { canonicalSport, sportMatches } from "../src/lib/canonical-sport";
 import { bookDayLoad } from "../src/lib/week-plan/actuals";
 import type { DaySlot } from "../src/lib/week-plan/types";
+import { normalizeDays, serializeDays } from "@/lib/week-plan/serialize";
 
 interface Change {
   weekStart: string;
@@ -80,7 +81,7 @@ async function backfill(opts: {
     });
 
     for (const week of [...closed, ...open]) {
-      const days = week.days as DaySlot[];
+      const days = normalizeDays(week.days);
       let touched = false;
 
       const next: DaySlot[] = [];
@@ -189,7 +190,7 @@ async function backfill(opts: {
       if (touched && !opts.dryRun) {
         await db
           .update(schema.weekPlans)
-          .set({ days: next, updatedAt: new Date() })
+          .set({ days: serializeDays(next), updatedAt: new Date() })
           .where(eq(schema.weekPlans.id, week.id));
       }
     }

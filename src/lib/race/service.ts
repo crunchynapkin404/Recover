@@ -19,7 +19,6 @@ import type { PlanSport } from "@/lib/plan-sport";
 import type { RaceContext } from "./taper";
 import type { ForecastInputs } from "./forecast";
 import { taperFractionForWeek } from "./taper";
-import type { DaySlot } from "@/lib/week-plan/types";
 import type { OpenWeekPlan } from "@/lib/week-plan/service";
 import { weekLoadPerMin, weekTargetLoad } from "@/lib/week-plan/volume";
 import { openWeekPlannedLoads } from "@/lib/week-plan/planned-loads";
@@ -33,6 +32,7 @@ import {
   type ActualEffort,
   type PacingComparison,
 } from "./pacing-result";
+import { normalizeDays } from "@/lib/week-plan/serialize";
 
 export type RaceRow = typeof schema.races.$inferSelect;
 export type RacePriority = "A" | "B" | "C";
@@ -388,7 +388,7 @@ export async function assembleForecastInputs(
     orderBy: desc(schema.weekPlans.weekStart),
   });
   const lastActual = lastClosed
-    ? (lastClosed.days as DaySlot[]).reduce(
+    ? normalizeDays(lastClosed.days).reduce(
         (s, d) => s + (d.actualLoad ?? 0),
         0
       )

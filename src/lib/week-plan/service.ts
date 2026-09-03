@@ -33,6 +33,7 @@ import type { ReentryStage, SeasonMode } from "@/lib/season-mode/types";
 import { resolvePlanningSurfaceState } from "@/lib/planning-surface/effective-state";
 import type { Figure } from "@/lib/uncertainty";
 import { blockPlacement } from "./placement";
+import { normalizeDays, serializeDays } from "./serialize";
 
 export type AdjustmentRow = typeof schema.planAdjustments.$inferSelect;
 
@@ -191,7 +192,7 @@ export async function getOpenWeekPlan(
     planId: row.planId,
     weekStart: row.weekStart,
     skeletonWeek: row.skeletonWeek,
-    days: row.days as DaySlot[],
+    days: normalizeDays(row.days),
     effectiveTarget: row.effectiveTarget,
     materializedMins: row.materializedMins,
     availabilityConfirmedAt: row.availabilityConfirmedAt,
@@ -295,7 +296,7 @@ export async function rolloverWeekPlan(
     // zero whenever no pass ran between that day and the rollover.
     const weekEnd = addDaysYmd(row.weekStart, 6);
     const actuals = await deriveDayActuals(userId, row.weekStart, weekEnd);
-    const days = bookWeekActuals(row.days as DaySlot[], actuals, weekEnd);
+    const days = bookWeekActuals(normalizeDays(row.days), actuals, weekEnd);
     const { actualLoad, actualSessions } = weekActuals(days);
     const block = await db.query.trainingBlocks.findFirst({
       where: and(
@@ -320,7 +321,7 @@ export async function rolloverWeekPlan(
     }
     await db
       .update(schema.weekPlans)
-      .set({ days, status: "closed", updatedAt: now })
+      .set({ days: serializeDays(days), status: "closed", updatedAt: now })
       .where(eq(schema.weekPlans.id, row.id));
     prevWeek = { actualLoad, adherencePct }; // rows are ascending: latest wins
   }
@@ -462,7 +463,7 @@ export async function rolloverWeekPlan(
       planId: plan.id,
       weekStart,
       skeletonWeek: skeleton.weekNumber,
-      days: r.week.days,
+      days: serializeDays(r.week.days),
       status: "open",
       effectiveTarget: r.effectiveLoad,
       materializedMins: plannedMins(r.week.days),
@@ -649,7 +650,7 @@ export async function runDailyAdaptation(
 
   await db
     .update(schema.weekPlans)
-    .set({ days: result.week.days, updatedAt: now })
+    .set({ days: serializeDays(result.week.days), updatedAt: now })
     .where(eq(schema.weekPlans.id, week.id));
   await saveAdjustments(week.id, result.adjustments);
   return "adapted";
@@ -737,7 +738,11 @@ export async function applyAvailability(
 
   await db
     .update(schema.weekPlans)
-    .set({ days: r.week.days, availabilityConfirmedAt: now, updatedAt: now })
+    .set({
+      days: serializeDays(r.week.days),
+      availabilityConfirmedAt: now,
+      updatedAt: now,
+    })
     .where(eq(schema.weekPlans.id, week.id));
 
   const today = localYmd(now);
@@ -865,7 +870,7 @@ export async function moveWorkout(
 
   await db
     .update(schema.weekPlans)
-    .set({ days, updatedAt: new Date() })
+    .set({ days: serializeDays(days), updatedAt: new Date() })
     .where(eq(schema.weekPlans.id, week.id));
   await saveAdjustments(week.id, [
     {
@@ -941,7 +946,7 @@ export async function swapWorkouts(
 
   await db
     .update(schema.weekPlans)
-    .set({ days, updatedAt: new Date() })
+    .set({ days: serializeDays(days), updatedAt: new Date() })
     .where(eq(schema.weekPlans.id, week.id));
   await saveAdjustments(week.id, [
     {
@@ -993,7 +998,7 @@ export async function markDayDone(
 
   await db
     .update(schema.weekPlans)
-    .set({ days, updatedAt: new Date() })
+    .set({ days: serializeDays(days), updatedAt: new Date() })
     .where(eq(schema.weekPlans.id, week.id));
   return "completed";
 }

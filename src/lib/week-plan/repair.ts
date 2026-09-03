@@ -50,6 +50,7 @@ import { db, schema } from "@/lib/db";
 import { projectWeek } from "./project";
 import { getOpenWeekPlan } from "./service";
 import type { DaySlot } from "./types";
+import { serializeDays } from "./serialize";
 
 /** Historical fact: never recomputed, never overwritten. */
 const SETTLED_STATUSES = new Set<DaySlot["status"]>([
@@ -175,7 +176,7 @@ export async function applyWeekRepair(repair: WeekRepair): Promise<void> {
   const days = repair.days.map((d) => d.after);
   await db
     .update(schema.weekPlans)
-    .set({ days, updatedAt: new Date() })
+    .set({ days: serializeDays(days), updatedAt: new Date() })
     .where(eq(schema.weekPlans.id, repair.weekPlanId));
 }
 
