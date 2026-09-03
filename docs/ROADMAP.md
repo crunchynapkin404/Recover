@@ -240,6 +240,26 @@ phase written as a checklist becomes a tweak list:
       plus dev-server link-prefetch. Flow and friction, and visual polish,
       are unblocked by this: the top level is settled and Today's morning
       grid is not moving.
+      **Settings navigability addressed in v0.134.0 — and the strand stays
+      open.** The measured symptom was never length: this file's own
+      inventory records Settings collapsed at 1.0 screen against 7.8
+      expanded, and says why — "the accordion labels do not predict their
+      contents well enough to open only one". So the fix is prediction.
+      Badges now name what is MISSING as well as what is set (an athlete
+      with FTP set and no threshold pace read "FTP 250" and stopped
+      looking, which was every production user); the `?open=`/fragment deep
+      link that already existed with one caller became the app's anchor-fix
+      vocabulary, so "Set it" lands on the input rather than the top of the
+      page; and Sessions left "Advanced / API" for its own Security
+      section. **Settings expanded is still 7.8 screens, deliberately.**
+      One of the inventory's own findings was struck rather than built:
+      "Import has two doors" describes a shape the code does not have.
+      **The two parked questions are untouched.** Whether Season, Fitness,
+      Sleep and Labs deserve to be tabs is still waiting on the counter
+      commissioned to answer it, and claiming this strand closed on a
+      Settings fix would be a third instance of a narrower true metric
+      replacing the goal.
+      Spec: `docs/specs/2026-09-03-settings-navigability-and-anchors-design.md`.
 - [x] **Flow and friction.** The multi-step journeys: confirm a week, plan a
       season, debrief a ride, connect a provider. **Complete in v0.124.0**,
       three slices.
