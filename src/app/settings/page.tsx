@@ -26,6 +26,7 @@ import { LlmUsageCard } from "@/components/settings/llm-usage-card";
 import { SignOutButton } from "@/components/sign-out-button";
 import Link from "next/link";
 import { User } from "lucide-react";
+import { baselinesSummary } from "@/lib/settings/baselines-summary";
 import { DEFAULT_SLEEP_NEED_SECS } from "@/lib/sleep-debt";
 import {
   Collapsible,
@@ -36,6 +37,7 @@ import {
   Layers,
   Sparkles,
   Terminal,
+  ShieldCheck,
   SlidersHorizontal,
   Gauge,
   Download,
@@ -231,23 +233,20 @@ export default async function SettingsPage({
         ? "push on"
         : "defaults";
 
-  // The figures the engine reads back. Deliberately shows what IS set rather
-  // than a count: an athlete opening this section is usually checking one
-  // number, and "wake 06:30 · FTP 250" answers that without expanding.
-  const baselinesSummary =
-    [
-      bodyPrefsRow?.wakeTime ? `wake ${bodyPrefsRow.wakeTime}` : null,
-      bodyPrefsRow?.maxHr ? `max HR ${bodyPrefsRow.maxHr}` : null,
-      bodyPrefsRow?.ftpWatts ? `FTP ${bodyPrefsRow.ftpWatts}` : null,
-    ]
-      .filter(Boolean)
-      .join(" · ") || "not set";
+  // The figures the engine reads back. Names what IS set and what is NOT —
+  // "FTP 250" alone read as done while the run anchor was missing, which was
+  // every production user's state. See the module header for the argument.
+  const baselines = baselinesSummary(bodyPrefsRow);
 
   const advancedSummary = [
     `${apiTokens.length} ${apiTokens.length === 1 ? "token" : "tokens"}`,
     `${webhookSubscriptions.length} ${webhookSubscriptions.length === 1 ? "webhook" : "webhooks"}`,
-    `${activeSessions.length} ${activeSessions.length === 1 ? "session" : "sessions"}`,
   ].join(" · ");
+
+  // Sessions left Advanced for its own section, so it leaves this badge too.
+  const securitySummary = `${activeSessions.length} ${
+    activeSessions.length === 1 ? "session" : "sessions"
+  }`;
 
   return (
     <AppShell user={shellUser(user)}>
@@ -420,9 +419,7 @@ export default async function SettingsPage({
             screens down under a label that did not name it. */}
         <Collapsible id="baselines" defaultOpen={opened === "baselines"}>
           <CollapsibleTrigger
-            badge={
-              <span className={triggerBadgeClass}>{baselinesSummary}</span>
-            }
+            badge={<span className={triggerBadgeClass}>{baselines}</span>}
           >
             <Gauge aria-hidden className="size-[18px] text-ink-muted" />
             <span className={triggerLabelClass}>Your baselines</span>
@@ -451,8 +448,9 @@ export default async function SettingsPage({
           </CollapsiblePanel>
         </Collapsible>
 
-        {/* AI & Tech */}
-        <Collapsible>
+        {/* AI & Coach — addressable, because chat-interface.tsx sends an
+            unconfigured coach here and "in Settings" is not a location. */}
+        <Collapsible id="coach" defaultOpen={opened === "coach"}>
           <CollapsibleTrigger
             badge={<span className={triggerBadgeClass}>{coachSummary}</span>}
           >
@@ -501,8 +499,6 @@ export default async function SettingsPage({
           </CollapsibleTrigger>
           <CollapsiblePanel>
             <div className="hairline-list px-5 pb-3">
-              <SessionsCard sessions={activeSessions} />
-
               <ApiTokensCard
                 tokens={apiTokens.map((t) => ({
                   id: t.id,
@@ -532,6 +528,26 @@ export default async function SettingsPage({
                   };
                 })}
               />
+            </div>
+          </CollapsiblePanel>
+        </Collapsible>
+
+        {/* Security — Sessions lived under "Advanced / API", which is where
+            an athlete signs another device out. The IA inventory called that
+            what it is: a security action filed under a label that predicts
+            tokens and webhooks. A seventh row costs the 1.0-screen landing
+            state almost nothing and buys a label that says what is behind
+            it — the same argument the badges make one level down. */}
+        <Collapsible>
+          <CollapsibleTrigger
+            badge={<span className={triggerBadgeClass}>{securitySummary}</span>}
+          >
+            <ShieldCheck aria-hidden className="size-[18px] text-ink-muted" />
+            <span className={triggerLabelClass}>Security</span>
+          </CollapsibleTrigger>
+          <CollapsiblePanel>
+            <div className="hairline-list px-5 pb-3">
+              <SessionsCard sessions={activeSessions} />
             </div>
           </CollapsiblePanel>
         </Collapsible>

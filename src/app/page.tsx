@@ -6,6 +6,7 @@ import { requireUser } from "@/lib/session";
 import { recordSurfaceView } from "@/lib/telemetry";
 import { getActivePlan } from "@/lib/active-plan";
 import { isFirstRun } from "@/lib/first-run";
+import { missingAnchors } from "@/lib/anchors-needed";
 import { Figure } from "@/lib/uncertainty";
 import { AppShell, shellUser, avatarInitial } from "@/components/app-shell";
 import { PullToRefresh } from "@/components/today/pull-to-refresh";
@@ -50,6 +51,7 @@ import { DayLogCard } from "@/components/today/day-log-card";
 import { BedtimeCard } from "@/components/today/bedtime-card";
 import { formatDuration } from "@/lib/format";
 import { activityStats, activityMeta } from "@/lib/activity-stats";
+import { AnchorPrompt } from "@/components/today/anchor-prompt";
 import { CalibrationProgress } from "@/components/today/calibration-progress";
 import { TodayHero, fmtTsb } from "@/components/today/today-hero";
 import { VitalsGrid, type VitalTile } from "@/components/today/vitals-grid";
@@ -360,6 +362,11 @@ export default async function DashboardPage({
   }
 
   // ── Derived data ────────────────────────────────────────────────────────
+  // Below the first-run return on purpose: an athlete with nothing at all is
+  // asked to connect something, not for a number they have no basis for yet.
+  // The two treatments never stack.
+  const anchors = await missingAnchors(user.id);
+
   const latest = [...wellness]
     .reverse()
     .find((w) => w.hrvMs != null || w.hrvSdnnMs != null || w.restingHr != null);
@@ -683,6 +690,7 @@ export default async function DashboardPage({
                   staleLabel="Readiness this morning"
                 />
               ),
+              anchorPrompt: <AnchorPrompt missing={anchors} />,
               calibration:
                 band === "calibrating" && calibration.remaining > 0 ? (
                   <CalibrationProgress

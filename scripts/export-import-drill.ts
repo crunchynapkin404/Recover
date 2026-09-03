@@ -208,6 +208,7 @@ async function seed() {
     deadliftOneRmKg: 220,
     overheadPressOneRmKg: 55,
     thresholdPaceSecPerKm: 258,
+    anchorPromptDismissedAt: new Date("2026-02-01T08:00:00Z"),
     birthYear: 1990,
     levelOverride: "advanced",
   };

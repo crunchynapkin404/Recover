@@ -1,5 +1,64 @@
 # Changelog
 
+## v0.134.0 — 2026-09-03 — Settings navigability, and the anchors nobody sets
+
+Counted in production on 2026-09-02: one user of three has a `body_prefs` row,
+and **nobody has ever set a threshold pace**. So every running figure the app
+produces is Low confidence _by construction_, the fix links that say so land
+at the top of the longest surface in the app, and the drawer they need is
+badged `FTP 250` — which reads as finished.
+
+### What you will notice
+
+**Today asks you for a number, once.** If you run and have no threshold pace,
+or ride and have no FTP, one card asks for it and links straight to the field.
+"Not now" makes it go away for good.
+
+**It only asks about sports you actually do.** A cyclist is never asked for a
+running pace. Sport is read through the app's own vocabulary mapping, so a
+ride recorded as `VirtualRide` or `GravelRide` still counts as riding.
+
+**"Set it" now sets _that_.** Both anchors shared one link to bare
+`/settings`. Each now opens its own section and scrolls to its own input.
+
+**The baselines badge tells you what is missing.** It read `wake 06:30 · FTP
+250` — only what was set, so a missing threshold pace was invisible. It now
+reads `FTP 250 · no run pace`.
+
+**Signing another device out has its own section.** Sessions sat under
+"Advanced / API" beside API tokens and webhooks. It is a security control, and
+it now sits under **Security**.
+
+### Under the hood
+
+**A second predicate, not a wider one.** `isFirstRun()` returns false the
+moment a connection goes active — correct for its own question, and exactly
+why a connected athlete is never asked for a number. `missingAnchors()`
+answers a different question and leaves that one alone; widening `isFirstRun`
+would have put "Connect a device to begin" in front of an athlete with 64
+rides.
+
+**Dismissing removes the nag, never the information.** The badge keeps naming
+the gap and every Low-confidence "Set it" link keeps working.
+
+**One inventory finding was struck rather than built.** "Import has two doors"
+describes a shape the code does not have: Today's `/import` link is inside the
+first-run branch, and Settings ▸ Data already shows export and import side by
+side. Recorded in the inventory and the spec instead of quietly dropped.
+
+**The information architecture strand stays open.** Settings expanded is still
+7.8 phone screens, deliberately — the diagnosis was prediction, not depth. The
+two questions parked on telemetry are untouched.
+
+**Migrations: additive.** One migration, `0047_orange_marvex.sql`, adding a
+single nullable column — `body_prefs.anchor_prompt_dismissed_at`. Old code
+ignores a column it does not know about, so an image rollback is safe.
+
+**One consequence worth knowing:** dismissing the prompt creates a
+`body_prefs` row, so row existence stops meaning "has set something". Any
+future count of who has anchors must read the anchor columns, not
+`select count(*) from body_prefs`.
+
 ## v0.133.0 — 2026-09-02 — One step after a ride, and two things a picture found
 
 **Three merged changes, one tag.** They were separate branches and separate

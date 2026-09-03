@@ -181,9 +181,19 @@ their contents well enough to open only one:
   API and not data — it is the drawer's drawer.
 - "Advanced / API" holds **Sessions**, which is where an athlete signs other
   devices out. That is a security action, not an advanced one.
+  **Fixed in v0.134.0** — Sessions has its own "Security" section.
 - **Import has two doors** — Today links `/import`, and Settings ▸ Data links
   `/import` — and Export has one, inside Data. The two halves of the same job
   are not in the same place.
+  **STRUCK 2026-09-03, on reading the code.** This describes a shape the app
+  does not have. Today's `/import` link (`src/app/page.tsx`) sits _inside_
+  the `isFirstRun` branch, beside "Log manually" — it is the onboarding door
+  for an athlete with no data at all, not a second door on Today. And
+  Settings ▸ Data already renders Data export and Import CSV adjacent in one
+  section, under the badge `Export · Import CSV`; the two halves are already
+  together. Both doors are correct. Acting on this finding would have
+  rerouted a working first-run affordance to fix nothing. See
+  `docs/specs/2026-09-03-settings-navigability-and-anchors-design.md`.
 
 ### 5. Nothing knew which of these screens anyone uses — **fixed in this branch**
 

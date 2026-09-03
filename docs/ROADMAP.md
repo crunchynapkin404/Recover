@@ -1,6 +1,6 @@
 # Roadmap
 
-Current release: **v0.133.0**. History through v0.119 is preserved in
+Current release: **v0.134.0**. History through v0.119 is preserved in
 [`docs/archive/ROADMAP-through-v0.119.md`](archive/ROADMAP-through-v0.119.md) —
 Phases 1–4, all complete. It is a record, not a plan.
 
@@ -65,7 +65,7 @@ around future races), six wellness/activity sources (intervals.icu, Strava,
 Whoop, Oura, Apple Health, Withings), training history, multiple time blocks
 per day, running, and strength (v0.119.0).
 
-**Mechanically sound.** 3536 tests at v0.133.0, 47 migrations, zero confirmed
+**Mechanically sound.** 3536 tests at v0.133.0, 48 migrations, zero confirmed
 axe violations across the app, a 197-token design system across 283
 declarations in two themes (`docs/design-system.md`), a 60-tool MCP surface,
 and a release path that is fully automated end to end (`docs/RELEASING.md`).
@@ -240,6 +240,26 @@ phase written as a checklist becomes a tweak list:
       plus dev-server link-prefetch. Flow and friction, and visual polish,
       are unblocked by this: the top level is settled and Today's morning
       grid is not moving.
+      **Settings navigability addressed in v0.134.0 — and the strand stays
+      open.** The measured symptom was never length: this file's own
+      inventory records Settings collapsed at 1.0 screen against 7.8
+      expanded, and says why — "the accordion labels do not predict their
+      contents well enough to open only one". So the fix is prediction.
+      Badges now name what is MISSING as well as what is set (an athlete
+      with FTP set and no threshold pace read "FTP 250" and stopped
+      looking, which was every production user); the `?open=`/fragment deep
+      link that already existed with one caller became the app's anchor-fix
+      vocabulary, so "Set it" lands on the input rather than the top of the
+      page; and Sessions left "Advanced / API" for its own Security
+      section. **Settings expanded is still 7.8 screens, deliberately.**
+      One of the inventory's own findings was struck rather than built:
+      "Import has two doors" describes a shape the code does not have.
+      **The two parked questions are untouched.** Whether Season, Fitness,
+      Sleep and Labs deserve to be tabs is still waiting on the counter
+      commissioned to answer it, and claiming this strand closed on a
+      Settings fix would be a third instance of a narrower true metric
+      replacing the goal.
+      Spec: `docs/specs/2026-09-03-settings-navigability-and-anchors-design.md`.
 - [x] **Flow and friction.** The multi-step journeys: confirm a week, plan a
       season, debrief a ride, connect a provider. **Complete in v0.124.0**,
       three slices.

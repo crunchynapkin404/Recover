@@ -255,6 +255,9 @@ export async function importUserData(
           deadliftOneRmKg: r.deadliftOneRmKg,
           overheadPressOneRmKg: r.overheadPressOneRmKg,
           thresholdPaceSecPerKm: r.thresholdPaceSecPerKm,
+          // Carried, so a restored account does not get re-asked for a
+          // number it already declined to give.
+          anchorPromptDismissedAt: toDateOrNull(r.anchorPromptDismissedAt),
           birthYear: r.birthYear,
           levelOverride: r.levelOverride,
         }))
