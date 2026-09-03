@@ -194,7 +194,7 @@ fills a demo account with 90 days of plausible training history (see
 
 ## Status & roadmap
 
-**Current release: v0.134.0.** See the
+**Current release: v0.135.0.** See the
 [GitHub releases page](https://github.com/crunchynapkin404/Recover/releases)
 or [CHANGELOG.md](CHANGELOG.md) for what shipped and when.
 
