@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useTransition } from "react";
 import { dismissAnchorPrompt } from "@/app/settings/body-actions";
+import { PendingButton } from "@/components/ui/pending-button";
 import type { MissingAnchors } from "@/lib/anchors-needed";
 
 /**
@@ -66,15 +67,15 @@ export function AnchorPrompt({ missing }: { missing: MissingAnchors }) {
             Set your {g.noun}
           </Link>
         ))}
-        <button
+        <PendingButton
           type="button"
-          disabled={pending}
-          aria-busy={pending}
+          pending={pending}
+          pendingLabel="Saving…"
           onClick={() => startTransition(() => void dismissAnchorPrompt())}
           className="rounded-2xl px-4 py-2 text-label font-bold text-ink-muted transition-colors hover:text-ink-secondary disabled:opacity-60"
         >
           Not now
-        </button>
+        </PendingButton>
       </div>
     </div>
   );
