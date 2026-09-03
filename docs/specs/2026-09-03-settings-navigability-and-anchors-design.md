@@ -179,9 +179,17 @@ become section-and-field deep links.
 - **Does not add a search field to Settings.** It would need a
   hand-maintained index of every setting that no test can prove is complete,
   and it treats a prediction defect as a retrieval defect.
-- **Does not shorten Settings expanded.** 7.8 screens stays 7.8. The landing
-  state is 1.0 and the fix is aimed at letting an athlete open one drawer, not
-  at the depth of all of them.
+- **Does not shorten Settings expanded.** The landing state is 1.0 screen and
+  the fix is aimed at letting an athlete open one drawer, not at the depth of
+  all of them.
+  **CORRECTED 2026-09-03, after measuring:** this section originally read
+  "7.8 screens stays 7.8", which was wrong twice over. The surface had already
+  grown to **8.21 screens** before this change, and adding a seventh section
+  necessarily adds height — it went to **8.31** (6931 → 7014 CSS px, same
+  fixture, same capture job). +83 px, the section header only, because
+  Sessions moved rather than being duplicated. Claiming a number would not
+  move while deliberately adding a section was an internal contradiction this
+  spec's own self-review should have caught.
 - **Does not change how anchors are derived, or how confidence is computed.**
   `resolveFtpAnchor`, `ftpSource` and the Low/Medium/High bands are untouched.
   This work changes who is _asked_, not what the engine does with the answer.

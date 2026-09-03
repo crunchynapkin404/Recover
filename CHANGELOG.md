@@ -46,9 +46,13 @@ describes a shape the code does not have: Today's `/import` link is inside the
 first-run branch, and Settings ▸ Data already shows export and import side by
 side. Recorded in the inventory and the spec instead of quietly dropped.
 
-**The information architecture strand stays open.** Settings expanded is still
-7.8 phone screens, deliberately — the diagnosis was prediction, not depth. The
-two questions parked on telemetry are untouched.
+**The information architecture strand stays open.** The diagnosis was
+prediction, not depth, and the two questions parked on telemetry are
+untouched. Settings expanded did grow — **8.21 → 8.31 phone screens**
+(6931 → 7014 CSS px, measured on the same fixture and capture job before and
+after). That is +83 px for the seventh section's header; Sessions moved
+rather than being copied. The collapsed landing state, which is what the
+badges and deep links actually address, is unchanged at 1.0 screen.
 
 **Migrations: additive.** One migration, `0047_orange_marvex.sql`, adding a
 single nullable column — `body_prefs.anchor_prompt_dismissed_at`. Old code

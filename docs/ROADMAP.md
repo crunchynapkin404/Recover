@@ -251,7 +251,15 @@ phase written as a checklist becomes a tweak list:
       link that already existed with one caller became the app's anchor-fix
       vocabulary, so "Set it" lands on the input rather than the top of the
       page; and Sessions left "Advanced / API" for its own Security
-      section. **Settings expanded is still 7.8 screens, deliberately.**
+      section. **Settings expanded grew slightly, and the number is measured rather than
+      assumed: 8.21 → 8.31 phone screens** (6931 → 7014 CSS px, same fixture,
+      same capture job, v0.133.0 vs v0.134.0). The seventh section costs
+      **+83 px** — its header chrome only, because Sessions MOVED out of
+      "Advanced / API" rather than being duplicated. The landing state, which
+      is what the fix actually targets, is unchanged at 1.0 screen.
+      **The inventory's 7.8-screen figure (6619 px, 2026-08-26) no longer
+      describes this surface**: it had already grown to 8.21 before this
+      change touched it.
       One of the inventory's own findings was struck rather than built:
       "Import has two doors" describes a shape the code does not have.
       **The two parked questions are untouched.** Whether Season, Fitness,
