@@ -1,7 +1,11 @@
 import { describe, expect, it, beforeAll, afterAll, beforeEach } from "vitest";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
-import { addChosenWorkout, getOpenWeekPlan, removeChosenWorkout } from "./service";
+import {
+  addChosenWorkout,
+  getOpenWeekPlan,
+  removeChosenWorkout,
+} from "./service";
 import { isAthleteChosen } from "./placement";
 import type { DaySlot } from "./types";
 import type { AvailabilityBlock } from "@/lib/availability/types";
@@ -22,10 +26,6 @@ const DATES = Array.from({ length: 7 }, (_, i) => {
 
 const PICK = LIBRARY.find((w) => w.purpose === "aerobic_base")!;
 const MINS = durationRangeFor(PICK.id)!.min;
-
-function blk(mins: number): AvailabilityBlock {
-  return { start: null, end: null, mins, energy: "full", sports: null };
-}
 
 function emptyDay(date: string, blocks: AvailabilityBlock[] = []): DaySlot {
   return {
@@ -66,13 +66,19 @@ describe.skipIf(!hasDb)("addChosenWorkout / removeChosenWorkout", () => {
   });
 
   afterAll(async () => {
-    await db.delete(schema.weekPlans).where(eq(schema.weekPlans.userId, TEST_USER));
-    await db.delete(schema.trainingPlans).where(eq(schema.trainingPlans.userId, TEST_USER));
+    await db
+      .delete(schema.weekPlans)
+      .where(eq(schema.weekPlans.userId, TEST_USER));
+    await db
+      .delete(schema.trainingPlans)
+      .where(eq(schema.trainingPlans.userId, TEST_USER));
     await db.delete(schema.users).where(eq(schema.users.id, TEST_USER));
   });
 
   beforeEach(async () => {
-    await db.delete(schema.weekPlans).where(eq(schema.weekPlans.userId, TEST_USER));
+    await db
+      .delete(schema.weekPlans)
+      .where(eq(schema.weekPlans.userId, TEST_USER));
     await db.insert(schema.weekPlans).values({
       userId: TEST_USER,
       planId,
@@ -140,13 +146,17 @@ describe.skipIf(!hasDb)("addChosenWorkout / removeChosenWorkout", () => {
 
   it("removes the session and returns the day to rest", async () => {
     await addChosenWorkout(TEST_USER, DATES[3], PICK.id, MINS, DATES[0]);
-    expect(await removeChosenWorkout(TEST_USER, DATES[3], PICK.id)).toBe("removed");
+    expect(await removeChosenWorkout(TEST_USER, DATES[3], PICK.id)).toBe(
+      "removed"
+    );
     const week = await getOpenWeekPlan(TEST_USER);
     expect(week!.days[3].workouts).toEqual([]);
     expect(week!.days[3].status).toBe("rest");
   });
 
   it("refuses to remove something that is not there", async () => {
-    expect(await removeChosenWorkout(TEST_USER, DATES[3], PICK.id)).toBe("invalid");
+    expect(await removeChosenWorkout(TEST_USER, DATES[3], PICK.id)).toBe(
+      "invalid"
+    );
   });
 });
