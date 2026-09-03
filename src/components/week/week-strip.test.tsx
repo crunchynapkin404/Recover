@@ -7,6 +7,7 @@ import { computeAccessibleName } from "dom-accessibility-api";
 import { WeekStrip } from "./week-strip";
 import type { DaySlot, ScheduledWorkout } from "@/lib/week-plan/types";
 import { withPurpose } from "@/lib/training-plan";
+import { blockPlacement } from "@/lib/week-plan/placement";
 
 declare global {
   var IS_REACT_ACT_ENVIRONMENT: boolean;
@@ -50,7 +51,7 @@ const workout = (
       durationMins,
       intensity: "Z1-Z2",
       description: "",
-      blockIdx: 0,
+      placement: blockPlacement(0),
     }),
     ...overrides,
   }) as ScheduledWorkout;
@@ -105,7 +106,7 @@ const run = withPurpose({
   durationMins: 45,
   intensity: "Z1-Z2",
   description: "Easy run",
-  blockIdx: 0,
+  placement: blockPlacement(0),
 }) as ScheduledWorkout;
 
 const legacyDays: DaySlot[] = [

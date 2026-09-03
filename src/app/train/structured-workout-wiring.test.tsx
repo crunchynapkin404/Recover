@@ -4,6 +4,7 @@ import { renderToReadableStream } from "react-dom/server";
 import { withPurpose } from "@/lib/training-plan";
 import { mondayOf, addDaysYmd } from "@/lib/week-plan/service";
 import type { DaySlot } from "@/lib/week-plan/types";
+import { blockPlacement } from "@/lib/week-plan/placement";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/train",
@@ -28,7 +29,7 @@ const tempo = withPurpose({
   durationMins: 75,
   intensity: "Z4",
   description: "Tempo ride — steady sweetspot effort",
-  blockIdx: 0,
+  placement: blockPlacement(0),
 });
 
 function emptyDay(date: string): DaySlot {

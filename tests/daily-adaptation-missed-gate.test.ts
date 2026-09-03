@@ -17,6 +17,7 @@ import {
 import type { AvailabilityBlock } from "@/lib/availability/types";
 import type { DaySlot } from "@/lib/week-plan/types";
 import { withPurpose } from "@/lib/training-plan";
+import { blockPlacement } from "@/lib/week-plan/placement";
 
 /**
  * The athlete rode 1.94h on 2026-07-21 at 18:50. runDailyAdaptation ran at
@@ -85,7 +86,7 @@ function seededDays(): DaySlot[] {
             durationMins: 90,
             intensity: "Z1-Z2",
             description: "Easy ride",
-            blockIdx: 0,
+            placement: blockPlacement(0),
           }),
         ],
         status: "planned",

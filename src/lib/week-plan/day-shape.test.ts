@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { dayShape, openDayFrom, weekMaxMins } from "./day-shape";
 import type { DaySlot, ScheduledWorkout } from "./types";
+import { blockPlacement } from "./placement";
 
 const slot = (over: Partial<DaySlot> = {}): DaySlot => ({
   date: "2026-08-27",
@@ -21,7 +22,7 @@ const w = (durationMins: number, purpose: string) =>
     intensity: "Z1-Z2",
     description: "",
     minEffectiveMins: 30,
-    blockIdx: 0,
+    placement: blockPlacement(0),
   }) as unknown as ScheduledWorkout;
 
 describe("dayShape", () => {

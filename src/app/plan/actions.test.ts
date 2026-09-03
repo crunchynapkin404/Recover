@@ -27,6 +27,7 @@ import { blocksEqual } from "@/lib/availability/sync-overrides";
 import { parseDayBlocks } from "@/lib/availability/parse-day-blocks";
 import type { AvailabilityBlock } from "@/lib/availability/types";
 import type { DaySlot } from "@/lib/week-plan/types";
+import { blockPlacement } from "@/lib/week-plan/placement";
 
 // requires Postgres; skips without DATABASE_URL.
 const hasDb =
@@ -965,7 +966,7 @@ describe.skipIf(!hasDb)("server actions", () => {
           description: "Steady hour",
           purpose: "aerobic_base" as const,
           minEffectiveMins: 40,
-          blockIdx: 0,
+          placement: blockPlacement(0),
         };
         await seedWeek(
           DATES.map((d, i) => ({
@@ -1019,7 +1020,7 @@ describe.skipIf(!hasDb)("server actions", () => {
           description: "Long steady",
           purpose: "aerobic_base" as const,
           minEffectiveMins: 40,
-          blockIdx: 0,
+          placement: blockPlacement(0),
         };
         // The session sits on DATES[3]; every day carries real availability.
         await seedWeek(

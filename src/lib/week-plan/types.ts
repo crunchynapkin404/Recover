@@ -1,5 +1,6 @@
 import type { PlannedWorkout } from "@/lib/training-plan";
 import type { WorkoutPin } from "@/lib/interval/pin";
+import { blockIdxOf, type Placement } from "./placement";
 import type { Band } from "@/lib/readiness";
 import type { AvailabilityBlock } from "@/lib/availability/types";
 import type { PlanStyle } from "@/lib/plan-style/types";
@@ -13,14 +14,20 @@ export type DayStatus =
   "planned" | "completed" | "adapted" | "moved" | "missed" | "rest" | "race";
 
 /**
- * A session that has actually been placed. `blockIdx` says which of its
- * day's availableBlocks it occupies — a template from generateWorkouts has
- * no such answer, which is why this is a distinct type: placing a session
- * without saying where is a compile error, not a silent wrong week.
+ * A session that has actually been placed. `placement` says WHERE it sits and
+ * WHO put it there — a template from generateWorkouts has no such answer,
+ * which is why this is a distinct type: placing a session without saying
+ * where is a compile error, not a silent wrong week.
+ *
+ * That property is preserved by the union rather than weakened by it. An
+ * engine-placed session still names its availability block. An
+ * athlete-placed one declares that it occupies none, because availability is
+ * the auto-assigner's input and a session the athlete chose for themselves is
+ * not the auto-assigner's business. See placement.ts.
  */
 export interface ScheduledWorkout extends PlannedWorkout {
-  /** Index into its day's availableBlocks. The block this session occupies. */
-  blockIdx: number;
+  /** Where this session sits, and who put it there. */
+  placement: Placement;
   /**
    * Set ONLY when the athlete has exported this session's structured workout
    * to their intervals.icu calendar — the one moment the workout leaves
@@ -113,9 +120,14 @@ export function dayMins(d: Pick<DaySlot, "availableBlocks">): number {
  */
 export function blockFits(
   d: Pick<DaySlot, "availableBlocks">,
-  blockIdx: number,
+  placement: Placement,
   mins: number
 ): boolean {
+  // An athlete-placed session occupies no block, so no block can hold it.
+  // Callers asking "does this fit its block?" about one are asking the wrong
+  // question — the rungs that resize and move skip it entirely.
+  const blockIdx = blockIdxOf(placement);
+  if (blockIdx == null) return false;
   const block = d.availableBlocks[blockIdx];
   return block != null && blockMins(block) >= mins;
 }
@@ -132,10 +144,19 @@ export type AdjustmentTrigger =
   | "missed_workout"
   | "availability_change"
   | "weekly_rollover"
-  | "race";
+  | "race"
+  /** A rung would have changed an athlete-chosen session and was not allowed to. */
+  | "athlete_choice";
 
 export type AdjustmentAction =
-  "scaled" | "moved" | "swapped" | "dropped" | "redistributed" | "added";
+  | "scaled"
+  | "moved"
+  | "swapped"
+  | "dropped"
+  | "redistributed"
+  | "added"
+  /** Left standing on purpose, with the engine's disagreement recorded. */
+  | "kept";
 
 export interface AdjustmentRecord {
   date: string; // the day the adjustment applies to

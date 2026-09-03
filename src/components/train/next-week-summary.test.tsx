@@ -3,6 +3,7 @@ import { renderToString } from "react-dom/server";
 import { NextWeekSummary } from "./next-week-summary";
 import type { DaySlot } from "@/lib/week-plan/types";
 import { withPurpose } from "@/lib/training-plan";
+import { blockPlacement } from "@/lib/week-plan/placement";
 
 const ride = withPurpose({
   day: 0,
@@ -11,7 +12,7 @@ const ride = withPurpose({
   durationMins: 90,
   intensity: "Zone 2",
   description: "",
-  blockIdx: 0,
+  placement: blockPlacement(0),
 });
 
 const slot = (

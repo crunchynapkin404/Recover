@@ -678,6 +678,7 @@ describe("DaySlot shape", () => {
 });
 
 import type { RaceContext } from "@/lib/race/taper";
+import { blockIdxOf } from "./placement";
 
 const AVAIL = [60, 90, 60, 90, 60, 120, 180]; // Mon..Sun
 const SKELETON = {
@@ -1227,10 +1228,10 @@ describe("materializeWeek — block fitting", () => {
     });
     const day = r.week.days[0];
     expect(day.workouts.length).toBe(2);
-    const used = day.workouts.map((w) => w.blockIdx);
+    const used = day.workouts.map((w) => blockIdxOf(w.placement));
     expect(new Set(used).size).toBe(2); // two distinct blocks
     for (const w of day.workouts) {
-      expect(day.availableBlocks[w.blockIdx]).toBeDefined();
+      expect(day.availableBlocks[blockIdxOf(w.placement)!]).toBeDefined();
     }
   });
 

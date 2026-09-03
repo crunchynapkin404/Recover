@@ -30,7 +30,7 @@ import { currentTargetLoad } from "@/lib/week-plan/volume";
 import { pacingResultForRace } from "./service";
 import { describePacingResult } from "./pacing-result-copy";
 import { plannedMins } from "@/lib/week-plan/fill";
-import type { DaySlot } from "@/lib/week-plan/types";
+import { normalizeDays } from "@/lib/week-plan/serialize";
 
 /**
  * Hours after race day with no matching activity before the debrief runs
@@ -338,7 +338,7 @@ export async function runRaceDebriefs(
             currentTargetLoad({
               effectiveTarget: w.effectiveTarget,
               materializedMins: w.materializedMins,
-              currentMins: plannedMins(w.days as DaySlot[]),
+              currentMins: plannedMins(normalizeDays(w.days)),
             }),
           ])
         );

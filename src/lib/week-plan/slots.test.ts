@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildSlots, admits, slotKey, fitToBlock } from "./slots";
 import type { DaySlot, ScheduledWorkout } from "./types";
 import { PURPOSE_FLOORS, type Energy } from "@/lib/availability/types";
+import { blockPlacement } from "./placement";
 
 function day(
   date: string,
@@ -33,7 +34,7 @@ const workout = (o: Partial<ScheduledWorkout> = {}): ScheduledWorkout => ({
   description: "intervals",
   purpose: "vo2max",
   minEffectiveMins: 40,
-  blockIdx: 0,
+  placement: blockPlacement(0),
   ...o,
 });
 
@@ -132,8 +133,16 @@ describe("admits", () => {
         "2026-08-03",
         [{ mins: 60 }, { mins: 60 }, { mins: 60 }],
         [
-          workout({ type: "Endurance", purpose: "aerobic_base", blockIdx: 0 }),
-          workout({ type: "Endurance", purpose: "aerobic_base", blockIdx: 1 }),
+          workout({
+            type: "Endurance",
+            purpose: "aerobic_base",
+            placement: blockPlacement(0),
+          }),
+          workout({
+            type: "Endurance",
+            purpose: "aerobic_base",
+            placement: blockPlacement(1),
+          }),
         ]
       ),
     ]);
@@ -171,7 +180,7 @@ describe("admits", () => {
       day(
         "2026-08-03",
         [{ mins: 120 }, { mins: 120 }],
-        [strengthWorkout({ blockIdx: 0 })]
+        [strengthWorkout({ placement: blockPlacement(0) })]
       ),
     ]);
     const secondBlock = buildSlots(days).find((s) => s.blockIdx === 1)!;
@@ -194,7 +203,7 @@ describe("admits", () => {
           workout({
             type: "Endurance",
             purpose: "aerobic_base",
-            blockIdx: 0,
+            placement: blockPlacement(0),
           }),
         ]
       ),

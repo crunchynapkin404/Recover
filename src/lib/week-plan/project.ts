@@ -36,6 +36,7 @@ import {
 import { materializeWeek } from "./materialize";
 import { addDaysYmd, getOpenWeekPlan, planConstraints } from "./service";
 import { dayMins, type Band, type DaySlot } from "./types";
+import { normalizeDays } from "./serialize";
 
 export interface ProjectedWeek {
   weekStart: string;
@@ -140,7 +141,7 @@ export async function projectWeek(
   if (storedRow) {
     planId = storedRow.planId;
     requestedSkeletonWeek = storedRow.skeletonWeek;
-    const storedDays = storedRow.days as DaySlot[];
+    const storedDays = normalizeDays(storedRow.days);
     // The week's OWN already-resolved blocks — not re-resolved. See the
     // docstring above: re-resolving availability is a replan, out of scope.
     availableBlocksPerDay = storedDays.map((d) => d.availableBlocks);

@@ -4,6 +4,7 @@ import { WeekDayList } from "./week-day-list";
 import type { DaySlot } from "@/lib/week-plan/types";
 import { withPurpose } from "@/lib/training-plan";
 import { workoutForDay } from "@/lib/interval/for-day";
+import { blockPlacement } from "@/lib/week-plan/placement";
 
 function localYmd(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -20,7 +21,7 @@ const tempo: DaySlot["workouts"][number] = withPurpose({
   durationMins: 75,
   intensity: "2×20",
   description: "Sweet spot",
-  blockIdx: 0,
+  placement: blockPlacement(0),
 });
 
 const strengthSession: DaySlot["workouts"][number] = withPurpose({
@@ -30,7 +31,7 @@ const strengthSession: DaySlot["workouts"][number] = withPurpose({
   durationMins: 45,
   intensity: "4x8",
   description: "Squat 4x8 @ 130kg · Bench 4x8 @ 65kg",
-  blockIdx: 0,
+  placement: blockPlacement(0),
   exercises: [
     {
       lift: "Squat",
@@ -231,7 +232,7 @@ describe("WeekDayList", () => {
       durationMins: 45,
       intensity: "4x8",
       description: "Squat 4x8",
-      blockIdx: 0,
+      placement: blockPlacement(0),
       exercises: [
         {
           lift: "Squat",
@@ -595,7 +596,7 @@ describe("WeekDayList — the structured workout", () => {
     durationMins: 75,
     intensity: "Z4",
     description: "Tempo ride — steady sweetspot effort",
-    blockIdx: 0,
+    placement: blockPlacement(0),
   });
 
   const days: DaySlot[] = [
@@ -642,7 +643,7 @@ describe("WeekDayList — the structured workout", () => {
       durationMins: 95,
       intensity: "Z1-Z2",
       description: "Long ride",
-      blockIdx: 0,
+      placement: blockPlacement(0),
     });
     const structured = [workoutForDay(longDay, TODAY)];
     expect(
@@ -719,7 +720,7 @@ describe("WeekDayList — the .zwo download", () => {
     durationMins: 75,
     intensity: "Z4",
     description: "Tempo ride",
-    blockIdx: 0,
+    placement: blockPlacement(0),
   });
   const days: DaySlot[] = [slot(TODAY, "planned", bikeDay)];
 
@@ -756,7 +757,7 @@ describe("WeekDayList — the export pin", () => {
     durationMins: 75,
     intensity: "Z4",
     description: "Tempo ride",
-    blockIdx: 0,
+    placement: blockPlacement(0),
   };
   const pin = {
     workoutId: "ou-3x12",

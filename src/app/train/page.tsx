@@ -36,6 +36,10 @@ import { PlanStyleSwitch } from "@/components/train/plan-style-switch";
 import { SeasonModeSwitch } from "@/components/train/season-mode-switch";
 import { WeekRationale } from "@/components/week/week-rationale";
 import { WeekSheet } from "@/components/week/week-sheet";
+import { WorkoutPicker } from "@/components/train/workout-picker";
+import { pickerWorkouts } from "@/lib/interval/picker";
+import { recommendContextFor } from "@/lib/interval/picker-context";
+import { canAddWorkout } from "@/lib/week-plan/add-chosen";
 import { SummaryRow } from "@/components/week/summary-row";
 import { EventReadiness } from "@/components/train/event-readiness";
 import {
@@ -1347,6 +1351,56 @@ async function WeekTab({
       </WeekSheet>
     ) : null;
 
+  // The library picker (athlete-chosen workouts). Opened from an empty day's
+  // "Add a ride" link, which carries `?day=` alongside `?sheet=` so the sheet
+  // knows which day it is adding to — `sp.day` is untrusted URL input and is
+  // matched against the week's own dates before it reaches anything.
+  //
+  // The whole library is resolved HERE, on the server: LIBRARY is 103
+  // workouts and renderProfile walks every step of every one, which is
+  // exactly what for-day.ts's doc comment says to keep out of the client
+  // bundle. Gated on `week` — there is no day to add to without one.
+  // Read only when the picker is open: one extra query on every Week render
+  // to answer a question only this sheet asks would be a poor trade.
+  const pickFtpWatts =
+    sheetParam === "pick-workout"
+      ? ((
+          await db.query.bodyPrefs.findFirst({
+            where: eq(schema.bodyPrefs.userId, userId),
+          })
+        )?.ftpWatts ?? null)
+      : null;
+  const pickDay =
+    sheetParam === "pick-workout" && week
+      ? (week.days.find((d) => d.date === dayParam) ?? null)
+      : null;
+  const pickEligible = pickDay ? canAddWorkout(pickDay, todayYmd) : null;
+  const pickWorkoutSheet =
+    pickDay && pickEligible?.ok ? (
+      <WeekSheet title="Add a ride" closeHref={resolvedHref({ sheet: "" })}>
+        <WorkoutPicker
+          date={pickDay.date}
+          today={todayYmd}
+          workouts={pickerWorkouts(
+            recommendContextFor(
+              week!.days,
+              pickDay.date,
+              band,
+              week!.effectiveTarget
+            )
+          )}
+          ftpWatts={pickFtpWatts}
+          warning={
+            pickDay.restIntent === "pre_race"
+              ? "This day was left clear to freshen you for your race. You can still add a session — Recover will record that it disagreed."
+              : band === "red"
+                ? "Today's readiness is red. You can still add a session — Recover will record that it disagreed."
+                : null
+          }
+        />
+      </WeekSheet>
+    ) : null;
+
   const availabilitySheet =
     sheetParam === "availability" && intake ? (
       <WeekSheet
@@ -1409,6 +1463,7 @@ async function WeekTab({
     races: racesSheet,
     availability: availabilitySheet,
     "plan-review": planReviewSheet,
+    "pick-workout": pickWorkoutSheet,
   };
 
   // The page's one pinned primary action (review finding 1, task 4's fix
@@ -1535,6 +1590,17 @@ async function WeekTab({
             <WeekDayList
               days={week.days}
               today={todayYmd}
+              addRideHref={Object.fromEntries(
+                week.days
+                  .filter(
+                    (d) =>
+                      d.workouts.length === 0 && canAddWorkout(d, todayYmd).ok
+                  )
+                  .map((d) => [
+                    d.date,
+                    resolvedHref({ sheet: "pick-workout", day: d.date }),
+                  ])
+              )}
               openDate={openDate}
               nextWeek={nextWeekPreview}
               actuals={dayActuals}

@@ -24,6 +24,7 @@ import {
   resolveWeekStartTarget,
 } from "@/lib/availability/validate-week-start";
 import { createRace, deleteRace, updateRace } from "@/lib/race/service";
+import { addChosenWorkout, removeChosenWorkout } from "@/lib/week-plan/service";
 import { planRaceTargets } from "@/lib/plan-targets";
 import type { PlanChange } from "@/lib/race/forecast";
 import { simulateRaceForm } from "@/lib/race/outlook";
@@ -865,4 +866,59 @@ export async function regeneratePreviewAction(
   });
   revalidatePath("/train");
   return result;
+}
+
+/**
+ * "I want to ride today" — place a workout the athlete picked from the
+ * library on a day the engine left empty.
+ *
+ * Deliberately does NOT touch availabilityOverrides. The athlete's own words:
+ * "The availability slider is only for automatic assignment, if i want to do
+ * a ride it should just add it. i do not need to set availability."
+ *
+ * `todayYmd` comes from the CLIENT because the athlete's local calendar day
+ * is a browser fact, exactly as it is for every other date-sensitive action
+ * here — the server's date would refuse a legitimate evening add for anyone
+ * west of UTC. It is validated for shape, and `canAddWorkout` is re-run
+ * server-side regardless of what the UI believed.
+ */
+export async function addChosenWorkoutAction(
+  date: string,
+  workoutId: string,
+  durationMins: number,
+  todayYmd: string
+): Promise<Result> {
+  const user = await requireUser();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date))
+    return { ok: false, error: "invalid_date" };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(todayYmd))
+    return { ok: false, error: "invalid_date" };
+  if (!Number.isInteger(durationMins) || durationMins <= 0)
+    return { ok: false, error: "invalid_duration" };
+
+  const outcome = await addChosenWorkout(
+    user.id,
+    date,
+    workoutId,
+    durationMins,
+    todayYmd
+  );
+  if (outcome !== "added") return { ok: false, error: outcome };
+  revalidatePlan();
+  return { ok: true };
+}
+
+/** Take an athlete-chosen session back off a day. */
+export async function removeChosenWorkoutAction(
+  date: string,
+  workoutId: string
+): Promise<Result> {
+  const user = await requireUser();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date))
+    return { ok: false, error: "invalid_date" };
+
+  const outcome = await removeChosenWorkout(user.id, date, workoutId);
+  if (outcome !== "removed") return { ok: false, error: outcome };
+  revalidatePlan();
+  return { ok: true };
 }

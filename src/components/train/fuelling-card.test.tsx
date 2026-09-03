@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { renderToString } from "react-dom/server";
 import { withPurpose } from "@/lib/training-plan";
 import { FuellingCard } from "./fuelling-card";
+import { blockPlacement } from "@/lib/week-plan/placement";
 
 describe("FuellingCard", () => {
   it("renders deterministic before/during/after ranges for planned sessions", () => {
@@ -12,7 +13,7 @@ describe("FuellingCard", () => {
       durationMins: 90,
       intensity: "Z4-Z5",
       description: "threshold reps",
-      blockIdx: 0,
+      placement: blockPlacement(0),
     });
 
     const html = renderToString(
@@ -34,7 +35,7 @@ describe("FuellingCard", () => {
       durationMins: 45,
       intensity: "",
       description: "easy run",
-      blockIdx: 0,
+      placement: blockPlacement(0),
     });
 
     const html = renderToString(
@@ -59,7 +60,7 @@ describe("FuellingCard", () => {
       durationMins: 90,
       intensity: "Z4-Z5",
       description: "threshold reps",
-      blockIdx: 0,
+      placement: blockPlacement(0),
     });
     const html = renderToString(
       <FuellingCard date="2026-08-08" workouts={[workout]} bodyMassKg={72} />
@@ -84,7 +85,7 @@ describe("FuellingCard", () => {
       durationMins: 90,
       intensity: "Z4-Z5",
       description: "threshold reps",
-      blockIdx: 0,
+      placement: blockPlacement(0),
     });
     const html = renderToString(
       <FuellingCard date="2026-08-08" workouts={[workout]} bodyMassKg={72} />

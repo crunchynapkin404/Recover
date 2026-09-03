@@ -5,6 +5,7 @@
 import { blockMins, type AvailabilityBlock } from "@/lib/availability/types";
 import type { PlannedWorkout } from "@/lib/training-plan";
 import { admits, buildSlots, fitToBlock, slotKey, type Slot } from "./slots";
+import { blockIdxOf, blockPlacement, isAthleteChosen } from "./placement";
 import { fillWeek, type FillOptions } from "./fill";
 import type {
   AdjustmentRecord,
@@ -79,16 +80,27 @@ export function replanWeek(
     if (locked(d)) return;
     const keep: ScheduledWorkout[] = [];
     for (const w of d.workouts) {
-      const block = d.availableBlocks[w.blockIdx];
-      const slot: Slot | null = block
-        ? {
-            dayIdx,
-            blockIdx: w.blockIdx,
-            mins: blockMins(block),
-            energy: block.energy,
-            sports: block.sports,
-          }
-        : null;
+      // The athlete's own pick occupies no availability block, so the
+      // displacement test below — "does its block still hold it?" — has no
+      // answer for it and would hand every one of them to the drop rung.
+      // The engine reads these sessions and never writes them.
+      if (isAthleteChosen(w)) {
+        keep.push(w);
+        continue;
+      }
+      const wBlockIdx = blockIdxOf(w.placement);
+      const block =
+        wBlockIdx == null ? undefined : d.availableBlocks[wBlockIdx];
+      const slot: Slot | null =
+        block != null && wBlockIdx != null
+          ? {
+              dayIdx,
+              blockIdx: wBlockIdx,
+              mins: blockMins(block),
+              energy: block.energy,
+              sports: block.sports,
+            }
+          : null;
       // admits() reads day.workouts.length (the per-day cap) and
       // day.workouts.some(isQuality) (same-day/adjacency), both of which
       // still include THIS session at this point — check against a copy
@@ -172,7 +184,10 @@ export function replanWeek(
       const targetHadOwnSession = target.workouts.length > 0;
       days[move.dayIdx] = {
         ...target,
-        workouts: [...target.workouts, { ...workout, blockIdx: move.blockIdx }],
+        workouts: [
+          ...target.workouts,
+          { ...workout, placement: blockPlacement(move.blockIdx) },
+        ],
         status: targetHadOwnSession ? target.status : "moved",
         movedFrom: targetHadOwnSession ? target.movedFrom : fromDate,
       };
@@ -229,7 +244,7 @@ export function replanWeek(
         ...days[dayIdx],
         workouts: [
           ...days[dayIdx].workouts,
-          { ...fit.workout, blockIdx: fit.slot.blockIdx },
+          { ...fit.workout, placement: blockPlacement(fit.slot.blockIdx) },
         ],
         status: "adapted",
       };

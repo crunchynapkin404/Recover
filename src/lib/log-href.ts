@@ -126,6 +126,8 @@ export const TRAIN_SHEETS = [
   "races",
   "availability",
   "plan-review",
+  /** The library picker, opened from an empty day with `?day=` alongside. */
+  "pick-workout",
 ] as const;
 
 export type TrainSheetName = (typeof TRAIN_SHEETS)[number];

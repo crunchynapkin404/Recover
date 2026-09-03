@@ -37,6 +37,7 @@ import type {
   WeekState,
 } from "@/lib/week-plan/types";
 import { withPurpose } from "@/lib/training-plan";
+import { blockPlacement } from "@/lib/week-plan/placement";
 
 function blocksFor(mins: number): DaySlot["availableBlocks"] {
   return mins > 0
@@ -63,7 +64,7 @@ const D = (
             durationMins: 137,
             intensity: "Z1-Z2",
             description: "Long ride",
-            blockIdx: 0,
+            placement: blockPlacement(0),
             ...workout,
           }),
         ]

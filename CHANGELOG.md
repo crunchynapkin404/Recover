@@ -1,5 +1,71 @@
 # Changelog
 
+## v0.136.0 — 2026-09-03 — Pick your own ride
+
+### What you will notice
+
+**You can add a ride to a day the plan left empty.** Open any empty day on
+Train and there is now an "Add a ride" link. It opens the whole workout
+library — all 103 of them — and whichever you pick lands on that day as a real
+session: it shows on Today and Train, it exports to your head unit, and it
+counts toward the week.
+
+**You do not have to set availability first.** Availability is how you tell
+Recover when it may plan things for you. Choosing a ride yourself is a
+different statement, and it no longer goes through that door.
+
+**The whole library is pickable, and Recover still says what it thinks.** The
+first few are marked "Recommended today", ordered by your readiness, how long
+since your last hard session, how full the week already is, and which shapes
+you have ridden recently. Everything else is one scroll away, not one tap
+behind a "show all". Filter by purpose, shape or length.
+
+**It will disagree with you and then do it anyway.** Pick a hard session on a
+red-readiness day, or any session on a day cleared before a race, and the
+warning says so plainly at the top of the picker — and then adds what you
+asked for. Your week records that Recover disagreed; it does not overrule you.
+
+**Nothing the engine does can quietly take it away.** A session you chose is
+never shrunk, moved, swapped or dropped by the daily adaptation, the replan or
+the fill rung. That was the actual work.
+
+### Under the hood
+
+**A session now says who placed it.** `ScheduledWorkout` carried a bare
+`blockIdx` — an index into the day's availability. It now carries a
+`Placement`: either the engine's block, or the athlete's own choice, which
+occupies no block at all. The union is what makes the distinction a compile
+error rather than a convention; the walk touched 146 sites and changed no
+behaviour.
+
+**The engine reads athlete-chosen sessions and never writes them.** Six
+mutating rungs skip them, and each guard was mutation-tested — broken
+deliberately to confirm a named test goes red. One did not, and was deleted:
+it was unreachable, and this codebase removes dead branches rather than
+keeping them for comfort. The behaviour it protected is now pinned by a test
+instead.
+
+**The disagreement is a record, not a toast.** A rung that would have changed
+your session writes a `kept` adjustment with its reasoning, so the coach
+surfaces and the logs both have it.
+
+**`tsc` reported one error where there were 146.** The incremental build info
+in the tree survives a change to a widely-consumed type. If a type change
+should have broken many callers and the typecheck looks quiet, delete
+`tsconfig.tsbuildinfo` and touch the changed files before believing it.
+
+**Migrations: none.** `plan_adjustments.trigger` and `.action` looked like
+database enums and are not — plain text columns with a type-level enum and no
+check constraint. Stored weeks are migrated on read, and
+`scripts/backfill-placement.ts` normalizes them permanently once this release
+is soaked.
+
+**Rollback: safe, with one bounded exception.** Block-placed sessions also
+write the legacy `blockIdx` for this release, so v0.135.0 reads them
+unchanged. A session you added through this feature has no such index by
+construction — roll back past this release and those would be scaled to zero
+minutes. The blast radius is rides added between deploy and rollback.
+
 ## v0.135.0 — 2026-09-03 — One readiness card, at every hour
 
 ### What you will notice

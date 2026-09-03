@@ -6,6 +6,8 @@ import type { DaySlot, ScheduledWorkout, WeekState } from "./types";
 import { withPurpose } from "@/lib/training-plan";
 import { blockMins } from "@/lib/availability/types";
 import { sportMatches } from "@/lib/canonical-sport";
+import { blockPlacement } from "./placement";
+import { blockIdxOf } from "./placement";
 
 // "full" energy, matching materialize.test.ts's and replan.test.ts's default
 // block helpers: a day's ordinary block should admit any session type unless
@@ -38,7 +40,7 @@ const D = (
             durationMins: 45,
             intensity: "Z1-Z2",
             description: "Easy run",
-            blockIdx: 0,
+            placement: blockPlacement(0),
             ...workout,
           }),
         ]
@@ -121,11 +123,11 @@ describe("adaptDay — missed yesterday", () => {
     });
     const moved = r.week.days.find((d) => d.movedFrom === "2026-07-20");
     expect(moved).toBeDefined();
-    expect(moved!.workouts[0]!.blockIdx).toBe(1);
+    expect(blockIdxOf(moved!.workouts[0]!.placement)).toBe(1);
     expect(
       blockFits(
         moved!,
-        moved!.workouts[0]!.blockIdx,
+        moved!.workouts[0]!.placement,
         moved!.workouts[0]!.durationMins
       )
     ).toBe(true);
@@ -303,7 +305,7 @@ describe("adaptDay — missed yesterday", () => {
     });
     const grown = r.week.days[2].workouts[0]!;
     expect(grown.durationMins).toBeLessThanOrEqual(
-      blockMins(r.week.days[2].availableBlocks[grown.blockIdx]!)
+      blockMins(r.week.days[2].availableBlocks[blockIdxOf(grown.placement)!]!)
     );
   });
 
@@ -323,7 +325,7 @@ describe("adaptDay — missed yesterday", () => {
           durationMins: 50,
           intensity: "Z1-Z2",
           description: "d",
-          blockIdx: 0,
+          placement: blockPlacement(0),
         }),
         withPurpose({
           day: 0,
@@ -332,7 +334,7 @@ describe("adaptDay — missed yesterday", () => {
           durationMins: 100,
           intensity: "Z1-Z2",
           description: "d",
-          blockIdx: 1,
+          placement: blockPlacement(1),
         }),
       ],
       status: "planned",
@@ -580,11 +582,11 @@ describe("adaptDay — readiness and availability", () => {
     });
     const moved = r.week.days.find((d) => d.movedFrom === "2026-07-21");
     expect(moved).toBeDefined();
-    expect(moved!.workouts[0]!.blockIdx).toBe(1);
+    expect(blockIdxOf(moved!.workouts[0]!.placement)).toBe(1);
     expect(
       blockFits(
         moved!,
-        moved!.workouts[0]!.blockIdx,
+        moved!.workouts[0]!.placement,
         moved!.workouts[0]!.durationMins
       )
     ).toBe(true);
@@ -649,7 +651,9 @@ describe("adaptDay — readiness and availability", () => {
     });
     const shortened = r.week.days[1].workouts[0]!;
     expect(shortened.durationMins).toBeLessThanOrEqual(
-      blockMins(r.week.days[1].availableBlocks[shortened.blockIdx]!)
+      blockMins(
+        r.week.days[1].availableBlocks[blockIdxOf(shortened.placement)!]!
+      )
     );
   });
 
@@ -673,7 +677,7 @@ describe("adaptDay — readiness and availability", () => {
           durationMins: 45,
           intensity: "Z1-Z2",
           description: "d",
-          blockIdx: 0,
+          placement: blockPlacement(0),
         }),
         withPurpose({
           day: 2,
@@ -682,7 +686,7 @@ describe("adaptDay — readiness and availability", () => {
           durationMins: 100,
           intensity: "Z1-Z2",
           description: "d",
-          blockIdx: 1,
+          placement: blockPlacement(1),
         }),
       ],
       status: "planned",
@@ -706,7 +710,7 @@ describe("adaptDay — readiness and availability", () => {
     const long = result.workouts.find((x) => x.type === "Long");
     expect(long).toBeDefined();
     expect(long!.durationMins).toBe(100);
-    expect(long!.blockIdx).toBe(1);
+    expect(blockIdxOf(long!.placement)).toBe(1);
     expect(result.status).not.toBe("rest");
     // The affected Endurance session is the one accounted for, either
     // moved elsewhere or logged as dropped — never silently gone.
@@ -796,7 +800,7 @@ describe("adaptDay — C3: red readiness with no room for a recovery spin", () =
           durationMins: 20,
           intensity: "Z4-Z5",
           description: "d",
-          blockIdx: 0,
+          placement: blockPlacement(0),
         }),
         withPurpose({
           day: 0,
@@ -805,7 +809,7 @@ describe("adaptDay — C3: red readiness with no room for a recovery spin", () =
           durationMins: 80,
           intensity: "Z1-Z2",
           description: "d",
-          blockIdx: 1,
+          placement: blockPlacement(1),
         }),
       ],
       status: "planned",
@@ -870,7 +874,7 @@ describe("adaptDay — C3: red readiness with no room for a recovery spin", () =
           durationMins: 20,
           intensity: "Z4-Z5",
           description: "d",
-          blockIdx: 0,
+          placement: blockPlacement(0),
         }),
       ],
       status: "planned",

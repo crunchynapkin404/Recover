@@ -31,7 +31,9 @@ import {
 } from "@/lib/week-plan/actuals";
 import { addDaysYmd } from "@/lib/week-plan/service";
 import { weekAdherencePct } from "@/lib/week-plan/volume";
-import type { DaySlot } from "@/lib/week-plan/types";
+// Relative to match this directory's other one-off scripts; the "@/" alias
+// above also resolves under tsx, so either form works here.
+import { normalizeDays, serializeDays } from "../src/lib/week-plan/serialize";
 
 const APPLY = process.argv.includes("--apply");
 const ALL = process.argv.includes("--all");
@@ -119,7 +121,7 @@ async function main() {
     let headerPrinted = false;
 
     for (const row of weeks) {
-      const stored = row.days as DaySlot[];
+      const stored = normalizeDays(row.days);
       const weekEnd = addDaysYmd(row.weekStart, 6);
       const actuals = await deriveDayActuals(user.id, row.weekStart, weekEnd);
       const booked = bookWeekActuals(stored, actuals, weekEnd);
@@ -197,7 +199,7 @@ async function main() {
         await db.transaction(async (tx) => {
           await tx
             .update(schema.weekPlans)
-            .set({ days: booked, updatedAt: now })
+            .set({ days: serializeDays(booked), updatedAt: now })
             .where(eq(schema.weekPlans.id, row.id));
           if (block) {
             await tx

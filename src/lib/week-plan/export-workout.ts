@@ -2,10 +2,10 @@ import { and, eq } from "drizzle-orm";
 import type { db as Db } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
 import { icuRequest, type IcuConnection } from "@/lib/connectors/intervals";
-import type { DaySlot } from "./types";
 import { renderIcu } from "@/lib/interval/render-icu";
 import { workoutForDay } from "@/lib/interval/for-day";
 import type { WorkoutPin } from "@/lib/interval/pin";
+import { normalizeDays, serializeDays } from "./serialize";
 
 export type ExportResult =
   | { ok: true; workoutName: string }
@@ -53,7 +53,7 @@ export async function exportWorkoutToIcu(
     return { ok: false, reason: "no-session", message: "No open week." };
   }
 
-  const days = week.days as DaySlot[];
+  const days = normalizeDays(week.days);
   const dayIdx = days.findIndex((d) => d.date === date);
   const planned = dayIdx === -1 ? undefined : days[dayIdx].workouts[sessionIdx];
   if (!planned) {
@@ -123,7 +123,7 @@ export async function exportWorkoutToIcu(
   );
   await db
     .update(schema.weekPlans)
-    .set({ days: nextDays })
+    .set({ days: serializeDays(nextDays) })
     .where(eq(schema.weekPlans.id, week.id));
 
   return { ok: true, workoutName: structured.workout.name };

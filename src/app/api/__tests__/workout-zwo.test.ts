@@ -1,4 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import { blockPlacement } from "@/lib/week-plan/placement";
 
 // The route's two dependencies that reach outside it: the session, and the
 // week. Both mocked, because what this file is about is the route's own
@@ -25,7 +26,7 @@ const bike = withPurpose({
   durationMins: 75,
   intensity: "Z4",
   description: "x",
-  blockIdx: 0,
+  placement: blockPlacement(0),
 });
 
 const req = (qs: string) => new Request(`http://x/api/workout/zwo?${qs}`);

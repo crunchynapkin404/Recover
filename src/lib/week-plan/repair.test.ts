@@ -11,6 +11,7 @@ import { assembleVolumeInputs } from "./volume-inputs";
 import { planConstraints } from "./service";
 import { dayMins } from "./types";
 import type { DaySlot, ScheduledWorkout } from "./types";
+import { blockPlacement } from "./placement";
 
 // requires Postgres; skips without DATABASE_URL — same guard as the rest of
 // week-plan's DB-gated suites (service.test.ts, rollover-volume.test.ts).
@@ -34,7 +35,7 @@ function sw(o: Partial<ScheduledWorkout> = {}): ScheduledWorkout {
     durationMins: 45,
     intensity: "Z1-Z2",
     description: "Easy ride",
-    blockIdx: 0,
+    placement: blockPlacement(0),
     ...o,
   });
 }

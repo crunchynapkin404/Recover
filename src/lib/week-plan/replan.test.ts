@@ -3,6 +3,8 @@ import { replanWeek } from "./replan";
 import { blockMins } from "@/lib/availability/types";
 import type { WeekState, DaySlot, ScheduledWorkout } from "./types";
 import type { AvailabilityBlock } from "@/lib/availability/types";
+import { blockPlacement } from "./placement";
+import { blockIdxOf } from "./placement";
 
 const blk = (mins: number): AvailabilityBlock => ({
   start: null,
@@ -21,7 +23,7 @@ const w = (o: Partial<ScheduledWorkout> = {}): ScheduledWorkout => ({
   description: "5×4min",
   purpose: "vo2max",
   minEffectiveMins: 40,
-  blockIdx: 0,
+  placement: blockPlacement(0),
   ...o,
 });
 
@@ -270,7 +272,7 @@ describe("replanWeek — multi-block days", () => {
         mins: [90],
         kept: [
           {
-            blockIdx: 0,
+            placement: blockPlacement(0),
             durationMins: 80,
             type: "Endurance",
             purpose: "aerobic_base",
@@ -281,7 +283,7 @@ describe("replanWeek — multi-block days", () => {
         mins: [85],
         kept: [
           {
-            blockIdx: 0,
+            placement: blockPlacement(0),
             durationMins: 85,
             type: "Intervals",
             purpose: "vo2max",
@@ -292,7 +294,7 @@ describe("replanWeek — multi-block days", () => {
     const r = replanWeek(before, resolve([[90], []]), WEEK_START, null);
 
     const day0 = r.week.days[0];
-    const used = day0.workouts.map((w) => w.blockIdx);
+    const used = day0.workouts.map((w) => blockIdxOf(w.placement));
     expect(new Set(used).size).toBe(used.length); // no block claimed twice
     const totalOnDay0 = day0.workouts.reduce((s, w) => s + w.durationMins, 0);
     expect(totalOnDay0).toBeLessThanOrEqual(90);
@@ -308,13 +310,13 @@ describe("replanWeek — multi-block days", () => {
         mins: [90, 30],
         kept: [
           {
-            blockIdx: 0,
+            placement: blockPlacement(0),
             durationMins: 85,
             type: "Endurance",
             purpose: "aerobic_base",
           },
           {
-            blockIdx: 1,
+            placement: blockPlacement(1),
             durationMins: 25,
             type: "Recovery",
             purpose: "recovery",
@@ -327,7 +329,7 @@ describe("replanWeek — multi-block days", () => {
     expect(r.adjustments.length).toBeGreaterThan(0);
     const survivors = r.week.days[0].workouts;
     for (const w of survivors) {
-      const block = r.week.days[0].availableBlocks[w.blockIdx];
+      const block = r.week.days[0].availableBlocks[blockIdxOf(w.placement)!];
       expect(w.durationMins).toBeLessThanOrEqual(blockMins(block));
     }
   });
@@ -338,13 +340,13 @@ describe("replanWeek — multi-block days", () => {
         mins: [90, 30],
         kept: [
           {
-            blockIdx: 0,
+            placement: blockPlacement(0),
             durationMins: 85,
             type: "Endurance",
             purpose: "aerobic_base",
           },
           {
-            blockIdx: 1,
+            placement: blockPlacement(1),
             durationMins: 25,
             type: "Recovery",
             purpose: "recovery",
@@ -369,7 +371,7 @@ describe("replanWeek — multi-block days", () => {
         mins: [30, 90],
         kept: [
           {
-            blockIdx: 0,
+            placement: blockPlacement(0),
             durationMins: 25,
             type: "Recovery",
             purpose: "recovery",
@@ -384,7 +386,8 @@ describe("replanWeek — multi-block days", () => {
     expect(recovery).toBeDefined();
     expect(recovery!.durationMins).toBe(25);
     expect(recovery!.purpose).toBe("recovery");
-    const block = r.week.days[0].availableBlocks[recovery!.blockIdx];
+    const block =
+      r.week.days[0].availableBlocks[blockIdxOf(recovery!.placement)!];
     expect(recovery!.durationMins).toBeLessThanOrEqual(blockMins(block));
 
     expect(
@@ -400,7 +403,7 @@ describe("replanWeek — multi-block days", () => {
         mins: [30, 90],
         kept: [
           {
-            blockIdx: 0,
+            placement: blockPlacement(0),
             durationMins: 25,
             type: "Recovery",
             purpose: "recovery",
@@ -590,7 +593,7 @@ describe("replanWeek — Minor: a move must not clobber the target day's own sta
         mins: [60],
         kept: [
           {
-            blockIdx: 0,
+            placement: blockPlacement(0),
             durationMins: 55,
             type: "Endurance",
             purpose: "aerobic_base",
@@ -600,7 +603,12 @@ describe("replanWeek — Minor: a move must not clobber the target day's own sta
       {
         mins: [90, 60],
         kept: [
-          { blockIdx: 0, durationMins: 85, type: "Long", purpose: "long" },
+          {
+            placement: blockPlacement(0),
+            durationMins: 85,
+            type: "Long",
+            purpose: "long",
+          },
         ],
       }, // Tue: keeps its own Long in block0, free block1 to receive the move
     ]);

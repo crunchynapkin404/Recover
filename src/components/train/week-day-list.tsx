@@ -35,6 +35,11 @@ function clock(secs: number): string {
 }
 
 interface DayRowProps {
+  /**
+   * The picker's href for THIS day, when the athlete may add a ride to it.
+   * Absent means the day would be refused, and no link is rendered.
+   */
+  addRideHref?: string;
   day: DaySlot;
   /**
    * Whether this is the day the athlete has open — Train's `?day=`
@@ -86,6 +91,7 @@ function DayRow({
   otherDays,
   actual,
   actionable = true,
+  addRideHref,
 }: DayRowProps) {
   // Only for days the plan left empty. A planned session that happened
   // already says so through its own "completed" chip, and repeating the
@@ -202,6 +208,17 @@ function DayRow({
               <span className="ml-1.5 text-ink-muted">
                 {`${provisional ? "~" : ""}${d.availableMins} min free`}
               </span>
+              {addRideHref && (
+                <>
+                  {" · "}
+                  <a
+                    className="font-bold text-ink-primary underline"
+                    href={addRideHref}
+                  >
+                    Add a ride
+                  </a>
+                </>
+              )}
             </p>
           )}
           {credit && (
@@ -274,9 +291,19 @@ export function WeekDayList({
   nextWeek,
   actuals,
   structured,
+  addRideHref,
 }: {
   days: DaySlot[];
   today: string;
+  /**
+   * Date -> the picker's href, for days the athlete may add a ride to.
+   *
+   * A MAP RATHER THAN A PREDICATE, and built by the page from
+   * `canAddWorkout`, so the affordance and the server action are gated by
+   * one function rather than by two that can drift. A date absent from this
+   * map is a day that would be refused, and it simply gets no link.
+   */
+  addRideHref?: Record<string, string>;
   /**
    * The one day of `days` to render, expanded — always a real date in
    * `days` by construction (openDayFrom, src/lib/week-plan/day-shape.ts,
@@ -342,6 +369,7 @@ export function WeekDayList({
           badge={null}
           otherDays={otherDays}
           actual={actuals?.[openDay.date]}
+          addRideHref={addRideHref?.[openDay.date]}
           // I4: no action here can succeed on a day already completed or
           // missed, or on any day already in the past (see DayRow's
           // `actionable` doc comment) — those get the row, but not the

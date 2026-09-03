@@ -32,6 +32,13 @@ import type { PlanStyle } from "@/lib/plan-style/types";
 import type { ReentryStage, SeasonMode } from "@/lib/season-mode/types";
 import { resolvePlanningSurfaceState } from "@/lib/planning-surface/effective-state";
 import type { Figure } from "@/lib/uncertainty";
+import { blockPlacement, isAthleteChosen } from "./placement";
+import {
+  buildChosenSession,
+  canAddWorkout,
+  type AddRefusal,
+} from "./add-chosen";
+import { normalizeDays, serializeDays } from "./serialize";
 
 export type AdjustmentRow = typeof schema.planAdjustments.$inferSelect;
 
@@ -190,7 +197,7 @@ export async function getOpenWeekPlan(
     planId: row.planId,
     weekStart: row.weekStart,
     skeletonWeek: row.skeletonWeek,
-    days: row.days as DaySlot[],
+    days: normalizeDays(row.days),
     effectiveTarget: row.effectiveTarget,
     materializedMins: row.materializedMins,
     availabilityConfirmedAt: row.availabilityConfirmedAt,
@@ -294,7 +301,7 @@ export async function rolloverWeekPlan(
     // zero whenever no pass ran between that day and the rollover.
     const weekEnd = addDaysYmd(row.weekStart, 6);
     const actuals = await deriveDayActuals(userId, row.weekStart, weekEnd);
-    const days = bookWeekActuals(row.days as DaySlot[], actuals, weekEnd);
+    const days = bookWeekActuals(normalizeDays(row.days), actuals, weekEnd);
     const { actualLoad, actualSessions } = weekActuals(days);
     const block = await db.query.trainingBlocks.findFirst({
       where: and(
@@ -319,7 +326,7 @@ export async function rolloverWeekPlan(
     }
     await db
       .update(schema.weekPlans)
-      .set({ days, status: "closed", updatedAt: now })
+      .set({ days: serializeDays(days), status: "closed", updatedAt: now })
       .where(eq(schema.weekPlans.id, row.id));
     prevWeek = { actualLoad, adherencePct }; // rows are ascending: latest wins
   }
@@ -461,7 +468,7 @@ export async function rolloverWeekPlan(
       planId: plan.id,
       weekStart,
       skeletonWeek: skeleton.weekNumber,
-      days: r.week.days,
+      days: serializeDays(r.week.days),
       status: "open",
       effectiveTarget: r.effectiveLoad,
       materializedMins: plannedMins(r.week.days),
@@ -648,7 +655,7 @@ export async function runDailyAdaptation(
 
   await db
     .update(schema.weekPlans)
-    .set({ days: result.week.days, updatedAt: now })
+    .set({ days: serializeDays(result.week.days), updatedAt: now })
     .where(eq(schema.weekPlans.id, week.id));
   await saveAdjustments(week.id, result.adjustments);
   return "adapted";
@@ -736,7 +743,11 @@ export async function applyAvailability(
 
   await db
     .update(schema.weekPlans)
-    .set({ days: r.week.days, availabilityConfirmedAt: now, updatedAt: now })
+    .set({
+      days: serializeDays(r.week.days),
+      availabilityConfirmedAt: now,
+      updatedAt: now,
+    })
     .where(eq(schema.weekPlans.id, week.id));
 
   const today = localYmd(now);
@@ -816,6 +827,12 @@ export async function moveWorkout(
 
   const from = week.days[fromIdx];
   const to = week.days[toIdx];
+  // An athlete-placed session is refused here rather than moved. It occupies
+  // no availability block, so re-placing it into one would quietly convert
+  // the athlete's own choice back into an engine session. They remove it and
+  // add another instead.
+  if (from.workouts.some(isAthleteChosen) || to.workouts.some(isAthleteChosen))
+    return "invalid";
   // A day can now genuinely hold two sessions (MAX_SESSIONS_PER_DAY). This
   // signature only names a day, not which of its sessions to move, so a
   // multi-session source is refused rather than guessed at — and moving one
@@ -857,14 +874,14 @@ export async function moveWorkout(
   ];
   days[toIdx] = {
     ...days[toIdx],
-    workouts: [{ ...workout, blockIdx }],
+    workouts: [{ ...workout, placement: blockPlacement(blockIdx) }],
     status: "moved",
     movedFrom: fromDate,
   };
 
   await db
     .update(schema.weekPlans)
-    .set({ days, updatedAt: new Date() })
+    .set({ days: serializeDays(days), updatedAt: new Date() })
     .where(eq(schema.weekPlans.id, week.id));
   await saveAdjustments(week.id, [
     {
@@ -893,6 +910,12 @@ export async function swapWorkouts(
 
   const from = week.days[fromIdx];
   const to = week.days[toIdx];
+  // An athlete-placed session is refused here rather than swapd. It occupies
+  // no availability block, so re-placing it into one would quietly convert
+  // the athlete's own choice back into an engine session. They remove it and
+  // add another instead.
+  if (from.workouts.some(isAthleteChosen) || to.workouts.some(isAthleteChosen))
+    return "invalid";
   // Same conservative refusal as moveWorkout: swapping a specific session
   // out of a multi-session day needs the caller to say which one, which
   // this signature cannot express, so refuse rather than guess and strand
@@ -928,19 +951,19 @@ export async function swapWorkouts(
   if (toBlockIdx == null) return "invalid";
   days[toIdx] = {
     ...days[toIdx],
-    workouts: [{ ...fromWorkoutSrc, blockIdx: toBlockIdx }],
+    workouts: [{ ...fromWorkoutSrc, placement: blockPlacement(toBlockIdx) }],
   };
 
   const fromBlockIdx = findBlockFor(days, fromIdx, toWorkoutSrc, new Set());
   if (fromBlockIdx == null) return "invalid";
   days[fromIdx] = {
     ...days[fromIdx],
-    workouts: [{ ...toWorkoutSrc, blockIdx: fromBlockIdx }],
+    workouts: [{ ...toWorkoutSrc, placement: blockPlacement(fromBlockIdx) }],
   };
 
   await db
     .update(schema.weekPlans)
-    .set({ days, updatedAt: new Date() })
+    .set({ days: serializeDays(days), updatedAt: new Date() })
     .where(eq(schema.weekPlans.id, week.id));
   await saveAdjustments(week.id, [
     {
@@ -992,7 +1015,113 @@ export async function markDayDone(
 
   await db
     .update(schema.weekPlans)
-    .set({ days, updatedAt: new Date() })
+    .set({ days: serializeDays(days), updatedAt: new Date() })
     .where(eq(schema.weekPlans.id, week.id));
   return "completed";
+}
+
+/**
+ * Place a workout the athlete chose from the library on a day the engine
+ * left empty.
+ *
+ * IT WRITES NO AVAILABILITY. Availability is the auto-assigner's input —
+ * "when Recover may place things" — and a session the athlete picked is not
+ * the auto-assigner's business. Writing a synthetic block to hold it would
+ * let the fill rung stack a second session into the athlete's own ride and
+ * would leave the day reading as available forever after. This is the
+ * athlete's own correction, and it is the reason Placement is a union rather
+ * than a nullable index.
+ *
+ * Re-validates canAddWorkout server-side rather than trusting the caller:
+ * the UI hides the affordance, but the affordance is not the gate.
+ */
+export async function addChosenWorkout(
+  userId: string,
+  date: string,
+  workoutId: string,
+  durationMins: number,
+  todayYmd: string,
+  now: Date = new Date()
+): Promise<"added" | "no_open_week" | "invalid" | AddRefusal> {
+  const week = await getOpenWeekPlan(userId);
+  if (!week) return "no_open_week";
+  const idx = week.days.findIndex((d) => d.date === date);
+  if (idx === -1) return "invalid";
+
+  const verdict = canAddWorkout(week.days[idx], todayYmd);
+  if (!verdict.ok) return verdict.reason;
+
+  const session = buildChosenSession(
+    workoutId,
+    durationMins,
+    idx,
+    now.toISOString()
+  );
+  if (!session) return "invalid";
+
+  const days = week.days.map((d) => ({
+    ...d,
+    workouts: d.workouts.map((w) => ({ ...w })),
+  }));
+  days[idx] = {
+    ...days[idx],
+    workouts: [...days[idx].workouts, session],
+    // A day that was resting is now planned. A day already holding an engine
+    // session keeps whatever status it had — this session did not change it.
+    status: days[idx].workouts.length === 0 ? "planned" : days[idx].status,
+    // The athlete overrode the engine's rest intent by choosing. Clearing it
+    // stops fill.ts refusing the day forever after; keptNote has already
+    // recorded that Recover disagreed.
+    restIntent: undefined,
+  };
+
+  await db
+    .update(schema.weekPlans)
+    .set({ days: serializeDays(days), updatedAt: now })
+    .where(eq(schema.weekPlans.id, week.id));
+  return "added";
+}
+
+/**
+ * Take an athlete-chosen session back off a day.
+ *
+ * Only ever removes an ATHLETE-placed session: an engine session is the
+ * plan's, and removing it here would be a silent, unlogged drop of exactly
+ * the kind replan.ts records adjustments for.
+ */
+export async function removeChosenWorkout(
+  userId: string,
+  date: string,
+  workoutId: string
+): Promise<"removed" | "no_open_week" | "invalid"> {
+  const week = await getOpenWeekPlan(userId);
+  if (!week) return "no_open_week";
+  const idx = week.days.findIndex((d) => d.date === date);
+  if (idx === -1) return "invalid";
+
+  const day = week.days[idx];
+  const keep = day.workouts.filter(
+    (w) =>
+      !(
+        w.placement.kind === "athlete" &&
+        w.placement.choice.workoutId === workoutId
+      )
+  );
+  if (keep.length === day.workouts.length) return "invalid";
+
+  const days = week.days.map((d) => ({
+    ...d,
+    workouts: d.workouts.map((w) => ({ ...w })),
+  }));
+  days[idx] = {
+    ...days[idx],
+    workouts: keep,
+    status: keep.length === 0 ? "rest" : days[idx].status,
+  };
+
+  await db
+    .update(schema.weekPlans)
+    .set({ days: serializeDays(days), updatedAt: new Date() })
+    .where(eq(schema.weekPlans.id, week.id));
+  return "removed";
 }

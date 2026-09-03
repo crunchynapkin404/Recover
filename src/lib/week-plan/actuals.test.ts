@@ -4,6 +4,7 @@ import { db, schema } from "@/lib/db";
 import { bookWeekActuals, deriveDayActuals, weekActuals } from "./actuals";
 import type { DaySlot, ScheduledWorkout } from "./types";
 import { withPurpose } from "@/lib/training-plan";
+import { blockPlacement } from "./placement";
 
 // requires Postgres; skips without DATABASE_URL.
 const hasDb =
@@ -188,7 +189,7 @@ function sw(o: Partial<ScheduledWorkout> = {}): ScheduledWorkout {
     durationMins: 60,
     intensity: "Z1-Z2",
     description: "Easy ride",
-    blockIdx: 0,
+    placement: blockPlacement(0),
     ...o,
   });
 }

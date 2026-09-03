@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { openWeekPlannedLoads } from "./planned-loads";
 import type { DaySlot, ScheduledWorkout } from "./types";
+import { blockPlacement } from "./placement";
 
 const w = (mins: number): ScheduledWorkout => ({
   day: 0,
@@ -11,7 +12,7 @@ const w = (mins: number): ScheduledWorkout => ({
   description: "Aerobic endurance ride",
   purpose: "aerobic_base",
   minEffectiveMins: 40,
-  blockIdx: 0,
+  placement: blockPlacement(0),
 });
 
 const strengthWorkout = (mins: number): ScheduledWorkout => ({
@@ -23,7 +24,7 @@ const strengthWorkout = (mins: number): ScheduledWorkout => ({
   description: "Squat 4x8 · Bench 4x8",
   purpose: "strength",
   minEffectiveMins: 20,
-  blockIdx: 1,
+  placement: blockPlacement(1),
 });
 
 function day(date: string, status: DaySlot["status"], mins: number[]): DaySlot {

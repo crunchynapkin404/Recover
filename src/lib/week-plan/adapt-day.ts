@@ -16,6 +16,8 @@ import {
 import { findBlockFor, fitToBlock } from "./slots";
 import { blockMins } from "@/lib/availability/types";
 import { withPurpose, type PlannedWorkout } from "@/lib/training-plan";
+import { blockIdxOf, blockPlacement, isAthleteChosen } from "./placement";
+import { keptNote } from "./kept-note";
 
 export interface AdaptDayInput {
   week: WeekState;
@@ -110,7 +112,7 @@ function handleMissedYesterday(
           if (blockIdx != null) {
             week.days[i] = {
               ...t,
-              workouts: [{ ...workout, blockIdx }],
+              workouts: [{ ...workout, placement: blockPlacement(blockIdx) }],
               status: "moved",
               movedFrom: y.date,
             };
@@ -163,8 +165,13 @@ function handleMissedYesterday(
     // in adaptDay below). Without this, a missed ride's minutes grew a
     // day's lift — a fabricated duration against an unchanged prescription.
     if (w.purpose === "strength") continue;
+    // The athlete chose this session's length; redistribution is the engine
+    // reshaping its OWN plan around a missed day. It occupies no block, so
+    // blockCapacity would be 0 and Math.min would starve it to zero minutes.
+    if (isAthleteChosen(w)) continue;
     const cap = Math.round(w.durationMins * (1 + DAY_REDISTRIBUTE_CAP_PCT));
-    const block = d.availableBlocks[w.blockIdx];
+    const wBlockIdx = blockIdxOf(w.placement);
+    const block = wBlockIdx == null ? undefined : d.availableBlocks[wBlockIdx];
     const blockCapacity = block ? blockMins(block) : 0;
     w.durationMins = Math.min(
       cap,
@@ -241,7 +248,7 @@ function moveOrDropWorkout(
   if (target !== -1) {
     week.days[target] = {
       ...week.days[target],
-      workouts: [{ ...workout, blockIdx: targetBlockIdx! }],
+      workouts: [{ ...workout, placement: blockPlacement(targetBlockIdx!) }],
       status: "moved",
       movedFrom: today.date,
     };
@@ -277,10 +284,15 @@ function fitAvailability(
   adjustments: AdjustmentRecord[]
 ): void {
   const today = week.days[todayIdx];
-  const todayWorkout = today.workouts[0] ?? null;
+  // The FIRST ENGINE-PLACED session, not simply the first. An athlete-placed
+  // session occupies no block, so blockFits is false for it by construction
+  // and this rung would shrink, move or drop it every single time. Skipping
+  // to its sibling keeps immunity per-session: a day holding the athlete's
+  // ride still gets its engine session fitted normally.
+  const todayWorkout = today.workouts.find((w) => !isAthleteChosen(w)) ?? null;
   if (
     !todayWorkout ||
-    blockFits(today, todayWorkout.blockIdx, todayWorkout.durationMins)
+    blockFits(today, todayWorkout.placement, todayWorkout.durationMins)
   ) {
     return;
   }
@@ -288,7 +300,9 @@ function fitAvailability(
   const before = [
     { ...today, workouts: today.workouts.map((w) => ({ ...w })) },
   ];
-  const block = today.availableBlocks[todayWorkout.blockIdx];
+  const todayBlockIdx = blockIdxOf(todayWorkout.placement);
+  const block =
+    todayBlockIdx == null ? undefined : today.availableBlocks[todayBlockIdx];
   const blockCapacity = block ? blockMins(block) : 0;
   // Only this one session is removed from today's workouts below — any
   // sibling session (a second block, untouched) is left exactly as it
@@ -317,7 +331,7 @@ function fitAvailability(
       ...today,
       workouts: [
         ...remainingToday,
-        { ...fitted.workout, blockIdx: todayWorkout.blockIdx },
+        { ...fitted.workout, placement: todayWorkout.placement },
       ],
       status: "adapted",
     };
@@ -404,7 +418,20 @@ export function adaptDay(input: AdaptDayInput): AdaptDayResult {
   }
 
   const day = week.days[todayIdx];
-  const tWorkout = day.workouts[0] ?? null;
+  // Again the first ENGINE-PLACED session. Readiness adaptation reshapes the
+  // engine's own prescription; the athlete's pick is theirs. Recover records
+  // its disagreement instead (keptNote) and leaves the session standing.
+  const tWorkout = day.workouts.find((w) => !isAthleteChosen(w)) ?? null;
+
+  // Comply out loud. The guards above make Recover leave the athlete's own
+  // pick alone; this is where it says so when it disagrees with the pick.
+  // Emitted before the readiness branch so the note survives every early
+  // return below it.
+  for (const chosen of day.workouts.filter(isAthleteChosen)) {
+    const note = keptNote(day, chosen, input.band);
+    if (note) adjustments.push(note);
+  }
+
   if (tWorkout && (input.band === "red" || input.band === "amber")) {
     // Snapshot the ORIGINAL session before any mutation below — this is
     // what the next run must derive from, not whatever we're about to
@@ -429,7 +456,7 @@ export function adaptDay(input: AdaptDayInput): AdaptDayResult {
       // reason strings below already read the replaced session's own
       // `type`, so nothing here needs to know it was a lift.
       if (isQuality(tWorkout) || tWorkout.purpose === "strength") {
-        if (!blockFits(day, tWorkout.blockIdx, RED_RECOVERY_MINS)) {
+        if (!blockFits(day, tWorkout.placement, RED_RECOVERY_MINS)) {
           // Not even a recovery-length substitute fits today's block — most
           // often reached when the band worsens to red in the same call as
           // an availability collapse (the bandChanging skip above means the

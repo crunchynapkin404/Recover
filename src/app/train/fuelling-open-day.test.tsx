@@ -4,6 +4,7 @@ import { renderToReadableStream } from "react-dom/server";
 import { withPurpose } from "@/lib/training-plan";
 import { mondayOf, addDaysYmd } from "@/lib/week-plan/service";
 import type { DaySlot } from "@/lib/week-plan/types";
+import { blockPlacement } from "@/lib/week-plan/placement";
 
 // Same App Router shims first-run.test.tsx needs — SidebarNav/BottomNav
 // call usePathname/useRouter, which need context this test has none of.
@@ -59,7 +60,7 @@ const recoverySpin = withPurpose({
   durationMins: 45,
   intensity: "Z1",
   description: "easy spin",
-  blockIdx: 0,
+  placement: blockPlacement(0),
 });
 
 const longRide = withPurpose({
@@ -69,7 +70,7 @@ const longRide = withPurpose({
   durationMins: 240,
   intensity: "Z1-Z2",
   description: "long ride",
-  blockIdx: 0,
+  placement: blockPlacement(0),
 });
 
 function emptyDay(date: string): DaySlot {
