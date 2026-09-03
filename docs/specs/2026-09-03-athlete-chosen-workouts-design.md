@@ -28,7 +28,7 @@ and never writes.
   rendered workout out. Derives from `purpose` + `durationMins` + a date seed.
 - `flex.ts` — a workout has no authored duration. One step absorbs ±50%
   (`FLEX_FRACTION`), floored at `FLEX_FLOOR_SECS`, so each workout covers a
-  *range*.
+  _range_.
 - `WorkoutPin` (`src/lib/interval/pin.ts`) — set ONLY on export to a head unit.
 - `ScheduledWorkout.blockIdx` — an index into the day's `availableBlocks`.
 
@@ -37,7 +37,7 @@ and never writes.
 There is **no manual add-session path anywhere in the app**.
 `src/lib/week-plan/service.ts` exposes move, swap and markDayDone; nothing
 creates a session. `unplannedLoad` (`actuals.ts:119`) is written only from a
-*completed activity* on a day the plan did not ask for — post-hoc accounting of
+_completed activity_ on a day the plan did not ask for — post-hoc accounting of
 "you rode anyway", not a way to plan it.
 
 ## Decisions taken, and by whom
@@ -47,12 +47,12 @@ Both forks below were put to the athlete and answered.
 **1. A plan, not just a ride.** A pick writes a real `ScheduledWorkout`. It
 shows on Today and Train, exports to the head unit, and counts toward planned
 load and the race forecast. It carries an athlete-chosen stamp so adaptation
-may *warn* about it but never silently swaps or drops it.
+may _warn_ about it but never silently swaps or drops it.
 
 Rejected: handing over the workout while the plan still says rest, booking load
 to `unplannedLoad` afterwards. Cheaper, but only a small step past what the
 athlete already has — they can already ride on a rest day. The ask is for the
-app to *answer* the day.
+app to _answer_ the day.
 
 **2. The whole library, open, with recommendations inside it.** All 103
 workouts, filterable, every one pickable. Recover marks the ones it would
@@ -70,7 +70,7 @@ athlete's ride and would leave the day reading as available forever after.
 ## Design 1 — The placement type
 
 `ScheduledWorkout` stops carrying a bare `blockIdx` and carries a placement
-that fuses *where it sits* with *who chose it*:
+that fuses _where it sits_ with _who chose it_:
 
 ```ts
 export interface AthleteChoice {
@@ -89,10 +89,10 @@ export type Placement =
 an unrenderable session; fusing deletes that state at compile time. This scope
 is library picks only — not a freehand "add a 60 min run" — so nothing is lost.
 
-**`choice` is not `pin`.** `WorkoutPin` means *this reached a head unit*; its
+**`choice` is not `pin`.** `WorkoutPin` means _this reached a head unit_; its
 four fields exist to answer staleness against a day that moved. Precedence in
 `workoutForDay` becomes **pin → choice → derived**: a workout that was picked
-*and* exported still renders what the device holds, which is the whole reason
+_and_ exported still renders what the device holds, which is the whole reason
 the pin exists.
 
 **Everything else stays derived.** `purpose` comes from the workout; `type` is
@@ -109,12 +109,12 @@ and is updated with the walk.
 
 **The engine reads athlete-placed sessions and never writes them.**
 
-*Reads.* Planned load, the CTL projection, the week's load target, the race
+_Reads._ Planned load, the CTL projection, the week's load target, the race
 forecast, `MAX_SESSIONS_PER_DAY` (still 2) and `isQuality` all see them. The
 engine will therefore decline to place its own Intervals session next to a
 chosen quality session, since quality sessions do not sit on consecutive days.
 
-*Never writes.* Every mutating rung skips them: `replan.ts` (keep/move/drop),
+_Never writes._ Every mutating rung skips them: `replan.ts` (keep/move/drop),
 `adapt-day.ts` (redistribute, shrink, swap, red-recovery), `fill.ts`
 (placement and cap counting), `service.ts` (move, swap).
 
@@ -122,7 +122,7 @@ chosen quality session, since quality sessions do not sit on consecutive days.
 chosen ride still has real availability the engine may legitimately use for its
 own second session; locking the whole day would silently cost the athlete that.
 
-*Instead of writing, it says something.* A rung that would have changed the
+_Instead of writing, it says something._ A rung that would have changed the
 session records an adjustment rather than staying silent. Two union
 extensions:
 
@@ -133,10 +133,10 @@ extensions:
 coach surfaces and logs get it unchanged.
 
 **The known cost.** This is the structured-workouts strand's own open question
-— *"a prescription pinned in the morning and adapted at noon has to
-re-prescribe, or be pinned deliberately and marked stale"* — which that
+— _"a prescription pinned in the morning and adapted at noon has to
+re-prescribe, or be pinned deliberately and marked stale"_ — which that
 document calls "the question most likely to be underestimated". The answer here
-is *pinned deliberately, and the engine argues in the adjustment log*. On a red
+is _pinned deliberately, and the engine argues in the adjustment log_. On a red
 readiness day Recover states its disagreement and leaves the session standing.
 
 ## Design 3 — Storage, back-compat and rollback
@@ -159,7 +159,7 @@ in production carries the old shape**. Three parts:
    `scripts/backfill-day-load.ts`, to normalize existing rows so the dual write
    can be dropped in a later release.
 
-**The rollback hazard, stated plainly.** An *athlete-placed* session has no
+**The rollback hazard, stated plainly.** An _athlete-placed_ session has no
 `blockIdx` by construction, so rolled-back code would read `undefined` and
 `adapt-day.ts:168`'s `blockCapacity = block ? blockMins(block) : 0` would set
 its duration to **0 minutes**. The blast radius is bounded to sessions added
@@ -175,11 +175,11 @@ handles.
 
 A pure `canAddWorkout(day, today) → { ok: true } | { ok: false; reason }`:
 
-| reason | when |
-| --- | --- |
+| reason        | when                                                        |
+| ------------- | ----------------------------------------------------------- |
 | `day_settled` | status is `completed`, `missed` or `race` — historical fact |
-| `day_full` | already at `MAX_SESSIONS_PER_DAY` |
-| `past_day` | the date is before the athlete's local today |
+| `day_full`    | already at `MAX_SESSIONS_PER_DAY`                           |
+| `past_day`    | the date is before the athlete's local today                |
 
 `restIntent: "pre_race"` is **not** a refusal. The athlete asked for agency;
 Recover warns loudly and complies. Same for a red readiness band.
@@ -238,6 +238,31 @@ Contents, in one scrolling list:
   `0.127.0-rc.1` died in the Soak for updating only one.
 - The cycling capture owner (`scripts/seed-cycling-owner.ts`) is the fixture —
   a marathon-plan owner cannot exercise a cycling library.
+
+## What changed during implementation
+
+Recorded because a spec that silently disagrees with the code it produced is
+worse than no spec.
+
+- **`plan_adjustments.trigger` and `.action` are not database enums.** Adding
+  `"athlete_choice"`/`"kept"` first failed to typecheck and looked like it
+  needed a migration. They are plain `text` columns with a Drizzle type-level
+  enum and no check constraint (`drizzle/0012`), so the change is types-only
+  and "Migrations: none" holds.
+- **The fill rung needed no guard.** An athlete-placed session occupies no
+  block, so `if (!block) continue` already skipped it. The guard written for
+  Design 2 was unreachable and was deleted; the behaviour is pinned by a test
+  instead.
+- **Immunity is enforced by taking the first ENGINE-placed session**, not by
+  a `continue` in the readiness and availability rungs — those read
+  `day.workouts[0]`, and skipping to the sibling is what keeps a day's engine
+  session adapting normally alongside the athlete's pick.
+- **The seed had to be changed, not just extended.** The generator fills every
+  day it can reach, so every day it left empty had already passed and
+  `canAddWorkout` refused them all. `seed-cycling-owner.ts` now deliberately
+  clears the last future day holding a session, before its self-checks run.
+- **`recommendWorkouts` takes only a context**, not `(library, context)` as
+  sketched here — it closes over `LIBRARY`, matching `workoutForDay`.
 
 ## Non-goals
 

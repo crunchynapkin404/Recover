@@ -51,7 +51,7 @@
 - Consumes: nothing.
 - Produces: `AthleteChoice`, `Placement`, `blockPlacement(blockIdx: number): Placement`, `athletePlacement(choice: AthleteChoice): Placement`, `isAthleteChosen(w: { placement: Placement }): boolean`, `blockIdxOf(p: Placement): number | null`, `normalizePlacement(raw: unknown): Placement`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 import { describe, it, expect } from "vitest";
@@ -123,12 +123,12 @@ describe("normalizePlacement", () => {
 });
 ```
 
-- [ ] **Step 2: Run the test and watch it fail**
+- [x] **Step 2: Run the test and watch it fail**
 
 Run: `npx vitest run src/lib/week-plan/placement.test.ts`
 Expected: FAIL — `Failed to resolve import "./placement"`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 ```ts
 /**
@@ -193,12 +193,12 @@ export function normalizePlacement(raw: unknown): Placement {
 }
 ```
 
-- [ ] **Step 4: Run the test and the typecheck**
+- [x] **Step 4: Run the test and the typecheck**
 
 Run: `npx vitest run src/lib/week-plan/placement.test.ts && npx tsc --noEmit`
 Expected: PASS, and a clean typecheck.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/week-plan/placement.ts src/lib/week-plan/placement.test.ts
@@ -222,7 +222,7 @@ This task changes no behaviour. It is the compiler-driven walk of all 49 `blockI
 - Consumes: everything Task 1 produced.
 - Produces: `ScheduledWorkout` with `placement: Placement` and no `blockIdx`; `blockFits(d, placement, mins)`.
 
-- [ ] **Step 1: Change the type and let the compiler find the work**
+- [x] **Step 1: Change the type and let the compiler find the work**
 
 In `src/lib/week-plan/types.ts`, replace the `blockIdx` field:
 
@@ -253,12 +253,12 @@ export function blockFits(
 }
 ```
 
-- [ ] **Step 2: Run the typecheck to enumerate every site**
+- [x] **Step 2: Run the typecheck to enumerate every site**
 
 Run: `npx tsc --noEmit 2>&1 | tee /tmp/placement-walk.txt; wc -l /tmp/placement-walk.txt`
 Expected: a long list of errors. This list IS the task. Do not proceed by grep.
 
-- [ ] **Step 3: Fix each site mechanically**
+- [x] **Step 3: Fix each site mechanically**
 
 Three mechanical shapes cover nearly all of them:
 
@@ -277,12 +277,12 @@ const block = idx == null ? undefined : d.availableBlocks[idx];
 Do not change any behaviour in this task. Where a site currently treats a
 missing block as capacity 0 or a null slot, keep exactly that.
 
-- [ ] **Step 4: Run the whole suite and the typecheck**
+- [x] **Step 4: Run the whole suite and the typecheck**
 
 Run: `npx tsc --noEmit && npx vitest run`
 Expected: clean typecheck; the same pass count as before the task (2921 passed without a database).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/week-plan src/lib/training-plan.ts
@@ -304,7 +304,7 @@ git commit -m "Walk every placed session onto Placement — no behaviour change"
 - Consumes: `normalizePlacement`, `blockIdxOf` from Task 1.
 - Produces: `normalizeDays(raw: unknown): DaySlot[]`, `serializeDays(days: DaySlot[]): unknown`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 import { describe, it, expect } from "vitest";
@@ -381,12 +381,12 @@ describe("serializeDays", () => {
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `npx vitest run src/lib/week-plan/serialize.test.ts`
 Expected: FAIL — `Failed to resolve import "./serialize"`.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```ts
 import type { DaySlot, ScheduledWorkout } from "./types";
@@ -431,14 +431,14 @@ export function serializeDays(days: DaySlot[]): unknown {
 }
 ```
 
-- [ ] **Step 4: Wire the read boundary**
+- [x] **Step 4: Wire the read boundary**
 
 In `src/lib/week-plan/service.ts`, `getOpenWeekPlan` currently reads
 `days: row.days as DaySlot[]`. Replace with `days: normalizeDays(row.days)`.
 Then run `grep -rn "as DaySlot\[\]" src/ --include="*.ts" | grep -v '\.test\.'`
 and give every remaining jsonb read the same treatment.
 
-- [ ] **Step 5: Run the suite and typecheck, then commit**
+- [x] **Step 5: Run the suite and typecheck, then commit**
 
 Run: `npx tsc --noEmit && npx vitest run`
 Expected: clean typecheck, all tests pass.
@@ -464,7 +464,7 @@ The spec's whole contract: **the engine reads athlete-placed sessions and never 
 - Consumes: `isAthleteChosen` from Task 1.
 - Produces: no new exports — the rungs consult `isAthleteChosen` directly.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```ts
 import { describe, it, expect } from "vitest";
@@ -542,12 +542,12 @@ neighbouring `adapt-day.test.ts` and `replan.test.ts` already use — read those
 first and copy their week shape rather than inventing one. A fixture that
 cannot distinguish two rules tests neither.
 
-- [ ] **Step 2: Run and watch them fail**
+- [x] **Step 2: Run and watch them fail**
 
 Run: `npx vitest run src/lib/week-plan/immunity.test.ts`
 Expected: FAIL — the chosen session is shrunk to 0 and dropped.
 
-- [ ] **Step 3: Add the skip to every mutating rung**
+- [x] **Step 3: Add the skip to every mutating rung**
 
 At the top of each loop that resizes, moves or drops a session:
 
@@ -565,12 +565,12 @@ asked to move an athlete-placed session: the athlete moves it by removing and
 re-adding, and a drag that silently re-placed it into an availability block
 would convert a choice back into an engine session.
 
-- [ ] **Step 4: Run the tests, the whole suite, and the typecheck**
+- [x] **Step 4: Run the tests, the whole suite, and the typecheck**
 
 Run: `npx vitest run && npx tsc --noEmit`
 Expected: all pass.
 
-- [ ] **Step 5: Commit, THEN mutation-test the guard**
+- [x] **Step 5: Commit, THEN mutation-test the guard**
 
 Commit first — `git checkout` on an uncommitted file discards the work, not the mutation.
 
@@ -602,7 +602,7 @@ missing test before moving on.
 - Consumes: `isAthleteChosen`, `AdjustmentRecord`.
 - Produces: `keptNote(day: DaySlot, w: ScheduledWorkout, band: Band): AdjustmentRecord | null`.
 
-- [ ] **Step 1: Extend the unions**
+- [x] **Step 1: Extend the unions**
 
 ```ts
 export type AdjustmentTrigger =
@@ -626,7 +626,7 @@ export type AdjustmentAction =
   | "kept";
 ```
 
-- [ ] **Step 2: Write the failing test**
+- [x] **Step 2: Write the failing test**
 
 ```ts
 import { describe, it, expect } from "vitest";
@@ -681,7 +681,7 @@ describe("keptNote", () => {
 });
 ```
 
-- [ ] **Step 3: Run it, watch it fail, implement, run again**
+- [x] **Step 3: Run it, watch it fail, implement, run again**
 
 Run: `npx vitest run src/lib/week-plan/kept-note.test.ts`
 
@@ -690,12 +690,12 @@ of the disagreement conditions holds: a `red` band on a quality session
 (`isQuality`), or `restIntent === "pre_race"`. `before` and `after` are the
 same day — nothing changed, which is the point.
 
-- [ ] **Step 4: Call it from `adaptDay`**
+- [x] **Step 4: Call it from `adaptDay`**
 
 Where each rung skips an athlete session, push `keptNote(...)` onto the
 adjustments array when it returns non-null.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/week-plan
@@ -716,7 +716,7 @@ git commit -m "The engine records what it would have changed, and did not"
 - Consumes: `DaySlot`, `MAX_SESSIONS_PER_DAY`, `athletePlacement`, `LIBRARY`, `PURPOSE_BY_TYPE`.
 - Produces: `type AddRefusal = "day_settled" | "day_full" | "past_day" | "unknown_workout" | "duration_out_of_range"`, `canAddWorkout(day, todayYmd): { ok: true } | { ok: false; reason: AddRefusal }`, `buildChosenSession(workoutId, durationMins, dayIdx, nowIso): ScheduledWorkout | null`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 import { describe, it, expect } from "vitest";
@@ -805,13 +805,13 @@ describe("buildChosenSession", () => {
 });
 ```
 
-- [ ] **Step 2: Run, fail, implement, pass**
+- [x] **Step 2: Run, fail, implement, pass**
 
 `buildChosenSession` looks the workout up in `LIBRARY`, calls `resolve` from
 `flex.ts` to confirm the duration is reachable, inverts `PURPOSE_BY_TYPE` to
 get `type`, and sets `description: ""` because `renderDescription` owns it.
 
-- [ ] **Step 3: Typecheck and commit**
+- [x] **Step 3: Typecheck and commit**
 
 ```bash
 git add src/lib/week-plan/add-chosen.ts src/lib/week-plan/add-chosen.test.ts
@@ -832,7 +832,7 @@ git commit -m "Eligibility and construction for an athlete-chosen session"
 - Consumes: `LIBRARY`, `LibraryWorkout`, `Band`.
 - Produces: `interface RecommendContext { band: Band; daysSinceQuality: number; weekLoadFraction: number; recentFamilies: readonly string[] }`, `interface Recommendation { workoutId: string; rank: number; why: string }`, `recommendWorkouts(ctx: RecommendContext): Recommendation[]`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 import { describe, it, expect } from "vitest";
@@ -885,7 +885,7 @@ describe("recommendWorkouts", () => {
 });
 ```
 
-- [ ] **Step 2: Run, fail, implement**
+- [x] **Step 2: Run, fail, implement**
 
 Score each workout, sort descending, ties broken by `id` so the result is
 deterministic. **Every weight is a new constant and must carry the full
@@ -909,14 +909,14 @@ Do not introduce a weight whose justification is only "it looked right".
 If a factor cannot be sourced, leave it out — the library is already ranked
 usefully by band and recency alone.
 
-- [ ] **Step 3: Guard the prose**
+- [x] **Step 3: Guard the prose**
 
 `renderDescription`'s output and every `why` become text the athlete reads.
 Add to the existing prose check pattern in `src/lib/interval/purity-guard.test.ts`
 (which strips comments before matching) an assertion that no `why` produced
 here contains "watt" — targets are % of FTP.
 
-- [ ] **Step 4: Typecheck and commit**
+- [x] **Step 4: Typecheck and commit**
 
 ```bash
 git add src/lib/interval/recommend.ts src/lib/interval/recommend.test.ts src/lib/interval/purity-guard.test.ts
@@ -938,7 +938,7 @@ git commit -m "Rank the library for a day without filtering it"
 - Consumes: `canAddWorkout`, `buildChosenSession`, `serializeDays`, `getOpenWeekPlan`.
 - Produces: `addChosenWorkout(userId, date, workoutId, durationMins): Promise<Result>`, `removeChosenWorkout(userId, date, workoutId): Promise<Result>`, and the two server actions wrapping them.
 
-- [ ] **Step 1: Write the failing database test**
+- [x] **Step 1: Write the failing database test**
 
 Model it on the existing db-backed tests in `src/lib/week-plan/service.test.ts`
 (they skip without `DATABASE_URL`). Cover: a chosen session lands on the day
@@ -946,7 +946,7 @@ and survives a re-read; `canAddWorkout`'s refusals are honoured server-side, not
 only in the UI; removing takes the session off and leaves the day empty;
 adding twice to the same day hits `day_full` on the third.
 
-- [ ] **Step 2: Implement**
+- [x] **Step 2: Implement**
 
 `addChosenWorkout` reads the open week, finds the day by date, runs
 `canAddWorkout`, builds the session, appends it, and writes through
@@ -956,7 +956,7 @@ whole point of the feature.
 The server action re-validates the date shape and the user exactly as
 `setDayOverride` does, then calls `revalidatePlan()`.
 
-- [ ] **Step 3: Run with a database, typecheck, commit**
+- [x] **Step 3: Run with a database, typecheck, commit**
 
 Run: `DATABASE_URL=postgres://…@localhost:5434/recover npx vitest run src/lib/week-plan && npx tsc --noEmit`
 
@@ -977,7 +977,7 @@ git commit -m "Add and remove an athlete-chosen session without touching availab
 - Create: `src/components/train/workout-picker-sheet.tsx`
 - Test: `src/components/train/workout-picker-sheet.test.tsx`
 
-- [ ] **Step 1: Write the failing component test**
+- [x] **Step 1: Write the failing component test**
 
 Follow the testing-library style in `src/components/train/plan-preview-card.test.tsx`.
 Cover: all 103 workouts render behind their filters; the recommended group is
@@ -985,13 +985,13 @@ marked and is not a separate screen; a `pre_race` warning renders on the pick
 control; a workout with no FTP set shows percentages and says targets cannot be
 shown in watts; the duration control is bounded by the workout's flex range.
 
-- [ ] **Step 2: Implement**
+- [x] **Step 2: Implement**
 
 `LIBRARY` is 103 workouts of data — **resolve it in a server component and pass
 down only what the sheet renders**, exactly as `for-day.ts`'s doc comment
 demands, so the library stays out of the client bundle.
 
-- [ ] **Step 3: Typecheck, lint, commit**
+- [x] **Step 3: Typecheck, lint, commit**
 
 Run: `npx tsc --noEmit && npx eslint src --max-warnings=0`
 
@@ -1009,9 +1009,9 @@ git commit -m "The library picker: everything pickable, recommendations marked"
 - Modify: `src/components/train/week-day-list.tsx`
 - Modify: `src/app/page.tsx` (Today)
 
-- [ ] **Step 1: Write the failing tests** — an eligible empty day offers the picker; a settled, full or past day does not.
-- [ ] **Step 2: Implement**, calling `canAddWorkout` for the affordance so the UI and the server agree on one predicate.
-- [ ] **Step 3: Typecheck, lint, run the suite, commit.**
+- [x] **Step 1: Write the failing tests** — an eligible empty day offers the picker; a settled, full or past day does not.
+- [x] **Step 2: Implement**, calling `canAddWorkout` for the affordance so the UI and the server agree on one predicate.
+- [x] **Step 3: Typecheck, lint, run the suite, commit.**
 
 ---
 
@@ -1023,21 +1023,21 @@ git commit -m "The library picker: everything pickable, recommendations marked"
 - Modify: `.github/workflows/surfaces.yml` AND `.github/workflows/soak.yml`
 - Modify: `scripts/seed-cycling-owner.ts`
 
-- [ ] **Step 1: Add a `train-workout-picker` surface** to the `SURFACES` map.
-- [ ] **Step 2: Add it to `$CYCLING_SURFACES`** — a marathon-plan owner cannot exercise a cycling library, which is why `capture-cycling` exists.
-- [ ] **Step 3: Add it to the `--except` list in BOTH workflow files.** `0.127.0-rc.1` died in the Soak for updating only one. Verify with:
+- [x] **Step 1: Add a `train-workout-picker` surface** to the `SURFACES` map.
+- [x] **Step 2: Add it to `$CYCLING_SURFACES`** — a marathon-plan owner cannot exercise a cycling library, which is why `capture-cycling` exists.
+- [x] **Step 3: Add it to the `--except` list in BOTH workflow files.** `0.127.0-rc.1` died in the Soak for updating only one. Verify with:
 
 ```bash
 grep -n "except" .github/workflows/surfaces.yml .github/workflows/soak.yml
 ```
 
-- [ ] **Step 4: Seed a chosen session** in `scripts/seed-cycling-owner.ts` so the capture photographs a placed athlete session and not just the empty picker. A capture that passes over a state nobody has is not evidence.
-- [ ] **Step 5: Run the capture locally and confirm the ratchet holds at 0.**
+- [x] **Step 4: Seed a chosen session** in `scripts/seed-cycling-owner.ts` so the capture photographs a placed athlete session and not just the empty picker. A capture that passes over a state nobody has is not evidence.
+- [x] **Step 5: Run the capture locally and confirm the ratchet holds at 0.**
 
 Per memory, local capture needs the standalone server with `BETTER_AUTH_URL`
 matching the port — `next start` silently breaks sign-in.
 
-- [ ] **Step 6: Commit.**
+- [x] **Step 6: Commit.**
 
 ---
 
@@ -1047,8 +1047,8 @@ matching the port — `next start` silently breaks sign-in.
 
 - Create: `scripts/backfill-placement.ts`
 
-- [ ] **Step 1: Write it** following `scripts/backfill-day-load.ts`: read every `week_plans` row, run `normalizeDays`, write back through `serializeDays`, report counts, and be idempotent.
-- [ ] **Step 2: Dry-run it against the dev database on :5434, then commit.**
+- [x] **Step 1: Write it** following `scripts/backfill-day-load.ts`: read every `week_plans` row, run `normalizeDays`, write back through `serializeDays`, report counts, and be idempotent.
+- [x] **Step 2: Dry-run it against the dev database on :5434, then commit.**
 
 ---
 
@@ -1058,10 +1058,10 @@ matching the port — `next start` silently breaks sign-in.
 
 - Modify: `CHANGELOG.md`, `docs/ROADMAP.md`, `README.md` if the release version moves
 
-- [ ] **Step 1: Write the CHANGELOG entry** in this repo's voice: what the athlete will notice, then "Under the hood", then a `**Migrations:**` line (none — the jsonb shape changes are handled by the normalizer and the backfill script).
-- [ ] **Step 2: State the rollback hazard explicitly** — an athlete-placed session read by rolled-back v0.135.0 code has no `blockIdx` and would be scaled to 0 minutes. Blast radius: sessions added between deploy and rollback.
-- [ ] **Step 3: Add the strand to `docs/ROADMAP.md`** under Phase 6 (Experience) — this is demand-pillar work, requested verbatim by the athlete, and it is not Phase 7.
-- [ ] **Step 4: `npm run format:check`**, then commit.
+- [x] **Step 1: Write the CHANGELOG entry** in this repo's voice: what the athlete will notice, then "Under the hood", then a `**Migrations:**` line (none — the jsonb shape changes are handled by the normalizer and the backfill script).
+- [x] **Step 2: State the rollback hazard explicitly** — an athlete-placed session read by rolled-back v0.135.0 code has no `blockIdx` and would be scaled to 0 minutes. Blast radius: sessions added between deploy and rollback.
+- [x] **Step 3: Add the strand to `docs/ROADMAP.md`** under Phase 6 (Experience) — this is demand-pillar work, requested verbatim by the athlete, and it is not Phase 7.
+- [x] **Step 4: `npm run format:check`**, then commit.
 
 ---
 
