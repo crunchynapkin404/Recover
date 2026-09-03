@@ -7,6 +7,7 @@
 import { describe, expect, it } from "vitest";
 import { adaptDay } from "./adapt-day";
 import { replanWeek } from "./replan";
+import { fillWeek } from "./fill";
 import { dayMins } from "./types";
 import type { DaySlot, ScheduledWorkout, WeekState } from "./types";
 import { withPurpose } from "@/lib/training-plan";
@@ -64,6 +65,55 @@ const chosen = (durationMins = 75): Partial<ScheduledWorkout> => ({
 
 /** No resolved availability anywhere — the week the drop rung would empty. */
 const noAvailability = (): Map<string, AvailabilityBlock[]> => new Map();
+
+describe("the fill rung never grows an athlete-chosen session", () => {
+  it("leaves it at the length the athlete set, even under a week target", () => {
+    // No explicit isAthleteChosen guard is needed in fill's growth loop: the
+    // session occupies no block, so `if (!block) continue` already skips it.
+    // This test pins that BEHAVIOUR so the protection survives any future
+    // refactor of how the growth loop resolves its block — a redundant guard
+    // would be dead code, but the behaviour it protects is load-bearing.
+    const d = [
+      {
+        date: "2026-08-03",
+        availableBlocks: [
+          {
+            start: null,
+            end: null,
+            mins: 240,
+            energy: "full" as const,
+            sports: null,
+          },
+        ],
+        availableMins: 240,
+        workouts: [
+          // Endurance deliberately: fillCeilingMins returns null for
+          // vo2max, so a quality pick would be skipped by the ceiling check
+          // before ever reaching the block check this test is about.
+          withPurpose({
+            day: 0,
+            sport: "Bike",
+            type: "Endurance",
+            durationMins: 75,
+            intensity: "Z1-Z2",
+            description: "",
+            placement: athletePlacement({
+              workoutId: "end-2h",
+              chosenAt: "2026-09-03T07:00:00.000Z",
+            }),
+          }),
+        ],
+        status: "planned" as const,
+      },
+    ];
+    const out = fillWeek(d, {
+      targetMins: 600,
+      queenStageHours: null,
+      today: "2026-08-03",
+    });
+    expect(out.days[0].workouts[0].durationMins).toBe(75);
+  });
+});
 
 describe("athlete-chosen sessions are immune to every mutating rung", () => {
   it("keeps its duration when redistribution would have starved it to zero", () => {

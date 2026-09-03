@@ -16,7 +16,7 @@ import {
 } from "@/lib/training-plan";
 import { TYPE_BY_PURPOSE, admits, buildSlots } from "./slots";
 import type { AdjustmentRecord, DaySlot } from "./types";
-import { blockIdxOf, blockPlacement, isAthleteChosen } from "./placement";
+import { blockIdxOf, blockPlacement } from "./placement";
 
 /**
  * How long fill may make a session of this purpose, in this sport — or null
@@ -225,10 +225,6 @@ export function fillWeek(
 
     for (let j = 0; j < day.workouts.length && planned < opts.targetMins; j++) {
       const workout = day.workouts[j];
-      // The fill rung grows the engine's own sessions into room their blocks
-      // gained. The athlete set this one's length deliberately; growing it
-      // toward a week target they never asked about is the engine writing.
-      if (isAthleteChosen(workout)) continue;
       const ceiling = fillCeilingMins(
         workout.purpose,
         workout.sport,
@@ -239,6 +235,12 @@ export function fillWeek(
       const wBlockIdx = blockIdxOf(workout.placement);
       const block =
         wBlockIdx == null ? undefined : day.availableBlocks[wBlockIdx];
+      // Also how an athlete-chosen session escapes growth: it occupies no
+      // block, so there is no room for it to grow INTO. No explicit
+      // isAthleteChosen guard here — it would be unreachable, and this repo
+      // removes dead branches rather than keeping them. The behaviour is
+      // pinned by immunity.test.ts's "never grows an athlete-chosen session",
+      // which goes red if this resolution ever falls back to another block.
       if (!block) continue;
 
       const grown = Math.min(
