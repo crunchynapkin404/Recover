@@ -33,6 +33,11 @@ import type { ReentryStage, SeasonMode } from "@/lib/season-mode/types";
 import { resolvePlanningSurfaceState } from "@/lib/planning-surface/effective-state";
 import type { Figure } from "@/lib/uncertainty";
 import { blockPlacement, isAthleteChosen } from "./placement";
+import {
+  buildChosenSession,
+  canAddWorkout,
+  type AddRefusal,
+} from "./add-chosen";
 import { normalizeDays, serializeDays } from "./serialize";
 
 export type AdjustmentRow = typeof schema.planAdjustments.$inferSelect;
@@ -1013,4 +1018,110 @@ export async function markDayDone(
     .set({ days: serializeDays(days), updatedAt: new Date() })
     .where(eq(schema.weekPlans.id, week.id));
   return "completed";
+}
+
+/**
+ * Place a workout the athlete chose from the library on a day the engine
+ * left empty.
+ *
+ * IT WRITES NO AVAILABILITY. Availability is the auto-assigner's input —
+ * "when Recover may place things" — and a session the athlete picked is not
+ * the auto-assigner's business. Writing a synthetic block to hold it would
+ * let the fill rung stack a second session into the athlete's own ride and
+ * would leave the day reading as available forever after. This is the
+ * athlete's own correction, and it is the reason Placement is a union rather
+ * than a nullable index.
+ *
+ * Re-validates canAddWorkout server-side rather than trusting the caller:
+ * the UI hides the affordance, but the affordance is not the gate.
+ */
+export async function addChosenWorkout(
+  userId: string,
+  date: string,
+  workoutId: string,
+  durationMins: number,
+  todayYmd: string,
+  now: Date = new Date()
+): Promise<"added" | "no_open_week" | "invalid" | AddRefusal> {
+  const week = await getOpenWeekPlan(userId);
+  if (!week) return "no_open_week";
+  const idx = week.days.findIndex((d) => d.date === date);
+  if (idx === -1) return "invalid";
+
+  const verdict = canAddWorkout(week.days[idx], todayYmd);
+  if (!verdict.ok) return verdict.reason;
+
+  const session = buildChosenSession(
+    workoutId,
+    durationMins,
+    idx,
+    now.toISOString()
+  );
+  if (!session) return "invalid";
+
+  const days = week.days.map((d) => ({
+    ...d,
+    workouts: d.workouts.map((w) => ({ ...w })),
+  }));
+  days[idx] = {
+    ...days[idx],
+    workouts: [...days[idx].workouts, session],
+    // A day that was resting is now planned. A day already holding an engine
+    // session keeps whatever status it had — this session did not change it.
+    status: days[idx].workouts.length === 0 ? "planned" : days[idx].status,
+    // The athlete overrode the engine's rest intent by choosing. Clearing it
+    // stops fill.ts refusing the day forever after; keptNote has already
+    // recorded that Recover disagreed.
+    restIntent: undefined,
+  };
+
+  await db
+    .update(schema.weekPlans)
+    .set({ days: serializeDays(days), updatedAt: now })
+    .where(eq(schema.weekPlans.id, week.id));
+  return "added";
+}
+
+/**
+ * Take an athlete-chosen session back off a day.
+ *
+ * Only ever removes an ATHLETE-placed session: an engine session is the
+ * plan's, and removing it here would be a silent, unlogged drop of exactly
+ * the kind replan.ts records adjustments for.
+ */
+export async function removeChosenWorkout(
+  userId: string,
+  date: string,
+  workoutId: string
+): Promise<"removed" | "no_open_week" | "invalid"> {
+  const week = await getOpenWeekPlan(userId);
+  if (!week) return "no_open_week";
+  const idx = week.days.findIndex((d) => d.date === date);
+  if (idx === -1) return "invalid";
+
+  const day = week.days[idx];
+  const keep = day.workouts.filter(
+    (w) =>
+      !(
+        w.placement.kind === "athlete" &&
+        w.placement.choice.workoutId === workoutId
+      )
+  );
+  if (keep.length === day.workouts.length) return "invalid";
+
+  const days = week.days.map((d) => ({
+    ...d,
+    workouts: d.workouts.map((w) => ({ ...w })),
+  }));
+  days[idx] = {
+    ...days[idx],
+    workouts: keep,
+    status: keep.length === 0 ? "rest" : days[idx].status,
+  };
+
+  await db
+    .update(schema.weekPlans)
+    .set({ days: serializeDays(days), updatedAt: new Date() })
+    .where(eq(schema.weekPlans.id, week.id));
+  return "removed";
 }
