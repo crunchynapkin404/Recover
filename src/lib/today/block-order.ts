@@ -20,6 +20,7 @@ export type TodayBlockKey =
   | "heroCompact"
   | "heroRecap"
   | "calibration"
+  | "anchorPrompt"
   | "vitals"
   | "week"
   | "session"
@@ -81,10 +82,21 @@ export function blockConcept(key: TodayBlockKey): string {
   return VARIANT_FAMILY[key] ?? key;
 }
 
+/**
+ * anchorPrompt sits beside calibration because both answer "why is this
+ * number soft?" — calibration says "not enough history yet", the prompt says
+ * "no anchor to compute against". It renders null when nothing is missing,
+ * so its place in every state costs an anchored athlete nothing: the same
+ * argument dayLog and bedtime carry above.
+ *
+ * NOT in MOMENT_ONLY. An unset threshold pace is not a time of day, so
+ * "REORDER, NEVER HIDE" applies to it in full.
+ */
 export const BLOCK_ORDER: Record<TodayState, readonly TodayBlockKey[]> = {
   morning: [
     "heroFull",
     "calibration",
+    "anchorPrompt",
     "vitals",
     "week",
     "session",
@@ -103,6 +115,7 @@ export const BLOCK_ORDER: Record<TodayState, readonly TodayBlockKey[]> = {
     "heroCompact",
     "sessionDone",
     "calibration",
+    "anchorPrompt",
     "vitals",
     "week",
     "debriefChip",
@@ -118,6 +131,7 @@ export const BLOCK_ORDER: Record<TodayState, readonly TodayBlockKey[]> = {
     "bedtime",
     "coach",
     "calibration",
+    "anchorPrompt",
     "vitals",
     "week",
     "session",
@@ -135,6 +149,9 @@ export const BLOCK_ORDER: Record<TodayState, readonly TodayBlockKey[]> = {
 export const MORNING_LEFT_COLUMN: ReadonlySet<TodayBlockKey> = new Set([
   "heroFull",
   "calibration",
+  // Beside calibration, for the reason BLOCK_ORDER gives: the two answer the
+  // same question and the morning grid must not split them across columns.
+  "anchorPrompt",
   "vitals",
   "week",
 ] as const);

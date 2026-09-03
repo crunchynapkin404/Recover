@@ -328,7 +328,7 @@ export function ChatInterface({
             configure a local Ollama endpoint in Settings.
           </p>
           <Link
-            href="/settings"
+            href="/settings?open=coach#coach"
             className="inline-flex items-center justify-center gap-2 rounded-2xl bg-accent px-6 py-3 font-bold text-accent-foreground transition-colors hover:bg-accent/90"
           >
             Configure AI Coach

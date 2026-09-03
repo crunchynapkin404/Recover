@@ -195,7 +195,10 @@ describe("racePacing — when it refuses", () => {
     expect(r.available).toBe(false);
     if (r.available || r.kind !== "missing_input") return;
     expect(r.needs).toMatch(/FTP/i);
-    expect(r.fix?.href).toBeTruthy();
+    // The FIELD, not the page. `toBeTruthy()` passed against bare /settings,
+    // which put the athlete at the top of the app's longest surface with the
+    // drawer they needed closed and badged "FTP 250" — reading as done.
+    expect(r.fix?.href).toBe("/settings?open=baselines#ftp-outdoor");
   });
 
   it("refuses a run with no threshold pace, and offers a fix", () => {
@@ -211,7 +214,9 @@ describe("racePacing — when it refuses", () => {
     expect(r.available).toBe(false);
     if (r.available || r.kind !== "missing_input") return;
     expect(r.needs).toMatch(/pace/i);
-    expect(r.fix?.href).toBeTruthy();
+    // Its own field, not the FTP one — both anchors shared a single link
+    // that named neither.
+    expect(r.fix?.href).toBe("/settings?open=baselines#threshold-pace");
   });
 
   it("refuses with no distance", () => {

@@ -102,8 +102,25 @@ const MULTI_DAY_WHY =
   "total across all of them — a single sustainable effort for that total " +
   "would not describe any of the days.";
 
-/** Where an athlete sets both anchors: BodyPrefsCard on /settings. */
-const ANCHOR_FIX = { label: "Set it", href: "/settings" };
+/**
+ * Where an athlete sets each anchor: BodyPrefsCard on /settings.
+ *
+ * The SECTION and the FIELD, not the page. `?open=` opens the collapsed
+ * section and the fragment scrolls to the input — both existed, and neither
+ * was used here, so "Set it" landed 7.8 screens from the thing it named,
+ * behind a badge that read "FTP 250" whether or not a pace was set.
+ *
+ * Two constants rather than one, because one link that fits both anchors
+ * names neither.
+ */
+const FTP_FIX = {
+  label: "Set it",
+  href: "/settings?open=baselines#ftp-outdoor",
+};
+const PACE_FIX = {
+  label: "Set it",
+  href: "/settings?open=baselines#threshold-pace",
+};
 
 const RUN_WHY =
   "Assumes an even effort at the pace Riegel's endurance model predicts for " +
@@ -127,7 +144,7 @@ export function racePacing(input: PacingInput): Figure<PacingTarget> {
       return Figure.missingInput("this race's distance");
     }
     if (ftpWatts == null || !(ftpWatts > 0)) {
-      return Figure.missingInput("your FTP", ANCHOR_FIX);
+      return Figure.missingInput("your FTP", FTP_FIX);
     }
     const hours = estimateRidingHours({
       distanceKm,
@@ -173,7 +190,7 @@ export function racePacing(input: PacingInput): Figure<PacingTarget> {
     }
     const secPerKm = input.thresholdPaceSecPerKm;
     if (secPerKm == null || !(secPerKm > 0)) {
-      return Figure.missingInput("your threshold pace", ANCHOR_FIX);
+      return Figure.missingInput("your threshold pace", PACE_FIX);
     }
     const hours = estimateRunningHours({
       distanceKm,
