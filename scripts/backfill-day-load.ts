@@ -40,7 +40,11 @@ import { dedupeActivities, type LoadActivity } from "../src/lib/training-load";
 import { canonicalSport, sportMatches } from "../src/lib/canonical-sport";
 import { bookDayLoad } from "../src/lib/week-plan/actuals";
 import type { DaySlot } from "../src/lib/week-plan/types";
-import { normalizeDays, serializeDays } from "@/lib/week-plan/serialize";
+// Relative, not "@/" — tsx run standalone does not resolve the path alias.
+import {
+  normalizeDays,
+  serializeDays,
+} from "../src/lib/week-plan/serialize";
 
 interface Change {
   weekStart: string;
