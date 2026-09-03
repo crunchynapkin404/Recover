@@ -555,6 +555,7 @@ async function expandSettingsSections(page: Page): Promise<void> {
     "Your baselines",
     "AI & Coach",
     "Advanced / API",
+    "Security",
     "App",
     "Data",
   ]) {

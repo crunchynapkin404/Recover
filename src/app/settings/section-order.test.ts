@@ -27,15 +27,34 @@ function capturedSections(): string[] {
 }
 
 describe("settings sections", () => {
-  it("renders the six sections in the intended order", () => {
+  it("renders the seven sections in the intended order", () => {
     expect(renderedSections()).toEqual([
       "Integrations",
       "Your baselines",
       "AI & Coach",
       "Advanced / API",
+      "Security",
       "App",
       "Data",
     ]);
+  });
+
+  // Signing another device out is a security action, not an advanced one —
+  // the IA inventory's finding. "Advanced / API" predicts tokens and
+  // webhooks, which is what it keeps; it did not predict the control an
+  // athlete reaches for when they lose a phone.
+  it("keeps sessions out of Advanced, where a security control was buried", () => {
+    const at = (needle: string) => PAGE.indexOf(needle);
+    const advanced = at("triggerLabelClass}>Advanced / API<");
+    const security = at("triggerLabelClass}>Security<");
+    const sessions = at("<SessionsCard");
+    const app = at("triggerLabelClass}>App<");
+
+    expect(security).toBeGreaterThan(-1);
+    expect(advanced).toBeLessThan(security);
+    // The card sits inside Security, which sits before App.
+    expect(sessions).toBeGreaterThan(security);
+    expect(sessions).toBeLessThan(app);
   });
 
   // The reason this file exists. expandSettingsSections hardcodes the labels
