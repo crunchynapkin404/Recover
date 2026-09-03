@@ -94,7 +94,9 @@ describe("WeekDayList — the Add a ride link", () => {
         days={REST_DAYS}
         today="2026-08-01"
         openDate="2026-08-01"
-        addRideHref={{ "2026-08-01": "/train?sheet=pick-workout&day=2026-08-01" }}
+        addRideHref={{
+          "2026-08-01": "/train?sheet=pick-workout&day=2026-08-01",
+        }}
       />
     );
     expect(html).toContain("Add a ride");
@@ -131,7 +133,9 @@ describe("WeekDayList — the Add a ride link", () => {
         days={[slot("2026-08-01", "planned", tempo)]}
         today="2026-08-01"
         openDate="2026-08-01"
-        addRideHref={{ "2026-08-01": "/train?sheet=pick-workout&day=2026-08-01" }}
+        addRideHref={{
+          "2026-08-01": "/train?sheet=pick-workout&day=2026-08-01",
+        }}
       />
     );
     expect(html).not.toContain("Add a ride");
@@ -143,7 +147,9 @@ describe("WeekDayList — the Add a ride link", () => {
         days={REST_DAYS}
         today="2026-08-01"
         openDate="2026-08-01"
-        addRideHref={{ "2026-08-01": "/train?sheet=pick-workout&day=2026-08-01" }}
+        addRideHref={{
+          "2026-08-01": "/train?sheet=pick-workout&day=2026-08-01",
+        }}
       />
     );
     expect(html).toContain("Rest");
