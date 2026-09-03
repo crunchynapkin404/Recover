@@ -65,6 +65,37 @@ describe("recommendWorkouts", () => {
     );
   });
 
+  it("does not stack the top of the list with one family", () => {
+    // Found by opening the capture: with the week over target, every
+    // endurance workout scored identically and the id tie-break put four
+    // near-identical "High Cadence" variants in the recommended five. A
+    // recommendation list that repeats itself reads as broken, and the
+    // library's own rotation rule is FAMILY, not id.
+    const top5 = recommendWorkouts({ ...base, weekLoadFraction: 1.4 }).slice(
+      0,
+      5
+    );
+    const families = top5.map((r) => familyOf(r.workoutId));
+    expect(new Set(families).size).toBe(families.length);
+  });
+
+  it("exhausts a purpose's families before repeating one", () => {
+    // The real invariant, and the honest bound. A red band promotes recovery
+    // above everything else, and recovery has exactly FOUR families — so the
+    // top four are one per family and the fifth necessarily repeats. An
+    // earlier version of this test demanded five distinct families here and
+    // was asserting something the library cannot deliver.
+    const recoveryFamilies = new Set(
+      LIBRARY.filter((w) => w.purpose === "recovery").map((w) => w.family)
+    ).size;
+    const top = recommendWorkouts({ ...base, band: "red" }).slice(
+      0,
+      recoveryFamilies
+    );
+    const families = top.map((r) => familyOf(r.workoutId));
+    expect(new Set(families).size).toBe(recoveryFamilies);
+  });
+
   it("is deterministic", () => {
     expect(recommendWorkouts(base)).toEqual(recommendWorkouts(base));
   });

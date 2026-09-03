@@ -6,6 +6,7 @@ import {
   type PickActionResult,
 } from "@/app/train/pick-workout-actions";
 import type { PickerWorkout } from "@/lib/interval/picker";
+import { WorkoutProfile } from "./workout-profile";
 
 /** How many rows carry the "Recommended today" marker. */
 const RECOMMENDED_COUNT = 5;
@@ -17,37 +18,6 @@ const PURPOSE_LABEL: Record<string, string> = {
   threshold: "Threshold",
   vo2max: "VO₂max",
 };
-
-/** The interval shape, drawn from geometry render-profile.ts already computed. */
-function Profile({ bars }: { bars: PickerWorkout["profile"] }) {
-  const top = Math.max(120, ...bars.map((b) => b.hi));
-  return (
-    <svg
-      viewBox="0 0 100 24"
-      preserveAspectRatio="none"
-      className="h-6 w-full"
-      role="img"
-      aria-label="Interval profile"
-    >
-      {bars.map((b, i) => (
-        <rect
-          key={i}
-          x={b.x}
-          width={b.w}
-          y={24 - (b.hi / top) * 24}
-          height={(b.hi / top) * 24}
-          fill={
-            b.hi >= 95
-              ? "var(--chart-4)"
-              : b.hi >= 80
-                ? "var(--chart-2)"
-                : "var(--chart-1)"
-          }
-        />
-      ))}
-    </svg>
-  );
-}
 
 /**
  * The library picker: every workout, ordered for this day.
@@ -217,7 +187,7 @@ export function WorkoutPicker({
                     Recommended today
                   </span>
                 )}
-                <Profile bars={w.profile} />
+                <WorkoutProfile bars={w.profile} label={w.description} />
                 <span className="text-caption text-ink-muted">
                   {w.description}
                 </span>

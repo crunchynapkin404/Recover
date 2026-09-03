@@ -180,8 +180,27 @@ function why(w: LibraryWorkout, ctx: RecommendContext): string {
  * and never renumbered.
  */
 export function recommendWorkouts(ctx: RecommendContext): Recommendation[] {
-  return [...LIBRARY]
-    .map((w) => ({ w, s: score(w, ctx) }))
-    .sort((a, b) => b.s - a.s || (a.w.id < b.w.id ? -1 : 1))
+  // A family's Nth-best workout, counted over the library's own id order.
+  // Sorting on this AHEAD of id is what stops one family filling the top of
+  // the list: every family's best offer is ranked before any family's second.
+  //
+  // Found by opening the capture, not by a test. With the week over target
+  // every endurance workout scored identically, the id tie-break took over,
+  // and the recommended five were four near-identical "High Cadence"
+  // variants — a list that repeats itself reads as broken however correct
+  // each row is. library.ts already states the principle for the engine's own
+  // rotation: it "avoids repeating a FAMILY, not merely an id", because
+  // purpose and duration alone collapse 100 workouts onto two axes.
+  const seen = new Map<string, number>();
+  const withRotation = [...LIBRARY]
+    .sort((a, b) => (a.id < b.id ? -1 : 1))
+    .map((w) => {
+      const n = seen.get(w.family) ?? 0;
+      seen.set(w.family, n + 1);
+      return { w, s: score(w, ctx), nth: n };
+    });
+
+  return withRotation
+    .sort((a, b) => b.s - a.s || a.nth - b.nth || (a.w.id < b.w.id ? -1 : 1))
     .map(({ w }, i) => ({ workoutId: w.id, rank: i, why: why(w, ctx) }));
 }
